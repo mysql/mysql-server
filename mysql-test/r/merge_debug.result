@@ -1,0 +1,26 @@
+set @default_storage_engine= @@global.storage_engine;
+set global storage_engine=myisam;
+set session storage_engine=myisam;
+drop table if exists crashed,t2,t3,t4;
+SET @orig_debug=@@debug;
+CREATE TABLE crashed (c1 INT);
+CREATE TABLE t2 (c1 INT);
+CREATE TABLE t3 (c1 INT);
+CREATE TABLE t4 (c1 INT) ENGINE=MRG_MYISAM UNION=(crashed,t2,t3) INSERT_METHOD=LAST;
+INSERT INTO crashed VALUES (10);
+INSERT INTO t2 VALUES (20);
+INSERT INTO t3 VALUES (30);
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, crashed WRITE;
+SET GLOBAL debug_dbug="+d,myisam_pretend_crashed_table_on_open";
+CREATE TRIGGER t1_ai AFTER INSERT ON crashed FOR EACH ROW INSERT INTO t2 VALUES(29);
+SET GLOBAL debug_dbug=@orig_debug;
+INSERT INTO t4 VALUES (39);
+ERROR HY000: Table 'crashed' was not locked with LOCK TABLES
+INSERT INTO crashed VALUES (11);
+ERROR HY000: Table 'crashed' was not locked with LOCK TABLES
+INSERT INTO t2 VALUES (21);
+INSERT INTO t3 VALUES (31);
+UNLOCK TABLES;
+DROP TRIGGER t1_ai;
+DROP TABLE t4,crashed,t2,t3;
+set global storage_engine=@default_storage_engine;

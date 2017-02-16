@@ -71,8 +71,8 @@ CREATE TRIGGER t1_bi before INSERT
 BEGIN
   DECLARE CONTINUE HANDLER FOR SQLSTATE '40001' SET @a:= 'deadlock';
   DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET @a:= 'exception';
-  INSERT INTO t2 (f2) VALUES (1);
-  DELETE FROM t2 WHERE f2 = 1;
+  INSERT INTO t2 (f2) VALUES (NEW.f1);
+  DELETE FROM t2 WHERE f2 = NEW.f1;
 END;|
 
 CREATE PROCEDURE proc24989()
@@ -109,7 +109,7 @@ send insert into t1 values(1);
 
 connection con1;
 --sleep 1
-insert into t1 values(1);
+insert into t1 values(123);
 
 connection con2;
 --error 1213
@@ -130,7 +130,7 @@ send call proc24989();
 
 connection con1;
 --sleep 1
-insert into t1 values(1);
+insert into t1 values(123);
 
 connection con2;
 reap;
@@ -150,7 +150,7 @@ send call proc24989_2();
 
 connection con1;
 --sleep 1
-insert into t1 values(1);
+insert into t1 values(123);
 commit;
 
 connection con2;

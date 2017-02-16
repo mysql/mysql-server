@@ -1,0 +1,24 @@
+# ticket 895 is a query optimization problem with the primary key
+
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+create table foo ( a int, b bigint auto_increment, primary key (a,b));
+insert into foo values (1,4444000000);
+insert into foo (a) values (1),(1);
+select * from foo;
+flush table foo;
+insert into foo (a) values (1),(1);
+select * from foo;
+
+drop table foo;
+create table foo (a bigint auto_increment, primary key (a))engine=tokudb, auto_increment=4444000000;
+insert into foo values (),();
+select * from foo;
+
+# Final cleanup.
+DROP TABLE foo;

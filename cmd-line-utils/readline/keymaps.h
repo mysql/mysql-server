@@ -32,9 +32,9 @@ extern "C" {
 #  include "chardefs.h"
 #  include "rltypedefs.h"
 #else
-#  include <readline/rlstdc.h>
-#  include <readline/chardefs.h>
-#  include <readline/rltypedefs.h>
+#  include <rlstdc.h>
+#  include <chardefs.h>
+#  include <rltypedefs.h>
 #endif
 
 /* A keymap contains one entry for each key in the ASCII set.

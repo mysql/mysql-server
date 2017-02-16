@@ -1,3 +1,6 @@
+SET TIME_ZONE='+03:00';
+drop table if exists t1,t2,t3,t4;
+drop database if exists mysqltest;
 drop table if exists t1,t2;
 set names utf8;
 select left(_utf8 0xD0B0D0B1D0B2,1);
@@ -113,7 +116,7 @@ hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')
 DROP TABLE t1;
 select insert('txs',2,1,'hi'),insert('is ',4,0,'a'),insert('txxxxt',2,4,'es');
 insert('txs',2,1,'hi')	insert('is ',4,0,'a')	insert('txxxxt',2,4,'es')
-this	is a	test
+this	is 	test
 select insert("aa",100,1,"b"),insert("aa",1,3,"b");
 insert("aa",100,1,"b")	insert("aa",1,3,"b")
 aa	b
@@ -240,7 +243,7 @@ select hex(s1) from t1;
 hex(s1)
 41
 drop table t1;
-create table t1 (a text character set utf8, primary key(a(360)));
+create table t1 (a text character set utf8, primary key(a(371)));
 ERROR 42000: Specified key was too long; max key length is 1000 bytes
 CREATE TABLE t1 ( a varchar(10) ) CHARACTER SET utf8;
 INSERT INTO t1 VALUES ( 'test' );
@@ -296,16 +299,16 @@ insert into t1 values(null,null);
 insert into t1 values('ghi','ghi[');
 select HIGH_PRIORITY s1 regexp s2 from t1;
 s1 regexp s2
-1
-1
-1
-1
-1
-1
-1
 0
 0
 0
+1
+1
+1
+1
+1
+1
+1
 NULL
 NULL
 NULL
@@ -921,6 +924,23 @@ utf8_general_ci	6109
 utf8_general_ci	61
 utf8_general_ci	6120
 drop table t1;
+#
+# MDEV-5453 Assertion `src' fails in my_strnxfrm_unicode on GROUP BY MID(..) WITH ROLLUP
+#
+SELECT @@collation_connection;
+@@collation_connection
+utf8_general_ci
+CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+SELECT * FROM t1 GROUP BY MID(CURRENT_USER,0) WITH ROLLUP;
+i
+1
+1
+SELECT * FROM t1 GROUP BY MID('test',0) WITH ROLLUP;
+i
+1
+1
+DROP TABLE t1;
 select @@collation_connection;
 @@collation_connection
 utf8_general_ci
@@ -974,6 +994,25 @@ ss
 u,ü
 ue
 drop table t1;
+#
+# MDEV-4842 STR_TO_DATE does not work with UCS2/UTF16/UTF32
+#
+SELECT @@character_set_connection, HEX(CAST(_utf8'÷' AS CHAR));
+@@character_set_connection	HEX(CAST(_utf8'÷' AS CHAR))
+utf8	C3B7
+SELECT STR_TO_DATE(CAST(_utf8'2001÷01÷01' AS CHAR),CAST(_utf8'%Y÷%m÷%d' AS CHAR));
+STR_TO_DATE(CAST(_utf8'2001÷01÷01' AS CHAR),CAST(_utf8'%Y÷%m÷%d' AS CHAR))
+2001-01-01
+CREATE TABLE t1 AS SELECT REPEAT(' ', 64) AS subject, REPEAT(' ',64) AS pattern LIMIT 0;
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+subject	varchar(64)	NO			
+pattern	varchar(64)	NO			
+INSERT INTO t1 VALUES (_utf8'2001÷01÷01',_utf8'%Y÷%m÷%d');
+SELECT HEX(subject),HEX(pattern),STR_TO_DATE(subject, pattern) FROM t1;
+HEX(subject)	HEX(pattern)	STR_TO_DATE(subject, pattern)
+32303031C3B73031C3B73031	2559C3B7256DC3B72564	2001-01-01 00:00:00
+DROP TABLE t1;
 SET collation_connection='utf8_bin';
 create table t1 select repeat('a',4000) a;
 delete from t1;
@@ -984,6 +1023,23 @@ utf8_bin	6109
 utf8_bin	61
 utf8_bin	6120
 drop table t1;
+#
+# MDEV-5453 Assertion `src' fails in my_strnxfrm_unicode on GROUP BY MID(..) WITH ROLLUP
+#
+SELECT @@collation_connection;
+@@collation_connection
+utf8_bin
+CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+SELECT * FROM t1 GROUP BY MID(CURRENT_USER,0) WITH ROLLUP;
+i
+1
+1
+SELECT * FROM t1 GROUP BY MID('test',0) WITH ROLLUP;
+i
+1
+1
+DROP TABLE t1;
 select @@collation_connection;
 @@collation_connection
 utf8_bin
@@ -1535,7 +1591,7 @@ explain
 select substr(Z.a,-1), Z.a from t1 as Y join t1 as Z on Y.a=Z.a order by 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Y	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
-1	SIMPLE	Z	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
+1	SIMPLE	Z	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
 select substr(Z.a,-1), Z.a from t1 as Y join t1 as Z on Y.a=Z.a order by 1;
 substr(Z.a,-1)	a
 3	123
@@ -2157,6 +2213,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1, t2;
 SET NAMES utf8;
+SET TIME_ZONE = _latin1 '+03:00';
 #
 # Start of WL#2649 Number-to-string conversions
 #
@@ -2736,7 +2793,7 @@ create table t1 as select concat(cast('2001-01-02 03:04:05' as time)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(19) CHARACTER SET utf8 DEFAULT NULL
+  `c1` varchar(10) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t1;
 c1
@@ -2749,7 +2806,7 @@ create table t1 as select concat(cast('2001-01-02' as datetime)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(29) CHARACTER SET utf8 DEFAULT NULL
+  `c1` varchar(19) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t1;
 c1
@@ -2894,7 +2951,7 @@ create table t1 as select concat(uncompressed_length('')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) CHARACTER SET utf8 NOT NULL DEFAULT ''
+  `c1` varchar(10) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as select concat(connection_id()) as c1;
@@ -3338,7 +3395,7 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 select hex(concat(IsSimple(GeomFromText('POINT(1 1)'))));
 hex(concat(IsSimple(GeomFromText('POINT(1 1)'))))
-30
+31
 create table t1 as select concat(IsSimple(GeomFromText('Point(1 1)'))) as c1;
 show create table t1;
 Table	Create Table
@@ -3570,7 +3627,7 @@ create table t1 as select concat(unix_timestamp(20090224)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) CHARACTER SET utf8 NOT NULL DEFAULT ''
+  `c1` varchar(17) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(time_to_sec('10:11:12')));
@@ -3580,7 +3637,7 @@ create table t1 as select concat(time_to_sec('10:11:12')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) CHARACTER SET utf8 DEFAULT NULL
+  `c1` varchar(17) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(extract(year from 20090702)));
@@ -3627,7 +3684,7 @@ create table t1 as select concat(from_days(730669)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) CHARACTER SET utf8 NOT NULL DEFAULT ''
+  `c1` varchar(10) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select c1, hex(c1) from t1;
 c1	hex(c1)
@@ -3651,7 +3708,7 @@ create table t1 as select concat(curtime()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(8) CHARACTER SET utf8 NOT NULL DEFAULT ''
+  `c1` varchar(10) CHARACTER SET utf8 NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as select repeat('a',20) as c1 limit 0;
@@ -3667,7 +3724,7 @@ create table t1 as select concat(utc_time()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(8) CHARACTER SET utf8 NOT NULL DEFAULT ''
+  `c1` varchar(10) CHARACTER SET utf8 NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(sec_to_time(2378)));
@@ -3677,7 +3734,7 @@ create table t1 as select concat(sec_to_time(2378)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(23) CHARACTER SET utf8 DEFAULT NULL
+  `c1` varchar(10) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(timediff('2001-01-02 00:00:00', '2001-01-01 00:00:00')));
@@ -3687,7 +3744,7 @@ create table t1 as select concat(timediff('2001-01-02 00:00:00', '2001-01-01 00:
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(23) CHARACTER SET utf8 DEFAULT NULL
+  `c1` varchar(10) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(maketime(10,11,12)));
@@ -3697,7 +3754,7 @@ create table t1 as select concat(maketime(10,11,12)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(23) CHARACTER SET utf8 DEFAULT NULL
+  `c1` varchar(10) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(get_format(DATE,'USA'));
@@ -3737,7 +3794,7 @@ create table t1 as select concat(date_add('2004-01-01 12:00:00', interval 1 day)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(29) CHARACTER SET utf8 DEFAULT NULL
+  `c1` varchar(19) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t1;
 c1
@@ -3784,7 +3841,7 @@ create table t1 as select concat(addtime('00:00:00','11:22:33')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(29) CHARACTER SET utf8 DEFAULT NULL
+  `c1` varchar(26) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(subtime('23:59:59','11:22:33')));
@@ -3794,7 +3851,7 @@ create table t1 as select concat(subtime('23:59:59','11:22:33')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(29) CHARACTER SET utf8 DEFAULT NULL
+  `c1` varchar(26) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(elt(1,2,3));
@@ -4203,7 +4260,7 @@ create table t2 as select concat(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `concat(a)` varchar(4) CHARACTER SET utf8 DEFAULT NULL
+  `concat(a)` varchar(2) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2;
 create table t1 (a year);
@@ -4283,7 +4340,7 @@ create table t2 as select concat(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `concat(a)` varchar(8) CHARACTER SET utf8 DEFAULT NULL
+  `concat(a)` varchar(10) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2;
 create table t1 (a datetime);
@@ -4514,7 +4571,7 @@ insert into t1 values (1);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
 Field	Type	Null	Key	Default	Extra
-a	varchar(4)	YES		NULL	
+a	varchar(2)	YES		NULL	
 select hex(a) from v1;
 hex(a)
 3031
@@ -4578,7 +4635,7 @@ insert into t1 values ('01:02:03');
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
 Field	Type	Null	Key	Default	Extra
-a	varchar(8)	YES		NULL	
+a	varchar(10)	YES		NULL	
 select hex(a) from v1;
 hex(a)
 30303A30303A3031
@@ -4919,11 +4976,11 @@ KEY(date_column));
 INSERT INTO t1 VALUES (1,'2010-09-01'),(2,'2010-10-01');
 EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	date_column	date_column	4	NULL	1	Using where
+1	SIMPLE	t1	range	date_column	date_column	4	NULL	1	Using index condition
 ALTER TABLE t1 MODIFY date_column DATETIME DEFAULT NULL;
 EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	date_column	date_column	9	NULL	1	Using where
+1	SIMPLE	t1	range	date_column	date_column	9	NULL	1	Using index condition
 DROP TABLE t1;
 #
 # Bug #31384 	DATE_ADD() and DATE_SUB() return binary data
@@ -4931,6 +4988,13 @@ DROP TABLE t1;
 SELECT @@collation_connection, @@character_set_results;
 @@collation_connection	@@character_set_results
 utf8_general_ci	utf8
+SELECT
+CHARSET(DATE_SUB('2007-08-03', INTERVAL 1 MINUTE)) AS field_str1,
+CHARSET(DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE)) AS field_str2,
+CHARSET(DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY)) AS field_date,
+CHARSET(DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE)) AS field_datetime;
+field_str1	field_str2	field_date	field_datetime
+utf8	utf8	binary	binary
 CREATE TABLE t1 AS
 SELECT
 DATE_SUB('2007-08-03', INTERVAL 1 MINUTE) AS field_str1,
@@ -4940,8 +5004,8 @@ DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE) AS field_da
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `field_str1` varchar(29) CHARACTER SET utf8 DEFAULT NULL,
-  `field1_str2` varchar(29) CHARACTER SET utf8 DEFAULT NULL,
+  `field_str1` varchar(19) CHARACTER SET utf8 DEFAULT NULL,
+  `field1_str2` varchar(19) CHARACTER SET utf8 DEFAULT NULL,
   `field_date` date DEFAULT NULL,
   `field_datetime` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
@@ -4952,10 +5016,10 @@ DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE) AS field1_str2,
 DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY) AS field_date,
 DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE) AS field_datetime;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					field_str1	254	87	10	Y	0	31	33
-def					field1_str2	254	87	19	Y	0	31	33
-def					field_date	10	29	10	Y	128	31	63
-def					field_datetime	12	29	19	Y	128	31	63
+def					field_str1	254	57	10	Y	0	0	33
+def					field1_str2	254	57	19	Y	0	0	33
+def					field_date	10	10	10	Y	128	0	63
+def					field_datetime	12	19	19	Y	128	0	63
 field_str1	field1_str2	field_date	field_datetime
 2007-08-02	2007-08-03 17:32:00	2007-08-02	2007-08-03 17:32:00
 SELECT
@@ -4965,6 +5029,37 @@ HEX(DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY)) AS field_date,
 HEX(DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE)) AS field_datetime;
 field_str1	field1_str2	field_date	field_datetime
 323030372D30382D30322032333A35393A3030	323030372D30382D30332031373A33323A3030	323030372D30382D3032	323030372D30382D30332031373A33323A3030
+#
+# MDEV-4841 Wrong character set of ADDTIME() and DATE_ADD()
+#
+SELECT @@collation_connection, @@character_set_results;
+@@collation_connection	@@character_set_results
+utf8_general_ci	utf8
+SELECT
+CHARSET(ADDTIME(_latin1'10:01:01',_latin1'10:00:00')) AS addtime1,
+CHARSET(ADDTIME('10:01:01','10:00:00')) AS addtime2,
+CHARSET(DATE_ADD(_latin1'2001-01-01 10:01:01',interval 10 second)) AS date_add1,
+CHARSET(DATE_ADD('2001-01-01 10:01:01',interval 10 second)) AS date_add2;
+addtime1	addtime2	date_add1	date_add2
+utf8	utf8	utf8	utf8
+CREATE TABLE t1 AS
+SELECT
+ADDTIME(_latin1'10:01:01',_latin1'10:00:00') AS addtime1,
+ADDTIME('10:01:01','10:00:00') AS addtime2,
+DATE_ADD(_latin1'2001-01-01 10:01:01',interval 10 second) AS date_add1,
+DATE_ADD('2001-01-01 10:01:01',interval 10 second) AS date_add2;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `addtime1` varchar(26) CHARACTER SET utf8 DEFAULT NULL,
+  `addtime2` varchar(26) CHARACTER SET utf8 DEFAULT NULL,
+  `date_add1` varchar(19) CHARACTER SET utf8 DEFAULT NULL,
+  `date_add2` varchar(19) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+addtime1	addtime2	date_add1	date_add2
+20:01:01	20:01:01	2001-01-01 10:01:11	2001-01-01 10:01:11
+DROP TABLE t1;
 #
 # Bug#11926811 / Bug#60625 Illegal mix of collations
 #
@@ -5002,13 +5097,39 @@ f1()
 00:00:01
 DROP FUNCTION f1;
 DROP TABLE t1;
+#
+# MDEV-9662 Assertion `precision || !scale' failed in my_decimal_precision_to_length_no_truncation(uint, uint8, bool)
+#
+SELECT @@collation_connection;
+@@collation_connection
+utf8_general_ci
+SELECT CASE 1 WHEN 2 THEN ( - '3' ) END;
+CASE 1 WHEN 2 THEN ( - '3' ) END
+NULL
+#
+# MDEV-5702 Incorrect results are returned with NULLIF()
+#
+CREATE TABLE t1 (d DATE);
+INSERT INTO t1 VALUES ('1999-11-11'),('2014-02-04');
+SELECT DISTINCT d, CAST(d AS CHAR), NULLIF(d,"2000-01-01") AS bad, NULLIF(CAST(d AS CHAR),"2000-01-01") AS good FROM t1;
+d	CAST(d AS CHAR)	bad	good
+1999-11-11	1999-11-11	1999-11-11	1999-11-11
+2014-02-04	2014-02-04	2014-02-04	2014-02-04
+CREATE TABLE t2 AS SELECT DISTINCT d, NULLIF(d,'2000-01-01') AS bad FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `d` date DEFAULT NULL,
+  `bad` varchar(10) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1, t2;
 SET NAMES latin1;
 SET sql_mode='';
 CREATE TABLE t1(a char(215) CHARACTER SET utf8 NOT NULL DEFAULT '', KEY(a));
 INSERT INTO t1 VALUES ();
 SELECT maketime(`a`,`a`,`a`) FROM t1 GROUP BY 1;
 maketime(`a`,`a`,`a`)
-00:00:00
+00:00:00.000000
 DROP TABLE t1;
 SET sql_mode=default;
 #
@@ -5018,9 +5139,10 @@ SET sql_mode=default;
 SET NAMES utf8;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (0), (0), (1), (0), (0);
-SELECT COUNT(*) FROM t1, t1 t2 
+SELECT COUNT(*) FROM t1, t1 t2
 GROUP BY INSERT('', t2.a, t1.a, (@@global.max_binlog_size));
-ERROR 23000: Duplicate entry '107374182410737418241' for key 'group_key'
+COUNT(*)
+25
 DROP TABLE t1;
 #
 # Bug#11764503 (Bug#57341) Query in EXPLAIN EXTENDED shows wrong characters
@@ -5051,6 +5173,765 @@ id	l
 a	1024
 Warnings:
 Warning	1260	Row 2 was cut by GROUP_CONCAT()
+SELECT id, CHAR_LENGTH(GROUP_CONCAT(body)) AS l
+FROM (SELECT 'a' AS id, REPEAT('foo bar', 100) AS body
+UNION ALL
+SELECT 'a' AS id, REPEAT('bla bla', 100) AS body) t1;
+id	l
+a	1024
+Warnings:
+Warning	1260	Row 2 was cut by GROUP_CONCAT()
+#
+# MDEV-7814 Assertion `args[0]->fixed' fails in Item_func_conv_charset::Item_func_conv_charset
+#
+CREATE TABLE t1(a CHAR(1) CHARACTER SET latin1, b INT NOT NULL);
+CREATE TABLE t2(a CHAR(1) CHARACTER SET utf8 COLLATE utf8_general_ci, b INT NOT NULL);
+SELECT (SELECT t2.a FROM t2 WHERE t2.a=t1.a) AS aa, b, COUNT(b) FROM t1 GROUP BY aa;
+aa	b	COUNT(b)
+DROP TABLE t1,t2;
+#
+# MDEV-7649 wrong result when comparing utf8 column with an invalid literal
+#
+SET NAMES utf8 COLLATE utf8_general_ci;
+#
+# Start of ctype_utf8_ilseq.inc
+#
+CREATE TABLE t1 ENGINE=InnoDB AS SELECT REPEAT(' ', 60) AS ch LIMIT 0;;
+ALTER TABLE t1
+ADD id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ADD KEY(ch);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `ch` varchar(60) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`),
+  KEY `ch` (`ch`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t1 (ch) VALUES ('admin'),('admin1');
+SELECT ch FROM t1 WHERE ch='admin𝌆';
+ch
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='admin𝌆';
+ch
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='admin𝌆';
+ch
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
+DELETE FROM t1;
+INSERT INTO t1 (ch) VALUES ('a'), ('a?'), ('a??'), ('a???'), ('a????');
+INSERT INTO t1 (ch) VALUES ('ab'),('a?b'),('a??b'),('a???b'),('a????b');
+INSERT INTO t1 (ch) VALUES ('az'),('a?z'),('a??z'),('a???z'),('a????z');
+INSERT INTO t1 (ch) VALUES ('z');
+INSERT INTO t1 (ch) VALUES (_utf8 0x61D080);
+INSERT INTO t1 (ch) VALUES (_utf8 0x61D680);
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='a𝌆' ORDER BY ch;
+ch
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='a𝌆b' ORDER BY ch;
+ch
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='a𝌆' ORDER BY ch;
+ch
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='a𝌆b' ORDER BY ch;
+ch
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch<'a𝌆' ORDER BY ch;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+aր
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch<'a𝌆b' ORDER BY ch;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+aր
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch<'a𝌆' ORDER BY ch;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+aր
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch<'a𝌆b' ORDER BY ch;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+aր
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch>'a𝌆' ORDER BY ch;
+ch
+z
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch>'a𝌆b' ORDER BY ch;
+ch
+z
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch>'a𝌆' ORDER BY ch;
+ch
+z
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch>'a𝌆b' ORDER BY ch;
+ch
+z
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
+ALTER TABLE t1 DROP KEY ch;
+# 0xD18F would be a good 2-byte character, 0xD1 is an incomplete sequence
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xD1,'''');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xD1,'b''');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch<''a', 0xD1,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch>''a', 0xD1,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+aր
+z
+# 0xEA9A96 would be a good 3-byte character, 0xEA9A is an incomplete sequence
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xEA9A,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xEA9A,'b'' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+# 0x8F is a bad byte sequence (an mb2tail without mb2head)
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F,'b'' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+# 0x8F8F is a bad byte sequence (an mb2tail without mb2head, two times)
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F8F,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F8F,'b'' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+DROP TABLE t1;
+#
+# End of ctype_utf8_ilseq.inc
+#
+#
+# Start of ctype_utf8_ilseq.inc
+#
+CREATE TABLE t1 ENGINE=MyISAM AS SELECT REPEAT(' ', 60) AS ch LIMIT 0;;
+ALTER TABLE t1
+ADD id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ADD KEY(ch);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `ch` varchar(60) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`),
+  KEY `ch` (`ch`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+INSERT INTO t1 (ch) VALUES ('admin'),('admin1');
+SELECT ch FROM t1 WHERE ch='admin𝌆';
+ch
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='admin𝌆';
+ch
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='admin𝌆';
+ch
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
+DELETE FROM t1;
+INSERT INTO t1 (ch) VALUES ('a'), ('a?'), ('a??'), ('a???'), ('a????');
+INSERT INTO t1 (ch) VALUES ('ab'),('a?b'),('a??b'),('a???b'),('a????b');
+INSERT INTO t1 (ch) VALUES ('az'),('a?z'),('a??z'),('a???z'),('a????z');
+INSERT INTO t1 (ch) VALUES ('z');
+INSERT INTO t1 (ch) VALUES (_utf8 0x61D080);
+INSERT INTO t1 (ch) VALUES (_utf8 0x61D680);
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='a𝌆' ORDER BY ch;
+ch
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='a𝌆b' ORDER BY ch;
+ch
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='a𝌆' ORDER BY ch;
+ch
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='a𝌆b' ORDER BY ch;
+ch
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch<'a𝌆' ORDER BY ch;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+aր
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch<'a𝌆b' ORDER BY ch;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+aր
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch<'a𝌆' ORDER BY ch;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+aր
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch<'a𝌆b' ORDER BY ch;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+aր
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch>'a𝌆' ORDER BY ch;
+ch
+z
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch>'a𝌆b' ORDER BY ch;
+ch
+z
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch>'a𝌆' ORDER BY ch;
+ch
+z
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch>'a𝌆b' ORDER BY ch;
+ch
+z
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
+ALTER TABLE t1 DROP KEY ch;
+# 0xD18F would be a good 2-byte character, 0xD1 is an incomplete sequence
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xD1,'''');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xD1,'b''');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch<''a', 0xD1,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch>''a', 0xD1,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+aր
+z
+# 0xEA9A96 would be a good 3-byte character, 0xEA9A is an incomplete sequence
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xEA9A,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xEA9A,'b'' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+# 0x8F is a bad byte sequence (an mb2tail without mb2head)
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F,'b'' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+# 0x8F8F is a bad byte sequence (an mb2tail without mb2head, two times)
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F8F,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F8F,'b'' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+DROP TABLE t1;
+#
+# End of ctype_utf8_ilseq.inc
+#
+#
+# Start of ctype_utf8_ilseq.inc
+#
+CREATE TABLE t1 ENGINE=HEAP AS SELECT REPEAT(' ', 60) AS ch LIMIT 0;;
+ALTER TABLE t1
+ADD id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ADD KEY(ch);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `ch` varchar(60) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`),
+  KEY `ch` (`ch`)
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+INSERT INTO t1 (ch) VALUES ('admin'),('admin1');
+SELECT ch FROM t1 WHERE ch='admin𝌆';
+ch
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='admin𝌆';
+ch
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='admin𝌆';
+ch
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
+DELETE FROM t1;
+INSERT INTO t1 (ch) VALUES ('a'), ('a?'), ('a??'), ('a???'), ('a????');
+INSERT INTO t1 (ch) VALUES ('ab'),('a?b'),('a??b'),('a???b'),('a????b');
+INSERT INTO t1 (ch) VALUES ('az'),('a?z'),('a??z'),('a???z'),('a????z');
+INSERT INTO t1 (ch) VALUES ('z');
+INSERT INTO t1 (ch) VALUES (_utf8 0x61D080);
+INSERT INTO t1 (ch) VALUES (_utf8 0x61D680);
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='a𝌆' ORDER BY ch;
+ch
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='a𝌆b' ORDER BY ch;
+ch
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='a𝌆' ORDER BY ch;
+ch
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='a𝌆b' ORDER BY ch;
+ch
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch<'a𝌆' ORDER BY ch;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+aր
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch<'a𝌆b' ORDER BY ch;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+aր
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch<'a𝌆' ORDER BY ch;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+aր
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch<'a𝌆b' ORDER BY ch;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+aր
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch>'a𝌆' ORDER BY ch;
+ch
+z
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch>'a𝌆b' ORDER BY ch;
+ch
+z
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch>'a𝌆' ORDER BY ch;
+ch
+z
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch>'a𝌆b' ORDER BY ch;
+ch
+z
+ALTER TABLE t1 DROP KEY ch;
+# 0xD18F would be a good 2-byte character, 0xD1 is an incomplete sequence
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xD1,'''');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xD1,'b''');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch<''a', 0xD1,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch>''a', 0xD1,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+aր
+z
+# 0xEA9A96 would be a good 3-byte character, 0xEA9A is an incomplete sequence
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xEA9A,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xEA9A,'b'' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+# 0x8F is a bad byte sequence (an mb2tail without mb2head)
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F,'b'' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+# 0x8F8F is a bad byte sequence (an mb2tail without mb2head, two times)
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F8F,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F8F,'b'' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+DROP TABLE t1;
+#
+# End of ctype_utf8_ilseq.inc
+#
+#
+# MDEV-8067 correct fix for MySQL Bug # 19699237: UNINITIALIZED VARIABLE IN ITEM_FIELD::STR_RESULT
+#
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf8);
+CREATE TABLE t2 (a VARCHAR(10) CHARACTER SET latin1);
+INSERT INTO t1 VALUES ('aaa');
+INSERT INTO t2 VALUES ('aaa');
+SELECT (SELECT CONCAT(a),1 FROM t1) <=> (SELECT CONCAT(a),1 FROM t2);
+(SELECT CONCAT(a),1 FROM t1) <=> (SELECT CONCAT(a),1 FROM t2)
+1
+INSERT INTO t1 VALUES ('aaa');
+INSERT INTO t2 VALUES ('aaa');
+SELECT (SELECT CONCAT(a),1 FROM t1) <=> (SELECT CONCAT(a),1 FROM t2);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t1, t2;
+#
+# MDEV-8630 Datetime value dropped in "INSERT ... SELECT ... ON DUPLICATE KEY"
+#
+SET NAMES utf8;
+CREATE TABLE t1 (id2 int, ts timestamp);
+INSERT INTO t1 VALUES (1,'2012-06-11 15:17:34'),(2,'2012-06-11 15:18:24');
+CREATE TABLE t2 AS SELECT
+COALESCE(ts, 0) AS c0,
+GREATEST(COALESCE(ts, 0), COALESCE(ts, 0)) AS c1,
+GREATEST(CASE WHEN 1 THEN ts ELSE 0 END, CASE WHEN 1 THEN ts ELSE 0 END) AS c2,
+GREATEST(IFNULL(ts,0), IFNULL(ts,0)) AS c3,
+GREATEST(IF(1,ts,0), IF(1,ts,0)) AS c4
+FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c0` varchar(19) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `c1` varchar(19) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `c2` varchar(19) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `c3` varchar(19) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `c4` varchar(19) CHARACTER SET utf8 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT * FROM t2;
+c0	c1	c2	c3	c4
+2012-06-11 15:17:34	2012-06-11 15:17:34	2012-06-11 15:17:34	2012-06-11 15:17:34	2012-06-11 15:17:34
+2012-06-11 15:18:24	2012-06-11 15:18:24	2012-06-11 15:18:24	2012-06-11 15:18:24	2012-06-11 15:18:24
+DROP TABLE t2, t1;
+#
+# MDEV-9319 ALTER from a bigger to a smaller blob type truncates too much data
+#
+SET NAMES utf8;
+CREATE TABLE t1 (a TEXT CHARACTER SET utf8);
+INSERT INTO t1 VALUES (REPEAT('Ａ',100));
+SELECT OCTET_LENGTH(a) FROM t1;
+OCTET_LENGTH(a)
+300
+ALTER TABLE t1 MODIFY a TINYTEXT CHARACTER SET utf8;
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+SELECT OCTET_LENGTH(a),a FROM t1;
+OCTET_LENGTH(a)	a
+255	ＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡＡ
+DROP TABLE t1;
+#
+# MDEV-8402 Bug#77473 Bug#21317406 TRUNCATED DATA WITH SUBQUERY & UTF8
+#
+#
+SET NAMES utf8;
+SELECT length(rpad(_utf8 0xD0B1, 65536, _utf8 0xD0B2)) AS data;
+data
+131072
+SELECT length(data) AS len FROM (
+SELECT rpad(_utf8 0xD0B1, 65536, _utf8 0xD0B2) AS data
+) AS sub;
+len
+131072
+SELECT length(rpad(_utf8 0xD0B1, 65535, _utf8 0xD0B2)) AS data;
+data
+131070
+SELECT length(data) AS len FROM (
+SELECT rpad(_utf8 0xD0B1, 65535, _utf8 0xD0B2) AS data
+) AS sub;
+len
+131070
+SELECT length(data) AS len FROM (SELECT REPEAT('ä', 36766) AS data) AS sub;
+len
+73532
+SELECT length(data) AS len FROM (SELECT REPEAT('ä', 36767) AS data) AS sub;
+len
+73534
+SELECT length(data) AS len FROM (SELECT REPEAT('ä', 36778) AS data) AS sub;
+len
+73556
+SELECT length(data) AS len FROM (SELECT REPEAT('ä', 65535) AS data) AS sub;
+len
+131070
+SELECT length(data) AS len FROM (SELECT REPEAT('ä', 65536) AS data) AS sub;
+len
+131072
+SELECT length(data) AS len FROM (SELECT REPEAT('ä', 65537) AS data) AS sub;
+len
+131074
+#
+# MDEV-10717 Assertion `!null_value' failed in virtual bool Item::send(Protocol*, String*)
+#
+CREATE TABLE t1 (i INT, KEY(i));
+INSERT INTO t1 VALUES (20081205),(20050327);
+SELECT HEX(i), HEX(CHAR(i USING utf8)) FROM t1;
+HEX(i)	HEX(CHAR(i USING utf8))
+131F197	0131
+1326A35	01326A35
+Warnings:
+Warning	1300	Invalid utf8 character string: 'F197'
+SET sql_mode='STRICT_ALL_TABLES';
+SELECT HEX(i), HEX(CHAR(i USING utf8)) FROM t1;
+HEX(i)	HEX(CHAR(i USING utf8))
+131F197	NULL
+1326A35	01326A35
+Warnings:
+Warning	1300	Invalid utf8 character string: 'F197'
+SELECT CHAR(i USING utf8) FROM t1;
+CHAR(i USING utf8)
+###
+###
+Warnings:
+###	1300	Invalid utf8 character string: 'F197'
+SET sql_mode=DEFAULT;
+DROP TABLE t1;
 #
 # End of 5.5 tests
 #

@@ -1,0 +1,36 @@
+set global innodb_file_per_table=1;
+CREATE TABLE ref_table1 (id int(11) NOT NULL, PRIMARY KEY(id)) ENGINE=InnoDB;
+CREATE TABLE ref_table2 (id int(11) NOT NULL, PRIMARY KEY(id)) ENGINE=InnoDB;
+CREATE TABLE `main` (
+`id` int(11) NOT NULL AUTO_INCREMENT,
+`ref_id1` int(11) NOT NULL,
+`ref_id2` int(11) NOT NULL,
+PRIMARY KEY (`id`),
+UNIQUE KEY `idx_1` (`ref_id1`,`ref_id2`),
+KEY `FK_set_out_analysis_route_id` (`ref_id2`),
+CONSTRAINT `FK_1` FOREIGN KEY (`ref_id1`) REFERENCES `ref_table1` (`id`) ,
+CONSTRAINT `FK_2` FOREIGN KEY (`ref_id2`) REFERENCES `ref_table2` (`id`)
+) ENGINE=InnoDB;
+SET FOREIGN_KEY_CHECKS=0;
+DROP INDEX `idx_1` ON `main`;
+SHOW TABLES;
+Tables_in_test
+main
+ref_table1
+ref_table2
+# restart and see if we can still access the main table
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE `main` ADD INDEX `idx_1` (`ref_id1`);
+SHOW CREATE TABLE `main`;
+Table	Create Table
+main	CREATE TABLE `main` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `ref_id1` int(11) NOT NULL,
+  `ref_id2` int(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FK_set_out_analysis_route_id` (`ref_id2`),
+  KEY `idx_1` (`ref_id1`),
+  CONSTRAINT `FK_1` FOREIGN KEY (`ref_id1`) REFERENCES `ref_table1` (`id`),
+  CONSTRAINT `FK_2` FOREIGN KEY (`ref_id2`) REFERENCES `ref_table2` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE  main, ref_table1, ref_table2;

@@ -12,6 +12,9 @@ source include/not_embedded.inc;
 source include/have_innodb.inc;
 # Require Debug for SET DEBUG
 source include/have_debug.inc;
+# Test could open crash reporter on Windows 
+# if compiler set up
+source include/not_windows.inc;
 
 CALL mtr.add_suppression("InnoDB: Error: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
 CALL mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
@@ -79,7 +82,7 @@ EOF
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
-SET DEBUG = '+d,innodb_page_corruption_retries';
+SET DEBUG_DBUG = '+d,innodb_page_corruption_retries';
 
 --echo # Write file to make mysql-test-run.pl expect the "crash", but don't
 --echo # start it until it's told to

@@ -1,0 +1,42 @@
+# ulong session
+
+SET @start_global_value = @@global.log_slow_rate_limit;
+
+#
+# exists as global only
+#
+select @@global.log_slow_rate_limit;
+select @@session.log_slow_rate_limit;
+show global variables like 'log_slow_rate_limit';
+show session variables like 'log_slow_rate_limit';
+select * from information_schema.global_variables where variable_name='log_slow_rate_limit';
+select * from information_schema.session_variables where variable_name='log_slow_rate_limit';
+
+#
+# show that it's writable
+#
+set global log_slow_rate_limit=10;
+select @@global.log_slow_rate_limit;
+set session log_slow_rate_limit=10;
+select @@session.log_slow_rate_limit;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global log_slow_rate_limit=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session log_slow_rate_limit=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global log_slow_rate_limit="foo";
+
+#
+# min/max values, block size
+#
+set global log_slow_rate_limit=0;
+select @@global.log_slow_rate_limit;
+set session log_slow_rate_limit=cast(-1 as unsigned int);
+select @@session.log_slow_rate_limit;
+
+SET @@global.log_slow_rate_limit = @start_global_value;
+

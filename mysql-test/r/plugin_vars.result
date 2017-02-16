@@ -1,0 +1,22 @@
+#
+# MDEV-5345 - Deadlock between mysql_change_user(), SHOW VARIABLES and
+#             INSTALL PLUGIN
+#
+CREATE PROCEDURE p_install(x INT)
+BEGIN
+DECLARE CONTINUE HANDLER FOR 1126 BEGIN END;
+WHILE x DO
+SET x= x - 1;
+INSTALL PLUGIN no_such_plugin SONAME 'no_such_object';
+END WHILE;
+END|
+CREATE PROCEDURE p_show_vars(x INT)
+WHILE x DO
+SET x= x - 1;
+SHOW VARIABLES;
+END WHILE|
+CALL p_install(100);
+CALL p_show_vars(100);
+USE test;
+DROP PROCEDURE p_install;
+DROP PROCEDURE p_show_vars;

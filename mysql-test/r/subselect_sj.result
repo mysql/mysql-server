@@ -1,0 +1,3063 @@
+drop table if exists t0, t1, t2, t3, t4, t5, t10, t11, t12;
+drop view if exists v1, v2, v3, v4;
+drop procedure if exists p1;
+set @subselect_sj_tmp= @@optimizer_switch;
+set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+SET optimizer_switch=ifnull(@optimizer_switch_for_subselect_sj_test,'outer_join_with_cache=off');
+SET optimizer_switch=ifnull(@optimizer_switch_for_subselect_sj_test,'semijoin_with_cache=off');
+set join_cache_level=1;
+set @save_optimizer_switch=@@optimizer_switch;
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1(a int, b int);
+insert into t1 values (0,0),(1,1),(2,2);
+create table t2 as select * from t1;
+create table t11(a int, b int);
+create table t10 (pk int, a int, primary key(pk));
+insert into t10 select a,a from t0;
+create table t12 like t10;
+insert into t12 select * from t10;
+Flattened because of dependency, t10=func(t1)
+explain select * from t1 where a in (select pk from t10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	t10	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using index
+select * from t1 where a in (select pk from t10);
+a	b
+0	0
+1	1
+2	2
+A confluent case of dependency
+explain select * from t1 where a in (select a from t10 where pk=12);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+select * from t1 where a in (select a from t10 where pk=12);
+a	b
+explain select * from t1 where a in (select a from t10 where pk=9);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t10	const	PRIMARY	PRIMARY	4	const	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+select * from t1 where a in (select a from t10 where pk=9);
+a	b
+An empty table inside
+explain select * from t1 where a in (select a from t11);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+select * from t1 where a in (select a from t11);
+a	b
+explain select * from t1 where a in (select pk from t10) and b in (select pk from t10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	t10	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using index
+1	PRIMARY	t10	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	Using index
+select * from t1 where a in (select pk from t10) and b in (select pk from t10);
+a	b
+0	0
+1	1
+2	2
+flattening a nested subquery
+explain select * from t1 where a in (select pk from t10 where t10.a in (select pk from t12));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	t10	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using where
+1	PRIMARY	t12	eq_ref	PRIMARY	PRIMARY	4	test.t10.a	1	Using index
+select * from t1 where a in (select pk from t10 where t10.a in (select pk from t12));
+a	b
+0	0
+1	1
+2	2
+flattening subquery w/ several tables
+explain extended select * from t1 where a in (select t10.pk from t10, t12 where t12.pk=t10.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t10	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Using where
+1	PRIMARY	t12	eq_ref	PRIMARY	PRIMARY	4	test.t10.a	1	100.00	Using index
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t10` join `test`.`t12` join `test`.`t1` where ((`test`.`t12`.`pk` = `test`.`t10`.`a`) and (`test`.`t10`.`pk` = `test`.`t1`.`a`))
+subqueries within outer joins go into ON expr.
+explAin extended
+select * from t1 left join (t2 A, t2 B) on ( A.A= t1.A And B.A in (select pk from t10));
+id	select_type	tABle	type	possiBle_keys	key	key_len	ref	rows	filtered	ExtrA
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	MATERIALIZED	t10	index	PRIMARY	PRIMARY	4	NULL	10	100.00	Using index
+Warnings:
+Note	1003	select `test`.`t1`.`A` AS `A`,`test`.`t1`.`B` AS `B`,`test`.`A`.`A` AS `A`,`test`.`A`.`B` AS `B`,`test`.`B`.`A` AS `A`,`test`.`B`.`B` AS `B` from `test`.`t1` left join (`test`.`t2` `A` join `test`.`t2` `B`) on(((`test`.`A`.`A` = `test`.`t1`.`A`) And <in_optimizer>(`test`.`B`.`A`,`test`.`B`.`A` in ( <mAteriAlize> (select `test`.`t10`.`pk` from `test`.`t10` ), <primAry_index_lookup>(`test`.`B`.`A` in <temporAry tABle> on distinct_key where ((`test`.`B`.`A` = `<suBquery2>`.`pk`))))))) where 1
+t2 should be wrapped into OJ-nest, so we have "t1 LJ (t2 J t10)"
+explAin extended
+select * from t1 left join t2 on (t2.A= t1.A And t2.A in (select pk from t10));
+id	select_type	tABle	type	possiBle_keys	key	key_len	ref	rows	filtered	ExtrA
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	MATERIALIZED	t10	index	PRIMARY	PRIMARY	4	NULL	10	100.00	Using index
+Warnings:
+Note	1003	select `test`.`t1`.`A` AS `A`,`test`.`t1`.`B` AS `B`,`test`.`t2`.`A` AS `A`,`test`.`t2`.`B` AS `B` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`A` = `test`.`t1`.`A`) And <in_optimizer>(`test`.`t1`.`A`,`test`.`t1`.`A` in ( <mAteriAlize> (select `test`.`t10`.`pk` from `test`.`t10` ), <primAry_index_lookup>(`test`.`t1`.`A` in <temporAry tABle> on distinct_key where ((`test`.`t1`.`A` = `<suBquery2>`.`pk`))))))) where 1
+we shouldn't flatten if we're going to get a join of > MAX_TABLES.
+explain select * from 
+t1 s00, t1 s01,  t1 s02, t1 s03, t1 s04,t1 s05,t1 s06,t1 s07,t1 s08,t1 s09,
+t1 s10, t1 s11,  t1 s12, t1 s13, t1 s14,t1 s15,t1 s16,t1 s17,t1 s18,t1 s19,
+t1 s20, t1 s21,  t1 s22, t1 s23, t1 s24,t1 s25,t1 s26,t1 s27,t1 s28,t1 s29,
+t1 s30, t1 s31,  t1 s32, t1 s33, t1 s34,t1 s35,t1 s36,t1 s37,t1 s38,t1 s39,
+t1 s40, t1 s41,  t1 s42, t1 s43, t1 s44,t1 s45,t1 s46,t1 s47,t1 s48,t1 s49
+where
+s00.a in (
+select m00.a from
+t1 m00, t1 m01,  t1 m02, t1 m03, t1 m04,t1 m05,t1 m06,t1 m07,t1 m08,t1 m09,
+t1 m10, t1 m11,  t1 m12, t1 m13, t1 m14,t1 m15,t1 m16,t1 m17,t1 m18,t1 m19
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	s00	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	s01	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s02	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s03	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s04	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s05	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s06	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s07	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s08	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s09	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s10	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s11	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s12	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s13	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s14	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s15	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s16	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s17	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s18	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s19	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s20	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s21	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s22	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s23	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s24	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s25	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s26	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s27	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s28	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s29	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s30	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s31	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s32	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s33	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s34	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s35	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s36	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s37	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s38	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s39	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s40	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s41	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s42	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s43	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s44	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s45	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s46	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s47	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s48	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s49	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m00	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	m01	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m02	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m03	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m04	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m05	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m06	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m07	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m08	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m09	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m10	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m11	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m12	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m13	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m14	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m15	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m16	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m17	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m18	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m19	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
+select * from
+t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t10)) 
+where t1.a < 5;
+a	b	a	b
+0	0	0	0
+1	1	1	1
+2	2	2	2
+prepare s1 from
+' select * from
+    t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t10))
+  where t1.a < 5';
+execute s1;
+a	b	a	b
+0	0	0	0
+1	1	1	1
+2	2	2	2
+execute s1;
+a	b	a	b
+0	0	0	0
+1	1	1	1
+2	2	2	2
+insert into t1 select (A.a + 10 * B.a),1 from t0 A, t0 B;
+explain extended select * from t1 where a in (select pk from t10 where pk<3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t10	range	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where; Using index
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	103	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t10` join `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t10`.`pk`) and (`test`.`t10`.`pk` < 3))
+drop table t0, t1, t2;
+drop table t10, t11, t12;
+
+Bug#37899: Wrongly checked optimization prerequisite caused failed
+assertion.
+
+CREATE TABLE t1 (
+`pk` int(11),
+`varchar_nokey` varchar(5)
+);
+INSERT INTO t1 VALUES
+(1,'qk'),(2,'j'),(3,'aew');
+SELECT *
+FROM t1
+WHERE varchar_nokey IN (
+SELECT
+varchar_nokey
+FROM
+t1
+) XOR pk = 30;
+pk	varchar_nokey
+1	qk
+2	j
+3	aew
+drop table t1;
+#
+# BUG#41842: Semi-join materialization strategy crashes when the upper query has HAVING
+#
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+int_nokey int(11) NOT NULL,
+time_key time NOT NULL,
+datetime_key datetime NOT NULL,
+datetime_nokey datetime NOT NULL,
+varchar_key varchar(1) NOT NULL,
+varchar_nokey varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY time_key (time_key),
+KEY datetime_key (datetime_key),
+KEY varchar_key (varchar_key)
+);
+INSERT INTO t1 VALUES 
+(1,0, '00:16:10','2008-09-03 14:25:40','2008-09-03 14:25:40','h','h'),
+(2,7, '00:00:00','2001-01-13 00:00:00','2001-01-13 00:00:00','',''),
+(3,0, '00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','x','x'),
+(4,2, '16:29:24','2000-10-16 01:39:08','2000-10-16 01:39:08','w','w'),
+(5,1, '09:23:32','0000-00-00 00:00:00','0000-00-00 00:00:00','p','p'),
+(6,3, '00:00:00','2007-12-02 00:00:00','2007-12-02 00:00:00','o','o'),
+(7,3, '00:00:00','2008-09-11 00:00:00','2008-09-11 00:00:00','',''),
+(8,0, '13:59:04','0000-00-00 00:00:00','0000-00-00 00:00:00','s','s'),
+(9,7, '09:01:06','0000-00-00 00:00:00','0000-00-00 00:00:00','d','d'),
+(10,5,'00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','n','n'),
+(11,0,'21:06:46','0000-00-00 00:00:00','0000-00-00 00:00:00','o','o'),
+(12,2,'00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','',''),
+(13,6,'14:45:34','2003-07-28 02:34:08','2003-07-28 02:34:08','w','w'),
+(14,1,'15:04:12','0000-00-00 00:00:00','0000-00-00 00:00:00','o','o'),
+(15,0,'00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','x','x'),
+(16,0,'15:55:23','2004-03-17 00:32:27','2004-03-17 00:32:27','p','p'),
+(17,1,'16:30:00','2004-12-27 19:20:00','2004-12-27 19:20:00','d','d'),
+(18,0,'00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','h','h'),
+(19,0,'14:13:26','2008-11-09 05:53:48','2008-11-09 05:53:48','o','o'),
+(20,0,'00:00:00','2009-10-11 06:58:04','2009-10-11 06:58:04','k','k');
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+int_nokey int(11) NOT NULL,
+time_key time NOT NULL,
+datetime_key datetime NOT NULL,
+datetime_nokey datetime NOT NULL,
+varchar_key varchar(1) NOT NULL,
+varchar_nokey varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY time_key (time_key),
+KEY datetime_key (datetime_key),
+KEY varchar_key (varchar_key)
+);
+INSERT INTO t2 VALUES 
+(10,0,'19:39:13','0000-00-00 00:00:00','0000-00-00 00:00:00','g','g'),
+(11,8,'03:43:53','0000-00-00 00:00:00','0000-00-00 00:00:00','b','b');
+SELECT OUTR.datetime_nokey AS X FROM t1 AS OUTR 
+WHERE 
+OUTR.varchar_nokey IN (SELECT 
+INNR . varchar_nokey AS Y 
+FROM t2 AS INNR 
+WHERE
+INNR . datetime_key >= INNR . time_key OR 
+INNR . pk = INNR . int_nokey  
+) 
+AND OUTR . varchar_nokey <= 'w' 
+HAVING X > '2012-12-12';
+X
+drop table t1, t2;
+#
+# Bug#45191: Incorrectly initialized semi-join led to a wrong result.
+#
+CREATE TABLE STAFF (EMPNUM   CHAR(3) NOT NULL,
+EMPNAME  CHAR(20), GRADE DECIMAL(4), CITY CHAR(15));
+CREATE TABLE PROJ (PNUM CHAR(3) NOT NULL,
+PNAME    CHAR(20), PTYPE CHAR(6),
+BUDGET   DECIMAL(9),
+CITY     CHAR(15));
+CREATE TABLE WORKS (EMPNUM CHAR(3) NOT NULL,
+PNUM CHAR(3) NOT NULL, HOURS DECIMAL(5));
+INSERT INTO STAFF VALUES ('E1','Alice',12,'Deale');
+INSERT INTO STAFF VALUES ('E2','Betty',10,'Vienna');
+INSERT INTO STAFF VALUES ('E3','Carmen',13,'Vienna');
+INSERT INTO STAFF VALUES ('E4','Don',12,'Deale');
+INSERT INTO STAFF VALUES ('E5','Ed',13,'Akron');
+INSERT INTO PROJ VALUES  ('P1','MXSS','Design',10000,'Deale');
+INSERT INTO PROJ VALUES  ('P2','CALM','Code',30000,'Vienna');
+INSERT INTO PROJ VALUES  ('P3','SDP','Test',30000,'Tampa');
+INSERT INTO PROJ VALUES  ('P4','SDP','Design',20000,'Deale');
+INSERT INTO PROJ VALUES  ('P5','IRM','Test',10000,'Vienna');
+INSERT INTO PROJ VALUES  ('P6','PAYR','Design',50000,'Deale');
+INSERT INTO WORKS VALUES  ('E1','P1',40);
+INSERT INTO WORKS VALUES  ('E1','P2',20);
+INSERT INTO WORKS VALUES  ('E1','P3',80);
+INSERT INTO WORKS VALUES  ('E1','P4',20);
+INSERT INTO WORKS VALUES  ('E1','P5',12);
+INSERT INTO WORKS VALUES  ('E1','P6',12);
+INSERT INTO WORKS VALUES  ('E2','P1',40);
+INSERT INTO WORKS VALUES  ('E2','P2',80);
+INSERT INTO WORKS VALUES  ('E3','P2',20);
+INSERT INTO WORKS VALUES  ('E4','P2',20);
+INSERT INTO WORKS VALUES  ('E4','P4',40);
+INSERT INTO WORKS VALUES  ('E4','P5',80);
+set optimizer_switch=@save_optimizer_switch;
+set optimizer_switch='materialization=off';
+explain SELECT EMPNUM, EMPNAME
+FROM STAFF
+WHERE EMPNUM IN
+(SELECT EMPNUM  FROM WORKS
+WHERE PNUM IN
+(SELECT PNUM  FROM PROJ));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	STAFF	ALL	NULL	NULL	NULL	NULL	5	
+1	PRIMARY	PROJ	ALL	NULL	NULL	NULL	NULL	6	
+1	PRIMARY	WORKS	ALL	NULL	NULL	NULL	NULL	12	Using where; FirstMatch(STAFF)
+SELECT EMPNUM, EMPNAME
+FROM STAFF
+WHERE EMPNUM IN
+(SELECT EMPNUM  FROM WORKS
+WHERE PNUM IN
+(SELECT PNUM  FROM PROJ));
+EMPNUM	EMPNAME
+E1	Alice
+E2	Betty
+E3	Carmen
+E4	Don
+set optimizer_switch=@save_optimizer_switch;
+drop table STAFF,WORKS,PROJ;
+# End of bug#45191
+#
+# Bug#46550 Azalea returning duplicate results for some IN subqueries
+# w/ semijoin=on
+#
+DROP TABLE IF EXISTS t0, t1, t2;
+CREATE TABLE t0 (
+int_key int(11) DEFAULT NULL,
+varchar_key varchar(1) DEFAULT NULL,
+varchar_nokey varchar(1) DEFAULT NULL,
+KEY int_key (int_key),
+KEY varchar_key (varchar_key,int_key)
+);
+INSERT INTO t0 VALUES
+(1,'m','m'),
+(40,'h','h'),
+(1,'r','r'),
+(1,'h','h'),
+(9,'x','x'),
+(NULL,'q','q'),
+(NULL,'k','k'),
+(7,'l','l'),
+(182,'k','k'),
+(202,'a','a'),
+(7,'x','x'),
+(6,'j','j'),
+(119,'z','z'),
+(4,'d','d'),
+(5,'h','h'),
+(1,'u','u'),
+(3,'q','q'),
+(7,'a','a'),
+(3,'e','e'),
+(6,'l','l');
+CREATE TABLE t1 (
+int_key int(11) DEFAULT NULL,
+varchar_key varchar(1) DEFAULT NULL,
+varchar_nokey varchar(1) DEFAULT NULL,
+KEY int_key (int_key),
+KEY varchar_key (varchar_key,int_key)
+);
+INSERT INTO t1 VALUES (7,NULL,NULL),(4,'x','x');
+CREATE TABLE t2 (
+int_key int(11) DEFAULT NULL,
+varchar_key varchar(1) DEFAULT NULL,
+varchar_nokey varchar(1) DEFAULT NULL,
+KEY int_key (int_key),
+KEY varchar_key (varchar_key,int_key)
+);
+INSERT INTO t2 VALUES (123,NULL,NULL);
+SELECT int_key  
+FROM t0  
+WHERE varchar_nokey  IN (  
+SELECT t1 .varchar_key  from t1
+);
+int_key
+9
+7
+DROP TABLE t0, t1, t2;
+# End of bug#46550
+#
+# Bug #46744 Crash in optimize_semijoin_nests on empty view
+# with limit and procedure.
+#
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v1;
+DROP PROCEDURE IF EXISTS p1;
+CREATE TABLE t1 ( f1 int );
+CREATE TABLE t2 ( f1 int );
+insert into t2 values (5), (7);
+CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1 LIMIT 2;
+create procedure p1() 
+select COUNT(*) 
+FROM v1 WHERE f1 IN 
+(SELECT f1 FROM t2 WHERE f1 = ANY (SELECT f1 FROM v1));
+SET SESSION optimizer_switch = 'semijoin=on';
+CALL p1();
+COUNT(*)
+0
+SET SESSION optimizer_switch = 'semijoin=off';
+CALL p1();
+COUNT(*)
+0
+drop table t1, t2;
+drop view v1;
+drop procedure p1;
+set SESSION optimizer_switch=@save_optimizer_switch;
+# End of bug#46744
+
+Bug#46797 "Crash in fix_semijoin_strategies_for_picked_join_order 
+with semijoin=on"
+
+CREATE TABLE t1 (
+varchar_key varchar(1) DEFAULT NULL,
+KEY varchar_key (varchar_key)
+);
+CREATE TABLE t2 (
+varchar_key varchar(1) DEFAULT NULL,
+KEY varchar_key (varchar_key)
+);
+INSERT INTO t2 VALUES
+(NULL),(NULL),(NULL),(NULL),('a'),('a'),('a'),('b'),('b'),('b'),('b'),('c'),
+('c'),('c'),('c'),('c'),('c'),('c'),('d'),('d'),('d'),('d'),('d'),('d'),('e'),
+('e'),('e'),('e'),('e'),('e'),('f'),('f'),('f'),('g'),('g'),('h'),('h'),('h'),
+('h'),('i'),('j'),('j'),('j'),('k'),('k'),('l'),('l'),('m'),('m'),('m'),('m'),
+('n'),('n'),('n'),('o'),('o'),('o'),('p'),('p'),('p'),('q'),('q'),('q'),('r'),
+('r'),('r'),('r'),('s'),('s'),('s'),('s'),('t'),('t'),('t'),('t'),('u'),('u'),
+('u'),('u'),('v'),('v'),('v'),('v'),('w'),('w'),('w'),('w'),('w'),('w'),('x'),
+('x'),('x'),('y'),('y'),('y'),('y'),('z'),('z'),('z'),('z');
+CREATE TABLE t3 (
+varchar_key varchar(1) DEFAULT NULL,
+KEY varchar_key (varchar_key)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t3 VALUES
+(NULL),('c'),('d'),('e'),('f'),('h'),('j'),('k'),('k'),('m'),('m'),('m'),
+('n'),('o'),('r'),('t'),('t'),('u'),('w'),('y');
+SELECT varchar_key FROM t3 
+WHERE (SELECT varchar_key FROM t3 
+WHERE (varchar_key,varchar_key) 
+IN (SELECT t1.varchar_key, t2 .varchar_key 
+FROM t1 RIGHT JOIN t2 ON t1.varchar_key  
+)  
+);
+varchar_key
+DROP TABLE t1, t2, t3;
+#
+# Bug#46556 Returning incorrect, empty results for some IN subqueries 
+#           w/semijoin=on
+#
+CREATE TABLE t0 (
+pk INTEGER,
+vkey VARCHAR(1),
+vnokey VARCHAR(1),
+PRIMARY KEY (pk),
+KEY vkey(vkey)
+);
+INSERT INTO t0 
+VALUES (1,'g','g'), (2,'v','v'), (3,'t','t'), (4,'u','u'), (5,'n','n');
+EXPLAIN EXTENDED SELECT vkey FROM t0 WHERE pk IN 
+(SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t0	ALL	PRIMARY	NULL	NULL	NULL	5	100.00	
+1	PRIMARY	t1	eq_ref	PRIMARY	PRIMARY	4	test.t0.pk	1	100.00	Using where
+1	PRIMARY	t2	ref	vkey	vkey	4	test.t1.vnokey	2	100.00	Using index; FirstMatch(t1)
+Warnings:
+Note	1003	select `test`.`t0`.`vkey` AS `vkey` from `test`.`t0` `t1` semi join (`test`.`t0` `t2`) join `test`.`t0` where ((`test`.`t1`.`pk` = `test`.`t0`.`pk`) and (`test`.`t2`.`vkey` = `test`.`t1`.`vnokey`))
+SELECT vkey FROM t0 WHERE pk IN 
+(SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
+vkey
+g
+v
+t
+u
+n
+DROP TABLE t0;
+# End of bug#46556
+
+Bug #48073 Subquery on char columns from view crashes Mysql
+
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v1;
+CREATE TABLE t1 (
+city VARCHAR(50) NOT NULL,
+country_id SMALLINT UNSIGNED NOT NULL
+);
+INSERT INTO t1 VALUES 
+('Batna',2),
+('Bchar',2),
+('Skikda',2),
+('Tafuna',3),
+('Algeria',2) ;
+CREATE TABLE t2 (
+country_id SMALLINT UNSIGNED NOT NULL,
+country VARCHAR(50) NOT NULL
+);
+INSERT INTO t2 VALUES
+(2,'Algeria'),
+(3,'American Samoa') ;
+CREATE VIEW v1 AS 
+SELECT country_id, country 
+FROM t2
+WHERE LEFT(country,1) = "A" 
+;
+SELECT city, country_id
+FROM t1
+WHERE city IN (
+SELECT country 
+FROM t2
+WHERE LEFT(country, 1) = "A" 
+);
+city	country_id
+Algeria	2
+SELECT city, country_id
+FROM t1
+WHERE city IN (
+SELECT country 
+FROM v1
+);
+city	country_id
+Algeria	2
+drop table t1, t2;
+drop view v1;
+# End of bug#48073
+
+Bug#48834: Procedure with view + subquery + semijoin=on 
+crashes on second call.
+
+SET SESSION optimizer_switch ='semijoin=on';
+CREATE TABLE t1 ( t1field integer, primary key (t1field));
+CREATE TABLE t2 ( t2field integer, primary key (t2field));
+CREATE VIEW v1 AS 
+SELECT t1field as v1field
+FROM t1 A 
+WHERE A.t1field IN (SELECT t1field FROM t2 );
+CREATE VIEW v2 AS 
+SELECT t2field as v2field
+FROM t2 A 
+WHERE A.t2field IN (SELECT t2field FROM t2 );
+CREATE PROCEDURE p1 () 
+BEGIN 
+SELECT v1field
+FROM v1 
+WHERE v1field IN ( SELECT v2field as vf_inner FROM v2 );
+END|
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t2 VALUES (2),(3),(4);
+CALL p1;
+v1field
+2
+3
+CALL p1;
+v1field
+2
+3
+DROP TABLE t1,t2;
+DROP VIEW v1,v2;
+DROP PROCEDURE p1;
+set SESSION optimizer_switch=@save_optimizer_switch;
+# End of BUG#48834
+
+Bug#49097 subquery with view generates wrong result with
+non-prepared statement
+
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v1;
+CREATE TABLE t1 (
+city VARCHAR(50) NOT NULL,
+country_id SMALLINT UNSIGNED NOT NULL
+);
+INSERT INTO t1 VALUES 
+('Batna',2),
+('Bchar',2),
+('Skikda',2),
+('Tafuna',3),
+('Algeria',2) ;
+CREATE TABLE t2 (
+country_id SMALLINT UNSIGNED NOT NULL,
+country VARCHAR(50) NOT NULL
+);
+INSERT INTO t2 VALUES
+(2,'Algeria'),
+(3,'XAmerican Samoa') ;
+CREATE VIEW v1 AS 
+SELECT country_id, country 
+FROM t2
+WHERE LEFT(country,1) = "A" 
+;
+SELECT city, country_id
+FROM t1
+WHERE country_id IN (
+SELECT country_id 
+FROM t2
+WHERE LEFT(country,1) = "A" 
+);
+city	country_id
+Batna	2
+Bchar	2
+Skikda	2
+Algeria	2
+SELECT city, country_id
+FROM t1
+WHERE country_id IN (
+SELECT country_id 
+FROM v1
+);
+city	country_id
+Batna	2
+Bchar	2
+Skikda	2
+Algeria	2
+PREPARE stmt FROM
+"
+SELECT city, country_id
+FROM t1
+WHERE country_id IN (
+  SELECT country_id 
+  FROM v1
+);
+";
+execute stmt;
+city	country_id
+Batna	2
+Bchar	2
+Skikda	2
+Algeria	2
+deallocate prepare stmt;
+drop table t1, t2;
+drop view v1;
+# End of Bug#49097
+# 
+# BUG#38075: Wrong result: rows matching a subquery with outer join not returned
+# 
+DROP TABLE IF EXISTS ot1, it1, it2;
+CREATE TABLE it2 (
+int_key int(11) NOT NULL,
+datetime_key datetime NOT NULL,
+KEY int_key (int_key),
+KEY datetime_key (datetime_key)
+);
+INSERT INTO it2 VALUES
+(5,'2002-04-10 14:25:30'), (0,'0000-00-00 00:00:00'),
+(0,'2006-09-14 04:01:02'), (4,'0000-00-00 00:00:00'),
+(8,'0000-00-00 00:00:00'), (5,'0000-00-00 00:00:00'),
+(9,'0000-00-00 00:00:00'), (8,'2007-04-01 11:04:17'),
+(1,'0000-00-00 00:00:00'), (7,'2009-01-12 00:00:00'),
+(0,'2009-06-05 00:00:00'), (3,'2006-02-14 18:06:35'),
+(5,'2006-02-21 07:08:16'), (0,'0000-00-00 00:00:00'),
+(7,'0000-00-00 00:00:00'), (0,'0000-00-00 00:00:00'),
+(0,'2007-02-13 00:00:00'), (1,'0000-00-00 00:00:00'),
+(0,'0000-00-00 00:00:00'), (1,'2003-08-11 00:00:00');
+CREATE TABLE ot1 (
+int_nokey int(11) NOT NULL,
+int_key int(11) NOT NULL,
+KEY int_key (int_key)
+);
+INSERT INTO ot1 VALUES
+(5,0), (3,0), (0,2), (3,0), (1,3), (0,0), (1,7), (7,0), (1,7), (0,7),
+(0,9), (8,2), (4,4), (9,3), (0,9), (2,5), (0,5), (8,0), (5,8), (1,5);
+CREATE TABLE it1 (
+int_nokey int(11) NOT NULL,
+int_key int(11) NOT NULL,
+KEY int_key (int_key)
+);
+INSERT INTO it1 VALUES
+(9,5), (0,4);
+SELECT int_key FROM ot1
+WHERE int_nokey IN (SELECT it2.int_key
+FROM it1 LEFT JOIN it2 ON it2.datetime_key);
+int_key
+0
+0
+0
+0
+0
+0
+2
+2
+3
+5
+5
+7
+7
+7
+8
+9
+9
+EXPLAIN
+SELECT int_key FROM ot1
+WHERE int_nokey IN (SELECT it2.int_key
+FROM it1 LEFT JOIN it2 ON it2.datetime_key);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	11	
+1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	20	Using where; Using join buffer (flat, BNL join)
+2	MATERIALIZED	it1	index	NULL	int_key	4	NULL	2	Using index
+2	MATERIALIZED	it2	ALL	int_key,datetime_key	NULL	NULL	NULL	20	Using where
+DROP TABLE ot1, it1, it2;
+# End of BUG#38075
+#
+# BUG#31480: Incorrect result for nested subquery when executed via semi join
+#
+create table t1 (a int not null, b int not null);
+create table t2 (c int not null, d int not null);
+create table t3 (e int not null);
+insert into t1 values (1,10);
+insert into t1 values (2,10);
+insert into t1 values (1,20);
+insert into t1 values (2,20);
+insert into t1 values (3,20);
+insert into t1 values (2,30);
+insert into t1 values (4,40);
+insert into t2 values (2,10);
+insert into t2 values (2,20);
+insert into t2 values (4,10);
+insert into t2 values (5,10);
+insert into t2 values (3,20);
+insert into t2 values (2,40);
+insert into t3 values (10);
+insert into t3 values (30);
+insert into t3 values (10);
+insert into t3 values (20);
+explain extended
+select a from t1
+where a in (select c from t2 where d >= some(select e from t3 where b=e));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	100.00	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; FirstMatch(t1)
+3	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #3 was resolved in SELECT #1
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`c` = `test`.`t1`.`a`) and <nop>(<expr_cache><`test`.`t2`.`d`,`test`.`t1`.`b`>(<in_optimizer>(`test`.`t2`.`d`,<exists>(select `test`.`t3`.`e` from `test`.`t3` where ((`test`.`t1`.`b` = `test`.`t3`.`e`) and (<cache>(`test`.`t2`.`d`) >= `test`.`t3`.`e`)))))))
+show warnings;
+Level	Code	Message
+Note	1276	Field or reference 'test.t1.b' of SELECT #3 was resolved in SELECT #1
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`c` = `test`.`t1`.`a`) and <nop>(<expr_cache><`test`.`t2`.`d`,`test`.`t1`.`b`>(<in_optimizer>(`test`.`t2`.`d`,<exists>(select `test`.`t3`.`e` from `test`.`t3` where ((`test`.`t1`.`b` = `test`.`t3`.`e`) and (<cache>(`test`.`t2`.`d`) >= `test`.`t3`.`e`)))))))
+select a from t1
+where a in (select c from t2 where d >= some(select e from t3 where b=e));
+a
+2
+2
+3
+2
+drop table t1, t2, t3;
+# 
+# Bug#48213 Materialized subselect crashes if using GEOMETRY type
+# 
+CREATE TABLE t1 (
+pk int,
+a varchar(1),
+b varchar(4),
+c tinyblob,
+d blob,
+e mediumblob,
+f longblob,
+g tinytext,
+h text,
+i mediumtext,
+j longtext,
+k geometry,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1,'o','ffff','ffff','ffoo','ffff','ffff','ffff','ffff','ffff','ffff',GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))')), (2,'f','ffff','ffff','ffff', 'ffff','ffff','ffff','ffff','ffff','ffff',GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))'));
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES (1,'i','iiii','iiii','iiii','iiii','ffff','ffff','ffff','ffff','ffff',GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))')), (2,'f','ffff','ffff','ffff','ffff','ffff','ffff','ffff','ffff','ffff',GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))'));
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (a, b) IN (SELECT a, b FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	11	func,func	1	100.00	
+2	MATERIALIZED	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Rowid-ordered scan
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (a, b) IN (SELECT a, b FROM t2 WHERE pk > 0);
+pk
+2
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, c) IN (SELECT b, c FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Rowid-ordered scan; FirstMatch(t1)
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`c` = `test`.`t1`.`c`) and (`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (b, c) IN (SELECT b, c FROM t2 WHERE pk > 0);
+pk
+1
+2
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, d) IN (SELECT b, d FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Rowid-ordered scan; FirstMatch(t1)
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`d` = `test`.`t1`.`d`) and (`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (b, d) IN (SELECT b, d FROM t2 WHERE pk > 0);
+pk
+2
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, e) IN (SELECT b, e FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Rowid-ordered scan; FirstMatch(t1)
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`e` = `test`.`t1`.`e`) and (`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (b, e) IN (SELECT b, e FROM t2 WHERE pk > 0);
+pk
+1
+2
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, f) IN (SELECT b, f FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Rowid-ordered scan; FirstMatch(t1)
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`f` = `test`.`t1`.`f`) and (`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (b, f) IN (SELECT b, f FROM t2 WHERE pk > 0);
+pk
+1
+2
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, g) IN (SELECT b, g FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Rowid-ordered scan; FirstMatch(t1)
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`g` = `test`.`t1`.`g`) and (`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (b, g) IN (SELECT b, g FROM t2 WHERE pk > 0);
+pk
+1
+2
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, h) IN (SELECT b, h FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Rowid-ordered scan; FirstMatch(t1)
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`h` = `test`.`t1`.`h`) and (`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (b, h) IN (SELECT b, h FROM t2 WHERE pk > 0);
+pk
+1
+2
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, i) IN (SELECT b, i FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Rowid-ordered scan; FirstMatch(t1)
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (b, i) IN (SELECT b, i FROM t2 WHERE pk > 0);
+pk
+1
+2
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, j) IN (SELECT b, j FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Rowid-ordered scan; FirstMatch(t1)
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`j` = `test`.`t1`.`j`) and (`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (b, j) IN (SELECT b, j FROM t2 WHERE pk > 0);
+pk
+1
+2
+EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, k) IN (SELECT b, k FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Rowid-ordered scan; FirstMatch(t1)
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`k` = `test`.`t1`.`k`) and (`test`.`t2`.`pk` > 0))
+SELECT pk FROM t1 WHERE (b, k) IN (SELECT b, k FROM t2 WHERE pk > 0);
+pk
+1
+2
+DROP TABLE t1, t2;
+# End of Bug#48213
+# 
+# Bug#49198 Wrong result for second call of procedure
+#           with view in subselect.
+# 
+CREATE TABLE t1 (t1field integer, primary key (t1field));
+CREATE TABLE t2 (t2field integer, primary key (t2field));
+CREATE TABLE t3 (t3field integer, primary key (t3field));
+CREATE VIEW v2 AS SELECT * FROM t2;
+CREATE VIEW v3 AS SELECT * FROM t3;
+INSERT INTO t1 VALUES(1),(2);
+INSERT INTO t2 VALUES(1),(2);
+INSERT INTO t3 VALUES(1),(2);
+PREPARE stmt FROM
+"
+SELECT t1field
+FROM t1
+WHERE t1field IN (SELECT * FROM v2);
+";
+EXECUTE stmt;
+t1field
+1
+2
+EXECUTE stmt;
+t1field
+1
+2
+PREPARE stmt FROM
+"
+EXPLAIN
+SELECT t1field
+FROM t1
+WHERE t1field IN (SELECT * FROM v2)
+  AND t1field IN (SELECT * FROM v3)
+";
+EXECUTE stmt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	PRIMARY	PRIMARY	4	NULL	2	Using index
+1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.t1field	1	Using index
+1	PRIMARY	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.t1field	1	Using index
+EXECUTE stmt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	2	Using index
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.t1field	1	Using index
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.t1field	1	Using index
+DROP TABLE t1, t2, t3;
+DROP VIEW v2, v3;
+# End of Bug#49198
+#
+# Bug#45174: Incorrectly applied equality propagation caused wrong
+# result on a query with a materialized semi-join.
+#
+CREATE TABLE `t1` (
+`pk` int(11) NOT NULL AUTO_INCREMENT,
+`varchar_key` varchar(1) NOT NULL,
+`varchar_nokey` varchar(1) NOT NULL,
+PRIMARY KEY (`pk`),
+KEY `varchar_key` (`varchar_key`)
+);
+INSERT INTO `t1` VALUES (11,'m','m'),(12,'j','j'),(13,'z','z'),(14,'a','a'),(15,'',''),(16,'e','e'),(17,'t','t'),(19,'b','b'),(20,'w','w'),(21,'m','m'),(23,'',''),(24,'w','w'),(26,'e','e'),(27,'e','e'),(28,'p','p');
+CREATE TABLE `t2` (
+`varchar_nokey` varchar(1) NOT NULL
+);
+INSERT INTO `t2` VALUES ('v'),('u'),('n'),('l'),('h'),('u'),('n'),('j'),('k'),('e'),('i'),('u'),('n'),('b'),('x'),(''),('q'),('u');
+EXPLAIN EXTENDED SELECT varchar_nokey
+FROM t2  
+WHERE ( `varchar_nokey`  , `varchar_nokey`  )  IN (  
+SELECT `varchar_key`  , `varchar_nokey`  
+FROM t1  
+WHERE `varchar_nokey`  < 'n' XOR `pk`  )   ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	15	100.00	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	18	100.00	Using where; Using join buffer (flat, BNL join)
+2	MATERIALIZED	t1	ALL	varchar_key	NULL	NULL	NULL	15	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t2`.`varchar_nokey` AS `varchar_nokey` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`varchar_nokey` = `test`.`t1`.`varchar_key`) and (`test`.`t2`.`varchar_nokey` = `test`.`t1`.`varchar_key`) and ((`test`.`t1`.`varchar_key` < 'n') xor `test`.`t1`.`pk`))
+SELECT varchar_nokey
+FROM t2  
+WHERE ( `varchar_nokey`  , `varchar_nokey`  )  IN (  
+SELECT `varchar_key`  , `varchar_nokey`  
+FROM t1  
+WHERE `varchar_nokey`  < 'n' XOR `pk`  )   ;
+varchar_nokey
+DROP TABLE t1, t2;
+# End of the test for bug#45174.
+#
+# BUG#43768: Prepared query with nested subqueries core dumps on second execution
+#
+create table t1 (
+id int(11) unsigned not null primary key auto_increment,
+partner_id varchar(35) not null,
+t1_status_id int(10) unsigned
+);
+insert into t1 values ("1", "partner1", "10"), ("2", "partner2", "10"),
+("3", "partner3", "10"), ("4", "partner4", "10");
+create table t2 (
+id int(11) unsigned not null default '0',
+t1_line_id int(11) unsigned not null default '0',
+article_id varchar(20),
+sequence int(11) not null default '0',
+primary key  (id,t1_line_id)
+);
+insert into t2 values ("1", "1", "sup", "0"), ("2", "1", "sup", "1"),
+("2", "2", "sup", "2"), ("2", "3", "sup", "3"),
+("2", "4", "imp", "4"), ("3", "1", "sup", "0"),
+("4", "1", "sup", "0");
+create table t3 (
+id int(11) not null default '0',
+preceeding_id int(11) not null default '0',
+primary key  (id,preceeding_id)
+);
+create table t4 (
+user_id varchar(50) not null,
+article_id varchar(20) not null,
+primary key  (user_id,article_id)
+);
+insert into t4 values("nicke", "imp");
+prepare stmt from
+'select t1.partner_id
+from t1
+where
+  t1.id in (
+    select pl_inner.id
+    from t2 as pl_inner
+    where  pl_inner.article_id in (
+      select t4.article_id from t4
+      where t4.user_id = \'nicke\'
+    )
+  )';
+execute stmt;
+partner_id
+partner2
+execute stmt;
+partner_id
+partner2
+drop table t1,t2,t3,t4;
+# 
+# Bug#48623 Multiple subqueries are optimized incorrectly
+# 
+CREATE TABLE t1(val VARCHAR(10));
+CREATE TABLE t2(val VARCHAR(10));
+CREATE TABLE t3(val VARCHAR(10));
+INSERT INTO t1  VALUES('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
+INSERT INTO t2 VALUES('aaa'), ('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
+INSERT INTO t3 VALUES('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
+EXPLAIN
+SELECT *
+FROM t1
+WHERE t1.val IN (SELECT t2.val FROM t2
+WHERE  t2.val LIKE 'a%' OR t2.val LIKE 'e%')
+AND t1.val IN (SELECT t3.val FROM t3
+WHERE  t3.val LIKE 'a%' OR t3.val LIKE 'e%');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	PRIMARY	<subquery3>	eq_ref	distinct_key	distinct_key	13	func	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	13	func	1	
+3	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	5	Using where
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
+SELECT *
+FROM t1
+WHERE t1.val IN (SELECT t2.val FROM t2
+WHERE  t2.val LIKE 'a%' OR t2.val LIKE 'e%')
+AND t1.val IN (SELECT t3.val FROM t3
+WHERE  t3.val LIKE 'a%' OR t3.val LIKE 'e%');
+val
+aaa
+eee
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+# End of Bug#48623
+# 
+# LPBUG#602574: RQG: sql_select.cc:5385: bool greedy_search(JOIN*, table_map, uint, 
+#               uint): Assertion `join->best_read <
+#
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='materialization=off';
+CREATE TABLE t1 (
+varchar_key varchar(1) DEFAULT NULL,
+KEY varchar_key (varchar_key)
+);
+CREATE TABLE t2 (
+varchar_key varchar(1) DEFAULT NULL,
+KEY varchar_key (varchar_key)
+);
+INSERT INTO t2 VALUES
+(NULL),(NULL),(NULL),(NULL),('a'),('a'),('a'),('b'),('b'),('b'),('b'),('c'),
+('c'),('c'),('c'),('c'),('c'),('c'),('d'),('d'),('d'),('d'),('d'),('d'),('e'),
+('e'),('e'),('e'),('e'),('e'),('f'),('f'),('f'),('g'),('g'),('h'),('h'),('h'),
+('h'),('i'),('j'),('j'),('j'),('k'),('k'),('l'),('l'),('m'),('m'),('m'),('m'),
+('n'),('n'),('n'),('o'),('o'),('o'),('p'),('p'),('p'),('q'),('q'),('q'),('r'),
+('r'),('r'),('r'),('s'),('s'),('s'),('s'),('t'),('t'),('t'),('t'),('u'),('u'),
+('u'),('u'),('v'),('v'),('v'),('v'),('w'),('w'),('w'),('w'),('w'),('w'),('x'),
+('x'),('x'),('y'),('y'),('y'),('y'),('z'),('z'),('z'),('z');
+CREATE TABLE t3 (
+varchar_key varchar(1) DEFAULT NULL,
+KEY varchar_key (varchar_key)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t3 VALUES
+(NULL),('c'),('d'),('e'),('f'),('h'),('j'),('k'),('k'),('m'),('m'),('m'),
+('n'),('o'),('r'),('t'),('t'),('u'),('w'),('y');
+SELECT varchar_key FROM t3 
+WHERE (SELECT varchar_key FROM t3 
+WHERE (varchar_key,varchar_key) 
+IN (SELECT t1.varchar_key, t2 .varchar_key 
+FROM t1 RIGHT JOIN t2 ON t1.varchar_key  
+)  
+);
+varchar_key
+set optimizer_switch=@save_optimizer_switch;
+DROP TABLE t1, t2, t3;
+#
+# Bug#46692 "Crash occurring on queries with nested FROM subqueries 
+# using materialization."
+#
+CREATE TABLE t1 (
+pk INTEGER PRIMARY KEY,
+int_key INTEGER,
+KEY int_key(int_key)
+);
+INSERT INTO t1 VALUES (10,186),(11,NULL),(12,2),(13,3),(14,0),(15,133),(16,1);
+CREATE TABLE t2 (
+pk INTEGER PRIMARY KEY,
+int_key INTEGER,
+KEY int_key(int_key)
+);
+INSERT INTO t2 VALUES (1,7),(2,2);
+SELECT * FROM t1 WHERE (140, 4) IN 
+(SELECT t2.int_key, t2 .pk FROM t2 STRAIGHT_JOIN t1 ON t2.int_key);
+pk	int_key
+DROP TABLE t1, t2;
+#
+# Bug#42353 "SELECT ... WHERE oe IN (SELECT w/ LEFT JOIN) query
+# causes crash."
+#
+CREATE TABLE t1 (
+pk INTEGER PRIMARY KEY,
+int_nokey INTEGER,
+int_key INTEGER,
+date_key DATE,
+datetime_nokey DATETIME,
+varchar_nokey VARCHAR(1)
+);
+CREATE TABLE t2 (
+date_nokey DATE
+);
+CREATE TABLE t3 (
+pk INTEGER PRIMARY KEY,
+int_nokey INTEGER,
+date_key date,
+varchar_key VARCHAR(1),
+varchar_nokey VARCHAR(1),
+KEY date_key (date_key)
+);
+SELECT date_key FROM t1
+WHERE (int_key, int_nokey)
+IN (SELECT  t3.int_nokey, t3.pk
+FROM t2 LEFT JOIN t3 ON (t2.date_nokey < t3.date_key) 
+WHERE t3.varchar_key <= t3.varchar_nokey OR t3.int_nokey <= t3.pk
+)
+AND (varchar_nokey <> 'f' OR NOT int_key < 7);
+date_key
+#
+# Bug#45933 "Crash in optimize_semijoin_nests on JOIN in subquery 
+# + AND in outer query".
+#
+INSERT INTO t1 VALUES (10,7,5,'2009-06-16','2002-04-10 14:25:30','w'),
+(11,7,0,'0000-00-00','0000-00-00 00:00:00','s'), 
+(12,4,0,'2003-07-14','2006-09-14 04:01:02','y'), 
+(13,0,4,'2002-07-25','0000-00-00 00:00:00','c'), 
+(14,1,8,'2007-07-03','0000-00-00 00:00:00','q'), 
+(15,6,5,'2001-11-12','0000-00-00 00:00:00',''), 
+(16,2,9,'0000-00-00','0000-00-00 00:00:00','j'), 
+(29,9,1,'0000-00-00','2003-08-11 00:00:00','m');
+INSERT INTO t3 VALUES (1,9,'0000-00-00','b','b'),
+(2,2,'2002-09-17','h','h');
+SELECT t1.varchar_nokey FROM t1 JOIN t3 ON t1.datetime_nokey
+WHERE t1.varchar_nokey 
+IN (SELECT varchar_nokey FROM t1 
+WHERE (pk) 
+IN (SELECT t3.int_nokey
+FROM t3 LEFT JOIN t1 ON t1.varchar_nokey
+WHERE t3.date_key BETWEEN '2008-06-07' AND '2006-06-26'
+           )  
+);
+varchar_nokey
+DROP TABLE t1, t2, t3;
+#
+# Bug#45219 "Crash on SELECT DISTINCT query containing a  
+# LEFT JOIN in subquery"
+#
+CREATE TABLE t1 (
+pk INTEGER NOT NULL,
+int_nokey INTEGER NOT NULL,
+datetime_key DATETIME NOT NULL,
+varchar_key VARCHAR(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY datetime_key (datetime_key),
+KEY varchar_key (varchar_key)
+);
+INSERT INTO t1 VALUES
+(1,9,'0000-00-00 00:00:00','p'),(2,0,'2002-02-09 07:38:13','v'),
+(3,8,'2001-05-03 12:08:14','t'),(4,3,'0000-00-00 00:00:00','u'),
+(5,7,'2009-07-28 03:43:30','n'),(6,0,'2009-08-04 00:00:00','l'),
+(7,1,'0000-00-00 00:00:00','h'),(8,9,'0000-00-00 00:00:00','u'),
+(9,0,'2005-08-02 17:16:54','n'),(10,9,'2002-12-21 00:00:00','j'),
+(11,0,'2005-08-15 12:37:35','k'),(12,5,'0000-00-00 00:00:00','e'),
+(13,0,'2006-03-10 00:00:00','i'),(14,8,'2005-05-16 11:02:36','u'),
+(15,8,'2008-11-02 00:00:00','n'),(16,5,'2006-03-15 00:00:00','b'),
+(17,1,'0000-00-00 00:00:00','x'),(18,7,'0000-00-00 00:00:00',''),
+(19,0,'2008-12-17 20:15:40','q'),(20,9,'0000-00-00 00:00:00','u');
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES 
+(10,0,'2006-07-07 07:26:28','q'),(11,5,'2002-09-23 00:00:00','m'),
+(12,7,'0000-00-00 00:00:00','j'),(13,1,'2006-06-07 00:00:00','z'),
+(14,8,'2000-09-16 12:15:34','a'),(15,2,'2007-08-05 15:47:52',''),
+(16,1,'0000-00-00 00:00:00','e'),(17,8,'2005-12-02 19:34:26','t'),
+(18,5,'0000-00-00 00:00:00','q'),(19,4,'0000-00-00 00:00:00','b'),
+(20,5,'2007-12-28 00:00:00','w'),(21,3,'2004-08-02 11:48:43','m'),
+(22,0,'0000-00-00 00:00:00','x'),(23,8,'2004-04-19 12:18:43',''),
+(24,0,'2009-04-27 00:00:00','w'),(25,4,'2006-10-20 14:52:15','x'),
+(26,0,'0000-00-00 00:00:00','e'),(27,0,'2002-03-22 11:48:37','e'),
+(28,2,'0000-00-00 00:00:00','p'),(29,0,'2001-01-04 03:55:07','x');
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t3 VALUES
+(10,8,'2007-08-19 08:08:38','i'),(11,0,'2000-05-21 03:51:51','');
+SELECT DISTINCT datetime_key FROM t1
+WHERE (int_nokey, pk)  
+IN (SELECT t3.pk, t3.pk FROM t2 LEFT JOIN t3 ON t3.varchar_key)  
+AND pk = 9;
+datetime_key
+DROP TABLE t1, t2, t3;
+# 
+# BUG#53060: LooseScan semijoin strategy does not return all rows
+# 
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='semijoin=on,materialization=off';
+set optimizer_switch='firstmatch=off,loosescan=on';
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+CREATE TABLE t2 (i INTEGER, j INTEGER, KEY k(i, j));
+INSERT INTO t2 VALUES (1, 0), (1, 1), (2, 0), (2, 1);
+EXPLAIN
+SELECT * FROM t1 WHERE (i) IN (SELECT i FROM t2 where j > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	k	k	10	NULL	4	Using where; Using index; LooseScan
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where; Using join buffer (flat, BNL join)
+SELECT * FROM t1 WHERE (i) IN (SELECT i FROM t2 where j > 0);
+i
+1
+2
+DROP TABLE t1, t2;
+set optimizer_switch=@save_optimizer_switch;
+#
+# BUG#49453: re-execution of prepared statement with view 
+#            and semijoin crashes
+#
+CREATE TABLE t1 (city VARCHAR(50), country_id INT);
+CREATE TABLE t2 (country_id INT, country VARCHAR(50));
+INSERT INTO t1 VALUES 
+('Batna',2),('Bchar',2),('Skikda',2),('Tafuna',3),('Algeria',2) ;
+INSERT INTO t2 VALUES (2,'Algeria'),(2,'AlgeriaDup'),(3,'XAmerican Samoa');
+CREATE VIEW v1 AS 
+SELECT country_id as vf_country_id
+FROM t2
+WHERE LEFT(country,1) = "A";
+PREPARE stmt FROM "
+SELECT city, country_id
+FROM t1
+WHERE country_id IN (SELECT vf_country_id FROM v1);
+";
+
+EXECUTE stmt;
+city	country_id
+Batna	2
+Bchar	2
+Skikda	2
+Algeria	2
+EXECUTE stmt;
+city	country_id
+Batna	2
+Bchar	2
+Skikda	2
+Algeria	2
+DROP TABLE t1,t2;
+DROP VIEW v1;
+#
+# Bug#54437 Extra rows with LEFT JOIN + semijoin 
+#
+create table t1 (a int);
+create table t2 (a int);
+create table t3 (a int);
+insert into t1 values(1),(1);
+insert into t2 values(1),(1),(1),(1);
+insert into t3 values(2),(2);
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='materialization=off';
+set optimizer_switch='semijoin=off';
+explain
+select * from t1 where t1.a in (select t2.a from t2 left join t3 on t2.a=t3.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+select * from t1 where t1.a in (select t2.a from t2 left join t3 on t2.a=t3.a);
+a
+1
+1
+set optimizer_switch='semijoin=on';
+explain
+select * from t1 where t1.a in (select t2.a from t2 left join t3 on t2.a=t3.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	4	Using where; Start temporary
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary
+select * from t1 where t1.a in (select t2.a from t2 left join t3 on t2.a=t3.a);
+a
+1
+1
+set optimizer_switch=@save_optimizer_switch;
+drop table t1,t2,t3;
+#
+# Bug#55955: crash in MEMORY engine with IN(LEFT JOIN (JOIN))
+#
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+CREATE TABLE t3 (a INT);
+INSERT INTO t1 VALUES(1),(1);
+INSERT INTO t2 VALUES(1),(1);
+INSERT INTO t3 VALUES(2),(2);
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='semijoin=off,materialization=off';
+EXPLAIN
+SELECT * FROM t1
+WHERE t1.a IN (SELECT t2.a
+FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2inner	ALL	NULL	NULL	NULL	NULL	2	
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1
+WHERE t1.a IN (SELECT t2.a
+FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
+a
+1
+1
+set optimizer_switch='semijoin=off,materialization=on';
+EXPLAIN
+SELECT * FROM t1
+WHERE t1.a IN (SELECT t2.a
+FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	MATERIALIZED	t2inner	ALL	NULL	NULL	NULL	NULL	2	
+2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1
+WHERE t1.a IN (SELECT t2.a
+FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
+a
+1
+1
+set optimizer_switch='semijoin=on,materialization=off';
+EXPLAIN
+SELECT * FROM t1
+WHERE t1.a IN (SELECT t2.a
+FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
+1	PRIMARY	t2inner	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary
+SELECT * FROM t1
+WHERE t1.a IN (SELECT t2.a
+FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
+a
+1
+1
+set optimizer_switch=@save_optimizer_switch;
+DROP TABLE t1,t2,t3;
+#
+# BUG#52329 - Wrong result: subquery materialization, IN, 
+#             non-null field followed by nullable
+#
+CREATE TABLE t1 (a1 CHAR(8) NOT NULL, a2 char(8) NOT NULL);
+CREATE TABLE t2a (b1 char(8), b2 char(8));
+CREATE TABLE t2b (b1 CHAR(8), b2 char(8) NOT NULL);
+CREATE TABLE t2c (b1 CHAR(8) NOT NULL, b2 char(8));
+INSERT INTO t1 VALUES ('1 - 12', '2 - 22');
+INSERT INTO t2a VALUES ('1 - 11', '2 - 21'),
+('1 - 11', '2 - 21'),
+('1 - 12', '2 - 22'),
+('1 - 12', '2 - 22'),
+('1 - 13', '2 - 23');
+INSERT INTO t2b SELECT * FROM t2a;
+INSERT INTO t2c SELECT * FROM t2a;
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='semijoin=off,materialization=on';
+SELECT * FROM t1
+WHERE (a1, a2) IN (
+SELECT b1, b2 FROM t2c WHERE b1 > '0' GROUP BY b1, b2);
+a1	a2
+1 - 12	2 - 22
+SELECT * FROM t1
+WHERE (a1, a2) IN (
+SELECT b1, b2 FROM t2a WHERE b1 > '0');
+a1	a2
+1 - 12	2 - 22
+SELECT * FROM t1
+WHERE (a1, a2) IN (
+SELECT b1, b2 FROM t2b WHERE b1 > '0');
+a1	a2
+1 - 12	2 - 22
+SELECT * FROM t1
+WHERE (a1, a2) IN (
+SELECT b1, b2 FROM t2c WHERE b1 > '0');
+a1	a2
+1 - 12	2 - 22
+set optimizer_switch=@save_optimizer_switch;
+DROP TABLE t1,t2a,t2b,t2c;
+#
+# Bug#57623: subquery within before insert trigger causes crash (sj=on)
+#
+CREATE TABLE ot1(a INT);
+CREATE TABLE ot2(a INT);
+CREATE TABLE ot3(a INT);
+CREATE TABLE it1(a INT);
+INSERT INTO ot1 VALUES(0),(1),(2),(3),(4),(5),(6),(7);
+INSERT INTO ot2 VALUES(0),(2),(4),(6);
+INSERT INTO ot3 VALUES(0),(3),(6);
+INSERT INTO it1 VALUES(0),(1),(2),(3),(4),(5),(6),(7);
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='semijoin=on';
+set optimizer_switch='materialization=off';
+explain SELECT *
+FROM   ot1
+LEFT JOIN
+(ot2 JOIN ot3 on ot2.a=ot3.a)
+ON ot1.a=ot2.a AND ot1.a IN (SELECT a from it1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	8	
+1	PRIMARY	ot3	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	ot2	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DEPENDENT SUBQUERY	it1	ALL	NULL	NULL	NULL	NULL	8	Using where
+SELECT *
+FROM   ot1
+LEFT JOIN
+(ot2 JOIN ot3 on ot2.a=ot3.a)
+ON ot1.a=ot2.a AND ot1.a IN (SELECT a from it1);
+a	a	a
+0	0	0
+1	NULL	NULL
+2	NULL	NULL
+3	NULL	NULL
+4	NULL	NULL
+5	NULL	NULL
+6	6	6
+7	NULL	NULL
+prepare s from 'SELECT *
+FROM   ot1
+LEFT JOIN
+(ot2 JOIN ot3 on ot2.a=ot3.a)
+ON ot1.a=ot2.a AND ot1.a IN (SELECT a from it1)';
+execute s;
+a	a	a
+0	0	0
+1	NULL	NULL
+2	NULL	NULL
+3	NULL	NULL
+4	NULL	NULL
+5	NULL	NULL
+6	6	6
+7	NULL	NULL
+execute s;
+a	a	a
+0	0	0
+1	NULL	NULL
+2	NULL	NULL
+3	NULL	NULL
+4	NULL	NULL
+5	NULL	NULL
+6	6	6
+7	NULL	NULL
+deallocate prepare s;
+set optimizer_switch='materialization=on';
+explain SELECT *
+FROM   ot1
+LEFT JOIN
+(ot2 JOIN ot3 on ot2.a=ot3.a)
+ON ot1.a=ot2.a AND ot1.a IN (SELECT a from it1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	8	
+1	PRIMARY	ot3	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	ot2	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	MATERIALIZED	it1	ALL	NULL	NULL	NULL	NULL	8	
+SELECT *
+FROM   ot1
+LEFT JOIN
+(ot2 JOIN ot3 on ot2.a=ot3.a)
+ON ot1.a=ot2.a AND ot1.a IN (SELECT a from it1);
+a	a	a
+0	0	0
+1	NULL	NULL
+2	NULL	NULL
+3	NULL	NULL
+4	NULL	NULL
+5	NULL	NULL
+6	6	6
+7	NULL	NULL
+prepare s from 'SELECT *
+FROM   ot1
+LEFT JOIN
+(ot2 JOIN ot3 on ot2.a=ot3.a)
+ON ot1.a=ot2.a AND ot1.a IN (SELECT a from it1)';
+execute s;
+a	a	a
+0	0	0
+1	NULL	NULL
+2	NULL	NULL
+3	NULL	NULL
+4	NULL	NULL
+5	NULL	NULL
+6	6	6
+7	NULL	NULL
+execute s;
+a	a	a
+0	0	0
+1	NULL	NULL
+2	NULL	NULL
+3	NULL	NULL
+4	NULL	NULL
+5	NULL	NULL
+6	6	6
+7	NULL	NULL
+deallocate prepare s;
+set optimizer_switch=@save_optimizer_switch;
+DROP TABLE ot1, ot2, ot3, it1;
+#
+# Bug#59919/11766739: Crash in tmp_table_param::init() with semijoin=on
+#
+CREATE TABLE t1 (f1 INTEGER) ENGINE=MyISAM;
+CREATE TABLE t2 (f1 INTEGER, f2 INTEGER) ENGINE=MyISAM;
+CREATE TABLE t3 (f1 INTEGER, f2 INTEGER) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1,1), (2,1);
+INSERT INTO t3 VALUES 
+(1,1), (2,1), (5,4), (7,3), (8,2), (8,1), (7,3),
+(9,5), (4,3), (7,2), (7,7), (3,1), (5,8), (9,7);
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='semijoin=off,materialization=on';
+EXPLAIN
+SELECT * FROM t3
+WHERE f2 IN (SELECT t1.f1
+FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	14	Using where
+2	MATERIALIZED	t1	system	NULL	NULL	NULL	NULL	1	
+2	MATERIALIZED	b1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	MATERIALIZED	b2	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t3
+WHERE f2 IN (SELECT t1.f1
+FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
+f1	f2
+1	1
+2	1
+8	1
+3	1
+set optimizer_switch='semijoin=on,materialization=on';
+EXPLAIN
+SELECT * FROM t3
+WHERE f2 IN (SELECT t1.f1
+FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	1	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	14	Using where; Using join buffer (flat, BNL join)
+2	MATERIALIZED	b1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	MATERIALIZED	b2	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t3
+WHERE f2 IN (SELECT t1.f1
+FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
+f1	f2
+1	1
+2	1
+8	1
+3	1
+set optimizer_switch=@save_optimizer_switch;
+DROP TABLE t1, t2, t3 ;
+#
+#
+# BUG#784723: Wrong result with semijoin + nested subqueries in maria-5.3  
+#
+CREATE TABLE t1 ( t1field integer, primary key (t1field));
+CREATE TABLE t2 ( t2field integer, primary key (t2field));
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t2 VALUES (2),(3),(4);
+explain 
+SELECT * FROM t1 A 
+WHERE 
+A.t1field IN (SELECT A.t1field FROM t2 B) AND 
+A.t1field IN (SELECT C.t2field FROM t2 C 
+WHERE C.t2field IN (SELECT D.t2field FROM t2 D));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	A	index	PRIMARY	PRIMARY	4	NULL	3	Using index
+1	PRIMARY	B	index	NULL	PRIMARY	4	NULL	3	Using index; Start temporary; End temporary
+1	PRIMARY	C	eq_ref	PRIMARY	PRIMARY	4	test.A.t1field	1	Using index
+1	PRIMARY	D	eq_ref	PRIMARY	PRIMARY	4	test.A.t1field	1	Using index
+SELECT * FROM t1 A 
+WHERE 
+A.t1field IN (SELECT A.t1field FROM t2 B) AND 
+A.t1field IN (SELECT C.t2field FROM t2 C 
+WHERE C.t2field IN (SELECT D.t2field FROM t2 D));
+t1field
+2
+3
+drop table t1,t2;
+# 
+# BUG#787299: Valgrind complains on a join query with two IN subqueries
+#
+create table t1 (a int);
+insert into t1 values (1), (2), (3);
+create table t2 as select * from t1;
+select * from t1 A, t1 B
+where A.a = B.a and A.a in (select a from t2 C) and B.a in (select a from t2 D);
+a	a
+1	1
+2	2
+3	3
+explain
+select * from t1 A, t1 B
+where A.a = B.a and A.a in (select a from t2 C) and B.a in (select a from t2 D);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	4	func	1	
+1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	<subquery3>	eq_ref	distinct_key	distinct_key	4	func	1	
+2	MATERIALIZED	C	ALL	NULL	NULL	NULL	NULL	3	
+3	MATERIALIZED	D	ALL	NULL	NULL	NULL	NULL	3	
+drop table t1, t2;
+# 
+# BUG#784441: Abort on semijoin with a view as the inner table
+#
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (1), (1);
+CREATE TABLE t2 (a int) ;
+INSERT INTO t2 VALUES (1), (1);
+CREATE VIEW v1 AS SELECT 1;
+EXPLAIN
+SELECT * FROM t1 INNER JOIN t2 ON t2.a != 0 AND t2.a IN (SELECT * FROM v1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+2	MATERIALIZED	<derived3>	system	NULL	NULL	NULL	NULL	1	
+3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+SELECT * FROM t1 INNER JOIN t2 ON t2.a != 0 AND t2.a IN (SELECT * FROM v1);
+a	a
+1	1
+1	1
+1	1
+1	1
+DROP VIEW v1;
+DROP TABLE t1,t2;
+#
+# BUG#751439 Assertion `!table->file || table->file->inited == handler::NONE' failed with subquery
+#
+CREATE TABLE t1 ( f10 int, f11 int) ;
+INSERT IGNORE INTO t1 VALUES (0,0),(0,0);
+CREATE TABLE t2 ( f11 int);
+INSERT IGNORE INTO t2 VALUES (0),(0);
+CREATE TABLE t3 ( f11 int) ;
+INSERT IGNORE INTO t3 VALUES (0);
+SELECT alias1.f11 AS field2
+FROM ( t3 AS alias2 JOIN t1 AS alias3 ON alias3.f10 = 1)
+LEFT JOIN ( t2 AS alias1 ) ON alias3.f11 = 1
+WHERE alias2.f11 IN ( SELECT f11 FROM t2 )
+GROUP BY field2 ;
+field2
+drop table t1, t2, t3;
+#
+# BUG#778406 Crash in hp_movelink with Aria engine and subqueries
+#
+CREATE TABLE t4 (f10 varchar(32) , KEY (f10)) ENGINE=Aria;
+INSERT INTO t4 VALUES ('x'),('m'),('c');
+CREATE TABLE t1 (f11 int) ENGINE=Aria;
+INSERT INTO t1 VALUES (0),(0),(0);
+CREATE TABLE t2 ( f10 int) ENGINE=Aria;
+INSERT INTO t2 VALUES (0),(0),(0);
+CREATE TABLE t3 ( f10 int, f11 int) ENGINE=Aria;
+SELECT *
+FROM t4
+WHERE f10 IN
+( SELECT t1.f11
+FROM t1
+LEFT JOIN t2 JOIN t3 ON t3.f10 = t2.f10 ON t3.f11 != 0 );
+f10
+x
+m
+c
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'x'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'x'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'x'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+drop table t1,t2,t3,t4;
+#
+# BUG#751484: Valgrind warning / sporadic crash in evaluate_join_record sql_select.cc:14099 with semijoin
+#
+CREATE TABLE t1 ( f10 int, f11 int, KEY (f10));
+INSERT IGNORE INTO t1 VALUES (0, 0),(0, 0);
+CREATE TABLE t3 ( f10 int);
+INSERT IGNORE INTO t3 VALUES (0);
+set @tmp_751484= @@optimizer_switch;
+set optimizer_switch='materialization=on';
+SELECT * FROM t1
+WHERE f11 IN (
+SELECT C_SQ1_alias1.f11
+FROM t1 AS C_SQ1_alias1
+JOIN t3 AS C_SQ1_alias2
+ON C_SQ1_alias2.f10 = C_SQ1_alias1.f10
+);
+f10	f11
+0	0
+0	0
+set optimizer_switch='materialization=off';
+SELECT * FROM t1
+WHERE f11 IN (
+SELECT C_SQ1_alias1.f11
+FROM t1 AS C_SQ1_alias1
+JOIN t3 AS C_SQ1_alias2
+ON C_SQ1_alias2.f10 = C_SQ1_alias1.f10
+);
+f10	f11
+0	0
+0	0
+set optimizer_switch=@tmp_751484;
+drop table t1, t3;
+# BUG#795530 Wrong result with subquery semijoin materialization and outer join 
+#  Simplified testcase that uses DuplicateElimination
+#
+create table t1 (a int);
+create table t2 (a int, b char(10));
+insert into t1 values (1),(2);
+insert into t2 values (1, 'one'), (3, 'three');
+create table t3 (b char(10));
+insert into t3 values('three'),( 'four');
+insert into t3 values('three'),( 'four');
+insert into t3 values('three'),( 'four');
+insert into t3 values('three'),( 'four');
+explain select * from t3 where t3.b in (select t2.b from t1 left join t2 on t1.a=t2.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	8	Using where; Using join buffer (flat, BNL join)
+2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+select * from t3 where t3.b in (select t2.b from t1 left join t2 on t1.a=t2.a);
+b
+drop table t1, t2, t3;
+#
+# BUG#600958 RQG: Crash in optimize_semijoin_nests
+#
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_key int(11) DEFAULT NULL,
+col_date_key date DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_date_key (col_date_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (10,8,'2002-02-21',NULL);
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_key int(11) DEFAULT NULL,
+col_date_key date DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_date_key (col_date_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
+INSERT INTO t2 VALUES (1,7,'1900-01-01','f');
+SELECT col_date_key FROM t1
+WHERE 5 IN (
+SELECT SUBQUERY3_t1 .col_int_key
+FROM t2 SUBQUERY3_t1
+LEFT JOIN t1 SUBQUERY3_t2 ON SUBQUERY3_t1 .col_varchar_key
+);
+col_date_key
+drop table t2, t1;
+#
+# No BUG#: Duplicate weedout check is not done for outer joins
+#
+create table t1 (a int);
+create table t2 (a int);
+insert into t1 values (1),(1),(2),(2);
+insert into t2 values (1);
+create table t0 (a int);
+insert into t0 values (1),(2);
+set @tmp_20110622= @@optimizer_switch;
+set optimizer_switch='firstmatch=off,loosescan=off,materialization=off';
+# Check DuplicateWeedout + join buffer
+explain 
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Start temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; End temporary
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+a
+1
+2
+# Check DuplicateWeedout without join buffer
+set @tmp_jcl_20110622= @@join_cache_level;
+set join_cache_level= 0;
+explain 
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Start temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; End temporary
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+a
+1
+2
+# Check FirstMatch without join buffer:
+set optimizer_switch='firstmatch=on';
+explain 
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Start temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; End temporary
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+a
+1
+2
+#
+# Now, check the same for multiple inner tables:
+alter table t2 add b int;
+update t2 set b=a;
+create table t3 as select * from t2;
+set optimizer_switch='firstmatch=off';
+set join_cache_level= 0;
+# DuplicateWeedout without join buffer
+explain 
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Start temporary
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; End temporary
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+a
+1
+2
+set @@join_cache_level=@tmp_jcl_20110622;
+# DuplicateWeedout + join buffer
+explain
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Start temporary
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; End temporary
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+a
+1
+2
+# Now, let the inner join side have a 'partial' match
+select * from t3;
+a	b
+1	1
+insert into t3 values(2,2);
+explain
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Start temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+a
+1
+2
+set @@optimizer_switch=@tmp_20110622;
+drop table t0, t1, t2, t3;
+#
+# BUG#802965: Crash in do_copy_not_null with semijoin=on in maria-5.3
+# 
+set @save_802965= @@optimizer_switch;
+set optimizer_switch='semijoin=on,materialization=off,firstmatch=off,loosescan=off';
+CREATE TABLE t2 ( f1 int NOT NULL , PRIMARY KEY (f1)) ;
+INSERT IGNORE INTO t2 VALUES (19),(20);
+CREATE TABLE t1 ( f1 int NOT NULL , PRIMARY KEY (f1)) ;
+INSERT IGNORE INTO t1 VALUES (21),(22),(23),(24);
+SELECT *
+FROM t2 , t1
+WHERE t2.f1 IN
+(
+SELECT SQ1_alias1.f1
+FROM t1 AS SQ1_alias1 LEFT JOIN t2 AS SQ1_alias2 JOIN t2 AS SQ1_alias3 ON SQ1_alias3.f1 ON SQ1_alias3.f1
+)
+AND t1.f1 = t2.f1 ;
+f1	f1
+DROP TABLE t1, t2;
+set optimizer_switch=@save_802965;
+#
+# BUG#803365: Crash in pull_out_semijoin_tables with outer join + semijoin + derived tables in maria-5.3 with WL#106
+#
+CREATE TABLE t1 ( f1 int) ;
+INSERT INTO t1 VALUES (1),(1);
+CREATE TABLE t2 ( f2 int) ;
+INSERT INTO t2 VALUES (1),(1);
+CREATE TABLE t3 ( f3 int) ;
+INSERT INTO t3 VALUES (1),(1);
+SELECT *
+FROM t1
+WHERE t1.f1 IN (
+SELECT t2.f2
+FROM t2
+LEFT JOIN (
+SELECT *
+FROM t3
+) AS alias1
+ON alias1.f3 = t2.f2
+);
+f1
+1
+1
+DROP TABLE t1,t2,t3;
+#
+# BUG#611704: Crash in replace_where_subcondition with nested subquery and semijoin=on
+# 
+CREATE TABLE t1 ( f1 int) ;
+CREATE TABLE t2 ( f1 int) ;
+CREATE TABLE t3 ( f1 int) ;
+SELECT * FROM (
+SELECT t3.*
+FROM t2 STRAIGHT_JOIN t3
+ON t3.f1
+AND (t3.f1 ) IN (
+SELECT t1.f1
+FROM t1
+)
+) AS alias1;
+f1
+DROP TABLE t1,t2,t3;
+# BUG#611704: another testcase:
+CREATE TABLE t1 ( f1 int(11), f3 varchar(1), f4 varchar(1)) ;
+CREATE TABLE t2 ( f2 int(11), KEY (f2));
+CREATE TABLE t3 ( f4 varchar(1)) ;
+PREPARE st1 FROM '
+SELECT *
+FROM t1
+STRAIGHT_JOIN ( t2 STRAIGHT_JOIN t3 ON t2.f2 )
+ON (t1.f3) IN ( SELECT f4 FROM t1 )
+';
+EXECUTE st1;
+f1	f3	f4	f2	f4
+DROP TABLE t1,t2,t3;
+#
+# BUG#803457: Wrong result with semijoin + view + outer join in maria-5.3-subqueries-mwl90
+#   (Original testcase)
+#
+CREATE TABLE t1 (f1 int, f2 int );
+INSERT INTO t1 VALUES (2,0),(4,0),(0,NULL);
+CREATE TABLE t2 (f2 int, f3 int );
+INSERT INTO t2 VALUES (NULL,NULL),(0,0);
+CREATE TABLE t3 ( f1 int, f3 int );
+INSERT INTO t3 VALUES (2,0),(4,0),(0,NULL),(4,0),(8,0);
+CREATE TABLE t4 ( f2 int, KEY (f2) );
+INSERT INTO t4 VALUES (0),(NULL);
+CREATE VIEW v4 AS SELECT DISTINCT f2 FROM t4 ;
+# The following must not have outer joins:
+explain extended
+SELECT * FROM t1 NATURAL LEFT JOIN (t2, t3) WHERE t2.f3 IN (SELECT * FROM t4);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	PRIMARY	t4	ref	f2	f2	5	test.t2.f3	2	100.00	Using index; FirstMatch(t2)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3`,`test`.`t3`.`f3` AS `f3` from `test`.`t1` semi join (`test`.`t4`) join `test`.`t2` join `test`.`t3` where ((`test`.`t4`.`f2` = `test`.`t2`.`f3`) and (`test`.`t3`.`f1` = `test`.`t1`.`f1`) and (`test`.`t1`.`f2` = `test`.`t2`.`f2`))
+SELECT * FROM t1 NATURAL LEFT JOIN (t2, t3) WHERE t2.f3 IN (SELECT * FROM t4);
+f1	f2	f3	f3
+2	0	0	0
+4	0	0	0
+4	0	0	0
+drop view v4;
+drop table t1, t2, t3, t4;
+#
+# BUG#803303: Wrong result with semijoin=on, outer join in maria-5.3-subqueries-mwl90
+#
+# Testcase#1:
+set @tmp803303= @@optimizer_switch;
+set optimizer_switch = 'semijoin=on,materialization=off,firstmatch=off,loosescan=off';
+CREATE TABLE t2 ( f1 int) ;
+INSERT IGNORE INTO t2 VALUES (6),(8);
+CREATE TABLE t1 ( f1 int, f2 int, f3 int) ;
+INSERT IGNORE INTO t1 VALUES (8,0,0),(7,0,0),(9,0,0);
+SELECT alias2.f1
+FROM t2 AS alias1
+LEFT JOIN ( t1 AS alias2 JOIN t1 AS alias3 ON alias3.f2 = alias2.f3 )
+ON alias3.f2 = alias2.f2
+WHERE alias2.f1 IN ( SELECT f1 FROM t2 AS alias4 ) ;
+f1
+8
+8
+8
+8
+8
+8
+drop table t1,t2;
+set optimizer_switch= @tmp803303;
+# Testcase #2:
+CREATE TABLE t1 ( f10 int) ;
+INSERT INTO t1 VALUES (0),(0);
+CREATE TABLE t2 ( f10 int, f11 varchar(1)) ;
+INSERT INTO t2 VALUES (0,'a'),(0,'b');
+CREATE TABLE t3 ( f10 int) ;
+INSERT INTO t3 VALUES (0),(0),(0),(0),(0);
+CREATE TABLE t4 ( f10 varchar(1), f11 int) ;
+INSERT INTO t4 VALUES ('a',0),('b',0);
+SELECT * FROM t1
+LEFT JOIN ( t2 JOIN t3 ON t3.f10 = t2.f10 ) ON t1.f10 = t2.f10
+WHERE t2.f10 IN (
+SELECT t4.f11
+FROM t4
+WHERE t4.f10 != t2.f11
+);
+f10	f10	f11	f10
+0	0	a	0
+0	0	a	0
+0	0	b	0
+0	0	b	0
+0	0	a	0
+0	0	a	0
+0	0	b	0
+0	0	b	0
+0	0	a	0
+0	0	a	0
+0	0	b	0
+0	0	b	0
+0	0	a	0
+0	0	a	0
+0	0	b	0
+0	0	b	0
+0	0	a	0
+0	0	a	0
+0	0	b	0
+0	0	b	0
+drop table t1,t2,t3,t4;
+#
+# BUG#803457: Wrong result with semijoin + view + outer join in maria-5.3-subqueries-mwl90
+#
+set @tmp803457=@@optimizer_switch;
+set optimizer_switch='materialization=off';
+CREATE TABLE t1 (f1 int, f2 int );
+INSERT INTO t1 VALUES (2,0),(4,0),(0,NULL);
+CREATE TABLE t2 (f2 int, f3 int );
+INSERT INTO t2 VALUES (NULL,NULL),(0,0);
+CREATE TABLE t3 ( f1 int, f3 int );
+INSERT INTO t3 VALUES (2,0),(4,0),(0,NULL),(4,0),(8,0);
+CREATE TABLE t4 ( f2 int);
+INSERT INTO t4 VALUES (0),(NULL);
+# The following uses Duplicate Weedout, and "End temporary" must not be
+#   in the middle of the inner side of an outer join:
+explain 
+SELECT * FROM t1 NATURAL LEFT JOIN (t2, t3) WHERE IFNULL(t2.f3,'foo') IN (SELECT * FROM t4);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	5	Using where
+1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary; End temporary
+SELECT * FROM t1 NATURAL LEFT JOIN (t2, t3 ) WHERE IFNULL(t2.f3,'foo') IN (SELECT * FROM t4);
+f1	f2	f3	f3
+2	0	0	0
+4	0	0	0
+4	0	0	0
+0	NULL	NULL	NULL
+DROP TABLE t1, t2, t3, t4;
+set @tmp803457=@@optimizer_switch;
+#
+# BUG#818280: crash in do_copy_not_null() in maria-5.3 with semijoin
+#
+CREATE TABLE t1 ( c1 int NOT NULL , c2 int NOT NULL, PRIMARY KEY (c1)) ;
+INSERT IGNORE INTO t1 VALUES (2,7),(1,3),(5,6);
+CREATE TABLE t3 ( c1 int NOT NULL , c2 int NOT NULL, PRIMARY KEY (c1)) ;
+INSERT IGNORE INTO t3 VALUES (2,7),(1,3),(5,6);
+CREATE TABLE t2 ( c1 int NOT NULL , c5 int NOT NULL );
+INSERT IGNORE INTO t2 VALUES (2,2),(2,2),(5,6);
+SELECT * FROM t1 WHERE c1 IN ( SELECT t3.c1 FROM t3 LEFT JOIN t2 ON t2 .c1 = t3 .c1 WHERE t2.c5 != 0 );
+c1	c2
+2	7
+5	6
+DROP TABLE t1, t2, t3;
+#
+# BUG#834534: Assertion `0' failed in replace_where_subcondition with semijoin subquery in HAVING
+#
+CREATE TABLE t1 ( d int );
+INSERT INTO t1 VALUES (2),(2),(0),(2),(2);
+CREATE TABLE t2 ( b int );
+INSERT INTO t2 VALUES (4),(3),(3);
+CREATE TABLE t3 ( a int );
+SELECT *
+FROM t3
+WHERE (t3.a) IN (
+SELECT t1.d
+FROM t1
+HAVING ( 4 ) IN (
+SELECT t2.b
+FROM t2
+)
+);
+a
+drop table t1, t2,t3;
+#
+# BUG#834758: Wrong result with innner join, LooseScan, two-column IN() predicate
+#
+set @tmp835758=@@optimizer_switch;
+set optimizer_switch='semijoin=on,loosescan=on,materialization=off,firstmatch=off';
+CREATE TABLE t1 (b int) ;
+INSERT INTO t1 VALUES (1),(5);
+CREATE TABLE t2 (a int, PRIMARY KEY (a)) ;
+INSERT INTO t2 VALUES (6),(10);
+CREATE TABLE t3 (a int, b int, KEY (b)) ;
+INSERT INTO t3 VALUES (6,5),(6,2),(8,0),(9,1),(6,5);
+# This used to incorrectly pick a join order of (t1, LooseScan(t3), t2):
+explain 
+SELECT * FROM t1, t2 WHERE (t2.a , t1.b) IN (SELECT a, b FROM t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t2	index	PRIMARY	PRIMARY	4	NULL	2	Using index; Using join buffer (flat, BNL join)
+1	PRIMARY	t3	ALL	b	NULL	NULL	NULL	5	Using where; Start temporary; End temporary
+SELECT * FROM t1, t2 WHERE (t2.a , t1.b) IN (SELECT a, b FROM t3);
+b	a
+5	6
+DROP TABLE t1, t2, t3;
+set @@optimizer_switch= @tmp835758;
+#
+# BUG#834739: Wrong result with 3-way inner join, LooseScan,multipart keys  
+#
+set @tmp834739=@@optimizer_switch;
+set optimizer_switch='semijoin=on,loosescan=on,materialization=off,firstmatch=off';
+CREATE TABLE t2 ( b int, c int, KEY (b)) ;
+INSERT INTO t2 VALUES (1,0),(1,0),(9,0),(1,0),(5,0);
+INSERT INTO t2 VALUES (2,0),(3,0),(8,0),(6,0),(5,0);
+CREATE TABLE t3 ( a int);
+INSERT INTO t3 VALUES (0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0);
+CREATE TABLE t4 ( a int);
+INSERT INTO t4 VALUES (0),(0),(0);
+CREATE TABLE t5 ( b int, a int , KEY (a,b)) ;
+INSERT INTO t5 VALUES (7,0),(9,0);
+explain
+SELECT * FROM t3 WHERE t3.a IN (SELECT t5.a FROM t2, t4, t5 WHERE t2.c = t5.a AND t2.b = t5.b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t5	index	a	a	10	NULL	2	Using index; Start temporary
+1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	t2	ALL	b	NULL	NULL	NULL	10	Using where
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	15	Using where; End temporary; Using join buffer (flat, BNL join)
+SELECT * FROM t3 WHERE t3.a IN (SELECT t5.a FROM t2, t4, t5 WHERE t2.c = t5.a AND t2.b = t5.b);
+a
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+DROP TABLE t2, t3, t4, t5;
+set @@optimizer_switch=@tmp834739;
+#
+# BUG#830993: Crash in end_read_record with derived table
+#
+set @tmp_830993=@@optimizer_switch;
+set optimizer_switch='semijoin=on,loosescan=off,materialization=off,firstmatch=off';
+set @tmp_830993_jbs= @@join_buffer_size;
+set join_buffer_size=160;
+CREATE TABLE t1 (
+a int(11) NOT NULL AUTO_INCREMENT, 
+b int(11) DEFAULT NULL, 
+c int(11) DEFAULT NULL, 
+d time DEFAULT NULL, 
+e varchar(1) DEFAULT NULL, 
+f varchar(1) DEFAULT NULL, 
+PRIMARY KEY (a), 
+KEY c (c), 
+KEY d (d), 
+KEY e (e,c)
+);
+INSERT INTO t1 VALUES (10,NULL,8,'22:55:23','x','x'),
+(11,8,7,'10:19:31','d','d'),(12,1,1,'14:40:36','r','r'),
+(13,9,7,'04:37:47','f','f'),(14,4,9,'19:34:06','y','y'),
+(15,3,NULL,'20:35:33','u','u'),(16,2,1,NULL,'m','m'),
+(17,NULL,9,'14:43:37',NULL,NULL),(18,2,2,'02:23:09','o','o'),
+(19,NULL,9,'01:22:45','w','w'),(20,6,2,'00:00:00','m','m'),
+(21,7,4,'00:13:25','q','q'),(22,2,0,'03:47:16',NULL,NULL),
+(23,5,4,'01:41:48','d','d'),(24,7,8,'00:00:00','g','g'),
+(25,6,NULL,'22:32:04','x','x'),(26,6,NULL,'16:44:14','f','f'),
+(27,2,0,'17:38:37','p','p'),(28,9,NULL,'08:46:48','j','j'),
+(29,6,8,'14:11:27','c','c');
+CREATE TABLE t2 like t1;
+INSERT INTO t2 VALUES (1,2,4,'22:34:09','v','v'),
+(2,150,62,'14:26:02','v','v'),(3,NULL,7,'14:03:03','c','c'),
+(4,2,1,'01:46:09',NULL,NULL),(5,5,0,'16:21:18','x','x'),
+(6,3,7,'18:56:33','i','i'),(7,1,7,NULL,'e','e'),
+(8,4,1,'09:29:08','p','p'),(9,NULL,7,'19:11:10','s','s'),
+(10,2,1,'11:57:26','j','j'),(11,6,5,'00:39:46','z','z'),
+(12,6,2,'03:28:15','c','c'),(13,8,0,'06:44:18','a','a'),
+(14,2,1,'14:36:39','q','q'),(15,6,8,'18:42:45','y','y'),
+(16,8,1,'02:57:29',NULL,NULL),(17,3,1,'16:46:13','r','r'),
+(18,3,9,'19:39:02','v','v'),(19,9,1,NULL,NULL,NULL),
+(20,6,5,'20:58:33','r','r');
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
+explain
+SELECT
+alias1.a, alias1.b, alias1.c, alias1.d, alias1.e, alias1.f,
+alias2.a as a2_a, alias2.b as a2_b, alias2.c as a2_c, alias2.d as a2_d, 
+alias2.e as a2_e, alias2.f as a2_f,
+t2.a as t2_a, t2.b as t2_b, t2.c as t2_c, t2.d as t2_d, t2.e as t2_e, t2.f as t2_f
+FROM 
+(SELECT * FROM t2) AS alias1,
+t1 AS alias2, 
+t2
+WHERE 
+alias1.c IN (SELECT SQ3_alias1.b 
+FROM t2 AS SQ3_alias1 STRAIGHT_JOIN t2 AS SQ3_alias2)
+LIMIT 100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	SQ3_alias1	ALL	NULL	NULL	NULL	NULL	20	Start temporary
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	20	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	SQ3_alias2	index	NULL	PRIMARY	4	NULL	20	Using index; End temporary
+1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (flat, BNL join)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (flat, BNL join)
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	20	
+create table t3 as
+SELECT 
+alias1.a, alias1.b, alias1.c, alias1.d, alias1.e, alias1.f,
+alias2.a as a2_a, alias2.b as a2_b, alias2.c as a2_c, alias2.d as a2_d, 
+alias2.e as a2_e, alias2.f as a2_f,
+t2.a as t2_a, t2.b as t2_b, t2.c as t2_c, t2.d as t2_d, t2.e as t2_e, t2.f as t2_f
+FROM 
+(SELECT * FROM t2) AS alias1,
+t1 AS alias2, 
+t2
+WHERE 
+alias1.c IN (SELECT SQ3_alias1.b 
+FROM t2 AS SQ3_alias1 STRAIGHT_JOIN t2 AS SQ3_alias2)
+LIMIT 100;
+set optimizer_switch=@tmp_optimizer_switch;
+drop table t1,t2, t3;
+set optimizer_switch=@tmp_830993;
+set join_buffer_size= @tmp_830993_jbs;
+#
+# BUG##849717: Crash in Item_func::fix_fields on second execution of a prepared statement with semijoin
+#
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+CREATE TABLE t3 (a int, b int) ;
+PREPARE st1 FROM "SELECT * FROM t2 LEFT JOIN t1 ON t2.a != 0 AND ('j','r') IN ( SELECT b,a FROM t3)";
+EXECUTE st1;
+a	a
+EXECUTE st1;
+a	a
+DROP TABLE t1, t2, t3;
+#
+# BUG#849776: Wrong result with semijoin + "Impossible where"
+#
+CREATE TABLE t1 ( b varchar(1), a integer) ;
+INSERT INTO t1 VALUES ('z',8);
+CREATE TABLE t2 ( a integer, b varchar(1)) ;
+CREATE TABLE t4 ( a integer, b varchar(1)) ;
+CREATE TABLE t5 ( a integer) ;
+INSERT INTO t5 VALUES (8);
+select * from t5 where (a) in (
+SELECT t1.a 
+FROM t1 LEFT JOIN t2 ON t1.a = t2.a
+WHERE t2.b NOT IN (SELECT t4.b FROM t4 WHERE t4.b < t1.b)
+);
+a
+8
+DROP TABLE t1, t2, t4, t5;
+#
+# BUG#861147: Assertion `fixed == 1' failed in Item_func_eq::val_int() with semijoin + materialization + max_join_size
+#
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+set @tmp_mjs_861147= @@max_join_size;
+SET max_join_size=10;
+set @tmp_os_861147= @@optimizer_switch;
+set @@optimizer_switch='semijoin=on,materialization=on';
+explain
+select * from t1 where a in (select max(A.a + B.a + C.a) from t1 A, t1 B, t1 C);
+ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay
+set max_join_size= @tmp_mjs_861147;
+set optimizer_switch= @tmp_os_861147;
+drop table t1;
+#
+# BUG#877288: Wrong result with semijoin + materialization + multipart key
+#
+set @tmp_877288=@@optimizer_switch;
+set optimizer_switch='semijoin=ON,materialization=ON';
+CREATE TABLE t1 ( a int) ;
+INSERT INTO t1 VALUES (19),(19),(19),(20),(20),(20),(20),(20),(20);
+CREATE TABLE t2 ( b int NOT NULL , c int NOT NULL , KEY (b,c)) ;
+INSERT INTO t2 VALUES (14,1),(15,1),(16,1),(17,1),(18,1),(19,1),(20,1);
+CREATE TABLE t3 ( a int, d int) ;
+INSERT INTO t3 VALUES (19,1),(7,1),(3,1),(3,1),(20,1),(3,1),(16,1),(17,1),(9,1),(4,1),(6,1),(15,1),(17,1);
+explain
+SELECT * FROM t1 WHERE (a) IN (SELECT a FROM t2 JOIN t3 ON b = a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	9	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	4	func	1	
+2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	13	Using where
+2	MATERIALIZED	t2	ref	b	b	4	test.t3.a	1	Using index
+SELECT * FROM t1 WHERE (a) IN (SELECT a FROM t2 JOIN t3 ON b = a);
+a
+19
+19
+19
+20
+20
+20
+20
+20
+20
+DROP TABLE t1,t2,t3;
+set optimizer_switch=@tmp_877288;
+#
+# BUG#878753: Assertion '0' failed in replace_where_subcondition with derived_merge
+#
+set @tmp878753= @@optimizer_switch;
+set optimizer_switch= 'semijoin=on,derived_merge=on';
+CREATE TABLE t1 (b int(11)) ;
+CREATE TABLE t2 (c int, b int, d varchar(52) NOT NULL) ;
+CREATE TABLE t3 (b int(11)) ;
+PREPARE st1 FROM '
+        SELECT * FROM t1
+        JOIN (
+                SELECT t2.* FROM t2
+                WHERE t2.d <> "a"
+                AND t2.c IN (
+                        SELECT t3.b
+                        FROM t3
+                )
+        ) AS alias2
+        ON ( alias2.b = t1.b );
+';
+EXECUTE st1;
+b	c	b	d
+DROP TABLE t1,t2,t3;
+set optimizer_switch=@tmp878753;
+#
+# Bug #889750: semijoin=on + firstmatch=off + semijoin_with_cache=off
+#
+create table t1 (a int);
+insert into t1 values (7), (1), (5), (3);
+create table t2 (a int);
+insert into t2 values (4), (1), (8), (3), (9), (2);
+set @tmp_otimizer_switch= @@optimizer_switch;
+set optimizer_switch='semijoin=on';
+set optimizer_switch='firstmatch=off';
+set optimizer_switch='semijoin_with_cache=on';
+explain
+select * from t1 where t1.a in (select t2.a from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Start temporary; End temporary; Using join buffer (flat, BNL join)
+select * from t1 where t1.a in (select t2.a from t2);
+a
+1
+3
+set optimizer_switch='semijoin_with_cache=off';
+explain
+select * from t1 where t1.a in (select t2.a from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Start temporary; End temporary
+select * from t1 where t1.a in (select t2.a from t2);
+a
+1
+3
+set optimizer_switch= @tmp_otimizer_switch;
+drop table t1,t2;
+#
+# Bug #887496: semijoin with IN equality for the second part of an index
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (9), (0), (8), (5);
+CREATE TABLE t2 (a int, b varchar(1), INDEX idx (b,a));
+INSERT INTO t2 VALUES (5,'r'), (5,'z');
+CREATE TABLE t3 (a int, b varchar(1), INDEX idx (b,a));
+INSERT INTO t3 VALUES (5,'r'), (5,'z');
+set @tmp_otimizer_switch= @@optimizer_switch;
+SET SESSION optimizer_switch='semijoin=on,firstmatch=on';
+SET SESSION optimizer_switch='loosescan=off';
+EXPLAIN
+SELECT * FROM t1 WHERE a IN (SELECT t2.a FROM t2,t3 WHERE t2.b = t3.b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	idx	idx	9	NULL	2	Using where; Using index; Start temporary
+1	PRIMARY	t3	ref	idx	idx	4	test.t2.b	1	Using index
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; End temporary; Using join buffer (flat, BNL join)
+SELECT * FROM t1 WHERE a IN (SELECT t2.a FROM t2,t3 WHERE t2.b = t3.b);
+a
+5
+SET SESSION optimizer_switch='loosescan=on';
+EXPLAIN
+SELECT * FROM t1 WHERE a IN (SELECT t2.a FROM t2,t3 WHERE t2.b = t3.b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	idx	idx	9	NULL	2	Using where; Using index; Start temporary
+1	PRIMARY	t3	ref	idx	idx	4	test.t2.b	1	Using index
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; End temporary; Using join buffer (flat, BNL join)
+SELECT * FROM t1 WHERE a IN (SELECT t2.a FROM t2,t3 WHERE t2.b = t3.b);
+a
+5
+set optimizer_switch= @tmp_otimizer_switch;
+DROP TABLE t1,t2,t3;
+#
+# Bug #901312: materialized semijoin + right join
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (4), (1);
+CREATE TABLE t2 (b int);
+INSERT INTO t2 VALUES (4), (1);
+CREATE TABLE t3 (c int);
+INSERT INTO t3 VALUES (4), (1);
+set @tmp_otimizer_switch= @@optimizer_switch;
+SET SESSION optimizer_switch='semijoin=on,materialization=on';
+EXPLAIN
+SELECT * FROM t1 RIGHT JOIN t2 ON b = a WHERE t2.b IN (SELECT c FROM t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	4	func	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t1 RIGHT JOIN t2 ON b = a WHERE t2.b IN (SELECT c FROM t3);
+a	b
+4	4
+1	1
+set optimizer_switch= @tmp_otimizer_switch;
+DROP TABLE t1,t2,t3;
+#
+# Bug #901709: assertion failure with record count == 0 
+#
+CREATE TABLE t1 (a int, KEY (a));
+INSERT INTO t1 VALUES (4), (6);
+CREATE TABLE t2 (a int, KEY (a));
+INSERT INTO t2 VALUES (4), (6);
+CREATE TABLE t3 (b int);
+INSERT INTO t3 VALUES (4);
+CREATE TABLE t4 (c int);
+SET @tmp_optimizer_switch=@@optimizer_switch;
+SET @@optimizer_switch='semijoin=on';
+SET @@optimizer_switch='materialization=on';
+SET @@optimizer_switch='firstmatch=on';
+SET optimizer_switch='semijoin_with_cache=on';
+SET optimizer_prune_level=0;
+EXPLAIN
+SELECT * FROM t1, t2
+WHERE t1.a = t2.a AND t2.a IN (SELECT b FROM t3 STRAIGHT_JOIN t4);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ref	a	a	5	const	1	Using index
+1	PRIMARY	t2	ref	a	a	5	func	1	Using index
+2	MATERIALIZED	t4	ALL	NULL	NULL	NULL	NULL	0	
+SELECT * FROM t1, t2
+WHERE t1.a = t2.a AND t2.a IN (SELECT b FROM t3 STRAIGHT_JOIN t4);
+a	a
+SET optimizer_prune_level=DEFAULT;
+SET optimizer_switch=@tmp_optimizer_switch;
+DROP TABLE t1,t2,t3,t4;
+#
+# BUG#901399: Wrong result (extra row) with semijoin=ON, materialization=OFF, optimizer_prune_level=0
+#
+set @opl_901399= @@optimizer_prune_level;
+set @os_091399= @@optimizer_switch;
+SET optimizer_prune_level=0;
+SET optimizer_switch = 'materialization=off';
+CREATE TABLE t1 ( c INT ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES
+(0),(1),(2),(3),(4),(5),
+(6),(7),(8),(9),(10),(11),(12);
+CREATE TABLE t2 ( a INT, b INT, KEY(a)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (3,20),(2,21),(3,22);
+SELECT *
+FROM t1 AS alias1, t1 AS alias2
+WHERE ( alias1.c, alias2.c )
+IN (
+SELECT alias3.a, alias3.a
+FROM t2 AS alias3, t2 alias4
+WHERE alias3.b = alias4.b
+);
+c	c
+2	2
+3	3
+set optimizer_prune_level= @opl_901399;
+set optimizer_switch= @os_091399;
+DROP TABLE t1,t2;
+#
+# BUG#912510: Crash in do_copy_not_null with semijoin=ON, firstmatch=ON, aggregate ...
+#
+CREATE TABLE t1 ( a VARCHAR(1) NOT NULL );
+INSERT INTO t1 VALUES ('k'),('l');
+CREATE TABLE t2 ( b VARCHAR(1) NOT NULL, KEY(b) );
+INSERT INTO t2 VALUES ('k'),('l');
+CREATE TABLE t3 ( c VARCHAR(1) NOT NULL, KEY(c) );
+INSERT INTO t3 VALUES ('m'),('n');
+SELECT a, COUNT(*) FROM t1
+WHERE a IN (
+SELECT b FROM t2 force index(b), t3 force index(c)
+WHERE c = b AND b = a
+);
+a	COUNT(*)
+NULL	0
+DROP TABLE t1, t2, t3;
+#
+# BUG#920255: Wrong result (extra rows) with loosescan and IN subquery
+#
+CREATE TABLE t1 ( a INT PRIMARY KEY, b INT, KEY(b) );
+INSERT INTO t1 VALUES
+(1,2),(2,1),(3,3),(4,2),(5,5),
+(6,3),(7,1),(8,4),(9,3),(10,2);
+CREATE TABLE t2 ( c INT, d INT, UNIQUE KEY(c) );
+INSERT INTO t2 VALUES
+(1,2),(2,1),(3,3),(4,2),(5,5),(6,3),(7,1);
+SELECT a, b, d FROM t1, t2
+WHERE ( b, d ) IN
+( SELECT b, d FROM t1, t2 WHERE b = c );
+a	b	d
+2	1	2
+7	1	2
+2	1	2
+7	1	2
+1	2	1
+4	2	1
+10	2	1
+1	2	1
+4	2	1
+10	2	1
+3	3	3
+6	3	3
+9	3	3
+3	3	3
+6	3	3
+9	3	3
+8	4	2
+8	4	2
+5	5	5
+DROP TABLE t1, t2;
+#
+# BUG#920713: Wrong result (missing rows) with firstmatch+BNL, IN subquery, ...
+#
+CREATE TABLE t1 ( a VARCHAR(1) ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('e'),('w'),('a'),('h'),('x'),('k'),('g');
+CREATE TABLE t2 ( b INT, c VARCHAR(1) );
+INSERT INTO t2 VALUES (0,'j'),(8,'v');
+SELECT * FROM t1 alias1, t2 alias2
+WHERE alias2.c IN (
+SELECT alias4.c FROM t1 alias3, t2 alias4
+);
+a	b	c
+e	0	j
+e	8	v
+w	0	j
+w	8	v
+a	0	j
+a	8	v
+h	0	j
+h	8	v
+x	0	j
+x	8	v
+k	0	j
+k	8	v
+g	0	j
+g	8	v
+DROP TABLE t1, t2;
+#
+# BUG#923246: Loosescan reports different result than other semijoin methods
+#
+set @tmp_923246= @@optimizer_switch;
+set optimizer_switch='mrr=on,materialization=off';
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (kp1 int, kp2 int, c int, filler char(100), key(kp1, kp2));
+insert into t1 select A.a+10*(B.a+10*C.a), 0, 0, 'filler' from t0 A, t0 B, t0 C;
+insert into t1 select * from t1 where kp1 < 20;
+create table t3 (a int);
+insert into t3 select A.a + 10*B.a from t0 A, t0 B;
+select * from t3 where a in (select kp1 from t1 where kp1<20);
+a
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+explain select * from t3 where a in (select kp1 from t1 where kp1<20);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	range	kp1	kp1	5	NULL	48	Using where; Using index; LooseScan
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	Using where; Using join buffer (flat, BNL join)
+drop table t0,t1,t3;
+set optimizer_switch= @tmp_923246;
+#
+# BUG#952583: Server crashes in Item_field::fix_after_pullout on INSERT .. SELECT
+# 
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 ( b INT );
+INSERT INTO t2 VALUES (3),(4);
+INSERT INTO t1
+SELECT * FROM ( SELECT * FROM t1 ) AS alias
+WHERE a IN ( SELECT b FROM t2 );
+DROP TABLE t1, t2;
+#
+# BUG#952372: Server crashes on 2nd execution of PS in find_field_in_tables with semijoin+materialization
+#
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (2),(3);
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE TABLE t2 ( b VARCHAR(1) );
+INSERT INTO t2 VALUES ('v'),('v');
+PREPARE pstmt FROM
+'SELECT DISTINCT a FROM v1, t2
+   WHERE b IN ( SELECT MIN(b) FROM t2 )';
+EXECUTE pstmt;
+a
+2
+3
+EXECUTE pstmt;
+a
+2
+3
+DEALLOCATE PREPARE pstmt;
+DROP VIEW v1;
+DROP TABLE t1, t2;
+#
+# BUG#978479: Wrong result (extra rows) with derived_with_keys+loosescan+semijoin=ON, materialization=OFF
+#
+set @tmp_jcl_978479= @@join_cache_level;
+set join_cache_level=0;
+set @tmp_os_978479= @@optimizer_switch;
+set optimizer_switch = 'derived_with_keys=on,loosescan=on,semijoin=on,materialization=off';
+# Part#1: make sure EXPLAIN is using LooseScan:
+CREATE TABLE t1 ( a INT, b INT );
+INSERT INTO t1 VALUES
+(4,0),(6,8),(3,1),(5,8),(3,9),(2,4),
+(2,6),(9,1),(5,4),(7,7),(5,4);
+CREATE ALGORITHM=TEMPTABLE
+VIEW v1 AS SELECT * FROM t1;
+# This will use LooseScan:
+EXPLAIN
+SELECT * FROM t1 AS t1_1, t1 AS t1_2
+WHERE (t1_1.a, t1_2.a) IN ( SELECT a, b FROM v1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1	ALL	NULL	NULL	NULL	NULL	11	Using where
+1	PRIMARY	<derived3>	ref	key0	key0	5	test.t1_1.a	2	Start temporary
+1	PRIMARY	t1_2	ALL	NULL	NULL	NULL	NULL	11	Using where; End temporary
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	
+SELECT * FROM t1 AS t1_1, t1 AS t1_2
+WHERE (t1_1.a, t1_2.a) IN ( SELECT a, b FROM v1 );
+a	b	a	b
+3	1	9	1
+5	8	4	0
+3	9	9	1
+2	4	6	8
+2	4	4	0
+2	6	6	8
+2	6	4	0
+5	4	4	0
+7	7	7	7
+5	4	4	0
+DROP VIEW v1;
+DROP TABLE t1;
+set @@join_cache_level= @tmp_jcl_978479;
+set @@optimizer_switch= @tmp_os_978479;
+#
+# BUG#998236: Assertion failure or valgrind errors at best_access_path ...
+#
+CREATE TABLE t1 (a1 VARCHAR(3), a2 VARCHAR(35), KEY(a1,a2)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES
+('USA','Arvada'),('USA','Athens'),('USA','Atlanta'),('USA','Augusta'),
+('USA','Aurora'),('USA','Aurora'),('USA','Austin'),('USA','Bakersfield'),
+('USA','Baltimore'),('USA','Baton'),('USA','Beaumont'),('USA','Bellevue'),
+('USA','Berkeley'),('USA','Billings'),('USA','Birmingham'),('USA','Boise'),
+('USA','Boston'),('USA','Boulder'),('USA','Bridgeport'),('USA','Brockton'),
+('USA','Brownsville'),('USA','Buffalo'),('USA','Burbank'),('USA','Cambridge'),
+('USA','Cape'),('USA','Carrollton'),('USA','Carson'),('USA','Cary'),
+('USA','Cedar'),('USA','Chandler'),('USA','Charleston'),('USA','Charlotte'),
+('USA','Chattanooga'),('USA','Chesapeake'),('USA','Chicago'),('USA','Chula'),
+('USA','Cincinnati'),('USA','Citrus'),('USA','Clarksville'),('USA','Clearwater'),
+('USA','Cleveland'),('USA','Colorado'),('USA','Columbia'),('USA','Columbus'),
+('USA','Columbus'),('USA','Compton'),('USA','Concord'),('USA','Coral'),
+('USA','Corona'),('USA','Corpus'),('USA','Costa'),('USA','Dallas'),('USA','Daly'),
+('USA','Davenport'),('USA','Dayton'),('USA','Denver'),('USA','DesMoines'),
+('USA','Detroit'),('USA','Downey'),('USA','Durham'),('USA','East'),('USA','ElCajon'),
+('USA','ElMonte'),('USA','ElPaso'),('USA','Elgin'),('USA','Elizabeth'),
+('USA','Erie'),('USA','Escondido'),('USA','Eugene'),('USA','Evansville'),
+('USA','Fairfield'),('USA','Fall'),('USA','Fayetteville'),('USA','Flint'),
+('USA','Fontana'),('USA','FortCollins'),('USA','FortLauderdale'),('USA','FortWayne'),
+('USA','FortWorth'),('USA','Fremont'),('USA','Fresno'),('USA','Fullerton'),
+('USA','Gainesville'),('USA','GardenGrove'),('USA','Garland'),('USA','Gary'),
+('USA','Gilbert'),('USA','Glendale'),('USA','Glendale'),('USA','GrandPrairie'),
+('USA','GrandRapids'),('USA','Green Bay'),('USA','Greensboro'),('USA','Hampton'),
+('USA','Hartford'),('USA','Hayward'),('USA','Henderson'),('USA','Hialeah'),
+('USA','Inglewood'),('USA','Livonia');
+CREATE TABLE t3 (c1 VARCHAR(3), c2 VARCHAR(16), PRIMARY KEY (c1,c2)) ENGINE=MyISAM;
+INSERT INTO t3 VALUES ('USA','Chinese'), ('USA','English');
+CREATE TABLE t2 (b1 INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1);
+SELECT alias1.a1 AS field1
+FROM t1 AS alias1, t1 AS alias2
+WHERE alias1.a2 IN ( SELECT a1 FROM t1, t2 )
+AND alias1.a1 IS NULL
+AND ( alias1.a1, alias2.a1 ) IN ( SELECT c1, c1 FROM t3 )
+GROUP BY field1;
+field1
+DROP TABLE t1,t3,t2;
+#
+#  BUG#1002630: Valgrind warnings 'Invalid read' in subselect_engine::calc_const_tables with SELECT
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(7);
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (4),(6);
+SELECT ( SELECT SUM(a) FROM t1 ) AS t1sum, b
+FROM t2
+WHERE (1,1) IN ( SELECT MAX(a), MIN(a) FROM t1 )
+GROUP BY b
+HAVING t1sum <> 1;
+t1sum	b
+DROP TABLE t1, t2;
+#
+# MDEV-3911: Assertion `fixed == 0' failed in Item_field::fix_fields
+# on 2nd execution of PS with semijoin=on and IN subquery
+#
+CREATE TABLE t1 (a INT, b INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (0,4),(8,6);
+CREATE TABLE t2 (c INT, d INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (7,1),(0,7);
+PREPARE stmt FROM ' SELECT * FROM t1 WHERE ( a, b ) IN ( SELECT c, d FROM t2 ) ';
+execute stmt;
+a	b
+execute stmt;
+a	b
+deallocate prepare stmt;
+drop table t1,t2;
+#
+# MDEV-4335: Unexpected results when selecting on information_schema
+#
+CREATE TABLE t1 (db VARCHAR(64) DEFAULT NULL);
+INSERT INTO t1 VALUES ('mysql'),('information_schema');
+SELECT * FROM t1 WHERE db IN (SELECT `SCHEMA_NAME` FROM information_schema.SCHEMATA);
+db
+mysql
+information_schema
+DROP TABLE t1;
+#
+# MDEV-5581: Server crashes in in JOIN::prepare on 2nd execution of PS with materialization+semijoin
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (2),(3);
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (8),(9);
+CREATE TABLE t3 (c INT, INDEX(c));
+INSERT INTO t2 VALUES (5),(6);
+PREPARE stmt FROM 
+"SELECT * FROM t1 WHERE ( 9, 5 ) IN ( SELECT b, COUNT(*) FROM t2 WHERE 1 IN ( SELECT MIN(c) FROM t3 ) )";
+EXECUTE stmt;
+a
+EXECUTE stmt;
+a
+DROP TABLE t1,t2,t3;
+#
+# MySQL Bug#13340270: assertion table->sort.record_pointers == __null
+#
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_int_key int DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_varchar_nokey varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key, col_int_key)
+) ENGINE=InnoDB;
+Warnings:
+Warning	1286	Unknown storage engine 'InnoDB'
+Warning	1266	Using storage engine MyISAM for table 't1'
+INSERT INTO t1 VALUES
+(10,8,'x','x'),
+(11,7,'d','d'),
+(12,1,'r','r'),
+(13,7,'f','f'),
+(14,9,'y','y'),
+(15,NULL,'u','u'),
+(16,1,'m','m'),
+(17,9,NULL,NULL),
+(18,2,'o','o'),
+(19,9,'w','w'),
+(20,2,'m','m'),
+(21,4,'q','q');
+CREATE TABLE t2
+SELECT alias1.col_varchar_nokey AS field1
+FROM t1 AS alias1 JOIN t1 AS alias2
+ON alias2.col_int_key = alias1.pk OR
+alias2.col_int_key = alias1.col_int_key
+WHERE alias1.pk = 58 OR alias1.col_varchar_key = 'o'
+
+;
+EXPLAIN SELECT *
+FROM t2
+WHERE (field1) IN (SELECT alias1.col_varchar_nokey AS field1
+FROM t1 AS alias1 JOIN t1 AS alias2
+ON alias2.col_int_key = alias1.pk OR
+alias2.col_int_key = alias1.col_int_key
+WHERE alias1.pk = 58 OR alias1.col_varchar_key = 'o'
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	alias1	index_merge	PRIMARY,col_int_key,col_varchar_key	PRIMARY,col_varchar_key	4,4	NULL	2	Using sort_union(PRIMARY,col_varchar_key); Using where
+1	PRIMARY	alias2	ALL	col_int_key	NULL	NULL	NULL	12	Range checked for each record (index map: 0x2); FirstMatch(t2)
+SELECT *
+FROM t2
+WHERE (field1) IN (SELECT alias1.col_varchar_nokey AS field1
+FROM t1 AS alias1 JOIN t1 AS alias2
+ON alias2.col_int_key = alias1.pk OR
+alias2.col_int_key = alias1.col_int_key
+WHERE alias1.pk = 58 OR alias1.col_varchar_key = 'o'
+);
+field1
+o
+o
+DROP TABLE t1, t2;
+#
+# MDEV-389: Wrong result (missing row) with semijoin, join_cache_level>4, LEFT JOIN...
+#  (testcase only)
+#
+SET join_cache_level = 5;
+SET optimizer_switch = 'semijoin=on';
+CREATE TABLE t1 (a INT NOT NULL, b CHAR(1), KEY(a)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (4,'p'),(1,'q'),(8,'e');
+CREATE TABLE t2 (c INT, d CHAR(1), KEY(c), KEY(d)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (4,'f'),(2,'i'),(5,'h'),(3,'q'),(1,'g');
+SELECT a, COUNT(*) AS cnt 
+FROM t1 LEFT JOIN t2 ON (d = b) 
+WHERE a IN ( SELECT c FROM t2 WHERE b > 'k' ) 
+GROUP BY a ORDER BY a, cnt LIMIT 2;
+a	cnt
+1	1
+4	1
+drop table t1, t2;
+#
+# MDEV-4071: Valgrind warnings 'Invalid read' in subselect_engine::calc_const_tables with ...
+#
+CREATE TABLE t1 (b INT, c VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (7,'v'),(0,'s');
+CREATE TABLE t2 (a INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (0),(8);
+SELECT c, SUM( DISTINCT b ) AS sm FROM t1
+WHERE ( 5, 108 ) IN ( SELECT MIN(a), MAX(a) FROM t2 )
+GROUP BY b
+HAVING c <> ( SELECT MAX( c ) FROM t1 )
+ORDER BY sm;
+c	sm
+DROP TABLE t1,t2;
+# 
+# mdev-4173 ignored duplicate value when converting heap to temp table
+# could lead to extra rows in semijoin queries or missing row in union queries
+#
+CREATE TABLE t1 (i1 INT) engine=myisam;
+INSERT INTO t1 VALUES
+(4),(8),(0),(0),(0),(7),(7),(5),(3),(4),(9),(6),(1),(5),(6),(2),(4),(4);
+CREATE TABLE t2 (i2 INT, j2 INT) engine=myisam;
+INSERT INTO t2 VALUES
+(7,1),(0,7),(9,4),(3,7),(4,0),(2,2),(5,9),(3,4),
+(1,0),(3,9),(5,8),(1,8),(204,18),(224,84),(9,6);
+CREATE TABLE t3 (i3 INT, KEY(i3)) engine=myisam;
+INSERT INTO t3 VALUES
+(0),(8),(1),(8),(9),(24),(6),(1),(6),(2),(4),(2),(1);
+select @@max_heap_table_size into @tmp_max_heap_table_size;
+select @@join_buffer_size into @tmp_join_buffer_size;
+set max_heap_table_size=16*1024;
+COUNT(*)
+2834
+COUNT(*)
+2834
+COUNT(*)
+2834
+COUNT(*)
+2834
+COUNT(*)
+2834
+COUNT(*)
+2834
+COUNT(*)
+2834
+COUNT(*)
+2834
+DROP TABLE t1, t2, t3;
+set join_buffer_size = @tmp_join_buffer_size;
+set max_heap_table_size = @tmp_max_heap_table_size;
+#
+# MDEV-5161: Wrong result (missing rows) with semijoin, LEFT JOIN, ORDER BY, constant table
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY, c1 VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,'v'),(2,'v'),(3,'c'),(4,NULL),(5,'x');
+CREATE TABLE t2 (c2 VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('x');
+CREATE TABLE t3 (c3 VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t3 VALUES ('x'),('d');
+SELECT * FROM t1, t2 WHERE pk IN ( SELECT pk FROM t1 LEFT JOIN t3 ON (c1 = c3 ) ) ORDER BY c2, c1;
+pk	c1	c2
+1	v	x
+2	v	x
+3	c	x
+4	NULL	x
+5	x	x
+# This should show that "t1 left join t3" is still in the semi-join nest:
+EXPLAIN EXTENDED
+SELECT * FROM t1, t2 WHERE pk IN ( SELECT pk FROM t1 LEFT JOIN t3 ON (c1 = c3 ) ) ORDER BY c2, c1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	5	100.00	Start temporary
+1	PRIMARY	t1	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; End temporary
+Warnings:
+Note	1003	select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c1` AS `c1`,'x' AS `c2` from `test`.`t1` semi join (`test`.`t1` left join `test`.`t3` on((`test`.`t1`.`c1` = `test`.`t3`.`c3`))) where (`test`.`t1`.`pk` = `test`.`t1`.`pk`) order by 'x',`test`.`t1`.`c1`
+DROP TABLE t1,t2,t3;
+# 
+# MDEV-5059: Wrong result (missing row) wih semijoin, join_cache_level > 2, LEFT JOIN, ORDER BY
+# 
+SET @tmp_mdev5059=@@join_cache_level;
+SET join_cache_level = 3;
+set @tmp_os_mdev5059= @@optimizer_switch;
+set optimizer_switch=default;
+CREATE TABLE t1 (pk1 INT PRIMARY KEY, i1 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,4),(2,5);
+CREATE TABLE t2 (i2 INT, c2 CHAR(1)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,'v'),(7,'s');
+CREATE TABLE t3 (pk3 INT PRIMARY KEY, i3 INT, c3 CHAR(1), INDEX(i3), INDEX(c3,i3)) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (1,7,'g'),(2,4,'p'),(3,1,'q');
+CREATE TABLE t4 (i4 INT) ENGINE=MyISAM;
+INSERT INTO t4 VALUES (1);
+SELECT * FROM t1, t2 LEFT JOIN t3 ON (c3 = c2) 
+WHERE ( i2, pk1 )  IN ( SELECT i3, 1 FROM t3, t4 ) ORDER BY i1, c2;
+pk1	i1	i2	c2	pk3	i3	c3
+1	4	7	s	NULL	NULL	NULL
+1	4	1	v	NULL	NULL	NULL
+SET join_cache_level=@tmp_mdev5059;
+set optimizer_switch=@tmp_os_mdev5059;
+DROP TABLE t1,t2,t3,t4;
+#
+# MDEV-7911: crash in Item_cond::eval_not_null_tables
+#
+create table t1(a int);
+insert into t1 values(1),(2),(3),(null);
+explain
+select 1 from t1 where _cp932 "1" in (select '1' from t1);
+ERROR HY000: Illegal mix of collations (cp932_japanese_ci,COERCIBLE) and (latin1_swedish_ci,COERCIBLE) for operation '='
+drop table t1;
+#
+# MDEV-7823: Server crashes in next_depth_first_tab on nested IN clauses with SQ inside
+#
+set @tmp_mdev7823=@@optimizer_switch;
+set optimizer_switch=default;
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (f2 INT, KEY(f2));
+INSERT INTO t2 VALUES (8),(0);
+CREATE TABLE t3 (f3 INT);
+INSERT INTO t3 VALUES (1),(2);
+CREATE TABLE t4 (f4 INT);
+INSERT INTO t4 VALUES (0),(5);
+explain 
+SELECT * FROM t1, t2, t3 WHERE f2 IN ( f1 IN ( SELECT f4 FROM t4 ) );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ref	f2	f2	5	const	0	Using where; Using index
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1, t2, t3 WHERE f2 IN ( f1 IN ( SELECT f4 FROM t4 ) );
+f1	f2	f3
+1	0	1
+1	0	2
+drop table t1,t2,t3,t4;
+set optimizer_switch= @tmp_mdev7823;
+#
+# MDEV-6859: scalar subqueries in a comparison produced unexpected result
+#
+set @tmp_mdev6859=@@optimizer_switch;
+set optimizer_switch=default;
+CREATE TABLE t1 (
+project_number varchar(50) NOT NULL,
+PRIMARY KEY (project_number)
+) ENGINE=MyISAM;
+INSERT INTO t1 (project_number) VALUES ('aaa'),('bbb');
+CREATE TABLE t2 (
+id int(10) unsigned NOT NULL AUTO_INCREMENT,
+project_number varchar(50) NOT NULL,
+history_date date NOT NULL,
+country varchar(50) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=MyISAM;
+INSERT INTO t2 (id, project_number, history_date, country) VALUES
+(1, 'aaa', '2014-08-09', 'france'),(2, 'aaa', '2014-09-09', 'singapore');
+CREATE TABLE t3 (
+region varchar(50) NOT NULL,
+country varchar(50) NOT NULL
+) ENGINE=MyISAM;
+INSERT INTO t3 (region, country) VALUES ('apac', 'singapore'),('eame', 'france');
+SELECT SQL_NO_CACHE a.project_number 
+FROM t1 a 
+WHERE ( SELECT z.country 
+FROM t2 z 
+WHERE z.project_number = a.project_number AND z.history_date <= '2014-09-01' 
+ORDER BY z.id DESC LIMIT 1 
+) IN ( 
+SELECT r.country 
+FROM t3 r 
+WHERE r.region = 'eame'
+      );
+project_number
+aaa
+drop table t1, t2, t3;
+set optimizer_switch= @tmp_mdev6859;
+set optimizer_switch=@subselect_sj_tmp;

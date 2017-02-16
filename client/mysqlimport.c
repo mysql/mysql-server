@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +19,14 @@
 /*
 **	   mysqlimport.c  - Imports all given files
 **			    into a table(s).
+**
+**			   *************************
+**			   *			   *
+**			   * AUTHOR: Monty & Jani  *
+**			   * DATE:   June 24, 1997 *
+**			   *			   *
+**			   *************************
 */
-
 #define IMPORT_VERSION "3.7"
 
 #include "client_priv.h"
@@ -29,7 +36,7 @@
 
 
 /* Global Thread counter */
-uint counter;
+uint counter= 0;
 pthread_mutex_t init_mutex;
 pthread_mutex_t counter_mutex;
 pthread_cond_t count_threshhold;
@@ -50,13 +57,13 @@ static char	*opt_password=0, *current_user=0,
 		*lines_terminated=0, *enclosed=0, *opt_enclosed=0,
 		*escaped=0, *opt_columns=0, 
 		*default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME;
-static uint opt_enable_cleartext_plugin= 0;
-static my_bool using_opt_enable_cleartext_plugin= 0;
 static uint     opt_mysql_port= 0, opt_protocol= 0;
 static char * opt_mysql_unix_port=0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static longlong opt_ignore_lines= -1;
 #include <sslopt-vars.h>
+
+static char **argv_to_free;
 
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
@@ -65,8 +72,8 @@ static char *shared_memory_base_name=0;
 static struct my_option my_long_options[] =
 {
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory for character set files.", &charsets_dir,
-   &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Directory for character set files.", (char**) &charsets_dir,
+   (char**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", &default_charset,
    &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -91,10 +98,6 @@ static struct my_option my_long_options[] =
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delete", 'd', "First delete all rows from table.", &opt_delete,
    &opt_delete, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"enable_cleartext_plugin", OPT_ENABLE_CLEARTEXT_PLUGIN,
-   "Enable/disable the clear text authentication plugin.",
-   &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin,
-   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"fields-terminated-by", OPT_FTB,
    "Fields in the input file are terminated by the given string.", 
    &fields_terminated, &fields_terminated, 0, 
@@ -186,7 +189,8 @@ static struct my_option my_long_options[] =
 };
 
 
-static const char *load_default_groups[]= { "mysqlimport","client",0 };
+static const char *load_default_groups[]=
+{ "mysqlimport","client", "client-server", "client-mariadb", 0 };
 
 
 static void print_version(void)
@@ -198,6 +202,8 @@ static void print_version(void)
 
 static void usage(void)
 {
+  puts("Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.");
+  puts("Copyright 2008-2011 Oracle and Monty Program Ab.");
   print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   printf("\
@@ -207,8 +213,9 @@ If one uses sockets to connect to the MySQL server, the server will open and\n\
 read the text file directly. In other cases the client will open the text\n\
 file. The SQL command 'LOAD DATA INFILE' is used to import the rows.\n");
 
-  printf("\nUsage: %s [OPTIONS] database textfile...",my_progname);
+  printf("\nUsage: %s [OPTIONS] database textfile...\n",my_progname);
   print_defaults("my",load_default_groups);
+  puts("");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
@@ -241,9 +248,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_local_file=1;
     break;
 #endif
-  case OPT_ENABLE_CLEARTEXT_PLUGIN:
-    using_opt_enable_cleartext_plugin= TRUE;
-    break;
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
@@ -456,14 +460,10 @@ static MYSQL *db_connect(char *host, char *database,
   if (opt_default_auth && *opt_default_auth)
     mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
-  if (using_opt_enable_cleartext_plugin)
-    mysql_options(mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
-                  (char*)&opt_enable_cleartext_plugin);
-
   mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset);
-  if (!(mysql_connect_ssl_check(mysql, host, user, passwd, database,
-                                opt_mysql_port, opt_mysql_unix_port,
-                                0, opt_ssl_required)))
+  if (!(mysql_real_connect(mysql,host,user,passwd,
+                           database,opt_mysql_port,opt_mysql_unix_port,
+                           0)))
   {
     ignore_errors=0;	  /* NO RETURN FROM db_error */
     db_error(mysql);
@@ -492,10 +492,23 @@ static void db_disconnect(char *host, MYSQL *mysql)
 
 static void safe_exit(int error, MYSQL *mysql)
 {
-  if (ignore_errors)
+  if (error && ignore_errors)
     return;
+
+  /* in multi-threaded mode protect from concurrent safe_exit's */
+  if (counter)
+    pthread_mutex_lock(&counter_mutex);
+
   if (mysql)
     mysql_close(mysql);
+
+#ifdef HAVE_SMEM
+  my_free(shared_memory_base_name);
+#endif
+  free_defaults(argv_to_free);
+  mysql_library_end();
+  my_free(opt_password);
+  my_end(my_end_arg);
   exit(error);
 }
 
@@ -612,8 +625,8 @@ error:
 int main(int argc, char **argv)
 {
   int error=0;
-  char **argv_to_free;
   MY_INIT(argv[0]);
+  sf_leaking_memory=1; /* don't report memory leaks on early exits */
 
   if (load_defaults("my",load_default_groups,&argc,&argv))
     return 1;
@@ -624,6 +637,7 @@ int main(int argc, char **argv)
     free_defaults(argv_to_free);
     return(1);
   }
+  sf_leaking_memory=0; /* from now on we cleanup properly */
 
   if (opt_use_threads && !lock_tables)
   {
@@ -726,11 +740,6 @@ int main(int argc, char **argv)
           exitcode= error;
     db_disconnect(current_host, mysql);
   }
-  my_free(opt_password);
-#ifdef HAVE_SMEM
-  my_free(shared_memory_base_name);
-#endif
-  free_defaults(argv_to_free);
-  my_end(my_end_arg);
+  safe_exit(0, 0);
   return(exitcode);
 }

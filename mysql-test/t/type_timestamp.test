@@ -287,7 +287,7 @@ drop table t1;
 # mode regardless of whether a display width is given.
 #
 set sql_mode='maxdb';
-create table t1 (a timestamp, b timestamp);
+create table t1 (a timestamp, b timestamp(5));
 show create table t1;
 # restore default mode
 set sql_mode='';
@@ -411,6 +411,12 @@ DROP TABLE t1, t2;
 
 --echo End of 5.1 tests
 
+--echo #
+--echo # lp:923429 Crash in decimal_cmp on using UNIX_TIMESTAMP with a wrongly formatted timestamp
+--echo #
+SELECT UNIX_TIMESTAMP('abc') > 0;
+SELECT UNIX_TIMESTAMP('abc');
+
 --echo
 --echo Bug#50888 valgrind warnings in Field_timestamp::val_str
 --echo
@@ -440,5 +446,12 @@ SELECT MAX(ts) = '2011-01-06 12:34:30' FROM t1;
 SELECT MAX(dt) = '2011-01-06 12:34:30' FROM t1;
 DROP TABLE t1;
 
---echo End of 5.5 tests
+--echo #
+--echo # MDEV-9413 "datetime >= coalesce(c1(NULL))" doesn't return expected NULL
+--echo #
+CREATE TABLE t1(c1 TIMESTAMP(6) NULL DEFAULT NULL);
+INSERT INTO t1 VALUES(NULL);
+SELECT c1, '2016-06-13 20:00:00.000003' >= COALESCE( c1 ) FROM t1;
+DROP TABLE t1;
 
+--echo End of 5.5 tests

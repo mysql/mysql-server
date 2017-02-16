@@ -1,0 +1,43 @@
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+#
+# Bug #22169: Crash with count(distinct)
+#
+--echo *** Bug #22169 ***
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a int, b int, c int, z int, y int, x int, r int, s int, t int, primary key (a,b), key (z), key(x), key(t));
+
+--disable_query_log
+let $1 = 10;
+SET @length = 10;
+SET @a=1;
+while ($1)
+{
+  SET @b=@length-@a;
+  SET @c = @b + @b;
+  INSERT INTO t1 VALUES (@a, @b,@c,10*@a,100*@a,1000*@a,2*@a,3*@a,4*@a);
+  SET @a=@a+1;
+  dec $1;
+}
+
+#create index foo on t1 (c,r);
+#alter table t1 add index foo (z);
+#alter table t1 add index foo (a);
+
+alter table t1 drop index z, add index foo (c,z), add index bar (t,r), drop primary key;
+explain select c,z from t1;
+select c,z from t1;
+explain select * from t1;
+select * from t1;
+
+
+explain select t,r from t1;
+select t,r from t1;
+explain select * from t1;
+select * from t1;
+
+DROP TABLE t1;

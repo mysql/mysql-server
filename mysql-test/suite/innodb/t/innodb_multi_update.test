@@ -1,4 +1,4 @@
--- source include/have_innodb.inc
+--source include/have_innodb.inc
 
 #
 # Test multi update with different join methods

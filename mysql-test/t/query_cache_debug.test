@@ -1,6 +1,7 @@
 --source include/not_embedded.inc
 --source include/have_query_cache.inc
 --source include/have_debug_sync.inc
+--source include/long_test.inc
 
 #
 # Bug #30887 Server crashes on SET GLOBAL query_cache_size=0
@@ -208,17 +209,7 @@ SET DEBUG_SYNC="now WAIT_FOR parked1_2";
 --echo ** until a broadcast signal reaches them causing both threads to 
 --echo ** come alive and check the condition.
 SET DEBUG_SYNC="now SIGNAL go2";
---echo ** Wait for thd2 to receive the signal
-let $wait_condition=
-  SELECT COUNT(*) = 1 FROM information_schema.processlist
-  WHERE state = "Waiting for query cache lock";
---source include/wait_condition.inc
 SET DEBUG_SYNC="now SIGNAL go3";
---echo ** Wait for thd3 to receive the signal
-let $wait_condition=
-  SELECT COUNT(*) = 2 FROM information_schema.processlist
-  WHERE state = "Waiting for query cache lock";
---source include/wait_condition.inc
 
 --echo **
 --echo ** Finally signal the DELETE statement on THD1 one last time.

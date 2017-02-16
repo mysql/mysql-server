@@ -1,4 +1,5 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2006, 2010, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +42,7 @@ int my_getncpus()
 
     ncpus= sysinfo.dwNumberOfProcessors;
 #else
-/* unknown so play safe: assume SMP and forbid uniprocessor build */
+    /* unknown so play safe: assume SMP and forbid uniprocessor build */
     ncpus= 2;
 #endif
   }

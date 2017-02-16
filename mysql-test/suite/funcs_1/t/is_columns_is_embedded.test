@@ -13,6 +13,8 @@
 # 2008-06-06 mleich Create this variant for the embedded server
 #
 
+--source include/have_xtradb.inc
+
 if (`SELECT VERSION() NOT LIKE '%embedded%'`)
 {
    --skip Test requires: embedded server

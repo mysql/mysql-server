@@ -1,0 +1,216 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+*** Bug #22169 ***
+DROP TABLE IF EXISTS t1;
+create table t1 (a int, b int, c varchar(20), d varchar(300), e varchar(10), f int, key (b) clustering=yes, key (d,a) clustering=yes);
+insert into t1 values (1,10,"100","1000","10000",100000);
+insert into t1 values (2,20,"200","2000","20000",200000);
+insert into t1 values (3,30,"300","3000","30000",300000);
+insert into t1 values (4,40,"400","4000","40000",400000);
+insert into t1 values (5,50,"500","5000","50000",500000);
+explain select * from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b	NULL	NULL	NULL;	Using index
+select * from t1;
+a	b	c	d	e	f
+1	10	100	1000	10000	100000
+2	20	200	2000	20000	200000
+3	30	300	3000	30000	300000
+4	40	400	4000	40000	400000
+5	50	500	5000	50000	500000
+explain select * from t1 where b > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	b	b	NULL	NULL	NULL;	Using where; Using index
+select * from t1 where b > 0;
+a	b	c	d	e	f
+1	10	100	1000	10000	100000
+2	20	200	2000	20000	200000
+3	30	300	3000	30000	300000
+4	40	400	4000	40000	400000
+5	50	500	5000	50000	500000
+explain select * from t1 where d > "0";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	d	d	NULL	NULL	NULL;	Using where; Using index
+select * from t1 where d > "0";
+a	b	c	d	e	f
+1	10	100	1000	10000	100000
+2	20	200	2000	20000	200000
+3	30	300	3000	30000	300000
+4	40	400	4000	40000	400000
+5	50	500	5000	50000	500000
+explain select a from t1 where d > "0";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	d	d	NULL	NULL	NULL;	Using where; Using index
+select a from t1 where d > "0";
+a
+1
+2
+3
+4
+5
+select e,f from t1;
+e	f
+10000	100000
+20000	200000
+30000	300000
+40000	400000
+50000	500000
+select e,f from t1 where b > 0;
+e	f
+10000	100000
+20000	200000
+30000	300000
+40000	400000
+50000	500000
+select e,f from t1 where d > "0";
+e	f
+10000	100000
+20000	200000
+30000	300000
+40000	400000
+50000	500000
+update t1 set a = a+1, b = b+10;
+explain select * from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b	NULL	NULL	NULL;	Using index
+select * from t1;
+a	b	c	d	e	f
+2	20	100	1000	10000	100000
+3	30	200	2000	20000	200000
+4	40	300	3000	30000	300000
+5	50	400	4000	40000	400000
+6	60	500	5000	50000	500000
+explain select * from t1 where b > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	b	b	NULL	NULL	NULL;	Using where; Using index
+select * from t1 where b > 0;
+a	b	c	d	e	f
+2	20	100	1000	10000	100000
+3	30	200	2000	20000	200000
+4	40	300	3000	30000	300000
+5	50	400	4000	40000	400000
+6	60	500	5000	50000	500000
+explain select * from t1 where d > "0";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	d	d	NULL	NULL	NULL;	Using where; Using index
+select * from t1 where d > "0";
+a	b	c	d	e	f
+2	20	100	1000	10000	100000
+3	30	200	2000	20000	200000
+4	40	300	3000	30000	300000
+5	50	400	4000	40000	400000
+6	60	500	5000	50000	500000
+explain select a from t1 where d > "0";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	d	d	NULL	NULL	NULL;	Using where; Using index
+select a from t1 where d > "0";
+a
+2
+3
+4
+5
+6
+select e,f from t1;
+e	f
+10000	100000
+20000	200000
+30000	300000
+40000	400000
+50000	500000
+select e,f from t1 where b > 0;
+e	f
+10000	100000
+20000	200000
+30000	300000
+40000	400000
+50000	500000
+select e,f from t1 where d > "0";
+e	f
+10000	100000
+20000	200000
+30000	300000
+40000	400000
+50000	500000
+delete from t1 where b > 35;
+explain select * from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b	NULL	NULL	NULL;	Using index
+select * from t1;
+a	b	c	d	e	f
+2	20	100	1000	10000	100000
+3	30	200	2000	20000	200000
+explain select * from t1 where b > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	b	b	NULL	NULL	NULL;	Using where; Using index
+select * from t1 where b > 0;
+a	b	c	d	e	f
+2	20	100	1000	10000	100000
+3	30	200	2000	20000	200000
+explain select * from t1 where d > "0";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	d	d	NULL	NULL	NULL;	Using where; Using index
+select * from t1 where d > "0";
+a	b	c	d	e	f
+2	20	100	1000	10000	100000
+3	30	200	2000	20000	200000
+explain select a from t1 where d > "0";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	d	d	NULL	NULL	NULL;	Using where; Using index
+select a from t1 where d > "0";
+a
+2
+3
+select e,f from t1;
+e	f
+10000	100000
+20000	200000
+select e,f from t1 where b > 0;
+e	f
+10000	100000
+20000	200000
+select e,f from t1 where d > "0";
+e	f
+10000	100000
+20000	200000
+alter table t1 drop index b, drop index d;
+alter table t1 add key d(d,a) clustering=yes, add key b(b) clustering=yes;
+explain select * from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	d	NULL	NULL	NULL;	Using index
+select * from t1;
+a	b	c	d	e	f
+2	20	100	1000	10000	100000
+3	30	200	2000	20000	200000
+explain select * from t1 where b > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	b	b	NULL	NULL	NULL;	Using where; Using index
+select * from t1 where b > 0;
+a	b	c	d	e	f
+2	20	100	1000	10000	100000
+3	30	200	2000	20000	200000
+explain select * from t1 where d > "0";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	d	d	NULL	NULL	NULL;	Using where; Using index
+select * from t1 where d > "0";
+a	b	c	d	e	f
+2	20	100	1000	10000	100000
+3	30	200	2000	20000	200000
+explain select a from t1 where d > "0";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	NULL	d	d	NULL	NULL	NULL;	Using where; Using index
+select a from t1 where d > "0";
+a
+2
+3
+select e,f from t1;
+e	f
+10000	100000
+20000	200000
+select e,f from t1 where b > 0;
+e	f
+10000	100000
+20000	200000
+select e,f from t1 where d > "0";
+e	f
+10000	100000
+20000	200000
+DROP TABLE t1;

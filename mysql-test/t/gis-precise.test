@@ -1,0 +1,333 @@
+-- source include/have_geometry.inc
+
+
+#
+# Spatial objects
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+select 1, ST_Intersects(GeomFromText('POLYGON((0 0,20 0,20 20,0 20,0 0))'), GeomFromText('POLYGON((10 10,30 10,30 30,10 30,10 10))'));
+select 0, ST_Intersects(GeomFromText('POLYGON((0 0,20 10,10 30, 0 0))'), GeomFromText('POLYGON((10 40, 40 50, 20 70, 10 40))'));
+select 1, ST_Intersects(GeomFromText('POLYGON((0 0,20 10,10 30, 0 0))'), GeomFromText('POINT(10 10)'));
+select 1, ST_Intersects(GeomFromText('POLYGON((0 0,20 10,10 30, 0 0))'), GeomFromText('POLYGON((10 10,30 20,20 40, 10 10))'));
+select 0, ST_Within(GeomFromText('POLYGON((0 0,20 10,10 30, 0 0))'), GeomFromText('POLYGON((10 10,30 20,20 40, 10 10))'));
+select 1, ST_Within(GeomFromText('POLYGON((1 1,20 10,10 30, 1 1))'), GeomFromText('POLYGON((0 0,30 5,10 40, 0 0))'));
+
+
+create table t1 (g point);
+insert into t1 values 
+(GeomFromText('POINT(2 2)')), (GeomFromText('POINT(2 4)')), (GeomFromText('POINT(2 6)')), (GeomFromText('POINT(2 8)')),
+(GeomFromText('POINT(4 2)')), (GeomFromText('POINT(4 4)')), (GeomFromText('POINT(4 6)')), (GeomFromText('POINT(4 8)')),
+(GeomFromText('POINT(6 2)')), (GeomFromText('POINT(6 4)')), (GeomFromText('POINT(6 6)')), (GeomFromText('POINT(6 8)')),
+(GeomFromText('POINT(8 2)')), (GeomFromText('POINT(8 4)')), (GeomFromText('POINT(8 6)')), (GeomFromText('POINT(8 8)'));
+
+select astext(g) from t1 where ST_Within(g, GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'));
+select 'Contains';
+select astext(g) from t1 where ST_Contains(GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'), g);
+select 'Intersects';
+select astext(g) from t1 where ST_Intersects(GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'), g);
+select 'Contains';
+select astext(g) from t1 where ST_Contains(GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'), g);
+select 'Contains2';
+select astext(g) from t1 where ST_Contains(GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1), (5.01 3.01, 6 5, 9 5, 8 3, 5.01 3.01))'), g);
+
+DROP TABLE t1;
+
+select 0, ST_Within(GeomFromText('LINESTRING(15 15, 50 50, 60 60)'), GeomFromText('POLYGON((10 10,30 20,20 40, 10 10))'));
+select 1, ST_Within(GeomFromText('LINESTRING(15 15, 16 16)'), GeomFromText('POLYGON((10 10,30 20,20 40, 10 10))'));
+
+
+select 1, ST_Intersects(GeomFromText('LINESTRING(15 15, 50 50)'), GeomFromText('LINESTRING(50 15, 15 50)'));
+select 0, ST_Intersects(GeomFromText('LINESTRING(15 15, 50 50)'), GeomFromText('LINESTRING(16 16, 51 51)'));
+
+select 1, ST_Intersects(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('POLYGON((50 5, 55 10, 0 45, 50 5))'));
+
+select astext(ST_Union(geometryfromtext('point(1 1)'), geometryfromtext('polygon((0 0, 2 0, 1 2, 0 0))')));
+select astext(ST_Intersection(geometryfromtext('point(1 1)'), geometryfromtext('polygon((0 0, 2 0, 1 2, 0 0))')));
+
+select ST_Intersects(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('POLYGON((50 5, 55 10, 0 45, 50 5))'));
+select ST_contains(GeomFromText('MULTIPOLYGON(((0 0, 0 5, 5 5, 5 0, 0 0)), ((6 6, 6 11, 11 11, 11 6, 6 6)))'), GeomFromText('POINT(5 10)'));
+select ST_Disjoint(GeomFromText('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'), GeomFromText('POLYGON((10 10, 10 15, 15 15, 15 10, 10 10))'));
+select ST_Disjoint(GeomFromText('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'), GeomFromText('POLYGON((10 10, 10 4, 4 4, 4 10, 10 10))'));
+select ST_Overlaps(GeomFromText('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'), GeomFromText('POLYGON((10 10, 10 4, 4 4, 4 10, 10 10))'));
+select ST_Overlaps(GeomFromText('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'), GeomFromText('POLYGON((1 1, 1 4, 4 4, 4 1, 1 1))'));
+
+# Distance tests
+select ST_DISTANCE(geomfromtext('polygon((0 0, 1 2, 2 1, 0 0))'), geomfromtext('polygon((2 2, 3 4, 4 3, 2 2))'));
+select ST_DISTANCE(geomfromtext('polygon((0 0, 1 2, 2 1, 0 0))'), geomfromtext('linestring(0 1, 1 0)'));
+select ST_DISTANCE(geomfromtext('polygon((0 0, 3 6, 6 3, 0 0))'), geomfromtext('polygon((2 2, 3 4, 4 3, 2 2))'));
+select ST_DISTANCE(geomfromtext('polygon((0 0, 3 6, 6 3, 0 0),(2 2, 3 4, 4 3, 2 2))'), geomfromtext('point(3 3)'));
+select ST_DISTANCE(geomfromtext('linestring(0 0, 3 6, 6 3, 0 0)'), geomfromtext('polygon((2 2, 3 4, 4 3, 2 2))'));
+
+
+# Operations tests
+select astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('POLYGON((50 5, 55 10, 0 45, 50 5))')));
+select astext(ST_Intersection(GeomFromText('LINESTRING(0 0, 50 45, 40 50, 0 0)'), GeomFromText('LINESTRING(50 5, 55 10, 0 45, 50 5)')));
+select astext(ST_Intersection(GeomFromText('LINESTRING(0 0, 50 45, 40 50)'), GeomFromText('LINESTRING(50 5, 55 10, 0 45)')));
+select astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('POINT(20 20)')));
+select astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200)')));
+--replace_result 7.999999999999999 8
+select astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')));
+--replace_result 7.999999999999999 8
+select astext(ST_UNION(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')));
+
+select astext(ST_intersection(geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), geomfromtext('polygon((0 0, 1 1, 0 2, 0 0))')));
+
+select astext(ST_symdifference(geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), geomfromtext('polygon((0 0, 1 1, 0 2, 0 0))')));
+--replace_result 7.999999999999999 8
+select astext(ST_UNION(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')));
+
+# Buffer() tests
+--replace_result 0012045437948276 00120454379482759
+select astext(ST_buffer(geometryfromtext('point(1 1)'), 1));
+create table t1(geom geometrycollection);
+insert into t1 values (geomfromtext('POLYGON((0 0, 10 10, 0 8, 0 0))'));
+insert into t1 values (geomfromtext('POLYGON((1 1, 10 10, 0 8, 1 1))'));
+select astext(geom), area(geom),round(area(ST_buffer(geom,2)), 7) from t1;
+select ST_NUMPOINTS(ST_EXTERIORRING(ST_buffer(geom,2))) from t1;
+
+set @geom=geomfromtext('LINESTRING(2 1, 4 2, 2 3, 2 5)');
+set @buff=ST_buffer(@geom,1);
+--replace_result 40278744502097 40278744502096
+select ST_NUMPOINTS(ST_EXTERIORRING(@buff));
+
+# cleanup
+DROP TABLE t1;
+
+#Touches tests
+select st_touches(geomfromtext('point(0 0)'), geomfromtext('point(1 1)'));
+select st_touches(geomfromtext('point(1 1)'), geomfromtext('point(1 1)'));
+select st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('point(1 1)'));
+select st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('point(1 0)'));
+select st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('point(1 2)'));
+select st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('polygon((1 1.2, 1 0, 2 0, 1 1.2))'));
+select st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('polygon((1 1, 1 0, 2 0, 1 1))'));
+
+#Equals test
+SELECT ST_Equals(PolyFromText('POLYGON((67 13, 67 18, 67 18, 59 18, 59 13, 67 13) )'),PolyFromText('POLYGON((67 13, 67 18, 59 19, 59 13, 59 13, 67 13) )')) as result;
+SELECT ST_Equals(PolyFromText('POLYGON((67 13, 67 18, 67 18, 59 18, 59 13, 67 13) )'),PolyFromText('POLYGON((67 13, 67 18, 59 18, 59 13, 59 13, 67 13) )')) as result;
+SELECT ST_Equals(PointFromText('POINT (12 13)'),PointFromText('POINT (12 13)')) as result;
+
+# bug #801243 Assertion `(0)' failed in Gis_geometry_collection::init_from_opresult on ST_UNION
+
+SELECT astext(ST_UNION (
+        PolyFromText('POLYGON(( 2 2 ,3 2,2 7,2 2),( 0 0,8 2,1 9,0 0))'),
+        ExteriorRing( Envelope( MultiLineStringFromText('MULTILINESTRING((3 4,5 3),(3 0,0 5))')))));
+
+#bug 801189 ST_BUFFER asserts if radius = 0
+SELECT astext(ST_BUFFER(LineStringFromText('LINESTRING(0 0,1 1)'),0));
+
+#bug 801199 Infinite recursion in Gcalc_function::count_internal with ST_BUFFER over MULTIPOINT
+SELECT Round(ST_Area(ST_BUFFER(MultipointFromText('MULTIPOINT(7 7,3 7,7 2,7 4 ,7 7)'), 3)), 5);
+
+#bug 801212 Assertion with ST_INTERSECTION on NULL values
+SELECT ST_INTERSECTION(NULL, NULL);
+
+#bug 804305 Crash in wkb_get_double with ST_INTERSECTION
+SELECT ASTEXT(ST_INTERSECTION(
+  MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((2 2,2 8,8 8,8 2,2 2),(4 4,4 6,6 6,6 4,4 4)),
+                        ((0 5,3 5,3 0,0 0,0 1,2 1,2 2,0 2,0 5), (1 3,2 3,2 4,1 4,1 3)),
+                        ((2 2,5 2,4 4,2 8,2 2)))'),
+  MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((3 5,2 4,2 5,3 5)),
+                        ((2 2,9 2,0 2,2 6,2 2)),
+                        ((2 2,2 8,8 8,8 2,2 2), (4 4,4 6,6 6,6 4,4 4)),
+                        ((9 9,6 8,7 0,9 9)))')));
+
+#bug 804324 Assertion 0 in Gcalc_scan_iterator::pop_suitable_intersection
+
+SELECT ROUND(ST_LENGTH(ST_UNION(
+        MULTILINESTRINGFROMTEXT('MULTILINESTRING((6 2,4 0,3 5,3 6,4 3,6 4,3 9,0 7,3 7,8 4,2 9,5 0),
+                                                 (8 2,1 3,9 0,4 4))'),
+        MULTILINESTRINGFROMTEXT('MULTILINESTRING((2 5,6 7,9 7,5 2,1 6,3 6))'))), 7);
+
+SELECT ST_NUMGEOMETRIES((ST_UNION(ST_UNION(
+        MULTILINESTRINGFROMTEXT('MULTILINESTRING((2 0,4 2,0 2,1 5,0 3,7 0,8 5,5 8),
+                                                 (6 2,4 0,3 5,3 6,4 3,6 4,3 9,0 7,3 7,8 4,2 9,5 0),
+                                                 (7 8,3 1,0 9,6 0,4 8),
+                                                 (9 3,0 4,5 9,6 4),
+                                                 (8 2,1 3,9 0,4 4))'),
+        MULTILINESTRINGFROMTEXT('MULTILINESTRING((6 0,9 3,2 5,3 6,3 2),
+                                                 (2 5,6 7,9 7,5 2,1 6,3 6))')),
+    MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((7 7,3 7,3 1,7 8,7 7)),
+                                       ((3 5,2 4,2 5,3 5)),
+                                       ((7 7,8 7,3 7,7 7,7 7)),
+                                       ((0 5,3 5,3 4,1 4,1 3,3 3,3 0,0 0,0 5), (1 1,2 1,2 2,1 2,1 1)))'))));
+
+#bug #805860 Second assertion Assertion `n > 0 && n < SINUSES_CALCULATED*2+1' in get_n_sinco
+
+SELECT Round(ST_AREA(ST_BUFFER( ST_UNION(
+         POLYGONFROMTEXT('POLYGON((7 7, 7 7, 7 4, 7 7, 7 7))'),
+         POLYGONFROMTEXT('POLYGON((7 7, 4 7, 2 9, 7 6, 7 7))')), 1)), 6);
+
+
+#bug #804259 Second assertion in Gis_geometry_collection::init_from_opresult
+
+SELECT AsText(ST_UNION(MultiPolygonFromText('
+        MULTIPOLYGON(((2 2, 2 8, 8 8, 8 2, 2 2), (4 4, 4 6, 6 6, 6 4, 4 4)),
+                     ((0 0, 8 3, 7 4, 0 0)),
+                     ((2 2, 2 8, 8 8, 8 2, 2 2), (4 4, 4 6, 6 6, 6 4, 4 4)))'),
+MultiPolygonFromText(' MULTIPOLYGON(((0 0, 1 9, 4 6, 0 0)),
+                     ((0 5, 3 5, 3 4, 1 4, 1 3, 3 3, 3 0, 0 0, 0 5), (1 1, 2 1, 2 2, 1 2, 1 1)),
+                     ((7 7, 4 7, 6 3, 7 2, 7 7)),
+                     ((0 5, 3 5, 3 4, 1 4, 1 3, 3 3, 3 0, 0 0, 0 5), (1 1, 2 1, 2 2, 1 2, 1 1))) ')));
+
+
+#bug 801217 Assertion `t1->result_range' in Gcalc_operation_reducer::end_couple
+
+SELECT AsText(ST_SYMDIFFERENCE(
+        MultiLineStringFromText('MULTILINESTRING((7 7, 1 7, 8 5, 7 8, 7 7),
+                                                 (6 3, 3 4, 1 1, 9 9, 9 0, 8 4, 9 9))'),
+        Envelope(GeometryFromText('MULTIPOINT(7 9, 0 0, 3 7, 1 6, 0 0)'))));
+
+#bug 804266 Memory corruption/valgrind warning/crash in move_hole() with ST_UNION
+
+SELECT AsText(ST_UNION(
+        MultiPolygonFromText('MULTIPOLYGON(((9 9, 7 9, 1 1, 9 9)),
+                                           ((2 2, 1 2, 3 3, 2 2, 2 2)),
+                                           ((0 0, 7 5, 9 6, 0 0)),
+                                           ((7 7, 5 7, 1 5, 7 1, 7 7)))'),
+        MultiPolygonFromText('MULTIPOLYGON(((2 2, 2 2, 1 5, 2 7, 2 2)),
+                                           ((0 5, 3 5, 3 0, 0 0, 0 5), (1 1, 2 1, 2 4, 1 4, 1 1)))')));
+
+#bug 802376 ST_INTERSECTION returns wrong result on two overlapping linestrings in maria-5.3-gis
+
+SELECT AsText( ST_INTERSECTION(
+  LinestringFromText('LINESTRING( 3 5, 2 5, 2 4, 3 4, 3 5 ) ') ,
+  LinestringFromText('LINESTRING( 3 5, 2 4, 2 5, 3 5 ) ')
+));
+
+#bug 801560 ST_UNION of adjacent polygons includes extra line in maria-5.3-gis
+
+SELECT AsText( ST_UNION(
+ PolygonFromText(' POLYGON( ( 2 2 , 3 2 , 7 5 , 2 0 , 2 2 ) ) ') ,
+ PolygonFromText(' POLYGON( ( 2 2 , 3 2 , 3 3 , 2 5 , 2 2 ) ) ') ) );
+
+#bug 801466 ST_INTERSECTION() returns invalid value on empty intersection in maria-5.3-gis
+
+SELECT AsText(ST_INTERSECTION(LinestringFromText('LINESTRING(1 1, 2 2)'), GeometryFromText('LINESTRING(3 3, 4 4)')));
+
+#bug 839341 100% CPU usage with ST_UNION in maria-5.3-gis
+SELECT AsText(ST_UNION(GEOMETRYFROMTEXT('POINT(8 1)') ,MULTILINESTRINGFROMTEXT('MULTILINESTRING((3 5, 2 5, 2 4, 3 4, 3 5))')));
+
+#bug 839318 Crash in Gcalc_scan_iterator::point::get_shape with ST_DISTANCE and MULTILINESTRING in maria-5.3-gis
+SELECT ST_DISTANCE(POINTFROMTEXT('POINT(7 1)'),MULTILINESTRINGFROMTEXT('MULTILINESTRING(
+                (4 7,9 7,6 1,3 4,1 1), (3 5, 2 5, 2 4, 3 4, 3 5))'));
+
+#bug 839327 Crash in Gcalc_operation_reducer::end_couple with ST_UNION and MULTIPOLYGONs in 5.3-gis
+SELECT AsText(ST_UNION(POLYGONFROMTEXT('POLYGON((12 9, 3 6, 3 0, 12 9))'), POLYGONFROMTEXT('POLYGON((2 2, 7 2, 4 2, 2 0, 2 2))')));
+
+#bug 841622 Assertion `t->rp->type == Gcalc_function::shape_line' failed in Gcalc_operation_reducer::end_line in maria-5.3-gis
+
+--replace_result 276 278
+SELECT ST_NUMPOINTS(ST_EXTERIORRING(ST_BUFFER(ST_UNION(
+  MULTILINESTRINGFROMTEXT('MULTILINESTRING((3 4, 2 5, 7 6, 1 8),(0 0 ,1 6 ,0 1, 8 9, 2 4, 6 1, 3 5, 4 8), (9 3, 5 4, 1 8, 4 2, 5 8, 3 0))' ) ,
+  MULTILINESTRINGFROMTEXT('MULTILINESTRING((3 4, 3 1, 2 7, 4 2, 6 2, 1 5))')
+  ), 16)));
+
+#bug 841625 Assertion `m_poly_borders->next' failed in Gcalc_operation_reducer::count_slice in maria-5.3-gis
+
+SELECT ST_NUMGEOMETRIES(ST_DIFFERENCE (
+        ST_UNION (
+                MULTILINESTRINGFROMTEXT( ' MULTILINESTRING( ( 2 4 , 5 0 , 2 9 , 6 2 , 0 2 ) , ( 4 3 , 5 6 , 9 4 , 0 7 , 7 2 , 2 0 , 8 2 ) , ( 5 0 , 1 5 , 3 7 , 7 7 ) , ( 2 3 , 9 5 , 2 0 , 8 1 ) , ( 0 9 , 9 3 , 2 8 , 8 1 , 9 4 ) ) ' ),
+                ST_UNION (
+                        MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( ( 2 2 , 7 2 , 6 2 , 2 6 , 2 2 ) ) , ( (3 5, 2 5, 2 4, 3 4, 3 5) ) ) ' ) ,
+                        ENVELOPE(
+                                MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( (3 5, 2 5, 2 4, 3 4, 3 5) ) ) ' )
+                        )
+                )
+        ),
+        MULTILINESTRINGFROMTEXT( ' MULTILINESTRING( ( 2 9 , 1 3 , 7 3 , 8 5 ) , ( 5 0 , 8 1 , 2 0 , 7 4 , 1 0 ) , ( 9 2 , 5 2 , 6 5 , 8 8 , 0 2 ) , ( 0 8 , 3 9 , 4 0 , 1 0 ) , ( 0 0 , 7 6 , 8 3 , 0 0 ) ) ' )
+));
+
+
+#bug 841745 ssertion `!sp0->is_bottom()' failed in Gcalc_scan_iterator::find_intersections in maria-5.3-gis
+SELECT ASTEXT(ST_DIFFERENCE (
+        POLYGONFROMTEXT( ' POLYGON( ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 , 4 6 , 6 6 , 6 4 , 4 4 ) ) ' ) ,
+        ST_UNION (
+                MULTILINESTRINGFROMTEXT( ' MULTILINESTRING( (3 5, 2 5, 2 4, 3 4, 3 5) ) ' ) ,
+                ST_SYMDIFFERENCE (
+                        MULTILINESTRINGFROMTEXT( ' MULTILINESTRING( ( 3 8 , 0 8 , 6 6 , 6 1 , 0 5 , 6 7 , 3 7 ) , ( 5 8 , 7 7 , 9 0 , 8 7 ) , ( 1 5 , 1 8 , 2 3 , 3 9 ) , ( 1 3 , 9 7 , 5 5 , 0 8 , 6 9 ) , ( 3 6 , 6 9 , 8 7 , 0 2 , 4 6 , 9 5 ) ) ' ) ,
+                        ST_UNION (
+                                MULTILINESTRINGFROMTEXT( ' MULTILINESTRING( ( 9 4 , 2 0 , 2 2 , 7 2 , 6 2 ) , ( 5 2 , 8 2 , 4 8 , 3 4 ) , ( 1 0 , 1 4 , 2 7 , 7 0 , 1 5 ) , ( 2 8 , 4 4 , 5 0 , 7 0 , 4 0 ) ) ' ) ,
+                                GEOMETRYFROMTEXT( ' MULTILINESTRING( ( 3 7 , 7 3 , 5 8 , 4 8 ) , ( 3 2 , 5 0 , 9 3 , 4 4 ) , ( 6 0 , 4 2 , 7 8 , 1 3 ) ) ' )
+                        )
+                )
+        )
+));
+
+#bug 841773 Assertion `t0->rp->type == t1->rp->type' failed in Gcalc_operation_reducer::end_couple in maria-5.3-gis
+SELECT ST_NUMGEOMETRIES(ST_UNION (
+        MULTILINESTRINGFROMTEXT( ' MULTILINESTRING( ( 0 8 , 1 9 , 5 7 , 2 8 , 5 8 , 6 7 ) , ( 4 5 , 8 4 , 0 3 , 5 1 ) , ( 6 8 , 2 7 , 1 6 , 9 9 , 7 2 ) , ( 9 5 , 2 8 , 1 2 , 9 6 , 2 0 ) ) ' ) ,
+        MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( ( 7 7 , 2 7, 6 8, 7 1 , 7 7 ) ) ) ' )
+));
+
+#bug 841662 Third assertion `n > 0 && n < SINUSES_CALCULATED*2+1' in get_n_sincos 
+SELECT ST_BUFFER (
+                LINESTRINGFROMTEXT( ' LINESTRING( 5 4 , 3 8 , 2 6 , 5 5 , 7 9 ) ' ) ,
+                ST_DISTANCE (
+                        MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( (3 5, 2 4, 2 5, 3 5) ) , ( (3 5, 2 5, 2 4, 3 4, 3 5) ) , ( ( 0 0 , 8 3 , 9 5 , 0 0 ) ) ) ' ) ,
+                        ST_DIFFERENCE (
+                                MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( (3 5, 2 5, 2 4, 3 4, 3 5) ) ) ' ) ,
+                                MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 , 4 6 , 6 6 , 6 4 , 4 4 ) ) , ( ( 0 0 , 3 8 , 9 4 , 0 0 ) ) ) ' )
+                        )
+                )
+ ) ;
+SELECT   ST_DISTANCE (     ST_DIFFERENCE (                                 MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( (3 5, 2 5, 2 4, 3 4, 3 5) ) ) ' ) ,                                 MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 , 4 6 , 6 6 , 6 4 , 4 4 ) ) , ( ( 0 0 , 3 8 , 9 4 , 0 0 ) ) ) ' )                         ),                         MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( (3 5, 2 4, 2 5, 3 5) ) , ( (3 5, 2 5, 2 4, 3 4, 3 5) ) , ( ( 0 0 , 8 3 , 9 5 , 0 0 ) ) ) ' ) )  ;
+
+#bug 848939 Wrong result with ST_INTERSECTION between linestrings and a polygon in 5.3-gis
+SELECT ASTEXT(ST_INTERSECTION( GEOMETRYFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(7 7,5.33333333333333 7),LINESTRING(5.33333333333333 7,0 7,5 8,5.33333333333333 7),LINESTRING(5.33333333333333 7,7 2,7 7),POLYGON((0 5,3 5,3 2,1 2,1 1,3 1,3 0,0 0,0 3,2 3,2 4,0 4,0 5)))'), geomETRYFROMTEXT(' MULTILINESTRING( ( 5 1 , 3 7 , 6 1 , 7 0 ) , ( 1 6 , 8 5 , 7 5 , 5 6 ) )') ));
+
+#bug 855485 ST_CROSSES returns different result than PostGIS for overlapping polygons
+
+SELECT ST_CROSSES( GEOMETRYFROMTEXT(' POLYGON( (3 5, 2 4, 2 5, 3 5) ) ') , POLYGONFROMTEXT(' POLYGON((2 4,3 4,3 5,2 5,2 4)) '));
+
+#bug 855487 ST_WITHIN returns wrong result for partially overlapping polygons
+
+SELECT ST_WITHIN( POLYGONFROMTEXT(' POLYGON( (0 5, 3 5, 3 4, 2 0 , 1 0, 2 4 , 0 4, 0 5) ) ') , POLYGONFROMTEXT(' POLYGON( (0 5, 3 5, 3 4, 1 4 , 1 3 , 3 3 , 3 0 , 0 0 , 0 5), ( 1 1 , 2 1 , 2 2 , 1 2 , 1 1 ) ) ') );
+
+#bug 855492 ST_WITHIN returns TRUE on point on the edge of a polygon
+
+SELECT ST_WITHIN( POINTFROMTEXT(' POINT(1 2 ) ') , MULTIPOLYGONFROMTEXT(' MULTIPOLYGON( ( (0 5, 3 5, 3 0, 0 0, 0 5), ( 1 1 , 2 1 , 2 4, 1 4, 1 1 ) ) ) '));
+
+#bug 855497 ST_ENVELOPE of GEOMETRYCOLLECTION EMPTY returns NULL and not GEOMETRYCOLLECTION EMPTY
+
+select ST_ASTEXT(envelope(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION EMPTY')));
+
+#bug 855503 ST_EQUALS reports TRUE between a POLYGON and a MULTILINESTRING
+
+SELECT ST_EQUALS( GEOMETRYFROMTEXT(' MULTILINESTRING( (3 5, 2 5, 2 4, 3 4, 3 5) ) ') , GEOMETRYFROMTEXT(' POLYGON( (3 5, 2 5, 2 4, 3 4, 3 5) ) ') );
+
+#bug 855505 ST_TOUCHES reports TRUE for intersecting polygon and linestring
+
+SELECT ST_TOUCHES( GEOMETRYFROMTEXT(' LINESTRING( 1 1 , 1 4 , 5 0 , 8 3 ) ') , POLYGONFROMTEXT(' POLYGON( ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 , 4 6 , 6 6 , 6 4 , 4 4 ) ) ') );
+
+#bug 857051 ST_EQUALS returns TRUE on two nonidentical MULTIPOINTs
+
+SELECT ST_EQUALS( MULTIPOINTFROMTEXT(' MULTIPOINT( 5 1 , 6 9 , 1 4 , 4 0 ) ') , MULTIPOINTFROMTEXT(' MULTIPOINT( 5 8 , 5 2 , 1 8 , 3 0 , 3 0 , 7 8 ) ') );
+SELECT ST_EQUALS( MULTIPOINTFROMTEXT(' MULTIPOINT( 5 1 , 6 9 , 1 4 , 4 0 ) ') , MULTIPOINTFROMTEXT('MULTIPOINT( 4 0 , 6 9 , 5 1, 1 4 )') );
+
+#bug 857050 ST_WITHIN returns wrong result with MULTIPOINT and POLYGON 
+SELECT ST_WITHIN( MULTIPOINTFROMTEXT(' MULTIPOINT( 2 9 , 2 9 , 4 9 , 9 1 ) ') , POLYGONFROMTEXT(' POLYGON( ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 , 4 6 , 6 6 , 6 4 , 4 4 ) ) '));
+
+#bug 857087 Wrong result with ST_INTERSECTS and LINESTRINGs
+
+SELECT ST_INTERSECTS( GeomFromText('MULTILINESTRING( ( 4030 3045 , 3149 2461 , 3004 3831 , 3775 2976 ) )') , GeomFromText('LINESTRING(3058.41 3187.91,3081.52 3153.19,3042.99 3127.57,3019.89 3162.29,3039.07 3175.05,3039.07 3175.05,3058.41 3187.91,3081.52 3153.19,3042.99 3127.57,3019.89 3162.29)') );
+
+#bug 977201 ST_BUFFER fails with the negative D. TODO - check the result deeper.
+# select ASTEXT(ST_BUFFER(ST_GEOMCOLLFROMTEXT(' GEOMETRYCOLLECTION(LINESTRING(100 100, 31 10, 77 80), POLYGON((0 0,4 7,1 1,0 0)), POINT(20 20))'), -3));
+
+#bug 986977 Assertion `!cur_p->event' failed in Gcalc_scan_iterator::arrange_event(int, int)
+SELECT ST_NUMPOINTS(ST_EXTERIORRING(ST_BUFFER( POLYGONFROMTEXT( 'POLYGON( ( 0.0 -3.0,
+  -2.910427500435995 0.727606875108998,
+  -0.910427500435995 8.727606875108998,
+  7.664100588675687 1.503849116986468,
+  1.664100588675687 -2.496150883013531,
+  0.0 -3.0
+))' ), 3 )));
+
+# MDEV-5615 crash in Gcalc_function::add_operation
+select astext(buffer(st_linestringfromwkb(linestring(point(-1,1), point(-1,-2))),-1));
+

@@ -1,0 +1,42 @@
+SET @start_global_value = @@global.debug_binlog_fsync_sleep;
+select @@global.debug_binlog_fsync_sleep;
+@@global.debug_binlog_fsync_sleep
+0
+select @@session.debug_binlog_fsync_sleep;
+ERROR HY000: Variable 'debug_binlog_fsync_sleep' is a GLOBAL variable
+show global variables like 'debug_binlog_fsync_sleep';
+Variable_name	Value
+debug_binlog_fsync_sleep	0
+show session variables like 'debug_binlog_fsync_sleep';
+Variable_name	Value
+debug_binlog_fsync_sleep	0
+select * from information_schema.global_variables where variable_name='debug_binlog_fsync_sleep';
+VARIABLE_NAME	VARIABLE_VALUE
+DEBUG_BINLOG_FSYNC_SLEEP	0
+select * from information_schema.session_variables where variable_name='debug_binlog_fsync_sleep';
+VARIABLE_NAME	VARIABLE_VALUE
+DEBUG_BINLOG_FSYNC_SLEEP	0
+set global debug_binlog_fsync_sleep=20;
+select @@global.debug_binlog_fsync_sleep;
+@@global.debug_binlog_fsync_sleep
+20
+set session debug_binlog_fsync_sleep=1;
+ERROR HY000: Variable 'debug_binlog_fsync_sleep' is a GLOBAL variable and should be set with SET GLOBAL
+set global debug_binlog_fsync_sleep=1.1;
+ERROR 42000: Incorrect argument type to variable 'debug_binlog_fsync_sleep'
+set global debug_binlog_fsync_sleep=1e1;
+ERROR 42000: Incorrect argument type to variable 'debug_binlog_fsync_sleep'
+set global debug_binlog_fsync_sleep="foo";
+ERROR 42000: Incorrect argument type to variable 'debug_binlog_fsync_sleep'
+set global debug_binlog_fsync_sleep=0;
+select @@global.debug_binlog_fsync_sleep;
+@@global.debug_binlog_fsync_sleep
+0
+set global debug_binlog_fsync_sleep=cast(-1 as unsigned int);
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1292	Truncated incorrect debug_binlog_fsync_sleep value: '18446744073709551615'
+select @@global.debug_binlog_fsync_sleep;
+@@global.debug_binlog_fsync_sleep
+4294967295
+SET @@global.debug_binlog_fsync_sleep = @start_global_value;

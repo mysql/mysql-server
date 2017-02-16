@@ -1,0 +1,39 @@
+SET @start_global_value = @@global.userstat;
+select @@global.userstat;
+@@global.userstat
+0
+select @@session.userstat;
+ERROR HY000: Variable 'userstat' is a GLOBAL variable
+show global variables like 'userstat';
+Variable_name	Value
+userstat	OFF
+show session variables like 'userstat';
+Variable_name	Value
+userstat	OFF
+select * from information_schema.global_variables where variable_name='userstat';
+VARIABLE_NAME	VARIABLE_VALUE
+USERSTAT	OFF
+select * from information_schema.session_variables where variable_name='userstat';
+VARIABLE_NAME	VARIABLE_VALUE
+USERSTAT	OFF
+set global userstat=ON;
+select @@global.userstat;
+@@global.userstat
+1
+set global userstat=OFF;
+select @@global.userstat;
+@@global.userstat
+0
+set global userstat=1;
+select @@global.userstat;
+@@global.userstat
+1
+set session userstat=1;
+ERROR HY000: Variable 'userstat' is a GLOBAL variable and should be set with SET GLOBAL
+set global userstat=1.1;
+ERROR 42000: Incorrect argument type to variable 'userstat'
+set global userstat=1e1;
+ERROR 42000: Incorrect argument type to variable 'userstat'
+set global userstat="foo";
+ERROR 42000: Variable 'userstat' can't be set to the value of 'foo'
+SET @@global.userstat = @start_global_value;

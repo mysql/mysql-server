@@ -1,0 +1,118 @@
+#
+# Basic XA transactions syntax
+#
+
+--source ../have_engine.inc
+--source support_xa.inc
+
+--enable_connect_log
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--connect (con1,localhost,root,,)
+--connect (con2,localhost,root,,)
+
+--connection con1
+--let $create_definition = a $int_col
+--source ../create_table.inc
+
+--connection con2
+
+# Two-phase COMMIT
+
+XA START 'xa1';
+INSERT INTO t1 (a) VALUES (1);
+
+--connection con1
+--sorted_result
+SELECT a FROM t1;
+
+--connection con2
+INSERT INTO t1 (a) VALUES (2);
+XA END 'xa1';
+
+--connection con1
+--sorted_result
+SELECT a FROM t1;
+
+--connection con2
+XA PREPARE 'xa1';
+
+--connection con1
+--sorted_result
+SELECT a FROM t1;
+
+--connection con2
+XA RECOVER;
+XA COMMIT 'xa1';
+
+--connection con1
+--sorted_result
+SELECT a FROM t1;
+
+# One-phase COMMIT
+
+--connection con2
+XA START 'xa2';
+INSERT INTO t1 (a) VALUES (3);
+
+--connection con1
+--sorted_result
+SELECT a FROM t1;
+
+--connection con2
+INSERT INTO t1 (a) VALUES (4);
+XA END 'xa2';
+
+--connection con1
+--sorted_result
+SELECT a FROM t1;
+
+--connection con2
+XA COMMIT 'xa2' ONE PHASE;
+
+--connection con1
+--sorted_result
+SELECT a FROM t1;
+
+# Rollback
+
+--connection con2
+XA START 'xa3';
+INSERT INTO t1 (a) VALUES (5);
+
+--connection con1
+--sorted_result
+SELECT a FROM t1;
+
+--connection con2
+INSERT INTO t1 (a) VALUES (6);
+XA END 'xa3';
+
+--connection con1
+--sorted_result
+SELECT a FROM t1;
+
+--connection con2
+XA PREPARE 'xa3';
+
+--connection con1
+--sorted_result
+SELECT a FROM t1;
+
+--connection con2
+XA ROLLBACK 'xa3';
+
+--connection con1
+--sorted_result
+SELECT a FROM t1;
+
+DROP TABLE t1;
+
+--source ../cleanup_engine.inc
+

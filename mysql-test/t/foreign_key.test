@@ -2,8 +2,10 @@
 # Test syntax of foreign keys
 #
 
+-- source include/have_innodb.inc
+
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t2;
 --enable_warnings
 
 create table t1 (
@@ -23,6 +25,26 @@ create unique index b on t1 (a,b);
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# Test DELETE IGNORE
+# Bug#44987 DELETE IGNORE and FK constraint
+#
+
+create table t1 (id int primary key) engine = innodb;
+create table t2 (id int PRIMARY KEY, FOREIGN KEY (id) REFERENCES t1(id)) engine=innodb;
+insert into t1 values (1), (2), (3), (4), (5), (6);
+insert into t2 values (3), (5);
+
+--error 1451
+delete from t1;
+select * from t1;
+
+delete ignore from t1;
+select row_count();
+select * from t1;
+drop table t2;
+drop table t1;
 
 #
 # Bug#34455 (Ambiguous foreign keys syntax is accepted)
@@ -94,4 +116,5 @@ alter table t_34455
   on update set default on update set default);
 
 drop table t_34455;
+
 

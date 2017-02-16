@@ -1,0 +1,23 @@
+#
+# MDEV-5029 Crash in MariaDB 5.5.33 with .frm from older MariaDB release
+#
+# a.k.a. fail to open an frm with indexes:
+
+let $datadir=`select @@datadir`;
+
+# normal innodb table (but innodb is disabled here)
+copy_file std_data/mdev5029_1.frm $datadir/test/t1.frm;
+--error ER_UNKNOWN_STORAGE_ENGINE
+show create table t1;
+remove_file $datadir/test/t1.frm;
+
+# Aria table, incorrect typecode
+call mtr.add_suppression("t1.frm is inconsistent: engine typecode 43, engine name Aria");
+copy_file std_data/mdev5029_2.frm $datadir/test/t1.frm;
+copy_file std_data/mdev5029_2.MAI $datadir/test/t1.MAI;
+copy_file std_data/mdev5029_2.MAD $datadir/test/t1.MAD;
+show create table t1;
+drop table t1;
+remove_file $datadir/test/t1.MAI;
+remove_file $datadir/test/t1.MAD;
+

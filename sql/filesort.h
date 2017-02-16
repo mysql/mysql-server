@@ -31,6 +31,8 @@ ha_rows filesort(THD *thd, TABLE *table, st_sort_field *sortorder,
                  ha_rows max_rows, bool sort_positions,
                  ha_rows *examined_rows);
 void filesort_free_buffers(TABLE *table, bool full);
+double get_merge_many_buffs_cost(uint *buffer, uint last_n_elems,
+                                 int elem_size);
 void change_double_for_sort(double nr,uchar *to);
 
 #endif /* FILESORT_INCLUDED */

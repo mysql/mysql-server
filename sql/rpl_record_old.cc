@@ -83,12 +83,15 @@ pack_row_old(TABLE *table, MY_BITMAP const* cols,
       ER_NO_DEFAULT_FOR_FIELD
         Returned if one of the fields existing on the slave but not on
         the master does not have a default value (and isn't nullable)
+      ER_SLAVE_CORRUPT_EVENT
+        Wrong data for field found.
  */
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 int
 unpack_row_old(Relay_log_info *rli,
                TABLE *table, uint const colcnt, uchar *record,
-               uchar const *row, MY_BITMAP const *cols,
+               uchar const *row, const uchar *row_buffer_end,
+               MY_BITMAP const *cols,
                uchar const **row_end, ulong *master_reclength,
                MY_BITMAP* const rw_set, Log_event_type const event_type)
 {
@@ -134,10 +137,16 @@ unpack_row_old(Relay_log_info *rli,
     if (bitmap_is_set(cols, field_ptr -  begin_ptr))
     {
       f->move_field_offset(offset);
-      ptr= f->unpack(f->ptr, ptr);
+      ptr= f->unpack(f->ptr, ptr, row_buffer_end, 0);
       f->move_field_offset(-offset);
-      /* Field...::unpack() cannot return 0 */
-      DBUG_ASSERT(ptr != NULL);
+      if (!ptr)
+      {
+        rli->report(ERROR_LEVEL, ER_SLAVE_CORRUPT_EVENT,
+                    "Could not read field `%s` of table `%s`.`%s`",
+                    f->field_name, table->s->db.str,
+                    table->s->table_name.str);
+        return(ER_SLAVE_CORRUPT_EVENT);
+      }
     }
     else
       bitmap_clear_bit(rw_set, field_ptr - begin_ptr);

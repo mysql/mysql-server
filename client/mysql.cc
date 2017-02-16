@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,8 +13,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-*/
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* mysql command tool
  * Commands compatible with mSQL by David J. Hughes
@@ -45,7 +45,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.14";
+const char *VER= "15.1";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -83,21 +83,28 @@ extern "C" {
 #include <term.h>
 #endif
 #endif
-#endif
+#endif /* defined(HAVE_CURSES_H) && defined(HAVE_TERM_H) */
 
+#undef bcmp				// Fix problem with new readline
 #if defined(__WIN__)
 #include <conio.h>
 #else
-#include <readline/readline.h>
+#include <readline.h>
 #define HAVE_READLINE
 #define USE_POPEN
 #endif
-  //int vidattr(long unsigned int attrs);	// Was missing in sun curses
 }
 
-#if !defined(HAVE_VIDATTR)
-#undef vidattr
-#define vidattr(A) {}			// Can't get this to work
+#ifdef HAVE_VIDATTR
+static int have_curses= 0;
+static void my_vidattr(chtype attrs)
+{
+  if (have_curses)
+    vidattr(attrs);
+}
+#else
+#undef HAVE_SETUPTERM
+#define my_vidattr(A) {}              // Can't get this to work
 #endif
 
 #ifdef FN_NO_CASE_SENSE
@@ -141,18 +148,19 @@ static my_bool ignore_errors=0,wait_flag=0,quick=0,
 	       opt_secure_auth= 0,
                default_pager_set= 0, opt_sigint_ignore= 0,
                auto_vertical_output= 0,
-               show_warnings= 0, executing_query= 0, interrupted_query= 0,
-               ignore_spaces= 0;
-static my_bool debug_info_flag, debug_check_flag;
+               show_warnings= 0, executing_query= 0,
+               ignore_spaces= 0, opt_progress_reports;
+static my_bool debug_info_flag, debug_check_flag, batch_abort_on_error;
 static my_bool column_types_flag;
 static my_bool preserve_comments= 0;
+static my_bool in_com_source, aborted= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
-static uint opt_enable_cleartext_plugin= 0;
-static my_bool using_opt_enable_cleartext_plugin= 0;
 static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
+static my_bool opt_binary_mode= FALSE;
+static int interrupted_query= 0;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *current_prompt=0, *delimiter_str= 0,
             *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME,
@@ -237,13 +245,19 @@ static void end_pager();
 static void init_tee(const char *);
 static void end_tee();
 static const char* construct_prompt();
-static char *get_arg(char *line, my_bool get_next_arg);
+enum get_arg_mode { CHECK, GET, GET_NEXT};
+static char *get_arg(char *line, get_arg_mode mode);
 static void init_username();
 static void add_int_to_prompt(int toadd);
 static int get_result_width(MYSQL_RES *res);
 static int get_field_disp_length(MYSQL_FIELD * field);
-static int normalize_dbname(const char *line, char *buff, uint buff_size);
-static int get_quote_count(const char *line);
+#ifndef EMBEDDED_LIBRARY
+static uint last_progress_report_length= 0;
+static void report_progress(const MYSQL *mysql, uint stage, uint max_stage,
+                            double progress, const char *proc_info,
+                            uint proc_info_length);
+#endif
+static void report_progress_end();
 
 /* A structure which contains information on the commands this program
    can understand. */
@@ -889,6 +903,7 @@ static COMMANDS commands[] = {
   { "LAST_INSERT_ID", 0, 0, 0, ""},
   { "ISSIMPLE", 0, 0, 0, ""},
   { "LAST_DAY", 0, 0, 0, ""},
+  { "LAST_VALUE", 0, 0, 0, ""},
   { "LCASE", 0, 0, 0, ""},
   { "LEAST", 0, 0, 0, ""},
   { "LENGTH", 0, 0, 0, ""},
@@ -1020,12 +1035,13 @@ static COMMANDS commands[] = {
   { (char *)NULL,       0, 0, 0, ""}
 };
 
-static const char *load_default_groups[]= { "mysql","client",0 };
+static const char *load_default_groups[]=
+{ "mysql", "client", "client-server", "client-mariadb", 0 };
 
 static int         embedded_server_arg_count= 0;
 static char       *embedded_server_args[MAX_SERVER_ARGS];
 static const char *embedded_server_groups[]=
-{ "server", "embedded", "mysql_SERVER", 0 };
+{ "server", "embedded", "mysql_SERVER", "mariadb_SERVER", 0 };
 
 #ifdef HAVE_READLINE
 /*
@@ -1049,9 +1065,10 @@ static void initialize_readline (char *name);
 static void fix_history(String *final_command);
 #endif
 
-static COMMANDS *find_command(char *name,char cmd_name);
-static bool add_line(String &buffer,char *line,char *in_string,
-                     bool *ml_comment, bool truncated);
+static COMMANDS *find_command(char *name);
+static COMMANDS *find_command(char cmd_name);
+static bool add_line(String &buffer, char *line, ulong line_length,
+                     char *in_string, bool *ml_comment, bool truncated);
 static void remove_cntrl(String &buffer);
 static void print_table_data(MYSQL_RES *result);
 static void print_table_data_html(MYSQL_RES *result);
@@ -1070,6 +1087,45 @@ static sig_handler window_resize(int sig);
 #endif
 
 
+const char DELIMITER_NAME[]= "delimiter";
+const uint DELIMITER_NAME_LEN= sizeof(DELIMITER_NAME) - 1;
+inline bool is_delimiter_command(char *name, ulong len)
+{
+  /*
+    Delimiter command has a parameter, so the length of the whole command
+    is larger than DELIMITER_NAME_LEN.  We don't care the parameter, so
+    only name(first DELIMITER_NAME_LEN bytes) is checked.
+  */
+  return (len >= DELIMITER_NAME_LEN &&
+          !my_strnncoll(charset_info, (uchar*) name, DELIMITER_NAME_LEN,
+                        (uchar *) DELIMITER_NAME, DELIMITER_NAME_LEN));
+}
+
+/**
+   Get the index of a command in the commands array.
+
+   @param cmd_char    Short form command.
+
+   @return int
+     The index of the command is returned if it is found, else -1 is returned.
+*/
+inline int get_command_index(char cmd_char)
+{
+  /*
+    All client-specific commands are in the first part of commands array
+    and have a function to implement it.
+  */
+  for (uint i= 0; commands[i].func; i++)
+    if (commands[i].cmd_char == cmd_char)
+      return i;
+  return -1;
+}
+
+static int delimiter_index= -1;
+static int charset_index= -1;
+static bool real_binary_mode= FALSE;
+
+
 int main(int argc,char *argv[])
 {
   char buff[80];
@@ -1078,12 +1134,15 @@ int main(int argc,char *argv[])
   DBUG_ENTER("main");
   DBUG_PROCESS(argv[0]);
   
+  charset_index= get_command_index('C');
+  delimiter_index= get_command_index('d');
   delimiter_str= delimiter;
   default_prompt = my_strdup(getenv("MYSQL_PS1") ? 
 			     getenv("MYSQL_PS1") : 
-			     "mysql> ",MYF(MY_WME));
+			     "\\N [\\d]> ",MYF(MY_WME));
   current_prompt = my_strdup(default_prompt,MYF(MY_WME));
   prompt_counter=0;
+  aborted= 0;
 
   outfile[0]=0;			// no (default) outfile
   strmov(pager, "stdout");	// the default, if --pager wasn't given
@@ -1174,11 +1233,12 @@ int main(int argc,char *argv[])
   window_resize(0);
 #endif
 
-  put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
+  put_info("Welcome to the MariaDB monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
-  snprintf((char*) glob_buffer.ptr(), glob_buffer.alloced_length(),
-	   "Your MySQL connection id is %lu\nServer version: %s\n",
-	   mysql_thread_id(&mysql), server_version_string(&mysql));
+  my_snprintf((char*) glob_buffer.ptr(), glob_buffer.alloced_length(),
+	  "Your %s connection id is %lu\nServer version: %s\n",
+          mysql_get_server_name(&mysql),
+	  mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
   put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"), INFO_INFO);
@@ -1300,14 +1360,15 @@ sig_handler mysql_end(int sig)
 /*
   This function handles sigint calls
   If query is in process, kill query
+  If 'source' is executed, abort source command
   no query in process, terminate like previous behavior
  */
+
 sig_handler handle_sigint(int sig)
 {
   char kill_buffer[40];
   MYSQL *kill_mysql= NULL;
 
-  /* terminate if no query being executed, or we already tried interrupting */
   /* terminate if no query being executed, or we already tried interrupting */
   if (!executing_query || (interrupted_query == 2))
   {
@@ -1316,14 +1377,14 @@ sig_handler handle_sigint(int sig)
   }
 
   kill_mysql= mysql_init(kill_mysql);
-  if (!mysql_connect_ssl_check(kill_mysql, current_host, current_user, opt_password,
-                               "", opt_mysql_port, opt_mysql_unix_port, 0,
-                               opt_ssl_required))
+  if (!mysql_real_connect(kill_mysql,current_host, current_user, opt_password,
+                          "", opt_mysql_port, opt_mysql_unix_port,0))
   {
     tee_fprintf(stdout, "Ctrl-C -- sorry, cannot connect to server to kill query, giving up ...\n");
     goto err;
   }
 
+  /* First time try to kill the query, second time the connection */
   interrupted_query++;
 
   /* mysqld < 5 does not understand KILL QUERY, skip to KILL CONNECTION */
@@ -1334,11 +1395,14 @@ sig_handler handle_sigint(int sig)
   sprintf(kill_buffer, "KILL %s%lu",
           (interrupted_query == 1) ? "QUERY " : "",
           mysql_thread_id(&mysql));
-  tee_fprintf(stdout, "Ctrl-C -- sending \"%s\" to server ...\n", kill_buffer);
+  if (verbose)
+    tee_fprintf(stdout, "Ctrl-C -- sending \"%s\" to server ...\n",
+                kill_buffer);
   mysql_real_query(kill_mysql, kill_buffer, (uint) strlen(kill_buffer));
   mysql_close(kill_mysql);
-  tee_fprintf(stdout, "Ctrl-C -- query aborted.\n");
-
+  tee_fprintf(stdout, "Ctrl-C -- query killed. Continuing normally.\n");
+  if (in_com_source)
+    aborted= 1;                                 // Abort source command
   return;
 
 err:
@@ -1350,7 +1414,6 @@ err:
    handler called mysql_end(). 
   */
   mysql_thread_end();
-  return;
 #else
   mysql_end(sig);
 #endif  
@@ -1363,7 +1426,8 @@ sig_handler window_resize(int sig)
   struct winsize window_size;
 
   if (ioctl(fileno(stdin), TIOCGWINSZ, &window_size) == 0)
-    terminal_width= window_size.ws_col;
+    if (window_size.ws_col > 0)
+      terminal_width= window_size.ws_col;
 }
 #endif
 
@@ -1373,6 +1437,10 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0},
   {"help", 'I', "Synonym for -?", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
+  {"abort-source-on-error", OPT_ABORT_SOURCE_ON_ERROR,
+   "Abort 'source filename' operations in case of errors",
+   &batch_abort_on_error, &batch_abort_on_error, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-rehash", OPT_AUTO_REHASH,
    "Enable automatic rehashing. One doesn't need to use 'rehash' to get table "
    "and field completion, but startup and reconnecting may take a longer time. "
@@ -1424,16 +1492,12 @@ static struct my_option my_long_options[] =
    &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delimiter", OPT_DELIMITER, "Delimiter to be used.", &delimiter_str,
    &delimiter_str, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"enable_cleartext_plugin", OPT_ENABLE_CLEARTEXT_PLUGIN, 
-    "Enable/disable the clear text authentication plugin.",
-   &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin, 
-   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"execute", 'e', "Execute command and quit. (Disables --force and history file.)", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"vertical", 'E', "Print the output of a query (rows) vertically.",
    &vertical, &vertical, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
-  {"force", 'f', "Continue even if we get an SQL error.",
+  {"force", 'f', "Continue even if we get an SQL error. Sets abort-source-on-error to 0",
    &ignore_errors, &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"named-commands", 'G',
@@ -1506,6 +1570,10 @@ static struct my_option my_long_options[] =
    "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
    &opt_mysql_port,
    &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,  0},
+  {"progress-reports", OPT_REPORT_PROGRESS,
+   "Get progress reports for long running commands (like ALTER TABLE)",
+   &opt_progress_reports, &opt_progress_reports, 0, GET_BOOL, NO_ARG, 1, 0,
+   0, 0, 0, 0},
   {"prompt", OPT_PROMPT, "Set the mysql prompt to this value.",
    &current_prompt, &current_prompt, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1591,6 +1659,13 @@ static struct my_option my_long_options[] =
     "Default authentication client-side plugin to use.",
     &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"binary-mode", 0,
+   "By default, ASCII '\\0' is disallowed and '\\r\\n' is translated to '\\n'. "
+   "This switch turns off both features, and also turns off parsing of all client"
+   "commands except \\C and DELIMITER, in non-interactive mode (for input "
+   "piped to mysql or loaded using the 'source' command). This is necessary "
+   "when processing output from mysqlbinlog that may contain blobs.",
+   &opt_binary_mode, &opt_binary_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1616,8 +1691,9 @@ static void usage(int version)
     return;
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
-  my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
+  puts("");
+  my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
 
@@ -1628,7 +1704,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 {
   switch(optid) {
   case OPT_CHARSETS_DIR:
-    strmake(mysql_charsets_dir, argument, sizeof(mysql_charsets_dir) - 1);
+    strmake_buf(mysql_charsets_dir, argument);
     charsets_dir = mysql_charsets_dir;
     break;
   case OPT_DELIMITER:
@@ -1641,7 +1717,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       /* Check that delimiter does not contain a backslash */
       if (!strstr(argument, "\\")) 
       {
-        strmake(delimiter, argument, sizeof(delimiter) - 1);
+        strmake_buf(delimiter, argument);
       }
       else 
       {
@@ -1654,9 +1730,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_LOCAL_INFILE:
     using_opt_local_infile=1;
-    break;
-  case OPT_ENABLE_CLEARTEXT_PLUGIN:
-    using_opt_enable_cleartext_plugin= TRUE;
     break;
   case OPT_TEE:
     if (argument == disabled_my_option)
@@ -1676,7 +1749,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       if (argument && strlen(argument))
       {
 	default_pager_set= 1;
-	strmake(pager, argument, sizeof(pager) - 1);
+	strmake_buf(pager, argument);
 	strmov(default_pager, pager);
       }
       else if (default_pager_set)
@@ -1777,13 +1850,18 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
     break;
 #include <sslopt-case.h>
+  case 'f':
+    batch_abort_on_error= 0;
+    break;
   case 'V':
     usage(1);
-    exit(0);
+    status.exit_status= 0;
+    mysql_end(-1);
   case 'I':
   case '?':
     usage(0);
-    exit(0);
+    status.exit_status= 0;
+    mysql_end(-1);
   }
   return 0;
 }
@@ -1827,6 +1905,7 @@ static int get_options(int argc, char **argv)
     opt_outfile= 0;
     opt_reconnect= 0;
     connect_flag= 0; /* Not in interactive mode */
+    opt_progress_reports= 0;
   }
   
   if (argc > 1)
@@ -1850,6 +1929,9 @@ static int get_options(int argc, char **argv)
   if (ignore_spaces)
     connect_flag|= CLIENT_IGNORE_SPACE;
 
+  if (opt_progress_reports)
+    connect_flag|= CLIENT_PROGRESS;
+
   return(0);
 }
 
@@ -1865,24 +1947,59 @@ static int read_and_execute(bool interactive)
   ulong line_number=0;
   bool ml_comment= 0;  
   COMMANDS *com;
+  ulong line_length= 0;
   status.exit_status=1;
-
-  for (;;)
+  
+  real_binary_mode= !interactive && opt_binary_mode;
+  while (!aborted)
   {
     if (!interactive)
     {
-      line=batch_readline(status.line_buff);
       /*
-        Skip UTF8 Byte Order Marker (BOM) 0xEFBBBF.
-        Editors like "notepad" put this marker in
-        the very beginning of a text file when
-        you save the file using "Unicode UTF-8" format.
+        batch_readline can return 0 on EOF or error.
+        In that case, we need to double check that we have a valid
+        line before actually setting line_length to read_length.
       */
-      if (line && !line_number &&
-           (uchar) line[0] == 0xEF &&
-           (uchar) line[1] == 0xBB &&
-           (uchar) line[2] == 0xBF)
-        line+= 3;
+      line= batch_readline(status.line_buff, real_binary_mode);
+      if (line) 
+      {
+        line_length= status.line_buff->read_length;
+
+        /*
+          ASCII 0x00 is not allowed appearing in queries if it is not in binary
+          mode.
+        */
+        if (!real_binary_mode && strlen(line) != line_length)
+        {
+          status.exit_status= 1;
+          String msg;
+          msg.append("ASCII '\\0' appeared in the statement, but this is not "
+                     "allowed unless option --binary-mode is enabled and mysql is "
+                     "run in non-interactive mode. Set --binary-mode to 1 if ASCII "
+                     "'\\0' is expected. Query: '");
+          msg.append(glob_buffer);
+          msg.append(line);
+          msg.append("'.");
+          put_info(msg.c_ptr(), INFO_ERROR);
+          break;
+        }
+
+        /*
+          Skip UTF8 Byte Order Marker (BOM) 0xEFBBBF.
+          Editors like "notepad" put this marker in
+          the very beginning of a text file when
+          you save the file using "Unicode UTF-8" format.
+        */
+        if (!line_number &&
+             (uchar) line[0] == 0xEF &&
+             (uchar) line[1] == 0xBB &&
+             (uchar) line[2] == 0xBF)
+        {
+          line+= 3;
+          // decrease the line length accordingly to the 3 bytes chopped
+          line_length -=3;
+        }
+      }
       line_number++;
       if (!glob_buffer.length())
 	status.query_start_line=line_number;
@@ -1940,6 +2057,8 @@ static int read_and_execute(bool interactive)
       */
       if (opt_outfile && line)
 	fprintf(OUTFILE, "%s\n", line);
+
+      line_length= line ? strlen(line) : 0;
     }
     // End of file or system error
     if (!line)
@@ -1956,7 +2075,7 @@ static int read_and_execute(bool interactive)
       (We want to allow help, print and clear anywhere at line start
     */
     if ((named_cmds || glob_buffer.is_empty())
-	&& !ml_comment && !in_string && (com=find_command(line,0)))
+	&& !ml_comment && !in_string && (com= find_command(line)))
     {
       if ((*com->func)(&glob_buffer,line) > 0)
 	break;
@@ -1968,7 +2087,7 @@ static int read_and_execute(bool interactive)
 #endif
       continue;
     }
-    if (add_line(glob_buffer, line, &in_string, &ml_comment,
+    if (add_line(glob_buffer, line, line_length, &in_string, &ml_comment,
                  status.line_buff ? status.line_buff->truncated : 0))
       break;
   }
@@ -1998,71 +2117,132 @@ static int read_and_execute(bool interactive)
     free(line);
 #endif
 
+  /*
+    If the function is called by 'source' command, it will return to interactive
+    mode, so real_binary_mode should be FALSE. Otherwise, it will exit the
+    program, it is safe to set real_binary_mode to FALSE.
+  */
+  real_binary_mode= FALSE;
 
   return status.exit_status;
 }
 
 
-static COMMANDS *find_command(char *name,char cmd_char)
+/**
+   It checks if the input is a short form command. It returns the command's
+   pointer if a command is found, else return NULL. Note that if binary-mode
+   is set, then only \C is searched for.
+
+   @param cmd_char    A character of one byte.
+
+   @return
+     the command's pointer or NULL.
+*/
+static COMMANDS *find_command(char cmd_char)
+{
+  DBUG_ENTER("find_command");
+  DBUG_PRINT("enter", ("cmd_char: %d", cmd_char));
+
+  int index= -1;
+
+  /*
+    In binary-mode, we disallow all mysql commands except '\C'
+    and DELIMITER.
+  */
+  if (real_binary_mode)
+  {
+    if (cmd_char == 'C')
+      index= charset_index;
+  }
+  else
+    index= get_command_index(cmd_char);
+
+  if (index >= 0)
+  {
+    DBUG_PRINT("exit",("found command: %s", commands[index].name));
+    DBUG_RETURN(&commands[index]);
+  }
+  else
+    DBUG_RETURN((COMMANDS *) 0);
+}
+
+/**
+   It checks if the input is a long form command. It returns the command's
+   pointer if a command is found, else return NULL. Note that if binary-mode 
+   is set, then only DELIMITER is searched for.
+
+   @param name    A string.
+   @return
+     the command's pointer or NULL.
+*/
+static COMMANDS *find_command(char *name)
 {
   uint len;
   char *end;
   DBUG_ENTER("find_command");
-  DBUG_PRINT("enter",("name: '%s'  char: %d", name ? name : "NULL", cmd_char));
 
-  if (!name)
+  DBUG_ASSERT(name != NULL);
+  DBUG_PRINT("enter", ("name: '%s'", name));
+
+  while (my_isspace(charset_info, *name))
+    name++;
+  /*
+    If there is an \\g in the row or if the row has a delimiter but
+    this is not a delimiter command, let add_line() take care of
+    parsing the row and calling find_command().
+  */
+  if ((!real_binary_mode && strstr(name, "\\g")) ||
+      (strstr(name, delimiter) &&
+       !is_delimiter_command(name, DELIMITER_NAME_LEN)))
+      DBUG_RETURN((COMMANDS *) 0);
+
+  if ((end=strcont(name, " \t")))
   {
-    len=0;
-    end=0;
+    len=(uint) (end - name);
+    while (my_isspace(charset_info, *end))
+      end++;
+    if (!*end)
+      end= 0;					// no arguments to function
+  }
+  else
+    len= (uint) strlen(name);
+
+  int index= -1;
+  if (real_binary_mode)
+  {
+    if (is_delimiter_command(name, len))
+      index= delimiter_index;
   }
   else
   {
-    while (my_isspace(charset_info,*name))
-      name++;
     /*
-      If there is an \\g in the row or if the row has a delimiter but
-      this is not a delimiter command, let add_line() take care of
-      parsing the row and calling find_command()
+      All commands are in the first part of commands array and have a function
+      to implement it.
     */
-    if (strstr(name, "\\g") || (strstr(name, delimiter) &&
-                                !(strlen(name) >= 9 &&
-                                  !my_strnncoll(&my_charset_latin1,
-                                                (uchar*) name, 9,
-                                                (const uchar*) "delimiter",
-                                                9))))
-      DBUG_RETURN((COMMANDS *) 0);
-    if ((end=strcont(name," \t")))
+    for (uint i= 0; commands[i].func; i++)
     {
-      len=(uint) (end - name);
-      while (my_isspace(charset_info,*end))
-	end++;
-      if (!*end)
-	end=0;					// no arguments to function
+      if (!my_strnncoll(&my_charset_latin1, (uchar*) name, len,
+                        (uchar*) commands[i].name, len) &&
+          (commands[i].name[len] == '\0') &&
+          (!end || (commands[i].takes_params && get_arg(name, CHECK))))
+      {
+        index= i;
+        break;
+      }
     }
-    else
-      len=(uint) strlen(name);
   }
 
-  for (uint i= 0; commands[i].name; i++)
+  if (index >= 0)
   {
-    if (commands[i].func &&
-	((name &&
-	  !my_strnncoll(&my_charset_latin1, (uchar*)name, len,
-				     (uchar*)commands[i].name,len) &&
-	  !commands[i].name[len] &&
-	  (!end || (end && commands[i].takes_params))) ||
-	 (!name && commands[i].cmd_char == cmd_char)))
-    {
-      DBUG_PRINT("exit",("found command: %s", commands[i].name));
-      DBUG_RETURN(&commands[i]);
-    }
+    DBUG_PRINT("exit", ("found command: %s", commands[index].name));
+    DBUG_RETURN(&commands[index]);
   }
   DBUG_RETURN((COMMANDS *) 0);
 }
 
 
-static bool add_line(String &buffer,char *line,char *in_string,
-                     bool *ml_comment, bool truncated)
+static bool add_line(String &buffer, char *line, ulong line_length,
+                     char *in_string, bool *ml_comment, bool truncated)
 {
   uchar inchar;
   char buff[80], *pos, *out;
@@ -2077,10 +2257,11 @@ static bool add_line(String &buffer,char *line,char *in_string,
   if (status.add_to_history && line[0] && not_in_history(line))
     add_history(line);
 #endif
-  char *end_of_line=line+(uint) strlen(line);
+  char *end_of_line= line + line_length;
 
-  for (pos=out=line ; (inchar= (uchar) *pos) ; pos++)
+  for (pos= out= line; pos < end_of_line; pos++)
   {
+    inchar= (uchar) *pos;
     if (!preserve_comments)
     {
       // Skip spaces at the beginning of a statement
@@ -2120,7 +2301,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
 	*out++= (char) inchar;
 	continue;
       }
-      if ((com=find_command(NullS,(char) inchar)))
+      if ((com= find_command((char) inchar)))
       {
         // Flush previously accepted characters
         if (out != line)
@@ -2196,7 +2377,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
 
       pos--;
 
-      if ((com= find_command(buffer.c_ptr(), 0)))
+      if ((com= find_command(buffer.c_ptr())))
       {
           
         if ((*com->func)(&buffer, buffer.c_ptr()) > 0)
@@ -2209,16 +2390,21 @@ static bool add_line(String &buffer,char *line,char *in_string,
       }
       buffer.length(0);
     }
-    else if (!*ml_comment && (!*in_string && (inchar == '#' ||
-                                              (inchar == '-' && pos[1] == '-' &&
-                              /*
-                                The third byte is either whitespace or is the
-                                end of the line -- which would occur only
-                                because of the user sending newline -- which is
-                                itself whitespace and should also match.
-                              */
-			      (my_isspace(charset_info,pos[2]) ||
-                               !pos[2])))))
+    else if (!*ml_comment &&
+             (!*in_string &&
+              (inchar == '#' ||
+               (inchar == '-' && pos[1] == '-' &&
+               /*
+                 The third byte is either whitespace or is the end of
+                 the line -- which would occur only because of the
+                 user sending newline -- which is itself whitespace
+                 and should also match.
+                 We also ignore lines starting with '--', even if there
+                 isn't a whitespace after. (This makes it easier to run
+                 mysql-test-run cases through the client)
+               */
+                ((my_isspace(charset_info,pos[2]) || !pos[2]) ||
+                 (buffer.is_empty() && out == line))))))
     {
       // Flush previously accepted characters
       if (out != line)
@@ -2250,7 +2436,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
       break;
     }
     else if (!*in_string && inchar == '/' && *(pos+1) == '*' &&
-	     *(pos+2) != '!')
+             !(*(pos+2) == '!' || (*(pos+2) == 'M' && *(pos+3) == '!')))
     {
       if (preserve_comments)
       {
@@ -2310,9 +2496,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
   {
     uint length=(uint) (out-line);
 
-    if (!truncated && (length < 9 ||
-                       my_strnncoll (charset_info, (uchar *)line, 9,
-                                     (const uchar *) "delimiter", 9) ||
+    if (!truncated && (!is_delimiter_command(line, length) ||
                        (*in_string || *ml_comment)))
     {
       /* 
@@ -2732,6 +2916,8 @@ static int reconnect(void)
   }
   if (!connected)
     return put_info("Can't connect to the server\n",INFO_ERROR);
+  my_free(server_version);
+  server_version= 0;
   /* purecov: end */
   return 0;
 }
@@ -2919,13 +3105,8 @@ com_help(String *buffer __attribute__((unused)),
 	  return com_server_help(buffer,line,help_arg);
   }
 
-  put_info("\nFor information about MySQL products and services, visit:\n"
-           "   http://www.mysql.com/\n"
-           "For developer information, including the MySQL Reference Manual, "
-           "visit:\n"
-           "   http://dev.mysql.com/\n"
-           "To buy MySQL Enterprise support, training, or other products, visit:\n"
-           "   https://shop.mysql.com/\n", INFO_INFO);
+  put_info("\nGeneral information about MariaDB can be found at\n"
+           "http://mariadb.org\n", INFO_INFO);
   put_info("List of all MySQL commands:", INFO_INFO);
   if (!named_cmds)
     put_info("Note that all text commands must be first on line and end with ';'",INFO_INFO);
@@ -2962,8 +3143,8 @@ com_charset(String *buffer __attribute__((unused)), char *line)
 {
   char buff[256], *param;
   CHARSET_INFO * new_cs;
-  strmake(buff, line, sizeof(buff) - 1);
-  param= get_arg(buff, 0);
+  strmake_buf(buff, line);
+  param= get_arg(buff, GET);
   if (!param || !*param)
   {
     return put_info("Usage: \\C charset_name | charset charset_name", 
@@ -3037,6 +3218,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
   timer=start_timer();
   executing_query= 1;
   error= mysql_real_query_for_lazy(buffer->ptr(),buffer->length());
+  report_progress_end();
 
 #ifdef HAVE_READLINE
   if (status.add_to_history) 
@@ -3198,7 +3380,7 @@ static void init_tee(const char *file_name)
     return;
   }
   OUTFILE = new_outfile;
-  strmake(outfile, file_name, FN_REFLEN-1);
+  strmake_buf(outfile, file_name);
   tee_fprintf(stdout, "Logging to file '%s'\n", file_name);
   opt_outfile= 1;
   return;
@@ -3347,6 +3529,7 @@ print_table_data(MYSQL_RES *result)
     if (length < 4 && !IS_NOT_NULL(field->flags))
       length=4;					// Room for "NULL"
     field->max_length=length;
+    num_flag[mysql_field_tell(result) - 1]= IS_NUM(field->type);
     separator.fill(separator.length()+length+2,'-');
     separator.append('+');
   }
@@ -3366,7 +3549,6 @@ print_table_data(MYSQL_RES *result)
       tee_fprintf(PAGER, " %-*s |",(int) min(display_length,
                                             MAX_COLUMN_LENGTH),
                   field->name);
-      num_flag[off]= IS_NUM(field->type);
     }
     (void) tee_fputs("\n", PAGER);
     tee_puts((char*) separator.ptr(), PAGER);
@@ -3827,7 +4009,7 @@ com_tee(String *buffer __attribute__((unused)),
   /* eliminate the spaces before the parameters */
   while (my_isspace(charset_info,*param))
     param++;
-  end= strmake(file_name, param, sizeof(file_name) - 1);
+  end= strmake_buf(file_name, param);
   /* remove end space from command line */
   while (end > file_name && (my_isspace(charset_info,end[-1]) || 
 			     my_iscntrl(charset_info,end[-1])))
@@ -3888,7 +4070,7 @@ com_pager(String *buffer __attribute__((unused)),
   }
   else
   {
-    end= strmake(pager_name, param, sizeof(pager_name)-1);
+    end= strmake_buf(pager_name, param);
     while (end > pager_name && (my_isspace(charset_info,end[-1]) || 
                                 my_iscntrl(charset_info,end[-1])))
       end--;
@@ -3924,8 +4106,9 @@ static int
 com_edit(String *buffer,char *line __attribute__((unused)))
 {
   char	filename[FN_REFLEN],buff[160];
-  int	fd,tmp;
+  int	fd,tmp,error;
   const char *editor;
+  MY_STAT stat_arg;
 
   if ((fd=create_temp_file(filename,NullS,"sql", O_CREAT | O_WRONLY,
 			   MYF(MY_WME))) < 0)
@@ -3941,10 +4124,14 @@ com_edit(String *buffer,char *line __attribute__((unused)))
       !(editor = (char *)getenv("VISUAL")))
     editor = "vi";
   strxmov(buff,editor," ",filename,NullS);
-  if(system(buff) == -1)
+  if ((error= system(buff)))
+  {
+    char errmsg[100];
+    sprintf(errmsg, "Command '%.40s' failed", buff);
+    put_info(errmsg, INFO_ERROR, 0, NullS);
     goto err;
+  }
 
-  MY_STAT stat_arg;
   if (!my_stat(filename,&stat_arg,MYF(MY_WME)))
     goto err;
   if ((fd = my_open(filename,O_RDONLY, MYF(MY_WME))) < 0)
@@ -4028,7 +4215,7 @@ static int
 com_connect(String *buffer, char *line)
 {
   char *tmp, buff[256];
-  bool save_rehash= opt_rehash;
+  my_bool save_rehash= opt_rehash;
   int error;
 
   bzero(buff, sizeof(buff));
@@ -4042,12 +4229,12 @@ com_connect(String *buffer, char *line)
 #ifdef EXTRA_DEBUG
     tmp[1]= 0;
 #endif
-    tmp= get_arg(buff, 0);
+    tmp= get_arg(buff, GET);
     if (tmp && *tmp)
     {
       my_free(current_db);
       current_db= my_strdup(tmp, MYF(MY_WME));
-      tmp= get_arg(buff, 1);
+      tmp= get_arg(buff, GET_NEXT);
       if (tmp)
       {
 	my_free(current_host);
@@ -4086,6 +4273,7 @@ static int com_source(String *buffer __attribute__((unused)),
   int error;
   STATUS old_status;
   FILE *sql_file;
+  my_bool save_ignore_errors;
 
   /* Skip space from file name */
   while (my_isspace(charset_info,*line))
@@ -4095,7 +4283,7 @@ static int com_source(String *buffer __attribute__((unused)),
 		    INFO_ERROR, 0);
   while (my_isspace(charset_info,*param))
     param++;
-  end=strmake(source_name,param,sizeof(source_name)-1);
+  end=strmake_buf(source_name, param);
   while (end > source_name && (my_isspace(charset_info,end[-1]) || 
                                my_iscntrl(charset_info,end[-1])))
     end--;
@@ -4117,16 +4305,27 @@ static int com_source(String *buffer __attribute__((unused)),
 
   /* Save old status */
   old_status=status;
+  save_ignore_errors= ignore_errors;
   bfill((char*) &status,sizeof(status),(char) 0);
 
   status.batch=old_status.batch;		// Run in batch mode
   status.line_buff=line_buff;
   status.file_name=source_name;
   glob_buffer.length(0);			// Empty command buffer
+  ignore_errors= !batch_abort_on_error;
+  in_com_source= 1;
   error= read_and_execute(false);
+  ignore_errors= save_ignore_errors;
   status=old_status;				// Continue as before
+  in_com_source= aborted= 0;
   my_fclose(sql_file,MYF(0));
   batch_readline_end(line_buff);
+  /*
+    If we got an error during source operation, don't abort the client
+    if ignore_errors is set
+  */
+  if (error && ignore_errors)
+    error= -1;                                  // Ignore error
   return error;
 }
 
@@ -4137,8 +4336,8 @@ com_delimiter(String *buffer __attribute__((unused)), char *line)
 {
   char buff[256], *tmp;
 
-  strmake(buff, line, sizeof(buff) - 1);
-  tmp= get_arg(buff, 0);
+  strmake_buf(buff, line);
+  tmp= get_arg(buff, GET);
 
   if (!tmp || !*tmp)
   {
@@ -4154,7 +4353,7 @@ com_delimiter(String *buffer __attribute__((unused)), char *line)
       return 0;
     }
   }
-  strmake(delimiter, tmp, sizeof(delimiter) - 1);
+  strmake_buf(delimiter, tmp);
   delimiter_length= (int)strlen(delimiter);
   delimiter_str= delimiter;
   return 0;
@@ -4168,23 +4367,8 @@ com_use(String *buffer __attribute__((unused)), char *line)
   int select_db;
 
   bzero(buff, sizeof(buff));
-
-  /*
-    In case number of quotes exceed 2, we try to get
-    the normalized db name.
-  */
-  if (get_quote_count(line) > 2)
-  {
-    if (normalize_dbname(line, buff, sizeof(buff)))
-      return put_error(&mysql);
-    tmp= buff;
-  }
-  else
-  {
-    strmake(buff, line, sizeof(buff) - 1);
-    tmp= get_arg(buff, 0);
-  }
-
+  strmake_buf(buff, line);
+  tmp= get_arg(buff, GET);
   if (!tmp || !*tmp)
   {
     put_info("USE must be followed by a database name", INFO_ERROR);
@@ -4250,62 +4434,6 @@ com_use(String *buffer __attribute__((unused)), char *line)
   return 0;
 }
 
-/**
-  Normalize database name.
-
-  @param line [IN]          The command.
-  @param buff [OUT]         Normalized db name.
-  @param buff_size [IN]     Buffer size.
-
-  @return Operation status
-      @retval 0    Success
-      @retval 1    Failure
-
-  @note Sometimes server normilizes the database names
-        & APIs like mysql_select_db() expect normalized
-        database names. Since it is difficult to perform
-        the name conversion/normalization on the client
-        side, this function tries to get the normalized
-        dbname (indirectly) from the server.
-*/
-
-static int
-normalize_dbname(const char *line, char *buff, uint buff_size)
-{
-  MYSQL_RES *res= NULL;
-
-  /* Send the "USE db" commmand to the server. */
-  if (mysql_query(&mysql, line))
-    return 1;
-
-  /*
-    Now, get the normalized database name and store it
-    into the buff.
-  */
-  if (!mysql_query(&mysql, "SELECT DATABASE()") &&
-      (res= mysql_use_result(&mysql)))
-  {
-    MYSQL_ROW row= mysql_fetch_row(res);
-    if (row && row[0])
-    {
-      size_t len= strlen(row[0]);
-      /* Make sure there is enough room to store the dbname. */
-      if ((len > buff_size) || ! memcpy(buff, row[0], len))
-      {
-        mysql_free_result(res);
-        return 1;
-      }
-    }
-    mysql_free_result(res);
-  }
-
-  /* Restore the original database. */
-  if (current_db && mysql_select_db(&mysql, current_db))
-    return 1;
-
-  return 0;
-}
-
 static int
 com_warnings(String *buffer __attribute__((unused)),
    char *line __attribute__((unused)))
@@ -4325,23 +4453,22 @@ com_nowarnings(String *buffer __attribute__((unused)),
 }
 
 /*
-  Gets argument from a command on the command line. If get_next_arg is
-  not defined, skips the command and returns the first argument. The
-  line is modified by adding zero to the end of the argument. If
-  get_next_arg is defined, then the function searches for end of string
-  first, after found, returns the next argument and adds zero to the
-  end. If you ever wish to use this feature, remember to initialize all
-  items in the array to zero first.
+  Gets argument from a command on the command line. If mode is not GET_NEXT,
+  skips the command and returns the first argument. The line is modified by
+  adding zero to the end of the argument. If mode is GET_NEXT, then the
+  function searches for end of string first, after found, returns the next
+  argument and adds zero to the end. If you ever wish to use this feature,
+  remember to initialize all items in the array to zero first.
 */
 
-char *get_arg(char *line, my_bool get_next_arg)
+static char *get_arg(char *line, get_arg_mode mode)
 {
   char *ptr, *start;
-  my_bool quoted= 0, valid_arg= 0;
+  bool short_cmd= false;
   char qtype= 0;
 
   ptr= line;
-  if (get_next_arg)
+  if (mode == GET_NEXT)
   {
     for (; *ptr; ptr++) ;
     if (*(ptr + 1))
@@ -4352,7 +4479,7 @@ char *get_arg(char *line, my_bool get_next_arg)
     /* skip leading white spaces */
     while (my_isspace(charset_info, *ptr))
       ptr++;
-    if (*ptr == '\\') // short command was used
+    if ((short_cmd= *ptr == '\\')) // short command was used
       ptr+= 2;
     else
       while (*ptr &&!my_isspace(charset_info, *ptr)) // skip command
@@ -4365,39 +4492,81 @@ char *get_arg(char *line, my_bool get_next_arg)
   if (*ptr == '\'' || *ptr == '\"' || *ptr == '`')
   {
     qtype= *ptr;
-    quoted= 1;
     ptr++;
   }
   for (start=ptr ; *ptr; ptr++)
   {
-    if (*ptr == '\\' && ptr[1]) // escaped character
+    if ((*ptr == '\\' && ptr[1]) ||  // escaped character
+        (!short_cmd && qtype && *ptr == qtype && ptr[1] == qtype)) // quote
     {
-      // Remove the backslash
-      strmov_overlapp(ptr, ptr+1);
+      // Remove (or skip) the backslash (or a second quote)
+      if (mode != CHECK)
+        strmov_overlapp(ptr, ptr+1);
+      else
+        ptr++;
     }
-    else if ((!quoted && *ptr == ' ') || (quoted && *ptr == qtype))
+    else if (*ptr == (qtype ? qtype : ' '))
     {
-      *ptr= 0;
+      qtype= 0;
+      if (mode != CHECK)
+        *ptr= 0;
       break;
     }
   }
-  valid_arg= ptr != start;
-  return valid_arg ? start : NullS;
+  return ptr != start && !qtype ? start : NullS;
 }
 
-/*
-  Number of quotes present in the command's argument.
+
+/**
+  An example of mysql_authentication_dialog_ask callback.
+
+  The C function with the name "mysql_authentication_dialog_ask", if exists,
+  will be used by the "dialog" client authentication plugin when user
+  input is needed. This function should be of mysql_authentication_dialog_ask_t
+  type. If the function does not exists, a built-in implementation will be
+  used.
+
+  @param mysql          mysql
+  @param type           type of the input
+                        1 - normal string input
+                        2 - password string
+  @param prompt         prompt
+  @param buf            a buffer to store the use input
+  @param buf_len        the length of the buffer
+
+  @retval               a pointer to the user input string.
+                        It may be equal to 'buf' or to 'mysql->password'.
+                        In all other cases it is assumed to be an allocated
+                        string, and the "dialog" plugin will free() it.
 */
-static int
-get_quote_count(const char *line)
+
+MYSQL_PLUGIN_EXPORT
+char *mysql_authentication_dialog_ask(MYSQL *mysql, int type,
+                                      const char *prompt,
+                                      char *buf, int buf_len)
 {
-  int quote_count;
-  const char *ptr= line;
+  char *s=buf;
 
-  for(quote_count= 0; ptr ++ && *ptr; ptr= strpbrk(ptr, "\"\'`"))
-    quote_count ++;
+  fputs("[mariadb] ", stdout);
+  fputs(prompt, stdout);
+  fputs(" ", stdout);
 
-  return quote_count;
+  if (type == 2) /* password */
+  {
+    s= get_tty_password("");
+    strnmov(buf, s, buf_len);
+    buf[buf_len-1]= 0;
+    my_free(s);
+  }
+  else
+  {
+    if (!fgets(buf, buf_len-1, stdin))
+      buf[0]= 0;
+    else if (buf[0] && (s= strend(buf))[-1] == '\n')
+      s[-1]= 0;
+  }
+
+  return buf;
 }
 
 static int
@@ -4447,21 +4616,16 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   }
 
   mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
-  
+
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(&mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
 
   if (opt_default_auth && *opt_default_auth)
     mysql_options(&mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
-  if (using_opt_enable_cleartext_plugin)
-    mysql_options(&mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN, 
-                  (char*) &opt_enable_cleartext_plugin);
-
-  if (!mysql_connect_ssl_check(&mysql, host, user, password,
-                               database, opt_mysql_port, opt_mysql_unix_port,
-                               connect_flag | CLIENT_MULTI_STATEMENTS,
-                               opt_ssl_required))
+  if (!mysql_real_connect(&mysql, host, user, password,
+                          database, opt_mysql_port, opt_mysql_unix_port,
+                          connect_flag | CLIENT_MULTI_STATEMENTS))
   {
     if (!silent ||
 	(mysql_errno(&mysql) != CR_CONN_HOST_ERROR &&
@@ -4479,6 +4643,13 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   connected=1;
 #ifndef EMBEDDED_LIBRARY
   mysql.reconnect= debug_info_flag; // We want to know if this happens
+
+  /*
+    CLIENT_PROGRESS is set only if we requsted it in mysql_real_connect()
+    and the server also supports it
+  */
+  if (mysql.client_flag & CLIENT_PROGRESS)
+    mysql_options(&mysql, MYSQL_PROGRESS_CALLBACK, (void*) report_progress);
 #else
   mysql.reconnect= 1;
 #endif
@@ -4566,15 +4737,16 @@ com_status(String *buffer __attribute__((unused)),
 
   if (skip_updates)
   {
-    vidattr(A_BOLD);
+    my_vidattr(A_BOLD);
     tee_fprintf(stdout, "\nAll updates ignored to this database\n");
-    vidattr(A_NORMAL);
+    my_vidattr(A_NORMAL);
   }
 #ifdef USE_POPEN
   tee_fprintf(stdout, "Current pager:\t\t%s\n", pager);
   tee_fprintf(stdout, "Using outfile:\t\t'%s'\n", opt_outfile ? outfile : "");
 #endif
   tee_fprintf(stdout, "Using delimiter:\t%s\n", delimiter);
+  tee_fprintf(stdout, "Server:\t\t\t%s\n", mysql_get_server_name(&mysql));
   tee_fprintf(stdout, "Server version:\t\t%s\n", server_version_string(&mysql));
   tee_fprintf(stdout, "Protocol version:\t%d\n", mysql_get_proto_info(&mysql));
   tee_fprintf(stdout, "Connection:\t\t%s\n", mysql_get_host_info(&mysql));
@@ -4635,9 +4807,9 @@ com_status(String *buffer __attribute__((unused)),
   }
   if (safe_updates)
   {
-    vidattr(A_BOLD);
+    my_vidattr(A_BOLD);
     tee_fprintf(stdout, "\nNote that you are running in safe_update_mode:\n");
-    vidattr(A_NORMAL);
+    my_vidattr(A_NORMAL);
     tee_fprintf(stdout, "\
 UPDATEs and DELETEs that don't use a key in the WHERE clause are not allowed.\n\
 (One can force an UPDATE/DELETE by adding LIMIT # at the end of the command.)\n\
@@ -4730,34 +4902,48 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
   {
     if (!inited)
     {
-      inited=1;
 #ifdef HAVE_SETUPTERM
-      (void) setupterm((char *)0, 1, (int *) 0);
+      int errret;
+      have_curses= setupterm((char *)0, 1, &errret) != ERR;
 #endif
+      inited=1;
     }
     if (info_type == INFO_ERROR)
     {
       if (!opt_nobeep)
+      {
+#ifdef _WIN32
+        MessageBeep(MB_ICONWARNING);
+#else
         putchar('\a');		      	/* This should make a bell */
-      vidattr(A_STANDOUT);
+#endif
+      }
+      my_vidattr(A_STANDOUT);
       if (error)
       {
 	if (sqlstate)
-          (void) tee_fprintf(file, "ERROR %d (%s): ", error, sqlstate);
+          (void) tee_fprintf(file, "ERROR %d (%s)", error, sqlstate);
         else
-          (void) tee_fprintf(file, "ERROR %d: ", error);
+          (void) tee_fprintf(file, "ERROR %d", error);
       }
       else
-        tee_puts("ERROR: ", file);
+        tee_fputs("ERROR", file);
+      if (status.query_start_line && line_numbers)
+      {
+	(void) fprintf(file," at line %lu",status.query_start_line);
+	if (status.file_name)
+	  (void) fprintf(file," in file: '%s'", status.file_name);
+      }
+      tee_fputs(": ", file);
     }
     else
-      vidattr(A_BOLD);
+      my_vidattr(A_BOLD);
     (void) tee_puts(str, file);
-    vidattr(A_NORMAL);
+    my_vidattr(A_NORMAL);
   }
   if (unbuffered)
     fflush(file);
-  return info_type == INFO_ERROR ? -1 : 0;
+  return info_type == INFO_ERROR ? (ignore_errors ? -1 : 1): 0;
 }
 
 
@@ -4894,7 +5080,7 @@ static void mysql_end_timer(ulong start_time,char *buff)
   strmov(strend(buff),")");
 }
 
-static const char* construct_prompt()
+static const char *construct_prompt()
 {
   processed_prompt.free();			// Erase the old prompt
   time_t  lclock = time(NULL);			// Get the date struct
@@ -4923,6 +5109,12 @@ static const char* construct_prompt()
       case 'd':
 	processed_prompt.append(current_db ? current_db : "(none)");
 	break;
+      case 'N':
+        if (connected)
+          processed_prompt.append(mysql_get_server_name(&mysql));
+        else
+          processed_prompt.append("unknown");
+        break;
       case 'h':
       {
 	const char *prompt;
@@ -5096,3 +5288,32 @@ static int com_prompt(String *buffer __attribute__((unused)),
     tee_fprintf(stdout, "PROMPT set to '%s'\n", current_prompt);
   return 0;
 }
+
+#ifndef EMBEDDED_LIBRARY
+static void report_progress(const MYSQL *mysql, uint stage, uint max_stage,
+                            double progress, const char *proc_info,
+                            uint proc_info_length)
+{
+  uint length= printf("Stage: %d of %d '%.*s' %6.3g%% of stage done",
+                      stage, max_stage, proc_info_length, proc_info, 
+                      progress);
+  if (length < last_progress_report_length)
+    printf("%*s", last_progress_report_length - length, "");
+  putc('\r', stdout);
+  fflush(stdout);
+  last_progress_report_length= length;
+}
+
+static void report_progress_end()
+{
+  if (last_progress_report_length)
+  {
+    printf("%*s\r", last_progress_report_length, "");
+    last_progress_report_length= 0;
+  }
+}
+#else
+static void report_progress_end()
+{
+}
+#endif

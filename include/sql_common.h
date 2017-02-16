@@ -1,22 +1,20 @@
 #ifndef SQL_COMMON_INCLUDED
 #define SQL_COMMON_INCLUDED
+/* Copyright (c) 2003, 2012, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2012, Monty Program Ab
 
-/* Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
-   
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-#define SQL_COMMON_INCLUDED
 
 #ifdef	__cplusplus
 extern "C" {
@@ -28,10 +26,19 @@ extern const char	*unknown_sqlstate;
 extern const char	*cant_connect_sqlstate;
 extern const char	*not_error_sqlstate;
 
+
+struct mysql_async_context;
+
 struct st_mysql_options_extention {
   char *plugin_dir;
   char *default_auth;
-  my_bool enable_cleartext_plugin;
+  void (*report_progress)(const MYSQL *mysql,
+                          unsigned int stage,
+                          unsigned int max_stage,
+                          double progress,
+                          const char *proc_info,
+                          uint proc_info_length);
+  struct mysql_async_context *async_context;
 };
 
 typedef struct st_mysql_methods
@@ -48,7 +55,7 @@ typedef struct st_mysql_methods
   MYSQL_DATA *(*read_rows)(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 			   unsigned int fields);
   MYSQL_RES * (*use_result)(MYSQL *mysql);
-  void (*fetch_lengths)(unsigned long *to, 
+  void (*fetch_lengths)(unsigned long *to,
 			MYSQL_ROW column, unsigned int field_count);
   void (*flush_use_result)(MYSQL *mysql, my_bool flush_all_results);
   int (*read_change_user_result)(MYSQL *mysql);
@@ -105,7 +112,10 @@ int mysql_client_plugin_init();
 void mysql_client_plugin_deinit();
 struct st_mysql_client_plugin;
 extern struct st_mysql_client_plugin *mysql_client_builtins[];
-extern my_bool libmysql_cleartext_plugin_enabled;
+
+/* Non-blocking client API. */
+void my_context_install_suspend_resume_hook(struct mysql_async_context *b,
+                                            void (*)(my_bool, void *), void *);
 
 #ifdef	__cplusplus
 }

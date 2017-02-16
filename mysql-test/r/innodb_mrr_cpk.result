@@ -1,0 +1,238 @@
+drop table if exists t0,t1,t2,t3;
+set @innodb_mrr_cpk_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+set @save_join_cache_level=@@join_cache_level;
+set join_cache_level=6;
+set @save_storage_engine=@@storage_engine;
+set storage_engine=innodb;
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1(a char(8), b char(8), filler char(100), primary key(a));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(8) NOT NULL DEFAULT '',
+  `b` char(8) DEFAULT NULL,
+  `filler` char(100) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+insert into t1 select 
+concat('a-', 1000 + A.a + B.a*10 + C.a*100, '=A'),
+concat('b-', 1000 + A.a + B.a*10 + C.a*100, '=B'),
+'filler'
+from t0 A, t0 B, t0 C;
+create table t2 (a char(8));
+insert into t2 values ('a-1010=A'), ('a-1030=A'), ('a-1020=A');
+This should use join buffer:
+explain select * from t1, t2 where t1.a=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	8	test.t2.a	1	Using join buffer (flat, BKA join); Key-ordered scan
+This output must be sorted by value of t1.a:
+select * from t1, t2 where t1.a=t2.a;
+a	b	filler	a
+a-1010=A	b-1010=B	filler	a-1010=A
+a-1020=A	b-1020=B	filler	a-1020=A
+a-1030=A	b-1030=B	filler	a-1030=A
+drop table t1, t2;
+create table t1(
+a char(8) character set utf8, b int, filler char(100), 
+primary key(a,b)
+);
+insert into t1 select 
+concat('a-', 1000 + A.a + B.a*10 + C.a*100, '=A'),
+1000 + A.a + B.a*10 + C.a*100,
+'filler'
+from t0 A, t0 B, t0 C;
+create table t2 (a char(8) character set utf8, b int);
+insert into t2 values ('a-1010=A', 1010), ('a-1030=A', 1030), ('a-1020=A', 1020);
+explain select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	28	test.t2.a,test.t2.b	1	Using join buffer (flat, BKA join); Key-ordered scan
+select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+a	b	filler	a	b
+a-1010=A	1010	filler	a-1010=A	1010
+a-1020=A	1020	filler	a-1020=A	1020
+a-1030=A	1030	filler	a-1030=A	1030
+insert into t2 values ('a-1030=A', 1030), ('a-1020=A', 1020);
+explain select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	28	test.t2.a,test.t2.b	1	Using join buffer (flat, BKA join); Key-ordered scan
+select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+a	b	filler	a	b
+a-1010=A	1010	filler	a-1010=A	1010
+a-1020=A	1020	filler	a-1020=A	1020
+a-1020=A	1020	filler	a-1020=A	1020
+a-1030=A	1030	filler	a-1030=A	1030
+a-1030=A	1030	filler	a-1030=A	1030
+drop table t1, t2;
+create table t1(
+a varchar(8) character set utf8, b int, filler char(100), 
+primary key(a,b)
+);
+insert into t1 select 
+concat('a-', 1000 + A.a + B.a*10 + C.a*100, '=A'),
+1000 + A.a + B.a*10 + C.a*100,
+'filler'
+from t0 A, t0 B, t0 C;
+create table t2 (a char(8) character set utf8, b int);
+insert into t2 values ('a-1010=A', 1010), ('a-1030=A', 1030), ('a-1020=A', 1020);
+explain select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	30	test.t2.a,test.t2.b	1	Using where; Using join buffer (flat, BKA join); Key-ordered scan
+select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+a	b	filler	a	b
+a-1010=A	1010	filler	a-1010=A	1010
+a-1020=A	1020	filler	a-1020=A	1020
+a-1030=A	1030	filler	a-1030=A	1030
+explain select * from t1, t2 where t1.a=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	ref	PRIMARY	PRIMARY	26	test.t2.a	1	Using where; Using join buffer (flat, BKA join); Key-ordered scan
+select * from t1, t2 where t1.a=t2.a;
+a	b	filler	a	b
+a-1010=A	1010	filler	a-1010=A	1010
+a-1020=A	1020	filler	a-1020=A	1020
+a-1030=A	1030	filler	a-1030=A	1030
+drop table t1, t2;
+create table t1 (a int, b int, c int, filler char(100), primary key(a,b,c));
+insert into t1 select A.a, B.a, C.a, 'filler' from t0 A, t0 B, t0 C;
+insert into t1 values (11, 11, 11,   'filler');
+insert into t1 values (11, 11, 12,   'filler');
+insert into t1 values (11, 11, 13,   'filler');
+insert into t1 values (11, 22, 1234, 'filler');
+insert into t1 values (11, 33, 124,  'filler');
+insert into t1 values (11, 33, 125,  'filler');
+create table t2 (a int, b int);
+insert into t2 values (11,33), (11,22), (11,11);
+explain select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	ref	PRIMARY	PRIMARY	8	test.t2.a,test.t2.b	1	Using join buffer (flat, BKA join); Key-ordered scan
+select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+a	b	c	filler	a	b
+11	11	11	filler	11	11
+11	11	12	filler	11	11
+11	11	13	filler	11	11
+11	22	1234	filler	11	22
+11	33	124	filler	11	33
+11	33	125	filler	11	33
+set join_cache_level=0;
+select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+a	b	c	filler	a	b
+11	33	124	filler	11	33
+11	33	125	filler	11	33
+11	22	1234	filler	11	22
+11	11	11	filler	11	11
+11	11	12	filler	11	11
+11	11	13	filler	11	11
+set join_cache_level=6;
+explain select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	ref	PRIMARY	PRIMARY	4	test.t2.a	1	Using where; Using join buffer (flat, BKA join); Key-ordered scan
+select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
+a	b	c	filler	a	b
+set optimizer_switch='index_condition_pushdown=off';
+explain select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	ref	PRIMARY	PRIMARY	4	test.t2.a	1	Using where; Using join buffer (flat, BKA join); Key-ordered scan
+select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
+a	b	c	filler	a	b
+set optimizer_switch='index_condition_pushdown=on';
+drop table t1,t2;
+drop table t0;
+#
+# MDEV-6878: Use of uninitialized saved_primary_key in Mrr_ordered_index_reader::resume_read()
+#
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (
+pk varchar(32) character set utf8 primary key,
+kp1 char(32) not null,
+col1 varchar(32),
+key (kp1)
+) engine=innodb;
+insert into t1
+select
+concat('pk-', 1000 +A.a),
+concat('kp1-', 1000 +A.a),
+concat('val-', 1000 +A.a)
+from test.t0 A ;
+create table t2 as select kp1 as a from t1;
+set join_cache_level=8;
+set optimizer_switch='mrr=on,mrr_sort_keys=on';
+explain
+select * from t2 straight_join t1 force index(kp1) where t1.kp1=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	
+1	SIMPLE	t1	ref	kp1	kp1	32	test.t2.a	1	Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
+select * from t2 straight_join t1 force index(kp1) where t1.kp1=t2.a;
+a	pk	kp1	col1
+kp1-1000	pk-1000	kp1-1000	val-1000
+kp1-1001	pk-1001	kp1-1001	val-1001
+kp1-1002	pk-1002	kp1-1002	val-1002
+kp1-1003	pk-1003	kp1-1003	val-1003
+kp1-1004	pk-1004	kp1-1004	val-1004
+kp1-1005	pk-1005	kp1-1005	val-1005
+kp1-1006	pk-1006	kp1-1006	val-1006
+kp1-1007	pk-1007	kp1-1007	val-1007
+kp1-1008	pk-1008	kp1-1008	val-1008
+kp1-1009	pk-1009	kp1-1009	val-1009
+drop table t0,t1,t2;
+#
+#
+# MDEV-3817: Wrong result with index_merge+index_merge_intersection, InnoDB table, join, AND and OR conditions
+#
+set @tmp_mdev3817=@@optimizer_switch;
+SET optimizer_switch='index_merge=on,index_merge_intersection=on';
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b INT,
+c VARCHAR(1024) CHARACTER SET utf8,
+d INT,
+KEY (b)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES 
+(1, 9, 'one', 11), (2, 6, 'two', 12), (3, 2, 'three', 13), (4, 5, 'four', 14);
+CREATE TABLE t2 (e INT, g INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,9), (2,6) ;
+SELECT * FROM t1, t2 WHERE g = b AND ( a < 7 OR a > e );
+a	b	c	d	e	g
+1	9	one	11	1	9
+2	6	two	12	2	6
+DROP TABLE t1, t2;
+set optimizer_switch=@tmp_mdev3817;
+#
+# MDEV-5037: Server crash on a JOIN on a derived table with join_cache_level > 2
+#
+create table  t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t1 (
+id char(8) CHARACTER SET utf8 NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+CREATE TABLE t2 (
+id char(8) CHARACTER SET utf8 DEFAULT NULL,
+url text CHARACTER SET utf8
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+insert into t1 select '03b2ca8c' from t0 A, t0 B limit 80;
+insert into t2 select '03b2ca8c','' from t0 A, t0 B, t0 C;
+set @tmp_mdev5037=@@join_cache_level;
+set join_cache_level=3;
+explain SELECT 1 FROM (SELECT url, id FROM t2 LIMIT 1 OFFSET 20) derived RIGHT JOIN t1 ON t1.id = derived.id;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	#	
+1	PRIMARY	<derived2>	hash_ALL	key0	#hash#key0	25	test.t1.id	#	Using join buffer (flat, BNLH join)
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	#	
+set join_cache_level= @tmp_mdev5037;
+drop table t0,t1,t2;
+#
+# This must be at the end:
+#
+set @@join_cache_level= @save_join_cache_level;
+set storage_engine=@save_storage_engine;
+set optimizer_switch=@innodb_mrr_cpk_tmp;

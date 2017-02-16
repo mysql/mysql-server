@@ -1,0 +1,10 @@
+#
+# VARBINARY column types
+#
+
+--source have_engine.inc
+
+--source type_varbinary.inc
+
+--source cleanup_engine.inc
+

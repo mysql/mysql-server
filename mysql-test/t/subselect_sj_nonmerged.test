@@ -1,0 +1,121 @@
+#
+# Tests for non-merged semi-joins
+#
+--disable_warnings
+drop table if exists t0, t1, t2, t3, t4;
+--enable_warnings
+
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='semijoin=on,materialization=on';
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+
+# Check the case of subquery having agggregates but not having grouping
+
+create table t1 as select * from t0;
+--echo # The following should use full scan on <subquery2> and it must scan 1 row:
+explain select * from t0 where a in (select max(a) from t1);
+select * from t0 where a in (select max(a) from t1);
+
+# Ok, now check the trivial match/no-match/NULL on the left/NULL on the right cases
+insert into t1 values (11);
+select * from t0 where a in (select max(a) from t1);
+delete from t1 where a=11;
+
+insert into t0 values (NULL);
+select * from t0 where a in (select max(a) from t1);
+delete from t0 where a is NULL;
+
+delete from t1;
+select * from t0 where a in (select max(a) from t1);
+
+insert into t0 values (NULL);
+select * from t0 where a in (select max(a) from t1);
+delete from t0 where a is NULL;
+
+drop table t1;
+
+# 
+# Try with join subqueries
+#
+
+create table t1 (a int, b int);
+insert into t1 select a,a from t0;  # 10 rows 
+create table t2 as select * from t1 where a<5;  # 5 rows
+create table t3 as select (A.a + 10*B.a) as a from t0 A, t0 B; # 100 rows
+alter table t3 add primary key(a);
+
+--echo # The following should have do a full scan on <subquery2> and scan 5 rows 
+--echo #   (despite that subquery's join output estimate is 50 rows)
+explain select * from t3 where a in (select max(t2.a) from t1, t2 group by t2.b);
+
+--echo # Compare to this which really will have 50 record combinations:
+explain select * from t3 where a in (select max(t2.a) from t1, t2 group by t2.b, t1.b);
+
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+
+--echo # Outer joins also work:
+explain select * from t3 
+where a in (select max(t2.a) from t1 left join t2 on t1.a=t2.a group by t2.b, t1.b);
+
+SET optimizer_switch=@save_optimizer_switch;
+
+#
+# Check if joins on the outer side also work
+#
+
+create table t4 (a int, b int, filler char(20), unique key(a,b));
+insert into t4 select A.a + 10*B.a, A.a + 10*B.a, 'filler' from t0 A, t0 B; # 100 rows
+explain select * from t0, t4 where 
+  t4.b=t0.a and t4.a in (select max(t2.a) from t1, t2 group by t2.b);
+
+insert into t4 select 100 + (B.a *100 + A.a), 100 + (B.a*100 + A.a), 'filler' from t4 A, t0 B;
+explain select * from t4 where 
+  t4.a in (select max(t2.a) from t1, t2 group by t2.b) and 
+  t4.b in (select max(t2.a) from t1, t2 group by t2.b);
+
+drop table t1,t2,t3,t4;
+
+drop table t0;
+
+--echo #
+--echo # BUG#780359: Crash with get_fanout_with_deps in maria-5.3-mwl90
+--echo #
+CREATE TABLE t1 (f1 int);
+INSERT INTO t1 VALUES (2),(2);
+
+CREATE TABLE t2 (f3 int);
+INSERT INTO t2 VALUES (2),(2);
+
+SELECT *
+FROM t1
+WHERE ( f1 ) IN (
+        SELECT t2.f3
+        FROM t2
+        WHERE t2.f3 = 97
+        AND t2.f3 = 50
+        GROUP BY 1
+);
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#727183: WL#90 does not trigger with non-comma joins
+--echo #
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t1(a int, key(a));
+insert into t1 select A.a + 10*B.a + 100*C.a from t0 A, t0 B, t0 C;
+
+--echo # The following must use non-merged SJ-Materialization:
+explain select * from t1 X join t0 Y on X.a < Y.a where X.a in (select max(a) from t0);
+
+drop table t0, t1;
+
+set optimizer_switch=@save_optimizer_switch;
+

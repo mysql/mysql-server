@@ -1,0 +1,22 @@
+# 
+# Run subselect3.test with BKA enabled 
+#
+
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='optimize_join_buffer_size=on';
+set @@optimizer_switch='semijoin_with_cache=on';
+set @@optimizer_switch='outer_join_with_cache=on';
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+
+set join_cache_level=6;
+show variables like 'join_cache_level';
+
+set @join_cache_level_for_subselect3_test=@@join_cache_level;
+
+--source t/subselect3.test
+
+set join_cache_level=default;
+show variables like 'join_cache_level';
+
+set @@optimizer_switch=@save_optimizer_switch;
+set @join_cache_level_for_subselect3_test=NULL;

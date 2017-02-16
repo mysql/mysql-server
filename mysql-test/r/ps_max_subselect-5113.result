@@ -1,0 +1,16 @@
+CREATE TABLE t1 (b INT NOT NULL);
+INSERT INTO t1 VALUES (0),(8);
+PREPARE stmt FROM '
+ SELECT 1 FROM t1 AS o 
+   WHERE o.b >= ALL ( 
+     SELECT a2.b FROM t1 AS a1 LEFT JOIN t1 AS a2 ON ( a2.b = a1.b ) 
+     WHERE a1.b <= a2.b 
+  )
+';
+EXECUTE stmt;
+1
+1
+EXECUTE stmt;
+1
+1
+DROP TABLE t1;

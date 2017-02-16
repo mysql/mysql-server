@@ -1,0 +1,59 @@
+# verify a db_get does not read a read committed transaction's data because it is in live list
+
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--echo # Establish connection conn1 (user = root)
+connect (conn1,localhost,root,,);
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+connection default;
+set session transaction isolation level serializable;
+create table foo (a int, b int, c int, primary key (a), key (b))engine=TokuDB;
+show create table foo;
+insert into foo values (1,10,100),(2,20,200),(3,30,300),(4,40,400),(5,50,500),(6,60,600),(7,70,700),(8,80,800),(9,90,900);
+begin;
+select * from foo;
+--echo # should use key b
+explain select * from foo where b=50;
+--echo # should get (5,50,500)
+select * from foo where b=50;
+replace into foo values (5,50,1515);
+
+connection conn1;
+set session transaction isolation level serializable;
+begin;
+--echo # should use key b
+explain select * from foo where b=50;
+--echo # timeout
+--error ER_LOCK_WAIT_TIMEOUT
+select * from foo where b=50;
+
+connection default;
+commit;
+--echo # should use key b
+explain select * from foo where b=50;
+--echo # should get (5,50,1515)
+select * from foo where b=50;
+
+connection conn1;
+--echo # should use key b
+explain select * from foo where b=50;
+--echo # should get (5,50,1515)
+select * from foo where b=50;
+commit;
+--echo # should use key b
+explain select * from foo where b=50;
+--echo # should get (5,50,1515)
+select * from foo where b=50;
+
+connection default;
+disconnect conn1;
+
+connection default;
+# Final cleanup.
+set session transaction isolation level serializable;
+DROP TABLE foo;

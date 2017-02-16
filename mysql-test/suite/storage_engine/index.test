@@ -1,0 +1,23 @@
+# 
+# Basic syntax related to indexes: 
+#   unique and non-unique keys,
+#   single- and multi-column keys,
+#   index option COMMENT.
+#   
+# See other index* tests for operations 
+# which are less likely to be supported
+#
+# PRIMARY KEY syntax is covered in index_primary test.
+# Index types BTREE|HASH -- in index_type_btree|hash tests.
+# SPATIAL -- in type_spatial_indexes test.
+# FULLTEXT -- in fulltext_search test.
+# KEY_BLOCK_SIZE -- in index_key_block_size test.
+#
+
+--source have_engine.inc
+--source have_default_index.inc
+
+--source index.inc
+
+--source cleanup_engine.inc
+

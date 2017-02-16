@@ -9,6 +9,8 @@
 --source include/not_embedded.inc
 # DBUG_SUICIDE() hangs under valgrind
 --source include/not_valgrind.inc
+# No windows, need perl
+--source include/not_windows.inc
 
 # The flag innodb_change_buffering_debug is only available in debug builds.
 # It instructs InnoDB to try to evict pages from the buffer pool when
@@ -50,7 +52,7 @@ DELETE FROM t1 WHERE a=1;
 # This should be buffered, if innodb_change_buffering_debug = 1 is in effect.
 INSERT INTO t1 VALUES(1,'X',1);
 
-SET DEBUG='+d,crash_after_log_ibuf_upd_inplace';
+SET DEBUG_DBUG='+d,crash_after_log_ibuf_upd_inplace';
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 # This should force a change buffer merge

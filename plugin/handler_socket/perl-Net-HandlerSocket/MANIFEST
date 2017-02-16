@@ -1,0 +1,8 @@
+Changes
+HandlerSocket.xs
+Makefile.PL
+MANIFEST
+ppport.h
+README
+t/HandlerSocket.t
+lib/Net/HandlerSocket.pm

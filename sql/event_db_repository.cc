@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_base.h"                           // close_thread_tables
+#include "sql_parse.h"
 #include "event_db_repository.h"
 #include "key.h"                                // key_copy
 #include "sql_db.h"                        // get_default_db_collation
@@ -55,7 +56,7 @@ const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] =
   },
   {
     { C_STRING_WITH_LEN("definer") },
-    { C_STRING_WITH_LEN("char(77)") },
+    { C_STRING_WITH_LEN("char(") },
     { C_STRING_WITH_LEN("utf8") }
   },
   {
@@ -115,7 +116,8 @@ const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] =
   {
     { C_STRING_WITH_LEN("sql_mode") },
     { C_STRING_WITH_LEN("set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
-    "'IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION',"
+    "'IGNORE_SPACE','IGNORE_BAD_TABLE_OPTIONS','ONLY_FULL_GROUP_BY',"
+    "'NO_UNSIGNED_SUBTRACTION',"
     "'NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB',"
     "'NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40',"
     "'ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES',"
@@ -200,7 +202,7 @@ mysql_event_fill_row(THD *thd,
                      TABLE *table,
                      Event_parse_data *et,
                      sp_head *sp,
-                     ulong sql_mode,
+                     ulonglong sql_mode,
                      my_bool is_update)
 {
   CHARSET_INFO *scs= system_charset_info;
@@ -221,7 +223,7 @@ mysql_event_fill_row(THD *thd,
       Safety: this can only happen if someone started the server
       and then altered mysql.event.
     */
-    my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED, MYF(0), table->alias,
+    my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED, MYF(0), table->alias.c_ptr(),
              (int) ET_FIELD_COUNT, table->s->fields);
     DBUG_RETURN(TRUE);
   }
@@ -247,6 +249,9 @@ mysql_event_fill_row(THD *thd,
   if (!is_update || et->status_changed)
     rs|= fields[ET_FIELD_STATUS]->store((longlong)et->status, TRUE);
   rs|= fields[ET_FIELD_ORIGINATOR]->store((longlong)et->originator, TRUE);
+
+  if (!is_update)
+    rs|= fields[ET_FIELD_CREATED]->set_time();
 
   /*
     Change the SQL_MODE only if body was present in an ALTER EVENT and of course
@@ -294,7 +299,7 @@ mysql_event_fill_row(THD *thd,
       my_tz_OFFSET0->gmt_sec_to_TIME(&time, et->starts);
 
       fields[ET_FIELD_STARTS]->set_notnull();
-      fields[ET_FIELD_STARTS]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      fields[ET_FIELD_STARTS]->store_time(&time);
     }
 
     if (!et->ends_null)
@@ -303,7 +308,7 @@ mysql_event_fill_row(THD *thd,
       my_tz_OFFSET0->gmt_sec_to_TIME(&time, et->ends);
 
       fields[ET_FIELD_ENDS]->set_notnull();
-      fields[ET_FIELD_ENDS]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      fields[ET_FIELD_ENDS]->store_time(&time);
     }
   }
   else if (et->execute_at)
@@ -322,8 +327,7 @@ mysql_event_fill_row(THD *thd,
     my_tz_OFFSET0->gmt_sec_to_TIME(&time, et->execute_at);
 
     fields[ET_FIELD_EXECUTE_AT]->set_notnull();
-    fields[ET_FIELD_EXECUTE_AT]->
-                        store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    fields[ET_FIELD_EXECUTE_AT]->store_time(&time);
   }
   else
   {
@@ -334,7 +338,7 @@ mysql_event_fill_row(THD *thd,
     */
   }
 
-  ((Field_timestamp *)fields[ET_FIELD_MODIFIED])->set_time();
+  rs|= fields[ET_FIELD_MODIFIED]->set_time();
 
   if (et->comment.str)
   {
@@ -445,17 +449,18 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
   }
 
   key_copy(key_buf, event_table->record[0], key_info, key_len);
-  if (!(ret= event_table->file->index_read_map(event_table->record[0], key_buf,
-                                               (key_part_map)1,
-                                               HA_READ_KEY_EXACT)))
+  if (!(ret= event_table->file->ha_index_read_map(event_table->record[0],
+                                                  key_buf,
+                                                  (key_part_map)1,
+                                                  HA_READ_KEY_EXACT)))
   {
     DBUG_PRINT("info",("Found rows. Let's retrieve them. ret=%d", ret));
     do
     {
       ret= copy_event_to_schema_table(thd, schema_table, event_table);
       if (ret == 0)
-        ret= event_table->file->index_next_same(event_table->record[0],
-                                                key_buf, key_len);
+        ret= event_table->file->ha_index_next_same(event_table->record[0],
+                                                   key_buf, key_len);
     } while (ret == 0);
   }
   DBUG_PRINT("info", ("Scan finished. ret=%d", ret));
@@ -495,7 +500,8 @@ Event_db_repository::table_scan_all_for_i_s(THD *thd, TABLE *schema_table,
   READ_RECORD read_record_info;
   DBUG_ENTER("Event_db_repository::table_scan_all_for_i_s");
 
-  init_read_record(&read_record_info, thd, event_table, NULL, 1, 0, FALSE);
+  if (init_read_record(&read_record_info, thd, event_table, NULL, 1, 0, FALSE))
+    DBUG_RETURN(TRUE);
 
   /*
     rr_sequential, in read_record(), returns 137==HA_ERR_END_OF_FILE,
@@ -653,7 +659,7 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   int ret= 1;
   TABLE *table= NULL;
   sp_head *sp= thd->lex->sphead;
-  ulong saved_mode= thd->variables.sql_mode;
+  ulonglong saved_mode= thd->variables.sql_mode;
   /*
     Take a savepoint to release only the lock on mysql.event
     table at the end but keep the global read lock and
@@ -697,19 +703,17 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
 
   restore_record(table, s->default_values);     // Get default values for fields
 
-  if (system_charset_info->cset->
-        numchars(system_charset_info, parse_data->dbname.str,
-                 parse_data->dbname.str + parse_data->dbname.length) >
-      table->field[ET_FIELD_DB]->char_length())
+  if (check_string_char_length(&parse_data->dbname, 0,
+                               table->field[ET_FIELD_DB]->char_length(),
+                               system_charset_info, 1))
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), parse_data->dbname.str);
     goto end;
   }
 
-  if (system_charset_info->cset->
-        numchars(system_charset_info, parse_data->name.str,
-                 parse_data->name.str + parse_data->name.length) >
-      table->field[ET_FIELD_NAME]->char_length())
+  if (check_string_char_length(&parse_data->name, 0,
+                               table->field[ET_FIELD_NAME]->char_length(),
+                               system_charset_info, 1))
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), parse_data->name.str);
     goto end;
@@ -720,8 +724,6 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     my_error(ER_TOO_LONG_BODY, MYF(0), parse_data->name.str);
     goto end;
   }
-
-  ((Field_timestamp *)table->field[ET_FIELD_CREATED])->set_time();
 
   /*
     mysql_event_fill_row() calls my_error() in case of error so no need to
@@ -772,7 +774,7 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   CHARSET_INFO *scs= system_charset_info;
   TABLE *table= NULL;
   sp_head *sp= thd->lex->sphead;
-  ulong saved_mode= thd->variables.sql_mode;
+  ulonglong saved_mode= thd->variables.sql_mode;
   /*
     Take a savepoint to release only the lock on mysql.event
     table at the end but keep the global read lock and
@@ -955,7 +957,11 @@ Event_db_repository::find_named_event(LEX_STRING db, LEX_STRING name,
     same fields.
   */
   if (db.length > table->field[ET_FIELD_DB]->field_length ||
-      name.length > table->field[ET_FIELD_NAME]->field_length)
+      name.length > table->field[ET_FIELD_NAME]->field_length ||
+      table->s->keys == 0 ||
+      table->key_info[0].key_parts != 2 ||
+      table->key_info[0].key_part[0].fieldnr != ET_FIELD_DB+1 ||
+      table->key_info[0].key_part[1].fieldnr != ET_FIELD_NAME+1)
     DBUG_RETURN(TRUE);
 
   table->field[ET_FIELD_DB]->store(db.str, db.length, &my_charset_bin);
@@ -963,8 +969,9 @@ Event_db_repository::find_named_event(LEX_STRING db, LEX_STRING name,
 
   key_copy(key, table->record[0], table->key_info, table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0], 0, key, HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0, key,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     DBUG_PRINT("info", ("Row not found"));
     DBUG_RETURN(TRUE);
@@ -999,7 +1006,9 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
     DBUG_VOID_RETURN;
 
   /* only enabled events are in memory, so we go now and delete the rest */
-  init_read_record(&read_record_info, thd, table, NULL, 1, 0, FALSE);
+  if (init_read_record(&read_record_info, thd, table, NULL, 1, 0, FALSE))
+    goto end;
+
   while (!ret && !(read_record_info.read_record(&read_record_info)) )
   {
     char *et_field= get_field(thd->mem_root, table->field[field]);
@@ -1021,6 +1030,8 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
     }
   }
   end_read_record(&read_record_info);
+
+end:
   close_thread_tables(thd);
   /*
     Make sure to only release the MDL lock on mysql.event, not other
@@ -1047,7 +1058,7 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
                                       LEX_STRING name, Event_basic *etn)
 {
   bool ret;
-  ulong saved_mode= thd->variables.sql_mode;
+  ulonglong saved_mode= thd->variables.sql_mode;
   Open_tables_backup open_tables_backup;
   TABLE_LIST event_table;
 
@@ -1134,7 +1145,7 @@ update_timing_fields_for_event(THD *thd,
 
   my_tz_OFFSET0->gmt_sec_to_TIME(&time, last_executed);
   fields[ET_FIELD_LAST_EXECUTED]->set_notnull();
-  fields[ET_FIELD_LAST_EXECUTED]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+  fields[ET_FIELD_LAST_EXECUTED]->store_time(&time);
 
   fields[ET_FIELD_STATUS]->set_notnull();
   fields[ET_FIELD_STATUS]->store(status, TRUE);

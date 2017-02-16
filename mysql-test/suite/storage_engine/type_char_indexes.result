@@ -1,0 +1,144 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (c CHAR <CUSTOM_COL_OPTIONS>,
+c20 CHAR(20) <CUSTOM_COL_OPTIONS>,
+v16 VARCHAR(16) <CUSTOM_COL_OPTIONS>,
+v128 VARCHAR(128) <CUSTOM_COL_OPTIONS>,
+<CUSTOM_INDEX> c20 (c20)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	#	1	c20	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (c,c20,v16,v128) VALUES ('a','char1','varchar1a','varchar1b'),('a','char2','varchar2a','varchar2b'),('b','char3','varchar1a','varchar1b'),('c','char4','varchar3a','varchar3b');
+SELECT c20 FROM t1 ORDER BY c20;
+c20
+char1
+char2
+char3
+char4
+DROP TABLE t1;
+CREATE TABLE t1 (c CHAR <CUSTOM_COL_OPTIONS>,
+c20 CHAR(20) <CUSTOM_COL_OPTIONS>,
+v16 VARCHAR(16) <CUSTOM_COL_OPTIONS>,
+v128 VARCHAR(128) <CUSTOM_COL_OPTIONS>,
+<CUSTOM_INDEX> v16 (v16)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	#	1	v16	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (c,c20,v16,v128) VALUES ('a','char1','varchar1a','varchar1b'),('a','char2','varchar2a','varchar2b'),('b','char1','varchar3a','varchar1b'),('c','char4','varchar4a','varchar4b');
+SELECT v16 FROM t1 ORDER BY v16;
+v16
+varchar1a
+varchar2a
+varchar3a
+varchar4a
+DROP TABLE t1;
+CREATE TABLE t1 (c CHAR <CUSTOM_COL_OPTIONS>,
+c20 CHAR(20) <CUSTOM_COL_OPTIONS> PRIMARY KEY,
+v16 VARCHAR(16) <CUSTOM_COL_OPTIONS>,
+v128 VARCHAR(128) <CUSTOM_COL_OPTIONS>
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	c20	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (c,c20,v16,v128) VALUES ('a','char1','varchar1a','varchar1b'),('a','char2','varchar2a','varchar2b'),('b','char3','varchar1a','varchar1b'),('c','char4','varchar3a','varchar3b');
+EXPLAIN SELECT c20 FROM t1 ORDER BY c20;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	PRIMARY	#	#	#	#
+SELECT c20 FROM t1 ORDER BY c20;
+c20
+char1
+char2
+char3
+char4
+EXPLAIN SELECT c20 FROM t1 FORCE INDEX FOR ORDER BY (PRIMARY) ORDER BY c20;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	PRIMARY	#	#	#	#
+SELECT c20 FROM t1 FORCE INDEX FOR ORDER BY (PRIMARY) ORDER BY c20;
+c20
+char1
+char2
+char3
+char4
+DROP TABLE t1;
+CREATE TABLE t1 (c CHAR <CUSTOM_COL_OPTIONS>,
+c20 CHAR(20) <CUSTOM_COL_OPTIONS>,
+v16 VARCHAR(16) <CUSTOM_COL_OPTIONS>,
+v128 VARCHAR(128) <CUSTOM_COL_OPTIONS>,
+UNIQUE INDEX c_v (c,v128)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	c_v	1	c	#	#	NULL	NULL	#	#		
+t1	0	c_v	2	v128	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (c,c20,v16,v128) VALUES ('a','char1','varchar1a','varchar1b'),('a','char2','varchar2a','varchar2b'),('b','char3','varchar1a','varchar1b'),('c','char4','varchar3a','varchar3b');
+EXPLAIN SELECT c, v128 FROM t1 WHERE c != 'a' AND v128 > 'varchar';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	c_v	#	#	#	#
+SELECT c, v128 FROM t1 WHERE c != 'a' AND v128 > 'varchar';
+c	v128
+b	varchar1b
+c	varchar3b
+EXPLAIN SELECT v128, COUNT(*) FROM t1 GROUP BY v128;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	c_v	#	#	#	#
+SELECT v128, COUNT(*) FROM t1 GROUP BY v128;
+v128	COUNT(*)
+varchar1b	2
+varchar2b	1
+varchar3b	1
+EXPLAIN SELECT v128, COUNT(*) FROM t1 USE INDEX FOR GROUP BY (c_v) GROUP BY v128;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	c_v	#	#	#	#
+SELECT v128, COUNT(*) FROM t1 USE INDEX FOR GROUP BY (c_v) GROUP BY v128;
+v128	COUNT(*)
+varchar1b	2
+varchar2b	1
+varchar3b	1
+SET SESSION optimizer_switch = 'engine_condition_pushdown=on';
+EXPLAIN SELECT c,c20,v16,v128 FROM t1 WHERE c > 'a';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	range	c_v	c_v	#	#	#	Using index condition
+SELECT c,c20,v16,v128 FROM t1 WHERE c > 'a';
+c	c20	v16	v128
+b	char3	varchar1a	varchar1b
+c	char4	varchar3a	varchar3b
+SET SESSION optimizer_switch = @@global.optimizer_switch;
+DROP TABLE t1;
+CREATE TABLE t1 (c CHAR <CUSTOM_COL_OPTIONS>,
+c20 CHAR(20) <CUSTOM_COL_OPTIONS>,
+v16 VARCHAR(16) <CUSTOM_COL_OPTIONS>,
+v128 VARCHAR(128) <CUSTOM_COL_OPTIONS>,
+INDEX (v16)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	v16	1	v16	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (c,c20,v16,v128) VALUES ('a','char1','varchar1a','varchar1b'),('a','char2','varchar2a','varchar2b'),('b','char3','varchar1a','varchar1b'),('c','char4','varchar3a','varchar3b');
+EXPLAIN SELECT SUBSTRING(v16,0,3) FROM t1 WHERE v16 LIKE 'varchar%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	v16	#	#	#	#
+SELECT SUBSTRING(v16,7,3) FROM t1 WHERE v16 LIKE 'varchar%';
+SUBSTRING(v16,7,3)
+r1a
+r1a
+r2a
+r3a
+EXPLAIN SELECT SUBSTRING(v16,0,3) FROM t1 IGNORE INDEX (v16) WHERE v16 LIKE 'varchar%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	NULL	#	#	#	#
+SELECT SUBSTRING(v16,7,3) FROM t1 IGNORE INDEX (v16) WHERE v16 LIKE 'varchar%';
+SUBSTRING(v16,7,3)
+r1a
+r1a
+r2a
+r3a
+EXPLAIN SELECT c,c20,v16,v128 FROM t1 WHERE v16 = 'varchar1a' OR v16 = 'varchar3a' ORDER BY v16;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	range	#	v16	#	#	#	#
+SELECT c,c20,v16,v128 FROM t1 WHERE v16 = 'varchar1a' OR v16 = 'varchar3a' ORDER BY v16;
+c	c20	v16	v128
+a	char1	varchar1a	varchar1b
+b	char3	varchar1a	varchar1b
+c	char4	varchar3a	varchar3b
+DROP TABLE t1;

@@ -1,0 +1,51 @@
+-- source include/have_maria.inc
+-- source include/have_ucs2.inc
+
+select * from INFORMATION_SCHEMA.ENGINES where ENGINE="ARIA";
+
+let $default_engine=`select @@global.storage_engine`;
+set global storage_engine=aria;
+set session storage_engine=aria;
+
+# Initialise
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+SET SQL_WARNINGS=1;
+
+#
+# bug#905716: Assertion `page->size <= share->max_index_block_size'
+#
+
+CREATE TABLE t1 ( a VARCHAR(800),KEY(a) )
+  ENGINE=Aria DEFAULT CHARACTER SET latin1;
+INSERT INTO t1 VALUES
+  (REPEAT('abc ',200)), (REPEAT('def ',200)),
+  (REPEAT('ghi ',200)), (REPEAT('jkl ',200));
+INSERT INTO t1 SELECT * FROM t1;
+# check table is not needed to reproduce the problem,
+# but shows that by this time the table appears to be okay.
+CHECK TABLE t1;
+ALTER TABLE t1 MODIFY a VARCHAR(800) CHARSET `ucs2`;
+CHECK TABLE t1;
+SHOW CREATE table t1;
+DROP TABLE t1;
+
+#
+# BUG#905782 Assertion `pageno < ((1ULL) << 40)' failed at ma_pagecache.c
+# Issue was too long key
+#
+
+CREATE TABLE t1 (a VARCHAR(800),KEY(a)) ENGINE=Aria CHARACTER SET ucs2;
+INSERT INTO t1 VALUES (REPEAT('abc ',200));
+CHECK TABLE t1;
+DROP TABLE t1;
+
+--echo # End of 5.2 tests
+
+
+--disable_result_log
+--disable_query_log
+eval set global storage_engine=$default_engine;
+--enable_result_log
+--enable_query_log

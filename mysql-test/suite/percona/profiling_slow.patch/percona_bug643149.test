@@ -1,0 +1,49 @@
+#
+# This test suffers from server
+# Bug#38124 "general_log_file" variable silently unset when using expression
+# In short:
+#    SET GLOBAL general_log_file = @<whatever>
+#    SET GLOBAL slow_query_log = @<whatever>
+# cause that the value of these server system variables is set to default
+# instead of the assigned values. There comes no error message or warning.
+# If this bug is fixed please
+# 1. try this test with "let $fixed_bug38124 = 0;"
+# 2. remove all workarounds if 1. was successful.
+--source include/have_profiling.inc
+let $fixed_bug38124 = 0;
+
+SET @old_slow_query_log_file=@@global.slow_query_log_file;
+SET GLOBAL slow_query_log=on;
+SET LOCAL log_slow_verbosity='profiling';
+SET LOCAL long_query_time=0;
+
+let slogfile=$MYSQLTEST_VARDIR/percona_bug643149_slow.log;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SET GLOBAL slow_query_log_file='$slogfile';
+
+SELECT 1;
+
+perl;
+  $slogfile= $ENV{'slogfile'};
+
+  open(FILE, "$slogfile") or
+    die("Unable to read slow query log file $slogfile: $!\n");
+  while(<FILE>) {
+    next if (!/^#/);
+    next if (/^# Time:/);
+    s/[0-9]+/X/g;
+    print;
+  }
+
+  close(FILE);
+EOF
+
+SET GLOBAL slow_query_log_file=@old_slow_query_log_file;
+
+if(!$fixed_bug38124)
+{
+  --disable_query_log
+  let $my_var = `SELECT @old_slow_query_log_file`;
+  eval SET @@global.slow_query_log_file = '$my_var';
+  --enable_query_log
+}

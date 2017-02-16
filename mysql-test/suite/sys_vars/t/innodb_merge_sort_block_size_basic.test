@@ -1,0 +1,19 @@
+--source include/have_xtradb.inc
+
+SELECT @@global.innodb_merge_sort_block_size;
+SELECT @@session.innodb_merge_sort_block_size;
+
+SET @old_global=@@global.innodb_merge_sort_block_size;
+SET @old_session=@@session.innodb_merge_sort_block_size;
+
+SET @@global.innodb_merge_sort_block_size = 2*1024*1024;
+SET @@session.innodb_merge_sort_block_size = 4*1024*1024;
+
+SELECT @@global.innodb_merge_sort_block_size;
+SELECT @@session.innodb_merge_sort_block_size;
+
+SET @@global.innodb_merge_sort_block_size = 1024*1024*1024+1;
+SELECT @@global.innodb_merge_sort_block_size;
+
+SET @@global.innodb_merge_sort_block_size=@old_global;
+SET @@session.innodb_merge_sort_block_size=@old_session;

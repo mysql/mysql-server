@@ -64,6 +64,14 @@ select a sounds like a from t1;
 select 1 from t1 order by cast(a as char(1));
 drop table t1;
 
+--echo #
+--echo # MDEV-6134 SUBSTRING_INDEX returns wrong result for 8bit character sets when delimiter is not found
+--echo #
+SET character_set_client=latin1;
+SET character_set_connection= @test_character_set;
+SET collation_connection= @test_collation;
+SELECT COLLATION('.'), SUBSTRING_INDEX('.wwwmysqlcom', '.', -2) AS c1;
+
 #
 # Bug#27580 SPACE() function collation bug?
 #

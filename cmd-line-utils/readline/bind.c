@@ -699,7 +699,7 @@ rl_function_of_keyseq (keyseq, map, type)
     {
       unsigned char ic = keyseq[i];
 
-      if (META_CHAR_FOR_UCHAR (ic) && _rl_convert_meta_chars_to_ascii)
+      if (META_CHAR_FOR_UCHAR(ic) && _rl_convert_meta_chars_to_ascii)
 	{
 	  if (map[ESC].type == ISKMAP)
 	    {

@@ -1268,7 +1268,7 @@ row_upd_changes_ord_field_binary_func(
 		const upd_field_t*	upd_field;
 		const dfield_t*		dfield;
 		dfield_t		dfield_ext;
-		ulint			dfield_len;
+		ulint			dfield_len= 0;
 		const byte*		buf;
 
 		ind_field = dict_index_get_nth_field(index, i);

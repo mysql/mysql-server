@@ -16,33 +16,55 @@
 
 /*
   This is a replacement of new/delete operators to be used when compiling
-  with gcc 3.0.x to avoid including libstdc++
+  with gcc 3.0.x to avoid including libstdc++ 
+  
+  It is also used to make all memory allocations to go through
+  my_malloc/my_free wrappers (for debugging/safemalloc and accounting)
 */
 
 #include "mysys_priv.h"
+#include <new>
 
 #ifdef USE_MYSYS_NEW
 
 void *operator new (size_t sz)
 {
-  return (void *) malloc (sz ? sz : 1);
+  return (void *) my_malloc (sz ? sz : 1, MYF(0));
 }
 
 void *operator new[] (size_t sz)
 {
-  return (void *) malloc (sz ? sz : 1);
+  return (void *) my_malloc (sz ? sz : 1, MYF(0));
+}
+
+void* operator new(std::size_t sz, const std::nothrow_t&) throw()
+{
+  return (void *) my_malloc (sz ? sz : 1, MYF(0));
+}
+
+void* operator new[](std::size_t sz, const std::nothrow_t&) throw()
+{
+  return (void *) my_malloc (sz ? sz : 1, MYF(0));
 }
 
 void operator delete (void *ptr)
 {
-  if (ptr)
-    free(ptr);
+  my_free(ptr);
 }
 
 void operator delete[] (void *ptr) throw ()
 {
-  if (ptr)
-    free(ptr);
+  my_free(ptr);
+}
+
+void operator delete(void* ptr, const std::nothrow_t&) throw()
+{
+  my_free(ptr);
+}
+
+void operator delete[](void* ptr, const std::nothrow_t&) throw()
+{
+  my_free(ptr);
 }
 
 C_MODE_START
@@ -54,6 +76,11 @@ int __cxa_pure_virtual()
 }
 
 C_MODE_END
-
+#else
+/* 
+  Define a dummy symbol, just to avoid compiler/linker warnings
+  about compiling an essentially empty file.
+*/
+int my_new_cc_symbol;
 #endif /* USE_MYSYS_NEW */
 

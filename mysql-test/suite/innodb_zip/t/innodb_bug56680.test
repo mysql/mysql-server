@@ -1,8 +1,7 @@
+--source include/have_innodb.inc
 #
 # Bug #56680 InnoDB may return wrong results from a case-insensitive index
 #
--- source include/have_innodb.inc
-
 -- disable_query_log
 SET @tx_isolation_orig = @@tx_isolation;
 SET @innodb_file_per_table_orig = @@innodb_file_per_table;

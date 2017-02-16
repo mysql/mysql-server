@@ -58,7 +58,7 @@ FOREACH(file ${ABI_HEADERS})
 
   EXECUTE_PROCESS(
     COMMAND ${COMPILER} 
-      -E -nostdinc -dI -DMYSQL_ABI_CHECK -I${SOURCE_DIR}/include
+      -E -nostdinc -DMYSQL_ABI_CHECK -I${SOURCE_DIR}/include
       -I${BINARY_DIR}/include -I${SOURCE_DIR}/include/mysql -I${SOURCE_DIR}/sql
       ${file} 
       ERROR_QUIET OUTPUT_FILE ${tmpfile})
@@ -75,8 +75,12 @@ FOREACH(file ${ABI_HEADERS})
   EXECUTE_PROCESS(
     COMMAND diff -w ${file}.pp ${abi_check_out} RESULT_VARIABLE result)
   IF(NOT ${result} EQUAL 0)
-    MESSAGE(FATAL_ERROR 
-      "ABI check found difference between ${file}.pp and ${abi_check_out}")
+    IF(ABI_UPDATE)
+      EXECUTE_PROCESS(COMMAND mv -v ${abi_check_out} ${file}.pp)
+    ELSE(ABI_UPDATE)
+      MESSAGE(FATAL_ERROR 
+        "ABI check found difference between ${file}.pp and ${abi_check_out}")
+    ENDIF(ABI_UPDATE)
   ENDIF()
   FILE(REMOVE ${abi_check_out})
 ENDFOREACH()

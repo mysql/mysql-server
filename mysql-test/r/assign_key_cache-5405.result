@@ -1,0 +1,14 @@
+create table t1 (f int, key(f)) engine=myisam;
+set global kc1.key_buffer_size = 65536;
+set debug_sync='assign_key_cache_op_unlock wait_for op_locked';
+cache index t1 in kc1;
+set debug_sync='assign_key_cache_op_lock signal op_locked wait_for assigned';
+cache index t1 in kc1;
+Table	Op	Msg_type	Msg_text
+test.t1	assign_to_keycache	status	OK
+set debug_sync='now signal assigned';
+Table	Op	Msg_type	Msg_text
+test.t1	assign_to_keycache	status	OK
+drop table t1;
+set global kc1.key_buffer_size = 0;
+set debug_sync='reset';

@@ -6,6 +6,8 @@
 drop table if exists t1,t2;
 --enable_warnings
 
+let $mysqld_datadir= `select @@datadir`;
+
 set names latin1;
 
 select 'hello',"'hello'",'""hello""','''h''e''l''l''o''',"hel""lo",'hel\'lo';
@@ -1314,9 +1316,13 @@ DROP TABLE t1, t2;
 drop table if exists t1;
 --enable_warnings
 create table t1(f1 tinyint default null)engine=myisam;
-insert into t1 values (-1),(null);
+insert into t1 values (-1),(null); 
+
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 explain select 1 as a from t1,(select decode(f1,f1) as b from t1) a;
 explain select 1 as a from t1,(select encode(f1,f1) as b from t1) a;
+set optimizer_switch=@tmp_optimizer_switch;
 drop table t1;
 
 
@@ -1383,7 +1389,53 @@ SELECT insert( substring_index( 'a', 'a', 'b' ), 1, 0, 'x' );
 SELECT * FROM t1;
 DROP TABLE t1;
 
+#
+# MDEV-759 lp:998340 - Valgrind complains on simple selects containing expression DAY(FROM_UNIXTIME(-1))
+#
+SELECT SUBSTRING('1', DAY(FROM_UNIXTIME(-1)));
+SELECT LEFT('1', DAY(FROM_UNIXTIME(-1)));
+SELECT RIGHT('1', DAY(FROM_UNIXTIME(-1)));
+SELECT REPEAT('1', DAY(FROM_UNIXTIME(-1)));
+SELECT RPAD('hi', DAY(FROM_UNIXTIME(-1)),'?');
+SELECT LPAD('hi', DAY(FROM_UNIXTIME(-1)),'?');
+
+#
+# MDEV-4289 Assertion `0' fails in make_sortkey with GROUP_CONCAT, MAKE_SET, GROUP BY
+#
+create table t1 (i int);
+insert into t1 values (null),(8);
+select group_concat( i ), make_set( i, 'a', 'b' ) field from t1 group by field;
+drop table t1;
+
 --echo End of 5.1 tests
+
+--echo #
+--echo # Start of 5.3 tests
+--echo #
+
+--echo #
+--echo # Bug#11829861: SUBSTRING_INDEX() RESULTS IN MISSING CHARACTERS WHEN USED
+--echo # INSIDE LOWER()
+--echo #
+SET @user_at_host = 'root@mytinyhost-PC.local';
+SELECT LOWER(SUBSTRING_INDEX(@user_at_host, '@', -1));
+--echo # End of test  BUG#11829861
+
+--echo #
+--echo # Bug#42404: SUBSTRING_INDEX() RESULTS ARE INCONSISTENT
+--echo #
+
+CREATE TABLE t (i INT NOT NULL, c CHAR(255) NOT NULL);
+INSERT INTO t VALUES (0,'.www.mysql.com'),(1,'.wwwmysqlcom');
+SELECT i, SUBSTRING_INDEX(c, '.', -2) FROM t WHERE i = 1;
+SELECT i, SUBSTRING_INDEX(c, '.', -2) FROM t;
+DROP TABLE t;
+--echo # End of test  BUG#42404
+
+--echo #
+--echo # End of 5.3 tests
+--echo #
+
 
 --echo Start of 5.4 tests
 #
@@ -1500,7 +1552,43 @@ round(
 --connection default
 SET @@global.max_allowed_packet:= @tmp_max;
 --disconnect newconn
+#
+# Bug#11765562 58545:
+# EXPORT_SET() CAN BE USED TO MAKE ENTIRE SERVER COMPLETELY UNRESPONSIVE
+#
+SELECT @tmp_max:= @@global.max_allowed_packet;
+SET @@global.max_allowed_packet=1024*1024*1024;
+SELECT @@global.max_allowed_packet;
+SELECT CHAR_LENGTH(EXPORT_SET(1,1,1,REPEAT(1,100000000)));
+SET @@global.max_allowed_packet:= @tmp_max;
+
+--echo #
+--echo # MDEV-4272: DIV operator crashes in Item_func_int_div::val_int
+--echo # (incorrect NULL value handling by convert)
+--echo #
+create table t1(a int) select null;
+select 1 div convert(a using utf8) from t1;
+drop table t1;
+
+#
+# BUG#11757250: REPLACE(...) INSIDE A STORED PROCEDURE.
+#
+create table t1 (a int);
+create table t2 (a int);
+create procedure foo (var char(100))
+  select replace(var, '00000000', table_name)
+  from information_schema.tables where table_schema='test';
+--sorted_result
+call foo('(( 00000000 ++ 00000000 ))');
+drop procedure foo;
+drop table t1,t2;
+
+#
+# Bug#18786138 SHA/MD5 HASHING FUNCTIONS DIE WITH "FILENAME" CHARACTER SET
+#
+select md5(_filename "a"), sha(_filename "a");
 
 --echo #
 --echo # End of 5.5 tests
 --echo #
+

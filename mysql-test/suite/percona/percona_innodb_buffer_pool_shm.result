@@ -1,0 +1,4 @@
+show variables like 'innodb_buffer_pool_shm%';
+Variable_name	Value
+innodb_buffer_pool_shm_checksum	ON
+innodb_buffer_pool_shm_key	123456

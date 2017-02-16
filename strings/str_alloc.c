@@ -1,5 +1,7 @@
-/* Copyright (c) 2000, 2005, 2006 MySQL AB
+/* Copyright (c) 2005, 2006 MySQL AB
+   Copyright (c) 2009-2011, Monty Program Ab
    Use is subject to license terms.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,8 +16,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
-#include <m_string.h>
+#include "strings_def.h"
 
 static void *my_str_malloc_default(size_t size)
 {

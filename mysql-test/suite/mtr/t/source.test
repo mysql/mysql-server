@@ -1,0 +1,8 @@
+#
+# The inc.inc file is overlayed in the example overlay. mtr should correctly
+# detect that this test needs to run for mtr-example. And mysqltest
+# needs to use the correct version of inc.inc depending on whether it
+# runs the parent suite or the overlay.
+#
+source inc.inc;
+eval select $a;

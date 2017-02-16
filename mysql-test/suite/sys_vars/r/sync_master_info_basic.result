@@ -37,6 +37,7 @@ select @@global.sync_master_info;
 0
 set global sync_master_info=cast(-1 as unsigned int);
 Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 Warning	1292	Truncated incorrect sync_master_info value: '18446744073709551615'
 select @@global.sync_master_info;
 @@global.sync_master_info

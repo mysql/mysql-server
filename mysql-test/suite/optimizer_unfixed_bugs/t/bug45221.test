@@ -1,0 +1,97 @@
+# test for BUG#45221 "Query "SELECT pk FROM C WHERE pk IN (SELECT
+# int_key)" failing"
+
+--source include/have_debug.inc
+
+# bug goes away with
+#set session debug_dbug="+d,optimizer_no_icp";
+
+# those don't remove the problem but make the result diff different:
+#set optimizer_switch="materialization=off";
+#set optimizer_switch="semijoin=off";
+#set optimizer_switch="materialization=off,semijoin=off";
+
+#/* Begin test case for query 0 */
+
+CREATE TABLE `CC` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `int_key` int(11) DEFAULT NULL,
+  `date_nokey` date DEFAULT NULL,
+  `datetime_nokey` datetime DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `int_key` (`int_key`),
+  KEY `varchar_key` (`int_key`)
+) ENGINE=MyISAM AUTO_INCREMENT=30 DEFAULT CHARSET=latin1;
+INSERT INTO `CC` VALUES (10,8,NULL,'2002-02-26 06:14:37'),(11,9,'2006-06-14','1900-01-01 00:00:00'),(12,9,'2002-09-12','2006-12-03 09:37:26'),(13,186,'2005-02-15','2008-05-26 12:27:10'),(14,NULL,NULL,'2004-12-14 16:37:30'),(15,2,'2008-11-04','2003-02-11 21:19:41'),(16,3,'2004-09-04','2009-10-18 02:27:49'),(17,0,'2006-06-05','2000-09-26 07:45:57'),(18,133,'1900-01-01',NULL),(19,1,'1900-01-01','2005-11-10 12:40:29'),(20,8,'1900-01-01','2009-04-25 00:00:00'),(21,5,'2005-01-13','2002-11-27 00:00:00'),(22,5,'2006-05-21','2004-01-26 20:32:32'),(23,8,'2003-09-08','2007-10-26 11:41:40'),(24,6,'2006-12-23','2005-10-07 00:00:00'),(25,51,'2006-10-15','2000-07-15 05:00:34'),(26,4,'2005-04-06','2000-04-03 16:33:32'),(27,7,'2008-04-07',NULL),(28,6,'2006-10-10','2001-04-25 01:26:12'),(29,4,'1900-01-01','2000-12-27 00:00:00');
+CREATE TABLE `C` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `int_key` int(11) DEFAULT NULL,
+  `date_nokey` date DEFAULT NULL,
+  `datetime_nokey` datetime DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `int_key` (`int_key`),
+  KEY `varchar_key` (`int_key`)
+) ENGINE=MyISAM AUTO_INCREMENT=21 DEFAULT CHARSET=latin1;
+INSERT INTO `C` VALUES (1,2,NULL,'2004-10-11 18:13:16'),(2,9,'2001-09-19',NULL),(3,3,'2004-09-12','1900-01-01 00:00:00'),(4,9,NULL,'2009-07-25 00:00:00'),(5,NULL,'2002-07-19',NULL),(6,9,'2002-12-16','2008-07-27 00:00:00'),(7,3,'2006-02-08','2002-11-13 16:37:31'),(8,8,'2006-08-28','1900-01-01 00:00:00'),(9,8,'2001-04-14','2003-12-10 00:00:00'),(10,53,'2000-01-05','2001-12-21 22:38:22'),(11,0,'2003-12-06','2008-12-13 23:16:44'),(12,5,'1900-01-01','2005-08-15 12:39:41'),(13,166,'2002-11-27',NULL),(14,3,NULL,'2006-09-11 12:06:14'),(15,0,'2003-05-27','2007-12-15 12:39:34'),(16,1,'2005-05-03','2005-08-09 00:00:00'),(17,9,'2001-04-18','2001-09-02 22:50:02'),(18,5,'2005-12-27','2005-12-16 22:58:11'),(19,6,'2004-08-20','2007-04-19 00:19:53'),(20,2,'1900-01-01','1900-01-01 00:00:00');
+
+SELECT `pk`  
+FROM C OUTR  
+WHERE `pk`  IN (  
+SELECT `int_key`  
+FROM CC  
+WHERE `date_nokey`  < `datetime_nokey`  XOR OUTR .`date_nokey`  )   ;
+
+SELECT `pk`  
+FROM C  
+WHERE `pk`  IN (  
+SELECT `int_key`  
+FROM CC  
+WHERE `date_nokey`  < `datetime_nokey`  XOR '2009-11-25' )   ;
+
+DROP TABLE CC;
+DROP TABLE C;
+#/* End of test case for query 0 */
+
+#/* Begin test case for query 1 */
+
+CREATE TABLE `CC` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `int_nokey` int(11) DEFAULT NULL,
+  `int_key` int(11) DEFAULT NULL,
+  `date_nokey` date DEFAULT NULL,
+  `datetime_key` datetime DEFAULT NULL,
+  `datetime_nokey` datetime DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `int_key` (`int_key`),
+  KEY `datetime_key` (`datetime_key`),
+  KEY `varchar_key` (`int_key`)
+) ENGINE=MyISAM AUTO_INCREMENT=30 DEFAULT CHARSET=latin1;
+INSERT INTO `CC` VALUES (10,7,8,NULL,'2002-02-26 06:14:37','2002-02-26 06:14:37'),(11,1,9,'2006-06-14','1900-01-01 00:00:00','1900-01-01 00:00:00'),(12,5,9,'2002-09-12','2006-12-03 09:37:26','2006-12-03 09:37:26'),(13,3,186,'2005-02-15','2008-05-26 12:27:10','2008-05-26 12:27:10'),(14,6,NULL,NULL,'2004-12-14 16:37:30','2004-12-14 16:37:30'),(15,92,2,'2008-11-04','2003-02-11 21:19:41','2003-02-11 21:19:41'),(16,7,3,'2004-09-04','2009-10-18 02:27:49','2009-10-18 02:27:49'),(17,NULL,0,'2006-06-05','2000-09-26 07:45:57','2000-09-26 07:45:57'),(18,3,133,'1900-01-01',NULL,NULL),(19,5,1,'1900-01-01','2005-11-10 12:40:29','2005-11-10 12:40:29'),(20,1,8,'1900-01-01','2009-04-25 00:00:00','2009-04-25 00:00:00'),(21,2,5,'2005-01-13','2002-11-27 00:00:00','2002-11-27 00:00:00'),(22,NULL,5,'2006-05-21','2004-01-26 20:32:32','2004-01-26 20:32:32'),(23,1,8,'2003-09-08','2007-10-26 11:41:40','2007-10-26 11:41:40'),(24,0,6,'2006-12-23','2005-10-07 00:00:00','2005-10-07 00:00:00'),(25,210,51,'2006-10-15','2000-07-15 05:00:34','2000-07-15 05:00:34'),(26,8,4,'2005-04-06','2000-04-03 16:33:32','2000-04-03 16:33:32'),(27,7,7,'2008-04-07',NULL,NULL),(28,5,6,'2006-10-10','2001-04-25 01:26:12','2001-04-25 01:26:12'),(29,NULL,4,'1900-01-01','2000-12-27 00:00:00','2000-12-27 00:00:00');
+CREATE TABLE `C` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `int_nokey` int(11) DEFAULT NULL,
+  `int_key` int(11) DEFAULT NULL,
+  `date_nokey` date DEFAULT NULL,
+  `datetime_key` datetime DEFAULT NULL,
+  `datetime_nokey` datetime DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `int_key` (`int_key`),
+  KEY `datetime_key` (`datetime_key`),
+  KEY `varchar_key` (`int_key`)
+) ENGINE=MyISAM AUTO_INCREMENT=21 DEFAULT CHARSET=latin1;
+INSERT INTO `C` VALUES (1,NULL,2,NULL,'2004-10-11 18:13:16','2004-10-11 18:13:16'),(2,7,9,'2001-09-19',NULL,NULL),(3,9,3,'2004-09-12','1900-01-01 00:00:00','1900-01-01 00:00:00'),(4,7,9,NULL,'2009-07-25 00:00:00','2009-07-25 00:00:00'),(5,4,NULL,'2002-07-19',NULL,NULL),(6,2,9,'2002-12-16','2008-07-27 00:00:00','2008-07-27 00:00:00'),(7,6,3,'2006-02-08','2002-11-13 16:37:31','2002-11-13 16:37:31'),(8,8,8,'2006-08-28','1900-01-01 00:00:00','1900-01-01 00:00:00'),(9,NULL,8,'2001-04-14','2003-12-10 00:00:00','2003-12-10 00:00:00'),(10,5,53,'2000-01-05','2001-12-21 22:38:22','2001-12-21 22:38:22'),(11,NULL,0,'2003-12-06','2008-12-13 23:16:44','2008-12-13 23:16:44'),(12,6,5,'1900-01-01','2005-08-15 12:39:41','2005-08-15 12:39:41'),(13,188,166,'2002-11-27',NULL,NULL),(14,2,3,NULL,'2006-09-11 12:06:14','2006-09-11 12:06:14'),(15,1,0,'2003-05-27','2007-12-15 12:39:34','2007-12-15 12:39:34'),(16,1,1,'2005-05-03','2005-08-09 00:00:00','2005-08-09 00:00:00'),(17,0,9,'2001-04-18','2001-09-02 22:50:02','2001-09-02 22:50:02'),(18,9,5,'2005-12-27','2005-12-16 22:58:11','2005-12-16 22:58:11'),(19,NULL,6,'2004-08-20','2007-04-19 00:19:53','2007-04-19 00:19:53'),(20,4,2,'1900-01-01','1900-01-01 00:00:00','1900-01-01 00:00:00');
+
+SELECT OUTR . `pk` AS X 
+FROM C AS OUTR 
+WHERE OUTR . `pk` IN ( 
+SELECT INNR . `int_key` AS Y 
+FROM CC AS INNR 
+WHERE INNR . `date_nokey` < INNR . `datetime_nokey` XOR OUTR . `date_nokey` BETWEEN '2004-07-10' AND '2009-11-25' 
+ORDER BY INNR . `int_nokey` ) AND ( OUTR . `datetime_key` BETWEEN '2000-05-25' AND '2004-08-07' OR OUTR . `datetime_nokey` = '2007-10-24' ) 
+ORDER BY OUTR . `int_key` , OUTR . `pk`;
+
+
+DROP TABLE CC;
+DROP TABLE C;
+#/* End of test case for query 1 */
+

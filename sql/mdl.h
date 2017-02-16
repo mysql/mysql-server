@@ -26,6 +26,7 @@
 
 #include "sql_plist.h"
 #include <my_sys.h>
+#include <my_pthread.h>
 #include <m_string.h>
 #include <mysql_com.h>
 

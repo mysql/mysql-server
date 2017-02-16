@@ -1,0 +1,22 @@
+#
+# CHANGE MASTER TO doesn't work with prepared statements
+#
+CHANGE MASTER TO MASTER_HOST='host1', MASTER_USER='user1';
+# Master_Host : host1
+# Master_User : user1
+SET @s := "CHANGE MASTER TO MASTER_HOST='host2'";
+PREPARE stmt FROM @s;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+# Master_Host : host2
+# Master_User : user1
+SET @s := "CHANGE MASTER TO MASTER_USER='user2'";
+PREPARE stmt FROM @s;
+EXECUTE stmt;
+EXECUTE stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+# Master_Host : host2
+# Master_User : user2
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root';
+# End of test

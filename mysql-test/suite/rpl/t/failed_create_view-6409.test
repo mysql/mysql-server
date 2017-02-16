@@ -1,0 +1,24 @@
+#
+# MDEV-6409 CREATE VIEW replication problem if error occurs in mysql_register_view
+#
+
+#
+#
+# verify that failed CREATE VIEW is not replicated
+
+create table v1 (a int);
+
+source include/master-slave.inc;
+
+connection master;
+create table t1 (a int);
+--error ER_TABLE_EXISTS_ERROR
+create view v1 as select * from t1;
+show tables;
+sync_slave_with_master;
+show tables;
+
+connection master;
+drop table if exists t1, v1;
+
+--source include/rpl_end.inc

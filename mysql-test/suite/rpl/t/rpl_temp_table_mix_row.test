@@ -97,7 +97,7 @@ sync_slave_with_master;
 -- connection master
 
 # action: setup environment
-CREATE TABLE t1 (a int);
+CREATE TABLE t1 (a int) engine=innodb;
 CREATE TABLE t2 ( i1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (i1) );
 CREATE TABLE t3 ( i1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (i1) );
 CREATE TRIGGER tr1 AFTER DELETE ON t2 FOR EACH ROW INSERT INTO t3 () VALUES ();
@@ -191,9 +191,8 @@ DROP TEMPORARY TABLE t1;
 #
 # INSERT INTO t1 VALUES(1);
 
---echo # The rows event will binlogged before 'DROP TEMPORARY TABLE t1',
---echo # as t1 is non-transactional table
-INSERT INTO t1 VALUES(Rand());
+--echo # The rows event will binlogged after 'INSERT INTO t1 VALUES(1)'
+INSERT INTO t1 VALUES(uuid()+0);
 COMMIT;
 
 source include/show_binlog_events.inc;

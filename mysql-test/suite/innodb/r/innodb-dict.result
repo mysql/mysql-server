@@ -1,0 +1,40 @@
+CREATE TABLE t1 (D INT) ENGINE=innodb;
+INSERT INTO t1 VALUES (10);
+ALTER TABLE t1 MODIFY COLUMN d INT;
+ALTER TABLE t1 ADD INDEX my_d (d);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `d` int(11) DEFAULT NULL,
+  KEY `my_d` (`d`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+EXPLAIN SELECT d FROM t1 WHERE d = 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	my_d	my_d	5	const	128	Using index
+EXPLAIN SELECT D FROM t1 WHERE D = 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	my_d	my_d	5	const	128	Using index
+ALTER TABLE t1 DROP INDEX my_d;
+ALTER TABLE t1 MODIFY COLUMN D INT;
+ALTER TABLE t1 ADD INDEX my_d (D);
+EXPLAIN SELECT d FROM t1 WHERE d = 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	my_d	my_d	5	const	128	Using index
+EXPLAIN SELECT D FROM t1 WHERE D = 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	my_d	my_d	5	const	128	Using index
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `D` int(11) DEFAULT NULL,
+  KEY `my_d` (`D`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1;

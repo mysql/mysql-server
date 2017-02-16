@@ -1,4 +1,6 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,13 +28,16 @@ my_bool timed_mutexes= 0;
 
 	/* from my_init */
 char *	home_dir=0;
-const char      *my_progname=0;
+char *mysql_data_home= (char*) ".";
+const char      *my_progname= NULL, *my_progname_short= NULL;
 char		curr_dir[FN_REFLEN]= {0},
 		home_dir_buff[FN_REFLEN]= {0};
 ulong		my_stream_opened=0,my_file_opened=0, my_tmp_file_created=0;
 ulong           my_file_total_opened= 0;
 int		my_umask=0664, my_umask_dir=0777;
 
+myf             my_global_flags= 0;
+my_bool         my_assert_on_error= 0;
 struct st_my_file_info my_file_info_default[MY_NFILE];
 uint   my_file_limit= MY_NFILE;
 struct st_my_file_info *my_file_info= my_file_info_default;
@@ -86,25 +91,15 @@ static const char *proc_info_dummy(void *a __attribute__((unused)),
 /* this is to be able to call set_thd_proc_info from the C code */
 const char *(*proc_info_hook)(void *, const char *, const char *, const char *,
                               const unsigned int)= proc_info_dummy;
-
-#if defined(ENABLED_DEBUG_SYNC)
-/**
-  Global pointer to be set if callback function is defined
-  (e.g. in mysqld). See sql/debug_sync.cc.
-*/
-void (*debug_sync_C_callback_ptr)(const char *, size_t);
-#endif /* defined(ENABLED_DEBUG_SYNC) */
-
-#ifdef __WIN__
-/* from my_getsystime.c */
-ulonglong query_performance_frequency, query_performance_offset;
-#endif
+void (*debug_sync_C_callback_ptr)(MYSQL_THD, const char *, size_t)= 0;
 
 	/* How to disable options */
 my_bool my_disable_locking=0;
+my_bool my_disable_sync=0;
 my_bool my_disable_async_io=0;
 my_bool my_disable_flush_key_blocks=0;
 my_bool my_disable_symlinks=0;
+my_bool my_disable_copystat_in_redel=0;
 
 /*
   Note that PSI_hook and PSI_server are unconditionally

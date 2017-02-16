@@ -1,0 +1,5 @@
+create temporary table t1 as select 1;
+handler t1 open;
+handler t1 read next;
+1
+1

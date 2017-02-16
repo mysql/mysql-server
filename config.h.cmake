@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #cmakedefine HAVE_CRYPT_H 1
 #cmakedefine HAVE_CURSES_H 1
 #cmakedefine HAVE_CXXABI_H 1
+#cmakedefine HAVE_BFD_H 1
 #cmakedefine HAVE_NCURSES_H 1
 #cmakedefine HAVE_NDIR_H 1
 #cmakedefine HAVE_DIRENT_H 1
@@ -44,7 +45,9 @@
 #cmakedefine HAVE_IA64INTRIN_H 1
 #cmakedefine HAVE_IEEEFP_H 1
 #cmakedefine HAVE_INTTYPES_H 1
+#cmakedefine HAVE_KQUEUE 1
 #cmakedefine HAVE_LIMITS_H 1
+#cmakedefine HAVE_LINUX_UNISTD_H 1
 #cmakedefine HAVE_LOCALE_H 1
 #cmakedefine HAVE_MALLOC_H 1
 #cmakedefine HAVE_MEMORY_H 1
@@ -81,6 +84,8 @@
 #cmakedefine HAVE_SYS_SELECT_H 1
 #cmakedefine HAVE_SYS_SHM_H 1
 #cmakedefine HAVE_SYS_SOCKET_H 1
+#cmakedefine HAVE_SYS_SOCKIO_H 1
+#cmakedefine HAVE_SYS_UTSNAME_H 1
 #cmakedefine HAVE_SYS_STAT_H 1
 #cmakedefine HAVE_SYS_STREAM_H 1
 #cmakedefine HAVE_SYS_TERMCAP_H 1
@@ -90,6 +95,7 @@
 #cmakedefine HAVE_SYS_TYPES_H 1
 #cmakedefine HAVE_SYS_UN_H 1
 #cmakedefine HAVE_SYS_VADVISE_H 1
+#cmakedefine HAVE_UCONTEXT_H 1
 #cmakedefine HAVE_TERM_H 1
 #cmakedefine HAVE_TERMBITS_H 1
 #cmakedefine HAVE_TERMIOS_H 1
@@ -128,6 +134,7 @@
 #cmakedefine FIONREAD_IN_SYS_FILIO 1
 
 /* Functions we may want to use. */
+#cmakedefine HAVE_ACCESS 1
 #cmakedefine HAVE_AIOWAIT 1
 #cmakedefine HAVE_ALARM 1
 #cmakedefine HAVE_ALLOCA 1
@@ -148,6 +155,8 @@
 #cmakedefine HAVE_FCNTL 1
 #cmakedefine HAVE_FCONVERT 1
 #cmakedefine HAVE_FDATASYNC 1
+#cmakedefine HAVE_DECL_FDATASYNC 1
+#cmakedefine HAVE_FEDISABLEEXCEPT 1
 #cmakedefine HAVE_FESETROUND 1
 #cmakedefine HAVE_FINITE 1
 #cmakedefine HAVE_FP_EXCEPT 1
@@ -172,6 +181,7 @@
 #cmakedefine HAVE_GETWD 1
 #cmakedefine HAVE_GMTIME_R 1
 #cmakedefine gmtime_r @gmtime_r@
+#cmakedefine HAVE_IN_ADDR_T 1
 #cmakedefine HAVE_INITGROUPS 1
 #cmakedefine HAVE_ISSETUGID 1
 #cmakedefine HAVE_GETUID 1
@@ -194,7 +204,7 @@
 #cmakedefine HAVE_MADVISE 1
 #cmakedefine HAVE_DECL_MADVISE 1
 #cmakedefine HAVE_DECL_TGOTO 1
-#cmakedefine HAVE_DECL_MHA_MAPSIZE_VA
+#cmakedefine HAVE_DECL_MHA_MAPSIZE_VA 1
 #cmakedefine HAVE_MALLINFO 1
 #cmakedefine HAVE_MEMCPY 1
 #cmakedefine HAVE_MEMMOVE 1
@@ -212,6 +222,7 @@
 #cmakedefine HAVE_RDTSCLL 1
 #cmakedefine HAVE_READ_REAL_TIME 1
 #cmakedefine HAVE_PTHREAD_ATTR_CREATE 1
+#cmakedefine HAVE_PTHREAD_ATTR_GETGUARDSIZE 1
 #cmakedefine HAVE_PTHREAD_ATTR_GETSTACKSIZE 1
 #cmakedefine HAVE_PTHREAD_ATTR_SETPRIO 1
 #cmakedefine HAVE_PTHREAD_ATTR_SETSCHEDPARAM 1
@@ -244,6 +255,7 @@
 #cmakedefine HAVE_SETFD 1
 #cmakedefine HAVE_SETENV 1
 #cmakedefine HAVE_SETLOCALE 1
+#cmakedefine HAVE_SETUPTERM 1
 #cmakedefine HAVE_SIGADDSET 1
 #cmakedefine HAVE_SIGEMPTYSET 1
 #cmakedefine HAVE_SIGHOLD 1
@@ -281,6 +293,7 @@
 #cmakedefine HAVE_TIME 1
 #cmakedefine HAVE_TIMES 1
 #cmakedefine HAVE_VALLOC 1
+#cmakedefine HAVE_VIDATTR 1
 #define HAVE_VIO_READ_BUFF 1
 #cmakedefine HAVE_VASPRINTF 1
 #cmakedefine HAVE_VPRINTF 1
@@ -306,12 +319,18 @@
 #cmakedefine HAVE_TIMESPEC_TS_SEC 1
 #cmakedefine STRUCT_DIRENT_HAS_D_INO 1
 #cmakedefine STRUCT_DIRENT_HAS_D_NAMLEN 1
+#cmakedefine STRUCT_TIMESPEC_HAS_TV_SEC 1
+#cmakedefine STRUCT_TIMESPEC_HAS_TV_NSEC 1
 #cmakedefine SPRINTF_RETURNS_INT 1
 
 #define USE_MB 1
 #define USE_MB_IDENT 1
 
-#cmakedefine HAVE_VALGRIND
+/* this means that valgrind headers and macros are available */
+#cmakedefine HAVE_VALGRIND 1
+
+/* this means WITH_VALGRIND - we change some code paths for valgrind */
+#cmakedefine HAVE_valgrind 1
 
 /* Types we may use */
 #ifdef __APPLE__
@@ -376,11 +395,10 @@
 #cmakedefine HAVE_UINT64 1
 #cmakedefine SIZEOF_BOOL @SIZEOF_BOOL@
 #cmakedefine HAVE_BOOL 1
-#cmakedefine HAVE_STRUCT_TIMESPEC
 
 #cmakedefine SOCKET_SIZE_TYPE @SOCKET_SIZE_TYPE@
 
-#cmakedefine HAVE_MBSTATE_T
+#cmakedefine HAVE_MBSTATE_T 1
 
 #define MAX_INDEXES 64
 
@@ -415,15 +433,15 @@
 #cmakedefine HAVE_WCTYPE_H 1
 #cmakedefine HAVE_WCHAR_H 1
 #cmakedefine HAVE_LANGINFO_H 1
-#cmakedefine HAVE_MBRLEN
-#cmakedefine HAVE_MBSCMP
-#cmakedefine HAVE_MBSRTOWCS
-#cmakedefine HAVE_WCRTOMB
-#cmakedefine HAVE_MBRTOWC
-#cmakedefine HAVE_WCSCOLL
-#cmakedefine HAVE_WCSDUP
-#cmakedefine HAVE_WCWIDTH
-#cmakedefine HAVE_WCTYPE
+#cmakedefine HAVE_MBRLEN 1
+#cmakedefine HAVE_MBSCMP 1
+#cmakedefine HAVE_MBSRTOWCS 1
+#cmakedefine HAVE_WCRTOMB 1
+#cmakedefine HAVE_MBRTOWC 1
+#cmakedefine HAVE_WCSCOLL 1
+#cmakedefine HAVE_WCSDUP 1
+#cmakedefine HAVE_WCWIDTH 1
+#cmakedefine HAVE_WCTYPE 1
 #cmakedefine HAVE_ISWLOWER 1
 #cmakedefine HAVE_ISWUPPER 1
 #cmakedefine HAVE_TOWLOWER 1
@@ -437,7 +455,7 @@
 #cmakedefine HAVE_STRCASECMP 1
 #cmakedefine HAVE_STRNCASECMP 1
 #cmakedefine HAVE_STRDUP 1
-#cmakedefine HAVE_LANGINFO_CODESET 
+#cmakedefine HAVE_LANGINFO_CODESET  1
 #cmakedefine HAVE_TCGETATTR 1
 #cmakedefine HAVE_FLOCKFILE 1
 
@@ -449,7 +467,7 @@
 #cmakedefine HAVE_BSD_SIGNALS 1
 #cmakedefine HAVE_SVR3_SIGNALS 1
 #cmakedefine HAVE_V7_SIGNALS 1
-
+#cmakedefine HAVE_ERR_remove_thread_state 1
 
 #cmakedefine HAVE_SOLARIS_STYLE_GETHOST 1
 
@@ -498,15 +516,16 @@
 #cmakedefine strtok_r @strtok_r@
 #cmakedefine strtoll @strtoll@
 #cmakedefine strtoull @strtoull@
-#cmakedefine tzname @tzname@
 #cmakedefine vsnprintf @vsnprintf@
+#if (_MSC_VER > 1800)
+#define tzname _tzname
+#define P_tmpdir "C:\\TEMP"
+#endif
 #if (_MSC_VER > 1310)
 # define HAVE_SETENV
 #define setenv(a,b,c) _putenv_s(a,b)
 #endif
-
-
-
+#define PSAPI_VERSION 1     /* for GetProcessMemoryInfo() */
 
 /*
   MySQL features
@@ -587,6 +606,8 @@
 #cmakedefine WITH_MYISAM_STORAGE_ENGINE 1
 #cmakedefine WITH_MYISAMMRG_STORAGE_ENGINE 1
 #cmakedefine WITH_HEAP_STORAGE_ENGINE 1
+#cmakedefine WITH_INNOBASE_STORAGE_ENGINE 1
+#cmakedefine WITH_XTRADB_STORAGE_ENGINE 1
 #cmakedefine WITH_CSV_STORAGE_ENGINE 1
 #cmakedefine WITH_PARTITION_STORAGE_ENGINE 1
 #cmakedefine WITH_PERFSCHEMA_STORAGE_ENGINE 1
@@ -594,6 +615,8 @@
 #if (WITH_NDBCLUSTER_STORAGE_ENGINE) && !defined(EMBEDDED_LIBRARY)
 # define HAVE_NDB_BINLOG 1
 #endif
+#cmakedefine WITH_ARIA_STORAGE_ENGINE 1
+#cmakedefine USE_ARIA_FOR_TMP_TABLES 1
 
 #cmakedefine DEFAULT_MYSQL_HOME "@DEFAULT_MYSQL_HOME@"
 #cmakedefine SHAREDIR "@SHAREDIR@"
@@ -624,8 +647,21 @@
 #cmakedefine SIZEOF_TIME_T @SIZEOF_TIME_T@
 #cmakedefine TIME_T_UNSIGNED @TIME_T_UNSIGNED@
 
-/* For --secure-file-priv */
-#cmakedefine DEFAULT_SECURE_FILE_PRIV_DIR @DEFAULT_SECURE_FILE_PRIV_DIR@
-#cmakedefine DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR @DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR@
+/*
+  stat structure (from <sys/stat.h>) is conditionally defined
+  to have different layout and size depending on the defined macros.
+  The correct macro is defined in my_config.h, which means it MUST be
+  included first (or at least before <features.h> - so, practically,
+  before including any system headers).
+
+  Check the include order by looking at __GLIBC__ (defined in <features.h>)
+
+  But we cannot force all third-party clients/connectors to include
+  my_config.h first. So, their crashes are their responsibility,
+  we enable this check only for MariaDB sources (SAFE_MUTEX check).
+*/
+#if defined(__GLIBC__) && defined(SAFE_MUTEX)
+#error <my_config.h> MUST be included first!
+#endif
 
 #endif

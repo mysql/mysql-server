@@ -1,0 +1,30 @@
+-- source include/have_maria.inc
+# can't restart server in embedded
+--source include/not_embedded.inc
+# remove_file can't remove opened file under windows. So we can't reproduce
+# the problem there
+--source include/not_windows.inc
+#
+# BUG#41127 test suite
+#
+connect (admin, localhost, root,,test,,);
+--enable_reconnect
+
+connection default;
+--enable_reconnect
+
+# cleunup before this test
+-- source include/maria_empty_logs.inc
+
+connection default;
+
+let MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/$MARIA_LOG/aria_log.00000001;
+--replace_regex /Size unknown ; .*aria_log.00000001/Size unknown ; aria_log.00000001/
+show engine aria logs;
+
+# cleunup after this test
+-- source include/maria_empty_logs.inc
+
+disconnect admin;
+connection default;

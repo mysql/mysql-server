@@ -1,4 +1,5 @@
--- Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2013, Oracle and/or its affiliates
+-- Copyright (c) 2009, 2013, SkySQL Ab
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -28,7 +29,10 @@ BEGIN
   -- that are supposed to change
   SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
     WHERE variable_name NOT IN ('timestamp', 'innodb_file_format_max')
-      ORDER BY VARIABLE_NAME;
+     AND variable_name not like "Last_IO_Err*"
+     AND variable_name != 'INNODB_IBUF_MAX_SIZE'
+     AND variable_name != 'INNODB_USE_NATIVE_AIO'
+   ORDER BY variable_name;
 
   -- Dump all databases, there should be none
   -- except those that was created during bootstrap
@@ -82,14 +86,11 @@ BEGIN
     mysql.time_zone_transition_type,
     mysql.user;
 
+  -- verify that no plugin changed its disabled/enabled state
+  SELECT * FROM INFORMATION_SCHEMA.PLUGINS;
+
+  select * from information_schema.session_variables
+    where variable_name = 'debug_sync';
+
 END||
 
---
--- Procedure used by test case used to force all
--- servers to restart after testcase and thus skipping
--- check test case after test
---
-CREATE DEFINER=root@localhost PROCEDURE force_restart()
-BEGIN
-  SELECT 1 INTO OUTFILE 'force_restart';
-END||

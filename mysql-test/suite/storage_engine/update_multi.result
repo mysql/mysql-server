@@ -1,0 +1,65 @@
+DROP TABLE IF EXISTS t1,t2;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(10000,'foobar');
+INSERT INTO t1 (a,b) SELECT a, b FROM t1;
+CREATE TABLE t2 (c <CHAR_COLUMN>, d <INT_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t2 (c,d) SELECT b, a FROM t1;
+UPDATE t1, t2 SET t1.a = t2.d+100, t2.c = 'multi' WHERE c < b AND a + d != 1;
+SELECT a,b FROM t1;
+a	b
+1	a
+1	a
+101	b
+101	b
+101	c
+101	c
+101	d
+101	d
+101	e
+101	e
+101	foobar
+101	foobar
+SELECT c,d FROM t2;
+c	d
+foobar	10000
+foobar	10000
+multi	1
+multi	1
+multi	2
+multi	2
+multi	3
+multi	3
+multi	4
+multi	4
+multi	5
+multi	5
+UPDATE t2, t1 SET t2.d = DEFAULT WHERE c = 'foobar' and b = c;
+SELECT a,b FROM t1;
+a	b
+1	a
+1	a
+101	b
+101	b
+101	c
+101	c
+101	d
+101	d
+101	e
+101	e
+101	foobar
+101	foobar
+SELECT c,d FROM t2;
+c	d
+foobar	NULL
+foobar	NULL
+multi	1
+multi	1
+multi	2
+multi	2
+multi	3
+multi	3
+multi	4
+multi	4
+multi	5
+multi	5
+DROP TABLE t1, t2;

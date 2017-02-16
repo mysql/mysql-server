@@ -230,3 +230,16 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t0,t1,t2;
+
+--echo #
+--echo # MDEV-MariaDB daemon leaks memory with specific query
+--echo #
+
+CREATE TABLE t1 (`voter_id` int(11) unsigned NOT NULL,
+  `language_id` int(11) unsigned NOT NULL DEFAULT '1'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+CREATE TABLE t2 (`voter_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `serialized_c` mediumblob) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+insert into t2 values (1,repeat("a",1000)),(2,repeat("a",1000)),(3,repeat("b",1000)),(4,repeat("c",1000)),(4,repeat("b",1000));
+SELECT GROUP_CONCAT(t1.language_id SEPARATOR ',') AS `translation_resources`, `d`.`serialized_c` FROM t2 AS `d` LEFT JOIN t1 ON `d`.`voter_id` = t1.`voter_id` GROUP BY `d`.`voter_id` ORDER BY 10-d.voter_id+RAND()*0;
+drop table t1,t2;

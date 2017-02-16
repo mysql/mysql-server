@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,7 +34,6 @@ static my_bool verbose, print_all_codes;
 
 #include "../include/my_base.h"
 #include "../mysys/my_handler_errors.h"
-// #include "../include/my_compare.h"
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 static my_bool ndb_code;
@@ -420,6 +419,8 @@ int main(int argc,char *argv[])
   if (unknown_error)
     free(unknown_error);
 
+  my_handler_error_unregister();
+  my_end(0);
   exit(error);
   return error;
 }

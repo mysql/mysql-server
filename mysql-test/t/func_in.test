@@ -576,3 +576,33 @@ DROP TABLE t1;
 
 --echo #
 --echo End of 5.1 tests
+
+#
+# lp:817966 int_column IN (string_constant)
+#
+# rather illogically, when BIGINT field is compared to a string,
+# the string is converted to an integer, not to a double.
+# When some other integer field (not BIGINT) is compared to a string,
+# or when the BIGINT is not a field, but an expression, both
+# operands are compared as doubles. The latter behavior is correct,
+# according to the manual.
+#
+create table t1 (a bigint, b int);
+insert t1 values (1,1),(2,2),(3,3);
+select * from t1 where a in ('2.1');
+select * from t1 where b in ('2.1');
+select * from t1 where a='2.1'; 
+select * from t1 where b='2.1'; 
+select * from t1 where IF(1,a,a)='2.1'; 
+drop table t1;
+--echo #
+--echo # LP bug#992380 Crash when creating PS for a query with
+--echo # subquery in WHERE (see also mysql bug#13012483)
+--echo #
+CREATE TABLE t1 (a INT);
+PREPARE s FROM "SELECT 1 FROM t1 WHERE 1 < ALL (SELECT @:= (1 IN (SELECT 1 FROM t1)) FROM t1)";
+EXECUTE s;
+
+DROP TABLE t1;
+
+--echo # End of 5.3 tests

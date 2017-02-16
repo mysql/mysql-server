@@ -1,0 +1,26 @@
+# ticket 895 is a query optimization problem with the primary key
+
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS test_bug;
+--enable_warnings
+
+create table test_bug (
+ id INT NOT NULL PRIMARY KEY,
+ foo CHAR(10)
+) ENGINE=TokuDB;
+
+set session transaction isolation level read uncommitted;
+
+replace into test_bug (id, foo) VALUES (1, "bar");
+
+insert ignore into test_bug (id, foo) VALUES (1, "bar");
+
+insert into test_bug (id, foo) VALUES (1, "bar") ON DUPLICATE KEY UPDATE foo='baz';
+
+set session transaction isolation level serializable;
+
+# Final cleanup.
+DROP TABLE test_bug;

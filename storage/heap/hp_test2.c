@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
-   reserved
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
   get_options(argc,argv);
 
   bzero(&hp_create_info, sizeof(hp_create_info));
-  hp_create_info.max_table_size= 1024L*1024L;
+  hp_create_info.max_table_size= 2*1024L*1024L;
   hp_create_info.keys= keys;
   hp_create_info.keydef= keyinfo;
   hp_create_info.reclength= reclength;
@@ -310,7 +310,8 @@ int main(int argc, char *argv[])
     if (!silent)
       printf("- Read last key - delete - prev - prev - opt_delete - prev -> first\n");
 
-    if (heap_rlast(file,record3,0)) goto err;
+    if (heap_rprev(file,record))
+      goto err;
     if (heap_delete(file,record3)) goto err;
     key_check-=atoi((char*) record3);
     key1[atoi((char*) record+keyinfo[0].seg[0].start)]--;
@@ -517,7 +518,7 @@ int main(int argc, char *argv[])
   }
 
   ant=0;
-  for (error=heap_rlast(file,record,0) ;
+  for (error=heap_rprev(file,record) ;
       ! error ;
       error=heap_rprev(file,record))
   {
@@ -635,7 +636,7 @@ static int get_options(int argc,char *argv[])
     case 'V':
     case 'I':
     case '?':
-      printf("%s  Ver 1.1 for %s at %s\n",progname,SYSTEM_TYPE,MACHINE_TYPE);
+      printf("%s  Ver 1.2 for %s at %s\n",progname,SYSTEM_TYPE,MACHINE_TYPE);
       puts("TCX Datakonsult AB, by Monty, for your professional use\n");
       printf("Usage: %s [-?ABIKLsWv] [-m#] [-t#]\n",progname);
       exit(0);

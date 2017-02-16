@@ -3,16 +3,16 @@
 # The test verifies that  SHOW STATUS LIKE 'Slave_running' displays ON
 # if and only if `SHOW SLAVE STATUS' displays YES for Slave_IO_Running and  Slave_SQL_Running
 #
-source include/master-slave.inc;
 source include/have_debug.inc;
 source include/have_debug_sync.inc;
+source include/master-slave.inc;
 
 connection slave;
 
 SET DEBUG_SYNC= 'RESET';
 source include/stop_slave.inc;
 let $debug_saved= `select @@global.debug`;
-set global debug= 'd,dbug.before_get_running_status_yes'; # to block due-started IO
+set global debug_dbug= 'd,dbug.before_get_running_status_yes'; # to block due-started IO
 
 # Test 1. Slave is stopped
 
@@ -77,7 +77,7 @@ echo Slave_SQL_Running= $status;
 
 connection slave;
 
-eval set global debug= '$debug_saved';
+eval set global debug_dbug= '$debug_saved';
 SET DEBUG_SYNC= 'RESET';
 --echo End of tests
 --source include/rpl_end.inc

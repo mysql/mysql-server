@@ -1,0 +1,52 @@
+###############################################
+#                                             #
+#  Prepared Statements test on ARIA tables  #
+#                                             #
+###############################################
+
+#    
+# NOTE: PLEASE SEE ps_1general.test (bottom) 
+#       BEFORE ADDING NEW TEST CASES HERE !!!
+
+-- source include/have_maria.inc
+
+use test;
+
+let $type= 'ARIA' ;
+-- source include/ps_create.inc
+-- source include/ps_renew.inc
+
+-- source include/ps_query.inc
+
+# parameter in SELECT ... MATCH/AGAINST
+# case derived from client_test.c: test_bug1500()
+--disable_warnings
+drop table if exists t2 ;
+--enable_warnings
+eval create table t2 (s varchar(25), fulltext(s)) TRANSACTIONAL= 0
+ENGINE = $type ;
+insert into t2 values ('Gravedigger'), ('Greed'),('Hollow Dogs') ;
+commit ;
+
+prepare stmt1 from ' select s from t2 where match (s) against (?) ' ;
+set @arg00='Dogs' ;
+execute stmt1 using @arg00 ;
+prepare stmt1 from ' SELECT s FROM t2
+where match (s) against (concat(?,''digger'')) ';
+set @arg00='Grave' ;
+execute stmt1 using @arg00 ;
+drop table t2 ;
+
+-- source include/ps_modify.inc
+-- source include/ps_modify1.inc
+-- source include/ps_conv.inc
+
+drop table t1, t9;
+
+# End of 4.1 tests
+
+--disable_result_log
+--disable_query_log
+set global aria_log_file_size=default;
+--enable_result_log
+--enable_query_log

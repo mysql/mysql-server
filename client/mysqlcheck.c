@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +16,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#define CHECK_VERSION "2.5.1"
+/* By Jani Tolonen, 2001-04-20, MySQL Development Team */
+
+#define CHECK_VERSION "2.7.2-MariaDB"
 
 #include "client_priv.h"
 #include <m_ctype.h>
@@ -40,10 +43,9 @@ static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
                opt_silent = 0, opt_auto_repair = 0, ignore_errors = 0,
                tty_password= 0, opt_frm= 0, debug_info_flag= 0, debug_check_flag= 0,
                opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0,
-               opt_write_binlog= 1;
+               opt_do_tables= 1;
+static my_bool opt_write_binlog= 1, opt_flush_tables= 0;
 static uint verbose = 0, opt_mysql_port=0;
-static uint opt_enable_cleartext_plugin= 0;
-static my_bool using_opt_enable_cleartext_plugin= 0;
 static int my_end_arg;
 static char * opt_mysql_unix_port = 0;
 static char *opt_password = 0, *current_user = 0, 
@@ -51,12 +53,21 @@ static char *opt_password = 0, *current_user = 0,
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static int first_error = 0;
 DYNAMIC_ARRAY tables4repair, tables4rebuild, alter_table_cmds;
-#ifdef HAVE_SMEM
+DYNAMIC_ARRAY views4repair;
 static char *shared_memory_base_name=0;
-#endif
 static uint opt_protocol=0;
 
-enum operations { DO_CHECK=1, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
+enum operations { DO_CHECK=1, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_FIX_NAMES };
+const char *operation_name[]=
+{
+  "???", "check", "repair", "analyze", "optimize", "fix names"
+};
+
+typedef enum { DO_VIEWS_NO, DO_VIEWS_YES, DO_VIEWS_FROM_MYSQL } enum_do_views;
+const char *do_views_opts[]= {"NO", "YES", "UPGRADE_FROM_MYSQL", NullS};
+TYPELIB do_views_typelib= { array_elements(do_views_opts) - 1, "",
+    do_views_opts, NULL };
+static ulong opt_do_views= DO_VIEWS_NO;
 
 static struct my_option my_long_options[] =
 {
@@ -75,8 +86,8 @@ static struct my_option my_long_options[] =
    &opt_auto_repair, &opt_auto_repair, 0, GET_BOOL, NO_ARG, 0,
    0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory for character set files.", &charsets_dir,
-   &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Directory for character set files.", (char**) &charsets_dir,
+   (char**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"check", 'c', "Check table for errors.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"check-only-changed", 'C',
@@ -112,10 +123,6 @@ static struct my_option my_long_options[] =
    "Default authentication client-side plugin to use.",
    &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"enable_cleartext_plugin", OPT_ENABLE_CLEARTEXT_PLUGIN,
-   "Enable/disable the clear text authentication plugin.",
-   &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin,
-   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"fast",'F', "Check only tables that haven't been closed properly.",
    &opt_fast, &opt_fast, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
@@ -132,10 +139,13 @@ static struct my_option my_long_options[] =
    "If you are using this option with CHECK TABLE, it will ensure that the table is 100 percent consistent, but will take a long time. If you are using this option with REPAIR TABLE, it will force using old slow repair with keycache method, instead of much faster repair by sorting.",
    &opt_extended, &opt_extended, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
+  {"flush", OPT_FLUSH_TABLES, "Flush each table after check. This is useful if you don't want to have the checked tables take up space in the caches after the check",
+   &opt_flush_tables, &opt_flush_tables, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0 },
   {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host",'h', "Connect to host.", &current_host,
-   &current_host, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &current_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"medium-check", 'm',
    "Faster than extended-check, but only finds 99.99 percent of all errors. Should be good enough for most cases.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -198,10 +208,19 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"process-views", 0,
+   "Perform the requested operation (check or repair) on views. "
+   "One of: NO, YES (correct the checksum, if necessary, add the "
+   "mariadb-version field), UPGRADE_FROM_MYSQL (same as YES and toggle "
+   "the algorithm MERGE<->TEMPTABLE.", &opt_do_views, &opt_do_views,
+   &do_views_typelib, GET_ENUM, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"process-tables", 0, "Perform the requested operation on tables.",
+   &opt_do_tables, &opt_do_tables, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-static const char *load_default_groups[] = { "mysqlcheck", "client", 0 };
+static const char *load_default_groups[]=
+{ "mysqlcheck", "client", "client-server", "client-mariadb", 0 };
 
 
 static void print_version(void);
@@ -213,7 +232,7 @@ static int process_selected_tables(char *db, char **table_names, int tables);
 static int process_all_tables_in_db(char *database);
 static int process_one_db(char *database);
 static int use_db(char *database);
-static int handle_request_for_tables(char *tables, size_t length);
+static int handle_request_for_tables(char *, size_t, my_bool, my_bool);
 static int dbConnect(char *host, char *user,char *passwd);
 static void dbDisconnect(char *host);
 static void DBerror(MYSQL *mysql, const char *when);
@@ -233,27 +252,28 @@ static void print_version(void)
 
 static void usage(void)
 {
+  DBUG_ENTER("usage");
   print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   puts("This program can be used to CHECK (-c, -m, -C), REPAIR (-r), ANALYZE (-a),");
   puts("or OPTIMIZE (-o) tables. Some of the options (like -e or -q) can be");
   puts("used at the same time. Not all options are supported by all storage engines.");
-  puts("Please consult the MySQL manual for latest information about the");
-  puts("above. The options -c, -r, -a, and -o are exclusive to each other, which");
+  puts("The options -c, -r, -a, and -o are exclusive to each other, which");
   puts("means that the last option will be used, if several was specified.\n");
-  puts("The option -c will be used by default, if none was specified. You");
-  puts("can change the default behavior by making a symbolic link, or");
+  puts("The option -c (--check) will be used by default, if none was specified.");
+  puts("You can change the default behavior by making a symbolic link, or");
   puts("copying this file somewhere with another name, the alternatives are:");
   puts("mysqlrepair:   The default option will be -r");
   puts("mysqlanalyze:  The default option will be -a");
   puts("mysqloptimize: The default option will be -o\n");
-  printf("Usage: %s [OPTIONS] database [tables]\n", my_progname);
-  printf("OR     %s [OPTIONS] --databases DB1 [DB2 DB3...]\n",
-	 my_progname);
-  printf("OR     %s [OPTIONS] --all-databases\n", my_progname);
+  puts("Please consult the MariaDB/MySQL knowledgebase at");
+  puts("http://kb.askmonty.org/v/mysqlcheck for latest information about");
+  puts("this program.");
   print_defaults("my", load_default_groups);
+  puts("");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
+  DBUG_VOID_RETURN;
 } /* usage */
 
 
@@ -262,6 +282,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
   int orig_what_to_do= what_to_do;
+  DBUG_ENTER("get_one_option");
 
   switch(optid) {
   case 'a':
@@ -286,11 +307,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     what_to_do = DO_OPTIMIZE;
     break;
   case OPT_FIX_DB_NAMES:
-    what_to_do= DO_UPGRADE;
+    what_to_do= DO_FIX_NAMES;
     opt_databases= 1;
     break;
   case OPT_FIX_TABLE_NAMES:
-    what_to_do= DO_UPGRADE;
+    what_to_do= DO_FIX_NAMES;
     break;
   case 'p':
     if (argument == disabled_my_option)
@@ -331,9 +352,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'v':
     verbose++;
     break;
-  case 'V': print_version(); exit(0);
-  case OPT_ENABLE_CLEARTEXT_PLUGIN:
-    using_opt_enable_cleartext_plugin= TRUE;
+  case 'V':
+    print_version(); exit(0);
     break;
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
@@ -343,17 +363,18 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 
   if (orig_what_to_do && (what_to_do != orig_what_to_do))
   {
-    fprintf(stderr, "Error:  %s doesn't support multiple contradicting commands.\n",
+    fprintf(stderr, "Error: %s doesn't support multiple contradicting commands.\n",
             my_progname);
-    return 1;
+    DBUG_RETURN(1);
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
 static int get_options(int *argc, char ***argv)
 {
   int ho_error;
+  DBUG_ENTER("get_options");
 
   if (*argc == 1)
   {
@@ -361,10 +382,15 @@ static int get_options(int *argc, char ***argv)
     exit(0);
   }
 
-  if ((ho_error= load_defaults("my", load_default_groups, argc, argv)) ||
-      (ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
 
+  if (what_to_do == DO_REPAIR && !opt_do_views && !opt_do_tables)
+  {
+    fprintf(stderr, "Error: Nothing to repair when both "
+            "--process-tables=NO and --process-views=NO\n");
+    exit(1);
+  }
   if (!what_to_do)
   {
     size_t pnlen= strlen(my_progname);
@@ -379,6 +405,13 @@ static int get_options(int *argc, char ***argv)
       what_to_do = DO_OPTIMIZE;
     else
       what_to_do = DO_CHECK;
+  }
+
+  if (opt_do_views && what_to_do != DO_REPAIR && what_to_do != DO_CHECK)
+  {
+    fprintf(stderr, "Error: %s doesn't support %s for views.\n",
+            my_progname, operation_name[what_to_do]);
+    exit(1);
   }
 
   /*
@@ -396,21 +429,21 @@ static int get_options(int *argc, char ***argv)
       !get_charset_by_csname(default_charset, MY_CS_PRIMARY, MYF(MY_WME)))
   {
     printf("Unsupported character set: %s\n", default_charset);
-    return 1;
+    DBUG_RETURN(1);
   }
   if (*argc > 0 && opt_alldbs)
   {
     printf("You should give only options, no arguments at all, with option\n");
     printf("--all-databases. Please see %s --help for more information.\n",
 	   my_progname);
-    return 1;
+    DBUG_RETURN(1);
   }
   if (*argc < 1 && !opt_alldbs)
   {
     printf("You forgot to give the arguments! Please see %s --help\n",
 	   my_progname);
     printf("for more information.\n");
-    return 1;
+    DBUG_RETURN(1);
   }
   if (tty_password)
     opt_password = get_tty_password(NullS);
@@ -418,7 +451,7 @@ static int get_options(int *argc, char ***argv)
     my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag)
     my_end_arg= MY_CHECK_ERROR;
-  return(0);
+  DBUG_RETURN((0));
 } /* get_options */
 
 
@@ -427,20 +460,24 @@ static int process_all_databases()
   MYSQL_ROW row;
   MYSQL_RES *tableres;
   int result = 0;
+  DBUG_ENTER("process_all_databases");
 
   if (mysql_query(sock, "SHOW DATABASES") ||
       !(tableres = mysql_store_result(sock)))
   {
     my_printf_error(0, "Error: Couldn't execute 'SHOW DATABASES': %s",
 		    MYF(0), mysql_error(sock));
-    return 1;
+    DBUG_RETURN(1);
   }
+  if (verbose)
+    printf("Processing databases\n");
   while ((row = mysql_fetch_row(tableres)))
   {
     if (process_one_db(row[0]))
       result = 1;
   }
-  return result;
+  mysql_free_result(tableres);
+  DBUG_RETURN(result);
 }
 /* process_all_databases */
 
@@ -448,20 +485,53 @@ static int process_all_databases()
 static int process_databases(char **db_names)
 {
   int result = 0;
+  DBUG_ENTER("process_databases");
+
+  if (verbose)
+    printf("Processing databases\n");
   for ( ; *db_names ; db_names++)
   {
     if (process_one_db(*db_names))
       result = 1;
   }
-  return result;
+  DBUG_RETURN(result);
 } /* process_databases */
 
 
+/* returns: -1 for error, 1 for view, 0 for table */
+static int is_view(const char *table)
+{
+  char query[1024];
+  MYSQL_RES *res;
+  MYSQL_FIELD *field;
+  int view;
+  DBUG_ENTER("is_view");
+
+  my_snprintf(query, sizeof(query), "SHOW CREATE TABLE %`s", table);
+  if (mysql_query(sock, query))
+  {
+    fprintf(stderr, "Failed to %s\n", query);
+    fprintf(stderr, "Error: %s\n", mysql_error(sock));
+    DBUG_RETURN(-1);
+  }
+  res= mysql_store_result(sock);
+  field= mysql_fetch_field(res);
+  view= (strcmp(field->name,"View") == 0) ? 1 : 0;
+  mysql_free_result(res);
+
+  DBUG_RETURN(view);
+}
+
 static int process_selected_tables(char *db, char **table_names, int tables)
 {
+  int view;
+  char *table;
+  uint table_len;
+  DBUG_ENTER("process_selected_tables");
+
   if (use_db(db))
-    return 1;
-  if (opt_all_in_1 && what_to_do != DO_UPGRADE)
+    DBUG_RETURN(1);
+  if (opt_all_in_1 && what_to_do != DO_FIX_NAMES)
   {
     /* 
       We need table list in form `a`, `b`, `c`
@@ -472,12 +542,21 @@ static int process_selected_tables(char *db, char **table_names, int tables)
     size_t tot_length= 0;
     int             i= 0;
 
+    if (opt_do_tables && opt_do_views)
+    {
+      fprintf(stderr, "Error: %s cannot process both tables and views "
+                      "in one command (--process-tables=YES "
+                      "--process-views=YES --all-in-1).\n",
+              my_progname);
+      DBUG_RETURN(1);
+    }
+
     for (i = 0; i < tables; i++)
       tot_length+= fixed_name_length(*(table_names + i)) + 2;
 
     if (!(table_names_comma_sep = (char *)
 	  my_malloc((sizeof(char) * tot_length) + 4, MYF(MY_WME))))
-      return 1;
+      DBUG_RETURN(1);
 
     for (end = table_names_comma_sep + 1; tables > 0;
 	 tables--, table_names++)
@@ -486,13 +565,21 @@ static int process_selected_tables(char *db, char **table_names, int tables)
       *end++= ',';
     }
     *--end = 0;
-    handle_request_for_tables(table_names_comma_sep + 1, tot_length - 1);
+    handle_request_for_tables(table_names_comma_sep + 1, tot_length - 1,
+                              opt_do_views != 0, opt_all_in_1);
     my_free(table_names_comma_sep);
   }
   else
     for (; tables > 0; tables--, table_names++)
-      handle_request_for_tables(*table_names, fixed_name_length(*table_names));
-  return 0;
+    {
+      table= *table_names;
+      table_len= fixed_name_length(*table_names);
+      view= is_view(table);
+      if (view < 0)
+        continue;
+      handle_request_for_tables(table, table_len, view == 1, opt_all_in_1);
+    }
+  DBUG_RETURN(0);
 } /* process_selected_tables */
 
 
@@ -500,62 +587,60 @@ static size_t fixed_name_length(const char *name)
 {
   const char *p;
   size_t extra_length= 2;  /* count the first/last backticks */
-  
+  DBUG_ENTER("fixed_name_length");
+
   for (p= name; *p; p++)
   {
     if (*p == '`')
       extra_length++;
-    else if (*p == '.')
-      extra_length+= 2;
   }
-  return (size_t) ((p - name) + extra_length);
+  DBUG_RETURN((size_t) ((p - name) + extra_length));
 }
 
 
 static char *fix_table_name(char *dest, char *src)
 {
+  DBUG_ENTER("fix_table_name");
+
   *dest++= '`';
   for (; *src; src++)
   {
-    switch (*src) {
-    case '.':            /* add backticks around '.' */
+    if (*src == '`')
       *dest++= '`';
-      *dest++= '.';
-      *dest++= '`';
-      break;
-    case '`':            /* escape backtick character */
-      *dest++= '`';
-      /* fall through */
-    default:
-      *dest++= *src;
-    }
+    *dest++= *src;
   }
   *dest++= '`';
-  return dest;
+
+  DBUG_RETURN(dest);
 }
 
 
 static int process_all_tables_in_db(char *database)
 {
-  MYSQL_RES *res;
+  MYSQL_RES *UNINIT_VAR(res);
   MYSQL_ROW row;
   uint num_columns;
+  my_bool system_database= 0;
+  my_bool view= FALSE;
+  DBUG_ENTER("process_all_tables_in_db");
 
-  LINT_INIT(res);
   if (use_db(database))
-    return 1;
+    DBUG_RETURN(1);
   if ((mysql_query(sock, "SHOW /*!50002 FULL*/ TABLES") &&
        mysql_query(sock, "SHOW TABLES")) ||
       !(res= mysql_store_result(sock)))
   {
     my_printf_error(0, "Error: Couldn't get table list for database %s: %s",
 		    MYF(0), database, mysql_error(sock));
-    return 1;
+    DBUG_RETURN(1);
   }
+
+  if (!strcmp(database, "mysql") || !strcmp(database, "MYSQL"))
+    system_database= 1;
 
   num_columns= mysql_num_fields(res);
 
-  if (opt_all_in_1 && what_to_do != DO_UPGRADE)
+  if (opt_all_in_1 && what_to_do != DO_FIX_NAMES)
   {
     /*
       We need table list in form `a`, `b`, `c`
@@ -566,41 +651,84 @@ static int process_all_tables_in_db(char *database)
     char *tables, *end;
     size_t tot_length = 0;
 
+    char *views, *views_end;
+    uint tot_views_length = 0;
+
     while ((row = mysql_fetch_row(res)))
-      tot_length+= fixed_name_length(row[0]) + 2;
+    {
+      if ((num_columns == 2) && (strcmp(row[1], "VIEW") == 0) &&
+          opt_do_views)
+        tot_views_length+= fixed_name_length(row[0]) + 2;
+      else if (opt_do_tables)
+        tot_length+= fixed_name_length(row[0]) + 2;
+    }
     mysql_data_seek(res, 0);
 
     if (!(tables=(char *) my_malloc(sizeof(char)*tot_length+4, MYF(MY_WME))))
     {
       mysql_free_result(res);
-      return 1;
+      DBUG_RETURN(1);
     }
-    for (end = tables + 1; (row = mysql_fetch_row(res)) ;)
+    if (!(views=(char *) my_malloc(sizeof(char)*tot_views_length+4, MYF(MY_WME))))
+    {
+      my_free(tables);
+      mysql_free_result(res);
+      DBUG_RETURN(1);
+    }
+
+    for (end = tables + 1, views_end= views + 1; (row = mysql_fetch_row(res)) ;)
     {
       if ((num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
-        continue;
-
-      end= fix_table_name(end, row[0]);
-      *end++= ',';
+      {
+        if (!opt_do_views)
+          continue;
+        views_end= fix_table_name(views_end, row[0]);
+        *views_end++= ',';
+      }
+      else
+      {
+        if (!opt_do_tables)
+          continue;
+        end= fix_table_name(end, row[0]);
+        *end++= ',';
+      }
     }
     *--end = 0;
+    *--views_end = 0;
     if (tot_length)
-      handle_request_for_tables(tables + 1, tot_length - 1);
+      handle_request_for_tables(tables + 1, tot_length - 1, FALSE, opt_all_in_1);
+    if (tot_views_length)
+      handle_request_for_tables(views + 1, tot_views_length - 1, TRUE, opt_all_in_1);
     my_free(tables);
+    my_free(views);
   }
   else
   {
     while ((row = mysql_fetch_row(res)))
     {
       /* Skip views if we don't perform renaming. */
-      if ((what_to_do != DO_UPGRADE) && (num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
-        continue;
+      if ((what_to_do != DO_FIX_NAMES) && (num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
+      {
+        if (!opt_do_views)
+          continue;
+        view= TRUE;
+      }
+      else
+      {
+        if (!opt_do_tables)
+          continue;
+        view= FALSE;
+      }
+      if (system_database &&
+          (!strcmp(row[0], "general_log") ||
+           !strcmp(row[0], "slow_log")))
+        continue;                               /* Skip logging tables */
 
-      handle_request_for_tables(row[0], fixed_name_length(row[0]));
+      handle_request_for_tables(row[0], fixed_name_length(row[0]), view, opt_all_in_1);
     }
   }
   mysql_free_result(res);
-  return 0;
+  DBUG_RETURN(0);
 } /* process_all_tables_in_db */
 
 
@@ -620,42 +748,46 @@ static int fix_table_storage_name(const char *name)
 {
   char qbuf[100 + NAME_LEN*4];
   int rc= 0;
+  DBUG_ENTER("fix_table_storage_name");
+
   if (strncmp(name, "#mysql50#", 9))
-    return 1;
-  my_snprintf(qbuf, sizeof(qbuf), "RENAME TABLE `%s` TO `%s`",
+    DBUG_RETURN(1);
+  my_snprintf(qbuf, sizeof(qbuf), "RENAME TABLE %`s TO %`s",
               name, name + 9);
 
   rc= run_query(qbuf);
   if (verbose)
     printf("%-50s %s\n", name, rc ? "FAILED" : "OK");
-  return rc;
+  DBUG_RETURN(rc);
 }
 
 static int fix_database_storage_name(const char *name)
 {
   char qbuf[100 + NAME_LEN*4];
   int rc= 0;
+  DBUG_ENTER("fix_database_storage_name");
+
   if (strncmp(name, "#mysql50#", 9))
-    return 1;
-  my_snprintf(qbuf, sizeof(qbuf), "ALTER DATABASE `%s` UPGRADE DATA DIRECTORY "
+    DBUG_RETURN(1);
+  my_snprintf(qbuf, sizeof(qbuf), "ALTER DATABASE %`s UPGRADE DATA DIRECTORY "
               "NAME", name);
   rc= run_query(qbuf);
   if (verbose)
     printf("%-50s %s\n", name, rc ? "FAILED" : "OK");
-  return rc;
+  DBUG_RETURN(rc);
 }
 
 static int rebuild_table(char *name)
 {
   char *query, *ptr;
   int rc= 0;
-  query= (char*)my_malloc(sizeof(char) * (12 + fixed_name_length(name) + 6 + 1),
+  DBUG_ENTER("rebuild_table");
+
+  query= (char*)my_malloc(sizeof(char) * (12 + strlen(name) + 6 + 1),
                           MYF(MY_WME));
   if (!query)
-    return 1;
-  ptr= strmov(query, "ALTER TABLE ");
-  ptr= fix_table_name(ptr, name);
-  ptr= strxmov(ptr, " FORCE", NullS);
+    DBUG_RETURN(1);
+  ptr= strxmov(query, "ALTER TABLE ", name, " FORCE", NullS);
   if (mysql_real_query(sock, query, (ulong)(ptr - query)))
   {
     fprintf(stderr, "Failed to %s\n", query);
@@ -663,12 +795,16 @@ static int rebuild_table(char *name)
     rc= 1;
   }
   my_free(query);
-  return rc;
+  DBUG_RETURN(rc);
 }
 
 static int process_one_db(char *database)
 {
-  if (what_to_do == DO_UPGRADE)
+  DBUG_ENTER("process_one_db");
+
+  if (verbose)
+    puts(database);
+  if (what_to_do == DO_FIX_NAMES)
   {
     int rc= 0;
     if (opt_fix_db_names && !strncmp(database,"#mysql50#", 9))
@@ -677,26 +813,28 @@ static int process_one_db(char *database)
       database+= 9;
     }
     if (rc || !opt_fix_table_names)
-      return rc;
+      DBUG_RETURN(rc);
   }
-  return process_all_tables_in_db(database);
+  DBUG_RETURN(process_all_tables_in_db(database));
 }
 
 
 static int use_db(char *database)
 {
+  DBUG_ENTER("use_db");
+
   if (mysql_get_server_version(sock) >= FIRST_INFORMATION_SCHEMA_VERSION &&
       !my_strcasecmp(&my_charset_latin1, database, INFORMATION_SCHEMA_DB_NAME))
-    return 1;
+    DBUG_RETURN(1);
   if (mysql_get_server_version(sock) >= FIRST_PERFORMANCE_SCHEMA_VERSION &&
       !my_strcasecmp(&my_charset_latin1, database, PERFORMANCE_SCHEMA_DB_NAME))
-    return 1;
+    DBUG_RETURN(1);
   if (mysql_select_db(sock, database))
   {
     DBerror(sock, "when selecting the database");
-    return 1;
+    DBUG_RETURN(1);
   }
-  return 0;
+  DBUG_RETURN(0);
 } /* use_db */
 
 static int disable_binlog()
@@ -705,80 +843,127 @@ static int disable_binlog()
   return run_query(stmt);
 }
 
-static int handle_request_for_tables(char *tables, size_t length)
+static int handle_request_for_tables(char *tables, size_t length,
+                                     my_bool view, my_bool dont_quote)
 {
   char *query, *end, options[100], message[100];
+  char table_name_buff[NAME_CHAR_LEN*2*2+1], *table_name;
   size_t query_length= 0, query_size= sizeof(char)*(length+110);
   const char *op = 0;
+  const char *tab_view;
+  DBUG_ENTER("handle_request_for_tables");
 
   options[0] = 0;
+  tab_view= view ? " VIEW " : " TABLE ";
   end = options;
   switch (what_to_do) {
   case DO_CHECK:
     op = "CHECK";
-    if (opt_quick)              end = strmov(end, " QUICK");
-    if (opt_fast)               end = strmov(end, " FAST");
-    if (opt_medium_check)       end = strmov(end, " MEDIUM"); /* Default */
-    if (opt_extended)           end = strmov(end, " EXTENDED");
-    if (opt_check_only_changed) end = strmov(end, " CHANGED");
+    if (view)
+    {
+      if (opt_fast || opt_check_only_changed)
+        DBUG_RETURN(0);
+    }
+    else
+    {
+      if (opt_quick)              end = strmov(end, " QUICK");
+      if (opt_fast)               end = strmov(end, " FAST");
+      if (opt_extended)           end = strmov(end, " EXTENDED");
+      if (opt_medium_check)       end = strmov(end, " MEDIUM"); /* Default */
+      if (opt_check_only_changed) end = strmov(end, " CHANGED");
+    }
     if (opt_upgrade)            end = strmov(end, " FOR UPGRADE");
     break;
   case DO_REPAIR:
-    op= (opt_write_binlog) ? "REPAIR" : "REPAIR NO_WRITE_TO_BINLOG";
-    if (opt_quick)              end = strmov(end, " QUICK");
-    if (opt_extended)           end = strmov(end, " EXTENDED");
-    if (opt_frm)                end = strmov(end, " USE_FRM");
+    op= opt_write_binlog ?  "REPAIR" : "REPAIR NO_WRITE_TO_BINLOG";
+    if (view)
+    {
+      if (opt_do_views == DO_VIEWS_FROM_MYSQL) end = strmov(end, " FROM MYSQL");
+    }
+    else
+    {
+      if (opt_quick)    end = strmov(end, " QUICK");
+      if (opt_extended) end = strmov(end, " EXTENDED");
+      if (opt_frm)      end = strmov(end, " USE_FRM");
+    }
     break;
   case DO_ANALYZE:
+    DBUG_ASSERT(!view);
     op= (opt_write_binlog) ? "ANALYZE" : "ANALYZE NO_WRITE_TO_BINLOG";
     break;
   case DO_OPTIMIZE:
+    DBUG_ASSERT(!view);
     op= (opt_write_binlog) ? "OPTIMIZE" : "OPTIMIZE NO_WRITE_TO_BINLOG";
     break;
-  case DO_UPGRADE:
-    return fix_table_storage_name(tables);
+  case DO_FIX_NAMES:
+    DBUG_ASSERT(!view);
+    DBUG_RETURN(fix_table_storage_name(tables));
   }
 
   if (!(query =(char *) my_malloc(query_size, MYF(MY_WME))))
-  {
-    return 1;
-  }
-  if (opt_all_in_1)
+    DBUG_RETURN(1);
+  if (dont_quote)
   {
     DBUG_ASSERT(strlen(op)+strlen(tables)+strlen(options)+8+1 <= query_size);
 
     /* No backticks here as we added them before */
-    query_length= sprintf(query, "%s TABLE %s %s", op, tables, options);
+    query_length= sprintf(query, "%s%s%s %s", op,
+                          tab_view, tables, options);
+    table_name= tables;
   }
   else
   {
-    char *ptr;
+    char *ptr, *org;
 
-    ptr= strmov(strmov(query, op), " TABLE ");
+    org= ptr= strmov(strmov(query, op), tab_view);
     ptr= fix_table_name(ptr, tables);
+    strmake(table_name_buff, org, min((int) sizeof(table_name_buff)-1,
+                                      (int) (ptr - org)));
+    table_name= table_name_buff;
     ptr= strxmov(ptr, " ", options, NullS);
     query_length= (size_t) (ptr - query);
   }
   if (mysql_real_query(sock, query, query_length))
   {
-    sprintf(message, "when executing '%s TABLE ... %s'", op, options);
+    sprintf(message, "when executing '%s%s... %s'", op, tab_view, options);
     DBerror(sock, message);
-    return 1;
+    my_free(query);
+    DBUG_RETURN(1);
   }
   print_result();
+  if (opt_flush_tables)
+  {
+    query_length= sprintf(query, "FLUSH TABLES %s", table_name);
+    if (mysql_real_query(sock, query, query_length))
+    {
+      DBerror(sock, query);
+      my_free(query);
+      DBUG_RETURN(1);
+    }
+  }
   my_free(query);
-  return 0;
+  DBUG_RETURN(0);
 }
 
+static void insert_table_name(DYNAMIC_ARRAY *arr, char *in, size_t dblen)
+{
+  char buf[NAME_LEN*2+2];
+  in[dblen]= 0;
+  my_snprintf(buf, sizeof(buf), "%`s.%`s", in, in + dblen + 1);
+  insert_dynamic(arr, (uchar*) buf);
+}
 
 static void print_result()
 {
   MYSQL_RES *res;
   MYSQL_ROW row;
-  char prev[NAME_LEN*2+2];
+  char prev[(NAME_LEN+9)*3+2];
   char prev_alter[MAX_ALTER_STR_SIZE];
+  size_t length_of_db= strlen(sock->db);
   uint i;
   my_bool found_error=0, table_rebuild=0;
+  DYNAMIC_ARRAY *array4repair= &tables4repair;
+  DBUG_ENTER("print_result");
 
   res = mysql_use_result(sock);
 
@@ -804,11 +989,12 @@ static void print_result()
           if (prev_alter[0])
             insert_dynamic(&alter_table_cmds, (uchar*) prev_alter);
           else
-            insert_dynamic(&tables4rebuild, (uchar*) prev);
+            insert_table_name(&tables4rebuild, prev, length_of_db);
         }
         else
-          insert_dynamic(&tables4repair, (uchar*) prev);
+          insert_table_name(array4repair, prev, length_of_db);
       }
+      array4repair= &tables4repair;
       found_error=0;
       table_rebuild=0;
       prev_alter[0]= 0;
@@ -819,7 +1005,18 @@ static void print_result()
       printf("%-50s %s", row[0], row[3]);
     else if (!status && changed)
     {
-      printf("%s\n%-9s: %s", row[0], row[2], row[3]);
+      /*
+        If the error message includes REPAIR TABLE, we assume it means
+        we have to run upgrade on it. In this case we write a nicer message
+        than "Please do "REPAIR TABLE""...
+      */
+      if (!strcmp(row[2],"error") && strstr(row[3],"REPAIR "))
+      {
+        printf("%-50s %s", row[0], "Needs upgrade");
+        array4repair= strstr(row[3], "VIEW") ? &views4repair : &tables4repair;
+      }
+      else
+        printf("%s\n%-9s: %s", row[0], row[2], row[3]);
       if (opt_auto_repair && strcmp(row[2],"note"))
       {
         const char *alter_txt= strstr(row[3], "ALTER TABLE");
@@ -862,19 +1059,20 @@ static void print_result()
       if (prev_alter[0])
         insert_dynamic(&alter_table_cmds, (uchar*) prev_alter);
       else
-        insert_dynamic(&tables4rebuild, (uchar*) prev);
+        insert_table_name(&tables4rebuild, prev, length_of_db);
     }
     else
-      insert_dynamic(&tables4repair, (uchar*) prev);
+      insert_table_name(array4repair, prev, length_of_db);
   }
   mysql_free_result(res);
+  DBUG_VOID_RETURN;
 }
 
 
 static int dbConnect(char *host, char *user, char *passwd)
 {
   DBUG_ENTER("dbConnect");
-  if (verbose)
+  if (verbose > 1)
   {
     fprintf(stderr, "# Connecting to %s...\n", host ? host : "localhost");
   }
@@ -888,10 +1086,8 @@ static int dbConnect(char *host, char *user, char *passwd)
 #endif
   if (opt_protocol)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
-#ifdef HAVE_SMEM
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
-#endif
 
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(&mysql_connection, MYSQL_PLUGIN_DIR, opt_plugin_dir);
@@ -899,29 +1095,25 @@ static int dbConnect(char *host, char *user, char *passwd)
   if (opt_default_auth && *opt_default_auth)
     mysql_options(&mysql_connection, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
-  if (using_opt_enable_cleartext_plugin)
-    mysql_options(&mysql_connection, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
-                  (char *) &opt_enable_cleartext_plugin);
-
   mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
-  if (!(sock = mysql_connect_ssl_check(&mysql_connection, host, user, passwd,
-                                       NULL, opt_mysql_port,
-                                       opt_mysql_unix_port, 0,
-                                       opt_ssl_required)))
+  if (!(sock = mysql_real_connect(&mysql_connection, host, user, passwd,
+         NULL, opt_mysql_port, opt_mysql_unix_port, 0)))
   {
     DBerror(&mysql_connection, "when trying to connect");
-    return 1;
+    DBUG_RETURN(1);
   }
   mysql_connection.reconnect= 1;
-  return 0;
+  DBUG_RETURN(0);
 } /* dbConnect */
 
 
 static void dbDisconnect(char *host)
 {
-  if (verbose)
+  DBUG_ENTER("dbDisconnect");
+  if (verbose > 1)
     fprintf(stderr, "# Disconnecting from %s...\n", host ? host : "localhost");
   mysql_close(sock);
+  DBUG_VOID_RETURN;
 } /* dbDisconnect */
 
 
@@ -937,46 +1129,54 @@ static void DBerror(MYSQL *mysql, const char *when)
 
 static void safe_exit(int error)
 {
+  DBUG_ENTER("safe_exit");
   if (!first_error)
     first_error= error;
   if (ignore_errors)
-    return;
+    DBUG_VOID_RETURN;
   if (sock)
     mysql_close(sock);
+  sf_leaking_memory= 1; /* don't check for memory leaks */
   exit(error);
+  DBUG_VOID_RETURN;
 }
 
 
 int main(int argc, char **argv)
 {
+  int ret= EX_USAGE;
+  char **defaults_argv;
+
   MY_INIT(argv[0]);
+  sf_leaking_memory=1; /* don't report memory leaks on early exits */
   /*
   ** Check out the args
   */
-  if (get_options(&argc, &argv))
-  {
-    my_end(my_end_arg);
-    exit(EX_USAGE);
-  }
-  if (dbConnect(current_host, current_user, opt_password))
-    exit(EX_MYSQLERR);
+  if (load_defaults("my", load_default_groups, &argc, &argv))
+    goto end2;
 
+  defaults_argv= argv;
+  if (get_options(&argc, &argv))
+    goto end1;
+  sf_leaking_memory=0; /* from now on we cleanup properly */
+
+  ret= EX_MYSQLERR;
+  if (dbConnect(current_host, current_user, opt_password))
+    goto end1;
+
+  ret= 1;
   if (!opt_write_binlog)
   {
-    if (disable_binlog()) {
-      first_error= 1;
+    if (disable_binlog())
       goto end;
-    }
   }
 
   if (opt_auto_repair &&
       (my_init_dynamic_array(&tables4repair, sizeof(char)*(NAME_LEN*2+2),16,64) ||
+       my_init_dynamic_array(&views4repair, sizeof(char)*(NAME_LEN*2+2),16,64) ||
        my_init_dynamic_array(&tables4rebuild, sizeof(char)*(NAME_LEN*2+2),16,64) ||
        my_init_dynamic_array(&alter_table_cmds, MAX_ALTER_STR_SIZE, 0, 1)))
-  {
-    first_error = 1;
     goto end;
-  }
 
   if (opt_alldbs)
     process_all_databases();
@@ -996,24 +1196,37 @@ int main(int argc, char **argv)
     for (i = 0; i < tables4repair.elements ; i++)
     {
       char *name= (char*) dynamic_array_ptr(&tables4repair, i);
-      handle_request_for_tables(name, fixed_name_length(name));
+      handle_request_for_tables(name, fixed_name_length(name), FALSE, TRUE);
     }
     for (i = 0; i < tables4rebuild.elements ; i++)
       rebuild_table((char*) dynamic_array_ptr(&tables4rebuild, i));
     for (i = 0; i < alter_table_cmds.elements ; i++)
       run_query((char*) dynamic_array_ptr(&alter_table_cmds, i));
+    if (!opt_silent && views4repair.elements)
+      puts("\nRepairing views");
+    for (i = 0; i < views4repair.elements ; i++)
+    {
+      char *name= (char*) dynamic_array_ptr(&views4repair, i);
+      handle_request_for_tables(name, fixed_name_length(name), TRUE, TRUE);
+    }
   }
+  ret= test(first_error);
+
  end:
   dbDisconnect(current_host);
   if (opt_auto_repair)
   {
+    delete_dynamic(&views4repair);
     delete_dynamic(&tables4repair);
     delete_dynamic(&tables4rebuild);
+    delete_dynamic(&alter_table_cmds);
   }
+ end1:
   my_free(opt_password);
-#ifdef HAVE_SMEM
   my_free(shared_memory_base_name);
-#endif
+  mysql_library_end();
+  free_defaults(defaults_argv);
+ end2:
   my_end(my_end_arg);
-  return(first_error!=0);
+  return ret;
 } /* main */

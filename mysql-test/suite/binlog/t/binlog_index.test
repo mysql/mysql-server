@@ -9,11 +9,13 @@ source include/have_debug.inc;
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 call mtr.add_suppression('Attempting backtrace');
-call mtr.add_suppression('MSYQL_BIN_LOG::purge_logs failed to process registered files that would be purged.');
-call mtr.add_suppression('MSYQL_BIN_LOG::open failed to sync the index file');
+call mtr.add_suppression('MYSQL_BIN_LOG::purge_logs failed to process registered files that would be purged.');
+call mtr.add_suppression('MYSQL_BIN_LOG::open failed to sync the index file');
 call mtr.add_suppression('Turning logging off for the whole duration of the MySQL server process.');
 call mtr.add_suppression('Could not open .*');
-call mtr.add_suppression('MSYQL_BIN_LOG::purge_logs failed to clean registers before purging logs.');
+call mtr.add_suppression('MYSQL_BIN_LOG::purge_logs failed to clean registers before purging logs.');
+flush tables;
+
 let $old=`select @@debug`;
 
 RESET MASTER;
@@ -31,6 +33,7 @@ flush logs;
 
 source include/show_binary_logs.inc;
 remove_file $MYSQLD_DATADIR/master-bin.000001;
+flush tables;
 
 # there must be a warning with file names
 replace_regex /\.[\\\/]master/master/;
@@ -87,7 +90,7 @@ reset master;
 flush logs;
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-SET SESSION debug="+d,crash_purge_before_update_index";
+SET SESSION debug_dbug="+d,crash_purge_before_update_index";
 --error 2013
 purge binary logs TO 'master-bin.000002';
 
@@ -107,7 +110,7 @@ SELECT @index;
 flush logs;
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-SET SESSION debug="+d,crash_purge_non_critical_after_update_index";
+SET SESSION debug_dbug="+d,crash_purge_non_critical_after_update_index";
 --error 2013
 purge binary logs TO 'master-bin.000004';
 
@@ -130,7 +133,7 @@ SELECT @index;
 flush logs;
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-SET SESSION debug="+d,crash_purge_critical_after_update_index";
+SET SESSION debug_dbug="+d,crash_purge_critical_after_update_index";
 --error 2013
 purge binary logs TO 'master-bin.000006';
 
@@ -153,7 +156,7 @@ SELECT @index;
 
 --echo # crash_create_non_critical_before_update_index
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-SET SESSION debug="+d,crash_create_non_critical_before_update_index";
+SET SESSION debug_dbug="+d,crash_create_non_critical_before_update_index";
 --error 2013
 flush logs;
 
@@ -171,7 +174,7 @@ SELECT @index;
 
 --echo # crash_create_critical_before_update_index
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-SET SESSION debug="+d,crash_create_critical_before_update_index";
+SET SESSION debug_dbug="+d,crash_create_critical_before_update_index";
 --error 2013
 flush logs;
 
@@ -191,7 +194,7 @@ SELECT @index;
 
 --echo # crash_create_after_update_index
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-SET SESSION debug="+d,crash_create_after_update_index";
+SET SESSION debug_dbug="+d,crash_create_after_update_index";
 --error 2013
 flush logs;
 
@@ -219,7 +222,7 @@ SELECT @index;
 SELECT @index;
 
 --echo # fault_injection_registering_index
-SET SESSION debug="+d,fault_injection_registering_index";
+SET SESSION debug_dbug="+d,fault_injection_registering_index";
 -- replace_regex /\.[\\\/]master/master/
 -- error ER_CANT_OPEN_FILE
 flush logs;
@@ -239,7 +242,7 @@ SELECT @index;
 SELECT @index;
 
 --echo # fault_injection_updating_index
-SET SESSION debug="+d,fault_injection_updating_index";
+SET SESSION debug_dbug="+d,fault_injection_updating_index";
 -- replace_regex /\.[\\\/]master/master/
 -- error ER_CANT_OPEN_FILE
 flush logs;
@@ -258,6 +261,6 @@ SELECT @index;
 -- replace_regex /\.[\\\/]master/master/
 SELECT @index;
 
-eval SET SESSION debug="$old";
+eval SET SESSION debug_dbug="$old";
 
 --echo End of tests

@@ -1,0 +1,13 @@
+{
+ global:
+ _mysql_plugin_interface_version_;
+ _mysql_sizeof_struct_st_plugin_;
+ _mysql_plugin_declarations_;
+ thd_wait_service;
+ my_snprintf_service;
+ thd_alloc_service;
+ thd_kill_statement_service;
+ debug_sync_service;
+ local:
+ *;
+};

@@ -1,3 +1,6 @@
+# Slow test, don't run during staging part
+source include/not_staging.inc;
+
 #
 # Bug#6148 ()
 #
@@ -15,7 +18,7 @@ sync_slave_with_master;
 stop slave;
 --source include/wait_for_slave_to_stop.inc
 connection master;
-let $1=5000;
+let $1=2500;
 disable_query_log;
 while ($1)
 {

@@ -1,0 +1,10 @@
+LIBRARY "wixca"
+VERSION 1.0
+EXPORTS
+PresetDatabaseProperties
+RemoveDataDirectory
+CreateDatabaseRollback
+CheckDatabaseProperties
+CheckDataDirectoryEmpty
+CheckDBInUse
+CheckServiceUpgrades

@@ -1,0 +1,1491 @@
+set storage_engine=aria;
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (
+fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+g GEOMETRY NOT NULL,
+SPATIAL KEY(g)
+) transactional=0 row_format=page;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `fid` int(11) NOT NULL AUTO_INCREMENT,
+  `g` geometry NOT NULL,
+  PRIMARY KEY (`fid`),
+  SPATIAL KEY `g` (`g`)
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 ROW_FORMAT=PAGE TRANSACTIONAL=0
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(150 150, 150 150)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(149 149, 151 151)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(148 148, 152 152)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(147 147, 153 153)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(146 146, 154 154)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(145 145, 155 155)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(144 144, 156 156)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(143 143, 157 157)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(142 142, 158 158)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(141 141, 159 159)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(140 140, 160 160)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(139 139, 161 161)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(138 138, 162 162)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(137 137, 163 163)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(136 136, 164 164)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(135 135, 165 165)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(134 134, 166 166)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(133 133, 167 167)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(132 132, 168 168)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(131 131, 169 169)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(130 130, 170 170)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(129 129, 171 171)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(128 128, 172 172)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(127 127, 173 173)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(126 126, 174 174)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(125 125, 175 175)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(124 124, 176 176)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(123 123, 177 177)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(122 122, 178 178)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(121 121, 179 179)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(120 120, 180 180)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(119 119, 181 181)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(118 118, 182 182)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(117 117, 183 183)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(116 116, 184 184)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(115 115, 185 185)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(114 114, 186 186)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(113 113, 187 187)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(112 112, 188 188)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(111 111, 189 189)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(110 110, 190 190)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(109 109, 191 191)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(108 108, 192 192)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(107 107, 193 193)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(106 106, 194 194)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(105 105, 195 195)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(104 104, 196 196)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(103 103, 197 197)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(102 102, 198 198)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(101 101, 199 199)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(100 100, 200 200)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(99 99, 201 201)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(98 98, 202 202)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(97 97, 203 203)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(96 96, 204 204)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(95 95, 205 205)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(94 94, 206 206)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(93 93, 207 207)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(92 92, 208 208)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(91 91, 209 209)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(90 90, 210 210)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(89 89, 211 211)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(88 88, 212 212)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(87 87, 213 213)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(86 86, 214 214)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(85 85, 215 215)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(84 84, 216 216)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(83 83, 217 217)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(82 82, 218 218)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(81 81, 219 219)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(80 80, 220 220)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(79 79, 221 221)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(78 78, 222 222)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(77 77, 223 223)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(76 76, 224 224)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(75 75, 225 225)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(74 74, 226 226)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(73 73, 227 227)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(72 72, 228 228)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(71 71, 229 229)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(70 70, 230 230)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(69 69, 231 231)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(68 68, 232 232)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(67 67, 233 233)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(66 66, 234 234)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(65 65, 235 235)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(64 64, 236 236)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(63 63, 237 237)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(62 62, 238 238)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(61 61, 239 239)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(60 60, 240 240)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(59 59, 241 241)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(58 58, 242 242)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(57 57, 243 243)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(56 56, 244 244)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(55 55, 245 245)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(54 54, 246 246)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(53 53, 247 247)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(52 52, 248 248)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(51 51, 249 249)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(50 50, 250 250)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(49 49, 251 251)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(48 48, 252 252)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(47 47, 253 253)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(46 46, 254 254)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(45 45, 255 255)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(44 44, 256 256)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(43 43, 257 257)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(42 42, 258 258)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(41 41, 259 259)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(40 40, 260 260)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(39 39, 261 261)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(38 38, 262 262)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(37 37, 263 263)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(36 36, 264 264)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(35 35, 265 265)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(34 34, 266 266)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(33 33, 267 267)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(32 32, 268 268)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(31 31, 269 269)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(30 30, 270 270)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(29 29, 271 271)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(28 28, 272 272)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(27 27, 273 273)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(26 26, 274 274)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(25 25, 275 275)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(24 24, 276 276)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(23 23, 277 277)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(22 22, 278 278)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(21 21, 279 279)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(20 20, 280 280)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(19 19, 281 281)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(18 18, 282 282)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(17 17, 283 283)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(16 16, 284 284)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(15 15, 285 285)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(14 14, 286 286)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(13 13, 287 287)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(12 12, 288 288)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(11 11, 289 289)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(10 10, 290 290)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(9 9, 291 291)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(8 8, 292 292)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(7 7, 293 293)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(6 6, 294 294)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(5 5, 295 295)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(4 4, 296 296)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(3 3, 297 297)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(2 2, 298 298)'));
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(1 1, 299 299)'));
+SELECT count(*) FROM t1;
+count(*)
+150
+EXPLAIN SELECT fid, AsText(g) FROM t1 WHERE Within(g, GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))'));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	g	NULL	NULL	NULL	150	Using where
+SELECT fid, AsText(g) FROM t1 WHERE Within(g, GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))'));
+fid	AsText(g)
+1	LINESTRING(150 150,150 150)
+2	LINESTRING(149 149,151 151)
+3	LINESTRING(148 148,152 152)
+4	LINESTRING(147 147,153 153)
+5	LINESTRING(146 146,154 154)
+6	LINESTRING(145 145,155 155)
+7	LINESTRING(144 144,156 156)
+8	LINESTRING(143 143,157 157)
+9	LINESTRING(142 142,158 158)
+10	LINESTRING(141 141,159 159)
+11	LINESTRING(140 140,160 160)
+DROP TABLE t1;
+CREATE TABLE t2 (
+fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+g GEOMETRY NOT NULL
+) transactional=0 row_format=page;
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 10 * 10 - 9), Point(10 * 10, 10 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 9 * 10 - 9), Point(10 * 10, 9 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 8 * 10 - 9), Point(10 * 10, 8 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 7 * 10 - 9), Point(10 * 10, 7 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 6 * 10 - 9), Point(10 * 10, 6 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 5 * 10 - 9), Point(10 * 10, 5 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 4 * 10 - 9), Point(10 * 10, 4 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 3 * 10 - 9), Point(10 * 10, 3 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 2 * 10 - 9), Point(10 * 10, 2 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 1 * 10 - 9), Point(10 * 10, 1 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 10 * 10 - 9), Point(9 * 10, 10 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 9 * 10 - 9), Point(9 * 10, 9 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 8 * 10 - 9), Point(9 * 10, 8 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 7 * 10 - 9), Point(9 * 10, 7 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 6 * 10 - 9), Point(9 * 10, 6 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 5 * 10 - 9), Point(9 * 10, 5 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 4 * 10 - 9), Point(9 * 10, 4 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 3 * 10 - 9), Point(9 * 10, 3 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 2 * 10 - 9), Point(9 * 10, 2 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(9 * 10 - 9, 1 * 10 - 9), Point(9 * 10, 1 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 10 * 10 - 9), Point(8 * 10, 10 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 9 * 10 - 9), Point(8 * 10, 9 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 8 * 10 - 9), Point(8 * 10, 8 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 7 * 10 - 9), Point(8 * 10, 7 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 6 * 10 - 9), Point(8 * 10, 6 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 5 * 10 - 9), Point(8 * 10, 5 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 4 * 10 - 9), Point(8 * 10, 4 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 3 * 10 - 9), Point(8 * 10, 3 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 2 * 10 - 9), Point(8 * 10, 2 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(8 * 10 - 9, 1 * 10 - 9), Point(8 * 10, 1 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 10 * 10 - 9), Point(7 * 10, 10 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 9 * 10 - 9), Point(7 * 10, 9 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 8 * 10 - 9), Point(7 * 10, 8 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 7 * 10 - 9), Point(7 * 10, 7 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 6 * 10 - 9), Point(7 * 10, 6 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 5 * 10 - 9), Point(7 * 10, 5 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 4 * 10 - 9), Point(7 * 10, 4 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 3 * 10 - 9), Point(7 * 10, 3 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 2 * 10 - 9), Point(7 * 10, 2 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(7 * 10 - 9, 1 * 10 - 9), Point(7 * 10, 1 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 10 * 10 - 9), Point(6 * 10, 10 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 9 * 10 - 9), Point(6 * 10, 9 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 8 * 10 - 9), Point(6 * 10, 8 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 7 * 10 - 9), Point(6 * 10, 7 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 6 * 10 - 9), Point(6 * 10, 6 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 5 * 10 - 9), Point(6 * 10, 5 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 4 * 10 - 9), Point(6 * 10, 4 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 3 * 10 - 9), Point(6 * 10, 3 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 2 * 10 - 9), Point(6 * 10, 2 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(6 * 10 - 9, 1 * 10 - 9), Point(6 * 10, 1 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 10 * 10 - 9), Point(5 * 10, 10 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 9 * 10 - 9), Point(5 * 10, 9 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 8 * 10 - 9), Point(5 * 10, 8 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 7 * 10 - 9), Point(5 * 10, 7 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 6 * 10 - 9), Point(5 * 10, 6 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 5 * 10 - 9), Point(5 * 10, 5 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 4 * 10 - 9), Point(5 * 10, 4 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 3 * 10 - 9), Point(5 * 10, 3 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 2 * 10 - 9), Point(5 * 10, 2 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(5 * 10 - 9, 1 * 10 - 9), Point(5 * 10, 1 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 10 * 10 - 9), Point(4 * 10, 10 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 9 * 10 - 9), Point(4 * 10, 9 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 8 * 10 - 9), Point(4 * 10, 8 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 7 * 10 - 9), Point(4 * 10, 7 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 6 * 10 - 9), Point(4 * 10, 6 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 5 * 10 - 9), Point(4 * 10, 5 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 4 * 10 - 9), Point(4 * 10, 4 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 3 * 10 - 9), Point(4 * 10, 3 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 2 * 10 - 9), Point(4 * 10, 2 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(4 * 10 - 9, 1 * 10 - 9), Point(4 * 10, 1 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 10 * 10 - 9), Point(3 * 10, 10 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 9 * 10 - 9), Point(3 * 10, 9 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 8 * 10 - 9), Point(3 * 10, 8 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 7 * 10 - 9), Point(3 * 10, 7 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 6 * 10 - 9), Point(3 * 10, 6 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 5 * 10 - 9), Point(3 * 10, 5 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 4 * 10 - 9), Point(3 * 10, 4 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 3 * 10 - 9), Point(3 * 10, 3 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 2 * 10 - 9), Point(3 * 10, 2 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(3 * 10 - 9, 1 * 10 - 9), Point(3 * 10, 1 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 10 * 10 - 9), Point(2 * 10, 10 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 9 * 10 - 9), Point(2 * 10, 9 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 8 * 10 - 9), Point(2 * 10, 8 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 7 * 10 - 9), Point(2 * 10, 7 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 6 * 10 - 9), Point(2 * 10, 6 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 5 * 10 - 9), Point(2 * 10, 5 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 4 * 10 - 9), Point(2 * 10, 4 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 3 * 10 - 9), Point(2 * 10, 3 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 2 * 10 - 9), Point(2 * 10, 2 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(2 * 10 - 9, 1 * 10 - 9), Point(2 * 10, 1 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 10 * 10 - 9), Point(1 * 10, 10 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 9 * 10 - 9), Point(1 * 10, 9 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 8 * 10 - 9), Point(1 * 10, 8 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 7 * 10 - 9), Point(1 * 10, 7 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 6 * 10 - 9), Point(1 * 10, 6 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 5 * 10 - 9), Point(1 * 10, 5 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 4 * 10 - 9), Point(1 * 10, 4 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 3 * 10 - 9), Point(1 * 10, 3 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 2 * 10 - 9), Point(1 * 10, 2 * 10))));
+INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(1 * 10 - 9, 1 * 10 - 9), Point(1 * 10, 1 * 10))));
+ALTER TABLE t2 ADD SPATIAL KEY(g);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `fid` int(11) NOT NULL AUTO_INCREMENT,
+  `g` geometry NOT NULL,
+  PRIMARY KEY (`fid`),
+  SPATIAL KEY `g` (`g`)
+) ENGINE=Aria AUTO_INCREMENT=101 DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 ROW_FORMAT=PAGE TRANSACTIONAL=0
+SELECT count(*) FROM t2;
+count(*)
+100
+EXPLAIN SELECT fid, AsText(g) FROM t2 WHERE Within(g, 
+GeomFromText('Polygon((40 40,60 40,60 60,40 60,40 40))'));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	g	g	34	NULL	1	Using where
+SELECT fid, AsText(g) FROM t2 WHERE Within(g, 
+GeomFromText('Polygon((40 40,60 40,60 60,40 60,40 40))'));
+fid	AsText(g)
+45	LINESTRING(51 51,60 60)
+46	LINESTRING(51 41,60 50)
+55	LINESTRING(41 51,50 60)
+56	LINESTRING(41 41,50 50)
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 10 * 10 - 9), Point(10 * 10, 10 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+99
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 9 * 10 - 9), Point(10 * 10, 9 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+98
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 8 * 10 - 9), Point(10 * 10, 8 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+97
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 7 * 10 - 9), Point(10 * 10, 7 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+96
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 6 * 10 - 9), Point(10 * 10, 6 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+95
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 5 * 10 - 9), Point(10 * 10, 5 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+94
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 4 * 10 - 9), Point(10 * 10, 4 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+93
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 3 * 10 - 9), Point(10 * 10, 3 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+92
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 2 * 10 - 9), Point(10 * 10, 2 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+91
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 1 * 10 - 9), Point(10 * 10, 1 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+90
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 10 * 10 - 9), Point(9 * 10, 10 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+89
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 9 * 10 - 9), Point(9 * 10, 9 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+88
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 8 * 10 - 9), Point(9 * 10, 8 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+87
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 7 * 10 - 9), Point(9 * 10, 7 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+86
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 6 * 10 - 9), Point(9 * 10, 6 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+85
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 5 * 10 - 9), Point(9 * 10, 5 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+84
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 4 * 10 - 9), Point(9 * 10, 4 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+83
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 3 * 10 - 9), Point(9 * 10, 3 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+82
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 2 * 10 - 9), Point(9 * 10, 2 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+81
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(9 * 10 - 9, 1 * 10 - 9), Point(9 * 10, 1 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+80
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 10 * 10 - 9), Point(8 * 10, 10 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+79
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 9 * 10 - 9), Point(8 * 10, 9 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+78
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 8 * 10 - 9), Point(8 * 10, 8 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+77
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 7 * 10 - 9), Point(8 * 10, 7 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+76
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 6 * 10 - 9), Point(8 * 10, 6 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+75
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 5 * 10 - 9), Point(8 * 10, 5 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+74
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 4 * 10 - 9), Point(8 * 10, 4 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+73
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 3 * 10 - 9), Point(8 * 10, 3 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+72
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 2 * 10 - 9), Point(8 * 10, 2 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+71
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(8 * 10 - 9, 1 * 10 - 9), Point(8 * 10, 1 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+70
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 10 * 10 - 9), Point(7 * 10, 10 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+69
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 9 * 10 - 9), Point(7 * 10, 9 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+68
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 8 * 10 - 9), Point(7 * 10, 8 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+67
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 7 * 10 - 9), Point(7 * 10, 7 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+66
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 6 * 10 - 9), Point(7 * 10, 6 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+65
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 5 * 10 - 9), Point(7 * 10, 5 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+64
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 4 * 10 - 9), Point(7 * 10, 4 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+63
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 3 * 10 - 9), Point(7 * 10, 3 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+62
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 2 * 10 - 9), Point(7 * 10, 2 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+61
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(7 * 10 - 9, 1 * 10 - 9), Point(7 * 10, 1 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+60
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 10 * 10 - 9), Point(6 * 10, 10 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+59
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 9 * 10 - 9), Point(6 * 10, 9 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+58
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 8 * 10 - 9), Point(6 * 10, 8 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+57
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 7 * 10 - 9), Point(6 * 10, 7 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+56
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 6 * 10 - 9), Point(6 * 10, 6 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+55
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 5 * 10 - 9), Point(6 * 10, 5 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+54
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 4 * 10 - 9), Point(6 * 10, 4 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+53
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 3 * 10 - 9), Point(6 * 10, 3 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+52
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 2 * 10 - 9), Point(6 * 10, 2 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+51
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(6 * 10 - 9, 1 * 10 - 9), Point(6 * 10, 1 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+50
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 10 * 10 - 9), Point(5 * 10, 10 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+49
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 9 * 10 - 9), Point(5 * 10, 9 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+48
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 8 * 10 - 9), Point(5 * 10, 8 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+47
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 7 * 10 - 9), Point(5 * 10, 7 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+46
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 6 * 10 - 9), Point(5 * 10, 6 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+45
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 5 * 10 - 9), Point(5 * 10, 5 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+44
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 4 * 10 - 9), Point(5 * 10, 4 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+43
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 3 * 10 - 9), Point(5 * 10, 3 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+42
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 2 * 10 - 9), Point(5 * 10, 2 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+41
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(5 * 10 - 9, 1 * 10 - 9), Point(5 * 10, 1 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+40
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 10 * 10 - 9), Point(4 * 10, 10 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+39
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 9 * 10 - 9), Point(4 * 10, 9 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+38
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 8 * 10 - 9), Point(4 * 10, 8 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+37
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 7 * 10 - 9), Point(4 * 10, 7 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+36
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 6 * 10 - 9), Point(4 * 10, 6 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+35
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 5 * 10 - 9), Point(4 * 10, 5 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+34
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 4 * 10 - 9), Point(4 * 10, 4 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+33
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 3 * 10 - 9), Point(4 * 10, 3 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+32
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 2 * 10 - 9), Point(4 * 10, 2 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+31
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(4 * 10 - 9, 1 * 10 - 9), Point(4 * 10, 1 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+30
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 10 * 10 - 9), Point(3 * 10, 10 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+29
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 9 * 10 - 9), Point(3 * 10, 9 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+28
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 8 * 10 - 9), Point(3 * 10, 8 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+27
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 7 * 10 - 9), Point(3 * 10, 7 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+26
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 6 * 10 - 9), Point(3 * 10, 6 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+25
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 5 * 10 - 9), Point(3 * 10, 5 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+24
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 4 * 10 - 9), Point(3 * 10, 4 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+23
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 3 * 10 - 9), Point(3 * 10, 3 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+22
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 2 * 10 - 9), Point(3 * 10, 2 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+21
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(3 * 10 - 9, 1 * 10 - 9), Point(3 * 10, 1 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+20
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 10 * 10 - 9), Point(2 * 10, 10 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+19
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 9 * 10 - 9), Point(2 * 10, 9 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+18
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 8 * 10 - 9), Point(2 * 10, 8 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+17
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 7 * 10 - 9), Point(2 * 10, 7 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+16
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 6 * 10 - 9), Point(2 * 10, 6 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+15
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 5 * 10 - 9), Point(2 * 10, 5 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+14
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 4 * 10 - 9), Point(2 * 10, 4 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+13
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 3 * 10 - 9), Point(2 * 10, 3 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+12
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 2 * 10 - 9), Point(2 * 10, 2 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+11
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(2 * 10 - 9, 1 * 10 - 9), Point(2 * 10, 1 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+10
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 10 * 10 - 9), Point(1 * 10, 10 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+9
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 9 * 10 - 9), Point(1 * 10, 9 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+8
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 8 * 10 - 9), Point(1 * 10, 8 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+7
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 7 * 10 - 9), Point(1 * 10, 7 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+6
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 6 * 10 - 9), Point(1 * 10, 6 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+5
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 5 * 10 - 9), Point(1 * 10, 5 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+4
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 4 * 10 - 9), Point(1 * 10, 4 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+3
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 3 * 10 - 9), Point(1 * 10, 3 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+2
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 2 * 10 - 9), Point(1 * 10, 2 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+1
+DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(1 * 10 - 9, 1 * 10 - 9), Point(1 * 10, 1 * 10)))));
+SELECT count(*) FROM t2;
+count(*)
+0
+DROP TABLE t2;
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+CREATE TABLE t1 (a geometry NOT NULL, SPATIAL (a)) transactional=0 row_format=page;
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+drop table t1;
+CREATE TABLE t1 (
+fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+g GEOMETRY NOT NULL,
+SPATIAL KEY(g)
+) transactional=0 row_format=page;
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(1 2, 2 3)')),(GeomFromText('LineString(1 2, 2 4)'));
+drop table t1;
+CREATE TABLE t1 (
+line LINESTRING NOT NULL,
+kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
+name VARCHAR(32),
+SPATIAL KEY (line)
+) transactional=0 row_format=page;
+ALTER TABLE t1 DISABLE KEYS;
+INSERT INTO t1 (name, kind, line) VALUES 
+("Aadaouane", "pp", GeomFromText("LINESTRING(32.816667 35.983333)")),
+("Aadassiye", "pp", GeomFromText("LINESTRING(35.816667 36.216667)")),
+("Aadbel", "pp", GeomFromText("LINESTRING(34.533333 36.100000)")),
+("Aadchit", "pp", GeomFromText("LINESTRING(33.347222 35.423611)")),
+("Aadchite", "pp", GeomFromText("LINESTRING(33.347222 35.423611)")),
+("Aadchit el Qoussair", "pp", GeomFromText("LINESTRING(33.283333 35.483333)")),
+("Aaddaye", "pp", GeomFromText("LINESTRING(36.716667 40.833333)")),
+("'Aadeissa", "pp", GeomFromText("LINESTRING(32.823889 35.698889)")),
+("Aaderup", "pp", GeomFromText("LINESTRING(55.216667 11.766667)")),
+("Qalaat Aades", "pp", GeomFromText("LINESTRING(33.503333 35.377500)")),
+("A ad'ino", "pp", GeomFromText("LINESTRING(54.812222 38.209167)")),
+("Aadi Noia", "pp", GeomFromText("LINESTRING(13.800000 39.833333)")),
+("Aad La Macta", "pp", GeomFromText("LINESTRING(35.779444 -0.129167)")),
+("Aadland", "pp", GeomFromText("LINESTRING(60.366667 5.483333)")),
+("Aadliye", "pp", GeomFromText("LINESTRING(33.366667 36.333333)")),
+("Aadloun", "pp", GeomFromText("LINESTRING(33.403889 35.273889)")),
+("Aadma", "pp", GeomFromText("LINESTRING(58.798333 22.663889)")),
+("Aadma Asundus", "pp", GeomFromText("LINESTRING(58.798333 22.663889)")),
+("Aadmoun", "pp", GeomFromText("LINESTRING(34.150000 35.650000)")),
+("Aadneram", "pp", GeomFromText("LINESTRING(59.016667 6.933333)")),
+("Aadneskaar", "pp", GeomFromText("LINESTRING(58.083333 6.983333)")),
+("Aadorf", "pp", GeomFromText("LINESTRING(47.483333 8.900000)")),
+("Aadorp", "pp", GeomFromText("LINESTRING(52.366667 6.633333)")),
+("Aadouane", "pp", GeomFromText("LINESTRING(32.816667 35.983333)")),
+("Aadoui", "pp", GeomFromText("LINESTRING(34.450000 35.983333)")),
+("Aadouiye", "pp", GeomFromText("LINESTRING(34.583333 36.183333)")),
+("Aadouss", "pp", GeomFromText("LINESTRING(33.512500 35.601389)")),
+("Aadra", "pp", GeomFromText("LINESTRING(33.616667 36.500000)")),
+("Aadzi", "pp", GeomFromText("LINESTRING(38.100000 64.850000)"));
+ALTER TABLE t1 ENABLE KEYS;
+INSERT INTO t1 (name, kind, line) VALUES ("austria", "pp", GeomFromText('LINESTRING(14.9906 48.9887,14.9946 48.9904,14.9947 48.9916)'));
+drop table t1;
+CREATE TABLE t1 (st varchar(100));
+INSERT INTO t1 VALUES ("Fake string");
+CREATE TABLE t2 (geom GEOMETRY NOT NULL, SPATIAL KEY gk(geom)) transactional=0 row_format=page;
+INSERT INTO t2 SELECT GeomFromText(st) FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+drop table t1, t2;
+CREATE TABLE t1 (`geometry` geometry NOT NULL default '',SPATIAL KEY `gndx` (`geometry`)) transactional=0 row_format=page DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1101	BLOB/TEXT column 'geometry' can't have a default value
+INSERT INTO t1 (geometry) VALUES
+(PolygonFromText('POLYGON((-18.6086111000 -66.9327777000, -18.6055555000
+-66.8158332999, -18.7186111000 -66.8102777000, -18.7211111000 -66.9269443999,
+-18.6086111000 -66.9327777000))'));
+INSERT INTO t1 (geometry) VALUES
+(PolygonFromText('POLYGON((-65.7402776999 -96.6686111000, -65.7372222000
+-96.5516666000, -65.8502777000 -96.5461111000, -65.8527777000 -96.6627777000,
+-65.7402776999 -96.6686111000))'));
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+CREATE TABLE t1 (
+c1 geometry NOT NULL default '',
+SPATIAL KEY i1 (c1)
+) transactional=0 row_format=page DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1101	BLOB/TEXT column 'c1' can't have a default value
+INSERT INTO t1 (c1) VALUES (
+PolygonFromText('POLYGON((-18.6086111000 -66.9327777000,
+                            -18.6055555000 -66.8158332999,
+                            -18.7186111000 -66.8102777000,
+                            -18.7211111000 -66.9269443999,
+                            -18.6086111000 -66.9327777000))'));
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE t1 (
+c1 geometry NOT NULL default '',
+SPATIAL KEY i1 (c1)
+) transactional=0 row_format=page DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1101	BLOB/TEXT column 'c1' can't have a default value
+INSERT INTO t1 (c1) VALUES (
+PolygonFromText('POLYGON((-18.6086111000 -66.9327777000,
+                            -18.6055555000 -66.8158332999,
+                            -18.7186111000 -66.8102777000,
+                            -18.7211111000 -66.9269443999,
+                            -18.6086111000 -66.9327777000))'));
+INSERT INTO t1 (c1) VALUES (
+PolygonFromText('POLYGON((-65.7402776999 -96.6686111000,
+                            -65.7372222000 -96.5516666000,
+                            -65.8502777000 -96.5461111000,
+                            -65.8527777000 -96.6627777000,
+                            -65.7402776999 -96.6686111000))'));
+INSERT INTO t1 (c1) VALUES (
+PolygonFromText('POLYGON((-18.6086111000 -66.9327777000,
+                            -18.6055555000 -66.8158332999,
+                            -18.7186111000 -66.8102777000,
+                            -18.7211111000 -66.9269443999,
+                            -18.6086111000 -66.9327777000))'));
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE t1 (foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) ) transactional=0 row_format=page;
+INSERT INTO t1 (foo) VALUES (PointFromWKB(POINT(1,1)));
+INSERT INTO t1 (foo) VALUES (PointFromWKB(POINT(1,0)));
+INSERT INTO t1 (foo) VALUES (PointFromWKB(POINT(0,1)));
+INSERT INTO t1 (foo) VALUES (PointFromWKB(POINT(0,0)));
+SELECT 1 FROM t1 WHERE foo != PointFromWKB(POINT(0,0));
+1
+1
+1
+1
+DROP TABLE t1;
+CREATE TABLE t1 (id bigint(12) unsigned NOT NULL auto_increment,
+c2 varchar(15) collate utf8_bin default NULL,
+c1 varchar(15) collate utf8_bin default NULL,
+c3 varchar(10) collate utf8_bin default NULL,
+spatial_point point NOT NULL,
+PRIMARY KEY(id),
+SPATIAL KEY (spatial_point)
+)transactional=0 row_format=page DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
+INSERT INTO t1 (c2, c1, c3, spatial_point) VALUES
+('y', 's', 'j', GeomFromText('POINT(167 74)')),
+('r', 'n', 'd', GeomFromText('POINT(215 118)')),
+('g', 'n', 'e', GeomFromText('POINT(203 98)')),
+('h', 'd', 'd', GeomFromText('POINT(54 193)')),
+('r', 'x', 'y', GeomFromText('POINT(47 69)')),
+('t', 'q', 'r', GeomFromText('POINT(109 42)')),
+('a', 'z', 'd', GeomFromText('POINT(0 154)')),
+('x', 'v', 'o', GeomFromText('POINT(174 131)')),
+('b', 'r', 'a', GeomFromText('POINT(114 253)')),
+('x', 'z', 'i', GeomFromText('POINT(163 21)')),
+('w', 'p', 'i', GeomFromText('POINT(42 102)')),
+('g', 'j', 'j', GeomFromText('POINT(170 133)')),
+('m', 'g', 'n', GeomFromText('POINT(28 22)')),
+('b', 'z', 'h', GeomFromText('POINT(174 28)')),
+('q', 'k', 'f', GeomFromText('POINT(233 73)')),
+('w', 'w', 'a', GeomFromText('POINT(124 200)')),
+('t', 'j', 'w', GeomFromText('POINT(252 101)')),
+('d', 'r', 'd', GeomFromText('POINT(98 18)')),
+('w', 'o', 'y', GeomFromText('POINT(165 31)')),
+('y', 'h', 't', GeomFromText('POINT(14 220)')),
+('d', 'p', 'u', GeomFromText('POINT(223 196)')),
+('g', 'y', 'g', GeomFromText('POINT(207 96)')),
+('x', 'm', 'n', GeomFromText('POINT(214 3)')),
+('g', 'v', 'e', GeomFromText('POINT(140 205)')),
+('g', 'm', 'm', GeomFromText('POINT(10 236)')),
+('i', 'r', 'j', GeomFromText('POINT(137 228)')),
+('w', 's', 'p', GeomFromText('POINT(115 6)')),
+('o', 'n', 'k', GeomFromText('POINT(158 129)')),
+('j', 'h', 'l', GeomFromText('POINT(129 72)')),
+('f', 'x', 'l', GeomFromText('POINT(139 207)')),
+('u', 'd', 'n', GeomFromText('POINT(125 109)')),
+('b', 'a', 'z', GeomFromText('POINT(30 32)')),
+('m', 'h', 'o', GeomFromText('POINT(251 251)')),
+('f', 'r', 'd', GeomFromText('POINT(243 211)')),
+('b', 'd', 'r', GeomFromText('POINT(232 80)')),
+('g', 'k', 'v', GeomFromText('POINT(15 100)')),
+('i', 'f', 'c', GeomFromText('POINT(109 66)')),
+('r', 't', 'j', GeomFromText('POINT(178 6)')),
+('y', 'n', 'f', GeomFromText('POINT(233 211)')),
+('f', 'y', 'm', GeomFromText('POINT(99 16)')),
+('z', 'q', 'l', GeomFromText('POINT(39 49)')),
+('j', 'c', 'r', GeomFromText('POINT(75 187)')),
+('c', 'y', 'y', GeomFromText('POINT(246 253)')),
+('w', 'u', 'd', GeomFromText('POINT(56 190)')),
+('n', 'q', 'm', GeomFromText('POINT(73 149)')),
+('d', 'y', 'a', GeomFromText('POINT(134 6)')),
+('z', 's', 'w', GeomFromText('POINT(216 225)')),
+('d', 'u', 'k', GeomFromText('POINT(132 70)')),
+('f', 'v', 't', GeomFromText('POINT(187 141)')),
+('r', 'r', 'a', GeomFromText('POINT(152 39)')),
+('y', 'p', 'o', GeomFromText('POINT(45 27)')),
+('p', 'n', 'm', GeomFromText('POINT(228 148)')),
+('e', 'g', 'e', GeomFromText('POINT(88 81)')),
+('m', 'a', 'h', GeomFromText('POINT(35 29)')),
+('m', 'h', 'f', GeomFromText('POINT(30 71)')),
+('h', 'k', 'i', GeomFromText('POINT(244 78)')),
+('z', 'v', 'd', GeomFromText('POINT(241 38)')),
+('q', 'l', 'j', GeomFromText('POINT(13 71)')),
+('s', 'p', 'g', GeomFromText('POINT(108 38)')),
+('q', 's', 'j', GeomFromText('POINT(92 101)')),
+('l', 'h', 'g', GeomFromText('POINT(120 78)')),
+('w', 't', 'b', GeomFromText('POINT(193 109)')),
+('b', 's', 's', GeomFromText('POINT(223 211)')),
+('w', 'w', 'y', GeomFromText('POINT(122 42)')),
+('q', 'c', 'c', GeomFromText('POINT(104 102)')),
+('w', 'g', 'n', GeomFromText('POINT(213 120)')),
+('p', 'q', 'a', GeomFromText('POINT(247 148)')),
+('c', 'z', 'e', GeomFromText('POINT(18 106)')),
+('z', 'u', 'n', GeomFromText('POINT(70 133)')),
+('j', 'n', 'x', GeomFromText('POINT(232 13)')),
+('e', 'h', 'f', GeomFromText('POINT(22 135)')),
+('w', 'l', 'f', GeomFromText('POINT(9 180)')),
+('a', 'v', 'q', GeomFromText('POINT(163 228)')),
+('i', 'z', 'o', GeomFromText('POINT(180 100)')),
+('e', 'c', 'l', GeomFromText('POINT(182 231)')),
+('c', 'k', 'o', GeomFromText('POINT(19 60)')),
+('q', 'f', 'p', GeomFromText('POINT(79 95)')),
+('m', 'd', 'r', GeomFromText('POINT(3 127)')),
+('m', 'e', 't', GeomFromText('POINT(136 154)')),
+('w', 'w', 'w', GeomFromText('POINT(102 15)')),
+('l', 'n', 'q', GeomFromText('POINT(71 196)')),
+('p', 'k', 'c', GeomFromText('POINT(47 139)')),
+('j', 'o', 'r', GeomFromText('POINT(177 128)')),
+('j', 'q', 'a', GeomFromText('POINT(170 6)')),
+('b', 'a', 'o', GeomFromText('POINT(63 211)')),
+('g', 's', 'o', GeomFromText('POINT(144 251)')),
+('w', 'u', 'w', GeomFromText('POINT(221 214)')),
+('g', 'a', 'm', GeomFromText('POINT(14 102)')),
+('u', 'q', 'z', GeomFromText('POINT(86 200)')),
+('k', 'a', 'm', GeomFromText('POINT(144 222)')),
+('j', 'u', 'r', GeomFromText('POINT(216 142)')),
+('q', 'k', 'v', GeomFromText('POINT(121 236)')),
+('p', 'o', 'r', GeomFromText('POINT(108 102)')),
+('b', 'd', 'x', GeomFromText('POINT(127 198)')),
+('k', 's', 'a', GeomFromText('POINT(2 150)')),
+('f', 'm', 'f', GeomFromText('POINT(160 191)')),
+('q', 'y', 'x', GeomFromText('POINT(98 111)')),
+('o', 'f', 'm', GeomFromText('POINT(232 218)')),
+('c', 'w', 'j', GeomFromText('POINT(156 165)')),
+('s', 'q', 'v', GeomFromText('POINT(98 161)'));
+SET @@RAND_SEED1=692635050, @@RAND_SEED2=297339954;
+DELETE FROM t1 ORDER BY RAND() LIMIT 10;
+SET @@RAND_SEED1=159925977, @@RAND_SEED2=942570618;
+DELETE FROM t1 ORDER BY RAND() LIMIT 10;
+SET @@RAND_SEED1=328169745, @@RAND_SEED2=410451954;
+DELETE FROM t1 ORDER BY RAND() LIMIT 10;
+SET @@RAND_SEED1=178507359, @@RAND_SEED2=332493072;
+DELETE FROM t1 ORDER BY RAND() LIMIT 10;
+SET @@RAND_SEED1=1034033013, @@RAND_SEED2=558966507;
+DELETE FROM t1 ORDER BY RAND() LIMIT 10;
+UPDATE t1 set spatial_point=GeomFromText('POINT(230 9)') where  c1 like 'y%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(95 35)') where  c1 like 'j%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(93 99)') where  c1 like 'a%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(19 81)') where  c1 like 'r%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(20 177)') where  c1 like 'h%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(221 193)') where  c1 like 'u%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(195 205)') where  c1 like 'd%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(15 213)') where  c1 like 'u%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(214 63)') where  c1 like 'n%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(243 171)') where  c1 like 'c%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(198 82)') where  c1 like 'y%';
+INSERT INTO t1 (c2, c1, c3, spatial_point) VALUES
+('f', 'y', 'p', GeomFromText('POINT(109 235)')),
+('b', 'e', 'v', GeomFromText('POINT(20 48)')),
+('i', 'u', 'f', GeomFromText('POINT(15 55)')),
+('o', 'r', 'z', GeomFromText('POINT(105 64)')),
+('a', 'p', 'a', GeomFromText('POINT(142 236)')),
+('g', 'i', 'k', GeomFromText('POINT(10 49)')),
+('x', 'z', 'x', GeomFromText('POINT(192 200)')),
+('c', 'v', 'r', GeomFromText('POINT(94 168)')),
+('y', 'z', 'e', GeomFromText('POINT(141 51)')),
+('h', 'm', 'd', GeomFromText('POINT(35 251)')),
+('v', 'm', 'q', GeomFromText('POINT(44 90)')),
+('j', 'l', 'z', GeomFromText('POINT(67 237)')),
+('i', 'v', 'a', GeomFromText('POINT(75 14)')),
+('b', 'q', 't', GeomFromText('POINT(153 33)')),
+('e', 'm', 'a', GeomFromText('POINT(247 49)')),
+('l', 'y', 'g', GeomFromText('POINT(56 203)')),
+('v', 'o', 'r', GeomFromText('POINT(90 54)')),
+('r', 'n', 'd', GeomFromText('POINT(135 83)')),
+('j', 't', 'u', GeomFromText('POINT(174 239)')),
+('u', 'n', 'g', GeomFromText('POINT(104 191)')),
+('p', 'q', 'y', GeomFromText('POINT(63 171)')),
+('o', 'q', 'p', GeomFromText('POINT(192 103)')),
+('f', 'x', 'e', GeomFromText('POINT(244 30)')),
+('n', 'x', 'c', GeomFromText('POINT(92 103)')),
+('r', 'q', 'z', GeomFromText('POINT(166 20)')),
+('s', 'a', 'j', GeomFromText('POINT(137 205)')),
+('z', 't', 't', GeomFromText('POINT(99 134)')),
+('o', 'm', 'j', GeomFromText('POINT(217 3)')),
+('n', 'h', 'j', GeomFromText('POINT(211 17)')),
+('v', 'v', 'a', GeomFromText('POINT(41 137)')),
+('q', 'o', 'j', GeomFromText('POINT(5 92)')),
+('z', 'y', 'e', GeomFromText('POINT(175 212)')),
+('j', 'z', 'h', GeomFromText('POINT(224 194)')),
+('a', 'g', 'm', GeomFromText('POINT(31 119)')),
+('p', 'c', 'f', GeomFromText('POINT(17 221)')),
+('t', 'h', 'k', GeomFromText('POINT(26 203)')),
+('u', 'w', 'p', GeomFromText('POINT(47 185)')),
+('z', 'a', 'c', GeomFromText('POINT(61 133)')),
+('u', 'k', 'a', GeomFromText('POINT(210 115)')),
+('k', 'f', 'h', GeomFromText('POINT(125 113)')),
+('t', 'v', 'y', GeomFromText('POINT(12 239)')),
+('u', 'v', 'd', GeomFromText('POINT(90 24)')),
+('m', 'y', 'w', GeomFromText('POINT(25 243)')),
+('d', 'n', 'g', GeomFromText('POINT(122 92)')),
+('z', 'm', 'f', GeomFromText('POINT(235 110)')),
+('q', 'd', 'f', GeomFromText('POINT(233 217)')),
+('a', 'v', 'u', GeomFromText('POINT(69 59)')),
+('x', 'k', 'p', GeomFromText('POINT(240 14)')),
+('i', 'v', 'r', GeomFromText('POINT(154 42)')),
+('w', 'h', 'l', GeomFromText('POINT(178 156)')),
+('d', 'h', 'n', GeomFromText('POINT(65 157)')),
+('c', 'k', 'z', GeomFromText('POINT(62 33)')),
+('e', 'l', 'w', GeomFromText('POINT(162 1)')),
+('r', 'f', 'i', GeomFromText('POINT(127 71)')),
+('q', 'm', 'c', GeomFromText('POINT(63 118)')),
+('c', 'h', 'u', GeomFromText('POINT(205 203)')),
+('d', 't', 'p', GeomFromText('POINT(234 87)')),
+('s', 'g', 'h', GeomFromText('POINT(149 34)')),
+('o', 'b', 'q', GeomFromText('POINT(159 179)')),
+('k', 'u', 'f', GeomFromText('POINT(202 254)')),
+('u', 'f', 'g', GeomFromText('POINT(70 15)')),
+('x', 's', 'b', GeomFromText('POINT(25 181)')),
+('s', 'c', 'g', GeomFromText('POINT(252 17)')),
+('a', 'c', 'f', GeomFromText('POINT(89 67)')),
+('r', 'e', 'q', GeomFromText('POINT(55 54)')),
+('f', 'i', 'k', GeomFromText('POINT(178 230)')),
+('p', 'e', 'l', GeomFromText('POINT(198 28)')),
+('w', 'o', 'd', GeomFromText('POINT(204 189)')),
+('c', 'a', 'g', GeomFromText('POINT(230 178)')),
+('r', 'o', 'e', GeomFromText('POINT(61 116)')),
+('w', 'a', 'a', GeomFromText('POINT(178 237)')),
+('v', 'd', 'e', GeomFromText('POINT(70 85)')),
+('k', 'c', 'e', GeomFromText('POINT(147 118)')),
+('d', 'q', 't', GeomFromText('POINT(218 77)')),
+('k', 'g', 'f', GeomFromText('POINT(192 113)')),
+('w', 'n', 'e', GeomFromText('POINT(92 124)')),
+('r', 'm', 'q', GeomFromText('POINT(130 65)')),
+('o', 'r', 'r', GeomFromText('POINT(174 233)')),
+('k', 'n', 't', GeomFromText('POINT(175 147)')),
+('q', 'm', 'r', GeomFromText('POINT(18 208)')),
+('l', 'd', 'i', GeomFromText('POINT(13 104)')),
+('w', 'o', 'y', GeomFromText('POINT(207 39)')),
+('p', 'u', 'o', GeomFromText('POINT(114 31)')),
+('y', 'a', 'p', GeomFromText('POINT(106 59)')),
+('a', 'x', 'z', GeomFromText('POINT(17 57)')),
+('v', 'h', 'x', GeomFromText('POINT(170 13)')),
+('t', 's', 'u', GeomFromText('POINT(84 18)')),
+('z', 'z', 'f', GeomFromText('POINT(250 197)')),
+('l', 'z', 't', GeomFromText('POINT(59 80)')),
+('j', 'g', 's', GeomFromText('POINT(54 26)')),
+('g', 'v', 'm', GeomFromText('POINT(89 98)')),
+('q', 'v', 'b', GeomFromText('POINT(39 240)')),
+('x', 'k', 'v', GeomFromText('POINT(246 207)')),
+('k', 'u', 'i', GeomFromText('POINT(105 111)')),
+('w', 'z', 's', GeomFromText('POINT(235 8)')),
+('d', 'd', 'd', GeomFromText('POINT(105 4)')),
+('c', 'z', 'q', GeomFromText('POINT(13 140)')),
+('m', 'k', 'i', GeomFromText('POINT(208 120)')),
+('g', 'a', 'g', GeomFromText('POINT(9 182)')),
+('z', 'j', 'r', GeomFromText('POINT(149 153)')),
+('h', 'f', 'g', GeomFromText('POINT(81 236)')),
+('m', 'e', 'q', GeomFromText('POINT(209 215)')),
+('c', 'h', 'y', GeomFromText('POINT(235 70)')),
+('i', 'e', 'g', GeomFromText('POINT(138 26)')),
+('m', 't', 'u', GeomFromText('POINT(119 237)')),
+('o', 'w', 's', GeomFromText('POINT(193 166)')),
+('f', 'm', 'q', GeomFromText('POINT(85 96)')),
+('x', 'l', 'x', GeomFromText('POINT(58 115)')),
+('x', 'q', 'u', GeomFromText('POINT(108 210)')),
+('b', 'h', 'i', GeomFromText('POINT(250 139)')),
+('y', 'd', 'x', GeomFromText('POINT(199 135)')),
+('w', 'h', 'p', GeomFromText('POINT(247 233)')),
+('p', 'z', 't', GeomFromText('POINT(148 249)')),
+('q', 'a', 'u', GeomFromText('POINT(174 78)')),
+('v', 't', 'm', GeomFromText('POINT(70 228)')),
+('t', 'n', 'f', GeomFromText('POINT(123 2)')),
+('x', 't', 'b', GeomFromText('POINT(35 50)')),
+('r', 'j', 'f', GeomFromText('POINT(200 51)')),
+('s', 'q', 'o', GeomFromText('POINT(23 184)')),
+('u', 'v', 'z', GeomFromText('POINT(7 113)')),
+('v', 'u', 'l', GeomFromText('POINT(145 190)')),
+('o', 'k', 'i', GeomFromText('POINT(161 122)')),
+('l', 'y', 'e', GeomFromText('POINT(17 232)')),
+('t', 'b', 'e', GeomFromText('POINT(120 50)')),
+('e', 's', 'u', GeomFromText('POINT(254 1)')),
+('d', 'd', 'u', GeomFromText('POINT(167 140)')),
+('o', 'b', 'x', GeomFromText('POINT(186 237)')),
+('m', 's', 's', GeomFromText('POINT(172 149)')),
+('t', 'y', 'a', GeomFromText('POINT(149 85)')),
+('x', 't', 'r', GeomFromText('POINT(10 165)')),
+('g', 'c', 'e', GeomFromText('POINT(95 165)')),
+('e', 'e', 'z', GeomFromText('POINT(98 65)')),
+('f', 'v', 'i', GeomFromText('POINT(149 144)')),
+('o', 'p', 'm', GeomFromText('POINT(233 67)')),
+('t', 'u', 'b', GeomFromText('POINT(109 215)')),
+('o', 'o', 'b', GeomFromText('POINT(130 48)')),
+('e', 'm', 'h', GeomFromText('POINT(88 189)')),
+('e', 'v', 'y', GeomFromText('POINT(55 29)')),
+('e', 't', 'm', GeomFromText('POINT(129 55)')),
+('p', 'p', 'i', GeomFromText('POINT(126 222)')),
+('c', 'i', 'c', GeomFromText('POINT(19 158)')),
+('c', 'b', 's', GeomFromText('POINT(13 19)')),
+('u', 'y', 'a', GeomFromText('POINT(114 5)')),
+('a', 'o', 'f', GeomFromText('POINT(227 232)')),
+('t', 'c', 'z', GeomFromText('POINT(63 62)')),
+('d', 'o', 'k', GeomFromText('POINT(48 228)')),
+('x', 'c', 'e', GeomFromText('POINT(204 2)')),
+('e', 'e', 'g', GeomFromText('POINT(125 43)')),
+('o', 'r', 'f', GeomFromText('POINT(171 140)'));
+UPDATE t1 set spatial_point=GeomFromText('POINT(163 157)') where  c1 like 'w%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(53 151)') where  c1 like 'd%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(96 183)') where  c1 like 'r%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(57 91)') where  c1 like 'q%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(202 110)') where  c1 like 'c%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(120 137)') where  c1 like 'w%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(207 147)') where  c1 like 'c%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(31 125)') where  c1 like 'e%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(27 36)') where  c1 like 'r%';
+INSERT INTO t1 (c2, c1, c3, spatial_point) VALUES
+('b', 'c', 'e', GeomFromText('POINT(41 137)')),
+('p', 'y', 'k', GeomFromText('POINT(50 22)')),
+('s', 'c', 'h', GeomFromText('POINT(208 173)')),
+('x', 'u', 'l', GeomFromText('POINT(199 175)')),
+('s', 'r', 'h', GeomFromText('POINT(85 192)')),
+('j', 'k', 'u', GeomFromText('POINT(18 25)')),
+('p', 'w', 'h', GeomFromText('POINT(152 197)')),
+('e', 'd', 'c', GeomFromText('POINT(229 3)')),
+('o', 'x', 'k', GeomFromText('POINT(187 155)')),
+('o', 'b', 'k', GeomFromText('POINT(208 150)')),
+('d', 'a', 'j', GeomFromText('POINT(70 87)')),
+('f', 'e', 'k', GeomFromText('POINT(156 96)')),
+('u', 'y', 'p', GeomFromText('POINT(239 193)')),
+('n', 'v', 'p', GeomFromText('POINT(223 98)')),
+('z', 'j', 'r', GeomFromText('POINT(87 89)')),
+('h', 'x', 'x', GeomFromText('POINT(92 0)')),
+('r', 'v', 'r', GeomFromText('POINT(159 139)')),
+('v', 'g', 'g', GeomFromText('POINT(16 229)')),
+('z', 'k', 'u', GeomFromText('POINT(99 52)')),
+('p', 'p', 'o', GeomFromText('POINT(105 125)')),
+('w', 'h', 'y', GeomFromText('POINT(105 154)')),
+('v', 'y', 'z', GeomFromText('POINT(134 238)')),
+('x', 'o', 'o', GeomFromText('POINT(178 88)')),
+('z', 'w', 'd', GeomFromText('POINT(123 60)')),
+('q', 'f', 'u', GeomFromText('POINT(64 90)')),
+('s', 'n', 't', GeomFromText('POINT(50 138)')),
+('v', 'p', 't', GeomFromText('POINT(114 91)')),
+('a', 'o', 'n', GeomFromText('POINT(78 43)')),
+('k', 'u', 'd', GeomFromText('POINT(185 161)')),
+('w', 'd', 'n', GeomFromText('POINT(25 92)')),
+('k', 'w', 'a', GeomFromText('POINT(59 238)')),
+('t', 'c', 'f', GeomFromText('POINT(65 87)')),
+('g', 's', 'p', GeomFromText('POINT(238 126)')),
+('d', 'n', 'y', GeomFromText('POINT(107 173)')),
+('l', 'a', 'w', GeomFromText('POINT(125 152)')),
+('m', 'd', 'j', GeomFromText('POINT(146 53)')),
+('q', 'm', 'c', GeomFromText('POINT(217 187)')),
+('i', 'r', 'r', GeomFromText('POINT(6 113)')),
+('e', 'j', 'b', GeomFromText('POINT(37 83)')),
+('w', 'w', 'h', GeomFromText('POINT(83 199)')),
+('k', 'b', 's', GeomFromText('POINT(170 64)')),
+('s', 'b', 'c', GeomFromText('POINT(163 130)')),
+('c', 'h', 'a', GeomFromText('POINT(141 3)')),
+('k', 'j', 'u', GeomFromText('POINT(143 76)')),
+('r', 'h', 'o', GeomFromText('POINT(243 92)')),
+('i', 'd', 'b', GeomFromText('POINT(205 13)')),
+('r', 'y', 'q', GeomFromText('POINT(138 8)')),
+('m', 'o', 'i', GeomFromText('POINT(36 45)')),
+('v', 'g', 'm', GeomFromText('POINT(0 40)')),
+('f', 'e', 'i', GeomFromText('POINT(76 6)')),
+('c', 'q', 'q', GeomFromText('POINT(115 248)')),
+('x', 'c', 'i', GeomFromText('POINT(29 74)')),
+('l', 's', 't', GeomFromText('POINT(83 18)')),
+('t', 't', 'a', GeomFromText('POINT(26 168)')),
+('u', 'n', 'x', GeomFromText('POINT(200 110)')),
+('j', 'b', 'd', GeomFromText('POINT(216 136)')),
+('s', 'p', 'w', GeomFromText('POINT(38 156)')),
+('f', 'b', 'v', GeomFromText('POINT(29 186)')),
+('v', 'e', 'r', GeomFromText('POINT(149 40)')),
+('v', 't', 'm', GeomFromText('POINT(184 24)')),
+('y', 'g', 'a', GeomFromText('POINT(219 105)')),
+('s', 'f', 'i', GeomFromText('POINT(114 130)')),
+('e', 'q', 'h', GeomFromText('POINT(203 135)')),
+('h', 'g', 'b', GeomFromText('POINT(9 208)')),
+('o', 'l', 'r', GeomFromText('POINT(245 79)')),
+('s', 's', 'v', GeomFromText('POINT(238 198)')),
+('w', 'w', 'z', GeomFromText('POINT(209 232)')),
+('v', 'd', 'n', GeomFromText('POINT(30 193)')),
+('q', 'w', 'k', GeomFromText('POINT(133 18)')),
+('o', 'h', 'o', GeomFromText('POINT(42 140)')),
+('f', 'f', 'h', GeomFromText('POINT(145 1)')),
+('u', 's', 'r', GeomFromText('POINT(70 62)')),
+('x', 'n', 'q', GeomFromText('POINT(33 86)')),
+('u', 'p', 'v', GeomFromText('POINT(232 220)')),
+('z', 'e', 'a', GeomFromText('POINT(130 69)')),
+('r', 'u', 'z', GeomFromText('POINT(243 241)')),
+('b', 'n', 't', GeomFromText('POINT(120 12)')),
+('u', 'f', 's', GeomFromText('POINT(190 212)')),
+('a', 'd', 'q', GeomFromText('POINT(235 191)')),
+('f', 'q', 'm', GeomFromText('POINT(176 2)')),
+('n', 'c', 's', GeomFromText('POINT(218 163)')),
+('e', 'm', 'h', GeomFromText('POINT(163 108)')),
+('c', 'f', 'l', GeomFromText('POINT(220 115)')),
+('c', 'v', 'q', GeomFromText('POINT(66 45)')),
+('w', 'v', 'x', GeomFromText('POINT(251 220)')),
+('f', 'w', 'z', GeomFromText('POINT(146 149)')),
+('h', 'n', 'h', GeomFromText('POINT(148 128)')),
+('y', 'k', 'v', GeomFromText('POINT(28 110)')),
+('c', 'x', 'q', GeomFromText('POINT(13 13)')),
+('e', 'd', 's', GeomFromText('POINT(91 190)')),
+('c', 'w', 'c', GeomFromText('POINT(10 231)')),
+('u', 'j', 'n', GeomFromText('POINT(250 21)')),
+('w', 'n', 'x', GeomFromText('POINT(141 69)')),
+('f', 'p', 'y', GeomFromText('POINT(228 246)')),
+('d', 'q', 'f', GeomFromText('POINT(194 22)')),
+('d', 'z', 'l', GeomFromText('POINT(233 181)')),
+('c', 'a', 'q', GeomFromText('POINT(183 96)')),
+('m', 'i', 'd', GeomFromText('POINT(117 226)')),
+('z', 'y', 'y', GeomFromText('POINT(62 81)')),
+('g', 'v', 'm', GeomFromText('POINT(66 158)'));
+SET @@RAND_SEED1=481064922, @@RAND_SEED2=438133497;
+DELETE FROM t1 ORDER BY RAND() LIMIT 10;
+SET @@RAND_SEED1=280535103, @@RAND_SEED2=444518646;
+DELETE FROM t1 ORDER BY RAND() LIMIT 10;
+SET @@RAND_SEED1=1072017234, @@RAND_SEED2=484203885;
+DELETE FROM t1 ORDER BY RAND() LIMIT 10;
+SET @@RAND_SEED1=358851897, @@RAND_SEED2=358495224;
+DELETE FROM t1 ORDER BY RAND() LIMIT 10;
+SET @@RAND_SEED1=509031459, @@RAND_SEED2=675962925;
+DELETE FROM t1 ORDER BY RAND() LIMIT 10;
+UPDATE t1 set spatial_point=GeomFromText('POINT(61 203)') where  c1 like 'y%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(202 194)') where  c1 like 'f%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(228 18)') where  c1 like 'h%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(88 18)') where  c1 like 'l%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(176 94)') where  c1 like 'e%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(44 47)') where  c1 like 'g%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(95 191)') where  c1 like 'b%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(179 218)') where  c1 like 'y%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(239 40)') where  c1 like 'g%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(248 41)') where  c1 like 'q%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(167 82)') where  c1 like 't%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(13 104)') where  c1 like 'u%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(139 84)') where  c1 like 'a%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(145 108)') where  c1 like 'p%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(147 57)') where  c1 like 't%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(217 144)') where  c1 like 'n%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(160 224)') where  c1 like 'w%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(38 28)') where  c1 like 'j%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(104 114)') where  c1 like 'q%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(88 19)') where  c1 like 'c%';
+INSERT INTO t1 (c2, c1, c3, spatial_point) VALUES
+('f', 'x', 'p', GeomFromText('POINT(92 181)')),
+('s', 'i', 'c', GeomFromText('POINT(49 60)')),
+('c', 'c', 'i', GeomFromText('POINT(7 57)')),
+('n', 'g', 'k', GeomFromText('POINT(252 105)')),
+('g', 'b', 'm', GeomFromText('POINT(180 11)')),
+('u', 'l', 'r', GeomFromText('POINT(32 90)')),
+('c', 'x', 'e', GeomFromText('POINT(143 24)')),
+('x', 'u', 'a', GeomFromText('POINT(123 92)')),
+('s', 'b', 'h', GeomFromText('POINT(190 108)')),
+('c', 'x', 'b', GeomFromText('POINT(104 100)')),
+('i', 'd', 't', GeomFromText('POINT(214 104)')),
+('r', 'w', 'g', GeomFromText('POINT(29 67)')),
+('b', 'f', 'g', GeomFromText('POINT(149 46)')),
+('r', 'r', 'd', GeomFromText('POINT(242 196)')),
+('j', 'l', 'a', GeomFromText('POINT(90 196)')),
+('e', 't', 'b', GeomFromText('POINT(190 64)')),
+('l', 'x', 'w', GeomFromText('POINT(250 73)')),
+('q', 'y', 'r', GeomFromText('POINT(120 182)')),
+('s', 'j', 'a', GeomFromText('POINT(180 175)')),
+('n', 'i', 'y', GeomFromText('POINT(124 136)')),
+('s', 'x', 's', GeomFromText('POINT(176 209)')),
+('u', 'f', 's', GeomFromText('POINT(215 173)')),
+('m', 'j', 'x', GeomFromText('POINT(44 140)')),
+('v', 'g', 'x', GeomFromText('POINT(177 233)')),
+('u', 't', 'b', GeomFromText('POINT(136 197)')),
+('f', 'g', 'b', GeomFromText('POINT(10 8)')),
+('v', 'c', 'j', GeomFromText('POINT(13 81)')),
+('d', 's', 'q', GeomFromText('POINT(200 100)')),
+('a', 'p', 'j', GeomFromText('POINT(33 40)')),
+('i', 'c', 'g', GeomFromText('POINT(168 204)')),
+('k', 'h', 'i', GeomFromText('POINT(93 243)')),
+('s', 'b', 's', GeomFromText('POINT(157 13)')),
+('v', 'l', 'l', GeomFromText('POINT(103 6)')),
+('r', 'b', 'k', GeomFromText('POINT(244 137)')),
+('l', 'd', 'r', GeomFromText('POINT(162 254)')),
+('q', 'b', 'z', GeomFromText('POINT(136 246)')),
+('x', 'x', 'p', GeomFromText('POINT(120 37)')),
+('m', 'e', 'z', GeomFromText('POINT(203 167)')),
+('q', 'n', 'p', GeomFromText('POINT(94 119)')),
+('b', 'g', 'u', GeomFromText('POINT(93 248)')),
+('r', 'v', 'v', GeomFromText('POINT(53 88)')),
+('y', 'a', 'i', GeomFromText('POINT(98 219)')),
+('a', 's', 'g', GeomFromText('POINT(173 138)')),
+('c', 'a', 't', GeomFromText('POINT(235 135)')),
+('q', 'm', 'd', GeomFromText('POINT(224 208)')),
+('e', 'p', 'k', GeomFromText('POINT(161 238)')),
+('n', 'g', 'q', GeomFromText('POINT(35 204)')),
+('t', 't', 'x', GeomFromText('POINT(230 178)')),
+('w', 'f', 'a', GeomFromText('POINT(150 221)')),
+('z', 'm', 'z', GeomFromText('POINT(119 42)')),
+('l', 'j', 's', GeomFromText('POINT(97 96)')),
+('f', 'z', 'x', GeomFromText('POINT(208 65)')),
+('i', 'v', 'c', GeomFromText('POINT(145 79)')),
+('l', 'f', 'k', GeomFromText('POINT(83 234)')),
+('u', 'a', 's', GeomFromText('POINT(250 49)')),
+('o', 'k', 'p', GeomFromText('POINT(46 50)')),
+('d', 'e', 'z', GeomFromText('POINT(30 198)')),
+('r', 'r', 'l', GeomFromText('POINT(78 189)')),
+('y', 'l', 'f', GeomFromText('POINT(188 132)')),
+('d', 'q', 'm', GeomFromText('POINT(247 107)')),
+('p', 'j', 'n', GeomFromText('POINT(148 227)')),
+('b', 'o', 'i', GeomFromText('POINT(172 25)')),
+('e', 'v', 'd', GeomFromText('POINT(94 248)')),
+('q', 'd', 'f', GeomFromText('POINT(15 29)')),
+('w', 'b', 'b', GeomFromText('POINT(74 111)')),
+('g', 'q', 'f', GeomFromText('POINT(107 215)')),
+('o', 'h', 'r', GeomFromText('POINT(25 168)')),
+('u', 't', 'w', GeomFromText('POINT(251 188)')),
+('h', 's', 'w', GeomFromText('POINT(254 247)')),
+('f', 'f', 'b', GeomFromText('POINT(166 103)'));
+SET @@RAND_SEED1=866613816, @@RAND_SEED2=92289615;
+INSERT INTO t1 (c2, c1, c3, spatial_point) VALUES
+('l', 'c', 'l', GeomFromText('POINT(202 98)')),
+('k', 'c', 'b', GeomFromText('POINT(46 206)')),
+('r', 'y', 'm', GeomFromText('POINT(74 140)')),
+('y', 'z', 'd', GeomFromText('POINT(200 160)')),
+('s', 'y', 's', GeomFromText('POINT(156 205)')),
+('u', 'v', 'p', GeomFromText('POINT(86 82)')),
+('j', 's', 's', GeomFromText('POINT(91 233)')),
+('x', 'j', 'f', GeomFromText('POINT(3 14)')),
+('l', 'z', 'v', GeomFromText('POINT(123 156)')),
+('h', 'i', 'o', GeomFromText('POINT(145 229)')),
+('o', 'r', 'd', GeomFromText('POINT(15 22)')),
+('f', 'x', 't', GeomFromText('POINT(21 60)')),
+('t', 'g', 'h', GeomFromText('POINT(50 153)')),
+('g', 'u', 'b', GeomFromText('POINT(82 85)')),
+('v', 'a', 'p', GeomFromText('POINT(231 178)')),
+('n', 'v', 'o', GeomFromText('POINT(183 25)')),
+('j', 'n', 'm', GeomFromText('POINT(50 144)')),
+('e', 'f', 'i', GeomFromText('POINT(46 16)')),
+('d', 'w', 'a', GeomFromText('POINT(66 6)')),
+('f', 'x', 'a', GeomFromText('POINT(107 197)')),
+('m', 'o', 'a', GeomFromText('POINT(142 80)')),
+('q', 'l', 'g', GeomFromText('POINT(251 23)')),
+('c', 's', 's', GeomFromText('POINT(158 43)')),
+('y', 'd', 'o', GeomFromText('POINT(196 228)')),
+('d', 'p', 'l', GeomFromText('POINT(107 5)')),
+('h', 'a', 'b', GeomFromText('POINT(183 166)')),
+('m', 'w', 'p', GeomFromText('POINT(19 59)')),
+('b', 'y', 'o', GeomFromText('POINT(178 30)')),
+('x', 'w', 'i', GeomFromText('POINT(168 94)')),
+('t', 'k', 'z', GeomFromText('POINT(171 5)')),
+('r', 'm', 'a', GeomFromText('POINT(222 19)')),
+('u', 'v', 'e', GeomFromText('POINT(224 80)')),
+('q', 'r', 'k', GeomFromText('POINT(212 218)')),
+('d', 'p', 'j', GeomFromText('POINT(169 7)')),
+('d', 'r', 'v', GeomFromText('POINT(193 23)')),
+('n', 'y', 'y', GeomFromText('POINT(130 178)')),
+('m', 'z', 'r', GeomFromText('POINT(81 200)')),
+('j', 'e', 'w', GeomFromText('POINT(145 239)')),
+('v', 'h', 'x', GeomFromText('POINT(24 105)')),
+('z', 'm', 'a', GeomFromText('POINT(175 129)')),
+('b', 'c', 'v', GeomFromText('POINT(213 10)')),
+('t', 't', 'u', GeomFromText('POINT(2 129)')),
+('r', 's', 'v', GeomFromText('POINT(209 192)')),
+('x', 'p', 'g', GeomFromText('POINT(43 63)')),
+('t', 'e', 'u', GeomFromText('POINT(139 210)')),
+('l', 'e', 't', GeomFromText('POINT(245 148)')),
+('a', 'i', 'k', GeomFromText('POINT(167 195)')),
+('m', 'o', 'h', GeomFromText('POINT(206 120)')),
+('g', 'z', 's', GeomFromText('POINT(169 240)')),
+('z', 'u', 's', GeomFromText('POINT(202 120)')),
+('i', 'b', 'a', GeomFromText('POINT(216 18)')),
+('w', 'y', 'g', GeomFromText('POINT(119 236)')),
+('h', 'y', 'p', GeomFromText('POINT(161 24)'));
+UPDATE t1 set spatial_point=GeomFromText('POINT(33 100)') where  c1 like 't%';
+UPDATE t1 set spatial_point=GeomFromText('POINT(41 46)') where  c1 like 'f%';
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+create table t1 (a geometry not null, spatial index(a)) transactional=0 row_format=page;
+insert into t1 values (PointFromWKB(POINT(1.1517219314031e+164, 131072)));
+insert into t1 values (PointFromWKB(POINT(9.1248812352444e+192, 2.9740338169556e+284)));
+insert into t1 values (PointFromWKB(POINT(4.7783097267365e-299, -0)));
+insert into t1 values (PointFromWKB(POINT(1.49166814624e-154, 2.0880974297595e-53)));
+insert into t1 values (PointFromWKB(POINT(4.0917382598702e+149, 1.2024538023802e+111)));
+insert into t1 values (PointFromWKB(POINT(2.0349165139404e+236, 2.9993936277913e-241)));
+insert into t1 values (PointFromWKB(POINT(2.5243548967072e-29, 1.2024538023802e+111)));
+insert into t1 values (PointFromWKB(POINT(0, 6.9835074892995e-251)));
+insert into t1 values (PointFromWKB(POINT(2.0880974297595e-53, 3.1050361846014e+231)));
+insert into t1 values (PointFromWKB(POINT(2.8728483499323e-188, 2.4600631144627e+260)));
+insert into t1 values (PointFromWKB(POINT(3.0517578125e-05, 2.0349165139404e+236)));
+insert into t1 values (PointFromWKB(POINT(1.1517219314031e+164, 1.1818212630766e-125)));
+insert into t1 values (PointFromWKB(POINT(2.481040258324e-265, 5.7766220027675e-275)));
+insert into t1 values (PointFromWKB(POINT(2.0880974297595e-53, 2.5243548967072e-29)));
+insert into t1 values (PointFromWKB(POINT(5.7766220027675e-275, 9.9464647281957e+86)));
+insert into t1 values (PointFromWKB(POINT(2.2181357552967e+130, 3.7857669957337e-270)));
+insert into t1 values (PointFromWKB(POINT(4.5767114681874e-246, 3.6893488147419e+19)));
+insert into t1 values (PointFromWKB(POINT(4.5767114681874e-246, 3.7537584144024e+255)));
+insert into t1 values (PointFromWKB(POINT(3.7857669957337e-270, 1.8033161362863e-130)));
+insert into t1 values (PointFromWKB(POINT(0, 5.8774717541114e-39)));
+insert into t1 values (PointFromWKB(POINT(1.1517219314031e+164, 2.2761049594727e-159)));
+insert into t1 values (PointFromWKB(POINT(6.243497100632e+144, 3.7857669957337e-270)));
+insert into t1 values (PointFromWKB(POINT(3.7857669957337e-270, 2.6355494858076e-82)));
+insert into t1 values (PointFromWKB(POINT(2.0349165139404e+236, 3.8518598887745e-34)));
+insert into t1 values (PointFromWKB(POINT(4.6566128730774e-10, 2.0880974297595e-53)));
+insert into t1 values (PointFromWKB(POINT(2.0880974297595e-53, 1.8827498946116e-183)));
+insert into t1 values (PointFromWKB(POINT(1.8033161362863e-130, 9.1248812352444e+192)));
+insert into t1 values (PointFromWKB(POINT(4.7783097267365e-299, 2.2761049594727e-159)));
+insert into t1 values (PointFromWKB(POINT(1.94906280228e+289, 1.2338789709327e-178)));
+drop table t1;
+CREATE TABLE t1(foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) ) transactional=0 row_format=page;
+INSERT INTO t1(foo) VALUES (NULL);
+ERROR 23000: Column 'foo' cannot be null
+INSERT INTO t1() VALUES ();
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t1(foo) VALUES ('');
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+DROP TABLE t1;
+CREATE TABLE t1 (a INT AUTO_INCREMENT, b POINT NOT NULL, KEY (a), SPATIAL KEY (b)) transactional=0 row_format=page;
+INSERT INTO t1 (b) VALUES (GeomFromText('POINT(1 2)'));
+INSERT INTO t1 (b) SELECT b FROM t1;
+INSERT INTO t1 (b) SELECT b FROM t1;
+INSERT INTO t1 (b) SELECT b FROM t1;
+INSERT INTO t1 (b) SELECT b FROM t1;
+INSERT INTO t1 (b) SELECT b FROM t1;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+DROP TABLE t1;
+CREATE TABLE t1 (a INT, b GEOMETRY NOT NULL, SPATIAL KEY b(b)) transactional=0 row_format=page;
+INSERT INTO t1 VALUES (1, GEOMFROMTEXT('LINESTRING(1102218.456 1,2000000 2)'));
+INSERT INTO t1 VALUES (2, GEOMFROMTEXT('LINESTRING(1102218.456 1,2000000 2)'));
+SELECT COUNT(*) FROM t1 WHERE
+MBRINTERSECTS(b, GEOMFROMTEXT('LINESTRING(1 1,1102219 2)') );
+COUNT(*)
+2
+SELECT COUNT(*) FROM t1 IGNORE INDEX (b) WHERE
+MBRINTERSECTS(b, GEOMFROMTEXT('LINESTRING(1 1,1102219 2)') );
+COUNT(*)
+2
+DROP TABLE t1;
+End of 5.0 tests.

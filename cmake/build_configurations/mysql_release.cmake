@@ -65,7 +65,8 @@ IF(FEATURE_SET)
   IF(num GREATER FEATURE_SET_small)
     SET(WITH_ARCHIVE_STORAGE_ENGINE  ON)
     SET(WITH_BLACKHOLE_STORAGE_ENGINE ON)
-    SET(WITH_FEDERATED_STORAGE_ENGINE ON)
+    SET(WITH_FEDERATEDX_STORAGE_ENGINE ON)
+    SET(WITH_PLUGIN_FEEDBACK ON)
   ENDIF()
   IF(num GREATER FEATURE_SET_classic)
     SET(WITH_INNOBASE_STORAGE_ENGINE ON)
@@ -93,11 +94,22 @@ IF(FEATURE_SET)
 ENDIF()
 
 OPTION(ENABLED_LOCAL_INFILE "" ON)
-SET(WITH_SSL bundled CACHE STRING "")
-SET(WITH_ZLIB bundled CACHE STRING "")
+IF(RPM)
+  SET(WITH_SSL system CACHE STRING "")
+  SET(WITH_ZLIB system CACHE STRING "")
+ELSEIF(DEB)
+  SET(WITH_SSL system CACHE STRING "")
+  SET(WITH_ZLIB system CACHE STRING "")
+  SET(WITH_LIBWRAP ON)
+  SET(WITH_MAX ON)
+  SET(HAVE_EMBEDDED_PRIVILEGE_CONTROL ON)
+ELSE()
+  SET(WITH_SSL bundled CACHE STRING "")
+  SET(WITH_ZLIB bundled CACHE STRING "")
+ENDIF()
 
 IF(NOT COMPILATION_COMMENT)
-  SET(COMPILATION_COMMENT "MySQL Community Server (GPL)")
+  SET(COMPILATION_COMMENT "MariaDB Server")
 ENDIF()
 
 IF(WIN32)
@@ -109,15 +121,10 @@ ENDIF()
 
 IF(UNIX)
   SET(WITH_EXTRA_CHARSETS all CACHE STRING "")
-  IF(EXISTS "${CMAKE_SOURCE_DIR}/COPYING")
-    OPTION(WITH_READLINE  "" ON)
-  ELSE()
-    OPTION(WITH_LIBEDIT  "" ON)
-  ENDIF()
-
-  OPTION(WITH_PIC "" ON) # Why?
 
   IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    SET(WITH_JEMALLOC "static" CACHE STRING "")
+
     IF(NOT IGNORE_AIO_CHECK)
       # Ensure aio is available on Linux (required by InnoDB)
       CHECK_INCLUDE_FILES(libaio.h HAVE_LIBAIO_H)
@@ -133,10 +140,15 @@ IF(UNIX)
         If you really do not want it, pass -DIGNORE_AIO_CHECK to cmake.
         ")
       ENDIF()
-    ENDIF()
 
-    # Enable fast mutexes on Linux
-    OPTION(WITH_FAST_MUTEXES "" ON)
+      # Remove libaio dependency from mysqld
+      SET(XTRADB_PREFER_STATIC_LIBAIO 1)
+
+      # Unfortunately, linking shared libmysqld with static aio
+      # does not work,  unless we add also dynamic one. This also means
+      # libmysqld.so will depend on libaio.so
+      SET(LIBMYSQLD_SO_EXTRA_LIBS aio)
+    ENDIF()
   ENDIF()
 
 ENDIF()
@@ -146,12 +158,12 @@ IF(UNIX)
 
   # Default GCC flags
   IF(CMAKE_COMPILER_IS_GNUCC)
-    SET(COMMON_C_FLAGS               "-g -static-libgcc -fno-omit-frame-pointer -fno-strict-aliasing")
+    SET(COMMON_C_FLAGS               "-g -static-libgcc -fno-omit-frame-pointer -fno-strict-aliasing  -Wno-uninitialized")
     SET(CMAKE_C_FLAGS_DEBUG          "-O ${COMMON_C_FLAGS}")
     SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_C_FLAGS}")
   ENDIF()
   IF(CMAKE_COMPILER_IS_GNUCXX)
-    SET(COMMON_CXX_FLAGS               "-g -static-libgcc -fno-omit-frame-pointer -fno-strict-aliasing")
+    SET(COMMON_CXX_FLAGS               "-g -static-libgcc -fno-omit-frame-pointer -fno-strict-aliasing -Wno-uninitialized")
     SET(CMAKE_CXX_FLAGS_DEBUG          "-O ${COMMON_CXX_FLAGS}")
     SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_CXX_FLAGS}")
   ENDIF()

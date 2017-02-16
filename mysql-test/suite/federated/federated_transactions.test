@@ -1,3 +1,4 @@
+source have_federatedx.inc;
 source include/have_innodb.inc;
 source suite/federated/include/federated.inc;
 

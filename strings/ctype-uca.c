@@ -1,4 +1,5 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, SkySQL Ab.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -31,10 +32,13 @@
    - No combining marks processing is done
 */
 
+#include "strings_def.h"
+#include <m_ctype.h>
 
-#include <my_global.h>
-#include "m_string.h"
-#include "m_ctype.h"
+#define MY_UCA_CNT_FLAG_SIZE 4096
+#define MY_UCA_CNT_FLAG_MASK 4095
+#define MY_UCA_CNT_HEAD 1
+#define MY_UCA_CNT_TAIL 2
 
 #ifdef HAVE_UCA_COLLATIONS
 
@@ -44,7 +48,7 @@
 #define MY_UCA_PSHIFT 8
 #define MAX_UCA_CHAR_WITH_EXPLICIT_WEIGHT 0xFFFF
 
-uint16 page000data[]= { /* 0000 (4 weights per char) */
+static const uint16 page000data[]= { /* 0000 (4 weights per char) */
 0x0000,0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,0x0000,
@@ -175,7 +179,7 @@ uint16 page000data[]= { /* 0000 (4 weights per char) */
 0x1094,0x0000,0x0000,0x0000, 0x105E,0x0000,0x0000,0x0000
 };
 
-uint16 page001data[]= { /* 0100 (3 weights per char) */
+static const uint16 page001data[]= { /* 0100 (3 weights per char) */
 0x0E33,0x0000,0x0000, 0x0E33,0x0000,0x0000, 0x0E33,0x0000,0x0000,
 0x0E33,0x0000,0x0000, 0x0E33,0x0000,0x0000, 0x0E33,0x0000,0x0000,
 0x0E60,0x0000,0x0000, 0x0E60,0x0000,0x0000, 0x0E60,0x0000,0x0000,
@@ -263,7 +267,7 @@ uint16 page001data[]= { /* 0100 (3 weights per char) */
 0x0E38,0x0000,0x0000, 0x0E38,0x0000,0x0000, 0x0F8D,0x0000,0x0000,
 0x0F8D,0x0000,0x0000 };
 
-uint16 page002data[]= { /* 0200 (3 weights per char) */
+static const uint16 page002data[]= { /* 0200 (3 weights per char) */
 0x0E33,0x0000,0x0000, 0x0E33,0x0000,0x0000, 0x0E33,0x0000,0x0000,
 0x0E33,0x0000,0x0000, 0x0E8B,0x0000,0x0000, 0x0E8B,0x0000,0x0000,
 0x0E8B,0x0000,0x0000, 0x0E8B,0x0000,0x0000, 0x0EFB,0x0000,0x0000,
@@ -351,7 +355,7 @@ uint16 page002data[]= { /* 0200 (3 weights per char) */
 0x0346,0x0000,0x0000, 0x0347,0x0000,0x0000, 0x0348,0x0000,0x0000,
 0x0349,0x0000,0x0000 };
 
-uint16 page003data[]= { /* 0300 (4 weights per char) */
+static const uint16 page003data[]= { /* 0300 (4 weights per char) */
 0x0000,0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,0x0000,
@@ -482,7 +486,7 @@ uint16 page003data[]= { /* 0300 (4 weights per char) */
 0xFBC0,0x83FE,0x0000,0x0000, 0xFBC0,0x83FF,0x0000,0x0000
 };
 
-uint16 page004data[]= { /* 0400 (3 weights per char) */
+static const uint16 page004data[]= { /* 0400 (3 weights per char) */
 0x1152,0x0000,0x0000, 0x1152,0x0000,0x0000, 0x1145,0x0000,0x0000,
 0x114A,0x0000,0x0000, 0x115A,0x0000,0x0000, 0x1173,0x0000,0x0000,
 0x1188,0x0000,0x0000, 0x118C,0x0000,0x0000, 0x1194,0x0000,0x0000,
@@ -570,7 +574,7 @@ uint16 page004data[]= { /* 0400 (3 weights per char) */
 0xFBC0,0x84FC,0x0000, 0xFBC0,0x84FD,0x0000, 0xFBC0,0x84FE,0x0000,
 0xFBC0,0x84FF,0x0000 };
 
-uint16 page005data[]= { /* 0500 (3 weights per char) */
+static const uint16 page005data[]= { /* 0500 (3 weights per char) */
 0x1144,0x0000,0x0000, 0x1144,0x0000,0x0000, 0x1149,0x0000,0x0000,
 0x1149,0x0000,0x0000, 0x116E,0x0000,0x0000, 0x116E,0x0000,0x0000,
 0x117B,0x0000,0x0000, 0x117B,0x0000,0x0000, 0x11BD,0x0000,0x0000,
@@ -658,7 +662,7 @@ uint16 page005data[]= { /* 0500 (3 weights per char) */
 0xFBC0,0x85FC,0x0000, 0xFBC0,0x85FD,0x0000, 0xFBC0,0x85FE,0x0000,
 0xFBC0,0x85FF,0x0000 };
 
-uint16 page006data[]= { /* 0600 (3 weights per char) */
+static const uint16 page006data[]= { /* 0600 (3 weights per char) */
 0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000, 0xFBC0,0x8604,0x0000, 0xFBC0,0x8605,0x0000,
 0xFBC0,0x8606,0x0000, 0xFBC0,0x8607,0x0000, 0xFBC0,0x8608,0x0000,
@@ -746,7 +750,7 @@ uint16 page006data[]= { /* 0600 (3 weights per char) */
 0x1392,0x0000,0x0000, 0x1347,0x0000,0x0000, 0x13B0,0x0000,0x0000,
 0x13BB,0x0000,0x0000 };
 
-uint16 page007data[]= { /* 0700 (3 weights per char) */
+static const uint16 page007data[]= { /* 0700 (3 weights per char) */
 0x0270,0x0000,0x0000, 0x0260,0x0000,0x0000, 0x0261,0x0000,0x0000,
 0x023F,0x0000,0x0000, 0x0240,0x0000,0x0000, 0x0241,0x0000,0x0000,
 0x0242,0x0000,0x0000, 0x0243,0x0000,0x0000, 0x0244,0x0000,0x0000,
@@ -834,7 +838,7 @@ uint16 page007data[]= { /* 0700 (3 weights per char) */
 0xFBC0,0x87FC,0x0000, 0xFBC0,0x87FD,0x0000, 0xFBC0,0x87FE,0x0000,
 0xFBC0,0x87FF,0x0000 };
 
-uint16 page009data[]= { /* 0900 (3 weights per char) */
+static const uint16 page009data[]= { /* 0900 (3 weights per char) */
 0xFBC0,0x8900,0x0000, 0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000, 0x155A,0x0000,0x0000, 0x155B,0x0000,0x0000,
 0x155C,0x0000,0x0000, 0x155D,0x0000,0x0000, 0x155E,0x0000,0x0000,
@@ -922,7 +926,7 @@ uint16 page009data[]= { /* 0900 (3 weights per char) */
 0xFBC0,0x89FC,0x0000, 0xFBC0,0x89FD,0x0000, 0xFBC0,0x89FE,0x0000,
 0xFBC0,0x89FF,0x0000 };
 
-uint16 page00Adata[]= { /* 0A00 (3 weights per char) */
+static const uint16 page00Adata[]= { /* 0A00 (3 weights per char) */
 0xFBC0,0x8A00,0x0000, 0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000, 0xFBC0,0x8A04,0x0000, 0x15E7,0x0000,0x0000,
 0x15E8,0x0000,0x0000, 0x15EC,0x0000,0x0000, 0x15ED,0x0000,0x0000,
@@ -1010,7 +1014,7 @@ uint16 page00Adata[]= { /* 0A00 (3 weights per char) */
 0xFBC0,0x8AFC,0x0000, 0xFBC0,0x8AFD,0x0000, 0xFBC0,0x8AFE,0x0000,
 0xFBC0,0x8AFF,0x0000 };
 
-uint16 page00Bdata[]= { /* 0B00 (3 weights per char) */
+static const uint16 page00Bdata[]= { /* 0B00 (3 weights per char) */
 0xFBC0,0x8B00,0x0000, 0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000, 0xFBC0,0x8B04,0x0000, 0x165D,0x0000,0x0000,
 0x165E,0x0000,0x0000, 0x165F,0x0000,0x0000, 0x1660,0x0000,0x0000,
@@ -1098,7 +1102,7 @@ uint16 page00Bdata[]= { /* 0B00 (3 weights per char) */
 0xFBC0,0x8BFC,0x0000, 0xFBC0,0x8BFD,0x0000, 0xFBC0,0x8BFE,0x0000,
 0xFBC0,0x8BFF,0x0000 };
 
-uint16 page00Cdata[]= { /* 0C00 (3 weights per char) */
+static const uint16 page00Cdata[]= { /* 0C00 (3 weights per char) */
 0xFBC0,0x8C00,0x0000, 0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000, 0xFBC0,0x8C04,0x0000, 0x16CD,0x0000,0x0000,
 0x16CE,0x0000,0x0000, 0x16CF,0x0000,0x0000, 0x16D0,0x0000,0x0000,
@@ -1186,7 +1190,7 @@ uint16 page00Cdata[]= { /* 0C00 (3 weights per char) */
 0xFBC0,0x8CFC,0x0000, 0xFBC0,0x8CFD,0x0000, 0xFBC0,0x8CFE,0x0000,
 0xFBC0,0x8CFF,0x0000 };
 
-uint16 page00Ddata[]= { /* 0D00 (3 weights per char) */
+static const uint16 page00Ddata[]= { /* 0D00 (3 weights per char) */
 0xFBC0,0x8D00,0x0000, 0xFBC0,0x8D01,0x0000, 0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000, 0xFBC0,0x8D04,0x0000, 0x1755,0x0000,0x0000,
 0x1756,0x0000,0x0000, 0x1757,0x0000,0x0000, 0x1758,0x0000,0x0000,
@@ -1274,7 +1278,7 @@ uint16 page00Ddata[]= { /* 0D00 (3 weights per char) */
 0xFBC0,0x8DFC,0x0000, 0xFBC0,0x8DFD,0x0000, 0xFBC0,0x8DFE,0x0000,
 0xFBC0,0x8DFF,0x0000 };
 
-uint16 page00Edata[]= { /* 0E00 (3 weights per char) */
+static const uint16 page00Edata[]= { /* 0E00 (3 weights per char) */
 0xFBC0,0x8E00,0x0000, 0x17E4,0x0000,0x0000, 0x17E5,0x0000,0x0000,
 0x17E6,0x0000,0x0000, 0x17E7,0x0000,0x0000, 0x17E8,0x0000,0x0000,
 0x17E9,0x0000,0x0000, 0x17EA,0x0000,0x0000, 0x17EB,0x0000,0x0000,
@@ -1362,7 +1366,7 @@ uint16 page00Edata[]= { /* 0E00 (3 weights per char) */
 0xFBC0,0x8EFC,0x0000, 0xFBC0,0x8EFD,0x0000, 0xFBC0,0x8EFE,0x0000,
 0xFBC0,0x8EFF,0x0000 };
 
-uint16 page00Fdata[]= { /* 0F00 (3 weights per char) */
+static const uint16 page00Fdata[]= { /* 0F00 (3 weights per char) */
 0x189A,0x18AD,0x0000, 0x035A,0x0000,0x0000, 0x035B,0x0000,0x0000,
 0x035C,0x0000,0x0000, 0x02FE,0x0000,0x0000, 0x02FF,0x0000,0x0000,
 0x0300,0x0000,0x0000, 0x0301,0x0000,0x0000, 0x0302,0x0000,0x0000,
@@ -1450,7 +1454,7 @@ uint16 page00Fdata[]= { /* 0F00 (3 weights per char) */
 0xFBC0,0x8FFC,0x0000, 0xFBC0,0x8FFD,0x0000, 0xFBC0,0x8FFE,0x0000,
 0xFBC0,0x8FFF,0x0000 };
 
-uint16 page010data[]= { /* 1000 (3 weights per char) */
+static const uint16 page010data[]= { /* 1000 (3 weights per char) */
 0x1931,0x0000,0x0000, 0x1932,0x0000,0x0000, 0x1933,0x0000,0x0000,
 0x1934,0x0000,0x0000, 0x1935,0x0000,0x0000, 0x1936,0x0000,0x0000,
 0x1937,0x0000,0x0000, 0x1938,0x0000,0x0000, 0x1939,0x0000,0x0000,
@@ -1538,7 +1542,7 @@ uint16 page010data[]= { /* 1000 (3 weights per char) */
 0xFBC0,0x90FC,0x0000, 0xFBC0,0x90FD,0x0000, 0xFBC0,0x90FE,0x0000,
 0xFBC0,0x90FF,0x0000 };
 
-uint16 page011data[]= { /* 1100 (3 weights per char) */
+static const uint16 page011data[]= { /* 1100 (3 weights per char) */
 0x1D62,0x0000,0x0000, 0x1D63,0x0000,0x0000, 0x1D64,0x0000,0x0000,
 0x1D65,0x0000,0x0000, 0x1D66,0x0000,0x0000, 0x1D67,0x0000,0x0000,
 0x1D68,0x0000,0x0000, 0x1D69,0x0000,0x0000, 0x1D6A,0x0000,0x0000,
@@ -1626,7 +1630,7 @@ uint16 page011data[]= { /* 1100 (3 weights per char) */
 0xFBC0,0x91FC,0x0000, 0xFBC0,0x91FD,0x0000, 0xFBC0,0x91FE,0x0000,
 0xFBC0,0x91FF,0x0000 };
 
-uint16 page012data[]= { /* 1200 (3 weights per char) */
+static const uint16 page012data[]= { /* 1200 (3 weights per char) */
 0x141C,0x0000,0x0000, 0x141D,0x0000,0x0000, 0x141E,0x0000,0x0000,
 0x141F,0x0000,0x0000, 0x1420,0x0000,0x0000, 0x1421,0x0000,0x0000,
 0x1422,0x0000,0x0000, 0xFBC0,0x9207,0x0000, 0x1423,0x0000,0x0000,
@@ -1714,7 +1718,7 @@ uint16 page012data[]= { /* 1200 (3 weights per char) */
 0x1500,0x0000,0x0000, 0x1501,0x0000,0x0000, 0x1502,0x0000,0x0000,
 0x1503,0x0000,0x0000 };
 
-uint16 page013data[]= { /* 1300 (3 weights per char) */
+static const uint16 page013data[]= { /* 1300 (3 weights per char) */
 0x1504,0x0000,0x0000, 0x1505,0x0000,0x0000, 0x1506,0x0000,0x0000,
 0x1507,0x0000,0x0000, 0x1508,0x0000,0x0000, 0x1509,0x0000,0x0000,
 0x150A,0x0000,0x0000, 0x150B,0x0000,0x0000, 0x150C,0x0000,0x0000,
@@ -1802,7 +1806,7 @@ uint16 page013data[]= { /* 1300 (3 weights per char) */
 0xFBC0,0x93FC,0x0000, 0xFBC0,0x93FD,0x0000, 0xFBC0,0x93FE,0x0000,
 0xFBC0,0x93FF,0x0000 };
 
-uint16 page014data[]= { /* 1400 (3 weights per char) */
+static const uint16 page014data[]= { /* 1400 (3 weights per char) */
 0xFBC0,0x9400,0x0000, 0x1AAE,0x0000,0x0000, 0x1AAF,0x0000,0x0000,
 0x1AB0,0x0000,0x0000, 0x1AB1,0x0000,0x0000, 0x1AB2,0x0000,0x0000,
 0x1AB3,0x0000,0x0000, 0x1AB4,0x0000,0x0000, 0x1AB5,0x0000,0x0000,
@@ -1890,7 +1894,7 @@ uint16 page014data[]= { /* 1400 (3 weights per char) */
 0x1BA9,0x0000,0x0000, 0x1BAA,0x0000,0x0000, 0x1BAB,0x0000,0x0000,
 0x1BAC,0x0000,0x0000 };
 
-uint16 page015data[]= { /* 1500 (2 weights per char) */
+static const uint16 page015data[]= { /* 1500 (2 weights per char) */
 0x1BAD,0x0000, 0x1BAE,0x0000, 0x1BAF,0x0000, 0x1BB0,0x0000,
 0x1BB1,0x0000, 0x1BB2,0x0000, 0x1BB3,0x0000, 0x1BB4,0x0000,
 0x1BB5,0x0000, 0x1BB6,0x0000, 0x1BB7,0x0000, 0x1BB8,0x0000,
@@ -1957,7 +1961,7 @@ uint16 page015data[]= { /* 1500 (2 weights per char) */
 0x1CB1,0x0000, 0x1CB2,0x0000, 0x1CB3,0x0000, 0x1CB4,0x0000
 };
 
-uint16 page016data[]= { /* 1600 (3 weights per char) */
+static const uint16 page016data[]= { /* 1600 (3 weights per char) */
 0x1CB5,0x0000,0x0000, 0x1CB6,0x0000,0x0000, 0x1CB7,0x0000,0x0000,
 0x1CB8,0x0000,0x0000, 0x1CB9,0x0000,0x0000, 0x1CBA,0x0000,0x0000,
 0x1CBB,0x0000,0x0000, 0x1CBC,0x0000,0x0000, 0x1CBD,0x0000,0x0000,
@@ -2045,7 +2049,7 @@ uint16 page016data[]= { /* 1600 (3 weights per char) */
 0xFBC0,0x96FC,0x0000, 0xFBC0,0x96FD,0x0000, 0xFBC0,0x96FE,0x0000,
 0xFBC0,0x96FF,0x0000 };
 
-uint16 page017data[]= { /* 1700 (3 weights per char) */
+static const uint16 page017data[]= { /* 1700 (3 weights per char) */
 0x18E2,0x0000,0x0000, 0x18E3,0x0000,0x0000, 0x18E4,0x0000,0x0000,
 0x18E5,0x0000,0x0000, 0x18E6,0x0000,0x0000, 0x18E7,0x0000,0x0000,
 0x18E8,0x0000,0x0000, 0x18E9,0x0000,0x0000, 0x18EA,0x0000,0x0000,
@@ -2133,7 +2137,7 @@ uint16 page017data[]= { /* 1700 (3 weights per char) */
 0xFBC0,0x97FC,0x0000, 0xFBC0,0x97FD,0x0000, 0xFBC0,0x97FE,0x0000,
 0xFBC0,0x97FF,0x0000 };
 
-uint16 page018data[]= { /* 1800 (3 weights per char) */
+static const uint16 page018data[]= { /* 1800 (3 weights per char) */
 0x02F8,0x0000,0x0000, 0x025E,0x0000,0x0000, 0x0235,0x0000,0x0000,
 0x0263,0x0000,0x0000, 0x024A,0x0000,0x0000, 0x024B,0x0000,0x0000,
 0x0223,0x0000,0x0000, 0x0224,0x0000,0x0000, 0x0236,0x0000,0x0000,
@@ -2221,7 +2225,7 @@ uint16 page018data[]= { /* 1800 (3 weights per char) */
 0xFBC0,0x98FC,0x0000, 0xFBC0,0x98FD,0x0000, 0xFBC0,0x98FE,0x0000,
 0xFBC0,0x98FF,0x0000 };
 
-uint16 page019data[]= { /* 1900 (3 weights per char) */
+static const uint16 page019data[]= { /* 1900 (3 weights per char) */
 0x18B0,0x0000,0x0000, 0x18B1,0x0000,0x0000, 0x18B2,0x0000,0x0000,
 0x18B3,0x0000,0x0000, 0x18B4,0x0000,0x0000, 0x18B5,0x0000,0x0000,
 0x18B6,0x0000,0x0000, 0x18B7,0x0000,0x0000, 0x18B8,0x0000,0x0000,
@@ -2309,7 +2313,7 @@ uint16 page019data[]= { /* 1900 (3 weights per char) */
 0x0397,0x0000,0x0000, 0x0398,0x0000,0x0000, 0x0399,0x0000,0x0000,
 0x039A,0x0000,0x0000 };
 
-uint16 page01Ddata[]= { /* 1D00 (3 weights per char) */
+static const uint16 page01Ddata[]= { /* 1D00 (3 weights per char) */
 0x0E37,0x0000,0x0000, 0x0E3C,0x0000,0x0000, 0x0E3D,0x0000,0x0000,
 0x0E57,0x0000,0x0000, 0x0E64,0x0000,0x0000, 0x0E71,0x0000,0x0000,
 0x0E8A,0x0000,0x0000, 0x0E8F,0x0000,0x0000, 0x0EA8,0x0000,0x0000,
@@ -2397,7 +2401,7 @@ uint16 page01Ddata[]= { /* 1D00 (3 weights per char) */
 0xFBC0,0x9DFC,0x0000, 0xFBC0,0x9DFD,0x0000, 0xFBC0,0x9DFE,0x0000,
 0xFBC0,0x9DFF,0x0000 };
 
-uint16 page01Edata[]= { /* 1E00 (3 weights per char) */
+static const uint16 page01Edata[]= { /* 1E00 (3 weights per char) */
 0x0E33,0x0000,0x0000, 0x0E33,0x0000,0x0000, 0x0E4A,0x0000,0x0000,
 0x0E4A,0x0000,0x0000, 0x0E4A,0x0000,0x0000, 0x0E4A,0x0000,0x0000,
 0x0E4A,0x0000,0x0000, 0x0E4A,0x0000,0x0000, 0x0E60,0x0000,0x0000,
@@ -2485,7 +2489,7 @@ uint16 page01Edata[]= { /* 1E00 (3 weights per char) */
 0xFBC0,0x9EFC,0x0000, 0xFBC0,0x9EFD,0x0000, 0xFBC0,0x9EFE,0x0000,
 0xFBC0,0x9EFF,0x0000 };
 
-uint16 page01Fdata[]= { /* 1F00 (3 weights per char) */
+static const uint16 page01Fdata[]= { /* 1F00 (3 weights per char) */
 0x10E8,0x0000,0x0000, 0x10E8,0x0000,0x0000, 0x10E8,0x0000,0x0000,
 0x10E8,0x0000,0x0000, 0x10E8,0x0000,0x0000, 0x10E8,0x0000,0x0000,
 0x10E8,0x0000,0x0000, 0x10E8,0x0000,0x0000, 0x10E8,0x0000,0x0000,
@@ -2573,7 +2577,7 @@ uint16 page01Fdata[]= { /* 1F00 (3 weights per char) */
 0x1109,0x0000,0x0000, 0x020D,0x0000,0x0000, 0x0218,0x0000,0x0000,
 0xFBC0,0x9FFF,0x0000 };
 
-uint16 page020data[]= { /* 2000 (5 weights per char) */
+static const uint16 page020data[]= { /* 2000 (5 weights per char) */
 0x0209,0x0000,0x0000,0x0000,0x0000,
 0x0209,0x0000,0x0000,0x0000,0x0000,
 0x0209,0x0000,0x0000,0x0000,0x0000,
@@ -2832,7 +2836,7 @@ uint16 page020data[]= { /* 2000 (5 weights per char) */
 0xFBC0,0xA0FF,0x0000,0x0000,0x0000
 };
 
-uint16 page021data[]= { /* 2100 (5 weights per char) */
+static const uint16 page021data[]= { /* 2100 (5 weights per char) */
 0x0E33,0x02CC,0x0E60,0x0000,0x0000,
 0x0E33,0x02CC,0x0FEA,0x0000,0x0000,
 0x0E60,0x0000,0x0000,0x0000,0x0000,
@@ -3091,7 +3095,7 @@ uint16 page021data[]= { /* 2100 (5 weights per char) */
 0x0417,0x0000,0x0000,0x0000,0x0000
 };
 
-uint16 page022data[]= { /* 2200 (4 weights per char) */
+static const uint16 page022data[]= { /* 2200 (4 weights per char) */
 0x0418,0x0000,0x0000,0x0000, 0x0419,0x0000,0x0000,0x0000,
 0x041A,0x0000,0x0000,0x0000, 0x041B,0x0000,0x0000,0x0000,
 0x041B,0x0000,0x0000,0x0000, 0x041C,0x0000,0x0000,0x0000,
@@ -3222,7 +3226,7 @@ uint16 page022data[]= { /* 2200 (4 weights per char) */
 0x04F9,0x0000,0x0000,0x0000, 0x04FA,0x0000,0x0000,0x0000
 };
 
-uint16 page023data[]= { /* 2300 (3 weights per char) */
+static const uint16 page023data[]= { /* 2300 (3 weights per char) */
 0x04FB,0x0000,0x0000, 0x04FC,0x0000,0x0000, 0x04FD,0x0000,0x0000,
 0x04FE,0x0000,0x0000, 0x04FF,0x0000,0x0000, 0x0500,0x0000,0x0000,
 0x0501,0x0000,0x0000, 0x0502,0x0000,0x0000, 0x0503,0x0000,0x0000,
@@ -3310,7 +3314,7 @@ uint16 page023data[]= { /* 2300 (3 weights per char) */
 0xFBC0,0xA3FC,0x0000, 0xFBC0,0xA3FD,0x0000, 0xFBC0,0xA3FE,0x0000,
 0xFBC0,0xA3FF,0x0000 };
 
-uint16 page024data[]= { /* 2400 (5 weights per char) */
+static const uint16 page024data[]= { /* 2400 (5 weights per char) */
 0x05CA,0x0000,0x0000,0x0000,0x0000,
 0x05CB,0x0000,0x0000,0x0000,0x0000,
 0x05CC,0x0000,0x0000,0x0000,0x0000,
@@ -3569,7 +3573,7 @@ uint16 page024data[]= { /* 2400 (5 weights per char) */
 0x0E29,0x0000,0x0000,0x0000,0x0000
 };
 
-uint16 page025data[]= { /* 2500 (2 weights per char) */
+static const uint16 page025data[]= { /* 2500 (2 weights per char) */
 0x05FC,0x0000, 0x05FD,0x0000, 0x05FE,0x0000, 0x05FF,0x0000,
 0x0600,0x0000, 0x0601,0x0000, 0x0602,0x0000, 0x0603,0x0000,
 0x0604,0x0000, 0x0605,0x0000, 0x0606,0x0000, 0x0607,0x0000,
@@ -3636,7 +3640,7 @@ uint16 page025data[]= { /* 2500 (2 weights per char) */
 0x06F8,0x0000, 0x06F9,0x0000, 0x06FA,0x0000, 0x06FB,0x0000
 };
 
-uint16 page026data[]= { /* 2600 (3 weights per char) */
+static const uint16 page026data[]= { /* 2600 (3 weights per char) */
 0x06FC,0x0000,0x0000, 0x06FD,0x0000,0x0000, 0x06FE,0x0000,0x0000,
 0x06FF,0x0000,0x0000, 0x0700,0x0000,0x0000, 0x0701,0x0000,0x0000,
 0x0702,0x0000,0x0000, 0x0703,0x0000,0x0000, 0x0704,0x0000,0x0000,
@@ -3724,7 +3728,7 @@ uint16 page026data[]= { /* 2600 (3 weights per char) */
 0xFBC0,0xA6FC,0x0000, 0xFBC0,0xA6FD,0x0000, 0xFBC0,0xA6FE,0x0000,
 0xFBC0,0xA6FF,0x0000 };
 
-uint16 page027data[]= { /* 2700 (3 weights per char) */
+static const uint16 page027data[]= { /* 2700 (3 weights per char) */
 0xFBC0,0xA700,0x0000, 0x077C,0x0000,0x0000, 0x077D,0x0000,0x0000,
 0x077E,0x0000,0x0000, 0x077F,0x0000,0x0000, 0xFBC0,0xA705,0x0000,
 0x0780,0x0000,0x0000, 0x0781,0x0000,0x0000, 0x0782,0x0000,0x0000,
@@ -3812,7 +3816,7 @@ uint16 page027data[]= { /* 2700 (3 weights per char) */
 0x0834,0x0000,0x0000, 0x0835,0x0000,0x0000, 0x0836,0x0000,0x0000,
 0x0837,0x0000,0x0000 };
 
-uint16 page028data[]= { /* 2800 (2 weights per char) */
+static const uint16 page028data[]= { /* 2800 (2 weights per char) */
 0x0A29,0x0000, 0x0A2A,0x0000, 0x0A2B,0x0000, 0x0A2C,0x0000,
 0x0A2D,0x0000, 0x0A2E,0x0000, 0x0A2F,0x0000, 0x0A30,0x0000,
 0x0A31,0x0000, 0x0A32,0x0000, 0x0A33,0x0000, 0x0A34,0x0000,
@@ -3879,7 +3883,7 @@ uint16 page028data[]= { /* 2800 (2 weights per char) */
 0x0B25,0x0000, 0x0B26,0x0000, 0x0B27,0x0000, 0x0B28,0x0000
 };
 
-uint16 page029data[]= { /* 2900 (2 weights per char) */
+static const uint16 page029data[]= { /* 2900 (2 weights per char) */
 0x0838,0x0000, 0x0839,0x0000, 0x083A,0x0000, 0x083B,0x0000,
 0x083C,0x0000, 0x083D,0x0000, 0x083E,0x0000, 0x083F,0x0000,
 0x0840,0x0000, 0x0841,0x0000, 0x0842,0x0000, 0x0843,0x0000,
@@ -3946,7 +3950,7 @@ uint16 page029data[]= { /* 2900 (2 weights per char) */
 0x0296,0x0000, 0x0297,0x0000, 0x091E,0x0000, 0x091F,0x0000
 };
 
-uint16 page02Adata[]= { /* 2A00 (5 weights per char) */
+static const uint16 page02Adata[]= { /* 2A00 (5 weights per char) */
 0x0920,0x0000,0x0000,0x0000,0x0000,
 0x0921,0x0000,0x0000,0x0000,0x0000,
 0x0922,0x0000,0x0000,0x0000,0x0000,
@@ -4205,7 +4209,7 @@ uint16 page02Adata[]= { /* 2A00 (5 weights per char) */
 0x0A1A,0x0000,0x0000,0x0000,0x0000
 };
 
-uint16 page02Bdata[]= { /* 2B00 (3 weights per char) */
+static const uint16 page02Bdata[]= { /* 2B00 (3 weights per char) */
 0x0A1B,0x0000,0x0000, 0x0A1C,0x0000,0x0000, 0x0A1D,0x0000,0x0000,
 0x0A1E,0x0000,0x0000, 0x0A1F,0x0000,0x0000, 0x0A20,0x0000,0x0000,
 0x0A21,0x0000,0x0000, 0x0A22,0x0000,0x0000, 0x0A23,0x0000,0x0000,
@@ -4293,7 +4297,7 @@ uint16 page02Bdata[]= { /* 2B00 (3 weights per char) */
 0xFBC0,0xABFC,0x0000, 0xFBC0,0xABFD,0x0000, 0xFBC0,0xABFE,0x0000,
 0xFBC0,0xABFF,0x0000 };
 
-uint16 page02Edata[]= { /* 2E00 (3 weights per char) */
+static const uint16 page02Edata[]= { /* 2E00 (3 weights per char) */
 0xFBC0,0xAE00,0x0000, 0xFBC0,0xAE01,0x0000, 0xFBC0,0xAE02,0x0000,
 0xFBC0,0xAE03,0x0000, 0xFBC0,0xAE04,0x0000, 0xFBC0,0xAE05,0x0000,
 0xFBC0,0xAE06,0x0000, 0xFBC0,0xAE07,0x0000, 0xFBC0,0xAE08,0x0000,
@@ -4381,7 +4385,7 @@ uint16 page02Edata[]= { /* 2E00 (3 weights per char) */
 0xFBC0,0xAEFC,0x0000, 0xFBC0,0xAEFD,0x0000, 0xFBC0,0xAEFE,0x0000,
 0xFBC0,0xAEFF,0x0000 };
 
-uint16 page02Fdata[]= { /* 2F00 (3 weights per char) */
+static const uint16 page02Fdata[]= { /* 2F00 (3 weights per char) */
 0xFB40,0xCE00,0x0000, 0xFB40,0xCE28,0x0000, 0xFB40,0xCE36,0x0000,
 0xFB40,0xCE3F,0x0000, 0xFB40,0xCE59,0x0000, 0xFB40,0xCE85,0x0000,
 0xFB40,0xCE8C,0x0000, 0xFB40,0xCEA0,0x0000, 0xFB40,0xCEBA,0x0000,
@@ -4469,7 +4473,7 @@ uint16 page02Fdata[]= { /* 2F00 (3 weights per char) */
 0xFBC0,0xAFFC,0x0000, 0xFBC0,0xAFFD,0x0000, 0xFBC0,0xAFFE,0x0000,
 0xFBC0,0xAFFF,0x0000 };
 
-uint16 page030data[]= { /* 3000 (3 weights per char) */
+static const uint16 page030data[]= { /* 3000 (3 weights per char) */
 0x0209,0x0000,0x0000, 0x0237,0x0000,0x0000, 0x0266,0x0000,0x0000,
 0x02E2,0x0000,0x0000, 0x0DBB,0x0000,0x0000, 0x0E05,0x0000,0x0000,
 0x1E5D,0x1E73,0x0000, 0x0E29,0x0000,0x0000, 0x02AE,0x0000,0x0000,
@@ -4557,7 +4561,7 @@ uint16 page030data[]= { /* 3000 (3 weights per char) */
 0x0E0B,0x0000,0x0000, 0x0E0C,0x0000,0x0000, 0x0E0C,0x0000,0x0000,
 0x1E5B,0x1E65,0x0000 };
 
-uint16 page031data[]= { /* 3100 (3 weights per char) */
+static const uint16 page031data[]= { /* 3100 (3 weights per char) */
 0xFBC0,0xB100,0x0000, 0xFBC0,0xB101,0x0000, 0xFBC0,0xB102,0x0000,
 0xFBC0,0xB103,0x0000, 0xFBC0,0xB104,0x0000, 0x1E82,0x0000,0x0000,
 0x1E83,0x0000,0x0000, 0x1E84,0x0000,0x0000, 0x1E85,0x0000,0x0000,
@@ -4645,7 +4649,7 @@ uint16 page031data[]= { /* 3100 (3 weights per char) */
 0x1E79,0x0000,0x0000, 0x1E7A,0x0000,0x0000, 0x1E7B,0x0000,0x0000,
 0x1E7C,0x0000,0x0000 };
 
-uint16 page032data[]= { /* 3200 (8 weights per char) */
+static const uint16 page032data[]= { /* 3200 (8 weights per char) */
 0x0288,0x1D62,0x0289,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x0288,0x1D64,0x0289,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x0288,0x1D65,0x0289,0x0000,0x0000,0x0000,0x0000,0x0000,
@@ -4904,7 +4908,7 @@ uint16 page032data[]= { /* 3200 (8 weights per char) */
 0xFBC0,0xB2FF,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000
 };
 
-uint16 page033data[]= { /* 3300 (9 weights per char) */
+static const uint16 page033data[]= { /* 3300 (9 weights per char) */
 0x1E52,0x1E6B,0x0E0B,0x1E65,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x1E52,0x1E7A,0x1E6D,0x1E52,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x1E52,0x1E81,0x1E6E,0x1E52,0x0000,0x0000,0x0000,0x0000,0x0000,
@@ -5163,7 +5167,7 @@ uint16 page033data[]= { /* 3300 (9 weights per char) */
 0x0EC1,0x0E33,0x0F2E,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000
 };
 
-uint16 page04Ddata[]= { /* 4D00 (3 weights per char) */
+static const uint16 page04Ddata[]= { /* 4D00 (3 weights per char) */
 0xFB80,0xCD00,0x0000, 0xFB80,0xCD01,0x0000, 0xFB80,0xCD02,0x0000,
 0xFB80,0xCD03,0x0000, 0xFB80,0xCD04,0x0000, 0xFB80,0xCD05,0x0000,
 0xFB80,0xCD06,0x0000, 0xFB80,0xCD07,0x0000, 0xFB80,0xCD08,0x0000,
@@ -5251,7 +5255,7 @@ uint16 page04Ddata[]= { /* 4D00 (3 weights per char) */
 0x0B73,0x0000,0x0000, 0x0B74,0x0000,0x0000, 0x0B75,0x0000,0x0000,
 0x0B76,0x0000,0x0000 };
 
-uint16 page0A0data[]= { /* A000 (2 weights per char) */
+static const uint16 page0A0data[]= { /* A000 (2 weights per char) */
 0x1EB1,0x0000, 0x1EB2,0x0000, 0x1EB3,0x0000, 0x1EB4,0x0000,
 0x1EB5,0x0000, 0x1EB6,0x0000, 0x1EB7,0x0000, 0x1EB8,0x0000,
 0x1EB9,0x0000, 0x1EBA,0x0000, 0x1EBB,0x0000, 0x1EBC,0x0000,
@@ -5318,7 +5322,7 @@ uint16 page0A0data[]= { /* A000 (2 weights per char) */
 0x1FAD,0x0000, 0x1FAE,0x0000, 0x1FAF,0x0000, 0x1FB0,0x0000
 };
 
-uint16 page0A1data[]= { /* A100 (2 weights per char) */
+static const uint16 page0A1data[]= { /* A100 (2 weights per char) */
 0x1FB1,0x0000, 0x1FB2,0x0000, 0x1FB3,0x0000, 0x1FB4,0x0000,
 0x1FB5,0x0000, 0x1FB6,0x0000, 0x1FB7,0x0000, 0x1FB8,0x0000,
 0x1FB9,0x0000, 0x1FBA,0x0000, 0x1FBB,0x0000, 0x1FBC,0x0000,
@@ -5385,7 +5389,7 @@ uint16 page0A1data[]= { /* A100 (2 weights per char) */
 0x20AD,0x0000, 0x20AE,0x0000, 0x20AF,0x0000, 0x20B0,0x0000
 };
 
-uint16 page0A2data[]= { /* A200 (2 weights per char) */
+static const uint16 page0A2data[]= { /* A200 (2 weights per char) */
 0x20B1,0x0000, 0x20B2,0x0000, 0x20B3,0x0000, 0x20B4,0x0000,
 0x20B5,0x0000, 0x20B6,0x0000, 0x20B7,0x0000, 0x20B8,0x0000,
 0x20B9,0x0000, 0x20BA,0x0000, 0x20BB,0x0000, 0x20BC,0x0000,
@@ -5452,7 +5456,7 @@ uint16 page0A2data[]= { /* A200 (2 weights per char) */
 0x21AD,0x0000, 0x21AE,0x0000, 0x21AF,0x0000, 0x21B0,0x0000
 };
 
-uint16 page0A3data[]= { /* A300 (2 weights per char) */
+static const uint16 page0A3data[]= { /* A300 (2 weights per char) */
 0x21B1,0x0000, 0x21B2,0x0000, 0x21B3,0x0000, 0x21B4,0x0000,
 0x21B5,0x0000, 0x21B6,0x0000, 0x21B7,0x0000, 0x21B8,0x0000,
 0x21B9,0x0000, 0x21BA,0x0000, 0x21BB,0x0000, 0x21BC,0x0000,
@@ -5519,7 +5523,7 @@ uint16 page0A3data[]= { /* A300 (2 weights per char) */
 0x22AD,0x0000, 0x22AE,0x0000, 0x22AF,0x0000, 0x22B0,0x0000
 };
 
-uint16 page0A4data[]= { /* A400 (3 weights per char) */
+static const uint16 page0A4data[]= { /* A400 (3 weights per char) */
 0x22B1,0x0000,0x0000, 0x22B2,0x0000,0x0000, 0x22B3,0x0000,0x0000,
 0x22B4,0x0000,0x0000, 0x22B5,0x0000,0x0000, 0x22B6,0x0000,0x0000,
 0x22B7,0x0000,0x0000, 0x22B8,0x0000,0x0000, 0x22B9,0x0000,0x0000,
@@ -5607,7 +5611,7 @@ uint16 page0A4data[]= { /* A400 (3 weights per char) */
 0xFBC1,0xA4FC,0x0000, 0xFBC1,0xA4FD,0x0000, 0xFBC1,0xA4FE,0x0000,
 0xFBC1,0xA4FF,0x0000 };
 
-uint16 page0F9data[]= { /* F900 (3 weights per char) */
+static const uint16 page0F9data[]= { /* F900 (3 weights per char) */
 0xFB41,0x8C48,0x0000, 0xFB40,0xE6F4,0x0000, 0xFB41,0x8ECA,0x0000,
 0xFB41,0x8CC8,0x0000, 0xFB40,0xEED1,0x0000, 0xFB40,0xCE32,0x0000,
 0xFB40,0xD3E5,0x0000, 0xFB41,0x9F9C,0x0000, 0xFB41,0x9F9C,0x0000,
@@ -5695,7 +5699,7 @@ uint16 page0F9data[]= { /* F900 (3 weights per char) */
 0xFB41,0x8B58,0x0000, 0xFB40,0xCEC0,0x0000, 0xFB41,0x8336,0x0000,
 0xFB40,0xD23A,0x0000 };
 
-uint16 page0FAdata[]= { /* FA00 (3 weights per char) */
+static const uint16 page0FAdata[]= { /* FA00 (3 weights per char) */
 0xFB40,0xD207,0x0000, 0xFB40,0xDEA6,0x0000, 0xFB40,0xE2D3,0x0000,
 0xFB40,0xFCD6,0x0000, 0xFB40,0xDB85,0x0000, 0xFB40,0xED1E,0x0000,
 0xFB40,0xE6B4,0x0000, 0xFB41,0x8F3B,0x0000, 0xFB41,0x884C,0x0000,
@@ -5783,7 +5787,7 @@ uint16 page0FAdata[]= { /* FA00 (3 weights per char) */
 0xFBC1,0xFAFC,0x0000, 0xFBC1,0xFAFD,0x0000, 0xFBC1,0xFAFE,0x0000,
 0xFBC1,0xFAFF,0x0000 };
 
-uint16 page0FBdata[]= { /* FB00 (4 weights per char) */
+static const uint16 page0FBdata[]= { /* FB00 (4 weights per char) */
 0x0EB9,0x0EB9,0x0000,0x0000, 0x0EB9,0x0EFB,0x0000,0x0000,
 0x0EB9,0x0F2E,0x0000,0x0000, 0x0EB9,0x0EB9,0x0EFB,0x0000,
 0x0EB9,0x0EB9,0x0F2E,0x0000, 0x0FEA,0x1002,0x0000,0x0000,
@@ -5914,7 +5918,7 @@ uint16 page0FBdata[]= { /* FB00 (4 weights per char) */
 0x13C9,0x0000,0x0000,0x0000, 0x13C9,0x0000,0x0000,0x0000
 };
 
-uint16 page0FCdata[]= { /* FC00 (3 weights per char) */
+static const uint16 page0FCdata[]= { /* FC00 (3 weights per char) */
 0x134F,0x135E,0x0000, 0x134F,0x1364,0x0000, 0x134F,0x13B0,0x0000,
 0x134F,0x13C7,0x0000, 0x134F,0x13C8,0x0000, 0x1352,0x135E,0x0000,
 0x1352,0x1364,0x0000, 0x1352,0x1365,0x0000, 0x1352,0x13B0,0x0000,
@@ -6002,7 +6006,7 @@ uint16 page0FCdata[]= { /* FC00 (3 weights per char) */
 0x1381,0x13C8,0x0000, 0x1382,0x13C7,0x0000, 0x1382,0x13C8,0x0000,
 0x1364,0x13C7,0x0000 };
 
-uint16 page0FDdata[]= { /* FD00 (9 weights per char) */
+static const uint16 page0FDdata[]= { /* FD00 (9 weights per char) */
 0x1364,0x13C8,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x135E,0x13C7,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x135E,0x13C8,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
@@ -6261,7 +6265,7 @@ uint16 page0FDdata[]= { /* FD00 (9 weights per char) */
 0xFBC1,0xFDFF,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000
 };
 
-uint16 page0FEdata[]= { /* FE00 (3 weights per char) */
+static const uint16 page0FEdata[]= { /* FE00 (3 weights per char) */
 0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,
@@ -6349,7 +6353,7 @@ uint16 page0FEdata[]= { /* FE00 (3 weights per char) */
 0x13AB,0x1350,0x0000, 0xFBC1,0xFEFD,0x0000, 0xFBC1,0xFEFE,0x0000,
 0x0000,0x0000,0x0000 };
 
-uint16 page0FFdata[]= { /* FF00 (3 weights per char) */
+static const uint16 page0FFdata[]= { /* FF00 (3 weights per char) */
 0xFBC1,0xFF00,0x0000, 0x0251,0x0000,0x0000, 0x027E,0x0000,0x0000,
 0x02D2,0x0000,0x0000, 0x0E0F,0x0000,0x0000, 0x02D3,0x0000,0x0000,
 0x02CF,0x0000,0x0000, 0x0277,0x0000,0x0000, 0x0288,0x0000,0x0000,
@@ -6437,7 +6441,7 @@ uint16 page0FFdata[]= { /* FF00 (3 weights per char) */
 0x0DC5,0x0000,0x0000, 0x0DC6,0x0000,0x0000, 0xFBC1,0xFFFE,0x0000,
 0xFBC1,0xFFFF,0x0000 };
 
-uchar uca_length[256]={
+static const uchar uca_length[256]={
 4,3,3,4,3,3,3,3,0,3,3,3,3,3,3,3,
 3,3,3,3,3,2,3,3,3,3,0,0,0,3,3,3,
 5,5,4,3,5,2,3,3,2,2,5,3,0,0,3,3,
@@ -6455,7 +6459,7 @@ uchar uca_length[256]={
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,3,3,4,3,9,3,3
 };
-uint16 *uca_weight[256]={
+static const uint16 *const uca_weight[256]={
 page000data,page001data,page002data,page003data,
 page004data,page005data,page006data,page007data,
 NULL       ,page009data,page00Adata,page00Bdata,
@@ -6742,6 +6746,16 @@ static const char sinhala[]=
 #endif
 
 
+static const char croatian[]=
+
+"&C <  \\u010D <<< \\u010C < \\u0107 <<< \\u0106 "
+"&D <  d\\u017E <<< \\u01C6 <<< D\\u017E <<< \\u01C5 <<< D\\u017D <<< \\u01C4 "
+"   <  \\u0111 <<< \\u0110 "
+"&L < lj <<< \\u01C9 <<< Lj <<< \\u01C8 <<< LJ <<< \\u01C7 "
+"&N < nj <<< \\u01CC <<< Nj <<< \\u01CB <<< NJ <<< \\u01CA "
+"&S < \\u0161 <<< \\u0160 "
+"&Z < \\u017E <<< \\u017D";
+
 /*
   Unicode Collation Algorithm:
   Collation element (weight) scanner, 
@@ -6753,9 +6767,9 @@ typedef struct my_uca_scanner_st
   const uint16 *wbeg;	/* Beginning of the current weight string */
   const uchar  *sbeg;	/* Beginning of the input string          */
   const uchar  *send;	/* End of the input string                */
-  uchar *uca_length;
-  uint16 **uca_weight;
-  uint16 *contractions;
+  const uchar *uca_length;
+  const uint16 * const *uca_weight;
+  const MY_CONTRACTIONS *contractions;
   uint16 implicit[2];
   int page;
   int code;
@@ -6773,7 +6787,80 @@ typedef struct my_uca_scanner_handler_st
   int (*next)(my_uca_scanner *scanner);
 } my_uca_scanner_handler;
 
-static uint16 nochar[]= {0,0};
+static const uint16 nochar[]= {0,0};
+
+/********** Helper functions to handle contraction ************/
+
+
+/**
+  Mark a character as a contraction part
+  
+  @cs       Pointer to CHARSET_INFO data
+  @wc       Unicode code point
+  @flag     flag: "is contraction head", "is contraction tail"
+*/
+
+static void
+my_uca_add_contraction_flag(CHARSET_INFO *cs, my_wc_t wc, int flag)
+{
+  cs->contractions->flags[wc & MY_UCA_CNT_FLAG_MASK]|= flag;
+}
+
+
+/**
+  Add a new contraction into contraction list
+  
+  @cs       Pointer to CHARSET_INFO data
+  @wc       Unicode code points of the characters
+  @len      Number of characters
+  
+  @return   New contraction
+  @retval   Pointer to a newly added contraction
+*/
+
+static MY_CONTRACTION *
+my_uca_add_contraction(struct charset_info_st *cs,
+                       my_wc_t *wc, int len __attribute__((unused)))
+{
+  MY_CONTRACTIONS *list= (MY_CONTRACTIONS*) cs->contractions;
+  MY_CONTRACTION *next= &list->item[list->nitems];
+  DBUG_ASSERT(len == 2); /* We currently support only contraction2 */
+  next->ch[0]= wc[0];
+  next->ch[1]= wc[1];
+  list->nitems++;
+  return next;
+}
+
+
+/**
+  Allocate and initialize memory for contraction list and flags
+  
+  @cs       Pointer to CHARSET_INFO data
+  @alloc    Memory allocation function (typically points to my_alloc_once)
+  @n        Number of contractions
+  
+  @return   Error code
+  @retval   0 - memory allocated successfully
+  @retval   1 - not enough memory
+*/
+
+static my_bool
+my_uca_alloc_contractions(struct charset_info_st *cs,
+                          void *(*alloc)(size_t), size_t n)
+{
+  uint size= n * sizeof(MY_CONTRACTION);
+  MY_CONTRACTIONS *contractions;
+
+  if (!(cs->contractions= contractions= (*alloc)(sizeof(MY_CONTRACTIONS))))
+    return 1;
+  bzero(contractions, sizeof(MY_CONTRACTIONS));
+  if (!(contractions->item= (*alloc)(size)) ||
+      !(contractions->flags= (char*) (*alloc)(MY_UCA_CNT_FLAG_SIZE)))
+    return 1;
+  bzero(contractions->item, size);
+  bzero(contractions->flags, MY_UCA_CNT_FLAG_SIZE);
+  return 0;
+}
 
 
 #ifdef HAVE_CHARSET_ucs2
@@ -6795,7 +6882,7 @@ static uint16 nochar[]= {0,0};
 */
 
 static void my_uca_scanner_init_ucs2(my_uca_scanner *scanner,
-                                     CHARSET_INFO *cs __attribute__((unused)),
+                                     CHARSET_INFO *cs,
                                      const uchar *str, size_t length)
 {
   scanner->wbeg= nochar; 
@@ -6806,6 +6893,7 @@ static void my_uca_scanner_init_ucs2(my_uca_scanner *scanner,
     scanner->uca_length= cs->sort_order;
     scanner->uca_weight= cs->sort_order_big;
     scanner->contractions= cs->contractions;
+    scanner->cs= cs;
     return;
   }
 
@@ -6882,8 +6970,8 @@ static int my_uca_scanner_next_ucs2(my_uca_scanner *scanner)
   
   do 
   {
-    uint16 **ucaw= scanner->uca_weight;
-    uchar *ucal= scanner->uca_length;
+    const uint16 *const *ucaw= scanner->uca_weight;
+    const uchar *ucal= scanner->uca_length;
     
     if (scanner->sbeg > scanner->send)
       return -1;
@@ -6894,18 +6982,23 @@ static int my_uca_scanner_next_ucs2(my_uca_scanner *scanner)
     
     if (scanner->contractions && (scanner->sbeg <= scanner->send))
     {
-      int cweight;
+      my_wc_t wc1= ((scanner->page << 8) | scanner->code);
       
-      if (!scanner->page && !scanner->sbeg[0] &&
-          (scanner->sbeg[1] > 0x40) && (scanner->sbeg[1] < 0x80) &&
-          (scanner->code > 0x40) && (scanner->code < 0x80) &&
-          (cweight= scanner->contractions[(scanner->code-0x40)*0x40+scanner->sbeg[1]-0x40]))
+      if (my_cs_can_be_contraction_head(scanner->cs, wc1))
+      {
+        const uint16 *cweight;
+        my_wc_t wc2= (((my_wc_t) scanner->sbeg[0]) << 8) | scanner->sbeg[1];
+        if (my_cs_can_be_contraction_tail(scanner->cs, wc2) &&
+          (cweight= my_cs_contraction2_weight(scanner->cs,
+                                               scanner->code,
+                                               scanner->sbeg[1])))
         {
           scanner->implicit[0]= 0;
           scanner->wbeg= scanner->implicit;
           scanner->sbeg+=2;
-          return cweight;
+          return *cweight;
         }
+      }
     }
     
     if (!ucaw[scanner->page])
@@ -6940,7 +7033,7 @@ static my_uca_scanner_handler my_ucs2_uca_scanner_handler=
   my_uca_scanner_next_ucs2
 };
 
-#endif
+#endif /* HAVE_CHARSET_ucs2 */
 
 
 /*
@@ -6974,15 +7067,33 @@ static int my_uca_scanner_next_any(my_uca_scanner *scanner)
   
   do 
   {
-    uint16 **ucaw= scanner->uca_weight;
-    uchar *ucal= scanner->uca_length;
+    const uint16 *const *ucaw= scanner->uca_weight;
+    const uchar *ucal= scanner->uca_length;
     my_wc_t wc;
     int mb_len;
     
     if (((mb_len= scanner->cs->cset->mb_wc(scanner->cs, &wc, 
                                           scanner->sbeg,
                                           scanner->send)) <= 0))
-      return -1;
+    {
+      if (scanner->sbeg >= scanner->send)
+        return -1; /* No more bytes, end of line reached */
+      /*
+        There are some more bytes left. Non-positive mb_len means that
+        we got an incomplete or a bad byte sequence. Consume mbminlen bytes.
+      */
+      if ((scanner->sbeg+= scanner->cs->mbminlen) > scanner->send)
+      {
+        /* For safety purposes don't go beyond the string range. */
+        scanner->sbeg= scanner->send;
+      }
+      /*
+        Treat every complete or incomplete mbminlen unit as a weight which is
+        greater than weight for any possible normal character.
+        0xFFFF is greater than any possible weight in the UCA weight table.
+      */
+      return 0xFFFF;
+    }
     
     scanner->sbeg+= mb_len;
     if (wc > MAX_UCA_CHAR_WITH_EXPLICIT_WEIGHT)
@@ -6997,23 +7108,22 @@ static int my_uca_scanner_next_any(my_uca_scanner *scanner)
       scanner->code= wc & 0xFF;
     }
     
-    if (scanner->contractions && !scanner->page &&
-        (scanner->code > 0x40) && (scanner->code < 0x80))
+    if (my_cs_have_contractions(scanner->cs) &&
+        my_cs_can_be_contraction_head(scanner->cs, wc))
     {
-      uint page1, code1, cweight;
+      my_wc_t wc2;
+      const uint16 *cweight;
       
-      if (((mb_len= scanner->cs->cset->mb_wc(scanner->cs, &wc,
+      if (((mb_len= scanner->cs->cset->mb_wc(scanner->cs, &wc2,
                                             scanner->sbeg, 
                                             scanner->send)) >=0) &&
-           (!(page1= (wc >> 8))) &&
-           ((code1= (wc & 0xFF)) > 0x40) &&
-           (code1 < 0x80) && 
-           (cweight= scanner->contractions[(scanner->code-0x40)*0x40 + code1-0x40]))
+           my_cs_can_be_contraction_tail(scanner->cs, wc2) &&
+          (cweight= my_cs_contraction2_weight(scanner->cs, wc, wc2)))
       {
         scanner->implicit[0]= 0;
         scanner->wbeg= scanner->implicit;
         scanner->sbeg+= mb_len;
-        return cweight;
+        return *cweight;
       }
     }
     
@@ -7049,6 +7159,7 @@ static my_uca_scanner_handler my_any_uca_scanner_handler=
   my_uca_scanner_init_any,
   my_uca_scanner_next_any
 };
+
 
 /*
   Compares two strings according to the collation
@@ -7336,12 +7447,12 @@ static size_t my_strnxfrm_uca(CHARSET_INFO *cs,
              or NULL if this page does not have implicit weights.
 */
 
-static inline uint16 *
+static inline const uint16 *
 my_char_weight_addr(CHARSET_INFO *cs, uint wc)
 {
   uint page, ofst;
-  uchar *ucal= cs->sort_order;
-  uint16 **ucaw= cs->sort_order_big;
+  const uchar *ucal= cs->sort_order;
+  const uint16 * const *ucaw= cs->sort_order_big;
 
   return wc > MAX_UCA_CHAR_WITH_EXPLICIT_WEIGHT ? NULL :
          (ucaw[page= (wc >> 8)] ?
@@ -7361,8 +7472,8 @@ my_char_weight_addr(CHARSET_INFO *cs, uint wc)
 static int my_uca_charcmp(CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
 {
   size_t length1, length2;
-  uint16 *weight1= my_char_weight_addr(cs, wc1);
-  uint16 *weight2= my_char_weight_addr(cs, wc2);
+  const uint16 *weight1= my_char_weight_addr(cs, wc1);
+  const uint16 *weight2= my_char_weight_addr(cs, wc2);
   
   if (!weight1 || !weight2)
     return wc1 != wc2;
@@ -7402,10 +7513,8 @@ int my_wildcmp_uca_impl(CHARSET_INFO *cs,
   int result= -1;			/* Not found, using wildcards */
   my_wc_t s_wc, w_wc;
   int scan;
-  int (*mb_wc)(struct charset_info_st *, my_wc_t *,
-               const uchar *, const uchar *);
-  mb_wc= cs->cset->mb_wc;
-
+  my_charset_conv_mb_wc mb_wc= cs->cset->mb_wc;
+  
   if (my_string_stack_guard && my_string_stack_guard(recurse_level))
     return 1;
   while (wildstr != wildend)
@@ -7770,8 +7879,8 @@ ex:
 
 typedef struct my_coll_rule_item_st
 {
-  uint base;     /* Base character                             */
-  uint curr[2];  /* Current character                          */
+  my_wc_t base;     /* Base character                             */
+  my_wc_t curr[2];  /* Current character                          */
   int diff[3];   /* Primary, Secondary and Tertiary difference */
 } MY_COLL_RULE;
 
@@ -7922,14 +8031,16 @@ static int my_coll_rule_parse(MY_COLL_RULE *rule, size_t mitems,
   default weights.
 */
 
-static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(size_t))
+static my_bool create_tailoring(struct charset_info_st *cs,
+                                void *(*alloc)(size_t))
 {
   MY_COLL_RULE rule[MY_MAX_COLL_RULE];
+  MY_COLL_RULE *r, *rfirst, *rlast;
   char errstr[128];
   uchar   *newlengths;
   uint16 **newweights;
   const uchar *deflengths= uca_length;
-  uint16     **defweights= uca_weight;
+  const uint16 *const *defweights= uca_weight;
   int rc, i;
   int ncontractions= 0;
   
@@ -7948,6 +8059,9 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(size_t))
     */
     return 1;
   }
+  
+  rfirst= rule;
+  rlast= rule + rc;
   
   if (!cs->caseinfo)
     cs->caseinfo= my_unicase_default;
@@ -8027,54 +8141,31 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(size_t))
   for (i= 0; i < 256 ; i++)
   {
     if (!newweights[i])
-      newweights[i]= defweights[i];
+      ((const uint16**) newweights)[i]= defweights[i];
   }
   
   cs->sort_order= newlengths;
-  cs->sort_order_big= newweights;
+  cs->sort_order_big= (const uint16**) newweights;
   cs->contractions= NULL;
   
   /* Now process contractions */
   if (ncontractions)
   {
-    /*
-      8K for weights for basic latin letter pairs,
-      plus 256 bytes for "is contraction part" flags.
-    */
-    uint size= 0x40*0x40*sizeof(uint16) + 256;
-    char *contraction_flags;
-    if (!(cs->contractions= (uint16*) (*alloc)(size)))
-        return 1;
-    bzero((void*)cs->contractions, size);
-    contraction_flags= (char *) (cs->contractions + 0x40*0x40);
-    for (i=0; i < rc; i++)
+    if (my_uca_alloc_contractions(cs, alloc, ncontractions))
+      return 1;
+    for (r= rfirst; r < rlast; r++)
     {
-      if (rule[i].curr[1])
+      uint16 *to;
+      if (r->curr[1]) /* Contraction */
       {
-        uint pageb= (rule[i].base >> 8) & 0xFF;
-        uint chb= rule[i].base & 0xFF;
-        uint16 *offsb= defweights[pageb] + chb*deflengths[pageb];
-        uint offsc;
-        
-        if (offsb[1] || 
-            rule[i].curr[0] < 0x40 || rule[i].curr[0] > 0x7f ||
-            rule[i].curr[1] < 0x40 || rule[i].curr[1] > 0x7f)
-        {
-          /* 
-           TODO: add error reporting;
-           We support only basic latin letters contractions at this point.
-           Also, We don't support contractions with weight longer than one.
-           Otherwise, we'd need much more memory.
-          */
-          return 1;
-        }
-        offsc= (rule[i].curr[0]-0x40)*0x40+(rule[i].curr[1]-0x40);
-        
-        /* Copy base weight applying primary difference */
-        cs->contractions[offsc]= offsb[0] + rule[i].diff[0];
-        /* Mark both letters as "is contraction part */
-        contraction_flags[rule[i].curr[0]]= 1;
-        contraction_flags[rule[i].curr[1]]= 1;
+        /* Mark both letters as "is contraction part" */
+        my_uca_add_contraction_flag(cs, r->curr[0], MY_UCA_CNT_HEAD);
+        my_uca_add_contraction_flag(cs, r->curr[1], MY_UCA_CNT_TAIL);
+        to= my_uca_add_contraction(cs, r->curr, 2)->weight;
+        /* Copy weight from the reset character */
+        to[0]= my_char_weight_addr(cs, r->base)[0];
+        /* Apply primary difference */
+        to[0]+= r->diff[0];
       }
     }
   }
@@ -8088,7 +8179,8 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(size_t))
   Should work for any character set.
 */
 
-static my_bool my_coll_init_uca(CHARSET_INFO *cs, void *(*alloc)(size_t))
+static my_bool my_coll_init_uca(struct charset_info_st *cs,
+                                void *(*alloc)(size_t))
 {
   cs->pad_char= ' ';
   cs->ctype= my_charset_utf8_unicode_ci.ctype;
@@ -8183,7 +8275,7 @@ MY_COLLATION_HANDLER my_collation_ucs2_uca_handler =
   my_propagate_complex
 };
 
-CHARSET_INFO my_charset_ucs2_unicode_ci=
+struct charset_info_st my_charset_ucs2_unicode_ci=
 {
     128,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -8215,7 +8307,7 @@ CHARSET_INFO my_charset_ucs2_unicode_ci=
     &my_collation_ucs2_uca_handler
 };
 
-CHARSET_INFO my_charset_ucs2_icelandic_uca_ci=
+struct charset_info_st my_charset_ucs2_icelandic_uca_ci=
 {
     129,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -8247,7 +8339,7 @@ CHARSET_INFO my_charset_ucs2_icelandic_uca_ci=
     &my_collation_ucs2_uca_handler
 };
 
-CHARSET_INFO my_charset_ucs2_latvian_uca_ci=
+struct charset_info_st my_charset_ucs2_latvian_uca_ci=
 {
     130,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -8279,7 +8371,7 @@ CHARSET_INFO my_charset_ucs2_latvian_uca_ci=
     &my_collation_ucs2_uca_handler
 };
 
-CHARSET_INFO my_charset_ucs2_romanian_uca_ci=
+struct charset_info_st my_charset_ucs2_romanian_uca_ci=
 {
     131,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -8311,7 +8403,7 @@ CHARSET_INFO my_charset_ucs2_romanian_uca_ci=
     &my_collation_ucs2_uca_handler
 };
 
-CHARSET_INFO my_charset_ucs2_slovenian_uca_ci=
+struct charset_info_st my_charset_ucs2_slovenian_uca_ci=
 {
     132,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -8343,7 +8435,7 @@ CHARSET_INFO my_charset_ucs2_slovenian_uca_ci=
     &my_collation_ucs2_uca_handler
 };
 
-CHARSET_INFO my_charset_ucs2_polish_uca_ci=
+struct charset_info_st my_charset_ucs2_polish_uca_ci=
 {
     133,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -8375,7 +8467,7 @@ CHARSET_INFO my_charset_ucs2_polish_uca_ci=
     &my_collation_ucs2_uca_handler
 };
 
-CHARSET_INFO my_charset_ucs2_estonian_uca_ci=
+struct charset_info_st my_charset_ucs2_estonian_uca_ci=
 {
     134,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -8407,7 +8499,7 @@ CHARSET_INFO my_charset_ucs2_estonian_uca_ci=
     &my_collation_ucs2_uca_handler
 };
 
-CHARSET_INFO my_charset_ucs2_spanish_uca_ci=
+struct charset_info_st my_charset_ucs2_spanish_uca_ci=
 {
     135,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -8439,7 +8531,7 @@ CHARSET_INFO my_charset_ucs2_spanish_uca_ci=
     &my_collation_ucs2_uca_handler
 };
 
-CHARSET_INFO my_charset_ucs2_swedish_uca_ci=
+struct charset_info_st my_charset_ucs2_swedish_uca_ci=
 {
     136,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -8471,7 +8563,7 @@ CHARSET_INFO my_charset_ucs2_swedish_uca_ci=
     &my_collation_ucs2_uca_handler
 };
 
-CHARSET_INFO my_charset_ucs2_turkish_uca_ci=
+struct charset_info_st my_charset_ucs2_turkish_uca_ci=
 {
     137,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -8503,7 +8595,7 @@ CHARSET_INFO my_charset_ucs2_turkish_uca_ci=
     &my_collation_ucs2_uca_handler
 };
 
-CHARSET_INFO my_charset_ucs2_czech_uca_ci=
+struct charset_info_st my_charset_ucs2_czech_uca_ci=
 {
     138,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -8536,7 +8628,7 @@ CHARSET_INFO my_charset_ucs2_czech_uca_ci=
 };
 
 
-CHARSET_INFO my_charset_ucs2_danish_uca_ci=
+struct charset_info_st my_charset_ucs2_danish_uca_ci=
 {
     139,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -8568,7 +8660,7 @@ CHARSET_INFO my_charset_ucs2_danish_uca_ci=
     &my_collation_ucs2_uca_handler
 };
 
-CHARSET_INFO my_charset_ucs2_lithuanian_uca_ci=
+struct charset_info_st my_charset_ucs2_lithuanian_uca_ci=
 {
     140,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -8600,7 +8692,7 @@ CHARSET_INFO my_charset_ucs2_lithuanian_uca_ci=
     &my_collation_ucs2_uca_handler
 };
 
-CHARSET_INFO my_charset_ucs2_slovak_uca_ci=
+struct charset_info_st my_charset_ucs2_slovak_uca_ci=
 {
     141,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -8632,7 +8724,7 @@ CHARSET_INFO my_charset_ucs2_slovak_uca_ci=
     &my_collation_ucs2_uca_handler
 };
 
-CHARSET_INFO my_charset_ucs2_spanish2_uca_ci=
+struct charset_info_st my_charset_ucs2_spanish2_uca_ci=
 {
     142,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -8665,7 +8757,7 @@ CHARSET_INFO my_charset_ucs2_spanish2_uca_ci=
 };
 
 
-CHARSET_INFO my_charset_ucs2_roman_uca_ci=
+struct charset_info_st my_charset_ucs2_roman_uca_ci=
 {
     143,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -8698,7 +8790,7 @@ CHARSET_INFO my_charset_ucs2_roman_uca_ci=
 };
 
 
-CHARSET_INFO my_charset_ucs2_persian_uca_ci=
+struct charset_info_st my_charset_ucs2_persian_uca_ci=
 {
     144,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -8731,7 +8823,7 @@ CHARSET_INFO my_charset_ucs2_persian_uca_ci=
 };
 
 
-CHARSET_INFO my_charset_ucs2_esperanto_uca_ci=
+struct charset_info_st my_charset_ucs2_esperanto_uca_ci=
 {
     145,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -8764,7 +8856,7 @@ CHARSET_INFO my_charset_ucs2_esperanto_uca_ci=
 };
 
 
-CHARSET_INFO my_charset_ucs2_hungarian_uca_ci=
+struct charset_info_st my_charset_ucs2_hungarian_uca_ci=
 {
     146,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -8796,11 +8888,10 @@ CHARSET_INFO my_charset_ucs2_hungarian_uca_ci=
     &my_collation_ucs2_uca_handler
 };
 
-
-CHARSET_INFO my_charset_ucs2_sinhala_uca_ci=
+struct charset_info_st my_charset_ucs2_sinhala_uca_ci=
 {
     147,0,0,             /* number       */
-    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
     "ucs2",              /* csname    */
     "ucs2_sinhala_ci",   /* name         */
     "",                  /* comment      */
@@ -8829,6 +8920,37 @@ CHARSET_INFO my_charset_ucs2_sinhala_uca_ci=
     &my_collation_ucs2_uca_handler
 };
 
+struct charset_info_st my_charset_ucs2_croatian_uca_ci=
+{
+    149,0,0,             /* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
+    "ucs2",              /* cs name    */
+    "ucs2_croatian_ci",  /* name         */
+    "",                  /* comment      */
+    croatian,            /* tailoring    */
+    NULL,                /* ctype        */
+    NULL,                /* to_lower     */
+    NULL,                /* to_upper     */
+    NULL,                /* sort_order   */
+    NULL,                /* contractions */
+    NULL,                /* sort_order_big*/
+    NULL,                /* tab_to_uni   */
+    NULL,                /* tab_from_uni */
+    my_unicase_default,  /* caseinfo     */
+    NULL,                /* state_map    */
+    NULL,                /* ident_map    */
+    8,                   /* strxfrm_multiply */
+    1,                   /* caseup_multiply  */
+    1,                   /* casedn_multiply  */
+    2,                   /* mbminlen     */
+    2,                   /* mbmaxlen     */
+    9,                   /* min_sort_char */
+    0xFFFF,              /* max_sort_char */
+    ' ',                 /* pad char      */
+    0,                   /* escape_with_backslash_is_dangerous */
+    &my_charset_ucs2_handler,
+    &my_collation_ucs2_uca_handler
+};
 
 #endif
 
@@ -8879,7 +9001,7 @@ extern MY_CHARSET_HANDLER my_charset_utf8_handler;
 
 #define MY_CS_UTF8MB3_UCA_FLAGS (MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE)
 
-CHARSET_INFO my_charset_utf8_unicode_ci=
+struct charset_info_st my_charset_utf8_unicode_ci=
 {
     192,0,0,		/* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
@@ -8912,10 +9034,10 @@ CHARSET_INFO my_charset_utf8_unicode_ci=
 };
 
 
-CHARSET_INFO my_charset_utf8_icelandic_uca_ci=
+struct charset_info_st my_charset_utf8_icelandic_uca_ci=
 {
     193,0,0,		/* number       */
-    MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
     "utf8",		/* cs name    */
     "utf8_icelandic_ci",/* name         */
     "",			/* comment      */
@@ -8944,7 +9066,7 @@ CHARSET_INFO my_charset_utf8_icelandic_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8_latvian_uca_ci=
+struct charset_info_st my_charset_utf8_latvian_uca_ci=
 {
     194,0,0,		/* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
@@ -8976,7 +9098,7 @@ CHARSET_INFO my_charset_utf8_latvian_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8_romanian_uca_ci=
+struct charset_info_st my_charset_utf8_romanian_uca_ci=
 {
     195,0,0,		/* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
@@ -9008,7 +9130,7 @@ CHARSET_INFO my_charset_utf8_romanian_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8_slovenian_uca_ci=
+struct charset_info_st my_charset_utf8_slovenian_uca_ci=
 {
     196,0,0,		/* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
@@ -9040,7 +9162,7 @@ CHARSET_INFO my_charset_utf8_slovenian_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8_polish_uca_ci=
+struct charset_info_st my_charset_utf8_polish_uca_ci=
 {
     197,0,0,		/* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
@@ -9072,7 +9194,7 @@ CHARSET_INFO my_charset_utf8_polish_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8_estonian_uca_ci=
+struct charset_info_st my_charset_utf8_estonian_uca_ci=
 {
     198,0,0,		/* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
@@ -9104,7 +9226,7 @@ CHARSET_INFO my_charset_utf8_estonian_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8_spanish_uca_ci=
+struct charset_info_st my_charset_utf8_spanish_uca_ci=
 {
     199,0,0,		/* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
@@ -9136,7 +9258,7 @@ CHARSET_INFO my_charset_utf8_spanish_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8_swedish_uca_ci=
+struct charset_info_st my_charset_utf8_swedish_uca_ci=
 {
     200,0,0,		/* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
@@ -9168,7 +9290,7 @@ CHARSET_INFO my_charset_utf8_swedish_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8_turkish_uca_ci=
+struct charset_info_st my_charset_utf8_turkish_uca_ci=
 {
     201,0,0,		/* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
@@ -9200,7 +9322,7 @@ CHARSET_INFO my_charset_utf8_turkish_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8_czech_uca_ci=
+struct charset_info_st my_charset_utf8_czech_uca_ci=
 {
     202,0,0,		/* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
@@ -9233,7 +9355,7 @@ CHARSET_INFO my_charset_utf8_czech_uca_ci=
 };
 
 
-CHARSET_INFO my_charset_utf8_danish_uca_ci=
+struct charset_info_st my_charset_utf8_danish_uca_ci=
 {
     203,0,0,		/* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
@@ -9265,7 +9387,7 @@ CHARSET_INFO my_charset_utf8_danish_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8_lithuanian_uca_ci=
+struct charset_info_st my_charset_utf8_lithuanian_uca_ci=
 {
     204,0,0,		/* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
@@ -9297,7 +9419,7 @@ CHARSET_INFO my_charset_utf8_lithuanian_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8_slovak_uca_ci=
+struct charset_info_st my_charset_utf8_slovak_uca_ci=
 {
     205,0,0,		/* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
@@ -9329,7 +9451,7 @@ CHARSET_INFO my_charset_utf8_slovak_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8_spanish2_uca_ci=
+struct charset_info_st my_charset_utf8_spanish2_uca_ci=
 {
     206,0,0,		/* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
@@ -9361,7 +9483,7 @@ CHARSET_INFO my_charset_utf8_spanish2_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8_roman_uca_ci=
+struct charset_info_st my_charset_utf8_roman_uca_ci=
 {
     207,0,0,		/* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
@@ -9393,7 +9515,7 @@ CHARSET_INFO my_charset_utf8_roman_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8_persian_uca_ci=
+struct charset_info_st my_charset_utf8_persian_uca_ci=
 {
     208,0,0,		/* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
@@ -9425,7 +9547,7 @@ CHARSET_INFO my_charset_utf8_persian_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8_esperanto_uca_ci=
+struct charset_info_st my_charset_utf8_esperanto_uca_ci=
 {
     209,0,0,		/* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
@@ -9457,7 +9579,7 @@ CHARSET_INFO my_charset_utf8_esperanto_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8_hungarian_uca_ci=
+struct charset_info_st my_charset_utf8_hungarian_uca_ci=
 {
     210,0,0,		/* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
@@ -9489,7 +9611,7 @@ CHARSET_INFO my_charset_utf8_hungarian_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8_sinhala_uca_ci=
+struct charset_info_st my_charset_utf8_sinhala_uca_ci=
 {
     211,0,0,             /* number       */
     MY_CS_UTF8MB3_UCA_FLAGS,/* flags    */
@@ -9521,6 +9643,38 @@ CHARSET_INFO my_charset_utf8_sinhala_uca_ci=
     &my_collation_any_uca_handler
 };
 
+struct charset_info_st my_charset_utf8_croatian_uca_ci=
+{
+    213,0,0,            /* number       */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE,
+    "utf8",             /* cs name    */
+    "utf8_croatian_ci", /* name         */
+    "",                 /* comment      */
+    croatian,           /* tailoring    */
+    ctype_utf8,         /* ctype        */
+    NULL,               /* to_lower     */
+    NULL,               /* to_upper     */
+    NULL,               /* sort_order   */
+    NULL,               /* contractions */
+    NULL,               /* sort_order_big*/
+    NULL,               /* tab_to_uni   */
+    NULL,               /* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
+    NULL,               /* state_map    */
+    NULL,               /* ident_map    */
+    8,                  /* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
+    1,                  /* mbminlen     */
+    3,                  /* mbmaxlen     */
+    9,                  /* min_sort_char */
+    0xFFFF,             /* max_sort_char */
+    ' ',                /* pad char      */
+    0,                  /* escape_with_backslash_is_dangerous */
+    &my_charset_utf8_handler,
+    &my_collation_any_uca_handler
+};
+
 #endif /* HAVE_CHARSET_utf8 */
 
 
@@ -9530,7 +9684,7 @@ extern MY_CHARSET_HANDLER my_charset_utf8mb4_handler;
 
 #define MY_CS_UTF8MB4_UCA_FLAGS  (MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_UNICODE_SUPPLEMENT)
 
-CHARSET_INFO my_charset_utf8mb4_unicode_ci=
+struct charset_info_st my_charset_utf8mb4_unicode_ci=
 {
     224,0,0,             /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -9563,7 +9717,7 @@ CHARSET_INFO my_charset_utf8mb4_unicode_ci=
 };
 
 
-CHARSET_INFO my_charset_utf8mb4_icelandic_uca_ci=
+struct charset_info_st my_charset_utf8mb4_icelandic_uca_ci=
 {
     225,0,0,             /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -9595,7 +9749,7 @@ CHARSET_INFO my_charset_utf8mb4_icelandic_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_latvian_uca_ci=
+struct charset_info_st my_charset_utf8mb4_latvian_uca_ci=
 {
     226,0,0,             /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -9627,7 +9781,7 @@ CHARSET_INFO my_charset_utf8mb4_latvian_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_romanian_uca_ci=
+struct charset_info_st my_charset_utf8mb4_romanian_uca_ci=
 {
     227,0,0,             /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -9659,7 +9813,7 @@ CHARSET_INFO my_charset_utf8mb4_romanian_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_slovenian_uca_ci=
+struct charset_info_st my_charset_utf8mb4_slovenian_uca_ci=
 {
     228,0,0,             /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -9691,7 +9845,7 @@ CHARSET_INFO my_charset_utf8mb4_slovenian_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_polish_uca_ci=
+struct charset_info_st my_charset_utf8mb4_polish_uca_ci=
 {
     229,0,0,             /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -9723,7 +9877,7 @@ CHARSET_INFO my_charset_utf8mb4_polish_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_estonian_uca_ci=
+struct charset_info_st my_charset_utf8mb4_estonian_uca_ci=
 {
     230,0,0,             /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -9755,7 +9909,7 @@ CHARSET_INFO my_charset_utf8mb4_estonian_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_spanish_uca_ci=
+struct charset_info_st my_charset_utf8mb4_spanish_uca_ci=
 {
     231,0,0,             /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -9787,7 +9941,7 @@ CHARSET_INFO my_charset_utf8mb4_spanish_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_swedish_uca_ci=
+struct charset_info_st my_charset_utf8mb4_swedish_uca_ci=
 {
     232,0,0,             /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -9819,7 +9973,7 @@ CHARSET_INFO my_charset_utf8mb4_swedish_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_turkish_uca_ci=
+struct charset_info_st my_charset_utf8mb4_turkish_uca_ci=
 {
     233,0,0,             /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -9851,7 +10005,7 @@ CHARSET_INFO my_charset_utf8mb4_turkish_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_czech_uca_ci=
+struct charset_info_st my_charset_utf8mb4_czech_uca_ci=
 {
     234,0,0,             /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -9884,7 +10038,7 @@ CHARSET_INFO my_charset_utf8mb4_czech_uca_ci=
 };
 
 
-CHARSET_INFO my_charset_utf8mb4_danish_uca_ci=
+struct charset_info_st my_charset_utf8mb4_danish_uca_ci=
 {
     235,0,0,             /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -9916,7 +10070,7 @@ CHARSET_INFO my_charset_utf8mb4_danish_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_lithuanian_uca_ci=
+struct charset_info_st my_charset_utf8mb4_lithuanian_uca_ci=
 {
     236,0,0,             /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -9948,7 +10102,7 @@ CHARSET_INFO my_charset_utf8mb4_lithuanian_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_slovak_uca_ci=
+struct charset_info_st my_charset_utf8mb4_slovak_uca_ci=
 {
     237,0,0,             /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -9980,7 +10134,7 @@ CHARSET_INFO my_charset_utf8mb4_slovak_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_spanish2_uca_ci=
+struct charset_info_st my_charset_utf8mb4_spanish2_uca_ci=
 {
     238,0,0,             /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -10012,7 +10166,7 @@ CHARSET_INFO my_charset_utf8mb4_spanish2_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_roman_uca_ci=
+struct charset_info_st my_charset_utf8mb4_roman_uca_ci=
 {
     239,0,0,             /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -10044,7 +10198,7 @@ CHARSET_INFO my_charset_utf8mb4_roman_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_persian_uca_ci=
+struct charset_info_st my_charset_utf8mb4_persian_uca_ci=
 {
     240,0,0,             /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -10076,7 +10230,7 @@ CHARSET_INFO my_charset_utf8mb4_persian_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_esperanto_uca_ci=
+struct charset_info_st my_charset_utf8mb4_esperanto_uca_ci=
 {
     241,0,0,             /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -10108,7 +10262,7 @@ CHARSET_INFO my_charset_utf8mb4_esperanto_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_hungarian_uca_ci=
+struct charset_info_st my_charset_utf8mb4_hungarian_uca_ci=
 {
     242,0,0,             /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -10140,7 +10294,7 @@ CHARSET_INFO my_charset_utf8mb4_hungarian_uca_ci=
     &my_collation_any_uca_handler
 };
 
-CHARSET_INFO my_charset_utf8mb4_sinhala_uca_ci=
+struct charset_info_st my_charset_utf8mb4_sinhala_uca_ci=
 {
     243,0,0,            /* number       */
     MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
@@ -10164,6 +10318,38 @@ CHARSET_INFO my_charset_utf8mb4_sinhala_uca_ci=
     1,                  /* casedn_multiply  */
     1,                  /* mbminlen      */
     4,                  /* mbmaxlen      */
+    9,                  /* min_sort_char */
+    0xFFFF,             /* max_sort_char */
+    ' ',                /* pad char      */
+    0,                  /* escape_with_backslash_is_dangerous */
+    &my_charset_utf8mb4_handler,
+    &my_collation_any_uca_handler
+};
+
+struct charset_info_st my_charset_utf8mb4_croatian_uca_ci=
+{
+    245,0,0,            /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
+    MY_UTF8MB4,         /* csname      */
+    MY_UTF8MB4 "_croatian_ci",/* name  */
+    "",                 /* comment      */
+    croatian,           /* tailoring    */
+    ctype_utf8,         /* ctype        */
+    NULL,               /* to_lower     */
+    NULL,               /* to_upper     */
+    NULL,               /* sort_order   */
+    NULL,               /* contractions */
+    NULL,               /* sort_order_big*/
+    NULL,               /* tab_to_uni   */
+    NULL,               /* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
+    NULL,               /* state_map    */
+    NULL,               /* ident_map    */
+    8,                  /* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
+    1,                  /* mbminlen     */
+    4,                  /* mbmaxlen     */
     9,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -10196,7 +10382,7 @@ extern MY_CHARSET_HANDLER my_charset_utf32_handler;
 
 #define MY_CS_UTF32_UCA_FLAGS (MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII)
 
-CHARSET_INFO my_charset_utf32_unicode_ci=
+struct charset_info_st my_charset_utf32_unicode_ci=
 {
     160,0,0,             /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state       */
@@ -10229,7 +10415,7 @@ CHARSET_INFO my_charset_utf32_unicode_ci=
 };
 
 
-CHARSET_INFO my_charset_utf32_icelandic_uca_ci=
+struct charset_info_st my_charset_utf32_icelandic_uca_ci=
 {
     161,0,0,             /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state       */
@@ -10261,7 +10447,7 @@ CHARSET_INFO my_charset_utf32_icelandic_uca_ci=
     &my_collation_utf32_uca_handler
 };
 
-CHARSET_INFO my_charset_utf32_latvian_uca_ci=
+struct charset_info_st my_charset_utf32_latvian_uca_ci=
 {
     162,0,0,             /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state       */
@@ -10293,7 +10479,7 @@ CHARSET_INFO my_charset_utf32_latvian_uca_ci=
     &my_collation_utf32_uca_handler
 };
 
-CHARSET_INFO my_charset_utf32_romanian_uca_ci=
+struct charset_info_st my_charset_utf32_romanian_uca_ci=
 {
     163,0,0,             /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state       */
@@ -10325,7 +10511,7 @@ CHARSET_INFO my_charset_utf32_romanian_uca_ci=
     &my_collation_utf32_uca_handler
 };
 
-CHARSET_INFO my_charset_utf32_slovenian_uca_ci=
+struct charset_info_st my_charset_utf32_slovenian_uca_ci=
 {
     164,0,0,             /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state       */
@@ -10357,7 +10543,7 @@ CHARSET_INFO my_charset_utf32_slovenian_uca_ci=
     &my_collation_utf32_uca_handler
 };
 
-CHARSET_INFO my_charset_utf32_polish_uca_ci=
+struct charset_info_st my_charset_utf32_polish_uca_ci=
 {
     165,0,0,             /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state       */
@@ -10389,7 +10575,7 @@ CHARSET_INFO my_charset_utf32_polish_uca_ci=
     &my_collation_utf32_uca_handler
 };
 
-CHARSET_INFO my_charset_utf32_estonian_uca_ci=
+struct charset_info_st my_charset_utf32_estonian_uca_ci=
 {
     166,0,0,             /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state       */
@@ -10421,7 +10607,7 @@ CHARSET_INFO my_charset_utf32_estonian_uca_ci=
     &my_collation_utf32_uca_handler
 };
 
-CHARSET_INFO my_charset_utf32_spanish_uca_ci=
+struct charset_info_st my_charset_utf32_spanish_uca_ci=
 {
     167,0,0,             /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state       */
@@ -10453,7 +10639,7 @@ CHARSET_INFO my_charset_utf32_spanish_uca_ci=
     &my_collation_utf32_uca_handler
 };
 
-CHARSET_INFO my_charset_utf32_swedish_uca_ci=
+struct charset_info_st my_charset_utf32_swedish_uca_ci=
 {
     168,0,0,             /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state       */
@@ -10485,7 +10671,7 @@ CHARSET_INFO my_charset_utf32_swedish_uca_ci=
     &my_collation_utf32_uca_handler
 };
 
-CHARSET_INFO my_charset_utf32_turkish_uca_ci=
+struct charset_info_st my_charset_utf32_turkish_uca_ci=
 {
     169,0,0,             /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state       */
@@ -10517,7 +10703,7 @@ CHARSET_INFO my_charset_utf32_turkish_uca_ci=
     &my_collation_utf32_uca_handler
 };
 
-CHARSET_INFO my_charset_utf32_czech_uca_ci=
+struct charset_info_st my_charset_utf32_czech_uca_ci=
 {
     170,0,0,             /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state       */
@@ -10550,7 +10736,7 @@ CHARSET_INFO my_charset_utf32_czech_uca_ci=
 };
 
 
-CHARSET_INFO my_charset_utf32_danish_uca_ci=
+struct charset_info_st my_charset_utf32_danish_uca_ci=
 {
     171,0,0,             /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state       */
@@ -10582,7 +10768,7 @@ CHARSET_INFO my_charset_utf32_danish_uca_ci=
     &my_collation_utf32_uca_handler
 };
 
-CHARSET_INFO my_charset_utf32_lithuanian_uca_ci=
+struct charset_info_st my_charset_utf32_lithuanian_uca_ci=
 {
     172,0,0,             /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state       */
@@ -10614,7 +10800,7 @@ CHARSET_INFO my_charset_utf32_lithuanian_uca_ci=
     &my_collation_utf32_uca_handler
 };
 
-CHARSET_INFO my_charset_utf32_slovak_uca_ci=
+struct charset_info_st my_charset_utf32_slovak_uca_ci=
 {
     173,0,0,             /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state       */
@@ -10646,7 +10832,7 @@ CHARSET_INFO my_charset_utf32_slovak_uca_ci=
     &my_collation_utf32_uca_handler
 };
 
-CHARSET_INFO my_charset_utf32_spanish2_uca_ci=
+struct charset_info_st my_charset_utf32_spanish2_uca_ci=
 {
     174,0,0,             /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state       */
@@ -10678,7 +10864,7 @@ CHARSET_INFO my_charset_utf32_spanish2_uca_ci=
     &my_collation_utf32_uca_handler
 };
 
-CHARSET_INFO my_charset_utf32_roman_uca_ci=
+struct charset_info_st my_charset_utf32_roman_uca_ci=
 {
     175,0,0,             /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state       */
@@ -10710,7 +10896,7 @@ CHARSET_INFO my_charset_utf32_roman_uca_ci=
     &my_collation_utf32_uca_handler
 };
 
-CHARSET_INFO my_charset_utf32_persian_uca_ci=
+struct charset_info_st my_charset_utf32_persian_uca_ci=
 {
     176,0,0,             /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state       */
@@ -10742,7 +10928,7 @@ CHARSET_INFO my_charset_utf32_persian_uca_ci=
     &my_collation_utf32_uca_handler
 };
 
-CHARSET_INFO my_charset_utf32_esperanto_uca_ci=
+struct charset_info_st my_charset_utf32_esperanto_uca_ci=
 {
     177,0,0,             /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state       */
@@ -10774,7 +10960,7 @@ CHARSET_INFO my_charset_utf32_esperanto_uca_ci=
     &my_collation_utf32_uca_handler
 };
 
-CHARSET_INFO my_charset_utf32_hungarian_uca_ci=
+struct charset_info_st my_charset_utf32_hungarian_uca_ci=
 {
     178,0,0,             /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state       */
@@ -10806,7 +10992,7 @@ CHARSET_INFO my_charset_utf32_hungarian_uca_ci=
     &my_collation_utf32_uca_handler
 };
 
-CHARSET_INFO my_charset_utf32_sinhala_uca_ci=
+struct charset_info_st my_charset_utf32_sinhala_uca_ci=
 {
     179,0,0,            /* number       */
     MY_CS_UTF32_UCA_FLAGS,/* state      */
@@ -10838,6 +11024,37 @@ CHARSET_INFO my_charset_utf32_sinhala_uca_ci=
     &my_collation_utf32_uca_handler
 };
 
+struct charset_info_st my_charset_utf32_croatian_uca_ci=
+{
+    214,0,0,            /* number       */
+    MY_CS_UTF32_UCA_FLAGS /* state      */,
+    "utf32",            /* cs name      */
+    "utf32_croatian_ci", /* name        */
+    "",                 /* comment      */
+    croatian,           /* tailoring    */
+    NULL,               /* ctype        */
+    NULL,               /* to_lower     */
+    NULL,               /* to_upper     */
+    NULL,               /* sort_order   */
+    NULL,               /* contractions */
+    NULL,               /* sort_order_big*/
+    NULL,               /* tab_to_uni   */
+    NULL,               /* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
+    NULL,               /* state_map    */
+    NULL,               /* ident_map    */
+    8,                  /* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
+    4,                  /* mbminlen     */
+    4,                  /* mbmaxlen     */
+    9,                  /* min_sort_char */
+    0xFFFF,             /* max_sort_char */
+    ' ',                /* pad char      */
+    0,                  /* escape_with_backslash_is_dangerous */
+    &my_charset_utf32_handler,
+    &my_collation_utf32_uca_handler
+};
 #endif /* HAVE_CHARSET_utf32 */
 
 
@@ -10863,7 +11080,7 @@ extern MY_CHARSET_HANDLER my_charset_utf16_handler;
 
 #define MY_CS_UTF16_UCA_FLAGS (MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII)
 
-CHARSET_INFO my_charset_utf16_unicode_ci=
+struct charset_info_st my_charset_utf16_unicode_ci=
 {
     101,0,0,             /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state       */
@@ -10896,7 +11113,7 @@ CHARSET_INFO my_charset_utf16_unicode_ci=
 };
 
 
-CHARSET_INFO my_charset_utf16_icelandic_uca_ci=
+struct charset_info_st my_charset_utf16_icelandic_uca_ci=
 {
     102,0,0,             /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state       */
@@ -10928,7 +11145,7 @@ CHARSET_INFO my_charset_utf16_icelandic_uca_ci=
     &my_collation_utf16_uca_handler
 };
 
-CHARSET_INFO my_charset_utf16_latvian_uca_ci=
+struct charset_info_st my_charset_utf16_latvian_uca_ci=
 {
     103,0,0,             /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state       */
@@ -10960,7 +11177,7 @@ CHARSET_INFO my_charset_utf16_latvian_uca_ci=
     &my_collation_utf16_uca_handler
 };
 
-CHARSET_INFO my_charset_utf16_romanian_uca_ci=
+struct charset_info_st my_charset_utf16_romanian_uca_ci=
 {
     104,0,0,             /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state       */
@@ -10992,7 +11209,7 @@ CHARSET_INFO my_charset_utf16_romanian_uca_ci=
     &my_collation_utf16_uca_handler
 };
 
-CHARSET_INFO my_charset_utf16_slovenian_uca_ci=
+struct charset_info_st my_charset_utf16_slovenian_uca_ci=
 {
     105,0,0,             /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state       */
@@ -11024,7 +11241,7 @@ CHARSET_INFO my_charset_utf16_slovenian_uca_ci=
     &my_collation_utf16_uca_handler
 };
 
-CHARSET_INFO my_charset_utf16_polish_uca_ci=
+struct charset_info_st my_charset_utf16_polish_uca_ci=
 {
     106,0,0,             /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state       */
@@ -11056,7 +11273,7 @@ CHARSET_INFO my_charset_utf16_polish_uca_ci=
     &my_collation_utf16_uca_handler
 };
 
-CHARSET_INFO my_charset_utf16_estonian_uca_ci=
+struct charset_info_st my_charset_utf16_estonian_uca_ci=
 {
     107,0,0,             /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state       */
@@ -11088,7 +11305,7 @@ CHARSET_INFO my_charset_utf16_estonian_uca_ci=
     &my_collation_utf16_uca_handler
 };
 
-CHARSET_INFO my_charset_utf16_spanish_uca_ci=
+struct charset_info_st my_charset_utf16_spanish_uca_ci=
 {
     108,0,0,             /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state       */
@@ -11120,7 +11337,7 @@ CHARSET_INFO my_charset_utf16_spanish_uca_ci=
     &my_collation_utf16_uca_handler
 };
 
-CHARSET_INFO my_charset_utf16_swedish_uca_ci=
+struct charset_info_st my_charset_utf16_swedish_uca_ci=
 {
     109,0,0,             /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state       */
@@ -11152,7 +11369,7 @@ CHARSET_INFO my_charset_utf16_swedish_uca_ci=
     &my_collation_utf16_uca_handler
 };
 
-CHARSET_INFO my_charset_utf16_turkish_uca_ci=
+struct charset_info_st my_charset_utf16_turkish_uca_ci=
 {
     110,0,0,             /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state       */
@@ -11184,7 +11401,7 @@ CHARSET_INFO my_charset_utf16_turkish_uca_ci=
     &my_collation_utf16_uca_handler
 };
 
-CHARSET_INFO my_charset_utf16_czech_uca_ci=
+struct charset_info_st my_charset_utf16_czech_uca_ci=
 {
     111,0,0,             /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state       */
@@ -11217,7 +11434,7 @@ CHARSET_INFO my_charset_utf16_czech_uca_ci=
 };
 
 
-CHARSET_INFO my_charset_utf16_danish_uca_ci=
+struct charset_info_st my_charset_utf16_danish_uca_ci=
 {
     112,0,0,             /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state       */
@@ -11249,7 +11466,7 @@ CHARSET_INFO my_charset_utf16_danish_uca_ci=
     &my_collation_utf16_uca_handler
 };
 
-CHARSET_INFO my_charset_utf16_lithuanian_uca_ci=
+struct charset_info_st my_charset_utf16_lithuanian_uca_ci=
 {
     113,0,0,             /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state       */
@@ -11281,7 +11498,7 @@ CHARSET_INFO my_charset_utf16_lithuanian_uca_ci=
     &my_collation_utf16_uca_handler
 };
 
-CHARSET_INFO my_charset_utf16_slovak_uca_ci=
+struct charset_info_st my_charset_utf16_slovak_uca_ci=
 {
     114,0,0,             /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state       */
@@ -11313,7 +11530,7 @@ CHARSET_INFO my_charset_utf16_slovak_uca_ci=
     &my_collation_utf16_uca_handler
 };
 
-CHARSET_INFO my_charset_utf16_spanish2_uca_ci=
+struct charset_info_st my_charset_utf16_spanish2_uca_ci=
 {
     115,0,0,            /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state      */
@@ -11345,7 +11562,7 @@ CHARSET_INFO my_charset_utf16_spanish2_uca_ci=
     &my_collation_utf16_uca_handler
 };
 
-CHARSET_INFO my_charset_utf16_roman_uca_ci=
+struct charset_info_st my_charset_utf16_roman_uca_ci=
 {
     116,0,0,            /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state      */
@@ -11377,7 +11594,7 @@ CHARSET_INFO my_charset_utf16_roman_uca_ci=
     &my_collation_utf16_uca_handler
 };
 
-CHARSET_INFO my_charset_utf16_persian_uca_ci=
+struct charset_info_st my_charset_utf16_persian_uca_ci=
 {
     117,0,0,            /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state      */
@@ -11409,7 +11626,7 @@ CHARSET_INFO my_charset_utf16_persian_uca_ci=
     &my_collation_utf16_uca_handler
 };
 
-CHARSET_INFO my_charset_utf16_esperanto_uca_ci=
+struct charset_info_st my_charset_utf16_esperanto_uca_ci=
 {
     118,0,0,            /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state      */
@@ -11441,7 +11658,7 @@ CHARSET_INFO my_charset_utf16_esperanto_uca_ci=
     &my_collation_utf16_uca_handler
 };
 
-CHARSET_INFO my_charset_utf16_hungarian_uca_ci=
+struct charset_info_st my_charset_utf16_hungarian_uca_ci=
 {
     119,0,0,           /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state     */
@@ -11473,7 +11690,7 @@ CHARSET_INFO my_charset_utf16_hungarian_uca_ci=
     &my_collation_utf16_uca_handler
 };
 
-CHARSET_INFO my_charset_utf16_sinhala_uca_ci=
+struct charset_info_st my_charset_utf16_sinhala_uca_ci=
 {
     120,0,0,           /* number       */
     MY_CS_UTF16_UCA_FLAGS,/* state     */
@@ -11505,8 +11722,114 @@ CHARSET_INFO my_charset_utf16_sinhala_uca_ci=
     &my_collation_utf16_uca_handler
 };
 
+struct charset_info_st my_charset_utf16_croatian_uca_ci=
+{
+    215,0,0,            /* number       */
+    MY_CS_UTF16_UCA_FLAGS /* state      */,
+    "utf16",            /* cs name      */
+    "utf16_croatian_ci", /* name        */
+    "",                 /* comment      */
+    croatian,           /* tailoring    */
+    NULL,               /* ctype        */
+    NULL,               /* to_lower     */
+    NULL,               /* to_upper     */
+    NULL,               /* sort_order   */
+    NULL,               /* contractions */
+    NULL,               /* sort_order_big*/
+    NULL,               /* tab_to_uni   */
+    NULL,               /* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
+    NULL,               /* state_map    */
+    NULL,               /* ident_map    */
+    8,                  /* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
+    2,                  /* mbminlen     */
+    4,                  /* mbmaxlen     */
+    9,                  /* min_sort_char */
+    0xFFFF,             /* max_sort_char */
+    ' ',                /* pad char      */
+    0,                  /* escape_with_backslash_is_dangerous */
+    &my_charset_utf16_handler,
+    &my_collation_utf16_uca_handler
+};
 #endif /* HAVE_CHARSET_utf16 */
 
 
 
 #endif /* HAVE_UCA_COLLATIONS */
+
+/**
+  Check if UCA data has contractions (public version)
+
+  @cs       Pointer to CHARSET_INFO data
+  @retval   0 - no contraction, 1 - have contractions.
+*/
+
+my_bool
+my_cs_have_contractions(CHARSET_INFO *cs)
+{
+  return cs->contractions != NULL;
+}
+
+/**
+  Check if a character can be contraction head
+  
+  @cs       Pointer to CHARSET_INFO data
+  @wc       Code point
+  
+  @retval   0 - cannot be contraction head
+  @retval   1 - can be contraction head
+*/
+
+my_bool
+my_cs_can_be_contraction_head(CHARSET_INFO *cs, my_wc_t wc)
+{
+  return cs->contractions->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_CNT_HEAD;
+}
+
+
+/**
+  Check if a character can be contraction tail
+  
+  @cs       Pointer to CHARSET_INFO data
+  @wc       Code point
+  
+  @retval   0 - cannot be contraction tail
+  @retval   1 - can be contraction tail
+*/
+
+my_bool
+my_cs_can_be_contraction_tail(CHARSET_INFO *cs, my_wc_t wc)
+{
+  return cs->contractions->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_CNT_TAIL;
+}
+
+
+/**
+  Find a contraction and return its weight array
+  
+  @cs       Pointer to CHARSET data
+  @wc1      First character
+  @wc2      Second character
+  
+  @return   Weight array
+  @retval   NULL - no contraction found
+  @retval   ptr  - contraction weight array
+*/
+
+const uint16 *
+my_cs_contraction2_weight(CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
+{
+  const MY_CONTRACTIONS *list= cs->contractions;
+  const MY_CONTRACTION *c, *last;
+  for (c= list->item, last= &list->item[list->nitems]; c < last; c++)
+  {
+    if (c->ch[0] == wc1 && c->ch[1] == wc2)
+    {
+      return c->weight;
+    }
+  }
+  return NULL;
+}
+

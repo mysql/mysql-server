@@ -34,18 +34,16 @@ MACRO(CHECK_DTRACE)
  FIND_PROGRAM(DTRACE dtrace)
  MARK_AS_ADVANCED(DTRACE)
 
+ IF(CMAKE_C_COMPILER MATCHES "ccache" AND CMAKE_SYSTEM_NAME MATCHES "Linux")
+   # dtrace fails on fedora if  CC='ccache gcc' is used
+   SET(BUGGY_LINUX_DTRACE 1)
+ ENDIF()
+
  # On FreeBSD, dtrace does not handle userland tracing yet
  IF(DTRACE AND NOT CMAKE_SYSTEM_NAME MATCHES "FreeBSD"
-     AND NOT BUGGY_GCC_NO_DTRACE_MODULES)
-   # 5.5 not able to do Sun dtrace on linux, just disable it
-   EXECUTE_PROCESS(
-     COMMAND ${DTRACE} -V
-     OUTPUT_VARIABLE out)
-   IF(out MATCHES "Sun D" AND CMAKE_SYSTEM_NAME MATCHES "Linux")
-     SET(ENABLE_DTRACE OFF CACHE BOOL "Sun DTrace on Linux not supported")
-   ELSE()
-     SET(ENABLE_DTRACE ON CACHE BOOL "Enable dtrace")
-   ENDIF()
+     AND NOT BUGGY_GCC_NO_DTRACE_MODULES
+     AND NOT BUGGY_LINUX_DTRACE) 
+   SET(ENABLE_DTRACE ON CACHE BOOL "Enable dtrace")
  ENDIF()
  SET(HAVE_DTRACE ${ENABLE_DTRACE})
  IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
@@ -88,6 +86,9 @@ IF(ENABLE_DTRACE)
   ${CMAKE_BINARY_DIR}/include/probes_mysql_dtrace.h
   ${CMAKE_BINARY_DIR}/include/probes_mysql_nodtrace.h
   ) 
+ELSE()
+ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/include/probes_mysql_nodtrace.h.in
+   ${CMAKE_BINARY_DIR}/include/probes_mysql_nodtrace.h COPYONLY)
 ENDIF()
 
 FUNCTION(DTRACE_INSTRUMENT target)

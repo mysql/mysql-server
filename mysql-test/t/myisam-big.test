@@ -1,0 +1,64 @@
+#
+# Test bugs in the MyISAM code that require more space/time
+--source include/big_test.inc
+
+# Initialise
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+#
+# BUG#925377:
+# Querying myisam table metadata while 'alter table..enable keys' is
+# running may corrupt the table
+#
+create table t1 (id int, sometext varchar(100)) engine=myisam;
+insert into t1 values (1, "hello"),(2, "hello2"),(4, "hello3"),(4, "hello4");
+create table t2 like t1;
+insert into t1 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t1;
+select count(*) from t1;
+connect (con2,localhost,root,,);
+connection con2;
+alter table t1 add index (id), add index(sometext), add index(sometext,id);
+alter table t1 disable keys;
+send alter table t1 enable keys;
+connection default;
+--sleep 1
+--disable_query_log
+--disable_result_log
+show table status like 't1';
+--enable_query_log
+--enable_result_log
+connection con2;
+reap;
+disconnect con2;
+connection default;
+drop table t1,t2;

@@ -86,6 +86,12 @@ int _my_b_net_read(register IO_CACHE *info, uchar *Buffer,
 }
 
 } /* extern "C" */
+
+#elif defined(__WIN__)
+
+// Remove linker warning 4221 about empty file
+namespace { char dummy; };
+
 #endif /* HAVE_REPLICATION */
 
 

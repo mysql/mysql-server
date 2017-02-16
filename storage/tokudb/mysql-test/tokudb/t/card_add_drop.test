@@ -1,0 +1,28 @@
+# test that add and drop works
+
+source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
+
+disable_warnings;
+drop table if exists tt;
+enable_warnings;
+
+create table tt (a int, b int, c int, d int, key(a), key(b), key(c));
+insert into tt values (0,0,0,0),(1,0,0,0),(2,0,1,0),(3,0,1,0);
+
+# test that analyze computes the correcK
+show indexes from tt;
+analyze table tt;
+show indexes from tt;
+
+# drop b, add d
+alter table tt drop key b, add key (d);
+show indexes from tt;
+analyze table tt;
+show indexes from tt;
+
+# test that cardinality is persistent
+flush tables;
+show indexes from tt;
+
+drop table tt;

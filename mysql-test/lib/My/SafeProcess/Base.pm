@@ -180,6 +180,7 @@ sub create_process {
   }
 
   $SIG{INT}= 'DEFAULT';
+  $SIG{HUP}= 'DEFAULT';
 
   # Make this process it's own process group to be able to kill
   # it and any childs(that hasn't changed group themself)

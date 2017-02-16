@@ -36,7 +36,8 @@
   @return TRUE on failure, FALSE otherwise.
 */
 
-static bool fk_info_append_fields(String *str, List<LEX_STRING> *fields)
+static bool fk_info_append_fields(THD *thd, String *str,
+                                  List<LEX_STRING> *fields)
 {
   bool res= FALSE;
   LEX_STRING *field;
@@ -44,7 +45,7 @@ static bool fk_info_append_fields(String *str, List<LEX_STRING> *fields)
 
   while ((field= it++))
   {
-    append_identifier(NULL, str, field->str, field->length);
+    res|= append_identifier(thd, str, field->str, field->length);
     res|= str->append(", ");
   }
 
@@ -76,24 +77,24 @@ static const char *fk_info_str(THD *thd, FOREIGN_KEY_INFO *fk_info)
     `db`.`tbl`, CONSTRAINT `id` FOREIGN KEY (`fk`) REFERENCES `db`.`tbl` (`fk`)
   */
 
-  append_identifier(NULL, &str, fk_info->foreign_db->str,
-                    fk_info->foreign_db->length);
+  res|= append_identifier(thd, &str, fk_info->foreign_db->str,
+                          fk_info->foreign_db->length);
   res|= str.append(".");
-  append_identifier(NULL, &str, fk_info->foreign_table->str,
-                    fk_info->foreign_table->length);
+  res|= append_identifier(thd, &str, fk_info->foreign_table->str,
+                          fk_info->foreign_table->length);
   res|= str.append(", CONSTRAINT ");
-  append_identifier(NULL, &str, fk_info->foreign_id->str,
-                    fk_info->foreign_id->length);
+  res|= append_identifier(thd, &str, fk_info->foreign_id->str,
+                          fk_info->foreign_id->length);
   res|= str.append(" FOREIGN KEY (");
-  res|= fk_info_append_fields(&str, &fk_info->foreign_fields);
+  res|= fk_info_append_fields(thd, &str, &fk_info->foreign_fields);
   res|= str.append(") REFERENCES ");
-  append_identifier(NULL, &str, fk_info->referenced_db->str,
-                    fk_info->referenced_db->length);
+  res|= append_identifier(thd, &str, fk_info->referenced_db->str,
+                          fk_info->referenced_db->length);
   res|= str.append(".");
-  append_identifier(NULL, &str, fk_info->referenced_table->str,
-                    fk_info->referenced_table->length);
+  res|= append_identifier(thd, &str, fk_info->referenced_table->str,
+                          fk_info->referenced_table->length);
   res|= str.append(" (");
-  res|= fk_info_append_fields(&str, &fk_info->referenced_fields);
+  res|= fk_info_append_fields(thd, &str, &fk_info->referenced_fields);
   res|= str.append(')');
 
   return res ? NULL : thd->strmake(str.ptr(), str.length());
@@ -283,6 +284,7 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
   DBUG_ENTER("recreate_temporary_table");
 
   memset(&create_info, 0, sizeof(create_info));
+  create_info.options|= HA_LEX_CREATE_TMP_TABLE;
 
   table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
 
@@ -389,12 +391,13 @@ bool Truncate_statement::lock_table(THD *thd, TABLE_LIST *table_ref,
   {
     DEBUG_SYNC(thd, "upgrade_lock_for_truncate");
     /* To remove the table from the cache we need an exclusive lock. */
-    if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+    if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_DROP,
+                                 TDC_RT_REMOVE_NOT_OWN_AND_MARK_NOT_USABLE))
       DBUG_RETURN(TRUE);
     m_ticket_downgrade= table->mdl_ticket;
     /* Close if table is going to be recreated. */
     if (*hton_can_recreate)
-      close_all_tables_for_name(thd, table->s, FALSE);
+      close_all_tables_for_name(thd, table->s, HA_EXTRA_NOT_USED);
   }
   else
   {

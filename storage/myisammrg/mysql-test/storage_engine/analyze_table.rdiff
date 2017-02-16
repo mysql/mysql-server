@@ -1,0 +1,34 @@
+--- analyze_table.result	2013-01-22 22:05:05.246633000 +0400
++++ analyze_table.reject	2013-01-23 02:50:11.912102699 +0400
+@@ -5,25 +5,25 @@
+ INSERT INTO t1 (a,b) VALUES (3,'c');
+ ANALYZE TABLE t1;
+ Table	Op	Msg_type	Msg_text
+-test.t1	analyze	status	OK
++test.t1	analyze	note	The storage engine for the table doesn't support analyze
+ INSERT INTO t2 (a,b) VALUES (4,'d');
+ ANALYZE NO_WRITE_TO_BINLOG TABLE t2;
+ Table	Op	Msg_type	Msg_text
+-test.t2	analyze	status	OK
++test.t2	analyze	note	The storage engine for the table doesn't support analyze
+ INSERT INTO t1 (a,b) VALUES (5,'e');
+ INSERT INTO t2 (a,b) VALUES (6,'f');
+ ANALYZE LOCAL TABLE t1, t2;
+ Table	Op	Msg_type	Msg_text
+-test.t1	analyze	status	OK
+-test.t2	analyze	status	OK
++test.t1	analyze	note	The storage engine for the table doesn't support analyze
++test.t2	analyze	note	The storage engine for the table doesn't support analyze
+ DROP TABLE t1, t2;
+ CREATE TABLE t1 (a <INT_COLUMN>, <CUSTOM_INDEX>(a)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ INSERT INTO t1 (a) VALUES (1),(2),(4),(7);
+ ANALYZE TABLE t1;
+ Table	Op	Msg_type	Msg_text
+-test.t1	analyze	status	OK
++test.t1	analyze	note	The storage engine for the table doesn't support analyze
+ INSERT INTO t1 (a) VALUES (8),(10),(11),(12);
+ ANALYZE TABLE t1;
+ Table	Op	Msg_type	Msg_text
+-test.t1	analyze	status	OK
++test.t1	analyze	note	The storage engine for the table doesn't support analyze
+ DROP TABLE t1;

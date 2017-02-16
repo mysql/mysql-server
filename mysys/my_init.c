@@ -1,4 +1,6 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates
+   Copyright (c) 2009, 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,12 +35,15 @@ static my_bool win32_init_tcp_ip();
 #define my_win_init()
 #endif
 
+extern pthread_key(struct st_my_thread_var*, THR_KEY_mysys);
+
 #define SCALE_SEC       100
 #define SCALE_USEC      10000
 
 my_bool my_init_done= 0;
 uint	mysys_usage_id= 0;              /* Incremented for each my_init() */
-ulong   my_thread_stack_size= 65536;
+
+ulonglong   my_thread_stack_size= (sizeof(void*) <= 4)? 65536: ((256-16)*1024);
 
 static ulong atoi_octal(const char *str)
 {
@@ -74,6 +79,7 @@ my_bool my_init(void)
   mysys_usage_id++;
   my_umask= 0660;                       /* Default umask for new files */
   my_umask_dir= 0700;                   /* Default umask for new directories */
+  my_global_flags= 0;
 
   /* Default creation of new files */
   if ((str= getenv("UMASK")) != 0)
@@ -88,16 +94,15 @@ my_bool my_init(void)
   instrumented_stdin.m_psi= NULL;       /* not yet instrumented */
   mysql_stdin= & instrumented_stdin;
 
+  my_progname_short= "unknown";
+  if (my_progname)
+    my_progname_short= my_progname + dirname_length(my_progname);
+
+  /* Initalize our mutex handling */
+  my_mutex_init();
+
   if (my_thread_global_init())
     return 1;
-
-#if defined(SAFE_MUTEX)
-  safe_mutex_global_init();		/* Must be called early */
-#endif
-
-#if defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
-  fastmutex_global_init();              /* Must be called early */
-#endif
 
   /* $HOME is needed early to parse configuration files located in ~/ */
   if ((home_dir= getenv("HOME")) != 0)
@@ -106,6 +111,7 @@ my_bool my_init(void)
   {
     DBUG_ENTER("my_init");
     DBUG_PROCESS((char*) (my_progname ? my_progname : "unknown"));
+    my_time_init();
     my_win_init();
     DBUG_PRINT("exit", ("home: '%s'", home_dir));
 #ifdef __WIN__
@@ -164,7 +170,7 @@ void my_end(int infoflag)
   {
 #ifdef HAVE_GETRUSAGE
     struct rusage rus;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
     /* Purify assumes that rus is uninitialized after getrusage call */
     bzero((char*) &rus, sizeof(rus));
 #endif
@@ -197,13 +203,13 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
 #endif
   }
 
-  if (!(infoflag & MY_DONT_FREE_DBUG))
-  {
-    DBUG_END();                /* Must be done before my_thread_end */
-  }
-
   my_thread_end();
   my_thread_global_end();
+
+  if (!(infoflag & MY_DONT_FREE_DBUG))
+    DBUG_END();                /* Must be done as late as possible */
+
+  my_mutex_end();
 #if defined(SAFE_MUTEX)
   /*
     Check on destroying of mutexes. A few may be left that will get cleaned
@@ -217,10 +223,19 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   if (have_tcpip)
     WSACleanup();
 #endif /* __WIN__ */
-
-  my_init_done=0;
+ 
+  /* At very last, delete mysys key, it is used everywhere including DBUG */
+  pthread_key_delete(THR_KEY_mysys);
+  my_init_done= my_thr_key_mysys_exists= 0;
 } /* my_end */
 
+#ifndef DBUG_OFF
+/* Dummy tag function for debugging */
+
+void my_debug_put_break_here(void)
+{
+}
+#endif
 
 #ifdef __WIN__
 
@@ -240,6 +255,7 @@ void my_parameter_handler(const wchar_t * expression, const wchar_t * function,
 {
   DBUG_PRINT("my",("Expression: %s  function: %s  file: %s, line: %d",
 		   expression, function, file, line));
+  __debugbreak();
 }
 
 
@@ -264,40 +280,12 @@ int handle_rtc_failure(int err_type, const char *file, int line,
   fprintf(stderr, " At %s:%d\n", file, line);
   va_end(args);
   (void) fflush(stderr);
+  __debugbreak();
 
   return 0; /* Error is handled */
 }
 #pragma runtime_checks("", restore)
 #endif
-
-#define OFFSET_TO_EPOC ((__int64) 134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
-#define MS 10000000
-
-static void win_init_time(void)
-{
-  /* The following is used by time functions */
-  FILETIME ft;
-  LARGE_INTEGER li, t_cnt;
-
-  DBUG_ASSERT(sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency));
-
-  if (QueryPerformanceFrequency((LARGE_INTEGER *)&query_performance_frequency) == 0)
-    query_performance_frequency= 0;
-  else
-  {
-    GetSystemTimeAsFileTime(&ft);
-    li.LowPart=  ft.dwLowDateTime;
-    li.HighPart= ft.dwHighDateTime;
-    query_performance_offset= li.QuadPart-OFFSET_TO_EPOC;
-    QueryPerformanceCounter(&t_cnt);
-    query_performance_offset-= (t_cnt.QuadPart /
-                                query_performance_frequency * MS +
-                                t_cnt.QuadPart %
-                                query_performance_frequency * MS /
-                                query_performance_frequency);
-  }
-}
-
 
 /*
   Open HKEY_LOCAL_MACHINE\SOFTWARE\MySQL and set any strings found
@@ -382,7 +370,6 @@ static void my_win_init(void)
 
   _tzset();
 
-  win_init_time();
   win_init_registry();
 
   DBUG_VOID_RETURN;
@@ -469,7 +456,7 @@ PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_THR_LOCK_isam, key_THR_LOCK_lock, key_THR_LOCK_malloc,
   key_THR_LOCK_mutex, key_THR_LOCK_myisam, key_THR_LOCK_net,
   key_THR_LOCK_open, key_THR_LOCK_threads,
-  key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap;
+  key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap, key_LOCK_uuid_generator;
 
 static PSI_mutex_info all_mysys_mutexes[]=
 {
@@ -496,12 +483,13 @@ static PSI_mutex_info all_mysys_mutexes[]=
   { &key_THR_LOCK_open, "THR_LOCK_open", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_threads, "THR_LOCK_threads", PSI_FLAG_GLOBAL},
   { &key_TMPDIR_mutex, "TMPDIR_mutex", PSI_FLAG_GLOBAL},
-  { &key_THR_LOCK_myisam_mmap, "THR_LOCK_myisam_mmap", PSI_FLAG_GLOBAL}
+  { &key_THR_LOCK_myisam_mmap, "THR_LOCK_myisam_mmap", PSI_FLAG_GLOBAL},
+  { &key_LOCK_uuid_generator, "LOCK_uuid_generator", PSI_FLAG_GLOBAL }
 };
 
 PSI_cond_key key_COND_alarm, key_IO_CACHE_SHARE_cond,
   key_IO_CACHE_SHARE_cond_writer, key_my_thread_var_suspend,
-  key_THR_COND_threads;
+  key_THR_COND_threads, key_WT_RESOURCE_cond;
 
 static PSI_cond_info all_mysys_conds[]=
 {
@@ -509,7 +497,15 @@ static PSI_cond_info all_mysys_conds[]=
   { &key_IO_CACHE_SHARE_cond, "IO_CACHE_SHARE::cond", 0},
   { &key_IO_CACHE_SHARE_cond_writer, "IO_CACHE_SHARE::cond_writer", 0},
   { &key_my_thread_var_suspend, "my_thread_var::suspend", 0},
-  { &key_THR_COND_threads, "THR_COND_threads", 0}
+  { &key_THR_COND_threads, "THR_COND_threads", PSI_FLAG_GLOBAL},
+  { &key_WT_RESOURCE_cond, "WT_RESOURCE::cond", 0}
+};
+
+PSI_rwlock_key key_SAFEHASH_mutex;
+
+static PSI_rwlock_info all_mysys_rwlocks[]=
+{
+  { &key_SAFEHASH_mutex, "SAFE_HASH::mutex", 0}
 };
 
 #ifdef USE_ALARM_THREAD
@@ -548,6 +544,9 @@ void my_init_mysys_psi_keys()
 
   count= sizeof(all_mysys_conds)/sizeof(all_mysys_conds[0]);
   PSI_server->register_cond(category, all_mysys_conds, count);
+
+  count= sizeof(all_mysys_rwlocks)/sizeof(all_mysys_rwlocks[0]);
+  PSI_server->register_rwlock(category, all_mysys_rwlocks, count);
 
 #ifdef USE_ALARM_THREAD
   count= sizeof(all_mysys_threads)/sizeof(all_mysys_threads[0]);

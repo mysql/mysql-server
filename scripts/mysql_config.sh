@@ -93,11 +93,7 @@ plugindir_rel=`echo $plugindir | sed -e "s;^$basedir/;;"`
 fix_path plugindir $plugindir_rel @libsubdir@/mysql/plugin @libsubdir@/plugin
 
 pkgincludedir='@pkgincludedir@'
-if [ -f "$basedir/include/mysql/mysql.h" ]; then
-  pkgincludedir="$basedir/include/mysql"
-elif [ -f "$basedir/include/mysql.h" ]; then
-  pkgincludedir="$basedir/include"
-fi
+fix_path pkgincludedir include/mysql
 
 version='@VERSION@'
 socket='@MYSQL_UNIX_ADDR@'
@@ -126,8 +122,11 @@ if [ -r "$pkglibdir/libmygcc.a" ]; then
   embedded_libs="$embedded_libs -lmygcc "
 fi
 
-cflags="-I$pkgincludedir @CFLAGS@ " #note: end space!
 include="-I$pkgincludedir"
+if [ "$basedir" != "/usr" ]; then
+  include="$include -I$pkgincludedir/.."
+fi
+cflags="$include @CFLAGS@ " #note: end space!
 
 # Remove some options that a client doesn't have to care about
 # FIXME until we have a --cxxflags, we need to remove -Xa
@@ -135,14 +134,14 @@ include="-I$pkgincludedir"
 # FIXME until we have a --cxxflags, we need to remove -AC99
 #       to make --cflags usable for HP C++ (aCC)
 for remove in DDBUG_OFF DSAFE_MUTEX DUNIV_MUST_NOT_INLINE DFORCE_INIT_OF_VARS \
-              DEXTRA_DEBUG DHAVE_purify O 'O[0-9]' 'xO[0-9]' 'W[-A-Za-z]*' \
+              DEXTRA_DEBUG DHAVE_valgrind O 'O[0-9]' 'xO[0-9]' 'W[-A-Za-z]*' \
               'mtune=[-A-Za-z0-9]*' 'mcpu=[-A-Za-z0-9]*' 'march=[-A-Za-z0-9]*' \
-              Xa xstrconst "xc99=none" AC99 \
+              Xa xstrconst "xc99=none" AC99 'W[-A-Za-z]*=[-A-Za-z0-9]*' \
               unroll2 ip mp restrict
 do
   # The first option we might strip will always have a space before it because
   # we set -I$pkgincludedir as the first option
-  cflags=`echo "$cflags"|sed -e "s/ -$remove  */ /g"` 
+  cflags=`echo "$cflags"|sed -e ':again' -e "s/ -$remove  */ /g" -e 't again'`
 done
 cflags=`echo "$cflags"|sed -e 's/ *\$//'` 
 
@@ -178,7 +177,7 @@ Options:
                 pkglibdir     [$pkglibdir]
                 plugindir     [$plugindir]
 EOF
-        exit 1
+        exit 0
 }
 
 if test $# -le 0; then usage; fi

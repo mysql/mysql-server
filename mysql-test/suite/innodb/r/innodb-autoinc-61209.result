@@ -1,0 +1,28 @@
+DROP TABLE IF EXISTS bug_61209;
+CREATE TABLE bug_61209 (a INT auto_increment, PRIMARY KEY(a)) ENGINE=InnoDB;
+INSERT INTO bug_61209 VALUES (), (), (), ();
+
+# Connect con1
+
+# Connect con2
+
+# Connection con1
+SET SESSION auto_increment_increment=3;
+SET SESSION auto_increment_offset=2;
+SELECT GET_LOCK('a', 9);
+GET_LOCK('a', 9)
+1
+
+# Connection con2
+SET SESSION auto_increment_increment=3;
+SET SESSION auto_increment_offset=2;
+INSERT INTO bug_61209 (a) VALUES (NULL), (NULL), (NULL + GET_LOCK('a', 10));
+
+# Connection con1 reap
+INSERT INTO bug_61209 (a) VALUES (NULL), (NULL), (NULL);
+SELECT RELEASE_LOCK('a');
+RELEASE_LOCK('a')
+1
+
+# Connection con2 reap
+DROP TABLE bug_61209;

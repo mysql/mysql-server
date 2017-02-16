@@ -1,0 +1,10 @@
+<Include>
+<Feature Id="HeidiSQL"
+   Title='HeidiSQL'
+   Description= 'Powerful, easy and free MySQL/MariaDB GUI client by Ansgar Becker'
+   AllowAdvertise='no'
+   Level='1'>
+   <Condition Level="0">HEIDISQLINSTALLED AND NOT REMOVE ~= ALL</Condition>
+   <ComponentGroupRef Id='HeidiSQL'/>
+</Feature>
+</Include>

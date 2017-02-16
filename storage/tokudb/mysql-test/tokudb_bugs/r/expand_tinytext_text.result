@@ -1,0 +1,12 @@
+set default_storage_engine='tokudb';
+drop table if exists t;
+create table t (u tinytext, v text);
+insert into t values ('hi', 'there');
+select * from t;
+u	v
+hi	there
+alter table t change column u u text;
+select * from t;
+u	v
+hi	there
+drop table t;

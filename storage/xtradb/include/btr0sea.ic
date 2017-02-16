@@ -1,0 +1,185 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+
+*****************************************************************************/
+
+/********************************************************************//**
+@file include/btr0sea.ic
+The index tree adaptive search
+
+Created 2/17/1996 Heikki Tuuri
+*************************************************************************/
+
+#include "dict0mem.h"
+#include "btr0cur.h"
+#include "buf0buf.h"
+
+/*********************************************************************//**
+Updates the search info. */
+UNIV_INTERN
+void
+btr_search_info_update_slow(
+/*========================*/
+	btr_search_t*	info,	/*!< in/out: search info */
+	btr_cur_t*	cursor);/*!< in: cursor which was just positioned */
+
+/********************************************************************//**
+Returns search info for an index.
+@return	search info; search mutex reserved */
+UNIV_INLINE
+btr_search_t*
+btr_search_get_info(
+/*================*/
+	dict_index_t*	index)	/*!< in: index */
+{
+	ut_ad(index);
+
+	return(index->search_info);
+}
+
+/*********************************************************************//**
+Updates the search info. */
+UNIV_INLINE
+void
+btr_search_info_update(
+/*===================*/
+	dict_index_t*	index,	/*!< in: index of the cursor */
+	btr_cur_t*	cursor)	/*!< in: cursor which was just positioned */
+{
+	btr_search_t*	info;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(btr_search_get_latch(index->id), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(btr_search_get_latch(index->id), RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+
+	info = btr_search_get_info(index);
+
+	info->hash_analysis++;
+
+	if (info->hash_analysis < BTR_SEARCH_HASH_ANALYSIS) {
+
+		/* Do nothing */
+
+		return;
+
+	}
+
+	ut_ad(cursor->flag != BTR_CUR_HASH);
+
+	btr_search_info_update_slow(info, cursor);
+}
+
+/*********************************************************************//**
+New functions to control split btr_search_index */
+UNIV_INLINE
+hash_table_t*
+btr_search_get_hash_table(
+/*======================*/
+	const dict_index_t*	index)	/*!< in: index */
+{
+	ut_ad(index);
+	ut_ad(index->search_table);
+
+	return(index->search_table);
+}
+
+UNIV_INLINE
+rw_lock_t*
+btr_search_get_latch(
+/*=================*/
+	const dict_index_t*	index)	/*!< in: index */
+{
+	ut_ad(index);
+	ut_ad(index->search_latch >= btr_search_latch_arr &&
+	      index->search_latch < btr_search_latch_arr +
+	      btr_search_index_num);
+
+	return(index->search_latch);
+}
+
+/*********************************************************************//**
+Returns the AHI partition number corresponding to a given index ID. */
+UNIV_INLINE
+ulint
+btr_search_get_key(
+/*===============*/
+	index_id_t	index_id)	/*!< in: index ID */
+{
+	return(index_id % btr_search_index_num);
+}
+
+/*********************************************************************//**
+Initializes AHI-related fields in a newly created index. */
+UNIV_INLINE
+void
+btr_search_index_init(
+/*===============*/
+	dict_index_t*	index)	/*!< in: index */
+{
+	ut_ad(index);
+
+	index->search_latch =
+		&btr_search_latch_arr[btr_search_get_key(index->id)];
+	index->search_table =
+		btr_search_sys->hash_tables[btr_search_get_key(index->id)];
+}
+
+UNIV_INLINE
+void
+btr_search_x_lock_all(void)
+/*=======================*/
+{
+	ulint	i;
+
+	for (i = 0; i < btr_search_index_num; i++) {
+		rw_lock_x_lock(&btr_search_latch_arr[i]);
+	}
+}
+
+UNIV_INLINE
+void
+btr_search_x_unlock_all(void)
+/*==========================*/
+{
+	ulint	i;
+
+	for (i = 0; i < btr_search_index_num; i++) {
+		rw_lock_x_unlock(&btr_search_latch_arr[i]);
+	}
+}
+
+#ifdef UNIV_SYNC_DEBUG
+/********************************************************************//**
+Checks if the thread owns any adaptive hash latches in either S or X mode.
+@return	TRUE if the thread owns at least one latch in any mode. */
+UNIV_INLINE
+ibool
+btr_search_own_any(void)
+/*====================*/
+{
+	ulint	i;
+
+	for (i = 0; i < btr_search_index_num; i++) {
+		if (rw_lock_own(&btr_search_latch_arr[i], RW_LOCK_SHARED) ||
+		    rw_lock_own(&btr_search_latch_arr[i], RW_LOCK_EX)) {
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
+}
+#endif

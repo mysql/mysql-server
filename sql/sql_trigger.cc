@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2012, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -568,13 +568,14 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   if (result)
     goto end;
 
-  close_all_tables_for_name(thd, table->s, FALSE);
+  close_all_tables_for_name(thd, table->s, HA_EXTRA_NOT_USED);
   /*
     Reopen the table if we were under LOCK TABLES.
     Ignore the return value for now. It's better to
     keep master/slave in consistent state.
   */
-  thd->locked_tables_list.reopen_tables(thd);
+  if (thd->locked_tables_list.reopen_tables(thd))
+    thd->clear_error();
 
   /*
     Invalidate SP-cache. That's needed because triggers may change list of
@@ -707,10 +708,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
                      thd->security_ctx->priv_host)))
   {
     if (check_global_access(thd, SUPER_ACL))
-    {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
       return TRUE;
-    }
   }
 
   /*
@@ -881,7 +879,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
 
   stmt_query->append(stmt_definition.str, stmt_definition.length);
 
-  trg_def->str= stmt_query->c_ptr();
+  trg_def->str= stmt_query->c_ptr_safe();
   trg_def->length= stmt_query->length();
 
   /* Create trigger definition file. */
@@ -1118,10 +1116,7 @@ void Table_triggers_list::set_table(TABLE *new_table)
 {
   trigger_table= new_table;
   for (Field **field= new_table->triggers->record1_field ; *field ; field++)
-  {
-    (*field)->table= (*field)->orig_table= new_table;
-    (*field)->table_name= &new_table->alias;
-  }
+    (*field)->init(new_table);
 }
 
 
@@ -1343,6 +1338,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
                   triggers->definitions_list.elements);
 
       table->triggers= triggers;
+      status_var_increment(thd->status_var.feature_trigger);
 
       /*
         TODO: This could be avoided if there is no triggers
@@ -1358,7 +1354,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       List_iterator_fast<LEX_STRING> it_db_cl_name(triggers->db_cl_names);
       LEX *old_lex= thd->lex, lex;
       sp_rcontext *save_spcont= thd->spcont;
-      ulong save_sql_mode= thd->variables.sql_mode;
+      ulonglong save_sql_mode= thd->variables.sql_mode;
       LEX_STRING *on_table_name;
 
       thd->lex= &lex;
@@ -1515,7 +1511,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           To remove this prefix we use check_n_cut_mysql50_prefix().
         */
 
-        char fname[NAME_LEN + 1];
+        char fname[SAFE_NAME_LEN + 1];
         DBUG_ASSERT((!my_strcasecmp(table_alias_charset, lex.query_tables->db, db) ||
                      (check_n_cut_mysql50_prefix(db, fname, sizeof(fname)) &&
                       !my_strcasecmp(table_alias_charset, lex.query_tables->db, fname))));
@@ -1731,7 +1727,7 @@ bool add_table_for_trigger(THD *thd,
   LEX *lex= thd->lex;
   char trn_path_buff[FN_REFLEN];
   LEX_STRING trn_path= { trn_path_buff, 0 };
-  LEX_STRING tbl_name;
+  LEX_STRING tbl_name= null_lex_str;
 
   DBUG_ENTER("add_table_for_trigger");
 
@@ -1858,7 +1854,7 @@ Table_triggers_list::change_table_name_in_triggers(THD *thd,
 {
   char path_buff[FN_REFLEN];
   LEX_STRING *def, *on_table_name, new_def;
-  ulong save_sql_mode= thd->variables.sql_mode;
+  ulonglong save_sql_mode= thd->variables.sql_mode;
   List_iterator_fast<LEX_STRING> it_def(definitions_list);
   List_iterator_fast<LEX_STRING> it_on_table_name(on_table_names_list);
   List_iterator_fast<ulonglong> it_mode(definition_modes_list);
@@ -2045,7 +2041,7 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
     */
     if (my_strcasecmp(table_alias_charset, db, new_db))
     {
-      char dbname[NAME_LEN + 1];
+      char dbname[SAFE_NAME_LEN + 1];
       if (check_n_cut_mysql50_prefix(db, dbname, sizeof(dbname)) && 
           !my_strcasecmp(table_alias_charset, dbname, new_db))
       {
@@ -2124,6 +2120,8 @@ bool Table_triggers_list::process_triggers(THD *thd,
 
   if (sp_trigger == NULL)
     return FALSE;
+
+  status_var_increment(thd->status_var.executed_triggers);
 
   if (old_row_is_record1)
   {
@@ -2248,6 +2246,9 @@ void Table_triggers_list::mark_fields_used(trg_event_type event)
         bitmap_set_bit(trigger_table->read_set, trg_field->field_idx);
         if (trg_field->get_settable_routine_parameter())
           bitmap_set_bit(trigger_table->write_set, trg_field->field_idx);
+        if (trigger_table->field[trg_field->field_idx]->vcol_info)
+          trigger_table->mark_virtual_col(trigger_table->
+                                          field[trg_field->field_idx]);
       }
     }
   }
@@ -2267,7 +2268,8 @@ void Table_triggers_list::mark_fields_used(trg_event_type event)
 void Table_triggers_list::set_parse_error_message(char *error_message)
 {
   m_has_unparseable_trigger= true;
-  strcpy(m_parse_error_message, error_message);
+  strnmov(m_parse_error_message, error_message,
+          sizeof(m_parse_error_message)-1);
 }
 
 

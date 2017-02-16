@@ -17,10 +17,10 @@
 #include <my_sys.h>
 #include "tap.h"
 
-int main(void)
+int main(int argc __attribute__((unused)),char *argv[])
 {
   void *p;
-  MY_INIT("my_malloc-t");
+  MY_INIT(argv[0]);
 
   plan(4);
 
@@ -38,6 +38,7 @@ int main(void)
 
   ok((my_free(p), 1), "Free NULL pointer.");
 
+  my_end(0);
   return exit_status();
 }
 

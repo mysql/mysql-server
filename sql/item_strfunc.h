@@ -1,7 +1,9 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2013, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +25,8 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+extern size_t username_char_length;
+
 class MY_LOCALE;
 
 class Item_str_func :public Item_func
@@ -33,8 +37,15 @@ protected:
      character set. No memory is allocated.
      @retval A pointer to the str_value member.
    */
-  String *make_empty_result() {
-    str_value.set("", 0, collation.collation);
+  String *make_empty_result()
+  {
+    /*
+      Reset string length to an empty string. We don't use str_value.set() as
+      we don't want to free and potentially have to reallocate the buffer
+      for each call.
+    */
+    str_value.length(0);
+    str_value.set_charset(collation.collation);
     return &str_value; 
   }
 public:
@@ -51,7 +62,6 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   void left_right_max_length();
   bool fix_fields(THD *thd, Item **ref);
-  String *val_str_from_val_str_ascii(String *str, String *str2);
 };
 
 
@@ -259,6 +269,21 @@ class Item_func_trim :public Item_str_func
 protected:
   String tmp_value;
   String remove;
+  String *trimmed_value(String *res, uint32 offset, uint32 length)
+  {
+    tmp_value.set(*res, offset, length);
+    /*
+      Make sure to return correct charset and collation:
+      TRIM(0x000000 FROM _ucs2 0x0061)
+      should set charset to "binary" rather than to "ucs2".
+    */
+    tmp_value.set_charset(collation.collation);
+    return &tmp_value;
+  }
+  String *non_trimmed_value(String *res)
+  {
+    return trimmed_value(res, 0, res->length());
+  }
 public:
   Item_func_trim(Item *a,Item *b) :Item_str_func(a,b) {}
   Item_func_trim(Item *a) :Item_str_func(a) {}
@@ -392,6 +417,10 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() { maybe_null=1; max_length = 13; }
   const char *func_name() const { return "encrypt"; }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 #include "sql_crypt.h"
@@ -440,6 +469,11 @@ public:
     call
   */
   virtual const char *fully_qualified_func_name() const = 0;
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(
+                                           fully_qualified_func_name());
+  }
 };
 
 
@@ -476,8 +510,8 @@ public:
   bool fix_fields(THD *thd, Item **ref);
   void fix_length_and_dec()
   {
-    max_length= (USERNAME_LENGTH +
-                 (HOSTNAME_LENGTH + 1) * SYSTEM_CHARSET_MBMAXLEN);
+    max_length= (username_char_length +
+                 HOSTNAME_LENGTH + 1) * SYSTEM_CHARSET_MBMAXLEN;
   }
   const char *func_name() const { return "user"; }
   const char *fully_qualified_func_name() const { return "user()"; }
@@ -526,31 +560,13 @@ public:
 
 class Item_func_make_set :public Item_str_func
 {
-  Item *item;
   String tmp_str;
 
 public:
-  Item_func_make_set(Item *a,List<Item> &list) :Item_str_func(list),item(a) {}
+  Item_func_make_set(List<Item> &list) :Item_str_func(list) {}
   String *val_str(String *str);
-  bool fix_fields(THD *thd, Item **ref)
-  {
-    DBUG_ASSERT(fixed == 0);
-    return ((!item->fixed && item->fix_fields(thd, &item)) ||
-	    item->check_cols(1) ||
-	    Item_func::fix_fields(thd, ref));
-  }
-  void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
   void fix_length_and_dec();
-  void update_used_tables();
   const char *func_name() const { return "make_set"; }
-
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
-  {
-    return item->walk(processor, walk_subquery, arg) ||
-      Item_str_func::walk(processor, walk_subquery, arg);
-  }
-  Item *transform(Item_transformer transformer, uchar *arg);
-  virtual void print(String *str, enum_query_type query_type);
 };
 
 
@@ -748,6 +764,10 @@ public:
     maybe_null=1;
     max_length=MAX_BLOB_WIDTH;
   }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -806,9 +826,8 @@ public:
   Item_func_conv_charset(Item *a, CHARSET_INFO *cs, bool cache_if_const) 
     :Item_str_func(a) 
   {
-    DBUG_ASSERT(args[0]->fixed);
     conv_charset= cs;
-    if (cache_if_const && args[0]->const_item())
+    if (cache_if_const && args[0]->const_item() && !args[0]->is_expensive())
     {
       uint errors= 0;
       String tmp, *str= args[0]->val_str(&tmp);
@@ -833,6 +852,42 @@ public:
     }
   }
   String *val_str(String *);
+  longlong val_int()
+  {
+    if (args[0]->result_type() == STRING_RESULT)
+      return Item_str_func::val_int();
+    longlong res= args[0]->val_int();
+    if ((null_value= args[0]->null_value))
+      return 0;
+    return res;
+  }
+  double val_real()
+  {
+    if (args[0]->result_type() == STRING_RESULT)
+      return Item_str_func::val_real();
+    double res= args[0]->val_real();
+    if ((null_value= args[0]->null_value))
+      return 0;
+    return res;
+  }
+  my_decimal *val_decimal(my_decimal *d)
+  {
+    if (args[0]->result_type() == STRING_RESULT)
+      return Item_str_func::val_decimal(d);
+    my_decimal *res= args[0]->val_decimal(d);
+    if ((null_value= args[0]->null_value))
+      return NULL;
+    return res;
+  }
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzydate)
+  {
+    if (args[0]->result_type() == STRING_RESULT)
+      return Item_str_func::get_date(ltime, fuzzydate);
+    bool res= args[0]->get_date(ltime, fuzzydate);
+    if ((null_value= args[0]->null_value))
+      return 1;
+    return res;
+  }
   void fix_length_and_dec();
   const char *func_name() const { return "convert"; }
   virtual void print(String *str, enum_query_type query_type);
@@ -901,7 +956,7 @@ class Item_func_uncompressed_length : public Item_int_func
 public:
   Item_func_uncompressed_length(Item *a):Item_int_func(a){}
   const char *func_name() const{return "uncompressed_length";}
-  void fix_length_and_dec() { max_length=10; }
+  void fix_length_and_dec() { max_length=10; maybe_null= true; }
   longlong val_int();
 };
 
@@ -931,7 +986,7 @@ public:
   String *val_str(String *) ZLIB_DEPENDED_FUNCTION
 };
 
-#define UUID_LENGTH (8+1+4+1+4+1+4+1+12)
+
 class Item_func_uuid: public Item_str_func
 {
 public:
@@ -940,12 +995,83 @@ public:
   {
     collation.set(system_charset_info,
                   DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
-    fix_char_length(UUID_LENGTH);
+    fix_char_length(MY_UUID_STRING_LENGTH);
   }
   const char *func_name() const{ return "uuid"; }
   String *val_str(String *);
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
-extern String my_empty_string;
+
+class Item_func_dyncol_create: public Item_str_func
+{
+protected:
+  DYNCALL_CREATE_DEF *defs;
+  DYNAMIC_COLUMN_VALUE *vals;
+  uint *nums;
+  void prepare_arguments();
+  void cleanup_arguments();
+  void print_arguments(String *str, enum_query_type query_type);
+public:
+  Item_func_dyncol_create(List<Item> &args, DYNCALL_CREATE_DEF *dfs);
+  bool fix_fields(THD *thd, Item **ref);
+  void fix_length_and_dec();
+  const char *func_name() const{ return "column_create"; }
+  String *val_str(String *);
+  virtual void print(String *str, enum_query_type query_type);
+};
+
+
+class Item_func_dyncol_add: public Item_func_dyncol_create
+{
+public:
+  Item_func_dyncol_add(List<Item> &args, DYNCALL_CREATE_DEF *dfs)
+    :Item_func_dyncol_create(args, dfs)
+  {}
+  const char *func_name() const{ return "column_add"; }
+  String *val_str(String *);
+  virtual void print(String *str, enum_query_type query_type);
+};
+
+
+/*
+  The following functions is always called from an Item_cast function
+*/
+
+class Item_dyncol_get: public Item_str_func
+{
+public:
+  Item_dyncol_get(Item *str, Item *num)
+    :Item_str_func(str, num)
+  {
+    max_length= MAX_DYNAMIC_COLUMN_LENGTH;
+  }
+  void fix_length_and_dec()
+  { maybe_null= 1; }
+  /* Mark that collation can change between calls */
+  bool dynamic_result() { return 1; }
+
+  const char *func_name() const { return "column_get"; }
+  String *val_str(String *);
+  longlong val_int();
+  double val_real();
+  my_decimal *val_decimal(my_decimal *);
+  bool get_dyn_value(DYNAMIC_COLUMN_VALUE *val, String *tmp);
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzydate);
+  void print(String *str, enum_query_type query_type);
+};
+
+
+class Item_func_dyncol_list: public Item_str_func
+{
+public:
+  Item_func_dyncol_list(Item *str) :Item_str_func(str) {};
+  void fix_length_and_dec() { maybe_null= 1; max_length= MAX_BLOB_WIDTH; };
+  const char *func_name() const{ return "column_list"; }
+  String *val_str(String *);
+};
 
 #endif /* ITEM_STRFUNC_INCLUDED */

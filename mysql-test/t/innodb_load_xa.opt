@@ -1,0 +1,1 @@
+--ignore-builtin-innodb --loose-innodb --log-bin

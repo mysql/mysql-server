@@ -1,0 +1,6 @@
+create table t (a int);
+create or replace view v as select 1 from t where a;
+delete from v where (select g());
+ERROR 42000: FUNCTION test.g does not exist
+drop view v;
+drop table t;

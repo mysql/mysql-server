@@ -35,7 +35,7 @@ typedef struct st_archive_record_buffer {
 typedef struct st_archive_share {
   char *table_name;
   char data_file_name[FN_REFLEN];
-  uint table_name_length,use_count;
+  uint table_name_length,use_count, version;
   mysql_mutex_t mutex;
   THR_LOCK lock;
   azio_stream archive_write;     /* Archive file we are working with */
@@ -126,7 +126,9 @@ public:
   int free_share();
   int init_archive_writer();
   int init_archive_reader();
-  bool auto_repair() const { return 1; } // For the moment we just do this
+  // Always try auto_repair in case of HA_ERR_CRASHED_ON_USAGE
+  bool auto_repair(int error) const
+  { return error == HA_ERR_CRASHED_ON_USAGE; }
   int read_data_header(azio_stream *file_to_read);
   void position(const uchar *record);
   int info(uint);
@@ -134,6 +136,7 @@ public:
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
+  int check_for_upgrade(HA_CHECK_OPT *check_opt);
   void start_bulk_insert(ha_rows rows);
   int end_bulk_insert();
   enum row_type get_row_type() const 

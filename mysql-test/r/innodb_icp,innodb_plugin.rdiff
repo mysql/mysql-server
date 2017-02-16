@@ -1,0 +1,58 @@
+--- r/innodb_icp.result	2013-07-16 17:01:00.000000000 +0400
++++ r/innodb_icp,innodb_plugin.reject	2013-07-16 17:16:53.000000000 +0400
+@@ -213,7 +213,7 @@
+ EXPLAIN
+ SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' and i1 > 2;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t3	range	c1	c1	12	NULL	2	Using index condition; Using where
++1	SIMPLE	t3	range	c1	c1	12	NULL	2	Using where
+ SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' and i1 > 2;
+ c1
+ EXPLAIN
+@@ -637,7 +637,7 @@
+ WHERE NOT(b = 'Texas') AND b BETWEEN 'wy' AND 'y' OR b = 'Pennsylvania'
+   ORDER BY a;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	range	b	b	13	NULL	2	Using where; Rowid-ordered scan; Using filesort
++1	SIMPLE	t1	range	b	b	13	NULL	2	Using where; Using filesort
+ SELECT * FROM t1 
+ WHERE NOT(b = 'Texas') AND b BETWEEN 'wy' AND 'y' OR b = 'Pennsylvania'
+   ORDER BY a;
+@@ -649,7 +649,7 @@
+ WHERE NOT(b = 'Texas') AND b BETWEEN 'wy' AND 'y' OR b = 'Pennsylvania'
+   ORDER BY a;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	range	b	b	13	NULL	2	Using index condition; Using where; Rowid-ordered scan; Using filesort
++1	SIMPLE	t1	range	b	b	13	NULL	2	Using where; Using filesort
+ SELECT * FROM t1 
+ WHERE NOT(b = 'Texas') AND b BETWEEN 'wy' AND 'y' OR b = 'Pennsylvania'
+   ORDER BY a;
+@@ -825,15 +825,15 @@
+ 4	4
+ show status like "Handler_icp%";
+ Variable_name	Value
+-Handler_icp_attempts	2
+-Handler_icp_match	1
++Handler_icp_attempts	0
++Handler_icp_match	0
+ SELECT * FROM t1 WHERE (c2='3' or c2='4') and c2 % 2 = 0 ;
+ c1	c2
+ 4	4
+ show status like "Handler_icp%";
+ Variable_name	Value
+-Handler_icp_attempts	2
+-Handler_icp_match	1
++Handler_icp_attempts	0
++Handler_icp_match	0
+ DROP TABLE t1;
+ create table t1 (a int,b char(5),primary key (a), key (b(1)));
+ insert into t1 values ('a','b');
+@@ -868,7 +868,7 @@
+ EXPLAIN
+ SELECT * FROM t1 FORCE INDEX(idx1)       WHERE (c1='aa' AND c2='x') OR (c1='a'  AND c2='y');
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	range	idx1	idx1	10	NULL	2	Using index condition; Using where
++1	SIMPLE	t1	range	idx1	idx1	10	NULL	2	Using where
+ SELECT * FROM t1 FORCE INDEX(idx1)       WHERE (c1='aa' AND c2='x') OR (c1='a'  AND c2='y');
+ c1	c2
+ aa	x

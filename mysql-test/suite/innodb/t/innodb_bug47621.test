@@ -1,8 +1,8 @@
+--source include/have_innodb.inc
 # This is the test for bug #47621, column rename operation should
 # not result in column definition inconsistency between MySQL and
 # InnoDB
 
---source include/have_innodb.inc
 
 CREATE TABLE bug47621 (salesperson INT) ENGINE=InnoDB;
 

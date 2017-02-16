@@ -1,0 +1,14 @@
+include/master-slave.inc
+[connection master]
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master';
+SET GLOBAL rpl_semi_sync_master_enabled = ON;
+SET DEBUG_SYNC = "rpl_semisync_master_commit_trx_before_lock SIGNAL m1_ready WAIT_FOR m1_cont";
+INSERT INTO t1 SELECT * FROM t1;
+SET DEBUG_SYNC= "now WAIT_FOR m1_ready";
+SET GLOBAL rpl_semi_sync_master_enabled = OFF;
+SET DEBUG_SYNC= "now SIGNAL m1_cont";
+DROP TABLE t1;
+SET DEBUG_SYNC= "RESET";
+UNINSTALL PLUGIN rpl_semi_sync_master;
+include/rpl_end.inc

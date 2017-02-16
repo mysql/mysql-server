@@ -1,0 +1,23 @@
+--source include/have_tokudb.inc
+SET @@DEFAULT_STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS bar;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=ON;
+
+create temporary table bar (a int, key(a))engine=TOkuDB;
+alter table bar add column c int default 0;
+create index blah on bar(a);
+drop index a on bar;
+
+set session tokudb_disable_slow_alter=OFF;
+insert into bar (a) values (1),(2),(3);
+alter table bar add column b int default 1 first;
+select * from bar;
+create index blah_b on bar (b);
+select sum(b) from bar;
+drop index blah_b on bar;
+
+drop table bar;

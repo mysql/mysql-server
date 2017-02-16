@@ -6,5 +6,5 @@
 --echo #
 --echo # Bug#55672 mysql_upgrade dies with internal error 
 --echo #
---exec $MYSQL_UPGRADE --skip-verbose --ssl --force 2>&1
+--exec $MYSQL_UPGRADE --skip-verbose --skip-silent --ssl --force 2>&1
 --exit

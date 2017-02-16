@@ -28,7 +28,11 @@ DROP TABLE t1;
 CREATE TABLE t1(c1 TIME NOT NULL PRIMARY KEY);
 SET TIMESTAMP=1171346973;
 INSERT INTO t1 (c1) VALUES(NOW());
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
 INSERT INTO t1 (c1) VALUES(ADDTIME(NOW(),'1 01:01:01'));
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
 INSERT INTO t1 (c1) VALUES(NOW());
 ERROR 23000: Duplicate entry '09:09:33' for key 'PRIMARY'
 SELECT * FROM t1;

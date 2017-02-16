@@ -1,0 +1,123 @@
+set default_storage_engine='tokudb';
+drop table if exists t1,t2;
+CREATE TABLE `t1` (
+`num` int(10) unsigned auto_increment NOT NULL,
+`val` varchar(32) DEFAULT NULL,
+PRIMARY KEY (`num`)
+);
+INSERT INTO t1 values (null,null);
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+SELECT count(*) FROM t1;
+count(*)
+1048576
+CREATE TABLE `t2` (
+`num` int(10) unsigned auto_increment NOT NULL, 
+`count` bigint(20) NOT NULL,
+UNIQUE (num)
+);
+set tokudb_bulk_fetch=ON;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+set tokudb_bulk_fetch=OFF;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+1
+set tokudb_bulk_fetch=ON;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+set tokudb_bulk_fetch=OFF;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+1
+drop table t1,t2;

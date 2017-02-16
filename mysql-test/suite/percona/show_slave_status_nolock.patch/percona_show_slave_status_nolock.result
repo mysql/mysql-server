@@ -1,0 +1,69 @@
+include/master-slave.inc
+[connection master]
+call mtr.add_suppression("Slave SQL: Request to stop slave SQL Thread received while applying a group that has non-transactional changes");
+include/rpl_connect.inc [creating slave_lock]
+include/rpl_connect.inc [creating slave_nolock]
+[master]
+DROP TABLE IF EXISTS t;
+CREATE TABLE t(id INT);
+[slave]
+SET DEBUG_SYNC='RESET';
+SET GLOBAL DEBUG="+d,after_mysql_insert,after_show_slave_status";
+[master]
+INSERT INTO t VALUES(0);
+[slave]
+check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NOLOCK' - both should work fine
+
+[slave_lock]
+SHOW SLAVE STATUS;
+SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
+SIGNAL after SHOW SLAVE STATUS is 'signal.after_show_slave_status'
+[slave]
+SET DEBUG_SYNC='now SIGNAL signal.empty';
+[slave_nolock]
+SHOW SLAVE STATUS NOLOCK;
+SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
+# should be 'signal.after_show_slave_status'
+SIGNAL after SHOW SLAVE STATUS NOLOCK is 'signal.after_show_slave_status'
+[slave]
+SET DEBUG_SYNC='now SIGNAL signal.continue';
+[slave]
+SET DEBUG_SYNC='now SIGNAL signal.empty';
+
+[master]
+INSERT INTO t VALUES(1);
+[slave]
+include/rpl_connect.inc [creating slave_stop]
+[slave_stop]
+STOP SLAVE;
+[slave]
+check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NOLOCK' - just NOLOCK version should works fine
+
+[slave_lock]
+SHOW SLAVE STATUS;
+SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
+SIGNAL after SHOW SLAVE STATUS is 'signal.empty'
+[slave]
+SET DEBUG_SYNC='now SIGNAL signal.empty';
+[slave_nolock]
+SHOW SLAVE STATUS NOLOCK;
+SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
+# should be 'signal.after_show_slave_status'
+SIGNAL after SHOW SLAVE STATUS NOLOCK is 'signal.after_show_slave_status'
+[slave]
+SET DEBUG_SYNC='now SIGNAL signal.continue';
+[slave]
+SET DEBUG_SYNC='now SIGNAL signal.empty';
+
+[slave_stop]
+include/wait_for_slave_to_stop.inc
+START SLAVE;
+include/wait_for_slave_to_start.inc
+[master]
+SET DEBUG_SYNC='RESET';
+[slave]
+SET GLOBAL DEBUG='';
+SET DEBUG_SYNC='RESET';
+[master]
+DROP TABLE t;
+include/rpl_end.inc

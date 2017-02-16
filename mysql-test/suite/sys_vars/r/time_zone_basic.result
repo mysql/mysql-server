@@ -189,7 +189,7 @@ ERROR 42000: Incorrect argument type to variable 'time_zone'
 SET @@time_zone = +0200;
 ERROR 42000: Incorrect argument type to variable 'time_zone'
 SET @@time_zone = GMT+;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 1
 SET @@time_zone = "";
 ERROR HY000: Unknown or incorrect time zone: ''
 SET @@global.time_zone = 1;
@@ -197,7 +197,7 @@ ERROR 42000: Incorrect argument type to variable 'time_zone'
 SET @@global.time_zone = +0200;
 ERROR 42000: Incorrect argument type to variable 'time_zone'
 SET @@global.time_zone = GMT+;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 1
 SET @@global.time_zone = "";
 ERROR HY000: Unknown or incorrect time zone: ''
 '#---------------------FN_DYNVARS_001_10----------------------#'

@@ -1,0 +1,19 @@
+create table t1 (a text) engine=tokudb compression=tokudb_uncompressed;
+create table t2 (a text) engine=tokudb compression=tokudb_zlib;
+create table t3 (a text) engine=tokudb compression=tokudb_quicklz;
+create table t4 (a text) engine=tokudb compression=tokudb_lzma;
+create table t5 (a text) engine=tokudb compression=tokudb_fast;
+create table t6 (a text) engine=tokudb compression=tokudb_small;
+insert t1 values (repeat('a', 1000));
+insert t1 values (repeat('b', 1000));
+insert t1 values (repeat('c', 1000));
+insert t1 values (repeat('d', 1000));
+insert t1 values (repeat('e', 1000));
+insert t1 values (repeat('f', 1000));
+insert t2 select * from t1;
+insert t3 select * from t1;
+insert t4 select * from t1;
+insert t5 select * from t1;
+insert t6 select * from t1;
+# how to verify that compression works?
+drop table t1, t2, t3, t4, t5, t6;

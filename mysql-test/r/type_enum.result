@@ -1854,3 +1854,18 @@ a
 
 DROP TABLE t1;
 End of 5.1 tests
+#
+# MDEV-4241: Assertion failure: scale >= 0 && precision > 0 &&
+# scale <= precision in decimal_bin_size
+#
+CREATE TABLE t1 (
+f1 enum('1','2','3','4','5')
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+SELECT AVG(f1) FROM t1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					AVG(f1)	246	7	6	Y	32896	4	63
+AVG(f1)
+1.5000
+drop table t1;
+End of 5.3 tests

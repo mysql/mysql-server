@@ -1,0 +1,14 @@
+create table t1 (a int) engine=tokudb;
+insert t1 values (1),(2),(3);
+set debug_sync='before_admin_operator_func WAIT_FOR go';
+OPTIMIZE TABLE t1;
+select * from t1;
+a
+1
+2
+3
+set debug_sync='now SIGNAL go';
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+drop table t1;
+set debug_sync='reset';

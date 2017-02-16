@@ -1,0 +1,16 @@
+create procedure have_ssl()
+select if(variable_value > '','yes','no') as 'have_ssl'
+  from information_schema.session_status
+where variable_name='ssl_cipher';
+mysql --ssl-ca=cacert.pem -e "call test.have_ssl()"
+have_ssl
+yes
+mysql --ssl -e "call test.have_ssl()"
+have_ssl
+yes
+mysql --ssl-ca=cacert.pem --ssl-verify-server-cert -e "call test.have_ssl()"
+have_ssl
+yes
+mysql --ssl --ssl-verify-server-cert -e "call test.have_ssl()"
+ERROR 2026 (HY000): SSL connection error: Failed to verify the server certificate
+drop procedure have_ssl;

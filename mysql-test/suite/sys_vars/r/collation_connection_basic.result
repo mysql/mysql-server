@@ -22,7 +22,7 @@ SELECT @@session.collation_connection;
 @@session.collation_connection
 utf8_unicode_ci
 SET global.collation_connection=utf8_unicode_ci;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'collation_connection=utf8_unicode_ci' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'collation_connection=utf8_unicode_ci' at line 1
 SET session collation_connection=utf8_unicode_ci;
 SELECT session collation_connection;
 ERROR 42S22: Unknown column 'session' in 'field list'

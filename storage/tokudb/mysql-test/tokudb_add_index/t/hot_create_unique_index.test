@@ -1,0 +1,16 @@
+# verify that create unique index is not a hot operation.  
+# in tokudb_add_index assert that the table MDL >= shared no write.
+
+source include/have_tokudb.inc;
+source include/have_debug.inc;
+set default_storage_engine='tokudb';
+
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+create table t (id int auto_increment primary key, x int);
+
+create unique index x on t (x);
+
+drop table t;

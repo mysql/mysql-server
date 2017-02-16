@@ -1,0 +1,31 @@
+set default_storage_engine='tokudb';
+create table tc (a int, b int, c int, primary key(a), key(b)) engine=tokudb partition by hash(a) partitions 2;
+select dictionary_name from information_schema.tokudb_file_map;
+dictionary_name
+./test/ta#P#p0-key-b
+./test/ta#P#p0-main
+./test/ta#P#p0-status
+./test/ta#P#p1-key-b
+./test/ta#P#p1-main
+./test/ta#P#p1-status
+./test/tc#P#p0-key-b
+./test/tc#P#p0-main
+./test/tc#P#p0-status
+./test/tc#P#p1-key-b
+./test/tc#P#p1-main
+./test/tc#P#p1-status
+tokudb_meta
+drop table ta;
+select dictionary_name from information_schema.tokudb_file_map;
+dictionary_name
+./test/tc#P#p0-key-b
+./test/tc#P#p0-main
+./test/tc#P#p0-status
+./test/tc#P#p1-key-b
+./test/tc#P#p1-main
+./test/tc#P#p1-status
+tokudb_meta
+drop table tc;
+select dictionary_name from information_schema.tokudb_file_map;
+dictionary_name
+tokudb_meta

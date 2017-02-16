@@ -13,6 +13,17 @@ drop table if exists t1_1,t1_2,t9_1,t9_2,t1aa,t2aa;
 drop view if exists v1;
 --enable_warnings
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch=ifnull(@optimizer_switch_for_select_test,'outer_join_with_cache=off');
+if (`select @join_cache_level_for_select_test is null`)
+{
+  set join_cache_level=1;
+}
+if (`select @join_cache_level_for_select_test is not null`)
+{
+  set join_cache_level=@join_cache_level_for_select_test;
+}
+
 CREATE TABLE t1 (
   Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
   Varor_period smallint(4) unsigned DEFAULT '0' NOT NULL
@@ -1333,6 +1344,7 @@ explain select fld1 from t2 where fld1=250501 or fld1=250502 or fld1 >= 250505 a
 # If the like starts with a certain letter key will be used.
 #
 
+--sorted_result
 select fld1,fld3 from t2 where companynr = 37 and fld3 like 'f%';
 select fld3 from t2 where fld3 like "L%" and fld3 = "ok";
 select fld3 from t2 where (fld3 like "C%" and fld3 = "Chantilly");
@@ -1854,7 +1866,9 @@ select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 using ( a );
 select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) using ( a );
 # left [outer] join on
+--sorted_result
 select * from (t1 as t2 left join t1 as t3 using (a)) left outer join t1 on t1.a>1;
+--sorted_result
 select * from t1 left outer join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 # left join using
 select * from (t1 as t2 left join t1 as t3 using (a)) left join t1 using ( a );
@@ -1863,7 +1877,9 @@ select * from t1 left join (t1 as t2 left join t1 as t3 using (a)) using ( a );
 select * from (t1 as t2 left join t1 as t3 using (a)) natural left join t1;
 select * from t1 natural left join (t1 as t2 left join t1 as t3 using (a));
 # right join on
+--sorted_result
 select * from (t1 as t2 left join t1 as t3 using (a)) right join t1 on t1.a>1;
+--sorted_result
 select * from t1 right join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 # right [outer] joing using
 select * from (t1 as t2 left join t1 as t3 using (a)) right outer join t1 using ( a );
@@ -1960,6 +1976,7 @@ CREATE TABLE t1 ( a BLOB, INDEX (a(20)) );
 CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
 
 INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
+INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
 INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
 
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
@@ -2476,7 +2493,7 @@ DROP TABLE t1,t2;
 # Bug #10650
 #
 
-select x'10' + 0, X'10' + 0, b'10' + 0, B'10' + 0;
+select x'3136' + 0, X'3136' + 0, b'10' + 0, B'10' + 0;
 
 #
 # Bug #11398 Bug in field_conv() results in wrong result of join with index
@@ -2534,10 +2551,14 @@ insert into t1 values(1),(2);
 insert into t2 values(1),(2);
 create view v2 (c) as select a1 from t1;
 
+--sorted_result
 select * from t1 natural left join t2;
+--sorted_result
 select * from t1 natural right join t2;
 
+--sorted_result
 select * from v2 natural left join t2;
+--sorted_result
 select * from v2 natural right join t2;
 
 drop table t1, t2;
@@ -2706,16 +2727,20 @@ create view v3 as select (t1.id+2) as id from t1 natural left join t2;
 # all queries must return the same result
 select t1.id from t1 left join v2 using (id);
 select t1.id from v2 right join t1 using (id);
+--sorted_result
 select t1.id from t1 left join v3 using (id);
 select * from t1 left join v2 using (id);
 select * from v2 right join t1 using (id);
+--sorted_result
 select * from t1 left join v3 using (id);
 
 select v1.id from v1 left join v2 using (id);
 select v1.id from v2 right join v1 using (id);
+--sorted_result
 select v1.id from v1 left join v3 using (id);
 select * from v1 left join v2 using (id);
 select * from v2 right join v1 using (id);
+--sorted_result
 select * from v1 left join v3 using (id);
 
 drop table t1, t2;
@@ -3515,6 +3540,7 @@ DROP VIEW v1;
 select str_to_date('2007-10-09','%Y-%m-%d') between '2007/10/01 00:00:00 GMT'
                                                 and '2007/10/20 00:00:00 GMT';
 select str_to_date('2007-10-09','%Y-%m-%d') > '2007/10/01 00:00:00 GMT-6';
+select str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/20 00:00:00 GMT-6';
 select str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/2000:00:00 GMT-6';
 
 # We have all we need -- and trailing garbage:
@@ -3564,10 +3590,12 @@ select str_to_date('1','%Y-%m-%d') = '1';
 select str_to_date('1','%Y-%m-%d') = '1';
 select str_to_date('','%Y-%m-%d') = '';
 
-# these three should work!
-select str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL;
-select str_to_date('1000-01-01','%Y-%m-%d') between NULL and '2000-00-00';
-select str_to_date('1000-01-01','%Y-%m-%d') between NULL and NULL;
+select str_to_date('2000-01-01','%Y-%m-%d') between '1000-01-01' and '2001-01-01';
+select str_to_date('2000-01-01','%Y-%m-%d') between '1000-01-01' and NULL;
+select str_to_date('2000-01-01','%Y-%m-%d') between NULL and '2001-01-01';
+select str_to_date('2000-01-01','%Y-%m-%d') between '2001-01-01' and NULL;
+select str_to_date('2000-01-01','%Y-%m-%d') between NULL and '1000-01-01';
+select str_to_date('2000-01-01','%Y-%m-%d') between NULL and NULL;
 
 #
 # Bug #30666: Incorrect order when using range conditions on 2 tables or more
@@ -3895,9 +3923,9 @@ DROP TABLE t1;
 # Field_varstring::store
 #
 
-CREATE TABLE A (date_key date);
+CREATE TABLE t1 (date_key date);
 
-CREATE TABLE C (
+CREATE TABLE t2 (
   pk int,
   int_nokey int,
   int_key int,
@@ -3906,20 +3934,20 @@ CREATE TABLE C (
   varchar_key varchar(1)
 );
 
-INSERT INTO C VALUES 
+INSERT INTO t2 VALUES 
 (1,1,1,'0000-00-00',NULL,NULL),
 (1,1,1,'0000-00-00',NULL,NULL);
 
-SELECT 1 FROM C WHERE pk > ANY (SELECT 1 FROM C);
+SELECT 1 FROM t2 WHERE pk > ANY (SELECT 1 FROM t2);
 
-SELECT COUNT(DISTINCT 1) FROM C 
-  WHERE date_key = (SELECT 1 FROM A WHERE C.date_key IS NULL) GROUP BY pk; 
-SELECT date_nokey FROM C 
-  WHERE int_key IN (SELECT 1 FROM A) 
+SELECT COUNT(DISTINCT 1) FROM t2 
+  WHERE date_key = (SELECT 1 FROM t1 WHERE t2.date_key IS NULL) GROUP BY pk; 
+SELECT date_nokey FROM t2
+  WHERE int_key IN (SELECT 1 FROM t1)
   HAVING date_nokey = '10:41:7' 
   ORDER BY date_key;
 
-DROP TABLE A,C;
+DROP TABLE t1,t2;
 
 #
 # Bug #42957: no results from 
@@ -4122,6 +4150,146 @@ EXPLAIN SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #702310: usage of 2 join buffers after ref access to an empty table 
+--echo #
+
+CREATE TABLE t1 (f1 int) ;
+INSERT INTO t1 VALUES (9);
+
+CREATE TABLE t2 (f1 int);
+INSERT INTO t2 VALUES (3),(7),(18);
+INSERT INTO t2 VALUES (3),(7),(18);
+INSERT INTO t2 VALUES (3),(7),(18);
+INSERT INTO t2 VALUES (3),(7),(18);
+
+CREATE TABLE t3 (f1 int);
+INSERT INTO t3 VALUES (17);
+
+CREATE TABLE t4  (f1 int PRIMARY KEY, f2 varchar(1024)) ;
+
+CREATE TABLE t5 (f1 int) ;
+INSERT INTO t5 VALUES (20),(5);
+
+CREATE TABLE t6(f1 int);
+INSERT INTO t6 VALUES (9),(7);
+
+SET SESSION join_buffer_size = 2176;
+
+EXPLAIN
+SELECT STRAIGHT_JOIN * FROM t2, (t1 LEFT JOIN (t3,t4) ON t1.f1 = t4.f1), t5, t6;
+SELECT STRAIGHT_JOIN * FROM t2, (t1 LEFT JOIN (t3,t4) ON t1.f1 = t4.f1), t5, t6;
+
+SET SESSION join_buffer_size = DEFAULT;
+
+DROP TABLE t1,t2,t3,t4,t5,t6;
+
+--echo #
+--echo # Bug #698882: best equality substitution not applied to ref 
+--echo #
+
+CREATE TABLE t1 (a1 int NOT NULL, b1 char(10), INDEX idx (a1));
+CREATE TABLE t2 (a2 int NOT NULL, b2 char(10), INDEX idx (a2));
+CREATE TABLE t3 (a3 int NOT NULL, b3 char(10), INDEX idx (a3));
+INSERT INTO t1 VALUES (2,'xx'), (1,'xxx'),  (11,'xxxxxxx');
+INSERT INTO t2 VALUES
+  (7,'yyyy'), (2,'y'), (3,'yyy'), (1,'yy'), (1,'yyyyy'),
+  (3,'yy'),  (1,'y'), (4,'yyy'), (7,'y'),  (4,'yyyyy'), (7,'yyy'),
+  (7,'yyyy'), (2,'yy'),  (3,'yyy'), (1,'yyyyyyyy'), (1,'yyyyy'),
+  (3,'yy'), (1,'yyy'), (4,'yyy'), (7,'y'), (4,'yyyyy'), (7,'yyy');
+INSERT INTO t3 VALUES
+  (9,'zzzzzzz'), (2,'zzzzz'), (1,'z'), (9,'zz'), (1,'zz'), (5,'zzzzzzz'),
+  (4,'zz'), (3,'z'), (5,'zzzzzz'), (3,'zz'), (4,'zzzz'), (3,'z'),
+  (9,'zzzzzzzz'), (2,'zz'), (1,'zz'), (9,'zzz'), (1,'zzz'), (5,'zzzzzzzz'),
+  (4,'zzz'), (3,'zz'), (5,'zzzzzzz'), (3,'zzz'), (4,'zzzzz'), (3,'zz'),
+  (9,'zzzzzz'), (2,'zzzz'), (1,'zzz'), (9,'z'), (1,'z'), (5,'zzzzzz'),
+  (4,'z'), (3,'zzz'), (5,'zzzzz'), (3,'z'), (4,'zzz'), (3,'zzzz'),
+  (9,'zzzzz'), (2,'zzz'), (1,'zzzz'), (9,'zzz'), (1,'zzzz'), (5,'zzzzz'),
+  (4,'zzz'), (3,'zzzz'), (5,'zzzz'), (3,'zzz'), (4,'zz'), (3,'zzzzz');
+
+set @tmp= @@optimizer_switch;
+SET SESSION optimizer_switch='index_condition_pushdown=off';
+
+EXPLAIN SELECT * from t1,t2,t3 WHERE t3.a3=t1.a1 AND t2.a2=t1.a1;
+EXPLAIN SELECT * FROM t1,t2,t3 WHERE t2.a2=t1.a1 AND t3.a3=t1.a1;
+EXPLAIN SELECT * FROM t1,t2,t3 WHERE t2.a2=t1.a1 AND t3.a3=t2.a2;
+
+--sorted_result
+SELECT * from t1,t2,t3
+  WHERE t3.a3=t1.a1 AND t2.a2=t1.a1 AND
+        LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
+--sorted_result
+SELECT * FROM t1,t2,t3
+  WHERE t2.a2=t1.a1 AND t3.a3=t1.a1 AND 
+        LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
+--sorted_result
+SELECT * FROM t1,t2,t3
+  WHERE t2.a2=t1.a1 AND t3.a3=t2.a2 AND
+        LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
+
+SET SESSION optimizer_switch=@tmp;
+
+DROP TABLE t1,t2,t3;
+
+
+--echo #
+--echo # Bug #707555: crash with equality substitution in ref 
+--echo #
+
+CREATE TABLE t1 (f11 int, f12 int, PRIMARY KEY (f11), KEY (f12)) ;
+INSERT INTO t1 VALUES (1,NULL), (8,NULL);
+
+CREATE TABLE t2 (f21 int, f22 int, f23 int, KEY (f22)) ;
+INSERT INTO t2 VALUES (1,NULL,3), (2,7,8);
+
+CREATE TABLE t3 (f31 int, f32 int(11), PRIMARY KEY (f31), KEY (f32)) ;
+INSERT INTO t3 VALUES (1,494862336);
+
+CREATE TABLE t4 (f41 int, f42 int, PRIMARY KEY (f41), KEY (f42)) ;
+INSERT INTO t4 VALUES (1,NULL), (8,NULL);
+
+CREATE TABLE t5 (f51 int, PRIMARY KEY (f51)) ;
+INSERT IGNORE INTO t5 VALUES (100);
+
+CREATE TABLE t6 (f61 int, f62 int, KEY (f61)) ;
+INSERT INTO t6 VALUES (NULL,1), (3,10);
+
+CREATE TABLE t7 (f71 int, f72 int, KEY (f72)) ;
+INSERT INTO t7 VALUES (1,NULL), (2,7);
+
+EXPLAIN
+SELECT t2.f23 FROM
+  (t1 LEFT JOIN (t2 JOIN t3 ON t2.f22=t3.f32) ON t1.f11=t3.f31)
+  LEFT JOIN
+  (((t4 JOIN t5 ON t4.f42=t5.f51) LEFT JOIN t6 ON t6.f62>0) JOIN t7 ON t6.f61>0)
+  ON t3.f31 = t6.f61
+    WHERE t7.f71>0;
+
+SELECT t2.f23 FROM
+  (t1 LEFT JOIN (t2 JOIN t3 ON t2.f22=t3.f32) ON t1.f11=t3.f31)
+  LEFT JOIN
+  (((t4 JOIN t5 ON t4.f42=t5.f51) LEFT JOIN t6 ON t6.f62>0) JOIN t7 ON t6.f61>0)
+  ON t3.f31 = t6.f61
+    WHERE t7.f71>0;
+
+DROP TABLE t1,t2,t3,t4,t5,t6,t7;
+#
+# Bug #780425: "sql_buffer_result=1 gives wrong result for GROUP BY with a
+# constant expression"
+#
+
+CREATE TABLE t1(f1 int UNSIGNED) engine=myisam;
+INSERT INTO t1 VALUES (3),(2),(1);
+set sql_buffer_result=0;
+SELECT f1 FROM t1 GROUP BY 1;
+SELECT f1 FROM t1 GROUP BY '123' = 'abc';
+SELECT 1 FROM t1 GROUP BY 1;
+set sql_buffer_result=1;
+SELECT f1 FROM t1 GROUP BY 1;
+SELECT f1 FROM t1 GROUP BY '123' = 'abc';
+SELECT 1 FROM t1 GROUP BY 1;
+drop table t1;
+set sql_buffer_result= 0;
 
 
 --echo #
@@ -4195,6 +4363,19 @@ DROP TABLE t1,t2,t_empty;
 
 --echo End of 5.1 tests
 
+--echo #                    
+--echo # BUG#776274: substitution of a single row table
+--echo #                    
+
+CREATE TABLE t1 (a int NOT NULL , b int);
+INSERT INTO t1 VALUES (2,2);
+
+SELECT * FROM t1 WHERE a = b;
+EXPLAIN
+SELECT * FROM t1 WHERE a = b;
+
+DROP TABLE t1;
+
 --echo #
 --echo # Bug#54515: Crash in opt_range.cc::get_best_group_min_max on 
 --echo #            SELECT from VIEW with GROUP BY
@@ -4238,6 +4419,20 @@ DROP TABLE t1;
 --echo # End of test BUG#57203
 
 --echo #
+--echo # lp:822760 Wrong result with view + invalid dates
+--echo #
+CREATE TABLE t1 (f1 date);
+INSERT IGNORE INTO t1 VALUES ('0000-00-00');
+CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1;
+SELECT * FROM t1 HAVING f1 = 'zz';
+SELECT * FROM t1 HAVING f1 <= 'aa' ;
+SELECT * FROM t1 HAVING f1 = 'zz' AND f1 <= 'aa' ;
+SELECT * FROM t1 WHERE f1 = 'zz' AND f1 <= 'aa' ;
+SELECT * FROM v1 HAVING f1 = 'zz' AND f1 <= 'aa' ;
+DROP TABLE t1;
+DROP VIEW v1;
+
+--echo #
 --echo # Bug#63020: Function "format"'s 'locale' argument is not considered
 --echo #	     when creating a "view'
 --echo #
@@ -4247,41 +4442,168 @@ INSERT INTO t1 VALUES (11.67),(17865.3),(12345678.92);
 CREATE VIEW view_t1 AS SELECT FORMAT(f1,1,'sk_SK') AS f1 FROM t1;
 SHOW CREATE VIEW view_t1;
 SELECT * FROM view_t1;
-
 DROP TABLE t1;
 DROP VIEW view_t1;
-
 --echo # End of test  BUG#63020
 
+SET optimizer_switch=@save_optimizer_switch;
 
 --echo #
---echo # Bug#12713907: STRANGE OPTIMIZE & WRONG RESULT UNDER ORDER BY 
---echo # COUNT(*) LIMIT.
+--echo # LP bug#994275 Assertion `real->type() == Item::FIELD_ITEM' failed
+--echo # in add_not_null_conds(JOIN*) with JOIN, ZEROFILL column, PK
 --echo #
 
-CREATE TABLE t1 (
-id BIGINT(20) ,
-member_id_to INT(11) ,
-r_date DATE ,
-PRIMARY KEY (id,r_date),
-KEY r_date_idx (r_date),
-KEY t1_idx01 (member_id_to)
-) ENGINE=InnoDB;
+CREATE TABLE t1 ( a INT(6) ZEROFILL );
+INSERT INTO t1 VALUES (1),(2);
 
-INSERT INTO t1 VALUES 
-(107924526,518491,'2011-05-01'),
-(107924527,518491,'2011-05-01'),
-(107924534,518491,'2011-06-21'),
-(107924535,518491,'2011-06-21'),
-(107924542,1601319,'2011-06-21'),
-(107924543,1601319,'2011-06-21'),
-(107924544,1601319,'2011-06-21'),
-(107924545,1601319,'2011-06-21');
+CREATE TABLE t2 ( b INT PRIMARY KEY );
+INSERT INTO t2 VALUES (3),(4);
+SELECT * FROM t1, t2 WHERE a=3 AND a=b;
+drop table t1,t2;
 
-SELECT member_id_to, COUNT(*) FROM t1 WHERE r_date =
-  '2011-06-21' GROUP BY member_id_to ORDER BY 2 LIMIT 1;
+--echo #
+--echo # Bug mdev-4250: wrong transformation of WHERE condition with OR
+--echo #
+
+CREATE TABLE t1 (pk int PRIMARY KEY, a int);
+INSERT INTO t1 VALUES (3,0), (2,0), (4,1), (5,0), (1,0);
+
+SELECT * FROM t1 WHERE (1=2 OR t1.pk=2) AND t1.a <> 0;
+EXPLAIN EXTENDED 
+SELECT * FROM t1 WHERE (1=2 OR t1.pk=2) AND t1.a <> 0;
 
 DROP TABLE t1;
 
---echo # End of test  BUG#12713907
+SELECT * FROM mysql.time_zone 
+WHERE ( NOT (Use_leap_seconds <= Use_leap_seconds AND Time_zone_id != 1) 
+        AND Time_zone_id = Time_zone_id 
+     OR Time_zone_id <> Time_zone_id ) 
+  AND Use_leap_seconds <> 'N';
+
+--echo #
+--echo # Bug mdev-4274: result of simplification of OR badly merged
+--echo #                into embedding AND  
+--echo #
+
+CREATE TABLE t1 (a int, b int, INDEX idx(b)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (8,8);
+
+CREATE TABLE t2 (c int, INDEX idx(c)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (8), (9);
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 INNER JOIN t2 ON ( c = a ) 
+  WHERE 1 IS NULL OR b < 33 AND b = c;
+SELECT * FROM t1 INNER JOIN t2 ON ( c = a ) 
+  WHERE 1 IS NULL OR b < 33 AND b = c;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug mdev-4413: another manifestations of bug mdev-4274
+--echo #                (valgrind complains)
+--echo #
+
+CREATE TABLE t1 (a int, b int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (7,1);
+
+CREATE TABLE t2 (c int) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (0), (8);
+
+SELECT * FROM t1, t2 
+  WHERE c = a AND
+        ( 0 OR ( b BETWEEN 45 AND 300 OR a > 45 AND a < 100 ) AND b = c );
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug mdev-4355: equalities from the result of simplification of OR
+--echo #                are not propagated to lower AND levels
+--echo #
+
+CREATE TABLE t1 (a INT, b INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,101),(2,102),(3,103),(4,104),(5,11);
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 WHERE (1 != 1 OR a = 5) AND (b != 1 OR a = 1);
+SELECT * FROM t1 WHERE (1 != 1 OR a = 5) AND (b != 1 OR a = 1);
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 WHERE (b != 1 OR a = 1) AND (1 != 1 OR a = 5);
+SELECT * FROM t1 WHERE (b != 1 OR a = 1) AND (1 != 1 OR a = 5);
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 WHERE (b != 1 OR a = 1) AND (a = 5 OR 1 != 1);
+SELECT * FROM t1 WHERE (b != 1 OR a = 1) AND (a = 5 OR 1 != 1);
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 WHERE (b = 1 OR a = 1) AND (b = 5 AND a = 5 OR 1 != 1);
+SELECT * FROM t1 WHERE (b = 1 OR a = 1) AND (b = 5 AND a = 5 OR 1 != 1);
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 WHERE (b = 1 OR a = 5) AND (b = 5 AND a = 5 OR 1 != 1);
+SELECT * FROM t1 WHERE (b = 1 OR a = 5) AND (b = 5 AND a = 5 OR 1 != 1);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug mdev-4418: impossible multiple equality in OR formula 
+--echo #                after row substitution
+--echo #
+
+CREATE TABLE t1 (a int, b varchar(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (0,'j'), (8,'v');
+
+CREATE TABLE t2 (c varchar(1), d varchar(1)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('k','k');
+
+EXPLAIN EXTENDED
+SELECT * FROM t1, t2 WHERE c=b AND (1=2 OR ((b='h' OR a=136) AND d=b));
+SELECT * FROM t1, t2 WHERE c=b AND (1=2 OR ((b='h' OR a=136) AND d=b));
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug mdev-4944: range conditition in OR formula with fields
+--echo #                belonging to multiple equalities 
+--echo #
+
+CREATE TABLE t1 (i1 int, j1 int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,8);
+
+CREATE TABLE t2 (i2 int, INDEX idx (i2)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (8), (9);
+
+EXPLAIN EXTENDED
+SELECT * FROM t1, t2 
+  WHERE i1 = i2 AND ( FALSE OR ( j1 > 27 AND j1 < 100 OR j1 <= 3 ) AND j1 = i2 );
+SELECT * FROM t1, t2 
+  WHERE i1 = i2 AND ( FALSE OR ( j1 > 27 AND j1 < 100 OR j1 <= 3 ) AND j1 = i2 );
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug mdev-4971: equality propagation after merging degenerate 
+--echo #                disjunction into embedding AND level 
+--echo #
+
+CREATE TABLE t1 (pk1 int, a1 int, b1 int, PRIMARY KEY(pk1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,10,100), (2,20,200) ;
+
+CREATE TABLE t2 (pk2 int, a2 int, PRIMARY KEY(pk2)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,1);
+
+SELECT * FROM t1, t2
+  WHERE a1 = pk2 AND ( ( b1 = 6 OR a2 > 4 ) AND pk2 = a2 OR pk1 IS NULL );
+EXPLAIN EXTENDED
+SELECT * FROM t1, t2
+  WHERE a1 = pk2 AND ( ( b1 = 6 OR a2 > 4 ) AND pk2 = a2 OR pk1 IS NULL );
+
+INSERT INTO t1 VALUES (3,1,6);
+SELECT * FROM t1, t2
+  WHERE a1 = pk2 AND ( ( b1 = 6 OR a2 > 4 ) AND pk2 = a2 OR pk1 IS NULL );
+
+DROP TABLE t1,t2;
+
+--echo End of 5.3 tests
 

@@ -95,7 +95,6 @@ source extra/rpl_tests/rpl_blackhole.test;
 let $statement = DELETE FROM t1 WHERE a % 2 = 0 AND b = 3;
 source extra/rpl_tests/rpl_blackhole.test;
 
-
 connection master;
 DROP TABLE t1,t2;
 --source include/rpl_end.inc

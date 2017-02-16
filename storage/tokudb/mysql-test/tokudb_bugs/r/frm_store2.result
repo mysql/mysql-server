@@ -1,0 +1,20 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo,bar;
+set session tokudb_disable_slow_alter=ON;
+create table foo (a bigint, b bigint);
+create table bar (a int);
+alter table foo drop column a;
+alter table bar add column b int, add column c int;
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `b` bigint(20) DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+show create table bar;
+Table	Create Table
+bar	CREATE TABLE `bar` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+DROP TABLE foo,bar;

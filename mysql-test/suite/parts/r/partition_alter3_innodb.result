@@ -202,7 +202,7 @@ ALTER TABLE t1 DROP PARTITION part1;
 ERROR HY000: DROP PARTITION can only be used on RANGE/LIST partitions
 #  1.2.2 COALESCE PARTITION partitionname is not supported
 ALTER TABLE t1 COALESCE PARTITION part1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'part1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'part1' at line 1
 #  1.2.3 Decrease by 0 is non sense --> must fail
 ALTER TABLE t1 COALESCE PARTITION 0;
 ERROR HY000: At least one partition must be coalesced

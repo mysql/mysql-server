@@ -1,4 +1,4 @@
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 SET SQL_WARNINGS=1;
 CREATE TABLE t1 (
 STRING_DATA char(255) default NULL,
@@ -329,7 +329,7 @@ ALTER TABLE t1 ADD INDEX t1 (a, b, c, d, e);
 ERROR 42000: Specified key was too long; max key length is 1000 bytes
 DROP TABLE t1;
 CREATE TABLE t1 (a int not null, b int, c int, key(b), key(c), key(a,b), key(c,a));
-INSERT into t1 values (0, null, 0), (0, null, 1), (0, null, 2), (0, null,3), (1,1,4);
+INSERT into t1 values (0,null,0), (0,null,1), (0,null,2), (0,null,3), (1,1,4);
 create table t2 (a int not null, b int, c int, key(b), key(c), key(a));
 INSERT into t2 values (1,1,1), (2,2,2);
 optimize table t1;
@@ -346,32 +346,56 @@ t1	1	c_2	2	a	A	5	NULL	NULL		BTREE
 explain select * from t1,t2 where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer (flat, BNL join)
 explain select * from t1,t2 force index(a) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer (flat, BNL join)
 explain select * from t1 force index(a),t2 force index(a) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
 1	SIMPLE	t1	ref	a	a	4	test.t2.a	3	
+INSERT into t1 values (2,4,5), (7,8,4), (8,3,1), (9,7,2), (5,5,9);
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+show index from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	b	1	b	A	10	NULL	NULL	YES	BTREE		
+t1	1	c	1	c	A	10	NULL	NULL	YES	BTREE		
+t1	1	a	1	a	A	10	NULL	NULL		BTREE		
+t1	1	a	2	b	A	10	NULL	NULL	YES	BTREE		
+t1	1	c_2	1	c	A	10	NULL	NULL	YES	BTREE		
+t1	1	c_2	2	a	A	10	NULL	NULL		BTREE		
 explain select * from t1,t2 where t1.b=t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	b	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ref	b	b	5	test.t2.b	1	Using where
+1	SIMPLE	t2	ALL	b	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t1	ref	b	b	5	test.t2.b	1	
+delete from t1 where t1.a>1;
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+show index from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	b	1	b	A	5	NULL	NULL	YES	BTREE		
+t1	1	c	1	c	A	5	NULL	NULL	YES	BTREE		
+t1	1	a	1	a	A	1	NULL	NULL		BTREE		
+t1	1	a	2	b	A	5	NULL	NULL	YES	BTREE		
+t1	1	c_2	1	c	A	5	NULL	NULL	YES	BTREE		
+t1	1	c_2	2	a	A	5	NULL	NULL		BTREE		
 explain select * from t1,t2 force index(c) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer (flat, BNL join)
 explain select * from t1 where a=0 or a=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where
 explain select * from t1 force index (a) where a=0 or a=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	4	NULL	4	Using where
+1	SIMPLE	t1	range	a	a	4	NULL	4	Using index condition; Using where
 explain select * from t1 where c=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c,c_2	c	5	const	1	Using where
+1	SIMPLE	t1	ref	c,c_2	c	5	const	1	
 explain select * from t1 use index() where c=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
@@ -553,22 +577,22 @@ insert t1 values (1, "aaa", "bbb"), (NULL, "", "ccccc"), (0, NULL, "");
 insert t2 select * from t1;
 checksum table t1, t2, t3 quick;
 Table	Checksum
-test.t1	2948697075
+test.t1	3442722830
 test.t2	NULL
 test.t3	NULL
 Warnings:
 Error	1146	Table 'test.t3' doesn't exist
 checksum table t1, t2, t3;
 Table	Checksum
-test.t1	2948697075
-test.t2	2948697075
+test.t1	3442722830
+test.t2	3442722830
 test.t3	NULL
 Warnings:
 Error	1146	Table 'test.t3' doesn't exist
 checksum table t1, t2, t3 extended;
 Table	Checksum
-test.t1	2948697075
-test.t2	2948697075
+test.t1	3442722830
+test.t2	3442722830
 test.t3	NULL
 Warnings:
 Error	1146	Table 'test.t3' doesn't exist
@@ -1232,7 +1256,7 @@ qq
 *a         *a*a         *
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v,v_2	#	13	const	#	Using where
+1	SIMPLE	t1	ref	v,v_2	#	13	const	#	#
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -1408,7 +1432,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	v	v	303	const	#	Using where; Using index
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	303	const	#	Using where
+1	SIMPLE	t1	ref	v	v	303	const	#	#
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -1488,7 +1512,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	v	v	33	const	#	Using where
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	33	const	#	Using where
+1	SIMPLE	t1	ref	v	v	33	const	#	#
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -1750,7 +1774,7 @@ create table t1 (c1 int) engine=myisam pack_keys=0;
 create table t2 (c1 int) engine=myisam pack_keys=1;
 create table t3 (c1 int) engine=myisam pack_keys=default;
 create table t4 (c1 int) engine=myisam pack_keys=2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '2' at line 1
 drop table t1, t2, t3;
 CREATE TABLE t1(a INT, b INT, KEY inx (a), UNIQUE KEY uinx (b)) ENGINE=MyISAM;
 INSERT INTO t1(a,b) VALUES (1,1),(2,2),(3,3),(4,4),(5,5);
@@ -2027,9 +2051,9 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a int not null, key key_block_size=1024 (a));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=1024 (a))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '=1024 (a))' at line 1
 create table t1 (a int not null, key `a` key_block_size=1024 (a));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_block_size=1024 (a))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'key_block_size=1024 (a))' at line 1
 CREATE TABLE t1 (
 c1 INT,
 c2 VARCHAR(300),
@@ -2256,6 +2280,37 @@ Key Start Len Index   Type
 1   2     30  multip. varchar              
 2   33    30  multip. char NULL            
 DROP TABLE t1;
+create table t1 (n int not null, c char(1)) transactional=1;
+Warnings:
+Warning	1478	Table storage engine 'MyISAM' does not support the create option 'TRANSACTIONAL=1'
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `n` int(11) NOT NULL,
+  `c` char(1) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 TRANSACTIONAL=1
+drop table t1;
+CREATE TABLE t1 (line LINESTRING NOT NULL) engine=myisam;
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(0 0)"));
+checksum table t1;
+Table	Checksum
+test.t1	310616673
+CREATE TABLE t2 (line LINESTRING NOT NULL) engine=myisam;
+INSERT INTO t2 VALUES (GeomFromText("LINESTRING(0 0)"));
+checksum table t2;
+Table	Checksum
+test.t2	310616673
+CREATE TABLE t3 select * from t1;
+checksum table t3;
+Table	Checksum
+test.t3	310616673
+drop table t1,t2,t3;
+create table t1 (a1 int,a2 int,a3 int,a4 int,a5 int,a6 int,a7 int,a8 int,a9 int,a10 int,a11 int,a12 int,a13 int,a14 int,a15 int,a16 int,a17 int,a18 int,a19 int,a20 int,a21 int,a22 int,a23 int,a24 int,a25 int,a26 int,a27 int,a28 int,a29 int,a30 int,a31 int,a32 int,
+key(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,a22,a23,a24,a25,a26,a27,a28,a29,a30,a31,a32)) engine=myisam;
+drop table t1;
+create table t1 (a1 int,a2 int,a3 int,a4 int,a5 int,a6 int,a7 int,a8 int,a9 int,a10 int,a11 int,a12 int,a13 int,a14 int,a15 int,a16 int,a17 int,a18 int,a19 int,a20 int,a21 int,a22 int,a23 int,a24 int,a25 int,a26 int,a27 int,a28 int,a29 int,a30 int,a31 int,a32 int, a33 int,
+key(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,a22,a23,a24,a25,a26,a27,a28,a29,a30,a31,a32,a33)) engine=myisam;
+ERROR 42000: Too many key parts specified; max 32 parts allowed
 CREATE TABLE t1 (
 c INT,
 d bit(1),
@@ -2282,25 +2337,6 @@ h+0	d + 0	e	g + 0
 1	1	3	0
 1	1	4	0
 DROP TABLE t1;
-#
-# Test of BUG#35570 CHECKSUM TABLE unreliable if LINESTRING field
-# (same content / differen checksum)
-#
-CREATE TABLE t1 (line LINESTRING NOT NULL) engine=myisam;
-INSERT INTO t1 VALUES (GeomFromText("POINT(0 0)"));
-checksum table t1;
-Table	Checksum
-test.t1	326284887
-CREATE TABLE t2 (line LINESTRING NOT NULL) engine=myisam;
-INSERT INTO t2 VALUES (GeomFromText("POINT(0 0)"));
-checksum table t2;
-Table	Checksum
-test.t2	326284887
-CREATE TABLE t3 select * from t1;
-checksum table t3;
-Table	Checksum
-test.t3	326284887
-drop table t1,t2,t3;
 CREATE TABLE t1(a INT, b CHAR(10), KEY(a), KEY(b));
 INSERT INTO t1 VALUES(1,'0'),(2,'0'),(3,'0'),(4,'0'),(5,'0'),
 (6,'0'),(7,'0');
@@ -2350,6 +2386,7 @@ DROP TABLE t1;
 CREATE TABLE t1(a INT, b BIT(1));
 INSERT INTO t1 VALUES(1, 0), (2, 1);
 CREATE TABLE t2 SELECT * FROM t1;
+FLUSH TABLES;
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	3775188275
@@ -2485,3 +2522,20 @@ test.t1	check	error	Size of indexfile is: 1024        Should be: 2048
 test.t1	check	warning	Size of datafile is: 14       Should be: 7
 test.t1	check	error	Corrupt
 DROP TABLE t1;
+#
+# MDEV-3870 - Valgrind warnings on OPTIMIZE MyISAM or Aria TABLE with
+#             disabled keys
+#
+CREATE TABLE t1 (a INT, KEY(a)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (4),(3),(1),(0);
+ALTER TABLE t1 DISABLE KEYS;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+DROP TABLE t1;
+show variables like 'myisam_block_size';
+Variable_name	Value
+myisam_block_size	1024
+select @@global.myisam_block_size;
+@@global.myisam_block_size
+1024

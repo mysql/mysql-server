@@ -169,23 +169,19 @@ connection default;
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
 set global read_only=1;
 unlock tables ;
-# The following call blocks until con1 releases the read lock.
-# Blocking is a limitation, and could be improved.
---echo send set global read_only=1;
-send set global read_only=1;
+
+# after unlock tables in current connection
+# the next command must be executed successfully
+set global read_only=1;
+select @@global.read_only;
 
 --echo connection con1;
 connection con1;
 select @@global.read_only;
 unlock tables ;
-let $wait_condition= SELECT @@global.read_only= 1;
---source include/wait_condition.inc
-select @@global.read_only;
 
 --echo connection default;
 connection default;
---echo reap;
-reap;
 
 # pending transaction / READ_ONLY
 # - is an error in the same connection

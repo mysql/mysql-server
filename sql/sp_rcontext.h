@@ -314,7 +314,7 @@ public:
   void set_spvar_list(List<struct sp_variable> *vars) { spvar_list= vars; }
 
   virtual bool send_eof() { return FALSE; }
-  virtual bool send_data(List<Item> &items);
+  virtual int send_data(List<Item> &items);
   virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
 };
 
@@ -341,7 +341,7 @@ public:
   int
   close(THD *thd);
 
-  inline my_bool
+  inline bool
   is_open()
   {
     return test(server_side_cursor);

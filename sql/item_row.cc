@@ -1,4 +1,5 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2002, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,7 +74,8 @@ bool Item_row::fix_fields(THD *thd, Item **ref)
   Item **arg, **arg_end;
   for (arg= items, arg_end= items+arg_count; arg != arg_end ; arg++)
   {
-    if ((*arg)->fix_fields(thd, arg))
+    if (!(*arg)->fixed &&
+        (*arg)->fix_fields(thd, arg))
       return TRUE;
     // we can't assign 'item' before, because fix_fields() can change arg
     Item *item= *arg;
@@ -93,8 +95,26 @@ bool Item_row::fix_fields(THD *thd, Item **ref)
     }
     maybe_null|= item->maybe_null;
     with_sum_func= with_sum_func || item->with_sum_func;
+    with_field= with_field || item->with_field;
+    with_subselect|= item->with_subselect;
   }
   fixed= 1;
+  return FALSE;
+}
+
+
+bool
+Item_row::eval_not_null_tables(uchar *opt_arg)
+{
+  Item **arg,**arg_end;
+  not_null_tables_cache= 0;
+  if (arg_count)
+  {		
+    for (arg= items, arg_end= items+arg_count; arg != arg_end ; arg++)
+    {
+      not_null_tables_cache|= (*arg)->not_null_tables();
+    }
+  }
   return FALSE;
 }
 
@@ -133,6 +153,22 @@ void Item_row::update_used_tables()
     const_item_cache&= items[i]->const_item();
   }
 }
+
+
+void Item_row::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  used_tables_cache= 0;
+  const_item_cache= 1;
+  not_null_tables_cache= 0;
+  for (uint i= 0; i < arg_count; i++)
+  {
+    items[i]->fix_after_pullout(new_parent, &items[i]);
+    used_tables_cache|= items[i]->used_tables();
+    const_item_cache&= items[i]->const_item();
+    not_null_tables_cache|= items[i]->not_null_tables();
+  }
+}
+
 
 bool Item_row::check_cols(uint c)
 {

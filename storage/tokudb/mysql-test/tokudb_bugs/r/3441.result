@@ -1,0 +1,12 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+set session tokudb_disable_slow_alter=ON;
+create table foo (a int NOT NULL, b int, c int)engine=TokuDB;
+insert into foo values(1,10,100),(2,20,200),(3,30,300);
+alter table foo add column d text;
+select * from foo;
+a	b	c	d
+1	10	100	NULL
+2	20	200	NULL
+3	30	300	NULL
+drop table foo;

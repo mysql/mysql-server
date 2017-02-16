@@ -21,9 +21,6 @@
 #include "my_sys.h"                             /* MY_ALLOW_ZERO_PTR */
 #include "m_ctype.h"           /* my_charset_latin1, my_charset_bin */
 
-typedef struct charset_info_st CHARSET_INFO;
-typedef struct st_mysql_lex_string LEX_STRING;
-
 class Gis_read_stream
 {
 public:
@@ -49,6 +46,7 @@ public:
   }
 
   enum enum_tok_types get_next_toc_type();
+  bool lookup_next_word(LEX_STRING *res);
   bool get_next_word(LEX_STRING *);
   bool get_next_number(double *);
   bool check_next_symbol(char);
@@ -66,6 +64,14 @@ public:
       return 1;					/* Didn't find char */
     m_cur++;
     return 0;
+  }
+  /* Returns the next notempty character. */
+  char next_symbol() 
+  {
+    skip_space();
+    if (m_cur >= m_limit)
+      return 0;                                 /* EOL meet. */
+    return *m_cur;
   }
   void set_error_msg(const char *msg);
 

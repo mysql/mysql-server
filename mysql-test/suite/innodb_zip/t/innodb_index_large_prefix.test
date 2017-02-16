@@ -1,6 +1,5 @@
-# Testcase for worklog #5743: Lift the limit of index key prefixes
-
 --source include/have_innodb.inc
+# Testcase for worklog #5743: Lift the limit of index key prefixes
 
 let $innodb_file_format_orig=`select @@innodb_file_format`;
 let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;

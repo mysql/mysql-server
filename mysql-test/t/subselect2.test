@@ -8,6 +8,9 @@
 drop table if exists t1, t2, t3, t4;
 --enable_warnings
 
+set @subselect2_test_tmp=@@optimizer_switch;
+set optimizer_switch='semijoin=on,firstmatch=on,mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+
 CREATE TABLE t1
 (
 DOCID VARCHAR(32)BINARY NOT NULL
@@ -168,3 +171,243 @@ SELECT t1.* FROM t1 WHERE (SELECT COUNT(*) FROM t3,t2 WHERE t3.c=t2.a
                            and t2.a='1' AND t1.a=t3.b) > 0;
 
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug #902356: DISTINCT in materialized subquery 
+--echo #
+
+CREATE TABLE t1 (pk int PRIMARY KEY, a int, KEY(a)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0, 4), (8, 6);
+
+CREATE TABLE t2 (pk int PRIMARY KEY, a int, KEY(a)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (0, 4), (8, 6);
+
+CREATE TABLE t3 (b INT, KEY(b));
+INSERT INTO t3 VALUES (7), (0), (4), (2);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SET @tmp_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='materialization=on,in_to_exists=on';
+
+EXPLAIN
+SELECT * FROM t2,t3 WHERE (2,9) IN (SELECT DISTINCT a,pk FROM t1) OR a = b;
+SELECT * FROM t2,t3 WHERE (2,9) IN (SELECT DISTINCT a,pk FROM t1) OR a = b;
+
+EXPLAIN
+SELECT * FROM t2,t3 WHERE (2,9) IN (SELECT DISTINCT a,pk FROM v1) OR a = b;
+SELECT * FROM t2,t3 WHERE (2,9) IN (SELECT DISTINCT a,pk FROM v1) OR a = b;
+
+SET optimizer_switch=@tmp_optimizer_switch;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # MDEV-536: LP:1050806 - different result for a query using subquery 
+--echo #
+DROP TABLE IF EXISTS `t1`;
+
+CREATE TABLE `t1` (
+  `node_uid` bigint(20) unsigned DEFAULT NULL,
+  `date` datetime DEFAULT NULL,
+  `mirror_date` datetime DEFAULT NULL,
+  KEY `date` (`date`)
+) ENGINE=MyISAM;
+
+INSERT INTO `t1` VALUES (2085,'2012-01-01 00:00:00','2013-01-01 00:00:00');
+INSERT INTO `t1` VALUES (2084,'2012-02-01 00:00:00','2013-01-01 00:00:00');
+INSERT INTO `t1` VALUES (2088,'2012-03-01 00:00:00','2013-01-01 00:00:00');
+
+SELECT * FROM (
+  SELECT node_uid, date, mirror_date, @result := 0 AS result
+  FROM t1
+  WHERE date < '2012-12-12 12:12:12'
+    AND node_uid in (2085, 2084)
+  ORDER BY mirror_date ASC
+) AS calculated_result;
+
+DROP TABLE t1;
+
+--echo #
+--echo # MDEV-567: Wrong result from a query with correlated subquery if ICP is allowed
+--echo #
+CREATE TABLE t1 (a int, b int, INDEX idx(a));
+INSERT INTO t1 VALUES (9,0), (7,1), (1,9), (7,3), (2,1);
+
+CREATE TABLE t2 (a int, b int, INDEX idx(a));
+INSERT INTO t2 VALUES (2,1), (6,4), (7,6), (9,4);
+
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (1,0), (1,1), (1,3);
+
+SELECT * FROM t3
+  WHERE a = (SELECT COUNT(DISTINCT t2.b) FROM t1, t2
+                WHERE t1.a = t2.a AND t2.a BETWEEN 7 AND 9
+                      AND t3.b = t1.b
+              GROUP BY t1.b);
+
+
+set @tmp_mdev567=@@optimizer_switch;
+set optimizer_switch='mrr=off';
+SELECT * FROM t3
+  WHERE a = (SELECT COUNT(DISTINCT t2.b) FROM t1, t2
+                WHERE t1.a = t2.a AND t2.a BETWEEN 7 AND 9
+                      AND t3.b = t1.b
+              GROUP BY t1.b);
+
+DROP TABLE t1,t2,t3;
+set optimizer_switch=@tmp_mdev567;
+
+--echo #
+--echo # MDEV-4996: degenerate OR formula in WHERE of a subquery
+--echo #
+
+CREATE TABLE t1 (a int, c1 varchar(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (2,'x'), (8,'d');
+
+CREATE TABLE t2 (m int, n int, c2 varchar(1)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (0, 5, 'x'), (1, 4,'p');
+
+SELECT * FROM t1 WHERE c1 NOT IN (
+  SELECT t2a.c2 FROM t2 AS t2a, t2 AS t2b, t2 AS t2c
+        WHERE t2c.c2 = t2b.c2 AND ( t2a.m = t2b.n OR 0 ) AND
+                          ( t2b.m != a OR t2b.m = t2a.m ));
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 WHERE c1 NOT IN (
+  SELECT t2a.c2 FROM t2 AS t2a, t2 AS t2b, t2 AS t2c
+        WHERE t2c.c2 = t2b.c2 AND ( t2a.m = t2b.n OR 0 ) AND
+                          ( t2b.m != a OR t2b.m = t2a.m ));
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # MDEV-614, also MDEV-536, also LP:1050806:
+--echo #  different result for a query using subquery between 5.5.25 and 5.5.27
+--echo #
+
+CREATE TABLE `t1` (
+  `node_uid` bigint(20) unsigned DEFAULT NULL,
+  `date` datetime DEFAULT NULL,
+  `mirror_date` datetime DEFAULT NULL,
+  KEY `date` (`date`)
+) ENGINE=MyISAM;
+
+INSERT INTO `t1` VALUES (2085,'2012-01-01 00:00:00','2013-01-01 00:00:00');
+INSERT INTO `t1` VALUES (2084,'2012-02-01 00:00:00','2013-01-01 00:00:00');
+INSERT INTO `t1` VALUES (2088,'2012-03-01 00:00:00','2013-01-01 00:00:00');
+
+explain
+SELECT * FROM (
+  SELECT node_uid, date, mirror_date, @result := 0 AS result
+  FROM t1
+  WHERE date < '2012-12-12 12:12:12'
+    AND node_uid in (2085, 2084)
+  ORDER BY mirror_date ASC
+) AS calculated_result;
+
+SELECT * FROM (
+  SELECT node_uid, date, mirror_date, @result := 0 AS result
+  FROM t1
+  WHERE date < '2012-12-12 12:12:12'
+    AND node_uid in (2085, 2084)
+  ORDER BY mirror_date ASC
+) AS calculated_result;
+
+set @tmp_mdev614=@@optimizer_switch;
+set optimizer_switch='mrr=off';
+explain
+SELECT * FROM (
+  SELECT node_uid, date, mirror_date, @result := 0 AS result
+  FROM t1
+  WHERE date < '2012-12-12 12:12:12'
+    AND node_uid in (2085, 2084)
+  ORDER BY mirror_date ASC
+) AS calculated_result;
+
+SELECT * FROM (
+  SELECT node_uid, date, mirror_date, @result := 0 AS result
+  FROM t1
+  WHERE date < '2012-12-12 12:12:12'
+    AND node_uid in (2085, 2084)
+  ORDER BY mirror_date ASC
+) AS calculated_result;
+
+set optimizer_switch=@tmp_mdev614;
+
+DROP TABLE t1;
+
+--echo #
+--echo # MDEV-4420: non-expensive single-value subquery used as
+--echo #            used as an access key to join a table
+--echo #
+
+create table t1 (a varchar(3));
+insert into t1 values ('USA'), ('FRA');
+create table t2 select * from t1;
+insert into t2 values ('RUS');
+create table t3 select * from t2;
+create index idx on t3(a);
+
+explain extended
+select * from t1, t2 left join t3 on ( t2.a = t3.a )
+where t1.a = t2.a and ( t1.a = ( select min(a) from t1 ) or 0 );
+
+select * from t1, t2 left join t3 on ( t2.a = t3.a )
+where t1.a = t2.a and ( t1.a = ( select min(a) from t1 ) or 0 );
+
+drop table t1,t2,t3;
+
+--echo #
+--echo # MDEV-10148: Database crashes in the query to the View
+--echo #
+CREATE TABLE t1 (
+	key_code INT(11) NOT NULL,
+	value_string VARCHAR(50) NULL DEFAULT NULL,
+	PRIMARY KEY (key_code)
+) COLLATE='utf8_general_ci' ENGINE=InnoDB ;
+ 
+CREATE TABLE t2 (
+	key_code INT(11) NOT NULL,
+	target_date DATE NULL DEFAULT NULL,
+	PRIMARY KEY (key_code)
+) COLLATE='utf8_general_ci' ENGINE=InnoDB ;
+ 
+CREATE TABLE t3 (
+	now_date DATE NOT NULL,
+	PRIMARY KEY (now_date)
+) COLLATE='utf8_general_ci' ENGINE=InnoDB ;
+ 
+CREATE VIEW v1
+AS
+SELECT
+	B.key_code,
+	B.target_date
+FROM
+	t2 B INNER JOIN t3 C ON
+	B.target_date = C.now_date
+;
+SET @s = 'SELECT A.* FROM t1 A WHERE A.key_code IN (SELECT key_code FROM v1)';
+PREPARE stmt FROM @s;
+EXECUTE stmt;                                   #1st time -> success
+EXECUTE stmt;                                   #2nd time -> crash
+DEALLOCATE PREPARE stmt;
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+
+set optimizer_switch=@subselect2_test_tmp;
+
+#
+# Bug #23303485 : HANDLE_FATAL_SIGNAL (SIG=11) IN SUBSELECT_UNION_ENGINE::NO_ROWS
+#
+create table t1 (a int);
+create table t2 (a int);
+create table t3(a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+insert into t2 select a from t1;
+insert into t3 select a from t1;
+--error ER_SUBQUERY_NO_1_ROW
+select null in (select a from t1 where a < out3.a union select a from t2 where
+  (select a from t3) +1 < out3.a+1) from t3 out3;
+drop table t1, t2, t3;

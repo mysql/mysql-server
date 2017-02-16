@@ -1,0 +1,15 @@
+create procedure have_ssl()
+select if(variable_value > '','yes','no') as 'have_ssl'
+  from information_schema.session_status
+where variable_name='ssl_cipher';
+mysql --ssl-ca=cacert.pem -e "call test.have_ssl()"
+have_ssl
+no
+mysql --ssl -e "call test.have_ssl()"
+have_ssl
+no
+mysql --ssl-ca=cacert.pem --ssl-verify-server-cert -e "call test.have_ssl()"
+ERROR 2026 (HY000): SSL connection error: SSL is required, but the server does not support it
+mysql --ssl --ssl-verify-server-cert -e "call test.have_ssl()"
+ERROR 2026 (HY000): SSL connection error: SSL is required, but the server does not support it
+drop procedure have_ssl;

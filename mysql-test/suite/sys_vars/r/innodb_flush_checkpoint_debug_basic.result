@@ -1,0 +1,15 @@
+SELECT @@global.innodb_flush_checkpoint_debug;
+@@global.innodb_flush_checkpoint_debug
+0
+SET @@global.innodb_flush_checkpoint_debug=1;
+SELECT @@global.innodb_flush_checkpoint_debug;
+@@global.innodb_flush_checkpoint_debug
+1
+SET @@global.innodb_flush_checkpoint_debug=0;
+SELECT @@global.innodb_flush_checkpoint_debug;
+@@global.innodb_flush_checkpoint_debug
+0
+SET @@session.innodb_flush_checkpoint_debug=1;
+ERROR HY000: Variable 'innodb_flush_checkpoint_debug' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.innodb_flush_checkpoint_debug;
+ERROR HY000: Variable 'innodb_flush_checkpoint_debug' is a GLOBAL variable

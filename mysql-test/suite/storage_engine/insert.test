@@ -1,0 +1,78 @@
+# 
+# Basic INSERT statements
+#
+# LOW_PRIORITY|HIGH_PRIORITY are covered in insert_high_low_prio test
+# DELAYED is covered in insert_delayed test
+# IGNORE and ON DUPLICATE KEY UPDATE are covered in insert_with_keys test
+
+--source have_engine.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+--source create_table.inc
+
+# INSERT [INTO] .. VALUES|VALUE ..
+
+INSERT INTO t1 VALUES (100,'foobar'),(1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
+if ($mysql_errname)
+{
+  --let $functionality = INSERT
+  --source unexpected_result.inc
+}
+--sorted_result
+SELECT a,b FROM t1;
+
+INSERT t1 VALUE (10,'foo'),(11,'abc');
+--sorted_result
+SELECT a,b FROM t1;
+
+INSERT INTO t1 (b,a) VALUES ('test',0);
+--sorted_result
+SELECT a,b FROM t1;
+
+INSERT INTO t1 VALUES (DEFAULT,DEFAULT);
+--sorted_result
+SELECT a,b FROM t1;
+
+INSERT t1 (a) VALUE (10),(20);
+--sorted_result
+SELECT a,b FROM t1;
+
+# INSERT [INTO] .. SET 
+
+INSERT INTO t1 SET a = 11, b = 'f';
+--sorted_result
+SELECT a,b FROM t1;
+
+INSERT t1 SET b = DEFAULT;
+--sorted_result
+SELECT a,b FROM t1;
+
+
+# INSERT .. SELECT
+
+--let $table_name = t2
+--source create_table.inc
+INSERT INTO t2 SELECT a,b FROM t1;
+if ($mysql_errname)
+{
+  --let $functionality = INSERT .. SELECT
+  --source unexpected_result.inc
+}
+
+
+INSERT INTO t1 (a) SELECT a FROM t2 WHERE b = 'foo';
+--sorted_result
+SELECT a,b FROM t1;
+
+INSERT t1 (a,b) SELECT a,b FROM t1;
+--sorted_result
+SELECT a,b FROM t1;
+
+# Cleanup
+DROP TABLE t1, t2;
+
+--source cleanup_engine.inc
+

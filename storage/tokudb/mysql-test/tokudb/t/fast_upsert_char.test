@@ -1,0 +1,37 @@
+source include/have_tokudb.inc;
+source include/have_innodb.inc;
+
+set default_storage_engine='tokudb';
+
+disable_warnings;
+drop table if exists tt, ti;
+enable_warnings;
+
+set tokudb_disable_slow_upsert=1;
+
+create table tt (id int primary key, c char(32), b binary(32));
+create table ti like tt;
+alter table ti engine=innodb;
+
+insert noar into tt values (1,null,null) on duplicate key update c='hi';
+insert noar into ti values (1,null,null) on duplicate key update c='hi';
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+insert noar into tt values (1,null,null) on duplicate key update c='there';
+insert noar into ti values (1,null,null) on duplicate key update c='there';
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+insert noar into tt values (1,null,null) on duplicate key update b='you';
+insert noar into ti values (1,null,null) on duplicate key update b='you';
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+insert noar into tt values (1,null,null) on duplicate key update b='people';
+insert noar into ti values (1,null,null) on duplicate key update b='people';
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+drop table tt, ti;
+

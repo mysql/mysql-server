@@ -1,0 +1,47 @@
+# enum global
+--source include/have_maria.inc
+
+SET @start_global_value = @@global.aria_log_purge_type;
+
+#
+# exists as global only
+#
+select @@global.aria_log_purge_type;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.aria_log_purge_type;
+show global variables like 'aria_log_purge_type';
+show session variables like 'aria_log_purge_type';
+select * from information_schema.global_variables where variable_name='aria_log_purge_type';
+select * from information_schema.session_variables where variable_name='aria_log_purge_type';
+
+#
+# show that it's writable
+#
+set global aria_log_purge_type=1;
+select @@global.aria_log_purge_type;
+--error ER_GLOBAL_VARIABLE
+set session aria_log_purge_type=1;
+
+#
+# all valid values
+#
+set global aria_log_purge_type=immediate;
+select @@global.aria_log_purge_type;
+set global aria_log_purge_type=external;
+select @@global.aria_log_purge_type;
+set global aria_log_purge_type=at_flush;
+select @@global.aria_log_purge_type;
+
+#
+# incorrect types/values
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_log_purge_type=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_log_purge_type=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global aria_log_purge_type="foo";
+--error ER_WRONG_VALUE_FOR_VAR
+set global aria_log_purge_type=3;
+
+SET @@global.aria_log_purge_type = @start_global_value;

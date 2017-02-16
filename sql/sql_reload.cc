@@ -1,4 +1,5 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,9 +25,11 @@
 #include "sql_db.h"      // my_dbopt_cleanup
 #include "hostname.h"    // hostname_cache_refresh
 #include "sql_repl.h"    // reset_master, reset_slave
+#include "rpl_mi.h"      // Master_info::data_lock
 #include "debug_sync.h"
 #include "des_key_file.h"
 
+static void disable_checkpoints(THD *thd);
 
 /**
   Reload/resets privileges and the different caches.
@@ -156,16 +159,16 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   if (options & REFRESH_RELAY_LOG)
   {
 #ifdef HAVE_REPLICATION
-    mysql_mutex_lock(&LOCK_active_mi);
+    mysql_mutex_lock(&active_mi->data_lock);
     if (rotate_relay_log(active_mi))
       *write_to_binlog= -1;
-    mysql_mutex_unlock(&LOCK_active_mi);
+    mysql_mutex_unlock(&active_mi->data_lock);
 #endif
   }
 #ifdef HAVE_QUERY_CACHE
   if (options & REFRESH_QUERY_CACHE_FREE)
   {
-    query_cache.pack();				// FLUSH QUERY CACHE
+    query_cache.pack(thd);              // FLUSH QUERY CACHE
     options &= ~REFRESH_QUERY_CACHE;    // Don't flush cache, just free memory
   }
   if (options & (REFRESH_TABLES | REFRESH_QUERY_CACHE))
@@ -222,6 +225,8 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
         thd->global_read_lock.unlock_global_read_lock(thd);
         return 1;
       }
+      if (options & REFRESH_CHECKPOINT)
+        disable_checkpoints(thd);
     }
     else
     {
@@ -241,9 +246,9 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
         {
           /*
             It is not safe to upgrade the metadata lock without GLOBAL IX lock.
-            This can happen with FLUSH TABLES <list> WITH READ LOCK as we in these
-            cases don't take a GLOBAL IX lock in order to be compatible with
-            global read lock.
+            This can happen with FLUSH TABLES <list> WITH READ LOCK as we in
+            these cases don't take a GLOBAL IX lock in order to be compatible
+            with global read lock.
           */
           if (thd->open_tables &&
               !thd->mdl_context.is_lock_owner(MDL_key::GLOBAL, "", "",
@@ -323,6 +328,35 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
 #endif
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
+  if (options & REFRESH_TABLE_STATS)
+  {
+    mysql_mutex_lock(&LOCK_global_table_stats);
+    free_global_table_stats();
+    init_global_table_stats();
+    mysql_mutex_unlock(&LOCK_global_table_stats);
+  }
+  if (options & REFRESH_INDEX_STATS)
+  {
+    mysql_mutex_lock(&LOCK_global_index_stats);
+    free_global_index_stats();
+    init_global_index_stats();
+    mysql_mutex_unlock(&LOCK_global_index_stats);
+  }
+  if (options & (REFRESH_USER_STATS | REFRESH_CLIENT_STATS))
+  {
+    mysql_mutex_lock(&LOCK_global_user_client_stats);
+    if (options & REFRESH_USER_STATS)
+    {
+      free_global_user_stats();
+      init_global_user_stats();
+    }
+    if (options & REFRESH_CLIENT_STATS)
+    {
+      free_global_client_stats();
+      init_global_client_stats();
+    }
+    mysql_mutex_unlock(&LOCK_global_user_client_stats);
+  }
  if (*write_to_binlog != -1)
    *write_to_binlog= tmp_write_to_binlog;
  /*
@@ -478,4 +512,18 @@ error:
 }
 
 
+/**
+   Disable checkpoints for all handlers
+   This is released in unlock_global_read_lock()
+*/
+
+static void disable_checkpoints(THD *thd)
+{
+  if (!thd->global_disable_checkpoint)
+  {
+    thd->global_disable_checkpoint= 1;
+    if (!global_disable_checkpoint++)
+      ha_checkpoint_state(1);                   // Disable checkpoints
+  }
+}
 

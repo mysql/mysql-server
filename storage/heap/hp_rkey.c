@@ -31,6 +31,7 @@ int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key,
   }
   info->lastinx= inx;
   info->current_record= (ulong) ~0L;		/* For heap_rrnd() */
+  info->key_version= info->s->key_version;
 
   if (keyinfo->algorithm == HA_KEY_ALG_BTREE)
   {
@@ -51,7 +52,7 @@ int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key,
     if (!(pos= tree_search_key(&keyinfo->rb_tree, info->lastkey, info->parents,
 			       &info->last_pos, find_flag, &custom_arg)))
     {
-      info->update= 0;
+      info->update= HA_STATE_NO_KEY;
       DBUG_RETURN(my_errno= HA_ERR_KEY_NOT_FOUND);
     }
     memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos), sizeof(uchar*));
@@ -61,10 +62,10 @@ int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key,
   {
     if (!(pos= hp_search(info, share->keydef + inx, key, 0)))
     {
-      info->update= 0;
+      info->update= HA_STATE_NO_KEY;
       DBUG_RETURN(my_errno);
     }
-    if (!(keyinfo->flag & HA_NOSAME))
+    if ((keyinfo->flag & (HA_NOSAME | HA_NULL_PART_KEY)) != HA_NOSAME)
       memcpy(info->lastkey, key, (size_t) keyinfo->length);
   }
   memcpy(record, pos, (size_t) share->reclength);

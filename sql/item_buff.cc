@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,11 +35,15 @@
   Create right type of Cached_item for an item.
 */
 
-Cached_item *new_Cached_item(THD *thd, Item *item)
+Cached_item *new_Cached_item(THD *thd, Item *item, bool pass_through_ref)
 {
-  if (item->real_item()->type() == Item::FIELD_ITEM &&
+  if (pass_through_ref && item->real_item()->type() == Item::FIELD_ITEM &&
       !(((Item_field *) (item->real_item()))->field->flags & BLOB_FLAG))
-    return new Cached_item_field((Item_field *) (item->real_item()));
+  {
+    Item_field *real_item= (Item_field *) item->real_item();
+    Field *cached_field= real_item->field;
+    return new Cached_item_field(cached_field);
+  }
   switch (item->result_type()) {
   case STRING_RESULT:
     return new Cached_item_str(thd, (Item_field *) item);
@@ -124,14 +129,20 @@ bool Cached_item_int::cmp(void)
 
 bool Cached_item_field::cmp(void)
 {
-  bool tmp= field->cmp(buff) != 0;		// This is not a blob!
-  if (tmp)
-    field->get_image(buff,length,field->charset());
+  bool tmp= FALSE;                              // Value is identical
+  /* Note that field can't be a blob here ! */
   if (null_value != field->is_null())
   {
     null_value= !null_value;
-    tmp=TRUE;
+    tmp= TRUE;                                  // Value has changed
   }
+
+  /*
+    If value is not null and value changed (from null to not null or
+    becasue of value change), then copy the new value to buffer.
+    */
+  if (! null_value && (tmp || (tmp= (field->cmp(buff) != 0))))
+    field->get_image(buff,length,field->charset());
   return tmp;
 }
 

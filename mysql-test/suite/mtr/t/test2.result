@@ -1,0 +1,4 @@
+select @@local_infile;
+select @@max_error_count;
+@@max_error_count
+64

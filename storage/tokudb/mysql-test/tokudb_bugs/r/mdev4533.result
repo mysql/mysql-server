@@ -1,0 +1,5 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT(11), b CHAR(8)) ENGINE=TokuDB;
+INSERT INTO t1 (a,b) VALUES (10000,'foobar'),(1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
+DELETE IGNORE FROM t1;
+drop table t1;

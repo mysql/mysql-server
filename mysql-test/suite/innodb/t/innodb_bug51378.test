@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 # This is the test for bug 51378. Unique index created
 # through "create index" and "alter table add unique index"
 # interfaces should not be treated as primary index if indexed
@@ -9,7 +10,6 @@
 # will be created as primary index
 # Following queries test various scenario, no mismatch
 # error message should be printed.
---source include/have_innodb.inc
 
 # Create a table contains a BLOB column
 create table bug51378 (

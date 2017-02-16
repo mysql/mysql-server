@@ -59,9 +59,6 @@ if (`SELECT UPPER(LEFT('$engine_type', 3)) != 'NDB'`) {
   sync_slave_with_master;
   connection master;
 }
-# Sync master and slave for NDB engine
-let $wait_time= 6;
---source include/wait_for_ndb_to_binlog.inc
 
 # Time to dump the databases and so we can see if they match
 

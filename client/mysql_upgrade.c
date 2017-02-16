@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +22,7 @@
 
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-#define VER "1.1"
+#define VER "1.3a"
 
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -35,11 +36,14 @@
 # endif
 #endif
 
+static int phase = 1;
+static int phases_total = 4;
 static char mysql_path[FN_REFLEN];
 static char mysqlcheck_path[FN_REFLEN];
 
 static my_bool opt_force, opt_verbose, debug_info_flag, debug_check_flag,
                opt_systables_only, opt_version_check;
+static my_bool opt_not_used, opt_silent;
 static uint my_end_arg= 0;
 static char *opt_user= (char*)"root";
 
@@ -48,6 +52,8 @@ static DYNAMIC_STRING conn_args;
 
 static char *opt_password= 0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
+
+static char *cnf_file_path= 0, defaults_file[FN_REFLEN + 32];
 
 static my_bool tty_password= 0;
 
@@ -63,16 +69,20 @@ static my_bool not_used; /* Can't use GET_BOOL without a value pointer */
 
 static my_bool opt_write_binlog;
 
+#define OPT_SILENT OPT_MAX_CLIENT_OPTION
+
 static struct my_option my_long_options[]=
 {
   {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"basedir", 'b', "Not used by mysql_upgrade. Only for backward compatibility.",
+  {"basedir", 'b',
+   "Not used by mysql_upgrade. Only for backward compatibility.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory for character set files.", 0,
-   0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"compress", OPT_COMPRESS, "Use compression in server/client protocol.",
+   "Not used by mysql_upgrade. Only for backward compatibility.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  {"compress", OPT_COMPRESS,
+   "Not used by mysql_upgrade. Only for backward compatibility.",
    &not_used, &not_used, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"datadir", 'd',
    "Not used by mysql_upgrade. Only for backward compatibility.",
@@ -85,23 +95,23 @@ static struct my_option my_long_options[]=
    &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
-   &debug_check_flag, &debug_check_flag, 0,
-   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   &debug_check_flag, &debug_check_flag,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", 'T', "Print some debug info at exit.", &debug_info_flag,
    &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
-   "Set the default character set.", 0,
-   0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Not used by mysql_upgrade. Only for backward compatibility.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default_auth", OPT_DEFAULT_AUTH,
    "Default authentication client-side plugin to use.",
    &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f', "Force execution of mysqlcheck even if mysql_upgrade "
    "has already been executed for the current version of MySQL.",
-   &opt_force, &opt_force, 0,
-   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"host",'h', "Connect to host.", 0,
+   &opt_force, &opt_force, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"host", 'h', "Connect to host.", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#define PASSWORD_OPT 12
   {"password", 'p',
    "Password to use when connecting to server. If password is not given,"
    " it's solicited on the tty.", &opt_password,&opt_password,
@@ -128,12 +138,8 @@ static struct my_option my_long_options[]=
    "Base name of shared memory.", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"version-check", 'k', "Run this program only if its \'server version\' "
-   "matches the version of the server to which it's connecting, (enabled by "
-   "default); use --skip-version-check to avoid this check. Note: the \'server "
-   "version\' of the program is the version of the MySQL server with which it "
-   "was built/distributed.", &opt_version_check, &opt_version_check, 0,
-   GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"silent", OPT_SILENT, "Print less information", &opt_silent,
+   &opt_silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "The socket file to use for connection.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
@@ -143,27 +149,46 @@ static struct my_option my_long_options[]=
    "do not try to upgrade the data.",
    &opt_systables_only, &opt_systables_only, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#define USER_OPT (array_elements(my_long_options) - 6)
   {"user", 'u', "User for login if not current user.", &opt_user,
    &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Display more output about the process.",
-   &opt_verbose, &opt_verbose, 0,
+   &opt_not_used, &opt_not_used, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version-check", 'k', "Run this program only if its \'server version\' "
+   "matches the version of the server to which it's connecting, (enabled by "
+   "default); use --skip-version-check to avoid this check. Note: the \'server "
+   "version\' of the program is the version of the MySQL server with which it "
+   "was built/distributed.", &opt_version_check, &opt_version_check, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"write-binlog", OPT_WRITE_BINLOG,
-   "All commands including mysqlcheck are binlogged. Enabled by default;"
-   "use --skip-write-binlog when commands should not be sent to replication slaves.",
+  {"write-binlog", OPT_WRITE_BINLOG, "All commands including those, "
+   "issued by mysqlcheck, are written to the binary log.",
    &opt_write_binlog, &opt_write_binlog, 0, GET_BOOL, NO_ARG,
-   1, 0, 0, 0, 0, 0},
+   0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 
+static const char *load_default_groups[]=
+{
+  "client",          /* Read settings how to connect to server */
+  "mysql_upgrade",   /* Read special settings for mysql_upgrade */
+  "client-server",   /* Reads settings common between client & server */
+  "client-mariadb",  /* Read mariadb unique client settings */
+  0
+};
+
 static void free_used_memory(void)
 {
   /* Free memory allocated by 'load_defaults' */
-  free_defaults(defaults_argv);
+  if (defaults_argv)
+    free_defaults(defaults_argv);
 
   dynstr_free(&ds_args);
   dynstr_free(&conn_args);
+  if (cnf_file_path)
+    my_delete(cnf_file_path, MYF(MY_WME));
 }
 
 
@@ -173,6 +198,7 @@ static void die(const char *fmt, ...)
   DBUG_ENTER("die");
 
   /* Print the error message */
+  fflush(stdout);
   va_start(args, fmt);
   if (fmt)
   {
@@ -193,7 +219,7 @@ static void verbose(const char *fmt, ...)
 {
   va_list args;
 
-  if (!opt_verbose)
+  if (opt_silent)
     return;
 
   /* Print the verbose message */
@@ -214,31 +240,32 @@ static void verbose(const char *fmt, ...)
   this way we pass the same arguments on to mysql and mysql_check
 */
 
-static void add_one_option(DYNAMIC_STRING* ds,
-                           const struct my_option *opt,
-                           const char* argument)
-
+static void add_one_option_cmd_line(DYNAMIC_STRING *ds,
+                                    const struct my_option *opt,
+                                    const char* arg)
 {
-  const char* eq= NullS;
-  const char* arg= NullS;
-  if (opt->arg_type != NO_ARG)
+  dynstr_append(ds, "--");
+  dynstr_append(ds, opt->name);
+  if (arg)
   {
-    eq= "=";
-    switch (opt->var_type & GET_TYPE_MASK) {
-    case GET_STR:
-      arg= argument;
-      break;
-    case GET_BOOL:
-      arg= (*(my_bool *)opt->value) ? "1" : "0";
-      break;
-    default:
-      die("internal error at %s: %d",__FILE__, __LINE__);
-    }
+    dynstr_append(ds, "=");
+    dynstr_append_os_quoted(ds, arg, NullS);
   }
-  dynstr_append_os_quoted(ds, "--", opt->name, eq, arg, NullS);
   dynstr_append(ds, " ");
 }
 
+static void add_one_option_cnf_file(DYNAMIC_STRING *ds,
+                                    const struct my_option *opt,
+                                    const char* arg)
+{
+  dynstr_append(ds, opt->name);
+  if (arg)
+  {
+    dynstr_append(ds, "=");
+    dynstr_append_os_quoted(ds, arg, NullS);
+  }
+  dynstr_append(ds, "\n");
+}
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt,
@@ -252,9 +279,12 @@ get_one_option(int optid, const struct my_option *opt,
     printf("%s  Ver %s Distrib %s, for %s (%s)\n",
            my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
     puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
-    puts("MySQL utility for upgrading databases to new MySQL versions.\n");
+    puts("MariaDB utility for upgrading databases to new MariaDB versions.");
+    print_defaults("my", load_default_groups);
+    puts("");
     my_print_help(my_long_options);
-    exit(0);
+    my_print_variables(my_long_options);
+    die(0);
     break;
 
   case '#':
@@ -266,16 +296,17 @@ get_one_option(int optid, const struct my_option *opt,
   case 'p':
     if (argument == disabled_my_option)
       argument= (char*) "";			/* Don't require password */
-    tty_password= 1;
     add_option= FALSE;
     if (argument)
     {
       /* Add password to ds_args before overwriting the arg with x's */
-      add_one_option(&ds_args, opt, argument);
+      add_one_option_cnf_file(&ds_args, opt, argument);
       while (*argument)
         *argument++= 'x';                       /* Destroy argument */
       tty_password= 0;
     }
+    else
+      tty_password= 1;
     break;
 
   case 't':
@@ -291,6 +322,23 @@ get_one_option(int optid, const struct my_option *opt,
 
   case 'k':                                     /* --version-check */
   case 'v': /* --verbose   */
+    opt_verbose++;
+    if (argument == disabled_my_option)
+    {
+      opt_verbose= 0;
+      opt_silent= 1;
+    }
+    add_option= 0;
+    break;
+  case 'V':
+    printf("%s  Ver %s Distrib %s, for %s (%s)\n",
+           my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+    die(0);
+    break;
+  case OPT_SILENT:
+    opt_verbose= 0;
+    add_option= 0;
+    break;
   case 'f': /* --force     */
   case 's':                                     /* --upgrade-system-tables */
   case OPT_WRITE_BINLOG:                        /* --write-binlog */
@@ -305,19 +353,18 @@ get_one_option(int optid, const struct my_option *opt,
   case OPT_SHARED_MEMORY_BASE_NAME: /* --shared-memory-base-name */
   case OPT_PLUGIN_DIR:                          /* --plugin-dir */
   case OPT_DEFAULT_AUTH:                        /* --default-auth */
-    add_one_option(&conn_args, opt, argument);
+    add_one_option_cmd_line(&conn_args, opt, argument);
     break;
-#include <sslopt-case.h>
   }
 
   if (add_option)
   {
     /*
-      This is an option that is accpted by mysql_upgrade just so
+      This is an option that is accepted by mysql_upgrade just so
       it can be passed on to "mysql" and "mysqlcheck"
       Save it in the ds_args string
     */
-    add_one_option(&ds_args, opt, argument);
+    add_one_option_cnf_file(&ds_args, opt, argument);
   }
   return 0;
 }
@@ -377,19 +424,12 @@ static int run_tool(char *tool_path, DYNAMIC_STRING *ds_res, ...)
 
   while ((arg= va_arg(args, char *)))
   {
-    /* Options should be os quoted */
-    if (strncmp(arg, "--", 2) == 0)
-      dynstr_append_os_quoted(&ds_cmdline, arg, NullS);
-    else
-      dynstr_append(&ds_cmdline, arg);
+    /* Options should already be os quoted */
+    dynstr_append(&ds_cmdline, arg);
     dynstr_append(&ds_cmdline, " ");
   }
 
   va_end(args);
-
-  /* If given --ssl-mode=REQUIRED propagate it to the tool. */
-  if (opt_ssl_required)
-    dynstr_append(&ds_cmdline, "--ssl-mode=REQUIRED");
 
 #ifdef __WIN__
   dynstr_append(&ds_cmdline, "\"");
@@ -460,7 +500,8 @@ static void find_tool(char *tool_executable_name, const char *tool_name,
                 len, self_name, FN_LIBCHAR, tool_name);
   }
 
-  verbose("Looking for '%s' as: %s", tool_name, tool_executable_name);
+  if (opt_verbose)
+    verbose("Looking for '%s' as: %s", tool_name, tool_executable_name);
 
   /*
     Make sure it can be executed
@@ -526,12 +567,11 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
 
   ret= run_tool(mysql_path,
                 ds_res,
-                "--no-defaults",
-                ds_args.str,
+                defaults_file,
                 "--database=mysql",
                 "--batch", /* Turns off pager etc. */
                 force ? "--force": "--skip-force",
-                ds_res ? "--silent": "",
+                ds_res || opt_silent ? "--silent": "",
                 "<",
                 query_file_path,
                 "2>&1",
@@ -617,7 +657,6 @@ static int upgrade_already_done(void)
   FILE *in;
   char upgrade_info_file[FN_REFLEN]= {0};
   char buf[sizeof(MYSQL_SERVER_VERSION)+1];
-  char *res;
 
   if (get_upgrade_info_file_name(upgrade_info_file))
     return 0; /* Could not get filename => not sure */
@@ -625,19 +664,15 @@ static int upgrade_already_done(void)
   if (!(in= my_fopen(upgrade_info_file, O_RDONLY, MYF(0))))
     return 0; /* Could not open file => not sure */
 
-  /*
-    Read from file, don't care if it fails since it
-    will be detected by the strncmp
-  */
   bzero(buf, sizeof(buf));
-  res= fgets(buf, sizeof(buf), in);
+  if (!fgets(buf, sizeof(buf), in))
+  {
+    /* Ignore, will be detected by strncmp() below */
+  }
 
   my_fclose(in, MYF(0));
 
-  if (!res)
-    return 0; /* Could not read from file => not sure */
-
-  return (strncmp(res, MYSQL_SERVER_VERSION,
+  return (strncmp(buf, MYSQL_SERVER_VERSION,
                   sizeof(MYSQL_SERVER_VERSION)-1)==0);
 }
 
@@ -693,6 +728,8 @@ static void create_mysql_upgrade_info_file(void)
 
 static void print_conn_args(const char *tool_name)
 {
+  if (opt_verbose < 2)
+    return;
   if (conn_args.str[0])
     verbose("Running '%s' with connection arguments: %s", tool_name,
           conn_args.str);
@@ -708,30 +745,102 @@ static void print_conn_args(const char *tool_name)
 
 static int run_mysqlcheck_upgrade(void)
 {
+  int retch;
+  if (opt_systables_only)
+  {
+    verbose("Phase %d/%d: Checking and upgrading tables... Skipped",
+            phase++, phases_total);
+    return 0;
+  }
+  verbose("Phase %d/%d: Checking and upgrading tables", phase++, phases_total);
   print_conn_args("mysqlcheck");
-  return run_tool(mysqlcheck_path,
+  retch= run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
-                  "--no-defaults",
-                  ds_args.str,
+                  defaults_file,
                   "--check-upgrade",
                   "--all-databases",
                   "--auto-repair",
+                  !opt_silent || opt_verbose ? "--verbose": "",
+                  opt_silent ? "--silent": "",
                   opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
+                  "2>&1",
                   NULL);
+  return retch;
 }
 
+#define EVENTS_STRUCT_LEN 7000
 
-static int run_mysqlcheck_fixnames(void)
+static my_bool is_mysql()
 {
+  my_bool ret= TRUE;
+  DYNAMIC_STRING ds_events_struct;
+
+  if (init_dynamic_string(&ds_events_struct, NULL,
+                          EVENTS_STRUCT_LEN, EVENTS_STRUCT_LEN))
+    die("Out of memory");
+
+  if (run_query("show create table mysql.event",
+                &ds_events_struct, FALSE) ||
+      strstr(ds_events_struct.str, "IGNORE_BAD_TABLE_OPTIONS") != NULL)
+    ret= FALSE;
+  else
+    verbose("MySQL upgrade detected");
+
+  dynstr_free(&ds_events_struct);
+  return(ret);
+}
+
+static int run_mysqlcheck_views(void)
+{
+  const char *upgrade_views="--process-views=YES";
+  if (is_mysql())
+  {
+    upgrade_views="--process-views=UPGRADE_FROM_MYSQL";
+    verbose("Phase %d/%d: Fixing views from mysql", phase++, phases_total);
+  }
+  else if (opt_systables_only)
+  {
+    verbose("Phase %d/%d: Fixing views... Skipped", phase++, phases_total);
+    return 0;
+  }
+  else
+    verbose("Phase %d/%d: Fixing views", phase++, phases_total);
+
   print_conn_args("mysqlcheck");
   return run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
-                  "--no-defaults",
-                  ds_args.str,
+                  defaults_file,
+                  "--all-databases", "--repair",
+                  upgrade_views,
+                  "--skip-process-tables",
+                  opt_verbose ? "--verbose": "",
+                  opt_silent ? "--silent": "",
+                  opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
+                  "2>&1",
+                  NULL);
+}
+
+static int run_mysqlcheck_fixnames(void)
+{
+  if (opt_systables_only)
+  {
+    verbose("Phase %d/%d: Fixing table and database names ... Skipped",
+            phase++, phases_total);
+    return 0;
+  }
+  verbose("Phase %d/%d: Fixing table and database names",
+          phase++, phases_total);
+  print_conn_args("mysqlcheck");
+  return run_tool(mysqlcheck_path,
+                  NULL, /* Send output from mysqlcheck directly to screen */
+                  defaults_file,
                   "--all-databases",
                   "--fix-db-names",
                   "--fix-table-names",
+                  opt_verbose ? "--verbose": "",
+                  opt_silent ? "--silent": "",
                   opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
+                  "2>&1",
                   NULL);
 }
 
@@ -800,7 +909,8 @@ static int run_sql_fix_privilege_tables(void)
   if (init_dynamic_string(&ds_result, "", 512, 512))
     die("Out of memory");
 
-  verbose("Running 'mysql_fix_privilege_tables'...");
+  verbose("Phase %d/%d: Running 'mysql_fix_privilege_tables'",
+          phase++, phases_total);
   run_query(mysql_fix_privilege_tables,
             &ds_result, /* Collect result */
             TRUE);
@@ -829,16 +939,15 @@ static int run_sql_fix_privilege_tables(void)
   }
 
   dynstr_free(&ds_result);
-  return found_real_errors;
+  DBUG_RETURN(found_real_errors);
 }
 
 
-static const char *load_default_groups[]=
+static void print_error(const char *error_msg, DYNAMIC_STRING *output)
 {
-  "client", /* Read settings how to connect to server */
-  "mysql_upgrade", /* Read special settings for mysql_upgrade*/
-  0
-};
+  fprintf(stderr, "%s\n", error_msg);
+  fprintf(stderr, "%s", output->str);
+}
 
 
 /* Convert the specified version string into the numeric format. */
@@ -867,17 +976,12 @@ static int check_version_match(void)
   if (init_dynamic_string(&ds_version, NULL, NAME_CHAR_LEN, NAME_CHAR_LEN))
     die("Out of memory");
 
-
-  if (run_query("show variables like 'version'", &ds_version, FALSE))
+  if (run_query("show variables like 'version'",
+                &ds_version, FALSE) ||
+      extract_variable_from_show(&ds_version, version_str))
   {
-    fprintf(stderr, "Error: Failed while fetching Server version! Could be"
-            " due to unauthorized access.\n");
-    dynstr_free(&ds_version);
-    return 1;                                   /* Query failed */
-  }
-  if (extract_variable_from_show(&ds_version, version_str))
-  {
-    fprintf(stderr, "Error: Failed while extracting Server version!\n");
+    print_error("Version check failed. Got the following error when calling "
+                "the 'mysql' command line client", &ds_version);
     dynstr_free(&ds_version);
     return 1;                                   /* Query failed */
   }
@@ -929,25 +1033,30 @@ int main(int argc, char **argv)
   {
     opt_password= get_tty_password(NullS);
     /* add password to defaults file */
-    dynstr_append_os_quoted(&ds_args, "--password=", opt_password, NullS);
-    dynstr_append(&ds_args, " ");
+    add_one_option_cnf_file(&ds_args, &my_long_options[PASSWORD_OPT], opt_password);
+    DBUG_ASSERT(strcmp(my_long_options[PASSWORD_OPT].name, "password") == 0);
   }
   /* add user to defaults file */
-  dynstr_append_os_quoted(&ds_args, "--user=", opt_user, NullS);
-  dynstr_append(&ds_args, " ");
+  add_one_option_cnf_file(&ds_args, &my_long_options[USER_OPT], opt_user);
+  DBUG_ASSERT(strcmp(my_long_options[USER_OPT].name, "user") == 0);
+
+  cnf_file_path= strmov(defaults_file, "--defaults-file=");
+  {
+    int fd= create_temp_file(cnf_file_path, opt_tmpdir[0] ? opt_tmpdir : NULL,
+                             "mysql_upgrade-", O_CREAT | O_WRONLY, MYF(MY_FAE));
+    my_write(fd, USTRING_WITH_LEN( "[client]\n"), MYF(MY_FAE));
+    my_write(fd, (uchar*)ds_args.str, ds_args.length, MYF(MY_FAE));
+    my_close(fd, MYF(0));
+  }
 
   /* Find mysql */
   find_tool(mysql_path, IF_WIN("mysql.exe", "mysql"), self_name);
 
-  if (!opt_systables_only)
-  {
-    /* Find mysqlcheck */
-    find_tool(mysqlcheck_path, IF_WIN("mysqlcheck.exe", "mysqlcheck"), self_name);
-  }
-  else
-  {
-    printf("The --upgrade-system-tables option was used, databases won't be touched.\n");
-  }
+  /* Find mysqlcheck */
+  find_tool(mysqlcheck_path, IF_WIN("mysqlcheck.exe", "mysqlcheck"), self_name);
+
+  if (opt_systables_only && !opt_silent)
+    printf("The --upgrade-system-tables option was used, user tables won't be touched.\n");
 
   /*
     Read the mysql_upgrade_info file to check if mysql_upgrade
@@ -958,7 +1067,7 @@ int main(int argc, char **argv)
     printf("This installation of MySQL is already upgraded to %s, "
            "use --force if you still need to run mysql_upgrade\n",
            MYSQL_SERVER_VERSION);
-    die(NULL);
+    goto end;
   }
 
   if (opt_version_check && check_version_match())
@@ -967,26 +1076,21 @@ int main(int argc, char **argv)
   /*
     Run "mysqlcheck" and "mysql_fix_privilege_tables.sql"
   */
-  if (!opt_systables_only)
+  if (run_mysqlcheck_fixnames() || run_mysqlcheck_upgrade() ||
+      run_mysqlcheck_views() || run_sql_fix_privilege_tables())
   {
-    if (run_mysqlcheck_fixnames())
-      die("Error during call to mysql_check for fixing the db/tables names.");
-
-    if (run_mysqlcheck_upgrade())
-      die("Error during call to mysql_check for upgrading the tables names.");
-  }
-
-  if (run_sql_fix_privilege_tables())
-  {
-    /* Specific error msg (if present) would be printed in the function call
-     * above */
-    die("Upgrade failed");
+    /*
+      The upgrade failed to complete in some way or another,
+      significant error message should have been printed to the screen
+    */
+    die("Upgrade failed" );
   }
   verbose("OK");
 
   /* Create a file indicating upgrade has been performed */
   create_mysql_upgrade_info_file();
 
+end:
   free_used_memory();
   my_end(my_end_arg);
   exit(0);

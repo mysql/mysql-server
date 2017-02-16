@@ -1,5 +1,6 @@
 #ifndef MYSQL_CLIENT_PLUGIN_INCLUDED
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (C) 2010 Sergei Golubchik and Monty Program Ab
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +23,27 @@
   This file defines the API for plugins that work on the client side
 */
 #define MYSQL_CLIENT_PLUGIN_INCLUDED
+
+/*
+  On Windows, exports from DLL need to be declared
+  Also, plugin needs to be declared as extern "C" because MSVC 
+  unlike other compilers, uses C++ mangling for variables not only
+  for functions.
+*/
+#undef MYSQL_PLUGIN_EXPORT
+#if defined(_MSC_VER)
+  #ifdef __cplusplus
+    #define MYSQL_PLUGIN_EXPORT extern "C" __declspec(dllexport)
+  #else
+    #define MYSQL_PLUGIN_EXPORT __declspec(dllexport)
+  #endif
+#else /*_MSC_VER */
+  #ifdef __cplusplus
+    #define  MYSQL_PLUGIN_EXPORT extern "C"
+  #else
+    #define MYSQL_PLUGIN_EXPORT 
+  #endif
+#endif
 
 #ifndef MYSQL_ABI_CHECK
 #include <stdarg.h>
@@ -73,6 +95,8 @@ struct st_mysql_client_plugin_AUTHENTICATION
   MYSQL_CLIENT_PLUGIN_HEADER
   int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, struct st_mysql *mysql);
 };
+
+#include <mysql/auth_dialog_client.h>
 
 /******** using plugins ************/
 

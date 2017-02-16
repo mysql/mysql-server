@@ -83,7 +83,7 @@ SELECT @@relay_log_purge = @@global.relay_log_purge;
 SET relay_log_purge = 1;
 ERROR HY000: Variable 'relay_log_purge' is a GLOBAL variable and should be set with SET GLOBAL
 SET global.relay_log_purge = 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'relay_log_purge = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'relay_log_purge = 1' at line 1
 SELECT global.relay_log_purge;
 ERROR 42S02: Unknown table 'global' in field list
 SELECT relay_log_purge = @@session.relay_log_purge;

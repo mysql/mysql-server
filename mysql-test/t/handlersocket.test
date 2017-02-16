@@ -1,0 +1,10 @@
+--source include/not_windows_embedded.inc
+
+if (`select length('$HANDLERSOCKET_SO') = 0`) {
+  skip handlersocket plugin is not built;
+}
+
+install plugin handlersocket soname 'handlersocket.so';
+--query_vertical select plugin_name, plugin_version, plugin_status, plugin_type, plugin_library, plugin_library_version, plugin_author, plugin_description, plugin_license, plugin_maturity, plugin_auth_version from information_schema.plugins where plugin_name = 'handlersocket'
+uninstall plugin handlersocket;
+

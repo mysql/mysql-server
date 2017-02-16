@@ -1,0 +1,21 @@
+select @@global.aria_block_size;
+@@global.aria_block_size
+8192
+select @@session.aria_block_size;
+ERROR HY000: Variable 'aria_block_size' is a GLOBAL variable
+show global variables like 'aria_block_size';
+Variable_name	Value
+aria_block_size	8192
+show session variables like 'aria_block_size';
+Variable_name	Value
+aria_block_size	8192
+select * from information_schema.global_variables where variable_name='aria_block_size';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_BLOCK_SIZE	8192
+select * from information_schema.session_variables where variable_name='aria_block_size';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_BLOCK_SIZE	8192
+set global aria_block_size=1;
+ERROR HY000: Variable 'aria_block_size' is a read only variable
+set session aria_block_size=1;
+ERROR HY000: Variable 'aria_block_size' is a read only variable

@@ -1,0 +1,25 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (1,'f'),(2,'b');
+LOCK TABLE t1 READ;
+connect  con0,localhost,root,,;
+SET lock_wait_timeout = 1;
+INSERT DELAYED INTO t1 (a,b) VALUES (3,'c');
+INSERT DELAYED INTO t1 SET a=4, b='d';
+INSERT DELAYED INTO t1 (a,b) SELECT 5, 'e';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+disconnect con0;
+connection default;
+SELECT a,b FROM t1;
+a	b
+1	f
+2	b
+UNLOCK TABLES;
+FLUSH TABLES;
+SELECT a,b FROM t1;
+a	b
+1	f
+2	b
+3	c
+4	d
+DROP TABLE t1;

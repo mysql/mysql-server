@@ -1,0 +1,26 @@
+install plugin three_attempts soname 'dialog_examples.so';
+create user test_dialog identified via three_attempts using 'SECRET';
+#
+# -pSECRET is picked up, no questions asked.
+#
+select user(), current_user();
+user()	current_user()
+test_dialog@localhost	test_dialog@%
+#
+# without -p. up to three questions are asked on the stdin.
+# athentication is successful, the correct pasword is on the third line
+#
+Password, please: ***
+Password, please: ****
+Password, please: ******
+select user(), current_user();
+user()	current_user()
+test_dialog@localhost	test_dialog@%
+#
+# athentication is unsuccessful, first three lines are all wrong
+#
+Password, please: ***
+Password, please: ****
+Password, please: *****
+drop user test_dialog;
+uninstall plugin three_attempts;

@@ -1,0 +1,40 @@
+XZLESS(1)                          XZ Utils                          XZLESS(1)
+
+
+
+NAME
+       xzless, lzless - view xz or lzma compressed (text) files
+
+SYNOPSIS
+       xzless [file...]
+       lzless [file...]
+
+DESCRIPTION
+       xzless  is  a  filter that displays pagefulls of uncompressed text from
+       compressed file(s) to a terminal.  It works on  files  compressed  with
+       xz(1)  or  lzma(1).   If no files are given, xzless reads from standard
+       input.
+
+       xzless uses less(1) as its only pager.  Unlike xzmore,  the  choice  of
+       pagers is not alterable by an environment variable.  Commands are based
+       on both more(1) and vi(1),  and  allow  back  and  forth  movement  and
+       searching.  See the less(1) manual for more information.
+
+       The  command  named  lzless is provided for backward compatibility with
+       LZMA Utils.
+
+ENVIRONMENT
+       LESSMETACHARS
+              A list of characters special to the shell.  Set by xzless unless
+              it is already set in the environment.
+
+       LESSOPEN
+              Set  to a command line to invoke the xz(1) decompressor for pre-
+              processing the input files to less(1).
+
+SEE ALSO
+       less(1), xz(1), xzmore(1), zless(1)
+
+
+
+Tukaani                           2009-07-05                         XZLESS(1)

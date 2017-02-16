@@ -1,0 +1,69 @@
+# set session
+
+SET @start_global_value = @@global.log_slow_filter;
+
+#
+# exists as global only
+#
+select @@global.log_slow_filter;
+select @@session.log_slow_filter;
+show global variables like 'log_slow_filter';
+show session variables like 'log_slow_filter';
+select * from information_schema.global_variables where variable_name='log_slow_filter';
+select * from information_schema.session_variables where variable_name='log_slow_filter';
+
+#
+# show that it's writable
+#
+set global log_slow_filter=1;
+select @@global.log_slow_filter;
+set session log_slow_filter=1;
+select @@session.log_slow_filter;
+
+#
+# all valid values
+#
+set session log_slow_filter=1;
+select @@session.log_slow_filter;
+set session log_slow_filter=2;
+select @@session.log_slow_filter;
+set session log_slow_filter=5;
+select @@session.log_slow_filter;
+set session log_slow_filter='admin';
+select @@session.log_slow_filter;
+set session log_slow_filter='filesort';
+select @@session.log_slow_filter;
+set session log_slow_filter='filesort_on_disk';
+select @@session.log_slow_filter;
+set session log_slow_filter='full_join';
+select @@session.log_slow_filter;
+set session log_slow_filter='full_scan';
+select @@session.log_slow_filter;
+set session log_slow_filter='query_cache';
+select @@session.log_slow_filter;
+set session log_slow_filter='query_cache_miss';
+select @@session.log_slow_filter;
+set session log_slow_filter='tmp_table';
+select @@session.log_slow_filter;
+set session log_slow_filter='tmp_table_on_disk';
+select @@session.log_slow_filter;
+set session log_slow_filter='filesort,query_cache';
+select @@session.log_slow_filter;
+set session log_slow_filter='admin,filesort,filesort_on_disk,full_join,full_scan,query_cache,query_cache_miss,tmp_table,tmp_table_on_disk';
+select @@session.log_slow_filter;
+set session log_slow_filter='';
+select @@session.log_slow_filter;
+
+#
+# incorrect types/values
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set session log_slow_filter=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session log_slow_filter=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set session log_slow_filter="foo";
+--error ER_WRONG_VALUE_FOR_VAR
+set session log_slow_filter=1024;
+
+SET @@global.log_slow_filter = @start_global_value;

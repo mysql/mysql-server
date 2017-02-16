@@ -1,0 +1,152 @@
+# 
+# UPDATE statements for tables with keys
+#
+--source have_engine.inc
+--source have_default_index.inc
+
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--let $create_definition = a $int_col, b $char_col, INDEX(b)
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Non-unique keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(6,'x'),(7,'y'),(8,'z');
+  UPDATE t1 SET a=100, b='f' WHERE b IN ('b','c');
+  if ($mysql_errname)
+  {
+    --let $functionality = UPDATE
+    --source unexpected_result.inc
+  }
+  if (!$mysql_errname)
+  {
+    UPDATE t1 SET b='m' WHERE b = 'f';
+    UPDATE t1 SET b='z' WHERE a < 2;
+    UPDATE t1 SET b='';
+    --sorted_result
+    SELECT a,b FROM t1;
+  }
+  DROP TABLE t1;
+}
+
+--let $create_definition = a $int_col, b $char_col, UNIQUE INDEX(a)
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Unique keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(0,'f'),(100,'a');
+  UPDATE t1 SET a=a+200;
+  if ($mysql_errname)
+  {
+    --let $functionality = UPDATE
+    --source unexpected_result.inc
+  }
+  if (!$mysql_errname)
+  {
+    UPDATE t1 SET a=0 WHERE a > 250;
+    --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+    UPDATE t1 SET a=205 WHERE a=200;
+    --source check_errors.inc
+    UPDATE t1 SET a=12345 ORDER BY a, b LIMIT 1;
+    --sorted_result
+    SELECT a,b FROM t1;
+    
+    # We'll check that the next update causes an error,
+    # but won't check the result because it might be different depending
+    # on whether the engine is transactional or not
+    --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+    UPDATE t1 SET a=80 WHERE a IN (202,203);
+    --source check_errors.inc
+  }
+  DROP TABLE t1;
+}
+
+--let $create_definition = a $int_col, b $char_col, UNIQUE INDEX(a,b)
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Unique keys or multi-part keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(100,'a'),(6,'f');
+  UPDATE t1 SET a=6 WHERE a=3; 
+  if ($mysql_errname)
+  {
+    --let $functionality = UPDATE
+    --source unexpected_result.inc
+  }
+  if (!$mysql_errname)
+  {
+    --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+    UPDATE t1 SET a=100 WHERE a=1;
+    --source check_errors.inc
+    --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+    UPDATE t1 SET a=4, b='d' WHERE b='f';
+    --source check_errors.inc
+    UPDATE t1 SET a=a+1;
+    --sorted_result
+    SELECT a,b FROM t1;
+    --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+    UPDATE t1 SET b='z';
+    --source check_errors.inc
+  }
+  DROP TABLE t1;
+}
+
+--let $create_definition = a $int_col PRIMARY KEY, b $char_col
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Primary key
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(0,'f'),(100,'a');
+  UPDATE t1 SET a=a+200;
+  if ($mysql_errname)
+  {
+    --let $functionality = UPDATE
+    --source unexpected_result.inc
+  }
+  if (!$mysql_errname)
+  {
+    UPDATE t1 SET a=0 WHERE a > 250;
+    --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+    UPDATE t1 SET a=205 WHERE a=200;
+    --source check_errors.inc
+    UPDATE t1 SET a=12345 ORDER BY a DESC, b LIMIT 1;
+
+    --sorted_result
+    SELECT a,b FROM t1;
+
+    # We'll check that the next update causes an error,
+    # but won't check the result because it might be different depending
+    # on whether the engine is transactional or not
+
+    --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+    UPDATE t1 SET a=80 WHERE a IN (202,203);
+    --source check_errors.inc
+  }
+  DROP TABLE t1;
+}  
+
+--source cleanup_engine.inc
+

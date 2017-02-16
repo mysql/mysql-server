@@ -1,0 +1,12 @@
+#
+# Index type HASH
+#
+
+--source have_engine.inc
+
+let $index_type = HASH;
+
+--source index.inc
+
+--source cleanup_engine.inc
+

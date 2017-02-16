@@ -1,6 +1,6 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights
-   reserved.
+   Copyright (c) 2004, 2014, Oracle and/or its affiliates
+   Copyright (c) 2010, 2014, SkySQL Ab.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -21,11 +21,9 @@
 #pragma implementation        // gcc: Class implementation
 #endif
 
-#include "sql_priv.h"
-#include "probes_mysql.h"
 #include "sql_class.h"                          // SSV
-#include "sql_table.h"
-#include <myisam.h>
+#include "sql_table.h"                          // build_table_filename
+#include <myisam.h>                             // T_EXTEND
 
 #include "ha_archive.h"
 #include <my_dir.h>
@@ -342,7 +340,7 @@ int ha_archive::read_data_header(azio_stream *file_to_read)
   DBUG_PRINT("ha_archive", ("Version %u", data_buffer[1]));
 
   if ((data_buffer[0] != (uchar)ARCHIVE_CHECK_HEADER) &&  
-      (data_buffer[1] != (uchar)ARCHIVE_VERSION))
+      (data_buffer[1] == 1 || data_buffer[1] == 2))
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
   DBUG_RETURN(0);
@@ -407,12 +405,23 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, int *rc)
     {
       *rc= my_errno ? my_errno : -1;
       mysql_mutex_unlock(&archive_mutex);
+      mysql_mutex_destroy(&share->mutex);
       my_free(share);
       DBUG_RETURN(NULL);
     }
-    stats.auto_increment_value= archive_tmp.auto_increment + 1;
-    share->rows_recorded= (ha_rows)archive_tmp.rows;
-    share->crashed= archive_tmp.dirty;
+    share->version= archive_tmp.version;
+    if (archive_tmp.version == ARCHIVE_VERSION)
+    {
+      stats.auto_increment_value= archive_tmp.auto_increment + 1;
+      share->rows_recorded= (ha_rows)archive_tmp.rows;
+      share->crashed= archive_tmp.dirty;
+    }
+    else
+    {
+      /* Used by repair */
+      share->rows_recorded= ~(ha_rows) 0;
+      stats.auto_increment_value= 0;
+    }
     /*
       If archive version is less than 3, It should be upgraded before
       use.
@@ -562,10 +571,19 @@ int ha_archive::open(const char *name, int mode, uint open_options)
   case 0:
     break;
   case HA_ERR_CRASHED_ON_USAGE:
+    DBUG_PRINT("ha_archive", ("archive table was crashed"));
     if (open_options & HA_OPEN_FOR_REPAIR)
+    {
+      rc= 0;
       break;
+    }
     /* fall through */
   case HA_ERR_TABLE_NEEDS_UPGRADE:
+    if (open_options & HA_OPEN_FOR_REPAIR)
+    {
+      rc= 0;
+      break;
+    }
     free_share();
     /* fall through */
   default:
@@ -584,13 +602,6 @@ int ha_archive::open(const char *name, int mode, uint open_options)
   }
 
   thr_lock_data_init(&share->lock, &lock, NULL);
-
-  DBUG_PRINT("ha_archive", ("archive table was crashed %s", 
-                      rc == HA_ERR_CRASHED_ON_USAGE ? "yes" : "no"));
-  if (rc == HA_ERR_CRASHED_ON_USAGE && open_options & HA_OPEN_FOR_REPAIR)
-  {
-    DBUG_RETURN(0);
-  }
 
   DBUG_RETURN(rc);
 }
@@ -749,11 +760,11 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     {
       if (!mysql_file_fstat(frm_file, &file_stat, MYF(MY_WME)))
       {
-        frm_ptr= (uchar *)my_malloc(sizeof(uchar) * file_stat.st_size, MYF(0));
+        frm_ptr= (uchar *)my_malloc(sizeof(uchar) * (size_t)file_stat.st_size, MYF(0));
         if (frm_ptr)
         {
-          mysql_file_read(frm_file, frm_ptr, file_stat.st_size, MYF(0));
-          azwrite_frm(&create_stream, (char *)frm_ptr, file_stat.st_size);
+          mysql_file_read(frm_file, frm_ptr, (size_t)file_stat.st_size, MYF(0));
+          azwrite_frm(&create_stream, (char *)frm_ptr, (size_t)file_stat.st_size);
           my_free(frm_ptr);
         }
       }
@@ -901,7 +912,7 @@ int ha_archive::write_row(uchar *buf)
 
   if (!share->archive_write_open && init_archive_writer())
   {
-    rc= HA_ERR_CRASHED_ON_USAGE;
+    rc= errno;
     goto error;
   }
 
@@ -982,8 +993,7 @@ int ha_archive::write_row(uchar *buf)
   rc= real_write_row(buf,  &(share->archive_write));
 error:
   mysql_mutex_unlock(&share->mutex);
-  if (read_buf)
-    my_free(read_buf);
+  my_free(read_buf);
   DBUG_RETURN(rc);
 }
 
@@ -1015,9 +1025,7 @@ int ha_archive::index_read(uchar *buf, const uchar *key,
 {
   int rc;
   DBUG_ENTER("ha_archive::index_read");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= index_read_idx(buf, active_index, key, key_len, find_flag);
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -1067,7 +1075,6 @@ int ha_archive::index_next(uchar * buf)
   int rc;
 
   DBUG_ENTER("ha_archive::index_next");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
 
   while (!(get_row(&archive, buf)))
   {
@@ -1079,8 +1086,6 @@ int ha_archive::index_next(uchar * buf)
   }
 
   rc= found ? 0 : HA_ERR_END_OF_FILE;
-  table->status= rc ? STATUS_NOT_FOUND : 0;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -1097,7 +1102,8 @@ int ha_archive::rnd_init(bool scan)
   if (share->crashed)
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
-  init_archive_reader();
+  if (init_archive_reader())
+      DBUG_RETURN(errno);
 
   /* We rewind the file so that we can read from the beginning if scan */
   if (scan)
@@ -1192,31 +1198,26 @@ int ha_archive::unpack_row(azio_stream *file_to_read, uchar *record)
 
   if (read != row_len || error)
   {
-    DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+    DBUG_RETURN(error ? HA_ERR_CRASHED_ON_USAGE : HA_ERR_WRONG_IN_RECORD);
   }
 
   /* Copy null bits */
-  const uchar *ptr= record_buffer->buffer;
-  /*
-    Field::unpack() is not called when field is NULL. For VARCHAR
-    Field::unpack() only unpacks as much bytes as occupied by field
-    value. In these cases respective memory area on record buffer is
-    not initialized.
-
-    These uninitialized areas may be accessed by CHECKSUM TABLE or
-    by optimizer using temporary table (BUG#12997905). We may remove
-    this memset() when they're fixed.
-  */
-  memset(record, 0, table->s->reclength);
+  const uchar *ptr= record_buffer->buffer, *end= ptr+ row_len;
   memcpy(record, ptr, table->s->null_bytes);
   ptr+= table->s->null_bytes;
+  if (ptr > end)
+    DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
   for (Field **field=table->field ; *field ; field++)
   {
     if (!((*field)->is_null_in_record(record)))
     {
-      ptr= (*field)->unpack(record + (*field)->offset(table->record[0]), ptr);
+      if (!(ptr= (*field)->unpack(record + (*field)->offset(table->record[0]),
+                                  ptr, end)))
+        DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
     }
   }
+  if (ptr != end)
+    DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
   DBUG_RETURN(0);
 }
 
@@ -1319,8 +1320,6 @@ int ha_archive::rnd_next(uchar *buf)
 {
   int rc;
   DBUG_ENTER("ha_archive::rnd_next");
-  MYSQL_READ_ROW_START(table_share->db.str,
-                       table_share->table_name.str, TRUE);
 
   if (share->crashed)
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
@@ -1339,7 +1338,6 @@ int ha_archive::rnd_next(uchar *buf)
   table->status=rc ? STATUS_NOT_FOUND: 0;
 
 end:
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -1369,8 +1367,6 @@ int ha_archive::rnd_pos(uchar * buf, uchar *pos)
 {
   int rc;
   DBUG_ENTER("ha_archive::rnd_pos");
-  MYSQL_READ_ROW_START(table_share->db.str,
-                       table_share->table_name.str, FALSE);
   ha_statistic_increment(&SSV::ha_read_rnd_next_count);
   current_position= (my_off_t)my_get_ptr(pos, ref_length);
   if (azseek(&archive, current_position, SEEK_SET) == (my_off_t)(-1L))
@@ -1380,9 +1376,16 @@ int ha_archive::rnd_pos(uchar * buf, uchar *pos)
   }
   rc= get_row(&archive, buf);
 end:
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
+
+int ha_archive::check_for_upgrade(HA_CHECK_OPT *check_opt)
+{
+  if (share->version < ARCHIVE_VERSION)
+    return HA_ADMIN_NEEDS_ALTER;
+  return 0;
+}
+
 
 /*
   This method repairs the meta file. It does this by walking the datafile and 
@@ -1413,7 +1416,12 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   DBUG_ENTER("ha_archive::optimize");
 
   mysql_mutex_lock(&share->mutex);
-  init_archive_reader();
+
+  if (init_archive_reader())
+  {
+    mysql_mutex_unlock(&share->mutex);
+    DBUG_RETURN(errno);
+  }
 
   // now we close both our writer and our reader for the rename
   if (share->archive_write_open)
@@ -1543,12 +1551,13 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
     /* 
       Here is where we get into the guts of a row level lock.
       If TL_UNLOCK is set 
-      If we are not doing a LOCK TABLE or DISCARD/IMPORT
+      If we are not doing a LOCK TABLE, DELAYED LOCK or DISCARD/IMPORT
       TABLESPACE, then allow multiple writers 
     */
 
     if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
-         lock_type <= TL_WRITE) && !thd_in_lock_tables(thd)
+         lock_type <= TL_WRITE) && delayed_insert == FALSE &&
+        !thd_in_lock_tables(thd)
         && !thd_tablespace_op(thd))
       lock_type = TL_WRITE_ALLOW_WRITE;
 
@@ -1647,7 +1656,9 @@ int ha_archive::info(uint flag)
 
   if (flag & HA_STATUS_AUTO)
   {
-    init_archive_reader();
+    if (init_archive_reader())
+      DBUG_RETURN(errno);
+
     mysql_mutex_lock(&share->mutex);
     azflush(&archive, Z_SYNC_FLUSH);
     mysql_mutex_unlock(&share->mutex);
@@ -1824,4 +1835,21 @@ mysql_declare_plugin(archive)
   0,                          /* flags                           */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(archive)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &archive_storage_engine,
+  "ARCHIVE",
+  "Brian Aker, MySQL AB",
+  "Archive storage engine",
+  PLUGIN_LICENSE_GPL,
+  archive_db_init, /* Plugin Init */
+  archive_db_done, /* Plugin Deinit */
+  0x0300 /* 3.0 */,
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+}
+maria_declare_plugin_end;
 

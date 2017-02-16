@@ -1,7 +1,7 @@
 #ifndef SQL_PARTITION_INCLUDED
 #define SQL_PARTITION_INCLUDED
 
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -96,7 +96,6 @@ bool check_partition_info(partition_info *part_info,handlerton **eng_type,
                           TABLE *table, handler *file, HA_CREATE_INFO *info);
 void set_linear_hash_mask(partition_info *part_info, uint num_parts);
 bool fix_partition_func(THD *thd, TABLE *table, bool create_table_ind);
-bool partition_key_modified(TABLE *table, const MY_BITMAP *fields);
 void get_partition_set(const TABLE *table, uchar *buf, const uint index,
                        const key_range *key_spec,
                        part_id_range *part_spec);
@@ -270,6 +269,9 @@ char *generate_partition_syntax(partition_info *part_info,
                                 HA_CREATE_INFO *create_info,
                                 Alter_info *alter_info,
                                 const char *current_comment_start);
+bool partition_key_modified(TABLE *table, const MY_BITMAP *fields);
+#else
+#define partition_key_modified(X,Y) 0
 #endif
 
 void create_partition_name(char *out, const char *in1,

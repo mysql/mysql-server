@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 ######## suite/innodb/t/innodb_prefix_index_liftedlimit.test ##########
 #                                                                    #
 # Testcase for worklog WL#5743: Lift the limit of index key prefixes #
@@ -14,7 +15,6 @@
 ######################################################################
 
 
---source include/have_innodb.inc
 # Save innodb variables
 let $innodb_file_format_orig=`select @@innodb_file_format`;
 let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;

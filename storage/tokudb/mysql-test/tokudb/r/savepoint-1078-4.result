@@ -1,0 +1,279 @@
+SET DEFAULT_STORAGE_ENGINE = 'TokuDB';
+DROP TABLE IF EXISTS t1;
+set autocommit=0;
+set session transaction isolation level serializable;
+create table t1 (n int);
+begin;
+savepoint `my_savepoint`;
+insert into t1 values (7);
+savepoint `savept2`;
+insert into t1 values (3);
+select n from t1;
+n
+7
+3
+savepoint savept3;
+rollback to savepoint savept2;
+rollback to savepoint savept3;
+ERROR 42000: SAVEPOINT savept3 does not exist
+rollback to savepoint savept2;
+release savepoint `my_savepoint`;
+select n from t1;
+n
+7
+rollback to savepoint `my_savepoint`;
+ERROR 42000: SAVEPOINT my_savepoint does not exist
+rollback to savepoint savept2;
+ERROR 42000: SAVEPOINT savept2 does not exist
+insert into t1 values (8);
+savepoint sv;
+commit;
+savepoint sv;
+set autocommit=1;
+rollback;
+drop table t1;
+create table t1 (a int, b int, primary key (a));
+begin;
+insert into t1 values (1,10);
+select * from t1;
+a	b
+1	10
+savepoint a;
+insert into t1 values (2,20);
+select * from t1;
+a	b
+1	10
+2	20
+savepoint b;
+insert into t1 values (3,30);
+rollback to savepoint a;
+select * From t1;
+a	b
+1	10
+rollback;
+select * from t1;
+a	b
+drop table t1;
+create table t1 (a int, b int, primary key (a));
+begin;
+insert into t1 values (1,10);
+select * from t1;
+a	b
+1	10
+savepoint a;
+insert into t1 values (2,20);
+select * from t1;
+a	b
+1	10
+2	20
+savepoint b;
+insert into t1 values (3,30);
+release savepoint a;
+select * From t1;
+a	b
+1	10
+2	20
+3	30
+rollback;
+select * from t1;
+a	b
+drop table t1;
+create table t1 (a int, b int, primary key (a));
+begin;
+insert into t1 values (1,10);
+select * from t1;
+a	b
+1	10
+savepoint a;
+replace into t1 values (1,100);
+select * from t1;
+a	b
+1	100
+savepoint b;
+delete from t1 where a=1;
+select * from t1;
+a	b
+savepoint c;
+update t1 set b=1000 where a=1;
+select * from t1;
+a	b
+rollback to savepoint c;
+select * From t1;
+a	b
+rollback to savepoint b;
+select * from t1;
+a	b
+1	100
+rollback to savepoint a;
+select * from t1;
+a	b
+1	10
+rollback;
+select * from t1;
+a	b
+drop table t1;
+create table t1 (a int, b int, primary key (a));
+insert into t1 values (1,1);
+select * from t1;
+a	b
+1	1
+begin;
+replace into t1 values (1,10);
+select * from t1;
+a	b
+1	10
+savepoint a;
+replace into t1 values (1,100);
+select * from t1;
+a	b
+1	100
+savepoint b;
+delete from t1 where a=1;
+select * from t1;
+a	b
+savepoint c;
+update t1 set b=1000 where a=1;
+select * from t1;
+a	b
+rollback to savepoint c;
+select * From t1;
+a	b
+rollback to savepoint b;
+select * from t1;
+a	b
+1	100
+rollback to savepoint a;
+select * from t1;
+a	b
+1	10
+rollback;
+select * from t1;
+a	b
+1	1
+drop table t1;
+create table t1 (a int, b int, primary key (a));
+begin;
+insert into t1 values (1,10);
+select * from t1;
+a	b
+1	10
+savepoint a;
+replace into t1 values (1,100);
+select * from t1;
+a	b
+1	100
+savepoint b;
+delete from t1 where a=1;
+select * from t1;
+a	b
+savepoint c;
+insert into t1 values (2,20);
+select * from t1;
+a	b
+2	20
+release savepoint c;
+select * From t1;
+a	b
+2	20
+release savepoint b;
+select * from t1;
+a	b
+2	20
+release savepoint a;
+select * from t1;
+a	b
+2	20
+commit;
+select * from t1;
+a	b
+2	20
+drop table t1;
+create table t1 (a int, b int, primary key (a));
+begin;
+insert into t1 values (1,10);
+select * from t1;
+a	b
+1	10
+savepoint a;
+replace into t1 values (1,100);
+select * from t1;
+a	b
+1	100
+savepoint b;
+delete from t1 where a=1;
+select * from t1;
+a	b
+savepoint c;
+insert into t1 values (2,20);
+select * from t1;
+a	b
+2	20
+release savepoint c;
+select * From t1;
+a	b
+2	20
+rollback to savepoint b;
+select * from t1;
+a	b
+1	100
+release savepoint a;
+select * from t1;
+a	b
+1	100
+rollback;
+select * from t1;
+a	b
+drop table t1;
+create table t1 (a int, b int, primary key (a));
+begin;
+insert into t1 values (1,10);
+insert into t1 values (2,20);
+savepoint a;
+insert into t1 values (3,30),(4,40);
+insert into t1 values (5,50),(6,60), (3,333), (7,70);
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+select * from t1;
+a	b
+1	10
+2	20
+3	30
+4	40
+savepoint b;
+insert ignore into t1 values (8,80),(1,100),(9,90);
+select * from t1;
+a	b
+1	10
+2	20
+3	30
+4	40
+8	80
+9	90
+rollback to savepoint b;
+select * from t1;
+a	b
+1	10
+2	20
+3	30
+4	40
+rollback to savepoint a;
+select * from t1;
+a	b
+1	10
+2	20
+insert into t1 value (10,100);
+savepoint c;
+select * from t1;
+a	b
+1	10
+2	20
+10	100
+release savepoint a;
+rollback to savepoint c;
+ERROR 42000: SAVEPOINT c does not exist
+commit;
+select * from t1;
+a	b
+1	10
+2	20
+10	100
+drop table t1;

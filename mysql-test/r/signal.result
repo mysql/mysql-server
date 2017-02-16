@@ -66,11 +66,11 @@ transaction_active int
 drop table diag_stmt_non_reserved;
 drop table if exists test_reserved;
 create table test_reserved (signal int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'signal int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'signal int)' at line 1
 create table test_reserved (resignal int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'resignal int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'resignal int)' at line 1
 create table test_reserved (condition int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'condition int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'condition int)' at line 1
 #
 # Test the SIGNAL syntax
 #
@@ -81,7 +81,7 @@ create procedure test_invalid()
 begin
 SIGNAL;
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ';
 end' at line 3
 create procedure test_invalid()
 begin
@@ -239,109 +239,109 @@ create procedure test_invalid()
 begin
 SIGNAL SQLSTATE '12345' SET bla_bla = 'foo';
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'bla_bla = 'foo';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'bla_bla = 'foo';
 end' at line 3
 create procedure test_invalid()
 begin
 SIGNAL SQLSTATE '12345' SET CONDITION_IDENTIFIER = 'foo';
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CONDITION_IDENTIFIER = 'foo';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CONDITION_IDENTIFIER = 'foo';
 end' at line 3
 create procedure test_invalid()
 begin
 SIGNAL SQLSTATE '12345' SET CONDITION_NUMBER = 'foo';
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CONDITION_NUMBER = 'foo';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CONDITION_NUMBER = 'foo';
 end' at line 3
 create procedure test_invalid()
 begin
 SIGNAL SQLSTATE '12345' SET CONNECTION_NAME = 'foo';
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CONNECTION_NAME = 'foo';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CONNECTION_NAME = 'foo';
 end' at line 3
 create procedure test_invalid()
 begin
 SIGNAL SQLSTATE '12345' SET MESSAGE_LENGTH = 'foo';
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MESSAGE_LENGTH = 'foo';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'MESSAGE_LENGTH = 'foo';
 end' at line 3
 create procedure test_invalid()
 begin
 SIGNAL SQLSTATE '12345' SET MESSAGE_OCTET_LENGTH = 'foo';
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MESSAGE_OCTET_LENGTH = 'foo';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'MESSAGE_OCTET_LENGTH = 'foo';
 end' at line 3
 create procedure test_invalid()
 begin
 SIGNAL SQLSTATE '12345' SET PARAMETER_MODE = 'foo';
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PARAMETER_MODE = 'foo';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'PARAMETER_MODE = 'foo';
 end' at line 3
 create procedure test_invalid()
 begin
 SIGNAL SQLSTATE '12345' SET PARAMETER_NAME = 'foo';
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PARAMETER_NAME = 'foo';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'PARAMETER_NAME = 'foo';
 end' at line 3
 create procedure test_invalid()
 begin
 SIGNAL SQLSTATE '12345' SET PARAMETER_ORDINAL_POSITION = 'foo';
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PARAMETER_ORDINAL_POSITION = 'foo';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'PARAMETER_ORDINAL_POSITION = 'foo';
 end' at line 3
 create procedure test_invalid()
 begin
 SIGNAL SQLSTATE '12345' SET RETURNED_SQLSTATE = 'foo';
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RETURNED_SQLSTATE = 'foo';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'RETURNED_SQLSTATE = 'foo';
 end' at line 3
 create procedure test_invalid()
 begin
 SIGNAL SQLSTATE '12345' SET ROUTINE_CATALOG = 'foo';
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ROUTINE_CATALOG = 'foo';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ROUTINE_CATALOG = 'foo';
 end' at line 3
 create procedure test_invalid()
 begin
 SIGNAL SQLSTATE '12345' SET ROUTINE_NAME = 'foo';
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ROUTINE_NAME = 'foo';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ROUTINE_NAME = 'foo';
 end' at line 3
 create procedure test_invalid()
 begin
 SIGNAL SQLSTATE '12345' SET ROUTINE_SCHEMA = 'foo';
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ROUTINE_SCHEMA = 'foo';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ROUTINE_SCHEMA = 'foo';
 end' at line 3
 create procedure test_invalid()
 begin
 SIGNAL SQLSTATE '12345' SET SERVER_NAME = 'foo';
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SERVER_NAME = 'foo';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SERVER_NAME = 'foo';
 end' at line 3
 create procedure test_invalid()
 begin
 SIGNAL SQLSTATE '12345' SET SPECIFIC_NAME = 'foo';
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SPECIFIC_NAME = 'foo';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SPECIFIC_NAME = 'foo';
 end' at line 3
 create procedure test_invalid()
 begin
 SIGNAL SQLSTATE '12345' SET TRIGGER_CATALOG = 'foo';
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TRIGGER_CATALOG = 'foo';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'TRIGGER_CATALOG = 'foo';
 end' at line 3
 create procedure test_invalid()
 begin
 SIGNAL SQLSTATE '12345' SET TRIGGER_NAME = 'foo';
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TRIGGER_NAME = 'foo';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'TRIGGER_NAME = 'foo';
 end' at line 3
 create procedure test_invalid()
 begin
 SIGNAL SQLSTATE '12345' SET TRIGGER_SCHEMA = 'foo';
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TRIGGER_SCHEMA = 'foo';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'TRIGGER_SCHEMA = 'foo';
 end' at line 3
 #
 # Test the RESIGNAL syntax
@@ -596,8 +596,10 @@ ERROR 42000: Variable 'MYSQL_ERRNO' can't be set to the value of '4294967295'
 SIGNAL SQLSTATE 'HY000' SET MYSQL_ERRNO = 0;
 ERROR 42000: Variable 'MYSQL_ERRNO' can't be set to the value of '0'
 SIGNAL SQLSTATE 'HY000' SET MYSQL_ERRNO = -1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '-1' at line 1
 SIGNAL SQLSTATE 'HY000' SET MYSQL_ERRNO = 65535;
+ERROR 42000: Variable 'MYSQL_ERRNO' can't be set to the value of '65535'
+SIGNAL SQLSTATE 'HY000' SET MYSQL_ERRNO = 65534;
 ERROR HY000: Unhandled user-defined exception condition
 #
 # RESIGNAL can also appear in a query
@@ -617,7 +619,7 @@ create procedure test_signal()
 begin
 # max range
 DECLARE foo CONDITION FOR SQLSTATE 'AABBB';
-SIGNAL foo SET MYSQL_ERRNO = 65535;
+SIGNAL foo SET MYSQL_ERRNO = 65534;
 end $$
 call test_signal() $$
 ERROR AABBB: Unhandled user-defined exception condition
@@ -1061,7 +1063,7 @@ SIGNAL something SET
 MESSAGE_TEXT = @message_text := 'illegal',
 MYSQL_ERRNO = @sqlcode := 1234;
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '
 MYSQL_ERRNO = @sqlcode := 1234;
 end' at line 5
 create procedure test_signal()
@@ -1101,11 +1103,11 @@ TABLE_NAME = hhh,
 COLUMN_NAME = iii,
 CURSOR_NAME = jjj,
 MESSAGE_TEXT = kkk,
-MYSQL_ERRNO = 65535;
+MYSQL_ERRNO = 65534;
 end $$
 call test_signal() $$
 Warnings:
-Warning	65535	KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK
+Warning	65534	KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK
 drop procedure test_signal $$
 create procedure test_signal()
 begin
@@ -2361,21 +2363,21 @@ begin
 DECLARE céèçà foo CONDITION FOR SQLSTATE '12345';
 SIGNAL céèçà SET MYSQL_ERRNO = 1000;
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '�èçà foo CONDITION FOR SQLSTATE '12345';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '�èçà foo CONDITION FOR SQLSTATE '12345';
 SIGNAL céèçà SET ' at line 3
 create procedure test_signal()
 begin
 DECLARE "céèçà" CONDITION FOR SQLSTATE '12345';
 SIGNAL "céèçà" SET MYSQL_ERRNO = 1000;
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"céèçà" CONDITION FOR SQLSTATE '12345';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '"céèçà" CONDITION FOR SQLSTATE '12345';
 SIGNAL "céèçà" S' at line 3
 create procedure test_signal()
 begin
 DECLARE 'céèçà' CONDITION FOR SQLSTATE '12345';
 SIGNAL 'céèçà' SET MYSQL_ERRNO = 1000;
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''céèçà' CONDITION FOR SQLSTATE '12345';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ''céèçà' CONDITION FOR SQLSTATE '12345';
 SIGNAL 'céèçà' S' at line 3
 create procedure test_signal()
 begin

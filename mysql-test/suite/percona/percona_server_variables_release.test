@@ -1,0 +1,2 @@
+--source include/not_debug.inc
+--source percona_server_variables.inc

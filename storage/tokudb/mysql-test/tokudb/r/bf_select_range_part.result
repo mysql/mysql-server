@@ -1,0 +1,406 @@
+set default_storage_engine='tokudb';
+drop table if exists t;
+CREATE TABLE `t` (
+`num` int(10) unsigned NOT NULL auto_increment,
+`val` varchar(32) DEFAULT NULL,
+PRIMARY KEY (`num`)
+) PARTITION BY RANGE (num)
+(PARTITION p0 VALUES LESS THAN (100000),
+PARTITION p1 VALUES LESS THAN (200000),
+PARTITION p2 VALUES LESS THAN (300000),
+PARTITION p3 VALUES LESS THAN (400000),
+PARTITION p4 VALUES LESS THAN (500000),
+PARTITION p5 VALUES LESS THAN (600000),
+PARTITION p6 VALUES LESS THAN (700000),
+PARTITION p7 VALUES LESS THAN MAXVALUE);
+INSERT INTO t values (null,null);
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+SELECT count(*) FROM t;
+count(*)
+1048576
+set tokudb_bulk_fetch=ON;
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+set tokudb_bulk_fetch=OFF;
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+SELECT count(*) from t;
+count(*)
+1048576
+1
+set tokudb_bulk_fetch=ON;
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+set tokudb_bulk_fetch=OFF;
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+SELECT count(*) from t where num > 700000;
+count(*)
+348576
+1
+drop table t;

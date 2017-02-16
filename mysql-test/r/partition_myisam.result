@@ -83,7 +83,7 @@ CREATE TABLE t1 (a INT)
 PARTITION BY HASH (a)
 ( PARTITION p0 ENGINE=MyISAM,
 PARTITION p1);
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MariaDB
 CREATE TABLE t1 (a INT)
 PARTITION BY LIST (a)
 SUBPARTITION BY HASH (a)
@@ -91,7 +91,7 @@ SUBPARTITION BY HASH (a)
 ( SUBPARTITION s0, SUBPARTITION s1 ENGINE=MyISAM, SUBPARTITION s2),
 PARTITION p1 VALUES IN (1)
 ( SUBPARTITION s3 ENGINE=MyISAM, SUBPARTITION s4, SUBPARTITION s5 ENGINE=MyISAM));
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MariaDB
 #
 # Bug#49161: Out of memory; restart server and try again (needed 2 bytes)
 #

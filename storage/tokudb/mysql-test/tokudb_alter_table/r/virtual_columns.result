@@ -1,0 +1,11 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+DROP TABLE IF EXISTS foo;
+set session tokudb_disable_slow_alter=ON;
+create table foo (a int, b int, c int, d int as (a mod 10) virtual, key(a))engine=TokuDB;
+ERROR HY000: TokuDB storage engine does not support computed columns
+create table foo (a int, b int, c int)engine=TokuDB;
+alter table foo add column d int as (a mod 10) virtual;
+ERROR HY000: TokuDB storage engine does not support computed columns
+alter table foo add column d int as (a mod 10) persistent;
+ERROR HY000: TokuDB storage engine does not support computed columns
+drop table foo;

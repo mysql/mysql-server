@@ -1,0 +1,96 @@
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE='TokuDB';
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1 (a int);
+
+begin;
+insert into t1 values(1);
+delete from t1 where a=1;
+rollback;
+select * from t1;
+
+DROP table t1;
+
+create table t1 (a int, b int, primary key (a));
+
+#
+# do some rollback tests, all nesting levels are 2
+#
+begin;
+insert into t1 values (1,10);
+select * From t1;
+rollback;
+select * From t1;
+
+begin;
+insert into t1 values (1,10);
+select * From t1;
+update t1 set b=b+5;
+select * From t1;
+update t1 set b=b+5 where a=1;
+select * from t1;
+rollback;
+select * from t1;
+
+begin;
+insert into t1 values (1,10),(2,20);
+select * From t1;
+delete from t1 where a > 1;
+select * from t1;
+rollback;
+select * from t1;
+
+insert into t1 values (1,10),(2,20),(3,30);
+select * from t1;
+rollback;
+select * From t1;
+
+#
+# do some commit tests
+#
+begin;
+insert into t1 values (4,40),(5,50),(6,60);
+select * from t1;
+commit;
+select * from t1;
+
+begin;
+insert into t1 values (7,70);
+--error ER_DUP_ENTRY
+insert into t1 values (8,80), (9,90), (1,10), (10,100);
+insert into t1 values (11,110);
+rollback;
+select * From t1;
+
+
+begin;
+insert into t1 values (7,70);
+--error ER_DUP_ENTRY
+insert into t1 values (8,80), (9,90), (1,10), (10,100);
+insert into t1 values (11,110);
+commit;
+select * From t1;
+
+delete from t1;
+alter table t1 add index (b);
+
+insert ignore into t1 values (1,10),(2,20),(3,30),(1,10),(4,40);
+select * From t1;
+
+begin;
+insert ignore into t1 values (5,50),(3,30),(6,60),(7,70);
+select * From t1;
+rollback;
+select * from t1;
+
+begin;
+insert ignore into t1 values (5,50),(3,30),(6,60),(7,70);
+select * From t1;
+commit;
+select * From t1;
+
+drop table t1;

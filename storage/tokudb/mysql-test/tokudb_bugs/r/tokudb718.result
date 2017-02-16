@@ -1,0 +1,10 @@
+set default_storage_engine='tokudb';
+drop table if exists t;
+create table t (id int primary key);
+begin;
+insert into t values (1),(2);
+select dictionary_name from information_schema.tokudb_fractal_tree_info;
+dictionary_name
+./test/t-status
+commit;
+drop table t;

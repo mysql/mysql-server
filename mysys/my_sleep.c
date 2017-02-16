@@ -28,7 +28,7 @@ void my_sleep(ulong m_seconds)
   t.tv_usec= m_seconds % 1000000L;
   select(0,0,0,0,&t); /* sleep */
 #else
-  uint sec=    (uint) (m_seconds / 1000000L);
+  uint sec=    (uint) ((m_seconds + 999999L) / 1000000L);
   ulong start= (ulong) time((time_t*) 0);
   while ((ulong) time((time_t*) 0) < start+sec);
 #endif

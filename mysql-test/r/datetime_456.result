@@ -1,0 +1,8 @@
+create table t1 (d datetime);
+insert t1 values (addtime('9999-12-31 23:59:59', '00:00:01')),
+(from_days(3652499));
+select * from t1;
+d
+NULL
+0000-00-00 00:00:00
+drop table t1;

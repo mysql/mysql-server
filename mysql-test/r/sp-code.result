@@ -923,7 +923,7 @@ END;
 CLOSE c;
 SELECT a INTO @foo FROM t1 LIMIT 1; # Clear warning stack
 END|
-SET SESSION debug="+d,bug23032_emit_warning";
+SET SESSION debug_dbug="+d,bug23032_emit_warning";
 CALL p1();
 Warning found!
 Warning found!
@@ -942,7 +942,7 @@ End of Result Set found!
 Level	Code	Message
 Warning	1105	Unknown error
 Error	1329	No data - zero rows fetched, selected, or processed
-SET SESSION debug="-d,bug23032_emit_warning";
+SET SESSION debug_dbug="-d,bug23032_emit_warning";
 DROP PROCEDURE p1;
 DROP TABLE t1;
 #

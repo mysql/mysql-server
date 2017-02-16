@@ -1,0 +1,20 @@
+source include/have_tokudb.inc;
+--disable_warnings
+DROP TABLE IF EXISTS t;
+--enable_warnings
+
+SET SESSION TOKUDB_DISABLE_SLOW_ALTER=ON;
+
+CREATE TABLE t (a VARCHAR(100), b VARCHAR(256)) ENGINE=TokuDB;
+INSERT INTO t VALUES ('hi','there'),('you','people');
+# expand varchar
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(256);
+SELECT * FROM t;
+DROP TABLE t;
+
+CREATE TABLE t (a VARCHAR(100), b VARCHAR(256)) ENGINE=TokuDB;
+INSERT INTO t VALUES ('hi','there'),('you','people');
+# expand varchar and rename column
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(256);
+SELECT * FROM t;
+DROP TABLE t;

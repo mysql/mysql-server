@@ -1,0 +1,82 @@
+--source include/have_innodb.inc
+# Testing group commit by crashing a few times.
+# Test adapted from the Facebook patch: lp:mysqlatfacebook
+--source include/not_embedded.inc
+# Don't test this under valgrind, memory leaks will occur
+--source include/not_valgrind.inc
+
+# Binary must be compiled with debug for crash to occur
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+
+let $file_format_max=`SELECT @@innodb_file_format_max`;
+CREATE TABLE t1(a CHAR(255),
+                b CHAR(255),
+                c CHAR(255),
+                d CHAR(255),
+                id INT,
+                PRIMARY KEY(id)) ENGINE=InnoDB;
+create table t2 like t1;
+delimiter //;
+create procedure setcrash(IN i INT)
+begin
+  CASE i
+    WHEN 1 THEN SET SESSION debug_dbug="d,crash_commit_after_prepare";
+    WHEN 2 THEN SET SESSION debug_dbug="d,crash_commit_after_log";
+    WHEN 3 THEN SET SESSION debug_dbug="d,crash_commit_before_unlog";
+    WHEN 4 THEN SET SESSION debug_dbug="d,crash_commit_after";
+    WHEN 5 THEN SET SESSION debug_dbug="d,crash_commit_before";
+    ELSE BEGIN END;
+  END CASE;
+end //
+delimiter ;//
+# Avoid getting a crashed mysql.proc table.
+FLUSH TABLES;
+
+let $numtests = 5;
+
+let $numinserts = 10;
+while ($numinserts)
+{
+  dec $numinserts;
+  eval INSERT INTO t2(a, b, c, d, id) VALUES ('a', 'b', 'c', 'd', $numinserts+1);
+}
+
+--enable_reconnect
+
+while ($numtests)
+{
+  SET binlog_format= mixed;
+  RESET MASTER;
+
+  START TRANSACTION;
+  insert into t1 select * from t2;
+  # Write file to make mysql-test-run.pl expect crash
+  --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+  eval call setcrash($numtests);
+
+  # Run the crashing query
+  --error 2006,2013
+  COMMIT;
+
+  # Poll the server waiting for it to be back online again.
+  --source include/wait_until_connected_again.inc
+
+  # table and binlog should be in sync.
+  SELECT * FROM t1 ORDER BY id;
+--replace_column 2 # 5 #
+  SHOW BINLOG EVENTS LIMIT 2,1;
+
+  delete from t1;
+
+  dec $numtests;
+}
+
+# final cleanup
+DROP TABLE t1;
+DROP TABLE t2;
+DROP PROCEDURE setcrash;
+--disable_query_log
+eval SET GLOBAL innodb_file_format_max=$file_format_max;
+--enable_query_log

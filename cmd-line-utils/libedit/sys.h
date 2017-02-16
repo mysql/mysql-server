@@ -40,6 +40,17 @@
 #ifndef _h_sys
 #define	_h_sys
 
+#ifdef __linux__
+/* Apparently we need _GNU_SOURCE defined to get access to wcsdup on Linux */
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#endif
+
+#ifndef __USE_XOPEN
+#define __USE_XOPEN
+#endif
+
 #ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
 #endif
@@ -90,17 +101,6 @@ size_t	strlcpy(char *dst, const char *src, size_t size);
 #ifndef HAVE_FGETLN
 #define	fgetln libedit_fgetln
 char	*fgetln(FILE *fp, size_t *len);
-#endif
-
-#ifdef __linux__
-/* Apparently we need _GNU_SOURCE defined to get access to wcsdup on Linux */
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-#endif
-
-#ifndef __USE_XOPEN
-#define __USE_XOPEN
 #endif
 
 #include <wchar.h>

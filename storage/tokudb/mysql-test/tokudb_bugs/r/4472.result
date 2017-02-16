@@ -1,0 +1,39 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+set session transaction isolation level repeatable read;
+# Establish connection conn1 (user = root)
+DROP TABLE IF EXISTS foo;
+set session transaction isolation level repeatable read;
+create table foo (a int) engine=TokuDB;
+insert into foo values (1);
+begin;
+select * from foo;
+a
+1
+alter table foo add column b int;
+alter table foo change b b bigint;
+truncate table foo;
+rename table foo to bar;
+drop table bar;
+select * From foo;
+ERROR 42S02: Table 'test.foo' doesn't exist
+set session transaction isolation level serializable;
+create table foo (a int) engine=TokuDB;
+insert into foo values (1);
+begin;
+insert into foo values(2);
+alter table foo add column b int;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+alter table foo change a a bigint;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+truncate table foo;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+rename table foo to bar;
+ERROR HY000: Error on rename of './test/foo' to './test/bar' (errno: -30994)
+drop table foo;
+ERROR 42S02: Unknown table 'foo'
+select * From foo;
+a
+1
+2
+commit;
+drop table foo;

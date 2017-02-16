@@ -1,0 +1,366 @@
+#
+# Date and time columns with indexes
+# (DATE, DATETIME, TIMESTAMP, TIME, YEAR)
+#
+
+--source have_engine.inc
+--source have_default_index.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+
+# Default index as set in define_engine.inc
+
+let $create_definition =
+  d DATE $col_indexed_opts,
+  dt DATETIME $col_opts,
+  ts TIMESTAMP $col_opts,
+  t TIME $col_opts,
+  y YEAR $col_opts,
+  $default_index d (d)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Date and time types or indexes
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 3 # 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+  SET @tm = '2012-04-09 05:27:00';
+
+  INSERT INTO t1 (d,dt,ts,t,y) VALUES
+  ('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:55', '00:12:33', '2000'),
+  ('2012-01-22', '2010-11-22 11:43:14', '2011-11-14 21:45:55', '00:12:32', '2001'),
+  ('2012-03-31', '2011-08-28 21:33:56', '1999-04-30 19:11:08', '12:00:00', '1999'),
+  ('2012-03-13', '2011-08-27 21:33:56', '1999-03-30 19:11:08', '12:10:00', '1998'),
+  ('2011-03-31', '2011-08-28 20:33:56', '1997-01-31 11:54:01', '22:04:10', '1994'),
+  (DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm)); 
+
+  SELECT d FROM t1 ORDER BY d LIMIT 3;
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  d DATE $col_opts,
+  dt DATETIME $col_indexed_opts,
+  ts TIMESTAMP $col_opts,
+  t TIME $col_opts,
+  y YEAR $col_opts,
+  $default_index dt (dt)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Date and time types or indexes
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 3 # 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+  SET @tm = '2012-04-09 05:27:00';
+
+  INSERT INTO t1 (d,dt,ts,t,y) VALUES
+  ('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:55', '00:12:33', '2000'),
+  ('2012-01-12', '2010-11-22 11:43:14', '2011-11-14 21:45:55', '00:12:32', '2001'),
+  ('2012-03-31', '2011-08-28 21:33:56', '1999-04-30 19:11:08', '12:00:00', '1999'),
+  ('2012-03-13', '2011-08-27 21:33:56', '1999-03-30 19:11:08', '12:10:00', '1998'),
+  ('2011-03-31', '2011-08-28 20:33:56', '1997-01-31 11:54:01', '22:04:10', '1994'),
+  (DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm)); 
+
+  SELECT dt FROM t1 ORDER BY dt LIMIT 3;
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  d DATE $col_opts,
+  dt DATETIME $col_opts,
+  ts TIMESTAMP $col_indexed_opts,
+  t TIME $col_opts,
+  y YEAR $col_opts,
+  $default_index ts (ts)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Date and time types or indexes
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 3 # 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+  SET @tm = '2012-04-09 05:27:00';
+
+  INSERT INTO t1 (d,dt,ts,t,y) VALUES
+  ('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:25', '00:12:33', '2000'),
+  ('2012-01-12', '2010-11-22 11:43:14', '2011-11-14 21:45:55', '00:12:32', '2001'),
+  ('2012-03-31', '2011-08-28 21:33:56', '1999-04-30 19:11:08', '12:00:00', '1999'),
+  ('2012-03-13', '2011-08-27 21:33:56', '1999-03-30 19:11:08', '12:10:00', '1998'),
+  ('2011-03-31', '2011-08-28 20:33:56', '1997-01-31 11:54:01', '22:04:10', '1994'),
+  (DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm)); 
+
+  SELECT ts FROM t1 ORDER BY ts LIMIT 3;
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  d DATE $col_opts,
+  dt DATETIME $col_opts,
+  ts TIMESTAMP $col_opts,
+  t TIME $col_indexed_opts,
+  y YEAR $col_opts,
+  $default_index t (t)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Date and time types or indexes
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 3 # 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+  SET @tm = '2012-04-09 05:27:00';
+
+  INSERT INTO t1 (d,dt,ts,t,y) VALUES
+  ('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:25', '00:12:33', '2000'),
+  ('2012-01-12', '2010-11-22 11:43:14', '2011-11-14 21:45:55', '00:12:32', '2001'),
+  ('2012-03-31', '2011-08-28 21:33:56', '1999-04-30 19:11:08', '12:00:00', '1999'),
+  ('2012-03-13', '2011-08-27 21:33:56', '1999-03-30 19:11:08', '12:10:00', '1998'),
+  ('2011-03-31', '2011-08-28 20:33:56', '1997-01-31 11:54:01', '22:04:10', '1994'),
+  (DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm)); 
+
+  SELECT t FROM t1 ORDER BY t LIMIT 3;
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  d DATE $col_opts,
+  dt DATETIME $col_opts,
+  ts TIMESTAMP $col_opts,
+  t TIME $col_opts,
+  y YEAR $col_indexed_opts,
+  $default_index y (y)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Date and time types or indexes
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 3 # 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+  SET @tm = '2012-04-09 05:27:00';
+
+  INSERT INTO t1 (d,dt,ts,t,y) VALUES
+  ('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:25', '00:12:33', '2000'),
+  ('2012-01-12', '2010-11-22 11:43:14', '2011-11-14 21:45:55', '00:12:32', '2001'),
+  ('2012-03-31', '2011-08-28 21:33:56', '1999-04-30 19:11:08', '12:00:00', '1999'),
+  ('2012-03-13', '2011-08-27 21:33:56', '1999-03-30 19:11:08', '12:10:00', '1998'),
+  ('2011-03-31', '2011-08-28 20:33:56', '1997-01-31 11:54:01', '22:04:10', '1994'),
+  (DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm)); 
+
+  SELECT y FROM t1 ORDER BY y LIMIT 3;
+
+  DROP TABLE t1;
+}
+
+
+# PK, UNIQUE INDEX, INDEX
+
+
+let $create_definition =
+  d DATE $col_opts,
+  dt DATETIME $col_indexed_opts PRIMARY KEY,
+  ts TIMESTAMP $col_opts,
+  t TIME $col_opts,
+  y YEAR $col_opts
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Date and time types or PK
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+  SET @tm = '2012-04-09 05:27:00';
+
+  INSERT INTO t1 (d,dt,ts,t,y) VALUES
+  ('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:55', '00:12:33', '2000'),
+  ('2012-01-12', '2010-11-22 11:43:14', '2011-11-14 21:45:55', '00:12:32', '2001'),
+  ('2012-03-31', '2011-08-28 21:33:56', '1999-04-30 19:11:08', '12:00:00', '1999'),
+  ('2012-03-13', '2011-08-27 21:33:56', '1999-03-30 19:11:08', '12:10:00', '1998'),
+  ('2011-03-31', '2011-08-28 20:33:56', '1997-01-31 11:54:01', '22:04:10', '1994'),
+  (DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm)); 
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT dt FROM t1 ORDER BY dt LIMIT 3;
+  SELECT dt FROM t1 ORDER BY dt LIMIT 3;
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT dt FROM t1 FORCE INDEX FOR ORDER BY (PRIMARY) ORDER BY dt LIMIT 3;
+  SELECT dt FROM t1 FORCE INDEX FOR ORDER BY (PRIMARY) ORDER BY dt LIMIT 3;
+
+  --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+  INSERT INTO t1 (d,dt,ts,t,y) VALUES
+  ('2012-01-11', '2010-11-22 12:33:54', '2011-11-14 21:45:55', '00:12:33', '2000');
+  --source check_errors.inc
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  d DATE $col_opts,
+  dt DATETIME $col_opts,
+  ts TIMESTAMP $col_indexed_opts,
+  t TIME $col_opts,
+  y YEAR $col_opts,
+  INDEX (ts)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Date and time types or non-unique keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+  SET @tm = '2012-04-09 05:27:00';
+  
+  INSERT INTO t1 (d,dt,ts,t,y) VALUES
+  ('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:55', '00:12:33', '2000'),
+  ('2012-01-12', '2010-11-22 11:43:14', '2011-11-14 21:45:55', '00:12:32', '2001'),
+  ('2012-03-31', '2011-08-28 21:33:56', '1999-04-30 19:11:08', '12:00:00', '1999'),
+  ('2012-03-13', '2011-08-27 21:33:56', '1999-03-30 19:11:08', '12:10:00', '1998'),
+  ('2011-03-31', '2011-08-28 20:33:56', '1997-01-31 11:54:01', '22:04:10', '1994'),
+  (DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm));
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT ts FROM t1 WHERE ts > NOW();
+  --sorted_result
+  SELECT ts FROM t1 WHERE ts > NOW();
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT ts FROM t1 USE INDEX () WHERE ts > NOW();
+  --sorted_result
+  SELECT ts FROM t1 USE INDEX () WHERE ts > NOW();
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  d DATE $col_indexed_opts,
+  dt DATETIME $col_opts,
+  ts TIMESTAMP $col_opts,
+  t TIME $col_indexed_opts,
+  y YEAR $col_opts,
+  UNIQUE INDEX d_t (d,t)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Date and time types or unique keys or multi-part keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+  SET @tm = '2012-04-09 05:27:00';
+  
+  INSERT INTO t1 (d,dt,ts,t,y) VALUES
+  ('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:55', '00:12:33', '2000'),
+  ('2012-01-12', '2010-11-22 11:43:14', '2011-11-14 21:45:55', '00:12:32', '2001'),
+  ('2012-03-31', '2011-08-28 21:33:56', '1999-04-30 19:11:08', '12:00:00', '1999'),
+  ('2012-03-13', '2011-08-27 21:33:56', '1999-03-30 19:11:08', '12:10:00', '1998'),
+  ('2011-03-31', '2011-08-28 20:33:56', '1997-01-31 11:54:01', '22:04:10', '1994'),
+  (DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm));
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT d, t FROM t1 WHERE CONCAT(d,' ',t) != CURRENT_DATE();
+  --sorted_result
+  SELECT d, t FROM t1 WHERE CONCAT(d,' ',t) != CURRENT_DATE();
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT d, t FROM t1 IGNORE INDEX (d_t) WHERE CONCAT(d,' ',t) != CURRENT_DATE();
+  --sorted_result
+  SELECT d, t FROM t1 IGNORE INDEX (d_t) WHERE CONCAT(d,' ',t) != CURRENT_DATE();
+
+  --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+  INSERT INTO t1 (d,dt,ts,t,y) VALUES
+  ('2012-01-12', '2010-11-22 12:33:53', '2011-11-14 21:45:55', '00:12:33', '2000');
+  --source check_errors.inc
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  d DATE $col_opts,
+  dt DATETIME $col_opts,
+  ts TIMESTAMP $col_opts,
+  t TIME $col_indexed_opts,
+  y YEAR $col_indexed_opts,
+  INDEX (y,t)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Date and time types or non-unique keys or multi-part keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+  SET @tm = '2012-04-09 05:27:00';
+  
+  INSERT INTO t1 (d,dt,ts,t,y) VALUES
+  ('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:55', '00:12:33', '2000'),
+  ('2012-01-12', '2010-11-22 11:43:14', '2011-11-14 21:45:55', '00:12:32', '2001'),
+  ('2012-03-31', '2011-08-28 21:33:56', '1999-04-30 19:11:08', '12:00:00', '1999'),
+  ('2012-03-13', '2011-08-27 21:33:56', '1999-03-30 19:11:08', '12:10:00', '1998'),
+  ('2011-03-31', '2011-08-28 20:33:56', '1997-01-31 11:54:01', '22:04:10', '1994'),
+  (DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm));
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT y, COUNT(*) FROM t1 GROUP BY y;
+  --sorted_result
+  SELECT y, COUNT(*) FROM t1 GROUP BY y;
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT y, COUNT(*) FROM t1 USE INDEX FOR GROUP BY () GROUP BY y;
+  --sorted_result
+  SELECT y, COUNT(*) FROM t1 USE INDEX FOR GROUP BY () GROUP BY y;
+
+  DROP TABLE t1;
+}
+
+--source cleanup_engine.inc
+

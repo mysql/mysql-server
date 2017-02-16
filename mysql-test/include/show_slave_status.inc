@@ -92,6 +92,7 @@ while ($_show_slave_status_items)
   --let $_show_slave_status_name= `SELECT SUBSTRING_INDEX('$_show_slave_status_items', ',', 1)`
   --let $_show_slave_status_items= `SELECT LTRIM(SUBSTRING('$_show_slave_status_items', LENGTH('$_show_slave_status_name') + 2))`
 
+  --replace_regex /\.[\\\/]master/master/
   --let $_show_slave_status_value= query_get_value(SHOW SLAVE STATUS, $_show_slave_status_name, 1)
   --let $_slave_field_result_replace= /[\\]/\// $slave_field_result_replace
   --replace_regex $_slave_field_result_replace

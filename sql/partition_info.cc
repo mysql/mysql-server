@@ -1,4 +1,5 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2015, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +32,7 @@
 #include "ha_partition.h"
 
 
-partition_info *partition_info::get_clone(bool reset /* = false */)
+partition_info *partition_info::get_clone()
 {
   if (!this)
     return 0;
@@ -57,26 +58,6 @@ partition_info *partition_info::get_clone(bool reset /* = false */)
       return NULL;
     }
     memcpy(part_clone, part, sizeof(partition_element));
-
-    /*
-      Mark that RANGE and LIST values needs to be fixed so that we don't
-      use old values. fix_column_value_functions would evaluate the values
-      from Item expression.
-    */
-    if (reset)
-    {
-      clone->defined_max_value = false;
-      List_iterator<part_elem_value> list_it(part_clone->list_val_list);
-      while (part_elem_value *list_value= list_it++)
-      {
-        part_column_list_val *col_val= list_value->col_val_array;
-        for (uint i= 0; i < num_columns; col_val++, i++)
-        {
-          col_val->fixed= 0;
-        }
-      }
-    }
-
     part_clone->subpartitions.empty();
     while ((subpart= (subpart_it++)))
     {
@@ -1357,7 +1338,7 @@ end:
   RETURN VALUES
 */
 
-void partition_info::print_no_partition_found(TABLE *table_arg)
+void partition_info::print_no_partition_found(TABLE *table_arg, myf errflag)
 {
   char buf[100];
   char *buf_ptr= (char*)&buf;
@@ -1371,7 +1352,7 @@ void partition_info::print_no_partition_found(TABLE *table_arg)
                                 SELECT_ACL, &table_list, TRUE))
   {
     my_message(ER_NO_PARTITION_FOR_GIVEN_VALUE,
-               ER(ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT), MYF(0));
+               ER(ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT), errflag);
   }
   else
   {
@@ -1383,11 +1364,11 @@ void partition_info::print_no_partition_found(TABLE *table_arg)
       if (part_expr->null_value)
         buf_ptr= (char*)"NULL";
       else
-        longlong2str(err_value, buf,
+        longlong10_to_str(err_value, buf,
                      part_expr->unsigned_flag ? 10 : -10);
       dbug_tmp_restore_column_map(table_arg->read_set, old_map);
     }
-    my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0), buf_ptr);
+    my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, errflag, buf_ptr);
   }
 }
 
@@ -2115,7 +2096,7 @@ bool partition_info::fix_column_value_functions(THD *thd,
       {
         uchar *val_ptr;
         uint len= field->pack_length();
-        ulong save_sql_mode;
+        ulonglong save_sql_mode;
         bool save_got_warning;
 
         if (!(column_item= get_column_item(column_item,
@@ -2550,30 +2531,6 @@ void partition_info::print_debug(const char *str, uint *value)
     DBUG_PRINT("info", ("parser: %s", str));
   DBUG_VOID_RETURN;
 }
-
-bool has_external_data_or_index_dir(partition_info &pi)
-{
-  List_iterator<partition_element> part_it(pi.partitions);
-  for (partition_element *part= part_it++; part; part= part_it++)
-  {
-    if (part->data_file_name != NULL || part->index_file_name != NULL)
-    {
-      return true;
-    }
-    List_iterator<partition_element> subpart_it(part->subpartitions);
-    for (const partition_element *subpart= subpart_it++;
-         subpart;
-         subpart= subpart_it++)
-    {
-      if (subpart->data_file_name != NULL || subpart->index_file_name != NULL)
-      {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
 #else /* WITH_PARTITION_STORAGE_ENGINE */
  /*
    For builds without partitioning we need to define these functions

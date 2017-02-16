@@ -1,0 +1,70 @@
+# test replicated update rows log events on a table with a primary key.
+
+source include/have_tokudb.inc;
+let $engine=tokudb;
+source include/have_binlog_format_row.inc;
+source include/master-slave.inc;
+
+# initialize
+connection master;
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+connection slave;
+# show variables like 'read_only';
+# show variables like 'tokudb_rpl_%';
+
+# insert some rows
+connection master;
+# select @@binlog_format;
+# select @@autocommit;
+eval create table t (a bigint not null, b bigint not null, c bigint not null, primary key(a), unique key(c)) engine=$engine;
+# show create table t;
+insert into t values (1,0,-1);
+insert into t values (2,0,-2),(3,0,-3);
+insert into t values (4,0,-4);
+
+# wait for the inserts to finish on the slave
+connection master;
+sync_slave_with_master;
+# source include/sync_slave_sql_with_master.inc;
+
+# diff tables
+connection master;
+--let $diff_tables= master:test.t, slave:test.t
+source include/diff_tables.inc;
+
+# delete a row
+connection master;
+update t set b=b+1 where a=2;
+update t set b=b+2 where a=1;
+update t set b=b+3 where a=4;
+update t set b=b+4 where a=3;
+update t set b=b+1 where 1<=a and a<=3;
+select unix_timestamp() into @tstart;
+
+# wait for the delete to finish on the slave
+connection master;
+sync_slave_with_master;
+# source include/sync_slave_sql_with_master.inc;
+connection master;
+select unix_timestamp() into @tend;
+select @tend-@tstart <= 5; # assert no delay in the delete time
+
+connection slave;
+select * from t;
+
+# diff tables
+--let $diff_tables= master:test.t, slave:test.t
+source include/diff_tables.inc;
+
+# cleanup
+connection master;
+drop table if exists t;
+
+sync_slave_with_master;
+# source include/sync_slave_sql_with_master.inc;
+
+source include/rpl_end.inc;
+

@@ -1,4 +1,5 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2014, SkySQL Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,37 +35,11 @@
 
 C_MODE_START
 #include <decimal.h>
+#include <my_decimal_limits.h>
 C_MODE_END
 
 class String;
 typedef struct st_mysql_time MYSQL_TIME;
-
-#define DECIMAL_LONGLONG_DIGITS 22
-#define DECIMAL_LONG_DIGITS 10
-#define DECIMAL_LONG3_DIGITS 8
-
-/** maximum length of buffer in our big digits (uint32). */
-#define DECIMAL_BUFF_LENGTH 9
-
-/* the number of digits that my_decimal can possibly contain */
-#define DECIMAL_MAX_POSSIBLE_PRECISION (DECIMAL_BUFF_LENGTH * 9)
-
-
-/**
-  maximum guaranteed precision of number in decimal digits (number of our
-  digits * number of decimal digits in one our big digit - number of decimal
-  digits in one our big digit decreased by 1 (because we always put decimal
-  point on the border of our big digits))
-*/
-#define DECIMAL_MAX_PRECISION (DECIMAL_MAX_POSSIBLE_PRECISION - 8*2)
-#define DECIMAL_MAX_SCALE 30
-#define DECIMAL_NOT_SPECIFIED 31
-
-/**
-  maximum length of string representation (number of maximum decimal
-  digits + 1 position for sign + 1 position for decimal point, no terminator)
-*/
-#define DECIMAL_MAX_STR_LENGTH (DECIMAL_MAX_POSSIBLE_PRECISION + 2)
 
 /**
   maximum size of packet length.
@@ -119,21 +94,13 @@ public:
 
   my_decimal(const my_decimal &rhs) : decimal_t(rhs)
   {
-#if !defined(DBUG_OFF)
-    foo1= test_value;
-    foo2= test_value;
-#endif
+    init();
     for (uint i= 0; i < DECIMAL_BUFF_LENGTH; i++)
       buffer[i]= rhs.buffer[i];
-    fix_buffer_pointer();
   }
 
   my_decimal& operator=(const my_decimal &rhs)
   {
-#if !defined(DBUG_OFF)
-    foo1= test_value;
-    foo2= test_value;
-#endif
     if (this == &rhs)
       return *this;
     decimal_t::operator=(rhs);
@@ -151,6 +118,7 @@ public:
 #endif
     len= DECIMAL_BUFF_LENGTH;
     buf= buffer;
+    TRASH_ALLOC(buffer, sizeof(buffer));
   }
 
   my_decimal()
@@ -197,9 +165,10 @@ bool str_set_decimal(uint mask, const my_decimal *val, uint fixed_prec,
 extern my_decimal decimal_zero;
 
 #ifndef MYSQL_CLIENT
-int decimal_operation_results(int result);
+int decimal_operation_results(int result, const char *value, const char *type);
 #else
-inline int decimal_operation_results(int result)
+inline int decimal_operation_results(int result, const char *value,
+                                     const char *type)
 {
   return result;
 }
@@ -221,7 +190,7 @@ inline void max_internal_decimal(my_decimal *to)
 inline int check_result(uint mask, int result)
 {
   if (result & mask)
-    decimal_operation_results(result);
+    decimal_operation_results(result, "", "DECIMAL");
   return result;
 }
 
@@ -369,21 +338,16 @@ int my_decimal2string(uint mask, const my_decimal *d, uint fixed_prec,
 		      uint fixed_dec, char filler, String *str);
 #endif
 
-inline
-int my_decimal2int(uint mask, const my_decimal *d, my_bool unsigned_flag,
-		   longlong *l)
-{
-  my_decimal rounded;
-  /* decimal_round can return only E_DEC_TRUNCATED */
-  decimal_round(d, &rounded, 0, HALF_UP);
-  return check_result(mask, (unsigned_flag ?
-			     decimal2ulonglong(&rounded, (ulonglong *)l) :
-			     decimal2longlong(&rounded, l)));
-}
+bool my_decimal2seconds(const my_decimal *d, ulonglong *sec, ulong *microsec);
 
+my_decimal *seconds2my_decimal(bool sign, ulonglong sec, ulong microsec,
+                               my_decimal *d);
+
+int my_decimal2int(uint mask, const decimal_t *d, bool unsigned_flag,
+		   longlong *l);
 
 inline
-int my_decimal2double(uint, const my_decimal *d, double *result)
+int my_decimal2double(uint, const decimal_t *d, double *result)
 {
   /* No need to call check_result as this will always succeed */
   return decimal2double(d, result);
@@ -426,6 +390,16 @@ int int2my_decimal(uint mask, longlong i, my_bool unsigned_flag, my_decimal *d)
   return check_result(mask, (unsigned_flag ?
 			     ulonglong2decimal((ulonglong)i, d) :
 			     longlong2decimal(i, d)));
+}
+
+inline
+void decimal2my_decimal(decimal_t *from, my_decimal *to)
+{
+  DBUG_ASSERT(to->len >= from->len);
+  to->intg= from->intg;
+  to->frac= from->frac;
+  to->sign(from->sign);
+  memcpy(to->buf, from->buf, to->len*sizeof(decimal_digit_t));
 }
 
 
@@ -489,7 +463,6 @@ int my_decimal_mod(uint mask, my_decimal *res, const my_decimal *a,
                                    decimal_mod(a, b, res),
                                    res);
 }
-
 
 /**
   @return

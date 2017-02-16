@@ -33,7 +33,7 @@ Created July 18, 2007 Vasil Dimov
 #include <my_sys.h>
 #include "i_s.h"
 #include <sql_plugin.h>
-#include <mysql/innodb_priv.h>
+#include <innodb_priv.h>
 
 extern "C" {
 #include "btr0types.h"
@@ -157,8 +157,12 @@ do {									\
 	}								\
 } while (0)
 
-#if !defined __STRICT_ANSI__ && defined __GNUC__ && (__GNUC__) > 2 && !defined __INTEL_COMPILER
+#if !defined __STRICT_ANSI__ && defined __GNUC__ && (__GNUC__) > 2 && !defined __INTEL_COMPILER && !defined __clang__
+#ifdef HAVE_C99_INITIALIZERS
+#define STRUCT_FLD(name, value)	.name = value
+#else
 #define STRUCT_FLD(name, value)	name: value
+#endif /* HAVE_C99_INITIALIZERS */
 #else
 #define STRUCT_FLD(name, value)	value
 #endif
@@ -249,7 +253,7 @@ field_store_time_t(
 	my_time.time_type = MYSQL_TIMESTAMP_DATETIME;
 #endif
 
-	return(field->store_time(&my_time, MYSQL_TIMESTAMP_DATETIME));
+	return(field->store_time(&my_time));
 }
 
 /*******************************************************************//**

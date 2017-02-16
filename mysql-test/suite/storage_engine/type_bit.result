@@ -1,0 +1,47 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a BIT <CUSTOM_COL_OPTIONS>,
+b BIT(20) <CUSTOM_COL_OPTIONS>,
+c BIT(64) <CUSTOM_COL_OPTIONS>,
+d BIT(1) <CUSTOM_COL_OPTIONS>
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW COLUMNS IN t1;
+Field	Type	Null	Key	Default	Extra
+a	bit(1)	#	#	#	
+b	bit(20)	#	#	#	
+c	bit(64)	#	#	#	
+d	bit(1)	#	#	#	
+ALTER TABLE t1 DROP COLUMN d;
+ALTER TABLE t1 ADD COLUMN d BIT(0) <CUSTOM_COL_OPTIONS>;
+SHOW COLUMNS IN t1;
+Field	Type	Null	Key	Default	Extra
+a	bit(1)	#	#	#	
+b	bit(20)	#	#	#	
+c	bit(64)	#	#	#	
+d	bit(1)	#	#	#	
+INSERT INTO t1 (a,b,c,d) VALUES (0,POW(2,20)-1,b'1111111111111111111111111111111111111111111111111111111111111111',1);
+SELECT BIN(a), HEX(b), c+0 FROM t1 WHERE d>0;
+BIN(a)	HEX(b)	c+0
+0	FFFFF	18446744073709551615
+INSERT INTO t1 (a,b,c,d) VALUES (1,0,-1,0);
+SELECT a+0, b+0, c+0 FROM t1 WHERE d<100;
+a+0	b+0	c+0
+0	1048575	18446744073709551615
+1	0	18446744073709551615
+INSERT INTO t1 (a,b,c,d) VALUES (b'1', 'f', 0xFF, 0x0);
+SELECT a+0, b+0, c+0 FROM t1 WHERE d IN (0, 2);
+a+0	b+0	c+0
+1	0	18446744073709551615
+1	102	255
+INSERT INTO t1 (a,b,c,d) VALUES (0x10,0,0,1);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+SELECT a,b,c,d FROM t1;
+a	b	c	d
+INSERT INTO t1 (a,b,c,d) VALUES (0x01,0,0x10000000000000000,0);
+Warnings:
+Warning	1264	Out of range value for column 'c' at row 1
+SELECT a,b,c,d FROM t1;
+a	b	c	d
+DROP TABLE t1;
+CREATE TABLE t1 (a BIT(65) <CUSTOM_COL_OPTIONS>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ERROR 42000: Display width out of range for 'a' (max = 64)

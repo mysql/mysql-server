@@ -31,8 +31,7 @@ unsigned long mysql_global_audit_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
 
 static mysql_mutex_t LOCK_audit_mask;
 
-static void event_class_dispatch(THD *thd, unsigned int event_class,
-                                 const void *event);
+static void event_class_dispatch(THD *, unsigned int, const void *);
 
 
 static inline
@@ -83,10 +82,9 @@ static void general_class_handler(THD *thd, uint event_subtype, va_list ap)
   event.general_query_length= va_arg(ap, unsigned int);
   event.general_charset= va_arg(ap, struct charset_info_st *);
   event.general_rows= (unsigned long long) va_arg(ap, ha_rows);
-  event.general_sql_command= va_arg(ap, MYSQL_LEX_STRING);
-  event.general_host= va_arg(ap, MYSQL_LEX_STRING);
-  event.general_external_user= va_arg(ap, MYSQL_LEX_STRING);
-  event.general_ip= va_arg(ap, MYSQL_LEX_STRING);
+  event.database= va_arg(ap, const char *);
+  event.database_length= va_arg(ap, unsigned int);
+  event.query_id= (unsigned long long) (thd ? thd->query_id : 0);
   event_class_dispatch(thd, MYSQL_AUDIT_GENERAL_CLASS, &event);
 }
 
@@ -115,9 +113,37 @@ static void connection_class_handler(THD *thd, uint event_subclass, va_list ap)
 }
 
 
+static void table_class_handler(THD *thd, uint event_subclass, va_list ap)
+{
+  mysql_event_table event;
+  event.event_subclass= event_subclass;
+  event.read_only= va_arg(ap, int);
+  event.thread_id= va_arg(ap, unsigned long);
+  event.user= va_arg(ap, const char *);
+  event.priv_user= va_arg(ap, const char *);
+  event.priv_host= va_arg(ap, const char *);
+  event.external_user= va_arg(ap, const char *);
+  event.proxy_user= va_arg(ap, const char *);
+  event.host= va_arg(ap, const char *);
+  event.ip= va_arg(ap, const char *);
+  event.database= va_arg(ap, const char *);
+  event.database_length= va_arg(ap, unsigned int);
+  event.table= va_arg(ap, const char *);
+  event.table_length= va_arg(ap, unsigned int);
+  event.new_database= va_arg(ap, const char *);
+  event.new_database_length= va_arg(ap, unsigned int);
+  event.new_table= va_arg(ap, const char *);
+  event.new_table_length= va_arg(ap, unsigned int);
+  event.query_id= (unsigned long long) (thd ? thd->query_id : 0);
+  event_class_dispatch(thd, MYSQL_AUDIT_TABLE_CLASS, &event);
+}
+
+
 static audit_handler_t audit_handlers[] =
 {
-  general_class_handler, connection_class_handler
+  general_class_handler, connection_class_handler,
+  0,0,0,0,0,0,0,0,0,0,0,0,0, /* placeholders */
+  table_class_handler
 };
 
 static const uint audit_handlers_count=
@@ -136,11 +162,8 @@ static const uint audit_handlers_count=
 
 static my_bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
 {
-  uint event_class= *(uint*) arg;
-  unsigned long event_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
+  ulong *event_class_mask= (ulong*) arg;
   st_mysql_audit *data= plugin_data(plugin, struct st_mysql_audit *);
-
-  set_audit_mask(event_class_mask, event_class);
 
   /* Check if this plugin is interested in the event */
   if (check_audit_mask(data->class_mask, event_class_mask))
@@ -164,7 +187,7 @@ static my_bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
   }
   
   /* lock the plugin and add it to the list */
-  plugin= my_plugin_lock(NULL, &plugin);
+  plugin= my_plugin_lock(NULL, plugin);
   insert_dynamic(&thd->audit_class_plugins, (uchar*) &plugin);
 
   return 0;
@@ -180,15 +203,13 @@ static my_bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
   @details Ensure that audit plugins interested in given event
   class are locked by current thread.
 */
-void mysql_audit_acquire_plugins(THD *thd, uint event_class)
+void mysql_audit_acquire_plugins(THD *thd, ulong *event_class_mask)
 {
-  unsigned long event_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
   DBUG_ENTER("mysql_audit_acquire_plugins");
-  set_audit_mask(event_class_mask, event_class);
   if (thd && !check_audit_mask(mysql_global_audit_mask, event_class_mask) &&
       check_audit_mask(thd->audit_class_mask, event_class_mask))
   {
-    plugin_foreach(thd, acquire_plugins, MYSQL_AUDIT_PLUGIN, &event_class);
+    plugin_foreach(thd, acquire_plugins, MYSQL_AUDIT_PLUGIN, event_class_mask);
     add_audit_mask(thd->audit_class_mask, event_class_mask);
   }
   DBUG_VOID_RETURN;
@@ -210,7 +231,9 @@ void mysql_audit_notify(THD *thd, uint event_class, uint event_subtype, ...)
   va_list ap;
   audit_handler_t *handlers= audit_handlers + event_class;
   DBUG_ASSERT(event_class < audit_handlers_count);
-  mysql_audit_acquire_plugins(thd, event_class);
+  unsigned long event_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
+  set_audit_mask(event_class_mask, event_class);
+  mysql_audit_acquire_plugins(thd, event_class_mask);
   va_start(ap, event_subtype);  
   (*handlers)(thd, event_subtype, ap);
   va_end(ap);
@@ -368,6 +391,34 @@ int initialize_audit_plugin(st_plugin_int *plugin)
   add_audit_mask(mysql_global_audit_mask, data->class_mask);
   mysql_mutex_unlock(&LOCK_audit_mask);
 
+  /*
+    Pre-acquire the newly inslalled audit plugin for events that
+    may potentially occur further during INSTALL PLUGIN.
+
+    When audit event is triggered, audit subsystem acquires interested
+    plugins by walking through plugin list. Evidently plugin list
+    iterator protects plugin list by acquiring LOCK_plugin, see
+    plugin_foreach_with_mask().
+
+    On the other hand [UN]INSTALL PLUGIN is acquiring LOCK_plugin
+    rather for a long time.
+
+    When audit event is triggered during [UN]INSTALL PLUGIN, plugin
+    list iterator acquires the same lock (within the same thread)
+    second time.
+
+    This hack should be removed when LOCK_plugin is fixed so it
+    protects only what it supposed to protect.
+
+    See also mysql_install_plugin() and mysql_uninstall_plugin()
+  */
+  THD *thd= current_thd;
+  if (thd)
+  {
+    acquire_plugins(thd, plugin_int_to_ref(plugin), data->class_mask);
+    add_audit_mask(thd->audit_class_mask, data->class_mask);
+  }
+
   return 0;
 }
 
@@ -498,7 +549,7 @@ static void event_class_dispatch(THD *thd, unsigned int event_class,
 #else /* EMBEDDED_LIBRARY */
 
 
-void mysql_audit_acquire_plugins(THD *thd, uint event_class)
+void mysql_audit_acquire_plugins(THD *thd, ulong *event_class_mask)
 {
 }
 

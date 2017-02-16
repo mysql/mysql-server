@@ -1,4 +1,5 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -114,6 +115,8 @@ int mysql_open_cursor(THD *thd, select_result *result,
                          &thd->security_ctx->priv_user[0],
                          (char *) thd->security_ctx->host_or_ip,
                          2);
+  /* Mark that we can't use query cache with cursors */
+  thd->query_cache_is_applicable= 0;
   rc= mysql_execute_command(thd);
   MYSQL_QUERY_EXEC_DONE(rc);
 
@@ -281,7 +284,7 @@ int Materialized_cursor::open(JOIN *join __attribute__((unused)))
   /* Create a list of fields and start sequential scan. */
 
   rc= result->prepare(item_list, &fake_unit);
-  rc= !rc && table->file->ha_rnd_init(TRUE);
+  rc= !rc && table->file->ha_rnd_init_with_error(TRUE);
   is_rnd_inited= !rc;
 
   thd->restore_active_arena(this, &backup_arena);
@@ -322,14 +325,14 @@ void Materialized_cursor::fetch(ulong num_rows)
   result->begin_dataset();
   for (fetch_limit+= num_rows; fetch_count < fetch_limit; fetch_count++)
   {
-    if ((res= table->file->rnd_next(table->record[0])))
+    if ((res= table->file->ha_rnd_next(table->record[0])))
       break;
     /* Send data only if the read was successful. */
     /*
       If network write failed (i.e. due to a closed socked),
       the error has already been set. Just return.
     */
-    if (result->send_data(item_list))
+    if (result->send_data(item_list) > 0)
       return;
   }
 
@@ -384,7 +387,9 @@ bool Select_materialize::send_result_set_metadata(List<Item> &list, uint flags)
 {
   DBUG_ASSERT(table == 0);
   if (create_result_table(unit->thd, unit->get_unit_column_types(),
-                          FALSE, thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS, ""))
+                          FALSE,
+                          thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
+                          "", FALSE, TRUE, TRUE))
     return TRUE;
 
   materialized_cursor= new (&table->mem_root)

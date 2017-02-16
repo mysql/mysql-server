@@ -1,0 +1,1 @@
+--read-only=ON --tokudb-rpl-unique-checks-delay=10000 --tokudb-rpl-unique-checks=OFF --tokudb-rpl-lookup-rows-delay=10000 --tokudb-rpl-lookup-rows=OFF

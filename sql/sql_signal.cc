@@ -22,10 +22,11 @@
 /*
   The parser accepts any error code (desired)
   The runtime internally supports any error code (desired)
-  The client server protocol is limited to 16 bits error codes (restriction)
-  Enforcing the 65535 limit in the runtime until the protocol can change.
+  The client server protocol is limited to 16 bits error codes (restriction),
+  and the value of 65535 is reserved for progress reporting.
+  Enforcing the 65534 limit in the runtime until the protocol can change.
 */
-#define MAX_MYSQL_ERRNO UINT_MAX16
+#define MAX_MYSQL_ERRNO 65534
 
 const LEX_STRING Diag_condition_item_names[]=
 {

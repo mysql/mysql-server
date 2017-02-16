@@ -1,4 +1,4 @@
--- source include/have_innodb.inc
+--source include/have_innodb.inc
 # embedded server ignores 'delayed', so skip this
 -- source include/not_embedded.inc
 

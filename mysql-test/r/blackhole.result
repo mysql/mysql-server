@@ -8,4 +8,11 @@ CREATE TABLE t2 (a INT UNSIGNED, b INT, UNIQUE KEY (a, b)) ENGINE=BLACKHOLE;
 SELECT 1 FROM t1 WHERE a = ANY (SELECT a FROM t2);
 1
 DROP TABLE t1, t2;
+create temporary table t1 (a int) engine=blackhole;
+lock table t1 write;
+truncate table t1;
+select * from t1;
+a
+unlock tables;
+drop temporary table t1;
 End of 5.5 tests 

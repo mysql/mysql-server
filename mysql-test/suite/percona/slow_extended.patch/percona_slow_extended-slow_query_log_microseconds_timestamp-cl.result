@@ -1,0 +1,3 @@
+show global variables like 'slow_query_log_timestamp_precision';
+Variable_name	Value
+slow_query_log_timestamp_precision	microsecond

@@ -1,0 +1,45 @@
+SET @start_global_value = @@global.deadlock_search_depth_short;
+select @@global.deadlock_search_depth_short;
+@@global.deadlock_search_depth_short
+4
+select @@session.deadlock_search_depth_short;
+@@session.deadlock_search_depth_short
+4
+show global variables like 'deadlock_search_depth_short';
+Variable_name	Value
+deadlock_search_depth_short	4
+show session variables like 'deadlock_search_depth_short';
+Variable_name	Value
+deadlock_search_depth_short	4
+select * from information_schema.global_variables where variable_name='deadlock_search_depth_short';
+VARIABLE_NAME	VARIABLE_VALUE
+DEADLOCK_SEARCH_DEPTH_SHORT	4
+select * from information_schema.session_variables where variable_name='deadlock_search_depth_short';
+VARIABLE_NAME	VARIABLE_VALUE
+DEADLOCK_SEARCH_DEPTH_SHORT	4
+set global deadlock_search_depth_short=10;
+select @@global.deadlock_search_depth_short;
+@@global.deadlock_search_depth_short
+10
+set session deadlock_search_depth_short=10;
+select @@session.deadlock_search_depth_short;
+@@session.deadlock_search_depth_short
+10
+set global deadlock_search_depth_short=1.1;
+ERROR 42000: Incorrect argument type to variable 'deadlock_search_depth_short'
+set session deadlock_search_depth_short=1e1;
+ERROR 42000: Incorrect argument type to variable 'deadlock_search_depth_short'
+set global deadlock_search_depth_short="foo";
+ERROR 42000: Incorrect argument type to variable 'deadlock_search_depth_short'
+set global deadlock_search_depth_short=0;
+select @@global.deadlock_search_depth_short;
+@@global.deadlock_search_depth_short
+0
+set session deadlock_search_depth_short=cast(-1 as unsigned int);
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1292	Truncated incorrect deadlock_search_depth_short value: '18446744073709551615'
+select @@session.deadlock_search_depth_short;
+@@session.deadlock_search_depth_short
+32
+SET @@global.deadlock_search_depth_short = @start_global_value;

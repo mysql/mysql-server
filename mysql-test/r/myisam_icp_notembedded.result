@@ -1,0 +1,19 @@
+drop table if exists t1,t2;
+set @myisam_icp_notembedded_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+#
+# BUG#933412: Server crashes in _mi_put_key_in_record on KILL QUERY with ICP, STRAIGHT_JOIN 
+#
+CREATE TABLE t1 (
+b INT,
+c VARCHAR(1) NOT NULL,
+d DATETIME,
+KEY (c, b)
+) ENGINE=MyISAM;
+# INSERT some data
+CREATE TABLE t2 ( a INT ) ENGINE=MyISAM;
+INSERT INTO t2 VALUES
+(7),(3),(7),(3);
+# Now run a number of ICP queries while trying to kill them
+DROP TABLE t1,t2;
+set optimizer_switch=@myisam_icp_notembedded_tmp;

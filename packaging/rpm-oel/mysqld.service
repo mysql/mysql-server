@@ -34,7 +34,7 @@ PermissionsStartOnly=true
 ExecStartPre=/usr/bin/mysql-systemd-start pre
 
 # Start main service
-ExecStart=/usr/bin/mysqld_safe --basedir=/usr
+ExecStart=/usr/bin/mysqld_safe
 
 # Don't signal startup success before a ping works
 ExecStartPost=/usr/bin/mysql-systemd-start post

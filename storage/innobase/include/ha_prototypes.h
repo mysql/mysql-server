@@ -326,5 +326,28 @@ innobase_convert_to_filename_charset(
 	const char*     from,   /* in: identifier to convert */
 	ulint           len);   /* in: length of 'to', in bytes */
 
+/********************************************************************//**
+Helper function to push warnings from InnoDB internals to SQL-layer. */
+UNIV_INTERN
+void
+ib_push_warning(
+	trx_t*		trx,	/*!< in: trx */
+	ulint		error,	/*!< in: error code to push as warning */
+	const char	*format,/*!< in: warning message */
+	...);
+
+/*****************************************************************//**
+Normalizes a table name string. A normalized name consists of the
+database name catenated to '/' and table name. An example:
+test/mytable. On Windows normalization puts both the database name and the
+table name always to lower case if "set_lower_case" is set to TRUE. */
+void
+normalize_table_name_low(
+/*=====================*/
+	char*		norm_name,	/*!< out: normalized name as a
+					null-terminated string */
+	const char*	name,		/*!< in: table name string */
+	ibool		set_lower_case); /*!< in: TRUE if we want to set
+					name to lower case */
 
 #endif

@@ -1,0 +1,108 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a ENUM('N.America','S.America','Africa','Europe','Australia','Asia','Antarctica') <CUSTOM_COL_OPTIONS>,
+b ENUM('test1','test2','test3','test4','test5') <CUSTOM_COL_OPTIONS>,
+c ENUM('1a','1b','1d','1j','4a','4z','5a','5b','6v','6z') <CUSTOM_COL_OPTIONS>,
+<CUSTOM_INDEX> a (a)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b,c) VALUES
+('N.America','test1','5a'),('Europe','test1','5b'),('Europe','test2','6v'),
+('Africa','test3','4z'),('Africa','test4','1j'),('Antarctica','test4','1d');
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	#	1	a	#	#	NULL	NULL	#	#		
+SELECT a FROM t1 WHERE b > 'test2' ORDER BY a;
+a
+Africa
+Africa
+Antarctica
+DROP TABLE t1;
+CREATE TABLE t1 (a ENUM('N.America','S.America','Africa','Europe','Australia','Asia','Antarctica') <CUSTOM_COL_OPTIONS>,
+b ENUM('test1','test2','test3','test4','test5') <CUSTOM_COL_OPTIONS>,
+c ENUM('1a','1b','1d','1j','4a','4z','5a','5b','6v','6z') <CUSTOM_COL_OPTIONS>,
+UNIQUE KEY a_b (a,b)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b,c) VALUES
+('N.America','test1','5a'),('Europe','test1','5b'),('Europe','test2','6v'),
+('Africa','test3','4z'),('Africa','test4','1j'),('Antarctica','test4','1d');
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	a_b	1	a	#	#	NULL	NULL	#	#		
+t1	0	a_b	2	b	#	#	NULL	NULL	#	#		
+EXPLAIN SELECT a FROM t1 WHERE b > 'test2' ORDER BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	a_b	#	#	#	#
+SELECT a FROM t1 WHERE b > 'test2' ORDER BY a;
+a
+Africa
+Africa
+Antarctica
+EXPLAIN SELECT a FROM t1 FORCE INDEX (a_b) WHERE b > 'test2' ORDER BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	a_b	#	#	#	#
+SELECT a FROM t1 FORCE INDEX (a_b) WHERE b > 'test2' ORDER BY a;
+a
+Africa
+Africa
+Antarctica
+DROP TABLE t1;
+CREATE TABLE t1 (a ENUM('N.America','S.America','Africa','Europe','Australia','Asia','Antarctica') <CUSTOM_COL_OPTIONS>,
+b ENUM('test1','test2','test3','test4','test5') <CUSTOM_COL_OPTIONS>,
+c ENUM('1a','1b','1d','1j','4a','4z','5a','5b','6v','6z') <CUSTOM_COL_OPTIONS> PRIMARY KEY
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b,c) VALUES
+('N.America','test1','5a'),('Europe','test1','5b'),('Europe','test2','6v'),
+('Africa','test3','4z'),('Africa','test4','1j'),('Antarctica','test4','1d');
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	c	#	#	NULL	NULL	#	#		
+EXPLAIN SELECT c FROM t1 WHERE c BETWEEN '1d' AND '6u';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	PRIMARY	#	#	#	#
+SELECT c FROM t1 WHERE c BETWEEN '1d' AND '6u';
+c
+1d
+1j
+4z
+5a
+5b
+EXPLAIN SELECT c FROM t1 USE INDEX () WHERE c BETWEEN '1d' AND '6u';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	NULL	#	#	#	#
+SELECT c FROM t1 USE INDEX () WHERE c BETWEEN '1d' AND '6u';
+c
+1d
+1j
+4z
+5a
+5b
+DROP TABLE t1;
+CREATE TABLE t1 (a ENUM('N.America','S.America','Africa','Europe','Australia','Asia','Antarctica') <CUSTOM_COL_OPTIONS>,
+b ENUM('test1','test2','test3','test4','test5') <CUSTOM_COL_OPTIONS>,
+c ENUM('1a','1b','1d','1j','4a','4z','5a','5b','6v','6z') <CUSTOM_COL_OPTIONS>,
+INDEX(b)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b,c) VALUES
+('N.America','test1','5a'),('Europe','test1','5b'),('Europe','test2','6v'),
+('Africa','test3','4z'),('Africa','test4','1j'),('Antarctica','test4','1d');
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	b	1	b	#	#	NULL	NULL	#	#		
+EXPLAIN SELECT DISTINCT b FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	b	#	#	#	#
+SELECT DISTINCT b FROM t1;
+b
+test1
+test2
+test3
+test4
+EXPLAIN SELECT DISTINCT b FROM t1 IGNORE INDEX (b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	NULL	#	#	#	#
+SELECT DISTINCT b FROM t1 IGNORE INDEX (b);
+b
+test1
+test2
+test3
+test4
+DROP TABLE t1;

@@ -1,0 +1,34 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+set tokudb_disable_slow_alter=ON;
+CREATE TABLE `foo` (
+`guid` bigint(20) unsigned NOT NULL,
+`name` varchar(63) NOT NULL,
+`username` varchar(128) DEFAULT NULL,
+`password` varchar(32) DEFAULT NULL,
+`salt` varchar(8) DEFAULT NULL,
+`email` varchar(256) DEFAULT NULL,
+`language` varchar(6) DEFAULT NULL,
+`latitude` int(11) DEFAULT NULL,
+`longitude` int(11) DEFAULT NULL,
+`website` varchar(256) DEFAULT NULL,
+`code` varchar(32) DEFAULT NULL,
+`banned` enum('yes','no') NOT NULL DEFAULT 'no',
+`admin` enum('yes','no') NOT NULL DEFAULT 'no',
+`last_action` int(11) NOT NULL DEFAULT '0',
+`prev_last_action` int(11) NOT NULL DEFAULT '0',
+`last_login` int(11) NOT NULL DEFAULT '0',
+`prev_last_login` int(11) NOT NULL DEFAULT '0',
+PRIMARY KEY (`guid`),
+UNIQUE KEY `username` (`username`),
+KEY `password` (`password`),
+KEY `email` (`email`(50)),
+KEY `code` (`code`),
+KEY `last_action` (`last_action`),
+KEY `last_login` (`last_login`),
+KEY `admin` (`admin`)
+) ENGINE=TokuDB DEFAULT CHARSET=utf8;
+ALTER TABLE `foo` ADD `gender` TINYINT NULL AFTER `website` ,
+ADD `influence` INT NOT NULL DEFAULT '0' AFTER `gender` ,
+ADD `virality` INT NOT NULL DEFAULT '0' AFTER `influence`;
+DROP TABLE foo;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2013, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,6 +45,8 @@
 #undef __WIN__
 #undef __WIN32__
 #define HAVE_ERRNO_AS_DEFINE
+#define _POSIX_MONOTONIC_CLOCK
+#define _POSIX_THREAD_CPUTIME
 #endif /* __CYGWIN__ */
 
 /* to make command line shorter we'll define USE_PRAGMA_INTERFACE here */
@@ -87,10 +89,10 @@
 #define IF_WIN(A,B) B
 #endif
 
-#ifdef HAVE_purify
-#define IF_PURIFY(A,B) A
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+#define IF_PARTITIONING(A,B) A
 #else
-#define IF_PURIFY(A,B) B
+#define IF_PARTITIONING(A,B) B
 #endif
 
 #ifndef EMBEDDED_LIBRARY
@@ -196,8 +198,14 @@
 #define __builtin_expect(x, expected_value) (x)
 #endif
 
-#define likely(x)	__builtin_expect((x),1)
-#define unlikely(x)	__builtin_expect((x),0)
+/**
+  The semantics of builtin_expect() are that
+  1) its two arguments are long
+  2) it's likely that they are ==
+  Those of our likely(x) are that x can be bool/int/longlong/pointer.
+*/
+#define likely(x)	__builtin_expect(((x) != 0),1)
+#define unlikely(x)	__builtin_expect(((x) != 0),0)
 
 /* Fix problem with S_ISLNK() on Linux */
 #if defined(TARGET_OS_LINUX) || defined(__GLIBC__)
@@ -211,11 +219,6 @@
 */
 #if defined(HAVE_SYS_TYPES_H) && ( defined(sun) || defined(__sun) )
 #include <sys/types.h>
-#endif
-
-#ifdef HAVE_THREADS_WITHOUT_SOCKETS
-/* MIT pthreads does not work with unix sockets */
-#undef HAVE_SYS_UN_H
 #endif
 
 #define __EXTENSIONS__ 1	/* We want some extension */
@@ -286,21 +289,9 @@ C_MODE_END
 #define ulonglong2double(A) my_ulonglong2double(A)
 #define my_off_t2double(A)  my_ulonglong2double(A)
 C_MODE_START
-inline double my_ulonglong2double(unsigned long long A) { return (double A); }
+inline double my_ulonglong2double(unsigned long long A) { return (double)A; }
 C_MODE_END
 #endif /* _AIX */
-
-#ifdef HAVE_BROKEN_SNPRINTF	/* HPUX 10.20 don't have this defined */
-#undef HAVE_SNPRINTF
-#endif
-#ifdef HAVE_BROKEN_PREAD
-/*
-  pread()/pwrite() are not 64 bit safe on HP-UX 11.0 without
-  installing the kernel patch PHKL_20349 or greater
-*/
-#undef HAVE_PREAD
-#undef HAVE_PWRITE
-#endif
 
 #ifdef UNDEF_HAVE_INITGROUPS			/* For AIX 4.3 */
 #undef HAVE_INITGROUPS
@@ -347,8 +338,8 @@ C_MODE_END
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#ifdef HAVE_SYS_TIMEB_H
-#include <sys/timeb.h>				/* Avoid warnings on SCO */
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
 #endif
 #if TIME_WITH_SYS_TIME
 # include <sys/time.h>
@@ -385,7 +376,7 @@ C_MODE_END
 #include <assert.h>
 
 /* an assert that works at compile-time. only for constant expression */
-#ifndef __GNUC__
+#ifdef _some_old_compiler_that_does_not_understand_the_construct_below_
 #define compile_time_assert(X)  do { } while(0)
 #else
 #define compile_time_assert(X)                                  \
@@ -430,6 +421,10 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #define SIGNAL_HANDLER_RESET_ON_DELIVERY
 #endif
 
+#ifndef STDERR_FILENO
+#define STDERR_FILENO fileno(stderr)
+#endif
+
 /*
   Deprecated workaround for false-positive uninitialized variables
   warnings. Those should be silenced using tool-specific heuristics.
@@ -446,8 +441,6 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #ifndef SO_EXT
 #ifdef _WIN32
 #define SO_EXT ".dll"
-#elif defined(__APPLE__)
-#define SO_EXT ".dylib"
 #else
 #define SO_EXT ".so"
 #endif
@@ -476,8 +469,10 @@ typedef unsigned short ushort;
 
 #define swap_variables(t, a, b) { t dummy; dummy= a; a= b; b= dummy; }
 #define test(a)		((a) ? 1 : 0)
+#define MY_TEST(a) ((a) ? 1 : 0)
 #define set_if_bigger(a,b)  do { if ((a) < (b)) (a)=(b); } while(0)
 #define set_if_smaller(a,b) do { if ((a) > (b)) (a)=(b); } while(0)
+#define set_bits(type, bit_count) (sizeof(type)*8 <= (bit_count) ? ~(type) 0 : ((((type) 1) << (bit_count)) - (type) 1))
 #define test_all_bits(a,b) (((a) & (b)) == (b))
 #define array_elements(A) ((uint) (sizeof(A)/sizeof(A[0])))
 
@@ -511,6 +506,10 @@ C_MODE_END
 #  ifdef DBUG_ON
 #    undef DBUG_ON
 #  endif
+#endif
+
+#ifdef DBUG_OFF
+#undef EXTRA_DEBUG
 #endif
 
 /* Some types that is different between systems */
@@ -669,14 +668,13 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define MALLOC_OVERHEAD 8
 
 	/* get memory in huncs */
-#define ONCE_ALLOC_INIT		(uint) (4096-MALLOC_OVERHEAD)
-	/* Typical record cash */
-#define RECORD_CACHE_SIZE	(uint) (64*1024-MALLOC_OVERHEAD)
-	/* Typical key cash */
-#define KEY_CACHE_SIZE		(uint) (8*1024*1024)
+#define ONCE_ALLOC_INIT		(uint) 4096
+	/* Typical record cache */
+#define RECORD_CACHE_SIZE	(uint) (128*1024)
+	/* Typical key cache */
+#define KEY_CACHE_SIZE		(uint) (128L*1024L*1024L)
 	/* Default size of a key cache block  */
 #define KEY_CACHE_BLOCK_SIZE	(uint) 1024
-
 
 	/* Some things that this system doesn't have */
 
@@ -735,10 +733,10 @@ inline unsigned long long my_double2ulonglong(double d)
 #define strtok_r(A,B,C) strtok((A),(B))
 #endif
 
-/* This is from the old m-machine.h file */
-
-#if SIZEOF_LONG_LONG > 4
+#if SIZEOF_LONG_LONG >= 8
 #define HAVE_LONG_LONG 1
+#else
+#error WHAT? sizeof(long long) < 8 ???
 #endif
 
 /*
@@ -801,18 +799,7 @@ inline unsigned long long my_double2ulonglong(double d)
 #endif
 
 #ifdef HAVE_ISINF
-/* Check if C compiler is affected by GCC bug #39228 */
-#if !defined(__cplusplus) && defined(HAVE_BROKEN_ISINF)
-/* Force store/reload of the argument to/from a 64-bit double */
-static inline double my_isinf(double x)
-{
-  volatile double t= x;
-  return isinf(t);
-}
-#else
-/* System-provided isinf() is available and safe to use */
 #define my_isinf(X) isinf(X)
-#endif
 #else /* !HAVE_ISINF */
 #define my_isinf(X) (!finite(X) && !isnan(X))
 #endif
@@ -828,6 +815,17 @@ static inline double my_isinf(double x)
 #define M_LN2 0.69314718055994530942
 #endif
 
+#ifndef HAVE_LOG2
+/*
+  This will be slightly slower and perhaps a tiny bit less accurate than
+  doing it the IEEE754 way but log2() should be available on C99 systems.
+*/
+static inline double log2(double x)
+{
+  return (log(x) / M_LN2);
+}
+#endif
+
 /*
   Max size that must be added to a so that we know Size to make
   adressable obj.
@@ -840,9 +838,12 @@ typedef long long	my_ptrdiff_t;
 
 #define MY_ALIGN(A,L)	(((A) + (L) - 1) & ~((L) - 1))
 #define ALIGN_SIZE(A)	MY_ALIGN((A),sizeof(double))
+#define ALIGN_MAX_UNIT  (sizeof(double))
 /* Size to make adressable obj. */
+#define ALIGN_PTR(A, t) ((t*) MY_ALIGN((A), sizeof(double)))
 #define ADD_TO_PTR(ptr,size,type) (type) ((uchar*) (ptr)+size)
 #define PTR_BYTE_DIFF(A,B) (my_ptrdiff_t) ((uchar*) (A) - (uchar*) (B))
+#define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 
 /*
   Custom version of standard offsetof() macro which can be used to get
@@ -856,8 +857,7 @@ typedef long long	my_ptrdiff_t;
   and related routines are refactored.
 */
 
-#define my_offsetof(TYPE, MEMBER) \
-        ((size_t)((char *)&(((TYPE *)0x10)->MEMBER) - (char*)0x10))
+#define my_offsetof(TYPE, MEMBER) PTR_BYTE_DIFF(&((TYPE *)0x10)->MEMBER, 0x10)
 
 #define NullS		(char *) 0
 
@@ -940,11 +940,11 @@ typedef unsigned long long my_ulonglong;
 #endif
 
 #if SIZEOF_CHARP == SIZEOF_INT
-typedef int intptr;
+typedef unsigned int intptr;
 #elif SIZEOF_CHARP == SIZEOF_LONG
-typedef long intptr;
+typedef unsigned long intptr;
 #elif SIZEOF_CHARP == SIZEOF_LONG_LONG
-typedef long long intptr;
+typedef unsigned long long intptr;
 #else
 #error sizeof(void *) is neither sizeof(int) nor sizeof(long) nor sizeof(long long)
 #endif
@@ -969,6 +969,10 @@ typedef unsigned long my_off_t;
  */
 typedef ulonglong table_map;          /* Used for table bits in join */
 typedef ulong nesting_map;  /* Used for flags of nesting constructs */
+
+/* often used type names - opaque declarations */
+typedef const struct charset_info_st CHARSET_INFO;
+typedef struct st_mysql_lex_string LEX_STRING;
 
 #if defined(__WIN__)
 #define socket_errno	WSAGetLastError()
@@ -1042,9 +1046,7 @@ typedef char		my_bool; /* Small bool */
 #define YESNO(X) ((X) ? "yes" : "no")
 
 #define MY_HOW_OFTEN_TO_ALARM	2	/* How often we want info on screen */
-#define MY_HOW_OFTEN_TO_WRITE	1000	/* How often we want info on screen */
-
-
+#define MY_HOW_OFTEN_TO_WRITE	10000	/* How often we want info on screen */
 
 /*
   Define-funktions for reading and storing in machine independent format
@@ -1053,7 +1055,7 @@ typedef char		my_bool; /* Small bool */
 
 /* Optimized store functions for Intel x86 */
 #if defined(__i386__) || defined(_WIN32)
-#define sint2korr(A)	(*((int16 *) (A)))
+#define sint2korr(A)	(*((const int16 *) (A)))
 #define sint3korr(A)	((int32) ((((uchar) (A)[2]) & 128) ? \
 				  (((uint32) 255L << 24) | \
 				   (((uint32) (uchar) (A)[2]) << 16) |\
@@ -1062,9 +1064,9 @@ typedef char		my_bool; /* Small bool */
 				  (((uint32) (uchar) (A)[2]) << 16) |\
 				  (((uint32) (uchar) (A)[1]) << 8) | \
 				  ((uint32) (uchar) (A)[0])))
-#define sint4korr(A)	(*((long *) (A)))
-#define uint2korr(A)	(*((uint16 *) (A)))
-#if defined(HAVE_purify) && !defined(_WIN32)
+#define sint4korr(A)	(*((const long *) (A)))
+#define uint2korr(A)	(*((const uint16 *) (A)))
+#if defined(HAVE_valgrind) && !defined(_WIN32)
 #define uint3korr(A)	(uint32) (((uint32) ((uchar) (A)[0])) +\
 				  (((uint32) ((uchar) (A)[1])) << 8) +\
 				  (((uint32) ((uchar) (A)[2])) << 16))
@@ -1075,9 +1077,9 @@ typedef char		my_bool; /* Small bool */
     Please, note, uint3korr reads 4 bytes (not 3) !
     It means, that you have to provide enough allocated space !
 */
-#define uint3korr(A)	(long) (*((unsigned int *) (A)) & 0xFFFFFF)
-#endif /* HAVE_purify && !_WIN32 */
-#define uint4korr(A)	(*((uint32 *) (A)))
+#define uint3korr(A)	(long) (*((const unsigned int *) (A)) & 0xFFFFFF)
+#endif /* HAVE_valgrind && !_WIN32 */
+#define uint4korr(A)	(*((const uint32 *) (A)))
 #define uint5korr(A)	((ulonglong)(((uint32) ((uchar) (A)[0])) +\
 				    (((uint32) ((uchar) (A)[1])) << 8) +\
 				    (((uint32) ((uchar) (A)[2])) << 16) +\
@@ -1089,8 +1091,8 @@ typedef char		my_bool; /* Small bool */
                                      (((uint32)    ((uchar) (A)[3])) << 24)) + \
                          (((ulonglong) ((uchar) (A)[4])) << 32) +       \
                          (((ulonglong) ((uchar) (A)[5])) << 40))
-#define uint8korr(A)	(*((ulonglong *) (A)))
-#define sint8korr(A)	(*((longlong *) (A)))
+#define uint8korr(A)	(*((const ulonglong *) (A)))
+#define sint8korr(A)	(*((const longlong *) (A)))
 #define int2store(T,A)	*((uint16*) (T))= (uint16) (A)
 #define int3store(T,A)  do { *(T)=  (uchar) ((A));\
                             *(T+1)=(uchar) (((uint) (A) >> 8));\
@@ -1115,13 +1117,13 @@ typedef union {
 } doubleget_union;
 #define doubleget(V,M)	\
 do { doubleget_union _tmp; \
-     _tmp.m[0] = *((long*)(M)); \
-     _tmp.m[1] = *(((long*) (M))+1); \
+     _tmp.m[0] = *((const long*)(M)); \
+     _tmp.m[1] = *(((const long*) (M))+1); \
      (V) = _tmp.v; } while(0)
-#define doublestore(T,V) do { *((long *) T) = ((doubleget_union *)&V)->m[0]; \
-			     *(((long *) T)+1) = ((doubleget_union *)&V)->m[1]; \
+#define doublestore(T,V) do { *((long *) T) = ((const doubleget_union *)&V)->m[0]; \
+			     *(((long *) T)+1) = ((const doubleget_union *)&V)->m[1]; \
                          } while (0)
-#define float4get(V,M)   do { *((float *) &(V)) = *((float*) (M)); } while(0)
+#define float4get(V,M)   do { *((float *) &(V)) = *((const float*) (M)); } while(0)
 #define float8get(V,M)   doubleget((V),(M))
 #define float4store(V,M) memcpy((uchar*) V,(uchar*) (&M),sizeof(float))
 #define floatstore(T,V)  memcpy((uchar*)(T), (uchar*)(&V),sizeof(float))
@@ -1347,49 +1349,36 @@ do { doubleget_union _tmp; \
 #define NO_EMBEDDED_ACCESS_CHECKS
 #endif
 
-#if defined(_WIN32)
+#ifdef _WIN32
 #define dlsym(lib, name) (void*)GetProcAddress((HMODULE)lib, name)
 #define dlopen(libname, unused) LoadLibraryEx(libname, NULL, 0)
 #define dlclose(lib) FreeLibrary((HMODULE)lib)
-#ifndef HAVE_DLOPEN
-#define HAVE_DLOPEN
+static inline char *dlerror(void)
+{
+  static char win_errormsg[2048];
+  if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
+                   0, GetLastError(), 0, win_errormsg, 2048, NULL))
+    return win_errormsg;
+  return "";
+}
+#define HAVE_DLOPEN 1
+#define HAVE_DLERROR 1
 #endif
+
+#ifdef HAVE_DLFCN_H
+#include <dlfcn.h>
 #endif
 
 #ifdef HAVE_DLOPEN
-#if defined(HAVE_DLFCN_H)
-#include <dlfcn.h>
-#endif
-#endif
-
 #ifndef HAVE_DLERROR
-#ifdef _WIN32
-#define DLERROR_GENERATE(errmsg, error_number) \
-  char win_errormsg[2048]; \
-  if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, \
-                   0, error_number, 0, win_errormsg, 2048, NULL)) \
-  { \
-    char *ptr; \
-    for (ptr= &win_errormsg[0] + strlen(win_errormsg) - 1; \
-         ptr >= &win_errormsg[0] && strchr("\r\n\t\0x20", *ptr); \
-         ptr--) \
-      *ptr= 0; \
-    errmsg= win_errormsg; \
-  } \
-  else \
-    errmsg= ""
 #define dlerror() ""
-#define dlopen_errno GetLastError()
-#else /* _WIN32 */
+#endif
+#else
 #define dlerror() "No support for dynamic loading (static build?)"
-#define DLERROR_GENERATE(errmsg, error_number) errmsg= dlerror()
-#define dlopen_errno errno
-#endif /* _WIN32 */
-#else /* HAVE_DLERROR */
-#define DLERROR_GENERATE(errmsg, error_number) errmsg= dlerror()
-#define dlopen_errno errno
-#endif /* HAVE_DLERROR */
-
+#define dlopen(A,B) 0
+#define dlsym(A,B) 0
+#define dlclose(A) 0
+#endif
 
 /*
  *  Include standard definitions of operator new and delete.
@@ -1404,11 +1393,17 @@ do { doubleget_union _tmp; \
 /* Length of decimal number represented by INT64. */
 #define MY_INT64_NUM_DECIMAL_DIGITS 21
 
+#ifdef __cplusplus
+#include <limits> /* should be included before min/max macros */
+#endif
+
 /* Define some useful general macros (should be done after all headers). */
 #if !defined(max)
 #define max(a, b)	((a) > (b) ? (a) : (b))
 #define min(a, b)	((a) < (b) ? (a) : (b))
 #endif  
+
+#define CMP_NUM(a,b)    (((a) < (b)) ? -1 : ((a) == (b)) ? 0 : 1)
 
 /*
   Only Linux is known to need an explicit sync of the directory to make sure a
@@ -1416,6 +1411,15 @@ do { doubleget_union _tmp; \
 */
 #ifdef TARGET_OS_LINUX
 #define NEED_EXPLICIT_SYNC_DIR 1
+#else
+/*
+  On linux default rwlock scheduling policy is good enough for
+  waiting_threads.c, on other systems use our special implementation
+  (which is slower).
+
+  QQ perhaps this should be tested in configure ? how ?
+*/
+#define WT_RWLOCKS_USE_MUTEXES 1
 #endif
 
 #if !defined(__cplusplus) && !defined(bool)
@@ -1423,6 +1427,7 @@ do { doubleget_union _tmp; \
 #endif
 
 /* Provide __func__ macro definition for platforms that miss it. */
+#if !defined (__func__)
 #if __STDC_VERSION__ < 199901L
 #  if __GNUC__ >= 2
 #    define __func__ __FUNCTION__
@@ -1440,6 +1445,7 @@ do { doubleget_union _tmp; \
 #else
 #  define __func__ "<unknown>"
 #endif
+#endif /* !defined(__func__) */
 
 #ifndef HAVE_RINT
 /**
@@ -1496,7 +1502,6 @@ static inline double rint(double x)
 /* Things we don't need in the embedded version of MySQL */
 /* TODO HF add #undef HAVE_VIO if we don't want client in embedded library */
 
-#undef HAVE_OPENSSL
 #undef HAVE_SMEM				/* No shared memory */
 
 #endif /* EMBEDDED_LIBRARY */

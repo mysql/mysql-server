@@ -1,0 +1,148 @@
+# 
+# Basic ALTER TABLE statements.
+#
+# USAGE of table options in ALTER statements
+#   is covered in tbl_standard_opts and tbl_opt*.tests.
+#
+# Index operations are covered in index* tests.
+#
+# ALTER ONLINE syntax is covered in alter_online_table.test
+# ALTER OFFLINE is not covered as it is not supported, as of 5.5.23
+#
+# ALTER TABLE ... DISCARD|IMPORT TABLESPACE is covered in alter_tablespace.test
+#
+
+--source have_engine.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+--let $create_definition = a $int_col, c $char_col
+--source create_table.inc
+INSERT INTO t1 (a,c) VALUES (1,'a'),(5,'z');
+
+# Column operations
+
+--let $alter_definition = ADD COLUMN b $int_col
+--source alter_table.inc
+if ($mysql_errname)
+{
+  --source unexpected_result.inc
+}
+
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+--let $alter_definition = ALTER COLUMN a SET DEFAULT '0'
+--source alter_table.inc
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+--let $alter_definition = ALTER a DROP DEFAULT
+--source alter_table.inc
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+--let $alter_definition = CHANGE COLUMN b b1 $char_col FIRST
+--source alter_table.inc
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+--let $alter_definition = CHANGE b1 b $int_col AFTER c
+--source alter_table.inc
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+--let $alter_definition = CHANGE b b $char_col
+--source alter_table.inc
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+--let $alter_definition = MODIFY COLUMN b $int_col
+--source alter_table.inc
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+--let $alter_definition = MODIFY COLUMN b $char_col FIRST
+--source alter_table.inc
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+--let $alter_definition = MODIFY COLUMN b $int_col AFTER a
+--source alter_table.inc
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+--let $alter_definition = DROP COLUMN b
+--source alter_table.inc
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+
+# Rename table
+
+--let $rename_to = t2
+--source alter_table.inc
+--let $error_codes = ER_NO_SUCH_TABLE
+SHOW CREATE TABLE t1;
+--source check_errors.inc
+if ($mysql_errname != 'ER_NO_SUCH_TABLE')
+{
+  --let $functionality = ALTER TABLE
+  --source unexpected_result.inc
+  DROP TABLE t1;
+}
+if ($mysql_errname == ER_NO_SUCH_TABLE)
+{
+  --source mask_engine.inc
+  SHOW CREATE TABLE t2;
+  DROP TABLE t2;
+}
+
+# ORDER BY
+--let $create_definition = a $int_col, b $int_col
+--source create_table.inc
+INSERT INTO t1 (a,b) VALUES (1,5),(2,2),(4,3);
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+--let $alter_definition = ORDER BY b ASC, a DESC
+--source alter_table.inc
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+SELECT a,b FROM t1;
+DROP TABLE t1;
+
+# Character set, collate
+
+--let $table_options = CHARACTER SET latin1 COLLATE latin1_general_cs
+--let $create_definition = a $int_col, b $char_col, c $char_col
+--source create_table.inc
+INSERT INTO t1 (a,b,c) VALUES (5,'z','t');
+
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+--let $alter_definition = CONVERT TO CHARACTER SET utf8
+--source alter_table.inc
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+--let $alter_definition = DEFAULT CHARACTER SET = latin1 COLLATE latin1_general_ci
+--source alter_table.inc
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+# A 'null' ALTER operation
+
+--let $alter_definition = FORCE
+--source alter_table.inc
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+# Cleanup 
+DROP TABLE t1;
+
+--source cleanup_engine.inc
+

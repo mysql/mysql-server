@@ -2,6 +2,8 @@
 # Testing of table locking
 #
 
+--source include/have_partition.inc
+
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 
@@ -582,3 +584,27 @@ disconnect con2;
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc
+#
+# Test concurrent lock and read locks
+# This gave a warning:
+# Warning at 'read lock with old write lock' for lock: 5:
+# Found lock of type 8 that is write and read locked. Read_no_write_count: 1
+#
+create table t1 (a int) engine=myisam;
+lock tables t1 write concurrent, t1 as t2 read;
+connect (con1,localhost,root,,);
+connection con1;
+lock tables t1 read local;
+unlock tables;
+connection default;
+unlock tables;
+connection con1;
+lock tables t1 read local;
+connection default;
+lock tables t1 write concurrent, t1 as t2 read;
+unlock tables;
+connection con1;
+unlock tables;
+disconnect con1;
+connection default;
+drop table t1;

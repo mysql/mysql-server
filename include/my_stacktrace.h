@@ -1,4 +1,5 @@
-/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2001, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,59 +50,39 @@ void my_safe_print_str(const char* val, int max_len);
 void my_write_core(int sig);
 #if BACKTRACE_DEMANGLE
 char *my_demangle(const char *mangled_name, int *status);
-#endif
+#endif /* BACKTRACE_DEMANGLE */
 #ifdef __WIN__
 void my_set_exception_pointers(EXCEPTION_POINTERS *ep);
+#endif /* __WIN__ */
+#else
+#define my_init_stacktrace() do { } while(0)
+#endif /* ! (defined(HAVE_STACKTRACE) || defined(HAVE_BACKTRACE)) */
+
+#ifndef _WIN32
+#define MY_ADDR_RESOLVE_FORK
 #endif
+
+#if defined(HAVE_BFD_H) || defined(MY_ADDR_RESOLVE_FORK)
+#define HAVE_MY_ADDR_RESOLVE 1
+#endif
+
+typedef struct {
+  const char *file;
+  const char *func;
+  uint line;
+} my_addr_loc;
+
+#ifdef HAVE_MY_ADDR_RESOLVE
+int my_addr_resolve(void *ptr, my_addr_loc *loc);
+const char *my_addr_resolve_init();
+#else
+#define my_addr_resolve_init()  (0)
+#define my_addr_resolve(A,B)    (1)
 #endif
 
 #ifdef HAVE_WRITE_CORE
 void my_write_core(int sig);
 #endif
-
-
-
-/**
-  Async-signal-safe utility functions used by signal handler routines.
-  Declared here in order to unit-test them.
-  These are not general-purpose, but tailored to the signal handling routines.
-*/
-/**
-  Converts a longlong value to string.
-  @param   base 10 for decimal, 16 for hex values (0..9a..f)
-  @param   val  The value to convert
-  @param   buf  Assumed to point to the *end* of the buffer.
-  @returns Pointer to the first character of the converted string.
-           Negative values:
-           for base-10 the return string will be prepended with '-'
-           for base-16 the return string will contain 16 characters
-  Implemented with simplicity, and async-signal-safety in mind.
-*/
-char *my_safe_itoa(int base, longlong val, char *buf);
-
-/**
-  Converts a ulonglong value to string.
-  @param   base 10 for decimal, 16 for hex values (0..9a..f)
-  @param   val  The value to convert
-  @param   buf  Assumed to point to the *end* of the buffer.
-  @returns Pointer to the first character of the converted string.
-  Implemented with simplicity, and async-signal-safety in mind.
-*/
-char *my_safe_utoa(int base, ulonglong val, char *buf);
-
-/**
-  A (very) limited version of snprintf.
-  @param   to   Destination buffer.
-  @param   n    Size of destination buffer.
-  @param   fmt  printf() style format string.
-  @returns Number of bytes written, including terminating '\0'
-  Supports 'd' 'i' 'u' 'x' 'p' 's' conversion.
-  Supports 'l' and 'll' modifiers for integral types.
-  Does not support any width/precision.
-  Implemented with simplicity, and async-signal-safety in mind.
-*/
-size_t my_safe_snprintf(char* to, size_t n, const char* fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 3, 4);
 
 /**
   A (very) limited version of snprintf, which writes the result to STDERR.

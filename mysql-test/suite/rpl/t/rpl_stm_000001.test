@@ -96,14 +96,15 @@ drop temporary table t3;
 connection master;
 # The get_lock function causes warning for unsafe statement.
 --disable_warnings
---error 1317,2013
+# 2013 = CR_SERVER_LOST
+--error ER_QUERY_INTERRUPTED,ER_CONNECTION_KILLED,2013
 reap;
 --enable_warnings
 connection slave;
 # The SQL slave thread should now have stopped because the query was killed on
 # the master (so it has a non-zero error code in the binlog).
-# 1053 = ER_SERVER_SHUTDOWN
---let $slave_sql_errno= 1053
+# 1927 = ER_CONNECTION_KILLED
+--let $slave_sql_errno= 1927
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 select count(*) from t1;

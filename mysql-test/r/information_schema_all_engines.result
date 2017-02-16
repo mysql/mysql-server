@@ -1,0 +1,421 @@
+use INFORMATION_SCHEMA;
+show tables;
+Tables_in_information_schema
+CHARACTER_SETS
+CLIENT_STATISTICS
+COLLATIONS
+COLLATION_CHARACTER_SET_APPLICABILITY
+COLUMNS
+COLUMN_PRIVILEGES
+ENGINES
+EVENTS
+FILES
+GLOBAL_STATUS
+GLOBAL_VARIABLES
+INDEX_STATISTICS
+INNODB_BUFFER_POOL_PAGES
+INNODB_BUFFER_POOL_PAGES_BLOB
+INNODB_BUFFER_POOL_PAGES_INDEX
+INNODB_CHANGED_PAGES
+INNODB_CMP
+INNODB_CMPMEM
+INNODB_CMPMEM_RESET
+INNODB_CMP_RESET
+INNODB_INDEX_STATS
+INNODB_LOCKS
+INNODB_LOCK_WAITS
+INNODB_RSEG
+INNODB_SYS_COLUMNS
+INNODB_SYS_FIELDS
+INNODB_SYS_FOREIGN
+INNODB_SYS_FOREIGN_COLS
+INNODB_SYS_INDEXES
+INNODB_SYS_STATS
+INNODB_SYS_TABLES
+INNODB_SYS_TABLESTATS
+INNODB_TABLE_STATS
+INNODB_TRX
+KEY_CACHES
+KEY_COLUMN_USAGE
+PARAMETERS
+PARTITIONS
+PLUGINS
+PROCESSLIST
+PROFILING
+REFERENTIAL_CONSTRAINTS
+ROUTINES
+SCHEMATA
+SCHEMA_PRIVILEGES
+SESSION_STATUS
+SESSION_VARIABLES
+STATISTICS
+TABLES
+TABLESPACES
+TABLE_CONSTRAINTS
+TABLE_PRIVILEGES
+TABLE_STATISTICS
+TRIGGERS
+USER_PRIVILEGES
+USER_STATISTICS
+VIEWS
+XTRADB_ADMIN_COMMAND
+SELECT t.table_name, c1.column_name
+FROM information_schema.tables t
+INNER JOIN
+information_schema.columns c1
+ON t.table_schema = c1.table_schema AND
+t.table_name = c1.table_name
+WHERE t.table_schema = 'information_schema' AND
+c1.ordinal_position =
+( SELECT COALESCE(MIN(c2.ordinal_position),1)
+FROM information_schema.columns c2
+WHERE c2.table_schema = t.table_schema AND
+c2.table_name = t.table_name AND
+c2.column_name LIKE '%SCHEMA%'
+        ) order by t.table_name;
+table_name	column_name
+CHARACTER_SETS	CHARACTER_SET_NAME
+CLIENT_STATISTICS	CLIENT
+COLLATIONS	COLLATION_NAME
+COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME
+COLUMNS	TABLE_SCHEMA
+COLUMN_PRIVILEGES	TABLE_SCHEMA
+ENGINES	ENGINE
+EVENTS	EVENT_SCHEMA
+FILES	TABLE_SCHEMA
+GLOBAL_STATUS	VARIABLE_NAME
+GLOBAL_VARIABLES	VARIABLE_NAME
+INDEX_STATISTICS	TABLE_SCHEMA
+INNODB_BUFFER_POOL_PAGES	page_type
+INNODB_BUFFER_POOL_PAGES_BLOB	space_id
+INNODB_BUFFER_POOL_PAGES_INDEX	index_id
+INNODB_CHANGED_PAGES	space_id
+INNODB_CMP	page_size
+INNODB_CMPMEM	page_size
+INNODB_CMPMEM_RESET	page_size
+INNODB_CMP_RESET	page_size
+INNODB_INDEX_STATS	table_schema
+INNODB_LOCKS	lock_id
+INNODB_LOCK_WAITS	requesting_trx_id
+INNODB_RSEG	rseg_id
+INNODB_SYS_COLUMNS	TABLE_ID
+INNODB_SYS_FIELDS	INDEX_ID
+INNODB_SYS_FOREIGN	ID
+INNODB_SYS_FOREIGN_COLS	ID
+INNODB_SYS_INDEXES	INDEX_ID
+INNODB_SYS_STATS	INDEX_ID
+INNODB_SYS_TABLES	SCHEMA
+INNODB_SYS_TABLESTATS	SCHEMA
+INNODB_TABLE_STATS	table_schema
+INNODB_TRX	trx_id
+KEY_CACHES	KEY_CACHE_NAME
+KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
+PARAMETERS	SPECIFIC_SCHEMA
+PARTITIONS	TABLE_SCHEMA
+PLUGINS	PLUGIN_NAME
+PROCESSLIST	ID
+PROFILING	QUERY_ID
+REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA
+ROUTINES	ROUTINE_SCHEMA
+SCHEMATA	SCHEMA_NAME
+SCHEMA_PRIVILEGES	TABLE_SCHEMA
+SESSION_STATUS	VARIABLE_NAME
+SESSION_VARIABLES	VARIABLE_NAME
+STATISTICS	TABLE_SCHEMA
+TABLES	TABLE_SCHEMA
+TABLESPACES	TABLESPACE_NAME
+TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA
+TABLE_PRIVILEGES	TABLE_SCHEMA
+TABLE_STATISTICS	TABLE_SCHEMA
+TRIGGERS	TRIGGER_SCHEMA
+USER_PRIVILEGES	GRANTEE
+USER_STATISTICS	USER
+VIEWS	TABLE_SCHEMA
+XTRADB_ADMIN_COMMAND	result_message
+SELECT t.table_name, c1.column_name
+FROM information_schema.tables t
+INNER JOIN
+information_schema.columns c1
+ON t.table_schema = c1.table_schema AND
+t.table_name = c1.table_name
+WHERE t.table_schema = 'information_schema' AND
+c1.ordinal_position =
+( SELECT COALESCE(MIN(c2.ordinal_position),1)
+FROM information_schema.columns c2
+WHERE c2.table_schema = 'information_schema' AND
+c2.table_name = t.table_name AND
+c2.column_name LIKE '%SCHEMA%'
+        ) order by t.table_name;
+table_name	column_name
+CHARACTER_SETS	CHARACTER_SET_NAME
+CLIENT_STATISTICS	CLIENT
+COLLATIONS	COLLATION_NAME
+COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME
+COLUMNS	TABLE_SCHEMA
+COLUMN_PRIVILEGES	TABLE_SCHEMA
+ENGINES	ENGINE
+EVENTS	EVENT_SCHEMA
+FILES	TABLE_SCHEMA
+GLOBAL_STATUS	VARIABLE_NAME
+GLOBAL_VARIABLES	VARIABLE_NAME
+INDEX_STATISTICS	TABLE_SCHEMA
+INNODB_BUFFER_POOL_PAGES	page_type
+INNODB_BUFFER_POOL_PAGES_BLOB	space_id
+INNODB_BUFFER_POOL_PAGES_INDEX	index_id
+INNODB_CHANGED_PAGES	space_id
+INNODB_CMP	page_size
+INNODB_CMPMEM	page_size
+INNODB_CMPMEM_RESET	page_size
+INNODB_CMP_RESET	page_size
+INNODB_INDEX_STATS	table_schema
+INNODB_LOCKS	lock_id
+INNODB_LOCK_WAITS	requesting_trx_id
+INNODB_RSEG	rseg_id
+INNODB_SYS_COLUMNS	TABLE_ID
+INNODB_SYS_FIELDS	INDEX_ID
+INNODB_SYS_FOREIGN	ID
+INNODB_SYS_FOREIGN_COLS	ID
+INNODB_SYS_INDEXES	INDEX_ID
+INNODB_SYS_STATS	INDEX_ID
+INNODB_SYS_TABLES	SCHEMA
+INNODB_SYS_TABLESTATS	SCHEMA
+INNODB_TABLE_STATS	table_schema
+INNODB_TRX	trx_id
+KEY_CACHES	KEY_CACHE_NAME
+KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
+PARAMETERS	SPECIFIC_SCHEMA
+PARTITIONS	TABLE_SCHEMA
+PLUGINS	PLUGIN_NAME
+PROCESSLIST	ID
+PROFILING	QUERY_ID
+REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA
+ROUTINES	ROUTINE_SCHEMA
+SCHEMATA	SCHEMA_NAME
+SCHEMA_PRIVILEGES	TABLE_SCHEMA
+SESSION_STATUS	VARIABLE_NAME
+SESSION_VARIABLES	VARIABLE_NAME
+STATISTICS	TABLE_SCHEMA
+TABLES	TABLE_SCHEMA
+TABLESPACES	TABLESPACE_NAME
+TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA
+TABLE_PRIVILEGES	TABLE_SCHEMA
+TABLE_STATISTICS	TABLE_SCHEMA
+TRIGGERS	TRIGGER_SCHEMA
+USER_PRIVILEGES	GRANTEE
+USER_STATISTICS	USER
+VIEWS	TABLE_SCHEMA
+XTRADB_ADMIN_COMMAND	result_message
+select 1 as f1 from information_schema.tables  where "CHARACTER_SETS"=
+(select cast(table_name as char)  from information_schema.tables
+order by table_name limit 1) limit 1;
+f1
+1
+select t.table_name, group_concat(t.table_schema, '.', t.table_name),
+count(*) as num1
+from information_schema.tables t
+inner join information_schema.columns c1
+on t.table_schema = c1.table_schema AND t.table_name = c1.table_name
+where t.table_schema = 'information_schema' and
+c1.ordinal_position =
+(select isnull(c2.column_type) -
+isnull(group_concat(c2.table_schema, '.', c2.table_name)) +
+count(*) as num
+from information_schema.columns c2 where
+c2.table_schema='information_schema' and
+(c2.column_type = 'varchar(7)' or c2.column_type = 'varchar(20)')
+group by c2.column_type order by num limit 1)
+group by t.table_name order by num1, t.table_name;
+table_name	group_concat(t.table_schema, '.', t.table_name)	num1
+CHARACTER_SETS	information_schema.CHARACTER_SETS	1
+CLIENT_STATISTICS	information_schema.CLIENT_STATISTICS	1
+COLLATIONS	information_schema.COLLATIONS	1
+COLLATION_CHARACTER_SET_APPLICABILITY	information_schema.COLLATION_CHARACTER_SET_APPLICABILITY	1
+COLUMNS	information_schema.COLUMNS	1
+COLUMN_PRIVILEGES	information_schema.COLUMN_PRIVILEGES	1
+ENGINES	information_schema.ENGINES	1
+EVENTS	information_schema.EVENTS	1
+FILES	information_schema.FILES	1
+GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
+GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
+INDEX_STATISTICS	information_schema.INDEX_STATISTICS	1
+INNODB_BUFFER_POOL_PAGES	information_schema.INNODB_BUFFER_POOL_PAGES	1
+INNODB_BUFFER_POOL_PAGES_BLOB	information_schema.INNODB_BUFFER_POOL_PAGES_BLOB	1
+INNODB_BUFFER_POOL_PAGES_INDEX	information_schema.INNODB_BUFFER_POOL_PAGES_INDEX	1
+INNODB_CHANGED_PAGES	information_schema.INNODB_CHANGED_PAGES	1
+INNODB_CMP	information_schema.INNODB_CMP	1
+INNODB_CMPMEM	information_schema.INNODB_CMPMEM	1
+INNODB_CMPMEM_RESET	information_schema.INNODB_CMPMEM_RESET	1
+INNODB_CMP_RESET	information_schema.INNODB_CMP_RESET	1
+INNODB_INDEX_STATS	information_schema.INNODB_INDEX_STATS	1
+INNODB_LOCKS	information_schema.INNODB_LOCKS	1
+INNODB_LOCK_WAITS	information_schema.INNODB_LOCK_WAITS	1
+INNODB_RSEG	information_schema.INNODB_RSEG	1
+INNODB_SYS_COLUMNS	information_schema.INNODB_SYS_COLUMNS	1
+INNODB_SYS_FIELDS	information_schema.INNODB_SYS_FIELDS	1
+INNODB_SYS_FOREIGN	information_schema.INNODB_SYS_FOREIGN	1
+INNODB_SYS_FOREIGN_COLS	information_schema.INNODB_SYS_FOREIGN_COLS	1
+INNODB_SYS_INDEXES	information_schema.INNODB_SYS_INDEXES	1
+INNODB_SYS_STATS	information_schema.INNODB_SYS_STATS	1
+INNODB_SYS_TABLES	information_schema.INNODB_SYS_TABLES	1
+INNODB_SYS_TABLESTATS	information_schema.INNODB_SYS_TABLESTATS	1
+INNODB_TABLE_STATS	information_schema.INNODB_TABLE_STATS	1
+INNODB_TRX	information_schema.INNODB_TRX	1
+KEY_CACHES	information_schema.KEY_CACHES	1
+KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
+PARAMETERS	information_schema.PARAMETERS	1
+PARTITIONS	information_schema.PARTITIONS	1
+PLUGINS	information_schema.PLUGINS	1
+PROCESSLIST	information_schema.PROCESSLIST	1
+PROFILING	information_schema.PROFILING	1
+REFERENTIAL_CONSTRAINTS	information_schema.REFERENTIAL_CONSTRAINTS	1
+ROUTINES	information_schema.ROUTINES	1
+SCHEMATA	information_schema.SCHEMATA	1
+SCHEMA_PRIVILEGES	information_schema.SCHEMA_PRIVILEGES	1
+SESSION_STATUS	information_schema.SESSION_STATUS	1
+SESSION_VARIABLES	information_schema.SESSION_VARIABLES	1
+STATISTICS	information_schema.STATISTICS	1
+TABLES	information_schema.TABLES	1
+TABLESPACES	information_schema.TABLESPACES	1
+TABLE_CONSTRAINTS	information_schema.TABLE_CONSTRAINTS	1
+TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
+TABLE_STATISTICS	information_schema.TABLE_STATISTICS	1
+TRIGGERS	information_schema.TRIGGERS	1
+USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
+USER_STATISTICS	information_schema.USER_STATISTICS	1
+VIEWS	information_schema.VIEWS	1
++---------------------------------------+
++---------------------------------------+
++---------------------------------------+
+Database: information_schema
+|                Tables                 |
+| CHARACTER_SETS                        |
+| CLIENT_STATISTICS                     |
+| COLLATIONS                            |
+| COLLATION_CHARACTER_SET_APPLICABILITY |
+| COLUMNS                               |
+| COLUMN_PRIVILEGES                     |
+| ENGINES                               |
+| EVENTS                                |
+| FILES                                 |
+| GLOBAL_STATUS                         |
+| GLOBAL_VARIABLES                      |
+| INDEX_STATISTICS                      |
+| INNODB_BUFFER_POOL_PAGES              |
+| INNODB_BUFFER_POOL_PAGES_BLOB         |
+| INNODB_BUFFER_POOL_PAGES_INDEX        |
+| INNODB_CHANGED_PAGES                  |
+| INNODB_CMP                            |
+| INNODB_CMPMEM                         |
+| INNODB_CMPMEM_RESET                   |
+| INNODB_CMP_RESET                      |
+| INNODB_INDEX_STATS                    |
+| INNODB_LOCKS                          |
+| INNODB_LOCK_WAITS                     |
+| INNODB_RSEG                           |
+| INNODB_SYS_COLUMNS                    |
+| INNODB_SYS_FIELDS                     |
+| INNODB_SYS_FOREIGN                    |
+| INNODB_SYS_FOREIGN_COLS               |
+| INNODB_SYS_INDEXES                    |
+| INNODB_SYS_STATS                      |
+| INNODB_SYS_TABLES                     |
+| INNODB_SYS_TABLESTATS                 |
+| INNODB_TABLE_STATS                    |
+| INNODB_TRX                            |
+| KEY_CACHES                            |
+| KEY_COLUMN_USAGE                      |
+| PARAMETERS                            |
+| PARTITIONS                            |
+| PLUGINS                               |
+| PROCESSLIST                           |
+| PROFILING                             |
+| REFERENTIAL_CONSTRAINTS               |
+| ROUTINES                              |
+| SCHEMATA                              |
+| SCHEMA_PRIVILEGES                     |
+| SESSION_STATUS                        |
+| SESSION_VARIABLES                     |
+| STATISTICS                            |
+| TABLES                                |
+| TABLESPACES                           |
+| TABLE_CONSTRAINTS                     |
+| TABLE_PRIVILEGES                      |
+| TABLE_STATISTICS                      |
+| TRIGGERS                              |
+| USER_PRIVILEGES                       |
+| USER_STATISTICS                       |
+| VIEWS                                 |
+| XTRADB_ADMIN_COMMAND                  |
++---------------------------------------+
++---------------------------------------+
++---------------------------------------+
+Database: INFORMATION_SCHEMA
+|                Tables                 |
+| CHARACTER_SETS                        |
+| CLIENT_STATISTICS                     |
+| COLLATIONS                            |
+| COLLATION_CHARACTER_SET_APPLICABILITY |
+| COLUMNS                               |
+| COLUMN_PRIVILEGES                     |
+| ENGINES                               |
+| EVENTS                                |
+| FILES                                 |
+| GLOBAL_STATUS                         |
+| GLOBAL_VARIABLES                      |
+| INDEX_STATISTICS                      |
+| INNODB_BUFFER_POOL_PAGES              |
+| INNODB_BUFFER_POOL_PAGES_BLOB         |
+| INNODB_BUFFER_POOL_PAGES_INDEX        |
+| INNODB_CHANGED_PAGES                  |
+| INNODB_CMP                            |
+| INNODB_CMPMEM                         |
+| INNODB_CMPMEM_RESET                   |
+| INNODB_CMP_RESET                      |
+| INNODB_INDEX_STATS                    |
+| INNODB_LOCKS                          |
+| INNODB_LOCK_WAITS                     |
+| INNODB_RSEG                           |
+| INNODB_SYS_COLUMNS                    |
+| INNODB_SYS_FIELDS                     |
+| INNODB_SYS_FOREIGN                    |
+| INNODB_SYS_FOREIGN_COLS               |
+| INNODB_SYS_INDEXES                    |
+| INNODB_SYS_STATS                      |
+| INNODB_SYS_TABLES                     |
+| INNODB_SYS_TABLESTATS                 |
+| INNODB_TABLE_STATS                    |
+| INNODB_TRX                            |
+| KEY_CACHES                            |
+| KEY_COLUMN_USAGE                      |
+| PARAMETERS                            |
+| PARTITIONS                            |
+| PLUGINS                               |
+| PROCESSLIST                           |
+| PROFILING                             |
+| REFERENTIAL_CONSTRAINTS               |
+| ROUTINES                              |
+| SCHEMATA                              |
+| SCHEMA_PRIVILEGES                     |
+| SESSION_STATUS                        |
+| SESSION_VARIABLES                     |
+| STATISTICS                            |
+| TABLES                                |
+| TABLESPACES                           |
+| TABLE_CONSTRAINTS                     |
+| TABLE_PRIVILEGES                      |
+| TABLE_STATISTICS                      |
+| TRIGGERS                              |
+| USER_PRIVILEGES                       |
+| USER_STATISTICS                       |
+| VIEWS                                 |
+| XTRADB_ADMIN_COMMAND                  |
++--------------------+
++--------------------+
++--------------------+
+Wildcard: inf_rmation_schema
+|     Databases      |
+| information_schema |
+SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
+table_schema	count(*)
+information_schema	58
+mysql	23

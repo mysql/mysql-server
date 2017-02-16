@@ -1,0 +1,157 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+set session tokudb_prelock_empty=0;
+create table foo (a int, b int, c int, d int, primary key (a), key (b), key (c) clustering=yes);
+insert into foo values (1,100,1000,1),(2,20,200,2),(3,300,30,3),(4,4,4,4);
+select * from foo;
+a	b	c	d
+4	4	4	4
+3	300	30	3
+2	20	200	2
+1	100	1000	1
+explain select b,a from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	NULL	b	5	NULL	4	Using index
+select b,a from foo;
+b	a
+4	4
+20	2
+100	1
+300	3
+select * from foo where c > 0;
+a	b	c	d
+4	4	4	4
+3	300	30	3
+2	20	200	2
+1	100	1000	1
+#
+# only val of primary dictionary and clustering dictionary changes
+#
+update foo set d=d+100;
+select * from foo;
+a	b	c	d
+4	4	4	104
+3	300	30	103
+2	20	200	102
+1	100	1000	101
+explain select b,a from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	NULL	b	5	NULL	4	Using index
+select b,a from foo;
+b	a
+4	4
+20	2
+100	1
+300	3
+select * from foo where c > 0;
+a	b	c	d
+4	4	4	104
+3	300	30	103
+2	20	200	102
+1	100	1000	101
+#
+# secondary key changes
+#
+update foo set b=b+1;
+select * from foo;
+a	b	c	d
+4	5	4	104
+3	301	30	103
+2	21	200	102
+1	101	1000	101
+explain select b,a from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	NULL	b	5	NULL	4	Using index
+select b,a from foo;
+b	a
+5	4
+21	2
+101	1
+301	3
+select * from foo where c > 0;
+a	b	c	d
+4	5	4	104
+3	301	30	103
+2	21	200	102
+1	101	1000	101
+#
+# clustering key changes
+#
+update foo set c=c*10;
+select * from foo;
+a	b	c	d
+4	5	40	104
+3	301	300	103
+2	21	2000	102
+1	101	10000	101
+explain select b,a from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	NULL	b	5	NULL	4	Using index
+select b,a from foo;
+b	a
+5	4
+21	2
+101	1
+301	3
+select * from foo where c > 0;
+a	b	c	d
+4	5	40	104
+3	301	300	103
+2	21	2000	102
+1	101	10000	101
+drop table foo;
+#
+# test updates on single dictionary
+# Two cases: pk changes, pk does not change
+#
+create table foo (a int, b int, primary key (a));
+insert into foo values (1,10),(2,20),(3,30);
+select * from foo;
+a	b
+1	10
+2	20
+3	30
+update foo set b=b*10;
+select * from foo;
+a	b
+1	100
+2	200
+3	300
+update foo set a=a+10;
+select * From foo;
+a	b
+11	100
+12	200
+13	300
+drop table foo;
+#
+# test pk uniqueness check during updates
+# Two cases: have one dict, have more than one dict
+#
+create table foo (a int, b int, c int, primary key (a));
+insert into foo values (1,10,100),(2,20,200),(3,30,300);
+update foo set a=3 where a=1;
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+select * from foo;
+a	b	c
+1	10	100
+2	20	200
+3	30	300
+alter table foo add key (c) clustering=yes;
+update foo set a=3 where a=1;
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+drop table foo;
+#
+# test secondary key uniqueness
+#
+create table foo (a int, b int, c int, primary key (a), unique key (b));
+insert into foo values (1,10,100),(2,20,200),(3,30,300);
+update foo set b=20 where b=10;
+ERROR 23000: Duplicate entry '20' for key 'b'
+update foo set c=c*100;
+select * from foo;
+a	b	c
+1	10	10000
+2	20	20000
+3	30	30000
+DROP TABLE foo;

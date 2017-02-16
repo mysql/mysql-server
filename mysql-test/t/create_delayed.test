@@ -1,0 +1,34 @@
+#
+# Ensure that INSERT DELAYED works with CREATE TABLE on existing table
+#
+
+-- source include/big_test.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+--disable_query_log
+--disable_result_log
+
+--let $run=1000
+
+--echo Starting test
+
+while ($run)
+{
+# --echo # $run attempts left...
+  CREATE TABLE t1 ( f1 INTEGER AUTO_INCREMENT, PRIMARY KEY (f1)) ENGINE=MyISAM;
+  INSERT DELAYED t1 VALUES (4);
+--error ER_TABLE_EXISTS_ERROR
+  CREATE TABLE t1 AS SELECT 1 AS f1;
+
+  REPLACE DELAYED t1 VALUES (5);
+  DROP TABLE t1;
+--dec $run
+}
+
+--enable_query_log
+--enable_result_log
+
+--echo # All done

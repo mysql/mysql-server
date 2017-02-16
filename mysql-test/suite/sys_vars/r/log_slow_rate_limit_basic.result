@@ -1,0 +1,47 @@
+SET @start_global_value = @@global.log_slow_rate_limit;
+select @@global.log_slow_rate_limit;
+@@global.log_slow_rate_limit
+1
+select @@session.log_slow_rate_limit;
+@@session.log_slow_rate_limit
+1
+show global variables like 'log_slow_rate_limit';
+Variable_name	Value
+log_slow_rate_limit	1
+show session variables like 'log_slow_rate_limit';
+Variable_name	Value
+log_slow_rate_limit	1
+select * from information_schema.global_variables where variable_name='log_slow_rate_limit';
+VARIABLE_NAME	VARIABLE_VALUE
+LOG_SLOW_RATE_LIMIT	1
+select * from information_schema.session_variables where variable_name='log_slow_rate_limit';
+VARIABLE_NAME	VARIABLE_VALUE
+LOG_SLOW_RATE_LIMIT	1
+set global log_slow_rate_limit=10;
+select @@global.log_slow_rate_limit;
+@@global.log_slow_rate_limit
+10
+set session log_slow_rate_limit=10;
+select @@session.log_slow_rate_limit;
+@@session.log_slow_rate_limit
+10
+set global log_slow_rate_limit=1.1;
+ERROR 42000: Incorrect argument type to variable 'log_slow_rate_limit'
+set session log_slow_rate_limit=1e1;
+ERROR 42000: Incorrect argument type to variable 'log_slow_rate_limit'
+set global log_slow_rate_limit="foo";
+ERROR 42000: Incorrect argument type to variable 'log_slow_rate_limit'
+set global log_slow_rate_limit=0;
+Warnings:
+Warning	1292	Truncated incorrect log_slow_rate_limit value: '0'
+select @@global.log_slow_rate_limit;
+@@global.log_slow_rate_limit
+1
+set session log_slow_rate_limit=cast(-1 as unsigned int);
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1292	Truncated incorrect log_slow_rate_limit value: '18446744073709551615'
+select @@session.log_slow_rate_limit;
+@@session.log_slow_rate_limit
+4294967295
+SET @@global.log_slow_rate_limit = @start_global_value;

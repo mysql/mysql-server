@@ -1,0 +1,82 @@
+# 
+# CHECK TABLE for partitioned tables and ANALYZE PARTITION
+#
+
+--source include/have_partition.inc
+--source ../have_engine.inc
+
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+--let $partition_options = PARTITION BY HASH(a) PARTITIONS 2
+--source ../create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Partitions
+  --source ../unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(2,'d'),(4,'e'),(100,'f'),(101,'g');
+
+  let $partition_options = PARTITION BY RANGE(a) ( 
+    PARTITION p0 VALUES LESS THAN (100), 
+    PARTITION p1 VALUES LESS THAN MAXVALUE 
+  );
+  --let $table_name = t2
+  --source ../create_table.inc
+
+  INSERT INTO t2 (a,b) SELECT a, b FROM t1;
+
+  let $alter_definition = CHECK PARTITION p0;
+  --source ../alter_table.inc
+  if ($mysql_errname)
+  {
+    --let $my_last_stmt = $alter_statement
+    --let $functionality = ALTER TABLE .. CHECK PARTITION
+    --source ../unexpected_result.inc
+  }
+
+  INSERT INTO t1 (a,b) VALUES (3,'c');
+
+  let $alter_definition = CHECK PARTITION p0, p1 FOR UPGRADE;
+  --source ../alter_table.inc
+
+  INSERT INTO t2 (a,b) VALUES (10000,'e');
+
+  let $alter_definition = CHECK PARTITION p0 QUICK;
+  let $table_name = t2;
+  --source ../alter_table.inc
+
+  INSERT INTO t1 (a,b) VALUES (6,'f');
+
+  let $alter_definition = CHECK PARTITION p1 FAST;
+  --source ../alter_table.inc
+
+  INSERT INTO t2 (a,b) VALUES (8,'h');
+
+  let $alter_definition = CHECK PARTITION p1 MEDIUM;
+  let $table_name = t2;
+  --source ../alter_table.inc
+
+  INSERT INTO t1 (a,b) VALUES (9,'i');
+
+  let $alter_definition = CHECK PARTITION ALL EXTENDED;
+  --source ../alter_table.inc
+
+  INSERT INTO t1 (a,b) VALUES (11,'k');
+
+  let $alter_definition = CHECK PARTITION p0 CHANGED;
+  --source ../alter_table.inc
+
+  DROP TABLE t1, t2;
+}
+
+let $extra_tbl_opts = PARTITION BY HASH(a) PARTITIONS 2;
+--source ../check_table.inc
+
+--source ../cleanup_engine.inc
+

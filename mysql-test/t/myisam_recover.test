@@ -122,6 +122,7 @@ connection default;
 --echo #
 --echo # Check that auto-repair for MyISAM tables can now happen in the
 --echo # middle of transaction, without aborting it.
+--enable_prepare_warnings
 
 connection default;
 

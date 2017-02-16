@@ -1,0 +1,20 @@
+--- type_char_indexes.result	2013-01-22 22:05:05.246633000 +0400
++++ type_char_indexes.reject	2013-01-23 02:51:10.055371738 +0400
+@@ -98,7 +98,7 @@
+ SET SESSION optimizer_switch = 'engine_condition_pushdown=on';
+ EXPLAIN SELECT c,c20,v16,v128 FROM t1 WHERE c > 'a';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-#	#	#	range	c_v	c_v	#	#	#	Using index condition
++#	#	#	ALL	c_v	NULL	#	#	#	Using where
+ SELECT c,c20,v16,v128 FROM t1 WHERE c > 'a';
+ c	c20	v16	v128
+ b	char3	varchar1a	varchar1b
+@@ -135,7 +135,7 @@
+ r3a
+ EXPLAIN SELECT c,c20,v16,v128 FROM t1 WHERE v16 = 'varchar1a' OR v16 = 'varchar3a' ORDER BY v16;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-#	#	#	range	#	v16	#	#	#	#
++#	#	#	ALL	#	NULL	#	#	#	#
+ SELECT c,c20,v16,v128 FROM t1 WHERE v16 = 'varchar1a' OR v16 = 'varchar3a' ORDER BY v16;
+ c	c20	v16	v128
+ a	char1	varchar1a	varchar1b

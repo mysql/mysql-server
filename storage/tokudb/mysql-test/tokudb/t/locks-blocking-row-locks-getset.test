@@ -1,0 +1,17 @@
+source include/have_tokudb.inc;
+# 9/22/2011
+# Test that getting and setting the value for
+# blocking row lock timeout works correctly.
+
+# Make sure we can read/write the session lock timeout system variable
+select @@tokudb_lock_timeout;
+set session tokudb_lock_timeout=1234567;
+select @@tokudb_lock_timeout;
+set session tokudb_lock_timeout=0;
+select @@tokudb_lock_timeout;
+set session tokudb_lock_timeout=5000000;
+select @@tokudb_lock_timeout;
+set session tokudb_lock_timeout=1000000;
+select @@tokudb_lock_timeout;
+set session tokudb_lock_timeout=4000;
+select @@tokudb_lock_timeout;

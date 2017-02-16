@@ -30,7 +30,6 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 typedef struct st_key KEY;
 typedef struct st_key_cache KEY_CACHE;
 typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;
-typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_order ORDER;
 class Alter_table_change_level;
 
@@ -111,9 +110,6 @@ enum enum_explain_filename_mode
 /* depends on errmsg.txt Database `db`, Table `t` ... */
 #define EXPLAIN_FILENAME_MAX_EXTRA_LENGTH 63
 
-#define MYSQL50_TABLE_NAME_PREFIX         "#mysql50#"
-#define MYSQL50_TABLE_NAME_PREFIX_LENGTH  9
-
 #define WFRM_WRITE_SHADOW 1
 #define WFRM_INSTALL_SHADOW 2
 #define WFRM_PACK_FRM 4
@@ -140,6 +136,9 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
                           const char *table, const char *ext, uint flags);
 uint build_table_shadow_filename(char *buff, size_t bufflen,
                                  ALTER_PARTITION_PARAM_TYPE *lpt);
+bool check_table_file_presence(char *old_path, char *path, const char *db,
+                               const char *table_name, const char *alias,
+                               bool issue_error);
 bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
                         HA_CREATE_INFO *create_info,
                         Alter_info *alter_info);
@@ -158,7 +157,8 @@ bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
                        Alter_info *alter_info,
-                       uint order_num, ORDER *order, bool ignore);
+                       uint order_num, ORDER *order, bool ignore,
+                       bool require_online);
 bool mysql_compare_tables(TABLE *table,
                           Alter_info *alter_info,
                           HA_CREATE_INFO *create_info,

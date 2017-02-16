@@ -1,0 +1,20 @@
+MYSQL_PLUGIN(handlersocket, [HandlerSocket], [HandlerSocket], [max])
+MYSQL_PLUGIN_DYNAMIC(handlersocket, handlersocket.la)
+MYSQL_PLUGIN_ACTIONS(handlersocket,
+[
+  ac_mysql_source_dir='$(top_srcdir)'
+  MYSQL_INC="-I$ac_mysql_source_dir/sql"
+  MYSQL_INC="$MYSQL_INC -I$ac_mysql_source_dir/include"
+  MYSQL_INC="$MYSQL_INC -I$ac_mysql_source_dir/regex"
+  MYSQL_INC="$MYSQL_INC -I$ac_mysql_source_dir"
+  MYSQL_LIB='-L$(top_builddir)/libservices -lmysqlservices'
+  PLUGIN_DIR='$(pkglibdir)/plugin'
+  HANDLERSOCKET_SUBDIRS="libhsclient handlersocket client"
+
+  AC_SUBST(MYSQL_INC)
+  AC_SUBST(MYSQL_CFLAGS)
+  AC_SUBST(MYSQL_LIB)
+  AC_SUBST(PLUGIN_DIR)
+  AC_SUBST(HANDLERSOCKET_SUBDIRS)
+  AC_CONFIG_FILES(plugin/handler_socket/perl-Net-HandlerSocket/Makefile.PL)
+])

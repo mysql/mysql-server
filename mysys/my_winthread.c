@@ -18,12 +18,11 @@
 *****************************************************************************/
 #if defined (_WIN32)
 /* SAFE_MUTEX will not work until the thread structure is up to date */
+
 #undef SAFE_MUTEX
 #include "mysys_priv.h"
 #include <process.h>
 #include <signal.h>
-
-static void install_sigabrt_handler(void);
 
 struct thread_start_parameter
 {

@@ -2,7 +2,13 @@ include/master-slave.inc
 [connection master]
 create table t1 (n int);
 insert into t1 values(1);
+show global status like 'com_insert';
+Variable_name	Value
+Com_insert	1
 stop slave;
+show global status like 'com_insert';
+Variable_name	Value
+Com_insert	1
 include/wait_for_slave_to_stop.inc
 start slave;
 include/wait_for_slave_to_start.inc

@@ -247,7 +247,7 @@ drop user 'mysqltest_1b', 'mysqltest_2b', 'mysqltest_3b';
 ERROR HY000: Operation DROP USER failed for 'mysqltest_2b'@'%'
 create user 'mysqltest_2' identified by 'Mysqltest-2';
 drop user 'mysqltest_2' identified by 'Mysqltest-2';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'identified by 'Mysqltest-2'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'identified by 'Mysqltest-2'' at line 1
 drop user 'mysqltest_2';
 create user '%@b'@'b';
 show grants for '%@b'@'b';
@@ -287,6 +287,7 @@ Warnings:
 Warning	1364	Field 'ssl_cipher' doesn't have a default value
 Warning	1364	Field 'x509_issuer' doesn't have a default value
 Warning	1364	Field 'x509_subject' doesn't have a default value
+Warning	1364	Field 'authentication_string' doesn't have a default value
 create user mysqltest_A@'%';
 rename user mysqltest_B@'%' to mysqltest_C@'%';
 drop user mysqltest_C@'%';
@@ -354,6 +355,7 @@ Warnings:
 Warning	1364	Field 'ssl_cipher' doesn't have a default value
 Warning	1364	Field 'x509_issuer' doesn't have a default value
 Warning	1364	Field 'x509_subject' doesn't have a default value
+Warning	1364	Field 'authentication_string' doesn't have a default value
 INSERT INTO mysql.db (host, db, user, select_priv) VALUES
 ('%','TESTDB','mysqltest_1','Y');
 FLUSH PRIVILEGES;

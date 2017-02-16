@@ -1,0 +1,9 @@
+drop table if exists t1,t3;
+CREATE TABLE t3(a int,c int,d int)engine=TOKUDB;
+lock table t3 read;
+create temporary table t1 engine=tokudb as SELECT 1;
+select * from t1;
+1
+1
+unlock tables;
+drop table t1,t3;

@@ -1,0 +1,34 @@
+select @@global.skip_replication;
+ERROR HY000: Variable 'skip_replication' is a SESSION variable
+select @@session.skip_replication between 1 and 10000;
+@@session.skip_replication between 1 and 10000
+0
+should be empty
+show global variables like 'skip_replication';
+Variable_name	Value
+show session variables like 'skip_replication';
+Variable_name	Value
+skip_replication	OFF
+should be empty
+select * from information_schema.global_variables where variable_name='skip_replication';
+VARIABLE_NAME	VARIABLE_VALUE
+select @@session.skip_replication = variable_value from information_schema.session_variables where variable_name='skip_replication';
+@@session.skip_replication = variable_value
+1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'OFF'
+set session skip_replication=0;
+select @@session.skip_replication;
+@@session.skip_replication
+0
+set session skip_replication=1;
+select @@session.skip_replication;
+@@session.skip_replication
+1
+select * from information_schema.global_variables where variable_name='skip_replication';
+VARIABLE_NAME	VARIABLE_VALUE
+select variable_value from information_schema.session_variables where variable_name='skip_replication';
+variable_value
+ON
+set global skip_replication=1;
+ERROR HY000: Variable 'skip_replication' is a SESSION variable and can't be used with SET GLOBAL

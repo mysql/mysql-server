@@ -1,0 +1,17 @@
+# Establish connection conn1 (user = root)
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+create table foo ( a int, b int, c int, key (a), key (b));
+begin;
+select * from foo;
+a	b	c
+select sum(a) from foo;
+sum(a)
+NULL
+alter table foo drop index a;
+select * from foo;
+a	b	c
+truncate table foo;
+rename table foo to bar;
+drop table bar;
+commit;

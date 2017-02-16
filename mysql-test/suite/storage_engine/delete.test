@@ -1,0 +1,68 @@
+# 
+# Basic DELETE statements.
+# DELETE LOW_PRIORITY is covered in delete_low_prio test
+# DELETE QUICK is covered in delete_quick test (syntax only)
+# DELETE IGNORE is covered in delete_ignore test
+#
+
+--source have_engine.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+--enable_warnings
+
+--let $create_definition = a $int_col, b $char_col
+--source create_table.inc
+INSERT INTO t1 (a,b) VALUES (10000,'foobar'),(1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
+INSERT INTO t1 (a,b) SELECT a, b FROM t1;
+
+# Single-table DELETE
+
+DELETE FROM t1 WHERE b IN ('c');
+if ($mysql_errname)
+{
+  --let $functionality = DELETE FROM
+  --source unexpected_result.inc
+}
+--sorted_result
+SELECT a,b FROM t1;
+
+DELETE FROM t1 WHERE a < 0 OR b = 'a';
+--sorted_result
+SELECT a,b FROM t1;
+
+# ORDER BY and LIMIT
+DELETE FROM t1 WHERE a <= 4 ORDER BY b DESC LIMIT 1;
+--sorted_result
+SELECT a,b FROM t1;
+
+# Multi-table DELETE
+
+--let $create_definition = c $char_col, d $int_col
+--let $table_name = t2
+--source create_table.inc
+INSERT INTO t2 (c,d) SELECT b, a FROM t1;
+--sorted_result
+SELECT c,d FROM t2;
+
+DELETE t2.* FROM t1, t2 WHERE c < b AND a + d != 1;
+--sorted_result
+SELECT a,b FROM t1;
+--sorted_result
+SELECT c,d FROM t2;
+
+DELETE FROM t2, t1.* USING t2, t1 WHERE c = 'foobar' and b = c;
+--sorted_result
+SELECT a,b FROM t1;
+--sorted_result
+SELECT c,d FROM t2;
+
+DELETE FROM t1;
+--sorted_result
+SELECT a,b FROM t1;
+
+# Cleanup
+DROP TABLE t1, t2;
+
+--source cleanup_engine.inc
+

@@ -1,11 +1,5 @@
 SET @start_global_value = @@global.default_storage_engine;
-SELECT @start_global_value;
-@start_global_value
-InnoDB
 SET @start_session_value = @@session.default_storage_engine;
-SELECT @start_session_value;
-@start_session_value
-InnoDB
 '#--------------------FN_DYNVARS_005_01-------------------------#'
 SET @@global.default_storage_engine = INNODB;
 SET @@global.default_storage_engine = DEFAULT;
@@ -108,10 +102,4 @@ SELECT default_storage_engine = @@session.default_storage_engine;
 ERROR 42S22: Unknown column 'default_storage_engine' in 'field list'
 SET @@default_storage_engine = @start_global_value;
 SET @@global.default_storage_engine = @start_global_value;
-SELECT @@global.default_storage_engine;
-@@global.default_storage_engine
-InnoDB
 SET @@session.default_storage_engine = @start_session_value;
-SELECT @@session.default_storage_engine;
-@@session.default_storage_engine
-InnoDB

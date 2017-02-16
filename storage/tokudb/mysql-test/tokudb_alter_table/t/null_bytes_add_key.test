@@ -1,0 +1,62 @@
+# simplified test case reduced from an RQG trial that crashes tokudb 
+# adding a key breaks the row encoding because mysql changed
+# null_bytes on the new table without tokudb's knowledge
+
+source include/have_tokudb.inc;
+set default_storage_engine=tokudb;
+
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+CREATE TABLE t (
+c25 char(1),
+c277 int,
+c195 int unsigned,
+c129 char(1),
+c196 int unsigned,
+c58 date,
+c7 varchar(1),
+c121 varchar(1),
+c21 char(1),
+c56 date,
+c2 varchar(1),
+c12 varchar(1),
+c13 char(1),
+c14 int,
+c15 date,
+c16 char(1),
+c17 varchar(1),
+c18 int unsigned,
+c120 varchar(1),
+c19 varchar(1),
+c5 varchar(1),
+c22 char(1),
+c9 varchar(1),
+c23 char(1),
+c28 char(1),
+c279 int unsigned,
+c26 char(1),
+c27 varchar(1),
+c24 char(1),
+c193 int,
+c29 date,
+c30 varchar(1),
+c194 int,
+c31 date,
+key(c31)) ENGINE=tokudb;
+INSERT INTO t (c25) VALUES (NULL);
+UPDATE t SET c27=0;
+ALTER TABLE t ADD PRIMARY KEY(c19,c27)USING HASH;
+UPDATE t SET c27=0;
+ALTER TABLE t ROW_FORMAT=FIXED KEY_BLOCK_SIZE=1;
+UPDATE t SET c27=0;
+set tokudb_disable_hot_alter=0;
+set tokudb_disable_slow_alter=1;
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t ADD KEY (c25);
+set tokudb_disable_slow_alter=0;
+ALTER TABLE t ADD KEY (c25);
+UPDATE t SET c27=0;
+
+drop table t;

@@ -60,7 +60,6 @@ namespace yaSSL {
         time_t clicks = time(0);
         char   timeStr[32];
 
-        memset(timeStr, 0, sizeof(timeStr));
         // get rid of newline
         strncpy(timeStr, ctime(&clicks), sizeof(timeStr));
         unsigned int len = strlen(timeStr);

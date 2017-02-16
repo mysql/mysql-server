@@ -1,0 +1,10 @@
+set default_storage_engine='tokudb';
+drop table if exists t;
+create table t (id int primary key);
+set autocommit=OFF;
+lock tables t write;
+optimize table t;
+Table	Op	Msg_type	Msg_text
+test.t	optimize	status	OK
+unlock tables;
+drop table t;

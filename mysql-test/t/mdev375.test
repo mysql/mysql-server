@@ -1,0 +1,22 @@
+#
+# MDEV-375 Server crashes in THD::print_aborted_warning with log_warnings > 3
+#
+--source include/not_embedded.inc
+
+SET GLOBAL log_warnings=4;
+SET GLOBAL max_connections=2;
+
+--connect (con1,localhost,root,,)
+SELECT 1;
+--connect (con2,localhost,root,,)
+SELECT 2;
+--disable_query_log
+--error ER_CON_COUNT_ERROR
+--connect (con3,localhost,root,,)
+--enable_query_log
+
+--connection default
+SELECT 0;
+
+SET GLOBAL log_warnings=default;
+SET GLOBAL max_connections=default;

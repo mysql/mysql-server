@@ -1,0 +1,143 @@
+# 
+# INSERT statements for tables with keys
+#
+--source have_engine.inc
+--source have_default_index.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--let $create_definition = a $int_col, b $char_indexed_col, $default_index(b)
+--source create_table.inc
+if ($mysql_errname)
+{
+    --let $my_last_stmt = $create_statement
+    --let $functionality = Indexes on CHAR columns
+    --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
+  INSERT INTO t1 (a,b) VALUES (100,'a'), (6,'f');
+  INSERT INTO t1 (a,b) VALUES (30,'m'),(29,'n');
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
+  INSERT INTO t1 (a,b) VALUES (3,'a'),(0,'');
+  --sorted_result
+  SELECT a,b FROM t1;
+  DROP TABLE t1;
+}
+
+--let $create_definition = a $int_indexed_col, b $char_col, UNIQUE INDEX(a)
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Unique indexes
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
+  INSERT INTO t1 (a,b) VALUES (100,'a'), (6,'f');
+  INSERT INTO t1 (a,b) VALUES (30,'m'),(29,'n');
+  --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
+  --source check_errors.inc
+  --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+  INSERT INTO t1 (a,b) VALUES (3,'a'),(0,'');
+  --source check_errors.inc
+  INSERT INTO t1 (a,b) VALUES (0,'');
+  --sorted_result
+  SELECT a,b FROM t1;
+
+  INSERT IGNORE INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
+  if ($mysql_errname)
+  {
+    --source unexpected_result.inc
+  }
+  INSERT INTO t1 (a,b) VALUES (3,'a'),(4,'d') ON DUPLICATE KEY UPDATE a = a+10;
+  if ($mysql_errname)
+  {
+    --source unexpected_result.inc
+  }
+
+  --sorted_result
+  SELECT a,b FROM t1;
+
+  DROP TABLE t1;
+}
+
+--let $create_definition = a $int_indexed_col, b $char_indexed_col, UNIQUE INDEX(a,b)
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Multi-part indexes
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
+  INSERT INTO t1 (a,b) VALUES (100,'a'), (6,'f');
+  INSERT INTO t1 (a,b) VALUES (30,'m'),(29,'n');
+  INSERT INTO t1 (a,b) VALUES (100,'b'), (2,'c');
+  --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
+  --source check_errors.inc
+  --sorted_result
+  SELECT a,b FROM t1;
+
+  INSERT IGNORE INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z') ON DUPLICATE KEY UPDATE a = a+VALUES(a);
+  --sorted_result
+  SELECT a,b FROM t1;
+
+  --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+  INSERT INTO t1 (a,b) VALUES (101,'x'),(101,'x');
+  --source check_errors.inc
+  DROP TABLE t1;
+}
+
+--let $create_definition = a $int_indexed_col PRIMARY KEY, b $char_col
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Primary keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
+  INSERT INTO t1 (a,b) VALUES (100,'a'), (6,'f');
+  INSERT INTO t1 (a,b) VALUES (30,'m'),(29,'n');
+  --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
+  --source check_errors.inc
+  --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+  INSERT INTO t1 (a,b) VALUES (3,'a'),(0,'');
+  --source check_errors.inc
+  INSERT INTO t1 (a,b) VALUES (0,'');
+  --sorted_result
+  SELECT a,b FROM t1;
+
+  INSERT IGNORE INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
+  if ($mysql_errname)
+  {
+    --source unexpected_result.inc
+  }
+
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z') ON DUPLICATE KEY UPDATE b = CONCAT(b,b);
+  if ($mysql_errname)
+  {
+    --source unexpected_result.inc
+  }
+  --sorted_result
+  SELECT a,b FROM t1;
+
+  DROP TABLE t1;
+}  
+
+--source cleanup_engine.inc
+

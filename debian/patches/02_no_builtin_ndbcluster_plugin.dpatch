@@ -1,0 +1,18 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 02_no_builtin_ndbcluster_plugin.dpatch by  <ch@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: As we completely disabled ndbcluster
+
+@DPATCH@
+
+--- old/sql/sql_builtin.cc
++++ new/sql/sql_builtin.cc
+@@ -22,6 +22,6 @@
+ 
+ struct st_mysql_plugin *mysqld_builtins[]=
+ {
+-  builtin_binlog_plugin, builtin_partition_plugin, builtin_csv_plugin, builtin_heap_plugin, builtin_myisam_plugin, builtin_myisammrg_plugin, builtin_ndbcluster_plugin,(struct st_mysql_plugin *)0
++  builtin_binlog_plugin, builtin_partition_plugin, builtin_csv_plugin, builtin_heap_plugin, builtin_myisam_plugin, builtin_myisammrg_plugin, (struct st_mysql_plugin *)0
+ };
+ 

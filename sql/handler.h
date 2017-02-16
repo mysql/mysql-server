@@ -1,8 +1,8 @@
 #ifndef HANDLER_INCLUDED
 #define HANDLER_INCLUDED
-
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -35,6 +35,10 @@
 #include <my_compare.h>
 #include <ft_global.h>
 #include <keycache.h>
+
+#if MAX_KEY > 128
+#error MAX_KEY is too large.  Values up to 128 are supported.
+#endif
 
 // the following is for checking tables
 
@@ -116,7 +120,8 @@
 #define HA_CAN_FULLTEXT        (1 << 21)
 #define HA_CAN_SQL_HANDLER     (1 << 22)
 #define HA_NO_AUTO_INCREMENT   (1 << 23)
-#define HA_HAS_CHECKSUM        (1 << 24)
+/* Has automatic checksums and uses the old checksum format */
+#define HA_HAS_OLD_CHECKSUM    (1 << 24)
 /* Table data are stored in separate files (for lower_case_table_names) */
 #define HA_FILE_BASED	       (1 << 26)
 #define HA_NO_VARCHAR	       (1 << 27)
@@ -156,12 +161,32 @@
     ordered.
 */
 #define HA_DUPLICATE_KEY_NOT_IN_ORDER    (LL(1) << 36)
+
 /*
   Engine supports REPAIR TABLE. Used by CHECK TABLE FOR UPGRADE if an
   incompatible table is detected. If this flag is set, CHECK TABLE FOR UPGRADE
   will report ER_TABLE_NEEDS_UPGRADE, otherwise ER_TABLE_NEED_REBUILD.
 */
 #define HA_CAN_REPAIR                    (LL(1) << 37)
+
+/* Has automatic checksums and uses the new checksum format */
+#define HA_HAS_NEW_CHECKSUM    (LL(1) << 38)
+#define HA_CAN_VIRTUAL_COLUMNS (LL(1) << 39)
+#define HA_MRR_CANT_SORT       (LL(1) << 40)
+#define HA_RECORD_MUST_BE_CLEAN_ON_WRITE (LL(1) << 41)
+
+/*
+  Table condition pushdown must be performed regardless of
+  'engine_condition_pushdown' setting.
+
+  This flag is aimed at storage engines that come with "special" predicates
+  that can only be evaluated inside the storage engine.  
+  For example, when one does 
+    select * from sphinx_table where query='{fulltext_query}'
+  then the "query=..." condition must be always pushed down into storage
+  engine.
+*/
+#define HA_MUST_USE_TABLE_CONDITION_PUSHDOWN (LL(1) << 42)
 
 /*
   Set of all binlog flags. Currently only contain the capabilities
@@ -176,6 +201,18 @@
 #define HA_READ_RANGE           8       /* can find all records in a range */
 #define HA_ONLY_WHOLE_INDEX	16	/* Can't use part key searches */
 #define HA_KEYREAD_ONLY         64	/* Support HA_EXTRA_KEYREAD */
+
+/*
+  Index scan will not return records in rowid order. Not guaranteed to be
+  set for unordered (e.g. HASH) indexes.
+*/
+#define HA_KEY_SCAN_NOT_ROR     128 
+#define HA_DO_INDEX_COND_PUSHDOWN  256 /* Supports Index Condition Pushdown */
+/*
+  Data is clustered on this key. This means that when you read the key
+  you also get the row data without any additional disk reads.
+*/
+#define HA_CLUSTERED_INDEX      512
 
 /*
   bits in alter_table_flags:
@@ -235,12 +272,6 @@
 #define HA_FAST_CHANGE_PARTITION                (1L << 13)
 #define HA_PARTITION_ONE_PHASE                  (1L << 14)
 
-/*
-  Index scan will not return records in rowid order. Not guaranteed to be
-  set for unordered (e.g. HASH) indexes.
-*/
-#define HA_KEY_SCAN_NOT_ROR     128 
-
 /* operations for disable/enable indexes */
 #define HA_KEY_SWITCH_NONUNIQ      0
 #define HA_KEY_SWITCH_ALL          1
@@ -254,7 +285,7 @@
   (yes, the sum is deliberately inaccurate)
   TODO remove the limit, use dynarrays
 */
-#define MAX_HA 15
+#define MAX_HA 64
 
 /*
   Use this instead of 0 as the initial value for the slot number of
@@ -287,8 +318,7 @@
 #define HA_LEX_CREATE_TMP_TABLE	1
 #define HA_LEX_CREATE_IF_NOT_EXISTS 2
 #define HA_LEX_CREATE_TABLE_LIKE 4
-#define HA_OPTION_NO_CHECKSUM	(1L << 17)
-#define HA_OPTION_NO_DELAY_KEY_WRITE (1L << 18)
+#define HA_CREATE_TMP_ALTER    8
 #define HA_MAX_REC_LENGTH	65535
 
 /* Table caching type */
@@ -305,6 +335,7 @@
 #define HA_CHECK_DUP_UNIQUE 2
 #define HA_CHECK_FK_ERROR 4
 #define HA_CHECK_DUP (HA_CHECK_DUP_KEY + HA_CHECK_DUP_UNIQUE)
+#define HA_CHECK_ALL (~0U)
 
 enum legacy_db_type
 {
@@ -327,15 +358,23 @@ enum legacy_db_type
   DB_TYPE_MARIA,
   /** Performance schema engine. */
   DB_TYPE_PERFORMANCE_SCHEMA,
-  DB_TYPE_FIRST_DYNAMIC=42,
+  DB_TYPE_ARIA=42,
+  DB_TYPE_TOKUDB=43,
+  DB_TYPE_FIRST_DYNAMIC=44,
   DB_TYPE_DEFAULT=127 // Must be last
 };
+/*
+  Better name for DB_TYPE_UNKNOWN. Should be used for engines that do not have
+  a hard-coded type value here.
+ */
+#define DB_TYPE_AUTOASSIGN DB_TYPE_UNKNOWN
 
 enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
-		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT,
-                /** Unused. Reserved for future versions. */
-                ROW_TYPE_PAGE };
+		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT, ROW_TYPE_PAGE };
+
+/* not part of the enum, so that it shouldn't be in switch(row_type) */
+#define ROW_TYPE_MAX ((uint)ROW_TYPE_PAGE + 1)
 
 enum enum_binlog_func {
   BFN_RESET_LOGS=        1,
@@ -378,29 +417,9 @@ enum enum_binlog_command {
 #define HA_CREATE_USED_PASSWORD         (1L << 17)
 #define HA_CREATE_USED_CONNECTION       (1L << 18)
 #define HA_CREATE_USED_KEY_BLOCK_SIZE   (1L << 19)
-/** Unused. Reserved for future versions. */
+/* The following two are used by Maria engine: */
 #define HA_CREATE_USED_TRANSACTIONAL    (1L << 20)
-/** Unused. Reserved for future versions. */
 #define HA_CREATE_USED_PAGE_CHECKSUM    (1L << 21)
-
-
-/*
-  This is master database for most of system tables. However there
-  can be other databases which can hold system tables. Respective
-  storage engines define their own system database names.
-*/
-extern const char *mysqld_system_database;
-
-/*
-  Structure to hold list of system_database.system_table.
-  This is used at both mysqld and storage engine layer.
-*/
-struct st_system_tablename
-{
-  const char *db;
-  const char *tablename;
-};
-
 
 typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define MYSQL_XID_PREFIX "MySQLXid"
@@ -580,6 +599,7 @@ struct TABLE;
 enum enum_schema_tables
 {
   SCH_CHARSETS= 0,
+  SCH_CLIENT_STATS,
   SCH_COLLATIONS,
   SCH_COLLATION_CHARACTER_SET_APPLICABILITY,
   SCH_COLUMNS,
@@ -589,6 +609,8 @@ enum enum_schema_tables
   SCH_FILES,
   SCH_GLOBAL_STATUS,
   SCH_GLOBAL_VARIABLES,
+  SCH_INDEX_STATS,
+  SCH_KEY_CACHES,
   SCH_KEY_COLUMN_USAGE,
   SCH_OPEN_TABLES,
   SCH_PARAMETERS,
@@ -609,8 +631,10 @@ enum enum_schema_tables
   SCH_TABLE_CONSTRAINTS,
   SCH_TABLE_NAMES,
   SCH_TABLE_PRIVILEGES,
+  SCH_TABLE_STATS,
   SCH_TRIGGERS,
   SCH_USER_PRIVILEGES,
+  SCH_USER_STATS,
   SCH_VARIABLES,
   SCH_VIEWS
 };
@@ -649,6 +673,108 @@ struct handler_log_file_data {
   enum log_status status;
 };
 
+/*
+  Definitions for engine-specific table/field/index options in the CREATE TABLE.
+
+  Options are declared with HA_*OPTION_* macros (HA_TOPTION_NUMBER,
+  HA_FOPTION_ENUM, HA_IOPTION_STRING, etc).
+
+  Every macros takes the option name, and the name of the underlying field of
+  the appropriate C structure. The "appropriate C structure" is
+  ha_table_option_struct for table level options,
+  ha_field_option_struct for field level options,
+  ha_index_option_struct for key level options. The engine either
+  defines a structure of this name, or uses #define's to map
+  these "appropriate" names to the actual structure type name.
+
+  ULL options use a ulonglong as the backing store.
+  HA_*OPTION_NUMBER() takes the option name, the structure field name,
+  the default value for the option, min, max, and blk_siz values.
+
+  STRING options use a char* as a backing store.
+  HA_*OPTION_STRING takes the option name and the structure field name.
+  The default value will be 0.
+
+  ENUM options use a uint as a backing store (not enum!!!).
+  HA_*OPTION_ENUM takes the option name, the structure field name,
+  the default value for the option as a number, and a string with the
+  permitted values for this enum - one string with comma separated values,
+  for example: "gzip,bzip2,lzma"
+
+  BOOL options use a bool as a backing store.
+  HA_*OPTION_BOOL takes the option name, the structure field name,
+  and the default value for the option.
+  From the SQL, BOOL options accept YES/NO, ON/OFF, and 1/0.
+
+  The name of the option is limited to 255 bytes,
+  the value (for string options) - to the 32767 bytes.
+
+  See ha_example.cc for an example.
+*/
+
+struct ha_table_option_struct;
+struct ha_field_option_struct;
+struct ha_index_option_struct;
+
+enum ha_option_type { HA_OPTION_TYPE_ULL,    /* unsigned long long */
+                      HA_OPTION_TYPE_STRING, /* char * */
+                      HA_OPTION_TYPE_ENUM,   /* uint */
+                      HA_OPTION_TYPE_BOOL};  /* bool */
+
+#define HA_xOPTION_NUMBER(name, struc, field, def, min, max, blk_siz)   \
+  { HA_OPTION_TYPE_ULL, name, sizeof(name)-1,                        \
+    offsetof(struc, field), def, min, max, blk_siz, 0 }
+#define HA_xOPTION_STRING(name, struc, field)                        \
+  { HA_OPTION_TYPE_STRING, name, sizeof(name)-1,                     \
+    offsetof(struc, field), 0, 0, 0, 0, 0 }
+#define HA_xOPTION_ENUM(name, struc, field, values, def)             \
+  { HA_OPTION_TYPE_ENUM, name, sizeof(name)-1,                       \
+    offsetof(struc, field), def, 0,                                  \
+    sizeof(values)-1, 0, values }
+#define HA_xOPTION_BOOL(name, struc, field, def)                     \
+  { HA_OPTION_TYPE_BOOL, name, sizeof(name)-1,                       \
+    offsetof(struc, field), def, 0, 1, 0, 0 }
+#define HA_xOPTION_END { HA_OPTION_TYPE_ULL, 0, 0, 0, 0, 0, 0, 0, 0 }
+
+#define HA_TOPTION_NUMBER(name, field, def, min, max, blk_siz)          \
+  HA_xOPTION_NUMBER(name, ha_table_option_struct, field, def, min, max, blk_siz)
+#define HA_TOPTION_STRING(name, field)                               \
+  HA_xOPTION_STRING(name, ha_table_option_struct, field)
+#define HA_TOPTION_ENUM(name, field, values, def)                    \
+  HA_xOPTION_ENUM(name, ha_table_option_struct, field, values, def)
+#define HA_TOPTION_BOOL(name, field, def)                            \
+  HA_xOPTION_BOOL(name, ha_table_option_struct, field, def)
+#define HA_TOPTION_END HA_xOPTION_END
+
+#define HA_FOPTION_NUMBER(name, field, def, min, max, blk_siz)          \
+  HA_xOPTION_NUMBER(name, ha_field_option_struct, field, def, min, max, blk_siz)
+#define HA_FOPTION_STRING(name, field)                               \
+  HA_xOPTION_STRING(name, ha_field_option_struct, field)
+#define HA_FOPTION_ENUM(name, field, values, def)                    \
+  HA_xOPTION_ENUM(name, ha_field_option_struct, field, values, def)
+#define HA_FOPTION_BOOL(name, field, def)                            \
+  HA_xOPTION_BOOL(name, ha_field_option_struct, field, def)
+#define HA_FOPTION_END HA_xOPTION_END
+
+#define HA_IOPTION_NUMBER(name, field, def, min, max, blk_siz)          \
+  HA_xOPTION_NUMBER(name, ha_index_option_struct, field, def, min, max, blk_siz)
+#define HA_IOPTION_STRING(name, field)                               \
+  HA_xOPTION_STRING(name, ha_index_option_struct, field)
+#define HA_IOPTION_ENUM(name, field, values, def)                    \
+  HA_xOPTION_ENUM(name, ha_index_option_struct, field, values, def)
+#define HA_IOPTION_BOOL(name, field, def)                            \
+  HA_xOPTION_BOOL(name, ha_index_option_struct, field, def)
+#define HA_IOPTION_END HA_xOPTION_END
+
+typedef struct st_ha_create_table_option {
+  enum ha_option_type type;
+  const char *name;
+  size_t name_length;
+  ptrdiff_t offset;
+  ulonglong def_value;
+  ulonglong min_value, max_value, block_size;
+  const char *values;
+} ha_create_table_option;
 
 enum handler_iterator_type
 {
@@ -710,8 +836,9 @@ struct handlerton
   SHOW_COMP_OPTION state;
 
   /*
-    Historical number used for frm file to determine the correct storage engine.
-    This is going away and new engines will just use "name" for this.
+    Historical number used for frm file to determine the correct
+    storage engine.  This is going away and new engines will just use
+    "name" for this.
   */
   enum legacy_db_type db_type;
   /*
@@ -744,6 +871,10 @@ struct handlerton
    */
    int  (*close_connection)(handlerton *hton, THD *thd);
    /*
+     Tell handler that query has been killed.
+   */
+   void (*kill_query)(handlerton *hton, THD *thd, enum thd_kill_levels level);
+   /*
      sv points to an uninitialized storage area of requested size
      (see savepoint_offset description)
    */
@@ -761,12 +892,113 @@ struct handlerton
      NOTE 'all' is also false in auto-commit mode where 'end of statement'
      and 'real commit' mean the same event.
    */
-   int  (*commit)(handlerton *hton, THD *thd, bool all);
+   int (*commit)(handlerton *hton, THD *thd, bool all);
+   /*
+     The commit_ordered() method is called prior to the commit() method, after
+     the transaction manager has decided to commit (not rollback) the
+     transaction. Unlike commit(), commit_ordered() is called only when the
+     full transaction is committed, not for each commit of statement
+     transaction in a multi-statement transaction.
+
+     Not that like prepare(), commit_ordered() is only called when 2-phase
+     commit takes place. Ie. when no binary log and only a single engine
+     participates in a transaction, one commit() is called, no
+     commit_ordered(). So engines must be prepared for this.
+
+     The calls to commit_ordered() in multiple parallel transactions is
+     guaranteed to happen in the same order in every participating
+     handler. This can be used to ensure the same commit order among multiple
+     handlers (eg. in table handler and binlog). So if transaction T1 calls
+     into commit_ordered() of handler A before T2, then T1 will also call
+     commit_ordered() of handler B before T2.
+
+     Engines that implement this method should during this call make the
+     transaction visible to other transactions, thereby making the order of
+     transaction commits be defined by the order of commit_ordered() calls.
+
+     The intention is that commit_ordered() should do the minimal amount of
+     work that needs to happen in consistent commit order among handlers. To
+     preserve ordering, calls need to be serialised on a global mutex, so
+     doing any time-consuming or blocking operations in commit_ordered() will
+     limit scalability.
+
+     Handlers can rely on commit_ordered() calls to be serialised (no two
+     calls can run in parallel, so no extra locking on the handler part is
+     required to ensure this).
+
+     Note that commit_ordered() can be called from a different thread than the
+     one handling the transaction! So it can not do anything that depends on
+     thread local storage, in particular it can not call my_error() and
+     friends (instead it can store the error code and delay the call of
+     my_error() to the commit() method).
+
+     Similarly, since commit_ordered() returns void, any return error code
+     must be saved and returned from the commit() method instead.
+
+     The commit_ordered method is optional, and can be left unset if not
+     needed in a particular handler (then there will be no ordering guarantees
+     wrt. other engines and binary log).
+   */
+   void (*commit_ordered)(handlerton *hton, THD *thd, bool all);
    int  (*rollback)(handlerton *hton, THD *thd, bool all);
    int  (*prepare)(handlerton *hton, THD *thd, bool all);
+   /*
+     The prepare_ordered method is optional. If set, it will be called after
+     successful prepare() in all handlers participating in 2-phase
+     commit. Like commit_ordered(), it is called only when the full
+     transaction is committed, not for each commit of statement transaction.
+
+     The calls to prepare_ordered() among multiple parallel transactions are
+     ordered consistently with calls to commit_ordered(). This means that
+     calls to prepare_ordered() effectively define the commit order, and that
+     each handler will see the same sequence of transactions calling into
+     prepare_ordered() and commit_ordered().
+
+     Thus, prepare_ordered() can be used to define commit order for handlers
+     that need to do this in the prepare step (like binlog). It can also be
+     used to release transaction's locks early in an order consistent with the
+     order transactions will be eventually committed.
+
+     Like commit_ordered(), prepare_ordered() calls are serialised to maintain
+     ordering, so the intention is that they should execute fast, with only
+     the minimal amount of work needed to define commit order. Handlers can
+     rely on this serialisation, and do not need to do any extra locking to
+     avoid two prepare_ordered() calls running in parallel.
+
+     Like commit_ordered(), prepare_ordered() is not guaranteed to be called
+     in the context of the thread handling the rest of the transaction. So it
+     cannot invoke code that relies on thread local storage, in particular it
+     cannot call my_error().
+
+     prepare_ordered() cannot cause a rollback by returning an error, all
+     possible errors must be handled in prepare() (the prepare_ordered()
+     method returns void). In case of some fatal error, a record of the error
+     must be made internally by the engine and returned from commit() later.
+
+     Note that for user-level XA SQL commands, no consistent ordering among
+     prepare_ordered() and commit_ordered() is guaranteed (as that would
+     require blocking all other commits for an indefinite time).
+
+     When 2-phase commit is not used (eg. only one engine (and no binlog) in
+     transaction), neither prepare() nor prepare_ordered() is called.
+   */
+   void (*prepare_ordered)(handlerton *hton, THD *thd, bool all);
    int  (*recover)(handlerton *hton, XID *xid_list, uint len);
    int  (*commit_by_xid)(handlerton *hton, XID *xid);
    int  (*rollback_by_xid)(handlerton *hton, XID *xid);
+  /*
+    "Disable or enable checkpointing internal to the storage engine. This is
+    used for FLUSH TABLES WITH READ LOCK AND DISABLE CHECKPOINT to ensure that
+    the engine will never start any recovery from a time between
+    FLUSH TABLES ... ; UNLOCK TABLES.
+
+    While checkpointing is disabled, the engine should pause any background
+    write activity (such as tablespace checkpointing) that require consistency
+    between different files (such as transaction log and tablespace files) for
+    crash recovery to succeed. The idea is to use this to make safe
+    multi-volume LVM snapshot backups.
+  */
+   int  (*checkpoint_state)(handlerton *hton, bool disabled);
    void *(*create_cursor_read_view)(handlerton *hton, THD *thd);
    void (*set_cursor_read_view)(handlerton *hton, THD *thd, void *read_view);
    void (*close_cursor_read_view)(handlerton *hton, THD *thd, void *read_view);
@@ -821,55 +1053,37 @@ struct handlerton
    int (*table_exists_in_engine)(handlerton *hton, THD* thd, const char *db,
                                  const char *name);
 
-  /**
-    List of all system tables specific to the SE.
-    Array element would look like below,
-     { "<database_name>", "<system table name>" },
-    The last element MUST be,
-     { (const char*)NULL, (const char*)NULL }
-
-    @see ha_example_system_tables in ha_example.cc
-
-    This interface is optional, so every SE need not implement it.
-  */
-  const char* (*system_database)();
-
-  /**
-    Check if the given db.tablename is a system table for this SE.
-
-    @param db                         Database name to check.
-    @param table_name                 table name to check.
-    @param is_sql_layer_system_table  if the supplied db.table_name is a SQL
-                                      layer system table.
-
-    @see example_is_supported_system_table in ha_example.cc
-
-    is_sql_layer_system_table is supplied to make more efficient
-    checks possible for SEs that support all SQL layer tables.
-
-    This interface is optional, so every SE need not implement it.
-  */
-  bool (*is_supported_system_table)(const char *db,
-                                    const char *table_name,
-                                    bool is_sql_layer_system_table);
-
    uint32 license; /* Flag for Engine License */
-   void *data; /* Location for engines to keep personal structures */
+   /*
+     Optional clauses in the CREATE/ALTER TABLE
+   */
+   ha_create_table_option *table_options; // table level options
+   ha_create_table_option *field_options; // these are specified per field
+   ha_create_table_option *index_options; // these are specified per index
+
 };
+
+
+inline LEX_STRING *hton_name(const handlerton *hton)
+{
+  return &(hton2plugin[hton->slot]->name);
+}
 
 
 /* Possible flags of a handlerton (there can be 32 of them) */
 #define HTON_NO_FLAGS                 0
 #define HTON_CLOSE_CURSORS_AT_COMMIT (1 << 0)
 #define HTON_ALTER_NOT_SUPPORTED     (1 << 1) //Engine does not support alter
-#define HTON_CAN_RECREATE            (1 << 2) //Delete all is used fro truncate
+#define HTON_CAN_RECREATE            (1 << 2) //Delete all is used for truncate
 #define HTON_HIDDEN                  (1 << 3) //Engine does not appear in lists
-#define HTON_FLUSH_AFTER_RENAME      (1 << 4)
 #define HTON_NOT_USER_SELECTABLE     (1 << 5)
 #define HTON_TEMPORARY_NOT_SUPPORTED (1 << 6) //Having temporary tables not supported
 #define HTON_SUPPORT_LOG_TABLES      (1 << 7) //Engine supports log tables
 #define HTON_NO_PARTITION            (1 << 8) //You can not partition these tables
-#define HTON_SUPPORTS_FOREIGN_KEYS   (1 << 9) //Foreign key constraint supported.
+#define HTON_EXTENDED_KEYS           (1 << 9) //supports extended keys
+
+// MySQL compatibility. Unused.
+#define HTON_SUPPORTS_FOREIGN_KEYS   (1 << 0) //Foreign key constraint supported.
 
 class Ha_trx_info;
 
@@ -911,6 +1125,7 @@ struct THD_TRANS
 
   void reset() { no_2pc= FALSE; modified_non_trans_table= FALSE; }
   bool is_empty() const { return ha_list == NULL; }
+  THD_TRANS() {}                        /* Remove gcc warning */
 };
 
 
@@ -1021,9 +1236,9 @@ typedef struct {
   ulonglong delete_length;
   ha_rows records;
   ulong mean_rec_length;
-  ulong create_time;
-  ulong check_time;
-  ulong update_time;
+  time_t create_time;
+  time_t check_time;
+  time_t update_time;
   ulonglong check_sum;
 } PARTITION_STATS;
 
@@ -1036,7 +1251,7 @@ class partition_info;
 struct st_partition_iter;
 #define NOT_A_PARTITION_ID ((uint32)-1)
 
-enum enum_ha_unused { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES };
+enum ha_choice { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES, HA_CHOICE_MAX };
 
 typedef struct st_ha_create_information
 {
@@ -1068,11 +1283,16 @@ typedef struct st_ha_create_information
   uint options;				/* OR of HA_CREATE_ options */
   uint merge_insert_method;
   uint extra_size;                      /* length of extra data segment */
-  enum enum_ha_unused unused1;
-  bool frm_only;                        /* 1 if no ha_create_table() */
-  bool varchar;                         /* 1 if table has a VARCHAR */
-  enum ha_storage_media storage_media;  /* DEFAULT, DISK or MEMORY */
-  enum enum_ha_unused unused2;
+  enum ha_choice transactional;
+  bool frm_only;                        ///< 1 if no ha_create_table()
+  bool varchar;                         ///< 1 if table has a VARCHAR
+  enum ha_storage_media storage_media;  ///< DEFAULT, DISK or MEMORY
+  enum ha_choice page_checksum;         ///< If we have page_checksums
+  engine_option_value *option_list;     ///< list of table create options
+  /* the following three are only for ALTER TABLE, check_if_incompatible_data() */
+  ha_table_option_struct *option_struct;           ///< structure with parsed table options
+  ha_field_option_struct **fields_option_struct;   ///< array of field option structures
+  ha_index_option_struct **indexes_option_struct;  ///< array of index option structures
 } HA_CREATE_INFO;
 
 
@@ -1147,11 +1367,250 @@ typedef struct st_ha_check_opt
   st_ha_check_opt() {}                        /* Remove gcc warning */
   uint flags;       /* isam layer flags (e.g. for myisamchk) */
   uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */
-  KEY_CACHE *key_cache;	/* new key cache when changing key cache */
+  time_t start_time;   /* When check/repair starts */
+  KEY_CACHE *key_cache; /* new key cache when changing key cache */
   void init();
 } HA_CHECK_OPT;
 
 
+/********************************************************************************
+ * MRR
+ ********************************************************************************/
+
+typedef void *range_seq_t;
+
+typedef struct st_range_seq_if
+{
+  /*
+    Get key information
+ 
+    SYNOPSIS
+      get_key_info()
+        init_params  The seq_init_param parameter 
+        length       OUT length of the keys in this range sequence
+        map          OUT key_part_map of the keys in this range sequence
+
+    DESCRIPTION
+      This function is set only when using HA_MRR_FIXED_KEY mode. In that mode, 
+      all ranges are single-point equality ranges that use the same set of key
+      parts. This function allows the MRR implementation to get the length of
+      a key, and which keyparts it uses.
+  */
+  void (*get_key_info)(void *init_params, uint *length, key_part_map *map);
+
+  /*
+    Initialize the traversal of range sequence
+    
+    SYNOPSIS
+      init()
+        init_params  The seq_init_param parameter 
+        n_ranges     The number of ranges obtained 
+        flags        A combination of HA_MRR_SINGLE_POINT, HA_MRR_FIXED_KEY
+
+    RETURN
+      An opaque value to be used as RANGE_SEQ_IF::next() parameter
+  */
+  range_seq_t (*init)(void *init_params, uint n_ranges, uint flags);
+
+
+  /*
+    Get the next range in the range sequence
+
+    SYNOPSIS
+      next()
+        seq    The value returned by RANGE_SEQ_IF::init()
+        range  OUT Information about the next range
+    
+    RETURN
+      FALSE - Ok, the range structure filled with info about the next range
+      TRUE  - No more ranges
+  */
+  bool (*next) (range_seq_t seq, KEY_MULTI_RANGE *range);
+
+  /*
+    Check whether range_info orders to skip the next record
+
+    SYNOPSIS
+      skip_record()
+        seq         The value returned by RANGE_SEQ_IF::init()
+        range_info  Information about the next range 
+                    (Ignored if MRR_NO_ASSOCIATION is set)
+        rowid       Rowid of the record to be checked (ignored if set to 0)
+    
+    RETURN
+      1 - Record with this range_info and/or this rowid shall be filtered
+          out from the stream of records returned by multi_range_read_next()
+      0 - The record shall be left in the stream
+  */ 
+  bool (*skip_record) (range_seq_t seq, range_id_t range_info, uchar *rowid);
+
+  /*
+    Check if the record combination matches the index condition
+    SYNOPSIS
+      skip_index_tuple()
+        seq         The value returned by RANGE_SEQ_IF::init()
+        range_info  Information about the next range 
+    
+    RETURN
+      0 - The record combination satisfies the index condition
+      1 - Otherwise
+  */ 
+  bool (*skip_index_tuple) (range_seq_t seq, range_id_t range_info);
+} RANGE_SEQ_IF;
+
+typedef bool (*SKIP_INDEX_TUPLE_FUNC) (range_seq_t seq, range_id_t range_info);
+
+class COST_VECT
+{ 
+public:
+  double io_count;     /* number of I/O                 */
+  double avg_io_cost;  /* cost of an average I/O oper.  */
+  double cpu_cost;     /* cost of operations in CPU     */
+  double mem_cost;     /* cost of used memory           */ 
+  double import_cost;  /* cost of remote operations     */
+  
+  enum { IO_COEFF=1 };
+  enum { CPU_COEFF=1 };
+  enum { MEM_COEFF=1 };
+  enum { IMPORT_COEFF=1 };
+
+  COST_VECT() {}                              // keep gcc happy
+
+  double total_cost() 
+  {
+    return IO_COEFF*io_count*avg_io_cost + CPU_COEFF * cpu_cost +
+           MEM_COEFF*mem_cost + IMPORT_COEFF*import_cost;
+  }
+
+  void zero()
+  {
+    avg_io_cost= 1.0;
+    io_count= cpu_cost= mem_cost= import_cost= 0.0;
+  }
+
+  void multiply(double m)
+  {
+    io_count *= m;
+    cpu_cost *= m;
+    import_cost *= m;
+    /* Don't multiply mem_cost */
+  }
+
+  void add(const COST_VECT* cost)
+  {
+    double io_count_sum= io_count + cost->io_count;
+    add_io(cost->io_count, cost->avg_io_cost);
+    io_count= io_count_sum;
+    cpu_cost += cost->cpu_cost;
+  }
+  void add_io(double add_io_cnt, double add_avg_cost)
+  {
+    /* In edge cases add_io_cnt may be zero */
+    if (add_io_cnt > 0)
+    {
+      double io_count_sum= io_count + add_io_cnt;
+      avg_io_cost= (io_count * avg_io_cost + 
+                    add_io_cnt * add_avg_cost) / io_count_sum;
+      io_count= io_count_sum;
+    }
+  }
+
+  /*
+    To be used when we go from old single value-based cost calculations to
+    the new COST_VECT-based.
+  */
+  void convert_from_cost(double cost)
+  {
+    zero();
+    avg_io_cost= 1.0;
+    io_count= cost;
+  }
+};
+
+void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted, 
+                         COST_VECT *cost);
+
+/*
+  Indicates that all scanned ranges will be singlepoint (aka equality) ranges.
+  The ranges may not use the full key but all of them will use the same number
+  of key parts.
+*/
+#define HA_MRR_SINGLE_POINT 1
+#define HA_MRR_FIXED_KEY  2
+
+/* 
+  Indicates that RANGE_SEQ_IF::next(&range) doesn't need to fill in the
+  'range' parameter.
+*/
+#define HA_MRR_NO_ASSOCIATION 4
+
+/* 
+  The MRR user will provide ranges in key order, and MRR implementation
+  must return rows in key order.
+*/
+#define HA_MRR_SORTED 8
+
+/* MRR implementation doesn't have to retrieve full records */
+#define HA_MRR_INDEX_ONLY 16
+
+/* 
+  The passed memory buffer is of maximum possible size, the caller can't
+  assume larger buffer.
+*/
+#define HA_MRR_LIMITS 32
+
+
+/*
+  Flag set <=> default MRR implementation is used
+  (The choice is made by **_info[_const]() function which may set this
+   flag. SQL layer remembers the flag value and then passes it to
+   multi_read_range_init().
+*/
+#define HA_MRR_USE_DEFAULT_IMPL 64
+
+/*
+  Used only as parameter to multi_range_read_info():
+  Flag set <=> the caller guarantees that the bounds of the scanned ranges
+  will not have NULL values.
+*/
+#define HA_MRR_NO_NULL_ENDPOINTS 128
+
+/*
+  The MRR user has materialized range keys somewhere in the user's buffer.
+  This can be used for optimization of the procedure that sorts these keys
+  since in this case key values don't have to be copied into the MRR buffer.
+
+  In other words, it is guaranteed that after RANGE_SEQ_IF::next() call the 
+  pointer in range->start_key.key will point to a key value that will remain 
+  there until the end of the MRR scan.
+*/
+#define HA_MRR_MATERIALIZED_KEYS 256
+
+/*
+  The following bits are reserved for use by MRR implementation. The intended
+  use scenario:
+
+  * sql layer calls handler->multi_range_read_info[_const]() 
+    - MRR implementation figures out what kind of scan it will perform, saves
+      the result in *mrr_mode parameter.
+  * sql layer remembers what was returned in *mrr_mode
+
+  * the optimizer picks the query plan (which may or may not include the MRR 
+    scan that was estimated by the multi_range_read_info[_const] call)
+
+  * if the query is an EXPLAIN statement, sql layer will call 
+    handler->multi_range_read_explain_info(mrr_mode) to get a text description
+    of the picked MRR scan; the description will be a part of EXPLAIN output.
+*/
+#define HA_MRR_IMPLEMENTATION_FLAG1 512
+#define HA_MRR_IMPLEMENTATION_FLAG2 1024
+#define HA_MRR_IMPLEMENTATION_FLAG3 2048
+#define HA_MRR_IMPLEMENTATION_FLAG4 4096
+#define HA_MRR_IMPLEMENTATION_FLAG5 8192
+#define HA_MRR_IMPLEMENTATION_FLAG6 16384
+
+#define HA_MRR_IMPLEMENTATION_FLAGS \
+  (512 | 1024 | 2048 | 4096 | 8192 | 16384)
 
 /*
   This is a buffer area that the handler can use to store rows.
@@ -1162,8 +1621,8 @@ typedef struct st_ha_check_opt
 
 typedef struct st_handler_buffer
 {
-  const uchar *buffer;         /* Buffer one can start using */
-  const uchar *buffer_end;     /* End of buffer */
+  /* const? */uchar *buffer;         /* Buffer one can start using */
+  /* const? */uchar *buffer_end;     /* End of buffer */
   uchar *end_of_used_area;     /* End of area that was used by handler */
 } HANDLER_BUFFER;
 
@@ -1189,18 +1648,25 @@ public:
   ha_rows records;
   ha_rows deleted;			/* Deleted records */
   ulong mean_rec_length;		/* physical reclength */
-  ulong create_time;			/* When table was created */
-  ulong check_time;
-  ulong update_time;
+  time_t create_time;			/* When table was created */
+  time_t check_time;
+  time_t update_time;
   uint block_size;			/* index block size */
+
+  /*
+    number of buffer bytes that native mrr implementation needs,
+  */
+  uint mrr_length_per_rec; 
 
   ha_statistics():
     data_file_length(0), max_data_file_length(0),
     index_file_length(0), delete_length(0), auto_increment_value(0),
     records(0), deleted(0), mean_rec_length(0), create_time(0),
-    check_time(0), update_time(0), block_size(0)
+    check_time(0), update_time(0), block_size(0), mrr_length_per_rec(0)
   {}
 };
+
+extern "C" enum icp_result handler_index_cond_check(void* h_arg);
 
 uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
 /*
@@ -1237,6 +1703,8 @@ public:
   virtual ~handler_add_index() {}
 };
 
+class Query_cache;
+struct Query_cache_block_table;
 /**
   The handler class is the interface for dynamically loadable
   storage engines. Do not add ifdefs and take care when adding or
@@ -1260,21 +1728,35 @@ public:
 
   ha_statistics stats;
 
-  /** The following are for read_multi_range */
-  bool multi_range_sorted;
-  KEY_MULTI_RANGE *multi_range_curr;
-  KEY_MULTI_RANGE *multi_range_end;
-  HANDLER_BUFFER *multi_range_buffer;
+  /** MultiRangeRead-related members: */
+  range_seq_t mrr_iter;    /* Interator to traverse the range sequence */
+  RANGE_SEQ_IF mrr_funcs;  /* Range sequence traversal functions */
+  HANDLER_BUFFER *multi_range_buffer; /* MRR buffer info */
+  uint ranges_in_seq; /* Total number of ranges in the traversed sequence */
+  /* TRUE <=> source MRR ranges and the output are ordered */
+  bool mrr_is_output_sorted;
+
+  /** TRUE <=> we're currently traversing a range in mrr_cur_range. */
+  bool mrr_have_range;
+  /** Current range (the one we're now returning rows from) */
+  KEY_MULTI_RANGE mrr_cur_range;
 
   /** The following are for read_range() */
   key_range save_end_range, *end_range;
   KEY_PART_INFO *range_key_part;
   int key_compare_result_on_equal;
   bool eq_range;
+  bool internal_tmp_table;                      /* If internal tmp table */
 
   uint errkey;				/* Last dup key */
   uint key_used_on_scan;
   uint active_index;
+  /* 
+    TRUE <=> the engine guarantees that returned records are within the range
+    being scanned.
+  */
+  bool in_range_check_pushed_down;
+
   /** Length of ref (1-8 or the clustered key length) */
   uint ref_length;
   FT_INFO *ft_handler;
@@ -1303,6 +1785,16 @@ public:
     Interval returned by get_auto_increment() and being consumed by the
     inserter.
   */
+  /* Statistics  variables */
+  ulonglong rows_read;
+  ulonglong rows_tmp_read;
+  ulonglong rows_changed;
+  /* One bigger than needed to avoid to test if key == MAX_KEY */
+  ulonglong index_rows_read[MAX_KEY+1];
+
+  Item *pushed_idx_cond;
+  uint pushed_idx_cond_keyno;  /* The index which the above condition is for */
+
   Discrete_interval auto_inc_interval_for_cur_row;
   /**
      Number of reserved auto-increment intervals. Serves as a heuristic
@@ -1329,14 +1821,19 @@ public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
     estimation_rows_to_insert(0), ht(ht_arg),
-    ref(0), key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
+    ref(0), end_range(NULL), key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
+    in_range_check_pushed_down(FALSE),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
     locked(FALSE), implicit_emptied(0),
     pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
+    pushed_idx_cond(NULL),
+    pushed_idx_cond_keyno(MAX_KEY),
     auto_inc_intervals_count(0),
     m_psi(NULL)
-    {}
+  {
+    reset_statistics();
+  }
   virtual ~handler(void)
   {
     DBUG_ASSERT(locked == FALSE);
@@ -1350,7 +1847,7 @@ public:
   }
   /* ha_ methods: pubilc wrappers for private virtual API */
 
-  int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
+  int ha_open(TABLE *table, const char *name, int mode, uint test_if_locked);
   int ha_index_init(uint idx, bool sorted)
   {
     DBUG_EXECUTE_IF("ha_index_init_fail", return HA_ERR_TABLE_DEF_CHANGED;);
@@ -1358,23 +1855,42 @@ public:
     DBUG_ENTER("ha_index_init");
     DBUG_ASSERT(inited==NONE);
     if (!(result= index_init(idx, sorted)))
-      inited=INDEX;
+    {
+      inited=       INDEX;
+      active_index= idx;
+      end_range= NULL;
+    }
     DBUG_RETURN(result);
   }
   int ha_index_end()
   {
     DBUG_ENTER("ha_index_end");
     DBUG_ASSERT(inited==INDEX);
-    inited=NONE;
+    inited=       NONE;
+    active_index= MAX_KEY;
+    end_range=    NULL;
     DBUG_RETURN(index_end());
   }
-  int ha_rnd_init(bool scan)
+  /* This is called after index_init() if we need to do a index scan */
+  virtual int prepare_index_scan() { return 0; }
+  virtual int prepare_index_key_scan_map(const uchar * key, key_part_map keypart_map)
+  {
+    uint key_len= calculate_key_len(table, active_index, key, keypart_map);
+    return  prepare_index_key_scan(key, key_len);
+  }
+  virtual int prepare_index_key_scan( const uchar * key, uint key_len )
+  { return 0; }
+  virtual int prepare_range_scan(const key_range *start_key, const key_range *end_key)
+  { return 0; }
+
+  int ha_rnd_init(bool scan) __attribute__ ((warn_unused_result))
   {
     DBUG_EXECUTE_IF("ha_rnd_init_fail", return HA_ERR_TABLE_DEF_CHANGED;);
     int result;
     DBUG_ENTER("ha_rnd_init");
     DBUG_ASSERT(inited==NONE || (inited==RND && scan));
     inited= (result= rnd_init(scan)) ? NONE: RND;
+    end_range= NULL;
     DBUG_RETURN(result);
   }
   int ha_rnd_end()
@@ -1382,8 +1898,10 @@ public:
     DBUG_ENTER("ha_rnd_end");
     DBUG_ASSERT(inited==RND);
     inited=NONE;
+    end_range= NULL;
     DBUG_RETURN(rnd_end());
   }
+  int ha_rnd_init_with_error(bool scan) __attribute__ ((warn_unused_result));
   int ha_reset();
   /* this is necessary in many places, e.g. in HANDLER command */
   int ha_index_or_rnd_end()
@@ -1413,13 +1931,17 @@ public:
   int ha_repair(THD* thd, HA_CHECK_OPT* check_opt);
   void ha_start_bulk_insert(ha_rows rows)
   {
+    DBUG_ENTER("handler::ha_start_bulk_insert");
     estimation_rows_to_insert= rows;
     start_bulk_insert(rows);
+    DBUG_VOID_RETURN;
   }
   int ha_end_bulk_insert()
   {
+    DBUG_ENTER("handler::ha_end_bulk_insert");
     estimation_rows_to_insert= 0;
-    return end_bulk_insert();
+    int ret= end_bulk_insert();
+    DBUG_RETURN(ret);
   }
   int ha_bulk_update_row(const uchar *old_data, uchar *new_data,
                          uint *dup_key_found);
@@ -1453,19 +1975,35 @@ public:
 
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   int update_auto_increment();
-  void print_keydup_error(uint key_nr, const char *msg);
+  void print_keydup_error(uint key_nr, const char *msg, myf errflag);
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);
   uint get_dup_key(int error);
+  void reset_statistics()
+  {
+    rows_read= rows_changed= rows_tmp_read= 0;
+    bzero(index_rows_read, sizeof(index_rows_read));
+  }
   virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
   {
     table= table_arg;
     table_share= share;
+    reset_statistics();
   }
   virtual double scan_time()
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + 2; }
   virtual double read_time(uint index, uint ranges, ha_rows rows)
   { return rows2double(ranges+rows); }
+
+  /**
+    Calculate cost of 'keyread' scan for given index and number of records.
+
+     @param index    index to read
+     @param ranges   #of ranges to read
+     @param rows     #of records to read
+  */
+  virtual double keyread_time(uint index, uint ranges, ha_rows rows);
+
   virtual const key_map *keys_to_use_for_scanning() { return &key_map_empty; }
   bool has_transactions()
   { return (ha_table_flags() & HA_NO_TRANSACTIONS) == 0; }
@@ -1487,6 +2025,7 @@ public:
         ((flags & HA_CHECK_DUP_KEY) &&
          (error == HA_ERR_FOUND_DUPP_KEY ||
           error == HA_ERR_FOUND_DUPP_UNIQUE)) ||
+        error == HA_ERR_AUTOINC_ERANGE ||
         ((flags & HA_CHECK_FK_ERROR) &&
          (error == HA_ERR_ROW_IS_REFERENCED ||
           error == HA_ERR_NO_REFERENCED_ROW)))
@@ -1525,8 +2064,13 @@ public:
     as there may be several calls to this routine.
   */
   virtual void column_bitmaps_signal();
-  uint get_index(void) const { return active_index; }
-  virtual int close(void)=0;
+  /*
+    We have to check for inited as some engines, like innodb, sets
+    active_index during table scan.
+  */
+  uint get_index(void) const
+  { return inited == INDEX ? active_index : MAX_KEY; }
+  int ha_close(void);
 
   /**
     @retval  0   Bulk update used by handler
@@ -1572,22 +2116,23 @@ public:
   }
   /**
      @brief
-     Positions an index cursor to the index specified in the handle. Fetches the
-     row if available. If the key value is null, begin at the first key of the
-     index.
+     Positions an index cursor to the index specified in the
+     handle. Fetches the row if available. If the key value is null,
+     begin at the first key of the index.
   */
+protected:
   virtual int index_read_map(uchar * buf, const uchar * key,
                              key_part_map keypart_map,
                              enum ha_rkey_function find_flag)
   {
     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
-    return  index_read(buf, key, key_len, find_flag);
+    return index_read(buf, key, key_len, find_flag);
   }
   /**
      @brief
-     Positions an index cursor to the index specified in the handle. Fetches the
-     row if available. If the key value is null, begin at the first key of the
-     index.
+     Positions an index cursor to the index specified in the
+     handle. Fetches the row if available. If the key value is null,
+     begin at the first key of the index.
   */
   virtual int index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                  key_part_map keypart_map,
@@ -1601,30 +2146,85 @@ public:
   virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
-  /**
-     @brief
-     The following functions works like index_read, but it find the last
-     row with the current key value or prefix.
-  */
-  virtual int index_read_last_map(uchar * buf, const uchar * key,
-                                  key_part_map keypart_map)
+  virtual int close(void)=0;
+  inline void update_rows_read()
   {
-    uint key_len= calculate_key_len(table, active_index, key, keypart_map);
-    return index_read_last(buf, key, key_len);
+    if (likely(!internal_tmp_table))
+      rows_read++;
+    else
+      rows_tmp_read++;
   }
-  virtual int read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
-                                     KEY_MULTI_RANGE *ranges, uint range_count,
-                                     bool sorted, HANDLER_BUFFER *buffer);
-  virtual int read_multi_range_next(KEY_MULTI_RANGE **found_range_p);
+  inline void update_index_statistics()
+  {
+    index_rows_read[active_index]++;
+    update_rows_read();
+  }
+public:
+
+  /* Similar functions like the above, but does statistics counting */
+  inline int ha_index_read_map(uchar * buf, const uchar * key,
+                               key_part_map keypart_map,
+                               enum ha_rkey_function find_flag);
+  inline int ha_index_read_idx_map(uchar * buf, uint index, const uchar * key,
+                                   key_part_map keypart_map,
+                                   enum ha_rkey_function find_flag);
+  inline int ha_index_next(uchar * buf);
+  inline int ha_index_prev(uchar * buf);
+  inline int ha_index_first(uchar * buf);
+  inline int ha_index_last(uchar * buf);
+  inline int ha_index_next_same(uchar *buf, const uchar *key, uint keylen);
+  /*
+    TODO: should we make for those functions non-virtual ha_func_name wrappers,
+    too?
+  */
+  virtual ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
+                                              void *seq_init_param, 
+                                              uint n_ranges, uint *bufsz,
+                                              uint *mrr_mode, COST_VECT *cost);
+  virtual ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
+                                        uint key_parts, uint *bufsz, 
+                                        uint *mrr_mode, COST_VECT *cost);
+  virtual int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
+                                    uint n_ranges, uint mrr_mode, 
+                                    HANDLER_BUFFER *buf);
+  virtual int multi_range_read_next(range_id_t *range_info);
+  /*
+    Return string representation of the MRR plan.
+
+    This is intended to be used for EXPLAIN, via the following scenario:
+    1. SQL layer calls handler->multi_range_read_info().
+    1.1. Storage engine figures out whether it will use some non-default
+         MRR strategy, sets appropritate bits in *mrr_mode, and returns 
+         control to SQL layer
+    2. SQL layer remembers the returned mrr_mode
+    3. SQL layer compares various options and choses the final query plan. As
+       a part of that, it makes a choice of whether to use the MRR strategy
+       picked in 1.1
+    4. EXPLAIN code converts the query plan to its text representation. If MRR
+       strategy is part of the plan, it calls
+       multi_range_read_explain_info(mrr_mode) to get a text representation of
+       the picked MRR strategy.
+
+    @param mrr_mode   Mode which was returned by multi_range_read_info[_const]
+    @param str        INOUT string to be printed for EXPLAIN
+    @param str_end    End of the string buffer. The function is free to put the 
+                      string into [str..str_end] memory range.
+  */
+  virtual int multi_range_read_explain_info(uint mrr_mode, char *str, 
+                                            size_t size)
+  { return 0; }
+
   virtual int read_range_first(const key_range *start_key,
                                const key_range *end_key,
                                bool eq_range, bool sorted);
   virtual int read_range_next();
   int compare_key(key_range *range);
+  int compare_key2(key_range *range);
   virtual int ft_init() { return HA_ERR_WRONG_COMMAND; }
   void ft_end() { ft_handler=NULL; }
   virtual FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
     { return NULL; }
+private:
   virtual int ft_read(uchar *buf) { return HA_ERR_WRONG_COMMAND; }
   virtual int rnd_next(uchar *buf)=0;
   virtual int rnd_pos(uchar * buf, uchar *pos)=0;
@@ -1634,20 +2234,33 @@ public:
     It will return the row with the PK given in the record argument.
   */
   virtual int rnd_pos_by_record(uchar *record)
-    {
-      position(record);
-      return rnd_pos(record, ref);
-    }
+  {
+    position(record);
+    return rnd_pos(record, ref);
+  }
   virtual int read_first_row(uchar *buf, uint primary_key);
+public:
+
+  /* Same as above, but with statistics */
+  inline int ha_ft_read(uchar *buf);
+  inline int ha_rnd_next(uchar *buf);
+  inline int ha_rnd_pos(uchar *buf, uchar *pos);
+  inline int ha_rnd_pos_by_record(uchar *buf);
+  inline int ha_read_first_row(uchar *buf, uint primary_key);
+
   /**
-    The following function is only needed for tables that may be temporary
-    tables during joins.
+    The following 3 function is only needed for tables that may be
+    internal temporary tables during joins.
   */
-  virtual int restart_rnd_next(uchar *buf, uchar *pos)
+  virtual int remember_rnd_pos()
+    { return HA_ERR_WRONG_COMMAND; }
+  virtual int restart_rnd_next(uchar *buf)
     { return HA_ERR_WRONG_COMMAND; }
   virtual int rnd_same(uchar *buf, uint inx)
     { return HA_ERR_WRONG_COMMAND; }
-  virtual ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key)
+
+  virtual ha_rows records_in_range(uint inx, key_range *min_key,
+                                   key_range *max_key)
     { return (ha_rows) 10; }
   /*
     If HA_PRIMARY_KEY_REQUIRED_FOR_POSITION is set, then it sets ref
@@ -1741,6 +2354,7 @@ public:
   { return(NULL);}  /* gets tablespace name from handler */
   /** used in ALTER TABLE; 1 if changing storage engine is allowed */
   virtual bool can_switch_engines() { return 1; }
+  virtual int can_continue_handler_scan() { return 0; }
   /**
     Get the list of foreign keys in this table.
 
@@ -1788,7 +2402,8 @@ public:
   */
   virtual const char **bas_ext() const =0;
 
-  virtual int get_default_no_partitions(HA_CREATE_INFO *info) { return 1;}
+  virtual int get_default_no_partitions(HA_CREATE_INFO *create_info)
+  { return 1;}
   virtual void set_auto_partitions(partition_info *part_info) { return; }
   virtual bool get_no_parts(const char *name,
                             uint *no_parts)
@@ -1854,17 +2469,17 @@ public:
   virtual uint max_supported_key_part_length() const { return 255; }
   virtual uint min_record_length(uint options) const { return 1; }
 
-  virtual bool low_byte_first() const { return 1; }
   virtual uint checksum() const { return 0; }
   virtual bool is_crashed() const  { return 0; }
-  virtual bool auto_repair() const { return 0; }
+  virtual bool auto_repair(int error) const { return 0; }
 
+  void update_global_table_stats();
+  void update_global_index_stats();
 
 #define CHF_CREATE_FLAG 0
 #define CHF_DELETE_FLAG 1
 #define CHF_RENAME_FLAG 2
 #define CHF_INDEX_FLAG  3
-
 
   /**
     @note lock_count() can return > 1 if the table is MERGE or partitioned.
@@ -1931,11 +2546,70 @@ public:
     return TRUE;
   }
 
+  /*
+    Count tables invisible from all tables list on which current one built
+    (like myisammrg and partitioned tables)
+
+    tables_type          mask for the tables should be added herdde
+
+    returns number of such tables
+  */
+
+  virtual uint count_query_cache_dependant_tables(uint8 *tables_type
+                                                  __attribute__((unused)))
+  {
+    return 0;
+  }
+
+  /*
+    register tables invisible from all tables list on which current one built
+    (like myisammrg and partitioned tables).
+
+    @note they should be counted by method above
+
+    cache                Query cache pointer
+    block                Query cache block to write the table
+    n                    Number of the table
+
+    @retval FALSE - OK
+    @retval TRUE  - Error
+  */
+
+  virtual my_bool
+    register_query_cache_dependant_tables(THD *thd
+                                          __attribute__((unused)),
+                                          Query_cache *cache
+                                          __attribute__((unused)),
+                                          Query_cache_block_table **block
+                                          __attribute__((unused)),
+                                          uint *n __attribute__((unused)))
+  {
+    return FALSE;
+  }
 
  /*
-   @retval TRUE   Primary key (if there is one) is clustered
-                  key covering all fields
-   @retval FALSE  otherwise
+   Check if the primary key (if there is one) is a clustered and a
+   reference key. This means:
+
+   - Data is stored together with the primary key (no secondary lookup
+     needed to find the row data). The optimizer uses this to find out
+     the cost of fetching data.
+   - The primary key is part of each secondary key and is used
+     to find the row data in the primary index when reading trough
+     secondary indexes.
+   - When doing a HA_KEYREAD_ONLY we get also all the primary key parts
+     into the row. This is critical property used by index_merge.
+
+   All the above is usually true for engines that store the row
+   data in the primary key index (e.g. in a b-tree), and use the primary
+   key value as a position().  InnoDB is an example of such an engine.
+
+   For such a clustered primary key, the following should also hold:
+   index_flags() should contain HA_CLUSTERED_INDEX
+   table_flags() should contain HA_TABLE_SCAN_ON_INDEX
+
+   @retval TRUE   yes
+   @retval FALSE  No.
  */
  virtual bool primary_key_is_clustered() { return FALSE; }
  virtual int cmp_ref(const uchar *ref1, const uchar *ref2)
@@ -1976,6 +2650,40 @@ public:
    Pops the top if condition stack, if stack is not empty.
  */
  virtual void cond_pop() { return; };
+
+ /**
+   Push down an index condition to the handler.
+
+   The server will use this method to push down a condition it wants
+   the handler to evaluate when retrieving records using a specified
+   index. The pushed index condition will only refer to fields from
+   this handler that is contained in the index (but it may also refer
+   to fields in other handlers). Before the handler evaluates the
+   condition it must read the content of the index entry into the 
+   record buffer.
+
+   The handler is free to decide if and how much of the condition it
+   will take responsibility for evaluating. Based on this evaluation
+   it should return the part of the condition it will not evaluate.
+   If it decides to evaluate the entire condition it should return
+   NULL. If it decides not to evaluate any part of the condition it
+   should return a pointer to the same condition as given as argument.
+
+   @param keyno    the index number to evaluate the condition on
+   @param idx_cond the condition to be evaluated by the handler
+
+   @return The part of the pushed condition that the handler decides
+           not to evaluate
+ */
+ virtual Item *idx_cond_push(uint keyno, Item* idx_cond) { return idx_cond; }
+
+ /** Reset information about pushed index conditions */
+ virtual void cancel_pushed_idx_cond()
+ {
+   pushed_idx_cond= NULL;
+   pushed_idx_cond_keyno= MAX_KEY;
+   in_range_check_pushed_down= false;
+ }
  virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
 					 uint table_changes)
  { return COMPATIBLE_DATA_NO; }
@@ -1993,9 +2701,27 @@ public:
     return 0;
   }
 
+  LEX_STRING *engine_name() { return hton_name(ht); }
+
+  /*
+    @brief
+    Check whether the engine supports virtual columns
+    
+    @retval
+      FALSE   if the engine does not support virtual columns    
+    @retval
+      TRUE    if the engine supports virtual columns
+  */
+
+  virtual bool check_if_supported_virtual_columns(void) { return FALSE;}
+  
+  TABLE* get_table() { return table; }
+  TABLE_SHARE* get_table_share() { return table_share; }
 protected:
+  /* deprecated, don't use in new engines */
+  inline void ha_statistic_increment(ulong SSV::*offset) const { }
+
   /* Service methods for use by storage engines. */
-  void ha_statistic_increment(ulong SSV::*offset) const;
   void **ha_data(THD *) const;
   THD *ha_thd(void) const;
 
@@ -2045,10 +2771,14 @@ protected:
     tables.
   */
   virtual int delete_table(const char *name);
+
 private:
   /* Private helpers */
   inline void mark_trx_read_write();
 private:
+  inline void increment_statistics(ulong SSV::*offset) const;
+  inline void decrement_statistics(ulong SSV::*offset) const;
+
   /*
     Low-level primitives for storage engines.  These should be
     overridden by the storage engine class. To call these methods, use
@@ -2056,8 +2786,9 @@ private:
   */
 
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
-  virtual int index_init(uint idx, bool sorted) { active_index= idx; return 0; }
-  virtual int index_end() { active_index= MAX_KEY; return 0; }
+  /* Note: ha_index_read_idx_map() may bypass index_init() */
+  virtual int index_init(uint idx, bool sorted) { return 0; }
+  virtual int index_end() { return 0; }
   /**
     rnd_init() can be called two times without rnd_end() in between
     (it only makes sense if scan=1).
@@ -2138,8 +2869,6 @@ private:
   virtual int index_read(uchar * buf, const uchar * key, uint key_len,
                          enum ha_rkey_function find_flag)
    { return  HA_ERR_WRONG_COMMAND; }
-  virtual int index_read_last(uchar * buf, const uchar * key, uint key_len)
-   { return (my_errno= HA_ERR_WRONG_COMMAND); }
   /**
     This method is similar to update_row, however the handler doesn't need
     to execute the updates at this point in time. The handler can be certain
@@ -2186,14 +2915,16 @@ private:
     @remark The table is locked in exclusive mode.
   */
   virtual int truncate()
-  { return HA_ERR_WRONG_COMMAND; }
+  {
+    int error= delete_all_rows();
+    return error ? error : reset_auto_increment(0);
+  }
   /**
     Reset the auto-increment counter to the given value, i.e. the next row
-    inserted will get the given value. HA_ERR_WRONG_COMMAND is returned by
-    storage engines that don't support this operation.
+    inserted will get the given value.
   */
   virtual int reset_auto_increment(ulonglong value)
-  { return HA_ERR_WRONG_COMMAND; }
+  { return 0; }
   virtual int optimize(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt)
@@ -2222,8 +2953,22 @@ private:
   { return HA_ERR_WRONG_COMMAND; }
   virtual int rename_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
+  friend class ha_partition;
+public:
+  /* XXX to be removed, see ha_partition::partition_ht() */
+  virtual handlerton *partition_ht() const
+  { return ht; }
+  inline int ha_write_tmp_row(uchar *buf);
+  inline int ha_update_tmp_row(const uchar * old_data, uchar * new_data);
+
+  virtual void set_lock_type(enum thr_lock_type lock);
+
+  friend enum icp_result handler_index_cond_check(void* h_arg);
 };
 
+#include "multi_range_read.h"
+
+bool key_uses_partial_cols(TABLE_SHARE *table, uint keyno);
 
 	/* Some extern variables used with handlers */
 
@@ -2252,7 +2997,7 @@ static inline enum legacy_db_type ha_legacy_type(const handlerton *db_type)
 
 static inline const char *ha_resolve_storage_engine_name(const handlerton *db_type)
 {
-  return db_type == NULL ? "UNKNOWN" : hton2plugin[db_type->slot]->name.str;
+  return db_type == NULL ? "UNKNOWN" : hton_name(db_type)->str;
 }
 
 static inline bool ha_check_storage_engine_flag(const handlerton *db_type, uint32 flag)
@@ -2276,8 +3021,10 @@ int ha_finalize_handlerton(st_plugin_int *plugin);
 TYPELIB *ha_known_exts(void);
 int ha_panic(enum ha_panic_function flag);
 void ha_close_connection(THD* thd);
+void ha_kill_query(THD* thd, enum thd_kill_levels level);
 bool ha_flush_logs(handlerton *db_type);
 void ha_drop_database(char* path);
+void ha_checkpoint_state(bool disable);
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
@@ -2297,13 +3044,12 @@ int ha_discover(THD* thd, const char* dbname, const char* name,
 int ha_find_files(THD *thd,const char *db,const char *path,
                   const char *wild, bool dir, List<LEX_STRING>* files);
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name);
-bool ha_check_if_supported_system_table(handlerton *hton, const char* db, 
-                                        const char* table_name);
 
 /* key cache */
-extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);
+extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache, void *);
 int ha_resize_key_cache(KEY_CACHE *key_cache);
 int ha_change_key_cache_param(KEY_CACHE *key_cache);
+int ha_repartition_key_cache(KEY_CACHE *key_cache);
 int ha_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache);
 
 /* report to InnoDB that control passes to the client */
@@ -2360,12 +3106,9 @@ const char *get_canonical_filename(handler *file, const char *path,
                                    char *tmp_path);
 bool mysql_xa_recover(THD *thd);
 
-
 inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
 {
   return ((lower_case_table_names == 2 && info->alias) ? info->alias : name);
 }
-
-void warn_fk_constraint_violation(THD *thd, TABLE *table, int error);
 
 #endif /* HANDLER_INCLUDED */

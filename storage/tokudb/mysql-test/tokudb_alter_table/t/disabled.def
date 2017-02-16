@@ -1,0 +1,44 @@
+# HCAD
+hcad_all_add2 : no HCAD in 5.5.21
+hcad_all_add3 : no HCAD in 5.5.21
+hcad_all_add : no HCAD in 5.5.21
+hcad_all_blob_add : no HCAD in 5.5.21
+hcad_all_blob_drop : no HCAD in 5.5.21
+hcad_all_drop : no HCAD in 5.5.21
+hcad_all_fixed_add : no HCAD in 5.5.21
+hcad_all_fixed_drop : no HCAD in 5.5.21 
+hcad_all_var_add : no HCAD in 5.5.21
+hcad_all_var_drop : no HCAD in 5.5.21
+hcad_clustering2 : no HCAD in 5.5.21
+hcad_clustering : no HCAD in 5.5.21
+hcad_diff_num_offset_bytes : no HCAD in 5.5.21
+hcad_fixedblob_add2 : no HCAD in 5.5.21
+hcad_fixedblob_add : no HCAD in 5.5.21
+hcad_fixedblob_drop : no HCAD in 5.5.21
+hcad_fixedvar_add2 : no HCAD in 5.5.21
+hcad_fixedvar_add : no HCAD in 5.5.21
+hcad_fixedvar_drop : no HCAD in 5.5.21
+hcad_indexing_mix : no HCAD in 5.5.21
+hcad_null_bits : no HCAD in 5.5.21
+hcad_pk2 : no HCAD in 5.5.21
+hcad_pk : no HCAD in 5.5.21
+hcad_template : no HCAD in 5.5.21
+hcad_tmp_tables : no HCAD in 5.5.21
+hcad_varblob_add2 : no HCAD in 5.5.21
+hcad_varblob_add : no HCAD in 5.5.21
+hcad_varblob_drop : no HCAD in 5.5.21
+hcad_with_dels : no HCAD in 5.5.21
+hcad_with_lock_sps : no HCAD in 5.5.21
+hcad_with_locks : no HCAD in 5.5.21
+
+# HCR
+hcr2 : no HCR in 5.5.21
+hcr3 : no HCR in 5.5.21
+hcr  : no HCR in 5.5.21
+
+other_alter : no major changed to mysql_alter_table yet
+
+# virtual columns
+virtual_columns : no virtual columns in 5.5.21
+
+

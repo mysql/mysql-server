@@ -1,0 +1,82 @@
+--- suite/storage_engine/vcol.result	2012-07-12 20:24:16.628339715 +0400
++++ suite/storage_engine/vcol.reject	2012-07-15 17:53:17.457007891 +0400
+@@ -1,69 +1,12 @@
+ DROP TABLE IF EXISTS t1;
+ CREATE TABLE t1 (a <INT_COLUMN>, b <INT_COLUMN> GENERATED ALWAYS AS (a+1)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+-SHOW COLUMNS IN t1;
+-Field	Type	Null	Key	Default	Extra
+-a	int(11)	#		#	
+-b	int(11)	#		#	VIRTUAL
+-INSERT INTO t1 (a) VALUES (1),(2);
+-INSERT INTO t1 (a,b) VALUES (3,3),(4,4);
+-Warnings:
+-Warning	1906	The value specified for computed column 'b' in table 't1' ignored
+-Warning	1906	The value specified for computed column 'b' in table 't1' ignored
+-SELECT a,b FROM t1;
+-a	b
+-1	2
+-2	3
+-3	4
+-4	5
+-DROP TABLE t1;
+-CREATE TABLE t1 (a <INT_COLUMN>, b <INT_COLUMN> GENERATED ALWAYS AS (a+1) PERSISTENT) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+-SHOW COLUMNS IN t1;
+-Field	Type	Null	Key	Default	Extra
+-a	int(11)	#		#	
+-b	int(11)	#		#	PERSISTENT
+-INSERT INTO t1 (a) VALUES (1),(2);
+-INSERT INTO t1 (a,b) VALUES (3,3),(4,4);
+-Warnings:
+-Warning	1906	The value specified for computed column 'b' in table 't1' ignored
+-Warning	1906	The value specified for computed column 'b' in table 't1' ignored
+-SELECT a,b FROM t1;
+-a	b
+-1	2
+-2	3
+-3	4
+-4	5
+-DROP TABLE t1;
+-CREATE TABLE t1 (a <INT_COLUMN>, b <INT_COLUMN> GENERATED ALWAYS AS (a+1) VIRTUAL) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+-SHOW COLUMNS IN t1;
+-Field	Type	Null	Key	Default	Extra
+-a	int(11)	#		#	
+-b	int(11)	#		#	VIRTUAL
+-INSERT INTO t1 (a) VALUES (1),(2);
+-INSERT INTO t1 (a,b) VALUES (3,3),(4,4);
+-Warnings:
+-Warning	1906	The value specified for computed column 'b' in table 't1' ignored
+-Warning	1906	The value specified for computed column 'b' in table 't1' ignored
+-SELECT a,b FROM t1;
+-a	b
+-1	2
+-2	3
+-3	4
+-4	5
+-DROP TABLE t1;
+-CREATE TABLE t1 (a <INT_COLUMN>, b <INT_COLUMN> AS (a+1) PERSISTENT) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+-SHOW COLUMNS IN t1;
+-Field	Type	Null	Key	Default	Extra
+-a	int(11)	#		#	
+-b	int(11)	#		#	PERSISTENT
+-INSERT INTO t1 (a) VALUES (1),(2);
+-INSERT INTO t1 (a,b) VALUES (3,3),(4,4);
+-Warnings:
+-Warning	1906	The value specified for computed column 'b' in table 't1' ignored
+-Warning	1906	The value specified for computed column 'b' in table 't1' ignored
+-SELECT a,b FROM t1;
+-a	b
+-1	2
+-2	3
+-3	4
+-4	5
+-DROP TABLE t1;
++ERROR HY000: InnoDB storage engine does not support computed columns
++# ERROR: Statement ended with errno 1910, errname ER_UNSUPPORTED_ENGINE_FOR_VIRTUAL_COLUMNS (expected to succeed)
++# ------------ UNEXPECTED RESULT ------------
++# [ CREATE TABLE t1 (a INT(11) /*!*/ /*Custom column options*/, b INT(11) /*!*/ /*Custom column options*/ GENERATED ALWAYS AS (a+1)) ENGINE=InnoDB /*!*/ /*Custom table options*/ ]
++# The statement|command finished with ER_UNSUPPORTED_ENGINE_FOR_VIRTUAL_COLUMNS.
++# Virtual columns or the mix could be unsupported|malfunctioning, or the problem was caused by previous errors. 
++# You can change the engine code, or create an rdiff, or disable the test by adding it to disabled.def.
++# Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
++# Also, this problem may cause a chain effect (more errors of different kinds in the test).
++# -------------------------------------------

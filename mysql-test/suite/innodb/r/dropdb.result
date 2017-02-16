@@ -5,5 +5,5 @@ set session default_storage_engine=innodb;
 create database `b`;
 use `b`;
 create table `#mysql50#q.q` select 1;
-ERROR HY000: Can't create table 'b.#mysql50#q.q' (errno: 1103)
+ERROR 42000: Incorrect table name '#mysql50#q.q'
 drop database `b`;

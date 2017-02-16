@@ -3,11 +3,8 @@
   fixed so that it could compile and run in MySQL source tree
 */
 
-#ifdef DBUG_OFF				/* We are testing dbug */
-#undef DBUG_OFF
-#endif
-
 #include <my_global.h>	/* This includes dbug.h */
+#include <my_sys.h>
 #include <my_pthread.h>
 
 int main (argc, argv)
@@ -16,7 +13,7 @@ char *argv[];
 {
   register int result, ix;
   extern int factorial(int);
-  my_thread_global_init();
+  MY_INIT(argv[0]);
 
   {
     DBUG_ENTER ("main");
@@ -33,6 +30,8 @@ char *argv[];
       result = factorial (atoi(argv[ix]));
       printf ("%d\n", result);
     }
-    DBUG_RETURN (0);
+    DBUG_LEAVE;
   }
+  my_end(0);
+  exit(0);
 }

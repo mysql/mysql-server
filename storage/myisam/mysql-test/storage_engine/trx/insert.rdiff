@@ -1,0 +1,65 @@
+--- suite/storage_engine/trx/insert.result	2012-07-12 23:09:44.663527407 +0400
++++ suite/storage_engine/trx/insert.reject	2012-07-15 16:55:46.676390078 +0400
+@@ -1,3 +1,15 @@
++# -- WARNING ----------------------------------------------------------------
++# According to I_S.ENGINES, MyISAM does not support transactions.
++# If it is true, the test will most likely fail; you can 
++# either create an rdiff file, or add the test to disabled.def.
++# If transactions should be supported, check the data in Information Schema.
++# ---------------------------------------------------------------------------
++# -- WARNING ----------------------------------------------------------------
++# According to I_S.ENGINES, MyISAM does not support savepoints.
++# If it is true, the test will most likely fail; you can 
++# either create an rdiff file (recommended), or add the test to disabled.def.
++# If savepoints should be supported, check the data in Information Schema.
++# ---------------------------------------------------------------------------
+ DROP TABLE IF EXISTS t1;
+ CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ BEGIN;
+@@ -21,8 +33,11 @@
+ RELEASE SAVEPOINT spt1;
+ INSERT INTO t1 (a,b) VALUES (DEFAULT,DEFAULT);
+ ROLLBACK;
++Warnings:
++Warning	1196	Some non-transactional changed tables couldn't be rolled back
+ SELECT a,b FROM t1;
+ a	b
++0	test
+ 1	a
+ 10	foo
+ 100	foo
+@@ -31,25 +46,34 @@
+ 3	c
+ 4	d
+ 5	e
++NULL	NULL
++NULL	NULL
+ BEGIN;
+ INSERT t1 (a) VALUE (10),(20);
+ SAVEPOINT spt1;
+ INSERT INTO t1 SET a = 11, b = 'f';
+ INSERT t1 SET b = DEFAULT;
+ ROLLBACK TO SAVEPOINT spt1;
++Warnings:
++Warning	1196	Some non-transactional changed tables couldn't be rolled back
+ INSERT INTO t1 (b,a) VALUES ('test1',10);
+ COMMIT;
+ SELECT a,b FROM t1;
+ a	b
++0	test
+ 1	a
+ 10	NULL
+ 10	foo
+ 10	test1
+ 100	foo
+ 11	abc
++11	f
+ 2	b
+ 20	NULL
+ 3	c
+ 4	d
+ 5	e
++NULL	NULL
++NULL	NULL
++NULL	NULL
+ DROP TABLE t1;

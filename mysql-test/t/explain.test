@@ -152,15 +152,16 @@ DROP TABLE t1;
 --echo # explain extended crash with subquery and ONLY_FULL_GROUP_BY sql_mode
 --echo #
 
-CREATE TABLE t1 (f1 INT);
+CREATE TABLE t1 (f1 INT not null);
 
 SELECT @@session.sql_mode INTO @old_sql_mode;
 SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
 
-# EXPLAIN EXTENDED (with subselect). used to crash.
-# This is actually a valid query for this sql_mode,
-# but it was transformed in such a way that it failed, see
-# Bug#12329653 - EXPLAIN, UNION, PREPARED STATEMENT, CRASH, SQL_FULL_GROUP_BY
+# EXPLAIN EXTENDED (with subselect). used to crash. should give NOTICE.
+# Before moving max/min optimization to optimize phase this statement
+# generated error, but as far as original query do not contain aggregate
+# function user should not see error
+#  --error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
 EXPLAIN EXTENDED SELECT 1 FROM t1
                           WHERE f1 > ALL( SELECT t.f1 FROM t1,t1 AS t );
 
@@ -178,6 +179,8 @@ create table t2 (dt datetime not null);
 insert into t1 values ('2001-01-01 1:1:1', '1:1:1'),
 ('2001-01-01 1:1:1', '1:1:1');
 insert into t2 values ('2001-01-01 1:1:1'), ('2001-01-01 1:1:1');
+SET @save_join_cache_level=@@join_cache_level;
+SET join_cache_level=0;
 flush tables;
 EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN (SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.dt IS NULL );
 flush tables;
@@ -186,6 +189,7 @@ flush tables;
 EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' ); 
 flush tables;
 SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' );
+SET join_cache_level=@save_join_cache_level;
 drop tables t1, t2;
 
 --echo #
@@ -248,12 +252,12 @@ FULLTEXT KEY(f1),UNIQUE(f1));
 INSERT INTO t1 VALUES ('test');
 
 EXPLAIN SELECT 1 FROM t1
-WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) AGAINST (""))
+WHERE 1 > ALL((SELECT t1.f1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) AGAINST (""))
 WHERE t1.f1 GROUP BY t1.f1));
 
 PREPARE stmt FROM
 'EXPLAIN SELECT 1 FROM t1
- WHERE 1 > ALL((SELECT 1 FROM t1 RIGHT OUTER JOIN t1 a
+ WHERE 1 > ALL((SELECT t1.f1 FROM t1 RIGHT OUTER JOIN t1 a
  ON (MATCH(t1.f1) AGAINST (""))
  WHERE t1.f1 GROUP BY t1.f1))';
 
@@ -264,7 +268,7 @@ DEALLOCATE PREPARE stmt;
 
 PREPARE stmt FROM
 'EXPLAIN SELECT 1 FROM t1
- WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a
+ WHERE 1 > ALL((SELECT t1.f1 FROM t1 JOIN t1 a
  ON (MATCH(t1.f1) AGAINST (""))
  WHERE t1.f1 GROUP BY t1.f1))';
 
@@ -297,3 +301,19 @@ DEALLOCATE PREPARE s;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#776295: EXPLAIN EXTENDED with always false multiple equality
+--echo #             in the WHERE condition of a derived table
+--echo #
+
+CREATE TABLE t1 (a int) ;
+
+CREATE TABLE t2 (a int) ;
+INSERT INTO t2 VALUES (8);
+
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
+EXPLAIN EXTENDED
+SELECT * FROM ( SELECT t1.a FROM t1,t2 WHERE t2.a = t1.a ) AS t;
+set optimizer_switch=@tmp_optimizer_switch;
+
+DROP TABLE t1,t2;

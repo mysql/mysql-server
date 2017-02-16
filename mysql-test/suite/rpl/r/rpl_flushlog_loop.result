@@ -1,8 +1,8 @@
 include/rpl_init.inc [topology=1->2->1]
 show variables like 'relay_log%';
 Variable_name	Value
-relay_log	
-relay_log_index	
+relay_log	master-relay-bin
+relay_log_index	master-relay-bin.index
 relay_log_info_file	relay-log.info
 relay_log_purge	ON
 relay_log_recovery	OFF
@@ -12,5 +12,5 @@ INSERT INTO t1 VALUE(1);
 FLUSH LOGS;
 INSERT INTO t1 VALUE(2);
 include/check_slave_is_running.inc
-Relay_Log_File = 'mysqld-relay-bin.000003'
+Relay_Log_File = 'master-relay-bin.000003'
 include/rpl_end.inc

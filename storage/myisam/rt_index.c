@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (C) 2002-2006 MySQL AB & Ramil Kalimullin
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -175,6 +175,13 @@ int rtree_find_first(MI_INFO *info, uint keynr, uchar *key, uint key_length,
   uint nod_cmp_flag;
   MI_KEYDEF *keyinfo = info->s->keyinfo + keynr;
 
+  /*
+    At the moment index can only properly handle the
+    MBR_INTERSECT, so we use it for all sorts of queries.
+    TODO: better searsh for CONTAINS/WITHIN.
+  */
+  search_flag= nod_cmp_flag= MBR_INTERSECT;
+
   if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
   {
     my_errno= HA_ERR_END_OF_FILE;
@@ -192,8 +199,11 @@ int rtree_find_first(MI_INFO *info, uint keynr, uchar *key, uint key_length,
   info->rtree_recursion_depth = -1;
   info->buff_used = 1;
   
-  nod_cmp_flag = ((search_flag & (MBR_EQUAL | MBR_WITHIN)) ? 
-        MBR_WITHIN : MBR_INTERSECT);
+  /*
+    TODO better search for CONTAINS/WITHIN.
+    nod_cmp_flag= ((search_flag & (MBR_EQUAL | MBR_WITHIN)) ?
+                   MBR_WITHIN : MBR_INTERSECT);
+  */
   return rtree_find_req(info, keyinfo, search_flag, nod_cmp_flag, root, 0);
 }
 
@@ -218,6 +228,12 @@ int rtree_find_next(MI_INFO *info, uint keynr, uint search_flag)
   my_off_t root;
   uint nod_cmp_flag;
   MI_KEYDEF *keyinfo = info->s->keyinfo + keynr;
+  /*
+    At the moment index can only properly handle the
+    MBR_INTERSECT, so we use it for all sorts of queries.
+    TODO: better searsh for CONTAINS/WITHIN.
+  */
+  search_flag= nod_cmp_flag= MBR_INTERSECT;
 
   if (info->update & HA_STATE_DELETED)
     return rtree_find_first(info, keynr, info->lastkey, info->lastkey_length,
@@ -252,8 +268,11 @@ int rtree_find_next(MI_INFO *info, uint keynr, uint search_flag)
     return -1;
   }
   
-  nod_cmp_flag = ((search_flag & (MBR_EQUAL | MBR_WITHIN)) ? 
-        MBR_WITHIN : MBR_INTERSECT);
+  /*
+    TODO better search for CONTAINS/WITHIN.
+    nod_cmp_flag= (((search_flag & (MBR_EQUAL | MBR_WITHIN)) ?
+                    MBR_WITHIN : MBR_INTERSECT));
+  */
   return rtree_find_req(info, keyinfo, search_flag, nod_cmp_flag, root, 0);
 }
 
@@ -528,7 +547,7 @@ static int rtree_insert_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   DBUG_ENTER("rtree_insert_req");
 
   if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length + 
-                                     MI_MAX_KEY_BUFF)))
+                                     HA_MAX_KEY_BUFF)))
   {
     my_errno = HA_ERR_OUT_OF_MEM;
     DBUG_RETURN(-1); /* purecov: inspected */
@@ -1028,7 +1047,7 @@ ha_rows rtree_estimate(MI_INFO *info, uint keynr, uchar *key,
   ha_rows res = 0;
 
   if (flag & MBR_DISJOINT)
-    return info->state->records;
+    return HA_POS_ERROR;
 
   if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
     return HA_POS_ERROR;

@@ -1,4 +1,5 @@
--- Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (C) 2003, 2013 Oracle and/or its affiliates.
+-- Copyright (C) 2010, 2014 SkySQL Ab.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -19,6 +20,18 @@
 # You can safely ignore all 'Duplicate column' and 'Unknown column' errors
 # because these just mean that your tables are already up to date.
 # This script is safe to run even if your tables are already up to date!
+
+# To facilitate custom changes to system tables that might have been done 
+# (as per MDEV-4332, MDEV-6068 and https://mariadb.com/kb/en/create-user/#user-names),
+# we need to preserve non-default column length for user name fields.
+# These variables will be further used to alter system tables.
+# We presume that the set of ALTERs, if it was run, was run in full,
+# so either all columns were modified, or none was. 
+
+SELECT character_maximum_length, IF(character_maximum_length = 16,77,141) 
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE table_schema = 'mysql' AND table_name = 'user' AND column_name = 'user'
+  INTO @user_name_length, @definer_name_length;
 
 set sql_mode='';
 set storage_engine=MyISAM;
@@ -55,14 +68,18 @@ ALTER TABLE user MODIFY ssl_type enum('','ANY','X509', 'SPECIFIED') NOT NULL;
 ALTER TABLE tables_priv
   ADD KEY Grantor (Grantor);
 
+SET @alter_statement = CONCAT("
 ALTER TABLE tables_priv
   MODIFY Host char(60) NOT NULL default '',
   MODIFY Db char(64) NOT NULL default '',
-  MODIFY User char(16) NOT NULL default '',
+  MODIFY User char(", @user_name_length, ") NOT NULL default '',
   MODIFY Table_name char(64) NOT NULL default '',
-  MODIFY Grantor char(77) NOT NULL default '',
+  MODIFY Grantor char(", @definer_name_length, ") NOT NULL default '',
   ENGINE=MyISAM,
-  CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+  CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin
+");
+PREPARE alter_stmt FROM @alter_statement;
+EXECUTE alter_stmt;
 
 ALTER TABLE tables_priv
   MODIFY Column_priv set('Select','Insert','Update','References')
@@ -83,15 +100,19 @@ ALTER TABLE columns_priv
   CHANGE Type Column_priv set('Select','Insert','Update','References')
     COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 
+SET @alter_statement = CONCAT("
 ALTER TABLE columns_priv
   MODIFY Host char(60) NOT NULL default '',
   MODIFY Db char(64) NOT NULL default '',
-  MODIFY User char(16) NOT NULL default '',
+  MODIFY User char(", @user_name_length, ") NOT NULL default '',
   MODIFY Table_name char(64) NOT NULL default '',
   MODIFY Column_name char(64) NOT NULL default '',
   ENGINE=MyISAM,
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin,
-  COMMENT='Column privileges';
+  COMMENT='Column privileges'
+");
+PREPARE alter_stmt FROM @alter_statement;
+EXECUTE alter_stmt;
 
 ALTER TABLE columns_priv
   MODIFY Column_priv set('Select','Insert','Update','References')
@@ -155,10 +176,16 @@ alter table func comment='User defined functions';
 
 # Convert all tables to UTF-8 with binary collation
 # and reset all char columns to correct width
+
+SET @alter_statement = CONCAT("
 ALTER TABLE user
   MODIFY Host char(60) NOT NULL default '',
-  MODIFY User char(16) NOT NULL default '',
-  ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+  MODIFY User char(", @user_name_length, ") NOT NULL default '',
+  ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin
+");
+PREPARE alter_stmt FROM @alter_statement;
+EXECUTE alter_stmt;
+
 ALTER TABLE user
   MODIFY Password char(41) character set latin1 collate latin1_bin NOT NULL default '',
   MODIFY Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
@@ -184,11 +211,16 @@ ALTER TABLE user
   MODIFY Repl_client_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   MODIFY ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 
+SET @alter_statement = CONCAT("
 ALTER TABLE db
   MODIFY Host char(60) NOT NULL default '',
   MODIFY Db char(64) NOT NULL default '',
-  MODIFY User char(16) NOT NULL default '',
-  ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+  MODIFY User char(", @user_name_length, ") NOT NULL default '',
+  ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin
+");
+PREPARE alter_stmt FROM @alter_statement;
+EXECUTE alter_stmt;
+
 ALTER TABLE db
   MODIFY  Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   MODIFY  Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
@@ -233,7 +265,7 @@ ALTER TABLE func
 SET @old_log_state = @@global.general_log;
 SET GLOBAL general_log = 'OFF';
 ALTER TABLE general_log
-  MODIFY event_time TIMESTAMP NOT NULL,
+  MODIFY event_time TIMESTAMP(6) NOT NULL,
   MODIFY user_host MEDIUMTEXT NOT NULL,
   MODIFY thread_id INTEGER NOT NULL,
   MODIFY server_id INTEGER UNSIGNED NOT NULL,
@@ -244,10 +276,10 @@ SET GLOBAL general_log = @old_log_state;
 SET @old_log_state = @@global.slow_query_log;
 SET GLOBAL slow_query_log = 'OFF';
 ALTER TABLE slow_log
-  MODIFY start_time TIMESTAMP NOT NULL,
+  MODIFY start_time TIMESTAMP(6) NOT NULL,
   MODIFY user_host MEDIUMTEXT NOT NULL,
-  MODIFY query_time TIME NOT NULL,
-  MODIFY lock_time TIME NOT NULL,
+  MODIFY query_time TIME(6) NOT NULL,
+  MODIFY lock_time TIME(6) NOT NULL,
   MODIFY rows_sent INTEGER NOT NULL,
   MODIFY rows_examined INTEGER NOT NULL,
   MODIFY db VARCHAR(512) NOT NULL,
@@ -342,8 +374,11 @@ UPDATE host SET Create_routine_priv=Create_priv, Alter_routine_priv=Alter_priv, 
 
 #
 # Add max_user_connections resource limit
+# this is signed in MariaDB so that if one sets it's to -1 then the user
+# can't connect anymore.
 #
-ALTER TABLE user ADD max_user_connections int(11) unsigned DEFAULT '0' NOT NULL AFTER max_connections;
+ALTER TABLE user ADD max_user_connections int(11) DEFAULT '0' NOT NULL AFTER max_connections;
+ALTER TABLE user MODIFY max_user_connections int(11) DEFAULT '0' NOT NULL AFTER max_connections;
 
 #
 # user.Create_user_priv
@@ -401,7 +436,7 @@ ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
                             'PIPES_AS_CONCAT',
                             'ANSI_QUOTES',
                             'IGNORE_SPACE',
-                            'NOT_USED',
+                            'IGNORE_BAD_TABLE_OPTIONS',
                             'ONLY_FULL_GROUP_BY',
                             'NO_UNSIGNED_SUBTRACTION',
                             'NO_DIR_IN_CREATE',
@@ -435,12 +470,16 @@ ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
 # Correct the character set and collation
 ALTER TABLE proc CONVERT TO CHARACTER SET utf8;
 # Reset some fields after the conversion
+SET @alter_statement = CONCAT("
 ALTER TABLE proc  MODIFY db
                          char(64) collate utf8_bin DEFAULT '' NOT NULL,
                   MODIFY definer
-                         char(77) collate utf8_bin DEFAULT '' NOT NULL,
+                         char(", @definer_name_length, ") collate utf8_bin DEFAULT '' NOT NULL,
                   MODIFY comment
-                         char(64) collate utf8_bin DEFAULT '' NOT NULL;
+                         char(64) collate utf8_bin DEFAULT '' NOT NULL
+");
+PREPARE alter_stmt FROM @alter_statement;
+EXECUTE alter_stmt;
 
 ALTER TABLE proc ADD character_set_client
                      char(32) collate utf8_bin DEFAULT NULL
@@ -518,14 +557,14 @@ ALTER TABLE db MODIFY Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NO
 ALTER TABLE event DROP PRIMARY KEY;
 ALTER TABLE event ADD PRIMARY KEY(db, name);
 # Add sql_mode column just in case.
-ALTER TABLE event ADD sql_mode set ('NOT_USED') AFTER on_completion;
+ALTER TABLE event ADD sql_mode set ('IGNORE_BAD_TABLE_OPTIONS') AFTER on_completion;
 # Update list of sql_mode values.
 ALTER TABLE event MODIFY sql_mode
                         set('REAL_AS_FLOAT',
                             'PIPES_AS_CONCAT',
                             'ANSI_QUOTES',
                             'IGNORE_SPACE',
-                            'NOT_USED',
+                            'IGNORE_BAD_TABLE_OPTIONS',
                             'ONLY_FULL_GROUP_BY',
                             'NO_UNSIGNED_SUBTRACTION',
                             'NO_DIR_IN_CREATE',
@@ -617,32 +656,9 @@ ALTER TABLE user MODIFY Create_tablespace_priv enum('N','Y') COLLATE utf8_genera
 
 UPDATE user SET Create_tablespace_priv = Super_priv WHERE @hadCreateTablespacePriv = 0;
 
---
--- Unlike 'performance_schema', the 'mysql' database is reserved already,
--- so no user procedure is supposed to be there.
---
--- NOTE: until upgrade is finished, stored routines are not available,
--- because system tables (e.g. mysql.proc) might be not usable.
---
-drop procedure if exists mysql.die;
-create procedure mysql.die() signal sqlstate 'HY000' set message_text='Unexpected content found in the performance_schema database.';
-
---
--- For broken upgrades, SIGNAL the error
---
-
-SET @cmd="call mysql.die()";
-
-SET @str = IF(@broken_pfs > 0, @cmd, 'SET @dummy = 0');
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-drop procedure mysql.die;
-
 ALTER TABLE user ADD plugin char(64) DEFAULT '',  ADD authentication_string TEXT;
-ALTER TABLE user MODIFY plugin char(64) DEFAULT '';
-ALTER TABLE user MODIFY authentication_string TEXT;
+ALTER TABLE user MODIFY plugin char(64) CHARACTER SET latin1 DEFAULT '' NOT NULL;
+ALTER TABLE user MODIFY authentication_string TEXT NOT NULL;
 
 -- Need to pre-fill mysql.proxies_priv with access for root even when upgrading from
 -- older versions
@@ -677,3 +693,5 @@ UPDATE user SET host=LOWER( host ) WHERE LOWER( host ) <> host;
 # changes was correct
 
 flush privileges;
+DEALLOCATE PREPARE alter_stmt;
+

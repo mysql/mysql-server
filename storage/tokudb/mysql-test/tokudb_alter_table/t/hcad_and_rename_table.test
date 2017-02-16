@@ -1,0 +1,14 @@
+--source include/have_tokudb.inc
+set default_storage_engine='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS s, t;
+--enable_warnings
+
+CREATE TABLE s (a INT);
+SHOW CREATE TABLE s;
+SET tokudb_disable_slow_alter=1;
+ALTER TABLE s RENAME TO t, ADD COLUMN b INT;
+SHOW CREATE TABLE t;
+
+DROP TABLE t;

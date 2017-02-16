@@ -1,21 +1,25 @@
 -1 before test
 <No error> before test
+SET GLOBAL max_connections = 1000;
 select otto from (select 1 as otto) as t1;
 otto
 1
 select otto from (select 1 as otto) as t1;
 otto
 1
+select friedrich from (select 1 as otto) as t1;
 mysqltest: At line 1: query 'select friedrich from (select 1 as otto) as t1' failed: 1054: Unknown column 'friedrich' in 'field list'
 select friedrich from (select 1 as otto) as t1;
 ERROR 42S22: Unknown column 'friedrich' in 'field list'
 select otto from (select 1 as otto) as t1;
 otto
 1
+select otto from (select 1 as otto) as t1;
 mysqltest: At line 1: query 'select otto from (select 1 as otto) as t1' succeeded - should have failed with sqlstate 42S22...
 mysqltest: At line 1: expecting a SQL-state (00000) from query 'remove_file MYSQLTEST_VARDIR/tmp/test_nonexistent.tmp' which cannot produce one...
 select friedrich from (select 1 as otto) as t1;
 ERROR 42S22: Unknown column 'friedrich' in 'field list'
+select friedrich from (select 1 as otto) as t1;
 mysqltest: At line 1: query 'select friedrich from (select 1 as otto) as t1' failed with wrong sqlstate 42S22: 'Unknown column 'friedrich' in 'field list'', instead of 00000...
 select otto from (select 1 as otto) as t1;
 otto
@@ -25,40 +29,40 @@ select 0 as "after_successful_stmt_errno" ;
 after_successful_stmt_errno
 0
 garbage ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 ER_PARSE_ERROR
 select 1064 as "after_wrong_syntax_errno" ;
 after_wrong_syntax_errno
 1064
 garbage ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 ER_PARSE_ERROR
 select 1064 as "after_let_var_equal_value" ;
 after_let_var_equal_value
 1064
 garbage ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 set @my_var= 'abc' ;
 
 select 0 as "after_set_var_equal_value" ;
 after_set_var_equal_value
 0
 garbage ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 ER_PARSE_ERROR
 select 1064 as "after_disable_warnings_command" ;
 after_disable_warnings_command
 1064
 drop table if exists t1 ;
 garbage ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 drop table if exists t1 ;
 
 select 0 as "after_disable_warnings" ;
 after_disable_warnings
 0
 garbage ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 select 3 from t1 ;
 ERROR 42S02: Table 'test.t1' doesn't exist
 ER_NO_SUCH_TABLE
@@ -66,7 +70,7 @@ select 1146 as "after_minus_masked" ;
 after_minus_masked
 1146
 garbage ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 select 3 from t1 ;
 ERROR 42S02: Table 'test.t1' doesn't exist
 ER_NO_SUCH_TABLE
@@ -74,12 +78,12 @@ select 1146 as "after_!_masked" ;
 after_!_masked
 1146
 garbage ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 select -1 as "after_let_errno_equal_value" ;
 after_let_errno_equal_value
 -1
 garbage ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 prepare stmt from "select 3 from t1" ;
 ERROR 42S02: Table 'test.t1' doesn't exist
 ER_NO_SUCH_TABLE
@@ -88,14 +92,14 @@ after_failing_prepare
 1146
 create table t1 ( f1 char(10));
 garbage ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 prepare stmt from "select 3 from t1" ;
 
 select 0 as "after_successful_prepare" ;
 after_successful_prepare
 0
 garbage ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 execute stmt;
 3
 
@@ -104,7 +108,7 @@ after_successful_execute
 0
 drop table t1;
 garbage ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 execute stmt;
 ERROR 42S02: Table 'test.t1' doesn't exist
 ER_NO_SUCH_TABLE
@@ -112,7 +116,7 @@ select 1146 as "after_failing_execute" ;
 after_failing_execute
 1146
 garbage ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 execute __stmt_;
 ERROR HY000: Unknown prepared statement handler (__stmt_) given to EXECUTE
 ER_UNKNOWN_STMT_HANDLER
@@ -120,14 +124,14 @@ select 1243 as "after_failing_execute" ;
 after_failing_execute
 1243
 garbage ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 deallocate prepare stmt;
 
 select 0 as "after_successful_deallocate" ;
 after_successful_deallocate
 0
 garbage ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 deallocate prepare __stmt_;
 ERROR HY000: Unknown prepared statement handler (__stmt_) given to DEALLOCATE PREPARE
 ER_UNKNOWN_STMT_HANDLER
@@ -135,7 +139,7 @@ select 1243 as "after_failing_deallocate" ;
 after_failing_deallocate
 1243
 garbage ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 ER_PARSE_ERROR
 select 1064 as "after_--disable_abort_on_error" ;
 after_--disable_abort_on_error
@@ -150,22 +154,24 @@ ER_NO_SUCH_TABLE
 select 1146 as "after_!errno_masked_error" ;
 after_!errno_masked_error
 1146
+select 3 from t1;
 mysqltest: At line 1: query 'select 3 from t1' failed with wrong errno 1146: 'Table 'test.t1' doesn't exist', instead of 1000...
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
  is empty
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'nonsense' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'nonsense' at line 1
  is empty
 garbage ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 ER_PARSE_ERROR
 select 1064 as "after_--enable_abort_on_error" ;
 after_--enable_abort_on_error
 1064
 select 3 from t1 ;
 ERROR 42S02: Table 'test.t1' doesn't exist
+select 3 from t1;
 mysqltest: At line 1: query 'select 3 from t1' failed with wrong errno 1146: 'Table 'test.t1' doesn't exist', instead of 1064...
 garbage;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 select 2;
 select 3;
 3
@@ -226,7 +232,7 @@ mysqltest: At line 2: Spurious text after `query` expression
 mysqltest: At line 1: Missing argument(s) to 'error'
 mysqltest: At line 1: Missing argument(s) to 'error'
 mysqltest: At line 1: The sqlstate definition must start with an uppercase S
-mysqltest: At line 1: The error name definition must start with an uppercase E
+mysqltest: At line 1: The error name definition must start with an uppercase E or H
 mysqltest: At line 1: Invalid argument to error: '9eeeee' - the errno may only consist of digits[0-9]
 mysqltest: At line 1: Invalid argument to error: '1sssss' - the errno may only consist of digits[0-9]
 mysqltest: At line 1: The sqlstate must be exactly 5 chars long
@@ -263,12 +269,6 @@ source database
 echo message echo message
 
 mysqltest: At line 1: Missing argument in exec
-1
-1
-2
-2
-X
-3
 MySQL
 "MySQL"
 MySQL: The
@@ -358,9 +358,9 @@ insert into t1 values ('$dollar');
 $dollar
 `select 42`
 drop table t1;
-mysqltest: At line 1: query 'let $var2= `failing query`' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
+mysqltest: At line 1: query 'let $var2= `failing query`' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'failing query' at line 1
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
-mysqltest: At line 1: Could not open './non_existingFile' for reading, errno: 2
+mysqltest: At line 1: Could not open 'non_existingFile' for reading, errno: 2
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/recursive.sql": 
 included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
 included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
@@ -376,11 +376,12 @@ included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
 included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
 included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
 included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
-included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
+included from <stdin> at line 1:
 At line 1: Source directives are nesting too deep
+garbage ;
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/error.sql": 
-included from MYSQLTEST_VARDIR/tmp/error.sql at line 1:
-At line 1: query 'garbage ' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+included from <stdin> at line 1:
+At line 1: query 'garbage ' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 
 2 = outer loop variable after while
 here is the sourced script
@@ -399,7 +400,7 @@ outer=2 ifval=0
 outer=1 ifval=1
 here is the sourced script
 ERROR 42S02: Table 'test.nowhere' doesn't exist
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'else' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'else' at line 1
 
 In loop
 here is the sourced script
@@ -509,14 +510,15 @@ counter is 7
 1
 Testing while with not
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest_while.inc": 
-included from MYSQLTEST_VARDIR/tmp/mysqltest_while.inc at line 65:
+included from <stdin> at line 1:
 At line 64: Nesting too deeply
 mysqltest: At line 1: missing '(' in while
 mysqltest: At line 1: missing ')' in while
 mysqltest: At line 1: Missing '{' after while. Found "dec $i"
 mysqltest: At line 1: Stray '}' - end of block before beginning
 mysqltest: At line 1: Stray 'end' command - end of block before beginning
-mysqltest: At line 1: query '{' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '{' at line 1
+{;
+mysqltest: At line 1: query '{' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '{' at line 1
 mysqltest: At line 1: Missing '{' after while. Found "echo hej"
 mysqltest: At line 3: Missing end of block
 mysqltest: At line 3: Missing end of block
@@ -561,10 +563,10 @@ mysqltest: At line 1: Illegal argument for port: 'illegal_port'
 mysqltest: At line 1: Illegal option to connect: SMTP
 200 connects succeeded
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": 
-included from MYSQLTEST_VARDIR/tmp/mysqltest.sql at line 3:
+included from <stdin> at line 1:
 At line 3: connection 'test_con1' not found in connection pool
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": 
-included from MYSQLTEST_VARDIR/tmp/mysqltest.sql at line 2:
+included from <stdin> at line 1:
 At line 2: Connection test_con1 already exists
 show tables;
 ERROR 3D000: No database selected
@@ -578,9 +580,9 @@ Output from mysqltest-x.inc
 Output from mysqltest-x.inc
 mysqltest: Could not open './non_existing_file.inc' for reading, errno: 2
 failing_statement;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing_statement' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'failing_statement' at line 1
 failing_statement;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing_statement' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'failing_statement' at line 1
 SELECT 1 as a;
 a
 1
@@ -610,15 +612,19 @@ this will be executed
 this will be executed
 mysqltest: The test didn't produce any output
 Failing multi statement query
+create table t1 (a int primary key);
+insert into t1 values (1);
+select 'select-me';
+insertz 'error query'||||
 mysqltest: At line 3: query 'create table t1 (a int primary key);
 insert into t1 values (1);
 select 'select-me';
-insertz 'error query'' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
+insertz 'error query'' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'insertz 'error query'' at line 1
 drop table t1;
 mysqltest: At line 3: query 'create table t1 (a int primary key);
 insert into t1 values (1);
 select 'select-me';
-insertz 'error query'' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
+insertz 'error query'' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'insertz 'error query'' at line 1
 drop table t1;
 Multi statement using expected error
 create table t1 (a int primary key);
@@ -627,13 +633,13 @@ select 'select-me';
 insertz error query||||
 select-me
 select-me
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz error query' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'insertz error query' at line 1
 drop table t1;
 drop table t1;
 sleep;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'sleep' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'sleep' at line 1
 sleep;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'sleep' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'sleep' at line 1
 ;
 ERROR 42000: Query was empty
 select "b" as col1, "c" as col2;
@@ -670,7 +676,7 @@ txt
 a is a and less is more
 create table t2 ( a char(10));
 garbage;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'garbage' at line 1
 garbage;
 Got one of the listed errors
 garbage;
@@ -678,6 +684,7 @@ Got one of the listed errors
 insert into t1 values ("Abcd");
 Got one of the listed errors
 garbage;
+SELECT * FROM non_existing_table;
 drop table t2;
 create table t1 ( f1 char(10));
 insert into t1 values ("Abcd");
@@ -696,8 +703,8 @@ Abcd
 select * from t1;;
 f1
 Abcd
-mysqltest: At line 2: Cannot run query on connection between send and reap
 select * from t1;;
+mysqltest: At line 2: Cannot run query on connection between send and reap
 drop table t1;
 mysqltest: At line 1: Missing required argument 'filename' to command 'remove_file'
 mysqltest: At line 1: Missing required argument 'directory' to command 'remove_files_wildcard'
@@ -712,7 +719,7 @@ if things work as expected
 Some data
 for cat_file command
 of mysqltest
-mysqltest: At line 1: command "cat_file" failed with error 1. (my_errno)
+mysqltest: At line 1: command "cat_file" failed with error: 1  my_errno: 2  errno: 2
 mysqltest: At line 1: Missing required argument 'filename' to command 'file_exists'
 mysqltest: At line 1: Missing required argument 'from_file' to command 'copy_file'
 mysqltest: At line 1: Missing required argument 'to_file' to command 'copy_file'
@@ -907,7 +914,7 @@ mysqltest: At line 1: Could not find column 'column_not_exists' in the result of
 mysqltest: At line 1: Query 'SET @A = 1' didn't return a result set
 mysqltest: At line 1: Could not find column '1 AS B' in the result of 'SELECT 1 AS A'
 value= No such row
-mysqltest: At line 1: query 'let $value= query_get_value(SHOW COLNS FROM t1, Field, 1)' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COLNS FROM t1' at line 1
+mysqltest: At line 1: query 'let $value= query_get_value(SHOW COLNS FROM t1, Field, 1)' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'COLNS FROM t1' at line 1
 
 Field Type Null Key Default Extra
 a int(11) YES -><- NULL 
@@ -922,9 +929,9 @@ a	int(11)	YES		NULL
 b	varchar(255)	YES		NULL	
 c	datetime	YES		NULL	
 drop table t1;
-mysqltest: At line 1: change user failed: Unknown database 'inexistent'
-mysqltest: At line 1: change user failed: Access denied for user 'inexistent'@'localhost' (using password: NO)
-mysqltest: At line 1: change user failed: Access denied for user 'root'@'localhost' (using password: YES)
+mysqltest: At line 1: query 'change_user root,,inexistent' failed: 1049: Unknown database 'inexistent'
+mysqltest: At line 1: query 'change_user inexistent,,test' failed: 1045: Access denied for user 'inexistent'@'localhost' (using password: NO)
+mysqltest: At line 1: query 'change_user root,inexistent,test' failed: 1045: Access denied for user 'root'@'localhost' (using password: YES)
 REPLACED_FILE1.txt
 file1.txt
 file2.txt

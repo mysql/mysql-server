@@ -4,8 +4,6 @@ DROP DATABASE IF EXISTS mysqltest2;
 # test.t1 have partitions in mysqltest2-directory!
 # user root:
 CREATE USER mysqltest_1@localhost;
-# Need FILE permission to use external datadir or indexdir.
-GRANT FILE ON *.* TO mysqltest_1@localhost;
 CREATE DATABASE mysqltest2;
 USE mysqltest2;
 CREATE TABLE t1 (a INT) ENGINE = MyISAM;

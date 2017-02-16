@@ -1,3 +1,4 @@
+-- source include/have_query_cache.inc
 --source include/have_binlog_format_row.inc
 --source include/have_innodb.inc
 
@@ -5,9 +6,12 @@ let $SERVER_VERSION=`select version()`;
 
 #This test case is not written for NDB, the result files 
 #will not match when NDB is the default engine
--- source include/not_ndb_default.inc
+--source include/not_ndb_default.inc
 
 --source include/master-slave.inc
+
+# Add suppression for expected warning(s) in slaves error log
+call mtr.add_suppression("Can't find record in 't.'");
 
 # Bug#15942 (RBR ignores --binlog_ignore_db and tries to map to table
 # on slave for writes)
@@ -54,6 +58,7 @@ UPDATE t1 SET a=99 WHERE a = 0;
 source include/show_binlog_events.inc;
 
 DROP TABLE t1;
+--sync_slave_with_master
 
 # BUG#17620: Replicate (Row Based) Fails when Query Cache enabled on
 # slave
@@ -239,7 +244,7 @@ sync_slave_with_master;
 UPDATE t1 SET a = 5, b = 'slave' WHERE a = 1;
 SELECT * FROM t1 ORDER BY a;
 # since bug#31552/31609 idempotency is not default any longer. In
-# order for the preceeding test UPDATE t1 to pass, the mode is switched
+# order for the preceding test UPDATE t1 to pass, the mode is switched
 # temprorarily
 set @@global.slave_exec_mode= 'IDEMPOTENT';
 --echo **** On Master ****

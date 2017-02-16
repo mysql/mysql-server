@@ -301,7 +301,7 @@ count(*)
 EXPLAIN SELECT fid, AsText(g) FROM t2 WHERE Within(g, 
 GeomFromText('Polygon((40 40,60 40,60 60,40 60,40 40))'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	g	g	34	NULL	4	Using where
+1	SIMPLE	t2	range	g	g	34	NULL	1	Using where
 SELECT fid, AsText(g) FROM t2 WHERE Within(g, 
 GeomFromText('Polygon((40 40,60 40,60 60,40 60,40 40))'));
 fid	AsText(g)
@@ -758,7 +758,7 @@ SPATIAL KEY(g)
 INSERT INTO t1 (g) VALUES (GeomFromText('LineString(1 2, 2 3)')),(GeomFromText('LineString(1 2, 2 4)'));
 drop table t1;
 CREATE TABLE t1 (
-line LINESTRING NOT NULL,
+line GEOMETRY NOT NULL,
 kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
 name VARCHAR(32),
 SPATIAL KEY (line)
@@ -1553,7 +1553,7 @@ End of 5.0 tests.
 # Bug #57323/11764487: myisam corruption with insert ignore 
 # and invalid spatial data
 #
-CREATE TABLE t1(a LINESTRING NOT NULL, b GEOMETRY NOT NULL,
+CREATE TABLE t1(a POINT NOT NULL, b GEOMETRY NOT NULL,
 SPATIAL KEY(a), SPATIAL KEY(b)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES(GEOMFROMTEXT("point (0 0)"), GEOMFROMTEXT("point (1 1)"));
 INSERT IGNORE INTO t1 SET a=GEOMFROMTEXT("point (-6 0)"), b=GEOMFROMTEXT("error");
@@ -1576,3 +1576,23 @@ a	ASTEXT(b)
 0	POINT(1 1)
 DROP TABLE t1;
 End of 5.1 tests
+CREATE TABLE t1 (
+l LINESTRING NOT NULL,
+SPATIAL KEY(l)
+) ENGINE = myisam;
+INSERT INTO t1 VALUES(GeomFromText('LINESTRING(0 0, 1 1)'));
+INSERT INTO t1 VALUES(GeomFromText('LINESTRING(1 1, 2 2)'));
+INSERT INTO t1 VALUES(GeomFromText('LINESTRING(2 2, 3 3)'));
+SELECT COUNT(*) FROM t1 IGNORE INDEX(l) WHERE MBRContains(l, GEOMFROMTEXT('POINT(0 0)'));
+COUNT(*)
+1
+SELECT COUNT(*) FROM t1 IGNORE INDEX(l) WHERE MBRWithin(GEOMFROMTEXT('POINT(0 0)'), l);
+COUNT(*)
+1
+SELECT COUNT(*) FROM t1 FORCE INDEX(l) WHERE MBRContains(l, GEOMFROMTEXT('POINT(0 0)'));
+COUNT(*)
+1
+SELECT COUNT(*) FROM t1 FORCE INDEX(l) WHERE MBRWithin(GEOMFROMTEXT('POINT(0 0)'), l);
+COUNT(*)
+1
+DROP TABLE t1;

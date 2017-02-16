@@ -25,6 +25,7 @@ my $cmakeargs = "";
 # Assume this script is in <srcroot>/cmake
 my $srcdir = dirname(dirname(abs_path($0)));
 my $cmake_install_prefix="";
+my $just_print= 0;
 
 # Sets installation directory,  bindir, libdir, libexecdir etc
 # the equivalent CMake variables are given without prefix
@@ -113,6 +114,11 @@ foreach my $option (@ARGV)
     system("cmake ${srcdir} -LH");
     exit(0);
   }
+  if ($option =~ /print/)
+  {
+    $just_print=1;
+    next;
+  }
   if($option =~ /with-plugins=/)
   {
     my @plugins= split(/,/, substr($option,13));
@@ -147,6 +153,11 @@ foreach my $option (@ARGV)
   if($option =~ /with-ssl=/)
   {
     $cmakeargs = $cmakeargs." -DWITH_SSL=yes";
+    next;
+  }
+  if($option =~ /with-debug/)
+  {
+    $cmakeargs = $cmakeargs." -DCMAKE_BUILD_TYPE=Debug";
     next;
   }
   if($option =~ /with-ssl/)
@@ -211,6 +222,11 @@ foreach my $option (@ARGV)
       $cmakeargs = $cmakeargs." -DENABLE_GCOV=ON"; 
       next;
   }
+  if ($option =~ /verbose/)
+  {
+      $cmakeargs = $cmakeargs." -DCMAKE_VERBOSE_MAKEFILE=1";
+      next;
+  }
   if ($option =~ /with-client-ldflags/)
   {
       print("configure.pl : ignoring $option\n");
@@ -228,6 +244,7 @@ foreach my $option (@ARGV)
 }
 
 print("configure.pl : calling cmake $srcdir $cmakeargs\n");
+exit(0) if ($just_print);
 unlink("CMakeCache.txt");
 my $rc = system("cmake $srcdir $cmakeargs");
 exit($rc);

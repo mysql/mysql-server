@@ -1,0 +1,99 @@
+# Initialize tables for the test
+
+--disable_warnings
+drop table if exists x1;
+drop table if exists x2;
+--enable_warnings
+
+set @tmp_subselect_nulls=@@optimizer_switch;
+set optimizer_switch='semijoin=off';
+
+create table x1(k int primary key, d1 int, d2 int);
+create table x2(k int primary key, d1 int, d2 int);
+
+insert into x1 values
+    (10,   10,   10),
+    (20,   20,   20),
+    (21,   20,   null),
+    (30,   null, 30),
+    (40,   40,   40);
+insert into x2 values
+    (10,   10,   10),
+    (20,   20,   20),
+    (21,   20,   null),
+    (30,   null, 30);
+
+# Test various IN and EXISTS queries with NULL values and UNKNOWN
+# Q1 T=(10, 20) U=(21,30) F=(40)
+select *
+from x1
+where (d1, d2) in (select d1, d2
+                   from x2);
+select *
+from x1
+where (d1, d2) in (select d1, d2
+                   from x2) is true;
+select *
+from x1
+where (d1, d2) in (select d1, d2
+                   from x2) is false;
+select *
+from x1
+where (d1, d2) in (select d1, d2
+                   from x2) is unknown;
+
+# Q2 T=(10, 20) U=(30) F=(21, 40)
+select *
+from x1
+where d1 in (select d1
+             from x2
+             where x1.d2=x2.d2);
+select *
+from x1
+where d1 in (select d1
+             from x2
+             where x1.d2=x2.d2) is true;
+select *
+from x1
+where d1 in (select d1
+             from x2
+             where x1.d2=x2.d2) is false;
+select *
+from x1
+where d1 in (select d1
+             from x2
+             where x1.d2=x2.d2) is unknown;
+
+# Q3 T=(10, 20) U=() F=(21, 30, 40)
+select *
+from x1
+where 1 in (select 1
+            from x2
+            where x1.d1=x2.d1 and x1.d2=x2.d2);
+select *
+from x1
+where 1 in (select 1
+            from x2
+            where x1.d1=x2.d1 and x1.d2=x2.d2) is true;
+select *
+from x1
+where 1 in (select 1
+            from x2
+            where x1.d1=x2.d1 and x1.d2=x2.d2) is false;
+select *
+from x1
+where 1 in (select 1
+            from x2
+            where x1.d1=x2.d1 and x1.d2=x2.d2) is unknown;
+
+# Q4 T=(10, 20) F=(21, 30, 40)
+select *
+from x1
+where exists (select *
+              from x2
+              where x1.d1=x2.d1 and x1.d2=x2.d2);
+
+set optimizer_switch= @tmp_subselect_nulls;
+
+drop table x1;
+drop table x2;

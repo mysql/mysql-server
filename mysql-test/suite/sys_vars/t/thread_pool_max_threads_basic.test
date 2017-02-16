@@ -1,0 +1,42 @@
+# uint global
+--source include/not_embedded.inc
+SET @start_global_value = @@global.thread_pool_max_threads;
+
+#
+# exists as global only
+#
+select @@global.thread_pool_max_threads;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.thread_pool_max_threads;
+show global variables like 'thread_pool_max_threads';
+show session variables like 'thread_pool_max_threads';
+select * from information_schema.global_variables where variable_name='thread_pool_max_threads';
+select * from information_schema.session_variables where variable_name='thread_pool_max_threads';
+
+#
+# show that it's writable
+#
+set global thread_pool_max_threads=1;
+select @@global.thread_pool_max_threads;
+set global thread_pool_max_threads=65536;
+select @@global.thread_pool_max_threads;
+--error ER_GLOBAL_VARIABLE
+set session thread_pool_max_threads=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global thread_pool_max_threads=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global thread_pool_max_threads=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global thread_pool_max_threads="foo";
+
+
+set global thread_pool_max_threads=0;
+select @@global.thread_pool_max_threads;
+set global thread_pool_max_threads=10000000000;
+select @@global.thread_pool_max_threads;
+
+SET @@global.thread_pool_max_threads = @start_global_value;

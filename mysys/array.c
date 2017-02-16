@@ -30,8 +30,8 @@
       alloc_increment	Increment for adding new elements
 
   DESCRIPTION
-    init_dynamic_array() initiates array and allocate space for 
-    init_alloc eilements. 
+    init_dynamic_array() initiates array and allocate space for
+    init_alloc eilements.
     Array is usable even if space allocation failed, hence, the
     function never returns TRUE.
     Static buffers must begin immediately after the array structure.
@@ -44,18 +44,12 @@ my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
                             void *init_buffer, uint init_alloc, 
                             uint alloc_increment)
 {
-  DBUG_ENTER("init_dynamic_array");
+  DBUG_ENTER("init_dynamic_array2");
   if (!alloc_increment)
   {
     alloc_increment=max((8192-MALLOC_OVERHEAD)/element_size,16);
     if (init_alloc > 8 && alloc_increment > init_alloc * 2)
       alloc_increment=init_alloc*2;
-  }
-
-  if (!init_alloc)
-  {
-    init_alloc=alloc_increment;
-    init_buffer= 0;
   }
   array->elements=0;
   array->max_element=init_alloc;
@@ -67,16 +61,17 @@ my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
     Since the dynamic array is usable even if allocation fails here malloc
     should not throw an error
   */
-  if (!(array->buffer= (uchar*) my_malloc(element_size*init_alloc, MYF(0))))
+  if (init_alloc &&
+      !(array->buffer= (uchar*) my_malloc(element_size*init_alloc, MYF(0))))
     array->max_element=0;
   DBUG_RETURN(FALSE);
-} 
+}
 
 my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
                            uint init_alloc, uint alloc_increment)
 {
   /* placeholder to preserve ABI */
-  return my_init_dynamic_array_ci(array, element_size, init_alloc, 
+  return my_init_dynamic_array_ci(array, element_size, init_alloc,
                                   alloc_increment);
 }
 /*
@@ -92,7 +87,7 @@ my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
     FALSE	Ok
 */
 
-my_bool insert_dynamic(DYNAMIC_ARRAY *array, uchar* element)
+my_bool insert_dynamic(DYNAMIC_ARRAY *array, const uchar* element)
 {
   uchar* buffer;
   if (array->elements == array->max_element)
@@ -111,7 +106,7 @@ my_bool insert_dynamic(DYNAMIC_ARRAY *array, uchar* element)
 
 
 /*
-  Alloc space for next element(s) 
+  Alloc space for next element(s)
 
   SYNOPSIS
     alloc_dynamic()
@@ -129,6 +124,7 @@ my_bool insert_dynamic(DYNAMIC_ARRAY *array, uchar* element)
 
 uchar *alloc_dynamic(DYNAMIC_ARRAY *array)
 {
+  DBUG_ENTER("alloc_dynamic");
   if (array->elements == array->max_element)
   {
     char *new_ptr;
@@ -142,20 +138,20 @@ uchar *alloc_dynamic(DYNAMIC_ARRAY *array)
                                          array->alloc_increment) *
                                         array->size_of_element,
                                         MYF(MY_WME))))
-        return 0;
-      memcpy(new_ptr, array->buffer, 
+        DBUG_RETURN(0);
+      memcpy(new_ptr, array->buffer,
              array->elements * array->size_of_element);
     }
-    else
-    if (!(new_ptr=(char*) my_realloc(array->buffer,(array->max_element+
-                                     array->alloc_increment)*
-                                     array->size_of_element,
-                                     MYF(MY_WME | MY_ALLOW_ZERO_PTR))))
-      return 0;
+    else if (!(new_ptr=(char*)
+               my_realloc(array->buffer,(array->max_element+
+                                         array->alloc_increment)*
+                          array->size_of_element,
+                          MYF(MY_WME | MY_ALLOW_ZERO_PTR))))
+      DBUG_RETURN(0);
     array->buffer= (uchar*) new_ptr;
     array->max_element+=array->alloc_increment;
   }
-  return array->buffer+(array->elements++ * array->size_of_element);
+  DBUG_RETURN(array->buffer+(array->elements++ * array->size_of_element));
 }
 
 
@@ -165,8 +161,8 @@ uchar *alloc_dynamic(DYNAMIC_ARRAY *array)
   SYNOPSIS
     pop_dynamic()
       array
-  
-  RETURN VALUE    
+
+  RETURN VALUE
     pointer	Ok
     0		Array is empty
 */
@@ -188,9 +184,9 @@ uchar *pop_dynamic(DYNAMIC_ARRAY *array)
       idx	Index where element is to be inserted
 
   DESCRIPTION
-    set_dynamic() replaces element in array. 
-    If idx > max_element insert new element. Allocate memory if needed. 
- 
+    set_dynamic() replaces element in array.
+    If idx > max_element insert new element. Allocate memory if needed.
+
   RETURN VALUE
     TRUE	Idx was out of range and allocation of new memory failed
     FALSE	Ok
@@ -230,6 +226,8 @@ my_bool set_dynamic(DYNAMIC_ARRAY *array, uchar* element, uint idx)
 
 my_bool allocate_dynamic(DYNAMIC_ARRAY *array, uint max_elements)
 {
+  DBUG_ENTER("allocate_dynamic");
+
   if (max_elements >= array->max_element)
   {
     uint size;
@@ -243,23 +241,20 @@ my_bool allocate_dynamic(DYNAMIC_ARRAY *array, uint max_elements)
          so we have to create an all-new malloc since we overflowed
        */
        if (!(new_ptr= (uchar *) my_malloc(size *
-                                         array->size_of_element,
-                                         MYF(MY_WME))))
-         return 0;
-       memcpy(new_ptr, array->buffer, 
+                                          array->size_of_element,
+                                          MYF(MY_WME))))
+         DBUG_RETURN(0);
+       memcpy(new_ptr, array->buffer,
               array->elements * array->size_of_element);
      }
-     else
-
-
-    if (!(new_ptr= (uchar*) my_realloc(array->buffer,size*
-                                       array->size_of_element,
-                                       MYF(MY_WME | MY_ALLOW_ZERO_PTR))))
-      return TRUE;
+    else if (!(new_ptr= (uchar*) my_realloc(array->buffer,size*
+                                            array->size_of_element,
+                                            MYF(MY_WME | MY_ALLOW_ZERO_PTR))))
+      DBUG_RETURN(TRUE);
     array->buffer= new_ptr;
     array->max_element= size;
   }
-  return FALSE;
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -268,9 +263,9 @@ my_bool allocate_dynamic(DYNAMIC_ARRAY *array, uint max_elements)
 
   SYNOPSIS
     get_dynamic()
-      array	
+      array
       uchar*	Element to be returned. If idx > elements contain zeroes.
-      idx	Index of element wanted. 
+      idx	Index of element wanted.
 */
 
 void get_dynamic(DYNAMIC_ARRAY *array, uchar* element, uint idx)
@@ -347,7 +342,7 @@ void freeze_size(DYNAMIC_ARRAY *array)
   */
   if (array->buffer == (uchar *)(array + 1))
     return;
-    
+
   if (array->buffer && array->max_element != elements)
   {
     array->buffer=(uchar*) my_realloc(array->buffer,
@@ -364,7 +359,7 @@ void freeze_size(DYNAMIC_ARRAY *array)
   SYNOPSIS
     get_index_dynamic()
      array	Array
-     element Whose element index 
+     element Whose element index
 
 */
 

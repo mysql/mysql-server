@@ -1,0 +1,22 @@
+create table t1 (i int, j int);
+create view v1 as select i from t1;
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/3940.data' INTO TABLE v1 (i);
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/3940.data' INTO TABLE v1;
+select * from v1;
+i
+1
+1
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; create table t1 (i int, j int)
+master-bin.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select i from t1
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
+master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/3940.data' IGNORE INTO TABLE `v1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`i`) ;file_id=#
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
+master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/3940.data' IGNORE INTO TABLE `v1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`i`) ;file_id=#
+master-bin.000001	#	Query	#	#	COMMIT
+drop view v1;
+drop table t1;

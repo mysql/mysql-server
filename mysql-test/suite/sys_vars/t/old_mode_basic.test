@@ -1,0 +1,244 @@
+#################### mysql-test\t\sql_mode_basic.test #########################
+#                                                                             #
+# Variable Name: old_mode                                                     #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: enumeration                                                      #
+# Default Value: YES                                                          #
+# Valid Values : NO_DUP_KEY_WARNINGS_WITH_IGNORE, NO_PROGRESS_INFO            #
+#                                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable old_mode                 #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+################################################################
+#                    START OF sql_mode TESTS                   #
+################################################################
+
+
+###################################################################
+#     Saving initial value of sql_mode in a temporary variable    #
+###################################################################
+
+SET @global_start_value = @@global.old_mode;
+SELECT @global_start_value;
+
+SET @session_start_value = @@session.old_mode;
+SELECT @session_start_value;
+
+--echo '#--------------------FN_DYNVARS_152_01------------------------#'
+################################################################
+#                    Display the DEFAULT value of old_mode     #
+################################################################
+
+SET @@global.old_mode = "NO_PROGRESS_INFO";
+SET @@global.old_mode = DEFAULT;
+SELECT @@global.old_mode;
+
+SET @@session.old_mode = "NO_PROGRESS_INFO";
+SET @@session.old_mode = DEFAULT;
+SELECT @@session.old_mode;
+
+--echo '#---------------------FN_DYNVARS_152_02-------------------------#'
+######################################################### 
+#      Check if NULL or empty value is accepeted        #
+######################################################### 
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.old_mode = NULL;
+
+# resets sql mode to nothing
+SET @@global.old_mode = '';
+SELECT @@global.old_mode;
+
+SET @@global.old_mode = ' ';
+SELECT @@global.old_mode;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.old_mode = NULL;
+
+SET @@session.old_mode = '';
+SELECT @@session.old_mode;
+
+SET @@session.old_mode = ' ';
+SELECT @@session.old_mode;
+
+
+--echo '#--------------------FN_DYNVARS_152_03------------------------#'
+######################################################################## 
+#              Change the value of old_mode to a valid value           #
+######################################################################## 
+
+# sql modes ref: http://dev.mysql.com/doc/refman/5.1/en/server-sql-mode.html
+
+# check valid values for global
+
+SET @@global.old_mode = NO_PROGRESS_INFO;
+SELECT @@global.old_mode;
+SET @@global.old_mode = NO_DUP_KEY_WARNINGS_WITH_IGNORE;
+SELECT @@global.old_mode;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.old_mode = OFF;
+
+#check valid values for session
+SET @@session.old_mode = NO_PROGRESS_INFO;
+SELECT @@session.old_mode;
+SET @@session.old_mode = NO_DUP_KEY_WARNINGS_WITH_IGNORE;
+SELECT @@session.old_mode;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.old_mode = OFF;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.old_mode = '?';
+SELECT @@global.old_mode;
+
+--echo '#--------------------FN_DYNVARS_152_04-------------------------#'
+########################################################################### 
+#               Change the value of old_mode to invalid value             #
+###########################################################################
+
+# invalid values for global
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.old_mode = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.old_mode = ASCII;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.old_mode = NON_TRADITIONAL;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.old_mode = 'OF';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.old_mode = NONE;
+
+#invalid values for session
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.old_mode = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.old_mode = ANSI_SINGLE_QUOTES;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.old_mode = 'ON';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.old_mode = 'OF';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.old_mode = DISABLE;
+
+
+--echo '#-------------------FN_DYNVARS_152_05----------------------------#'
+######################################################################### 
+#     Check if the value in session Table matches value in variable     #
+#########################################################################
+
+SELECT @@session.old_mode = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='old_mode';
+
+--echo '#----------------------FN_DYNVARS_152_06------------------------#'
+######################################################################### 
+#     Check if the value in GLOBAL Table matches value in variable      #
+#########################################################################
+
+SELECT @@global.old_mode = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='old_mode';
+
+
+--echo '#---------------------FN_DYNVARS_152_07-------------------------#'
+################################################################### 
+#        Check if numbers can be used on variable                 #
+################################################################### 
+
+# test if variable accepts 0,1,2
+SET @@global.old_mode = 0;
+SELECT @@global.old_mode;
+
+SET @@global.old_mode = 1;
+SELECT @@global.old_mode;
+
+SET @@global.old_mode = 2;
+SELECT @@global.old_mode;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.old_mode = 4;
+SELECT @@global.old_mode;
+
+# use of decimal values
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.old_mode = 0.4;
+
+--echo '#---------------------FN_DYNVARS_152_08----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+SET @@global.old_mode = TRUE;
+SELECT @@global.old_mode;
+SET @@global.old_mode = FALSE;
+SELECT @@global.old_mode;
+
+--echo '#---------------------FN_DYNVARS_152_09----------------------#'
+#########################################################################  
+# Check if old_mode can be accessed with and without @@ sign            #
+#########################################################################
+
+SET old_mode = 'NO_PROGRESS_INFO';
+
+--Error ER_PARSE_ERROR
+SET session.old_mode = 'ANSI';
+--Error ER_PARSE_ERROR
+SET global.old_mode = 'ANSI';
+
+SET session old_mode = 1;
+SELECT @@old_mode;
+
+SET global old_mode = 0;
+SELECT @@global.old_mode;
+
+--echo '#---------------------FN_DYNVARS_152_10----------------------#'
+#######################################################################
+#    Check if old_mode values can be combined as specified            #
+#######################################################################
+
+SET @@session.old_mode = 'NO_PROGRESS_INFO,NO_DUP_KEY_WARNINGS_WITH_IGNORE';
+SELECT @@session.old_mode;
+
+SET @@global.old_mode = 'NO_DUP_KEY_WARNINGS_WITH_IGNORE,NO_PROGRESS_INFO';
+SELECT @@global.old_mode;
+
+#try combining invalid mode with correct mode
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.old_mode = 'NO_PROGRESS_INFO,NO_SUCH_MODE';
+
+#zero-length values are ok
+SET @@old_mode=',';
+SELECT @@old_mode;
+SET @@old_mode=',,,,NO_PROGRESS_INFO,,,';
+SELECT @@old_mode;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@old_mode=',,,,FOOBAR,,,,,';
+SELECT @@old_mode;
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@global.old_mode = @global_start_value;
+SELECT @@global.old_mode;
+
+SET @@session.old_mode = @session_start_value;
+SELECT @@session.old_mode;
+
+################################################################
+#                    END OF old_mode TESTS                     #
+################################################################

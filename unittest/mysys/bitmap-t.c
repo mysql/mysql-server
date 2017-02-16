@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2012, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,6 +78,7 @@ error2:
   return TRUE;
 }
 
+
 my_bool test_get_all_bits(MY_BITMAP *map, uint bitsize)
 {
   uint i;
@@ -126,8 +127,8 @@ my_bool test_compare_operators(MY_BITMAP *map, uint bitsize)
   uint no_loops= bitsize > 128 ? 128 : bitsize;
   MY_BITMAP map2_obj, map3_obj;
   MY_BITMAP *map2= &map2_obj, *map3= &map3_obj;
-  uint32 map2buf[MAX_TESTED_BITMAP_SIZE];
-  uint32 map3buf[MAX_TESTED_BITMAP_SIZE];
+  my_bitmap_map map2buf[MAX_TESTED_BITMAP_SIZE];
+  my_bitmap_map map3buf[MAX_TESTED_BITMAP_SIZE];
   bitmap_init(&map2_obj, map2buf, bitsize, FALSE);
   bitmap_init(&map3_obj, map3buf, bitsize, FALSE);
   bitmap_clear_all(map2);
@@ -479,7 +480,7 @@ error:
 my_bool do_test(uint bitsize)
 {
   MY_BITMAP map;
-  uint32 buf[MAX_TESTED_BITMAP_SIZE];
+  my_bitmap_map buf[MAX_TESTED_BITMAP_SIZE];
   if (bitmap_init(&map, buf, bitsize, FALSE))
   {
     diag("init error for bitsize %d", bitsize);
@@ -519,15 +520,22 @@ error:
   return TRUE;
 }
 
-int main()
+int main(int argc __attribute__((unused)),char *argv[])
 {
   int i;
   int const min_size = 1;
   int const max_size = MAX_TESTED_BITMAP_SIZE;
-  MY_INIT("bitmap-t");
+  MY_INIT(argv[0]);
 
-  plan(max_size - min_size);
-  for (i= min_size; i < max_size; i++)
+  plan((max_size - min_size)/7+1);
+
+  /*
+    It's ok to do steps in 7, as i module 64 will go trough all values 1..63.
+    Any errors in the code should manifest as we are working with integers
+    of size 16, 32, or 64 bits...
+  */
+  for (i= min_size; i < max_size; i+=7)
     ok(do_test(i) == 0, "bitmap size %d", i);
+  my_end(0);
   return exit_status();
 }

@@ -15,6 +15,7 @@
 
 SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c
                                 ha_myisam.cc
+				ft_myisam.c 
 				ft_stopwords.c ft_update.c mi_cache.c mi_changed.c mi_check.c
 				mi_checksum.c mi_close.c mi_create.c mi_dbug.c mi_delete.c 
 				mi_delete_all.c mi_delete_table.c mi_dynrec.c mi_extra.c mi_info.c
@@ -33,19 +34,19 @@ MYSQL_ADD_PLUGIN(myisam ${MYISAM_SOURCES}
 
 TARGET_LINK_LIBRARIES(myisam mysys)
 
-MYSQL_ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
+MYSQL_ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c COMPONENT Server)
 TARGET_LINK_LIBRARIES(myisam_ftdump myisam)
 
-MYSQL_ADD_EXECUTABLE(myisamchk myisamchk.c)
+MYSQL_ADD_EXECUTABLE(myisamchk myisamchk.c COMPONENT Server)
 TARGET_LINK_LIBRARIES(myisamchk myisam)
 
-MYSQL_ADD_EXECUTABLE(myisamlog myisamlog.c)
+MYSQL_ADD_EXECUTABLE(myisamlog myisamlog.c COMPONENT Server)
 TARGET_LINK_LIBRARIES(myisamlog myisam)
 
-MYSQL_ADD_EXECUTABLE(myisampack myisampack.c)
+MYSQL_ADD_EXECUTABLE(myisampack myisampack.c COMPONENT Server)
 TARGET_LINK_LIBRARIES(myisampack myisam)
 
-IF(WITH_UNIT_TESTS AND FALSE)
+IF(WITH_UNIT_TESTS)
   ADD_EXECUTABLE(mi_test1 mi_test1.c)
   TARGET_LINK_LIBRARIES(mi_test1 myisam)
 
@@ -65,3 +66,4 @@ ENDIF()
 IF (MSVC)
   SET_TARGET_PROPERTIES(myisamchk myisampack PROPERTIES LINK_FLAGS "setargv.obj")
 ENDIF()
+

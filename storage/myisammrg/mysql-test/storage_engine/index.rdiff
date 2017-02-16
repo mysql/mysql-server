@@ -1,0 +1,11 @@
+--- index.result	2013-01-22 22:05:05.246633000 +0400
++++ index.reject	2013-01-23 02:50:30.111873897 +0400
+@@ -61,7 +61,5 @@
+ ALTER TABLE t1 DROP INDEX a;
+ INSERT INTO t1 (a,b) VALUES (1,'c');
+ ALTER TABLE t1 ADD UNIQUE INDEX a(a) ;
+-ERROR 23000: Duplicate entry '1' for key 'a'
+-# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+-# If you got a difference in error message, just add it to rdiff file
++# ERROR: Statement succeeded (expected results: ER_DUP_ENTRY,ER_DUP_KEY)
+ DROP TABLE t1;

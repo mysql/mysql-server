@@ -6,6 +6,10 @@ insert into t2 (payoutID) SELECT DISTINCT payoutID FROM t1;
 insert into t2 (payoutID) SELECT payoutID+10 FROM t1;
 ERROR 23000: Duplicate entry '16' for key 'PRIMARY'
 insert ignore into t2 (payoutID) SELECT payoutID+10 FROM t1;
+Warnings:
+Warning	1062	Duplicate entry '16' for key 'PRIMARY'
+Warning	1062	Duplicate entry '16' for key 'PRIMARY'
+Warning	1062	Duplicate entry '22' for key 'PRIMARY'
 select * from t2;
 payoutID
 1
@@ -571,8 +575,8 @@ replace into t1 select * from t2;
 select * from t1;
 a	b
 1	t1:1
-3	t2:3
 2	t2:2
+3	t2:3
 drop table t1,t2;
 CREATE TABLE t1 ( USID INTEGER UNSIGNED, ServerID TINYINT UNSIGNED, State ENUM ('unknown', 'Access-Granted', 'Session-Active', 'Session-Closed' ) NOT NULL DEFAULT 'unknown', SessionID CHAR(32), User CHAR(32) NOT NULL DEFAULT '<UNKNOWN>', NASAddr INTEGER UNSIGNED, NASPort INTEGER UNSIGNED, NASPortType INTEGER UNSIGNED, ConnectSpeed INTEGER UNSIGNED, CarrierType CHAR(32), CallingStationID CHAR(32), CalledStationID CHAR(32), AssignedAddr INTEGER UNSIGNED, SessionTime INTEGER UNSIGNED, PacketsIn INTEGER UNSIGNED, OctetsIn INTEGER UNSIGNED, PacketsOut INTEGER UNSIGNED, OctetsOut INTEGER UNSIGNED, TerminateCause INTEGER UNSIGNED, UnauthTime TINYINT UNSIGNED, AccessRequestTime DATETIME, AcctStartTime DATETIME, AcctLastTime DATETIME, LastModification TIMESTAMP NOT NULL);
 CREATE TABLE t2 ( USID INTEGER UNSIGNED AUTO_INCREMENT, ServerID TINYINT UNSIGNED, State ENUM ('unknown', 'Access-Granted', 'Session-Active', 'Session-Closed' ) NOT NULL DEFAULT 'unknown', SessionID CHAR(32), User TEXT NOT NULL, NASAddr INTEGER UNSIGNED, NASPort INTEGER UNSIGNED, NASPortType INTEGER UNSIGNED, ConnectSpeed INTEGER UNSIGNED, CarrierType CHAR(32), CallingStationID CHAR(32), CalledStationID CHAR(32), AssignedAddr INTEGER UNSIGNED, SessionTime INTEGER UNSIGNED, PacketsIn INTEGER UNSIGNED, OctetsIn INTEGER UNSIGNED, PacketsOut INTEGER UNSIGNED, OctetsOut INTEGER UNSIGNED, TerminateCause INTEGER UNSIGNED, UnauthTime TINYINT UNSIGNED, AccessRequestTime DATETIME, AcctStartTime DATETIME, AcctLastTime DATETIME, LastModification TIMESTAMP NOT NULL, INDEX(USID,ServerID,NASAddr,SessionID), INDEX(AssignedAddr));
@@ -698,6 +702,7 @@ Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	1
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -762,9 +767,9 @@ SELECT f1, f1 FROM t2 src WHERE f1 < 2
 ON DUPLICATE KEY UPDATE f1 = 100 + src.f1;
 SELECT * FROM t2;
 f1	f2
+10	10
 101	1
 2	2
-10	10
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( a INT KEY, b INT );
 INSERT INTO t1 VALUES ( 0, 1 );
@@ -833,6 +838,7 @@ check table t2 extended;
 Table	Op	Msg_type	Msg_text
 test.t2	check	status	OK
 drop table t1,t2;
+End of 5.0 tests
 ##################################################################
 #
 # Bug #46075: Assertion failed: 0, file .\protocol.cc, line 416
@@ -844,7 +850,6 @@ SET GLOBAL myisam_data_pointer_size = 2;
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 call mtr.add_suppression("mysqld.*: The table '.*#sql.*' is full");
 INSERT IGNORE INTO t1 SELECT t1.a FROM t1,t1 t2,t1 t3,t1 t4,t1 t5,t1 t6,t1 t7;
-Got one of the listed errors
 SET GLOBAL myisam_data_pointer_size = @old_myisam_data_pointer_size;
 DROP TABLE t1;
-End of 5.0 tests
+End of 5.1 tests

@@ -45,11 +45,11 @@ public:
   /**
     Converts local time in broken down MYSQL_TIME representation to 
     my_time_t (UTC seconds since Epoch) represenation.
-    Returns 0 in case of error. Sets in_dst_time_gap to true if date provided
-    falls into spring time-gap (or lefts it untouched otherwise).
+    Returns 0 in case of error. May set error_code to ER_WARN_DATA_OUT_OF_RANGE
+    or ER_WARN_INVALID_TIMESTAMP, see TIME_to_timestamp())
   */
   virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, 
-                                    my_bool *in_dst_time_gap) const = 0;
+                                    uint *error_code) const = 0;
   /**
     Converts time in my_time_t representation to local time in
     broken down MYSQL_TIME representation.

@@ -1,0 +1,2 @@
+maintainer-script-lacks-debhelper-token debian/mariadb-server-5.5.postinst
+maintainer-script-lacks-debhelper-token debian/mariadb-server-5.5.postrm

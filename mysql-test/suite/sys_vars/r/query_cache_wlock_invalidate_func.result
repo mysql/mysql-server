@@ -81,8 +81,8 @@ LOCK TABLE t1 WRITE;
 UNLOCK TABLES;
 SHOW STATUS LIKE 'Qcache_queries_in_cache';
 Variable_name	Value
-Qcache_queries_in_cache	1
-1 Expected
+Qcache_queries_in_cache	0
+0 Expected
 '#----------------------------FN_DYNVARS_136_04---------------------#'
 SELECT * FROM t1;
 id	value

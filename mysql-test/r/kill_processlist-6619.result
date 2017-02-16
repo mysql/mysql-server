@@ -1,0 +1,10 @@
+connect  con1,localhost,root,,;
+connection default;
+KILL QUERY con_id;
+connection con1;
+SHOW PROCESSLIST;
+ERROR 70100: Query execution was interrupted
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info	Progress
+#	root	#	test	#	#	#	#	0.000
+#	root	#	test	#	#	#	#	0.000

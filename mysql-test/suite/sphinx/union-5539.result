@@ -1,0 +1,10 @@
+create table ts (id bigint unsigned not null, w int not null, query varchar(255) not null, index(query)) engine=sphinx connection="sphinx://127.0.0.1:PORT/*";
+SELECT a.* FROM (SELECT * FROM ts si WHERE si.query=';mode=extended2;limit=1000000;maxmatches=500') AS a UNION SELECT b.* FROM (SELECT * FROM ts si WHERE si.query='@* 123nothingtofind123;mode=extended2;limit=1000000;maxmatches=500') AS b;
+id	w	query
+SELECT a.* FROM (SELECT * FROM ts si WHERE si.query='@* 123nothingtofind123;mode=extended2;limit=1000000;maxmatches=500') AS a UNION SELECT b.* FROM (SELECT * FROM ts si WHERE si.query=';mode=extended2;limit=1000000;maxmatches=500') AS b;
+id	w	query
+1	1	;mode=extended2;limit=1000000;maxmatches=500
+2	1	;mode=extended2;limit=1000000;maxmatches=500
+3	1	;mode=extended2;limit=1000000;maxmatches=500
+4	1	;mode=extended2;limit=1000000;maxmatches=500
+drop table ts;

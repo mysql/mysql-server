@@ -1,0 +1,17 @@
+--source include/not_embedded.inc
+
+if (`select length('$FEEDBACK_SO') = 0`) {
+  skip No feedback plugin;
+}
+
+--replace_regex /\.dll/.so/
+eval install plugin feedback soname '$FEEDBACK_SO';
+select plugin_status from information_schema.plugins where plugin_name='feedback';
+--replace_result https http
+--sorted_result
+select * from information_schema.feedback where variable_name like 'feed%'
+       and variable_name not like  '%_uid'
+       and variable_name not like '%debug%';
+
+uninstall plugin feedback;
+

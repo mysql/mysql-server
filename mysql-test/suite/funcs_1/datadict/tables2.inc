@@ -31,6 +31,7 @@ let $ndb_pattern    = 'number_of_replicas';
 --vertical_results
 # We do not unify the engine name here, because the rowformat is
 # specific to the engine.
+--replace_result Dynamic DYNAMIC_OR_PAGE Page DYNAMIC_OR_PAGE MyISAM MYISAM_OR_MARIA Aria MYISAM_OR_MARIA
 --replace_column  8 "#TBLR#" 9 "#ARL#" 10 "#DL#" 11 "#MDL#" 12 "#IL#" 13 "#DF#" 15 "#CRT#" 16 "#UT#" 17 "#CT#" 20 "#CO#" 21 "#TC#"
 eval
 SELECT *,

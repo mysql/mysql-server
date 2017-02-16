@@ -1,0 +1,67 @@
+# 
+# Basic REPLACE statements
+#
+--source have_engine.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--source create_table.inc
+
+# When there is no duplicate key, REPLACE should work as INSERT
+
+REPLACE INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
+--sorted_result
+SELECT a,b FROM t1;
+
+REPLACE t1 (a,b) VALUE (10,'foo'),(10,'foo');
+--sorted_result
+SELECT a,b FROM t1;
+
+DROP TABLE t1;
+
+--let $create_definition = a $int_indexed_col, b $char_col, UNIQUE INDEX (a)
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Unique keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  REPLACE INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c');
+  --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+  INSERT INTO t1 (a,b) VALUES (2,'d');
+  --source check_errors.inc
+  REPLACE INTO t1 (a,b) VALUES (2,'d');
+  --sorted_result
+  SELECT a,b FROM t1;
+
+  DROP TABLE t1;
+}
+
+--let $create_definition = a $int_col, b $char_indexed_col, PRIMARY KEY (b)
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Primary keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  REPLACE INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c');
+  --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+  INSERT INTO t1 (a,b) VALUES (4,'b');
+  --source check_errors.inc
+  REPLACE INTO t1 (a,b) VALUES (4,'b');
+  --sorted_result
+  SELECT a,b FROM t1;
+
+  DROP TABLE t1;
+}
+
+--source cleanup_engine.inc
+

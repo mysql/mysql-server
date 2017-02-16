@@ -24,19 +24,5 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 
-MACRO (PFS_ADD_TEST name)
-  ADD_EXECUTABLE(${name}-t ${name}-t.cc)
-  TARGET_LINK_LIBRARIES(${name}-t mytap perfschema mysys)
-  ADD_TEST(${name} ${name}-t)
-ENDMACRO()
-
-SET(tests
- pfs_instr_class
- pfs_instr_class-oom
- pfs_instr
- pfs_instr-oom
- pfs
-)
-FOREACH(testname ${tests})
-  PFS_ADD_TEST(${testname})
-ENDFOREACH()
+MY_ADD_TESTS(pfs_instr_class pfs_instr_class-oom pfs_instr pfs_instr-oom pfs
+  EXT "cc" LINK_LIBRARIES perfschema mysys)

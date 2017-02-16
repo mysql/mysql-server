@@ -110,7 +110,7 @@ trx_create(
 	trx->conc_state = TRX_NOT_STARTED;
 
 	trx->is_registered = 0;
-	trx->owns_prepare_mutex = 0;
+	trx->active_commit_ordered = 0;
 
 	trx->start_time = ut_time();
 

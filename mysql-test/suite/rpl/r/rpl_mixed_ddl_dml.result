@@ -15,6 +15,7 @@ drop table t1;
 stop slave;
 include/wait_for_slave_to_stop.inc
 create table t2(id int auto_increment primary key, created datetime);
+SET TIME_ZONE= '+03:00';
 set timestamp=12345;
 insert into t2 set created=now();
 select * from t2;

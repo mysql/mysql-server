@@ -1,0 +1,23 @@
+--source include/have_mutex_deadlock_detector.inc
+
+# bool readonly
+
+#
+# show the global and session values;
+#
+select @@global.mutex_deadlock_detector;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.mutex_deadlock_detector;
+show global variables like 'mutex_deadlock_detector';
+show session variables like 'mutex_deadlock_detector';
+select * from information_schema.global_variables where variable_name='mutex_deadlock_detector';
+select * from information_schema.session_variables where variable_name='mutex_deadlock_detector';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global mutex_deadlock_detector=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session mutex_deadlock_detector=1;
+

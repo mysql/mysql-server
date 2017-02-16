@@ -4,7 +4,7 @@ SET @@session.binlog_direct_non_transactional_updates= FALSE;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 create table tm (a int auto_increment primary key) engine=myisam;
 create table ti (a int auto_increment primary key) engine=innodb;
-set @@global.debug="+d,stop_slave_middle_group";
+set @@global.debug_dbug="+d,stop_slave_middle_group";
 begin;
 insert into ti set a=null;
 insert into tm set a=null;
@@ -23,12 +23,12 @@ one
 select count(*) as one from ti;
 one
 1
-set @@global.debug="-d";
+set @@global.debug_dbug="-d";
 include/start_slave.inc
 truncate table tm;
 truncate table ti;
-set @@global.debug="+d,stop_slave_middle_group";
-set @@global.debug="+d,incomplete_group_in_relay_log";
+set @@global.debug_dbug="+d,stop_slave_middle_group";
+set @@global.debug_dbug="+d,incomplete_group_in_relay_log";
 begin;
 insert into ti set a=null;
 insert into tm set a=null;
@@ -45,12 +45,12 @@ one
 select count(*) as zero from ti;
 zero
 0
-set @@global.debug="-d";
+set @@global.debug_dbug="-d";
 stop slave;
 truncate table tm;
 include/start_slave.inc
-set @@global.debug="+d,stop_slave_middle_group";
-set @@global.debug="+d,incomplete_group_in_relay_log";
+set @@global.debug_dbug="+d,stop_slave_middle_group";
+set @@global.debug_dbug="+d,incomplete_group_in_relay_log";
 update tm as t1, ti as t2 set t1.a=t1.a * 2, t2.a=t2.a * 2;
 include/wait_for_slave_sql_to_stop.inc
 SELECT "Fatal error: ... Slave SQL Thread stopped with incomplete event group having non-transactional changes. If the group consists solely of row-based events, you can try to restart the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details)." AS Last_SQL_Error, @check as `true`;
@@ -62,7 +62,7 @@ two
 select max(a) as one from ti;
 one
 1
-set @@global.debug="-d";
+set @@global.debug_dbug="-d";
 include/rpl_reset.inc
 drop table tm, ti;
 include/rpl_end.inc

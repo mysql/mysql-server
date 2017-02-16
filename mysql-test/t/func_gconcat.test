@@ -375,7 +375,7 @@ select group_concat('x') UNION ALL select 1;
 drop table t1;
 
 #
-# Bug #12863 : missing separators after first empty cancatanated elements
+# Bug #12863 : missing separators after first empty concatenated elements
 #
 
 CREATE TABLE t1 (id int, a varchar(9));
@@ -795,3 +795,40 @@ INSERT INTO t2 SELECT GROUP_CONCAT(a), b FROM t1 GROUP BY b;
 SET group_concat_max_len = DEFAULT;
 SET @@sql_mode = @old_sql_mode;
 DROP TABLE t1, t2;
+
+#
+# MDEV-3987 uninitialized read in Item_cond::fix_fields leads to crash: select .. where .. in ( select ... )
+#
+create table t1 (a char(1) character set utf8);
+insert into t1 values ('a'),('b');
+select 1 from t1 where a in (select group_concat(a) from t1);
+drop table t1;
+
+#
+# MDEV-7820 Server crashes in in my_strcasecmp_utf8 on subquery in ORDER BY clause of GROUP_CONCAT
+#
+CREATE TABLE t1 (f1 VARCHAR(10)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('a'),('b');
+
+CREATE TABLE t2 (f2 VARCHAR(10)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('c');
+
+CREATE TABLE t3 (f3 VARCHAR(10)) ENGINE=MyISAM;
+INSERT INTO t3 VALUES ('d'),('e');
+
+SELECT GROUP_CONCAT( f2 ORDER BY ( f2 IN ( SELECT f1 FROM t1 WHERE f1 <= f2 ) ) ) AS field
+FROM ( SELECT * FROM t2 ) AS sq2, t3
+ORDER BY field;
+
+drop table t3, t2, t1;
+
+--echo #
+--echo # MDEV-7821 - Server crashes in Item_func_group_concat::fix_fields on 2nd
+--echo #             execution of PS
+--echo #
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1),(2);
+PREPARE stmt FROM "SELECT GROUP_CONCAT(t1a.a ORDER BY 1, t1a.a=0) FROM t1 AS t1a, t1 AS t1b GROUP BY t1a.a";
+EXECUTE stmt;
+EXECUTE stmt;
+DROP TABLE t1;

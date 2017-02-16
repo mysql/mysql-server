@@ -285,33 +285,55 @@ set names default;
 select cast(-2 as unsigned), 18446744073709551614, -2;
 cast(-2 as unsigned)	18446744073709551614	-2
 18446744073709551614	18446744073709551614	-2
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select abs(cast(-2 as unsigned)), abs(18446744073709551614), abs(-2);
 abs(cast(-2 as unsigned))	abs(18446744073709551614)	abs(-2)
 18446744073709551614	18446744073709551614	2
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select ceiling(cast(-2 as unsigned)), ceiling(18446744073709551614), ceiling(-2);
 ceiling(cast(-2 as unsigned))	ceiling(18446744073709551614)	ceiling(-2)
 18446744073709551614	18446744073709551614	-2
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select floor(cast(-2 as unsigned)), floor(18446744073709551614), floor(-2);
 floor(cast(-2 as unsigned))	floor(18446744073709551614)	floor(-2)
 18446744073709551614	18446744073709551614	-2
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select format(cast(-2 as unsigned), 2), format(18446744073709551614, 2), format(-2, 2);
 format(cast(-2 as unsigned), 2)	format(18446744073709551614, 2)	format(-2, 2)
 18,446,744,073,709,551,614.00	18,446,744,073,709,551,614.00	-2.00
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select sqrt(cast(-2 as unsigned)), sqrt(18446744073709551614), sqrt(-2);
 sqrt(cast(-2 as unsigned))	sqrt(18446744073709551614)	sqrt(-2)
 4294967296	4294967296	NULL
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select round(cast(-2 as unsigned), 1), round(18446744073709551614, 1), round(-2, 1);
 round(cast(-2 as unsigned), 1)	round(18446744073709551614, 1)	round(-2, 1)
 18446744073709551614	18446744073709551614	-2
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select round(4, cast(-2 as unsigned)), round(4, 18446744073709551614), round(4, -2);
 round(4, cast(-2 as unsigned))	round(4, 18446744073709551614)	round(4, -2)
 4	4	0
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select truncate(cast(-2 as unsigned), 1), truncate(18446744073709551614, 1), truncate(-2, 1);
 truncate(cast(-2 as unsigned), 1)	truncate(18446744073709551614, 1)	truncate(-2, 1)
 18446744073709551614	18446744073709551614	-2
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select truncate(4, cast(-2 as unsigned)), truncate(4, 18446744073709551614), truncate(4, -2);
 truncate(4, cast(-2 as unsigned))	truncate(4, 18446744073709551614)	truncate(4, -2)
 4	4	0
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select round(10000000000000000000, -19), truncate(10000000000000000000, -19);
 round(10000000000000000000, -19)	truncate(10000000000000000000, -19)
 10000000000000000000	10000000000000000000
@@ -363,12 +385,18 @@ round(4, -4294967200)	truncate(4, -4294967200)
 select mod(cast(-2 as unsigned), 3), mod(18446744073709551614, 3), mod(-2, 3);
 mod(cast(-2 as unsigned), 3)	mod(18446744073709551614, 3)	mod(-2, 3)
 2	2	-2
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select mod(5, cast(-2 as unsigned)), mod(5, 18446744073709551614), mod(5, -2);
 mod(5, cast(-2 as unsigned))	mod(5, 18446744073709551614)	mod(5, -2)
 5	5	1
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 select pow(cast(-2 as unsigned), 5), pow(18446744073709551614, 5), pow(-2, 5);
 pow(cast(-2 as unsigned), 5)	pow(18446744073709551614, 5)	pow(-2, 5)
 2.13598703592091e96	2.13598703592091e96	-32
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 CREATE TABLE t1 (a timestamp, b varchar(20), c bit(1));
 INSERT INTO t1 VALUES('1998-09-23', 'str1', 1), ('2003-03-25', 'str2', 0);
 SELECT a DIV 900 y FROM t1 GROUP BY y;
@@ -383,9 +411,9 @@ SELECT b DIV 900 y FROM t1 GROUP BY y;
 y
 0
 Warnings:
-Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1918	Encountered illegal value '' when converting to DECIMAL
 Warning	1292	Truncated incorrect DECIMAL value: 'str1'
-Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1918	Encountered illegal value '' when converting to DECIMAL
 Warning	1292	Truncated incorrect DECIMAL value: 'str2'
 SELECT c DIV 900 y FROM t1 GROUP BY y;
 y
@@ -499,7 +527,7 @@ select "123456789012345678901234567890.123456789012345678901234567890" div 1 as 
 ERROR 22003: BIGINT value is out of range in '('123456789012345678901234567890.123456789012345678901234567890' DIV 1)'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1916	Got overflow when converting '123456789012345678901234567890' to INT. Value truncated.
 Error	1690	BIGINT value is out of range in '('123456789012345678901234567890.123456789012345678901234567890' DIV 1)'
 #
 # Bug#57810 case/when/then : Assertion failed: length || !scale
@@ -635,6 +663,11 @@ SELECT -a FROM t1;
 ERROR 22003: BIGINT value is out of range in '-(`test`.`t1`.`a`)'
 SELECT -b FROM t1;
 ERROR 22003: BIGINT value is out of range in '-(`test`.`t1`.`b`)'
+INSERT INTO t1 VALUES(0,0);
+SELECT -a FROM t1;
+ERROR 22003: BIGINT value is out of range in '-(`test`.`t1`.`a`)'
+SELECT -b FROM t1;
+ERROR 22003: BIGINT value is out of range in '-(`test`.`t1`.`b`)'
 DROP TABLE t1;
 SET @a:=999999999999999999999999999999999999999999999999999999999999999999999999999999999;
 SELECT @a + @a;
@@ -684,7 +717,7 @@ SELECT ((@a:=@b:=1.0) div (@b:=@a:=get_format(datetime, 'usa')));
 ((@a:=@b:=1.0) div (@b:=@a:=get_format(datetime, 'usa')))
 NULL
 Warnings:
-Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1918	Encountered illegal value '' when converting to DECIMAL
 #
 # Bug #59498 div function broken in mysql-trunk
 #
@@ -698,7 +731,7 @@ select (1.175494351E-37 div 1.7976931348623157E+308);
 (1.175494351E-37 div 1.7976931348623157E+308)
 0
 Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1916	Got overflow when converting '' to DECIMAL. Value truncated.
 #
 # Bug#12537160 ASSERTION FAILED:
 # STOP0 <= &TO->BUF[TO->LEN] WITH LARGE NUMBER.
@@ -728,3 +761,15 @@ select 5 div 2.0;
 select 5.9 div 2, 1.23456789e3 DIV 2, 1.23456789e9 DIV 2, 1.23456789e19 DIV 2;
 5.9 div 2	1.23456789e3 DIV 2	1.23456789e9 DIV 2	1.23456789e19 DIV 2
 2	617	617283945	6172839450000000000
+#
+# MDEV-10467 Assertion `nr >= 0.0' failed in Item_sum_std::val_real()
+#
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 VALUES (1),(2);
+SELECT STDDEV_SAMP(ROUND('0', 309)) FROM t1;
+STDDEV_SAMP(ROUND('0', 309))
+0
+DROP TABLE t1;
+#
+# End of 5.5 tests
+#

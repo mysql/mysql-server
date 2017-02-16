@@ -1,0 +1,70 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (b1 BOOL <CUSTOM_COL_OPTIONS>,
+b2 BOOLEAN <CUSTOM_COL_OPTIONS>
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW COLUMNS IN t1;
+Field	Type	Null	Key	Default	Extra
+b1	tinyint(1)	#	#	#	
+b2	tinyint(1)	#	#	#	
+INSERT INTO t1 (b1,b2) VALUES (1,TRUE);
+SELECT b1,b2 FROM t1;
+b1	b2
+1	1
+INSERT INTO t1 (b1,b2) VALUES (FALSE,0);
+SELECT b1,b2 FROM t1;
+b1	b2
+0	0
+1	1
+INSERT INTO t1 (b1,b2) VALUES (2,3);
+SELECT b1,b2 FROM t1;
+b1	b2
+0	0
+1	1
+2	3
+INSERT INTO t1 (b1,b2) VALUES (-1,-2);
+SELECT b1,b2 FROM t1;
+b1	b2
+-1	-2
+0	0
+1	1
+2	3
+SELECT IF(b1,'true','false') AS a, IF(b2,'true','false') AS b FROM t1;
+a	b
+false	false
+true	true
+true	true
+true	true
+SELECT b1,b2 FROM t1 WHERE b1 = TRUE;
+b1	b2
+1	1
+SELECT b1,b2 FROM t1 WHERE b2 = FALSE;
+b1	b2
+0	0
+INSERT INTO t1 (b1,b2) VALUES ('a','b');
+Warnings:
+Warning	1366	Incorrect integer value: 'a' for column 'b1' at row 1
+Warning	1366	Incorrect integer value: 'b' for column 'b2' at row 1
+SELECT b1,b2 FROM t1;
+b1	b2
+-1	-2
+0	0
+0	0
+1	1
+2	3
+INSERT INTO t1 (b1,b2) VALUES (128,-129);
+Warnings:
+Warning	1264	Out of range value for column 'b1' at row 1
+Warning	1264	Out of range value for column 'b2' at row 1
+SELECT b1,b2 FROM t1;
+b1	b2
+-1	-2
+0	0
+0	0
+1	1
+127	-128
+2	3
+ALTER TABLE t1 ADD COLUMN b3 BOOLEAN UNSIGNED;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'UNSIGNED' at line 1
+ALTER TABLE t1 ADD COLUMN b3 BOOL ZEROFILL;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ZEROFILL' at line 1
+DROP TABLE t1;

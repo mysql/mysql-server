@@ -1,0 +1,2 @@
+set global max_user_connections=100;
+ERROR HY000: The MariaDB server is running with the --max-user-connections=0 option so it cannot execute this statement

@@ -7,6 +7,7 @@
 # database and try to drop the database which has a dependency. This should
 # not cause slave to break.
 ###############################################################################
+--source include/have_innodb.inc
 --source include/master-slave.inc
 
 connection master;

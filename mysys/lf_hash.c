@@ -1,4 +1,5 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,9 +42,11 @@ typedef struct {
   */
 } LF_SLIST;
 
+const int LF_HASH_OVERHEAD= sizeof(LF_SLIST);
+
 /*
   a structure to pass the context (pointers two the three successive elements
-  in a list) from my_lfind to linsert/ldelete
+  in a list) from l_find to l_insert/l_delete
 */
 typedef struct {
   intptr volatile *prev;
@@ -70,7 +73,7 @@ typedef struct {
     cursor is positioned in either case
     pins[0..2] are used, they are NOT removed on return
 */
-static int my_lfind(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
+static int l_find(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
                  const uchar *key, uint keylen, CURSOR *cursor, LF_PINS *pins)
 {
   uint32       cur_hashnr;
@@ -121,8 +124,8 @@ retry:
         we found a deleted node - be nice, help the other thread
         and remove this deleted node
       */
-      if (my_atomic_casptr((void **)cursor->prev,
-                           (void **)&cursor->curr, cursor->next))
+      if (my_atomic_casptr((void **) cursor->prev,
+                           (void **)(char*) &cursor->curr, cursor->next))
         _lf_alloc_free(pins, cursor->curr);
       else
       {
@@ -138,7 +141,7 @@ retry:
 /*
   DESCRIPTION
     insert a 'node' in the list that starts from 'head' in the correct
-    position (as found by my_lfind)
+    position (as found by l_find)
 
   RETURN
     0     - inserted
@@ -148,7 +151,7 @@ retry:
     it uses pins[0..2], on return all pins are removed.
     if there're nodes with the same key value, a new node is added before them.
 */
-static LF_SLIST *linsert(LF_SLIST * volatile *head, CHARSET_INFO *cs,
+static LF_SLIST *l_insert(LF_SLIST * volatile *head, CHARSET_INFO *cs,
                          LF_SLIST *node, LF_PINS *pins, uint flags)
 {
   CURSOR         cursor;
@@ -156,7 +159,7 @@ static LF_SLIST *linsert(LF_SLIST * volatile *head, CHARSET_INFO *cs,
 
   for (;;)
   {
-    if (my_lfind(head, cs, node->hashnr, node->key, node->keylen,
+    if (l_find(head, cs, node->hashnr, node->key, node->keylen,
               &cursor, pins) &&
         (flags & LF_HASH_UNIQUE))
     {
@@ -168,7 +171,8 @@ static LF_SLIST *linsert(LF_SLIST * volatile *head, CHARSET_INFO *cs,
       node->link= (intptr)cursor.curr;
       DBUG_ASSERT(node->link != (intptr)node); /* no circular references */
       DBUG_ASSERT(cursor.prev != &node->link); /* no circular references */
-      if (my_atomic_casptr((void **)cursor.prev, (void **)&cursor.curr, node))
+      if (my_atomic_casptr((void **) cursor.prev,
+                           (void **)(char*) &cursor.curr, node))
       {
         res= 1; /* inserted ok */
         break;
@@ -199,7 +203,7 @@ static LF_SLIST *linsert(LF_SLIST * volatile *head, CHARSET_INFO *cs,
   NOTE
     it uses pins[0..2], on return all pins are removed.
 */
-static int ldelete(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
+static int l_delete(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
                    const uchar *key, uint keylen, LF_PINS *pins)
 {
   CURSOR cursor;
@@ -207,7 +211,7 @@ static int ldelete(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
 
   for (;;)
   {
-    if (!my_lfind(head, cs, hashnr, key, keylen, &cursor, pins))
+    if (!l_find(head, cs, hashnr, key, keylen, &cursor, pins))
     {
       res= 1; /* not found */
       break;
@@ -215,13 +219,13 @@ static int ldelete(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
     else
     {
       /* mark the node deleted */
-      if (my_atomic_casptr((void **)&(cursor.curr->link),
-                           (void **)&cursor.next,
+      if (my_atomic_casptr((void **) (char*) &(cursor.curr->link),
+                           (void **) (char*) &cursor.next,
                            (void *)(((intptr)cursor.next) | 1)))
       {
         /* and remove it from the list */
         if (my_atomic_casptr((void **)cursor.prev,
-                             (void **)&cursor.curr, cursor.next))
+                             (void **)(char*)&cursor.curr, cursor.next))
           _lf_alloc_free(pins, cursor.curr);
         else
         {
@@ -231,7 +235,7 @@ static int ldelete(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
             (to ensure the number of "set DELETED flag" actions
             is equal to the number of "remove from the list" actions)
           */
-          my_lfind(head, cs, hashnr, key, keylen, &cursor, pins);
+          l_find(head, cs, hashnr, key, keylen, &cursor, pins);
         }
         res= 0;
         break;
@@ -257,16 +261,18 @@ static int ldelete(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
     it uses pins[0..2], on return the pin[2] keeps the node found
     all other pins are removed.
 */
-static LF_SLIST *my_lsearch(LF_SLIST * volatile *head, CHARSET_INFO *cs,
+static LF_SLIST *l_search(LF_SLIST * volatile *head, CHARSET_INFO *cs,
                          uint32 hashnr, const uchar *key, uint keylen,
                          LF_PINS *pins)
 {
   CURSOR cursor;
-  int res= my_lfind(head, cs, hashnr, key, keylen, &cursor, pins);
+  int res= l_find(head, cs, hashnr, key, keylen, &cursor, pins);
   if (res)
     _lf_pin(pins, 2, cursor.curr);
-  _lf_unpin(pins, 0);
+  else
+    _lf_unpin(pins, 2);
   _lf_unpin(pins, 1);
+  _lf_unpin(pins, 0);
   return res ? cursor.curr : 0;
 }
 
@@ -332,18 +338,18 @@ void lf_hash_destroy(LF_HASH *hash)
 {
   LF_SLIST *el, **head= (LF_SLIST **)_lf_dynarray_value(&hash->array, 0);
 
-  if (unlikely(!head))
-    return;
-  el= *head;
-
-  while (el)
+  if (head)
   {
-    intptr next= el->link;
-    if (el->hashnr & 1)
-      lf_alloc_direct_free(&hash->alloc, el); /* normal node */
-    else
-      my_free(el); /* dummy node */
-    el= (LF_SLIST *)next;
+    el= *head;
+    while (el)
+    {
+      intptr next= el->link;
+      if (el->hashnr & 1)
+        lf_alloc_direct_free(&hash->alloc, el); /* normal node */
+      else
+        my_free(el); /* dummy node */
+      el= (LF_SLIST *)next;
+    }
   }
   lf_alloc_destroy(&hash->alloc);
   lf_dynarray_destroy(&hash->array);
@@ -360,7 +366,7 @@ void lf_hash_destroy(LF_HASH *hash)
    -1 - out of memory
 
   NOTE
-    see linsert() for pin usage notes
+    see l_insert() for pin usage notes
 */
 int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data)
 {
@@ -381,7 +387,7 @@ int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data)
   if (*el == NULL && unlikely(initialize_bucket(hash, el, bucket, pins)))
     return -1;
   node->hashnr= my_reverse_bits(hashnr) | 1; /* normal node */
-  if (linsert(el, hash->charset, node, pins, hash->flags))
+  if (l_insert(el, hash->charset, node, pins, hash->flags))
   {
     _lf_alloc_free(pins, node);
     lf_rwunlock_by_pins(pins);
@@ -404,7 +410,7 @@ int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data)
     1 - didn't (not found)
    -1 - out of memory
   NOTE
-    see ldelete() for pin usage notes
+    see l_delete() for pin usage notes
 */
 int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
 {
@@ -424,7 +430,7 @@ int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
   */
   if (*el == NULL && unlikely(initialize_bucket(hash, el, bucket, pins)))
     return -1;
-  if (ldelete(el, hash->charset, my_reverse_bits(hashnr) | 1,
+  if (l_delete(el, hash->charset, my_reverse_bits(hashnr) | 1,
               (uchar *)key, keylen, pins))
   {
     lf_rwunlock_by_pins(pins);
@@ -443,7 +449,7 @@ int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
     MY_ERRPTR    if OOM
 
   NOTE
-    see my_lsearch() for pin usage notes
+    see l_search() for pin usage notes
 */
 void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
 {
@@ -457,7 +463,7 @@ void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
     return MY_ERRPTR;
   if (*el == NULL && unlikely(initialize_bucket(hash, el, bucket, pins)))
     return MY_ERRPTR;
-  found= my_lsearch(el, hash->charset, my_reverse_bits(hashnr) | 1,
+  found= l_search(el, hash->charset, my_reverse_bits(hashnr) | 1,
                  (uchar *)key, keylen, pins);
   lf_rwunlock_by_pins(pins);
   return found ? found+1 : 0;
@@ -485,16 +491,16 @@ static int initialize_bucket(LF_HASH *hash, LF_SLIST * volatile *node,
   dummy->hashnr= my_reverse_bits(bucket) | 0; /* dummy node */
   dummy->key= dummy_key;
   dummy->keylen= 0;
-  if ((cur= linsert(el, hash->charset, dummy, pins, LF_HASH_UNIQUE)))
+  if ((cur= l_insert(el, hash->charset, dummy, pins, LF_HASH_UNIQUE)))
   {
     my_free(dummy);
     dummy= cur;
   }
-  my_atomic_casptr((void **)node, (void **)&tmp, dummy);
+  my_atomic_casptr((void **)node, (void **)(char*) &tmp, dummy);
   /*
-    note that if the CAS above failed (after linsert() succeeded),
-    it would mean that some other thread has executed linsert() for
-    the same dummy node, its linsert() failed, it picked up our
+    note that if the CAS above failed (after l_insert() succeeded),
+    it would mean that some other thread has executed l_insert() for
+    the same dummy node, its l_insert() failed, it picked up our
     dummy node (in "dummy= cur") and executed the same CAS as above.
     Which means that even if CAS above failed we don't need to retry,
     and we should not free(dummy) - there's no memory leak here

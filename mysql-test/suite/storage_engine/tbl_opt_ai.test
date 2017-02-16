@@ -1,0 +1,35 @@
+# 
+# Check whether AUTO_INCREMENT option 
+# is supported in CREATE and ALTER TABLE
+#
+# Note: the test does not check whether the option
+#       has any real effect on the table, only 
+#       that it's accepted
+# 
+
+--source have_engine.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--let $create_definition = a $int_col
+--let $table_options = AUTO_INCREMENT=10
+--source create_table.inc
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+--let $alter_definition = AUTO_INCREMENT=100
+--source alter_table.inc
+if ($mysql_errname)
+{
+  --let $functionality = ALTER TABLE
+  --source unexpected_result.inc
+}
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+--source cleanup_engine.inc
+

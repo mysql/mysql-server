@@ -1,0 +1,68 @@
+--source include/have_tokudb.inc
+#
+# Record inconsistency.
+#
+#
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS fooff, foo, bar;
+--enable_warnings
+
+create table bar (a int);
+insert into bar values(1),(2),(3);
+
+create table foo (a int, primary key (a)) engine=TokuDB;
+show create table foo;
+insert into foo values(1);
+select * from foo;
+drop table foo;
+
+create table foo (a int, primary key (a)) engine=TokuDB select * from bar;
+show create table foo;
+select * from foo;
+flush tables;
+select * from foo;
+drop table foo;
+
+begin;
+select * from bar;
+create table foo (a int, primary key (a)) engine=TokuDB select * from bar;
+show create table foo;
+select * from foo;
+insert into foo values(1010101);
+select * from foo;
+drop table foo;
+commit;
+
+insert into bar values (2);
+create table foo (a int, primary key (a)) engine=TokuDB;
+show create table foo;
+insert into foo values(1);
+select * from foo;
+flush tables;
+select * from foo;
+drop table foo;
+
+--error ER_DUP_ENTRY
+create table fooff (a int, primary key (a)) engine=TokuDB select * from bar;
+create table fooff (a int)engine=TokuDB;
+show create table fooff;
+drop table fooff;
+
+
+begin;
+select * from bar;
+--error ER_DUP_ENTRY
+create table foo (a int, primary key (a)) engine=TokuDB select * from bar;
+create table foo (abra int)engine=TokuDB;
+show create table foo;
+select * from foo;
+drop table foo;
+commit;
+
+
+ 
+# Final cleanup.
+DROP TABLE bar;
+

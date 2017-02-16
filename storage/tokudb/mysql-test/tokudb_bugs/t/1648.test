@@ -1,0 +1,18 @@
+--source include/have_tokudb.inc
+#
+# Record inconsistency.
+#
+#
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+create table foo (a blob, key (a(3)))engine=tokudb;
+insert into foo value ("asfdasdfasdfasdf");
+explain select * from foo where a like 'asf%';
+select * from foo where a like 'asf%';
+ 
+# Final cleanup.
+DROP TABLE foo;
+

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,9 +60,11 @@
 # define bfill(A,B,C)           memset((A),(C),(B))
 #endif
 
-#if !defined(bzero) && (!defined(HAVE_BZERO) || !HAVE_DECL_BZERO || defined(_AIX))
-/* See autoconf doku: "HAVE_DECL_symbol" will be defined after configure, to 0 or 1 */
-/* AIX has bzero() as a function, but the declaration prototype is strangely hidden */
+# define bmove_align(A,B,C)     memcpy((A),(B),(C))
+
+# define bcmp(A,B,C)		memcmp((A),(B),(C))
+
+#if !defined(bzero)
 # define bzero(A,B)             memset((A),0,(B))
 #endif
 
@@ -81,21 +83,21 @@ extern void (*my_str_free)(void *);
 #define strmov(A,B) __builtin_stpcpy((A),(B))
 #elif defined(HAVE_STPCPY)
 #define strmov(A,B) stpcpy((A),(B))
-#ifndef stpcpy
-extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
-#endif
 #endif
 
 /* Declared in int2str() */
-extern char _dig_vec_upper[];
-extern char _dig_vec_lower[];
+extern const char _dig_vec_upper[];
+extern const char _dig_vec_lower[];
 
-#ifndef strmov
-#define strmov_overlapp(A,B) strmov(A,B)
-#define strmake_overlapp(A,B,C) strmake(A,B,C)
+extern char *strmov_overlapp(char *dest, const char *src);
+
+#if defined(_lint) || defined(FORCE_INIT_OF_VARS)
+#define LINT_INIT_STRUCT(var) bzero(&var, sizeof(var)) /* No uninitialize-warning */
+#else
+#define LINT_INIT_STRUCT(var)
 #endif
 
-	/* Prototypes for string functions */
+/* Prototypes for string functions */
 
 extern	void bmove_upp(uchar *dst,const uchar *src,size_t len);
 extern	void bchange(uchar *dst,size_t old_len,const uchar *src,
@@ -106,10 +108,17 @@ extern  char *strcend(const char *, pchar);
 extern	char *strfill(char * s,size_t len,pchar fill);
 extern	char *strmake(char *dst,const char *src,size_t length);
 
+#if !defined(__GNUC__) || (__GNUC__ < 4)
+#define strmake_buf(D,S)        strmake(D, S, sizeof(D) - 1)
+#else
+#define strmake_buf(D,S) ({                             \
+  compile_time_assert(sizeof(D) != sizeof(char*));      \
+  strmake(D, S, sizeof(D) - 1);                         \
+  })
+#endif
+
 #ifndef strmov
 extern	char *strmov(char *dst,const char *src);
-#else
-extern	char *strmov_overlapp(char *dst,const char *src);
 #endif
 extern	char *strnmov(char *dst, const char *src, size_t n);
 extern	char *strcont(const char *src, const char *set);
@@ -201,13 +210,7 @@ extern ulonglong strtoull(const char *str, char **ptr, int base);
 }
 #endif
 
-/*
-  LEX_STRING -- a pair of a C-string and its length.
-  (it's part of the plugin API as a MYSQL_LEX_STRING)
-*/
-
 #include <mysql/plugin.h>
-typedef struct st_mysql_lex_string LEX_STRING;
 
 #define STRING_WITH_LEN(X) (X), ((size_t) (sizeof(X) - 1))
 #define USTRING_WITH_LEN(X) ((uchar*) X), ((size_t) (sizeof(X) - 1))
@@ -220,74 +223,13 @@ struct st_mysql_const_lex_string
 };
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
 
-/* SPACE_INT is a word that contains only spaces */
-#if SIZEOF_INT == 4
-#define SPACE_INT 0x20202020
-#elif SIZEOF_INT == 8
-#define SPACE_INT 0x2020202020202020
-#else
-#error define the appropriate constant for a word full of spaces
-#endif
-
-/**
-  Skip trailing space.
-
-  On most systems reading memory in larger chunks (ideally equal to the size of
-  the chinks that the machine physically reads from memory) causes fewer memory
-  access loops and hence increased performance.
-  This is why the 'int' type is used : it's closest to that (according to how
-  it's defined in C).
-  So when we determine the amount of whitespace at the end of a string we do
-  the following :
-    1. We divide the string into 3 zones :
-      a) from the start of the string (__start) to the first multiple
-        of sizeof(int)  (__start_words)
-      b) from the end of the string (__end) to the last multiple of sizeof(int)
-        (__end_words)
-      c) a zone that is aligned to sizeof(int) and can be safely accessed
-        through an int *
-    2. We start comparing backwards from (c) char-by-char. If all we find is
-       space then we continue
-    3. If there are elements in zone (b) we compare them as unsigned ints to a
-       int mask (SPACE_INT) consisting of all spaces
-    4. Finally we compare the remaining part (a) of the string char by char.
-       This covers for the last non-space unsigned int from 3. (if any)
-
-   This algorithm works well for relatively larger strings, but it will slow
-   the things down for smaller strings (because of the additional calculations
-   and checks compared to the naive method). Thus the barrier of length 20
-   is added.
-
-   @param     ptr   pointer to the input string
-   @param     len   the length of the string
-   @return          the last non-space character
-*/
-
-static inline const uchar *skip_trailing_space(const uchar *ptr,size_t len)
+/* A variant with const and unsigned */
+struct st_mysql_const_unsigned_lex_string
 {
-  const uchar *end= ptr + len;
-
-  if (len > 20)
-  {
-    const uchar *end_words= (const uchar *)(intptr)
-      (((ulonglong)(intptr)end) / SIZEOF_INT * SIZEOF_INT);
-    const uchar *start_words= (const uchar *)(intptr)
-       ((((ulonglong)(intptr)ptr) + SIZEOF_INT - 1) / SIZEOF_INT * SIZEOF_INT);
-
-    DBUG_ASSERT(((ulonglong)(intptr)ptr) >= SIZEOF_INT);
-    if (end_words > ptr)
-    {
-      while (end > end_words && end[-1] == 0x20)
-        end--;
-      if (end[-1] == 0x20 && start_words < end_words)
-        while (end > start_words && ((unsigned *)end)[-1] == SPACE_INT)
-          end -= SIZEOF_INT;
-    }
-  }
-  while (end > ptr && end[-1] == 0x20)
-    end--;
-  return (end);
-}
+  const uchar *str;
+  size_t length;
+};
+typedef struct st_mysql_const_unsigned_lex_string LEX_CUSTRING;
 
 static inline void lex_string_set(LEX_STRING *lex_str, const char *c_str)
 {

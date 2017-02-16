@@ -1,0 +1,11 @@
+--- r/innodb_bug878769.result	2011-11-22 18:50:25.000000000 +0100
++++ r/innodb_bug878769.reject	2012-02-07 12:45:07.000000000 +0100
+@@ -39,7 +39,7 @@
+ GROUP BY 1,2;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+ 1	SIMPLE	t2	index	col_int_key	col_int_key	5	NULL	12	Using where; Using index; Using temporary; Using filesort
+-1	SIMPLE	t1	ref	col_int_key	col_int_key	5	test.t2.col_int_key	1	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
++1	SIMPLE	t1	ref	col_int_key	col_int_key	5	test.t2.col_int_key	1	
+ SELECT t1.col_time_key, t1.col_varchar_key
+ FROM t2 STRAIGHT_JOIN t1 ON t1.col_int_key = t2.col_int_key
+ GROUP BY 1,2;

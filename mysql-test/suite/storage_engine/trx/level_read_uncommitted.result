@@ -1,0 +1,116 @@
+DROP TABLE IF EXISTS t1;
+connect  con1,localhost,root,,;
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+connect  con2,localhost,root,,;
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+connection con1;
+CREATE TABLE t1 (a <INT_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+START TRANSACTION;
+SELECT a FROM t1;
+a
+connection con2;
+BEGIN;
+INSERT INTO t1 (a) VALUES(1);
+# WARNING: Statement ended with errno 0, errname ''. 
+#          If it differs from the result file, it might indicate a problem.
+connection con1;
+SELECT a FROM t1;
+a
+1
+connection con2;
+INSERT INTO t1 (a) VALUES (2);
+# WARNING: Statement ended with errno 0, errname ''. 
+#          If it differs from the result file, it might indicate a problem.
+connection con1;
+SELECT a FROM t1;
+a
+1
+2
+INSERT INTO t1 (a) SELECT a+100 FROM t1;
+# WARNING: Statement ended with errno 0, errname ''. 
+#          If it differs from the result file, it might indicate a problem.
+SELECT a FROM t1;
+a
+1
+101
+102
+2
+connection con2;
+SELECT a FROM t1;
+a
+1
+101
+102
+2
+COMMIT;
+SELECT a FROM t1;
+a
+1
+101
+102
+2
+connection con1;
+SELECT a FROM t1;
+a
+1
+101
+102
+2
+INSERT INTO t1 (a) SELECT a+200 FROM t1;
+# WARNING: Statement ended with errno 0, errname ''. 
+#          If it differs from the result file, it might indicate a problem.
+SELECT a FROM t1;
+a
+1
+101
+102
+2
+201
+202
+301
+302
+COMMIT;
+SELECT a FROM t1;
+a
+1
+101
+102
+2
+201
+202
+301
+302
+connection con2;
+SELECT a FROM t1;
+a
+1
+101
+102
+2
+201
+202
+301
+302
+connection default;
+disconnect con1;
+disconnect con2;
+DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
+connect  con1,localhost,root,,;
+connect  con2,localhost,root,,;
+connection con1;
+CREATE TABLE t1 (a <INT_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+connection con2;
+INSERT INTO t1 (a) VALUES (1);
+connection con1;
+# If consistent read works on this isolation level (READ UNCOMMITTED), the following SELECT should not return the value we inserted (1)
+SELECT a FROM t1;
+a
+1
+COMMIT;
+connection default;
+disconnect con1;
+disconnect con2;
+DROP TABLE t1;

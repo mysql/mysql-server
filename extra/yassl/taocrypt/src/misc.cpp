@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -165,6 +165,7 @@ word Crop(word value, unsigned int size)
 
 #ifdef TAOCRYPT_X86ASM_AVAILABLE
 
+#ifdef NOT_USED
 #ifndef _MSC_VER
     static jmp_buf s_env;
     static void SigIllHandler(int)
@@ -172,7 +173,7 @@ word Crop(word value, unsigned int size)
         longjmp(s_env, 1);
     }
 #endif
-
+#endif
 
 bool HaveCpuId()
 {

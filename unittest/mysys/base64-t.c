@@ -24,11 +24,11 @@
 #define BASE64_ROWS 4                           /* Number of ok(..) */
 
 int
-main(void)
+main(int argc __attribute__((unused)),char *argv[])
 {
   int i, cmp;
   size_t j, k, l, dst_len, needed_length;
-  MY_INIT("base64-t");
+  MY_INIT(argv[0]);
 
   plan(BASE64_LOOP_COUNT * BASE64_ROWS);
 
@@ -67,6 +67,7 @@ main(void)
     ok(cmp == 0, "Comparing encode-decode result");
     if (cmp != 0)
     {
+      /* FIXME: This only prints last value of the compared strings */
       char buf[80];
       diag("       --------- src ---------   --------- dst ---------");
       for (k= 0; k<src_len; k+=8)
@@ -91,5 +92,6 @@ main(void)
            (uint) src_len, (uint) dst_len);
     }
   }
+  my_end(0);
   return exit_status();
 }

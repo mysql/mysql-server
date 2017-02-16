@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2012, 2013, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +32,7 @@ void pack_dirname(char * to, const char *from)
   int cwd_err;
   size_t d_length,length,UNINIT_VAR(buff_length);
   char * start;
-  char buff[FN_REFLEN];
+  char buff[FN_REFLEN + 1];
   DBUG_ENTER("pack_dirname");
 
   (void) intern_filename(to,from);		/* Change to intern name */
@@ -128,7 +129,7 @@ size_t cleanup_dirname(register char *to, const char *from)
   reg3 char * from_ptr;
   reg4 char * start;
   char parent[5],				/* for "FN_PARENTDIR" */
-       buff[FN_REFLEN+1],*end_parentdir;
+       buff[FN_REFLEN + 1],*end_parentdir;
 #ifdef BACKSLASH_MBTAIL
   CHARSET_INFO *fs= fs_character_set();
 #endif
@@ -214,12 +215,6 @@ size_t cleanup_dirname(register char *to, const char *from)
       }
       else if (pos-start > 1 && pos[-1] == FN_CURLIB && pos[-2] == FN_LIBCHAR)
 	pos-=2;					/* Skip /./ */
-      else if (pos > buff+1 && pos[-1] == FN_HOMELIB && pos[-2] == FN_LIBCHAR)
-      {					/* Found ..../~/  */
-	buff[0]=FN_HOMELIB;
-	buff[1]=FN_LIBCHAR;
-	start=buff; pos=buff+1;
-      }
     }
   }
   (void) strmov(to,buff);
@@ -242,7 +237,7 @@ my_bool my_use_symdir=0;	/* Set this if you want to use symdirs */
 #ifdef USE_SYMDIR
 void symdirget(char *dir)
 {
-  char buff[FN_REFLEN+1];
+  char buff[FN_REFLEN + 1];
   char *pos=strend(dir);
   if (dir[0] && pos[-1] != FN_DEVCHAR && my_access(dir, F_OK))
   {
@@ -292,7 +287,7 @@ void symdirget(char *dir)
 size_t normalize_dirname(char *to, const char *from)
 {
   size_t length;
-  char buff[FN_REFLEN];
+  char buff[FN_REFLEN + 1];
   DBUG_ENTER("normalize_dirname");
 
   /*
@@ -419,7 +414,7 @@ static char * expand_tilde(char **path)
 size_t unpack_filename(char * to, const char *from)
 {
   size_t length, n_length, buff_length;
-  char buff[FN_REFLEN];
+  char buff[FN_REFLEN + 1];
   DBUG_ENTER("unpack_filename");
 
   length=dirname_part(buff, from, &buff_length);/* copy & convert dirname */
@@ -449,7 +444,7 @@ size_t system_filename(char *to, const char *from)
 char *intern_filename(char *to, const char *from)
 {
   size_t length, to_length;
-  char buff[FN_REFLEN];
+  char buff[FN_REFLEN + 1];
   if (from == to)
   {						/* Dirname may destroy from */
     (void) strnmov(buff, from, FN_REFLEN);

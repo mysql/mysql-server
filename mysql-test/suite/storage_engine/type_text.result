@@ -1,0 +1,54 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (t TEXT <CUSTOM_COL_OPTIONS>,
+t0 TEXT(0) <CUSTOM_COL_OPTIONS>,
+t1 TEXT(1) <CUSTOM_COL_OPTIONS>,
+t300 TEXT(300) <CUSTOM_COL_OPTIONS>,
+tm TEXT(65535) <CUSTOM_COL_OPTIONS>,
+t70k TEXT(70000) <CUSTOM_COL_OPTIONS>,
+t17m TEXT(17000000) <CUSTOM_COL_OPTIONS>,
+tt TINYTEXT <CUSTOM_COL_OPTIONS>,
+m MEDIUMTEXT <CUSTOM_COL_OPTIONS>,
+l LONGTEXT <CUSTOM_COL_OPTIONS>
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW COLUMNS IN t1;
+Field	Type	Null	Key	Default	Extra
+t	text	#	#	#	
+t0	text	#	#	#	
+t1	tinytext	#	#	#	
+t300	text	#	#	#	
+tm	text	#	#	#	
+t70k	mediumtext	#	#	#	
+t17m	longtext	#	#	#	
+tt	tinytext	#	#	#	
+m	mediumtext	#	#	#	
+l	longtext	#	#	#	
+INSERT INTO t1 (t,t0,t1,t300,tm,t70k,t17m,tt,m,l) VALUES
+('','','','','','','','','',''),
+('a','b','c','d','e','f','g','h','i','j'),
+('test1','test2','test3','test4','test5','test6','test7','test8','test9','test10'),
+( REPEAT('a',65535), REPEAT('b',65535), REPEAT('c',255), REPEAT('d',65535), REPEAT('e',65535), REPEAT('f',1048576), REPEAT('g',1048576), REPEAT('h',255), REPEAT('i',1048576), REPEAT('j',1048576) );
+SELECT LENGTH(t), LENGTH(t0), LENGTH(t1), LENGTH(t300), LENGTH(tm), LENGTH(t70k), LENGTH(t17m), LENGTH(tt), LENGTH(m), LENGTH(l) FROM t1;
+LENGTH(t)	LENGTH(t0)	LENGTH(t1)	LENGTH(t300)	LENGTH(tm)	LENGTH(t70k)	LENGTH(t17m)	LENGTH(tt)	LENGTH(m)	LENGTH(l)
+0	0	0	0	0	0	0	0	0	0
+1	1	1	1	1	1	1	1	1	1
+5	5	5	5	5	5	5	5	5	6
+65535	65535	255	65535	65535	1048576	1048576	255	1048576	1048576
+INSERT INTO t1 (t,t0,t1,t300,tm,t70k,t17m,tt,m,l) VALUES
+( REPEAT('a',65536), REPEAT('b',65536), REPEAT('c',256), REPEAT('d',65536), REPEAT('e',65536), REPEAT('f',1048576), REPEAT('g',1048576), REPEAT('h',256), REPEAT('i',1048576), REPEAT('j',1048576) );
+Warnings:
+Warning	1265	Data truncated for column 't' at row 1
+Warning	1265	Data truncated for column 't0' at row 1
+Warning	1265	Data truncated for column 't1' at row 1
+Warning	1265	Data truncated for column 't300' at row 1
+Warning	1265	Data truncated for column 'tm' at row 1
+Warning	1265	Data truncated for column 'tt' at row 1
+SELECT LENGTH(t), LENGTH(t0), LENGTH(t1), LENGTH(t300), LENGTH(tm), LENGTH(t70k), LENGTH(t17m), LENGTH(tt), LENGTH(m), LENGTH(l) FROM t1;
+LENGTH(t)	LENGTH(t0)	LENGTH(t1)	LENGTH(t300)	LENGTH(tm)	LENGTH(t70k)	LENGTH(t17m)	LENGTH(tt)	LENGTH(m)	LENGTH(l)
+0	0	0	0	0	0	0	0	0	0
+1	1	1	1	1	1	1	1	1	1
+5	5	5	5	5	5	5	5	5	6
+65535	65535	255	65535	65535	1048576	1048576	255	1048576	1048576
+65535	65535	255	65535	65535	1048576	1048576	255	1048576	1048576
+ALTER TABLE t1 ADD COLUMN ttt TEXT(4294967296);
+ERROR 42000: Display width out of range for 'ttt' (max = 4294967295)
+DROP TABLE t1;

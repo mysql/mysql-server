@@ -1,0 +1,28 @@
+# Test case for MDEV-246, lp:992983
+# Check that ordinary connect/disconnect does not increase aborted_clients
+# status variable, but KILL connection does
+
+-- source include/not_embedded.inc
+-- source include/count_sessions.inc
+
+FLUSH STATUS;
+# Connect/Disconnect look that aborted_clients stays 0
+connect (con1,localhost,root,,);
+disconnect con1;
+connection default;
+-- source include/wait_until_count_sessions.inc
+# Check that there is 0 aborted clients so far
+SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME='aborted_clients';
+
+# Kill a connection, check that aborted_clients is incremented
+connect(con2,localhost,root,,);
+--disable_reconnect
+--error ER_CONNECTION_KILLED
+KILL CONNECTION_ID();
+disconnect con2;
+connection default;
+-- source include/wait_until_count_sessions.inc
+
+# aborted clients must be 1 now
+SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME='aborted_clients';
+FLUSH STATUS;

@@ -1,9 +1,10 @@
 #
 # Problem with range optimizer
 #
+--source include/have_innodb.inc
 
 --disable_warnings
-drop table if exists t1, t2, t3;
+drop table if exists t1, t2, t3, t10, t100;
 --enable_warnings
 
 CREATE TABLE t1 (
@@ -554,15 +555,27 @@ INSERT INTO t1 VALUES
  'd8c4177d09f8b11f5.52725521'),
 ('d8c4177d24ccef970.14957924','d8c4177d09f8b11f5.52725521',10,11,
  'd8c4177d09f8b11f5.52725521');
+INSERT INTO t1 VALUES
+('d8c4177d09f8b11f5.52725522','oxrootid',1,40,'d8c4177d09f8b11f5.52725522'),
+('d8c4177d151affab2.81582771','d8c4177d09f8b11f5.52725521',2,3,
+ 'd8c4177d09f8b11f5.52725522'),
+('d8c4177d206a333d2.74422678','d8c4177d09f8b11f5.52725521',4,5,
+ 'd8c4177d09f8b11f5.52725522'),
+('d8c4177d225791924.30714721','d8c4177d09f8b11f5.52725521',6,7,
+ 'd8c4177d09f8b11f5.52725522'),
+('d8c4177d2380fc201.39666694','d8c4177d09f8b11f5.52725521',8,9,
+ 'd8c4177d09f8b11f5.52725522'),
+('d8c4177d24ccef970.14957925','d8c4177d09f8b11f5.52725521',10,11,
+ 'd8c4177d09f8b11f5.52725522');
 
 EXPLAIN
 SELECT s.oxid FROM t1 v, t1 s 
-  WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND
+  WHERE 
         v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
         s.oxleft > v.oxleft AND s.oxleft < v.oxright;
 
 SELECT s.oxid FROM t1 v, t1 s 
-  WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND
+  WHERE
         v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
         s.oxleft > v.oxleft AND s.oxleft < v.oxright;
 
@@ -1468,4 +1481,240 @@ SELECT * FROM t1 IGNORE INDEX(PRIMARY) WHERE F1 BETWEEN 'A    ' AND
 
 DROP TABLE t1;
 
+--echo #
+--echo # mdev-4894:  Poor performance with unnecessary 
+--echo # (bug#70021) 'Range checked for each record'
+--echo #
+
+create table t1( key1 int not null, INDEX i1(key1) );
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8);
+insert into t1 select key1+8 from t1; 
+insert into t1 select key1+16 from t1; 
+insert into t1 select key1+32 from t1; 
+insert into t1 select key1+64 from t1; 
+insert into t1 select key1+128 from t1; 
+insert into t1 select key1+256 from t1; 
+insert into t1 select key1+512 from t1; 
+
+alter table t1 add key2 int not null, add index i2(key2);
+update t1 set key2=key1;
+analyze table t1;
+
+create table t2 (a int);
+insert into t2 values (1),(2),(3),(4),(5),(6),(7),(8);
+insert into t2 select a+16 from t2;
+insert into t2 select a+32 from t2;
+insert into t2 select a+64 from t2;
+
+explain
+select count(*) from t2 left join t1 on (t1.key1 < 3 or t1.key1 > 1020) and t1.key2 < 1000;
+select count(*) from t2 left join t1 on (t1.key1 < 3 or t1.key1 > 1020) and t1.key2 < 1000;
+explain
+select count(*) from t2 left join t1 on (t1.key1 < 3 or t1.key1 > 1020) and t1.key2 < t2.a;
+select count(*) from t2 left join t1 on (t1.key1 < 3 or t1.key1 > 1020) and t1.key2 < t2.a;
+
+drop table t1,t2;
+
 --echo End of 5.1 tests
+
+--echo #
+--echo # LP Bug #533117: Wrong use_count in SEL_ARG trees
+--echo #   (Bug #58731)
+--echo #
+
+create table t1 (a int, b int, c int, key idx (a,b,c));
+insert into t1 values (0,0,0), (2,2,0), (1,1,1), (2,2,1);
+
+explain
+select * from t1 force index (idx) where a >=1 and c <= 1 and a=b and b > 1;
+select * from t1 force index (idx) where a >=1 and c <= 1 and a=b and b > 1;
+
+drop table t1;
+
+#
+# lp:750117 Bogus warning with aggregate and datetime column
+#
+create table t1 (f1 datetime, key (f1));
+insert into t1 values ('2000-03-09 15:56:59'),('2000-05-05 23:24:28'),('2000-06-13 13:12:06');
+select  min(f1)  from t1 where f1 >= '2006-05-25 07:00:20' and f1 between '2003-11-23 10:00:09' and '2010-01-01 01:01:01' and f1 > '2001-01-01 01:01:01';
+drop table t1;
+
+--echo #
+--echo # BUG#11765831: 'RANGE ACCESS' MAY INCORRECTLY FILTER 
+--echo #               AWAY QUALIFYING ROWS
+--echo #
+
+CREATE TABLE t10(
+  K INT NOT NULL AUTO_INCREMENT,
+  I INT, J INT,
+  PRIMARY KEY(K),
+  KEY(I,J)
+);
+INSERT INTO t10(I,J) VALUES (6,1),(6,2),(6,3),(6,4),(6,5),
+                            (6,6),(6,7),(6,8),(6,9),(6,0);
+
+CREATE TABLE t100 LIKE t10;
+INSERT INTO t100(I,J) SELECT X.I, X.K+(10*Y.K) FROM t10 AS X,t10 AS Y;
+
+# Insert offending value:
+INSERT INTO t100(I,J) VALUES(8,26);
+
+let $query= SELECT * FROM t100 WHERE I <> 6 OR (I <> 8 AND J = 5);
+
+#Verify that 'range' access will be used
+--echo
+--eval EXPLAIN $query
+
+# Only row 101,8,26 should be returned
+--echo
+--eval $query
+
+DROP TABLE t10,t100;
+
+--echo #
+--echo # lp:817363: Wrong result with sort_union and multipart key in maria-5.3
+--echo # 
+CREATE TABLE t1 (a int NOT NULL , b int, c int, d varchar(32), KEY (d,b), PRIMARY KEY (a)) ;
+INSERT INTO t1 VALUES (7,7,NULL,'e'),(8,1,0,'p'),(9,7,1,'s'),(10,1,1,'j'),(12,2,0,'c'),(13,0,0,'a'),(14,1,1,'q');
+
+SELECT c FROM t1                  WHERE d='q' OR d>='q' OR a > 97 OR (d IN ('j','s','i') AND b = 102);
+SELECT c FROM t1 ignore index (d) WHERE d='q' OR d>='q' OR a > 97 OR (d IN ('j','s','i') AND b = 102);
+
+SELECT * FROM t1 ignore index(d) WHERE d = 'q' OR d >= 'q' OR (d IN ( 'j' , 's' , 'i' ) AND ( b = 102 ));
+SELECT * FROM t1 force index(d)  WHERE d = 'q' OR d >= 'q' OR (d IN ( 'j' , 's' , 'i' ) AND ( b = 102 ));
+
+DROP TABLE t1;
+
+--disable_parsing
+# MariaDB: Moved the following to partition.test
+--echo #
+--echo # BUG#12912171 - ASSERTION FAILED: QUICK->HEAD->READ_SET ==
+--echo # SAVE_READ_SET
+--echo #
+CREATE TABLE t1 (
+ a INT,
+ b INT,
+ c INT,
+ PRIMARY KEY (c,a), KEY (a),KEY (a)
+) ENGINE=INNODB PARTITION BY KEY () PARTITIONS 2;
+INSERT INTO t1 VALUES (1,5,1),(2,4,1),(3,3,1),(4,2,1),(5,1,1);
+UPDATE t1 SET b = 0, c=1 WHERE a <=>0;
+SELECT * FROM t1;
+DROP TABLE t1;
+--enable_parsing
+
+--echo #
+--echo # BUG#13256446 - ASSERTION QUICK->HEAD->READ_SET ==
+--echo # SAVE_READ_SET' FAILED IN OPT_RANGE.CC:1606 
+--echo #
+CREATE TABLE t1 (
+ f1 INT AUTO_INCREMENT,
+ f2 INT,
+ f3 INT,
+ f4 INT,
+ PRIMARY KEY (f1),KEY(f2)
+) ENGINE=INNODB;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT f1,f2,f3,f4 FROM t1 WHERE f2=103;
+INSERT INTO t1 VALUES (154,0,NULL,0),(0,NULL,9,0),
+ (NULL,102,NULL,3),(0,3,NULL,0), (9,0,NULL,0),(0,9,NULL,157);
+SELECT * FROM v2;
+UPDATE v2 SET f4=0, f2=NULL, f1=NULL WHERE f1 > 16 ORDER BY f1;
+SELECT * FROM v2;
+DROP TABLE t1;
+DROP VIEW v2;
+
+CREATE TABLE t1 (
+ f1 INT AUTO_INCREMENT,
+ f2 INT,
+ f3 INT,
+ f4 INT,
+ PRIMARY KEY (f1),KEY(f2)
+) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1,NULL,NULL,0), (2,2,0,3), (9,0,107,18),
+ (10,0,0,0), (231,0,0,0), (232,0,8,0), (234,0,0,NULL), (235,8,0,3);
+CREATE ALGORITHM=MERGE VIEW v3 AS SELECT f1,f2,f3,f4 FROM t1 WHERE f1<=85 ;
+SELECT * FROM v3;
+UPDATE v3 SET f3=0, f4=4 WHERE f2=68 ORDER BY f1; 
+SELECT * FROM v3;
+DROP TABLE t1;
+DROP VIEW v3;
+
+--echo #
+--echo # MDEV-6105: Emoji unicode character string search query makes mariadb performance down
+--echo #
+SET NAMES utf8;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(
+id int AUTO_INCREMENT,
+fd varchar(20),
+primary key(id),
+index ix_fd(fd)
+)engine=innodb default charset=UTF8;
+INSERT INTO t1(id, fd) VALUES (null, ''),(null, 'matt'),(null, 'pitt'),(null, 'lee'),(null, 'kim');
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+--echo # The following should show "Impossible WHERE" :
+explain
+SELECT * FROM t1 WHERE fd='😁';
+SELECT * FROM t1 WHERE fd='😁';
+
+--echo # The following must not use range access:
+--replace_column 9 #
+explain select count(*) from t1 where fd <'😁';
+select count(*) from t1 where fd <'😁';
+select count(*) from t1 ignore index (ix_fd) where fd <'😁';
+
+drop table t1;
+set names default;
+
+#
+# Bug#17755540 VALGRIND ERROR WHEN SETTING UP ROW COMPARATORS
+#
+create table t2 (a int, b int, c int, d int, key x(a, b));
+insert into t2 values (2, 2, 2, 2), (3, 3, 3, 3), (4, 4, 4, 4), (5, 5, 5, 5),
+  (6, 6, 6, 6), (7, 7, 7, 7), (8, 8, 8, 8), (9, 9, 9, 9);
+insert into t2 select * from t2;
+insert into t2 values (0, 0, 0, 0), (1, 1, 1, 1);
+analyze table t2;
+select a, b from t2 where (a, b) in ((0, 0), (1, 1));
+drop table t2;
+
+--echo #
+--echo # MDEV-10228: Delete missing rows with OR conditions
+--echo #  (The example uses UPDATE, because UPDATE allows to use index hints
+--echo #   and so it's possible to make an example that works with any storage
+--echo #   engine)
+--echo #
+
+CREATE TABLE t1 (
+  key1varchar varchar(14) NOT NULL,
+  key2int int(11) NOT NULL DEFAULT '0',
+  col1 int,
+  PRIMARY KEY (key1varchar,key2int),
+  KEY key1varchar (key1varchar),
+  KEY key2int (key2int)
+) DEFAULT CHARSET=utf8;
+ 
+insert into t1 values 
+  ('value1',0, 0),
+  ('value1',1, 0),
+  ('value1',1000685, 0),
+  ('value1',1003560, 0),
+  ('value1',1004807, 0);
+
+update t1 force index (PRIMARY) set col1=12345
+where (key1varchar='value1' AND (key2int <=1 OR  key2int > 1));
+--echo # The following must show col1=12345 for all rows:
+select * from t1;
+drop table t1;

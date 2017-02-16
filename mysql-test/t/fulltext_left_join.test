@@ -98,3 +98,16 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t2(b,c) VALUES(2,'castle'),(3,'castle');
 SELECT * FROM t1 LEFT JOIN t2 ON a=b WHERE MATCH(c) AGAINST('+castle' IN BOOLEAN MODE);
 DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#906357: Incorrect result with outer join and full text match
+--echo # 
+CREATE TABLE t1(f1 VARCHAR(6) NOT NULL, FULLTEXT KEY(f1), UNIQUE(f1));
+INSERT INTO t1 VALUES ('test');
+
+CREATE TABLE t2(f2 VARCHAR(6) NOT NULL, FULLTEXT KEY(f2), UNIQUE(f2));
+INSERT INTO t2 VALUES ('test');
+SELECT * FROM t2 LEFT OUTER JOIN t1 ON (MATCH(f1) against (""));
+SELECT * FROM t1 RIGHT OUTER JOIN t2 ON (MATCH(f1) against (""));
+
+DROP table t1,t2;

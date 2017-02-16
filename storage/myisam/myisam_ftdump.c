@@ -1,4 +1,5 @@
-/* Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2001, 2010, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,7 +54,7 @@ static struct my_option my_long_options[] =
 
 int main(int argc,char *argv[])
 {
-  int error=0, subkeys;
+  int error=0;
   uint keylen, keylen2=0, inx, doc_cnt=0;
   float weight= 1.0;
   double gws, min_gws=0, avg_gws=0;
@@ -83,7 +84,7 @@ int main(int argc,char *argv[])
       usage();
   }
 
-  init_key_cache(dflt_key_cache,MI_KEY_BLOCK_LENGTH,USE_BUFFER_INIT, 0, 0);
+  init_key_cache(dflt_key_cache,MI_KEY_BLOCK_LENGTH,USE_BUFFER_INIT, 0, 0, 0);
 
   if (!(info=mi_open(argv[0], O_RDONLY,
                      HA_OPEN_ABORT_IF_LOCKED|HA_OPEN_FROM_SQL_LAYER)))
@@ -109,11 +110,12 @@ int main(int argc,char *argv[])
 
   while (!(error=mi_rnext(info,NULL,inx)))
   {
+    FT_WEIGTH subkeys;
     keylen=*(info->lastkey);
 
-    subkeys=ft_sintXkorr(info->lastkey+keylen+1);
-    if (subkeys >= 0)
-      ft_floatXget(weight, info->lastkey+keylen+1);
+    subkeys.i =ft_sintXkorr(info->lastkey+keylen+1);
+    if (subkeys.i >= 0)
+      weight= subkeys.f;
 
 #ifdef HAVE_SNPRINTF
     snprintf(buf,MAX_LEN,"%.*s",(int) keylen,info->lastkey+1);
@@ -150,14 +152,14 @@ int main(int argc,char *argv[])
         keylen2=keylen;
         doc_cnt=0;
       }
-      doc_cnt+= (subkeys >= 0 ? 1 : -subkeys);
+      doc_cnt+= (subkeys.i >= 0 ? 1 : -subkeys.i);
     }
     if (dump)
     {
-      if (subkeys>=0)
+      if (subkeys.i >= 0)
         printf("%9lx %20.7f %s\n", (long) info->lastpos,weight,buf);
       else
-        printf("%9lx => %17d %s\n",(long) info->lastpos,-subkeys,buf);
+        printf("%9lx => %17d %s\n",(long) info->lastpos,-subkeys.i,buf);
     }
     if (verbose && (total%HOW_OFTEN_TO_WRITE)==0)
       printf("%10ld\r",total);

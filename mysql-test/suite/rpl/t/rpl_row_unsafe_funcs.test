@@ -1,5 +1,5 @@
-source include/master-slave.inc;
 source include/have_binlog_format_mixed.inc;
+source include/master-slave.inc;
 
 #
 # Bug #30244: row_count/found_rows does not replicate well

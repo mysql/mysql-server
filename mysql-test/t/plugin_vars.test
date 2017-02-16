@@ -1,0 +1,56 @@
+--echo #
+--echo # MDEV-5345 - Deadlock between mysql_change_user(), SHOW VARIABLES and
+--echo #             INSTALL PLUGIN
+--echo #
+
+# Prepare test
+delimiter |;
+CREATE PROCEDURE p_install(x INT)
+BEGIN
+  DECLARE CONTINUE HANDLER FOR 1126 BEGIN END;
+  WHILE x DO
+    SET x= x - 1;
+    INSTALL PLUGIN no_such_plugin SONAME 'no_such_object';
+  END WHILE;
+END|
+
+CREATE PROCEDURE p_show_vars(x INT)
+WHILE x DO
+  SET x= x - 1;
+  SHOW VARIABLES;
+END WHILE|
+delimiter ;|
+
+connect(con1, localhost, root,,);
+connect(con2, localhost, root,,);
+
+# Start test
+connection con1;
+--send CALL p_install(100)
+
+connection con2;
+--send CALL p_show_vars(100)
+
+connection default;
+
+disable_result_log;
+let $i= 100;
+while ($i)
+{
+  change_user;
+  dec $i;
+}
+
+# Cleanup
+connection con1;
+reap;
+connection con2;
+reap;
+connection default;
+enable_result_log;
+
+disconnect con1;
+disconnect con2;
+USE test;
+DROP PROCEDURE p_install;
+DROP PROCEDURE p_show_vars;

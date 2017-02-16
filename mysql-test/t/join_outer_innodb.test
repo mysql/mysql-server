@@ -61,3 +61,315 @@ ORDER BY pk;
 DROP TABLE t1,t2;
 
 --echo # End BUG#58456
+
+#
+# Bug #848652: crash with RIGHT JOIN and GROUP BY
+# 
+
+CREATE TABLE t1(a int, b int, KEY (a), PRIMARY KEY (b))  ENGINE=InnoDB;
+
+CREATE TABLE t2 (b int, PRIMARY KEY (b));
+INSERT INTO t2 VALUES (4),(9);
+
+SELECT STRAIGHT_JOIN t1.a FROM t1 RIGHT JOIN t2 ON t1.b = t2.b
+  WHERE (t1.b NOT BETWEEN 1 AND 7 OR t1.a IS NULL AND t1.b = t2.b) AND t2.b = 4
+GROUP BY 1;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo Bug #59487: WRONG RESULT WITH STRAIGHT_JOIN AND RIGHT JOIN
+--echo #
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL,
+  col_varchar_10_latin1_key varchar(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (1,'1');
+CREATE TABLE t2 (
+  pk int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t2 VALUES (1);
+CREATE TABLE t3 (
+  pk int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t3 VALUES (1);
+CREATE TABLE t4 (
+  pk int(11) NOT NULL,
+  col_int int(11) DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_10_latin1_key varchar(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t4 VALUES (1,1,1,'1');
+CREATE TABLE t5 (
+  col_int int(11) DEFAULT NULL,
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t5 VALUES (1,'1');
+CREATE TABLE t6 (
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
+  pk int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t6 VALUES (1,'1',1);
+
+# EXPLAIN of query above (t2 is before t5 in plan)
+
+let $rest_of_query=t6a.pk, t2.pk
+FROM t6 AS t6a
+     LEFT JOIN
+     (
+       t2 
+       RIGHT JOIN
+       (
+         (t1 LEFT JOIN (t4 JOIN t3 ON t4.col_int) ON t4.col_int_key = t1.pk)
+         LEFT JOIN
+         (t5 JOIN t6 AS t6b 
+          ON t5.col_varchar_10_utf8_key = t6b.col_varchar_10_latin1_key)
+         ON t1.pk = t5.col_int
+       )
+       ON t4.col_varchar_10_latin1_key = t1.col_varchar_10_latin1_key
+          AND t5.col_varchar_10_utf8_key = 0
+     )
+     ON t6a.pk IS TRUE
+WHERE t6b.col_int_key IS TRUE;
+
+eval SELECT STRAIGHT_JOIN $rest_of_query;
+eval EXPLAIN SELECT STRAIGHT_JOIN $rest_of_query;
+
+# right result (same query, just remove STRAIGHT_JOIN):
+
+eval SELECT $rest_of_query;
+eval EXPLAIN SELECT $rest_of_query;
+
+drop table t1,t2,t3,t4,t5,t6;
+
+--echo #
+--echo Bug mdev-4318: view over a complex query with outer joins
+--echo #
+
+CREATE TABLE t1 (
+  a1 int NOT NULL, a2 int NOT NULL, a3 int DEFAULT NULL, a4 tinyint NOT NULL,
+  a5 int NOT NULL, a6 tinyint NOT NULL, a7 tinyint(4) DEFAULT NULL,
+  a8 smallint(6) DEFAULT NULL, a9 smallint(6) DEFAULT NULL, a10 tinyint NOT NULL,
+  PRIMARY KEY (a1), KEY a2 (a2), KEY a3 (a3), KEY a4 (a4), KEY a6 (a6),
+  KEY a5 (a5), KEY a7 (a7), KEY a8 (a8), KEY a9 (a9)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO t1 VALUES 
+  (3360,5684,2219,1,316832,1,0,NULL,NULL,NULL),
+  (3362,2754,597,2,316844,1,0,NULL,NULL,NULL),
+  (3363,369,NULL,1,317295,1,0,NULL,NULL,NULL);
+
+CREATE TABLE t2 (
+  b1 int NOT NULL, b2 int NOT NULL, PRIMARY KEY (b1,b2), KEY b2 (b2)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE t3 (
+  c1 int NOT NULL, PRIMARY KEY (c1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO t3 VALUES
+  (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),
+ (1000),(1001),(1002),(1003),(9999);
+
+CREATE TABLE t4 (
+  d1 int NOT NULL, PRIMARY KEY (d1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO t4 VALUES (5674),(5676),(5680),(5684),(5685);
+
+CREATE TABLE t5 (
+  e1 int NOT NULL, e2 varchar(64) NOT NULL, PRIMARY KEY (e1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO t5 VALUES
+  (5684,'51a5de7a9f56314e082094d78f58be082c3cf0c1'),
+  (5685,'754dc8292cb9f5eb9ade126fe7e961c62412a349'),
+  (5686,'75eeb33f1c819bac21f6d023b4c5b24185eeda5c');
+
+CREATE TABLE t6 (
+  f1 int NOT NULL, PRIMARY KEY (f1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO t6 VALUES (5542),(5620),(5686);
+
+CREATE TABLE t7 (
+  g1 tinyint NOT NULL DEFAULT '0', g2 varchar(20) NOT NULL, PRIMARY KEY (g1)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t7 VALUES
+  (1,'60feec2b20ed19f55ad0'),(3,'9ddb18bff7fcbd1e3133'),
+  (5,'a05599df9222bb160d11'),(7,'e31bae372f7d01df0589'),
+  (9,'8f8372dd7fc8eb46c8a3'),(11,'f8d0e28529e990a09309');
+
+CREATE TABLE t8 (
+  h1 tinyint NOT NULL, h2 varchar(128) DEFAULT NULL, PRIMARY KEY (h1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO t8 VALUES (1,'b'),(2,'c'),(3,'d'),(4,'e');
+
+CREATE TABLE t9 (
+  i1 tinyint NOT NULL, i2 varchar(7) NOT NULL, i3 varchar(128) NOT NULL,
+  PRIMARY KEY (i1,i2), KEY i2 (i2), KEY i3 (i3)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO t9 VALUES
+  (2,'a','07630d223c7e5f7b1feb19b3caafb0833fd028eb'),
+  (3,'b','1ca53dcc50b68af86f4b1b4676dbed917b543c30'),
+  (1,'b','2c01ac36c1ce9a7de66be89f85d8aa5f0052e2e8'),
+  (4,'a','496c486b3a9edc439477fef7d34cbefdebba86df'),
+  (3,'a','98bf72d8d467201058a5f69bd7709bfc74a8637e'),
+  (2,'b','9a45425f6160fb59d7f8a02c721498d4ce945302'),
+  (4,'b','9c9a7300f3e708f8e430f9f3376d966f5951f583'),
+  (1,'a','c0af3f076b905f31cbb51af304b9c7ad539e0861');
+
+CREATE TABLE t10 (
+  j1 tinyint NOT NULL, j2 varchar(20) NOT NULL, PRIMARY KEY (j1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO t10 VALUES (1,'b'),(2,'c'),(3,'d');
+
+CREATE TABLE t11 (
+  k1 int NOT NULL, k2 datetime DEFAULT NULL, k3 int DEFAULT NULL,
+  k4 int DEFAULT NULL, PRIMARY KEY (k1), KEY k3 (k3), KEY k4 (k4)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO t11 VALUES
+  (317422,'2013-03-18 11:43:03',1,NULL),(317423,'2013-03-18 11:43:11',1,NULL),
+  (317424,'2013-03-18 11:52:01',1,1),(317425,'2013-03-18 11:52:01',1,1),
+  (317426,'2013-03-18 11:56:38',1,1),(317427,'2013-03-18 12:18:25',1,NULL),
+  (317428,'2013-03-18 12:46:28',1,NULL),(317429,'2013-03-18 12:46:28',1,NULL),
+  (317430,'2013-03-18 12:46:28',1,NULL),(317431,'2013-03-18 12:46:28',1,NULL),
+  (317432,'2013-03-18 12:46:28',1,NULL),(317433,'2013-03-18 12:46:28',1,NULL),
+  (317434,'2013-03-18 12:46:28',1,NULL),(317435,'2013-03-18 12:46:28',1,NULL),
+  (317436,'2013-03-18 12:46:28',1,NULL),(317437,'2013-03-18 12:46:28',1,NULL),
+  (317438,'2013-03-18 12:46:28',1,NULL),(317439,'2013-03-18 12:46:28',1,NULL),
+  (317440,'2013-03-18 12:55:20',1,NULL),(317441,'2013-03-18 12:58:29',1,NULL),
+  (317442,'2013-03-18 13:06:02',1,NULL),(317443,'2013-03-18 15:23:18',21,NULL);
+
+CREATE TABLE t12 (
+  l1 int NOT NULL, l2 varchar(64) NOT NULL, PRIMARY KEY (l1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO t12 VALUES
+  (552,'59a498252ef59f96fbdc13a414abe244d8e8bc30'),
+  (554,'c6025c7cb2d9dfb1be7ce4a61f35b45bb9e61ba3'),
+  (555,'b245bcc672082bb6d10794b2b4ac972dd14b1cf5');
+
+CREATE TABLE t13 (
+  m1 int NOT NULL, m2 int NOT NULL, m3 int NOT NULL,
+  PRIMARY KEY (m1,m2,m3), KEY m3 (m3), KEY m2 (m2)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO t13 VALUES (3324,43,4),(3332,263,1),(3348,27,3);
+
+CREATE TABLE t14 (
+  n1 smallint NOT NULL, n2 varchar(64) NOT NULL, PRIMARY KEY (n1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO t14 VALUES
+  (21,'685bf7ca576af964c7cff564d5e4473b81499b8b'),
+  (23,'b8e42dab1ab952406b3accfb47089c61478138a8'),
+  (25,'3fea441e411db8c70bf039b50c8f18f59515be53'),
+  (27,'998aecc30fd0e0b8a1cac6590e5eccc2d7822223');
+
+CREATE TABLE t15 (
+  o1 smallint NOT NULL, PRIMARY KEY (o1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO t15 VALUES (1),(3);
+
+CREATE TABLE t16 (
+  p1 smallint NOT NULL, p2 varchar(7) NOT NULL, p3 varchar(64) NOT NULL,
+  PRIMARY KEY (p1,p2)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO t16 VALUES
+  (1,'a','66bdbb389456f3ae97206da115a7b397c31400e8'),
+  (1,'b','66bdbb389456f3ae97206da115a7b397c31400e8'),
+  (3,'a','386c10e454278c6e27feb16258089166422f79b4'),
+  (3,'b','386c10e454278c6e27feb16258089166422f79b4');
+
+let $Q=
+select t3.c1,t5.e2,t1.a1,t14.n2,t16.p3,t10.j2,t7.g2,t11.k2,l3.l2,
+       t9.i3,t12.l2 AS l_l2,l2.l2 AS l2_l2,l4.l1 AS l4_l1,t6.f1
+from
+(
+  (
+    (
+      (
+        (
+          (
+            (
+              (
+                (
+                  (
+                    (
+                      (
+                        (
+                          (
+                            (
+                              (
+                                (
+                                  (
+                                    (
+                                      t1
+                                      left join t2 on t1.a1 = t2.b1
+                                    ) 
+                                    left join t3 on t2.b2 = t3.c1
+                                  )
+                                  left join t4 on t1.a2 = t4.d1
+                                )
+                                left join t5 on t4.d1 = t5.e1
+                             ) 
+                             left join t6 on t1.a3 = t6.f1
+                           ) 
+                           left join t5 e2 on t6.f1 = e2.e1
+                         ) 
+                         join t7 on t1.a7 = t7.g1
+                       ) 
+                       join t8 on t1.a4 = t8.h1
+                     ) 
+                     join t9 on t8.h1 = t9.i1
+                   ) 
+                   join t10 on t1.a6 = t10.j1
+                 )
+                 join t11 on t1.a5 = t11.k1
+               ) 
+               left join t12 on t11.k3 = t12.l1
+             ) 
+             left join t12 l2 on t11.k4 = l2.l1
+           ) 
+           left join t13 on t1.a1 = t13.m1 and t13.m3 = 4
+         )
+         left join t12 l4 on l4.l1 = t13.m2
+       ) 
+       left join t13 m2 on t1.a1 = m2.m1 and m2.m3 = 3
+     )
+     left join t12 l3 on l3.l1 = m2.m2
+   )
+   left join t14 on t1.a8 = t14.n1
+ )
+ left join t15 on t1.a9 = t15.o1
+)
+left join t16 on t15.o1 = t16.p1
+where t1.a10 = 1;
+
+eval create view v1 as $Q;
+
+eval explain $Q;
+
+explain select * from v1;
+
+drop view v1;
+
+drop table t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16;
+
+
+--echo #
+--echo # MDEV-4270: crash in fix_semijoin_strategies_for_picked_join_order
+--echo #
+drop table if exists t1,t2,t3;
+create table t2(a int,unique key (a)) engine=innodb;
+create table t3(b int) engine=innodb;
+create table t1(a int,b int)engine=innodb;
+
+set @mdev4270_opl= @@optimizer_prune_level;
+set @mdev4270_osd= @@optimizer_search_depth;
+set optimizer_prune_level=0;
+set optimizer_search_depth=2;
+
+select 1 from t1 join t2 a 
+natural left join t2 b 
+natural right outer join t3;
+
+drop table t1,t2,t3;
+set optimizer_prune_level=@mdev4270_opl;
+set optimizer_search_depth=@mdev4270_osd;
+

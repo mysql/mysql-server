@@ -1,0 +1,7 @@
+drop table if exists t;
+set default_storage_engine='tokudb';
+create table t (x varchar(4));
+insert into t values ('a');
+delete from t where x='a';
+alter table t change column x x varchar(256);
+drop table t;

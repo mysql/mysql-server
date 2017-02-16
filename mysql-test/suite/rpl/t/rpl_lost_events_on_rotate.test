@@ -17,13 +17,13 @@
 
 --connection master
 
-SET @debug_saved= @@GLOBAL.DEBUG;
+SET @debug_saved= @@GLOBAL.DEBUG_DBUG;
 
 CREATE TABLE t (i INT);
 
 # When reaching the EOF the dump thread will wait before deciding if
 # it should move to a new binlong file.
-SET GLOBAL DEBUG= "d,wait_after_binlog_EOF";
+SET GLOBAL DEBUG_DBUG= "d,wait_after_binlog_EOF";
 
 INSERT INTO t VALUES (1);
 
@@ -44,7 +44,7 @@ SET DEBUG_SYNC= 'now SIGNAL signal.rotate_finished';
 ##Clean up
 --connection master
 
-SET @@GLOBAL.DEBUG= @debug_saved;
+SET @@GLOBAL.DEBUG_DBUG= @debug_saved;
 SET DEBUG_SYNC= 'RESET';
 
 DROP TABLE t;

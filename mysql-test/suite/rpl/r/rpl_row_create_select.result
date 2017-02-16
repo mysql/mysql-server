@@ -8,7 +8,7 @@ include/master-slave.inc
 #value of 21.
 CREATE TABLE t1 AS SELECT REPEAT('A', 1000) DIV 1 AS a;
 Warnings:
-Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1918	Encountered illegal value '' when converting to DECIMAL
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -16,7 +16,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 CREATE TABLE t2 AS SELECT CONVERT(REPEAT('A', 255) USING UCS2) DIV 1 AS a;
 Warnings:
-Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1918	Encountered illegal value '' when converting to DECIMAL
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (

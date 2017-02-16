@@ -1,0 +1,65 @@
+# verify that various insert triggers can not execute on the source table for an insert select statement
+
+source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
+disable_warnings;
+drop table if exists s,t;
+enable_warnings;
+
+create table s (id bigint not null primary key, x bigint);
+insert into s values (1,0),(2,0),(3,0),(4,0);
+
+create table t like s;
+begin;
+insert into t select * from s;
+rollback;
+
+# verify that before insert triggers can not insert into the source table
+create trigger t_trigger before insert on t for each row insert into s values (1000000,0);
+begin;
+error 1442;
+insert into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that after insert triggers can not insert into the source table
+create trigger t_trigger after insert on t for each row insert into s values (1000000,0);
+begin;
+error 1442;
+insert into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that before insert triggers can not delete from the source table
+create trigger t_trigger before insert on t for each row delete from s where id=1000000;
+begin;
+error 1442;
+insert into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that after  insert triggers can not delete from the source table
+create trigger t_trigger after insert on t for each row delete from s where id=1000000;
+begin;
+error 1442;
+insert into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that before insert triggers can not update the source table
+create trigger t_trigger before insert on t for each row update s set x=x+1 where id=1000000;
+begin;
+error 1442;
+insert into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that after insert triggers can not update the source table
+create trigger t_trigger after insert on t for each row update s set x=x+1 where id=1000000;
+begin;
+error 1442;
+insert into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+drop table s,t;

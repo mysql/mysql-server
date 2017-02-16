@@ -580,25 +580,25 @@ select max(b) from t1 where a = 2;
 max(b)
 1
 drop table t3,t1,t2;
-CREATE TABLE t1 (c1 INT NOT NULL);
-CREATE TABLE t2 (c1 INT NOT NULL);
-INSERT INTO t1 VALUES (1);
-INSERT INTO t2 VALUES (2);
-CREATE TEMPORARY TABLE t3 (c1 INT NOT NULL) ENGINE=MRG_MYISAM UNION=(t1,t2);
-SELECT * FROM t3;
-c1
+create table t1 (a int not null);
+create table t2 (a int not null);
+insert into t1 values (1);
+insert into t2 values (2);
+create temporary table t3 (a int not null) ENGINE=MERGE UNION=(t1,t2);
+select * from t3;
+a
 1
 2
-CREATE TEMPORARY TABLE t4 (c1 INT NOT NULL);
-CREATE TEMPORARY TABLE t5 (c1 INT NOT NULL);
-INSERT INTO t4 VALUES (4);
-INSERT INTO t5 VALUES (5);
-CREATE TEMPORARY TABLE t6 (c1 INT NOT NULL) ENGINE=MRG_MYISAM UNION=(t4,t5);
-SELECT * FROM t6;
-c1
-4
-5
-DROP TABLE t6, t3, t1, t2, t4, t5;
+create temporary table t4 (a int not null);
+create temporary table t5 (a int not null);
+insert into t4 values (1);
+insert into t5 values (2);
+create temporary table t6 (a int not null) ENGINE=MERGE UNION=(t4,t5);
+select * from t6;
+a
+1
+2
+drop table t6, t3, t1, t2, t4, t5;
 create temporary table t1 (a int not null);
 create temporary table t2 (a int not null);
 insert into t1 values (1);
@@ -677,7 +677,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN SELECT * FROM t1 WHERE fileset_id = 2
 AND file_code BETWEEN '0000000115' AND '0000000120' LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,files	PRIMARY	35	NULL	5	Using where
+1	SIMPLE	t1	range	PRIMARY,files	PRIMARY	35	NULL	5	Using index condition
 EXPLAIN SELECT * FROM t2 WHERE fileset_id = 2
 AND file_code = '0000000115' LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -996,11 +996,6 @@ m1	CREATE TABLE `m1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1, m1;
-CREATE TABLE t1(a INT, KEY(a)) ENGINE=merge;
-SELECT MAX(a) FROM t1;
-MAX(a)
-NULL
-DROP TABLE t1;
 CREATE TABLE t1(a INT);
 CREATE TABLE t2(a VARCHAR(10));
 CREATE TABLE m1(a INT) ENGINE=MERGE UNION=(t1, t2);
@@ -1632,7 +1627,7 @@ UNLOCK TABLES;
 #
 # Trigger on parent
 DELETE FROM t4 WHERE c1 = 4;
-CREATE TRIGGER t4_ai AFTER INSERT ON t4 FOR EACH ROW SET @a=1;
+CREATE TRIGGER t4_ai1 AFTER INSERT ON t4 FOR EACH ROW SET @a=1;
 SET @a=0;
 INSERT INTO t4 VALUES (4);
 SELECT @a;
@@ -1644,10 +1639,13 @@ c1
 2
 3
 4
-DROP TRIGGER t4_ai;
+DROP TRIGGER t4_ai1;
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
 # Trigger on parent under LOCK TABLES
 LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
-CREATE TRIGGER t4_ai AFTER INSERT ON t4 FOR EACH ROW SET @a=1;
+CREATE TRIGGER t4_ai2 AFTER INSERT ON t4 FOR EACH ROW SET @a=1;
 SET @a=0;
 INSERT INTO t4 VALUES (4);
 SELECT @a;
@@ -1660,12 +1658,15 @@ c1
 3
 4
 4
-DROP TRIGGER t4_ai;
+DROP TRIGGER t4_ai2;
 UNLOCK TABLES;
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
 #
 # Trigger on child
 DELETE FROM t4 WHERE c1 = 4;
-CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW SET @a=1;
+CREATE TRIGGER t3_ai3 AFTER INSERT ON t3 FOR EACH ROW SET @a=1;
 SET @a=0;
 INSERT INTO t4 VALUES (4);
 SELECT @a;
@@ -1682,10 +1683,13 @@ c1
 3
 4
 33
-DROP TRIGGER t3_ai;
+DROP TRIGGER t3_ai3;
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
 # Trigger on child under LOCK TABLES
 LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
-CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW SET @a=1;
+CREATE TRIGGER t3_ai4 AFTER INSERT ON t3 FOR EACH ROW SET @a=1;
 SET @a=0;
 INSERT INTO t4 VALUES (4);
 SELECT @a;
@@ -1705,12 +1709,18 @@ c1
 33
 33
 DELETE FROM t4 WHERE c1 = 33;
-DROP TRIGGER t3_ai;
+DROP TRIGGER t3_ai4;
 UNLOCK TABLES;
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
 #
 # Trigger with table use on child
 DELETE FROM t4 WHERE c1 = 4;
-CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW INSERT INTO t2 VALUES(22);
+CREATE TRIGGER t3_ai5 AFTER INSERT ON t3 FOR EACH ROW INSERT INTO t2 VALUES(22);
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+1
 INSERT INTO t4 VALUES (4);
 SELECT * FROM t4 ORDER BY c1;
 c1
@@ -1729,10 +1739,15 @@ c1
 33
 DELETE FROM t4 WHERE c1 = 22;
 DELETE FROM t4 WHERE c1 = 33;
-DROP TRIGGER t3_ai;
+DROP TRIGGER t3_ai5;
+UNLOCK TABLES;
+CHECK TABLE t2,t3;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+test.t3	check	status	OK
 # Trigger with table use on child under LOCK TABLES
 LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
-CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW INSERT INTO t2 VALUES(22);
+CREATE TRIGGER t3_ai6 AFTER INSERT ON t3 FOR EACH ROW INSERT INTO t2 VALUES(22);
 INSERT INTO t4 VALUES (4);
 SELECT * FROM t4 ORDER BY c1;
 c1
@@ -1751,10 +1766,44 @@ c1
 4
 22
 33
-DROP TRIGGER t3_ai;
+DROP TRIGGER t3_ai6;
+UNLOCK TABLES;
+check table t2,t3,t4;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+test.t3	check	status	OK
+test.t4	check	status	OK
 DELETE FROM t4 WHERE c1 = 22;
 DELETE FROM t4 WHERE c1 = 33;
+# Trigger with table use on child under different LOCK TABLES
+DELETE FROM t4 WHERE c1 = 4;
+LOCK TABLES t4 WRITE,t3 WRITE, t2 WRITE, t1 WRITE;
+CREATE TRIGGER t3_ai7 AFTER INSERT ON t3 FOR EACH ROW INSERT INTO t2 VALUES(22);
+INSERT INTO t4 VALUES (4);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+INSERT INTO t3 VALUES (33);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+22
+33
+DROP TRIGGER t3_ai7;
 UNLOCK TABLES;
+check table t2,t3,t4;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+test.t3	check	status	OK
+test.t4	check	status	OK
+DELETE FROM t4 WHERE c1 = 22;
+DELETE FROM t4 WHERE c1 = 33;
 #
 # Repair
 #
@@ -1770,7 +1819,6 @@ c1
 2
 3
 4
-4
 LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
 REPAIR TABLE t4;
 Table	Op	Msg_type	Msg_text
@@ -1783,7 +1831,6 @@ c1
 1
 2
 3
-4
 4
 UNLOCK TABLES;
 #
@@ -1801,7 +1848,6 @@ c1
 2
 3
 4
-4
 LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
 OPTIMIZE TABLE t4;
 Table	Op	Msg_type	Msg_text
@@ -1815,14 +1861,13 @@ c1
 2
 3
 4
-4
 UNLOCK TABLES;
 #
 # Checksum
 #
 CHECKSUM TABLE t4;
 Table	Checksum
-test.t4	46622073
+test.t4	149057747
 CHECKSUM TABLE t2;
 Table	Checksum
 test.t2	3700403066
@@ -1831,12 +1876,11 @@ c1
 1
 2
 3
-4
 4
 LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
 CHECKSUM TABLE t4;
 Table	Checksum
-test.t4	46622073
+test.t4	149057747
 CHECKSUM TABLE t2;
 Table	Checksum
 test.t2	3700403066
@@ -1845,7 +1889,6 @@ c1
 1
 2
 3
-4
 4
 UNLOCK TABLES;
 #
@@ -1860,7 +1903,6 @@ c1
 2
 3
 4
-4
 33
 LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
 INSERT DELAYED INTO t4 VALUES(444);
@@ -1872,7 +1914,6 @@ c1
 1
 2
 3
-4
 4
 33
 UNLOCK TABLES;
@@ -1889,9 +1930,9 @@ ALTER TABLE t2 UNION=(t3,t1);
 SELECT * FROM t2;
 ERROR HY000: Table 't3' is differently defined or of non-MyISAM type or doesn't exist
 DROP TABLE t1, t2, t3;
-CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
-CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
-CREATE TABLE t3 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2);
+CREATE TABLE t1 (c1 INT) ENGINE= MyISAM;
+CREATE TABLE t2 (c1 INT) ENGINE= MyISAM;
+CREATE TABLE t3 (c1 INT) ENGINE= MRG_MYISAM UNION= (t1, t2);
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (2);
 SELECT * FROM t3;
@@ -1905,56 +1946,6 @@ c1
 DROP TABLE t1, t2, t3;
 CREATE TABLE t1 (id INTEGER, grp TINYINT, id_rev INTEGER);
 SET @rnd_max= 2147483647;
-SET @rnd= RAND();
-SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
-SET @id_rev= @rnd_max - @id;
-SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
-INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
-SET @rnd= RAND();
-SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
-SET @id_rev= @rnd_max - @id;
-SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
-INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
-SET @rnd= RAND();
-SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
-SET @id_rev= @rnd_max - @id;
-SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
-INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
-SET @rnd= RAND();
-SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
-SET @id_rev= @rnd_max - @id;
-SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
-INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
-SET @rnd= RAND();
-SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
-SET @id_rev= @rnd_max - @id;
-SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
-INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
-SET @rnd= RAND();
-SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
-SET @id_rev= @rnd_max - @id;
-SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
-INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
-SET @rnd= RAND();
-SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
-SET @id_rev= @rnd_max - @id;
-SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
-INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
-SET @rnd= RAND();
-SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
-SET @id_rev= @rnd_max - @id;
-SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
-INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
-SET @rnd= RAND();
-SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
-SET @id_rev= @rnd_max - @id;
-SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
-INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
-SET @rnd= RAND();
-SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
-SET @id_rev= @rnd_max - @id;
-SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
-INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
 set @@read_buffer_size=2*1024*1024;
 CREATE TABLE t2 SELECT * FROM t1;
 INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
@@ -2403,7 +2394,150 @@ REPAIR TABLE m1;
 Table	Op	Msg_type	Msg_text
 test.m1	repair	note	The storage engine for the table doesn't support repair
 DROP TABLE m1, t1;
+create temporary table t1_temp(i int);
+create temporary table tm_temp_temp (i int) engine=merge union=(t1_temp) insert_method=last;
+alter table tm_temp_temp insert_method=first;
+check table tm_temp_temp;
+Table	Op	Msg_type	Msg_text
+test.tm_temp_temp	check	status	OK
+drop temporary table t1_temp, tm_temp_temp;
 End of 5.1 tests
+# 
+# MDEV-4277: Crash inside mi_killed_in_mariadb() with myisammrg
+# 
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 ( i int ) engine=myisam;
+insert into t2 values (1),(2);
+create table t3 (a int, b int, filler char(100), key(a), key(b)) engine=myisam;
+create table t4 like t3;
+insert into t3 
+select A.a+10*B.a+100*C.a, 
+A.a+10*B.a+100*C.a,
+'filler-data-FILLER-DATA-qqq' 
+from t1 A, t1 B, t1 C where C.a < 5;
+insert into t4
+select A.a+10*B.a+100*C.a, 
+A.a+10*B.a+100*C.a,
+'filler-data-FILLER-DATA-qqq' 
+from t1 A, t1 B, t1 C where C.a >= 5;
+create table t5 like t3;
+alter table t5 engine=merge;
+alter table t5 union(t3, t4);
+update t5 set b=999, a=999 where b>950;
+explain 
+select * from t2, t5 where t5.a=999 and t5.b=999;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t5	index_merge	a,b	a,b	5,5	NULL	6	Using intersect(a,b); Using where; Using join buffer (flat, BNL join)
+select * from t2, t5 where t5.a=999 and t5.b=999;
+i	a	b	filler
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+drop table t5;
+drop table t1,t2,t3,t4;
+End of 5.3 tests
+CREATE TABLE t1(a INT, KEY(a)) ENGINE=merge;
+SELECT MAX(a) FROM t1;
+MAX(a)
+NULL
+DROP TABLE t1;
 #
 # An additional test case for Bug#27430 Crash in subquery code
 # when in PS and table DDL changed after PREPARE
@@ -2493,18 +2627,6 @@ f1()
 1
 DROP FUNCTION f1;
 DROP TABLE tm1, t1, t2;
-CREATE TEMPORARY TABLE t1 (c1 INT);
-INSERT INTO t1 (c1) VALUES (1);
-CREATE TEMPORARY TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1);
-CREATE FUNCTION f1() RETURNS INT
-BEGIN
-CREATE TEMPORARY TABLE t2 (c1 INT);
-ALTER TEMPORARY TABLE tm1 UNION=(t1,t2);
-INSERT INTO t2 (c1) VALUES (2);
-RETURN (SELECT MAX(c1) FROM tm1);
-END|
-ERROR 0A000: ALTER VIEW is not allowed in stored procedures
-DROP TABLE tm1, t1;
 CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
 CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=LAST;
 INSERT INTO tm1 VALUES (1);
@@ -3710,4 +3832,21 @@ test.m1	repair	error	Corrupt
 # Clean-up.
 drop tables m1, t1, t4;
 drop view t3;
+#
+# MDEV-10424 - Assertion `ticket == __null' failed in
+#              MDL_request::set_type
+#
+CREATE TABLE t1 (f1 INT) ENGINE=MyISAM;
+CREATE TABLE tmerge (f1 INT) ENGINE=MERGE UNION=(t1);
+PREPARE stmt FROM "ANALYZE TABLE tmerge, t1";
+EXECUTE stmt;
+Table	Op	Msg_type	Msg_text
+test.tmerge	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	Table is already up to date
+EXECUTE stmt;
+Table	Op	Msg_type	Msg_text
+test.tmerge	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	Table is already up to date
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1, tmerge;
 End of 5.5 tests

@@ -1,0 +1,35 @@
+# test that we read data that was committed before we began
+
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+set session transaction isolation level repeatable read;
+
+--echo # Establish connection conn1 (user = root)
+connect (conn1,localhost,root,,);
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+connection conn1;
+set session transaction isolation level repeatable read;
+create table foo (a int, b int, primary key (a))engine=TokuDB;
+insert into foo values (1,1);
+show create table foo;
+--echo #should read (1,1)
+select * from foo;
+begin;
+replace into foo values (1,100), (2,200);
+commit;
+
+connection default;
+--echo #should read (1,100),(2,200)
+select * from foo;
+
+connection default;
+disconnect conn1;
+
+connection default;
+# Final cleanup.
+set session transaction isolation level serializable;
+DROP TABLE foo;

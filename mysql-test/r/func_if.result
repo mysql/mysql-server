@@ -177,13 +177,20 @@ IF((ROUND(t1.a,2)=1), 2,
 IF((R
 DROP TABLE t1;
 CREATE TABLE t1 (c LONGTEXT);
-INSERT INTO t1 VALUES(1), (2), (3), (4), ('12345678901234567890');
+INSERT INTO t1 VALUES(1), (2), (3), (4), ('1234567890123456789');
+SELECT IF(1, CAST(c AS UNSIGNED), 0) FROM t1;
+IF(1, CAST(c AS UNSIGNED), 0)
+1
+2
+3
+4
+1234567890123456789
 SELECT * FROM (SELECT MAX(IF(1, CAST(c AS UNSIGNED), 0)) FROM t1) AS te;
 MAX(IF(1, CAST(c AS UNSIGNED), 0))
-12345678901234567890
+1234567890123456789
 SELECT * FROM (SELECT MAX(IFNULL(CAST(c AS UNSIGNED), 0)) FROM t1) AS te;
 MAX(IFNULL(CAST(c AS UNSIGNED), 0))
-12345678901234567890
+1234567890123456789
 DROP TABLE t1;
 End of 5.0 tests
 #
@@ -210,3 +217,37 @@ foo
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'a'
 Warning	1292	Truncated incorrect DOUBLE value: 'a'
+#
+# LP bug#998321 Simple query with IF expression causes an
+# assertion abort (see also mysql Bug#12620084)
+#
+SELECT if(0, (SELECT min('hello')), NULL);
+if(0, (SELECT min('hello')), NULL)
+NULL
+SELECT if(1, (SELECT min('hello')), NULL);
+if(1, (SELECT min('hello')), NULL)
+hello
+SELECT if(0, NULL, (SELECT min('hello')));
+if(0, NULL, (SELECT min('hello')))
+hello
+SELECT if(1, NULL, (SELECT min('hello')));
+if(1, NULL, (SELECT min('hello')))
+NULL
+End of 5.2 tests
+#
+# MDEV-8663: IF Statement returns multiple values erroneously
+# (or Assertion `!null_value' failed in Item::send(Protocol*, String*)
+#
+CREATE TABLE `t1` (
+`datas` VARCHAR(25) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+Warnings:
+Warning	1286	Unknown storage engine 'InnoDB'
+Warning	1266	Using storage engine MyISAM for table 't1'
+INSERT INTO `t1` VALUES ('1,2'), ('2,3'), ('3,4');
+SELECT IF(FIND_IN_SET('1', `datas`), 1.5, IF(FIND_IN_SET('2', `datas`), 2, NULL)) AS `First`, '1' AS `Second`, '2' AS `Third` FROM `t1`;
+First	Second	Third
+1.5	1	2
+2.0	1	2
+NULL	1	2
+drop table t1;

@@ -1,0 +1,51 @@
+#
+# Testing of potential problems in Aria with partitioning
+#
+
+--source include/have_maria.inc
+--source include/have_partition.inc
+
+let $default_engine=`select @@global.storage_engine`;
+let $default_checksum=`select @@global.aria_page_checksum`;
+set global storage_engine=aria;
+set session storage_engine=aria;
+
+#
+# Test outer join const propagation
+#
+DROP TABLE if exists t1,t2;
+create table t2(a blob) engine=aria;
+create table t1(a int primary key) engine=aria;
+insert into t2 values ('foo'),('bar');
+select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
+insert into t1 values (1);
+select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
+insert into t1 values (2);
+select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
+drop table t1,t2;
+
+create table t2(a blob) engine= aria;
+create table t1(a int primary key) engine= aria PARTITION BY HASH (a) PARTITIONS 2;
+insert into t2 values ('foo'),('bar');
+select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
+insert into t1 values (1);
+select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
+insert into t1 values (2);
+select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
+drop table t1,t2;
+
+#
+# LP:990187
+# Assertion `share->reopen == 1' failed at maria_extra on ADD PARTITION
+#
+CREATE TABLE t1 ( i INT ) ENGINE=Aria
+  PARTITION BY HASH(i) PARTITIONS 2;
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+drop table t1;
+
+# Set defaults back
+--disable_result_log
+--disable_query_log
+eval set global storage_engine=$default_engine;
+--enable_result_log
+--enable_query_log

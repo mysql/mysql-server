@@ -1,0 +1,50 @@
+RESET MASTER;
+# Bug#33048 Not able to recover binary/blob data correctly using mysqlbinlog
+# --------------------------------------------------------------------------
+# The test verify that 0x00 and 0x0D0A sequence can be handled correctly by
+# mysql
+
+CREATE TABLE `A
+B` (c1 CHAR(100));
+# It is a faked statement. ASCII 0 is in the original statement, it would
+# make the test result to become a binary file which was difficult to get
+# the diff result if the original query was logged in the result.
+INSERT INTO `A\r\nB` VALUES("A\0B");
+
+INSERT INTO `A
+B` VALUES("A
+B");
+SELECT HEX(c1) FROM `A
+B`;
+HEX(c1)
+410042
+410D0A42
+
+FLUSH LOGS;
+DROP TABLE `A
+B`;
+
+RESET MASTER;
+# '--exec mysql ...' without --binary-mode option
+# It creates the table with a wrong table name and generates an error.
+# (error output was suppressed to make the test case platform agnostic)
+
+# It is not in binary_mode, so table name '0x410D0A42' can be translated to
+# '0x410A42' by mysql depending on the OS - Windows or Unix-like.
+DROP TABLE `TABLE_NAME_MASKED`;
+
+# In binary_mode, table name '0x410D0A42' and string '0x410042' can be
+# handled correctly.
+RESET MASTER;
+SELECT HEX(c1) FROM `A
+B`;
+HEX(c1)
+410042
+410D0A42
+
+DROP TABLE `A
+B`;
+RESET MASTER;
+include/assert.inc [Table and contents created through mysqltest match 0x610D0A62.]
+include/assert.inc [Table and contents created while replaying binary log without --binary-mode set match 0x61(0D)0A62.]
+include/assert.inc [Table and contents created while replaying binary log with --binary-mode set match 0x610D0A62.]

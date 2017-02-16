@@ -1,0 +1,16 @@
+--- suite/storage_engine/tbl_opt_union.result	2012-06-24 23:55:19.539380000 +0400
++++ suite/storage_engine/tbl_opt_union.reject	2012-07-15 17:51:31.014346053 +0400
+@@ -4,11 +4,11 @@
+ Table	Create Table
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL
+-) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1 UNION=(`child1`)
++) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1
+ ALTER TABLE t1 UNION = (child1,child2);
+ SHOW CREATE TABLE t1;
+ Table	Create Table
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL
+-) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1 UNION=(`child1`,`child2`)
++) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1
+ DROP TABLE t1, child1, child2;

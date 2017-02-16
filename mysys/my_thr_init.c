@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011 Oracle and/or its affiliates.
+   Copyright 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,12 +35,6 @@ uint 		my_thread_end_wait_time= 5;
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
 mysql_mutex_t LOCK_localtime_r;
 #endif
-#ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
-pthread_mutexattr_t my_fast_mutexattr;
-#endif
-#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-pthread_mutexattr_t my_errorcheck_mutexattr;
-#endif
 #ifdef _MSC_VER
 static void install_sigabrt_handler();
 #endif
@@ -65,6 +60,79 @@ static uint get_thread_lib(void);
 
 /** True if @c my_thread_global_init() has been called. */
 static my_bool my_thread_global_init_done= 0;
+/* True if THR_KEY_mysys is created */
+my_bool my_thr_key_mysys_exists= 0;
+
+
+/*
+  These are mutexes not used by safe_mutex or my_thr_init.c
+
+  We want to free these earlier than other mutex so that safe_mutex
+  can detect if all mutex and memory is freed properly.
+*/
+
+static void my_thread_init_common_mutex(void)
+{
+  mysql_mutex_init(key_THR_LOCK_open, &THR_LOCK_open, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_THR_LOCK_lock, &THR_LOCK_lock, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_THR_LOCK_isam, &THR_LOCK_isam, MY_MUTEX_INIT_SLOW);
+  mysql_mutex_init(key_THR_LOCK_myisam, &THR_LOCK_myisam, MY_MUTEX_INIT_SLOW);
+  mysql_mutex_init(key_THR_LOCK_myisam_mmap, &THR_LOCK_myisam_mmap, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_THR_LOCK_heap, &THR_LOCK_heap, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_THR_LOCK_net, &THR_LOCK_net, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_THR_LOCK_charset, &THR_LOCK_charset, MY_MUTEX_INIT_FAST);
+#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
+  mysql_mutex_init(key_LOCK_localtime_r, &LOCK_localtime_r, MY_MUTEX_INIT_SLOW);
+#endif
+}
+
+void my_thread_destroy_common_mutex(void)
+{
+  mysql_mutex_destroy(&THR_LOCK_open);
+  mysql_mutex_destroy(&THR_LOCK_lock);
+  mysql_mutex_destroy(&THR_LOCK_isam);
+  mysql_mutex_destroy(&THR_LOCK_myisam);
+  mysql_mutex_destroy(&THR_LOCK_myisam_mmap);
+  mysql_mutex_destroy(&THR_LOCK_heap);
+  mysql_mutex_destroy(&THR_LOCK_net);
+  mysql_mutex_destroy(&THR_LOCK_charset);
+#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
+  mysql_mutex_destroy(&LOCK_localtime_r);
+#endif
+}
+
+
+/*
+  These mutexes are used by my_thread_init() and after
+  my_thread_destroy_mutex()
+*/
+
+static void my_thread_init_internal_mutex(void)
+{
+  mysql_mutex_init(key_THR_LOCK_threads, &THR_LOCK_threads, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_THR_LOCK_malloc, &THR_LOCK_malloc, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_THR_COND_threads, &THR_COND_threads, NULL);
+}
+
+
+void my_thread_destroy_internal_mutex(void)
+{
+  mysql_mutex_destroy(&THR_LOCK_threads);
+  mysql_mutex_destroy(&THR_LOCK_malloc);
+  mysql_cond_destroy(&THR_COND_threads);
+}
+
+static void my_thread_init_thr_mutex(struct st_my_thread_var *var)
+{
+  mysql_mutex_init(key_my_thread_var_mutex, &var->mutex, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_my_thread_var_suspend, &var->suspend, NULL);
+}
+
+static void my_thread_destory_thr_mutex(struct st_my_thread_var *var)
+{
+  mysql_mutex_destroy(&var->mutex);
+  mysql_cond_destroy(&var->suspend);
+}
 
 
 /**
@@ -85,41 +153,17 @@ void my_thread_global_reinit(void)
   my_init_mysys_psi_keys();
 #endif
 
-  mysql_mutex_destroy(&THR_LOCK_isam);
-  mysql_mutex_init(key_THR_LOCK_isam, &THR_LOCK_isam, MY_MUTEX_INIT_SLOW);
+  my_thread_destroy_common_mutex();
+  my_thread_init_common_mutex();
 
-  mysql_mutex_destroy(&THR_LOCK_heap);
-  mysql_mutex_init(key_THR_LOCK_heap, &THR_LOCK_heap, MY_MUTEX_INIT_FAST);
-
-  mysql_mutex_destroy(&THR_LOCK_net);
-  mysql_mutex_init(key_THR_LOCK_net, &THR_LOCK_net, MY_MUTEX_INIT_FAST);
-
-  mysql_mutex_destroy(&THR_LOCK_myisam);
-  mysql_mutex_init(key_THR_LOCK_myisam, &THR_LOCK_myisam, MY_MUTEX_INIT_SLOW);
-
-  mysql_mutex_destroy(&THR_LOCK_malloc);
-  mysql_mutex_init(key_THR_LOCK_malloc, &THR_LOCK_malloc, MY_MUTEX_INIT_FAST);
-
-  mysql_mutex_destroy(&THR_LOCK_open);
-  mysql_mutex_init(key_THR_LOCK_open, &THR_LOCK_open, MY_MUTEX_INIT_FAST);
-
-  mysql_mutex_destroy(&THR_LOCK_charset);
-  mysql_mutex_init(key_THR_LOCK_charset, &THR_LOCK_charset, MY_MUTEX_INIT_FAST);
-
-  mysql_mutex_destroy(&THR_LOCK_threads);
-  mysql_mutex_init(key_THR_LOCK_threads, &THR_LOCK_threads, MY_MUTEX_INIT_FAST);
-
-  mysql_cond_destroy(&THR_COND_threads);
-  mysql_cond_init(key_THR_COND_threads, &THR_COND_threads, NULL);
+  my_thread_destroy_internal_mutex();
+  my_thread_init_internal_mutex();
 
   tmp= my_pthread_getspecific(struct st_my_thread_var*, THR_KEY_mysys);
   DBUG_ASSERT(tmp);
 
-  mysql_mutex_destroy(&tmp->mutex);
-  mysql_mutex_init(key_my_thread_var_mutex, &tmp->mutex, MY_MUTEX_INIT_FAST);
-
-  mysql_cond_destroy(&tmp->suspend);
-  mysql_cond_init(key_my_thread_var_suspend, &tmp->suspend, NULL);
+  my_thread_destory_thr_mutex(tmp);
+  my_thread_init_thr_mutex(tmp);
 }
 
 /*
@@ -137,44 +181,29 @@ my_bool my_thread_global_init(void)
 {
   int pth_ret;
 
+  /* Normally this should never be called twice */
+  DBUG_ASSERT(my_thread_global_init_done == 0);
   if (my_thread_global_init_done)
     return 0;
   my_thread_global_init_done= 1;
 
-#ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
   /*
-    Set mutex type to "fast" a.k.a "adaptive"
-
-    In this case the thread may steal the mutex from some other thread
-    that is waiting for the same mutex.  This will save us some
-    context switches but may cause a thread to 'starve forever' while
-    waiting for the mutex (not likely if the code within the mutex is
-    short).
+    THR_KEY_mysys is deleted in my_end() as DBUG libraries are using it even
+    after my_thread_global_end() is called.
+    my_thr_key_mysys_exist is used to protect against application like QT
+    that calls my_thread_global_init() + my_thread_global_end() multiple times
+    without calling my_init() + my_end().
   */
-  pthread_mutexattr_init(&my_fast_mutexattr);
-  pthread_mutexattr_settype(&my_fast_mutexattr,
-                            PTHREAD_MUTEX_ADAPTIVE_NP);
-#endif
-
-#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-  /*
-    Set mutex type to "errorcheck"
-  */
-  pthread_mutexattr_init(&my_errorcheck_mutexattr);
-  pthread_mutexattr_settype(&my_errorcheck_mutexattr,
-                            PTHREAD_MUTEX_ERRORCHECK);
-#endif
-
-  if ((pth_ret= pthread_key_create(&THR_KEY_mysys, NULL)) != 0)
+  if (!my_thr_key_mysys_exists &&
+      (pth_ret= pthread_key_create(&THR_KEY_mysys, NULL)) != 0)
   {
     fprintf(stderr, "Can't initialize threads: error %d\n", pth_ret);
     return 1;
   }
+  my_thr_key_mysys_exists= 1;
 
-  mysql_mutex_init(key_THR_LOCK_malloc, &THR_LOCK_malloc, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_THR_LOCK_open, &THR_LOCK_open, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_THR_LOCK_charset, &THR_LOCK_charset, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_THR_LOCK_threads, &THR_LOCK_threads, MY_MUTEX_INIT_FAST);
+  /* Mutex used by my_thread_init() and after my_thread_destroy_mutex() */
+  my_thread_init_internal_mutex();
 
   if (my_thread_init())
     return 1;
@@ -208,25 +237,15 @@ my_bool my_thread_global_init(void)
   }
 #endif /* TARGET_OS_LINUX */
 
-  mysql_mutex_init(key_THR_LOCK_lock, &THR_LOCK_lock, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_THR_LOCK_isam, &THR_LOCK_isam, MY_MUTEX_INIT_SLOW);
-  mysql_mutex_init(key_THR_LOCK_myisam, &THR_LOCK_myisam, MY_MUTEX_INIT_SLOW);
-  mysql_mutex_init(key_THR_LOCK_myisam_mmap, &THR_LOCK_myisam_mmap, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_THR_LOCK_heap, &THR_LOCK_heap, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_THR_LOCK_net, &THR_LOCK_net, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_THR_COND_threads, &THR_COND_threads, NULL);
-
-#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-  mysql_mutex_init(key_LOCK_localtime_r, &LOCK_localtime_r, MY_MUTEX_INIT_SLOW);
-#endif
-
-#ifdef _MSC_VER
-  install_sigabrt_handler();
-#endif
+  my_thread_init_common_mutex();
 
   return 0;
 }
 
+
+/**
+   End the mysys thread system. Called when ending the last thread
+*/
 
 void my_thread_global_end(void)
 {
@@ -258,31 +277,16 @@ void my_thread_global_end(void)
   }
   mysql_mutex_unlock(&THR_LOCK_threads);
 
-  pthread_key_delete(THR_KEY_mysys);
-#ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
-  pthread_mutexattr_destroy(&my_fast_mutexattr);
-#endif
-#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-  pthread_mutexattr_destroy(&my_errorcheck_mutexattr);
-#endif
-  mysql_mutex_destroy(&THR_LOCK_malloc);
-  mysql_mutex_destroy(&THR_LOCK_open);
-  mysql_mutex_destroy(&THR_LOCK_lock);
-  mysql_mutex_destroy(&THR_LOCK_isam);
-  mysql_mutex_destroy(&THR_LOCK_myisam);
-  mysql_mutex_destroy(&THR_LOCK_myisam_mmap);
-  mysql_mutex_destroy(&THR_LOCK_heap);
-  mysql_mutex_destroy(&THR_LOCK_net);
-  mysql_mutex_destroy(&THR_LOCK_charset);
+  my_thread_destroy_common_mutex();
+
+  /*
+    Only destroy the mutex & conditions if we don't have other threads around
+    that could use them.
+  */
   if (all_threads_killed)
   {
-    mysql_mutex_destroy(&THR_LOCK_threads);
-    mysql_cond_destroy(&THR_COND_threads);
+    my_thread_destroy_internal_mutex();
   }
-#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
-  mysql_mutex_destroy(&LOCK_localtime_r);
-#endif
-
   my_thread_global_init_done= 0;
 }
 
@@ -317,8 +321,7 @@ my_bool my_thread_init(void)
     return 1; /* cannot proceed with unintialized library */
 
 #ifdef EXTRA_DEBUG_THREADS
-  fprintf(stderr,"my_thread_init(): thread_id: 0x%lx\n",
-          (ulong) pthread_self());
+  fprintf(stderr,"my_thread_init(): pthread_self: %p\n", pthread_self());
 #endif  
 
   if (my_pthread_getspecific(struct st_my_thread_var *,THR_KEY_mysys))
@@ -341,8 +344,7 @@ my_bool my_thread_init(void)
   }
   pthread_setspecific(THR_KEY_mysys,tmp);
   tmp->pthread_self= pthread_self();
-  mysql_mutex_init(key_my_thread_var_mutex, &tmp->mutex, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_my_thread_var_suspend, &tmp->suspend, NULL);
+  my_thread_init_thr_mutex(tmp);
 
   tmp->stack_ends_here= (char*)&tmp +
                          STACK_DIRECTION * (long)my_thread_stack_size;
@@ -380,8 +382,8 @@ void my_thread_end(void)
   tmp= my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
 
 #ifdef EXTRA_DEBUG_THREADS
-  fprintf(stderr,"my_thread_end(): tmp: 0x%lx  pthread_self: 0x%lx  thread_id: %ld\n",
-	  (long) tmp, (long) pthread_self(), tmp ? (long) tmp->id : 0L);
+  fprintf(stderr,"my_thread_end(): tmp: %p  pthread_self: %p  thread_id: %ld\n",
+	  tmp, pthread_self(), tmp ? (long) tmp->id : 0L);
 #endif  
 
 #ifdef HAVE_PSI_INTERFACE
@@ -394,23 +396,21 @@ void my_thread_end(void)
     PSI_server->delete_current_thread();
 #endif
 
+  DBUG_POP();
+
+  pthread_setspecific(THR_KEY_mysys,0);
+
   if (tmp && tmp->init)
   {
 #if !defined(DBUG_OFF)
     /* tmp->dbug is allocated inside DBUG library */
     if (tmp->dbug)
     {
-      DBUG_POP();
       free(tmp->dbug);
       tmp->dbug=0;
     }
 #endif
-#if !defined(__bsdi__) && !defined(__OpenBSD__)
- /* bsdi and openbsd 3.5 dumps core here */
-    mysql_cond_destroy(&tmp->suspend);
-#endif
-    mysql_mutex_destroy(&tmp->mutex);
-    free(tmp);
+    my_thread_destory_thr_mutex(tmp);
 
     /*
       Decrement counter for number of running threads. We are using this
@@ -423,8 +423,10 @@ void my_thread_end(void)
     if (--THR_thread_count == 0)
       mysql_cond_signal(&THR_COND_threads);
     mysql_mutex_unlock(&THR_LOCK_threads);
+
+    TRASH(tmp, sizeof(*tmp));
+    free(tmp);
   }
-  pthread_setspecific(THR_KEY_mysys,0);
 }
 
 struct st_my_thread_var *_my_thread_var(void)
@@ -458,7 +460,7 @@ const char *my_thread_name(void)
   {
     my_thread_id id= my_thread_dbug_id();
     sprintf(name_buff,"T@%lu", (ulong) id);
-    strmake(tmp->name,name_buff,THREAD_NAME_SIZE);
+    strmake_buf(tmp->name, name_buff);
   }
   return tmp->name;
 }
@@ -467,12 +469,24 @@ const char *my_thread_name(void)
 
 extern void **my_thread_var_dbug()
 {
-  struct st_my_thread_var *tmp=
-    my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  struct st_my_thread_var *tmp;
+  if (!my_thread_global_init_done)
+    return NULL;
+  tmp= my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
   return tmp && tmp->init ? &tmp->dbug : 0;
 }
 #endif /* DBUG_OFF */
 
+/* Return pointer to mutex_in_use */
+
+safe_mutex_t **my_thread_var_mutex_in_use()
+{
+  struct st_my_thread_var *tmp;
+  if (!my_thread_global_init_done)
+    return NULL;
+  tmp=  my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  return tmp ? &tmp->mutex_in_use : 0;
+}
 
 static uint get_thread_lib(void)
 {

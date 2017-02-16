@@ -218,6 +218,66 @@ SET GLOBAL event_scheduler = OFF;
 
 # -- End of Bug#35074.
 
+SELECT 'Connection on extra port ok';
+Connection on extra port ok
+Connection on extra port ok
+SELECT 'Connection on extra port 2 ok';
+Connection on extra port 2 ok
+Connection on extra port 2 ok
+# -- Success: more than --extra-max-connections + 1 normal connections not possible
+#
+# -- Bug#49752: 2469.126.2 unintentionally breaks authentication
+#               against MySQL 5.1 server
+#
+GRANT ALL ON test.* TO 'Azundris12345678'@'localhost' IDENTIFIED BY 'test123';
+FLUSH PRIVILEGES;
+DROP USER 'Azundris12345678'@'localhost';
+FLUSH PRIVILEGES;
+#
+# -- End of Bug#49752
+#
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------
+CREATE USER mysqltest_up1 IDENTIFIED VIA mysql_native_password using '*E8D46CE25265E545D225A8A6F1BAF642FEBEE5CB';
+CREATE USER mysqltest_up2 IDENTIFIED VIA mysql_old_password using '09301740536db389';
+connect(localhost,mysqltest_up1,foo,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'mysqltest_up1'@'localhost' (using password: YES)
+select user(), current_user();
+user()	current_user()
+mysqltest_up1@localhost	mysqltest_up1@%
+connect(localhost,mysqltest_up2,newpw,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'mysqltest_up2'@'localhost' (using password: YES)
+select user(), current_user();
+user()	current_user()
+mysqltest_up2@localhost	mysqltest_up2@%
+connect(localhost,mysqltest_nouser,newpw,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'mysqltest_nouser'@'localhost' (using password: YES)
+connect(localhost,mysqltest_nouser,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'mysqltest_nouser'@'localhost' (using password: NO)
+DROP USER mysqltest_up1@'%';
+DROP USER mysqltest_up2@'%';
+#
+# BUG#1010351: New "via" keyword in 5.2+ can't be used as identifier anymore  
+#
+create table t1 (via int);
+alter table t1 add key(via);
+drop table t1;
+create table t1 (col1 int);
+alter table t1 add via int not null;
+drop table t1;
+drop procedure if exists p1;
+create procedure p1(x int)
+foo: loop
+if x = 0 then
+leave foo;
+end if;
+select 'test';
+set x = x-1;
+end loop foo|
+call p1(2);
+test
+test
+test
+test
+drop procedure p1;

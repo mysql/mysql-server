@@ -1,0 +1,39 @@
+select @@global.aria_recover;
+@@global.aria_recover
+BACKUP
+set global aria_recover=off;
+select @@global.aria_recover;
+@@global.aria_recover
+OFF
+set global aria_recover=default;
+select @@global.aria_recover;
+@@global.aria_recover
+NORMAL
+set global aria_recover=normal;
+select @@global.aria_recover;
+@@global.aria_recover
+NORMAL
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+create table t1 (a varchar(1000), index(a)) engine=aria;
+insert into t1 values("ThursdayMorningsMarket");
+flush table t1;
+insert into t1 select concat(a,'b') from t1 limit 1;
+set global aria_checkpoint_interval=1000;
+select * from t_corrupted2;
+a
+ThursdayMorningsMarket
+ThursdayMorningsMarketb
+Warnings:
+Error	145	t_corrupted2' is marked as crashed and should be repaired
+Error	1194	t_corrupted2' is marked as crashed and should be repaired
+Error	1034	1 client is using or hasn't closed the table properly
+Error	1034	Wrong base information on indexpage at page: 1
+select * from t_corrupted2;
+a
+ThursdayMorningsMarket
+ThursdayMorningsMarketb
+drop database mysqltest;
+set global aria_recover=backup;
+set global aria_checkpoint_interval=30;

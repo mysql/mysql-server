@@ -1,7 +1,8 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2014, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2014, Monty Program Ab
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -77,14 +78,15 @@ BEGIN {
 
 use lib "lib";
 
-use Cwd;
+use Cwd ;
+use Cwd 'realpath';
 use Getopt::Long;
 use My::File::Path; # Patched version of File::Path
 use File::Basename;
 use File::Copy;
 use File::Find;
 use File::Temp qw/tempdir/;
-use File::Spec::Functions qw/splitdir/;
+use File::Spec::Functions qw/splitdir rel2abs/;
 use My::Platform;
 use My::SafeProcess;
 use My::ConfigFactory;
@@ -107,6 +109,7 @@ require "lib/mtr_gprof.pl";
 require "lib/mtr_misc.pl";
 
 $SIG{INT}= sub { mtr_error("Got ^C signal"); };
+$SIG{HUP}= sub { mtr_error("Hangup detected on controlling terminal"); };
 
 our $mysql_version_id;
 my $mysql_version_extra;
@@ -124,6 +127,7 @@ our $path_testlog;
 
 our $default_vardir;
 our $opt_vardir;                # Path to use for var/ dir
+our $plugindir;
 my $path_vardir_trace;          # unix formatted opt_vardir for trace files
 my $opt_tmpdir;                 # Path to use for tmp/ dir
 my $opt_tmpdir_pid;
@@ -132,8 +136,6 @@ my $opt_start;
 my $opt_start_dirty;
 my $opt_start_exit;
 my $start_only;
-
-my $auth_plugin;                # the path to the authentication test plugin
 
 END {
   if ( defined $opt_tmpdir_pid and $opt_tmpdir_pid == $$ )
@@ -161,12 +163,35 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-# If you add a new suite, please check TEST_DIRS in Makefile.am.
-#
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_zip,perfschema";
+my @DEFAULT_SUITES= qw(
+    main-
+    archive-
+    binlog-
+    csv-
+    federated-
+    funcs_1-
+    funcs_2-
+    handler-
+    heap-
+    innodb-
+    innodb_zip-
+    maria-
+    optimizer_unfixed_bugs-
+    oqgraph-
+    parts-
+    percona-
+    perfschema-
+    plugins-
+    rpl-
+    sphinx-
+    sys_vars-
+    unit-
+    vcol-
+  );
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
+our $exe_patch;
 our $exe_mysql;
 our $exe_mysql_plugin;
 our $exe_mysqladmin;
@@ -175,6 +200,7 @@ our $exe_libtool;
 our $exe_mysql_embedded;
 
 our $opt_big_test= 0;
+our $opt_staging_run= 0;
 
 our @opt_combinations;
 
@@ -192,29 +218,26 @@ my $opt_ps_protocol;
 my $opt_sp_protocol;
 my $opt_cursor_protocol;
 my $opt_view_protocol;
+my $opt_non_blocking_api;
 
 our $opt_debug;
-my $debug_d= "d";
+my $debug_d= "d,*";
 my $opt_debug_common;
 our $opt_debug_server;
 our @opt_cases;                  # The test cases names in argv
 our $opt_embedded_server;
-# -1 indicates use default, override with env.var.
-our $opt_ctest= env_or_val(MTR_UNIT_TESTS => -1);
-our $opt_ctest_report;
-# Unit test report stored here for delayed printing
-my $ctest_report;
 
 # Options used when connecting to an already running server
 my %opts_extern;
 sub using_extern { return (keys %opts_extern > 0);};
 
 our $opt_fast= 0;
-our $opt_force;
+our $opt_force= 0;
 our $opt_mem= $ENV{'MTR_MEM'};
 our $opt_clean_vardir= $ENV{'MTR_CLEAN_VARDIR'};
 
 our $opt_gcov;
+our $opt_gcov_src_dir;
 our $opt_gcov_exe= "gcov";
 our $opt_gcov_err= "mysql-test-gcov.err";
 our $opt_gcov_msg= "mysql-test-gcov.msg";
@@ -253,7 +276,6 @@ my $opt_port_base= $ENV{'MTR_PORT_BASE'} || "auto";
 my $build_thread= 0;
 
 my $opt_record;
-my $opt_report_features;
 
 our $opt_resfile= $ENV{'MTR_RESULT_FILE'} || 0;
 
@@ -267,7 +289,7 @@ our $opt_report_times= 0;
 my $opt_sleep;
 
 my $opt_testcase_timeout= $ENV{MTR_TESTCASE_TIMEOUT} ||  15; # minutes
-my $opt_suite_timeout   = $ENV{MTR_SUITE_TIMEOUT}    || 300; # minutes
+my $opt_suite_timeout   = $ENV{MTR_SUITE_TIMEOUT}    || 360; # minutes
 my $opt_shutdown_timeout= $ENV{MTR_SHUTDOWN_TIMEOUT} ||  10; # seconds
 my $opt_start_timeout   = $ENV{MTR_START_TIMEOUT}    || 180; # seconds
 
@@ -276,13 +298,10 @@ sub suite_timeout { return $opt_suite_timeout * 60; };
 my $opt_wait_all;
 my $opt_user_args;
 my $opt_repeat= 1;
-my $opt_retry= 3;
+my $opt_retry= 1;
 my $opt_retry_failure= env_or_val(MTR_RETRY_FAILURE => 2);
 my $opt_reorder= 1;
 my $opt_force_restart= 0;
-
-my $opt_strace_client;
-my $opt_strace_server;
 
 our $opt_user = "root";
 
@@ -291,11 +310,15 @@ my $opt_valgrind_mysqld= 0;
 my $opt_valgrind_mysqltest= 0;
 my @default_valgrind_args= ("--show-reachable=yes");
 my @valgrind_args;
+my $opt_strace= 0;
+my $opt_strace_client;
+my @strace_args;
 my $opt_valgrind_path;
 my $valgrind_reports= 0;
 my $opt_callgrind;
 my %mysqld_logs;
 my $opt_debug_sync_timeout= 300; # Default timeout for WAIT_FOR actions.
+my $warn_seconds = 60;
 
 sub testcase_timeout ($) {
   my ($tinfo)= @_;
@@ -308,7 +331,7 @@ sub testcase_timeout ($) {
   return $opt_testcase_timeout * 60;
 }
 
-sub check_timeout ($) { return testcase_timeout($_[0]) / 10; }
+sub check_timeout ($) { return testcase_timeout($_[0]); }
 
 our $opt_warnings= 1;
 
@@ -322,9 +345,8 @@ my $exe_ndb_mgmd;
 my $exe_ndb_waiter;
 my $exe_ndb_mgm;
 
-our $debug_compiled_binaries;
-
 our %mysqld_variables;
+our @optional_plugins;
 
 my $source_dist= 0;
 
@@ -333,6 +355,11 @@ my $opt_max_save_datadir= env_or_val(MTR_MAX_SAVE_DATADIR => 20);
 my $opt_max_test_fail= env_or_val(MTR_MAX_TEST_FAIL => 10);
 
 my $opt_parallel= $ENV{MTR_PARALLEL} || 1;
+
+# lock file to stop tests
+my $opt_stop_file= $ENV{MTR_STOP_FILE};
+# print messages when test suite is stopped (for buildbot)
+my $opt_stop_keep_alive= $ENV{MTR_STOP_KEEP_ALIVE};
 
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
@@ -355,35 +382,44 @@ sub main {
   My::SafeProcess::find_bin();
 
   if ( $opt_gcov ) {
-    gcov_prepare($basedir);
+    gcov_prepare($basedir . "/" . $opt_gcov_src_dir);
   }
 
+  
+  print "vardir: $opt_vardir\n";
+  initialize_servers();
+  init_timers();
+
+  mtr_report("Checking supported features...");
+
+  executable_setup();
+
   if (!$opt_suites) {
-    $opt_suites= $DEFAULT_SUITES;
+    $opt_suites= join ',', collect_default_suites(@DEFAULT_SUITES);
   }
   mtr_report("Using suites: $opt_suites") unless @opt_cases;
 
-  init_timers();
+  # --debug[-common] implies we run debug server
+  $opt_debug_server= 1 if $opt_debug || $opt_debug_common;
+
+  if (using_extern())
+  {
+    # Connect to the running mysqld and find out what it supports
+    collect_mysqld_features_from_running_server();
+  }
+  else
+  {
+    # Run the mysqld to find out what features are available
+    collect_mysqld_features();
+    mysql_install_db(default_mysqld(), "$opt_vardir/install.db");
+  }
+  check_ndbcluster_support();
+  check_ssl_support();
+  check_debug_support();
 
   mtr_report("Collecting tests...");
   my $tests= collect_test_cases($opt_reorder, $opt_suites, \@opt_cases, \@opt_skip_test_list);
   mark_time_used('collect');
-
-  if ( $opt_report_features ) {
-    # Put "report features" as the first test to run
-    my $tinfo = My::Test->new
-      (
-       name           => 'report_features',
-       # No result_file => Prints result
-       path           => 'include/report-features.test',
-       template_path  => "include/default_my.cnf",
-       master_opt     => [],
-       slave_opt      => [],
-      );
-    unshift(@$tests, $tinfo);
-  }
-
-  initialize_servers();
 
   #######################################################################
   my $num_tests= @$tests;
@@ -425,21 +461,6 @@ sub main {
     print_global_resfile();
   }
 
-  # --------------------------------------------------------------------------
-  # Read definitions from include/plugin.defs
-  #
-  read_plugin_defs("include/plugin.defs");
-
-  # Also read from any plugin local or suite specific plugin.defs
-  for (glob "$basedir/plugin/*/tests/mtr/plugin.defs".
-            " $basedir/internal/plugin/*/tests/mtr/plugin.defs".
-            " suite/*/plugin.defs") {
-    read_plugin_defs($_);
-  }
-
-  # Simplify reference to semisync plugins
-  $ENV{'SEMISYNC_PLUGIN_OPT'}= $ENV{'SEMISYNC_MASTER_PLUGIN_OPT'};
-
   # Create child processes
   my %children;
   for my $child_num (1..$opt_parallel){
@@ -469,7 +490,8 @@ sub main {
 
   mark_time_used('init');
 
-  my $completed= run_test_server($server, $tests, $opt_parallel);
+  my ($prefix, $fail, $completed, $extra_warnings)=
+    run_test_server($server, $tests, $opt_parallel);
 
   exit(0) if $opt_start_exit;
 
@@ -490,28 +512,16 @@ sub main {
     }
   }
 
-  if ( not $completed ) {
+  if ( not @$completed ) {
     mtr_error("Test suite aborted");
   }
 
   if ( @$completed != $num_tests){
 
-    if ($opt_force){
-      # All test should have been run, print any that are still in $tests
-      #foreach my $test ( @$tests ){
-      #  $test->print_test();
-      #}
-    }
-
     # Not all tests completed, failure
     mtr_report();
     mtr_report("Only ", int(@$completed), " of $num_tests completed.");
-    mtr_error("Not all tests completed");
   }
-
-  mark_time_used('init');
-
-  push @$completed, run_ctest() if $opt_ctest;
 
   if ($opt_valgrind) {
     # Create minimalistic "test" for the reporting
@@ -530,23 +540,25 @@ sub main {
     }
     mtr_report_test($tinfo);
     push @$completed, $tinfo;
+    ++$num_tests
   }
 
   mtr_print_line();
 
   if ( $opt_gcov ) {
-    gcov_collect($bindir, $opt_gcov_exe,
+    gcov_collect($basedir . "/" . $opt_gcov_src_dir, $opt_gcov_exe,
 		 $opt_gcov_msg, $opt_gcov_err);
-  }
-
-  if ($ctest_report) {
-    print "$ctest_report\n";
-    mtr_print_line();
   }
 
   print_total_times($opt_parallel) if $opt_report_times;
 
-  mtr_report_stats("Completed", $completed);
+  mtr_report_stats($prefix, $fail, $completed, $extra_warnings);
+
+  if ( @$completed != $num_tests)
+  {
+    mtr_error("Not all tests completed (only ". scalar(@$completed) .
+              " of $num_tests)");
+  }
 
   remove_vardir_subs() if $opt_clean_vardir;
 
@@ -560,6 +572,8 @@ sub run_test_server ($$$) {
   my $num_saved_cores= 0;  # Number of core files saved in vardir/log/ so far.
   my $num_saved_datadir= 0;  # Number of datadirs saved in vardir/log/ so far.
   my $num_failed_test= 0; # Number of tests failed so far
+  my $test_failure= 0;    # Set true if test suite failed
+  my $extra_warnings= []; # Warnings found during server shutdowns
 
   # Scheduler variables
   my $max_ndb= $ENV{MTR_MAX_NDB} || $childs / 2;
@@ -570,13 +584,22 @@ sub run_test_server ($$$) {
   my $completed= [];
   my %running;
   my $result;
-  my $exe_mysqld= find_mysqld($basedir) || ""; # Used as hint to CoreDump
+  my $exe_mysqld= find_mysqld($bindir) || ""; # Used as hint to CoreDump
 
   my $suite_timeout= start_timer(suite_timeout());
 
   my $s= IO::Select->new();
   $s->add($server);
   while (1) {
+    if ($opt_stop_file)
+    {
+      if (mtr_wait_lock_file($opt_stop_file, $opt_stop_keep_alive))
+      {
+        # We were waiting so restart timer process
+        my $suite_timeout= start_timer(suite_timeout());
+      }
+    }
+
     mark_time_used('admin');
     my @ready = $s->can_read(1); # Wake up once every second
     mark_time_idle();
@@ -595,7 +618,7 @@ sub run_test_server ($$$) {
 	  mtr_verbose("Child closed socket");
 	  $s->remove($sock);
 	  if (--$childs == 0){
-	    return $completed;
+	    return ("Completed", $test_failure, $completed, $extra_warnings);
 	  }
 	  next;
 	}
@@ -603,7 +626,6 @@ sub run_test_server ($$$) {
 
 	if ($line eq 'TESTRESULT'){
 	  $result= My::Test::read_test($sock);
-	  # $result->print_test();
 
 	  # Report test status
 	  mtr_report_test($result);
@@ -665,21 +687,23 @@ sub run_test_server ($$$) {
 	    $num_failed_test++ unless ($result->{retries} ||
                                        $result->{exp_fail});
 
+            $test_failure= 1;
 	    if ( !$opt_force ) {
 	      # Test has failed, force is off
 	      push(@$completed, $result);
-	      return $completed unless $result->{'dont_kill_server'};
-	      # Prevent kill of server, to get valgrind report
-	      print $sock "BYE\n";
-	      next;
+	      if ($result->{'dont_kill_server'})
+              {
+	        print $sock "BYE\n";
+	        next;
+              }
+	      return ("Failure", 1, $completed, $extra_warnings);
 	    }
 	    elsif ($opt_max_test_fail > 0 and
 		   $num_failed_test >= $opt_max_test_fail) {
 	      push(@$completed, $result);
-	      mtr_report_stats("Too many failed", $completed, 1);
 	      mtr_report("Too many tests($num_failed_test) failed!",
 			 "Terminating...");
-	      return undef;
+	      return ("Too many failed", 1, $completed, $extra_warnings);
 	    }
 	  }
 
@@ -740,6 +764,19 @@ sub run_test_server ($$$) {
 	elsif ($line eq 'START'){
 	  ; # Send first test
 	}
+	elsif ($line eq 'WARNINGS'){
+          my $fake_test= My::Test::read_test($sock);
+          my $test_list= join (" ", @{$fake_test->{testnames}});
+          push @$extra_warnings, $test_list;
+          my $report= $fake_test->{'warnings'};
+          mtr_report("***Warnings generated in error logs during shutdown ".
+                     "after running tests: $test_list\n\n$report");
+          $test_failure= 1;
+          if ( !$opt_force ) {
+            # Test failure due to warnings, force is off
+            return ("Warnings in log", 1, $completed, $extra_warnings);
+          }
+        }
 	elsif ($line =~ /^SPENT/) {
 	  add_total_times($line);
 	}
@@ -778,9 +815,11 @@ sub run_test_server ($$$) {
 	    next;
 	  }
 
-	  # Second best choice is the first that does not fulfill
-	  # any of the above conditions
-	  if (!defined $second_best){
+	  # From secondary choices, we prefer to pick a 'long-running' test if
+          # possible; this helps avoid getting stuck with a few of those at the
+          # end of high --parallel runs, with most workers being idle.
+	  if (!defined $second_best ||
+              ($t->{'long_test'} && !($tests->[$second_best]{'long_test'}))){
 	    #mtr_report("Setting second_best to $i");
 	    $second_best= $i;
 	  }
@@ -794,8 +833,6 @@ sub run_test_server ($$$) {
 	    next if (defined $t->{reserved} and $t->{reserved} != $wid);
 	    if (! defined $t->{reserved})
 	    {
-	      # Force-restart not relevant when comparing *next* test
-	      $t->{criteria} =~ s/force-restart$/no-restart/;
 	      my $criteria= $t->{criteria};
 	      # Reserve similar tests for this worker, but not too many
 	      my $maxres= (@$tests - $i) / $opt_parallel + 1;
@@ -823,6 +860,8 @@ sub run_test_server ($$$) {
 	  delete $next->{reserved};
 	}
 
+        xterm_stat(scalar(@$tests));
+
 	if ($next) {
 	  # We don't need this any more
 	  delete $next->{criteria};
@@ -843,9 +882,8 @@ sub run_test_server ($$$) {
     # ----------------------------------------------------
     if ( has_expired($suite_timeout) )
     {
-      mtr_report_stats("Timeout", $completed, 1);
       mtr_report("Test suite timeout! Terminating...");
-      return undef;
+      return ("Timeout", 1, $completed, $extra_warnings);
     }
   }
 }
@@ -855,6 +893,7 @@ sub run_worker ($) {
   my ($server_port, $thread_num)= @_;
 
   $SIG{INT}= sub { exit(1); };
+  $SIG{HUP}= sub { exit(1); };
 
   # Connect to server
   my $server = new IO::Socket::INET
@@ -903,7 +942,6 @@ sub run_worker ($) {
     chomp($line);
     if ($line eq 'TESTCASE'){
       my $test= My::Test::read_test($server);
-      #$test->print_test();
 
       # Clear comment and logfile, to avoid
       # reusing them from previous test
@@ -917,16 +955,26 @@ sub run_worker ($) {
       }
       $test->{worker} = $thread_num if $opt_parallel > 1;
 
-      run_testcase($test);
+      run_testcase($test, $server);
       #$test->{result}= 'MTR_RES_PASSED';
       # Send it back, now with results set
-      #$test->print_test();
       $test->write_test($server, 'TESTRESULT');
       mark_time_used('restart');
     }
     elsif ($line eq 'BYE'){
       mtr_report("Server said BYE");
-      stop_all_servers($opt_shutdown_timeout);
+      # We need to gracefully shut down the servers to see any
+      # Valgrind memory leak errors etc. since last server restart.
+      if ($opt_warnings) {
+        stop_servers(reverse all_servers());
+        if(check_warnings_post_shutdown($server)) {
+          # Warnings appeared in log file(s) during final server shutdown.
+          exit(1);
+        }
+      }
+      else {
+        stop_all_servers($opt_shutdown_timeout);
+      }
       mark_time_used('restart');
       my $valgrind_reports= 0;
       if ($opt_valgrind_mysqld) {
@@ -934,7 +982,7 @@ sub run_worker ($) {
 	print $server "VALGREP\n" if $valgrind_reports;
       }
       if ( $opt_gprof ) {
-	gprof_collect (find_mysqld($basedir), keys %gprof_dirs);
+	gprof_collect (find_mysqld($bindir), keys %gprof_dirs);
       }
       mark_time_used('admin');
       print_times_used($server, $thread_num);
@@ -960,9 +1008,7 @@ sub ignore_option {
 
 # Setup any paths that are $opt_vardir related
 sub set_vardir {
-  my ($vardir)= @_;
-
-  $opt_vardir= $vardir;
+  ($opt_vardir)= @_;
 
   $path_vardir_trace= $opt_vardir;
   # Chop off any "c:", DBUG likes a unix path ex: c:/src/... => /src/...
@@ -1035,6 +1081,7 @@ sub command_line_setup {
              'sp-protocol'              => \$opt_sp_protocol,
              'view-protocol'            => \$opt_view_protocol,
              'cursor-protocol'          => \$opt_cursor_protocol,
+             'non-blocking-api'         => \$opt_non_blocking_api,
              'ssl|with-openssl'         => \$opt_ssl,
              'skip-ssl'                 => \$opt_skip_ssl,
              'compress'                 => \$opt_compress,
@@ -1049,7 +1096,7 @@ sub command_line_setup {
 	     'defaults-extra-file=s'    => \&collect_option,
 
              # Control what test suites or cases to run
-             'force'                    => \$opt_force,
+             'force+'                   => \$opt_force,
              'with-ndbcluster-only'     => \&collect_option,
              'ndb|include-ndbcluster'   => \$opt_include_ndbcluster,
              'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
@@ -1058,12 +1105,12 @@ sub command_line_setup {
              'skip-test=s'              => \&collect_option,
              'do-test=s'                => \&collect_option,
              'start-from=s'             => \&collect_option,
-             'big-test'                 => \$opt_big_test,
+             'big-test+'                => \$opt_big_test,
 	     'combination=s'            => \@opt_combinations,
-             'skip-combinations'        => \&collect_option,
              'experimental=s'           => \@opt_experimentals,
 	     # skip-im is deprecated and silently ignored
 	     'skip-im'                  => \&ignore_option,
+             'staging-run'              => \$opt_staging_run,
 
              # Specify ports
 	     'build-thread|mtr-build-thread=i' => \$opt_build_thread,
@@ -1101,14 +1148,16 @@ sub command_line_setup {
 	     'debugger=s'               => \$opt_debugger,
 	     'boot-dbx'                 => \$opt_boot_dbx,
 	     'client-debugger=s'        => \$opt_client_debugger,
-             'strace-server'            => \$opt_strace_server,
+             'strace'			=> \$opt_strace,
              'strace-client'            => \$opt_strace_client,
+             'strace-option=s'          => \@strace_args,
              'max-save-core=i'          => \$opt_max_save_core,
              'max-save-datadir=i'       => \$opt_max_save_datadir,
              'max-test-fail=i'          => \$opt_max_test_fail,
 
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
+             'gcov-src-dir=s'           => \$opt_gcov_src_dir,
              'gprof'                    => \$opt_gprof,
              'valgrind|valgrind-all'    => \$opt_valgrind,
              'valgrind-mysqltest'       => \$opt_valgrind_mysqltest,
@@ -1138,7 +1187,6 @@ sub command_line_setup {
              'client-libdir=s'          => \$path_client_libdir,
 
              # Misc
-             'report-features'          => \$opt_report_features,
              'comment=s'                => \$opt_comment,
              'fast'                     => \$opt_fast,
 	     'force-restart'            => \$opt_force_restart,
@@ -1164,12 +1212,12 @@ sub command_line_setup {
              'warnings!'                => \$opt_warnings,
 	     'timestamp'                => \&report_option,
 	     'timediff'                 => \&report_option,
+             'stop-file=s'              => \$opt_stop_file,
+             'stop-keep-alive=i'        => \$opt_stop_keep_alive,
 	     'max-connections=i'        => \$opt_max_connections,
 	     'default-myisam!'          => \&collect_option,
 	     'report-times'             => \$opt_report_times,
 	     'result-file'              => \$opt_resfile,
-	     'unit-tests!'              => \$opt_ctest,
-	     'unit-tests-report!'	=> \$opt_ctest_report,
 	     'stress=s'                 => \$opt_stress,
 
              'help|h'                   => \$opt_usage,
@@ -1179,7 +1227,6 @@ sub command_line_setup {
            );
 
   GetOptions(%options) or usage("Can't read options");
-
   usage("") if $opt_usage;
   list_options(\%options) if $opt_list_options;
 
@@ -1222,7 +1269,19 @@ sub command_line_setup {
   {
     $basedir= dirname($basedir);
   }
+  # For .deb, it's like RPM, but installed in /usr/share/mysql/mysql-test.
+  # So move up one more directory level yet.
+  if ( ! $source_dist and ! -d "$basedir/bin" )
+  {
+    $basedir= dirname($basedir);
+  }
+
+  # Respect MTR_BINDIR variable, which is typically set in to the 
+  # build directory in out-of-source builds.
+  $bindir=$ENV{MTR_BINDIR}||$basedir;
   
+  fix_vs_config_dir();
+
   # Respect MTR_BINDIR variable, which is typically set in to the 
   # build directory in out-of-source builds.
   $bindir=$ENV{MTR_BINDIR}||$basedir;
@@ -1237,36 +1296,21 @@ sub command_line_setup {
   {
     $path_client_bindir= mtr_path_exists("$bindir/client_release",
 					 "$bindir/client_debug",
-					 vs_config_dirs('client', ''),
+					 "$bindir/client$opt_vs_config",
 					 "$bindir/client",
 					 "$bindir/bin");
   }
 
   # Look for language files and charsetsdir, use same share
-  $path_language=   mtr_path_exists("$bindir/share/mysql",
+  $path_language=   mtr_path_exists("$bindir/share/mariadb",
+                                    "$bindir/share/mysql",
                                     "$bindir/sql/share",
                                     "$bindir/share");
   my $path_share= $path_language;
-  $path_charsetsdir =   mtr_path_exists("$basedir/share/mysql/charsets",
+  $path_charsetsdir =   mtr_path_exists("$basedir/share/mariadb/charsets",
+                                    "$basedir/share/mysql/charsets",
                                     "$basedir/sql/share/charsets",
                                     "$basedir/share/charsets");
-
-  ($auth_plugin)= find_plugin("auth_test_plugin", "plugin/auth");
-
-  # --debug[-common] implies we run debug server
-  $opt_debug_server= 1 if $opt_debug || $opt_debug_common;
-
-  if (using_extern())
-  {
-    # Connect to the running mysqld and find out what it supports
-    collect_mysqld_features_from_running_server();
-  }
-  else
-  {
-    # Run the mysqld to find out what features are available
-    collect_mysqld_features();
-  }
-
   if ( $opt_comment )
   {
     mtr_report();
@@ -1340,6 +1384,12 @@ sub command_line_setup {
     }
   }
 
+  if ( @opt_cases )
+  {
+    # Run big tests if explicitely specified on command line
+    $opt_big_test= 1;
+  }
+
   # --------------------------------------------------------------------------
   # Find out type of logging that are being used
   # --------------------------------------------------------------------------
@@ -1395,7 +1445,7 @@ sub command_line_setup {
     # Search through list of locations that are known
     # to be "fast disks" to find a suitable location
     # Use --mem=<dir> as first location to look.
-    my @tmpfs_locations= ($opt_mem, "/dev/shm", "/tmp");
+    my @tmpfs_locations= ($opt_mem,"/run/shm", "/dev/shm", "/tmp");
 
     foreach my $fs (@tmpfs_locations)
     {
@@ -1411,14 +1461,12 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # Set the "var/" directory, the base for everything else
   # --------------------------------------------------------------------------
-  if(defined $ENV{MTR_BINDIR})
-  {
-    $default_vardir= "$ENV{MTR_BINDIR}/mysql-test/var";
-  }
-  else
-  {
-    $default_vardir= "$glob_mysql_test_dir/var";
-  }
+  my $vardir_location= (defined $ENV{MTR_BINDIR} 
+                          ? "$ENV{MTR_BINDIR}/mysql-test" 
+                          : $glob_mysql_test_dir);
+  $vardir_location= realpath $vardir_location unless IS_WINDOWS;
+  $default_vardir= "$vardir_location/var";
+
   if ( ! $opt_vardir )
   {
     $opt_vardir= $default_vardir;
@@ -1489,19 +1537,6 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   if ( $opt_embedded_server )
   {
-    if ( IS_WINDOWS )
-    {
-      # Add the location for libmysqld.dll to the path.
-      my $separator= ";";
-      my $lib_mysqld=
-        mtr_path_exists("$bindir/lib", vs_config_dirs('libmysqld',''));
-      if ( IS_CYGWIN )
-      {
-	$lib_mysqld= posix_path($lib_mysqld);
-	$separator= ":";
-      }
-      $ENV{'PATH'}= "$ENV{'PATH'}".$separator.$lib_mysqld;
-    }
     $opt_skip_ssl= 1;              # Turn off use of SSL
 
     # Turn off use of bin log
@@ -1515,14 +1550,12 @@ sub command_line_setup {
 
     if ($opt_gdb)
     {
-      mtr_warning("Silently converting --gdb to --client-gdb in embedded mode");
       $opt_client_gdb= $opt_gdb;
       $opt_gdb= undef;
     }
 
     if ($opt_ddd)
     {
-      mtr_warning("Silently converting --ddd to --client-ddd in embedded mode");
       $opt_client_ddd= $opt_ddd;
       $opt_ddd= undef;
     }
@@ -1535,7 +1568,6 @@ sub command_line_setup {
 
     if ($opt_debugger)
     {
-      mtr_warning("Silently converting --debugger to --client-debugger in embedded mode");
       $opt_client_debugger= $opt_debugger;
       $opt_debugger= undef;
     }
@@ -1550,12 +1582,13 @@ sub command_line_setup {
   }
 
   # --------------------------------------------------------------------------
-  # Big test flags
+  # Big test and staging_run flags
   # --------------------------------------------------------------------------
    if ( $opt_big_test )
    {
      $ENV{'BIG_TEST'}= 1;
    }
+  $ENV{'STAGING_RUN'}= $opt_staging_run;
 
   # --------------------------------------------------------------------------
   # Gcov flag
@@ -1573,12 +1606,14 @@ sub command_line_setup {
        $opt_manual_debug || $opt_dbx || $opt_client_dbx || $opt_manual_dbx || 
        $opt_debugger || $opt_client_debugger )
   {
-    # Indicate that we are using debugger
-    $glob_debugger= 1;
     if ( using_extern() )
     {
       mtr_error("Can't use --extern when using debugger");
     }
+    # Indicate that we are using debugger
+    $glob_debugger= 1;
+    $opt_retry= 1;
+    $opt_retry_failure= 1;
     # Set one week timeout (check-testcase timeout will be 1/10th)
     $opt_testcase_timeout= 7 * 24 * 60;
     $opt_suite_timeout= 7 * 24 * 60;
@@ -1595,6 +1630,13 @@ sub command_line_setup {
     collect_option ('quick-collect', 1);
     $start_only= 1;
   }
+  if ($opt_debug)
+  {
+    $opt_testcase_timeout= 7 * 24 * 60;
+    $opt_suite_timeout= 7 * 24 * 60;
+    $opt_retry= 1;
+    $opt_retry_failure= 1;
+  }
 
   # --------------------------------------------------------------------------
   # Check use of user-args
@@ -1605,23 +1647,6 @@ sub command_line_setup {
       unless $start_only;
     mtr_error("--user-args cannot be combined with named suites or tests")
       if $opt_suites || @opt_cases;
-  }
-
-  # --------------------------------------------------------------------------
-  # Set default values for opt_ctest (--unit-tests)
-  # --------------------------------------------------------------------------
-
-  if ($opt_ctest == -1) {
-    if (defined $opt_ctest_report && $opt_ctest_report) {
-      # Turn on --unit-tests by default if --unit-tests-report is used
-      $opt_ctest= 1;
-    } elsif ($opt_suites || @opt_cases) {
-      # Don't run ctest if tests or suites named
-      $opt_ctest= 0;
-    } elsif (defined $ENV{PB2WORKDIR}) {
-      # Override: disable if running in the PB test environment
-      $opt_ctest= 0;
-    }
   }
 
   # --------------------------------------------------------------------------
@@ -1646,7 +1671,6 @@ sub command_line_setup {
     $opt_suites="stress";
     @opt_cases= ("wrapper");
     $ENV{MST_OPTIONS}= $opt_stress;
-    $opt_ctest= 0;
   }
 
   # --------------------------------------------------------------------------
@@ -1669,12 +1693,6 @@ sub command_line_setup {
     $opt_valgrind= 1;
     $opt_valgrind_mysqld= 1;
     $opt_valgrind_mysqltest= 1;
-
-    # Increase the timeouts when running with valgrind
-    $opt_testcase_timeout*= 10;
-    $opt_suite_timeout*= 6;
-    $opt_start_timeout*= 10;
-
   }
   elsif ( $opt_valgrind_mysqld )
   {
@@ -1685,6 +1703,15 @@ sub command_line_setup {
   {
     mtr_report("Turning on valgrind for mysqltest and mysql_client_test only");
     $opt_valgrind= 1;
+  }
+
+  if ($opt_valgrind)
+  {
+    # Increase the timeouts when running with valgrind
+    $opt_testcase_timeout*= 10;
+    $opt_suite_timeout*= 6;
+    $opt_start_timeout*= 10;
+    $warn_seconds*= 10;
   }
 
   if ( $opt_callgrind )
@@ -1704,10 +1731,28 @@ sub command_line_setup {
     push(@valgrind_args, @default_valgrind_args)
       unless @valgrind_args;
 
-    # Don't add --quiet; you will loose the summary reports.
+    # Make valgrind run in quiet mode so it only print errors
+    push(@valgrind_args, "--quiet" );
 
     mtr_report("Running valgrind with options \"",
 	       join(" ", @valgrind_args), "\"");
+  }
+
+  if (@strace_args)
+  {
+    $opt_strace=1;
+  }
+
+  # InnoDB does not bother to do individual de-allocations at exit. Instead it
+  # relies on a custom allocator to track every allocation, and frees all at
+  # once during exit.
+  # In XtraDB, an option use-sys-malloc is introduced (and on by default) to
+  # disable this (for performance). But this exposes Valgrind to all the
+  # missing de-allocations, so we need to disable it to at least get
+  # meaningful leak checking for the rest of the server.
+  if ($opt_valgrind_mysqld)
+  {
+    push(@opt_extra_mysqld_opt, "--loose-skip-innodb-use-sys-malloc");
   }
 
   if ($opt_debug_common)
@@ -1715,28 +1760,6 @@ sub command_line_setup {
     $opt_debug= 1;
     $debug_d= "d,query,info,error,enter,exit";
   }
-
-  if ( $opt_strace_server && ($^O ne "linux") )
-  {
-    $opt_strace_server=0;
-    mtr_warning("Strace only supported in Linux ");
-  }
-
-  if ( $opt_strace_client && ($^O ne "linux") )
-  {
-    $opt_strace_client=0;
-    mtr_warning("Strace only supported in Linux ");
-  }
-
-
-  mtr_report("Checking supported features...");
-
-  check_ndbcluster_support(\%mysqld_variables);
-  check_ssl_support(\%mysqld_variables);
-  check_debug_support(\%mysqld_variables);
-
-  executable_setup();
-
 }
 
 
@@ -1761,9 +1784,12 @@ sub set_build_thread_ports($) {
   if ( lc($opt_build_thread) eq 'auto' ) {
     my $found_free = 0;
     $build_thread = 300;	# Start attempts from here
+    my $build_thread_upper = $build_thread + ($opt_parallel > 1500
+                                              ? 3000
+                                              : 2 * $opt_parallel) + 300;
     while (! $found_free)
     {
-      $build_thread= mtr_get_unique_id($build_thread, 349);
+      $build_thread= mtr_get_unique_id($build_thread, $build_thread_upper);
       if ( !defined $build_thread ) {
         mtr_error("Could not get a unique build thread id");
       }
@@ -1786,30 +1812,21 @@ sub set_build_thread_ports($) {
   $ENV{MTR_BUILD_THREAD}= $build_thread;
 
   # Calculate baseport
-  $baseport= $build_thread * 10 + 10000;
-  if ( $baseport < 5001 or $baseport + 9 >= 32767 )
+  $baseport= $build_thread * 20 + 10000;
+  if ( $baseport < 5001 or $baseport + 19 >= 32767 )
   {
     mtr_error("MTR_BUILD_THREAD number results in a port",
               "outside 5001 - 32767",
-              "($baseport - $baseport + 9)");
+              "($baseport - $baseport + 19)");
   }
 
   mtr_report("Using MTR_BUILD_THREAD $build_thread,",
-	     "with reserved ports $baseport..".($baseport+9));
+	     "with reserved ports $baseport..".($baseport+19));
 
 }
 
 
 sub collect_mysqld_features {
-  my $found_variable_list_start= 0;
-  my $use_tmpdir;
-  if ( defined $opt_tmpdir and -d $opt_tmpdir){
-    # Create the tempdir in $opt_tmpdir
-    $use_tmpdir= $opt_tmpdir;
-  }
-  my $tmpdir= tempdir(CLEANUP => 0, # Directory removed by this function
-		      DIR => $use_tmpdir);
-
   #
   # Execute "mysqld --no-defaults --help --verbose" to get a
   # list of all features and settings
@@ -1822,81 +1839,50 @@ sub collect_mysqld_features {
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
-  mtr_add_arg($args, "--datadir=%s", mixed_path($tmpdir));
-  mtr_add_arg($args, "--secure-file-priv=\"\"");
+  mtr_add_arg($args, "--datadir=.");
+  mtr_add_arg($args, "--basedir=%s", $basedir);
   mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
   mtr_add_arg($args, "--skip-grant-tables");
+  mtr_add_arg($args, "--log-warnings=0");
   mtr_add_arg($args, "--verbose");
   mtr_add_arg($args, "--help");
 
-  # Need --user=root if running as *nix root user
-  if (!IS_WINDOWS and $> == 0)
-  {
-    mtr_add_arg($args, "--user=root");
-  }
-
-  my $exe_mysqld= find_mysqld($basedir);
+  my $exe_mysqld= find_mysqld($bindir);
   my $cmd= join(" ", $exe_mysqld, @$args);
+
+  mtr_verbose("cmd: $cmd");
+
   my $list= `$cmd`;
 
-  foreach my $line (split('\n', $list))
-  {
-    # First look for version
-    if ( !$mysql_version_id )
-    {
-      # Look for version
-      my $exe_name= basename($exe_mysqld);
-      mtr_verbose("exe_name: $exe_name");
-      if ( $line =~ /^\S*$exe_name\s\sVer\s([0-9]*)\.([0-9]*)\.([0-9]*)([^\s]*)/ )
-      {
-	#print "Major: $1 Minor: $2 Build: $3\n";
-	$mysql_version_id= $1*10000 + $2*100 + $3;
-	#print "mysql_version_id: $mysql_version_id\n";
-	mtr_report("MySQL Version $1.$2.$3");
-	$mysql_version_extra= $4;
-      }
-    }
-    else
-    {
-      if (!$found_variable_list_start)
-      {
-	# Look for start of variables list
-	if ( $line =~ /[\-]+\s[\-]+/ )
-	{
-	  $found_variable_list_start= 1;
-	}
-      }
-      else
-      {
-	# Put variables into hash
-	if ( $line =~ /^([\S]+)[ \t]+(.*?)\r?$/ )
-	{
-	  # print "$1=\"$2\"\n";
-	  $mysqld_variables{$1}= $2;
-	}
-	else
-	{
-	  # The variable list is ended with a blank line
-	  if ( $line =~ /^[\s]*$/ )
-	  {
-	    last;
-	  }
-	  else
-	  {
-	    # Send out a warning, we should fix the variables that has no
-	    # space between variable name and it's value
-	    # or should it be fixed width column parsing? It does not
-	    # look like that in function my_print_variables in my_getopt.c
-	    mtr_warning("Could not parse variable list line : $line");
-	  }
-	}
-      }
-    }
-  }
-  rmtree($tmpdir);
-  mtr_error("Could not find version of MySQL") unless $mysql_version_id;
-  mtr_error("Could not find variabes list") unless $found_variable_list_start;
+  # to simplify the parsing, we'll merge all nicely formatted --help texts
+  $list =~ s/\n {22}(\S)/ $1/g;
 
+  my @list= split '\n', $list;
+  mtr_error("Could not find version of MariaDB")
+     unless shift(@list) =~ /^\Q$exe_mysqld\E\s+Ver\s(\d+)\.(\d+)\.(\d+)(\S*)/;
+  $mysql_version_id= $1*10000 + $2*100 + $3;
+  $mysql_version_extra= $4;
+  mtr_report("MariaDB Version $1.$2.$3$4");
+
+  for (@list)
+  {
+    # first part of the help - command-line options.
+    if (/Copyright/ .. /^-{30,}/) {
+      # here we want to detect all not mandatory plugins
+      # they are listed in the --help output as
+      #  --archive[=name]    Enable or disable ARCHIVE plugin. Possible values are ON, OFF, FORCE (don't start if the plugin fails to load).
+      push @optional_plugins, $1
+        if /^  --([-a-z0-9]+)\[=name\] +Enable or disable \w+ plugin. Possible values are ON, OFF, FORCE/;
+      next;
+    }
+
+    last if /^$/; # then goes a list of variables, it ends with an empty line
+
+    # Put a variable into hash
+    /^([\S]+)[ \t]+(.*?)\r?$/ or die "Could not parse mysqld --help: $_\n";
+    $mysqld_variables{$1}= $2;
+  }
+  mtr_error("Could not find variabes list") unless %mysqld_variables;
 }
 
 
@@ -1927,8 +1913,11 @@ sub collect_mysqld_features_from_running_server ()
     # Put variables into hash
     if ( $line =~ /^([\S]+)[ \t]+(.*?)\r?$/ )
     {
-      # print "$1=\"$2\"\n";
-      $mysqld_variables{$1}= $2;
+      my $name= $1;
+      my $value=$2;
+      $name =~ s/_/-/g;
+      # print "$name=\"$value\"\n";
+      $mysqld_variables{$name}= $value;
     }
   }
 
@@ -1962,13 +1951,15 @@ sub find_mysqld {
     unshift(@mysqld_names, "mysqld-debug");
   }
 
-  return my_find_bin($mysqld_basedir,
+  return my_find_bin($bindir,
 		     ["sql", "libexec", "sbin", "bin"],
 		     [@mysqld_names]);
 }
 
 
 sub executable_setup () {
+
+  $exe_patch='patch' if `patch -v`;
 
   #
   # Check if libtool is available in this distribution/clone
@@ -1979,9 +1970,9 @@ sub executable_setup () {
   if ( -x "../libtool")
   {
     $exe_libtool= "../libtool";
-    if ($opt_valgrind or $glob_debugger)
+    if ($opt_valgrind or $glob_debugger or $opt_strace)
     {
-      mtr_report("Using \"$exe_libtool\" when running valgrind or debugger");
+      mtr_report("Using \"$exe_libtool\" when running valgrind, strace or debugger");
     }
   }
 
@@ -2041,8 +2032,7 @@ sub executable_setup () {
   if ( $opt_embedded_server )
   {
     $exe_mysqltest=
-      mtr_exe_exists(vs_config_dirs('libmysqld/examples','mysqltest_embedded'),
-                     "$basedir/libmysqld/examples/mysqltest_embedded",
+      mtr_exe_exists("$bindir/libmysqld/examples$opt_vs_config/mysqltest_embedded",
                      "$path_client_bindir/mysqltest_embedded");
   }
   else
@@ -2097,6 +2087,18 @@ sub client_arguments ($;$) {
 }
 
 
+sub mysqlbinlog_arguments () {
+  my $exe= mtr_exe_exists("$path_client_bindir/mysqlbinlog");
+
+  my $args;
+  mtr_init_args(\$args);
+  mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
+  mtr_add_arg($args, "--local-load=%s", $opt_tmpdir);
+  client_debug_arg($args, "mysqlbinlog");
+  return mtr_args2str($exe, @$args);
+}
+
+
 sub mysqlslap_arguments () {
   my $exe= mtr_exe_maybe_exists("$path_client_bindir/mysqlslap");
   if ( $exe eq "" ) {
@@ -2134,13 +2136,11 @@ sub mysql_client_test_arguments(){
   # mysql_client_test executable may _not_ exist
   if ( $opt_embedded_server ) {
     $exe= mtr_exe_maybe_exists(
-            vs_config_dirs('libmysqld/examples','mysql_client_test_embedded'),
-	      "$basedir/libmysqld/examples/mysql_client_test_embedded",
-		"$basedir/bin/mysql_client_test_embedded");
+            "$bindir/libmysqld/examples$opt_vs_config/mysql_client_test_embedded",
+		"$bindir/bin/mysql_client_test_embedded");
   } else {
-    $exe= mtr_exe_maybe_exists(vs_config_dirs('tests', 'mysql_client_test'),
-			       "$basedir/tests/mysql_client_test",
-			       "$basedir/bin/mysql_client_test");
+    $exe= mtr_exe_maybe_exists("$bindir/tests$opt_vs_config/mysql_client_test",
+			       "$bindir/bin/mysql_client_test");
   }
 
   my $args;
@@ -2152,10 +2152,41 @@ sub mysql_client_test_arguments(){
   mtr_add_arg($args, "--testcase");
   mtr_add_arg($args, "--vardir=$opt_vardir");
   client_debug_arg($args,"mysql_client_test");
+  my $ret=mtr_args2str($exe, @$args);
+  return $ret;
+}
 
+sub tool_arguments ($$) {
+  my($sedir, $tool_name) = @_;
+  my $exe= my_find_bin($bindir,
+		       [$sedir, "bin"],
+		       $tool_name);
+
+  my $args;
+  mtr_init_args(\$args);
+  client_debug_arg($args, $tool_name);
   return mtr_args2str($exe, @$args);
 }
 
+# This is not used to actually start a mysqld server, just to allow test
+# scripts to run the mysqld binary to test invalid server startup options.
+sub mysqld_client_arguments () {
+  my $default_mysqld= default_mysqld();
+  my $exe = find_mysqld($bindir);
+  my $args;
+  mtr_init_args(\$args);
+  mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--basedir=%s", $basedir);
+  mtr_add_arg($args, "--character-sets-dir=%s", $default_mysqld->value("character-sets-dir"));
+  mtr_add_arg($args, "--language=%s", $default_mysqld->value("language"));
+  return mtr_args2str($exe, @$args);
+}
+
+
+sub have_maria_support () {
+  my $maria_var= $mysqld_variables{'aria-recover'};
+  return defined $maria_var;
+}
 
 #
 # Set environment to be used by childs of this process for
@@ -2187,62 +2218,6 @@ sub find_plugin($$)
   return $lib_plugin;
 }
 
-#
-# Read plugin defintions file
-#
-
-sub read_plugin_defs($)
-{
-  my ($defs_file)= @_;
-  my $running_debug= 0;
-
-  open(PLUGDEF, '<', $defs_file)
-    or mtr_error("Can't read plugin defintions file $defs_file");
-
-  # Need to check if we will be running mysqld-debug
-  if ($opt_debug_server) {
-    $running_debug= 1 if find_mysqld($basedir) =~ /mysqld-debug/;
-  }
-
-  while (<PLUGDEF>) {
-    next if /^#/;
-    my ($plug_file, $plug_loc, $plug_var, $plug_names)= split;
-    # Allow empty lines
-    next unless $plug_file;
-    mtr_error("Lines in $defs_file must have 3 or 4 items") unless $plug_var;
-
-    # If running debug server, plugins will be in 'debug' subdirectory
-    $plug_file= "debug/$plug_file" if $running_debug;
-
-    my ($plugin)= find_plugin($plug_file, $plug_loc);
-
-    # Set env. variables that tests may use, set to empty if plugin
-    # listed in def. file but not found.
-
-    if ($plugin) {
-      $ENV{$plug_var}= basename($plugin);
-      $ENV{$plug_var.'_DIR'}= dirname($plugin);
-      $ENV{$plug_var.'_OPT'}= "--plugin-dir=".dirname($plugin);
-      if ($plug_names) {
-	my $lib_name= basename($plugin);
-	my $load_var= "--plugin_load=";
-	my $semi= '';
-	foreach my $plug_name (split (',', $plug_names)) {
-	  $load_var .= $semi . "$plug_name=$lib_name";
-	  $semi= ';';
-	}
-	$ENV{$plug_var.'_LOAD'}= $load_var;
-      }
-    } else {
-      $ENV{$plug_var}= "";
-      $ENV{$plug_var.'_DIR'}= "";
-      $ENV{$plug_var.'_OPT'}= "";
-      $ENV{$plug_var.'_LOAD'}= "" if $plug_names;
-    }
-  }
-  close PLUGDEF;
-}
-
 sub environment_setup {
 
   umask(022);
@@ -2263,6 +2238,13 @@ sub environment_setup {
       push(@ld_library_paths, "$basedir/libmysql/.libs/",
 	   "$basedir/libmysql_r/.libs/",
 	   "$basedir/zlib/.libs/");
+      if ($^O eq "darwin")
+      {
+        # it is MAC OS and we have to add dynamic libraries paths
+        push @ld_library_paths, grep {<$_/*.dylib>} 
+          (<$bindir/storage/*/.libs/>,<$bindir/plugin/*/.libs/>,
+          <$bindir/plugin/*/*/.libs/>,<$bindir/storage/*/*/.libs>);
+      }
     }
     else
     {
@@ -2278,9 +2260,6 @@ sub environment_setup {
     push(@ld_library_paths,  "$basedir/storage/ndb/src/.libs");
   }
 
-  # Plugin settings should no longer be added here, instead
-  # place definitions in include/plugin.defs.
-  # See comment in that file for details.
   # --------------------------------------------------------------------------
   # Valgrind need to be run with debug libraries otherwise it's almost
   # impossible to add correct supressions, that means if "/usr/lib/debug"
@@ -2344,7 +2323,7 @@ sub environment_setup {
   $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'port'};
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
-  $ENV{'MYSQL_BINDIR'}=       "$bindir";
+  $ENV{'MYSQL_BINDIR'}=       $bindir;
   $ENV{'MYSQL_SHAREDIR'}=     $path_language;
   $ENV{'MYSQL_CHARSETSDIR'}=  $path_charsetsdir;
   
@@ -2356,7 +2335,15 @@ sub environment_setup {
   {
     $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."/std_data";
   }
-    
+
+  #
+  # Some stupid^H^H^H^H^H^Hignorant network providers set up "wildcard DNS"
+  # servers that return some given web server address for any lookup of a
+  # non-existent host name. This confuses test cases that want to test the
+  # behaviour when connecting to a non-existing host, so we need to be able
+  # to disable those tests when DNS is broken.
+  #
+  $ENV{HAVE_BROKEN_DNS}= defined(gethostbyname('invalid_hostname'));
 
   # ----------------------------------------------------
   # Setup env for NDB
@@ -2395,11 +2382,11 @@ sub environment_setup {
   $ENV{'MYSQL_SLAP'}=               mysqlslap_arguments();
   $ENV{'MYSQL_IMPORT'}=             client_arguments("mysqlimport");
   $ENV{'MYSQL_SHOW'}=               client_arguments("mysqlshow");
-  $ENV{'MYSQL_BINLOG'}=             client_arguments("mysqlbinlog");
+  $ENV{'MYSQL_BINLOG'}=             mysqlbinlog_arguments();
   $ENV{'MYSQL'}=                    client_arguments("mysql");
   $ENV{'MYSQL_SLAVE'}=              client_arguments("mysql", ".2");
   $ENV{'MYSQL_UPGRADE'}=            client_arguments("mysql_upgrade");
-  $ENV{'MYSQLADMIN'}=               native_path($exe_mysqladmin);
+  $ENV{'MYSQLADMIN'}=               client_arguments("mysqladmin");
   $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
   $ENV{'MYSQL_PLUGIN'}=             $exe_mysql_plugin;
@@ -2416,43 +2403,43 @@ sub environment_setup {
   # some versions, test using it should be skipped
   # ----------------------------------------------------
   my $exe_bug25714=
-      mtr_exe_maybe_exists(vs_config_dirs('tests', 'bug25714'),
-                           "$basedir/tests/bug25714");
+      mtr_exe_maybe_exists("$bindir/tests$opt_vs_config/bug25714");
   $ENV{'MYSQL_BUG25714'}=  native_path($exe_bug25714);
 
   # ----------------------------------------------------
   # mysql_fix_privilege_tables.sql
   # ----------------------------------------------------
   my $file_mysql_fix_privilege_tables=
-    mtr_file_exists("$basedir/scripts/mysql_fix_privilege_tables.sql",
-		    "$basedir/share/mysql_fix_privilege_tables.sql",
-		    "$basedir/share/mysql/mysql_fix_privilege_tables.sql");
+    mtr_file_exists("$bindir/scripts/mysql_fix_privilege_tables.sql",
+		    "$bindir/share/mysql_fix_privilege_tables.sql",
+		    "$bindir/share/mariadb/mysql_fix_privilege_tables.sql",
+		    "$bindir/share/mysql/mysql_fix_privilege_tables.sql");
   $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
 
   # ----------------------------------------------------
   # my_print_defaults
   # ----------------------------------------------------
   my $exe_my_print_defaults=
-    mtr_exe_exists(vs_config_dirs('extra', 'my_print_defaults'),
-		   "$path_client_bindir/my_print_defaults",
-		   "$basedir/extra/my_print_defaults");
+    mtr_exe_exists("$bindir/extra$opt_vs_config/my_print_defaults",
+		   "$path_client_bindir/my_print_defaults");
   $ENV{'MYSQL_MY_PRINT_DEFAULTS'}= native_path($exe_my_print_defaults);
 
   # ----------------------------------------------------
-  # Setup env so childs can execute myisampack and myisamchk
+  # myisam tools
   # ----------------------------------------------------
-  $ENV{'MYISAMCHK'}= native_path(mtr_exe_exists(
-                       vs_config_dirs('storage/myisam', 'myisamchk'),
-                       vs_config_dirs('myisam', 'myisamchk'),
-                       "$path_client_bindir/myisamchk",
-                       "$basedir/storage/myisam/myisamchk",
-                       "$basedir/myisam/myisamchk"));
-  $ENV{'MYISAMPACK'}= native_path(mtr_exe_exists(
-                        vs_config_dirs('storage/myisam', 'myisampack'),
-                        vs_config_dirs('myisam', 'myisampack'),
-                        "$path_client_bindir/myisampack",
-                        "$basedir/storage/myisam/myisampack",
-                        "$basedir/myisam/myisampack"));
+  $ENV{'MYISAMLOG'}= tool_arguments("storage/myisam", "myisamlog", );
+  $ENV{'MYISAMCHK'}= tool_arguments("storage/myisam", "myisamchk");
+  $ENV{'MYISAMPACK'}= tool_arguments("storage/myisam", "myisampack");
+  $ENV{'MYISAM_FTDUMP'}= tool_arguments("storage/myisam", "myisam_ftdump");
+
+  # ----------------------------------------------------
+  # aria tools
+  # ----------------------------------------------------
+  if (have_maria_support())
+  {
+    $ENV{'MARIA_CHK'}= tool_arguments("storage/maria", "aria_chk");
+    $ENV{'MARIA_PACK'}= tool_arguments("storage/maria", "aria_pack");
+  }
 
   # ----------------------------------------------------
   # mysqlhotcopy
@@ -2468,16 +2455,24 @@ sub environment_setup {
   # ----------------------------------------------------
   # perror
   # ----------------------------------------------------
-  my $exe_perror= mtr_exe_exists(vs_config_dirs('extra', 'perror'),
-				 "$basedir/extra/perror",
+  my $exe_perror= mtr_exe_exists("$bindir/extra$opt_vs_config/perror",
 				 "$path_client_bindir/perror");
   $ENV{'MY_PERROR'}= native_path($exe_perror);
+
+  # ----------------------------------------------------
+  # mysql_tzinfo_to_sql
+  # ----------------------------------------------------
+  my $exe_mysql_tzinfo_to_sql= mtr_exe_exists("$basedir/sql$opt_vs_config/mysql_tzinfo_to_sql",
+                                 "$path_client_bindir/mysql_tzinfo_to_sql",
+                                 "$bindir/sql$opt_vs_config/mysql_tzinfo_to_sql");
+  $ENV{'MYSQL_TZINFO_TO_SQL'}= native_path($exe_mysql_tzinfo_to_sql);
 
   # ----------------------------------------------------
   # replace
   # ----------------------------------------------------
   my $exe_replace= mtr_exe_exists(vs_config_dirs('extra', 'replace'),
                                  "$basedir/extra/replace",
+                                 "$bindir/extra$opt_vs_config/replace",
                                  "$path_client_bindir/replace");
   $ENV{'REPLACE'}= native_path($exe_replace);
 
@@ -2540,9 +2535,11 @@ sub remove_stale_vardir () {
 	mtr_report(" - WARNING: Using the 'mysql-test/var' symlink");
 
 	# Make sure the directory where it points exist
-	mtr_error("The destination for symlink $opt_vardir does not exist")
-	  if ! -d readlink($opt_vardir);
-
+        if (! -d readlink($opt_vardir))
+        {
+          mtr_report("The destination for symlink $opt_vardir does not exist; Removing it and creating a new var directory");
+          unlink($opt_vardir);
+        }
 	remove_vardir_subs();
       }
     }
@@ -2569,10 +2566,10 @@ sub remove_stale_vardir () {
     # Running with "var" in some other place
     #
 
-    # Remove the var/ dir in mysql-test dir if any
-    # this could be an old symlink that shouldn't be there
-    mtr_verbose("Removing $default_vardir");
-    rmtree($default_vardir);
+    # Don't remove the var/ dir in mysql-test dir as it may be in
+    # use by another mysql-test-run run with --vardir
+    # mtr_verbose("Removing $default_vardir");
+    # rmtree($default_vardir);
 
     # Remove the "var" dir
     mtr_verbose("Removing $opt_vardir/");
@@ -2583,7 +2580,11 @@ sub remove_stale_vardir () {
   rmtree("$opt_tmpdir/");
 }
 
-
+sub set_plugin_var($) {
+  local $_ = $_[0];
+  s/\.\w+$//;
+  $ENV{"\U${_}_SO"} = $_[0];
+}
 
 #
 # Create var and the directories needed in var
@@ -2601,8 +2602,11 @@ sub setup_vardir() {
       #  it's a symlink
 
       # Make sure the directory where it points exist
-      mtr_error("The destination for symlink $opt_vardir does not exist")
-	if ! -d readlink($opt_vardir);
+      if (! -d readlink($opt_vardir))
+      {
+        mtr_report("The destination for symlink $opt_vardir does not exist; Removing it and creating a new var directory");
+        unlink($opt_vardir);
+      }
     }
     elsif ( $opt_mem )
     {
@@ -2648,6 +2652,52 @@ sub setup_vardir() {
   # and make them world readable
   copytree("$glob_mysql_test_dir/std_data", "$opt_vardir/std_data", "0022");
 
+  # create a plugin dir and copy plugins into it
+  if ($source_dist)
+  {
+    $plugindir="$opt_vardir/plugins";
+    mkpath($plugindir);
+    if (IS_WINDOWS && !$opt_embedded_server)
+    {
+      for (<$bindir/storage/*$opt_vs_config/*.dll>,
+           <$bindir/plugin/*$opt_vs_config/*.dll>,
+           <$bindir/sql$opt_vs_config/*.dll>)
+      {
+        my $pname=basename($_);
+        copy rel2abs($_), "$plugindir/$pname";
+        set_plugin_var($pname);
+      }
+    }
+    else
+    {
+      for (<../storage/*/.libs/*.so>,
+           <../plugin/*/.libs/*.so>,
+           <../plugin/*/*/.libs/*.so>,
+           <../sql/.libs/*.so>,
+           <$bindir/storage/*/*.so>,
+           <$bindir/plugin/*/*.so>,
+           <$bindir/sql/*.so>)
+      {
+        my $pname=basename($_);
+        symlink rel2abs($_), "$plugindir/$pname";
+        set_plugin_var($pname);
+      }
+    }
+  }
+  else
+  {
+    $plugindir= $mysqld_variables{'plugin-dir'} || '.';
+    # hm, what paths work for debs and for rpms ?
+    for (<$bindir/lib64/mysql/plugin/*.so>,
+         <$bindir/lib/mysql/plugin/*.so>,
+         <$bindir/lib/plugin/*.so>,             # bintar
+         <$bindir/lib/plugin/*.dll>)
+    {
+      my $pname=basename($_);
+      set_plugin_var($pname);
+    }
+  }
+
   # Remove old log files
   foreach my $name (glob("r/*.progress r/*.log r/*.warnings"))
   {
@@ -2682,7 +2732,7 @@ sub  check_running_as_root () {
   {
     mtr_warning("running this script as _root_ will cause some " .
                 "tests to be skipped");
-    $ENV{'MYSQL_TEST_ROOT'}= "YES";
+    $ENV{'MYSQL_TEST_ROOT'}= "1";
   }
 
   chmod(oct("0755"), $test_file);
@@ -2690,9 +2740,7 @@ sub  check_running_as_root () {
 }
 
 
-sub check_ssl_support ($) {
-  my $mysqld_variables= shift;
-
+sub check_ssl_support {
   if ($opt_skip_ssl)
   {
     mtr_report(" - skipping SSL");
@@ -2701,7 +2749,7 @@ sub check_ssl_support ($) {
     return;
   }
 
-  if ( ! $mysqld_variables->{'ssl'} )
+  if ( ! $mysqld_variables{'ssl'} )
   {
     if ( $opt_ssl)
     {
@@ -2717,23 +2765,47 @@ sub check_ssl_support ($) {
   $opt_ssl_supported= 1;
 }
 
-
-sub check_debug_support ($) {
-  my $mysqld_variables= shift;
-
-  if ( ! $mysqld_variables->{'debug'} )
+sub check_debug_support {
+  if (defined $mysqld_variables{'debug-dbug'})
   {
-    #mtr_report(" - binaries are not debug compiled");
-    $debug_compiled_binaries= 0;
-
-    if ( $opt_debug_server )
-    {
-      mtr_error("Can't use --debug[-server], binary does not support it");
-    }
-    return;
+    mtr_report(" - binaries are debug compiled");
   }
-  mtr_report(" - binaries are debug compiled");
-  $debug_compiled_binaries= 1;
+  elsif ($opt_debug_server)
+  {
+    mtr_error("Can't use --debug[-server], binary does not support it");
+  }
+}
+
+
+#
+# Helper function to find the correct value for the opt_vs_config
+# if it was not set explicitly.
+#
+# the configuration with the most recent build dir in sql/ is selected.
+#
+# note: looking for all BuildLog.htm files everywhere in the tree with the
+# help of File::Find would be possibly more precise, but it is also
+# many times slower. Thus we are only looking at the server, client
+# executables, and plugins - that is, something that can affect the test suite
+#
+sub fix_vs_config_dir () {
+  return $opt_vs_config="" unless IS_WINDOWS;
+  return $opt_vs_config="/$opt_vs_config" if $opt_vs_config;
+
+  my $modified = 1e30;
+  $opt_vs_config="";
+
+
+  for (<$bindir/sql/*/mysqld.exe>) { #/
+    if (-M $_ < $modified)
+    {
+      $modified = -M _;
+      $opt_vs_config = basename(dirname($_));
+    }
+  }
+
+  mtr_report("VS config: $opt_vs_config");
+  $opt_vs_config="/$opt_vs_config" if $opt_vs_config;
 }
 
 
@@ -2749,20 +2821,22 @@ sub vs_config_dirs ($$) {
   my ($path_part, $exe) = @_;
 
   $exe = "" if not defined $exe;
+
+  # Don't look in these dirs when not on windows
+  return () unless IS_WINDOWS;
+
   if ($opt_vs_config)
   {
-    return ("$bindir/$path_part/$opt_vs_config/$exe");
+    return ("$basedir/$path_part/$opt_vs_config/$exe");
   }
 
-  return ("$bindir/$path_part/Release/$exe",
-          "$bindir/$path_part/RelWithDebinfo/$exe",
-          "$bindir/$path_part/Debug/$exe",
-          "$bindir/$path_part/$exe");
+  return ("$basedir/$path_part/release/$exe",
+          "$basedir/$path_part/relwithdebinfo/$exe",
+          "$basedir/$path_part/debug/$exe");
 }
 
 
-sub check_ndbcluster_support ($) {
-  my $mysqld_variables= shift;
+sub check_ndbcluster_support {
 
   my $ndbcluster_supported = 0;
   if ($mysqld_variables{'ndb-connectstring'})
@@ -2844,12 +2918,12 @@ sub check_ndbcluster_support ($) {
   mtr_report(" - enabling ndbcluster");
   $ndbcluster_enabled= 1;
   # Add MySQL Cluster test suites
-  $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndb_memcache";
+  push @DEFAULT_SUITES, qw(ndb ndb_binlog rpl_ndb ndb_rpl ndb_memcache);
   return;
 }
 
 
-sub ndbcluster_wait_started($$){
+sub ndbcluster_wait_started {
   my $cluster= shift;
   my $ndb_waiter_extra_opt= shift;
   my $path_waitlog= join('/', $opt_vardir, $cluster->name(), "ndb_waiter.log");
@@ -3006,7 +3080,7 @@ sub ndbd_stop {
   # by sending "shutdown" to ndb_mgmd
 }
 
-my $exe_ndbmtd_counter= 0;
+our $exe_ndbmtd_counter= 0;
 
 sub ndbd_start {
   my ($cluster, $ndbd)= @_;
@@ -3052,7 +3126,7 @@ sub ndbd_start {
 
 
 sub ndbcluster_start ($) {
-  my $cluster= shift;
+  my ($cluster) = @_;
 
   mtr_verbose("ndbcluster_start '".$cluster->name()."'");
 
@@ -3071,6 +3145,110 @@ sub ndbcluster_start ($) {
   return 0;
 }
 
+
+sub mysql_server_start($) {
+  my ($mysqld, $tinfo) = @_;
+
+  if ( $mysqld->{proc} )
+  {
+    # Already started
+
+    # Write start of testcase to log file
+    mark_log($mysqld->value('#log-error'), $tinfo);
+
+    return;
+  }
+
+  my $datadir= $mysqld->value('datadir');
+  if (not $opt_start_dirty)
+  {
+
+    my @options= ('log-bin', 'relay-log');
+    foreach my $option_name ( @options )  {
+      next unless $mysqld->option($option_name);
+
+      my $file_name= $mysqld->value($option_name);
+      next unless
+        defined $file_name and
+          -e $file_name;
+
+      mtr_debug(" -removing '$file_name'");
+      unlink($file_name) or die ("unable to remove file '$file_name'");
+    }
+
+    if (-d $datadir ) {
+      mtr_verbose(" - removing '$datadir'");
+      rmtree($datadir);
+    }
+  }
+
+  my $mysqld_basedir= $mysqld->value('basedir');
+  if ( $basedir eq $mysqld_basedir )
+  {
+    if (! $opt_start_dirty)	# If dirty, keep possibly grown system db
+    {
+      # Copy datadir from installed system db
+      for my $path ( "$opt_vardir", "$opt_vardir/..") {
+        my $install_db= "$path/install.db";
+        copytree($install_db, $datadir)
+          if -d $install_db;
+      }
+      mtr_error("Failed to copy system db to '$datadir'")
+        unless -d $datadir;
+    }
+  }
+  else
+  {
+    mysql_install_db($mysqld); # For versional testing
+
+    mtr_error("Failed to install system db to '$datadir'")
+      unless -d $datadir;
+
+  }
+
+  # Create the servers tmpdir
+  my $tmpdir= $mysqld->value('tmpdir');
+  mkpath($tmpdir) unless -d $tmpdir;
+
+  # Write start of testcase to log file
+  mark_log($mysqld->value('#log-error'), $tinfo);
+
+  # Run <tname>-master.sh
+  if ($mysqld->option('#!run-master-sh') and
+      defined $tinfo->{master_sh} and 
+      run_system('/bin/sh ' . $tinfo->{master_sh}) )
+  {
+    $tinfo->{'comment'}= "Failed to execute '$tinfo->{master_sh}'";
+    return 1;
+  }
+
+  # Run <tname>-slave.sh
+  if ($mysqld->option('#!run-slave-sh') and
+      defined $tinfo->{slave_sh} and
+      run_system('/bin/sh ' . $tinfo->{slave_sh}))
+  {
+    $tinfo->{'comment'}= "Failed to execute '$tinfo->{slave_sh}'";
+    return 1;
+  }
+
+  if (!$opt_embedded_server)
+  {
+    my $extra_opts= get_extra_opts($mysqld, $tinfo);
+    mysqld_start($mysqld,$extra_opts);
+
+    # Save this test case information, so next can examine it
+    $mysqld->{'started_tinfo'}= $tinfo;
+  }
+}
+
+sub mysql_server_wait {
+  my ($mysqld) = @_;
+
+  return not sleep_until_file_created($mysqld->value('pid-file'),
+                                      $opt_start_timeout,
+                                      $mysqld->{'proc'},
+                                      $warn_seconds);
+}
 
 sub create_config_file_for_extern {
   my %opts=
@@ -3202,8 +3380,6 @@ sub initialize_servers {
     {
       remove_stale_vardir();
       setup_vardir();
-
-      mysql_install_db(default_mysqld(), "$opt_vardir/install.db");
     }
   }
 }
@@ -3260,6 +3436,7 @@ sub sql_to_bootstrap {
 
 sub default_mysqld {
   # Generate new config file from template
+  environment_setup();
   my $config= My::ConfigFactory->new_config
     ( {
        basedir         => $basedir,
@@ -3295,26 +3472,20 @@ sub mysql_install_db {
   mtr_add_arg($args, "--bootstrap");
   mtr_add_arg($args, "--basedir=%s", $install_basedir);
   mtr_add_arg($args, "--datadir=%s", $install_datadir);
-  mtr_add_arg($args, "--loose-skip-falcon");
-  mtr_add_arg($args, "--loose-skip-ndbcluster");
+  mtr_add_arg($args, "--default-storage-engine=myisam");
+  mtr_add_arg($args, "--skip-$_") for @optional_plugins;
+  mtr_add_arg($args, "--disable-sync-frm");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
-  mtr_add_arg($args, "--secure-file-priv=%s", "$opt_vardir");
   mtr_add_arg($args, "--core-file");
 
   if ( $opt_debug )
   {
-    mtr_add_arg($args, "--debug=$debug_d:t:i:A,%s/log/bootstrap.trace",
+    mtr_add_arg($args, "--debug-dbug=$debug_d:t:i:A,%s/log/bootstrap.trace",
 		$path_vardir_trace);
   }
 
   mtr_add_arg($args, "--lc-messages-dir=%s", $install_lang);
   mtr_add_arg($args, "--character-sets-dir=%s", $install_chsdir);
-
-  # On some old linux kernels, aio on tmpfs is not supported
-  # Remove this if/when Bug #58421 fixes this in the server
-  if ($^O eq "linux" && $opt_mem) {
-    mtr_add_arg($args, "--loose-skip-innodb-use-native-aio");
-  }
 
   # InnoDB arguments that affect file location and sizes may
   # need to be given to the bootstrap process as well as the
@@ -3359,8 +3530,8 @@ sub mysql_install_db {
   }
 
   my $path_sql= my_find_file($install_basedir,
-			     ["mysql", "sql/share", "share/mysql",
-			      "share", "scripts"],
+			     ["mysql", "sql/share", "share/mariadb",
+			      "share/mysql", "share", "scripts"],
 			     "mysql_system_tables.sql",
 			     NOT_REQUIRED);
 
@@ -3374,6 +3545,11 @@ sub mysql_install_db {
     # for a production system
     mtr_appendfile_to_file("$sql_dir/mysql_system_tables.sql",
 			   $bootstrap_sql_file);
+
+    # Add the performance tables
+    # for a production system
+    mtr_appendfile_to_file("$sql_dir/mysql_performance_tables.sql",
+                          $bootstrap_sql_file);
 
     # Add the mysql system tables initial data
     # for a production system
@@ -3455,6 +3631,26 @@ sub run_testcase_check_skip_test($)
   my ($tinfo)= @_;
 
   # ----------------------------------------------------------------------
+  # Skip some tests silently
+  # ----------------------------------------------------------------------
+
+  my $start_from= $mtr_cases::start_from;
+  if ( $start_from )
+  {
+    if ($tinfo->{'name'} eq $start_from ||
+        $tinfo->{'shortname'} eq $start_from)
+    {
+      ## Found parting test. Run this test and all tests after this one
+      $mtr_cases::start_from= "";
+    }
+    else
+    {
+      $tinfo->{'result'}= 'MTR_RES_SKIPPED';
+      return 1;
+    }
+  }
+
+  # ----------------------------------------------------------------------
   # If marked to skip, just print out and return.
   # Note that a test case not marked as 'skip' can still be
   # skipped later, because of the test case itself in cooperation
@@ -3497,26 +3693,40 @@ sub run_query {
 sub do_before_run_mysqltest($)
 {
   my $tinfo= shift;
+  my $resfile= $tinfo->{result_file};
+  return unless defined $resfile;
 
   # Remove old files produced by mysqltest
-  my $base_file= mtr_match_extension($tinfo->{result_file},
-				     "result"); # Trim extension
-  if (defined $base_file ){
-    unlink("$base_file.reject");
-    unlink("$base_file.progress");
-    unlink("$base_file.log");
-    unlink("$base_file.warnings");
+  die "unsupported result file name $resfile, stoping" unless
+         $resfile =~ /^(.*?)((?:,\w+)*)\.(rdiff|result|result~)$/;
+  my ($base_file, $suites, $ext)= ($1, $2, $3);
+  # if the result file is a diff, make a proper result file
+  if ($ext eq 'rdiff') {
+    my $base_result = $tinfo->{base_result};
+    my $resdir= dirname($resfile);
+    # we'll use a separate extension for generated result files
+    # to be able to distinguish them from manually created
+    # version-controlled results, and to ignore them in bzr.
+    my $dest = "$base_file$suites.result~";
+    my @cmd = ($exe_patch, qw/--binary -r - -f -s -o/,
+               $dest, $base_result, $resfile);
+    if (-w $resdir) {
+      # don't rebuild a file if it's up to date
+      unless (-e $dest and -M $dest < -M $resfile
+                       and -M $dest < -M $base_result) {
+        run_system(@cmd);
+      }
+    } else {
+      $cmd[-3] = $dest = $opt_tmpdir . '/' . basename($dest);
+      run_system(@cmd);
+    }
+    $tinfo->{result_file} = $dest;
   }
 
-  if ( $mysql_version_id < 50000 ) {
-    # Set environment variable NDB_STATUS_OK to 1
-    # if script decided to run mysqltest cluster _is_ installed ok
-    $ENV{'NDB_STATUS_OK'} = "1";
-  } elsif ( $mysql_version_id < 50100 ) {
-    # Set environment variable NDB_STATUS_OK to YES
-    # if script decided to run mysqltest cluster _is_ installed ok
-    $ENV{'NDB_STATUS_OK'} = "YES";
-  }
+  unlink("$base_file.reject");
+  unlink("$base_file.progress");
+  unlink("$base_file.log");
+  unlink("$base_file.warnings");
 }
 
 
@@ -3613,9 +3823,13 @@ test case was executed:\n";
 
 	  $result= 2;
 	}
-
-	# Remove the .result file the check generated
-	unlink("$base_file.result");
+        else
+        {
+          # Remove the .result file the check generated
+          unlink("$base_file.result");
+        }
+	# Remove the .err file the check generated
+	unlink($err_file);
 
       }
     }
@@ -3763,6 +3977,7 @@ sub run_on_all($$)
 sub mark_log {
   my ($log, $tinfo)= @_;
   my $log_msg= "CURRENT_TEST: $tinfo->{name}\n";
+  pre_write_errorlog($log, $tinfo->{name});
   mtr_tofile($log, $log_msg);
 }
 
@@ -3817,36 +4032,89 @@ sub find_analyze_request
 }
 
 
-# The test can leave a file in var/tmp/ to signal
-# that all servers should be restarted
-sub restart_forced_by_test($)
-{
-  my $file = shift;
-  my $restart = 0;
-  foreach my $mysqld ( mysqlds() )
-  {
-    my $datadir = $mysqld->value('datadir');
-    my $force_restart_file = "$datadir/mtr/$file";
-    if ( -f $force_restart_file )
-    {
-      mtr_verbose("Restart of servers forced by test");
-      $restart = 1;
-      last;
-    }
-  }
-  return $restart;
-}
-
-
 # Return timezone value of tinfo or default value
 sub timezone {
   my ($tinfo)= @_;
-  return $tinfo->{timezone} || "GMT-3";
+  local $_ = $tinfo->{timezone};
+  return 'DEFAULT' unless defined $_;
+  no warnings 'uninitialized';
+  s/\$\{(\w+)\}/$ENV{$1}/ge;
+  s/\$(\w+)/$ENV{$1}/ge;
+  $_;
 }
 
+sub mycnf_create {
+  my ($config) = @_;
+  my $res;
+
+  foreach my $group ($config->option_groups()) {
+    $res .= "[$group->{name}]\n";
+
+    foreach my $option ($group->options()) {
+      $res .= $option->name();
+      my $value= $option->value();
+      if (defined $value) {
+	$res .= "=$value";
+      }
+      $res .= "\n";
+    }
+    $res .= "\n";
+  }
+  $res;
+}
+
+sub config_files($) {
+  my ($tinfo) = @_;
+  (
+    'my.cnf' => \&mycnf_create,
+    $tinfo->{suite}->config_files()
+  );
+}
+
+sub _like   { return $config ? $config->like($_[0]) : (); }
+sub mysqlds { return _like('mysqld\.'); }
+sub ndbds   { return _like('cluster_config\.ndbd\.');}
+sub ndb_mgmds { return _like('cluster_config\.ndb_mgmd\.'); }
+
+sub fix_servers($) {
+  my ($tinfo) = @_;
+  return () unless $config;
+  my %servers = (
+    qr/mysqld\./ => {
+      SORT => 300,
+      START => \&mysql_server_start,
+      WAIT => \&mysql_server_wait,
+    },
+    qr/mysql_cluster\./ => {
+      SORT => 200,
+      START => \&ndbcluster_start,
+      WAIT => \&ndbcluster_wait_started,
+    },
+    qr/cluster_config\.ndb_mgmd\./ => {
+      SORT => 210,
+      START => undef,
+    },
+    qr/cluster_config\.ndbd\./ => {
+      SORT => 220,
+      START => undef,
+    },
+    $tinfo->{suite}->servers()
+  );
+  for ($config->groups()) {
+    while (my ($re,$prop) = each %servers) {
+      @$_{keys %$prop} = values %$prop if $_->{name} =~ /^$re/;
+    }
+  }
+}
+
+sub all_servers {
+  return unless $config;
+  ( sort { $a->{SORT} <=> $b->{SORT} }
+       grep { defined $_->{SORT} } $config->groups() );
+}
 
 # Storage for changed environment variables
-my %old_env;
+our %old_env;
 
 sub resfile_report_test ($) {
   my $tinfo=  shift;
@@ -3868,8 +4136,8 @@ sub resfile_report_test ($) {
 #  > 0 failure
 #
 
-sub run_testcase ($) {
-  my $tinfo=  shift;
+sub run_testcase ($$) {
+  my ($tinfo, $server_socket)= @_;
   my $print_freq=20;
 
   mtr_verbose("Running test:", $tinfo->{name});
@@ -3878,7 +4146,7 @@ sub run_testcase ($) {
   # Allow only alpanumerics pluss _ - + . in combination names,
   # or anything beginning with -- (the latter comes from --combination)
   my $combination= $tinfo->{combination};
-  if ($combination && $combination !~ /^\w[-\w\.\+]+$/
+  if ($combination && $combination !~ /^\w[-\w\.\+]*$/
                    && $combination !~ /^--/)
   {
     mtr_error("Combination '$combination' contains illegal characters");
@@ -3887,14 +4155,24 @@ sub run_testcase ($) {
   # Init variables that can change between each test case
   # -------------------------------------------------------
   my $timezone= timezone($tinfo);
-  $ENV{'TZ'}= $timezone;
+  if ($timezone ne 'DEFAULT') {
+    $ENV{'TZ'}= $timezone;
+  } else {
+    delete($ENV{'TZ'});
+  }
+  $ENV{MTR_SUITE_DIR} = $tinfo->{suite}->{dir};
   mtr_verbose("Setting timezone: $timezone");
 
   if ( ! using_extern() )
   {
     my @restart= servers_need_restart($tinfo);
     if ( @restart != 0) {
-      stop_servers($tinfo, @restart );
+      # Remember that we restarted for this test case (count restarts)
+      $tinfo->{'restarted'}= 1;
+      stop_servers(reverse @restart);
+      if ($opt_warnings) {
+        check_warnings_post_shutdown($server_socket);
+      }
     }
 
     if ( started(all_servers()) == 0 )
@@ -3921,6 +4199,7 @@ sub run_testcase ($) {
       # Generate new config file from template
       $config= My::ConfigFactory->new_config
 	( {
+           testname        => $tinfo->{name},
 	   basedir         => $basedir,
 	   testdir         => $glob_mysql_test_dir,
 	   template_path   => $tinfo->{template_path},
@@ -3928,7 +4207,6 @@ sub run_testcase ($) {
 	   vardir          => $opt_vardir,
 	   tmpdir          => $opt_tmpdir,
 	   baseport        => $baseport,
-	   #hosts          => [ 'host1', 'host2' ],
 	   user            => $opt_user,
 	   password        => '',
 	   ssl             => $opt_ssl_supported,
@@ -3936,8 +4214,17 @@ sub run_testcase ($) {
 	  }
 	);
 
-      # Write the new my.cnf
-      $config->save($path_config_file);
+      fix_servers($tinfo);
+
+      # Write config files:
+      my %config_files = config_files($tinfo);
+      while (my ($file, $generate) = each %config_files) {
+        next unless $generate;
+        my ($path) = "$opt_vardir/$file";
+        open (F, '>', $path) or die "Could not open '$path': $!";
+        print F &$generate($config);
+        close F;
+      }
 
       # Remember current config so a restart can occur when a test need
       # to use a different one
@@ -3958,6 +4245,11 @@ sub run_testcase ($) {
 
     # Write start of testcase to log
     mark_log($path_current_testlog, $tinfo);
+
+    # Make sure the safe_process also exits from now on
+    if ($opt_start_exit) {
+      My::SafeProcess->start_exit();
+    }
 
     if (start_servers($tinfo))
     {
@@ -4027,7 +4319,7 @@ sub run_testcase ($) {
     return 1;
   }
 
-  my $test= start_mysqltest($tinfo);
+  my $test= $tinfo->{suite}->start_test($tinfo);
   # Set only when we have to keep waiting after expectedly died server
   my $keep_waiting_proc = 0;
   my $print_timeout= start_timer($print_freq * 60);
@@ -4101,16 +4393,23 @@ sub run_testcase ($) {
       if ( $res == 0 )
       {
 	my $check_res;
-	if ( restart_forced_by_test('force_restart') )
-	{
-	  stop_all_servers($opt_shutdown_timeout);
-	}
-	elsif ( $opt_check_testcases and
+	if ( $opt_check_testcases and
 	     $check_res= check_testcase($tinfo, "after"))
 	{
 	  if ($check_res == 1) {
 	    # Test case had sideeffects, not fatal error, just continue
-	    stop_all_servers($opt_shutdown_timeout);
+            if ($opt_warnings) {
+              # Checking error logs for warnings, so need to stop server
+              # gracefully so that memory leaks etc. can be properly detected.
+              stop_servers(reverse all_servers());
+              check_warnings_post_shutdown($server_socket);
+              # Even if we got warnings here, we should not fail this
+              # particular test, as the warnings may be caused by an earlier
+              # test.
+            } else {
+              # Not checking warnings, so can do a hard shutdown.
+	      stop_all_servers($opt_shutdown_timeout);
+            }
 	    mtr_report("Resuming tests...\n");
 	    resfile_output($tinfo->{'check'}) if $opt_resfile;
 	  }
@@ -4130,8 +4429,7 @@ sub run_testcase ($) {
 	find_testcase_skipped_reason($tinfo);
 	mtr_report_test_skipped($tinfo);
 	# Restart if skipped due to missing perl, it may have had side effects
-	if ( restart_forced_by_test('force_restart_if_skipped') ||
-             $tinfo->{'comment'} =~ /^perl not found/ )
+	if ( $tinfo->{'comment'} =~ /^perl not found/ )
 	{
 	  stop_all_servers($opt_shutdown_timeout);
 	}
@@ -4266,15 +4564,52 @@ sub run_testcase ($) {
 }
 
 
+# Keep track of last position in mysqld error log where we scanned for
+# warnings, so we can attribute any warnings found to the correct test
+# suite or server restart.
+our $last_warning_position= { };
+
+# Called just before a mysqld server is started or a testcase is run,
+# to keep track of which tests have been run since last restart, and
+# of when the error log is reset.
+#
+# Second argument $test_name is test name, or undef for server restart.
+sub pre_write_errorlog {
+  my ($error_log, $test_name)= @_;
+
+  if (! -e $error_log) {
+    # If the error log is moved away, reset the warning parse position.
+    delete $last_warning_position->{$error_log};
+  }
+
+  if (defined($test_name)) {
+    $last_warning_position->{$error_log}{test_names}= []
+      unless exists($last_warning_position->{$error_log}{test_names});
+    push @{$last_warning_position->{$error_log}{test_names}}, $test_name;
+  } else {
+    # Server restart, so clear the list of tests run since last restart.
+    # (except the last one (if any), which is the test about to be run).
+    if (defined($last_warning_position->{$error_log}{test_names}) &&
+        @{$last_warning_position->{$error_log}{test_names}}) {
+      $last_warning_position->{$error_log}{test_names}=
+        [$last_warning_position->{$error_log}{test_names}[-1]];
+    } else {
+      $last_warning_position->{$error_log}{test_names}= [];
+    }
+  }
+}
+
 # Extract server log from after the last occurrence of named test
 # Return as an array of lines
 #
 
 sub extract_server_log ($$) {
   my ($error_log, $tname) = @_;
+  
+  return unless $error_log;
 
   # Open the servers .err log file and read all lines
-  # belonging to current tets into @lines
+  # belonging to current test into @lines
   my $Ferr = IO::File->new($error_log)
     or mtr_error("Could not open file '$error_log' for reading: $!");
 
@@ -4319,9 +4654,9 @@ sub get_log_from_proc ($$) {
   my ($proc, $name)= @_;
   my $srv_log= "";
 
-  foreach my $mysqld (mysqlds()) {
+  foreach my $mysqld (all_servers()) {
     if ($mysqld->{proc} eq $proc) {
-      my @srv_lines= extract_server_log($mysqld->value('#log-error'), $name);
+      my @srv_lines= extract_server_log($mysqld->if_exist('#log-error'), $name);
       $srv_log= "\nServer log from this test:\n" .
 	"----------SERVER LOG START-----------\n". join ("", @srv_lines) .
 	"----------SERVER LOG END-------------\n";
@@ -4331,24 +4666,60 @@ sub get_log_from_proc ($$) {
   return $srv_log;
 }
 
+#
 # Perform a rough examination of the servers
 # error log and write all lines that look
 # suspicious into $error_log.warnings
 #
+
 sub extract_warning_lines ($$) {
-  my ($error_log, $tname) = @_;
+  my ($error_log, $append) = @_;
 
-  my @lines= extract_server_log($error_log, $tname);
+  # Open the servers .err log file and read all lines
+  # belonging to current tets into @lines
+  my $Ferr = IO::File->new($error_log)
+    or return [];
+  my $last_pos= $last_warning_position->{$error_log}{seek_pos};
+  $Ferr->seek($last_pos, 0) if defined($last_pos);
+  # If the seek fails, we will parse the whole error log, at least we will not
+  # miss any warnings.
 
-# Write all suspicious lines to $error_log.warnings file
+  my @lines= <$Ferr>;
+  $last_warning_position->{$error_log}{seek_pos}= $Ferr->tell();
+  $Ferr = undef; # Close error log file
+
+  # mysql_client_test.test sends a COM_DEBUG packet to the server
+  # to provoke a safemalloc leak report, ignore any warnings
+  # between "Begin/end safemalloc memory dump"
+  if ( grep(/Begin safemalloc memory dump:/, @lines) > 0)
+  {
+    my $discard_lines= 1;
+    foreach my $line ( @lines )
+    {
+      if ($line =~ /Begin safemalloc memory dump:/){
+	$discard_lines = 1;
+      } elsif ($line =~ /End safemalloc memory dump./){
+	$discard_lines = 0;
+      }
+
+      if ($discard_lines){
+	$line = "ignored";
+      }
+    }
+  }
+
+  # Write all suspicious lines to $error_log.warnings file
   my $warning_log = "$error_log.warnings";
-  my $Fwarn = IO::File->new($warning_log, "w")
+  my $Fwarn = IO::File->new($warning_log, $append ? "a+" : "w")
     or die("Could not open file '$warning_log' for writing: $!");
-  print $Fwarn "Suspicious lines from $error_log\n";
+  if (!$append)
+  {
+    print $Fwarn "Suspicious lines from $error_log\n";
+  }
 
   my @patterns =
     (
-     qr/^Warning:|mysqld: Warning|\[Warning\]/,
+     qr/^Warning|mysqld: Warning|\[Warning\]/,
      qr/^Error:|\[ERROR\]/,
      qr/^==\d+==\s+\S/, # valgrind errors
      qr/InnoDB: Warning|InnoDB: Error/,
@@ -4357,50 +4728,98 @@ sub extract_warning_lines ($$) {
      qr/Attempting backtrace/,
      qr/Assertion .* failed/,
     );
-  my $skip_valgrind= 0;
+  # These are taken from the include/mtr_warnings.sql global suppression
+  # list. They occur delayed, so they can be parsed during shutdown rather
+  # than during the per-test check.
+  #
+  # ToDo: having the warning suppressions inside the mysqld we are trying to
+  # check is in any case horrible. We should change it to all be done here
+  # within the Perl code, which is both simpler, easier, faster, and more
+  # robust. We could still have individual test cases put in suppressions by
+  # parsing statically or by writing dynamically to a CSV table read by the
+  # Perl code.
+  my @antipatterns =
+    (
+     qr/error .*connecting to master/,
+     qr/Plugin 'ndbcluster' will be forced to shutdown/,
+     qr/InnoDB: Error: in ALTER TABLE `test`.`t[12]`/,
+     qr/InnoDB: Error: table `test`.`t[12]` .*does not exist in the InnoDB internal/,
+     qr/InnoDB: Warning: a long semaphore wait:/,
+     qr/Slave: Unknown table 't1' Error_code: 1051/,
+     qr/Slave SQL:.*(Error_code: [[:digit:]]+|Query:.*)/,
+     qr/slave SQL thread aborted/,
+     qr/unknown option '--loose[-_]/,
+     qr/unknown variable 'loose[-_]/,
+     qr/Invalid .*old.* table or database name/,
+     qr/Now setting lower_case_table_names to [02]/,
+     qr/Setting lower_case_table_names=2/,
+     qr/You have forced lower_case_table_names to 0/,
+     qr/Plugin 'ndbcluster' will be forced to shutdow/,
+     qr/deprecated/,
+     qr/Slave SQL thread retried transaction/,
+     qr/Slave \(additional info\)/,
+     qr/Incorrect information in file/,
+     qr/Incorrect key file for table .*crashed.*/,
+     qr/Slave I\/O: Get master SERVER_ID failed with error:.*/,
+     qr/Slave I\/O: Get master clock failed with error:.*/,
+     qr/Slave I\/O: Get master COLLATION_SERVER failed with error:.*/,
+     qr/Slave I\/O: Get master TIME_ZONE failed with error:.*/,
+     qr/Slave I\/O: error reconnecting to master '.*' - retry-time: [1-3]  retries/,
+     qr/Slave I\/0: Master command COM_BINLOG_DUMP failed/,
+     qr/Error reading packet/,
+     qr/Lost connection to MySQL server at 'reading initial communication packet'/,
+     qr/Failed on request_dump/,
+     qr/Slave: Can't drop database.* database doesn't exist/,
+     qr/Slave: Operation DROP USER failed for 'create_rout_db'/,
+     qr|Checking table:   '\..mtr.test_suppressions'|,
+     qr|Table \./test/bug53592 has a primary key in InnoDB data dictionary, but not in MySQL|,
+     qr|Table '\..mtr.test_suppressions' is marked as crashed and should be repaired|,
+     qr|Can't open shared library.*ha_archive|,
+     qr|InnoDB: Error: table 'test/bug39438'|,
+     qr| entry '.*' ignored in --skip-name-resolve mode|,
+     qr|mysqld got signal 6|,
+     qr|Error while setting value 'pool-of-threads' to 'thread_handling'|,
+     qr|Access denied for user|,
+     qr|Aborted connection|,
+     qr|table.*is full|,
+     qr|Linux Native AIO|, # warning that aio does not work on /dev/shm
+     qr|Error: io_setup\(\) failed|,
+     qr|Warning: io_setup\(\) failed|,
+     qr|Warning: io_setup\(\) attempt|,
+     qr|setrlimit could not change the size of core files to 'infinity';|,
+     qr|feedback plugin: failed to retrieve the MAC address|,
+     qr|Plugin 'FEEDBACK' init function returned error|,
+     qr|Plugin 'FEEDBACK' registration as a INFORMATION SCHEMA failed|,
+     qr|Failed to setup SSL|,
+     qr|SSL error: Failed to set ciphers to use|,
+     qr/Plugin 'InnoDB' will be forced to shutdown/,
+    );
 
-  my $last_pat= "";
-  my $num_rep= 0;
-
-  foreach my $line ( @lines )
+  my $matched_lines= [];
+  LINE: foreach my $line ( @lines )
   {
-    if ($opt_valgrind_mysqld) {
-      # Skip valgrind summary from tests where server has been restarted
-      # Should this contain memory leaks, the final report will find it
-      # Use a generic pattern for summaries
-      $skip_valgrind= 1 if $line =~ /^==\d+== [A-Z ]+ SUMMARY:/;
-      $skip_valgrind= 0 unless $line =~ /^==\d+==/;
-      next if $skip_valgrind;
-    }
-    foreach my $pat ( @patterns )
+    PAT: foreach my $pat ( @patterns )
     {
       if ( $line =~ /$pat/ )
       {
-	# Remove initial timestamp and look for consecutive identical lines
-	my $line_pat= $line;
-	$line_pat =~ s/^[0-9:\-\+\.TZ ]*//;
-	if ($line_pat eq $last_pat) {
-	  $num_rep++;
-	} else {
-	  # Previous line had been repeated, report that first
-	  if ($num_rep) {
-	    print $Fwarn ".... repeated $num_rep times: $last_pat";
-	    $num_rep= 0;
-	  }
-	  $last_pat= $line_pat;
-	  print $Fwarn $line;
-	}
-	last;
+        foreach my $apat (@antipatterns)
+        {
+          next LINE if $line =~ $apat;
+        }
+	print $Fwarn $line;
+        push @$matched_lines, $line;
+	last PAT;
       }
     }
   }
-  # Catch the case of last warning being repeated
-  if ($num_rep) {
-    print $Fwarn ".... repeated $num_rep times: $last_pat";
-  }
-
   $Fwarn = undef; # Close file
 
+  if (scalar(@$matched_lines) > 0 &&
+      defined($last_warning_position->{$error_log}{test_names})) {
+    return ($last_warning_position->{$error_log}{test_names}, $matched_lines);
+  } else {
+    return ([], $matched_lines);
+  }
 }
 
 
@@ -4419,7 +4838,7 @@ sub start_check_warnings ($$) {
   my $log_error= $mysqld->value('#log-error');
   # To be communicated to the test
   $ENV{MTR_LOG_ERROR}= $log_error;
-  extract_warning_lines($log_error, $tinfo->{name});
+  extract_warning_lines($log_error, 0);
 
   my $args;
   mtr_init_args(\$args);
@@ -4453,7 +4872,7 @@ sub start_check_warnings ($$) {
      error         => $errfile,
      output        => $errfile,
      args          => \$args,
-     user_data     => $errfile,
+     user_data     => [$errfile, $mysqld],
      verbose       => $opt_verbose,
     );
   mtr_verbose("Started $proc");
@@ -4463,7 +4882,7 @@ sub start_check_warnings ($$) {
 
 #
 # Loop through our list of processes and check the error log
-# for unexepcted errors and warnings
+# for unexpected errors and warnings
 #
 sub check_warnings ($) {
   my ($tinfo)= @_;
@@ -4499,7 +4918,7 @@ sub check_warnings ($) {
     if ( delete $started{$proc->pid()} ) {
       # One check warning process returned
       my $res= $proc->exit_status();
-      my $err_file= $proc->user_data();
+      my ($err_file, $mysqld)= @{$proc->user_data()};
 
       if ( $res == 0 or $res == 62 ){
 
@@ -4533,7 +4952,8 @@ sub check_warnings ($) {
 	my $report= mtr_grab_file($err_file);
 	$tinfo->{comment}.=
 	  "Could not execute 'check-warnings' for ".
-	    "testcase '$tname' (res: $res):\n";
+	    "testcase '$tname' (res: $res) server: '".
+              $mysqld->name() .":\n";
 	$tinfo->{comment}.= $report;
 
 	$result= 2;
@@ -4562,6 +4982,28 @@ sub check_warnings ($) {
   mtr_error("INTERNAL_ERROR: check_warnings");
 }
 
+# Check for warnings generated during shutdown of a mysqld server.
+# If any, report them to master server, and return true; else just return
+# false.
+
+sub check_warnings_post_shutdown {
+  my ($server_socket)= @_;
+  my $testname_hash= { };
+  my $report= '';
+  foreach my $mysqld ( mysqlds())
+  {
+    my ($testlist, $match_lines)=
+        extract_warning_lines($mysqld->value('#log-error'), 1);
+    $testname_hash->{$_}= 1 for @$testlist;
+    $report.= join('', @$match_lines);
+  }
+  my @warning_tests= keys(%$testname_hash);
+  if (@warning_tests) {
+    my $fake_test= My::Test->new(testnames => \@warning_tests);
+    $fake_test->{'warnings'}= $report;
+    $fake_test->write_test($server_socket, 'WARNINGS');
+  }
+}
 
 #
 # Loop through our list of processes and look for and entry
@@ -4654,28 +5096,17 @@ sub clean_dir {
 
 
 sub clean_datadir {
-
   mtr_verbose("Cleaning datadirs...");
 
   if (started(all_servers()) != 0){
     mtr_error("Trying to clean datadir before all servers stopped");
   }
 
-  foreach my $cluster ( clusters() )
+  for (all_servers())
   {
-    my $cluster_dir= "$opt_vardir/".$cluster->{name};
-    mtr_verbose(" - removing '$cluster_dir'");
-    rmtree($cluster_dir);
-
-  }
-
-  foreach my $mysqld ( mysqlds() )
-  {
-    my $mysqld_dir= dirname($mysqld->value('datadir'));
-    if (-d $mysqld_dir ) {
-      mtr_verbose(" - removing '$mysqld_dir'");
-      rmtree($mysqld_dir);
-    }
+    my $dir= "$opt_vardir/".$_->{name};
+    mtr_verbose(" - removing '$dir'");
+    rmtree($dir);
   }
 
   # Remove all files in tmp and var/tmp
@@ -4698,17 +5129,6 @@ sub save_datadir_after_failure($$) {
 }
 
 
-sub remove_ndbfs_from_ndbd_datadir {
-  my ($ndbd_datadir)= @_;
-  # Remove the ndb_*_fs directory from ndbd.X/ dir
-  foreach my $ndbfs_dir ( glob("$ndbd_datadir/ndb_*_fs") )
-  {
-    next unless -d $ndbfs_dir; # Skip if not a directory
-    rmtree($ndbfs_dir);
-  }
-}
-
-
 sub after_failure ($) {
   my ($tinfo)= @_;
 
@@ -4717,39 +5137,39 @@ sub after_failure ($) {
   my $save_dir= "$opt_vardir/log/";
   $save_dir.= $tinfo->{name};
   # Add combination name if any
-  $save_dir.= "-$tinfo->{combination}"
-    if defined $tinfo->{combination};
+  $save_dir.= '-' . join(',', sort @{$tinfo->{combinations}})
+    if defined $tinfo->{combinations};
 
   # Save savedir  path for server
   $tinfo->{savedir}= $save_dir;
 
   mkpath($save_dir) if ! -d $save_dir;
 
-  # Save the used my.cnf file
-  copy($path_config_file, $save_dir);
+  #
+  # Create a log of files in vardir (good for buildbot)
+  #
+  if (!IS_WINDOWS)
+  {
+    my $Flog= IO::File->new("$opt_vardir/log/files.log", "w");
+    if ($Flog)
+    {
+      print $Flog scalar(`/bin/ls -Rl $opt_vardir/*`);
+      close($Flog);
+    }
+  }
+
+  # Save the used config files
+  my %config_files = config_files($tinfo);
+  while (my ($file, $generate) = each %config_files) {
+    copy("$opt_vardir/$file", $save_dir);
+  }
 
   # Copy the tmp dir
   copytree("$opt_vardir/tmp/", "$save_dir/tmp/");
 
-  if ( clusters() ) {
-    foreach my $cluster ( clusters() ) {
-      my $cluster_dir= "$opt_vardir/".$cluster->{name};
-
-      # Remove the fileystem of each ndbd
-      foreach my $ndbd ( in_cluster($cluster, ndbds()) )
-      {
-        my $ndbd_datadir= $ndbd->value("DataDir");
-        remove_ndbfs_from_ndbd_datadir($ndbd_datadir);
-      }
-
-      save_datadir_after_failure($cluster_dir, $save_dir);
-    }
-  }
-  else {
-    foreach my $mysqld ( mysqlds() ) {
-      my $data_dir= $mysqld->value('datadir');
-      save_datadir_after_failure(dirname($data_dir), $save_dir);
-    }
+  foreach (all_servers()) {
+    my $dir= "$opt_vardir/".$_->{name};
+    save_datadir_after_failure($dir, $save_dir);
   }
 }
 
@@ -4820,13 +5240,9 @@ sub report_failure_and_restart ($) {
 }
 
 
-sub run_sh_script {
-  my ($script)= @_;
-
-  return 0 unless defined $script;
-
-  mtr_verbose("Running '$script'");
-  my $ret= system("/bin/sh $script") >> 8;
+sub run_system(@) {
+  mtr_verbose("Running '$_[0]'");
+  my $ret= system(@_) >> 8;
   return $ret;
 }
 
@@ -4853,7 +5269,7 @@ sub mysqld_stop {
      name          => "mysqladmin shutdown ".$mysqld->name(),
      path          => $exe_mysqladmin,
      args          => \$args,
-     error         => "/dev/null",
+     error         => "$opt_vardir/log/mysqladmin.err",
 
     );
 }
@@ -4880,29 +5296,14 @@ sub mysqld_arguments ($$$) {
     mtr_add_arg($args, "--user=root");
   }
 
-  if ( $opt_valgrind_mysqld )
-  {
-    if ( $mysql_version_id < 50100 )
-    {
-      mtr_add_arg($args, "--skip-bdb");
-    }
-  }
-
-  # On some old linux kernels, aio on tmpfs is not supported
-  # Remove this if/when Bug #58421 fixes this in the server
-  if ($^O eq "linux" && $opt_mem)
-  {
-    mtr_add_arg($args, "--loose-skip-innodb-use-native-aio");
-  }
-
-  if ( $mysql_version_id >= 50106 && !$opt_user_args)
+  if (!using_extern() and !$opt_user_args)
   {
     # Turn on logging to file
-    mtr_add_arg($args, "--log-output=file");
+    mtr_add_arg($args, "%s--log-output=file");
   }
 
-  # Check if "extra_opt" contains skip-log-bin
-  my $skip_binlog= grep(/^(--|--loose-)skip-log-bin/, @$extra_opts);
+  # Check if "extra_opt" contains --log-bin
+  my $skip_binlog= not grep /^--(loose-)?log-bin/, @$extra_opts;
 
   # Indicate to mysqld it will be debugged in debugger
   if ( $glob_debugger )
@@ -4911,6 +5312,9 @@ sub mysqld_arguments ($$$) {
   }
 
   my $found_skip_core= 0;
+  my @plugins;
+  my %seen;
+  my $plugin;
   foreach my $arg ( @$extra_opts )
   {
     # Skip --defaults-file option since it's handled above.
@@ -4930,10 +5334,11 @@ sub mysqld_arguments ($$$) {
     {
       ; # Dont add --skip-log-bin when mysqld have --log-slave-updates in config
     }
-    elsif ($arg eq "")
+    elsif ($plugin = mtr_match_prefix($arg,  "--plugin-load="))
     {
-      # We can get an empty argument when  we set environment variables to ""
-      # (e.g plugin not found). Just skip it.
+      next if $plugin =~ /=$/;
+      push @plugins, $plugin unless $seen{$plugin};
+      $seen{$plugin} = 1;
     }
     else
     {
@@ -4950,6 +5355,11 @@ sub mysqld_arguments ($$$) {
   # Facility stays disabled if timeout value is zero.
   mtr_add_arg($args, "--loose-debug-sync-timeout=%s",
               $opt_debug_sync_timeout) unless $opt_user_args;
+
+  if (@plugins) {
+    my $sep = (IS_WINDOWS) ? ';' : ':';
+    mtr_add_arg($args, "--plugin-load=%s" .  join($sep, @plugins));
+  }
 
   return $args;
 }
@@ -4970,16 +5380,14 @@ sub mysqld_start ($$) {
 
   my $args;
   mtr_init_args(\$args);
-# implementation for strace-server
-  if ( $opt_strace_server )
-  {
-    strace_server_arguments($args, \$exe, $mysqld->name());
-  }
-
 
   if ( $opt_valgrind_mysqld )
   {
     valgrind_arguments($args, \$exe);
+  }
+  if ( $opt_strace)
+  {
+    strace_arguments($args, \$exe, $mysqld->name());
   }
 
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
@@ -4995,14 +5403,16 @@ sub mysqld_start ($$) {
 
   if ( $opt_debug )
   {
-    mtr_add_arg($args, "--debug=$debug_d:t:i:A,%s/log/%s.trace",
+    mtr_add_arg($args, "--debug-dbug=$debug_d:t:i:A,%s/log/%s.trace",
 		$path_vardir_trace, $mysqld->name());
   }
 
   if (IS_WINDOWS)
   {
     # Trick the server to send output to stderr, with --console
-    mtr_add_arg($args, "--console");
+    if (!(grep(/^--log-error/, @$args))) {
+      mtr_add_arg($args, "--console");
+    }
   }
 
   if ( $opt_gdb || $opt_manual_gdb )
@@ -5017,7 +5427,7 @@ sub mysqld_start ($$) {
   {
     ddd_arguments(\$args, \$exe, $mysqld->name());
   }
-  if ( $opt_dbx || $opt_manual_dbx ) {
+  elsif ( $opt_dbx || $opt_manual_dbx ) {
     dbx_arguments(\$args, \$exe, $mysqld->name());
   }
   elsif ( $opt_debugger )
@@ -5045,6 +5455,24 @@ sub mysqld_start ($$) {
   unlink($mysqld->value('pid-file'));
 
   my $output= $mysqld->value('#log-error');
+
+  if ( $opt_valgrind and $opt_debug )
+  {
+    # When both --valgrind and --debug is selected, send
+    # all output to the trace file, making it possible to
+    # see the exact location where valgrind complains
+
+    # Write a message about this to the normal log file
+    my $trace_name= "$opt_vardir/log/".$mysqld->name().".trace";
+    mtr_tofile($output,
+               "NOTE: When running with --valgrind --debug the output from ",
+	       "mysqld (where the valgrind messages shows up) is stored ",
+	       "together with the trace file to make it ",
+	       "easier to find the exact position of valgrind errors.",
+	       "See trace file $trace_name.\n");
+    $output= $trace_name;
+
+  }
   # Remember this log file for valgrind error report search
   $mysqld_logs{$output}= 1 if $opt_valgrind;
   # Remember data dir for gmon.out files if using gprof
@@ -5052,6 +5480,7 @@ sub mysqld_start ($$) {
 
   if ( defined $exe )
   {
+    pre_write_errorlog($output);
     $mysqld->{'proc'}= My::SafeProcess->new
       (
        name          => $mysqld->name(),
@@ -5072,7 +5501,8 @@ sub mysqld_start ($$) {
   if ( $wait_for_pid_file &&
        !sleep_until_file_created($mysqld->value('pid-file'),
 				 $opt_start_timeout,
-				 $mysqld->{'proc'}))
+				 $mysqld->{'proc'},
+                                 $warn_seconds))
   {
     my $mname= $mysqld->name();
     mtr_error("Failed to start mysqld $mname with command $exe");
@@ -5117,11 +5547,6 @@ sub server_need_restart {
     return 0;
   }
 
-  if ( $tinfo->{'force_restart'} ) {
-    mtr_verbose_restart($server, "forced in .opt file");
-    return 1;
-  }
-
   if ( $opt_force_restart ) {
     mtr_verbose_restart($server, "forced restart turned on");
     return 1;
@@ -5158,8 +5583,7 @@ sub server_need_restart {
     }
   }
 
-  my $is_mysqld= grep ($server eq $_, mysqlds());
-  if ($is_mysqld)
+  if ($server->name() =~ /^mysqld\./)
   {
 
     # Check that running process was started with same options
@@ -5214,17 +5638,9 @@ sub servers_need_restart($) {
 
 
 
-#
-# Return list of specific servers
-#  - there is no servers in an empty config
-#
-sub _like   { return $config ? $config->like($_[0]) : (); }
-sub mysqlds { return _like('mysqld.'); }
-sub ndbds   { return _like('cluster_config.ndbd.');}
-sub ndb_mgmds { return _like('cluster_config.ndb_mgmd.'); }
-sub clusters  { return _like('mysql_cluster.'); }
-sub all_servers { return ( mysqlds(), ndb_mgmds(), ndbds() ); }
+############################################
 
+############################################
 
 #
 # Filter a list of servers and return only those that are part
@@ -5246,18 +5662,6 @@ sub started { return grep(defined $_, map($_->{proc}, @_));  }
 sub stopped { return grep(!defined $_, map($_->{proc}, @_)); }
 
 
-sub envsubst {
-  my $string= shift;
-
-  if ( ! defined $ENV{$string} )
-  {
-    mtr_error(".opt file references '$string' which is not set");
-  }
-
-  return $ENV{$string};
-}
-
-
 sub get_extra_opts {
   # No extra options if --user-args
   return \@opt_extra_mysqld_opt if $opt_user_args;
@@ -5271,41 +5675,21 @@ sub get_extra_opts {
   # Expand environment variables
   foreach my $opt ( @$opts )
   {
-    $opt =~ s/\$\{(\w+)\}/envsubst($1)/ge;
-    $opt =~ s/\$(\w+)/envsubst($1)/ge;
+    no warnings 'uninitialized';
+    $opt =~ s/\$\{(\w+)\}/$ENV{$1}/ge;
+    $opt =~ s/\$(\w+)/$ENV{$1}/ge;
   }
   return $opts;
 }
 
 
 sub stop_servers($$) {
-  my ($tinfo, @servers)= @_;
+  my (@servers)= @_;
 
-  # Remember if we restarted for this test case (count restarts)
-  $tinfo->{'restarted'}= 1;
+  mtr_report("Restarting ", started(@servers));
 
-  if ( join('|', @servers) eq join('|', all_servers()) )
-  {
-    # All servers are going down, use some kind of order to
-    # avoid too many warnings in the log files
-
-   mtr_report("Restarting all servers");
-
-    #  mysqld processes
-    My::SafeProcess::shutdown( $opt_shutdown_timeout, started(mysqlds()) );
-
-    # cluster processes
-    My::SafeProcess::shutdown( $opt_shutdown_timeout,
-			       started(ndbds(), ndb_mgmds()) );
-  }
-  else
-  {
-    mtr_report("Restarting ", started(@servers));
-
-     # Stop only some servers
-    My::SafeProcess::shutdown( $opt_shutdown_timeout,
-			       started(@servers) );
-  }
+  My::SafeProcess::shutdown($opt_shutdown_timeout,
+                             started(@servers));
 
   foreach my $server (@servers)
   {
@@ -5332,149 +5716,14 @@ sub stop_servers($$) {
 sub start_servers($) {
   my ($tinfo)= @_;
 
-  # Make sure the safe_process also exits from now on
-  # Could not be done before, as we don't want this for the bootstrap
-  if ($opt_start_exit) {
-    My::SafeProcess->start_exit();
+  for (all_servers()) {
+    $_->{START}->($_, $tinfo) if $_->{START};
   }
 
-  # Start clusters
-  foreach my $cluster ( clusters() )
-  {
-    ndbcluster_start($cluster);
-  }
-
-  # Start mysqlds
-  foreach my $mysqld ( mysqlds() )
-  {
-    if ( $mysqld->{proc} )
-    {
-      # Already started
-
-      # Write start of testcase to log file
-      mark_log($mysqld->value('#log-error'), $tinfo);
-
-      next;
-    }
-
-    my $datadir= $mysqld->value('datadir');
-    if ($opt_start_dirty)
-    {
-      # Don't delete anything if starting dirty
-      ;
-    }
-    else
-    {
-
-      my @options= ('log-bin', 'relay-log');
-      foreach my $option_name ( @options )  {
-	next unless $mysqld->option($option_name);
-
-	my $file_name= $mysqld->value($option_name);
-	next unless
-	  defined $file_name and
-	    -e $file_name;
-
-	mtr_debug(" -removing '$file_name'");
-	unlink($file_name) or die ("unable to remove file '$file_name'");
-      }
-
-      if (-d $datadir ) {
-	mtr_verbose(" - removing '$datadir'");
-	rmtree($datadir);
-      }
-    }
-
-    my $mysqld_basedir= $mysqld->value('basedir');
-    if ( $basedir eq $mysqld_basedir )
-    {
-      if (! $opt_start_dirty)	# If dirty, keep possibly grown system db
-      {
-	# Copy datadir from installed system db
-	for my $path ( "$opt_vardir", "$opt_vardir/..") {
-	  my $install_db= "$path/install.db";
-	  copytree($install_db, $datadir)
-	    if -d $install_db;
-	}
-	mtr_error("Failed to copy system db to '$datadir'")
-	  unless -d $datadir;
-      }
-    }
-    else
-    {
-      mysql_install_db($mysqld); # For versional testing
-
-      mtr_error("Failed to install system db to '$datadir'")
-	unless -d $datadir;
-
-    }
-
-    # Create the servers tmpdir
-    my $tmpdir= $mysqld->value('tmpdir');
-    mkpath($tmpdir) unless -d $tmpdir;
-
-    # Write start of testcase to log file
-    mark_log($mysqld->value('#log-error'), $tinfo);
-
-    # Run <tname>-master.sh
-    if ($mysqld->option('#!run-master-sh') and
-       run_sh_script($tinfo->{master_sh}) )
-    {
-      $tinfo->{'comment'}= "Failed to execute '$tinfo->{master_sh}'";
-      return 1;
-    }
-
-    # Run <tname>-slave.sh
-    if ($mysqld->option('#!run-slave-sh') and
-	run_sh_script($tinfo->{slave_sh}))
-    {
-      $tinfo->{'comment'}= "Failed to execute '$tinfo->{slave_sh}'";
-      return 1;
-    }
-
-    if (!$opt_embedded_server)
-    {
-      my $extra_opts= get_extra_opts($mysqld, $tinfo);
-      mysqld_start($mysqld,$extra_opts);
-
-      # Save this test case information, so next can examine it
-      $mysqld->{'started_tinfo'}= $tinfo;
-    }
-
-  }
-
-  # Wait for clusters to start
-  foreach my $cluster ( clusters() )
-  {
-    if (ndbcluster_wait_started($cluster, ""))
-    {
-      # failed to start
-      $tinfo->{'comment'}= "Start of '".$cluster->name()."' cluster failed";
-      return 1;
-    }
-  }
-
-  # Wait for mysqlds to start
-  foreach my $mysqld ( mysqlds() )
-  {
-    next if !started($mysqld);
-
-    if (sleep_until_file_created($mysqld->value('pid-file'),
-				 $opt_start_timeout,
-				 $mysqld->{'proc'}) == 0) {
-      $tinfo->{comment}=
-	"Failed to start ".$mysqld->name();
-
-      my $logfile= $mysqld->value('#log-error');
-      if ( defined $logfile and -f $logfile )
-      {
-        my @srv_lines= extract_server_log($logfile, $tinfo->{name});
-	$tinfo->{logfile}= "Server log is:\n" . join ("", @srv_lines);
-      }
-      else
-      {
-	$tinfo->{logfile}= "Could not open server logfile: '$logfile'";
-      }
+  for (all_servers()) {
+    next unless $_->{WAIT} and started($_);
+    if ($_->{WAIT}->($_)) {
+      $tinfo->{comment}= "Failed to start ".$_->name() . "\n";
       return 1;
     }
   }
@@ -5545,23 +5794,11 @@ sub start_mysqltest ($) {
 
   mtr_init_args(\$args);
 
-  if ( $opt_strace_client )
-  {
-    $exe=  "strace";
-    mtr_add_arg($args, "-o");
-    mtr_add_arg($args, "%s/log/mysqltest.strace", $opt_vardir);
-    mtr_add_arg($args, "$exe_mysqltest");
-  }
-
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--silent");
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
   mtr_add_arg($args, "--logdir=%s/log", $opt_vardir);
-  if ($auth_plugin)
-  {
-    mtr_add_arg($args, "--plugin_dir=%s", dirname($auth_plugin));
-  }
 
   # Log line number and time  for each line in .test file
   mtr_add_arg($args, "--mark-progress")
@@ -5589,6 +5826,18 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--cursor-protocol");
   }
 
+  if ( $opt_non_blocking_api )
+  {
+    mtr_add_arg($args, "--non-blocking-api");
+  }
+
+  if ( $opt_strace_client )
+  {
+    $exe=  $opt_strace_client || "strace";
+    mtr_add_arg($args, "-o");
+    mtr_add_arg($args, "%s/log/mysqltest.strace", $opt_vardir);
+    mtr_add_arg($args, "$exe_mysqltest");
+  }
 
   mtr_add_arg($args, "--timer-file=%s/log/timer", $opt_vardir);
 
@@ -5631,7 +5880,9 @@ sub start_mysqltest ($) {
     if (IS_WINDOWS)
     {
       # Trick the server to send output to stderr, with --console
-      mtr_add_arg($args, "--server-arg=--console");
+      if (!(grep(/^--server-arg=--log-error/, @$args))) {
+        mtr_add_arg($args, "--server-arg=--console");
+      }
     }
   }
 
@@ -5652,6 +5903,19 @@ sub start_mysqltest ($) {
     mtr_init_args(\$args);
     valgrind_arguments($args, \$exe);
     mtr_add_arg($args, "%s", $_) for @args_saved;
+  }
+
+  if ($opt_force > 1)
+  {
+    mtr_add_arg($args, "--continue-on-error");
+  }
+
+  my $suite = $tinfo->{suite};
+  if ($suite->{parent}) {
+    mtr_add_arg($args, "--overlay-dir=%s/", $suite->{dir});
+    mtr_add_arg($args, "--suite-dir=%s/", $suite->{parent}->{dir});
+  } else {
+    mtr_add_arg($args, "--suite-dir=%s/", $suite->{dir});
   }
 
   mtr_add_arg($args, "--test-file=%s", $tinfo->{'path'});
@@ -5705,25 +5969,6 @@ sub start_mysqltest ($) {
   return $proc;
 }
 
-sub create_debug_statement {
-  my $args= shift;
-  my $input= shift;
-
-  # Put $args into a single string
-  my $str= join(" ", @$$args);
-  my $runline= $input ? "run $str < $input" : "run $str";
-
-  # add quotes to escape ; in plugin_load option
-  my $pos1 = index($runline, "--plugin_load=");
-  if ( $pos1 != -1 ) {
-    my $pos2 = index($runline, " ",$pos1);
-    substr($runline,$pos1+14,0) = "\"";
-    substr($runline,$pos2+1,0) = "\"";
-  }
-
-  return $runline;
-}
-
 #
 # Modify the exe and args so that program is run in gdb in xterm
 #
@@ -5738,12 +5983,12 @@ sub gdb_arguments {
   # Remove the old gdbinit file
   unlink($gdb_init_file);
 
-  my $runline=create_debug_statement($args,$input);
+  # Put $args into a single string
+  my $str= join(" ", @$$args);
+  $input = $input ? "< $input" : "";
 
   # write init file for mysqld or client
-  mtr_tofile($gdb_init_file,
-	     "break main\n" .
-	     $runline);
+  mtr_tofile($gdb_init_file, "set args $str $input\n");
 
   if ( $opt_manual_gdb )
   {
@@ -5774,7 +6019,7 @@ sub gdb_arguments {
   $$exe= "xterm";
 }
 
- #
+#
 # Modify the exe and args so that program is run in lldb
 #
 sub lldb_arguments {
@@ -5786,12 +6031,12 @@ sub lldb_arguments {
   my $lldb_init_file= "$opt_vardir/tmp/lldbinit.$type";
   unlink($lldb_init_file);
 
-  my $runline=create_debug_statement($args,$input);
+  # Put $args into a single string
+  my $str= join(" ", @$$args);
+  $input = $input ? "< $input" : "";
 
   # write init file for mysqld or client
-  mtr_tofile($lldb_init_file,
-	     "b main\n" .
-	     $runline);
+  mtr_tofile($lldb_init_file, "set args $str $input\n");
 
     print "\nTo start lldb for $type, type in another window:\n";
     print "cd $glob_mysql_test_dir && lldb -s $lldb_init_file $$exe\n";
@@ -5815,13 +6060,12 @@ sub ddd_arguments {
   # Remove the old gdbinit file
   unlink($gdb_init_file);
 
-  my $runline=create_debug_statement($args,$input);
+  # Put $args into a single string
+  my $str= join(" ", @$$args);
+  $input = $input ? "< $input" : "";
 
   # write init file for mysqld or client
-  mtr_tofile($gdb_init_file,
-	     "file $$exe\n" .
-	     "break main\n" .
-	     $runline);
+  mtr_tofile($gdb_init_file, "file $$exe\nset args $str $input\n");
 
   if ( $opt_manual_ddd )
   {
@@ -5929,19 +6173,6 @@ sub debugger_arguments {
   }
 }
 
-#
-# Modify the exe and args so that program is run in strace 
-#
-sub strace_server_arguments {
-  my $args= shift;
-  my $exe=  shift;
-  my $type= shift;
-
-  mtr_add_arg($args, "-o");
-  mtr_add_arg($args, "%s/log/%s.strace", $opt_vardir, $type);
-  mtr_add_arg($args, $$exe);
-  $$exe= "strace";
-}
 
 #
 # Modify the exe and args so that program is run in valgrind
@@ -5981,9 +6212,35 @@ sub valgrind_arguments {
 }
 
 #
+# Modify the exe and args so that program is run in strace
+#
+sub strace_arguments {
+  my $args= shift;
+  my $exe=  shift;
+  my $mysqld_name= shift;
+
+  mtr_add_arg($args, "-f");
+  mtr_add_arg($args, "-o%s/var/log/%s.strace", $glob_mysql_test_dir, $mysqld_name);
+
+  # Add strace options, can be overriden by user
+  mtr_add_arg($args, '%s', $_) for (@strace_args);
+
+  mtr_add_arg($args, $$exe);
+
+  $$exe= "strace";
+
+  if ($exe_libtool)
+  {
+    # Add "libtool --mode-execute" before the test to execute
+    # if running in valgrind(to avoid valgrinding bash)
+    unshift(@$args, "--mode=execute", $$exe);
+    $$exe= $exe_libtool;
+  }
+}
+
+#
 # Search server logs for valgrind reports printed at mysqld termination
 #
-
 sub valgrind_exit_reports() {
   my $found_err= 0;
 
@@ -6047,80 +6304,6 @@ sub valgrind_exit_reports() {
   return $found_err;
 }
 
-sub run_ctest() {
-  my $olddir= getcwd();
-  chdir ($bindir) or die ("Could not chdir to $bindir");
-  my $tinfo;
-  my $no_ctest= (IS_WINDOWS) ? 256 : -1;
-  my $ctest_vs= "";
-
-  # Just ignore if not configured/built to run ctest
-  if (! -f "CTestTestfile.cmake") {
-    chdir($olddir);
-    return;
-  }
-
-  # Add vs-config option if needed
-  $ctest_vs= "-C $opt_vs_config" if $opt_vs_config;
-
-  # Also silently ignore if we don't have ctest and didn't insist
-  # Special override: also ignore in Pushbuild, some platforms may not have it
-  # Now, run ctest and collect output
-  my $ctest_out= `ctest $ctest_vs 2>&1`;
-  if ($? == $no_ctest && ($opt_ctest == -1 || defined $ENV{PB2WORKDIR})) {
-    chdir($olddir);
-    return;
-  }
-
-  # Create minimalistic "test" for the reporting
-  $tinfo = My::Test->new
-    (
-     name           => 'unit_tests',
-    );
-  # Set dummy worker id to align report with normal tests
-  $tinfo->{worker} = 0 if $opt_parallel > 1;
-
-  my $ctfail= 0;		# Did ctest fail?
-  if ($?) {
-    $ctfail= 1;
-    $tinfo->{result}= 'MTR_RES_FAILED';
-    $tinfo->{comment}= "ctest failed with exit code $?, see result below";
-    $ctest_out= "" unless $ctest_out;
-  }
-  my $ctfile= "$opt_vardir/ctest.log";
-  my $ctres= 0;			# Did ctest produce report summary?
-
-  open (CTEST, " > $ctfile") or die ("Could not open output file $ctfile");
-
-  $ctest_report .= $ctest_out if $opt_ctest_report;
-
-  # Put ctest output in log file, while analyzing results
-  for (split ('\n', $ctest_out)) {
-    print CTEST "$_\n";
-    if (/tests passed/) {
-      $ctres= 1;
-      $ctest_report .= "\nUnit tests: $_\n";
-    }
-    if ( /FAILED/ or /\(Failed\)/ ) {
-      $ctfail= 1;
-      $ctest_report .= "  $_\n";
-    }
-  }
-  close CTEST;
-
-  # Set needed 'attributes' for test reporting
-  $tinfo->{comment}.= "\nctest did not pruduce report summary" if ! $ctres;
-  $tinfo->{result}= ($ctres && !$ctfail)
-    ? 'MTR_RES_PASSED' : 'MTR_RES_FAILED';
-  $ctest_report .= "Report from unit tests in $ctfile";
-  $tinfo->{failures}= ($tinfo->{result} eq 'MTR_RES_FAILED');
-
-  mark_time_used('test');
-  mtr_report_test($tinfo);
-  chdir($olddir);
-  return $tinfo;
-}
-
 #
 # Usage
 #
@@ -6130,7 +6313,11 @@ sub usage ($) {
   if ( $message )
   {
     print STDERR "$message\n";
+    print STDERR "For full list of options, use $0 --help\n";
+    exit;      
   }
+
+  local $"= ','; # for @DEFAULT_SUITES below
 
   print <<HERE;
 
@@ -6144,19 +6331,19 @@ Options to control what engine/variation to run
                         (implies --ps-protocol)
   view-protocol         Create a view to execute all non updating queries
   sp-protocol           Create a stored procedure to execute all queries
+  non-blocking-api      Use the non-blocking client API
   compress              Use the compressed protocol between client and server
   ssl                   Use ssl protocol between client and server
   skip-ssl              Dont start server with support for ssl connections
   vs-config             Visual Studio configuration used to create executables
                         (default: MTR_VS_CONFIG environment variable)
-
+  parallel=#            How many parallell test should be run
   defaults-file=<config template> Use fixed config template for all
                         tests
   defaults-extra-file=<config template> Extra config template to add to
                         all generated configs
-  combination=<opt>     Use at least twice to run tests with specified 
+  combination=<opt>     Use at least twice to run tests with specified
                         options to mysqld
-  skip-combinations     Ignore combination file (or options)
 
 Options to control directories to use
   tmpdir=DIR            The directory where temporary files are stored
@@ -6167,7 +6354,7 @@ Options to control directories to use
   mem                   Run testsuite in "memory" using tmpfs or ramdisk
                         Attempts to find a suitable location
                         using a builtin list of standard locations
-                        for tmpfs (/dev/shm)
+                        for tmpfs (/run/shm, /dev/shm, /tmp)
                         The option can also be set using environment
                         variable MTR_MEM=[DIR]
   clean-vardir          Clean vardir if tests were successful and if
@@ -6178,7 +6365,11 @@ Options to control directories to use
 
 Options to control what test suites or cases to run
 
-  force                 Continue to run the suite after failure
+  force                 Continue after a failure. When specified once, a
+                        failure in a test file will abort this test file, and
+                        the execution will continue from the next test file.
+                        When specified twice, execution will continue executing
+                        the failed test file from the next command.
   with-ndbcluster-only  Run only tests that include "ndb" in the filename
   skip-ndb[cluster]     Skip all tests that need cluster. Default.
   include-ndb[cluster]  Enable all tests that need cluster
@@ -6193,9 +6384,12 @@ Options to control what test suites or cases to run
   suite[s]=NAME1,..,NAMEN
                         Collect tests in suites from the comma separated
                         list of suite names.
-                        The default is: "$DEFAULT_SUITES"
+                        The default is: "@DEFAULT_SUITES"
   skip-rpl              Skip the replication test cases.
-  big-test              Also run tests marked as "big"
+  big-test              Also run tests marked as "big". Repeat this option
+                        twice to run only "big" tests.
+  staging-run           Run a limited number of tests (no slow tests). Used
+                        for running staging trees with valgrind.
   enable-disabled       Run also tests marked as disabled
   print-testcases       Don't run the tests but print details about all the
                         selected tests, in the order they would be run.
@@ -6262,8 +6456,6 @@ Options for debugging the product
                         test(s)
   manual-lldb           Let user manually start mysqld in lldb, before running 
                         test(s)
-  strace-client         Create strace output for mysqltest client, 
-  strace-server         Create strace output for mysqltest server, 
   max-save-core         Limit the number of core files saved (to avoid filling
                         up disks for heavily crashing server). Defaults to
                         $opt_max_save_core, set to 0 for no limit. Set
@@ -6271,7 +6463,7 @@ Options for debugging the product
   max-save-datadir      Limit the number of datadir saved (to avoid filling
                         up disks for heavily crashing server). Defaults to
                         $opt_max_save_datadir, set to 0 for no limit. Set
-                        it's default with MTR_MAX_SAVE_DATDIR
+                        it's default with MTR_MAX_SAVE_DATADIR
   max-test-fail         Limit the number of test failurs before aborting
                         the current test run. Defaults to
                         $opt_max_test_fail, set to 0 for no limit. Set
@@ -6290,6 +6482,15 @@ Options for valgrind
                         can be specified more then once
   valgrind-path=<EXE>   Path to the valgrind executable
   callgrind             Instruct valgrind to use callgrind
+
+Options for strace
+
+  strace                Run the "mysqld" executables using strace. Default
+                        options are -f -o var/log/'mysqld-name'.strace
+  strace-option=ARGS    Option to give strace, replaces default option(s),
+  strace-client=[path]  Create strace output for mysqltest client, optionally
+                        specifying name and path to the trace program to use.
+                        Example: $0 --strace-client=ktrace
 
 Misc options
   user=USER             User for connecting to mysqld(default: $opt_user)
@@ -6313,12 +6514,15 @@ Misc options
   fast                  Run as fast as possible, dont't wait for servers
                         to shutdown etc.
   force-restart         Always restart servers between tests
-  parallel=N            Run tests in N parallel threads (default=1)
+  parallel=N            Run tests in N parallel threads (default 1)
                         Use parallel=auto for auto-setting of N
   repeat=N              Run each test N number of times
-  retry=N               Retry tests that fail N times, limit number of failures
-                        to $opt_retry_failure
-  retry-failure=N       Limit number of retries for a failed test
+  retry=N               Retry tests that fail up to N times (default $opt_retry).
+                        Retries are also limited by the maximum number of
+                        failures before stopping, set with the --retry-failure
+                        option
+  retry-failure=N       When using the --retry option to retry failed tests,
+                        stop when N failures have occured (default $opt_retry_failure)
   reorder               Reorder tests to get fewer server restarts
   help                  Get this help text
 
@@ -6329,15 +6533,25 @@ Misc options
   warnings              Scan the log files for warnings. Use --nowarnings
                         to turn off.
 
+  stop-file=file        (also MTR_STOP_FILE environment variable) if this
+                        file detected mysql test will not start new tests
+                        until the file will be removed.
+  stop-keep-alive=sec   (also MTR_STOP_KEEP_ALIVE environment variable)
+                        works with stop-file, print messages every sec
+                        seconds when mysql test is waiting to removing
+                        the file (for buildbot)
+
   sleep=SECONDS         Passed to mysqltest, will be used as fixed sleep time
   debug-sync-timeout=NUM Set default timeout for WAIT_FOR debug sync
                         actions. Disable facility with NUM=0.
   gcov                  Collect coverage information after the test.
                         The result is a gcov file per source and header file.
+  gcov-src-dir=subdir   Colllect coverage only within the given subdirectory.
+                        For example, if you're only developing the SQL layer, 
+                        it makes sense to use --gcov-src-dir=sql
   gprof                 Collect profiling information using gprof.
   experimental=<file>   Refer to list of tests considered experimental;
                         failures will be marked exp-fail instead of fail.
-  report-features       First run a "test" that reports mysql features
   timestamp             Print timestamp before each test report line
   timediff              With --timestamp, also print time passed since
                         *previous* test started
@@ -6347,10 +6561,6 @@ Misc options
                         engine to InnoDB.
   report-times          Report how much time has been spent on different
                         phases of test execution.
-  nounit-tests          Do not run unit tests. Normally run if configured
-                        and if not running named tests/suites
-  unit-tests            Run unit tests even if they would otherwise not be run
-  unit-tests-report     Include report of every test included in unit tests.
   stress=ARGS           Run stress test, providing options to
                         mysql-stress-test.pl. Options are separated by comma.
 
@@ -6369,9 +6579,30 @@ sub list_options ($) {
   for (keys %$hash) {
     s/([:=].*|[+!])$//;
     s/\|/\n--/g;
-    print "--$_\n" unless /list-options/;
+    print "--$_\n";
   }
 
   exit(1);
 }
 
+sub time_format($) {
+  sprintf '%d:%02d:%02d', $_[0]/3600, ($_[0]/60)%60, $_[0]%60;
+}
+
+our $num_tests;
+
+sub xterm_stat {
+  if (-t STDOUT and defined $ENV{TERM} and $ENV{TERM} =~ /xterm/) {
+    my ($left) = @_;
+
+    # 2.5 -> best by test
+    $num_tests = $left + 2.5 unless $num_tests;
+
+    my $done = $num_tests - $left;
+    my $spent = time - $^T;
+
+    printf "\e];mtr: spent %s on %d tests. %s (%d tests) left\a",
+           time_format($spent), $done,
+           time_format($spent/$done * $left), $left;
+  }
+}

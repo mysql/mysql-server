@@ -36,6 +36,8 @@
 --source include/have_cp866.inc
 --source include/have_cp1251.inc
 --source include/have_koi8r.inc
+let collation=utf8_unicode_ci;
+--source include/have_collation.inc
 
 ###########################################################################
 

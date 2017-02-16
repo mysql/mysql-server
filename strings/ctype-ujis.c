@@ -1,5 +1,6 @@
 /* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, SkySQL Ab.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -26,14 +27,13 @@
  * .configure. mbmaxlen_ujis=3
  */
 
-#include <my_global.h>
-#include "m_string.h"
-#include "m_ctype.h"
+#include "strings_def.h"
+#include <m_ctype.h>
 
 #ifdef HAVE_CHARSET_ujis
 
 
-static uchar ctype_ujis[257] =
+static const uchar ctype_ujis[257] =
 {
     0,				/* For standard library */
     0040, 0040, 0040, 0040, 0040, 0040, 0040, 0040,	/* NUL ^A - ^G */
@@ -70,7 +70,7 @@ static uchar ctype_ujis[257] =
     0020, 0020, 0020, 0020, 0020, 0020, 0020, 0000,
 };
 
-static uchar to_lower_ujis[]=
+static const uchar to_lower_ujis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -106,7 +106,7 @@ static uchar to_lower_ujis[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar to_upper_ujis[]=
+static const uchar to_upper_ujis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -142,7 +142,7 @@ static uchar to_upper_ujis[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar sort_order_ujis[]=
+static const uchar sort_order_ujis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -67173,7 +67173,7 @@ static size_t
 my_casefold_ujis(CHARSET_INFO *cs,
                  char *src, size_t srclen,
                  char *dst, size_t dstlen __attribute__((unused)),
-                 uchar *map,
+                 const uchar * const map,
                  size_t is_upper)
 {
   char *srcend= src + srclen, *dst0= dst;
@@ -67292,7 +67292,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 
 
 
-CHARSET_INFO my_charset_ujis_japanese_ci=
+struct charset_info_st my_charset_ujis_japanese_ci=
 {
     12,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state        */
@@ -67325,7 +67325,7 @@ CHARSET_INFO my_charset_ujis_japanese_ci=
 };
 
 
-CHARSET_INFO my_charset_ujis_bin=
+struct charset_info_st my_charset_ujis_bin=
 {
     91,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_BINSORT,	/* state        */

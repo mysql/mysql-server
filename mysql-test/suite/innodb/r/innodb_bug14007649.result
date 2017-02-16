@@ -34,7 +34,7 @@ select rowid, f1, f2 from t1;
 rowid	f1	f2
 1	1	10
 2	1	NULL
-SET SESSION debug="+d,bug14007649";
+SET SESSION debug_dbug="+d,bug14007649";
 update t1 set f2 = 6 where f1 = 1 and f2 is null;
 (a) Number of rows updated:
 select row_count();

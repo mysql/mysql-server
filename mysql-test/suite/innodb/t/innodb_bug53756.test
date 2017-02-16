@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 # This is the test case for bug #53756. Alter table operation could
 # leave a deleted record for the temp table (later renamed to the altered
 # table) in the SYS_TABLES secondary index, we should ignore this row and
@@ -13,9 +14,6 @@
 #
 # Don't test this under valgrind, memory leaks will occur.
 --source include/not_valgrind.inc
-#
-# This test case needs InnoDB.
--- source include/have_innodb.inc
 
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
@@ -137,7 +135,7 @@ START TRANSACTION;
 INSERT INTO bug_53756 VALUES (666,666);
 #
 # Request a crash on next execution of commit.
-SET SESSION debug="+d,crash_commit_before";
+SET SESSION debug_dbug="+d,crash_commit_before";
 #
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

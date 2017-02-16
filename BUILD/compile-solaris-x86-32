@@ -1,0 +1,11 @@
+#!/bin/sh
+
+path=`dirname $0`
+. "$path/SETUP.sh"
+extra_flags="-D__sun -m32"
+extra_configs="$max_configs --with-libevent"
+
+LDFLAGS="-lmtmalloc -R/usr/sfw/lib"
+export LDFLAGS
+
+. "$path/FINISH.sh"

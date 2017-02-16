@@ -1,0 +1,123 @@
+include/master-slave.inc
+[connection master]
+########################################################################
+# TABLES ON MASTER
+########################################################################
+SELECT * FROM t1 ORDER BY a;
+a	b
+0	1
+SELECT * FROM t2 ORDER BY a;
+a	b
+SELECT * FROM t3 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+SELECT * FROM t5 ORDER BY a;
+a	b
+1	foo
+2	bar
+3	baz
+4	gås
+5	gås
+########################################################################
+# TABLES ON SLAVE: should be the same as on master
+########################################################################
+SELECT * FROM t1 ORDER BY a;
+a	b
+0	1
+SELECT * FROM t2 ORDER BY a;
+a	b
+SELECT * FROM t3 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+SELECT * FROM t5 ORDER BY a;
+a	b
+1	foo
+2	bar
+3	baz
+4	gås
+5	gås
+########################################################################
+# EVENTS ON SLAVE
+# No Annotate_rows events should appear below
+########################################################################
+FLUSH LOGS;
+show binlog events in 'slave-bin.000001' from <start_pos>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Query	1	#	DROP DATABASE IF EXISTS test1
+slave-bin.000001	#	Query	1	#	CREATE DATABASE test1
+slave-bin.000001	#	Query	1	#	use `test1`; CREATE TABLE t1(a int primary key, b int)
+slave-bin.000001	#	Query	1	#	use `test1`; CREATE TABLE t2(a int, b int)
+slave-bin.000001	#	Query	1	#	use `test1`; CREATE TABLE t3(a int, b int)
+slave-bin.000001	#	Query	1	#	use `test1`; CREATE TABLE t4(a int, b int)
+slave-bin.000001	#	Query	1	#	use `test1`; CREATE TABLE t5 (
+a INT PRIMARY KEY AUTO_INCREMENT,
+b VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_bin
+)
+slave-bin.000001	#	Query	1	#	BEGIN
+slave-bin.000001	#	Table_map	1	#	table_id: # (test1.t1)
+slave-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	1	#	COMMIT
+slave-bin.000001	#	Query	1	#	BEGIN
+slave-bin.000001	#	Table_map	1	#	table_id: # (test1.t1)
+slave-bin.000001	#	Update_rows	1	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	1	#	COMMIT
+slave-bin.000001	#	Query	1	#	BEGIN
+slave-bin.000001	#	Table_map	1	#	table_id: # (test1.t1)
+slave-bin.000001	#	Update_rows	1	#	table_id: #
+slave-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	1	#	COMMIT
+slave-bin.000001	#	Query	1	#	BEGIN
+slave-bin.000001	#	Table_map	1	#	table_id: # (test1.t2)
+slave-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	1	#	COMMIT
+slave-bin.000001	#	Query	1	#	BEGIN
+slave-bin.000001	#	Table_map	1	#	table_id: # (test1.t3)
+slave-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	1	#	COMMIT
+slave-bin.000001	#	Query	1	#	BEGIN
+slave-bin.000001	#	Table_map	1	#	table_id: # (test1.t2)
+slave-bin.000001	#	Table_map	1	#	table_id: # (test1.t1)
+slave-bin.000001	#	Delete_rows	1	#	table_id: #
+slave-bin.000001	#	Delete_rows	1	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	1	#	COMMIT
+slave-bin.000001	#	Query	1	#	BEGIN
+slave-bin.000001	#	Table_map	1	#	table_id: # (test1.t2)
+slave-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	1	#	COMMIT
+slave-bin.000001	#	Query	1	#	BEGIN
+slave-bin.000001	#	Table_map	1	#	table_id: # (test1.t2)
+slave-bin.000001	#	Delete_rows	1	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	1	#	COMMIT
+slave-bin.000001	#	Query	1	#	BEGIN
+slave-bin.000001	#	Table_map	1	#	table_id: # (test1.t5)
+slave-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	1	#	COMMIT
+slave-bin.000001	#	Query	1	#	BEGIN
+slave-bin.000001	#	Table_map	1	#	table_id: # (test1.t5)
+slave-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	1	#	COMMIT
+slave-bin.000001	#	Query	1	#	BEGIN
+slave-bin.000001	#	Table_map	1	#	table_id: # (test1.t5)
+slave-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	1	#	COMMIT
+slave-bin.000001	#	Rotate	2	#	slave-bin.000002;pos=4
+# 
+########################################################################
+# INSERTs DELAYED ON MASTERs
+########################################################################
+SET SESSION binlog_annotate_row_events = ON;
+INSERT DELAYED INTO test1.t4 VALUES (1,1);
+FLUSH TABLES;
+SELECT * FROM test1.t4 ORDER BY a;
+a	b
+1	1
+########################################################################
+# ON SLAVE
+# No Annotate_rows events should appear below
+########################################################################
+FLUSH LOGS;
+include/rpl_end.inc

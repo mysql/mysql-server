@@ -16,38 +16,38 @@ source include/master-slave.inc;
 connection slave;
 stop slave;
 
-SET @@debug="d,simulate_find_log_pos_error";
+SET @@debug_dbug="d,simulate_find_log_pos_error";
 
 --error ER_UNKNOWN_TARGET_BINLOG
 reset slave;
 show warnings;
 
-SET @@debug="";
+SET @@debug_dbug="";
 reset slave;
 change master to master_host='dummy';
 
-SET @@debug="d,simulate_find_log_pos_error";
+SET @@debug_dbug="d,simulate_find_log_pos_error";
 
 --error ER_UNKNOWN_TARGET_BINLOG
 change master to master_host='dummy';
 
-SET @@debug="";
+SET @@debug_dbug="";
 reset slave;
 change master to master_host='dummy';
 
 connection master;
-SET @@debug="d,simulate_find_log_pos_error";
+SET @@debug_dbug="d,simulate_find_log_pos_error";
 --error ER_UNKNOWN_TARGET_BINLOG
 reset master;
 
-SET @@debug="";
+SET @@debug_dbug="";
 reset master;
 
-SET @@debug="d,simulate_find_log_pos_error";
+SET @@debug_dbug="d,simulate_find_log_pos_error";
 --error ER_UNKNOWN_TARGET_BINLOG
 purge binary logs to 'master-bin.000001';
 
-SET @@debug="";
+SET @@debug_dbug="";
 purge binary logs to 'master-bin.000001';
 
 --disable_query_log

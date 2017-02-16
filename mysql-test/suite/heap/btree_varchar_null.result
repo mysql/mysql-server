@@ -1,0 +1,6 @@
+create table t1 (f1 varchar(128), f2 varchar(128), key (f2,f1) using btree) engine=memory;
+insert into t1 values (null,'not'),('one',null),('two',null),('three','');
+select * from t1 where f1 = 'one'  and f2 is null;
+f1	f2
+one	NULL
+drop table t1;

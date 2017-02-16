@@ -1,0 +1,27 @@
+# ticket 895 is a query optimization problem with the primary key
+
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+set session unique_checks=off;
+
+create table foo (a int, b int, c int, primary key (a), key(b));
+insert into foo values (1,10,100),(2,20,200),(3,30,300),(4,40,400),(5,50,500),(6,60,600);
+explain select * from foo;
+select * from foo;
+explain select b from foo;
+select b from foo;
+
+replace into foo values (1,1,1);
+explain select * from foo;
+select * from foo;
+explain select b from foo;
+select b from foo;
+
+set session unique_checks=on;
+
+# Final cleanup.
+DROP TABLE foo;

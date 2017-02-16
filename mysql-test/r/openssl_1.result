@@ -3,10 +3,12 @@ create table t1(f1 int);
 insert into t1 values (5);
 grant select on test.* to ssl_user1@localhost require SSL;
 grant select on test.* to ssl_user2@localhost require cipher "DHE-RSA-AES256-SHA";
-grant select on test.* to ssl_user3@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client";
-grant select on test.* to ssl_user4@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
+grant select on test.* to ssl_user3@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=FI/ST=Helsinki/L=Helsinki/O=MariaDB/CN=client";
+grant select on test.* to ssl_user4@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=FI/ST=Helsinki/L=Helsinki/O=MariaDB/CN=client" ISSUER "/CN=cacert/C=FI/ST=Helsinki/L=Helsinki/O=MariaDB";
 grant select on test.* to ssl_user5@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "xxx";
 flush privileges;
+connect(localhost,ssl_user2,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'ssl_user2'@'localhost' (using password: NO)
 connect(localhost,ssl_user5,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'ssl_user5'@'localhost' (using password: NO)
 SHOW STATUS LIKE 'Ssl_cipher';
@@ -189,14 +191,12 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 SSL error: Unable to get private key from 'MYSQL_TEST_DIR/std_data/client-cert.pem'
-mysqldump: Got error: 2026: SSL connection error: Unable to get private key when trying to connect
+mysqldump: Got error: 2026: "SSL connection error: Unable to get private key" when trying to connect
 DROP TABLE t1;
 Variable_name	Value
 Ssl_cipher	DHE-RSA-AES256-SHA
 Variable_name	Value
 Ssl_cipher	EDH-RSA-DES-CBC3-SHA
-Variable_name	Value
-Ssl_cipher	EDH-RSA-DES-CBC-SHA
 Variable_name	Value
 Ssl_cipher	RC4-SHA
 select 'is still running; no cipher request crashed the server' as result from dual;

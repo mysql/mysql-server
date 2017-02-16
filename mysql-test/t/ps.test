@@ -164,13 +164,24 @@ create table t1
 ) engine = MYISAM ;
 create table t2 like t1;
 
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
+
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
+
 set @stmt= ' explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25 ' ;
 prepare stmt1 from @stmt ;
 execute stmt1 ;
 execute stmt1 ;
 explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25;
 deallocate prepare stmt1;
+
+set optimizer_switch=@tmp_optimizer_switch;
+
 drop tables t1,t2;
+
+set @@optimizer_switch=@save_optimizer_switch;
 
 #
 # parameters from variables (for field creation)
@@ -268,11 +279,11 @@ deallocate prepare Stmt1;
 
 # also check that statement names are in right charset.
 set names utf8;
-prepare `ü` from 'select 1234';
-execute `ü` ;
+prepare `Ã¼` from 'select 1234';
+execute `Ã¼` ;
 set names latin1;
-execute `�`;
-deallocate prepare `�`;
+execute `ü`;
+deallocate prepare `ü`;
 set names default;
 
 
@@ -2590,13 +2601,10 @@ drop table t1;
 
 
 create procedure proc_1() install plugin my_plug soname 'some_plugin.so';
---replace_regex /(Can\'t open shared library).*$/\1/
 --error ER_CANT_OPEN_LIBRARY,ER_FEATURE_DISABLED
 call proc_1();
---replace_regex /(Can\'t open shared library).*$/\1/
 --error ER_CANT_OPEN_LIBRARY,ER_FEATURE_DISABLED
 call proc_1();
---replace_regex /(Can\'t open shared library).*$/\1/
 --error ER_CANT_OPEN_LIBRARY,ER_FEATURE_DISABLED
 call proc_1();
 drop procedure proc_1;
@@ -3086,15 +3094,20 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
+###########################################################################
+
 --echo #
 --echo # Bug#54494 crash with explain extended and prepared statements
 --echo #
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (1),(2);
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 PREPARE stmt FROM 'EXPLAIN EXTENDED SELECT 1 FROM t1 RIGHT JOIN t1 t2 ON 1';
 EXECUTE stmt;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
+SET optimizer_switch=@save_optimizer_switch;
 DROP TABLE t1;
 
 --echo #
@@ -3110,6 +3123,71 @@ DROP TABLE t1;
 
 --echo 
 --echo End of 5.1 tests.
+
+--echo #
+--echo # lp:1001500 Crash on the second execution of the PS for
+--echo # a query with degenerated conjunctive condition
+--echo # (see also mysql bug#12582849)
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER AUTO_INCREMENT,
+  col_int_nokey INTEGER,
+  col_int_key INTEGER,
+
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+
+  PRIMARY KEY (pk),
+  KEY (col_int_key),
+  KEY (col_varchar_key, col_int_key)
+);
+
+INSERT INTO t1 (
+  col_int_key, col_int_nokey,
+  col_varchar_key, col_varchar_nokey
+) VALUES 
+(4,    2, 'v', 'v'),
+(62, 150, 'v', 'v');
+
+CREATE TABLE t2 (
+  pk INTEGER AUTO_INCREMENT,
+  col_int_nokey INTEGER,
+  col_int_key INTEGER,
+
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+
+  PRIMARY KEY (pk),
+  KEY (col_int_key),
+  KEY (col_varchar_key, col_int_key)
+);
+
+INSERT INTO t2 (
+  col_int_key, col_int_nokey,
+  col_varchar_key, col_varchar_nokey
+) VALUES 
+(8, NULL, 'x', 'x'),
+(7, 8,    'd', 'd');
+
+PREPARE stmt FROM ' 
+SELECT
+  ( SELECT MAX( SQ1_alias2 .col_int_nokey ) AS SQ1_field1
+    FROM ( t2 AS SQ1_alias1 RIGHT JOIN t1 AS SQ1_alias2
+           ON ( SQ1_alias2.col_varchar_key = SQ1_alias1.col_varchar_nokey )
+         )
+    WHERE SQ1_alias2.pk < alias1.col_int_nokey OR alias1.pk
+  ) AS field1
+FROM ( t1 AS alias1 JOIN t2 AS alias2 ON alias2.pk )
+GROUP BY field1
+';
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+
+DROP TABLE t1, t2;
 
 ###########################################################################
 
@@ -3457,3 +3535,183 @@ DEALLOCATE PREPARE s1;
 --echo # End of 5.5 tests.
 
 ###########################################################################
+#
+# restoring of the Item tree in BETWEEN with dates
+#
+prepare stmt from "select date('2010-10-10') between '2010-09-09' and ?";
+set @a='2010-11-11';
+execute stmt using @a;
+execute stmt using @a;
+set @a='2010-08-08';
+execute stmt using @a;
+execute stmt using @a;
+
+--echo #
+--echo # Bug #892725: look-up is changed for a full scan when executing PS
+--echo #
+
+create table t1 (a int primary key, b int);
+insert into t1 values
+  (7,70), (3,40), (4,40), (8,70), (1,70), (9,50), (2,70);
+
+prepare st from 'select * from t1 where a=8';
+
+flush status;
+execute st;
+show status like '%Handler_read%';
+flush status;
+execute st;
+show status like '%Handler_read%';
+flush status;
+select * from t1 use index() where a=3;
+show status like '%Handler_read%';
+flush status;
+execute st;
+show status like '%Handler_read%';
+
+deallocate prepare st;
+drop table t1;
+
+--echo #
+--echo # Bug mdev-5410: crash at the execution of PS with subselect
+--echo #                formed by UNION with global ORDER BY
+--echo #
+
+CREATE TABLE t1 (a int DEFAULT NULL);
+INSERT INTO t1 VALUES (2), (4);
+CREATE TABLE t2 (b int DEFAULT NULL);
+INSERT INTO t2 VALUES (1), (3);
+ 
+PREPARE stmt FROM "
+SELECT c1 FROM (SELECT (SELECT a FROM t1 WHERE t1.a <= t2.b
+                        UNION ALL
+                        SELECT a FROM t1 WHERE t1.a+3<= t2.b
+                        ORDER BY a DESC) AS c1 FROM t2) t3;
+";
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DROP TABLE t1,t2;
+ 
+
+--echo #
+--echo # MDEV-5369: Wrong result (0 instead of NULL) on 2nd execution of 
+--echo # PS with LEFT JOIN, TEMPTABLE view
+--echo #
+
+
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (0),(8);
+
+CREATE TABLE t2 (pk INT PRIMARY KEY) ENGINE=MyISAM;
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT * FROM t2;
+
+SELECT SUM(pk) FROM t1 LEFT JOIN v2 ON a = pk;
+
+PREPARE stmt FROM "SELECT SUM(pk) FROM t1 LEFT JOIN v2 ON a = pk";
+EXECUTE stmt; 
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+DROP VIEW v2;
+DROP TABLE t1, t2;
+
+--echo # End of 5.3 tests
+
+--echo #
+--echo # MDEV-5505: Assertion `! is_set()' fails on PREPARE SELECT
+--echo # with out of range in GROUP BY
+--echo #
+CREATE TABLE t1 (a INT);
+
+--error ER_DATA_OUT_OF_RANGE
+PREPARE stmt FROM "SELECT 1 FROM t1 GROUP BY 0 OR 18446744073709551615+1";
+--error ER_DATA_OUT_OF_RANGE
+SELECT 1 FROM t1 GROUP BY 0 OR 18446744073709551615+1;
+
+drop table t1;
+
+--echo # End of 5.3 tests
+
+--echo #
+--echo # MDEV-8756: MariaDB 10.0.21 crashes during PREPARE
+--echo #
+
+CREATE TABLE t1 ( id INT(10), value INT(10) );
+CREATE TABLE t2 ( id INT(10) );
+SET @save_sql_mode= @@sql_mode;
+SET SESSION sql_mode = 'ONLY_FULL_GROUP_BY';
+
+PREPARE stmt FROM 'UPDATE t1 t1 SET value = (SELECT 1 FROM t2 WHERE id = t1.id)'; 
+execute stmt;
+insert into t1 values (1,10),(2,10),(3,10);
+insert into t2 values (1),(2);
+execute stmt;
+select * from t1;
+deallocate prepare stmt;
+SET SESSION sql_mode = @save_sql_mode;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # MDEV-8833: Crash of server on prepared statement with
+--echo # conversion to semi-join
+--echo #
+
+CREATE TABLE t1 (column1 INT);
+INSERT INTO t1 VALUES (3),(9);
+
+CREATE TABLE t2 (column2 INT);
+INSERT INTO t2 VALUES (1),(4);
+
+CREATE TABLE t3 (column3 INT);
+INSERT INTO t3 VALUES (6),(8);
+
+CREATE TABLE t4 (column4 INT);
+INSERT INTO t4 VALUES (2),(5);
+
+PREPARE stmt FROM "SELECT ( SELECT MAX( table1.column1 ) AS field1 
+FROM t1 AS table1
+WHERE table3.column3 IN ( SELECT table2.column2 AS field2 FROM t2 AS table2 ) 
+) AS sq
+FROM t3 AS table3, t4 AS table4";
+EXECUTE stmt;
+EXECUTE stmt;
+deallocate prepare stmt;
+drop table t1,t2,t3,t4;
+
+--echo #
+--echo # MDEV-11859: the plans for the first and the second executions
+--echo #             of PS are not the same
+--echo #
+
+create table t1 (id int, c varchar(3), key idx(c))engine=myisam;
+insert into t1 values (3,'bar'), (1,'xxx'), (2,'foo'), (5,'yyy');
+
+prepare stmt1 from
+"explain extended
+ select * from t1 where (1, 2) in ( select 3, 4 ) or c = 'foo'";
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
+
+prepare stmt1 from
+"select * from t1 where (1, 2) in ( select 3, 4 ) or c = 'foo'";
+flush status;
+execute stmt1;
+show status like '%Handler_read%';
+flush status;
+execute stmt1;
+show status like '%Handler_read%';
+deallocate prepare stmt1;
+
+prepare stmt2 from
+"explain extended
+ select * from t1 where (1, 2) in ( select 3, 4 )";
+execute stmt2;
+execute stmt2;
+deallocate prepare stmt2;
+
+drop table t1;
+
+--echo # End of 5.5 tests

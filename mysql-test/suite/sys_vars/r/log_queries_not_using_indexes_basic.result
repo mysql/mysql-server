@@ -70,7 +70,7 @@ ERROR HY000: Variable 'log_queries_not_using_indexes' is a GLOBAL variable and s
 SET LOCAL log_queries_not_using_indexes= TRUE;
 ERROR HY000: Variable 'log_queries_not_using_indexes' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@global log_queries_not_using_indexes= TRUE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'log_queries_not_using_indexes= TRUE' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'log_queries_not_using_indexes= TRUE' at line 1
 SET @@SESSION log_queries_not_using_indexes= TRUE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'log_queries_not_using_indexes= TRUE' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'log_queries_not_using_indexes= TRUE' at line 1
 SET @@global.log_queries_not_using_indexes= @start_value;

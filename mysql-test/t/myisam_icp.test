@@ -1,0 +1,286 @@
+#
+# ICP/MyISAM tests (Index Condition Pushdown)
+#
+
+set @myisam_icp_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+
+--source include/icp_tests.inc
+
+--disable_warnings
+drop table if exists t0, t1, t1i, t1m;
+--enable_warnings
+
+#
+# BUG#711565 Index Condition Pushdown can make a thread hold MyISAM locks as well as be unKILLable for long time
+#   This is not a ready mysqltest testcase but rather a set of queries that
+#   allow to check the bug[fix] manually. Making this testcase automatic is
+#   difficult because
+#    - big tables are involved
+#    - it's difficult to have automatic checks of whether the query could be
+#       KILLed that would reliably work on fast/slow buildslaves, etc.
+
+--disable_parsing
+ 
+  create table t0 (a int);
+  insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+  create table t1 (
+    kp1 int, kp2 int, 
+    filler char(100),
+    col int,
+    key(kp1, kp2)
+  );
+
+  set myisam_sort_buffer_size=32*1000*1000;
+  insert into t1 
+  select 
+    1000 + A.a + 10*B.a + 100*C.a + 1000*D.a + 10000 * F.a,
+    1,
+    'filler-data filler-data filler-data filler-data filler-data',
+    1
+  from 
+    t0 A, t0 B, t0 C, t0 D, t0 E, t0 F, t0 G
+  ;
+
+  insert into t1 values (990, 100, 'a record to test index_next checks',100); 
+
+  update t1 set kp2=10 where kp1 between 20000+100 and 28000;
+
+  update t1 set kp1=20000 where kp1 between 20000 and 28000;
+
+  insert into t1 values (20000, 100, 'last-20K-record',1);
+
+  create table t1i like t1;
+  alter table t1i engine=innodb;
+  insert into t1i select * from t1;
+
+  create table t1m like t1; 
+  alter table t1m engine=maria;
+  insert into t1m select * from t1;
+
+#
+# XtraDB has one check for all kinds of ranges.
+#
+  explain 
+  select * from t1i
+  where 
+    kp1 < 8000 and 
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    kp2 +1 > 10;
+
+
+#
+# MyISAM, check range access + mi_rnext():
+#   (will return HA_ERR_END_OF_FILE)
+  explain 
+  select * from t1 
+  where 
+    kp1 < 10000 and 
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    kp2 +1 > 10;
+
+
+#
+# MyISAM, check range access + mi_rkey():
+#   (will return HA_ERR_END_OF_FILE)
+  explain 
+  select * from t1 
+  where 
+    kp1 >= 999 and kp1 < 10000 and 
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    kp2 +1 > 10;
+
+
+
+#
+# MyISAM, check mi_rnext_same:
+#
+
+  explain 
+  select * from t1 
+  where 
+    kp1 = 20000 and 
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    kp2 +1 < 10;
+
+
+# 
+# MyISAM, check mi_rprev:
+#
+
+  explain 
+  select * from t1 
+  where 
+    kp1 = 20000 and 
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    kp2 +1 > 20
+  order by kp1, kp2 desc;
+
+
+
+#
+# Maria, check range access + maria_rkey():
+#
+  explain 
+  select * from t1m 
+  where 
+    kp1 >= 999 and kp1 < 10000 and 
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    kp2 +1 > 10;
+
+
+
+#
+# Maria, check range access + maria_rnext():
+#
+  explain 
+  select * from t1m
+  where 
+    kp1 < 10000 and 
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    kp2 +1 > 10;
+
+
+#
+# Maria, check maria_rnext_same:
+#
+
+  explain 
+  select * from t1m
+  where 
+    kp1 = 20000 and 
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    kp2 +1 > 100;
+
+# 
+# Maria, check maria_rprev:
+#
+
+  explain 
+  select * from t1m
+  where 
+    kp1 = 20000 and 
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    concat(repeat('foo-bar-', 100000), kp2) like '%bar-1%' and
+    kp2 +1 > 20
+  order by kp1, kp2 desc;
+
+drop table t0, t1, t1i, t1m;
+
+--enable_parsing
+
+--echo #
+--echo # BUG#826935 Assertion `!table || (!table->read_set || bitmap_is_set(table->read_set, field_index))' failed
+--echo #
+CREATE TABLE t1 ( a int, b varchar(1024), c int, KEY (c), KEY (c,a)) ;
+INSERT INTO t1 VALUES
+  (NULL,'x','-678428672'),
+  (NULL,'ok',NULL),
+  (796262400,'byluovkgwoukfxedyeffsedajyqkyhpaqqpozn', NULL),
+  (7,'STQUF',146014208),
+  (955711488,'WWVOR','-1515388928');
+SELECT b FROM t1 WHERE a != 1 AND c IS NULL ORDER BY 1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#870046: ICP for a GROUP BY query
+--echo #
+
+CREATE TABLE t1 (a int, b varchar(1), c varchar(1), INDEX idx(b));
+INSERT INTO t1 VALUES (2,'x','x'), (5,'x','y');
+
+SET SESSION optimizer_switch='index_condition_pushdown=off';
+EXPLAIN
+SELECT a, MIN(c) FROM t1 WHERE b = 'x' AND c > 'x' GROUP BY a;
+SELECT a, MIN(c) FROM t1 WHERE b = 'x' AND c > 'x' GROUP BY a;
+SET SESSION optimizer_switch='index_condition_pushdown=on';
+EXPLAIN
+SELECT a, MIN(c) FROM t1 WHERE b = 'x' AND c > 'x' GROUP BY a;
+SELECT a, MIN(c) FROM t1 WHERE b = 'x' AND c > 'x' GROUP BY a;
+
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#887026: Wrong result with ICP, outer join, subquery in maria-5.3-icp
+--echo #
+
+CREATE TABLE t1 (c varchar(1));
+INSERT INTO t1 VALUES ('c'), ('c');
+
+CREATE TABLE t2 (c varchar(1), b int);
+INSERT INTO t2 VALUES ('d', NULL),('d', NULL);
+
+CREATE TABLE t3 (c varchar(1));
+INSERT INTO t3 VALUES ('c');
+INSERT INTO t3 VALUES ('c');
+
+CREATE TABLE t4 ( b int, c varchar(1), KEY (b));
+INSERT INTO t4 VALUES (7,'c');
+INSERT INTO t4 VALUES (7,'c');
+
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+
+--echo # Must be t1,t2,t3,t4, with t4 having Full-scan-on-NULL but not Using index condition
+explain 
+SELECT * FROM t1 LEFT JOIN t2 ON t1.c=t2.b
+WHERE 
+  t2.b NOT IN (SELECT t4.b FROM t3 STRAIGHT_JOIN t4 WHERE t4.b <= 2 AND t4.c = t3.c);
+ 
+SELECT * FROM t1 LEFT JOIN t2 ON t1.c=t2.b
+WHERE 
+  t2.b NOT IN (SELECT t4.b FROM t3 STRAIGHT_JOIN t4 WHERE t4.b <= 2 AND t4.c = t3.c);
+
+SET optimizer_switch=@save_optimizer_switch;
+
+DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # BUG#1000051: Query with simple join and ORDER BY takes thousands times longer when run with ICP
+--echo #
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t1 (a int, col int, filler char(100), key(a, col));
+insert into t1 select A.a + 10*B.a, 1234, 'filler' from t0 A, t0 B, t0 C;
+
+set @tmp_10000051= @@optimizer_switch;
+set optimizer_switch='mrr=off';
+--echo # Must not use ICP:
+explain select * from t1 where a between 5 and 8 order by a desc, col desc;
+set optimizer_switch= @tmp_10000051;
+
+--echo # Must not use ICP:
+explain select * from t1 where a=3 and col > 500 order by a desc, col desc;
+
+drop table t0, t1;
+
+set optimizer_switch=@myisam_icp_tmp;
+

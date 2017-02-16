@@ -79,7 +79,7 @@ min(7)
 explain select min(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer
+1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (flat, BNL join)
 select min(7) from t2i join t1i;
 min(7)
 NULL
@@ -95,7 +95,7 @@ max(7)
 explain select max(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer
+1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (flat, BNL join)
 select max(7) from t2i join t1i;
 max(7)
 NULL
@@ -191,4 +191,57 @@ SELECT BIT_XOR(t1.b) FROM t1 JOIN t2 ON t1.c=t2.c WHERE t1.pk=1;
 BIT_XOR(t1.b)
 0
 DROP TABLE t1, t2;
+#
+# Bug#12713907: STRANGE OPTIMIZE & WRONG RESULT UNDER ORDER BY 
+# COUNT(*) LIMIT.
+#
+CREATE TABLE t1 (
+id BIGINT(20) ,
+member_id_to INT(11) ,
+r_date DATE ,
+PRIMARY KEY (id,r_date),
+KEY r_date_idx (r_date),
+KEY t1_idx01 (member_id_to)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES 
+(107924526,518491,'2011-05-01'),
+(107924527,518491,'2011-05-01'),
+(107924534,518491,'2011-06-21'),
+(107924535,518491,'2011-06-21'),
+(107924542,1601319,'2011-06-21'),
+(107924543,1601319,'2011-06-21'),
+(107924544,1601319,'2011-06-21'),
+(107924545,1601319,'2011-06-21');
+SELECT member_id_to, COUNT(*) FROM t1 WHERE r_date =
+'2011-06-21' GROUP BY member_id_to ORDER BY 2 LIMIT 1;
+member_id_to	COUNT(*)
+518491	2
+DROP TABLE t1;
+#
+# MDEV-4269: crash when grouping by values()
+#
+SELECT @@storage_engine INTO @old_engine;
+set storage_engine=innodb;
+create table y select 1 b;
+select 1 from y group by b;
+1
+1
+select 1 from y group by values(b);
+1
+1
+drop table y;
+SET storage_engine=@old_engine;
+#
+# Bug#13723054 CRASH WITH MIN/MAX AFTER QUICK_GROUP_MIN_MAX_SELECT::NEXT_MIN
+#
+CREATE TABLE t1(a BLOB, b VARCHAR(255) CHARSET LATIN1, c INT,
+KEY(b, c, a(765))) ENGINE=INNODB;
+INSERT INTO t1(a, b, c) VALUES ('', 'a', 0), ('', 'a', null), ('', 'a', 0);
+SELECT MIN(c) FROM t1 GROUP BY b;
+MIN(c)
+0
+EXPLAIN SELECT MIN(c) FROM t1 GROUP BY b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	NULL	b	263	NULL	4	Using index for group-by
+DROP TABLE t1;
 End of 5.5 tests

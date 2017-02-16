@@ -1,0 +1,24 @@
+--source include/have_tokudb.inc
+#
+# Attempt to change row format with and without
+# other ALTER TABLE statements.
+#
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS hcad;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=1;
+set session tokudb_row_format=tokudb_zlib;
+
+CREATE TABLE hcad (
+  id int(10) unsigned NOT NULL AUTO_INCREMENT,
+  k int(10) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (id),
+  KEY k (k)
+) engine=tokudb;
+
+alter table hcad add column tmc int null;
+
+drop table hcad;

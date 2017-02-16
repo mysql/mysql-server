@@ -1,0 +1,54 @@
+set default_storage_engine='tokudb';
+drop table if exists t;
+create table t (id bigint not null primary key, x bigint not null);
+insert into t values (1,0),(2,0),(3,0),(4,0);
+create trigger t_delete before delete on t for each row insert into t values (1000000,0);
+begin;
+delete from t where x=0;
+ERROR HY000: Can't update table 't' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+rollback;
+drop trigger t_delete;
+create trigger t_delete after delete on t for each row insert into t values (1000000,0);
+begin;
+delete from t where x=0;
+ERROR HY000: Can't update table 't' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+rollback;
+drop trigger t_delete;
+create trigger t_delete before delete on t for each row delete from t where id=1000000;
+begin;
+delete from t where x=0;
+ERROR HY000: Can't update table 't' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+rollback;
+drop trigger t_delete;
+create trigger t_delete after delete on t for each row delete from t where id=1000000;
+begin;
+delete from t where x=0;
+ERROR HY000: Can't update table 't' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+rollback;
+drop trigger t_delete;
+create trigger t_delete before delete on t for each row update t set x=x+1 where id=1000000;
+begin;
+delete from t where x=0;
+ERROR HY000: Can't update table 't' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+rollback;
+drop trigger t_delete;
+create trigger t_delete after delete on t for each row update t set x=x+1 where id=10000000;
+begin;
+delete from t where x=0;
+ERROR HY000: Can't update table 't' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+rollback;
+drop trigger t_delete;
+create table count (count bigint not null);
+create trigger t_delete before delete on t for each row insert into count select count(*) from t;
+begin;
+delete from t where x=0;
+select * from count;
+count
+4
+3
+2
+1
+rollback;
+drop trigger t_delete;
+drop table count;
+drop table t;

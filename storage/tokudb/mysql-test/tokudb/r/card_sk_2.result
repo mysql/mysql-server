@@ -1,0 +1,21 @@
+set default_storage_engine='tokudb';
+drop table if exists tt;
+create table tt (a int, b int, key(a,b));
+insert into tt values (0,0),(0,1),(1,0),(1,1);
+show indexes from tt;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+tt	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE		
+tt	1	a	2	b	A	NULL	NULL	NULL	YES	BTREE		
+analyze table tt;
+Table	Op	Msg_type	Msg_text
+test.tt	analyze	status	OK
+show indexes from tt;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+tt	1	a	1	a	A	2	NULL	NULL	YES	BTREE		
+tt	1	a	2	b	A	4	NULL	NULL	YES	BTREE		
+flush tables;
+show indexes from tt;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+tt	1	a	1	a	A	2	NULL	NULL	YES	BTREE		
+tt	1	a	2	b	A	4	NULL	NULL	YES	BTREE		
+drop table tt;

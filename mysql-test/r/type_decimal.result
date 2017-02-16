@@ -221,7 +221,6 @@ drop  table t1;
 create table t1 (a decimal(10,2) unsigned);
 insert into t1 values ("0.0"),("-0.0"),("+0.0"),("01.0"),("+01.0"),("-01.0");
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 2
 Warning	1264	Out of range value for column 'a' at row 6
 insert into t1 values ("-.1"),("+.1"),(".1");
 Warnings:
@@ -280,7 +279,6 @@ drop  table t1;
 create table t1 (a decimal(10,2) zerofill);
 insert into t1 values ("0.0"),("-0.0"),("+0.0"),("01.0"),("+01.0"),("-01.0");
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 2
 Warning	1264	Out of range value for column 'a' at row 6
 insert into t1 values ("-.1"),("+.1"),(".1");
 Warnings:
@@ -470,11 +468,11 @@ a
 9999999999
 drop table t1;
 CREATE TABLE t1 (a_dec DECIMAL(-1,0));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1,0))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '-1,0))' at line 1
 CREATE TABLE t1 (a_dec DECIMAL(-2,1));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2,1))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '-2,1))' at line 1
 CREATE TABLE t1 (a_dec DECIMAL(-1,1));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1,1))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '-1,1))' at line 1
 CREATE TABLE t1 (a_dec DECIMAL(0,11));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 'a_dec').
 create table t1(a decimal(7,3));
@@ -721,7 +719,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (d decimal(66,0));
-ERROR 42000: Too big precision 66 specified for column 'd'. Maximum is 65.
+ERROR 42000: Too big precision 66 specified for 'd'. Maximum is 65.
 CREATE TABLE t1 (i INT, d1 DECIMAL(9,2), d2 DECIMAL(9,2));
 INSERT INTO t1 VALUES (1, 101.40, 21.40), (1, -80.00, 0.00),
 (2, 0.00, 0.00), (2, -13.20, 0.00), (2, 59.60, 46.40),
@@ -810,10 +808,10 @@ c1
 drop table t1;
 SELECT 1 % .123456789123456789123456789123456789123456789123456789123456789123456789123456789 AS '%';
 %
-0.012345687012345687012345687012345687012345687012345687012345687012345687000000000
+0.012345687012345687012345687012
 SELECT MOD(1, .123456789123456789123456789123456789123456789123456789123456789123456789123456789) AS 'MOD()';
 MOD()
-0.012345687012345687012345687012345687012345687012345687012345687012345687000000000
+0.012345687012345687012345687012
 create table t1 (f1 decimal(6,6),f2 decimal(6,6) zerofill);
 insert into t1 values (-0.123456,0.123456);
 select group_concat(f1),group_concat(f2) from t1;
@@ -994,3 +992,27 @@ GROUP BY t2.col0
 WHERE CONCAT(t1.col1, CAST(subq.col0 AS DECIMAL));
 1
 DROP TABLE t1, t2;
+#
+# Start of 5.5 tests
+#
+#
+# MDEV-8267 Add /*old*/ comment into I_S.COLUMN_TYPE for old DECIMAL
+#
+SHOW CREATE TABLE t1dec102;
+Table	Create Table
+t1dec102	CREATE TABLE `t1dec102` (
+  `a` decimal(10,2)/*old*/ DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW COLUMNS FROM t1dec102;
+Field	Type	Null	Key	Default	Extra
+a	decimal(10,2)/*old*/	YES		NULL	
+SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='t1dec102';
+COLUMN_NAME	DATA_TYPE	COLUMN_TYPE
+a	decimal	decimal(10,2)/*old*/
+DROP TABLE t1dec102;
+select cast('-0.0' as decimal(5,1)) < 0;
+cast('-0.0' as decimal(5,1)) < 0
+0
+#
+# End of 5.5 tests
+#

@@ -42,9 +42,9 @@ drop table t1;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
-create table t1 (a int not null);
+create table t1 (a int not null) ENGINE=MyISAM;
 insert into t1 values (1),(2),(3);
-create table t2 (a int not null);
+create table t2 (a int not null) ENGINE=MyISAM;
 insert into t2 values (4),(5),(6);
 create table t3 (a int not null) engine=MERGE UNION=(t1,t2) INSERT_METHOD=FIRST;
 select * from t3;
@@ -409,7 +409,7 @@ Qcache_queries_in_cache	2
 drop table t1;
 flush query cache;
 reset query cache;
-create table t1 (a int not null);
+create table t1 (a int not null) ENGINE=MyISAM;
 insert into t1 values (1),(2),(3);
 select * from t1;
 a
@@ -442,9 +442,11 @@ show global variables like "query_cache_min_res_unit";
 Variable_name	Value
 query_cache_min_res_unit	4096
 set GLOBAL query_cache_min_res_unit=1001;
+Warnings:
+Warning	1292	Truncated incorrect query_cache_min_res_unit value: '1001'
 show global variables like "query_cache_min_res_unit";
 Variable_name	Value
-query_cache_min_res_unit	1008
+query_cache_min_res_unit	1000
 create table t1 (a int not null);
 insert into t1 values (1),(2),(3);
 create table t2 (a int not null);
@@ -954,20 +956,17 @@ SELECT COUNT(*) FROM t1 WHERE date BETWEEN '20050326' AND '20050327 invalid';
 COUNT(*)
 0
 Warnings:
-Warning	1292	Incorrect datetime value: '20050327 invalid' for column 'date' at row 1
-Warning	1292	Incorrect datetime value: '20050327 invalid' for column 'date' at row 1
+Warning	1292	Incorrect datetime value: '20050327 invalid'
 SELECT COUNT(*) FROM t1 WHERE date BETWEEN '20050326' AND '20050328 invalid';
 COUNT(*)
 0
 Warnings:
-Warning	1292	Incorrect datetime value: '20050328 invalid' for column 'date' at row 1
-Warning	1292	Incorrect datetime value: '20050328 invalid' for column 'date' at row 1
+Warning	1292	Incorrect datetime value: '20050328 invalid'
 SELECT COUNT(*) FROM t1 WHERE date BETWEEN '20050326' AND '20050327 invalid';
 COUNT(*)
 0
 Warnings:
-Warning	1292	Incorrect datetime value: '20050327 invalid' for column 'date' at row 1
-Warning	1292	Incorrect datetime value: '20050327 invalid' for column 'date' at row 1
+Warning	1292	Incorrect datetime value: '20050327 invalid'
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
@@ -1054,6 +1053,23 @@ Qcache_inserts	1
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	1
+set query_cache_strip_comments=1;
+(select a from t1) union (select a from t1);
+a
+(select a from t1) /* */union (select a from t1);
+a
+set query_cache_strip_comments=0;
+(select a from t1) union (select a from t1);
+a
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	4
 drop table t1;
 create table t1 (a int);
 insert into t1 values (1),(2);
@@ -1582,6 +1598,10 @@ set global query_cache_type=0;
 show status like 'Qcache_free_blocks';
 Variable_name	Value
 Qcache_free_blocks	0
+set global query_cache_size=102400;
+ERROR HY000: Query cache is disabled; set query_cache_type to ON or DEMAND to enable it
+set global query_cache_type=on;
+set session query_cache_type=on;
 Restore default values.
 drop database if exists db1;
 drop database if exists db2;
@@ -1639,6 +1659,7 @@ set GLOBAL query_cache_type=default;
 set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
 set GLOBAL query_cache_size=default;
+set local query_cache_type=default;
 FLUSH STATUS;
 SET GLOBAL query_cache_size=10*1024*1024;
 SET @save_concurrent_insert= @@concurrent_insert;
@@ -1716,6 +1737,95 @@ Variable_name	Value
 Qcache_hits	2
 DROP TABLE t1;
 SET GLOBAL query_cache_size= default;
+#------------------------------------------------------------------------
+# Tests for Bug#6760 and Bug#12689
+SET @row_count = 4;
+SET @sleep_time_per_result_row = 1;
+SET @max_acceptable_delay = 2;
+SET @@global.query_cache_size = 1024 * 64;
+DROP TEMPORARY TABLE IF EXISTS t_history;
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE t_history (attempt SMALLINT,
+start_ts DATETIME, end_ts DATETIME,
+start_cached INTEGER, end_cached INTEGER);
+CREATE TABLE t1 (f1 BIGINT);
+INSERT INTO t_history
+SET attempt = 4 - 4 + 1, start_ts = NOW(),
+start_cached = 0;
+SELECT *, SLEEP(@sleep_time_per_result_row) FROM t1;
+f1	SLEEP(@sleep_time_per_result_row)
+1	0
+1	0
+1	0
+1	0
+UPDATE t_history SET end_ts = NOW()
+WHERE attempt = 4 - 4 + 1;
+UPDATE t_history SET end_cached = 0
+WHERE attempt = 4 - 4 + 1;
+INSERT INTO t_history
+SET attempt = 4 - 3 + 1, start_ts = NOW(),
+start_cached = 0;
+SELECT *, SLEEP(@sleep_time_per_result_row) FROM t1;
+f1	SLEEP(@sleep_time_per_result_row)
+1	0
+1	0
+1	0
+1	0
+UPDATE t_history SET end_ts = NOW()
+WHERE attempt = 4 - 3 + 1;
+UPDATE t_history SET end_cached = 0
+WHERE attempt = 4 - 3 + 1;
+INSERT INTO t_history
+SET attempt = 4 - 2 + 1, start_ts = NOW(),
+start_cached = 0;
+SELECT *, SLEEP(@sleep_time_per_result_row) FROM t1;
+f1	SLEEP(@sleep_time_per_result_row)
+1	0
+1	0
+1	0
+1	0
+UPDATE t_history SET end_ts = NOW()
+WHERE attempt = 4 - 2 + 1;
+UPDATE t_history SET end_cached = 0
+WHERE attempt = 4 - 2 + 1;
+INSERT INTO t_history
+SET attempt = 4 - 1 + 1, start_ts = NOW(),
+start_cached = 0;
+SELECT *, SLEEP(@sleep_time_per_result_row) FROM t1;
+f1	SLEEP(@sleep_time_per_result_row)
+1	0
+1	0
+1	0
+1	0
+UPDATE t_history SET end_ts = NOW()
+WHERE attempt = 4 - 1 + 1;
+UPDATE t_history SET end_cached = 0
+WHERE attempt = 4 - 1 + 1;
+# Test 1: Does the query with SLEEP need a reasonable time?
+SELECT COUNT(*) >= 4 - 1 INTO @aux1 FROM t_history
+WHERE TIMEDIFF(end_ts,start_ts) - @sleep_time_per_result_row * @row_count
+BETWEEN 0 AND @max_acceptable_delay;
+SELECT @aux1 AS "Expect 1";
+Expect 1
+1
+# Test 2: Does the query with SLEEP need a reasonable time even in case
+#         of the non first execution?
+SELECT COUNT(*) >= 4 - 1 - 1 INTO @aux2 FROM t_history
+WHERE TIMEDIFF(end_ts,start_ts) - @sleep_time_per_result_row * @row_count
+BETWEEN 0 AND @max_acceptable_delay
+AND attempt > 1;
+SELECT @aux2 AS "Expect 1";
+Expect 1
+1
+# Test 3: The query with SLEEP must be not cached.
+SELECT COUNT(*) = 4 INTO @aux3 FROM t_history
+WHERE end_cached = start_cached;
+SELECT @aux3 AS "Expect 1";
+Expect 1
+1
+DROP TABLE t1;
+DROP TEMPORARY TABLE t_history;
+SET @@global.query_cache_size = default;
 End of 5.0 tests
 SET GLOBAL query_cache_size=1024*1024*512;
 CREATE TABLE t1 (a ENUM('rainbow'));
@@ -1735,9 +1845,9 @@ DROP TABLE t1;
 SET GLOBAL query_cache_size= default;
 CREATE TABLE t1( a INT );
 SET @v = ( SELECT SQL_CACHE    1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1 )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '1 )' at line 1
 SET @v = ( SELECT SQL_NO_CACHE 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1 )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '1 )' at line 1
 SELECT a FROM t1 WHERE a IN ( SELECT SQL_CACHE    a FROM t1 );
 ERROR 42S22: Unknown column 'SQL_CACHE' in 'field list'
 SELECT a FROM t1 WHERE a IN ( SELECT SQL_NO_CACHE a FROM t1 );
@@ -1796,3 +1906,179 @@ id
 RESET QUERY CACHE;
 COMMIT;
 DROP TABLE t1;
+New query cache switching OFF mechanism test
+set global query_cache_size=1024*1024*20;
+set global query_cache_type=on;
+select @@query_cache_size, @@global.query_cache_type, @@local.query_cache_type;
+@@query_cache_size	@@global.query_cache_type	@@local.query_cache_type
+20971520	ON	ON
+set global query_cache_size=0;
+select @@query_cache_size, @@global.query_cache_type, @@local.query_cache_type;
+@@query_cache_size	@@global.query_cache_type	@@local.query_cache_type
+0	ON	ON
+set global query_cache_size=1024*1024*20;
+select @@query_cache_size, @@global.query_cache_type, @@local.query_cache_type;
+@@query_cache_size	@@global.query_cache_type	@@local.query_cache_type
+20971520	ON	ON
+set global query_cache_type=off;
+select @@query_cache_size, @@global.query_cache_type, @@local.query_cache_type;
+@@query_cache_size	@@global.query_cache_type	@@local.query_cache_type
+20971520	OFF	OFF
+set global query_cache_type=on;
+select @@query_cache_size, @@global.query_cache_type, @@local.query_cache_type;
+@@query_cache_size	@@global.query_cache_type	@@local.query_cache_type
+20971520	ON	OFF
+set local query_cache_type= on;
+select @@query_cache_size, @@global.query_cache_type, @@local.query_cache_type;
+@@query_cache_size	@@global.query_cache_type	@@local.query_cache_type
+20971520	ON	ON
+#
+# MDEV-4981: Account for queries handled by query-cache in
+# USER_STATISTICS (and in HOST_STATISTICS)
+#
+SET GLOBAL userstat=1;
+set GLOBAL query_cache_size=1355776;
+FLUSH USER_STATISTICS;
+FLUSH CLIENT_STATISTICS;
+reset query cache;
+flush status;
+create table t1 (a int);
+insert into t1 values (1);
+select * from t1;
+a
+1
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.CLIENT_STATISTICS
+where CLIENT="localhost";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+1	1	0
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.USER_STATISTICS
+where USER="root";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+2	2	0
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+select * from t1;
+a
+1
+select * from t1;
+a
+1
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.CLIENT_STATISTICS
+where CLIENT="localhost";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+5	5	0
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.USER_STATISTICS
+where USER="root";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+6	6	0
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	2
+drop table t1;
+FLUSH USER_STATISTICS;
+FLUSH CLIENT_STATISTICS;
+flush status;
+create table t1 (a int);
+select * from t1;
+a
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.CLIENT_STATISTICS
+where CLIENT="localhost";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+1	0	1
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.USER_STATISTICS
+where USER="root";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+2	1	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+select * from t1;
+a
+select * from t1;
+a
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.CLIENT_STATISTICS
+where CLIENT="localhost";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+5	2	3
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.USER_STATISTICS
+where USER="root";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+6	3	3
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	2
+FLUSH USER_STATISTICS;
+FLUSH CLIENT_STATISTICS;
+flush status;
+create procedure p1()
+select * from t1;
+call p1;
+a
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.CLIENT_STATISTICS
+where CLIENT="localhost";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+1	0	1
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.USER_STATISTICS
+where USER="root";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+2	1	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+call p1;
+a
+call p1;
+a
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.CLIENT_STATISTICS
+where CLIENT="localhost";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+5	2	3
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.USER_STATISTICS
+where USER="root";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+6	3	3
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	2
+FLUSH USER_STATISTICS;
+FLUSH CLIENT_STATISTICS;
+flush status;
+SET GLOBAL query_cache_size= 0;
+call p1;
+a
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.CLIENT_STATISTICS
+where CLIENT="localhost";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+1	0	1
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.USER_STATISTICS
+where USER="root";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+2	1	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+call p1;
+a
+call p1;
+a
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.CLIENT_STATISTICS
+where CLIENT="localhost";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+5	2	3
+select SELECT_COMMANDS,ROWS_SENT,EMPTY_QUERIES from INFORMATION_SCHEMA.USER_STATISTICS
+where USER="root";
+SELECT_COMMANDS	ROWS_SENT	EMPTY_QUERIES
+6	3	3
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+drop procedure p1;
+drop table t1;
+set GLOBAL query_cache_size=1355776;
+SET GLOBAL userstat=default;
+End of 5.5 tests
+restore defaults
+SET GLOBAL query_cache_type= default;
+SET GLOBAL query_cache_size= default;
+SET LOCAL query_cache_type= default;

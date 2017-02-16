@@ -1,5 +1,4 @@
 LIBRARY		LIBMYSQLD
-DESCRIPTION	'MySQL 5.1 Embedded Server Library'
 VERSION		5.1
 EXPORTS
 	mysql_thread_end
@@ -104,4 +103,4 @@ EXPORTS
 	mysql_stmt_attr_get
 	mysql_stmt_attr_set
 	mysql_stmt_field_count
-	mysql_stmt_next_result
+	mysql_get_server_name

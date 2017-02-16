@@ -1,4 +1,5 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +22,10 @@
 #include "sql_class.h"                          // THD
 #endif
 
+#define DIG_BASE     1000000000
+#define DIG_PER_DEC1 9
+#define ROUND_UP(X)  (((X)+DIG_PER_DEC1-1)/DIG_PER_DEC1)
+
 #ifndef MYSQL_CLIENT
 /**
   report result of decimal operation.
@@ -34,21 +39,20 @@
     result
 */
 
-int decimal_operation_results(int result)
+int decimal_operation_results(int result, const char *value, const char *type)
 {
   switch (result) {
   case E_DEC_OK:
     break;
   case E_DEC_TRUNCATED:
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-			WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
-			"", (long)-1);
+			ER_DATA_TRUNCATED, ER(ER_DATA_TRUNCATED),
+			value, type);
     break;
   case E_DEC_OVERFLOW:
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE),
-			"DECIMAL", "");
+                        ER_DATA_OVERFLOW, ER(ER_DATA_OVERFLOW),
+			value, type);
     break;
   case E_DEC_DIV_ZERO:
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -56,9 +60,8 @@ int decimal_operation_results(int result)
     break;
   case E_DEC_BAD_NUM:
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-			ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-			ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
-			"decimal", "", "", (long)-1);
+			ER_BAD_DATA, ER(ER_BAD_DATA),
+			value, type);
     break;
   case E_DEC_OOM:
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
@@ -266,20 +269,69 @@ int str2my_decimal(uint mask, const char *from, uint length,
 }
 
 
+/**
+  converts a decimal into a pair of integers - for integer and fractional parts
+
+  special version, for decimals representing number of seconds.
+  integer part cannot be larger that 1e18 (otherwise it's an overflow).
+  fractional part is microseconds.
+*/
+bool my_decimal2seconds(const my_decimal *d, ulonglong *sec, ulong *microsec)
+{
+  int pos;
+  
+  if (d->intg)
+  {
+    pos= (d->intg-1)/DIG_PER_DEC1;
+    *sec= d->buf[pos];
+    if (pos > 0)
+      *sec+= static_cast<longlong>(d->buf[pos-1]) * DIG_BASE;
+  }
+  else
+  {
+    *sec=0;
+    pos= -1;
+  }
+
+  *microsec= d->frac ? static_cast<longlong>(d->buf[pos+1]) / (DIG_BASE/1000000) : 0;
+
+  if (pos > 1)
+  {
+    for (int i=0; i < pos-1; i++)
+      if (d->buf[i])
+      {
+        *sec= LONGLONG_MAX;
+        break;
+      }
+  }
+  return d->sign();
+}
+
+
+/**
+  converts a pair of integers (seconds, microseconds) into a decimal
+*/
+my_decimal *seconds2my_decimal(bool sign,
+                               ulonglong sec, ulong microsec, my_decimal *d)
+{
+  d->init();
+  longlong2decimal(sec, d); // cannot fail
+  if (microsec)
+  {
+    d->buf[(d->intg-1) / DIG_PER_DEC1 + 1]= microsec * (DIG_BASE/1000000);
+    d->frac= 6;
+  }
+  ((decimal_t *)d)->sign= sign;
+  return d;
+}
+
+
 my_decimal *date2my_decimal(MYSQL_TIME *ltime, my_decimal *dec)
 {
-  longlong date;
-  date = (ltime->year*100L + ltime->month)*100L + ltime->day;
+  longlong date= (ltime->year*100L + ltime->month)*100L + ltime->day;
   if (ltime->time_type > MYSQL_TIMESTAMP_DATE)
     date= ((date*100L + ltime->hour)*100L+ ltime->minute)*100L + ltime->second;
-  if (int2my_decimal(E_DEC_FATAL_ERROR, ltime->neg ? -date : date, FALSE, dec))
-    return dec;
-  if (ltime->second_part)
-  {
-    dec->buf[(dec->intg-1) / 9 + 1]= ltime->second_part * 1000;
-    dec->frac= 6;
-  }
-  return dec;
+  return seconds2my_decimal(ltime->neg, date, ltime->second_part, dec);
 }
 
 
@@ -294,11 +346,36 @@ void my_decimal_trim(ulong *precision, uint *scale)
 }
 
 
+/*
+  Convert a decimal to an ulong with a descriptive error message
+*/
+
+int my_decimal2int(uint mask, const decimal_t *d, bool unsigned_flag,
+		   longlong *l)
+{
+  int res;
+  my_decimal rounded;
+  /* decimal_round can return only E_DEC_TRUNCATED */
+  decimal_round(d, &rounded, 0, HALF_UP);
+  res= (unsigned_flag ?
+        decimal2ulonglong(&rounded, (ulonglong *) l) :
+        decimal2longlong(&rounded, l));
+  if (res & mask)
+  {
+    char buff[DECIMAL_MAX_STR_LENGTH];
+    int length= sizeof(buff);
+    decimal2string(d, buff, &length, 0, 0, 0);
+
+    decimal_operation_results(res, buff,
+                              unsigned_flag ? "UNSIGNED INT" :
+                              "INT");
+  }
+  return res;
+}
+
+
 #ifndef DBUG_OFF
 /* routines for debugging print */
-
-#define DIG_PER_DEC1 9
-#define ROUND_UP(X)  (((X)+DIG_PER_DEC1-1)/DIG_PER_DEC1)
 
 /* print decimal */
 void
@@ -340,7 +417,6 @@ const char *dbug_decimal_as_string(char *buff, const my_decimal *val)
   return buff;
 }
 
+
 #endif /*DBUG_OFF*/
-
-
 #endif /*MYSQL_CLIENT*/

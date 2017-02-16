@@ -1,0 +1,31 @@
+
+--replace_result $SPHINXSEARCH_PORT SPHINXSEARCH_PORT
+eval create table ts ( id bigint unsigned not null, w int not null, q varchar(255) not null, index(q) ) engine=sphinx connection="sphinx://127.0.0.1:$SPHINXSEARCH_PORT/*";
+select * from ts where q='test';
+drop table ts;
+
+--replace_result $SPHINXSEARCH_PORT SPHINXSEARCH_PORT
+eval create table ts ( id bigint unsigned not null, w int not null, q varchar(255) not null, index(q) ) engine=sphinx connection="sphinx://127.0.0.1:$SPHINXSEARCH_PORT/*";
+select * from ts where q='test;filter=gid,1;mode=extended';
+select * from ts where q='test|one;mode=extended';
+select * from ts where q='test;offset=1;limit=1';
+--replace_result $SPHINXSEARCH_PORT SPHINXSEARCH_PORT
+eval alter table ts connection="sphinx://127.0.0.1:$SPHINXSEARCH_PORT/test1";
+select id, w from ts where q='one';
+drop table ts;
+
+--replace_result $SPHINXSEARCH_PORT SPHINXSEARCH_PORT
+eval create table ts ( id bigint unsigned not null, w int not null, q varchar(255) not null, gid int not null, _sph_count int not null, index(q) ) engine=sphinx connection="sphinx://127.0.0.1:$SPHINXSEARCH_PORT/test1";
+select * from ts;
+select * from ts where q='';
+select * from ts where q=';groupby=attr:gid';
+explain select * from ts where q=';groupby=attr:gid';
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='index_condition_pushdown=off';
+explain select * from ts where q=';groupby=attr:gid';
+SET optimizer_switch=@save_optimizer_switch;
+drop table ts;
+
+show status like "sphinx_error%";
+show status like "sphinx_total%";
+show status like "sphinx_word%";

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ ENDIF()
 IF(CAT_EXECUTABLE)
   SET(CAT_COMMAND COMMAND 
     ${CMAKE_COMMAND} -E chdir  ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CAT_EXECUTABLE} mysql_system_tables.sql mysql_system_tables_fix.sql >
+    ${CAT_EXECUTABLE} mysql_system_tables.sql mysql_system_tables_fix.sql mysql_performance_tables.sql >
     ${CMAKE_CURRENT_BINARY_DIR}/mysql_fix_privilege_tables.sql
   )
 ELSEIF(WIN32)
@@ -37,7 +37,7 @@ ELSEIF(WIN32)
    native_outfile )
   SET(CAT_COMMAND
    COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_CURRENT_SOURCE_DIR}
-   cmd /c copy /b mysql_system_tables.sql + mysql_system_tables_fix.sql
+   cmd /c copy /b mysql_system_tables.sql + mysql_system_tables_fix.sql + mysql_performance_tables.sql 
    ${native_outfile} )
 ELSE()
   MESSAGE(FATAL_ERROR "Cannot concatenate files")
@@ -55,6 +55,7 @@ ADD_CUSTOM_COMMAND(
   DEPENDS comp_sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_fix.sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_performance_tables.sql
 )
 
 # Add target for the above to be built
@@ -74,6 +75,7 @@ ENDIF()
 INSTALL(FILES 
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql 
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_performance_tables.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_test_data_timezone.sql
   ${FIX_PRIVILEGES_SQL}
@@ -87,31 +89,14 @@ IF(MALLOC_LIB)
 ENDIF()
 
 IF(CMAKE_GENERATOR MATCHES "Makefiles")
-  # Strip maintainer mode options if necessary
-  STRING(REPLACE "${MY_C_WARNING_FLAGS}" "" CFLAGS
-    "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-  STRING(REPLACE "${MY_CXX_WARNING_FLAGS}" "" CXXFLAGS
-    "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
   FOREACH(ARCH ${CMAKE_OSX_ARCHITECTURES})
     SET(CFLAGS   "${CFLAGS} -arch ${ARCH}")
     SET(CXXFLAGS "${CXXFLAGS} -arch ${ARCH}")
   ENDFOREACH()
-ELSE()
-  # Strip maintainer mode options if necessary
-  STRING(REPLACE "${MY_C_WARNING_FLAGS}" "" CFLAGS
-    "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-  STRING(REPLACE "${MY_CXX_WARNING_FLAGS}" "" CXXFLAGS
-    "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 ENDIF()
 
 IF(UNIX)
-  # SHELL_PATH, FIND_PROC, CHECK_PID are used by mysqld_safe
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
-  SET (SHELL_PATH "/bin/bash")
-ELSE()
-  SET (SHELL_PATH "/bin/sh")
-ENDIF()
-
+  # FIND_PROC and CHECK_PID are used by mysqld_safe
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   SET (FIND_PROC 
     "ps wwwp $PID | grep -v mysqld_safe | grep -- $MYSQLD > /dev/null")
@@ -180,6 +165,10 @@ ENDIF()
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqlbug.sh
   ${CMAKE_CURRENT_BINARY_DIR}/mysqlbug ESCAPE_QUOTES @ONLY)
+  EXECUTE_PROCESS(
+  COMMAND chmod +x ${CMAKE_CURRENT_BINARY_DIR}/mysqlbug
+  )
+
 INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/mysqlbug
   DESTINATION ${INSTALL_BINDIR}
   COMPONENT Server
@@ -213,18 +202,16 @@ CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_install_db.sh
   ${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db ESCAPE_QUOTES @ONLY)
   SET(DEST ${INSTALL_SCRIPTDIR})
   SET(EXT)
-ELSE()
- CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_install_db.pl.in
-   ${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db.pl ESCAPE_QUOTES @ONLY)
- SET(DEST ${INSTALL_SCRIPTDIR})
- SET(EXT ".pl")
-ENDIF()
+  EXECUTE_PROCESS(
+  COMMAND chmod +x ${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db
+  )
 
 INSTALL_SCRIPT(
- "${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db${EXT}"
+ "${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db"
   DESTINATION ${DEST}
   COMPONENT Server
   )
+ENDIF()
 
 SET(prefix "${CMAKE_INSTALL_PREFIX}")
 SET(sysconfdir ${prefix})
@@ -277,10 +264,12 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
         IF (lib MATCHES "^\\-l")
           SET(${var} "${${var}} ${lib} ") 
         ELSEIF(lib MATCHES "^/")
-          # Full path, convert to just filename, strip "lib" prefix and extension
-          GET_FILENAME_COMPONENT(lib "${lib}" NAME_WE)
-          STRING(REGEX REPLACE "^lib" "" lib "${lib}")
-          SET(${var} "${${var}}-l${lib} " ) 
+          IF (lib MATCHES "\\.(a|so([0-9.]*)|lib|dll|dylib)$")
+            # Full path, convert to just filename, strip "lib" prefix and extension
+            GET_FILENAME_COMPONENT(lib "${lib}" NAME_WE)
+            STRING(REGEX REPLACE "^lib" "" lib "${lib}")
+            SET(${var} "${${var}}-l${lib} " ) 
+          ENDIF()
         ELSE()
           SET(${var} "${${var}}-l${lib} " ) 
         ENDIF()
@@ -301,6 +290,10 @@ SET(LIBDL)
 
 SET(NON_THREADED_LIBS ${CLIENT_LIBS})
 SET(mysql_config_COMPONENT COMPONENT Development)
+SET(msql2mysql_COMPONENT COMPONENT Client)
+SET(mysqlaccess_COMPONENT COMPONENT Client)
+SET(mysql_find_rows_COMPONENT COMPONENT Client)
+SET(mytop_COMPONENT Mytop)
 
 IF(WIN32)
   # On Windows, some .sh and some .pl.in files are configured 
@@ -332,7 +325,6 @@ ELSE()
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_config.pl.in
     ${CMAKE_CURRENT_BINARY_DIR}/mysql_config.pl ESCAPE_QUOTES @ONLY)
   # On Unix, most of the files end up in the bin directory
-  SET(mysql_config_COMPONENT COMPONENT Development)
   SET(BIN_SCRIPTS
     msql2mysql
     mysql_config
@@ -341,9 +333,9 @@ ELSE()
     mysql_secure_installation
     mysql_zap
     mysqlaccess
-    mysqlaccess.conf
     mysql_convert_table_format
     mysql_find_rows
+    mytop
     mysqlhotcopy
     mysqldumpslow
     mysqld_multi

@@ -2,11 +2,11 @@ drop table if exists t1, t2;
 SELECT * FROM mysql.proc INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/proc.txt';
 delete from mysql.proc;
 create procedure syntaxerror(t int)|
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 1
 create procedure syntaxerror(t int)|
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 1
 create procedure syntaxerror(t int)|
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 1
 drop table if exists t3|
 create table t3 ( x int )|
 insert into t3 values (2), (3)|
@@ -143,7 +143,7 @@ declare c cursor for insert into test.t1 values ("foo", 42);
 open c;
 close c;
 end|
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insert into test.t1 values ("foo", 42);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'insert into test.t1 values ("foo", 42);
 open c;
 close c;
 end' at line 3
@@ -887,7 +887,7 @@ select password;
 end|
 ERROR 42000: Variable 'password' must be quoted with `...`, or renamed
 set names='foo2'|
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 1
 create procedure bug13510_2()
 begin
 declare names varchar(10);
@@ -1212,18 +1212,18 @@ ERROR 42S02: Unknown table 'c' in field list
 drop procedure bug15091;
 drop function if exists bug16896;
 create aggregate function bug16896() returns int return 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '() returns int return 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '() returns int return 1' at line 1
 DROP PROCEDURE IF EXISTS bug14702;
 CREATE IF NOT EXISTS PROCEDURE bug14702()
 BEGIN
 END;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IF NOT EXISTS PROCEDURE bug14702()
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'IF NOT EXISTS PROCEDURE bug14702()
 BEGIN
 END' at line 1
 CREATE PROCEDURE IF NOT EXISTS bug14702()
 BEGIN
 END;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IF NOT EXISTS bug14702()
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'IF NOT EXISTS bug14702()
 BEGIN
 END' at line 1
 DROP TABLE IF EXISTS t1;
@@ -1415,7 +1415,7 @@ end|
 ERROR 0A000: Not allowed to return a result set from a function
 drop function if exists bug20701;
 create function bug20701() returns varchar(25) binary return "test";
-ERROR 42000: This version of MySQL doesn't yet support 'return value collation'
+ERROR 42000: This version of MariaDB doesn't yet support 'return value collation'
 create function bug20701() returns varchar(25) return "test";
 drop function bug20701;
 create procedure proc_26503_error_1()
@@ -1493,7 +1493,7 @@ FETCH cur1 INTO c;
 select c;
 CLOSE cur1;
 END|
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SHOW TABLES;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SHOW TABLES;
 OPEN cur1;
 FETCH cur1 INTO c;
 select c;
@@ -1508,9 +1508,9 @@ ERROR 42000: FUNCTION inexistent does not exist
 SELECT inexistent();
 ERROR 42000: FUNCTION inexistent does not exist
 SELECT .inexistent();
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '()' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '()' at line 1
 SELECT ..inexistent();
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.inexistent()' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '.inexistent()' at line 1
 USE test;
 create function f1() returns int
 begin

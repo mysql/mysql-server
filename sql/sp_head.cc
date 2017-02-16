@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2016, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +28,7 @@
 #include "sql_acl.h"           // *_ACL
 #include "sql_array.h"         // Dynamic_array
 #include "log_event.h"         // append_query_string, Query_log_event
+#include "sql_derived.h"       // mysql_handle_derived
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation
@@ -63,19 +65,7 @@ extern "C" uchar *sp_table_key(const uchar *ptr, size_t *plen, my_bool first);
 static void reset_start_time_for_sp(THD *thd)
 {
   if (!thd->in_sub_stmt)
-  {
-    /*
-      First investigate if there is a cached time stamp
-    */
-    if (thd->user_time)
-    {
-      thd->start_time= thd->user_time;
-    }
-    else
-    {
-      my_micro_time_and_time(&thd->start_time);
-    }
-  }
+    thd->set_start_time();
 }
 
 Item_result
@@ -490,19 +480,16 @@ sp_name::init_qname(THD *thd)
 bool
 check_routine_name(LEX_STRING *ident)
 {
-  DBUG_ASSERT(ident != NULL && ident->str != NULL);
+  DBUG_ASSERT(ident);
+  DBUG_ASSERT(ident->str);
 
   if (!ident->str[0] || ident->str[ident->length-1] == ' ')
   {
     my_error(ER_SP_WRONG_NAME, MYF(0), ident->str);
     return TRUE;
   }
-  if (check_string_char_length(ident, "", NAME_CHAR_LEN,
-                               system_charset_info, 1))
-  {
-    my_error(ER_TOO_LONG_IDENT, MYF(0), ident->str);
+  if (check_ident_length(ident))
     return TRUE;
-  }
 
   return FALSE;
 }
@@ -842,6 +829,8 @@ sp_head::create_result_field(uint field_max_length, const char *field_name,
                       m_return_field_def.interval,
                       field_name ? field_name : (const char *) m_name.str);
 
+  field->vcol_info= m_return_field_def.vcol_info;
+  field->stored_in_db= m_return_field_def.stored_in_db;
   if (field)
     field->init(table);
 
@@ -1044,17 +1033,18 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
        buffer :==
             <statement>   The input statement(s)
             '\0'          Terminating null char
-            <length>      Length of following current database name (size_t)
+            <length>      Length of following current database name 2
             <db_name>     Name of current database
             <flags>       Flags struct
   */
-  buf_len= qbuf.length() + 1 + sizeof(size_t) + thd->db_length + 
-           QUERY_CACHE_FLAGS_SIZE + 1;
+  buf_len= (qbuf.length() + 1 + QUERY_CACHE_DB_LENGTH_SIZE + thd->db_length +
+            QUERY_CACHE_FLAGS_SIZE + 1);
   if ((pbuf= (char *) alloc_root(thd->mem_root, buf_len)))
   {
+    char *ptr= pbuf + qbuf.length();
     memcpy(pbuf, qbuf.ptr(), qbuf.length());
-    pbuf[qbuf.length()]= 0;
-    memcpy(pbuf+qbuf.length()+1, (char *) &thd->db_length, sizeof(size_t));
+    *ptr= 0;
+    int2store(ptr+1, thd->db_length);
   }
   else
     DBUG_RETURN(TRUE);
@@ -1169,8 +1159,9 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
     MYSQL_ERROR *err;
     while ((err= it++))
     {
-      if (err->get_level() != MYSQL_ERROR::WARN_LEVEL_WARN &&
-          err->get_level() != MYSQL_ERROR::WARN_LEVEL_NOTE)
+      if ((err->get_level() != MYSQL_ERROR::WARN_LEVEL_WARN &&
+           err->get_level() != MYSQL_ERROR::WARN_LEVEL_NOTE) ||
+          err->handled())
         continue;
 
       if (ctx->find_handler(thd,
@@ -1179,6 +1170,7 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
                             err->get_level(),
                             err->get_message_text()))
       {
+        err->mark_handled();
         break;
       }
     }
@@ -1210,14 +1202,14 @@ bool
 sp_head::execute(THD *thd, bool merge_da_on_success)
 {
   DBUG_ENTER("sp_head::execute");
-  char saved_cur_db_name_buf[NAME_LEN+1];
+  char saved_cur_db_name_buf[SAFE_NAME_LEN+1];
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed= FALSE;
   sp_rcontext *ctx= thd->spcont;
   bool err_status= FALSE;
   uint ip= 0;
-  ulong save_sql_mode;
+  ulonglong save_sql_mode;
   bool save_abort_on_warning;
   Query_arena *old_arena;
   /* per-instruction arena */
@@ -1229,6 +1221,9 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   LEX *old_lex;
   Item_change_list old_change_list;
   String old_packet;
+  uint old_server_status;
+  const uint status_backup_mask= SERVER_STATUS_CURSOR_EXISTS |
+                                 SERVER_STATUS_LAST_ROW_SENT;
   Reprepare_observer *save_reprepare_observer= thd->m_reprepare_observer;
   Object_creation_ctx *saved_creation_ctx;
   Warning_info *saved_warning_info;
@@ -1363,6 +1358,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
     It is probably safe to use same thd->convert_buff everywhere.
   */
   old_packet.swap(thd->packet);
+  old_server_status= thd->server_status & status_backup_mask;
 
   /*
     Switch to per-instruction arena here. We can do it since we cleanup
@@ -1492,6 +1488,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   thd->spcont->pop_all_cursors(); // To avoid memory leaks after an error
 
   /* Restore all saved */
+  thd->server_status= (thd->server_status & ~status_backup_mask) | old_server_status;
   old_packet.swap(thd->packet);
   DBUG_ASSERT(thd->change_list.is_empty());
   old_change_list.move_elements_to(&thd->change_list);
@@ -1528,7 +1525,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
     If the DB has changed, the pointer has changed too, but the
     original thd->db will then have been freed
   */
-  if (cur_db_changed && thd->killed != THD::KILL_CONNECTION)
+  if (cur_db_changed && thd->killed != KILL_CONNECTION)
   {
     /*
       Force switching back to the saved current database, because it may be
@@ -1963,7 +1960,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     thd->variables.option_bits= binlog_save_options;
     if (thd->binlog_evt_union.unioned_events)
     {
-      int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
+      int errcode = query_error_code(thd, thd->killed == NOT_KILLED);
       Query_log_event qinfo(thd, binlog_buf.ptr(), binlog_buf.length(),
                             thd->binlog_evt_union.unioned_events_trans, FALSE, FALSE, errcode);
       if (mysql_bin_log.write(&qinfo) &&
@@ -2042,7 +2039,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   ulonglong utime_before_sp_exec= thd->utime_after_lock;
   sp_rcontext *save_spcont, *octx;
   sp_rcontext *nctx = NULL;
-  bool save_enable_slow_log= false;
+  bool save_enable_slow_log;
   bool save_log_general= false;
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
@@ -2120,9 +2117,10 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       if (spvar->mode == sp_param_out)
       {
         Item_null *null_item= new Item_null();
+        Item *tmp_item= null_item;
 
         if (!null_item ||
-            nctx->set_variable(thd, i, (Item **)&null_item))
+            nctx->set_variable(thd, i, &tmp_item))
         {
           err_status= TRUE;
           break;
@@ -2174,10 +2172,10 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     DBUG_PRINT("info",(" %.*s: eval args done", (int) m_name.length, 
                        m_name.str));
   }
-  if (!(m_flags & LOG_SLOW_STATEMENTS) && thd->enable_slow_log)
+  save_enable_slow_log= thd->enable_slow_log;
+  if (!(m_flags & LOG_SLOW_STATEMENTS) && save_enable_slow_log)
   {
     DBUG_PRINT("info", ("Disabling slow log for the execution"));
-    save_enable_slow_log= true;
     thd->enable_slow_log= FALSE;
   }
   if (!(m_flags & LOG_GENERAL_LOG) && !(thd->variables.option_bits & OPTION_LOG_OFF))
@@ -2200,8 +2198,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
   if (save_log_general)
     thd->variables.option_bits &= ~OPTION_LOG_OFF;
-  if (save_enable_slow_log)
-    thd->enable_slow_log= true;
+  thd->enable_slow_log= save_enable_slow_log;
   /*
     In the case when we weren't able to employ reuse mechanism for
     OUT/INOUT paranmeters, we should reallocate memory. This
@@ -2322,6 +2319,8 @@ sp_head::reset_lex(THD *thd)
   sublex->dec= NULL;
   sublex->interval_list.empty();
   sublex->type= 0;
+  sublex->uint_geom_type= 0;
+  sublex->vcol_info= 0;
 
   /* Reset part of parser state which needs this. */
   thd->m_parser_state->m_yacc.reset_before_substatement();
@@ -2449,7 +2448,8 @@ sp_head::fill_field_definition(THD *thd, LEX *lex,
                       &lex->interval_list,
                       lex->charset ? lex->charset :
                                      thd->variables.collation_database,
-                      lex->uint_geom_type))
+                      lex->uint_geom_type,
+		      lex->vcol_info, NULL))
     return TRUE;
 
   if (field_def->interval_list.elements)
@@ -2505,7 +2505,7 @@ sp_head::do_cont_backpatch()
 
 void
 sp_head::set_info(longlong created, longlong modified,
-                  st_sp_chistics *chistics, ulong sql_mode)
+                  st_sp_chistics *chistics, ulonglong sql_mode)
 {
   m_created= created;
   m_modified= modified;
@@ -3055,6 +3055,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   if (!res || !thd->is_error() ||
       (thd->stmt_da->sql_errno() != ER_CANT_REOPEN_TABLE &&
        thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE &&
+       thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE_IN_ENGINE &&
        thd->stmt_da->sql_errno() != ER_UPDATE_TABLE_USED))
     thd->stmt_arena->state= Query_arena::STMT_EXECUTED;
 
@@ -3093,6 +3094,9 @@ int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
     result= -1;
   else
     result= 0;
+  /* Prepare all derived tables/views to catch possible errors. */
+  if (!result)
+    result= mysql_handle_derived(thd->lex, DT_PREPARE) ? -1 : 0;
 
   return result;
 }
@@ -3132,29 +3136,36 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
       (the order of query cache and subst_spvars calls is irrelevant because
       queries with SP vars can't be cached)
     */
-    if (unlikely((thd->variables.option_bits & OPTION_LOG_OFF)==0))
-      general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
+    general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
 
     if (query_cache_send_result_to_client(thd, thd->query(),
                                           thd->query_length()) <= 0)
     {
       res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
+      bool log_slow= !res && thd->enable_slow_log;
 
-      if (thd->stmt_da->is_eof())
-      {
-        /* Finalize server status flags after executing a statement. */
+      /* Finalize server status flags after executing a statement. */
+      if (log_slow || thd->stmt_da->is_eof())
         thd->update_server_status();
 
+      if (thd->stmt_da->is_eof())
         thd->protocol->end_statement();
-      }
 
       query_cache_end_of_result(thd);
 
-      if (!res && unlikely(thd->enable_slow_log))
+      if (log_slow)
         log_slow_statement(thd);
     }
     else
+    {
+      /* change statistics */
+      enum_sql_command save_sql_command= thd->lex->sql_command;
+      thd->lex->sql_command= SQLCOM_SELECT;
+      status_var_increment(thd->status_var.com_stat[SQLCOM_SELECT]);
+      thd->update_stats();
+      thd->lex->sql_command= save_sql_command;
       *nextp= m_ip+1;
+    }
     thd->set_query(query_backup);
     thd->query_name_consts= 0;
 
@@ -4104,7 +4115,7 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
         alias, since in most cases it is going to be smaller than
         NAME_LEN bytes.
       */
-      char tname_buff[(NAME_LEN + 1) * 3];
+      char tname_buff[(SAFE_NAME_LEN + 1) * 3];
       String tname(tname_buff, sizeof(tname_buff), &my_charset_bin);
       uint temp_table_key_length;
 

@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,11 +68,13 @@ void init_sql_alloc(MEM_ROOT *mem_root, uint block_size, uint pre_alloc)
 }
 
 
+#ifndef MYSQL_CLIENT
 void *sql_alloc(size_t Size)
 {
   MEM_ROOT *root= *my_pthread_getspecific_ptr(MEM_ROOT**,THR_MALLOC);
   return alloc_root(root,Size);
 }
+#endif
 
 
 void *sql_calloc(size_t size)

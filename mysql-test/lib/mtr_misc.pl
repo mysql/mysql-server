@@ -1,5 +1,6 @@
 # -*- cperl -*-
-# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2011, Oracle and/or its affiliates.
+# Copyright (c) 2009-2011, Monty Program Ab
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -240,6 +241,31 @@ sub mtr_milli_sleep ($) {
   my ($millis)= @_;
 
   select(undef, undef, undef, ($millis/1000));
+}
+
+sub mtr_wait_lock_file {
+  die "usage: mtr_wait_lock_file(path_to_file, keep_alive)" unless @_ == 2;
+  my ($file, $keep_alive)= @_;
+  my $waited= 0;
+  my $msg_counter= $keep_alive;
+
+  while ( -e $file)
+  {
+    if ($keep_alive && !$msg_counter)
+    {
+       print "\n-STOPPED- [pass] ".$keep_alive."\n";
+       $msg_counter= $keep_alive;
+    }
+    mtr_milli_sleep(1000);
+    $waited= 1;
+    $msg_counter--;
+  }
+  return ($waited);
+}
+
+sub uniq(@) {
+  my %seen = map { $_ => $_ } @_;
+  values %seen;
 }
 
 # Simple functions to start and check timers (have to be actively polled)

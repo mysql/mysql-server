@@ -44,6 +44,8 @@ bool check_key_in_view(THD *thd, TABLE_LIST * view);
 bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view);
 
 int view_checksum(THD *thd, TABLE_LIST *view);
+int view_check(THD *thd, TABLE_LIST *view, HA_CHECK_OPT *check_opt);
+int view_repair(THD *thd, TABLE_LIST *view, HA_CHECK_OPT *check_opt);
 
 extern TYPELIB updatable_views_with_limit_typelib;
 

@@ -30,38 +30,12 @@
 
 uint thd_lib_detected= 0;
 
-/* To allow use of pthread_getspecific with two arguments */
-
-#ifdef HAVE_NONPOSIX_PTHREAD_GETSPECIFIC
-#undef pthread_getspecific
-
-void *my_pthread_getspecific_imp(pthread_key_t key)
-{
-  void *value;
-  if (pthread_getspecific(key,(void *) &value))
-    return 0;
-  return value;
-}
-#endif
-
 /*
   Some functions for RTS threads, AIX, Siemens Unix and UnixWare 7
   (and DEC OSF/1 3.2 too)
 */
 
 int my_pthread_create_detached=1;
-
-#if defined(HAVE_NONPOSIX_SIGWAIT) || defined(HAVE_DEC_3_2_THREADS)
-
-int my_sigwait(const sigset_t *set,int *sig)
-{
-  int signal=sigwait((sigset_t*) set);
-  if (signal < 0)
-    return errno;
-  *sig=signal;
-  return 0;
-}
-#endif
 
 /* localtime_r for SCO 3.2V4.2 */
 
@@ -117,7 +91,7 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res)
 ** Author: Gary Wisniewski <garyw@spidereye.com.au>, much modified by Monty
 ****************************************************************************/
 
-#if !defined(HAVE_SIGWAIT) && !defined(sigwait) && !defined(__WIN__) && !defined(HAVE_rts_threads) && !defined(HAVE_NONPOSIX_SIGWAIT) && !defined(HAVE_DEC_3_2_THREADS)
+#if !defined(HAVE_SIGWAIT) && !defined(sigwait) && !defined(__WIN__) && !defined(HAVE_rts_threads)
 
 #if !defined(DONT_USE_SIGSUSPEND)
 
@@ -269,13 +243,7 @@ void *sigwait_thread(void *set_arg)
 
   for (;;)
   {						/* Wait for signals */
-#ifdef HAVE_NOT_BROKEN_SELECT
-    fd_set fd;
-    FD_ZERO(&fd);
-    select(0,&fd,0,0,0);
-#else
     sleep(1);					/* Because of broken BSDI */
-#endif
   }
 }
 
@@ -352,37 +320,6 @@ int sigwait(sigset_t *setp, int *sigp)
 #undef pthread_attr_getstacksize
 
 /*****************************************************************************
-** Patches for AIX and DEC OSF/1 3.2
-*****************************************************************************/
-
-#if defined(HAVE_NONPOSIX_PTHREAD_MUTEX_INIT)
-
-#include <netdb.h>
-
-int my_pthread_mutex_init(pthread_mutex_t *mp, const pthread_mutexattr_t *attr)
-{
-  int error;
-  if (!attr)
-    error=pthread_mutex_init(mp,pthread_mutexattr_default);
-  else
-    error=pthread_mutex_init(mp,*attr);
-  return error;
-}
-
-int my_pthread_cond_init(pthread_cond_t *mp, const pthread_condattr_t *attr)
-{
-  int error;
-  if (!attr)
-    error=pthread_cond_init(mp,pthread_condattr_default);
-  else
-    error=pthread_cond_init(mp,*attr);
-  return error;
-}
-
-#endif
-
-
-/*****************************************************************************
   Patches for HPUX
   We need these because the pthread_mutex.. code returns -1 on error,
   instead of the error code.
@@ -392,7 +329,7 @@ int my_pthread_cond_init(pthread_cond_t *mp, const pthread_condattr_t *attr)
   this has to be added here.
 ****************************************************************************/
 
-#if defined(HPUX10) || defined(HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT)
+#if defined(HPUX10)
 
 int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 			      struct timespec *abstime)

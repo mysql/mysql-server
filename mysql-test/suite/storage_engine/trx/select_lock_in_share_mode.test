@@ -1,0 +1,82 @@
+#
+# SELECT .. LOCK IN SHARE MODE 
+#
+# If the engine has its own lock timeouts, 
+# it makes sense to set them to minimum to decrease
+# the duration of the test.
+
+--source ../have_engine.inc
+--source support_transactions.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--enable_connect_log
+
+--source include/count_sessions.inc
+
+--source ../create_table.inc
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'a');
+
+--connect (con1,localhost,root,,)
+BEGIN;
+--sorted_result
+SELECT a,b FROM t1 WHERE b='a' LOCK IN SHARE MODE;
+if ($mysql_errname)
+{
+  --let $functionality = LOCK IN SHARE MODE
+  --source ../unexpected_result.inc
+}
+
+--connection default
+SET lock_wait_timeout = 1;
+
+# Should still be able to select 
+
+--sorted_result
+SELECT a,b FROM t1 WHERE b='a';
+if ($mysql_errname)
+{
+  --let $functionality = LOCK IN SHARE MODE
+  --source ../unexpected_result.inc
+}
+--sorted_result
+SELECT a,b FROM t1 WHERE b='a' LOCK IN SHARE MODE;
+if ($mysql_errname)
+{
+  --let $functionality = LOCK IN SHARE MODE
+  --source ../unexpected_result.inc
+}
+
+--let $error_codes = ER_LOCK_WAIT_TIMEOUT
+UPDATE t1 SET b='c' WHERE b='a';
+--source ../check_errors.inc
+if ($mysql_errname != ER_LOCK_WAIT_TIMEOUT)
+{
+  --let $functionality = LOCK IN SHARE MODE or UPDATE
+  --source ../unexpected_result.inc
+}
+
+--connection con1
+COMMIT;
+--sorted_result
+SELECT a,b FROM t1;
+
+--disconnect con1
+--connection default
+# Now it can be updated all right
+UPDATE t1 SET b='c' WHERE b='a';  
+if ($mysql_errname)
+{
+  --let $functionality = UPDATE
+  --source ../unexpected_result.inc
+}
+--sorted_result
+SELECT a,b FROM t1;
+
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc
+--source ../cleanup_engine.inc
+

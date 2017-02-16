@@ -1,0 +1,76 @@
+# Test of the --aria-recover option.
+
+--source include/have_maria.inc
+
+--disable_query_log
+# Note: \\. matches a single period. We use '.' as directory separator to 
+# account for Unix and Windows variation.
+call mtr.add_suppression("Checking table:   '\\..mysqltest.t_corrupted2'");
+call mtr.add_suppression("Recovering table: '\\..mysqltest.t_corrupted2'");
+call mtr.add_suppression("Table '\\..mysqltest.t_corrupted2' is marked as crashed and should be repaired");
+call mtr.add_suppression("Table 't_corrupted2' is marked as crashed and should be repaired");
+
+let $def_checkinterval=`select @@global.aria_checkpoint_interval`;
+
+--enable_query_log
+
+# Note: we're setting an environment variable (not prefixing it by $),
+# so that the perl code below can access it.
+let MYSQLD_DATADIR= `select @@datadir`;
+
+select @@global.aria_recover;
+set global aria_recover=off;
+select @@global.aria_recover;
+set global aria_recover=default;
+select @@global.aria_recover;
+set global aria_recover=normal;
+select @@global.aria_recover;
+
+--disable_warnings
+drop database if exists mysqltest;
+--enable_warnings
+create database mysqltest;
+
+use mysqltest;
+
+create table t1 (a varchar(1000), index(a)) engine=aria;
+insert into t1 values("ThursdayMorningsMarket");
+
+flush table t1; # put index page on disk
+insert into t1 select concat(a,'b') from t1 limit 1;
+# force a checkpoint to get the open count > 0
+set global aria_checkpoint_interval=1000;
+# Wait for checkpoint to happen
+--sleep 1
+# now t1 has its open_count>0 and so will t2_corrupted.
+# It is not named t2 because the corruption messages which will be put
+# in the error log need to be detected in mtr_process.pl, and we want
+# a specific name to do specific detection (don't want to ignore
+# any corruption messages of other tests using "t2" as table).
+
+copy_file $MYSQLD_DATADIR/mysqltest/t1.frm $MYSQLD_DATADIR/mysqltest/t_corrupted2.frm;
+copy_file $MYSQLD_DATADIR/mysqltest/t1.MAD $MYSQLD_DATADIR/mysqltest/t_corrupted2.MAD;
+copy_file $MYSQLD_DATADIR/mysqltest/t1.MAI $MYSQLD_DATADIR/mysqltest/t_corrupted2.MAI;
+
+# Ruin the index file.
+# If aria-block-size is smaller than the default, the corruption
+# messages will differ.
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLD_DATADIR'}/mysqltest/t_corrupted2.MAI";
+    open(FILE, "+<", $fname) or die;
+    my $whatever= ("\xAB" x 100);
+    sysseek (FILE, 8192, 0) or die;
+    syswrite (FILE, $whatever) or die;
+    close FILE;
+EOF
+replace_regex /Table.*t_corrupted2/t_corrupted2/ ;
+--enable_prepare_warnings
+select * from t_corrupted2; # should show corruption and repair messages
+--disable_prepare_warnings
+select * from t_corrupted2; # should show just rows
+
+drop database mysqltest;
+set global aria_recover=backup;
+eval set global aria_checkpoint_interval=$def_checkinterval;

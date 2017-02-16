@@ -1,0 +1,93 @@
+drop table if exists t1,t2;
+Warnings:
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
+CREATE TABLE t1 (
+`sspo_id` int(11) NOT NULL AUTO_INCREMENT,
+`sspo_uid` int(11) NOT NULL DEFAULT '0',
+`sspo_type` varchar(1) NOT NULL DEFAULT 'P',
+`sspo_text` longtext NOT NULL,
+`sspo_image` varchar(255) NOT NULL,
+`sspo_source` int(11) NOT NULL DEFAULT '0',
+`sspo_event_name` varchar(255) NOT NULL DEFAULT '',
+`sspo_event_location` varchar(255) NOT NULL DEFAULT '',
+`sspo_event_date` datetime DEFAULT NULL,
+`sspo_remote_title` varchar(255) NOT NULL,
+`sspo_remote_url` varchar(255) NOT NULL,
+`sspo_remote_desc` text NOT NULL,
+`sspo_remote_image` varchar(255) NOT NULL,
+`sspo_obj_status` varchar(1) NOT NULL DEFAULT 'A',
+`sspo_cr_date` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+`sspo_cr_uid` int(11) NOT NULL DEFAULT '0',
+`sspo_lu_date` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+`sspo_lu_uid` int(11) NOT NULL DEFAULT '0',
+PRIMARY KEY (`sspo_id`),
+KEY `post_uid` (`sspo_uid`,`sspo_cr_date`)
+) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8;
+Warnings:
+Warning	1286	Unknown storage engine 'InnoDB'
+Warning	1266	Using storage engine MyISAM for table 't1'
+INSERT INTO t1 VALUES (1,2,'P','test1','',0,'','',NULL,'','','','','A','2013-09-30 00:19:32',2,'2013-09-30 00:19:32',2),(2,2,'P','bbb','',0,'','',NULL,'','','','','A','2013-10-02 15:06:35',2,'2013-10-02 15:06:35',2);
+CREATE TABLE `t2` (
+`spoo_id` int(11) NOT NULL AUTO_INCREMENT,
+`spoo_user_type_id` int(11) NOT NULL DEFAULT '0',
+`spoo_uid` int(11) NOT NULL DEFAULT '0',
+`spoo_option_id` int(11) NOT NULL DEFAULT '0',
+`spoo_value` varchar(10000) NOT NULL,
+`spoo_obj_status` varchar(1) NOT NULL DEFAULT 'A',
+`spoo_cr_date` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+`spoo_cr_uid` int(11) NOT NULL DEFAULT '0',
+`spoo_lu_date` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+`spoo_lu_uid` int(11) NOT NULL DEFAULT '0',
+PRIMARY KEY (`spoo_id`),
+KEY `object_option_main_idx` (`spoo_user_type_id`,`spoo_uid`,`spoo_option_id`,`spoo_value`(255))
+) ENGINE=InnoDB AUTO_INCREMENT=107 DEFAULT CHARSET=utf8;
+Warnings:
+Warning	1286	Unknown storage engine 'InnoDB'
+Warning	1266	Using storage engine MyISAM for table 't2'
+INSERT INTO `t2` VALUES (19,1,2,6,'Dortmund','A','2013-09-26 01:36:51',2,'2013-09-26 01:36:51',2),(20,1,2,8,'49','A','2013-09-26 01:36:51',2,'2013-09-26 01:36:51',2);
+SELECT Count(*)
+FROM   t1 AS tbl
+LEFT JOIN t2 a
+ON a.spoo_uid = sspo_uid
+AND a.spoo_option_id = 1
+LEFT JOIN t2 b
+ON b.spoo_uid = sspo_uid
+AND b.spoo_option_id = 2
+LEFT JOIN t2 c
+ON c.spoo_uid = sspo_uid
+AND c.spoo_option_id = 3
+LEFT JOIN t2 d
+ON d.spoo_uid = sspo_uid
+AND d.spoo_option_id = 5
+LEFT JOIN t2 e
+ON e.spoo_uid = sspo_uid
+AND e.spoo_option_id = 4
+LEFT JOIN t2 f
+ON f.spoo_uid = sspo_uid
+AND f.spoo_option_id = 11
+LEFT JOIN t2 g
+ON g.spoo_uid = sspo_uid
+AND g.spoo_option_id = 7
+LEFT JOIN t2 h
+ON h.spoo_uid = sspo_uid
+AND h.spoo_option_id = 10
+LEFT JOIN t2 i
+ON i.spoo_uid = sspo_uid
+AND i.spoo_option_id = 18
+LEFT JOIN t2 j
+ON j.spoo_uid = sspo_uid
+AND j.spoo_option_id = 6
+GROUP  BY a.spoo_value,
+b.spoo_value,
+c.spoo_value,
+d.spoo_value,
+e.spoo_value,
+f.spoo_value,
+g.spoo_value,
+h.spoo_value,
+i.spoo_value,
+j.spoo_value;
+Count(*)
+2
+drop table t1,t2;

@@ -2,7 +2,7 @@
 #define HA_PARTITION_INCLUDED
 
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,7 +30,6 @@ enum partition_keywords
   PKW_COLUMNS, PKW_ALGORITHM
 };
 
-
 #define PARTITION_BYTES_IN_POS 2
 #define PARTITION_ENABLED_TABLE_FLAGS (HA_FILE_BASED | \
                                        HA_REC_NOT_IN_SEQ | \
@@ -50,6 +49,8 @@ enum partition_keywords
 /* offset to the engines array */
 #define PAR_ENGINES_OFFSET 12
 
+extern "C" int cmp_key_rowid_part_id(void *ptr, uchar *ref1, uchar *ref2);
+
 class ha_partition :public handler
 {
 private:
@@ -59,21 +60,22 @@ private:
     partition_index_first= 1,
     partition_index_first_unordered= 2,
     partition_index_last= 3,
-    partition_index_read_last= 4,
-    partition_read_range = 5,
-    partition_no_index_scan= 6
+    partition_read_range = 4,
+    partition_no_index_scan= 5
   };
   /* Data for the partition handler */
   int  m_mode;                          // Open mode
   uint m_open_test_lock;                // Open test_if_locked
   char *m_file_buffer;                  // Content of the .par file 
   char *m_name_buffer_ptr;		// Pointer to first partition name
+  MEM_ROOT m_mem_root;
   plugin_ref *m_engine_array;           // Array of types of the handlers
   handler **m_file;                     // Array of references to handler inst.
   uint m_file_tot_parts;                // Debug
   handler **m_new_file;                 // Array of references to new handlers
   handler **m_reorged_file;             // Reorganised partitions
   handler **m_added_file;               // Added parts kept for errors
+  LEX_STRING *m_connect_string;
   partition_info *m_part_info;          // local reference to partition
   Field **m_part_field_array;           // Part field array locally to save acc
   uchar *m_ordered_rec_buffer;          // Row and key buffer for ord. idx scan
@@ -88,6 +90,22 @@ private:
   uchar *m_rec0;                        // table->record[0]
   const uchar *m_err_rec;               // record which gave error
   QUEUE m_queue;                        // Prio queue used by sorted read
+
+  /*
+    Length of an element in m_ordered_rec_buffer. The elements are composed of
+
+      [part_no] [table->record copy] [underlying_table_rowid]
+    
+    underlying_table_rowid is only stored when the table has no extended keys.
+  */
+  uint m_priority_queue_rec_len;
+
+  /*
+    If true, then sorting records by key value also sorts them by their
+    underlying_table_rowid.
+  */
+  bool m_using_extended_keys;
+
   /*
     Since the partition handler is a handler on top of other handlers, it
     is necessary to keep information about what the underlying handler
@@ -95,7 +113,6 @@ private:
     for this since the MySQL Server sometimes allocating the handler object
     without freeing them.
   */
-  ulong m_low_byte_first;
   enum enum_handler_status
   {
     handler_not_initialized= 0,
@@ -492,8 +509,6 @@ public:
   virtual int index_first(uchar * buf);
   virtual int index_last(uchar * buf);
   virtual int index_next_same(uchar * buf, const uchar * key, uint keylen);
-  virtual int index_read_last_map(uchar * buf, const uchar * key,
-                                  key_part_map keypart_map);
 
   /*
     read_first_row is virtual method but is only implemented by
@@ -547,22 +562,20 @@ public:
   virtual int extra(enum ha_extra_function operation);
   virtual int extra_opt(enum ha_extra_function operation, ulong cachesize);
   virtual int reset(void);
-  /*
-    Do not allow caching of partitioned tables, since we cannot return
-    a callback or engine_data that would work for a generic engine.
-  */
-  virtual my_bool register_query_cache_table(THD *thd, char *table_key,
-                                             uint key_length,
-                                             qc_engine_callback
-                                               *engine_callback,
-                                             ulonglong *engine_data)
-  {
-    *engine_callback= NULL;
-    *engine_data= 0;
-    return FALSE;
-  }
+  virtual uint count_query_cache_dependant_tables(uint8 *tables_type);
+  virtual my_bool
+    register_query_cache_dependant_tables(THD *thd,
+                                          Query_cache *cache,
+                                          Query_cache_block_table **block,
+                                          uint *n);
 
 private:
+  my_bool reg_query_cache_dependant_table(THD *thd,
+                                          char *key, uint key_len, uint8 type,
+                                          Query_cache *cache,
+                                          Query_cache_block_table
+                                          **block_table,
+                                          handler *file, uint *n);
   static const uint NO_CURRENT_PART_ID;
   int loop_extra(enum ha_extra_function operation);
   void late_extra_cache(uint partition_id);
@@ -882,6 +895,10 @@ public:
   */
   virtual ulong index_flags(uint inx, uint part, bool all_parts) const
   {
+    /*
+      The following code is not safe if you are using different
+      storage engines or different index types per partition.
+    */
     return m_file[0]->index_flags(inx, part, all_parts);
   }
 
@@ -906,12 +923,6 @@ public:
   virtual uint max_supported_key_parts() const;
   virtual uint max_supported_key_length() const;
   virtual uint max_supported_key_part_length() const;
-
-  /*
-    All handlers in a partitioned table must have the same low_byte_first
-  */
-  virtual bool low_byte_first() const
-  { return m_low_byte_first; }
 
   /*
     The extra record buffer length is the maximum needed by all handlers.
@@ -1104,7 +1115,7 @@ public:
     virtual int check(THD* thd, HA_CHECK_OPT *check_opt);
     virtual int repair(THD* thd, HA_CHECK_OPT *check_opt);
     virtual bool check_and_repair(THD *thd);
-    virtual bool auto_repair() const;
+    virtual bool auto_repair(int error) const;
     virtual bool is_crashed() const;
     virtual int check_for_upgrade(HA_CHECK_OPT *check_opt);
 
@@ -1156,6 +1167,32 @@ public:
     -------------------------------------------------------------------------
     virtual void append_create_info(String *packet)
   */
+
+  /*
+    the following heavily relies on the fact that all partitions
+    are in the same storage engine.
+
+    When this limitation is lifted, the following hack should go away,
+    and a proper interface for engines needs to be introduced:
+
+      an PARTITION_SHARE structure that has a pointer to the TABLE_SHARE.
+      is given to engines everywhere where TABLE_SHARE is used now
+      has members like option_struct, ha_data
+      perhaps TABLE needs to be split the same way too...
+
+    this can also be done before partition will support a mix of engines,
+    but preferably together with other incompatible API changes.
+  */
+  virtual handlerton *partition_ht() const
+  {
+    handlerton *h= m_file[0]->ht;
+    for (uint i=1; i < m_tot_parts; i++)
+      DBUG_ASSERT(h == m_file[i]->ht);
+    return h;
+  }
+
+
+  friend int cmp_key_rowid_part_id(void *ptr, uchar *ref1, uchar *ref2);
 };
 
 #endif /* HA_PARTITION_INCLUDED */

@@ -21,27 +21,23 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/regex
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/strings
-  ${READLINE_INCLUDE_DIR}
+  ${MY_READLINE_INCLUDE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-ADD_DEFINITIONS(${READLINE_DEFINES})
 ADD_DEFINITIONS(${SSL_DEFINES})
-MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc sql_string.cc)
+MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc
+                           ${CMAKE_SOURCE_DIR}/sql/sql_string.cc)
 TARGET_LINK_LIBRARIES(mysql mysqlclient)
 IF(UNIX)
-  TARGET_LINK_LIBRARIES(mysql ${READLINE_LIBRARY})
+  TARGET_LINK_LIBRARIES(mysql ${MY_READLINE_LIBRARY})
+  SET_TARGET_PROPERTIES(mysql PROPERTIES ENABLE_EXPORTS TRUE)
 ENDIF(UNIX)
 
 MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc COMPONENT Test)
 SET_SOURCE_FILES_PROPERTIES(mysqltest.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
-# mysqltest has unused result errors, so we skip Werror
-CHECK_C_COMPILER_FLAG("-Werror" HAVE_WERROR_FLAG)
-IF(HAVE_WERROR_FLAG)
-  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-  ADD_COMPILE_FLAGS(mysqltest.cc COMPILE_FLAGS "-Wno-error")
-ENDIF()
 TARGET_LINK_LIBRARIES(mysqltest mysqlclient regex)
+SET_TARGET_PROPERTIES(mysqltest PROPERTIES ENABLE_EXPORTS TRUE)
 
 
 MYSQL_ADD_EXECUTABLE(mysqlcheck mysqlcheck.c)
@@ -54,7 +50,7 @@ MYSQL_ADD_EXECUTABLE(mysqlimport mysqlimport.c)
 SET_SOURCE_FILES_PROPERTIES(mysqlimport.c PROPERTIES COMPILE_FLAGS "-DTHREADS")
 TARGET_LINK_LIBRARIES(mysqlimport mysqlclient)
 
-MYSQL_ADD_EXECUTABLE(mysql_upgrade mysql_upgrade.c)
+MYSQL_ADD_EXECUTABLE(mysql_upgrade mysql_upgrade.c COMPONENT Server)
 TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient)
 ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs)
 
@@ -76,8 +72,12 @@ TARGET_LINK_LIBRARIES(mysqlslap mysqlclient)
 
 # "WIN32" also covers 64 bit. "echo" is used in some files below "mysql-test/".
 IF(WIN32)
-  MYSQL_ADD_EXECUTABLE(echo echo.c)
+  MYSQL_ADD_EXECUTABLE(echo echo.c COMPONENT Junk)
 ENDIF(WIN32)
+
+# async_example is just a code example, do not install it.
+ADD_EXECUTABLE(async_example async_example.c)
+TARGET_LINK_LIBRARIES(async_example mysqlclient)
 
 SET_TARGET_PROPERTIES (mysqlcheck mysqldump mysqlimport mysql_upgrade mysqlshow mysqlslap mysql_plugin 
 PROPERTIES HAS_CXX TRUE)

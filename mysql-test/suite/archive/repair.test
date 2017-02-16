@@ -1,0 +1,18 @@
+#
+# MDEV-4444 Server crashes with "safe_mutex: Trying to destroy a mutex share->mutex that was locked" on attempt to recover an archive table
+#
+
+--source include/have_archive.inc
+
+--let $datadir = `SELECT @@datadir`
+
+create table t1 (a int) engine=archive;
+insert into t1 values (1);
+--remove_file $datadir/test/t1.ARZ
+--error 13,1017
+select * from t1;
+--error ER_CRASHED_ON_USAGE
+insert into t1 values (2);
+repair table t1;
+--error ER_BAD_TABLE_ERROR
+drop table t1;

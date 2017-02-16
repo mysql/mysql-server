@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 #
 # Bug#39438 Testcase for Bug#39436 crashes on 5.1 in fil_space_get_latch
 # http://bugs.mysql.com/39438
@@ -6,8 +7,6 @@
 # only occurs if that option is turned on and DISCARD TABLESPACE only
 # works with innodb_file_per_table.
 #
-
--- source include/have_innodb.inc
 
 SET storage_engine=InnoDB;
 

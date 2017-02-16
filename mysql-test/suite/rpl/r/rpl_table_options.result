@@ -1,0 +1,22 @@
+include/master-slave.inc
+[connection master]
+install plugin example soname 'ha_example.so';
+set storage_engine=example;
+create table t1 (a int not null) ull=12340;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL
+) ENGINE=EXAMPLE DEFAULT CHARSET=latin1 `ull`=12340
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 `ull`=12340
+drop table t1;
+set storage_engine=default;
+select 1;
+1
+1
+uninstall plugin example;
+include/rpl_end.inc

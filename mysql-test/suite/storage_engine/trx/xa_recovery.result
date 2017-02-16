@@ -1,0 +1,29 @@
+call mtr.add_suppression("Found 2 prepared XA transactions");
+FLUSH TABLES;
+DROP TABLE IF EXISTS t1;
+connect  con1,localhost,root,,;
+connect  con2,localhost,root,,;
+connection con1;
+CREATE TABLE t1 (a <INT_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+XA START 'xa1';
+INSERT INTO t1 (a) VALUES (1),(2);
+XA END 'xa1';
+XA PREPARE 'xa1';
+connection con2;
+XA START 'xa2';
+INSERT INTO t1 (a) VALUES (3);
+INSERT INTO t1 (a) VALUES (4);
+XA END 'xa2';
+XA PREPARE 'xa2';
+connection default;
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	3	0	xa1
+1	3	0	xa2
+XA ROLLBACK 'xa1';
+XA COMMIT 'xa2';
+SELECT a FROM t1;
+a
+3
+4
+DROP TABLE t1;

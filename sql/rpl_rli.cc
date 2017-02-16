@@ -1,4 +1,5 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2013, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,7 +44,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery)
    sync_counter(0), is_relay_log_recovery(is_slave_recovery),
    save_temporary_tables(0), cur_log_old_open_count(0), group_relay_log_pos(0), 
    event_relay_log_pos(0),
-#if HAVE_purify
+#if HAVE_valgrind
    is_fake(FALSE),
 #endif
    group_master_log_pos(0), log_space_total(0), ignore_log_space_limit(0),
@@ -53,7 +54,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery)
    until_log_pos(0), retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
    last_event_start_time(0), deferred_events(NULL),m_flags(0),
-   row_stmt_start_timestamp(0), long_find_row_note_printed(false)
+   row_stmt_start_timestamp(0), long_find_row_note_printed(false),
+   m_annotate_event(0)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
 
@@ -61,7 +63,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery)
   relay_log.set_psi_keys(key_RELAYLOG_LOCK_index,
                          key_RELAYLOG_update_cond,
                          key_file_relaylog,
-                         key_file_relaylog_index);
+                         key_file_relaylog_index,
+                         key_RELAYLOG_COND_queue_busy);
 #endif
 
   group_relay_log_name[0]= event_relay_log_name[0]=
@@ -100,6 +103,7 @@ Relay_log_info::~Relay_log_info()
   mysql_cond_destroy(&log_space_cond);
   mysql_cond_destroy(&sleep_cond);
   relay_log.cleanup();
+  free_annotate_event();
   DBUG_VOID_RETURN;
 }
 
@@ -185,7 +189,8 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
     ln= rli->relay_log.generate_name(opt_relay_logname, "-relay-bin",
                                      1, buf);
     /* We send the warning only at startup, not after every RESET SLAVE */
-    if (!opt_relay_logname && !opt_relaylog_index_name && !name_warning_sent)
+    if (!opt_relay_logname && !opt_relaylog_index_name && !name_warning_sent &&
+        !opt_bootstrap)
     {
       /*
         User didn't give us info to name the relay log index file.
@@ -198,9 +203,13 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
                         " so replication "
                         "may break when this MySQL server acts as a "
                         "slave and has his hostname changed!! Please "
-                        "use '--relay-log=%s' to avoid this problem.", ln);
+                        "use '--log-basename=#' or '--relay-log=%s' to avoid "
+                        "this problem.", ln);
       name_warning_sent= 1;
     }
+
+    rli->relay_log.is_relay_log= TRUE;
+
     /*
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
@@ -214,7 +223,6 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
       sql_print_error("Failed in open_log() called from init_relay_log_info()");
       DBUG_RETURN(1);
     }
-    rli->relay_log.is_relay_log= TRUE;
   }
 
   /* if file does not exist */
@@ -302,8 +310,7 @@ Failed to open the existing relay log info file '%s' (errno %d)",
       msg="Error reading slave log configuration";
       goto err;
     }
-    strmake(rli->event_relay_log_name,rli->group_relay_log_name,
-            sizeof(rli->event_relay_log_name)-1);
+    strmake_buf(rli->event_relay_log_name,rli->group_relay_log_name);
     rli->group_relay_log_pos= rli->event_relay_log_pos= relay_log_pos;
     rli->group_master_log_pos= master_log_pos;
 
@@ -521,10 +528,8 @@ int init_relay_log_pos(Relay_log_info* rli,const char* log,
     *errmsg="Could not find target log during relay log initialization";
     goto err;
   }
-  strmake(rli->group_relay_log_name,rli->linfo.log_file_name,
-          sizeof(rli->group_relay_log_name)-1);
-  strmake(rli->event_relay_log_name,rli->linfo.log_file_name,
-          sizeof(rli->event_relay_log_name)-1);
+  strmake_buf(rli->group_relay_log_name,rli->linfo.log_file_name);
+  strmake_buf(rli->event_relay_log_name,rli->linfo.log_file_name);
   if (rli->relay_log.is_active(rli->linfo.log_file_name))
   {
     /*
@@ -569,8 +574,9 @@ int init_relay_log_pos(Relay_log_info* rli,const char* log,
         Because of we have rli->data_lock and log_lock, we can safely read an
         event
       */
-      if (!(ev=Log_event::read_log_event(rli->cur_log,0,
-                                         rli->relay_log.description_event_for_exec)))
+      if (!(ev= Log_event::read_log_event(rli->cur_log, 0,
+                                          rli->relay_log.description_event_for_exec,
+                                          opt_slave_sql_verify_checksum)))
       {
         DBUG_PRINT("info",("could not read event, rli->cur_log->error=%d",
                            rli->cur_log->error));
@@ -863,8 +869,7 @@ void Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
     mysql_mutex_lock(&data_lock);
   inc_event_relay_log_pos();
   group_relay_log_pos= event_relay_log_pos;
-  strmake(group_relay_log_name,event_relay_log_name,
-          sizeof(group_relay_log_name)-1);
+  strmake_buf(group_relay_log_name,event_relay_log_name);
 
   notify_group_relay_log_name_update();
 
@@ -997,10 +1002,8 @@ int purge_relay_logs(Relay_log_info* rli, THD *thd, bool just_reset,
     goto err;
   }
   /* Save name of used relay log file */
-  strmake(rli->group_relay_log_name, rli->relay_log.get_log_fname(),
-          sizeof(rli->group_relay_log_name)-1);
-  strmake(rli->event_relay_log_name, rli->relay_log.get_log_fname(),
-          sizeof(rli->event_relay_log_name)-1);
+  strmake_buf(rli->group_relay_log_name, rli->relay_log.get_log_fname());
+  strmake_buf(rli->event_relay_log_name, rli->relay_log.get_log_fname());
   rli->group_relay_log_pos= rli->event_relay_log_pos= BIN_LOG_HEADER_SIZE;
   if (count_relay_log_space(rli))
   {
@@ -1208,11 +1211,8 @@ void Relay_log_info::stmt_done(my_off_t event_master_log_pos,
       is that value may take some time to display in
       Seconds_Behind_Master - not critical).
     */
-#ifndef DBUG_OFF
-    if (!(event_creation_time == 0 && debug_not_change_ts_if_art_event > 0))
-#else
-      if (event_creation_time != 0)
-#endif
+    if (!(event_creation_time == 0 &&
+          IF_DBUG(debug_not_change_ts_if_art_event > 0, 1)))
         last_master_timestamp= event_creation_time;
   }
 }

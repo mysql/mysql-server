@@ -1,0 +1,47 @@
+# enum global
+--source include/have_maria.inc
+
+SET @start_global_value = @@global.aria_sync_log_dir;
+
+#
+# exists as global only
+#
+select @@global.aria_sync_log_dir;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.aria_sync_log_dir;
+show global variables like 'aria_sync_log_dir';
+show session variables like 'aria_sync_log_dir';
+select * from information_schema.global_variables where variable_name='aria_sync_log_dir';
+select * from information_schema.session_variables where variable_name='aria_sync_log_dir';
+
+#
+# show that it's writable
+#
+set global aria_sync_log_dir=1;
+select @@global.aria_sync_log_dir;
+--error ER_GLOBAL_VARIABLE
+set session aria_sync_log_dir=1;
+
+#
+# all valid values
+#
+set global aria_sync_log_dir=never;
+select @@global.aria_sync_log_dir;
+set global aria_sync_log_dir=newfile;
+select @@global.aria_sync_log_dir;
+set global aria_sync_log_dir=always;
+select @@global.aria_sync_log_dir;
+
+#
+# incorrect types/values
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_sync_log_dir=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_sync_log_dir=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global aria_sync_log_dir="foo";
+--error ER_WRONG_VALUE_FOR_VAR
+set global aria_sync_log_dir=3;
+
+SET @@global.aria_sync_log_dir = @start_global_value;

@@ -1,10 +1,10 @@
 #
 # Bug#11763573 - 56299: MUTEX DEADLOCK WITH COM_BINLOG_DUMP, BINLOG PURGE, AND PROCESSLIST/KILL
 #
-source include/master-slave.inc;
 source include/have_debug_sync.inc;
 source include/have_binlog_format_row.inc;
 source include/have_innodb.inc;
+source include/master-slave.inc;
 
 #
 # Testing that execution of two concurrent INSERTing connections both
@@ -20,6 +20,7 @@ connection master;
 source include/show_binary_logs.inc;
 create table t1 (f text) engine=innodb;
 SET DEBUG_SYNC = 'at_purge_logs_before_date WAIT_FOR rotated';
+SET DEBUG_SYNC = 'after_purge_logs_before_date SIGNAL continued';
 send insert into t1 set f=repeat('a', 4096);
 
 connection master1;
@@ -38,6 +39,7 @@ insert into t1 set f=repeat('b', 4096);
 source include/show_binary_logs.inc;
 
 SET DEBUG_SYNC = 'now SIGNAL rotated';
+SET DEBUG_SYNC = 'now WAIT_FOR continued';
 SET DEBUG_SYNC = 'RESET';
 
 # the first connection finally completes its INSERT
@@ -54,6 +56,7 @@ sync_slave_with_master;
 
 connection master;
 SET DEBUG_SYNC = 'at_purge_logs_before_date WAIT_FOR rotated';
+SET DEBUG_SYNC = 'after_purge_logs_before_date SIGNAL continued';
 send insert into t1 set f=repeat('b', 4096);
 
 connection master1;
@@ -80,6 +83,7 @@ let $wait_condition=
 --source include/wait_condition.inc
 
 SET DEBUG_SYNC = 'now SIGNAL rotated';
+SET DEBUG_SYNC = 'now WAIT_FOR continued';
 SET DEBUG_SYNC = 'RESET';
 
 connection master;

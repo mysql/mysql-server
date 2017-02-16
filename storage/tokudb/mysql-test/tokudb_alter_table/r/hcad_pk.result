@@ -1,0 +1,169 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+DROP TABLE IF EXISTS foo,bar;
+set session tokudb_disable_slow_alter=ON;
+create table foo (a int NOT NULL, b bigint NOT NULL, c mediumint NOT NULL, primary key (a))engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (1,10,100),(-1,-1,-1),(2,20,200);
+insert into bar select * from foo;
+alter table foo add column d int default 20;
+alter table bar add column d int default 20;
+include/diff_tables.inc [test.foo, test.bar]
+select * from foo;
+a	b	c	d
+-1	-1	-1	20
+1	10	100	20
+2	20	200	20
+insert into foo values (3,30,300,3000);
+insert into bar values (3,30,300,3000);
+select * from foo;
+a	b	c	d
+-1	-1	-1	20
+1	10	100	20
+2	20	200	20
+3	30	300	3000
+alter table foo drop column d;
+alter table bar drop column d;
+include/diff_tables.inc [test.foo, test.bar]
+select * from foo;
+a	b	c
+-1	-1	-1
+1	10	100
+2	20	200
+3	30	300
+insert into foo values (4,40,400);
+insert into bar values (4,40,400);
+select * from foo;
+a	b	c
+-1	-1	-1
+1	10	100
+2	20	200
+3	30	300
+4	40	400
+alter table foo add column d int default 20 first;
+alter table bar add column d int default 20 first;
+include/diff_tables.inc [test.foo, test.bar]
+select * from foo;
+d	a	b	c
+20	-1	-1	-1
+20	1	10	100
+20	2	20	200
+20	3	30	300
+20	4	40	400
+insert into foo values (5,50,500,5000);
+insert into bar values (5,50,500,5000);
+select * from foo;
+d	a	b	c
+20	-1	-1	-1
+20	1	10	100
+20	2	20	200
+20	3	30	300
+20	4	40	400
+5	50	500	5000
+alter table foo drop column d;
+alter table bar drop column d;
+include/diff_tables.inc [test.foo, test.bar]
+select * from foo;
+a	b	c
+-1	-1	-1
+1	10	100
+2	20	200
+3	30	300
+4	40	400
+50	500	5000
+insert into foo values (6,60,600);
+insert into bar values (6,60,600);
+select * from foo;
+a	b	c
+-1	-1	-1
+1	10	100
+2	20	200
+3	30	300
+4	40	400
+6	60	600
+50	500	5000
+drop table foo;
+drop table bar;
+create table foo (a int NOT NULL, b bigint NOT NULL, c mediumint NOT NULL, primary key (c))engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (1,10,100),(-1,-1,-1),(2,20,200);
+insert into bar select * from foo;
+alter table foo add column d int default 20;
+alter table bar add column d int default 20;
+include/diff_tables.inc [test.foo, test.bar]
+select * from foo;
+a	b	c	d
+-1	-1	-1	20
+1	10	100	20
+2	20	200	20
+insert into foo values (3,30,300,3000);
+insert into bar values (3,30,300,3000);
+select * from foo;
+a	b	c	d
+-1	-1	-1	20
+1	10	100	20
+2	20	200	20
+3	30	300	3000
+alter table foo drop column d;
+alter table bar drop column d;
+include/diff_tables.inc [test.foo, test.bar]
+select * from foo;
+a	b	c
+-1	-1	-1
+1	10	100
+2	20	200
+3	30	300
+insert into foo values (4,40,400);
+insert into bar values (4,40,400);
+select * from foo;
+a	b	c
+-1	-1	-1
+1	10	100
+2	20	200
+3	30	300
+4	40	400
+alter table foo add column d int default 20 first;
+alter table bar add column d int default 20 first;
+include/diff_tables.inc [test.foo, test.bar]
+select * from foo;
+d	a	b	c
+20	-1	-1	-1
+20	1	10	100
+20	2	20	200
+20	3	30	300
+20	4	40	400
+insert into foo values (5,50,500,5000);
+insert into bar values (5,50,500,5000);
+select * from foo;
+d	a	b	c
+20	-1	-1	-1
+20	1	10	100
+20	2	20	200
+20	3	30	300
+20	4	40	400
+5	50	500	5000
+alter table foo drop column d;
+alter table bar drop column d;
+include/diff_tables.inc [test.foo, test.bar]
+select * from foo;
+a	b	c
+-1	-1	-1
+1	10	100
+2	20	200
+3	30	300
+4	40	400
+50	500	5000
+insert into foo values (6,60,600);
+insert into bar values (6,60,600);
+select * from foo;
+a	b	c
+-1	-1	-1
+1	10	100
+2	20	200
+3	30	300
+4	40	400
+6	60	600
+50	500	5000
+drop table foo;
+drop table bar;

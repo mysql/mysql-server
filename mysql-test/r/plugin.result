@@ -3,42 +3,92 @@ Warnings:
 Warning	1286	Unknown storage engine 'EXAMPLE'
 Warning	1266	Using storage engine MyISAM for table 't1'
 DROP TABLE t1;
-INSTALL PLUGIN example SONAME 'ha_example.so';
-INSTALL PLUGIN EXAMPLE SONAME 'ha_example.so';
+INSTALL PLUGIN example SONAME 'ha_example';
+INSTALL PLUGIN EXAMPLE SONAME 'ha_example';
 ERROR HY000: Function 'EXAMPLE' already exists
 UNINSTALL PLUGIN example;
-INSTALL PLUGIN example SONAME 'ha_example.so';
+INSTALL SONAME 'ha_example';
+select * from information_schema.plugins where plugin_library like 'ha_example%';
+PLUGIN_NAME	EXAMPLE
+PLUGIN_VERSION	0.1
+PLUGIN_STATUS	ACTIVE
+PLUGIN_TYPE	STORAGE ENGINE
+PLUGIN_TYPE_VERSION	#
+PLUGIN_LIBRARY	ha_example.so
+PLUGIN_LIBRARY_VERSION	1.4
+PLUGIN_AUTHOR	Brian Aker, MySQL AB
+PLUGIN_DESCRIPTION	Example storage engine
+PLUGIN_LICENSE	GPL
+LOAD_OPTION	ON
+PLUGIN_MATURITY	Experimental
+PLUGIN_AUTH_VERSION	0.1
+PLUGIN_NAME	UNUSABLE
+PLUGIN_VERSION	3.14
+PLUGIN_STATUS	ACTIVE
+PLUGIN_TYPE	DAEMON
+PLUGIN_TYPE_VERSION	#
+PLUGIN_LIBRARY	ha_example.so
+PLUGIN_LIBRARY_VERSION	1.4
+PLUGIN_AUTHOR	Sergei Golubchik
+PLUGIN_DESCRIPTION	Unusable Daemon
+PLUGIN_LICENSE	GPL
+LOAD_OPTION	ON
+PLUGIN_MATURITY	Experimental
+PLUGIN_AUTH_VERSION	3.14.15.926
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 SELECT * FROM t1;
 a
-DROP TABLE t1;
 set global example_ulong_var=500;
 set global example_enum_var= e1;
+set session example_int_var= -1;
 show status like 'example%';
 Variable_name	Value
-example_func_example	enum_var is 0, ulong_var is 500, double_var is 8.500000, really
+example_func_example	enum_var is 0, ulong_var is 500, int_var is -1, double_var is 8.500000, really
 show variables like 'example%';
 Variable_name	Value
 example_double_thdvar	8.500000
 example_double_var	8.500000
 example_enum_var	e1
+example_int_var	-1
 example_ulong_var	500
-UNINSTALL PLUGIN example;
+select @@session.example_int_var;
+@@session.example_int_var
+-1
+UNINSTALL SONAME 'ha_example';
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+select * from information_schema.plugins where plugin_library like 'ha_example%';
+PLUGIN_NAME	EXAMPLE
+PLUGIN_VERSION	0.1
+PLUGIN_STATUS	DELETED
+PLUGIN_TYPE	STORAGE ENGINE
+PLUGIN_TYPE_VERSION	#
+PLUGIN_LIBRARY	ha_example.so
+PLUGIN_LIBRARY_VERSION	1.4
+PLUGIN_AUTHOR	Brian Aker, MySQL AB
+PLUGIN_DESCRIPTION	Example storage engine
+PLUGIN_LICENSE	GPL
+LOAD_OPTION	ON
+PLUGIN_MATURITY	Experimental
+PLUGIN_AUTH_VERSION	0.1
+DROP TABLE t1;
 UNINSTALL PLUGIN EXAMPLE;
 ERROR 42000: PLUGIN EXAMPLE does not exist
 UNINSTALL PLUGIN non_exist;
 ERROR 42000: PLUGIN non_exist does not exist
+UNINSTALL SONAME 'non_exist';
+ERROR 42000: SONAME non_exist.so does not exist
 #
 # Bug#32034: check_func_enum() does not check correct values but set it
 #            to impossible int val
 #
-INSTALL PLUGIN example SONAME 'ha_example.so';
+INSTALL PLUGIN example SONAME 'ha_example';
 SET GLOBAL example_enum_var= e1;
 SET GLOBAL example_enum_var= e2;
 SET GLOBAL example_enum_var= impossible;
 ERROR 42000: Variable 'example_enum_var' can't be set to the value of 'impossible'
 UNINSTALL PLUGIN example;
-INSTALL PLUGIN example SONAME 'ha_example.so';
+INSTALL PLUGIN example SONAME 'ha_example';
 select @@session.sql_mode into @old_sql_mode;
 set session sql_mode='';
 set global example_ulong_var=500;
@@ -63,13 +113,76 @@ select @@global.example_ulong_var;
 500
 set session sql_mode=@old_sql_mode;
 set session old=bla;
-ERROR HY000: Variable 'old' is a read only variable
+ERROR 42000: Variable 'old' can't be set to the value of 'bla'
+#legal values
+CREATE TABLE t1 ( a int complex='c,f,f,f' ) ENGINE=example ULL=10000 STR='dskj' one_or_two='one' YESNO=0;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL `complex`='c,f,f,f'
+) ENGINE=EXAMPLE DEFAULT CHARSET=latin1 `ULL`=10000 `STR`='dskj' `one_or_two`='one' `YESNO`=0
+drop table t1;
+SET @OLD_SQL_MODE=@@SQL_MODE;
+SET SQL_MODE='IGNORE_BAD_TABLE_OPTIONS';
+#illegal value fixed
+CREATE TABLE t1 (a int) ENGINE=example ULL=10000000000000000000 one_or_two='ttt' YESNO=SSS;
+Warnings:
+Warning	1912	Incorrect value '10000000000000000000' for option 'ULL'
+Warning	1912	Incorrect value 'ttt' for option 'one_or_two'
+Warning	1912	Incorrect value 'SSS' for option 'YESNO'
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=EXAMPLE DEFAULT CHARSET=latin1 `ULL`=10000000000000000000 `one_or_two`='ttt' `YESNO`=SSS
+#alter table
+alter table t1 ULL=10000000;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=EXAMPLE DEFAULT CHARSET=latin1 `one_or_two`='ttt' `YESNO`=SSS `ULL`=10000000
+alter table t1 change a a int complex='c,c,c';
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL `complex`='c,c,c'
+) ENGINE=EXAMPLE DEFAULT CHARSET=latin1 `one_or_two`='ttt' `YESNO`=SSS `ULL`=10000000
+drop table t1;
+#illegal value error
+SET SQL_MODE='';
+CREATE TABLE t1 (a int) ENGINE=example ULL=10000000000000000000 one_or_two='ttt' YESNO=SSS;
+ERROR HY000: Incorrect value '10000000000000000000' for option 'ULL'
+CREATE TABLE t1 (a int) ENGINE=example ULL=10.00;
+ERROR 42000: Only integers allowed as number here near '10.00' at line 1
+CREATE TABLE t1 (a int) ENGINE=example ULL=1e2;
+ERROR 42000: Only integers allowed as number here near '1e2' at line 1
+CREATE TABLE t1 (a int) ENGINE=example ULL=0x1234;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=EXAMPLE DEFAULT CHARSET=latin1 `ULL`=4660
+select create_options from information_schema.tables where table_schema='test' and table_name='t1';
+create_options
+`ULL`=4660
+ALTER TABLE t1 ULL=DEFAULT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=EXAMPLE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SET @@SQL_MODE=@OLD_SQL_MODE;
+select 1;
+1
+1
 UNINSTALL PLUGIN example;
 #
 # Bug #16194302  SUPPORT FOR FLOATING-POINT SYSTEM
 #                VARIABLES USING THE PLUGIN INTERFACE.
 #
-INSTALL PLUGIN example SONAME 'ha_example.so';
+INSTALL PLUGIN example SONAME 'ha_example';
 SET GLOBAL example_double_var = -0.1;
 Warnings:
 Warning	1292	Truncated incorrect example_double_var value: '-0.1'
@@ -143,73 +256,24 @@ SELECT @@SESSION.example_double_thdvar;
 @@SESSION.example_double_thdvar
 1000.500000
 UNINSTALL PLUGIN example;
-#
-# BUG#18008907 - DEADLOCK BETWEEN MYSQL_CHANGE_USER(), SHOW VARIABLES AND INSTALL PLUGIN
-#
-CREATE PROCEDURE p_install()
-BEGIN
-INSTALL PLUGIN no_such_plugin SONAME 'no_such_object';
-END
-|
-CREATE PROCEDURE p_show_vars()
-BEGIN
-SELECT COUNT(*) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES;
-END|
-connect con1, localhost, root,,;
-# Case 18008907_1: Deadlock situation cause by
-#                  con1: has LOCK_system_variables_hash and waits on LOCK_plugin  AND
-#                  default: has LOCK_plugin and waits on LOCK_system_variables_hash.
-#
-SET DEBUG_SYNC='acquired_LOCK_system_variables_hash SIGNAL install_plugin WAIT_FOR cont_show_vars';
-call p_show_vars();;
-connection default;
-SET DEBUG_SYNC='now WAIT_FOR install_plugin';
-SET DEBUG_SYNC='acquired_LOCK_plugin SIGNAL cont_show_vars';
-call p_install();;
-connection con1;
-COUNT(*)
-#
-SET DEBUG_SYNC='RESET';
-connection default;
-ERROR HY000: Can't open shared library
-SET DEBUG_SYNC='RESET';
-# Case 18008907_2: Deadlock situation caused by
-#                  default: has LOCK_system_variables_hash and waits on LOCK_global_system_variables,
-#                  con1: has LOCK_plugin and waits on LOCK_system_variables_hash AND
-#                  con2: has LOCK_global_system_variables and waits on LOCK_plugin.
-SET DEBUG_SYNC='acquired_LOCK_system_variables_hash SIGNAL install_plugin WAIT_FOR nothing TIMEOUT 10';
-call p_show_vars();;
-connection con1;
-SET DEBUG_SYNC='now WAIT_FOR install_plugin';
-SET DEBUG_SYNC='acquired_LOCK_plugin SIGNAL create_connection WAIT_FOR nothing TIMEOUT 10';
-call p_install();;
-connect con2, localhost, root,,;
-SET DEBUG_SYNC='now WAIT_FOR create_connection';
-connection con1;
-ERROR HY000: Can't open shared library
-connection default;
-COUNT(*)
-#
-Warnings:
-#	1639	debug sync point wait timed out
-disconnect con2;
-# Case 18008907_3: Testing Concurrent "Show Variables" and "Plugin Uninstall" operations.
-INSTALL PLUGIN example SONAME 'ha_example.so';
-connection con1;
-SET DEBUG_SYNC='acquired_LOCK_system_variables_hash SIGNAL uninstall_plugin WAIT_FOR go';
-call p_show_vars();;
-connect con2, localhost, root,,;
-SET DEBUG_SYNC='now WAIT_FOR uninstall_plugin';
-UNINSTALL PLUGIN example;;
-connection default;
-SET DEBUG_SYNC='now SIGNAL go';
-connection con1;
-COUNT(*)
-#
-connection con2;
-connection default;
-DROP PROCEDURE p_show_vars;
-DROP PROCEDURE p_install;
-SET DEBUG_SYNC='RESET';
-disconnect con1;
-disconnect con2;
+UNINSTALL PLUGIN MyISAM;
+ERROR HY000: Built-in plugins cannot be deleted
+select plugin_name from information_schema.plugins where plugin_library like 'ha_example%';
+plugin_name
+install soname 'ha_example';
+select plugin_name from information_schema.plugins where plugin_library like 'ha_example%';
+plugin_name
+EXAMPLE
+UNUSABLE
+uninstall plugin example;
+select plugin_name from information_schema.plugins where plugin_library like 'ha_example%';
+plugin_name
+UNUSABLE
+install soname 'ha_example';
+select plugin_name from information_schema.plugins where plugin_library like 'ha_example%';
+plugin_name
+EXAMPLE
+UNUSABLE
+uninstall soname 'ha_example';
+select plugin_name from information_schema.plugins where plugin_library like 'ha_example%';
+plugin_name

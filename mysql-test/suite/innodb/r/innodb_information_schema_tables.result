@@ -1,0 +1,2 @@
+CREATE TABLE t1 ENGINE=InnoDB AS SELECT * FROM mysql.help_topic;
+DROP TABLE t1;

@@ -1,0 +1,51 @@
+#
+# MDEV-6605 Multiple Clients Inserting Causing Error: Failed to read auto-increment value from storage engine
+#
+
+--source include/have_partition.inc
+create table t1 (a int auto_increment, b bigint(20), primary key (b,a)) engine=tokudb;
+
+# first, without partitions
+start transaction;
+insert t1 (b) values (1);
+
+--connect(con2,localhost,root)
+set tokudb_lock_timeout=1;
+# auto-inc value is locked
+--error ER_LOCK_WAIT_TIMEOUT
+insert t1 (b) values (1);
+# but no deadlock
+set tokudb_lock_timeout=default;
+--send insert t1 (b) values (1)
+--connection default
+insert t1 (b) values (1);
+commit;
+--connection con2
+--reap
+commit;
+select * from t1;
+
+# now with partitions
+--connection default
+alter table t1 partition by range (b) (partition p0 values less than (9));
+start transaction;
+insert t1 (b) values (2);
+
+--connection con2
+set tokudb_lock_timeout=1;
+# auto-inc value is locked
+--error ER_LOCK_WAIT_TIMEOUT
+insert t1 (b) values (2);
+# but no deadlock
+set tokudb_lock_timeout=default;
+--send insert t1 (b) values (2)
+--connection default
+insert t1 (b) values (2);
+commit;
+--connection con2
+--reap
+commit;
+select * from t1;
+
+drop table t1;
+

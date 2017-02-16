@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates
+   Copyright (c) 2009, 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +31,7 @@ class ha_heap: public handler
   HP_SHARE *internal_share;
   key_map btree_keys;
   /* number of records changed since last statistics update */
-  uint    records_changed;
+  ulong   records_changed;
   uint    key_stat_version;
   my_bool internal_table;
 public:
@@ -54,6 +55,7 @@ public:
   {
     return (HA_FAST_KEY_READ | HA_NO_BLOBS | HA_NULL_IN_KEY |
             HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
+            HA_CAN_SQL_HANDLER |
             HA_REC_NOT_IN_SEQ | HA_CAN_INSERT_DELAYED | HA_NO_TRANSACTIONS |
             HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT);
   }
@@ -95,12 +97,12 @@ public:
   int rnd_next(uchar *buf);
   int rnd_pos(uchar * buf, uchar *pos);
   void position(const uchar *record);
+  int can_continue_handler_scan();
   int info(uint);
   int extra(enum ha_extra_function operation);
   int reset();
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
-  int truncate();
   int reset_auto_increment(ulonglong value);
   int disable_indexes(uint mode);
   int enable_indexes(uint mode);

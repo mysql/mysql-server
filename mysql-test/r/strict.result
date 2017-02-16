@@ -41,7 +41,7 @@ INSERT INTO t1 VALUES('0000-00-00');
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
 INSERT IGNORE INTO t1 VALUES('0000-00-00');
 Warnings:
-Warning	1265	Data truncated for column 'col1' at row 1
+Warning	1264	Out of range value for column 'col1' at row 1
 INSERT INTO t1 VALUES ('2004-0-30');
 INSERT INTO t1 VALUES ('2004-2-30');
 ERROR 22007: Incorrect date value: '2004-2-30' for column 'col1' at row 1
@@ -51,7 +51,7 @@ set @@sql_mode='ansi,traditional';
 INSERT IGNORE INTO t1 VALUES('2004-02-29'),('2004-13-15'),('0000-00-00');
 Warnings:
 Warning	1265	Data truncated for column 'col1' at row 2
-Warning	1265	Data truncated for column 'col1' at row 3
+Warning	1264	Out of range value for column 'col1' at row 3
 select * from t1;
 col1
 2004-01-01
@@ -206,7 +206,9 @@ INSERT INTO t1 (col1) VALUES (STR_TO_DATE('15.10.2004','%d.%m.%Y'));
 INSERT INTO t1 (col2) VALUES (STR_TO_DATE('15.10.2004 10.15','%d.%m.%Y %H.%i'));
 INSERT INTO t1 (col3) VALUES (STR_TO_DATE('15.10.2004 10.15','%d.%m.%Y %H.%i'));
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('31.10.0000 15.30','%d.%m.%Y %H.%i'));
-ERROR HY000: Incorrect datetime value: '31.10.0000 15.30' for function str_to_date
+Warnings:
+Note	1265	Data truncated for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES(STR_TO_DATE('31.10.0000 15.30','%d.%m.%Y %H.%i'));
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('31.0.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR HY000: Incorrect datetime value: '31.0.2004 15.30' for function str_to_date
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
@@ -221,8 +223,6 @@ INSERT INTO t1 (col1) VALUES(STR_TO_DATE('15.13.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR HY000: Incorrect datetime value: '15.13.2004 15.30' for function str_to_date
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('00.00.0000','%d.%m.%Y'));
 ERROR HY000: Incorrect datetime value: '00.00.0000' for function str_to_date
-INSERT INTO t1 (col2) VALUES(STR_TO_DATE('31.10.0000 15.30','%d.%m.%Y %H.%i'));
-ERROR HY000: Incorrect datetime value: '31.10.0000 15.30' for function str_to_date
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('31.0.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR HY000: Incorrect datetime value: '31.0.2004 15.30' for function str_to_date
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
@@ -238,7 +238,7 @@ ERROR HY000: Incorrect datetime value: '15.13.2004 15.30' for function str_to_da
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('00.00.0000','%d.%m.%Y'));
 ERROR HY000: Incorrect datetime value: '00.00.0000' for function str_to_date
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('31.10.0000 15.30','%d.%m.%Y %H.%i'));
-ERROR HY000: Incorrect datetime value: '31.10.0000 15.30' for function str_to_date
+ERROR 22007: Incorrect datetime value: '0000-10-31 15:30:00' for column 'col3' at row 1
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('31.0.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR HY000: Incorrect datetime value: '31.0.2004 15.30' for function str_to_date
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
@@ -260,24 +260,24 @@ INSERT INTO t1 (col2) VALUES (CAST('2004-10-15 10:15' AS DATETIME));
 INSERT INTO t1 (col3) VALUES (CAST('2004-10-15 10:15' AS DATETIME));
 INSERT INTO t1 (col1) VALUES(CAST('0000-10-31' AS DATE));
 INSERT INTO t1 (col1) VALUES(CAST('2004-10-0' AS DATE));
-ERROR 22007: Incorrect date value: '2004-10-00' for column 'col1' at row 1
+ERROR 22007: Incorrect datetime value: '2004-10-0'
 INSERT INTO t1 (col1) VALUES(CAST('2004-0-10' AS DATE));
-ERROR 22007: Incorrect date value: '2004-00-10' for column 'col1' at row 1
+ERROR 22007: Incorrect datetime value: '2004-0-10'
 INSERT INTO t1 (col1) VALUES(CAST('0000-00-00' AS DATE));
 ERROR 22007: Incorrect datetime value: '0000-00-00'
 INSERT INTO t1 (col2) VALUES(CAST('0000-10-31 15:30' AS DATETIME));
 INSERT INTO t1 (col2) VALUES(CAST('2004-10-0 15:30' AS DATETIME));
-ERROR 22007: Incorrect datetime value: '2004-10-00 15:30:00' for column 'col2' at row 1
+ERROR 22007: Incorrect datetime value: '2004-10-0 15:30'
 INSERT INTO t1 (col2) VALUES(CAST('2004-0-10 15:30' AS DATETIME));
-ERROR 22007: Incorrect datetime value: '2004-00-10 15:30:00' for column 'col2' at row 1
+ERROR 22007: Incorrect datetime value: '2004-0-10 15:30'
 INSERT INTO t1 (col2) VALUES(CAST('0000-00-00' AS DATETIME));
 ERROR 22007: Incorrect datetime value: '0000-00-00'
 INSERT INTO t1 (col3) VALUES(CAST('0000-10-31 15:30' AS DATETIME));
 ERROR 22007: Incorrect datetime value: '0000-10-31 15:30:00' for column 'col3' at row 1
 INSERT INTO t1 (col3) VALUES(CAST('2004-10-0 15:30' AS DATETIME));
-ERROR 22007: Incorrect datetime value: '2004-10-00 15:30:00' for column 'col3' at row 1
+ERROR 22007: Incorrect datetime value: '2004-10-0 15:30'
 INSERT INTO t1 (col3) VALUES(CAST('2004-0-10 15:30' AS DATETIME));
-ERROR 22007: Incorrect datetime value: '2004-00-10 15:30:00' for column 'col3' at row 1
+ERROR 22007: Incorrect datetime value: '2004-0-10 15:30'
 INSERT INTO t1 (col3) VALUES(CAST('0000-00-00' AS DATETIME));
 ERROR 22007: Incorrect datetime value: '0000-00-00'
 drop table t1;
@@ -287,24 +287,26 @@ INSERT INTO t1 (col2) VALUES (CONVERT('2004-10-15 10:15',DATETIME));
 INSERT INTO t1 (col3) VALUES (CONVERT('2004-10-15 10:15',DATETIME));
 INSERT INTO t1 (col1) VALUES(CONVERT('0000-10-31' , DATE));
 INSERT INTO t1 (col1) VALUES(CONVERT('2004-10-0' , DATE));
-ERROR 22007: Incorrect date value: '2004-10-00' for column 'col1' at row 1
+ERROR 22007: Incorrect datetime value: '2004-10-0'
 INSERT INTO t1 (col1) VALUES(CONVERT('2004-0-10' , DATE));
-ERROR 22007: Incorrect date value: '2004-00-10' for column 'col1' at row 1
+ERROR 22007: Incorrect datetime value: '2004-0-10'
+INSERT INTO t1 (col1) VALUES('2004-0-10');
+ERROR 22007: Incorrect date value: '2004-0-10' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES(CONVERT('0000-00-00',DATE));
 ERROR 22007: Incorrect datetime value: '0000-00-00'
 INSERT INTO t1 (col2) VALUES(CONVERT('0000-10-31 15:30',DATETIME));
 INSERT INTO t1 (col2) VALUES(CONVERT('2004-10-0 15:30',DATETIME));
-ERROR 22007: Incorrect datetime value: '2004-10-00 15:30:00' for column 'col2' at row 1
+ERROR 22007: Incorrect datetime value: '2004-10-0 15:30'
 INSERT INTO t1 (col2) VALUES(CONVERT('2004-0-10 15:30',DATETIME));
-ERROR 22007: Incorrect datetime value: '2004-00-10 15:30:00' for column 'col2' at row 1
+ERROR 22007: Incorrect datetime value: '2004-0-10 15:30'
 INSERT INTO t1 (col2) VALUES(CONVERT('0000-00-00',DATETIME));
 ERROR 22007: Incorrect datetime value: '0000-00-00'
 INSERT INTO t1 (col3) VALUES(CONVERT('0000-10-31 15:30',DATETIME));
 ERROR 22007: Incorrect datetime value: '0000-10-31 15:30:00' for column 'col3' at row 1
 INSERT INTO t1 (col3) VALUES(CONVERT('2004-10-0 15:30',DATETIME));
-ERROR 22007: Incorrect datetime value: '2004-10-00 15:30:00' for column 'col3' at row 1
+ERROR 22007: Incorrect datetime value: '2004-10-0 15:30'
 INSERT INTO t1 (col3) VALUES(CONVERT('2004-0-10 15:30',DATETIME));
-ERROR 22007: Incorrect datetime value: '2004-00-10 15:30:00' for column 'col3' at row 1
+ERROR 22007: Incorrect datetime value: '2004-0-10 15:30'
 INSERT INTO t1 (col3) VALUES(CONVERT('0000-00-00',DATETIME));
 ERROR 22007: Incorrect datetime value: '0000-00-00'
 drop table t1;
@@ -364,9 +366,9 @@ Warnings:
 Warning	1365	Division by 0
 Warning	1365	Division by 0
 INSERT INTO t1 (col1) VALUES ('');
-ERROR HY000: Incorrect integer value: '' for column 'col1' at row 1
+ERROR 22007: Incorrect integer value: '' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('a59b');
-ERROR HY000: Incorrect integer value: 'a59b' for column 'col1' at row 1
+ERROR 22007: Incorrect integer value: 'a59b' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('1a');
 ERROR 01000: Data truncated for column 'col1' at row 1
 INSERT IGNORE INTO t1 (col1) VALUES ('2a');
@@ -447,9 +449,9 @@ ERROR 22012: Division by 0
 UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
-ERROR HY000: Incorrect integer value: '' for column 'col1' at row 1
+ERROR 22007: Incorrect integer value: '' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('a59b');
-ERROR HY000: Incorrect integer value: 'a59b' for column 'col1' at row 1
+ERROR 22007: Incorrect integer value: 'a59b' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('1a');
 ERROR 01000: Data truncated for column 'col1' at row 1
 INSERT IGNORE INTO t1 (col1) VALUES ('2a');
@@ -531,9 +533,9 @@ ERROR 22012: Division by 0
 UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
-ERROR HY000: Incorrect integer value: '' for column 'col1' at row 1
+ERROR 22007: Incorrect integer value: '' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('a59b');
-ERROR HY000: Incorrect integer value: 'a59b' for column 'col1' at row 1
+ERROR 22007: Incorrect integer value: 'a59b' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('1a');
 ERROR 01000: Data truncated for column 'col1' at row 1
 INSERT IGNORE INTO t1 (col1) VALUES ('2a');
@@ -615,9 +617,9 @@ ERROR 22012: Division by 0
 UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
-ERROR HY000: Incorrect integer value: '' for column 'col1' at row 1
+ERROR 22007: Incorrect integer value: '' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('a59b');
-ERROR HY000: Incorrect integer value: 'a59b' for column 'col1' at row 1
+ERROR 22007: Incorrect integer value: 'a59b' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('1a');
 ERROR 01000: Data truncated for column 'col1' at row 1
 INSERT IGNORE INTO t1 (col1) VALUES ('2a');
@@ -697,9 +699,9 @@ ERROR 22012: Division by 0
 UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
-ERROR HY000: Incorrect integer value: '' for column 'col1' at row 1
+ERROR 22007: Incorrect integer value: '' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('a59b');
-ERROR HY000: Incorrect integer value: 'a59b' for column 'col1' at row 1
+ERROR 22007: Incorrect integer value: 'a59b' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('1a');
 ERROR 01000: Data truncated for column 'col1' at row 1
 INSERT IGNORE INTO t1 (col1) VALUES ('2a');
@@ -776,7 +778,7 @@ ERROR 22003: Out of range value for column 'col1' at row 1
 INSERT INTO t1 VALUES ('-100E+1');
 ERROR 22003: Out of range value for column 'col1' at row 1
 INSERT INTO t1 VALUES ('-100E');
-ERROR HY000: Incorrect decimal value: '-100E' for column 'col1' at row 1
+ERROR 22007: Incorrect decimal value: '-100E' for column 'col1' at row 1
 UPDATE t1 SET col1 =col1 * 50000 WHERE col1 =11;
 ERROR 22003: Out of range value for column 'col1' at row 6
 UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
@@ -784,11 +786,11 @@ ERROR 22012: Division by 0
 UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
-ERROR HY000: Incorrect decimal value: '' for column 'col1' at row 1
+ERROR 22007: Incorrect decimal value: '' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('a59b');
-ERROR HY000: Incorrect decimal value: 'a59b' for column 'col1' at row 1
+ERROR 22007: Incorrect decimal value: 'a59b' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('1a');
-ERROR HY000: Incorrect decimal value: '1a' for column 'col1' at row 1
+ERROR 22007: Incorrect decimal value: '1a' for column 'col1' at row 1
 INSERT IGNORE INTO t1 (col1) VALUES ('2a');
 Warnings:
 Note	1265	Data truncated for column 'col1' at row 1
@@ -1106,11 +1108,6 @@ count(*)
 7
 Warnings:
 Warning	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
-Warning	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
-Warning	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
-Warning	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
-Warning	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
-Warning	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
 drop table t1;
 create table t1 (col1 char(3), col2 integer);
 insert into t1 (col1) values (cast(1000 as char(3)));
@@ -1159,12 +1156,12 @@ set sql_mode='traditional';
 create table t1 (col1 date);
 insert ignore into t1 values ('0000-00-00');
 Warnings:
-Warning	1265	Data truncated for column 'col1' at row 1
+Warning	1264	Out of range value for column 'col1' at row 1
 insert into t1 select * from t1;
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
 insert ignore into t1 values ('0000-00-00');
 Warnings:
-Warning	1265	Data truncated for column 'col1' at row 1
+Warning	1264	Out of range value for column 'col1' at row 1
 insert ignore into t1 (col1) values (cast('0000-00-00' as date));
 Warnings:
 Warning	1292	Incorrect datetime value: '0000-00-00'
@@ -1459,34 +1456,34 @@ col5 mediumint, col6 mediumint unsigned,
 col7 int, col8 int unsigned,
 col9 bigint, col10 bigint unsigned);
 insert into t1(col1) values('-');
-ERROR HY000: Incorrect integer value: '-' for column 'col1' at row 1
+ERROR 22007: Incorrect integer value: '-' for column 'col1' at row 1
 insert into t1(col2) values('+');
-ERROR HY000: Incorrect integer value: '+' for column 'col2' at row 1
+ERROR 22007: Incorrect integer value: '+' for column 'col2' at row 1
 insert into t1(col3) values('-');
-ERROR HY000: Incorrect integer value: '-' for column 'col3' at row 1
+ERROR 22007: Incorrect integer value: '-' for column 'col3' at row 1
 insert into t1(col4) values('+');
-ERROR HY000: Incorrect integer value: '+' for column 'col4' at row 1
+ERROR 22007: Incorrect integer value: '+' for column 'col4' at row 1
 insert into t1(col5) values('-');
-ERROR HY000: Incorrect integer value: '-' for column 'col5' at row 1
+ERROR 22007: Incorrect integer value: '-' for column 'col5' at row 1
 insert into t1(col6) values('+');
-ERROR HY000: Incorrect integer value: '+' for column 'col6' at row 1
+ERROR 22007: Incorrect integer value: '+' for column 'col6' at row 1
 insert into t1(col7) values('-');
-ERROR HY000: Incorrect integer value: '-' for column 'col7' at row 1
+ERROR 22007: Incorrect integer value: '-' for column 'col7' at row 1
 insert into t1(col8) values('+');
-ERROR HY000: Incorrect integer value: '+' for column 'col8' at row 1
+ERROR 22007: Incorrect integer value: '+' for column 'col8' at row 1
 insert into t1(col9) values('-');
-ERROR HY000: Incorrect integer value: '-' for column 'col9' at row 1
+ERROR 22007: Incorrect integer value: '-' for column 'col9' at row 1
 insert into t1(col10) values('+');
-ERROR HY000: Incorrect integer value: '+' for column 'col10' at row 1
+ERROR 22007: Incorrect integer value: '+' for column 'col10' at row 1
 drop table t1;
 set sql_mode='traditional';
 create table t1(a year);
 insert into t1 values ('-');
-ERROR HY000: Incorrect integer value: '-' for column 'a' at row 1
+ERROR 22007: Incorrect integer value: '-' for column 'a' at row 1
 insert into t1 values ('+');
-ERROR HY000: Incorrect integer value: '+' for column 'a' at row 1
+ERROR 22007: Incorrect integer value: '+' for column 'a' at row 1
 insert into t1 values ('');
-ERROR HY000: Incorrect integer value: '' for column 'a' at row 1
+ERROR 22007: Incorrect integer value: '' for column 'a' at row 1
 insert into t1 values ('2000a');
 ERROR 01000: Data truncated for column 'a' at row 1
 insert into t1 values ('2E3x');

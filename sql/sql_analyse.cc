@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -247,7 +247,8 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
       }
       DBUG_RETURN(0);
     }
-    for (str++; *(end - 1) == '0'; end--) ; // jump over zeros at the end
+    for (str++; *(end - 1) == '0'; end--)  // jump over zeros at the end
+      ;
     if (str == end)		     // number was something like '123.000'
     {
       char *endpos= (char*) str;
@@ -748,7 +749,7 @@ int analyse::end_of_records()
 	tmp_str.append(STRING_WITH_LEN(" NOT NULL"));
       output_str_length = tmp_str.length();
       func_items[9]->set(tmp_str.ptr(), tmp_str.length(), tmp_str.charset());
-      if (result->send_data(result_fields))
+      if (result->send_data(result_fields) > 0)
 	return -1;
       continue;
     }
@@ -793,7 +794,7 @@ int analyse::end_of_records()
     if (!(*f)->nulls)
       ans.append(STRING_WITH_LEN(" NOT NULL"));
     func_items[9]->set(ans.ptr(), ans.length(), ans.charset());
-    if (result->send_data(result_fields))
+    if (result->send_data(result_fields) > 0)
       return -1;
   }
   return 0;
@@ -1002,9 +1003,9 @@ void field_decimal::get_opt_type(String *answer,
   my_decimal_set_zero(&zero);
   my_bool is_unsigned= (my_decimal_cmp(&zero, &min_arg) >= 0);
 
-  length= my_snprintf(buff, sizeof(buff), "DECIMAL(%d, %d)",
-                      (int) (max_length - (item->decimals ? 1 : 0)),
-                      item->decimals);
+  length= sprintf(buff, "DECIMAL(%d, %d)",
+                  (int) (max_length - (item->decimals ? 1 : 0)),
+                  item->decimals);
   if (is_unsigned)
     length= (uint) (strmov(buff+length, " UNSIGNED")- buff);
   answer->append(buff, length);

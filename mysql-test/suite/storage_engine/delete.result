@@ -1,0 +1,77 @@
+DROP TABLE IF EXISTS t1,t2;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (10000,'foobar'),(1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
+INSERT INTO t1 (a,b) SELECT a, b FROM t1;
+DELETE FROM t1 WHERE b IN ('c');
+SELECT a,b FROM t1;
+a	b
+1	a
+1	a
+10000	foobar
+10000	foobar
+2	b
+2	b
+4	d
+4	d
+5	e
+5	e
+DELETE FROM t1 WHERE a < 0 OR b = 'a';
+SELECT a,b FROM t1;
+a	b
+10000	foobar
+10000	foobar
+2	b
+2	b
+4	d
+4	d
+5	e
+5	e
+DELETE FROM t1 WHERE a <= 4 ORDER BY b DESC LIMIT 1;
+SELECT a,b FROM t1;
+a	b
+10000	foobar
+10000	foobar
+2	b
+2	b
+4	d
+5	e
+5	e
+CREATE TABLE t2 (c <CHAR_COLUMN>, d <INT_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t2 (c,d) SELECT b, a FROM t1;
+SELECT c,d FROM t2;
+c	d
+b	2
+b	2
+d	4
+e	5
+e	5
+foobar	10000
+foobar	10000
+DELETE t2.* FROM t1, t2 WHERE c < b AND a + d != 1;
+SELECT a,b FROM t1;
+a	b
+10000	foobar
+10000	foobar
+2	b
+2	b
+4	d
+5	e
+5	e
+SELECT c,d FROM t2;
+c	d
+foobar	10000
+foobar	10000
+DELETE FROM t2, t1.* USING t2, t1 WHERE c = 'foobar' and b = c;
+SELECT a,b FROM t1;
+a	b
+2	b
+2	b
+4	d
+5	e
+5	e
+SELECT c,d FROM t2;
+c	d
+DELETE FROM t1;
+SELECT a,b FROM t1;
+a	b
+DROP TABLE t1, t2;

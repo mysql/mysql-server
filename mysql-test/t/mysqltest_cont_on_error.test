@@ -1,0 +1,16 @@
+#
+# mysqltest --continue-on-error
+#
+
+-- source include/not_embedded.inc
+
+#
+# with or without --continue-on-error the failing test should return an error
+# but with --continue-on-error, the failing line does not abort the test
+#
+
+--error 1
+--exec echo "select error; select 1;" | $MYSQL_TEST 2>&1
+
+--exec echo "SELECT ERROR; SELECT 2;" | $MYSQL_TEST --continue-on-error 2>&1
+

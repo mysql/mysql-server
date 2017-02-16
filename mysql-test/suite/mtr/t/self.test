@@ -1,0 +1,4 @@
+#
+# Test file that includes itself. See self.test in the example overlay
+#
+eval select "<$a>";

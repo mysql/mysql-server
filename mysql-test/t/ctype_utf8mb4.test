@@ -1827,6 +1827,38 @@ DROP TABLE t1;
 --echo # End of test for Bug#13581962,Bug#14096619
 
 --echo #
+--echo # MDEV-9319 ALTER from a bigger to a smaller blob type truncates too much data
+--echo #
+SET NAMES utf8mb4;
+CREATE TABLE t1 (a TEXT CHARACTER SET utf8mb4);
+INSERT INTO t1 VALUES (REPEAT('😎',100));
+SELECT OCTET_LENGTH(a) FROM t1;
+ALTER TABLE t1 MODIFY a TINYTEXT CHARACTER SET utf8mb4;
+SELECT OCTET_LENGTH(a),a FROM t1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # MDEV-8402 Bug#77473 Bug#21317406 TRUNCATED DATA WITH SUBQUERY & UTF8
+--echo #
+--echo #
+
+SET NAMES utf8mb4;
+SELECT length(repeat(_utf8mb4 0xE29883, 21844)) AS data;
+SELECT length(data) AS len
+FROM ( SELECT repeat(_utf8mb4 0xE29883, 21844) AS data ) AS sub;
+
+SELECT length(repeat(_utf8mb4 0xE29883, 21846)) AS data;
+SELECT length(data) AS len
+FROM ( SELECT repeat(_utf8mb4 0xE29883, 21846) AS data ) AS sub;
+
+SELECT LENGTH(data) AS len FROM (SELECT REPEAT('☃', 21844) AS data ) AS sub;
+SELECT LENGTH(data) AS len FROM (SELECT REPEAT('☃', 21845) AS data ) AS sub;
+SELECT LENGTH(data) AS len FROM (SELECT REPEAT('☃', 21846) AS data ) AS sub;
+SELECT LENGTH(data) AS len FROM (SELECT REPEAT('☃', 65535) AS data ) AS sub;
+SELECT LENGTH(data) AS len FROM (SELECT REPEAT('☃', 65536) AS data ) AS sub;
+
+--echo #
 --echo # End of 5.5 tests
 --echo #
 

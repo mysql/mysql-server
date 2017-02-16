@@ -47,7 +47,7 @@ int heap_delete(HP_INFO *info, const uchar *record)
   share->del_link=pos;
   pos[share->reclength]=0;		/* Record deleted */
   share->deleted++;
-  info->current_hash_ptr=0;
+  share->key_version++;
 #if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
   DBUG_EXECUTE("check_heap",heap_check_heap(info, 0););
 #endif
@@ -68,7 +68,7 @@ int hp_rb_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
 		   const uchar *record, uchar *recpos, int flag)
 {
   heap_rb_param custom_arg;
-  uint old_allocated;
+  ulong old_allocated;
   int res;
 
   if (flag) 
@@ -148,8 +148,9 @@ int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
   else if (pos->next_key)
   {
     empty=pos->next_key;
-    pos->ptr_to_rec=empty->ptr_to_rec;
-    pos->next_key=empty->next_key;
+    pos->ptr_to_rec=  empty->ptr_to_rec;
+    pos->next_key=    empty->next_key;
+    pos->hash_of_key= empty->hash_of_key;
   }
   else
     keyinfo->hash_buckets--;
@@ -158,7 +159,7 @@ int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
     DBUG_RETURN (0);
 
   /* Move the last key (lastpos) */
-  lastpos_hashnr = hp_rec_hashnr(keyinfo, lastpos->ptr_to_rec);
+  lastpos_hashnr= lastpos->hash_of_key;
   /* pos is where lastpos should be */
   pos=hp_find_hash(&keyinfo->block, hp_mask(lastpos_hashnr, share->blength,
 					    share->records));
@@ -167,7 +168,7 @@ int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
     empty[0]=lastpos[0];
     DBUG_RETURN(0);
   }
-  pos_hashnr = hp_rec_hashnr(keyinfo, pos->ptr_to_rec);
+  pos_hashnr= pos->hash_of_key;
   /* pos3 is where the pos should be */
   pos3= hp_find_hash(&keyinfo->block,
 		     hp_mask(pos_hashnr, share->blength, share->records));
@@ -180,31 +181,50 @@ int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
   }
   pos2= hp_mask(lastpos_hashnr, blength, share->records + 1);
   if (pos2 == hp_mask(pos_hashnr, blength, share->records + 1))
-  {					/* Identical key-positions */
+  {
+    /* lastpos and the row in the main bucket entry (pos) has the same hash */ 
     if (pos2 != share->records)
     {
-      empty[0]=lastpos[0];
+      /*
+        The bucket entry was not deleted. Copy lastpos over the
+        deleted entry and update previous link to point to it.
+      */
+      empty[0]= lastpos[0];
       hp_movelink(lastpos, pos, empty);
+      if (last_ptr == lastpos)
+      {
+        /*
+          We moved the row that info->current_hash_ptr points to.
+          Update info->current_hash_ptr to point to the new position.
+        */
+        info->current_hash_ptr= empty;
+      }
       DBUG_RETURN(0);
     }
-    pos3= pos;				/* Link pos->next after lastpos */
-    /* 
-      One of elements from the bucket we're scanning is moved to the
-      beginning of the list. Reset search since this element may not have
-      been processed yet. 
+    /*
+      Shrinking the hash table deleted the main bucket entry for this hash.
+      In this case the last entry was the first key in the key chain.
+      We move things around so that we keep the original key order to ensure
+      that heap_rnext() works.
+      
+      - Move the row at the main bucket entry to the empty spot.
+      - Move the last entry first in the new chain.
+      - Link in the first element of the hash.
     */
-    if (flag && pos2 == key_pos)
-    {
-      info->current_ptr= 0;
-      info->current_hash_ptr= 0;
-    }
-  }
-  else
-  {
-    pos3= 0;				/* Different positions merge */
-    keyinfo->hash_buckets--;
+    empty[0]= pos[0];
+    pos[0]= lastpos[0];
+    hp_movelink(pos, pos, empty);
+
+    /* Update current_hash_ptr if the entry moved */
+    if (last_ptr == lastpos)
+      info->current_hash_ptr= pos;
+    else if (last_ptr == pos)
+      info->current_hash_ptr= empty;
+    DBUG_RETURN(0);
   }
 
+  pos3= 0;				/* Different positions merge */
+  keyinfo->hash_buckets--;
   empty[0]=lastpos[0];
   hp_movelink(pos3, empty, pos->next_key);
   pos->next_key=empty;

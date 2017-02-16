@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +31,7 @@
 
 #define MYSQL_CLIENT
 #undef MYSQL_SERVER
+#define TABLE TABLE_CLIENT
 #include "client_priv.h"
 #include <my_time.h>
 /* That one is necessary for defines of OPTION_NO_FOREIGN_KEY_CHECKS etc */
@@ -39,11 +41,23 @@
 #include "my_dir.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
+
+#include "sql_string.h"   // needed for Rpl_filter
+#include "sql_list.h"     // needed for Rpl_filter
+#include "rpl_filter.h"
+
+#include "mysqld.h"
+
+Rpl_filter *binlog_filter= 0;
+
 #define BIN_LOG_HEADER_SIZE	4
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
 
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
+
+/* Needed for Rpl_filter */
+CHARSET_INFO* system_charset_info= &my_charset_utf8_general_ci;
 
 char server_version[SERVER_VERSION_LENGTH];
 ulong server_id = 0;
@@ -52,6 +66,7 @@ ulong server_id = 0;
 ulong bytes_sent = 0L, bytes_received = 0L;
 ulong mysqld_net_retry_count = 10L;
 ulong open_files_limit;
+ulong opt_binlog_rows_event_max_size;
 uint test_flags = 0; 
 static uint opt_protocol= 0;
 static FILE *result_file;
@@ -59,13 +74,14 @@ static FILE *result_file;
 #ifndef DBUG_OFF
 static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 #endif
-static const char *load_default_groups[]= { "mysqlbinlog","client",0 };
+static const char *load_groups[]=
+{ "mysqlbinlog", "client", "client-server", "client-mariadb", 0 };
 
 static void error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 
 static bool one_database=0, to_last_remote_log= 0, disable_log_bin= 0;
-static bool opt_hexdump= 0;
+static bool opt_hexdump= 0, opt_version= 0;
 const char *base64_output_mode_names[]=
 {"NEVER", "AUTO", "ALWAYS", "UNSPEC", "DECODE-ROWS", NullS};
 TYPELIB base64_output_mode_typelib=
@@ -77,12 +93,13 @@ static char* database= 0;
 static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
 static my_bool debug_info_flag, debug_check_flag;
 static my_bool force_if_open_opt= 1;
+static my_bool opt_verify_binlog_checksum= 1;
 static ulonglong offset = 0;
 static char* host = 0;
 static int port= 0;
 static uint my_end_arg;
 static const char* sock= 0;
-static char *opt_plugin_dir= 0, *opt_default_auth= 0;
+static char *opt_plugindir= 0, *opt_default_auth= 0;
 
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name= 0;
@@ -102,7 +119,8 @@ static my_time_t start_datetime= 0, stop_datetime= MY_TIME_T_MAX;
 static ulonglong rec_count= 0;
 static short binlog_flags = 0; 
 static MYSQL* mysql = NULL;
-static char* dirname_for_local_load= 0;
+static const char* dirname_for_local_load= 0;
+static bool opt_skip_annotate_row_events= 0;
 
 /**
   Pointer to the Format_description_log_event of the currently active binlog.
@@ -124,10 +142,73 @@ enum Exit_status {
   OK_STOP
 };
 
-static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
-                                          const char* logname);
-static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
-                                           const char* logname);
+/**
+  Pointer to the last read Annotate_rows_log_event. Having read an
+  Annotate_rows event, we should not print it immediatedly because all
+  subsequent rbr events can be filtered away, and have to keep it for a while.
+  Also because of that when reading a remote Annotate event we have to keep
+  its binary log representation in a separately allocated buffer.
+*/
+static Annotate_rows_log_event *annotate_event= NULL;
+
+void free_annotate_event()
+{
+  if (annotate_event)
+  {
+    delete annotate_event;
+    annotate_event= 0;
+  }
+}
+
+Log_event* read_remote_annotate_event(uchar* net_buf, ulong event_len,
+                                      const char **error_msg)
+{
+  uchar *event_buf;
+  Log_event* event;
+
+  if (!(event_buf= (uchar*) my_malloc(event_len + 1, MYF(MY_WME))))
+  {
+    error("Out of memory");
+    return 0;
+  }
+
+  memcpy(event_buf, net_buf, event_len);
+  event_buf[event_len]= 0;
+
+  if (!(event= Log_event::read_log_event((const char*) event_buf, event_len,
+                                         error_msg, glob_description_event,
+                                         opt_verify_binlog_checksum)))
+  {
+    my_free(event_buf);
+    return 0;
+  }
+  /*
+    Ensure the event->temp_buf is pointing to the allocated buffer.
+    (TRUE = free temp_buf on the event deletion)
+  */
+  event->register_temp_buf((char*)event_buf, TRUE);
+
+  return event;
+}
+
+void keep_annotate_event(Annotate_rows_log_event* event)
+{
+  free_annotate_event();
+  annotate_event= event;
+}
+
+void print_annotate_event(PRINT_EVENT_INFO *print_event_info)
+{
+  if (annotate_event)
+  {
+    annotate_event->print(result_file, print_event_info);
+    delete annotate_event;  // the event should not be printed more than once
+    annotate_event= 0;
+  }
+}
+
+static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *, const char*);
+static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *, const char*);
 static Exit_status dump_log_entries(const char* logname);
 static Exit_status safe_connect();
 
@@ -632,6 +713,72 @@ static bool shall_skip_database(const char *log_dbname)
 
 
 /**
+  Print "use <db>" statement when current db is to be changed.
+
+  We have to control emiting USE statements according to rewrite-db options.
+  We have to do it here (see process_event() below) and to suppress
+  producing USE statements by corresponding log event print-functions.
+*/
+
+static void
+print_use_stmt(PRINT_EVENT_INFO* pinfo, const Query_log_event *ev)
+{
+  const char* db= ev->db;
+  const size_t db_len= ev->db_len;
+
+  // pinfo->db is the current db.
+  // If current db is the same as required db, do nothing.
+  if ((ev->flags & LOG_EVENT_SUPPRESS_USE_F) || !db ||
+      !memcmp(pinfo->db, db, db_len + 1))
+    return;
+
+  // Current db and required db are different.
+  // Check for rewrite rule for required db. (Note that in a rewrite rule
+  // neither db_from nor db_to part can be empty).
+  size_t len_to= 0;
+  const char *db_to= binlog_filter->get_rewrite_db(db, &len_to);
+
+  // If there is no rewrite rule for db (in this case len_to is left = 0),
+  // printing of the corresponding USE statement is left for log event
+  // print-function.
+  if (!len_to)
+    return;
+
+  // In case of rewrite rule print USE statement for db_to
+  my_fprintf(result_file, "use %`s%s\n", db_to, pinfo->delimiter);
+
+  // Copy the *original* db to pinfo to suppress emiting
+  // of USE stmts by log_event print-functions.
+  memcpy(pinfo->db, db, db_len + 1);
+}
+
+
+/**
+   Print "SET skip_replication=..." statement when needed.
+
+   Not all servers support this (only MariaDB from some version on). So we
+   mark the SET to only execute from the version of MariaDB that supports it,
+   and also only output it if we actually see events with the flag set, to not
+   get spurious errors on MySQL@Oracle servers of higher version that do not
+   support the flag.
+
+   So we start out assuming @@skip_replication is 0, and only output a SET
+   statement when it changes.
+*/
+static void
+print_skip_replication_statement(PRINT_EVENT_INFO *pinfo, const Log_event *ev)
+{
+  int cur_val;
+
+  cur_val= (ev->flags & LOG_EVENT_SKIP_REPLICATION_F) != 0;
+  if (cur_val == pinfo->skip_replication)
+    return;                                     /* Not changed. */
+  fprintf(result_file, "/*!50521 SET skip_replication=%d*/%s\n",
+          cur_val, pinfo->delimiter);
+  pinfo->skip_replication= cur_val;
+}
+
+/**
   Prints the given event in base64 format.
 
   The header is printed to the head cache and the body is printed to
@@ -667,6 +814,98 @@ write_event_header_and_base64(Log_event *ev, FILE *result_file,
     DBUG_RETURN(ERROR_STOP);
   }
   DBUG_RETURN(OK_CONTINUE);
+}
+
+
+static bool print_base64(PRINT_EVENT_INFO *print_event_info, Log_event *ev)
+{
+  /*
+    These events must be printed in base64 format, if printed.
+    base64 format requires a FD event to be safe, so if no FD
+    event has been printed, we give an error.  Except if user
+    passed --short-form, because --short-form disables printing
+    row events.
+  */
+  if (!print_event_info->printed_fd_event && !short_form &&
+      opt_base64_output_mode != BASE64_OUTPUT_DECODE_ROWS)
+  {
+    const char* type_str= ev->get_type_str();
+    if (opt_base64_output_mode == BASE64_OUTPUT_NEVER)
+      error("--base64-output=never specified, but binlog contains a "
+            "%s event which must be printed in base64.",
+            type_str);
+    else
+      error("malformed binlog: it does not contain any "
+            "Format_description_log_event. I now found a %s event, which "
+            "is not safe to process without a "
+            "Format_description_log_event.",
+            type_str);
+    return 1;
+  }
+  ev->print(result_file, print_event_info);
+  return print_event_info->head_cache.error == -1;
+}
+
+
+static bool print_row_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
+                            ulong table_id, bool is_stmt_end)
+{
+  Table_map_log_event *ignored_map= 
+    print_event_info->m_table_map_ignored.get_table(table_id);
+  bool skip_event= (ignored_map != NULL);
+
+  /* 
+     end of statement check:
+       i) destroy/free ignored maps
+      ii) if skip event
+            a) since we are skipping the last event,
+               append END-MARKER(') to body cache (if required)
+
+            b) flush cache now
+   */
+  if (is_stmt_end)
+  {
+    /* 
+      Now is safe to clear ignored map (clear_tables will also
+      delete original table map events stored in the map).
+    */
+    if (print_event_info->m_table_map_ignored.count() > 0)
+      print_event_info->m_table_map_ignored.clear_tables();
+
+    /* 
+      If there is a kept Annotate event and all corresponding
+      rbr-events were filtered away, the Annotate event was not
+      freed and it is just the time to do it.
+    */
+      free_annotate_event();
+
+    /* 
+       One needs to take into account an event that gets
+       filtered but was last event in the statement. If this is
+       the case, previous rows events that were written into
+       IO_CACHEs still need to be copied from cache to
+       result_file (as it would happen in ev->print(...) if
+       event was not skipped).
+    */
+    if (skip_event)
+    {
+      // append END-MARKER(') with delimiter
+      IO_CACHE *const body_cache= &print_event_info->body_cache;
+      if (my_b_tell(body_cache))
+        my_b_printf(body_cache, "'%s\n", print_event_info->delimiter);
+
+      // flush cache
+      if ((copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
+          copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file)))
+        return 1;
+    }
+  }
+
+  /* skip the event check */
+  if (skip_event)
+    return 0;
+
+  return print_base64(print_event_info, ev);
 }
 
 
@@ -706,7 +945,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     read them to be able to process the wanted events.
   */
   if (((rec_count >= offset) &&
-       ((my_time_t)(ev->when) >= start_datetime)) ||
+       (ev->when >= start_datetime)) ||
       (ev_type == FORMAT_DESCRIPTION_EVENT))
   {
     if (ev_type != FORMAT_DESCRIPTION_EVENT)
@@ -730,7 +969,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           server_id && (server_id != ev->server_id))
         goto end;
     }
-    if (((my_time_t)(ev->when) >= stop_datetime)
+    if ((ev->when >= stop_datetime)
         || (pos >= stop_position_mot))
     {
       /* end the program */
@@ -751,9 +990,22 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
     switch (ev_type) {
     case QUERY_EVENT:
-      if (!((Query_log_event*)ev)->is_trans_keyword() &&
-          shall_skip_database(((Query_log_event*)ev)->db))
-        goto end;
+    {
+      Query_log_event *qe= (Query_log_event*)ev;
+      if (!qe->is_trans_keyword())
+      {
+        if (shall_skip_database(qe->db))
+          goto end;
+      }
+      else
+      {
+        /*
+          In case the event for one of these statements is obtained
+          from binary log 5.0, make it compatible with 5.1
+        */
+        qe->flags|= LOG_EVENT_SUPPRESS_USE_F;
+      }
+      print_use_stmt(print_event_info, qe);
       if (opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
       {
         if ((retval= write_event_header_and_base64(ev, result_file,
@@ -762,10 +1014,14 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           goto end;
       }
       else
+      {
+        print_skip_replication_statement(print_event_info, ev);
         ev->print(result_file, print_event_info);
+      }
       if (head->error == -1)
         goto err;
       break;
+    }
 
     case CREATE_FILE_EVENT:
     {
@@ -794,6 +1050,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       }
       else
       {
+        print_skip_replication_statement(print_event_info, ev);
         ce->print(result_file, print_event_info, TRUE);
         if (head->error == -1)
           goto err;
@@ -906,9 +1163,11 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
       if (!shall_skip_database(exlq->db))
       {
+        print_use_stmt(print_event_info, exlq);
         if (fname)
         {
           convert_path_to_forward_slashes(fname);
+          print_skip_replication_statement(print_event_info, ev);
           exlq->print(result_file, print_event_info, fname);
           if (head->error == -1)
           {
@@ -926,6 +1185,19 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 	my_free(fname);
       break;
     }
+    case ANNOTATE_ROWS_EVENT:
+      if (!opt_skip_annotate_row_events)
+      {
+        /*
+          We don't print Annotate event just now because all subsequent
+          rbr-events can be filtered away. Instead we'll keep the event
+          till it will be printed together with the first not filtered
+          away Table map or the last rbr will be processed.
+        */
+        keep_annotate_event((Annotate_rows_log_event*) ev);
+        destroy_evt= FALSE;
+      }
+      break;
     case TABLE_MAP_EVENT:
     {
       Table_map_log_event *map= ((Table_map_log_event *)ev);
@@ -935,107 +1207,46 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         destroy_evt= FALSE;
         goto end;
       }
+      /*
+        The Table map is to be printed, so it's just the time when we may
+        print the kept Annotate event (if there is any).
+        print_annotate_event() also deletes the kept Annotate event.
+      */
+      print_annotate_event(print_event_info);
+
+      size_t len_to= 0;
+      const char* db_to= binlog_filter->get_rewrite_db(map->get_db_name(), &len_to);
+      if (len_to && map->rewrite_db(db_to, len_to, glob_description_event))
+      {
+        error("Could not rewrite database name");
+        goto err;
+      }
+      if (print_base64(print_event_info, ev))
+        goto err;
+      break;
     }
     case WRITE_ROWS_EVENT:
     case DELETE_ROWS_EVENT:
     case UPDATE_ROWS_EVENT:
+    {
+      Rows_log_event *e= (Rows_log_event*) ev;
+      if (print_row_event(print_event_info, ev, e->get_table_id(),
+                          e->get_flags(Rows_log_event::STMT_END_F)))
+        goto err;
+      break;
+    }
     case PRE_GA_WRITE_ROWS_EVENT:
     case PRE_GA_DELETE_ROWS_EVENT:
     case PRE_GA_UPDATE_ROWS_EVENT:
     {
-      bool stmt_end= FALSE;
-      Table_map_log_event *ignored_map= NULL;
-
-      if (ev_type == WRITE_ROWS_EVENT ||
-          ev_type == DELETE_ROWS_EVENT ||
-          ev_type == UPDATE_ROWS_EVENT)
-      {
-        Rows_log_event *new_ev= (Rows_log_event*) ev;
-        if (new_ev->get_flags(Rows_log_event::STMT_END_F))
-          stmt_end= TRUE;
-        ignored_map= print_event_info->m_table_map_ignored.get_table(new_ev->get_table_id());
-      }
-      else if (ev_type == PRE_GA_WRITE_ROWS_EVENT ||
-               ev_type == PRE_GA_DELETE_ROWS_EVENT ||
-               ev_type == PRE_GA_UPDATE_ROWS_EVENT)
-      {
-        Old_rows_log_event *old_ev= (Old_rows_log_event*) ev;
-        if (old_ev->get_flags(Rows_log_event::STMT_END_F))
-          stmt_end= TRUE;
-        ignored_map= print_event_info->m_table_map_ignored.get_table(old_ev->get_table_id());
-      }
-
-      bool skip_event= (ignored_map != NULL);
-      /*
-        end of statement check:
-        i) destroy/free ignored maps
-        ii) if skip event
-              a) since we are skipping the last event,
-                 append END-MARKER(') to body cache (if required)
-
-              b) flush cache now
-       */
-      if (stmt_end)
-      {
-
-          /* 
-            Now is safe to clear ignored map (clear_tables will also
-            delete original table map events stored in the map).
-          */
-          if (print_event_info->m_table_map_ignored.count() > 0)
-            print_event_info->m_table_map_ignored.clear_tables();
-
-          /* 
-             One needs to take into account an event that gets
-             filtered but was last event in the statement. If this is
-             the case, previous rows events that were written into
-             IO_CACHEs still need to be copied from cache to
-             result_file (as it would happen in ev->print(...) if
-             event was not skipped).
-          */
-          if (skip_event)
-          {
-            // append END-MARKER(') with delimiter
-            IO_CACHE *const body_cache= &print_event_info->body_cache;
-            if (my_b_tell(body_cache))
-              my_b_printf(body_cache, "'%s\n", print_event_info->delimiter);
-
-            // flush cache
-            if ((copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
-                copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file)))
-              goto err;
-          }
-        }
-
-        /* skip the event check */
-        if (skip_event)
-          goto end;
-      /*
-        These events must be printed in base64 format, if printed.
-        base64 format requires a FD event to be safe, so if no FD
-        event has been printed, we give an error.  Except if user
-        passed --short-form, because --short-form disables printing
-        row events.
-      */
-      if (!print_event_info->printed_fd_event && !short_form &&
-          opt_base64_output_mode != BASE64_OUTPUT_DECODE_ROWS)
-      {
-        const char* type_str= ev->get_type_str();
-        if (opt_base64_output_mode == BASE64_OUTPUT_NEVER)
-          error("--base64-output=never specified, but binlog contains a "
-                "%s event which must be printed in base64.",
-                type_str);
-        else
-          error("malformed binlog: it does not contain any "
-                "Format_description_log_event. I now found a %s event, which "
-                "is not safe to process without a "
-                "Format_description_log_event.",
-                type_str);
+      Old_rows_log_event *e= (Old_rows_log_event*) ev;
+      if (print_row_event(print_event_info, ev, e->get_table_id(),
+                          e->get_flags(Old_rows_log_event::STMT_END_F)))
         goto err;
-      }
-      /* FALL THROUGH */
+      break;
     }
     default:
+      print_skip_replication_statement(print_event_info, ev);
       ev->print(result_file, print_event_info);
       if (head->error == -1)
         goto err;
@@ -1048,14 +1259,16 @@ err:
   retval= ERROR_STOP;
 end:
   rec_count++;
+  
   /*
-    Destroy the log_event object. If reading from a remote host,
-    set the temp_buf to NULL so that memory isn't freed twice.
+    Destroy the log_event object. 
+    MariaDB MWL#36: mainline does this:
+      If reading from a remote host,
+      set the temp_buf to NULL so that memory isn't freed twice.
+    We no longer do that, we use Rpl_filter::event_owns_temp_buf instead.
   */
   if (ev)
   {
-    if (remote_opt)
-      ev->temp_buf= 0;
     if (destroy_evt) /* destroy it later if not set (ignored table map) */
       delete ev;
   }
@@ -1063,7 +1276,7 @@ end:
 }
 
 
-static struct my_option my_long_options[] =
+static struct my_option my_options[] =
 {
   {"help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -1133,7 +1346,7 @@ static struct my_option my_long_options[] =
   {"password", 'p', "Password to connect to remote server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-    &opt_plugin_dir, &opt_plugin_dir, 0,
+    &opt_plugindir, &opt_plugindir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection or 0 for default to, in "
    "order of preference, my.cnf, $MYSQL_TCP_PORT, "
@@ -1151,7 +1364,7 @@ static struct my_option my_long_options[] =
    0, 0},
   {"result-file", 'r', "Direct output to a given file.", 0, 0, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"server-id", OPT_SERVER_ID,
+  {"server-id", 0,
    "Extract only binlog entries created by the server having the given id.",
    &server_id, &server_id, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1220,6 +1433,24 @@ that may lead to an endless loop.",
    "Used to reserve file descriptors for use by this program.",
    &open_files_limit, &open_files_limit, 0, GET_ULONG,
    REQUIRED_ARG, MY_NFILE, 8, OS_FILE_LIMIT, 0, 1, 0},
+  {"binlog-row-event-max-size", 0,
+   "The maximum size of a row-based binary log event in bytes. Rows will be "
+   "grouped into events smaller than this size if possible. "
+   "This value must be a multiple of 256.",
+   &opt_binlog_rows_event_max_size, &opt_binlog_rows_event_max_size, 0,
+   GET_ULONG, REQUIRED_ARG, UINT_MAX,  256, ULONG_MAX,  0, 256,  0},
+  {"verify-binlog-checksum", 'c', "Verify checksum binlog events.",
+   (uchar**) &opt_verify_binlog_checksum, (uchar**) &opt_verify_binlog_checksum,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"rewrite-db", OPT_REWRITE_DB,
+   "Updates to a database with a different name than the original. \
+Example: rewrite-db='from->to'.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"skip-annotate-row-events", OPT_SKIP_ANNOTATE_ROWS_EVENTS,
+   "Don't print Annotate_rows events stored in the binary log.",
+   (uchar**) &opt_skip_annotate_row_events,
+   (uchar**) &opt_skip_annotate_row_events,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1295,8 +1526,9 @@ static void cleanup()
   my_free(database);
   my_free(host);
   my_free(user);
-  my_free(dirname_for_local_load);
+  my_free(const_cast<char*>(dirname_for_local_load));
 
+  delete binlog_filter;
   delete glob_description_event;
   if (mysql)
     mysql_close(mysql);
@@ -1317,8 +1549,10 @@ static void usage()
 Dumps a MySQL binary log in a format usable for viewing or for piping to\n\
 the mysql command line client.\n\n");
   printf("Usage: %s [options] log-files\n", my_progname);
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  print_defaults("my",load_groups);
+  puts("");
+  my_print_help(my_options);
+  my_print_variables(my_options);
 }
 
 
@@ -1327,7 +1561,7 @@ static my_time_t convert_str_to_timestamp(const char* str)
   int was_cut;
   MYSQL_TIME l_time;
   long dummy_my_timezone;
-  my_bool dummy_in_dst_time_gap;
+  uint dummy_in_dst_time_gap;
   /* We require a total specification (date AND time) */
   if (str_to_datetime(str, (uint) strlen(str), &l_time, 0, &was_cut) !=
       MYSQL_TIMESTAMP_DATETIME || was_cut)
@@ -1400,6 +1634,53 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
         (find_type_or_exit(argument, &base64_output_mode_typelib, opt->name)-1);
     }
     break;
+  case OPT_REWRITE_DB:    // db_from->db_to
+  {
+    /* See also handling of OPT_REPLICATE_REWRITE_DB in sql/mysqld.cc */
+    char* ptr;
+    char* key= argument;  // db-from
+    char* val;            // db-to
+
+    // Where key begins
+    while (*key && my_isspace(&my_charset_latin1, *key))
+      key++;
+
+    // Where val begins
+    if (!(ptr= strstr(argument, "->")))
+    {
+      sql_print_error("Bad syntax in rewrite-db: missing '->'!\n");
+      return 1;
+    }
+    val= ptr + 2;
+    while (*val && my_isspace(&my_charset_latin1, *val))
+      val++;
+
+    // Write \0 and skip blanks at the end of key
+    *ptr-- = 0;
+    while (my_isspace(&my_charset_latin1, *ptr) && ptr > argument)
+      *ptr-- = 0;
+
+    if (!*key)
+    {
+      sql_print_error("Bad syntax in rewrite-db: empty db-from!\n");
+      return 1;
+    }
+
+    // Skip blanks at the end of val
+    ptr= val;
+    while (*ptr && !my_isspace(&my_charset_latin1, *ptr))
+      ptr++;
+    *ptr= 0;
+
+    if (!*val)
+    {
+      sql_print_error("Bad syntax in rewrite-db: empty db-to!\n");
+      return 1;
+    }
+
+    binlog_filter->add_db_rewrite(key, val);
+    break;
+  }
   case 'v':
     if (argument == disabled_my_option)
       verbose= 0;
@@ -1408,10 +1689,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'V':
     print_version();
-    exit(0);
+    opt_version= 1;
+    break;
   case '?':
     usage();
-    exit(0);
+    opt_version= 1;
+    break;
   }
   if (tty_password)
     pass= get_tty_password(NullS);
@@ -1425,7 +1708,7 @@ static int parse_args(int *argc, char*** argv)
   int ho_error;
 
   result_file = stdout;
-  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
+  if ((ho_error=handle_options(argc, argv, my_options, get_one_option)))
     exit(ho_error);
   if (debug_info_flag)
     my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
@@ -1444,12 +1727,10 @@ static int parse_args(int *argc, char*** argv)
 */
 static Exit_status safe_connect()
 {
-  /*
-    A possible old connection's resources are reclaimed now
-    at new connect attempt. The final safe_connect resources
-    are mysql_closed at the end of program, explicitly.
-  */
-  mysql_close(mysql);
+  /* Close any old connections to MySQL */
+  if (mysql)
+    mysql_close(mysql);
+
   mysql= mysql_init(NULL);
 
   if (!mysql)
@@ -1458,8 +1739,8 @@ static Exit_status safe_connect()
     return ERROR_STOP;
   }
 
-  if (opt_plugin_dir && *opt_plugin_dir)
-    mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+  if (opt_plugindir && *opt_plugindir)
+    mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugindir);
 
   if (opt_default_auth && *opt_default_auth)
     mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
@@ -1556,7 +1837,18 @@ static Exit_status check_master_version()
           "Master reported NULL for the version.");
     goto err;
   }
-
+  /* 
+     Make a notice to the server that this client
+     is checksum-aware. It does not need the first fake Rotate
+     necessary checksummed. 
+     That preference is specified below.
+  */
+  if (mysql_query(mysql, "SET @master_binlog_checksum='NONE'"))
+  {
+    error("Could not notify master about checksum awareness."
+          "Master returned '%s'", mysql_error(mysql));
+    goto err;
+  }
   delete glob_description_event;
   switch (*version) {
   case '3':
@@ -1638,6 +1930,8 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     cast to uint32.
   */
   int4store(buf, (uint32)start_position);
+  if (!opt_skip_annotate_row_events)
+    binlog_flags|= BINLOG_SEND_ANNOTATE_ROWS_EVENT;
   int2store(buf + BIN_LOG_HEADER_SIZE, binlog_flags);
 
   size_t tlen = strlen(logname);
@@ -1670,18 +1964,31 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       break; // end of data
     DBUG_PRINT("info",( "len: %lu  net->read_pos[5]: %d\n",
 			len, net->read_pos[5]));
-    if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
-                                        len - 1, &error_msg,
-                                        glob_description_event)))
+    if (net->read_pos[5] == ANNOTATE_ROWS_EVENT)
     {
-      error("Could not construct log event object: %s", error_msg);
-      DBUG_RETURN(ERROR_STOP);
-    }   
-    /*
-      If reading from a remote host, ensure the temp_buf for the
-      Log_event class is pointing to the incoming stream.
-    */
-    ev->register_temp_buf((char *) net->read_pos + 1);
+      if (!(ev= read_remote_annotate_event(net->read_pos + 1, len - 1,
+                                           &error_msg)))
+      {
+        error("Could not construct annotate event object: %s", error_msg);
+        DBUG_RETURN(ERROR_STOP);
+      }   
+    }
+    else
+    {
+      if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
+                                          len - 1, &error_msg,
+                                          glob_description_event,
+                                          opt_verify_binlog_checksum)))
+      {
+        error("Could not construct log event object: %s", error_msg);
+        DBUG_RETURN(ERROR_STOP);
+      }   
+      /*
+        If reading from a remote host, ensure the temp_buf for the
+        Log_event class is pointing to the incoming stream.
+      */
+      ev->register_temp_buf((char *) net->read_pos + 1, FALSE);
+    }
 
     Log_event_type type= ev->get_type_code();
     if (glob_description_event->binlog_version >= 3 ||
@@ -1909,7 +2216,8 @@ static Exit_status check_header(IO_CACHE* file,
         Format_description_log_event *new_description_event;
         my_b_seek(file, tmp_pos); /* seek back to event's start */
         if (!(new_description_event= (Format_description_log_event*) 
-              Log_event::read_log_event(file, glob_description_event)))
+              Log_event::read_log_event(file, glob_description_event,
+                                        opt_verify_binlog_checksum)))
           /* EOF can't be hit here normally, so it's a real error */
         {
           error("Could not read a Format_description_log_event event at "
@@ -1942,7 +2250,8 @@ static Exit_status check_header(IO_CACHE* file,
       {
         Log_event *ev;
         my_b_seek(file, tmp_pos); /* seek back to event's start */
-        if (!(ev= Log_event::read_log_event(file, glob_description_event)))
+        if (!(ev= Log_event::read_log_event(file, glob_description_event,
+                                            opt_verify_binlog_checksum)))
         {
           /* EOF can't be hit here normally, so it's a real error */
           error("Could not read a Rotate_log_event event at offset %llu;"
@@ -2055,7 +2364,8 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     char llbuff[21];
     my_off_t old_off = my_b_tell(file);
 
-    Log_event* ev = Log_event::read_log_event(file, glob_description_event);
+    Log_event* ev = Log_event::read_log_event(file, glob_description_event,
+                                              opt_verify_binlog_checksum);
     if (!ev)
     {
       /*
@@ -2097,6 +2407,8 @@ end:
   return retval;
 }
 
+/* Used in sql_alloc(). Inited and freed in main() */
+MEM_ROOT s_mem_root;
 
 int main(int argc, char** argv)
 {
@@ -2110,17 +2422,27 @@ int main(int argc, char** argv)
   my_init_time(); // for time functions
   tzset(); // set tzname
 
-  if (load_defaults("my", load_default_groups, &argc, &argv))
+  init_alloc_root(&s_mem_root, 16384, 0);
+  if (load_defaults("my", load_groups, &argc, &argv))
     exit(1);
+
+  if (!(binlog_filter= new Rpl_filter))
+  {
+    error("Failed to create Rpl_filter");
+    exit(1);
+  }
+
   defaults_argv= argv;
   parse_args(&argc, (char***)&argv);
 
-  if (!argc)
+  if (!argc || opt_version)
   {
-    usage();
+    if (!argc)
+      usage();
+    cleanup();
     free_defaults(defaults_argv);
     my_end(my_end_arg);
-    exit(1);
+    exit(!opt_version);
   }
 
   if (opt_base64_output_mode == BASE64_OUTPUT_UNSPEC)
@@ -2210,6 +2532,8 @@ int main(int argc, char** argv)
   if (result_file != stdout)
     my_fclose(result_file, MYF(0));
   cleanup();
+  free_annotate_event();
+  free_root(&s_mem_root, MYF(0));
   free_defaults(defaults_argv);
   my_free_open_file_info();
   load_processor.destroy();
@@ -2221,15 +2545,25 @@ int main(int argc, char** argv)
   DBUG_RETURN(retval == ERROR_STOP ? 1 : 0);
 }
 
+
+void *sql_alloc(size_t size)
+{
+  return alloc_root(&s_mem_root, size);
+}
+
 /*
   We must include this here as it's compiled with different options for
   the server
 */
 
+#include "rpl_tblmap.cc"
+#undef TABLE
 #include "my_decimal.h"
 #include "decimal.c"
 #include "my_decimal.cc"
 #include "log_event.cc"
 #include "log_event_old.cc"
 #include "rpl_utility.cc"
-#include "rpl_tblmap.cc"
+#include "sql_string.cc"
+#include "sql_list.cc"
+#include "rpl_filter.cc"

@@ -1,0 +1,13 @@
+# 
+# CHECKSUM TABLE for partitioned tables
+# 
+
+--source include/have_partition.inc
+--source ../have_engine.inc
+
+let $extra_tbl_opts = PARTITION BY HASH(a) PARTITIONS 2;
+--source ../checksum_table.inc
+--source ../checksum_table_live.inc
+
+--source ../cleanup_engine.inc
+

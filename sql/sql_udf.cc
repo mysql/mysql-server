@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -142,7 +142,7 @@ void udf_init()
   DBUG_ENTER("ufd_init");
   char db[]= "mysql"; /* A subject to casednstr, can't be constant */
 
-  if (initialized)
+  if (initialized || opt_noacl)
     DBUG_VOID_RETURN;
 
 #ifdef HAVE_PSI_INTERFACE
@@ -178,7 +178,13 @@ void udf_init()
   }
 
   table= tables.table;
-  init_read_record(&read_record_info, new_thd, table, NULL,1,0,FALSE);
+  if (init_read_record(&read_record_info, new_thd, table, NULL,1,0,FALSE))
+  {
+    sql_print_error("Could not initialize init_read_record; udf's not "
+                    "loaded");
+    goto end;
+  }
+
   table->use_all_columns();
   while (!(error= read_record_info.read_record(&read_record_info)))
   {
@@ -224,12 +230,8 @@ void udf_init()
       (void) unpack_filename(dlpath, dlpath);
       if (!(dl= dlopen(dlpath, RTLD_NOW)))
       {
-	const char *errmsg;
-	int error_number= dlopen_errno;
-	DLERROR_GENERATE(errmsg, error_number);
-
 	/* Print warning to log */
-        sql_print_error(ER(ER_CANT_OPEN_LIBRARY), tmp->dl, error_number, errmsg);
+        sql_print_error(ER(ER_CANT_OPEN_LIBRARY), tmp->dl, errno, dlerror());
 	/* Keep the udf in the hash so that we can remove it later */
 	continue;
       }
@@ -237,7 +239,7 @@ void udf_init()
     }
     tmp->dlhandle = dl;
     {
-      char buf[NAME_LEN+16], *missing;
+      char buf[SAFE_NAME_LEN+16], *missing;
       if ((missing= init_syms(tmp, buf)))
       {
         sql_print_error(ER(ER_CANT_FIND_DL_ENTRY), missing);
@@ -265,6 +267,8 @@ void udf_free()
 {
   /* close all shared libraries */
   DBUG_ENTER("udf_free");
+  if (opt_noacl)
+    DBUG_VOID_RETURN;
   for (uint idx=0 ; idx < udf_hash.records ; idx++)
   {
     udf_func *udf=(udf_func*) my_hash_element(&udf_hash,idx);
@@ -350,6 +354,7 @@ udf_func *find_udf(const char *name,uint length,bool mark_used)
   if (!initialized)
     DBUG_RETURN(NULL);
 
+  DEBUG_SYNC(current_thd, "find_udf_before_lock");
   /* TODO: This should be changed to reader locks someday! */
   if (mark_used)
     mysql_rwlock_wrlock(&THR_LOCK_udf);  /* Called during fix_fields */
@@ -450,12 +455,8 @@ int mysql_create_function(THD *thd,udf_func *udf)
     my_message(ER_UDF_NO_PATHS, ER(ER_UDF_NO_PATHS), MYF(0));
     DBUG_RETURN(1);
   }
-  if (check_string_char_length(&udf->name, "", NAME_CHAR_LEN,
-                               system_charset_info, 1))
-  {
-    my_error(ER_TOO_LONG_IDENT, MYF(0), udf->name.str);
+  if (check_ident_length(&udf->name))
     DBUG_RETURN(1);
-  }
 
   /* 
     Turn off row binlogging of this statement and use statement-based 
@@ -464,7 +465,12 @@ int mysql_create_function(THD *thd,udf_func *udf)
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
 
+  tables.init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("func"),
+                        "func", TL_WRITE);
+  table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT);
+
   mysql_rwlock_wrlock(&THR_LOCK_udf);
+  DEBUG_SYNC(current_thd, "mysql_create_function_after_lock");
   if ((my_hash_search(&udf_hash,(uchar*) udf->name.str, udf->name.length)))
   {
     my_error(ER_UDF_EXISTS, MYF(0), udf->name.str);
@@ -478,21 +484,17 @@ int mysql_create_function(THD *thd,udf_func *udf)
 
     if (!(dl = dlopen(dlpath, RTLD_NOW)))
     {
-      const char *errmsg;
-      int error_number= dlopen_errno;
-      DLERROR_GENERATE(errmsg, error_number);
-
       DBUG_PRINT("error",("dlopen of %s failed, error: %d (%s)",
-                          udf->dl, error_number, errmsg));
+                          udf->dl, errno, dlerror()));
       my_error(ER_CANT_OPEN_LIBRARY, MYF(0),
-               udf->dl, error_number, errmsg);
+               udf->dl, errno, dlerror());
       goto err;
     }
     new_dl=1;
   }
   udf->dlhandle=dl;
   {
-    char buf[NAME_LEN+16], *missing;
+    char buf[SAFE_NAME_LEN+16], *missing;
     if ((missing= init_syms(udf, buf)))
     {
       my_error(ER_CANT_FIND_DL_ENTRY, MYF(0), missing);
@@ -512,9 +514,8 @@ int mysql_create_function(THD *thd,udf_func *udf)
 
   /* create entry in mysql.func table */
 
-  tables.init_one_table("mysql", 5, "func", 4, "func", TL_WRITE);
   /* Allow creation of functions even if we can't open func table */
-  if (!(table = open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
+  if (!table)
     goto err;
   table->use_all_columns();
   restore_record(table, s->default_values);	// Default values for fields
@@ -586,7 +587,12 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
 
+  tables.init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("func"),
+                        "func", TL_WRITE);
+  table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT);
+
   mysql_rwlock_wrlock(&THR_LOCK_udf);
+  DEBUG_SYNC(current_thd, "mysql_drop_function_after_lock");
   if (!(udf=(udf_func*) my_hash_search(&udf_hash,(uchar*) udf_name->str,
                                        (uint) udf_name->length)))
   {
@@ -603,16 +609,14 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   if (udf->dlhandle && !find_udf_dl(udf->dl))
     dlclose(udf->dlhandle);
 
-  tables.init_one_table("mysql", 5, "func", 4, "func", TL_WRITE);
-
-  if (!(table = open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
+  if (!table)
     goto err;
   table->use_all_columns();
   table->field[0]->store(exact_name_str, exact_name_len, &my_charset_bin);
-  if (!table->file->index_read_idx_map(table->record[0], 0,
-                                       (uchar*) table->field[0]->ptr,
-                                       HA_WHOLE_KEY,
-                                       HA_READ_KEY_EXACT))
+  if (!table->file->ha_index_read_idx_map(table->record[0], 0,
+                                          (uchar*) table->field[0]->ptr,
+                                          HA_WHOLE_KEY,
+                                          HA_READ_KEY_EXACT))
   {
     int error;
     if ((error = table->file->ha_delete_row(table->record[0])))

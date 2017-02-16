@@ -56,11 +56,11 @@
 ################################################################################
 -- echo # ========== routines.1 ==========
 USE INFORMATION_SCHEMA;
---replace_result ENGINE=MyISAM "" ENGINE=MARIA "" " PAGE_CHECKSUM=1" "" " PAGE_CHECKSUM=0" ""
+--replace_result ENGINE=MyISAM "" ENGINE=MARIA "" ENGINE=Aria "" " PAGE_CHECKSUM=1" "" " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE INFORMATION_SCHEMA.ROUTINES;
 
 # embedded server does not display privileges
---replace_column 18 #
+--replace_column 19 #
 query_vertical SELECT * FROM information_schema.columns
 WHERE table_schema = 'information_schema'
   AND table_name   = 'routines'
@@ -84,7 +84,7 @@ USE i_s_routines_test;
 --error ER_PARSE_ERROR
 CREATE FUNCTION test_func1 (s char(20) RETURNS CHAR(50)
 RETURN CONCAT('Hello', ,s,'!');
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func1';
 
@@ -103,11 +103,11 @@ USE i_s_routines_test;
 
 CREATE FUNCTION test_func1 (s char(20)) RETURNS CHAR(50)
 RETURN CONCAT('Hello, ',s,'!');
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func1';
 DROP FUNCTION test_func1;
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func1';
 
@@ -131,7 +131,7 @@ CREATE PROCEDURE testproc (OUT param1 INT)
   END;
 //
 delimiter ;//
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'testproc';
 
@@ -153,7 +153,7 @@ USE i_s_routines_test;
 
 CREATE FUNCTION test_func1 (s char(20)) RETURNS CHAR(50)
 RETURN CONCAT('Hello, ',s,'!');
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func1';
 
@@ -175,7 +175,7 @@ CREATE DATABASE i_s_routines_test;
 USE i_s_routines_test;
 
 CREATE FUNCTION test_func2 (s int) RETURNS INT RETURN s*2;
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func2';
 
@@ -195,7 +195,7 @@ USE i_s_routines_test;
 
 CREATE FUNCTION test_func5 (s date) RETURNS TIMESTAMP
 RETURN CURRENT_TIMESTAMP;
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func5';
 
@@ -214,11 +214,11 @@ USE i_s_routines_test;
 
 CREATE FUNCTION test_func5 (s date) RETURNS TIMESTAMP
 RETURN CURRENT_TIMESTAMP;
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func5';
 ALTER FUNCTION test_func5 COMMENT 'new comment added';
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func5';
 
@@ -239,7 +239,7 @@ USE i_s_routines_test;
 
 CREATE FUNCTION test_func5 (s CHAR(20)) RETURNS VARCHAR(30)
 RETURN CONCAT('XYZ, ' ,s);
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func5';
 

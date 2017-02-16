@@ -29,9 +29,11 @@ select length(data) from t1;
 length(data)
 18874368
 alter table t1 modify data blob;
+Warnings:
+Warning	1265	Data truncated for column 'data' at row 1
 select length(data) from t1;
 length(data)
-0
+65535
 drop table t1;
 CREATE TABLE t1 (data BLOB) ENGINE=myisam;
 INSERT INTO t1 (data) VALUES (NULL);

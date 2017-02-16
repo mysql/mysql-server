@@ -1,0 +1,9 @@
+#
+# MDEV-4665 crash when referencing missing function in a subquery
+#
+create table t (a int);
+create or replace view v as select 1 from t where a;
+--error ER_SP_DOES_NOT_EXIST
+delete from v where (select g());
+drop view v;
+drop table t;

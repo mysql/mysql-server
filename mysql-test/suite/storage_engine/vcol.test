@@ -1,0 +1,72 @@
+#
+# Virtual columns
+#
+
+--source have_engine.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+let $create_definition = a $int_col, b $int_col GENERATED ALWAYS AS (a+1);
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Virtual columns
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 3 # 5 #
+  SHOW COLUMNS IN t1;
+
+  INSERT INTO t1 (a) VALUES (1),(2);
+  INSERT INTO t1 (a,b) VALUES (3,3),(4,4);
+  --sorted_result
+  SELECT a,b FROM t1;
+
+  DROP TABLE t1;
+
+  let $create_definition = a $int_col, b $int_col GENERATED ALWAYS AS (a+1) PERSISTENT;
+  --source create_table.inc
+
+  --replace_column 3 # 5 #
+  SHOW COLUMNS IN t1;
+
+  INSERT INTO t1 (a) VALUES (1),(2);
+  INSERT INTO t1 (a,b) VALUES (3,3),(4,4);
+  --sorted_result
+  SELECT a,b FROM t1;
+
+  DROP TABLE t1;
+
+  let $create_definition = a $int_col, b $int_col GENERATED ALWAYS AS (a+1) VIRTUAL;
+  --source create_table.inc
+
+  --replace_column 3 # 5 #
+  SHOW COLUMNS IN t1;
+
+  INSERT INTO t1 (a) VALUES (1),(2);
+  INSERT INTO t1 (a,b) VALUES (3,3),(4,4);
+  --sorted_result
+  SELECT a,b FROM t1;
+
+  DROP TABLE t1;
+
+  let $create_definition = a $int_col, b $int_col AS (a+1) PERSISTENT;
+  --source create_table.inc
+
+  --replace_column 3 # 5 #
+  SHOW COLUMNS IN t1;
+
+  INSERT INTO t1 (a) VALUES (1),(2);
+  INSERT INTO t1 (a,b) VALUES (3,3),(4,4);
+  --sorted_result
+  SELECT a,b FROM t1;
+
+  DROP TABLE t1;
+}
+
+--source cleanup_engine.inc
+

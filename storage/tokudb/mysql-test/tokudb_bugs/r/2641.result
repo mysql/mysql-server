@@ -1,0 +1,18 @@
+# Establish connection conn1 (user = root)
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo, bar;
+set session transaction isolation level read committed;
+create table foo ( a int, b int, primary key (a));
+create table bar (a int);
+begin;
+insert into foo values (1,1),(2,2),(3,1),(4,3);
+set session transaction isolation level repeatable read;
+begin;
+select * from bar;
+a
+commit;
+select * from foo;
+a	b
+commit;
+set session transaction isolation level serializable;
+DROP TABLE foo, bar;

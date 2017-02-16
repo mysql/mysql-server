@@ -33,10 +33,10 @@ extern "C" {
 #  include "keymaps.h"
 #  include "tilde.h"
 #else
-#  include <readline/rlstdc.h>
-#  include <readline/rltypedefs.h>
-#  include <readline/keymaps.h>
-#  include <readline/tilde.h>
+#  include <rlstdc.h>
+#  include <rltypedefs.h>
+#  include <keymaps.h>
+#  include <tilde.h>
 #endif
 
 /* Hex-encoded Readline version number. */

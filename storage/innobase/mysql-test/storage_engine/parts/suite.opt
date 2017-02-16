@@ -1,0 +1,4 @@
+--ignore-builtin-innodb
+--plugin-load=ha_innodb
+--innodb
+

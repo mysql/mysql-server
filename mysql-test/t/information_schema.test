@@ -8,6 +8,9 @@
 # on the presence of the log tables (which are CSV-based).
 --source include/have_csv.inc
 
+# Check that XtraDB is enabled as result depends on it
+-- source include/have_xtradb.inc
+
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -47,14 +50,16 @@ insert into t5 values (10);
 create view v1 (c) as
  SELECT table_name FROM information_schema.TABLES
   WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND
-        table_name not like 'ndb_%' AND table_name not like 'innodb_%';
+        table_name not like 'ndb_%' AND table_name not like 'innodb_%' AND
+        table_name not like 'xtradb_%';
+--sorted_result
 select * from v1;
 
-select c,table_name from v1
+select c,table_name from v1 
 inner join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 
-select c,table_name from v1
+select c,table_name from v1 
 left join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 
@@ -529,24 +534,14 @@ drop table t1;
 grant select on test.* to mysqltest_4@localhost;
 connect (user10261,localhost,mysqltest_4,,);
 connection user10261;
-SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS
-where COLUMN_NAME='TABLE_NAME';
+--sorted_result
+SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS 
+where COLUMN_NAME='TABLE_NAME' and table_name not like 'innodb%';
 connection default;
 disconnect user10261;
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
-
-#
-# Bug#9404 information_schema: Weird error messages
-# with SELECT SUM() ... GROUP BY queries
-#
-SELECT table_schema, count(*) FROM information_schema.TABLES WHERE
-table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest')
-AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
-GROUP BY TABLE_SCHEMA;
-
-
 
 #
 # TRIGGERS table test
@@ -617,13 +612,13 @@ select * from information_schema.schema_privileges order by grantee;
 select * from information_schema.user_privileges order by grantee;
 show grants;
 connection con4;
-select * from information_schema.column_privileges where grantee like '%user%'
+select * from information_schema.column_privileges where grantee like '\'user%'
 order by grantee;
-select * from information_schema.table_privileges where grantee like '%user%'
+select * from information_schema.table_privileges where grantee like '\'user%'
 order by grantee;
-select * from information_schema.schema_privileges where grantee like '%user%'
+select * from information_schema.schema_privileges where grantee like '\'user%'
 order by grantee;
-select * from information_schema.user_privileges where grantee like '%user%'
+select * from information_schema.user_privileges where grantee like '\'user%'
 order by grantee;
 show grants;
 connection default;
@@ -922,12 +917,12 @@ DROP USER mysql_bug20230@localhost;
 #           INFORMARTION_SCHEMA.TABLES
 #
 
-SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test');
+SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test') and table_name not like 'xtradb%';
 SELECT table_name from information_schema.tables
   WHERE table_name=(SELECT MAX(table_name)
-                      FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test'));
+                      FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test') and table_name not like 'xtradb%');
 #
-# Bug#23037 Bug in field "Default" of query "SHOW COLUMNS FROM table"
+# Bug #23037 Bug in field "Default" of query "SHOW COLUMNS FROM table"
 #
 # Note, MyISAM/InnoDB can't take more that 65532 chars, because the row
 # size is limited to 65535 bytes (BLOBs not counted)
@@ -970,6 +965,8 @@ DROP FUNCTION get_value;
 #
 # Bug#22413 EXPLAIN SELECT FROM view with ORDER BY yield server crash
 #
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 create view v1 as
 select table_schema as object_schema,
        table_name   as object_name,
@@ -978,6 +975,7 @@ from information_schema.tables
 order by object_schema;
 explain select * from v1;
 explain select * from (select table_name from information_schema.tables) as a;
+set optimizer_switch=@tmp_optimizer_switch;
 drop view v1;
 
 #
@@ -992,30 +990,6 @@ where table_schema = 'test' and table_name not in
  where table_schema = 'test' and column_name = 'f3');
 drop table t1,t2;
 
-
-#
-# Bug#24630 Subselect query crashes mysqld
-#
-select 1 as f1 from information_schema.tables  where "CHARACTER_SETS"=
-(select cast(table_name as char)  from information_schema.tables
- order by table_name limit 1) limit 1;
-
-select t.table_name, group_concat(t.table_schema, '.', t.table_name),
-       count(*) as num1
-from information_schema.tables t
-inner join information_schema.columns c1
-on t.table_schema = c1.table_schema AND t.table_name = c1.table_name
-where t.table_schema = 'information_schema' and
-        c1.ordinal_position =
-        (select isnull(c2.column_type) -
-         isnull(group_concat(c2.table_schema, '.', c2.table_name)) +
-         count(*) as num
-         from information_schema.columns c2 where
-         c2.table_schema='information_schema' and
-         (c2.column_type = 'varchar(7)' or c2.column_type = 'varchar(20)')
-          group by c2.column_type order by num limit 1)
-        and t.table_name not like 'innodb_%'
-group by t.table_name order by num1, t.table_name;
 
 #
 # Bug#28266 IS_UPDATABLE field on VIEWS table in I_S database is wrong
@@ -1133,6 +1107,25 @@ select user,db from information_schema.processlist;
 connection default;
 disconnect con3148;
 drop user user3148@localhost;
+
+#
+# `time` and `time_ms` columns of INFORMATION_SCHEMA.PROCESSLIST.
+#
+connect (pslistcon,localhost,root,,test);
+let $ID= `select connection_id()`;
+SELECT 'other connection here' AS who;
+connection default;
+sleep 2;
+--disable_query_log
+eval SET @tid=$ID;
+--enable_query_log
+SELECT IF(`time` > 0, 'OK', `time`) AS time_low,
+       IF(`time` < 1000, 'OK', `time`) AS time_high,
+       IF(time_ms >= 1000, 'OK', time_ms) AS time_ms_low,
+       IF(time_ms < 1000000, 'OK', time_ms) AS time_ms_high
+  FROM INFORMATION_SCHEMA.PROCESSLIST
+ WHERE ID=@tid;
+disconnect pslistcon;
 
 #
 # Bug#26174 Server Crash: INSERT ... SELECT ... FROM I_S.GLOBAL_STATUS
@@ -1305,12 +1298,16 @@ info='select * from information_schema.tables where 1=sleep(100000)';
 disable_query_log;
 eval kill $ID;
 enable_query_log;
-disconnect conn1;
 let $wait_timeout= 10;
 let $wait_condition=select count(*)=0 from information_schema.processlist
 where state='User sleep' and
 info='select * from information_schema.tables where 1=sleep(100000)';
 --source include/wait_condition.inc
+connection conn1;
+--error 2013,ER_CONNECTION_KILLED
+reap;
+connection default;
+disconnect conn1;
 
 connect (conn1, localhost, root,,);
 connection conn1;
@@ -1325,12 +1322,16 @@ info='select * from information_schema.columns where 1=sleep(100000)';
 disable_query_log;
 eval kill $ID;
 enable_query_log;
-disconnect conn1;
 let $wait_timeout= 10;
 let $wait_condition=select count(*)=0 from information_schema.processlist
 where state='User sleep' and
 info='select * from information_schema.columns where 1=sleep(100000)';
 --source include/wait_condition.inc
+connection conn1;
+--error 2013,ER_CONNECTION_KILLED
+reap;
+connection default;
+disconnect conn1;
 
 
 #
@@ -1388,9 +1389,16 @@ DROP TABLE t1;
 # Bug #22047: Time in SHOW PROCESSLIST for SQL thread in replication seems
 # to become negative
 #
+# Note that at the time of writing, MariaDB differs in behaviour from MySQL on
+# the `time` column. In MySQL this changes depending on the setting of
+# @TIMESTAMP, which is contrary to the documented (and sensible) behaviour.
+# In MariaDB, the `time` column is independent of @TIMESTAMP.
+# (The rationale for this is to keep `time` and `time_ms` consistent;
+# @TIMESTAMP has no microsecond precision).
+#
 
 SET TIMESTAMP=@@TIMESTAMP + 10000000;
-SELECT 'OK' AS TEST_RESULT FROM INFORMATION_SCHEMA.PROCESSLIST WHERE time < 0;
+SELECT 'NOT_OK' AS TEST_RESULT FROM INFORMATION_SCHEMA.PROCESSLIST WHERE time < 0;
 SET TIMESTAMP=DEFAULT;
 
 
@@ -1444,6 +1452,17 @@ SELECT length(CAST(b AS CHAR)) FROM ubig;
 
 DROP TABLE ubig;
 
+#
+# Bug #13889741: HANDLE_FATAL_SIGNAL IN _DB_ENTER_ | HANDLE_FATAL_SIGNAL IN STRNLEN
+#
+select 1 from information_schema.tables where table_schema=repeat('a', 2000);
+grant usage on *.* to mysqltest_1@localhost;
+connect (con1, localhost, mysqltest_1,,);
+connection con1;
+select 1 from information_schema.tables where table_schema=repeat('a', 2000);
+connection default;
+disconnect con1;
+drop user mysqltest_1@localhost;
 
 --echo End of 5.1 tests.
 
@@ -1777,6 +1796,24 @@ connection default;
 disconnect con12828477_1;
 disconnect con12828477_2;
 disconnect con12828477_3;
+
+
+--echo #
+--echo # MDEV-3818: Query against view over IS tables worse than equivalent query without view
+--echo #
+
+create view v1 as select table_schema, table_name, column_name from information_schema.columns;
+
+explain extended
+select column_name from v1
+where (table_schema = "osm") and (table_name = "test");
+
+explain extended
+select information_schema.columns.column_name as column_name
+from information_schema.columns
+where (information_schema.columns.table_schema = 'osm') and (information_schema.columns.table_name = 'test');
+
+drop view v1;
 
 --echo #
 --echo # Clean-up.

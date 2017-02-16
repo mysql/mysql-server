@@ -1,0 +1,43 @@
+# test case for overlocking unique secondary keys
+source include/have_tokudb.inc;
+set default_storage_engine=tokudb;
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+create table t (id int, unique key(id));
+insert into t values (10),(100);
+connect(c1,localhost,root,,);
+begin;
+insert into t values (5);
+connect(c2,localhost,root,,);
+begin;
+insert into t values (6);
+connection c1;
+commit;
+connection c2;
+commit;
+connection default;
+select * from t;
+disconnect c1;
+disconnect c2;
+drop table if exists t;
+
+create table t (id int not null, unique key(id));
+insert into t values (10),(100);
+connect(c1,localhost,root,,);
+begin;
+insert into t values (5);
+connect(c2,localhost,root,,);
+begin;
+insert into t values (6);
+connection c1;
+commit;
+connection c2;
+commit;
+connection default;
+select * from t;
+disconnect c1;
+disconnect c2;
+drop table if exists t;
+

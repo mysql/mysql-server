@@ -1,0 +1,36 @@
+source include/have_tokudb.inc;
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=TokuDB;
+
+connect (conn1,localhost,root,,);
+
+connection default;
+SET AUTOCOMMIT=OFF;
+
+let $i=1000;
+while ($i) 
+{
+	connection default;
+	BEGIN;
+	eval INSERT INTO t1 VALUES ($i);
+
+	connection conn1;
+	send LOCK TABLES t1 WRITE;
+
+	connection default;
+	COMMIT;
+
+	connection conn1;
+	reap;
+	UNLOCK TABLES;
+
+	dec $i;
+}
+
+disconnect conn1;
+
+connection default;
+DROP TABLE t1;

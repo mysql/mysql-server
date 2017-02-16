@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_priv.h"
-#include "unireg.h"                      // REQUIRED by other includes
+#include "mysqld.h"                             // system_charset_info
 #include "rpl_filter.h"
 #include "hash.h"                               // my_hash_free
 #include "table.h"                              // TABLE_LIST
@@ -42,12 +42,13 @@ Rpl_filter::~Rpl_filter()
     free_string_array(&wild_do_table);
   if (wild_ignore_table_inited)
     free_string_array(&wild_ignore_table);
-  free_list(&do_db);
-  free_list(&ignore_db);
+  free_string_list(&do_db);
+  free_string_list(&ignore_db);
   free_list(&rewrite_db);
 }
 
 
+#ifndef MYSQL_CLIENT
 /*
   Returns true if table should be logged/replicated 
 
@@ -94,7 +95,7 @@ Rpl_filter::tables_ok(const char* db, TABLE_LIST* tables)
   
   for (; tables; tables= tables->next_global)
   {
-    char hash_key[2*NAME_LEN+2];
+    char hash_key[SAFE_NAME_LEN*2+2];
     char *end;
     uint len;
 
@@ -132,6 +133,7 @@ Rpl_filter::tables_ok(const char* db, TABLE_LIST* tables)
               !do_table_inited && !wild_do_table_inited);
 }
 
+#endif
 
 /*
   Checks whether a db matches some do_db and ignore_db rules
@@ -173,6 +175,7 @@ Rpl_filter::db_ok(const char* db)
       if (!strcmp(tmp->ptr, db))
 	DBUG_RETURN(1); // match
     }
+    DBUG_PRINT("exit", ("Don't replicate"));
     DBUG_RETURN(0);
   }
   else // there are some elements in the don't, otherwise we cannot get here
@@ -183,7 +186,10 @@ Rpl_filter::db_ok(const char* db)
     while ((tmp=it++))
     {
       if (!strcmp(tmp->ptr, db))
+      {
+        DBUG_PRINT("exit", ("Don't replicate"));
 	DBUG_RETURN(0); // match
+      }
     }
     DBUG_RETURN(1);
   }
@@ -225,7 +231,7 @@ Rpl_filter::db_ok_with_wild_table(const char *db)
 {
   DBUG_ENTER("Rpl_filter::db_ok_with_wild_table");
 
-  char hash_key[NAME_LEN+2];
+  char hash_key[SAFE_NAME_LEN+2];
   char *end;
   int len;
   end= strmov(hash_key, db);
@@ -258,6 +264,60 @@ Rpl_filter::is_on()
 }
 
 
+/**
+  Parse and add the given comma-separated sequence of filter rules.
+
+  @param  spec  Comma-separated sequence of filter rules.
+  @param  add   Callback member function to add a filter rule.
+
+  @return true if error, false otherwise.
+*/
+
+int
+Rpl_filter::parse_filter_rule(const char* spec, Add_filter add)
+{
+  int status= 0;
+  char *arg, *ptr, *pstr;
+
+  if (!spec)
+    return false;
+  
+  if (! (ptr= my_strdup(spec, MYF(MY_WME))))
+    return true;
+
+  pstr= ptr;
+
+  while (pstr)
+  {
+    arg= pstr;
+
+    /* Parse token string. */
+    pstr= strpbrk(arg, ",");
+
+    /* NUL terminate the token string. */
+    if (pstr)
+      *pstr++= '\0';
+
+    /* Skip an empty token string. */
+    if (arg[0] == '\0')
+      continue;
+
+    /* Skip leading spaces.  */
+    while (my_isspace(system_charset_info, *arg))
+      arg++;
+
+    status= (this->*add)(arg);
+
+    if (status)
+      break;
+  }
+
+  my_free(ptr);
+
+  return status;
+}
+
+
 int 
 Rpl_filter::add_do_table(const char* table_spec) 
 {
@@ -280,6 +340,46 @@ Rpl_filter::add_ignore_table(const char* table_spec)
 }
 
 
+int
+Rpl_filter::set_do_table(const char* table_spec)
+{
+  int status;
+
+  if (do_table_inited)
+    my_hash_reset(&do_table);
+
+  status= parse_filter_rule(table_spec, &Rpl_filter::add_do_table);
+
+  if (!do_table.records)
+  {
+    my_hash_free(&do_table);
+    do_table_inited= 0;
+  }
+
+  return status;
+}
+
+
+int
+Rpl_filter::set_ignore_table(const char* table_spec)
+{
+  int status;
+
+  if (ignore_table_inited)
+    my_hash_reset(&ignore_table);
+
+  status= parse_filter_rule(table_spec, &Rpl_filter::add_ignore_table);
+
+  if (!ignore_table.records)
+  {
+    my_hash_free(&ignore_table);
+    ignore_table_inited= 0;
+  }
+
+  return status;
+}
+
+
 int 
 Rpl_filter::add_wild_do_table(const char* table_spec)
 {
@@ -299,6 +399,46 @@ Rpl_filter::add_wild_ignore_table(const char* table_spec)
     init_table_rule_array(&wild_ignore_table, &wild_ignore_table_inited);
   table_rules_on= 1;
   DBUG_RETURN(add_wild_table_rule(&wild_ignore_table, table_spec));
+}
+
+
+int
+Rpl_filter::set_wild_do_table(const char* table_spec)
+{
+  int status;
+
+  if (wild_do_table_inited)
+    free_string_array(&wild_do_table);
+
+  status= parse_filter_rule(table_spec, &Rpl_filter::add_wild_do_table);
+
+  if (!wild_do_table.elements)
+  {
+    delete_dynamic(&wild_do_table);
+    wild_do_table_inited= 0;
+  }
+
+  return status;
+}
+
+
+int
+Rpl_filter::set_wild_ignore_table(const char* table_spec)
+{
+  int status;
+
+  if (wild_ignore_table_inited)
+    free_string_array(&wild_ignore_table);
+
+  status= parse_filter_rule(table_spec, &Rpl_filter::add_wild_ignore_table);
+
+  if (!wild_ignore_table.elements)
+  {
+    delete_dynamic(&wild_ignore_table);
+    wild_ignore_table_inited= 0;
+  }
+
+  return status;
 }
 
 
@@ -350,24 +490,58 @@ Rpl_filter::add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec)
 }
 
 
-void
+int
+Rpl_filter::add_string_list(I_List<i_string> *list, const char* spec)
+{
+  char *str;
+  i_string *node;
+
+  if (! (str= my_strdup(spec, MYF(MY_WME))))
+    return true;
+
+  if (! (node= new i_string(str)))
+  {
+    my_free(str);
+    return true;
+  }
+
+  list->push_back(node);
+
+  return false;
+}
+
+
+int
 Rpl_filter::add_do_db(const char* table_spec)
 {
   DBUG_ENTER("Rpl_filter::add_do_db");
-  i_string *db = new i_string(table_spec);
-  do_db.push_back(db);
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(add_string_list(&do_db, table_spec));
 }
 
 
-void
+int
 Rpl_filter::add_ignore_db(const char* table_spec)
 {
   DBUG_ENTER("Rpl_filter::add_ignore_db");
-  i_string *db = new i_string(table_spec);
-  ignore_db.push_back(db);
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(add_string_list(&ignore_db, table_spec));
 }
+
+
+int
+Rpl_filter::set_do_db(const char* db_spec)
+{
+  free_string_list(&do_db);
+  return parse_filter_rule(db_spec, &Rpl_filter::add_do_db);
+}
+
+
+int
+Rpl_filter::set_ignore_db(const char* db_spec)
+{
+  free_string_list(&ignore_db);
+  return parse_filter_rule(db_spec, &Rpl_filter::add_ignore_db);
+}
+
 
 extern "C" uchar *get_table_key(const uchar *, size_t *, my_bool);
 extern "C" void free_table_ent(void* a);
@@ -440,6 +614,23 @@ Rpl_filter::free_string_array(DYNAMIC_ARRAY *a)
     my_free(p);
   }
   delete_dynamic(a);
+}
+
+
+void
+Rpl_filter::free_string_list(I_List<i_string> *l)
+{
+  void *ptr;
+  i_string *tmp;
+
+  while ((tmp= l->get()))
+  {
+    ptr= (void *) tmp->ptr;
+    my_free(ptr);
+    delete tmp;
+  }
+
+  l->empty();
 }
 
 
@@ -520,6 +711,13 @@ Rpl_filter::get_wild_ignore_table(String* str)
 }
 
 
+bool
+Rpl_filter::rewrite_db_is_empty()
+{
+  return rewrite_db.is_empty();
+}
+
+
 const char*
 Rpl_filter::get_rewrite_db(const char* db, size_t *new_len)
 {
@@ -551,4 +749,38 @@ I_List<i_string>*
 Rpl_filter::get_ignore_db()
 {
   return &ignore_db;
+}
+
+
+void
+Rpl_filter::db_rule_ent_list_to_str(String* str, I_List<i_string>* list)
+{
+  I_List_iterator<i_string> it(*list);
+  i_string* s;
+
+  str->length(0);
+
+  while ((s= it++))
+  {
+    str->append(s->ptr);
+    str->append(',');
+  }
+
+  // Remove last ','
+  if (!str->is_empty())
+    str->chop();
+}
+
+
+void
+Rpl_filter::get_do_db(String* str)
+{
+  db_rule_ent_list_to_str(str, get_do_db());
+}
+
+
+void
+Rpl_filter::get_ignore_db(String* str)
+{
+  db_rule_ent_list_to_str(str, get_ignore_db());
 }

@@ -1,0 +1,9 @@
+select "proxy";
+proxy
+proxy
+select @@local_infile;
+@@local_infile
+1
+select @@old;
+@@old
+1

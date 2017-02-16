@@ -1,0 +1,62 @@
+# verify that repeatable read uses one snapshot, whereas read committed keeps taking new ones
+
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+set session transaction isolation level repeatable read;
+
+--echo # Establish connection conn1 (user = root)
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+create table foo (a int, b int, primary key (a))engine=TokuDB;
+show create table foo;
+insert into foo values (1,1);
+
+connection conn1;
+set session transaction isolation level repeatable read;
+begin;
+--echo # Should read just (1,1)
+select * from foo;
+
+connection conn2;
+set session transaction isolation level read committed;
+begin;
+--echo # Should read just (1,1)
+select * from foo;
+
+connection default;
+replace into foo values (1,10),(2,20);
+
+connection conn1;
+--echo # Should read just (1,1)
+select * from foo;
+
+connection conn2;
+--echo # Should read just (1,10), (2,20)
+select * from foo;
+
+connection default;
+replace into foo values (1,100),(2,200),(3,300);
+
+connection conn1;
+--echo # Should read just (1,1)
+select * from foo;
+commit;
+
+connection conn2;
+--echo # Should read just (1,100), (2,200),(3,300)
+select * from foo;
+commit;
+
+connection default;
+disconnect conn1;
+disconnect conn2;
+
+connection default;
+# Final cleanup.
+set session transaction isolation level serializable;
+DROP TABLE foo;

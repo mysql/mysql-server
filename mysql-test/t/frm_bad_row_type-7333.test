@@ -1,0 +1,14 @@
+#
+# MDEV-7333 "'show table status like 'table_name'" on tokudb table lead to MariaDB crash
+#
+let $datadir= `select @@datadir`;
+call mtr.add_suppression("bad_row_type.frm: invalid value 11 for the field row_format");
+copy_file std_data/bad_row_type.MYD $datadir/test/bad_row_type.MYD;
+copy_file std_data/bad_row_type.MYI $datadir/test/bad_row_type.MYI;
+copy_file std_data/bad_row_type.frm $datadir/test/bad_row_type.frm;
+
+select * from bad_row_type;
+show create table bad_row_type;
+replace_column 12 x 13 x;
+show table status like 'bad_row_type';
+drop table bad_row_type;

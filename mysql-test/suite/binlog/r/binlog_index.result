@@ -1,9 +1,10 @@
 call mtr.add_suppression('Attempting backtrace');
-call mtr.add_suppression('MSYQL_BIN_LOG::purge_logs failed to process registered files that would be purged.');
-call mtr.add_suppression('MSYQL_BIN_LOG::open failed to sync the index file');
+call mtr.add_suppression('MYSQL_BIN_LOG::purge_logs failed to process registered files that would be purged.');
+call mtr.add_suppression('MYSQL_BIN_LOG::open failed to sync the index file');
 call mtr.add_suppression('Turning logging off for the whole duration of the MySQL server process.');
 call mtr.add_suppression('Could not open .*');
-call mtr.add_suppression('MSYQL_BIN_LOG::purge_logs failed to clean registers before purging logs.');
+call mtr.add_suppression('MYSQL_BIN_LOG::purge_logs failed to clean registers before purging logs.');
+flush tables;
 RESET MASTER;
 flush logs;
 flush logs;
@@ -14,6 +15,7 @@ master-bin.000001	#
 master-bin.000002	#
 master-bin.000003	#
 master-bin.000004	#
+flush tables;
 purge binary logs TO 'master-bin.000004';
 Warnings:
 Warning	1612	Being purged log master-bin.000001 was not found
@@ -45,7 +47,7 @@ Error	1377	Fatal error during log purge
 reset master;
 # crash_purge_before_update_index
 flush logs;
-SET SESSION debug="+d,crash_purge_before_update_index";
+SET SESSION debug_dbug="+d,crash_purge_before_update_index";
 purge binary logs TO 'master-bin.000002';
 ERROR HY000: Lost connection to MySQL server during query
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
@@ -57,7 +59,7 @@ master-bin.000003
 
 # crash_purge_non_critical_after_update_index
 flush logs;
-SET SESSION debug="+d,crash_purge_non_critical_after_update_index";
+SET SESSION debug_dbug="+d,crash_purge_non_critical_after_update_index";
 purge binary logs TO 'master-bin.000004';
 ERROR HY000: Lost connection to MySQL server during query
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
@@ -68,7 +70,7 @@ master-bin.000005
 
 # crash_purge_critical_after_update_index
 flush logs;
-SET SESSION debug="+d,crash_purge_critical_after_update_index";
+SET SESSION debug_dbug="+d,crash_purge_critical_after_update_index";
 purge binary logs TO 'master-bin.000006';
 ERROR HY000: Lost connection to MySQL server during query
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
@@ -78,7 +80,7 @@ master-bin.000006
 master-bin.000007
 
 # crash_create_non_critical_before_update_index
-SET SESSION debug="+d,crash_create_non_critical_before_update_index";
+SET SESSION debug_dbug="+d,crash_create_non_critical_before_update_index";
 flush logs;
 ERROR HY000: Lost connection to MySQL server during query
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
@@ -89,7 +91,7 @@ master-bin.000007
 master-bin.000008
 
 # crash_create_critical_before_update_index
-SET SESSION debug="+d,crash_create_critical_before_update_index";
+SET SESSION debug_dbug="+d,crash_create_critical_before_update_index";
 flush logs;
 ERROR HY000: Lost connection to MySQL server during query
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
@@ -101,7 +103,7 @@ master-bin.000008
 master-bin.000009
 
 # crash_create_after_update_index
-SET SESSION debug="+d,crash_create_after_update_index";
+SET SESSION debug_dbug="+d,crash_create_after_update_index";
 flush logs;
 ERROR HY000: Lost connection to MySQL server during query
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
@@ -130,7 +132,7 @@ master-bin.000010
 master-bin.000011
 
 # fault_injection_registering_index
-SET SESSION debug="+d,fault_injection_registering_index";
+SET SESSION debug_dbug="+d,fault_injection_registering_index";
 flush logs;
 ERROR HY000: Can't open file: 'master-bin.000012' (errno: 1)
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
@@ -155,7 +157,7 @@ master-bin.000011
 master-bin.000012
 
 # fault_injection_updating_index
-SET SESSION debug="+d,fault_injection_updating_index";
+SET SESSION debug_dbug="+d,fault_injection_updating_index";
 flush logs;
 ERROR HY000: Can't open file: 'master-bin.000013' (errno: 1)
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
@@ -181,5 +183,5 @@ master-bin.000011
 master-bin.000012
 master-bin.000013
 
-SET SESSION debug="";
+SET SESSION debug_dbug="";
 End of tests

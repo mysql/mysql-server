@@ -1,0 +1,47 @@
+SET @start_global_value = @@global.thread_pool_max_threads;
+select @@global.thread_pool_max_threads;
+@@global.thread_pool_max_threads
+500
+select @@session.thread_pool_max_threads;
+ERROR HY000: Variable 'thread_pool_max_threads' is a GLOBAL variable
+show global variables like 'thread_pool_max_threads';
+Variable_name	Value
+thread_pool_max_threads	500
+show session variables like 'thread_pool_max_threads';
+Variable_name	Value
+thread_pool_max_threads	500
+select * from information_schema.global_variables where variable_name='thread_pool_max_threads';
+VARIABLE_NAME	VARIABLE_VALUE
+THREAD_POOL_MAX_THREADS	500
+select * from information_schema.session_variables where variable_name='thread_pool_max_threads';
+VARIABLE_NAME	VARIABLE_VALUE
+THREAD_POOL_MAX_THREADS	500
+set global thread_pool_max_threads=1;
+select @@global.thread_pool_max_threads;
+@@global.thread_pool_max_threads
+1
+set global thread_pool_max_threads=65536;
+select @@global.thread_pool_max_threads;
+@@global.thread_pool_max_threads
+65536
+set session thread_pool_max_threads=1;
+ERROR HY000: Variable 'thread_pool_max_threads' is a GLOBAL variable and should be set with SET GLOBAL
+set global thread_pool_max_threads=1.1;
+ERROR 42000: Incorrect argument type to variable 'thread_pool_max_threads'
+set global thread_pool_max_threads=1e1;
+ERROR 42000: Incorrect argument type to variable 'thread_pool_max_threads'
+set global thread_pool_max_threads="foo";
+ERROR 42000: Incorrect argument type to variable 'thread_pool_max_threads'
+set global thread_pool_max_threads=0;
+Warnings:
+Warning	1292	Truncated incorrect thread_pool_max_threads value: '0'
+select @@global.thread_pool_max_threads;
+@@global.thread_pool_max_threads
+1
+set global thread_pool_max_threads=10000000000;
+Warnings:
+Warning	1292	Truncated incorrect thread_pool_max_threads value: '10000000000'
+select @@global.thread_pool_max_threads;
+@@global.thread_pool_max_threads
+65536
+SET @@global.thread_pool_max_threads = @start_global_value;

@@ -1763,68 +1763,6 @@ drop table t1, t2, t3;
 disconnect addconroot1;
 disconnect addconroot2;
 disconnect addconwithoutdb;
-#
-# Bug #26162: Trigger DML ignores low_priority_updates setting
-#
-CREATE TABLE t1 (id INTEGER);
-CREATE TABLE t2 (id INTEGER);
-
-INSERT INTO t2 VALUES (1),(2);
-
-# trigger that produces the high priority insert, but should be low, adding
-# LOW_PRIORITY fixes this
-CREATE TRIGGER t1_test AFTER INSERT ON t1 FOR EACH ROW 
-  INSERT INTO t2 VALUES (new.id);
-
-CONNECT (rl_holder,    localhost, root,,);
-CONNECT (rl_acquirer,  localhost, root,,);
-CONNECT (wl_acquirer,  localhost, root,,);
-CONNECT (rl_contender, localhost, root,,);
-
-CONNECTION rl_holder;
-SELECT GET_LOCK('B26162',120);
-
-CONNECTION rl_acquirer;
---send
-SELECT 'rl_acquirer', GET_LOCK('B26162',120), id FROM t2 WHERE id = 1;
-
-CONNECTION wl_acquirer;
-SET SESSION LOW_PRIORITY_UPDATES=1;
-SET GLOBAL LOW_PRIORITY_UPDATES=1;
-#need to wait for rl_acquirer to lock on the B26162 lock 
-sleep 2;
---send
-INSERT INTO t1 VALUES (5);
-
-CONNECTION rl_contender;
-# must not "see" the row inserted by the INSERT (as it must run before the
-# INSERT)
---send
-SELECT 'rl_contender', id FROM t2 WHERE id > 1;
-
-CONNECTION rl_holder;
-#need to wait for wl_acquirer and rl_contender to lock on t2 
-sleep 2;
-SELECT RELEASE_LOCK('B26162');
-
-CONNECTION rl_acquirer;
---reap
-SELECT RELEASE_LOCK('B26162');
-CONNECTION wl_acquirer;
---reap
-CONNECTION rl_contender;
---reap
-
-CONNECTION default;
-DISCONNECT rl_acquirer;
-DISCONNECT wl_acquirer;
-DISCONNECT rl_contender;
-DISCONNECT rl_holder;
-
-DROP TRIGGER t1_test;
-DROP TABLE t1,t2;
-SET SESSION LOW_PRIORITY_UPDATES=DEFAULT;
-SET GLOBAL LOW_PRIORITY_UPDATES=DEFAULT;
 --echo
 --echo Bug#28502 Triggers that update another innodb table will block
 --echo on X lock unnecessarily
@@ -2468,6 +2406,29 @@ USE test;
 
 --echo End of 5.1 tests.
 
+#
+# Test that using a trigger will not open mysql.proc
+#
+create table t1 (i int);
+create table t2 (i int);
+flush tables;
+flush status;
+delimiter //;
+CREATE DEFINER=`root`@`localhost` TRIGGER trg AFTER DELETE ON t1 FOR EACH ROW BEGIN DELETE FROM t2 WHERE t2.i = OLD.i; END //
+delimiter ;//
+insert into t1 values (1),(2);
+insert into t2 values (1),(2);
+delete from t1 where i=1;
+#
+# If mysql.proc would be used we would have 4 here. 3 is the correct number.
+# (CREATE TRIGGER will open t1 and then flush it)
+#
+show status like 'Opened_tables';
+select * from t1;
+select * from t2;
+drop table t1,t2;
+
+--echo End of 5.2 tests.
 
 --echo #
 --echo # Bug#34453 Can't change size of file (Errcode: 1224)
@@ -2583,8 +2544,6 @@ select trigger_name from information_schema.triggers
 drop temporary table t1;
 drop table t1;
 
-
---echo
 --echo #
 --echo # Bug #12362125: SP INOUT HANDLING IS BROKEN FOR TEXT TYPE.
 --echo #
@@ -2612,3 +2571,43 @@ DROP TABLE t1;
 
 --echo
 --echo End of 5.5 tests.
+
+--echo #
+--echo # BUG #910083: materialized subquery in a trigger
+--echo #
+
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='materialization=on';
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (b int);
+
+CREATE TRIGGER tr AFTER UPDATE ON t1 FOR EACH ROW
+  UPDATE t2 SET b = (SELECT COUNT(a) FROM t1);
+
+INSERT INTO t1
+  VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+INSERT INTO t2
+  VALUES (0),(0),(0),(0),(0),(0),(0),(0),(0);
+
+send
+  UPDATE t1 SET a = 3;
+
+connect(con1,localhost,root,,);
+  SELECT COUNT(*) FROM t1;
+disconnect con1;
+
+connection default;
+reap;
+SELECT * FROM t2;
+UPDATE t1 SET a = 2;
+SELECT * FROM t2;
+
+SET optimizer_switch=@save_optimizer_switch;
+
+DROP TRIGGER tr;
+DROP TABLE t1, t2;
+
+--echo End of 5.3 tests.
+

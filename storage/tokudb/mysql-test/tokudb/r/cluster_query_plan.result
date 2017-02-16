@@ -1,0 +1,26 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+DROP TABLE IF EXISTS t1;
+create table t1(a int, b int, c int, d int, primary key(a), key(b) clustering=yes, key (c))engine=tokudb;
+insert into t1 values (1,1,1,1),(2,2,2,2),(3,3,3,3),(4,4,4,4),(5,5,5,5),(6,6,6,6),(7,7,7,7),(8,8,8,8),(9,9,9,9);
+explain select * from t1 where b > 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where; Using index
+explain select * from t1 where c > 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	c	NULL	NULL	NULL	NULL;	Using where
+explain select * from t1 where a > 4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	NULL;	Using where
+explain select * from t1 where c > 7;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	c	c	5	NULL	NULL;	Using where
+explain select * from t1 where b > 7;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where; Using index
+explain select a from t1 where b > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	b	b	5	NULL	NULL;	Using where; Using index
+explain select a from t1 where c > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	c	c	5	NULL	NULL;	Using where; Using index
+drop table t1;

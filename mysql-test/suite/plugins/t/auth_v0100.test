@@ -1,0 +1,26 @@
+--source include/not_embedded.inc
+
+if (!$AUTH_0X0100_SO) {
+  skip No auth_0x0100 plugin;
+}
+
+install soname 'auth_0x0100';
+
+select plugin_name, plugin_type_version from information_schema.plugins where plugin_type='authentication' order by plugin_name;
+
+create user tt identified via auth_0x0100;
+grant select on test.* to zzzzzzzzzzzzzzzz;
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK $MASTER_MYPORT MASTER_MYPORT
+--error ER_ACCESS_DENIED_ERROR
+connect (c0,localhost,tt);
+
+grant proxy on zzzzzzzzzzzzzzzz to tt;
+connect (c1,localhost,tt);
+connection c1;
+
+--query_vertical select user(), current_user(), @@external_user
+connection default;
+drop user tt;
+drop user zzzzzzzzzzzzzzzz;
+uninstall plugin auth_0x0100;

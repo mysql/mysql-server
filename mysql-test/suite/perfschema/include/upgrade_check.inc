@@ -8,6 +8,8 @@
 --source include/wait_until_count_sessions.inc
 
 # Verify that mysql_upgrade complained about the performance_schema
+
+--replace_regex /at line [0-9]+/at line ###/
 --cat_file $err_file
 --error 0,1
 --remove_file $out_file

@@ -1,0 +1,33 @@
+drop table if exists ti;
+create table ti (id int primary key) engine=innodb;
+begin;
+insert into ti values (0);
+savepoint b;
+insert into ti values (1);
+savepoint a2;
+insert into ti values (2);
+savepoint b;
+insert into ti values (3);
+rollback to a2;
+commit;
+select * from ti;
+id
+0
+1
+drop table if exists tt;
+create table tt (id int primary key) engine=tokudb;
+begin;
+insert into tt values (0);
+savepoint b;
+insert into tt values (1);
+savepoint a2;
+insert into tt values (2);
+savepoint b;
+insert into tt values (3);
+rollback to a2;
+commit;
+select * from tt;
+id
+0
+1
+drop table ti,tt;

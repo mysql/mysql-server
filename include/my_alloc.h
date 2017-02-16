@@ -30,8 +30,8 @@ extern "C" {
 typedef struct st_used_mem
 {				   /* struct for once_alloc (block) */
   struct st_used_mem *next;	   /* Next block in use */
-  unsigned int	left;		   /* memory left in block  */
-  unsigned int	size;		   /* size of block */
+  size_t left;                     /* memory left in block  */
+  size_t size;                     /* size of block */
 } USED_MEM;
 
 

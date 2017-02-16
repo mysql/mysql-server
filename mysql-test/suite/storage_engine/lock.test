@@ -1,0 +1,244 @@
+# Standard table locking:
+#   LOCK TABLE .. READ 
+#   LOCK TABLE .. [LOW_PRIORITY] WRITE 
+#   UNLOCK TABLES
+#
+# and global locking:
+# FLUSH TABLES [..] WITH READ LOCK
+# 
+#   
+--source have_engine.inc
+
+--enable_connect_log
+
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+connect (con1,localhost,root,,);
+SET lock_wait_timeout=1;
+
+connection default;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2, t3;
+--enable_warnings
+
+--let $create_definition = id $int_col, id2 $int_col
+--source create_table.inc
+
+INSERT INTO t1 (id,id2) VALUES (1,1),(1,2),(1,3);
+
+# LOW_PRIORITY has no effect, but is still syntactically correct
+LOCK TABLE t1 LOW_PRIORITY WRITE;
+SELECT id2,COUNT(DISTINCT id) FROM t1 GROUP BY id2;
+
+UPDATE t1 SET id=-1 WHERE id=1;
+if ($mysql_errname)
+{
+  --let $functionality = UPDATE
+  --source unexpected_result.inc
+}
+
+connection con1;
+# With WRITE lock held by connection 'default',
+# nobody else can access the table
+--let $error_codes = ER_LOCK_WAIT_TIMEOUT
+SELECT id,id2 FROM t1;
+--source check_errors.inc
+--let $error_codes = ER_LOCK_WAIT_TIMEOUT
+LOCK TABLE t1 READ;
+--source check_errors.inc
+
+connection default;
+LOCK TABLE t1 READ;
+--let $error_codes = ER_TABLE_NOT_LOCKED_FOR_WRITE
+UPDATE t1 SET id=1 WHERE id=1;
+--source check_errors.inc
+if ($mysql_errname != ER_TABLE_NOT_LOCKED_FOR_WRITE)
+{
+  --let $functonality = UPDATE or locking
+  --source unexpected_result.inc
+}
+
+connection con1;
+# With READ lock held by connection 'default',
+# it should be possible to read from the table
+# or acquire another READ lock, 
+# but not update it or acquire WRITE lock
+SELECT COUNT(DISTINCT id) FROM t1;
+--let $error_codes = ER_LOCK_WAIT_TIMEOUT
+UPDATE t1 SET id=2 WHERE id=2;
+--source check_errors.inc
+--let $error_codes = ER_LOCK_WAIT_TIMEOUT
+LOCK TABLE t1 WRITE;
+--source check_errors.inc
+LOCK TABLE t1 READ;
+UNLOCK TABLES;
+
+
+--connection default
+
+--let $error_codes = ER_TABLE_NOT_LOCKED
+--let $table_name = t2
+--source create_table.inc
+
+--let $table_name = t2
+--let $temporary = 1
+--source create_table.inc
+
+DROP TABLE IF EXISTS t2;
+
+UNLOCK TABLES;
+
+--let $table_name = t2
+--let $create_definition = id $int_col, id2 $int_col
+--source create_table.inc
+LOCK TABLE t1 WRITE, t2 WRITE;
+INSERT INTO t2 (id,id2) SELECT id,id2 FROM t1;
+UPDATE t1 SET id=1 WHERE id=-1;
+if ($mysql_errname)
+{
+  --let $functionality = UPDATE
+  --source unexpected_result.inc
+}
+DROP TABLE t1,t2;
+
+#
+# INSERT ... SELECT with lock tables
+#
+
+--let $create_definition = i1 $int_col, nr $int_col
+--source create_table.inc
+
+--let $table_name = t2
+--let $create_definition = nr $int_col, nm $int_col
+--source create_table.inc
+
+INSERT INTO t2 (nr,nm) VALUES (1,3);
+INSERT INTO t2 (nr,nm) VALUES (2,4);
+
+lock tables t1 write, t2 read;
+INSERT INTO t1 (i1,nr) SELECT 1, nr FROM t2 WHERE nm=3;
+INSERT INTO t1 (i1,nr) SELECT 2, nr FROM t2 WHERE nm=4;
+UNLOCK TABLES;
+
+LOCK TABLES t1 WRITE;
+--let $error_codes = ER_TABLE_NOT_LOCKED
+INSERT INTO t1 (i1,nr) SELECT i1, nr FROM t1;
+--source check_errors.inc
+UNLOCK TABLES;
+LOCK TABLES t1 WRITE, t1 AS t1_alias READ;
+INSERT INTO t1 (i1,nr) SELECT i1, nr FROM t1 AS t1_alias;
+--let $error_codes = ER_TABLE_NOT_LOCKED
+DROP TABLE t1,t2;
+--source check_errors.inc
+UNLOCK TABLES;
+DROP TABLE t1,t2;
+
+#
+# Check that a dropped table is removed from a lock
+
+--source create_table.inc
+--let $table_name = t2
+--source create_table.inc
+--let $table_name = t3
+--source create_table.inc
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE;
+# This removes one table after the other from the lock.
+DROP TABLE t2, t3, t1;
+#
+# Check that a lock merge works
+--source create_table.inc
+--let $table_name = t2
+--source create_table.inc
+--let $table_name = t3
+--source create_table.inc
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE, t1 AS t4 READ;
+
+--let $alter_definition = ADD COLUMN c2 $int_col
+--let $table_name = t2
+--source alter_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $alter_statement
+  --let $functionality = ALTER TABLE
+  --source unexpected_result.inc
+}
+
+DROP TABLE t1, t2, t3;
+
+# FLUSH TABLES is not permitted when there is an active LOCK TABLES .. READ,
+# FLUSH TABLES .. WITH READ LOCK should be used instead
+# (and for other connections the table is locked)
+
+--source create_table.inc
+--let $table_name = t2
+--source create_table.inc
+
+LOCK TABLE t1 READ, t2 READ;
+--let $error_codes = ER_TABLE_NOT_LOCKED_FOR_WRITE
+FLUSH TABLE t1;
+--source check_errors.inc
+--let $error_codes = ER_TABLE_NOT_LOCKED_FOR_WRITE
+FLUSH TABLES;
+--source check_errors.inc
+--let $error_codes = ER_LOCK_OR_ACTIVE_TRANSACTION
+FLUSH TABLES t1, t2 WITH READ LOCK;
+--source check_errors.inc
+UNLOCK TABLES;
+
+FLUSH TABLES t1, t2 WITH READ LOCK;
+
+--connection con1
+--let $error_codes = ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
+--source check_errors.inc
+
+--connection default
+UNLOCK TABLES;
+
+# Global lock
+
+FLUSH TABLES WITH READ LOCK;
+
+--connection con1
+--let $error_codes = ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
+--source check_errors.inc
+
+--connection default
+UNLOCK TABLES;
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
+FLUSH TABLES WITH READ LOCK AND DISABLE CHECKPOINT;
+--let $error_codes = ER_CANT_UPDATE_WITH_READLOCK
+DROP TABLE t1, t2;
+--source check_errors.inc
+UNLOCK TABLES;
+DROP TABLE t1, t2;
+
+--disconnect con1
+
+#
+# Ensure that FLUSH TABLES doesn't substitute a base locked table
+# with a temporary one.
+#
+
+--source create_table.inc
+--let $table_name = t2
+--source create_table.inc
+LOCK TABLE t1 WRITE, t2 WRITE;
+
+--let $temporary = 1
+--source create_table.inc 
+FLUSH TABLE t1;
+DROP TEMPORARY TABLE t1;
+SELECT a,b FROM t1;
+UNLOCK TABLES;
+DROP TABLE t1, t2;
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc
+
+--source cleanup_engine.inc
+

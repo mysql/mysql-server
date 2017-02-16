@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2015, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,12 +33,13 @@
 #include "sql_base.h"                    // lock_table_names, tdc_remove_table
 #include "sql_handler.h"                 // mysql_ha_rm_tables
 #include <mysys_err.h>
+#include "sp_head.h"
 #include "sp.h"
 #include "events.h"
+#include "sql_handler.h"
 #include <my_dir.h>
 #include <m_ctype.h>
 #include "log.h"
-#include "log_event.h"
 #ifdef __WIN__
 #include <direct.h>
 #endif
@@ -543,7 +545,6 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
                      bool silent)
 {
   char	 path[FN_REFLEN+16];
-  char	 tmp_query[FN_REFLEN+16];
   long result= 1;
   int error= 0;
   MY_STAT stat_info;
@@ -620,23 +621,10 @@ not_silent:
   {
     char *query;
     uint query_length;
-    char db_name_quoted[2 * FN_REFLEN + sizeof("create database ") + 2];
-    int id_len= 0;
 
-    if (!thd->query())                          // Only in replication
-    {
-      id_len= my_strmov_quoted_identifier(thd, (char *) db_name_quoted, db,
-                                          0);
-      db_name_quoted[id_len]= '\0';
-      query= tmp_query;
-      query_length= (uint) (strxmov(tmp_query,"create database ",
-                                    db_name_quoted, NullS) - tmp_query);
-    }
-    else
-    {
-      query=        thd->query();
-      query_length= thd->query_length();
-    }
+    query=        thd->query();
+    query_length= thd->query_length();
+    DBUG_ASSERT(query);
 
     ha_binlog_log_query(thd, 0, LOGCOM_CREATE_DB,
                         query, query_length,
@@ -767,7 +755,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 {
   ulong deleted_tables= 0;
   bool error= true;
-  char	path[2 * FN_REFLEN + 16];
+  char	path[FN_REFLEN + 16];
   MY_DIR *dirp;
   uint length;
   bool found_other_files= false;
@@ -866,7 +854,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
     ha_drop_database(path);
     tmp_disable_binlog(thd);
-    query_cache_invalidate1(db);
+    query_cache_invalidate1(thd, db);
     (void) sp_drop_db_routines(thd, db); /* @todo Do not ignore errors */
 #ifdef HAVE_EVENT_SCHEDULER
     Events::drop_schema_events(thd, db);
@@ -889,23 +877,11 @@ update_binlog:
   {
     const char *query;
     ulong query_length;
-    // quoted db name + wraping quote
-    char buffer_temp [2 * FN_REFLEN + 2];
-    int id_len= 0;
-    if (!thd->query())
-    {
-      /* The client used the old obsolete mysql_drop_db() call */
-      query= path;
-      id_len= my_strmov_quoted_identifier(thd, buffer_temp, db, strlen(db));
-      buffer_temp[id_len] ='\0';
-      query_length= (uint) (strxmov(path, "DROP DATABASE ", buffer_temp, "",
-                                     NullS) - path);
-    }
-    else
-    {
-      query= thd->query();
-      query_length= thd->query_length();
-    }
+
+    query= thd->query();
+    query_length= thd->query_length();
+    DBUG_ASSERT(query);
+
     if (mysql_bin_log.is_open())
     {
       int errcode= query_error_code(thd, TRUE);
@@ -936,9 +912,8 @@ update_binlog:
   else if (mysql_bin_log.is_open() && !silent)
   {
     char *query, *query_pos, *query_end, *query_data_start;
-    char temp_identifier[ 2 * FN_REFLEN + 2];
     TABLE_LIST *tbl;
-    uint db_len, id_length=0;
+    uint db_len;
 
     if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
       goto exit; /* not much else we can do */
@@ -950,9 +925,10 @@ update_binlog:
     {
       uint tbl_name_len;
       bool exists;
+      char quoted_name[FN_REFLEN+3];
 
       // Only write drop table to the binlog for tables that no longer exist.
-      if (check_if_table_exists(thd, tbl, &exists))
+      if (check_if_table_exists(thd, tbl, 0, &exists))
       {
         error= true;
         goto exit;
@@ -960,8 +936,8 @@ update_binlog:
       if (exists)
         continue;
 
-      /* 3 for the quotes and the comma*/
-      tbl_name_len= strlen(tbl->table_name) + 3;
+      my_snprintf(quoted_name, sizeof(quoted_name), "%`s", tbl->table_name);
+      tbl_name_len= strlen(quoted_name) + 1; /* +1 for the comma */
       if (query_pos + tbl_name_len + 1 >= query_end)
       {
         /*
@@ -975,10 +951,8 @@ update_binlog:
         }
         query_pos= query_data_start;
       }
-      id_length= my_strmov_quoted_identifier(thd, (char *)temp_identifier,
-                                      tbl->table_name, 0);
-      temp_identifier[id_length]= '\0';
-      query_pos= strmov(query_pos,(char *)&temp_identifier);
+
+      query_pos= strmov(query_pos, quoted_name);
       *query_pos++ = ',';
     }
 
@@ -1302,12 +1276,8 @@ static void mysql_change_db_impl(THD *thd,
       we just call THD::reset_db(). Since THD::reset_db() does not releases
       the previous database name, we should do it explicitly.
     */
-    mysql_mutex_lock(&thd->LOCK_thd_data);
-    if (thd->db)
-      my_free(thd->db);
-    DEBUG_SYNC(thd, "after_freeing_thd_db");
+    thd->set_db(NULL, 0);
     thd->reset_db(new_db_name->str, new_db_name->length);
-    mysql_mutex_unlock(&thd->LOCK_thd_data);
   }
 
   /* 2. Update security context. */
@@ -1372,13 +1342,9 @@ static inline bool
 cmp_db_names(const char *db1_name,
              const char *db2_name)
 {
-  return
-         /* db1 is NULL and db2 is NULL */
-         (!db1_name && !db2_name) ||
-
-         /* db1 is not-NULL, db2 is not-NULL, db1 == db2. */
-         (db1_name && db2_name &&
-         my_strcasecmp(system_charset_info, db1_name, db2_name) == 0);
+  return ((!db1_name && !db2_name) ||
+          (db1_name && db2_name &&
+           my_strcasecmp(system_charset_info, db1_name, db2_name) == 0));
 }
 
 
@@ -1451,12 +1417,9 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
   Security_context *sctx= thd->security_ctx;
   ulong db_access= sctx->db_access;
   CHARSET_INFO *db_default_cl;
-
   DBUG_ENTER("mysql_change_db");
-  DBUG_PRINT("enter",("name: '%s'", new_db_name->str));
 
-  if (new_db_name == NULL ||
-      new_db_name->length == 0)
+  if (new_db_name->length == 0)
   {
     if (force_switch)
     {
@@ -1465,8 +1428,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
         after loading stored program. The thing is that loading of stored
         program can happen when there is no current database.
 
-        TODO: actually, new_db_name and new_db_name->str seem to be always
-        non-NULL. In case of stored program, new_db_name->str == "" and
+        In case of stored program, new_db_name->str == "" and
         new_db_name->length == 0.
       */
 
@@ -1481,6 +1443,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
       DBUG_RETURN(TRUE);
     }
   }
+  DBUG_PRINT("enter",("name: '%s'", new_db_name->str));
 
   if (is_infoschema_db(new_db_name->str, new_db_name->length))
   {
@@ -1532,8 +1495,8 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
   db_access=
     test_all_bits(sctx->master_access, DB_ACLS) ?
     DB_ACLS :
-    acl_get(sctx->get_host()->ptr(),
-            sctx->get_ip()->ptr(),
+    acl_get(sctx->host,
+            sctx->ip,
             sctx->priv_user,
             new_db_file_name.str,
             FALSE) | sctx->master_access;
@@ -1681,7 +1644,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
 
   /* Lock the old name, the new name will be locked by mysql_create_db().*/
   if (lock_schema_name(thd, old_db->str))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(1);
 
   /*
     Let's remember if we should do "USE newdb" afterwards.

@@ -1,0 +1,14 @@
+create table t1 (a int) engine=myisam data directory='MYSQL_TMP_DIR';
+insert t1 values (1);
+repair table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	error	Can't create new tempfile: 'MYSQL_TMP_DIR/t1.TMD'
+test.t1	repair	status	Operation failed
+drop table t1;
+create table t2 (a int) engine=aria data directory='MYSQL_TMP_DIR';
+insert t2 values (1);
+repair table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	error	Can't create new tempfile: 'MYSQL_TMP_DIR/t2.TMD'
+test.t2	repair	status	Operation failed
+drop table t2;

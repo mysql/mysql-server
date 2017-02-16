@@ -1,0 +1,86 @@
+--source include/have_tokudb.inc
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+set default_storage_engine='tokudb';
+set tokudb_disable_slow_alter=1;
+
+create table t (a tinyblob);
+alter table t change column a aa tinyblob;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 blob;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 blob not null;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 mediumblob;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 mediumblob not null;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 longblob;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 longblob not null;
+
+drop table t;
+
+create table t (a blob);
+alter table t change column a aa blob;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 tinyblob;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 mediumblob;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 longblob;
+
+drop table t;
+
+create table t (a mediumblob);
+alter table t change column a aa mediumblob;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 tinyblob;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 blob;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 longblob;
+
+drop table t;
+
+create table t (a longblob);
+alter table t change column a aa longblob;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 tinyblob;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 blob;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 mediumblob;
+
+drop table t;

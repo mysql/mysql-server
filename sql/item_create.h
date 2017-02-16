@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
+   Copyright (c) 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -93,8 +94,9 @@ public:
     @param item_list The list of arguments to the function, can be NULL
     @return An item representing the parsed function call
   */
-  virtual Item* create(THD *thd, LEX_STRING db, LEX_STRING name,
-                       bool use_explicit_name, List<Item> *item_list) = 0;
+  virtual Item *create_with_db(THD *thd, LEX_STRING db, LEX_STRING name,
+                               bool use_explicit_name,
+                               List<Item> *item_list) = 0;
 
 protected:
   /** Constructor. */
@@ -166,8 +168,17 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
                  const char *len, const char *dec,
                  CHARSET_INFO *cs);
 
+
 int item_create_init();
 void item_create_cleanup();
 
+Item *create_func_dyncol_create(THD *thd, List<DYNCALL_CREATE_DEF> &list);
+Item *create_func_dyncol_add(THD *thd, Item *str,
+                             List<DYNCALL_CREATE_DEF> &list);
+Item *create_func_dyncol_delete(THD *thd, Item *str, List<Item> &nums);
+Item *create_func_dyncol_get(THD *thd, Item *num, Item *str,
+                             Cast_target cast_type,
+                             const char *c_len, const char *c_dec,
+                             CHARSET_INFO *cs);
 #endif
 

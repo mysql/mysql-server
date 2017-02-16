@@ -119,7 +119,7 @@ sp_rcontext::init_var_table(THD *thd)
     return TRUE;
 
   m_var_table->copy_blobs= TRUE;
-  m_var_table->alias= "";
+  m_var_table->alias.set("", 0, table_alias_charset);
 
   return FALSE;
 }
@@ -415,7 +415,7 @@ sp_rcontext::activate_handler(THD *thd,
     /* Reset error state. */
 
     thd->clear_error();
-    thd->killed= THD::NOT_KILLED; // Some errors set thd->killed
+    thd->reset_killed();          // Some errors set thd->killed
                                   // (e.g. "bad data").
 
     /* Return IP of the activated SQL handler. */
@@ -711,7 +711,7 @@ int Select_fetch_into_spvars::prepare(List<Item> &fields, SELECT_LEX_UNIT *u)
 }
 
 
-bool Select_fetch_into_spvars::send_data(List<Item> &items)
+int Select_fetch_into_spvars::send_data(List<Item> &items)
 {
   List_iterator_fast<struct sp_variable> spvar_iter(*spvar_list);
   List_iterator_fast<Item> item_iter(items);
@@ -728,7 +728,7 @@ bool Select_fetch_into_spvars::send_data(List<Item> &items)
   for (; spvar= spvar_iter++, item= item_iter++; )
   {
     if (thd->spcont->set_variable(thd, spvar->offset, &item))
-      return TRUE;
+      return 1;
   }
-  return FALSE;
+  return 0;
 }

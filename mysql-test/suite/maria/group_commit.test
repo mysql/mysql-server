@@ -1,0 +1,72 @@
+# Test different ways of syncing (mostly syntax)
+--source include/have_maria.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (a int);
+
+SET GLOBAL aria_group_commit="NONE";
+SET GLOBAL aria_group_commit_interval= 0;
+--disable_query_log
+let $num = 5000;
+while ($num)
+{
+  insert into t1 values (1);
+  dec $num;
+}
+--enable_query_log
+SET GLOBAL aria_group_commit="NONE";
+SET GLOBAL aria_group_commit_interval= 100;
+--disable_query_log
+let $num = 5000;
+while ($num)
+{
+  insert into t1 values (1);
+  dec $num;
+}
+--enable_query_log
+SET GLOBAL aria_group_commit="HARD";
+SET GLOBAL aria_group_commit_interval= 0;
+--disable_query_log
+let $num = 5000;
+while ($num)
+{
+  insert into t1 values (1);
+  dec $num;
+}
+--enable_query_log
+SET GLOBAL aria_group_commit="HARD";
+SET GLOBAL aria_group_commit_interval= 100;
+--disable_query_log
+let $num = 5000;
+while ($num)
+{
+  insert into t1 values (1);
+  dec $num;
+}
+--enable_query_log
+SET GLOBAL aria_group_commit="SOFT";
+SET GLOBAL aria_group_commit_interval= 0;
+--disable_query_log
+let $num = 5000;
+while ($num)
+{
+  insert into t1 values (1);
+  dec $num;
+}
+--enable_query_log
+SET GLOBAL aria_group_commit="SOFT";
+SET GLOBAL aria_group_commit_interval= 100;
+--disable_query_log
+let $num = 5000;
+while ($num)
+{
+  insert into t1 values (1);
+  dec $num;
+}
+--enable_query_log
+SET GLOBAL aria_group_commit="NONE";
+SET GLOBAL aria_group_commit_interval= 0;
+drop table t1;

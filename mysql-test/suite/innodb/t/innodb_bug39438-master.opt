@@ -1,1 +1,1 @@
---innodb-file-per-table=1
+--loose-innodb-file-per-table=1

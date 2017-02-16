@@ -3,8 +3,8 @@
 #   RBR breaks for CHAR() UTF8 fields > 85 chars
 #############################################################
 
-source include/master-slave.inc;
 source include/have_binlog_format_row.inc;
+source include/master-slave.inc;
 
 connection master;
 CREATE TABLE char128_utf8 (i1 INT NOT NULL, c CHAR(128) CHARACTER SET utf8 NOT NULL, i2 INT NOT NULL);

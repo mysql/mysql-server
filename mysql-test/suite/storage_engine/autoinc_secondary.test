@@ -1,0 +1,73 @@
+# 
+# AUTO_INCREMENT on a secondary column in a multi-part key
+#
+
+--source have_engine.inc
+--source have_default_index.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# 
+# AUTO_INCREMENT is the primary column in a multiple-column index
+#
+
+--let $create_definition = a $int_col AUTO_INCREMENT, b $char_col, PRIMARY KEY (a,b)
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $functionality = Multi-part keys or PK or AUTO_INCREMENT (on a primary column)
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (b) VALUES ('a'),('b'),('b'),('c'),('a');
+  SELECT LAST_INSERT_ID();
+  --sorted_result
+  SELECT a,b FROM t1;
+  DROP TABLE t1;
+}
+
+# 
+# AUTO_INCREMENT is the secondary column in a multiple-column index
+#
+
+--let $create_definition = a $char_col, b $int_col AUTO_INCREMENT, PRIMARY KEY (a,b)
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $functionality = Multi-part keys or PK or AUTO_INCREMENT (on a secondary column)
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a) VALUES ('a'),('b'),('b'),('c'),('a');
+  SELECT LAST_INSERT_ID();
+  --sorted_result
+  SELECT a,b FROM t1;
+  DROP TABLE t1;
+}
+
+# AUTO_INCREMENT is the secondary column in a multiple-column index,
+# and primary in another index
+#
+
+--let $create_definition = a $char_col, b $int_indexed_col AUTO_INCREMENT, PRIMARY KEY (a,b), $default_index(b)
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $functionality = Multi-part keys or AUTO_INCREMENT (on the secondary column) or multiple keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a) VALUES ('a'),('b'),('b'),('c'),('a');
+  SELECT LAST_INSERT_ID();
+  --sorted_result
+  SELECT a,b FROM t1;
+  DROP TABLE t1;
+}
+
+--source cleanup_engine.inc
+

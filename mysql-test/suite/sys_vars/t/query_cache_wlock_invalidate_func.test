@@ -181,7 +181,7 @@ LOCK TABLE t1 WRITE;
 UNLOCK TABLES;
 
 SHOW STATUS LIKE 'Qcache_queries_in_cache';
---echo 1 Expected
+--echo 0 Expected
 
 --echo '#----------------------------FN_DYNVARS_136_04---------------------#'
 #

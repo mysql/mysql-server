@@ -1,0 +1,156 @@
+########################################################################
+# WL47: Store in binlog text of statements that caused RBR events
+# new event          : ANNOTATE_ROWS_EVENT
+# new master option  : --binlog-annotate-row-events
+# new slave option   : --replicate-annotate-row-events
+########################################################################
+--source include/master-slave.inc
+connect (master2,127.0.0.1,root,,test,$MASTER_MYPORT,);
+
+connection master;
+--disable_query_log
+
+--disable_warnings
+DROP DATABASE IF EXISTS test1;
+--enable_warnings
+
+CREATE DATABASE test1;
+USE test1;
+
+CREATE TABLE t1(a int primary key, b int);
+CREATE TABLE t2(a int, b int);
+CREATE TABLE t3(a int, b int);
+CREATE TABLE t4(a int, b int);
+CREATE TABLE xt1(a int, b int);
+CREATE TABLE xt2(a int, b int);
+
+CREATE TABLE t5 (
+    a INT PRIMARY KEY AUTO_INCREMENT,
+    b VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_bin
+);
+
+SET SESSION binlog_annotate_row_events = OFF;
+
+INSERT INTO t1 VALUES (0,0), (1,1);
+
+SET SESSION binlog_annotate_row_events = ON;
+
+UPDATE t1 SET b = b + 1;
+REPLACE t1 VALUES (1,1), (2,2), (3,3);
+
+INSERT INTO t2 VALUES (1,1), (2,2), (3,3);
+INSERT INTO t3 VALUES (1,1), (2,2), (3,3);
+DELETE t1, t2 FROM t1 INNER JOIN t2 INNER JOIN t3 WHERE t1.a=t2.a AND t2.a=t3.a;
+
+INSERT INTO xt1 VALUES (1,1), (2,2), (3,3);
+INSERT INTO t2 VALUES (1,1), (2,2), (3,3);
+DELETE xt1, t2 FROM xt1 INNER JOIN t2 INNER JOIN t3 WHERE xt1.a=t2.a AND t2.a=t3.a;
+
+INSERT INTO xt1 VALUES (1,1), (2,2), (3,3);
+INSERT INTO xt2 VALUES (1,1), (2,2), (3,3);
+DELETE xt1, xt2 FROM xt1 INNER JOIN xt2 INNER JOIN t3 WHERE xt1.a=xt2.a AND xt2.a=t3.a;
+
+INSERT INTO t5(b) VALUES ('foo'), ('bar'), ('baz');
+SET NAMES latin1;
+INSERT INTO t5(b) VALUES ('gås');
+SET NAMES utf8;
+INSERT INTO t5(b) VALUES ('gÃ¥s');
+SET NAMES latin1;
+
+FLUSH LOGS;
+
+--echo ########################################################################
+--echo # TABLES ON MASTER
+--echo ########################################################################
+--enable_query_log
+
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+SELECT * FROM t3 ORDER BY a;
+SELECT * FROM t5 ORDER BY a;
+
+sync_slave_with_master;
+--echo ########################################################################
+--echo # TABLES ON SLAVE: should be the same as on master
+--echo ########################################################################
+--disable_query_log
+USE test1;
+--enable_query_log
+
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+SELECT * FROM t3 ORDER BY a;
+SELECT * FROM t5 ORDER BY a;
+
+--echo ########################################################################
+--echo # EVENTS ON SLAVE
+let $annotate= `select @@global.replicate_annotate_row_events`;
+if ($annotate)
+{
+  --echo # The following Annotate_rows events should appear below:
+  --echo # - UPDATE t1 SET b = b + 1;
+  --echo # - REPLACE t1 VALUES (1,1), (2,2), (3,3);
+  --echo # - INSERT INTO t2 VALUES (1,1), (2,2), (3,3)
+  --echo # - INSERT INTO t3 VALUES (1,1), (2,2), (3,3)
+  --echo # - DELETE t1, t2 FROM <...>
+  --echo # - INSERT INTO t2 VALUES (1,1), (2,2), (3,3)
+  --echo # - DELETE xt1, t2 FROM <...>
+  --echo # - INSERT INTO t5(b) VALUES <...> (3 instances)
+}
+if (!$annotate)
+{
+  --echo # No Annotate_rows events should appear below
+}
+--echo ########################################################################
+FLUSH LOGS;
+
+--source include/binlog_start_pos.inc
+let $start_pos= `select @binlog_start_pos`;
+--replace_column 2 # 5 #
+--replace_result $start_pos <start_pos>
+--replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
+--eval show binlog events in 'slave-bin.000001' from $start_pos
+
+--echo # 
+--echo ########################################################################
+--echo # INSERTs DELAYED ON MASTERs
+--echo ########################################################################
+connection master;
+SET SESSION binlog_annotate_row_events = ON;
+INSERT DELAYED INTO test1.t4 VALUES (1,1);
+FLUSH TABLES;
+SELECT * FROM test1.t4 ORDER BY a;
+
+sync_slave_with_master;
+connection master;
+sync_slave_with_master;
+
+--echo ########################################################################
+--echo # ON SLAVE
+--echo # No Annotate_rows events should appear below
+--echo ########################################################################
+FLUSH LOGS;
+
+--exec $MYSQL --host=127.0.0.1 --port=$SLAVE_MYPORT test -e "show binlog events in 'slave-bin.000002'" > $MYSQLTEST_VARDIR/tmp/annotated_events.txt
+perl;
+    open F, '<', "$ENV{MYSQLTEST_VARDIR}/tmp/annotated_events.txt" or die;
+    binmode STDOUT;
+    while (defined ($_ = <F>)) {
+        if (/Annotate_rows/) {
+            s/[0-9]+\sAnnotate_rows\s[0-9]+\s[0-9]+/# Annotate_rows # #/;
+            print($_);
+            $_ = <F>;
+            s/[0-9]+\sTable_map\s[0-9]+\s[0-9]+\stable_id:\s[0-9]+/# Table_map # # table_id: #/;
+            print($_);
+        }
+    }
+EOF
+
+# Clean-up
+connection master;
+--disable_query_log
+DROP DATABASE test1;
+sync_slave_with_master;
+--enable_query_log
+
+--source include/rpl_end.inc

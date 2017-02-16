@@ -1,8 +1,7 @@
+--source include/have_innodb.inc
 #
 # Bug #56947 valgrind reports a memory leak in innodb-plugin.innodb-index
 #
--- source include/have_innodb.inc
-
 SET @old_innodb_file_per_table=@@innodb_file_per_table;
 # avoid a message about filed *.ibd file creation in the error log
 SET GLOBAL innodb_file_per_table=0;

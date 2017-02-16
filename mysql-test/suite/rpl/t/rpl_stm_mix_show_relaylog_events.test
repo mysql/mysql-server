@@ -12,8 +12,8 @@
 #   This test issues SHOW [BINLOG|RELAYLOG] EVENTS both on master and slave after 
 #   some statements have been issued.
 
--- source include/master-slave.inc
 -- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/master-slave.inc
 
 -- source extra/rpl_tests/rpl_show_relaylog_events.inc
 --source include/rpl_end.inc

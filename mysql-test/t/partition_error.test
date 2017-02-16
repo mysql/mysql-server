@@ -760,7 +760,7 @@ PARTITION BY RANGE (UNIX_TIMESTAMP(c))
 
 CREATE TABLE t1 (c TIMESTAMP)
 PARTITION BY RANGE (UNIX_TIMESTAMP(c))
-(PARTITION p0 VALUES LESS THAN (UNIX_TIMESTAMP('2000-01-01 00:00:00')),
+(PARTITION p0 VALUES LESS THAN (UNIX_TIMESTAMP(20000101000000)),
  PARTITION p1 VALUES LESS THAN (MAXVALUE));
 DROP TABLE t1;
 
@@ -783,6 +783,7 @@ DROP TABLE t1;
 --echo #
 --echo # Bug#42954: SQL MODE 'NO_DIR_IN_CREATE' does not work with
 --echo #            subpartitions
+let $curr_engine=`select @@default_storage_engine`;
 SET @org_mode=@@sql_mode;
 SET @@sql_mode='NO_DIR_IN_CREATE';
 SELECT @@sql_mode;
@@ -792,7 +793,7 @@ SUBPARTITION BY HASH(TO_DAYS(purchased))
 (PARTITION p0 VALUES LESS THAN MAXVALUE
   DATA DIRECTORY = '/tmp/not-existing' 
   INDEX DIRECTORY = '/tmp/not-existing');
---replace_result MyISAM <curr_engine> InnoDB <curr_engine>
+--replace_result $curr_engine <curr_engine>
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 CREATE TABLE t1 (id INT, purchased DATE)
@@ -803,7 +804,7 @@ SUBPARTITION BY HASH(TO_DAYS(purchased)) SUBPARTITIONS 2
    DATA DIRECTORY = '/tmp/not-existing' 
    INDEX DIRECTORY = '/tmp/not-existing',
   SUBPARTITION sp1));
---replace_result MyISAM <curr_engine> InnoDB <curr_engine>
+--replace_result $curr_engine <curr_engine>
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 CREATE TABLE t1 (id INT, purchased DATE)
@@ -811,7 +812,7 @@ PARTITION BY RANGE(YEAR(purchased))
 (PARTITION p0 VALUES LESS THAN MAXVALUE
   DATA DIRECTORY = '/tmp/not-existing' 
   INDEX DIRECTORY = '/tmp/not-existing');
---replace_result MyISAM <curr_engine> InnoDB <curr_engine>
+--replace_result $curr_engine <curr_engine>
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 SET @@sql_mode= @org_mode;
@@ -2004,3 +2005,14 @@ PARTITION pmax VALUES LESS THAN MAXVALUE);
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+
+#
+# MDEV-7113 difference between check_vcol_func_processor and check_partition_func_processor
+#
+--error ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
+create table t1 (a int) partition by list (values(a) div 1) (partition p0 values in (0), partition p1 values in (1));
+
+--error ER_PARSE_ERROR
+create table t1 (a int) partition by list (uuid_short()) (partition p0 values in (0), partition p1 values in (1));
+
+--echo End of 5.5 tests

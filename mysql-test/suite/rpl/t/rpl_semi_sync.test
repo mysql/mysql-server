@@ -19,6 +19,10 @@ call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received w
 enable_query_log;
 connection master;
 
+# wait for dying connections (if any) to disappear
+let $wait_condition= select count(*) = 0 from information_schema.processlist where command='killed';
+--source include/wait_condition.inc
+
 # After fix of BUG#45848, semi-sync slave should not create any extra
 # connections on master, save the count of connections before start
 # semi-sync slave for comparison below.
@@ -62,7 +66,7 @@ let $value = query_get_value(show variables like 'rpl_semi_sync_master_enabled',
 if ($value == No such row)
 {
     set sql_log_bin=0;
-    eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+    eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_SO';
     set global rpl_semi_sync_master_timeout= 60000; /* 60s */
     set sql_log_bin=1;
 }
@@ -127,7 +131,7 @@ let $value= query_get_value(show variables like 'rpl_semi_sync_slave_enabled', V
 if ($value == No such row)
 {
     set sql_log_bin=0;
-    eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
+    eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_SO';
     set sql_log_bin=1;
 }
 enable_query_log;
@@ -166,8 +170,7 @@ show status like 'Rpl_semi_sync_master_yes_tx';
 # After fix of BUG#45848, semi-sync slave should not create any extra
 # connections on master.
 let $_connections_semisync_slave= query_get_value(SHOW STATUS LIKE 'Threads_connected', Value, 1);
-replace_result $_connections_semisync_slave CONNECTIONS_SEMISYNC_SLAVE;
-replace_result $_connections_normal_slave CONNECTIONS_NORMAL_SLAVE;
+replace_result $_connections_normal_slave CONNECTIONS_NORMAL_SLAVE $_connections_semisync_slave CONNECTIONS_SEMISYNC_SLAVE;
 eval select $_connections_semisync_slave - $_connections_normal_slave as 'Should be 0';
 
 let $i=10;
@@ -460,14 +463,14 @@ if ($_tid)
 # Do not binlog the following statement because it will generate
 # different events for ROW and STATEMENT format
 set sql_log_bin=0;
-grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
+grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl_password';
 flush privileges;
 set sql_log_bin=1;
 connection slave;
 echo [ on slave ];
-grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
+grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl_password';
 flush privileges;
-change master to master_user='rpl',master_password='rpl';
+change master to master_user='rpl',master_password='rpl_password';
 source include/start_slave.inc;
 show status like 'Rpl_semi_sync_slave_status';
 connection master;
@@ -569,8 +572,8 @@ SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
 
 connection master;
 set sql_log_bin=0;
-replace_result $SEMISYNC_MASTER_PLUGIN SEMISYNC_MASTER_PLUGIN;
-eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+replace_result $SEMISYNC_MASTER_SO SEMISYNC_MASTER_SO;
+eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_SO';
 set global rpl_semi_sync_master_timeout= 5000; /* 5s */
 set sql_log_bin=1;
 set global rpl_semi_sync_master_enabled= 1;
@@ -588,8 +591,8 @@ SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
 source include/stop_slave.inc;
 
 echo [ reinstall semi-sync slave plugin and disable semi-sync ];
-replace_result $SEMISYNC_SLAVE_PLUGIN SEMISYNC_SLAVE_PLUGIN;
-eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
+replace_result $SEMISYNC_SLAVE_SO SEMISYNC_SLAVE_SO;
+eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_SO';
 set global rpl_semi_sync_slave_enabled= 0;
 SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
 SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';

@@ -1,0 +1,47 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+REPLACE INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
+SELECT a,b FROM t1;
+a	b
+1	a
+2	b
+3	c
+4	d
+5	e
+REPLACE t1 (a,b) VALUE (10,'foo'),(10,'foo');
+SELECT a,b FROM t1;
+a	b
+1	a
+10	foo
+10	foo
+2	b
+3	c
+4	d
+5	e
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>, UNIQUE INDEX (a)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+REPLACE INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c');
+INSERT INTO t1 (a,b) VALUES (2,'d');
+ERROR 23000: Duplicate entry '2' for key 'a'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+REPLACE INTO t1 (a,b) VALUES (2,'d');
+SELECT a,b FROM t1;
+a	b
+1	a
+2	d
+3	c
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>, PRIMARY KEY (b)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+REPLACE INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c');
+INSERT INTO t1 (a,b) VALUES (4,'b');
+ERROR 23000: Duplicate entry 'b' for key 'PRIMARY'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+REPLACE INTO t1 (a,b) VALUES (4,'b');
+SELECT a,b FROM t1;
+a	b
+1	a
+3	c
+4	b
+DROP TABLE t1;

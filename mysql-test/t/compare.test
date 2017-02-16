@@ -86,3 +86,11 @@ SELECT * FROM t1 WHERE a > '2008-01-01' AND a = '0000-00-00';
 DROP TABLE t1;
 
 --echo End of 5.0 tests
+
+#
+# Bug #11764818 57692: Crash in item_func_in::val_int() with ZEROFILL
+#
+
+CREATE TABLE t1(a INT ZEROFILL);
+SELECT 1 FROM t1 WHERE t1.a IN (1, t1.a) AND t1.a=2;
+DROP TABLE t1;

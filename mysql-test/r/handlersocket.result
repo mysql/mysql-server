@@ -1,0 +1,14 @@
+install plugin handlersocket soname 'handlersocket.so';
+select plugin_name, plugin_version, plugin_status, plugin_type, plugin_library, plugin_library_version, plugin_author, plugin_description, plugin_license, plugin_maturity, plugin_auth_version from information_schema.plugins where plugin_name = 'handlersocket';
+plugin_name	handlersocket
+plugin_version	1.0
+plugin_status	ACTIVE
+plugin_type	DAEMON
+plugin_library	handlersocket.so
+plugin_library_version	1.4
+plugin_author	higuchi dot akira at dena dot jp
+plugin_description	Direct access into InnoDB
+plugin_license	BSD
+plugin_maturity	Beta
+plugin_auth_version	1.0
+uninstall plugin handlersocket;

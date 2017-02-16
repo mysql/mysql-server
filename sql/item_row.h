@@ -1,7 +1,8 @@
 #ifndef ITEM_ROW_INCLUDED
 #define ITEM_ROW_INCLUDED
 
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2002, 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,17 +64,20 @@ public:
     return 0;
   };
   bool fix_fields(THD *thd, Item **ref);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
   void cleanup();
   void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
   table_map used_tables() const { return used_tables_cache; };
   bool const_item() const { return const_item_cache; };
   enum Item_result result_type() const { return ROW_RESULT; }
+  Item_result cmp_type() const { return ROW_RESULT; }
   void update_used_tables();
   table_map not_null_tables() const { return not_null_tables_cache; }
   virtual void print(String *str, enum_query_type query_type);
 
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
+  bool eval_not_null_tables(uchar *opt_arg);
 
   uint cols() { return arg_count; }
   Item* element_index(uint i) { return items[i]; }
@@ -81,6 +85,7 @@ public:
   bool check_cols(uint c);
   bool null_inside() { return with_null; };
   void bring_value();
+  bool check_vcol_func_processor(uchar *int_arg) {return FALSE; } 
 };
 
 #endif /* ITEM_ROW_INCLUDED */

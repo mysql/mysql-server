@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2010, Oracle and/or its affiliates
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -55,6 +55,9 @@ WARNING: THIS PROGRAM IS STILL IN BETA. Comments/patches welcome.
 =cut
 
 # Documentation continued at end of file
+
+# fix CORE::GLOBAL::die to return a predictable exit code
+BEGIN { *CORE::GLOBAL::die= sub { warn @_; exit 1; }; }
 
 my $VERSION = "1.23";
 
@@ -928,7 +931,7 @@ A sample log-pos table definition:
 
 CREATE TABLE log_pos (
   host            varchar(60) NOT null,
-  time_stamp      timestamp(14) NOT NULL,
+  time_stamp      timestamp NOT NULL,
   log_file        varchar(32) default NULL,
   log_pos         int(11)     default NULL,
   master_host     varchar(60) NULL,

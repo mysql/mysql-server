@@ -101,6 +101,128 @@ DROP TABLE t1;
 
 --echo End of 5.1 tests
 
+create table t1 (a time);
+insert t1 values (-131415);
+select * from t1;
+drop table t1;
+
+#
+# lp:731229 Different results depending on table access method with TIME column and CURDATE()
+#
+create table t1 (f1 time , f2 varchar(5), key(f1));
+insert into t1 values ('00:20:01','a'),('00:20:03','b');
+select * from t1 force key (f1) where f1 < curdate();
+select * from t1 ignore key (f1) where f1 < curdate();
+drop table t1;
+
+#
+# comparison of time and datetime:
+#
+create table t1(f1 time);
+insert into t1 values ('23:38:57');
+select f1, f1 = '2010-10-11 23:38:57' from t1;
+drop table t1;
+
+--echo #
+--echo # MDEV-4634 Crash in CONVERT_TZ
+--echo #
+SELECT CONVERT_TZ(GREATEST(TIME('00:00:00'),TIME('00:00:00')),'+00:00','+7:5');
+
+--echo #
+--echo # MDEV-4652 Wrong result for CONCAT(GREATEST(TIME('00:00:01'),TIME('00:00:00')))
+--echo #
+SELECT CONCAT(GREATEST(TIME('00:00:01'),TIME('00:00:00')));
+SELECT CONCAT(GREATEST(TIME('32 00:00:01'),TIME('00:00:00')));
+
+--echo #
+--echo # MDEV-4859 Wrong value and data type of "SELECT MAX(time_column) + 1 FROM t1"
+--echo #
+CREATE TABLE t1 (t0 TIME);
+INSERT INTO t1 VALUES ('10:10:10');
+SELECT MAX(t0)+1 FROM t1;
+CREATE TABLE t2 AS SELECT MAX(t0)+1 FROM t1;
+SELECT * FROM t2;
+SHOW COLUMNS FROM t2;
+DROP TABLE t2,t1;
+
+CREATE TABLE t1 (t0 TIME);
+INSERT INTO t1 VALUES ('10:10:10');
+SELECT MAX(t0)+1.1 FROM t1;
+CREATE TABLE t2 AS SELECT MAX(t0)+1.1 FROM t1;
+SELECT * FROM t2;
+SHOW COLUMNS FROM t2;
+DROP TABLE t2,t1;
+
+CREATE TABLE t1 (t0 TIME);
+INSERT INTO t1 VALUES ('10:10:10');
+SELECT MAX(t0)+1e0 FROM t1;
+CREATE TABLE t2 AS SELECT MAX(t0)+1e0 FROM t1;
+SELECT * FROM t2;
+SHOW COLUMNS FROM t2;
+DROP TABLE t2,t1;
+
+CREATE TABLE t1 (t1 TIME(1));
+INSERT INTO t1 VALUES ('10:10:10');
+SELECT MAX(t1)+1 FROM t1;
+CREATE TABLE t2 AS SELECT MAX(t1)+1 FROM t1;
+SELECT * FROM t2;
+SHOW COLUMNS FROM t2;
+DROP TABLE t2,t1;
+
+CREATE TABLE t1 (t0 DATETIME);
+INSERT INTO t1 VALUES ('2001-01-01 10:10:10');
+SELECT MAX(t0)+1 FROM t1;
+CREATE TABLE t2 AS SELECT MAX(t0)+1 FROM t1;
+SELECT * FROM t2;
+SHOW COLUMNS FROM t2;
+DROP TABLE t2,t1;
+
+CREATE TABLE t1 (t0 DATETIME);
+INSERT INTO t1 VALUES ('2001-01-01 10:10:10');
+SELECT MAX(t0)+1.1 FROM t1;
+CREATE TABLE t2 AS SELECT MAX(t0)+1.1 FROM t1;
+SELECT * FROM t2;
+SHOW COLUMNS FROM t2;
+DROP TABLE t2,t1;
+
+CREATE TABLE t1 (t0 DATETIME);
+INSERT INTO t1 VALUES ('2001-01-01 10:10:10');
+SELECT MAX(t0)+1e0 FROM t1;
+CREATE TABLE t2 AS SELECT MAX(t0)+1e0 FROM t1;
+SELECT * FROM t2;
+SHOW COLUMNS FROM t2;
+DROP TABLE t2,t1;
+
+CREATE TABLE t1 (t1 DATETIME(1));
+INSERT INTO t1 VALUES ('2001-01-01 10:10:10');
+SELECT MAX(t1)+1 FROM t1;
+CREATE TABLE t2 AS SELECT MAX(t1)+1 FROM t1;
+SELECT * FROM t2;
+SHOW COLUMNS FROM t2;
+DROP TABLE t2,t1;
+
+--echo #
+--echo # MDEV-4858 Wrong results for a huge unsigned value inserted into a TIME column
+--echo #
+SET sql_mode=traditional;
+CREATE TABLE t1 (a TIME(6));
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 VALUES (CAST(0xFFFFFFFF00000000 AS UNSIGNED)); 
+SET sql_mode=DEFAULT;
+INSERT INTO t1 VALUES (CAST(0xFFFFFFFF00000000 AS UNSIGNED)); 
+SELECT * FROM t1;
+DROP TABLE t1;
+SELECT TIME'00:00:00'> CAST(0xFFFFFFFF00000000 AS UNSIGNED);
+
+--echo #
+--echo # MDEV-6100 No warning on CAST(9000000 AS TIME)
+--echo #
+SELECT CAST(9000000 AS TIME);
+
+--echo #
+--echo # End of 5.3 tests
+--echo #
+
 #
 # Bug#42664 - Sign ignored for TIME types when not comparing as longlong
 #
@@ -117,4 +239,14 @@ SELECT CAST('-24:00:00' AS TIME) = (SELECT f1 FROM t1);
 SELECT '-24:00:00' = (SELECT f1 FROM t1);
 DROP TABLE t1;
 
---echo End of 6.0 tests
+--echo #
+--echo # MDEV-6592 Assertion `ltime->day == 0' failed with TIMESTAMP, MAKETIME
+--echo #
+CREATE TABLE t1 (d DATE, c VARCHAR(10), KEY(d))  engine=myisam;
+INSERT INTO t1 VALUES ('2008-10-02','2008-10-02'), ('2008-10-02','2008-10-02');
+SELECT * FROM t1 WHERE TIMESTAMP(c,'02:04:42') AND d <=> MAKETIME(97,0,7);
+DROP TABLE t1;
+
+--echo #
+--echo # End of 5.5 tests
+--echo #

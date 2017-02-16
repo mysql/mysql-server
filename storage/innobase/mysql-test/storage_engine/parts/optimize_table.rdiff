@@ -1,0 +1,58 @@
+--- suite/storage_engine/parts/optimize_table.result	2013-07-18 22:55:38.000000000 +0400
++++ suite/storage_engine/parts/optimize_table.reject	2013-08-05 19:45:19.000000000 +0400
+@@ -9,18 +9,22 @@
+ INSERT INTO t1 (a,b) VALUES (3,'c'),(4,'d');
+ ALTER TABLE t1 OPTIMIZE PARTITION p1;
+ Table	Op	Msg_type	Msg_text
++test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
+ test.t1	optimize	status	OK
+ INSERT INTO t2 (a,b) VALUES (4,'d');
+ ALTER TABLE t2 OPTIMIZE PARTITION p0 NO_WRITE_TO_BINLOG;
+ Table	Op	Msg_type	Msg_text
++test.t2	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
+ test.t2	optimize	status	OK
+ INSERT INTO t1 (a,b) VALUES (6,'f');
+ ALTER TABLE t1 OPTIMIZE PARTITION ALL LOCAL;
+ Table	Op	Msg_type	Msg_text
++test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
+ test.t1	optimize	status	OK
+ INSERT INTO t2 (a,b) VALUES (5,'e');
+ ALTER TABLE t2 OPTIMIZE PARTITION p1,p0;
+ Table	Op	Msg_type	Msg_text
++test.t2	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
+ test.t2	optimize	status	OK
+ DROP TABLE t1, t2;
+ DROP TABLE IF EXISTS t1,t2;
+@@ -30,25 +34,32 @@
+ INSERT INTO t1 (a,b) VALUES (3,'c'),(4,'d');
+ OPTIMIZE TABLE t1;
+ Table	Op	Msg_type	Msg_text
++test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+ test.t1	optimize	status	OK
+ INSERT INTO t2 (a,b) VALUES (4,'d');
+ OPTIMIZE NO_WRITE_TO_BINLOG TABLE t2;
+ Table	Op	Msg_type	Msg_text
++test.t2	optimize	note	Table does not support optimize, doing recreate + analyze instead
+ test.t2	optimize	status	OK
+ INSERT INTO t2 (a,b) VALUES (5,'e');
+ INSERT INTO t1 (a,b) VALUES (6,'f');
+ OPTIMIZE LOCAL TABLE t1, t2;
+ Table	Op	Msg_type	Msg_text
++test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+ test.t1	optimize	status	OK
++test.t2	optimize	note	Table does not support optimize, doing recreate + analyze instead
+ test.t2	optimize	status	OK
+ OPTIMIZE TABLE t1, t2;
+ Table	Op	Msg_type	Msg_text
++test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+ test.t1	optimize	status	OK
++test.t2	optimize	note	Table does not support optimize, doing recreate + analyze instead
+ test.t2	optimize	status	OK
+ DROP TABLE t1, t2;
+ CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>, <CUSTOM_INDEX> (a)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
+ INSERT INTO t1 (a,b) VALUES (1,'a'),(100,'b'),(2,'c'),(3,'d');
+ OPTIMIZE TABLE t1;
+ Table	Op	Msg_type	Msg_text
++test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+ test.t1	optimize	status	OK
+ DROP TABLE t1;

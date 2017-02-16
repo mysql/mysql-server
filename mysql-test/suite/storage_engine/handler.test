@@ -1,0 +1,81 @@
+# 
+# Basic HANDLER syntax
+#
+# HANDLER .. READ <index_name> is covered in handler_index test
+#
+
+--source have_engine.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--let $create_definition = a $char_col, b $int_col
+--source create_table.inc
+INSERT INTO t1 (a,b) VALUES ('foobar',1000),('a',1),('bar',200),('foo',100);
+
+HANDLER t1 OPEN AS h1;
+if ($mysql_errname)
+{
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --let $error_codes = ER_UNKNOWN_TABLE
+  HANDLER t1 READ FIRST;
+  --source check_errors.inc
+  HANDLER h1 READ FIRST;
+  HANDLER h1 READ NEXT;
+  HANDLER h1 READ FIRST WHERE a < 'foo';
+  HANDLER h1 READ NEXT;
+  HANDLER h1 READ NEXT;
+  HANDLER h1 READ NEXT;
+  HANDLER h1 READ FIRST LIMIT 2;
+  HANDLER h1 READ NEXT;
+  HANDLER h1 READ NEXT WHERE b>500 LIMIT 2;
+  HANDLER t1 OPEN;
+  HANDLER h1 READ FIRST WHERE b>500 LIMIT 5;
+  HANDLER t1 READ NEXT;
+  HANDLER h1 READ NEXT WHERE b<100;
+  HANDLER t1 CLOSE;
+  HANDLER h1 READ FIRST;
+  --let $error_codes = ER_UNKNOWN_TABLE
+  HANDLER t1 CLOSE;
+  --source check_errors.inc
+}
+
+DROP TABLE t1;
+
+--let $error_codes = ER_UNKNOWN_TABLE
+HANDLER h1 CLOSE;
+--source check_errors.inc
+
+--let $continue = 1
+--source have_default_index.inc
+
+if ($have_default_index)
+{
+  --let $create_definition = a $int_indexed_col, b $char_col, $default_index (a)
+  --source create_table.inc
+  INSERT INTO t1 (b,a) VALUES ('a',1),('b',200),('f',100),('b',101),('c',2);
+  if ($mysql_errname)
+  {
+    --source unexpected_result.inc
+  }
+  HANDLER t1 OPEN AS h1;
+  if (!$mysql_errname)
+  {
+    HANDLER h1 READ a = (100);
+    HANDLER h1 READ a <= (100) WHERE b < 'f';
+    HANDLER h1 READ a > (2) WHERE b IS NOT NULL LIMIT 2;
+    HANDLER h1 READ a FIRST;
+    HANDLER h1 READ a LAST;
+    HANDLER h1 READ a PREV;
+    HANDLER h1 READ a NEXT;
+    HANDLER h1 CLOSE;
+  }
+  DROP TABLE t1;
+}
+
+--source cleanup_engine.inc
+

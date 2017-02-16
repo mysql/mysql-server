@@ -1,0 +1,17 @@
+#
+# MDEV-256 lp:995501 - mysqltest attempts to parse Perl code inside a block
+# with false condition, gets confused and throws wrong errors
+#
+
+let $run = 0;
+if ($run)
+{
+  --perl
+  foreach (1)
+  {
+    print "In perl\n";
+  }
+  EOF
+  SELECT 1;
+}
+--echo # Done

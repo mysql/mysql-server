@@ -1,0 +1,7 @@
+SET @@DEFAULT_STORAGE_ENGINE = tokudb;
+*** Bug #23818_A ***
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a int, b varchar(1100));
+INSERT INTO t1 VALUES (0,null),(0,null),(0,null);
+CREATE INDEX i1 ON t1 (b);
+DROP TABLE t1;

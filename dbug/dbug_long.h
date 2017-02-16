@@ -116,16 +116,10 @@
 #    define DBUG_VOID_RETURN return
 #    define DBUG_EXECUTE(keyword,a1)
 #    define DBUG_PRINT(keyword,arglist)
-#    define DBUG_2(keyword,format)		/* Obsolete */
-#    define DBUG_3(keyword,format,a1)		/* Obsolete */
-#    define DBUG_4(keyword,format,a1,a2)	/* Obsolete */
-#    define DBUG_5(keyword,format,a1,a2,a3)	/* Obsolete */
 #    define DBUG_PUSH(a1)
 #    define DBUG_POP()
 #    define DBUG_PROCESS(a1)
 #    define DBUG_FILE (stderr)
-#    define DBUG_SETJMP setjmp
-#    define DBUG_LONGJMP longjmp
 #    define DBUG_DUMP(keyword,a1)
 # else
 #    define DBUG_ENTER(a) \
@@ -142,19 +136,9 @@
 	      {if (_db_on_) {if (_db_keyword_ (keyword)) { a1 }}}
 #    define DBUG_PRINT(keyword,arglist) \
 	      {if (_db_on_) {_db_pargs_(__LINE__,keyword); _db_doprnt_ arglist;}}
-#    define DBUG_2(keyword,format) \
-	      DBUG_PRINT(keyword,(format))	      /* Obsolete */
-#    define DBUG_3(keyword,format,a1) \
-	      DBUG_PRINT(keyword,(format,a1))	      /* Obsolete */
-#    define DBUG_4(keyword,format,a1,a2) \
-	      DBUG_PRINT(keyword,(format,a1,a2))      /* Obsolete */
-#    define DBUG_5(keyword,format,a1,a2,a3) \
-	      DBUG_PRINT(keyword,(format,a1,a2,a3))   /* Obsolete */
 #    define DBUG_PUSH(a1) _db_push_ (a1)
 #    define DBUG_POP() _db_pop_ ()
 #    define DBUG_PROCESS(a1) (_db_process_ = a1)
 #    define DBUG_FILE (_db_fp_)
-#    define DBUG_SETJMP(a1) (_db_setjmp_ (), setjmp (a1))
-#    define DBUG_LONGJMP(a1,a2) (_db_longjmp_ (), longjmp (a1, a2))
 #    define DBUG_DUMP(keyword,a1,a2) _db_dump_(__LINE__,keyword,a1,a2)
 # endif

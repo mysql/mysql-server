@@ -1,0 +1,22 @@
+include/master-slave.inc
+[connection master]
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+CREATE TABLE t1 (pr_id int(10) unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY, pr_page int(11) NOT NULL, pr_type varbinary(60) NOT NULL, test int, UNIQUE KEY pr_pagetype (pr_page,pr_type)) ENGINE=myisam AUTO_INCREMENT=136;
+insert into t1 (pr_page, pr_type, test) values(1,"one",0),(2,"two",0);
+select * from t1;
+pr_id	pr_page	pr_type	test
+136	1	one	0
+137	2	two	0
+replace into t1 (pr_page, pr_type,test) values(1,"one",2);
+select * from t1;
+pr_id	pr_page	pr_type	test
+138	1	one	2
+137	2	two	0
+select * from t1;
+pr_id	pr_page	pr_type	test
+138	1	one	2
+137	2	two	0
+drop table t1;
+include/rpl_end.inc

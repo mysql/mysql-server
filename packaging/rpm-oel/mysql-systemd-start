@@ -12,8 +12,8 @@ get_option () {
     local section=$1
     local option=$2
     local default=$3
-    ret=$(/usr/bin/my_print_defaults $section | grep '^--'${option}'=' | cut -d= -f2- | tail -n 1)
-    [ -z "$ret" ] && ret=$default
+    ret=$(/usr/bin/my_print_defaults $section | grep '^--'${option}'=' | cut -d= -f2-)
+    [ -z $ret ] && ret=$default
     echo $ret
 }
 
@@ -22,9 +22,7 @@ install_db () {
     datadir=$(get_option mysqld datadir "/var/lib/mysql")
 
     # Restore log, dir, perms and SELinux contexts
-    if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
-	install -d -m 0755 -omysql -gmysql "$datadir" || exit 1
-    fi
+    [ -d "$datadir" ] || install -d -m 0755 -omysql -gmysql "$datadir" || exit 1
     log=/var/log/mysqld.log
     [ -e $log ] || touch $log
     chmod 0640 $log
@@ -32,12 +30,6 @@ install_db () {
     if [ -x /usr/sbin/restorecon ]; then
         /usr/sbin/restorecon "$datadir"
         /usr/sbin/restorecon $log
-        for dir in /var/lib/mysql-files ; do
-            if [ -x /usr/sbin/semanage -a -d /var/lib/mysql -a -d $dir ] ; then
-		/usr/sbin/semanage fcontext -a -e /var/lib/mysql $dir >/dev/null 2>&1
-		/sbin/restorecon $dir
-	    fi
-	done
     fi
 
     # If special mysql dir is in place, skip db install 

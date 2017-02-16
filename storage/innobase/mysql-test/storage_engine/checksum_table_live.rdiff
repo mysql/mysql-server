@@ -1,0 +1,13 @@
+--- suite/storage_engine/checksum_table_live.result	2012-07-12 21:05:44.497062968 +0400
++++ suite/storage_engine/checksum_table_live.reject	2012-07-15 17:47:28.105399836 +0400
+@@ -11,8 +11,8 @@
+ test.t1	4272806499
+ CHECKSUM TABLE t1, t2 QUICK;
+ Table	Checksum
+-test.t1	4272806499
+-test.t2	0
++test.t1	NULL
++test.t2	NULL
+ CHECKSUM TABLE t1, t2 EXTENDED;
+ Table	Checksum
+ test.t1	4272806499

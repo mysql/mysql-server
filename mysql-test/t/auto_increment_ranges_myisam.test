@@ -1,0 +1,7 @@
+#
+# Test of auto_increment at end of range
+#
+
+set default_storage_engine=MYISAM;
+--source auto_increment_ranges.inc
+

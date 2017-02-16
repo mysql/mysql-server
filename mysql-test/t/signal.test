@@ -723,8 +723,11 @@ SIGNAL SQLSTATE 'HY000' SET MYSQL_ERRNO = 0;
 --error ER_PARSE_ERROR
 SIGNAL SQLSTATE 'HY000' SET MYSQL_ERRNO = -1;
 
---error 65535
+--error ER_WRONG_VALUE_FOR_VAR
 SIGNAL SQLSTATE 'HY000' SET MYSQL_ERRNO = 65535;
+
+--error 65534
+SIGNAL SQLSTATE 'HY000' SET MYSQL_ERRNO = 65534;
 
 --echo #
 --echo # RESIGNAL can also appear in a query
@@ -752,10 +755,10 @@ create procedure test_signal()
 begin
   # max range
   DECLARE foo CONDITION FOR SQLSTATE 'AABBB';
-  SIGNAL foo SET MYSQL_ERRNO = 65535;
+  SIGNAL foo SET MYSQL_ERRNO = 65534;
 end $$
 
---error 65535
+--error 65534
 call test_signal() $$
 drop procedure test_signal $$
 
@@ -1325,7 +1328,7 @@ begin
     COLUMN_NAME = iii,
     CURSOR_NAME = jjj,
     MESSAGE_TEXT = kkk,
-    MYSQL_ERRNO = 65535;
+    MYSQL_ERRNO = 65534;
 end $$
 
 call test_signal() $$

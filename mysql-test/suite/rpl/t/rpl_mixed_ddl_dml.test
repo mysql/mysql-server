@@ -24,6 +24,7 @@ connection master;
 # Test replication of timestamp
 
 create table t2(id int auto_increment primary key, created datetime);
+SET TIME_ZONE= '+03:00';
 set timestamp=12345;
 insert into t2 set created=now();
 select * from t2;

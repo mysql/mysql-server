@@ -1,3 +1,4 @@
+set optimizer_switch = 'mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 drop table if exists t1,t2,t3,t4;
 drop database if exists mysqltest;
 CREATE TABLE bug58912 (a BLOB, b TEXT, PRIMARY KEY(a(1))) ENGINE=InnoDB;
@@ -784,7 +785,7 @@ create table t1 (a int  primary key,b int, c int, d int, e int, f int, g int, h 
 insert into t1 values (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1);
 explain select * from t1 where a > 0 and a < 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	#	Using index condition
 drop table t1;
 create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(30),primary key (id,id2),index index_id3 (id3)) engine=innodb;
 insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
@@ -815,6 +816,8 @@ id
 1
 2
 insert ignore into t1 values (100,1,2,'D'),(1,1,99,'D');
+Warnings:
+Warning	1062	Duplicate entry '1-1' for key 'PRIMARY'
 commit;
 select id,id3 from t1;
 id	id3
@@ -1225,11 +1228,11 @@ count(*)
 623
 explain select * from t1 where c between 1 and 2500;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c	c	5	NULL	#	Using where
+1	SIMPLE	t1	range	c	c	5	NULL	#	#
 update t1 set c=a;
 explain select * from t1 where c between 1 and 2500;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	c	NULL	NULL	NULL	#	Using where
+1	SIMPLE	t1	ALL	c	NULL	NULL	NULL	#	#
 drop table t1,t2;
 create table t1 (id int primary key auto_increment, fk int, index index_fk (fk)) engine=innodb;
 insert into t1 (id) values (null),(null),(null),(null),(null);
@@ -1379,7 +1382,7 @@ insert t2 select * from t1;
 insert t3 select * from t1;
 checksum table t1, t2, t3, t4 quick;
 Table	Checksum
-test.t1	2948697075
+test.t1	3442722830
 test.t2	NULL
 test.t3	NULL
 test.t4	NULL
@@ -1387,17 +1390,17 @@ Warnings:
 Error	1146	Table 'test.t4' doesn't exist
 checksum table t1, t2, t3, t4;
 Table	Checksum
-test.t1	2948697075
-test.t2	2948697075
-test.t3	2948697075
+test.t1	3442722830
+test.t2	3442722830
+test.t3	3442722830
 test.t4	NULL
 Warnings:
 Error	1146	Table 'test.t4' doesn't exist
 checksum table t1, t2, t3, t4 extended;
 Table	Checksum
-test.t1	2948697075
-test.t2	2948697075
-test.t3	2948697075
+test.t1	3442722830
+test.t2	3442722830
+test.t3	3442722830
 test.t4	NULL
 Warnings:
 Error	1146	Table 'test.t4' doesn't exist
@@ -1589,6 +1592,12 @@ ERROR 42S21: Duplicate column name 'c1'
 alter table t1 add key (c1,c1,c2);
 ERROR 42S21: Duplicate column name 'c1'
 drop table t1;
+create table t1(a int(1) , b int(1)) engine=innodb;
+insert into t1 values ('1111', '3333');
+select distinct concat(a, b) from t1;
+concat(a, b)
+11113333
+drop table t1;
 CREATE TABLE t1 ( a char(10) ) ENGINE=InnoDB;
 SELECT a FROM t1 WHERE MATCH (a) AGAINST ('test' IN BOOLEAN MODE);
 ERROR HY000: The used table type doesn't support FULLTEXT indexes
@@ -1678,7 +1687,7 @@ count(*)
 drop table t1;
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 variable_value
-511
+ok
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
 variable_value
 16384
@@ -1687,7 +1696,7 @@ variable_value - @innodb_rows_deleted_orig
 71
 SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
 variable_value - @innodb_rows_inserted_orig
-1070
+1071
 SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
 variable_value - @innodb_rows_updated_orig
 866
@@ -1706,74 +1715,7 @@ variable_value - @innodb_row_lock_time_max_orig
 SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
 variable_value - @innodb_row_lock_time_avg_orig
 0
-SET @innodb_sync_spin_loops_orig = @@innodb_sync_spin_loops;
-show variables like "innodb_sync_spin_loops";
-Variable_name	Value
-innodb_sync_spin_loops	30
-set global innodb_sync_spin_loops=1000;
-show variables like "innodb_sync_spin_loops";
-Variable_name	Value
-innodb_sync_spin_loops	1000
-set global innodb_sync_spin_loops=0;
-show variables like "innodb_sync_spin_loops";
-Variable_name	Value
-innodb_sync_spin_loops	0
-set global innodb_sync_spin_loops=20;
-show variables like "innodb_sync_spin_loops";
-Variable_name	Value
-innodb_sync_spin_loops	20
-set global innodb_sync_spin_loops=@innodb_sync_spin_loops_orig;
-show variables like "innodb_thread_concurrency";
-Variable_name	Value
-innodb_thread_concurrency	0
-set global innodb_thread_concurrency=1001;
-Warnings:
-Warning	1292	Truncated incorrect innodb_thread_concurrency value: '1001'
-show variables like "innodb_thread_concurrency";
-Variable_name	Value
-innodb_thread_concurrency	1000
-set global innodb_thread_concurrency=0;
-show variables like "innodb_thread_concurrency";
-Variable_name	Value
-innodb_thread_concurrency	0
-set global innodb_thread_concurrency=16;
-show variables like "innodb_thread_concurrency";
-Variable_name	Value
-innodb_thread_concurrency	16
-show variables like "innodb_concurrency_tickets";
-Variable_name	Value
-innodb_concurrency_tickets	500
-set global innodb_concurrency_tickets=1000;
-show variables like "innodb_concurrency_tickets";
-Variable_name	Value
-innodb_concurrency_tickets	1000
-set global innodb_concurrency_tickets=0;
-Warnings:
-Warning	1292	Truncated incorrect innodb_concurrency_tickets value: '0'
-show variables like "innodb_concurrency_tickets";
-Variable_name	Value
-innodb_concurrency_tickets	1
-set global innodb_concurrency_tickets=500;
-show variables like "innodb_concurrency_tickets";
-Variable_name	Value
-innodb_concurrency_tickets	500
-show variables like "innodb_thread_sleep_delay";
-Variable_name	Value
-innodb_thread_sleep_delay	10000
-set global innodb_thread_sleep_delay=100000;
-show variables like "innodb_thread_sleep_delay";
-Variable_name	Value
-innodb_thread_sleep_delay	100000
-set global innodb_thread_sleep_delay=0;
-show variables like "innodb_thread_sleep_delay";
-Variable_name	Value
-innodb_thread_sleep_delay	0
-set global innodb_thread_sleep_delay=10000;
-show variables like "innodb_thread_sleep_delay";
-Variable_name	Value
-innodb_thread_sleep_delay	10000
 set storage_engine=INNODB;
-set session old_alter_table=1;
 drop table if exists t1,t2,t3;
 --- Testing varchar ---
 --- Testing varchar ---
@@ -1927,7 +1869,7 @@ qq
 *a         *a*a         *
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v,v_2	#	13	const	#	Using where
+1	SIMPLE	t1	ref	v,v_2	#	13	const	#	#
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -2103,7 +2045,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	v	v	303	const	#	Using where; Using index
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	303	const	#	Using where
+1	SIMPLE	t1	ref	v	v	303	const	#	#
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -2183,7 +2125,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	v	v	33	const	#	Using where
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	33	const	#	Using where
+1	SIMPLE	t1	ref	v	v	33	const	#	#
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -2347,7 +2289,6 @@ select * from t1 where a=20 and b is null;
 a	b
 20	NULL
 drop table t1;
-set session old_alter_table=0;
 create table t1 (v varchar(65530), key(v));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 767 bytes
@@ -3200,5 +3141,5 @@ select f1 from t1;
 f1
 show status like "handler_read_key";
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	0
 drop table t1;

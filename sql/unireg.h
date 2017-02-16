@@ -1,7 +1,8 @@
 #ifndef UNIREG_INCLUDED
 #define UNIREG_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,7 +55,6 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 #define ER_THD(thd,X) ((thd)->variables.lc_messages->errmsgs->errmsgs[(X) - \
                        ER_ERROR_FIRST])
 #define ER_THD_OR_DEFAULT(thd,X) ((thd) ? ER_THD(thd, X) : ER_DEFAULT(X))
-
 
 #define ME_INFO (ME_HOLDTANG+ME_OLDWIN+ME_NOREFRESH)
 #define ME_ERROR (ME_BELL+ME_OLDWIN+ME_NOREFRESH)
@@ -160,6 +160,7 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 #define BIN_LOG_HEADER_SIZE    4 
 
 #define DEFAULT_KEY_CACHE_NAME "default"
+
 
 /* Include prototypes for unireg */
 

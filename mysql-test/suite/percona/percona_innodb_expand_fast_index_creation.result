@@ -1,0 +1,64 @@
+CREATE TABLE t1(
+id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+a CHAR(1) NOT NULL,
+b CHAR(36) NOT NULL) ENGINE=InnoDB;
+INSERT INTO t1(a,b) VALUES ('a','b');
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+ALTER TABLE t1 ADD KEY (a);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+EXPLAIN SELECT COUNT(*) FROM t1, t1 t2 WHERE t1.a = t2.a AND t1.b = t2.b;
+id	1
+select_type	SIMPLE
+table	t1
+type	ALL
+possible_keys	a
+key	NULL
+key_len	NULL
+ref	NULL
+rows	16
+Extra	
+id	1
+select_type	SIMPLE
+table	t2
+type	ref
+possible_keys	a
+key	a
+key_len	1
+ref	test.t1.a
+rows	1
+Extra	Using where
+ALTER TABLE t1 DROP KEY a;
+SET expand_fast_index_creation = 1;
+SELECT @@expand_fast_index_creation;
+@@expand_fast_index_creation
+1
+ALTER TABLE t1 ADD KEY (a);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+EXPLAIN SELECT COUNT(*) FROM t1, t1 t2 WHERE t1.a = t2.a AND t1.b = t2.b;
+id	1
+select_type	SIMPLE
+table	t1
+type	ALL
+possible_keys	a
+key	NULL
+key_len	NULL
+ref	NULL
+rows	16
+Extra	
+id	1
+select_type	SIMPLE
+table	t2
+type	ALL
+possible_keys	a
+key	NULL
+key_len	NULL
+ref	NULL
+rows	16
+Extra	Using where; Using join buffer
+SET expand_fast_index_creation = 0;
+DROP TABLE t1;

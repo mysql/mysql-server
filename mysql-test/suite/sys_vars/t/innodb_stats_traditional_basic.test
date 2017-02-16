@@ -1,0 +1,65 @@
+--source include/have_innodb.inc
+
+SET @start_global_value = @@global.innodb_stats_traditional;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid values are 'ON' and 'OFF' 
+select @@global.innodb_stats_traditional in (0, 1);
+select @@global.innodb_stats_traditional;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_stats_traditional;
+show global variables like 'innodb_stats_traditional';
+show session variables like 'innodb_stats_traditional';
+select * from information_schema.global_variables where variable_name='innodb_stats_traditional';
+select * from information_schema.session_variables where variable_name='innodb_stats_traditional';
+
+#
+# show that it's writable
+#
+set global innodb_stats_traditional='OFF';
+select @@global.innodb_stats_traditional;
+select * from information_schema.global_variables where variable_name='innodb_stats_traditional';
+select * from information_schema.session_variables where variable_name='innodb_stats_traditional';
+set @@global.innodb_stats_traditional=1;
+select @@global.innodb_stats_traditional;
+select * from information_schema.global_variables where variable_name='innodb_stats_traditional';
+select * from information_schema.session_variables where variable_name='innodb_stats_traditional';
+set global innodb_stats_traditional=0;
+select @@global.innodb_stats_traditional;
+select * from information_schema.global_variables where variable_name='innodb_stats_traditional';
+select * from information_schema.session_variables where variable_name='innodb_stats_traditional';
+set @@global.innodb_stats_traditional='ON';
+select @@global.innodb_stats_traditional;
+select * from information_schema.global_variables where variable_name='innodb_stats_traditional';
+select * from information_schema.session_variables where variable_name='innodb_stats_traditional';
+--error ER_GLOBAL_VARIABLE
+set session innodb_stats_traditional='OFF';
+--error ER_GLOBAL_VARIABLE
+set @@session.innodb_stats_traditional='ON';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_stats_traditional=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_stats_traditional=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_stats_traditional=2;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_stats_traditional=-3;
+select @@global.innodb_stats_traditional;
+select * from information_schema.global_variables where variable_name='innodb_stats_traditional';
+select * from information_schema.session_variables where variable_name='innodb_stats_traditional';
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_stats_traditional='AUTO';
+
+#
+# Cleanup
+#
+
+SET @@global.innodb_stats_traditional = @start_global_value;
+SELECT @@global.innodb_stats_traditional;

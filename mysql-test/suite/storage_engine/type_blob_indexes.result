@@ -1,0 +1,152 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (b BLOB <CUSTOM_COL_OPTIONS>,
+t TINYBLOB <CUSTOM_COL_OPTIONS>,
+m MEDIUMBLOB <CUSTOM_COL_OPTIONS>,
+l LONGBLOB <CUSTOM_COL_OPTIONS>,
+<CUSTOM_INDEX> b (b(32))
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	#	1	b	#	#	32	NULL	#	#		
+INSERT INTO t1 (b,t,m,l) VALUES
+('','','',''),
+('a','b','c','d'),
+('b','d','c','b'),
+('test1','test2','test3','test4'),
+(REPEAT('a',128),REPEAT('b',128),REPEAT('c',128),REPEAT('d',128)),
+(HEX('abcd'),HEX('def'),HEX('a'),HEX('abc')),
+('abc','def','ghi','jkl'),
+('test2','test3','test4','test5'),
+('test3','test4','test5','test6'),
+(REPEAT('b',128),REPEAT('f',128),REPEAT('e',128),REPEAT('d',128)),
+(REPEAT('c',128),REPEAT('b',128),REPEAT('c',128),REPEAT('e',128));
+SELECT SUBSTRING(b,16) AS f FROM t1 WHERE b IN ('test1','test2') ORDER BY f;
+f
+
+
+SELECT SUBSTRING(b,16) AS f FROM t1 USE INDEX () WHERE b IN ('test1','test2') ORDER BY f;
+f
+
+
+DROP TABLE t1;
+CREATE TABLE t1 (b BLOB <CUSTOM_COL_OPTIONS>,
+t TINYBLOB <CUSTOM_COL_OPTIONS>,
+m MEDIUMBLOB <CUSTOM_COL_OPTIONS>,
+l LONGBLOB <CUSTOM_COL_OPTIONS>,
+PRIMARY KEY b (b(32))
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	b	#	#	32	NULL	#	#		
+INSERT INTO t1 (b,t,m,l) VALUES
+('','','',''),
+('a','b','c','d'),
+('b','d','c','b'),
+('test1','test2','test3','test4'),
+(REPEAT('a',128),REPEAT('b',128),REPEAT('c',128),REPEAT('d',128)),
+(HEX('abcd'),HEX('def'),HEX('a'),HEX('abc')),
+('abc','def','ghi','jkl'),
+('test2','test3','test4','test5'),
+('test3','test4','test5','test6'),
+(REPEAT('b',128),REPEAT('f',128),REPEAT('e',128),REPEAT('d',128)),
+(REPEAT('c',128),REPEAT('b',128),REPEAT('c',128),REPEAT('e',128));
+EXPLAIN SELECT SUBSTRING(b,16) AS f FROM t1 WHERE b IN ('test1','test2') ORDER BY f;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	PRIMARY	#	#	#	#
+SELECT SUBSTRING(b,16) AS f FROM t1 WHERE b IN ('test1','test2') ORDER BY f;
+f
+
+
+EXPLAIN SELECT SUBSTRING(b,16) AS f FROM t1 USE INDEX () WHERE b IN ('test1','test2') ORDER BY f;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	NULL	#	#	#	#
+SELECT SUBSTRING(b,16) AS f FROM t1 USE INDEX () WHERE b IN ('test1','test2') ORDER BY f;
+f
+
+
+DROP TABLE t1;
+CREATE TABLE t1 (b BLOB <CUSTOM_COL_OPTIONS>,
+t TINYBLOB <CUSTOM_COL_OPTIONS>,
+m MEDIUMBLOB <CUSTOM_COL_OPTIONS>,
+l LONGBLOB <CUSTOM_COL_OPTIONS>,
+UNIQUE INDEX l_t (l(256),t(64))
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	l_t	1	l	#	#	256	NULL	#	#		
+t1	0	l_t	2	t	#	#	64	NULL	#	#		
+INSERT INTO t1 (b,t,m,l) VALUES
+('','','',''),
+('a','b','c','d'),
+('b','d','c','b'),
+('test1','test2','test3','test4'),
+(REPEAT('a',128),REPEAT('b',128),REPEAT('c',128),REPEAT('d',128)),
+(HEX('abcd'),HEX('def'),HEX('a'),HEX('abc')),
+('abc','def','ghi','jkl'),
+('test2','test3','test4','test5'),
+('test3','test4','test5','test6'),
+(REPEAT('b',128),REPEAT('f',128),REPEAT('e',128),REPEAT('d',128)),
+(REPEAT('c',128),REPEAT('b',128),REPEAT('c',128),REPEAT('e',128));
+EXPLAIN SELECT SUBSTRING(t,64), SUBSTRING(l,256) FROM t1 WHERE t!=l AND l NOT IN ('test1') ORDER BY t, l DESC;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	l_t	#	#	#	#	#
+SELECT SUBSTRING(t,64), SUBSTRING(l,256) FROM t1 WHERE t!=l AND l NOT IN ('test1') ORDER BY t, l DESC;
+SUBSTRING(t,64)	SUBSTRING(l,256)
+	
+	
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	
+	
+	
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff	
+	
+	
+	
+EXPLAIN SELECT SUBSTRING(t,64), SUBSTRING(l,256) FROM t1 FORCE INDEX (l_t) WHERE t!=l AND l NOT IN ('test1') ORDER BY t, l DESC;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	l_t	#	#	#	#	#
+SELECT SUBSTRING(t,64), SUBSTRING(l,256) FROM t1 FORCE INDEX (l_t) WHERE t!=l AND l NOT IN ('test1') ORDER BY t, l DESC;
+SUBSTRING(t,64)	SUBSTRING(l,256)
+	
+	
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	
+	
+	
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff	
+	
+	
+	
+DROP TABLE t1;
+CREATE TABLE t1 (b BLOB <CUSTOM_COL_OPTIONS>,
+t TINYBLOB <CUSTOM_COL_OPTIONS>,
+m MEDIUMBLOB <CUSTOM_COL_OPTIONS>,
+l LONGBLOB <CUSTOM_COL_OPTIONS>,
+INDEX (m(128))
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	m	1	m	#	#	128	NULL	#	#		
+INSERT INTO t1 (b,t,m,l) VALUES
+('','','',''),
+('a','b','c','d'),
+('b','d','c','b'),
+('test1','test2','test3','test4'),
+(REPEAT('a',128),REPEAT('b',128),REPEAT('c',128),REPEAT('d',128)),
+(HEX('abcd'),HEX('def'),HEX('a'),HEX('abc')),
+('abc','def','ghi','jkl'),
+('test2','test3','test4','test5'),
+('test3','test4','test5','test6'),
+(REPEAT('b',128),REPEAT('f',128),REPEAT('e',128),REPEAT('d',128)),
+(REPEAT('c',128),REPEAT('b',128),REPEAT('c',128),REPEAT('e',128));
+EXPLAIN SELECT SUBSTRING(m,128) AS f FROM t1 WHERE m = 'test1' ORDER BY f DESC;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	m	#	#	#	#
+SELECT SUBSTRING(m,128) AS f FROM t1 WHERE m = 'test1' ORDER BY f DESC;
+f
+EXPLAIN SELECT SUBSTRING(m,128) AS f FROM t1 IGNORE INDEX FOR ORDER BY (m) WHERE m = 'test1' ORDER BY f DESC;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	m	#	#	#	#
+SELECT SUBSTRING(m,128) AS f FROM t1 IGNORE INDEX FOR ORDER BY (m) WHERE m = 'test1' ORDER BY f DESC;
+f
+DROP TABLE t1;

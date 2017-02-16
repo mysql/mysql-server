@@ -1,0 +1,18 @@
+##############################################################################
+#
+#  List the test cases that are to be disabled temporarily.
+#
+#  Separate the test case name and the comment with ':'.
+#
+#    <testcasename> : BUG#<xxxx> <date disabled> <disabler> <comment>
+#
+#  Do not use any TAB characters for whitespace.
+#
+##############################################################################
+tablespace               : disabled in MariaDB (no TABLESPACE table attribute)
+events_time_zone         : Test is not predictable as it depends on precise timing.
+read_many_rows_innodb    : Bug#11748886 2010-11-15 mattiasj report already exists
+log_tables-big           : Bug#11756699 2010-11-15 mattiasj report already exists
+mysql_embedded           : Bug#12561297 2011-05-14 Anitha Dependent on PB2 changes - eventum#41836
+file_contents            : MDEV-6526 these files are not installed anymore
+lowercase_fs_on          : lower_case_table_names=0 is not an error until 10.1

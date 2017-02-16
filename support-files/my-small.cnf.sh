@@ -34,7 +34,7 @@ sort_buffer_size = 64K
 read_buffer_size = 256K
 read_rnd_buffer_size = 256K
 net_buffer_length = 2K
-thread_stack = 128K
+thread_stack = 240K
 
 # Don't listen on a TCP/IP port at all. This can be a security enhancement,
 # if all processes that need to connect to mysqld run on the same host.

@@ -68,6 +68,7 @@ Created 10/16/1994 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "zlib.h"
+#include "fil0fil.h"
 
 /** Buffered B-tree operation types, introduced as part of delete buffering. */
 typedef enum btr_op_enum {
@@ -258,23 +259,55 @@ btr_cur_latch_leaves(
 		get_block = btr_block_get(
 			space, zip_size, page_no, mode, cursor->index, mtr);
 #ifdef UNIV_BTR_DEBUG
-		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
+
+		if (page_is_comp(get_block->frame) != page_is_comp(page)) {
+			btr_pages_info(page, get_block->frame, space,
+				zip_size, page_no, latch_mode,
+				cursor->index,
+				btr_page_get_next(page, mtr),
+				btr_page_get_prev(page, mtr),
+				buf_block_get_space(get_block),
+				buf_block_get_zip_size(get_block),
+				btr_page_get_next(get_block->frame, mtr),
+				btr_page_get_prev(get_block->frame, mtr),
+				mtr, __FILE__, __LINE__);
+
+			fprintf(stderr, "InnoDB: Info: latch_mode == %lu mode == %lu\n", latch_mode, mode);
+
+			ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
+		}
 #endif /* UNIV_BTR_DEBUG */
 		get_block->check_index_page_at_flush = TRUE;
 		return;
 	case BTR_MODIFY_TREE:
 		/* x-latch also brothers from left to right */
 		left_page_no = btr_page_get_prev(page, mtr);
+		mode = latch_mode;
 
 		if (left_page_no != FIL_NULL) {
 			get_block = btr_block_get(
 				space, zip_size, left_page_no,
 				RW_X_LATCH, cursor->index, mtr);
 #ifdef UNIV_BTR_DEBUG
-			ut_a(page_is_comp(get_block->frame)
-			     == page_is_comp(page));
-			ut_a(btr_page_get_next(get_block->frame, mtr)
-			     == page_get_page_no(page));
+			if (page_is_comp(get_block->frame) != page_is_comp(page)) {
+				btr_pages_info(page, get_block->frame, space,
+					zip_size, left_page_no, latch_mode,
+					cursor->index,
+					btr_page_get_next(page, mtr),
+					btr_page_get_prev(page, mtr),
+					buf_block_get_space(get_block),
+					buf_block_get_zip_size(get_block),
+					btr_page_get_next(get_block->frame, mtr),
+					btr_page_get_prev(get_block->frame, mtr),
+					mtr, __FILE__, __LINE__);
+
+				fprintf(stderr, "InnoDB: Info: latch_mode %lu mode %lu\n", latch_mode, mode);
+
+				ut_a(page_is_comp(get_block->frame)
+					== page_is_comp(page));
+				ut_a(btr_page_get_next(get_block->frame, mtr)
+					== page_get_page_no(page));
+			}
 #endif /* UNIV_BTR_DEBUG */
 			get_block->check_index_page_at_flush = TRUE;
 		}
@@ -283,7 +316,21 @@ btr_cur_latch_leaves(
 			space, zip_size, page_no,
 			RW_X_LATCH, cursor->index, mtr);
 #ifdef UNIV_BTR_DEBUG
-		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
+		if (page_is_comp(get_block->frame) != page_is_comp(page)) {
+			btr_pages_info(page, get_block->frame, space,
+				zip_size, page_no, latch_mode,
+				cursor->index,
+				btr_page_get_next(page, mtr),
+				btr_page_get_prev(page, mtr),
+				buf_block_get_space(get_block),
+				buf_block_get_zip_size(get_block),
+				btr_page_get_next(get_block->frame, mtr),
+				btr_page_get_prev(get_block->frame, mtr),
+				mtr, __FILE__, __LINE__);
+
+				fprintf(stderr, "InnoDB: Info: mode %lu\n", mode);
+				ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
+		}
 #endif /* UNIV_BTR_DEBUG */
 		get_block->check_index_page_at_flush = TRUE;
 
@@ -294,10 +341,24 @@ btr_cur_latch_leaves(
 				space, zip_size, right_page_no,
 				RW_X_LATCH, cursor->index, mtr);
 #ifdef UNIV_BTR_DEBUG
-			ut_a(page_is_comp(get_block->frame)
-			     == page_is_comp(page));
-			ut_a(btr_page_get_prev(get_block->frame, mtr)
-			     == page_get_page_no(page));
+			if (page_is_comp(get_block->frame) != page_is_comp(page)) {
+				btr_pages_info(page, get_block->frame, space,
+					zip_size, right_page_no, latch_mode,
+					cursor->index,
+					btr_page_get_next(page, mtr),
+					btr_page_get_prev(page, mtr),
+					buf_block_get_space(get_block),
+					buf_block_get_zip_size(get_block),
+					btr_page_get_next(get_block->frame, mtr),
+					btr_page_get_prev(get_block->frame, mtr),
+					mtr, __FILE__, __LINE__);
+
+				fprintf(stderr, "InnoDB: Info: latch_mode %lu mode %lu\n", latch_mode, mode);
+				ut_a(page_is_comp(get_block->frame)
+					== page_is_comp(page));
+				ut_a(btr_page_get_prev(get_block->frame, mtr)
+					== page_get_page_no(page));
+			}
 #endif /* UNIV_BTR_DEBUG */
 			get_block->check_index_page_at_flush = TRUE;
 		}
@@ -316,10 +377,24 @@ btr_cur_latch_leaves(
 				left_page_no, mode, cursor->index, mtr);
 			cursor->left_block = get_block;
 #ifdef UNIV_BTR_DEBUG
-			ut_a(page_is_comp(get_block->frame)
-			     == page_is_comp(page));
-			ut_a(btr_page_get_next(get_block->frame, mtr)
-			     == page_get_page_no(page));
+			if (page_is_comp(get_block->frame) != page_is_comp(page)) {
+				btr_pages_info(page, get_block->frame, space,
+					zip_size, left_page_no, latch_mode,
+					cursor->index,
+					btr_page_get_next(page, mtr),
+					btr_page_get_prev(page, mtr),
+					buf_block_get_space(get_block),
+					buf_block_get_zip_size(get_block),
+					btr_page_get_next(get_block->frame, mtr),
+					btr_page_get_prev(get_block->frame, mtr),
+					mtr, __FILE__, __LINE__);
+
+				fprintf(stderr, "InnoDB: Info: latch_mode %lu mode %lu\n", latch_mode, mode);
+				ut_a(page_is_comp(get_block->frame)
+					== page_is_comp(page));
+				ut_a(btr_page_get_next(get_block->frame, mtr)
+					== page_get_page_no(page));
+			}
 #endif /* UNIV_BTR_DEBUG */
 			get_block->check_index_page_at_flush = TRUE;
 		}
@@ -327,7 +402,22 @@ btr_cur_latch_leaves(
 		get_block = btr_block_get(
 			space, zip_size, page_no, mode, cursor->index, mtr);
 #ifdef UNIV_BTR_DEBUG
-		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
+		if (page_is_comp(get_block->frame) != page_is_comp(page)) {
+			btr_pages_info(page, get_block->frame, space,
+				zip_size, page_no, latch_mode,
+				cursor->index,
+				btr_page_get_next(page, mtr),
+				btr_page_get_prev(page, mtr),
+				buf_block_get_space(get_block),
+				buf_block_get_zip_size(get_block),
+				btr_page_get_next(get_block->frame, mtr),
+				btr_page_get_prev(get_block->frame, mtr),
+				mtr, __FILE__, __LINE__);
+
+				fprintf(stderr, "InnoDB: Info: latch_mode %lu mode %lu\n", latch_mode, mode);
+
+				ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
+		}
 #endif /* UNIV_BTR_DEBUG */
 		get_block->check_index_page_at_flush = TRUE;
 		return;
@@ -3649,8 +3739,8 @@ btr_estimate_number_of_different_key_vals(
 	ib_int64_t*	n_diff;
 	ib_int64_t*	n_not_null;
 	ibool		stats_null_not_equal;
-	ullint		n_sample_pages; /* number of pages to sample */
-	ulint		not_empty_flag	= 0;
+	ullint		n_sample_pages = 1; /* number of pages to sample */
+	ulint		not_empty_flag = 0;
 	ulint		total_external_size = 0;
 	ulint		i;
 	ulint		j;
@@ -3695,17 +3785,62 @@ btr_estimate_number_of_different_key_vals(
 		ut_error;
         }
 
-	/* It makes no sense to test more pages than are contained
-	in the index, thus we lower the number if it is too high */
-	if (srv_stats_sample_pages > index->stat_index_size) {
-		if (index->stat_index_size > 0) {
-			n_sample_pages = index->stat_index_size;
+	if (srv_stats_sample_traditional) {
+		/* It makes no sense to test more pages than are contained
+		in the index, thus we lower the number if it is too high */
+		if (srv_stats_sample_pages > index->stat_index_size) {
+			if (index->stat_index_size > 0) {
+				n_sample_pages = index->stat_index_size;
+			}
 		} else {
-			n_sample_pages = 1;
+			n_sample_pages = srv_stats_sample_pages;
 		}
 	} else {
-		n_sample_pages = srv_stats_sample_pages;
-	}
+		/* New logaritmic number of pages that are estimated.
+		Number of pages estimated should be between 1 and
+		index->stat_index_size.
+
+		If we have only 0 or 1 index pages then we can only take 1
+		sample. We have already initialized n_sample_pages to 1.
+
+		So taking index size as I and sample as S and log(I)*S as L
+
+		requirement 1) we want the out limit of the expression to not exceed I;
+		requirement 2) we want the ideal pages to be at least S;
+		so the current expression is min(I, max( min(S,I), L)
+
+		looking for simplifications:
+
+		case 1: assume S < I
+		min(I, max( min(S,I), L) -> min(I , max( S, L))
+
+		but since L=LOG2(I)*S and log2(I) >=1   L>S always so max(S,L) = L.
+
+		so we have: min(I , L)
+
+		case 2: assume I < S
+		    min(I, max( min(S,I), L) -> min(I, max( I, L))
+
+		case 2a: L > I
+		    min(I, max( I, L)) -> min(I, L) -> I
+
+		case 2b: when L < I
+		    min(I, max( I, L))  ->  min(I, I ) -> I
+
+		so taking all case2 paths is I, our expression is:
+		n_pages = S < I? min(I,L) : I
+                */
+		if (index->stat_index_size > 1) {
+			n_sample_pages = (srv_stats_sample_pages < index->stat_index_size) ?
+				ut_min(index->stat_index_size,
+				       log2(index->stat_index_size)*srv_stats_sample_pages)
+				: index->stat_index_size;
+
+		}
+       	}
+
+	/* Sanity check */
+	ut_ad(n_sample_pages > 0 && n_sample_pages <= (index->stat_index_size <= 1 ? 1 : index->stat_index_size));
 
 	/* We sample some pages in the index to get an estimate */
 
@@ -5409,3 +5544,169 @@ btr_rec_copy_externally_stored_field(
 						zip_size, local_len, heap));
 }
 #endif /* !UNIV_HOTBACKUP */
+
+/*******************************************************************//**
+Print information about old page and a new page on a B-tree when
+we note that page types do not match.*/
+void
+btr_pages_info(
+	page_t* old_page,	/*!< in: Page where we were */
+	page_t* new_page,	/*!< in: Page where we travelsed */
+	ulint	space_id,	/*!< in: space id */
+	ulint	zip_size,	/*!< in: zip size */
+	ulint	page_no,	/*!< in: Page id where travelsed */
+	ulint	latch_mode __attribute__((unused)),	/*!< in: Used latch mode */
+	dict_index_t* index,	/*!< in: Used index */
+	ulint	old_next_page_no, /*!< in: Next page number from old page */
+	ulint	old_prev_page_no, /*!< in: Prev page number from old page */
+	ulint	new_space_id,	  /*!< in: Space id of new page */
+	ulint	new_zip_size __attribute__((unused)),	  /*!< in: Zip size of new page */
+	ulint	new_next_page_no, /*!< in: Next page number from new page */
+	ulint	new_prev_page_no, /*!< in: Prev page number from new page */
+	mtr_t*  mtr,		/*!< in: mini transaction */
+	const char*  file,	/*!< in: file name where called */
+	ulint	line)		/*!< in: line number where called */
+{
+	const char* old_name = fil_space_get_name(space_id);
+	const char* new_name = fil_space_get_name(new_space_id);
+        const char* name=NULL;
+	ulint spaceid=0,space=0;
+	buf_block_t* block=NULL;
+	page_t* page=NULL;
+
+	fprintf(stderr,"InnoDB: === Error: Index corruption detected ! === \n");
+	fprintf(stderr,"InnoDB      File %s Line %lu                       \n", file, line);
+	dict_index_name_print(stderr, NULL, index);
+	fprintf(stderr,"InnoDB:     Current page                    = %p   \n", old_page);
+	fprintf(stderr,"InnoDB:     New page                        = %p   \n", new_page);
+	fprintf(stderr,"InnoDB:     Current page->page_no           = %lu  \n", page_get_page_no(old_page));
+	fprintf(stderr,"InnoDB:     New page->page_no               = %lu  \n", page_get_page_no(new_page));
+	fprintf(stderr,"InnoDB:     Current page->space_id          = %lu  \n", page_get_space_id(old_page));
+	fprintf(stderr,"InnoDB:     New page->space_id              = %lu  \n", page_get_space_id(new_page));
+	fprintf(stderr,"InnoDB:     Current page->n_recs            = %lu  \n", page_get_n_recs(old_page));
+	fprintf(stderr,"InnoDB:     New page->n_recs                = %lu  \n", page_get_n_recs(new_page));
+	fprintf(stderr,"InnoDB:     Current page->n_slots           = %lu  \n", page_dir_get_n_slots(old_page));
+	fprintf(stderr,"InnoDB:     New page->n_slots               = %lu  \n", page_dir_get_n_slots(new_page));
+	fprintf(stderr,"InnoDB:     Current page->is_compact        = %lu  \n", page_is_comp(old_page));
+	fprintf(stderr,"InnoDB:     New page->is_compact            = %lu  \n", page_is_comp(new_page));
+	fprintf(stderr,"InnoDB:     Current page->is_leaf           = %lu  \n", page_is_leaf(old_page));
+	fprintf(stderr,"InnoDB:     New page->is_leaf               = %lu  \n", page_is_leaf(new_page));
+	fprintf(stderr,"InnoDB:     Current page valid              = %lu  \n", page_validate(old_page, index));
+	fprintf(stderr,"InnoDB:     New page valid                  = %lu  \n", page_validate(new_page, index));
+	fprintf(stderr,"InnoDB:     Current page number             = %lu  \n", page_no);
+	fprintf(stderr,"InnoDB:     Current page next page number   = %lu  \n", old_next_page_no);
+	fprintf(stderr,"InnoDB:     Current page prev page number   = %lu  \n", old_prev_page_no);
+	fprintf(stderr,"InnoDB:     New page next page number       = %lu  \n", new_next_page_no);
+	fprintf(stderr,"InnoDB:     New page prev page number       = %lu  \n", new_prev_page_no);
+	fprintf(stderr,"InnoDB:     Current page space_id           = %lu  \n", space_id);
+	fprintf(stderr,"InnoDB:     New page space_id               = %lu  \n", new_space_id);
+	if (old_name)
+		fprintf(stderr,"InnoDB:     Current page file               = %s   \n", old_name);
+	if (new_name)
+		fprintf(stderr,"InnoDB:     New page file                   = %s   \n", new_name);
+
+	fprintf(stderr,"InnoDB:     OLD NEXT PAGE ID INFO           = %lu  \n", old_next_page_no);
+	if (old_next_page_no != FIL_NULL) {
+		block = btr_block_get(space_id, zip_size, old_next_page_no,
+			BTR_NO_LATCHES,
+			index, mtr);
+
+		space = buf_block_get_space(block);
+		zip_size = buf_block_get_zip_size(block);
+
+		fprintf(stderr,"InnoDB:     Block space_id                   = %lu  \n", space);
+		fprintf(stderr,"InnoDB:     Block zip_size                   = %lu  \n", zip_size);
+
+		page = buf_block_get_frame(block);
+		spaceid = page_get_space_id(page);
+		name = fil_space_get_name(spaceid);
+
+		fprintf(stderr,"InnoDB:     Page space_id                    = %lu  \n", space_id);
+		if (name)
+			fprintf(stderr,"InnoDB:     Page file                        = %s   \n", name);
+		fprintf(stderr,"InnoDB:     Page->page_no                    = %lu  \n", page_get_page_no(page));
+		fprintf(stderr,"InnoDB:     Page->space_id                   = %lu  \n", page_get_space_id(page));
+		fprintf(stderr,"InnoDB:     Page->n_recs                     = %lu  \n", page_get_n_recs(page));
+		fprintf(stderr,"InnoDB:     Page->n_slots                    = %lu  \n", page_dir_get_n_slots(page));
+		fprintf(stderr,"InnoDB:     Page->is_compact                 = %lu  \n", page_is_comp(page));
+		fprintf(stderr,"InnoDB:     Page->is_leaf                    = %lu  \n", page_is_leaf(page));
+		fprintf(stderr,"InnoDB:     Page valid                       = %lu  \n", page_validate(page, index));
+	}
+
+	fprintf(stderr,"InnoDB:     OLD PREV PAGE ID INFO           = %lu  \n", old_prev_page_no);
+	if (old_prev_page_no != FIL_NULL) {
+		block = btr_block_get(space_id, zip_size, old_prev_page_no,
+			BTR_NO_LATCHES,
+			index, mtr);
+
+		space = buf_block_get_space(block);
+		zip_size = buf_block_get_zip_size(block);
+
+		fprintf(stderr,"InnoDB:     Block space_id                   = %lu  \n", space);
+		fprintf(stderr,"InnoDB:     Block zip_size                   = %lu  \n", zip_size);
+
+		page = buf_block_get_frame(block);
+		spaceid = page_get_space_id(page);
+		name = fil_space_get_name(spaceid);
+
+		fprintf(stderr,"InnoDB:     Page space_id                    = %lu  \n", space_id);
+		if (name)
+			fprintf(stderr,"InnoDB:     Page file                        = %s   \n", name);
+		fprintf(stderr,"InnoDB:     Page->page_no                    = %lu  \n", page_get_page_no(page));
+		fprintf(stderr,"InnoDB:     Page->space_id                   = %lu  \n", page_get_space_id(page));
+		fprintf(stderr,"InnoDB:     Page->n_recs                     = %lu  \n", page_get_n_recs(page));
+		fprintf(stderr,"InnoDB:     Page->n_slots                    = %lu  \n", page_dir_get_n_slots(page));
+		fprintf(stderr,"InnoDB:     Page->is_compact                 = %lu  \n", page_is_comp(page));
+		fprintf(stderr,"InnoDB:     Page->is_leaf                    = %lu  \n", page_is_leaf(page));
+		fprintf(stderr,"InnoDB:     Page valid                       = %lu  \n", page_validate(page, index));
+	}
+
+	fprintf(stderr,"InnoDB:     NEW NEXT PAGE ID INFO           = %lu  \n", new_next_page_no);
+	if (new_next_page_no != FIL_NULL) {
+		block = btr_block_get(space_id, zip_size, new_next_page_no,
+			BTR_NO_LATCHES,
+			index, mtr);
+
+		space = buf_block_get_space(block);
+		zip_size = buf_block_get_zip_size(block);
+
+		fprintf(stderr,"InnoDB:     Block space_id                   = %lu  \n", space);
+		fprintf(stderr,"InnoDB:     Block zip_size                   = %lu  \n", zip_size);
+
+		page = buf_block_get_frame(block);
+		spaceid = page_get_space_id(page);
+		name = fil_space_get_name(spaceid);
+
+		fprintf(stderr,"InnoDB:     Page space_id                    = %lu  \n", space_id);
+		if (name)
+			fprintf(stderr,"InnoDB:     Page file                        = %s   \n", name);
+		fprintf(stderr,"InnoDB:     Page->page_no                    = %lu  \n", page_get_page_no(page));
+		fprintf(stderr,"InnoDB:     Page->space_id                   = %lu  \n", page_get_space_id(page));
+		fprintf(stderr,"InnoDB:     Page->n_recs                     = %lu  \n", page_get_n_recs(page));
+		fprintf(stderr,"InnoDB:     Page->n_slots                    = %lu  \n", page_dir_get_n_slots(page));
+		fprintf(stderr,"InnoDB:     Page->is_compact                 = %lu  \n", page_is_comp(page));
+		fprintf(stderr,"InnoDB:     Page->is_leaf                    = %lu  \n", page_is_leaf(page));
+		fprintf(stderr,"InnoDB:     Page valid                       = %lu  \n", page_validate(page, index));
+	}
+
+	fprintf(stderr,"InnoDB:     NEW PREV PAGE ID INFO           = %lu  \n", new_prev_page_no);
+	if (new_prev_page_no != FIL_NULL) {
+		block = btr_block_get(space_id, zip_size, new_prev_page_no,
+			BTR_NO_LATCHES,
+			index, mtr);
+		page = buf_block_get_frame(block);
+		spaceid = page_get_space_id(page);
+		name = fil_space_get_name(spaceid);
+
+		fprintf(stderr,"InnoDB:     Page space_id                    = %lu  \n", space_id);
+		if (name)
+			fprintf(stderr,"InnoDB:     Page file                        = %s   \n", name);
+		fprintf(stderr,"InnoDB:     Page->page_no                    = %lu  \n", page_get_page_no(page));
+		fprintf(stderr,"InnoDB:     Page->space_id                   = %lu  \n", page_get_space_id(page));
+		fprintf(stderr,"InnoDB:     Page->n_recs                     = %lu  \n", page_get_n_recs(page));
+		fprintf(stderr,"InnoDB:     Page->n_slots                    = %lu  \n", page_dir_get_n_slots(page));
+		fprintf(stderr,"InnoDB:     Page->is_compact                 = %lu  \n", page_is_comp(page));
+		fprintf(stderr,"InnoDB:     Page->is_leaf                    = %lu  \n", page_is_leaf(page));
+		fprintf(stderr,"InnoDB:     Page valid                       = %lu  \n", page_validate(page, index));
+	}
+}

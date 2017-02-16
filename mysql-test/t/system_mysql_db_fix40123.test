@@ -61,7 +61,7 @@ CREATE TABLE time_zone_leap_second (   Transition_time bigint signed NOT NULL,  
 
 
 # Run the mysql_fix_privilege_tables.sql using "mysql --force"
---exec $MYSQL --force test < $MYSQL_FIX_PRIVILEGE_TABLES > $MYSQLTEST_VARDIR/log/system_mysql_db_fix40123.log 2>&1
+--exec $MYSQL --force test < $MYSQL_FIX_PRIVILEGE_TABLES
 
 -- enable_query_log
 -- enable_result_log

@@ -1,4 +1,5 @@
 drop table if exists t1_30237_bool;
+set sql_mode=NO_UNSIGNED_SUBTRACTION;
 create table t1_30237_bool(A boolean, B boolean, C boolean);
 insert into t1_30237_bool values
 (FALSE, FALSE, FALSE),
@@ -397,17 +398,17 @@ select (NOT TRUE) IS NOT NULL, NOT (TRUE IS NOT NULL), NOT TRUE IS NOT NULL;
 1	0	0
 Testing that IS [NOT] TRUE/FALSE/UNKNOWN predicates are not associative
 select TRUE IS TRUE IS TRUE IS TRUE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IS TRUE IS TRUE' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'IS TRUE IS TRUE' at line 1
 select FALSE IS NOT TRUE IS NOT TRUE IS NOT TRUE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IS NOT TRUE IS NOT TRUE' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'IS NOT TRUE IS NOT TRUE' at line 1
 select NULL IS FALSE IS FALSE IS FALSE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IS FALSE IS FALSE' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'IS FALSE IS FALSE' at line 1
 select TRUE IS NOT FALSE IS NOT FALSE IS NOT FALSE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IS NOT FALSE IS NOT FALSE' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'IS NOT FALSE IS NOT FALSE' at line 1
 select FALSE IS UNKNOWN IS UNKNOWN IS UNKNOWN;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IS UNKNOWN IS UNKNOWN' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'IS UNKNOWN IS UNKNOWN' at line 1
 select TRUE IS NOT UNKNOWN IS NOT UNKNOWN IS NOT UNKNOWN;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IS NOT UNKNOWN IS NOT UNKNOWN' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'IS NOT UNKNOWN IS NOT UNKNOWN' at line 1
 Testing that IS [NOT] NULL predicates are associative
 select FALSE IS NULL IS NULL IS NULL;
 FALSE IS NULL IS NULL IS NULL

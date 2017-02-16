@@ -1,0 +1,66 @@
+set global aria_log_file_size=4294967295;
+Warnings:
+Warning	1292	Truncated incorrect aria_log_file_size value: '4294967295'
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+* shut down mysqld, removed logs, restarted it
+CREATE TABLE t1 (
+i int,
+shape GEOMETRY NOT NULL,
+SPATIAL (shape)
+) ENGINE=ARIA;
+insert into t1 values(1,POINT(1, 1));
+* copied t1 for feeding_recovery
+insert into t1 values(2,POINT(2, 2)), (3,POINT(3, 3)), (4,POINT(4, 4));
+flush table t1;
+* copied t1 for comparison
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* copied t1 back for feeding_recovery
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  `shape` geometry NOT NULL,
+  SPATIAL KEY `shape` (`shape`)
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+* TEST of UPDATE vs state.auto_increment
+* copied t1 for feeding_recovery
+update t1 set shape=POINT(5, 5) where i=2;
+flush table t1;
+* copied t1 for comparison
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* copied t1 back for feeding_recovery
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  `shape` geometry NOT NULL,
+  SPATIAL KEY `shape` (`shape`)
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+drop table t1;
+drop database mysqltest_for_feeding_recovery;
+drop database mysqltest_for_comparison;
+drop database mysqltest;

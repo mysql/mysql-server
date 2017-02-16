@@ -1,0 +1,236 @@
+call mtr.add_suppression("Table '.*t1.*' is marked as crashed and should be repaired");
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(2,'d'),(4,'e'),(100,'f'),(101,'g');
+CREATE TABLE t2 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY RANGE(a) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t2 (a,b) SELECT a, b FROM t1;
+ALTER TABLE t1 REPAIR PARTITION p0;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+INSERT INTO t1 (a,b) VALUES (3,'c');
+ALTER TABLE t1 REPAIR PARTITION NO_WRITE_TO_BINLOG p0, p1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+INSERT INTO t2 (a,b) VALUES (5,'e'),(6,'f');
+ALTER TABLE t2 REPAIR PARTITION LOCAL p1;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	status	OK
+INSERT INTO t1 (a,b) VALUES (7,'g'),(8,'h');
+ALTER TABLE t1 REPAIR PARTITION LOCAL ALL EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+INSERT INTO t1 (a,b) VALUES (10,'j');
+ALTER TABLE t1 REPAIR PARTITION p1 QUICK USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+INSERT INTO t2 (a,b) VALUES (12,'l');
+ALTER TABLE t2 REPAIR PARTITION NO_WRITE_TO_BINLOG ALL QUICK EXTENDED USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	status	OK
+DROP TABLE t1, t2;
+DROP TABLE IF EXISTS t1,t2;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
+CREATE TABLE t2 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+INSERT INTO t1 (a,b) VALUES (3,'c');
+INSERT INTO t2 (a,b) VALUES (4,'d');
+REPAIR NO_WRITE_TO_BINLOG TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+test.t2	repair	status	OK
+INSERT INTO t2 (a,b) VALUES (5,'e'),(6,'f');
+REPAIR LOCAL TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	status	OK
+INSERT INTO t1 (a,b) VALUES (7,'g'),(8,'h');
+INSERT INTO t2 (a,b) VALUES (9,'i');
+REPAIR LOCAL TABLE t2, t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	status	OK
+test.t1	repair	status	OK
+INSERT INTO t1 (a,b) VALUES (10,'j');
+INSERT INTO t2 (a,b) VALUES (11,'k');
+REPAIR TABLE t1, t2 QUICK USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+test.t2	repair	status	OK
+INSERT INTO t1 (a,b) VALUES (12,'l');
+INSERT INTO t2 (a,b) VALUES (13,'m');
+REPAIR NO_WRITE_TO_BINLOG TABLE t1, t2 QUICK EXTENDED USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+test.t2	repair	status	OK
+FLUSH TABLE t1;
+INSERT INTO t1 (a,b) VALUES (14,'n');
+ERROR HY000: Failed to read from the .par file
+# Statement ended with one of expected results (0,130,ER_FAILED_READ_FROM_PAR_FILE,ER_OPEN_AS_READONLY). 
+# If you got a difference in error message, just add it to rdiff file
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Error	Failed to read from the .par file
+test.t1	check	Error	Incorrect information in file: './test/t1.frm'
+test.t1	check	error	Corrupt
+SELECT a,b FROM t1;
+ERROR HY000: Failed to read from the .par file
+# Statement ended with one of expected results (0,130,ER_FAILED_READ_FROM_PAR_FILE,ER_OPEN_AS_READONLY). 
+# If you got a difference in error message, just add it to rdiff file
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	Error	Failed to read from the .par file
+test.t1	repair	Error	Incorrect information in file: './test/t1.frm'
+test.t1	repair	error	Corrupt
+DROP TABLE t1, t2;
+call mtr.add_suppression("Got an error from thread_id=.*");
+call mtr.add_suppression("MySQL thread id .*, query id .* localhost.*root Checking table");
+call mtr.add_suppression(" '\..test.t1'");
+call mtr.add_suppression("Couldn't repair table: test.t1");
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>, <CUSTOM_INDEX> (a)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+INSERT INTO t1 (a,b) VALUES (7,'g'),(8,'h');
+REPAIR TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+INSERT INTO t1 (a,b) VALUES (10,'j');
+REPAIR TABLE t1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p1.MYD
+t1#P#p1.MYI
+t1.frm
+t1.par
+INSERT INTO t1 (a,b) VALUES (14,'n'),(15,'o');
+# Statement ended with one of expected results (0,144). 
+# If you got a difference in error message, just add it to rdiff file
+FLUSH TABLE t1;
+Restoring <DATADIR>/test/t1#P#p0.MYD
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	error	Size of datafile is: 26         Should be: 39
+test.t1	check	error	Partition p0 returned error
+test.t1	check	error	Corrupt
+SELECT a,b FROM t1;
+a	b
+8	h
+10	j
+7	g
+15	o
+Warnings:
+Error	145	Table './test/t1#P#p0' is marked as crashed and should be repaired
+Error	1194	Table 't1' is marked as crashed and should be repaired
+Error	1034	Number of rows changed from 3 to 2
+# Statement ended with one of expected results (0,ER_NOT_KEYFILE,144). 
+# If you got a difference in error message, just add it to rdiff file
+INSERT INTO t1 (a,b) VALUES (14,'n'),(15,'o');
+# Statement ended with one of expected results (0,144). 
+# If you got a difference in error message, just add it to rdiff file
+FLUSH TABLE t1;
+Restoring <DATADIR>/test/t1#P#p0.MYI
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	warning	Size of datafile is: 39       Should be: 26
+test.t1	check	error	Record-count is not ok; is 3   Should be: 2
+test.t1	check	warning	Found 3 key parts. Should be: 2
+test.t1	check	error	Partition p0 returned error
+test.t1	check	error	Corrupt
+SELECT a,b FROM t1;
+a	b
+8	h
+10	j
+14	n
+7	g
+15	o
+15	o
+Warnings:
+Error	145	Table './test/t1#P#p0' is marked as crashed and should be repaired
+Error	1194	Table 't1' is marked as crashed and should be repaired
+Error	1034	Number of rows changed from 2 to 3
+# Statement ended with one of expected results (0,ER_NOT_KEYFILE,144). 
+# If you got a difference in error message, just add it to rdiff file
+INSERT INTO t1 (a,b) VALUES (14,'n'),(15,'o');
+# Statement ended with one of expected results (0,144). 
+# If you got a difference in error message, just add it to rdiff file
+FLUSH TABLE t1;
+Restoring <DATADIR>/test/t1#P#p1.MYD
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	error	Size of datafile is: 39         Should be: 52
+test.t1	check	error	Partition p1 returned error
+test.t1	check	error	Corrupt
+SELECT a,b FROM t1;
+a	b
+8	h
+10	j
+14	n
+14	n
+7	g
+15	o
+15	o
+Warnings:
+Error	145	Table './test/t1#P#p1' is marked as crashed and should be repaired
+Error	1194	Table 't1' is marked as crashed and should be repaired
+Error	1034	Number of rows changed from 4 to 3
+# Statement ended with one of expected results (0,ER_NOT_KEYFILE,144). 
+# If you got a difference in error message, just add it to rdiff file
+INSERT INTO t1 (a,b) VALUES (14,'n'),(15,'o');
+# Statement ended with one of expected results (0,144). 
+# If you got a difference in error message, just add it to rdiff file
+FLUSH TABLE t1;
+Restoring <DATADIR>/test/t1#P#p1.MYI
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	warning	Size of datafile is: 52       Should be: 39
+test.t1	check	error	Record-count is not ok; is 4   Should be: 3
+test.t1	check	warning	Found 4 key parts. Should be: 3
+test.t1	check	error	Partition p1 returned error
+test.t1	check	error	Corrupt
+SELECT a,b FROM t1;
+a	b
+8	h
+10	j
+14	n
+14	n
+14	n
+7	g
+15	o
+15	o
+15	o
+Warnings:
+Error	145	Table './test/t1#P#p1' is marked as crashed and should be repaired
+Error	1194	Table 't1' is marked as crashed and should be repaired
+Error	1034	Number of rows changed from 3 to 4
+# Statement ended with one of expected results (0,ER_NOT_KEYFILE,144). 
+# If you got a difference in error message, just add it to rdiff file
+INSERT INTO t1 (a,b) VALUES (14,'n'),(15,'o');
+# Statement ended with one of expected results (0,144). 
+# If you got a difference in error message, just add it to rdiff file
+FLUSH TABLE t1;
+Restoring <DATADIR>/test/t1.par
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT a,b FROM t1;
+a	b
+8	h
+10	j
+14	n
+14	n
+14	n
+14	n
+7	g
+15	o
+15	o
+15	o
+15	o
+# Statement ended with one of expected results (0,ER_NOT_KEYFILE,144). 
+# If you got a difference in error message, just add it to rdiff file
+DROP TABLE t1;

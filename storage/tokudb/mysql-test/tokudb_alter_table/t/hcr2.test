@@ -1,0 +1,86 @@
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=ON;
+
+create table foo (
+a1 int,
+a2 int unsigned,
+a3 tinyint,
+a4 tinyint unsigned,
+a5 bit,
+a6 smallint,
+a7 smallint unsigned,
+a8 mediumint,
+a9 mediumint unsigned,
+a10 bigint,
+a11 bigint unsigned,
+a12 double,
+a13 double unsigned,
+a14 float,
+a15 float unsigned,
+a16 decimal,
+a17 date,
+a18 datetime,
+a19 timestamp,
+a20 time,
+a21 year,
+a22 binary(100),
+a23 varbinary(100),
+a24 varchar(10),
+a25 varchar(10) CHARACTER SET latin1 COLLATE latin1_general_cs,
+a26 char(10),
+a27 char(10) CHARACTER SET latin1 COLLATE latin1_general_cs,
+a28 ENUM('a','b','c') CHARACTER SET binary,
+a29 tinyblob,
+a30 tinytext CHARACTER SET latin1 COLLATE latin1_general_cs,
+a31 blob,
+a32 text CHARACTER SET latin1 COLLATE latin1_general_cs,
+a33 mediumblob,
+a34 mediumtext CHARACTER SET latin1 COLLATE latin1_general_cs,
+a35 longblob,
+a36 longtext CHARACTER SET latin1 COLLATE latin1_general_cs
+);
+
+alter table foo change a1 aa1 int;
+alter table foo change a2 aa2 int unsigned;
+alter table foo change a3 aa3 tinyint;
+alter table foo change a4 aa4 tinyint unsigned;
+alter table foo change a5 aa5 bit;
+alter table foo change a6 aa6 smallint;
+alter table foo change a7 aa7 smallint unsigned;
+alter table foo change a8 aa8 mediumint;
+alter table foo change a9 aa9 mediumint unsigned;
+alter table foo change a10 aa10 bigint;
+alter table foo change a11 aa11 bigint unsigned;
+alter table foo change a12 aa12 double;
+alter table foo change a13 aa13 double unsigned;
+alter table foo change a14 aa14 float;
+alter table foo change a15 aa15 float unsigned;
+alter table foo change a16 aa16 decimal;
+alter table foo change a17 aa17 date;
+alter table foo change a18 aa18 datetime;
+alter table foo change a19 aa19 timestamp;
+alter table foo change a20 aa20 time;
+alter table foo change a21 aa21 year;
+alter table foo change a22 aa22 binary(100);
+alter table foo change a23 aa23 varbinary(100);
+alter table foo change a24 aa24 varchar(10);
+alter table foo change a25 aa25 varchar(10) CHARACTER SET latin1 COLLATE latin1_general_cs;
+alter table foo change a26 aa26 char(10);
+alter table foo change a27 aa27 char(10) CHARACTER SET latin1 COLLATE latin1_general_cs;
+alter table foo change a28 aa28 ENUM('a','b','c') CHARACTER SET binary;
+alter table foo change a29 aa29 tinyblob;
+alter table foo change a30 aa30 tinytext CHARACTER SET latin1 COLLATE latin1_general_cs;
+alter table foo change a31 aa31 blob;
+alter table foo change a32 aa32 text CHARACTER SET latin1 COLLATE latin1_general_cs;
+alter table foo change a33 aa33 mediumblob;
+alter table foo change a34 aa34 mediumtext CHARACTER SET latin1 COLLATE latin1_general_cs;
+alter table foo change a35 aa35 longblob;
+alter table foo change a36 aa36 longtext CHARACTER SET latin1 COLLATE latin1_general_cs;
+
+drop table foo;

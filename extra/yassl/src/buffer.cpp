@@ -21,6 +21,9 @@
  * with SSL types and sockets
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include <string.h>             // memcpy
 #include "runtime.hpp"

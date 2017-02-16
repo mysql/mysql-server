@@ -1,8 +1,8 @@
+--source include/have_innodb.inc
 #
 # Bug #51920: InnoDB connections in lock wait ignore KILL until timeout
 #
 -- source include/not_embedded.inc
--- source include/have_innodb.inc
 
 CREATE TABLE bug51920 (i INT) ENGINE=InnoDB;
 INSERT INTO bug51920 VALUES (1);
@@ -36,7 +36,7 @@ let $wait_condition =
 # depending on platform.
 #
 connection con1;
--- error 1317, 2006, 2013
+-- error 1317, 2006, 2013, ER_CONNECTION_KILLED
 reap;
 connection default;
 DROP TABLE bug51920;

@@ -1,0 +1,20 @@
+--- suite/storage_engine/trx/cons_snapshot_repeatable_read.result	2013-01-22 22:05:05.246633000 +0400
++++ suite/storage_engine/trx/cons_snapshot_repeatable_read.reject	2013-01-23 02:44:05.336711176 +0400
+@@ -1,3 +1,9 @@
++# -- WARNING ----------------------------------------------------------------
++# According to I_S.ENGINES, MyISAM does not support transactions.
++# If it is true, the test will most likely fail; you can 
++# either create an rdiff file, or add the test to disabled.def.
++# If transactions should be supported, check the data in Information Schema.
++# ---------------------------------------------------------------------------
+ DROP TABLE IF EXISTS t1;
+ connect  con1,localhost,root,,;
+ connect  con2,localhost,root,,;
+@@ -11,6 +17,7 @@
+ # If consistent read works on this isolation level (REPEATABLE READ), the following SELECT should not return the value we inserted (1)
+ SELECT a FROM t1;
+ a
++1
+ COMMIT;
+ connection default;
+ disconnect con1;

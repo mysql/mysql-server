@@ -1,4 +1,5 @@
-/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2001, 2011, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -118,12 +119,8 @@ static int safe_print_str(const char *addr, int max_len)
       break;
   }
 
-  /* Output a new line if something was printed. */
-  if (total != (size_t) max_len)
-    my_safe_printf_stderr("%s", "\n");
-
   if (nbytes == -1)
-    my_safe_printf_stderr("Can't read from address %p\n", addr);
+    my_safe_printf_stderr("Can't read from address %p", addr);
 
   close(fd);
 
@@ -145,7 +142,7 @@ void my_safe_print_str(const char* val, int max_len)
 
   if (!PTR_SANE(val))
   {
-    my_safe_printf_stderr("%s", "is an invalid pointer\n");
+    my_safe_printf_stderr("%s", "is an invalid pointer");
     return;
   }
 
@@ -217,25 +214,52 @@ static void my_demangle_symbols(char **addrs, int n)
 
 #endif /* BACKTRACE_DEMANGLE */
 
+#if HAVE_MY_ADDR_RESOLVE
+static int print_with_addr_resolve(void **addrs, int n)
+{
+  int i;
+  const char *err;
+
+  if ((err= my_addr_resolve_init()))
+  {
+    my_safe_printf_stderr("(my_addr_resolve failure: %s)\n", err);
+    return 0;
+  }
+
+  for (i= 0; i < n; i++)
+  {
+    my_addr_loc loc;
+    if (my_addr_resolve(addrs[i], &loc))
+      backtrace_symbols_fd(addrs+i, 1, fileno(stderr));
+    else
+      my_safe_printf_stderr("%s:%u(%s)[%p]\n",
+              loc.file, loc.line, loc.func, addrs[i]);
+  }
+  return 1;
+}
+#endif
+
 void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
 {
   void *addrs[128];
-  char **strings= NULL;
+  char **strings __attribute__((unused)) = NULL;
   int n = backtrace(addrs, array_elements(addrs));
   my_safe_printf_stderr("stack_bottom = %p thread_stack 0x%lx\n",
                         stack_bottom, thread_stack);
+#if HAVE_MY_ADDR_RESOLVE
+  if (print_with_addr_resolve(addrs, n))
+    return;
+#endif
 #if BACKTRACE_DEMANGLE
   if ((strings= backtrace_symbols(addrs, n)))
   {
     my_demangle_symbols(strings, n);
     free(strings);
+    return;
   }
 #endif
 #if HAVE_BACKTRACE_SYMBOLS_FD
-  if (!strings)
-  {
-    backtrace_symbols_fd(addrs, n, fileno(stderr));
-  }
+  backtrace_symbols_fd(addrs, n, fileno(stderr));
 #endif
 }
 
@@ -441,6 +465,7 @@ void my_write_core(int sig)
 
 #include <dbghelp.h>
 #include <tlhelp32.h>
+#include <my_sys.h>
 #if _MSC_VER
 #pragma comment(lib, "dbghelp")
 #endif
@@ -474,10 +499,11 @@ static void add_to_symbol_path(char *path, size_t path_buffer_size,
 }
 
 /*
-  Get symbol path - semicolon-separated list of directories to search for debug
-  symbols. We expect PDB in the same directory as corresponding exe or dll,
-  so the path is build from directories of the loaded modules. If environment
-  variable _NT_SYMBOL_PATH is set, it's value appended to the symbol search path
+  Get symbol path - semicolon-separated list of directories to search
+  for debug symbols. We expect PDB in the same directory as
+  corresponding exe or dll, so the path is build from directories of
+  the loaded modules. If environment variable _NT_SYMBOL_PATH is set,
+  it's value appended to the symbol search path
 */
 static void get_symbol_path(char *path, size_t size)
 { 
@@ -615,9 +641,9 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
     if(!have_module)
     {
       /*
-        ModuleInfo structure has been "compatibly" extended in releases after XP,
-        and its size was increased. To make XP dbghelp.dll function
-        happy, pretend passing the old structure.
+        ModuleInfo structure has been "compatibly" extended in
+        releases after XP, and its size was increased. To make XP
+        dbghelp.dll function happy, pretend passing the old structure.
       */
       module.SizeOfStruct= MODULE64_SIZE_WINXP;
       have_module= SymGetModuleInfo64(hProcess, addr, &module);
@@ -628,14 +654,9 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
       &(package.sym));
     have_source= SymGetLineFromAddr64(hProcess, addr, &line_offset, &line);
 
-    my_safe_printf_stderr("%p    ", addr);
     if(have_module)
     {
-      char *base_image_name= strrchr(module.ImageName, '\\');
-      if(base_image_name)
-        base_image_name++;
-      else
-        base_image_name= module.ImageName;
+      const char *base_image_name= my_basename(module.ImageName);
       my_safe_printf_stderr("%s!", base_image_name);
     }
     if(have_symbol)
@@ -646,11 +667,7 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
 
     if(have_source)
     {
-      char *base_file_name= strrchr(line.FileName, '\\');
-      if(base_file_name)
-        base_file_name++;
-      else
-        base_file_name= line.FileName;
+      const char *base_file_name= my_basename(line.FileName);
       my_safe_printf_stderr("[%s:%u]",
                             base_file_name, line.LineNumber);
     }
@@ -719,197 +736,15 @@ void my_safe_print_str(const char *val, int len)
   }
   __except(EXCEPTION_EXECUTE_HANDLER)
   {
-    my_safe_printf_stderr("%s", "is an invalid string pointer\n");
+    my_safe_printf_stderr("%s", "is an invalid string pointer");
   }
 }
 #endif /*__WIN__*/
 
 
-#ifdef __WIN__
-size_t my_write_stderr(const void *buf, size_t count)
-{
-  DWORD bytes_written;
-  SetFilePointer(GetStdHandle(STD_ERROR_HANDLE), 0, NULL, FILE_END);
-  WriteFile(GetStdHandle(STD_ERROR_HANDLE), buf, count, &bytes_written, NULL);
-  return bytes_written;
-}
-#else
 size_t my_write_stderr(const void *buf, size_t count)
 {
   return (size_t) write(STDERR_FILENO, buf, count);
-}
-#endif
-
-
-static const char digits[]= "0123456789abcdef";
-
-char *my_safe_utoa(int base, ulonglong val, char *buf)
-{
-  *buf--= 0;
-  do {
-    *buf--= digits[val % base];
-  } while ((val /= base) != 0);
-  return buf + 1;
-}
-
-
-char *my_safe_itoa(int base, longlong val, char *buf)
-{
-  char *orig_buf= buf;
-  const my_bool is_neg= (val < 0);
-  *buf--= 0;
-
-  if (is_neg)
-    val= -val;
-  if (is_neg && base == 16)
-  {
-    int ix;
-    val-= 1;
-    for (ix= 0; ix < 16; ++ix)
-      buf[-ix]= '0';
-  }
-  
-  do {
-    *buf--= digits[val % base];
-  } while ((val /= base) != 0);
-
-  if (is_neg && base == 10)
-    *buf--= '-';
-
-  if (is_neg && base == 16)
-  {
-    int ix;
-    buf= orig_buf - 1;
-    for (ix= 0; ix < 16; ++ix, --buf)
-    {
-      switch (*buf)
-      {
-      case '0': *buf= 'f'; break;
-      case '1': *buf= 'e'; break;
-      case '2': *buf= 'd'; break;
-      case '3': *buf= 'c'; break;
-      case '4': *buf= 'b'; break;
-      case '5': *buf= 'a'; break;
-      case '6': *buf= '9'; break;
-      case '7': *buf= '8'; break;
-      case '8': *buf= '7'; break;
-      case '9': *buf= '6'; break;
-      case 'a': *buf= '5'; break;
-      case 'b': *buf= '4'; break;
-      case 'c': *buf= '3'; break;
-      case 'd': *buf= '2'; break;
-      case 'e': *buf= '1'; break;
-      case 'f': *buf= '0'; break;
-      }
-    }
-  }
-  return buf+1;
-}
-
-
-static const char *check_longlong(const char *fmt, my_bool *have_longlong)
-{
-  *have_longlong= FALSE;
-  if (*fmt == 'l')
-  {
-    fmt++;
-    if (*fmt != 'l')
-      *have_longlong= (sizeof(long) == sizeof(longlong));
-    else
-    {
-      fmt++;
-      *have_longlong= TRUE;
-    }
-  }
-  return fmt;
-}
-
-static size_t my_safe_vsnprintf(char *to, size_t size,
-                                const char* format, va_list ap)
-{
-  char *start= to;
-  char *end= start + size - 1;
-  for (; *format; ++format)
-  {
-    my_bool have_longlong = FALSE;
-    if (*format != '%')
-    {
-      if (to == end)                            /* end of buffer */
-        break;
-      *to++= *format;                           /* copy ordinary char */
-      continue;
-    }
-    ++format;                                   /* skip '%' */
-
-    format= check_longlong(format, &have_longlong);
-
-    switch (*format)
-    {
-    case 'd':
-    case 'i':
-    case 'u':
-    case 'x':
-    case 'p':
-      {
-        longlong ival= 0;
-        ulonglong uval = 0;
-        if (*format == 'p')
-          have_longlong= (sizeof(void *) == sizeof(longlong));
-        if (have_longlong)
-        {
-          if (*format == 'u')
-            uval= va_arg(ap, ulonglong);
-          else
-            ival= va_arg(ap, longlong);
-        }
-        else
-        {
-          if (*format == 'u')
-            uval= va_arg(ap, unsigned int);
-          else
-            ival= va_arg(ap, int);
-        }
-
-        {
-          char buff[22];
-          const int base= (*format == 'x' || *format == 'p') ? 16 : 10;
-          char *val_as_str= (*format == 'u') ?
-            my_safe_utoa(base, uval, &buff[sizeof(buff)-1]) :
-            my_safe_itoa(base, ival, &buff[sizeof(buff)-1]);
-
-          /* Strip off "ffffffff" if we have 'x' format without 'll' */
-          if (*format == 'x' && !have_longlong && ival < 0)
-            val_as_str+= 8;
-
-          while (*val_as_str && to < end)
-            *to++= *val_as_str++;
-          continue;
-        }
-      }
-    case 's':
-      {
-        const char *val= va_arg(ap, char*);
-        if (!val)
-          val= "(null)";
-        while (*val && to < end)
-          *to++= *val++;
-        continue;
-      }
-    }
-  }
-  *to= 0;
-  return to - start;
-}
-
-
-size_t my_safe_snprintf(char* to, size_t n, const char* fmt, ...)
-{
-  size_t result;
-  va_list args;
-  va_start(args,fmt);
-  result= my_safe_vsnprintf(to, n, fmt, args);
-  va_end(args);
-  return result;
 }
 
 
@@ -919,7 +754,7 @@ size_t my_safe_printf_stderr(const char* fmt, ...)
   size_t result;
   va_list args;
   va_start(args,fmt);
-  result= my_safe_vsnprintf(to, sizeof(to), fmt, args);
+  result= my_vsnprintf(to, sizeof(to), fmt, args);
   va_end(args);
   my_write_stderr(to, result);
   return result;

@@ -107,13 +107,19 @@ DELETE FROM t3 WHERE id = del_count;
 SET del_count = del_count - 2;
 END WHILE;
 END|
+begin;
 CALL p1();
+commit;
 SELECT count(*) as "Master regular" FROM t1;
 Master regular	500
+begin;
 CALL p2();
+commit;
 SELECT count(*) as "Master bykey" FROM t2;
 Master bykey	500
+begin;
 CALL p3();
+commit;
 SELECT count(*) as "Master byrange" FROM t3;
 Master byrange	500
 show create table t3;

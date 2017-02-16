@@ -1,0 +1,39 @@
+--source include/have_innodb.inc
+
+CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` datetime DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+CREATE TABLE `t2` (
+  `c0` varchar(10) NOT NULL,
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  PRIMARY KEY (`c0`,`c1`),
+  KEY `c1` (`c1`),
+  KEY `c2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+CREATE TABLE `t3` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `c1` datetime NOT NULL,
+  `c2` bigint(20) NOT NULL,
+  `c3` int(4) unsigned NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `c2` (`c2`),
+  KEY `c3` (`c3`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+CREATE TABLE `t4` (
+  `c1` int(11) NOT NULL,
+  `c2` bigint(20) DEFAULT NULL,
+  `c3` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+ CREATE ALGORITHM=UNDEFINED VIEW `v1` AS select `t4`.`c1` AS `c1`,`t4`.`c2` AS `c2`,`t4`.`c3` AS `c3` from `t4`;
+
+UPDATE t1 a JOIN t2 b ON a.c1 = b.c1 JOIN v1 vw ON b.c2 = vw.c1 JOIN t3 del ON vw.c2 = del.c2 SET a.c2 = ( SELECT max(t.c1) FROM t3 t, v1 i WHERE del.c2 = t.c2 AND vw.c3 = i.c3 AND t.c3 = 4 ) WHERE a.c2 IS NULL OR a.c2 < '2011-05-01';
+
+drop view v1;
+drop table t1,t2,t3,t4;

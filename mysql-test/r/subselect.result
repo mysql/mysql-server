@@ -1,4 +1,10 @@
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
+drop view if exists v2;
+set @subselect_tmp=@@optimizer_switch;
+set @@optimizer_switch=ifnull(@optimizer_switch_for_subselect_test,
+"semijoin=on,firstmatch=on,loosescan=on,semijoin_with_cache=on,partial_match_rowid_merge=off,partial_match_table_scan=off");
+set join_cache_level=1;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 select (select 2);
 (select 2)
 2
@@ -45,12 +51,12 @@ ERROR 42S22: Reference 'a' not supported (forward reference in item list)
 EXPLAIN EXTENDED SELECT 1 FROM (SELECT 1 as a) as b  HAVING (SELECT a)=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	100.00	
-3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'b.a' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'b.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	select 1 AS `1` from dual having ((select '1') = 1)
+Note	1003	select 1 AS `1` from dual having ((select 1) = 1)
 SELECT 1 FROM (SELECT 1 as a) as b HAVING (SELECT a)=1;
 1
 1
@@ -75,7 +81,7 @@ SELECT 1 FROM (SELECT 1 as a) b WHERE 1 IN (SELECT (SELECT a));
 select (SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE(1));
 ERROR HY000: Incorrect usage of PROCEDURE and subquery
 SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE((SELECT 1));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SELECT 1))' at line 1
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NULL;
 ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NOT NULL;
@@ -187,7 +193,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 4	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
 NULL	UNION RESULT	<union1,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1003	(select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`b` = (select `test`.`t3`.`a` from `test`.`t3` order by 1 desc limit 1))) union (select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t4` where (`test`.`t4`.`b` = (select (max(`test`.`t2`.`a`) * 4) from `test`.`t2`)) order by `a`)
+Note	1003	(select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`b` = (select `test`.`t3`.`a` from `test`.`t3` order by 1 desc limit 1))) union (select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t4` where (`test`.`t4`.`b` = (select (max(`test`.`t2`.`a`) * 4) from `test`.`t2`)))
 select (select a from t3 where a<t2.a*4 order by 1 desc limit 1), a from t2;
 (select a from t3 where a<t2.a*4 order by 1 desc limit 1)	a
 3	1
@@ -196,14 +202,17 @@ select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from
 (select * from t2 where a>1) as tt;
 (select t3.a from t3 where a<8 order by 1 desc limit 1)	a
 7	2
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 explain extended select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from
 (select * from t2 where a>1) as tt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived3>	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	2	100.00	
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using filesort
 Warnings:
-Note	1003	select (select `test`.`t3`.`a` from `test`.`t3` where (`test`.`t3`.`a` < 8) order by 1 desc limit 1) AS `(select t3.a from t3 where a<8 order by 1 desc limit 1)`,'2' AS `a` from dual
+Note	1003	select (select `test`.`t3`.`a` from `test`.`t3` where (`test`.`t3`.`a` < 8) order by 1 desc limit 1) AS `(select t3.a from t3 where a<8 order by 1 desc limit 1)`,`tt`.`a` AS `a` from (select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`a` > 1)) `tt`
+set optimizer_switch=@tmp_optimizer_switch;
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3) order by 1 desc limit 1);
 a
 2
@@ -224,7 +233,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 3	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t4.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	select `test`.`t4`.`b` AS `b`,(select avg((`test`.`t2`.`a` + (select min(`test`.`t3`.`a`) from `test`.`t3` where (`test`.`t3`.`a` >= `test`.`t4`.`a`)))) from `test`.`t2`) AS `(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2)` from `test`.`t4`
+Note	1003	select `test`.`t4`.`b` AS `b`,<expr_cache><`test`.`t4`.`a`>((select avg((`test`.`t2`.`a` + (select min(`test`.`t3`.`a`) from `test`.`t3` where (`test`.`t3`.`a` >= `test`.`t4`.`a`)))) from `test`.`t2`)) AS `(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2)` from `test`.`t4`
 select * from t3 where exists (select * from t2 where t2.b=t3.a);
 a
 7
@@ -270,7 +279,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((`test`.`t3`.`a` >= (select min(`test`.`t2`.`b`) from `test`.`t2`)))
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>(<in_optimizer>(`test`.`t3`.`a`,((select min(`test`.`t2`.`b`) from `test`.`t2`) <= <cache>(`test`.`t3`.`a`))))
 select * from t3 where a >= all (select b from t2);
 a
 7
@@ -314,7 +323,7 @@ NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 Warnings:
 Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t2.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	select (select '2' from dual where ('2' = `test`.`t2`.`a`) union select `test`.`t5`.`a` from `test`.`t5` where (`test`.`t5`.`a` = `test`.`t2`.`a`)) AS `(select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)`,`test`.`t2`.`a` AS `a` from `test`.`t2`
+Note	1003	select <expr_cache><`test`.`t2`.`a`>((select 2 from dual where (2 = `test`.`t2`.`a`) union select `test`.`t5`.`a` from `test`.`t5` where (`test`.`t5`.`a` = `test`.`t2`.`a`))) AS `(select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)`,`test`.`t2`.`a` AS `a` from `test`.`t2`
 select (select a from t1 where t1.a=t2.a union all select a from t5 where t5.a=t2.a), a from t2;
 ERROR 21000: Subquery returns more than 1 row
 create table t6 (patient_uq int, clinic_uq int, index i1 (clinic_uq));
@@ -332,7 +341,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.clinic_uq	1	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'test.t6.clinic_uq' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t6`.`patient_uq` AS `patient_uq`,`test`.`t6`.`clinic_uq` AS `clinic_uq` from `test`.`t6` where exists(select 1 from `test`.`t7` where (`test`.`t7`.`uq` = `test`.`t6`.`clinic_uq`))
+Note	1003	select `test`.`t6`.`patient_uq` AS `patient_uq`,`test`.`t6`.`clinic_uq` AS `clinic_uq` from `test`.`t6` where <expr_cache><`test`.`t6`.`clinic_uq`>(exists(select 1 from `test`.`t7` where (`test`.`t7`.`uq` = `test`.`t6`.`clinic_uq`)))
 select * from t1 where a= (select a from t2,t4 where t2.b=t4.b);
 ERROR 23000: Column 'a' in field list is ambiguous
 drop table t1,t2,t3;
@@ -363,9 +372,9 @@ INSERT INTO t8 (pseudo,email) VALUES ('2joce1','2test1');
 EXPLAIN EXTENDED SELECT pseudo,(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce')) FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	Using index
-4	SUBQUERY	t8	const	PRIMARY	PRIMARY	37		1	100.00	Using index
+4	SUBQUERY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	Using index
 2	SUBQUERY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	
-3	SUBQUERY	t8	const	PRIMARY	PRIMARY	37		1	100.00	Using index
+3	SUBQUERY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	Using index
 Warnings:
 Note	1003	select 'joce' AS `pseudo`,(select 'test' from `test`.`t8` where 1) AS `(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce'))` from `test`.`t8` where 1
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo,email FROM
@@ -505,6 +514,10 @@ select numeropost as a FROM t1 GROUP BY (SELECT 1 FROM t1 HAVING a=1);
 ERROR 21000: Subquery returns more than 1 row
 select numeropost as a FROM t1 ORDER BY (SELECT 1 FROM t1 HAVING a=1);
 ERROR 21000: Subquery returns more than 1 row
+show warnings;
+Level	Code	Message
+Error	1242	Subquery returns more than 1 row
+Error	1028	Sort aborted: Subquery returns more than 1 row
 drop table t1;
 create table t1 (a int);
 insert into t1 values (1),(2),(3);
@@ -536,6 +549,8 @@ numreponse	(SELECT numeropost FROM t1 HAVING numreponse=1)
 INSERT INTO t1 (numeropost,numreponse,pseudo) VALUES (1,1,'joce'),(1,2,'joce'),(1,3,'test');
 EXPLAIN EXTENDED SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT 1 FROM t1 WHERE numeropost='1');
 ERROR 21000: Subquery returns more than 1 row
+SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT 1 FROM t1 WHERE numeropost='1');
+ERROR 21000: Subquery returns more than 1 row
 EXPLAIN EXTENDED SELECT MAX(numreponse) FROM t1 WHERE numeropost='1';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
@@ -546,7 +561,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	const	PRIMARY,numreponse	PRIMARY	7	const,const	1	100.00	Using index
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	select '3' AS `numreponse` from `test`.`t1` where (('1' = '1'))
+Note	1003	select 3 AS `numreponse` from `test`.`t1` where 1
 drop table t1;
 CREATE TABLE t1 (a int(1));
 INSERT INTO t1 VALUES (1);
@@ -586,7 +601,7 @@ a	b
 select * from t1 where b = (select b from t2 where t1.a = t2.a);
 a	b
 2	12
-delete from t1 where b = (select b from t1);
+delete from t1 where b in (select b from t1);
 ERROR HY000: You can't specify target table 't1' for update in FROM clause
 delete from t1 where b = (select b from t2);
 ERROR 21000: Subquery returns more than 1 row
@@ -626,8 +641,8 @@ a	b
 33	10
 22	11
 drop table t11, t12, t2;
-CREATE TABLE t1 (x int);
-create table t2 (a int);
+CREATE TABLE t1 (x int) ENGINE=MyISAM;
+create table t2 (a int) ENGINE=MyISAM;
 create table t3 (b int);
 insert into t2 values (1);
 insert into t3 values (1),(2);
@@ -674,7 +689,7 @@ x
 11
 2
 drop table t1, t2, t3;
-CREATE TABLE t1 (x int not null, y int, primary key (x));
+CREATE TABLE t1 (x int not null, y int, primary key (x)) ENGINE=MyISAM;
 create table t2 (a int);
 create table t3 (a int);
 insert into t2 values (1);
@@ -719,7 +734,7 @@ id
 1
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE id IN (SELECT 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	ref	id	id	5	const	1	100.00	Using where; Using index
+1	PRIMARY	t2	ref	id	id	5	const	1	100.00	Using index
 Warnings:
 Note	1249	Select 2 was reduced during optimization
 Note	1003	select `test`.`t2`.`id` AS `id` from `test`.`t2` where (`test`.`t2`.`id` = 1)
@@ -743,7 +758,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1003	select `test`.`t2`.`id` AS `id` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`id`,<exists>(select 1 having (<cache>(`test`.`t2`.`id`) = <ref_null_helper>(1)) union select 3 having (<cache>(`test`.`t2`.`id`) = <ref_null_helper>(3))))
+Note	1003	select `test`.`t2`.`id` AS `id` from `test`.`t2` where <expr_cache><`test`.`t2`.`id`>(<in_optimizer>(`test`.`t2`.`id`,<exists>(select 1 having (<cache>(`test`.`t2`.`id`) = <ref_null_helper>(1)) union select 3 having (<cache>(`test`.`t2`.`id`) = <ref_null_helper>(3)))))
 SELECT * FROM t2 WHERE id IN (SELECT 5 UNION SELECT 3);
 id
 SELECT * FROM t2 WHERE id IN (SELECT 5 UNION SELECT 2);
@@ -889,9 +904,9 @@ a	t1.a in (select t2.a from t2)
 explain extended SELECT t1.a, t1.a in (select t2.a from t2) FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	index_subquery	a	a	5	func	2	100.00	Using index
+2	SUBQUERY	t2	index_subquery	a	a	5	func	2	100.00	Using index
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in t2 on a checking NULL having <is_not_null_test>(`test`.`t2`.`a`)))) AS `t1.a in (select t2.a from t2)` from `test`.`t1`
+Note	1003	select `test`.`t1`.`a` AS `a`,<expr_cache><`test`.`t1`.`a`>(<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in t2 on a checking NULL having <is_not_null_test>(`test`.`t2`.`a`))))) AS `t1.a in (select t2.a from t2)` from `test`.`t1`
 CREATE TABLE t3 (a int(11) default '0');
 INSERT INTO t3 VALUES (1),(2),(3);
 SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) FROM t1;
@@ -904,15 +919,140 @@ explain extended SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) F
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	4	100.00	Using index
 2	DEPENDENT SUBQUERY	t2	ref_or_null	a	a	5	func	2	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (flat, BNL join)
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`) or isnull(`test`.`t2`.`a`))) having <is_not_null_test>(`test`.`t2`.`a`))) AS `t1.a in (select t2.a from t2,t3 where t3.a=t2.a)` from `test`.`t1`
+Note	1003	select `test`.`t1`.`a` AS `a`,<expr_cache><`test`.`t1`.`a`>(<in_optimizer>(`test`.`t1`.`a`,<exists>(select `test`.`t2`.`a` from `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`) or isnull(`test`.`t2`.`a`))) having <is_not_null_test>(`test`.`t2`.`a`)))) AS `t1.a in (select t2.a from t2,t3 where t3.a=t2.a)` from `test`.`t1`
 drop table t1,t2,t3;
+# check correct NULL Processing for normal IN/ALL/ANY
+# and 2 ways of max/min optimization
+create table t1 (a int);
+insert into t1 values (1), (100), (NULL), (1000);
+create table t2 (a int not null);
+# subselect returns empty set (for NULL and non-NULL left part)
+select a, a in (select * from t2) from t1;
+a	a in (select * from t2)
+1	0
+100	0
+NULL	0
+1000	0
+select a, a > any (select * from t2) from t1;
+a	a > any (select * from t2)
+1	0
+100	0
+NULL	0
+1000	0
+select a, a > all (select * from t2) from t1;
+a	a > all (select * from t2)
+1	1
+100	1
+NULL	1
+1000	1
+select a from t1 where a in (select * from t2);
+a
+select a from t1 where a > any (select * from t2);
+a
+select a from t1 where a > all (select * from t2);
+a
+1
+100
+NULL
+1000
+select a from t1 where a in (select * from t2 group by a);
+a
+select a from t1 where a > any (select * from t2 group by a);
+a
+select a from t1 where a > all (select * from t2 group by a);
+a
+1
+100
+NULL
+1000
+insert into t2 values (1),(200);
+# sebselect returns non-empty set without NULLs
+select a, a in (select * from t2) from t1;
+a	a in (select * from t2)
+1	1
+100	0
+NULL	NULL
+1000	0
+select a, a > any (select * from t2) from t1;
+a	a > any (select * from t2)
+1	0
+100	1
+NULL	NULL
+1000	1
+select a, a > all (select * from t2) from t1;
+a	a > all (select * from t2)
+1	0
+100	0
+NULL	NULL
+1000	1
+select a from t1 where a in (select * from t2);
+a
+1
+select a from t1 where a > any (select * from t2);
+a
+100
+1000
+select a from t1 where a > all (select * from t2);
+a
+1000
+select a from t1 where a in (select * from t2 group by a);
+a
+1
+select a from t1 where a > any (select * from t2 group by a);
+a
+100
+1000
+select a from t1 where a > all (select * from t2 group by a);
+a
+1000
+drop table t2;
+create table t2 (a int);
+insert into t2 values (1),(NULL),(200);
+# sebselect returns non-empty set with NULLs
+select a, a in (select * from t2) from t1;
+a	a in (select * from t2)
+1	1
+100	NULL
+NULL	NULL
+1000	NULL
+select a, a > any (select * from t2) from t1;
+a	a > any (select * from t2)
+1	NULL
+100	1
+NULL	NULL
+1000	1
+select a, a > all (select * from t2) from t1;
+a	a > all (select * from t2)
+1	0
+100	0
+NULL	NULL
+1000	NULL
+select a from t1 where a in (select * from t2);
+a
+1
+select a from t1 where a > any (select * from t2);
+a
+100
+1000
+select a from t1 where a > all (select * from t2);
+a
+select a from t1 where a in (select * from t2 group by a);
+a
+1
+select a from t1 where a > any (select * from t2 group by a);
+a
+100
+1000
+select a from t1 where a > all (select * from t2 group by a);
+a
+drop table t1, t2;
 create table t1 (a float);
 select 10.5 IN (SELECT * from t1 LIMIT 1);
-ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+ERROR 42000: This version of MariaDB doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
 select 10.5 IN (SELECT * from t1 LIMIT 1 UNION SELECT 1.5);
-ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+ERROR 42000: This version of MariaDB doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
 drop table t1;
 create table t1 (a int, b int, c varchar(10));
 create table t2 (a int);
@@ -964,7 +1104,7 @@ select ROW(1, 1, 'a') IN (select b,a,c from t1 where c='b' or c='a');
 ROW(1, 1, 'a') IN (select b,a,c from t1 where c='b' or c='a')
 1
 select ROW(1, 1, 'a') IN (select b,a,c from t1 limit 2);
-ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+ERROR 42000: This version of MariaDB doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
 drop table t1;
 create table t1 (a int);
 insert into t1 values (1);
@@ -985,7 +1125,7 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 CREATE TABLE t1 (a int, KEY(a));
 HANDLER t1 OPEN;
 HANDLER t1 READ a=((SELECT 1));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SELECT 1))' at line 1
 HANDLER t1 CLOSE;
 drop table t1;
 create table t1 (a int);
@@ -1177,9 +1317,9 @@ SELECT 0 IN (SELECT 1 FROM t1 a);
 EXPLAIN EXTENDED SELECT 0 IN (SELECT 1 FROM t1 a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	select <in_optimizer>(0,<exists>(select 1 from `test`.`t1` `a` where 0)) AS `0 IN (SELECT 1 FROM t1 a)`
+Note	1003	select <in_optimizer>(0,<exists>(select 1 from dual where (0 = 1))) AS `0 IN (SELECT 1 FROM t1 a)`
 INSERT INTO t1 (pseudo) VALUES ('test1');
 SELECT 0 IN (SELECT 1 FROM t1 a);
 0 IN (SELECT 1 FROM t1 a)
@@ -1187,9 +1327,9 @@ SELECT 0 IN (SELECT 1 FROM t1 a);
 EXPLAIN EXTENDED SELECT 0 IN (SELECT 1 FROM t1 a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	select <in_optimizer>(0,<exists>(select 1 from `test`.`t1` `a` where 0)) AS `0 IN (SELECT 1 FROM t1 a)`
+Note	1003	select <in_optimizer>(0,<exists>(select 1 from `test`.`t1` `a` where (0 = 1))) AS `0 IN (SELECT 1 FROM t1 a)`
 drop table t1;
 CREATE TABLE `t1` (
 `i` int(11) NOT NULL default '0',
@@ -1256,7 +1396,7 @@ insert into t1 values (1,0), (2,0), (3,0);
 insert into t2 values (1,1), (2,1), (3,1), (2,2);
 update ignore t1 set b=(select b from t2 where t1.a=t2.a);
 Warnings:
-Error	1242	Subquery returns more than 1 row
+Warning	1242	Subquery returns more than 1 row
 select * from t1;
 a	b
 1	1
@@ -1293,36 +1433,40 @@ a
 4
 explain extended select * from t2 where t2.a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index
+1	PRIMARY	t2	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
+1	PRIMARY	t1	index	PRIMARY	PRIMARY	4	NULL	4	75.00	Using where; Using index; Using join buffer (flat, BNL join)
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY)))
+Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 a
 2
 4
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using where
+1	PRIMARY	t2	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
+1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	4	75.00	Using where; Using join buffer (flat, BNL join)
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
+Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`b` <> 30))
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 a
 2
 3
 explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	
-2	DEPENDENT SUBQUERY	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Using index
+1	PRIMARY	t2	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
+1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	4	75.00	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Using index
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(select 1 from `test`.`t1` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t1`.`b`) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))
+Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t3` join `test`.`t2` where ((`test`.`t3`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t2`.`a`))
 drop table t1, t2, t3;
 create table t1 (a int, b int, index a (a,b));
 create table t2 (a int, index a (a));
 create table t3 (a int, b int, index a (a));
 insert into t1 values (1,10), (2,20), (3,30), (4,40);
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+insert into t1
+select rand()*100000+200,rand()*100000 from t0 A, t0 B, t0 C, t0 D;
 insert into t2 values (2), (3), (4), (5);
 insert into t3 values (10,3), (20,4), (30,5);
 select * from t2 where t2.a in (select a from t1);
@@ -1332,31 +1476,31 @@ a
 4
 explain extended select * from t2 where t2.a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	100.00	Using index; Using where
+1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using where; Using index
+1	PRIMARY	t1	ref	a	a	5	test.t2.a	101	100.00	Using index; FirstMatch(t2)
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))
+Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 a
 2
 4
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	100.00	Using index; Using where
+1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using where; Using index
+1	PRIMARY	t1	ref	a	a	5	test.t2.a	101	100.00	Using where; Using index; FirstMatch(t2)
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
+Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`b` <> 30))
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 a
 2
 3
 explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	ref	a	a	5	func	1001	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t3	index	a	a	5	NULL	3	100.00	Using where; Using index; Using join buffer
+1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using where; Using index
+1	PRIMARY	t3	index	a	a	5	NULL	3	100.00	Using where; Using index
+1	PRIMARY	t1	ref	a	a	10	test.t2.a,test.t3.a	116	100.00	Using index; FirstMatch(t2)
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(select 1 from `test`.`t1` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t1`.`b`) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))
+Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1` join `test`.`t3`) where ((`test`.`t1`.`b` = `test`.`t3`.`a`) and (`test`.`t1`.`a` = `test`.`t2`.`a`))
 insert into t1 values (3,31);
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 a
@@ -1369,11 +1513,11 @@ a
 4
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	100.00	Using index; Using where
+1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using where; Using index
+1	PRIMARY	t1	ref	a	a	5	test.t2.a	101	100.00	Using where; Using index; FirstMatch(t2)
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
-drop table t1, t2, t3;
+Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`b` <> 30))
+drop table t0, t1, t2, t3;
 create table t1 (a int, b int);
 create table t2 (a int, b int);
 create table t3 (a int, b int);
@@ -1407,7 +1551,7 @@ INSERT INTO t1 VALUES ('z','?');
 select * from t1 where s1 > (select max(s2) from t1);
 ERROR HY000: Illegal mix of collations (latin1_german1_ci,IMPLICIT) and (latin1_swedish_ci,IMPLICIT) for operation '>'
 select * from t1 where s1 > any (select max(s2) from t1);
-ERROR HY000: Illegal mix of collations (latin1_german1_ci,IMPLICIT) and (latin1_swedish_ci,IMPLICIT) for operation '>'
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (latin1_german1_ci,IMPLICIT) for operation '<'
 drop table t1;
 create table t1(toid int,rd int);
 create table t2(userid int,pmnew int,pmtotal int);
@@ -1461,29 +1605,29 @@ a3	1
 explain extended select s1, s1 NOT IN (SELECT s1 FROM t2) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	index	NULL	s1	6	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index; Full scan on NULL key
+2	SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index; Full scan on NULL key
 Warnings:
-Note	1003	select `test`.`t1`.`s1` AS `s1`,(not(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL having trigcond(<is_not_null_test>(`test`.`t2`.`s1`))))))) AS `s1 NOT IN (SELECT s1 FROM t2)` from `test`.`t1`
+Note	1003	select `test`.`t1`.`s1` AS `s1`,(not(<expr_cache><`test`.`t1`.`s1`>(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL having trigcond(<is_not_null_test>(`test`.`t2`.`s1`)))))))) AS `s1 NOT IN (SELECT s1 FROM t2)` from `test`.`t1`
 explain extended select s1, s1 = ANY (SELECT s1 FROM t2) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	index	NULL	s1	6	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index; Full scan on NULL key
+2	SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index; Full scan on NULL key
 Warnings:
-Note	1003	select `test`.`t1`.`s1` AS `s1`,<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL having trigcond(<is_not_null_test>(`test`.`t2`.`s1`))))) AS `s1 = ANY (SELECT s1 FROM t2)` from `test`.`t1`
+Note	1003	select `test`.`t1`.`s1` AS `s1`,<expr_cache><`test`.`t1`.`s1`>(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL having trigcond(<is_not_null_test>(`test`.`t2`.`s1`)))))) AS `s1 = ANY (SELECT s1 FROM t2)` from `test`.`t1`
 explain extended select s1, s1 <> ALL (SELECT s1 FROM t2) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	index	NULL	s1	6	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index; Full scan on NULL key
+2	SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index; Full scan on NULL key
 Warnings:
-Note	1003	select `test`.`t1`.`s1` AS `s1`,(not(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL having trigcond(<is_not_null_test>(`test`.`t2`.`s1`))))))) AS `s1 <> ALL (SELECT s1 FROM t2)` from `test`.`t1`
+Note	1003	select `test`.`t1`.`s1` AS `s1`,(not(<expr_cache><`test`.`t1`.`s1`>(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL having trigcond(<is_not_null_test>(`test`.`t2`.`s1`)))))))) AS `s1 <> ALL (SELECT s1 FROM t2)` from `test`.`t1`
 explain extended select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	index	NULL	s1	6	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index; Using where; Full scan on NULL key
+2	SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index; Using where; Full scan on NULL key
 Warnings:
-Note	1003	select `test`.`t1`.`s1` AS `s1`,(not(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where (`test`.`t2`.`s1` < 'a2') having trigcond(<is_not_null_test>(`test`.`t2`.`s1`))))))) AS `s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2')` from `test`.`t1`
+Note	1003	select `test`.`t1`.`s1` AS `s1`,(not(<expr_cache><`test`.`t1`.`s1`>(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where (`test`.`t2`.`s1` < 'a2') having trigcond(<is_not_null_test>(`test`.`t2`.`s1`)))))))) AS `s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2')` from `test`.`t1`
 drop table t1,t2;
-create table t2 (a int, b int);
+create table t2 (a int, b int not null);
 create table t3 (a int);
 insert into t3 values (6),(7),(3);
 select * from t3 where a >= all (select b from t2);
@@ -1496,7 +1640,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` < (select max(NULL) from `test`.`t2`)))
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>(<in_optimizer>(`test`.`t3`.`a`,((select max(NULL) from `test`.`t2`) > <cache>(`test`.`t3`.`a`))))
 select * from t3 where a >= some (select b from t2);
 a
 explain extended select * from t3 where a >= some (select b from t2);
@@ -1504,7 +1648,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((`test`.`t3`.`a` >= (select min(NULL) from `test`.`t2`)))
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>(<in_optimizer>(`test`.`t3`.`a`,((select min(NULL) from `test`.`t2`) <= <cache>(`test`.`t3`.`a`))))
 select * from t3 where a >= all (select b from t2 group by 1);
 a
 6
@@ -1515,7 +1659,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` < <max>(select NULL from `test`.`t2` group by 1)))
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>(<in_optimizer>(`test`.`t3`.`a`,((select max(NULL) from `test`.`t2`) > <cache>(`test`.`t3`.`a`))))
 select * from t3 where a >= some (select b from t2 group by 1);
 a
 explain extended select * from t3 where a >= some (select b from t2 group by 1);
@@ -1523,13 +1667,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((`test`.`t3`.`a` >= <min>(select NULL from `test`.`t2` group by 1)))
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>(<in_optimizer>(`test`.`t3`.`a`,((select min(NULL) from `test`.`t2`) <= <cache>(`test`.`t3`.`a`))))
 select * from t3 where NULL >= any (select b from t2);
 a
 explain extended select * from t3 where NULL >= any (select b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where 0
 select * from t3 where NULL >= any (select b from t2 group by 1);
@@ -1537,7 +1681,7 @@ a
 explain extended select * from t3 where NULL >= any (select b from t2 group by 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where 0
 select * from t3 where NULL >= some (select b from t2);
@@ -1545,7 +1689,7 @@ a
 explain extended select * from t3 where NULL >= some (select b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where 0
 select * from t3 where NULL >= some (select b from t2 group by 1);
@@ -1553,7 +1697,7 @@ a
 explain extended select * from t3 where NULL >= some (select b from t2 group by 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where 0
 insert into t2 values (2,2), (2,1), (3,3), (3,1);
@@ -1564,9 +1708,9 @@ a
 explain extended select * from t3 where a > all (select max(b) from t2 group by a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary; Using filesort
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` <= <max>(select max(`test`.`t2`.`b`) from `test`.`t2` group by `test`.`t2`.`a`)))
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>(<in_optimizer>(`test`.`t3`.`a`,(<max>(select max(`test`.`t2`.`b`) from `test`.`t2` group by `test`.`t2`.`a`) >= <cache>(`test`.`t3`.`a`))))
 drop table t2, t3;
 CREATE TABLE `t1` ( `id` mediumint(9) NOT NULL auto_increment, `taskid` bigint(20) NOT NULL default '0', `dbid` int(11) NOT NULL default '0', `create_date` datetime NOT NULL default '0000-00-00 00:00:00', `last_update` datetime NOT NULL default '0000-00-00 00:00:00', PRIMARY KEY  (`id`)) ENGINE=MyISAM CHARSET=latin1 AUTO_INCREMENT=3 ;
 INSERT INTO `t1` (`id`, `taskid`, `dbid`, `create_date`,`last_update`) VALUES (1, 1, 15, '2003-09-29 10:31:36', '2003-09-29 10:31:36'), (2, 1, 21, now(), now());
@@ -1736,14 +1880,14 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	12	100.00	Using where
 2	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index; Using where
 Warnings:
-Note	1003	select `test`.`t1`.`id` AS `id`,`test`.`t1`.`text` AS `text` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`id`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1`.`id`) in t1 on PRIMARY where ((`test`.`t1`.`id` < 8) and (<cache>(`test`.`t1`.`id`) = `test`.`t1`.`id`)))))))
+Note	1003	select `test`.`t1`.`id` AS `id`,`test`.`t1`.`text` AS `text` from `test`.`t1` where (not(<expr_cache><`test`.`t1`.`id`>(<in_optimizer>(`test`.`t1`.`id`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1`.`id`) in t1 on PRIMARY where ((`test`.`t1`.`id` < 8) and (<cache>(`test`.`t1`.`id`) = `test`.`t1`.`id`))))))))
 explain extended select * from t1 as tt where not exists (select id from t1 where id < 8 and (id = tt.id or id is null) having id is not null);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	tt	ALL	NULL	NULL	NULL	NULL	12	100.00	Using where
 2	DEPENDENT SUBQUERY	t1	eq_ref	PRIMARY	PRIMARY	4	test.tt.id	1	100.00	Using where; Using index
 Warnings:
 Note	1276	Field or reference 'test.tt.id' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`tt`.`id` AS `id`,`test`.`tt`.`text` AS `text` from `test`.`t1` `tt` where (not(exists(select `test`.`t1`.`id` from `test`.`t1` where ((`test`.`t1`.`id` < 8) and (`test`.`t1`.`id` = `test`.`tt`.`id`)) having (`test`.`t1`.`id` is not null))))
+Note	1003	select `test`.`tt`.`id` AS `id`,`test`.`tt`.`text` AS `text` from `test`.`t1` `tt` where (not(<expr_cache><`test`.`tt`.`id`>(exists(select `test`.`t1`.`id` from `test`.`t1` where ((`test`.`t1`.`id` < 8) and (`test`.`t1`.`id` = `test`.`tt`.`id`)) having (`test`.`t1`.`id` is not null)))))
 insert into t1 (id, text) values (1000, 'text1000'), (1001, 'text1001');
 create table t2 (id int not null, text varchar(20) not null default '', primary key (id));
 insert into t2 (id, text) values (1, 'text1'), (2, 'text2'), (3, 'text3'), (4, 'text4'), (5, 'text5'), (6, 'text6'), (7, 'text7'), (8, 'text8'), (9, 'text9'), (10, 'text10'), (11, 'text1'), (12, 'text2'), (13, 'text3'), (14, 'text4'), (15, 'text5'), (16, 'text6'), (17, 'text7'), (18, 'text8'), (19, 'text9'), (20, 'text10'),(21, 'text1'), (22, 'text2'), (23, 'text3'), (24, 'text4'), (25, 'text5'), (26, 'text6'), (27, 'text7'), (28, 'text8'), (29, 'text9'), (30, 'text10'), (31, 'text1'), (32, 'text2'), (33, 'text3'), (34, 'text4'), (35, 'text5'), (36, 'text6'), (37, 'text7'), (38, 'text8'), (39, 'text9'), (40, 'text10'), (41, 'text1'), (42, 'text2'), (43, 'text3'), (44, 'text4'), (45, 'text5'), (46, 'text6'), (47, 'text7'), (48, 'text8'), (49, 'text9'), (50, 'text10');
@@ -1767,7 +1911,7 @@ explain extended select * from t1 a left join t2 b on (a.id=b.id or b.id is null
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	ALL	NULL	NULL	NULL	NULL	14	100.00	
 1	SIMPLE	b	eq_ref	PRIMARY	PRIMARY	4	test.a.id	2	100.00	
-1	SIMPLE	c	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where
+1	SIMPLE	c	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using index condition
 Warnings:
 Note	1003	select `test`.`a`.`id` AS `id`,`test`.`a`.`text` AS `text`,`test`.`b`.`id` AS `id`,`test`.`b`.`text` AS `text`,`test`.`c`.`id` AS `id`,`test`.`c`.`text` AS `text` from `test`.`t1` `a` left join `test`.`t2` `b` on(((`test`.`b`.`id` = `test`.`a`.`id`) or isnull(`test`.`b`.`id`))) join `test`.`t1` `c` where (if(isnull(`test`.`b`.`id`),1000,`test`.`b`.`id`) = `test`.`c`.`id`)
 drop table t1,t2;
@@ -1782,7 +1926,7 @@ create table t1(id int);
 create table t2(id int);
 create table t3(flag int);
 select (select * from t3 where id not null) from t1, t2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'null) from t1, t2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'null) from t1, t2' at line 1
 drop table t1,t2,t3;
 CREATE TABLE t1 (id INT);
 CREATE TABLE t2 (id INT);
@@ -2279,7 +2423,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.up.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`up`.`a` AS `a`,`test`.`up`.`b` AS `b` from `test`.`t1` `up` where exists(select 1 from `test`.`t1` where (`test`.`t1`.`a` = `test`.`up`.`a`))
+Note	1003	select `test`.`up`.`a` AS `a`,`test`.`up`.`b` AS `b` from `test`.`t1` `up` where <expr_cache><`test`.`up`.`a`>(exists(select 1 from `test`.`t1` where (`test`.`t1`.`a` = `test`.`up`.`a`)))
 drop table t1;
 CREATE TABLE t1 (t1_a int);
 INSERT INTO t1 VALUES (1);
@@ -2750,6 +2894,8 @@ select * from (select max(fld) from t1) as foo;
 max(fld)
 1
 drop table t1;
+set @tmp11867_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='semijoin_with_cache=off';
 CREATE TABLE t1 (one int, two int, flag char(1));
 CREATE TABLE t2 (one int, two int, flag char(1));
 INSERT INTO t1 VALUES(1,2,'Y'),(2,3,'Y'),(3,4,'Y'),(5,6,'N'),(7,8,'N');
@@ -2820,20 +2966,22 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and trigcond(((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`))) and trigcond(((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)))) having (trigcond(<is_not_null_test>(`test`.`t2`.`one`)) and trigcond(<is_not_null_test>(`test`.`t2`.`two`))))) AS `test` from `test`.`t1`
+Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<expr_cache><`test`.`t1`.`one`,`test`.`t1`.`two`>(<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and trigcond(((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`))) and trigcond(((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)))) having (trigcond(<is_not_null_test>(`test`.`t2`.`one`)) and trigcond(<is_not_null_test>(`test`.`t2`.`two`)))))) AS `test` from `test`.`t1`
 explain extended SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	8	func,func	1	100.00	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = 'N') and (<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) and (<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`))))
+Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t2`.`flag` = 'N')
 explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0' group by one,two) as 'test' from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where; Using temporary; Using filesort
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where (`test`.`t2`.`flag` = '0') group by `test`.`t2`.`one`,`test`.`t2`.`two` having (trigcond(((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`))) and trigcond(((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`))) and trigcond(<is_not_null_test>(`test`.`t2`.`one`)) and trigcond(<is_not_null_test>(`test`.`t2`.`two`))))) AS `test` from `test`.`t1`
+Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<expr_cache><`test`.`t1`.`one`,`test`.`t1`.`two`>(<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and trigcond(((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`))) and trigcond(((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)))) having (trigcond(<is_not_null_test>(`test`.`t2`.`one`)) and trigcond(<is_not_null_test>(`test`.`t2`.`two`)))))) AS `test` from `test`.`t1`
 DROP TABLE t1,t2;
+set optimizer_switch=@tmp11867_optimizer_switch;
 CREATE TABLE t1 (a char(5), b char(5));
 INSERT INTO t1 VALUES (NULL,'aaa'), ('aaa','aaa');
 SELECT * FROM t1 WHERE (a,b) IN (('aaa','aaa'), ('aaa','bbb'));
@@ -2949,7 +3097,7 @@ ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	PRIMARY	NULL	NULL	NULL	1	
 1	PRIMARY	r	const	PRIMARY	PRIMARY	4	const	1	
-2	DEPENDENT SUBQUERY	t2	range	b	b	40	NULL	2	Using where
+2	SUBQUERY	t2	range	b	b	40	NULL	2	Using where
 SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
 ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
             ORDER BY t2.c DESC, t2.b DESC LIMIT 1) WHERE t1.a = 10;
@@ -2961,7 +3109,7 @@ ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	PRIMARY	NULL	NULL	NULL	1	
 1	PRIMARY	r	const	PRIMARY	PRIMARY	4	const	1	
-2	DEPENDENT SUBQUERY	t2	range	b	b	40	NULL	2	Using where
+2	SUBQUERY	t2	range	b	b	40	NULL	2	Using index condition
 SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
 ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
             ORDER BY t2.c, t2.b LIMIT 1) WHERE t1.a = 10;
@@ -3012,7 +3160,7 @@ INSERT INTO t2 VALUES (1),(2),(3);
 EXPLAIN SELECT a, a IN (SELECT a FROM t1) FROM t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	
-2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	2	Using index; Full scan on NULL key
+2	SUBQUERY	t1	index_subquery	a	a	5	func	2	Using index; Full scan on NULL key
 SELECT a, a IN (SELECT a FROM t1) FROM t2;
 a	a IN (SELECT a FROM t1)
 1	1
@@ -3102,10 +3250,10 @@ SELECT a FROM t1
 ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 2),
 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
 a
-2
-4
 1
+2
 3
+4
 SELECT a FROM t1
 ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 1),
 (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b));
@@ -3114,8 +3262,8 @@ SELECT a FROM t1
 ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 4),
 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
 a
-2
 1
+2
 3
 4
 SELECT a FROM t1
@@ -3412,7 +3560,8 @@ EXPLAIN
 SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	9	Using where
-2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	21	test.t1.a,test.t1.b	1	
+2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	9	Using temporary
 ALTER TABLE t1 ADD INDEX(a);
 SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 a	b
@@ -3422,8 +3571,9 @@ AAA	8
 EXPLAIN
 SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	9	Using where
-2	DEPENDENT SUBQUERY	t1	index	NULL	a	8	NULL	1	Using filesort
+1	PRIMARY	t1	ALL	a	NULL	NULL	NULL	9	Using where
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	21	test.t1.a,test.t1.b	1	
+2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	9	Using temporary
 DROP TABLE t1;
 create table t1( f1 int,f2 int);
 insert into t1 values (1,1),(2,2);
@@ -3440,7 +3590,7 @@ delete from t1 where c <= 1140006215 and (select b from t2 where a = 2) = 1;
 drop table t1, t2;
 CREATE TABLE t1 (a INT);
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE no_such_column = ANY (SELECT 1);
-ERROR 42S22: Unknown column 'no_such_column' in 'where clause'
+ERROR 42S22: Unknown column 'no_such_column' in 'IN/ALL/ANY subquery'
 CREATE VIEW v2 AS SELECT * FROM t1 WHERE no_such_column = (SELECT 1);
 ERROR 42S22: Unknown column 'no_such_column' in 'where clause'
 SELECT * FROM t1 WHERE no_such_column = ANY (SELECT 1);
@@ -3546,7 +3696,7 @@ ORDER BY t1.t DESC LIMIT 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t1	index	NULL	PRIMARY	16	NULL	11	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	range	PRIMARY	PRIMARY	16	NULL	5	Using where; Using index
+2	SUBQUERY	t1	range	PRIMARY	PRIMARY	16	NULL	5	Using where; Using index
 SELECT * FROM t1,t2
 WHERE t1.t = (SELECT t1.t FROM t1
 WHERE t1.t < t2.t  AND t1.i2=1 AND t2.i1=t1.i1
@@ -3565,10 +3715,10 @@ SELECT sql_no_cache * FROM t1 WHERE NOT EXISTS
 i
 SELECT * FROM t1
 WHERE NOT EXISTS (((SELECT i FROM t1) UNION (SELECT i FROM t1)));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION (SELECT i FROM t1)))' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'UNION (SELECT i FROM t1)))' at line 2
 explain select ((select t11.i from t1 t11) union (select t12.i from t1 t12))
 from t1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'union (select t12.i from t1 t12))
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'union (select t12.i from t1 t12))
 from t1' at line 1
 explain select * from t1 where not exists
 ((select t11.i from t1 t11) union (select t12.i from t1 t12));
@@ -3665,9 +3815,14 @@ FROM t1 GROUP BY t1.a LIMIT 1)
 2
 2
 DROP TABLE t1,t2;
-CREATE TABLE t1 (a int, b int auto_increment, PRIMARY KEY (b));
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (b));
 CREATE TABLE t2 (x int auto_increment, y int, z int,
 PRIMARY KEY (x), FOREIGN KEY (y) REFERENCES t1 (b));
+create table t3 (a int);
+insert into t3 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+insert into t1 select RAND()*1000, A.a + 10*(B.a+10*(C.a+10*D.a))
+from t3 A, t3 B, t3 C, t3 D where D.a<3;
+insert into t2(y,z) select t1.b, RAND()*1000 from t1, t3;
 SET SESSION sort_buffer_size = 32 * 1024;
 SELECT SQL_NO_CACHE COUNT(*)
 FROM (SELECT  a, b, (SELECT x FROM t2 WHERE y=b ORDER BY z DESC LIMIT 1) c
@@ -3680,7 +3835,7 @@ FROM (SELECT  a, b, (SELECT x FROM t2 WHERE y=b ORDER BY z DESC LIMIT 1) c
 FROM t1) t;
 COUNT(*)
 3000
-DROP TABLE t1,t2;
+DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (id char(4) PRIMARY KEY, c int);
 CREATE TABLE t2 (c int);
 INSERT INTO t1 VALUES ('aa', 1);
@@ -4104,8 +4259,6 @@ INSERT INTO `t1` VALUES ('asdf','2007-02-08 01:11:26');
 INSERT INTO `t2` VALUES ('abcdefghijk');
 INSERT INTO `t2` VALUES ('asdf');
 SET session sort_buffer_size=8192;
-Warnings:
-Warning	1292	Truncated incorrect sort_buffer_size value: '8192'
 SELECT (SELECT 1 FROM  t1 WHERE t1.a=t2.a ORDER BY t1.b LIMIT 1) AS d1 FROM t2;
 d1
 1
@@ -4204,6 +4357,9 @@ LEFT(t1.a1,1)
 SELECT a2 FROM t2 WHERE t2.a2 IN (SELECT t1.a1 FROM t1,t3 WHERE t1.b1=t3.a3);
 a2
 DROP TABLE t1, t2, t3;
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
+SET optimizer_switch='materialization=off';
 CREATE TABLE t1 (a CHAR(1), b VARCHAR(10));
 INSERT INTO t1 VALUES ('a', 'aa');
 INSERT INTO t1 VALUES ('a', 'aaa');
@@ -4213,8 +4369,8 @@ CREATE INDEX I1 ON t1 (a);
 CREATE INDEX I2 ON t1 (b);
 EXPLAIN SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	DEPENDENT SUBQUERY	t1	index_subquery	I1	I1	2	func	2	Using index; Using where
+1	PRIMARY	t1	ALL	I2	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t1	ref	I1	I1	2	test.t1.b	2	Using where; Using index; FirstMatch(t1)
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
 a	b
 CREATE TABLE t2 (a VARCHAR(1), b VARCHAR(10));
@@ -4223,18 +4379,19 @@ CREATE INDEX I1 ON t2 (a);
 CREATE INDEX I2 ON t2 (b);
 EXPLAIN SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	DEPENDENT SUBQUERY	t2	index_subquery	I1	I1	4	func	2	Using index; Using where
+1	PRIMARY	t2	ALL	I2	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t2	ref	I1	I1	4	test.t2.b	2	Using where; Using index; FirstMatch(t2)
 SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
 a	b
 EXPLAIN
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	DEPENDENT SUBQUERY	t1	index_subquery	I1	I1	2	func	2	Using index; Using where
+1	PRIMARY	t1	ALL	I2	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t1	ref	I1	I1	2	test.t1.b	2	Using where; Using index; FirstMatch(t1)
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 a	b
 DROP TABLE t1,t2;
+SET optimizer_switch= @save_optimizer_switch;
 CREATE TABLE t1(a INT, b INT);
 INSERT INTO t1 VALUES (1,1), (1,2), (2,3), (2,4);
 EXPLAIN
@@ -4275,7 +4432,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select 2 AS `2` from `test`.`t1` where exists(select 1 from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`))
+Note	1003	select 2 AS `2` from `test`.`t1` where <expr_cache><`test`.`t1`.`a`>(exists(select 1 from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)))
 EXPLAIN EXTENDED
 SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a) UNION
 (SELECT 1 FROM t2 WHERE t1.a = t2.a));
@@ -4287,17 +4444,22 @@ NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	select 2 AS `2` from `test`.`t1` where exists((select 1 from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)) union (select 1 from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)))
+Note	1003	select 2 AS `2` from `test`.`t1` where <expr_cache><`test`.`t1`.`a`>(exists((select 1 from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)) union (select 1 from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`))))
 DROP TABLE t1,t2;
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1(f11 int, f12 int);
 create table t2(f21 int unsigned not null, f22 int, f23 varchar(10));
 insert into t1 values(1,1),(2,2), (3, 3);
+insert into t2
+select -1 , (@a:=(A.a + 10 * (B.a + 10 * (C.a+10*D.a))))/5000 + 1, @a
+from t0 A, t0 B, t0 C, t0 D;
 set session sort_buffer_size= 33*1024;
 select count(*) from t1 where f12 =
 (select f22 from t2 where f22 = f12 order by f21 desc, f22, f23 limit 1);
 count(*)
 3
-drop table t1,t2;
+drop table t0,t1,t2;
 CREATE TABLE t4 (
 f7 varchar(32) collate utf8_bin NOT NULL default '',
 f10 varchar(32) collate utf8_bin default NULL,
@@ -4355,18 +4517,23 @@ a
 drop table t1, t2;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2);
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 GROUP BY a);
+SET @save_join_cache_level=@@join_cache_level;
+SET join_cache_level=0;
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT min(a) FROM t1 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<subquery2>	const	distinct_key	distinct_key	4	const	1	100.00	
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
-Note	1003	select 1 AS `1` from `test`.`t1` where <in_optimizer>(1,<exists>(select 1 from `test`.`t1` group by `test`.`t1`.`a` having (<cache>(1) = <ref_null_helper>(1))))
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 WHERE a > 3 GROUP BY a);
+Note	1003	select 1 AS `1` from  <materialize> (select min(`test`.`t1`.`a`) from `test`.`t1` group by `test`.`t1`.`a`) join `test`.`t1` where (`<subquery2>`.`min(a)` = 1)
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT min(a) FROM t1 WHERE a > 3 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using temporary; Using filesort
+1	PRIMARY	<subquery2>	const	distinct_key	distinct_key	4	const	1	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using temporary
 Warnings:
-Note	1003	select 1 AS `1` from `test`.`t1` where <in_optimizer>(1,<exists>(select 1 from `test`.`t1` where (`test`.`t1`.`a` > 3) group by `test`.`t1`.`a` having (<cache>(1) = <ref_null_helper>(1))))
+Note	1003	select 1 AS `1` from  <materialize> (select min(`test`.`t1`.`a`) from `test`.`t1` where (`test`.`t1`.`a` > 3) group by `test`.`t1`.`a`) join `test`.`t1` where (`<subquery2>`.`min(a)` = 1)
+SET join_cache_level=@save_join_cache_level;
 DROP TABLE t1;
 #
 # Bug#45061: Incorrectly market field caused wrong result.
@@ -4410,12 +4577,12 @@ FROM t1
 WHERE a = 230;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT MAX(b), (SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
 FROM t1 
 WHERE a = 230;
 MAX(b)	(SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
-NULL	0
+NULL	NULL
 DROP TABLE t1, st1, st2;
 #
 # Bug #48709: Assertion failed in sql_select.cc:11782: 
@@ -4450,6 +4617,13 @@ CREATE TABLE t1(a1 int);
 INSERT INTO t1 VALUES (1),(2);
 SELECT @@session.sql_mode INTO @old_sql_mode;
 SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+EXPLAIN EXTENDED
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+Warnings:
+Note	1003	select 1 AS `1` from `test`.`t1` where 1
 SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t1);
 1
 1
@@ -4518,6 +4692,203 @@ SET SESSION sql_mode=@old_sql_mode;
 drop table t2, t1;
 drop view v1;
 End of 5.0 tests.
+create table t_out (subcase char(3),
+a1 char(2), b1 char(2), c1 char(2));
+create table t_in  (a2 char(2), b2 char(2), c2 char(2));
+insert into t_out values ('A.1','2a', NULL, '2a');
+insert into t_out values ('A.3', '2a', NULL, '2a');
+insert into t_out values ('A.4', '2a', NULL, 'xx');
+insert into t_out values ('B.1', '2a', '2a', '2a');
+insert into t_out values ('B.2', '2a', '2a', '2a');
+insert into t_out values ('B.3', '3a', 'xx', '3a');
+insert into t_out values ('B.4', 'xx', '3a', '3a');
+insert into t_in values ('1a', '1a', '1a');
+insert into t_in values ('2a', '2a', '2a');
+insert into t_in values (NULL, '2a', '2a');
+insert into t_in values ('3a', NULL, '3a');
+
+Test general IN semantics (not top-level)
+
+case A.1
+select subcase,
+(a1, b1, c1)     IN (select * from t_in where a2 = 'no_match') pred_in,
+(a1, b1, c1) NOT IN (select * from t_in where a2 = 'no_match') pred_not_in
+from t_out where subcase = 'A.1';
+subcase	pred_in	pred_not_in
+A.1	0	1
+case A.2 - impossible
+case A.3
+select subcase,
+(a1, b1, c1)     IN (select * from t_in) pred_in,
+(a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'A.3';
+subcase	pred_in	pred_not_in
+A.3	NULL	NULL
+case A.4
+select subcase,
+(a1, b1, c1)     IN (select * from t_in) pred_in,
+(a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'A.4';
+subcase	pred_in	pred_not_in
+A.4	0	1
+case B.1
+select subcase,
+(a1, b1, c1)     IN (select * from t_in where a2 = 'no_match') pred_in,
+(a1, b1, c1) NOT IN (select * from t_in where a2 = 'no_match') pred_not_in
+from t_out where subcase = 'B.1';
+subcase	pred_in	pred_not_in
+B.1	0	1
+case B.2
+select subcase,
+(a1, b1, c1)     IN (select * from t_in) pred_in,
+(a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'B.2';
+subcase	pred_in	pred_not_in
+B.2	1	0
+case B.3
+select subcase,
+(a1, b1, c1)     IN (select * from t_in) pred_in,
+(a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'B.3';
+subcase	pred_in	pred_not_in
+B.3	NULL	NULL
+case B.4
+select subcase,
+(a1, b1, c1)     IN (select * from t_in) pred_in,
+(a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'B.4';
+subcase	pred_in	pred_not_in
+B.4	0	1
+
+Test IN as top-level predicate, and
+as non-top level for cases A.3, B.3 (the only cases with NULL result).
+
+case A.1
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'A.1' and
+(a1, b1, c1) IN (select * from t_in where a1 = 'no_match');
+pred_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'A.1' and
+(a1, b1, c1) NOT IN (select * from t_in where a1 = 'no_match');
+pred_not_in
+T
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'A.1' and
+NOT((a1, b1, c1) IN (select * from t_in where a1 = 'no_match'));
+not_pred_in
+T
+case A.3
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'A.3' and
+(a1, b1, c1) IN (select * from t_in);
+pred_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'A.3' and
+(a1, b1, c1) NOT IN (select * from t_in);
+pred_not_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'A.3' and
+NOT((a1, b1, c1) IN (select * from t_in));
+not_pred_in
+F
+select case when count(*) > 0 then 'N' else 'wrong result' end as pred_in from t_out
+where subcase = 'A.3' and
+((a1, b1, c1) IN (select * from t_in)) is NULL and
+((a1, b1, c1) NOT IN (select * from t_in)) is NULL;
+pred_in
+N
+case A.4
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'A.4' and
+(a1, b1, c1) IN (select * from t_in);
+pred_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'A.4' and
+(a1, b1, c1) NOT IN (select * from t_in);
+pred_not_in
+T
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'A.4' and
+NOT((a1, b1, c1) IN (select * from t_in));
+not_pred_in
+T
+case B.1
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.1' and
+(a1, b1, c1) IN (select * from t_in where a1 = 'no_match');
+pred_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.1' and
+(a1, b1, c1) NOT IN (select * from t_in where a1 = 'no_match');
+pred_not_in
+T
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.1' and
+NOT((a1, b1, c1) IN (select * from t_in where a1 = 'no_match'));
+not_pred_in
+T
+case B.2
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.2' and
+(a1, b1, c1) IN (select * from t_in);
+pred_in
+T
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.2' and
+(a1, b1, c1) NOT IN (select * from t_in);
+pred_not_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.2' and
+NOT((a1, b1, c1) IN (select * from t_in));
+not_pred_in
+F
+case B.3
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.3' and
+(a1, b1, c1) IN (select * from t_in);
+pred_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.3' and
+(a1, b1, c1) NOT IN (select * from t_in);
+pred_not_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.3' and
+NOT((a1, b1, c1) IN (select * from t_in));
+not_pred_in
+F
+select case when count(*) > 0 then 'N' else 'wrong result' end as pred_in from t_out
+where subcase = 'B.3' and
+((a1, b1, c1) IN (select * from t_in)) is NULL and
+((a1, b1, c1) NOT IN (select * from t_in)) is NULL;
+pred_in
+N
+case B.4
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.4' and
+(a1, b1, c1) IN (select * from t_in);
+pred_in
+F
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.4' and
+(a1, b1, c1) NOT IN (select * from t_in);
+pred_not_in
+T
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.4' and
+NOT((a1, b1, c1) IN (select * from t_in));
+not_pred_in
+T
+drop table t_out;
+drop table t_in;
 CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (2,22),(1,11),(2,22);
 SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 0 GROUP BY a;
@@ -4595,9 +4966,9 @@ INSERT INTO t3 VALUES (1,1,1), (2,32,1);
 explain
 SELECT t1.a, (SELECT 1 FROM t2 WHERE t2.b=t3.c AND t2.c=t1.a ORDER BY t2.d LIMIT 1) AS incorrect FROM t1, t3 WHERE t3.b=t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	index	b,b_2	b	10	NULL	2	Using index
-1	PRIMARY	t1	eq_ref	PRIMARY	PRIMARY	4	test.t3.b	1	Using index
-2	DEPENDENT SUBQUERY	t2	index	b,b_2,c	d	5	NULL	1	Using where
+1	PRIMARY	t1	index	PRIMARY	PRIMARY	4	NULL	2	Using index
+1	PRIMARY	t3	ref	b,b_2	b	5	test.t1.a	1	Using index
+2	DEPENDENT SUBQUERY	t2	ref	b,b_2,c	b	10	test.t3.c,test.t1.a	1	Using where; Using index; Using filesort
 SELECT t1.a, (SELECT 1 FROM t2 WHERE t2.b=t3.c AND t2.c=t1.a ORDER BY t2.d LIMIT 1) AS incorrect FROM t1, t3 WHERE t3.b=t1.a;
 a	incorrect
 1	1
@@ -4617,21 +4988,54 @@ SELECT t2.id, t2.c AS c FROM t1, t2
 WHERE t1.id=t2.id AND 1 IN (SELECT id FROM t1) WITH CHECK OPTION;
 INSERT INTO v2(a,b) VALUES (2,2);
 ERROR HY000: CHECK OPTION failed 'test.v2'
-INSERT INTO v2(a,b) VALUES (1,2);
 SELECT * FROM v1;
 c
 1
 1
 1
 1
-2
-2
 CREATE VIEW v3 AS
 SELECT t2.c AS c FROM t2
 WHERE 1 IN (SELECT id FROM t1) WITH CHECK OPTION;
 DELETE FROM v3;
 DROP VIEW v1,v2,v3;
 DROP TABLE t1,t2;
+#
+# BUG#37822 Correlated subquery with IN and IS UNKNOWN provides wrong result
+#
+create table t1(id integer primary key, g integer, v integer, s char(1));
+create table t2(id integer primary key, g integer, v integer, s char(1));
+insert into t1 values
+(10, 10, 10,   'l'),
+(20, 20, 20,   'l'),
+(40, 40, 40,   'l'),
+(41, 40, null, 'l'),
+(50, 50, 50,   'l'),
+(51, 50, null, 'l'),
+(60, 60, 60,   'l'),
+(61, 60, null, 'l'),
+(70, 70, 70,   'l'),
+(90, 90, null, 'l');
+insert into t2 values
+(10, 10, 10,   'r'),
+(30, 30, 30,   'r'),
+(50, 50, 50,   'r'),
+(60, 60, 60,   'r'),
+(61, 60, null, 'r'),
+(70, 70, 70,   'r'),
+(71, 70, null, 'r'),
+(80, 80, 80,   'r'),
+(81, 80, null, 'r'),
+(100,100,null, 'r');
+select *
+from t1
+where v in(select v
+from t2
+where t1.g=t2.g) is unknown;
+id	g	v	s
+51	50	NULL	l
+61	60	NULL	l
+drop table t1, t2;
 #
 # Bug#37822 Correlated subquery with IN and IS UNKNOWN provides wrong result
 #
@@ -4676,33 +5080,33 @@ INSERT INTO t1 VALUES (1),(2);
 CREATE TABLE t2( a INT, b INT );
 SELECT * 
 FROM (SELECT a INTO @var FROM t1 WHERE a = 2) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var FROM t1 WHERE a = 2) t1a' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO @var FROM t1 WHERE a = 2) t1a' at line 2
 SELECT * 
 FROM (SELECT a INTO OUTFILE 'file' FROM t1 WHERE a = 2) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO OUTFILE 'file' FROM t1 WHERE a = 2) t1a' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO OUTFILE 'file' FROM t1 WHERE a = 2) t1a' at line 2
 SELECT * 
 FROM (SELECT a INTO DUMPFILE 'file' FROM t1 WHERE a = 2) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO DUMPFILE 'file' FROM t1 WHERE a = 2) t1a' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO DUMPFILE 'file' FROM t1 WHERE a = 2) t1a' at line 2
 SELECT * FROM ( 
 SELECT 1 a 
 UNION 
 SELECT a INTO @var FROM t1 WHERE a = 2 
 ) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var FROM t1 WHERE a = 2 
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO @var FROM t1 WHERE a = 2 
 ) t1a' at line 4
 SELECT * FROM ( 
 SELECT 1 a 
 UNION 
 SELECT a INTO OUTFILE 'file' FROM t1 WHERE a = 2 
 ) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO OUTFILE 'file' FROM t1 WHERE a = 2 
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO OUTFILE 'file' FROM t1 WHERE a = 2 
 ) t1a' at line 4
 SELECT * FROM ( 
 SELECT 1 a 
 UNION 
 SELECT a INTO DUMPFILE 'file' FROM t1 WHERE a = 2 
 ) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO DUMPFILE 'file' FROM t1 WHERE a = 2 
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO DUMPFILE 'file' FROM t1 WHERE a = 2 
 ) t1a' at line 4
 SELECT * FROM (SELECT a FROM t1 WHERE a = 2) t1a;
 a
@@ -4725,7 +5129,7 @@ a
 1
 2
 SELECT * FROM ((SELECT 1 a) UNION SELECT 1 a);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ')' at line 1
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a)) alias;
 a
 1
@@ -4733,23 +5137,23 @@ SELECT * FROM (SELECT 1 UNION SELECT 1) t1a;
 1
 1
 SELECT * FROM ((SELECT 1 a INTO @a)) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @a)) t1a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO @a)) t1a' at line 1
 SELECT * FROM ((SELECT 1 a INTO OUTFILE 'file' )) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO OUTFILE 'file' )) t1a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO OUTFILE 'file' )) t1a' at line 1
 SELECT * FROM ((SELECT 1 a INTO DUMPFILE 'file' )) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO DUMPFILE 'file' )) t1a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO DUMPFILE 'file' )) t1a' at line 1
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO @a)) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @a)) t1a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO @a)) t1a' at line 1
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO DUMPFILE 'file' )) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO DUMPFILE 'file' )) t1a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO DUMPFILE 'file' )) t1a' at line 1
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO OUTFILE 'file' )) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO OUTFILE 'file' )) t1a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO OUTFILE 'file' )) t1a' at line 1
 SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO @a))) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @a))) t1a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO @a))) t1a' at line 1
 SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO DUMPFILE 'file' ))) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO DUMPFILE 'file' ))) t1a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO DUMPFILE 'file' ))) t1a' at line 1
 SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO OUTFILE 'file' ))) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO OUTFILE 'file' ))) t1a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO OUTFILE 'file' ))) t1a' at line 1
 SELECT * FROM (SELECT 1 a ORDER BY a) t1a;
 a
 1
@@ -4767,15 +5171,15 @@ a	1
 1	1
 2	1
 SELECT * FROM t1 JOIN ((SELECT 1 UNION SELECT 1)) ON 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')) ON 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ')) ON 1' at line 1
 SELECT * FROM t1 JOIN  (t1 t1a UNION SELECT 1)  ON 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')  ON 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ')  ON 1' at line 1
 SELECT * FROM t1 JOIN ((t1 t1a UNION SELECT 1)) ON 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')) ON 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ')) ON 1' at line 1
 SELECT * FROM t1 JOIN  (t1 t1a)  t1a ON 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1a ON 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 't1a ON 1' at line 1
 SELECT * FROM t1 JOIN ((t1 t1a)) t1a ON 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1a ON 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 't1a ON 1' at line 1
 SELECT * FROM t1 JOIN  (t1 t1a)  ON 1;
 a	a
 1	1
@@ -4813,7 +5217,7 @@ a	a
 1	1
 2	1
 SELECT * FROM (t1 JOIN (SELECT 1) t1a1 ON 1) t1a2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1a2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 't1a2' at line 1
 SELECT * FROM t1 WHERE a = ALL ( SELECT 1 );
 a
 1
@@ -4824,11 +5228,11 @@ SELECT * FROM t1 WHERE a = ANY ( SELECT 3 UNION SELECT 1 );
 a
 1
 SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 INTO @a);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @a)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO @a)' at line 1
 SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO OUTFILE 'file' )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO OUTFILE 'file' )' at line 1
 SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO DUMPFILE 'file' )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO DUMPFILE 'file' )' at line 1
 SELECT * FROM t1 WHERE a = ( SELECT 1 );
 a
 1
@@ -4836,29 +5240,29 @@ SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 );
 a
 1
 SELECT * FROM t1 WHERE a = ( SELECT 1 INTO @a);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @a)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO @a)' at line 1
 SELECT * FROM t1 WHERE a = ( SELECT 1 INTO OUTFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO OUTFILE 'file' )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO OUTFILE 'file' )' at line 1
 SELECT * FROM t1 WHERE a = ( SELECT 1 INTO DUMPFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO DUMPFILE 'file' )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO DUMPFILE 'file' )' at line 1
 SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 INTO @a);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @a)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO @a)' at line 1
 SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO OUTFILE 'file' )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO OUTFILE 'file' )' at line 1
 SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO DUMPFILE 'file' )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO DUMPFILE 'file' )' at line 1
 SELECT ( SELECT 1 INTO @v );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @v )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO @v )' at line 1
 SELECT ( SELECT 1 INTO OUTFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO OUTFILE 'file' )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO OUTFILE 'file' )' at line 1
 SELECT ( SELECT 1 INTO DUMPFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO DUMPFILE 'file' )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO DUMPFILE 'file' )' at line 1
 SELECT ( SELECT 1 UNION SELECT 1 INTO @v );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @v )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO @v )' at line 1
 SELECT ( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO OUTFILE 'file' )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO OUTFILE 'file' )' at line 1
 SELECT ( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO DUMPFILE 'file' )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO DUMPFILE 'file' )' at line 1
 SELECT ( SELECT a FROM t1 WHERE a = 1 ), a FROM t1;
 ( SELECT a FROM t1 WHERE a = 1 )	a
 1	1
@@ -4870,13 +5274,13 @@ SELECT ( SELECT a FROM t1 WHERE a = 1 UNION SELECT 1 ), a FROM t1;
 SELECT * FROM t2 WHERE (a, b) IN (SELECT a, b FROM t2);
 a	b
 SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'UNION SELECT 1 )' at line 1
 ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 ) UNION SELECT 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'UNION SELECT 1 ) UNION SELECT 1' at line 1
 SELECT ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 ) )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'UNION SELECT 1 ) )' at line 1
 SELECT ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'UNION SELECT 1' at line 1
 SELECT ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
 ( SELECT 1 UNION SELECT 1 UNION SELECT 1 )
 1
@@ -4884,28 +5288,28 @@ SELECT ((SELECT 1 UNION SELECT 1 UNION SELECT 1));
 ((SELECT 1 UNION SELECT 1 UNION SELECT 1))
 1
 SELECT * FROM ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 ) )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'UNION SELECT 1 ) )' at line 1
 SELECT * FROM ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ') UNION SELECT 1 )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ') UNION SELECT 1 )' at line 1
 SELECT * FROM ( SELECT 1 UNION SELECT 1 UNION SELECT 1 ) a;
 1
 1
 SELECT * FROM t1 WHERE a =     ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 ) )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'UNION SELECT 1 ) )' at line 1
 SELECT * FROM t1 WHERE a = ALL ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 ) )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'UNION SELECT 1 ) )' at line 1
 SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 ) )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'UNION SELECT 1 ) )' at line 1
 SELECT * FROM t1 WHERE a IN    ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 ) )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'UNION SELECT 1 ) )' at line 1
 SELECT * FROM t1 WHERE a =     ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'UNION SELECT 1 )' at line 1
 SELECT * FROM t1 WHERE a = ALL ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 )  UNION SELECT 1 )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'UNION SELECT 1 )  UNION SELECT 1 )' at line 1
 SELECT * FROM t1 WHERE a = ANY ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 )  UNION SELECT 1 )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'UNION SELECT 1 )  UNION SELECT 1 )' at line 1
 SELECT * FROM t1 WHERE a IN    ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'UNION SELECT 1 )' at line 1
 SELECT * FROM t1 WHERE a =     ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
 a
 1
@@ -4919,18 +5323,18 @@ SELECT * FROM t1 WHERE a IN    ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
 a
 1
 SELECT * FROM t1 WHERE EXISTS ( SELECT 1 UNION SELECT 1 INTO @v );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @v )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO @v )' at line 1
 SELECT EXISTS(SELECT 1+1);
 EXISTS(SELECT 1+1)
 1
 SELECT EXISTS(SELECT 1+1 INTO @test);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @test)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO @test)' at line 1
 SELECT * FROM t1 WHERE a IN ( SELECT 1 UNION SELECT 1 INTO @v );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @v )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO @v )' at line 1
 SELECT * FROM t1 WHERE EXISTS ( SELECT 1 INTO @v );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @v )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO @v )' at line 1
 SELECT * FROM t1 WHERE a IN ( SELECT 1 INTO @v );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @v )' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INTO @v )' at line 1
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a ENUM('rainbow'));
 INSERT INTO t1 VALUES (),(),(),(),();
@@ -4971,7 +5375,6 @@ EXPLAIN EXTENDED SELECT DISTINCT 1 FROM t1,
 WHERE t1.a = d1.a;
 ERROR 42S22: Unknown column 'd1.a' in 'where clause'
 DROP TABLE t1;
-End of 5.1 tests.
 Set up test tables.
 CREATE TABLE t1 (
 t1_id INT UNSIGNED,
@@ -5038,9 +5441,9 @@ t1.t1_id;
 t1_id	total_amount
 1	100.00
 2	200.00
-3	0
+3	0.00
 4	400.00
-5	0
+5	0.00
 SELECT * FROM (the same inner query), now with indexes on the LEFT JOIN
 SELECT * FROM (
 SELECT
@@ -5129,6 +5532,36 @@ HAVING t2s.i = 999
 ) IS UNKNOWN;
 i
 DROP TABLE t1,t1s,t2s;
+# LP BUG#675248 - select->prep_where references on freed memory 
+CREATE TABLE t1 (a int, b int);
+insert into t1 values (1,1),(0,0);
+CREATE TABLE t2 (c int);
+insert into t2 values (1),(2);
+prepare stmt1 from "select sum(a),(select sum(c) from t2 where table1.b) as sub
+from t1 as table1 group by sub";
+execute stmt1;
+sum(a)	sub
+0	NULL
+1	3
+deallocate prepare stmt1;
+prepare stmt1 from "select sum(a),(select sum(c) from t2 having table1.b) as sub
+from t1 as table1";
+execute stmt1;
+sum(a)	sub
+1	3
+deallocate prepare stmt1;
+drop table t1,t2;
+#
+# Bug LP#693935/#58727: Assertion failure with 
+# a single row subquery returning more than one row
+#
+create table t1 (a char(1) charset utf8);
+insert into t1 values ('a'), ('b');
+create table t2 (a binary(1));
+insert into t2 values ('x'), ('y');
+select * from t2 where a=(select a from t1) and a='x';
+ERROR 21000: Subquery returns more than 1 row
+drop table t1,t2;
 End of 5.1 tests
 #
 # Bug #11765713 58705:
@@ -5168,4 +5601,1518 @@ INSERT INTO t1 VALUES ('00:00:32');
 SELECT 1 FROM t1 WHERE a >
 (SELECT timestamp(a) AS a FROM t1);
 1
+DROP TABLE t1;
+#
+# No BUG#, a case brought from 5.2's innodb_mysql_lock.test
+#
+create table t1 (i int  not null primary key);
+insert into t1 values (1),(2),(3),(4),(5);
+create table t2 (j int not null  primary key);
+insert into t2 values (1),(2),(3),(4),(5);
+create table t3 (k int not null primary key);
+insert into t3 values (1),(2),(3);
+create view v2 as select t2.j as j from t2 where t2.j in (select t1.i from t1);
+select * from t3 where k in (select j from v2);
+k
+1
+2
+3
+drop table t1,t2,t3;
+drop view v2;
+#
+# Bug#52068: Optimizer generates invalid semijoin materialization plan
+#
+drop table if exists ot1, ot2, it1, it2;
+CREATE TABLE ot1(a INTEGER);
+INSERT INTO ot1 VALUES(5), (8);
+CREATE TABLE it2(a INTEGER);
+INSERT INTO it2 VALUES(9), (5), (1), (8);
+CREATE TABLE it3(a INTEGER);
+INSERT INTO it3 VALUES(7), (1), (0), (5), (1), (4);
+CREATE TABLE ot4(a INTEGER);
+INSERT INTO ot4 VALUES(1), (3), (5), (7), (9), (7), (3), (1);
+SELECT * FROM ot1,ot4
+WHERE (ot1.a,ot4.a) IN (SELECT it2.a,it3.a
+FROM it2,it3);
+a	a
+5	1
+8	1
+5	5
+8	5
+5	7
+8	7
+5	7
+8	7
+5	1
+8	1
+explain SELECT * FROM ot1,ot4
+WHERE (ot1.a,ot4.a) IN (SELECT it2.a,it3.a
+FROM it2,it3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	ot4	ALL	NULL	NULL	NULL	NULL	8	Using join buffer (flat, BNL join)
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	8	func,func	1	
+2	MATERIALIZED	it2	ALL	NULL	NULL	NULL	NULL	4	
+2	MATERIALIZED	it3	ALL	NULL	NULL	NULL	NULL	6	Using join buffer (flat, BNL join)
+DROP TABLE IF EXISTS ot1, ot4, it2, it3;
+#
+# Bug#729039: NULL keys used to evaluate subquery
+#
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (NULL), (1), (NULL), (2);
+CREATE TABLE t2 (a int, INDEX idx(a)) ;
+INSERT INTO t2 VALUES (NULL), (1), (NULL);
+SELECT * FROM t1
+WHERE EXISTS (SELECT a FROM t2 USE INDEX () WHERE t2.a = t1.a);
+a
+1
+EXPLAIN
+SELECT * FROM t1
+WHERE EXISTS (SELECT a FROM t2 USE INDEX() WHERE t2.a = t1.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+SELECT * FROM t1
+WHERE EXISTS (SELECT a FROM t2 WHERE t2.a = t1.a);
+a
+1
+EXPLAIN
+SELECT * FROM t1
+WHERE EXISTS (SELECT a FROM t2 WHERE t2.a = t1.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DEPENDENT SUBQUERY	t2	ref	idx	idx	5	test.t1.a	2	Using index
+DROP TABLE t1,t2;
+#
+# BUG#752992: Wrong results for a subquery with 'semijoin=on'
+#
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY, i INTEGER NOT NULL);
+INSERT INTO t1 VALUES (11,0);
+INSERT INTO t1 VALUES (12,5);
+INSERT INTO t1 VALUES (15,0);
+CREATE TABLE t2 (pk INTEGER PRIMARY KEY, i INTEGER NOT NULL);
+INSERT INTO t2 VALUES (11,1);
+INSERT INTO t2 VALUES (12,2);
+INSERT INTO t2 VALUES (15,4);
+SET @save_join_cache_level=@@join_cache_level;
+SET join_cache_level=0;
+EXPLAIN SELECT * FROM t1 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
+1	PRIMARY	it	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	Using index
+1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	3	Using index; FirstMatch(it)
+SELECT * FROM t1 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON 1);
+pk	i
+11	0
+12	5
+15	0
+SET join_cache_level=@save_join_cache_level;
+DROP table t1,t2;
+#
+# Bug#751350: crash with pushed condition for outer references when
+#             there should be none of such conditions
+#
+CREATE TABLE t1 (a int, b int) ;
+INSERT INTO t1 VALUES (0,0),(0,0);
+set @optimizer_switch_save=@@optimizer_switch;
+set @@optimizer_switch='semijoin=off,materialization=on,in_to_exists=on';
+EXPLAIN
+SELECT b FROM t1
+WHERE ('0') IN ( SELECT a  FROM t1 GROUP BY a )
+GROUP BY b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT b FROM t1
+WHERE ('0') IN ( SELECT a  FROM t1 GROUP BY a )
+GROUP BY b;
+b
+0
+set @@optimizer_switch=@optimizer_switch_save;
+DROP TABLE t1;
+#
+# Bug #11765713 58705:
+# OPTIMIZER LET ENGINE DEPEND ON UNINITIALIZED VALUES
+# CREATED BY OPT_SUM_QUERY
+#
+CREATE TABLE t1(a INT NOT NULL, KEY (a));
+INSERT INTO t1 VALUES (0), (1);
+SELECT 1 as foo FROM t1 WHERE a < SOME
+(SELECT a FROM t1 WHERE a <=>
+(SELECT a FROM t1)
+);
+ERROR 21000: Subquery returns more than 1 row
+SELECT 1 as foo FROM t1 WHERE a < SOME
+(SELECT a FROM t1 WHERE a <=>
+(SELECT a FROM t1 where a is null)
+);
+foo
+DROP TABLE t1;
+CREATE TABLE t1 (a int(11), b varchar(1));
+INSERT INTO t1 VALUES (2,NULL),(5,'d'),(7,'g');
+SELECT a FROM t1 WHERE b < ANY ( SELECT b FROM t1 GROUP BY b );
+a
+5
+SELECT a FROM t1 WHERE b < ANY ( SELECT b FROM t1 );
+a
+5
+SELECT a FROM t1 WHERE b > ANY ( SELECT b FROM t1 GROUP BY b );
+a
+7
+SELECT a FROM t1 WHERE b > ANY ( SELECT b FROM t1 );
+a
+7
+SELECT a FROM t1 WHERE b <= ANY ( SELECT b FROM t1 GROUP BY b );
+a
+5
+7
+SELECT a FROM t1 WHERE b <= ANY ( SELECT b FROM t1 );
+a
+5
+7
+SELECT a FROM t1 WHERE b >= ANY ( SELECT b FROM t1 GROUP BY b );
+a
+5
+7
+SELECT a FROM t1 WHERE b >= ANY ( SELECT b FROM t1 );
+a
+5
+7
+SELECT a FROM t1 WHERE b = ANY ( SELECT b FROM t1 );
+a
+5
+7
+SELECT a FROM t1 WHERE b = ANY ( SELECT b FROM t1 GROUP BY b );
+a
+5
+7
+SELECT a FROM t1 WHERE b <> ANY ( SELECT b FROM t1 );
+a
+5
+7
+SELECT a FROM t1 WHERE b <> ANY ( SELECT b FROM t1 GROUP BY b );
+a
+5
+7
+SELECT a FROM t1 WHERE b < ALL ( SELECT b FROM t1 GROUP BY b );
+a
+SELECT a FROM t1 WHERE b < ALL ( SELECT b FROM t1 );
+a
+SELECT a FROM t1 WHERE b > ALL ( SELECT b FROM t1 GROUP BY b );
+a
+SELECT a FROM t1 WHERE b > ALL ( SELECT b FROM t1 );
+a
+SELECT a FROM t1 WHERE b <= ALL ( SELECT b FROM t1 GROUP BY b );
+a
+SELECT a FROM t1 WHERE b <= ALL ( SELECT b FROM t1 );
+a
+SELECT a FROM t1 WHERE b >= ALL ( SELECT b FROM t1 GROUP BY b );
+a
+SELECT a FROM t1 WHERE b >= ALL ( SELECT b FROM t1 );
+a
+SELECT a FROM t1 WHERE b = ALL ( SELECT b FROM t1 );
+a
+SELECT a FROM t1 WHERE b = ALL ( SELECT b FROM t1 GROUP BY b );
+a
+SELECT a FROM t1 WHERE b <> ALL ( SELECT b FROM t1 );
+a
+SELECT a FROM t1 WHERE b <> ALL ( SELECT b FROM t1 GROUP BY b );
+a
+delete from t1;
+INSERT INTO t1 VALUES (2,NULL),(5,'d'),(7,'g');
+SELECT a FROM t1 WHERE b < ANY ( SELECT b FROM t1 GROUP BY b );
+a
+5
+SELECT a FROM t1 WHERE b < ANY ( SELECT b FROM t1 );
+a
+5
+SELECT a FROM t1 WHERE b > ANY ( SELECT b FROM t1 GROUP BY b );
+a
+7
+SELECT a FROM t1 WHERE b > ANY ( SELECT b FROM t1 );
+a
+7
+SELECT a FROM t1 WHERE b <= ANY ( SELECT b FROM t1 GROUP BY b );
+a
+5
+7
+SELECT a FROM t1 WHERE b <= ANY ( SELECT b FROM t1 );
+a
+5
+7
+SELECT a FROM t1 WHERE b >= ANY ( SELECT b FROM t1 GROUP BY b );
+a
+5
+7
+SELECT a FROM t1 WHERE b >= ANY ( SELECT b FROM t1 );
+a
+5
+7
+SELECT a FROM t1 WHERE b = ANY ( SELECT b FROM t1 );
+a
+5
+7
+SELECT a FROM t1 WHERE b = ANY ( SELECT b FROM t1 GROUP BY b );
+a
+5
+7
+SELECT a FROM t1 WHERE b <> ANY ( SELECT b FROM t1 );
+a
+5
+7
+SELECT a FROM t1 WHERE b <> ANY ( SELECT b FROM t1 GROUP BY b );
+a
+5
+7
+SELECT a FROM t1 WHERE b < ALL ( SELECT b FROM t1 GROUP BY b );
+a
+SELECT a FROM t1 WHERE b < ALL ( SELECT b FROM t1 );
+a
+SELECT a FROM t1 WHERE b > ALL ( SELECT b FROM t1 GROUP BY b );
+a
+SELECT a FROM t1 WHERE b > ALL ( SELECT b FROM t1 );
+a
+SELECT a FROM t1 WHERE b <= ALL ( SELECT b FROM t1 GROUP BY b );
+a
+SELECT a FROM t1 WHERE b <= ALL ( SELECT b FROM t1 );
+a
+SELECT a FROM t1 WHERE b >= ALL ( SELECT b FROM t1 GROUP BY b );
+a
+SELECT a FROM t1 WHERE b >= ALL ( SELECT b FROM t1 );
+a
+SELECT a FROM t1 WHERE b = ALL ( SELECT b FROM t1 );
+a
+SELECT a FROM t1 WHERE b = ALL ( SELECT b FROM t1 GROUP BY b );
+a
+SELECT a FROM t1 WHERE b <> ALL ( SELECT b FROM t1 );
+a
+SELECT a FROM t1 WHERE b <> ALL ( SELECT b FROM t1 GROUP BY b );
+a
+drop table t1;
+#
+# Fix of lp:780386 (NULL left part with empty ALL subquery).
+#
+CREATE TABLE t1 ( f11 int) ;
+INSERT IGNORE INTO t1 VALUES (0),(0);
+CREATE TABLE t2 ( f3 int, f10 int, KEY (f10,f3)) ;
+INSERT IGNORE INTO t2 VALUES (NULL,NULL),(5,0);
+DROP TABLE IF EXISTS t3;
+Warnings:
+Note	1051	Unknown table 't3'
+CREATE TABLE t3 ( f3 int) ;
+INSERT INTO t3 VALUES (0),(0);
+SELECT a1.f3 AS r FROM t2 AS a1 , t1 WHERE a1.f3 < ALL ( SELECT f3 FROM t3 WHERE f3 = 1 ) ;
+r
+NULL
+5
+NULL
+5
+DROP TABLE t1, t2, t3;
+#
+# Bug#12763207 - ASSERT IN SUBSELECT::SINGLE_VALUE_TRANSFORMER
+#
+CREATE TABLE t1(a1 int);
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2(a1 int);
+INSERT INTO t2 VALUES (3);
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 2 FROM t2);
+1
+1
+1
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 2.0 FROM t2);
+1
+1
+1
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 'a' FROM t2);
+1
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t2);
+1
+1
+1
+SET SESSION sql_mode=@old_sql_mode;
+DROP TABLE t1, t2;
+create table t2(i int);
+insert into t2 values(0);
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+CREATE VIEW v1 AS  
+SELECT 'f' FROM t2 UNION SELECT 'x' FROM t2
+;
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+);
+SELECT t1.pk
+FROM t1
+WHERE t1.col_varchar_key < ALL ( SELECT * FROM v1 )
+;
+pk
+SET SESSION sql_mode=@old_sql_mode;
+drop table t2, t1;
+drop view v1;
+#
+# BUG#50257: Missing info in REF column of the EXPLAIN 
+#            lines for subselects
+#
+CREATE TABLE t1 (a INT, b INT, INDEX (a));
+INSERT INTO t1 VALUES (3, 10), (2, 20), (7, 10), (5, 20);
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a=7) t;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	5	const	1	
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
+2	SUBQUERY	t1	ref	a	a	5	const	1	Using index
+DROP TABLE t1;
+#
+# BUG#12616253 - WRONG RESULT WITH EXISTS(SUBQUERY) (MISSING ROWS)
+# (duplicate of LP bug #888456)
+#
+CREATE TABLE t1 (f1 varchar(1));
+INSERT INTO t1 VALUES ('v'),('s');
+CREATE TABLE t2 (f1_key varchar(1), KEY (f1_key));
+INSERT INTO t2 VALUES ('j'),('v'),('c'),('m'),('d'),
+('d'),('y'),('t'),('d'),('s');
+EXPLAIN
+SELECT table1.f1, table2.f1_key FROM t1 AS table1, t2 AS table2
+WHERE EXISTS (SELECT DISTINCT f1_key FROM t2 
+WHERE f1_key != table2.f1_key AND f1_key >= table1.f1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	table1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	table2	index	NULL	f1_key	4	NULL	10	Using where; Using index; Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	t2	index	f1_key	f1_key	4	NULL	10	Using where; Using index
+SELECT table1.f1, table2.f1_key FROM t1 AS table1, t2 AS table2
+WHERE EXISTS (SELECT DISTINCT f1_key FROM t2 
+WHERE f1_key != table2.f1_key AND f1_key >= table1.f1);
+f1	f1_key
+v	j
+s	j
+v	v
+s	v
+v	c
+s	c
+v	m
+s	m
+v	d
+s	d
+v	d
+s	d
+v	y
+s	y
+v	t
+s	t
+v	d
+s	d
+v	s
+s	s
+DROP TABLE t1,t2;
+#
+# LP bug 919427: EXPLAIN for a query over a single-row table 
+#                with IN subquery in WHERE condition
+# 
+CREATE TABLE ot (
+col_int_nokey int(11), 
+col_varchar_nokey varchar(1)
+) ;
+INSERT INTO ot VALUES (1,'x');
+CREATE TABLE it1(
+col_int_key int(11), 
+col_varchar_key varchar(1), 
+KEY idx_cvk_cik (col_varchar_key,col_int_key)
+);
+INSERT INTO it1 VALUES (NULL,'x'), (NULL,'f');
+CREATE TABLE it2 (
+col_int_key int(11),
+col_varchar_key varchar(1),
+col_varchar_key2 varchar(1),
+KEY idx_cvk_cvk2_cik (col_varchar_key, col_varchar_key2, col_int_key),
+KEY idx_cvk_cik (col_varchar_key, col_int_key)
+);
+INSERT INTO it2 VALUES (NULL,'x','x'), (NULL,'f','f');
+EXPLAIN
+SELECT col_int_nokey FROM ot 
+WHERE col_varchar_nokey IN 
+(SELECT col_varchar_key FROM it1 WHERE col_int_key IS NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	ot	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	4	func	1	
+2	MATERIALIZED	it1	ref	idx_cvk_cik	idx_cvk_cik	9	const,const	1	Using where; Using index
+SELECT col_int_nokey FROM ot 
+WHERE col_varchar_nokey IN 
+(SELECT col_varchar_key FROM it1 WHERE col_int_key IS NULL);
+col_int_nokey
+1
+EXPLAIN
+SELECT col_int_nokey FROM ot
+WHERE (col_varchar_nokey, 'x') IN
+(SELECT col_varchar_key, col_varchar_key2 FROM it2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	ot	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	8	func,func	1	
+2	MATERIALIZED	it2	ref	idx_cvk_cvk2_cik,idx_cvk_cik	idx_cvk_cvk2_cik	8	const,const	1	Using where; Using index
+SELECT col_int_nokey FROM ot
+WHERE (col_varchar_nokey, 'x') IN
+(SELECT col_varchar_key, col_varchar_key2 FROM it2);
+col_int_nokey
+1
+DROP TABLE ot,it1,it2;
+#
+# MDEV-746
+# Bug#13651009 WRONG RESULT FROM DERIVED TABLE IF THE SUBQUERY
+# HAS AN EMPTY RESULT
+#
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_int_nokey int NOT NULL,
+col_int_key int NOT NULL,
+col_time_key time NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+col_varchar_nokey varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_time_key (col_time_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM;
+CREATE TABLE t2 (
+pk int NOT NULL AUTO_INCREMENT,
+col_int_nokey int NOT NULL,
+col_int_key int NOT NULL,
+col_time_key time NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+col_varchar_nokey varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_time_key (col_time_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,4,4,'00:00:00','b','b');
+SET @var2:=4, @var3:=8;
+
+Testcase without inner subquery
+EXPLAIN SELECT @var3:=12, sq4_alias1.*
+FROM t1 AS sq4_alias1
+WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
+sq4_alias1.col_varchar_key = @var3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	sq4_alias1	system	NULL	NULL	NULL	NULL	0	const row not found
+SELECT @var3:=12, sq4_alias1.*
+FROM t1 AS sq4_alias1
+WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
+sq4_alias1.col_varchar_key = @var3;
+@var3:=12	pk	col_int_nokey	col_int_key	col_time_key	col_varchar_key	col_varchar_nokey
+SELECT @var3;
+@var3
+8
+EXPLAIN SELECT * FROM ( SELECT @var3:=12, sq4_alias1.*
+FROM t1 AS sq4_alias1
+WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
+sq4_alias1.col_varchar_key = @var3 ) AS alias3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT * FROM ( SELECT @var3:=12, sq4_alias1.*
+FROM t1 AS sq4_alias1
+WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
+sq4_alias1.col_varchar_key = @var3 ) AS alias3;
+@var3:=12	pk	col_int_nokey	col_int_key	col_time_key	col_varchar_key	col_varchar_nokey
+SELECT @var3;
+@var3
+8
+
+Testcase with inner subquery; crashed WL#6095
+SET @var3=8;
+EXPLAIN SELECT sq4_alias1.*
+FROM t1 AS sq4_alias1
+WHERE (sq4_alias1.col_varchar_key , sq4_alias1.col_varchar_nokey)
+NOT IN
+(SELECT c_sq1_alias1.col_varchar_key AS c_sq1_field1,
+c_sq1_alias1.col_varchar_nokey AS c_sq1_field2
+FROM t2 AS c_sq1_alias1
+WHERE (c_sq1_alias1.col_int_nokey != @var2
+OR c_sq1_alias1.pk != @var3));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	c_sq1_alias1	system	PRIMARY	NULL	NULL	NULL	1	
+SELECT sq4_alias1.*
+FROM t1 AS sq4_alias1
+WHERE (sq4_alias1.col_varchar_key , sq4_alias1.col_varchar_nokey)
+NOT IN
+(SELECT c_sq1_alias1.col_varchar_key AS c_sq1_field1,
+c_sq1_alias1.col_varchar_nokey AS c_sq1_field2
+FROM t2 AS c_sq1_alias1
+WHERE (c_sq1_alias1.col_int_nokey != @var2
+OR c_sq1_alias1.pk != @var3));
+pk	col_int_nokey	col_int_key	col_time_key	col_varchar_key	col_varchar_nokey
+EXPLAIN SELECT * FROM ( SELECT sq4_alias1.*
+FROM t1 AS sq4_alias1
+WHERE (sq4_alias1.col_varchar_key , sq4_alias1.col_varchar_nokey)
+NOT IN
+(SELECT c_sq1_alias1.col_varchar_key AS c_sq1_field1,
+c_sq1_alias1.col_varchar_nokey AS c_sq1_field2
+FROM t2 AS c_sq1_alias1
+WHERE (c_sq1_alias1.col_int_nokey != @var2
+OR c_sq1_alias1.pk != @var3)) ) AS alias3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+3	DEPENDENT SUBQUERY	c_sq1_alias1	system	PRIMARY	NULL	NULL	NULL	1	
+SELECT * FROM ( SELECT sq4_alias1.*
+FROM t1 AS sq4_alias1
+WHERE (sq4_alias1.col_varchar_key , sq4_alias1.col_varchar_nokey)
+NOT IN
+(SELECT c_sq1_alias1.col_varchar_key AS c_sq1_field1,
+c_sq1_alias1.col_varchar_nokey AS c_sq1_field2
+FROM t2 AS c_sq1_alias1
+WHERE (c_sq1_alias1.col_int_nokey != @var2
+OR c_sq1_alias1.pk != @var3)) ) AS alias3;
+pk	col_int_nokey	col_int_key	col_time_key	col_varchar_key	col_varchar_nokey
+DROP TABLE t1,t2;
+End of 5.2 tests
+#
+# BUG#779885: Crash in eliminate_item_equal with materialization=on in
+#
+CREATE TABLE t1 ( f1 int );
+INSERT INTO t1 VALUES (19), (20);
+CREATE TABLE t2 ( f10 varchar(32) );
+INSERT INTO t2 VALUES ('c'),('d');
+CREATE TABLE t3 ( f10 varchar(32) );
+INSERT INTO t3 VALUES ('a'),('b');
+SELECT *
+FROM t1
+WHERE
+( 't' ) IN (
+SELECT t3.f10
+FROM t3
+JOIN t2
+ON t2.f10 = t3.f10
+);
+f1
+DROP TABLE t1,t2,t3;
+#
+# BUG lp:813473: Wrong result with outer join + NOT IN subquery
+# This bug is a duplicate of Bug#11764086 whose test case is added below
+#
+CREATE TABLE t1 (c int) ;
+INSERT INTO t1 VALUES (5),(6);
+CREATE TABLE t2 (a int, b int) ;
+INSERT INTO t2 VALUES (20,9),(20,9);
+create table t3 (d int, e int);
+insert into t3 values (2, 9), (3,10);
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+EXPLAIN
+SELECT t2.b , t1.c
+FROM t2 LEFT JOIN t1 ON t1.c < 3
+WHERE (t2.b , t1.c) NOT IN (SELECT * from t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT t2.b , t1.c
+FROM t2 LEFT JOIN t1 ON t1.c < 3
+WHERE (t2.b, t1.c) NOT IN (SELECT * from t3);
+b	c
+9	NULL
+9	NULL
+SET optimizer_switch=@save_optimizer_switch;
+drop table t1, t2, t3;
+#
+# BUG#50257: Missing info in REF column of the EXPLAIN 
+#            lines for subselects
+#
+CREATE TABLE t1 (a INT, b INT, INDEX (a));
+INSERT INTO t1 VALUES (3, 10), (2, 20), (7, 10), (5, 20);
+
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a=7) t;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
+2	DERIVED	t1	ref	a	a	5	const	1	
+set optimizer_switch=@tmp_optimizer_switch;
+
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
+2	SUBQUERY	t1	ref	a	a	5	const	1	Using index
+
+DROP TABLE t1;
+#
+# Bug#11764086: Null left operand to NOT IN in WHERE clause
+# behaves differently than real NULL
+#
+CREATE TABLE parent (id int);
+INSERT INTO parent VALUES (1), (2);
+CREATE TABLE child (parent_id int, other int);
+INSERT INTO child VALUES (1,NULL);
+# Offending query (c.parent_id is NULL for null-complemented rows only)
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id NOT IN (
+SELECT parent_id 
+FROM   child
+WHERE  parent_id = 3
+);
+id	parent_id
+1	1
+2	NULL
+# Some syntactic variations with IS FALSE and IS NOT TRUE
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id IN (
+SELECT parent_id 
+FROM   child
+WHERE  parent_id = 3
+) IS NOT TRUE;
+id	parent_id
+1	1
+2	NULL
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id IN (
+SELECT parent_id 
+FROM   child
+WHERE  parent_id = 3
+) IS FALSE;
+id	parent_id
+1	1
+2	NULL
+DROP TABLE parent, child;
+# End of test for bug#11764086.
+#
+# Bug 11765699 - 58690: !TABLE || (!TABLE->READ_SET || 
+#                BITMAP_IS_SET(TABLE->READ_SET, FIELD_INDEX
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0), (1);
+CREATE TABLE t2(
+b TEXT, 
+c INT, 
+PRIMARY KEY (b(1))
+);
+INSERT INTO t2 VALUES ('a', 2), ('b', 3);
+SELECT 1 FROM t1 WHERE a = 
+(SELECT 1 FROM t2 WHERE b = 
+(SELECT 1 FROM t1 t11 WHERE c = 1 OR t1.a = 1 AND 1 = 2)
+ORDER BY b
+);
+1
+SELECT 1 FROM t1 WHERE a = 
+(SELECT 1 FROM t2 WHERE b = 
+(SELECT 1 FROM t1 t11 WHERE c = 1 OR t1.a = 1 AND 1 = 2)
+GROUP BY b
+);
+1
+DROP TABLE t1, t2;
+#
+# BUG#12616253 - WRONG RESULT WITH EXISTS(SUBQUERY) (MISSING ROWS)
+#
+CREATE TABLE t1 (f1 varchar(1));
+INSERT INTO t1 VALUES ('v'),('s');
+CREATE TABLE t2 (f1_key varchar(1), KEY (f1_key));
+INSERT INTO t2 VALUES ('j'),('v'),('c'),('m'),('d'),
+('d'),('y'),('t'),('d'),('s');
+SELECT table1.f1, table2.f1_key
+FROM t1 AS table1, t2 AS table2
+WHERE EXISTS 
+( 
+SELECT DISTINCT f1_key 
+FROM t2 
+WHERE f1_key != table2.f1_key AND f1_key >= table1.f1 );
+f1	f1_key
+v	j
+s	j
+v	v
+s	v
+v	c
+s	c
+v	m
+s	m
+v	d
+s	d
+v	d
+s	d
+v	y
+s	y
+v	t
+s	t
+v	d
+s	d
+v	s
+s	s
+explain SELECT table1.f1, table2.f1_key
+FROM t1 AS table1, t2 AS table2
+WHERE EXISTS 
+( 
+SELECT DISTINCT f1_key 
+FROM t2 
+WHERE f1_key != table2.f1_key AND f1_key >= table1.f1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	table1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	table2	index	NULL	f1_key	4	NULL	10	Using where; Using index; Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	t2	index	f1_key	f1_key	4	NULL	10	Using where; Using index
+DROP TABLE t1,t2;
+#
+# lp:826279: assertion failure with GROUP BY a result of subquery
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (0), (0);
+CREATE TABLE t2 (a int, b int, c int);
+INSERT INTO t2 VALUES (10,7,0), (0,7,0);
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (10,7), (0,7);
+SELECT SUM(DISTINCT b),
+(SELECT t2.a FROM t1 JOIN t2 ON t2.c != 0
+WHERE t.a != 0 AND t2.a != 0)
+FROM (SELECT * FROM t3) AS t
+GROUP BY 2;
+SUM(DISTINCT b)	(SELECT t2.a FROM t1 JOIN t2 ON t2.c != 0
+WHERE t.a != 0 AND t2.a != 0)
+7	NULL
+SELECT SUM(DISTINCT b), 
+(SELECT t2.a FROM t1,t2 WHERE t.a != 0 or 1=2 LIMIT 1)
+FROM (SELECT * FROM t3) AS t
+GROUP BY 2;
+SUM(DISTINCT b)	(SELECT t2.a FROM t1,t2 WHERE t.a != 0 or 1=2 LIMIT 1)
+7	NULL
+7	10
+DROP TABLE t1,t2,t3;
+#
+# Bug#12329653 
+# EXPLAIN, UNION, PREPARED STATEMENT, CRASH, SQL_FULL_GROUP_BY
+#
+CREATE TABLE t1(a1 int);
+INSERT INTO t1 VALUES (1),(2);
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t1);
+1
+1
+1
+PREPARE stmt FROM 
+'SELECT 1 UNION ALL 
+SELECT 1 FROM t1
+ORDER BY
+(SELECT 1 FROM t1 AS t1_0  
+  WHERE 1 < SOME (SELECT a1 FROM t1)
+)' ;
+EXECUTE stmt ;
+ERROR 21000: Subquery returns more than 1 row
+EXECUTE stmt ;
+ERROR 21000: Subquery returns more than 1 row
+SET SESSION sql_mode=@old_sql_mode;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+#
+# LP BUG#833777 Performance regression with deeply nested subqueries
+#
+create table t1 (a int not null, b char(10) not null);
+insert into t1 values (1, 'a');
+set @@optimizer_switch='in_to_exists=on,semijoin=off,materialization=off,subquery_cache=off';
+select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1)))))))))))))))))))))))))))));
+a
+1
+set @@optimizer_switch=@subselect_tmp;
+drop table t1;
+#
+# LP BUG#894397 Wrong result with in_to_exists, constant table , semijoin=OFF,materialization=OFF
+#
+CREATE TABLE t1 (a varchar(3));
+INSERT INTO t1 VALUES ('AAA'),('BBB');
+CREATE TABLE t2 (a varchar(3));
+INSERT INTO t2 VALUES ('CCC');
+set @@optimizer_switch='semijoin=off,materialization=off,in_to_exists=on,subquery_cache=off';
+SELECT * FROM t1 WHERE t1.a IN (SELECT t2.a FROM t2 WHERE t2.a < 'ZZZ');
+a
+set @@optimizer_switch=@subselect_tmp;
+drop table t1, t2;
+#
+# LP bug #859375: Assertion `0' failed in st_select_lex_unit::optimize
+# with view , UNION and prepared statement (rewriting fake_select
+# condition).
+#
+CREATE TABLE t1 ( f1 int NOT NULL, f4 varchar(1) NOT NULL) ;
+INSERT INTO t1 VALUES (6,'d'),(7,'y');
+CREATE TABLE t2 ( f1 int NOT NULL, f2 int NOT NULL) ;
+INSERT INTO t2 VALUES (10,7);
+CREATE VIEW v2 AS SELECT * FROM t2;
+PREPARE st1 FROM "
+        SELECT *
+        FROM t1
+        LEFT JOIN v2 ON ( v2.f2 = t1.f1 )
+        WHERE v2.f1 NOT IN (
+                SELECT 1 UNION
+                SELECT 247
+        )
+";
+EXECUTE st1;
+f1	f4	f1	f2
+7	y	10	7
+deallocate prepare st1;
+DROP VIEW v2;
+DROP TABLE t1,t2;
+#
+# LP bug #887458 Crash in subselect_union_engine::no_rows with
+# double UNION and join_cache_level=3,8
+# (IN/ALL/ANY optimizations should not be applied to fake_select)
+CREATE TABLE t2 ( a int, b varchar(1)) ;
+INSERT IGNORE INTO t2 VALUES (8,'y'),(8,'y');
+CREATE TABLE t1 ( b varchar(1)) ;
+INSERT IGNORE INTO t1 VALUES (NULL),(NULL);
+set @save_join_cache_level=@@join_cache_level;
+SET SESSION join_cache_level=3;
+SELECT *
+FROM t1, t2
+WHERE t2.b IN (
+SELECT 'm' UNION
+SELECT 'm'
+) OR t1.b <> SOME (
+SELECT 'v' UNION
+SELECT 't'
+);
+b	a	b
+set @@join_cache_level= @save_join_cache_level;
+drop table t1,t2;
+#
+# LP bug #885162 Got error 124 from storage engine with UNION inside
+# subquery and join_cache_level=3..8
+# (IN/ALL/ANY optimizations should not be applied to fake_select)
+#
+CREATE TABLE t1 (
+f1 varchar(1) DEFAULT NULL
+);
+INSERT INTO t1 VALUES ('c');
+set @save_join_cache_level=@@join_cache_level;
+SET SESSION join_cache_level=8;
+SELECT * FROM t1 WHERE t1.f1 IN ( SELECT 'k' UNION SELECT 'e' );
+f1
+set @@join_cache_level= @save_join_cache_level;
+drop table t1;
+#
+# LP BUG#747278 incorrect values of the NULL (no rows) single 
+# row subquery requested via element_index() interface
+#
+CREATE TABLE t1 (f1a int, f1b int) ;
+INSERT IGNORE INTO t1 VALUES (1,1),(2,2);
+CREATE TABLE t2 ( f2 int);
+INSERT IGNORE INTO t2 VALUES (3),(4);
+CREATE TABLE t3 (f3a int default 1, f3b int default 2);
+INSERT INTO t3 VALUES (1,1),(2,2);
+set @old_optimizer_switch = @@session.optimizer_switch;
+set @@optimizer_switch='materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off,subquery_cache=off,semijoin=off';
+SELECT (SELECT f3a FROM t3 where f3a > 3) NOT IN (SELECT f1a FROM t1) FROM t2;
+(SELECT f3a FROM t3 where f3a > 3) NOT IN (SELECT f1a FROM t1)
+NULL
+NULL
+SELECT (SELECT f3a,f3a  FROM t3 where f3a > 3) NOT IN (SELECT f1a,f1a FROM t1) FROM t2;
+(SELECT f3a,f3a  FROM t3 where f3a > 3) NOT IN (SELECT f1a,f1a FROM t1)
+NULL
+NULL
+SELECT (SELECT f3a, f3b FROM t3 where f3a > 3) NOT IN (SELECT f1a, f1b FROM t1) FROM t2;
+(SELECT f3a, f3b FROM t3 where f3a > 3) NOT IN (SELECT f1a, f1b FROM t1)
+NULL
+NULL
+SELECT (SELECT f3a, f3b FROM t3 where f3a > 3) NOT IN (SELECT f1a, f1b FROM t1);
+(SELECT f3a, f3b FROM t3 where f3a > 3) NOT IN (SELECT f1a, f1b FROM t1)
+NULL
+SELECT (SELECT f3a FROM t3 where f3a > 3) IN (SELECT f1a FROM t1) FROM t2;
+(SELECT f3a FROM t3 where f3a > 3) IN (SELECT f1a FROM t1)
+NULL
+NULL
+SELECT (SELECT f3a,f3a  FROM t3 where f3a > 3) IN (SELECT f1a,f1a FROM t1) FROM t2;
+(SELECT f3a,f3a  FROM t3 where f3a > 3) IN (SELECT f1a,f1a FROM t1)
+NULL
+NULL
+SELECT (SELECT f3a, f3b FROM t3 where f3a > 3) IN (SELECT f1a, f1b FROM t1) FROM t2;
+(SELECT f3a, f3b FROM t3 where f3a > 3) IN (SELECT f1a, f1b FROM t1)
+NULL
+NULL
+SELECT (SELECT f3a, f3b FROM t3 where f3a > 3) IN (SELECT f1a, f1b FROM t1);
+(SELECT f3a, f3b FROM t3 where f3a > 3) IN (SELECT f1a, f1b FROM t1)
+NULL
+set @@session.optimizer_switch=@old_optimizer_switch;
+SELECT (SELECT f3a FROM t3 where f3a > 3) NOT IN (SELECT f1a FROM t1) FROM t2;
+(SELECT f3a FROM t3 where f3a > 3) NOT IN (SELECT f1a FROM t1)
+NULL
+NULL
+SELECT (SELECT f3a,f3a  FROM t3 where f3a > 3) NOT IN (SELECT f1a,f1a FROM t1) FROM t2;
+(SELECT f3a,f3a  FROM t3 where f3a > 3) NOT IN (SELECT f1a,f1a FROM t1)
+NULL
+NULL
+SELECT (SELECT f3a, f3b FROM t3 where f3a > 3) NOT IN (SELECT f1a, f1b FROM t1) FROM t2;
+(SELECT f3a, f3b FROM t3 where f3a > 3) NOT IN (SELECT f1a, f1b FROM t1)
+NULL
+NULL
+SELECT (SELECT f3a, f3b FROM t3 where f3a > 3) NOT IN (SELECT f1a, f1b FROM t1);
+(SELECT f3a, f3b FROM t3 where f3a > 3) NOT IN (SELECT f1a, f1b FROM t1)
+NULL
+SELECT (SELECT f3a FROM t3 where f3a > 3) IN (SELECT f1a FROM t1) FROM t2;
+(SELECT f3a FROM t3 where f3a > 3) IN (SELECT f1a FROM t1)
+NULL
+NULL
+SELECT (SELECT f3a,f3a  FROM t3 where f3a > 3) IN (SELECT f1a,f1a FROM t1) FROM t2;
+(SELECT f3a,f3a  FROM t3 where f3a > 3) IN (SELECT f1a,f1a FROM t1)
+NULL
+NULL
+SELECT (SELECT f3a, f3b FROM t3 where f3a > 3) IN (SELECT f1a, f1b FROM t1) FROM t2;
+(SELECT f3a, f3b FROM t3 where f3a > 3) IN (SELECT f1a, f1b FROM t1)
+NULL
+NULL
+SELECT (SELECT f3a, f3b FROM t3 where f3a > 3) IN (SELECT f1a, f1b FROM t1);
+(SELECT f3a, f3b FROM t3 where f3a > 3) IN (SELECT f1a, f1b FROM t1)
+NULL
+select (null, null) = (null, null);
+(null, null) = (null, null)
+NULL
+SELECT (SELECT f3a, f3a FROM t3  where f3a > 3) = (0, 0);
+(SELECT f3a, f3a FROM t3  where f3a > 3) = (0, 0)
+NULL
+drop tables t1,t2,t3;
+#
+# LP BUG#825051 Wrong result with date/datetime and subquery with GROUP BY and in_to_exists
+#
+CREATE TABLE t1 (a date, KEY (a)) ;
+INSERT INTO t1 VALUES ('2009-01-01'),('2009-02-02');
+set @old_optimizer_switch = @@optimizer_switch;
+SET @@optimizer_switch='semijoin=off,materialization=off,in_to_exists=on,subquery_cache=off';
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a AS field1 FROM t1 GROUP BY field1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	a	4	NULL	2	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	4	func	2	Using index
+SELECT * FROM t1 WHERE a IN (SELECT a AS field1 FROM t1 GROUP BY field1);
+a
+2009-01-01
+2009-02-02
+SET @@optimizer_switch='semijoin=off,materialization=on,in_to_exists=off,subquery_cache=off';
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a AS field1 FROM t1 GROUP BY field1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	a	4	NULL	2	Using where; Using index
+2	MATERIALIZED	t1	index	NULL	a	4	NULL	2	Using index
+SELECT * FROM t1 WHERE a IN (SELECT a AS field1 FROM t1 GROUP BY field1);
+a
+2009-01-01
+2009-02-02
+set @@optimizer_switch=@old_optimizer_switch;
+drop table t1;
+#
+# LP BUG#908269 incorrect condition in case of subqueries depending
+# on constant tables
+#
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (1),(5);
+CREATE TABLE t2 ( b INT ) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1);
+CREATE TABLE t3 ( c INT );
+INSERT INTO t3 VALUES (4),(5);
+SET optimizer_switch='subquery_cache=off';
+SELECT ( SELECT b FROM t2 WHERE b = a OR EXISTS ( SELECT c FROM t3 WHERE c = b ) ) FROM t1;
+( SELECT b FROM t2 WHERE b = a OR EXISTS ( SELECT c FROM t3 WHERE c = b ) )
+1
+NULL
+SELECT ( SELECT b FROM t2 WHERE b = a OR b * 0) FROM t1;
+( SELECT b FROM t2 WHERE b = a OR b * 0)
+1
+NULL
+SELECT ( SELECT b FROM t2 WHERE b = a OR rand() * 0) FROM t1;
+( SELECT b FROM t2 WHERE b = a OR rand() * 0)
+1
+NULL
+drop table t1,t2,t3;
+set optimizer_switch=@subselect_tmp;
+#
+# LP BUG#905353 Wrong non-empty result with a constant table,
+# aggregate function in subquery, MyISAM or Aria
+#
+CREATE TABLE t1 ( a INT ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+SELECT a FROM t1 WHERE ( SELECT MIN(a) = 100 );
+a
+drop table t1;
+#
+# LP BUG#985667 Wrong result with subquery in SELECT clause, and constant table in 
+# main query and implicit grouping
+#
+CREATE TABLE t1 (f1 int) engine=MyISAM;
+INSERT INTO t1 VALUES (7),(8);
+CREATE TABLE t2 (f2 int, f3 varchar(1)) engine=MyISAM;
+INSERT INTO t2 VALUES (3,'f');
+EXPLAIN
+SELECT COUNT(f1), (SELECT f1 FROM t1 WHERE f2 > 0 limit 1) AS f4 FROM t2, t1 WHERE 'v'= f3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT COUNT(f1), (SELECT f1 FROM t1 WHERE f2 > 0 limit 1) AS f4 FROM t2, t1 WHERE 'v'= f3;
+COUNT(f1)	f4
+0	NULL
+EXPLAIN
+SELECT COUNT(f1), exists(SELECT f1 FROM t1 WHERE f2 > 0 limit 1) AS f4 FROM t2, t1 WHERE 'v'= f3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT COUNT(f1), exists(SELECT f1 FROM t1 WHERE f2 > 0 limit 1) AS f4 FROM t2, t1 WHERE 'v'= f3;
+COUNT(f1)	f4
+0	0
+EXPLAIN
+SELECT COUNT(f1), f2 > ALL (SELECT f1 FROM t1 WHERE f2 > 0) AS f4 FROM t2, t1 WHERE 'v'= f3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT COUNT(f1), f2 > ALL (SELECT f1 FROM t1 WHERE f2 > 0) AS f4 FROM t2, t1 WHERE 'v'= f3;
+COUNT(f1)	f4
+0	1
+EXPLAIN
+SELECT COUNT(f1), f2 IN (SELECT f1 FROM t1 WHERE f2 > 0) AS f4 FROM t2, t1 WHERE 'v'= f3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT COUNT(f1), f2 IN (SELECT f1 FROM t1 WHERE f2 > 0) AS f4 FROM t2, t1 WHERE 'v'= f3;
+COUNT(f1)	f4
+0	0
+drop table t1,t2;
+#
+# LP BUG#1002079 Server crashes in Item_singlerow_subselect::val_int with constant table,
+# HAVING, UNION in subquery
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (7),(0);
+CREATE TABLE t2 (b INT);
+EXPLAIN
+SELECT SUM(a) AS f1, a AS f2 FROM (t1, t2) HAVING f2 >= ALL (SELECT 4 UNION SELECT 5) AND f1 = 7;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+SELECT SUM(a) AS f1, a AS f2 FROM (t1, t2) HAVING f2 >= ALL (SELECT 4 UNION SELECT 5) AND f1 = 7;
+f1	f2
+drop table t1,t2;
+#
+# LP BUG#1008686 Server crashes in subselect_union_engine::no_rows on SELECT with impossible
+# WHERE and UNION in HAVING
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(7);
+EXPLAIN
+SELECT MIN(a) AS min_a, a FROM t1 WHERE 0 HAVING a NOT IN ( SELECT 2 UNION SELECT 5 ) OR min_a != 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+SELECT MIN(a) AS min_a, a FROM t1 WHERE 0 HAVING a NOT IN ( SELECT 2 UNION SELECT 5 ) OR min_a != 1;
+min_a	a
+EXPLAIN
+SELECT MIN(a) AS min_a, a FROM t1 WHERE 1=2 HAVING a NOT IN ( SELECT a from t1 UNION select a+1 from t1 ) OR min_a != 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DEPENDENT UNION	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+SELECT MIN(a) AS min_a, a FROM t1 WHERE 1=2 HAVING a NOT IN ( SELECT a from t1 UNION select a+1 from t1 ) OR min_a != 1;
+min_a	a
+drop table t1;
+#
+# MDEV-367: Different results with and without subquery_cache on
+# a query with a constant NOT IN condition
+#
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2),(3);
+set @mdev367_optimizer_switch = @@optimizer_switch;
+set optimizer_switch = 'subquery_cache=on';
+SELECT * FROM t1 WHERE ( 3, 3 ) NOT IN ( SELECT NULL, NULL ) OR a > 100;
+a
+SELECT *, ( 3, 3 ) NOT IN ( SELECT NULL, NULL ) FROM t1;
+a	( 3, 3 ) NOT IN ( SELECT NULL, NULL )
+1	NULL
+2	NULL
+3	NULL
+set optimizer_switch=@mdev367_optimizer_switch;
+set optimizer_switch = 'subquery_cache=off';
+SELECT * FROM t1 WHERE ( 3, 3 ) NOT IN ( SELECT NULL, NULL ) OR a > 100;
+a
+SELECT *, ( 3, 3 ) NOT IN ( SELECT NULL, NULL ) FROM t1;
+a	( 3, 3 ) NOT IN ( SELECT NULL, NULL )
+1	NULL
+2	NULL
+3	NULL
+set optimizer_switch=@mdev367_optimizer_switch;
+DROP TABLE t1;
+#
+# MDEV-521 single value subselect transformation problem
+#
+CREATE TABLE t1 (f1 char(2), PRIMARY KEY (f1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('u1'),('u2');
+SELECT a.* FROM t1 a WHERE ( SELECT EXISTS ( SELECT 1 FROM t1 b WHERE b.f1 = a.f1 ) );
+f1
+u1
+u2
+FLUSH TABLES;
+SELECT a.* FROM t1 a WHERE ( SELECT EXISTS ( SELECT 1 FROM t1 b WHERE b.f1 = a.f1 ) );
+f1
+u1
+u2
+DROP TABLE t1;
+# return optimizer switch changed in the beginning of this test
+set optimizer_switch=@subselect_tmp;
+#
+# lp:944706 Query with impossible or constant subquery in WHERE or HAVING is not
+# precomputed and thus not part of optimization
+#
+CREATE TABLE t1 ( a VARCHAR(16), KEY (a) );
+INSERT INTO t1 VALUES ('Abilene'),('Akron'),('Albany'),('Albuquerque'),('Alexandria'),('Allentown'),
+('Amarillo'),('Anaheim'),('Anchorage'),('Ann Arbor'),('Arden-Arcade');
+EXPLAIN
+SELECT MAX( alias2.a ) AS field
+FROM t1 AS alias1, t1 AS alias2, t1 AS alias3
+WHERE alias1.a = alias2.a OR alias1.a = 'y'
+HAVING field>'B' AND ( 'Moscow' ) IN ( SELECT a FROM t1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
+2	SUBQUERY	t1	index_subquery	a	a	19	const	1	Using index; Using where
+SELECT MAX( alias2.a ) AS field
+FROM t1 AS alias1, t1 AS alias2, t1 AS alias3
+WHERE alias1.a = alias2.a OR alias1.a = 'y'
+HAVING field>'B' AND ( 'Moscow' ) IN ( SELECT a FROM t1 );
+field
+EXPLAIN
+SELECT MAX( alias2.a )
+FROM t1 AS alias1, t1 AS alias2, t1 AS alias3
+WHERE alias1.a = alias2.a OR ('Moscow') IN ( SELECT a FROM t1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	alias1	index	a	a	19	NULL	11	Using where; Using index
+1	PRIMARY	alias2	ref	a	a	19	test.alias1.a	2	Using index
+1	PRIMARY	alias3	index	NULL	a	19	NULL	11	Using index; Using join buffer (flat, BNL join)
+2	SUBQUERY	t1	index_subquery	a	a	19	const	1	Using index; Using where
+SELECT MAX( alias2.a )
+FROM t1 AS alias1, t1 AS alias2, t1 AS alias3
+WHERE alias1.a = alias2.a OR ('Moscow') IN ( SELECT a FROM t1 );
+MAX( alias2.a )
+Arden-Arcade
+drop table t1;
+#
+# MDEV-277 CHEAP SQ: Server crashes in st_join_table::get_examined_rows
+# with semijoin+materialization, IN and = subqueries
+#
+CREATE TABLE t1 (a1 INT);
+INSERT INTO t1 VALUES (4),(6);
+CREATE TABLE t2 (b1 INT);
+INSERT INTO t2 VALUES (1),(7);
+EXPLAIN
+SELECT * FROM t1
+WHERE a1 = (SELECT COUNT(*) FROM t1 WHERE a1 IN (SELECT a1 FROM t1, t2));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	<subquery3>	eq_ref	distinct_key	distinct_key	4	func	1	
+3	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	2	
+3	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+SELECT * FROM t1
+WHERE a1 = (SELECT COUNT(*) FROM t1 WHERE a1 IN (SELECT a1 FROM t1, t2));
+a1
+drop table t1, t2;
+#
+# MDEV-287 CHEAP SQ: A query with subquery in SELECT list, EXISTS,
+# inner joins takes hundreds times longer
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(7);
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (4),(5);
+CREATE TABLE t3 (c INT);
+INSERT INTO t3 VALUES (8),(3);
+set @@expensive_subquery_limit= 0;
+EXPLAIN
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	alias1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+1	PRIMARY	alias3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+flush status;
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+(SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	6
+Subquery_cache_miss	2
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	8
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	22
+set @@expensive_subquery_limit= default;
+EXPLAIN
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	alias1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+1	PRIMARY	alias3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+flush status;
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+(SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	16
+drop table t1, t2, t3;
+#
+# MDEV-288 CHEAP SQ: Valgrind warnings "Memory lost" with IN and EXISTS nested subquery, materialization+semijoin
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0),(8);
+CREATE TABLE t2 (b INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1),(2);
+EXPLAIN
+SELECT * FROM t1 WHERE 4 IN (SELECT MAX(b) FROM t2 WHERE EXISTS (SELECT * FROM t1));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	MATERIALIZED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+3	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t1 WHERE 4 IN (SELECT MAX(b) FROM t2 WHERE EXISTS (SELECT * FROM t1));
+a
+drop table t1,t2;
+#
+# MDEV-410: EXPLAIN shows type=range, while SHOW EXPLAIN and userstat show full table scan is used
+#
+CREATE TABLE t1 (a VARCHAR(3) PRIMARY KEY) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('USA');
+CREATE TABLE t2 (b INT, c VARCHAR(52), KEY(b)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (3813,'United States'),(3940,'Russia');
+CREATE TABLE t3 (d INT, KEY(d)) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (12),(22),(9),(45);
+create table t4 like t3;
+insert into t4 select * from t3;
+# This should not show range access for table t2
+explain
+SELECT MIN(b) FROM ( SELECT * FROM t1, t2, t3 WHERE d = b ) AS alias1 
+WHERE SLEEP(0.1) OR c < 'p' OR b = ( SELECT MIN(b) FROM t2 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	b	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t3	ref	d	d	5	test.t2.b	2	Using where; Using index
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+set @tmp_mdev410=@@global.userstat;
+set global userstat=on;
+flush table_statistics;
+flush index_statistics;
+SELECT MIN(b) FROM ( SELECT * FROM t1, t2, t3 WHERE d = b ) AS alias1 
+WHERE SLEEP(0.1) OR c < 'p' OR b = ( SELECT MIN(b) FROM t2 );
+MIN(b)
+NULL
+# The following shows that t2 was indeed scanned with a full scan.
+show table_statistics;
+Table_schema	Table_name	Rows_read	Rows_changed	Rows_changed_x_#indexes
+test	t1	2	0	0
+test	t2	3	0	0
+show index_statistics;
+Table_schema	Table_name	Index_name	Rows_read
+test	t2	b	1
+set global userstat=@tmp_mdev410;
+DROP TABLE t1,t2,t3,t4;
+#
+# MDEV-430: Server crashes in select_describe on EXPLAIN with 
+#    materialization+semijoin, 2 nested subqueries, aggregate functions
+#
+CREATE TABLE t1 (a INT, KEY(a));
+INSERT INTO t1 VALUES (1),(8);
+CREATE TABLE t2 (b INT, KEY(b));
+INSERT INTO t2 VALUES (45),(17),(20);
+EXPLAIN SELECT * FROM t1 WHERE EXISTS ( SELECT a FROM t1, t2 WHERE b = a GROUP BY a HAVING a <> 1 ) ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t1	index	a	a	5	NULL	2	Using where; Using index
+2	SUBQUERY	t2	ref	b	b	5	test.t1.a	2	Using index
+DROP TABLE t1,t2;
+#
+# MDEV-435: Expensive subqueries may be evaluated during optimization in merge_key_fields
+#
+CREATE TABLE t1 (a INT, KEY(a)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (8),(0);
+CREATE TABLE t2 (b INT, c VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (4,'j'),(6,'v');
+CREATE TABLE t3 (d VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t3 VALUES ('b'),('c');
+EXPLAIN
+SELECT * FROM t1
+WHERE a = (SELECT MAX(b) FROM t2 WHERE c IN (SELECT MAX(d) FROM t3)) OR a = 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	a	a	5	NULL	2	Using where; Using index
+2	SUBQUERY	<subquery3>	ALL	distinct_key	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+3	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t1
+WHERE a = (SELECT MAX(b) FROM t2 WHERE c IN (SELECT MAX(d) FROM t3)) OR a = 10;
+a
+drop table t1, t2, t3;
+#
+# MDEV-405: Server crashes in test_if_skip_sort_order on EXPLAIN with GROUP BY and HAVING in EXISTS subquery
+#
+CREATE TABLE t1 (a INT, KEY(a));
+INSERT INTO t1 VALUES (1),(8);
+CREATE TABLE t2 (b INT, KEY(b));
+INSERT INTO t2 VALUES (45),(17),(20);
+EXPLAIN SELECT * FROM t1 WHERE EXISTS ( SELECT a FROM t1, t2 WHERE b = a GROUP BY a HAVING a <> 1 ) ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t1	index	a	a	5	NULL	2	Using where; Using index
+2	SUBQUERY	t2	ref	b	b	5	test.t1.a	2	Using index
+DROP TABLE t1,t2;
+#
+# MDEV-5991: crash in Item_field::used_tables
+#
+create table t1 (c int);
+select exists(select 1 from t1 group by `c` in (select `c` from t1));
+exists(select 1 from t1 group by `c` in (select `c` from t1))
+0
+drop table t1;
+#
+# MDEV-7565: Server crash with Signal 6 (part 2)
+#
+Select 
+(Select Sum(`TestCase`.Revenue) From mysql.slow_log E           
+Where TestCase.TemplateID not in (Select 1 from mysql.slow_log where 2=2)
+) As `ControlRev`
+From 
+(Select  3 as Revenue, 4 as TemplateID) As `TestCase` 
+Group By  TestCase.Revenue, TestCase.TemplateID;
+ControlRev
+NULL
+#
+# MDEV-7445:Server crash with Signal 6
+#
+CREATE PROCEDURE procedure2()
+BEGIN
+Select 
+(Select Sum(`TestCase`.Revenue) From mysql.slow_log E           
+Where TestCase.TemplateID not in (Select 1 from mysql.slow_log where 2=2)
+) As `ControlRev`
+  From 
+(Select  3 as Revenue, 4 as TemplateID) As `TestCase` 
+Group By  TestCase.Revenue, TestCase.TemplateID;
+END |
+call procedure2();
+ControlRev
+NULL
+call procedure2();
+ControlRev
+NULL
+drop procedure procedure2;
+SELECT
+(SELECT user FROM mysql.user
+WHERE h.host in (SELECT host FROM mysql.user)
+) AS sq
+FROM mysql.host h GROUP BY h.host;
+sq
+#
+# MDEV-7846:Server crashes in Item_subselect::fix
+#_fields or fails with Thread stack overrun
+#
+CREATE TABLE t1 (column1 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (3),(9);
+CREATE TABLE t2 (column2 INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1),(4);
+CREATE TABLE t3 (column3 INT) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (6),(8);
+CREATE TABLE t4 (column4 INT) ENGINE=MyISAM;
+INSERT INTO t4 VALUES (2),(5);
+PREPARE stmt FROM "
+SELECT ( 
+  SELECT MAX( table1.column1 ) AS field1 
+  FROM t1 AS table1
+  WHERE table3.column3 IN ( SELECT table2.column2 AS field2 FROM t2 AS table2 ) 
+) AS sq
+FROM t3 AS table3, t4 AS table4 GROUP BY sq
+";
+EXECUTE stmt;
+sq
+NULL
+EXECUTE stmt;
+sq
+NULL
+deallocate prepare stmt;
+drop table t1,t2,t3,t4;
+# MDEV-7122
+# Assertion `0' failed in subselect_hash_sj_engine::init
+#
+SET SESSION big_tables=1;
+CREATE TABLE t1(a char(255) DEFAULT '', KEY(a(10))) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+INSERT INTO t1 VALUES(0),(0),(0);
+SELECT * FROM t1 WHERE a IN(SELECT MIN(a) FROM t1);
+a
+0
+0
+0
+DROP TABLE t1;
+SET SESSION big_tables=0;
+#
+# MDEV-10776: Server crash on query
+#
+create table t1 (field1 int);
+insert into t1 values (1);
+select round((select 1 from t1 limit 1))
+from t1
+group by round((select 1 from t1 limit 1));
+round((select 1 from t1 limit 1))
+1
+drop table t1;
+#
+# MDEV-10386 Assertion `fixed == 1' failed in virtual String* Item_func_conv_charset::val_str(String*)
+#
+CREATE TABLE t1 (f1 CHAR(3) CHARACTER SET utf8 NULL, f2 CHAR(3) CHARACTER SET latin1 NULL);
+INSERT INTO t1 VALUES ('foo','bar');
+SELECT * FROM t1 WHERE f2 >= SOME ( SELECT f1 FROM t1 );
+f1	f2
+SELECT * FROM t1 WHERE f2 <= SOME ( SELECT f1 FROM t1 );
+f1	f2
+foo	bar
 DROP TABLE t1;

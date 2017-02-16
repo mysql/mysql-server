@@ -1,0 +1,13 @@
+# test case for DB-771
+source include/have_tokudb.inc;
+set default_storage_engine=tokudb;
+disable_warnings;
+drop table if exists t1;
+enable_warnings;
+CREATE TABLE t1 (a int key, b varchar(32), c varchar(32));
+REPLACE t1 SET a = 4;
+ALTER TABLE t1 CHANGE COLUMN c c VARCHAR(500);
+update t1 set b='hi';
+update t1 set c='there';
+select * from t1;
+drop table t1;

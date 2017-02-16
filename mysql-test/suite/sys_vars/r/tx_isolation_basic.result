@@ -124,9 +124,9 @@ READ-UNCOMMITTED
 '#---------------------FN_DYNVARS_183_09----------------------#'
 SET tx_isolation = 'REPEATABLE-READ';
 SET session.tx_isolation = 'REPEATABLE-READ';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'tx_isolation = 'REPEATABLE-READ'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'tx_isolation = 'REPEATABLE-READ'' at line 1
 SET global.tx_isolation = 'REPEATABLE-READ';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'tx_isolation = 'REPEATABLE-READ'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'tx_isolation = 'REPEATABLE-READ'' at line 1
 SET session tx_isolation = 'REPEATABLE-READ';
 SELECT @@tx_isolation;
 @@tx_isolation

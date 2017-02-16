@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates
+   Copyright (c) 2009, 2014, SkySQL Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,15 +31,17 @@ void *my_malloc(size_t size, myf my_flags)
   void* point;
   DBUG_ENTER("my_malloc");
   DBUG_PRINT("my",("size: %lu  my_flags: %d", (ulong) size, my_flags));
+  if (!(my_flags & (MY_WME | MY_FAE)))
+    my_flags|= my_global_flags;
 
   /* Safety */
   if (!size)
     size=1;
 
-  point= malloc(size);
+  point= sf_malloc(size);
   DBUG_EXECUTE_IF("simulate_out_of_memory",
                   {
-                    free(point);
+                    my_free(point);
                     point= NULL;
                   });
   DBUG_EXECUTE_IF("simulate_persistent_out_of_memory",
@@ -87,24 +90,7 @@ void *my_realloc(void *oldpoint, size_t size, myf my_flags)
   DBUG_ASSERT(size > 0);
   if (!oldpoint && (my_flags & MY_ALLOW_ZERO_PTR))
     DBUG_RETURN(my_malloc(size, my_flags));
-#ifdef USE_HALLOC
-  if (!(point = malloc(size)))
-  {
-    if (my_flags & MY_FREE_ON_ERROR)
-      my_free(oldpoint);
-    if (my_flags & MY_HOLD_ON_ERROR)
-      DBUG_RETURN(oldpoint);
-    my_errno=errno;
-    if (my_flags & MY_FAE+MY_WME)
-      my_error(EE_OUTOFMEMORY, MYF(ME_BELL + ME_WAITTANG + ME_FATALERROR),size);
-  }
-  else
-  {
-    memcpy(point,oldpoint,size);
-    free(oldpoint);
-  }
-#else
-  if ((point= realloc(oldpoint, size)) == NULL)
+  if ((point= sf_realloc(oldpoint, size)) == NULL)
   {
     if (my_flags & MY_FREE_ON_ERROR)
       my_free(oldpoint);
@@ -114,7 +100,6 @@ void *my_realloc(void *oldpoint, size_t size, myf my_flags)
     if (my_flags & (MY_FAE+MY_WME))
       my_error(EE_OUTOFMEMORY, MYF(ME_BELL + ME_WAITTANG + ME_FATALERROR), size);
   }
-#endif
   DBUG_PRINT("exit",("ptr: %p", point));
   DBUG_RETURN(point);
 }
@@ -131,7 +116,7 @@ void my_free(void *ptr)
 {
   DBUG_ENTER("my_free");
   DBUG_PRINT("my",("ptr: %p", ptr));
-  free(ptr);
+  sf_free(ptr);
   DBUG_VOID_RETURN;
 }
 
@@ -139,9 +124,11 @@ void my_free(void *ptr)
 void *my_memdup(const void *from, size_t length, myf my_flags)
 {
   void *ptr;
+  DBUG_ENTER("my_memdup");
+
   if ((ptr= my_malloc(length,my_flags)) != 0)
     memcpy(ptr, from, length);
-  return ptr;
+  DBUG_RETURN(ptr);
 }
 
 
@@ -149,20 +136,24 @@ char *my_strdup(const char *from, myf my_flags)
 {
   char *ptr;
   size_t length= strlen(from)+1;
+  DBUG_ENTER("my_strdup");
+
   if ((ptr= (char*) my_malloc(length, my_flags)))
     memcpy(ptr, from, length);
-  return ptr;
+  DBUG_RETURN(ptr);
 }
 
 
 char *my_strndup(const char *from, size_t length, myf my_flags)
 {
   char *ptr;
+  DBUG_ENTER("my_strndup");
+
   if ((ptr= (char*) my_malloc(length+1, my_flags)))
   {
     memcpy(ptr, from, length);
     ptr[length]= 0;
   }
-  return ptr;
+  DBUG_RETURN(ptr);
 }
 

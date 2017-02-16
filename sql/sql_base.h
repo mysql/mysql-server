@@ -60,7 +60,8 @@ enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
                                   IGNORE_EXCEPT_NON_UNIQUE};
 
 enum enum_tdc_remove_table_type {TDC_RT_REMOVE_ALL, TDC_RT_REMOVE_NOT_OWN,
-                                 TDC_RT_REMOVE_UNUSED};
+                                 TDC_RT_REMOVE_UNUSED,
+                                 TDC_RT_REMOVE_NOT_OWN_AND_MARK_NOT_USABLE};
 
 /* bits for last argument to remove_table_from_cache() */
 #define RTFC_NO_FLAG                0x0000
@@ -152,6 +153,8 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
   be open do not acquire global and schema-scope IX locks.
 */
 #define MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK         0x1000
+#define MYSQL_LOCK_NOT_TEMPORARY		0x2000
+#define MYSQL_OPEN_FOR_REPAIR                   0x4000
 
 /** Please refer to the internals manual. */
 #define MYSQL_OPEN_REOPEN  (MYSQL_OPEN_IGNORE_FLUSH |\
@@ -207,13 +210,16 @@ bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
 bool insert_fields(THD *thd, Name_resolution_context *context,
 		   const char *db_name, const char *table_name,
                    List_iterator<Item> *it, bool any_privileges);
+void make_leaves_list(List<TABLE_LIST> &list, TABLE_LIST *tables,
+                      bool full_table_list, TABLE_LIST *boundary);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
 bool setup_fields(THD *thd, Item** ref_pointer_array,
                   List<Item> &item, enum_mark_columns mark_used_columns,
                   List<Item> *sum_func_list, bool allow_sum_func);
+void unfix_fields(List<Item> &items);
 bool fill_record(THD *thd, Field **field, List<Item> &values,
-                 bool ignore_errors);
+                 bool ignore_errors, bool use_value);
 
 Field *
 find_field_in_tables(THD *thd, Item_ident *item,
@@ -238,25 +244,30 @@ Item ** find_item_in_list(Item *item, List<Item> &items, uint *counter,
                           enum_resolution_type *resolution);
 bool setup_tables(THD *thd, Name_resolution_context *context,
                   List<TABLE_LIST> *from_clause, TABLE_LIST *tables,
-                  TABLE_LIST **leaves, bool select_insert);
+                  List<TABLE_LIST> &leaves, bool select_insert,
+                  bool full_table_list);
 bool setup_tables_and_check_access(THD *thd,
                                    Name_resolution_context *context,
                                    List<TABLE_LIST> *from_clause,
                                    TABLE_LIST *tables,
-                                   TABLE_LIST **leaves,
+                                   List<TABLE_LIST> &leaves, 
                                    bool select_insert,
                                    ulong want_access_first,
-                                   ulong want_access);
+                                   ulong want_access,
+                                   bool full_table_list);
 bool wait_while_table_is_used(THD *thd, TABLE *table,
-                              enum ha_extra_function function);
+                              enum ha_extra_function function,
+                              enum_tdc_remove_table_type remove_type=
+                              TDC_RT_REMOVE_NOT_OWN);
 
 void drop_open_table(THD *thd, TABLE *table, const char *db_name,
                      const char *table_name);
 void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);
-int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
+int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
 		COND **conds);
+void wrap_ident(THD *thd, Item **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list,
@@ -272,7 +283,8 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
                                 thr_lock_type lock_type, uint flags,
                                 Prelocking_strategy *prelocking_strategy);
-bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
+bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags,
+                                    uint dt_phases);
 bool lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags);
 int decide_logging_format(THD *thd, TABLE_LIST *tables);
 void free_io_cache(TABLE *entry);
@@ -306,7 +318,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
                          bool wait_for_refresh, ulong timeout);
 bool close_cached_connection_tables(THD *thd, LEX_STRING *connect_string);
 void close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
-                               bool remove_from_locked_tables);
+                               ha_extra_function extra);
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild);
 void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
                       const char *db, const char *table_name,
@@ -319,7 +331,11 @@ TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
                                   const char *table_name,
                                   bool no_error);
 void mark_tmp_table_for_reuse(TABLE *table);
-bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists);
+bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool fast_check,
+                           bool *exists);
+int update_virtual_fields(THD *thd, TABLE *table,
+      enum enum_vcol_update_mode vcol_update_mode= VCOL_UPDATE_FOR_READ);
+int dynamic_column_error_message(enum_dyncol_func_result rc);
 
 extern TABLE *unused_tables;
 extern Item **not_found_item;
@@ -339,7 +355,7 @@ extern HASH table_def_cache;
 inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
 {
   table->used_fields= 0;
-  table->const_table= 0;
+  table_list->reset_const_table();
   table->null_row= 0;
   table->status= STATUS_NO_RECORD;
   table->maybe_null= table_list->outer_join;
@@ -355,6 +371,14 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->force_index_order= table->force_index_group= 0;
   table->covering_keys= table->s->keys_for_keyread;
   table->merge_keys.clear_all();
+  TABLE_LIST *orig= table_list->select_lex ?
+    table_list->select_lex->master_unit()->derived : 0;
+  if (!orig || !orig->is_merged_derived())
+  {
+    /* Tables merged from derived were set up already.*/
+    table->covering_keys= table->s->keys_for_keyread;
+    table->merge_keys.clear_all();
+  }
 }
 
 inline TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,

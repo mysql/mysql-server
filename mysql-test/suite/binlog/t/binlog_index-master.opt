@@ -1,1 +1,1 @@
---force-restart
+--skip-stack-trace --log-warnings=0 --log-bin=master-bin --log-bin-index=master-bin

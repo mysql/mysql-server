@@ -14,7 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
 MACRO (CHANGE_SSL_SETTINGS string)
-  SET(WITH_SSL ${string} CACHE STRING "Options are : no, bundled, yes (prefer os library if present otherwise use bundled), system (use os library)" FORCE)
+  SET(WITH_SSL ${string} CACHE STRING "Options are: no bundled yes(prefer os library if present otherwise use bundled) system(use os library)" FORCE)
 ENDMACRO()
 
 MACRO (MYSQL_USE_BUNDLED_SSL)
@@ -26,6 +26,7 @@ MACRO (MYSQL_USE_BUNDLED_SSL)
   SET(SSL_INCLUDE_DIRS ${INC_DIRS})
   SET(SSL_INTERNAL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/mySTL)
   SET(SSL_DEFINES "-DHAVE_YASSL -DYASSL_PURE_C -DYASSL_PREFIX -DHAVE_OPENSSL -DMULTI_THREADED")
+  SET(HAVE_ERR_remove_thread_state OFF CACHE INTERNAL "yassl doesn't have ERR_remove_thread_state")
   CHANGE_SSL_SETTINGS("bundled")
   #Remove -fno-implicit-templates 
   #(yassl sources cannot  be compiled with  it)
@@ -69,8 +70,14 @@ MACRO (MYSQL_CHECK_SSL)
     FIND_LIBRARY(CRYPTO_LIBRARY crypto)
     MARK_AS_ADVANCED(CRYPTO_LIBRARY)
     INCLUDE(CheckSymbolExists)
+    SET(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
+    SET(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_LIBRARIES})
     CHECK_SYMBOL_EXISTS(SHA512_DIGEST_LENGTH "openssl/sha.h" 
                         HAVE_SHA512_DIGEST_LENGTH)
+    CHECK_SYMBOL_EXISTS(ERR_remove_thread_state "openssl/err.h"
+                        HAVE_ERR_remove_thread_state)
+    SET(CMAKE_REQUIRED_INCLUDES)
+    SET(CMAKE_REQUIRED_LIBRARIES)
     IF(OPENSSL_FOUND AND CRYPTO_LIBRARY AND HAVE_SHA512_DIGEST_LENGTH)
       SET(SSL_SOURCES "")
       SET(SSL_LIBRARIES ${OPENSSL_LIBRARIES} ${CRYPTO_LIBRARY})

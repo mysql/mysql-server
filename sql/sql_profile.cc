@@ -1,4 +1,5 @@
-/* Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2012, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2012, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,8 +37,12 @@
 #include "sql_show.h"                     // schema_table_store_record
 #include "sql_class.h"                    // THD
 
+#ifdef _WIN32
+#pragma comment(lib,"psapi.lib")
+#endif
+
 #define TIME_FLOAT_DIGITS 9
-/** two vals encoded: (dec*100)+len */
+/** two vals encoded: (len*100)+dec */
 #define TIME_I_S_DECIMAL_SIZE (TIME_FLOAT_DIGITS*100)+(TIME_FLOAT_DIGITS-3)
 
 #define MAX_QUERY_LENGTH 300
@@ -242,7 +247,7 @@ void PROF_MEASUREMENT::set_label(const char *status_arg,
 */
 void PROF_MEASUREMENT::collect()
 {
-  time_usecs= (double) my_getsystime() / 10.0;  /* 1 sec was 1e7, now is 1e6 */
+  time_usecs= my_interval_timer() / 1e3;  /* ns to us */
 #ifdef HAVE_GETRUSAGE
   getrusage(RUSAGE_SELF, &rusage);
 #elif defined(_WIN32)
@@ -251,6 +256,8 @@ void PROF_MEASUREMENT::collect()
   // which is typically ~15ms. So intervals shorter than that will not be
   // measurable by this function.
   GetProcessTimes(GetCurrentProcess(), &ftDummy, &ftDummy, &ftKernel, &ftUser);
+  GetProcessIoCounters(GetCurrentProcess(), &io_count);
+  GetProcessMemoryInfo(GetCurrentProcess(), &mem_count, sizeof(mem_count));
 #endif
 }
 
@@ -666,6 +673,17 @@ int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables, Item *cond
       table->field[9]->store((uint32)(entry->rusage.ru_oublock -
                              previous->rusage.ru_oublock));
       table->field[9]->set_notnull();
+#elif defined(__WIN__)
+      ULONGLONG reads_delta = entry->io_count.ReadOperationCount - 
+                              previous->io_count.ReadOperationCount;
+      ULONGLONG writes_delta = entry->io_count.WriteOperationCount - 
+                              previous->io_count.WriteOperationCount;
+
+      table->field[8]->store((uint32)reads_delta);
+      table->field[8]->set_notnull();
+
+      table->field[9]->store((uint32)writes_delta);
+      table->field[9]->set_notnull();
 #else
       /* TODO: Add block IO info for non-BSD systems */
 #endif
@@ -688,6 +706,13 @@ int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables, Item *cond
       table->field[13]->store((uint32)(entry->rusage.ru_minflt -
                              previous->rusage.ru_minflt), true);
       table->field[13]->set_notnull();
+#elif defined(__WIN__)
+      /* Windows APIs don't easily distinguish between hard and soft page
+         faults, so we just fill the 'major' column and leave the second NULL.
+      */
+      table->field[12]->store((uint32)(entry->mem_count.PageFaultCount -
+                             previous->mem_count.PageFaultCount), true);
+      table->field[12]->set_notnull();
 #else
       /* TODO: Add page fault info for non-BSD systems */
 #endif

@@ -1,0 +1,118 @@
+-- source include/have_maria.inc
+-- source include/big_test.inc
+-- source include/not_embedded.inc
+
+# pre-requisites for aria_empty_logs
+connect (admin, localhost, root,,test,,);
+#
+--enable_reconnect
+connection default;
+--enable_reconnect
+# end of pre-requisites
+
+# SHOW ENGINE ARIA LOGS could be influenced by older logs
+# Also, possibly automatic checkpoints (see if that happens in
+# practice)
+-- source include/maria_empty_logs.inc
+
+let $default=`select @@global.storage_engine`;
+set global storage_engine=aria;
+set session storage_engine=aria;
+let $def_logsize=`select @@global.aria_log_file_size`;
+let $def_checkinterval=`select @@global.aria_checkpoint_interval`;
+
+set global aria_log_file_size=4294959104;
+# Initialise
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+SET SQL_WARNINGS=1;
+
+CREATE TABLE t1 (
+  STRING_DATA char(255) default NULL
+);
+CREATE TABLE t2 (
+  STRING_DATA char(255) default NULL
+);
+
+
+INSERT INTO t1 VALUES ('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
+INSERT INTO t1 VALUES ('DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD');
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+
+set global aria_log_file_size=16777216;
+# force a checkpoint to allow log purge
+eval set global aria_checkpoint_interval=$def_checkinterval;
+--replace_regex /Size +[0-9]+ ; .+aria_log/aria_log/
+SHOW ENGINE aria logs;
+
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+
+eval set global aria_checkpoint_interval=$def_checkinterval;
+--replace_regex /Size +[0-9]+ ; .+aria_log/aria_log/
+SHOW ENGINE aria logs;
+set global aria_log_file_size=16777216;
+select @@global.aria_log_file_size;
+eval set global aria_checkpoint_interval=$def_checkinterval;
+--replace_regex /Size +[0-9]+ ; .+aria_log/aria_log/
+SHOW ENGINE aria logs;
+set global aria_log_file_size=8388608;
+select @@global.aria_log_file_size;
+
+set global aria_log_purge_type=at_flush;
+insert into t1 select * from t2;
+eval set global aria_checkpoint_interval=$def_checkinterval;
+--replace_regex /Size +[0-9]+ ; .+aria_log/aria_log/
+SHOW ENGINE aria logs;
+flush logs;
+--replace_regex /Size +[0-9]+ ; .+aria_log/aria_log/
+SHOW ENGINE aria logs;
+
+set global aria_log_file_size=16777216;
+set global aria_log_purge_type=external;
+insert into t1 select * from t2;
+eval set global aria_checkpoint_interval=$def_checkinterval;
+--replace_regex /Size +[0-9]+ ; .+aria_log/aria_log/
+SHOW ENGINE aria logs;
+flush logs;
+--replace_regex /Size +[0-9]+ ; .+aria_log/aria_log/
+SHOW ENGINE aria logs;
+
+set global aria_log_purge_type=immediate;
+insert into t1 select * from t2;
+eval set global aria_checkpoint_interval=$def_checkinterval;
+--replace_regex /Size +[0-9]+ ; .+aria_log/aria_log/
+SHOW ENGINE aria logs;
+
+drop table t1, t2;
+
+--disable_result_log
+--disable_query_log
+set global aria_log_purge_type=immediate;
+eval set global storage_engine=$default;
+eval set global aria_log_file_size=$def_logsize;
+eval set global aria_checkpoint_interval=$def_checkinterval;
+--enable_result_log
+--enable_query_log

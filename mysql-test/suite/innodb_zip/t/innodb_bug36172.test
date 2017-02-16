@@ -1,9 +1,9 @@
+--source include/have_innodb.inc
 #
 # Test case for bug 36172
 #
 
 -- source include/not_embedded.inc
--- source include/have_innodb.inc
 
 SET storage_engine=InnoDB;
 

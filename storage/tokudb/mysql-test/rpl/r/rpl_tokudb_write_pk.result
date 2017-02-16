@@ -1,0 +1,14 @@
+include/master-slave.inc
+[connection master]
+drop table if exists t;
+create table t (a bigint not null, primary key(a)) engine=tokudb;
+select unix_timestamp() into @tstart;
+insert into t values (1);
+insert into t values (2),(3);
+insert into t values (4);
+select unix_timestamp()-@tstart <= 10;
+unix_timestamp()-@tstart <= 10
+1
+include/diff_tables.inc [master:test.t, slave:test.t]
+drop table if exists t;
+include/rpl_end.inc

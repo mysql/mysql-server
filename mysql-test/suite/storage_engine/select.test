@@ -1,0 +1,210 @@
+# 
+# Basic SELECT statements
+#
+# HIGH_PRIORITY is covered in select_high_prio test
+# FOR UPDATE - in trx/select_for_update test
+# LOCK IN SHARE MODE - in trx/select_lock_in_share_mode test
+# index hints - in type_*_indexes tests
+#
+--source have_engine.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+--source create_table.inc
+INSERT INTO t1 (a,b) VALUES (100,'foobar'),(1,'z'),(200,'bar');
+
+--let $table_name = t2
+--source create_table.inc
+INSERT INTO t2 (a,b) SELECT a, b FROM t1;
+INSERT INTO t1 (a,b) SELECT a, b FROM t2;
+
+--sorted_result
+SELECT * FROM t1;
+
+# Modifiers
+
+--sorted_result
+SELECT DISTINCT a FROM t1;
+
+--sorted_result
+SELECT ALL b, a FROM t1;
+
+# Optimizer and cache directives should not have any visible effect here,
+# but we will add them for completness
+
+--sorted_result
+SELECT STRAIGHT_JOIN SQL_CACHE t1.* FROM t2, t1 WHERE t1.a <> t2.a;
+
+--sorted_result
+SELECT SQL_SMALL_RESULT SQL_NO_CACHE t1.a FROM t1, t2;
+
+--sorted_result
+SELECT SQL_BIG_RESULT SQL_CALC_FOUND_ROWS DISTINCT(t2.a) 
+  FROM t1 t1_1, t2, t1 t1_2;
+SELECT FOUND_ROWS();
+
+let $query_cache = `SELECT @@query_cache_size`;
+SET GLOBAL query_cache_size = 1024*1024;
+--sorted_result
+SELECT SQL_CACHE * FROM t1, t2;
+eval SET GLOBAL query_cache_size = $query_cache;
+
+# Combination of main clauses
+
+--sorted_result
+SELECT a+10 AS field1, CONCAT(b,':',b) AS field2 FROM t1 
+WHERE b > 'b' AND a IS NOT NULL 
+GROUP BY 2 DESC, field1 ASC
+HAVING field1 < 1000
+ORDER BY field2, 1 DESC, field1*2
+LIMIT 5 OFFSET 1 ROWS EXAMINED 100000;
+
+# ROLLUP
+--sorted_result
+SELECT SUM(a), MAX(a), b FROM t1 GROUP BY b WITH ROLLUP;
+
+# Procedure
+
+--sorted_result
+SELECT * FROM t2 WHERE a>0 PROCEDURE ANALYSE();
+
+# SELECT INTO
+let $datadir = `SELECT @@datadir`;
+
+--replace_result $datadir <DATADIR>
+eval
+SELECT t1.a, t2.b FROM t2, t1 WHERE t1.a = t2.a ORDER BY t2.b, t1.a 
+  INTO OUTFILE '$datadir/select.out' 
+  CHARACTER SET utf8
+  FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '''';
+--cat_file $datadir/select.out
+--remove_file $datadir/select.out
+
+--replace_result $datadir <DATADIR>
+--let $error_codes = ER_TOO_MANY_ROWS
+eval
+SELECT t1.a, t2.b FROM t2, t1 WHERE t1.a = t2.a ORDER BY t2.b, t1.a
+  INTO DUMPFILE '$datadir/select.dump';
+--source check_errors.inc
+--remove_file $datadir/select.dump
+--replace_result $datadir <DATADIR>
+eval
+SELECT t1.*, t2.* FROM t1, t2 ORDER BY t2.b, t1.a, t2.a, t1.b LIMIT 1
+  INTO DUMPFILE '$datadir/select.dump';
+
+--cat_file $datadir/select.dump
+--echo
+--remove_file $datadir/select.dump
+
+SELECT MIN(a), MAX(a) FROM t1 INTO @min, @max;
+SELECT @min, @max;
+
+# Joins
+
+--sorted_result
+SELECT t1_1.*, t2.* FROM t2, t1 AS t1_1, t1 AS t1_2 
+  WHERE t1_1.a = t1_2.a AND t2.a = t1_1.a;
+
+--sorted_result
+SELECT alias1.* FROM ( SELECT a,b FROM t1 ) alias1, t2 WHERE t2.a IN (100,200);
+
+--sorted_result
+SELECT t1.a FROM { OJ t1 LEFT OUTER JOIN t2 ON t1.a = t2.a+10 };
+
+--sorted_result
+SELECT t1.* FROM t2 INNER JOIN t1;
+
+--sorted_result 
+SELECT t1_2.* FROM t1 t1_1 CROSS JOIN t1 t1_2 ON t1_1.b = t1_2.b;
+
+--sorted_result
+SELECT t1.a, t2.b FROM t2 STRAIGHT_JOIN t1 WHERE t1.b > t2.b;
+
+SELECT t1.a, t2.b FROM t2 STRAIGHT_JOIN t1 ON t1.b > t2.b ORDER BY t1.a, t2.b;
+
+SELECT t2.* FROM t1 LEFT JOIN t2 USING (a) ORDER BY t2.a, t2.b LIMIT 1;
+
+--sorted_result
+SELECT t2.* FROM t2 LEFT OUTER JOIN t1 ON t1.a = t2.a WHERE t1.a IS NOT NULL;
+
+SELECT SUM(t2.a) FROM t1 RIGHT JOIN t2 ON t2.b = t1.b;
+
+SELECT MIN(t2.a) FROM t1 RIGHT OUTER JOIN t2 USING (b,a);
+
+--sorted_result
+SELECT alias.b FROM t1 NATURAL JOIN ( SELECT a,b FROM t1 ) alias WHERE b > '';
+
+--sorted_result
+SELECT t2.b FROM ( SELECT a,b FROM t1 ) alias NATURAL LEFT JOIN t2 WHERE b IS NOT NULL;
+
+--sorted_result
+SELECT t1.*, t2.* FROM t1 NATURAL LEFT OUTER JOIN t2;
+
+--sorted_result
+SELECT t2_2.* FROM t2 t2_1 NATURAL RIGHT JOIN t2 t2_2 WHERE t2_1.a IN ( SELECT a FROM t1 );
+
+--sorted_result
+SELECT t1_2.b FROM t1 t1_1 NATURAL RIGHT OUTER JOIN t1 t1_2 INNER JOIN t2;
+
+# Subquery as scalar operand, subquery in the FROM clause
+
+--sorted_result
+SELECT ( SELECT MIN(a) FROM ( SELECT a,b FROM t1 ) alias1 ) AS min_a FROM t2;
+
+# Comparison using subqueries
+
+--sorted_result
+SELECT a,b FROM t2 WHERE a = ( SELECT MIN(a) FROM t1 );
+
+--sorted_result
+SELECT a,b FROM t2 WHERE b LIKE ( SELECT b FROM t1 ORDER BY b LIMIT 1 );
+
+# Subquery with IN, correlated subquery
+
+--sorted_result
+SELECT t2.* FROM t1 t1_outer, t2 WHERE ( t1_outer.a, t2.b ) IN ( SELECT a, b FROM t2 WHERE a = t1_outer.a );
+
+# Subquery with ANY, ALL
+
+--sorted_result
+SELECT a,b FROM t2 WHERE b = ANY ( SELECT b FROM t1 WHERE a > 1 );
+
+--sorted_result
+SELECT a,b FROM t2 WHERE b > ALL ( SELECT b FROM t1 WHERE b < 'foo' );
+
+# Row subqueries
+
+--sorted_result
+SELECT a,b FROM t1 WHERE ROW(a, b) = ( SELECT a, b FROM t2 ORDER BY a, b LIMIT 1 );
+
+# Subquery with EXISTS
+
+--sorted_result
+SELECT a,b FROM t1 WHERE EXISTS ( SELECT a,b FROM t2 WHERE t2.b > t1.b );
+
+# Subquery in ORDER BY
+
+--sorted_result
+SELECT t1.* FROM t1, t2 ORDER BY ( SELECT b FROM t1 WHERE a IS NULL ORDER BY b LIMIT 1 ) DESC;
+
+# Subquery in HAVING
+
+--sorted_result
+SELECT a, b FROM t1 HAVING a IN ( SELECT a FROM t2 WHERE b = t1.b );
+
+# Union
+
+--sorted_result
+SELECT a,b FROM t1 UNION SELECT a,b FROM t2 UNION DISTINCT SELECT a,b FROM t1;
+
+--sorted_result
+SELECT a,b FROM t1 UNION SELECT a,b FROM t2 UNION ALL SELECT a,b FROM t1;
+
+
+# Cleanup
+DROP TABLE t1, t2;
+
+--source cleanup_engine.inc
+

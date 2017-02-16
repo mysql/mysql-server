@@ -1,0 +1,154 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+create table foo (a int, b int, c int, d int, primary key (a), key (b), key (c) clustering=yes) engine=TokuDB;
+insert into foo values (1,10,100,1000),(2,20,200,2000),(3,30,300,3000),(4,40,400,4000),(5,50,500,5000);
+select * from foo use index ();
+a	b	c	d
+1	10	100	1000
+2	20	200	2000
+3	30	300	3000
+4	40	400	4000
+5	50	500	5000
+select b,a from foo;
+b	a
+10	1
+20	2
+30	3
+40	4
+50	5
+select * from foo order by c desc;
+a	b	c	d
+5	50	500	5000
+4	40	400	4000
+3	30	300	3000
+2	20	200	2000
+1	10	100	1000
+alter table foo drop primary key;
+select * from foo use index ();
+a	b	c	d
+1	10	100	1000
+2	20	200	2000
+3	30	300	3000
+4	40	400	4000
+5	50	500	5000
+select b from foo;
+b
+10
+20
+30
+40
+50
+select * from foo order by c desc;
+a	b	c	d
+5	50	500	5000
+4	40	400	4000
+3	30	300	3000
+2	20	200	2000
+1	10	100	1000
+drop table foo;
+create table foo (a int, primary key (a))engine=TOkuDB;
+insert into foo values (1),(2),(3),(4);
+select * from foo;
+a
+1
+2
+3
+4
+insert into foo values (2);
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+insert ignore into foo values (5),(2),(6);
+select * From foo;
+a
+1
+2
+3
+4
+5
+6
+alter table foo drop primary key;
+alter table foo add unique index (a);
+insert into foo values (3);
+ERROR 23000: Duplicate entry '3' for key 'a'
+insert ignore into foo values (7),(2),(8);
+select * from foo;
+a
+1
+2
+3
+4
+5
+6
+7
+8
+drop table foo;
+create table foo (a int, b int, c int, d int, primary key (a), key (b), key (c) clustering=yes)engine=TokuDB;
+insert into foo values (1,10,100,1000),(2,20,200,2000),(3,30,300,3000),(4,40,400,4000),(5,50,500,5000);
+select * from foo;
+a	b	c	d
+1	10	100	1000
+2	20	200	2000
+3	30	300	3000
+4	40	400	4000
+5	50	500	5000
+update foo set b=b+1;
+select * From foo;
+a	b	c	d
+1	11	100	1000
+2	21	200	2000
+3	31	300	3000
+4	41	400	4000
+5	51	500	5000
+select b,a from foo;
+b	a
+11	1
+21	2
+31	3
+41	4
+51	5
+update foo set c=c+1;
+select * from foo;
+a	b	c	d
+1	11	101	1000
+2	21	201	2000
+3	31	301	3000
+4	41	401	4000
+5	51	501	5000
+select c,a from foo order by c desc;
+c	a
+501	5
+401	4
+301	3
+201	2
+101	1
+update foo set a=a+1 where a=5;
+select * from foo;
+a	b	c	d
+1	11	101	1000
+2	21	201	2000
+3	31	301	3000
+4	41	401	4000
+6	51	501	5000
+select a from foo;
+a
+1
+2
+3
+4
+6
+delete from foo where a > 3;
+select * from foo;
+a	b	c	d
+1	11	101	1000
+2	21	201	2000
+3	31	301	3000
+select b,a from foo;
+b	a
+11	1
+21	2
+31	3
+select * from foo order by c desc;
+a	b	c	d
+3	31	301	3000
+2	21	201	2000
+1	11	101	1000
+DROP TABLE foo;

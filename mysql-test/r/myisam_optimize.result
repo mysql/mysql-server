@@ -1,0 +1,24 @@
+call mtr.add_suppression(" marked as crashed and should be repaired");
+create table t1 (a int auto_increment primary key, b text);
+insert t1 (b) select repeat("A", 100);
+insert t1 (b) select repeat("B", 200) from t1;
+insert t1 (b) select repeat("C", 300) from t1;
+delete from t1 where a < 3;
+explain select a, left(b,10) from t1 order by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using filesort
+select left(b,10), a from t1 order by a;
+left(b,10)	a
+CCCCCCCCCC	3
+CCCCCCCCCC	4
+set debug_sync='myisam_after_repair_by_sort wait_for go';
+optimize table t1;
+select a, left(b,10) from t1 order by a;
+set debug_sync='now signal go';
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+a	left(b,10)
+3	CCCCCCCCCC
+4	CCCCCCCCCC
+drop table t1;
+set debug_sync='reset';

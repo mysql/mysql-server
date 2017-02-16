@@ -1,0 +1,95 @@
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo,bar;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=ON;
+
+let $diff_tables= test.foo, test.bar;
+
+create table foo (a int NOT NULL, b bigint NOT NULL, c mediumint NOT NULL, primary key (a))engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+
+insert into foo values (1,10,100),(-1,-1,-1),(2,20,200);
+insert into bar select * from foo;
+
+alter table foo add column d int default 20;
+alter table bar add column d int default 20;
+source include/diff_tables.inc;
+select * from foo;
+insert into foo values (3,30,300,3000);
+insert into bar values (3,30,300,3000);
+select * from foo;
+
+alter table foo drop column d;
+alter table bar drop column d;
+source include/diff_tables.inc;
+select * from foo;
+insert into foo values (4,40,400);
+insert into bar values (4,40,400);
+select * from foo;
+
+alter table foo add column d int default 20 first;
+alter table bar add column d int default 20 first;
+source include/diff_tables.inc;
+select * from foo;
+insert into foo values (5,50,500,5000);
+insert into bar values (5,50,500,5000);
+select * from foo;
+
+alter table foo drop column d;
+alter table bar drop column d;
+source include/diff_tables.inc;
+select * from foo;
+insert into foo values (6,60,600);
+insert into bar values (6,60,600);
+select * from foo;
+
+drop table foo;
+drop table bar;
+
+create table foo (a int NOT NULL, b bigint NOT NULL, c mediumint NOT NULL, primary key (c))engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+
+insert into foo values (1,10,100),(-1,-1,-1),(2,20,200);
+insert into bar select * from foo;
+
+alter table foo add column d int default 20;
+alter table bar add column d int default 20;
+source include/diff_tables.inc;
+select * from foo;
+insert into foo values (3,30,300,3000);
+insert into bar values (3,30,300,3000);
+select * from foo;
+
+alter table foo drop column d;
+alter table bar drop column d;
+source include/diff_tables.inc;
+select * from foo;
+insert into foo values (4,40,400);
+insert into bar values (4,40,400);
+select * from foo;
+
+alter table foo add column d int default 20 first;
+alter table bar add column d int default 20 first;
+source include/diff_tables.inc;
+select * from foo;
+insert into foo values (5,50,500,5000);
+insert into bar values (5,50,500,5000);
+select * from foo;
+
+alter table foo drop column d;
+alter table bar drop column d;
+source include/diff_tables.inc;
+select * from foo;
+insert into foo values (6,60,600);
+insert into bar values (6,60,600);
+select * from foo;
+
+drop table foo;
+drop table bar;
+

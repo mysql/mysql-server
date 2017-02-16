@@ -1,5 +1,6 @@
 #ifndef MYSQL_PLUGIN_AUTH_INCLUDED
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (C) 2010 Sergei Golubchik and Monty Program Ab
+   Copyright (c) 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +27,7 @@
 
 #include <mysql/plugin.h>
 
-#define MYSQL_AUTHENTICATION_INTERFACE_VERSION 0x0100
+#define MYSQL_AUTHENTICATION_INTERFACE_VERSION 0x0200
 
 #include <mysql/plugin_auth_common.h>
 
@@ -74,10 +75,10 @@ typedef struct st_mysql_server_auth_info
 
   /**
     The unique user name that was used by the plugin to authenticate.
-    Plugins should put null-terminated UTF-8 here.
+    Not used by the server.
     Available through the @@EXTERNAL_USER variable.
   */  
-  char external_user[512];
+  char external_user[MYSQL_USERNAME_LENGTH+1];
 
   /**
     This only affects the "Authentication failed. Password used: %s"
@@ -107,7 +108,7 @@ typedef struct st_mysql_server_auth_info
 */
 struct st_mysql_auth
 {
-  int interface_version;                        /** version plugin uses */
+  int interface_version;                        /**< version plugin uses */
   /**
     A plugin that a client must use for authentication with this server
     plugin. Can be NULL to mean "any plugin".

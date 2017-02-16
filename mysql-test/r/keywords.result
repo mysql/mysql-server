@@ -269,3 +269,9 @@ call p2();
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP TABLE t1;
+create table option (option int not null);
+drop table option;
+set option=1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '=1' at line 1
+set option option=1;
+ERROR HY000: Unknown system variable 'option'

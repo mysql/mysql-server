@@ -1,0 +1,43 @@
+# ulong session
+
+SET @start_global_value = @@global.rowid_merge_buff_size;
+
+#
+# exists as global only
+#
+select @@global.rowid_merge_buff_size;
+select @@session.rowid_merge_buff_size;
+show global variables like 'rowid_merge_buff_size';
+show session variables like 'rowid_merge_buff_size';
+select * from information_schema.global_variables where variable_name='rowid_merge_buff_size';
+select * from information_schema.session_variables where variable_name='rowid_merge_buff_size';
+
+#
+# show that it's writable
+#
+set global rowid_merge_buff_size=10;
+select @@global.rowid_merge_buff_size;
+set session rowid_merge_buff_size=10;
+select @@session.rowid_merge_buff_size;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global rowid_merge_buff_size=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session rowid_merge_buff_size=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global rowid_merge_buff_size="foo";
+
+#
+# min/max values, block size
+#
+set global rowid_merge_buff_size=0;
+select @@global.rowid_merge_buff_size;
+set session rowid_merge_buff_size=cast(-1 as unsigned int);
+--replace_result 2147483647 9223372036854775807 4294967295 9223372036854775807
+select @@session.rowid_merge_buff_size;
+
+SET @@global.rowid_merge_buff_size = @start_global_value;
+

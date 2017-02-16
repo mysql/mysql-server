@@ -1,0 +1,55 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+BEGIN;
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(100,'foo');
+INSERT t1 (a,b) VALUE (10,'foo'),(11,'abc');
+COMMIT;
+SELECT a,b FROM t1;
+a	b
+1	a
+10	foo
+100	foo
+11	abc
+2	b
+3	c
+4	d
+5	e
+BEGIN;
+INSERT INTO t1 (b,a) VALUES ('test',0);
+SAVEPOINT spt1;
+INSERT INTO t1 (a,b) VALUES (DEFAULT,DEFAULT);
+RELEASE SAVEPOINT spt1;
+INSERT INTO t1 (a,b) VALUES (DEFAULT,DEFAULT);
+ROLLBACK;
+SELECT a,b FROM t1;
+a	b
+1	a
+10	foo
+100	foo
+11	abc
+2	b
+3	c
+4	d
+5	e
+BEGIN;
+INSERT t1 (a) VALUE (10),(20);
+SAVEPOINT spt1;
+INSERT INTO t1 SET a = 11, b = 'f';
+INSERT t1 SET b = DEFAULT;
+ROLLBACK TO SAVEPOINT spt1;
+INSERT INTO t1 (b,a) VALUES ('test1',10);
+COMMIT;
+SELECT a,b FROM t1;
+a	b
+1	a
+10	NULL
+10	foo
+10	test1
+100	foo
+11	abc
+2	b
+20	NULL
+3	c
+4	d
+5	e
+DROP TABLE t1;

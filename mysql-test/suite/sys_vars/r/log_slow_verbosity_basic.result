@@ -1,0 +1,64 @@
+SET @start_global_value = @@global.log_slow_verbosity;
+select @@global.log_slow_verbosity;
+@@global.log_slow_verbosity
+
+select @@session.log_slow_verbosity;
+@@session.log_slow_verbosity
+
+show global variables like 'log_slow_verbosity';
+Variable_name	Value
+log_slow_verbosity	
+show session variables like 'log_slow_verbosity';
+Variable_name	Value
+log_slow_verbosity	
+select * from information_schema.global_variables where variable_name='log_slow_verbosity';
+VARIABLE_NAME	VARIABLE_VALUE
+LOG_SLOW_VERBOSITY	
+select * from information_schema.session_variables where variable_name='log_slow_verbosity';
+VARIABLE_NAME	VARIABLE_VALUE
+LOG_SLOW_VERBOSITY	
+set global log_slow_verbosity=1;
+select @@global.log_slow_verbosity;
+@@global.log_slow_verbosity
+innodb
+set session log_slow_verbosity=1;
+select @@session.log_slow_verbosity;
+@@session.log_slow_verbosity
+innodb
+set session log_slow_verbosity=1;
+select @@session.log_slow_verbosity;
+@@session.log_slow_verbosity
+innodb
+set session log_slow_verbosity=2;
+select @@session.log_slow_verbosity;
+@@session.log_slow_verbosity
+query_plan
+set session log_slow_verbosity=3;
+select @@session.log_slow_verbosity;
+@@session.log_slow_verbosity
+innodb,query_plan
+set session log_slow_verbosity='innodb';
+select @@session.log_slow_verbosity;
+@@session.log_slow_verbosity
+innodb
+set session log_slow_verbosity='query_plan';
+select @@session.log_slow_verbosity;
+@@session.log_slow_verbosity
+query_plan
+set session log_slow_verbosity='innodb,query_plan';
+select @@session.log_slow_verbosity;
+@@session.log_slow_verbosity
+innodb,query_plan
+set session log_slow_verbosity='';
+select @@session.log_slow_verbosity;
+@@session.log_slow_verbosity
+
+set session log_slow_verbosity=1.1;
+ERROR 42000: Incorrect argument type to variable 'log_slow_verbosity'
+set session log_slow_verbosity=1e1;
+ERROR 42000: Incorrect argument type to variable 'log_slow_verbosity'
+set session log_slow_verbosity="foo";
+ERROR 42000: Variable 'log_slow_verbosity' can't be set to the value of 'foo'
+set session log_slow_verbosity=4;
+ERROR 42000: Variable 'log_slow_verbosity' can't be set to the value of '4'
+SET @@global.log_slow_verbosity = @start_global_value;

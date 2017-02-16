@@ -1,0 +1,7 @@
+select error;
+mysqltest: At line 1: query 'select error' failed: 1054: Unknown column 'error' in 'field list'
+SELECT ERROR;
+mysqltest: At line 1: query 'SELECT ERROR' failed: 1054: Unknown column 'ERROR' in 'field list'
+SELECT 2;
+2
+2

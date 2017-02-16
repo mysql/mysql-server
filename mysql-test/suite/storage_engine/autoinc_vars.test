@@ -1,0 +1,68 @@
+# 
+# auto-increment-offset and auto-increment-increment
+#
+
+--source have_engine.inc
+--source have_default_index.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# auto_increment_offset
+SET auto_increment_offset = 200;
+--let $create_definition = a $int_indexed_col AUTO_INCREMENT, b $char_col, $default_index(a)
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $functionality = AUTO_INCREMENT
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  # If auto_increment_offset is greater than auto_increment_increment,
+  # the offset is ignored
+  INSERT INTO t1 (a,b) VALUES (NULL,'a'),(NULL,'b'),(NULL,'c');
+  SELECT LAST_INSERT_ID();
+  --sorted_result
+  SELECT a,b FROM t1;
+
+  # auto_increment_increment
+
+  SET auto_increment_increment = 300;
+  # offset should not be ignored anymore
+  INSERT INTO t1 (a,b) VALUES (NULL,'d'),(NULL,'e'),(NULL,'f');
+  SELECT LAST_INSERT_ID();
+  --sorted_result
+  SELECT a,b FROM t1;
+
+  SET auto_increment_increment = 50;
+  INSERT INTO t1 (a,b) VALUES (NULL,'g'),(NULL,'h'),(NULL,'i');
+  SELECT LAST_INSERT_ID();
+  --sorted_result
+  SELECT a,b FROM t1;
+  DROP TABLE t1;
+}
+
+# offset is greater than the max value
+
+SET auto_increment_increment = 500;
+SET auto_increment_offset = 300;
+--let $create_definition = a TINYINT $default_col_indexed_opts AUTO_INCREMENT, $default_index(a)
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $functionality = AUTO_INCREMENT
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a) VALUES (NULL);
+  SELECT LAST_INSERT_ID();
+  --sorted_result
+  SELECT a FROM t1;
+  DROP TABLE t1;
+}
+
+--source cleanup_engine.inc
+

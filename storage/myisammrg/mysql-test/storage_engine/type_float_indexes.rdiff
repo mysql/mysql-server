@@ -1,0 +1,11 @@
+--- type_float_indexes.result	2013-01-22 22:05:05.246633000 +0400
++++ type_float_indexes.reject	2013-01-23 02:51:13.059333973 +0400
+@@ -60,7 +60,7 @@
+ ALTER TABLE t1 ADD UNIQUE KEY(d);
+ EXPLAIN SELECT d FROM t1 WHERE r > 0 and d > 0 ORDER BY d;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-#	#	#	#	#	d	#	#	#	#
++#	#	#	#	#	NULL	#	#	#	#
+ SELECT d FROM t1 WHERE r > 0 and d > 0 ORDER BY d;
+ d
+ 1.2345

@@ -1,12 +1,16 @@
 #! /bin/sh
 
 rm -f TAGS
-filter='\.cpp$\|\.cc$\|\.c$\|\.h$\|sql_yacc\.yy$\|\.hpp$\|\.ic$'
 
-list="find . -type f"
-git rev-parse >/dev/null 2>/dev/null && list="git ls-files"
-
-$list |grep $filter |while read f; 
-do
-	 etags -o TAGS --append $f
-done
+if git rev-parse HEAD >/dev/null 2>&1
+then
+  cd `git rev-parse --show-toplevel`
+  echo client storage dbug libmysql sql-common \
+       sql extra mysys mysys_ssl strings regex pcre vio include \
+       tools unittest plugin libmysqld | \
+       xargs -n1 git ls-files | grep -v '\.jar$' | \
+       xargs etags -o TAGS --append
+else
+  find . -type f ! -name "*.jar" |
+       xargs etags -o TAGS --append
+fi

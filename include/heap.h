@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,8 +102,8 @@ typedef struct st_heap_block
   HP_PTRS *root;                        /* Top-level block */ 
   struct st_level_info level_info[HP_MAX_LEVELS+1];
   uint levels;                          /* number of used levels */
-  uint records_in_block;		/* Records in one heap-block */
   uint recbuffer;			/* Length of one saved record */
+  ulong records_in_block;		/* Records in one heap-block */
   ulong last_allocated; /* number of records there is allocated space for */
 } HP_BLOCK;
 
@@ -135,12 +134,15 @@ typedef struct st_heap_share
 {
   HP_BLOCK block;
   HP_KEYDEF  *keydef;
-  ulong min_records,max_records;	/* Params to open */
   ulonglong data_length,index_length,max_table_size;
+  ulonglong auto_increment;
+  ulong min_records,max_records;	/* Params to open */
+  ulong records;			/* records */
+  ulong blength;			/* records rounded up to 2^n */
+  ulong deleted;			/* Deleted records in database */
   uint key_stat_version;                /* version to indicate insert/delete */
-  uint records;				/* records */
-  uint blength;				/* records rounded up to 2^n */
-  uint deleted;				/* Deleted records in database */
+  uint key_version;                     /* Updated on key change */
+  uint file_version;                    /* Update on clear */
   uint reclength;			/* Length of one record */
   uint changed;
   uint keys,max_key_length;
@@ -155,7 +157,6 @@ typedef struct st_heap_share
   LIST open_list;
   uint auto_key;
   uint auto_key_type;			/* real type of the auto key segment */
-  ulonglong auto_increment;
 } HP_SHARE;
 
 struct st_hp_hash_info;
@@ -174,6 +175,8 @@ typedef struct st_heap_info
   enum ha_rkey_function last_find_flag;
   TREE_ELEMENT *parents[MAX_TREE_HEIGHT+1];
   TREE_ELEMENT **last_pos;
+  uint key_version;                     /* Version at last read */
+  uint file_version;                    /* Version at scan */
   uint lastkey_len;
   my_bool implicit_emptied;
   THR_LOCK_DATA lock;
@@ -184,12 +187,12 @@ typedef struct st_heap_info
 typedef struct st_heap_create_info
 {
   HP_KEYDEF *keydef;
-  ulong max_records;
-  ulong min_records;
   uint auto_key;                        /* keynr [1 - maxkey] for auto key */
   uint auto_key_type;
   uint keys;
   uint reclength;
+  ulong max_records;
+  ulong min_records;
   ulonglong max_table_size;
   ulonglong auto_increment;
   my_bool with_auto_increment;

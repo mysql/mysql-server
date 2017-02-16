@@ -1,0 +1,54 @@
+--- suite/rpl/r/rpl_insert_delayed.result	2012-09-18 01:37:45.317521958 +0300
++++ suite/rpl/r/rpl_insert_delayed,stmt.reject	2012-09-18 01:36:16.637514667 +0300
+@@ -15,17 +15,17 @@
+ insert delayed into t1 values(10, "my name");
+ flush table t1;
+ insert delayed into t1 values(10, "is Bond"), (20, "James Bond");
++ERROR 23000: Duplicate entry '10' for key 'PRIMARY'
+ flush table t1;
+ select * from t1;
+ id	name
+ 10	my name
+-20	James Bond
+ select * from t1;
+ id	name
+ 10	my name
+-20	James Bond
+ delete from t1 where id!=10;
+ insert delayed into t1 values(20, "is Bond"), (10, "James Bond");
++ERROR 23000: Duplicate entry '10' for key 'PRIMARY'
+ flush table t1;
+ select * from t1;
+ id	name
+@@ -38,17 +38,31 @@
+ USE test;
+ DROP SCHEMA mysqlslap;
+ use test;
++FLUSH LOGS;
++FLUSH LOGS;
+ CREATE TABLE t1(a int, UNIQUE(a));
+ INSERT DELAYED IGNORE INTO t1 VALUES(1);
+ INSERT DELAYED IGNORE INTO t1 VALUES(1);
+ flush table t1;
++use `test`; INSERT  IGNORE INTO t1 VALUES(1)
++use `test`; INSERT  IGNORE INTO t1 VALUES(1)
+ select * from t1;
+ a
+ 1
+ On slave
++show binlog events in 'slave-bin.000002' from <binlog_start> limit 1,6;
++Log_name	Pos	Event_type	Server_id	End_log_pos	Info
++slave-bin.000002	#	Query	#	#	BEGIN
++slave-bin.000002	#	Query	#	#	use `test`; INSERT  IGNORE INTO t1 VALUES(1)
++slave-bin.000002	#	Query	#	#	COMMIT
++slave-bin.000002	#	Query	#	#	BEGIN
++slave-bin.000002	#	Query	#	#	use `test`; INSERT  IGNORE INTO t1 VALUES(1)
++slave-bin.000002	#	Query	#	#	COMMIT
+ select * from t1;
+ a
+ 1
+ drop table t1;
++FLUSH LOGS;
++FLUSH LOGS;
+ End of 5.0 tests
+ include/rpl_end.inc

@@ -1,0 +1,102 @@
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo,bar;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=ON;
+
+let $diff_tables= test.foo, test.bar;
+
+
+create table foo(a varchar(10), b varchar (10), c varchar(10), d varchar(10))engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values (NULL, "bobby",NULL,"heehee");
+insert into foo values ("BIGGER",NULL,"smaller",NULL);
+insert into foo values ("aaaaaaaaaa","bbbbbbbbbb","cccccccccc","dddddddddd");
+
+insert into bar select * from foo;
+source include/diff_tables.inc;
+
+alter table foo add column e varchar(3000) default NULL;
+alter table bar add column e varchar(3000) default NULL;
+source include/diff_tables.inc;
+alter table foo drop column e;
+alter table bar drop column e;
+source include/diff_tables.inc;
+
+alter table foo add column e varchar(3000) default NULL first;
+alter table bar add column e varchar(3000) default NULL first;
+source include/diff_tables.inc;
+alter table foo drop column e;
+alter table bar drop column e;
+source include/diff_tables.inc;
+
+
+alter table foo add column e varchar(3000) default NULL after b;
+alter table bar add column e varchar(3000) default NULL after b;
+source include/diff_tables.inc;
+alter table foo drop column e;
+alter table bar drop column e;
+source include/diff_tables.inc;
+
+alter table foo add column e varchar(3000) default "abracadabraabracadabra";
+alter table bar add column e varchar(3000) default "abracadabraabracadabra";
+source include/diff_tables.inc;
+alter table foo drop column e;
+alter table bar drop column e;
+source include/diff_tables.inc;
+
+alter table foo add column e varchar(3000) default "abracadabraabracadabra" first;
+alter table bar add column e varchar(3000) default "abracadabraabracadabra" first;
+source include/diff_tables.inc;
+alter table foo drop column e;
+alter table bar drop column e;
+source include/diff_tables.inc;
+
+
+alter table foo add column e varchar(3000) default "abracadabraabracadabra" after b;
+alter table bar add column e varchar(3000) default "abracadabraabracadabra" after b;
+source include/diff_tables.inc;
+alter table foo drop column e;
+alter table bar drop column e;
+source include/diff_tables.inc;
+
+
+alter table foo add column e varchar(3000) default NULL after b;
+alter table bar add column e varchar(3000) default NULL after b;
+source include/diff_tables.inc;
+alter table foo drop column e;
+alter table bar drop column e;
+source include/diff_tables.inc;
+
+alter table foo add column e varchar(3000) NOT NULL default "abracadabraabracadabra";
+alter table bar add column e varchar(3000) NOT NULL default "abracadabraabracadabra";
+source include/diff_tables.inc;
+alter table foo drop column e;
+alter table bar drop column e;
+source include/diff_tables.inc;
+
+alter table foo add column e varchar(3000) NOT NULL default "abracadabraabracadabra" first;
+alter table bar add column e varchar(3000) NOT NULL default "abracadabraabracadabra" first;
+source include/diff_tables.inc;
+alter table foo drop column e;
+alter table bar drop column e;
+source include/diff_tables.inc;
+
+
+alter table foo add column e varchar(3000) NOT NULL default "abracadabraabracadabra" after b;
+alter table bar add column e varchar(3000) NOT NULL default "abracadabraabracadabra" after b;
+source include/diff_tables.inc;
+alter table foo drop column e;
+alter table bar drop column e;
+source include/diff_tables.inc;
+
+
+
+
+drop table foo;
+drop table bar;

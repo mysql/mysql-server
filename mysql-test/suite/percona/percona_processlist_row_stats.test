@@ -1,0 +1,79 @@
+# Testing of INFORMATION_SCHEMA.PROCESSLIST fields ROWS_SENT, ROWS_EXAMINED, ROWS_READ
+--source include/have_debug_sync.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+
+CREATE TABLE t2 (a INT);
+INSERT INTO t2 VALUES(10);
+INSERT INTO t2 VALUES(10);
+INSERT INTO t2 VALUES(20);
+INSERT INTO t2 VALUES(10);
+INSERT INTO t2 VALUES(20);
+
+--connect (conn1, localhost, root, ,)
+--connect (conn2, localhost, root, ,)
+
+--connection conn1
+SET DEBUG_SYNC= 'locked_table_name SIGNAL thread1_ready WAIT_FOR threads_dumped';
+send CREATE TABLE t1 (a INT);
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR thread1_ready';
+
+--connection conn2
+SET DEBUG_SYNC= 'execute_command_after_close_tables SIGNAL thread2_ready WAIT_FOR threads_dumped';
+send SELECT a FROM t2 WHERE a > 15;
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
+
+--source include/percona_processlist_row_stats_show.inc
+
+--connection conn1
+reap;
+--connection conn2
+reap;
+
+--connection conn1
+SET DEBUG_SYNC= 'sent_row SIGNAL thread1_ready WAIT_FOR threads_dumped';
+send SELECT a FROM t2 WHERE a < 15;
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR thread1_ready';
+
+--connection conn2
+SET DEBUG_SYNC= 'sent_row SIGNAL thread2_ready WAIT_FOR threads_dumped';
+send SELECT a FROM t2 WHERE a > 15;
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
+
+--source include/percona_processlist_row_stats_show.inc
+
+--connection conn1
+reap;
+--connection conn2
+reap;
+
+--connection conn1
+SET DEBUG_SYNC= 'execute_command_after_close_tables SIGNAL thread1_ready WAIT_FOR threads_dumped';
+send UPDATE t2 SET a = 15 WHERE a = 20;
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR thread1_ready';
+
+--connection conn2
+SET DEBUG_SYNC= 'execute_command_after_close_tables SIGNAL thread2_ready WAIT_FOR threads_dumped';
+send UPDATE t2 SET a = 15 WHERE a = 10;
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
+
+--source include/percona_processlist_row_stats_show.inc
+
+--connection conn1
+reap;
+--connection conn2
+reap;
+
+--connection default
+disconnect conn1;
+disconnect conn2;
+DROP TABLES t1, t2;

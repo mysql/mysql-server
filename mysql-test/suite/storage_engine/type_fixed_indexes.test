@@ -1,0 +1,167 @@
+#
+# Fixed point columns with indexes
+#
+
+--source have_engine.inc
+--source have_default_index.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+
+# Default index as set in define_engine.inc
+
+let $create_definition =
+  d1 DECIMAL(10,2) $col_indexed_opts,
+  d2 DECIMAL(60,10) $col_opts,
+  n1 NUMERIC $col_opts,
+  n2 NUMERIC(65,4) $col_opts,
+  $default_index d1 (d1)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Fixed point types or indexes
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 3 # 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (d1,d2,n1,n2) VALUES 
+  (10.22,60.12345,123456,14.3456),
+  (10.0,60.12345,123456,14),
+  (11.14,15,123456,13),
+  (100,100,1,2),
+  (0,0,0,0),
+  (4540424564.23,3343303441.0,12,13),
+  (15,17,23,100000);
+
+  SELECT d1 FROM t1 ORDER BY d1 DESC;
+
+  DROP TABLE t1;
+}
+
+
+# PK, UNIQUE INDEX, INDEX
+
+let $create_definition =
+  d1 DECIMAL(10,2) $col_indexed_opts PRIMARY KEY,
+  d2 DECIMAL(60,10) $col_opts,
+  n1 NUMERIC $col_opts,
+  n2 NUMERIC(65,4) $col_opts
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Fixed point types or PK
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (d1,d2,n1,n2) VALUES 
+  (10.22,60.12345,123456,14.3456),
+  (10.0,60.12345,123456,14),
+  (11.14,15,123456,13),
+  (100,100,1,2),
+  (0,0,0,0),
+  (4540424564.23,3343303441.0,12,13),
+  (15,17,23,100000);
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT d1 FROM t1 ORDER BY d1 DESC;
+  SELECT d1 FROM t1 ORDER BY d1 DESC;
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT d1 FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY) ORDER BY d1 DESC;
+  SELECT d1 FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY) ORDER BY d1 DESC;
+
+  DROP TABLE t1;
+}
+
+let $create_definition = 
+  d1 DECIMAL(10,2) $col_opts,
+  d2 DECIMAL(60,10) $col_opts,
+  n1 NUMERIC $col_indexed_opts,
+  n2 NUMERIC(65,4) $col_indexed_opts,
+  UNIQUE INDEX n1_n2 (n1,n2)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Fixed point types or unique keys or multi-part keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (d1,d2,n1,n2) VALUES
+  (10.22,60.12345,123456,14.3456),
+  (10.0,60.12345,123456,14),
+  (11.14,15,123456,13),
+  (100,100,1,2),
+  (0,0,0,0),
+  (4540424564.23,3343303441.0,12,13),
+  (15,17,23,100000);
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT DISTINCT n1+n2 FROM t1;
+  --sorted_result
+  SELECT DISTINCT n1+n2 FROM t1;
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  d1 DECIMAL(10,2) $col_opts,
+  d2 DECIMAL(60,10) $col_indexed_opts,
+  n1 NUMERIC $col_opts,
+  n2 NUMERIC(65,4) $col_opts,
+  INDEX (d2)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Fixed point types or non-unique keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (d1,d2,n1,n2) VALUES
+  (10.22,60.12345,123456,14.3456),
+  (10.0,60.12345,123456,14),
+  (11.14,15,123456,13),
+  (100,100,1,2),
+  (0,0,0,0),
+  (4540424564.23,3343303441.0,12,13),
+  (15,17,23,100000);
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT d2, COUNT(*) FROM t1 GROUP BY d2;
+  --sorted_result
+  SELECT d2, COUNT(*) FROM t1 GROUP BY d2;
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT d2, COUNT(*) FROM t1 IGNORE INDEX FOR GROUP BY (d2) GROUP BY d2;
+  --sorted_result
+  SELECT d2, COUNT(*) FROM t1 IGNORE INDEX FOR GROUP BY (d2) GROUP BY d2;
+
+  DROP TABLE t1;
+}
+
+--source cleanup_engine.inc
+

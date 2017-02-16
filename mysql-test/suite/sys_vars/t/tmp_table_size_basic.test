@@ -133,8 +133,9 @@ SELECT @@session.tmp_table_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.tmp_table_size = "Test";
 
+--disable_warnings
 SET @@session.tmp_table_size = 12345678901;
-
+--enable_warnings
 # With a 64 bit mysqld:12345678901,with a 32 bit mysqld: 4294967295
 SELECT @@session.tmp_table_size IN (12345678901,4294967295);
 

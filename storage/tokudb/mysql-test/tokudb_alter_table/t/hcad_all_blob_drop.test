@@ -1,0 +1,352 @@
+# This test takes rather long time so let us run it only in --big-test mode
+--source include/big_test.inc
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE='tokudb'; 
+
+--disable_warnings 
+DROP TABLE IF EXISTS foo,bar; 
+--enable_warnings 
+
+set session tokudb_disable_slow_alter=ON; 
+
+let $diff_tables= test.foo, test.bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column aa;
+alter table bar drop column aa;
+source include/diff_tables.inc;
+drop table foo; drop table bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column bb;
+alter table bar drop column bb;
+source include/diff_tables.inc;
+drop table foo; drop table bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column cc;
+alter table bar drop column cc;
+source include/diff_tables.inc;
+drop table foo; drop table bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column dd;
+alter table bar drop column dd;
+source include/diff_tables.inc;
+drop table foo; drop table bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column aa, drop column bb;
+alter table bar drop column aa, drop column bb;
+source include/diff_tables.inc;
+drop table foo; drop table bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column aa, drop column cc;
+alter table bar drop column aa, drop column cc;
+source include/diff_tables.inc;
+drop table foo; drop table bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column aa, drop column dd;
+alter table bar drop column aa, drop column dd;
+source include/diff_tables.inc;
+drop table foo; drop table bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column bb, drop column aa;
+alter table bar drop column bb, drop column aa;
+source include/diff_tables.inc;
+drop table foo; drop table bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column bb, drop column cc;
+alter table bar drop column bb, drop column cc;
+source include/diff_tables.inc;
+drop table foo; drop table bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column bb, drop column dd;
+alter table bar drop column bb, drop column dd;
+source include/diff_tables.inc;
+drop table foo; drop table bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column cc, drop column aa;
+alter table bar drop column cc, drop column aa;
+source include/diff_tables.inc;
+drop table foo; drop table bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column cc, drop column bb;
+alter table bar drop column cc, drop column bb;
+source include/diff_tables.inc;
+drop table foo; drop table bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column cc, drop column dd;
+alter table bar drop column cc, drop column dd;
+source include/diff_tables.inc;
+drop table foo; drop table bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column dd, drop column aa;
+alter table bar drop column dd, drop column aa;
+source include/diff_tables.inc;
+drop table foo; drop table bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column dd, drop column bb;
+alter table bar drop column dd, drop column bb;
+source include/diff_tables.inc;
+drop table foo; drop table bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column dd, drop column cc;
+alter table bar drop column dd, drop column cc;
+source include/diff_tables.inc;
+drop table foo; drop table bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column aa, drop column bb, drop column cc;
+alter table bar drop column aa, drop column bb, drop column cc;
+source include/diff_tables.inc;
+drop table foo; drop table bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column aa, drop column bb, drop column dd;
+alter table bar drop column aa, drop column bb, drop column dd;
+source include/diff_tables.inc;
+drop table foo; drop table bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column aa, drop column cc, drop column dd;
+alter table bar drop column aa, drop column cc, drop column dd;
+source include/diff_tables.inc;
+drop table foo; drop table bar;
+
+
+create table foo (aa blob, bb longblob, cc tinyblob, dd mediumblob) engine=TokuDB;
+create table bar like foo;
+alter table bar engine=MyISAM;
+begin;
+insert into foo values (NULL,NULL,NULL,NULL);
+insert into foo values ("adsf",NULL,"hjfdshj",NULL);
+insert into foo values (NULL,"oifds",NULL,"fdsjfds");
+insert into foo values ("rewoiu","fds","fr","oiufdsrew");
+insert into bar select * from foo;
+commit;
+source include/diff_tables.inc;
+alter table foo drop column bb, drop column cc, drop column dd;
+alter table bar drop column bb, drop column cc, drop column dd;
+source include/diff_tables.inc;
+drop table foo; drop table bar;

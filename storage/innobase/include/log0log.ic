@@ -411,6 +411,26 @@ log_get_lsn(void)
 	return(lsn);
 }
 
+/************************************************************//**
+Gets the current lsn with a trylock
+@return	current lsn or 0 if false*/
+UNIV_INLINE
+lsn_t
+log_get_lsn_nowait(void)
+/*=============*/
+{
+	lsn_t	lsn=0;
+
+	if (!mutex_enter_nowait(&(log_sys->mutex))) {
+
+		lsn = log_sys->lsn;
+
+		mutex_exit(&(log_sys->mutex));
+	}
+
+	return(lsn);
+}
+
 /****************************************************************
 Gets the log group capacity. It is OK to read the value without
 holding log_sys->mutex because it is constant.

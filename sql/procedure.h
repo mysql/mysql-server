@@ -16,7 +16,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /* When using sql procedures */
 
 #ifdef USE_PRAGMA_INTERFACE
@@ -53,7 +52,11 @@ public:
   {
     init_make_field(tmp_field,field_type());
   }
-  unsigned int size_of() { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor("proc"); 
+  }
 };
 
 class Item_proc_real :public Item_proc

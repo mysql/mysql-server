@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 # Bug#60196 - Setting lowercase_table_names to 2 on Windows causing
 # Foreign Key problems after an engine is restarted.
 
@@ -7,7 +8,6 @@
 --source include/not_embedded.inc
 --source include/have_lowercase2.inc
 --source include/have_case_insensitive_file_system.inc
---source include/have_innodb.inc
 
 #
 # Create test data.
@@ -41,6 +41,7 @@ INSERT INTO Bug_60196 VALUES (99, 1);
 
 SELECT * FROM bug_60196_FK1;
 SELECT * FROM bug_60196_FK2;
+--sorted_result
 SELECT * FROM bug_60196;
 
 --echo # Stop server
@@ -77,6 +78,7 @@ SELECT * FROM Bug_60196;
 INSERT INTO Bug_60196 VALUES (2, 1);
 INSERT INTO Bug_60196 VALUES (2, 2);
 INSERT INTO Bug_60196 VALUES (2, 3);
+--sorted_result
 SELECT * FROM Bug_60196;
 
 --echo

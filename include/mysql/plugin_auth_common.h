@@ -1,5 +1,6 @@
 #ifndef MYSQL_PLUGIN_AUTH_COMMON_INCLUDED
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (C) 2010 Sergei Golubchik and Monty Program Ab
+   Copyright (c) 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,6 +15,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 /**
   @file
 
@@ -23,7 +28,7 @@
 #define MYSQL_PLUGIN_AUTH_COMMON_INCLUDED
 
 /** the max allowed length for a user name */
-#define MYSQL_USERNAME_LENGTH 48
+#define MYSQL_USERNAME_LENGTH 512
 
 /**
   return values of the plugin authenticate_user() method.

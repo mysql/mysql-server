@@ -8,8 +8,9 @@
 use Test::More;
 
 $exe=$0;
+$exe =~ s@[^/]+$@tests@;
 
-die unless $exe =~ s/(tests)-t(\.exe)?$/$1$2 /;
+die unless -x $exe;
 
 # load tests
 @tests=();
@@ -28,7 +29,7 @@ plan skip_all => "because dbug is disabled" if system $exe;
 plan tests => scalar(@tests);
 
 for (@tests) {
-  $t=$exe . shift @$_;
+  $t=$exe . ' ' . shift @$_;
   chomp($t);
   open F, '-|',  $t or die "open($t|): $!";
   local $";
@@ -200,7 +201,7 @@ func2: info: s=ko
 | | <func3
 <main
 % ./tests t:d:-d,ret3:f:-f,func2 +d,dump,explain:P
-dbug: >main
+dbug-tests: >main
 dbug-tests: | >func1
 dbug-tests: | | | >func3
 dbug-tests: | | | <func3
@@ -215,7 +216,7 @@ dbug-tests: | | >func3
 dbug-tests: | | <func3
 dbug-tests: <main
 % ./tests t:d:-d,ret3:f:-f,func2 +d,dump,explain:P:F
-dbug:        tests.c: >main
+dbug-tests:        tests.c: >main
 dbug-tests:        tests.c: | >func1
 dbug-tests:        tests.c: | | | >func3
 dbug-tests:        tests.c: | | | <func3

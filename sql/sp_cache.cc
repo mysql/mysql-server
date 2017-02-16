@@ -135,6 +135,12 @@ void sp_cache_clear(sp_cache **cp)
 }
 
 
+void sp_cache_end()
+{
+  mysql_mutex_destroy(&Cversion_lock);
+}
+
+
 /*
   Insert a routine into the cache.
 

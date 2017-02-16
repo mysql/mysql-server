@@ -362,12 +362,12 @@ select cast(19999999999999999999 as signed);
 cast(19999999999999999999 as signed)
 9223372036854775807
 Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1916	Got overflow when converting '19999999999999999999' to INT. Value truncated.
 select cast(-19999999999999999999 as signed);
 cast(-19999999999999999999 as signed)
 -9223372036854775808
 Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1916	Got overflow when converting '-19999999999999999999' to INT. Value truncated.
 select -9223372036854775808;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					-9223372036854775808	8	20	20	N	32897	0	63
@@ -502,3 +502,9 @@ a
 SELECT * FROM t1 WHERE a IN (0.8,0.9);
 a
 DROP TABLE t1;
+#
+# MDEV-9372 select 100 between 1 and 9223372036854775808 returns false
+#
+SELECT 100 BETWEEN 1 AND 9223372036854775808;
+100 BETWEEN 1 AND 9223372036854775808
+1

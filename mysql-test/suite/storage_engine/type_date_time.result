@@ -1,0 +1,50 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (d DATE <CUSTOM_COL_OPTIONS>,
+dt DATETIME <CUSTOM_COL_OPTIONS>,
+ts TIMESTAMP <CUSTOM_COL_OPTIONS>,
+t TIME <CUSTOM_COL_OPTIONS>,
+y YEAR <CUSTOM_COL_OPTIONS>,
+y4 YEAR(4) <CUSTOM_COL_OPTIONS>,
+y2 YEAR(2) <CUSTOM_COL_OPTIONS>
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+Warnings:
+Note	1287	'YEAR(2)' is deprecated and will be removed in a future release. Please use YEAR(4) instead
+SHOW COLUMNS IN t1;
+Field	Type	Null	Key	Default	Extra
+d	date	#	#	#	
+dt	datetime	#	#	#	
+ts	timestamp	#	#	#	on update CURRENT_TIMESTAMP
+t	time	#	#	#	
+y	year(4)	#	#	#	
+y4	year(4)	#	#	#	
+y2	year(2)	#	#	#	
+SET @tm = '2012-04-09 05:27:00';
+INSERT INTO t1 (d,dt,ts,t,y,y4,y2) VALUES
+('1000-01-01', '1000-01-01 00:00:00', FROM_UNIXTIME(1), '-838:59:59', '1901', '1901', '00'),
+('9999-12-31', '9999-12-31 23:59:59', FROM_UNIXTIME(2147483647), '838:59:59', '2155', '2155', '99'),
+('0000-00-00', '0000-00-00 00:00:00', '0000-00-00 00:00:00', '00:00:00', '0', '0', '0'),
+(DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm),YEAR(@tm),YEAR(@tm));
+SELECT d,dt,ts,t,y,y4,y2 FROM t1;
+d	dt	ts	t	y	y4	y2
+0000-00-00	0000-00-00 00:00:00	0000-00-00 00:00:00	00:00:00	2000	2000	00
+1000-01-01	1000-01-01 00:00:00	1970-01-01 00:00:01	-838:59:59	1901	1901	00
+2012-04-09	2012-04-09 05:27:00	2012-04-09 05:27:00	05:27:00	2012	2012	12
+9999-12-31	9999-12-31 23:59:59	2038-01-19 03:14:07	838:59:59	2155	2155	99
+INSERT INTO t1 (d,dt,ts,t,y,y4,y2) VALUES
+('999-13-32', '999-11-31 00:00:00', '0', '-839:00:00', '1900', '1900', '-1' );
+Warnings:
+Warning	1265	Data truncated for column 'd' at row 1
+Warning	1265	Data truncated for column 'dt' at row 1
+Warning	1265	Data truncated for column 'ts' at row 1
+Warning	1264	Out of range value for column 't' at row 1
+Warning	1264	Out of range value for column 'y' at row 1
+Warning	1264	Out of range value for column 'y4' at row 1
+Warning	1264	Out of range value for column 'y2' at row 1
+SELECT d,dt,ts,t,y,y4,y2 FROM t1;
+d	dt	ts	t	y	y4	y2
+0000-00-00	0000-00-00 00:00:00	0000-00-00 00:00:00	-838:59:59	0000	0000	00
+0000-00-00	0000-00-00 00:00:00	0000-00-00 00:00:00	00:00:00	2000	2000	00
+1000-01-01	1000-01-01 00:00:00	1970-01-01 00:00:01	-838:59:59	1901	1901	00
+2012-04-09	2012-04-09 05:27:00	2012-04-09 05:27:00	05:27:00	2012	2012	12
+9999-12-31	9999-12-31 23:59:59	2038-01-19 03:14:07	838:59:59	2155	2155	99
+DROP TABLE t1;

@@ -1,0 +1,20 @@
+--- suite/storage_engine/check_table.result	2012-07-15 04:19:07.782936394 +0400
++++ suite/storage_engine/check_table.reject	2012-07-15 16:21:16.734412773 +0400
+@@ -18,7 +18,7 @@
+ INSERT INTO t1 (a,b) VALUES (6,'f');
+ CHECK TABLE t1 FAST;
+ Table	Op	Msg_type	Msg_text
+-test.t1	check	status	OK
++test.t1	check	status	Table is already up to date
+ INSERT INTO t1 (a,b) VALUES (7,'g');
+ INSERT INTO t2 (a,b) VALUES (8,'h');
+ CHECK TABLE t2, t1 MEDIUM;
+@@ -52,7 +52,7 @@
+ INSERT INTO t1 (a) VALUES (17),(120),(132);
+ CHECK TABLE t1 FAST;
+ Table	Op	Msg_type	Msg_text
+-test.t1	check	status	OK
++test.t1	check	status	Table is already up to date
+ INSERT INTO t1 (a) VALUES (801),(900),(7714);
+ CHECK TABLE t1 MEDIUM;
+ Table	Op	Msg_type	Msg_text

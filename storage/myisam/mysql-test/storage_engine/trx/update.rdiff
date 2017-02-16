@@ -1,0 +1,58 @@
+--- suite/storage_engine/trx/update.result	2012-07-13 01:43:50.355293322 +0400
++++ suite/storage_engine/trx/update.reject	2012-07-15 16:55:51.016335518 +0400
+@@ -1,3 +1,15 @@
++# -- WARNING ----------------------------------------------------------------
++# According to I_S.ENGINES, MyISAM does not support transactions.
++# If it is true, the test will most likely fail; you can 
++# either create an rdiff file, or add the test to disabled.def.
++# If transactions should be supported, check the data in Information Schema.
++# ---------------------------------------------------------------------------
++# -- WARNING ----------------------------------------------------------------
++# According to I_S.ENGINES, MyISAM does not support savepoints.
++# If it is true, the test will most likely fail; you can 
++# either create an rdiff file (recommended), or add the test to disabled.def.
++# If savepoints should be supported, check the data in Information Schema.
++# ---------------------------------------------------------------------------
+ DROP TABLE IF EXISTS t1;
+ CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(10000,'foobar');
+@@ -24,25 +36,29 @@
+ UPDATE t1 SET b = 'update' WHERE a <= 4 ORDER BY a DESC, b ASC LIMIT 3;
+ UPDATE t1 SET b = '';
+ ROLLBACK;
++Warnings:
++Warning	1196	Some non-transactional changed tables couldn't be rolled back
+ BEGIN;
+ UPDATE t1 SET b = 'update2' WHERE a <= 100;
+ SAVEPOINT spt1;
+ UPDATE t1 SET b = '';
+ ROLLBACK TO SAVEPOINT spt1;
++Warnings:
++Warning	1196	Some non-transactional changed tables couldn't be rolled back
+ UPDATE t1 SET b = 'upd' WHERE a = 10050;
+ COMMIT;
+ SELECT a,b FROM t1;
+ a	b
+ 10050	upd
+ 10050	upd
+-51	update2
+-51	update2
+-52	update2
+-52	update2
+-53	update2
+-53	update2
+-54	update2
+-54	update2
+-55	update2
+-55	update2
++51	
++51	
++52	
++52	
++53	
++53	
++54	
++54	
++55	
++55	
+ DROP TABLE t1;

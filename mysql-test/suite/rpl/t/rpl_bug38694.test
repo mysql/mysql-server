@@ -7,5 +7,7 @@
 
 source include/master-slave.inc;
 
+call mtr.add_suppression("Aborted connection");
+
 # End of tests
 --source include/rpl_end.inc

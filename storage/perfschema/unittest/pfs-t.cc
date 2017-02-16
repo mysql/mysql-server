@@ -1214,11 +1214,12 @@ void do_all_tests()
   test_file_instrumentation_leak();
 }
 
-int main(int, char **)
+int main(int argc, char **argv)
 {
   plan(153);
-  MY_INIT("pfs-t");
+  MY_INIT(argv[0]);
   do_all_tests();
+  my_end(0);
   return 0;
 }
 

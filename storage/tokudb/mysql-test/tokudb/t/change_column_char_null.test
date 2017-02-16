@@ -1,0 +1,67 @@
+source include/have_tokudb.inc;
+# test that char(X) to char(Y) not null is not supported (different type)
+
+--disable_warnings
+DROP TABLE IF EXISTS t;
+--enable_warnings
+
+SET SESSION TOKUDB_DISABLE_SLOW_ALTER=ON;
+SET SESSION DEFAULT_STORAGE_ENGINE='TokuDB';
+
+# nullable -> not null not supported
+CREATE TABLE t (a CHAR(100), b BINARY(100));
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN a a CHAR(1) NOT NULL;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN a a CHAR(100) NOT NULL;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN a a CHAR(200) NOT NULL;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN b b BINARY(1) NOT NULL;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN b b BINARY(100) NOT NULL;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN b b BINARY(200) NOT NULL;
+
+DROP TABLE t;
+
+# not null -> nullable not supported
+CREATE TABLE t (a CHAR(100) NOT NULL, b CHAR(100) NOT NULL);
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN a a CHAR(1);
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN a a CHAR(100);
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN a a CHAR(200);
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN b b BINARY(1);
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN b b BINARY(100);
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN b b BINARY(200);
+
+DROP TABLE t;

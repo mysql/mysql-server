@@ -1,0 +1,113 @@
+# 
+# Run subselect_sj2.test with BKA enabled 
+#
+
+set @save_optimizer_switch_jcl6=@@optimizer_switch;
+set @@optimizer_switch='optimize_join_buffer_size=on';
+set @@optimizer_switch='semijoin_with_cache=on';
+set @@optimizer_switch='outer_join_with_cache=on';
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+
+set join_cache_level=6;
+show variables like 'join_cache_level';
+
+set @optimizer_switch_for_subselect_sj2_test=@@optimizer_switch;
+set @join_cache_level_for_subselect_sj2_test=@@join_cache_level;
+
+--source t/subselect_sj2.test
+
+--echo #
+--echo # Bug #898073: potential incremental join cache for semijoin
+--echo #
+
+CREATE TABLE t1 (a int, b varchar(1), KEY (b,a));
+INSERT INTO t1 VALUES (0,'x'), (5,'r');
+
+CREATE TABLE t2 (a int) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (8);
+
+CREATE TABLE t3 (b varchar(1), c varchar(1)) ENGINE=InnoDB;
+INSERT INTO t3 VALUES ('x','x');
+
+CREATE TABLE t4 (a int NOT NULL, b varchar(1)) ENGINE=InnoDB;
+INSERT INTO t4 VALUES (20,'r'), (10,'x');
+
+set @tmp_optimizer_switch=@@optimizer_switch;
+
+SET SESSION optimizer_switch='semijoin_with_cache=on';
+
+SET SESSION join_cache_level=2;
+EXPLAIN
+SELECT t3.* FROM t1 JOIN t3 ON t3.b = t1.b
+  WHERE c IN (SELECT t4.b FROM t4 JOIN t2);
+SELECT t3.* FROM t1 JOIN t3 ON t3.b = t1.b
+  WHERE c IN (SELECT t4.b FROM t4 JOIN t2);
+
+set optimizer_switch=@tmp_optimizer_switch;
+set join_cache_level=default;
+
+DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # Bug #899696: potential incremental join cache for semijoin
+--echo #
+
+CREATE TABLE t1 (pk int PRIMARY KEY, a int);
+INSERT INTO t1 VALUES (1, 6), (2, 8);
+CREATE TABLE t2 (b int) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (8);
+CREATE TABLE t3 (pk int PRIMARY KEY, a int);
+INSERT INTO t3 VALUES (1, 6), (2, 8);
+CREATE TABLE t4 (b int) ENGINE=InnoDB;
+INSERT INTO t4 VALUES (2);
+
+set @tmp_optimizer_switch=@@optimizer_switch;
+
+SET optimizer_switch = 'semijoin_with_cache=on';
+SET join_cache_level = 2;
+
+EXPLAIN
+SELECT * FROM t1, t2 WHERE b IN (SELECT a FROM t3, t4 WHERE b = pk);
+SELECT * FROM t1, t2 WHERE b IN (SELECT a FROM t3, t4 WHERE b = pk);
+
+set optimizer_switch=@tmp_optimizer_switch;
+set join_cache_level=default;
+
+DROP TABLE t1,t2,t3,t4;
+
+
+--echo #
+--echo # Bug #899962: materialized subquery with join_cache_level=3 
+--echo #
+
+CREATE TABLE t1 (a varchar(1), b varchar(1)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('v','v');
+CREATE TABLE t2 (a varchar(1), b varchar(1)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES ('v','v');
+
+set @tmp_optimizer_switch=@@optimizer_switch;
+
+SET optimizer_switch = 'semijoin_with_cache=on';
+SET join_cache_level = 3;
+
+EXPLAIN
+SELECT * FROM t1 WHERE b IN (SELECT a FROM t2 GROUP BY a);
+SELECT * FROM t1 WHERE b IN (SELECT a FROM t2 GROUP BY a);
+
+EXPLAIN
+SELECT * FROM t1 WHERE b IN (SELECT max(a) FROM t2 GROUP BY a);
+SELECT * FROM t1 WHERE b IN (SELECT max(a) FROM t2 GROUP BY a);
+
+set optimizer_switch=@tmp_optimizer_switch;
+set join_cache_level=default;
+
+DROP TABLE t1,t2;
+
+
+set join_cache_level=default;
+show variables like 'join_cache_level';
+
+set @@optimizer_switch=@save_optimizer_switch_jcl6;
+set @optimizer_switch_for_subselect_sj2_test=NULL;
+set @join_cache_level_subselect_sj2_test=NULL;
+

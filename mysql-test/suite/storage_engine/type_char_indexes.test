@@ -1,0 +1,186 @@
+#
+# CHAR and VARCHAR columns with indexes
+#
+
+--source have_engine.inc
+--source have_default_index.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# Default index as set in define_engine.inc
+
+let $create_definition =
+  c CHAR $col_opts,
+  c20 CHAR(20) $col_indexed_opts,
+  v16 VARCHAR(16) $col_opts,
+  v128 VARCHAR(128) $col_opts,
+  $default_index c20 (c20)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = CHAR or VARCHAR types or indexes
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 3 # 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (c,c20,v16,v128) VALUES ('a','char1','varchar1a','varchar1b'),('a','char2','varchar2a','varchar2b'),('b','char3','varchar1a','varchar1b'),('c','char4','varchar3a','varchar3b');
+
+  SELECT c20 FROM t1 ORDER BY c20;
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  c CHAR $col_opts,
+  c20 CHAR(20) $col_opts,
+  v16 VARCHAR(16) $col_indexed_opts,
+  v128 VARCHAR(128) $col_opts,
+  $default_index v16 (v16)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = CHAR or VARCHAR types or indexes
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 3 # 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (c,c20,v16,v128) VALUES ('a','char1','varchar1a','varchar1b'),('a','char2','varchar2a','varchar2b'),('b','char1','varchar3a','varchar1b'),('c','char4','varchar4a','varchar4b');
+
+  SELECT v16 FROM t1 ORDER BY v16;
+
+  DROP TABLE t1;
+}
+
+
+# PK, UNIQUE INDEX, INDEX
+
+let $create_definition =
+  c CHAR $col_opts,
+  c20 CHAR(20) $col_indexed_opts PRIMARY KEY,
+  v16 VARCHAR(16) $col_opts,
+  v128 VARCHAR(128) $col_opts
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = CHAR or VARCHAR types or PK
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (c,c20,v16,v128) VALUES ('a','char1','varchar1a','varchar1b'),('a','char2','varchar2a','varchar2b'),('b','char3','varchar1a','varchar1b'),('c','char4','varchar3a','varchar3b');
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT c20 FROM t1 ORDER BY c20;
+  SELECT c20 FROM t1 ORDER BY c20;
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT c20 FROM t1 FORCE INDEX FOR ORDER BY (PRIMARY) ORDER BY c20;
+  SELECT c20 FROM t1 FORCE INDEX FOR ORDER BY (PRIMARY) ORDER BY c20;
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  c CHAR $col_indexed_opts,
+  c20 CHAR(20) $col_opts,
+  v16 VARCHAR(16) $col_opts,
+  v128 VARCHAR(128) $col_indexed_opts,
+  UNIQUE INDEX c_v (c,v128)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = CHAR or VARCHAR types or unique keys or multi-part keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (c,c20,v16,v128) VALUES ('a','char1','varchar1a','varchar1b'),('a','char2','varchar2a','varchar2b'),('b','char3','varchar1a','varchar1b'),('c','char4','varchar3a','varchar3b');
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT c, v128 FROM t1 WHERE c != 'a' AND v128 > 'varchar';
+  --sorted_result
+  SELECT c, v128 FROM t1 WHERE c != 'a' AND v128 > 'varchar';
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT v128, COUNT(*) FROM t1 GROUP BY v128;
+  --sorted_result
+  SELECT v128, COUNT(*) FROM t1 GROUP BY v128;
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT v128, COUNT(*) FROM t1 USE INDEX FOR GROUP BY (c_v) GROUP BY v128;
+  --sorted_result
+  SELECT v128, COUNT(*) FROM t1 USE INDEX FOR GROUP BY (c_v) GROUP BY v128;
+
+  SET SESSION optimizer_switch = 'engine_condition_pushdown=on';
+  --replace_column 1 # 2 # 3 # 7 # 8 # 9 # 
+  EXPLAIN SELECT c,c20,v16,v128 FROM t1 WHERE c > 'a';
+  --sorted_result
+  SELECT c,c20,v16,v128 FROM t1 WHERE c > 'a';
+  SET SESSION optimizer_switch = @@global.optimizer_switch;
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  c CHAR $col_opts,
+  c20 CHAR(20) $col_opts,
+  v16 VARCHAR(16) $col_indexed_opts,
+  v128 VARCHAR(128) $col_opts,
+  INDEX (v16)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = CHAR or VARCHAR types or non-unique indexes
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (c,c20,v16,v128) VALUES ('a','char1','varchar1a','varchar1b'),('a','char2','varchar2a','varchar2b'),('b','char3','varchar1a','varchar1b'),('c','char4','varchar3a','varchar3b');
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT SUBSTRING(v16,0,3) FROM t1 WHERE v16 LIKE 'varchar%';
+  --sorted_result
+  SELECT SUBSTRING(v16,7,3) FROM t1 WHERE v16 LIKE 'varchar%';
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT SUBSTRING(v16,0,3) FROM t1 IGNORE INDEX (v16) WHERE v16 LIKE 'varchar%';
+  --sorted_result
+  SELECT SUBSTRING(v16,7,3) FROM t1 IGNORE INDEX (v16) WHERE v16 LIKE 'varchar%';
+
+  --replace_column 1 # 2 # 3 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT c,c20,v16,v128 FROM t1 WHERE v16 = 'varchar1a' OR v16 = 'varchar3a' ORDER BY v16;
+  --sorted_result
+  SELECT c,c20,v16,v128 FROM t1 WHERE v16 = 'varchar1a' OR v16 = 'varchar3a' ORDER BY v16;
+
+  DROP TABLE t1;
+}
+
+--source cleanup_engine.inc
+

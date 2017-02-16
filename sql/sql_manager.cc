@@ -43,6 +43,7 @@ static struct handler_cb * volatile cb_list;
 bool mysql_manager_submit(void (*action)())
 {
   bool result= FALSE;
+  DBUG_ASSERT(manager_thread_in_use);
   struct handler_cb * volatile *cb;
   mysql_mutex_lock(&LOCK_manager);
   cb= &cb_list;
@@ -74,8 +75,9 @@ pthread_handler_t handle_manager(void *arg __attribute__((unused)))
 
   pthread_detach_this_thread();
   manager_thread = pthread_self();
+  mysql_cond_init(key_COND_manager, &COND_manager,NULL);
+  mysql_mutex_init(key_LOCK_manager, &LOCK_manager, NULL);
   manager_thread_in_use = 1;
-
   for (;;)
   {
     mysql_mutex_lock(&LOCK_manager);
@@ -122,6 +124,8 @@ pthread_handler_t handle_manager(void *arg __attribute__((unused)))
     }
   }
   manager_thread_in_use = 0;
+  mysql_mutex_destroy(&LOCK_manager);
+  mysql_cond_destroy(&COND_manager);
   DBUG_LEAVE; // Can't use DBUG_RETURN after my_thread_end
   my_thread_end();
   return (NULL);
@@ -152,14 +156,14 @@ void stop_handle_manager()
 {
   DBUG_ENTER("stop_handle_manager");
   abort_manager = true;
-  mysql_mutex_lock(&LOCK_manager);
   if (manager_thread_in_use)
   {
+    mysql_mutex_lock(&LOCK_manager);
     DBUG_PRINT("quit", ("initiate shutdown of handle manager thread: 0x%lx",
                         (ulong)manager_thread));
     mysql_cond_signal(&COND_manager);
+    mysql_mutex_unlock(&LOCK_manager);
   }
-  mysql_mutex_unlock(&LOCK_manager);
   DBUG_VOID_RETURN;
 }
 

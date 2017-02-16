@@ -1,0 +1,129 @@
+--- suite/storage_engine/repair_table.result	2012-07-15 01:26:44.347708000 +0400
++++ suite/storage_engine/repair_table.reject	2012-07-15 17:50:37.927013454 +0400
+@@ -4,56 +4,57 @@
+ CREATE TABLE t2 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ REPAIR TABLE t1;
+ Table	Op	Msg_type	Msg_text
+-test.t1	repair	status	OK
++test.t1	repair	note	The storage engine for the table doesn't support repair
+ INSERT INTO t1 (a,b) VALUES (3,'c');
+ INSERT INTO t2 (a,b) VALUES (4,'d');
+ REPAIR NO_WRITE_TO_BINLOG TABLE t1, t2;
+ Table	Op	Msg_type	Msg_text
+-test.t1	repair	status	OK
+-test.t2	repair	status	OK
++test.t1	repair	note	The storage engine for the table doesn't support repair
++test.t2	repair	note	The storage engine for the table doesn't support repair
+ INSERT INTO t2 (a,b) VALUES (5,'e'),(6,'f');
+ REPAIR LOCAL TABLE t2;
+ Table	Op	Msg_type	Msg_text
+-test.t2	repair	status	OK
++test.t2	repair	note	The storage engine for the table doesn't support repair
+ INSERT INTO t1 (a,b) VALUES (7,'g'),(8,'h');
+ INSERT INTO t2 (a,b) VALUES (9,'i');
+ REPAIR LOCAL TABLE t2, t1 EXTENDED;
+ Table	Op	Msg_type	Msg_text
+-test.t2	repair	status	OK
+-test.t1	repair	status	OK
++test.t2	repair	note	The storage engine for the table doesn't support repair
++test.t1	repair	note	The storage engine for the table doesn't support repair
+ INSERT INTO t1 (a,b) VALUES (10,'j');
+ INSERT INTO t2 (a,b) VALUES (11,'k');
+ REPAIR TABLE t1, t2 QUICK USE_FRM;
+ Table	Op	Msg_type	Msg_text
+-test.t1	repair	warning	Number of rows changed from 0 to 6
+-test.t1	repair	status	OK
+-test.t2	repair	warning	Number of rows changed from 0 to 5
+-test.t2	repair	status	OK
++test.t1	repair	note	The storage engine for the table doesn't support repair
++test.t2	repair	note	The storage engine for the table doesn't support repair
+ INSERT INTO t1 (a,b) VALUES (12,'l');
+ INSERT INTO t2 (a,b) VALUES (13,'m');
+ REPAIR NO_WRITE_TO_BINLOG TABLE t1, t2 QUICK EXTENDED USE_FRM;
+ Table	Op	Msg_type	Msg_text
+-test.t1	repair	warning	Number of rows changed from 0 to 7
+-test.t1	repair	status	OK
+-test.t2	repair	warning	Number of rows changed from 0 to 6
+-test.t2	repair	status	OK
++test.t1	repair	note	The storage engine for the table doesn't support repair
++test.t2	repair	note	The storage engine for the table doesn't support repair
+ FLUSH TABLE t1;
+ INSERT INTO t1 (a,b) VALUES (14,'n');
+-ERROR HY000: Incorrect file format 't1'
+ # Statement ended with one of expected results (0,130,ER_FAILED_READ_FROM_PAR_FILE,ER_OPEN_AS_READONLY). 
+ # If you got a difference in error message, just add it to rdiff file
+ CHECK TABLE t1;
+ Table	Op	Msg_type	Msg_text
+-test.t1	check	Error	Incorrect file format 't1'
+-test.t1	check	error	Corrupt
++test.t1	check	status	OK
+ SELECT a,b FROM t1;
+-ERROR HY000: Incorrect file format 't1'
++a	b
++1	a
++2	b
++3	c
++7	g
++8	h
++10	j
++12	l
++14	n
+ # Statement ended with one of expected results (0,130,ER_FAILED_READ_FROM_PAR_FILE,ER_OPEN_AS_READONLY). 
+ # If you got a difference in error message, just add it to rdiff file
+ REPAIR TABLE t1;
+ Table	Op	Msg_type	Msg_text
+-test.t1	repair	Error	Incorrect file format 't1'
+-test.t1	repair	error	Corrupt
++test.t1	repair	note	The storage engine for the table doesn't support repair
+ DROP TABLE t1, t2;
+ call mtr.add_suppression("Got an error from thread_id=.*");
+ call mtr.add_suppression("MySQL thread id .*, query id .* localhost.*root Checking table");
+@@ -62,45 +63,14 @@
+ CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>, <CUSTOM_INDEX> (a)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ REPAIR TABLE t1;
+ Table	Op	Msg_type	Msg_text
+-test.t1	repair	status	OK
++test.t1	repair	note	The storage engine for the table doesn't support repair
+ INSERT INTO t1 (a,b) VALUES (7,'g'),(8,'h');
+ REPAIR TABLE t1 EXTENDED;
+ Table	Op	Msg_type	Msg_text
+-test.t1	repair	status	OK
++test.t1	repair	note	The storage engine for the table doesn't support repair
+ INSERT INTO t1 (a,b) VALUES (10,'j');
+ REPAIR TABLE t1 USE_FRM;
+ Table	Op	Msg_type	Msg_text
+-test.t1	repair	warning	Number of rows changed from 0 to 3
+-test.t1	repair	status	OK
+-t1.MYD
+-t1.MYI
++test.t1	repair	note	The storage engine for the table doesn't support repair
+ t1.frm
+-INSERT INTO t1 (a,b) VALUES (14,'n'),(15,'o');
+-# Statement ended with one of expected results (0,144). 
+-# If you got a difference in error message, just add it to rdiff file
+-FLUSH TABLE t1;
+-Restoring <DATADIR>/test/t1.MYD
+-CHECK TABLE t1;
+-Table	Op	Msg_type	Msg_text
+-test.t1	check	error	Size of datafile is: 39         Should be: 65
+-test.t1	check	error	Corrupt
+-SELECT a,b FROM t1;
+-ERROR HY000: Incorrect key file for table 't1'; try to repair it
+-# Statement ended with one of expected results (0,ER_NOT_KEYFILE,144). 
+-# If you got a difference in error message, just add it to rdiff file
+-INSERT INTO t1 (a,b) VALUES (14,'n'),(15,'o');
+-ERROR HY000: Table './test/t1' is marked as crashed and last (automatic?) repair failed
+-# Statement ended with one of expected results (0,144). 
+-# If you got a difference in error message, just add it to rdiff file
+-FLUSH TABLE t1;
+-Restoring <DATADIR>/test/t1.MYI
+-CHECK TABLE t1;
+-Table	Op	Msg_type	Msg_text
+-test.t1	check	warning	Table is marked as crashed and last repair failed
+-test.t1	check	error	Size of datafile is: 39         Should be: 65
+-test.t1	check	error	Corrupt
+-SELECT a,b FROM t1;
+-ERROR HY000: Table './test/t1' is marked as crashed and last (automatic?) repair failed
+-# Statement ended with one of expected results (0,ER_NOT_KEYFILE,144). 
+-# If you got a difference in error message, just add it to rdiff file
+ DROP TABLE t1;

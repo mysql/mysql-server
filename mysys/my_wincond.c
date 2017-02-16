@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +32,7 @@
 */
 
 /* Prototypes and function pointers for condition variable functions */
-typedef VOID (WINAPI * InitializeConditionVariableProc) 
+typedef void (WINAPI * InitializeConditionVariableProc) 
   (PCONDITION_VARIABLE ConditionVariable);
 
 typedef BOOL (WINAPI * SleepConditionVariableCSProc)
@@ -39,10 +40,10 @@ typedef BOOL (WINAPI * SleepConditionVariableCSProc)
   PCRITICAL_SECTION CriticalSection, 
   DWORD dwMilliseconds);
 
-typedef VOID (WINAPI * WakeAllConditionVariableProc)
+typedef void (WINAPI * WakeAllConditionVariableProc)
  (PCONDITION_VARIABLE ConditionVariable);
 
-typedef VOID (WINAPI * WakeConditionVariableProc)
+typedef void (WINAPI * WakeConditionVariableProc)
   (PCONDITION_VARIABLE ConditionVariable);
 
 static InitializeConditionVariableProc my_InitializeConditionVariable;
@@ -88,52 +89,20 @@ static void check_native_cond_availability(void)
 
 static DWORD get_milliseconds(const struct timespec *abstime)
 {
-#ifndef HAVE_STRUCT_TIMESPEC
-  long long millis; 
-  union ft64 now;
+  struct timespec current_time;
+  long long ms;
 
   if (abstime == NULL)
-   return INFINITE;
+    return INFINITE;
 
-  GetSystemTimeAsFileTime(&now.ft);
-
-  /*
-    Calculate time left to abstime
-    - subtract start time from current time(values are in 100ns units)
-    - convert to millisec by dividing with 10000
-  */
-  millis= (abstime->tv.i64 - now.i64) / 10000;
-  
-  /* Don't allow the timeout to be negative */
-  if (millis < 0)
-    return 0;
-
-  /*
-    Make sure the calculated timeout does not exceed original timeout
-    value which could cause "wait for ever" if system time changes
-  */
-  if (millis > abstime->max_timeout_msec)
-    millis= abstime->max_timeout_msec;
-  
-  if (millis > UINT_MAX)
-    millis= UINT_MAX;
-
-  return (DWORD)millis;
-#else
-  /*
-    Convert timespec to millis and subtract current time.
-    my_getsystime() returns time in 100 ns units.
-  */
-  if (abstime == NULL)
-   return INFINITE;
-
-  ulonglong future= abstime->tv_sec * 1000 + abstime->tv_nsec / 1000000;
-  ulonglong now= my_getsystime() / 10000;
-  /* Don't allow the timeout to be negative. */
-  if (future < now)
-    return 0;
-  return (DWORD)(future - now);
-#endif
+  set_timespec_nsec(current_time, 0);
+  ms= (abstime->tv_sec - current_time.tv_sec)*1000LL +
+    (abstime->tv_nsec - current_time.tv_nsec)/1000000LL;
+  if(ms < 0 )
+    ms= 0;
+  if(ms > UINT_MAX)
+    ms= INFINITE;
+  return (DWORD)ms;
 }
 
 

@@ -61,12 +61,42 @@ test_copy_and_compare()
 
 }
 
+static int
+test_decimal2string()
+{
+  decimal_t d1;
+  decimal_digit_t buffer[DECIMAL_BUFF_LENGTH+2];
+  char *str_end;
+  const char strnum[]= "0.1234567890123456789012345678901234567890123467";
+  char strbuff[50];
+  int len= 40;
+  int i;
+
+  bzero(strbuff, sizeof(strbuff));
+  str_end= (char *)(strnum + (sizeof(strnum) - 1));
+
+  d1.len= DECIMAL_BUFF_LENGTH + 2;
+  d1.buf= buffer;
+
+  string2decimal(strnum, &d1, &str_end);
+  decimal2string(&d1, strbuff, &len, 0, 0, 'X');
+
+  /* last digit is not checked due to possible rounding */
+  for (i= 0; i < 38 && strbuff[i] == strnum[i]; i++);
+  ok(i == 38, "Number");
+  for (i= 39; i < 50 && strbuff[i] == 0; i++);
+  ok(i == 50, "No overrun");
+
+  return 0;
+
+}
 int main()
 {
-  plan(13);
+  plan(15);
   diag("Testing my_decimal constructor and assignment operators");
 
   test_copy_and_compare();
-  
+  test_decimal2string();
+
   return exit_status();
 }

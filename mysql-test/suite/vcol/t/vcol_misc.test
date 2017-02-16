@@ -1,0 +1,303 @@
+--source include/have_ucs2.inc
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+#
+# Bug#601164: DELETE/UPDATE with ORDER BY index and LIMIT
+#             
+
+create table t1 (a int, b int, v int as (a+1), index idx(b));
+insert into t1(a, b) values
+  (4, 40), (3, 30), (5, 50), (7, 70), (8, 80), (2, 20), (1, 10);
+
+select * from t1 order by b;
+
+delete from t1 where v > 6 order by b limit 1;
+select * from t1 order by b;
+
+update t1 set a=v order by b limit 1;
+select * from t1 order by b;
+
+drop table t1;
+
+#
+# Bug#604549: Expression for virtual column returns row
+#             
+
+-- error ER_ROW_EXPR_FOR_VCOL 
+CREATE TABLE t1 (
+  a int NOT NULL DEFAULT '0',
+  v double AS ((1, a)) VIRTUAL
+);
+
+#
+# Bug#603654: Virtual column in ORDER BY, no other references of table columns
+#             
+
+CREATE TABLE t1 (
+ a CHAR(255) BINARY NOT NULL DEFAULT 0,
+ b CHAR(255) BINARY NOT NULL DEFAULT 0,
+ v CHAR(255) BINARY AS (CONCAT(a,b)) VIRTUAL );
+INSERT INTO t1(a,b) VALUES ('4','7'), ('4','6');
+SELECT 1 AS C FROM t1 ORDER BY v;
+
+DROP TABLE t1;
+
+#
+# Bug#603186: Insert into a table with stored vurtual columns
+#             
+
+CREATE TABLE t1(a int, b int DEFAULT 0, v INT AS (b+10) PERSISTENT);
+INSERT INTO t1(a) VALUES (1);
+SELECT b, v FROM t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1(a int DEFAULT 100, v int AS (a+1) PERSISTENT);
+INSERT INTO t1 () VALUES ();
+CREATE TABLE t2(a int DEFAULT 100 , v int AS (a+1));
+INSERT INTO t2 () VALUES ();
+
+SELECT a, v FROM t1;
+SELECT a, v FROM t2;
+
+DROP TABLE t1,t2;
+
+#
+# Bug#604503: Virtual column expression with datetime comparison
+#
+
+CREATE TABLE t1 (
+ a datetime NOT NULL DEFAULT '2000-01-01',
+ v boolean AS (a < '2001-01-01')
+);
+INSERT INTO t1(a) VALUES ('2002-02-15');
+INSERT INTO t1(a) VALUES ('2000-10-15');
+
+SELECT a, v FROM t1;
+SELECT a, v FROM t1;
+
+CREATE TABLE t2 (
+ a datetime NOT NULL DEFAULT '2000-01-01',
+ v boolean AS (a < '2001-01-01') PERSISTENT
+);
+INSERT INTO t2(a) VALUES ('2002-02-15');
+INSERT INTO t2(a) VALUES ('2000-10-15');
+
+SELECT * FROM t2;
+
+DROP TABLE t1, t2;
+
+#
+# Bug#607566: Virtual column in the select list of SELECT with ORDER BY
+#
+
+CREATE TABLE t1 (
+  a char(255), b char(255), c char(255), d char(255),
+  v char(255) AS (CONCAT(c,d) ) VIRTUAL
+);
+
+INSERT INTO t1(a,b,c,d) VALUES ('w','x','y','z'), ('W','X','Y','Z');
+
+SELECT v FROM t1 ORDER BY CONCAT(a,b);
+
+DROP TABLE t1;
+
+#
+# Bug#607168: CREATE TABLE AS SELECT that returns virtual columns
+#
+
+CREATE TABLE t1 (f1 INTEGER, v1 INTEGER AS (f1) VIRTUAL);
+CREATE TABLE t2 AS SELECT v1 FROM t1;
+SHOW CREATE TABLE t2;
+
+DROP TABLE t1,t2;
+
+#
+# Bug#607177: ROUND function in the expression for a virtual function
+#
+
+CREATE TABLE t1 (p int, a double NOT NULL, v double AS (ROUND(a,p)) VIRTUAL);
+INSERT INTO t1 VALUES (0,1,0);
+INSERT INTO t1 VALUES (NULL,0,0);
+SELECT a, p, v, ROUND(a,p), ROUND(a,p+NULL) FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (p int, a double NOT NULL);
+INSERT INTO t1(p,a) VALUES (0,1);
+INSERT INTO t1(p,a) VALUES (NULL,0);
+SELECT a, p, ROUND(a,p), ROUND(a,p+NULL) FROM t1;
+DROP TABLE t1;
+
+#
+# Bug#610890: SHOW CREATE TABLE with a virtual column
+#
+
+CREATE TABLE t1 (a char(32), v char(32) CHARACTER SET ucs2 AS (a) VIRTUAL);
+
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+#
+# Bug#930814: no info in information schema for tables with virtual columns
+#
+
+CREATE TABLE t1 (a int, b int);
+CREATE TABLE t2 (a int, b int as (a+1) VIRTUAL);
+
+SELECT table_schema, table_name, column_name, column_type, extra
+  FROM information_schema.columns WHERE table_name = 't1';
+SELECT table_schema, table_name, column_name, column_type, extra 
+  FROM information_schema.columns WHERE table_name = 't2';
+
+DROP TABLE t1,t2;
+
+#
+# Bug mdev-354: virtual columns of ENUM and SET types
+#
+
+create table t1 (
+  a int not null, b char(2) not null,
+  c enum('Y','N') as (case when b = 'aa' then 'Y' else 'N' end) persistent
+);
+show create table t1;
+insert into t1(a,b) values (1,'bb'), (2,'aa'), (3,'cc');
+select * from t1;
+
+create table t2 (
+  a int, b int,
+  c set("y","n") 
+  as (if(a=0,if(b=0,('n,n'),('n,y')),if(b=0,('y,n'),('y,y')))) persistent
+);
+show create table t2;
+insert into t2(a,b) values (7,0), (2,3), (0,1);
+select * from t2;
+
+drop table t1,t2;
+
+#
+# Bug mdev-3938: INSERT DELAYED for a table with virtual columns
+#
+
+CREATE TABLE t1 (
+ ts TIMESTAMP,
+ tsv TIMESTAMP AS (ADDDATE(ts, INTERVAL 1 DAY)) VIRTUAL
+) ENGINE=MyISAM;
+
+INSERT INTO t1 (tsv) VALUES (DEFAULT);
+
+INSERT DELAYED INTO t1 (tsv) VALUES (DEFAULT);
+
+FLUSH TABLES;
+
+SELECT COUNT(*) FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # MDEV-4823 Server crashes in Item_func_not::fix_fields on
+--echo # creating a table with a virtual column using NOT
+--echo #
+CREATE TABLE t1 ( f1 INT, v4 INT AS ( NOT f1 ) VIRTUAL );
+drop table t1;
+
+--echo # end of 5.2 tests
+
+#
+#  SELECT that uses a virtual column and executed with BKA
+#
+
+create table t1 (a int, b int);
+insert into t1 values (3, 30), (4, 20), (1, 20);
+create table t2 (c int, d int, v int as (d+1), index idx(c));
+insert into t2(c,d) values 
+  (20, 100), (20, 300), (30, 100), (30, 200), (40, 500),
+  (70, 100), (40, 300), (60, 100), (40, 100), (70, 100);                           
+insert into t2(c,d) values 
+  (120, 100), (150, 300), (130, 100), (130, 200), (140, 500),
+  (170, 100), (180, 300), (160, 100), (40, 100), (170, 100);                           
+
+set join_cache_level=6;
+explain
+select * from t1,t2 where t1.b=t2.c and d <= 100;
+
+select * from t1,t2 where t1.b=t2.c and d <= 100;
+set join_cache_level=default;
+
+drop table t1, t2;
+
+#
+# Test crashes when using convert_const_item()
+#
+create table t1 (a bigint, b bigint as (a > '2'));
+show create table t1;
+insert into t1 (a) values (1),(3);
+select * from t1;
+select * from t1;
+drop table t1;
+create table t1 (a bigint, b bigint as (a between 0 and 2));
+show create table t1;
+insert into t1 (a) values (1),(3);
+select * from t1;
+select * from t1;
+drop table t1;
+create table t1 (a char(10), b char(10) as (a between 0 and 2));
+show create table t1;
+insert into t1 (a) values (1),(3);
+select * from t1;
+select * from t1;
+drop table t1;
+
+#
+# Test output of show columns
+#
+
+CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(32) DEFAULT NULL,
+  `c` int(11) AS (a MOD 10) VIRTUAL,
+  `d` varchar(5) AS (LEFT(b,5)) PERSISTENT
+) ENGINE=MyISAM;
+show create table t1;
+show columns from t1;
+--replace_column 8 #
+show full columns from t1;
+INSERT INTO `test`.`t1`(`a`,`b`,`c`,`d`) VALUES ( '1','a',NULL,NULL);
+UPDATE `test`.`t1` SET `d`='b' WHERE `a`='1' AND `b`='a' AND `c`='1' AND  `d`='a';
+INSERT INTO `test`.`t1`(`a`,`b`,`c`,`d`) VALUES ( '1','a',NULL,'a');
+set sql_mode='strict_all_tables';
+--error ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN
+UPDATE `test`.`t1` SET `d`='b' WHERE `a`='1' AND `b`='a' AND `c`='1' AND  `d`='a';
+--error ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN
+INSERT INTO `test`.`t1`(`a`,`b`,`c`,`d`) VALUES ( '1','a',NULL,'a');
+drop table t1;
+
+--echo #
+--echo # MDEV-5611: self-referencing virtual column
+--echo #
+
+--error ER_VCOL_BASED_ON_VCOL
+create table t1 (a int, b int as (b is null) virtual);
+
+--echo # end of 5.3 tests
+
+#
+# MDEV-7655 SHOW CREATE TABLE returns invalid DDL when using virtual columns along with a table collation
+#
+create table t1 (v1 varchar(255) as (c1) persistent, c1 varchar(50)) collate=latin1_general_ci;
+show create table t1;
+drop table t1;
+
+#
+# MDEV-11527 Virtual columns do not get along well with NO_ZERO_DATE
+#
+set sql_mode='no_zero_date';
+create table t1 (
+  ts timestamp not null default current_timestamp,
+  tsv timestamp as (adddate(ts, interval 1 day)) virtual
+);
+drop table t1;
+set sql_mode=default;

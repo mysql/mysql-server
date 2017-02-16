@@ -1,0 +1,27 @@
+set global storage_engine=aria;
+set session storage_engine=aria;
+drop table if exists t1;
+SET SQL_WARNINGS=1;
+RESET MASTER;
+set binlog_format=statement;
+CREATE TABLE t1 (a int primary key);
+insert t1 values (1),(2),(3);
+insert t1 values (4),(2),(5);
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+select * from t1;
+a
+1
+2
+3
+4
+SHOW BINLOG EVENTS FROM <start_pos>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE t1 (a int primary key)
+master-bin.000001	#	Query	1	#	BEGIN
+master-bin.000001	#	Query	1	#	use `test`; insert t1 values (1),(2),(3)
+master-bin.000001	#	Query	1	#	COMMIT
+master-bin.000001	#	Query	1	#	BEGIN
+master-bin.000001	#	Query	1	#	use `test`; insert t1 values (4),(2),(5)
+master-bin.000001	#	Query	1	#	COMMIT
+drop table t1;
+set binlog_format=default;

@@ -14,6 +14,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
+INCLUDE(CheckCXXSourceCompiles)
+
 MACRO (MYSQL_CHECK_MULTIBYTE)
   CHECK_INCLUDE_FILE(wctype.h HAVE_WCTYPE_H)
   CHECK_INCLUDE_FILE(wchar.h HAVE_WCHAR_H)
@@ -107,79 +109,82 @@ MACRO (FIND_CURSES)
      ENDIF()
    ENDIF() 
  ENDIF()
+ CHECK_LIBRARY_EXISTS(${CURSES_LIBRARY} setupterm "" HAVE_SETUPTERM)
+ CHECK_LIBRARY_EXISTS(${CURSES_LIBRARY} vidattr "" HAVE_VIDATTR)
 ENDMACRO()
 
 MACRO (MYSQL_USE_BUNDLED_READLINE)
   SET(USE_NEW_READLINE_INTERFACE 1)
-  SET(HAVE_HIST_ENTRY)
-  SET(USE_LIBEDIT_INTERFACE)
-  SET(READLINE_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/cmd-line-utils)
-  SET(READLINE_LIBRARY readline)
-  FIND_CURSES()
+  SET(HAVE_HIST_ENTRY 0 CACHE INTERNAL "" FORCE)
+  SET(MY_READLINE_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/cmd-line-utils/readline)
+  SET(MY_READLINE_LIBRARY readline)
   ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/cmd-line-utils/readline)
 ENDMACRO()
 
-MACRO (MYSQL_USE_BUNDLED_LIBEDIT)
-  SET(USE_LIBEDIT_INTERFACE 1)
-  SET(HAVE_HIST_ENTRY 1)
-  SET(READLINE_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/cmd-line-utils/libedit)
-  SET(READLINE_LIBRARY edit)
-  FIND_CURSES()
-  ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/cmd-line-utils/libedit)
-ENDMACRO()
-
-
-MACRO (MYSQL_FIND_SYSTEM_READLINE name)
+MACRO (MYSQL_FIND_SYSTEM_READLINE)
   
-  FIND_PATH(${name}_INCLUDE_DIR readline/readline.h )
-  FIND_LIBRARY(${name}_LIBRARY NAMES ${name})
-  MARK_AS_ADVANCED(${name}_INCLUDE_DIR  ${name}_LIBRARY)
+  FIND_PATH(READLINE_INCLUDE_DIR readline.h PATH_SUFFIXES readline)
+  FIND_LIBRARY(READLINE_LIBRARY NAMES readline)
+  MARK_AS_ADVANCED(READLINE_INCLUDE_DIR READLINE_LIBRARY)
 
-  INCLUDE(CheckCXXSourceCompiles)
-  SET(CMAKE_REQUIRES_LIBRARIES ${${name}_LIBRARY})
-
-  IF(${name}_LIBRARY AND ${name}_INCLUDE_DIR)
-    SET(SYSTEM_READLINE_FOUND 1)
-    SET(CMAKE_REQUIRED_LIBRARIES ${${name}_LIBRARY})
+  IF(READLINE_LIBRARY AND READLINE_INCLUDE_DIR)
+    SET(CMAKE_REQUIRED_LIBRARIES ${READLINE_LIBRARY} ${CURSES_LIBRARY})
+    SET(CMAKE_REQUIRED_INCLUDES ${READLINE_INCLUDE_DIR})
     CHECK_CXX_SOURCE_COMPILES("
     #include <stdio.h>
-    #include <readline/readline.h>
-    int main(int argc, char **argv)
-    {
-       HIST_ENTRY entry;
-       return 0;
-    }"
-    ${name}_HAVE_HIST_ENTRY)
-    
-    CHECK_CXX_SOURCE_COMPILES("
-    #include <stdio.h>
-    #include <readline/readline.h>
-    int main(int argc, char **argv)
-    {
-      char res= *(*rl_completion_entry_function)(0,0);
-      completion_matches(0,0);
-    }"
-    ${name}_USE_LIBEDIT_INTERFACE)
-
-
-    CHECK_CXX_SOURCE_COMPILES("
-    #include <stdio.h>
-    #include <readline/readline.h>
+    #include <readline.h>
     int main(int argc, char **argv)
     {
       rl_completion_func_t *func1= (rl_completion_func_t*)0;
       rl_compentry_func_t *func2= (rl_compentry_func_t*)0;
     }"
-    ${name}_USE_NEW_READLINE_INTERFACE)
-    
-    IF(${name}_USE_LIBEDIT_INTERFACE  OR ${name}_USE_NEW_READLINE_INTERFACE)
-      SET(READLINE_LIBRARY ${${name}_LIBRARY})
-      SET(READLINE_INCLUDE_DIR ${${name}_INCLUDE_DIR})
-      SET(HAVE_HIST_ENTRY ${${name}_HAVE_HIST_ENTRY})
-      SET(USE_LIBEDIT_INTERFACE ${${name}_USE_LIBEDIT_INTERFACE})
-      SET(USE_NEW_READLINE_INTERFACE ${${name}_USE_NEW_READLINE_INTERFACE})
-      SET(READLINE_FOUND 1)
-    ENDIF()
+    NEW_READLINE_INTERFACE)
+
+    CHECK_C_SOURCE_COMPILES("
+    #include <stdio.h>
+    #include <readline.h>
+    #if RL_VERSION_MAJOR > 5
+    #error
+    #endif
+    int main(int argc, char **argv)
+    {
+      return 0;
+    }"
+    READLINE_V5)
+
+    IF(NEW_READLINE_INTERFACE)
+      IF (READLINE_V5)
+        SET(USE_NEW_READLINE_INTERFACE 1)
+      ELSE()
+        IF(NOT_FOR_DISTRIBUTION)
+          SET(NON_DISTRIBUTABLE_WARNING 1)
+          SET(USE_NEW_READLINE_INTERFACE 1)
+        ELSE()
+          SET(USE_NEW_READLINE_INTERFACE 0)
+        ENDIF(NOT_FOR_DISTRIBUTION)
+      ENDIF(READLINE_V5)
+    ENDIF(NEW_READLINE_INTERFACE)
+  ENDIF()
+ENDMACRO()
+
+MACRO (MYSQL_FIND_SYSTEM_LIBEDIT)
+  FIND_PATH(LIBEDIT_INCLUDE_DIR readline.h PATH_SUFFIXES editline edit/readline)
+  FIND_LIBRARY(LIBEDIT_LIBRARY edit)
+  MARK_AS_ADVANCED(LIBEDIT_INCLUDE_DIR LIBEDIT_LIBRARY)
+
+  IF(LIBEDIT_LIBRARY AND LIBEDIT_INCLUDE_DIR)
+    SET(CMAKE_REQUIRED_LIBRARIES ${LIBEDIT_LIBRARY})
+    SET(CMAKE_REQUIRED_INCLUDES ${LIBEDIT_INCLUDE_DIR})
+    CHECK_CXX_SOURCE_COMPILES("
+    #include <stdio.h>
+    #include <readline.h>
+    int main(int argc, char **argv)
+    {
+      int res= (*rl_completion_entry_function)(0,0);
+      completion_matches(0,0);
+    }"
+    LIBEDIT_INTERFACE)
+    SET(USE_LIBEDIT_INTERFACE ${LIBEDIT_INTERFACE})
   ENDIF()
 ENDMACRO()
 
@@ -187,44 +192,44 @@ ENDMACRO()
 MACRO (MYSQL_CHECK_READLINE)
   IF (NOT WIN32)
     MYSQL_CHECK_MULTIBYTE()
-    IF(NOT CYGWIN)	
-      SET(WITH_LIBEDIT  ON CACHE BOOL  "Use bundled libedit")
-      SET(WITH_READLINE OFF CACHE BOOL "Use bundled readline")
-    ELSE()
-      # Bundled libedit does not compile on cygwin, only readline
-      SET(WITH_READLINE OFF CACHE BOOL "Use bundled readline")
-    ENDIF()
-
-    # Handle mutual exclusion of WITH_READLINE/WITH_LIBEDIT variables
-    # We save current setting to recognize when user switched between
-    # WITH_READLINE and WITH_LIBEDIT 
-    IF(WITH_READLINE)
-      IF(NOT SAVE_READLINE_SETTING OR SAVE_READLINE_SETTING MATCHES 
-         "WITH_LIBEDIT")
-        SET(WITH_LIBEDIT OFF CACHE BOOL "Use bundled libedit" FORCE)
-      ENDIF()
-    ELSEIF(WITH_LIBEDIT) 
-      IF(NOT SAVE_READLINE_SETTING OR SAVE_READLINE_SETTING MATCHES 
-         "WITH_READLINE")
-        SET(WITH_READLINE OFF CACHE BOOL "Use bundled readline" FORCE)
-      ENDIF()
-    ENDIF()
+    SET(WITH_READLINE OFF CACHE BOOL "Use bundled readline")
+    FIND_CURSES()
 
     IF(WITH_READLINE)
-     MYSQL_USE_BUNDLED_READLINE()
-     SET(SAVE_READLINE_SETTING WITH_READLINE CACHE INTERNAL "" FORCE)
-    ELSEIF(WITH_LIBEDIT)
-     MYSQL_USE_BUNDLED_LIBEDIT()
-     SET(SAVE_READLINE_SETTING WITH_LIBEDIT CACHE INTERNAL "" FORCE)
+      MYSQL_USE_BUNDLED_READLINE()
     ELSE()
-      MYSQL_FIND_SYSTEM_READLINE(readline)
-      IF(NOT READLINE_FOUND)
-        MYSQL_FIND_SYSTEM_READLINE(edit)
-        IF(NOT READLINE_FOUND)
-          MESSAGE(FATAL_ERROR "Cannot find system readline or libedit libraries.Use WITH_READLINE or WITH_LIBEDIT")
+      # OSX includes incompatible readline lib
+      IF (NOT APPLE)
+        MYSQL_FIND_SYSTEM_READLINE()
+      ENDIF()
+      IF(USE_NEW_READLINE_INTERFACE)
+        SET(MY_READLINE_INCLUDE_DIR ${READLINE_INCLUDE_DIR})
+        SET(MY_READLINE_LIBRARY ${READLINE_LIBRARY} ${CURSES_LIBRARY})
+      ELSE()
+        MYSQL_FIND_SYSTEM_LIBEDIT()
+        IF(USE_LIBEDIT_INTERFACE)
+          SET(MY_READLINE_INCLUDE_DIR ${LIBEDIT_INCLUDE_DIR})
+          SET(MY_READLINE_LIBRARY ${LIBEDIT_LIBRARY} ${CURSES_LIBRARY})
+        ELSE()
+          MYSQL_USE_BUNDLED_READLINE()
         ENDIF()
       ENDIF()
     ENDIF()
+
+    SET(CMAKE_REQUIRED_LIBRARIES ${MY_READLINE_LIBRARY})
+    SET(CMAKE_REQUIRED_INCLUDES ${MY_READLINE_INCLUDE_DIR})
+    CHECK_CXX_SOURCE_COMPILES("
+    #include <stdio.h>
+    #include <readline.h>
+    int main(int argc, char **argv)
+    {
+       HIST_ENTRY entry;
+       return 0;
+    }"
+    HAVE_HIST_ENTRY)
+    SET(CMAKE_REQUIRED_LIBRARIES)
+    SET(CMAKE_REQUIRED_INCLUDES)
   ENDIF(NOT WIN32)
+  CHECK_INCLUDE_FILES ("curses.h;term.h" HAVE_TERM_H)
 ENDMACRO()
 

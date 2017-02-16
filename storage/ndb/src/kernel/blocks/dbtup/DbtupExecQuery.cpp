@@ -2250,11 +2250,11 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	Uint32 TattrDesc1 = tableDescriptor[TattrDescrIndex].tabDescr;
 	Uint32 TattrDesc2 = tableDescriptor[TattrDescrIndex+1].tabDescr;
 	Uint32 typeId = AttributeDescriptor::getType(TattrDesc1);
-	void * cs = 0;
+	const void * cs = 0;
 	if(AttributeOffset::getCharsetFlag(TattrDesc2))
 	{
 	  Uint32 pos = AttributeOffset::getCharsetPos(TattrDesc2);
-	  cs = tabptr.p->charsetArray[pos];
+	  cs = (void*) tabptr.p->charsetArray[pos];
 	}
 	const NdbSqlUtil::Type& sqlType = NdbSqlUtil::getType(typeId);
 

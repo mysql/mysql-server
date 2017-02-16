@@ -1,0 +1,426 @@
+#
+# Test cases for bugs related to the implementation of
+# MWL#89 cost-based choice between the materialization and in-to-exists
+#
+
+--echo #
+--echo # LP BUG#643424 valgrind warning in choose_subquery_plan()
+--echo #
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  c1 int(11) DEFAULT NULL,
+  c2 int(11) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY c2 (c2));
+
+INSERT INTO t1 VALUES (1,NULL,2);
+INSERT INTO t1 VALUES (2,7,9);
+INSERT INTO t1 VALUES (9,NULL,8);
+
+CREATE TABLE t2 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  c1 int(11) DEFAULT NULL,
+  c2 int(11) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY c2 (c2));
+
+INSERT INTO t2 VALUES (1,1,7);
+
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=on,in_to_exists=on,semijoin=off';
+
+SELECT pk FROM t1 WHERE (c2, c1) IN (SELECT c2, c2 FROM t2);
+
+set session optimizer_switch=@save_optimizer_switch;
+
+drop table t1, t2;
+
+
+--echo #
+--echo # LP BUG#652727 Crash in create_ref_for_key()
+--echo #
+
+CREATE TABLE t2 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  c1 int(11) DEFAULT NULL,
+  PRIMARY KEY (pk));
+
+INSERT INTO t2 VALUES (10,7);
+INSERT INTO t2 VALUES (11,1);
+INSERT INTO t2 VALUES (17,NULL);
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  c1 int(11) DEFAULT NULL,
+  PRIMARY KEY (pk));
+
+INSERT INTO t1 VALUES (15,1);
+INSERT INTO t1 VALUES (19,NULL);
+
+CREATE TABLE t3 (c2 int(11) DEFAULT NULL, KEY c2 (c2));
+INSERT INTO t3 VALUES (1);
+
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=on,in_to_exists=on,semijoin=off';
+
+SELECT c2
+FROM t3
+WHERE (2, 6) IN (SELECT t1.c1, t1.c1 FROM t1 STRAIGHT_JOIN t2 ON t2.pk = t1.pk);
+
+set session optimizer_switch=@save_optimizer_switch;
+drop table t1, t2, t3;
+
+
+--echo #
+--echo # LP BUG#641245 Crash in Item_equal::contains
+--echo #
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  c1 int(11) DEFAULT NULL,
+  c2 int(11) DEFAULT NULL,
+  c3 varchar(1) DEFAULT NULL,
+  c4 varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY c2 (c2),
+  KEY c3 (c3,c2));
+
+INSERT INTO t1 VALUES (10,7,8,'v','v');
+INSERT INTO t1 VALUES (11,1,9,'r','r');
+INSERT INTO t1 VALUES (12,5,9,'a','a');
+INSERT INTO t1 VALUES (13,7,18,'v','v');
+INSERT INTO t1 VALUES (14,1,19,'r','r');
+INSERT INTO t1 VALUES (15,5,29,'a','a');
+INSERT INTO t1 VALUES (17,7,38,'v','v');
+INSERT INTO t1 VALUES (18,1,39,'r','r');
+INSERT INTO t1 VALUES (19,5,49,'a','a');
+
+create table t1a like t1;
+insert into t1a select * from t1;
+
+create table t1b like t1;
+insert into t1b select * from t1;
+
+CREATE TABLE t2 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  c1 int(11) DEFAULT NULL,
+  c2 int(11) DEFAULT NULL,
+  c3 varchar(1) DEFAULT NULL,
+  c4 varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY c2 (c2),
+  KEY c3 (c3,c2));
+
+INSERT INTO t2 VALUES (1,NULL,2,'w','w');
+INSERT INTO t2 VALUES (2,7,9,'m','m');
+
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=off';
+
+let $query=
+SELECT pk
+FROM t1
+WHERE c1 IN
+      (SELECT t1a.c1
+       FROM (t1b JOIN t2 ON t2.c3 = t1b.c4) LEFT JOIN
+            t1a ON (t1a.c2 = t1b.pk AND 2)
+       WHERE t1.pk) ;
+eval EXPLAIN EXTENDED $query;
+eval $query;
+
+DROP TABLE t1, t1a, t1b, t2;
+
+--echo #
+--echo # LP BUG#714808 Assertion `outer_lookup_keys <= outer_record_count'
+--echo # failed with materialization
+
+CREATE TABLE t1 ( pk int(11), PRIMARY KEY (pk)) ;
+CREATE TABLE t2 ( f2 int(11)) ;
+CREATE TABLE t3 ( f1 int(11), f3 varchar(1), KEY (f1)) ;
+INSERT INTO t3 VALUES (7,'f');
+
+set @@optimizer_switch='materialization=on,in_to_exists=on,semijoin=off';
+
+EXPLAIN
+SELECT t1.*
+FROM t3 RIGHT JOIN t1 ON t1.pk = t3.f1
+WHERE t3.f3 OR ( 3 ) IN ( SELECT f2 FROM t2 );
+
+SELECT t1.*
+FROM t3 RIGHT JOIN t1 ON t1.pk = t3.f1
+WHERE t3.f3 OR ( 3 ) IN ( SELECT f2 FROM t2 );
+
+drop table t1,t2,t3;
+
+--echo #
+--echo # LP BUG#714999 Second crash in select_describe() with nested subqueries
+--echo #
+
+CREATE TABLE t1 ( pk int(11)) ;
+INSERT INTO t1 VALUES (29);
+
+CREATE TABLE t2 ( f1 varchar(1)) ;
+INSERT INTO t2 VALUES ('f'),('d');
+
+CREATE TABLE t3 ( f2 varchar(1)) ;
+
+EXPLAIN SELECT f2 FROM t3 WHERE (
+        SELECT MAX( pk ) FROM t1
+        WHERE EXISTS (
+                SELECT max(f1)
+                FROM t2 GROUP BY f1
+        )
+) IS NULL ;
+
+drop table t1, t2, t3;
+
+--echo #
+--echo # LP BUG#715034 Item_sum_distinct::clear(): Assertion `tree != 0' failed
+--echo #
+
+CREATE TABLE t2 ( f2 int(11)) ;
+
+CREATE TABLE t1 ( f3 int(11), KEY (f3)) ;
+INSERT INTO t1 VALUES (6),(4);
+
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
+
+EXPLAIN
+SELECT * FROM (SELECT * FROM t2) AS a2
+WHERE (SELECT distinct SUM(distinct f3 ) FROM t1);
+
+insert into t2 values (1),(2);
+EXPLAIN
+SELECT * FROM (SELECT * FROM t2) AS a2
+WHERE (SELECT distinct SUM(distinct f3 ) FROM t1);
+
+set optimizer_switch=@tmp_optimizer_switch;
+drop table t1,t2;
+
+--echo #
+--echo # LP BUG#715027 Assertion `!table || (!table->read_set || bitmap_is_set(table->read_set, field_index))' failed
+--echo #
+
+CREATE TABLE t1 ( f1 int(11), PRIMARY KEY (f1)) ;
+INSERT INTO t1 VALUES (28),(29);
+
+CREATE TABLE t2 ( f2 int(11), f3 int(11), f10 varchar(1)) ;
+INSERT INTO t2 VALUES (NULL,6,'f'),(4,2,'d');
+
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
+
+EXPLAIN
+SELECT alias2.f2 AS field1
+FROM t1 AS alias1 JOIN ( SELECT * FROM t2 ) AS alias2 ON alias2.f3 = alias1.f1
+WHERE (
+        SELECT t2.f2
+        FROM t2 JOIN t1 ON t1.f1
+        WHERE t1.f1 AND alias2.f10
+)
+ORDER BY field1 ;
+
+SELECT alias2.f2 AS field1
+FROM t1 AS alias1 JOIN ( SELECT * FROM t2 ) AS alias2 ON alias2.f3 = alias1.f1
+WHERE (
+        SELECT t2.f2
+        FROM t2 JOIN t1 ON t1.f1
+        WHERE t1.f1 AND alias2.f10
+)
+ORDER BY field1 ;
+
+set optimizer_switch=@tmp_optimizer_switch;
+drop table t1,t2;
+
+--echo #
+--echo # LP BUG#718578 Yet another Assertion `!table ||
+--echo # (!table->read_set || bitmap_is_set(table->read_set, field_index))'
+
+CREATE TABLE t1 ( f1 int(11), f2 int(11), f3 int(11)) ;
+INSERT IGNORE INTO t1 VALUES (28,5,6),(29,NULL,4);
+
+CREATE TABLE t2 ( f10 varchar(1) );
+INSERT IGNORE INTO t2 VALUES (NULL);
+
+SELECT f1 AS field1
+FROM ( SELECT * FROM t1 ) AS alias1
+WHERE (SELECT t1.f1
+        FROM t2 JOIN t1 ON t1.f2
+        WHERE alias1.f3 AND t1.f3) AND f2
+ORDER BY field1;
+
+drop table t1,t2;
+
+--echo #
+--echo # LP BUG#601124 Bug in eliminate_item_equal
+--echo # leads to crash in Item_func::Item_func
+
+CREATE TABLE t1 ( f1 int(11), f3 varchar(1)) ;
+INSERT INTO t1 VALUES (5,'m'),(NULL,'c');
+
+CREATE TABLE t2 ( f2 int(11), f3 varchar(1)) ;
+INSERT INTO t2 VALUES (6,'f'),(2,'d');
+
+CREATE TABLE t3 ( f2 int(11), f3 varchar(1)) ;
+INSERT INTO t3 VALUES (6,'f'),(2,'d');
+
+SELECT * FROM t3
+WHERE ( f2 ) IN (SELECT t1.f1
+                 FROM t1 STRAIGHT_JOIN t2 ON t2.f3 = t1.f3
+                 WHERE t2.f3 = 'c');
+drop table t1,t2,t3;
+
+
+--echo #                                                                                                                                                     
+--echo # LP BUG#718593 Crash in substitute_for_best_equal_field -> eliminate_item_equal -> 
+--echo # Item_field::find_item_equal -> Item_equal::contains
+--echo #
+
+set @save_optimizer_switch=@@optimizer_switch;
+SET @@optimizer_switch = 'semijoin=off';
+
+CREATE TABLE t1 ( f3 int(11), f10 varchar(1), f11 varchar(1)) ;
+INSERT IGNORE INTO t1 VALUES (6,'f','f'),(2,'d','d');
+
+CREATE TABLE t2 ( f12 int(11), f13 int(11)) ;
+insert into t2 values (1,2), (3,4);
+
+EXPLAIN
+SELECT * FROM t2
+WHERE ( f12 ) IN (
+        SELECT alias2.f3
+        FROM t1 AS alias1 JOIN t1 AS alias2 ON alias2.f10 = alias1.f11
+        WHERE alias1.f11 OR alias1.f3 = 50 AND alias1.f10
+);
+SELECT * FROM t2
+WHERE ( f12 ) IN (
+        SELECT alias2.f3
+        FROM t1 AS alias1 JOIN t1 AS alias2 ON alias2.f10 = alias1.f11
+        WHERE alias1.f11 OR alias1.f3 = 50 AND alias1.f10
+);
+
+EXPLAIN
+SELECT * FROM t2
+WHERE ( f12 ) IN (
+        SELECT alias2.f3
+        FROM t1 AS alias1, t1 AS alias2
+        WHERE (alias2.f10 = alias1.f11) AND (alias1.f11 OR alias1.f3 = 50 AND alias1.f10));
+SELECT * FROM t2
+WHERE ( f12 ) IN (
+        SELECT alias2.f3
+        FROM t1 AS alias1, t1 AS alias2
+        WHERE (alias2.f10 = alias1.f11) AND (alias1.f11 OR alias1.f3 = 50 AND alias1.f10));
+
+set @@optimizer_switch=@save_optimizer_switch;
+drop table t1, t2;
+
+
+--echo #
+--echo # MWL#89: test introduced after Sergey Petrunia's review - test that
+--echo # keyparts wihtout index prefix are used with the IN-EXISTS strategy.
+--echo # 
+
+create table t1 (c1 int);
+insert into t1 values (1), (2), (3);
+
+create table t2 (kp1 int, kp2 int, c2 int, filler char(100));
+insert into t2 values (0,0,0,'filler'),(0,1,1,'filler'),(0,2,2,'filler'),(0,3,3,'filler');
+
+create index key1 on t2 (kp1, kp2);
+create index key2 on t2 (kp1);
+create index key3 on t2 (kp2);
+
+SET @@optimizer_switch='materialization=off,semijoin=off,in_to_exists=on';
+
+analyze table t2;
+
+explain
+select c1 from t1 where c1 in (select kp1 from t2 where kp2 = 10 and c2 = 4) or c1 > 7;
+select c1 from t1 where c1 in (select kp1 from t2 where kp2 = 10 and c2 = 4) or c1 > 7;
+
+set @@optimizer_switch='default';
+
+drop table t1, t2;
+
+--echo #
+--echo # LP BUG#800679: Assertion `outer_join->table_count > 0' failed in
+--echo # JOIN::choose_subquery_plan() with materialization=on,semijoin=off
+--echo #
+
+CREATE TABLE t1 ( f1 int);
+insert into t1 values (1),(2);
+CREATE TABLE t2 ( f1 int);
+insert into t2 values (1),(2);
+
+SET @@optimizer_switch='materialization=on,semijoin=off';
+
+EXPLAIN
+SELECT * FROM t1
+WHERE (f1) IN (SELECT f1 FROM t2)
+LIMIT 0;
+
+SELECT * FROM t1
+WHERE (f1) IN (SELECT f1 FROM t2)
+LIMIT 0;
+
+set @@optimizer_switch='default';
+drop table t1, t2;
+
+--echo #
+--echo # LP BUG#834492: Crash in fix_semijoin_strategies_for_picked_join_order
+--echo # with nested subqueries and LooseScan=ON
+--echo #
+
+CREATE TABLE t3 (b int) ;
+INSERT INTO t3 VALUES (0),(0);
+
+CREATE TABLE t4 (a int, b int, c int, d int, PRIMARY KEY (a)) ;
+INSERT INTO t4 VALUES (28,0,0,0),(29,3,0,0);
+
+CREATE TABLE t5 (a int, b int, c int, d int, KEY (c,b)) ;
+INSERT INTO t5 VALUES (28,0,0,0),(29,3,0,0);
+
+SET @@optimizer_switch='semijoin=ON,loosescan=ON,firstmatch=OFF,materialization=OFF';
+
+EXPLAIN SELECT *
+FROM t3
+WHERE t3.b > ALL (
+        SELECT c
+        FROM t4
+        WHERE t4.a >= t3.b
+        AND a = SOME (SELECT b FROM t5));
+
+SELECT *
+FROM t3
+WHERE t3.b > ALL (
+        SELECT c
+        FROM t4
+        WHERE t4.a >= t3.b
+        AND a = SOME (SELECT b FROM t5));
+
+set @@optimizer_switch='default';
+drop table t3, t4, t5;
+
+--echo #
+--echo # LP BUG#858038 The result of a query with NOT IN subquery depends on the state of the optimizer switch
+--echo #
+
+create table t1 (c1 char(2) not null, c2 char(2));
+create table t2 (c3 char(2),          c4 char(2));
+
+insert into t1 values ('a1', 'b1');
+insert into t1 values ('a2', 'b2');
+
+insert into t2 values ('x1', 'y1');
+insert into t2 values ('a2', null);
+
+set @@optimizer_switch='in_to_exists=off,materialization=on,partial_match_rowid_merge=off,partial_match_table_scan=on';
+explain select * from t1 where c1 = 'a2' and (c1, c2) not in (select * from t2);
+select * from t1 where c1 = 'a2' and (c1, c2) not in (select * from t2);
+
+set @@optimizer_switch='in_to_exists=off,materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off';
+explain select * from t1 where c1 = 'a2' and (c1, c2) not in (select * from t2);
+select * from t1 where c1 = 'a2' and (c1, c2) not in (select * from t2);
+
+drop table t1, t2;

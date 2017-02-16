@@ -1,0 +1,249 @@
+# Galician translation of mysql-dfsg-5.1's debconf templates
+# This file is distributed under the same license as the mysql-dfsg-5.1 package.
+# Jacobo Tarrio <jtarrio@debian.org>, 2007.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: mysql-dfsg-5.1\n"
+"Report-Msgid-Bugs-To: mariadb-5.5@packages.debian.org\n"
+"POT-Creation-Date: 2012-01-12 13:08+0100\n"
+"PO-Revision-Date: 2007-04-20 09:44+0200\n"
+"Last-Translator: Jacobo Tarrio <jtarrio@debian.org>\n"
+"Language-Team: Galician <proxecto@trasno.net>\n"
+"Language: gl\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+msgid "Really proceed with downgrade?"
+msgstr "¿Quere pasar a unha versión anterior?"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+msgid "A file named /var/lib/mysql/debian-*.flag exists on this system."
+msgstr "Neste sistema hai un ficheiro chamado /var/lib/mysql/debian-*.flag."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+#, fuzzy
+#| msgid ""
+#| "Such file is an indication that a mariadb-server package with a higher "
+#| "version has been installed earlier."
+msgid ""
+"Such a file is an indication that a mariadb-server package with a higher "
+"version has been installed previously."
+msgstr ""
+"Este ficheiro indica que antes se instalou un paquete mariadb-server cunha "
+"versión superior."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+msgid ""
+"There is no guarantee that the version you're currently installing will be "
+"able to use the current databases."
+msgstr ""
+"Non se pode garantir que a versión que está a instalar poida empregar as "
+"bases de datos actuais."
+
+#. Type: note
+#. Description
+#: ../mariadb-server-5.5.templates:3001
+msgid "Important note for NIS/YP users"
+msgstr "Nota importante para os usuarios de NIS/YP"
+
+#. Type: note
+#. Description
+#: ../mariadb-server-5.5.templates:3001
+msgid ""
+"Using MariaDB under NIS/YP requires a mysql user account to be added on the "
+"local system with:"
+msgstr ""
+
+#. Type: note
+#. Description
+#: ../mariadb-server-5.5.templates:3001
+#, fuzzy
+#| msgid ""
+#| "You should also check the permissions and the owner of the /var/lib/mysql "
+#| "directory:"
+msgid ""
+"You should also check the permissions and ownership of the /var/lib/mysql "
+"directory:"
+msgstr ""
+"Tamén debería comprobar os permisos e o propietario do directorio /var/lib/"
+"mysql:"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:4001
+msgid "Remove all MariaDB databases?"
+msgstr "¿Eliminar tódalas bases de datos de MariaDB?"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:4001
+msgid ""
+"The /var/lib/mysql directory which contains the MariaDB databases is about "
+"to be removed."
+msgstr ""
+"Hase eliminar o directorio /var/lib/mysql, que contén as bases de datos de "
+"MariaDB."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:4001
+msgid ""
+"If you're removing the MariaDB package in order to later install a more "
+"recent version or if a different mariadb-server package is already using it, "
+"the data should be kept."
+msgstr ""
+"Se está a eliminar o paquete MariaDB para instalar despois unha versión máis "
+"recente ou se xa hai un paquete mariadb-server diferente a empregalo, "
+"debería conservar os datos."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:5001
+msgid "Start the MariaDB server on boot?"
+msgstr "¿Iniciar o servidor MariaDB co ordenador?"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:5001
+msgid ""
+"The MariaDB server can be launched automatically at boot time or manually "
+"with the '/etc/init.d/mysql start' command."
+msgstr ""
+"Pódese iniciar automaticamente o servidor MariaDB ao iniciar o ordenador, ou "
+"manualmente coa orde \"/etc/init.d/mysql start\"."
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:6001
+msgid "New password for the MariaDB \"root\" user:"
+msgstr "Novo contrasinal para o usuario \"root\" de MariaDB:"
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:6001
+msgid ""
+"While not mandatory, it is highly recommended that you set a password for "
+"the MariaDB administrative \"root\" user."
+msgstr ""
+"Aínda que non é obrigatorio, recoméndase encarecidamente que estableza un "
+"contrasinal para o usuario administrativo \"root\" de MariaDB."
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:6001
+#, fuzzy
+#| msgid "If that field is left blank, the password will not be changed."
+msgid "If this field is left blank, the password will not be changed."
+msgstr "Se deixa o campo en branco, non se ha cambiar o contrasinal."
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:7001
+#, fuzzy
+#| msgid "New password for the MySQL \"root\" user:"
+msgid "Repeat password for the MariaDB \"root\" user:"
+msgstr "Novo contrasinal para o usuario \"root\" de MariaDB:"
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+msgid "Unable to set password for the MariaDB \"root\" user"
+msgstr "Non se puido establecer o contrasinal do usuario \"root\" de MariaDB"
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+msgid ""
+"An error occurred while setting the password for the MariaDB administrative "
+"user. This may have happened because the account already has a password, or "
+"because of a communication problem with the MariaDB server."
+msgstr ""
+"Houbo un erro ao establecer o contrasinal do usuario administrativo de "
+"MariaDB. Puido ocorrer porque o usuario xa teña un contrasinal ou debido a "
+"un problema de comunicacións co servidor MariaDB."
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+#, fuzzy
+#| msgid ""
+#| "You should check the account's password after tha package installation."
+msgid "You should check the account's password after the package installation."
+msgstr "Debería comprobar o contrasinal da conta trala instalación do paquete."
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+#, fuzzy
+#| msgid ""
+#| "Please read the /usr/share/doc/mysql-server-5.1/README.Debian file for "
+#| "more information."
+msgid ""
+"Please read the /usr/share/doc/mariadb-server-5.5/README.Debian file for "
+"more information."
+msgstr ""
+"Consulte o ficheiro /usr/share/doc/mariadb-server-5.5/README.Debian para "
+"máis información."
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:9001
+msgid "Password input error"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:9001
+msgid "The two passwords you entered were not the same. Please try again."
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:10001
+msgid "NDB Cluster seems to be in use"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:10001
+msgid ""
+"MySQL-5.1 no longer provides NDB Cluster support. Please migrate to the new "
+"mysql-cluster package and remove all lines starting with \"ndb\" from all "
+"config files below /etc/mysql/."
+msgstr ""
+
+#~ msgid ""
+#~ "To use MariaDB, the following entries for users and groups should be "
+#~ "added to the system:"
+#~ msgstr ""
+#~ "Para empregar MariaDB deberían engadirse ao sistema as seguintes entradas "
+#~ "de usuarios e grupos:"
+
+#~ msgid ""
+#~ "Support MySQL connections from hosts running Debian \"sarge\" or older?"
+#~ msgstr ""
+#~ "¿Soportar as conexións a MySQL de máquinas que empreguen Debian \"sarge\" "
+#~ "ou anterior?"
+
+#~ msgid ""
+#~ "In old versions of MySQL clients on Debian, passwords were not stored "
+#~ "securely. This has been improved since then, however clients (such as "
+#~ "PHP) from hosts running Debian 3.1 Sarge will not be able to connect to "
+#~ "recent accounts or accounts whose password have been changed."
+#~ msgstr ""
+#~ "Nas versións antigas dos clientes MySQL de Debian, os contrasinais non se "
+#~ "armacenaban de xeito seguro. Isto mellorouse desde aquela; nembargantes, "
+#~ "os clientes (tales coma PHP) das máquinas que executen Debian 3.1 Sarge "
+#~ "non se han poder conectar a contas recentes ou a contas nas que se "
+#~ "cambiara o contrasinal."

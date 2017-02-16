@@ -2,6 +2,8 @@
 # Some simple test of load data
 #
 
+-- source include/have_ucs2.inc
+
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
@@ -656,3 +658,21 @@ SET @@sql_mode= @old_mode;
 --remove_file $MYSQLTEST_VARDIR/mysql
 DROP TABLE t1;
 
+
+--echo #
+--echo # MDEV-11079 Regression: LOAD DATA INFILE lost BLOB support using utf8 load files
+--echo #
+
+CREATE TABLE t1 (a mediumblob NOT NULL) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+LOAD DATA INFILE '../../std_data/loaddata/mdev-11079.txt' INTO TABLE t1 CHARSET utf8 FIELDS TERMINATED BY ';' ENCLOSED BY '"' ESCAPED BY '\\' LINES TERMINATED BY '\n';
+SELECT HEX(a) FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # MDEV-11631 LOAD DATA INFILE fails to load data with an escape character followed by a multi-byte character
+--echo #
+
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf8);
+LOAD DATA INFILE '../../std_data/loaddata/mdev-11631.txt' INTO TABLE t1 CHARACTER SET utf8;
+SELECT HEX(a) FROM t1;
+DROP TABLE t1;

@@ -1,0 +1,20 @@
+source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
+
+disable_warnings;
+drop table if exists tt;
+enable_warnings;
+
+create table tt (a int, b int, key(a,b));
+insert into tt values (0,0),(0,1),(1,0),(1,1);
+
+# test that analyze computes the correct cardinality for the SK
+show indexes from tt;
+analyze table tt;
+show indexes from tt;
+
+# test that cardinality is persistent
+flush tables;
+show indexes from tt;
+
+drop table tt;

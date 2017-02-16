@@ -1,1 +1,1 @@
---ssl-cipher=AES128-SHA
+--loose-ssl-cipher=AES128-SHA

@@ -1,0 +1,137 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (t TEXT <CUSTOM_COL_OPTIONS>,
+tt TINYTEXT <CUSTOM_COL_OPTIONS>,
+m MEDIUMTEXT <CUSTOM_COL_OPTIONS>,
+l LONGTEXT <CUSTOM_COL_OPTIONS>,
+<CUSTOM_INDEX> t (t(32))
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	#	1	t	#	#	32	NULL	#	#		
+INSERT INTO t1 (t,tt,m,l) VALUES
+('','','',''),
+('a','b','c','d'),
+('b','d','c','b'),
+('test1','test2','test3','test4'),
+(REPEAT('a',128),REPEAT('b',128),REPEAT('c',128),REPEAT('d',128)),
+('abc','def','ghi','jkl'),
+('test2','test3','test4','test5'),
+('test3','test4','test5','test6'),
+(REPEAT('b',128),REPEAT('f',128),REPEAT('e',128),REPEAT('d',128)),
+(REPEAT('c',128),REPEAT('b',128),REPEAT('c',128),REPEAT('e',128));
+SELECT SUBSTRING(t,16) AS f FROM t1 WHERE t IN ('test1','test2') ORDER BY f;
+f
+
+
+DROP TABLE t1;
+CREATE TABLE t1 (t TEXT <CUSTOM_COL_OPTIONS>,
+tt TINYTEXT <CUSTOM_COL_OPTIONS>,
+m MEDIUMTEXT <CUSTOM_COL_OPTIONS>,
+l LONGTEXT <CUSTOM_COL_OPTIONS>,
+PRIMARY KEY t (t(32))
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	t	#	#	32	NULL	#	#		
+INSERT INTO t1 (t,tt,m,l) VALUES
+('','','',''),
+('a','b','c','d'),
+('b','d','c','b'),
+('test1','test2','test3','test4'),
+(REPEAT('a',128),REPEAT('b',128),REPEAT('c',128),REPEAT('d',128)),
+('abc','def','ghi','jkl'),
+('test2','test3','test4','test5'),
+('test3','test4','test5','test6'),
+(REPEAT('b',128),REPEAT('f',128),REPEAT('e',128),REPEAT('d',128)),
+(REPEAT('c',128),REPEAT('b',128),REPEAT('c',128),REPEAT('e',128));
+EXPLAIN SELECT SUBSTRING(t,16) AS f FROM t1 WHERE t IN ('test1','test2') ORDER BY f;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	PRIMARY	#	#	#	#
+SELECT SUBSTRING(t,16) AS f FROM t1 WHERE t IN ('test1','test2') ORDER BY f;
+f
+
+
+EXPLAIN SELECT SUBSTRING(t,16) AS f FROM t1 IGNORE INDEX (PRIMARY) WHERE t IN ('test1','test2') ORDER BY f;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	NULL	#	#	#	#
+SELECT SUBSTRING(t,16) AS f FROM t1 IGNORE INDEX (PRIMARY) WHERE t IN ('test1','test2') ORDER BY f;
+f
+
+
+DROP TABLE t1;
+CREATE TABLE t1 (t TEXT <CUSTOM_COL_OPTIONS>,
+tt TINYTEXT <CUSTOM_COL_OPTIONS>,
+m MEDIUMTEXT <CUSTOM_COL_OPTIONS>,
+l LONGTEXT <CUSTOM_COL_OPTIONS>,
+UNIQUE INDEX l_tt (l(256),tt(64))
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	l_tt	1	l	#	#	256	NULL	#	#		
+t1	0	l_tt	2	tt	#	#	64	NULL	#	#		
+INSERT INTO t1 (t,tt,m,l) VALUES
+('','','',''),
+('a','b','c','d'),
+('b','d','c','b'),
+('test1','test2','test3','test4'),
+(REPEAT('a',128),REPEAT('b',128),REPEAT('c',128),REPEAT('d',128)),
+('abc','def','ghi','jkl'),
+('test2','test3','test4','test5'),
+('test3','test4','test5','test6'),
+(REPEAT('b',128),REPEAT('f',128),REPEAT('e',128),REPEAT('d',128)),
+(REPEAT('c',128),REPEAT('b',128),REPEAT('c',128),REPEAT('e',128));
+EXPLAIN SELECT SUBSTRING(tt,64), SUBSTRING(l,256) FROM t1 WHERE tt!=l AND l NOT IN ('test1') ORDER BY tt, l DESC;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	l_tt	#	#	#	#	#
+SELECT SUBSTRING(tt,64), SUBSTRING(l,256) FROM t1 WHERE tt!=l AND l NOT IN ('test1') ORDER BY tt, l DESC;
+SUBSTRING(tt,64)	SUBSTRING(l,256)
+	
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	
+	
+	
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff	
+	
+	
+	
+EXPLAIN SELECT SUBSTRING(tt,64), SUBSTRING(l,256) FROM t1 FORCE INDEX (l_t) WHERE tt!=l AND l NOT IN ('test1') ORDER BY tt, l DESC;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	l_tt	l_tt	#	#	#	#
+SELECT SUBSTRING(tt,64), SUBSTRING(l,256) FROM t1 FORCE INDEX (l_t) WHERE tt!=l AND l NOT IN ('test1') ORDER BY tt, l DESC;
+SUBSTRING(tt,64)	SUBSTRING(l,256)
+	
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	
+	
+	
+fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff	
+	
+	
+	
+DROP TABLE t1;
+CREATE TABLE t1 (t TEXT <CUSTOM_COL_OPTIONS>,
+tt TINYTEXT <CUSTOM_COL_OPTIONS>,
+m MEDIUMTEXT <CUSTOM_COL_OPTIONS>,
+l LONGTEXT <CUSTOM_COL_OPTIONS>,
+INDEX (m(128))
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	m	1	m	#	#	128	NULL	#	#		
+INSERT INTO t1 (t,tt,m,l) VALUES
+('','','',''),
+('a','b','c','d'),
+('b','d','c','b'),
+('test1','test2','test3','test4'),
+(REPEAT('a',128),REPEAT('b',128),REPEAT('c',128),REPEAT('d',128)),
+('abc','def','ghi','jkl'),
+('test2','test3','test4','test5'),
+('test3','test4','test5','test6'),
+(REPEAT('b',128),REPEAT('f',128),REPEAT('e',128),REPEAT('d',128)),
+(REPEAT('c',128),REPEAT('b',128),REPEAT('c',128),REPEAT('e',128));
+EXPLAIN SELECT SUBSTRING(m,128) AS f FROM t1 WHERE m = 'test1' ORDER BY f DESC;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	m	#	#	#	#
+SELECT SUBSTRING(m,128) AS f FROM t1 WHERE m = 'test1' ORDER BY f DESC;
+f
+DROP TABLE t1;

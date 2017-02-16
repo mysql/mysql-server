@@ -10,6 +10,10 @@
 #    The environment variables SEARCH_FILE and SEARCH_PATTERN must be set
 #    before sourcing this routine.
 #
+#    Optionally, SEARCH_RANGE can be set to the max number of bytes of the file
+#    to search. If negative, it will search that many bytes at the end of the
+#    file. The default is to search only the first 50000 bytes of the file.
+#
 #    In case of
 #    - SEARCH_FILE and/or SEARCH_PATTERN is not set
 #    - SEARCH_FILE cannot be opened
@@ -38,6 +42,7 @@
 #    --error 0,1
 #    --remove_file $error_log
 #    let SEARCH_FILE= $error_log;
+#    let SEARCH_RANGE= -50000;
 #    # Stop the server
 #    let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 #    --exec echo "wait" > $restart_file
@@ -57,8 +62,18 @@ perl;
     use strict;
     my $search_file=           $ENV{'SEARCH_FILE'}           or die "SEARCH_FILE not set";
     my $search_pattern=        $ENV{'SEARCH_PATTERN'}        or die "SEARCH_PATTERN not set";
+    my $search_range=          $ENV{'SEARCH_RANGE'};
+    my $file_content;
+    $search_range= 50000 unless $search_range =~ /-?[0-9]+/;
     open(FILE, "$search_file") or die("Unable to open '$search_file': $!\n");
-    read(FILE, my $file_content, 50000, 0);
+    if ($search_range >= 0) {
+       read(FILE, $file_content, $search_range, 0);
+    } else {
+       my $size= -s $search_file;
+       $search_range = -$size if $size > -$search_range;
+       seek(FILE, $search_range, 2);
+       read(FILE, $file_content, -$search_range, 0);
+    }
     close(FILE);
     if ( not $file_content =~ m{$search_pattern} ) {
        die("# ERROR: The file '$search_file' does not contain the expected pattern  $search_pattern\n->$file_content<-\n");

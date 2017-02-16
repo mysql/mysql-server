@@ -50,7 +50,7 @@ xa commit 'testb',0x2030405060,11;
 ERROR XAE04: XAER_NOTA: Unknown XID
 xa rollback 'testa','testb';
 xa start 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 1
 select * from t1;
 a
 20

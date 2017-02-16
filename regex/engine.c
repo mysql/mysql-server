@@ -33,11 +33,11 @@ struct match {
 	struct re_guts *g;
 	int eflags;
 	my_regmatch_t *pmatch;	/* [nsub+1] (0 element unused) */
-	char *offp;		/* offsets work from here */
-	char *beginp;		/* start of string -- virtual NUL precedes */
-	char *endp;		/* end of string -- virtual NUL here */
-	char *coldp;		/* can be no match starting before here */
-	char **lastpos;		/* [nplus+1] */
+	const char *offp;	/* offsets work from here */
+	const char *beginp;	/* start of string -- virtual NUL precedes */
+	const char *endp;	/* end of string -- virtual NUL here */
+	const char *coldp;	/* can be no match starting before here */
+	const char **lastpos;	/* [nplus+1] */
 	STATEVARS;
 	states st;		/* current states */
 	states fresh;		/* states for a fresh start */
@@ -66,20 +66,20 @@ static int			/* 0 success, REG_NOMATCH failure */
 matcher(charset,g, str, nmatch, pmatch, eflags)
 CHARSET_INFO *charset;
 register struct re_guts *g;
-char *str;
+const char *str;
 size_t nmatch;
 my_regmatch_t pmatch[];
 int eflags;
 {
-	register char *endp;
+	register const char *endp;
 	register uint i;
 	struct match mv;
 	register struct match *m = &mv;
-	register char *dp;
+	register const char *dp;
 	register const sopno gf = g->firststate+1;	/* +1 for OEND */
 	register const sopno gl = g->laststate;
-	char *start;
-	char *stop;
+	const char *start;
+	const char *stop;
 
 	/* simplify the situation where possible */
 	if (g->cflags&REG_NOSUB)
@@ -163,7 +163,7 @@ int eflags;
 			dp = dissect(charset, m, m->coldp, endp, gf, gl);
 		} else {
 			if (g->nplus > 0 && m->lastpos == NULL)
-				m->lastpos = (char **)malloc((g->nplus+1) *
+				m->lastpos = (const char **)malloc((g->nplus+1) *
 							sizeof(char *));
 			if (g->nplus > 0 && m->lastpos == NULL) {
 				free(m->pmatch);
@@ -235,27 +235,27 @@ int eflags;
  == static char *dissect(register struct match *m, char *start, \
  ==	char *stop, sopno startst, sopno stopst);
  */
-static char *			/* == stop (success) always */
+static const char *			/* == stop (success) always */
 dissect(charset, m, start, stop, startst, stopst)
 CHARSET_INFO *charset;
 register struct match *m;
-char *start;
-char *stop;
+const char *start;
+const char *stop;
 sopno startst;
 sopno stopst;
 {
 	register uint i;
 	register sopno ss;	/* start sop of current subRE */
 	register sopno es;	/* end sop of current subRE */
-	register char *sp;	/* start of string matched by it */
-	register char *stp;	/* string matched by it cannot pass here */
-	register char *rest;	/* start of rest of string */
-	register char *tail;	/* string unmatched by rest of RE */
+	register const char *sp;	/* start of string matched by it */
+	register const char *stp;	/* string matched by it cannot pass here */
+	register const char *rest;	/* start of rest of string */
+	register const char *tail;	/* string unmatched by rest of RE */
 	register sopno ssub;	/* start sop of subsubRE */
 	register sopno esub;	/* end sop of subsubRE */
-	register char *ssp;	/* start of string matched by subsubRE */
-	register char *sep;	/* end of string matched by subsubRE */
-	register char *oldssp;	/* previous ssp */
+	register const char *ssp;	/* start of string matched by subsubRE */
+	register const char *sep;	/* end of string matched by subsubRE */
+	register const char *oldssp;	/* previous ssp */
 
 	AT("diss", start, stop, startst, stopst);
 	sp = start;
@@ -421,23 +421,23 @@ sopno stopst;
  == static char *backref(register struct match *m, char *start, \
  ==	char *stop, sopno startst, sopno stopst, sopno lev);
  */
-static char *			/* == stop (success) or NULL (failure) */
+static const char *			/* == stop (success) or NULL (failure) */
 backref(charset,m, start, stop, startst, stopst, lev)
 CHARSET_INFO *charset;
 register struct match *m;
-char *start;
-char *stop;
+const char *start;
+const char *stop;
 sopno startst;
 sopno stopst;
 sopno lev;			/* PLUS nesting level */
 {
 	register uint i;
 	register sopno ss;	/* start sop of current subRE */
-	register char *sp;	/* start of string matched by it */
+	register const char *sp;	/* start of string matched by it */
 	register sopno ssub;	/* start sop of subsubRE */
 	register sopno esub;	/* end sop of subsubRE */
-	register char *ssp;	/* start of string matched by subsubRE */
-	register char *dp;
+	register const char *ssp;	/* start of string matched by subsubRE */
+	register const char *dp;
 	register size_t len;
 	register int hard;
 	register sop s;
@@ -627,24 +627,24 @@ sopno lev;			/* PLUS nesting level */
  == static char *fast(register struct match *m, char *start, \
  ==	char *stop, sopno startst, sopno stopst);
  */
-static char *			/* where tentative match ended, or NULL */
+static const char *		/* where tentative match ended, or NULL */
 fast(charset, m, start, stop, startst, stopst)
 CHARSET_INFO *charset;
 register struct match *m;
-char *start;
-char *stop;
+const char *start;
+const char *stop;
 sopno startst;
 sopno stopst;
 {
 	register states st = m->st;
 	register states fresh = m->fresh;
 	register states tmp = m->tmp;
-	register char *p = start;
+	register const char *p = start;
 	register int c = (start == m->beginp) ? OUT : *(start-1);
 	register int lastc;	/* previous c */
 	register int flagch;
 	register int i;
-	register char *coldp;	/* last p after which no match was underway */
+	register const char *coldp;	/* last p after which no match was underway */
 
 	CLEAR(st);
 	SET1(st, startst);
@@ -719,24 +719,24 @@ sopno stopst;
  == static char *slow(register struct match *m, char *start, \
  ==	char *stop, sopno startst, sopno stopst);
  */
-static char *			/* where it ended */
+static const char *			/* where it ended */
 slow(charset, m, start, stop, startst, stopst)
 CHARSET_INFO *charset;
 register struct match *m;
-char *start;
-char *stop;
+const char *start;
+const char *stop;
 sopno startst;
 sopno stopst;
 {
 	register states st = m->st;
 	register states empty = m->empty;
 	register states tmp = m->tmp;
-	register char *p = start;
+	register const char *p = start;
 	register int c = (start == m->beginp) ? OUT : *(start-1);
 	register int lastc;	/* previous c */
 	register int flagch;
 	register int i;
-	register char *matchp;	/* last p at which a match ended */
+	register const char *matchp;	/* last p at which a match ended */
 
 	AT("slow", start, stop, startst, stopst);
 	CLEAR(st);

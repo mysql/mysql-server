@@ -1,2 +1,0 @@
---innodb-use-sys-malloc=true
---innodb-large-prefix=true

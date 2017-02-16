@@ -1,0 +1,107 @@
+# 
+# Basic ALTER TABLE statements related to partitioning
+#
+
+--source include/have_partition.inc
+--source ../have_engine.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--let $create_definition = a $int_col
+--let $partition_options = PARTITION BY HASH(a) PARTITIONS 2
+--source ../create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Partitions
+  --source ../unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a) VALUES (1),(2),(2),(3),(4);
+
+  --let $alter_definition = ADD PARTITION PARTITIONS 2
+  --source ../alter_table.inc
+  if ($mysql_errname)
+  {
+    --let $my_last_stmt = $alter_statement
+    --let $functionality = ALTER TABLE
+    --source ../unexpected_result.inc
+  }
+  --replace_column 5 # 6 # 7 # 8 # 9 # 10 # 11 #
+  EXPLAIN PARTiTIONS SELECT a FROM t1 WHERE a = 3;
+
+  --let $alter_definition = COALESCE PARTITION 1
+  --source ../alter_table.inc
+  --replace_column 5 # 6 # 7 # 8 # 9 # 10 # 11 #
+  EXPLAIN PARTiTIONS SELECT a FROM t1 WHERE a = 3;
+
+  --let $alter_definition = REORGANIZE PARTITION
+  --source ../alter_table.inc
+  --replace_column 5 # 6 # 7 # 8 # 9 # 10 # 11 #
+  EXPLAIN PARTiTIONS SELECT a FROM t1 WHERE a = 2;
+
+  --let $alter_definition = REBUILD PARTITION p0
+  --source ../alter_table.inc
+  --replace_column 5 # 6 # 7 # 8 # 9 # 10 # 11 #
+  EXPLAIN PARTiTIONS SELECT a FROM t1;
+
+  --let $alter_definition = REMOVE PARTITIONING
+  --source ../alter_table.inc
+  --replace_column 5 # 6 # 7 # 8 # 9 # 10 # 11 #
+  EXPLAIN PARTiTIONS SELECT a FROM t1;
+
+  --let $error_codes = ER_NO_PARTITION_FOR_GIVEN_VALUE
+  --let $alter_definition = PARTITION BY LIST(a) ( PARTITION p0 VALUES IN (1,2,3), PARTITION p1 VALUES IN (101,102) )
+  --source ../alter_table.inc
+  if ($mysql_errname != ER_NO_PARTITION_FOR_GIVEN_VALUE)
+  {
+    --let $my_last_stmt = $alter_statement
+    --let $my_functionality = ALTER TABLE or INSERT
+    --source ../unexpected_result.inc
+  }
+
+  --let $alter_definition = PARTITION BY LIST(a) ( PARTITION p0 VALUES IN (1,2,3,4), PARTITION p1 VALUES IN (101,102) )
+  --source ../alter_table.inc
+
+  --let $error_codes = ER_NO_PARTITION_FOR_GIVEN_VALUE
+  INSERT INTO t1 (a) VALUES (50);
+  --source ../check_errors.inc
+  --let $alter_definition = ADD PARTITION ( PARTITION p2 VALUES IN (50,51) )
+  --source ../alter_table.inc
+  INSERT INTO t1 (a) VALUES (50);
+
+  --let $alter_definition = DROP PARTITION p1
+  --source ../alter_table.inc
+  --let $alter_definition = REORGANIZE PARTITION p0, p2 INTO ( PARTITION p0 VALUES IN (1,2,3), PARTITION p1 VALUES IN (4), PARTITION p2 VALUES IN (50,51), PARTITION p3 VALUES IN (101,102) )
+  --source ../alter_table.inc
+  --replace_column 5 # 6 # 7 # 8 # 9 # 10 # 11 #
+  EXPLAIN PARTiTIONS SELECT a FROM t1 WHERE a = 2;
+  DROP TABLE t1;
+}
+
+
+--let $create_definition = a $int_col, b $int_col
+let $partition_options = PARTITION BY LIST(a) SUBPARTITION by HASH(b) (
+  PARTITION abc VALUES IN (1,2,3),
+  PARTITION def VALUES IN (100,101,102)
+);
+--source ../create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Partitions or subpartitions
+  --source ../unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --let $alter_definition = DROP PARTITION abc
+  --source ../alter_table.inc
+
+  DROP TABLE t1;
+}
+
+--source ../cleanup_engine.inc
+

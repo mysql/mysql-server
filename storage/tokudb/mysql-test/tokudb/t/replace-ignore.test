@@ -1,0 +1,331 @@
+source include/have_tokudb.inc;
+# Tokutek
+# Test that replace into and insert ignore insertions 
+# work under various index schemas. 
+#
+# this test is interesting because tokudb can do blind 
+# (searchless) insertions into dictionaries when keys are
+# a subset of the primary key, but not otherwise.
+
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+
+# testing query type "insert ignore"
+
+# testing primary key a, b
+create table t (
+    a int, b int, c int, 
+    primary key (a, b), 
+    key (b)
+) engine = tokudb;
+insert into t values
+    (0, 0, 0),
+    (1, 1, 10),
+    (2, 2, 20),
+    (3, 3, 30),
+    (4, 4, 40),
+    (5, 5, 50),
+    (6, 6, 60),
+    (7, 7, 70),
+    (8, 8, 80),
+    (9, 9, 90),
+    (10, 10, 100),
+    (11, 11, 110),
+    (12, 12, 120),
+    (13, 13, 130),
+    (14, 14, 140),
+    (15, 15, 150),
+    (16, 16, 160),
+    (17, 17, 170),
+    (18, 18, 180),
+    (19, 19, 190),
+    (20, 20, 200),
+    (21, 21, 210),
+    (22, 22, 220),
+    (23, 23, 230),
+    (24, 24, 240),
+    (25, 25, 250),
+    (26, 26, 260),
+    (27, 27, 270),
+    (28, 28, 280),
+    (29, 29, 290),
+    (30, 30, 300),
+    (31, 31, 310),
+    (32, 32, 320),
+    (33, 33, 330),
+    (34, 34, 340),
+    (35, 35, 350),
+    (36, 36, 360),
+    (37, 37, 370),
+    (38, 38, 380),
+    (39, 39, 390),
+    (40, 40, 400),
+    (41, 41, 410),
+    (42, 42, 420),
+    (43, 43, 430),
+    (44, 44, 440),
+    (45, 45, 450),
+    (46, 46, 460),
+    (47, 47, 470),
+    (48, 48, 480),
+    (49, 49, 490),
+    (50, 50, 500);
+
+insert ignore t values (8, 8, -1);
+explain select * from t where a = 8;
+select * from t where a = 8;
+explain select * from t force index (b) where b = 8;
+select * from t force index (b) where b = 8;
+explain select * from t where c = 80;
+select * from t where c = 80;
+explain select * from t where c = -1;
+select * from t where c = -1;
+insert ignore t values (15, 15, -1);
+explain select * from t where a = 15;
+select * from t where a = 15;
+explain select * from t force index (b) where b = 15;
+select * from t force index (b) where b = 15;
+explain select * from t where c = 150;
+select * from t where c = 150;
+explain select * from t where c = -1;
+select * from t where c = -1;
+drop table t;
+
+# testing primary key a, b
+create table t (
+    a int, b int, c int, 
+    primary key (a, b), 
+    key (b), key(c)
+) engine = tokudb;
+insert into t values
+    (0, 0, 0),
+    (1, 1, 10),
+    (2, 2, 20),
+    (3, 3, 30),
+    (4, 4, 40),
+    (5, 5, 50),
+    (6, 6, 60),
+    (7, 7, 70),
+    (8, 8, 80),
+    (9, 9, 90),
+    (10, 10, 100),
+    (11, 11, 110),
+    (12, 12, 120),
+    (13, 13, 130),
+    (14, 14, 140),
+    (15, 15, 150),
+    (16, 16, 160),
+    (17, 17, 170),
+    (18, 18, 180),
+    (19, 19, 190),
+    (20, 20, 200),
+    (21, 21, 210),
+    (22, 22, 220),
+    (23, 23, 230),
+    (24, 24, 240),
+    (25, 25, 250),
+    (26, 26, 260),
+    (27, 27, 270),
+    (28, 28, 280),
+    (29, 29, 290),
+    (30, 30, 300),
+    (31, 31, 310),
+    (32, 32, 320),
+    (33, 33, 330),
+    (34, 34, 340),
+    (35, 35, 350),
+    (36, 36, 360),
+    (37, 37, 370),
+    (38, 38, 380),
+    (39, 39, 390),
+    (40, 40, 400),
+    (41, 41, 410),
+    (42, 42, 420),
+    (43, 43, 430),
+    (44, 44, 440),
+    (45, 45, 450),
+    (46, 46, 460),
+    (47, 47, 470),
+    (48, 48, 480),
+    (49, 49, 490),
+    (50, 50, 500);
+
+insert ignore t values (8, 8, -1);
+explain select * from t where a = 8;
+select * from t where a = 8;
+explain select * from t force index (b) where b = 8;
+select * from t force index (b) where b = 8;
+explain select * from t where c = 80;
+select * from t where c = 80;
+explain select * from t where c = -1;
+select * from t where c = -1;
+insert ignore t values (15, 15, -1);
+explain select * from t where a = 15;
+select * from t where a = 15;
+explain select * from t force index (b) where b = 15;
+select * from t force index (b) where b = 15;
+explain select * from t where c = 150;
+select * from t where c = 150;
+explain select * from t where c = -1;
+select * from t where c = -1;
+drop table t;
+# testing query type "replace into"
+
+# testing primary key a, b
+create table t (
+    a int, b int, c int, 
+    primary key (a, b), 
+    key (b)
+) engine = tokudb;
+insert into t values
+    (0, 0, 0),
+    (1, 1, 10),
+    (2, 2, 20),
+    (3, 3, 30),
+    (4, 4, 40),
+    (5, 5, 50),
+    (6, 6, 60),
+    (7, 7, 70),
+    (8, 8, 80),
+    (9, 9, 90),
+    (10, 10, 100),
+    (11, 11, 110),
+    (12, 12, 120),
+    (13, 13, 130),
+    (14, 14, 140),
+    (15, 15, 150),
+    (16, 16, 160),
+    (17, 17, 170),
+    (18, 18, 180),
+    (19, 19, 190),
+    (20, 20, 200),
+    (21, 21, 210),
+    (22, 22, 220),
+    (23, 23, 230),
+    (24, 24, 240),
+    (25, 25, 250),
+    (26, 26, 260),
+    (27, 27, 270),
+    (28, 28, 280),
+    (29, 29, 290),
+    (30, 30, 300),
+    (31, 31, 310),
+    (32, 32, 320),
+    (33, 33, 330),
+    (34, 34, 340),
+    (35, 35, 350),
+    (36, 36, 360),
+    (37, 37, 370),
+    (38, 38, 380),
+    (39, 39, 390),
+    (40, 40, 400),
+    (41, 41, 410),
+    (42, 42, 420),
+    (43, 43, 430),
+    (44, 44, 440),
+    (45, 45, 450),
+    (46, 46, 460),
+    (47, 47, 470),
+    (48, 48, 480),
+    (49, 49, 490),
+    (50, 50, 500);
+
+replace into t values (8, 8, -1);
+explain select * from t where a = 8;
+select * from t where a = 8;
+explain select * from t force index (b) where b = 8;
+select * from t force index (b) where b = 8;
+explain select * from t where c = 80;
+select * from t where c = 80;
+explain select * from t where c = -1;
+select * from t where c = -1;
+replace into t values (15, 15, -1);
+explain select * from t where a = 15;
+select * from t where a = 15;
+explain select * from t force index (b) where b = 15;
+select * from t force index (b) where b = 15;
+explain select * from t where c = 150;
+select * from t where c = 150;
+explain select * from t where c = -1;
+select * from t where c = -1;
+drop table t;
+
+# testing primary key a, b
+create table t (
+    a int, b int, c int, 
+    primary key (a, b), 
+    key (b), key(c)
+) engine = tokudb;
+insert into t values
+    (0, 0, 0),
+    (1, 1, 10),
+    (2, 2, 20),
+    (3, 3, 30),
+    (4, 4, 40),
+    (5, 5, 50),
+    (6, 6, 60),
+    (7, 7, 70),
+    (8, 8, 80),
+    (9, 9, 90),
+    (10, 10, 100),
+    (11, 11, 110),
+    (12, 12, 120),
+    (13, 13, 130),
+    (14, 14, 140),
+    (15, 15, 150),
+    (16, 16, 160),
+    (17, 17, 170),
+    (18, 18, 180),
+    (19, 19, 190),
+    (20, 20, 200),
+    (21, 21, 210),
+    (22, 22, 220),
+    (23, 23, 230),
+    (24, 24, 240),
+    (25, 25, 250),
+    (26, 26, 260),
+    (27, 27, 270),
+    (28, 28, 280),
+    (29, 29, 290),
+    (30, 30, 300),
+    (31, 31, 310),
+    (32, 32, 320),
+    (33, 33, 330),
+    (34, 34, 340),
+    (35, 35, 350),
+    (36, 36, 360),
+    (37, 37, 370),
+    (38, 38, 380),
+    (39, 39, 390),
+    (40, 40, 400),
+    (41, 41, 410),
+    (42, 42, 420),
+    (43, 43, 430),
+    (44, 44, 440),
+    (45, 45, 450),
+    (46, 46, 460),
+    (47, 47, 470),
+    (48, 48, 480),
+    (49, 49, 490),
+    (50, 50, 500);
+
+replace into t values (8, 8, -1);
+explain select * from t where a = 8;
+select * from t where a = 8;
+explain select * from t force index (b) where b = 8;
+select * from t force index (b) where b = 8;
+explain select * from t where c = 80;
+select * from t where c = 80;
+explain select * from t where c = -1;
+select * from t where c = -1;
+replace into t values (15, 15, -1);
+explain select * from t where a = 15;
+select * from t where a = 15;
+explain select * from t force index (b) where b = 15;
+select * from t force index (b) where b = 15;
+explain select * from t where c = 150;
+select * from t where c = 150;
+explain select * from t where c = -1;
+select * from t where c = -1;
+drop table t;

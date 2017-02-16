@@ -1,4 +1,4 @@
-drop table if exists t1, t2, t3;
+drop table if exists t1, t2, t3, t10, t100;
 CREATE TABLE t1 (
 event_date date DEFAULT '0000-00-00' NOT NULL,
 type int(11) DEFAULT '0' NOT NULL,
@@ -220,31 +220,31 @@ insert into t1 (x) values (1),(2),(3),(4),(5),(6),(7),(8),(9);
 update t1 set y=x;
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x between 7 and t1.y+0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	Using where
-1	SIMPLE	t2	range	x	x	5	NULL	2	Using where; Using join buffer
+1	SIMPLE	t1	ref	y	y	5	const	1	
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Using join buffer (flat, BNL join)
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x >= 7 and t2.x <= t1.y+0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	Using where
-1	SIMPLE	t2	range	x	x	5	NULL	2	Using where; Using join buffer
+1	SIMPLE	t1	ref	y	y	5	const	1	
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Using join buffer (flat, BNL join)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between t1.y-1 and t1.y+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	Using where
-1	SIMPLE	t2	range	x	x	5	NULL	3	Using where; Using join buffer
+1	SIMPLE	t1	ref	y	y	5	const	1	
+1	SIMPLE	t2	range	x	x	5	NULL	3	Using index condition; Using join buffer (flat, BNL join)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= t1.y-1 and t2.x <= t1.y+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	Using where
-1	SIMPLE	t2	range	x	x	5	NULL	3	Using where; Using join buffer
+1	SIMPLE	t1	ref	y	y	5	const	1	
+1	SIMPLE	t2	range	x	x	5	NULL	3	Using index condition; Using join buffer (flat, BNL join)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between 0 and t1.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	Using where
-1	SIMPLE	t2	range	x	x	5	NULL	2	Using where; Using join buffer
+1	SIMPLE	t1	ref	y	y	5	const	1	
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Using join buffer (flat, BNL join)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= 0 and t2.x <= t1.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	y	y	5	const	1	Using where
-1	SIMPLE	t2	range	x	x	5	NULL	2	Using where; Using join buffer
+1	SIMPLE	t1	ref	y	y	5	const	1	
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Using join buffer (flat, BNL join)
 explain select count(*) from t1 where x in (1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	x	x	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	x	x	5	const	1	Using index
 explain select count(*) from t1 where x in (1,2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	x	x	5	NULL	9	Using where; Using index
@@ -256,12 +256,12 @@ INSERT INTO t2 VALUES (0),(0),(1),(1),(2),(2);
 explain select * from t1, t2 where (t1.key1 <t2.keya + 1) and t2.keya=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	j1	j1	4	const	1	Using index
-1	SIMPLE	t1	index	i1	i1	4	NULL	7	Using where; Using index; Using join buffer
+1	SIMPLE	t1	index	i1	i1	4	NULL	7	Using where; Using index; Using join buffer (flat, BNL join)
 explain select * from t1 force index(i1), t2 force index(j1) where 
 (t1.key1 <t2.keya + 1) and t2.keya=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	j1	j1	4	const	1	Using index
-1	SIMPLE	t1	index	i1	i1	4	NULL	7	Using where; Using index; Using join buffer
+1	SIMPLE	t1	index	i1	i1	4	NULL	7	Using where; Using index; Using join buffer (flat, BNL join)
 DROP TABLE t1,t2;
 CREATE TABLE t1 (
 a int(11) default NULL,
@@ -276,7 +276,7 @@ INSERT INTO t1 VALUES
 (33,5),(33,5),(33,5),(33,5),(34,5),(35,5);
 EXPLAIN SELECT * FROM t1 WHERE a IN(1,2) AND b=5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a,b	a	5	NULL	2	Using where
+1	SIMPLE	t1	range	a,b	a	5	NULL	2	Using index condition; Using where
 SELECT * FROM t1 WHERE a IN(1,2) AND b=5;
 a	b
 DROP TABLE t1;
@@ -421,19 +421,19 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	Table is already up to date
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	112	Using where
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	112	Using index condition
 1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
 explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	112	Using where
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	112	Using index condition
 1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	113	Using where
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	113	Using index condition
 1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
 explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid != 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	113	Using where
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	113	Using index condition
 1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
 select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
 id	name	uid	id	name	uid
@@ -615,13 +615,13 @@ INSERT INTO t1 (a) VALUES
 ('111'),('222'),('222'),('222'),('222'),('444'),('aaa'),('AAA'),('bbb');
 explain select * from t1 where a='aaa';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	11	const	2	Using where
+1	SIMPLE	t1	ref	a	a	11	const	2	Using index condition
 explain select * from t1 where a=binary 'aaa';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	11	NULL	2	Using where
+1	SIMPLE	t1	range	a	a	11	NULL	2	Using index condition
 explain select * from t1 where a='aaa' collate latin1_bin;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	11	NULL	2	Using where
+1	SIMPLE	t1	range	a	a	11	NULL	2	Using index condition
 explain select * from t1 where a='aaa' collate latin1_german1_ci;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	9	Using where
@@ -698,16 +698,28 @@ INSERT INTO t1 VALUES
 'd8c4177d09f8b11f5.52725521'),
 ('d8c4177d24ccef970.14957924','d8c4177d09f8b11f5.52725521',10,11,
 'd8c4177d09f8b11f5.52725521');
+INSERT INTO t1 VALUES
+('d8c4177d09f8b11f5.52725522','oxrootid',1,40,'d8c4177d09f8b11f5.52725522'),
+('d8c4177d151affab2.81582771','d8c4177d09f8b11f5.52725521',2,3,
+'d8c4177d09f8b11f5.52725522'),
+('d8c4177d206a333d2.74422678','d8c4177d09f8b11f5.52725521',4,5,
+'d8c4177d09f8b11f5.52725522'),
+('d8c4177d225791924.30714721','d8c4177d09f8b11f5.52725521',6,7,
+'d8c4177d09f8b11f5.52725522'),
+('d8c4177d2380fc201.39666694','d8c4177d09f8b11f5.52725521',8,9,
+'d8c4177d09f8b11f5.52725522'),
+('d8c4177d24ccef970.14957925','d8c4177d09f8b11f5.52725521',10,11,
+'d8c4177d09f8b11f5.52725522');
 EXPLAIN
 SELECT s.oxid FROM t1 v, t1 s 
-WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND
+WHERE 
 v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
 s.oxleft > v.oxleft AND s.oxleft < v.oxright;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	v	ref	OXLEFT,OXRIGHT,OXROOTID	OXROOTID	34	const	5	Using where
-1	SIMPLE	s	ALL	OXLEFT	NULL	NULL	NULL	6	Range checked for each record (index map: 0x4)
+1	SIMPLE	v	ref	OXLEFT,OXRIGHT,OXROOTID	OXROOTID	34	const	5	Using index condition
+1	SIMPLE	s	ALL	OXLEFT	NULL	NULL	NULL	12	Range checked for each record (index map: 0x4)
 SELECT s.oxid FROM t1 v, t1 s 
-WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND
+WHERE
 v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
 s.oxleft > v.oxleft AND s.oxleft < v.oxright;
 oxid
@@ -716,6 +728,11 @@ d8c4177d206a333d2.74422679
 d8c4177d225791924.30714720
 d8c4177d2380fc201.39666693
 d8c4177d24ccef970.14957924
+d8c4177d151affab2.81582771
+d8c4177d206a333d2.74422678
+d8c4177d225791924.30714721
+d8c4177d2380fc201.39666694
+d8c4177d24ccef970.14957925
 DROP TABLE t1;
 create table t1 (
 c1  char(10), c2  char(10), c3  char(10), c4  char(10),
@@ -878,10 +895,10 @@ INSERT INTO t1 VALUES
 (55,'C'), (56,'C'), (57,'C'), (58,'C'), (59,'C'), (60,'C');
 EXPLAIN SELECT * FROM t1 WHERE status <> 'A' AND status <> 'B';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	status	status	23	NULL	11	Using where
+1	SIMPLE	t1	range	status	status	23	NULL	11	Using index condition
 EXPLAIN SELECT * FROM t1 WHERE status NOT IN ('A','B');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	status	status	23	NULL	11	Using where
+1	SIMPLE	t1	range	status	status	23	NULL	11	Using index condition
 SELECT * FROM t1 WHERE status <> 'A' AND status <> 'B';
 id	status
 53	C
@@ -910,10 +927,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	status	status	23	NULL	11	Using where; Using index
 EXPLAIN SELECT * FROM t1 WHERE status NOT BETWEEN 'A' AND 'B';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	status	status	23	NULL	10	Using where
+1	SIMPLE	t1	range	status	status	23	NULL	10	Using index condition
 EXPLAIN SELECT * FROM t1 WHERE status < 'A' OR status > 'B';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	status	status	23	NULL	10	Using where
+1	SIMPLE	t1	range	status	status	23	NULL	10	Using index condition; Using where
 SELECT * FROM t1 WHERE status NOT BETWEEN 'A' AND 'B';
 id	status
 53	C
@@ -1014,20 +1031,20 @@ create table t2 (a varchar(10), filler char(200), key(a));
 insert into t2 select * from t1;
 explain select * from t1 where a between 'a' and 'a ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	13	NULL	#	Using where
+1	SIMPLE	t1	range	a	a	13	NULL	#	Using index condition
 explain select * from t1 where a = 'a' or a='a ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	13	NULL	#	Using where
+1	SIMPLE	t1	range	a	a	13	NULL	#	Using index condition; Using where
 explain select * from t2 where a between 'a' and 'a ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	a	a	13	const	#	Using where
+1	SIMPLE	t2	ref	a	a	13	const	#	Using index condition
 explain select * from t2 where a = 'a' or a='a ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	a	a	13	const	#	Using where
+1	SIMPLE	t2	ref	a	a	13	const	#	Using index condition; Using where
 update t1 set a='b' where a<>'a';
 explain select * from t1 where a not between 'b' and 'b';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	13	NULL	#	Using where
+1	SIMPLE	t1	range	a	a	13	NULL	#	Using index condition
 select a, hex(filler) from t1 where a not between 'b' and 'b';
 a	hex(filler)
 a	0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -1071,7 +1088,7 @@ id	b	c
 0	3	4
 EXPLAIN  SELECT * FROM t1 WHERE b<=3 AND 3<=c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	idx1,idx2	idx2	4	NULL	3	Using where
+1	SIMPLE	t1	range	idx1,idx2	idx2	4	NULL	3	Using index condition; Using where
 EXPLAIN  SELECT * FROM t1 WHERE 3 BETWEEN b AND c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	idx1,idx2	idx2	4	NULL	3	Using where
@@ -1103,17 +1120,11 @@ INSERT INTO t1 VALUES
 ('A2','2005-12-01 08:00:00',1000);
 EXPLAIN SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	PRIMARY	PRIMARY	20	const	2	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
-Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
+1	SIMPLE	t1	ref	PRIMARY	PRIMARY	20	const	2	Using index condition
 SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
 item	started	price
-A1	2005-11-01 08:00:00	1000.000
-A1	2005-11-15 00:00:00	2000.000
 Warnings:
-Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
-Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
+Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00'
 SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-02 00:00:00';
 item	started	price
 A1	2005-11-01 08:00:00	1000.000
@@ -1122,14 +1133,10 @@ DROP INDEX `PRIMARY` ON t1;
 EXPLAIN SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
 SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
 item	started	price
-A1	2005-11-01 08:00:00	1000.000
-A1	2005-11-15 00:00:00	2000.000
 Warnings:
-Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
+Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00'
 SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-02 00:00:00';
 item	started	price
 A1	2005-11-01 08:00:00	1000.000
@@ -1151,7 +1158,7 @@ INSERT INTO t1 VALUES
 This must use range access:
 explain select * from t1 where dateval >= '2007-01-01 00:00:00' and dateval <= '2007-01-02 23:59:59';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	dateval	dateval	4	NULL	2	Using where
+1	SIMPLE	t1	range	dateval	dateval	4	NULL	2	Using index condition
 drop table t1;
 CREATE TABLE t1 (
 a varchar(32), index (a)
@@ -1217,7 +1224,7 @@ Z
 In following EXPLAIN the access method should be ref, #rows~=500 (and not 2)
 explain select * from t2 where a=1000 and b<11;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	a	a	5	const	502	Using where
+1	SIMPLE	t2	ref	a	a	5	const	502	Using index condition
 drop table t1, t2;
 CREATE TABLE t1( a INT, b INT, KEY( a, b ) );
 CREATE TABLE t2( a INT, b INT, KEY( a, b ) );
@@ -1579,21 +1586,22 @@ str_to_date('2007-10-00', '%Y-%m-%d') >= '' AND
 str_to_date('2007-10-00', '%Y-%m-%d') <= '2007/10/20'
 1
 Warnings:
-Warning	1292	Truncated incorrect date value: ''
+Warning	1292	Incorrect datetime value: ''
 SELECT str_to_date('2007-20-00', '%Y-%m-%d') >= '2007/10/20' AND 
 str_to_date('2007-20-00', '%Y-%m-%d') <= '';
 str_to_date('2007-20-00', '%Y-%m-%d') >= '2007/10/20' AND 
 str_to_date('2007-20-00', '%Y-%m-%d') <= ''
 NULL
 Warnings:
-Warning	1292	Truncated incorrect date value: ''
+Warning	1411	Incorrect datetime value: '2007-20-00' for function str_to_date
+Warning	1411	Incorrect datetime value: '2007-20-00' for function str_to_date
 Warning	1411	Incorrect datetime value: '2007-20-00' for function str_to_date
 Warning	1411	Incorrect datetime value: '2007-20-00' for function str_to_date
 SELECT str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20';
 str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20'
 1
 Warnings:
-Warning	1292	Truncated incorrect datetime value: ''
+Warning	1292	Incorrect datetime value: ''
 SELECT str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND '';
 str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND ''
 NULL
@@ -1689,7 +1697,7 @@ pk	i4
 EXPLAIN
 SELECT * FROM t1 WHERE 10 BETWEEN 10 AND i4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	i4_uq	i4_uq	5	NULL	3	Using where
+1	SIMPLE	t1	range	i4_uq	i4_uq	5	NULL	3	Using index condition
 SELECT * FROM t1 WHERE 10 BETWEEN 10 AND i4;
 pk	i4
 1	10
@@ -1698,7 +1706,7 @@ pk	i4
 EXPLAIN
 SELECT * FROM t1 WHERE 10 BETWEEN i4 AND 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	i4_uq	i4_uq	5	NULL	1	Using where
+1	SIMPLE	t1	range	i4_uq	i4_uq	5	NULL	1	Using index condition
 SELECT * FROM t1 WHERE 10 BETWEEN i4 AND 10;
 pk	i4
 1	10
@@ -1732,7 +1740,7 @@ pk	i4
 EXPLAIN
 SELECT * FROM t1 WHERE i4 BETWEEN 10 AND 99999999999999999;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	i4_uq	i4_uq	5	NULL	2	Using where
+1	SIMPLE	t1	range	i4_uq	i4_uq	5	NULL	2	Using index condition
 SELECT * FROM t1 WHERE i4 BETWEEN 10 AND 99999999999999999;
 pk	i4
 1	10
@@ -1747,7 +1755,7 @@ pk	i4
 EXPLAIN
 SELECT * FROM t1 WHERE i4 BETWEEN 10 AND '20';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	i4_uq	i4_uq	5	NULL	1	Using where
+1	SIMPLE	t1	range	i4_uq	i4_uq	5	NULL	1	Using index condition
 SELECT * FROM t1 WHERE i4 BETWEEN 10 AND '20';
 pk	i4
 1	10
@@ -1756,14 +1764,14 @@ EXPLAIN
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	i4_uq	NULL	NULL	NULL	3	
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.i4	1	Using where
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.i4	1	Using index condition
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 pk	i4	pk	i4
 EXPLAIN
 SELECT * FROM t1, t1 as t2 WHERE t1.i4 BETWEEN t2.pk AND t2.pk;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	i4_uq	NULL	NULL	NULL	3	
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.i4	1	Using where
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.i4	1	Using index condition
 SELECT * FROM t1, t1 as t2 WHERE t1.i4 BETWEEN t2.pk AND t2.pk;
 pk	i4	pk	i4
 DROP TABLE t1;
@@ -1884,4 +1892,255 @@ AAA	AAA	AAA
 AAAA	AAAA	AAAA
 AAAAA	AAAAA	AAAAA
 DROP TABLE t1;
+#
+# mdev-4894:  Poor performance with unnecessary 
+# (bug#70021) 'Range checked for each record'
+#
+create table t1( key1 int not null, INDEX i1(key1) );
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8);
+insert into t1 select key1+8 from t1;
+insert into t1 select key1+16 from t1;
+insert into t1 select key1+32 from t1;
+insert into t1 select key1+64 from t1;
+insert into t1 select key1+128 from t1;
+insert into t1 select key1+256 from t1;
+insert into t1 select key1+512 from t1;
+alter table t1 add key2 int not null, add index i2(key2);
+update t1 set key2=key1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+create table t2 (a int);
+insert into t2 values (1),(2),(3),(4),(5),(6),(7),(8);
+insert into t2 select a+16 from t2;
+insert into t2 select a+32 from t2;
+insert into t2 select a+64 from t2;
+explain
+select count(*) from t2 left join t1 on (t1.key1 < 3 or t1.key1 > 1020) and t1.key2 < 1000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	64	
+1	SIMPLE	t1	range	i1,i2	i1	4	NULL	78	Using where; Using join buffer (flat, BNL join)
+select count(*) from t2 left join t1 on (t1.key1 < 3 or t1.key1 > 1020) and t1.key2 < 1000;
+count(*)
+128
+explain
+select count(*) from t2 left join t1 on (t1.key1 < 3 or t1.key1 > 1020) and t1.key2 < t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	64	
+1	SIMPLE	t1	range	i1,i2	i1	4	NULL	78	Using where; Using join buffer (flat, BNL join)
+select count(*) from t2 left join t1 on (t1.key1 < 3 or t1.key1 > 1020) and t1.key2 < t2.a;
+count(*)
+126
+drop table t1,t2;
 End of 5.1 tests
+#
+# LP Bug #533117: Wrong use_count in SEL_ARG trees
+#   (Bug #58731)
+#
+create table t1 (a int, b int, c int, key idx (a,b,c));
+insert into t1 values (0,0,0), (2,2,0), (1,1,1), (2,2,1);
+explain
+select * from t1 force index (idx) where a >=1 and c <= 1 and a=b and b > 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	idx	idx	5	NULL	3	Using where; Using index
+select * from t1 force index (idx) where a >=1 and c <= 1 and a=b and b > 1;
+a	b	c
+2	2	0
+2	2	1
+drop table t1;
+create table t1 (f1 datetime, key (f1));
+insert into t1 values ('2000-03-09 15:56:59'),('2000-05-05 23:24:28'),('2000-06-13 13:12:06');
+select  min(f1)  from t1 where f1 >= '2006-05-25 07:00:20' and f1 between '2003-11-23 10:00:09' and '2010-01-01 01:01:01' and f1 > '2001-01-01 01:01:01';
+min(f1)
+NULL
+drop table t1;
+#
+# BUG#11765831: 'RANGE ACCESS' MAY INCORRECTLY FILTER 
+#               AWAY QUALIFYING ROWS
+#
+CREATE TABLE t10(
+K INT NOT NULL AUTO_INCREMENT,
+I INT, J INT,
+PRIMARY KEY(K),
+KEY(I,J)
+);
+INSERT INTO t10(I,J) VALUES (6,1),(6,2),(6,3),(6,4),(6,5),
+(6,6),(6,7),(6,8),(6,9),(6,0);
+CREATE TABLE t100 LIKE t10;
+INSERT INTO t100(I,J) SELECT X.I, X.K+(10*Y.K) FROM t10 AS X,t10 AS Y;
+INSERT INTO t100(I,J) VALUES(8,26);
+
+EXPLAIN SELECT * FROM t100 WHERE I <> 6 OR (I <> 8 AND J = 5);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t100	range	I	I	10	NULL	4	Using index condition; Using where
+
+SELECT * FROM t100 WHERE I <> 6 OR (I <> 8 AND J = 5);
+K	I	J
+101	8	26
+DROP TABLE t10,t100;
+#
+# lp:817363: Wrong result with sort_union and multipart key in maria-5.3
+# 
+CREATE TABLE t1 (a int NOT NULL , b int, c int, d varchar(32), KEY (d,b), PRIMARY KEY (a)) ;
+INSERT INTO t1 VALUES (7,7,NULL,'e'),(8,1,0,'p'),(9,7,1,'s'),(10,1,1,'j'),(12,2,0,'c'),(13,0,0,'a'),(14,1,1,'q');
+SELECT c FROM t1                  WHERE d='q' OR d>='q' OR a > 97 OR (d IN ('j','s','i') AND b = 102);
+c
+1
+1
+SELECT c FROM t1 ignore index (d) WHERE d='q' OR d>='q' OR a > 97 OR (d IN ('j','s','i') AND b = 102);
+c
+1
+1
+SELECT * FROM t1 ignore index(d) WHERE d = 'q' OR d >= 'q' OR (d IN ( 'j' , 's' , 'i' ) AND ( b = 102 ));
+a	b	c	d
+9	7	1	s
+14	1	1	q
+SELECT * FROM t1 force index(d)  WHERE d = 'q' OR d >= 'q' OR (d IN ( 'j' , 's' , 'i' ) AND ( b = 102 ));
+a	b	c	d
+14	1	1	q
+9	7	1	s
+DROP TABLE t1;
+#
+# BUG#13256446 - ASSERTION QUICK->HEAD->READ_SET ==
+# SAVE_READ_SET' FAILED IN OPT_RANGE.CC:1606 
+#
+CREATE TABLE t1 (
+f1 INT AUTO_INCREMENT,
+f2 INT,
+f3 INT,
+f4 INT,
+PRIMARY KEY (f1),KEY(f2)
+) ENGINE=INNODB;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT f1,f2,f3,f4 FROM t1 WHERE f2=103;
+INSERT INTO t1 VALUES (154,0,NULL,0),(0,NULL,9,0),
+(NULL,102,NULL,3),(0,3,NULL,0), (9,0,NULL,0),(0,9,NULL,157);
+SELECT * FROM v2;
+f1	f2	f3	f4
+UPDATE v2 SET f4=0, f2=NULL, f1=NULL WHERE f1 > 16 ORDER BY f1;
+SELECT * FROM v2;
+f1	f2	f3	f4
+DROP TABLE t1;
+DROP VIEW v2;
+CREATE TABLE t1 (
+f1 INT AUTO_INCREMENT,
+f2 INT,
+f3 INT,
+f4 INT,
+PRIMARY KEY (f1),KEY(f2)
+) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1,NULL,NULL,0), (2,2,0,3), (9,0,107,18),
+(10,0,0,0), (231,0,0,0), (232,0,8,0), (234,0,0,NULL), (235,8,0,3);
+CREATE ALGORITHM=MERGE VIEW v3 AS SELECT f1,f2,f3,f4 FROM t1 WHERE f1<=85 ;
+SELECT * FROM v3;
+f1	f2	f3	f4
+1	NULL	NULL	0
+2	2	0	3
+9	0	107	18
+10	0	0	0
+UPDATE v3 SET f3=0, f4=4 WHERE f2=68 ORDER BY f1;
+SELECT * FROM v3;
+f1	f2	f3	f4
+1	NULL	NULL	0
+2	2	0	3
+9	0	107	18
+10	0	0	0
+DROP TABLE t1;
+DROP VIEW v3;
+#
+# MDEV-6105: Emoji unicode character string search query makes mariadb performance down
+#
+SET NAMES utf8;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 't1'
+CREATE TABLE t1(
+id int AUTO_INCREMENT,
+fd varchar(20),
+primary key(id),
+index ix_fd(fd)
+)engine=innodb default charset=UTF8;
+INSERT INTO t1(id, fd) VALUES (null, ''),(null, 'matt'),(null, 'pitt'),(null, 'lee'),(null, 'kim');
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+# The following should show "Impossible WHERE" :
+explain
+SELECT * FROM t1 WHERE fd='😁';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9F\x98\x81' for column 'fd' at row 1
+SELECT * FROM t1 WHERE fd='😁';
+id	fd
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9F\x98\x81' for column 'fd' at row 1
+# The following must not use range access:
+explain select count(*) from t1 where fd <'😁';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	ix_fd	ix_fd	63	NULL	#	Using where; Using index
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9F\x98\x81' for column 'fd' at row 1
+select count(*) from t1 where fd <'😁';
+count(*)
+40960
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9F\x98\x81' for column 'fd' at row 1
+select count(*) from t1 ignore index (ix_fd) where fd <'😁';
+count(*)
+40960
+drop table t1;
+set names default;
+create table t2 (a int, b int, c int, d int, key x(a, b));
+insert into t2 values (2, 2, 2, 2), (3, 3, 3, 3), (4, 4, 4, 4), (5, 5, 5, 5),
+(6, 6, 6, 6), (7, 7, 7, 7), (8, 8, 8, 8), (9, 9, 9, 9);
+insert into t2 select * from t2;
+insert into t2 values (0, 0, 0, 0), (1, 1, 1, 1);
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+select a, b from t2 where (a, b) in ((0, 0), (1, 1));
+a	b
+0	0
+1	1
+drop table t2;
+#
+# MDEV-10228: Delete missing rows with OR conditions
+#  (The example uses UPDATE, because UPDATE allows to use index hints
+#   and so it's possible to make an example that works with any storage
+#   engine)
+#
+CREATE TABLE t1 (
+key1varchar varchar(14) NOT NULL,
+key2int int(11) NOT NULL DEFAULT '0',
+col1 int,
+PRIMARY KEY (key1varchar,key2int),
+KEY key1varchar (key1varchar),
+KEY key2int (key2int)
+) DEFAULT CHARSET=utf8;
+insert into t1 values 
+('value1',0, 0),
+('value1',1, 0),
+('value1',1000685, 0),
+('value1',1003560, 0),
+('value1',1004807, 0);
+update t1 force index (PRIMARY) set col1=12345
+where (key1varchar='value1' AND (key2int <=1 OR  key2int > 1));
+# The following must show col1=12345 for all rows:
+select * from t1;
+key1varchar	key2int	col1
+value1	0	12345
+value1	1	12345
+value1	1000685	12345
+value1	1003560	12345
+value1	1004807	12345
+drop table t1;

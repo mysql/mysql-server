@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2012, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 #
 
 SET(SHARED_LIB_MAJOR_VERSION "18")
-SET(SHARED_LIB_MINOR_VERSION "0")
 SET(PROTOCOL_VERSION "10")
 SET(DOT_FRM_VERSION "6")
 
@@ -55,7 +54,7 @@ MACRO(GET_MYSQL_VERSION)
   ENDIF()
 
   SET(VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}${EXTRA_VERSION}")
-  MESSAGE(STATUS "MySQL ${VERSION}")
+  MESSAGE(STATUS "MariaDB ${VERSION}")
   SET(MYSQL_BASE_VERSION "${MAJOR_VERSION}.${MINOR_VERSION}" CACHE INTERNAL "MySQL Base version")
   SET(MYSQL_NO_DASH_VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}")
   # Use NDBVERSION irregardless of whether this is Cluster or not, if not
@@ -66,7 +65,7 @@ MACRO(GET_MYSQL_VERSION)
   MARK_AS_ADVANCED(VERSION MYSQL_VERSION_ID MYSQL_BASE_VERSION)
   SET(CPACK_PACKAGE_VERSION_MAJOR ${MAJOR_VERSION})
   SET(CPACK_PACKAGE_VERSION_MINOR ${MINOR_VERSION})
-  SET(CPACK_PACKAGE_VERSION_PATCH ${PATCH_VERSION})
+  SET(CPACK_PACKAGE_VERSION_PATCH ${PATCH_VERSION}${EXTRA_VERSION})
 ENDMACRO()
 
 # Get mysql version and other interesting variables
@@ -81,14 +80,9 @@ ELSEIF(MYSQL_TCP_PORT EQUAL MYSQL_TCP_PORT_DEFAULT)
   SET(MYSQL_TCP_PORT_DEFAULT "0")
 ENDIF()
 
-
-IF(NOT MYSQL_UNIX_ADDR)
-  SET(MYSQL_UNIX_ADDR "/tmp/mysql.sock")
-ENDIF()
 IF(NOT COMPILATION_COMMENT)
   SET(COMPILATION_COMMENT "Source distribution")
 ENDIF()
-
 
 INCLUDE(package_name)
 IF(NOT CPACK_PACKAGE_FILE_NAME)
@@ -96,19 +90,18 @@ IF(NOT CPACK_PACKAGE_FILE_NAME)
 ENDIF()
 
 IF(NOT CPACK_SOURCE_PACKAGE_FILE_NAME)
-  SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mysql-${VERSION}")
+  SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mariadb-${VERSION}")
   IF("${VERSION}" MATCHES "-ndb-")
     STRING(REGEX REPLACE "^.*-ndb-" "" NDBVERSION "${VERSION}")
     SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mysql-cluster-gpl-${NDBVERSION}")
   ENDIF()
 ENDIF()
-SET(CPACK_PACKAGE_CONTACT "MySQL Release Engineering <mysql-build@oss.oracle.com>")
-SET(CPACK_PACKAGE_VENDOR "Oracle Corporation")
+SET(CPACK_PACKAGE_CONTACT "MariaDB team <info@montyprogram.com>")
+SET(CPACK_PACKAGE_VENDOR "Monty Program AB")
 SET(CPACK_SOURCE_GENERATOR "TGZ")
-INCLUDE(cpack_source_ignore_files)
 
 # Defintions for windows version resources
-SET(PRODUCTNAME "MySQL Server")
+SET(PRODUCTNAME "MariaDB Server")
 SET(COMPANYNAME ${CPACK_PACKAGE_VENDOR})
 
 # Windows 'date' command has unpredictable output, so cannot rely on it to
@@ -125,8 +118,14 @@ ENDIF()
 # Refer to http://msdn.microsoft.com/en-us/library/aa381058(VS.85).aspx
 # for more info.
 IF(MSVC)
+    # Tiny version is used to identify the build, it can be set with cmake -DTINY_VERSION=<number>
+    # to bzr revno for example (in the CI builds)
+    IF(NOT TINY_VERSION)
+      SET(TINY_VERSION "0")
+    ENDIF()
+  
     GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
-	
+
     SET(FILETYPE VFT_APP)
     CONFIGURE_FILE(${MYSQL_CMAKE_SCRIPT_DIR}/versioninfo.rc.in 
     ${CMAKE_BINARY_DIR}/versioninfo_exe.rc)
@@ -134,7 +133,7 @@ IF(MSVC)
     SET(FILETYPE VFT_DLL)
     CONFIGURE_FILE(${MYSQL_CMAKE_SCRIPT_DIR}/versioninfo.rc.in  
       ${CMAKE_BINARY_DIR}/versioninfo_dll.rc)
-	  
+
   FUNCTION(ADD_VERSION_INFO target target_type sources_var)
     IF("${target_type}" MATCHES "SHARED" OR "${target_type}" MATCHES "MODULE")
       SET(rcfile ${CMAKE_BINARY_DIR}/versioninfo_dll.rc)

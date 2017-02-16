@@ -2,19 +2,7 @@
 # Options: --skip-name-resolve, master: --bind-address=0.0.0.0, slave: --bind-address=::
 # (see corresponding cnf file)
 #
-# Check if ipv6 is available. If not, server is crashing (see BUG#48915).
---disable_query_log
---disable_abort_on_error
-connect (checkcon123456789,::1,root,,test,$SLAVE_MYPORT);
-if($mysql_errno)
-{
-skip wrong IP for slave;
-}
-connection default;
-disconnect checkcon123456789;
---enable_abort_on_error
---enable_query_log
-# end check
+--source include/check_ipv6.inc
 --source include/have_log_bin.inc
 
 let $IPv6= ::1;

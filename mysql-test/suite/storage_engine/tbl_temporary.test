@@ -1,0 +1,32 @@
+# 
+# The test checks whether a temporary table
+# can be created with the engine under test.
+# 
+
+--source have_engine.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# This is a base table which we want to mask
+CREATE TABLE t1 (c CHAR(1)) ENGINE=MyISAM;
+
+--let $temporary = 1
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Temporary tables
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --source mask_engine.inc
+  SHOW CREATE TABLE t1;
+
+  DROP TEMPORARY TABLE t1;
+  DROP TABLE t1;
+}
+--source cleanup_engine.inc
+

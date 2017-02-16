@@ -36,9 +36,8 @@
 
  ***************************************************************/
 
+#include "strings_def.h"
 #include <my_base.h> /* for EOVERFLOW on Windows */
-#include <my_global.h>
-#include <m_string.h>  /* for memcpy and NOT_FIXED_DEC */
 
 /**
    Appears to suffice to not call malloc() in most cases.
@@ -1413,30 +1412,23 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
   nd0= nd;
   if (s < end - 1 && c == '.')
   {
-    c= *++s;
+    ++s;
     if (!nd)
     {
-      for (; s < end; ++s)
-      {
-        c= *s;
-        if (c != '0')
-          break;
+      for (; s < end && (c= *s) == '0'; ++s)
         nz++;
-      }
-      if (s < end && c > '0' && c <= '9')
+      if (s < end && (c= *s) > '0' && c <= '9')
       {
         s0= s;
         nf+= nz;
         nz= 0;
+        goto have_dig;
       }
-      else
-        goto dig_done;
+      goto dig_done;
     }
-    for (; s < end; ++s)
+    for (; s < end && (c= *s) >= '0' && c <= '9'; ++s)
     {
-      c= *s;
-      if (c < '0' || c > '9')
-        break;
+ have_dig:
       /*
         Here we are parsing the fractional part.
         We can stop counting digits after a while: the extra digits

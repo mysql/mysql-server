@@ -122,20 +122,16 @@ insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b)
 analyze table t1;
 select count(*) from t1;
 
-if ($index_merge_random_rows_in_EXPLAIN)
-{
-  --replace_column 9 #
-}
+--replace_column 9 REF
+--replace_result i2,i1 i1,i2
 explain select count(*) from t1 where
   key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
 
 select count(*) from t1 where
   key1a = 2 and key1b is null and key2a = 2 and key2b is null;
 
-if ($index_merge_random_rows_in_EXPLAIN)
-{
-  --replace_column 9 #
-}
+--replace_column 9 REF
+--replace_result i3,i1 i1,i3
 explain select count(*) from t1 where
   key1a = 2 and key1b is null and key3a = 2 and key3b is null;
 
@@ -347,6 +343,7 @@ alter table t1 add index i3(key3);
 update t1 set key2=key1,key3=key1;
 
 # to test the bug, the following must use "sort_union":
+--replace_column 9 REF
 explain select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
 select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
 drop table t1;

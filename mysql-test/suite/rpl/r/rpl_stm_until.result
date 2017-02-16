@@ -1,5 +1,6 @@
 include/master-slave.inc
 [connection master]
+include/rpl_reset.inc
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 [on slave]
 include/stop_slave.inc
@@ -34,7 +35,7 @@ n
 3
 4
 include/check_slave_param.inc [Exec_Master_Log_Pos]
-start slave until relay_log_file='slave-relay-bin.000003', relay_log_pos=RELAY_LOG_POS;
+start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=RELAY_LOG_POS;
 include/wait_for_slave_io_to_start.inc
 include/wait_for_slave_sql_to_stop.inc
 select * from t2;

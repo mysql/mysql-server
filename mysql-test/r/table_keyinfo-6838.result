@@ -1,0 +1,12 @@
+CREATE TABLE t1 (i INT, state VARCHAR(997)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (2,'Louisiana'),(9,'Maine');
+CREATE TABLE t2 (state VARCHAR(997), j INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('Louisiana',9),('Alaska',5);
+INSERT INTO t2 SELECT t2.* FROM t2 JOIN t2 AS t3 JOIN t2 AS t4 JOIN t2 AS t5 JOIN t2 AS t6;
+SET @@max_heap_table_size= 16384;
+set @@optimizer_switch='derived_merge=OFF';
+set @@optimizer_switch='extended_keys=ON';
+SELECT * FROM t1 AS t1_1 LEFT JOIN ( t1 AS t1_2 INNER JOIN (SELECT * FROM t2) v2 ON t1_2.i = j ) ON t1_1.state = v2.state LIMIT 1;
+i	state	i	state	state	j
+2	Louisiana	9	Maine	Louisiana	9
+DROP TABLE t1, t2;

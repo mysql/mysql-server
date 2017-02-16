@@ -1,0 +1,16 @@
+# test DB-823
+# test that the conversion of table t from innodb to tokudb succeeds.
+source include/have_tokudb.inc;
+source include/have_innodb.inc;
+disable_warnings;
+drop table if exists s,t;
+enable_warnings;
+create table s (id int) engine=tokudb;
+lock tables s write;
+create temporary table t (id int, key(id)) engine=innodb;
+insert into t values (1);
+alter table t engine=tokudb;
+select * from t;
+unlock tables;
+drop table s, t;
+

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2012, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,13 +66,13 @@ class Master_info : public Slave_reporting_capability
 
   /* the variables below are needed because we can change masters on the fly */
   char master_log_name[FN_REFLEN];
-  char host[HOSTNAME_LENGTH+1];
+  char host[HOSTNAME_LENGTH*SYSTEM_CHARSET_MBMAXLEN+1];
   char user[USERNAME_LENGTH+1];
-  char password[MAX_PASSWORD_LENGTH+1];
-  my_bool ssl; // enables use of SSL connection if true
+  char password[MAX_PASSWORD_LENGTH*SYSTEM_CHARSET_MBMAXLEN+1];
+  bool ssl; // enables use of SSL connection if true
   char ssl_ca[FN_REFLEN], ssl_capath[FN_REFLEN], ssl_cert[FN_REFLEN];
   char ssl_cipher[FN_REFLEN], ssl_key[FN_REFLEN];
-  my_bool ssl_verify_server_cert;
+  bool ssl_verify_server_cert;
 
   my_off_t master_log_pos;
   File fd; // we keep the file open, so we need to remember the file pointer
@@ -85,6 +85,12 @@ class Master_info : public Slave_reporting_capability
   uint32 file_id;				/* for 3.23 load data infile */
   Relay_log_info rli;
   uint port;
+  /*
+    to hold checksum alg in use until IO thread has received FD.
+    Initialized to novalue, then set to the queried from master
+    @@global.binlog_checksum and deactivated once FD has been received.
+  */
+  uint8 checksum_alg_before_fd;
   uint connect_retry;
 #ifndef DBUG_OFF
   int events_till_disconnect;

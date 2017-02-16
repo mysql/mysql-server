@@ -1,4 +1,5 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates.
+   Copyright (c) 2012, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,24 +83,16 @@ enum find_files_result {
 #define IS_FILES_EXTRA               37
 
 find_files_result find_files(THD *thd, List<LEX_STRING> *files, const char *db,
-                             const char *path, const char *wild, bool dir,
-                             MEM_ROOT *tmp_mem_root);
+                             const char *path, const char *wild, bool dir);
 
 int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                       HA_CREATE_INFO  *create_info_arg, bool show_database);
 int view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
 
 int copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table);
-int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
 
-void append_identifier(THD *thd, String *packet, const char *name, uint length,
-                       CHARSET_INFO *from_cs, CHARSET_INFO *to_cs);
-inline void append_identifier(THD *thd, String *packet, const char *name,
-                              uint length)
-{
-  append_identifier(thd, packet, name, length, NULL, NULL);
-}
-
+bool append_identifier(THD *thd, String *packet, const char *name,
+		       uint length);
 void mysqld_list_fields(THD *thd,TABLE_LIST *table, const char *wild);
 int mysqld_dump_create_info(THD *thd, TABLE_LIST *table_list, int fd);
 bool mysqld_show_create(THD *thd, TABLE_LIST *table_list);
@@ -120,7 +113,6 @@ int add_status_vars(SHOW_VAR *list);
 void remove_status_vars(SHOW_VAR *list);
 void init_status_vars();
 void free_status_vars();
-bool get_status_var(THD* thd, SHOW_VAR *list, const char *name, char * const buff);
 void reset_status_vars();
 bool show_create_trigger(THD *thd, const sp_name *trg_name);
 void view_store_options(THD *thd, TABLE_LIST *table, String *buff);
@@ -140,5 +132,13 @@ enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
 
 /* These functions were under INNODB_COMPATIBILITY_HOOKS */
 int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
+
+/* Handle the ignored database directories list for SHOW/I_S. */
+bool ignore_db_dirs_init();
+void ignore_db_dirs_free();
+void ignore_db_dirs_reset();
+bool ignore_db_dirs_process_additions();
+bool push_ignored_db_dir(char *path);
+extern char *opt_ignore_db_dirs;
 
 #endif /* SQL_SHOW_H */

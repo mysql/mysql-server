@@ -1,0 +1,54 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (b BLOB <CUSTOM_COL_OPTIONS>,
+b0 BLOB(0) <CUSTOM_COL_OPTIONS>,
+b1 BLOB(1) <CUSTOM_COL_OPTIONS>,
+b300 BLOB(300) <CUSTOM_COL_OPTIONS>,
+bm BLOB(65535) <CUSTOM_COL_OPTIONS>,
+b70k BLOB(70000) <CUSTOM_COL_OPTIONS>,
+b17m BLOB(17000000) <CUSTOM_COL_OPTIONS>,
+t TINYBLOB <CUSTOM_COL_OPTIONS>,
+m MEDIUMBLOB <CUSTOM_COL_OPTIONS>,
+l LONGBLOB <CUSTOM_COL_OPTIONS>
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW COLUMNS IN t1;
+Field	Type	Null	Key	Default	Extra
+b	blob	#	#	#	
+b0	blob	#	#	#	
+b1	tinyblob	#	#	#	
+b300	blob	#	#	#	
+bm	blob	#	#	#	
+b70k	mediumblob	#	#	#	
+b17m	longblob	#	#	#	
+t	tinyblob	#	#	#	
+m	mediumblob	#	#	#	
+l	longblob	#	#	#	
+INSERT INTO t1 (b,b0,b1,b300,bm,b70k,b17m,t,m,l) VALUES
+('','','','','','','','','',''),
+('a','b','c','d','e','f','g','h','i','j'),
+('test1','test2','test3','test4','test5','test6','test7','test8','test9','test10'),
+( REPEAT('a',65535), REPEAT('b',65535), REPEAT('c',255), REPEAT('d',65535), REPEAT('e',65535), REPEAT('f',1048576), HEX(REPEAT('g',1048576)), REPEAT('h',255), REPEAT('i',1048576), HEX(REPEAT('j',1048576)) );
+SELECT LENGTH(b), LENGTH(b0), LENGTH(b1), LENGTH(b300), LENGTH(bm), LENGTH(b70k), LENGTH(b17m), LENGTH(t), LENGTH(m), LENGTH(l) FROM t1;
+LENGTH(b)	LENGTH(b0)	LENGTH(b1)	LENGTH(b300)	LENGTH(bm)	LENGTH(b70k)	LENGTH(b17m)	LENGTH(t)	LENGTH(m)	LENGTH(l)
+0	0	0	0	0	0	0	0	0	0
+1	1	1	1	1	1	1	1	1	1
+5	5	5	5	5	5	5	5	5	6
+65535	65535	255	65535	65535	1048576	2097152	255	1048576	2097152
+INSERT INTO t1 (b,b0,b1,b300,bm,b70k,b17m,t,m,l) VALUES
+( REPEAT('a',65536), REPEAT('b',65536), REPEAT('c',256), REPEAT('d',65536), REPEAT('e',65536), REPEAT('f',1048576), REPEAT('g',1048576), REPEAT('h',256), REPEAT('i',1048576), REPEAT('j',1048576) );
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'b0' at row 1
+Warning	1265	Data truncated for column 'b1' at row 1
+Warning	1265	Data truncated for column 'b300' at row 1
+Warning	1265	Data truncated for column 'bm' at row 1
+Warning	1265	Data truncated for column 't' at row 1
+SELECT LENGTH(b), LENGTH(b0), LENGTH(b1), LENGTH(b300), LENGTH(bm), LENGTH(b70k), LENGTH(b17m), LENGTH(t), LENGTH(m), LENGTH(l) FROM t1;
+LENGTH(b)	LENGTH(b0)	LENGTH(b1)	LENGTH(b300)	LENGTH(bm)	LENGTH(b70k)	LENGTH(b17m)	LENGTH(t)	LENGTH(m)	LENGTH(l)
+0	0	0	0	0	0	0	0	0	0
+1	1	1	1	1	1	1	1	1	1
+5	5	5	5	5	5	5	5	5	6
+65535	65535	255	65535	65535	1048576	1048576	255	1048576	1048576
+65535	65535	255	65535	65535	1048576	2097152	255	1048576	2097152
+ALTER TABLE t1 ADD COLUMN bbb BLOB(4294967296);
+ERROR 42000: Display width out of range for 'bbb' (max = 4294967295)
+DROP TABLE t1;

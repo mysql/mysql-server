@@ -40,7 +40,7 @@ let $dbug_sync_point= 'debug_lock.before_get_SERVER_ID';
 let $debug_sync_action= 'now SIGNAL signal.get_server_id';
 source extra/rpl_tests/rpl_get_master_version_and_clock.test;
 
-eval set global debug= '$debug_saved';
+eval set global debug_dbug= '$debug_saved';
 
 
 # cleanup

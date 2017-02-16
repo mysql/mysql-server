@@ -32,3 +32,18 @@ INSERT INTO t1 VALUES(0xA3C2);
 DROP TABLE t1;
 
 # End of 5.1 tests
+
+#
+# MDEV-9986 Full-text search of the utf8mb4 column causes crash
+#
+create table t1 (
+  id varchar(255),
+  business_name text null collate utf8mb4_unicode_ci,
+  street_address text,
+  fulltext index ft (business_name),
+  fulltext index ft2 (street_address)
+);
+--error ER_FT_MATCHING_KEY_NOT_FOUND
+select * from t1 where match (business_name, street_address) against ('some business name and address here');
+select * from t1 where match (business_name, street_address) against ('some business name and address here' in boolean mode);
+drop table t1;

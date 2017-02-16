@@ -1,0 +1,19 @@
+--- tbl_opt_connection.result	2013-01-22 22:05:05.246633000 +0400
++++ tbl_opt_connection.reject	2013-01-23 02:50:59.335506506 +0400
+@@ -10,14 +10,14 @@
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL,
+   `b` char(8) DEFAULT NULL
+-) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1 CONNECTION='test_connection'
++) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`mrg`.`t1`) CONNECTION='test_connection'
+ ALTER TABLE t1 CONNECTION='test_connection2';
+ SHOW CREATE TABLE t1;
+ Table	Create Table
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL,
+   `b` char(8) DEFAULT NULL
+-) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1 CONNECTION='test_connection2'
++) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`mrg`.`t1`) CONNECTION='test_connection2'
+ DROP TABLE t1;
+ DROP SERVER test_connection;
+ DROP SERVER test_connection2;

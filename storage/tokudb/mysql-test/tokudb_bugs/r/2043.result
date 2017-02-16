@@ -1,0 +1,20 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+set session transaction isolation level read uncommitted;
+create table foo (a int) engine=TokuDB;
+insert into foo values (1),(2),(3);
+select * from foo;
+a
+1
+2
+3
+update foo set a=a+1;
+select * from foo;
+a
+2
+3
+4
+delete from foo;
+select * from foo;
+a
+DROP TABLE foo;

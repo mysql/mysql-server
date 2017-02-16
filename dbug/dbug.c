@@ -53,9 +53,6 @@
  *      Enhanced Software Technologies, Tempe, AZ
  *      asuvax!mcdphx!estinc!fnf
  *
- *      Binayak Banerjee        (profiling enhancements)
- *      seismo!bpa!sjuvax!bbanerje
- *
  *      Michael Widenius:
  *        DBUG_DUMP       - To dump a block of memory.
  *        PUSH_FLAG "O"   - To be used insted of "o" if we
@@ -84,10 +81,12 @@
   in pthread_mutex_lock
 */
 
-#undef SAFE_MUTEX
 #include <my_global.h>
+#undef SAFE_MUTEX
 #include <m_string.h>
 #include <errno.h>
+
+#ifndef DBUG_OFF
 
 #ifdef HAVE_FNMATCH_H
 #include <fnmatch.h>
@@ -98,9 +97,6 @@
 #if defined(__WIN__)
 #include <process.h>
 #endif
-
-#ifndef DBUG_OFF
-
 
 /*
  *            Manifest constants which may be "tuned" if desired.
@@ -125,16 +121,16 @@
 #define DEPTH_ON        (1 <<  4)  /* Function nest level print enabled */
 #define PROCESS_ON      (1 <<  5)  /* Process name print enabled */
 #define NUMBER_ON       (1 <<  6)  /* Number each line of output */
-#define PROFILE_ON      (1 <<  7)  /* Print out profiling code */
 #define PID_ON          (1 <<  8)  /* Identify each line with process id */
 #define TIMESTAMP_ON    (1 <<  9)  /* timestamp every line of output */
 #define FLUSH_ON_WRITE  (1 << 10)  /* Flush on every write */
 #define OPEN_APPEND     (1 << 11)  /* Open for append      */
+#define SANITY_CHECK_ON (1 << 12)  /* Check memory on every DBUG_ENTER/RETURN */
 #define TRACE_ON        ((uint)1 << 31)  /* Trace enabled. MUST be the highest bit!*/
 
+#define sf_sanity() (0)
 #define TRACING (cs->stack->flags & TRACE_ON)
 #define DEBUGGING (cs->stack->flags & DEBUG_ON)
-#define PROFILING (cs->stack->flags & PROFILE_ON)
 
 /*
  *      Typedefs to make things more obvious.
@@ -143,44 +139,16 @@
 #define BOOLEAN my_bool
 
 /*
- *      Make it easy to change storage classes if necessary.
- */
-
-#define IMPORT extern           /* Names defined externally */
-#define EXPORT                  /* Allocated here, available globally */
-#define AUTO auto               /* Names to be allocated on stack */
-#define REGISTER register       /* Names to be placed in registers */
-
-/*
- * The default file for profiling.  Could also add another flag
- * (G?) which allowed the user to specify this.
- *
- * If the automatic variables get allocated on the stack in
- * reverse order from their declarations, then define AUTOS_REVERSE to 1.
- * This is used by the code that keeps track of stack usage.  For
- * forward allocation, the difference in the dbug frame pointers
- * represents stack used by the callee function.  For reverse allocation,
- * the difference represents stack used by the caller function.
- *
- */
-
-#define PROF_FILE       "dbugmon.out"
-#define PROF_EFMT       "E\t%ld\t%s\n"
-#define PROF_SFMT       "S\t%lx\t%lx\t%s\n"
-#define PROF_XFMT       "X\t%ld\t%s\n"
-
-#ifdef M_I386           /* predefined by xenix 386 compiler */
-#define AUTOS_REVERSE 1
-#else
-#define AUTOS_REVERSE 0
-#endif
-
-/*
  *      Externally supplied functions.
  */
 
 #ifndef HAVE_PERROR
-static void perror();          /* Fake system/library error print routine */
+static void perror(char *s)
+{
+  if (s && *s != '\0')
+    (void) fprintf(stderr, "%s: ", s);
+  (void) fprintf(stderr, "<unknown system error>\n");
+}
 #endif
 
 /*
@@ -204,6 +172,20 @@ struct link {
 #define NOT_MATCHED     0
 
 /*
+ * Debugging settings can be shared between threads.
+ * But FILE* streams cannot normally be shared - what if
+ * one thread closes a stream, while another thread still uses it?
+ * As a workaround, we have shared FILE pointers with reference counters
+ */
+typedef struct {
+  FILE *file;
+  uint used;
+} sFILE;
+
+sFILE shared_stdout = { 0, 1 << 30 }, *sstdout = &shared_stdout;
+sFILE shared_stderr = { 0, 1 << 30 }, *sstderr = &shared_stderr;
+
+/*
  *      Debugging settings can be pushed or popped off of a
  *      stack which is implemented as a linked list.  Note
  *      that the head of the list is the current settings and the
@@ -218,11 +200,9 @@ struct settings {
   uint maxdepth;                /* Current maximum trace depth          */
   uint delay;                   /* Delay after each output line         */
   uint sub_level;               /* Sub this from code_state->level      */
-  FILE *out_file;               /* Current output stream                */
-  FILE *prof_file;              /* Current profiling stream             */
+  sFILE *out_file;              /* Current output stream                */
   char name[FN_REFLEN];         /* Name of output file                  */
   struct link *functions;       /* List of functions                    */
-  struct link *p_functions;     /* List of profiled functions           */
   struct link *keywords;        /* List of debug keywords               */
   struct link *processes;       /* List of process names                */
   struct settings *next;        /* Next settings in the list            */
@@ -279,17 +259,17 @@ typedef struct _db_code_state_ {
 #define ListDel(A,B,C) ListAddDel(A,B,C,EXCLUDE)
 static struct link *ListAddDel(struct link *, const char *, const char *, int);
 static struct link *ListCopy(struct link *);
-static int InList(struct link *linkp,const char *cp);
+static int InList(struct link *linkp,const char *cp, int exact_match);
 static uint ListFlags(struct link *linkp);
 static void FreeList(struct link *linkp);
 
         /* OpenClose debug output stream */
 static void DBUGOpenFile(CODE_STATE *,const char *, const char *, int);
-static void DBUGCloseFile(CODE_STATE *cs, FILE *fp);
+static void DBUGCloseFile(CODE_STATE *cs, sFILE *new_value);
         /* Push current debug settings */
 static void PushState(CODE_STATE *cs);
 	/* Free memory associated with debug state. */
-static void FreeState (CODE_STATE *cs, struct settings *state, int free_state);
+static void FreeState (CODE_STATE *cs, int free_state);
         /* Test for tracing enabled */
 static int DoTrace(CODE_STATE *cs);
 /*
@@ -304,9 +284,6 @@ static int DoTrace(CODE_STATE *cs);
         /* Test to see if file is writable */
 #if defined(HAVE_ACCESS)
 static BOOLEAN Writable(const char *pathname);
-        /* Change file owner and group */
-static void ChangeOwner(CODE_STATE *cs, char *pathname);
-        /* Allocate memory for runtime support */
 #endif
 
 static void DoPrefix(CODE_STATE *cs, uint line);
@@ -341,7 +318,6 @@ static void DbugVfprintf(FILE *stream, const char* format, va_list args);
 #define WRITABLE(pathname)       (access(pathname, W_OK) == 0)
 #endif
 
-
 /*
 ** Macros to allow dbugging with threads
 */
@@ -363,9 +339,11 @@ static CODE_STATE *code_state(void)
   if (!init_done)
   {
     init_done=TRUE;
+    sstdout->file= stdout;
+    sstderr->file= stderr;
     pthread_mutex_init(&THR_LOCK_dbug, NULL);
     bzero(&init_settings, sizeof(init_settings));
-    init_settings.out_file=stderr;
+    init_settings.out_file= sstderr;
     init_settings.flags=OPEN_APPEND;
   }
 
@@ -376,12 +354,33 @@ static CODE_STATE *code_state(void)
     cs=(CODE_STATE*) DbugMalloc(sizeof(*cs));
     bzero((uchar*) cs,sizeof(*cs));
     cs->process= db_process ? db_process : "dbug";
-    cs->func="?func";
-    cs->file="?file";
+    cs->func= "?func";
+    cs->file= "?file";
     cs->stack=&init_settings;
     *cs_ptr= cs;
   }
   return cs;
+}
+
+void
+dbug_swap_code_state(void **code_state_store)
+{
+  CODE_STATE *cs, **cs_ptr;
+
+  if (!(cs_ptr= (CODE_STATE**) my_thread_var_dbug()))
+    return;
+  cs= *cs_ptr;
+  *cs_ptr= *code_state_store;
+  *code_state_store= cs;
+}
+
+void dbug_free_code_state(void **code_state_store)
+{
+  if (*code_state_store)
+  {
+    free(*code_state_store);
+    *code_state_store= NULL;
+  }
 }
 
 /*
@@ -448,13 +447,20 @@ void _db_process_(const char *name)
  *      0 - a list of functions was not changed
  */
 
-int DbugParse(CODE_STATE *cs, const char *control)
+static int DbugParse(CODE_STATE *cs, const char *control)
 {
   const char *end;
   int rel, f_used=0;
   struct settings *stack;
+  int org_cs_locked;
 
   stack= cs->stack;
+
+  if (!(org_cs_locked= cs->locked))
+  {
+    cs->locked= 1;
+    pthread_mutex_lock(&THR_LOCK_dbug);
+  }
 
   if (control[0] == '-' && control[1] == '#')
     control+=2;
@@ -462,16 +468,13 @@ int DbugParse(CODE_STATE *cs, const char *control)
   rel= control[0] == '+' || control[0] == '-';
   if ((!rel || (!stack->out_file && !stack->next)))
   {
-    /* Free memory associated with the state before resetting its members */
-    FreeState(cs, stack, 0);
+    FreeState(cs, 0);
     stack->flags= 0;
     stack->delay= 0;
     stack->maxdepth= 0;
     stack->sub_level= 0;
-    stack->out_file= stderr;
-    stack->prof_file= NULL;
+    stack->out_file= sstderr;
     stack->functions= NULL;
-    stack->p_functions= NULL;
     stack->keywords= NULL;
     stack->processes= NULL;
   }
@@ -482,26 +485,18 @@ int DbugParse(CODE_STATE *cs, const char *control)
     stack->maxdepth= stack->next->maxdepth;
     stack->sub_level= stack->next->sub_level;
     strcpy(stack->name, stack->next->name);
-    stack->prof_file= stack->next->prof_file;
+    stack->out_file= stack->next->out_file;
+    stack->out_file->used++;
     if (stack->next == &init_settings)
     {
-      /*
-        Never share with the global parent - it can change under your feet.
-
-        Reset out_file to stderr to prevent sharing of trace files between
-        global and session settings.
-      */
-      stack->out_file= stderr;
+      /* never share with the global parent - it can change under your feet */
       stack->functions= ListCopy(init_settings.functions);
-      stack->p_functions= ListCopy(init_settings.p_functions);
       stack->keywords= ListCopy(init_settings.keywords);
       stack->processes= ListCopy(init_settings.processes);
     }
     else
     {
-      stack->out_file= stack->next->out_file;
       stack->functions= stack->next->functions;
-      stack->p_functions= stack->next->p_functions;
       stack->keywords= stack->next->keywords;
       stack->processes= stack->next->processes;
     }
@@ -513,7 +508,8 @@ int DbugParse(CODE_STATE *cs, const char *control)
     int c, sign= (*control == '+') ? 1 : (*control == '-') ? -1 : 0;
     if (sign) control++;
     c= *control++;
-    if (*control == ',') control++;
+    if (*control == ',')
+      control++;
     /* XXX when adding new cases here, don't forget _db_explain_ ! */
     switch (c) {
     case 'd':
@@ -531,7 +527,7 @@ int DbugParse(CODE_STATE *cs, const char *control)
       {
         if (DEBUGGING)
           stack->keywords= ListDel(stack->keywords, control, end);
-      break;
+        break;
       }
       stack->keywords= ListAdd(stack->keywords, control, end);
       stack->flags |= DEBUG_ON;
@@ -593,10 +589,8 @@ int DbugParse(CODE_STATE *cs, const char *control)
     case 'o':
       if (sign < 0)
       {
-        if (!is_shared(stack, out_file))
-          DBUGCloseFile(cs, stack->out_file);
+        DBUGCloseFile(cs, sstderr);
         stack->flags &= ~FLUSH_ON_WRITE;
-        stack->out_file= stderr;
         break;
       }
       if (c == 'a' || c == 'A')
@@ -658,22 +652,33 @@ int DbugParse(CODE_STATE *cs, const char *control)
       else
         stack->flags |= TIMESTAMP_ON;
       break;
+    case 'S':
+      if (sign < 0)
+        stack->flags &= ~SANITY_CHECK_ON;
+      else
+        stack->flags |= SANITY_CHECK_ON;
+      break;
     }
     if (!*end)
       break;
     control=end+1;
     end= DbugStrTok(control);
   }
+  if (!org_cs_locked)
+  {
+    pthread_mutex_unlock(&THR_LOCK_dbug);
+    cs->locked= 0;
+  }
   return !rel || f_used;
 }
-
+  
 #define framep_trace_flag(cs, frp) (frp ?                                    \
                                      frp->level & TRACE_ON :                 \
                               (ListFlags(cs->stack->functions) & INCLUDE) ?  \
                                        0 : (uint)TRACE_ON)
 
-void FixTraceFlags_helper(CODE_STATE *cs, const char *func,
-                          struct _db_stack_frame_ *framep)
+static void FixTraceFlags_helper(CODE_STATE *cs, const char *func,
+                                 struct _db_stack_frame_ *framep)
 {
   if (framep->prev)
     FixTraceFlags_helper(cs, framep->func, framep->prev);
@@ -698,7 +703,7 @@ void FixTraceFlags_helper(CODE_STATE *cs, const char *func,
 
 #define fflags(cs) cs->stack->out_file ? ListFlags(cs->stack->functions) : TRACE_ON;
 
-void FixTraceFlags(uint old_fflags, CODE_STATE *cs)
+static void FixTraceFlags(uint old_fflags, CODE_STATE *cs)
 {
   const char *func;
   uint new_fflags, traceon, level;
@@ -815,7 +820,7 @@ void _db_set_(const char *control)
  *
  *      Given pointer to a debug control string in "control", pushes
  *      the current debug settings, parses the control string, and sets
- *      up a new debug settings with DbugParse()
+ *      up a new debug settings
  *
  */
 
@@ -885,18 +890,15 @@ void _db_set_init_(const char *control)
 
 void _db_pop_()
 {
-  struct settings *discard;
   uint old_fflags;
   CODE_STATE *cs;
 
   get_code_state_or_return;
 
-  discard= cs->stack;
-  if (discard != &init_settings)
+  if (cs->stack != &init_settings)
   {
     old_fflags=fflags(cs);
-    cs->stack= discard->next;
-    FreeState(cs, discard, 1);
+    FreeState(cs, 1);
     FixTraceFlags(old_fflags, cs);
   }
 }
@@ -919,7 +921,7 @@ void _db_pop_()
       } while (0)
 #define str_to_buf(S)    do {                   \
         char_to_buf(',');                       \
-        buf=strnmov(buf, (S), end-buf);         \
+        buf=strnmov(buf, (S), (uint) (end-buf)); \
         if (buf >= end) goto overflow;          \
       } while (0)
 #define list_to_buf(l, f)  do {                 \
@@ -1004,19 +1006,19 @@ int _db_explain_ (CODE_STATE *cs, char *buf, size_t len)
   op_list_to_buf('f', cs->stack->functions, cs->stack->functions);
   op_bool_to_buf('F', cs->stack->flags & FILE_ON);
   op_bool_to_buf('i', cs->stack->flags & PID_ON);
-  op_list_to_buf('g', cs->stack->p_functions, PROFILING);
   op_bool_to_buf('L', cs->stack->flags & LINE_ON);
   op_bool_to_buf('n', cs->stack->flags & DEPTH_ON);
   op_bool_to_buf('N', cs->stack->flags & NUMBER_ON);
   op_str_to_buf(
     ((cs->stack->flags & FLUSH_ON_WRITE ? 0 : 32) |
      (cs->stack->flags & OPEN_APPEND ? 'A' : 'O')),
-    cs->stack->name, cs->stack->out_file != stderr);
+    cs->stack->name, cs->stack->out_file != sstderr);
   op_list_to_buf('p', cs->stack->processes, cs->stack->processes);
   op_bool_to_buf('P', cs->stack->flags & PROCESS_ON);
   op_bool_to_buf('r', cs->stack->sub_level != 0);
   op_intf_to_buf('t', cs->stack->maxdepth, MAXDEPTH, TRACING);
   op_bool_to_buf('T', cs->stack->flags & TIMESTAMP_ON);
+  op_bool_to_buf('S', cs->stack->flags & SANITY_CHECK_ON);
 
   *buf= '\0';
   return 0;
@@ -1118,13 +1120,15 @@ void _db_enter_(const char *_func_, const char *_file_,
     if (!TRACING) break;
     /* fall through */
   case DO_TRACE:
+    if ((cs->stack->flags & SANITY_CHECK_ON) && sf_sanity())
+      cs->stack->flags &= ~SANITY_CHECK_ON;
     if (TRACING)
     {
       if (!cs->locked)
         pthread_mutex_lock(&THR_LOCK_dbug);
       DoPrefix(cs, _line_);
       Indent(cs, cs->level);
-      (void) fprintf(cs->stack->out_file, ">%s\n", cs->func);
+      (void) fprintf(cs->stack->out_file->file, ">%s\n", cs->func);
       DbugFlush(cs);                       /* This does a unlock */
     }
     break;
@@ -1173,13 +1177,15 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
 
   if (DoTrace(cs) & DO_TRACE)
   {
+    if ((cs->stack->flags & SANITY_CHECK_ON) && sf_sanity())
+      cs->stack->flags &= ~SANITY_CHECK_ON;
     if (TRACING)
     {
       if (!cs->locked)
         pthread_mutex_lock(&THR_LOCK_dbug);
       DoPrefix(cs, _line_);
       Indent(cs, cs->level);
-      (void) fprintf(cs->stack->out_file, "<%s %u\n", cs->func, _line_);
+      (void) fprintf(cs->stack->out_file->file, "<%s\n", cs->func);
       DbugFlush(cs);
     }
   }
@@ -1259,21 +1265,24 @@ void _db_doprnt_(const char *format,...)
 
   va_start(args,format);
 
+  if (!cs->locked)
+    pthread_mutex_lock(&THR_LOCK_dbug);
   if (_db_keyword_(cs, cs->u_keyword, 0))
   {
     int save_errno=errno;
-    if (!cs->locked)
-      pthread_mutex_lock(&THR_LOCK_dbug);
     DoPrefix(cs, cs->u_line);
     if (TRACING)
       Indent(cs, cs->level + 1);
     else
-      (void) fprintf(cs->stack->out_file, "%s: ", cs->func);
-    (void) fprintf(cs->stack->out_file, "%s: ", cs->u_keyword);
-    DbugVfprintf(cs->stack->out_file, format, args);
+      (void) fprintf(cs->stack->out_file->file, "%s: ", cs->func);
+    (void) fprintf(cs->stack->out_file->file, "%s: ", cs->u_keyword);
+    DbugVfprintf(cs->stack->out_file->file, format, args);
     DbugFlush(cs);
     errno=save_errno;
   }
+  else if (!cs->locked)
+    pthread_mutex_unlock(&THR_LOCK_dbug);
+
   va_end(args);
 }
 
@@ -1315,10 +1324,10 @@ void _db_dump_(uint _line_, const char *keyword,
   CODE_STATE *cs;
   get_code_state_or_return;
 
+  if (!cs->locked)
+    pthread_mutex_lock(&THR_LOCK_dbug);
   if (_db_keyword_(cs, keyword, 0))
   {
-    if (!cs->locked)
-      pthread_mutex_lock(&THR_LOCK_dbug);
     DoPrefix(cs, _line_);
     if (TRACING)
     {
@@ -1327,9 +1336,9 @@ void _db_dump_(uint _line_, const char *keyword,
     }
     else
     {
-      fprintf(cs->stack->out_file, "%s: ", cs->func);
+      fprintf(cs->stack->out_file->file, "%s: ", cs->func);
     }
-    (void) fprintf(cs->stack->out_file, "%s: Memory: 0x%lx  Bytes: (%ld)\n",
+    (void) fprintf(cs->stack->out_file->file, "%s: Memory: 0x%lx  Bytes: (%ld)\n",
             keyword, (ulong) memory, (long) length);
 
     pos=0;
@@ -1338,16 +1347,18 @@ void _db_dump_(uint _line_, const char *keyword,
       uint tmp= *((unsigned char*) memory++);
       if ((pos+=3) >= 80)
       {
-        fputc('\n',cs->stack->out_file);
+        fputc('\n',cs->stack->out_file->file);
         pos=3;
       }
-      fputc(_dig_vec_upper[((tmp >> 4) & 15)], cs->stack->out_file);
-      fputc(_dig_vec_upper[tmp & 15], cs->stack->out_file);
-      fputc(' ',cs->stack->out_file);
+      fputc(_dig_vec_upper[((tmp >> 4) & 15)], cs->stack->out_file->file);
+      fputc(_dig_vec_upper[tmp & 15], cs->stack->out_file->file);
+      fputc(' ',cs->stack->out_file->file);
     }
-    (void) fputc('\n',cs->stack->out_file);
+    (void) fputc('\n',cs->stack->out_file->file);
     DbugFlush(cs);
   }
+  else if (!cs->locked)
+    pthread_mutex_unlock(&THR_LOCK_dbug);
 }
 
 
@@ -1391,7 +1402,7 @@ next:
     subdir=0;
     while (ctlp < end && *ctlp != ',')
       ctlp++;
-    len=ctlp-start;
+    len= (int) (ctlp-start);
     if (start[len-1] == '/')
     {
       len--;
@@ -1492,13 +1503,13 @@ static struct link *ListCopy(struct link *orig)
  *
  */
 
-static int InList(struct link *linkp, const char *cp)
+static int InList(struct link *linkp, const char *cp, int exact_match)
 {
   int result;
 
   for (result=MATCHED; linkp != NULL; linkp= linkp->next_link)
   {
-    if (!fnmatch(linkp->str, cp, 0))
+    if (!(exact_match ? strcmp(linkp->str,cp) : fnmatch(linkp->str, cp, 0)))
       return linkp->flags;
     if (!(linkp->flags & EXCLUDE))
       result=NOT_MATCHED;
@@ -1548,7 +1559,7 @@ static void PushState(CODE_STATE *cs)
   struct settings *new_malloc;
 
   new_malloc= (struct settings *) DbugMalloc(sizeof(struct settings));
-  bzero(new_malloc, sizeof(struct settings));
+  bzero(new_malloc, sizeof(*new_malloc));
   new_malloc->next= cs->stack;
   cs->stack= new_malloc;
 }
@@ -1570,29 +1581,24 @@ static void PushState(CODE_STATE *cs)
  *	state. If free_state is set, also free 'state'
  *
  */
-static void FreeState(CODE_STATE *cs, struct settings *state, int free_state)
+static void FreeState(CODE_STATE *cs, int free_state)
 {
+  struct settings *state= cs->stack;
   if (!is_shared(state, keywords))
     FreeList(state->keywords);
   if (!is_shared(state, functions))
     FreeList(state->functions);
   if (!is_shared(state, processes))
     FreeList(state->processes);
-  if (!is_shared(state, p_functions))
-    FreeList(state->p_functions);
 
-  if (!is_shared(state, out_file))
-    DBUGCloseFile(cs, state->out_file);
-  else
-    (void) fflush(state->out_file);
-
-  if (!is_shared(state, prof_file))
-    DBUGCloseFile(cs, state->prof_file);
-  else
-    (void) fflush(state->prof_file);
+  DBUGCloseFile(cs, NULL);
 
   if (free_state)
-    free((void*) state);
+  {
+    struct settings *next= state->next;
+    free(state);
+    cs->stack= next;
+  }
 }
 
 
@@ -1615,39 +1621,29 @@ static void FreeState(CODE_STATE *cs, struct settings *state, int free_state)
  */
 void _db_end_()
 {
-  struct settings *discard;
-  static struct settings tmp;
-  CODE_STATE *cs;
+  CODE_STATE *cs, dummy_cs;
   /*
     Set _dbug_on_ to be able to do full reset even when DEBUGGER_OFF was
     called after dbug was initialized
   */
   _dbug_on_= 1;
-  get_code_state_or_return;
+  cs= code_state();
 
-  while ((discard= cs->stack))
+  if (cs)
   {
-    if (discard == &init_settings)
-      break;
-    cs->stack= discard->next;
-    FreeState(cs, discard, 1);
+    while (cs->stack && cs->stack != &init_settings)
+      FreeState(cs, 1);
   }
-  tmp= init_settings;
+  else
+  {
+    cs= &dummy_cs;
+    bzero(cs, sizeof(*cs));
+  }
 
-  /* Use mutex lock to make it less likely anyone access out_file */
-  pthread_mutex_lock(&THR_LOCK_dbug);
-  init_settings.flags=    OPEN_APPEND;
-  init_settings.out_file= stderr;
-  init_settings.prof_file= stderr;
-  init_settings.maxdepth= 0;
-  init_settings.delay= 0;
-  init_settings.sub_level= 0;
-  init_settings.functions= 0;
-  init_settings.p_functions= 0;
-  init_settings.keywords= 0;
-  init_settings.processes= 0;
-  pthread_mutex_unlock(&THR_LOCK_dbug);
-  FreeState(cs, &tmp, 0);
+  cs->stack= &init_settings;
+  FreeState(cs, 0);
+  pthread_mutex_destroy(&THR_LOCK_dbug);
+  init_done= 0;
 }
 
 
@@ -1667,8 +1663,8 @@ void _db_end_()
 static int DoTrace(CODE_STATE *cs)
 {
   if ((cs->stack->maxdepth == 0 || cs->level <= cs->stack->maxdepth) &&
-      InList(cs->stack->processes, cs->process) & (MATCHED|INCLUDE))
-    switch(InList(cs->stack->functions, cs->func)) {
+      InList(cs->stack->processes, cs->process, 0) & (MATCHED|INCLUDE))
+    switch(InList(cs->stack->functions, cs->func, 0)) {
     case INCLUDE|SUBDIR:  return ENABLE_TRACE;
     case INCLUDE:         return DO_TRACE;
     case MATCHED|SUBDIR:
@@ -1686,7 +1682,7 @@ FILE *_db_fp_(void)
 {
   CODE_STATE *cs;
   get_code_state_or_return NULL;
-  return cs->stack->out_file;
+  return cs->stack->out_file->file;
 }
 
 /*
@@ -1711,11 +1707,11 @@ FILE *_db_fp_(void)
 
 BOOLEAN _db_keyword_(CODE_STATE *cs, const char *keyword, int strict)
 {
+  int match= strict ? INCLUDE : INCLUDE|MATCHED;
   get_code_state_if_not_set_or_return FALSE;
-  strict=strict ? INCLUDE : INCLUDE|MATCHED;
 
-  return DEBUGGING && DoTrace(cs) & DO_TRACE &&
-         InList(cs->stack->keywords, keyword) & strict;
+  return (DEBUGGING && DoTrace(cs) & DO_TRACE &&
+          InList(cs->stack->keywords, keyword, strict) & match);
 }
 
 /*
@@ -1741,15 +1737,15 @@ BOOLEAN _db_keyword_(CODE_STATE *cs, const char *keyword, int strict)
 
 static void Indent(CODE_STATE *cs, int indent)
 {
-  REGISTER int count;
+  int count;
 
   indent= max(indent-1-cs->stack->sub_level,0)*INDENT;
   for (count= 0; count < indent ; count++)
   {
     if ((count % INDENT) == 0)
-      fputc('|',cs->stack->out_file);
+      fputc('|',cs->stack->out_file->file);
     else
-      fputc(' ',cs->stack->out_file);
+      fputc(' ',cs->stack->out_file->file);
   }
 }
 
@@ -1773,7 +1769,7 @@ static void Indent(CODE_STATE *cs, int indent)
 
 static void FreeList(struct link *linkp)
 {
-  REGISTER struct link *old;
+  struct link *old;
 
   while (linkp != NULL)
   {
@@ -1808,10 +1804,10 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
   cs->lineno++;
   if (cs->stack->flags & PID_ON)
   {
-    (void) fprintf(cs->stack->out_file, "%-7s: ", my_thread_name());
+    (void) fprintf(cs->stack->out_file->file, "%-7s: ", my_thread_name());
   }
   if (cs->stack->flags & NUMBER_ON)
-    (void) fprintf(cs->stack->out_file, "%5d: ", cs->lineno);
+    (void) fprintf(cs->stack->out_file->file, "%5d: ", cs->lineno);
   if (cs->stack->flags & TIMESTAMP_ON)
   {
 #ifdef __WIN__
@@ -1819,7 +1815,7 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
        in system ticks, 10 ms intervals. See my_getsystime.c for high res */
     SYSTEMTIME loc_t;
     GetLocalTime(&loc_t);
-    (void) fprintf (cs->stack->out_file,
+    (void) fprintf (cs->stack->out_file->file,
                     /* "%04d-%02d-%02d " */
                     "%02d:%02d:%02d.%06d ",
                     /*tm_p->tm_year + 1900, tm_p->tm_mon + 1, tm_p->tm_mday,*/
@@ -1831,7 +1827,7 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
     {
       if ((tm_p= localtime((const time_t *)&tv.tv_sec)))
       {
-        (void) fprintf (cs->stack->out_file,
+        (void) fprintf (cs->stack->out_file->file,
                         /* "%04d-%02d-%02d " */
                         "%02d:%02d:%02d.%06d ",
                         /*tm_p->tm_year + 1900, tm_p->tm_mon + 1, tm_p->tm_mday,*/
@@ -1842,13 +1838,13 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
 #endif
   }
   if (cs->stack->flags & PROCESS_ON)
-    (void) fprintf(cs->stack->out_file, "%s: ", cs->process);
+    (void) fprintf(cs->stack->out_file->file, "%s: ", cs->process);
   if (cs->stack->flags & FILE_ON)
-    (void) fprintf(cs->stack->out_file, "%14s: ", BaseName(cs->file));
+    (void) fprintf(cs->stack->out_file->file, "%14s: ", BaseName(cs->file));
   if (cs->stack->flags & LINE_ON)
-    (void) fprintf(cs->stack->out_file, "%5d: ", _line_);
+    (void) fprintf(cs->stack->out_file->file, "%5d: ", _line_);
   if (cs->stack->flags & DEPTH_ON)
-    (void) fprintf(cs->stack->out_file, "%4d: ", cs->level);
+    (void) fprintf(cs->stack->out_file->file, "%4d: ", cs->level);
 }
 
 
@@ -1872,7 +1868,7 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
 static void DBUGOpenFile(CODE_STATE *cs,
                          const char *name,const char *end,int append)
 {
-  REGISTER FILE *fp;
+  FILE *fp;
 
   if (name != NULL)
   {
@@ -1887,7 +1883,7 @@ static void DBUGOpenFile(CODE_STATE *cs,
     name=cs->stack->name;
     if (strcmp(name, "-") == 0)
     {
-      cs->stack->out_file= stdout;
+      DBUGCloseFile(cs, sstdout);
       cs->stack->flags |= FLUSH_ON_WRITE;
       cs->stack->name[0]=0;
     }
@@ -1909,7 +1905,10 @@ static void DBUGOpenFile(CODE_STATE *cs,
         }
         else
         {
-          cs->stack->out_file= fp;
+          sFILE *sfp= (sFILE *)DbugMalloc(sizeof(sFILE));
+          sfp->file= fp;
+          sfp->used= 1;
+          DBUGCloseFile(cs, sfp);
         }
       }
     }
@@ -1933,15 +1932,30 @@ static void DBUGOpenFile(CODE_STATE *cs,
  *
  */
 
-static void DBUGCloseFile(CODE_STATE *cs, FILE *fp)
+static void DBUGCloseFile(CODE_STATE *cs, sFILE *new_value)
 {
-  if (fp != NULL && fp != stderr && fp != stdout && fclose(fp) == EOF)
-  {
+  sFILE *fp;
+  if (!cs || !cs->stack || !cs->stack->out_file)
+    return;
+  if (!cs->locked)
     pthread_mutex_lock(&THR_LOCK_dbug);
-    (void) fprintf(cs->stack->out_file, ERR_CLOSE, cs->process);
-    perror("");
-    DbugFlush(cs);
+
+  fp= cs->stack->out_file;
+  if (--fp->used == 0)
+  {
+    if (fclose(fp->file) == EOF)
+    {
+      (void) fprintf(stderr, ERR_CLOSE, cs->process);
+      perror("");
+    }
+    else
+    {
+      free(fp);
+    }
   }
+  cs->stack->out_file= new_value;
+  if (!cs->locked)
+    pthread_mutex_unlock(&THR_LOCK_dbug);
 }
 
 
@@ -1996,7 +2010,7 @@ static void DbugExit(const char *why)
 
 static char *DbugMalloc(size_t size)
 {
-  register char *new_malloc;
+  char *new_malloc;
 
   if (!(new_malloc= (char*) malloc(size)))
     DbugExit("out of memory");
@@ -2037,7 +2051,7 @@ static const char *DbugStrTok(const char *s)
 
 static const char *BaseName(const char *pathname)
 {
-  register const char *base;
+  const char *base;
 
   base= strrchr(pathname, FN_LIBCHAR);
   if (base++ == NullS)
@@ -2074,8 +2088,8 @@ static const char *BaseName(const char *pathname)
 
 static BOOLEAN Writable(const char *pathname)
 {
-  REGISTER BOOLEAN granted;
-  REGISTER char *lastslash;
+  BOOLEAN granted;
+  char *lastslash;
 
   granted= FALSE;
   if (EXISTS(pathname))
@@ -2099,111 +2113,17 @@ static BOOLEAN Writable(const char *pathname)
 }
 #endif
 
-
 /*
- *  FUNCTION
- *
- *      _db_setjmp_    save debugger environment
- *
- *  SYNOPSIS
- *
- *      VOID _db_setjmp_()
- *
- *  DESCRIPTION
- *
- *      Invoked as part of the user's DBUG_SETJMP macro to save
- *      the debugger environment in parallel with saving the user's
- *      environment.
- *
- */
-
-#ifdef HAVE_LONGJMP
-
-EXPORT void _db_setjmp_()
-{
-  CODE_STATE *cs;
-  get_code_state_or_return;
-
-  cs->jmplevel= cs->level;
-  cs->jmpfunc= cs->func;
-  cs->jmpfile= cs->file;
-}
-
-/*
- *  FUNCTION
- *
- *      _db_longjmp_    restore previously saved debugger environment
- *
- *  SYNOPSIS
- *
- *      VOID _db_longjmp_()
- *
- *  DESCRIPTION
- *
- *      Invoked as part of the user's DBUG_LONGJMP macro to restore
- *      the debugger environment in parallel with restoring the user's
- *      previously saved environment.
- *
- */
-
-EXPORT void _db_longjmp_()
-{
-  CODE_STATE *cs;
-  get_code_state_or_return;
-
-  cs->level= cs->jmplevel;
-  if (cs->jmpfunc)
-    cs->func= cs->jmpfunc;
-  if (cs->jmpfile)
-    cs->file= cs->jmpfile;
-}
-#endif
-
-/*
- *  FUNCTION
- *
- *      perror    perror simulation for systems that don't have it
- *
- *  SYNOPSIS
- *
- *      static VOID perror(s)
- *      char *s;
- *
- *  DESCRIPTION
- *
- *      Perror produces a message on the standard error stream which
- *      provides more information about the library or system error
- *      just encountered.  The argument string s is printed, followed
- *      by a ':', a blank, and then a message and a newline.
- *
- *      An undocumented feature of the unix perror is that if the string
- *      's' is a null string (NOT a NULL pointer!), then the ':' and
- *      blank are not printed.
- *
- *      This version just complains about an "unknown system error".
- *
- */
-
-#ifndef HAVE_PERROR
-static void perror(s)
-char *s;
-{
-  if (s && *s != '\0')
-    (void) fprintf(stderr, "%s: ", s);
-  (void) fprintf(stderr, "<unknown system error>\n");
-}
-#endif /* HAVE_PERROR */
-
-
-        /* flush dbug-stream, free mutex lock & wait delay */
-        /* This is because some systems (MSDOS!!) dosn't flush fileheader */
-        /* and dbug-file isn't readable after a system crash !! */
+  flush dbug-stream, free mutex lock & wait delay
+  This is because some systems (MSDOS!!) dosn't flush fileheader
+  and dbug-file isn't readable after a system crash !!
+*/
 
 static void DbugFlush(CODE_STATE *cs)
 {
   if (cs->stack->flags & FLUSH_ON_WRITE)
   {
-    (void) fflush(cs->stack->out_file);
+    (void) fflush(cs->stack->out_file->file);
     if (cs->stack->delay)
       (void) Delay(cs->stack->delay);
   }
@@ -2216,9 +2136,9 @@ static void DbugFlush(CODE_STATE *cs)
 
 void _db_flush_()
 {
-  CODE_STATE *cs= NULL;
+  CODE_STATE *cs;
   get_code_state_or_return;
-  (void) fflush(cs->stack->out_file);
+  (void) fflush(cs->stack->out_file->file);
 }
 
 
@@ -2264,19 +2184,14 @@ const char* _db_get_func_(void)
   return cs->func;
 }
 
-
 #else
 
 /*
- * Dummy function, workaround for MySQL bug#14420 related
- * build failure on a platform where linking with an empty
- * archive fails.
- *
- * This block can be removed as soon as a fix for bug#14420
- * is implemented.
+ * Dummy function, workaround for build failure on a platform where linking
+ * with an empty archive fails.
  */
 int i_am_a_dummy_function() {
-       return 0;
+  return 0;
 }
 
-#endif
+#endif /* DBUG_OFF */

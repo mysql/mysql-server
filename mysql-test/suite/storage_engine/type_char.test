@@ -1,0 +1,10 @@
+#
+# CHAR column types
+#
+
+--source have_engine.inc
+
+--source type_char.inc
+
+--source cleanup_engine.inc
+

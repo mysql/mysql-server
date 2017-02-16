@@ -1,0 +1,23 @@
+--source include/not_windows_embedded.inc
+--source include/have_example_plugin.inc
+--source include/have_partition.inc
+
+--replace_regex /\.dll/.so/
+eval install plugin example soname '$HA_EXAMPLE_SO';
+
+create table t1 (a int not null)
+engine=example
+partition by list (a)
+(partition p0 values in (1), partition p1 values in (2));
+show create table t1;
+drop table t1;
+
+create table t1 (a int not null)
+engine=example ull=12340
+partition by list (a)
+(partition p0 values in (1), partition p1 values in (2));
+show create table t1;
+drop table t1;
+
+select 1;
+uninstall plugin example;

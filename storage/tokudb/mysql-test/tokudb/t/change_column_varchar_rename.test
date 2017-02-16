@@ -1,0 +1,39 @@
+source include/have_tokudb.inc;
+# test that varchar changed with column rename work
+
+--disable_warnings
+DROP TABLE IF EXISTS t;
+--enable_warnings
+
+SET SESSION TOKUDB_DISABLE_SLOW_ALTER=ON;
+SET SESSION DEFAULT_STORAGE_ENGINE='TokuDB';
+
+CREATE TABLE t (a VARCHAR(100), b VARCHAR(256));
+
+# varchar shrink with column rename is not supported
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN a aa VARCHAR(1);
+
+# varchar expand with column rename is not supported
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN a aa VARCHAR(256);
+
+# varchar column rename is supported
+ALTER TABLE t CHANGE COLUMN a aa VARCHAR(100);
+
+# varchar shrink woth column rename is not supported
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN b bb VARCHAR(255);
+
+# varchar expand with column rename is not supported
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN b bb VARCHAR(1024);
+
+# varchar column rename is supported
+ALTER TABLE t CHANGE COLUMN b bb VARCHAR(256);
+
+DROP TABLE t;

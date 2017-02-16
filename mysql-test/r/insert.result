@@ -327,9 +327,11 @@ select row_count();
 row_count()
 3
 insert ignore into t1 values (1, 1);
+Warnings:
+Warning	1062	Duplicate entry '1' for key 'PRIMARY'
 select row_count();
 row_count()
-0
+-1
 replace into t1 values (1, 11);
 select row_count();
 row_count()
@@ -371,7 +373,15 @@ drop table t1,t2;
 create table t1 (id int primary key auto_increment, data int, unique(data));
 insert ignore into t1 values(NULL,100),(NULL,110),(NULL,120);
 insert ignore into t1 values(NULL,10),(NULL,20),(NULL,110),(NULL,120),(NULL,100),(NULL,90);
+Warnings:
+Warning	1062	Duplicate entry '110' for key 'data'
+Warning	1062	Duplicate entry '120' for key 'data'
+Warning	1062	Duplicate entry '100' for key 'data'
 insert ignore into t1 values(NULL,130),(NULL,140),(500,110),(550,120),(450,100),(NULL,150);
+Warnings:
+Warning	1062	Duplicate entry '110' for key 'data'
+Warning	1062	Duplicate entry '120' for key 'data'
+Warning	1062	Duplicate entry '100' for key 'data'
 select * from t1 order by id;
 id	data
 1	100
@@ -653,8 +663,9 @@ Warning	1365	Division by 0
 Warning	1048	Column 'data' cannot be null
 update t1 set data='envelope' where 1/0 or 1;
 affected rows: 2
-info: Rows matched: 2  Changed: 2  Warnings: 3
+info: Rows matched: 2  Changed: 2  Warnings: 4
 Warnings:
+Warning	1365	Division by 0
 Warning	1365	Division by 0
 Warning	1265	Data truncated for column 'data' at row 1
 Warning	1265	Data truncated for column 'data' at row 2
@@ -687,55 +698,22 @@ INSERT IGNORE t1 (a, a) SELECT 1,1 UNION SELECT 2,2;
 ERROR 42000: Column 'a' specified twice
 DROP TABLE t1;
 #
-# BUG#22037930: INSERT IGNORE FAILS TO IGNORE
-#               FOREIGN KEY CONSTRAINT
-# Setup.
-CREATE TABLE t1 (fld1 INT PRIMARY KEY) ENGINE=INNODB;
-CREATE TABLE t2 (fld2 INT, FOREIGN KEY (fld2) REFERENCES t1 (fld1))
-ENGINE=INNODB;
-INSERT INTO t1 VALUES(0);
-INSERT INTO t2 VALUES(0);
-# Without fix, an error is reported.
-INSERT IGNORE INTO t2 VALUES(1);
-Warnings:
-Warning	1452	`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fld2`) REFERENCES `t1` (`fld1`)
-UPDATE IGNORE t2 SET fld2=20 WHERE fld2=0;
-Warnings:
-Warning	1452	`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fld2`) REFERENCES `t1` (`fld1`)
-UPDATE IGNORE t1 SET fld1=20 WHERE fld1=0;
-Warnings:
-Warning	1451	`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fld2`) REFERENCES `t1` (`fld1`)
-# Test for multi update.
-UPDATE IGNORE t1, t2 SET t2.fld2= t2.fld2 + 3;
-Warnings:
-Warning	1452	`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fld2`) REFERENCES `t1` (`fld1`)
-UPDATE IGNORE t1, t2 SET t1.fld1= t1.fld1 + 3;
-Warnings:
-Warning	1451	`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fld2`) REFERENCES `t1` (`fld1`)
-# Reports an error since IGNORE is not used.
-INSERT INTO t2 VALUES(1);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fld2`) REFERENCES `t1` (`fld1`))
-UPDATE t2 SET fld2=20 WHERE fld2=0;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fld2`) REFERENCES `t1` (`fld1`))
-UPDATE t1 SET fld1=20 WHERE fld1=0;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fld2`) REFERENCES `t1` (`fld1`))
-UPDATE t1, t2 SET t2.fld2= t2.fld2 + 3;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fld2`) REFERENCES `t1` (`fld1`))
-UPDATE t1, t2 SET t1.fld1= t1.fld1 + 3;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fld2`) REFERENCES `t1` (`fld1`))
-DROP TABLE t2, t1;
+# MDEV-5168: Ensure that we can disable duplicate key warnings
+# from INSERT IGNORE
 #
-# BUG#22037930: INSERT IGNORE FAILS TO IGNORE FOREIGN
-#               KEY CONSTRAINT
-CREATE TABLE t1 (fld1 INT PRIMARY KEY) ENGINE= INNODB;
-CREATE TABLE t2 (fld1 VARCHAR(10), fld2 INT NOT NULL,
-CONSTRAINT fk FOREIGN KEY (fld2) REFERENCES t1(fld1)) ENGINE= INNODB;
-# Without patch, reports incorrect error.
-INSERT INTO t2 VALUES('abc', 2) ON DUPLICATE KEY UPDATE fld1= 'def';
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk` FOREIGN KEY (`fld2`) REFERENCES `t1` (`fld1`))
-REPLACE INTO t2 VALUES('abc', 2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk` FOREIGN KEY (`fld2`) REFERENCES `t1` (`fld1`))
-INSERT IGNORE INTO t2 VALUES('abc', 2) ON DUPLICATE KEY UPDATE fld1= 'def';
+create table t1 (f1 int unique, f2 int unique);
+insert into t1 values (1,12);
+insert into t1 values (2,13);
+insert into t1 values (1,12);
+ERROR 23000: Duplicate entry '1' for key 'f1'
+insert ignore into t1 values (1,12);
 Warnings:
-Warning	1452	`test`.`t2`, CONSTRAINT `fk` FOREIGN KEY (`fld2`) REFERENCES `t1` (`fld1`)
-DROP TABLE t2, t1;
+Warning	1062	Duplicate entry '1' for key 'f1'
+set @@old_mode="NO_DUP_KEY_WARNINGS_WITH_IGNORE";
+insert ignore into t1 values (1,12);
+insert ignore into t1 values (1,12) on duplicate key update f2=13;
+set @@old_mode="";
+insert ignore into t1 values (1,12);
+Warnings:
+Warning	1062	Duplicate entry '1' for key 'f1'
+DROP TABLE t1;

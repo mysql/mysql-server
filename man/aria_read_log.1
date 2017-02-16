@@ -1,0 +1,108 @@
+.TH ARIA_READ_LOG "1" "May 2014" "aria_read_log Ver 1.3" "User Commands"
+.SH NAME
+aria_read_log \- display Aria log file contents
+.SH SYNOPSIS
+.B aria_read_log
+\fIOPTIONS\fR
+.SH DESCRIPTION
+Display and apply log records from a Aria transaction log
+found in the current directory (for now)
+.PP
+Note: Aria is compiled without \fB\-DIDENTICAL_PAGES_AFTER_RECOVERY\fR
+which means that the table files are not byte\-to\-byte identical to
+files created during normal execution. This should be ok, except for
+test scripts that tries to compare files before and after recovery.
+.PP
+You need to use one of \fB\-d\fR or \fB\-a\fR
+.TP
+\fB\-a\fR, \fB\-\-apply\fR
+Apply log to tables: modifies tables! you should make a
+backup first!  Displays a lot of information if not run
+with \fB\-\-silent\fR
+.TP
+\fB\-\-character\-sets\-dir\fR=\fIname\fR
+Directory where character sets are.
+.TP
+\fB\-c\fR, \fB\-\-check\fR
+if \fB\-\-display\-only\fR, check if record is fully readable (for
+debugging)
+.TP
+\fB\-#\fR, \fB\-\-debug\fR[=\fIname\fR]
+Output debug log. Often the argument is 'd:t:o,filename'.
+.TP
+\fB\-\-force\-crash=\fR#
+Force crash after # recovery events
+.TP
+\fB\-?\fR, \fB\-\-help\fR
+Display this help and exit.
+.TP
+\fB\-d\fR, \fB\-\-display\-only\fR
+display brief info read from records' header
+.TP
+\fB\-e\fR, \fB\-\-end\-lsn=\fR#
+Stop applying at this lsn. If end\-lsn is used, UNDO:s
+will not be applied
+.TP
+\fB\-h\fR, \fB\-\-aria\-log\-dir\-path\fR=\fIname\fR
+Path to the directory where to store transactional log
+.TP
+\fB\-P\fR, \fB\-\-page\-buffer\-size=\fR#
+The size of the buffer used for index blocks for Aria
+tables
+.TP
+\fB\-o\fR, \fB\-\-start\-from\-lsn=\fR#
+Start reading log from this lsn
+.TP
+\fB\-C\fR, \fB\-\-start\-from\-checkpoint\fR
+Start applying from last checkpoint
+.TP
+\fB\-s\fR, \fB\-\-silent\fR
+Print less information during apply/undo phase
+.TP
+\fB\-T\fR, \fB\-\-tables\-to\-redo\fR=\fIname\fR
+List of tables sepearated with , that we should apply
+REDO on. Use this if you only want to recover some tables
+.TP
+\fB\-t\fR, \fB\-\-tmpdir\fR=\fIname\fR
+Path for temporary files. Multiple paths can be
+specified, separated by colon (:)
+.TP
+\fB\-\-translog\-buffer\-size=\fR#
+The size of the buffer used for transaction log for Aria
+tables
+.TP
+\fB\-u\fR, \fB\-\-undo\fR
+Apply UNDO records to tables. (disable with
+\fB\-\-disable\-undo\fR)
+(Defaults to on; use \fB\-\-skip\-undo\fR to disable.)
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Print more information during apply/undo phase
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version and exit.
+.PP
+Default options are read from the following files in the given order:
+\fB/etc/my.cnf /etc/mysql/my.cnf ~/.my.cnf\fR
+.PP
+The following groups are read: \fBaria_read_log\fR
+.PP
+The following options may be given as the first argument:
+.TP
+\fB\-\-print\-defaults\fR
+Print the program argument list and exit.
+.TP
+\fB\-\-no\-defaults\fR
+Don't read default options from any option file.
+.TP
+\fB\-\-defaults\-file=\fR#
+Only read default options from the given file #.
+.TP
+\fB\-\-defaults\-extra\-file=\fR#
+Read this file after the global files are read.
+.PP
+.SH "SEE ALSO"
+\fBmyisamlog(1)\fR
+.PP
+For more information, please refer to the MariaDB Knowledge Base,
+which is available online at http://mariadb.com/kb/

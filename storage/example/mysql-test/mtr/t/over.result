@@ -1,0 +1,4 @@
+select @@local_infile;
+select 1;
+1
+1

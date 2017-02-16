@@ -1,0 +1,34 @@
+SET SESSION optimizer_switch = 'firstmatch=off,index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,loosescan=on,materialization=on,semijoin=on';
+
+CREATE TABLE t0 (a INT);
+INSERT INTO t0 VALUES (0),(1),(2),(3),(4);
+
+CREATE TABLE t1 (a INT, b INT, KEY(a));
+INSERT INTO t1 SELECT a, a from t0;
+
+CREATE TABLE t2 (a INT, b INT, PRIMARY KEY(a));
+INSERT INTO t2 SELECT * FROM t1;
+
+UPDATE t1 SET a=3, b=11 WHERE a=4;
+UPDATE t2 SET b=11 WHERE a=3;
+
+--echo
+--echo # This result is wrong, but will be fixed by Bug#46556
+SELECT * FROM t0 WHERE t0.a IN 
+  (SELECT t1.a FROM t1, t2 WHERE t2.a=t0.a AND t1.b=t2.b);
+
+SET join_cache_level = 6;
+
+--echo
+--echo # This result is even more wrong ;-)
+SELECT * FROM t0 WHERE t0.a IN 
+  (SELECT t1.a FROM t1, t2 WHERE t2.a=t0.a AND t1.b=t2.b);
+
+SET SESSION optimizer_switch = 'semijoin=off';
+
+--echo
+--echo # This result is correct
+SELECT * FROM t0 WHERE t0.a IN 
+  (SELECT t1.a FROM t1, t2 WHERE t2.a=t0.a AND t1.b=t2.b);
+
+DROP TABLE t0, t1, t2;

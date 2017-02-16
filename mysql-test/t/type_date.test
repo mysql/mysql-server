@@ -26,6 +26,13 @@ INSERT INTO t2 VALUES ('1998-01-02','note02');
 select name,t1.cdate,note from t1,t2 where t1.cdate=t2.cdate and t1.cdate='1998-01-01';
 drop table t1,t2;
 
+# MariaDB lp:993103. WHERE LAST_DAY(zero_date) IS NULL does not evaluate to TRUE.
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+SELECT * FROM t1 WHERE LAST_DAY('0000-00-00 00:00:00') IS NULL;
+DROP TABLE t1;
+
 #
 # Date and BETWEEN
 #
@@ -162,18 +169,8 @@ DROP TABLE t1;
 #
 
 CREATE TABLE t1 (a DATE, b INT, PRIMARY KEY (a,b));
-## The current sub test could fail (difference to expected result) if we
-## have just reached midnight.
-## (Bug#41776 type_date.test may fail if run around midnight)
-## Therefore we sleep a bit if we are too close to midnight.
-## The complete test itself needs in average less than 1 second.
-## Therefore a time_distance to midnight of 5 seconds should be sufficient.
-if (`SELECT CURTIME() > SEC_TO_TIME(24 * 3600 - 5)`)
-{
-   # We are here when CURTIME() is between '23:59:56' and '23:59:59'.
-   # So a sleep time of 5 seconds brings us between '00:00:01' and '00:00:04'.
-   --real_sleep 5
-}
+
+SET timestamp=UNIX_TIMESTAMP('2016-07-21 14:48:18');
 INSERT INTO t1 VALUES (DATE(NOW()), 1);
 SELECT COUNT(*) FROM t1 WHERE a = NOW();
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW();
@@ -185,6 +182,7 @@ EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW() AND b = 1;
 ALTER TABLE t1 DROP PRIMARY KEY;
 SELECT COUNT(*) FROM t1 WHERE a = NOW();
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW();
+SET timestamp=DEFAULT;
 
 DROP TABLE t1;
 
@@ -280,6 +278,72 @@ DROP TABLE t1;
 
 --echo End of 5.1 tests
 
+#
+# lp:737496 Field_temporal::store_TIME_with_warning() in 5.1-micro
+#
+create table t1 (f1 date, key (f1));
+insert t1 values ('2010-10-10 15:foobar');
+drop table t1;
+
+--echo #
+--echo # MDEV-4634 Crash in CONVERT_TZ
+--echo #
+SELECT CONVERT_TZ(GREATEST(DATE('2021-00-00'),DATE('2022-00-00')),'+00:00','+7:5');
+
+--echo #
+--echo # MDEV-4804 Date comparing false result 
+--echo #
+SET @h0="20111107";
+SET @h1="0";
+SET @@timestamp=UNIX_TIMESTAMP('2013-08-19 20:30:00');
+SELECT
+  COALESCE(DATE(@h0),DATE("1901-01-01")) AS h0d,
+  COALESCE(DATE(@h1),DATE(NOW())) AS h1d,
+  COALESCE(DATE(@h0),DATE("1901-01-01"))>COALESCE(DATE(@h1),DATE(NOW())) AS compare_h0_gt_h1;
+SELECT
+  DATE('20011107'),
+  DATE('0'),
+  COALESCE(DATE('0'),CURRENT_DATE) AS d1,
+  DATE('20011107')>COALESCE(DATE('0'),CURRENT_DATE) AS cmp;
+SELECT
+  DATE('20011107'),
+  DATE('0'),
+  IFNULL(DATE('0'),CURRENT_DATE) AS d1,
+  DATE('20011107')>IFNULL(DATE('0'),CURRENT_DATE) AS cmp;
+SET @@timestamp=DEFAULT;
+
+--echo #
+--echo # MDEV-5041 Inserting a TIME with hour>24 into a DATETIME column produces a wrong value
+--echo #
+SELECT CAST(TIME('-800:20:30') AS DATE);
+SELECT CAST(TIME('800:20:30') AS DATE);
+SELECT CAST(TIME('33 08:20:30') AS DATE);
+CREATE TABLE t1 (a DATE);
+INSERT INTO t1 VALUES (TIME('800:20:30'));
+INSERT INTO t1 VALUES (TIME('33 08:20:30'));
+SET SQL_MODE=NO_ZERO_IN_DATE;
+INSERT INTO t1 VALUES (TIME('48:20:30'));
+SET SQL_MODE=DEFAULT;
+SELECT * FROM t1;
+DROP TABLE t1;
+DELIMITER |;
+CREATE PROCEDURE test5041()
+BEGIN
+  DECLARE t TIME;
+  DECLARE d DATE;
+  SET t= TIME('800:00:00');
+  SET d= t;
+  SELECT d;
+END;|
+DELIMITER ;|
+call test5041();
+drop procedure test5041;
+
+
+--echo #
+--echo # End of 5.3 tests
+--echo #
+
 --echo #
 --echo # Bug #33629: last_day function can return null, but has 'not null'
 --echo #             flag set for result
@@ -303,5 +367,43 @@ set @a=(select min(makedate('111','1'))) ;
 select @a;
 --echo #
 
+--echo #
+--echo # BUG LP:1008487 virtual bool Item_cache::is_expensive(): Assertion `example' failed
+--echo #
+create table t1(a date,key(a));
+insert into t1 values ('2012-01-01'),('2012-02-02');
+explain
+select 1 from t1 as t1_0 inner join t1 as t2 on (t1_0.a <=> now()) join t1 on 1;
+select 1 from t1 as t1_0 inner join t1 as t2 on (t1_0.a <=> now()) join t1 on 1;
+drop table t1;
 
---echo End of 6.0 tests
+--echo #
+--echo # MDEV-9521 Least function returns 0000-00-00 for null date columns instead of null
+--echo # MDEV-9972 Least function retuns date in date time format
+--echo #
+CREATE TABLE t1 (
+  id BIGINT NOT NULL,
+  date_debut DATE NOT NULL,
+  date_fin DATE DEFAULT NULL);
+CREATE TABLE t2(
+  id BIGINT NOT NULL,
+  date_debut DATE NOT NULL,
+  date_fin DATE DEFAULT NULL);
+INSERT INTO t1 VALUES (1,'2016-01-01','2016-01-31');
+INSERT INTO t1 VALUES (2,'2016-02-01',null);
+INSERT INTO t1 VALUES (3,'2016-03-01','2016-03-31');
+INSERT INTO t1 VALUES (4,'2016-04-01',null);
+
+INSERT INTO t2 VALUES (1,'2016-01-01','2016-01-31');
+INSERT INTO t2 VALUES (2,'2016-02-01','2016-01-28');
+INSERT INTO t2 VALUES (3,'2016-03-01',null);
+INSERT INTO t2 VALUES (4,'2016-04-01',null);
+SELECT t1.id,
+ GREATEST(t2.date_debut, t1.date_debut) AS date_debut,
+ LEAST(IFNULL(t2.date_fin, IFNULL(t1.date_fin, NULL)),
+       IFNULL(t1.date_fin, IFNULL(t2.date_fin, NULL))) AS date_fin
+FROM t1 LEFT JOIN t2 ON (t1.id=t2.id);
+DROP TABLE t1,t2;
+SELECT
+  LEAST(COALESCE(DATE(NULL), DATE(NULL)), COALESCE(DATE(NULL), DATE(NULL))) AS d0,
+  LEAST(IFNULL(DATE(NULL), DATE(NULL)), IFNULL(DATE(NULL), DATE(NULL))) AS d1;

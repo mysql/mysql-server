@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates
+   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,6 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysys_priv.h"
+#include "mysys_err.h"
 #include <my_dir.h>
 #include <m_string.h>
 #include "mysys_err.h"
@@ -35,37 +37,29 @@ struct utimbuf {
 
 	  if MY_REDEL_MAKE_COPY is given, then the orginal file
 	  is renamed to org_name-'current_time'.BAK
-
-          if MY_REDEL_NO_COPY_STAT is given, stats are not copied
-          from org_name to tmp_name.
 	*/
 
 #define REDEL_EXT ".BAK"
 
-int my_redel(const char *org_name, const char *tmp_name, myf MyFlags)
+int my_redel(const char *org_name, const char *tmp_name,
+             time_t backup_time_stamp, myf MyFlags)
 {
   int error=1;
   DBUG_ENTER("my_redel");
   DBUG_PRINT("my",("org_name: '%s' tmp_name: '%s'  MyFlags: %d",
 		   org_name,tmp_name,MyFlags));
 
-  if (!(MyFlags & MY_REDEL_NO_COPY_STAT))
-  {
-    if (my_copystat(org_name,tmp_name,MyFlags) < 0)
-      goto end;
-  }
+  if (!my_disable_copystat_in_redel &&
+      my_copystat(org_name,tmp_name,MyFlags) < 0)
+    goto end;
   if (MyFlags & MY_REDEL_MAKE_BACKUP)
   {
-    char name_buff[FN_REFLEN+20];    
-    char ext[20];
-    ext[0]='-';
-    get_date(ext+1,2+4,(time_t) 0);
-    strmov(strend(ext),REDEL_EXT);
-    if (my_rename(org_name, fn_format(name_buff, org_name, "", ext, 2),
-		  MyFlags))
+    char name_buff[FN_REFLEN + MY_BACKUP_NAME_EXTRA_LENGTH];    
+    my_create_backup_name(name_buff, org_name, backup_time_stamp);
+    if (my_rename(org_name, name_buff, MyFlags))
       goto end;
   }
-  else if (my_delete_allow_opened(org_name, MyFlags))
+  else if (my_delete(org_name, MyFlags))
       goto end;
   if (my_rename(tmp_name,org_name,MyFlags))
     goto end;
@@ -76,20 +70,30 @@ end:
 } /* my_redel */
 
 
-	/* Copy stat from one file to another */
-	/* Return -1 if can't get stat, 1 if wrong type of file */
+/**
+   Copy stat from one file to another
+   @fn     my_copystat()
+   @param  from		Copy stat from this file
+   @param  to           Copy stat to this file
+   @param  MyFlags      Flags:
+		        MY_WME    Give error if something goes wrong
+		        MY_FAE    Abort operation if something goes wrong
+                        If MY_FAE is not given, we don't return -1 for
+                        errors from chown (which normally require root
+                        privilege)
+
+  @return  0 ok
+          -1 if can't get stat,
+           1 if wrong type of file
+*/
 
 int my_copystat(const char *from, const char *to, int MyFlags)
 {
-  struct stat statbuf;
+  MY_STAT statbuf;
 
-  if (stat(from, &statbuf))
-  {
-    my_errno=errno;
-    if (MyFlags & (MY_FAE+MY_WME))
-      my_error(EE_STAT, MYF(ME_BELL+ME_WAITTANG),from,errno);
+  if (my_stat(from, &statbuf, MyFlags) == NULL)
     return -1;				/* Can't get stat on input file */
-  }
+
   if ((statbuf.st_mode & S_IFMT) != S_IFREG)
     return 1;
 
@@ -112,9 +116,10 @@ int my_copystat(const char *from, const char *to, int MyFlags)
   if (chown(to, statbuf.st_uid, statbuf.st_gid))
   {
     my_errno= errno;
-    if (MyFlags & (MY_FAE+MY_WME))
+    if (MyFlags & MY_WME)
       my_error(EE_CHANGE_OWNERSHIP, MYF(ME_BELL+ME_WAITTANG), from, errno);
-    return -1;
+    if (MyFlags & MY_FAE)
+      return -1;
   }
 #endif /* !__WIN__ */
 
@@ -128,3 +133,23 @@ int my_copystat(const char *from, const char *to, int MyFlags)
 
   return 0;
 } /* my_copystat */
+
+
+/**
+   Create a backup file name.
+   @fn my_create_backup_name()
+   @param to	Store new file name here
+   @param from  Original name
+
+   @info
+   The backup name is made by adding -YYMMDDHHMMSS.BAK to the file name
+*/
+
+void my_create_backup_name(char *to, const char *from, time_t backup_start)
+{
+  char ext[MY_BACKUP_NAME_EXTRA_LENGTH+1];
+  ext[0]='-';
+  get_date(ext+1, GETDATE_SHORT_DATE | GETDATE_HHMMSSTIME, backup_start);
+  strmov(strend(ext),REDEL_EXT);
+  strmov(strmov(to, from), ext);
+}

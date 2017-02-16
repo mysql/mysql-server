@@ -1,0 +1,15 @@
+create table t1 (f1 tinyblob not null) engine=innodb;
+alter table t1 add unique index (f1(255));
+drop table t1;
+create table t1 (f1 tinyblob not null) engine=innodb;
+alter table t1 add unique index (f1(356));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` tinyblob NOT NULL,
+  UNIQUE KEY `f1` (`f1`(255))
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (f1 point not null) engine=innodb;
+alter table t1 add unique index (f1);
+drop table t1;

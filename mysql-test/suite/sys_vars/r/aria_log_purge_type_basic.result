@@ -1,0 +1,45 @@
+SET @start_global_value = @@global.aria_log_purge_type;
+select @@global.aria_log_purge_type;
+@@global.aria_log_purge_type
+immediate
+select @@session.aria_log_purge_type;
+ERROR HY000: Variable 'aria_log_purge_type' is a GLOBAL variable
+show global variables like 'aria_log_purge_type';
+Variable_name	Value
+aria_log_purge_type	immediate
+show session variables like 'aria_log_purge_type';
+Variable_name	Value
+aria_log_purge_type	immediate
+select * from information_schema.global_variables where variable_name='aria_log_purge_type';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_LOG_PURGE_TYPE	immediate
+select * from information_schema.session_variables where variable_name='aria_log_purge_type';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_LOG_PURGE_TYPE	immediate
+set global aria_log_purge_type=1;
+select @@global.aria_log_purge_type;
+@@global.aria_log_purge_type
+external
+set session aria_log_purge_type=1;
+ERROR HY000: Variable 'aria_log_purge_type' is a GLOBAL variable and should be set with SET GLOBAL
+set global aria_log_purge_type=immediate;
+select @@global.aria_log_purge_type;
+@@global.aria_log_purge_type
+immediate
+set global aria_log_purge_type=external;
+select @@global.aria_log_purge_type;
+@@global.aria_log_purge_type
+external
+set global aria_log_purge_type=at_flush;
+select @@global.aria_log_purge_type;
+@@global.aria_log_purge_type
+at_flush
+set global aria_log_purge_type=1.1;
+ERROR 42000: Incorrect argument type to variable 'aria_log_purge_type'
+set global aria_log_purge_type=1e1;
+ERROR 42000: Incorrect argument type to variable 'aria_log_purge_type'
+set global aria_log_purge_type="foo";
+ERROR 42000: Variable 'aria_log_purge_type' can't be set to the value of 'foo'
+set global aria_log_purge_type=3;
+ERROR 42000: Variable 'aria_log_purge_type' can't be set to the value of '3'
+SET @@global.aria_log_purge_type = @start_global_value;

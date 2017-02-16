@@ -1,0 +1,60 @@
+#
+# Testing of potential problems in Aria
+#
+
+-- source include/have_maria.inc
+-- source include/have_partition.inc
+
+--disable_warnings
+--disable_query_log
+drop table if exists t1,t2;
+--enable_query_log
+--enable_warnings
+
+#
+# LP:997460 truncate table on partitioned Aria table fails with ER_ILLEGAL_HA
+#
+
+CREATE TABLE t1 ( i INT ) ENGINE=Aria PARTITION BY HASH(i) PARTITIONS 2;
+SET AUTOCOMMIT = 0;
+TRUNCATE TABLE t1;
+DROP TABLE t1;
+
+#
+# Other truncate tests
+#
+
+CREATE TABLE t1 ( i INT ) ENGINE=Aria;
+CREATE TABLE t2 ( i INT ) ENGINE=Aria;
+insert into t1 values(1);
+lock table t1 write;
+truncate table t1;
+select count(*) from t1;
+insert into t1 values(2);
+select count(*) from t1;
+truncate table t1;
+select count(*) from t1;
+insert into t1 values(3);
+select count(*) from t1;
+# Check that locking is still working
+--error 1100
+select * from t2;
+unlock tables;
+insert into t1 values(4);
+select * from t1;
+truncate t1;
+select count(*) from t1;
+drop table t1,t2;
+
+#
+# MDEV-3890
+# Server crash inserting record on a temporary table after truncating it
+#
+CREATE TEMPORARY TABLE t1 ( i int) ENGINE=aria;
+SHOW CREATE TABLE t1;
+TRUNCATE TABLE t1;
+INSERT INTO t1 (i) VALUES (1);
+lock table t1 write;
+truncate table t1;
+unlock tables;
+drop table t1;

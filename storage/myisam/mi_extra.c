@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2010, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -216,7 +217,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     info->lock_wait=0;
     break;
   case HA_EXTRA_NO_WAIT_LOCK:
-    info->lock_wait=MY_DONT_WAIT;
+    info->lock_wait= MY_SHORT_WAIT;
     break;
   case HA_EXTRA_NO_KEYS:
     if (info->lock_type == F_UNLCK)
@@ -257,20 +258,28 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     mysql_mutex_unlock(&THR_LOCK_myisam);
     break;
   case HA_EXTRA_PREPARE_FOR_DROP:
+    /* Signals about intent to delete this table */
+    //share->deleting= TRUE;
+    share->global_changed= FALSE;     /* force writing changed flag */
+    _mi_mark_file_changed(info);
+    /* Fall trough */
+  case HA_EXTRA_PREPARE_FOR_RENAME:
     mysql_mutex_lock(&THR_LOCK_myisam);
     share->last_version= 0L;			/* Impossible version */
-#ifdef __WIN__REMOVE_OBSOLETE_WORKAROUND
-    /* Close the isam and data files as Win32 can't drop an open table */
     mysql_mutex_lock(&share->intern_lock);
+    /* Flush pages that we don't need anymore */
     if (flush_key_blocks(share->key_cache, share->kfile,
-			 (function == HA_EXTRA_FORCE_REOPEN ?
-			  FLUSH_RELEASE : FLUSH_IGNORE_CHANGED)))
+                         &share->dirty_part_map,
+			 (function == HA_EXTRA_PREPARE_FOR_DROP ?
+                          FLUSH_IGNORE_CHANGED : FLUSH_RELEASE)))
     {
       error=my_errno;
       share->changed=1;
       mi_print_error(info->s, HA_ERR_CRASHED);
       mi_mark_crashed(info);			/* Fatal error found */
     }
+#ifdef __WIN__REMOVE_OBSOLETE_WORKAROUND
+    /* Close the isam and data files as Win32 can't drop an open table */
     if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
     {
       info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
@@ -284,9 +293,19 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       info->lock_type = F_UNLCK;
     }
     if (share->kfile >= 0)
+    {
+      /*
+        We don't need to call _mi_decrement_open_count() if we are
+        dropping the table, as the files will be removed anyway. If we
+        are aborted before the files is removed, it's better to not
+        call it as in that case the automatic repair on open will add
+        the missing index entries
+      */
+      if (function != HA_EXTRA_PREPARE_FOR_DROP)
       _mi_decrement_open_count(info);
-    if (share->kfile >= 0 && mysql_file_close(share->kfile, MYF(0)))
-      error=my_errno;
+      if (mysql_file_close(share->kfile,MYF(0)))
+        error=my_errno;
+    }
     {
       LIST *list_element ;
       for (list_element=myisam_open_list ;
@@ -303,16 +322,15 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       }
     }
     share->kfile= -1;				/* Files aren't open anymore */
-    mysql_mutex_unlock(&share->intern_lock);
 #endif
+    mysql_mutex_unlock(&share->intern_lock);
     mysql_mutex_unlock(&THR_LOCK_myisam);
     break;
   case HA_EXTRA_FLUSH:
     if (!share->temporary)
-      flush_key_blocks(share->key_cache, share->kfile, FLUSH_KEEP);
-#ifdef HAVE_PWRITE
+      flush_key_blocks(share->key_cache, share->kfile, &share->dirty_part_map,
+                       FLUSH_KEEP);
     _mi_decrement_open_count(info);
-#endif
     if (share->not_flushed)
     {
       share->not_flushed=0;
@@ -373,6 +391,11 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     share->is_log_table= TRUE;
     mysql_mutex_unlock(&share->intern_lock);
     break;
+  case HA_EXTRA_DETACH_CHILD: /* When used with MERGE tables */
+    info->open_flag&=     ~HA_OPEN_MERGE_TABLE;
+    info->lock.priority&= ~THR_LOCK_MERGE_PRIV;
+    break;
+    
   case HA_EXTRA_KEY_CACHE:
   case HA_EXTRA_NO_KEY_CACHE:
   default:
@@ -386,6 +409,12 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
   DBUG_RETURN(error);
 } /* mi_extra */
 
+void mi_set_index_cond_func(MI_INFO *info, index_cond_func_t func,
+                            void *func_arg)
+{
+  info->index_cond_func= func;
+  info->index_cond_func_arg= func_arg;
+}
 
 /*
     Start/Stop Inserting Duplicates Into a Table, WL#1648.
@@ -442,4 +471,9 @@ int mi_reset(MI_INFO *info)
   info->update= ((info->update & HA_STATE_CHANGED) | HA_STATE_NEXT_FOUND |
                  HA_STATE_PREV_FOUND);
   DBUG_RETURN(error);
+}
+
+my_bool mi_killed_standalone(MI_INFO *info __attribute__((unused)))
+{
+  return 0;
 }

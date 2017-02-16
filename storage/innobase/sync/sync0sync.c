@@ -35,6 +35,9 @@ Created 9/5/1995 Heikki Tuuri
 #include "sync0sync.ic"
 #endif
 
+/* disable timed_mutexes - obsolete feature that doesn't link on windows */
+#define timed_mutexes 0
+
 #include "sync0rw.h"
 #include "buf0buf.h"
 #include "srv0srv.h"
@@ -44,6 +47,7 @@ Created 9/5/1995 Heikki Tuuri
 # include "srv0start.h" /* srv_is_being_started */
 #endif /* UNIV_SYNC_DEBUG */
 #include "ha_prototypes.h"
+#include "my_cpu.h"
 
 /*
 	REASONS FOR IMPLEMENTING THE SPIN LOCK MUTEX
@@ -313,9 +317,9 @@ mutex_create_func(
 
 	/* NOTE! The very first mutexes are not put to the mutex list */
 
-	if ((mutex == &mutex_list_mutex)
+	if (mutex == &mutex_list_mutex
 #ifdef UNIV_SYNC_DEBUG
-	    || (mutex == &sync_thread_mutex)
+	    || mutex == &sync_thread_mutex
 #endif /* UNIV_SYNC_DEBUG */
 	    ) {
 
@@ -517,13 +521,15 @@ mutex_loop:
 spin_loop:
 	ut_d(mutex->count_spin_loop++);
 
+        HMT_low();
 	while (mutex_get_lock_word(mutex) != 0 && i < SYNC_SPIN_ROUNDS) {
 		if (srv_spin_wait_delay) {
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
 		}
-
+                os_rmb;              // Ensure future reads sees new values
 		i++;
 	}
+        HMT_medium();
 
 	if (i == SYNC_SPIN_ROUNDS) {
 #ifdef UNIV_DEBUG
@@ -586,6 +592,11 @@ spin_loop:
 	then the event is set to the signaled state. */
 
 	mutex_set_waiters(mutex, 1);
+
+	/* Make sure waiters store won't pass over mutex_test_and_set */
+#ifdef __powerpc__
+	os_mb;
+#endif
 
 	/* Try to reserve still a few times */
 	for (i = 0; i < 4; i++) {
@@ -1527,11 +1538,7 @@ sync_init(void)
 		     SYNC_NO_ORDER_CHECK);
 
 #ifdef UNIV_SYNC_DEBUG
-	mutex_create(rw_lock_debug_mutex_key, &rw_lock_debug_mutex,
-		     SYNC_NO_ORDER_CHECK);
-
-	rw_lock_debug_event = os_event_create(NULL);
-	rw_lock_debug_waiters = FALSE;
+	os_fast_mutex_init(rw_lock_debug_mutex_key, &rw_lock_debug_mutex);
 #endif /* UNIV_SYNC_DEBUG */
 }
 
@@ -1599,6 +1606,7 @@ sync_close(void)
 	sync_order_checks_on = FALSE;
 
 	sync_thread_level_arrays_free();
+	os_fast_mutex_free(&rw_lock_debug_mutex);
 #endif /* UNIV_SYNC_DEBUG */
 
 	sync_initialized = FALSE;	
@@ -1659,4 +1667,14 @@ sync_print(
 	sync_array_print_info(file, sync_primary_wait_array);
 
 	sync_print_wait_info(file);
+}
+
+/*******************************************************************//**
+Get sync array */
+UNIV_INTERN
+sync_array_t*
+sync_array_get(void)
+/*================*/
+{
+	return sync_primary_wait_array;
 }

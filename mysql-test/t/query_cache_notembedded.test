@@ -275,5 +275,52 @@ set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
 set GLOBAL query_cache_size=default;
 
+#
+# Bug#3583 query cache doesn't work for stored procedures
+#
+delimiter |;
+--disable_warnings
+drop table if exists t1|
+--enable_warnings
+create table t1 (
+    id   char(16) not null default '',
+    data int not null
+)|
+--disable_warnings
+drop procedure if exists bug3583|
+--enable_warnings
+--disable_warnings
+drop procedure if exists bug3583|
+--enable_warnings
+create procedure bug3583()
+begin
+  declare c int;
+
+  select * from t1;
+  select count(*) into c from t1;
+  select c;
+end|
+
+insert into t1 values ("x", 3), ("y", 5)|
+set @x = @@query_cache_size|
+set global query_cache_size = 10*1024*1024|
+
+flush status|
+flush query cache|
+show status like 'Qcache_hits'|
+call bug3583()|
+show status like 'Qcache_hits'|
+call bug3583()|
+call bug3583()|
+show status like 'Qcache_hits'|
+
+set global query_cache_size = @x|
+flush status|
+flush query cache|
+delete from t1|
+drop procedure bug3583|
+drop table t1|
+delimiter ;|
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

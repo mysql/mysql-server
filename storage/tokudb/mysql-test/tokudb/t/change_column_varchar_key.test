@@ -1,0 +1,50 @@
+source include/have_tokudb.inc;
+# test that varchar expansion of a field in a key is not supported
+
+--disable_warnings
+DROP TABLE IF EXISTS t;
+--enable_warnings
+
+SET SESSION TOKUDB_DISABLE_SLOW_ALTER=ON;
+
+CREATE TABLE t (a VARCHAR(100), b VARCHAR(256), KEY(a), KEY(b)) ENGINE=TokuDB;
+
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(100);
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(1);
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(255);
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(256);
+
+ALTER TABLE t CHANGE COLUMN b b VARCHAR(256);
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN b b VARCHAR(255);
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN b b VARCHAR(1024);
+
+DROP TABLE t;
+
+CREATE TABLE t (a VARCHAR(1), b VARCHAR(2), KEY(a,b)) ENGINE=TokuDB;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN a a VARCHAR(3);
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN b b VARCHAR(3);
+
+DROP TABLE t;
+
+

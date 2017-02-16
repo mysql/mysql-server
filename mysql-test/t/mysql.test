@@ -1,3 +1,4 @@
+-- source include/have_working_dns.inc
 # This test should work in embedded server after we fix mysqltest
 -- source include/not_embedded.inc
 #
@@ -5,7 +6,7 @@
 #
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t2,t3;
 --enable_warnings
 
 #
@@ -123,6 +124,13 @@ drop table t1;
 --exec echo "use"         >  $file
 --exec $MYSQL              < $file 2>&1
 
+# Test exceutable comments
+--exec echo "SELECT 1 /*! +1 */;"       > $file
+--exec echo "SELECT 1 /*M! +1 */;"      >> $file
+--exec echo "SELECT 1 /*!00000 +1 */;"  >> $file
+--exec echo "SELECT 1 /*M!00000 +1 */" >> $file
+--exec $MYSQL                           < $file 2>&1
+
 --remove_file $file
 
 #
@@ -223,7 +231,7 @@ drop table t17583;
 --exec $MYSQL test -e "connect test invalid_hostname" 2>&1
 
 --echo The commands reported in the bug report
---replace_regex /\([0-9]*\)/(errno)/
+--replace_regex /\([0-9|-]*\)/(errno)/
 --error 1
 --exec $MYSQL test -e "\r\r\n\r\n cyril\ has\ found\ a\ bug\ :)XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" 2>&1
 
@@ -573,6 +581,40 @@ DROP DATABASE connected_db;
 
 --remove_file $MYSQLTEST_VARDIR/tmp/one_db_1.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/one_db_2.sql
+
+#
+# USE and names with backticks
+#
+--write_file $MYSQLTEST_VARDIR/tmp/backticks.sql
+\u aa`bb``cc
+SELECT DATABASE();
+USE test
+SELECT DATABASE();
+USE aa`bb``cc
+SELECT DATABASE();
+USE test
+SELECT DATABASE();
+USE `aa``bb````cc`
+SELECT DATABASE();
+EOF
+create database `aa``bb````cc`;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/backticks.sql
+drop database `aa``bb````cc`;
+
+#
+# MySQL Bug#13639125 DELIMITER STRIPS THE NEXT NEW LINE IN A SQL STATEMENT
+#
+--write_file $MYSQLTEST_VARDIR/tmp/13639125.sql
+select ">>
+delimiter
+<<" as a;
+EOF
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/13639125.sql
+
+#
+# --skip-column-names and alignment
+#
+--exec $MYSQL -t -N -e "SELECT 'a' union select 'aaaaaaaaaaaaaaaaa'"
 
 --echo
 --echo End of tests

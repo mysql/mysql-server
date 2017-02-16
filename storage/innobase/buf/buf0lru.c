@@ -2080,6 +2080,24 @@ buf_LRU_block_remove_hashed_page(
 			" in the hash table\n",
 			(ulong) bpage->space,
 			(ulong) bpage->offset);
+#ifdef UNIV_DEBUG
+		fprintf(stderr,
+			"InnoDB: in_page_hash %lu in_zip_hash %lu\n"
+			" in_free_list %lu in_flush_list %lu in_LRU_list %lu\n"
+			" zip.data %p zip_size %lu page_state %d\n",
+			bpage->in_page_hash, bpage->in_zip_hash,
+			bpage->in_free_list, bpage->in_flush_list,
+			bpage->in_LRU_list, bpage->zip.data,
+			buf_page_get_zip_size(bpage),
+			buf_page_get_state(bpage));
+#else
+		fprintf(stderr,
+			"InnoDB: zip.data %p zip_size %lu page_state %d\n",
+			bpage->zip.data,
+			buf_page_get_zip_size(bpage),
+			buf_page_get_state(bpage));
+#endif
+
 		if (hashed_bpage) {
 			fprintf(stderr,
 				"InnoDB: In hash table we find block"

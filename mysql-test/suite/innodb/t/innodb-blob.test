@@ -50,7 +50,7 @@ connection con1;
 reap;
 connection default;
 reap;
-SET DEBUG='+d,row_ins_extern_checkpoint';
+SET DEBUG_DBUG='+d,row_ins_extern_checkpoint';
 SET DEBUG_SYNC='before_row_ins_extern_latch SIGNAL rec_not_blob WAIT_FOR crash';
 ROLLBACK;
 BEGIN;
@@ -67,7 +67,7 @@ SELECT a, RIGHT(b,20) FROM t1;
 SELECT a FROM t1;
 
 # Request a crash, and restart the server.
-SET DEBUG='+d,crash_commit_before';
+SET DEBUG_DBUG='+d,crash_commit_before';
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 INSERT INTO t2 VALUES (42);
@@ -133,7 +133,7 @@ connection default;
 # remain open while we are writing the off-page columns and are
 # stuck in the DEBUG_SYNC. A checkpoint involves a flush, which
 # would wait for the buffer-fix to cease.
-SET DEBUG='+d,row_upd_extern_checkpoint';
+SET DEBUG_DBUG='+d,row_upd_extern_checkpoint';
 SET DEBUG_SYNC='before_row_upd_extern SIGNAL have_latch WAIT_FOR crash';
 # This should move column b off-page.
 --send
@@ -147,7 +147,7 @@ SELECT info FROM information_schema.processlist
 WHERE state = 'debug sync point: before_row_upd_extern';
 
 # Request a crash, and restart the server.
-SET DEBUG='+d,crash_commit_before';
+SET DEBUG_DBUG='+d,crash_commit_before';
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 COMMIT;
@@ -177,7 +177,7 @@ connection default;
 # remain open while we are writing the off-page columns and are
 # stuck in the DEBUG_SYNC. A checkpoint involves a flush, which
 # would wait for the buffer-fix to cease.
-SET DEBUG='+d,row_upd_extern_checkpoint';
+SET DEBUG_DBUG='+d,row_upd_extern_checkpoint';
 SET DEBUG_SYNC='after_row_upd_extern SIGNAL have_latch WAIT_FOR crash';
 # This should move column b off-page.
 --send
@@ -191,7 +191,7 @@ SELECT info FROM information_schema.processlist
 WHERE state = 'debug sync point: after_row_upd_extern';
 
 # Request a crash, and restart the server.
-SET DEBUG='+d,crash_commit_before';
+SET DEBUG_DBUG='+d,crash_commit_before';
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 COMMIT;

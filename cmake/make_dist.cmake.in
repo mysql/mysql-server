@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2015, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
 # Make source distribution
-# If git is present, run git archive.
+# If bzr is present, run bzr export.
 # Otherwise, just run cpack with source configuration.
 
 SET(CMAKE_SOURCE_DIR "@CMAKE_SOURCE_DIR@")
@@ -39,49 +39,16 @@ SET(PACKAGE_DIR  ${CMAKE_BINARY_DIR}/${CPACK_SOURCE_PACKAGE_FILE_NAME})
 FILE(REMOVE_RECURSE ${PACKAGE_DIR})
 FILE(REMOVE ${PACKAGE_DIR}.tar.gz )
 
-# Only allow git if source dir itself is a git repository
 IF(GIT_EXECUTABLE)
+  MESSAGE(STATUS "Running git checkout-index")
   EXECUTE_PROCESS(
-    COMMAND "${GIT_EXECUTABLE}" rev-parse --show-toplevel
-    OUTPUT_VARIABLE GIT_ROOT
-    ERROR_VARIABLE GIT_ROOT_ERROR
-    OUTPUT_STRIP_TRAILING_WHITESPACE
+    COMMAND "${GIT_EXECUTABLE}" checkout-index --all --prefix=${PACKAGE_DIR}/
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     RESULT_VARIABLE RESULT
   )
 
-  IF(NOT RESULT EQUAL 0 OR NOT GIT_ROOT STREQUAL ${CMAKE_SOURCE_DIR})
-    MESSAGE(STATUS "This is not a git repository")
-    SET(GIT_EXECUTABLE)
-  ENDIF()
-ENDIF()
-
-IF(GIT_EXECUTABLE)
-  MESSAGE(STATUS "Running git archive -o ${PACKAGE_DIR}.tar")
-  EXECUTE_PROCESS(
-    COMMAND "${GIT_EXECUTABLE}" archive --format=tar
-    --prefix=${CPACK_SOURCE_PACKAGE_FILE_NAME}/ -o ${PACKAGE_DIR}.tar HEAD
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    RESULT_VARIABLE RESULT
-  )
   IF(NOT RESULT EQUAL 0)
-    SET(GIT_EXECUTABLE)
-  ELSE()
-    # Unpack tarball
-    EXECUTE_PROCESS(
-      COMMAND ${CMAKE_COMMAND} -E tar xf ${PACKAGE_DIR}.tar
-      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-      RESULT_VARIABLE TAR_RESULT
-    )
-    IF(NOT TAR_RESULT EQUAL 0)
-      SET(GIT_EXECUTABLE)
-    ELSE()
-      # Remove tarball after unpacking
-      EXECUTE_PROCESS(
-        COMMAND ${CMAKE_COMMAND} -E remove ${PACKAGE_DIR}.tar
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-      )
-    ENDIF()
+   SET(GIT_EXECUTABLE)
   ENDIF()
 ENDIF()
 
@@ -133,15 +100,6 @@ CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.h
    ${PACKAGE_DIR}/sql/sql_yacc.h COPYONLY)
 CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
    ${PACKAGE_DIR}/sql/sql_yacc.cc COPYONLY)
-
-# Copy spec files
-SET(SPECFILENAME "mysql.${VERSION}.spec")
-IF("${VERSION}" MATCHES "-ndb-")
-  STRING(REGEX REPLACE "^.*-ndb-" "" NDBVERSION "${VERSION}")
-  SET(SPECFILENAME "mysql-cluster-${NDBVERSION}.spec")
-ENDIF()
-CONFIGURE_FILE(${CMAKE_BINARY_DIR}/support-files/${SPECFILENAME}
-   ${PACKAGE_DIR}/support-files/${SPECFILENAME} COPYONLY)
 
 # Add documentation, if user has specified where to find them
 IF(MYSQL_DOCS_LOCATION)

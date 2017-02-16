@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2012, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "rpl_utility.h"
 #include "log.h"                         /* LOG_INFO, MYSQL_BIN_LOG */
 #include "sql_class.h"                   /* THD */
+#include "log_event.h"
 
 struct RPL_TABLE_LIST;
 class Master_info;
@@ -178,7 +179,7 @@ public:
   ulonglong event_relay_log_pos;
   ulonglong future_event_relay_log_pos;
 
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   bool is_fake; /* Mark that this is a fake relay log info structure */
 #endif
 
@@ -492,6 +493,43 @@ public:
       (m_flags & (1UL << IN_STMT));
   }
 
+  /**
+    Save pointer to Annotate_rows event and switch on the
+    binlog_annotate_row_events for this sql thread.
+    To be called when sql thread recieves an Annotate_rows event.
+  */
+  inline void set_annotate_event(Annotate_rows_log_event *event)
+  {
+    free_annotate_event();
+    m_annotate_event= event;
+    sql_thd->variables.binlog_annotate_row_events= 1;
+  }
+
+  /**
+    Returns pointer to the saved Annotate_rows event or NULL if there is
+    no saved event.
+  */
+  inline Annotate_rows_log_event* get_annotate_event()
+  {
+    return m_annotate_event;
+  }
+
+  /**
+    Delete saved Annotate_rows event (if any) and switch off the
+    binlog_annotate_row_events for this sql thread.
+    To be called when sql thread has applied the last (i.e. with
+    STMT_END_F flag) rbr event.
+  */
+  inline void free_annotate_event()
+  {
+    if (m_annotate_event)
+    {
+      sql_thd->variables.binlog_annotate_row_events= 0;
+      delete m_annotate_event;
+      m_annotate_event= 0;
+    }
+  }
+
   time_t get_row_stmt_start_timestamp()
   {
     return row_stmt_start_timestamp;
@@ -535,6 +573,8 @@ private:
    */
   time_t row_stmt_start_timestamp;
   bool long_find_row_note_printed;
+
+  Annotate_rows_log_event *m_annotate_event;
 };
 
 

@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2014, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -177,6 +178,7 @@
   Note! Reserved for use in MySQL Cluster
 */
 #define OPTION_ALLOW_BATCH              (ULL(1) << 36) // THD, intern (slave)
+#define OPTION_SKIP_REPLICATION         (ULL(1) << 37) // THD, user
 
 /*
   Check how many bytes are available on buffer.
@@ -221,17 +223,60 @@ template <class T> bool valid_buffer_range(T jump,
 #define OPTIMIZER_SWITCH_INDEX_MERGE_UNION         (1ULL << 1)
 #define OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION    (1ULL << 2)
 #define OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT     (1ULL << 3)
-#define OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN (1ULL << 4)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 5)
+#define OPTIMIZER_SWITCH_INDEX_MERGE_SORT_INTERSECT (1ULL << 4)
+#define OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN (1ULL << 5)
+#define OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN       (1ULL << 6)
+#define OPTIMIZER_SWITCH_DERIVED_MERGE             (1ULL << 7)
+#define OPTIMIZER_SWITCH_DERIVED_WITH_KEYS         (1ULL << 8)
+#define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 9)
+#define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 10)
+#define OPTIMIZER_SWITCH_MATERIALIZATION           (1ULL << 11)
+#define OPTIMIZER_SWITCH_IN_TO_EXISTS              (1ULL << 12)
+#define OPTIMIZER_SWITCH_SEMIJOIN                  (1ULL << 13)
+#define OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE (1ULL << 14)
+#define OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN  (1ULL << 15)
+#define OPTIMIZER_SWITCH_SUBQUERY_CACHE            (1ULL << 16)
+/** If this is off, MRR is never used. */
+#define OPTIMIZER_SWITCH_MRR                       (1ULL << 17)
+/**
+   If OPTIMIZER_SWITCH_MRR is on and this is on, MRR is used depending on a
+   cost-based choice ("automatic"). If OPTIMIZER_SWITCH_MRR is on and this is
+   off, MRR is "forced" (i.e. used as long as the storage engine is capable of
+   doing it).
+*/
+#define OPTIMIZER_SWITCH_MRR_COST_BASED            (1ULL << 18)
+#define OPTIMIZER_SWITCH_MRR_SORT_KEYS             (1ULL << 19)
+#define OPTIMIZER_SWITCH_OUTER_JOIN_WITH_CACHE     (1ULL << 20)
+#define OPTIMIZER_SWITCH_SEMIJOIN_WITH_CACHE       (1ULL << 21)
+#define OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL    (1ULL << 22)
+#define OPTIMIZER_SWITCH_JOIN_CACHE_HASHED         (1ULL << 23)
+#define OPTIMIZER_SWITCH_JOIN_CACHE_BKA            (1ULL << 24)
+#define OPTIMIZER_SWITCH_OPTIMIZE_JOIN_BUFFER_SIZE (1ULL << 25)
+#define OPTIMIZER_SWITCH_TABLE_ELIMINATION         (1ULL << 26)
+#define OPTIMIZER_SWITCH_EXTENDED_KEYS             (1ULL << 27)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 27)
 
-/* The following must be kept in sync with optimizer_switch_str in mysqld.cc */
-#define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
-                                  OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
-                                  OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
-                                  OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
-                                  OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)
-
-
+#define OPTIMIZER_SWITCH_DEFAULT   (OPTIMIZER_SWITCH_INDEX_MERGE | \
+                                    OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
+                                    OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
+                                    OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
+                                    OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN | \
+                                    OPTIMIZER_SWITCH_DERIVED_MERGE | \
+                                    OPTIMIZER_SWITCH_DERIVED_WITH_KEYS | \
+                                    OPTIMIZER_SWITCH_TABLE_ELIMINATION | \
+                                    OPTIMIZER_SWITCH_IN_TO_EXISTS | \
+                                    OPTIMIZER_SWITCH_MATERIALIZATION | \
+                                    OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
+                                    OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
+                                    OPTIMIZER_SWITCH_OUTER_JOIN_WITH_CACHE | \
+                                    OPTIMIZER_SWITCH_SEMIJOIN_WITH_CACHE | \
+                                    OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL | \
+                                    OPTIMIZER_SWITCH_JOIN_CACHE_HASHED | \
+                                    OPTIMIZER_SWITCH_JOIN_CACHE_BKA | \
+                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE | \
+                                    OPTIMIZER_SWITCH_SEMIJOIN | \
+                                    OPTIMIZER_SWITCH_FIRSTMATCH | \
+                                    OPTIMIZER_SWITCH_LOOSE_SCAN )
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
   use strictly more than 64 bits by adding one more define above, you should
@@ -270,16 +315,35 @@ template <class T> bool valid_buffer_range(T jump,
   it's a constant one.
 */
 #define CONTEXT_ANALYSIS_ONLY_DERIVED 4
+/*
+  Don't evaluate constant sub-expressions of virtual column
+  expressions when opening tables
+*/ 
+#define CONTEXT_ANALYSIS_ONLY_VCOL_EXPR 8
 
-// uncachable cause
-#define UNCACHEABLE_DEPENDENT   1
+
+/*
+  Uncachable causes:
+*/
+/* This subquery has fields from outer query (put by user) */
+#define UNCACHEABLE_DEPENDENT_GENERATED   1
+/* This subquery contains functions with random result */
 #define UNCACHEABLE_RAND        2
+/* This subquery contains functions with side effect */
 #define UNCACHEABLE_SIDEEFFECT	4
-/// forcing to save JOIN for explain
+/* Forcing to save JOIN tables for explain */
 #define UNCACHEABLE_EXPLAIN     8
 /* For uncorrelated SELECT in an UNION with some correlated SELECTs */
 #define UNCACHEABLE_UNITED     16
 #define UNCACHEABLE_CHECKOPTION 32
+/*
+  This subquery has fields from outer query injected during
+  transformation process
+*/
+#define UNCACHEABLE_DEPENDENT_INJECTED  64
+/* This subquery has fields from outer query (any nature) */
+#define UNCACHEABLE_DEPENDENT (UNCACHEABLE_DEPENDENT_GENERATED | \
+                               UNCACHEABLE_DEPENDENT_INJECTED)
 
 /* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
 #define UNDEF_POS (-1)
@@ -287,6 +351,11 @@ template <class T> bool valid_buffer_range(T jump,
 /* BINLOG_DUMP options */
 
 #define BINLOG_DUMP_NON_BLOCK   1
+#endif /* !MYSQL_CLIENT */
+
+#define BINLOG_SEND_ANNOTATE_ROWS_EVENT   2
+
+#ifndef MYSQL_CLIENT
 
 /*
   Some defines for exit codes for ::is_equal class functions.
@@ -301,7 +370,9 @@ enum enum_parsing_place
   IN_HAVING,
   SELECT_LIST,
   IN_WHERE,
-  IN_ON
+  IN_ON,
+  IN_GROUP_BY,
+  PARSING_PLACE_SIZE /* always should be the last */
 };
 
 
@@ -316,10 +387,6 @@ enum enum_yes_no_unknown
 {
   TVL_YES, TVL_NO, TVL_UNKNOWN
 };
-
-#ifdef MYSQL_SERVER
-
-#endif /* MYSQL_SERVER */
 
 #ifdef MYSQL_SERVER
 /*
@@ -358,6 +425,8 @@ inline int hexchar_to_int(char c)
 #define IS_TABLESPACES_MAXIMUM_SIZE       6
 #define IS_TABLESPACES_NODEGROUP_ID       7
 #define IS_TABLESPACES_TABLESPACE_COMMENT 8
+
+bool db_name_is_in_ignore_db_dirs_list(const char *dbase);
 
 #endif /* MYSQL_SERVER */
 

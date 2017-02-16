@@ -1,4 +1,5 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2013, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,11 +15,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "rpl_utility.h"
-
-#ifndef MYSQL_CLIENT
-#include "unireg.h"                      // REQUIRED by later includes
-#include "rpl_rli.h"
 #include "log_event.h"
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+#include "rpl_rli.h"
 #include "sql_select.h"
 
 /**
@@ -327,7 +327,7 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
   return length;
 }
 
-#ifndef MYSQL_CLIENT
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 /**
  */
 void show_sql_type(enum_field_types type, uint16 metadata, String *str, CHARSET_INFO *field_cs)
@@ -417,7 +417,7 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str, CHARSET_
       CHARSET_INFO *cs= str->charset();
       uint32 length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
-                           "decimal(%d,?)", metadata);
+                           "decimal(%d,?)/*old*/", metadata);
       str->length(length);
     }
     break;
@@ -876,6 +876,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
   {
     Create_field *field_def=
       (Create_field*) alloc_root(thd->mem_root, sizeof(Create_field));
+    bool unsigned_flag= 0;
     if (field_list.push_back(field_def))
       DBUG_RETURN(NULL);
 
@@ -885,8 +886,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
     uint32 max_length=
       max_display_length_for_field(type(col), field_metadata(col));
 
-    switch(type(col))
-    {
+    switch(type(col)) {
       int precision;
     case MYSQL_TYPE_ENUM:
     case MYSQL_TYPE_SET:
@@ -925,6 +925,18 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
       pack_length= field_metadata(col) & 0x00ff;
       break;
 
+    case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_INT24:
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+      /*
+        As we don't know if the integer was signed or not on the master,
+        assume we have same sign on master and slave.  This is true when not
+        using conversions so it should be true also when using conversions.
+      */
+      unsigned_flag= ((Field_num*) target_table->field[col])->unsigned_flag;
+      break;
     default:
       break;
     }
@@ -932,12 +944,13 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
     DBUG_PRINT("debug", ("sql_type: %d, target_field: '%s', max_length: %d, decimals: %d,"
                          " maybe_null: %d, unsigned_flag: %d, pack_length: %u",
                          type(col), target_table->field[col]->field_name,
-                         max_length, decimals, TRUE, FALSE, pack_length));
+                         max_length, decimals, TRUE, unsigned_flag,
+                         pack_length));
     field_def->init_for_tmp_table(type(col),
                                   max_length,
                                   decimals,
                                   TRUE,         // maybe_null
-                                  FALSE,        // unsigned_flag
+                                  unsigned_flag,
                                   pack_length);
     field_def->charset= target_table->field[col]->charset();
     field_def->interval= interval;
@@ -953,7 +966,6 @@ err:
                 target_table->s->table_name.str);
   DBUG_RETURN(conv_table);
 }
-
 #endif /* MYSQL_CLIENT */
 
 table_def::table_def(unsigned char *types, ulong size,
@@ -1058,6 +1070,62 @@ table_def::~table_def()
 }
 
 
+/**
+   @param   even_buf    point to the buffer containing serialized event
+   @param   event_len   length of the event accounting possible checksum alg
+
+   @return  TRUE        if test fails
+            FALSE       as success
+*/
+bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
+{
+  bool res= FALSE;
+  uint16 flags= 0; // to store in FD's buffer flags orig value
+
+  if (alg != BINLOG_CHECKSUM_ALG_OFF && alg != BINLOG_CHECKSUM_ALG_UNDEF)
+  {
+    ha_checksum incoming;
+    ha_checksum computed;
+
+    if (event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
+    {
+#ifndef DBUG_OFF
+      int8 fd_alg= event_buf[event_len - BINLOG_CHECKSUM_LEN - 
+                             BINLOG_CHECKSUM_ALG_DESC_LEN];
+#endif
+      /*
+        FD event is checksummed and therefore verified w/o the binlog-in-use flag
+      */
+      flags= uint2korr(event_buf + FLAGS_OFFSET);
+      if (flags & LOG_EVENT_BINLOG_IN_USE_F)
+        event_buf[FLAGS_OFFSET] &= ~LOG_EVENT_BINLOG_IN_USE_F;
+      /* 
+         The only algorithm currently is CRC32. Zero indicates 
+         the binlog file is checksum-free *except* the FD-event.
+      */
+      DBUG_ASSERT(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
+      DBUG_ASSERT(alg == BINLOG_CHECKSUM_ALG_CRC32);
+      /*
+        Complile time guard to watch over  the max number of alg
+      */
+      compile_time_assert(BINLOG_CHECKSUM_ALG_ENUM_END <= 0x80);
+    }
+    incoming= uint4korr(event_buf + event_len - BINLOG_CHECKSUM_LEN);
+    computed= my_checksum(0L, NULL, 0);
+    /* checksum the event content but the checksum part itself */
+    computed= my_checksum(computed, (const uchar*) event_buf, 
+                          event_len - BINLOG_CHECKSUM_LEN);
+    if (flags != 0)
+    {
+      /* restoring the orig value of flags of FD */
+      DBUG_ASSERT(event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT);
+      event_buf[FLAGS_OFFSET]= (uchar) flags;
+    }
+    res= !(computed == incoming);
+  }
+  return DBUG_EVALUATE_IF("simulate_checksum_test_failure", TRUE, res);
+}
+
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
 
 Deferred_log_events::Deferred_log_events(Relay_log_info *rli) : last_added(NULL)
@@ -1085,7 +1153,7 @@ bool Deferred_log_events::is_empty()
 bool Deferred_log_events::execute(Relay_log_info *rli)
 {
   bool res= false;
-
+  DBUG_ENTER("Deferred_log_events::execute");
   DBUG_ASSERT(rli->deferred_events_collecting);
 
   rli->deferred_events_collecting= false;
@@ -1096,7 +1164,7 @@ bool Deferred_log_events::execute(Relay_log_info *rli)
     res= ev->apply_event(rli);
   }
   rli->deferred_events_collecting= true;
-  return res;
+  DBUG_RETURN(res);
 }
 
 void Deferred_log_events::rewind()
@@ -1117,6 +1185,8 @@ void Deferred_log_events::rewind()
       freeze_size(&array);
     reset_dynamic(&array);
   }
+  last_added= NULL;
 }
 
 #endif
+

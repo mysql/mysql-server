@@ -281,6 +281,8 @@ connection con1;
 --disable_query_log
 let $tab_count= 40;
 
+--disable_query_log
+begin;
 let $i= $tab_count;
 while ($i)
 {
@@ -288,6 +290,10 @@ while ($i)
   eval INSERT INTO t$i VALUES (1),(2),(3),(4),(5),(6),(7);
   dec $i ;
 }
+
+commit;
+--enable_query_log
+
 SET SESSION optimizer_search_depth=0;
 
 let $i=$tab_count;
@@ -343,7 +349,7 @@ SET DEBUG_SYNC = 'RESET';
 let $ID= `SELECT @id := CONNECTION_ID()`;
 SET DEBUG_SYNC= 'thread_end SIGNAL con1_end';
 --disable_reconnect
---error ER_QUERY_INTERRUPTED
+--error ER_CONNECTION_KILLED
 KILL @id;
 
 connection con2;
@@ -597,6 +603,34 @@ drop table t1;
 drop table t2;
 
 ###########################################################################
+
+--echo #
+--echo # Test kill USER
+--echo #
+grant ALL on test.* to test@localhost;
+grant ALL on test.* to test2@localhost;
+connect (con3, localhost, test,,);
+connect (con4, localhost, test2,,);
+connection default;
+--enable_info
+kill hard query user test2@nohost;
+kill soft query user test@localhost;
+kill hard query user test@localhost;
+kill soft connection user test2;
+kill hard connection user test@localhost;
+--disable_info
+revoke all privileges on test.* from test@localhost;
+revoke all privileges on test.* from test2@localhost;
+drop user test@localhost;
+drop user test2@localhost;
+
+connection con3;
+--error 2013,2006
+select 1;
+connection con4;
+--error 2013,2006
+select 1;
+connection default;
 
 SET DEBUG_SYNC = 'RESET';
 DROP FUNCTION MY_KILL;

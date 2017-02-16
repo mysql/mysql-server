@@ -1,0 +1,198 @@
+
+----------------------------------------------------------------------------
+The HandlerSocket protocol
+
+----------------------------------------------------------------------------
+Basic syntax
+
+- The HandlerSocket protocol is line-based. Each line ends with LF(0x0a).
+- Each line consists a concatenation of tokens separated by HT(0x09).
+- A token is either NULL or an encoded string. Note that you need to
+  distinguish NULL from an empty string, as most DBMs does so.
+- NULL is expressed as a single NUL(0x00).
+- An encoded string is a string with the following encoding rules.
+  	- Characters in the range [0x10 - 0xff] are encoded as itselves.
+	- A character in the range [0x00 - 0x0f] is prefixed by 0x01 and
+	  shifted by 0x40. For example, 0x03 is encoded as 0x01 0x43.
+- Note that a string can be empty. A continuation of 0x09 0x09 means that
+  there is an empty string between them. A continuation of 0x09 0x0a means
+  that there is an empty string at the end of the line.
+
+----------------------------------------------------------------------------
+Request and Response
+
+- The HandlerSocket protocol is a simple request/response protocol. After a
+  connection is established, the client side sends a request, and then the
+  server side sends a response.
+- A request/response consists of a single line.
+- Requests can be pipelined; That is, you can send multiple requests (ie.
+  lines) at one time, and receive responses for them at one time.
+
+----------------------------------------------------------------------------
+'open_index' request
+
+The 'open_index' request has the following syntax.
+
+    P <indexid> <dbname> <tablename> <indexname> <columns> [<fcolumns>]
+
+- <indexid> is a number in decimal.
+- <dbname>, <tablename>, and <indexname> are strings. To open the primary
+  key, use PRIMARY as <indexname>.
+- <columns> is a comma-separated list of column names.
+- <fcolumns> is a comma-separated list of column names. This parameter is
+  optional.
+
+Once an 'open_index' request is issued, the HandlerSocket plugin opens the
+specified index and keep it open until the client connection is closed. Each
+open index is identified by <indexid>. If <indexid> is already open, the old
+open index is closed. You can open the same combination of <dbname>
+<tablename> <indexname> multple times, possibly with different <columns>.
+For efficiency, keep <indexid> small as far as possible.
+
+----------------------------------------------------------------------------
+Getting data
+
+The 'find' request has the following syntax.
+ 
+    <indexid> <op> <vlen> <v1> ... <vn> [LIM] [IN] [FILTER ...]
+
+LIM is a sequence of the following parameters.
+
+    <limit> <offset>
+
+IN is a sequence of the following parameters.
+    
+    @ <icol> <ivlen> <iv1> ... <ivn>
+
+FILETER is a sequence of the following parameters.
+
+    <ftyp> <fop> <fcol> <fval>
+
+- <indexid> is a number. This number must be an <indexid> specified by a
+  'open_index' request executed previously on the same connection.
+- <op> specifies the comparison operation to use. The current version of
+  HandlerSocket supports '=', '>', '>=', '<', and '<='.
+- <vlen> indicates the length of the trailing parameters <v1> ... <vn>. This
+  must be smaller than or equal to the number of index columns specified by
+  the <columns> parameter of the corresponding 'open_index' request.
+- <v1> ... <vn> specify the index column values to fetch.
+- LIM is optional. <limit> and <offset> are numbers. When omitted, it works
+  as if 1 and 0 are specified. These parameter works like LIMIT of SQL.
+  These values don't include the number of records skipped by a filter.
+- IN is optional. It works like WHERE ... IN syntax of SQL. <icol> must be
+  smaller than or equal to the number of index columns specified by the
+  <columns> parameter of the corresponding 'open_index' request. If IN is
+  specified in a find request, the <icol>-th parameter value of <v1> ...
+  <vn> is ignored.
+  smaller than or equal to the number of index columns specified by the
+- FILTERs are optional. A FILTER specifies a filter. <ftyp> is either 'F'
+  (filter) or 'W' (while). <fop> specifies the comparison operation to use.
+  <fcol> must be smaller than or equal to the number of columns specified by
+  the <fcolumns> parameter of the corresponding 'open_index' request.
+  Multiple filters can be specified, and work as the logical AND of them.
+  The difference of 'F' and 'W' is that, when a record does not meet the
+  specified condition, 'F' simply skips the record, and 'W' stops the loop.
+
+----------------------------------------------------------------------------
+Updating/Deleting data
+
+The 'find_modify' request has the following syntax.
+
+    <indexid> <op> <vlen> <v1> ... <vn> [LIM] [IN] [FILTER ...] MOD
+
+MOD is a sequence of the following parameters.
+
+    <mop> <m1> ... <mk>
+
+- <mop> is 'U' (update), '+' (increment), '-' (decrement), 'D' (delete),
+  'U?', '+?', '-?', or 'D?'. If the '?' suffix is specified, it returns
+  the contents of the records before modification (as if it's a 'find'
+  request), instead of the number of modified records.
+- <m1> ... <mk> specifies the column values to set. The length of <m1> ...
+  <mk> must be smaller than or equal to the length of <columns> specified by
+  the corresponding 'open_index' request. If <mop> is 'D', these parameters
+  are ignored. If <mop> is '+' or '-', values must be numeric. If <mop> is
+  '-' and it attempts to change column values from negative to positive or
+  positive to negative, it is not modified.
+
+----------------------------------------------------------------------------
+Inserting data
+
+The 'insert' request has the following syntax.
+
+    <indexid> + <vlen> <v1> ... <vn>
+
+- <vlen> indicates the length of the trailing parameters <v1> ... <vn>. This
+  must be smaller than or equal to the length of <columns> specified by the
+  corresponding 'open_index' request.
+- <v1> ... <vn> specify the column values to set. For columns not in
+  <columns>, the default values for each column are set.
+
+----------------------------------------------------------------------------
+Authentication
+
+The 'auth' request has the following syntax.
+
+    A <atyp> <akey>
+
+- <atyp> must be '1'
+- An 'auth' request succeeds iff <akey> is the correct secret specified by
+  the 'handlersocket_plain_secret' or 'handlersocket_plain_secret_rw'.
+- If an authentication is enabled for a listener, any other requests on a
+  connection fail before an 'auth' request succeeded on the connection.
+
+----------------------------------------------------------------------------
+Response syntax
+
+HandlerSocket returns a response of the following syntax for each request.
+
+    <errorcode> <numcolumns> <r1> ... <rn>
+
+- <errorcode> indicates whether the request has successfully executed or not.
+  '0' means success. Non-zero means an error.
+- <numcolumns> indicates the number of columns of the result set.
+- <r1> ... <rn> is the result set. The length of <r1> ... <rn> is always a
+  multiple of <numcolumns>. It is possible that <r1> ... <rn> is empty.
+
+If <errorcode> is non-zero, <numcolumns> is always 1 and <r1> indicates a
+human-readable error message, though sometimes <r1> is not provided.
+
+----------------------------------------------------------------------------
+Response for 'open_index'
+
+If 'open_index' is succeeded, HandlerSocket returns a line of the following
+syntax.
+
+    0 1
+
+----------------------------------------------------------------------------
+Response for 'find'
+
+If 'find' is succeeded, HandlerSocket returns a line of the following
+syntax.
+
+   0 <numcolumns> <r1> ... <rn>
+
+- <numcolumns> always equals to the length of <columns> of the corresponding
+  'open_index' request.
+- <r1> ... <rn> is the result set. If N rows are found, the length of <r1>
+  ... <rn> becomes ( <numcolumns> * N ).
+
+----------------------------------------------------------------------------
+Response for 'find_modify'
+
+If 'find_modify' is succeeded, HandlerSocket returns a line of the following
+syntax.
+
+   0 1 <nummod>
+
+- <nummod> is the number of modified rows.
+
+----------------------------------------------------------------------------
+Response for 'insert'
+
+If 'insert' is succeeded, HanderSocket returns a line of the following
+syntax.
+
+   0 1
+

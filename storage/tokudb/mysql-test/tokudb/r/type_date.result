@@ -1,0 +1,258 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+drop table if exists t1,t2,t3;
+create table t1 (a char(16), b date, c datetime);
+insert into t1 SET a='test 2000-01-01', b='2000-01-01', c='2000-01-01';
+select * from t1 where c = '2000-01-01';
+a	b	c
+test 2000-01-01	2000-01-01	2000-01-01 00:00:00
+select * from t1 where b = '2000-01-01';
+a	b	c
+test 2000-01-01	2000-01-01	2000-01-01 00:00:00
+drop table t1;
+CREATE TABLE t1 (name char(6),cdate date);
+INSERT INTO t1 VALUES ('name1','1998-01-01');
+INSERT INTO t1 VALUES ('name2','1998-01-01');
+INSERT INTO t1 VALUES ('name1','1998-01-02');
+INSERT INTO t1 VALUES ('name2','1998-01-02');
+CREATE TABLE t2 (cdate date, note char(6));
+INSERT INTO t2 VALUES ('1998-01-01','note01');
+INSERT INTO t2 VALUES ('1998-01-02','note02');
+select name,t1.cdate,note from t1,t2 where t1.cdate=t2.cdate and t1.cdate='1998-01-01';
+name	cdate	note
+name1	1998-01-01	note01
+name2	1998-01-01	note01
+drop table t1,t2;
+CREATE TABLE t1 ( datum DATE );
+INSERT INTO t1 VALUES ( "2000-1-1" );
+INSERT INTO t1 VALUES ( "2000-1-2" );
+INSERT INTO t1 VALUES ( "2000-1-3" );
+INSERT INTO t1 VALUES ( "2000-1-4" );
+INSERT INTO t1 VALUES ( "2000-1-5" );
+SELECT * FROM t1 WHERE datum BETWEEN cast("2000-1-2" as date) AND cast("2000-1-4" as date);
+datum
+2000-01-02
+2000-01-03
+2000-01-04
+SELECT * FROM t1 WHERE datum BETWEEN cast("2000-1-2" as date) AND datum - INTERVAL 100 DAY;
+datum
+DROP TABLE t1;
+CREATE TABLE t1 (
+user_id char(10),
+summa int(11),
+rdate date
+);
+INSERT INTO t1 VALUES ('aaa',100,'1998-01-01');
+INSERT INTO t1 VALUES ('aaa',200,'1998-01-03');
+INSERT INTO t1 VALUES ('bbb',50,'1998-01-02');
+INSERT INTO t1 VALUES ('bbb',200,'1998-01-04');
+select max(rdate) as s from t1 where rdate < '1998-01-03' having s> "1998-01-01";
+s
+1998-01-02
+select max(rdate) as s from t1 having s="1998-01-04";
+s
+1998-01-04
+select max(rdate+0) as s from t1 having s="19980104";
+s
+19980104
+drop table t1;
+create table t1 (date date);
+insert into t1 values ("2000-08-10"),("2000-08-11");
+select date_add(date,INTERVAL 1 DAY),date_add(date,INTERVAL 1 SECOND) from t1;
+date_add(date,INTERVAL 1 DAY)	date_add(date,INTERVAL 1 SECOND)
+2000-08-11	2000-08-10 00:00:01
+2000-08-12	2000-08-11 00:00:01
+drop table t1;
+CREATE TABLE t1(AFIELD INT);
+INSERT INTO t1 VALUES(1);
+CREATE TABLE t2(GMT  VARCHAR(32));
+INSERT INTO t2 VALUES('GMT-0800');
+SELECT DATE_FORMAT("2002-03-06 10:11:12", CONCAT('%a, %d %M %Y %H:%i:%s ' ,  t2.GMT)) FROM t1, t2 GROUP BY t1.AFIELD;
+DATE_FORMAT("2002-03-06 10:11:12", CONCAT('%a, %d %M %Y %H:%i:%s ' ,  t2.GMT))
+Wed, 06 March 2002 10:11:12 GMT-0800
+INSERT INTO t1 VALUES(1);
+SELECT DATE_FORMAT("2002-03-06 10:11:12", CONCAT('%a, %d %M %Y %H:%i:%s ' ,  t2.GMT)), DATE_FORMAT("2002-03-06 10:11:12",  CONCAT('%a, %d %M %Y %H:%i:%s ' ,  t2.GMT)) FROM t1,t2 GROUP BY t1.AFIELD;
+DATE_FORMAT("2002-03-06 10:11:12", CONCAT('%a, %d %M %Y %H:%i:%s ' ,  t2.GMT))	DATE_FORMAT("2002-03-06 10:11:12",  CONCAT('%a, %d %M %Y %H:%i:%s ' ,  t2.GMT))
+Wed, 06 March 2002 10:11:12 GMT-0800	Wed, 06 March 2002 10:11:12 GMT-0800
+drop table t1,t2;
+CREATE TABLE t1 (f1 time default NULL, f2 time default NULL);
+INSERT INTO t1 (f1, f2) VALUES ('09:00', '12:00');
+SELECT DATE_FORMAT(f1, "%l.%i %p") , DATE_FORMAT(f2, "%l.%i %p") FROM t1;
+DATE_FORMAT(f1, "%l.%i %p")	DATE_FORMAT(f2, "%l.%i %p")
+9.00 AM	12.00 PM
+DROP TABLE t1;
+CREATE TABLE t1 (f1 DATE);
+CREATE TABLE t2 (f2 VARCHAR(8));
+CREATE TABLE t3 (f2 CHAR(8));
+INSERT INTO t1 VALUES ('1978-11-26');
+INSERT INTO t2 SELECT f1+0 FROM t1;
+INSERT INTO t2 SELECT f1+0 FROM t1 UNION SELECT f1+0 FROM t1;
+INSERT INTO t3 SELECT f1+0 FROM t1;
+INSERT INTO t3 SELECT f1+0 FROM t1 UNION SELECT f1+0 FROM t1;
+SELECT * FROM t2;
+f2
+19781126
+19781126
+SELECT * FROM t3;
+f2
+19781126
+19781126
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1 (y YEAR);
+INSERT INTO t1 VALUES ('abc');
+Warnings:
+Warning	1366	Incorrect integer value: 'abc' for column 'y' at row 1
+SELECT * FROM t1;
+y
+0000
+DROP TABLE t1;
+create table t1(start_date date, end_date date);
+insert into t1 values ('2000-01-01','2000-01-02');
+select 1 from t1 where cast('2000-01-01 12:01:01' as datetime) between start_date and end_date;
+1
+1
+drop table t1;
+select @d:=1111;
+@d:=1111
+1111
+select year(@d), month(@d), day(@d), cast(@d as date);
+year(@d)	month(@d)	day(@d)	cast(@d as date)
+2000	11	11	2000-11-11
+select @d:=011111;
+@d:=011111
+11111
+select year(@d), month(@d), day(@d), cast(@d as date);
+year(@d)	month(@d)	day(@d)	cast(@d as date)
+2001	11	11	2001-11-11
+select @d:=1311;
+@d:=1311
+1311
+select year(@d), month(@d), day(@d), cast(@d as date);
+year(@d)	month(@d)	day(@d)	cast(@d as date)
+NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '1311'
+Warning	1292	Incorrect datetime value: '1311'
+Warning	1292	Incorrect datetime value: '1311'
+Warning	1292	Incorrect datetime value: '1311'
+create table t1 (d  date , dt datetime , ts timestamp);
+insert into t1 values (9912101,9912101,9912101);
+Warnings:
+Warning	1265	Data truncated for column 'd' at row 1
+Warning	1265	Data truncated for column 'dt' at row 1
+Warning	1265	Data truncated for column 'ts' at row 1
+insert into t1 values (11111,11111,11111);
+select * from t1;
+d	dt	ts
+0000-00-00	0000-00-00 00:00:00	0000-00-00 00:00:00
+2001-11-11	2001-11-11 00:00:00	2001-11-11 00:00:00
+drop table t1;
+CREATE TABLE t1 (
+a INT
+);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (NULL);
+SELECT str_to_date( '', a ) FROM t1;
+str_to_date( '', a )
+0000-00-00 00:00:00
+NULL
+DROP TABLE t1;
+CREATE TABLE t1 (a DATE, b int, PRIMARY KEY (a,b));
+INSERT INTO t1 VALUES (DATE(NOW()), 1);
+SELECT COUNT(*) FROM t1 WHERE a = NOW();
+COUNT(*)
+0
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+INSERT INTO t1 VALUES (DATE(NOW()), 2);
+SELECT COUNT(*) FROM t1 WHERE a = NOW();
+COUNT(*)
+0
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT COUNT(*) FROM t1 WHERE a = NOW() AND b = 1;
+COUNT(*)
+0
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW() AND b = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+ALTER TABLE t1 DROP PRIMARY KEY;
+SELECT COUNT(*) FROM t1 WHERE a = NOW();
+COUNT(*)
+0
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a = NOW();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+DROP TABLE t1;
+CREATE TABLE t1 (a DATE);
+CREATE TABLE t2 (a DATE);
+CREATE INDEX i ON t1 (a);
+INSERT INTO t1 VALUES ('0000-00-00'),('0000-00-00');
+INSERT INTO t2 VALUES ('0000-00-00'),('0000-00-00');
+SELECT * FROM t1 WHERE a = '0000-00-00';
+a
+0000-00-00
+0000-00-00
+SELECT * FROM t2 WHERE a = '0000-00-00';
+a
+0000-00-00
+0000-00-00
+SET SQL_MODE=TRADITIONAL;
+EXPLAIN SELECT * FROM t1 WHERE a = '0000-00-00';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	i	i	4	const	2	Using index
+SELECT * FROM t1 WHERE a = '0000-00-00';
+a
+0000-00-00
+0000-00-00
+SELECT * FROM t2 WHERE a = '0000-00-00';
+a
+0000-00-00
+0000-00-00
+INSERT INTO t1 VALUES ('0000-00-00');
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
+SET SQL_MODE=DEFAULT;
+DROP TABLE t1,t2;
+CREATE TABLE t1 (a DATE);
+CREATE TABLE t2 (a DATE);
+CREATE INDEX i ON t1 (a);
+INSERT INTO t1 VALUES ('1000-00-00'),('1000-00-00');
+INSERT INTO t2 VALUES ('1000-00-00'),('1000-00-00');
+SELECT * FROM t1 WHERE a = '1000-00-00';
+a
+1000-00-00
+1000-00-00
+SELECT * FROM t2 WHERE a = '1000-00-00';
+a
+1000-00-00
+1000-00-00
+SET SQL_MODE=TRADITIONAL;
+EXPLAIN SELECT * FROM t1 WHERE a = '1000-00-00';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	i	i	4	const	2	Using index
+SELECT * FROM t1 WHERE a = '1000-00-00';
+a
+1000-00-00
+1000-00-00
+SELECT * FROM t2 WHERE a = '1000-00-00';
+a
+1000-00-00
+1000-00-00
+INSERT INTO t1 VALUES ('1000-00-00');
+ERROR 22007: Incorrect date value: '1000-00-00' for column 'a' at row 1
+SET SQL_MODE=DEFAULT;
+DROP TABLE t1,t2;
+CREATE TABLE t1 SELECT curdate() AS f1;
+SELECT hour(f1), minute(f1), second(f1) FROM t1;
+hour(f1)	minute(f1)	second(f1)
+0	0	0
+DROP TABLE t1;
+End of 5.0 tests
+create table t1 (a date, primary key (a))engine=memory;
+insert into t1 values ('0000-01-01'), ('0000-00-01'), ('0001-01-01');
+select * from t1 where a between '0000-00-01' and '0000-00-02';
+a
+0000-00-01
+drop table t1;
+End of 5.1 tests

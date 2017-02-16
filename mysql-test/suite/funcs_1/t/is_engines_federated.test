@@ -7,9 +7,9 @@
 # 2008-01-23 mleich WL#4203 Reorganize and fix the data dictionary tests of
 #                           testsuite funcs_1
 #
-
+--source include/not_embedded.inc # loading engines not generally possible in embedded
 let $engine_type= FEDERATED;
---source suite/federated/include/have_federated_db.inc
+--source suite/federated/have_federatedx.inc
 --vertical_results
 eval SELECT * FROM information_schema.engines
 WHERE ENGINE = '$engine_type';

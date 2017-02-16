@@ -1,0 +1,9 @@
+#
+# MDEV-714 LP:1020645 - crash (sig 11) with union query
+#
+--source include/have_debug.inc
+create table t1 (i tinyint);
+set debug_dbug='+d,bug11747970_raise_error';
+--error ER_QUERY_INTERRUPTED
+insert into t1 (i) select i from t1 union select i from t1;
+drop table t1;

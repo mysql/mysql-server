@@ -1,0 +1,149 @@
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 VALUES (100,'foobar'),(1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
+SELECT a,b FROM t1;
+a	b
+1	a
+100	foobar
+2	b
+3	c
+4	d
+5	e
+INSERT t1 VALUE (10,'foo'),(11,'abc');
+SELECT a,b FROM t1;
+a	b
+1	a
+10	foo
+100	foobar
+11	abc
+2	b
+3	c
+4	d
+5	e
+INSERT INTO t1 (b,a) VALUES ('test',0);
+SELECT a,b FROM t1;
+a	b
+0	test
+1	a
+10	foo
+100	foobar
+11	abc
+2	b
+3	c
+4	d
+5	e
+INSERT INTO t1 VALUES (DEFAULT,DEFAULT);
+SELECT a,b FROM t1;
+a	b
+0	test
+1	a
+10	foo
+100	foobar
+11	abc
+2	b
+3	c
+4	d
+5	e
+NULL	NULL
+INSERT t1 (a) VALUE (10),(20);
+SELECT a,b FROM t1;
+a	b
+0	test
+1	a
+10	NULL
+10	foo
+100	foobar
+11	abc
+2	b
+20	NULL
+3	c
+4	d
+5	e
+NULL	NULL
+INSERT INTO t1 SET a = 11, b = 'f';
+SELECT a,b FROM t1;
+a	b
+0	test
+1	a
+10	NULL
+10	foo
+100	foobar
+11	abc
+11	f
+2	b
+20	NULL
+3	c
+4	d
+5	e
+NULL	NULL
+INSERT t1 SET b = DEFAULT;
+SELECT a,b FROM t1;
+a	b
+0	test
+1	a
+10	NULL
+10	foo
+100	foobar
+11	abc
+11	f
+2	b
+20	NULL
+3	c
+4	d
+5	e
+NULL	NULL
+NULL	NULL
+CREATE TABLE t2 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t2 SELECT a,b FROM t1;
+INSERT INTO t1 (a) SELECT a FROM t2 WHERE b = 'foo';
+SELECT a,b FROM t1;
+a	b
+0	test
+1	a
+10	NULL
+10	NULL
+10	foo
+100	foobar
+11	abc
+11	f
+2	b
+20	NULL
+3	c
+4	d
+5	e
+NULL	NULL
+NULL	NULL
+INSERT t1 (a,b) SELECT a,b FROM t1;
+SELECT a,b FROM t1;
+a	b
+0	test
+0	test
+1	a
+1	a
+10	NULL
+10	NULL
+10	NULL
+10	NULL
+10	foo
+10	foo
+100	foobar
+100	foobar
+11	abc
+11	abc
+11	f
+11	f
+2	b
+2	b
+20	NULL
+20	NULL
+3	c
+3	c
+4	d
+4	d
+5	e
+5	e
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+DROP TABLE t1, t2;

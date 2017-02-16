@@ -1,0 +1,107 @@
+{
+   open_problem
+   drd:ConflictingAccess
+   fun:open64
+}
+
+{
+   read_problem
+   drd:ConflictingAccess
+   fun:read
+}
+
+{
+   write_problem
+   drd:ConflictingAccess
+   fun:write
+}
+
+{
+   pread_problem
+   drd:ConflictingAccess
+   fun:pread
+}
+
+{
+   pwrite_problem
+   drd:ConflictingAccess
+   fun:pwrite
+}
+
+{
+   fsync_problem
+   drd:ConflictingAccess
+   fun:fsync
+}
+
+{
+   lseek_problem
+   drd:ConflictingAccess
+   fun:lseek
+}
+
+{
+   close_problem
+   drd:ConflictingAccess
+   fun:close
+}
+
+{
+   centos62_open_problem
+   drd:ConflictingAccess
+   fun:open
+}
+
+{
+   centos62_pthread_clone_problem
+   drd:ConflictingAccess
+   fun:clone
+}
+{
+   EvictorSignalUnlocked
+   drd:CondRaceErr
+   fun:pthread_cond_signal@*
+   fun:_ZL16toku_cond_signalP9toku_cond
+   fun:_ZN7evictor22signal_eviction_threadEv
+}
+
+{
+   <insert_a_suppression_name_here>
+   drd:ConflictingAccess
+   ...
+   fun:_dl_runtime_resolve
+}
+{
+   <insert_a_suppression_name_here>
+   drd:ConflictingAccess
+   ...
+   fun:random
+}
+
+{
+   unsafe_touch_clock
+   drd:ConflictingAccess
+   fun:_ZL18unsafe_touch_clockP6ftnodei
+   ...
+}
+{
+   unsafe_read_single_txnid_optimization_possible
+   drd:ConflictingAccess
+   fun:_ZNK4toku8locktree46unsafe_read_single_txnid_optimization_possibleEv
+}
+{
+   unsafe_read_size_current
+   drd:ConflictingAccess
+   fun:_ZNK7evictor24unsafe_read_size_currentEv
+}
+{
+   signal_ev_thread_without_holding_mutex_for_condition
+   drd:CondRaceErr
+   fun:pthread_cond_signal@*
+   fun:_ZN7evictor22signal_eviction_threadEv
+}
+{
+   locktree_single_txn_optimization_unsafe_read_txn_is_valid
+   drd:ConflictingAccess
+   fun:_ZNK4toku8locktree25sto_txnid_is_valid_unsafeEv
+}

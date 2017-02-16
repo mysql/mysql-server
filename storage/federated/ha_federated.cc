@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -251,7 +251,7 @@
     gdb ./mysqld
 
     Then, withn the (gdb) prompt:
-    (gdb) run --gdb --port=5554 --socket=/tmp/mysqld.5554 --skip-innodb --debug
+    (gdb) run --gdb --port=5554 --socket=/tmp/mysqld.5554 --skip-innodb --debug-dbug
 
     Next, I open several windows for each:
 
@@ -383,12 +383,17 @@
 #endif
 
 #include "ha_federated.h"
-#include "probes_mysql.h"
 
 #include "m_string.h"
 #include "key.h"                                // key_copy
 
 #include <mysql/plugin.h>
+
+#ifdef I_AM_PARANOID
+#define MIN_PORT 1023
+#else
+#define MIN_PORT 0
+#endif
 
 /* Variables for federated share methods */
 static HASH federated_open_tables;              // To track open tables
@@ -582,7 +587,7 @@ static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
   buf_len= min(table->s->connect_string.length,
                FEDERATED_QUERY_BUFFER_SIZE-1);
   strmake(buf, table->s->connect_string.str, buf_len);
-  my_error(error_num, MYF(0), buf);
+  my_error(error_num, MYF(0), buf, 14);
   DBUG_RETURN(error_num);
 }
 
@@ -624,11 +629,7 @@ int get_connection(MEM_ROOT *mem_root, FEDERATED_SHARE *share)
   share->username= server->username;
   share->password= server->password;
   share->database= server->db;
-#ifndef I_AM_PARANOID
-  share->port= server->port > 0 && server->port < 65536 ? 
-#else
-  share->port= server->port > 1023 && server->port < 65536 ? 
-#endif
+  share->port= server->port > MIN_PORT && server->port < 65536 ? 
                (ushort) server->port : MYSQL_PORT;
   share->hostname= server->host;
   if (!(share->socket= server->socket) &&
@@ -827,7 +828,7 @@ static int parse_url(MEM_ROOT *mem_root, FEDERATED_SHARE *share, TABLE *table,
         user:@hostname:port/db/table
         Then password is a null string, so set to NULL
       */
-      if ((share->password[0] == '\0'))
+      if (share->password[0] == '\0')
         share->password= NULL;
     }
     else
@@ -1546,7 +1547,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
                  tmp_share.table_name_length, ident_quote_char);
 
     if (!(share= (FEDERATED_SHARE *) memdup_root(&mem_root, (char*)&tmp_share, sizeof(*share))) ||
-        !(share->select_query= (char*) strmake_root(&mem_root, query.ptr(), query.length() + 1)))
+        !(share->select_query= (char*) strmake_root(&mem_root, query.ptr(), query.length())))
       goto error;
 
     share->use_count= 0;
@@ -1661,6 +1662,20 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
   DBUG_RETURN(0);
 }
 
+class Net_error_handler : public Internal_error_handler
+{
+public:
+  Net_error_handler() {}
+
+public:
+  bool handle_condition(THD *thd, uint sql_errno, const char* sqlstate,
+                        MYSQL_ERROR::enum_warning_level level,
+                        const char* msg, MYSQL_ERROR ** cond_hdl)
+  {
+    return sql_errno >= ER_ABORTING_CONNECTION &&
+           sql_errno <= ER_NET_WRITE_INTERRUPTED;
+  }
+};
 
 /*
   Closes a table. We call the free_share() function to free any resources
@@ -1675,41 +1690,22 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
 
 int ha_federated::close(void)
 {
-  THD *thd= current_thd;
   DBUG_ENTER("ha_federated::close");
 
   free_result();
 
   delete_dynamic(&results);
 
-  /*
-    Check to verify wheather the connection is still alive or not.
-    FLUSH TABLES will quit the connection and if connection is broken,
-    it will reconnect again and quit silently.
-  */
-  if (mysql && (!mysql->net.vio || !vio_is_connected(mysql->net.vio)))
-     mysql->net.error= 2;
-
   /* Disconnect from mysql */
+  THD *thd= ha_thd();
+  Net_error_handler err_handler;
+  if (thd)
+    thd->push_internal_handler(&err_handler);
   mysql_close(mysql);
+  if (thd)
+    thd->pop_internal_handler();
+
   mysql= NULL;
-
-  /*
-    mysql_close() might return an error if a remote server's gone
-    for some reason. If that happens while removing a table from
-    the table cache, the error will be propagated to a client even
-    if the original query was not issued against the FEDERATED table.
-    So, don't propagate errors from mysql_close().
-  */
-  if (table->in_use && thd != table->in_use)
-    table->in_use->clear_error();
-
-  /*
-    Errors from mysql_close() are silently ignored for flush tables.
-    Close the connection silently.
-  */
-  if (thd && thd->lex->sql_command == SQLCOM_FLUSH)
-     thd->clear_error();
 
   DBUG_RETURN(free_share(share));
 }
@@ -2045,7 +2041,7 @@ int ha_federated::end_bulk_insert()
   int error= 0;
   DBUG_ENTER("ha_federated::end_bulk_insert");
   
-  if (bulk_insert.str && bulk_insert.length)
+  if (!table_will_be_deleted && bulk_insert.str && bulk_insert.length)
   {
     if (real_query(bulk_insert.str, bulk_insert.length))
       error= stash_remote_error();
@@ -2365,23 +2361,6 @@ int ha_federated::delete_row(const uchar *buf)
   DBUG_RETURN(0);
 }
 
-int ha_federated::index_read_idx_map(uchar *buf, uint index, const uchar *key,
-                                key_part_map keypart_map,
-                                enum ha_rkey_function find_flag)
-{
-  int error= index_init(index, 0);
-  if (error)
-    return error;
-  error= index_read_map(buf, key, keypart_map, find_flag);
-  if(!error && stored_result)
-  {
-    uchar *dummy_arg=NULL;
-    position(dummy_arg);
-  }
-  int error1= index_end();
-  return error ?  error : error1;
-}
-
 /*
   Positions an index cursor to the index specified in the handle. Fetches the
   row if available. If the key value is null, begin at the first key of the
@@ -2395,12 +2374,10 @@ int ha_federated::index_read(uchar *buf, const uchar *key,
   int rc;
   DBUG_ENTER("ha_federated::index_read");
 
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   free_result();
   rc= index_read_idx_with_result_set(buf, active_index, key,
                                      key_len, find_flag,
                                      &stored_result);
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -2533,7 +2510,6 @@ int ha_federated::index_init(uint keynr, bool sorted)
 {
   DBUG_ENTER("ha_federated::index_init");
   DBUG_PRINT("info", ("table: '%s'  key: %u", table->s->table_name.str, keynr));
-  active_index= keynr;
   DBUG_RETURN(0);
 }
 
@@ -2552,7 +2528,6 @@ int ha_federated::read_range_first(const key_range *start_key,
                    sizeof(sql_query_buffer),
                    &my_charset_bin);
   DBUG_ENTER("ha_federated::read_range_first");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
 
   DBUG_ASSERT(!(start_key == NULL && end_key == NULL));
 
@@ -2575,12 +2550,10 @@ int ha_federated::read_range_first(const key_range *start_key,
   }
 
   retval= read_next(table->record[0], stored_result);
-  MYSQL_INDEX_READ_ROW_DONE(retval);
   DBUG_RETURN(retval);
 
 error:
   table->status= STATUS_NOT_FOUND;
-  MYSQL_INDEX_READ_ROW_DONE(retval);
   DBUG_RETURN(retval);
 }
 
@@ -2589,9 +2562,7 @@ int ha_federated::read_range_next()
 {
   int retval;
   DBUG_ENTER("ha_federated::read_range_next");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   retval= rnd_next_int(table->record[0]);
-  MYSQL_INDEX_READ_ROW_DONE(retval);
   DBUG_RETURN(retval);
 }
 
@@ -2601,10 +2572,8 @@ int ha_federated::index_next(uchar *buf)
 {
   int retval;
   DBUG_ENTER("ha_federated::index_next");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   ha_statistic_increment(&SSV::ha_read_next_count);
   retval= read_next(buf, stored_result);
-  MYSQL_INDEX_READ_ROW_DONE(retval);
   DBUG_RETURN(retval);
 }
 
@@ -2681,7 +2650,6 @@ int ha_federated::index_end(void)
 {
   DBUG_ENTER("ha_federated::index_end");
   free_result();
-  active_index= MAX_KEY;
   DBUG_RETURN(0);
 }
 
@@ -2700,10 +2668,7 @@ int ha_federated::rnd_next(uchar *buf)
 {
   int rc;
   DBUG_ENTER("ha_federated::rnd_next");
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       TRUE);
   rc= rnd_next_int(buf);
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -2790,7 +2755,8 @@ void ha_federated::position(const uchar *record __attribute__ ((unused)))
 {
   DBUG_ENTER("ha_federated::position");
   
-  DBUG_ASSERT(stored_result);
+  if (!stored_result)
+    DBUG_VOID_RETURN;
 
   position_called= TRUE;
   /* Store result set address. */
@@ -2817,8 +2783,6 @@ int ha_federated::rnd_pos(uchar *buf, uchar *pos)
   int ret_val;
   DBUG_ENTER("ha_federated::rnd_pos");
 
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       FALSE);
   ha_statistic_increment(&SSV::ha_read_rnd_count);
 
   /* Get stored result set. */
@@ -2829,7 +2793,6 @@ int ha_federated::rnd_pos(uchar *buf, uchar *pos)
          sizeof(MYSQL_ROW_OFFSET));
   /* Read a row. */
   ret_val= read_next(buf, result);
-  MYSQL_READ_ROW_DONE(ret_val);
   DBUG_RETURN(ret_val);
 }
 
@@ -3008,6 +2971,8 @@ int ha_federated::extra(ha_extra_function operation)
   case HA_EXTRA_INSERT_WITH_UPDATE:
     insert_dup_update= TRUE;
     break;
+  case HA_EXTRA_PREPARE_FOR_DROP:
+    table_will_be_deleted = TRUE;
   default:
     /* do nothing */
     DBUG_PRINT("info",("unhandled operation: %d", (uint) operation));
@@ -3083,6 +3048,8 @@ int ha_federated::delete_all_rows()
 }
 
 
+
+
 /*
   Used to manually truncate the table via a delete of all rows in a table.
 */
@@ -3093,8 +3060,7 @@ int ha_federated::truncate()
 }
 
 
-/*
-  The idea with handler::store_lock() is the following:
+/*  The idea with handler::store_lock() is the following:
 
   The statement decided which locks we should need for the table
   for updates/deletes/inserts we get WRITE locks, for SELECT... we get
@@ -3288,7 +3254,7 @@ int ha_federated::stash_remote_error()
   if (!mysql)
     DBUG_RETURN(remote_error_number);
   remote_error_number= mysql_errno(mysql);
-  strmake(remote_error_buf, mysql_error(mysql), sizeof(remote_error_buf)-1);
+  strmake_buf(remote_error_buf, mysql_error(mysql));
   if (remote_error_number == ER_DUP_ENTRY ||
       remote_error_number == ER_DUP_KEY)
     DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);
@@ -3418,6 +3384,7 @@ int ha_federated::external_lock(THD *thd, int lock_type)
     }
   }
 #endif /* XXX_SUPERCEDED_BY_WL2952 */
+  table_will_be_deleted = FALSE;
   DBUG_RETURN(error);
 }
 
@@ -3527,3 +3494,20 @@ mysql_declare_plugin(federated)
   0,                          /* flags                           */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(federated)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &federated_storage_engine,
+  "FEDERATED",
+  "Patrick Galbraith and Brian Aker, MySQL AB",
+  "Federated MySQL storage engine",
+  PLUGIN_LICENSE_GPL,
+  federated_db_init, /* Plugin Init */
+  federated_done, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_BETA /* maturity */
+}
+maria_declare_plugin_end;

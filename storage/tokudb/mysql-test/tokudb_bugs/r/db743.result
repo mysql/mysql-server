@@ -1,0 +1,13 @@
+drop table if exists t1,t2;
+CREATE TABLE t1(`a` INT) ENGINE=TokuDB;
+CREATE TABLE t2(`a` INT) ENGINE=InnoDB;
+begin;
+insert into t1 values (0);
+insert into t2 values (0);
+commit;
+begin;
+insert into t1 values (1);
+insert into t2 values (1);
+commit;
+include/diff_tables.inc [test.t1, test.t2]
+drop table t1,t2;

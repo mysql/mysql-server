@@ -1,0 +1,126 @@
+
+-----------------------------------------------------------------
+To open a connection to the handlersocket plugin, you need to
+create a Net::HandlerSocket object.
+
+  use Net::HandlerSocket;
+  my $args = { host => 'localhost', port => 9998 };
+  my $hs = new Net::HandlerSocket($args);
+
+-----------------------------------------------------------------
+Before executing table operations, you need to open an index to
+work with.
+
+  my $err = $hs->open_index(3, 'database1', 'table1', 'PRIMARY',
+    'f1,f2');
+  die $hs->get_error() if $res->[0] != 0;
+
+The first argument for open_index is an integer value which is
+used to identify an open table, which is only valid within the
+same Net::HandlerSocket object. The 4th argument is the name of
+index to open. If 'PRIMARY' is specified, the primary index is
+open. The 5th argument is a comma-separated list of column names.
+
+-----------------------------------------------------------------
+To read a record from a table using an index, call the
+execute_single method.
+
+  my $res = $hs->execute_single(3, '=', [ 'foo' ], 1, 0);
+  die $hs->get_error() if $res->[0] != 0;
+  shift(@$res);
+
+The first argument must be an integer which has specified as the
+first argument for open_index on the same Net::HandlerSocket
+object. The second argument specifies the search operation. The
+current version of handlersocket supports '=', '>=', '<=', '>',
+and '<'. The 3rd argument specifies the key to find, which must
+an arrayref whose length is equal to or smaller than the number
+of key columns of the index. The 4th and the 5th arguments
+specify the maximum number of records to be retrieved, and the
+number of records skipped before retrieving records. The columns
+to be retrieved are specified by the 5th argument for the
+corresponding open_index call.
+
+The execute_single method always returns an arrayref. The first
+element is the error code, which is 0 when no error is occured.
+The remaining are the field values. If more than one record is
+returned, it is flatten to an 1-dimensional array. For example,
+when 5 records that have 3 columns are returned, you can retrieve
+values using the following code.
+
+  die $hs->get_error() if $res->[0] != 0;
+  shift(@$res);
+  for (my $row = 0; $row < 5; ++$row) {
+    for (my $col = 0; $col < 3; ++$col) {
+      my $value = $res->[$row * 5 + $col];
+      # ...
+    }
+  }
+
+-----------------------------------------------------------------
+To update or delete records, you need to specify more arguments
+for the execute_single method. Note that the Net::HandlerSocket
+object must be connected to a handlersocket worker for write
+operations, which is port 9999 by default.
+(For safety, the port 9998 only allows read operations, and the
+port 9999 allows write operations also. The port 9999 allows
+read operations too, but slower than 9998 because of record
+locking etc.. Port numbers can be changed using the
+'handlersocket_port' and the 'handlersocket_port_wr'
+configuration options of mysqld.)
+
+  my $args = { host => 'localhost', port => 9999 };
+  my $hs = new Net::HandlerSocket($args);
+
+  my $res = $hs->execute_single(3, '=', [ 'bar' ], 1, 0, 'U',
+    [ 'fubar', 'hoge' ]);
+  die $hs->get_error() if $res->[0] != 0;
+  my $num_updated_rows = $res->[1];
+
+  my $res = $hs->execute_single(3, '=', [ 'baz' ], 1, 0, 'D');
+  die $hs->get_error() if $res->[0] != 0;
+  my $num_deleted_rows = $res->[1];
+
+The 6th argument for execute_single specifies the modification
+operation. The current version supports 'U' and 'D'. For the 'U'
+operation, the 7th argument specifies the new value for the row.
+The columns to be modified are specified by the 5th argument for
+the corresponding open_index call. For the 'D' operation, the
+7th argument can be omitted.
+
+-----------------------------------------------------------------
+The execute_single method can be used for inserting records also.
+
+  my $res = $hs->execute_single(3, '+', [ 'foo', 'bar', 'baz' ]);
+  die $hs->get_error() if $res->[0] != 0;
+  my $num_inserted_rows = $res->[1];
+
+The 3rd argument must be an arrayref whose elements correspond to
+the 5th argument for the corresponding open_index call. If there
+is a column which is not appeared in the 5th argument for the
+open_index, the default value for the column is set.
+
+-----------------------------------------------------------------
+Multiple operations can be executed in a single call. Executing
+multiple operations in a single call is much faster than
+executing them separatedly. 
+
+  my $rarr = $hs->execute_multi([
+    [ 0, '>=', [ 'foo' ], 5, 0 ],
+    [ 2, '=', [ 'bar' ], 1, 0 ],
+    [ 4, '<', [ 'baz' ], 10, 5 ],
+  ]);
+  for my $res (@$rarr) {
+    die $hs->get_error() if $res->[0] != 0;
+    shift(@$res);
+    # ...
+  }
+
+-----------------------------------------------------------------
+When an error is occured, the first element of the returned
+arrayref becomes a non-zero value. A negative value indicates
+that an I/O error is occured and the Net::HandlerSocket object
+should be disposed. A positive value means that the connection is
+still active and the Net::HandlerSocket object can be reused
+later.
+

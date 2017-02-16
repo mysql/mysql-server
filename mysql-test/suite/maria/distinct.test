@@ -1,0 +1,25 @@
+#
+# MDEV-4280:
+# Assertion `empty_size == empty_size_on_page' failure in ma_blockrec.c or
+# ER_NOT_KEYFILE on query with DISTINCT and GROUP BY
+#
+# This issue was a bug in how we delete row during duplicate removal when
+# we use Aria for internal temporary table.
+# 
+
+-- source include/have_maria.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT, b INT) ENGINE=Aria;
+INSERT t1 VALUES (3,2004),(2,2006),(1,2007),(3,2008),(2,2005),(2,2001);
+SELECT GROUP_CONCAT(a) FROM t1 GROUP BY b;
+SELECT DISTINCT GROUP_CONCAT(a) FROM t1 GROUP BY b;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INT, b VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (7,'q'),(2,NULL),(7,'g'),(6,'x');
+SELECT DISTINCT MAX( a ) FROM t1 GROUP BY b ORDER BY MD5( b );
+DROP TABLE t1;

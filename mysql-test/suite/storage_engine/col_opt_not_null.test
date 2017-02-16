@@ -1,0 +1,260 @@
+# 
+# NOT NULL column attribute
+#
+
+let $extra_col_opts = NOT NULL;
+
+--source have_engine.inc
+
+--echo #
+--echo # BINARY columns
+--echo #
+
+--source type_binary.inc
+--let $col_definition = BINARY $default_col_opts
+--let $col_default = 0
+--source col_not_null.inc
+
+--echo #
+--echo # VARBINARY columns
+--echo #
+
+--source type_varbinary.inc
+--let $col_definition = VARBINARY(64) $default_col_opts
+--let $col_default = 'test'
+--source col_not_null.inc
+
+--echo #
+--echo # BIT columns
+--echo #
+
+--source type_bit.inc
+--let $col_definition = BIT $default_col_opts
+--let $col_default = 1
+--source col_not_null.inc
+
+--echo #
+--echo # BLOB columns
+--echo #
+
+--source type_blob.inc
+
+--let $col_definition = BLOB $default_col_opts
+--source col_not_null.inc
+
+--let $col_definition = TINYBLOB $default_col_opts
+--source col_not_null.inc
+
+--let $col_definition = MEDIUMBLOB $default_col_opts
+--source col_not_null.inc
+
+--let $col_definition = LONGBLOB $default_col_opts
+--source col_not_null.inc
+
+--echo #
+--echo # BOOL columns
+--echo #
+
+--source type_bool.inc
+--let $col_definition = BOOL $default_col_opts
+--let $col_default = '0'
+--source col_not_null.inc
+
+--echo #
+--echo # CHAR columns
+--echo #
+
+--source type_char.inc
+--let $col_definition = CHAR $default_col_opts
+--let $col_default = '_'
+--source col_not_null.inc
+
+--echo #
+--echo # VARCHAR columns
+--echo #
+
+--source type_varchar.inc
+--let $col_definition = VARCHAR(64) $default_col_opts
+--let $col_default = 'test default'
+--source col_not_null.inc
+
+--echo #
+--echo # date and time columns
+--echo #
+
+--source type_date_time.inc
+
+--let $col_definition = DATE $default_col_opts
+--let $col_default = '2012-12-21'
+--source col_not_null.inc
+
+--let $col_definition = DATETIME $default_col_opts
+--let $col_default = '2012-12-21 12:21:12'
+--source col_not_null.inc
+
+# For TIMESTAMP the behavior is non-standard
+
+# $col_opts already contains NOT NULL part (it's set in have_engine.inc)
+
+let $create_definition = 
+       c TIMESTAMP $col_opts,
+       c2 TIMESTAMP $col_opts DEFAULT '2012-02-21 12:21:12'
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $functionality = TIMESTAMP type or NOT NULL columns or DEFAULT
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --let $error_codes = ER_INVALID_DEFAULT
+  --let $alter_definition = ADD COLUMN err TIMESTAMP $col_opts DEFAULT NULL
+  --source alter_table.inc
+  if ($mysql_errname!=ER_INVALID_DEFAULT)
+  {
+    --let $functionality = ALTER or DEFAULT
+    --source unexpected_result.inc
+  }
+
+  INSERT INTO t1 (c) VALUES (NULL);
+  INSERT INTO t1 (c2) VALUES (NULL);
+  --replace_regex /2012-02-21 12:21:12/<DEFAULT_TIMESTAMP>/ /[[:digit:]]{4}-[[:digit:]]{2}-[[:digit:]]{2} [[:digit:]]{2}:[[:digit:]]{2}:[[:digit:]]{2}/<TIMESTAMP>/
+  SELECT c, c2 FROM t1;
+
+  DROP TABLE t1;
+}
+
+--let $create_definition = c TIMESTAMP $col_opts
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $functionality = TIMESTAMP type
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  SHOW COLUMNS IN t1;
+
+  INSERT INTO t1 (c) VALUES (NULL);
+  if ($mysql_errname)
+  {
+    --let $functionality = TIMESTAMP
+    --source unexpected_result.inc
+  }
+
+  --replace_regex /[[:digit:]]{4}-[[:digit:]]{2}-[[:digit:]]{2} [[:digit:]]{2}:[[:digit:]]{2}:[[:digit:]]{2}/<TIMESTAMP>/
+  SELECT c FROM t1;
+  DROP TABLE t1;
+}
+
+# End of TIMESTAMP exception 
+
+
+--let $col_definition = TIME $default_col_opts
+--let $col_default = '12:21:12'
+--source col_not_null.inc
+
+--let $col_definition = YEAR $default_col_opts
+--let $col_default = '2012'
+--source col_not_null.inc
+
+--let $col_definition = YEAR(2) $default_col_opts
+--let $col_default = '12'
+--source col_not_null.inc
+
+
+--echo #
+--echo # ENUM columns
+--echo #
+
+--source type_enum.inc
+
+--let $col_definition = ENUM('test1','test2','test3') $default_col_opts
+--let $col_default = 'test2'
+--source col_not_null.inc
+
+
+--echo #
+--echo # Fixed point columns (NUMERIC, DECIMAL)
+--echo #
+
+--source type_fixed.inc
+
+--let $col_definition = DECIMAL $default_col_opts
+--let $col_default = 1.1
+--source col_not_null.inc
+
+--let $col_definition = NUMERIC $default_col_opts
+--let $col_default = 0
+--source col_not_null.inc
+
+--echo #
+--echo # Floating point columns (FLOAT, DOUBLE)
+--echo #
+
+--source type_float.inc
+  
+--let $col_definition = FLOAT $default_col_opts
+--let $col_default = 1.1 
+--source col_not_null.inc
+
+--let $col_definition = DOUBLE $default_col_opts
+--let $col_default = 0
+--source col_not_null.inc
+
+--echo #
+--echo # INT columns
+--echo #
+
+--source type_int.inc
+  
+--let $col_definition = INT $default_col_opts
+--let $col_default = 2147483647
+--source col_not_null.inc
+
+--let $col_definition = TINYINT $default_col_opts
+--let $col_default = 127  
+--source col_not_null.inc
+
+--let $col_definition = SMALLINT $default_col_opts
+--let $col_default = 0
+--source col_not_null.inc
+
+--let $col_definition = MEDIUMINT $default_col_opts
+--let $col_default = 1
+--source col_not_null.inc
+
+--let $col_definition = BIGINT $default_col_opts
+--let $col_default = 9223372036854775807
+--source col_not_null.inc
+
+--echo #
+--echo # SET columns
+--echo #
+
+--source type_set.inc
+--let $col_definition = SET('test1','test2','test3') $default_col_opts
+--let $col_default = 'test2,test3'
+--source col_not_null.inc
+
+--echo #
+--echo # TEXT columns
+--echo #
+
+--source type_text.inc
+  
+--let $col_definition = TEXT $default_col_opts
+--source col_not_null.inc
+
+--let $col_definition = TINYTEXT $default_col_opts
+--source col_not_null.inc
+
+--let $col_definition = MEDIUMTEXT $default_col_opts
+--source col_not_null.inc
+
+--let $col_definition = LONGTEXT $default_col_opts
+--source col_not_null.inc
+
+--source cleanup_engine.inc
+

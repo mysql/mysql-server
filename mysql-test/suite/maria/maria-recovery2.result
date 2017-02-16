@@ -1,0 +1,153 @@
+call mtr.add_suppression("File '.*aria_log.000.*' not found \\(Errcode: 2\\)");
+call mtr.add_suppression("Table '.\/mysqltest\/t_corrupted1' is crashed, skipping it. Please repair it with aria_chk -r");
+set global aria_log_file_size=4294959104;
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+* TEST of removing logs manually
+* shut down mysqld, removed logs, restarted it
+* TEST of UNDO_ROW_DELETE preserving rowid
+create table t1(a int) engine=aria;
+insert into t1 values(1),(2);
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write;
+insert into t1 values(3);
+delete from t1 where a in (1,2,3);
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+drop table t1;
+* TEST of checkpoint
+set global debug_dbug="+d,info,query,enter,exit,loop,maria_checkpoint_indirect";
+set global aria_checkpoint_interval=10000;
+create table t1(a int, b varchar(10), index(a,b)) engine=aria;
+insert into t1 values(1,"a"),(2,"b"),(3,"c");
+delete from t1 where b="b";
+update t1 set b="d" where a=1;
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write;
+insert into t1 values(4,"e"),(5,"f"),(6,"g");
+update t1 set b="h" where a=5;
+delete from t1 where b="g";
+show status like "Aria_pagecache_blocks_not_flushed";
+Variable_name	Value
+Aria_pagecache_blocks_not_flushed	3
+set global aria_checkpoint_interval=10000;
+update t1 set b="i" where a=5;
+SET SESSION debug_dbug="+d,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+drop table t1;
+Test of REPAIR's implicit commit
+create table t1 (a varchar(100), key(a)) engine=aria;
+insert into t1 values(3);
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write;
+insert into t1 values (1);
+repair table t1;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	repair	status	OK
+insert into t1 values(2);
+select * from t1;
+a
+1
+2
+3
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_flush_whole_page_cache,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+failure
+use mysqltest;
+select * from t1;
+a
+1
+3
+drop table t1;
+* TEST of recovery when crash before bulk-insert-with-repair is committed
+create table t1 (a varchar(100), key(a)) engine=aria;
+create table t2 (a varchar(100)) engine=myisam;
+set rand_seed1=12, rand_seed2=254;
+insert into t2 values (rand());
+insert into t2 select (rand()) from t2;
+insert into t2 select (rand()) from t2;
+insert into t2 select (rand()) from t2;
+insert into t2 select (rand()) from t2;
+insert into t2 select (rand()) from t2;
+insert into t2 select (rand()) from t2;
+insert into t1 values(30);
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write, t2 read;
+delete from t1 limit 1;
+select count(*) from t1;
+count(*)
+0
+insert into t1 select * from t2;
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_flush_whole_page_cache,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+show keys from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	a	1	a	A	1	NULL	NULL	YES	BTREE		
+select count(*) from t1;
+count(*)
+1
+drop table t1;
+* TEST of recovery when OPTIMIZE has replaced the index file and crash
+create table t_corrupted1 (a varchar(100), key(a)) engine=aria;
+insert into t_corrupted1 select (rand()) from t2;
+flush table t_corrupted1;
+* copied t_corrupted1 for comparison
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_flush_whole_page_cache,maria_crash_sort_index";
+* crashing mysqld intentionally
+optimize table t_corrupted1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t_corrupted1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t_corrupted1	check	warning	Last repair was aborted before finishing
+mysqltest.t_corrupted1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+drop table t_corrupted1, t2;
+drop database mysqltest_for_comparison;
+drop database mysqltest;

@@ -110,3 +110,38 @@ EXPLAIN EXTENDED SELECT * FROM (SELECT UNCOMPRESSED_LENGTH(c1) FROM t1) AS s;
 DROP TABLE t1;
 
 --echo End of 5.0 tests
+--disable_result_log
+--disable_query_log
+set @@global.max_allowed_packet=default;
+--enable_result_log
+--enable_query_log
+
+
+--echo #
+--echo # Start of 5.3 tests
+--echo #
+
+--echo #
+--echo # MDEV-5783 Assertion `0' failed in make_sortkey(SORTPARAM*, uchar*, uchar*) on ORDER BY HEX(UNCOMPRESSED_LENGTH(pk))
+--echo #
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1),(2);
+SELECT UNCOMPRESSED_LENGTH(pk) FROM t1;
+# ORDER is not strict, so disable results
+--disable_result_log
+SELECT * FROM t1 ORDER BY HEX(UNCOMPRESSED_LENGTH(pk));
+--enable_result_log
+DROP TABLE t1;
+
+--echo #
+--echo # End of 5.3 tests
+--echo #
+
+#
+# MDEV-4513 Valgrind warnings (Conditional jump or move depends on uninitialised value) in inflate on UNCOMPRESS
+#
+SELECT UNCOMPRESS(CAST(0 AS BINARY(5)));
+
+--echo #
+--echo # End of 5.5 tests
+--echo #

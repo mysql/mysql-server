@@ -332,13 +332,13 @@ CREATE TABLE t2 (b INT, PRIMARY KEY (b));
 INSERT INTO t2 VALUES (3),(4);
 
 connect (con2,localhost,root,,);
-INSERT INTO t1 VALUES (1+sleep(.01)),(2);
-INSERT INTO t1 SELECT b+sleep(.01) from t2;
-UPDATE t1 SET a=a+sleep(.01) WHERE a>2;
-UPDATE t1 SET a=a+sleep(.01) ORDER BY a DESC;
-UPDATE t2 set b=b+sleep(.01) limit 1;
-UPDATE t1 SET a=a+sleep(.01) WHERE a in (SELECT b from t2);
-DELETE FROM t1 WHERE a=a+sleep(.01) ORDER BY a LIMIT 2;
+INSERT INTO t1 VALUES (1+sleep(.02)),(2);
+INSERT INTO t1 SELECT b+sleep(.02) from t2;
+UPDATE t1 SET a=a+sleep(.02) WHERE a>2;
+UPDATE t1 SET a=a+sleep(.02) ORDER BY a DESC;
+UPDATE t2 set b=b+sleep(.02) limit 1;
+UPDATE t1 SET a=a+sleep(.02) WHERE a in (SELECT b from t2);
+DELETE FROM t1 WHERE a=a+sleep(.02) ORDER BY a LIMIT 2;
 
 SELECT rows_examined,sql_text FROM mysql.slow_log;
 disconnect con2;

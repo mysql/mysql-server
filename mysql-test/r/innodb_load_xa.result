@@ -1,0 +1,22 @@
+install plugin innodb soname 'ha_innodb';
+Warnings:
+Warning	1105	Cannot enable tc-log at run-time. XA features of InnoDB are disabled
+select engine,support,transactions,xa from information_schema.engines where engine='innodb';
+engine	support	transactions	xa
+InnoDB	YES	YES	NO
+create table t1 (a int) engine=innodb;
+start transaction;
+insert t1 values (1);
+insert t1 values (2);
+commit;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+mysqld-bin.000001	#	Query	#	#	use `test`; create table t1 (a int) engine=innodb
+mysqld-bin.000001	#	Query	#	#	BEGIN
+mysqld-bin.000001	#	Query	#	#	use `test`; insert t1 values (1)
+mysqld-bin.000001	#	Query	#	#	use `test`; insert t1 values (2)
+mysqld-bin.000001	#	Query	#	#	COMMIT
+drop table t1;
+uninstall plugin innodb;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown

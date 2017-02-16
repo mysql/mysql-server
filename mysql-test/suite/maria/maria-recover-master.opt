@@ -1,0 +1,1 @@
+--loose-aria-recover=backup --loose-aria-log-dir-path=$MYSQLTEST_VARDIR/tmp

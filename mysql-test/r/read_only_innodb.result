@@ -12,7 +12,7 @@ select * from table_11733 ;
 a
 11733
 COMMIT;
-ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+ERROR HY000: The MariaDB server is running with the --read-only option so it cannot execute this statement
 set global read_only=0;
 drop table table_11733 ;
 drop user test@localhost;
@@ -42,6 +42,15 @@ a
 0
 1
 COMMIT;
+UNLOCK TABLES;
+connection con1;
+lock table t1 read;
+connection default;
+set global read_only=1;
+connection con1;
+unlock tables;
+connection default;
+SET GLOBAL read_only=0;
 UNLOCK TABLES;
 DROP TABLE t1;
 DROP USER test@localhost;
@@ -90,7 +99,7 @@ a
 1
 CREATE TEMPORARY TABLE temp (a INT) ENGINE=INNODB;
 INSERT INTO t1 VALUES (1);
-ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+ERROR HY000: The MariaDB server is running with the --read-only option so it cannot execute this statement
 INSERT INTO temp VALUES (1);
 SELECT * FROM t2;
 a
@@ -110,7 +119,7 @@ a
 SELECT * FROM temp;
 a
 INSERT INTO t1 VALUES (1);
-ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+ERROR HY000: The MariaDB server is running with the --read-only option so it cannot execute this statement
 INSERT INTO temp VALUES (1);
 DROP TABLE temp;
 UNLOCK TABLES;

@@ -1,0 +1,19 @@
+
+#
+# MDEV-4029 SELECT on information_schema using a subquery locks up the information_schema table due to incorrect mutexes handling 
+#
+select variable_name from information_schema.session_status where variable_name =
+(select variable_name from information_schema.session_status where variable_name = 'uptime');
+select variable_name from information_schema.session_variables where variable_name =
+(select variable_name from information_schema.session_variables where variable_name = 'basedir');
+
+#
+# MDEV-8796 Delete with sub query with information_schema.TABLES deletes too many rows
+#
+create table t1 (x int);
+create table t2 (x int);
+create table t3 (x int);
+create table t4 AS select table_name from information_schema.TABLES where table_schema = database() and table_type = 'BASE TABLE' ;
+delete from t4 where table_name not in (select table_name from information_schema.TABLES where table_schema = database() and table_type = 'BASE TABLE');
+select * from t4;
+drop table t1, t2, t3, t4;

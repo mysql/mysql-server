@@ -1,0 +1,14 @@
+SET GLOBAL log_warnings=4;
+SET GLOBAL max_connections=2;
+SELECT 1;
+1
+1
+SELECT 2;
+2
+2
+ERROR HY000: Too many connections
+SELECT 0;
+0
+0
+SET GLOBAL log_warnings=default;
+SET GLOBAL max_connections=default;

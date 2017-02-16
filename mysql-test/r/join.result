@@ -1,4 +1,7 @@
 drop table if exists t1,t2,t3;
+drop view if exists v1,v2;
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 CREATE TABLE t1 (S1 INT);
 CREATE TABLE t2 (S1 INT);
 INSERT INTO t1 VALUES (1);
@@ -126,13 +129,13 @@ a
 1
 2
 select t1.a from t1 as t1 left join t1 as t2 using (a) left join t1 as t3 using (a) left join t1 as t4 using (a) left join t1 as t5 using (a) left join t1 as t6 using (a) left join t1 as t7 using (a) left join t1 as t8 using (a) left join t1 as t9 using (a) left join t1 as t10 using (a) left join t1 as t11 using (a) left join t1 as t12 using (a) left join t1 as t13 using (a) left join t1 as t14 using (a) left join t1 as t15 using (a) left join t1 as t16 using (a) left join t1 as t17 using (a) left join t1 as t18 using (a) left join t1 as t19 using (a) left join t1 as t20 using (a) left join t1 as t21 using (a) left join t1 as t22 using (a) left join t1 as t23 using (a) left join t1 as t24 using (a) left join t1 as t25 using (a) left join t1 as t26 using (a) left join t1 as t27 using (a) left join t1 as t28 using (a) left join t1 as t29 using (a) left join t1 as t30 using (a) left join t1 as t31 using (a) left join t1 as t32 using (a) left join t1 as t33 using (a) left join t1 as t34 using (a) left join t1 as t35 using (a) left join t1 as t36 using (a) left join t1 as t37 using (a) left join t1 as t38 using (a) left join t1 as t39 using (a) left join t1 as t40 using (a) left join t1 as t41 using (a) left join t1 as t42 using (a) left join t1 as t43 using (a) left join t1 as t44 using (a) left join t1 as t45 using (a) left join t1 as t46 using (a) left join t1 as t47 using (a) left join t1 as t48 using (a) left join t1 as t49 using (a) left join t1 as t50 using (a) left join t1 as t51 using (a) left join t1 as t52 using (a) left join t1 as t53 using (a) left join t1 as t54 using (a) left join t1 as t55 using (a) left join t1 as t56 using (a) left join t1 as t57 using (a) left join t1 as t58 using (a) left join t1 as t59 using (a) left join t1 as t60 using (a) left join t1 as t61 using (a) left join t1 as t62 using (a) left join t1 as t63 using (a) left join t1 as t64 using (a) left join t1 as t65 using (a);
-ERROR HY000: Too many tables; MySQL can only use XX tables in a join
+ERROR HY000: Too many tables; MariaDB can only use XX tables in a join
 select a from t1 as t1 left join t1 as t2 using (a) left join t1 as t3 using (a) left join t1 as t4 using (a) left join t1 as t5 using (a) left join t1 as t6 using (a) left join t1 as t7 using (a) left join t1 as t8 using (a) left join t1 as t9 using (a) left join t1 as t10 using (a) left join t1 as t11 using (a) left join t1 as t12 using (a) left join t1 as t13 using (a) left join t1 as t14 using (a) left join t1 as t15 using (a) left join t1 as t16 using (a) left join t1 as t17 using (a) left join t1 as t18 using (a) left join t1 as t19 using (a) left join t1 as t20 using (a) left join t1 as t21 using (a) left join t1 as t22 using (a) left join t1 as t23 using (a) left join t1 as t24 using (a) left join t1 as t25 using (a) left join t1 as t26 using (a) left join t1 as t27 using (a) left join t1 as t28 using (a) left join t1 as t29 using (a) left join t1 as t30 using (a) left join t1 as t31 using (a);
 a
 1
 2
 select a from t1 as t1 left join t1 as t2 using (a) left join t1 as t3 using (a) left join t1 as t4 using (a) left join t1 as t5 using (a) left join t1 as t6 using (a) left join t1 as t7 using (a) left join t1 as t8 using (a) left join t1 as t9 using (a) left join t1 as t10 using (a) left join t1 as t11 using (a) left join t1 as t12 using (a) left join t1 as t13 using (a) left join t1 as t14 using (a) left join t1 as t15 using (a) left join t1 as t16 using (a) left join t1 as t17 using (a) left join t1 as t18 using (a) left join t1 as t19 using (a) left join t1 as t20 using (a) left join t1 as t21 using (a) left join t1 as t22 using (a) left join t1 as t23 using (a) left join t1 as t24 using (a) left join t1 as t25 using (a) left join t1 as t26 using (a) left join t1 as t27 using (a) left join t1 as t28 using (a) left join t1 as t29 using (a) left join t1 as t30 using (a) left join t1 as t31 using (a) left join t1 as t32 using (a) left join t1 as t33 using (a) left join t1 as t34 using (a) left join t1 as t35 using (a) left join t1 as t36 using (a) left join t1 as t37 using (a) left join t1 as t38 using (a) left join t1 as t39 using (a) left join t1 as t40 using (a) left join t1 as t41 using (a) left join t1 as t42 using (a) left join t1 as t43 using (a) left join t1 as t44 using (a) left join t1 as t45 using (a) left join t1 as t46 using (a) left join t1 as t47 using (a) left join t1 as t48 using (a) left join t1 as t49 using (a) left join t1 as t50 using (a) left join t1 as t51 using (a) left join t1 as t52 using (a) left join t1 as t53 using (a) left join t1 as t54 using (a) left join t1 as t55 using (a) left join t1 as t56 using (a) left join t1 as t57 using (a) left join t1 as t58 using (a) left join t1 as t59 using (a) left join t1 as t60 using (a) left join t1 as t61 using (a) left join t1 as t62 using (a) left join t1 as t63 using (a) left join t1 as t64 using (a) left join t1 as t65 using (a);
-ERROR HY000: Too many tables; MySQL can only use XX tables in a join
+ERROR HY000: Too many tables; MariaDB can only use XX tables in a join
 drop table t1;
 CREATE TABLE t1 (
 a int(11) NOT NULL,
@@ -404,7 +407,7 @@ SELECT STRAIGHT_JOIN t2.e FROM t1,t2 WHERE t2.d=1 AND t1.b=t2.e
 ORDER BY t1.b, t1.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	32	Using temporary; Using filesort
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	16	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	16	Using where; Using join buffer (flat, BNL join)
 SELECT STRAIGHT_JOIN t2.e FROM t1,t2 WHERE t2.d=1 AND t1.b=t2.e
 ORDER BY t1.b, t1.c;
 e
@@ -846,7 +849,7 @@ select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
 a	b	a	a
 explain select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	Using index
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using index
 We expect rnd_next=5, and read_key must be 0 because of short-cutting:
@@ -858,6 +861,7 @@ Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
+Handler_read_rnd_deleted	0
 Handler_read_rnd_next	5
 drop table t1, t2, t3;
 create table t1 (a int);
@@ -870,7 +874,7 @@ insert into t3 select * from t2 where a < 800;
 explain select * from t2,t3 where t2.a < 200 and t2.b=t3.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a,b	NULL	NULL	NULL	1000	Using where
-1	SIMPLE	t3	ref	b	b	5	test.t2.b	1	Using where
+1	SIMPLE	t3	ref	b	b	5	test.t2.b	1	
 drop table t1, t2, t3;
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -890,12 +894,12 @@ Z
 vv: Following query must use ALL(t1), eq_ref(A), eq_ref(B): vv
 explain select * from t1, t2 A, t2 B where A.a = t1.a and B.a=A.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	
-1	SIMPLE	A	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	Using where
+1	SIMPLE	A	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using where
 1	SIMPLE	B	eq_ref	PRIMARY	PRIMARY	4	test.A.b	1	
 show status like '%cost%';
 Variable_name	Value
-Last_query_cost	24.016090
+Last_query_cost	28.016090
 select '^^: The above should be ~= 20 + cost(select * from t1). Value less than 20 is an error' Z;
 Z
 ^^: The above should be ~= 20 + cost(select * from t1). Value less than 20 is an error
@@ -911,7 +915,7 @@ INSERT INTO t1 SELECT a + 64, b FROM t1;
 INSERT INTO t2 SELECT a, b FROM t1;
 EXPLAIN SELECT * FROM t1 JOIN t2 ON b=c ORDER BY a LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	2	
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	2	Using where
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	
 EXPLAIN SELECT * FROM t1 JOIN t2 ON a=c ORDER BY a LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -925,7 +929,7 @@ a	b	c	d
 2	NULL	2	NULL
 EXPLAIN SELECT * FROM t1 JOIN t2 ON b=c ORDER BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	128	Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	128	Using where; Using filesort
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	
 EXPLAIN SELECT * FROM t1 JOIN t2 ON a=c ORDER BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1096,11 +1100,11 @@ ON t4.a = t5.a
 ON t1.a = t3.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t3	ref	a	a	5	test.t1.a	2	Using index
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	0	
-1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	0	
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	0	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using where; Using join buffer
+1	SIMPLE	t3	ref	a	a	5	test.t1.a	2	Using where; Using index
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	0	Using where
+1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	0	Using where
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	0	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using where; Using join buffer (flat, BNL join)
 SELECT * 
 FROM 
 t1 JOIN t2 ON t1.a = t2.a 
@@ -1128,9 +1132,9 @@ EXPLAIN EXTENDED
 SELECT 1 FROM v1 right join v1 AS v2 ON RAND();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1003	select 1 AS `1` from `test`.`t1` left join `test`.`t1` `t2` on((1 = 1)) left join (`test`.`t1` left join `test`.`t1` `t2` on((1 = 1))) on(rand()) where 1
 DROP VIEW v1;
@@ -1221,4 +1225,275 @@ f1
 2
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
+#
+# Bug LP:798597: Incorrect "Duplicate entry" error with views and
+#                GROUP BY
+#
+CREATE TABLE t1 ( f1 int NOT NULL , f2 int NOT NULL ) ;
+INSERT INTO t1 VALUES (214,0),(6,6);
+CREATE TABLE t2 ( f2 int) ;
+INSERT INTO t2 VALUES (88),(88);
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT t1.f1, t2.f2 FROM (t2 LEFT JOIN t1 ON (t2.f2 <> t1.f1)) WHERE (t1.f2 <= 0) ;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT t1.f1, t2.f2 FROM (t2 LEFT JOIN t1 ON (t2.f2 <> t1.f1)) WHERE (t1.f2 <= 0 or t1.f2 is null) ;
+SELECT f1 , MIN(f2) FROM v1 GROUP BY f1;
+f1	MIN(f2)
+214	88
+SELECT f1 , MIN(f2) FROM v2 GROUP BY f1;
+f1	MIN(f2)
+214	88
+drop table t1,t2;
+drop view v1,v2;
+#
+# BUG#47217 Lost optimization caused slowdown & wrong result.
+#
+CREATE TABLE t1 (pk INT, v VARCHAR(2), PRIMARY KEY(pk));
+CREATE INDEX ix1 ON t1(v);
+CREATE TABLE t2 (pk INT, v VARCHAR(2), PRIMARY KEY(pk));
+CREATE INDEX ix2 ON t2(v);
+INSERT INTO t1 VALUES (1,'a'),(2,NULL);
+INSERT INTO t2 VALUES (1,NULL);
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.v = t2.v ORDER BY 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.v = t2.v;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+INSERT INTO t1 VALUES (3,'b'),(4,NULL),(5,'c'),(6,'cc'),(7,'d'),
+(8,'dd'),(9,'e'),(10,'ee');
+INSERT INTO t2 VALUES (2,NULL);
+FLUSH STATUS;
+SELECT * FROM t1 JOIN t2 ON t1.v = t2.v WHERE t2.v IS NULL ORDER BY 1;
+pk	v	pk	v
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	1
+DROP TABLE t1, t2;
 End of 5.1 tests
+#
+# Bug #43368: STRAIGHT_JOIN DOESN'T WORK FOR NESTED JOINS 
+#
+create table t1(c1 int primary key, c2 char(10)) engine=myisam;
+create table t2(c1 int primary key, c2 char(10), ref_t1 int) engine=myisam;
+create table t3(c1 int primary key, c2 char(10), ref_t1 int) engine=myisam;
+create table t4(c1 int primary key, c2 char(10), ref_t1 int) engine=myisam;
+insert into t1 values(1,'a');
+insert into t2 values(1,'a', 1);
+insert into t3 values(1,'a', 1);
+insert into t3 values(2,'b',2);
+insert into t4 values(1,'a', 1);
+insert into t4 values(2,'a', 2);
+insert into t4 values(3,'a', 3);
+insert into t4 values(4,'a', 4);
+insert into t1 values(2,'b');
+insert into t1 values(3,'c');
+EXPLAIN
+SELECT * 
+FROM t4 JOIN
+(t1 JOIN t3 ON t3.ref_t1=t1.c1 JOIN t2 ON t2.ref_t1=t1.c1)
+ON t4.ref_t1=t1.c1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (flat, BNL join)
+EXPLAIN
+SELECT STRAIGHT_JOIN * 
+FROM t4 JOIN
+(t1 JOIN t3 ON t3.ref_t1=t1.c1 JOIN t2 ON t2.ref_t1=t1.c1)
+ON t4.ref_t1=t1.c1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (incremental, BNL join)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (incremental, BNL join)
+EXPLAIN
+SELECT * 
+FROM t4 STRAIGHT_JOIN
+(t1 JOIN t3 ON t3.ref_t1=t1.c1 JOIN t2 ON t2.ref_t1=t1.c1)
+ON t4.ref_t1=t1.c1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t4.ref_t1	1	
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+drop table t1,t2,t3,t4;
+End of 5.2 tests
+#
+# BUG#724275: Crash in JOIN::optimize in maria-5.3
+#
+create table t1 (a int);
+insert into t1 values (1),(2);
+insert into t1 select * from t1;
+create table t2 (a int, b int, key(a,b));
+insert into t2 values (1,1),(1,2),(1,3),(1,4),(2,5),(2,6),(2,7),(2,8),(2,9);
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+create table t3 (a int, b int, key(a));
+insert into t3 values (1,1),(2,2);
+select * from 
+t3 straight_join t1 straight_join t2 force index(a) 
+where t2.a=1 and t2.b=t1.a and t1.a=t3.b and t3.a=1;
+a	b	a	a	b
+1	1	1	1	1
+1	1	1	1	1
+1	1	1	1	1
+1	1	1	1	1
+1	1	1	1	1
+1	1	1	1	1
+1	1	1	1	1
+1	1	1	1	1
+1	1	1	1	1
+1	1	1	1	1
+1	1	1	1	1
+1	1	1	1	1
+1	1	1	1	1
+1	1	1	1	1
+1	1	1	1	1
+1	1	1	1	1
+drop table t1,t2,t3;
+#
+# BUG#729067/730466: unexpected 'Range checked for each record'
+#                    for queries with OR in WHERE clause 
+#
+CREATE TABLE t1 (f1 int, f2 int) ;
+INSERT INTO t1 VALUES (4,0),(5,1);
+CREATE TABLE t2 (f1 int, f2 int, KEY (f2)) ;
+INSERT INTO t2 VALUES (5,7), (8,9);
+EXPLAIN
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1<>0 OR t1.f2<>0 AND t1.f1 = t2.f2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t2	ALL	f2	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1<>0 OR t1.f2<>0 AND t1.f1 = t2.f2;
+f1	f2	f1	f2
+5	1	5	7
+DROP TABLE t1,t2;
+CREATE TABLE t1(f1 int PRIMARY KEY, f2 int) ;
+INSERT INTO t1 VALUES (9,4), (10,9);
+CREATE TABLE t2(f1 int PRIMARY KEY, f2 int) ;
+INSERT INTO t2 VALUES (9,4), (10,9);
+EXPLAIN
+SELECT STRAIGHT_JOIN * FROM t1 JOIN t2 ON t2.f2 = t1.f1
+WHERE t1.f1 IN (SELECT f1 FROM t1) AND t1.f1 = t2.f1 OR t1.f1 = 9;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t2	ALL	PRIMARY	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	Using index
+SELECT STRAIGHT_JOIN * FROM t1 JOIN t2 ON t2.f2 = t1.f1
+WHERE t1.f1 IN (SELECT f1 FROM t1) AND t1.f1 = t2.f1 OR t1.f1 = 9;
+f1	f2	f1	f2
+9	4	10	9
+DROP TABLE t1,t2;
+create table t1 (i time key);
+insert into t1 values ('1:1:1'), ('2:2:2');
+create table t2 (i time);
+insert into t2 values ('1:1:1');
+select t2.i from t1 left join t2 on t2.i = t1.i where t1.i = '1:1:1';
+i
+01:01:01
+drop table t1,t2;
+#
+# BUG#954900: unexpected empty set due to an invalid build of key ref
+#                   
+CREATE TABLE t1 (dog_id int(10), birthday date, PRIMARY KEY (dog_id,birthday));
+INSERT INTO t1 VALUES (5918,'2004-07-22');
+CREATE TABLE t2 (dog_id int(10) unsigned, t_id char(1), birthday date, a_id int(10),
+PRIMARY KEY (dog_id,t_id,birthday,a_id));
+INSERT INTO t2 VALUES 
+(5918,'N','2004-07-22',5216551), (5918,'N','2004-07-22',5223640),
+(5918,'N','2004-07-22',5389491), (5918,'N','2004-07-22',5749434),
+(5918,'N','2004-07-22',5992424), (5922,'N','2005-06-30',5076957),
+(5924,'N','2000-08-11',20264), (5924,'N','2000-08-11',64251),
+(5924,'N','2000-08-11',74748), (5924,'N','2000-08-11',87590),
+(5924,'N','2000-08-11',104695), (5924,'N','2000-08-11',133136),
+(5924,'N','2000-08-11',5027806), (5924,'N','2000-08-11',5076957),
+(5924,'N','2000-08-11',5166821), (5924,'N','2000-08-11',5181896),
+(5924,'N','2000-08-11',5217908), (5924,'N','2000-08-11',5220812),
+(5924,'N','2000-08-11',5226473), (5924,'N','2000-08-11',5339111),
+(5925,'N','2005-02-10',19227), (5925,'N','2005-02-10',74529),
+(5925,'N','2005-02-10',74748), (5927,'N','2005-08-18',20264),
+(5927,'N','2005-08-18',58364), (5929,'N','2005-01-19',58364),
+(5935,'N','2006-03-10',19227), (5935,'N','2006-03-10',64251),
+(5935,'N','2006-03-10',5222400), (5935,'N','2006-03-10',5226473),
+(5936,'N','2004-10-29',5015032), (5937,'N','2002-04-05',11237),
+(5937,'N','2002-04-05',23911), (5937,'N','2002-04-05',112133),
+(5937,'N','2002-04-05',169721), (5937,'N','2002-04-05',170650),
+(5937,'N','2002-04-05',5014494), (5937,'N','2002-04-05',5166009),
+(5937,'N','2002-04-05',5181871), (5937,'N','2002-04-05',5213380),
+(5937,'N','2002-04-05',5214875), (5937,'N','2002-04-05',5895062),
+(5938,'N','2006-03-24',11237), (5938,'N','2006-03-24',19227),
+(5938,'N','2006-03-24',23911), (5938,'N','2006-03-24',58364),
+(5938,'N','2006-03-24',64251), (5938,'N','2006-03-24',111716),
+(5938,'N','2006-03-24',112702), (5938,'N','2006-03-24',133136),
+(5938,'N','2006-03-24',168718), (5938,'N','2006-03-24',5137136),
+(5938,'N','2006-03-24',5161519), (5938,'N','2006-03-24',5168120),
+(5938,'N','2006-03-24',5219034), (6234,'N','2006-06-02',103058),
+(6234,'N','2006-06-02',5146844), (6235,'N','2006-06-01',12900),
+(6235,'N','2006-06-01',20264), (6235,'N','2006-06-01',64251),
+(6235,'N','2006-06-01',75160), (6235,'N','2006-06-01',5014494),
+(6235,'N','2006-06-01',5181638), (6236,'N','2006-06-06',112595),
+(6236,'N','2006-06-06',5219601), (6236,'N','2006-06-06',5808374);
+CREATE TABLE t3 (dog_id int(10) unsigned);
+INSERT INTO t3 VALUES (5918);
+CREATE TABLE t4 (dog_id int(10), t_id char(1), birthday date, KEY (t_id));
+INSERT INTO t4 VALUES (5918,'N','2004-07-22'), (5919,'N','2004-07-20');
+CREATE TABLE t5 (dog_id int(10) unsigned, UNIQUE KEY (dog_id));
+INSERT INTO t5 VALUES (5918);
+SET @tmp_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='index_condition_pushdown=off';
+EXPLAIN
+SELECT * FROM t5 DU, t1 D, t4 DT, t2 DSA, t3 DSAR
+WHERE DU.dog_id=D.dog_id AND D.dog_id=DT.dog_id AND D.birthday=DT.birthday AND
+DT.t_id=DSA.t_id AND DT.birthday=DSA.birthday AND DSA.dog_id=DSAR.dog_id;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	DU	system	dog_id	NULL	NULL	NULL	1	
+1	SIMPLE	D	system	PRIMARY	NULL	NULL	NULL	1	
+1	SIMPLE	DSAR	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	DT	range	t_id	t_id	2	NULL	2	Using where
+1	SIMPLE	DSA	ref	PRIMARY	PRIMARY	8	const,test.DT.t_id,func	1	Using index
+SELECT * FROM t5 DU, t1 D, t4 DT, t2 DSA, t3 DSAR
+WHERE DU.dog_id=D.dog_id AND D.dog_id=DT.dog_id AND D.birthday=DT.birthday AND
+DT.t_id=DSA.t_id AND DT.birthday=DSA.birthday AND DSA.dog_id=DSAR.dog_id;
+dog_id	dog_id	birthday	dog_id	t_id	birthday	dog_id	t_id	birthday	a_id	dog_id
+5918	5918	2004-07-22	5918	N	2004-07-22	5918	N	2004-07-22	5216551	5918
+5918	5918	2004-07-22	5918	N	2004-07-22	5918	N	2004-07-22	5223640	5918
+5918	5918	2004-07-22	5918	N	2004-07-22	5918	N	2004-07-22	5389491	5918
+5918	5918	2004-07-22	5918	N	2004-07-22	5918	N	2004-07-22	5749434	5918
+5918	5918	2004-07-22	5918	N	2004-07-22	5918	N	2004-07-22	5992424	5918
+SET optimizer_switch=@tmp_optimizer_switch;
+DROP TABLE t1,t2,t3,t4,t5;
+#
+# MDEV-4752: Segfault during parsing of illegal query
+#
+SELECT * FROM t5 JOIN (t1 JOIN t2 UNION SELECT * FROM t3 JOIN t4);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ')' at line 1
+#
+# MDEV-4959: join of const table with NULL fields
+#
+CREATE TABLE t1 (i1 int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (NULL);
+CREATE TABLE t2 (i2 int, a int, b int) ENGINE=MyISAM;
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT * FROM t2;
+INSERT INTO t2 VALUES (NULL,1,2),(NULL,2,3);
+SELECT * FROM t1 JOIN v2 ON i1 = i2 WHERE a < b;
+i1	i2	a	b
+EXPLAIN EXTENDED
+SELECT * FROM t1 JOIN v2 ON i1 = i2 WHERE a < b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+Warnings:
+Note	1003	select NULL AS `i1`,`v2`.`i2` AS `i2`,`v2`.`a` AS `a`,`v2`.`b` AS `b` from `test`.`v2` where ((`v2`.`i2` = NULL) and (`v2`.`a` < `v2`.`b`))
+DROP VIEW v2;
+DROP TABLE t1,t2;
+SET optimizer_switch=@save_optimizer_switch;

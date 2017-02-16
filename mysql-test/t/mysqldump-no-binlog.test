@@ -2,5 +2,6 @@
 --source include/not_embedded.inc
 
 --replace_regex /MASTER_LOG_POS=[0-9]+/XX/
+--replace_result mysqldump.exe mysqldump
 --error 2
 --exec $MYSQL_DUMP --compact --master-data=2 test 2>&1

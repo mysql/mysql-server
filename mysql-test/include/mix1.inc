@@ -1120,6 +1120,11 @@ INSERT INTO t1 (a,b,c) VALUES (1,1,1), (2,1,1), (3,1,1), (4,1,1);
 INSERT INTO t1 (a,b,c) SELECT a+4,b,c FROM t1;
 
 # should be range access
+
+#
+# InnoDB uses "where", while xtradb "index condition"
+#
+--replace_regex /where/index condition/
 EXPLAIN SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY a DESC LIMIT 5;
 
 # should produce '8 7 6 5 4' for a
@@ -1182,8 +1187,11 @@ DROP TABLE t1;
 
 create table t1 (a bit(1) not null,b int) engine=myisam;
 create table t2 (c int) engine=innodb;
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='in_to_exists=on,materialization=off';
 explain
-select b from t1 where a not in (select b from t1,t2 group by a) group by a;
+select b from t1 where a not in (select max(b) from t1,t2 group by a) group by a;
+set optimizer_switch=@save_optimizer_switch;
 DROP TABLE t1,t2;
 
 --echo End of 5.0 tests
@@ -1369,7 +1377,17 @@ INSERT INTO t1 VALUES (1,'init');
 DELIMITER |;
 CREATE PROCEDURE p1()
 BEGIN
-  UPDATE t1 SET b = CONCAT(b, '+con2')  WHERE a = 1;
+  # retry the UPDATE in case it times out the lock before con1 has time
+  # to COMMIT.
+  DECLARE do_retry INT DEFAULT 0;
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET do_retry = 1;
+  retry_loop:LOOP
+    UPDATE t1 SET b = CONCAT(b, '+con2')  WHERE a = 1;
+    IF do_retry = 0 THEN
+      LEAVE retry_loop;
+    END IF;
+    SET do_retry = 0;
+  END LOOP;
   INSERT INTO t2 VALUES ();
 END|
 DELIMITER ;|

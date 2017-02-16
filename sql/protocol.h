@@ -43,14 +43,16 @@ protected:
   uint field_count;
 #ifndef EMBEDDED_LIBRARY
   bool net_store_data(const uchar *from, size_t length);
+  bool net_store_data_cs(const uchar *from, size_t length,
+                      CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
 #else
   virtual bool net_store_data(const uchar *from, size_t length);
+  virtual bool net_store_data_cs(const uchar *from, size_t length,
+                      CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
   char **next_field;
   MYSQL_FIELD *next_mysql_field;
   MEM_ROOT *alloc;
 #endif
-  bool net_store_data(const uchar *from, size_t length,
-                      CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
   bool store_string_aux(const char *from, size_t length,
                         CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
 
@@ -109,9 +111,9 @@ public:
   		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs)=0;
   virtual bool store(float from, uint32 decimals, String *buffer)=0;
   virtual bool store(double from, uint32 decimals, String *buffer)=0;
-  virtual bool store(MYSQL_TIME *time)=0;
+  virtual bool store(MYSQL_TIME *time, int decimals)=0;
   virtual bool store_date(MYSQL_TIME *time)=0;
-  virtual bool store_time(MYSQL_TIME *time)=0;
+  virtual bool store_time(MYSQL_TIME *time, int decimals)=0;
   virtual bool store(Field *field)=0;
 
   virtual bool send_out_parameters(List<Item_param> *sp_params)=0;
@@ -152,9 +154,9 @@ public:
   virtual bool store(const char *from, size_t length, CHARSET_INFO *cs);
   virtual bool store(const char *from, size_t length,
   		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
-  virtual bool store(MYSQL_TIME *time);
+  virtual bool store(MYSQL_TIME *time, int decimals);
   virtual bool store_date(MYSQL_TIME *time);
-  virtual bool store_time(MYSQL_TIME *time);
+  virtual bool store_time(MYSQL_TIME *time, int decimals);
   virtual bool store(float nr, uint32 decimals, String *buffer);
   virtual bool store(double from, uint32 decimals, String *buffer);
   virtual bool store(Field *field);
@@ -179,6 +181,8 @@ public:
 #ifdef EMBEDDED_LIBRARY
   virtual bool write();
   bool net_store_data(const uchar *from, size_t length);
+  bool net_store_data_cs(const uchar *from, size_t length,
+                      CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
 #endif
   virtual bool store_null();
   virtual bool store_tiny(longlong from);
@@ -189,9 +193,9 @@ public:
   virtual bool store(const char *from, size_t length, CHARSET_INFO *cs);
   virtual bool store(const char *from, size_t length,
   		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
-  virtual bool store(MYSQL_TIME *time);
+  virtual bool store(MYSQL_TIME *time, int decimals);
   virtual bool store_date(MYSQL_TIME *time);
-  virtual bool store_time(MYSQL_TIME *time);
+  virtual bool store_time(MYSQL_TIME *time, int decimals);
   virtual bool store(float nr, uint32 decimals, String *buffer);
   virtual bool store(double from, uint32 decimals, String *buffer);
   virtual bool store(Field *field);
@@ -204,6 +208,7 @@ public:
 void send_warning(THD *thd, uint sql_errno, const char *err=0);
 bool net_send_error(THD *thd, uint sql_errno, const char *err,
                     const char* sqlstate);
+void net_send_progress_packet(THD *thd);
 uchar *net_store_data(uchar *to,const uchar *from, size_t length);
 uchar *net_store_data(uchar *to,int32 from);
 uchar *net_store_data(uchar *to,longlong from);

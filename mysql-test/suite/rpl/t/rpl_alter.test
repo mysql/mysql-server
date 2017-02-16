@@ -15,4 +15,57 @@ drop database mysqltest;
 sync_slave_with_master;
 
 # End of 4.1 tests
+
+connection master;
+use test;
+
+--echo #
+--echo # Test bug where ALTER TABLE MODIFY didn't replicate properly
+--echo #
+
+create table t1 (a int unsigned primary key, b int);
+show create table t1;
+insert into t1 (a) values (1),((1<<32)-1);
+select * from t1;
+alter table t1 modify a bigint;
+show create table t1;
+select * from t1;
+alter table t1 modify a int unsigned;
+show create table t1;
+select * from t1;
+alter table t1 modify a bigint unsigned;
+show create table t1;
+select * from t1;
+sync_slave_with_master;
+use test;
+select * from t1;
+show create table t1;
+connection master;
+#
+create table t2 (a int unsigned auto_increment primary key, b int);
+show create table t2;
+alter table t2 modify a bigint;
+show create table t2;
+alter table t2 modify a bigint auto_increment;
+show create table t2;
+drop table t1,t2;
+
+--echo #
+--echo # MDEV-8432:  Slave cannot replicate signed integer-type values
+--echo # with high bit set to 1
+--echo # Test replication when we have int on master and bigint on slave
+--echo #
+
+create table t1 (a int unsigned primary key, b int);
+sync_slave_with_master;
+SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
+alter table t1 modify a bigint unsigned;
+connection master;
+insert into t1 (a) values (1),((1<<32)-1);
+sync_slave_with_master;
+select * from t1;
+SET GLOBAL SLAVE_TYPE_CONVERSIONS='';
+connection master;
+drop table t1;
+
 --source include/rpl_end.inc

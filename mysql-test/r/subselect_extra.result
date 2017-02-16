@@ -1,0 +1,480 @@
+drop table if exists t1,t2,t3,t4;
+drop view if exists v1,v2,v3;
+set @subselect_extra_tmp=@@optimizer_switch;
+set @@optimizer_switch=ifnull(@optimizer_switch_for_subselect_extra_test,
+"semijoin=on,firstmatch=on,loosescan=on,semijoin_with_cache=on,partial_match_rowid_merge=off,partial_match_table_scan=off");
+# From explain.test:
+#
+# Bug#37870: Usage of uninitialized value caused failed assertion.
+#
+create table t1 (dt datetime not null, t time not null);
+create table t2 (dt datetime not null);
+insert into t1 values ('2001-01-01 1:1:1', '1:1:1'),
+('2001-01-01 1:1:1', '1:1:1');
+insert into t2 values ('2001-01-01 1:1:1'), ('2001-01-01 1:1:1');
+flush tables;
+EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN (SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.dt IS NULL );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	OUTR	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	INNR	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(OUTR); Using join buffer (flat, BNL join)
+flush tables;
+SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN (SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.dt IS NULL );
+dt
+flush tables;
+EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	OUTR	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	INNR	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(OUTR); Using join buffer (flat, BNL join)
+flush tables;
+SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' );
+dt
+2001-01-01 01:01:01
+2001-01-01 01:01:01
+drop tables t1, t2;
+# From type_datetime.test:
+#
+# Bug #32694: NOT NULL table field in a subquery produces invalid results
+#
+create table t1 (id int(10) not null, cur_date datetime not null);
+create table t2 (id int(10) not null, cur_date date not null);
+insert into t1 (id, cur_date) values (1, '2007-04-25 18:30:22');
+insert into t2 (id, cur_date) values (1, '2007-04-25');
+explain extended
+select * from t1
+where id in (select id from t1 as x1 where (t1.cur_date is null));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+Warnings:
+Note	1276	Field or reference 'test.t1.cur_date' of SELECT #2 was resolved in SELECT #1
+Note	1003	select 1 AS `id`,'2007-04-25 18:30:22' AS `cur_date` from (dual) where 0
+select * from t1
+where id in (select id from t1 as x1 where (t1.cur_date is null));
+id	cur_date
+explain extended
+select * from t2
+where id in (select id from t2 as x1 where (t2.cur_date is null));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+Warnings:
+Note	1276	Field or reference 'test.t2.cur_date' of SELECT #2 was resolved in SELECT #1
+Note	1003	select 1 AS `id`,'2007-04-25' AS `cur_date` from (dual) where 0
+select * from t2
+where id in (select id from t2 as x1 where (t2.cur_date is null));
+id	cur_date
+insert into t1 (id, cur_date) values (2, '2007-04-26 18:30:22');
+insert into t2 (id, cur_date) values (2, '2007-04-26');
+explain extended
+select * from t1
+where id in (select id from t1 as x1 where (t1.cur_date is null));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	PRIMARY	x1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1); Using join buffer (flat, BNL join)
+Warnings:
+Note	1276	Field or reference 'test.t1.cur_date' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t1`.`id` AS `id`,`test`.`t1`.`cur_date` AS `cur_date` from `test`.`t1` semi join (`test`.`t1` `x1`) where ((`test`.`x1`.`id` = `test`.`t1`.`id`) and (`test`.`t1`.`cur_date` = 0))
+select * from t1
+where id in (select id from t1 as x1 where (t1.cur_date is null));
+id	cur_date
+explain extended
+select * from t2
+where id in (select id from t2 as x1 where (t2.cur_date is null));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	PRIMARY	x1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t2); Using join buffer (flat, BNL join)
+Warnings:
+Note	1276	Field or reference 'test.t2.cur_date' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t2`.`id` AS `id`,`test`.`t2`.`cur_date` AS `cur_date` from `test`.`t2` semi join (`test`.`t2` `x1`) where ((`test`.`x1`.`id` = `test`.`t2`.`id`) and (`test`.`t2`.`cur_date` = 0))
+select * from t2
+where id in (select id from t2 as x1 where (t2.cur_date is null));
+id	cur_date
+drop table t1,t2;
+# 
+# From group_min_max.test
+# 
+create table t1 (
+a1 char(64), a2 char(64), b char(16), c char(16) not null, d char(16), dummy char(64) default ' '
+);
+insert into t1 (a1, a2, b, c, d) values
+('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
+('a','a','b','e112','xy1'),('a','a','b','f112','xy2'),('a','a','b','g112','xy3'),('a','a','b','h112','xy4'),
+('a','b','a','i121','xy1'),('a','b','a','j121','xy2'),('a','b','a','k121','xy3'),('a','b','a','l121','xy4'),
+('a','b','b','m122','xy1'),('a','b','b','n122','xy2'),('a','b','b','o122','xy3'),('a','b','b','p122','xy4'),
+('b','a','a','a211','xy1'),('b','a','a','b211','xy2'),('b','a','a','c211','xy3'),('b','a','a','d211','xy4'),
+('b','a','b','e212','xy1'),('b','a','b','f212','xy2'),('b','a','b','g212','xy3'),('b','a','b','h212','xy4'),
+('b','b','a','i221','xy1'),('b','b','a','j221','xy2'),('b','b','a','k221','xy3'),('b','b','a','l221','xy4'),
+('b','b','b','m222','xy1'),('b','b','b','n222','xy2'),('b','b','b','o222','xy3'),('b','b','b','p222','xy4'),
+('c','a','a','a311','xy1'),('c','a','a','b311','xy2'),('c','a','a','c311','xy3'),('c','a','a','d311','xy4'),
+('c','a','b','e312','xy1'),('c','a','b','f312','xy2'),('c','a','b','g312','xy3'),('c','a','b','h312','xy4'),
+('c','b','a','i321','xy1'),('c','b','a','j321','xy2'),('c','b','a','k321','xy3'),('c','b','a','l321','xy4'),
+('c','b','b','m322','xy1'),('c','b','b','n322','xy2'),('c','b','b','o322','xy3'),('c','b','b','p322','xy4'),
+('d','a','a','a411','xy1'),('d','a','a','b411','xy2'),('d','a','a','c411','xy3'),('d','a','a','d411','xy4'),
+('d','a','b','e412','xy1'),('d','a','b','f412','xy2'),('d','a','b','g412','xy3'),('d','a','b','h412','xy4'),
+('d','b','a','i421','xy1'),('d','b','a','j421','xy2'),('d','b','a','k421','xy3'),('d','b','a','l421','xy4'),
+('d','b','b','m422','xy1'),('d','b','b','n422','xy2'),('d','b','b','o422','xy3'),('d','b','b','p422','xy4'),
+('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
+('a','a','b','e112','xy1'),('a','a','b','f112','xy2'),('a','a','b','g112','xy3'),('a','a','b','h112','xy4'),
+('a','b','a','i121','xy1'),('a','b','a','j121','xy2'),('a','b','a','k121','xy3'),('a','b','a','l121','xy4'),
+('a','b','b','m122','xy1'),('a','b','b','n122','xy2'),('a','b','b','o122','xy3'),('a','b','b','p122','xy4'),
+('b','a','a','a211','xy1'),('b','a','a','b211','xy2'),('b','a','a','c211','xy3'),('b','a','a','d211','xy4'),
+('b','a','b','e212','xy1'),('b','a','b','f212','xy2'),('b','a','b','g212','xy3'),('b','a','b','h212','xy4'),
+('b','b','a','i221','xy1'),('b','b','a','j221','xy2'),('b','b','a','k221','xy3'),('b','b','a','l221','xy4'),
+('b','b','b','m222','xy1'),('b','b','b','n222','xy2'),('b','b','b','o222','xy3'),('b','b','b','p222','xy4'),
+('c','a','a','a311','xy1'),('c','a','a','b311','xy2'),('c','a','a','c311','xy3'),('c','a','a','d311','xy4'),
+('c','a','b','e312','xy1'),('c','a','b','f312','xy2'),('c','a','b','g312','xy3'),('c','a','b','h312','xy4'),
+('c','b','a','i321','xy1'),('c','b','a','j321','xy2'),('c','b','a','k321','xy3'),('c','b','a','l321','xy4'),
+('c','b','b','m322','xy1'),('c','b','b','n322','xy2'),('c','b','b','o322','xy3'),('c','b','b','p322','xy4'),
+('d','a','a','a411','xy1'),('d','a','a','b411','xy2'),('d','a','a','c411','xy3'),('d','a','a','d411','xy4'),
+('d','a','b','e412','xy1'),('d','a','b','f412','xy2'),('d','a','b','g412','xy3'),('d','a','b','h412','xy4'),
+('d','b','a','i421','xy1'),('d','b','a','j421','xy2'),('d','b','a','k421','xy3'),('d','b','a','l421','xy4'),
+('d','b','b','m422','xy1'),('d','b','b','n422','xy2'),('d','b','b','o422','xy3'),('d','b','b','p422','xy4');
+create index idx_t1_0 on t1 (a1);
+create index idx_t1_1 on t1 (a1,a2,b,c);
+create index idx_t1_2 on t1 (a1,a2,b);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
+create table t2 (
+a1 char(64), a2 char(64) not null, b char(16), c char(16), d char(16), dummy char(64) default ' '
+);
+insert into t2 select * from t1;
+insert into t2 (a1, a2, b, c, d) values
+('a','a',NULL,'a777','xyz'),('a','a',NULL,'a888','xyz'),('a','a',NULL,'a999','xyz'),
+('a','a','a',NULL,'xyz'),
+('a','a','b',NULL,'xyz'),
+('a','b','a',NULL,'xyz'),
+('c','a',NULL,'c777','xyz'),('c','a',NULL,'c888','xyz'),('c','a',NULL,'c999','xyz'),
+('d','b','b',NULL,'xyz'),
+('e','a','a',NULL,'xyz'),('e','a','a',NULL,'xyz'),('e','a','a',NULL,'xyz'),('e','a','a',NULL,'xyz'),
+('e','a','b',NULL,'xyz'),('e','a','b',NULL,'xyz'),('e','a','b',NULL,'xyz'),('e','a','b',NULL,'xyz'),
+('a','a',NULL,'a777','xyz'),('a','a',NULL,'a888','xyz'),('a','a',NULL,'a999','xyz'),
+('a','a','a',NULL,'xyz'),
+('a','a','b',NULL,'xyz'),
+('a','b','a',NULL,'xyz'),
+('c','a',NULL,'c777','xyz'),('c','a',NULL,'c888','xyz'),('c','a',NULL,'c999','xyz'),
+('d','b','b',NULL,'xyz'),
+('e','a','a',NULL,'xyz'),('e','a','a',NULL,'xyz'),('e','a','a',NULL,'xyz'),('e','a','a',NULL,'xyz'),
+('e','a','b',NULL,'xyz'),('e','a','b',NULL,'xyz'),('e','a','b',NULL,'xyz'),('e','a','b',NULL,'xyz');
+create index idx_t2_0 on t2 (a1);
+create index idx_t2_1 on t2 (a1,a2,b,c);
+create index idx_t2_2 on t2 (a1,a2,b);
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	Table is already up to date
+create table t3 (
+a1 char(1), a2 char(1), b char(1), c char(4) not null, d char(3), dummy char(1) default ' '
+);
+insert into t3 (a1, a2, b, c, d) values
+('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
+('a','a','b','e112','xy1'),('a','a','b','f112','xy2'),('a','a','b','g112','xy3'),('a','a','b','h112','xy4'),
+('a','b','a','i121','xy1'),('a','b','a','j121','xy2'),('a','b','a','k121','xy3'),('a','b','a','l121','xy4'),
+('a','b','b','m122','xy1'),('a','b','b','n122','xy2'),('a','b','b','o122','xy3'),('a','b','b','p122','xy4'),
+('b','a','a','a211','xy1'),('b','a','a','b211','xy2'),('b','a','a','c211','xy3'),('b','a','a','d211','xy4'),
+('b','a','b','e212','xy1'),('b','a','b','f212','xy2'),('b','a','b','g212','xy3'),('b','a','b','h212','xy4'),
+('b','b','a','i221','xy1'),('b','b','a','j221','xy2'),('b','b','a','k221','xy3'),('b','b','a','l221','xy4'),
+('b','b','b','m222','xy1'),('b','b','b','n222','xy2'),('b','b','b','o222','xy3'),('b','b','b','p222','xy4'),
+('c','a','a','a311','xy1'),('c','a','a','b311','xy2'),('c','a','a','c311','xy3'),('c','a','a','d311','xy4'),
+('c','a','b','e312','xy1'),('c','a','b','f312','xy2'),('c','a','b','g312','xy3'),('c','a','b','h312','xy4'),
+('c','b','a','i321','xy1'),('c','b','a','j321','xy2'),('c','b','a','k321','xy3'),('c','b','a','l321','xy4'),
+('c','b','b','m322','xy1'),('c','b','b','n322','xy2'),('c','b','b','o322','xy3'),('c','b','b','p322','xy4');
+insert into t3 (a1, a2, b, c, d) values
+('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
+('a','a','b','e112','xy1'),('a','a','b','f112','xy2'),('a','a','b','g112','xy3'),('a','a','b','h112','xy4'),
+('a','b','a','i121','xy1'),('a','b','a','j121','xy2'),('a','b','a','k121','xy3'),('a','b','a','l121','xy4'),
+('a','b','b','m122','xy1'),('a','b','b','n122','xy2'),('a','b','b','o122','xy3'),('a','b','b','p122','xy4'),
+('b','a','a','a211','xy1'),('b','a','a','b211','xy2'),('b','a','a','c211','xy3'),('b','a','a','d211','xy4'),
+('b','a','b','e212','xy1'),('b','a','b','f212','xy2'),('b','a','b','g212','xy3'),('b','a','b','h212','xy4'),
+('b','b','a','i221','xy1'),('b','b','a','j221','xy2'),('b','b','a','k221','xy3'),('b','b','a','l221','xy4'),
+('b','b','b','m222','xy1'),('b','b','b','n222','xy2'),('b','b','b','o222','xy3'),('b','b','b','p222','xy4'),
+('c','a','a','a311','xy1'),('c','a','a','b311','xy2'),('c','a','a','c311','xy3'),('c','a','a','d311','xy4'),
+('c','a','b','e312','xy1'),('c','a','b','f312','xy2'),('c','a','b','g312','xy3'),('c','a','b','h312','xy4'),
+('c','b','a','i321','xy1'),('c','b','a','j321','xy2'),('c','b','a','k321','xy3'),('c','b','a','l321','xy4'),
+('c','b','b','m322','xy1'),('c','b','b','n322','xy2'),('c','b','b','o322','xy3'),('c','b','b','p322','xy4');
+insert into t3 (a1, a2, b, c, d) values
+('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
+('a','a','b','e112','xy1'),('a','a','b','f112','xy2'),('a','a','b','g112','xy3'),('a','a','b','h112','xy4'),
+('a','b','a','i121','xy1'),('a','b','a','j121','xy2'),('a','b','a','k121','xy3'),('a','b','a','l121','xy4'),
+('a','b','b','m122','xy1'),('a','b','b','n122','xy2'),('a','b','b','o122','xy3'),('a','b','b','p122','xy4'),
+('b','a','a','a211','xy1'),('b','a','a','b211','xy2'),('b','a','a','c211','xy3'),('b','a','a','d211','xy4'),
+('b','a','b','e212','xy1'),('b','a','b','f212','xy2'),('b','a','b','g212','xy3'),('b','a','b','h212','xy4'),
+('b','b','a','i221','xy1'),('b','b','a','j221','xy2'),('b','b','a','k221','xy3'),('b','b','a','l221','xy4'),
+('b','b','b','m222','xy1'),('b','b','b','n222','xy2'),('b','b','b','o222','xy3'),('b','b','b','p222','xy4'),
+('c','a','a','a311','xy1'),('c','a','a','b311','xy2'),('c','a','a','c311','xy3'),('c','a','a','d311','xy4'),
+('c','a','b','e312','xy1'),('c','a','b','f312','xy2'),('c','a','b','g312','xy3'),('c','a','b','h312','xy4'),
+('c','b','a','i321','xy1'),('c','b','a','j321','xy2'),('c','b','a','k321','xy3'),('c','b','a','l321','xy4'),
+('c','b','b','m322','xy1'),('c','b','b','n322','xy2'),('c','b','b','o322','xy3'),('c','b','b','p322','xy4');
+insert into t3 (a1, a2, b, c, d) values
+('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
+('a','a','b','e112','xy1'),('a','a','b','f112','xy2'),('a','a','b','g112','xy3'),('a','a','b','h112','xy4'),
+('a','b','a','i121','xy1'),('a','b','a','j121','xy2'),('a','b','a','k121','xy3'),('a','b','a','l121','xy4'),
+('a','b','b','m122','xy1'),('a','b','b','n122','xy2'),('a','b','b','o122','xy3'),('a','b','b','p122','xy4'),
+('b','a','a','a211','xy1'),('b','a','a','b211','xy2'),('b','a','a','c211','xy3'),('b','a','a','d211','xy4'),
+('b','a','b','e212','xy1'),('b','a','b','f212','xy2'),('b','a','b','g212','xy3'),('b','a','b','h212','xy4'),
+('b','b','a','i221','xy1'),('b','b','a','j221','xy2'),('b','b','a','k221','xy3'),('b','b','a','l221','xy4'),
+('b','b','b','m222','xy1'),('b','b','b','n222','xy2'),('b','b','b','o222','xy3'),('b','b','b','p222','xy4'),
+('c','a','a','a311','xy1'),('c','a','a','b311','xy2'),('c','a','a','c311','xy3'),('c','a','a','d311','xy4'),
+('c','a','b','e312','xy1'),('c','a','b','f312','xy2'),('c','a','b','g312','xy3'),('c','a','b','h312','xy4'),
+('c','b','a','i321','xy1'),('c','b','a','j321','xy2'),('c','b','a','k321','xy3'),('c','b','a','l321','xy4'),
+('c','b','b','m322','xy1'),('c','b','b','n322','xy2'),('c','b','b','o322','xy3'),('c','b','b','p322','xy4');
+create index idx_t3_0 on t3 (a1);
+create index idx_t3_1 on t3 (a1,a2,b,c);
+create index idx_t3_2 on t3 (a1,a2,b);
+analyze table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	Table is already up to date
+explain select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2
+where t2.c in (select c from t3 where t3.c > t1.b) and
+t2.c > 'b1' )
+group by a1,a2,b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	range	NULL	idx_t1_1	147	NULL	17	Using where; Using index for group-by
+2	DEPENDENT SUBQUERY	t2	index	NULL	idx_t2_1	163	NULL	164	Using where; Using index
+2	DEPENDENT SUBQUERY	t3	index	NULL	idx_t3_1	10	NULL	192	Using where; Using index; FirstMatch(t2); Using join buffer (flat, BNL join)
+select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2
+where t2.c in (select c from t3 where t3.c > t1.b) and
+t2.c > 'b1' )
+group by a1,a2,b;
+a1	a2	b	c	min(c)	max(c)
+a	a	a	d111	a111	d111
+a	a	b	h112	e112	h112
+a	b	a	l121	i121	l121
+a	b	b	p122	m122	p122
+b	a	a	d211	a211	d211
+b	a	b	h212	e212	h212
+b	b	a	l221	i221	l221
+b	b	b	p222	m222	p222
+c	a	a	d311	a311	d311
+c	a	b	h312	e312	h312
+c	b	a	l321	i321	l321
+c	b	b	p322	m322	p322
+d	a	a	d411	a411	d411
+d	a	b	h412	e412	h412
+d	b	a	l421	i421	l421
+d	b	b	p422	m422	p422
+explain select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2
+where t2.c in (select c from t3 where t3.c > t1.c) and
+t2.c > 'b1' )
+group by a1,a2,b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	idx_t1_1	163	NULL	128	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index	NULL	idx_t2_1	163	NULL	164	Using where; Using index
+2	DEPENDENT SUBQUERY	t3	index	NULL	idx_t3_1	10	NULL	192	Using where; Using index; FirstMatch(t2); Using join buffer (flat, BNL join)
+select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2
+where t2.c in (select c from t3 where t3.c > t1.c) and
+t2.c > 'b1' )
+group by a1,a2,b;
+a1	a2	b	c	min(c)	max(c)
+a	a	a	a111	a111	d111
+a	a	b	e112	e112	h112
+a	b	a	i121	i121	l121
+a	b	b	m122	m122	p122
+b	a	a	a211	a211	d211
+b	a	b	e212	e212	h212
+b	b	a	i221	i221	l221
+b	b	b	m222	m222	p222
+c	a	a	a311	a311	d311
+c	a	b	e312	e312	h312
+c	b	a	i321	i321	l321
+c	b	b	m322	m322	o322
+d	a	a	a411	a411	d411
+d	a	b	e412	e412	h412
+d	b	a	i421	i421	l421
+d	b	b	m422	m422	o422
+drop table t1, t2, t3;
+#
+# From group_by.test
+#
+# Bug #21174: Index degrades sort performance and 
+#             optimizer does not honor IGNORE INDEX.
+#             a.k.a WL3527.
+#
+CREATE TABLE t1 (a INT, b INT,
+PRIMARY KEY (a),
+KEY i2(a,b));
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8);
+INSERT INTO t1 SELECT a + 8,b FROM t1;
+INSERT INTO t1 SELECT a + 16,b FROM t1;
+INSERT INTO t1 SELECT a + 32,b FROM t1;
+INSERT INTO t1 SELECT a + 64,b FROM t1;
+INSERT INTO t1 SELECT a + 128,b FROM t1 limit 16;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT 1 FROM t1 WHERE a IN
+(SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	PRIMARY,i2	PRIMARY	4	NULL	144	Using index
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	4	func	1	
+2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	144	
+CREATE TABLE t2 (a INT, b INT, KEY(a));
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3,3), (4,4);
+EXPLAIN SELECT a, SUM(b) FROM t2 GROUP BY a LIMIT 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	NULL	a	5	NULL	2	
+EXPLAIN SELECT a, SUM(b) FROM t2 IGNORE INDEX (a) GROUP BY a LIMIT 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	Using temporary; Using filesort
+EXPLAIN SELECT 1 FROM t2 WHERE a IN
+(SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	a	a	5	NULL	4	Using index
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	4	func	1	
+2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	144	
+DROP TABLE t1, t2;
+# 
+# From derived_view.test
+#
+set @tmp_subselect_extra_derived=@@optimizer_switch;
+set optimizer_switch='derived_merge=on,derived_with_keys=on';
+#
+# LP bug #806504: right join over a view/derived table           
+#
+CREATE TABLE t1 (a int, b int) ;
+INSERT INTO t1 VALUES (0,0);
+CREATE TABLE t2 (a int) ;
+INSERT INTO t2 VALUES (0), (0);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT * FROM t2 RIGHT JOIN (SELECT * FROM t1) AS t ON t.a != 0
+WHERE t.a IN (SELECT b FROM t1);
+a	a	b
+NULL	0	0
+EXPLAIN EXTENDED
+SELECT * FROM t2 RIGHT JOIN (SELECT * FROM t1) AS t ON t.a != 0
+WHERE t.a IN (SELECT b FROM t1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t2`.`a` AS `a`,0 AS `a`,0 AS `b` from `test`.`t2` semi join (dual) where 1
+SELECT * FROM t2 RIGHT JOIN v1 AS t ON t.a != 0
+WHERE t.a IN (SELECT b FROM t1);
+a	a	b
+NULL	0	0
+EXPLAIN EXTENDED
+SELECT * FROM t2 RIGHT JOIN v1 AS t ON t.a != 0
+WHERE t.a IN (SELECT b FROM t1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t2`.`a` AS `a`,0 AS `a`,0 AS `b` from `test`.`t2` semi join (dual) where 1
+DROP VIEW v1;
+DROP TABLE t1,t2;
+#
+# LP bug #793448: materialized view accessed by two-component key           
+#
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (9,3), (2,5);
+CREATE TABLE t2 (a int, b int);
+INSERT INTO t2 VALUES (9,3), (3,7), (9,1), (2,5), (2,4), (3,8);
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (10,3), (9,7), (9,1), (2,4);
+CREATE VIEW v1(a,b) AS SELECT a, MAX(b) FROM t2 GROUP BY a;
+CREATE VIEW v2(a,b) AS SELECT a,b FROM t2 UNION SELECT a,b FROM t3;
+SELECT * FROM v1;
+a	b
+2	5
+3	8
+9	3
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v1);
+a
+9
+2
+EXPLAIN 
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	<derived3>	ref	key0	key0	10	test.t1.a,test.t1.b	2	FirstMatch(t1)
+3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort
+SELECT * FROM v2;
+a	b
+9	3
+3	7
+9	1
+2	5
+2	4
+3	8
+10	3
+9	7
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v2);
+a
+9
+2
+EXPLAIN 
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	<derived3>	ref	key0	key0	10	test.t1.a,test.t1.b	2	FirstMatch(t1)
+3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	6	
+4	UNION	t3	ALL	NULL	NULL	NULL	NULL	4	
+NULL	UNION RESULT	<union3,4>	ALL	NULL	NULL	NULL	NULL	NULL	
+DROP VIEW v1,v2;
+DROP TABLE t1,t2,t3;
+#
+# LP bug #874006: materialized view used in IN subquery
+#
+CREATE TABLE t3 (a int NOT NULL, b varchar(1), c varchar(1));
+INSERT INTO t3 VALUES (19,NULL,NULL), (20,'r','r');
+CREATE TABLE t1 (a int, b varchar(1) , c varchar(1));
+INSERT INTO t1 VALUES (1,NULL,NULL), (5,'r','r'), (7,'y','y');
+CREATE TABLE t2 (a int NOT NULL , b int, c varchar(1));
+INSERT INTO t2 VALUES (4,3,'r');
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+SET SESSION optimizer_switch='derived_with_keys=off';
+EXPLAIN
+SELECT * FROM t3 
+WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	3	Using where; FirstMatch(t3); Using join buffer (flat, BNL join)
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	
+SELECT * FROM t3 
+WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+a	b	c
+20	r	r
+SET SESSION optimizer_switch='derived_with_keys=on';
+EXPLAIN
+SELECT * FROM t3 
+WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<derived3>	ref	key1	key1	8	const,const	0	Start temporary
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (flat, BNL join)
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	
+SELECT * FROM t3 
+WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+a	b	c
+20	r	r
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+#
+# LP bug #873263: materialized view used in correlated IN subquery
+#
+CREATE TABLE t1 (a int, b int) ;
+INSERT INTO t1 VALUES (5,4), (9,8);
+CREATE TABLE t2 (a int, b int) ;
+INSERT INTO t2 VALUES (4,5), (5,1);
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT * FROM t2;
+SET SESSION optimizer_switch='derived_with_keys=on';
+EXPLAIN
+SELECT * FROM t1 WHERE t1.b IN (SELECT v2.a FROM v2 WHERE v2.b = t1.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	<derived3>	ref	key0	key0	10	test.t1.b,test.t1.a	2	FirstMatch(t1)
+3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t1 WHERE t1.b IN (SELECT v2.a FROM v2 WHERE v2.b = t1.a);
+a	b
+5	4
+DROP VIEW v2;
+DROP TABLE t1,t2;
+set optimizer_switch= @tmp_subselect_extra_derived;

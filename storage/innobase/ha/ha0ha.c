@@ -101,7 +101,7 @@ ha_insert_for_fold_func(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	buf_block_t*	block,	/*!< in: buffer block containing the data */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-	const rec_t*	data)	/*!< in: data, must not be NULL */
+	rec_t*		data)	/*!< in: data, must not be NULL */
 {
 	hash_cell_t*	cell;
 	ha_node_t*	node;
@@ -227,11 +227,11 @@ ha_search_and_update_if_found_func(
 /*===============================*/
 	hash_table_t*	table,	/*!< in/out: hash table */
 	ulint		fold,	/*!< in: folded value of the searched data */
-	const rec_t*	data,	/*!< in: pointer to the data */
+	rec_t*		data,	/*!< in: pointer to the data */
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	buf_block_t*	new_block,/*!< in: block containing new_data */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-	const rec_t*	new_data)/*!< in: new pointer to the data */
+	rec_t*		new_data)/*!< in: new pointer to the data */
 {
 	ha_node_t*	node;
 

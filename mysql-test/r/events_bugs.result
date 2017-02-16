@@ -41,11 +41,11 @@ Note	1588	Event execution time is in the past and ON COMPLETION NOT PRESERVE is 
 show events;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 create event e_55 on schedule at 20200101000000 starts 10000101000000 do drop table t;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'starts 10000101000000 do drop table t' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'starts 10000101000000 do drop table t' at line 1
 create event e_55 on schedule at 20200101000000 ends 10000101000000 do drop table t;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ends 10000101000000 do drop table t' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ends 10000101000000 do drop table t' at line 1
 create event e_55 on schedule at 20200101000000 starts 10000101000000 ends 10000101000000 do drop table t;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'starts 10000101000000 ends 10000101000000 do drop table t' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'starts 10000101000000 ends 10000101000000 do drop table t' at line 1
 create event e_55 on schedule every 10 hour starts 10000101000000 do drop table t;
 ERROR HY000: Incorrect STARTS value: '10000101000000'
 set global event_scheduler=off;
@@ -218,13 +218,13 @@ drop event events_test.mysqltest_user1;
 drop user mysqltest_user1@localhost;
 drop database mysqltest_db1;
 create event e_53 on schedule at (select s1 from ttx) do drop table t;
-ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
+ERROR 42000: This version of MariaDB doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
 create event e_53 on schedule every (select s1 from ttx) second do drop table t;
-ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
+ERROR 42000: This version of MariaDB doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
 create event e_53 on schedule every 5 second starts (select s1 from ttx) do drop table t;
-ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
+ERROR 42000: This version of MariaDB doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
 create event e_53 on schedule every 5 second ends (select s1 from ttx) do drop table t;
-ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
+ERROR 42000: This version of MariaDB doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
 drop event if exists e_16;
 drop procedure if exists p_16;
 create event e_16 on schedule every 1 second do set @a=5;
@@ -265,7 +265,7 @@ begin
 call p22830_wait();
 select 123;
 end|
-ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
+ERROR 42000: This version of MariaDB doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
 create event e22830_1 on schedule every 1 hour do
 begin
 call p22830_wait();
@@ -330,7 +330,7 @@ end	1	HOUR
 drop procedure p22830_wait;
 drop function f22830;
 drop event (select a from t2);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select a from t2)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '(select a from t2)' at line 1
 drop event e22830_1;
 drop event e22830_2;
 drop event e22830_3;
@@ -560,11 +560,11 @@ ERROR HY000: Incorrect AT value: '0every day'
 CREATE EVENT new_event ON SCHEDULE AT (SELECT "every day") DO SELECT 1;
 ERROR HY000: Incorrect AT value: 'every day'
 CREATE EVENT new_event ON SCHEDULE AT NOW() STARTS NOW() DO SELECT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'STARTS NOW() DO SELECT 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'STARTS NOW() DO SELECT 1' at line 1
 CREATE EVENT new_event ON SCHEDULE AT NOW() ENDS NOW() DO SELECT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ENDS NOW() DO SELECT 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ENDS NOW() DO SELECT 1' at line 1
 CREATE EVENT new_event ON SCHEDULE AT NOW() STARTS NOW() ENDS NOW() DO SELECT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'STARTS NOW() ENDS NOW() DO SELECT 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'STARTS NOW() ENDS NOW() DO SELECT 1' at line 1
 USE test;
 SHOW GRANTS FOR CURRENT_USER;
 Grants for root@localhost
@@ -644,13 +644,13 @@ SET GLOBAL READ_ONLY = 1;
 #
 
 CREATE EVENT e1 ON SCHEDULE AT '2020-01-01 00:00:00' DO SET @a = 1;
-ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+ERROR HY000: The MariaDB server is running with the --read-only option so it cannot execute this statement
 
 ALTER EVENT e1 COMMENT 'comment';
-ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+ERROR HY000: The MariaDB server is running with the --read-only option so it cannot execute this statement
 
 DROP EVENT e1;
-ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+ERROR HY000: The MariaDB server is running with the --read-only option so it cannot execute this statement
 
 #
 # Connection: root_con (root@localhost/events_test).
@@ -731,7 +731,6 @@ set @@sql_mode= cast(pow(2,32)-1 as unsigned integer);
 create event e1 on schedule every 1 day do select 1;
 select @@sql_mode into @full_mode;
 set @@sql_mode= @old_mode;
-select replace(@full_mode, ',,,', ',NOT_USED,') into @full_mode;
 select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mode;
 select name from mysql.event where name = 'e1' and sql_mode = @full_mode;
 name

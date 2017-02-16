@@ -1,0 +1,8 @@
+drop table if exists t;
+set default_storage_engine='tokudb';
+set tokudb_disable_slow_alter=1;
+create table t (a binary(1));
+alter table t change column a aa binary(1);
+alter table t change column aa a3 binary(1) not null;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+drop table t;

@@ -1,0 +1,14 @@
+insert_committed [0] v10 k1 
+delete_committed [100] v10 
+insert_committed [100] v20 k1 
+commit_any [100] v10 
+commit_any [100] v20 
+delete_committed [200] v20 
+insert_committed [200] v10 k1 
+commit_any [200] v20 
+commit_any [200] v10 
+delete_committed [300] v10 
+insert_committed [300] v30 k1 
+delete_committed [300] v30 
+commit_any [300] v10 
+commit_any [300] v30 

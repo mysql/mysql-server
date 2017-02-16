@@ -1,0 +1,17 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo,bar;
+create table foo (a int, b int);
+create table bar (a int, key(a));
+show create table foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+show create table bar;
+Table	Create Table
+bar	CREATE TABLE `bar` (
+  `a` int(11) DEFAULT NULL,
+  KEY `a` (`a`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+DROP TABLE foo,bar;

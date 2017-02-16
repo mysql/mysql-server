@@ -1,0 +1,4 @@
+key k1
+insert committed 0   v0
+delete committed 100
+insert committed 200 v100

@@ -34,6 +34,7 @@
 table_mapping::table_mapping()
   : m_free(0)
 {
+  DBUG_ENTER("table_mapping::table_mapping");
   /*
     No "free_element" function for entries passed here, as the entries are
     allocated in a MEM_ROOT (freed as a whole in the destructor), they cannot
@@ -46,6 +47,7 @@ table_mapping::table_mapping()
 		   0,0,0);
   /* We don't preallocate any block, this is consistent with m_free=0 above */
   init_alloc_root(&m_mem_root, TABLE_ID_HASH_SIZE*sizeof(entry), 0);
+  DBUG_VOID_RETURN;
 }
 
 table_mapping::~table_mapping()

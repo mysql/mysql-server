@@ -77,14 +77,14 @@ PARTITION BY RANGE (DAYOFWEEK(a))
 (PARTITION a1 VALUES LESS THAN (60));
 INSERT INTO t1 VALUES ('test'),('a'),('5');
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 3
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 2
+Warning	1265	Data truncated for column 'a' at row 3
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 3
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 2
+Warning	1265	Data truncated for column 'a' at row 3
 DROP TABLE t1;
 CREATE TABLE t1 (a TIME)
 PARTITION BY RANGE (DAYOFWEEK(a))
@@ -729,7 +729,7 @@ PARTITION p1 VALUES LESS THAN (MAXVALUE));
 ERROR HY000: VALUES value for partition 'p0' must have type INT
 CREATE TABLE t1 (c TIMESTAMP)
 PARTITION BY RANGE (UNIX_TIMESTAMP(c))
-(PARTITION p0 VALUES LESS THAN (UNIX_TIMESTAMP('2000-01-01 00:00:00')),
+(PARTITION p0 VALUES LESS THAN (UNIX_TIMESTAMP(20000101000000)),
 PARTITION p1 VALUES LESS THAN (MAXVALUE));
 DROP TABLE t1;
 # Changed error from ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR
@@ -871,7 +871,7 @@ partitions 3
 (partition x1 tablespace ts1,
 partition x2 tablespace ts2,
 partition x3 tablespace ts3);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '+2)
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '+2)
 partitions 3
 (partition x1 tablespace ts1,
 partition x2 tablespace ts2,
@@ -886,7 +886,7 @@ partitions 3
 (partition tablespace ts1,
 partition x2 tablespace ts2,
 partition x3 tablespace ts3);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ts1,
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ts1,
 partition x2 tablespace ts2,
 partition x3 tablespace ts3)' at line 8
 CREATE TABLE t1 (
@@ -1102,7 +1102,7 @@ partition by range (a)
 subpartition by key (a+b)
 (partition x1 values less than (1) (subpartition x11, subpartition x12),
 partition x2 values less than (2) (subpartition x21, subpartition x22));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '+b)
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '+b)
 (partition x1 values less than (1) (subpartition x11, subpartition x12),
 par' at line 7
 CREATE TABLE t1 (
@@ -1306,7 +1306,7 @@ partition x2
 ( subpartition x21 engine myisam,
 subpartition x22 engine myisam)
 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'list (a+b)
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'list (a+b)
 ( partition x1
 ( subpartition x11 engine myisam,
 subpartition x12 eng' at line 7
@@ -1324,7 +1324,7 @@ partition x2
 ( subpartition x21 engine myisam values in (0),
 subpartition x22 engine myisam values in (1))
 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'list (a+b)
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'list (a+b)
 ( partition x1
 ( subpartition x11 engine myisam values in (0),
 subpar' at line 7
@@ -1414,7 +1414,7 @@ partition by list (a)
 partitions 2
 (partition x1 values in 4,
 partition x2 values in (5));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '4,
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '4,
 partition x2 values in (5))' at line 8
 CREATE TABLE t1 (a int)
 PARTITION BY RANGE (a)
@@ -1754,3 +1754,8 @@ PARTITION pmax VALUES LESS THAN MAXVALUE);
 ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
 DROP TABLE t1;
 End of 5.1 tests
+create table t1 (a int) partition by list (values(a) div 1) (partition p0 values in (0), partition p1 values in (1));
+ERROR HY000: This partition function is not allowed
+create table t1 (a int) partition by list (uuid_short()) (partition p0 values in (0), partition p1 values in (1));
+ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near ') (partition p0 values in (0), partition p1 values in (1))' at line 1
+End of 5.5 tests

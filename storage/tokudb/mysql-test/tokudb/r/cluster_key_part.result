@@ -1,0 +1,28 @@
+set default_storage_engine='tokudb';
+drop table if exists t;
+create table t (
+x int not null,
+y int not null, 
+primary key(x)) 
+partition by hash(x) partitions 2;
+show create table t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `x` int(11) NOT NULL,
+  `y` int(11) NOT NULL,
+  PRIMARY KEY (`x`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (x)
+PARTITIONS 2 */
+alter table t add clustering key(y);
+show create table t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `x` int(11) NOT NULL,
+  `y` int(11) NOT NULL,
+  PRIMARY KEY (`x`),
+  CLUSTERING KEY `y` (`y`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (x)
+PARTITIONS 2 */
+drop table t;

@@ -1,0 +1,13 @@
+--- checksum_table_live.result	2013-01-22 22:05:05.246633000 +0400
++++ checksum_table_live.reject	2013-01-23 02:50:14.440070917 +0400
+@@ -11,8 +11,8 @@
+ test.t1	4272806499
+ CHECKSUM TABLE t1, t2 QUICK;
+ Table	Checksum
+-test.t1	4272806499
+-test.t2	0
++test.t1	NULL
++test.t2	NULL
+ CHECKSUM TABLE t1, t2 EXTENDED;
+ Table	Checksum
+ test.t1	4272806499

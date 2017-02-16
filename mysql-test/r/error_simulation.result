@@ -13,7 +13,7 @@ INSERT INTO t1 VALUES
 ('AAAAAAAAAH','AAAAAAAAAH'), ('AAAAAAAAAI','AAAAAAAAAI'),
 ('AAAAAAAAAJ','AAAAAAAAAJ'), ('AAAAAAAAAK','AAAAAAAAAK');
 set tmp_table_size=1024;
-set session debug="d,raise_error";
+set session debug_dbug="+d,raise_error";
 SELECT MAX(a) FROM t1 GROUP BY a,b;
 ERROR 23000: Can't write; duplicate key in table 'tmp_table'
 set tmp_table_size=default;
@@ -23,9 +23,9 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT(100) NOT NULL);
 INSERT INTO t1 VALUES (1), (0), (2);
-SET SESSION debug='+d,alter_table_only_index_change';
+SET SESSION debug_dbug='+d,alter_table_only_index_change';
 ALTER TABLE t1 ADD INDEX a(a);
-SET SESSION debug=DEFAULT;
+SET SESSION debug_dbug=DEFAULT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -42,10 +42,10 @@ DROP TABLE t1;
 # Bug#42064: low memory crash when importing hex strings, in Item_hex_string::Item_hex_string
 #
 CREATE TABLE t1(a BLOB);
-SET SESSION debug="+d,bug42064_simulate_oom";
+SET SESSION debug_dbug="+d,bug42064_simulate_oom";
 INSERT INTO t1 VALUES("");
 Got one of the listed errors
-SET SESSION debug=DEFAULT;
+SET SESSION debug_dbug=DEFAULT;
 DROP TABLE t1;
 #
 # Bug#41660: Sort-index_merge for non-first join table may require 
@@ -62,7 +62,9 @@ INSERT INTO t2 VALUES (1, 1, 'data');
 # re-scanned for every record in the outer table. if we used inner join,
 # we would need to have thousands of records and/or more columns in both
 # tables so that the join buffer is filled and re-scans are triggered).
-SET SESSION debug = '+d,only_one_Unique_may_be_created';
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+SET SESSION debug_dbug= '+d,only_one_Unique_may_be_created';
 EXPLAIN
 SELECT * FROM t1 LEFT JOIN t2 ON ( t2.a < 10 OR t2.b < 10 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -80,7 +82,8 @@ a	a	b	filler
 7	1	1	data
 8	1	1	data
 9	1	1	data
-SET SESSION debug = DEFAULT;
+SET SESSION debug_dbug= DEFAULT;
+SET optimizer_switch=@save_optimizer_switch;
 DROP TABLE t1, t2;
 #
 # Bug#11747970 34660: CRASH WHEN FEDERATED TABLE LOSES CONNECTION DURING INSERT ... SELECT
@@ -89,11 +92,10 @@ CREATE TABLE t1(f1 INT, KEY(f1));
 CREATE TABLE t2(f1 INT);
 INSERT INTO t1 VALUES (1),(2);
 INSERT INTO t2 VALUES (1),(2);
-SET SESSION debug='d,bug11747970_simulate_error';
+SET SESSION debug_dbug="+d,bug11747970_raise_error";
 INSERT IGNORE INTO t2 SELECT f1 FROM t1 a WHERE NOT EXISTS (SELECT 1 FROM t2 b WHERE a.f1 = b.f1);
-Warnings:
-Error	1105	Unknown error
-SET SESSION debug = DEFAULT;
+ERROR 70100: Query execution was interrupted
+SET SESSION debug_dbug = DEFAULT;
 DROP TABLE t1,t2;
 #
 # End of 5.1 tests
@@ -109,7 +111,9 @@ INSERT INTO t1 VALUES (1), (2);
 LOAD DATA LOCAL INFILE 'pid_file' INTO TABLE pid_table;
 #Reports an error since the temp file already exists.
 SELECT a FROM t1 ORDER BY rand(1);
-ERROR HY000: Can't create or write to file
+a
+1
+2
 #With patch, the query executes successfully.
 SELECT a FROM t1 ORDER BY rand(1);
 a

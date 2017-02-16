@@ -1,0 +1,111 @@
+# 
+# TRUNCATE TABLE with partitions and TRUNCATE PARTITION
+#
+
+--source include/have_partition.inc
+--source ../have_engine.inc
+
+# A part of the standard TRUNCATE test
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+
+# Truncate partitioned table
+
+let $partition_options = PARTITION BY HASH(a) PARTITIONS 2;
+--source ../create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Partitions
+  --source ../unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  TRUNCATE TABLE t1;
+  if ($mysql_errname)
+  {
+    --let $functionality = TRUNCATE TABLE
+    --source ../unexpected_result.inc
+  }
+
+  INSERT INTO t1 (a,b) VALUES (1,'a'), (2,'b'), (3,'c');
+  TRUNCATE TABLE t1;
+  SELECT a,b FROM t1;
+
+  DROP TABLE t1;
+}
+
+
+# Truncate resets auto-increment value on the table
+
+let $create_definition = a $int_indexed_col KEY AUTO_INCREMENT, c $char_col;
+let $partition_options = PARTITION BY HASH(a) PARTITIONS 2;
+--source ../create_table.inc
+
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Partitions or PK or auto-increment
+  --source ../unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --source ../mask_engine.inc
+  SHOW CREATE TABLE t1;
+  INSERT INTO t1 (c) VALUES ('a'),('b'),('c');
+  --source ../mask_engine.inc
+  SHOW CREATE TABLE t1;
+  TRUNCATE TABLE t1;
+  --source ../mask_engine.inc
+  SHOW CREATE TABLE t1;
+  INSERT INTO t1 (c) VALUES ('d');
+  --source ../mask_engine.inc
+  SHOW CREATE TABLE t1;
+  SELECT a,c FROM t1;
+  DROP TABLE t1;
+}
+
+
+# Truncate partitions
+
+let $partition_options = PARTITION BY HASH(a) PARTITIONS 2;
+--source ../create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Partitions
+  --source ../unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(2,'d'),(4,'e'),(100,'f'),(101,'g');
+
+  let $alter_definition = TRUNCATE PARTITION p0;
+  --source ../alter_table.inc
+  if ($mysql_errname)
+  {
+    --let $my_last_stmt = $alter_statement
+    --let $functionality = ALTER TABLE
+    --source ../unexpected_result.inc
+  }
+
+  --sorted_result
+  SELECT a,b FROM t1;
+  --replace_column 5 # 6 # 7 # 8 # 9 # 10 #
+  EXPLAIN PARTITIONS SELECT a,b FROM t1;
+
+  INSERT INTO t1 (a,b) VALUES (1,'a'), (2,'b'), (3,'c');
+
+  let $alter_definition = TRUNCATE PARTITION ALL;
+  --source ../alter_table.inc
+
+  SELECT a,b FROM t1;
+
+  DROP TABLE t1;
+}
+
+--source ../cleanup_engine.inc
+

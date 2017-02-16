@@ -1,0 +1,102 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+set tokudb_hide_default_row_format=false;
+DROP TABLE IF EXISTS foo;
+CREATE TABLE foo (c1 int not null primary key) engine=TokuDB;
+SELECT CREATE_OPTIONS 
+FROM INFORMATION_SCHEMA.TABLES  WHERE (table_name LIKE 'foo');
+CREATE_OPTIONS
+
+SHOW CREATE TABLE foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+ALTER TABLE foo compression=tokudb_lzma, add column c2 int not null;
+SELECT CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES  WHERE (table_name LIKE 'foo');
+CREATE_OPTIONS
+`compression`=tokudb_lzma
+SHOW CREATE TABLE foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1 `compression`=tokudb_lzma
+ALTER TABLE foo compression=TOKUDB_QUICKLZ, add column c3 int not null;
+SELECT CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES  WHERE (table_name LIKE 'foo');
+CREATE_OPTIONS
+`compression`=TOKUDB_QUICKLZ
+SHOW CREATE TABLE foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1 `compression`=TOKUDB_QUICKLZ
+ALTER TABLE foo compression=TOKUDB_UNCOMPRESSED, add column c4 int not null;
+SELECT CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES  WHERE (table_name LIKE 'foo');
+CREATE_OPTIONS
+`compression`=TOKUDB_UNCOMPRESSED
+SHOW CREATE TABLE foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` int(11) NOT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1 `compression`=TOKUDB_UNCOMPRESSED
+ALTER TABLE foo compression=TOKUDB_ZLIB, add column c5 int not null;
+SELECT CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES  WHERE (table_name LIKE 'foo');
+CREATE_OPTIONS
+`compression`=TOKUDB_ZLIB
+SHOW CREATE TABLE foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` int(11) NOT NULL,
+  `c4` int(11) NOT NULL,
+  `c5` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1 `compression`=TOKUDB_ZLIB
+ALTER TABLE foo compression=TOKUDB_FAST, add column c6 int not null;
+SELECT CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES  WHERE (table_name LIKE 'foo');
+CREATE_OPTIONS
+`compression`=TOKUDB_FAST
+SHOW CREATE TABLE foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` int(11) NOT NULL,
+  `c4` int(11) NOT NULL,
+  `c5` int(11) NOT NULL,
+  `c6` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1 `compression`=TOKUDB_FAST
+ALTER TABLE foo compression=TOKUDB_SMALL, add column c7 int not null;
+SELECT CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES  WHERE (table_name LIKE 'foo');
+CREATE_OPTIONS
+`compression`=TOKUDB_SMALL
+SHOW CREATE TABLE foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` int(11) NOT NULL,
+  `c4` int(11) NOT NULL,
+  `c5` int(11) NOT NULL,
+  `c6` int(11) NOT NULL,
+  `c7` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1 `compression`=TOKUDB_SMALL
+DROP TABLE foo;

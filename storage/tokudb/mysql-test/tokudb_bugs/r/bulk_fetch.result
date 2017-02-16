@@ -1,0 +1,143 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+create table foo (a int, b bigint, c int, primary key (a))engine=TokuDB;
+insert into foo values (1,10,100),(2,20,200),(3,30,300),(4,40,400),(5,50,500),(6,60,600);
+select * from foo;
+a	b	c
+1	10	100
+2	20	200
+3	30	300
+4	40	400
+5	50	500
+6	60	600
+select a from foo;
+a
+1
+2
+3
+4
+5
+6
+select * from foo where a > 2;
+a	b	c
+3	30	300
+4	40	400
+5	50	500
+6	60	600
+select a from foo where a > 2;
+a
+3
+4
+5
+6
+select count(*) from foo;
+count(*)
+6
+alter table foo add index b(b);
+select b from foo;
+b
+10
+20
+30
+40
+50
+60
+explain select * from foo where b > 30;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	b	b	9	NULL	3	Using where
+select * from foo where b > 30;
+a	b	c
+4	40	400
+5	50	500
+6	60	600
+alter table foo drop index b;
+alter table foo add index c(c) clustering=yes;
+select c from foo;
+c
+100
+200
+300
+400
+500
+600
+explain select * from foo where c > 300;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	c	c	5	NULL	3	Using where; Using index
+select * from foo where c > 300;
+a	b	c
+4	40	400
+5	50	500
+6	60	600
+drop table foo;
+create table foo (a int, b int);
+insert into foo values (1,10),(2,20),(3,30),(4,40),(5,50),(6,60);
+select * from foo;
+a	b
+1	10
+2	20
+3	30
+4	40
+5	50
+6	60
+select a from foo;
+a
+1
+2
+3
+4
+5
+6
+select b from foo;
+b
+10
+20
+30
+40
+50
+60
+select count(*) from foo;
+count(*)
+6
+drop table foo;
+create table foo (a int, b varchar(10), c blob, d bigint, e varchar(10), f mediumblob)engine=TokuDB;
+insert into foo values(1,"bb","ccccc",100,"eee","fffffffffffffffffffff");
+select * from foo;
+a	b	c	d	e	f
+1	bb	ccccc	100	eee	fffffffffffffffffffff
+select a,d from foo;
+a	d
+1	100
+select b,e from foo;
+b	e
+bb	eee
+select c,f from foo;
+c	f
+ccccc	fffffffffffffffffffff
+select d from foo;
+d
+100
+select e from foo;
+e
+eee
+select f from foo;
+f
+fffffffffffffffffffff
+select a from foo;
+a
+1
+select b from foo;
+b
+bb
+select c from foo;
+c
+ccccc
+select b,c,e,f from foo;
+b	c	e	f
+bb	ccccc	eee	fffffffffffffffffffff
+select a,b,d,e from foo;
+a	b	d	e
+1	bb	100	eee
+select a,d,c,f from foo;
+a	d	c	f
+1	100	ccccc	fffffffffffffffffffff
+DROP TABLE foo;

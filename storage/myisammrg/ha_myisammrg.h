@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -102,8 +102,8 @@ public:
             HA_READ_ORDER | HA_KEYREAD_ONLY);
   }
   uint max_supported_keys()          const { return MI_MAX_KEY; }
-  uint max_supported_key_length()    const { return MI_MAX_KEY_LENGTH; }
-  uint max_supported_key_part_length() const { return MI_MAX_KEY_LENGTH; }
+  uint max_supported_key_length()    const { return HA_MAX_KEY_LENGTH; }
+  uint max_supported_key_part_length() const { return HA_MAX_KEY_LENGTH; }
   double scan_time()
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + file->tables; }
 
@@ -132,7 +132,7 @@ public:
   int rnd_pos(uchar * buf, uchar *pos);
   void position(const uchar *record);
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
-  int truncate();
+  int delete_all_rows();
   int info(uint);
   int reset(void);
   int extra(enum ha_extra_function operation);
@@ -149,4 +149,11 @@ public:
   bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
   int check(THD* thd, HA_CHECK_OPT* check_opt);
   ha_rows records();
+  virtual uint count_query_cache_dependant_tables(uint8 *tables_type);
+  virtual my_bool
+    register_query_cache_dependant_tables(THD *thd,
+                                          Query_cache *cache,
+                                          Query_cache_block_table **block,
+                                          uint *n);
+  virtual void set_lock_type(enum thr_lock_type lock);
 };

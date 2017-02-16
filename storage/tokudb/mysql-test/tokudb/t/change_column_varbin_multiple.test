@@ -1,0 +1,44 @@
+source include/have_tokudb.inc;
+# test that varbinary expansion changes the length sum works
+
+--disable_warnings
+DROP TABLE IF EXISTS t;
+--enable_warnings
+
+SET SESSION TOKUDB_DISABLE_SLOW_ALTER=ON;
+
+# multiple fields all < 256
+CREATE TABLE t (a VARBINARY(100), b VARBINARY(100)) ENGINE=Tokudb;
+INSERT INTO t VALUES ('hi','there'),('you','people');
+SELECT * FROM t;
+
+# schema only
+ALTER TABLE t CHANGE COLUMN a a VARBINARY(101);
+SHOW CREATE TABLE t;
+
+# update offsets
+ALTER TABLE t CHANGE COLUMN a a VARBINARY(200);
+SHOW CREATE TABLE t;
+SELECT * FROM t;
+
+DROP TABLE t;
+
+CREATE TABLE t (i INT, a VARBINARY(100), b VARBINARY(100)) ENGINE=Tokudb;
+INSERT INTO t VALUES (1, 'hi','there'),(2, 'you','people');
+SELECT * FROM t;
+
+# schema only
+ALTER TABLE t CHANGE COLUMN a a VARBINARY(101);
+SHOW CREATE TABLE t;
+
+# update offsets
+ALTER TABLE t CHANGE COLUMN a a VARBINARY(200);
+SHOW CREATE TABLE t;
+SELECT * FROM t;
+
+DROP TABLE t;
+
+
+
+
+

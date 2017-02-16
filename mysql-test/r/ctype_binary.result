@@ -2,6 +2,7 @@ set names binary;
 #
 # Start of 5.5 tests
 #
+SET TIME_ZONE = _latin1 '+03:00';
 #
 # Start of WL#2649 Number-to-string conversions
 #
@@ -581,7 +582,7 @@ create table t1 as select concat(cast('2001-01-02 03:04:05' as time)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(19) DEFAULT NULL
+  `c1` varbinary(10) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t1;
 c1
@@ -594,7 +595,7 @@ create table t1 as select concat(cast('2001-01-02' as datetime)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(29) DEFAULT NULL
+  `c1` varbinary(19) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t1;
 c1
@@ -739,7 +740,7 @@ create table t1 as select concat(uncompressed_length('')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(10) NOT NULL DEFAULT ''
+  `c1` varbinary(10) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as select concat(connection_id()) as c1;
@@ -1183,7 +1184,7 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 select hex(concat(IsSimple(GeomFromText('POINT(1 1)'))));
 hex(concat(IsSimple(GeomFromText('POINT(1 1)'))))
-30
+31
 create table t1 as select concat(IsSimple(GeomFromText('Point(1 1)'))) as c1;
 show create table t1;
 Table	Create Table
@@ -1415,7 +1416,7 @@ create table t1 as select concat(unix_timestamp(20090224)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(10) NOT NULL DEFAULT ''
+  `c1` varbinary(17) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(time_to_sec('10:11:12')));
@@ -1425,7 +1426,7 @@ create table t1 as select concat(time_to_sec('10:11:12')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(10) DEFAULT NULL
+  `c1` varbinary(17) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(extract(year from 20090702)));
@@ -1472,7 +1473,7 @@ create table t1 as select concat(from_days(730669)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(10) NOT NULL DEFAULT ''
+  `c1` varbinary(10) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select c1, hex(c1) from t1;
 c1	hex(c1)
@@ -1496,7 +1497,7 @@ create table t1 as select concat(curtime()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(8) NOT NULL DEFAULT ''
+  `c1` varbinary(10) NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as select repeat('a',20) as c1 limit 0;
@@ -1512,7 +1513,7 @@ create table t1 as select concat(utc_time()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(8) NOT NULL DEFAULT ''
+  `c1` varbinary(10) NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(sec_to_time(2378)));
@@ -1522,7 +1523,7 @@ create table t1 as select concat(sec_to_time(2378)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(10) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(timediff('2001-01-02 00:00:00', '2001-01-01 00:00:00')));
@@ -1532,7 +1533,7 @@ create table t1 as select concat(timediff('2001-01-02 00:00:00', '2001-01-01 00:
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(10) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(maketime(10,11,12)));
@@ -1542,7 +1543,7 @@ create table t1 as select concat(maketime(10,11,12)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(10) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(get_format(DATE,'USA'));
@@ -1582,7 +1583,7 @@ create table t1 as select concat(date_add('2004-01-01 12:00:00', interval 1 day)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(29) DEFAULT NULL
+  `c1` varbinary(19) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t1;
 c1
@@ -1629,7 +1630,7 @@ create table t1 as select concat(addtime('00:00:00','11:22:33')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(29) DEFAULT NULL
+  `c1` varbinary(26) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(subtime('23:59:59','11:22:33')));
@@ -1639,7 +1640,7 @@ create table t1 as select concat(subtime('23:59:59','11:22:33')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(29) DEFAULT NULL
+  `c1` varbinary(26) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(elt(1,2,3));
@@ -2048,7 +2049,7 @@ create table t2 as select concat(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `concat(a)` varbinary(4) DEFAULT NULL
+  `concat(a)` varbinary(2) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2;
 create table t1 (a year);
@@ -2128,7 +2129,7 @@ create table t2 as select concat(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `concat(a)` varbinary(8) DEFAULT NULL
+  `concat(a)` varbinary(10) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2;
 create table t1 (a datetime);
@@ -2359,7 +2360,7 @@ insert into t1 values (1);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
 Field	Type	Null	Key	Default	Extra
-a	varbinary(4)	YES		NULL	
+a	varbinary(2)	YES		NULL	
 select hex(a) from v1;
 hex(a)
 3031
@@ -2423,7 +2424,7 @@ insert into t1 values ('01:02:03');
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
 Field	Type	Null	Key	Default	Extra
-a	varbinary(8)	YES		NULL	
+a	varbinary(10)	YES		NULL	
 select hex(a) from v1;
 hex(a)
 30303A30303A3031
@@ -2764,11 +2765,11 @@ KEY(date_column));
 INSERT INTO t1 VALUES (1,'2010-09-01'),(2,'2010-10-01');
 EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	date_column	date_column	4	NULL	1	Using where
+1	SIMPLE	t1	range	date_column	date_column	4	NULL	1	Using index condition
 ALTER TABLE t1 MODIFY date_column DATETIME DEFAULT NULL;
 EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	date_column	date_column	9	NULL	1	Using where
+1	SIMPLE	t1	range	date_column	date_column	9	NULL	1	Using index condition
 DROP TABLE t1;
 #
 # Bug #31384 	DATE_ADD() and DATE_SUB() return binary data
@@ -2776,6 +2777,13 @@ DROP TABLE t1;
 SELECT @@collation_connection, @@character_set_results;
 @@collation_connection	@@character_set_results
 binary	binary
+SELECT
+CHARSET(DATE_SUB('2007-08-03', INTERVAL 1 MINUTE)) AS field_str1,
+CHARSET(DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE)) AS field_str2,
+CHARSET(DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY)) AS field_date,
+CHARSET(DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE)) AS field_datetime;
+field_str1	field_str2	field_date	field_datetime
+binary	binary	binary	binary
 CREATE TABLE t1 AS
 SELECT
 DATE_SUB('2007-08-03', INTERVAL 1 MINUTE) AS field_str1,
@@ -2785,8 +2793,8 @@ DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE) AS field_da
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `field_str1` varbinary(29) DEFAULT NULL,
-  `field1_str2` varbinary(29) DEFAULT NULL,
+  `field_str1` varbinary(19) DEFAULT NULL,
+  `field1_str2` varbinary(19) DEFAULT NULL,
   `field_date` date DEFAULT NULL,
   `field_datetime` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
@@ -2797,10 +2805,10 @@ DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE) AS field1_str2,
 DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY) AS field_date,
 DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE) AS field_datetime;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					field_str1	254	29	10	Y	128	31	63
-def					field1_str2	254	29	19	Y	128	31	63
-def					field_date	10	29	10	Y	128	31	63
-def					field_datetime	12	29	19	Y	128	31	63
+def					field_str1	254	19	10	Y	128	0	63
+def					field1_str2	254	19	19	Y	128	0	63
+def					field_date	10	10	10	Y	128	0	63
+def					field_datetime	12	19	19	Y	128	0	63
 field_str1	field1_str2	field_date	field_datetime
 2007-08-02	2007-08-03 17:32:00	2007-08-02	2007-08-03 17:32:00
 SELECT
@@ -2810,6 +2818,37 @@ HEX(DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY)) AS field_date,
 HEX(DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE)) AS field_datetime;
 field_str1	field1_str2	field_date	field_datetime
 323030372D30382D30322032333A35393A3030	323030372D30382D30332031373A33323A3030	323030372D30382D3032	323030372D30382D30332031373A33323A3030
+#
+# MDEV-4841 Wrong character set of ADDTIME() and DATE_ADD()
+#
+SELECT @@collation_connection, @@character_set_results;
+@@collation_connection	@@character_set_results
+binary	binary
+SELECT
+CHARSET(ADDTIME(_latin1'10:01:01',_latin1'10:00:00')) AS addtime1,
+CHARSET(ADDTIME('10:01:01','10:00:00')) AS addtime2,
+CHARSET(DATE_ADD(_latin1'2001-01-01 10:01:01',interval 10 second)) AS date_add1,
+CHARSET(DATE_ADD('2001-01-01 10:01:01',interval 10 second)) AS date_add2;
+addtime1	addtime2	date_add1	date_add2
+binary	binary	binary	binary
+CREATE TABLE t1 AS
+SELECT
+ADDTIME(_latin1'10:01:01',_latin1'10:00:00') AS addtime1,
+ADDTIME('10:01:01','10:00:00') AS addtime2,
+DATE_ADD(_latin1'2001-01-01 10:01:01',interval 10 second) AS date_add1,
+DATE_ADD('2001-01-01 10:01:01',interval 10 second) AS date_add2;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `addtime1` varbinary(26) DEFAULT NULL,
+  `addtime2` varbinary(26) DEFAULT NULL,
+  `date_add1` varbinary(19) DEFAULT NULL,
+  `date_add2` varbinary(19) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+addtime1	addtime2	date_add1	date_add2
+20:01:01	20:01:01	2001-01-01 10:01:11	2001-01-01 10:01:11
+DROP TABLE t1;
 #
 # Bug#11926811 / Bug#60625 Illegal mix of collations
 #
@@ -2847,13 +2886,39 @@ f1()
 00:00:01
 DROP FUNCTION f1;
 DROP TABLE t1;
+#
+# MDEV-9662 Assertion `precision || !scale' failed in my_decimal_precision_to_length_no_truncation(uint, uint8, bool)
+#
+SELECT @@collation_connection;
+@@collation_connection
+binary
+SELECT CASE 1 WHEN 2 THEN ( - '3' ) END;
+CASE 1 WHEN 2 THEN ( - '3' ) END
+NULL
+#
+# MDEV-5702 Incorrect results are returned with NULLIF()
+#
+CREATE TABLE t1 (d DATE);
+INSERT INTO t1 VALUES ('1999-11-11'),('2014-02-04');
+SELECT DISTINCT d, CAST(d AS CHAR), NULLIF(d,"2000-01-01") AS bad, NULLIF(CAST(d AS CHAR),"2000-01-01") AS good FROM t1;
+d	CAST(d AS CHAR)	bad	good
+1999-11-11	1999-11-11	1999-11-11	1999-11-11
+2014-02-04	2014-02-04	2014-02-04	2014-02-04
+CREATE TABLE t2 AS SELECT DISTINCT d, NULLIF(d,'2000-01-01') AS bad FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `d` date DEFAULT NULL,
+  `bad` varbinary(10) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1, t2;
 SET NAMES latin1;
 SET sql_mode='';
 CREATE TABLE t1(a char(215) CHARACTER SET utf8 NOT NULL DEFAULT '', KEY(a));
 INSERT INTO t1 VALUES ();
 SELECT maketime(`a`,`a`,`a`) FROM t1 GROUP BY 1;
 maketime(`a`,`a`,`a`)
-00:00:00
+00:00:00.000000
 DROP TABLE t1;
 SET sql_mode=default;
 #

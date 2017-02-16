@@ -41,7 +41,6 @@ class Event_scheduler;
 struct TABLE_LIST;
 class THD;
 typedef class Item COND;
-typedef struct charset_info_st CHARSET_INFO;
 
 int
 sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
@@ -88,7 +87,7 @@ public:
   get_db_repository() { return db_repository; }
 
   static bool
-  init(my_bool opt_noacl);
+  init(bool opt_noacl);
 
   static void
   deinit();

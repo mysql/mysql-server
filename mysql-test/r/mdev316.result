@@ -1,0 +1,22 @@
+set names swe7;
+select '' in ('',convert(0,time));
+'' in ('',convert(0,time))
+1
+select case '' when '' then 1 when convert(0,time) then 2 end;
+case '' when '' then 1 when convert(0,time) then 2 end
+1
+select convert(0x0030 using ucs2) div 1, concat(convert(0x0030 using ucs2)) div 1;
+convert(0x0030 using ucs2) div 1	concat(convert(0x0030 using ucs2)) div 1
+0	0
+select cast(convert(0x0030 using ucs2) as double), cast(concat(convert(0x0030 using ucs2)) as double);
+cast(convert(0x0030 using ucs2) as double)	cast(concat(convert(0x0030 using ucs2)) as double)
+0	0
+select cast(convert(0x0030 using ucs2) as decimal(5.2)), cast(concat(convert(0x0030 using ucs2)) as decimal(5.2));
+cast(convert(0x0030 using ucs2) as decimal(5.2))	cast(concat(convert(0x0030 using ucs2)) as decimal(5.2))
+0	0
+select cast(convert(_ucs2 0x0030 using latin1) as date), cast(concat(convert(_ucs2 0x0030 using latin1)) as date);
+cast(convert(_ucs2 0x0030 using latin1) as date)	cast(concat(convert(_ucs2 0x0030 using latin1)) as date)
+NULL	NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '0'
+Warning	1292	Incorrect datetime value: '0'

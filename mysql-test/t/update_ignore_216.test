@@ -1,0 +1,13 @@
+#
+# MDEV-216 lp:976104 - Assertion `0' failed in my_message_sql on UPDATE IGNORE, or unknown error on release build 
+#
+
+CREATE TABLE t1 ( a INT, b CHAR(3) );
+INSERT INTO t1 VALUES ( 1, 'foo' );
+CREATE TABLE t2 ( c CHAR(3), d INT );
+INSERT INTO t2 VALUES ( 'foo', 1 );
+
+UPDATE IGNORE t1, t2 SET b = 'bar', c = 'bar'
+  WHERE a != ( SELECT 1 UNION SELECT 2 );
+
+DROP TABLE t1, t2;

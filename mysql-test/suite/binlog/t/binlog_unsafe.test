@@ -142,8 +142,8 @@ BEGIN
 END|
 --DELIMITER ;
 
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
---eval CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB"
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+--eval CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_SO"
 
 # In each iteration of this loop, we select one method to make the
 # statement unsafe.
@@ -689,6 +689,7 @@ DELETE FROM t1;
 # following following functions that depend on the TIMESTAMP variable
 # are not unsafe and don't generate a warning.
 
+SET TIME_ZONE= '+03:00';
 SET TIMESTAMP=1000000;
 INSERT INTO t1 VALUES
   (CURDATE()),
@@ -727,7 +728,7 @@ CREATE TABLE replace_table (a INT, b INT, PRIMARY KEY(a));
 INSERT INTO replace_table values (1,1),(2,2);
 CREATE TABLE update_table (a INT, b INT, PRIMARY KEY(a));
 INSERT INTO update_table values (1,1),(2,2);
-CREATE TABLE insert_2_keys (a INT UNIQUE KEY, b INT UNIQUE KEY) ENGINE = InnoDB;
+CREATE TABLE insert_2_keys (a INT UNIQUE KEY, b INT UNIQUE KEY);
 INSERT INTO insert_2_keys values (1, 1);
 
 #INSERT IGNORE... SELECT

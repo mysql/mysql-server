@@ -97,16 +97,13 @@ REVOKE ALL PRIVILEGES ON test_grant_db.* FROM new_grant_user;
 
 --echo # try re-create existing user via GRANT IDENTIFIED BY
 GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user
-  IDENTIFIED BY 'unused_password';
+  IDENTIFIED BY 'new_password';
 
---echo # make sure password doesn't take precendence
---disable_query_log
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 --error ER_ACCESS_DENIED_ERROR
-connect(plug_con_grant_deny,localhost,new_grant_user,unused_password);
---enable_query_log
+connect(plug_con_grant_deny,localhost,new_grant_user,plug_dest);
 
---echo #make sure plugin auth still available
-connect(plug_con_grant,localhost,new_grant_user,plug_dest);
+connect(plug_con_grant,localhost,new_grant_user,new_password);
 connection plug_con_grant;
 select USER(),CURRENT_USER();
 USE test_grant_db;
@@ -119,11 +116,9 @@ DROP USER new_grant_user;
 
 --echo # try re-create existing user via GRANT IDENTIFIED WITH
 
---error ER_GRANT_PLUGIN_USER_EXISTS
 GRANT ALL PRIVILEGES ON test_grant_db.* TO plug
   IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 
---error ER_GRANT_PLUGIN_USER_EXISTS
 GRANT ALL PRIVILEGES ON test_grant_db.* TO plug_dest
   IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 
@@ -414,16 +409,16 @@ FLUSH PRIVILEGES;
 --echo #
 
 --echo # Executing 'mysql'
---exec $MYSQL -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT -e "SELECT 1"
+--exec $MYSQL -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-auth=auth_test_plugin -e "SELECT 1"
 
 --echo # Executing 'mysqladmin'
---exec $MYSQLADMIN -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT ping
+--exec $MYSQLADMIN -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-auth=auth_test_plugin ping
 
 --echo # Executing 'mysqldump'
---exec $MYSQL_DUMP -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --compact --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT test
+--exec $MYSQL_DUMP -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --compact --default-auth=auth_test_plugin test
 
 --echo # Executing 'mysql_upgrade'
---exec $MYSQL_UPGRADE -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT --skip-verbose --force --upgrade-system-tables
+--exec $MYSQL_UPGRADE -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-auth=auth_test_plugin --skip-verbose --force --upgrade-system-tables
 
 --echo #
 --echo # Bug #59657: Move the client authentication_pam plugin into the 
@@ -436,10 +431,10 @@ CREATE USER uplain@localhost IDENTIFIED WITH 'cleartext_plugin_server'
 --echo ## test plugin auth
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR : this should fail : no grant
-connect(cleartext_fail_con,localhost,uplain,cleartext_test2,,,,CLEARTEXT);
+connect(cleartext_fail_con,localhost,uplain,cleartext_test2);
 --enable_query_log
 
-connect(cleartext_con,localhost,uplain,cleartext_test,,,,CLEARTEXT);
+connect(cleartext_con,localhost,uplain,cleartext_test);
 connection cleartext_con;
 select USER(),CURRENT_USER();
 

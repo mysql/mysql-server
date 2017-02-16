@@ -5,6 +5,11 @@
 drop table if exists t1;
 --enable_warnings
 
+--disable_query_log
+# Set timezone to something specific, to make it possible to use unix_timestamp
+set time_zone="+03:00";
+--enable_query_log
+
 #
 # Simple IF tests
 #
@@ -156,16 +161,15 @@ DROP TABLE t1;
 #
 
 CREATE TABLE t1 (c LONGTEXT);
-INSERT INTO t1 VALUES(1), (2), (3), (4), ('12345678901234567890');
+INSERT INTO t1 VALUES(1), (2), (3), (4), ('1234567890123456789');
 
+SELECT IF(1, CAST(c AS UNSIGNED), 0) FROM t1;
 SELECT * FROM (SELECT MAX(IF(1, CAST(c AS UNSIGNED), 0)) FROM t1) AS te;
 SELECT * FROM (SELECT MAX(IFNULL(CAST(c AS UNSIGNED), 0)) FROM t1) AS te;
 
 DROP TABLE t1;
 
-
 --echo End of 5.0 tests
-
 
 --echo #
 --echo # Bug#55077: Assertion failed: width > 0 && to != ((void *)0), file .\dtoa.c
@@ -189,3 +193,34 @@ sum(distinct(if('a',
                 (select adddate(elt(convert($nines,decimal(64,0)),count(*)),
                                 interval 1 day))
                 , .1))) as foo;
+
+--echo #
+--echo # LP bug#998321 Simple query with IF expression causes an
+--echo # assertion abort (see also mysql Bug#12620084)
+--echo #
+
+SELECT if(0, (SELECT min('hello')), NULL);
+SELECT if(1, (SELECT min('hello')), NULL);
+SELECT if(0, NULL, (SELECT min('hello')));
+SELECT if(1, NULL, (SELECT min('hello')));
+
+--echo End of 5.2 tests
+
+--echo #
+--echo # MDEV-8663: IF Statement returns multiple values erroneously
+--echo # (or Assertion `!null_value' failed in Item::send(Protocol*, String*)
+--echo #
+CREATE TABLE `t1` (
+`datas` VARCHAR(25) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+INSERT INTO `t1` VALUES ('1,2'), ('2,3'), ('3,4');
+
+SELECT IF(FIND_IN_SET('1', `datas`), 1.5, IF(FIND_IN_SET('2', `datas`), 2, NULL)) AS `First`, '1' AS `Second`, '2' AS `Third` FROM `t1`;
+
+drop table t1;
+
+--disable_query_log
+# Restore timezone to default
+set time_zone= @@global.time_zone;
+--enable_query_log

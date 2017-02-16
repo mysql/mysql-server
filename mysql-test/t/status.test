@@ -354,6 +354,33 @@ DROP FUNCTION f1;
 
 # End of 5.1 tests
 
+#
+# Test of internal temporary table status variables
+#
+
+flush status;
+create table t1 (a int not null auto_increment primary key, g int, b blob);
+insert into t1 (g,b) values (1,'a'), (2, 'b'), (3, 'b'), (1, 'c');
+select * from t1;
+select b, count(*) from t1 group by b;
+select g, count(*) from t1 group by g;
+show status like 'Row%';
+show status like 'Handler%';
+show status like '%tmp%';
+drop table t1;
+
+#
+# Test of handler status counts
+#
+CREATE TABLE t1 (i int(11) DEFAULT NULL, KEY i (i) ) ENGINE=MyISAM;
+insert into t1 values (1),(2),(3),(4),(5);
+flush status;
+select * from t1 where i=5 union select * from t1 where i=5;
+show status like "handler%";
+drop table t1;
+
+# End of 5.3 tests
+
 # Restore global concurrent_insert value. Keep in the end of the test file.
 --connection default
 set @@global.concurrent_insert= @old_concurrent_insert;

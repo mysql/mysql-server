@@ -1,0 +1,99 @@
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+drop procedure if exists p0;
+drop procedure if exists p1;
+drop function if exists f0;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=ON;
+
+create table foo (a int, b int, c int, key (b) clustering=yes)engine=TokuDB;
+insert into foo values (1,10,100),(2,20,200),(3,30,300);
+
+#test that alter table works with autocommit off;
+set autocommit=off;
+insert into foo values (4,40,400);
+alter table foo add column z int default 999 first;
+explain select * from foo;
+select * from foo;
+explain select * from foo where b > 20;
+select* from foo where b > 10;
+set autocommit=on;
+
+#test that alter table works with autocommit off;
+begin;
+alter table foo drop column z;
+explain select * from foo;
+select * from foo;
+explain select * from foo where b > 20;
+select* from foo where b > 10;
+
+
+#simple test with lock tables
+
+lock tables foo write;
+alter table foo add column z int;
+explain select * from foo;
+select * from foo;
+explain select * from foo where b > 20;
+select* from foo where b > 10;
+unlock tables;
+select * from foo;
+select * from foo where b > 10;
+
+delimiter |;
+create procedure p0()
+begin
+  alter table foo drop column z;
+  explain select * from foo;
+  select * from foo;
+  explain select * from foo where b > 20;
+  select* from foo where b > 10;
+end |
+delimiter ;|
+
+call p0();
+explain select * from foo;
+select * from foo;
+explain select * from foo where b > 20;
+select* from foo where b > 10;
+
+delimiter |;
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+create function f0() returns int
+begin
+  alter table foo add column ggg int;
+end|
+
+delimiter ;|
+
+
+set autocommit=0;
+
+delimiter |;
+create procedure p1()
+begin
+  insert into foo values(5,50,500);
+  select * from foo;
+  savepoint x;
+  alter table foo add column g int;
+  explain select * from foo;
+  select * from foo;
+  select * from foo where b > 10;
+  explain select * from foo where b > 20;
+end|
+delimiter ;|
+
+call p1();
+set autocommit=on;
+explain select * from foo;
+select * from foo;
+explain select * from foo where b > 10;
+select * from foo where b > 10;
+
+drop table foo;
+drop procedure p0;
+drop procedure p1;

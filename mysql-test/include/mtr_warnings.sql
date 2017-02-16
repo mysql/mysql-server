@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2011, Oracle and/or its affiliates
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -97,7 +97,6 @@ INSERT INTO global_suppressions VALUES
  ("Failed to open log"),
  ("Failed to open the existing master info file"),
  ("Forcing shutdown of [0-9]* plugins"),
- ("Forcing close of thread"),
 
  /*
    Due to timing issues, it might be that this warning
@@ -140,7 +139,6 @@ INSERT INTO global_suppressions VALUES
  ("Slave: The incident LOST_EVENTS occured on the master"),
  ("Slave: Unknown error.* 1105"),
  ("Slave: Can't drop database.* database doesn't exist"),
- ("Sort aborted"),
  ("Time-out in NDB"),
  ("Warning:\s+One can only use the --user.*root"),
  ("Warning:\s+Table:.* on (delete|rename)"),
@@ -160,7 +158,8 @@ INSERT INTO global_suppressions VALUES
  /* innodb foreign key tests that fail in ALTER or RENAME produce this */
  ("InnoDB: Error: in ALTER TABLE `test`.`t[123]`"),
  ("InnoDB: Error: in RENAME TABLE table `test`.`t1`"),
- ("InnoDB: Error: table `test`.`t[123]` does not exist in the InnoDB internal"),
+ ("InnoDB: Error: table `test`.`t[123]` .*does not exist in the InnoDB internal"),
+ ("InnoDB: Warning: semaphore wait:"),
 
  /*
    BUG#32080 - Excessive warnings on Solaris: setrlimit could not
@@ -180,6 +179,17 @@ INSERT INTO global_suppressions VALUES
  ("Master server does not support or not configured semi-sync replication, fallback to asynchronous"),
  (": The MySQL server is running with the --secure-backup-file-priv option so it cannot execute this statement"),
  ("Slave: Unknown table 't1' Error_code: 1051"),
+
+ /* Maria storage engine dependent tests */
+
+ /* maria-recovery.test has warning about missing log file */
+ ("File '.*maria_log.000.*' not found \\(Errcode: 2\\)"),
+ /* and about marked-corrupted table */
+ ("Table '..mysqltest.t_corrupted1' is crashed, skipping it. Please repair"),
+ /* maria-recover.test corrupts tables on purpose */
+ ("Checking table:   '..mysqltest.t_corrupted2'"),
+ ("Table '..mysqltest.t_corrupted2' is marked as crashed and should be"),
+ ("Incorrect key file for table '..mysqltest.t_corrupted2.MAI'"),
 
  /* Messages from valgrind */
  ("==[0-9]*== Memcheck,"),
@@ -205,10 +215,16 @@ INSERT INTO global_suppressions VALUES
  ("Found lock of type 6 that is write and read locked"),
 
  /*
-  Warnings related to --secure-file-priv
+   Transient network failures that cause warnings on reconnect.
+   BUG#47743 and BUG#47983.
  */
- ("Insecure configuration for --secure-file-priv:*"),
-
+ ("Slave I/O: Get master SERVER_ID failed with error:.*"),
+ ("Slave I/O: Get master clock failed with error:.*"),
+ ("Slave I/O: Get master COLLATION_SERVER failed with error:.*"),
+ ("Slave I/O: Get master TIME_ZONE failed with error:.*"),
+ ("Slave I/O: The slave I/O thread stops because a fatal error is encountered when it tried to SET @master_binlog_checksum on master.*"),
+ ("Slave I/O: Get master BINLOG_CHECKSUM failed with error.*"),
+ ("Slave I/O: Notifying master by SET @master_binlog_checksum= @@global.binlog_checksum failed with error.*"),
  ("THE_LAST_SUPPRESSION")||
 
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -231,6 +231,11 @@ public:
     const_item_cache= false;
   }
   const char *func_name() const { return "nodeset"; }
+  bool check_vcol_func_processor(uchar *int_arg)
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
+
 };
 
 
@@ -537,6 +542,10 @@ public:
   enum Type type() const { return XPATH_NODESET_CMP; };
   const char *func_name() const { return "xpath_nodeset_to_const_comparator"; }
   bool is_bool_func() { return 1; }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 
   longlong val_int()
   {
@@ -2060,8 +2069,8 @@ static int my_xpath_parse_OrExpr(MY_XPATH *xpath)
     Item *prev= xpath->item;
     if (!my_xpath_parse_AndExpr(xpath))
     {
-      return 0;
       xpath->error= 1;
+      return 0;
     }
     xpath->item= new Item_cond_or(nodeset2bool(xpath, prev),
                                   nodeset2bool(xpath, xpath->item));
@@ -2594,6 +2603,8 @@ void Item_xml_str_func::fix_length_and_dec()
   String *xp, tmp;
   MY_XPATH xpath;
   int rc;
+
+  status_var_increment(current_thd->status_var.feature_xml);
 
   nodeset_func= 0;
 

@@ -1,0 +1,1860 @@
+#
+# Hash semi-join regression tests
+# (WL#1110: Subquery optimization: materialization)
+#
+
+set @subselect_sj_mat_tmp= @@optimizer_switch;
+set optimizer_switch=ifnull(@subselect_mat_test_optimizer_switch_value, 'semijoin=on,firstmatch=on,loosescan=on,semijoin_with_cache=on');
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+set @optimizer_switch_local_default= @@optimizer_switch;
+set @save_join_cache_level=@@join_cache_level;
+set join_cache_level=1;
+
+--disable_warnings
+drop table if exists t1, t2, t3, t4, t5, t1i, t2i, t3i;
+drop table if exists columns;
+drop table if exists t1_16, t2_16, t3_16;
+drop view if exists v1, v2, v1m, v2m;
+--enable_warnings
+
+create table t1 (a1 char(8), a2 char(8));
+create table t2 (b1 char(8), b2 char(8));
+create table t3 (c1 char(8), c2 char(8));
+
+insert into t1 values ('1 - 00', '2 - 00');
+insert into t1 values ('1 - 01', '2 - 01');
+insert into t1 values ('1 - 02', '2 - 02');
+
+insert into t2 values ('1 - 01', '2 - 01');
+insert into t2 values ('1 - 01', '2 - 01');
+insert into t2 values ('1 - 02', '2 - 02');
+insert into t2 values ('1 - 02', '2 - 02');
+insert into t2 values ('1 - 03', '2 - 03');
+
+insert into t3 values ('1 - 01', '2 - 01');
+insert into t3 values ('1 - 02', '2 - 02');
+insert into t3 values ('1 - 03', '2 - 03');
+insert into t3 values ('1 - 04', '2 - 04');
+
+# Indexed columns
+create table t1i (a1 char(8), a2 char(8));
+create table t2i (b1 char(8), b2 char(8));
+create table t3i (c1 char(8), c2 char(8));
+create index it1i1 on t1i (a1);
+create index it1i2 on t1i (a2);
+create index it1i3 on t1i (a1, a2);
+
+create index it2i1 on t2i (b1);
+create index it2i2 on t2i (b2);
+create index it2i3 on t2i (b1, b2);
+
+create index it3i1 on t3i (c1);
+create index it3i2 on t3i (c2);
+create index it3i3 on t3i (c1, c2);
+
+insert into t1i select * from t1;
+insert into t2i select * from t2;
+insert into t3i select * from t3;
+
+# force the use of materialization
+set @@optimizer_switch='materialization=on,in_to_exists=off,firstmatch=off';
+
+/******************************************************************************
+* Simple tests.
+******************************************************************************/
+# non-indexed nullable fields
+explain extended
+select * from t1 where a1 in (select b1 from t2 where b1 > '0');
+select * from t1 where a1 in (select b1 from t2 where b1 > '0');
+
+explain extended
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+
+explain extended
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+
+explain extended
+select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1);
+select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1);
+
+# indexed columns
+--replace_column 7 #
+--replace_regex /it1.*/_it1_idx/  /test.t2i.*/_ref_/  /Using index$// /Using where$//
+explain extended
+select * from t1i where a1 in (select b1 from t2i where b1 > '0');
+select * from t1i where a1 in (select b1 from t2i where b1 > '0');
+
+--replace_column 6 # 8 # 11 #
+explain extended
+select * from t1i where a1 in (select max(b1) from t2i where b1 > '0' group by b1);
+select * from t1i where a1 in (select max(b1) from t2i where b1 > '0' group by b1);
+
+--replace_column 7 #
+--replace_regex /it1.*/_it1_idx/  /test.t2i.*/_ref_/  /Using index$// /Using where$//
+explain extended
+select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0');
+select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0');
+
+--replace_column 6 # 7 # 8 # 11 #
+explain extended
+select * from t1i where (a1, a2) in (select b1, max(b2) from t2i where b1 > '0' group by b1);
+select * from t1i where (a1, a2) in (select b1, max(b2) from t2i where b1 > '0' group by b1);
+
+--replace_column 6 # 7 # 8 # 11 #
+explain extended
+select * from t1i where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
+select * from t1i where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
+
+# BUG#31639: Wrong plan for uncorrelated subquery when loose scan is applicable.
+explain extended
+select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1);
+select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1);
+
+prepare st1 from "explain select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1)";
+execute st1;
+execute st1;
+prepare st2 from "select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1)";
+execute st2;
+execute st2;
+
+explain extended
+select * from t1 where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
+select * from t1 where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
+-- error 1235
+select * from t1 where (a1, a2) in (select b1, min(b2) from t2i limit 1,1);
+
+# test re-optimization/re-execution with different execution methods
+# prepare once, exec with different modes
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch=@optimizer_switch_local_default;
+set @@optimizer_switch='semijoin=off';
+prepare st1 from
+"select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1)";
+set @@optimizer_switch=@optimizer_switch_local_default;
+set @@optimizer_switch='materialization=off,in_to_exists=on';
+execute st1;
+set @@optimizer_switch=@optimizer_switch_local_default;
+set @@optimizer_switch='semijoin=off';
+execute st1;
+
+set @@optimizer_switch=@optimizer_switch_local_default;
+set @@optimizer_switch='materialization=off,in_to_exists=on';
+prepare st1 from
+"select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1)";
+set @@optimizer_switch=@optimizer_switch_local_default;
+set @@optimizer_switch='semijoin=off';
+execute st1;
+set @@optimizer_switch=@optimizer_switch_local_default;
+set @@optimizer_switch='materialization=off,in_to_exists=on';
+execute st1;
+set @@optimizer_switch=@save_optimizer_switch;
+
+# materialize the result of ORDER BY
+# non-indexed fields
+explain extended
+select * from t1 where (a1, a2) in (select b1, b2 from t2 order by b1, b2);
+select * from t1 where (a1, a2) in (select b1, b2 from t2 order by b1, b2);
+# indexed fields
+explain extended
+select * from t1i where (a1, a2) in (select b1, b2 from t2i order by b1, b2);
+select * from t1i where (a1, a2) in (select b1, b2 from t2i order by b1, b2);
+
+/******************************************************************************
+* Views, UNIONs, several levels of nesting.
+******************************************************************************/
+# materialize the result of subquery over temp-table view
+
+create algorithm=merge view v1 as
+select b1, c2 from t2, t3 where b2 > c2;
+
+create algorithm=merge view v2 as
+select b1, c2 from t2, t3 group by b2, c2;
+
+create algorithm=temptable view v1m as
+select b1, c2 from t2, t3 where b2 > c2;
+
+create algorithm=temptable view v2m as
+select b1, c2 from t2, t3 group by b2, c2;
+
+select * from v1 where (c2, b1) in (select c2, b1 from v2 where b1 is not null);
+select * from v1 where (c2, b1) in (select distinct c2, b1 from v2 where b1 is not null);
+
+select * from v1m where (c2, b1) in (select c2, b1 from v2m where b1 is not null);
+select * from v1m where (c2, b1) in (select distinct c2, b1 from v2m where b1 is not null);
+
+drop view v1, v2, v1m, v2m;
+
+# nested subqueries, views
+explain extended
+select * from t1
+where (a1, a2) in (select b1, b2 from t2 where b1 >  '0') and
+      (a1, a2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+select * from t1
+where (a1, a2) in (select b1, b2 from t2 where b1 >  '0') and
+      (a1, a2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+
+--replace_column 6 # 7 # 8 # 11 #
+explain extended
+select * from t1i
+where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
+      (a1, a2) in (select c1, c2 from t3i
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+select * from t1i
+where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
+      (a1, a2) in (select c1, c2 from t3i
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+
+explain extended
+select * from t1
+where (a1, a2) in (select b1, b2 from t2
+                   where b2 in (select c2 from t3 where c2 LIKE '%02') or
+                         b2 in (select c2 from t3 where c2 LIKE '%03')) and
+      (a1, a2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+select * from t1
+where (a1, a2) in (select b1, b2 from t2
+                   where b2 in (select c2 from t3 where c2 LIKE '%02') or
+                         b2 in (select c2 from t3 where c2 LIKE '%03')) and
+      (a1, a2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+
+# as above with correlated innermost subquery
+explain extended
+select * from t1
+where (a1, a2) in (select b1, b2 from t2
+                   where b2 in (select c2 from t3 t3a where c1 = a1) or
+                         b2 in (select c2 from t3 t3b where c2 LIKE '%03')) and
+      (a1, a2) in (select c1, c2 from t3 t3c
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+select * from t1
+where (a1, a2) in (select b1, b2 from t2
+                   where b2 in (select c2 from t3 t3a where c1 = a1) or
+                         b2 in (select c2 from t3 t3b where c2 LIKE '%03')) and
+      (a1, a2) in (select c1, c2 from t3 t3c
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+
+
+# multiple levels of nesting subqueries, unions
+--replace_column 6 # 7 # 8 # 11 #
+explain extended
+(select * from t1
+where (a1, a2) in (select b1, b2 from t2
+                   where b2 in (select c2 from t3 where c2 LIKE '%02') or
+                         b2 in (select c2 from t3 where c2 LIKE '%03')
+                   group by b1, b2) and
+      (a1, a2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0')))
+UNION
+(select * from t1i
+where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
+      (a1, a2) in (select c1, c2 from t3i
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0')));
+
+(select * from t1
+where (a1, a2) in (select b1, b2 from t2
+                   where b2 in (select c2 from t3 where c2 LIKE '%02') or
+                         b2 in (select c2 from t3 where c2 LIKE '%03')
+                   group by b1, b2) and
+      (a1, a2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0')))
+UNION
+(select * from t1i
+where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
+      (a1, a2) in (select c1, c2 from t3i
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0')));
+
+
+# UNION of subqueries as a subquery (thus it is not computed via materialization)
+explain extended
+select * from t1
+where (a1, a2) in (select * from t1 where a1 > '0' UNION select * from t2 where b1 < '9') and
+      (a1, a2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+select * from t1
+where (a1, a2) in (select * from t1 where a1 > '0' UNION select * from t2 where b1 < '9') and
+      (a1, a2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
+# as above, with a join conditon between the outer references
+explain extended
+select * from t1, t3
+where (a1, a2) in (select * from t1 where a1 > '0' UNION select * from t2 where b1 < '9') and
+      (c1, c2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0')) and
+       a1 = c1;
+select * from t1, t3
+where (a1, a2) in (select * from t1 where a1 > '0' UNION select * from t2 where b1 < '9') and
+      (c1, c2) in (select c1, c2 from t3
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0')) and
+       a1 = c1;
+
+
+/******************************************************************************
+* Negative tests, where materialization should not be applied.
+******************************************************************************/
+# UNION in a subquery
+explain extended
+select * from t3
+where c1 in (select a1 from t1 where a1 > '0' UNION select b1 from t2 where b1 < '9');
+select * from t3
+where c1 in (select a1 from t1 where a1 > '0' UNION select b1 from t2 where b1 < '9');
+
+# correlation
+explain extended
+select * from t1
+where (a1, a2) in (select b1, b2 from t2
+                   where b2 in (select c2 from t3 t3a where c1 = a1) or
+                         b2 in (select c2 from t3 t3b where c2 LIKE '%03')) and
+      (a1, a2) in (select c1, c2 from t3 t3c
+                   where (c1, c2) in (select b1, b2 from t2i where b2 > '0' or b2 = a2));
+
+# subquery has no tables
+explain extended
+select * from t1 where (a1, a2) in (select '1 - 01', '2 - 01');
+select * from t1 where (a1, a2) in (select '1 - 01', '2 - 01');
+explain extended
+select * from t1 where (a1, a2) in (select '1 - 01', '2 - 01' from dual);
+select * from t1 where (a1, a2) in (select '1 - 01', '2 - 01' from dual);
+
+
+/******************************************************************************
+* Subqueries in other uncovered clauses.
+******************************************************************************/
+
+/* SELECT clause */
+select ((a1,a2) IN (select * from t2 where b2 > '0')) IS NULL from t1;
+
+/* GROUP BY clause */
+create table columns (col int key);
+insert into columns values (1), (2);
+
+explain extended
+select * from t1 group by (select col from columns limit 1);
+select * from t1 group by (select col from columns limit 1);
+
+explain extended
+select * from t1 group by (a1 in (select col from columns));
+select * from t1 group by (a1 in (select col from columns));
+
+/* ORDER BY clause */
+explain extended
+select * from t1 order by (select col from columns limit 1);
+select * from t1 order by (select col from columns limit 1);
+
+/******************************************************************************
+* Column types/sizes that affect materialization.
+******************************************************************************/
+
+/*
+  Test that BLOBs are not materialized (except when arguments of some functions).
+*/
+# force materialization to be always considered
+set @prefix_len = 6;
+
+# BLOB == 16 (small blobs that could be stored in HEAP tables)
+set @blob_len = 16;
+set @suffix_len = @blob_len - @prefix_len;
+
+create table t1_16 (a1 blob(16), a2 blob(16));
+create table t2_16 (b1 blob(16), b2 blob(16));
+create table t3_16 (c1 blob(16), c2 blob(16));
+
+insert into t1_16 values
+ (concat('1 - 00', repeat('x', @suffix_len)), concat('2 - 00', repeat('x', @suffix_len)));
+insert into t1_16 values
+ (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t1_16 values
+ (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+
+insert into t2_16 values
+ (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t2_16 values
+ (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t2_16 values
+ (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+
+insert into t3_16 values
+ (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t3_16 values
+ (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t3_16 values
+ (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+insert into t3_16 values
+ (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
+
+# single value transformer
+explain extended select left(a1,7), left(a2,7)
+from t1_16
+where a1 in (select b1 from t2_16 where b1 > '0');
+
+select left(a1,7), left(a2,7)
+from t1_16
+where a1 in (select b1 from t2_16 where b1 > '0');
+
+# row value transformer
+explain extended select left(a1,7), left(a2,7)
+from t1_16
+where (a1,a2) in (select b1, b2 from t2_16 where b1 > '0');
+
+select left(a1,7), left(a2,7)
+from t1_16
+where (a1,a2) in (select b1, b2 from t2_16 where b1 > '0');
+
+# string function with a blob argument, the return type may be != blob
+explain extended select left(a1,7), left(a2,7)
+from t1_16
+where a1 in (select substring(b1,1,16) from t2_16 where b1 > '0');
+
+select left(a1,7), left(a2,7)
+from t1_16
+where a1 in (select substring(b1,1,16) from t2_16 where b1 > '0');
+
+# group_concat with a blob argument - depends on
+# the variable group_concat_max_len, and
+# convert_blob_length == max_len*collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB
+explain extended select left(a1,7), left(a2,7)
+from t1_16
+where a1 in (select group_concat(b1) from t2_16 group by b2);
+
+select left(a1,7), left(a2,7)
+from t1_16
+where a1 in (select group_concat(b1) from t2_16 group by b2);
+
+set @@group_concat_max_len = 256; # anything < (CONVERT_IF_BIGGER_TO_BLOB = 512)
+
+explain extended select left(a1,7), left(a2,7)
+from t1_16
+where a1 in (select group_concat(b1) from t2_16 group by b2);
+
+select left(a1,7), left(a2,7)
+from t1_16
+where a1 in (select group_concat(b1) from t2_16 group by b2);
+
+# BLOB column at the second (intermediate) level of nesting
+explain extended
+select * from t1
+where concat(a1,'x') IN
+      (select left(a1,8) from t1_16
+       where (a1, a2) IN
+             (select t2_16.b1, t2_16.b2 from t2_16, t2
+              where t2.b2 = substring(t2_16.b2,1,6) and
+                    t2.b1 IN (select c1 from t3 where c2 > '0')));
+
+
+drop table t1_16, t2_16, t3_16;
+
+
+# BLOB == 512 (CONVERT_IF_BIGGER_TO_BLOB == 512)
+set @blob_len = 512;
+set @suffix_len = @blob_len - @prefix_len;
+
+create table t1_512 (a1 blob(512), a2 blob(512));
+create table t2_512 (b1 blob(512), b2 blob(512));
+create table t3_512 (c1 blob(512), c2 blob(512));
+
+insert into t1_512 values
+ (concat('1 - 00', repeat('x', @suffix_len)), concat('2 - 00', repeat('x', @suffix_len)));
+insert into t1_512 values
+ (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t1_512 values
+ (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+
+insert into t2_512 values
+ (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t2_512 values
+ (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t2_512 values
+ (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+
+insert into t3_512 values
+ (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t3_512 values
+ (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t3_512 values
+ (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+insert into t3_512 values
+ (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
+
+# single value transformer
+explain extended select left(a1,7), left(a2,7)
+from t1_512
+where a1 in (select b1 from t2_512 where b1 > '0');
+
+select left(a1,7), left(a2,7)
+from t1_512
+where a1 in (select b1 from t2_512 where b1 > '0');
+
+# row value transformer
+explain extended select left(a1,7), left(a2,7)
+from t1_512
+where (a1,a2) in (select b1, b2 from t2_512 where b1 > '0');
+
+select left(a1,7), left(a2,7)
+from t1_512
+where (a1,a2) in (select b1, b2 from t2_512 where b1 > '0');
+
+# string function with a blob argument, the return type may be != blob
+explain extended select left(a1,7), left(a2,7)
+from t1_512
+where a1 in (select substring(b1,1,512) from t2_512 where b1 > '0');
+
+select left(a1,7), left(a2,7)
+from t1_512
+where a1 in (select substring(b1,1,512) from t2_512 where b1 > '0');
+
+# group_concat with a blob argument - depends on
+# the variable group_concat_max_len, and
+# convert_blob_length == max_len*collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB
+explain extended select left(a1,7), left(a2,7)
+from t1_512
+where a1 in (select group_concat(b1) from t2_512 group by b2);
+
+select left(a1,7), left(a2,7)
+from t1_512
+where a1 in (select group_concat(b1) from t2_512 group by b2);
+
+set @@group_concat_max_len = 256; # anything < (CONVERT_IF_BIGGER_TO_BLOB = 512)
+
+explain extended select left(a1,7), left(a2,7)
+from t1_512
+where a1 in (select group_concat(b1) from t2_512 group by b2);
+
+select left(a1,7), left(a2,7)
+from t1_512
+where a1 in (select group_concat(b1) from t2_512 group by b2);
+
+drop table t1_512, t2_512, t3_512;
+
+
+# BLOB == 1024 (group_concat_max_len == 1024)
+set @blob_len = 1024;
+set @suffix_len = @blob_len - @prefix_len;
+
+create table t1_1024 (a1 blob(1024), a2 blob(1024));
+create table t2_1024 (b1 blob(1024), b2 blob(1024));
+create table t3_1024 (c1 blob(1024), c2 blob(1024));
+
+insert into t1_1024 values
+ (concat('1 - 00', repeat('x', @suffix_len)), concat('2 - 00', repeat('x', @suffix_len)));
+insert into t1_1024 values
+ (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t1_1024 values
+ (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+
+insert into t2_1024 values
+ (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t2_1024 values
+ (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t2_1024 values
+ (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+
+insert into t3_1024 values
+ (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t3_1024 values
+ (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t3_1024 values
+ (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+insert into t3_1024 values
+ (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
+
+# single value transformer
+explain extended select left(a1,7), left(a2,7)
+from t1_1024
+where a1 in (select b1 from t2_1024 where b1 > '0');
+
+select left(a1,7), left(a2,7)
+from t1_1024
+where a1 in (select b1 from t2_1024 where b1 > '0');
+
+# row value transformer
+explain extended select left(a1,7), left(a2,7)
+from t1_1024
+where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0');
+
+select left(a1,7), left(a2,7)
+from t1_1024
+where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0');
+
+# string function with a blob argument, the return type may be != blob
+explain extended select left(a1,7), left(a2,7)
+from t1_1024
+where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0');
+
+select left(a1,7), left(a2,7)
+from t1_1024
+where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0');
+
+# group_concat with a blob argument - depends on
+# the variable group_concat_max_len, and
+# convert_blob_length == max_len*collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB
+explain extended select left(a1,7), left(a2,7)
+from t1_1024
+where a1 in (select group_concat(b1) from t2_1024 group by b2);
+
+select left(a1,7), left(a2,7)
+from t1_1024
+where a1 in (select group_concat(b1) from t2_1024 group by b2);
+
+set @@group_concat_max_len = 256; # anything < (CONVERT_IF_BIGGER_TO_BLOB = 1024)
+
+explain extended select left(a1,7), left(a2,7)
+from t1_1024
+where a1 in (select group_concat(b1) from t2_1024 group by b2);
+
+select left(a1,7), left(a2,7)
+from t1_1024
+where a1 in (select group_concat(b1) from t2_1024 group by b2);
+
+drop table t1_1024, t2_1024, t3_1024;
+
+
+# BLOB == 1025
+set @blob_len = 1025;
+set @suffix_len = @blob_len - @prefix_len;
+
+create table t1_1025 (a1 blob(1025), a2 blob(1025));
+create table t2_1025 (b1 blob(1025), b2 blob(1025));
+create table t3_1025 (c1 blob(1025), c2 blob(1025));
+
+insert into t1_1025 values
+ (concat('1 - 00', repeat('x', @suffix_len)), concat('2 - 00', repeat('x', @suffix_len)));
+insert into t1_1025 values
+ (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t1_1025 values
+ (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+
+insert into t2_1025 values
+ (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t2_1025 values
+ (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t2_1025 values
+ (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+
+insert into t3_1025 values
+ (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t3_1025 values
+ (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t3_1025 values
+ (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+insert into t3_1025 values
+ (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
+
+# single value transformer
+explain extended select left(a1,7), left(a2,7)
+from t1_1025
+where a1 in (select b1 from t2_1025 where b1 > '0');
+
+select left(a1,7), left(a2,7)
+from t1_1025
+where a1 in (select b1 from t2_1025 where b1 > '0');
+
+# row value transformer
+explain extended select left(a1,7), left(a2,7)
+from t1_1025
+where (a1,a2) in (select b1, b2 from t2_1025 where b1 > '0');
+
+select left(a1,7), left(a2,7)
+from t1_1025
+where (a1,a2) in (select b1, b2 from t2_1025 where b1 > '0');
+
+# string function with a blob argument, the return type may be != blob
+explain extended select left(a1,7), left(a2,7)
+from t1_1025
+where a1 in (select substring(b1,1,1025) from t2_1025 where b1 > '0');
+
+select left(a1,7), left(a2,7)
+from t1_1025
+where a1 in (select substring(b1,1,1025) from t2_1025 where b1 > '0');
+
+# group_concat with a blob argument - depends on
+# the variable group_concat_max_len, and
+# convert_blob_length == max_len*collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB
+explain extended select left(a1,7), left(a2,7)
+from t1_1025
+where a1 in (select group_concat(b1) from t2_1025 group by b2);
+
+select left(a1,7), left(a2,7)
+from t1_1025
+where a1 in (select group_concat(b1) from t2_1025 group by b2);
+
+set @@group_concat_max_len = 256; # anything < (CONVERT_IF_BIGGER_TO_BLOB = 1025)
+
+explain extended select left(a1,7), left(a2,7)
+from t1_1025
+where a1 in (select group_concat(b1) from t2_1025 group by b2);
+
+select left(a1,7), left(a2,7)
+from t1_1025
+where a1 in (select group_concat(b1) from t2_1025 group by b2);
+
+drop table t1_1025, t2_1025, t3_1025;
+
+# test for BIT fields
+create table t1bit (a1 bit(3), a2 bit(3));
+create table t2bit (b1 bit(3), b2 bit(3));
+
+insert into t1bit values (b'000', b'100');
+insert into t1bit values (b'001', b'101');
+insert into t1bit values (b'010', b'110');
+
+insert into t2bit values (b'001', b'101');
+insert into t2bit values (b'010', b'110');
+insert into t2bit values (b'110', b'111');
+
+explain extended select bin(a1), bin(a2)
+from t1bit
+where (a1, a2) in (select b1, b2 from t2bit);
+
+select bin(a1), bin(a2)
+from t1bit
+where (a1, a2) in (select b1, b2 from t2bit);
+
+drop table t1bit, t2bit;
+
+# test mixture of BIT and BLOB
+create table t1bb (a1 bit(3), a2 blob(3));
+create table t2bb (b1 bit(3), b2 blob(3));
+
+insert into t1bb values (b'000', '100');
+insert into t1bb values (b'001', '101');
+insert into t1bb values (b'010', '110');
+
+insert into t2bb values (b'001', '101');
+insert into t2bb values (b'010', '110');
+insert into t2bb values (b'110', '111');
+
+explain extended select bin(a1), a2
+from t1bb
+where (a1, a2) in (select b1, b2 from t2bb);
+
+select bin(a1), a2
+from t1bb
+where (a1, a2) in (select b1, b2 from t2bb);
+
+drop table t1bb, t2bb;
+drop table t1, t2, t3, t1i, t2i, t3i, columns;
+
+/******************************************************************************
+* Test the cache of the left operand of IN.
+******************************************************************************/
+
+# Test that default values of Cached_item are not used for comparison
+create table t1 (s1 int);
+create table t2 (s2 int);
+insert into t1 values (5),(1),(0);
+insert into t2 values (0), (1);
+select s2 from t2 where s2 in (select s1 from t1);
+drop table t1, t2;
+
+create table t1 (a int not null, b int not null);
+create table t2 (c int not null, d int not null);
+create table t3 (e int not null);
+
+# the first outer row has no matching inner row
+insert into t1 values (1,10);
+insert into t1 values (1,20);
+insert into t1 values (2,10);
+insert into t1 values (2,20);
+insert into t1 values (2,30);
+insert into t1 values (3,20);
+insert into t1 values (4,40);
+
+insert into t2 values (2,10);
+insert into t2 values (2,20);
+insert into t2 values (2,40);
+insert into t2 values (3,20);
+insert into t2 values (4,10);
+insert into t2 values (5,10);
+
+insert into t3 values (10);
+insert into t3 values (10);
+insert into t3 values (20);
+insert into t3 values (30);
+
+explain extended
+select a from t1 where a in (select c from t2 where d >= 20);
+select a from t1 where a in (select c from t2 where d >= 20);
+
+create index it1a on t1(a);
+
+explain extended
+select a from t1 where a in (select c from t2 where d >= 20);
+select a from t1 where a in (select c from t2 where d >= 20);
+
+# the first outer row has a matching inner row
+insert into t2 values (1,10);
+
+explain extended
+select a from t1 where a in (select c from t2 where d >= 20);
+select a from t1 where a in (select c from t2 where d >= 20);
+
+# cacheing for IN predicates inside a having clause - here the cached
+# items are changed to point to temporary tables.
+explain extended
+select a from t1 group by a having a in (select c from t2 where d >= 20);
+select a from t1 group by a having a in (select c from t2 where d >= 20);
+
+# create an index that can be used for the outer query GROUP BY 
+create index iab on t1(a, b);
+explain extended
+select a from t1 group by a having a in (select c from t2 where d >= 20);
+select a from t1 group by a having a in (select c from t2 where d >= 20);
+
+explain extended
+select a from t1 group by a
+having a in (select c from t2 where d >= some(select e from t3 where max(b)=e));
+select a from t1 group by a
+having a in (select c from t2 where d >= some(select e from t3 where max(b)=e));
+explain extended
+select a from t1
+where a in (select c from t2 where d >= some(select e from t3 where b=e));
+select a from t1
+where a in (select c from t2 where d >= some(select e from t3 where b=e));
+
+drop table t1, t2, t3;
+
+#
+# BUG#36133 "Assertion `exec_method != MATERIALIZATION || (exec_method == MATERIALIZATION &&"
+#
+create table t2 (a int, b int, key(a), key(b));
+insert into t2 values (3,3),(3,3),(3,3);
+select 1 from t2 where  
+    t2.a > 1 
+  or 
+    t2.a = 3 and not t2.a not in (select t2.b from t2);
+drop table t2;
+
+#
+# BUG#37896 Assertion on entry of Item_in_subselect::exec on subquery with AND NOT
+#
+create table t1 (a1 int key);
+create table t2 (b1 int);
+insert into t1 values (5);
+
+# Query with group by, executed via materialization
+explain select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
+select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
+# Query with group by, executed via IN=>EXISTS
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch=@optimizer_switch_local_default;
+set @@optimizer_switch='materialization=off,in_to_exists=on';
+explain select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
+select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
+
+# Executed with materialization
+set @@optimizer_switch=@optimizer_switch_local_default;
+set @@optimizer_switch='semijoin=off';
+explain select min(a1) from t1 where 7 in (select b1 from t2);
+select min(a1) from t1 where 7 in (select b1 from t2);
+# Executed with semi-join. Notice, this time we get a different result (NULL).
+# This is the only correct result of all four queries. This difference is
+# filed as BUG#40037.
+set @@optimizer_switch=@optimizer_switch_local_default;
+set @@optimizer_switch='materialization=off,in_to_exists=on';
+-- echo # with MariaDB and MWL#90, this particular case is solved:
+explain select min(a1) from t1 where 7 in (select b1 from t2);
+select min(a1) from t1 where 7 in (select b1 from t2);
+-- echo # but when we go around MWL#90 code, the problem still shows up:
+explain select min(a1) from t1 where 7 in (select b1 from t2) or 2> 4;
+select min(a1) from t1 where 7 in (select b1 from t2) or 2> 4;
+set @@optimizer_switch= @save_optimizer_switch;
+drop table t1,t2;
+
+#
+# BUG#36752 "subquery materialization produces wrong results when comparing different types"
+#
+create table t1 (a char(2), b varchar(10));
+insert into t1 values ('a',  'aaa');
+insert into t1 values ('aa', 'aaaa');
+
+explain select a,b from t1 where b in (select a from t1);
+select a,b from t1 where b in (select a from t1);
+prepare st1 from "select a,b from t1 where b in (select a from t1)";
+execute st1;
+execute st1;
+drop table t1;
+
+--echo #
+--echo # BUG#49630: Segfault in select_describe() with double 
+--echo #            nested subquery and materialization
+--echo #
+
+CREATE TABLE t1 (t1i int);
+CREATE TABLE t2 (t2i int);
+CREATE TABLE t3 (t3i int);
+CREATE TABLE t4 (t4i int);
+
+INSERT INTO t1 VALUES (1); # Note: t1 must be const table
+INSERT INTO t2 VALUES (1),(2);
+INSERT INTO t3 VALUES (1),(2);
+INSERT INTO t4 VALUES (1),(2);
+
+--echo
+EXPLAIN 
+SELECT t1i
+FROM t1 JOIN t4 ON t1i=t4i  
+WHERE (t1i)  IN (  
+   SELECT t2i
+   FROM t2  
+   WHERE (t2i)  IN (  
+     SELECT max(t3i)
+     FROM t3  
+     GROUP BY t3i
+     )  
+ );
+
+DROP TABLE t1,t2,t3,t4;
+
+
+#
+# Bug #52538 Valgrind bug: Item_in_subselect::init_left_expr_cache()
+#
+CREATE TABLE t1 (
+  pk INTEGER AUTO_INCREMENT,
+  col_int_nokey INTEGER,
+  col_int_key INTEGER,
+
+  col_varchar_key VARCHAR(1),
+
+  PRIMARY KEY (pk),
+  KEY (col_int_key),
+  KEY (col_varchar_key, col_int_key)
+)
+;
+
+INSERT INTO t1 (
+  col_int_key, col_int_nokey, col_varchar_key
+) 
+VALUES
+(2, NULL, 'w'),
+(9, 7, 'm'),
+(3, 9, 'm'),
+(9, 7, 'k'),
+(NULL, 4, 'r'),
+(9, 2, 't'),
+(3, 6, 'j'),
+(8, 8, 'u'),
+(8, NULL, 'h'),
+(53, 5, 'o'),
+(0, NULL, NULL),
+(5, 6, 'k'),
+(166, 188, 'e'),
+(3, 2, 'n'),
+(0, 1, 't'),
+(1, 1, 'c'),
+(9, 0, 'm'),
+(5, 9, 'y'),
+(6, NULL, 'f'),
+(2, 4, 'd')
+;
+
+SELECT table2.col_varchar_key AS field1,
+       table2.col_int_nokey AS field2
+FROM ( t1 AS table1 LEFT OUTER JOIN t1 AS table2
+       ON (table2.col_varchar_key = table1.col_varchar_key  ) ) 
+WHERE table1.pk = 6
+HAVING  ( field2 ) IN 
+( SELECT SUBQUERY2_t2.col_int_nokey AS SUBQUERY2_field2 
+  FROM ( t1 AS SUBQUERY2_t1 JOIN t1 AS SUBQUERY2_t2
+         ON (SUBQUERY2_t2.col_varchar_key = SUBQUERY2_t1.col_varchar_key ) ) )
+ORDER BY field2 
+;
+
+drop table t1;
+
+
+--echo #
+--echo # BUG#53103: MTR test ps crashes in optimize_cond() 
+--echo #            when running with --debug
+--echo #
+
+CREATE TABLE t1(track varchar(15));
+
+INSERT INTO t1 VALUES ('CAD'), ('CAD');
+
+PREPARE STMT FROM
+"SELECT 1 FROM t1
+  WHERE
+        track IN (SELECT track FROM t1
+                                    GROUP BY track 
+                                      HAVING track>='CAD')";
+EXECUTE STMT ;
+EXECUTE STMT ;
+
+DEALLOCATE PREPARE STMT;
+DROP TABLE t1; 
+
+--echo # End of BUG#53103
+
+--echo #
+--echo # BUG#54511 - Assertion failed: cache != 0L in file 
+--echo #             sql_select.cc::sub_select_cache on HAVING
+--echo #
+
+CREATE TABLE t1 (i int(11));
+CREATE TABLE t2 (c char(1));
+CREATE TABLE t3 (c char(1));
+
+# These records are needed for the test to fail with MyISAM. The test
+# fails with InnoDB without these (difference due to optimization of
+# aggregates available only in MyISAM)
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES ('a'), ('b');
+INSERT INTO t3 VALUES ('x'), ('y');
+
+SELECT COUNT( i ),i
+FROM t1
+HAVING ('c')  
+  IN (SELECT t2.c FROM (t2 JOIN t3));
+
+DROP TABLE t1,t2,t3;
+
+--echo # End BUG#54511
+
+--echo #
+--echo # BUG#56367 - Assertion exec_method != EXEC_MATERIALIZATION...
+--echo #             on subquery in FROM
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+
+CREATE TABLE t2 (b INTEGER);
+INSERT INTO t2 VALUES (1);
+
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
+let $query =
+SELECT a FROM (
+  SELECT t1.* FROM t1 LEFT JOIN t2 ON t1.a > 3 OR t2.b IN (SELECT a FROM t1)
+) table1;
+eval explain $query;
+eval $query;
+set optimizer_switch=@tmp_optimizer_switch;
+
+DROP TABLE t1, t2;
+
+--echo # End BUG#56367
+
+--echo #
+--echo # Bug#59833 - materialization=on/off leads to different result set
+--echo #             when using IN
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  f1 int DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  f1 int DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (10,0);
+INSERT INTO t2 VALUES (10,0),(11,0);
+
+let $query=
+SELECT * FROM t1 JOIN t2 USING (f1)
+WHERE t1.f1 IN (SELECT t1.pk FROM t1 ORDER BY t1.f1);
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End Bug#59833
+
+--echo #
+--echo # Bug#11852644 - CRASH IN ITEM_REF::SAVE_IN_FIELD ON SELECT DISTINCT
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_varchar_key (col_varchar_key)) 
+;
+
+INSERT INTO t1 VALUES
+('v','v'),('r','r');
+
+CREATE TABLE t2 (
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_varchar_key(col_varchar_key)) 
+;
+
+INSERT INTO t2 VALUES
+('r','r'),('c','c');
+
+CREATE VIEW v3 AS SELECT * FROM t2;
+
+SELECT DISTINCT alias2.col_varchar_key 
+FROM t1 AS alias1 JOIN v3 AS alias2 
+ON alias2.col_varchar_key = alias1.col_varchar_key
+HAVING col_varchar_key IN (SELECT col_varchar_nokey FROM t2)
+;
+
+DROP TABLE t1, t2;
+DROP VIEW v3;
+
+--echo # End Bug#11852644
+
+--echo
+--echo # Bug#12668294 - GROUP BY ON EMPTY RESULT GIVES EMPTY ROW
+--echo # INSTEAD OF NULL WHEN MATERIALIZATION ON
+--echo
+
+CREATE TABLE t1 (col_int_nokey INT) ENGINE=MEMORY;
+CREATE TABLE t2 (col_int_nokey INT) ENGINE=MEMORY;
+INSERT INTO t2 VALUES (8),(7);
+CREATE TABLE t3 (col_int_nokey INT) ENGINE=MEMORY;
+INSERT INTO t3 VALUES (7);
+
+SELECT MIN(t3.col_int_nokey),t1.col_int_nokey AS field3
+FROM t3
+     LEFT JOIN t1
+     ON t1.col_int_nokey
+WHERE (194, 200) IN (
+                     SELECT SQ4_alias1.col_int_nokey,
+                     SQ4_alias2.col_int_nokey
+                     FROM t2 AS SQ4_alias1
+                          JOIN
+                          t2 AS SQ4_alias2
+                          ON SQ4_alias2.col_int_nokey = 5
+                    )
+GROUP BY field3 ;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3; 
+
+#
+# Bug #44303 Assertion failures in Field_new_decimal::store_decimal
+#            when executing materialized InsideOut semijoin
+# 
+CREATE TABLE t1 (f1 INT, f2 DECIMAL(5,3)) ENGINE=MyISAM;
+INSERT INTO t1 (f1, f2) VALUES (1, 1.789);
+INSERT INTO t1 (f1, f2) VALUES (13, 1.454);
+INSERT INTO t1 (f1, f2) VALUES (10, 1.668);
+
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES (1, 1.789);
+INSERT INTO t2 VALUES (13, 1.454);
+
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch=@optimizer_switch_local_default;
+SET @@optimizer_switch='semijoin=on,materialization=on';
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE (f1,f2) IN (SELECT f1,f2 FROM t2);
+SELECT COUNT(*) FROM t1 WHERE (f1,f2) IN (SELECT f1,f2 FROM t2);
+set @@optimizer_switch= @save_optimizer_switch;
+
+DROP TABLE t1, t2;
+
+#
+# BUG#46548 IN-subqueries return 0 rows with materialization=on
+#
+CREATE TABLE t1 (
+  pk int,
+  a varchar(1),
+  b varchar(4),
+  c varchar(4),
+  d varchar(4),
+  PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1,'o','ffff','ffff','ffoo'),(2,'f','ffff','ffff','ffff');
+
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES (1,'i','iiii','iiii','iiii'),(2,'f','ffff','ffff','ffff');
+
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch=@optimizer_switch_local_default;
+SET @@optimizer_switch='semijoin=on,materialization=on';
+EXPLAIN SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
+SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
+SELECT pk FROM t1 WHERE (b,c,d) IN (SELECT b,c,d FROM t2 WHERE pk > 0);
+DROP TABLE t1, t2;
+set optimizer_switch=@save_optimizer_switch;
+
+--echo #
+--echo # BUG#50019: Wrong result for IN-subquery with materialization
+--echo #
+create table t1(i int);
+insert into t1 values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+create table t2(i int);
+insert into t2 values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+create table t3(i int);
+insert into t3 values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+select * from t1 where t1.i in (select t2.i from t2 join t3 where t2.i + t3.i = 5);
+set @save_optimizer_switch=@@optimizer_switch;
+set session optimizer_switch='materialization=off,in_to_exists=on';
+select * from t1 where t1.i in (select t2.i from t2 join t3 where t2.i + t3.i = 5);
+set session optimizer_switch=@save_optimizer_switch;
+drop table t1, t2, t3;
+
+#
+# Test that the contents of the temp table of a materialized subquery is
+# cleaned up between PS re-executions.
+#
+
+create table t0 (a int);
+insert into t0 values (0),(1),(2);
+create table t1 (a int);
+insert into t1 values (0),(1),(2);
+explain select a, a in (select a from t1) from t0;
+select a, a in (select a from t1) from t0;
+prepare s from 'select a, a in (select a from t1) from t0';
+execute s;
+update t1 set a=123;
+execute s;
+drop table t0, t1;
+set optimizer_switch='firstmatch=on';
+
+--echo #
+--echo # MWL#90, review feedback: check what happens when the subquery
+--echo #   looks like candidate for MWL#90 checking at the first glance
+--echo #   but then subselect_hash_sj_engine::init_permanent() discovers
+--echo #   that it's not possible to perform duplicate removal for the 
+--echo #   selected datatypes, and so materialization isn't applicable after
+--echo #   all.
+--echo #
+set @blob_len = 1024;
+set @suffix_len = @blob_len - @prefix_len;
+
+create table t1_1024 (a1 blob(1024), a2 blob(1024));
+create table t2_1024 (b1 blob(1024), b2 blob(1024));
+
+insert into t1_1024 values
+ (concat('1 - 00', repeat('x', @suffix_len)), concat('2 - 00', repeat('x', @suffix_len)));
+insert into t1_1024 values
+ (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t1_1024 values
+ (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+
+insert into t2_1024 values
+ (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t2_1024 values
+ (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t2_1024 values
+ (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+
+explain select left(a1,7), left(a2,7) from t1_1024 where (a1,3) in (select substring(b1,1,1024), count(*) from t2_1024 where b1 > '0');
+select left(a1,7), left(a2,7) from t1_1024 where (a1,3) in (select substring(b1,1,1024), count(*) from t2_1024 where b1 > '0');
+
+drop table t1_1024, t2_1024;
+
+--echo #
+--echo # BUG##836491: Crash in Item_field::Item_field from add_ref_to_table_cond() with semijoin+materialization
+--echo #
+
+CREATE TABLE t1 (c int, d varchar(1), KEY(d)) ;
+INSERT INTO t1 VALUES (2,'x'),(2,'x'),(2,'j'),(2,'c');
+
+CREATE TABLE t2 (a int, d varchar(1)) ;
+INSERT INTO t2 VALUES (1,'x');
+
+CREATE TABLE t3 (d varchar(1)) ;
+INSERT INTO t3 VALUES ('x'),('x'),('j'),('c');
+
+SELECT t2.a, t1.c
+FROM t1, t2
+WHERE t2.d IN ( SELECT d FROM t3 )
+AND t1.d = t2.d
+GROUP BY 1 , 2;
+
+drop table t1,t2,t3;
+
+--echo #
+--echo # BUG#836523: Crash in JOIN::get_partial_cost_and_fanout with semijoin+materialization 
+--echo #
+CREATE TABLE t1 (a varchar(1));
+INSERT INTO t1 VALUES ('a'),('a');
+
+CREATE TABLE t2 (a varchar(1));
+
+CREATE TABLE t3 (a int);
+INSERT INTO t3 VALUES (1),(2);
+
+CREATE TABLE t4 (a varchar(1));
+INSERT INTO t4 VALUES ('a'),('a');
+
+SELECT t1.a
+FROM t1
+WHERE t1.a IN (
+        SELECT t2.a
+        FROM t2, t3
+)
+HAVING a IN (
+        SELECT a
+        FROM t4
+);
+DROP TABLE t1, t2, t3, t4;
+
+--echo #
+--echo # BUG#836507: Crash in setup_sj_materialization_part1() with semijoin+materialization
+--echo #
+CREATE TABLE t1 (a int) ;
+INSERT IGNORE INTO t1 VALUES (1),(1);
+
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (1);
+
+CREATE TABLE t3 (a int);
+
+CREATE TABLE t4 (a int);
+INSERT INTO t4 VALUES (2),(2);
+
+CREATE TABLE t5 (a int);
+INSERT INTO t5 VALUES (1);
+
+SELECT * FROM t1
+WHERE (a) IN (
+        SELECT t5.a
+        FROM (
+                t2
+                LEFT JOIN ( t3 , t4 )
+                ON 1 = 1
+        )
+        JOIN t5
+);
+
+DROP TABLE t1,t2,t3,t4,t5;
+
+--echo #
+--echo # BUG#836532: Crash in Item_equal_fields_iterator::get_curr_field with semijoin+materialization
+--echo #
+
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES ('a'),('a');
+
+CREATE TABLE t4 (a varchar(1));
+INSERT INTO t4 VALUES ('m'),('o');
+
+CREATE TABLE t3 (a varchar(1) , b varchar(1) ) ;
+INSERT INTO t3 VALUES ('b','b');
+
+CREATE TABLE t5 (a varchar(1), KEY (a)) ;
+INSERT INTO t5 VALUES ('d'),('e');
+
+SELECT *
+FROM t2
+WHERE t2.a = ALL (
+        SELECT t4.a
+        FROM t4
+        WHERE t4.a IN (
+                SELECT t3.a
+                FROM t3 , t5
+                WHERE ( t5.a = t3.b )
+        )
+);
+
+DROP TABLE t2,t3,t4,t5;
+
+--echo #
+--echo # BUG#860300: Second crash with get_fanout_with_deps() with semijoin + materialization
+--echo #
+set @tmp_860300=@@optimizer_switch;
+set optimizer_switch='semijoin=on,materialization=on,loosescan=off,firstmatch=off';
+CREATE TABLE t1 (f2 int);
+INSERT INTO t1 VALUES (9),(6);
+CREATE TABLE t3 (f4 int);
+CREATE TABLE t4 (f6 varchar(1));
+
+SELECT *
+FROM t3
+WHERE 'h' IN (SELECT f6 
+              FROM t4
+              WHERE 5 IN (SELECT f2 FROM t1)
+              GROUP BY t4.f6);
+DROP TABLE t1,t3,t4;
+set optimizer_switch=@tmp_860300;
+
+--echo #
+--echo # BUG#860535: Assertion `keypart_map' failed in mi_rkey with semijoin
+--echo #
+set @tmp_860535=@@optimizer_switch;
+set optimizer_switch='semijoin=on,materialization=on,loosescan=off,firstmatch=off';
+CREATE TABLE t1 (f3 int) ;
+INSERT INTO t1 VALUES (1),(7);
+
+CREATE TABLE t2 (f3 int , f5 varchar(1), KEY (f3)) ;
+INSERT INTO t2 VALUES (7,'b');
+
+CREATE TABLE t3 (f3 int , f4 varchar(1) , KEY(f3), KEY (f4,f3)) ;
+INSERT INTO t3 VALUES (1,'t'),(7,'g');
+
+CREATE TABLE t4
+SELECT f3
+FROM t1 WHERE ( f3 ) NOT IN (
+        SELECT f3
+        FROM t2
+        WHERE f5 IN (
+                SELECT f4
+                FROM t3
+                WHERE t3.f3 < 3
+        )
+);
+SELECT * FROM t4;
+DROP TABLE t1, t2, t3, t4;
+set optimizer_switch=@tmp_860535;
+
+--echo #
+--echo # BUG#860553: Crash in create_ref_for_key with semijoin + materialization 
+--echo #
+CREATE TABLE t1 (f1 int) ;
+CREATE TABLE t2 (f5 varchar(52) NOT NULL) ;
+
+CREATE TABLE t3 (f1 varchar(3), f4 varchar(52) , KEY (f4), PRIMARY KEY (f1));
+
+CREATE TABLE t4 (f3 int, KEY (f3));
+INSERT INTO t4 VALUES (17),(20);
+
+CREATE TABLE t5 (f2 int);
+INSERT INTO t5 VALUES (0),(0);
+
+SELECT *
+FROM t1
+JOIN t2
+ON ( t2.f5 ) IN (
+        SELECT t3.f4
+        FROM t3
+        WHERE ( 1 ) IN (
+                SELECT t4.f3
+                FROM t4 , t5
+        )
+);
+
+DROP TABLE t1, t2, t3, t4, t5;
+--echo #
+--echo # BUG#868908: Crash in check_simple_equality() with semijoin + materialization + prepared statement
+--echo #
+
+CREATE TABLE t1 ( a int );
+CREATE TABLE t3 ( b int, c int) ;
+CREATE TABLE t2 ( a int ) ;
+CREATE TABLE t4 ( a int , c int) ;
+
+PREPARE st1 FROM "
+SELECT STRAIGHT_JOIN *
+FROM t1
+WHERE ( 3 ) IN (
+        SELECT t3.b
+        FROM t3
+        LEFT JOIN (
+                t2 STRAIGHT_JOIN t4 ON ( t4.c = t2.a )
+        ) ON ( t4.a = t3.c )
+);
+";
+EXECUTE st1;
+EXECUTE st1;
+DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # BUG#901032: Wrong result for MIN/MAX on an indexed column with materialization and semijoin
+--echo #
+CREATE TABLE t1 ( a INT, KEY(a) );
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 ( b INT );
+INSERT INTO t2 VALUES (2);
+CREATE TABLE t3 ( c INT );
+INSERT INTO t3 VALUES (2);
+
+SELECT MIN(a) FROM t1, t2 WHERE b IN (SELECT c FROM t3 GROUP BY c);
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo #
+--echo # BUG#902632: Crash or invalid read at st_join_table::cleanup, st_table::disable_keyread
+--echo #
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (1), (2);
+CREATE TABLE t2 ( b INT );
+INSERT INTO t2 VALUES (3), (4);
+CREATE TABLE t3 ( c INT );
+INSERT INTO t3 VALUES (5), (6);
+
+SELECT * FROM t1 WHERE EXISTS (
+   SELECT DISTINCT b FROM t2
+      WHERE b <= a
+        AND b IN ( SELECT c FROM t3 GROUP BY c )
+   );
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # BUG#901506: Crash in TABLE_LIST::print on EXPLAIN EXTENDED
+--echo #
+CREATE TABLE t1 ( a INT, KEY(a) );
+INSERT INTO t1 VALUES (8);
+
+EXPLAIN EXTENDED
+  SELECT * FROM t1
+   WHERE a IN ( SELECT MIN(a) FROM t1 );
+
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#904432: Wrong result with LEFT JOIN, constant table, semijoin=ON,materialization=ON
+--echo #
+CREATE TABLE t1 ( a INT ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (4);
+CREATE TABLE t2 ( b INT NOT NULL, c INT );
+INSERT INTO t2 VALUES (4,2),(4,2),(4,4),(1,1);
+
+SELECT * FROM t1 LEFT JOIN t2 ON ( a = b )
+  WHERE a IN ( SELECT c FROM t2 );
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # BUG#922254: Assertion `0' failed at item_cmpfunc.cc:5899: Item* Item_equal::get_first(JOIN_TAB*, Item*)
+--echo #
+CREATE TABLE t1 ( a VARCHAR(3) );
+CREATE TABLE t2 ( b VARCHAR(3), c VARCHAR(8), KEY(c) );
+INSERT INTO t2 VALUES ('USA','Abilene'),('USA','Akron');
+
+EXPLAIN
+SELECT * FROM
+  ( SELECT * FROM t1 ) AS alias1,
+  t2 AS alias2
+WHERE b = a AND a IN (
+  SELECT alias3.c
+  FROM t2 AS alias3, t2 AS alias4
+  WHERE alias4.c = alias3.b
+);
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # BUG#928048: Query containing IN subquery with OR in the where clause returns a wrong result
+--echo #
+create table t1 (a int, b int);
+insert into t1 values (7,5), (3,3), (5,4), (9,3);
+
+create table t2 (a int, b int, index i_a(a));
+
+insert into t2 values
+  (4,2), (7,9), (7,4), (3,1), (5,3), (3,1), (9,4), (8,1);
+
+explain select * from t1 where t1.a in (select a from t2 where t2.a=7 or t2.b<=1);
+select * from t1 where t1.a in (select a from t2 where t2.a=7 or t2.b<=1);
+
+drop table t1,t2;
+
+--echo #
+--echo # BUG#933407: Valgrind warnings in mark_as_null_row with materialization+semijoin, STRAIGHT_JOIN, impossible WHERE
+--echo #
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0),(8);
+
+SELECT STRAIGHT_JOIN MIN(a) FROM t1
+WHERE a IN (
+    SELECT a FROM t1
+    WHERE 'condition'='impossible'
+  );
+
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#938131: Subquery materialization is not used in CREATE TABLE SELECT
+--echo # 
+CREATE TABLE t1(a int);
+INSERT INTO t1 values(1),(2);
+CREATE TABLE t2(a int);
+INSERT INTO t2 values(1),(2);
+--echo # Should use Materialization:
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 GROUP BY a HAVING a > 1);
+flush status;
+CREATE TABLE t3 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 GROUP BY a HAVING a > 1);
+SHOW STATUS LIKE 'Created_tmp_tables';
+DROP TABLE t1,t2,t3;
+
+--echo # 
+--echo # BUG#939009: Crash with aggregate function in IN subquery 
+--echo #
+
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='materialization=on,semijoin=on';
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (7,1), (4,2), (7,7);
+
+CREATE TABLE t2 ( c INT );
+INSERT INTO t2 VALUES (4), (7), (6);
+
+EXPLAIN EXTENDED
+SELECT * FROM t1
+  WHERE a IN (SELECT MAX(c) FROM t2) AND b=7 AND (a IS NULL OR a=b);
+SELECT * FROM t1
+  WHERE a IN (SELECT MAX(c) FROM t2) AND b=7 AND (a IS NULL OR a=b);
+
+EXPLAIN
+SELECT * FROM t1
+  WHERE a IN (SELECT MAX(c) FROM t2 WHERE c < 4) AND b=7 AND (a IS NULL OR a=b);
+SELECT * FROM t1
+  WHERE a IN (SELECT MAX(c) FROM t2 WHERE c < 4) AND b=7 AND (a IS NULL OR a=b);
+
+SET optimizer_switch=@save_optimizer_switch;
+
+DROP TABLE t1,t2;
+
+--echo # 
+--echo # BUG#946055: Crash with semijoin IN subquery when hash join is used
+--echo #
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (7);
+
+CREATE TABLE t2 (b int, c int, d varchar(1), e varchar(1), KEY (c), KEY (d, c));
+
+INSERT INTO t2 VALUES 
+  (4,2,'v','v'), (6,1,'v','v'), (0,5,'x','x'), (7,1,'x','x'),
+  (7,3,'i','i'), (7,1,'e','e'), (1,4,'p','p'), (1,2,'j','j');
+
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_join_cache_level=@@join_cache_level;
+
+SET join_cache_level=2;
+EXPLAIN
+SELECT a, c FROM t1, t2
+  WHERE (a, c) IN (SELECT s1.b, s1.c FROM t2 AS s1, t2 AS s2
+                     WHERE s2.d = s1.e AND s1.e = (SELECT MAX(e) FROM t2));
+SELECT a, c FROM t1, t2
+  WHERE (a, c) IN (SELECT s1.b, s1.c FROM t2 AS s1, t2 AS s2
+                     WHERE s2.d = s1.e AND s1.e = (SELECT MAX(e) FROM t2));
+
+SET optimizer_switch='join_cache_hashed=on';
+SET join_cache_level=4;
+EXPLAIN
+SELECT a, c FROM t1, t2
+  WHERE (a, c) IN (SELECT s1.b, s1.c FROM t2 AS s1, t2 AS s2
+                     WHERE s2.d = s1.e AND s1.e = (SELECT MAX(e) FROM t2));
+SELECT a, c FROM t1, t2
+  WHERE (a, c) IN (SELECT s1.b, s1.c FROM t2 AS s1, t2 AS s2
+                     WHERE s2.d = s1.e AND s1.e = (SELECT MAX(e) FROM t2));
+
+SET optimizer_switch=@save_optimizer_switch;
+SET join_cache_level=@save_join_cache_level;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # BUG#952297: Server crashes on 2nd execution of PS in Field::is_null with semijoin+materialization
+--echo #
+CREATE TABLE t1 ( a VARCHAR(1) );
+INSERT INTO t1 VALUES ('y'),('z');
+
+CREATE TABLE t2 ( b VARCHAR(1), c VARCHAR(1) );
+INSERT INTO t2 VALUES ('v','v'),('v','v');
+
+CREATE VIEW v2 AS SELECT * FROM t2;
+
+PREPARE ps FROM '
+SELECT a FROM t1, v2
+WHERE ( c, b ) IN ( SELECT b, b FROM t2 )
+GROUP BY a ';
+
+EXECUTE ps;
+EXECUTE ps;
+
+DROP VIEW v2;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#1000269: Wrong result (extra rows) with semijoin+materialization, IN subqueries, join_cache_level>0
+--echo #
+CREATE TABLE t1 (a1 VARCHAR(1), a2 VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('b','b'),('e','e');
+
+CREATE TABLE t2 (b1 VARCHAR(1), b2 VARCHAR(1), KEY(b1)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('v','v'),('s','s'),('l','l'), ('y','y'),('c','c'),('i','i');
+
+SELECT * FROM t1, t2 WHERE b1 IN ( SELECT b2 FROM t2 WHERE b1 > 'o' ) AND ( b1 < 'l' OR a1 IN ('b','c') );
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # MDEV-4465: Reproducible crash (mysqld got signal 11) in multi_delete::initialize_tables with semijoin+materialization
+--echo #
+CREATE TABLE t1 (
+  id int(11) NOT NULL
+);
+
+CREATE TABLE t2 (
+  id   int(11) NOT NULL,
+  a_id int(11) DEFAULT NULL
+);
+
+insert into t1 values (1), (2), (3);
+insert into t2 values (1, 1), (2, 1), (3, 1), (4, 2), (5, 3), (6, 3), (7, 3);
+
+delete t2 from t2 where a_id in (select * from (select t1.id from t1 limit 2) as x);
+
+drop table t1,t2;
+
+--echo # This must be at the end:
+set optimizer_switch=@subselect_sj_mat_tmp;
+set join_cache_level=@save_join_cache_level;
+
+--echo #
+--echo # MDEV-4908: Assertion `((Item_cond *) cond)->functype() == 
+--echo # ((Item_cond *) new_item)->functype()' fails on a query with
+--echo # IN and equal conditions, AND/OR, materialization+semijoin
+--echo # 
+
+
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch = 'materialization=on,semijoin=on';
+
+CREATE TABLE t1 (pk INT, a INT, b INT, PRIMARY KEY(pk)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,3,5),(2,4,6);
+SELECT * FROM t1 WHERE 8 IN ( SELECT MIN(pk) FROM t1 ) AND ( pk = a OR pk = b );
+
+drop table t1;
+SET optimizer_switch=@save_optimizer_switch;
+
+--echo #
+--echo # MDEV-5011: ERROR Plugin 'MEMORY' has ref_count=1 after shutdown for SJM queries
+--echo #
+CREATE TABLE t1 (pk INT, a INT, b INT, PRIMARY KEY(pk)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,3,5),(2,4,6);
+SELECT * FROM t1 WHERE 8 IN (SELECT MIN(pk) FROM t1) AND (pk = a OR pk = b);
+DROP TABLE t1;
+
+--echo # 
+--echo #  MDEV-5368: Server crashes in Item_in_subselect::optimize on 2nd 
+--echo #    execution of PS with IN subqueries, materialization+semijoin
+--echo # 
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(3);
+
+CREATE TABLE t2 (b INT) ENGINE=MyISAM;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT * FROM t2;
+INSERT INTO t2 VALUES (8),(9);
+
+PREPARE stmt FROM "
+SELECT * FROM t1 WHERE 1 IN ( SELECT b FROM v2 WHERE 2 IN ( SELECT MAX(a) FROM t1 ) )
+";
+
+EXECUTE stmt;
+EXECUTE stmt;
+DROP TABLE t1, t2;
+DROP VIEW v2;
+
+--echo #
+--echo # MDEV-5811: Server crashes in best_access_path with materialization+semijoin and big_tables=ON
+--echo #
+SET @tmp_mdev5811= @@big_tables;
+SET big_tables = ON;
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (3),(4);
+
+SELECT * FROM t1 AS t1_1, t1 AS t1_2 
+  WHERE ( t1_1.a, t1_2.a ) IN ( SELECT MAX(b), MIN(b) FROM t2 );
+
+DROP TABLE t1,t2;
+SET big_tables=@tmp_mdev5811;
+
+--echo # End of 5.3 tests
+
+
+--echo #
+--echo # MDEV-5056: Wrong result (extra rows) with materialization+semijoin, IN subqueries
+--echo #
+set @tmp_mdev5056=@@join_cache_level;
+SET join_cache_level = 2;
+
+CREATE TABLE t1 ( c1 VARCHAR(2), c2 VARCHAR(2), INDEX(c1) ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES 
+('JP','OM'),('VA','JP'),('CA','ML'),('ML','EG'),('DK','CA'),
+('DK','QA'),('YE','PL'),('TR','ZW'),('DK','SK'),('SK','DK'),
+('RO','ML'),('ML','BG'),('BG','ZW'),('ZW','GE'),('GE','JP'),
+('PL','EG'),('QA','YE'),('WF','DK'),('DK','JP'),('EG','OM');
+
+CREATE TABLE t2 ( c3 VARCHAR(2), c4 VARCHAR(2) ) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('CA','ML'),('IN','HU'),('HU','IN');
+
+SELECT * FROM t1 AS alias1, t1 AS alias2 
+WHERE ( alias2.c2, alias1.c1 ) IN ( SELECT c4, c3 FROM t2 ) AND alias1.c1 IN ( SELECT c2 FROM t1 );
+
+DROP TABLE t1,t2;
+set join_cache_level=@tmp_mdev5056;
+
+--echo # 
+--echo #  MDEV-5368: Server crashes in Item_in_subselect::optimize on 2nd 
+--echo #    execution of PS with IN subqueries, materialization+semijoin
+--echo # 
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(3);
+
+CREATE TABLE t2 (b INT) ENGINE=MyISAM;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT * FROM t2;
+INSERT INTO t2 VALUES (8),(9);
+
+PREPARE stmt FROM "
+SELECT * FROM t1 WHERE 1 IN ( SELECT b FROM v2 WHERE 2 IN ( SELECT MAX(a) FROM t1 ) )
+";
+
+EXECUTE stmt;
+EXECUTE stmt;
+DROP TABLE t1, t2;
+DROP VIEW v2;
+
+--echo #
+--echo # MDEV-6289 : Unexpected results when querying information_schema
+--echo #
+CREATE TABLE t1 (
+  id int(11) unsigned NOT NULL AUTO_INCREMENT,
+  db varchar(254) NOT NULL DEFAULT '',
+  PRIMARY KEY (id),
+  UNIQUE KEY db (db)
+) DEFAULT CHARSET=utf8;
+INSERT INTO t1 (db) VALUES ('mysqltest1'),('mysqltest2'),('mysqltest3'),('mysqltest4');
+
+--disable_warnings
+drop database if exists mysqltest1;
+drop database if exists mysqltest2;
+drop database if exists mysqltest3;
+drop database if exists mysqltest4;
+--enable_warnings
+create database mysqltest1;
+create database mysqltest2;
+create database mysqltest3;
+create database mysqltest4;
+
+SELECT db FROM t1 WHERE db IN (SELECT SCHEMA_NAME FROM information_schema.schemata) ORDER BY db DESC;
+
+EXPLAIN EXTENDED
+SELECT db FROM t1 WHERE db IN (SELECT SCHEMA_NAME FROM information_schema.schemata) ORDER BY db DESC;
+
+drop table t1;
+drop database mysqltest1;
+drop database mysqltest2;
+drop database mysqltest3;
+drop database mysqltest4;
+
+--echo #
+--echo # MDEV-7810 Wrong result on execution of a query as a PS
+--echo # (both 1st and further executions)
+
+CREATE TABLE t1 (a INT NOT NULL) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (0),(8);
+
+SELECT a FROM (SELECT DISTINCT * FROM t1) AS sq WHERE a IN (SELECT MIN(t2.a) FROM (t1 AS t2));
+PREPARE stmt FROM "
+SELECT a FROM (SELECT DISTINCT * FROM t1) AS sq WHERE a IN (SELECT MIN(t2.a) FROM (t1 AS t2))
+";
+execute stmt;
+execute stmt;
+
+drop table t1;
+
+--echo # End of 5.5 tests

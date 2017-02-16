@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (C) 2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +29,7 @@
 #include "derror.h"                             // read_texts
 #include "sql_class.h"                          // THD
 
+static bool check_error_mesg(const char *file_name, const char **errmsg);
 static void init_myfunc_errs(void);
 
 
@@ -44,9 +46,12 @@ C_MODE_END
   Read messages from errorfile.
 
   This function can be called multiple times to reload the messages.
-  If it fails to load the messages, it will fail softly by initializing
-  the errmesg pointer to an array of empty strings or by keeping the
-  old array if it exists.
+
+  If it fails to load the messages:
+   - If we already have error messages loaded, keep the old ones and
+     return FALSE(ok)
+  - Initializing the errmesg pointer to an array of empty strings
+    and return TRUE (error)
 
   @retval
     FALSE       OK
@@ -56,26 +61,45 @@ C_MODE_END
 
 bool init_errmessage(void)
 {
-  const char **errmsgs, **ptr;
+  const char **errmsgs, **ptr, **org_errmsgs;
+  bool error= FALSE;
   DBUG_ENTER("init_errmessage");
 
   /*
     Get a pointer to the old error messages pointer array.
     read_texts() tries to free it.
   */
-  errmsgs= my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST);
+  org_errmsgs= my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST);
 
   /* Read messages from file. */
   if (read_texts(ERRMSG_FILE, my_default_lc_messages->errmsgs->language,
                  &errmsgs, ER_ERROR_LAST - ER_ERROR_FIRST + 1) &&
       !errmsgs)
   {
-    if (!(errmsgs= (const char**) my_malloc((ER_ERROR_LAST-ER_ERROR_FIRST+1)*
-                                            sizeof(char*), MYF(0))))
-      DBUG_RETURN(TRUE);
-    for (ptr= errmsgs; ptr < errmsgs + ER_ERROR_LAST - ER_ERROR_FIRST; ptr++)
-	  *ptr= "";
+    free(errmsgs);
+    
+    if (org_errmsgs)
+    {
+      /* Use old error messages */
+      errmsgs= org_errmsgs;
+    }
+    else
+    {
+      /*
+        No error messages.  Create a temporary empty error message so
+        that we don't get a crash if some code wrongly tries to access
+        a non existing error message.
+      */
+      if (!(errmsgs= (const char**) my_malloc((ER_ERROR_LAST-ER_ERROR_FIRST+1)*
+                                              sizeof(char*), MYF(0))))
+        DBUG_RETURN(TRUE);
+      for (ptr= errmsgs; ptr < errmsgs + ER_ERROR_LAST - ER_ERROR_FIRST; ptr++)
+        *ptr= "";
+      error= TRUE;
+    }
   }
+  else
+    free(org_errmsgs);                        // Free old language
 
   /* Register messages for use with my_error(). */
   if (my_error_register(get_server_errmsgs, ER_ERROR_FIRST, ER_ERROR_LAST))
@@ -86,7 +110,29 @@ bool init_errmessage(void)
 
   DEFAULT_ERRMSGS= errmsgs;             /* Init global variable */
   init_myfunc_errs();			/* Init myfunc messages */
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(error);
+}
+
+
+/**
+   Check the error messages array contains all relevant error messages
+*/
+
+static bool check_error_mesg(const char *file_name, const char **errmsg)
+{
+  /*
+    The last MySQL error message can't be an empty string; If it is,
+    it means that the error file doesn't contain all MySQL messages
+    and is probably from an older version of MySQL / MariaDB.
+  */
+  if (errmsg[ER_LAST_MYSQL_ERROR_MESSAGE -1 - ER_ERROR_FIRST][0] == 0)
+  {
+    sql_print_error("Error message file '%s' is probably from and older "
+                    "version of MariaDB / MYSQL as it doesn't contain all "
+                    "error messages", file_name);
+    return 1;
+  }
+  return 0;
 }
 
 
@@ -109,6 +155,8 @@ bool read_texts(const char *file_name, const char *language,
   uchar head[32],*pos;
   DBUG_ENTER("read_texts");
 
+  *point= 0;
+
   LINT_INIT(buff);
   funktpos=0;
   convert_dirname(lang_path, language, NullS);
@@ -129,13 +177,14 @@ bool read_texts(const char *file_name, const char *language,
                                O_RDONLY | O_SHARE | O_BINARY,
                                MYF(0))) < 0)
       goto err;
-    sql_print_error("An old style --language value with language specific part detected: %s", lc_messages_dir);
-    sql_print_error("Use --lc-messages-dir without language specific part instead.");
+    sql_print_warning("An old style --language or -lc-message-dir value with language specific part detected: %s", lc_messages_dir);
+    sql_print_warning("Use --lc-messages-dir without language specific part instead.");
   }
 
   funktpos=1;
   if (mysql_file_read(file, (uchar*) head, 32, MYF(MY_NABP)))
     goto err;
+  funktpos=2;
   if (head[0] != (uchar) 254 || head[1] != (uchar) 254 ||
       head[2] != 2 || head[3] != 1)
     goto err; /* purecov: inspected */
@@ -147,20 +196,16 @@ bool read_texts(const char *file_name, const char *language,
   if (count < error_messages)
   {
     sql_print_error("\
-Error message file '%s' had only %d error messages,\n\
-but it should contain at least %d error messages.\n\
-Check that the above file is the right version for this program!",
+Error message file '%s' had only %d error messages, but it should contain at least %d error messages.\nCheck that the above file is the right version for this program!",
 		    name,count,error_messages);
     (void) mysql_file_close(file, MYF(MY_WME));
     DBUG_RETURN(1);
   }
 
-  /* Free old language */
-  my_free(*point);
   if (!(*point= (const char**)
 	my_malloc((size_t) (length+count*sizeof(char*)),MYF(0))))
   {
-    funktpos=2;					/* purecov: inspected */
+    funktpos=3;					/* purecov: inspected */
     goto err;					/* purecov: inspected */
   }
   buff= (uchar*) (*point + count);
@@ -180,10 +225,13 @@ Check that the above file is the right version for this program!",
     point[i]= *point +uint2korr(head+10+i+i);
   }
   (void) mysql_file_close(file, MYF(0));
-  DBUG_RETURN(0);
+
+  i= check_error_mesg(file_name, *point);
+  DBUG_RETURN(i);
 
 err:
-  sql_print_error((funktpos == 2) ? "Not enough memory for messagefile '%s'" :
+  sql_print_error((funktpos == 3) ? "Not enough memory for messagefile '%s'" :
+                  (funktpos == 2) ? "Incompatible header in messagefile '%s'. Probably from another version of MariaDB" :
                   ((funktpos == 1) ? "Can't read from messagefile '%s'" :
                    "Can't find messagefile '%s'"), name);
   if (file != FERR)

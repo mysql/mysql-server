@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -77,6 +77,7 @@ class String;
 #define LOG_READ_MEM    -5
 #define LOG_READ_TRUNC  -6
 #define LOG_READ_TOO_LARGE -7
+#define LOG_READ_CHECKSUM_FAILURE -8
 
 #define LOG_EVENT_OFFSET 4
 
@@ -256,6 +257,8 @@ struct sql_ex_info
 #define EXECUTE_LOAD_QUERY_HEADER_LEN  (QUERY_HEADER_LEN + EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN)
 #define INCIDENT_HEADER_LEN    2
 #define HEARTBEAT_HEADER_LEN   0
+#define ANNOTATE_ROWS_HEADER_LEN  0
+
 /* 
   Max number of possible extra bytes in a replication event compared to a
   packet (i.e. a query) sent from client to master;
@@ -271,6 +274,7 @@ struct sql_ex_info
                                    1 + 2          /* type, charset_database_number */ + \
                                    1 + 8          /* type, table_map_for_update */ + \
                                    1 + 4          /* type, master_data_written */ + \
+                                   1 + 3          /* type, sec_part of NOW() */ + \
                                    1 + 16 + 1 + 60/* type, user_len, user, host_len, host */)
 #define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
   LOG_EVENT_HEADER_LEN + /* write_header */ \
@@ -349,6 +353,8 @@ struct sql_ex_info
 
 #define Q_INVOKER 11
 
+#define Q_HRNOW 128
+
 /* Intvar event post-header */
 
 /* Intvar event data */
@@ -411,7 +417,7 @@ struct sql_ex_info
 #define ELQ_DUP_HANDLING_OFFSET ELQ_FILE_ID_OFFSET + 12
 
 /* 4 bytes which all binlogs should begin with */
-#define BINLOG_MAGIC        "\xfe\x62\x69\x6e"
+#define BINLOG_MAGIC        (const uchar*) "\xfe\x62\x69\x6e"
 
 /*
   The 2 flags below were useless :
@@ -504,6 +510,19 @@ struct sql_ex_info
 #define LOG_EVENT_RELAY_LOG_F 0x40
 
 /**
+   @def LOG_EVENT_SKIP_REPLICATION_F
+
+   Flag set by application creating the event (with @@skip_replication); the
+   slave will skip replication of such events if
+   --replicate-events-marked-for-skip is not set to REPLICATE.
+
+   This is a MariaDB flag; we allocate it from the end of the available
+   values to reduce risk of conflict with new MySQL flags.
+*/
+#define LOG_EVENT_SKIP_REPLICATION_F 0x8000
+
+
+/**
   @def OPTIONS_WRITTEN_TO_BIN_LOG
 
   OPTIONS_WRITTEN_TO_BIN_LOG are the bits of thd->options which must
@@ -536,6 +555,22 @@ struct sql_ex_info
 #error OPTIONS_WRITTEN_TO_BIN_LOG must NOT change their values!
 #endif
 #undef EXPECTED_OPTIONS         /* You shouldn't use this one */
+
+enum enum_binlog_checksum_alg {
+  BINLOG_CHECKSUM_ALG_OFF= 0,    // Events are without checksum though its generator
+                                 // is checksum-capable New Master (NM).
+  BINLOG_CHECKSUM_ALG_CRC32= 1,  // CRC32 of zlib algorithm.
+  BINLOG_CHECKSUM_ALG_ENUM_END,  // the cut line: valid alg range is [1, 0x7f].
+  BINLOG_CHECKSUM_ALG_UNDEF= 255 // special value to tag undetermined yet checksum
+                                 // or events from checksum-unaware servers
+};
+
+#define CHECKSUM_CRC32_SIGNATURE_LEN 4
+/**
+   defined statically while there is just one alg implemented
+*/
+#define BINLOG_CHECKSUM_LEN CHECKSUM_CRC32_SIGNATURE_LEN
+#define BINLOG_CHECKSUM_ALG_DESC_LEN 1  /* 1 byte checksum alg descriptor */
 
 /**
   @enum Log_event_type
@@ -606,6 +641,15 @@ enum Log_event_type
     Existing events (except ENUM_END_EVENT) should never change their numbers
   */
 
+  /* New MySQL/Sun events are to be added right above this comment */
+  MYSQL_EVENTS_END,
+
+  MARIA_EVENTS_BEGIN= 160,
+  /* New Maria event numbers start from here */
+  ANNOTATE_ROWS_EVENT= 160,
+
+  /* Add new MariaDB events here - right above this comment!  */
+
   ENUM_END_EVENT /* end marker */
 };
 
@@ -666,7 +710,7 @@ typedef struct st_print_event_info
   bool flags2_inited;
   uint32 flags2;
   bool sql_mode_inited;
-  ulong sql_mode;		/* must be same as THD.variables.sql_mode */
+  ulonglong sql_mode;		/* must be same as THD.variables.sql_mode */
   ulong auto_increment_increment, auto_increment_offset;
   bool charset_inited;
   char charset[6]; // 3 variables, each of them storable in 2 bytes
@@ -675,6 +719,11 @@ typedef struct st_print_event_info
   uint charset_database_number;
   uint thread_id;
   bool thread_id_printed;
+  /*
+    Track when @@skip_replication changes so we need to output a SET
+    statement for it.
+  */
+  int skip_replication;
 
   st_print_event_info();
 
@@ -937,6 +986,13 @@ public:
      event's type, and its content is distributed in the event-specific fields.
   */
   char *temp_buf;
+  
+  /*
+    TRUE <=> this event 'owns' temp_buf and should call my_free() when done
+    with it
+  */
+  bool event_owns_temp_buf;
+
   /*
     Timestamp on the master(for debugging and replication of
     NOW()/TIMESTAMP).  It is important for queries and LOAD DATA
@@ -945,7 +1001,8 @@ public:
     execution time, which guarantees good replication (otherwise, we
     could have a query and its event with different timestamps).
   */
-  time_t when;
+  my_time_t when;
+  ulong     when_sec_part;
   /* The number of seconds the query took to run on the master. */
   ulong exec_time;
   /* Number of bytes written by write() function */
@@ -959,15 +1016,11 @@ public:
 
   /**
     Some 16 flags. See the definitions above for LOG_EVENT_TIME_F,
-    LOG_EVENT_FORCED_ROTATE_F, LOG_EVENT_THREAD_SPECIFIC_F, and
-    LOG_EVENT_SUPPRESS_USE_F for notes.
+    LOG_EVENT_FORCED_ROTATE_F, LOG_EVENT_THREAD_SPECIFIC_F,
+    LOG_EVENT_SUPPRESS_USE_F, and LOG_EVENT_SKIP_REPLICATION_F for notes.
   */
   uint16 flags;
-  
-  /*
-    Defines the type of the cache, if any, where the event will be
-    stored before being flushed to disk.
-  */
+
   uint16 cache_type;
 
   /**
@@ -975,6 +1028,11 @@ public:
     Handling of a separate event will be governed its member.
   */
   ulong slave_exec_mode;
+
+  /**
+    Placeholder for event checksum while writing to binlog.
+   */
+  ha_checksum crc;
 
 #ifdef MYSQL_SERVER
   THD* thd;
@@ -995,7 +1053,8 @@ public:
   static Log_event* read_log_event(IO_CACHE* file,
                                    mysql_mutex_t* log_lock,
                                    const Format_description_log_event
-                                   *description_event);
+                                   *description_event,
+                                   my_bool crc_check);
 
   /**
     Reads an event from a binlog or relay log. Used by the dump thread
@@ -1022,8 +1081,9 @@ public:
    */
   static int read_log_event(IO_CACHE* file, String* packet,
                             mysql_mutex_t* log_lock,
-                            const char *log_file_name_arg= NULL,
-                            bool* is_binlog_active= NULL);
+                            uint8 checksum_alg_arg,
+                            const char *log_file_name_arg = NULL,
+                            bool* is_binlog_active = NULL);
   /*
     init_show_field_list() prepares the column names and types for the
     output of SHOW BINLOG EVENTS; it is used only by SHOW BINLOG
@@ -1031,14 +1091,15 @@ public:
   */
   static void init_show_field_list(List<Item>* field_list);
 #ifdef HAVE_REPLICATION
-  int net_send(Protocol *protocol, const char* log_name, my_off_t pos);
+  int net_send(THD *thd, Protocol *protocol, const char* log_name,
+               my_off_t pos);
 
   /*
     pack_info() is used by SHOW BINLOG EVENTS; as print() it prepares and sends
     a string to display to the user, so it resembles print().
   */
 
-  virtual void pack_info(Protocol *protocol);
+  virtual void pack_info(THD *thd, Protocol *protocol);
 
 #endif /* HAVE_REPLICATION */
   virtual const char* get_db()
@@ -1050,7 +1111,7 @@ public:
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event
-                                   *description_event);
+                                   *description_event, my_bool crc_check);
   /* print*() functions are used by mysqlbinlog */
   virtual void print(FILE* file, PRINT_EVENT_INFO* print_event_info) = 0;
   void print_timestamp(IO_CACHE* file, time_t *ts = 0);
@@ -1059,6 +1120,15 @@ public:
   void print_base64(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info,
                     bool is_more);
 #endif
+  /* 
+     The value is set by caller of FD constructor and
+     Log_event::write_header() for the rest.
+     In the FD case it's propagated into the last byte 
+     of post_header_len[] at FD::write().
+     On the slave side the value is assigned from post_header_len[last] 
+     of the last seen FD event.
+  */
+  uint8 checksum_alg;
 
   static void *operator new(size_t size)
   {
@@ -1073,29 +1143,46 @@ public:
   /* Placement version of the above operators */
   static void *operator new(size_t, void* ptr) { return ptr; }
   static void operator delete(void*, void*) { }
+  bool wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, ulong data_length);
 
 #ifdef MYSQL_SERVER
   bool write_header(IO_CACHE* file, ulong data_length);
+  bool write_footer(IO_CACHE* file);
+  my_bool need_checksum();
+
   virtual bool write(IO_CACHE* file)
   {
-    return (write_header(file, get_data_size()) ||
-            write_data_header(file) ||
-            write_data_body(file));
+    return(write_header(file, get_data_size()) ||
+	   write_data_header(file) ||
+	   write_data_body(file) ||
+	   write_footer(file));
   }
   virtual bool write_data_header(IO_CACHE* file)
   { return 0; }
   virtual bool write_data_body(IO_CACHE* file __attribute__((unused)))
   { return 0; }
-  inline time_t get_time()
+  inline my_time_t get_time()
   {
     THD *tmp_thd;
     if (when)
       return when;
     if (thd)
-      return thd->start_time;
+    {
+      when= thd->start_time;
+      when_sec_part= thd->start_time_sec_part;
+      return when;
+    }
+    /* thd will only be 0 here at time of log creation */
     if ((tmp_thd= current_thd))
-      return tmp_thd->start_time;
-    return my_time(0);
+    {
+      when= tmp_thd->start_time;
+      when_sec_part= tmp_thd->start_time_sec_part;
+      return when;
+    }
+    my_hrtime_t hrtime= my_hrtime();
+    when= hrtime_to_my_time(hrtime);
+    when_sec_part= hrtime_sec_part(hrtime);
+    return when;
   }
 #endif
   virtual Log_event_type get_type_code() = 0;
@@ -1119,12 +1206,17 @@ public:
   Log_event(const char* buf, const Format_description_log_event
             *description_event);
   virtual ~Log_event() { free_temp_buf();}
-  void register_temp_buf(char* buf) { temp_buf = buf; }
+  void register_temp_buf(char* buf, bool must_free) 
+  { 
+    temp_buf= buf; 
+    event_owns_temp_buf= must_free;
+  }
   void free_temp_buf()
   {
     if (temp_buf)
     {
-      my_free(temp_buf);
+      if (event_owns_temp_buf)
+        my_free(temp_buf);
       temp_buf = 0;
     }
   }
@@ -1136,7 +1228,7 @@ public:
   static Log_event* read_log_event(const char* buf, uint event_len,
 				   const char **error,
                                    const Format_description_log_event
-                                   *description_event);
+                                   *description_event, my_bool crc_check);
   /**
     Returns the human readable name of the given event type.
   */
@@ -1459,7 +1551,7 @@ protected:
     MODE_PIPES_AS_CONCAT==0x2
     MODE_ANSI_QUOTES==0x4
     MODE_IGNORE_SPACE==0x8
-    MODE_NOT_USED==0x10
+    MODE_IGNORE_BAD_TABLE_OPTIONS==0x10
     MODE_ONLY_FULL_GROUP_BY==0x20
     MODE_NO_UNSIGNED_SUBTRACTION==0x40
     MODE_NO_DIR_IN_CREATE==0x80
@@ -1715,7 +1807,7 @@ public:
 
   uint32 flags2;
   /* In connections sql_mode is 32 bits now but will be 64 bits soon */
-  ulong sql_mode;
+  ulonglong sql_mode;
   ulong auto_increment_increment, auto_increment_offset;
   char charset[6];
   uint time_zone_len; /* 0 means uninited */
@@ -1744,7 +1836,7 @@ public:
                   bool using_trans, bool direct, bool suppress_use, int error);
   const char* get_db() { return db; }
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print_query_header(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info);
@@ -1874,7 +1966,7 @@ public:
 
 #ifdef MYSQL_SERVER
   Slave_log_event(THD* thd_arg, Relay_log_info* rli);
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
@@ -2107,9 +2199,9 @@ protected:
                      const Format_description_log_event* description_event);
 
 public:
-  uint get_query_buffer_length();
-  void print_query(bool need_db, const char *cs, char *buf, char **end,
-                   char **fn_start, char **fn_end);
+  void print_query(THD *thd, bool need_db, const char *cs, String *buf,
+                   my_off_t *fn_start, my_off_t *fn_end,
+                   const char *qualify_db);
   ulong thread_id;
   ulong slave_proxy_id;
   uint32 table_name_len;
@@ -2170,7 +2262,7 @@ public:
                   Name_resolution_context *context);
   const char* get_db() { return db; }
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2214,8 +2306,6 @@ public:        /* !!! Public in this patch to allow old usage */
                      bool use_rli_only_for_errors);
 #endif
 };
-
-extern char server_version[SERVER_VERSION_LENGTH];
 
 /**
   @class Start_log_event_v3
@@ -2269,7 +2359,7 @@ public:
 #ifdef MYSQL_SERVER
   Start_log_event_v3();
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   Start_log_event_v3() {}
@@ -2328,9 +2418,17 @@ public:
   */
   uint8 common_header_len;
   uint8 number_of_event_types;
-  /* The list of post-headers' lengthes */
+  /* 
+     The list of post-headers' lengths followed 
+     by the checksum alg decription byte
+  */
   uint8 *post_header_len;
-  uchar server_version_split[3];
+  struct master_version_split {
+    enum {KIND_MYSQL, KIND_MARIADB};
+    int kind;
+    uchar ver[3];
+  };
+  master_version_split server_version_split;
   const uint8 *event_type_permutation;
 
   Format_description_log_event(uint8 binlog_ver, const char* server_ver=0);
@@ -2355,9 +2453,9 @@ public:
   bool version_is_valid() const
   {
     /* It is invalid only when all version numbers are 0 */
-    return !(server_version_split[0] == 0 &&
-             server_version_split[1] == 0 &&
-             server_version_split[2] == 0);
+    return !(server_version_split.ver[0] == 0 &&
+             server_version_split.ver[1] == 0 &&
+             server_version_split.ver[2] == 0);
   }
 
   bool is_valid() const
@@ -2376,7 +2474,7 @@ public:
   }
 
   void calc_server_version_split();
-
+  static bool is_version_before_checksum(const master_version_split *version_split);
 protected:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -2431,11 +2529,15 @@ public:
   uchar type;
 
 #ifdef MYSQL_SERVER
-  Intvar_log_event(THD* thd_arg,uchar type_arg, ulonglong val_arg)
-    :Log_event(thd_arg,0,0),val(val_arg),type(type_arg)
-  {}
+Intvar_log_event(THD* thd_arg,uchar type_arg, ulonglong val_arg,
+                 bool using_trans, bool direct)
+    :Log_event(thd_arg,0,using_trans),val(val_arg),type(type_arg)
+  {
+    if (direct)
+      cache_type= Log_event::EVENT_NO_CACHE;
+  }
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2507,11 +2609,15 @@ class Rand_log_event: public Log_event
   ulonglong seed2;
 
 #ifdef MYSQL_SERVER
-  Rand_log_event(THD* thd_arg, ulonglong seed1_arg, ulonglong seed2_arg)
-    :Log_event(thd_arg,0,0),seed1(seed1_arg),seed2(seed2_arg)
-  {}
+  Rand_log_event(THD* thd_arg, ulonglong seed1_arg, ulonglong seed2_arg,
+                 bool using_trans, bool direct)
+    :Log_event(thd_arg,0,using_trans),seed1(seed1_arg),seed2(seed2_arg)
+  {
+    if (direct)
+      cache_type= Log_event::EVENT_NO_CACHE;
+  }
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2553,9 +2659,14 @@ class Xid_log_event: public Log_event
    my_xid xid;
 
 #ifdef MYSQL_SERVER
-  Xid_log_event(THD* thd_arg, my_xid x): Log_event(thd_arg, 0, TRUE), xid(x) {}
+  Xid_log_event(THD* thd_arg, my_xid x, bool direct):
+   Log_event(thd_arg, 0, TRUE), xid(x)
+   {
+     if (direct)
+       cache_type= Log_event::EVENT_NO_CACHE;
+   }
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2607,12 +2718,18 @@ public:
   query_id_t query_id;
   User_var_log_event(THD* thd_arg, char *name_arg, uint name_len_arg,
                      char *val_arg, ulong val_len_arg, Item_result type_arg,
-		     uint charset_number_arg, uchar flags_arg)
-    :Log_event(thd_arg,0,0), name(name_arg), name_len(name_len_arg), val(val_arg),
+		     uint charset_number_arg, uchar flags_arg,
+                     bool using_trans, bool direct)
+    :Log_event(thd_arg, 0, using_trans),
+    name(name_arg), name_len(name_len_arg), val(val_arg),
     val_len(val_len_arg), type(type_arg), charset_number(charset_number_arg),
     flags(flags_arg), deferred(false)
-    { is_null= !val; }
-  void pack_info(Protocol* protocol);
+    {
+      is_null= !val;
+      if (direct)
+        cache_type= Log_event::EVENT_NO_CACHE;
+    }
+  void pack_info(THD *thd, Protocol* protocol);
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
@@ -2754,7 +2871,7 @@ public:
 		   uint ident_len_arg,
 		   ulonglong pos_arg, uint flags);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2815,7 +2932,7 @@ public:
 			uchar* block_arg, uint block_len_arg,
 			bool using_trans);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2887,7 +3004,7 @@ public:
   Append_block_log_event(THD* thd, const char* db_arg, uchar* block_arg,
 			 uint block_len_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
   virtual int get_create_or_append() const;
 #endif /* HAVE_REPLICATION */
 #else
@@ -2928,7 +3045,7 @@ public:
 #ifdef MYSQL_SERVER
   Delete_file_log_event(THD* thd, const char* db_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2969,7 +3086,7 @@ public:
 #ifdef MYSQL_SERVER
   Execute_load_log_event(THD* thd, const char* db_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3065,7 +3182,7 @@ public:
                                bool using_trans, bool direct,
                                bool suppress_use, int errcode);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3118,6 +3235,59 @@ public:
 };
 #endif
 char *str_to_hex(char *to, const char *from, uint len);
+
+/**
+  @class Annotate_rows_log_event
+
+  In row-based mode, if binlog_annotate_row_events = ON, each group of
+  Table_map_log_events is preceded by an Annotate_rows_log_event which
+  contains the query which caused the subsequent rows operations.
+
+  The Annotate_rows_log_event has no post-header and its body contains
+  the corresponding query (without trailing zero). Note. The query length
+  is to be calculated as a difference between the whole event length and
+  the common header length.
+*/
+class Annotate_rows_log_event: public Log_event
+{
+public:
+#ifndef MYSQL_CLIENT
+  Annotate_rows_log_event(THD*, bool using_trans, bool direct);
+#endif
+  Annotate_rows_log_event(const char *buf, uint event_len,
+                          const Format_description_log_event*);
+  ~Annotate_rows_log_event();
+
+  virtual int get_data_size();
+  virtual Log_event_type get_type_code();
+  virtual bool is_valid() const;
+
+#ifndef MYSQL_CLIENT
+  virtual bool write_data_header(IO_CACHE*);
+  virtual bool write_data_body(IO_CACHE*);
+#endif
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual void pack_info(THD *thd, Protocol*);
+#endif
+
+#ifdef MYSQL_CLIENT
+  virtual void print(FILE*, PRINT_EVENT_INFO*);
+#endif
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+private:
+  virtual int do_apply_event(Relay_log_info const*);
+  virtual int do_update_pos(Relay_log_info*);
+  virtual enum_skip_reason do_shall_skip(Relay_log_info*);
+#endif
+
+private:
+  char *m_query_txt;
+  uint  m_query_len;
+  char *m_save_thd_query_txt;
+  uint  m_save_thd_query_len;
+};
 
 /**
   @class Table_map_log_event
@@ -3493,6 +3663,8 @@ public:
     return new table_def(m_coltype, m_colcnt, m_field_metadata,
                          m_field_metadata_size, m_null_bits, m_flags);
   }
+  int rewrite_db(const char* new_name, size_t new_name_len,
+                 const Format_description_log_event*);
 #endif
   ulong get_table_id() const        { return m_table_id; }
   const char *get_table_name() const { return m_tblnam; }
@@ -3510,7 +3682,7 @@ public:
 #endif
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-  virtual void pack_info(Protocol *protocol);
+  virtual void pack_info(THD *thd, Protocol *protocol);
 #endif
 
 #ifdef MYSQL_CLIENT
@@ -3622,7 +3794,7 @@ public:
   flag_set get_flags(flag_set flags_arg) const { return m_flags & flags_arg; }
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-  virtual void pack_info(Protocol *protocol);
+  virtual void pack_info(THD *thd, Protocol *protocol);
 #endif
 
 #ifdef MYSQL_CLIENT
@@ -3722,7 +3894,10 @@ protected:
   const uchar *m_curr_row;     /* Start of the row being processed */
   const uchar *m_curr_row_end; /* One-after the end of the current row */
   uchar    *m_key;      /* Buffer to keep key value during searches */
+  KEY      *m_key_info; /* Pointer to KEY info for m_key_nr */
+  uint      m_key_nr;   /* Key number */
 
+  int find_key(); // Find a best key to use in find_row()
   int find_row(const Relay_log_info *const);
   int write_row(const Relay_log_info *const, const bool);
 
@@ -4056,6 +4231,8 @@ public:
     m_message.str= NULL;                    /* Just as a precaution */
     m_message.length= 0;
     set_direct_logging();
+    /* Replicate the incident irregardless of @@skip_replication. */
+    flags&= ~LOG_EVENT_SKIP_REPLICATION_F;
     DBUG_VOID_RETURN;
   }
 
@@ -4066,12 +4243,14 @@ public:
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
     m_message= msg;
     set_direct_logging();
+    /* Replicate the incident irregardless of @@skip_replication. */
+    flags&= ~LOG_EVENT_SKIP_REPLICATION_F;
     DBUG_VOID_RETURN;
   }
 #endif
 
 #ifdef MYSQL_SERVER
-  void pack_info(Protocol*);
+  void pack_info(THD *thd, Protocol*);
 #endif
 
   Incident_log_event(const char *buf, uint event_len,
@@ -4162,21 +4341,23 @@ bool slave_execute_deferred_events(THD *thd);
 int append_query_string(THD *thd, CHARSET_INFO *csinfo,
                         String const *from, String *to);
 
-#ifdef MYSQL_SERVER
-/*
-  This is an utility function that adds a quoted identifier into the a buffer.
-  This also escapes any existance of the quote string inside the identifier.
- */
-size_t my_strmov_quoted_identifier(THD *thd, char *buffer,
-                                   const char* identifier,
-                                   uint length);
-#else
-size_t my_strmov_quoted_identifier(char *buffer, const char* identifier);
-#endif
-size_t my_strmov_quoted_identifier_helper(int q, char *buffer,
-                                          const char* identifier,
-                                          uint length);
+bool rpl_get_position_info(const char **log_file_name, ulonglong *log_pos,
+                           const char **group_relay_log_name,
+                           ulonglong *relay_log_pos);
 
+bool event_checksum_test(uchar *buf, ulong event_len, uint8 alg);
+uint8 get_checksum_alg(const char* buf, ulong len);
+extern TYPELIB binlog_checksum_typelib;
+
+#ifndef MYSQL_CLIENT
+/**
+   The function is called by slave applier in case there are
+   active table filtering rules to force gathering events associated
+   with Query-log-event into an array to execute
+   them once the fate of the Query is determined for execution.
+*/
+bool slave_execute_deferred_events(THD *thd);
+#endif
 
 /**
   @} (end of group Replication)

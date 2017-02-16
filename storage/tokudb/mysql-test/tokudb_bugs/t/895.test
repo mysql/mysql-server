@@ -1,0 +1,22 @@
+# ticket 895 is a query optimization problem with the primary key
+
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS t;
+--enable_warnings
+
+CREATE TABLE t (r INT, s INT, t BIGINT, PRIMARY KEY (r, s));
+INSERT INTO t VALUES (1,2,3),(4,5,6);
+# ignore rows column
+--replace_column 9 NULL;
+EXPLAIN SELECT * FROM t WHERE r > 0;
+CREATE INDEX it on t(t);
+# ignore rows column
+--replace_column 9 NULL;
+EXPLAIN SELECT * FROM t WHERE r > 0;
+
+# Final cleanup.
+DROP TABLE t;
+

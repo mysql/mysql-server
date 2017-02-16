@@ -1,0 +1,158 @@
+--- suite/storage_engine/parts/repair_table.result	2013-07-18 22:55:38.000000000 +0400
++++ suite/storage_engine/parts/repair_table.reject	2013-08-05 19:54:09.000000000 +0400
+@@ -25,7 +25,7 @@
+ INSERT INTO t1 (a,b) VALUES (10,'j');
+ ALTER TABLE t1 REPAIR PARTITION p1 QUICK USE_FRM;
+ Table	Op	Msg_type	Msg_text
+-test.t1	repair	status	OK
++test.t1	repair	note	The storage engine for the table doesn't support repair
+ INSERT INTO t2 (a,b) VALUES (12,'l');
+ ALTER TABLE t2 REPAIR PARTITION NO_WRITE_TO_BINLOG ALL QUICK EXTENDED USE_FRM;
+ Table	Op	Msg_type	Msg_text
+@@ -58,8 +58,8 @@
+ INSERT INTO t2 (a,b) VALUES (11,'k');
+ REPAIR TABLE t1, t2 QUICK USE_FRM;
+ Table	Op	Msg_type	Msg_text
+-test.t1	repair	status	OK
+-test.t2	repair	status	OK
++test.t1	repair	note	The storage engine for the table doesn't support repair
++test.t2	repair	note	The storage engine for the table doesn't support repair
+ INSERT INTO t1 (a,b) VALUES (12,'l');
+ INSERT INTO t2 (a,b) VALUES (13,'m');
+ REPAIR NO_WRITE_TO_BINLOG TABLE t1, t2 QUICK EXTENDED USE_FRM;
+@@ -101,119 +101,13 @@
+ INSERT INTO t1 (a,b) VALUES (10,'j');
+ REPAIR TABLE t1 USE_FRM;
+ Table	Op	Msg_type	Msg_text
+-test.t1	repair	status	OK
+-t1#P#p0.MYD
+-t1#P#p0.MYI
+-t1#P#p1.MYD
+-t1#P#p1.MYI
++test.t1	repair	note	The storage engine for the table doesn't support repair
+ t1.frm
+ t1.par
+ INSERT INTO t1 (a,b) VALUES (14,'n'),(15,'o');
+ # Statement ended with one of expected results (0,144). 
+ # If you got a difference in error message, just add it to rdiff file
+ FLUSH TABLE t1;
+-Restoring <DATADIR>/test/t1#P#p0.MYD
+-CHECK TABLE t1;
+-Table	Op	Msg_type	Msg_text
+-test.t1	check	error	Size of datafile is: 26         Should be: 39
+-test.t1	check	error	Partition p0 returned error
+-test.t1	check	error	Corrupt
+-SELECT a,b FROM t1;
+-a	b
+-8	h
+-10	j
+-7	g
+-15	o
+-Warnings:
+-Error	145	Table './test/t1#P#p0' is marked as crashed and should be repaired
+-Error	1194	Table 't1' is marked as crashed and should be repaired
+-Error	1034	Number of rows changed from 3 to 2
+-# Statement ended with one of expected results (0,ER_NOT_KEYFILE,144). 
+-# If you got a difference in error message, just add it to rdiff file
+-INSERT INTO t1 (a,b) VALUES (14,'n'),(15,'o');
+-# Statement ended with one of expected results (0,144). 
+-# If you got a difference in error message, just add it to rdiff file
+-FLUSH TABLE t1;
+-Restoring <DATADIR>/test/t1#P#p0.MYI
+-CHECK TABLE t1;
+-Table	Op	Msg_type	Msg_text
+-test.t1	check	warning	Size of datafile is: 39       Should be: 26
+-test.t1	check	error	Record-count is not ok; is 3   Should be: 2
+-test.t1	check	warning	Found 3 key parts. Should be: 2
+-test.t1	check	error	Partition p0 returned error
+-test.t1	check	error	Corrupt
+-SELECT a,b FROM t1;
+-a	b
+-8	h
+-10	j
+-14	n
+-7	g
+-15	o
+-15	o
+-Warnings:
+-Error	145	Table './test/t1#P#p0' is marked as crashed and should be repaired
+-Error	1194	Table 't1' is marked as crashed and should be repaired
+-Error	1034	Number of rows changed from 2 to 3
+-# Statement ended with one of expected results (0,ER_NOT_KEYFILE,144). 
+-# If you got a difference in error message, just add it to rdiff file
+-INSERT INTO t1 (a,b) VALUES (14,'n'),(15,'o');
+-# Statement ended with one of expected results (0,144). 
+-# If you got a difference in error message, just add it to rdiff file
+-FLUSH TABLE t1;
+-Restoring <DATADIR>/test/t1#P#p1.MYD
+-CHECK TABLE t1;
+-Table	Op	Msg_type	Msg_text
+-test.t1	check	error	Size of datafile is: 39         Should be: 52
+-test.t1	check	error	Partition p1 returned error
+-test.t1	check	error	Corrupt
+-SELECT a,b FROM t1;
+-a	b
+-8	h
+-10	j
+-14	n
+-14	n
+-7	g
+-15	o
+-15	o
+-Warnings:
+-Error	145	Table './test/t1#P#p1' is marked as crashed and should be repaired
+-Error	1194	Table 't1' is marked as crashed and should be repaired
+-Error	1034	Number of rows changed from 4 to 3
+-# Statement ended with one of expected results (0,ER_NOT_KEYFILE,144). 
+-# If you got a difference in error message, just add it to rdiff file
+-INSERT INTO t1 (a,b) VALUES (14,'n'),(15,'o');
+-# Statement ended with one of expected results (0,144). 
+-# If you got a difference in error message, just add it to rdiff file
+-FLUSH TABLE t1;
+-Restoring <DATADIR>/test/t1#P#p1.MYI
+-CHECK TABLE t1;
+-Table	Op	Msg_type	Msg_text
+-test.t1	check	warning	Size of datafile is: 52       Should be: 39
+-test.t1	check	error	Record-count is not ok; is 4   Should be: 3
+-test.t1	check	warning	Found 4 key parts. Should be: 3
+-test.t1	check	error	Partition p1 returned error
+-test.t1	check	error	Corrupt
+-SELECT a,b FROM t1;
+-a	b
+-8	h
+-10	j
+-14	n
+-14	n
+-14	n
+-7	g
+-15	o
+-15	o
+-15	o
+-Warnings:
+-Error	145	Table './test/t1#P#p1' is marked as crashed and should be repaired
+-Error	1194	Table 't1' is marked as crashed and should be repaired
+-Error	1034	Number of rows changed from 3 to 4
+-# Statement ended with one of expected results (0,ER_NOT_KEYFILE,144). 
+-# If you got a difference in error message, just add it to rdiff file
+-INSERT INTO t1 (a,b) VALUES (14,'n'),(15,'o');
+-# Statement ended with one of expected results (0,144). 
+-# If you got a difference in error message, just add it to rdiff file
+-FLUSH TABLE t1;
+ Restoring <DATADIR>/test/t1.par
+ CHECK TABLE t1;
+ Table	Op	Msg_type	Msg_text
+@@ -223,14 +117,8 @@
+ 8	h
+ 10	j
+ 14	n
+-14	n
+-14	n
+-14	n
+ 7	g
+ 15	o
+-15	o
+-15	o
+-15	o
+ # Statement ended with one of expected results (0,ER_NOT_KEYFILE,144). 
+ # If you got a difference in error message, just add it to rdiff file
+ DROP TABLE t1;

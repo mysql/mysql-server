@@ -1,0 +1,7 @@
+#
+# Test of auto_increment at end of range
+#
+
+--source include/have_innodb.inc
+set default_storage_engine=innodb;
+--source auto_increment_ranges.inc

@@ -1,0 +1,52 @@
+# ticket 895 is a query optimization problem with the primary key
+
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--echo # Establish connection conn1 (user = root)
+connect (conn1,localhost,root,,);
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+connection default;
+create table foo (a int)engine=TokuDB;
+show create table foo;
+insert into foo values (1),(2),(3);
+begin;
+insert into foo values (4);
+
+connection conn1;
+set session transaction isolation level repeatable read;
+--echo # 1,2,3
+select * from foo;
+checksum table foo;
+
+set session transaction isolation level read committed;
+--echo # 1,2,3
+select * from foo;
+checksum table foo;
+
+set session transaction isolation level read uncommitted;
+--echo # 1,2,3,4
+select * from foo;
+checksum table foo;
+
+set session transaction isolation level serializable;
+begin;
+--error ER_LOCK_WAIT_TIMEOUT
+select * from foo;
+commit;
+--echo # should be NULL
+checksum table foo;
+
+
+connection default;
+commit;
+disconnect conn1;
+
+connection default;
+# Final cleanup.
+set session transaction isolation level serializable;
+DROP TABLE foo;

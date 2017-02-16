@@ -6,7 +6,7 @@ insert into t2 values (@v);
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	User var	#	#	@`v`=_ucs2 0x006100620063 COLLATE ucs2_general_ci
+master-bin.000001	#	User var	#	#	@`v`=_ucs2 X'006100620063' COLLATE ucs2_general_ci
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 values (@v)
 master-bin.000001	#	Query	#	#	COMMIT
 flush logs;
@@ -26,7 +26,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-SET @`v`:=_ucs2 0x006100620063 COLLATE `ucs2_general_ci`/*!*/;
+SET @`v`:=_ucs2 X'006100620063' COLLATE `ucs2_general_ci`/*!*/;
 use `test`/*!*/;
 SET TIMESTAMP=10000/*!*/;
 insert into t2 values (@v)

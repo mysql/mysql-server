@@ -14,6 +14,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 MYSQL_ADD_PLUGIN(daemon_example daemon_example.cc
-  MODULE_ONLY MODULE_OUTPUT_NAME "libdaemon_example")
+  MODULE_ONLY MODULE_OUTPUT_NAME "libdaemon_example" COMPONENT Test)
 
-INSTALL(FILES daemon_example.ini DESTINATION ${INSTALL_PLUGINDIR})
+INSTALL(FILES daemon_example.ini DESTINATION ${INSTALL_PLUGINDIR} COMPONENT Test)

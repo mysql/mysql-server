@@ -106,30 +106,46 @@ int find_ref_key(KEY *key, uint key_count, uchar *record, Field *field,
   @param from_record full record to be copied from
   @param key_info    descriptor of the index
   @param key_length  specifies length of all keyparts that will be copied
+  @param with_zerofill  skipped bytes in the key buffer to be filled with 0
 */
 
 void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
-              uint key_length)
+              uint key_length, bool with_zerofill)
 {
   uint length;
   KEY_PART_INFO *key_part;
 
   if (key_length == 0)
     key_length= key_info->key_length;
-  for (key_part= key_info->key_part; (int) key_length > 0; key_part++)
+  for (key_part= key_info->key_part;
+       (int) key_length > 0;
+       key_part++, to_key+= length, key_length-= length)
   {
     if (key_part->null_bit)
     {
       *to_key++= test(from_record[key_part->null_offset] &
 		   key_part->null_bit);
       key_length--;
+      if (to_key[-1])
+      {
+        /*
+          Don't copy data for null values
+          The -1 below is to subtract the null byte which is already handled
+        */
+        length= min(key_length, (uint) key_part->store_length-1);
+        if (with_zerofill)
+          bzero((char*) to_key, length);
+        continue;
+      }
     }
     if (key_part->key_part_flag & HA_BLOB_PART ||
         key_part->key_part_flag & HA_VAR_LENGTH_PART)
     {
       key_length-= HA_KEY_BLOB_LENGTH;
       length= min(key_length, key_part->length);
-      key_part->field->get_key_image(to_key, length, Field::itRAW);
+      uint bytes= key_part->field->get_key_image(to_key, length, Field::itRAW);
+      if (with_zerofill && bytes < length)
+        bzero((char*) to_key + bytes, length - bytes);
       to_key+= HA_KEY_BLOB_LENGTH;
     }
     else
@@ -141,8 +157,6 @@ void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
       if (bytes < length)
         cs->cset->fill(cs, (char*) to_key + bytes, length - bytes, ' ');
     }
-    to_key+= length;
-    key_length-= length;
   }
 }
 
@@ -169,16 +183,28 @@ void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
   {
     key_length= key_info->key_length;
   }
-  for (key_part= key_info->key_part ; (int) key_length > 0 ; key_part++)
+  for (key_part= key_info->key_part ;
+       (int) key_length > 0 ;
+       key_part++, from_key+= length, key_length-= length)
   {
     uchar used_uneven_bits= 0;
     if (key_part->null_bit)
     {
-      if (*from_key++)
+      bool null_value; 
+      if ((null_value= *from_key++))
 	to_record[key_part->null_offset]|= key_part->null_bit;
       else
 	to_record[key_part->null_offset]&= ~key_part->null_bit;
       key_length--;
+      if (null_value)
+      {
+        /*
+          Don't copy data for null bytes
+          The -1 below is to subtract the null byte which is already handled
+        */
+        length= min(key_length, (uint) key_part->store_length-1);
+        continue;
+      }
     }
     if (key_part->type == HA_KEYTYPE_BIT)
     {
@@ -232,8 +258,6 @@ void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
       memcpy(to_record + key_part->offset, from_key + used_uneven_bits
              , (size_t) length - used_uneven_bits);
     }
-    from_key+= length;
-    key_length-= length;
   }
 }
 
@@ -281,8 +305,7 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
       key++;
       store_length--;
     }
-    if (key_part->key_part_flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART |
-                                   HA_BIT_PART))
+    if (!(key_part->key_part_flag & HA_CAN_MEMCMP))
     {
       if (key_part->field->key_cmp(key, key_part->length))
 	return 1;
@@ -606,4 +629,288 @@ next_loop:
     key_info= *(key++);
   } while (key_info); /* no more keys to test */
   DBUG_RETURN(0);
+}
+
+
+/*
+  Compare two key tuples.
+
+  @brief
+    Compare two key tuples, i.e. two key values in KeyTupleFormat.
+
+  @param part          KEY_PART_INFO with key description
+  @param key1          First key to compare
+  @param key2          Second key to compare 
+  @param tuple_length  Length of key1 (and key2, they are the same) in bytes.
+
+  @return
+    @retval  0  key1 == key2
+    @retval -1  key1 < key2
+    @retval +1  key1 > key2 
+*/
+
+int key_tuple_cmp(KEY_PART_INFO *part, uchar *key1, uchar *key2, 
+                  uint tuple_length)
+{
+  uchar *key1_end= key1 + tuple_length;
+  int len;
+  int res;
+  LINT_INIT(len);
+  for (;key1 < key1_end; key1 += len, key2 += len, part++)
+  {
+    len= part->store_length;
+    if (part->null_bit)
+    {
+      if (*key1) // key1 == NULL
+      {
+        if (!*key2) // key1(NULL) < key2(notNULL)
+          return -1;
+        continue;
+      }
+      else if (*key2) // key1(notNULL) > key2 (NULL)
+        return 1;
+      /* Step over the NULL bytes for key_cmp() call */
+      key1++;
+      key2++;
+      len--;
+    }
+    if ((res= part->field->key_cmp(key1, key2)))
+      return res;
+  }
+  return 0;
+}
+
+
+/**
+  Get hash value for the key from a key buffer 
+
+  @param  key_info       the key descriptor
+  @param  used_key_part  number of key parts used for the key
+  @param  key            pointer to the buffer with the key value
+
+  @datails
+  When hashing we should take special care only of:
+  1. NULLs (and keyparts which can be null so one byte reserved for it);
+  2. Strings for which we have to take into account their collations
+  and the values of their lengths in the prefixes.
+
+  @return  hash value calculated for the key
+*/
+
+ulong key_hashnr(KEY *key_info, uint used_key_parts, const uchar *key)
+{
+  ulong nr=1, nr2=4;
+  KEY_PART_INFO *key_part= key_info->key_part;
+  KEY_PART_INFO *end_key_part= key_part + used_key_parts;
+
+  for (; key_part < end_key_part; key_part++)
+  {
+    uchar *pos= (uchar*)key;
+    CHARSET_INFO *cs;
+    uint length, pack_length;
+    bool is_string= TRUE;
+    LINT_INIT(cs);
+    LINT_INIT(length);
+    LINT_INIT(pack_length);
+
+    key+= key_part->length;
+    if (key_part->null_bit)
+    {
+      key++;                       /* Skip null byte */
+      if (*pos)                    /* Found null */
+      {
+        nr^= (nr << 1) | 1;
+        /* Add key pack length to key for VARCHAR segments */
+        switch (key_part->type) {
+        case HA_KEYTYPE_VARTEXT1:
+        case HA_KEYTYPE_VARBINARY1:
+        case HA_KEYTYPE_VARTEXT2:
+        case HA_KEYTYPE_VARBINARY2:
+          key+= 2;
+          break;
+        default:
+          ;
+        }
+    continue;
+      }
+      pos++;                       /* Skip null byte */
+    }
+    /* If it is string set parameters of the string */
+    switch (key_part->type) {
+    case HA_KEYTYPE_TEXT:
+      cs= key_part->field->charset();
+      length= key_part->length;
+      pack_length= 0;
+      break;
+    case HA_KEYTYPE_BINARY :
+      cs= &my_charset_bin;
+      length= key_part->length;
+      pack_length= 0;
+      break;
+    case HA_KEYTYPE_VARTEXT1:
+    case HA_KEYTYPE_VARTEXT2:
+      cs= key_part->field->charset();
+      length= uint2korr(pos);
+      pack_length= 2;
+      break;
+    case HA_KEYTYPE_VARBINARY1:
+    case HA_KEYTYPE_VARBINARY2:
+      cs= &my_charset_bin;
+      length= uint2korr(pos);
+      pack_length= 2;
+      break;
+    default:
+      is_string= FALSE;
+    }
+
+    if (is_string)
+    {
+      if (cs->mbmaxlen > 1)
+      {
+        uint char_length= my_charpos(cs, pos + pack_length,
+                                     pos + pack_length + length,
+                                     length / cs->mbmaxlen);
+        set_if_smaller(length, char_length);
+      }
+      cs->coll->hash_sort(cs, pos+pack_length, length, &nr, &nr2);
+      key+= pack_length;
+    }
+    else
+    {
+      for (; pos < (uchar*)key ; pos++)
+      {
+        nr^=(ulong) ((((uint) nr & 63)+nr2)*((uint) *pos)) + (nr << 8);
+        nr2+=3;
+      }
+    }
+  }
+  DBUG_PRINT("exit", ("hash: %lx", nr));
+  return(nr);
+}
+
+
+/**
+  Check whether two keys in the key buffers are equal
+
+  @param key_info        the key descriptor
+  @param  used_key_part  number of key parts used for the keys
+  @param key1            pointer to the buffer with the first key 
+  @param key2            pointer to the buffer with the second key 
+
+  @detail See details of key_hashnr().
+
+  @retval TRUE  keys in the buffers are NOT equal
+  @retval FALSE keys in the buffers are equal
+*/
+
+bool key_buf_cmp(KEY *key_info, uint used_key_parts,
+                 const uchar *key1, const uchar *key2)
+{
+  KEY_PART_INFO *key_part= key_info->key_part;
+  KEY_PART_INFO *end_key_part= key_part + used_key_parts;
+
+  for (; key_part < end_key_part; key_part++)
+  {
+    uchar *pos1= (uchar*)key1;
+    uchar *pos2= (uchar*)key2;
+    CHARSET_INFO *cs;
+    uint length1, length2, pack_length;
+    bool is_string= TRUE;
+    LINT_INIT(cs);
+    LINT_INIT(length1);
+    LINT_INIT(length2);
+    LINT_INIT(pack_length);
+
+    key1+= key_part->length;
+    key2+= key_part->length;
+    if (key_part->null_bit)
+    {
+      key1++; key2++;                           /* Skip null byte */
+      if (*pos1 && *pos2)                       /* Both are null */
+      {
+        /* Add key pack length to key for VARCHAR segments */
+        switch (key_part->type) {
+        case HA_KEYTYPE_VARTEXT1:
+        case HA_KEYTYPE_VARBINARY1:
+        case HA_KEYTYPE_VARTEXT2:
+        case HA_KEYTYPE_VARBINARY2:
+          key1+= 2; key2+= 2;
+          break;
+        default:
+          ;
+        }
+        continue;
+      }
+      if (*pos1 != *pos2)
+        return TRUE;
+      pos1++; pos2++;
+    }
+
+    /* If it is string set parameters of the string */
+    switch (key_part->type) {
+    case HA_KEYTYPE_TEXT:
+      cs= key_part->field->charset();
+      length1= length2= key_part->length;
+      pack_length= 0;
+      break;
+    case HA_KEYTYPE_BINARY :
+      cs= &my_charset_bin;
+      length1= length2= key_part->length;
+      pack_length= 0;
+      break;
+    case HA_KEYTYPE_VARTEXT1:
+    case HA_KEYTYPE_VARTEXT2:
+      cs= key_part->field->charset();
+      length1= uint2korr(pos1);
+      length2= uint2korr(pos2);
+      pack_length= 2;
+      break;
+    case HA_KEYTYPE_VARBINARY1:
+    case HA_KEYTYPE_VARBINARY2:
+      cs= &my_charset_bin;
+      length1= uint2korr(pos1);
+      length2= uint2korr(pos2);
+      pack_length= 2;
+      break;
+    default:
+      is_string= FALSE;
+    }
+
+    if (is_string)
+    {
+      /*
+        Compare the strings taking into account length in characters
+        and collation
+      */
+      uint byte_len1= length1, byte_len2= length2;
+      if (cs->mbmaxlen > 1)
+      {
+        uint char_length1= my_charpos(cs, pos1 + pack_length,
+                                      pos1 + pack_length + length1,
+                                      length1 / cs->mbmaxlen);
+        uint char_length2= my_charpos(cs, pos2 + pack_length,
+                                      pos2 + pack_length + length2,
+                                      length2 / cs->mbmaxlen);
+        set_if_smaller(length1, char_length1);
+        set_if_smaller(length2, char_length2);
+      }
+      if (length1 != length2 ||
+          cs->coll->strnncollsp(cs,
+                                pos1 + pack_length, byte_len1,
+                                pos2 + pack_length, byte_len2,
+                                1))
+        return TRUE;
+      key1+= pack_length; key2+= pack_length;
+    }
+    else
+    {
+      /* it is OK to compare non-string byte per byte */
+      for (; pos1 < (uchar*)key1 ; pos1++, pos2++)
+      {
+        if (pos1[0] != pos2[0])
+          return TRUE;
+      }
+    }
+  }
+  return FALSE;
 }

@@ -1,0 +1,295 @@
+#!/usr/bin/make -f
+
+export DH_VERBOSE=1
+export DEB_BUILD_HARDENING=1
+
+PACKAGE=mariadb-5.5
+
+include /usr/share/dpatch/dpatch.make
+
+TMP=$(CURDIR)/debian/tmp/
+
+ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
+ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
+DEB_BUILD_GNU_TYPE ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+DEB_HOST_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+DEBVERSION = $(shell dpkg-parsechangelog | awk '/^Version: / { print $$2 }' | sed 's/^.*-//' )
+
+DEB_SOURCE_PACKAGE ?= $(strip $(shell egrep '^Source: ' debian/control | cut -f 2 -d ':'))
+DEB_VERSION ?= $(shell dpkg-parsechangelog | egrep '^Version:' | cut -f 2 -d ' ')
+DEB_NOEPOCH_VERSION ?= $(shell echo $(DEB_VERSION) | cut -d: -f2-)
+DEB_UPSTREAM_VERSION ?= $(shell echo $(DEB_NOEPOCH_VERSION) | sed 's/-[^-]*$$//')
+DEB_UPSTREAM_VERSION_MAJOR_MINOR := $(shell echo $(DEB_UPSTREAM_VERSION) | sed -r -n 's/^([0-9]+\.[0-9]+).*/\1/p')
+
+DISTRIBUTION = $(shell lsb_release -i -s)
+RELEASE = $(shell lsb_release -r -s)
+
+MAKE_J = -j$(shell if [ -f /proc/cpuinfo ] ; then grep -c processor.* /proc/cpuinfo ; else echo 1 ; fi)
+ifeq (${MAKE_J}, -j0)
+  MAKE_J = -j1
+endif
+
+MAKE_TEST_TARGET=test-force
+ifneq ($(findstring fulltest,$(DEB_BUILD_OPTIONS)),)
+# make test-bt is the testsuite run by the MySQL build team 
+# before a release, but it is long
+    MAKE_TEST_TARGET=test-bt
+endif
+
+USE_ASSEMBLER=--enable-assembler 
+
+ifneq (,$(filter $(ARCH), amd64 i386 ia64 s390))
+    TESTSUITE_FAIL_CMD=exit 1
+else
+    TESTSUITE_FAIL_CMD=true
+endif
+
+BUILDDIR = builddir
+builddir = $(BUILDDIR)
+
+# This causes seg11 crashes if LDAP is used for groups in /etc/nsswitch.conf
+# so it is disabled by default although, according to MySQL, it brings >10%
+# performance gain if enabled. See #299382.
+ifeq ($(STATIC_MYSQLD), 1)
+    USE_STATIC_MYSQLD=--with-mysqld-ldflags=-all-static
+endif
+
+configure: patch configure-stamp
+configure-stamp:
+	@echo "RULES.$@"
+	dh_testdir
+
+ifneq ($(ARCH_OS),hurd)
+	if [ ! -d /proc/self ]; then echo "/proc IS NEEDED" 1>&2; exit 1; fi 
+endif
+
+	( test -d $(builddir) || mkdir $(builddir) ) && cd $(builddir) && \
+	sh -c 'PATH=$${MYSQL_BUILD_PATH:-"/usr/local/bin:/usr/bin:/bin"} \
+			CC=$${MYSQL_BUILD_CC:-gcc} \
+			CFLAGS=$${MYSQL_BUILD_CFLAGS:-"-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wno-uninitialized"} \
+			CXX=$${MYSQL_BUILD_CXX:-g++} \
+			CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wno-uninitialized"} \
+		cmake .. \
+		-DMYSQL_SERVER_SUFFIX="-$(DEBVERSION)" \
+		-DBUILD_CONFIG=mysql_release \
+		-DCOMPILATION_COMMENT="mariadb.org binary distribution" \
+		-DSYSTEM_TYPE="debian-linux-gnu" \
+		-DDEB=ubuntu'
+
+	touch $@
+
+build: build-stamp
+
+build-stamp: configure
+	@echo "RULES.$@"
+	dh_testdir
+
+	cd $(builddir) && $(MAKE) $(MAKE_J) $(AM_EXTRA_MAKEFLAGS)
+
+ifeq ($(findstring nocheck,$(DEB_BUILD_OPTIONS)),)
+	# Don't know why the following is necessary...
+	cp unittest/unit.pl $(builddir)/unittest/
+	cp -r mysql-test/* $(builddir)/mysql-test/
+	cp -r sql/share/* $(builddir)/sql/share/
+	cp -r scripts/*sql $(builddir)/scripts/
+	if [ ! -f testsuite-stamp ] ; then \
+	  cd $(builddir) && $(MAKE) $(MAKE_TEST_TARGET) || $(TESTSUITE_FAIL_CMD) ; \
+	fi
+endif
+
+	touch testsuite-stamp
+
+	touch build-stamp
+
+clean: clean-patched unpatch
+	rm -rf debian/patched
+clean-patched:
+	@echo "RULES.clean-patched"
+	dh_testdir 
+	dh_testroot
+	rm -f configure-stamp*
+	rm -f build-stamp*
+	rm -f testsuite-stamp
+	#
+	[ ! -f Makefile ] || $(MAKE) clean
+	[ ! -d mysql-test/var ] || rm -rf mysql-test/var
+	#
+	rm -rf $(BUILDDIR)
+
+	debconf-updatepo
+	dh_clean -v
+
+
+install: build
+	@echo "RULES.$@"
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	dh_installdirs
+
+	# some self written manpages which hopefully
+	# gets overwritten sooner or later with upstreams
+	mkdir -p $(TMP)/usr/share/man/man1/
+	mkdir -p $(TMP)/usr/share/man/man8/
+	cp debian/additions/*.1 $(TMP)/usr/share/man/man1/
+	mkdir -p $(TMP)/etc/mysql/conf.d/
+	cp debian/additions/mysqld_safe_syslog.cnf $(TMP)/etc/mysql/conf.d/
+
+	# make install (trailing slash needed for innobase)
+	cd $(builddir) && $(MAKE) install DESTDIR=$(TMP)/
+	#
+	# After installing, remove rpath to make lintian happy.
+	set +e; \
+	find ./debian/tmp/ -type f -print0 \
+		| xargs -0 --no-run-if-empty chrpath -k 2>/dev/null \
+		| fgrep RPATH= \
+		| cut -d: -f 1 \
+		| xargs --no-run-if-empty chrpath -d; \
+	set -e
+
+	# libmysqlclient-dev: forgotten header file since 3.23.25?
+	cp $(BUILDDIR)/include/my_config.h $(TMP)/usr/include/mysql/
+	cp include/my_dir.h $(TMP)/usr/include/mysql/
+
+	# mysql-common: We provide our own version of this package for
+	# completeness, but we can use an existing version; mariadb-specic
+	# stuff is in mariadb-common
+	install -d $(TMP)/etc/mysql
+	install -m 0644 debian/additions/my.cnf $(TMP)/etc/mysql/my.cnf
+
+	# mariadb-common: MariaDB-specific config stuff.
+	install -d $(TMP)/etc/mysql/conf.d
+	install -m 0644 debian/additions/mariadb.cnf $(TMP)/etc/mysql/conf.d/mariadb.cnf
+
+	# mariadb-client
+	install -m 0755 debian/additions/mysqlreport $(TMP)/usr/bin/
+	install -m 0755 debian/additions/innotop/innotop $(TMP)/usr/bin/
+	install -m 0644 debian/additions/innotop/innotop.1 $(TMP)/usr/share/man/man1/
+
+	# mariadb-server
+	install -m 0755 $(BUILDDIR)/scripts/mysqld_safe $(TMP)/usr/bin/mysqld_safe
+	mkdir -p $(TMP)/usr/share/doc/mariadb-server-5.5/examples
+	# We have a sane my.cnf, cruft not needed (remove my-*.cnf and config-*.cnf)
+	#  $(TMP)/usr/share/mysql/*cnf      $(TMP)/usr/share/doc/mariadb-server-5.5/examples/
+	rm -vf $(TMP)/usr/share/mysql/my-*.cnf \
+	       $(TMP)/usr/share/mysql/config-*.cnf \
+	       $(TMP)/usr/share/mysql/mi_test_all* \
+	       $(TMP)/usr/share/mysql/mysql-log-rotate \
+	       $(TMP)/usr/share/mysql/mysql.server \
+	       $(TMP)/usr/share/mysql/binary-configure
+	nm -n $(BUILDDIR)/sql/mysqld |gzip -9 > $(TMP)/usr/share/doc/mariadb-server-5.5/mysqld.sym.gz
+	install -m 0755 debian/additions/echo_stderr $(TMP)/usr/share/mysql/
+	install -m 0755 debian/additions/debian-start $(TMP)/etc/mysql/
+	install -m 0755 debian/additions/debian-start.inc.sh $(TMP)/usr/share/mysql/
+
+	install -m 0644 $(builddir)/Docs/INFO_SRC $(TMP)/usr/share/doc/mariadb-server-5.5/INFO_SRC
+	install -m 0644 $(builddir)/Docs/INFO_BIN $(TMP)/usr/share/doc/mariadb-server-5.5/INFO_BIN
+
+	# mariadb-test
+	mv $(TMP)/usr/mysql-test	$(TMP)/usr/share/mysql
+
+	# lintian overrides
+	mkdir -p $(TMP)/usr/share/lintian/overrides/
+	cp debian/mysql-common.lintian-overrides      $(TMP)/usr/share/lintian/overrides/mysql-common
+	cp debian/mariadb-server-5.5.lintian-overrides $(TMP)/usr/share/lintian/overrides/mariadb-server-5.5
+	cp debian/mariadb-client-5.5.lintian-overrides $(TMP)/usr/share/lintian/overrides/mariadb-client-5.5
+
+	# For 5.0 -> 5.5 transition
+	d=$(TMP)/usr/share/mysql-common/internal-use-only/; \
+	mkdir -p $$d; \
+	cp debian/mariadb-server-5.5.mysql.init $$d/_etc_init.d_mysql; \
+	cp debian/mariadb-server-5.5.mysql-server.logrotate $$d/_etc_logrotate.d_mysql-server; \
+	cp debian/additions/debian-start $$d/_etc_mysql_debian-start;
+
+	# install AppArmor profile
+	install -D -m 644 debian/apparmor-profile $(TMP)/etc/apparmor.d/usr.sbin.mysqld
+	# install Apport hook
+	install -D -m 644 debian/mariadb-server-5.5.py $(TMP)/usr/share/apport/package-hooks/source_mariadb-5.5.py
+
+	autorm=debian/autorm-file;                                      \
+	rm -f $$autorm;                                                 \
+	ignore='';                                                      \
+	for p in $$MARIADB_OPTIONAL_DEBS; do                            \
+	  p=mariadb-$$p-5.5;                                            \
+	  dh_movefiles --package=$$p || echo "../$$p*.deb" >> $$autorm; \
+	  ignore="$$ignore --no-package=$$p";                           \
+	done;                                                           \
+	sh -c "dh_movefiles $$ignore"
+
+# Build architecture-independent files here.
+binary-indep: build install
+	@echo "RULES.binary-indep"
+	dh_testdir -i
+	dh_testroot -i
+	dh_installdebconf -i
+	dh_installdocs -i
+	dh_installexamples -i
+	dh_installmenu -i
+	dh_installlogrotate -i
+	dh_installinit -i
+	dh_installcron -i 
+	dh_installman -i
+	dh_installinfo -i
+	dh_installlogcheck -i
+	dh_installchangelogs -i
+	dh_link -i
+	dh_compress -i
+	dh_fixperms -i
+	dh_installdeb -i
+	dh_perl -i
+	dh_gencontrol -i
+	dh_md5sums -i
+	dh_builddeb -i
+
+# Build architecture-dependent files here.
+binary-arch: build install
+	@echo "RULES.binary-arch"
+	dh_testdir 
+	dh_testroot
+
+	dh_installdebconf -a
+	dh_installdocs -a
+	dh_installexamples -a
+	dh_installmenu -a
+	dh_installlogrotate -a --name mysql-server
+	# Start mysql in runlevel 19 before 20 where apache, proftpd etc gets
+	# started which might depend on a running database server.
+	dh_installinit -a --name=mysql -- defaults 19 21
+	dh_installcron -a --name mysql-server
+	dh_installman -a
+	dh_installinfo -a
+	dh_installlogcheck -a
+	dh_installchangelogs -a
+	dh_strip -a
+	dh_link -a	# .so muss nach .so.1.2.3 installier werden!
+	dh_compress -a
+	dh_fixperms -a
+	dh_makeshlibs -a
+	dh_makeshlibs -plibmariadbclient18 -V'libmariadbclient18 (>= 5.5.1-1)'
+	dh_installdeb -a
+	dh_perl -a
+	dh_shlibdeps -a -l debian/libmariadbclient18/usr/lib -L libmariadbclient18
+	dh_gencontrol -a
+	dh_md5sums -a
+	dh_builddeb -a
+
+source diff:
+	@echo >&2 'source and diff are obsolete - use dpkg-source -b'; false
+
+binary:	binary-indep binary-arch
+
+get-orig-source:
+	@wget -nv -T10 -t3 \
+	  -O /tmp/mysql-$(DEB_UPSTREAM_VERSION).tar.gz \
+	  http://ftp.gwdg.de/pub/misc/mysql/Downloads/MySQL-$(DEB_UPSTREAM_VERSION_MAJOR_MINOR)/mysql-$(DEB_UPSTREAM_VERSION).tar.gz
+	@tar xfz /tmp/mysql-$(DEB_UPSTREAM_VERSION).tar.gz -C /tmp
+	@rm -rf /tmp/mysql-$(DEB_UPSTREAM_VERSION)/Docs
+	@rm -rf /tmp/mysql-$(DEB_UPSTREAM_VERSION)/debian
+	@mv /tmp/mysql-$(DEB_UPSTREAM_VERSION) /tmp/$(DEB_SOURCE_PACKAGE)-$(DEB_UPSTREAM_VERSION).orig
+	@cd /tmp ; tar czf $(DEB_SOURCE_PACKAGE)_$(DEB_UPSTREAM_VERSION).orig.tar.gz $(DEB_SOURCE_PACKAGE)-$(DEB_UPSTREAM_VERSION).orig
+	@rm -f /tmp/mysql-$(DEB_UPSTREAM_VERSION).tar.gz
+	@rm -rf /tmp/$(DEB_SOURCE_PACKAGE)-$(DEB_UPSTREAM_VERSION).orig
+
+.PHONY: clean clean-patched configure build binary binary-indep binary-arch install patch unpatch
+
+# vim: ts=8

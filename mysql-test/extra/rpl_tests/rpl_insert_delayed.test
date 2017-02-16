@@ -9,15 +9,13 @@ CREATE SCHEMA IF NOT EXISTS mysqlslap;
 USE mysqlslap;
 --enable_warnings
 
-select @@global.binlog_format;
-
 #
 # BUG#25507 "multi-row insert delayed + auto increment causes
 # duplicate key entries on slave";
 # happened only in statement-based binlogging.
 #
 
-CREATE TABLE t1 (id INT primary key auto_increment, name VARCHAR(64));
+CREATE TABLE t1 (id INT primary key auto_increment, name VARCHAR(64)) ENGINE=MyISAM;
 let $query = "INSERT DELAYED INTO t1 VALUES (null, 'Dr. No'), (null, 'From Russia With Love'), (null, 'Goldfinger'), (null, 'Thunderball'), (null, 'You Only Live Twice')";
 --exec $MYSQL_SLAP --silent --concurrency=5 --iterations=200 --query=$query --delimiter=";"
 
@@ -104,7 +102,9 @@ CREATE TABLE t1(a int, UNIQUE(a));
 --let $_start= query_get_value(SHOW MASTER STATUS, Position, 1)
 
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
+--disable_warnings
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
+--enable_warnings
 flush table t1; # to wait for INSERT DELAYED to be done
 if  (`SELECT @@global.binlog_format = 'STATEMENT'`)
 {
@@ -145,7 +145,7 @@ select * from t1;
 connection master;
 drop table t1;
 sync_slave_with_master;
-if  (`SELECT @@global.binlog_format != 'ROW'`)
+if  (`SELECT @@global.binlog_format = 'STATEMENT'`)
 {
   #flush the logs after the test
   FLUSH LOGS;

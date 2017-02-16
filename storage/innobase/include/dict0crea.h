@@ -106,6 +106,17 @@ UNIV_INTERN
 ulint
 dict_create_or_check_foreign_constraint_tables(void);
 /*================================================*/
+
+/********************************************************************//**
+Construct foreign key constraint defintion from data dictionary information.
+*/
+UNIV_INTERN
+char*
+dict_foreign_def_get(
+/*=================*/
+	dict_foreign_t*	foreign,/*!< in: foreign */
+	trx_t*		trx);	/*!< in: trx */
+
 /********************************************************************//**
 Adds foreign key definitions to data dictionary tables in the database. We
 look at table->foreign_list, and also generate names to constraints that were

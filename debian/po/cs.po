@@ -1,0 +1,348 @@
+#
+#    Translators, if you are not familiar with the PO format, gettext
+#    documentation is worth reading, especially sections dedicated to
+#    this format, e.g. by running:
+#         info -n '(gettext)PO Files'
+#         info -n '(gettext)Header Entry'
+#
+#    Some information specific to po-debconf are available at
+#            /usr/share/doc/po-debconf/README-trans
+#         or http://www.debian.org/intl/l10n/po-debconf/README-trans
+#
+#    Developers do not need to manually edit POT or PO files.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: mysql-dfsg-5.1\n"
+"Report-Msgid-Bugs-To: mariadb-5.5@packages.debian.org\n"
+"POT-Creation-Date: 2012-01-12 13:08+0100\n"
+"PO-Revision-Date: 2007-05-01 13:01+0200\n"
+"Last-Translator: Miroslav Kure <kurem@debian.cz>\n"
+"Language-Team: Czech <debian-l10n-czech@lists.debian.org>\n"
+"Language: cs\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+msgid "Really proceed with downgrade?"
+msgstr "Opravdu pokračovat v degradaci?"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+msgid "A file named /var/lib/mysql/debian-*.flag exists on this system."
+msgstr "V systému existuje soubor /var/lib/mysql/debian-*.flag."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+#, fuzzy
+#| msgid ""
+#| "Such file is an indication that a mariadb-server package with a higher "
+#| "version has been installed earlier."
+msgid ""
+"Such a file is an indication that a mariadb-server package with a higher "
+"version has been installed previously."
+msgstr ""
+"To znamená, že již byl nainstalován balík mariadb-server s vyšší verzí."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+msgid ""
+"There is no guarantee that the version you're currently installing will be "
+"able to use the current databases."
+msgstr ""
+"Neexistuje žádná záruka, že momentálně instalovaná verze bude umět pracovat "
+"se stávajícími databázemi."
+
+#. Type: note
+#. Description
+#: ../mariadb-server-5.5.templates:3001
+msgid "Important note for NIS/YP users"
+msgstr "Důležitá poznámka pro uživatele NIS/YP"
+
+#. Type: note
+#. Description
+#: ../mariadb-server-5.5.templates:3001
+msgid ""
+"Using MariaDB under NIS/YP requires a mysql user account to be added on the "
+"local system with:"
+msgstr ""
+
+#. Type: note
+#. Description
+#: ../mariadb-server-5.5.templates:3001
+#, fuzzy
+#| msgid ""
+#| "You should also check the permissions and the owner of the /var/lib/mysql "
+#| "directory:"
+msgid ""
+"You should also check the permissions and ownership of the /var/lib/mysql "
+"directory:"
+msgstr ""
+"Také byste měli zkontrolovat vlastníka a oprávnění adresáře /var/lib/mysql:"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:4001
+msgid "Remove all MariaDB databases?"
+msgstr "Odstranit všechny MariaDB databáze?"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:4001
+msgid ""
+"The /var/lib/mysql directory which contains the MariaDB databases is about "
+"to be removed."
+msgstr ""
+"Adresář /var/lib/mysql, ve kterém se nachází MariaDB databáze, bude "
+"odstraněn."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:4001
+msgid ""
+"If you're removing the MariaDB package in order to later install a more "
+"recent version or if a different mariadb-server package is already using it, "
+"the data should be kept."
+msgstr ""
+"Jestliže odstraňujete balík MariaDB za účelem instalace novější verze "
+"MariaDB, nebo pokud tato data souběžně využívá jiný balík mariadb-server, "
+"měli byste data ponechat."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:5001
+msgid "Start the MariaDB server on boot?"
+msgstr "Spustit MariaDB server při startu systému?"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:5001
+msgid ""
+"The MariaDB server can be launched automatically at boot time or manually "
+"with the '/etc/init.d/mysql start' command."
+msgstr ""
+"MariaDB se může spouštět automaticky při startu systému, nebo ručně příkazem "
+"'/etc/init.d/mysql start'."
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:6001
+msgid "New password for the MariaDB \"root\" user:"
+msgstr "Nové heslo MariaDB uživatele \"root\":"
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:6001
+msgid ""
+"While not mandatory, it is highly recommended that you set a password for "
+"the MariaDB administrative \"root\" user."
+msgstr ""
+"Přestože to není nezbytné, je silně doporučeno nastavit heslo u "
+"správcovského MariaDB účtu \"root\"."
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:6001
+#, fuzzy
+#| msgid "If that field is left blank, the password will not be changed."
+msgid "If this field is left blank, the password will not be changed."
+msgstr "Ponecháte-li pole prázdné, heslo se nezmění."
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:7001
+#, fuzzy
+#| msgid "New password for the MySQL \"root\" user:"
+msgid "Repeat password for the MariaDB \"root\" user:"
+msgstr "Nové heslo MariaDB uživatele \"root\":"
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+msgid "Unable to set password for the MariaDB \"root\" user"
+msgstr "Nelze nastavit heslo MariaDB uživatele \"root\""
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+msgid ""
+"An error occurred while setting the password for the MariaDB administrative "
+"user. This may have happened because the account already has a password, or "
+"because of a communication problem with the MariaDB server."
+msgstr ""
+"Během nastavování hesla pro správcovského uživatele MariaDB se vyskytla "
+"chyba. To se mohlo stát třeba proto, protože uživatel již měl heslo "
+"nastaveno, nebo protože nastal problém v komunikaci s MariaDB serverem."
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+#, fuzzy
+#| msgid ""
+#| "You should check the account's password after tha package installation."
+msgid "You should check the account's password after the package installation."
+msgstr "Po instalaci balíku byste měli heslo ověřit."
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+#, fuzzy
+#| msgid ""
+#| "Please read the /usr/share/doc/mysql-server-5.1/README.Debian file for "
+#| "more information."
+msgid ""
+"Please read the /usr/share/doc/mariadb-server-5.5/README.Debian file for "
+"more information."
+msgstr ""
+"Více informací naleznete v /usr/share/doc/mariadb-server-5.5/README.Debian."
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:9001
+msgid "Password input error"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:9001
+msgid "The two passwords you entered were not the same. Please try again."
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:10001
+msgid "NDB Cluster seems to be in use"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:10001
+msgid ""
+"MySQL-5.1 no longer provides NDB Cluster support. Please migrate to the new "
+"mysql-cluster package and remove all lines starting with \"ndb\" from all "
+"config files below /etc/mysql/."
+msgstr ""
+
+#~ msgid ""
+#~ "To use MariaDB, the following entries for users and groups should be "
+#~ "added to the system:"
+#~ msgstr ""
+#~ "Abyste mohli MariaDB používat, musíte v systému založit následující "
+#~ "uživatele a skupiny:"
+
+#~ msgid "Cannot upgrade if ISAM tables are present!"
+#~ msgstr "Aktualizace nelze provést pokud jsou přítomny tabulky ISAM!"
+
+#~ msgid ""
+#~ "Recent versions of MySQL can no longer use the old ISAM table format and "
+#~ "it is necessary to convert your tables to e.g. MyISAM before upgrading by "
+#~ "using \"mysql_convert_table_format\" or \"ALTER TABLE x ENGINE=MyISAM\". "
+#~ "The installation of mysql-server-5.1 will now abort. In case your old "
+#~ "mysql-server-4.1 gets removed nevertheless just reinstall it to convert "
+#~ "those tables."
+#~ msgstr ""
+#~ "Poslední verze MySQL již nemohou používat starý formát tabulek ISAM a "
+#~ "před aktualizací je nutné převést tyto tabulky např. do formátu MyISAM "
+#~ "pomocí \"mysql_convert_table_format\" nebo \"ALTER TABLE x ENGINE=MyISAM"
+#~ "\". Instalace mysql-server-5.1 se nyní přeruší. V případě, že se mezitím "
+#~ "odinstaloval původní mysql-server-4.1, jednoduše jej znovu nainstalujte a "
+#~ "tabulky převeďte."
+
+#~ msgid ""
+#~ "Support MySQL connections from hosts running Debian \"sarge\" or older?"
+#~ msgstr ""
+#~ "Podporovat MySQL připojení z počítačů používajících Debian Sarge nebo "
+#~ "starší?"
+
+#~ msgid ""
+#~ "In old versions of MySQL clients on Debian, passwords were not stored "
+#~ "securely. This has been improved since then, however clients (such as "
+#~ "PHP) from hosts running Debian 3.1 Sarge will not be able to connect to "
+#~ "recent accounts or accounts whose password have been changed."
+#~ msgstr ""
+#~ "Způsob, jakým se dříve ukládala hesla, nebyl příliš bezpečný. To se nyní "
+#~ "zlepšilo, ale nevýhodou je, že se klienti z Debianu 3.1 Sarge (např. PHP) "
+#~ "nebudou moci připojit na nové účty, nebo na účty, u nichž se heslo "
+#~ "změnilo."
+
+#~ msgid ""
+#~ "To use mysql you must install an equivalent user and group to the "
+#~ "following and ensure yourself that /var/lib/mysql has the right "
+#~ "permissions (the uid/gid may be different)."
+#~ msgstr ""
+#~ "Abyste mohli mysql používat, musíte do následujících souborů přidat "
+#~ "ekvivalentního uživatele a skupinu a zajistit, že /var/lib/mysql má "
+#~ "správná práva (uid/gid se mohou lišit)."
+
+#~ msgid "Remove the databases used by all MySQL versions?"
+#~ msgstr "Odstranit databáze používané všemi verzemi MySQL?"
+
+#~ msgid ""
+#~ "If you do not provide a password no changes will be made to the account."
+#~ msgstr "Nezadáte-li heslo, žádné změny se s účtem neprovedou."
+
+#~ msgid ""
+#~ "When installation finishes, you should verify that the account is "
+#~ "properly protected with a password (see README.Debian for more "
+#~ "information)."
+#~ msgstr ""
+#~ "Po skončení instalace byste měli ověřit, že je účet chráněn heslem (více "
+#~ "informací naleznete v souboru README.Debian)."
+
+#~ msgid "Update Hints"
+#~ msgstr "Poznámky k aktualizaci"
+
+#~ msgid ""
+#~ "You have to run \"mysql_upgrade\" after the upgrade, else tables can be  "
+#~ "corrupted! This script also enhances the privilege tables but is not  "
+#~ "supposed to give any user more rights that he had before,"
+#~ msgstr ""
+#~ "Po aktualizaci ještě musíte spustit \"mysql_upgrade\", protože jinak by "
+#~ "se tabulky mohly narušit! Tento skript také rozšiřuje tabulky privilegií, "
+#~ "ovšem neměl by uživatelům přidat více práv, než měli dosud."
+
+#~ msgid "Please also read http://www.mysql.com/doc/en/Upgrade.html"
+#~ msgstr "Také si přečtěte http://www.mysql.com/doc/en/Upgrade.html"
+
+#~ msgid ""
+#~ "MySQL will only install if you have a non-numeric hostname that is "
+#~ "resolvable via the /etc/hosts file. E.g. if the \"hostname\" command "
+#~ "returns \"myhostname\" then there must be a line like \"10.0.0.1 "
+#~ "myhostname\"."
+#~ msgstr ""
+#~ "MySQL se nainstaluje pouze v případě, že používáte nenumerické jméno "
+#~ "počítače, které se dá přeložit přes soubor /etc/hosts. Např. když příkaz "
+#~ "\"hostname\" vrátí \"diamond\", tak v /etc/hosts musí existovat obdobný "
+#~ "řádek jako \"10.0.0.1 diamond\"."
+
+#~ msgid ""
+#~ "A new mysql user \"debian-sys-maint\" will be created. This mysql account "
+#~ "is used in the start/stop and cron scripts. Don't delete."
+#~ msgstr ""
+#~ "Bude vytvořen nový mysql uživatel \"debian-sys-maint\". Tento mysql účet "
+#~ "se používá ve startovacích, ukončovacích a cronových skriptech. Nemažte "
+#~ "jej."
+
+#~ msgid ""
+#~ "Please remember to set a PASSWORD for the MySQL root user! If you use a /"
+#~ "root/.my.cnf, always write the \"user\" and the \"password\" lines in "
+#~ "there, never only the password!"
+#~ msgstr ""
+#~ "Nezapomeňte nastavit heslo pro účet administrátora MySQL! Používáte-li /"
+#~ "root/.my.cnf, vždy zde zadejte jak řádek \"user\", tak řádek \"password"
+#~ "\". Nikdy zde nezadávejte jenom heslo!"
+
+#~ msgid ""
+#~ "Should I remove the complete /var/lib/mysql directory tree which is used "
+#~ "by all MySQL versions, not necessarily only the one you are about to "
+#~ "purge?"
+#~ msgstr ""
+#~ "Mám odstranit kompletní adresářový strom /var/lib/mysql, který se používá "
+#~ "pro všechny verze MySQL, tedy ne nutně pouze pro verzi, kterou se "
+#~ "chystáte vyčistit?"

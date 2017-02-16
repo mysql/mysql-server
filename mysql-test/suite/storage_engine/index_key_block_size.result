@@ -1,0 +1,43 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a <INT_COLUMN>,
+b <CHAR_COLUMN>,
+<CUSTOM_INDEX> (a) KEY_BLOCK_SIZE=8
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW KEYS IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	a	1	a	#	#	NULL	NULL	#	#		
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>,
+b <CHAR_COLUMN>,
+<CUSTOM_INDEX> ind1(b ASC) KEY_BLOCK_SIZE=0
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	ind1	1	b	#	#	NULL	NULL	#	#		
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>,
+b <CHAR_COLUMN>,
+UNIQUE INDEX ind2(b(1) DESC) KEY_BLOCK_SIZE=32768 COMMENT 'big key_block_size value'
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	ind2	1	b	#	#	1	NULL	#	#		big key_block_size value
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>,
+b <CHAR_COLUMN>,
+<CUSTOM_INDEX> a_b(a,b) KEY_BLOCK_SIZE=8192
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	a_b	1	a	#	#	NULL	NULL	#	#		
+t1	1	a_b	2	b	#	#	NULL	NULL	#	#		
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>,
+b <CHAR_COLUMN>
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (100,'z');
+ALTER TABLE t1 ADD <CUSTOM_INDEX>(a) KEY_BLOCK_SIZE 8192;
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	a	1	a	#	#	NULL	NULL	#	#		
+DROP TABLE t1;

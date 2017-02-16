@@ -1,0 +1,108 @@
+#
+# Test of alter online table
+#
+
+--source include/have_innodb.inc
+--disable_warnings
+drop table if exists t1,t2,t3;
+--enable_warnings
+#
+# Test of things that can be done online
+#
+
+create table t1 (a int not null primary key, b int, c varchar(80), e enum('a','b'));
+insert into t1 (a) values (1),(2),(3);
+
+alter online table t1 modify b int default 5;
+alter online table t1 change b new_name int;
+alter online table t1 modify e enum('a','b','c');
+alter online table t1 comment "new comment";
+alter online table t1 rename to t2;
+alter online table t2 rename to t1;
+
+drop table t1;
+
+#
+# temporary tables always require a copy
+#
+
+create temporary table t1 (a int not null primary key, b int, c varchar(80), e enum('a','b'));
+insert into t1 (a) values (1),(2),(3);
+
+--error ER_CANT_DO_ONLINE
+alter online table t1 modify b int default 5;
+--error ER_CANT_DO_ONLINE
+alter online table t1 change b new_name int;
+--error ER_CANT_DO_ONLINE
+alter online table t1 modify e enum('a','b','c');
+--error ER_CANT_DO_ONLINE
+alter online table t1 comment "new comment";
+--error ER_CANT_DO_ONLINE
+alter online table t1 rename to t2;
+
+drop table t1;
+
+#
+# Test of things that is not possible to do online
+#
+
+create table t1 (a int not null primary key, b int, c varchar(80), e enum('a','b'));
+insert into t1 (a) values (1),(2),(3);
+
+--error ER_CANT_DO_ONLINE
+alter online table t1 drop column b, add b int;
+--error ER_CANT_DO_ONLINE
+alter online table t1 modify b bigint;
+--error ER_CANT_DO_ONLINE
+alter online table t1 modify e enum('c','a','b');
+--error ER_CANT_DO_ONLINE
+alter online table t1 modify c varchar(50);
+--error ER_CANT_DO_ONLINE
+alter online table t1 modify c varchar(100);
+--error ER_CANT_DO_ONLINE
+alter online table t1 add f int;
+--error ER_CANT_DO_ONLINE
+alter online table t1 engine=memory;
+
+alter table t1 engine=innodb;
+alter table t1 add index (b);
+--error ER_CANT_DO_ONLINE
+alter online table t1 add index c (c);
+--error ER_CANT_DO_ONLINE
+alter online table t1 drop index b;
+drop table t1;
+
+create temporary table t1 (a int not null primary key, b int, c varchar(80), e enum('a','b'));
+insert into t1 (a) values (1),(2),(3);
+
+--error ER_CANT_DO_ONLINE
+alter online table t1 drop column b, add b int;
+--error ER_CANT_DO_ONLINE
+alter online table t1 modify b bigint;
+--error ER_CANT_DO_ONLINE
+alter online table t1 modify e enum('c','a','b');
+--error ER_CANT_DO_ONLINE
+alter online table t1 modify c varchar(50);
+--error ER_CANT_DO_ONLINE
+alter online table t1 modify c varchar(100);
+--error ER_CANT_DO_ONLINE
+alter online table t1 add f int;
+--error ER_CANT_DO_ONLINE
+alter online table t1 engine=memory;
+
+alter table t1 engine=innodb;
+alter table t1 add index (b);
+--error ER_CANT_DO_ONLINE
+alter online table t1 add index c (c);
+--error ER_CANT_DO_ONLINE
+alter online table t1 drop index b;
+drop table t1;
+
+#
+# Test merge tables
+#
+create table t1 (a int not null primary key, b int, c varchar(80));
+create table t2 (a int not null primary key, b int, c varchar(80));
+create table t3 (a int not null primary key, b int, c varchar(80)) engine=merge UNION=(t1);
+alter online table t3 union=(t1,t2);
+drop table t1,t2,t3;

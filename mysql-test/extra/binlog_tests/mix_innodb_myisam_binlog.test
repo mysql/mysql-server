@@ -228,7 +228,7 @@ rollback;
 create table t0 (n int);
 insert t0 select * from t1;
 set autocommit=1;
-insert into t0 select GET_LOCK("lock1",null);
+insert into t0 select GET_LOCK("lock1",0);
 set autocommit=0;
 create table t2 (n int) engine=innodb;
 insert into t2 values (3); 
@@ -311,6 +311,7 @@ select get_lock("a",10);
 begin;
 insert into t1 values(8);
 insert into t2 select * from t1;
+
 disconnect con3;
 
 connection con4;
@@ -331,6 +332,9 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 # we check that the error code of the "ROLLBACK" event is 0 and not
 # ER_SERVER_SHUTDOWN (i.e. disconnection just rolls back transaction
 # and does not make slave to stop)
+
+-- source include/binlog_start_pos.inc
+
 if (`select @@binlog_format = 'ROW'`)
 {
   --echo There is nothing to roll back; transactional changes are removed from the trans cache.

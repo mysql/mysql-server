@@ -1,0 +1,33 @@
+source include/have_tokudb.inc;
+--disable_warnings
+DROP TABLE IF EXISTS t, ti;
+--enable_warnings
+
+SET SESSION TOKUDB_DISABLE_SLOW_ALTER=1;
+SET SESSION DEFAULT_STORAGE_ENGINE='TokuDB';
+
+CREATE TABLE t (a CHAR(4), b CHAR(4), c CHAR(4), KEY(b), id INT PRIMARY KEY);
+INSERT INTO t VALUES ('a','b','c',1),('d','e','f',2),('g','h','i',3);
+
+CREATE TABLE ti LIKE t;
+ALTER TABLE ti ENGINE=myisam;
+INSERT INTO ti SELECT * FROM t;
+
+ALTER TABLE t CHANGE COLUMN a a CHAR(255);
+ALTER TABLE ti CHANGE COLUMN a a CHAR(255);
+
+SELECT b FROM t;
+SELECT b FROM ti;
+
+INSERT INTO t VALUES ('j','k','l',4);
+INSERT INTO ti VALUES ('j','k','l',4);
+
+# should get the same result set
+SELECT b FROM t;
+SELECT b FROM ti;
+
+# tables should be the same
+let $diff_tables = test.t, test.ti;
+source include/diff_tables.inc;
+
+DROP TABLE t, ti;

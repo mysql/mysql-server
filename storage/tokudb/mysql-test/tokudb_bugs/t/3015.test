@@ -1,0 +1,100 @@
+--source include/have_tokudb.inc
+#
+#test update multiple
+#
+#
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+set session tokudb_prelock_empty=0;
+#
+# test updates on table that is composed of more than one dictionary
+#
+create table foo (a int, b int, c int, d int, primary key (a), key (b), key (c) clustering=yes);
+insert into foo values (1,100,1000,1),(2,20,200,2),(3,300,30,3),(4,4,4,4);
+
+#
+# cases: 
+# primary key changes, 
+# have clustering key and it changes, or val changes, 
+# secondary key changes, 
+# only val of primary dictionary changes
+#
+select * from foo;
+explain select b,a from foo;
+select b,a from foo;
+select * from foo where c > 0;
+
+--echo #
+--echo # only val of primary dictionary and clustering dictionary changes
+--echo #
+update foo set d=d+100;
+select * from foo;
+explain select b,a from foo;
+select b,a from foo;
+select * from foo where c > 0;
+
+--echo #
+--echo # secondary key changes
+--echo #
+update foo set b=b+1;
+select * from foo;
+explain select b,a from foo;
+select b,a from foo;
+select * from foo where c > 0;
+
+--echo #
+--echo # clustering key changes
+--echo #
+update foo set c=c*10;
+select * from foo;
+explain select b,a from foo;
+select b,a from foo;
+select * from foo where c > 0;
+
+drop table foo;
+
+--echo #
+--echo # test updates on single dictionary
+--echo # Two cases: pk changes, pk does not change
+--echo #
+create table foo (a int, b int, primary key (a));
+insert into foo values (1,10),(2,20),(3,30);
+select * from foo;
+update foo set b=b*10;
+select * from foo;
+update foo set a=a+10;
+select * From foo;
+
+drop table foo;
+
+--echo #
+--echo # test pk uniqueness check during updates
+--echo # Two cases: have one dict, have more than one dict
+--echo #
+create table foo (a int, b int, c int, primary key (a));
+insert into foo values (1,10,100),(2,20,200),(3,30,300);
+--error ER_DUP_ENTRY
+update foo set a=3 where a=1;
+select * from foo;
+
+alter table foo add key (c) clustering=yes;
+--error ER_DUP_ENTRY
+update foo set a=3 where a=1;
+drop table foo;
+
+--echo #
+--echo # test secondary key uniqueness
+--echo #
+create table foo (a int, b int, c int, primary key (a), unique key (b));
+insert into foo values (1,10,100),(2,20,200),(3,30,300);
+--error ER_DUP_ENTRY
+update foo set b=20 where b=10;
+update foo set c=c*100;
+select * from foo;
+# Final cleanup.
+DROP TABLE foo;
+

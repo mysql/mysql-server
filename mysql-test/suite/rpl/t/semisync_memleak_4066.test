@@ -1,0 +1,19 @@
+# 
+# MDEV-4066 semisync_master + temporary tables causes memory leaks
+#
+source include/have_semisync_plugin.inc;
+source include/have_binlog_format_row.inc;
+source include/master-slave.inc;
+
+connection master;
+
+--replace_result .dll .so
+eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_SO';
+
+--connect (con1,localhost,root,,)
+CREATE TEMPORARY TABLE tmp (i INT);
+--disconnect con1 
+
+source include/rpl_end.inc;
+uninstall plugin rpl_semi_sync_master;
+

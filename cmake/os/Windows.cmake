@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -98,8 +98,13 @@ IF(MSVC)
   # Fix CMake's predefined huge stack size
   FOREACH(type EXE SHARED MODULE)
    STRING(REGEX REPLACE "/STACK:([^ ]+)" "" CMAKE_${type}_LINKER_FLAGS "${CMAKE_${type}_LINKER_FLAGS}")
-   STRING(REGEX REPLACE "/INCREMENTAL:([^ ]+)" "" CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO}")
+   STRING(REGEX REPLACE "/INCREMENTAL:([^ ]+)" "/INCREMENTAL:NO" CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO}")
+   STRING(REGEX REPLACE "/INCREMENTAL$" "/INCREMENTAL:NO" CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO}")
+   STRING(REGEX REPLACE "/INCREMENTAL:([^ ]+)" "/INCREMENTAL:NO" CMAKE_${type}_LINKER_FLAGS_DEBUG "${CMAKE_${type}_LINKER_FLAGS_DEBUG}")
+   STRING(REGEX REPLACE "/INCREMENTAL$" "/INCREMENTAL:NO" CMAKE_${type}_LINKER_FLAGS_DEBUG "${CMAKE_${type}_LINKER_FLAGS_DEBUG}")
+   SET(CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO} /OPT:REF /release")
   ENDFOREACH()
+
   
   # Mark 32 bit executables large address aware so they can 
   # use > 2GB address space
@@ -115,7 +120,7 @@ IF(MSVC)
   
   #TODO: update the code and remove the disabled warnings
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4800 /wd4805 /wd4996")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4800 /wd4805 /wd4996 /we4099")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4800 /wd4805 /wd4996 /wd4291 /wd4577 /we4099")
 
   IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
     # _WIN64 is defined by the compiler itself. 
@@ -183,16 +188,14 @@ CHECK_SYMBOL_REPLACEMENT(S_IROTH _S_IREAD sys/stat.h)
 CHECK_SYMBOL_REPLACEMENT(S_IFIFO _S_IFIFO sys/stat.h)
 CHECK_SYMBOL_REPLACEMENT(SIGQUIT SIGTERM signal.h)
 CHECK_SYMBOL_REPLACEMENT(SIGPIPE SIGINT signal.h)
-CHECK_SYMBOL_REPLACEMENT(isnan _isnan float.h)
-CHECK_SYMBOL_REPLACEMENT(finite _finite float.h)
-CHECK_SYMBOL_REPLACEMENT(tzname _tzname time.h)
-CHECK_SYMBOL_REPLACEMENT(snprintf _snprintf stdio.h)
+CHECK_SYMBOL_REPLACEMENT(isnan _isnan "math.h;float.h")
+CHECK_SYMBOL_REPLACEMENT(finite _finite "math;float.h")
 CHECK_FUNCTION_REPLACEMENT(popen _popen)
 CHECK_FUNCTION_REPLACEMENT(pclose _pclose)
 CHECK_FUNCTION_REPLACEMENT(access _access)
 CHECK_FUNCTION_REPLACEMENT(strcasecmp _stricmp)
 CHECK_FUNCTION_REPLACEMENT(strncasecmp _strnicmp)
-CHECK_FUNCTION_REPLACEMENT(snprintf _snprintf)
+CHECK_SYMBOL_REPLACEMENT(snprintf _snprintf stdio.h)
 CHECK_FUNCTION_REPLACEMENT(strtok_r strtok_s)
 CHECK_FUNCTION_REPLACEMENT(strtoll _strtoi64)
 CHECK_FUNCTION_REPLACEMENT(strtoull _strtoui64)

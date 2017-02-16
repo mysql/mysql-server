@@ -1,0 +1,507 @@
+drop table if exists t0,t1,t2,t3;
+drop database if exists test1;
+set @exit_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=on,derived_with_keys=on';
+set @save_optimizer_switch=@@optimizer_switch;
+CREATE TABLE t1 (a int not null, b char (10) not null);
+insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
+CREATE TABLE t2 (a int not null, b char (10) not null);
+insert into t2 values (3,'c'),(4,'d'),(5,'f'),(6,'e');
+CREATE TABLE t3 (a int not null, b char (10) not null);
+insert into t3 values (3,'f'),(4,'y'),(5,'z'),(6,'c');
+select * from t1 as x1, (select * from t1) as x2;
+a	b	a	b
+1	a	1	a
+2	b	1	a
+3	c	1	a
+3	c	1	a
+1	a	2	b
+2	b	2	b
+3	c	2	b
+3	c	2	b
+1	a	3	c
+2	b	3	c
+3	c	3	c
+3	c	3	c
+1	a	3	c
+2	b	3	c
+3	c	3	c
+3	c	3	c
+explain select * from t1 as x1, (select * from t1) as x2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using join buffer (flat, BNL join)
+drop table if exists  t2,t3;
+CREATE TABLE t2 (a int not null);
+insert into t2 values(1);
+select * from (select t1.*, t2.a as t2a from t1,t2 where t1.a=t2.a) t1;
+a	b	t2a
+1	a	1
+explain select * from (select t1.*, t2.a as t2a from t1,t2 where t1.a=t2.a) t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+drop table t1, t2;
+create table t1(a int not null, t char(8), index(a));
+SELECT * FROM (SELECT * FROM t1) as b ORDER BY a  ASC LIMIT 0,20;
+a	t
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+20	20
+explain select count(*) from t1 as tt1, (select * from t1) as tt2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+drop table t1;
+create table t1 (mat_id MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, matintnum CHAR(6) NOT NULL, test MEDIUMINT UNSIGNED NULL);
+create table t2 (mat_id MEDIUMINT UNSIGNED NOT NULL, pla_id MEDIUMINT UNSIGNED NOT NULL);
+insert into t1 values (NULL, 'a', 1), (NULL, 'b', 2), (NULL, 'c', 3), (NULL, 'd', 4), (NULL, 'e', 5), (NULL, 'f', 6), (NULL, 'g', 7), (NULL, 'h', 8), (NULL, 'i', 9);
+insert into t2 values (1, 100), (1, 101), (1, 102), (2, 100), (2, 103), (2, 104), (3, 101), (3, 102), (3, 105);
+SELECT STRAIGHT_JOIN d.pla_id, m2.mat_id FROM t1 m2 INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
+pla_id	mat_id
+102	1
+101	1
+100	1
+104	2
+103	2
+105	3
+SELECT STRAIGHT_JOIN d.pla_id, m2.test FROM t1 m2  INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
+pla_id	test
+102	1
+101	1
+100	1
+104	2
+103	2
+105	3
+explain SELECT STRAIGHT_JOIN d.pla_id, m2.mat_id FROM t1 m2 INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	
+1	PRIMARY	<derived2>	ref	key0	key0	7	test.m2.matintnum	2	
+2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
+2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	
+explain SELECT STRAIGHT_JOIN d.pla_id, m2.test FROM t1 m2  INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	
+1	PRIMARY	<derived2>	ref	key0	key0	7	test.m2.matintnum	2	
+2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
+2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	
+drop table t1,t2;
+create table t1 (E1 INTEGER UNSIGNED NOT NULL, E2 INTEGER UNSIGNED NOT NULL, E3 INTEGER UNSIGNED NOT NULL, PRIMARY KEY(E1)
+);
+insert into t1 VALUES(1,1,1), (2,2,1);
+select count(*) from t1 INNER JOIN (SELECT A.E1, A.E2, A.E3 FROM t1 AS A WHERE A.E3 = (SELECT MAX(B.E3) FROM t1 AS B WHERE A.E2 = B.E2)) AS THEMAX ON t1.E1 = THEMAX.E2 AND t1.E1 = t1.E2;
+count(*)
+2
+explain select count(*) from t1 INNER JOIN (SELECT A.E1, A.E2, A.E3 FROM t1 AS A WHERE A.E3 = (SELECT MAX(B.E3) FROM t1 AS B WHERE A.E2 = B.E2)) AS THEMAX ON t1.E1 = THEMAX.E2 AND t1.E1 = t1.E2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	A	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.A.E2	1	Using where
+3	DEPENDENT SUBQUERY	B	ALL	NULL	NULL	NULL	NULL	2	Using where
+drop table t1;
+create table t1 (a int);
+insert into t1 values (1),(2);
+select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
+a	a
+1	1
+2	1
+1	2
+2	2
+explain select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	
+1	PRIMARY	<derived4>	ALL	NULL	NULL	NULL	NULL	4	Using join buffer (flat, BNL join)
+4	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
+5	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	
+NULL	UNION RESULT	<union4,5>	ALL	NULL	NULL	NULL	NULL	NULL	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
+3	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+drop table t1;
+create table t2 (a int, b int, primary key (a));
+insert into t2 values (1,7),(2,7);
+explain select a from t2 where a>1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
+explain select a from (select a from t2 where a>1) tt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
+drop table t2;
+create table t1 
+(
+c1  tinyint, c2  smallint, c3  mediumint, c4  int,
+c5  integer, c6  bigint, c7  float, c8  double,
+c9  double precision, c10 real, c11 decimal(7, 4), c12 numeric(8, 4),
+c13 date, c14 datetime, c15 timestamp, c16 time,
+c17 year, c18 bit, c19 bool, c20 char,
+c21 char(10), c22 varchar(30), c23 tinyblob, c24 tinytext,
+c25 blob, c26 text, c27 mediumblob, c28 mediumtext,
+c29 longblob, c30 longtext, c31 enum('one', 'two', 'three'),
+c32 set('monday', 'tuesday', 'wednesday')
+) engine = MYISAM ;
+create table t2 like t1;
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
+set @stmt= ' explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25 ' ;
+prepare stmt1 from @stmt ;
+execute stmt1 ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+5	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+4	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+execute stmt1 ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+5	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+4	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+5	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+4	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+deallocate prepare stmt1;
+drop tables t1,t2;
+set @@optimizer_switch=@save_optimizer_switch;
+#
+#  LP bug #793436: query with a derived table for which optimizer proves
+#                  that it contains not more than 1 row
+#
+CREATE TABLE t1 (a int, KEY (a)) ;
+INSERT INTO t1 VALUES (3), (1);
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (3);
+EXPLAIN
+SELECT * FROM (SELECT DISTINCT * FROM t2) t, t1  WHERE t1.a = t.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ref	a	a	5	const	1	Using index
+2	DERIVED	t2	system	NULL	NULL	NULL	NULL	1	
+SELECT * FROM (SELECT DISTINCT * FROM t2) t, t1  WHERE t1.a = t.a;
+a	a
+3	3
+DROP TABLE t1,t2;
+#
+#  LP bug #800518: crash with a query over a derived table
+#                  when a min/max optimization is applied
+#
+CREATE TABLE t1 (a int, b int, c varchar(10), INDEX idx(a,b)) ;
+INSERT INTO t1 VALUES 
+(100, 3, 'xxx'), (200, 7, 'yyyyyyy'), (100, 1, 't'),
+(200, 4, 'aaaa'), (100, 3, 'eee'), (100, 5, 'zzzzz');
+EXPLAIN
+SELECT MAX(b) FROM (SELECT * FROM t1) AS t WHERE a = 100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT MAX(b) FROM (SELECT * FROM t1) AS t WHERE a = 100;
+MAX(b)
+5
+DROP TABLE t1;
+#
+#  LP bug #799499: query over a materialized view 
+#                  accessed by a key
+#
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (8);
+CREATE TABLE t2 (a int, b int) ;
+INSERT INTO t2 VALUES
+(262, NULL), (253, 190), (260, NULL), (250, 163), (188, 8),
+(257,200), (256, NULL), (255, 8), (249, NULL), (259, 7);
+CREATE VIEW v1 AS SELECT a, MIN(b) AS b FROM t2 GROUP BY a;
+EXPLAIN
+SELECT * FROM v1, t1 WHERE v1.b=t1.a  ORDER BY v1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	Using filesort
+1	PRIMARY	<derived2>	ref	key0	key0	5	const	1	Using where
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	10	Using temporary; Using filesort
+SELECT * FROM v1, t1 WHERE v1.b=t1.a  ORDER BY v1.a;
+a	b	a
+188	8	8
+255	8	8
+DROP VIEW v1;
+DROP TABLE t1,t2;
+#
+#  LP bug #800085: crash with a query using a simple derived table 
+#                  (fixed by the patch for bug 798621)
+#
+CREATE TABLE t1 (f1 int, f2 varchar(32)) ;
+INSERT INTO t1 VALUES (NULL,'j'), (8,'c');
+CREATE TABLE t2 (f1 int);
+INSERT INTO t2 VALUES (1), (5);
+SELECT DISTINCT t.f1 FROM (SELECT * FROM t1) AS t, t2
+WHERE t.f2='s' AND t.f2 LIKE '%a%' OR t.f1<>0 ORDER BY t.f2;
+f1
+8
+DROP TABLE t1, t2;
+#
+# BUG##806524: Assertion `join->best_read < 1.7976931348623157e+308 with table_elimination=on and derived_merge=on 
+# 
+CREATE TABLE t1 ( f4 int) ;
+CREATE TABLE t2 ( f4 int) ;
+CREATE TABLE t3 ( f1 int NOT NULL , PRIMARY KEY (f1)) ;
+CREATE TABLE t4 ( f2 int, f4 int) ;
+SELECT *
+FROM ( SELECT * FROM t1 ) AS alias1
+RIGHT JOIN (
+t2 AS alias2
+LEFT JOIN (
+SELECT t4.*
+FROM ( SELECT * FROM t3 ) AS SQ1_alias1
+RIGHT JOIN t4
+ON t4.f2 = SQ1_alias1.f1
+) AS alias3
+ON alias3.f4 != 0
+) ON alias3.f4 != 0;
+f4	f4	f2	f4
+drop table t1,t2,t3,t4;
+#
+# LP BUG#910123 MariaDB 5.3.3 causes 1093 error on Drupal
+# Fix: force materialization in case of conflict
+#
+SET optimizer_switch='derived_merge=on';
+CREATE TABLE t1 ( i INT );
+INSERT INTO t1 VALUES ( (SELECT 1 FROM ( SELECT * FROM t1 ) as a) );
+drop table t1;
+set optimizer_switch=@save_optimizer_switch;
+#
+# MDEV-3801 Reproducible sub select join crash on 5.3.8 and 5.3.9 
+#
+CREATE TABLE t1 (
+pk int(10) unsigned NOT NULL AUTO_INCREMENT,
+a char(2) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY a (a)
+) ENGINE=MyISAM;
+INSERT INTO t1 (a)
+VALUES (NULL),(NULL),(NULL),('AB'),(NULL),('CD'),(NULL),(NULL);
+INSERT INTO t1 SELECT NULL, a1.a FROM t1 a1, t1 a2, t1 a3, t1 a4, t1 a5;
+CREATE TABLE t2 (
+pk int(10) unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL);
+INSERT INTO t2 SELECT NULL FROM t2 a1, t2 a2, t2 a3, t2 a4, t2 a5;
+CREATE TABLE t3 (
+pk int(10) unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY
+) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL);
+INSERT INTO t3 SELECT NULL FROM t3 a1, t3 a2, t3 a3, t3 a4, t3 a5;
+CREATE TABLE t4 (
+a char(2) NOT NULL DEFAULT '',
+PRIMARY KEY (a)
+) ENGINE=MyISAM;
+INSERT INTO t4 VALUES ('CD');
+set @@tmp_table_size=8192;
+EXPLAIN
+SELECT * FROM t3 AS tx JOIN t2 AS ty ON (tx.pk = ty.pk)
+WHERE
+tx.pk IN
+(SELECT *
+FROM (SELECT DISTINCT ta.pk
+FROM t3 AS ta
+JOIN t2 AS tb ON (ta.pk = tb.pk)
+JOIN t1 AS tc ON (tb.pk = tc.pk)
+JOIN t4 AS td ON tc.a = td.a) tu)
+limit 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	#	
+1	PRIMARY	tx	eq_ref	PRIMARY	PRIMARY	4	tu.pk	#	Using index
+1	PRIMARY	ty	eq_ref	PRIMARY	PRIMARY	4	tu.pk	#	Using index
+2	MATERIALIZED	<derived3>	ALL	NULL	NULL	NULL	NULL	#	
+3	DERIVED	td	system	PRIMARY	NULL	NULL	NULL	#	Using temporary
+3	DERIVED	tc	ref	PRIMARY,a	a	3	const	#	
+3	DERIVED	ta	eq_ref	PRIMARY	PRIMARY	4	test.tc.pk	#	Using index
+3	DERIVED	tb	eq_ref	PRIMARY	PRIMARY	4	test.tc.pk	#	Using index; Distinct
+SELECT * FROM t3 AS tX JOIN t2 AS tY ON (tX.pk = tY.pk)
+WHERE
+tX.pk IN
+(SELECT *
+FROM (SELECT DISTINCT tA.pk
+FROM t3 AS tA
+JOIN t2 AS tB ON (tA.pk = tB.pk)
+JOIN t1 AS tC ON (tB.pk = tC.pk)
+JOIN t4 AS tD ON tC.a = tD.a) tU)
+limit 10;
+pk	pk
+6	6
+16	16
+24	24
+32	32
+40	40
+48	48
+56	56
+64	64
+72	72
+80	80
+drop table t1, t2, t3, t4;
+#
+# MDEV-6888: Query spends a long time in best_extension_by_limited_search with mrr enabled
+#
+create database test1;
+use test1;
+set @tmp_jcl= @@join_cache_level;
+set @tmp_os= @@optimizer_switch;
+set join_cache_level=8;
+set optimizer_switch='mrr=on,mrr_sort_keys=on';
+CREATE TABLE t0 (
+f1 bigint(20) DEFAULT NULL,
+f2 char(50) DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+INSERT INTO t0 VALUES (NULL,'numeric column is NULL'),(0,NULL),(5,'five'),(1,'one'),(2,'two');
+CREATE TABLE t1 (
+f1 decimal(64,30) DEFAULT NULL,
+f2 varchar(50) DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES 
+(NULL,'numeric column is NULL'),
+(0.000000000000000000000000000000,NULL),
+(5.000000000000000000000000000000,'five'),
+(1.000000000000000000000000000000,'one'),
+(3.000000000000000000000000000000,'three');
+CREATE TABLE t2 (
+f1 double DEFAULT NULL,
+f2 varbinary(50) DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+INSERT INTO t2 VALUES (NULL,'numeric column is NULL'),(0,NULL),(5,'five'),(2,'two'),(3,'three');
+create VIEW v0  AS select f1,f2 from t1 ;
+create VIEW v1 AS select tab1_v1.f1,tab1_v1.f2 from t1 tab1_v1 join v0 tab2 on tab1_v1.f1 = tab2.f1 and tab1_v1.f2 = tab2.f2;
+create VIEW v2 AS select tab1_v2.f1,tab1_v2.f2 from t2 tab1_v2 join v1 tab2 on tab1_v2.f1 = tab2.f1 and tab1_v2.f2 = tab2.f2;
+create VIEW v3 AS select tab1_v3.f1,tab1_v3.f2 from t0 tab1_v3 join v2 tab2 on tab1_v3.f1 = tab2.f1 and tab1_v3.f2 = tab2.f2;
+create VIEW v4 AS select tab1_v4.f1,tab1_v4.f2 from t1 tab1_v4 join v3 tab2 on tab1_v4.f1 = tab2.f1 and tab1_v4.f2 = tab2.f2;
+create VIEW v5 AS select tab1_v5.f1,tab1_v5.f2 from t2 tab1_v5 join v4 tab2 on tab1_v5.f1 = tab2.f1 and tab1_v5.f2 = tab2.f2;
+create VIEW v6 AS select tab1_v6.f1,tab1_v6.f2 from t0 tab1_v6 join v5 tab2 on tab1_v6.f1 = tab2.f1 and tab1_v6.f2 = tab2.f2;
+create VIEW v7 AS select tab1_v7.f1,tab1_v7.f2 from t1 tab1_v7 join v6 tab2 on tab1_v7.f1 = tab2.f1 and tab1_v7.f2 = tab2.f2;
+create VIEW v8 AS select tab1_v8.f1,tab1_v8.f2 from t2 tab1_v8 join v7 tab2 on tab1_v8.f1 = tab2.f1 and tab1_v8.f2 = tab2.f2;
+create VIEW v9 AS select tab1_v9.f1,tab1_v9.f2 from t0 tab1_v9 join v8 tab2 on tab1_v9.f1 = tab2.f1 and tab1_v9.f2 = tab2.f2;
+create VIEW v10 AS select tab1_v10.f1,tab1_v10.f2 from t1 tab1_v10 join v9 tab2 on tab1_v10.f1 = tab2.f1 and tab1_v10.f2 = tab2.f2;
+create VIEW v11 AS select tab1_v11.f1,tab1_v11.f2 from t2 tab1_v11 join v10 tab2 on tab1_v11.f1 = tab2.f1 and tab1_v11.f2 = tab2.f2;
+create VIEW v12 AS select tab1_v12.f1,tab1_v12.f2 from t0 tab1_v12 join v11 tab2 on tab1_v12.f1 = tab2.f1 and tab1_v12.f2 = tab2.f2;
+create VIEW v13 AS select tab1_v13.f1,tab1_v13.f2 from t1 tab1_v13 join v12 tab2 on tab1_v13.f1 = tab2.f1 and tab1_v13.f2 = tab2.f2;
+create VIEW v14 AS select tab1_v14.f1,tab1_v14.f2 from t2 tab1_v14 join v13 tab2 on tab1_v14.f1 = tab2.f1 and tab1_v14.f2 = tab2.f2;
+create VIEW v15 AS select tab1_v15.f1,tab1_v15.f2 from t0 tab1_v15 join v14 tab2 on tab1_v15.f1 = tab2.f1 and tab1_v15.f2 = tab2.f2;
+create VIEW v16 AS select tab1_v16.f1,tab1_v16.f2 from t1 tab1_v16 join v15 tab2 on tab1_v16.f1 = tab2.f1 and tab1_v16.f2 = tab2.f2;
+create VIEW v17 AS select tab1_v17.f1,tab1_v17.f2 from t2 tab1_v17 join v16 tab2 on tab1_v17.f1 = tab2.f1 and tab1_v17.f2 = tab2.f2;
+create VIEW v18 AS select tab1_v18.f1,tab1_v18.f2 from t0 tab1_v18 join v17 tab2 on tab1_v18.f1 = tab2.f1 and tab1_v18.f2 = tab2.f2;
+create VIEW v19 AS select tab1_v19.f1,tab1_v19.f2 from t1 tab1_v19 join v18 tab2 on tab1_v19.f1 = tab2.f1 and tab1_v19.f2 = tab2.f2;
+create VIEW v20 AS select tab1_v20.f1,tab1_v20.f2 from t2 tab1_v20 join v19 tab2 on tab1_v20.f1 = tab2.f1 and tab1_v20.f2 = tab2.f2;
+create VIEW v21 AS select tab1_v21.f1,tab1_v21.f2 from t0 tab1_v21 join v20 tab2 on tab1_v21.f1 = tab2.f1 and tab1_v21.f2 = tab2.f2;
+create VIEW v22 AS select tab1_v22.f1,tab1_v22.f2 from t1 tab1_v22 join v21 tab2 on tab1_v22.f1 = tab2.f1 and tab1_v22.f2 = tab2.f2;
+create VIEW v23 AS select tab1_v23.f1,tab1_v23.f2 from t2 tab1_v23 join v22 tab2 on tab1_v23.f1 = tab2.f1 and tab1_v23.f2 = tab2.f2;
+create VIEW v24 AS select tab1_v24.f1,tab1_v24.f2 from t0 tab1_v24 join v23 tab2 on tab1_v24.f1 = tab2.f1 and tab1_v24.f2 = tab2.f2;
+create VIEW v25 AS select tab1_v25.f1,tab1_v25.f2 from t1 tab1_v25 join v24 tab2 on tab1_v25.f1 = tab2.f1 and tab1_v25.f2 = tab2.f2;
+create VIEW v26 AS select tab1_v26.f1,tab1_v26.f2 from t2 tab1_v26 join v25 tab2 on tab1_v26.f1 = tab2.f1 and tab1_v26.f2 = tab2.f2;
+create VIEW v27 AS select tab1_v27.f1,tab1_v27.f2 from t0 tab1_v27 join v26 tab2 on tab1_v27.f1 = tab2.f1 and tab1_v27.f2 = tab2.f2;
+EXPLAIN SELECT CAST(f1 AS SIGNED INTEGER) AS f1, CAST(f2 AS CHAR) AS f2 FROM v27;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	tab1_v27	ALL	NULL	NULL	NULL	NULL	5	Using where
+1	SIMPLE	tab1_v26	hash_ALL	NULL	#hash#$hj	62	test1.tab1_v27.f1,test1.tab1_v27.f2	5	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	tab1_v25	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v26.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v24	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v25.f1,test1.tab1_v25.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v23	hash_ALL	NULL	#hash#$hj	62	test1.tab1_v24.f1,test1.tab1_v24.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v22	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v23.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v21	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v22.f1,test1.tab1_v22.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v20	hash_ALL	NULL	#hash#$hj	62	test1.tab1_v21.f1,test1.tab1_v21.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v19	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v20.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v18	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v19.f1,test1.tab1_v19.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v17	hash_ALL	NULL	#hash#$hj	62	test1.tab1_v18.f1,test1.tab1_v18.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v16	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v17.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v15	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v16.f1,test1.tab1_v16.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v14	hash_ALL	NULL	#hash#$hj	62	test1.tab1_v15.f1,test1.tab1_v15.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v13	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v14.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v12	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v13.f1,test1.tab1_v13.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v11	hash_ALL	NULL	#hash#$hj	62	test1.tab1_v12.f1,test1.tab1_v12.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v10	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v11.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v9	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v10.f1,test1.tab1_v10.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v8	hash_ALL	NULL	#hash#$hj	62	test1.tab1_v9.f1,test1.tab1_v9.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v7	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v8.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v6	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v7.f1,test1.tab1_v7.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v5	hash_ALL	NULL	#hash#$hj	62	test1.tab1_v6.f1,test1.tab1_v6.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v4	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v5.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v3	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v4.f1,test1.tab1_v4.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v2	hash_ALL	NULL	#hash#$hj	62	test1.tab1_v3.f1,test1.tab1_v3.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v1	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v2.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	t1	hash_ALL	NULL	#hash#$hj	84	test1.tab1_v1.f1,test1.tab1_v1.f2	5	Using where; Using join buffer (incremental, BNLH join)
+# This used to hang forever:
+EXPLAIN SELECT CAST(f1 AS SIGNED INTEGER) AS f1, CAST(f2 AS CHAR) AS f2 FROM v27;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	tab1_v27	ALL	NULL	NULL	NULL	NULL	5	Using where
+1	SIMPLE	tab1_v26	hash_ALL	NULL	#hash#$hj	62	test1.tab1_v27.f1,test1.tab1_v27.f2	5	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	tab1_v25	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v26.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v24	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v25.f1,test1.tab1_v25.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v23	hash_ALL	NULL	#hash#$hj	62	test1.tab1_v24.f1,test1.tab1_v24.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v22	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v23.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v21	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v22.f1,test1.tab1_v22.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v20	hash_ALL	NULL	#hash#$hj	62	test1.tab1_v21.f1,test1.tab1_v21.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v19	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v20.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v18	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v19.f1,test1.tab1_v19.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v17	hash_ALL	NULL	#hash#$hj	62	test1.tab1_v18.f1,test1.tab1_v18.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v16	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v17.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v15	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v16.f1,test1.tab1_v16.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v14	hash_ALL	NULL	#hash#$hj	62	test1.tab1_v15.f1,test1.tab1_v15.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v13	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v14.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v12	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v13.f1,test1.tab1_v13.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v11	hash_ALL	NULL	#hash#$hj	62	test1.tab1_v12.f1,test1.tab1_v12.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v10	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v11.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v9	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v10.f1,test1.tab1_v10.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v8	hash_ALL	NULL	#hash#$hj	62	test1.tab1_v9.f1,test1.tab1_v9.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v7	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v8.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v6	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v7.f1,test1.tab1_v7.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v5	hash_ALL	NULL	#hash#$hj	62	test1.tab1_v6.f1,test1.tab1_v6.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v4	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v5.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v3	hash_ALL	NULL	#hash#$hj	60	test1.tab1_v4.f1,test1.tab1_v4.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v2	hash_ALL	NULL	#hash#$hj	62	test1.tab1_v3.f1,test1.tab1_v3.f2	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	tab1_v1	hash_ALL	NULL	#hash#$hj	31	test1.tab1_v2.f1	5	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	t1	hash_ALL	NULL	#hash#$hj	84	test1.tab1_v1.f1,test1.tab1_v1.f2	5	Using where; Using join buffer (incremental, BNLH join)
+use test;
+drop database test1;
+set join_cache_level=@tmp_jcl;
+set optimizer_switch=@tmp_os;
+#
+# MDEV-6879: Dereference of NULL primary_file->table in DsMrr_impl::get_disk_sweep_mrr_cost()
+#
+create table t1(a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (a int, b int, c text);
+insert into t2
+select
+A.a + B.a* 10,
+A.a + B.a* 10,
+'blob-data'
+from t1 A, t1 B;
+set @tmp_jcl= @@join_cache_level;
+set @tmp_os= @@optimizer_switch;
+set join_cache_level=6;
+set @@optimizer_switch='derived_merge=on,derived_with_keys=on,mrr=on';
+explain
+select * from
+t1 join
+(select * from t2 order by a limit 1000) as D1
+where
+D1.a= t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using where
+1	PRIMARY	<derived2>	hash_ALL	key0	#hash#key0	5	test.t1.a	100	Using join buffer (flat, BNLH join)
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	100	Using filesort
+set join_cache_level=@tmp_jcl;
+set optimizer_switch=@tmp_os;
+drop table t1, t2;
+set optimizer_switch=@exit_optimizer_switch;

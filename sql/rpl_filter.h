@@ -48,7 +48,9 @@ public:
  
   /* Checks - returns true if ok to replicate/log */
 
-  bool tables_ok(const char* db, TABLE_LIST* tables);
+#ifndef MYSQL_CLIENT
+  bool tables_ok(const char* db, TABLE_LIST *tables);
+#endif 
   bool db_ok(const char* db);
   bool db_ok_with_wild_table(const char *db);
 
@@ -59,11 +61,20 @@ public:
   int add_do_table(const char* table_spec);
   int add_ignore_table(const char* table_spec);
 
+  int set_do_table(const char* table_spec);
+  int set_ignore_table(const char* table_spec);
+
   int add_wild_do_table(const char* table_spec);
   int add_wild_ignore_table(const char* table_spec);
 
-  void add_do_db(const char* db_spec);
-  void add_ignore_db(const char* db_spec);
+  int set_wild_do_table(const char* table_spec);
+  int set_wild_ignore_table(const char* table_spec);
+
+  int add_do_db(const char* db_spec);
+  int add_ignore_db(const char* db_spec);
+
+  int set_do_db(const char* db_spec);
+  int set_ignore_db(const char* db_spec);
 
   void add_db_rewrite(const char* from_db, const char* to_db);
 
@@ -75,10 +86,14 @@ public:
   void get_wild_do_table(String* str);
   void get_wild_ignore_table(String* str);
 
+  bool rewrite_db_is_empty();
   const char* get_rewrite_db(const char* db, size_t *new_len);
 
   I_List<i_string>* get_do_db();
   I_List<i_string>* get_ignore_db();
+
+  void get_do_db(String* str);
+  void get_ignore_db(String* str);
 
 private:
   bool table_rules_on;
@@ -89,12 +104,20 @@ private:
   int add_table_rule(HASH* h, const char* table_spec);
   int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec);
 
+  typedef int (Rpl_filter::*Add_filter)(char const*);
+
+  int parse_filter_rule(const char* spec, Add_filter func);
+
   void free_string_array(DYNAMIC_ARRAY *a);
+  void free_string_list(I_List<i_string> *l);
 
   void table_rule_ent_hash_to_str(String* s, HASH* h, bool inited);
   void table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a,
                                            bool inited);
+  void db_rule_ent_list_to_str(String* s, I_List<i_string>* l);
   TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len);
+
+  int add_string_list(I_List<i_string> *list, const char* spec);
 
   /*
     Those 4 structures below are uninitialized memory unless the

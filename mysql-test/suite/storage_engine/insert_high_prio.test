@@ -1,0 +1,143 @@
+# 
+# INSERT HIGH_PRIOIRITY
+#
+--source have_engine.inc
+
+--source include/count_sessions.inc
+
+--enable_connect_log
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# We will be changing the GLOBAL value of low_priority_updates
+# due to bug#64892 
+# (Session-level low_priority_updates does not work for INSERT)
+SET @low_prio_updates = @@global.low_priority_updates;
+
+# Concurrent insert might interfere
+# with HIGH|LOW_PRIORITY logic
+SET @concur_insert = @@global.concurrent_insert;
+SET GLOBAL concurrent_insert = NEVER;
+
+# We will have 3 connections: 
+#   con1 will start SELECT which should give us enough time;
+#   con0 will run INSERT 
+#   con2 will then start another SELECT.
+# With standard INSERT and low_priority_updates=1 
+#   we should see only old rows in both resultsets,
+#   while with INSERT HIGH_PRIORITY we should see new rows in con2 resultset.
+
+--connect (con0,localhost,root,,)
+SET lock_wait_timeout = 4;
+--connect (con1,localhost,root,,)
+SET lock_wait_timeout = 4;
+--connect (con2,localhost,root,,)
+SET lock_wait_timeout = 4;
+
+
+--source create_table.inc
+INSERT INTO t1 (a,b) VALUES (1,'f'),(2,'b');
+
+# Normal INSERT with low_priority_updates=1
+# should work like INSERT LOW_PRIORITY
+
+SET GLOBAL LOW_PRIORITY_UPDATES = 1;
+
+--connection con1
+--send
+SELECT SLEEP(1) FROM t1;
+
+--connection con0
+let $show_statement = SHOW PROCESSLIST;
+let $field = State;
+let $condition = = 'User sleep';
+let $wait_timeout = 2;
+--source include/wait_show_condition.inc
+--send
+INSERT INTO t1 (a,b) VALUES (3,'z');
+
+--connection con2
+let $condition = = 'Waiting for table level lock';
+let $wait_timeout = 2;
+--source include/wait_show_condition.inc
+if (!$found)
+{
+  --let $mysql_errname = timeout in wait_show_condition.inc
+  --let $functionality = @@low_priority_updates or INSERT or table locking
+  --source unexpected_result.inc
+}
+if ($found)
+{
+  --echo # Should return only 2 rows
+  SELECT SLEEP(1) FROM t1;
+}
+
+--connection con1
+--reap
+
+--connection con0
+--reap
+--sorted_result
+SELECT a,b FROM t1;
+
+DROP TABLE t1;
+
+--source create_table.inc
+INSERT INTO t1 (a,b) VALUES (1,'f'),(2,'b');
+
+# INSERT HIGH_PRIORITY should override low_priority_updates=1
+
+--connection con1
+--send
+SELECT SLEEP(1) FROM t1;
+
+--connection con0
+let $condition = = 'User sleep';
+let $wait_timeout = 2;
+--source include/wait_show_condition.inc
+--send
+INSERT HIGH_PRIORITY INTO t1 (a,b) VALUES (3,'z');
+
+--connection con2
+let $condition = = 'Waiting for table level lock';
+let $wait_timeout = 2;
+--source include/wait_show_condition.inc
+if (!$found)
+{
+  --let $mysql_errname = timeout in wait_show_condition.inc
+  --let $functionality = @@low_priority_updates or INSERT HIGH_PRIORITY or table locking
+  --source unexpected_result.inc
+}
+if ($found)
+{
+  --echo # Should return 3 rows
+  SELECT SLEEP(1) FROM t1;
+}
+
+--connection con1
+--reap
+
+--connection con0
+--reap
+--sorted_result
+SELECT a,b FROM t1;
+
+--disconnect con1
+--disconnect con2
+--disconnect con0
+let $wait_timeout = 30;
+
+--connection default
+
+SET GLOBAL low_priority_updates = @low_prio_updates;
+SET GLOBAL concurrent_insert = @concur_insert;
+
+# Cleanup
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc
+
+--source cleanup_engine.inc
+

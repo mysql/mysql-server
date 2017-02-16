@@ -1,0 +1,30 @@
+#
+# verify that DELETE IGNORE does not ignore deadlocks
+#
+
+--source include/have_innodb.inc
+
+SET GLOBAL innodb_lock_wait_timeout=3;
+
+CREATE TABLE t1 (col_int_key INT, KEY (col_int_key)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (6);
+
+--connect (con1,localhost,root,,test)
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+SET AUTOCOMMIT=OFF;
+SELECT col_int_key FROM t1;
+
+--connection default
+--send DELETE IGNORE FROM t1;
+
+--connection con1
+--error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
+DELETE FROM t1 WHERE col_int_key IN (1, 40000000);
+
+--connection default
+--error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
+--reap 
+
+--disconnect con1
+drop table t1;
+SET GLOBAL innodb_lock_wait_timeout=default;

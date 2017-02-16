@@ -1,0 +1,12 @@
+create table t1 (a int);
+insert into t1 values (4),(8);
+select distinct 100 mod timestampadd( week, a, '2002-05-20' ) from t1;
+100 mod timestampadd( week, a, '2002-05-20' )
+100
+drop table t1;
+create table t1 (i int);
+insert into t1 values (2),(4);
+select distinct convert_tz( '2001-03-21', 'utc', 'met' ) mod i from t1;
+convert_tz( '2001-03-21', 'utc', 'met' ) mod i
+0
+drop table t1;

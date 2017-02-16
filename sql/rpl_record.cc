@@ -1,4 +1,5 @@
-/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2014, SkySQL Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -102,7 +103,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
         const uchar *old_pack_ptr= pack_ptr;
 #endif
         pack_ptr= field->pack(pack_ptr, field->ptr + offset,
-                              field->max_data_length(), TRUE);
+                              field->max_data_length());
         DBUG_PRINT("debug", ("field: %s; real_type: %d, pack_ptr: 0x%lx;"
                              " pack_ptr':0x%lx; bytes: %d",
                              field->field_name, field->real_type(),
@@ -183,6 +184,8 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
 
    @retval HA_ERR_GENERIC
    A generic, internal, error caused the unpacking to fail.
+   @retval ER_SLAVE_CORRUPT_EVENT
+   Found error when trying to unpack fields.
  */
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 int
@@ -260,9 +263,6 @@ unpack_row(Relay_log_info const *rli,
 
       DBUG_ASSERT(null_mask & 0xFF); // One of the 8 LSB should be set
 
-      /* Field...::unpack() cannot return 0 */
-      DBUG_ASSERT(pack_ptr != NULL);
-
       if (null_bits & null_mask)
       {
         if (f->maybe_null())
@@ -308,19 +308,20 @@ unpack_row(Relay_log_info const *rli,
 #ifndef DBUG_OFF
         uchar const *const old_pack_ptr= pack_ptr;
 #endif
-        uint32 len= tabledef->calc_field_size(i, (uchar *) pack_ptr);
-        if ( pack_ptr + len > row_end )
-        {
-          pack_ptr+= len;
-          my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
-          DBUG_RETURN(ER_SLAVE_CORRUPT_EVENT);
-        }
-        pack_ptr= f->unpack(f->ptr, pack_ptr, metadata, TRUE);
+        pack_ptr= f->unpack(f->ptr, pack_ptr, row_end, metadata);
 	DBUG_PRINT("debug", ("field: %s; metadata: 0x%x;"
                              " pack_ptr: 0x%lx; pack_ptr': 0x%lx; bytes: %d",
                              f->field_name, metadata,
                              (ulong) old_pack_ptr, (ulong) pack_ptr,
                              (int) (pack_ptr - old_pack_ptr)));
+        if (!pack_ptr)
+        {
+          rli->report(ERROR_LEVEL, ER_SLAVE_CORRUPT_EVENT,
+                      "Could not read field '%s' of table '%s.%s'",
+                      f->field_name, table->s->db.str,
+                      table->s->table_name.str);
+          DBUG_RETURN(ER_SLAVE_CORRUPT_EVENT);
+        }
       }
 
       /*
@@ -381,11 +382,6 @@ unpack_row(Relay_log_info const *rli,
         uint32 len= tabledef->calc_field_size(i, (uchar *) pack_ptr);
         DBUG_DUMP("field_data", pack_ptr, len);
         pack_ptr+= len;
-        if ( pack_ptr > row_end )
-        {
-          my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
-          DBUG_RETURN(ER_SLAVE_CORRUPT_EVENT);
-        }
       }
       null_mask <<= 1;
     }

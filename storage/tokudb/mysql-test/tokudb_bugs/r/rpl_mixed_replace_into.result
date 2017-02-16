@@ -1,0 +1,21 @@
+include/master-slave.inc
+[connection master]
+set default_storage_engine='tokudb';
+drop table if exists testr;
+CREATE TABLE testr (pk int(11) NOT NULL AUTO_INCREMENT, num int(11) DEFAULT NULL, txt varchar(32) DEFAULT NULL, PRIMARY KEY (pk) );
+INSERT INTO testr VALUES (1,1,'one'),(2,2,'two'),(3,3,'three'),(4,4,'four');
+replace into testr values (2,2,'twotwo');
+select * from testr;
+pk	num	txt
+1	1	one
+2	2	twotwo
+3	3	three
+4	4	four
+select * from testr;
+pk	num	txt
+1	1	one
+2	2	twotwo
+3	3	three
+4	4	four
+drop table testr;
+include/rpl_end.inc

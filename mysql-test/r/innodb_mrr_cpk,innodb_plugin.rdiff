@@ -1,0 +1,120 @@
+--- r/innodb_mrr_cpk.result	2012-02-23 15:57:49.000000000 +0100
++++ r/innodb_mrr_cpk,innodb_plugin.reject	2012-02-23 19:44:57.000000000 +0100
+@@ -27,13 +27,13 @@
+ explain select * from t1, t2 where t1.a=t2.a;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+ 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	8	test.t2.a	1	Using join buffer (flat, BKA join); Key-ordered scan
++1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	8	test.t2.a	1	
+ This output must be sorted by value of t1.a:
+ select * from t1, t2 where t1.a=t2.a;
+ a	b	filler	a
+ a-1010=A	b-1010=B	filler	a-1010=A
+-a-1020=A	b-1020=B	filler	a-1020=A
+ a-1030=A	b-1030=B	filler	a-1030=A
++a-1020=A	b-1020=B	filler	a-1020=A
+ drop table t1, t2;
+ create table t1(
+ a char(8) character set utf8, b int, filler char(100), 
+@@ -49,24 +49,24 @@
+ explain select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+ 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	28	test.t2.a,test.t2.b	1	Using join buffer (flat, BKA join); Key-ordered scan
++1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	28	test.t2.a,test.t2.b	1	
+ select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+ a	b	filler	a	b
+ a-1010=A	1010	filler	a-1010=A	1010
+-a-1020=A	1020	filler	a-1020=A	1020
+ a-1030=A	1030	filler	a-1030=A	1030
++a-1020=A	1020	filler	a-1020=A	1020
+ insert into t2 values ('a-1030=A', 1030), ('a-1020=A', 1020);
+ explain select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+ 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	28	test.t2.a,test.t2.b	1	Using join buffer (flat, BKA join); Key-ordered scan
++1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	28	test.t2.a,test.t2.b	1	
+ select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+ a	b	filler	a	b
+ a-1010=A	1010	filler	a-1010=A	1010
+-a-1020=A	1020	filler	a-1020=A	1020
+-a-1020=A	1020	filler	a-1020=A	1020
+ a-1030=A	1030	filler	a-1030=A	1030
++a-1020=A	1020	filler	a-1020=A	1020
+ a-1030=A	1030	filler	a-1030=A	1030
++a-1020=A	1020	filler	a-1020=A	1020
+ drop table t1, t2;
+ create table t1(
+ a varchar(8) character set utf8, b int, filler char(100), 
+@@ -82,21 +82,21 @@
+ explain select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+ 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	30	test.t2.a,test.t2.b	1	Using where; Using join buffer (flat, BKA join); Key-ordered scan
++1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	30	test.t2.a,test.t2.b	1	Using where
+ select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+ a	b	filler	a	b
+ a-1010=A	1010	filler	a-1010=A	1010
+-a-1020=A	1020	filler	a-1020=A	1020
+ a-1030=A	1030	filler	a-1030=A	1030
++a-1020=A	1020	filler	a-1020=A	1020
+ explain select * from t1, t2 where t1.a=t2.a;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+ 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+-1	SIMPLE	t1	ref	PRIMARY	PRIMARY	26	test.t2.a	1	Using where; Using join buffer (flat, BKA join); Key-ordered scan
++1	SIMPLE	t1	ref	PRIMARY	PRIMARY	26	test.t2.a	1	Using where
+ select * from t1, t2 where t1.a=t2.a;
+ a	b	filler	a	b
+ a-1010=A	1010	filler	a-1010=A	1010
+-a-1020=A	1020	filler	a-1020=A	1020
+ a-1030=A	1030	filler	a-1030=A	1030
++a-1020=A	1020	filler	a-1020=A	1020
+ drop table t1, t2;
+ create table t1 (a int, b int, c int, filler char(100), primary key(a,b,c));
+ insert into t1 select A.a, B.a, C.a, 'filler' from t0 A, t0 B, t0 C;
+@@ -111,15 +111,15 @@
+ explain select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+ 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+-1	SIMPLE	t1	ref	PRIMARY	PRIMARY	8	test.t2.a,test.t2.b	1	Using join buffer (flat, BKA join); Key-ordered scan
++1	SIMPLE	t1	ref	PRIMARY	PRIMARY	8	test.t2.a,test.t2.b	1	
+ select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+ a	b	c	filler	a	b
++11	33	124	filler	11	33
++11	33	125	filler	11	33
++11	22	1234	filler	11	22
+ 11	11	11	filler	11	11
+ 11	11	12	filler	11	11
+ 11	11	13	filler	11	11
+-11	22	1234	filler	11	22
+-11	33	124	filler	11	33
+-11	33	125	filler	11	33
+ set join_cache_level=0;
+ select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+ a	b	c	filler	a	b
+@@ -133,14 +133,14 @@
+ explain select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+ 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+-1	SIMPLE	t1	ref	PRIMARY	PRIMARY	4	test.t2.a	1	Using where; Using join buffer (flat, BKA join); Key-ordered scan
++1	SIMPLE	t1	ref	PRIMARY	PRIMARY	4	test.t2.a	1	Using where
+ select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
+ a	b	c	filler	a	b
+ set optimizer_switch='index_condition_pushdown=off';
+ explain select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+ 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+-1	SIMPLE	t1	ref	PRIMARY	PRIMARY	4	test.t2.a	1	Using where; Using join buffer (flat, BKA join); Key-ordered scan
++1	SIMPLE	t1	ref	PRIMARY	PRIMARY	4	test.t2.a	1	Using where
+ select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
+ a	b	c	filler	a	b
+ set optimizer_switch='index_condition_pushdown=on';
+@@ -170,7 +170,7 @@
+ select * from t2 straight_join t1 force index(kp1) where t1.kp1=t2.a;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+ 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	
+-1	SIMPLE	t1	ref	kp1	kp1	32	test.t2.a	1	Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
++1	SIMPLE	t1	ref	kp1	kp1	32	test.t2.a	1	
+ select * from t2 straight_join t1 force index(kp1) where t1.kp1=t2.a;
+ a	pk	kp1	col1
+ kp1-1000	pk-1000	kp1-1000	val-1000

@@ -1,0 +1,27 @@
+#
+# Test 'old' mode
+#
+
+# Initialise
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+create table t1 (a int, b varchar(200), c text not null) checksum=1;
+create table t2 (a int, b varchar(200), c text not null) checksum=0;
+insert t1 values (1, "aaa", "bbb"), (NULL, "", "ccccc"), (0, NULL, "");
+insert t2 select * from t1;
+checksum table t1, t2;
+checksum table t1, t2 quick;
+checksum table t1, t2 extended;
+drop table t1,t2;
+
+#
+# Test that SHOW PROCESSLIST doesn't have the Progress column
+#
+
+--replace_column 1 <Id> 3 <Host> 6 <Time>
+# Embedded server is hardcoded to show "Writing to net" as STATE.
+--replace_result "Writing to net" "NULL"
+--replace_regex /localhost[:0-9]*/localhost/
+SHOW PROCESSLIST;

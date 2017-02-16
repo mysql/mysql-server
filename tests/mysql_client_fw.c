@@ -17,11 +17,25 @@
 #include <my_sys.h>
 #include <mysql.h>
 #include <errmsg.h>
+#include <my_compare.h>
 #include <my_getopt.h>
 #include <m_string.h>
 #include <mysqld_error.h>
 #include <sql_common.h>
 #include <mysql/client_plugin.h>
+
+/*
+  If non_blocking_api_enabled is true, we will re-define all the blocking
+  API functions as wrappers that call the corresponding non-blocking API
+  and use poll()/select() to wait for them to complete. This way we can get
+  a good coverage testing of the non-blocking API as well.
+*/
+#include <my_context.h>
+static my_bool non_blocking_api_enabled= 0;
+#if !defined(EMBEDDED_LIBRARY) && !defined(MY_CONTEXT_DISABLE)
+#define WRAP_NONBLOCK_ENABLED non_blocking_api_enabled
+#include "nonblock-wrappers.h"
+#endif
 
 #define VER "2.1"
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
@@ -29,7 +43,7 @@
 #define MAX_SERVER_ARGS 64
 
 /* set default options */
-static int   opt_testcase = 0;
+static int   opt_testcase __attribute__((unused)) = 0;
 static char *opt_db= 0;
 static char *opt_user= 0;
 static char *opt_password= 0;
@@ -59,10 +73,10 @@ static int embedded_server_arg_count= 0;
 static char *embedded_server_args[MAX_SERVER_ARGS];
 
 static const char *embedded_server_groups[]= {
-"server",
-"embedded",
-"mysql_client_test_SERVER",
-NullS
+  "server",
+  "embedded",
+  "mysql_client_test_SERVER",
+  NullS
 };
 
 static time_t start_time, end_time;
@@ -72,8 +86,8 @@ const char *default_dbug_option= "d:t:o,/tmp/mysql_client_test.trace";
 
 struct my_tests_st
 {
-const char *name;
-void       (*function)();
+  const char *name;
+  void       (*function)();
 };
 
 #define myheader(str)							\
@@ -101,29 +115,30 @@ static void client_disconnect(MYSQL* mysql);
 
 
 /*
-Abort unless given experssion is non-zero.
+  Abort unless given experssion is non-zero.
 
-SYNOPSIS
-DIE_UNLESS(expr)
+  SYNOPSIS
+    DIE_UNLESS(expr)
 
-DESCRIPTION
-We can't use any kind of system assert as we need to
-preserve tested invariants in release builds as well.
+  DESCRIPTION
+    We can't use any kind of system assert as we need to
+    preserve tested invariants in release builds as well.
 */
 
-#define DIE_UNLESS(expr)					\
-((void) ((expr) ? 0 : (die(__FILE__, __LINE__, #expr), 0)))
-#define DIE_IF(expr)						\
-((void) ((expr) ? (die(__FILE__, __LINE__, #expr), 0) : 0))
-#define DIE(expr)				\
-die(__FILE__, __LINE__, #expr)
+#define DIE_UNLESS(expr) \
+        ((void) ((expr) ? 0 : (die(__FILE__, __LINE__, #expr), 0)))
+#define DIE_IF(expr) \
+        ((void) ((expr) ? (die(__FILE__, __LINE__, #expr), 0) : 0))
+#define DIE(expr) \
+        die(__FILE__, __LINE__, #expr)
 
 static void die(const char *file, int line, const char *expr)
 {
- fflush(stdout);
- fprintf(stderr, "%s:%d: check failed: '%s'\n", file, line, expr);
- fflush(stderr);
- exit(1);
+  fflush(stdout);
+  fprintf(stderr, "%s:%d: check failed: '%s'\n", file, line, expr);
+  fprintf(stderr, "MySQL error %d: %s\n", mysql_errno(0), mysql_error(0));
+  fflush(stderr);
+  exit(1);
 }
 
 
@@ -181,7 +196,7 @@ static void die(const char *file, int line, const char *expr)
 
 static int cmp_double(double *a, double *b)
 {
- return *a == *b;
+  return *a == *b;
 }
 
 
@@ -189,62 +204,64 @@ static int cmp_double(double *a, double *b)
 
 static void print_error(const char *msg)
 {
- if (!opt_silent)
- {
-   if (mysql && mysql_errno(mysql))
-   {
-     if (mysql->server_version)
-     fprintf(stdout, "\n [MySQL-%s]", mysql->server_version);
-     else
-     fprintf(stdout, "\n [MySQL]");
-     fprintf(stdout, "[%d] %s\n", mysql_errno(mysql), mysql_error(mysql));
-   }
-   else if (msg)
-   fprintf(stderr, " [MySQL] %s\n", msg);
- }
+  if (!opt_silent)
+  {
+    if (mysql && mysql_errno(mysql))
+    {
+      if (mysql->server_version)
+        fprintf(stdout, "\n [MySQL-%s]", mysql->server_version);
+      else
+        fprintf(stdout, "\n [MySQL]");
+      fprintf(stdout, "[%d] %s\n", mysql_errno(mysql), mysql_error(mysql));
+    }
+    else if (msg)
+      fprintf(stderr, " [MySQL] %s\n", msg);
+  }
 }
 
 
 static void print_st_error(MYSQL_STMT *stmt, const char *msg)
 {
- if (!opt_silent)
- {
-   if (stmt && mysql_stmt_errno(stmt))
-   {
-     if (stmt->mysql && stmt->mysql->server_version)
-     fprintf(stdout, "\n [MySQL-%s]", stmt->mysql->server_version);
-     else
-     fprintf(stdout, "\n [MySQL]");
+  if (!opt_silent)
+  {
+    if (stmt && mysql_stmt_errno(stmt))
+    {
+      if (stmt->mysql && stmt->mysql->server_version)
+        fprintf(stdout, "\n [MySQL-%s]", stmt->mysql->server_version);
+      else
+        fprintf(stdout, "\n [MySQL]");
 
-     fprintf(stdout, "[%d] %s\n", mysql_stmt_errno(stmt),
-     mysql_stmt_error(stmt));
-   }
-   else if (msg)
-   fprintf(stderr, " [MySQL] %s\n", msg);
- }
+      fprintf(stdout, "[%d] %s\n", mysql_stmt_errno(stmt),
+              mysql_stmt_error(stmt));
+    }
+    else if (msg)
+      fprintf(stderr, " [MySQL] %s\n", msg);
+  }
 }
 
 /*
-Enhanced version of mysql_client_init(), which may also set shared memory 
-base on Windows.
+  Enhanced version of mysql_client_init(), which may also set shared memory 
+  base on Windows.
 */
 static MYSQL *mysql_client_init(MYSQL* con)
 {
- MYSQL* res = mysql_init(con);
- #ifdef HAVE_SMEM
- if (res && shared_memory_base_name)
- mysql_options(res, MYSQL_SHARED_MEMORY_BASE_NAME, shared_memory_base_name);
- #endif
- if (opt_plugin_dir && *opt_plugin_dir)
- mysql_options(res, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+  MYSQL* res = mysql_init(con);
+#ifdef HAVE_SMEM
+  if (res && shared_memory_base_name)
+    mysql_options(res, MYSQL_SHARED_MEMORY_BASE_NAME, shared_memory_base_name);
+#endif
+  if (res && non_blocking_api_enabled)
+    mysql_options(res, MYSQL_OPT_NONBLOCK, 0);
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(res, MYSQL_PLUGIN_DIR, opt_plugin_dir);
 
- if (opt_default_auth && *opt_default_auth)
- mysql_options(res, MYSQL_DEFAULT_AUTH, opt_default_auth);
- return res;
+  if (opt_default_auth && *opt_default_auth)
+    mysql_options(res, MYSQL_DEFAULT_AUTH, opt_default_auth);
+  return res;
 }
 
 /*
-Disable direct calls of mysql_init, as it disregards  shared memory base.
+  Disable direct calls of mysql_init, as it disregards  shared memory base.
 */
 #define mysql_init(A) Please use mysql_client_init instead of mysql_init
 
@@ -253,119 +270,119 @@ Disable direct calls of mysql_init, as it disregards  shared memory base.
 
 static my_bool check_have_innodb(MYSQL *conn)
 {
- MYSQL_RES *res;
- MYSQL_ROW row;
- int rc;
- my_bool result;
+  MYSQL_RES *res;
+  MYSQL_ROW row;
+  int rc;
+  my_bool result;
 
- rc= mysql_query(conn, "show variables like 'have_innodb'");
- myquery(rc);
- res= mysql_use_result(conn);
- DIE_UNLESS(res);
+  rc= mysql_query(conn, "show variables like 'have_innodb'");
+  myquery(rc);
+  res= mysql_use_result(conn);
+  DIE_UNLESS(res);
 
- row= mysql_fetch_row(res);
- DIE_UNLESS(row);
+  row= mysql_fetch_row(res);
+  DIE_UNLESS(row);
 
- result= strcmp(row[1], "YES") == 0;
- mysql_free_result(res);
- return result;
+  result= strcmp(row[1], "YES") == 0;
+  mysql_free_result(res);
+  return result;
 }
 
 
 /*
-This is to be what mysql_query() is for mysql_real_query(), for
-mysql_simple_prepare(): a variant without the 'length' parameter.
+  This is to be what mysql_query() is for mysql_real_query(), for
+  mysql_simple_prepare(): a variant without the 'length' parameter.
 */
 
 static MYSQL_STMT *STDCALL
 mysql_simple_prepare(MYSQL *mysql_arg, const char *query)
 {
- MYSQL_STMT *stmt= mysql_stmt_init(mysql_arg);
- if (stmt && mysql_stmt_prepare(stmt, query, (uint) strlen(query)))
- {
-   mysql_stmt_close(stmt);
-   return 0;
- }
- return stmt;
+  MYSQL_STMT *stmt= mysql_stmt_init(mysql_arg);
+  if (stmt && mysql_stmt_prepare(stmt, query, (uint) strlen(query)))
+  {
+    mysql_stmt_close(stmt);
+    return 0;
+  }
+  return stmt;
 }
 
 
 /**
-Connect to the server with options given by arguments to this application,
-stored in global variables opt_host, opt_user, opt_password, opt_db, 
-opt_port and opt_unix_socket.
+   Connect to the server with options given by arguments to this application,
+   stored in global variables opt_host, opt_user, opt_password, opt_db, 
+   opt_port and opt_unix_socket.
 
-@param flag[in]           client_flag passed on to mysql_real_connect
-@param protocol[in]       MYSQL_PROTOCOL_* to use for this connection
-@param auto_reconnect[in] set to 1 for auto reconnect
+   @param flag[in]           client_flag passed on to mysql_real_connect
+   @param protocol[in]       MYSQL_PROTOCOL_* to use for this connection
+   @param auto_reconnect[in] set to 1 for auto reconnect
    
-@return pointer to initialized and connected MYSQL object
+   @return pointer to initialized and connected MYSQL object
 */
 static MYSQL* client_connect(ulong flag, uint protocol, my_bool auto_reconnect)
 {
- MYSQL* mysql;
- int  rc;
- static char query[MAX_TEST_QUERY_LENGTH];
- myheader_r("client_connect");
+  MYSQL* mysql;
+  int  rc;
+  static char query[MAX_TEST_QUERY_LENGTH];
+  myheader_r("client_connect");
 
- if (!opt_silent)
- fprintf(stdout, "\n Establishing a connection to '%s' ...",
- opt_host ? opt_host : "");
+  if (!opt_silent)
+    fprintf(stdout, "\n Establishing a connection to '%s' ...",
+            opt_host ? opt_host : "");
 
- if (!(mysql= mysql_client_init(NULL)))
- {
-   opt_silent= 0;
-   myerror("mysql_client_init() failed");
-   exit(1);
- }
- /* enable local infile, in non-binary builds often disabled by default */
- mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, 0);
- mysql_options(mysql, MYSQL_OPT_PROTOCOL, &protocol);
- if (opt_plugin_dir && *opt_plugin_dir)
- mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+  if (!(mysql= mysql_client_init(NULL)))
+  {
+    opt_silent= 0;
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  /* enable local infile, in non-binary builds often disabled by default */
+  mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+  mysql_options(mysql, MYSQL_OPT_PROTOCOL, &protocol);
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
 
- if (opt_default_auth && *opt_default_auth)
- mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
+  if (opt_default_auth && *opt_default_auth)
+    mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
- if (!(mysql_real_connect(mysql, opt_host, opt_user,
- opt_password, opt_db ? opt_db:"test", opt_port,
- opt_unix_socket, flag)))
- {
-   opt_silent= 0;
-   myerror("connection failed");
-   mysql_close(mysql);
-   fprintf(stdout, "\n Check the connection options using --help or -?\n");
-   exit(1);
- }
- mysql->reconnect= auto_reconnect;
+  if (!(mysql_real_connect(mysql, opt_host, opt_user,
+                           opt_password, opt_db ? opt_db:"test", opt_port,
+                           opt_unix_socket, flag)))
+  {
+    opt_silent= 0;
+    myerror("connection failed");
+    mysql_close(mysql);
+    fprintf(stdout, "\n Check the connection options using --help or -?\n");
+    exit(1);
+  }
+  mysql->reconnect= auto_reconnect;
 
- if (!opt_silent)
- fprintf(stdout, "OK");
+  if (!opt_silent)
+    fprintf(stdout, "OK");
 
- /* set AUTOCOMMIT to ON*/
- mysql_autocommit(mysql, TRUE);
+  /* set AUTOCOMMIT to ON*/
+  mysql_autocommit(mysql, TRUE);
 
- if (!opt_silent)
- {
-   fprintf(stdout, "\nConnected to MySQL server version: %s (%lu)\n",
-   mysql_get_server_info(mysql),
-   (ulong) mysql_get_server_version(mysql));
-   fprintf(stdout, "\n Creating a test database '%s' ...", current_db);
- }
- strxmov(query, "CREATE DATABASE IF NOT EXISTS ", current_db, NullS);
+  if (!opt_silent)
+  {
+    fprintf(stdout, "\nConnected to MySQL server version: %s (%lu)\n",
+            mysql_get_server_info(mysql),
+            (ulong) mysql_get_server_version(mysql));
+    fprintf(stdout, "\n Creating a test database '%s' ...", current_db);
+  }
+  strxmov(query, "CREATE DATABASE IF NOT EXISTS ", current_db, NullS);
 
- rc= mysql_query(mysql, query);
- myquery(rc);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
 
- strxmov(query, "USE ", current_db, NullS);
- rc= mysql_query(mysql, query);
- myquery(rc);
- have_innodb= check_have_innodb(mysql);
+  strxmov(query, "USE ", current_db, NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+  have_innodb= check_have_innodb(mysql);
 
- if (!opt_silent)
- fprintf(stdout, "OK");
+  if (!opt_silent)
+    fprintf(stdout, "OK\n");
 
- return mysql;
+  return mysql;
 }
 
 
@@ -403,21 +420,21 @@ static void client_disconnect(MYSQL* mysql)
 
 static void my_print_dashes(MYSQL_RES *result)
 {
- MYSQL_FIELD  *field;
- unsigned int i, j;
+  MYSQL_FIELD  *field;
+  unsigned int i, j;
 
- mysql_field_seek(result, 0);
- fputc('\t', stdout);
- fputc('+', stdout);
+  mysql_field_seek(result, 0);
+  fputc('\t', stdout);
+  fputc('+', stdout);
 
- for(i= 0; i< mysql_num_fields(result); i++)
- {
-   field= mysql_fetch_field(result);
-   for(j= 0; j < field->max_length+2; j++)
-   fputc('-', stdout);
-   fputc('+', stdout);
- }
- fputc('\n', stdout);
+  for(i= 0; i< mysql_num_fields(result); i++)
+  {
+    field= mysql_fetch_field(result);
+    for(j= 0; j < field->max_length+2; j++)
+      fputc('-', stdout);
+    fputc('+', stdout);
+  }
+  fputc('\n', stdout);
 }
 
 
@@ -425,47 +442,47 @@ static void my_print_dashes(MYSQL_RES *result)
 
 static void my_print_result_metadata(MYSQL_RES *result)
 {
- MYSQL_FIELD  *field;
- unsigned int i, j;
- unsigned int field_count;
+  MYSQL_FIELD  *field;
+  unsigned int i, j;
+  unsigned int field_count;
 
- mysql_field_seek(result, 0);
- if (!opt_silent)
- {
-   fputc('\n', stdout);
-   fputc('\n', stdout);
- }
+  mysql_field_seek(result, 0);
+  if (!opt_silent)
+  {
+    fputc('\n', stdout);
+    fputc('\n', stdout);
+  }
 
- field_count= mysql_num_fields(result);
- for(i= 0; i< field_count; i++)
- {
-   field= mysql_fetch_field(result);
-   j= strlen(field->name);
-   if (j < field->max_length)
-   j= field->max_length;
-   if (j < 4 && !IS_NOT_NULL(field->flags))
-   j= 4;
-   field->max_length= j;
- }
- if (!opt_silent)
- {
-   my_print_dashes(result);
-   fputc('\t', stdout);
-   fputc('|', stdout);
- }
+  field_count= mysql_num_fields(result);
+  for(i= 0; i< field_count; i++)
+  {
+    field= mysql_fetch_field(result);
+    j= strlen(field->name);
+    if (j < field->max_length)
+      j= field->max_length;
+    if (j < 4 && !IS_NOT_NULL(field->flags))
+      j= 4;
+    field->max_length= j;
+  }
+  if (!opt_silent)
+  {
+    my_print_dashes(result);
+    fputc('\t', stdout);
+    fputc('|', stdout);
+  }
 
- mysql_field_seek(result, 0);
- for(i= 0; i< field_count; i++)
- {
-   field= mysql_fetch_field(result);
-   if (!opt_silent)
-   fprintf(stdout, " %-*s |", (int) field->max_length, field->name);
- }
- if (!opt_silent)
- {
-   fputc('\n', stdout);
-   my_print_dashes(result);
- }
+  mysql_field_seek(result, 0);
+  for(i= 0; i< field_count; i++)
+  {
+    field= mysql_fetch_field(result);
+    if (!opt_silent)
+      fprintf(stdout, " %-*s |", (int) field->max_length, field->name);
+  }
+  if (!opt_silent)
+  {
+    fputc('\n', stdout);
+    my_print_dashes(result);
+  }
 }
 
 
@@ -473,72 +490,72 @@ static void my_print_result_metadata(MYSQL_RES *result)
 
 static int my_process_result_set(MYSQL_RES *result)
 {
- MYSQL_ROW    row;
- MYSQL_FIELD  *field;
- unsigned int i;
- unsigned int row_count= 0;
+  MYSQL_ROW    row;
+  MYSQL_FIELD  *field;
+  unsigned int i;
+  unsigned int row_count= 0;
 
- if (!result)
- return 0;
+  if (!result)
+    return 0;
 
- my_print_result_metadata(result);
+  my_print_result_metadata(result);
 
- while ((row= mysql_fetch_row(result)) != NULL)
- {
-   mysql_field_seek(result, 0);
-   if (!opt_silent)
-   {
-     fputc('\t', stdout);
-     fputc('|', stdout);
-   }
+  while ((row= mysql_fetch_row(result)) != NULL)
+  {
+    mysql_field_seek(result, 0);
+    if (!opt_silent)
+    {
+      fputc('\t', stdout);
+      fputc('|', stdout);
+    }
 
-   for(i= 0; i< mysql_num_fields(result); i++)
-   {
-     field= mysql_fetch_field(result);
-     if (!opt_silent)
-     {
-       if (row[i] == NULL)
-       fprintf(stdout, " %-*s |", (int) field->max_length, "NULL");
-       else if (IS_NUM(field->type))
-       fprintf(stdout, " %*s |", (int) field->max_length, row[i]);
-       else
-       fprintf(stdout, " %-*s |", (int) field->max_length, row[i]);
-     }
-   }
-   if (!opt_silent)
-   {
-     fputc('\t', stdout);
-     fputc('\n', stdout);
-   }
-   row_count++;
- }
- if (!opt_silent)
- {
-   if (row_count)
-   my_print_dashes(result);
+    for(i= 0; i< mysql_num_fields(result); i++)
+    {
+      field= mysql_fetch_field(result);
+      if (!opt_silent)
+      {
+        if (row[i] == NULL)
+          fprintf(stdout, " %-*s |", (int) field->max_length, "NULL");
+        else if (IS_NUM(field->type))
+          fprintf(stdout, " %*s |", (int) field->max_length, row[i]);
+        else
+          fprintf(stdout, " %-*s |", (int) field->max_length, row[i]);
+      }
+    }
+    if (!opt_silent)
+    {
+      fputc('\t', stdout);
+      fputc('\n', stdout);
+    }
+    row_count++;
+  }
+  if (!opt_silent)
+  {
+    if (row_count)
+      my_print_dashes(result);
 
-   if (mysql_errno(mysql) != 0)
-   fprintf(stderr, "\n\tmysql_fetch_row() failed\n");
-   else
-   fprintf(stdout, "\n\t%d %s returned\n", row_count,
-   row_count == 1 ? "row" : "rows");
- }
- return row_count;
+    if (mysql_errno(mysql) != 0)
+      fprintf(stderr, "\n\tmysql_fetch_row() failed\n");
+    else
+      fprintf(stdout, "\n\t%d %s returned\n", row_count,
+              row_count == 1 ? "row" : "rows");
+  }
+  return row_count;
 }
 
 
 static int my_process_result(MYSQL *mysql_arg)
 {
- MYSQL_RES *result;
- int       row_count;
+  MYSQL_RES *result;
+  int       row_count;
 
- if (!(result= mysql_store_result(mysql_arg)))
- return 0;
+  if (!(result= mysql_store_result(mysql_arg)))
+    return 0;
 
- row_count= my_process_result_set(result);
+  row_count= my_process_result_set(result);
 
- mysql_free_result(result);
- return row_count;
+  mysql_free_result(result);
+  return row_count;
 }
 
 
@@ -549,91 +566,91 @@ static int my_process_result(MYSQL *mysql_arg)
 
 static int my_process_stmt_result(MYSQL_STMT *stmt)
 {
- int         field_count;
- int         row_count= 0;
- MYSQL_BIND  buffer[MAX_RES_FIELDS];
- MYSQL_FIELD *field;
- MYSQL_RES   *result;
- char        data[MAX_RES_FIELDS][MAX_FIELD_DATA_SIZE];
- ulong       length[MAX_RES_FIELDS];
- my_bool     is_null[MAX_RES_FIELDS];
- int         rc, i;
+  int         field_count;
+  int         row_count= 0;
+  MYSQL_BIND  buffer[MAX_RES_FIELDS];
+  MYSQL_FIELD *field;
+  MYSQL_RES   *result;
+  char        data[MAX_RES_FIELDS][MAX_FIELD_DATA_SIZE];
+  ulong       length[MAX_RES_FIELDS];
+  my_bool     is_null[MAX_RES_FIELDS];
+  int         rc, i;
 
- if (!(result= mysql_stmt_result_metadata(stmt))) /* No meta info */
- {
-   while (!mysql_stmt_fetch(stmt))
-   row_count++;
-   return row_count;
- }
+  if (!(result= mysql_stmt_result_metadata(stmt))) /* No meta info */
+  {
+    while (!mysql_stmt_fetch(stmt))
+      row_count++;
+    return row_count;
+  }
 
- field_count= min(mysql_num_fields(result), MAX_RES_FIELDS);
+  field_count= min(mysql_num_fields(result), MAX_RES_FIELDS);
 
- bzero((char*) buffer, sizeof(buffer));
- bzero((char*) length, sizeof(length));
- bzero((char*) is_null, sizeof(is_null));
+  bzero((char*) buffer, sizeof(buffer));
+  bzero((char*) length, sizeof(length));
+  bzero((char*) is_null, sizeof(is_null));
 
- for(i= 0; i < field_count; i++)
- {
-   buffer[i].buffer_type= MYSQL_TYPE_STRING;
-   buffer[i].buffer_length= MAX_FIELD_DATA_SIZE;
-   buffer[i].length= &length[i];
-   buffer[i].buffer= (void *) data[i];
-   buffer[i].is_null= &is_null[i];
- }
+  for(i= 0; i < field_count; i++)
+  {
+    buffer[i].buffer_type= MYSQL_TYPE_STRING;
+    buffer[i].buffer_length= MAX_FIELD_DATA_SIZE;
+    buffer[i].length= &length[i];
+    buffer[i].buffer= (void *) data[i];
+    buffer[i].is_null= &is_null[i];
+  }
 
- rc= mysql_stmt_bind_result(stmt, buffer);
- check_execute(stmt, rc);
+  rc= mysql_stmt_bind_result(stmt, buffer);
+  check_execute(stmt, rc);
 
- rc= 1;
- mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void*)&rc);
- rc= mysql_stmt_store_result(stmt);
- check_execute(stmt, rc);
- my_print_result_metadata(result);
+  rc= 1;
+  mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void*)&rc);
+  rc= mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+  my_print_result_metadata(result);
 
- mysql_field_seek(result, 0);
- while ((rc= mysql_stmt_fetch(stmt)) == 0)
- {
-   if (!opt_silent)
-   {
-     fputc('\t', stdout);
-     fputc('|', stdout);
-   }
-   mysql_field_seek(result, 0);
-   for (i= 0; i < field_count; i++)
-   {
-     field= mysql_fetch_field(result);
-     if (!opt_silent)
-     {
-       if (is_null[i])
-       fprintf(stdout, " %-*s |", (int) field->max_length, "NULL");
-       else if (length[i] == 0)
-       {
-	 data[i][0]= '\0';  /* unmodified buffer */
-	 fprintf(stdout, " %*s |", (int) field->max_length, data[i]);
-       }
-       else if (IS_NUM(field->type))
-       fprintf(stdout, " %*s |", (int) field->max_length, data[i]);
-       else
-       fprintf(stdout, " %-*s |", (int) field->max_length, data[i]);
-     }
-   }
-   if (!opt_silent)
-   {
-     fputc('\t', stdout);
-     fputc('\n', stdout);
-   }
-   row_count++;
- }
- DIE_UNLESS(rc == MYSQL_NO_DATA);
- if (!opt_silent)
- {
-   if (row_count)
-   my_print_dashes(result);
-   fprintf(stdout, "\n\t%d %s returned\n", row_count,
-   row_count == 1 ? "row" : "rows");
- }
- mysql_free_result(result);
- return row_count;
+  mysql_field_seek(result, 0);
+  while ((rc= mysql_stmt_fetch(stmt)) == 0)
+  {
+    if (!opt_silent)
+    {
+      fputc('\t', stdout);
+      fputc('|', stdout);
+    }
+    mysql_field_seek(result, 0);
+    for (i= 0; i < field_count; i++)
+    {
+      field= mysql_fetch_field(result);
+      if (!opt_silent)
+      {
+        if (is_null[i])
+          fprintf(stdout, " %-*s |", (int) field->max_length, "NULL");
+        else if (length[i] == 0)
+        {
+          data[i][0]= '\0';  /* unmodified buffer */
+          fprintf(stdout, " %*s |", (int) field->max_length, data[i]);
+        }
+        else if (IS_NUM(field->type))
+          fprintf(stdout, " %*s |", (int) field->max_length, data[i]);
+        else
+          fprintf(stdout, " %-*s |", (int) field->max_length, data[i]);
+      }
+    }
+    if (!opt_silent)
+    {
+      fputc('\t', stdout);
+      fputc('\n', stdout);
+    }
+    row_count++;
+  }
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+  if (!opt_silent)
+  {
+    if (row_count)
+      my_print_dashes(result);
+    fprintf(stdout, "\n\t%d %s returned\n", row_count,
+            row_count == 1 ? "row" : "rows");
+  }
+  mysql_free_result(result);
+  return row_count;
 }
 
 
@@ -641,176 +658,178 @@ static int my_process_stmt_result(MYSQL_STMT *stmt)
 
 int my_stmt_result(const char *buff)
 {
- MYSQL_STMT *stmt;
- int        row_count;
- int        rc;
+  MYSQL_STMT *stmt;
+  int        row_count;
+  int        rc;
 
- if (!opt_silent)
- fprintf(stdout, "\n\n %s", buff);
- stmt= mysql_simple_prepare(mysql, buff);
- check_stmt(stmt);
+  if (!opt_silent)
+    fprintf(stdout, "\n\n %s", buff);
+  stmt= mysql_simple_prepare(mysql, buff);
+  check_stmt(stmt);
 
- rc= mysql_stmt_execute(stmt);
- check_execute(stmt, rc);
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
 
- row_count= my_process_stmt_result(stmt);
- mysql_stmt_close(stmt);
+  row_count= my_process_stmt_result(stmt);
+  mysql_stmt_close(stmt);
 
- return row_count;
+  return row_count;
 }
 
 /* Print the total number of warnings and the warnings themselves.  */
 
 void my_process_warnings(MYSQL *conn, unsigned expected_warning_count)
 {
- MYSQL_RES *result;
- int rc;
+  MYSQL_RES *result;
+  int rc;
 
- if (!opt_silent)
- fprintf(stdout, "\n total warnings: %u (expected: %u)\n",
- mysql_warning_count(conn), expected_warning_count);
+  if (!opt_silent)
+    fprintf(stdout, "\n total warnings: %u (expected: %u)\n",
+            mysql_warning_count(conn), expected_warning_count);
 
- DIE_UNLESS(mysql_warning_count(mysql) == expected_warning_count);
+  DIE_UNLESS(mysql_warning_count(mysql) == expected_warning_count);
 
- rc= mysql_query(conn, "SHOW WARNINGS");
- DIE_UNLESS(rc == 0);
+  rc= mysql_query(conn, "SHOW WARNINGS");
+  DIE_UNLESS(rc == 0);
 
- result= mysql_store_result(conn);
- mytest(result);
+  result= mysql_store_result(conn);
+  mytest(result);
 
- rc= my_process_result_set(result);
- mysql_free_result(result);
+  rc= my_process_result_set(result);
+  mysql_free_result(result);
 }
 
 
 /* Utility function to verify a particular column data */
 
 static void verify_col_data(const char *table, const char *col,
-const char *exp_data)
+                            const char *exp_data)
 {
- static char query[MAX_TEST_QUERY_LENGTH];
- MYSQL_RES *result;
- MYSQL_ROW row;
- int       rc, field= 1;
+  static char query[MAX_TEST_QUERY_LENGTH];
+  MYSQL_RES *result;
+  MYSQL_ROW row;
+  int       rc, field= 1;
 
- if (table && col)
- {
-   strxmov(query, "SELECT ", col, " FROM ", table, " LIMIT 1", NullS);
-   if (!opt_silent)
-   fprintf(stdout, "\n %s", query);
-   rc= mysql_query(mysql, query);
-   myquery(rc);
+  if (table && col)
+  {
+    strxmov(query, "SELECT ", col, " FROM ", table, " LIMIT 1", NullS);
+    if (!opt_silent)
+      fprintf(stdout, "\n %s", query);
+    rc= mysql_query(mysql, query);
+    myquery(rc);
 
-   field= 0;
- }
+    field= 0;
+  }
 
- result= mysql_use_result(mysql);
- mytest(result);
+  result= mysql_use_result(mysql);
+  mytest(result);
 
- if (!(row= mysql_fetch_row(result)) || !row[field])
- {
-   fprintf(stdout, "\n *** ERROR: FAILED TO GET THE RESULT ***");
-   exit(1);
- }
- if (strcmp(row[field], exp_data))
- {
-   fprintf(stdout, "\n obtained: `%s` (expected: `%s`)",
-   row[field], exp_data);
-   DIE_UNLESS(FALSE);
- }
- mysql_free_result(result);
+  if (!(row= mysql_fetch_row(result)) || !row[field])
+  {
+    fprintf(stdout, "\n *** ERROR: FAILED TO GET THE RESULT ***");
+    exit(1);
+  }
+  if (strcmp(row[field], exp_data))
+  {
+    fprintf(stdout, "\n obtained: `%s` (expected: `%s`)",
+            row[field], exp_data);
+    DIE_UNLESS(FALSE);
+  }
+  mysql_free_result(result);
 }
 
 
 /* Utility function to verify the field members */
 
-#define verify_prepare_field(result,no,name,org_name,type,table,	\
-org_table,db,length,def)						\
-do_verify_prepare_field((result),(no),(name),(org_name),(type),		\
-(table),(org_table),(db),(length),(def),				\
-__FILE__, __LINE__)
+#define verify_prepare_field(result,no,name,org_name,type,table,\
+                             org_table,db,length,def) \
+          do_verify_prepare_field((result),(no),(name),(org_name),(type), \
+                                  (table),(org_table),(db),(length),(def), \
+                                  __FILE__, __LINE__)
 
 static void do_verify_prepare_field(MYSQL_RES *result,
-unsigned int no, const char *name,
-const char *org_name,
-enum enum_field_types type,
-const char *table,
-const char *org_table, const char *db,
-unsigned long length, const char *def,
-const char *file, int line)
+                                   unsigned int no, const char *name,
+                                   const char *org_name,
+                                   enum enum_field_types type,
+                                   const char *table,
+                                   const char *org_table, const char *db,
+                                   unsigned long length, const char *def,
+                                   const char *file, int line)
 {
- MYSQL_FIELD *field;
- CHARSET_INFO *cs;
- ulonglong expected_field_length;
+  MYSQL_FIELD *field;
+  CHARSET_INFO *cs;
+  ulonglong expected_field_length;
 
- if (!(field= mysql_fetch_field_direct(result, no)))
- {
-   fprintf(stdout, "\n *** ERROR: FAILED TO GET THE RESULT ***");
-   exit(1);
- }
- cs= get_charset(field->charsetnr, 0);
- DIE_UNLESS(cs);
- if ((expected_field_length= length * cs->mbmaxlen) > UINT_MAX32)
- expected_field_length= UINT_MAX32;
- if (!opt_silent)
- {
-   fprintf(stdout, "\n field[%d]:", no);
-   fprintf(stdout, "\n    name     :`%s`\t(expected: `%s`)", field->name, name);
-   fprintf(stdout, "\n    org_name :`%s`\t(expected: `%s`)",
-   field->org_name, org_name);
-   fprintf(stdout, "\n    type     :`%d`\t(expected: `%d`)", field->type, type);
-   if (table)
-   fprintf(stdout, "\n    table    :`%s`\t(expected: `%s`)",
-   field->table, table);
-   if (org_table)	      
-   fprintf(stdout, "\n    org_table:`%s`\t(expected: `%s`)",
-   field->org_table, org_table);
-   fprintf(stdout, "\n    database :`%s`\t(expected: `%s`)", field->db, db);
-   fprintf(stdout, "\n    length   :`%lu`\t(expected: `%llu`)",
-   field->length, expected_field_length);
-   fprintf(stdout, "\n    maxlength:`%ld`", field->max_length);
-   fprintf(stdout, "\n    charsetnr:`%d`", field->charsetnr);
-   fprintf(stdout, "\n    default  :`%s`\t(expected: `%s`)",
-   field->def ? field->def : "(null)", def ? def: "(null)");
-   fprintf(stdout, "\n");
- }
- DIE_UNLESS(strcmp(field->name, name) == 0);
- DIE_UNLESS(strcmp(field->org_name, org_name) == 0);
- /*
- XXX: silent column specification change works based on number of
- bytes a column occupies. So CHAR -> VARCHAR upgrade is possible even
- for CHAR(2) column if its character set is multibyte.
- VARCHAR -> CHAR downgrade won't work for VARCHAR(3) as one would
- expect.
- */
- if (cs->mbmaxlen == 1)
- {
-   if (field->type != type)
-   {
-     fprintf(stderr,
-     "Expected field type: %d,  got type: %d in file %s, line %d\n",
-     (int) type, (int) field->type, file, line);
-     DIE_UNLESS(field->type == type);
-   }
- }
- if (table)
- DIE_UNLESS(strcmp(field->table, table) == 0);
- if (org_table)
- DIE_UNLESS(strcmp(field->org_table, org_table) == 0);
- DIE_UNLESS(strcmp(field->db, db) == 0);
- /*
- Character set should be taken into account for multibyte encodings, such
- as utf8. Field length is calculated as number of characters * maximum
- number of bytes a character can occupy.
- */
- if (length && (field->length != expected_field_length))
- {
-   fprintf(stderr, "Expected field length: %llu,  got length: %lu\n",
-   expected_field_length, field->length);
-   DIE_UNLESS(field->length == expected_field_length);
- }
- if (def)
- DIE_UNLESS(strcmp(field->def, def) == 0);
+  if (!(field= mysql_fetch_field_direct(result, no)))
+  {
+    fprintf(stdout, "\n *** ERROR: FAILED TO GET THE RESULT ***");
+    exit(1);
+  }
+  cs= get_charset(field->charsetnr, 0);
+  DIE_UNLESS(cs);
+  if ((expected_field_length= length * cs->mbmaxlen) > UINT_MAX32)
+    expected_field_length= UINT_MAX32;
+  if (!opt_silent)
+  {
+    fprintf(stdout, "\n field[%d]:", no);
+    fprintf(stdout, "\n    name     :`%s`\t(expected: `%s`)", field->name, name);
+    fprintf(stdout, "\n    org_name :`%s`\t(expected: `%s`)",
+            field->org_name, org_name);
+    fprintf(stdout, "\n    type     :`%d`\t(expected: `%d`)", field->type, type);
+    if (table)
+      fprintf(stdout, "\n    table    :`%s`\t(expected: `%s`)",
+              field->table, table);
+    if (org_table)	      
+      fprintf(stdout, "\n    org_table:`%s`\t(expected: `%s`)",
+              field->org_table, org_table);
+    fprintf(stdout, "\n    database :`%s`\t(expected: `%s`)", field->db, db);
+    fprintf(stdout, "\n    length   :`%lu`\t(expected: `%llu`)",
+            field->length, expected_field_length);
+    fprintf(stdout, "\n    maxlength:`%ld`", field->max_length);
+    fprintf(stdout, "\n    charsetnr:`%d`", field->charsetnr);
+    fprintf(stdout, "\n    default  :`%s`\t(expected: `%s`)",
+            field->def ? field->def : "(null)", def ? def: "(null)");
+    fprintf(stdout, "\n");
+  }
+  DIE_UNLESS(strcmp(field->name, name) == 0);
+  DIE_UNLESS(strcmp(field->org_name, org_name) == 0);
+  /*
+    XXX: silent column specification change works based on number of
+    bytes a column occupies. So CHAR -> VARCHAR upgrade is possible even
+    for CHAR(2) column if its character set is multibyte.
+    VARCHAR -> CHAR downgrade won't work for VARCHAR(3) as one would
+    expect.
+  */
+  if (cs->mbmaxlen == 1)
+  {
+    if (field->type != type)
+    {
+      fprintf(stderr,
+              "Expected field type: %d,  got type: %d in file %s, line %d\n",
+              (int) type, (int) field->type, file, line);
+      DIE_UNLESS(field->type == type);
+    }
+  }
+  if (table)
+    DIE_UNLESS(strcmp(field->table, table) == 0);
+  if (org_table)
+    DIE_UNLESS(strcmp(field->org_table, org_table) == 0);
+  DIE_UNLESS(strcmp(field->db, db) == 0);
+  /*
+    Character set should be taken into account for multibyte encodings, such
+    as utf8. Field length is calculated as number of characters * maximum
+    number of bytes a character can occupy.
+  */
+  if (length && (field->length != expected_field_length))
+  {
+    fflush(stdout);
+    fprintf(stderr, "Expected field length: %llu,  got length: %lu\n",
+            expected_field_length, field->length);
+    fflush(stderr);
+    DIE_UNLESS(field->length == expected_field_length);
+  }
+  if (def)
+    DIE_UNLESS(strcmp(field->def, def) == 0);
 }
 
 
@@ -818,11 +837,11 @@ const char *file, int line)
 
 static void verify_param_count(MYSQL_STMT *stmt, long exp_count)
 {
- long param_count= mysql_stmt_param_count(stmt);
- if (!opt_silent)
- fprintf(stdout, "\n total parameters in stmt: `%ld` (expected: `%ld`)",
- param_count, exp_count);
- DIE_UNLESS(param_count == exp_count);
+  long param_count= mysql_stmt_param_count(stmt);
+  if (!opt_silent)
+    fprintf(stdout, "\n total parameters in stmt: `%ld` (expected: `%ld`)",
+            param_count, exp_count);
+  DIE_UNLESS(param_count == exp_count);
 }
 
 
@@ -830,11 +849,11 @@ static void verify_param_count(MYSQL_STMT *stmt, long exp_count)
 
 static void verify_st_affected_rows(MYSQL_STMT *stmt, ulonglong exp_count)
 {
- ulonglong affected_rows= mysql_stmt_affected_rows(stmt);
- if (!opt_silent)
- fprintf(stdout, "\n total affected rows: `%ld` (expected: `%ld`)",
- (long) affected_rows, (long) exp_count);
- DIE_UNLESS(affected_rows == exp_count);
+  ulonglong affected_rows= mysql_stmt_affected_rows(stmt);
+  if (!opt_silent)
+    fprintf(stdout, "\n total affected rows: `%ld` (expected: `%ld`)",
+            (long) affected_rows, (long) exp_count);
+  DIE_UNLESS(affected_rows == exp_count);
 }
 
 
@@ -842,11 +861,11 @@ static void verify_st_affected_rows(MYSQL_STMT *stmt, ulonglong exp_count)
 
 static void verify_affected_rows(ulonglong exp_count)
 {
- ulonglong affected_rows= mysql_affected_rows(mysql);
- if (!opt_silent)
- fprintf(stdout, "\n total affected rows: `%ld` (expected: `%ld`)",
- (long) affected_rows, (long) exp_count);
- DIE_UNLESS(affected_rows == exp_count);
+  ulonglong affected_rows= mysql_affected_rows(mysql);
+  if (!opt_silent)
+    fprintf(stdout, "\n total affected rows: `%ld` (expected: `%ld`)",
+            (long) affected_rows, (long) exp_count);
+  DIE_UNLESS(affected_rows == exp_count);
 }
 
 
@@ -854,11 +873,11 @@ static void verify_affected_rows(ulonglong exp_count)
 
 static void verify_field_count(MYSQL_RES *result, uint exp_count)
 {
- uint field_count= mysql_num_fields(result);
- if (!opt_silent)
- fprintf(stdout, "\n total fields in the result set: `%d` (expected: `%d`)",
- field_count, exp_count);
- DIE_UNLESS(field_count == exp_count);
+  uint field_count= mysql_num_fields(result);
+  if (!opt_silent)
+    fprintf(stdout, "\n total fields in the result set: `%d` (expected: `%d`)",
+            field_count, exp_count);
+  DIE_UNLESS(field_count == exp_count);
 }
 
 
@@ -867,23 +886,23 @@ static void verify_field_count(MYSQL_RES *result, uint exp_count)
 #ifndef EMBEDDED_LIBRARY
 static void execute_prepare_query(const char *query, ulonglong exp_count)
 {
- MYSQL_STMT *stmt;
- ulonglong  affected_rows;
- int        rc;
+  MYSQL_STMT *stmt;
+  ulonglong  affected_rows;
+  int        rc;
 
- stmt= mysql_simple_prepare(mysql, query);
- check_stmt(stmt);
+  stmt= mysql_simple_prepare(mysql, query);
+  check_stmt(stmt);
 
- rc= mysql_stmt_execute(stmt);
- myquery(rc);
+  rc= mysql_stmt_execute(stmt);
+  myquery(rc);
 
- affected_rows= mysql_stmt_affected_rows(stmt);
- if (!opt_silent)
- fprintf(stdout, "\n total affected rows: `%ld` (expected: `%ld`)",
- (long) affected_rows, (long) exp_count);
+  affected_rows= mysql_stmt_affected_rows(stmt);
+  if (!opt_silent)
+    fprintf(stdout, "\n total affected rows: `%ld` (expected: `%ld`)",
+            (long) affected_rows, (long) exp_count);
 
- DIE_UNLESS(affected_rows == exp_count);
- mysql_stmt_close(stmt);
+  DIE_UNLESS(affected_rows == exp_count);
+  mysql_stmt_close(stmt);
 }
 #endif
 
@@ -1149,89 +1168,94 @@ static my_bool thread_query(const char *query)
 
 
 /*
-Read and parse arguments and MySQL options from my.cnf
+  Read and parse arguments and MySQL options from my.cnf
 */
 
-static const char *client_test_load_default_groups[]= { "client", 0 };
+static const char *client_test_load_default_groups[]=
+{ "client", "client-server", "client-mariadb", 0 };
 static char **defaults_argv;
 
 static struct my_option client_test_long_options[] =
 {
-{"basedir", 'b', "Basedir for tests.", &opt_basedir,
- &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-{"count", 't', "Number of times test to be executed", &opt_count,
- &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
-{"database", 'D', "Database to use", &opt_db, &opt_db,
- 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-{"do-not-drop-database", 'd', "Do not drop database while disconnecting",
-  0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-{"debug", '#', "Output debug log", &default_dbug_option,
- &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-{"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
- 0, 0, 0, 0, 0},
-{"host", 'h', "Connect to host", &opt_host, &opt_host,
- 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-{"password", 'p',
- "Password to use when connecting to server. If password is not given it's asked from the tty.",
- 0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-{"port", 'P', "Port number to use for connection or 0 for default to, in "
- "order of preference, my.cnf, $MYSQL_TCP_PORT, "
- #if MYSQL_PORT_DEFAULT == 0
- "/etc/services, "
- #endif
- "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
- &opt_port, &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-{"server-arg", 'A', "Send embedded server this as a parameter.",
- 0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-{"show-tests", 'T', "Show all tests' names", 0, 0, 0, GET_NO_ARG, NO_ARG,
- 0, 0, 0, 0, 0, 0},
-{"silent", 's', "Be more silent", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
- 0},
+  {"basedir", 'b', "Basedir for tests.", &opt_basedir,
+   &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"count", 't', "Number of times test to be executed", &opt_count,
+   &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
+  {"database", 'D', "Database to use", &opt_db, &opt_db,
+   0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"do-not-drop-database", 'd', "Do not drop database while disconnecting",
+    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log", &default_dbug_option,
+   &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
+   0, 0, 0, 0, 0},
+  {"host", 'h', "Connect to host", &opt_host, &opt_host,
+   0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"password", 'p',
+   "Password to use when connecting to server. If password is not given it's asked from the tty.",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection or 0 for default to, in "
+   "order of preference, my.cnf, $MYSQL_TCP_PORT, "
+#if MYSQL_PORT_DEFAULT == 0
+   "/etc/services, "
+#endif
+   "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
+   &opt_port, &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"server-arg", 'A', "Send embedded server this as a parameter.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"show-tests", 'T', "Show all tests' names", 0, 0, 0, GET_NO_ARG, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"silent", 's', "Be more silent", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
+   0},
 #ifdef HAVE_SMEM
-{"shared-memory-base-name", 'm', "Base name of shared memory.", 
- &shared_memory_base_name, (uchar**)&shared_memory_base_name, 0, 
- GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"shared-memory-base-name", 'm', "Base name of shared memory.", 
+  &shared_memory_base_name, (uchar**)&shared_memory_base_name, 0, 
+  GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-{"socket", 'S', "Socket file to use for connection",
- &opt_unix_socket, &opt_unix_socket, 0, GET_STR,
- REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-{"testcase", 'c',
- "May disable some code when runs as mysql-test-run testcase.",
- 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"socket", 'S', "Socket file to use for connection",
+   &opt_unix_socket, &opt_unix_socket, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"testcase", 'c',
+   "May disable some code when runs as mysql-test-run testcase.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
-{"user", 'u', "User for login if not current user", &opt_user,
- &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login if not current user", &opt_user,
+   &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-{"vardir", 'v', "Data dir for tests.", &opt_vardir,
- &opt_vardir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-{"getopt-ll-test", 'g', "Option for testing bug in getopt library",
- &opt_getopt_ll_test, &opt_getopt_ll_test, 0,
- GET_LL, REQUIRED_ARG, 0, 0, LONGLONG_MAX, 0, 0, 0},
-{"plugin_dir", 0, "Directory for client-side plugins.",
- &opt_plugin_dir, &opt_plugin_dir, 0,
- GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-{"default_auth", 0, "Default authentication client-side plugin to use.",
- &opt_default_auth, &opt_default_auth, 0,
- GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-{ 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+  {"vardir", 'v', "Data dir for tests.", &opt_vardir,
+   &opt_vardir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"non-blocking-api", 'n',
+   "Use the non-blocking client API for communication.",
+   &non_blocking_api_enabled, &non_blocking_api_enabled, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"getopt-ll-test", 'g', "Option for testing bug in getopt library",
+   &opt_getopt_ll_test, &opt_getopt_ll_test, 0,
+   GET_LL, REQUIRED_ARG, 0, 0, LONGLONG_MAX, 0, 0, 0},
+  {"plugin_dir", 0, "Directory for client-side plugins.",
+   &opt_plugin_dir, &opt_plugin_dir, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default_auth", 0, "Default authentication client-side plugin to use.",
+   &opt_default_auth, &opt_default_auth, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 
 static void usage(void)
 {
-/* show the usage string when the user asks for this */
- putc('\n', stdout);
- printf("%s  Ver %s Distrib %s, for %s (%s)\n",
- my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
- puts("By Monty, Venu, Kent and others\n");
- printf("\
+  /* show the usage string when the user asks for this */
+  putc('\n', stdout);
+  printf("%s  Ver %s Distrib %s, for %s (%s)\n",
+	 my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+  puts("By Monty, Venu, Kent and others\n");
+  printf("\
 Copyright (C) 2002-2004 MySQL AB\n\
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
 and you are welcome to modify and redistribute it under the GPL license\n");
- printf("Usage: %s [OPTIONS] [TESTNAME1 TESTNAME2...]\n", my_progname);
- my_print_help(client_test_long_options);
- print_defaults("my", client_test_load_default_groups);
- my_print_variables(client_test_long_options);
+  printf("Usage: %s [OPTIONS] [TESTNAME1 TESTNAME2...]\n", my_progname);
+  my_print_help(client_test_long_options);
+  print_defaults("my", client_test_load_default_groups);
+  my_print_variables(client_test_long_options);
 }
 
 static struct my_tests_st *get_my_tests();  /* To be defined in main .c file */
@@ -1240,185 +1264,185 @@ static struct my_tests_st *my_testlist= 0;
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
-char *argument)
+               char *argument)
 {
- switch (optid) {
- case '#':
- DBUG_PUSH(argument ? argument : default_dbug_option);
- break;
- case 'c':
- opt_testcase = 1;
- break;
- case 'p':
- if (argument)
- {
-   char *start=argument;
-   my_free(opt_password);
-   opt_password= my_strdup(argument, MYF(MY_FAE));
-   while (*argument) *argument++= 'x';               /* Destroy argument */
-   if (*start)
-   start[1]=0;
- }
- else
- tty_password= 1;
- break;
- case 's':
- if (argument == disabled_my_option)
- opt_silent= 0;
- else
- opt_silent++;
- break;
- case 'd':
- opt_drop_db= 0;
- break;
- case 'A':
- /*
- When the embedded server is being tested, the test suite needs to be
- able to pass command-line arguments to the embedded server so it can
- locate the language files and data directory. The test suite
- (mysql-test-run) never uses config files, just command-line options.
- */
- if (!embedded_server_arg_count)
- {
-   embedded_server_arg_count= 1;
-   embedded_server_args[0]= (char*) "";
- }
- if (embedded_server_arg_count == MAX_SERVER_ARGS-1 ||
- !(embedded_server_args[embedded_server_arg_count++]=
- my_strdup(argument, MYF(MY_FAE))))
- {
-   DIE("Can't use server argument");
- }
- break;
- case 'T':
- {
-   struct my_tests_st *fptr;
+  switch (optid) {
+  case '#':
+    DBUG_PUSH(argument ? argument : default_dbug_option);
+    break;
+  case 'c':
+    opt_testcase = 1;
+    break;
+  case 'p':
+    if (argument)
+    {
+      char *start=argument;
+      my_free(opt_password);
+      opt_password= my_strdup(argument, MYF(MY_FAE));
+      while (*argument) *argument++= 'x';               /* Destroy argument */
+      if (*start)
+        start[1]=0;
+    }
+    else
+      tty_password= 1;
+    break;
+  case 's':
+    if (argument == disabled_my_option)
+      opt_silent= 0;
+    else
+      opt_silent++;
+    break;
+  case 'd':
+    opt_drop_db= 0;
+    break;
+  case 'A':
+    /*
+      When the embedded server is being tested, the test suite needs to be
+      able to pass command-line arguments to the embedded server so it can
+      locate the language files and data directory. The test suite
+      (mysql-test-run) never uses config files, just command-line options.
+    */
+    if (!embedded_server_arg_count)
+    {
+      embedded_server_arg_count= 1;
+      embedded_server_args[0]= (char*) "";
+    }
+    if (embedded_server_arg_count == MAX_SERVER_ARGS-1 ||
+        !(embedded_server_args[embedded_server_arg_count++]=
+          my_strdup(argument, MYF(MY_FAE))))
+    {
+      DIE("Can't use server argument");
+    }
+    break;
+  case 'T':
+    {
+      struct my_tests_st *fptr;
       
-   printf("All possible test names:\n\n");
-   for (fptr= my_testlist; fptr->name; fptr++)
-   printf("%s\n", fptr->name);
-   exit(0);
-   break;
- }
- case '?':
- case 'I':                                     /* Info */
- usage();
- exit(0);
- break;
- }
- return 0;
+      printf("All possible test names:\n\n");
+      for (fptr= my_testlist; fptr->name; fptr++)
+	printf("%s\n", fptr->name);
+      exit(0);
+      break;
+    }
+  case '?':
+  case 'I':                                     /* Info */
+    usage();
+    exit(0);
+    break;
+  }
+  return 0;
 }
 
 static void get_options(int *argc, char ***argv)
 {
- int ho_error;
+  int ho_error;
 
- if ((ho_error= handle_options(argc, argv, client_test_long_options,
- get_one_option)))
- exit(ho_error);
+  if ((ho_error= handle_options(argc, argv, client_test_long_options,
+                                get_one_option)))
+    exit(ho_error);
 
- if (tty_password)
- opt_password= get_tty_password(NullS);
- return;
+  if (tty_password)
+    opt_password= get_tty_password(NullS);
+  return;
 }
 
 /*
-Print the test output on successful execution before exiting
+  Print the test output on successful execution before exiting
 */
 
 static void print_test_output()
 {
- if (opt_silent < 3)
- {
-   fprintf(stdout, "\n\n");
-   fprintf(stdout, "All '%d' tests were successful (in '%d' iterations)",
-   test_count-1, opt_count);
-   fprintf(stdout, "\n  Total execution time: %g SECS", total_time);
-   if (opt_count > 1)
-   fprintf(stdout, " (Avg: %g SECS)", total_time/opt_count);
+  if (opt_silent < 3)
+  {
+    fprintf(stdout, "\n\n");
+    fprintf(stdout, "All '%d' tests were successful (in '%d' iterations)",
+            test_count-1, opt_count);
+    fprintf(stdout, "\n  Total execution time: %g SECS", total_time);
+    if (opt_count > 1)
+      fprintf(stdout, " (Avg: %g SECS)", total_time/opt_count);
 
-   fprintf(stdout, "\n\n!!! SUCCESS !!!\n");
- }
+    fprintf(stdout, "\n\n!!! SUCCESS !!!\n");
+  }
 }
 
 /***************************************************************************
-main routine
+  main routine
 ***************************************************************************/
 
 
 int main(int argc, char **argv)
 {
- struct my_tests_st *fptr;
- my_testlist= get_my_tests();
+  struct my_tests_st *fptr;
+  my_testlist= get_my_tests();
 
- MY_INIT(argv[0]);
+  MY_INIT(argv[0]);
 
- if (load_defaults("my", client_test_load_default_groups, &argc, &argv))
- exit(1);
+  if (load_defaults("my", client_test_load_default_groups, &argc, &argv))
+    exit(1);
 
- defaults_argv= argv;
- get_options(&argc, &argv);
+  defaults_argv= argv;
+  get_options(&argc, &argv);
 
- if (mysql_server_init(embedded_server_arg_count,
- embedded_server_args,
- (char**) embedded_server_groups))
- DIE("Can't initialize MySQL server");
+  if (mysql_server_init(embedded_server_arg_count,
+                        embedded_server_args,
+                        (char**) embedded_server_groups))
+    DIE("Can't initialize MySQL server");
 
- /* connect to server with no flags, default protocol, auto reconnect true */
- mysql= client_connect(0, MYSQL_PROTOCOL_DEFAULT, 1);
+  /* connect to server with no flags, default protocol, auto reconnect true */
+  mysql= client_connect(0, MYSQL_PROTOCOL_DEFAULT, 1);
 
- total_time= 0;
- for (iter_count= 1; iter_count <= opt_count; iter_count++)
- {
-   /* Start of tests */
-   test_count= 1;
-   start_time= time((time_t *)0);
-   if (!argc)
-   {
-     for (fptr= my_testlist; fptr->name; fptr++)
-     (*fptr->function)();	
-   }
-   else
-   {
-     for ( ; *argv ; argv++)
-     {
-       for (fptr= my_testlist; fptr->name; fptr++)
-       {
-	 if (!strcmp(fptr->name, *argv))
-	 {
-	   (*fptr->function)();
-	   break;
-	 }
-       }
-       if (!fptr->name)
-       {
-	 fprintf(stderr, "\n\nGiven test not found: '%s'\n", *argv);
-	 fprintf(stderr, "See legal test names with %s -T\n\nAborting!\n",
-	 my_progname);
-	 client_disconnect(mysql);
-	 free_defaults(defaults_argv);
-	 exit(1);
-       }
-     }
-   }
+  total_time= 0;
+  for (iter_count= 1; iter_count <= opt_count; iter_count++)
+  {
+    /* Start of tests */
+    test_count= 1;
+    start_time= time((time_t *)0);
+    if (!argc)
+    {
+      for (fptr= my_testlist; fptr->name; fptr++)
+        (*fptr->function)();	
+    }
+    else
+    {
+      for ( ; *argv ; argv++)
+      {
+        for (fptr= my_testlist; fptr->name; fptr++)
+        {
+          if (!strcmp(fptr->name, *argv))
+          {
+            (*fptr->function)();
+            break;
+          }
+        }
+        if (!fptr->name)
+        {
+          fprintf(stderr, "\n\nGiven test not found: '%s'\n", *argv);
+          fprintf(stderr, "See legal test names with %s -T\n\nAborting!\n",
+                  my_progname);
+          client_disconnect(mysql);
+          free_defaults(defaults_argv);
+          exit(1);
+        }
+      }
+    }
 
-   end_time= time((time_t *)0);
-   total_time+= difftime(end_time, start_time);
+    end_time= time((time_t *)0);
+    total_time+= difftime(end_time, start_time);
 
-   /* End of tests */
- }
+    /* End of tests */
+  }
 
- client_disconnect(mysql);    /* disconnect from server */
+  client_disconnect(mysql);    /* disconnect from server */
 
- free_defaults(defaults_argv);
- print_test_output();
+  free_defaults(defaults_argv);
+  print_test_output();
 
- while (embedded_server_arg_count > 1)
- my_free(embedded_server_args[--embedded_server_arg_count]);
+  while (embedded_server_arg_count > 1)
+    my_free(embedded_server_args[--embedded_server_arg_count]);
 
- mysql_server_end();
+  mysql_server_end();
 
- my_end(0);
+  my_end(0);
 
- exit(0);
+  exit(0);
 }

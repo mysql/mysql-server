@@ -1,0 +1,95 @@
+# ticket 895 is a query optimization problem with the primary key
+
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--echo # Establish connection conn1 (user = root)
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+connect (conn3,localhost,root,,);
+connect (conn4,localhost,root,,);
+connect (conn5,localhost,root,,);
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+connection default;
+create table foo (a int, b varchar (100), primary key (a)) engine=TokuDB;
+show create table foo;
+
+connection conn1;
+set session transaction isolation level repeatable read;
+begin;
+select * from foo;
+
+connection default;
+replace into foo values (1, "a");
+
+connection conn2;
+set session transaction isolation level repeatable read;
+begin;
+select * from foo;
+
+connection default;
+replace into foo values (1,"abGARBAGE"), (2, "abGARBAGE");
+replace into foo values (1,"ab"), (2, "ab");
+
+connection conn3;
+set session transaction isolation level repeatable read;
+begin;
+select * from foo;
+
+connection default;
+replace into foo values (1,"abcGARBAGE"),(2,"abcGARBAGE"),(3, "abcGARBAGE");
+replace into foo values (1,"abc"),(2,"abc"),(3, "abc");
+
+connection conn4;
+set session transaction isolation level repeatable read;
+begin;
+select * from foo;
+
+connection default;
+replace into foo values (1,"abcdGARBAGE"),(2,"abcdGARBAGE"),(3, "abcdGARBAGE"),(4, "abcdGARBAGE");
+replace into foo values (1,"abcd"),(2,"abcd"),(3, "abcd"),(4, "abcd");
+
+connection conn5;
+set session transaction isolation level repeatable read;
+begin;
+select * from foo;
+
+connection conn1;
+select * from foo;
+commit;
+
+connection conn2;
+select * from foo;
+commit;
+
+connection conn3;
+select * from foo;
+commit;
+
+connection conn4;
+select * from foo;
+commit;
+
+connection conn5;
+select * from foo;
+commit;
+
+
+connection default;
+select * from foo;
+replace into foo values (1,"1"),(2,"2"),(3,"3"),(4,"4");
+select * from foo;
+disconnect conn1;
+disconnect conn2;
+disconnect conn3;
+disconnect conn4;
+disconnect conn5;
+
+connection default;
+# Final cleanup.
+set session transaction isolation level serializable;
+DROP TABLE foo;

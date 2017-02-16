@@ -1,0 +1,63 @@
+#
+# mysqld --help
+#
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+--source include/platform.inc
+
+#
+# force lower-case-table-names=1 (linux/macosx have different defaults)
+# force symbolic-links=0 (valgrind build has a different default)
+#
+
+exec $MYSQLD_BOOTSTRAP_CMD --symbolic-links=0 --lower-case-table-names=1 --help --verbose > $MYSQL_TMP_DIR/mysqld--help.txt 2>&1;
+
+# The inline perl code below will copy $MYSQL_TMP_DIR/mysqld--help.txt
+# to output, but filter away some variable stuff (e.g. paths).
+
+perl;
+  # Variables which we don't want to display in the result file since
+  # their paths may vary:
+  @skipvars=qw/basedir open-files-limit general-log-file log plugin-dir
+               log-slow-queries pid-file slow-query-log-file log-basename
+               datadir slave-load-tmpdir tmpdir socket/;
+
+  # Plugins which may or may not be there:
+  @plugins=qw/innodb ndb archive blackhole federated partition ndbcluster
+              feedback debug temp-pool ssl des-key-file
+              xtradb thread-concurrency super-large-pages
+              mutex-deadlock-detector null-audit maria aria oqgraph
+              sphinx thread-handling thread-pool query-cache-info/;
+
+  # And substitute the content some environment variables with their
+  # names:
+  @env=qw/MYSQLTEST_VARDIR MYSQL_TEST_DIR MYSQL_CHARSETSDIR MYSQL_SHAREDIR/;
+
+  $re1=join('|', @skipvars, @plugins);
+  $re2=join('|', @plugins);
+  $skip=0;
+  open(F, '<', "$ENV{MYSQL_TMP_DIR}/mysqld--help.txt") or die;
+  while (<F>) {
+    next if 1../The following groups are read/;
+    # formatting, skip line consisting entirely of dashes and blanks
+    next if /^[\- ]+\s?$/;
+    next if /Value \(after reading options\)/; # skip table header
+    next if /^($re1) /;
+    next if /^($re2)-/;
+    $skip=0 if /^  -/ or /^$/;
+    $skip=1 if / --($re2)\b/;
+    y!\\!/!;
+    s/[ ]+/ /; # squeeze spaces to remove table formatting
+    # fixes for 32-bit
+    s/\b4294967295\b/18446744073709551615/;
+    s/\b2146435072\b/9223372036853727232/;
+    s/\b196608\b/262144/;
+    s/\b4294963200\b/18446744073709547520/;
+    foreach $var (@env) { s/\Q$ENV{$var}\E/$var/ }
+    next if /use --skip-(use-)?symbolic-links to disable/; # for valgrind, again
+    next if $skip;
+    print;
+  }
+  close F;
+EOF
+

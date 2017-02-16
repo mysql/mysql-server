@@ -1,0 +1,35 @@
+source include/have_tokudb.inc;
+# test that select for update is executed with serializable isolation
+
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+create table t (a int primary key, b int);
+insert into t values (1,0);
+set session transaction isolation level repeatable read;
+begin;
+# t1 select for update
+select * from t where a=1 for update;
+# t2 update
+update t set b=b+1 where a=1;
+connect(conn1,localhost,root);
+set session transaction isolation level repeatable read;
+begin;
+# t2 select for update, should hang until t1 commits
+send select * from t where a=1 for update;
+connection default;
+# t1 commit
+commit;
+connection conn1;
+# t2 select for update returns
+reap;
+# t2 update
+update t set b=b+1 where a=1;
+select * from t;
+commit;
+connection default;
+disconnect conn1;
+drop table t;
+

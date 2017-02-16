@@ -1,0 +1,38 @@
+#
+# New lines in identifiers
+#
+
+# embedded server doesn't support external clients
+--source include/not_embedded.inc
+# cmd.exe doesn't like new lines on the command line
+--source include/not_windows.inc
+
+create database `mysqltest1
+1tsetlqsym`;
+use `mysqltest1
+1tsetlqsym`;
+
+create table `t1
+1t` (`foobar
+raboof` int);
+create view `v1
+1v` as select * from `t1
+1t`;
+
+create procedure sp() select * from `v1
+1v`;
+
+flush tables;
+use test;
+
+exec $MYSQL_DUMP --compact --comment --routines --add-drop-database --databases 'mysqltest1
+1tsetlqsym';
+
+exec $MYSQL_DUMP --compact --comment --routines --add-drop-database --databases 'mysqltest1
+1tsetlqsym' | $MYSQL;
+
+show tables from `mysqltest1
+1tsetlqsym`;
+
+drop database `mysqltest1
+1tsetlqsym`;

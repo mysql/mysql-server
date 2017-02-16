@@ -1,0 +1,98 @@
+{
+ global:
+   db_create;
+   db_env_create;
+   db_strerror;
+   db_version;
+   db_env_set_direct_io;
+   db_env_set_compress_buffers_before_eviction;
+   db_env_set_func_fsync;
+   db_env_set_func_malloc;
+   db_env_set_func_realloc;
+   db_env_set_func_free;
+   db_env_set_func_pwrite;
+   db_env_set_func_full_pwrite;
+   db_env_set_func_write;
+   db_env_set_func_full_write;
+   db_env_set_func_fdopen;
+   db_env_set_func_fopen;
+   db_env_set_func_open;
+   db_env_set_func_fclose;
+   db_env_set_func_pread;
+   db_env_set_func_loader_fwrite;
+   db_env_set_checkpoint_callback;
+   db_env_set_checkpoint_callback2;
+   db_env_set_recover_callback;
+   db_env_set_recover_callback2;
+   db_env_set_loader_size_factor;
+   db_env_set_mvcc_garbage_collection_verification;
+   db_env_enable_engine_status;
+   db_env_set_flusher_thread_callback;
+   db_env_set_num_bucket_mutexes;
+   db_env_set_toku_product_name;
+   db_env_try_gdb_stack_trace;
+
+   read_partitioned_counter;
+
+   toku_ydb_error_all_cases;
+   toku_set_trace_file;
+   toku_close_trace_file;
+
+   toku_add_trace_mem;
+   toku_print_trace_mem;
+
+
+   toku_free;
+   toku_malloc;
+   toku_calloc;
+   toku_xmemdup;
+   toku_xrealloc;
+   toku_os_get_file_size;
+   toku_os_getpid;
+   toku_os_gettid;
+   toku_os_initialize_settings;
+   toku_os_is_absolute_name;
+   toku_os_mkdir;
+   toku_realloc;
+   toku_strdup;
+   toku_pthread_yield;
+
+   toku_cachetable_print_hash_histogram;
+   toku_set_lsn_increment;
+
+   toku_builtin_compare_fun;
+
+   toku_stat;
+   toku_fstat;
+   toku_dup2;
+
+   toku_os_full_write;
+   toku_os_full_pwrite;
+
+   toku_os_get_max_process_data_size;
+   toku_os_get_phys_memory_size;
+
+   tokutime_to_seconds;
+
+   toku_do_assert;
+   toku_do_assert_fail;
+   toku_do_assert_zero_fail;
+   toku_set_assert_on_write_enospc;
+
+   toku_test_db_redirect_dictionary;
+   toku_test_get_latest_lsn;
+   toku_test_get_checkpointing_user_data_status;
+   toku_indexer_set_test_only_flags;
+   toku_increase_last_xid;
+
+   toku_patent_string;
+   toku_copyright_string;
+
+   toku_dbt_array_init;
+   toku_dbt_array_destroy;
+   toku_dbt_array_destroy_shallow;
+   toku_dbt_array_resize;
+
+ local: *;
+};
+

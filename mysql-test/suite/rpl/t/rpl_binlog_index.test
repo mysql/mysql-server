@@ -131,7 +131,7 @@ connection slave;
 --source include/relocate_binlogs.inc
 
 --echo # Restart slave with options log-bin, relay-log set to the new paths
---let $rpl_server_parameters=--log-bin=$tmpdir/slave-bin --relay-log=$tmpdir/slave-relay-bin
+--let $rpl_server_parameters=--log-bin=$tmpdir/slave-bin --relay-log=$tmpdir/slave-relay-bin --relay-log-index=$tmpdir/slave-relay-bin.index
 --let $keep_include_silent=1
 --let $rpl_server_number= 2
 source include/rpl_start_server.inc;
@@ -193,7 +193,7 @@ DROP TABLE t1;
 --rmdir $tmpdir
 
 --echo # restarted with previous slave settings
---let $rpl_server_parameters=--log-bin=$slave_datadir/slave-bin --relay-log=$slave_datadir/slave-relay-bin
+--let $rpl_server_parameters=--log-bin=$slave_datadir/slave-bin --relay-log=$slave_datadir/slave-relay-bin --relay-log-index=$slave_datadir/slave-relay-bin.index
 --let $keep_include_silent=1
 --let $rpl_server_number= 2
 --source include/rpl_start_server.inc

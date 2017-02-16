@@ -1,7 +1,7 @@
 #ifndef ITEM_TIMEFUNC_INCLUDED
 #define ITEM_TIMEFUNC_INCLUDED
-
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,8 +30,18 @@ enum date_time_format_types
   TIME_ONLY= 0, TIME_MICROSECOND, DATE_ONLY, DATE_TIME, DATE_TIME_MICROSECOND
 };
 
-bool get_interval_value(Item *args,interval_type int_type,
-			       String *str_value, INTERVAL *interval);
+
+static inline uint
+mysql_temporal_int_part_length(enum enum_field_types mysql_type)
+{
+  static uint max_time_type_width[5]=
+  { MAX_DATETIME_WIDTH, MAX_DATETIME_WIDTH, MAX_DATE_WIDTH,
+    MAX_DATETIME_WIDTH, MIN_TIME_WIDTH };
+  return max_time_type_width[mysql_type_to_time_type(mysql_type)+2];
+}
+
+
+bool get_interval_value(Item *args,interval_type int_type, INTERVAL *interval);
 
 class Item_func_period_add :public Item_int_func
 {
@@ -75,6 +85,7 @@ public:
   enum_monotonicity_info get_monotonicity_info() const;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
   bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_date_args();
@@ -92,7 +103,7 @@ public:
   { 
     decimals=0; 
     max_length=6*MY_CHARSET_BIN_MB_MAXLEN;
-    maybe_null=1; 
+    maybe_null= 1;
   }
   enum_monotonicity_info get_monotonicity_info() const;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
@@ -128,6 +139,7 @@ public:
     maybe_null=1; 
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
   bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_date_args();
@@ -156,9 +168,10 @@ public:
   { 
     decimals= 0;
     fix_char_length(2);
-    maybe_null= 1;
+    maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
   bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_date_args();
@@ -175,6 +188,7 @@ public:
   String *val_str(String *str);
   void fix_length_and_dec();
   bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
+  bool check_vcol_func_processor(uchar *int_arg) {return FALSE;}
   bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_date_args();
@@ -192,9 +206,10 @@ public:
   { 
     decimals= 0;
     fix_char_length(3);
-    maybe_null= 1;
+    maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
   bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_date_args();
@@ -215,6 +230,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
   bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_time_args();
@@ -235,6 +251,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
   bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_time_args();
@@ -255,6 +272,7 @@ public:
      maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
   bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_date_args();
@@ -275,6 +293,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
   bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_time_args();
@@ -309,6 +328,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
   bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_date_args();
@@ -331,6 +351,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
   bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_date_args();
@@ -361,9 +382,10 @@ public:
   {
     decimals= 0;
     fix_char_length(1);
-    maybe_null= 1;
+    maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
   bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_date_args();
@@ -380,16 +402,40 @@ class Item_func_dayname :public Item_func_weekday
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec();
   bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
-class Item_func_unix_timestamp :public Item_int_func
+class Item_func_seconds_hybrid: public Item_func_numhybrid
 {
-  String value;
+protected:
+  virtual enum_field_types arg0_expected_type() const = 0;
 public:
-  Item_func_unix_timestamp() :Item_int_func() {}
-  Item_func_unix_timestamp(Item *a) :Item_int_func(a) {}
-  longlong val_int();
+  Item_func_seconds_hybrid() :Item_func_numhybrid() {}
+  Item_func_seconds_hybrid(Item *a) :Item_func_numhybrid(a) {}
+  void fix_length_and_dec()
+  {
+    if (arg_count)
+      decimals= args[0]->temporal_precision(arg0_expected_type());
+    set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
+    max_length=17 + (decimals ? decimals + 1 : 0);
+    maybe_null= true;
+    cached_result_type= decimals ? DECIMAL_RESULT : INT_RESULT;
+  }
+  double real_op() { DBUG_ASSERT(0); return 0; }
+  String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
+  bool date_op(MYSQL_TIME *ltime, uint fuzzydate) { DBUG_ASSERT(0); return true; }
+};
+
+
+class Item_func_unix_timestamp :public Item_func_seconds_hybrid
+{
+  bool get_timestamp_value(my_time_t *seconds, ulong *second_part);
+protected:
+  enum_field_types arg0_expected_type() const { return MYSQL_TYPE_DATETIME; }
+public:
+  Item_func_unix_timestamp() :Item_func_seconds_hybrid() {}
+  Item_func_unix_timestamp(Item *a) :Item_func_seconds_hybrid(a) {}
   const char *func_name() const { return "unix_timestamp"; }
   enum_monotonicity_info get_monotonicity_info() const;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
@@ -403,161 +449,159 @@ public:
   {
     return !has_timestamp_args();
   }
-  void fix_length_and_dec()
+  bool check_vcol_func_processor(uchar *int_arg) 
   {
-    decimals=0;
-    max_length=10*MY_CHARSET_BIN_MB_MAXLEN;
+    /*
+      TODO: Allow UNIX_TIMESTAMP called with an argument to be a part
+      of the expression for a virtual column
+    */
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
   }
+  longlong int_op();
+  my_decimal *decimal_op(my_decimal* buf);
 };
 
 
-class Item_func_time_to_sec :public Item_int_func
+class Item_func_time_to_sec :public Item_func_seconds_hybrid
 {
+protected:
+  enum_field_types arg0_expected_type() const { return MYSQL_TYPE_TIME; }
 public:
-  Item_func_time_to_sec(Item *item) :Item_int_func(item) {}
-  longlong val_int();
+  Item_func_time_to_sec(Item *item) :Item_func_seconds_hybrid(item) {}
   const char *func_name() const { return "time_to_sec"; }
-  void fix_length_and_dec()
-  {
-    maybe_null= TRUE;
-    decimals=0;
-    max_length=10*MY_CHARSET_BIN_MB_MAXLEN;
-  }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
   bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_time_args();
   }
+  longlong int_op();
+  my_decimal *decimal_op(my_decimal* buf);
 };
 
 
-/*
-  This can't be a Item_str_func, because the val_real() functions are special
-*/
-
-class Item_date :public Item_func
+class Item_temporal_func: public Item_func
 {
+  ulonglong sql_mode;
 public:
-  Item_date() :Item_func() {}
-  Item_date(Item *a) :Item_func(a) {}
+  Item_temporal_func() :Item_func() {}
+  Item_temporal_func(Item *a) :Item_func(a) {}
+  Item_temporal_func(Item *a, Item *b) :Item_func(a,b) {}
+  Item_temporal_func(Item *a, Item *b, Item *c) :Item_func(a,b,c) {}
   enum Item_result result_type () const { return STRING_RESULT; }
-  enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
   CHARSET_INFO *charset_for_protocol(void) const { return &my_charset_bin; }
-  String *val_str(String *str);
-  longlong val_int();
-  double val_real() { return val_real_from_decimal(); }
-  const char *func_name() const { return "date"; }
-  void fix_length_and_dec()
-  { 
-    decimals= 0;
-    fix_length_and_charset_datetime(MAX_DATE_WIDTH);
-  }
-  Field *tmp_table_field(TABLE *table)
-  {
-    return tmp_table_field_from_field_type(table, 0);
-  }
-  bool result_as_longlong() { return TRUE; }
-  my_decimal *val_decimal(my_decimal *decimal_value)
-  {
-    DBUG_ASSERT(fixed == 1);
-    return  val_decimal_from_date(decimal_value);
-  }
-  int save_in_field(Field *field, bool no_conversions)
-  {
-    return save_date_in_field(field);
-  }
-};
-
-
-class Item_date_func :public Item_str_func
-{
-public:
-  Item_date_func() :Item_str_func() {}
-  Item_date_func(Item *a) :Item_str_func(a) {}
-  Item_date_func(Item *a,Item *b) :Item_str_func(a,b) {}
-  Item_date_func(Item *a,Item *b, Item *c) :Item_str_func(a,b,c) {}
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
-  CHARSET_INFO *charset_for_protocol(void) const { return &my_charset_bin; }
-  Field *tmp_table_field(TABLE *table)
-  {
-    return tmp_table_field_from_field_type(table, 0);
-  }
-  bool result_as_longlong() { return TRUE; }
-  double val_real() { return (double) val_int(); }
+  Item_result cmp_type() const { return TIME_RESULT; }
+  String *val_str(String *str);
+  longlong val_int() { return val_int_from_date(); }
+  double val_real() { return val_real_from_date(); }
+  bool get_date(MYSQL_TIME *res, ulonglong fuzzy_date) { DBUG_ASSERT(0); return 1; }
   my_decimal *val_decimal(my_decimal *decimal_value)
-  {
-    DBUG_ASSERT(fixed == 1);
-    return  val_decimal_from_date(decimal_value);
-  }
+  { return  val_decimal_from_date(decimal_value); }
+  Field *tmp_table_field(TABLE *table)
+  { return tmp_table_field_from_field_type(table, 0); }
   int save_in_field(Field *field, bool no_conversions)
+  { return save_date_in_field(field); }
+  void fix_length_and_dec();
+};
+
+
+/**
+  Abstract class for functions returning TIME, DATE, DATETIME or string values,
+  whose data type depends on parameters and is set at fix_fields time.
+*/
+class Item_temporal_hybrid_func: public Item_temporal_func
+{
+protected:
+  enum_field_types cached_field_type; // TIME, DATE, DATETIME or STRING
+  String ascii_buf; // Conversion buffer
+public:
+  Item_temporal_hybrid_func(Item *a,Item *b)
+    :Item_temporal_func(a,b) {}
+  enum_field_types field_type() const { return cached_field_type; }
+  Item_result cmp_type() const
   {
-    return save_date_in_field(field);
+    return cached_field_type == MYSQL_TYPE_STRING ?
+           STRING_RESULT : TIME_RESULT;
+  }
+  const CHARSET_INFO *charset_for_protocol() const
+  {
+    /*
+      Can return TIME, DATE, DATETIME or VARCHAR depending on arguments.
+      Send using "binary" when TIME, DATE or DATETIME,
+      or using collation.collation when VARCHAR
+      (which is fixed from @@collation_connection in fix_length_and_dec).
+    */
+    DBUG_ASSERT(fixed == 1);
+    return cached_field_type == MYSQL_TYPE_STRING ?
+           collation.collation : &my_charset_bin;
+  }
+  /**
+    Return string value in ASCII character set.
+  */
+  String *val_str_ascii(String *str);
+  /**
+    Return string value in @@character_set_connection.
+  */
+  String *val_str(String *str)
+  {
+    return val_str_from_val_str_ascii(str, &ascii_buf);
   }
 };
 
 
-class Item_str_timefunc :public Item_str_func
+class Item_datefunc :public Item_temporal_func
 {
 public:
-  Item_str_timefunc() :Item_str_func() {}
-  Item_str_timefunc(Item *a) :Item_str_func(a) {}
-  Item_str_timefunc(Item *a,Item *b) :Item_str_func(a,b) {}
-  Item_str_timefunc(Item *a, Item *b, Item *c) :Item_str_func(a, b ,c) {}
+  Item_datefunc() :Item_temporal_func() { }
+  Item_datefunc(Item *a) :Item_temporal_func(a) { }
+  enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
+};
+
+
+class Item_timefunc :public Item_temporal_func
+{
+public:
+  Item_timefunc() :Item_temporal_func() {}
+  Item_timefunc(Item *a) :Item_temporal_func(a) {}
+  Item_timefunc(Item *a,Item *b) :Item_temporal_func(a,b) {}
+  Item_timefunc(Item *a, Item *b, Item *c) :Item_temporal_func(a, b ,c) {}
   enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
-  CHARSET_INFO *charset_for_protocol(void) const { return &my_charset_bin; }
-  void fix_length_and_dec()
-  {
-    decimals= DATETIME_DEC;
-    fix_length_and_charset_datetime(MAX_TIME_WIDTH);
-  }
-  Field *tmp_table_field(TABLE *table)
-  {
-    return tmp_table_field_from_field_type(table, 0);
-  }
-  double val_real() { return val_real_from_decimal(); }
-  my_decimal *val_decimal(my_decimal *decimal_value)
-  {
-    DBUG_ASSERT(fixed == 1);
-    return  val_decimal_from_time(decimal_value);
-  }
-  int save_in_field(Field *field, bool no_conversions)
-  {
-    return save_time_in_field(field);
-  }
-  longlong val_int() { return val_int_from_decimal(); }
-  bool result_as_longlong() { return TRUE; }
 };
 
 
 /* Abstract CURTIME function. Children should define what time zone is used */
 
-class Item_func_curtime :public Item_str_timefunc
+class Item_func_curtime :public Item_timefunc
 {
-  longlong value;
-  char buff[9*2+32];
-  uint buff_length;
+  MYSQL_TIME ltime;
 public:
-  Item_func_curtime() :Item_str_timefunc() {}
-  Item_func_curtime(Item *a) :Item_str_timefunc(a) {}
-  double val_real() { DBUG_ASSERT(fixed == 1); return (double) value; }
-  longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
-  String *val_str(String *str);
-  void fix_length_and_dec();
+  Item_func_curtime(uint dec) :Item_timefunc() { decimals= dec; }
+  bool fix_fields(THD *, Item **);
+  void fix_length_and_dec()
+  {
+    store_now_in_TIME(&ltime);
+    Item_timefunc::fix_length_and_dec();
+    maybe_null= false;
+  }
+  bool get_date(MYSQL_TIME *res, ulonglong fuzzy_date);
   /* 
     Abstract method that defines which time zone is used for conversion.
     Converts time current time in my_time_t representation to broken-down
     MYSQL_TIME representation using UTC-SYSTEM or per-thread time zone.
   */
   virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
-  bool result_as_longlong() { return TRUE; }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
 class Item_func_curtime_local :public Item_func_curtime
 {
 public:
-  Item_func_curtime_local() :Item_func_curtime() {}
-  Item_func_curtime_local(Item *a) :Item_func_curtime(a) {}
+  Item_func_curtime_local(uint dec) :Item_func_curtime(dec) {}
   const char *func_name() const { return "curtime"; }
   virtual void store_now_in_TIME(MYSQL_TIME *now_time);
 };
@@ -566,8 +610,7 @@ public:
 class Item_func_curtime_utc :public Item_func_curtime
 {
 public:
-  Item_func_curtime_utc() :Item_func_curtime() {}
-  Item_func_curtime_utc(Item *a) :Item_func_curtime(a) {}
+  Item_func_curtime_utc(uint dec) :Item_func_curtime(dec) {}
   const char *func_name() const { return "utc_time"; }
   virtual void store_now_in_TIME(MYSQL_TIME *now_time);
 };
@@ -575,17 +618,18 @@ public:
 
 /* Abstract CURDATE function. See also Item_func_curtime. */
 
-class Item_func_curdate :public Item_date
+class Item_func_curdate :public Item_datefunc
 {
-  longlong value;
   MYSQL_TIME ltime;
 public:
-  Item_func_curdate() :Item_date() {}
-  longlong val_int() { DBUG_ASSERT(fixed == 1); return (value) ; }
-  String *val_str(String *str);
+  Item_func_curdate() :Item_datefunc() {}
   void fix_length_and_dec();
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, ulonglong fuzzy_date);
   virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -609,31 +653,32 @@ public:
 
 /* Abstract CURRENT_TIMESTAMP function. See also Item_func_curtime */
 
-class Item_func_now :public Item_date_func
+
+class Item_func_now :public Item_temporal_func
 {
-protected:
-  longlong value;
-  char buff[20*2+32];	// +32 to make my_snprintf_{8bit|ucs2} happy
-  uint buff_length;
   MYSQL_TIME ltime;
 public:
-  Item_func_now() :Item_date_func() {}
-  Item_func_now(Item *a) :Item_date_func(a) {}
-  enum Item_result result_type () const { return STRING_RESULT; }
-  longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
-  int save_in_field(Field *to, bool no_conversions);
-  String *val_str(String *str);
-  void fix_length_and_dec();
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  Item_func_now(uint dec) :Item_temporal_func() { decimals= dec; }
+  bool fix_fields(THD *, Item **);
+  void fix_length_and_dec()
+  {
+    store_now_in_TIME(&ltime);
+    Item_temporal_func::fix_length_and_dec();
+    maybe_null= false;
+  }
+  bool get_date(MYSQL_TIME *res, ulonglong fuzzy_date);
   virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
 class Item_func_now_local :public Item_func_now
 {
 public:
-  Item_func_now_local() :Item_func_now() {}
-  Item_func_now_local(Item *a) :Item_func_now(a) {}
+  Item_func_now_local(uint dec) :Item_func_now(dec) {}
   const char *func_name() const { return "now"; }
   virtual void store_now_in_TIME(MYSQL_TIME *now_time);
   virtual enum Functype functype() const { return NOW_FUNC; }
@@ -643,8 +688,7 @@ public:
 class Item_func_now_utc :public Item_func_now
 {
 public:
-  Item_func_now_utc() :Item_func_now() {}
-  Item_func_now_utc(Item *a) :Item_func_now(a) {}
+  Item_func_now_utc(uint dec) :Item_func_now(dec) {}
   const char *func_name() const { return "utc_timestamp"; }
   virtual void store_now_in_TIME(MYSQL_TIME *now_time);
 };
@@ -657,32 +701,28 @@ public:
 class Item_func_sysdate_local :public Item_func_now
 {
 public:
-  Item_func_sysdate_local() :Item_func_now() {}
-  Item_func_sysdate_local(Item *a) :Item_func_now(a) {}
+  Item_func_sysdate_local(uint dec) :Item_func_now(dec) {}
   bool const_item() const { return 0; }
   const char *func_name() const { return "sysdate"; }
   void store_now_in_TIME(MYSQL_TIME *now_time);
-  double val_real();
-  longlong val_int();
-  int save_in_field(Field *to, bool no_conversions);
-  String *val_str(String *str);
-  void fix_length_and_dec();
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, ulonglong fuzzy_date);
   void update_used_tables()
   {
     Item_func_now::update_used_tables();
+    maybe_null= 0;
     used_tables_cache|= RAND_TABLE_BIT;
   }
 };
 
 
-class Item_func_from_days :public Item_date
+class Item_func_from_days :public Item_datefunc
 {
 public:
-  Item_func_from_days(Item *a) :Item_date(a) {}
+  Item_func_from_days(Item *a) :Item_datefunc(a) {}
   const char *func_name() const { return "from_days"; }
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, ulonglong fuzzy_date);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
   bool check_valid_arguments_processor(uchar *int_arg)
   {
     return has_date_args() || has_time_args();
@@ -692,6 +732,7 @@ public:
 
 class Item_func_date_format :public Item_str_func
 {
+  MY_LOCALE *locale;
   int fixed_length;
   const bool is_time_format;
   String value;
@@ -707,16 +748,14 @@ public:
 };
 
 
-class Item_func_from_unixtime :public Item_date_func
+class Item_func_from_unixtime :public Item_temporal_func
 {
-  THD *thd;
+  Time_zone *tz;
  public:
-  Item_func_from_unixtime(Item *a) :Item_date_func(a) {}
-  longlong val_int();
-  String *val_str(String *str);
+  Item_func_from_unixtime(Item *a) :Item_temporal_func(a) {}
   const char *func_name() const { return "from_unixtime"; }
   void fix_length_and_dec();
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, ulonglong fuzzy_date);
 };
 
 
@@ -734,7 +773,7 @@ class Time_zone;
   tables can be used during this function calculation for loading time zone
   descriptions.
 */
-class Item_func_convert_tz :public Item_date_func
+class Item_func_convert_tz :public Item_temporal_func
 {
   /*
     If time zone parameters are constants we are caching objects that
@@ -746,71 +785,40 @@ class Item_func_convert_tz :public Item_date_func
   Time_zone *from_tz, *to_tz;
  public:
   Item_func_convert_tz(Item *a, Item *b, Item *c):
-    Item_date_func(a, b, c), from_tz_cached(0), to_tz_cached(0) {}
-  longlong val_int();
-  String *val_str(String *str);
+    Item_temporal_func(a, b, c), from_tz_cached(0), to_tz_cached(0) {}
   const char *func_name() const { return "convert_tz"; }
   void fix_length_and_dec();
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, ulonglong fuzzy_date);
   void cleanup();
 };
 
 
-class Item_func_sec_to_time :public Item_str_timefunc
+class Item_func_sec_to_time :public Item_timefunc
 {
 public:
-  Item_func_sec_to_time(Item *item) :Item_str_timefunc(item) {}
-  double val_real()
-  {
-    DBUG_ASSERT(fixed == 1);
-    return (double) Item_func_sec_to_time::val_int();
-  }
-  longlong val_int();
-  String *val_str(String *);
+  Item_func_sec_to_time(Item *item) :Item_timefunc(item) {}
+  bool get_date(MYSQL_TIME *res, ulonglong fuzzy_date);
   void fix_length_and_dec()
-  { 
-    Item_str_timefunc::fix_length_and_dec();
-    maybe_null=1;
+  {
+    decimals= args[0]->decimals;
+    Item_timefunc::fix_length_and_dec();
   }
   const char *func_name() const { return "sec_to_time"; }
-  bool result_as_longlong() { return TRUE; }
 };
 
 
-class Item_date_add_interval :public Item_date_func
+class Item_date_add_interval :public Item_temporal_hybrid_func
 {
-  String value;
-  enum_field_types cached_field_type;
-  String ascii_buf;
 public:
   const interval_type int_type; // keep it public
   const bool date_sub_interval; // keep it public
   Item_date_add_interval(Item *a,Item *b,interval_type type_arg,bool neg_arg)
-    :Item_date_func(a,b),int_type(type_arg), date_sub_interval(neg_arg) {}
-  String *val_str_ascii(String *str);
-  String *val_str(String *str)
-  {
-    return val_str_from_val_str_ascii(str, &ascii_buf);
-  }
+    :Item_temporal_hybrid_func(a,b),int_type(type_arg), date_sub_interval(neg_arg) {}
   const char *func_name() const { return "date_add_interval"; }
   void fix_length_and_dec();
-  enum_field_types field_type() const { return cached_field_type; }
-  CHARSET_INFO *charset_for_protocol(void) const
-  {
-    /*
-      DATE_ADD() can return DATE, DATETIME or VARCHAR depending on arguments.
-      Send using "binary" when DATE or DATETIME,
-      or using collation.collation when VARCHAR
-      (which was fixed from @collation_connection in fix_length_and_dec).
-    */
-    DBUG_ASSERT(fixed == 1);
-    return cached_field_type == MYSQL_TYPE_STRING ?
-                                collation.collation : &my_charset_bin;
-  }
-  longlong val_int();
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, ulonglong fuzzy_date);
   bool eq(const Item *item, bool binary_cmp) const;
-  virtual void print(String *str, enum_query_type query_type);
+  void print(String *str, enum_query_type query_type);
 };
 
 
@@ -826,8 +834,9 @@ class Item_extract :public Item_int_func
   const char *func_name() const { return "extract"; }
   void fix_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const;
-  virtual void print(String *str, enum_query_type query_type);
+  void print(String *str, enum_query_type query_type);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
   bool check_valid_arguments_processor(uchar *int_arg)
   {
     switch (int_type) {
@@ -867,235 +876,127 @@ class Item_extract :public Item_int_func
 };
 
 
-class Item_typecast :public Item_str_func
+class Item_char_typecast :public Item_str_func
 {
-public:
-  Item_typecast(Item *a) :Item_str_func(a) {}
-  String *val_str(String *a)
-  {
-    DBUG_ASSERT(fixed == 1);
-    String *tmp=args[0]->val_str(a);
-    null_value=args[0]->null_value;
-    if (tmp)
-      tmp->set_charset(collation.collation);
-    return tmp;
-  }
-  void fix_length_and_dec()
-  {
-    collation.set(&my_charset_bin);
-    max_length=args[0]->max_length;
-  }
-  virtual const char* cast_type() const= 0;
-  virtual void print(String *str, enum_query_type query_type);
-};
-
-
-class Item_typecast_maybe_null :public Item_typecast
-{
-public:
-  Item_typecast_maybe_null(Item *a) :Item_typecast(a) { maybe_null= 1; }
-};
-
-
-class Item_char_typecast :public Item_typecast
-{
-  int cast_length;
+  uint cast_length;
   CHARSET_INFO *cast_cs, *from_cs;
   bool charset_conversion;
   String tmp_value;
 public:
-  Item_char_typecast(Item *a, int length_arg, CHARSET_INFO *cs_arg)
-    :Item_typecast(a), cast_length(length_arg), cast_cs(cs_arg) {}
+  Item_char_typecast(Item *a, uint length_arg, CHARSET_INFO *cs_arg)
+    :Item_str_func(a), cast_length(length_arg), cast_cs(cs_arg) {}
   enum Functype functype() const { return CHAR_TYPECAST_FUNC; }
   bool eq(const Item *item, bool binary_cmp) const;
   const char *func_name() const { return "cast_as_char"; }
-  const char* cast_type() const { return "char"; };
   String *val_str(String *a);
   void fix_length_and_dec();
-  virtual void print(String *str, enum_query_type query_type);
+  void print(String *str, enum_query_type query_type);
 };
 
 
-class Item_date_typecast :public Item_typecast_maybe_null
+class Item_temporal_typecast: public Item_temporal_func
 {
 public:
-  Item_date_typecast(Item *a) :Item_typecast_maybe_null(a) {}
+  Item_temporal_typecast(Item *a) :Item_temporal_func(a) {}
+  virtual const char *cast_type() const = 0;
+  void print(String *str, enum_query_type query_type);
+  void fix_length_and_dec()
+  {
+    if (decimals == NOT_FIXED_DEC)
+      decimals= args[0]->temporal_precision(field_type());
+    Item_temporal_func::fix_length_and_dec();
+  }
+};
+
+class Item_date_typecast :public Item_temporal_typecast
+{
+public:
+  Item_date_typecast(Item *a) :Item_temporal_typecast(a) {}
   const char *func_name() const { return "cast_as_date"; }
-  String *val_str(String *str);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzy_date);
-  bool get_time(MYSQL_TIME *ltime);
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date);
   const char *cast_type() const { return "date"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
-  CHARSET_INFO *charset_for_protocol(void) const { return &my_charset_bin; }
-  Field *tmp_table_field(TABLE *table)
-  {
-    return tmp_table_field_from_field_type(table, 0);
-  }
-  void fix_length_and_dec() { fix_length_and_charset_datetime(10); }
-  bool result_as_longlong() { return TRUE; }
-  longlong val_int();
-  double val_real() { return (double) val_int(); }
-  my_decimal *val_decimal(my_decimal *decimal_value)
-  {
-    DBUG_ASSERT(fixed == 1);
-    return  val_decimal_from_date(decimal_value);
-  }
-  int save_in_field(Field *field, bool no_conversions)
-  {
-    return save_date_in_field(field);
-  }
 };
 
 
-class Item_time_typecast :public Item_typecast_maybe_null
+class Item_time_typecast :public Item_temporal_typecast
 {
 public:
-  Item_time_typecast(Item *a) :Item_typecast_maybe_null(a) {}
+  Item_time_typecast(Item *a, uint dec_arg)
+    :Item_temporal_typecast(a) { decimals= dec_arg; }
   const char *func_name() const { return "cast_as_time"; }
-  String *val_str(String *str);
-  bool get_time(MYSQL_TIME *ltime);
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date);
   const char *cast_type() const { return "time"; }
   enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
-  CHARSET_INFO *charset_for_protocol(void) const { return &my_charset_bin; }
-  Field *tmp_table_field(TABLE *table)
-  {
-    return tmp_table_field_from_field_type(table, 0);
-  }
-  bool result_as_longlong() { return TRUE; }
-  longlong val_int();
-  double val_real() { return val_real_from_decimal(); }
-  my_decimal *val_decimal(my_decimal *decimal_value)
-  {
-    DBUG_ASSERT(fixed == 1);
-    return  val_decimal_from_time(decimal_value);
-  }
-  int save_in_field(Field *field, bool no_conversions)
-  {
-    return save_time_in_field(field);
-  }
-  void fix_length_and_dec()
-  { fix_length_and_charset_datetime(args[0]->max_char_length()); }
 };
 
 
-class Item_datetime_typecast :public Item_typecast_maybe_null
+class Item_datetime_typecast :public Item_temporal_typecast
 {
 public:
-  Item_datetime_typecast(Item *a) :Item_typecast_maybe_null(a) {}
+  Item_datetime_typecast(Item *a, uint dec_arg)
+    :Item_temporal_typecast(a) { decimals= dec_arg; }
   const char *func_name() const { return "cast_as_datetime"; }
-  String *val_str(String *str);
   const char *cast_type() const { return "datetime"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
-  CHARSET_INFO *charset_for_protocol(void) const { return &my_charset_bin; }
-  Field *tmp_table_field(TABLE *table)
-  {
-    return tmp_table_field_from_field_type(table, 0);
-  }
-  void fix_length_and_dec()
-  {
-    fix_length_and_charset_datetime(MAX_DATETIME_FULL_WIDTH);
-    decimals= DATETIME_DEC;
-  }
-  bool result_as_longlong() { return TRUE; }
-  longlong val_int();
-  double val_real() { return val_real_from_decimal(); }
-  double val() { return (double) val_int(); }
-  my_decimal *val_decimal(my_decimal *decimal_value)
-  {
-    DBUG_ASSERT(fixed == 1);
-    return  val_decimal_from_date(decimal_value);
-  }
-  int save_in_field(Field *field, bool no_conversions)
-  {
-    return save_date_in_field(field);
-  }
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date);
 };
 
-class Item_func_makedate :public Item_date_func
+
+class Item_func_makedate :public Item_temporal_func
 {
 public:
-  Item_func_makedate(Item *a,Item *b) :Item_date_func(a,b) {}
-  String *val_str(String *str);
+  Item_func_makedate(Item *a,Item *b) :Item_temporal_func(a,b) {}
   const char *func_name() const { return "makedate"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
-  CHARSET_INFO *charset_for_protocol(void) const { return &my_charset_bin; }
-  void fix_length_and_dec()
-  { 
-    decimals=0;
-    fix_length_and_charset_datetime(MAX_DATE_WIDTH);
-    maybe_null= 1;
-  }
-  longlong val_int();
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date);
 };
 
 
-class Item_func_add_time :public Item_str_func
+class Item_func_add_time :public Item_temporal_hybrid_func
 {
   const bool is_date;
   int sign;
-  enum_field_types cached_field_type;
 
 public:
   Item_func_add_time(Item *a, Item *b, bool type_arg, bool neg_arg)
-    :Item_str_func(a, b), is_date(type_arg) { sign= neg_arg ? -1 : 1; }
-  String *val_str(String *str);
-  enum_field_types field_type() const { return cached_field_type; }
+    :Item_temporal_hybrid_func(a, b), is_date(type_arg) { sign= neg_arg ? -1 : 1; }
   void fix_length_and_dec();
-  CHARSET_INFO *charset_for_protocol(void) const { return &my_charset_bin; }
-
-  Field *tmp_table_field(TABLE *table)
-  {
-    return tmp_table_field_from_field_type(table, 0);
-  }
-  virtual void print(String *str, enum_query_type query_type);
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date);
+  void print(String *str, enum_query_type query_type);
   const char *func_name() const { return "add_time"; }
-  double val_real() { return val_real_from_decimal(); }
-  my_decimal *val_decimal(my_decimal *decimal_value)
-  {
-    DBUG_ASSERT(fixed == 1);
-    if (cached_field_type == MYSQL_TYPE_TIME)
-      return  val_decimal_from_time(decimal_value);
-    if (cached_field_type == MYSQL_TYPE_DATETIME)
-      return  val_decimal_from_date(decimal_value);
-    return Item_str_func::val_decimal(decimal_value);
-  }
-  int save_in_field(Field *field, bool no_conversions)
-  {
-    if (cached_field_type == MYSQL_TYPE_TIME)
-      return save_time_in_field(field);
-    if (cached_field_type == MYSQL_TYPE_DATETIME)
-      return save_date_in_field(field);
-    return Item_str_func::save_in_field(field, no_conversions);
-  }
-  longlong val_int();
-  MYSQL_TIME *val_datetime(MYSQL_TIME *time, date_time_format_types *format);
 };
 
-class Item_func_timediff :public Item_str_timefunc
+class Item_func_timediff :public Item_timefunc
 {
 public:
   Item_func_timediff(Item *a, Item *b)
-    :Item_str_timefunc(a, b) {}
-  String *val_str(String *str);
+    :Item_timefunc(a, b) {}
   const char *func_name() const { return "timediff"; }
   void fix_length_and_dec()
   {
-    Item_str_timefunc::fix_length_and_dec();
-    maybe_null= 1;
+    decimals= max(args[0]->temporal_precision(MYSQL_TYPE_TIME),
+                  args[1]->temporal_precision(MYSQL_TYPE_TIME));
+    Item_timefunc::fix_length_and_dec();
   }
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date);
 };
 
-class Item_func_maketime :public Item_str_timefunc
+class Item_func_maketime :public Item_timefunc
 {
 public:
   Item_func_maketime(Item *a, Item *b, Item *c)
-    :Item_str_timefunc(a, b, c) 
+    :Item_timefunc(a, b, c) 
+  {}
+  void fix_length_and_dec()
   {
-    maybe_null= TRUE;
+    decimals= min(args[2]->decimals, TIME_SECOND_PART_DIGITS);
+    Item_timefunc::fix_length_and_dec();
   }
-  String *val_str(String *str);
   const char *func_name() const { return "maketime"; }
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date);
 };
+
 
 class Item_func_microsecond :public Item_int_func
 {
@@ -1109,6 +1010,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
   bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_time_args();
@@ -1157,48 +1059,30 @@ public:
 };
 
 
-class Item_func_str_to_date :public Item_str_func
+class Item_func_str_to_date :public Item_temporal_hybrid_func
 {
-  enum_field_types cached_field_type;
-  date_time_format_types cached_format_type;
   timestamp_type cached_timestamp_type;
   bool const_item;
-  ulonglong sql_mode;
+  String subject_converter;
+  String format_converter;
+  CHARSET_INFO *internal_charset;
 public:
   Item_func_str_to_date(Item *a, Item *b)
-    :Item_str_func(a, b), const_item(false)
+    :Item_temporal_hybrid_func(a, b), const_item(false),
+    internal_charset(NULL)
   {}
-  String *val_str(String *str);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date);
   const char *func_name() const { return "str_to_date"; }
-  enum_field_types field_type() const { return cached_field_type; }
   void fix_length_and_dec();
-  Field *tmp_table_field(TABLE *table)
-  {
-    return tmp_table_field_from_field_type(table, 1);
-  }
-  longlong val_int();
-  bool result_as_longlong() { return TRUE; }
 };
 
 
-class Item_func_last_day :public Item_date
+class Item_func_last_day :public Item_datefunc
 {
 public:
-  Item_func_last_day(Item *a) :Item_date(a) {}
+  Item_func_last_day(Item *a) :Item_datefunc(a) {}
   const char *func_name() const { return "last_day"; }
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
-  void fix_length_and_dec()
-  { 
-    Item_date::fix_length_and_dec();
-    maybe_null= 1;
-  }
+  bool get_date(MYSQL_TIME *res, ulonglong fuzzy_date);
 };
-
-
-/* Function prototypes */
-
-bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
-                    timestamp_type type, String *str);
 
 #endif /* ITEM_TIMEFUNC_INCLUDED */

@@ -1,0 +1,11 @@
+SELECT @@global.thread_pool_size;
+@@global.thread_pool_size
+200
+SET @@global.thread_pool_size=150;
+SET @@global.thread_pool_size=200;
+SET @@global.thread_pool_size=201;
+Warnings:
+Warning	1292	Truncated incorrect thread_pool_size value: '201'
+SELECT @@global.thread_pool_size;
+@@global.thread_pool_size
+200

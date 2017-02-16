@@ -1,0 +1,20 @@
+set default_storage_engine='tokudb';
+drop table if exists t;
+create table t (id int, x int, primary key (id), key (x)) partition by hash(id) partitions 2;
+show indexes from t;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t	0	PRIMARY	1	id	A	2	NULL	NULL		BTREE		
+t	1	x	1	x	A	NULL	NULL	NULL	YES	BTREE		
+insert into t values (2,1),(4,1),(6,1);
+show indexes from t;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t	0	PRIMARY	1	id	A	4	NULL	NULL		BTREE		
+t	1	x	1	x	A	NULL	NULL	NULL	YES	BTREE		
+analyze table t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+show indexes from t;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t	0	PRIMARY	1	id	A	4	NULL	NULL		BTREE		
+t	1	x	1	x	A	1	NULL	NULL	YES	BTREE		
+drop table t;

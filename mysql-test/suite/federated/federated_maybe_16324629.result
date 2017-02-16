@@ -1,0 +1,16 @@
+CREATE DATABASE federated;
+CREATE DATABASE federated;
+create table federated.t1 (a int, b int, unique key (a), key (b));
+create table t1 (a int, b int, unique key (a), key (b))
+engine=federated CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+insert into t1 values (3, 3), (7, 7);
+delete t1 from t1 where a = 3;
+select * from t1;
+a	b
+3	3
+7	7
+drop table t1;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE IF EXISTS federated;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE IF EXISTS federated;

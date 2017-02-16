@@ -1,0 +1,55 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+create table foo (a int, b int, primary key (a))engine=TokuDB;
+insert into foo values (1,10),(2,20),(3,30),(4,40),(5,50);
+set session tokudb_disable_prefetching=ON;
+select * from foo;
+a	b
+1	10
+2	20
+3	30
+4	40
+5	50
+select * from foo where a=1;
+a	b
+1	10
+select * from foo where a>1;
+a	b
+2	20
+3	30
+4	40
+5	50
+begin;
+select * from foo where a > 1 for update;
+a	b
+2	20
+3	30
+4	40
+5	50
+commit;
+set session transaction isolation level serializable;
+select * from foo;
+a	b
+1	10
+2	20
+3	30
+4	40
+5	50
+select * from foo where a=1;
+a	b
+1	10
+select * from foo where a>1;
+a	b
+2	20
+3	30
+4	40
+5	50
+begin;
+select * from foo where a > 1 for update;
+a	b
+2	20
+3	30
+4	40
+5	50
+commit;
+DROP TABLE foo;

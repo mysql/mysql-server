@@ -1,0 +1,62 @@
+DROP TABLE IF EXISTS t1, t2, t3;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (100,'a'),(2,'foo');
+CREATE TABLE t2 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t2 (a,b) VALUES (1,'bar');
+CREATE TABLE t3 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> CHARACTER SET utf8;
+SHOW TABLE STATUS WHERE name IN ( 't1', 't2', 't3' );
+Name	t1
+Engine	<STORAGE_ENGINE>
+Version	10
+Row_format	###
+Rows	2
+Avg_row_length	###
+Data_length	###
+Max_data_length	###
+Index_length	###
+Data_free	###
+Auto_increment	NULL
+Create_time	###
+Update_time	###
+Check_time	NULL
+Collation	latin1_swedish_ci
+Checksum	NULL
+Create_options	
+Comment	
+Name	t2
+Engine	<STORAGE_ENGINE>
+Version	10
+Row_format	###
+Rows	1
+Avg_row_length	###
+Data_length	###
+Max_data_length	###
+Index_length	###
+Data_free	###
+Auto_increment	NULL
+Create_time	###
+Update_time	###
+Check_time	NULL
+Collation	latin1_swedish_ci
+Checksum	NULL
+Create_options	
+Comment	
+Name	t3
+Engine	<STORAGE_ENGINE>
+Version	10
+Row_format	###
+Rows	0
+Avg_row_length	###
+Data_length	###
+Max_data_length	###
+Index_length	###
+Data_free	###
+Auto_increment	NULL
+Create_time	###
+Update_time	###
+Check_time	NULL
+Collation	utf8_general_ci
+Checksum	NULL
+Create_options	
+Comment	
+DROP TABLE t1, t2, t3;

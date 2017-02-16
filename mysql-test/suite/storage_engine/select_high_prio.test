@@ -1,0 +1,139 @@
+# 
+# SELECT HIGH_PRIOIRITY
+#
+--source have_engine.inc
+
+--source include/count_sessions.inc
+
+--enable_connect_log
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# We will have 3 connections: 
+#   con1 will lock a table in READ mode
+#   con0 will run UPDATE (and will wait on the lock)
+#   con2 will start another SELECT
+#   con1 will then unlock the table
+#
+#   With standard SELECT we should see updated rows in the 2nd result set,
+#   while with SELECT HIGH_PRIORITY we should still see only old rows in con2 resultset 
+# (and it shouldn't wait till the table is unlocked and UPDATE is executed).
+
+--connect (con0,localhost,root,,)
+SET lock_wait_timeout = 4;
+--connect (con1,localhost,root,,)
+SET lock_wait_timeout = 4;
+--connect (con2,localhost,root,,)
+SET lock_wait_timeout = 4;
+
+
+# Part 1: Standard SELECT 
+#         should be executed after the UPDATE
+
+--source create_table.inc
+INSERT INTO t1 (a,b) VALUES (1,'f'),(2,'b');
+
+--connection con1
+LOCK TABLE t1 READ;
+
+--connection con0
+--send
+UPDATE t1 SET b = CONCAT(b,b);
+
+--connection con2
+let $show_statement = SHOW PROCESSLIST;
+let $field = State;
+let $condition = LIKE 'Waiting for table%';
+let $wait_timeout = 2;
+--source include/wait_show_condition.inc
+--send
+SELECT a,b FROM t1;
+
+--connection con1
+let $show_statement = SHOW PROCESSLIST;
+let $field = Info;
+let $condition = = 'SELECT a,b FROM t1';
+let $wait_timeout = 2;
+--source include/wait_show_condition.inc
+if (!$found)
+{
+  --let $mysql_errname = timeout in wait_show_condition.inc
+  --let $functionality = Table locking or UPDATE
+  --source unexpected_result.inc
+}
+
+UNLOCK TABLES;
+
+--connection con0
+--reap
+if ($mysql_errname)
+{
+  --let $my_last_stmt = UPDATE t1 SET b = CONCAT(b,b)
+  --let $functionality = UPDATE
+  --source unexpected_result.inc
+}
+
+--connection con2
+--echo # Should return the new data
+--sorted_result
+--reap
+
+DROP TABLE t1;
+
+
+# Part 2: SELECT HIGH_PRIORITY
+#         should be executed before the UPDATE
+
+--source create_table.inc
+INSERT INTO t1 (a,b) VALUES (1,'f'),(2,'b');
+
+--connection con1
+LOCK TABLE t1 READ;
+
+--connection con0
+--send
+UPDATE t1 SET b = CONCAT(b,b,b);
+
+--connection con2
+let $condition = LIKE 'Waiting for table%';
+let $field = State;
+let $wait_timeout = 2;
+--source include/wait_show_condition.inc
+SET lock_wait_timeout = 1;
+--echo # Should return old data
+--sorted_result
+SELECT HIGH_PRIORITY * FROM t1;
+if ($mysql_errname)
+{
+  --let $functionality = SELECT HIGH_PRIORITY
+  --source unexpected_result.inc
+}
+
+--connection con1
+UNLOCK TABLES;
+
+--connection con0
+--reap
+if ($mysql_errname)
+{
+  --let $my_last_stmt = UPDATE t1 SET b = CONCAT(b,b,b)
+  --let $functionality = UPDATE
+  --source unexpected_result.inc
+}
+
+--disconnect con1
+--disconnect con2
+--disconnect con0
+let $wait_timeout = 30;
+
+--connection default
+
+# Cleanup
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc
+
+--source cleanup_engine.inc
+

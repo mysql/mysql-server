@@ -2,7 +2,7 @@
 #define CLIENT_MY_READLINE_INCLUDED
 
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ typedef struct st_line_buffer
 
 extern LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file);
 extern LINE_BUFFER *batch_readline_command(LINE_BUFFER *buffer, char * str);
-extern char *batch_readline(LINE_BUFFER *buffer);
+extern char *batch_readline(LINE_BUFFER *buffer, bool binary_mode);
 extern void batch_readline_end(LINE_BUFFER *buffer);
 
 #endif /* CLIENT_MY_READLINE_INCLUDED */

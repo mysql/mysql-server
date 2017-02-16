@@ -868,7 +868,7 @@ Space compression makes the index file smaller if the string column has a lot of
 Prefix compression helps if there are many strings with an identical prefix.
 
 In memory table characteristics 
-HEAP tables only exists in memory so they are lost if `mysqld' is taken down or crashes. But since they are *very* fast they are usefull as anyway. 
+HEAP tables only exists in memory so they are lost if `mysqld' is taken down or crashes. But since they are *very* fast they are useful as anyway. 
 
 The *MySQL* internal HEAP tables uses 100% dynamic hashing without overflow areas and don't have problems with delete. 
 

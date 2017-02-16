@@ -186,6 +186,7 @@ insert into t1 values (_ucs2 0x01fc),(_ucs2 0x01fd),(_ucs2 0x01fe),(_ucs2 0x01ff
 insert into t1 values ('AA'),('Aa'),('aa'),('aA');
 insert into t1 values ('CH'),('Ch'),('ch'),('cH');
 insert into t1 values ('DZ'),('Dz'),('dz'),('dZ');
+insert into t1 values ('DŽ'),('Dž'),('dž'),('dŽ');
 insert into t1 values ('IJ'),('Ij'),('ij'),('iJ');
 insert into t1 values ('LJ'),('Lj'),('lj'),('lJ');
 insert into t1 values ('LL'),('Ll'),('ll'),('lL');
@@ -213,6 +214,7 @@ select group_concat(c1 order by c1) from t1 group by c1 collate utf8_spanish2_ci
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_roman_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_esperanto_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_hungarian_ci;
+select group_concat(c1 order by c1) from t1 group by c1 collate utf8_croatian_ci;
 
 drop table t1;
 
@@ -558,6 +560,34 @@ SET collation_connection=utf8_czech_ci;
 SET collation_connection=ucs2_czech_ci;
 --source include/ctype_czech.inc
 --source include/ctype_like_ignorable.inc
+
+create table t1 (a int, c1 varchar(200) collate utf8_croatian_ci, key (c1));
+insert into t1 values (1,'=> DZ'),(2,'=> Dz'),(3,'=> dz'),(4,'=> dZ');
+insert into t1 values (5,'=> DŽ'),(6,'=> Dž'),(7,'=> dž'),(8,'=> dŽ');
+insert into t1 values (9,'=> ǆ'),(10,'=> Ǆ');
+select c1 from t1;
+select concat(c1) from t1 order by c1;
+select * from t1 where c1 like '=> d%';
+select * from t1 where concat(c1) like '=> d%';
+select * from t1 where c1 like '=> dz%';
+select * from t1 where concat(c1) like '=> dz%';
+select * from t1 where c1 like '=> dž%';
+select * from t1 where concat(c1) like '=> dž%';
+select * from t1 where c1 = '=> dž';
+select * from t1 where concat(c1) = '=> dž';
+drop table t1;
+
+
+--echo #
+--echo # MDEV-7649 wrong result when comparing utf8 column with an invalid literal
+--echo #
+
+SET NAMES utf8 COLLATE utf8_unicode_ci;
+--let ENGINE=MyISAM
+--source include/ctype_utf8_ilseq.inc
+--let ENGINE=HEAP
+--source include/ctype_utf8_ilseq.inc
+
 --echo #
 --echo # End of 5.5 tests
 --echo #

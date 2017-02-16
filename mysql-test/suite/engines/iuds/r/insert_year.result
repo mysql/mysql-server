@@ -3124,9 +3124,17 @@ ERROR 23000: Duplicate entry '2069' for key 'c2'
 INSERT INTO t3(c1,c2) VALUES(00,00);
 ERROR 23000: Duplicate entry '0000-0000' for key 'idx'
 INSERT IGNORE INTO t1(c1,c2) VALUES(01,'99');
+Warnings:
+Warning	1062	Duplicate entry '2001' for key 'PRIMARY'
 INSERT IGNORE INTO t2(c1,c2) VALUES('1999','1999');
+Warnings:
+Warning	1062	Duplicate entry '1999-1999' for key 'PRIMARY'
 INSERT IGNORE INTO t1(c1,c2) VALUES('2098','69');
+Warnings:
+Warning	1062	Duplicate entry '2069' for key 'c2'
 INSERT IGNORE INTO t3(c1,c2) VALUES(00,00);
+Warnings:
+Warning	1062	Duplicate entry '0000-0000' for key 'idx'
 SELECT * FROM t1 WHERE c1='01' /* Returns 1 row */;
 c1	c2	c3	c4
 2001	2001	1998-12-28	1998-12-28 11:30:45
@@ -6081,9 +6089,17 @@ ERROR 23000: Duplicate entry '69' for key 'c2'
 INSERT INTO t3(c1,c2) VALUES(00,00);
 ERROR 23000: Duplicate entry '00-00' for key 'idx'
 INSERT IGNORE INTO t1(c1,c2) VALUES(01,'99');
+Warnings:
+Warning	1062	Duplicate entry '01' for key 'PRIMARY'
 INSERT IGNORE INTO t2(c1,c2) VALUES('1999','1999');
+Warnings:
+Warning	1062	Duplicate entry '99-99' for key 'PRIMARY'
 INSERT IGNORE INTO t1(c1,c2) VALUES('2098','69');
+Warnings:
+Warning	1062	Duplicate entry '69' for key 'c2'
 INSERT IGNORE INTO t3(c1,c2) VALUES(00,00);
+Warnings:
+Warning	1062	Duplicate entry '00-00' for key 'idx'
 SELECT * FROM t1 WHERE c1='01' /* Returns 1 row */;
 c1	c2	c3	c4
 01	01	1998-12-28	1998-12-28 11:30:45

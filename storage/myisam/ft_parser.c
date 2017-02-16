@@ -106,10 +106,10 @@ my_bool ft_boolean_check_syntax_string(const uchar *str)
   3 - right bracket
   4 - stopword found
 */
-uchar ft_get_word(CHARSET_INFO *cs, uchar **start, uchar *end,
+uchar ft_get_word(CHARSET_INFO *cs, const uchar **start, const uchar *end,
                   FT_WORD *word, MYSQL_FTPARSER_BOOLEAN_INFO *param)
 {
-  uchar *doc=*start;
+  const uchar *doc=*start;
   int ctype;
   uint mwc, length;
   int mbl;
@@ -249,13 +249,13 @@ void ft_parse_init(TREE *wtree, CHARSET_INFO *cs)
 {
   DBUG_ENTER("ft_parse_init");
   if (!is_tree_inited(wtree))
-    init_tree(wtree,0,0,sizeof(FT_WORD),(qsort_cmp2)&FT_WORD_cmp,0,NULL, cs);
+    init_tree(wtree,0,0,sizeof(FT_WORD),(qsort_cmp2)&FT_WORD_cmp,0,0,(void*)cs);
   DBUG_VOID_RETURN;
 }
 
 
 static int ft_add_word(MYSQL_FTPARSER_PARAM *param,
-                       char *word, int word_len,
+                       const char *word, int word_len,
              MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info __attribute__((unused)))
 {
   TREE *wtree;
@@ -284,7 +284,7 @@ static int ft_add_word(MYSQL_FTPARSER_PARAM *param,
 
 
 static int ft_parse_internal(MYSQL_FTPARSER_PARAM *param,
-                             char *doc_arg, int doc_len)
+                             const char *doc_arg, int doc_len)
 {
   uchar *doc= (uchar*) doc_arg;
   uchar *end= doc + doc_len;
@@ -375,7 +375,7 @@ MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info,
        mysql_add_word != 0 - parser is initialized, or no
                              initialization needed. */
     info->ftparser_param[ftparser_nr].mysql_add_word=
-      (int (*)(struct st_mysql_ftparser_param *, char *, int,
+      (int (*)(struct st_mysql_ftparser_param *, const char *, int,
               MYSQL_FTPARSER_BOOLEAN_INFO *)) 1;
     if (parser->init && parser->init(&info->ftparser_param[ftparser_nr]))
       return 0;

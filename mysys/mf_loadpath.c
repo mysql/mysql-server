@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2010, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +27,8 @@
 char * my_load_path(char * to, const char *path,
 		       const char *own_path_prefix)
 {
-  char buff[FN_REFLEN];
+  char buff[FN_REFLEN+1];
+  const char *from= buff;
   int is_cur;
   DBUG_ENTER("my_load_path");
   DBUG_PRINT("enter",("path: %s  prefix: %s",path,
@@ -34,7 +36,7 @@ char * my_load_path(char * to, const char *path,
 
   if ((path[0] == FN_HOMELIB && path[1] == FN_LIBCHAR) ||
       test_if_hard_path(path))
-    (void) strnmov(buff, path, FN_REFLEN);
+    from= path;
   else if ((is_cur=(path[0] == FN_CURLIB && path[1] == FN_LIBCHAR)) ||
 	   (is_prefix(path,FN_PARENTDIR)) ||
 	   ! own_path_prefix)
@@ -42,14 +44,16 @@ char * my_load_path(char * to, const char *path,
     if (is_cur)
       is_cur=2;					/* Remove current dir */
     if (! my_getwd(buff,(uint) (FN_REFLEN-strlen(path)+is_cur),MYF(0)))
-      (void) strncat(buff, path+is_cur, FN_REFLEN-1);
+    {
+      size_t length= strlen(buff);
+      (void) strmake(buff + length, path+is_cur, FN_REFLEN - length);
+    }
     else
-      (void) strnmov(buff, path, FN_REFLEN);			/* Return org file name */
+      from= path;                           /* Return org file name */
   }
   else
-    (void) strxnmov(buff, sizeof(buff)-1, own_path_prefix, path, NullS);
-  strnmov(to, buff, FN_REFLEN);
-  to[FN_REFLEN-1]= '\0';
+    (void) strxnmov(buff, FN_REFLEN, own_path_prefix, path, NullS);
+  strmake(to, from, FN_REFLEN-1);
   DBUG_PRINT("exit",("to: %s",to));
   DBUG_RETURN(to);
 } /* my_load_path */

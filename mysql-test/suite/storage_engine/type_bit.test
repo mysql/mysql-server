@@ -1,0 +1,10 @@
+#
+# BIT column type
+#
+
+--source have_engine.inc
+
+--source type_bit.inc
+
+--source cleanup_engine.inc
+

@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,23 +15,25 @@
 
 GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
-MACRO (INSTALL_DEBUG_SYMBOLS targets)
-  IF(MSVC)
+
+FUNCTION (INSTALL_DEBUG_SYMBOLS)
+ IF(MSVC)
+ MYSQL_PARSE_ARGUMENTS(ARG
+  "COMPONENT;INSTALL_LOCATION"
+  ""
+  ${ARGN}
+  )
+  
+  IF(NOT ARG_COMPONENT)
+    SET(ARG_COMPONENT DebugBinaries)
+  ENDIF()
+  IF(NOT ARG_INSTALL_LOCATION)
+    SET(ARG_INSTALL_LOCATION lib)
+  ENDIF()
+  SET(targets ${ARG_DEFAULT_ARGS})
   FOREACH(target ${targets})
-    GET_TARGET_PROPERTY(location ${target} LOCATION)
     GET_TARGET_PROPERTY(type ${target} TYPE)
-    IF(NOT INSTALL_LOCATION)
-      IF(type MATCHES "STATIC_LIBRARY"
-          OR type MATCHES "MODULE_LIBRARY"
-          OR type MATCHES "SHARED_LIBRARY")
-        SET(INSTALL_LOCATION "lib")
-      ELSEIF(type MATCHES "EXECUTABLE")
-        SET(INSTALL_LOCATION "bin")
-      ELSE()
-        MESSAGE(FATAL_ERROR
-          "cannot determine type of ${target}. Don't now where to install")
-     ENDIF()
-    ENDIF()
+    GET_TARGET_PROPERTY(location ${target} LOCATION)
     STRING(REPLACE ".exe" ".pdb" pdb_location ${location})
     STRING(REPLACE ".dll" ".pdb" pdb_location ${pdb_location})
     STRING(REPLACE ".lib" ".pdb" pdb_location ${pdb_location})
@@ -40,19 +42,34 @@ MACRO (INSTALL_DEBUG_SYMBOLS targets)
         "${CMAKE_CFG_INTDIR}" "\${CMAKE_INSTALL_CONFIG_NAME}"
         pdb_location ${pdb_location})
     ENDIF()
-    IF(target STREQUAL "mysqld")
-	  SET(comp Server)
-    ELSE()
-      SET(comp Debuginfo)
-    ENDIF()	  
-    # No .pdb file for static libraries.
-    IF(NOT type MATCHES "STATIC_LIBRARY")
-      INSTALL(FILES ${pdb_location}
-        DESTINATION ${INSTALL_LOCATION} COMPONENT ${comp})
+	
+    set(comp "")
+    IF(ARG_COMPONENT STREQUAL "Server")
+      IF(target MATCHES "mysqld" OR type MATCHES "MODULE")
+        #MESSAGE("PDB: ${targets}")
+        SET(comp Server)
+      ENDIF()
     ENDIF()
+ 
+    IF(NOT comp MATCHES Server)
+      IF(ARG_COMPONENT MATCHES Development
+        OR ARG_COMPONENT MATCHES SharedLibraries
+        OR ARG_COMPONENT MATCHES Embedded)
+        SET(comp Debuginfo)
+      ENDIF()
+    ENDIF()
+
+    IF(NOT comp)
+      SET(comp Debuginfo_archive_only) # not in MSI
+    ENDIF()
+	IF(type MATCHES "STATIC")
+	  # PDB for static libraries might be unsupported http://public.kitware.com/Bug/view.php?id=14600
+	  SET(opt OPTIONAL)
+	ENDIF()
+    INSTALL(FILES ${pdb_location} DESTINATION ${ARG_INSTALL_LOCATION} COMPONENT ${comp} ${opt})
   ENDFOREACH()
   ENDIF()
-ENDMACRO()
+ENDFUNCTION()
 
 # Installs manpage for given file (either script or executable)
 # 
@@ -119,29 +136,59 @@ FUNCTION(INSTALL_SCRIPT)
   INSTALL_MANPAGE(${script})
 ENDFUNCTION()
 
+
+FUNCTION(INSTALL_DOCUMENTATION)
+  MYSQL_PARSE_ARGUMENTS(ARG "COMPONENT" "" ${ARGN})
+  SET(files ${ARG_DEFAULT_ARGS})
+  IF(NOT ARG_COMPONENT)
+    SET(ARG_COMPONENT Server)
+  ENDIF()
+  IF (ARG_COMPONENT MATCHES "Readme")
+    SET(destination ${INSTALL_DOCREADMEDIR})
+  ELSE()
+    SET(destination ${INSTALL_DOCDIR})
+  ENDIF()
+
+  STRING(TOUPPER ${ARG_COMPONENT} COMPUP)
+  IF(CPACK_COMPONENT_${COMPUP}_GROUP)
+    SET(group ${CPACK_COMPONENT_${COMPUP}_GROUP})
+  ELSE()
+    SET(group ${ARG_COMPONENT})
+  ENDIF()
+
+  IF(RPM)
+    SET(destination "${destination}/MariaDB-${group}-${VERSION}")
+  ELSEIF(DEB)
+    SET(destination "${destination}/mariadb-${group}-${MAJOR_VERSION}.${MINOR_VERSION}")
+  ENDIF()
+
+  INSTALL(FILES ${files} DESTINATION ${destination} COMPONENT ${ARG_COMPONENT})
+ENDFUNCTION()
+
+
 # Install symbolic link to CMake target. 
-# We do 'cd path; ln -s target_name link_name'
-# We also add an INSTALL target for "${path}/${link_name}"
-MACRO(INSTALL_SYMLINK target target_name link_name destination component)
+# the link is created in the same directory as target
+# and extension will be the same as for target file.
+MACRO(INSTALL_SYMLINK linkname target destination component)
 IF(UNIX)
   GET_TARGET_PROPERTY(location ${target} LOCATION)
   GET_FILENAME_COMPONENT(path ${location} PATH)
-
-  SET(output ${path}/${link_name})
+  GET_FILENAME_COMPONENT(name ${location} NAME)
+  SET(output ${path}/${linkname})
   ADD_CUSTOM_COMMAND(
     OUTPUT ${output}
     COMMAND ${CMAKE_COMMAND} ARGS -E remove -f ${output}
     COMMAND ${CMAKE_COMMAND} ARGS -E create_symlink 
-      ${target_name} 
-      ${link_name}
+      ${name} 
+      ${linkname}
     WORKING_DIRECTORY ${path}
     DEPENDS ${target}
     )
   
-  ADD_CUSTOM_TARGET(symlink_${link_name}
+  ADD_CUSTOM_TARGET(symlink_${linkname}
     ALL
     DEPENDS ${output})
-  SET_TARGET_PROPERTIES(symlink_${link_name} PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+  SET_TARGET_PROPERTIES(symlink_${linkname} PROPERTIES CLEAN_DIRECT_OUTPUT 1)
   IF(CMAKE_GENERATOR MATCHES "Xcode")
     # For Xcode, replace project config with install config
     STRING(REPLACE "${CMAKE_CFG_INTDIR}" 
@@ -158,34 +205,27 @@ IF(WIN32)
    SET(SIGNTOOL_PARAMETERS 
      /a /t http://timestamp.verisign.com/scripts/timstamp.dll
      CACHE STRING "parameters for signtool (list)")
-    FIND_PROGRAM(SIGNTOOL_EXECUTABLE signtool)
+    FIND_PROGRAM(SIGNTOOL_EXECUTABLE signtool 
+      PATHS "$ENV{ProgramFiles}/Microsoft SDKs/Windows/v7.0A/bin"
+      "$ENV{ProgramFiles}/Windows Kits/8.0/bin/x86"
+      "$ENV{ProgramFiles}/Windows Kits/8.1/bin/x86"
+    )
     IF(NOT SIGNTOOL_EXECUTABLE)
       MESSAGE(FATAL_ERROR 
       "signtool is not found. Signing executables not possible")
-    ENDIF()
-    IF(NOT DEFINED SIGNCODE_ENABLED)
-      FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/testsign.c "int main(){return 0;}")
-      MAKE_DIRECTORY(${CMAKE_CURRENT_BINARY_DIR}/testsign)
-     TRY_COMPILE(RESULT ${CMAKE_CURRENT_BINARY_DIR}/testsign ${CMAKE_CURRENT_BINARY_DIR}/testsign.c  
-      COPY_FILE ${CMAKE_CURRENT_BINARY_DIR}/testsign.exe
-     )
-      
-     EXECUTE_PROCESS(COMMAND 
-      ${SIGNTOOL_EXECUTABLE} sign ${SIGNTOOL_PARAMETERS} ${CMAKE_CURRENT_BINARY_DIR}/testsign.exe
-      RESULT_VARIABLE ERR ERROR_QUIET OUTPUT_QUIET
-      )
-      IF(ERR EQUAL 0)
-       SET(SIGNCODE_ENABLED 1 CACHE INTERNAL "Can sign executables")
-      ELSE()
-       MESSAGE(STATUS "Disable authenticode signing for executables")
-        SET(SIGNCODE_ENABLED 0 CACHE INTERNAL "Invalid or missing certificate")
-      ENDIF()
     ENDIF()
     MARK_AS_ADVANCED(SIGNTOOL_EXECUTABLE  SIGNTOOL_PARAMETERS)
   ENDIF()
 ENDIF()
 
-MACRO(SIGN_TARGET target)
+MACRO(SIGN_TARGET)
+ MYSQL_PARSE_ARGUMENTS(ARG "COMPONENT" "" ${ARGN})
+ SET(target ${ARG_DEFAULT_ARGS})
+ IF(ARG_COMPONENT)
+  SET(comp COMPONENT ${ARG_COMPONENT})
+ ELSE()
+  SET(comp)
+ ENDIF()
  GET_TARGET_PROPERTY(target_type ${target} TYPE)
  IF(target_type AND NOT target_type MATCHES "STATIC")
    GET_TARGET_PROPERTY(target_location ${target}  LOCATION)
@@ -195,12 +235,17 @@ MACRO(SIGN_TARGET target)
    ENDIF()
    INSTALL(CODE
    "EXECUTE_PROCESS(COMMAND 
-     ${SIGNTOOL_EXECUTABLE} sign ${SIGNTOOL_PARAMETERS} ${target_location}
+   \"${SIGNTOOL_EXECUTABLE}\" verify /pa /q \"${target_location}\"
+   RESULT_VARIABLE ERR)
+   IF(NOT \${ERR} EQUAL 0)
+     EXECUTE_PROCESS(COMMAND 
+     \"${SIGNTOOL_EXECUTABLE}\" sign ${SIGNTOOL_PARAMETERS} \"${target_location}\"
      RESULT_VARIABLE ERR)
-    IF(NOT \${ERR} EQUAL 0)
-      MESSAGE(FATAL_ERROR \"Error signing  ${target_location}\")
-    ENDIF()
-   ")
+   ENDIF()
+   IF(NOT \${ERR} EQUAL 0)
+    MESSAGE(FATAL_ERROR \"Error signing  '${target_location}'\")
+   ENDIF()
+   " ${comp})
  ENDIF()
 ENDMACRO()
 
@@ -215,6 +260,12 @@ FUNCTION(MYSQL_INSTALL_TARGETS)
   ""
   ${ARGN}
   )
+  IF(ARG_COMPONENT)
+    SET(COMP COMPONENT ${ARG_COMPONENT})
+  ELSE()
+    MESSAGE(FATAL_ERROR "COMPONENT argument required")
+  ENDIF()
+  
   SET(TARGETS ${ARG_DEFAULT_ARGS})
   IF(NOT TARGETS)
     MESSAGE(FATAL_ERROR "Need target list for MYSQL_INSTALL_TARGETS")
@@ -226,8 +277,8 @@ FUNCTION(MYSQL_INSTALL_TARGETS)
  
   FOREACH(target ${TARGETS})
     # If signing is required, sign executables before installing
-     IF(SIGNCODE AND SIGNCODE_ENABLED)
-      SIGN_TARGET(${target})
+     IF(SIGNCODE)
+      SIGN_TARGET(${target} ${COMP})
     ENDIF()
     # Install man pages on Unix
     IF(UNIX)
@@ -235,13 +286,10 @@ FUNCTION(MYSQL_INSTALL_TARGETS)
       INSTALL_MANPAGE(${target_location})
     ENDIF()
   ENDFOREACH()
-  IF(ARG_COMPONENT)
-    SET(COMP COMPONENT ${ARG_COMPONENT})
-  ENDIF()
+
   INSTALL(TARGETS ${TARGETS} DESTINATION ${ARG_DESTINATION} ${COMP})
-  SET(INSTALL_LOCATION ${ARG_DESTINATION} )
-  INSTALL_DEBUG_SYMBOLS("${TARGETS}")
-  SET(INSTALL_LOCATION)
+  INSTALL_DEBUG_SYMBOLS(${TARGETS} ${COMP} INSTALL_LOCATION ${ARG_DESTINATION})
+
 ENDFUNCTION()
 
 # Optionally install mysqld/client/embedded from debug build run. outside of the current build dir 
@@ -335,3 +383,30 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
   ENDIF()
 ENDFUNCTION()
 
+
+FUNCTION(INSTALL_MYSQL_TEST from to)
+  IF(INSTALL_MYSQLTESTDIR)
+    INSTALL(
+      DIRECTORY ${from}
+      DESTINATION "${INSTALL_MYSQLTESTDIR}/${to}"
+      USE_SOURCE_PERMISSIONS
+      COMPONENT Test
+      PATTERN "var" EXCLUDE
+      PATTERN "lib/My/SafeProcess" EXCLUDE
+      PATTERN "lib/t*" EXCLUDE
+      PATTERN "CPack" EXCLUDE
+      PATTERN "CMake*" EXCLUDE
+      PATTERN "cmake_install.cmake" EXCLUDE
+      PATTERN "mtr.out*" EXCLUDE
+      PATTERN ".cvsignore" EXCLUDE
+      PATTERN "*.am" EXCLUDE
+      PATTERN "*.in" EXCLUDE
+      PATTERN "Makefile" EXCLUDE
+      PATTERN "*.vcxproj" EXCLUDE
+      PATTERN "*.vcxproj.filters" EXCLUDE
+      PATTERN "*.vcxproj.user" EXCLUDE
+      PATTERN "CTest*" EXCLUDE
+      PATTERN "*~" EXCLUDE
+    )
+  ENDIF()
+ENDFUNCTION()

@@ -1,0 +1,12 @@
+create table t_toku (pk int primary key) engine=TokuDB;
+begin;
+insert into t_toku values (1),(2);
+savepoint sp1;
+insert into t_toku values (3);
+savepoint sp2;
+insert into t_toku values (4);
+rollback to savepoint sp1;
+commit;
+
+select * from t_toku;
+drop table t_toku;

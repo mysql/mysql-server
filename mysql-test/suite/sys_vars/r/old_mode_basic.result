@@ -1,0 +1,174 @@
+SET @global_start_value = @@global.old_mode;
+SELECT @global_start_value;
+@global_start_value
+
+SET @session_start_value = @@session.old_mode;
+SELECT @session_start_value;
+@session_start_value
+
+'#--------------------FN_DYNVARS_152_01------------------------#'
+SET @@global.old_mode = "NO_PROGRESS_INFO";
+SET @@global.old_mode = DEFAULT;
+SELECT @@global.old_mode;
+@@global.old_mode
+
+SET @@session.old_mode = "NO_PROGRESS_INFO";
+SET @@session.old_mode = DEFAULT;
+SELECT @@session.old_mode;
+@@session.old_mode
+
+'#---------------------FN_DYNVARS_152_02-------------------------#'
+SET @@global.old_mode = NULL;
+ERROR 42000: Variable 'old_mode' can't be set to the value of 'NULL'
+SET @@global.old_mode = '';
+SELECT @@global.old_mode;
+@@global.old_mode
+
+SET @@global.old_mode = ' ';
+SELECT @@global.old_mode;
+@@global.old_mode
+
+SET @@session.old_mode = NULL;
+ERROR 42000: Variable 'old_mode' can't be set to the value of 'NULL'
+SET @@session.old_mode = '';
+SELECT @@session.old_mode;
+@@session.old_mode
+
+SET @@session.old_mode = ' ';
+SELECT @@session.old_mode;
+@@session.old_mode
+
+'#--------------------FN_DYNVARS_152_03------------------------#'
+SET @@global.old_mode = NO_PROGRESS_INFO;
+SELECT @@global.old_mode;
+@@global.old_mode
+NO_PROGRESS_INFO
+SET @@global.old_mode = NO_DUP_KEY_WARNINGS_WITH_IGNORE;
+SELECT @@global.old_mode;
+@@global.old_mode
+NO_DUP_KEY_WARNINGS_WITH_IGNORE
+SET @@global.old_mode = OFF;
+ERROR 42000: Variable 'old_mode' can't be set to the value of 'OFF'
+SET @@session.old_mode = NO_PROGRESS_INFO;
+SELECT @@session.old_mode;
+@@session.old_mode
+NO_PROGRESS_INFO
+SET @@session.old_mode = NO_DUP_KEY_WARNINGS_WITH_IGNORE;
+SELECT @@session.old_mode;
+@@session.old_mode
+NO_DUP_KEY_WARNINGS_WITH_IGNORE
+SET @@session.old_mode = OFF;
+ERROR 42000: Variable 'old_mode' can't be set to the value of 'OFF'
+SET @@global.old_mode = '?';
+ERROR 42000: Variable 'old_mode' can't be set to the value of '?'
+SELECT @@global.old_mode;
+@@global.old_mode
+NO_DUP_KEY_WARNINGS_WITH_IGNORE
+'#--------------------FN_DYNVARS_152_04-------------------------#'
+SET @@global.old_mode = -1;
+ERROR 42000: Variable 'old_mode' can't be set to the value of '-1'
+SET @@global.old_mode = ASCII;
+ERROR 42000: Variable 'old_mode' can't be set to the value of 'ASCII'
+SET @@global.old_mode = NON_TRADITIONAL;
+ERROR 42000: Variable 'old_mode' can't be set to the value of 'NON_TRADITIONAL'
+SET @@global.old_mode = 'OF';
+ERROR 42000: Variable 'old_mode' can't be set to the value of 'OF'
+SET @@global.old_mode = NONE;
+ERROR 42000: Variable 'old_mode' can't be set to the value of 'NONE'
+SET @@session.old_mode = -1;
+ERROR 42000: Variable 'old_mode' can't be set to the value of '-1'
+SET @@session.old_mode = ANSI_SINGLE_QUOTES;
+ERROR 42000: Variable 'old_mode' can't be set to the value of 'ANSI_SINGLE_QUOTES'
+SET @@session.old_mode = 'ON';
+ERROR 42000: Variable 'old_mode' can't be set to the value of 'ON'
+SET @@session.old_mode = 'OF';
+ERROR 42000: Variable 'old_mode' can't be set to the value of 'OF'
+SET @@session.old_mode = DISABLE;
+ERROR 42000: Variable 'old_mode' can't be set to the value of 'DISABLE'
+'#-------------------FN_DYNVARS_152_05----------------------------#'
+SELECT @@session.old_mode = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='old_mode';
+@@session.old_mode = VARIABLE_VALUE
+1
+'#----------------------FN_DYNVARS_152_06------------------------#'
+SELECT @@global.old_mode = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='old_mode';
+@@global.old_mode = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_152_07-------------------------#'
+SET @@global.old_mode = 0;
+SELECT @@global.old_mode;
+@@global.old_mode
+
+SET @@global.old_mode = 1;
+SELECT @@global.old_mode;
+@@global.old_mode
+NO_DUP_KEY_WARNINGS_WITH_IGNORE
+SET @@global.old_mode = 2;
+SELECT @@global.old_mode;
+@@global.old_mode
+NO_PROGRESS_INFO
+SET @@global.old_mode = 4;
+ERROR 42000: Variable 'old_mode' can't be set to the value of '4'
+SELECT @@global.old_mode;
+@@global.old_mode
+NO_PROGRESS_INFO
+SET @@global.old_mode = 0.4;
+ERROR 42000: Incorrect argument type to variable 'old_mode'
+'#---------------------FN_DYNVARS_152_08----------------------#'
+SET @@global.old_mode = TRUE;
+SELECT @@global.old_mode;
+@@global.old_mode
+NO_DUP_KEY_WARNINGS_WITH_IGNORE
+SET @@global.old_mode = FALSE;
+SELECT @@global.old_mode;
+@@global.old_mode
+
+'#---------------------FN_DYNVARS_152_09----------------------#'
+SET old_mode = 'NO_PROGRESS_INFO';
+SET session.old_mode = 'ANSI';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'old_mode = 'ANSI'' at line 1
+SET global.old_mode = 'ANSI';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'old_mode = 'ANSI'' at line 1
+SET session old_mode = 1;
+SELECT @@old_mode;
+@@old_mode
+NO_DUP_KEY_WARNINGS_WITH_IGNORE
+SET global old_mode = 0;
+SELECT @@global.old_mode;
+@@global.old_mode
+
+'#---------------------FN_DYNVARS_152_10----------------------#'
+SET @@session.old_mode = 'NO_PROGRESS_INFO,NO_DUP_KEY_WARNINGS_WITH_IGNORE';
+SELECT @@session.old_mode;
+@@session.old_mode
+NO_DUP_KEY_WARNINGS_WITH_IGNORE,NO_PROGRESS_INFO
+SET @@global.old_mode = 'NO_DUP_KEY_WARNINGS_WITH_IGNORE,NO_PROGRESS_INFO';
+SELECT @@global.old_mode;
+@@global.old_mode
+NO_DUP_KEY_WARNINGS_WITH_IGNORE,NO_PROGRESS_INFO
+SET @@session.old_mode = 'NO_PROGRESS_INFO,NO_SUCH_MODE';
+ERROR 42000: Variable 'old_mode' can't be set to the value of 'NO_SUCH_MODE'
+SET @@old_mode=',';
+SELECT @@old_mode;
+@@old_mode
+
+SET @@old_mode=',,,,NO_PROGRESS_INFO,,,';
+SELECT @@old_mode;
+@@old_mode
+NO_PROGRESS_INFO
+SET @@old_mode=',,,,FOOBAR,,,,,';
+ERROR 42000: Variable 'old_mode' can't be set to the value of 'FOOBAR'
+SELECT @@old_mode;
+@@old_mode
+NO_PROGRESS_INFO
+SET @@global.old_mode = @global_start_value;
+SELECT @@global.old_mode;
+@@global.old_mode
+
+SET @@session.old_mode = @session_start_value;
+SELECT @@session.old_mode;
+@@session.old_mode
+

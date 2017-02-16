@@ -1,0 +1,34 @@
+#
+# Test mysqltest in --ps-protocol mode.
+#
+
+if (`SELECT $PS_PROTOCOL = 0`)
+{
+   --skip Need ps-protocol
+}
+
+#
+# Test the --enable_prepare_warnings command.
+# Test default value (off), enabling, and disabling.
+#
+
+--enable_warnings
+
+select 1 + "2 a";
+create table t (a int primary key, b blob default '');
+# This statement gives warning both during prepare and execute.
+# So gives double warnings when --enable_prepare_warnings.
+select a, (2*a) AS a from t group by a;
+drop table t;
+
+--enable_prepare_warnings
+select 1 + "2 a";
+create table t (a int primary key, b blob default '');
+select a, (2*a) AS a from t group by a;
+drop table t;
+
+--disable_prepare_warnings
+select 1 + "2 a";
+create table t (a int primary key, b blob default '');
+select a, (2*a) AS a from t group by a;
+drop table t;

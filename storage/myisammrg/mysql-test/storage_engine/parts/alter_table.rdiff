@@ -1,0 +1,68 @@
+--- alter_table.result	2013-01-22 22:05:05.246633000 +0400
++++ alter_table.reject	2013-01-23 03:16:22.620356221 +0400
+@@ -1,42 +1,29 @@
+ DROP TABLE IF EXISTS t1;
+ CREATE TABLE t1 (a <INT_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
+-INSERT INTO t1 (a) VALUES (1),(2),(2),(3),(4);
+-ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+-EXPLAIN PARTiTIONS SELECT a FROM t1 WHERE a = 3;
+-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	p3	#	#	#	#	#	#	#
+-ALTER TABLE t1 COALESCE PARTITION 1;
+-EXPLAIN PARTiTIONS SELECT a FROM t1 WHERE a = 3;
+-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	p0	#	#	#	#	#	#	#
+-ALTER TABLE t1 REORGANIZE PARTITION;
+-EXPLAIN PARTiTIONS SELECT a FROM t1 WHERE a = 2;
+-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	p0	#	#	#	#	#	#	#
+-ALTER TABLE t1 REBUILD PARTITION p0;
+-EXPLAIN PARTiTIONS SELECT a FROM t1;
+-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	p0	#	#	#	#	#	#	#
+-ALTER TABLE t1 REMOVE PARTITIONING;
+-EXPLAIN PARTiTIONS SELECT a FROM t1;
+-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	NULL	#	#	#	#	#	#	#
+-ALTER TABLE t1 PARTITION BY LIST(a) (PARTITION p0 VALUES IN (1,2,3), PARTITION p1 VALUES IN (101,102));
+-ERROR HY000: Table has no partition for value 4
+-ALTER TABLE t1 PARTITION BY LIST(a) (PARTITION p0 VALUES IN (1,2,3,4), PARTITION p1 VALUES IN (101,102));
+-INSERT INTO t1 (a) VALUES (50);
+-ERROR HY000: Table has no partition for value 50
+-ALTER TABLE t1 ADD PARTITION (PARTITION p2 VALUES IN (50,51));
+-INSERT INTO t1 (a) VALUES (50);
+-ALTER TABLE t1 DROP PARTITION p1;
+-ALTER TABLE t1 REORGANIZE PARTITION p0, p2 INTO (PARTITION p0 VALUES IN (1,2,3), PARTITION p1 VALUES IN (4), PARTITION p2 VALUES IN (50,51), PARTITION p3 VALUES IN (101,102));
+-EXPLAIN PARTiTIONS SELECT a FROM t1 WHERE a = 2;
+-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	p0	#	#	#	#	#	#	#
+-DROP TABLE t1;
++ERROR HY000: Engine cannot be used in partitioned tables
++# ERROR: Statement ended with errno 1572, errname ER_PARTITION_MERGE_ERROR (expected to succeed)
++# ------------ UNEXPECTED RESULT ------------
++# [ CREATE TABLE t1 (a INT(11) /*!*/ /*Custom column options*/) ENGINE=MRG_MYISAM /*!*/ /*Custom table options*/ UNION(mrg.t1) INSERT_METHOD=LAST PARTITION BY HASH(a) PARTITIONS 2 ]
++# The statement|command finished with ER_PARTITION_MERGE_ERROR.
++# Partitions or the mix could be unsupported|malfunctioning, or the problem was caused by previous errors. 
++# You can change the engine code, or create an rdiff, or disable the test by adding it to disabled.def.
++# Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
++# Also, this problem may cause a chain effect (more errors of different kinds in the test).
++# -------------------------------------------
+ CREATE TABLE t1 (a <INT_COLUMN>, b <INT_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY LIST(a) SUBPARTITION by HASH(b) (
+ PARTITION abc VALUES IN (1,2,3),
+ PARTITION def VALUES IN (100,101,102)
+ );
+-ALTER TABLE t1 DROP PARTITION abc;
+-DROP TABLE t1;
++ERROR HY000: Engine cannot be used in partitioned tables
++# ERROR: Statement ended with errno 1572, errname ER_PARTITION_MERGE_ERROR (expected to succeed)
++# ------------ UNEXPECTED RESULT ------------
++# [ CREATE TABLE t1 (a INT(11) /*!*/ /*Custom column options*/, b INT(11) /*!*/ /*Custom column options*/) ENGINE=MRG_MYISAM /*!*/ /*Custom table options*/ UNION(mrg.t1) INSERT_METHOD=LAST PARTITION BY LIST(a) SUBPARTITION by HASH(b) (
++PARTITION abc VALUES IN (1,2,3),
++PARTITION def VALUES IN (100,101,102)
++) ]
++# The statement|command finished with ER_PARTITION_MERGE_ERROR.
++# Partitions or subpartitions or the mix could be unsupported|malfunctioning, or the problem was caused by previous errors. 
++# You can change the engine code, or create an rdiff, or disable the test by adding it to disabled.def.
++# Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
++# Also, this problem may cause a chain effect (more errors of different kinds in the test).
++# -------------------------------------------

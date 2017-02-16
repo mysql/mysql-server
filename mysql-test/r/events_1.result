@@ -223,9 +223,9 @@ user(),
 'utf8_general_ci',
 'select 1');
 show create event root22;
-ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
+ERROR 42000: This version of MariaDB doesn't yet support 'MICROSECOND'
 SHOW EVENTS;
-ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
+ERROR 42000: This version of MariaDB doesn't yet support 'MICROSECOND'
 drop event root22;
 create event root23 on schedule every -100 year do select 1;
 ERROR HY000: INTERVAL is either not positive or too big

@@ -1,0 +1,280 @@
+drop table if exists t1, t2, t3;
+create table t1 (a timestamp(7));
+ERROR 42000: Too big precision 7 specified for 'a'. Maximum is 6.
+create table t1 (a timestamp(3), key(a));
+insert t1 values ('2010-12-11 00:20:03.1234');
+insert t1 values ('2010-12-11 15:47:11.1234');
+insert t1 values (20101211010203.45678);
+insert t1 values (20101211030405.789e0);
+insert t1 values (99991231235959e1);
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+select * from t1;
+a
+0000-00-00 00:00:00.000
+2010-12-11 00:20:03.123
+2010-12-11 01:02:03.456
+2010-12-11 03:04:05.789
+2010-12-11 15:47:11.123
+select truncate(a, 6) from t1;
+truncate(a, 6)
+0.000000
+20101211002003.120000
+20101211010203.457031
+20101211030405.790000
+20101211154711.120000
+select a DIV 1 from t1;
+a DIV 1
+0
+20101211002003
+20101211010203
+20101211030405
+20101211154711
+select group_concat(distinct a) from t1;
+group_concat(distinct a)
+0000-00-00 00:00:00.000,2010-12-11 00:20:03.123,2010-12-11 01:02:03.456,2010-12-11 03:04:05.789,2010-12-11 15:47:11.123
+alter table t1 engine=innodb;
+select * from t1 order by a;
+a
+0000-00-00 00:00:00.000
+2010-12-11 00:20:03.123
+2010-12-11 01:02:03.456
+2010-12-11 03:04:05.789
+2010-12-11 15:47:11.123
+select * from t1 order by a+0;
+a
+0000-00-00 00:00:00.000
+2010-12-11 00:20:03.123
+2010-12-11 01:02:03.456
+2010-12-11 03:04:05.789
+2010-12-11 15:47:11.123
+drop table t1;
+create table t1 (a timestamp(4)) engine=innodb;
+insert t1 values ('2010-12-11 01:02:03.456789');
+select * from t1;
+a
+2010-12-11 01:02:03.4567
+select extract(microsecond from a + interval 100 microsecond) from t1 where a>'2010-11-12 01:02:03.456';
+extract(microsecond from a + interval 100 microsecond)
+456800
+select a from t1 where a>'2010-11-12 01:02:03.456' group by a;
+a
+2010-12-11 01:02:03.4567
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` timestamp(4) NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	timestamp(4)	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
+select table_name, column_name, column_default, is_nullable, data_type, character_maximum_length, character_octet_length, numeric_precision, numeric_scale, datetime_precision, character_set_name, collation_name, column_type, column_key, extra from information_schema.columns where table_name='t1';
+table_name	t1
+column_name	a
+column_default	CURRENT_TIMESTAMP
+is_nullable	NO
+data_type	timestamp
+character_maximum_length	NULL
+character_octet_length	NULL
+numeric_precision	NULL
+numeric_scale	NULL
+datetime_precision	4
+character_set_name	NULL
+collation_name	NULL
+column_type	timestamp(4)
+column_key	
+extra	on update CURRENT_TIMESTAMP
+select a, a+interval 9876543 microsecond from t1;
+a	a+interval 9876543 microsecond
+2010-12-11 01:02:03.4567	2010-12-11 01:02:13.333243
+update t1 set a=a+interval 9876543 microsecond;
+select * from t1;
+a
+2010-12-11 01:02:13.3332
+select a, a + interval 2 year from t1;
+a	a + interval 2 year
+2010-12-11 01:02:13.3332	2012-12-11 01:02:13.3332
+insert t1 select a + interval 2 year from t1;
+select * from t1;
+a
+2010-12-11 01:02:13.3332
+2012-12-11 01:02:13.3332
+delete from t1 where a < 20110101;
+select * from t1;
+a
+2012-12-11 01:02:13.3332
+create table t2 select * from t1;
+create table t3 like t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` timestamp(4) NOT NULL DEFAULT '0000-00-00 00:00:00.0000'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` timestamp(4) NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t2, t3;
+insert t1 values ('2010-12-13 14:15:16.222222');
+select a, a+0, a-1, a*1, a/2 from t1;
+a	a+0	a-1	a*1	a/2
+2012-12-11 01:02:13.3332	20121211010213.3332	20121211010212.3332	20121211010213.3332	10060605505106.66660000
+2010-12-13 14:15:16.2222	20101213141516.2222	20101213141515.2222	20101213141516.2222	10050606570758.11110000
+select max(a), min(a), sum(a), avg(a) from t1;
+max(a)	min(a)	sum(a)	avg(a)
+2012-12-11 01:02:13.3332	2010-12-13 14:15:16.2222	40222424151729.5554	20111212075864.77770000
+create table t2 select a, a+0, a-1, a*1, a/2 from t1;
+create table t3 select max(a), min(a), sum(a), avg(a) from t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` timestamp(4) NOT NULL DEFAULT '0000-00-00 00:00:00.0000',
+  `a+0` decimal(25,4) NOT NULL DEFAULT '0.0000',
+  `a-1` decimal(25,4) NOT NULL DEFAULT '0.0000',
+  `a*1` decimal(25,4) NOT NULL DEFAULT '0.0000',
+  `a/2` decimal(28,8) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `max(a)` timestamp(4) NULL DEFAULT NULL,
+  `min(a)` timestamp(4) NULL DEFAULT NULL,
+  `sum(a)` decimal(46,4) DEFAULT NULL,
+  `avg(a)` decimal(28,8) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1, t2, t3;
+create table t1 (f0_timestamp timestamp(0), f1_timestamp timestamp(1), f2_timestamp timestamp(2), f3_timestamp timestamp(3), f4_timestamp timestamp(4), f5_timestamp timestamp(5), f6_timestamp timestamp(6));
+insert t1 values ( '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432');
+select * from t1;
+f0_timestamp	2010-11-12 11:14:17
+f1_timestamp	2010-11-12 11:14:17.7
+f2_timestamp	2010-11-12 11:14:17.76
+f3_timestamp	2010-11-12 11:14:17.765
+f4_timestamp	2010-11-12 11:14:17.7654
+f5_timestamp	2010-11-12 11:14:17.76543
+f6_timestamp	2010-11-12 11:14:17.765432
+select cast(f0_timestamp as time(4)) time4_f0_timestamp, cast(f1_timestamp as datetime(3)) datetime3_f1_timestamp, cast(f2_timestamp as date) date_f2_timestamp, cast(f4_timestamp as double) double_f3_timestamp, cast(f4_timestamp as decimal(40,5)) decimal5_f4_timestamp, cast(f5_timestamp as signed) bigint_f5_timestamp, cast(f6_timestamp as char(255)) varchar_f6_timestamp from t1;
+time4_f0_timestamp	11:14:17.0000
+datetime3_f1_timestamp	2010-11-12 11:14:17.700
+date_f2_timestamp	2010-11-12
+double_f3_timestamp	20101112111417.766
+decimal5_f4_timestamp	20101112111417.76540
+bigint_f5_timestamp	20101112111417
+varchar_f6_timestamp	2010-11-12 11:14:17.765432
+create table t2 (time4_f0_timestamp time(4), datetime3_f1_timestamp datetime(3), date_f2_timestamp date, double_f3_timestamp double, decimal5_f4_timestamp decimal(40,5), bigint_f5_timestamp bigint, varchar_f6_timestamp varchar(255));
+insert t2 select * from t1;
+Warnings:
+Level	Note
+Code	1265
+Message	Data truncated for column 'time4_f0_timestamp' at row 1
+Level	Note
+Code	1265
+Message	Data truncated for column 'date_f2_timestamp' at row 1
+select * from t2;
+time4_f0_timestamp	11:14:17.0000
+datetime3_f1_timestamp	2010-11-12 11:14:17.700
+date_f2_timestamp	2010-11-12
+double_f3_timestamp	20101112111417.766
+decimal5_f4_timestamp	20101112111417.76540
+bigint_f5_timestamp	20101112111417
+varchar_f6_timestamp	2010-11-12 11:14:17.765432
+alter table t1 change f0_timestamp time4_f0_timestamp time(4), change f1_timestamp datetime3_f1_timestamp datetime(3), change f2_timestamp date_f2_timestamp date, change f3_timestamp double_f3_timestamp double, change f4_timestamp decimal5_f4_timestamp decimal(40,5), change f5_timestamp bigint_f5_timestamp bigint, change f6_timestamp varchar_f6_timestamp varchar(255);
+Warnings:
+Level	Note
+Code	1265
+Message	Data truncated for column 'time4_f0_timestamp' at row 1
+Level	Note
+Code	1265
+Message	Data truncated for column 'date_f2_timestamp' at row 1
+select * from t1;
+time4_f0_timestamp	11:14:17.0000
+datetime3_f1_timestamp	2010-11-12 11:14:17.700
+date_f2_timestamp	2010-11-12
+double_f3_timestamp	20101112111417.766
+decimal5_f4_timestamp	20101112111417.76540
+bigint_f5_timestamp	20101112111417
+varchar_f6_timestamp	2010-11-12 11:14:17.765432
+alter table t1 modify time4_f0_timestamp timestamp(0), modify datetime3_f1_timestamp timestamp(1), modify date_f2_timestamp timestamp(2), modify double_f3_timestamp timestamp(3), modify decimal5_f4_timestamp timestamp(4), modify bigint_f5_timestamp timestamp(5), modify varchar_f6_timestamp timestamp(6);
+Warnings:
+Level	Warning
+Code	1265
+Message	Data truncated for column 'time4_f0_timestamp' at row 1
+select * from t1;
+time4_f0_timestamp	0000-00-00 00:00:00
+datetime3_f1_timestamp	2010-11-12 11:14:17.7
+date_f2_timestamp	2010-11-12 00:00:00.00
+double_f3_timestamp	2010-11-12 11:14:17.766
+decimal5_f4_timestamp	2010-11-12 11:14:17.7654
+bigint_f5_timestamp	2010-11-12 11:14:17.00000
+varchar_f6_timestamp	2010-11-12 11:14:17.765432
+delete from t1;
+insert t1 select * from t2;
+Warnings:
+Level	Warning
+Code	1265
+Message	Data truncated for column 'time4_f0_timestamp' at row 1
+select * from t1;
+time4_f0_timestamp	0000-00-00 00:00:00
+datetime3_f1_timestamp	2010-11-12 11:14:17.7
+date_f2_timestamp	2010-11-12 00:00:00.00
+double_f3_timestamp	2010-11-12 11:14:17.765
+decimal5_f4_timestamp	2010-11-12 11:14:17.7654
+bigint_f5_timestamp	2010-11-12 11:14:17.00000
+varchar_f6_timestamp	2010-11-12 11:14:17.765432
+drop table t1, t2;
+create table t1 (a timestamp(6), b timestamp(6));
+create procedure foo(x timestamp, y timestamp(4)) insert into t1 values (x, y);
+call foo('2010-02-03 4:5:6.789123', '2010-02-03 4:5:6.789123');
+select * from t1;
+a	b
+2010-02-03 04:05:06.000000	2010-02-03 04:05:06.789100
+create procedure bar(a int, c timestamp(5))
+begin
+declare b timestamp(4);
+set b = c + interval a microsecond;
+insert t1 values (b, c + interval a microsecond);
+end|
+call bar(1111111, '2011-01-02 3:4:5.123456');
+select * from t1;
+a	b
+2010-02-03 04:05:06.000000	2010-02-03 04:05:06.789100
+2011-01-02 03:04:06.234500	2011-01-02 03:04:06.234561
+drop procedure foo;
+drop procedure bar;
+create function xyz(s char(20)) returns timestamp(4)
+return addtime('2010-10-10 10:10:10.101010', s);
+select xyz('1:1:1.010101');
+xyz('1:1:1.010101')
+2010-10-10 11:11:11.1111
+drop function xyz;
+create view v1 as select * from t1 group by a,b;
+select * from v1;
+a	b
+2010-02-03 04:05:06.000000	2010-02-03 04:05:06.789100
+2011-01-02 03:04:06.234500	2011-01-02 03:04:06.234561
+show columns from v1;
+Field	Type	Null	Key	Default	Extra
+a	timestamp(6)	NO		0000-00-00 00:00:00.000000	
+b	timestamp(6)	NO		0000-00-00 00:00:00.000000	
+create table t2 select * from v1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` timestamp(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000',
+  `b` timestamp(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select * from t2;
+a	b
+2010-02-03 04:05:06.000000	2010-02-03 04:05:06.789100
+2011-01-02 03:04:06.234500	2011-01-02 03:04:06.234561
+drop view v1;
+drop table t1, t2;
+set time_zone='+03:00';
+set timestamp=unix_timestamp('2011-01-01 01:01:01') + 0.123456;
+create table t1 (a timestamp(5));
+insert t1 values ();
+select * from t1;
+a
+2011-01-01 01:01:01.12345
+drop table t1;

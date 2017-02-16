@@ -1,0 +1,132 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (v0 VARCHAR(64) <CUSTOM_COL_OPTIONS>,
+v1 VARCHAR(16384) <CUSTOM_COL_OPTIONS>,
+v2 TEXT <CUSTOM_COL_OPTIONS>,
+FULLTEXT v1 (v1)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEXES IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	v1	1	v1	#	#	NULL	NULL	YES	FULLTEXT		
+INSERT INTO t1 (v0,v1,v2) VALUES ('text1','Here is a list of recommended books on MariaDB and MySQL. We\'ve provided links to Amazon.com here for convenience, but they can be found at many other bookstores, both online and off.
+If you want to have your favorite MySQL / MariaDB book listed here, please leave a comment.
+For developers who want to code on MariaDB or MySQL
+* Understanding MySQL Internals by Sasha Pachev, former MySQL developer at MySQL AB.
+o This is the only book we know about that describes the internals of MariaDB / MySQL. A must have for anyone who wants to understand and develop on MariaDB!
+o Not all topics are covered and some parts are slightly outdated, but still the best book on this topic. 
+* MySQL 5.1 Plugin Development by Sergei Golubchik and Andrew Hutchings
+o A must read for anyone wanting to write a plugin for MariaDB, written by the Sergei who designed the plugin interface for MySQL and MariaDB! 
+For MariaDB / MySQL end users
+* MariaDB Crash Course by Ben Forta
+o First MariaDB book!
+o For people who want to learn SQL and the basics of MariaDB.
+o Now shipping. Purchase at Amazon.com or your favorite bookseller. 
+* SQL-99 Complete, Really by Peter Gulutzan & Trudy Pelzer.
+o Everything you wanted to know about the SQL 99 standard. Excellent reference book!
+o Free to read in the Knowledgebase! 
+* MySQL (4th Edition) by Paul DuBois
+o The \'default\' book to read if you wont to learn to use MySQL / MariaDB. 
+* MySQL Cookbook by Paul DuBois
+o A lot of examples of how to use MySQL. As with all of Paul\'s books, it\'s worth its weight in gold and even enjoyable reading for such a \'dry\' subject. 
+* High Performance MySQL, Second Edition, By Baron Schwartz, Peter Zaitsev, Vadim Tkachenko, Jeremy D. Zawodny, Arjen Lentz, Derek J. Balling, et al.
+o \"High Performance MySQL is the definitive guide to building fast, reliable systems with MySQL. Written by noted experts with years of real-world experience building very large systems, this book covers every aspect of MySQL performance in detail, and focuses on robustness, security, and data integrity. Learn advanced techniques in depth so you can bring out MySQL\'s full power.\" (From the book description at O\'Reilly) 
+
+      * MySQL Admin Cookbook
+            o A quick step-by-step guide for MySQL users and database administrators to tackle real-world challenges with MySQL configuration and administration 
+
+      * MySQL 5.0 Certification Study Guide, By Paul DuBois, Stefan Hinz, Carsten Pedersen
+            o This is the official guide to cover the passing of the two MySQL Certification examinations. It is valid till version 5.0 of the server, so while it misses all the features available in MySQL 5.1 and greater (including MariaDB 5.1 and greater), it provides a good basic understanding of MySQL for the end-user. ',
+'There are several reasons why contributing code is one of the easiest and most rewarding ways to contribute to MariaDB:
+
+     1. We are very responsive toward reviews of submitted code and as soon as the review is done, the submitted code is merged into an existing MariaDB tree and made available to everyone, not just select customers.
+     2. Code reviews are performed by the MariaDB core development team and the quality, detail, and timeliness of our reviews are better than you will find elsewhere.
+     3. With MariaDB everyone has access to the latest code.
+     4. If a patch is very safe and/or very useful we are willing to push it into the stable code (as long as it can\'t break any existing applications). We are willing to do this to ensure the freedom to add small, needed fixes on a stable release so users don\'t have to wait a year for something to be added which is critical to their business.
+     5. If you are an active contributor, you can become a member of maria-captains, even if you aren\'t working for Monty Program Ab. All captains have the same rights as any other captain to accept and reject patches. Our development model is truly open for everyone. 
+The Contributing Code page details many of the actual steps involved in working with the MariaDB source code. It\'s important that you use the same tools and submit patches in the same way as other developers to keep development running smoothly.'
+  ), ('text2','test1','test2');
+SELECT v0 FROM t1 WHERE MATCH(v1) AGAINST ('contributing' IN NATURAL LANGUAGE MODE);
+v0
+INSERT INTO t1 (v0,v1,v2) VALUES ('text3','test','test');
+SELECT v0, MATCH(v1) AGAINST('contributing' IN NATURAL LANGUAGE MODE) AS rating FROM t1 WHERE MATCH(v1) AGAINST ('contributing' IN NATURAL LANGUAGE MODE);
+v0	rating
+INSERT INTO t1 (v0,v1,v2) VALUES ('text4','Contributing more...','...is a good idea'),('text5','test','test');
+SELECT v0, MATCH(v1) AGAINST('contributing') AS rating FROM t1 WHERE MATCH(v1) AGAINST ('contributing');
+v0	rating
+text4	1.3705332279205322
+SELECT v0 FROM t1 WHERE MATCH(v1,v2) AGAINST ('-test1 +critical +Cook*' IN BOOLEAN MODE);
+v0
+text1
+SELECT v0 FROM t1 WHERE MATCH(v1,v2) AGAINST ('-patch +critical +Cook*' IN BOOLEAN MODE);
+v0
+SELECT v0, MATCH(v1) AGAINST('database' WITH QUERY EXPANSION) AS rating FROM t1 WHERE MATCH(v1) AGAINST ('database' WITH QUERY EXPANSION);
+v0	rating
+text1	178.11756896972656
+DROP TABLE t1;
+CREATE TABLE t1 (v0 VARCHAR(64) <CUSTOM_COL_OPTIONS>,
+v1 VARCHAR(16384) <CUSTOM_COL_OPTIONS>,
+v2 TEXT <CUSTOM_COL_OPTIONS>,
+FULLTEXT v1 (v1),
+FULLTEXT v1_v2 (v1,v2)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEXES IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	v1	1	v1	#	#	NULL	NULL	YES	FULLTEXT		
+t1	1	v1_v2	1	v1	#	#	NULL	NULL	YES	FULLTEXT		
+t1	1	v1_v2	2	v2	#	#	NULL	NULL	YES	FULLTEXT		
+INSERT INTO t1 (v0,v1,v2) VALUES ('text1','Here is a list of recommended books on MariaDB and MySQL. We\'ve provided links to Amazon.com here for convenience, but they can be found at many other bookstores, both online and off.
+If you want to have your favorite MySQL / MariaDB book listed here, please leave a comment.
+For developers who want to code on MariaDB or MySQL
+* Understanding MySQL Internals by Sasha Pachev, former MySQL developer at MySQL AB.
+o This is the only book we know about that describes the internals of MariaDB / MySQL. A must have for anyone who wants to understand and develop on MariaDB!
+o Not all topics are covered and some parts are slightly outdated, but still the best book on this topic. 
+* MySQL 5.1 Plugin Development by Sergei Golubchik and Andrew Hutchings
+o A must read for anyone wanting to write a plugin for MariaDB, written by the Sergei who designed the plugin interface for MySQL and MariaDB! 
+For MariaDB / MySQL end users
+* MariaDB Crash Course by Ben Forta
+o First MariaDB book!
+o For people who want to learn SQL and the basics of MariaDB.
+o Now shipping. Purchase at Amazon.com or your favorite bookseller. 
+* SQL-99 Complete, Really by Peter Gulutzan & Trudy Pelzer.
+o Everything you wanted to know about the SQL 99 standard. Excellent reference book!
+o Free to read in the Knowledgebase! 
+* MySQL (4th Edition) by Paul DuBois
+o The \'default\' book to read if you wont to learn to use MySQL / MariaDB. 
+* MySQL Cookbook by Paul DuBois
+o A lot of examples of how to use MySQL. As with all of Paul\'s books, it\'s worth its weight in gold and even enjoyable reading for such a \'dry\' subject. 
+* High Performance MySQL, Second Edition, By Baron Schwartz, Peter Zaitsev, Vadim Tkachenko, Jeremy D. Zawodny, Arjen Lentz, Derek J. Balling, et al.
+o \"High Performance MySQL is the definitive guide to building fast, reliable systems with MySQL. Written by noted experts with years of real-world experience building very large systems, this book covers every aspect of MySQL performance in detail, and focuses on robustness, security, and data integrity. Learn advanced techniques in depth so you can bring out MySQL\'s full power.\" (From the book description at O\'Reilly) 
+
+		 * MySQL Admin Cookbook
+			    o A quick step-by-step guide for MySQL users and database administrators to tackle real-world challenges with MySQL configuration and administration 
+
+		 * MySQL 5.0 Certification Study Guide, By Paul DuBois, Stefan Hinz, Carsten Pedersen
+			    o This is the official guide to cover the passing of the two MySQL Certification examinations. It is valid till version 5.0 of the server, so while it misses all the features available in MySQL 5.1 and greater (including MariaDB 5.1 and greater), it provides a good basic understanding of MySQL for the end-user. ',
+'There are several reasons why contributing code is one of the easiest and most rewarding ways to contribute to MariaDB:
+
+		1. We are very responsive toward reviews of submitted code and as soon as the review is done, the submitted code is merged into an existing MariaDB tree and made available to everyone, not just select customers.
+		2. Code reviews are performed by the MariaDB core development team and the quality, detail, and timeliness of our reviews are better than you will find elsewhere.
+		3. With MariaDB everyone has access to the latest code.
+		4. If a patch is very safe and/or very useful we are willing to push it into the stable code (as long as it can\'t break any existing applications). We are willing to do this to ensure the freedom to add small, needed fixes on a stable release so users don\'t have to wait a year for something to be added which is critical to their business.
+		5. If you are an active contributor, you can become a member of maria-captains, even if you aren\'t working for Monty Program Ab. All captains have the same rights as any other captain to accept and reject patches. Our development model is truly open for everyone. 
+The Contributing Code page details many of the actual steps involved in working with the MariaDB source code. It\'s important that you use the same tools and submit patches in the same way as other developers to keep development running smoothly.'
+	), ('text2','test1','test2');
+SELECT v0 FROM t1 WHERE MATCH(v1,v2) AGAINST ('contributing' IN NATURAL LANGUAGE MODE);
+v0
+INSERT INTO t1 (v0,v1,v2) VALUES ('text3','test','test');
+SELECT v0, MATCH(v1,v2) AGAINST('contributing' IN NATURAL LANGUAGE MODE) AS rating FROM t1 WHERE MATCH(v1,v2) AGAINST ('contributing' IN NATURAL LANGUAGE MODE);
+v0	rating
+text1	0.2809644043445587
+INSERT INTO t1 (v0,v1,v2) VALUES ('text4','Contributing more...','...is a good idea'),('text5','test','test');
+SELECT v0, MATCH(v1) AGAINST('contributing') AS rating FROM t1 WHERE MATCH(v1) AGAINST ('contributing');
+v0	rating
+text4	1.3705332279205322
+SELECT v0 FROM t1 WHERE MATCH(v1,v2) AGAINST ('-test1 +critical +Cook*' IN BOOLEAN MODE);
+v0
+text1
+SELECT v0 FROM t1 WHERE MATCH(v1,v2) AGAINST ('-patch +critical +Cook*' IN BOOLEAN MODE);
+v0
+SELECT v0, MATCH(v1,v2) AGAINST('database' WITH QUERY EXPANSION) AS rating FROM t1 WHERE MATCH(v1,v2) AGAINST ('database' WITH QUERY EXPANSION);
+v0	rating
+text1	190.56150817871094
+text4	1.1758291721343994
+DROP TABLE t1;

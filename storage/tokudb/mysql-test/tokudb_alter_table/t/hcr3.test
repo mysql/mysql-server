@@ -1,0 +1,31 @@
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=ON;
+
+create table foo (a int, b bigint, c char(10), d varchar(10), e text, primary key (a), key(b), key (d) clustering=yes)engine=TOkuDB;
+
+insert into foo values (1,10,"cc","dddd","eeeee");
+select * from foo;
+
+alter table foo change a aa int;
+show create table foo;
+select * from foo;
+explain select * from foo where aa > 0;
+select * from foo where aa > 0;
+
+alter table foo change b bb bigint;
+show create table foo;
+explain select bb from foo FORCE INDEX (b) where bb > 5;
+select bb from foo FORCE INDEX (b) where bb > 5;
+
+alter table foo change d dd varchar(10);
+show create table foo;
+explain select * from foo where dd > "d";
+select * from foo where dd > "d";
+
+drop table foo;

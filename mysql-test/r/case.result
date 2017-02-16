@@ -220,3 +220,27 @@ a	d
 3	11120436154190595086
 drop table t1, t2;
 End of 5.0 tests
+CREATE TABLE t1(a YEAR);
+SELECT 1 FROM t1 WHERE a=1 AND CASE 1 WHEN a THEN 1 ELSE 1 END;
+1
+DROP TABLE t1;
+create table t1 (f1 time);
+insert t1 values ('00:00:00'),('00:01:00');
+select case t1.f1 when '00:00:00' then 1 end from t1;
+case t1.f1 when '00:00:00' then 1 end
+1
+NULL
+drop table t1;
+#
+# MDEV-9745 Crash with CASE WHEN TRUE THEN COALESCE(CAST(NULL AS UNSIGNED)) ELSE 4 END
+#
+CREATE TABLE t1 SELECT CASE WHEN TRUE THEN COALESCE(CAST(NULL AS UNSIGNED)) ELSE 4 END AS a;
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+a	decimal(1,0)	YES		NULL	
+DROP TABLE t1;
+CREATE TABLE t1 SELECT CASE WHEN TRUE THEN COALESCE(CAST(NULL AS UNSIGNED)) ELSE 40 END AS a;
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+a	decimal(2,0)	YES		NULL	
+DROP TABLE t1;

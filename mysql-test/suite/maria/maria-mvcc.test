@@ -1,0 +1,108 @@
+#
+# Testing insert and select on a table with two threads
+# using locking
+#
+
+-- source include/have_maria.inc
+set global aria_page_checksum=1;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+connect (con1,localhost,root,,);
+connection con1;
+
+create table t1 (i int) engine=aria;
+show create table t1;
+
+# versioning is disabled when table is empty, so insert a row
+insert into t1 values (0);
+
+lock tables t1 write concurrent;
+insert into t1 values (1);
+insert into t1 values (2);
+/* should see 0, 1 and 2 */
+select i from t1;
+select count(*) from t1;
+
+connect (con2,localhost,root,,);
+connection con2;
+/* should see 0 */
+select i from t1;
+select count(*) from t1;
+lock tables t1 write concurrent;
+insert into t1 values (3);
+insert into t1 values (4);
+/* should see 0, 3 and 4 */
+select i from t1;
+select count(*) from t1;
+unlock tables;
+lock tables t1 write concurrent;
+insert into t1 values (5);
+/* should see 0, 3, 4 and 5 */
+select i from t1;
+select count(*) from t1;
+
+connect (con3,localhost,root,,);
+connection con3;
+lock tables t1 write concurrent;
+/* should see 0, 3, 4 */
+select i from t1;
+select count(*) from t1;
+
+connection con1;
+insert into t1 values (6);
+/* Should see 0, 1, 2, 6 */
+select i from t1;
+select count(*) from t1;
+unlock tables;
+lock tables t1 write concurrent;
+/* Should see 0, 1, 2, 3, 4 and 6 */
+select i from t1;
+select count(*) from t1;
+
+connection con2;
+/* should see 0, 3, 4, 5 */
+select i from t1;
+select count(*) from t1;
+unlock tables;
+/* should see 0, 1, 2, 3, 4, 5, 6 */
+select i from t1;
+select count(*) from t1;
+
+connection con1;
+unlock tables;
+/* should see 0, 1, 2, 3, 4, 5, 6 */
+select i from t1;
+select count(*) from t1;
+
+connection con3;
+insert into t1 values (7);
+/* should see 0, 3, 4, 7 */
+select i from t1;
+select count(*) from t1;
+unlock tables;
+/* should see 0, 1, 2, 3, 4, 5, 6, 7 */
+select i from t1;
+select count(*) from t1;
+
+connection default;
+drop table t1;
+
+#
+# Test count(*) for not versioned tables
+#
+
+CREATE TABLE t1 (fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY,    g GEOMETRY NOT NULL,   SPATIAL KEY(g) ) transactional=1 row_format=page engine=aria;
+
+lock tables t1 write concurrent, t1 as t2 write concurrent;
+insert into t1 (fid,g) values (NULL,GeomFromText('LineString(0 0,1 1)'));
+select fid from t1 as t2;
+select count(*) from t1 as t2;
+insert into t1 (fid,g) values (NULL,GeomFromText('LineString(0 0,1 1)'));
+select fid from t1 as t2;
+select count(*) from t1 as t2;
+unlock tables;
+drop table t1;
+

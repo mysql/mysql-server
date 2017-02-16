@@ -84,7 +84,6 @@ select count(*), min(7), max(7) from t2m, t1i;
 
 drop table t1m, t1i, t2m, t2i;
 
-
 --echo #
 --echo # Bug #57954: BIT_AND function returns incorrect results when 
 --echo #   semijoin=on
@@ -131,5 +130,61 @@ SELECT BIT_XOR(t1.b) FROM t1 JOIN t2 ON t1.c=t2.c WHERE t1.pk=1;
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#12713907: STRANGE OPTIMIZE & WRONG RESULT UNDER ORDER BY 
+--echo # COUNT(*) LIMIT.
+--echo #
+
+CREATE TABLE t1 (
+id BIGINT(20) ,
+member_id_to INT(11) ,
+r_date DATE ,
+PRIMARY KEY (id,r_date),
+KEY r_date_idx (r_date),
+KEY t1_idx01 (member_id_to)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES 
+(107924526,518491,'2011-05-01'),
+(107924527,518491,'2011-05-01'),
+(107924534,518491,'2011-06-21'),
+(107924535,518491,'2011-06-21'),
+(107924542,1601319,'2011-06-21'),
+(107924543,1601319,'2011-06-21'),
+(107924544,1601319,'2011-06-21'),
+(107924545,1601319,'2011-06-21');
+
+SELECT member_id_to, COUNT(*) FROM t1 WHERE r_date =
+  '2011-06-21' GROUP BY member_id_to ORDER BY 2 LIMIT 1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # MDEV-4269: crash when grouping by values()
+--echo #
+
+SELECT @@storage_engine INTO @old_engine;
+set storage_engine=innodb;
+
+create table y select 1 b;
+select 1 from y group by b;
+select 1 from y group by values(b);
+drop table y;
+SET storage_engine=@old_engine;
+
+### End of 5.1 tests
+
+--echo #
+--echo # Bug#13723054 CRASH WITH MIN/MAX AFTER QUICK_GROUP_MIN_MAX_SELECT::NEXT_MIN
+--echo #
+
+CREATE TABLE t1(a BLOB, b VARCHAR(255) CHARSET LATIN1, c INT,
+                KEY(b, c, a(765))) ENGINE=INNODB;
+INSERT INTO t1(a, b, c) VALUES ('', 'a', 0), ('', 'a', null), ('', 'a', 0);
+
+SELECT MIN(c) FROM t1 GROUP BY b;
+EXPLAIN SELECT MIN(c) FROM t1 GROUP BY b;
+
+DROP TABLE t1;
 
 --echo End of 5.5 tests

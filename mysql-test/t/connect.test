@@ -293,10 +293,137 @@ SET GLOBAL event_scheduler = OFF;
 --echo # -- End of Bug#35074.
 --echo
 
+# Test connections to the extra port.
+
+connect(extracon,127.0.0.1,root,,test,$MASTER_EXTRA_PORT,);
+connection extracon;
+SELECT 'Connection on extra port ok';
+
+connect(extracon2,127.0.0.1,root,,test,$MASTER_EXTRA_PORT,);
+connection extracon2;
+SELECT 'Connection on extra port 2 ok';
+
+--disable_abort_on_error
+--disable_result_log
+--disable_query_log
+connect(extracon3,127.0.0.1,root,,test,$MASTER_EXTRA_PORT,);
+--enable_query_log
+--enable_result_log
+--enable_abort_on_error
+let $error = $mysql_errno;
+if (!$error)
+{
+  --echo # -- Error: managed to establish more than --extra-max-connections + 1 connections
+}
+if ($error)
+{
+  --echo # -- Success: more than --extra-max-connections + 1 normal connections not possible
+}
+
+###########################################################################
+
+--echo #
+--echo # -- Bug#49752: 2469.126.2 unintentionally breaks authentication
+--echo #               against MySQL 5.1 server
+--echo #
+
+GRANT ALL ON test.* TO 'Azundris12345678'@'localhost' IDENTIFIED BY 'test123';
+
+FLUSH PRIVILEGES;
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+connect (con1,localhost,Azundris123456789,test123,test);
+disconnect con1;
+
+connection default;
+
+DROP USER 'Azundris12345678'@'localhost';
+
+FLUSH PRIVILEGES;
+
+--echo #
+--echo # -- End of Bug#49752
+--echo #
+
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.1 tests
 --echo # ------------------------------------------------------------------
 
+--disconnect extracon
+--disconnect extracon2
+--connection default
+
+#
+# A couple of plugin tests - for builtin plugins only
+#
+CREATE USER mysqltest_up1 IDENTIFIED VIA mysql_native_password using '*E8D46CE25265E545D225A8A6F1BAF642FEBEE5CB';
+CREATE USER mysqltest_up2 IDENTIFIED VIA mysql_old_password using '09301740536db389';
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(pcon1,localhost,mysqltest_up1,foo,,$MASTER_MYPORT,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+connect(pcon2,localhost,mysqltest_up1,bar,,$MASTER_MYPORT,);
+connection pcon2;
+select user(), current_user();
+disconnect pcon2;
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(pcon3,localhost,mysqltest_up2,newpw,,$MASTER_MYPORT,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+connect(pcon4,localhost,mysqltest_up2,oldpw,,$MASTER_MYPORT,);
+connection pcon4;
+select user(), current_user();
+disconnect pcon4;
+
+#
+# lpbug#683112 Maria 5.2 incorrectly reports "(using password: NO)"
+#              even when password is specified
+#
+# test "access denied" error for nonexisting user with and without a password
+#
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(pcon5,localhost,mysqltest_nouser,newpw,,$MASTER_MYPORT,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(pcon5,localhost,mysqltest_nouser,,,$MASTER_MYPORT,);
+
+connection default;
+DROP USER mysqltest_up1@'%';
+DROP USER mysqltest_up2@'%';
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
+
+
+--echo #
+--echo # BUG#1010351: New "via" keyword in 5.2+ can't be used as identifier anymore  
+--echo #
+create table t1 (via int);
+alter table t1 add key(via);
+drop table t1;
+
+create table t1 (col1 int);
+alter table t1 add via int not null;
+drop table t1;
+
+--disable_warnings
+drop procedure if exists p1;
+--enable_warnings
+
+delimiter |;
+create procedure p1(x int)
+foo: loop
+  if x = 0 then
+    leave foo;
+  end if;
+  select 'test';
+  set x = x-1;
+end loop foo|
+
+delimiter ;|
+call p1(2);
+drop procedure p1;
 

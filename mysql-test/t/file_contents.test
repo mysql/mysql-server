@@ -11,7 +11,7 @@
 --perl
 print "\nChecking 'INFO_SRC' and 'INFO_BIN'\n";
 $dir_bin = $ENV{'MYSQL_BINDIR'};
-if ($dir_bin =~ m|/usr/|) {
+if ($dir_bin eq '/usr/') {
   # RPM package
   $dir_docs = $dir_bin;
   $dir_docs =~ s|/lib|/share/doc|;
@@ -22,20 +22,22 @@ if ($dir_bin =~ m|/usr/|) {
     # RedHat: version number in directory name
     $dir_docs = glob "$dir_docs/MySQL-server*";
   }
-} elsif ($dir_bin =~ m|/usr$|) {
+} elsif ($dir_bin eq '/usr') {
   # RPM build during development
   $dir_docs = "$dir_bin/share/doc";
   if(-d "$dir_docs/packages") {
     # SuSE: "packages/" in the documentation path
     $dir_docs = glob "$dir_docs/packages/*-server*";
   } else {
-    # RedHat: version number in directory name
-    $dir_docs = glob "$dir_docs/MySQL-server*";
+    # RedHat/Debian: version number in directory name
+    $dir_docs = glob "$dir_docs/mariadb-server-*";
+    $dir_docs = glob "$dir_docs/MySQL-server*" unless -d $dir_docs;
   }
+  # Slackware
+  $dir_docs = glob "$dir_bin/doc/mariadb-[0-9]*" unless -d $dir_docs;
 } else {
   # tar.gz package, Windows, or developer work (in git)
   $dir_docs = $dir_bin;
-  $dir_docs =~ s|/lib||;
   if(-d "$dir_docs/docs") {
     $dir_docs = "$dir_docs/docs"; # package
   } else {

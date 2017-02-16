@@ -1,0 +1,10 @@
+#
+# MDEV-11241 Certain combining marks cause MariaDB to crash when doing Full-Text searches
+#
+set names utf8mb4;
+
+create table t1 (a int, b text, fulltext (b)) charset=utf8mb4 collate=utf8mb4_unicode_ci;
+insert t1 values (1000, 'C͓̙̯͔̩ͅͅi̩̘̜̲a̯̲̬̳̜̖̤o͕͓̜͓̺̖̗,̠̬͚ ̺T͇̲h͈̱e ̬̜D̖o̦̖͔̗͖̩̘c̣̼t̝͉̫̮̗o͉̫̭r̙͎̗.͓̪̥');
+select a from t1 where match(b) against ('ciao' in boolean mode);
+drop table t1;
+

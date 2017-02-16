@@ -1,0 +1,56 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (c CHAR <CUSTOM_COL_OPTIONS>,
+c0 CHAR(0) <CUSTOM_COL_OPTIONS>,
+c1 CHAR(1) <CUSTOM_COL_OPTIONS>,
+c20 CHAR(20) <CUSTOM_COL_OPTIONS>,
+c255 CHAR(255) <CUSTOM_COL_OPTIONS>
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW COLUMNS IN t1;
+Field	Type	Null	Key	Default	Extra
+c	char(1)	#	#	#	
+c0	char(0)	#	#	#	
+c1	char(1)	#	#	#	
+c20	char(20)	#	#	#	
+c255	char(255)	#	#	#	
+INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('','','','','');
+INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('a','','b','abcdefghi klmnopqrst', 'Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn\'t already exist which would work.');
+SELECT c,c0,c1,c20,c255 FROM t1;
+c	c0	c1	c20	c255
+				
+a		b	abcdefghi klmnopqrst	Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn't already exist which would work.
+INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('abc', 'a', 'abc', REPEAT('a',21), REPEAT('x',256));
+Warnings:
+Warning	1265	Data truncated for column 'c' at row 1
+Warning	1265	Data truncated for column 'c0' at row 1
+Warning	1265	Data truncated for column 'c1' at row 1
+Warning	1265	Data truncated for column 'c20' at row 1
+Warning	1265	Data truncated for column 'c255' at row 1
+INSERT INTO t1 (c,c0,c1,c20,c255) SELECT c255, c255, c255, c255, CONCAT(c255,c1) FROM t1;
+Warnings:
+Warning	1265	Data truncated for column 'c' at row 2
+Warning	1265	Data truncated for column 'c0' at row 2
+Warning	1265	Data truncated for column 'c1' at row 2
+Warning	1265	Data truncated for column 'c20' at row 2
+Warning	1265	Data truncated for column 'c' at row 3
+Warning	1265	Data truncated for column 'c0' at row 3
+Warning	1265	Data truncated for column 'c1' at row 3
+Warning	1265	Data truncated for column 'c20' at row 3
+Warning	1265	Data truncated for column 'c255' at row 3
+SELECT c,c0,c1,c20,c255 FROM t1;
+c	c0	c1	c20	c255
+				
+				
+C		C	Creating an article	Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn't already exist which would work.b
+a		a	aaaaaaaaaaaaaaaaaaaa	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+a		b	abcdefghi klmnopqrst	Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn't already exist which would work.
+x		x	xxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+SELECT DISTINCT c20, REPEAT('a',LENGTH(c20)), COUNT(*) FROM t1 GROUP BY c1, c20;
+c20	REPEAT('a',LENGTH(c20))	COUNT(*)
+		2
+Creating an article	aaaaaaaaaaaaaaaaaaa	1
+aaaaaaaaaaaaaaaaaaaa	aaaaaaaaaaaaaaaaaaaa	1
+abcdefghi klmnopqrst	aaaaaaaaaaaaaaaaaaaa	1
+xxxxxxxxxxxxxxxxxxxx	aaaaaaaaaaaaaaaaaaaa	1
+ALTER TABLE t1 ADD COLUMN c257 CHAR(257) <CUSTOM_COL_OPTIONS>;
+ERROR 42000: Column length too big for column 'c257' (max = 255); use BLOB or TEXT instead
+DROP TABLE t1;

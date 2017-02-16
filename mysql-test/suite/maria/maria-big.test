@@ -1,0 +1,74 @@
+# Test of scenarios potentially too big for --valgrind or --mem
+--source include/have_maria.inc
+--source include/big_test.inc
+
+let $default_max_allowed_packet=`select @@global.max_allowed_packet`;
+set global max_allowed_packet=400000000;
+# need new session to use setting above
+connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection root;
+
+enable_info;
+set storage_engine=aria;
+disable_warnings;
+drop table if exists t1, t2;
+enable_warnings;
+
+#
+# Test generating data with insert select
+# This test case failed once a long time ago
+#
+
+create table t1(a char(3));
+insert into t1 values("abc");
+insert into t1 select "def" from t1;
+insert into t1 select "ghi" from t1;
+insert into t1 select "jkl" from t1;
+insert into t1 select "mno" from t1;
+insert into t1 select "pqr" from t1;
+insert into t1 select "stu" from t1;
+insert into t1 select "vwx" from t1;
+insert into t1 select "yza" from t1;
+insert into t1 select "ceg" from t1;
+insert into t1 select "ikm" from t1;
+insert into t1 select "oqs" from t1;
+select count(*) from t1;
+insert into t1 select "uwy" from t1;
+create table t2 select * from t1;
+select count(*) from t1;
+select count(*) from t2;
+drop table t1, t2;
+
+#
+# Test creating a really big blob (up to 16M)
+#
+
+create table t1 (a int, b longtext);
+insert into t1 values (1,"123456789012345678901234567890"),(2,"09876543210987654321");
+
+let $loop=23;
+while ($loop)
+{
+  update t1 set b=CONCAT(b,b);
+  dec $loop;
+}
+select a,length(b) from t1;
+check table t1;
+let $loop=22;
+while ($loop)
+{
+  update t1 set b=mid(b,1,length(b)/2);
+  dec $loop;
+}
+select a,length(b) from t1;
+check table t1;
+
+drop table t1;
+
+# Set defaults back
+--disable_result_log
+--disable_query_log
+set global aria_log_file_size=default;
+set global max_allowed_packet=default;
+--enable_result_log
+--enable_query_log

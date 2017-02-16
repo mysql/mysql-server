@@ -13,7 +13,7 @@ use events_test;
 # mysql.event intact checking end
 #
 
-create event e_26 on schedule at '2017-01-01 00:00:00' disable do set @a = 5;
+create event e_26 on schedule at '2027-01-01 00:00:00' disable do set @a = 5;
 select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from mysql.event;
 drop event e_26;
 --error ER_WRONG_VALUE
@@ -67,10 +67,10 @@ select /*2*/ user, host, db, command, state, info
 select release_lock("test_lock2");
 drop event закачка;
 
-# Wait for release_lock("test_lock2") to complete,
+# Wait for get_lock("test_lock2") to complete,
 # to avoid polluting the next test information_schema.processlist
 let $wait_condition= select count(*) = 0 from information_schema.processlist
-  where (state like 'User lock%' AND info like 'select get_lock%');
+  where info='select get_lock("test_lock2", 20)';
 --source include/wait_condition.inc
 
 

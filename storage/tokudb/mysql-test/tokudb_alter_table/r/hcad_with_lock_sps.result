@@ -1,0 +1,180 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+DROP TABLE IF EXISTS foo;
+drop procedure if exists p0;
+drop procedure if exists p1;
+drop function if exists f0;
+set session tokudb_disable_slow_alter=ON;
+create table foo (a int, b int, c int, key (b) clustering=yes)engine=TokuDB;
+insert into foo values (1,10,100),(2,20,200),(3,30,300);
+set autocommit=off;
+insert into foo values (4,40,400);
+alter table foo add column z int default 999 first;
+explain select * from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	NULL	b	5	NULL	4	Using index
+select * from foo;
+z	a	b	c
+999	1	10	100
+999	2	20	200
+999	3	30	300
+999	4	40	400
+explain select * from foo where b > 20;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	b	b	5	NULL	2	Using where; Using index
+select* from foo where b > 10;
+z	a	b	c
+999	2	20	200
+999	3	30	300
+999	4	40	400
+set autocommit=on;
+begin;
+alter table foo drop column z;
+explain select * from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	NULL	b	5	NULL	4	Using index
+select * from foo;
+a	b	c
+1	10	100
+2	20	200
+3	30	300
+4	40	400
+explain select * from foo where b > 20;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	b	b	5	NULL	2	Using where; Using index
+select* from foo where b > 10;
+a	b	c
+2	20	200
+3	30	300
+4	40	400
+lock tables foo write;
+alter table foo add column z int;
+explain select * from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	NULL	b	5	NULL	4	Using index
+select * from foo;
+a	b	c	z
+1	10	100	NULL
+2	20	200	NULL
+3	30	300	NULL
+4	40	400	NULL
+explain select * from foo where b > 20;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	b	b	5	NULL	2	Using where; Using index
+select* from foo where b > 10;
+a	b	c	z
+2	20	200	NULL
+3	30	300	NULL
+4	40	400	NULL
+unlock tables;
+select * from foo;
+a	b	c	z
+1	10	100	NULL
+2	20	200	NULL
+3	30	300	NULL
+4	40	400	NULL
+select * from foo where b > 10;
+a	b	c	z
+2	20	200	NULL
+3	30	300	NULL
+4	40	400	NULL
+create procedure p0()
+begin
+alter table foo drop column z;
+explain select * from foo;
+select * from foo;
+explain select * from foo where b > 20;
+select* from foo where b > 10;
+end |
+call p0();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	NULL	b	5	NULL	4	Using index
+a	b	c
+1	10	100
+2	20	200
+3	30	300
+4	40	400
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	b	b	5	NULL	2	Using where; Using index
+a	b	c
+2	20	200
+3	30	300
+4	40	400
+explain select * from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	NULL	b	5	NULL	4	Using index
+select * from foo;
+a	b	c
+1	10	100
+2	20	200
+3	30	300
+4	40	400
+explain select * from foo where b > 20;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	b	b	5	NULL	2	Using where; Using index
+select* from foo where b > 10;
+a	b	c
+2	20	200
+3	30	300
+4	40	400
+create function f0() returns int
+begin
+alter table foo add column ggg int;
+end|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+set autocommit=0;
+create procedure p1()
+begin
+insert into foo values(5,50,500);
+select * from foo;
+savepoint x;
+alter table foo add column g int;
+explain select * from foo;
+select * from foo;
+select * from foo where b > 10;
+explain select * from foo where b > 20;
+end|
+call p1();
+a	b	c
+1	10	100
+2	20	200
+3	30	300
+4	40	400
+5	50	500
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	NULL	b	5	NULL	5	Using index
+a	b	c	g
+1	10	100	NULL
+2	20	200	NULL
+3	30	300	NULL
+4	40	400	NULL
+5	50	500	NULL
+a	b	c	g
+2	20	200	NULL
+3	30	300	NULL
+4	40	400	NULL
+5	50	500	NULL
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	b	b	5	NULL	3	Using where; Using index
+set autocommit=on;
+explain select * from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	NULL	b	5	NULL	5	Using index
+select * from foo;
+a	b	c	g
+1	10	100	NULL
+2	20	200	NULL
+3	30	300	NULL
+4	40	400	NULL
+5	50	500	NULL
+explain select * from foo where b > 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	range	b	b	5	NULL	4	Using where; Using index
+select * from foo where b > 10;
+a	b	c	g
+2	20	200	NULL
+3	30	300	NULL
+4	40	400	NULL
+5	50	500	NULL
+drop table foo;
+drop procedure p0;
+drop procedure p1;

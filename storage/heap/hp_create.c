@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2014, SkySQL Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +44,10 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
       hp_free(share);
       share= 0;
     }
+  }  
+  else
+  {
+    DBUG_PRINT("info", ("Creating internal (no named) temporary table"));
   }
   *created_new_share= (share == NULL);
 
@@ -109,6 +114,14 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
             one type
           */
           keyinfo->seg[j].type= HA_KEYTYPE_VARTEXT1;
+          break;
+        case HA_KEYTYPE_BIT:
+          /*
+            The odd bits which stored separately (if they are present
+            (bit_pos, bit_length)) are already present in seg[j].length as
+            additional byte.
+            See field.h, function key_length()
+          */
           break;
 	default:
 	  break;
@@ -231,19 +244,38 @@ static int keys_compare(heap_rb_param *param, uchar *key1, uchar *key2)
 static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
 		       ulong max_records)
 {
-  uint i,recbuffer,records_in_block;
+  ulong i,recbuffer,records_in_block;
 
-  max_records= max(min_records,max_records);
+  /*
+    If not min_records and max_records are given, optimize for 1000 rows
+  */
+  if (!min_records)
+    min_records= min(1000, max_records);
   if (!max_records)
-    max_records= 1000;			/* As good as quess as anything */
-  recbuffer= (uint) (reclength + sizeof(uchar**) - 1) & ~(sizeof(uchar**) - 1);
-  records_in_block= max_records / 10;
-  if (records_in_block < 10 && max_records)
+    max_records= max(min_records, 1000);
+
+  /*
+    We don't want too few records_in_block as otherwise the overhead of
+    of the HP_PTRS block will be too notable
+  */
+  records_in_block= max(1000, min_records);
+  records_in_block= min(records_in_block, max_records);
+  /* If big max_records is given, allocate bigger blocks */
+  records_in_block= max(records_in_block, max_records / 10);
+  /* We don't want too few blocks per row either */
+  if (records_in_block < 10)
     records_in_block= 10;
-  if (!records_in_block || (ulonglong) records_in_block * recbuffer >
+
+  recbuffer= (uint) (reclength + sizeof(uchar**) - 1) & ~(sizeof(uchar**) - 1);
+  /*
+    Don't allocate more than my_default_record_cache_size per level.
+    The + 1 is there to ensure that we get at least 1 row per level (for
+    the exceptional case of very long rows)
+  */
+  if ((ulonglong) records_in_block*recbuffer >
       (my_default_record_cache_size-sizeof(HP_PTRS)*HP_MAX_LEVELS))
     records_in_block= (my_default_record_cache_size - sizeof(HP_PTRS) *
-		      HP_MAX_LEVELS) / recbuffer + 1;
+                       HP_MAX_LEVELS) / recbuffer + 1;
   block->records_in_block= records_in_block;
   block->recbuffer= recbuffer;
   block->last_allocated= 0L;
@@ -257,10 +289,15 @@ static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
 
 static inline void heap_try_free(HP_SHARE *share)
 {
+  DBUG_ENTER("heap_try_free");
   if (share->open_count == 0)
     hp_free(share);
   else
+  {
+    DBUG_PRINT("info", ("Table is still in use. Will be freed on close"));
     share->delete_on_close= 1;
+  }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -279,6 +316,7 @@ int heap_delete_table(const char *name)
   else
   {
     result= my_errno=ENOENT;
+    DBUG_PRINT("error", ("Could not find table '%s'", name));
   }
   mysql_mutex_unlock(&THR_LOCK_heap);
   DBUG_RETURN(result);

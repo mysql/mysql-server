@@ -1,0 +1,19 @@
+drop table if exists t1;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+drop table t1;
+#
+# MDEV-3870 - Valgrind warnings on OPTIMIZE MyISAM or Aria TABLE with
+#             disabled keys
+#
+CREATE TABLE t1 (a INT, KEY(a)) ENGINE=Aria;
+INSERT INTO t1 VALUES (4),(3),(1),(0);
+ALTER TABLE t1 DISABLE KEYS;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+DROP TABLE t1;

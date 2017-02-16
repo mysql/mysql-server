@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates
+   Copyright (c) 1985, 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -101,6 +102,7 @@ static FILE *my_win_freopen(const char *path, const char *mode, FILE *stream)
   HANDLE osfh;
 
   DBUG_ASSERT(path && stream);
+  DBUG_ASSERT(strchr(mode, 'a')); /* We use FILE_APPEND_DATA below */
 
   /* Services don't have stdout/stderr on Windows, so _fileno returns -1. */
   if (fd < 0)
@@ -111,15 +113,14 @@ static FILE *my_win_freopen(const char *path, const char *mode, FILE *stream)
     fd= _fileno(stream);
   }
 
-  if ((osfh= CreateFile(path, GENERIC_READ | GENERIC_WRITE,
+  if ((osfh= CreateFile(path, GENERIC_READ | FILE_APPEND_DATA,
                         FILE_SHARE_READ | FILE_SHARE_WRITE |
                         FILE_SHARE_DELETE, NULL,
                         OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL,
                         NULL)) == INVALID_HANDLE_VALUE)
     return NULL;
 
-  if ((handle_fd= _open_osfhandle((intptr_t)osfh,
-                                  _O_APPEND | _O_TEXT)) == -1)
+  if ((handle_fd= _open_osfhandle((intptr_t)osfh, _O_TEXT)) == -1)
   {
     CloseHandle(osfh);
     return NULL;
@@ -264,7 +265,7 @@ FILE *my_fdopen(File Filedes, const char *name, int Flags, myf MyFlags)
   FILE *fd;
   char type[5];
   DBUG_ENTER("my_fdopen");
-  DBUG_PRINT("my",("Fd: %d  Flags: %d  MyFlags: %d",
+  DBUG_PRINT("my",("fd: %d  Flags: %d  MyFlags: %d",
 		   Filedes, Flags, MyFlags));
 
   make_ftype(type,Flags);

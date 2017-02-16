@@ -1,0 +1,42 @@
+# ulong session
+
+SET @start_global_value = @@global.progress_report_time;
+
+#
+# exists as global only
+#
+select @@global.progress_report_time;
+select @@session.progress_report_time;
+show global variables like 'progress_report_time';
+show session variables like 'progress_report_time';
+select * from information_schema.global_variables where variable_name='progress_report_time';
+select * from information_schema.session_variables where variable_name='progress_report_time';
+
+#
+# show that it's writable
+#
+set global progress_report_time=10;
+select @@global.progress_report_time;
+set session progress_report_time=10;
+select @@session.progress_report_time;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global progress_report_time=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session progress_report_time=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global progress_report_time="foo";
+
+#
+# min/max values, block size
+#
+set global progress_report_time=0;
+select @@global.progress_report_time;
+set session progress_report_time=cast(-1 as unsigned int);
+select @@session.progress_report_time;
+
+SET @@global.progress_report_time = @start_global_value;
+

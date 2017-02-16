@@ -1,0 +1,38 @@
+# ticket 895 is a query optimization problem with the primary key
+
+--source include/have_tokudb.inc
+--source include/not_5_5.inc
+--echo # Establish connection conn1 (user = root)
+connect (conn1,localhost,root,,);
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+connection conn1;
+create table foo ( a int, b int, c int, key (a), key (b));
+insert into foo values (1,10,100);
+begin;
+insert into foo values (2,20,200);
+
+connection default;
+select * from foo;
+--error ER_BAD_TABLE_ERROR
+drop table foo;
+--error ER_ERROR_ON_RENAME
+rename table foo to bar;
+--error ER_LOCK_WAIT_TIMEOUT
+truncate table foo;
+--error ER_LOCK_WAIT_TIMEOUT
+alter table foo drop index a;
+
+connection conn1;
+commit;
+
+connection default;
+disconnect conn1;
+
+connection default;
+# Final cleanup.
+DROP TABLE foo;

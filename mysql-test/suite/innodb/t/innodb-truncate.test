@@ -1,5 +1,4 @@
 --source include/have_innodb.inc
-
 --echo #
 --echo # TRUNCATE TABLE
 --echo #

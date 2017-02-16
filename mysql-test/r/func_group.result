@@ -1,4 +1,4 @@
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3,t4,t5,t6;
 set @sav_dpi= @@div_precision_increment;
 set div_precision_increment= 5;
 show variables like 'div_precision_increment';
@@ -215,6 +215,8 @@ a1	a2	a1	a2
 10	bbb	BBB	20
 20	zzz	AAA	10
 20	zzz	BBB	20
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 select max(t1.a1), max(t2.a1) from t1, t2 where t2.a2=9;
 max(t1.a1)	max(t2.a1)
 NULL	NULL
@@ -245,6 +247,7 @@ NULL
 select max(t1.a2),max(t2.a1) from t1 left outer join t2 on t1.a1=10;
 max(t1.a2)	max(t2.a1)
 zzz	BBB
+SET optimizer_switch=@save_optimizer_switch;
 drop table t1,t2;
 CREATE TABLE t1 (a int, b int);
 select count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1;
@@ -614,7 +617,7 @@ explain
 select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 > 'CA';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	k1	k1	7	NULL	1	Using where; Using index
-1	SIMPLE	t2	range	k1	k1	3	NULL	4	Using where; Using index; Using join buffer
+1	SIMPLE	t2	range	k1	k1	3	NULL	4	Using where; Using index; Using join buffer (flat, BNL join)
 explain
 select min(a4 - 0.01) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -651,7 +654,7 @@ explain
 select concat(min(t1.a1),min(t2.a4)) from t1, t2 where t2.a4 <> 'AME';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	range	k2	k2	4	NULL	6	Using where; Using index
-1	SIMPLE	t1	index	NULL	PRIMARY	3	NULL	15	Using index; Using join buffer
+1	SIMPLE	t1	index	NULL	PRIMARY	3	NULL	15	Using index; Using join buffer (flat, BNL join)
 drop table t1, t2;
 create table t1 (a char(10));
 insert into t1 values ('a'),('b'),('c');
@@ -1333,7 +1336,7 @@ CREATE TABLE t2( a INT, b INT, c INT, KEY(a, b) );
 INSERT INTO t2 ( a, b, c ) VALUES ( 1, NULL, 2 ), ( 1, 3, 4 ), ( 1, 4, 4 );
 EXPLAIN SELECT MIN(b), MIN(c) FROM t2 WHERE a = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	a	a	5	const	2	Using where
+1	SIMPLE	t2	ref	a	a	5	const	2	
 SELECT MIN(b), MIN(c) FROM t2 WHERE a = 1;
 MIN(b)	MIN(c)
 3	2
@@ -1455,6 +1458,8 @@ DROP TABLE derived1;
 DROP TABLE D;
 CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (1,1), (1,2), (1,3);
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (3),(4);
 SET SQL_MODE='ONLY_FULL_GROUP_BY';
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -1470,12 +1475,19 @@ COUNT(*)
 SELECT COUNT(*), (SELECT count(*) FROM t1 inr WHERE inr.a = outr.a) 
 FROM t1 outr;
 ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+SELECT COUNT(*) FROM t1 outr, (SELECT b, count(*) FROM t2) as t3;
+ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+SELECT COUNT(*) FROM t1 outr where (1,1) in (SELECT a, count(*) FROM t2);
+COUNT(*)
+0
 SELECT COUNT(*) FROM t1 a JOIN t1 outr 
 ON a.a= (SELECT count(*) FROM t1 inr WHERE inr.a = outr.a);
 COUNT(*)
 0
+SELECT * FROM (SELECT a FROM t1 GROUP BY a) sq JOIN t2 ON a = b;
+a	b
 SET SQL_MODE=default;
-DROP TABLE t1;
+DROP TABLE t1,t2;
 End of 5.0 tests
 #
 # BUG#47280 - strange results from count(*) with order by multiple 
@@ -1532,7 +1544,8 @@ insert into t1 values
 (02,2002,20020101,"2002-01-01 23:59:59"),
 (60,2060,20600101,"2060-01-01 11:11:11"),
 (70,1970,19700101,"1970-11-11 22:22:22"),
-(NULL,NULL,NULL,NULL);
+(NULL,NULL,NULL,NULL),
+(71,1971,19710101,"1971-11-11 22:22:22");
 select min(f1),max(f1) from t1;
 min(f1)	max(f1)
 70	60
@@ -1555,36 +1568,49 @@ a	b	gt	lt	eq
 60	98	1	0	0
 70	98	0	1	0
 NULL	98	NULL	NULL	0
+71	98	0	1	0
 98	00	0	1	0
 00	00	0	0	1
 02	00	1	0	0
 60	00	1	0	0
 70	00	0	1	0
 NULL	00	NULL	NULL	0
+71	00	0	1	0
 98	02	0	1	0
 00	02	0	1	0
 02	02	0	0	1
 60	02	1	0	0
 70	02	0	1	0
 NULL	02	NULL	NULL	0
+71	02	0	1	0
 98	60	0	1	0
 00	60	0	1	0
 02	60	0	1	0
 60	60	0	0	1
 70	60	0	1	0
 NULL	60	NULL	NULL	0
+71	60	0	1	0
 98	70	1	0	0
 00	70	1	0	0
 02	70	1	0	0
 60	70	1	0	0
 70	70	0	0	1
 NULL	70	NULL	NULL	0
+71	70	1	0	0
 98	NULL	NULL	NULL	0
 00	NULL	NULL	NULL	0
 02	NULL	NULL	NULL	0
 60	NULL	NULL	NULL	0
 70	NULL	NULL	NULL	0
 NULL	NULL	NULL	NULL	1
+71	NULL	NULL	NULL	0
+98	71	1	0	0
+00	71	1	0	0
+02	71	1	0	0
+60	71	1	0	0
+70	71	0	1	0
+NULL	71	NULL	NULL	0
+71	71	0	0	1
 select a.f1 as a, b.f2 as b, a.f1 > b.f2 as gt,
 a.f1 < b.f2 as lt, a.f1<=>b.f2 as eq
 from t1 a, t1 b;
@@ -1595,36 +1621,49 @@ a	b	gt	lt	eq
 60	1998	1	0	0
 70	1998	0	1	0
 NULL	1998	NULL	NULL	0
+71	1998	0	1	0
 98	2000	0	1	0
 00	2000	0	0	1
 02	2000	1	0	0
 60	2000	1	0	0
 70	2000	0	1	0
 NULL	2000	NULL	NULL	0
+71	2000	0	1	0
 98	2002	0	1	0
 00	2002	0	1	0
 02	2002	0	0	1
 60	2002	1	0	0
 70	2002	0	1	0
 NULL	2002	NULL	NULL	0
+71	2002	0	1	0
 98	2060	0	1	0
 00	2060	0	1	0
 02	2060	0	1	0
 60	2060	0	0	1
 70	2060	0	1	0
 NULL	2060	NULL	NULL	0
+71	2060	0	1	0
 98	1970	1	0	0
 00	1970	1	0	0
 02	1970	1	0	0
 60	1970	1	0	0
 70	1970	0	0	1
 NULL	1970	NULL	NULL	0
+71	1970	1	0	0
 98	NULL	NULL	NULL	0
 00	NULL	NULL	NULL	0
 02	NULL	NULL	NULL	0
 60	NULL	NULL	NULL	0
 70	NULL	NULL	NULL	0
 NULL	NULL	NULL	NULL	1
+71	NULL	NULL	NULL	0
+98	1971	1	0	0
+00	1971	1	0	0
+02	1971	1	0	0
+60	1971	1	0	0
+70	1971	0	1	0
+NULL	1971	NULL	NULL	0
+71	1971	0	0	1
 select a.f1 as a, b.f3 as b, a.f1 > b.f3 as gt,
 a.f1 < b.f3 as lt, a.f1<=>b.f3 as eq
 from t1 a, t1 b;
@@ -1635,36 +1674,49 @@ a	b	gt	lt	eq
 60	1998-01-01	1	0	0
 70	1998-01-01	0	1	0
 NULL	1998-01-01	NULL	NULL	0
+71	1998-01-01	0	1	0
 98	2000-01-01	0	1	0
 00	2000-01-01	0	1	0
 02	2000-01-01	1	0	0
 60	2000-01-01	1	0	0
 70	2000-01-01	0	1	0
 NULL	2000-01-01	NULL	NULL	0
+71	2000-01-01	0	1	0
 98	2002-01-01	0	1	0
 00	2002-01-01	0	1	0
 02	2002-01-01	0	1	0
 60	2002-01-01	1	0	0
 70	2002-01-01	0	1	0
 NULL	2002-01-01	NULL	NULL	0
+71	2002-01-01	0	1	0
 98	2060-01-01	0	1	0
 00	2060-01-01	0	1	0
 02	2060-01-01	0	1	0
 60	2060-01-01	0	1	0
 70	2060-01-01	0	1	0
 NULL	2060-01-01	NULL	NULL	0
+71	2060-01-01	0	1	0
 98	1970-01-01	1	0	0
 00	1970-01-01	1	0	0
 02	1970-01-01	1	0	0
 60	1970-01-01	1	0	0
 70	1970-01-01	0	1	0
 NULL	1970-01-01	NULL	NULL	0
+71	1970-01-01	1	0	0
 98	NULL	NULL	NULL	0
 00	NULL	NULL	NULL	0
 02	NULL	NULL	NULL	0
 60	NULL	NULL	NULL	0
 70	NULL	NULL	NULL	0
 NULL	NULL	NULL	NULL	1
+71	NULL	NULL	NULL	0
+98	1971-01-01	1	0	0
+00	1971-01-01	1	0	0
+02	1971-01-01	1	0	0
+60	1971-01-01	1	0	0
+70	1971-01-01	0	1	0
+NULL	1971-01-01	NULL	NULL	0
+71	1971-01-01	0	1	0
 select a.f1 as a, b.f4 as b, a.f1 > b.f4 as gt,
 a.f1 < b.f4 as lt, a.f1<=>b.f4 as eq
 from t1 a, t1 b;
@@ -1675,36 +1727,49 @@ a	b	gt	lt	eq
 60	1998-01-01 00:00:00	1	0	0
 70	1998-01-01 00:00:00	0	1	0
 NULL	1998-01-01 00:00:00	NULL	NULL	0
+71	1998-01-01 00:00:00	0	1	0
 98	2000-01-01 00:00:01	0	1	0
 00	2000-01-01 00:00:01	0	1	0
 02	2000-01-01 00:00:01	1	0	0
 60	2000-01-01 00:00:01	1	0	0
 70	2000-01-01 00:00:01	0	1	0
 NULL	2000-01-01 00:00:01	NULL	NULL	0
+71	2000-01-01 00:00:01	0	1	0
 98	2002-01-01 23:59:59	0	1	0
 00	2002-01-01 23:59:59	0	1	0
 02	2002-01-01 23:59:59	0	1	0
 60	2002-01-01 23:59:59	1	0	0
 70	2002-01-01 23:59:59	0	1	0
 NULL	2002-01-01 23:59:59	NULL	NULL	0
+71	2002-01-01 23:59:59	0	1	0
 98	2060-01-01 11:11:11	0	1	0
 00	2060-01-01 11:11:11	0	1	0
 02	2060-01-01 11:11:11	0	1	0
 60	2060-01-01 11:11:11	0	1	0
 70	2060-01-01 11:11:11	0	1	0
 NULL	2060-01-01 11:11:11	NULL	NULL	0
+71	2060-01-01 11:11:11	0	1	0
 98	1970-11-11 22:22:22	1	0	0
 00	1970-11-11 22:22:22	1	0	0
 02	1970-11-11 22:22:22	1	0	0
 60	1970-11-11 22:22:22	1	0	0
 70	1970-11-11 22:22:22	0	1	0
 NULL	1970-11-11 22:22:22	NULL	NULL	0
+71	1970-11-11 22:22:22	1	0	0
 98	NULL	NULL	NULL	0
 00	NULL	NULL	NULL	0
 02	NULL	NULL	NULL	0
 60	NULL	NULL	NULL	0
 70	NULL	NULL	NULL	0
 NULL	NULL	NULL	NULL	1
+71	NULL	NULL	NULL	0
+98	1971-11-11 22:22:22	1	0	0
+00	1971-11-11 22:22:22	1	0	0
+02	1971-11-11 22:22:22	1	0	0
+60	1971-11-11 22:22:22	1	0	0
+70	1971-11-11 22:22:22	0	1	0
+NULL	1971-11-11 22:22:22	NULL	NULL	0
+71	1971-11-11 22:22:22	0	1	0
 select *, f1 = f2 from t1;
 f1	f2	f3	f4	f1 = f2
 98	1998	1998-01-01	1998-01-01 00:00:00	1
@@ -1713,6 +1778,7 @@ f1	f2	f3	f4	f1 = f2
 60	2060	2060-01-01	2060-01-01 11:11:11	1
 70	1970	1970-01-01	1970-11-11 22:22:22	1
 NULL	NULL	NULL	NULL	NULL
+71	1971	1971-01-01	1971-11-11 22:22:22	1
 drop table t1;
 #
 # Bug #54465: assert: field_types == 0 || field_types[field_pos] ==
@@ -1759,7 +1825,330 @@ MAX(f1)
 2001
 DROP TABLE t1;
 #
+# LP BUG#813418 - incorrect optimisation of max/min by index for
+# negated BETWEEN
+CREATE TABLE t1 (a int, KEY (a));
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+SELECT MAX(a) FROM t1 WHERE a NOT BETWEEN 3 AND 9;
+MAX(a)
+10
+drop table t1;
+#
 End of 5.1 tests
+#
+# Bug #904345: MIN/MAX optimization  with constant FALSE condition
+#
+CREATE TABLE t1 (a int NOT NULL, KEY(a));
+INSERT INTO t1 VALUES (10), (8), (11), (7), (15), (12), (9);
+CREATE TABLE t2 (a int, b int);
+INSERT INTO t2 VALUES
+(8,2), (6,9), (8,4), (5,3), (9,1);
+EXPLAIN EXTENDED
+SELECT MAX(a) FROM t1 WHERE (1,2) IN (SELECT 3,4) AND a<10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1` where 0
+SELECT MAX(a) FROM t1 WHERE (1,2) IN (SELECT 3,4) AND a<10;
+MAX(a)
+NULL
+EXPLAIN EXTENDED
+SELECT MAX(a) FROM t1 WHERE (1,2) IN (SELECT a,b FROM t2 WHERE b<5) and a<10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	8	func,func	1	100.00	
+1	PRIMARY	t1	range	a	a	4	NULL	4	100.00	Using where; Using index; Using join buffer (flat, BNL join)
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+Warnings:
+Note	1003	select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`a` = 1) and (`test`.`t2`.`b` = 2) and (`test`.`t1`.`a` < 10))
+SELECT MAX(a) FROM t1 WHERE (1,2) IN (SELECT a,b FROM t2 WHERE b<5) and a<10;
+MAX(a)
+NULL
+EXPLAIN EXTENDED
+SELECT MAX(a) FROM t1 WHERE RAND()*0<>0 AND a<10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	range	a	a	4	NULL	4	100.00	Using where; Using index
+Warnings:
+Note	1003	select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1` where (((rand() * 0) <> 0) and (`test`.`t1`.`a` < 10))
+SELECT MAX(a) FROM t1 WHERE RAND()*0<>0 AND a<10;
+MAX(a)
+NULL
+DROP TABLE t1,t2;
+#
+# Bug #879860: MIN/MAX for subquery returning empty set 
+#
+CREATE TABLE t1 (a int PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (a int NOT NULL);
+INSERT INTO t2 VALUES (10);
+CREATE TABLE t3 ( a int, b int);
+INSERT INTO t3 VALUES (19,1), (20,5);
+EXPLAIN EXTENDED
+SELECT (SELECT MIN(t1.a) FROM t1,t2 WHERE t2.a = t3.b) FROM t3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	DEPENDENT SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+Warnings:
+Note	1276	Field or reference 'test.t3.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	select <expr_cache><`test`.`t3`.`b`>((select min(1) from dual where (10 = `test`.`t3`.`b`))) AS `(SELECT MIN(t1.a) FROM t1,t2 WHERE t2.a = t3.b)` from `test`.`t3`
+SELECT (SELECT MIN(t1.a) FROM t1,t2 WHERE t2.a = t3.b) FROM t3;
+(SELECT MIN(t1.a) FROM t1,t2 WHERE t2.a = t3.b)
+NULL
+NULL
+DROP TABLE t1,t2,t3;
+#
+# Bug #884175: MIN/MAX for short varchar = long const  
+#
+CREATE TABLE t1 (f1 varchar(1), f2 varchar(1), KEY (f2));
+INSERT INTO t1 VALUES ('b', 'b'), ('a','a');
+EXPLAIN 
+SELECT MAX(f1) FROM t1 WHERE f1 = 'abc';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT MAX(f1) FROM t1 WHERE f1 = 'abc';
+MAX(f1)
+NULL
+EXPLAIN
+SELECT MAX(f2) FROM t1 WHERE f2 = 'abc';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	f2	f2	4	const	1	Using where; Using index
+SELECT MAX(f2) FROM t1 WHERE f2 = 'abc';
+MAX(f2)
+NULL
+EXPLAIN
+SELECT MIN(f1) FROM t1 WHERE f1 >= 'abc';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT MIN(f1) FROM t1 WHERE f1 >= 'abc';
+MIN(f1)
+b
+EXPLAIN
+SELECT MIN(f2) FROM t1 WHERE f2 >= 'abc';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	f2	f2	4	NULL	2	Using where; Using index
+SELECT MIN(f2) FROM t1 WHERE f2 >= 'abc';
+MIN(f2)
+b
+EXPLAIN
+SELECT MIN(f1) FROM t1 WHERE f1 BETWEEN 'abc' AND 'b' ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT MIN(f1) FROM t1 WHERE f1 BETWEEN 'abc' AND 'b' ;
+MIN(f1)
+b
+EXPLAIN
+SELECT MIN(f2) FROM t1 WHERE f2 BETWEEN 'abc' AND 'b' ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	f2	f2	4	NULL	2	Using where; Using index
+SELECT MIN(f2) FROM t1 WHERE f2 BETWEEN 'abc' AND 'b' ;
+MIN(f2)
+b
+DROP TABLE t1;
+End of 5.2 tests
+#
+# BUG#46680 - Assertion failed in file item_subselect.cc, 
+#             line 305 crashing on HAVING subquery
+#
+# Create tables
+#
+CREATE TABLE t1 (
+pk INT,
+v VARCHAR(1) DEFAULT NULL,
+PRIMARY KEY(pk)
+);
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+CREATE TABLE empty1 (a int);
+INSERT INTO t1 VALUES (1,'c'),(2,NULL);
+INSERT INTO t2 VALUES (3,'m'),(4,NULL);
+INSERT INTO t3 VALUES (1,'n');
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
+
+#
+# 1) Test that subquery materialization is setup for query with
+#    premature optimize() exit due to "Impossible WHERE"
+#
+SELECT MIN(t2.pk)
+FROM t2 JOIN t1 ON t1.pk=t2.pk
+WHERE 'j'
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+MIN(t2.pk)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+
+EXPLAIN
+SELECT MIN(t2.pk)
+FROM t2 JOIN t1 ON t1.pk=t2.pk
+WHERE 'j'
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+
+#
+# 2) Test that subquery materialization is setup for query with
+#    premature optimize() exit due to "No matching min/max row"
+#
+SELECT MIN(t2.pk)
+FROM t2 
+WHERE t2.pk>10
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+MIN(t2.pk)
+NULL
+
+EXPLAIN
+SELECT MIN(t2.pk)
+FROM t2 
+WHERE t2.pk>10
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	
+
+#
+# 3) Test that subquery materialization is setup for query with
+#    premature optimize() exit due to "Select tables optimized away"
+#
+SELECT MIN(pk)
+FROM t1
+WHERE pk=NULL
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+MIN(pk)
+NULL
+
+EXPLAIN
+SELECT MIN(pk)
+FROM t1
+WHERE pk=NULL
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	
+
+#
+# 4) Test that subquery materialization is setup for query with
+#    premature optimize() exit due to "No matching row in const table"
+#
+
+SELECT MIN(a)
+FROM (SELECT a FROM empty1) tt
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+MIN(a)
+NULL
+
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
+EXPLAIN 
+SELECT MIN(a)
+FROM (SELECT a FROM empty1) tt
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+3	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+set optimizer_switch=@tmp_optimizer_switch;
+
+#
+# 5) Test that subquery materialization is setup for query with
+#    premature optimize() exit due to "Impossible WHERE noticed 
+#    after reading const tables"
+#
+SELECT min(t1.pk)
+FROM t1
+WHERE t1.pk IN (SELECT 1 from t3 where pk>10)
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+min(t1.pk)
+NULL
+
+EXPLAIN
+SELECT min(t1.pk)
+FROM t1
+WHERE t1.pk IN (SELECT 1 from t3 where pk>10)
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	2	Using where; Using index
+3	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	MATERIALIZED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+set @@optimizer_switch=@save_optimizer_switch;
+#
+# Cleanup for BUG#46680
+#
+DROP TABLE IF EXISTS t1,t2,t3,empty1;
+create table t1 (i int, d date);
+insert into t1 values (1, '2008-10-02'), (2, '2010-12-12');
+select avg(export_set( 3, 'y', sha(i))), group_concat(d) from t1 group by d order by i;
+avg(export_set( 3, 'y', sha(i)))	group_concat(d)
+0	2008-10-02
+0	2010-12-12
+drop table t1;
+#
+# MDEV-4290: crash in st_select_lex::mark_as_dependent
+#
+create table `t1`(`a` int);
+select 1 from t1 v1 right join t1 on count(*);
+ERROR HY000: Invalid use of group function
+select 1 from t1 order by
+(
+select 1 from 
+(
+select 1 from t1 v1 right join t1 on count(*)
+) v   
+);
+ERROR HY000: Invalid use of group function
+insert into t1 values (1),(1),(2),(2);
+select count(*) from t1;
+count(*)
+4
+select z from (select count(*) as z from t1) v;
+z
+4
+# next is how it implemented now (may be changed in case of dependent
+# derived tables)
+select z from (select count(*) as z from t1) v group by 1;
+z
+4
+drop table t1;
+CREATE TABLE t1 (i1 int, INDEX(i1));
+INSERT INTO t1 VALUES (9),(8);
+CREATE TABLE t2 (i2 int);
+INSERT INTO t2 VALUES (8),(4);
+CREATE TABLE t3 (i3 int, INDEX(i3));
+INSERT INTO t3 VALUES (9),(8);
+SELECT MAX(t3.i3) FROM t3, t2, t1 WHERE t1.i1 = t2.i2 AND ( 0 OR t3.i3 = t2.i2 );
+MAX(t3.i3)
+8
+SELECT MAX(t3.i3) FROM t3, t2, t1 WHERE t1.i1 = t2.i2 AND  t3.i3 = t2.i2;
+MAX(t3.i3)
+8
+DROP TABLE  t1,t2,t3;
+# end of 5.3 tests
 #
 # Bug#52123 Assertion failed: aggregator == aggr->Aggrtype(),
 #           file .\item_sum.cc, line 587
@@ -1806,3 +2195,117 @@ AVG(DISTINCT outr.col_int_nokey)
 7.5000
 DROP TABLE t1;
 # End of the bug#57932
+#
+# MDEV-5257: MIN/MAX Optimization (Select tables optimized away) does not work for DateTime
+# MDEV-3855: MIN/MAX optimization doesnt work for int_col > INET_ATON
+#  (correct the fix for Bug #884175)
+#
+CREATE TABLE `t1` (
+`a` int(11) NOT NULL AUTO_INCREMENT,
+`b` datetime DEFAULT NULL,
+PRIMARY KEY (`a`),
+KEY `idx_b` (`b`)
+);
+INSERT INTO `t1` (b) VALUES ('2013-01-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-02-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-03-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-04-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-05-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-06-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-07-06 23:59:59');
+# The following should produce "Select tables optimized away"
+EXPLAIN SELECT MIN(b) FROM t1 WHERE b <= '2013-11-06 23:59:59';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+set names utf8;
+# Should be the same as above:
+EXPLAIN SELECT MIN(b) FROM t1 WHERE b <= '2013-11-06 23:59:59';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+DROP TABLE t1;
+CREATE TABLE `t1` (
+`a` int(11) NOT NULL AUTO_INCREMENT,
+`b` bigint(20) DEFAULT NULL,
+PRIMARY KEY (`a`),
+KEY `idx_b` (`b`)
+);
+insert into t1 (b) values (INET_ATON('192.168.0.1'));
+insert into t1 (b) values (INET_ATON('192.168.0.2'));
+insert into t1 (b) values (INET_ATON('192.168.0.3'));
+insert into t1 (b) values (INET_ATON('192.168.0.4'));
+insert into t1 (b) values (INET_ATON('192.168.200.200'));
+# should show "Select tables optimized away"
+explain select MIN(b) from t1 where b >= inet_aton('192.168.119.32');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+DROP TABLE t1;
+#
+# MDEV-6743 crash in GROUP_CONCAT(IF () ORDER BY 1)
+#
+CREATE TABLE t1 (pk INT, t2_id INT, t5_id INT, PRIMARY KEY (pk));
+INSERT INTO t1 VALUES (1,3,12),(2,3,15);
+CREATE TABLE t2 (pk INT, PRIMARY KEY (pk));
+INSERT INTO t2 VALUES (4),(5);
+CREATE TABLE t3 (t2_id INT, t4_id INT);
+INSERT INTO t3 VALUES (6,11),(7,12);
+CREATE TABLE t4 (id INT);
+INSERT INTO t4 VALUES (13),(14);
+CREATE TABLE t5 (pk INT, f VARCHAR(50), t6_id INT, PRIMARY KEY (pk));
+INSERT INTO t5 VALUES (9,'FOO',NULL);
+CREATE TABLE t6 (pk INT, f VARCHAR(120), b TINYINT(4), PRIMARY KEY (pk));
+PREPARE stmt FROM "
+  SELECT      t1.t2_id, GROUP_CONCAT(IF (t6.b, t6.f, t5.f) ORDER BY 1)
+  FROM        t1
+  JOIN        t2 ON t1.t2_id = t2.pk
+  JOIN        t3 ON t2.pk = t3.t2_id
+  JOIN        t4 ON t4.id = t3.t4_id
+  JOIN        t5 ON t1.t5_id = t5.pk
+  LEFT JOIN   t6 ON t6.pk = t5.t6_id
+  GROUP BY    t1.t2_id
+";
+EXECUTE stmt;
+t2_id	GROUP_CONCAT(IF (t6.b, t6.f, t5.f) ORDER BY 1)
+EXECUTE stmt;
+t2_id	GROUP_CONCAT(IF (t6.b, t6.f, t5.f) ORDER BY 1)
+EXECUTE stmt;
+t2_id	GROUP_CONCAT(IF (t6.b, t6.f, t5.f) ORDER BY 1)
+DROP TABLE t1,t2,t3,t4,t5,t6;
+#
+# MDEV-10500 CASE/IF Statement returns multiple values and shifts further result values to the next column
+#
+CREATE TABLE t1 (
+id int not null AUTO_INCREMENT,
+active bool not null,
+data1 bigint,
+data2 bigint,
+data3 bigint,
+primary key (id)
+);
+INSERT INTO t1 (active,data1,data2,data3) VALUES (1,null,100,200);
+SELECT
+CASE WHEN active THEN SUM(data1) END AS C_1,
+SUM(data2) AS C_2,
+SUM(data3) AS C_3
+FROM t1;
+C_1	C_2	C_3
+NULL	100	200
+SELECT
+IF(active, SUM(data1), 5) AS C_1,
+SUM(data2) AS C_2,
+SUM(data3) AS C_3
+FROM t1;
+C_1	C_2	C_3
+NULL	100	200
+DROP TABLE t1;
+#
+# MDEV-10468 Assertion `nr >= 0.0' failed in Item_sum_std::val_real()
+#
+SELECT STDDEV_POP(f) FROM (SELECT "1e+309" AS f UNION SELECT "-1e+309" AS f) tbl;
+STDDEV_POP(f)
+1.7976931348623157e308
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '1e+309'
+Warning	1292	Truncated incorrect DOUBLE value: '-1e+309'
+SELECT STDDEV(f) FROM (SELECT 1.7976931348623157e+308 AS f UNION SELECT -1.7976931348623157e+308 AS f) tbl;
+STDDEV(f)
+1.7976931348623157e308

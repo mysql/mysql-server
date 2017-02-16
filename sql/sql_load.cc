@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,7 +39,9 @@
 #include "sql_repl.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
+#include "sql_derived.h"
 #include "sql_show.h"
+
 class XML_TAG {
 public:
   int level;
@@ -107,6 +110,8 @@ public:
     ::end_io_cache(&cache);
     need_end_io_cache = 0;
   }
+  my_off_t file_length() { return cache.end_of_file; }
+  my_off_t position()    { return my_b_tell(&cache); }
 
   /*
     Either this method, or we need to make cache public
@@ -143,14 +148,8 @@ static int read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                           bool ignore_check_option_errors);
 
 #ifndef EMBEDDED_LIBRARY
-static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
-                                               const char* db_arg, /* table's database */
-                                               const char* table_name_arg,
-                                               bool is_concurrent,
-                                               enum enum_duplicates duplicates,
-                                               bool ignore,
-                                               bool transactional_table,
-                                               int errocode);
+static bool write_execute_load_query_log_event(THD *, sql_exchange*, const
+           char*, const char*, bool, enum enum_duplicates, bool, bool, int);
 #endif /* EMBEDDED_LIBRARY */
 
 /*
@@ -189,7 +188,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   bool is_fifo=0;
 #ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
-  THD::killed_state killed_status= THD::NOT_KILLED;
+  killed_state killed_status;
   bool is_concurrent;
 #endif
   char *db = table_list->db;			// This is never null
@@ -200,7 +199,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   */
   char *tdb= thd->db ? thd->db : db;		// Result is never null
   ulong skip_lines= ex->skip_lines;
-  bool transactional_table;
+  bool transactional_table __attribute__((unused));
   DBUG_ENTER("mysql_load");
 
   /*
@@ -234,15 +233,18 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   if (open_and_lock_tables(thd, table_list, TRUE, 0))
     DBUG_RETURN(TRUE);
+  if (mysql_handle_single_derived(thd->lex, table_list, DT_MERGE_FOR_INSERT) ||
+      mysql_handle_single_derived(thd->lex, table_list, DT_PREPARE))
+    DBUG_RETURN(TRUE);
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
                                     &thd->lex->select_lex.top_join_list,
                                     table_list,
-                                    &thd->lex->select_lex.leaf_tables, FALSE,
+                                    thd->lex->select_lex.leaf_tables, FALSE,
                                     INSERT_ACL | UPDATE_ACL,
-                                    INSERT_ACL | UPDATE_ACL))
+                                    INSERT_ACL | UPDATE_ACL, FALSE))
      DBUG_RETURN(-1);
   if (!table_list->table ||               // do not suport join view
-      !table_list->updatable ||           // and derived tables
+      !table_list->single_table_updatable() || // and derived tables
       check_key_in_view(thd, table_list))
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "LOAD");
@@ -276,9 +278,15 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   if (!fields_vars.elements)
   {
-    Field **field;
-    for (field=table->field; *field ; field++)
-      fields_vars.push_back(new Item_field(*field));
+    Field_iterator_table_ref field_iterator;
+    field_iterator.set(table_list);
+    for (; !field_iterator.end_of_fields(); field_iterator.next())
+    {
+      Item *item;
+      if (!(item= field_iterator.create_item(thd)))
+        DBUG_RETURN(TRUE);
+      fields_vars.push_back(item->real_item());
+    }
     bitmap_set_all(table->write_set);
     table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     /*
@@ -479,9 +487,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     }
   }
 
+  thd_proc_info(thd, "reading file");
   if (!(error=test(read_info.error)))
   {
-
     table->next_number_field=table->found_next_number_field;
     if (ignore ||
 	handle_duplicates == DUP_REPLACE)
@@ -499,6 +507,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                              (MODE_STRICT_TRANS_TABLES |
                               MODE_STRICT_ALL_TABLES)));
 
+    thd_progress_init(thd, 2);
     if (ex->filetype == FILETYPE_XML) /* load xml */
       error= read_xml_field(thd, info, table_list, fields_vars,
                             set_fields, set_values, read_info,
@@ -511,6 +520,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       error= read_sep_field(thd, info, table_list, fields_vars,
                             set_fields, set_values, read_info,
 			    *enclosed, skip_lines, ignore);
+
+    thd_proc_info(thd, "End bulk insert");
+    thd_progress_next_stage(thd);
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
         table->file->ha_end_bulk_insert() && !error)
     {
@@ -533,11 +545,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   DBUG_EXECUTE_IF("simulate_kill_bug27571",
                   {
                     error=1;
-                    thd->killed= THD::KILL_QUERY;
+                    thd->killed= KILL_QUERY;
                   };);
 
 #ifndef EMBEDDED_LIBRARY
-  killed_status= (error == 0) ? THD::NOT_KILLED : thd->killed;
+  killed_status= (error == 0) ? NOT_KILLED : thd->killed;
 #endif
 
   /*
@@ -580,8 +592,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	/* If the file was not empty, wrote_create_file is true */
 	if (lf_info.wrote_create_file)
 	{
-          int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
-
+          int errcode= query_error_code(thd, killed_status == NOT_KILLED);
+          
           /* since there is already an error, the possible error of
              writing binary log will be ignored */
 	  if (thd->transaction.stmt.modified_non_trans_table)
@@ -633,7 +645,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       read_info.end_io_cache();
       if (lf_info.wrote_create_file)
       {
-        int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
+        int errcode= query_error_code(thd, killed_status == NOT_KILLED);
         error= write_execute_load_query_log_event(thd, ex,
                                                   table_list->db, table_list->table_name,
                                                   is_concurrent,
@@ -678,35 +690,19 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                                                bool transactional_table,
                                                int errcode)
 {
-  char                *load_data_query,
-                      *end,
-                      *fname_start,
-                      *fname_end,
-                      *p= NULL;
-  size_t               pl= 0;
+  char                *load_data_query;
+  my_off_t            fname_start,
+                      fname_end;
   List<Item>           fv;
-  Item                *item;
-  String              *str;
-  String               pfield, pfields;
+  Item                *item, *val;
   int                  n;
-  const char          *tbl= table_name_arg;
   const char          *tdb= (thd->db != NULL ? thd->db : db_arg);
-  String              string_buf;
-  if (!thd->db || strcmp(db_arg, thd->db))
-  {
-    /*
-      If used database differs from table's database,
-      prefix table name with database name so that it
-      becomes a FQ name.
-     */
-    string_buf.set_charset(system_charset_info);
-    append_identifier(thd, &string_buf, db_arg, strlen(db_arg));
-    string_buf.append(".");
-  }
-  append_identifier(thd, &string_buf, table_name_arg,
-                    strlen(table_name_arg));
-  tbl= string_buf.c_ptr_safe();
-  Load_log_event       lle(thd, ex, tdb, tbl, fv, is_concurrent,
+  const char          *qualify_db= NULL;
+  char                command_buffer[1024];
+  String              query_str(command_buffer, sizeof(command_buffer),
+                              system_charset_info);
+
+  Load_log_event       lle(thd, ex, tdb, table_name_arg, fv, is_concurrent,
                            duplicates, ignore, transactional_table);
 
   /*
@@ -715,6 +711,19 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   if (thd->lex->local_file)
     lle.set_fname_outside_temp_buf(ex->file_name, strlen(ex->file_name));
 
+  query_str.length(0);
+  if (!thd->db || strcmp(db_arg, thd->db)) 
+  {
+    /*
+      If used database differs from table's database, 
+      prefix table name with database name so that it 
+      becomes a FQ name.
+     */
+    qualify_db= db_arg;
+  }
+  lle.print_query(thd, FALSE, (const char *) ex->cs?ex->cs->csname:NULL,
+                  &query_str, &fname_start, &fname_end, qualify_db);
+
   /*
     prepare fields-list and SET if needed; print_query won't do that for us.
   */
@@ -722,64 +731,49 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   {
     List_iterator<Item>  li(thd->lex->field_list);
 
-    pfields.append(" (");
+    query_str.append(" (");
     n= 0;
 
     while ((item= li++))
     {
       if (n++)
-        pfields.append(", ");
-      if (item->type() == Item::FIELD_ITEM)
-        append_identifier(thd, &pfields, item->name, strlen(item->name));
+        query_str.append(", ");
+      if (item->real_type() == Item::FIELD_ITEM)
+        append_identifier(thd, &query_str, item->name, strlen(item->name));
       else
-        item->print(&pfields, QT_ORDINARY);
+      {
+        /* Actually Item_user_var_as_out_param despite claiming STRING_ITEM. */
+        DBUG_ASSERT(item->type() == Item::STRING_ITEM);
+        ((Item_user_var_as_out_param *)item)->print_for_load(thd, &query_str);
+      }
     }
-    pfields.append(")");
+    query_str.append(")");
   }
 
   if (!thd->lex->update_list.is_empty())
   {
     List_iterator<Item> lu(thd->lex->update_list);
-    List_iterator<String> ls(thd->lex->load_set_str_list);
+    List_iterator<Item> lv(thd->lex->value_list);
 
-    pfields.append(" SET ");
+    query_str.append(STRING_WITH_LEN(" SET "));
     n= 0;
 
     while ((item= lu++))
     {
-      str= ls++;
+      val= lv++;
       if (n++)
-        pfields.append(", ");
-      append_identifier(thd, &pfields, item->name, strlen(item->name));
-      // Extract exact Item value
-      str->copy();
-      pfields.append(str->ptr());
-      str->free();
+        query_str.append(STRING_WITH_LEN(", "));
+      append_identifier(thd, &query_str, item->name, strlen(item->name));
+      query_str.append(val->name);
     }
-    /*
-      Clear the SET string list once the SET command is reconstructed
-      as we donot require the list anymore.
-    */
-    thd->lex->load_set_str_list.empty();
   }
 
-  p= pfields.c_ptr_safe();
-  pl= strlen(p);
-
-  if (!(load_data_query= (char *)thd->alloc(lle.get_query_buffer_length() + 1 + pl)))
+  if (!(load_data_query= (char *)thd->strmake(query_str.ptr(), query_str.length())))
     return TRUE;
 
-  lle.print_query(FALSE, ex->cs ? ex->cs->csname : NULL,
-                  load_data_query, &end,
-                  &fname_start, &fname_end);
-
-  strcpy(end, p);
-  end += pl;
-
   Execute_load_query_log_event
-    e(thd, load_data_query, end-load_data_query,
-      static_cast<uint>(fname_start - load_data_query - 1),
-      static_cast<uint>(fname_end - load_data_query),
+    e(thd, load_data_query, query_str.length(),
+      (uint) (fname_start - 1), (uint) fname_end,
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE, FALSE, errcode);
@@ -801,8 +795,15 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   List_iterator_fast<Item> it(fields_vars);
   Item_field *sql_field;
   TABLE *table= table_list->table;
-  bool err;
+  bool err, progress_reports;
+  ulonglong counter, time_to_report_progress;
   DBUG_ENTER("read_fixed_length");
+
+  counter= 0;
+  time_to_report_progress= MY_HOW_OFTEN_TO_WRITE/10;
+  progress_reports= 1;
+  if ((thd->progress.max_counter= read_info.file_length()) == ~(my_off_t) 0)
+    progress_reports= 0;
 
   while (!read_info.read_fixed_length())
   {
@@ -810,6 +811,16 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     {
       thd->send_kill_message();
       DBUG_RETURN(1);
+    }
+    if (progress_reports)
+    {
+      thd->progress.counter= read_info.position();
+      if (++counter >= time_to_report_progress)
+      {
+        time_to_report_progress+= MY_HOW_OFTEN_TO_WRITE/10;
+        thd_progress_report(thd, thd->progress.counter,
+                            thd->progress.max_counter);
+      }
     }
     if (skip_lines)
     {
@@ -824,7 +835,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
     it.rewind();
     uchar *pos=read_info.row_start;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
     read_info.row_end[0]=0;
 #endif
 
@@ -932,10 +943,17 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   Item *item;
   TABLE *table= table_list->table;
   uint enclosed_length;
-  bool err;
+  bool err, progress_reports;
+  ulonglong counter, time_to_report_progress;
   DBUG_ENTER("read_sep_field");
 
   enclosed_length=enclosed.length();
+
+  counter= 0;
+  time_to_report_progress= MY_HOW_OFTEN_TO_WRITE/10;
+  progress_reports= 1;
+  if ((thd->progress.max_counter= read_info.file_length()) == ~(my_off_t) 0)
+    progress_reports= 0;
 
   for (;;it.rewind())
   {
@@ -945,6 +963,16 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       DBUG_RETURN(1);
     }
 
+    if (progress_reports)
+    {
+      thd->progress.counter= read_info.position();
+      if (++counter >= time_to_report_progress)
+      {
+        time_to_report_progress+= MY_HOW_OFTEN_TO_WRITE/10;
+        thd_progress_report(thd, thd->progress.counter,
+                            thd->progress.max_counter);
+      }
+    }
     restore_record(table, s->default_values);
 
     while ((item= it++))
@@ -966,11 +994,10 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       real_item= item->real_item();
 
       if ((!read_info.enclosed &&
-	  (enclosed_length && length == 4 &&
-           !memcmp(pos, STRING_WITH_LEN("NULL")))) ||
+           (enclosed_length && length == 4 &&
+            !memcmp(pos, STRING_WITH_LEN("NULL")))) ||
 	  (length == 1 && read_info.found_null))
       {
-
         if (real_item->type() == Item::FIELD_ITEM)
         {
           Field *field= ((Item_field *)real_item)->field;
@@ -1055,7 +1082,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           if (!field->maybe_null() && field->type() == FIELD_TYPE_TIMESTAMP)
               ((Field_timestamp*) field)->set_time();
           /*
-            QQ: We probably should not throw warning for each field.
+            TODO: We probably should not throw warning for each field.
             But how about intention to always have the same number
             of warnings in THD::cuted_fields (and get rid of cuted_fields
             in the end ?)
@@ -1317,7 +1344,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 		     String &field_term, String &line_start, String &line_term,
 		     String &enclosed_par, int escape, bool get_it_from_net,
 		     bool is_fifo)
-  :file(file_par), buff_length(tot_length), escape_char(escape),
+  :file(file_par), buffer(NULL), buff_length(tot_length), escape_char(escape),
    found_end_of_line(false), eof(false), need_end_io_cache(false),
    error(false), line_cuted(false), found_null(false), read_charset(cs)
 {
@@ -1356,7 +1383,6 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
     (uchar) enclosed_par[0] : INT_MAX;
   field_term_char= field_term_length ? field_term_ptr[0] : INT_MAX;
   line_term_char= line_term_length ? line_term_ptr[0] : INT_MAX;
-
 
   /* Set of a stack for unget if long terminators */
   uint length= max(cs->mbmaxlen, max(field_term_length, line_term_length)) + 1;
@@ -1403,9 +1429,7 @@ READ_INFO::~READ_INFO()
 {
   if (need_end_io_cache)
     ::end_io_cache(&cache);
-
-  if (buffer != NULL)
-    my_free(buffer);
+  my_free(buffer);
   List_iterator<XML_TAG> xmlit(taglist);
   XML_TAG *t;
   while ((t= xmlit++))
@@ -1419,7 +1443,7 @@ inline int READ_INFO::terminator(const uchar *ptr,uint length)
   uint i;
   for (i=1 ; i < length ; i++)
   {
-    if ((chr=GET) != *++ptr)
+    if ((chr=GET) != *(uchar*)++ptr)
     {
       break;
     }
@@ -1521,8 +1545,9 @@ int READ_INFO::read_field()
 	// End of enclosed field if followed by field_term or line_term
 	if (chr == my_b_EOF ||
 	    (chr == line_term_char && terminator(line_term_ptr,
-						line_term_length)))
-	{					// Maybe unexpected linefeed
+                                                 line_term_length)))
+        {
+          /* Maybe unexpected linefeed */
 	  enclosed=1;
 	  found_end_of_line=1;
 	  row_start=buffer+1;
@@ -1565,14 +1590,14 @@ int READ_INFO::read_field()
 
         ml= my_mbcharlen(read_charset, chr);
 
-        for (i= 1; i < ml; i++) 
+        for (i= 1; i < ml; i++)
         {
           chr= GET;
           if (chr == my_b_EOF)
           {
             /*
              Need to back up the bytes already ready from illformed
-             multi-byte char 
+             multi-byte char
             */
             to-= i;
             goto found_eof;

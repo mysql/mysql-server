@@ -59,8 +59,8 @@ drop table t1;
 End of 4.1 tests
 create table t1(a int);
 analyze table t1 extended;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'extended' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'extended' at line 1
 optimize table t1 extended;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'extended' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'extended' at line 1
 drop table t1;
 End of 5.0 tests

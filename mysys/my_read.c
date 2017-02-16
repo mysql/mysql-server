@@ -40,6 +40,8 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags)
   DBUG_PRINT("my",("fd: %d  Buffer: %p  Count: %lu  MyFlags: %d",
                    Filedes, Buffer, (ulong) Count, MyFlags));
   save_count= Count;
+  if (!(MyFlags & (MY_WME | MY_FAE | MY_FNABP)))
+    MyFlags|= my_global_flags;
 
   for (;;)
   {
@@ -77,10 +79,12 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags)
       if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
       {
         if (readbytes == (size_t) -1)
-          my_error(EE_READ, MYF(ME_BELL+ME_WAITTANG),
+          my_error(EE_READ,
+                   MYF(ME_BELL | ME_WAITTANG | (MyFlags & (ME_JUST_INFO | ME_NOREFRESH))),
                    my_filename(Filedes),my_errno);
         else if (MyFlags & (MY_NABP | MY_FNABP))
-          my_error(EE_EOFERR, MYF(ME_BELL+ME_WAITTANG),
+          my_error(EE_EOFERR,
+                   MYF(ME_BELL | ME_WAITTANG | (MyFlags & (ME_JUST_INFO | ME_NOREFRESH))),
                    my_filename(Filedes),my_errno);
       }
       if (readbytes == (size_t) -1 ||

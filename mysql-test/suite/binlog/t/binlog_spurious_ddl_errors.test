@@ -26,8 +26,7 @@
 --source include/have_log_bin.inc
 
 SET @old_binlog_format= @@global.binlog_format;
---replace_regex /\.dll/.so/
-eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
+INSTALL PLUGIN example SONAME 'ha_example';
 
 --echo ################################################################################
 --echo # Verifies if ER_BINLOG_STMT_MODE_AND_ROW_ENGINE happens by setting the binlog

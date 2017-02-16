@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -168,11 +169,9 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
     if ((pos == (my_off_t) -1) && (my_errno == ESPIPE))
     {
       /*
-         This kind of object doesn't support seek() or tell(). Don't set a
-         flag that will make us again try to seek() later and fail.
-      */
-      info->seek_not_done= 0;
-      /*
+        This kind of object doesn't support seek() or tell(). Don't set a
+        seek_not_done that will make us again try to seek() later and fail.
+
         Additionally, if we're supposed to start somewhere other than the
         the beginning of whatever this file is, then somebody made a bad
         assumption.
@@ -554,7 +553,7 @@ int _my_b_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
     if (Count)
     {
       /* We couldn't fulfil the request. Return, how much we got. */
-      info->error= left_length;
+      info->error= (int) left_length;
       DBUG_RETURN(1);
     }
     length=0;				/* Didn't read any chars */
@@ -1291,7 +1290,7 @@ read_append_buffer:
     info->append_read_pos += copy_len;
     Count -= copy_len;
     if (Count)
-      info->error = save_count - Count;
+      info->error= (int) (save_count - Count);
 
     /* Fill read buffer with data from write buffer */
     memcpy(info->buffer, info->append_read_pos,
@@ -1679,8 +1678,8 @@ int my_block_write(register IO_CACHE *info, const uchar *Buffer, size_t Count,
   {
     /* Of no overlap, write everything without buffering */
     if (pos + Count <= info->pos_in_file)
-      return mysql_file_pwrite(info->file, Buffer, Count, pos,
-		               info->myflags | MY_NABP);
+      return (int)mysql_file_pwrite(info->file, Buffer, Count, pos,
+		                    info->myflags | MY_NABP);
     /* Write the part of the block that is before buffer */
     length= (uint) (info->pos_in_file - pos);
     if (mysql_file_pwrite(info->file, Buffer, length, pos, info->myflags | MY_NABP))
@@ -1688,9 +1687,6 @@ int my_block_write(register IO_CACHE *info, const uchar *Buffer, size_t Count,
     Buffer+=length;
     pos+=  length;
     Count-= length;
-#ifndef HAVE_PREAD
-    info->seek_not_done=1;
-#endif
   }
 
   /* Check if we want to write inside the used part of the buffer.*/
@@ -1763,7 +1759,7 @@ int my_b_flush_io_cache(IO_CACHE *info,
       */
       if (!append_cache && info->seek_not_done)
       {					/* File touched, do seek */
-	if (mysql_file_seek(info->file, pos_in_file, MY_SEEK_SET, MYF(0)) ==
+	if (mysql_file_seek(info->file, pos_in_file, MY_SEEK_SET, MYF(info->myflags & MY_WME)) ==
 	    MY_FILEPOS_ERROR)
 	{
 	  UNLOCK_APPEND_BUFFER;
@@ -1858,6 +1854,7 @@ int end_io_cache(IO_CACHE *info)
     info->type= TYPE_NOT_SET;
     mysql_mutex_destroy(&info->append_buffer_lock);
   }
+  info->share= 0;
   DBUG_RETURN(error);
 } /* end_io_cache */
 
@@ -1877,6 +1874,7 @@ void die(const char* fmt, ...)
   fprintf(stderr,"Error:");
   vfprintf(stderr, fmt,va_args);
   fprintf(stderr,", errno=%d\n", errno);
+  va_end(va_args);
   exit(1);
 }
 

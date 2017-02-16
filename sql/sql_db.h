@@ -19,9 +19,7 @@
 #include "hash.h"                               /* HASH */
 
 class THD;
-typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_ha_create_information HA_CREATE_INFO;
-typedef struct st_mysql_lex_string LEX_STRING;
 
 int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);

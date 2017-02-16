@@ -43,6 +43,7 @@ select @@global.thread_cache_size;
 0
 set global thread_cache_size=cast(-1 as unsigned int);
 Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 Warning	1292	Truncated incorrect thread_cache_size value: '18446744073709551615'
 select @@global.thread_cache_size;
 @@global.thread_cache_size

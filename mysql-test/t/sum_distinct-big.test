@@ -3,14 +3,22 @@
 #
 
 --source include/big_test.inc
+--source include/have_innodb.inc
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2;
 --enable_warnings
+
+set @save_tmp_table_size=@@tmp_table_size;
+set @save_max_heap_table_size=@@max_heap_table_size;
+
+set @save_storage_engine=@@storage_engine;
 
 #
 # Test the case when distinct values doesn't fit in memory and 
 # filesort is used (see uniques.cc:merge_walk)
 #
+
+set storage_engine=MYISAM;
 
 CREATE TABLE t1 (id INTEGER);
 CREATE TABLE t2 (id INTEGER);
@@ -63,5 +71,83 @@ SELECT SUM(DISTINCT id) sm FROM t1;
 SELECT SUM(DISTINCT id) sm FROM t2;
 SELECT SUM(DISTINCT id) sm FROM t1 GROUP BY id % 13;
 
+--echo # 
+--echo # Bug mdev-4063: SUM(DISTINCT...) with small'max_heap_table_size 
+--echo # (bug #56927)
+--echo # 
+
+SET max_heap_table_size=default;
+
+INSERT INTO t1 SELECT id+16384 FROM t1;
+DELETE FROM t2;
+INSERT INTO t2 SELECT id FROM t1 ORDER BY id*rand();
+
+SELECT SUM(DISTINCT id) sm FROM t2;
+
+SET max_heap_table_size=16384;
+
+SELECT SUM(DISTINCT id) sm FROM t2;
+
 DROP TABLE t1;
 DROP TABLE t2;
+
+SET @@tmp_table_size=@save_tmp_table_size;
+SET @@max_heap_table_size=@save_max_heap_table_size;
+
+--echo # 
+--echo # Bug mdev-4311: COUNT(DISTINCT...) requiring a file for Unique 
+--echo # (bug #68749)
+--echo # 
+
+set @save_storage_engine=@@storage_engine;
+set storage_engine=INNODB;
+
+CREATE TABLE t1 (id INTEGER) ENGINE=InnoDB;
+CREATE TABLE t2 (id INTEGER) ENGINE=InnoDB;
+
+INSERT INTO t1 (id) VALUES (1), (1), (1),(1);
+INSERT INTO t1 (id) SELECT id FROM t1;
+INSERT INTO t1 (id) SELECT id FROM t1;
+INSERT INTO t1 (id) SELECT id FROM t1;
+INSERT INTO t1 (id) SELECT id FROM t1;
+INSERT INTO t1 (id) SELECT id FROM t1;
+INSERT INTO t1 SELECT id+1 FROM t1;
+INSERT INTO t1 SELECT id+2 FROM t1;
+INSERT INTO t1 SELECT id+4 FROM t1;
+INSERT INTO t1 SELECT id+8 FROM t1;
+INSERT INTO t1 SELECT id+16 FROM t1;
+INSERT INTO t1 SELECT id+32 FROM t1;
+INSERT INTO t1 SELECT id+64 FROM t1;
+INSERT INTO t1 SELECT id+128 FROM t1;
+INSERT INTO t1 SELECT id+256 FROM t1;
+INSERT INTO t1 SELECT id+512 FROM t1;
+INSERT INTO t1 SELECT id+1024 FROM t1;
+INSERT INTO t1 SELECT id+2048 FROM t1;
+INSERT INTO t1 SELECT id+4096 FROM t1;
+INSERT INTO t1 SELECT id+8192 FROM t1;
+
+INSERT INTO t2 SELECT id FROM t1 ORDER BY id*rand();
+INSERT INTO t2 VALUE(NULL);
+
+--echo # With default tmp_table_size / max_heap_table_size
+SELECT SQL_NO_CACHE count(DISTINCT id) sm FROM t2;
+
+set @@tmp_table_size=1024*256;
+
+--echo # With reduced tmp_table_size
+SELECT SQL_NO_CACHE count(DISTINCT id) sm FROM t2;
+
+set @@tmp_table_size=@save_tmp_table_size;
+SET @@max_heap_table_size=1024*256;
+
+--echo # With reduced max_heap_table_size
+SELECT SQL_NO_CACHE count(DISTINCT id) sm FROM t2;
+
+SET @@max_heap_table_size=@save_max_heap_table_size;
+
+--echo # Back to default tmp_table_size / max_heap_table_size
+SELECT SQL_NO_CACHE count(DISTINCT id) sm FROM t2;
+
+DROP TABLE t1,t2;
+
+set storage_engine=@save_storage_engine;

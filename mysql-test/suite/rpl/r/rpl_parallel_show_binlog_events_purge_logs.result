@@ -7,7 +7,6 @@ SHOW BINLOG EVENTS;
 SET DEBUG_SYNC= 'now WAIT_FOR on_show_binlog_events';
 FLUSH LOGS;
 SET DEBUG_SYNC= 'now SIGNAL end';
-SET DEBUG_SYNC= 'RESET';
 [connection slave]
 SET DEBUG_SYNC= 'RESET';
 include/rpl_end.inc

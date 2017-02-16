@@ -1,0 +1,308 @@
+# Portuguese translation for mysql-dfsg-5.1's debconf messages
+# Copyright (C) 2006 Miguel Figueiredo <elmig@debianpt.org>
+# This file is distributed under the same license as the mysql-dfsg-5.1 package.
+# Miguel Figueiredo <elmig@debianpt.org>
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: mysql-dfsg-5.1\n"
+"Report-Msgid-Bugs-To: mariadb-5.5@packages.debian.org\n"
+"POT-Creation-Date: 2012-01-12 13:08+0100\n"
+"PO-Revision-Date: 2007-05-05 21:01+0100\n"
+"Last-Translator: Miguel Figueiredo <elmig@debianpt.org>\n"
+"Language-Team: Portuguese <traduz@debianpt.org>\n"
+"Language: pt\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+msgid "Really proceed with downgrade?"
+msgstr "Deseja mesmo fazer downgrade?"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+msgid "A file named /var/lib/mysql/debian-*.flag exists on this system."
+msgstr "Existe um ficheiro chamado /var/lib/mysql/debian-*.flag neste sistema."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+#, fuzzy
+#| msgid ""
+#| "Such file is an indication that a mariadb-server package with a higher "
+#| "version has been installed earlier."
+msgid ""
+"Such a file is an indication that a mariadb-server package with a higher "
+"version has been installed previously."
+msgstr ""
+"Tal ficheiro significa que anteriormente foi instalado um pacote mariadb-"
+"server com um número de versão superior."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+msgid ""
+"There is no guarantee that the version you're currently installing will be "
+"able to use the current databases."
+msgstr ""
+"Não existe nenhuma garantia que a versão que está actualmente a instalar "
+"seja capaz de utilizar as bases de dados actuais."
+
+#. Type: note
+#. Description
+#: ../mariadb-server-5.5.templates:3001
+msgid "Important note for NIS/YP users"
+msgstr "Nota importante para utilizadores de NIS/YP"
+
+#. Type: note
+#. Description
+#: ../mariadb-server-5.5.templates:3001
+msgid ""
+"Using MariaDB under NIS/YP requires a mysql user account to be added on the "
+"local system with:"
+msgstr ""
+
+#. Type: note
+#. Description
+#: ../mariadb-server-5.5.templates:3001
+#, fuzzy
+#| msgid ""
+#| "You should also check the permissions and the owner of the /var/lib/mysql "
+#| "directory:"
+msgid ""
+"You should also check the permissions and ownership of the /var/lib/mysql "
+"directory:"
+msgstr ""
+"Deve também verificar as permissões e o dono do directório /var/lib/mysql :"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:4001
+msgid "Remove all MariaDB databases?"
+msgstr "Remover todas as bases de dados MariaDB?"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:4001
+msgid ""
+"The /var/lib/mysql directory which contains the MariaDB databases is about "
+"to be removed."
+msgstr ""
+"O directório /var/lib/mysql que contém as bases de dados MariaDB está "
+"prestes a ser removido."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:4001
+msgid ""
+"If you're removing the MariaDB package in order to later install a more "
+"recent version or if a different mariadb-server package is already using it, "
+"the data should be kept."
+msgstr ""
+"Se está a remover o pacote MariaDB de modo a posteriormente instalar uma "
+"versão mais recente ou se um pacote mariadb-server já está os está a "
+"utilizar, os dados devem ser mantidos."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:5001
+msgid "Start the MariaDB server on boot?"
+msgstr "Iniciar o servidor MariaDB no arranque?"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:5001
+msgid ""
+"The MariaDB server can be launched automatically at boot time or manually "
+"with the '/etc/init.d/mysql start' command."
+msgstr ""
+"O MariaDB pode ser automaticamente lançado no arranque ou manualmente "
+"através do comando '/etc/init.d/mysql start'."
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:6001
+msgid "New password for the MariaDB \"root\" user:"
+msgstr "Nova palavra-passe para o utilizador \"root\" do MariaDB:"
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:6001
+msgid ""
+"While not mandatory, it is highly recommended that you set a password for "
+"the MariaDB administrative \"root\" user."
+msgstr ""
+"Embora não seja mandatório, É fortemente recomendado que defina uma palavra-"
+"passe para o utilizador administrativo \"root\" do MariaDB."
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:6001
+#, fuzzy
+#| msgid "If that field is left blank, the password will not be changed."
+msgid "If this field is left blank, the password will not be changed."
+msgstr ""
+"Se esse campo for deixado em branco, a palavra-passe não irá ser alterada."
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:7001
+#, fuzzy
+#| msgid "New password for the MySQL \"root\" user:"
+msgid "Repeat password for the MariaDB \"root\" user:"
+msgstr "Nova palavra-passe para o utilizador \"root\" do MariaDB:"
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+msgid "Unable to set password for the MariaDB \"root\" user"
+msgstr ""
+"Não foi possível definir a palavra-passe para o utilizador \"root\" do "
+"MariaDB"
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+msgid ""
+"An error occurred while setting the password for the MariaDB administrative "
+"user. This may have happened because the account already has a password, or "
+"because of a communication problem with the MariaDB server."
+msgstr ""
+"Ocorreu um erro enquanto era definida a palavra-passe para o utilizador "
+"administrativo do MariaDB. Isto pode ter acontecido porque a cona já tem uma "
+"palavra-passe, ou porque ocorreu um problema ao comunicação com o servidor "
+"MariaDB."
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+#, fuzzy
+#| msgid ""
+#| "You should check the account's password after tha package installation."
+msgid "You should check the account's password after the package installation."
+msgstr ""
+"Você deve verificar a palavra-passe da conta após a instalação do pacote."
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+#, fuzzy
+#| msgid ""
+#| "Please read the /usr/share/doc/mysql-server-5.1/README.Debian file for "
+#| "more information."
+msgid ""
+"Please read the /usr/share/doc/mariadb-server-5.5/README.Debian file for "
+"more information."
+msgstr ""
+"Para mais informação por favor leia o ficheiro /usr/share/doc/mariadb-"
+"server-5.5/README.Debian."
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:9001
+msgid "Password input error"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:9001
+msgid "The two passwords you entered were not the same. Please try again."
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:10001
+msgid "NDB Cluster seems to be in use"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:10001
+msgid ""
+"MySQL-5.1 no longer provides NDB Cluster support. Please migrate to the new "
+"mysql-cluster package and remove all lines starting with \"ndb\" from all "
+"config files below /etc/mysql/."
+msgstr ""
+
+#~ msgid ""
+#~ "To use MariaDB, the following entries for users and groups should be "
+#~ "added to the system:"
+#~ msgstr ""
+#~ "Para utilizar o MariaDB, têm de ser acrescentadas as seguintes entradas "
+#~ "para os utilizadores e grupos:"
+
+#~ msgid "Cannot upgrade if ISAM tables are present!"
+#~ msgstr "Não é possível actualizar se estiverem presentes tabelas ISAM!"
+
+#~ msgid ""
+#~ "Recent versions of MySQL can no longer use the old ISAM table format and "
+#~ "it is necessary to convert your tables to e.g. MyISAM before upgrading by "
+#~ "using \"mysql_convert_table_format\" or \"ALTER TABLE x ENGINE=MyISAM\". "
+#~ "The installation of mysql-server-5.1 will now abort. In case your old "
+#~ "mysql-server-4.1 gets removed nevertheless just reinstall it to convert "
+#~ "those tables."
+#~ msgstr ""
+#~ "As versões recentes de MySQL já não podem utilizar o antigo formato de "
+#~ "tabelas ISAM e é por isso necessário converter as suas tabelas pra e.g. "
+#~ "MyISAM antes da actualização, utilizando \"mysql_convert_table_format\" "
+#~ "ou \"ALTER TABLE x ENGINE=MyISAM\". A instalação de mysql-server-5.1 irá "
+#~ "agora ser cancelada. Se o seu antigo mysql-server-4.1 for removido apenas "
+#~ "reinstale para converter essas tabelas."
+
+#~ msgid ""
+#~ "Support MySQL connections from hosts running Debian \"sarge\" or older?"
+#~ msgstr ""
+#~ "Suportar ligações MySQL de máquinas que corram Debian \"sarge\" ou mais "
+#~ "antigos?"
+
+#~ msgid ""
+#~ "In old versions of MySQL clients on Debian, passwords were not stored "
+#~ "securely. This has been improved since then, however clients (such as "
+#~ "PHP) from hosts running Debian 3.1 Sarge will not be able to connect to "
+#~ "recent accounts or accounts whose password have been changed."
+#~ msgstr ""
+#~ "Nas versões antigas de clientes de MySQL em Debian, as palavras-passe não "
+#~ "eram guardadas de forma segura. Isto foi melhorado desde aí, no entanto "
+#~ "os clientes (como o PHP) de máquinas que corram Debian 3.1 Sarge não irão "
+#~ "conseguir ligar-se a contas novas ou cuja palavra-passe foi alterada."
+
+#~ msgid ""
+#~ "To use mysql you must install an equivalent user and group to the "
+#~ "following and ensure yourself that /var/lib/mysql has the right "
+#~ "permissions (the uid/gid may be different)."
+#~ msgstr ""
+#~ "Para utilizar mysql e instalar um utilizador e grupo equivalentes para o "
+#~ "seguinte e assegurar-se que /var/lib/mysql têm as permissões correctas (o "
+#~ "uid/gid podem ser diferentes)."
+
+#~ msgid ""
+#~ "/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+#~ msgstr ""
+#~ "/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+
+#~ msgid "/etc/group:       mysql:x:101:"
+#~ msgstr "/etc/group:       mysql:x:101:"
+
+#~ msgid "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+#~ msgstr "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+
+#~ msgid "Remove the databases used by all MySQL versions?"
+#~ msgstr "Remover as bases de dados utilizadas por todas as versões de MySQL?"
+
+#~ msgid ""
+#~ "If you do not provide a password no changes will be made to the account."
+#~ msgstr ""
+#~ "Se não disponibilizar uma password não serão feitas alterações nesta "
+#~ "conta."
+
+#~ msgid ""
+#~ "When installation finishes, you should verify that the account is "
+#~ "properly protected with a password (see README.Debian for more "
+#~ "information)."
+#~ msgstr ""
+#~ "Quando terminar a instalação, deve verificar se a conta está devidamente "
+#~ "protegida com uma password (para mais informações veja README.Debian)."

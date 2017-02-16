@@ -33,3 +33,82 @@ select * from fk_29;
 f1
 29
 drop table t1;
+CREATE TABLE t1 (
+id int(11) NOT NULL AUTO_INCREMENT,
+f1 int(11) DEFAULT NULL,
+PRIMARY KEY (id),
+CONSTRAINT fk1 FOREIGN KEY (f1) REFERENCES t1 (id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+CREATE TABLE t2 (
+id int(11) NOT NULL AUTO_INCREMENT,
+f2 int(11) NOT NULL,
+f3 int(11) NOT NULL,
+PRIMARY KEY (`id`),
+CONSTRAINT fk2 FOREIGN KEY (f2) REFERENCES t1 (`id`) ON DELETE CASCADE,
+CONSTRAINT fk3 FOREIGN KEY (f3) REFERENCES t3 (id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+ERROR HY000: Can't create table 'test.t2' (errno: 150)
+show warnings;
+Level	Code	Message
+Warning	150	Create  table `test`.`t2` with foreign key constraint failed. Referenced table `test`.`t3` not found in the data dictionary near ' FOREIGN KEY (f3) REFERENCES t3 (id) ON DELETE CASCADE
+) ENGINE=InnoDB'.
+Error	1005	Can't create table 'test.t2' (errno: 150)
+CREATE TABLE t2 (
+id int(11) NOT NULL AUTO_INCREMENT,
+f2 int(11) NOT NULL,
+f3 int(11) NOT NULL,
+PRIMARY KEY (`id`),
+CONSTRAINT fk2 FOREIGN KEY (f2) REFERENCES t1 (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB;
+ALTER TABLE t2 ADD CONSTRAINT fk3 FOREIGN KEY (f3) REFERENCES t3 (id) ON DELETE CASCADE;
+ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
+show warnings;
+Level	Code	Message
+Warning	150	Alter  table `test`.`t2` with foreign key constraint failed. Referenced table `test`.`t3` not found in the data dictionary near ' FOREIGN KEY (f3) REFERENCES t3 (id) ON DELETE CASCADE'.
+Error	1005	Can't create table '#sql-temporary' (errno: 150)
+drop table t2;
+drop table t1;
+CREATE DATABASE kg_test1;
+CREATE DATABASE kg_test2;
+CREATE TABLE `kg_test1`.`group` (
+Id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+CREATE TABLE `kg_test1`.`person` (
+`Id` INT(11) NOT NULL AUTO_INCREMENT,
+`Name` VARCHAR(50) NOT NULL,
+PRIMARY KEY (`Id`),
+CONSTRAINT `fk_person_group` FOREIGN KEY (`Id`) REFERENCES `group` (`Id`)
+) ENGINE=INNODB DEFAULT CHARSET=utf8;
+show create table `kg_test1`.`person`;
+Table	Create Table
+person	CREATE TABLE `person` (
+  `Id` int(11) NOT NULL AUTO_INCREMENT,
+  `Name` varchar(50) NOT NULL,
+  PRIMARY KEY (`Id`),
+  CONSTRAINT `fk_person_group` FOREIGN KEY (`Id`) REFERENCES `group` (`Id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+CREATE TABLE `kg_test2`.`person2` (
+`Id` INT(11) NOT NULL AUTO_INCREMENT,
+`Name` VARCHAR(50) NOT NULL,
+PRIMARY KEY (`Id`),
+CONSTRAINT `fk_person_group` FOREIGN KEY (`Id`) REFERENCES `group` (`Id`)
+) ENGINE=INNODB DEFAULT CHARSET=utf8;
+ERROR HY000: Can't create table 'kg_test2.person2' (errno: 150)
+CREATE TABLE `kg_test2`.`person2` (
+`Id` INT(11) NOT NULL AUTO_INCREMENT,
+`Name` VARCHAR(50) NOT NULL,
+PRIMARY KEY (`Id`),
+CONSTRAINT `fk_person_group` FOREIGN KEY (`Id`) REFERENCES  `kg_test1`.`group` (`Id`)
+) ENGINE=INNODB DEFAULT CHARSET=utf8;
+show create table `kg_test2`.`person2`;
+Table	Create Table
+person2	CREATE TABLE `person2` (
+  `Id` int(11) NOT NULL AUTO_INCREMENT,
+  `Name` varchar(50) NOT NULL,
+  PRIMARY KEY (`Id`),
+  CONSTRAINT `fk_person_group` FOREIGN KEY (`Id`) REFERENCES `kg_test1`.`group` (`Id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+SHOW WARNINGS;
+Level	Code	Message
+DROP DATABASE kg_test2;
+DROP DATABASE kg_test1;

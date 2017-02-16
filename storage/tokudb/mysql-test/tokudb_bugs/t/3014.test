@@ -1,0 +1,26 @@
+--source include/have_tokudb.inc
+#
+# Record inconsistency.
+#
+#
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+create table foo (a int, b int, c int, primary key (a), key (b));
+insert into foo values (1,100,1),(2,20,2),(3,300,3),(4,4,4);
+
+select * from foo;
+select b from foo;
+delete from foo where b=20;
+select * from foo;
+select b from foo;
+alter table foo drop index b;
+delete from foo where a=3;
+select * from foo;
+ 
+# Final cleanup.
+DROP TABLE foo;
+

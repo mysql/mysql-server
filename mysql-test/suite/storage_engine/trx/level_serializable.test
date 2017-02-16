@@ -1,0 +1,8 @@
+--source ../have_engine.inc
+--source support_transactions.inc
+
+let $trx_isolation = SERIALIZABLE;
+--source transaction_isolation.inc
+
+--source ../cleanup_engine.inc
+

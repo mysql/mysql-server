@@ -1,0 +1,27 @@
+-- source include/have_log_bin.inc
+
+--disable_warnings
+drop table if exists graph;
+--enable_warnings
+
+CREATE TABLE graph (
+    latch   SMALLINT  UNSIGNED NULL,
+    origid  BIGINT    UNSIGNED NULL,
+    destid  BIGINT    UNSIGNED NULL,
+    weight  DOUBLE    NULL,
+    seq     BIGINT    UNSIGNED NULL,
+    linkid  BIGINT    UNSIGNED NULL,
+    KEY (latch, origid, destid) USING HASH,
+    KEY (latch, destid, origid) USING HASH
+  ) ENGINE=OQGRAPH;
+
+# MBug#524625: OQGraph error with binary logging enabled 
+# Test that OQGraph works with different binlogging modes.
+SET binlog_format = row;
+insert into graph(origid, destid) values (1,3), (3,1);
+SET binlog_format = statement;
+insert into graph(origid, destid) values (3,4), (4,3);
+SET binlog_format = mixed;
+insert into graph(origid, destid) values (3,5), (5,3);
+
+drop table graph;

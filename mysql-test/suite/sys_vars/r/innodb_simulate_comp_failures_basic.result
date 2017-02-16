@@ -1,0 +1,77 @@
+SET @start_global_value = @@global.innodb_simulate_comp_failures;
+SELECT @start_global_value;
+@start_global_value
+0
+Valid values are between 0 and 99
+select @@global.innodb_simulate_comp_failures between 0 and 99;
+@@global.innodb_simulate_comp_failures between 0 and 99
+1
+select @@global.innodb_simulate_comp_failures;
+@@global.innodb_simulate_comp_failures
+0
+select @@session.innodb_simulate_comp_failures;
+ERROR HY000: Variable 'innodb_simulate_comp_failures' is a GLOBAL variable
+show global variables like 'innodb_simulate_comp_failures';
+Variable_name	Value
+innodb_simulate_comp_failures	0
+show session variables like 'innodb_simulate_comp_failures';
+Variable_name	Value
+innodb_simulate_comp_failures	0
+select * from information_schema.global_variables where variable_name='innodb_simulate_comp_failures';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_SIMULATE_COMP_FAILURES	0
+select * from information_schema.session_variables where variable_name='innodb_simulate_comp_failures';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_SIMULATE_COMP_FAILURES	0
+set global innodb_simulate_comp_failures=10;
+select @@global.innodb_simulate_comp_failures;
+@@global.innodb_simulate_comp_failures
+10
+select * from information_schema.global_variables where variable_name='innodb_simulate_comp_failures';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_SIMULATE_COMP_FAILURES	10
+select * from information_schema.session_variables where variable_name='innodb_simulate_comp_failures';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_SIMULATE_COMP_FAILURES	10
+set session innodb_simulate_comp_failures=1;
+ERROR HY000: Variable 'innodb_simulate_comp_failures' is a GLOBAL variable and should be set with SET GLOBAL
+set global innodb_simulate_comp_failures=1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_simulate_comp_failures'
+set global innodb_simulate_comp_failures=1e1;
+ERROR 42000: Incorrect argument type to variable 'innodb_simulate_comp_failures'
+set global innodb_simulate_comp_failures="foo";
+ERROR 42000: Incorrect argument type to variable 'innodb_simulate_comp_failures'
+set global innodb_simulate_comp_failures=-7;
+Warnings:
+Warning	1292	Truncated incorrect innodb_simulate_comp_failures value: '-7'
+select @@global.innodb_simulate_comp_failures;
+@@global.innodb_simulate_comp_failures
+0
+select * from information_schema.global_variables where variable_name='innodb_simulate_comp_failures';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_SIMULATE_COMP_FAILURES	0
+set global innodb_simulate_comp_failures=106;
+Warnings:
+Warning	1292	Truncated incorrect innodb_simulate_comp_failures value: '106'
+select @@global.innodb_simulate_comp_failures;
+@@global.innodb_simulate_comp_failures
+99
+select * from information_schema.global_variables where variable_name='innodb_simulate_comp_failures';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_SIMULATE_COMP_FAILURES	99
+set global innodb_simulate_comp_failures=0;
+select @@global.innodb_simulate_comp_failures;
+@@global.innodb_simulate_comp_failures
+0
+set global innodb_simulate_comp_failures=99;
+select @@global.innodb_simulate_comp_failures;
+@@global.innodb_simulate_comp_failures
+99
+set global innodb_simulate_comp_failures=DEFAULT;
+select @@global.innodb_simulate_comp_failures;
+@@global.innodb_simulate_comp_failures
+0
+SET @@global.innodb_simulate_comp_failures = @start_global_value;
+SELECT @@global.innodb_simulate_comp_failures;
+@@global.innodb_simulate_comp_failures
+0

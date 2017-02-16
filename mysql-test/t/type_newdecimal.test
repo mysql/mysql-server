@@ -1570,3 +1570,14 @@ SELECT d1 * d2 FROM t1;
 
 DROP TABLE t1;
 
+#
+# Test for Bug#18469276: MOD FOR SMALL DECIMALS FAILS
+#
+select 0.000000000000000000000000000000000000000000000000001 mod 1;
+
+#
+# incorrect result
+#
+select 0.0000000001 mod 1;
+select 0.01 mod 1;
+

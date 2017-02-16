@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2016, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -181,7 +181,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
     }
 #ifdef HAVE_QUERY_CACHE
-    query_cache.invalidate_locked_for_write(rli->tables_to_lock);
+    query_cache.invalidate_locked_for_write(thd, rli->tables_to_lock);
 #endif
   }
 
@@ -203,7 +203,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       TIMESTAMP column to a table with one.
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
-    ev_thd->set_time((time_t)ev->when);
+    ev_thd->set_time(ev->when, ev->when_sec_part);
     /*
       There are a few flags that are replicated with each row event.
       Make sure to set/clear them before executing the main body of
@@ -577,7 +577,7 @@ replace_record(THD *thd, TABLE *table,
      */
     if (table->file->ha_table_flags() & HA_DUPLICATE_POS)
     {
-      error= table->file->rnd_pos(table->record[1], table->file->dup_ref);
+      error= table->file->ha_rnd_pos(table->record[1], table->file->dup_ref);
       if (error)
       {
         DBUG_PRINT("info",("rnd_pos() returns error %d",error));
@@ -603,10 +603,10 @@ replace_record(THD *thd, TABLE *table,
 
       key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
                0);
-      error= table->file->index_read_idx_map(table->record[1], keynum,
-                                             (const uchar*)key.get(),
-                                             HA_WHOLE_KEY,
-                                             HA_READ_KEY_EXACT);
+      error= table->file->ha_index_read_idx_map(table->record[1], keynum,
+                                                (const uchar*)key.get(),
+                                                HA_WHOLE_KEY,
+                                                HA_READ_KEY_EXACT);
       if (error)
       {
         DBUG_PRINT("info", ("index_read_idx() returns error %d", error));
@@ -718,13 +718,13 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
       length. Something along these lines should work:
 
       ADD>>>  store_record(table,record[1]);
-              int error= table->file->rnd_pos(table->record[0], table->file->ref);
+              int error= table->file->ha_rnd_pos(table->record[0], table->file->ref);
       ADD>>>  DBUG_ASSERT(memcmp(table->record[1], table->record[0],
                                  table->s->reclength) == 0);
 
     */
     table->file->position(table->record[0]);
-    int error= table->file->rnd_pos(table->record[0], table->file->ref);
+    int error= table->file->ha_rnd_pos(table->record[0], table->file->ref);
     /*
       rnd_pos() returns the record in table->record[0], so we have to
       move it to table->record[1].
@@ -751,7 +751,7 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
     Don't print debug messages when running valgrind since they can
     trigger false warnings.
    */
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
     DBUG_DUMP("table->record[0]", table->record[0], table->s->reclength);
     DBUG_DUMP("table->record[1]", table->record[1], table->s->reclength);
 #endif
@@ -765,8 +765,9 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
     my_ptrdiff_t const pos=
       table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
     table->record[1][pos]= 0xFF;
-    if ((error= table->file->index_read_map(table->record[1], key, HA_WHOLE_KEY,
-                                            HA_READ_KEY_EXACT)))
+    if ((error= table->file->ha_index_read_map(table->record[1], key,
+                                               HA_WHOLE_KEY,
+                                               HA_READ_KEY_EXACT)))
     {
       table->file->print_error(error, MYF(0));
       table->file->ha_index_end();
@@ -777,7 +778,7 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
     Don't print debug messages when running valgrind since they can
     trigger false warnings.
    */
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
     DBUG_DUMP("table->record[0]", table->record[0], table->s->reclength);
     DBUG_DUMP("table->record[1]", table->record[1], table->s->reclength);
 #endif
@@ -820,7 +821,7 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
           256U - (1U << table->s->last_null_bit_pos);
       }
 
-      while ((error= table->file->index_next(table->record[1])))
+      while ((error= table->file->ha_index_next(table->record[1])))
       {
         /* We just skip records that has already been deleted */
         if (error == HA_ERR_RECORD_DELETED)
@@ -842,17 +843,14 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
     int error;
 
     /* We don't have a key: search the table using rnd_next() */
-    if ((error= table->file->ha_rnd_init(1)))
-    {
-      table->file->print_error(error, MYF(0));
-      DBUG_RETURN(error);
-    }
+    if ((error= table->file->ha_rnd_init_with_error(1)))
+      return error;
 
     /* Continue until we find the right record or have made a full loop */
     do
     {
   restart_rnd_next:
-      error= table->file->rnd_next(table->record[1]);
+      error= table->file->ha_rnd_next(table->record[1]);
 
       DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
       DBUG_DUMP("record[1]", table->record[1], table->s->reclength);
@@ -871,13 +869,11 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
       case HA_ERR_END_OF_FILE:
         if (++restart_count < 2)
         {
-          if ((error= table->file->ha_rnd_init(1)))
-          {
-            table->file->print_error(error, MYF(0));
-            DBUG_RETURN(error);
-          }
+          int error2;
+          if ((error2= table->file->ha_rnd_init_with_error(1)))
+            DBUG_RETURN(error2);
         }
-       break;
+        break;
 
       default:
         table->file->print_error(error, MYF(0));
@@ -1000,7 +996,8 @@ Write_rows_log_event_old::do_prepare_row(THD *thd_arg,
   int error;
   error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, table->record[0],
-                        row_start, &m_cols, row_end, &m_master_reclength,
+                        row_start, m_rows_end,
+                        &m_cols, row_end, &m_master_reclength,
                         table->write_set, PRE_GA_WRITE_ROWS_EVENT);
   bitmap_copy(table->read_set, table->write_set);
   return error;
@@ -1087,7 +1084,8 @@ Delete_rows_log_event_old::do_prepare_row(THD *thd_arg,
 
   error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, table->record[0],
-                        row_start, &m_cols, row_end, &m_master_reclength,
+                        row_start, m_rows_end,
+                        &m_cols, row_end, &m_master_reclength,
                         table->read_set, PRE_GA_DELETE_ROWS_EVENT);
   /*
     If we will access rows using the random access method, m_key will
@@ -1186,13 +1184,15 @@ int Update_rows_log_event_old::do_prepare_row(THD *thd_arg,
   /* record[0] is the before image for the update */
   error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, table->record[0],
-                        row_start, &m_cols, row_end, &m_master_reclength,
+                        row_start, m_rows_end,
+                        &m_cols, row_end, &m_master_reclength,
                         table->read_set, PRE_GA_UPDATE_ROWS_EVENT);
   row_start = *row_end;
   /* m_after_image is the after image for the update */
   error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, m_after_image,
-                        row_start, &m_cols, row_end, &m_master_reclength,
+                        row_start, m_rows_end,
+                        &m_cols, row_end, &m_master_reclength,
                         table->write_set, PRE_GA_UPDATE_ROWS_EVENT);
 
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
@@ -1440,7 +1440,7 @@ int Old_rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     Don't print debug messages when running valgrind since they can
     trigger false warnings.
    */
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
   DBUG_DUMP("row_data", row_data, min(length, 32));
 #endif
 
@@ -1613,7 +1613,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
     }
 #ifdef HAVE_QUERY_CACHE
-    query_cache.invalidate_locked_for_write(rli->tables_to_lock);
+    query_cache.invalidate_locked_for_write(thd, rli->tables_to_lock);
 #endif
   }
 
@@ -1637,7 +1637,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       TIMESTAMP column to a table with one.
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
-    thd->set_time((time_t)when);
+    thd->set_time(when, when_sec_part);
     /*
       There are a few flags that are replicated with each row event.
       Make sure to set/clear them before executing the main body of
@@ -1967,7 +1967,7 @@ bool Old_rows_log_event::write_data_body(IO_CACHE*file)
 
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-void Old_rows_log_event::pack_info(Protocol *protocol)
+void Old_rows_log_event::pack_info(THD *thd, Protocol *protocol)
 {
   char buf[256];
   char const *const flagstr=
@@ -2108,7 +2108,7 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
     if (table->file->ha_table_flags() & HA_DUPLICATE_POS)
     {
       DBUG_PRINT("info",("Locating offending record using rnd_pos()"));
-      error= table->file->rnd_pos(table->record[1], table->file->dup_ref);
+      error= table->file->ha_rnd_pos(table->record[1], table->file->dup_ref);
       if (error)
       {
         DBUG_PRINT("info",("rnd_pos() returns error %d",error));
@@ -2140,10 +2140,10 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
 
       key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
                0);
-      error= table->file->index_read_idx_map(table->record[1], keynum,
-                                             (const uchar*)key.get(),
-                                             HA_WHOLE_KEY,
-                                             HA_READ_KEY_EXACT);
+      error= table->file->ha_index_read_idx_map(table->record[1], keynum,
+                                                (const uchar*)key.get(),
+                                                HA_WHOLE_KEY,
+                                                HA_READ_KEY_EXACT);
       if (error)
       {
         DBUG_PRINT("info",("index_read_idx() returns error %d", error));
@@ -2256,7 +2256,11 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
 
   @note If the engine allows random access of the records, a combination of
   @c position() and @c rnd_pos() will be used. 
- */
+
+  Note that one MUST call ha_index_or_rnd_end() after this function if
+  it returns 0 as we must leave the row position in the handler intact
+  for any following update/delete command.
+*/
 
 int Old_rows_log_event::find_row(const Relay_log_info *rli)
 {
@@ -2294,13 +2298,13 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
       length. Something along these lines should work:
 
       ADD>>>  store_record(table,record[1]);
-              int error= table->file->rnd_pos(table->record[0], table->file->ref);
+              int error= table->file->ha_rnd_pos(table->record[0], table->file->ref);
       ADD>>>  DBUG_ASSERT(memcmp(table->record[1], table->record[0],
                                  table->s->reclength) == 0);
 
     */
     DBUG_PRINT("info",("locating record using primary key (position)"));
-    int error= table->file->rnd_pos_by_record(table->record[0]);
+    int error= table->file->ha_rnd_pos_by_record(table->record[0]);
     if (error)
     {
       DBUG_PRINT("info",("rnd_pos returns error %d",error));
@@ -2346,7 +2350,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
       Don't print debug messages when running valgrind since they can
       trigger false warnings.
      */
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
     DBUG_DUMP("key data", m_key, table->key_info->key_length);
 #endif
 
@@ -2360,9 +2364,9 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
       table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
     table->record[0][pos]= 0xFF;
     
-    if ((error= table->file->index_read_map(table->record[0], m_key, 
-                                            HA_WHOLE_KEY,
-                                            HA_READ_KEY_EXACT)))
+    if ((error= table->file->ha_index_read_map(table->record[0], m_key, 
+                                               HA_WHOLE_KEY,
+                                               HA_READ_KEY_EXACT)))
     {
       DBUG_PRINT("info",("no record matching the key found in the table"));
       if (error == HA_ERR_RECORD_DELETED)
@@ -2376,7 +2380,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
     Don't print debug messages when running valgrind since they can
     trigger false warnings.
    */
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
     DBUG_PRINT("info",("found first matching record")); 
     DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
 #endif
@@ -2399,15 +2403,14 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
       /* Unique does not have non nullable part */
       if (!(table->key_info->flags & (HA_NULL_PART_KEY)))
       {
-        table->file->ha_index_end();
         DBUG_RETURN(0);
       }
       else
       {
         KEY *keyinfo= table->key_info;
         /*
-          Unique has nullable part. We need to check if there is any field in the
-          BI image that is null and part of UNNI.
+          Unique has nullable part. We need to check if there is any
+          field in the BI image that is null and part of UNNI.
         */
         bool null_found= FALSE;
         for (uint i=0; i < keyinfo->key_parts && !null_found; i++)
@@ -2419,7 +2422,6 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
 
         if (!null_found)
         {
-          table->file->ha_index_end();
           DBUG_RETURN(0);
         }
 
@@ -2451,7 +2453,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
           256U - (1U << table->s->last_null_bit_pos);
       }
 
-      while ((error= table->file->index_next(table->record[0])))
+      while ((error= table->file->ha_index_next(table->record[0])))
       {
         /* We just skip records that has already been deleted */
         if (error == HA_ERR_RECORD_DELETED)
@@ -2462,11 +2464,6 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
         DBUG_RETURN(error);
       }
     }
-
-    /*
-      Have to restart the scan to be able to fetch the next row.
-    */
-    table->file->ha_index_end();
   }
   else
   {
@@ -2475,11 +2472,10 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
     int restart_count= 0; // Number of times scanning has restarted from top
 
     /* We don't have a key: search the table using rnd_next() */
-    if ((error= table->file->ha_rnd_init(1)))
+    if ((error= table->file->ha_rnd_init_with_error(1)))
     {
       DBUG_PRINT("info",("error initializing table scan"
                          " (ha_rnd_init returns %d)",error));
-      table->file->print_error(error, MYF(0));
       DBUG_RETURN(error);
     }
 
@@ -2487,7 +2483,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
     do
     {
   restart_rnd_next:
-      error= table->file->rnd_next(table->record[0]);
+      error= table->file->ha_rnd_next(table->record[0]);
 
       switch (error) {
 
@@ -2500,11 +2496,10 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
       case HA_ERR_END_OF_FILE:
         if (++restart_count < 2)
         {
-          if ((error= table->file->ha_rnd_init(1)))
-          {
-            table->file->print_error(error, MYF(0));
-            DBUG_RETURN(error);
-          }
+          int error2;
+          table->file->ha_rnd_end();
+          if ((error2= table->file->ha_rnd_init_with_error(1)))
+            DBUG_RETURN(error2);
           goto restart_rnd_next;
         }
         break;
@@ -2531,7 +2526,8 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
       DBUG_PRINT("info", ("Record not found"));
     else
       DBUG_DUMP("record found", table->record[0], table->s->reclength);
-    table->file->ha_rnd_end();
+    if (error)
+      table->file->ha_rnd_end();
 
     DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
     DBUG_RETURN(error);
@@ -2780,6 +2776,7 @@ int Delete_rows_log_event_old::do_exec_row(const Relay_log_info *const rli)
       Delete the record found, located in record[0]
     */
     error= m_table->file->ha_delete_row(m_table->record[0]);
+    m_table->file->ha_index_or_rnd_end();
   }
   return error;
 }
@@ -2905,7 +2902,7 @@ Update_rows_log_event_old::do_exec_row(const Relay_log_info *const rli)
     Now we have the right row to update.  The old row (the one we're
     looking for) is in record[1] and the new row is in record[0].
   */
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
   /*
     Don't print debug messages when running valgrind since they can
     trigger false warnings.
@@ -2916,6 +2913,8 @@ Update_rows_log_event_old::do_exec_row(const Relay_log_info *const rli)
 #endif
 
   error= m_table->file->ha_update_row(m_table->record[1], m_table->record[0]);
+  m_table->file->ha_index_or_rnd_end();
+
   if (error == HA_ERR_RECORD_IS_THE_SAME)
     error= 0;
 

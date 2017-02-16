@@ -1,9 +1,14 @@
+--source include/have_innodb.inc
 # Bug #60049 Verify that purge leaves no garbage in unique secondary indexes
 # This test requires a fresh server start-up and a slow shutdown.
 # This was a suspected bug (not a bug).
 
 -- source include/not_embedded.inc
--- source include/have_innodb.inc
+
+#
+# This test will not work if we don't do full shutdown of innodb
+#
+set @@global.innodb_fast_shutdown=0;
 
 CREATE TABLE t(a INT)ENGINE=InnoDB;
 RENAME TABLE t TO u;

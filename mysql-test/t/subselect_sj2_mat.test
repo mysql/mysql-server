@@ -1,0 +1,265 @@
+# 
+# Run subselect_sj2.test with subquery materialization.
+#
+set optimizer_switch='materialization=on';
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+
+--source t/subselect_sj2.test
+
+set optimizer_switch=default;
+select @@optimizer_switch like '%materialization=on%';
+
+--echo #
+--echo # BUG#906385: EXPLAIN EXTENDED crashes in TABLE_LIST::print with limited max_join_size
+--echo #
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( b INT );
+
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES
+  (1),(2),(3),(4),(5),
+  (6),(7),(8),(9),(10),
+  (11),(12),(13),(14),(15),
+  (16),(17),(18),(19),(20);
+
+set @tmp_906385=@@max_join_size;
+SET max_join_size = 80;
+
+--error ER_TOO_BIG_SELECT
+EXPLAIN EXTENDED
+SELECT COUNT(*) FROM t1
+WHERE a IN
+      ( SELECT b FROM t2 GROUP BY b )
+  AND ( 6 ) IN
+  ( SELECT MIN( t2.b ) FROM t2 alias1, t2 );
+
+DROP TABLE t1, t2;
+set max_join_size= @tmp_906385;
+
+--echo # 
+--echo # mdev-3995: Wrong result for semijoin with materialization  
+--echo # 
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+CREATE TABLE t1 (
+  cat_id int(10) unsigned NOT NULL,
+  PRIMARY KEY (cat_id)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES
+(709411),(709412),(709413),(709414),(709416),(709417),(709418),(709419),(709421),(709422),
+(709424),(709425),(709427),(709428),(709429),(709431),(709432),(709433),(709434),(709435),
+(709438),(709439),(709441),(709442),(709443),(709444),(709445),(709446),(709447),(709450),
+(709451),(709454),(709455),(709456),(709457),(709459),(709460),(709461),(709462),(709463),
+(709464),(709465),(709467),(709469),(709470),(709471),(709472),(709473),(709474),(709475),
+(709476),(709477),(709478),(709479),(709480),(709481),(709483),(709484),(709485),(709487),
+(709490),(709491),(709492),(709493),(709494),(709495),(709496),(709497),(709498),(709499),
+(709500),(709501),(709502),(709503),(709504),(709505),(709506),(709507),(709509),(709510),
+(709511),(709512),(709513),(709514),(709515),(709516),(709517),(709518),(709519),(709520),
+(709521),(709522),(709523),(709524),(709525),(709526),(709527),(709528),(709529),(709530),
+(709531),(709532),(709533),(709534),(709535),(709536),(709537),(709538),(709539),(709540),
+(709541),(709542),(709543),(709544),(709545),(709546),(709548),(709549),(709551),(709552),
+(709553),(709555),(709556),(709557),(709558),(709559),(709560),(709561),(709562),(709563),
+(709564),(709565),(709566),(709567),(709568),(709569),(709570),(709571),(709572),(709573),
+(709574),(709575),(709576),(709577),(709578),(709579),(709580),(709581),(709582),(709583),
+(709584),(709585),(709586),(709587),(709588),(709590),(709591),(709592),(709593),(709594),
+(709595),(709596),(709597),(709598),(709600),(709601),(709602),(709603),(709604),(709605),
+(709606),(709608),(709609),(709610),(709611),(709612),(709613),(709614),(709615),(709616),
+(709617),(709618),(709619),(709620),(709621),(709622),(709623),(709624),(709625),(709626),
+(709627),(709628),(709629),(709630),(709631),(709632),(709633),(709634),(709635),(709637),
+(709638),(709639),(709640),(709641),(709642),(709643),(709644),(709645),(709646),(709649),
+(709650),(709651),(709652),(709653),(709654),(709655),(709656),(709657),(709658),(709659);
+
+CREATE TABLE t2 (
+  cat_id int(10) NOT NULL,
+  KEY cat_id (cat_id)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES
+(708742),(708755),(708759),(708761),(708766),(708769),(708796),(708798),(708824),(708825),
+(708838),(708844),(708861),(708882),(708887),(708889),(708890),(709586),(709626);
+
+CREATE TABLE t3 (
+  sack_id int(10) unsigned NOT NULL,
+  kit_id tinyint(3) unsigned NOT NULL DEFAULT '0',
+  cat_id int(10) unsigned NOT NULL,
+  PRIMARY KEY (sack_id,kit_id,cat_id)
+) ENGINE=MyISAM;
+
+INSERT INTO t3 VALUES
+(33479,6,708523),(33479,6,708632),(33479,6,709085),(33479,6,709586),(33479,6,709626);
+
+CREATE TABLE t4 (
+  cat_id int(10) unsigned NOT NULL,
+  KEY cat_id (cat_id)
+) ENGINE=MyISAM;
+
+INSERT INTO t4 (cat_id) SELECT cat_id from t2; 
+
+set optimizer_switch='materialization=off';
+
+EXPLAIN
+SELECT count(*) FROM t1, t3 
+  WHERE  t1.cat_id = t3.cat_id AND 
+         t3.cat_id IN (SELECT cat_id FROM t2) AND 
+         t3.sack_id = 33479 AND t3.kit_id = 6;
+
+SELECT count(*) FROM t1, t3 
+  WHERE  t1.cat_id = t3.cat_id AND 
+         t3.cat_id IN (SELECT cat_id FROM t2) AND 
+         t3.sack_id = 33479 AND t3.kit_id = 6;
+
+set optimizer_switch='materialization=on';
+
+EXPLAIN
+SELECT count(*) FROM t1, t3 
+  WHERE  t1.cat_id = t3.cat_id AND 
+         t3.cat_id IN (SELECT cat_id FROM t4) AND 
+         t3.sack_id = 33479 AND t3.kit_id = 6;
+
+SELECT count(*) FROM t1, t3 
+  WHERE  t1.cat_id = t3.cat_id AND 
+         t3.cat_id IN (SELECT cat_id FROM t4) AND 
+         t3.sack_id = 33479 AND t3.kit_id = 6;
+
+EXPLAIN
+SELECT count(*) FROM t1, t3 
+  WHERE  t1.cat_id = t3.cat_id AND 
+         t3.cat_id IN (SELECT cat_id FROM t2) AND 
+         t3.sack_id = 33479 AND t3.kit_id = 6;
+
+SELECT count(*) FROM t1, t3 
+  WHERE  t1.cat_id = t3.cat_id AND 
+         t3.cat_id IN (SELECT cat_id FROM t2) AND 
+         t3.sack_id = 33479 AND t3.kit_id = 6;
+
+
+DROP TABLE t1,t2,t3,t4;
+
+set optimizer_switch=@save_optimizer_switch;
+
+--echo #
+--echo # mdev-3913: LEFT JOIN with materialized multi-table IN subquery in WHERE
+--echo #
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+CREATE TABLE t1 (a1 char(1), b1 char(1), index idx(b1,a1));
+INSERT INTO t1 VALUES ('f','c'),('d','m'),('g','y');
+INSERT INTO t1 VALUES ('f','c'),('d','m'),('g','y');
+
+CREATE TABLE t2 (a2 char(1), b2 char(1));
+INSERT INTO t2 VALUES ('y','y'),('y','y'),('w','w');
+
+CREATE TABLE t3 (a3 int);
+INSERT INTO t3 VALUES (8),(6);
+
+CREATE TABLE t4 (a4 char(1), b4 char(1));
+INSERT INTO t4 VALUES ('y','y'),('y','y'),('w','w');
+
+set optimizer_switch='materialization=off';
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 LEFT JOIN t2 ON ( b1 = a2 ) 
+  WHERE ( b1, b1 )  IN ( SELECT a4, b4 FROM t3, t4);
+SELECT * FROM t1 LEFT JOIN t2 ON ( b1 = a2 ) 
+  WHERE ( b1, b1 )  IN ( SELECT a4, b4 FROM t3, t4);
+
+set optimizer_switch='materialization=on';
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 LEFT JOIN t2 ON ( b1 = a2 ) 
+  WHERE ( b1, b1 )  IN ( SELECT a4, b4 FROM t3, t4);
+SELECT * FROM t1 LEFT JOIN t2 ON ( b1 = a2 ) 
+  WHERE ( b1, b1 )  IN ( SELECT a4, b4 FROM t3, t4);
+
+DROP TABLE t1,t2,t3,t4;
+
+set optimizer_switch=@save_optimizer_switch;
+
+--echo #
+--echo # mdev-4172: LEFT JOIN with materialized multi-table IN subquery in WHERE
+--echo #            and OR in ON condition
+--echo #
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+CREATE TABLE t1 (a1 int, c1 varchar(1));
+INSERT t1 VALUES (7,'v'), (3,'y');
+
+CREATE TABLE t2 (c2 varchar(1));
+INSERT INTO t2 VALUES ('y'), ('y');
+
+CREATE TABLE t3 (c3 varchar(1));
+INSERT INTO t3 VALUES
+  ('j'), ('v'), ('c'), ('m'), ('d'),
+  ('d'), ('y'), ('t'), ('d'), ('s');
+
+CREATE TABLE t4 (a4 int, c4 varchar(1));
+INSERT INTO t4 SELECT * FROM t1;
+
+set optimizer_switch='materialization=off';
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 LEFT JOIN t2 ON (c2 = c1 OR c1 > 'z')
+  WHERE c1 IN ( SELECT c4 FROM t3,t4 WHERE c3 = c4);
+SELECT * FROM t1 LEFT JOIN t2 ON (c2 = c1 OR c1 > 'z')
+  WHERE c1 IN ( SELECT c4 FROM t3,t4 WHERE c3 = c4);
+
+set optimizer_switch='materialization=on';
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 LEFT JOIN t2 ON (c2 = c1 OR c1 > 'z')
+  WHERE c1 IN ( SELECT c4 FROM t3,t4 WHERE c3 = c4);
+SELECT * FROM t1 LEFT JOIN t2 ON (c2 = c1 OR c1 > 'z')
+  WHERE c1 IN ( SELECT c4 FROM t3,t4 WHERE c3 = c4);
+
+DROP TABLE t1,t2,t3,t4;
+
+set optimizer_switch=@save_optimizer_switch;
+
+--echo #
+--echo # mdev-4177: materialization of a subquery whose WHERE condition is OR
+--echo # formula with two disjucts such that the second one is always false
+--echo #
+
+set @save_optimizer_switch=@@optimizer_switch;
+set @save_join_cache_level=@@join_cache_level;
+
+CREATE TABLE t1 (i1 int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1), (7), (4), (8), (4);
+
+CREATE TABLE t2 (i2 int) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (7), (5);
+
+CREATE TABLE t3 (i3 int) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (7), (2), (9);
+
+set join_cache_level=3;
+
+set optimizer_switch='materialization=off,semijoin=off';
+
+EXPLAIN EXTENDED 
+SELECT * FROM t1 WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 = i2 OR 1=2);
+SELECT * FROM t1 WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 = i2 OR 1=2);
+
+set optimizer_switch='materialization=on,semijoin=on';
+
+EXPLAIN EXTENDED 
+SELECT * FROM t1 WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 = i2 OR 1=2);
+SELECT * FROM t1 WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 = i2 OR 1=2);
+
+EXPLAIN EXTENDED 
+SELECT * FROM t1 
+  WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 > 0 AND i3 = i2 OR 1=2);
+SELECT * FROM t1 
+  WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 > 0 AND i3 = i2 OR 1=2);
+SELECT * FROM t1 
+  WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 > 7 AND i3 = i2 OR 1=2);
+
+DROP TABLE t1,t2,t3;
+
+set join_cache_level= @save_join_cache_level;
+set optimizer_switch=@save_optimizer_switch;
+

@@ -55,7 +55,7 @@ void check_performance_schema()
 
   PFS_engine_table_share::check_all_tables(thd);
 
-  thd->restore_globals();
+  thd->reset_globals();
   delete thd;
   DBUG_VOID_RETURN;
 }

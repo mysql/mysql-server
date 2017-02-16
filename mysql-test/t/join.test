@@ -2,7 +2,11 @@
 # Initialization
 --disable_warnings
 drop table if exists t1,t2,t3;
+drop view if exists v1,v2;
 --enable_warnings
+
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 
 #
 # Test different join syntaxes
@@ -921,4 +925,237 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug LP:798597: Incorrect "Duplicate entry" error with views and
+--echo #                GROUP BY
+--echo #
+
+CREATE TABLE t1 ( f1 int NOT NULL , f2 int NOT NULL ) ;
+INSERT INTO t1 VALUES (214,0),(6,6);
+CREATE TABLE t2 ( f2 int) ;
+INSERT INTO t2 VALUES (88),(88);
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT t1.f1, t2.f2 FROM (t2 LEFT JOIN t1 ON (t2.f2 <> t1.f1)) WHERE (t1.f2 <= 0) ;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT t1.f1, t2.f2 FROM (t2 LEFT JOIN t1 ON (t2.f2 <> t1.f1)) WHERE (t1.f2 <= 0 or t1.f2 is null) ;
+SELECT f1 , MIN(f2) FROM v1 GROUP BY f1;
+SELECT f1 , MIN(f2) FROM v2 GROUP BY f1;
+drop table t1,t2;
+drop view v1,v2;
+
+--echo #
+--echo # BUG#47217 Lost optimization caused slowdown & wrong result.
+--echo #
+CREATE TABLE t1 (pk INT, v VARCHAR(2), PRIMARY KEY(pk));
+CREATE INDEX ix1 ON t1(v);
+CREATE TABLE t2 (pk INT, v VARCHAR(2), PRIMARY KEY(pk));
+CREATE INDEX ix2 ON t2(v);
+INSERT INTO t1 VALUES (1,'a'),(2,NULL);
+INSERT INTO t2 VALUES (1,NULL);
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.v = t2.v ORDER BY 1;
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.v = t2.v;
+INSERT INTO t1 VALUES (3,'b'),(4,NULL),(5,'c'),(6,'cc'),(7,'d'),
+  (8,'dd'),(9,'e'),(10,'ee');
+INSERT INTO t2 VALUES (2,NULL);
+FLUSH STATUS;
+SELECT * FROM t1 JOIN t2 ON t1.v = t2.v WHERE t2.v IS NULL ORDER BY 1;
+SHOW STATUS LIKE 'Handler_read_%';
+DROP TABLE t1, t2;
+
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug #43368: STRAIGHT_JOIN DOESN'T WORK FOR NESTED JOINS 
+--echo #
+
+create table t1(c1 int primary key, c2 char(10)) engine=myisam;
+create table t2(c1 int primary key, c2 char(10), ref_t1 int) engine=myisam;
+create table t3(c1 int primary key, c2 char(10), ref_t1 int) engine=myisam;
+create table t4(c1 int primary key, c2 char(10), ref_t1 int) engine=myisam;
+insert into t1 values(1,'a');
+insert into t2 values(1,'a', 1);
+insert into t3 values(1,'a', 1);
+insert into t3 values(2,'b',2);
+insert into t4 values(1,'a', 1);
+insert into t4 values(2,'a', 2);
+insert into t4 values(3,'a', 3);
+insert into t4 values(4,'a', 4);
+insert into t1 values(2,'b');
+insert into t1 values(3,'c');
+
+EXPLAIN
+SELECT * 
+FROM t4 JOIN
+     (t1 JOIN t3 ON t3.ref_t1=t1.c1 JOIN t2 ON t2.ref_t1=t1.c1)
+     ON t4.ref_t1=t1.c1;
+
+EXPLAIN
+SELECT STRAIGHT_JOIN * 
+FROM t4 JOIN
+     (t1 JOIN t3 ON t3.ref_t1=t1.c1 JOIN t2 ON t2.ref_t1=t1.c1)
+     ON t4.ref_t1=t1.c1;
+
+EXPLAIN
+SELECT * 
+FROM t4 STRAIGHT_JOIN
+     (t1 JOIN t3 ON t3.ref_t1=t1.c1 JOIN t2 ON t2.ref_t1=t1.c1)
+     ON t4.ref_t1=t1.c1;
+
+drop table t1,t2,t3,t4;
+--echo End of 5.2 tests
+
+--echo #
+--echo # BUG#724275: Crash in JOIN::optimize in maria-5.3
+--echo #
+
+create table t1 (a int);
+insert into t1 values (1),(2);
+insert into t1 select * from t1;
+
+create table t2 (a int, b int, key(a,b));
+insert into t2 values (1,1),(1,2),(1,3),(1,4),(2,5),(2,6),(2,7),(2,8),(2,9);
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+
+create table t3 (a int, b int, key(a));
+insert into t3 values (1,1),(2,2);
+select * from 
+  t3 straight_join t1 straight_join t2 force index(a) 
+where t2.a=1 and t2.b=t1.a and t1.a=t3.b and t3.a=1;
+
+drop table t1,t2,t3;
+
+--echo #
+--echo # BUG#729067/730466: unexpected 'Range checked for each record'
+--echo #                    for queries with OR in WHERE clause 
+--echo #
+
+CREATE TABLE t1 (f1 int, f2 int) ;
+INSERT INTO t1 VALUES (4,0),(5,1);
+
+CREATE TABLE t2 (f1 int, f2 int, KEY (f2)) ;
+INSERT INTO t2 VALUES (5,7), (8,9);
+
+EXPLAIN
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON t2.f1 = t1.f1
+  WHERE t1.f1<>0 OR t1.f2<>0 AND t1.f1 = t2.f2;
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON t2.f1 = t1.f1
+  WHERE t1.f1<>0 OR t1.f2<>0 AND t1.f1 = t2.f2;
+
+DROP TABLE t1,t2;
+
+CREATE TABLE t1(f1 int PRIMARY KEY, f2 int) ;
+INSERT INTO t1 VALUES (9,4), (10,9);
+
+CREATE TABLE t2(f1 int PRIMARY KEY, f2 int) ;
+INSERT INTO t2 VALUES (9,4), (10,9);
+
+EXPLAIN
+SELECT STRAIGHT_JOIN * FROM t1 JOIN t2 ON t2.f2 = t1.f1
+  WHERE t1.f1 IN (SELECT f1 FROM t1) AND t1.f1 = t2.f1 OR t1.f1 = 9;
+SELECT STRAIGHT_JOIN * FROM t1 JOIN t2 ON t2.f2 = t1.f1
+  WHERE t1.f1 IN (SELECT f1 FROM t1) AND t1.f1 = t2.f1 OR t1.f1 = 9;
+
+DROP TABLE t1,t2;
+
+#
+# Item_equal used cmp_item::get_comparator() incorrectly
+#
+create table t1 (i time key);
+insert into t1 values ('1:1:1'), ('2:2:2');
+create table t2 (i time);
+insert into t2 values ('1:1:1');
+select t2.i from t1 left join t2 on t2.i = t1.i where t1.i = '1:1:1';
+drop table t1,t2;
+
+--echo #
+--echo # BUG#954900: unexpected empty set due to an invalid build of key ref
+--echo #                   
+
+CREATE TABLE t1 (dog_id int(10), birthday date, PRIMARY KEY (dog_id,birthday));
+INSERT INTO t1 VALUES (5918,'2004-07-22');
+
+CREATE TABLE t2 (dog_id int(10) unsigned, t_id char(1), birthday date, a_id int(10),
+PRIMARY KEY (dog_id,t_id,birthday,a_id));
+INSERT INTO t2 VALUES 
+(5918,'N','2004-07-22',5216551), (5918,'N','2004-07-22',5223640),
+(5918,'N','2004-07-22',5389491), (5918,'N','2004-07-22',5749434),
+(5918,'N','2004-07-22',5992424), (5922,'N','2005-06-30',5076957),
+(5924,'N','2000-08-11',20264), (5924,'N','2000-08-11',64251),
+(5924,'N','2000-08-11',74748), (5924,'N','2000-08-11',87590),
+(5924,'N','2000-08-11',104695), (5924,'N','2000-08-11',133136),
+(5924,'N','2000-08-11',5027806), (5924,'N','2000-08-11',5076957),
+(5924,'N','2000-08-11',5166821), (5924,'N','2000-08-11',5181896),
+(5924,'N','2000-08-11',5217908), (5924,'N','2000-08-11',5220812),
+(5924,'N','2000-08-11',5226473), (5924,'N','2000-08-11',5339111),
+(5925,'N','2005-02-10',19227), (5925,'N','2005-02-10',74529),
+(5925,'N','2005-02-10',74748), (5927,'N','2005-08-18',20264),
+(5927,'N','2005-08-18',58364), (5929,'N','2005-01-19',58364),
+(5935,'N','2006-03-10',19227), (5935,'N','2006-03-10',64251),
+(5935,'N','2006-03-10',5222400), (5935,'N','2006-03-10',5226473),
+(5936,'N','2004-10-29',5015032), (5937,'N','2002-04-05',11237),
+(5937,'N','2002-04-05',23911), (5937,'N','2002-04-05',112133),
+(5937,'N','2002-04-05',169721), (5937,'N','2002-04-05',170650),
+(5937,'N','2002-04-05',5014494), (5937,'N','2002-04-05',5166009),
+(5937,'N','2002-04-05',5181871), (5937,'N','2002-04-05',5213380),
+(5937,'N','2002-04-05',5214875), (5937,'N','2002-04-05',5895062),
+(5938,'N','2006-03-24',11237), (5938,'N','2006-03-24',19227),
+(5938,'N','2006-03-24',23911), (5938,'N','2006-03-24',58364),
+(5938,'N','2006-03-24',64251), (5938,'N','2006-03-24',111716),
+(5938,'N','2006-03-24',112702), (5938,'N','2006-03-24',133136),
+(5938,'N','2006-03-24',168718), (5938,'N','2006-03-24',5137136),
+(5938,'N','2006-03-24',5161519), (5938,'N','2006-03-24',5168120),
+(5938,'N','2006-03-24',5219034), (6234,'N','2006-06-02',103058),
+(6234,'N','2006-06-02',5146844), (6235,'N','2006-06-01',12900),
+(6235,'N','2006-06-01',20264), (6235,'N','2006-06-01',64251),
+(6235,'N','2006-06-01',75160), (6235,'N','2006-06-01',5014494),
+(6235,'N','2006-06-01',5181638), (6236,'N','2006-06-06',112595),
+(6236,'N','2006-06-06',5219601), (6236,'N','2006-06-06',5808374);
+
+CREATE TABLE t3 (dog_id int(10) unsigned);
+INSERT INTO t3 VALUES (5918);
+
+CREATE TABLE t4 (dog_id int(10), t_id char(1), birthday date, KEY (t_id));
+INSERT INTO t4 VALUES (5918,'N','2004-07-22'), (5919,'N','2004-07-20');
+
+CREATE TABLE t5 (dog_id int(10) unsigned, UNIQUE KEY (dog_id));
+INSERT INTO t5 VALUES (5918);
+
+SET @tmp_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='index_condition_pushdown=off';
+
+EXPLAIN
+SELECT * FROM t5 DU, t1 D, t4 DT, t2 DSA, t3 DSAR
+WHERE DU.dog_id=D.dog_id AND D.dog_id=DT.dog_id AND D.birthday=DT.birthday AND
+      DT.t_id=DSA.t_id AND DT.birthday=DSA.birthday AND DSA.dog_id=DSAR.dog_id;
+SELECT * FROM t5 DU, t1 D, t4 DT, t2 DSA, t3 DSAR
+WHERE DU.dog_id=D.dog_id AND D.dog_id=DT.dog_id AND D.birthday=DT.birthday AND
+      DT.t_id=DSA.t_id AND DT.birthday=DSA.birthday AND DSA.dog_id=DSAR.dog_id;
+
+SET optimizer_switch=@tmp_optimizer_switch;
+
+DROP TABLE t1,t2,t3,t4,t5;
+
+--echo #
+--echo # MDEV-4752: Segfault during parsing of illegal query
+--echo #
+--error ER_PARSE_ERROR
+SELECT * FROM t5 JOIN (t1 JOIN t2 UNION SELECT * FROM t3 JOIN t4);
+
+--echo #
+--echo # MDEV-4959: join of const table with NULL fields
+--echo #
+
+CREATE TABLE t1 (i1 int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (NULL);
+CREATE TABLE t2 (i2 int, a int, b int) ENGINE=MyISAM;
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT * FROM t2;
+INSERT INTO t2 VALUES (NULL,1,2),(NULL,2,3);
+
+SELECT * FROM t1 JOIN v2 ON i1 = i2 WHERE a < b;
+EXPLAIN EXTENDED
+SELECT * FROM t1 JOIN v2 ON i1 = i2 WHERE a < b;
+
+DROP VIEW v2;
+DROP TABLE t1,t2;
+
+SET optimizer_switch=@save_optimizer_switch;

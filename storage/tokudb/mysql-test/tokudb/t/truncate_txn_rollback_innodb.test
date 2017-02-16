@@ -1,0 +1,21 @@
+# test truncate commit
+--source include/have_innodb.inc
+--source include/have_tokudb.inc
+set autocommit=off;
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+create table t (a int, b int, primary key (a)) engine=innodb;
+start transaction;
+insert into t values (1,2),(2,4),(3,8);
+commit;
+start transaction;
+select * from t;
+commit;
+start transaction;
+truncate table t;
+rollback;
+start transaction;
+select * from t;
+commit;
+drop table t;

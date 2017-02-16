@@ -1,4 +1,5 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2015, MariaDB
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,17 +26,16 @@ ${CMAKE_BINARY_DIR}/sql
 SET(GEN_SOURCES
 ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h 
 ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
-${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
 ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
 )
 
 SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED 1)
 
 ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_EVENT_SCHEDULER) 
+
 IF(SSL_DEFINES)
  ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
-
 
 SET (SQL_SOURCE
               ../sql-common/client.c derror.cc des_key_file.cc
@@ -63,7 +63,7 @@ SET (SQL_SOURCE
                sql_list.cc sql_load.cc sql_manager.cc sql_parse.cc
                sql_partition.cc sql_plugin.cc sql_prepare.cc sql_rename.cc 
                debug_sync.cc debug_sync.h
-               sql_repl.cc sql_select.cc sql_show.cc sql_state.c sql_string.cc 
+               sql_repl.cc sql_select.cc sql_show.cc sql_state.c sql_string.cc
                sql_table.cc sql_test.cc sql_trigger.cc sql_udf.cc sql_union.cc
                sql_update.cc sql_view.cc strfunc.cc table.cc thr_malloc.cc 
                sql_time.cc tztime.cc uniques.cc unireg.cc item_xmlfunc.cc 
@@ -77,15 +77,30 @@ SET (SQL_SOURCE
                sql_signal.cc rpl_handler.cc mdl.cc sql_admin.cc
                transaction.cc sys_vars.cc sql_truncate.cc datadict.cc
                sql_reload.cc
-               ${GEN_SOURCES}
-               ${MYSYS_LIBWRAP_SOURCE})
 
-# These files have unused result errors, so we skip Werror
-CHECK_C_COMPILER_FLAG("-Werror" HAVE_WERROR_FLAG)
-IF(HAVE_WERROR_FLAG)
-  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-  ADD_COMPILE_FLAGS(filesort.cc  COMPILE_FLAGS "-Wno-error")
-  ADD_COMPILE_FLAGS(opt_range.cc COMPILE_FLAGS "-Wno-error")
+               # added in MariaDB:
+               sql_lifo_buffer.h sql_join_cache.h sql_join_cache.cc
+               create_options.cc multi_range_read.cc
+               opt_index_cond_pushdown.cc opt_subselect.cc
+               opt_table_elimination.cc sql_expression_cache.cc
+               gcalc_slicescan.cc gcalc_tools.cc
+			   threadpool_common.cc 
+			   ../sql-common/mysql_async.c
+               ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
+               ${GEN_SOURCES}
+               ${MYSYS_LIBWRAP_SOURCE}
+			   )
+  
+IF (CMAKE_SYSTEM_NAME MATCHES "Linux" OR
+    CMAKE_SYSTEM_NAME MATCHES "Windows" OR
+    CMAKE_SYSTEM_NAME MATCHES "SunOS" OR
+    HAVE_KQUEUE)
+ ADD_DEFINITIONS(-DHAVE_POOL_OF_THREADS) 
+ IF(WIN32)
+   SET(SQL_SOURCE ${SQL_SOURCE} threadpool_win.cc)
+ ELSE()
+   SET(SQL_SOURCE ${SQL_SOURCE} threadpool_unix.cc)
+ ENDIF()
 ENDIF()
 
 MYSQL_ADD_PLUGIN(partition ha_partition.cc STORAGE_ENGINE DEFAULT STATIC_ONLY
@@ -95,21 +110,13 @@ ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql GenServerSource)
 DTRACE_INSTRUMENT(sql)
 TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
-  mysys dbug strings vio regex   
-  ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
+  mysys dbug strings vio regex ${LIBJEMALLOC}
+  ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${CMAKE_THREAD_LIBS_INIT}
   ${SSL_LIBRARIES})
-
-#
-# On Windows platform we compile in the clinet-side Windows Native Authentication
-# plugin which is used by the client connection code included in the server.
-#
-IF(WIN32)
-  ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
-  TARGET_LINK_LIBRARIES(sql auth_win_client)
-ENDIF() 
 
 IF(WIN32)
   SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h message.rc)
+  TARGET_LINK_LIBRARIES(sql psapi)
 ELSE()
   SET(MYSQLD_SOURCE main.cc ${DTRACE_PROBES_ALL})
 ENDIF()
@@ -152,11 +159,11 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
                   ${_PLATFORM}  ${LIB_LOCATIONS} > mysqld.def 
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
     ADD_DEPENDENCIES(sql GenError)
-  ENDIF()
-ENDIF()
+  ENDIF(MSVC)
+ENDIF(NOT WITHOUT_DYNAMIC_PLUGINS)
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
-TARGET_LINK_LIBRARIES(mysqld sql mysys)
+TARGET_LINK_LIBRARIES(mysqld sql)
 
 # Provide plugins with minimal set of libraries
 SET(INTERFACE_LIBS ${LIBRT})
@@ -186,9 +193,12 @@ INSTALL_DEBUG_TARGET(mysqld
   PDB_DESTINATION ${INSTALL_SBINDIR}/debug
   RENAME mysqld-debug)
 
+INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
+
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
 # there
+IF (NOT BISON_USABLE)
 IF (NOT ${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_BINARY_DIR})
   IF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.cc)
     IF(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc)
@@ -199,9 +209,8 @@ IF (NOT ${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_BINARY_DIR})
     ENDIF()
   ENDIF()
 ENDIF()
+ENDIF()
 
-
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
 RUN_BISON(
   ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.yy 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
@@ -217,7 +226,7 @@ ADD_CUSTOM_COMMAND(
   DEPENDS gen_lex_hash
 )
 
-MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc)
+MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc COMPONENT Server)
 SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql PROPERTIES COMPILE_FLAGS "-DTZINFO2SQL")
 TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql mysys)
 
@@ -270,7 +279,7 @@ ADD_CUSTOM_TARGET(distclean
 IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
 
 # Copy db.opt into data/test/
-SET(DBOPT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/db.opt ) 
+SET(DBOPT_FILE ${CMAKE_SOURCE_DIR}/support-files/db.opt ) 
 INSTALL(FILES ${DBOPT_FILE} DESTINATION data/test COMPONENT DataFiles)
 
 # Install initial database on windows
@@ -299,18 +308,61 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
     ALL
     DEPENDS  initdb.dep
   )
-  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data
-    DESTINATION . 
-    COMPONENT DataFiles
-    PATTERN "initdb.dep" EXCLUDE
-    PATTERN "bootstrap.sql" EXCLUDE)
+  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data DESTINATION . 
+  COMPONENT DataFiles 
+  PATTERN "initdb.dep" EXCLUDE  
+  PATTERN "bootstrap.sql" EXCLUDE
+  PATTERN "aria*" EXCLUDE
+  )
 ELSE()
   # Not windows or cross compiling, just install an empty directory
   INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql COMPONENT DataFiles)
-ENDIF()
-ENDIF()
+ENDIF(WIN32 AND MYSQLD_EXECUTABLE)
+ENDIF(INSTALL_LAYOUT STREQUAL "STANDALONE")
 
-ADD_CUSTOM_TARGET(show-dist-name
-  COMMAND ${CMAKE_COMMAND} -E echo "${CPACK_PACKAGE_FILE_NAME}"
-)
+IF(WIN32)
+  SET(my_bootstrap_sql ${CMAKE_CURRENT_BINARY_DIR}/my_bootstrap.sql)
+  FILE(TO_NATIVE_PATH ${my_bootstrap_sql} native_outfile)
 
+  # Create bootstrapper SQL script
+  ADD_CUSTOM_COMMAND(OUTPUT    
+    ${my_bootstrap_sql}
+    COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_SOURCE_DIR}/scripts
+    cmd /c copy mysql_system_tables.sql+mysql_system_tables_data.sql+fill_help_tables.sql+mysql_performance_tables.sql ${native_outfile}
+    DEPENDS
+    ${CMAKE_SOURCE_DIR}/scripts/mysql_system_tables.sql
+    ${CMAKE_SOURCE_DIR}/scripts/mysql_system_tables_data.sql
+    ${CMAKE_SOURCE_DIR}/scripts/fill_help_tables.sql
+    ${CMAKE_SOURCE_DIR}/scripts/mysql_performance_tables.sql
+  )
+
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mysql_bootstrap_sql.c
+    COMMAND comp_sql
+    mysql_bootstrap_sql
+    ${CMAKE_CURRENT_BINARY_DIR}/my_bootstrap.sql
+    mysql_bootstrap_sql.c
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS comp_sql ${my_bootstrap_sql}
+  )
+
+  MYSQL_ADD_EXECUTABLE(mysql_install_db 
+    mysql_install_db.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/mysql_bootstrap_sql.c
+    COMPONENT Server
+  )
+  TARGET_LINK_LIBRARIES(mysql_install_db mysys)
+
+  ADD_LIBRARY(winservice STATIC winservice.c)
+  TARGET_LINK_LIBRARIES(winservice shell32)
+  MYSQL_ADD_EXECUTABLE(mysql_upgrade_service
+    mysql_upgrade_service.cc
+    COMPONENT Server)	
+  TARGET_LINK_LIBRARIES(mysql_upgrade_service mysys winservice)
+ENDIF(WIN32)
+
+INSTALL(DIRECTORY . DESTINATION ${INSTALL_INCLUDEDIR}/private COMPONENT Development
+  FILES_MATCHING PATTERN "*.h"
+  PATTERN examples EXCLUDE
+  PATTERN share EXCLUDE
+  PATTERN CMakeFiles EXCLUDE)

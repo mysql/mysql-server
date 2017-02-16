@@ -106,20 +106,20 @@ RETURNS VARCHAR(64) CHARACTER SET ucs2
 BEGIN
 RETURN 'str';
 END|
-ERROR 42000: This version of MySQL doesn't yet support 'COLLATE with no CHARACTER SET in SP parameters, RETURNS, DECLARE'
+ERROR 42000: This version of MariaDB doesn't yet support 'COLLATE with no CHARACTER SET in SP parameters, RETURNS, DECLARE'
 CREATE FUNCTION f(f1 VARCHAR(64) CHARACTER SET ucs2)
 RETURNS VARCHAR(64) COLLATE ucs2_unicode_ci
 BEGIN
 RETURN 'str';
 END|
-ERROR 42000: This version of MySQL doesn't yet support 'COLLATE with no CHARACTER SET in SP parameters, RETURNS, DECLARE'
+ERROR 42000: This version of MariaDB doesn't yet support 'COLLATE with no CHARACTER SET in SP parameters, RETURNS, DECLARE'
 CREATE FUNCTION f(f1 VARCHAR(64) CHARACTER SET ucs2)
 RETURNS VARCHAR(64) CHARACTER SET ucs2
 BEGIN
 DECLARE f2 VARCHAR(64) COLLATE ucs2_unicode_ci;
 RETURN 'str';
 END|
-ERROR 42000: This version of MySQL doesn't yet support 'COLLATE with no CHARACTER SET in SP parameters, RETURNS, DECLARE'
+ERROR 42000: This version of MariaDB doesn't yet support 'COLLATE with no CHARACTER SET in SP parameters, RETURNS, DECLARE'
 SET NAMES utf8;
 DROP FUNCTION IF EXISTS bug48766;
 CREATE FUNCTION bug48766 ()

@@ -173,6 +173,14 @@ enum mysql_db_table_field
 extern const TABLE_FIELD_DEF mysql_db_table_def;
 extern bool mysql_user_table_is_in_short_password_format;
 
+
+static inline int access_denied_error_code(int passwd_used)
+{
+  return passwd_used == 2 ? ER_ACCESS_DENIED_NO_PASSWORD_ERROR
+                          : ER_ACCESS_DENIED_ERROR;
+}
+
+
 /* prototypes */
 
 bool hostname_requires_resolving(const char *hostname);

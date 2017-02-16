@@ -104,7 +104,7 @@ explain extended select last_insert_id();
 --error ER_DUP_ENTRY
 insert into t1 set i = 254;
 select last_insert_id();
---error ER_DUP_ENTRY
+--error HA_ERR_AUTOINC_ERANGE
 insert into t1 set i = null;
 select last_insert_id();
 drop table t1;
@@ -113,6 +113,7 @@ create table t1 (i tinyint unsigned not null auto_increment, key (i));
 insert into t1 set i = 254;
 insert into t1 set i = null;
 select last_insert_id();
+--error HA_ERR_AUTOINC_ERANGE
 insert into t1 set i = null;
 select last_insert_id();
 drop table t1;
@@ -353,7 +354,7 @@ INSERT INTO t1 VALUES (18446744073709551601);
 SET @@SESSION.AUTO_INCREMENT_INCREMENT=10;
 
 SELECT @@SESSION.AUTO_INCREMENT_OFFSET;
---error ER_WARN_DATA_OUT_OF_RANGE
+--error HA_ERR_AUTOINC_ERANGE
 INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
 SELECT * FROM t1;
 
@@ -380,3 +381,19 @@ CREATE TABLE t1 (pk BIGINT UNSIGNED AUTO_INCREMENT, PRIMARY KEY (pk));
 INSERT INTO t1 VALUES (NULL), (18446744073709551615-1), (NULL);
 SELECT * FROM t1;
 DROP TABLE t1;
+
+# MDEV-331 last_insert_id() returns a signed number
+# Check that last_insert_id() generates a signed value
+CREATE TABLE t1 (pk BIGINT UNSIGNED AUTO_INCREMENT, PRIMARY KEY (pk));
+insert into t1 values((1<<63)+1);
+insert into t1 values(null);
+select last_insert_id();
+select * from t1;
+drop table t1;
+
+CREATE TABLE t1 (pk BIGINT AUTO_INCREMENT, PRIMARY KEY (pk));
+insert into t1 values(-5);
+insert into t1 values(null);
+select last_insert_id();
+select * from t1;
+drop table t1;

@@ -1,0 +1,37 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'a');
+connect  con1,localhost,root,,;
+BEGIN;
+SELECT a,b FROM t1 WHERE b='a' LOCK IN SHARE MODE;
+a	b
+1	a
+3	a
+connection default;
+SET lock_wait_timeout = 1;
+SELECT a,b FROM t1 WHERE b='a';
+a	b
+1	a
+3	a
+SELECT a,b FROM t1 WHERE b='a' LOCK IN SHARE MODE;
+a	b
+1	a
+3	a
+UPDATE t1 SET b='c' WHERE b='a';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+connection con1;
+COMMIT;
+SELECT a,b FROM t1;
+a	b
+1	a
+2	b
+3	a
+disconnect con1;
+connection default;
+UPDATE t1 SET b='c' WHERE b='a';
+SELECT a,b FROM t1;
+a	b
+1	c
+2	b
+3	c
+DROP TABLE t1;

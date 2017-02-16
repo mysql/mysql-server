@@ -191,7 +191,7 @@ select coercibility(@v1),coercibility(@v2),coercibility(@v3),coercibility(@v4);
 coercibility(@v1)	coercibility(@v2)	coercibility(@v3)	coercibility(@v4)
 2	2	2	2
 set session @honk=99;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@honk=99' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '@honk=99' at line 1
 select @@local.max_allowed_packet;
 @@local.max_allowed_packet
 #
@@ -308,7 +308,7 @@ select @var;
 3
 drop table t1,t2;
 insert into city 'blah';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''blah'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ''blah'' at line 1
 SHOW COUNT(*) WARNINGS;
 @@session.warning_count
 1
@@ -454,8 +454,49 @@ SELECT (@v:=a) <> (@v:=1) FROM t1;
 (@v:=a) <> (@v:=1)
 1
 DROP TABLE t1;
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUES (1), (2);
+SELECT DISTINCT @a:=MIN(t1.a) FROM t1, t1 AS t2
+GROUP BY @b:=(SELECT COUNT(*) > t2.a);
+@a:=MIN(t1.a)
+1
+DROP TABLE t1;
+SET @bug12408412=1;
+SELECT GROUP_CONCAT(@bug12408412 ORDER BY 1) INTO @bug12408412;
 End of 5.1 tests
-DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0);
+SELECT DISTINCT POW(COUNT(*), @a:=(SELECT 1 FROM t1 LEFT JOIN t1 AS t2 ON @a))
+AS b FROM t1 GROUP BY a;
+b
+1
+SELECT @a;
+@a
+1
+DROP TABLE t1;
+CREATE TABLE t1(f1 INT, f2 INT);
+INSERT INTO t1 VALUES (1,2),(2,3),(3,1);
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES (1);
+SET @var=NULL;
+SELECT @var:=(SELECT f2 FROM t2 WHERE @var) FROM t1 GROUP BY f1 ORDER BY f2 DESC
+LIMIT 1;
+@var:=(SELECT f2 FROM t2 WHERE @var)
+NULL
+SELECT @var;
+@var
+NULL
+DROP TABLE t1, t2;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0),(1),(3);
+SELECT DISTINCT POW(COUNT(distinct a), @a:=(SELECT 1 FROM t1 LEFT JOIN t1 AS t2 ON @a limit 1)) AS b FROM t1 GROUP BY a;
+b
+1
+SELECT @a;
+@a
+1
+DROP TABLE t1;
+End of 5.2 tests
 CREATE TABLE t1(f1 INT AUTO_INCREMENT, PRIMARY KEY(f1));
 INSERT INTO t1 SET f1 = NULL ;
 SET @aux = NULL ;
@@ -485,10 +526,4 @@ f1	f2
 1	4
 DROP TRIGGER trg1;
 DROP TABLE t1;
-#
-# Bug #12408412: GROUP_CONCAT + ORDER BY + INPUT/OUTPUT
-#   SAME USER VARIABLE = CRASH
-#
-SET @bug12408412=1;
-SELECT GROUP_CONCAT(@bug12408412 ORDER BY 1) INTO @bug12408412;
 End of 5.5 tests

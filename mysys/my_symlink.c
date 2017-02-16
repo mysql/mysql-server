@@ -1,4 +1,5 @@
-/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2001, 2011, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -116,6 +117,9 @@ int my_is_symlink(const char *filename __attribute__((unused)))
 /*
   Resolve all symbolic links in path
   'to' may be equal to 'filename'
+
+  to is guaranteed to never set to a string longer than FN_REFLEN
+  (including the end \0)
 */
 
 int my_realpath(char *to, const char *filename, myf MyFlags)
@@ -128,7 +132,7 @@ int my_realpath(char *to, const char *filename, myf MyFlags)
 
   DBUG_PRINT("info",("executing realpath"));
   if ((ptr=realpath(filename,buff)))
-      strmake(to,ptr,FN_REFLEN-1);
+    strmake(to, ptr, FN_REFLEN-1);
   else
   {
     /*

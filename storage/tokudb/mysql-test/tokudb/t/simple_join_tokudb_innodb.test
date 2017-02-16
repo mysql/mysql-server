@@ -1,0 +1,27 @@
+# simple join tokudb and innodb
+--source include/have_innodb.inc
+--source include/have_tokudb.inc
+
+--disable_warnings
+drop table if exists tab;
+drop table if exists tbc;
+--enable_warnings
+
+create table tab (a int, b int) engine=tokudb;
+insert into tab values (1,1),(2,1),(2,2),(3,1),(3,2),(3,3);
+select * from tab;
+
+create table tbc (b int, c int) engine=innodb;
+insert into tbc values (2,4),(3,9),(3,27),(4,1);
+select * from tbc;
+
+select a,tab.b,c from tab join tbc on tab.b = tbc.b;
+
+select a,tab.b,tbc.b,c from tab join tbc on tab.b < tbc.b;
+
+select a,tab.b,tbc.b,c from tab join tbc on tab.b > tbc.b;
+
+
+drop table tab;
+drop table tbc;
+

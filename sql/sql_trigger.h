@@ -2,7 +2,7 @@
 #define SQL_TRIGGER_INCLUDED
 
 /*
-   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ enum trg_action_time_type
 /**
   This class holds all information about triggers of table.
 
-  QQ: Will it be merged into TABLE in the future ?
+  TODO: Will it be merged into TABLE in the future ?
 */
 
 class Table_triggers_list: public Sql_alloc

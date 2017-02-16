@@ -1,0 +1,45 @@
+SET @start_global_value = @@global.join_cache_level;
+select @@global.join_cache_level;
+@@global.join_cache_level
+2
+select @@session.join_cache_level;
+@@session.join_cache_level
+2
+show global variables like 'join_cache_level';
+Variable_name	Value
+join_cache_level	2
+show session variables like 'join_cache_level';
+Variable_name	Value
+join_cache_level	2
+select * from information_schema.global_variables where variable_name='join_cache_level';
+VARIABLE_NAME	VARIABLE_VALUE
+JOIN_CACHE_LEVEL	2
+select * from information_schema.session_variables where variable_name='join_cache_level';
+VARIABLE_NAME	VARIABLE_VALUE
+JOIN_CACHE_LEVEL	2
+set global join_cache_level=4;
+select @@global.join_cache_level;
+@@global.join_cache_level
+4
+set session join_cache_level=4;
+select @@session.join_cache_level;
+@@session.join_cache_level
+4
+set global join_cache_level=1.1;
+ERROR 42000: Incorrect argument type to variable 'join_cache_level'
+set session join_cache_level=1e1;
+ERROR 42000: Incorrect argument type to variable 'join_cache_level'
+set global join_cache_level="foo";
+ERROR 42000: Incorrect argument type to variable 'join_cache_level'
+set global join_cache_level=0;
+select @@global.join_cache_level;
+@@global.join_cache_level
+0
+set session join_cache_level=cast(-1 as unsigned int);
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1292	Truncated incorrect join_cache_level value: '18446744073709551615'
+select @@session.join_cache_level;
+@@session.join_cache_level
+8
+SET @@global.join_cache_level = @start_global_value;

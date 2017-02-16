@@ -1,0 +1,38 @@
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB
+PARTITION BY KEY (a) PARTITIONS 2;
+INSERT INTO t1 VALUES (1,1);
+INSERT INTO t1 VALUES (2,2), (3,8);
+INSERT INTO t1 VALUES (4,16);
+show binlog events in 'master-bin.000001' from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1,1)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (2,2), (3,8)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (4,16)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+DROP TABLE t1;
+SET binlog_format='row';
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB
+PARTITION BY KEY (a) PARTITIONS 2;
+INSERT INTO t1 VALUES (1,1);
+INSERT INTO t1 VALUES (2,2), (3,8);
+INSERT INTO t1 VALUES (4,16);
+show binlog events in 'master-bin.000001' from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+DROP TABLE t1;

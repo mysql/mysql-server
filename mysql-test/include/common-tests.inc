@@ -1332,7 +1332,7 @@ explain select fld1 from t2 where fld1=250501 or fld1=250502 or fld1 >= 250505 a
 # Search with a key with LIKE constant
 # If the like starts with a certain letter key will be used.
 #
-
+--sorted_result
 select fld1,fld3 from t2 where companynr = 37 and fld3 like 'f%';
 select fld3 from t2 where fld3 like "L%" and fld3 = "ok";
 select fld3 from t2 where (fld3 like "C%" and fld3 = "Chantilly");
@@ -1536,6 +1536,10 @@ select t2.fld1,t22.fld1 from t2,t2 t22 where t2.fld1 >= 250501 and t2.fld1 <= 25
 #
 # Test of left join.
 #
+
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+
 insert into t2 (fld1, companynr) values (999999,99);
 
 select t2.companynr,companyname from t2 left join t4 using (companynr) where t4.companynr is null;
@@ -1567,6 +1571,8 @@ explain select t2.companynr,companyname from t4 left join t2 using (companynr) w
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr is null;
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr < 0 or companynr > 0;
 explain select companynr,companyname from t4 left join t2 using (companynr) where ifnull(companynr,1)>0;
+
+SET optimizer_switch=@save_optimizer_switch;
 
 #
 # Joins with forms.

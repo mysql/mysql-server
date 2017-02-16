@@ -14,7 +14,7 @@ include/stop_slave.inc
 # Suspend the INSERT statement in current transaction on SQL thread.
 # It guarantees that SQL thread is applying the transaction when
 # STOP SLAVE command launchs.
-SET GLOBAL debug= 'd,after_mysql_insert';
+SET GLOBAL debug_dbug= '+d,after_mysql_insert,*';
 include/start_slave.inc
 
 # CREATE TEMPORARY TABLE with InnoDB engine
@@ -34,6 +34,7 @@ STOP SLAVE SQL_THREAD;
 [ On Slave1 ]
 # To resume slave SQL thread
 SET DEBUG_SYNC= 'now SIGNAL signal.continue';
+SET DEBUG_SYNC= 'now WAIT_FOR signal.continued';
 SET DEBUG_SYNC= 'RESET';
 
 [ On Slave ]
@@ -62,6 +63,7 @@ STOP SLAVE SQL_THREAD;
 [ On Slave1 ]
 # To resume slave SQL thread
 SET DEBUG_SYNC= 'now SIGNAL signal.continue';
+SET DEBUG_SYNC= 'now WAIT_FOR signal.continued';
 SET DEBUG_SYNC= 'RESET';
 
 [ On Slave ]
@@ -73,7 +75,6 @@ START SLAVE SQL_THREAD;
 include/wait_for_slave_sql_to_start.inc
 
 # Test end
-SET GLOBAL debug= '$debug_save';
 include/restart_slave.inc
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 [connection master]
@@ -96,7 +97,7 @@ INSERT INTO t1 VALUES(1, 1);
 include/stop_slave.inc
 [connection master]
 include/stop_dump_threads.inc
-SET GLOBAL debug= 'd,dump_thread_wait_before_send_xid';
+SET GLOBAL debug_dbug= '+d,dump_thread_wait_before_send_xid,*';
 [connection slave]
 include/start_slave.inc
 BEGIN;
@@ -113,15 +114,15 @@ STOP SLAVE;
 ROLLBACK;
 [connection master]
 SET DEBUG_SYNC= 'now SIGNAL signal.continue';
-SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'now WAIT_FOR signal.continued';
 [connection slave]
 include/wait_for_slave_to_stop.inc
 [connection slave1]
 [connection master]
-SET GLOBAL debug= '$debug_save';
 include/stop_dump_threads.inc
 [connection slave1]
 include/start_slave.inc
 [connection master]
 DROP TABLE t1, t2;
 include/rpl_end.inc
+SET DEBUG_SYNC= 'RESET';

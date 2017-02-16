@@ -1,6 +1,5 @@
-
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,8 +26,13 @@
 #include <my_sys.h>
 #include <m_string.h>
 #include <my_getopt.h>
+#include <mysql_version.h>
 
+#define load_default_groups mysqld_groups
+#include <mysqld_default_groups.h>
+#undef load_default_groups
 
+my_bool opt_mysqld;
 const char *config_file="my";			/* Default config file */
 uint verbose= 0, opt_defaults_file_used= 0;
 const char *default_dbug_option="d:t:o,/tmp/my_print_defaults.trace";
@@ -51,34 +55,36 @@ static struct my_option my_long_options[] =
   {"config-file", 'c', "Deprecated, please use --defaults-file instead. "
    "Name of config file to read; if no extension is given, default "
    "extension (e.g., .ini or .cnf) will be added",
-   &config_file, &config_file, 0, GET_STR, REQUIRED_ARG,
+   (char**) &config_file, (char**) &config_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit",
    0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
-  {"debug", '#', "Output debug log", &default_dbug_option,
-   &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log", (char**) &default_dbug_option,
+   (char**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"defaults-file", 'c', "Like --config-file, except: if first option, "
    "then read this file only, do not read global or per-user config "
    "files; should be the first option",
-   &config_file, &config_file, 0, GET_STR, REQUIRED_ARG,
+   (char**) &config_file, (char*) &config_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"defaults-extra-file", 'e',
    "Read this file after the global config file and before the config "
    "file in the users home directory; should be the first option",
-   &my_defaults_extra_file, &my_defaults_extra_file, 0,
+   (void *)&my_defaults_extra_file, (void *)&my_defaults_extra_file, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"defaults-group-suffix", 'g',
    "In addition to the given groups, read also groups with this suffix",
-   &my_defaults_group_suffix, &my_defaults_group_suffix,
+   (char**) &my_defaults_group_suffix, (char**) &my_defaults_group_suffix,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"extra-file", 'e',
    "Deprecated. Synonym for --defaults-extra-file.",
-   &my_defaults_extra_file,
-   &my_defaults_extra_file, 0, GET_STR,
+   (void *)&my_defaults_extra_file,
+   (void *)&my_defaults_extra_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"mysqld", 0, "Read the same set of groups that the mysqld binary does.",
+   &opt_mysqld, &opt_mysqld, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-defaults", 'n', "Return an empty string (useful for scripts).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help message and exit.",
@@ -99,11 +105,12 @@ static void usage(my_bool version)
     return;
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
   puts("Prints all arguments that is give to some program using the default files");
-  printf("Usage: %s [OPTIONS] groups\n", my_progname);
+  printf("Usage: %s [OPTIONS] [groups]\n", my_progname);
   my_print_help(my_long_options);
   my_print_default_files(config_file);
   my_print_variables(my_long_options);
-  printf("\nExample usage:\n%s --defaults-file=example.cnf client mysql\n", my_progname);
+  printf("\nExample usage:\n%s --defaults-file=example.cnf client client-server mysql\n", my_progname);
+  exit(0);
 }
 
 
@@ -116,17 +123,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       opt_defaults_file_used= 1;
       break;
     case 'n':
-    exit(0);
+      exit(0);
     case 'I':
     case '?':
-    usage(0);
-    exit(0);
+      usage(0);
     case 'v':
       verbose++;
       break;
     case 'V':
-    usage(1);
-    exit(0);
+      usage(1);
     case '#':
       DBUG_PUSH(argument ? argument : default_dbug_option);
       break;
@@ -142,11 +147,6 @@ static int get_options(int *argc,char ***argv)
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
 
-  if (*argc < 1)
-  {
-    usage(0);
-    return 1;
-  }
   return 0;
 }
 
@@ -154,9 +154,10 @@ static int get_options(int *argc,char ***argv)
 int main(int argc, char **argv)
 {
   int count, error, args_used;
-  char **load_default_groups, *tmp_arguments[6];
+  char **load_default_groups= 0, *tmp_arguments[6];
   char **argument, **arguments, **org_argv;
   char *defaults, *extra_defaults, *group_suffix;
+  int nargs, i= 0;
   MY_INIT(argv[0]);
 
   org_argv= argv;
@@ -170,13 +171,25 @@ int main(int argc, char **argv)
   arguments[count]= 0;
 
   /* Check out the args */
-  if (!(load_default_groups=(char**) my_malloc((argc+1)*sizeof(char*),
-					       MYF(MY_WME))))
-    exit(1);
   if (get_options(&argc,&argv))
     exit(1);
-  memcpy((char*) load_default_groups, (char*) argv, (argc + 1) * sizeof(*argv));
 
+  nargs= argc + 1;
+  if (opt_mysqld)
+    nargs+= array_elements(mysqld_groups);
+
+  if (nargs < 2)
+    usage(0);
+
+  load_default_groups=(char**) my_malloc(nargs*sizeof(char*), MYF(MY_WME));
+  if (!load_default_groups)
+    exit(1);
+  if (opt_mysqld)
+  {
+    for (; mysqld_groups[i]; i++)
+      load_default_groups[i]= (char*) mysqld_groups[i];
+  }
+  memcpy(load_default_groups + i, argv, (argc + 1) * sizeof(*argv));
   if ((error= load_defaults(config_file, (const char **) load_default_groups,
 			   &count, &arguments)))
   {
@@ -199,6 +212,6 @@ int main(int argc, char **argv)
       puts(*argument);
   my_free(load_default_groups);
   free_defaults(arguments);
-
+  my_end(0);
   exit(0);
 }

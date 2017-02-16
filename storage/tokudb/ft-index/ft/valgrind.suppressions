@@ -1,0 +1,294 @@
+{
+   compress_is_still_not_valgrind_clean_in_ubuntu_3
+   Memcheck:Param
+   write(buf)
+   obj:/lib/libpthread-2.10.1.so
+   fun:toku_os_write
+   fun:write_nonleaf_node
+}
+{
+   compress_is_still_not_valgrind_clean_in_ubuntu_2
+   Memcheck:Param
+   write(buf)
+   obj:/lib/libpthread-2.10.1.so
+   fun:toku_os_write
+   fun:finish_leafnode
+}
+{
+   compress_is_still_not_valgrind_clean_in_ubuntu
+   Memcheck:Param
+   pwrite64(buf)
+   obj:/lib/libpthread-2.10.1.so
+   fun:toku_os_full_pwrite
+   fun:toku_serialize_ftnode_to
+}
+{
+   compress_is_not_valgrind_clean
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:compress2
+}
+
+{
+   compress_is_not_valgrind_clean2
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_fast
+   fun:deflate
+   fun:compress2
+}
+
+{
+   compress_is_not_valgrind_clean3
+   Memcheck:Cond
+   obj:/usr/lib64/libz.so.1.2.3
+   obj:/usr/lib64/libz.so.1.2.3
+   fun:deflate
+   fun:compress2
+}
+{
+   compress_is_not_valgrind_clean3_32
+   Memcheck:Cond
+   obj:/usr/lib/libz.so.1.2.3
+   obj:/usr/lib/libz.so.1.2.3
+   fun:deflate
+   fun:compress2
+}
+{
+   compress_is_not_valgrind_clean3_fedora9
+   Memcheck:Cond
+   obj:/lib64/libz.so.1.2.3
+   obj:/lib64/libz.so.1.2.3
+   fun:deflate
+   fun:compress2
+}
+{
+   compress_is_not_valgrind_clean_ubuntu804
+   Memcheck:Cond
+   obj:/usr/lib/libz.so.1.2.3.3
+   fun:deflate
+   fun:compress2
+}
+{
+   compress_is_not_valgrind_clean_ubuntu810
+   Memcheck:Value8
+   obj:/usr/lib/libz.so.1.2.3.3
+   fun:deflate
+   fun:compress2
+}
+{
+   compress_is_not_valgrind_clean2_ubuntu810
+   Memcheck:Cond
+   obj:/usr/lib/libz.so.1.2.3.3
+   obj:/usr/lib/libz.so.1.2.3.3
+   fun:deflate
+   fun:compress2
+}
+{
+   compress_is_not_valgrind_clean3_ubuntu810
+   Memcheck:Value8
+   obj:/usr/lib/libz.so.1.2.3.3
+   obj:/usr/lib/libz.so.1.2.3.3
+   obj:/usr/lib/libz.so.1.2.3.3
+   fun:deflate
+   fun:compress2
+}
+{
+   qlz_is_not_valgrind_clean
+   Memcheck:Cond
+   fun:qlz_compress_core
+}
+{
+   qlz_is_not_valgrind_clean
+   Memcheck:Value8
+   fun:qlz_compress_core
+}
+{
+   qlz_is_not_valgrind_clean
+   Memcheck:Cond
+   fun:qlz_compress
+}
+{
+   qlz_is_not_valgrind_clean
+   Memcheck:Value8
+   fun:qlz_compress
+}
+{
+   dlsym_on_centos
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   obj:/lib64/libdl-2.5.so
+}
+{
+   dlsym_on_centos
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_signal_error
+   obj:/lib64/ld-2.5.so
+}
+{
+   dlsym_on_FC12
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlsym
+}
+{
+   dlsym_on_FC12
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_signal_error
+   fun:_dl_signal_cerror
+   fun:_dl_lookup_symbol_x
+   fun:do_sym
+   fun:dlsym_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlsym
+}
+{
+   dyld_on_OSX
+   Memcheck:Leak
+   ...
+   obj:/usr/lib/dyld
+}
+{
+   dyld_on_OSX
+   Memcheck:Value8
+   ...
+   obj:/usr/lib/dyld
+}
+{
+   dyld_on_OSX
+   Memcheck:Cond
+   ...
+   obj:/usr/lib/dyld
+}
+{
+   ctime_on_OSX
+   Memcheck:Leak
+   ...
+   obj:/usr/lib/system/libsystem_c.dylib
+   ...
+   fun:asctime_r
+}
+{
+   ctime_on_OSX
+   Memcheck:Leak
+   ...
+   obj:/usr/lib/system/libsystem_c.dylib
+   ...
+   fun:ctime
+}
+{
+   pthread_join_on_OSX
+   Memcheck:Leak
+   ...
+   obj:/usr/lib/system/libsystem_c.dylib
+   fun:pthread_join
+}
+{
+   pthread_start_on_OSX
+   Memcheck:Leak
+   ...
+   fun:_pthread_start
+   obj:/usr/lib/system/libsystem_c.dylib
+}
+{
+   printf_etc_on_OSX
+   Memcheck:Leak
+   ...
+   fun:__dtoa
+   ...
+   obj:/usr/lib/system/libsystem_c.dylib
+}
+{
+   printf_etc_on_OSX
+   Memcheck:Leak
+   ...
+   fun:__smakebuf
+   ...
+   obj:/usr/lib/system/libsystem_c.dylib
+}
+{
+   fopen_on_OSX
+   Memcheck:Leak
+   ...
+   fun:fopen$DARWIN_EXTSN
+}
+{
+   popen_on_OSX
+   Memcheck:Leak
+   ...
+   fun:popen$DARWIN_EXTSN
+}
+{
+   gettimeofday_on_OSX
+   Memcheck:Leak
+   ...
+   fun:tzsetwall_basic
+   obj:/usr/lib/system/libsystem_c.dylib
+}
+{
+   setenv_on_OSX
+   Memcheck:Leak
+   ...
+   obj:/usr/lib/system/libsystem_c.dylib
+   fun:setenv
+}
+{
+   unsetenv_on_OSX
+   Memcheck:Leak
+   ...
+   obj:/usr/lib/system/libsystem_c.dylib
+   fun:unsetenv
+}
+{
+   loadlocale_on_osx
+   Memcheck:Leak
+   ...
+   obj:/usr/lib/system/libsystem_c.dylib
+   fun:loadlocale
+}
+{
+   <ld_is_not_valgrind_clean_in_ubuntu_13.04_1>
+   Memcheck:Cond
+   fun:index
+   fun:expand_dynamic_string_token
+   fun:_dl_map_object
+   fun:map_doit
+   fun:_dl_catch_error
+   fun:do_preload
+   fun:dl_main
+   fun:_dl_sysdep_start
+   fun:_dl_start
+   obj:/lib/x86_64-linux-gnu/ld-2.17.so
+}
+{
+   <ld_is_not_valgrind_clean_in_ubuntu_13.04_2>
+   Memcheck:Cond
+   fun:index
+   fun:expand_dynamic_string_token
+   fun:_dl_map_object
+   fun:map_doit
+   fun:_dl_catch_error
+   fun:do_preload
+   fun:dl_main
+   fun:_dl_sysdep_start
+   fun:_dl_start
+   obj:/lib/x86_64-linux-gnu/ld-2.17.so
+}
+{
+    <ld_is_not_clean_on_arch_linux_june_2014>
+    Memcheck:Leak
+    match-leak-kinds: reachable
+    fun:calloc
+    ...
+    fun:dlsym
+    ...
+    fun:_dl_init
+}
+

@@ -4,7 +4,7 @@ DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
 DROP TABLE IF EXISTS t3;
 create table t1 (a int auto_increment, primary key (a), b int, rand_value double not null);
-create table t2 (a int auto_increment, primary key (a), b int);
+create table t2 (a int auto_increment, primary key (a), b int) engine=innodb;
 create table t3 (a int auto_increment, primary key (a), name varchar(64) not null, old_a int, old_b int, rand_value double not null);
 create trigger t1 before insert on t1 for each row
 begin

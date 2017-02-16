@@ -1,4 +1,5 @@
 -- source include/not_windows.inc
+-- source include/support_long_file_names.inc
 -- source include/have_partition.inc
 -- source include/not_embedded.inc
 --disable_warnings

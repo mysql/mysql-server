@@ -1,0 +1,48 @@
+# ulong global
+--source include/have_maria.inc
+
+SET @start_global_value = @@global.aria_pagecache_age_threshold;
+
+#
+# exists as global only
+#
+select @@global.aria_pagecache_age_threshold;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.aria_pagecache_age_threshold;
+show global variables like 'aria_pagecache_age_threshold';
+show session variables like 'aria_pagecache_age_threshold';
+select * from information_schema.global_variables where variable_name='aria_pagecache_age_threshold';
+select * from information_schema.session_variables where variable_name='aria_pagecache_age_threshold';
+
+#
+# show that it's writable
+#
+set global aria_pagecache_age_threshold=200;
+select @@global.aria_pagecache_age_threshold;
+--error ER_GLOBAL_VARIABLE
+set session aria_pagecache_age_threshold=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_pagecache_age_threshold=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_pagecache_age_threshold=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_pagecache_age_threshold="foo";
+
+#
+# min/max values, block size
+#
+set global aria_pagecache_age_threshold=1;
+select @@global.aria_pagecache_age_threshold;
+set global aria_pagecache_age_threshold=@@global.aria_pagecache_age_threshold + 100 - 1;
+select @@global.aria_pagecache_age_threshold;
+set global aria_pagecache_age_threshold=@@global.aria_pagecache_age_threshold + 100;
+select @@global.aria_pagecache_age_threshold;
+set global aria_pagecache_age_threshold=cast(-1 as unsigned int);
+--replace_result 4294967200 18446744073709551600
+select @@global.aria_pagecache_age_threshold;
+
+SET @@global.aria_pagecache_age_threshold = @start_global_value;

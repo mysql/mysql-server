@@ -37,6 +37,7 @@ insert into t1 values('def',null);
 insert into t1 values(null,null);
 insert into t1 values('ghi','ghi[');
 
+--sorted_result
 select HIGH_PRIORITY s1 regexp s2 from t1;
 
 drop table t1;

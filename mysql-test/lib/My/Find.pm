@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2011, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -64,7 +64,7 @@ sub my_find_bin {
   # -------------------------------------------------------
   # Find and return the first executable
   # -------------------------------------------------------
-  foreach my $path (my_find_paths($base, $paths, $names, $bin_extension)) {
+  foreach my $path (my_build_path_list($base, $paths, $names, $bin_extension)) {
     return $path if ( -x $path or (IS_WINDOWS and -f $path) );
   }
   if (defined $required and $required == NOT_REQUIRED){
@@ -98,7 +98,7 @@ sub my_find_file {
   # -------------------------------------------------------
   # Find and return the first executable
   # -------------------------------------------------------
-  foreach my $path (my_find_paths($base, $paths, $names, $bin_extension)) {
+  foreach my $path (my_build_path_list($base, $paths, $names, $bin_extension)) {
     return $path if ( -f $path );
   }
   if (defined $required and $required == NOT_REQUIRED){
@@ -110,8 +110,9 @@ sub my_find_file {
 
 
 #
-# my_find_dir - find the first existing directory in one of
-# the given paths
+# my_find_dir - find the existing directories in one of
+# the given paths. Returns the first found in the scalar context
+# and all of them in the list context.
 #
 # Example:
 #    my $charset_set= my_find_dir($basedir,
@@ -126,22 +127,23 @@ sub my_find_file {
 #
 #
 sub my_find_dir {
-  my ($base, $paths, $dirs, $optional)= @_;
-  croak "usage: my_find_dir(<base>, <paths>[, <dirs>[, <optional>]])"
-    unless (@_ == 3 or @_ == 2 or @_ == 4);
+  my ($base, $paths, $dirs, $required)= @_;
+  croak "usage: my_find_dir(<base>, <paths>[, <dirs>[, <required>]])"
+    unless (@_ >= 2 and @_ <= 4);
 
-  # -------------------------------------------------------
-  # Find and return the first directory
-  # -------------------------------------------------------
-  foreach my $path (my_find_paths($base, $paths, $dirs)) {
-    return $path if ( -d $path );
+  my @all;
+  foreach my $path (my_build_path_list($base, $paths, $dirs)) {
+    next unless -d $path;
+    return $path unless wantarray;
+    push @all, $path;
   }
-  return "" if $optional;
+  return @all if @all;
+  return wantarray ? () : "" if defined $required and $required == NOT_REQUIRED;
   find_error($base, $paths, $dirs);
 }
 
 
-sub my_find_paths {
+sub my_build_path_list {
   my ($base, $paths, $names, $extension)= @_;
 
   # Convert the arguments into two normal arrays to ease
@@ -238,7 +240,7 @@ sub find_error {
 
   croak "** ERROR: Could not find ",
     commify(fnuttify(@names)), " in ",
-      commify(fnuttify(my_find_paths($base, $paths, $names))), "\n";
+      commify(fnuttify(my_build_path_list($base, $paths, $names))), "\n";
 }
 
 1;

@@ -1,0 +1,52 @@
+# 
+# Check whether DATA DIRECTORY and INDEX DIRECTORY
+# are supported in CREATE and ALTER TABLE
+#
+# Note: the test does not check whether the options
+#       have any real effect on the table, only 
+#       that they are accepted
+# 
+
+--source include/have_symlink.inc
+--source have_engine.inc
+
+--let $data_dir = $MYSQLTEST_VARDIR/storage_engine_data_dir/
+--let $index_dir = $MYSQLTEST_VARDIR/storage_engine_index_dir/
+--mkdir $data_dir
+--mkdir $index_dir
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--let $table_options = DATA DIRECTORY = '$data_dir' INDEX DIRECTORY = '$index_dir'
+# We cannot mask the folders name here, but we can switch off query logging
+--let $disable_query_log = 1
+--source create_table.inc
+
+--source mask_engine.inc
+--replace_result $data_dir <DATA_DIR> $index_dir <INDEX_DIR>
+SHOW CREATE TABLE t1;
+
+--let $alter_definition = INDEX DIRECTORY = '$data_dir'
+--disable_query_log
+--source alter_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $alter_statement
+  --let $functionality = ALTER TABLE
+  --source unexpected_result.inc
+}
+--enable_query_log
+--source mask_engine.inc
+--replace_result $data_dir <DATA_DIR> $index_dir <INDEX_DIR> 
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+--source cleanup_engine.inc
+
+--rmdir $data_dir
+--rmdir $index_dir
+
+

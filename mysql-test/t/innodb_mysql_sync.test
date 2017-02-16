@@ -292,7 +292,7 @@ INSERT INTO t1 VALUES (1, 12345), (2, 23456);
 
 --echo # Connection con1
 --connect (con1,localhost,root)
-SET SESSION debug= "+d,alter_table_rollback_new_index";
+SET SESSION debug_dbug= "+d,alter_table_rollback_new_index";
 --error ER_UNKNOWN_ERROR
 ALTER TABLE t1 ADD PRIMARY KEY(a);
 SELECT * FROM t1;

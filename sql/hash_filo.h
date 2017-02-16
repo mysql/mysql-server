@@ -111,7 +111,7 @@ public:
     return entry;
   }
 
-  my_bool add(hash_filo_element *entry)
+  bool add(hash_filo_element *entry)
   {
     if (cache.records == size)
     {

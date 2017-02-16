@@ -1,3 +1,4 @@
+SET TIME_ZONE = '+03:00';
 DROP TABLE IF EXISTS t1;
 #
 # Start of 5.5 tests
@@ -581,6 +582,23 @@ utf32_general_ci	0000006100000009
 utf32_general_ci	00000061
 utf32_general_ci	0000006100000020
 drop table t1;
+#
+# MDEV-5453 Assertion `src' fails in my_strnxfrm_unicode on GROUP BY MID(..) WITH ROLLUP
+#
+SELECT @@collation_connection;
+@@collation_connection
+utf32_general_ci
+CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+SELECT * FROM t1 GROUP BY MID(CURRENT_USER,0) WITH ROLLUP;
+i
+1
+1
+SELECT * FROM t1 GROUP BY MID('test',0) WITH ROLLUP;
+i
+1
+1
+DROP TABLE t1;
 select @@collation_connection;
 @@collation_connection
 utf32_general_ci
@@ -610,6 +628,23 @@ utf32_bin	0000006100000009
 utf32_bin	00000061
 utf32_bin	0000006100000020
 drop table t1;
+#
+# MDEV-5453 Assertion `src' fails in my_strnxfrm_unicode on GROUP BY MID(..) WITH ROLLUP
+#
+SELECT @@collation_connection;
+@@collation_connection
+utf32_bin
+CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+SELECT * FROM t1 GROUP BY MID(CURRENT_USER,0) WITH ROLLUP;
+i
+1
+1
+SELECT * FROM t1 GROUP BY MID('test',0) WITH ROLLUP;
+i
+1
+1
+DROP TABLE t1;
 #
 # Bug#55980 Character sets: supplementary character _bin ordering is wrong
 #
@@ -929,7 +964,7 @@ select 1.1 + '1.2xxx';
 1.1 + '1.2xxx'
 2.3
 Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: ''
+Warning	1292	Truncated incorrect DOUBLE value: '1.2xxx'
 select left('aaa','1');
 left('aaa','1')
 a
@@ -1026,16 +1061,16 @@ insert into t1 values(null,null);
 insert into t1 values('ghi','ghi[');
 select HIGH_PRIORITY s1 regexp s2 from t1;
 s1 regexp s2
-1
-1
-1
-1
-1
-1
-1
 0
 0
 0
+1
+1
+1
+1
+1
+1
+1
 NULL
 NULL
 NULL
@@ -1195,6 +1230,58 @@ id	l
 a	256
 Warnings:
 Warning	1260	Row 1 was cut by GROUP_CONCAT()
+#
+# incorrect charset for val_str_ascii
+#
+SELECT '2010-10-10 10:10:10' + INTERVAL GeometryType(GeomFromText('POINT(1 1)')) hour_second;
+'2010-10-10 10:10:10' + INTERVAL GeometryType(GeomFromText('POINT(1 1)')) hour_second
+2010-10-10 10:10:10
+#
+# MDEV-5745 analyze MySQL fix for bug#12368495
+#
+SELECT CHAR_LENGTH(TRIM(LEADING 0x0000000000 FROM _utf32 0x00000061));
+CHAR_LENGTH(TRIM(LEADING 0x0000000000 FROM _utf32 0x00000061))
+4
+SELECT CHAR_LENGTH(TRIM(LEADING 0x0001 FROM _utf32 0x00000061));
+CHAR_LENGTH(TRIM(LEADING 0x0001 FROM _utf32 0x00000061))
+4
+SELECT CHAR_LENGTH(TRIM(LEADING 0x00 FROM _utf32 0x00000061));
+CHAR_LENGTH(TRIM(LEADING 0x00 FROM _utf32 0x00000061))
+1
+SELECT CHAR_LENGTH(TRIM(TRAILING 0x0000000000 FROM _utf32 0x00000061));
+CHAR_LENGTH(TRIM(TRAILING 0x0000000000 FROM _utf32 0x00000061))
+4
+SELECT CHAR_LENGTH(TRIM(TRAILING 0x0001 FROM _utf32 0x00000061));
+CHAR_LENGTH(TRIM(TRAILING 0x0001 FROM _utf32 0x00000061))
+4
+SELECT CHAR_LENGTH(TRIM(TRAILING 0x61 FROM _utf32 0x00000061));
+CHAR_LENGTH(TRIM(TRAILING 0x61 FROM _utf32 0x00000061))
+3
+SELECT CHAR_LENGTH(TRIM(BOTH 0x0000000000 FROM _utf32 0x00000061));
+CHAR_LENGTH(TRIM(BOTH 0x0000000000 FROM _utf32 0x00000061))
+4
+SELECT CHAR_LENGTH(TRIM(BOTH 0x0001 FROM _utf32 0x00000061));
+CHAR_LENGTH(TRIM(BOTH 0x0001 FROM _utf32 0x00000061))
+4
+SELECT CHAR_LENGTH(TRIM(BOTH 0x61 FROM _utf32 0x00000061));
+CHAR_LENGTH(TRIM(BOTH 0x61 FROM _utf32 0x00000061))
+3
+SELECT CHAR_LENGTH(TRIM(BOTH 0x00 FROM _utf32 0x00000061));
+CHAR_LENGTH(TRIM(BOTH 0x00 FROM _utf32 0x00000061))
+1
+select hex(lower(cast(0xffff0000 as char character set utf32))) as c;
+c
+FFFF0000
+#
+# MDEV-11685: sql_mode can't be set with non-ascii connection charset
+#
+SET character_set_connection=utf32;
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+SELECT @@sql_mode;
+@@sql_mode
+NO_ENGINE_SUBSTITUTION
+SET sql_mode=DEFAULT;
+SET NAMES utf8;
 #
 # End of 5.5 tests
 #

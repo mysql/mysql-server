@@ -1,3 +1,5 @@
+call mtr.add_suppression("Found 3 prepared XA transactions");
+flush tables;
 CREATE TABLE t(a INT PRIMARY KEY, b INT)ENGINE=InnoDB;
 INSERT INTO t VALUES(2,2),(4,4),(8,8),(16,16),(32,32);
 COMMIT;
@@ -14,7 +16,6 @@ XA START '789';
 UPDATE t SET b=4*a WHERE a=32;
 XA END '789';
 XA PREPARE '789';
-call mtr.add_suppression("Found 3 prepared XA transactions");
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 SELECT * FROM t;
 a	b

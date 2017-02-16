@@ -1,0 +1,15 @@
+#
+# Bug#40992 - InnoDB: Crash when engine_condition_pushdown is on
+#
+set session debug_dbug="+d,optimizer_innodb_icp";
+CREATE TABLE t (
+dummy INT PRIMARY KEY, 
+a INT UNIQUE, 
+b int
+) ENGINE=InnoDB;
+INSERT INTO t VALUES (1,1,1),(3,3,3),(5,5,5);
+SELECT * FROM t WHERE a > 2 FOR UPDATE;
+dummy	a	b
+3	3	3
+5	5	5
+DROP TABLE t;

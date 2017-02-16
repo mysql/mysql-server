@@ -1,0 +1,36 @@
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb;
+INSERT INTO t1 VALUES (0);
+SET DEBUG_SYNC= "commit_after_get_LOCK_log SIGNAL con1_waiting WAIT_FOR con3_queued";
+SET DEBUG_SYNC= "commit_loop_entry_commit_ordered SIGNAL con1_loop WAIT_FOR con1_loop_cont";
+INSERT INTO t1 VALUES (1);
+SET DEBUG_SYNC= "now WAIT_FOR con1_waiting";
+SET DEBUG_SYNC= "commit_after_prepare_ordered SIGNAL con2_queued";
+SET DEBUG_SYNC= "commit_loop_entry_commit_ordered SIGNAL con1_loop WAIT_FOR con1_loop_cont";
+INSERT INTO t1 VALUES (2);
+SET DEBUG_SYNC= "now WAIT_FOR con2_queued";
+SET DEBUG_SYNC= "commit_after_prepare_ordered SIGNAL con3_queued";
+SET DEBUG_SYNC= "commit_loop_entry_commit_ordered SIGNAL con1_loop WAIT_FOR con1_loop_cont";
+INSERT INTO t1 VALUES (3);
+SET DEBUG_SYNC= "now WAIT_FOR con1_loop";
+SET DEBUG_SYNC= "now SIGNAL con1_loop_cont";
+SET DEBUG_SYNC= "now WAIT_FOR con1_loop";
+SET DEBUG_SYNC= "now SIGNAL con1_loop_cont";
+SET DEBUG_SYNC= "now WAIT_FOR con1_loop";
+SELECT * FROM t1 ORDER BY a;
+a
+0
+1
+2
+SET SESSION debug_dbug="+d,crash_dispatch_command_before";
+SELECT 1;
+Got one of the listed errors
+Got one of the listed errors
+SELECT * FROM t1 ORDER BY a;
+a
+0
+1
+2
+3
+InnoDB: Last MySQL binlog file position 0 906, file name ./master-bin.000001
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;

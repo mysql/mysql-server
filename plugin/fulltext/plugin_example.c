@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -145,7 +145,7 @@ static int simple_parser_deinit(MYSQL_FTPARSER_PARAM *param
     the list of search terms when parsing a search string.
 */
 
-static void add_word(MYSQL_FTPARSER_PARAM *param, char *word, size_t len)
+static void add_word(MYSQL_FTPARSER_PARAM *param, const char *word, size_t len)
 {
   MYSQL_FTPARSER_BOOLEAN_INFO bool_info=
     { FT_TOKEN_WORD, 0, 0, 0, 0, ' ', 0 };
@@ -169,7 +169,7 @@ static void add_word(MYSQL_FTPARSER_PARAM *param, char *word, size_t len)
 
 static int simple_parser_parse(MYSQL_FTPARSER_PARAM *param)
 {
-  char *end, *start, *docend= param->doc + param->length;
+  const char *end, *start, *docend= param->doc + param->length;
 
   number_of_calls++;
 
@@ -210,7 +210,7 @@ static struct st_mysql_ftparser simple_parser_descriptor=
 
 static struct st_mysql_show_var simple_status[]=
 {
-  {"static",     (char *)"just a static text",     SHOW_CHAR},
+  {"A_static",   (char *)"just a static text",     SHOW_CHAR},
   {"called",     (char *)&number_of_calls, SHOW_LONG},
   {0,0,0}
 };
@@ -259,7 +259,7 @@ mysql_declare_plugin(ftexample)
   MYSQL_FTPARSER_PLUGIN,      /* type                            */
   &simple_parser_descriptor,  /* descriptor                      */
   "simple_parser",            /* name                            */
-  "Oracle Corp",              /* author                          */
+  "Sergei Golubchik",         /* author                          */
   "Simple Full-Text Parser",  /* description                     */
   PLUGIN_LICENSE_GPL,
   simple_parser_plugin_init,  /* init function (when loaded)     */
@@ -272,3 +272,20 @@ mysql_declare_plugin(ftexample)
 }
 mysql_declare_plugin_end;
 
+maria_declare_plugin(ftexample)
+{
+  MYSQL_FTPARSER_PLUGIN,      /* type                            */
+  &simple_parser_descriptor,  /* descriptor                      */
+  "simple_parser",            /* name                            */
+  "Sergei Golubchik",         /* author                          */
+  "Simple Full-Text Parser",  /* description                     */
+  PLUGIN_LICENSE_GPL,
+  simple_parser_plugin_init,  /* init function (when loaded)     */
+  simple_parser_plugin_deinit,/* deinit function (when unloaded) */
+  0x0001,                     /* version                         */
+  simple_status,              /* status variables                */
+  simple_system_variables,    /* system variables                */
+  "0.01",                     /* string version */
+  MariaDB_PLUGIN_MATURITY_EXPERIMENTAL /* maturity */
+}
+maria_declare_plugin_end;

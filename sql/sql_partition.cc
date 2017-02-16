@@ -1,4 +1,5 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, SkySQL Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,9 +71,8 @@
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
 
-/* TODO: Change abort() to DBUG_SUICIDE() when bug#52002 is pushed */
 #define ERROR_INJECT_CRASH(code) \
-  DBUG_EVALUATE_IF(code, (abort(), 0), 0)
+  DBUG_EVALUATE_IF(code, (DBUG_SUICIDE(), 0), 0)
 #define ERROR_INJECT_ERROR(code) \
   DBUG_EVALUATE_IF(code, (my_error(ER_UNKNOWN_ERROR, MYF(0)), TRUE), 0)
 
@@ -955,86 +955,10 @@ int check_signed_flag(partition_info *part_info)
   return error;
 }
 
-/**
-  Initialize lex object for use in fix_fields and parsing.
-
-  SYNOPSIS
-    init_lex_with_single_table()
-    @param thd                 The thread object
-    @param table               The table object
-  @return Operation status
-    @retval TRUE                An error occurred, memory allocation error
-    @retval FALSE               Ok
-
-  DESCRIPTION
-    This function is used to initialize a lex object on the
-    stack for use by fix_fields and for parsing. In order to
-    work properly it also needs to initialize the
-    Name_resolution_context object of the lexer.
-    Finally it needs to set a couple of variables to ensure
-    proper functioning of fix_fields.
+/*
+  init_lex_with_single_table and end_lex_with_single_table
+  are now in sql_lex.cc
 */
-
-static int
-init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
-{
-  TABLE_LIST *table_list;
-  Table_ident *table_ident;
-  SELECT_LEX *select_lex= &lex->select_lex;
-  Name_resolution_context *context= &select_lex->context;
-  /*
-    We will call the parser to create a part_info struct based on the
-    partition string stored in the frm file.
-    We will use a local lex object for this purpose. However we also
-    need to set the Name_resolution_object for this lex object. We
-    do this by using add_table_to_list where we add the table that
-    we're working with to the Name_resolution_context.
-  */
-  thd->lex= lex;
-  lex_start(thd);
-  context->init();
-  if ((!(table_ident= new Table_ident(thd,
-                                      table->s->table_name,
-                                      table->s->db, TRUE))) ||
-      (!(table_list= select_lex->add_table_to_list(thd,
-                                                   table_ident,
-                                                   NULL,
-                                                   0))))
-    return TRUE;
-  context->resolve_in_table_list_only(table_list);
-  lex->use_only_table_context= TRUE;
-  select_lex->cur_pos_in_select_list= UNDEF_POS;
-  table->map= 1; //To ensure correct calculation of const item
-  table->get_fields_in_item_tree= TRUE;
-  table_list->table= table;
-  table_list->cacheable_table= false;
-  return FALSE;
-}
-
-/**
-  End use of local lex with single table
-
-  SYNOPSIS
-    end_lex_with_single_table()
-    @param thd               The thread object
-    @param table             The table object
-    @param old_lex           The real lex object connected to THD
-
-  DESCRIPTION
-    This function restores the real lex object after calling
-    init_lex_with_single_table and also restores some table
-    variables temporarily set.
-*/
-
-static void
-end_lex_with_single_table(THD *thd, TABLE *table, LEX *old_lex)
-{
-  LEX *lex= thd->lex;
-  table->map= 0;
-  table->get_fields_in_item_tree= FALSE;
-  lex_end(lex);
-  thd->lex= old_lex;
-}
 
 /*
   The function uses a new feature in fix_fields where the flag 
@@ -1111,7 +1035,8 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     const nesting_map saved_allow_sum_func= thd->lex->allow_sum_func;
     thd->lex->allow_sum_func= 0;
 
-    error= func_expr->fix_fields(thd, (Item**)&func_expr);
+    if (!(error= func_expr->fix_fields(thd, (Item**)&func_expr)))
+      func_expr->walk(&Item::vcol_in_partition_func_processor, 0, NULL);
 
     /*
       Restore agg_field/agg_func  and allow_sum_func,
@@ -2118,6 +2043,9 @@ static int add_partition_options(File fptr, partition_element *p_elem)
   }
   if (p_elem->part_comment)
     err+= add_keyword_string(fptr, "COMMENT", TRUE, p_elem->part_comment);
+  if (p_elem->connect_string.length)
+    err+= add_keyword_string(fptr, "CONNECTION", TRUE,
+                             p_elem->connect_string.str);
   return err + add_engine(fptr,p_elem->engine_type);
 }
 
@@ -4718,7 +4646,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
   thd->work_part_info= thd->lex->part_info;
 
   if (thd->work_part_info &&
-      !(thd->work_part_info= thd->lex->part_info->get_clone(true)))
+      !(thd->work_part_info= thd->lex->part_info->get_clone()))
     DBUG_RETURN(TRUE);
 
   /* ALTER_ADMIN_PARTITION is handled in mysql_admin_table */
@@ -5734,10 +5662,12 @@ static bool mysql_change_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
 
   build_table_filename(path, sizeof(path) - 1, lpt->db, lpt->table_name, "", 0);
 
-  if(mysql_trans_prepare_alter_copy_data(thd))
+  /* First lock the original tables */
+  if (file->ha_external_lock(thd, F_WRLCK))
     DBUG_RETURN(TRUE);
 
-  if (file->ha_external_lock(thd, F_WRLCK))
+  /* Disable transactions for all new tables */
+  if (mysql_trans_prepare_alter_copy_data(thd))
     DBUG_RETURN(TRUE);
 
   /* TODO: test if bulk_insert would increase the performance */
@@ -6504,7 +6434,7 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
   THD *thd= lpt->thd;
 
   if (lpt->old_table)
-    close_all_tables_for_name(thd, lpt->old_table->s, FALSE);
+    close_all_tables_for_name(thd, lpt->old_table->s, HA_EXTRA_NOT_USED);
   if (lpt->table)
   {
     /*
@@ -6536,12 +6466,12 @@ static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt, bool close_old)
   DBUG_ENTER("alter_close_tables");
   if (lpt->table->db_stat)
   {
-    lpt->table->file->close();
+    lpt->table->file->ha_close();
     lpt->table->db_stat= 0;                        // Mark file closed
   }
   if (close_old && lpt->old_table)
   {
-    close_all_tables_for_name(lpt->thd, lpt->old_table->s, FALSE);
+    close_all_tables_for_name(lpt->thd, lpt->old_table->s, HA_EXTRA_NOT_USED);
     lpt->old_table= 0;
   }
   DBUG_RETURN(0);
@@ -6874,7 +6804,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
         ERROR_INJECT_CRASH("crash_drop_partition_2") ||
         ERROR_INJECT_ERROR("fail_drop_partition_2") ||
-        wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN) ||
+        wait_while_table_is_used(thd, table, HA_EXTRA_NOT_USED) ||
         ERROR_INJECT_CRASH("crash_drop_partition_3") ||
         ERROR_INJECT_ERROR("fail_drop_partition_3") ||
         (close_table_on_failure= TRUE, FALSE) ||
@@ -6948,7 +6878,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
         ERROR_INJECT_CRASH("crash_add_partition_2") ||
         ERROR_INJECT_ERROR("fail_add_partition_2") ||
-        wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN) ||
+        wait_while_table_is_used(thd, table, HA_EXTRA_NOT_USED) ||
         ERROR_INJECT_CRASH("crash_add_partition_3") ||
         ERROR_INJECT_ERROR("fail_add_partition_3") ||
         (close_table_on_failure= TRUE, FALSE) ||
@@ -7054,7 +6984,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         mysql_change_partitions(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_4") ||
         ERROR_INJECT_ERROR("fail_change_partition_4") ||
-        wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN) ||
+        wait_while_table_is_used(thd, table, HA_EXTRA_NOT_USED) ||
         ERROR_INJECT_CRASH("crash_change_partition_5") ||
         ERROR_INJECT_ERROR("fail_change_partition_5") ||
         write_log_final_change_partition(lpt) ||
@@ -7624,7 +7554,7 @@ int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
                                             PARTITION_ITERATOR *part_iter)
 {
   uint32 nparts;
-  get_col_endpoint_func  get_col_endpoint;
+  get_col_endpoint_func  UNINIT_VAR(get_col_endpoint);
   DBUG_ENTER("get_part_iter_for_interval_cols_via_map");
 
   if (part_info->part_type == RANGE_PARTITION)
@@ -8163,8 +8093,8 @@ static uint32 get_next_partition_via_walking(PARTITION_ITERATOR *part_iter)
     field->store(part_iter->field_vals.cur++,
                  ((Field_num*)field)->unsigned_flag);
     if ((part_iter->part_info->is_sub_partitioned() &&
-        !part_iter->part_info->get_part_partition_id(part_iter->part_info,
-                                                     &part_id, &dummy)) ||
+         !part_iter->part_info->get_part_partition_id(part_iter->part_info,
+                                                      &part_id, &dummy)) ||
         !part_iter->part_info->get_partition_id(part_iter->part_info,
                                                 &part_id, &dummy))
       return part_id;
@@ -8285,4 +8215,3 @@ uint get_partition_field_store_length(Field *field)
   return store_length;
 }
 #endif
-

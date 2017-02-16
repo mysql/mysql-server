@@ -14,7 +14,8 @@ set SQL_LOG_BIN=0;
 # Turn off any debug crashes, allow the variable to be
 # non existent in release builds
 --error 0,1193
-set debug="";
+set debug_dbug="";
+
 
 use mtr;
 

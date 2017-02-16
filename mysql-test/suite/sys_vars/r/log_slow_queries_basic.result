@@ -115,11 +115,11 @@ SELECT @@log_slow_queries = @@global.log_slow_queries;
 SET log_slow_queries = ON;
 ERROR HY000: Variable 'log_slow_queries' is a GLOBAL variable and should be set with SET GLOBAL
 SET local.log_slow_queries = OFF;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'log_slow_queries = OFF' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'log_slow_queries = OFF' at line 1
 SELECT local.log_slow_queries;
 ERROR 42S02: Unknown table 'local' in field list
 SET global.log_slow_queries = ON;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'log_slow_queries = ON' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'log_slow_queries = ON' at line 1
 SELECT global.log_slow_queries;
 ERROR 42S02: Unknown table 'global' in field list
 SELECT log_slow_queries = @@session.log_slow_queries;

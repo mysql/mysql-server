@@ -19,9 +19,9 @@
 #include "my_global.h"                          /* uchar */
 #include "my_base.h"                            /* ha_rows */
 #include "my_sys.h"                             /* qsort2_cmp */
+#include "queues.h"
 
 typedef struct st_buffpek BUFFPEK;
-typedef struct st_queue QUEUE;
 typedef struct st_sort_field SORT_FIELD;
 
 class Field;
@@ -49,21 +49,15 @@ struct TABLE;
    the callback function 'unpack_addon_fields'.
 */
 
-typedef struct st_sort_addon_field {  /* Sort addon packed field */
+typedef struct st_sort_addon_field
+{
+  /* Sort addon packed field */
   Field *field;          /* Original field */
   uint   offset;         /* Offset from the last sorted field */
   uint   null_offset;    /* Offset to to null bit from the last sorted field */
   uint   length;         /* Length in the sort buffer */
   uint8  null_bit;       /* Null bit mask for the field */
 } SORT_ADDON_FIELD;
-
-typedef struct st_buffpek {		/* Struktur om sorteringsbuffrarna */
-  my_off_t file_pos;			/* Where we are in the sort file */
-  uchar *base,*key;			/* key pointers */
-  ha_rows count;			/* Number of rows in table */
-  ulong mem_count;			/* numbers of keys in memory */
-  ulong max_keys;			/* Max keys in buffert */
-} BUFFPEK;
 
 struct BUFFPEK_COMPARE_CONTEXT
 {
@@ -78,6 +72,7 @@ typedef struct st_sort_param {
   uint addon_length;        /* Length of added packed fields */
   uint res_length;          /* Length of records in final sorted file/buffer */
   uint keys;				/* Max keys / buffer */
+  uint min_dupl_count;
   ha_rows max_rows,examined_rows;
   TABLE *sort_form;			/* For quicker make_sortkey */
   SORT_FIELD *local_sortorder;
@@ -101,6 +96,10 @@ int merge_buffers(SORTPARAM *param,IO_CACHE *from_file,
 		  IO_CACHE *to_file, uchar *sort_buffer,
 		  BUFFPEK *lastbuff,BUFFPEK *Fb,
 		  BUFFPEK *Tb,int flag);
+int merge_index(SORTPARAM *param, uchar *sort_buffer,
+		BUFFPEK *buffpek, uint maxbuffer,
+		IO_CACHE *tempfile, IO_CACHE *outfile);
+
 void reuse_freed_buff(QUEUE *queue, BUFFPEK *reuse, uint key_length);
 
 #endif /* SQL_SORT_INCLUDED */

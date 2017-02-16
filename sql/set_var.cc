@@ -1,4 +1,5 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2014, SkySQL Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,7 +39,6 @@
 #include "tztime.h"     // my_tz_find, my_tz_SYSTEM, struct Time_zone
 #include "sql_acl.h"    // SUPER_ACL
 #include "sql_select.h" // free_underlaid_joins
-#include "sql_show.h"   // make_default_log_name
 #include "sql_view.h"   // updatable_views_with_limit_typelib
 #include "lock.h"                               // lock_global_read_lock,
                                                 // make_global_read_lock_block_commit,
@@ -137,7 +137,6 @@ void sys_var_end()
   @param substitute If non-NULL, this variable is deprecated and the
   string describes what one should use instead. If an empty string,
   the variable is deprecated but no replacement is offered.
-  @param parse_flag either PARSE_EARLY or PARSE_NORMAL
 */
 sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
                  const char *comment, int flags_arg, ptrdiff_t off,
@@ -146,10 +145,10 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
                  PolyLock *lock, enum binlog_status_enum binlog_status_arg,
                  on_check_function on_check_func,
                  on_update_function on_update_func,
-                 const char *substitute, int parse_flag) :
+                 const char *substitute) :
   next(0),
   binlog_status(binlog_status_arg),
-  flags(flags_arg), m_parse_flag(parse_flag), show_val_type(show_val_type_arg),
+  flags(flags_arg), show_val_type(show_val_type_arg),
   guard(lock), offset(off), on_check(on_check_func), on_update(on_update_func),
   deprecation_substitute(substitute),
   is_os_charset(FALSE)
@@ -163,7 +162,7 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
     in the first (PARSE_EARLY) stage.
     See handle_options() for details.
   */
-  DBUG_ASSERT(parse_flag == PARSE_NORMAL || getopt_id <= 0 || getopt_id >= 255);
+  DBUG_ASSERT(!(flags & PARSE_EARLY) || getopt_id <= 0 || getopt_id >= 255);
 
   name.str= name_arg;     // ER_NO_DEFAULT relies on 0-termination of name_arg
   name.length= strlen(name_arg);                // and so does this.
@@ -303,7 +302,7 @@ void sys_var::do_deprecated_warning(THD *thd)
 bool throw_bounds_warning(THD *thd, const char *name,
                           bool fixed, bool is_unsigned, longlong v)
 {
-  if (fixed || (!is_unsigned && v < 0))
+  if (fixed)
   {
     char buf[22];
 
@@ -442,10 +441,10 @@ int mysql_del_sys_var_chain(sys_var *first)
 {
   int result= 0;
 
-  /* A write lock should be held on LOCK_system_variables_hash */
-
+  mysql_rwlock_wrlock(&LOCK_system_variables_hash);
   for (sys_var *var= first; var; var= var->next)
     result|= my_hash_delete(&system_variable_hash, (uchar*) var);
+  mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
   return result;
 }

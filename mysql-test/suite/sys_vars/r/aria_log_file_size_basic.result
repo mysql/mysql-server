@@ -1,0 +1,55 @@
+SET @start_global_value = @@global.aria_log_file_size;
+select @@global.aria_log_file_size;
+@@global.aria_log_file_size
+1073741824
+select @@session.aria_log_file_size;
+ERROR HY000: Variable 'aria_log_file_size' is a GLOBAL variable
+show global variables like 'aria_log_file_size';
+Variable_name	Value
+aria_log_file_size	1073741824
+show session variables like 'aria_log_file_size';
+Variable_name	Value
+aria_log_file_size	1073741824
+select * from information_schema.global_variables where variable_name='aria_log_file_size';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_LOG_FILE_SIZE	1073741824
+select * from information_schema.session_variables where variable_name='aria_log_file_size';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_LOG_FILE_SIZE	1073741824
+set global aria_log_file_size=1024*1024*10;
+select @@global.aria_log_file_size;
+@@global.aria_log_file_size
+10485760
+set session aria_log_file_size=1;
+ERROR HY000: Variable 'aria_log_file_size' is a GLOBAL variable and should be set with SET GLOBAL
+set global aria_log_file_size=1.1;
+ERROR 42000: Incorrect argument type to variable 'aria_log_file_size'
+set global aria_log_file_size=1e1;
+ERROR 42000: Incorrect argument type to variable 'aria_log_file_size'
+set global aria_log_file_size="foo";
+ERROR 42000: Incorrect argument type to variable 'aria_log_file_size'
+set global aria_log_file_size=1;
+Warnings:
+Warning	1292	Truncated incorrect aria_log_file_size value: '1'
+select @@global.aria_log_file_size;
+@@global.aria_log_file_size
+8388608
+set global aria_log_file_size=@@global.aria_log_file_size + 8192 - 1;
+Warnings:
+Warning	1292	Truncated incorrect aria_log_file_size value: '8396799'
+select @@global.aria_log_file_size;
+@@global.aria_log_file_size
+8388608
+set global aria_log_file_size=@@global.aria_log_file_size + 8192;
+select @@global.aria_log_file_size;
+@@global.aria_log_file_size
+8396800
+set global aria_log_file_size=cast(-1 as unsigned int);
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1292	Truncated incorrect aria_log_file_size value: '18446744073709551615'
+select @@global.aria_log_file_size;
+@@global.aria_log_file_size
+4294959104
+SET @@global.aria_log_file_size = @start_global_value;

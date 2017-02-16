@@ -1,0 +1,51 @@
+--source include/not_embedded.inc
+
+--echo #
+--echo # Basic testing of replicate_wild_do_table.
+--echo #
+
+SET @save_replicate_wild_do_table = @@GLOBAL.replicate_wild_do_table;
+SELECT @save_replicate_wild_do_table;
+
+--echo # Scope.
+
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.replicate_wild_do_table = "";
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.replicate_wild_do_table;
+
+--echo # Incorrect type.
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.replicate_wild_do_table=1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.replicate_wild_do_table=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.replicate_wild_do_table=1e1;
+
+--echo # Incorrect arguments.
+
+--error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.replicate_wild_do_table="t1";
+--error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.replicate_wild_do_table="test.t, t2";
+--error ER_WRONG_ARGUMENTS
+SET @@GLOBAL.replicate_wild_do_table="test.,t1";
+
+--echo # Argument syntax.
+
+SET @@GLOBAL.replicate_wild_do_table="test.%,,,,,test.t3";
+SELECT @@GLOBAL.replicate_wild_do_table;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='replicate_wild_do_table';
+
+SET @@GLOBAL.replicate_wild_do_table="test.t1,,,test2.%,,,test.t3";
+SELECT @@GLOBAL.replicate_wild_do_table;
+
+SET @@GLOBAL.replicate_wild_do_table="";
+SELECT @@GLOBAL.replicate_wild_do_table;
+
+SET @@GLOBAL.replicate_wild_do_table=null;
+SELECT @@GLOBAL.replicate_wild_do_table;
+
+--echo # Cleanup.
+SET @@GLOBAL.replicate_wild_do_table = @save_replicate_wild_do_table;

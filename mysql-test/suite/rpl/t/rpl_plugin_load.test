@@ -10,8 +10,6 @@
 
 --source include/not_embedded.inc
 --source include/have_log_bin.inc
-# Dynamic loading of Example does not work on Windows currently.
---source include/not_windows.inc
 --source include/have_example_plugin.inc
 
 # Initialize replication.
@@ -21,7 +19,8 @@ SELECT * FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='EXAMPLE';
 --echo Get binlog position before install plugin.
 let $before_pos = query_get_value("SHOW MASTER STATUS", Position, 1);
 --echo Install example engine.
-INSTALL PLUGIN example SONAME 'ha_example.so';
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME '$HA_EXAMPLE_SO';
 --echo Get binlog position after install plugin.
 let $after_pos = query_get_value("SHOW MASTER STATUS", Position, 1);
 --echo Compute the difference of the  binlog positions.

@@ -51,6 +51,7 @@ ERROR 42000: Incorrect argument type to variable 'innodb_trx_purge_view_update_o
 set global innodb_trx_purge_view_update_only_debug='foo';
 ERROR 42000: Variable 'innodb_trx_purge_view_update_only_debug' can't be set to the value of 'foo'
 set global innodb_trx_purge_view_update_only_debug=-2;
+ERROR 42000: Variable 'innodb_trx_purge_view_update_only_debug' can't be set to the value of '-2'
 set global innodb_trx_purge_view_update_only_debug=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_trx_purge_view_update_only_debug'
 set global innodb_trx_purge_view_update_only_debug=2;

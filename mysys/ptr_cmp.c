@@ -21,16 +21,22 @@
 
 #include "mysys_priv.h"
 #include <myisampack.h>
-
-#ifdef __sun
 /*
- * On Solaris, memcmp() is normally faster than the unrolled ptr_compare_N
+ * On some platforms, memcmp() is faster than the unrolled ptr_compare_N
  * functions, as memcmp() is usually a platform-specific implementation
- * written in assembler, provided in /usr/lib/libc/libc_hwcap*.so.1.
- * This implementation is also usually faster than the built-in memcmp
- * supplied by GCC, so it is recommended to build with "-fno-builtin-memcmp"
- * in CFLAGS if building with GCC on Solaris.
+ * written in assembler. for example one in /usr/lib/libc/libc_hwcap*.so.1.
+ * on Solaris, or on Windows inside C runtime linrary.
+ *
+ * On Solaris, native implementation is also usually faster than the 
+ * built-in memcmp supplied by GCC, so it is recommended to build 
+ * with "-fno-builtin-memcmp"in CFLAGS if building with GCC on Solaris.
  */
+
+#if defined (__sun) || defined (_WIN32)
+#define USE_NATIVE_MEMCMP 1
+#endif
+
+#ifdef USE_NATIVE_MEMCMP
 
 #include <string.h>
 
@@ -39,18 +45,8 @@ static int native_compare(size_t *length, unsigned char **a, unsigned char **b)
   return memcmp(*a, *b, *length);
 }
 
-#else	/* __sun */
+#else	/* USE_NATIVE_MEMCMP */
 
-/**
-  Special case for ORDER BY / GROUP BY CHAR(0) NOT NULL
- */
-static
-int ptr_compare_zero_length(size_t *compare_length __attribute__((unused)),
-                            uchar **a __attribute__((unused)),
-                            uchar **b __attribute__((unused)))
-{
-  return 0;
-}
 static int ptr_compare(size_t *compare_length, uchar **a, uchar **b);
 static int ptr_compare_0(size_t *compare_length, uchar **a, uchar **b);
 static int ptr_compare_1(size_t *compare_length, uchar **a, uchar **b);
@@ -60,7 +56,7 @@ static int ptr_compare_3(size_t *compare_length, uchar **a, uchar **b);
 
 	/* Get a pointer to a optimal byte-compare function for a given size */
 
-#ifdef __sun
+#ifdef USE_NATIVE_MEMCMP
 qsort2_cmp get_ptr_compare (size_t size __attribute__((unused)))
 {
   return (qsort2_cmp) native_compare;
@@ -68,8 +64,6 @@ qsort2_cmp get_ptr_compare (size_t size __attribute__((unused)))
 #else
 qsort2_cmp get_ptr_compare (size_t size)
 {
-  if (size == 0)
-    return (qsort2_cmp) ptr_compare_zero_length;
   if (size < 4)
     return (qsort2_cmp) ptr_compare;
   switch (size & 3) {
@@ -80,7 +74,7 @@ qsort2_cmp get_ptr_compare (size_t size)
     }
   return 0;					/* Impossible */
 }
-#endif /* __sun */
+#endif /* USE_NATIVE_MEMCMP */
 
 
 	/*
@@ -90,7 +84,7 @@ qsort2_cmp get_ptr_compare (size_t size)
 
 #define cmp(N) if (first[N] != last[N]) return (int) first[N] - (int) last[N]
 
-#ifndef __sun
+#ifndef USE_NATIVE_MEMCMP
 
 static int ptr_compare(size_t *compare_length, uchar **a, uchar **b)
 {

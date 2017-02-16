@@ -454,7 +454,10 @@ row_drop_table_for_mysql(
 /*=====================*/
 	const char*	name,	/*!< in: table name */
 	trx_t*		trx,	/*!< in: transaction handle */
-	ibool		drop_db);/*!< in: TRUE=dropping whole database */
+	ibool		drop_db,/*!< in: TRUE=dropping whole database */
+	ibool		create_failed);/*!<in: TRUE=create table failed
+				       because e.g. foreign key column
+				       type mismatch. */
 /*********************************************************************//**
 Drop all temporary tables during crash recovery. */
 UNIV_INTERN

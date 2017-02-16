@@ -137,9 +137,9 @@ DROP TABLE t1;
 # Bug 19491 (CAST DATE AS DECIMAL returns incorrect result
 #
 SELECT CAST(CAST('2006-08-10' AS DATE) AS DECIMAL(20,6));
-SELECT CAST(CAST('2006-08-10 10:11:12' AS DATETIME) AS DECIMAL(20,6));
-SELECT CAST(CAST('2006-08-10 10:11:12' AS DATETIME) + INTERVAL 14 MICROSECOND AS DECIMAL(20,6));
-SELECT CAST(CAST('10:11:12.098700' AS TIME) AS DECIMAL(20,6));
+SELECT CAST(CAST('2006-08-10 10:11:12' AS DATETIME(6)) AS DECIMAL(20,6));
+SELECT CAST(CAST('2006-08-10 10:11:12' AS DATETIME(6)) + INTERVAL 14 MICROSECOND AS DECIMAL(20,6));
+SELECT CAST(CAST('10:11:12.098700' AS TIME(6)) AS DECIMAL(20,6));
 
 
 #
@@ -359,6 +359,9 @@ create table t2 (id int(10) not null, cur_date date not null);
 insert into t1 (id, cur_date) values (1, '2007-04-25 18:30:22');
 insert into t2 (id, cur_date) values (1, '2007-04-25');
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
+
 explain extended
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
@@ -385,6 +388,8 @@ select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
+
+SET optimizer_switch=@save_optimizer_switch;
 
 drop table t1,t2;
 
@@ -432,18 +437,18 @@ set @@sql_mode= @org_mode;
 # Bug #42146 - DATETIME fractional seconds parse error
 #
 # show we trucate microseconds from the right -- special case: leftmost is 0
-SELECT CAST(CAST('2006-08-10 10:11:12.0123450' AS DATETIME) AS DECIMAL(30,7));
+SELECT CAST(CAST('2006-08-10 10:11:12.0123450' AS DATETIME(6)) AS DECIMAL(30,7));
 
 # show that we ignore leading zeroes for all other fields
-SELECT CAST(CAST('00000002006-000008-0000010 000010:0000011:00000012.0123450' AS DATETIME) AS DECIMAL(30,7));
+SELECT CAST(CAST('00000002006-000008-0000010 000010:0000011:00000012.0123450' AS DATETIME(6)) AS DECIMAL(30,7));
 # once more with feeling (but no warnings)
-SELECT CAST(CAST('00000002006-000008-0000010 000010:0000011:00000012.012345'  AS DATETIME) AS DECIMAL(30,7));
+SELECT CAST(CAST('00000002006-000008-0000010 000010:0000011:00000012.012345'  AS DATETIME(6)) AS DECIMAL(30,7));
 
 #
 # Bug #38435 - LONG Microseconds cause MySQL to fail a CAST to DATETIME or DATE
 #
 # show we truncate microseconds from the right
-SELECT CAST(CAST('2008-07-29T10:42:51.1234567' AS DateTime) AS DECIMAL(30,7));
+SELECT CAST(CAST('2008-07-29T10:42:51.1234567' AS DateTime(6)) AS DECIMAL(30,7));
 
 --echo # 
 --echo # Bug#59173: Failure to handle DATE(TIME) values where Year, Month or
@@ -457,6 +462,73 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+
+#
+# MDEV-4281 Assertion `maybe_null && item->null_value' fails in make_sortkey on CASE with different return types, GROUP_CONCAT, GROUP BY
+#
+create table t1 (d date, t time) engine=myisam;
+insert into t1 values ('2000-12-03','22:55:23'),('2008-05-03','10:19:31');
+select case when d = '2012-12-12' then d else t end as cond, group_concat( d ) from t1 group by cond;
+drop table t1;
+
+--echo # 
+--echo # Semantics of the condition <non-nullable datetime field> IS NULL 
+--echo # when the field belongs to an inner table of an outer join 
+--echo # 
+
+create table t1 (a int, b date not null);
+insert t1 values (1, 0), (2, '1999-01-02');
+create table t2 (c int);
+insert t2 values (1),(3);
+
+select * from t2 left join t1 on t1.a=t2.c where t1.a is null;
+select * from t2 left join t1 on t1.a=t2.c where t1.b is null;
+
+drop table t1,t2;
+
+--echo #
+--echo # MDEV-4634 Crash in CONVERT_TZ
+--echo #
+SELECT CONVERT_TZ(GREATEST(TIMESTAMP('2021-00-00'),TIMESTAMP('2022-00-00')),'+00:00','+7:5');
+
+
+--echo #
+--echo # MDEV-5041 Inserting a TIME with hour>24 into a DATETIME column produces a wrong value
+--echo #
+SELECT CAST(TIME('-800:20:30') AS DATETIME);
+SELECT CAST(TIME('800:20:30') AS DATETIME);
+SELECT CAST(TIME('33 08:20:30') AS DATETIME);
+CREATE TABLE t1 (a DATETIME);
+INSERT INTO t1 VALUES (TIME('800:20:30'));
+INSERT INTO t1 VALUES (TIME('33 08:20:30'));
+SET SQL_MODE=NO_ZERO_IN_DATE;
+INSERT INTO t1 VALUES (TIME('48:20:30'));
+SET SQL_MODE=DEFAULT;
+SELECT * FROM t1;
+DROP TABLE t1;
+DELIMITER |;
+CREATE PROCEDURE test5041()
+BEGIN
+  DECLARE t TIME;
+  DECLARE dt DATETIME;
+  SET t= TIME('800:20:30');
+  SET dt= t;
+  SELECT dt;
+END;|
+DELIMITER ;|
+call test5041();
+drop procedure test5041;
+
+--echo #
+--echo # MDEV-6097 Inconsistent results for CAST(int,decimal,double AS DATETIME)
+--echo #
+SELECT
+  CAST(010203101112 AS DATETIME(1)) AS c1,
+  CAST(010203101112.2 AS DATETIME(1)) AS c2,
+  CAST(010203101112.2+0e0 AS DATETIME(1)) AS c3;
+
+
+--echo End of 5.3 tests
 
 --echo #
 --echo # Start of 5.5 tests

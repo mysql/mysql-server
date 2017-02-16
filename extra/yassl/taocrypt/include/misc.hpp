@@ -143,9 +143,13 @@ void CleanUp();
 
 // Turn on ia32 ASM for Big Integer
 // CodeWarrior defines _MSC_VER
+//
+// Do not use assembler with GCC, as the implementation for it is broken;
+// it does not use proper GCC asm contraints and makes assumptions about
+// frame pointers and so on, which breaks depending on GCC version and
+// optimization level.
 #if !defined(TAOCRYPT_DISABLE_X86ASM) && ((defined(_MSC_VER) && \
-   !defined(__MWERKS__) && defined(_M_IX86)) || \
-   (defined(__GNUC__) && defined(__i386__)))
+   !defined(__MWERKS__) && defined(_M_IX86)))
     #define TAOCRYPT_X86ASM_AVAILABLE
 #endif
 

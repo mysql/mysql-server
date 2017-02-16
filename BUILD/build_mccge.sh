@@ -1,6 +1,7 @@
 #!/bin/sh
 
-# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2010, Oracle.
+# Copyright (c) 2009-2011 Monty Program Ab
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -30,23 +31,18 @@ get_key_value()
 developer_usage()
 {
 cat <<EOF
+  This script can be used by developers of MariaDB wanting to try out
+  early versions before binary versions are available, anyone needing
+  a version with a special patch included that needs to be built from
+  source code, or anyone else wanting to exercise full control over
+  the build process.
 
-  This script can be used by developers of MySQL, early adopters wanting 
-  to try out early versions of MySQL before binary versions are 
-  available, anyone needing a version with a special patch included that 
-  needs to be built from source code, or anyone else wanting to exercise 
-  full control over the MySQL build process.
-
-  This help text is targeted towards those that want to debug and test 
-  MySQL using source code releases. If you have downloaded a source code 
-  release and simply want to build a usable binary, you should read the 
+  This help text is targeted towards those that want to debug and test
+  source code releases. If you have downloaded a source code release
+  and simply want to build a usable binary, you should read the
   --sysadmin-help instead.
 
-  The script is also designed to be used by anyone receiving a source 
-  code release of MySQL Cluster Carrier Grade Edition. The default
-  behaviour is to build the standard MySQL Cluster Carrier Grade Edition
-  package. Three environment variables can be used to change the 
-  default behaviour:
+  Three environment variables can be used to define the default behaviour:
 
   MYSQL_DEVELOPER
     Defining this variable is similar to setting the --developer flag
@@ -57,9 +53,6 @@ cat <<EOF
     Defining this variable sets the --with-debug flag
 
   Options used with this script always override any default behaviour. 
-  The default package is MySQL Cluster Carrier Grade (standard) Edition. 
-  For developers, the default package is MySQL Cluster Carrier Grade 
-  Extended Edition.
 
   More information for developers can be found in --help, 
   --sysadmin-help, and --extended-help.
@@ -77,17 +70,12 @@ sysadmin_usage()
 {
 cat <<EOF
 
-  This script can be used to build MySQL Cluster Carrier Grade Edition
-  based on a source code release you received from MySQL. It can also
-  be used to build many variants other variants of MySQL, in particular
-  various performance-optimised versions of MySQL.
-
   It is assumed that you are building on a computer which is of the 
-  same type as that on which you intend to run MySQL/MySQL Cluster.
+  same type as that on which you intend to run the program.
 
   The simplest possible way to run this script is to allow it to use the 
   built-in defaults everywhere, invoking it simply as (from top-level
-  MySQL directory):
+  MariaDB source directory):
 
   shell> BUILD/build_mccge.sh
 
@@ -99,20 +87,14 @@ cat <<EOF
       with GCC, and x86 + SPARC for Solaris using the Forte compiler and
       finally x86 on Linux using the Intel compiler.
     3) Invokes the GCC compiler.
-    4) Builds a set of MySQL/MySQL Cluster binaries; for
-      more information about these, see --extended-help.
+    4) Builds a set of of binaries ; for more information about these,
+       see --extended-help.
     5) Default compiler is always gcc.
   
   The default version assumes that you have a source code tarball from 
   which you are building, and thus autoconf and automake do not need to 
-  be run. If you have downloaded a BitKeeper tree then you should read 
+  be run. If you have downloaded a launchpad tree then you should read 
   --developer-help.
-
-  If you are building MySQL/MySQL Cluster for commercial 
-  use then you need to set the --commercial flag to ensure that the 
-  commercial libraries are compiled in, rather than the GPL-only 
-  libraries. The default is to build a GPL version of MySQL Cluster 
-  Carrier Grade Edition.
 
   If your building on a Solaris SPARC machine and you want to compile
   using SunStudio you must set 
@@ -133,20 +115,16 @@ cat <<EOF
   want the binaries installed.
 
   Using a data directory other than the default (PREFIX/data) can be 
-  done when starting the MySQL Server, or by invoking this script with 
+  done when starting the server, or by invoking this script with 
   the --datadir option.
 
   If you want your binaries stripped of surplus debug or other 
   information, use the --strip option.
 
   If you want debug information in the binary (for example, to be
-  able to send gdb core dumps to MySQL Support), then you should add the 
+  able to send gdb core dumps to support), then you should add the 
   flag --with-debug; if you want a production build with only debugging 
   information in the binary then use --debug.
-
-  If your aim is not to build MySQL Cluster Carrier Grade Edition, you 
-  can also use this script to build MySQL Classic and MySQL Enterprise Pro 
-  versions; see the --extended-help for descriptions of these packages.
 EOF
 }
 
@@ -157,9 +135,8 @@ cat <<EOF
 Usage: $0 [options]
   --help                  Show this help message.
   --sysadmin-help         Show help for system administrators wishing 
-                          to build MySQL Cluster Carrier Grade Edition
-                          or other MySQL versions.
-  --developer-help        Show help for developers trying to build MySQL
+                          to build MariaDB
+  --developer-help        Show help for developers trying to build MariaDB
   --with-help             Show extended help on --with-xxx options to 
                           configure
   --extended-help         Show extended help message
@@ -199,11 +176,9 @@ Usage: $0 [options]
                           'path'
   --debug                 Build normal version, but add debug 
                           information to binary
-  --developer             Use extensions that most MySQL developers use
+  --developer             Use extensions that most MariaDB developers use
   --no-developer          Do not use extensions that most developers of 
-                          MySQL use
-  --commercial            Use commercial libraries
-  --gpl                   Use gpl libraries
+                          MariaDB use
   --compiler=[gcc|icc|forte|SunStudio|open64] Select compiler
   --cpu=[x86|x86_64|sparc|itanium]            Select CPU type
                           x86 => x86 and 32-bit binary
@@ -213,10 +188,10 @@ Usage: $0 [options]
   --32                    Build a 32-bit binary even if CPU is 64-bit
   --64                    Build a 64-bit binary even if not sure a
                           64-bit CPU is being used
-  --package=[cge|extended|pro|classic]        Select package to build
+  --package=[pro|classic] Select package to build
   --parallelism=number    Define parallelism in make
   --strip                 Strip binaries
-  --error-inject          Enable error injection into MySQL Server and 
+  --error-inject          Enable error injection into MariaDB Server and 
                           data nodes
   --valgrind              Build with valgrind
   --fast                  Optimise for CPU architecture built on
@@ -234,12 +209,12 @@ extended_usage()
   cat <<EOF
 
   Extended help text for this script:
-  -----------------------------------
-  This script is intended to make it easier for customers using MySQL
-  Cluster Carrier Grade Edition, customers using performance-optimised
-  MySQL versions and developers to build the product from source on 
-  these platforms/compilers: Linux/x86 (32-bit and 64-bit) (either using
-  gcc or icc), Linux Itanium, Solaris 8,9,10 and 11 x86 and SPARC using
+  ----------------------------------- 
+
+  This script is intended to make it easier to build
+  performance-optimised MariaDB versions from source on these
+  platforms/compilers: Linux/x86 (32-bit and 64-bit) (either using gcc
+  or icc), Linux Itanium, Solaris 8,9,10 and 11 x86 and SPARC using
   gcc or SunStudio and MacOSX/x86/gcc.
 
   The script automatically detects CPU type and operating system; The
@@ -247,49 +222,28 @@ extended_usage()
 
   To build on other platforms you can use the --print-only option on a
   supported platform and edit the output for a proper set of commands on
-  the specific platform you are using. MySQL also provides custom builds
-  for any type of platform that is officially supported for MySQL
-  Cluster. For a list of supported platforms, see
-  http://www.mysql.com/support/supportedplatforms/cluster.html.
+  the specific platform you are using.
 
   Using the --package option, it is also possible to build a "classic"
-  version of MySQL having only the MyISAM storage engine, a "Pro"
-  package including all storage engines and other features except MySQL
-  Cluster, and an "extended" package including these features plus MySQL
+  version of MariaDB having only the MyISAM storage engine, a "Pro"
+  package including all storage engines and other features except MariaDB
+  Cluster, and an "extended" package including these features plus MariaDB
   Cluster (this is the default if the --developer option is used).
 
-  Different MySQL storage engines are included in the build, depending
+  Different MariaDB storage engines are included in the build, depending
   on which --package option is used. The comment and version strong
   suffix are also set according to the package selected.
-
-  --package=cge
-    storage engines:
-      ARCHIVE, BLACKHOLE, CSV, FEDERATED, MYISAM, NDB
-      (All storage engines except InnoDB)
-    comment: MySQL Cluster Carrier Grade Edition GPL/Commercial version 
-             built from source
-    version string suffix: -cge
-
-  --package=extended
-    storage engines:
-      ARCHIVE, BLACKHOLE, CSV, FEDERATED, MYISAM, INNODB, NDB
-      (All storage engines)
-    comment: MySQL Cluster Carrier Grade Extended Edition GPL/Commercial 
-             version built from source
-    version string suffix: -cge-extended
 
   --package=pro
     storage engines:
       ARCHIVE, BLACKHOLE, CSV, FEDERATED, INNODB, MYISAM
       (All storage engines except NDB)
-    comment: MySQL Pro GPL/Commercial version built from 
-             source
+    comment: Pro versions
     version string suffix: [none]
 
   --package=classic
     storage engines: CSV, MYISAM
-    comment: MySQL Classic GPL/Commercial version built 
-             from source
+    comment: Version without InnoDB and Maria
     version string suffix: [none]
 
   All packages except Classic include support for user-defined
@@ -299,9 +253,9 @@ extended_usage()
   If --with-debug is used, an additional "-debug" is appended to the
   version string.
 
-  --commercial
-    This flag prevents the use of GPL libraries which cannot be used
-    under a commercial license, such as the readline library.
+  --with-debug[=full]
+    This option will ensure that the version is built with debug
+    information enabled; the optimisation level is decreased to -O.
 
   --developer
     This option changes a number of things to make the version built
@@ -387,8 +341,7 @@ extended_usage()
   Package-specific options:
   -------------------------
   --with-innodb
-    Specifically included in the "pro" and "extended" packages, and not 
-    in any of the others.
+    Specifically included in the "pro" package.
 
   --with-comment
     Sets the comment for the MySQL version, by package, as described
@@ -401,12 +354,10 @@ extended_usage()
   Other options used:
   -------------------
   --with-readline
-    Use the GPL readline library for command editing functions; not
-    available with commercial packages.
+    Use the GPL readline library for command editing functions.
 
   --with-libedit
-    Use the BSD licensed library for command editing functions; used for
-    commercial packages.
+    Use the BSD licensed library for command editing functions.
 
   --with-zlib-dir=bundled
     Use the zlib package bundled with MySQL.
@@ -651,9 +602,6 @@ parse_package()
     extended )
       package="extended"
       ;;
-    cge )
-      package="cge"
-      ;;
     *)
       echo "Unknown package '$package'"
       exit 1
@@ -795,12 +743,6 @@ parse_options()
     --developer)
       developer_flag="yes"
       ;;
-    --commercial)
-      gpl="no"
-      ;;
-    --gpl)
-      gpl="yes"
-      ;;
     --compiler=*)
       compiler=`get_key_value "$1"`
       parse_compiler
@@ -850,7 +792,7 @@ parse_options()
     --configure-only)
       just_configure="yes"
       ;;
-    --print-only)
+    --print-only|--just-print)
       just_print="yes"
       ;;
     --static-linking)
@@ -1151,7 +1093,7 @@ set_warning_flags()
       warnings="$warnings -Wcomment -W"
       warnings="$warnings -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare"
       warnings="$warnings -Wwrite-strings -Wunused-function -Wunused-label"
-      warnings="$warnings -Wunused-value -Wunused-variable"
+      warnings="$warnings -Wunused-value -Wunused-variable -Wno-uninitialized"
 
       if test "x$warning_mode" = "extra" ; then
         warnings="$warnings -Wshadow"
@@ -1179,7 +1121,9 @@ set_with_debug_flags()
 {
   if test "x$with_debug_flag" = "xyes" ; then
     if test "x$developer_flag" = "xyes" ; then
-      loc_debug_flags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS "
+      loc_debug_flags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG"
+      loc_debug_flags="$loc_debug_flags -Wuninitialized -DFORCE_INIT_OF_VARS"
+      loc_debug_flags="$loc_debug_flags -DSAFEMALLOC"
       compiler_flags="$compiler_flags $loc_debug_flags"
     fi
     compiler_flags="$compiler_flags $extra_debug_flags"
@@ -1254,26 +1198,17 @@ set_base_configs()
   if test "x$with_perfschema" != "xno" ; then
     base_configs="$base_configs --with-perfschema"
   fi
+  base_configs="$base_configs --with-libevent"
 }
 
 #
-# Add all standard engines and partitioning (included as part of MySQL
-# Cluster storage engine as well) as part of MySQL Server. These are 
-# added in all packages except the classic package.
+# Add all standard engines and partitioning
 #
-set_base_engines()
+set_max_engines()
 {
-  engine_configs="--with-archive-storage-engine"
-  engine_configs="$engine_configs --with-blackhole-storage-engine"
-  engine_configs="$engine_configs --without-example-storage-engine"
-  engine_configs="$engine_configs --with-federated-storage-engine"
-  engine_configs="$engine_configs --with-partition"
+  engine_configs="--with-plugins=max --with-plugin-maria --with-maria-tmp-tables"
+  engine_configs="$engine_configs --without-plugin-innodb_plugin"
   base_configs="$base_configs $engine_configs"
-}
-
-set_innodb_engine()
-{
-  base_configs="$base_configs --with-innodb"
 }
 
 set_ndb_engine()
@@ -1285,41 +1220,17 @@ set_ndb_engine()
 set_pro_package()
 {
   if test "x$without_comment" != "xyes" ; then
-    base_configs="$base_configs --with-comment=\"MySQL Enterprise Pro $version_text built from source\""
+    base_configs="$base_configs --with-comment=\"Pro $version_text built from source\""
   fi
   if test "x$with_debug_flag" = "xyes" ; then
     base_configs="$base_configs --with-server-suffix=\"-debug\""
   fi
 }
 
-set_cge_extended_package()
-{
-  if test "x$without_comment" != "xyes" ; then
-    base_configs="$base_configs --with-comment=\"MySQL Cluster Carrier Grade Extended Edition $version_text built from source\""
-  fi
-  if test "x$with_debug_flag" = "xyes" ; then
-    base_configs="$base_configs --with-server-suffix=\"-cge-extended-debug\""
-  else
-    base_configs="$base_configs --with-server-suffix=\"-cge-extended\""
-  fi
-}
-
-set_cge_package()
-{
-  if test "x$without_comment" != "xyes" ; then
-    base_configs="$base_configs --with-comment=\"MySQL Cluster Carrier Grade Edition $version_text built from source\""
-  fi
-  if test "x$with_debug_flag" = "xyes" ; then
-    base_configs="$base_configs --with-server-suffix=\"-cge-debug\""
-  else
-    base_configs="$base_configs --with-server-suffix=\"-cge\""
-  fi
-}
-
 set_classic_package()
 {
   if test "x$without_comment" != "xyes" ; then
-    base_configs="$base_configs --with-comment=\"MySQL Classic $version_text built from source\""
+    base_configs="$base_configs --with-comment=\"Classic $version_text built from source\""
   fi
   if test "x$with_debug_flag" = "xyes" ; then
     base_configs="$base_configs --with-server-suffix=\"-debug\""
@@ -1786,11 +1697,7 @@ set_error_inject_configs()
 set_default_package()
 {
   if test "x$package" = "x" ; then
-    if test "x$developer_flag" = "xyes" ; then
       package="extended"
-    else
-      package="cge"
-    fi
   fi
 }
 
@@ -1908,28 +1815,13 @@ set_icc_special_options
 
 #
 # Definitions of various packages possible to compile. The default is to
-# build a source variant of MySQL Cluster Carrier Grade Edition 
-# including all storage engines except InnoDB, and to use GPL libraries.
+# build a source variant including all storage engines except InnoDB.
 #
 set_base_configs
-if test "x$gpl" = "xyes" ; then
   version_text="GPL version"
-else
-  version_text="Commercial version"
-fi
 if test "x$package" = "xpro" ; then
-  set_base_engines
-  set_innodb_engine
+  set_max_engines
   set_pro_package
-elif test "x$package" = "xextended" ; then
-  set_base_engines
-  set_ndb_engine
-  set_innodb_engine
-  set_cge_extended_package
-elif test "x$package" = "xcge" ; then
-  set_base_engines
-  set_ndb_engine
-  set_cge_package
 elif test "x$package" = "xclassic" ; then
   set_classic_package
 else

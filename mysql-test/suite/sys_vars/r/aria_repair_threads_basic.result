@@ -1,0 +1,44 @@
+SET @start_global_value = @@global.aria_repair_threads;
+select @@global.aria_repair_threads;
+@@global.aria_repair_threads
+1
+select @@session.aria_repair_threads;
+@@session.aria_repair_threads
+1
+show global variables like 'aria_repair_threads';
+Variable_name	Value
+aria_repair_threads	1
+show session variables like 'aria_repair_threads';
+Variable_name	Value
+aria_repair_threads	1
+select * from information_schema.global_variables where variable_name='aria_repair_threads';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_REPAIR_THREADS	1
+select * from information_schema.session_variables where variable_name='aria_repair_threads';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_REPAIR_THREADS	1
+set global aria_repair_threads=10;
+select @@global.aria_repair_threads;
+@@global.aria_repair_threads
+10
+set session aria_repair_threads=10;
+select @@session.aria_repair_threads;
+@@session.aria_repair_threads
+10
+set global aria_repair_threads=1.1;
+ERROR 42000: Incorrect argument type to variable 'aria_repair_threads'
+set session aria_repair_threads=1e1;
+ERROR 42000: Incorrect argument type to variable 'aria_repair_threads'
+set global aria_repair_threads="foo";
+ERROR 42000: Incorrect argument type to variable 'aria_repair_threads'
+set global aria_repair_threads=0;
+Warnings:
+Warning	1292	Truncated incorrect aria_repair_threads value: '0'
+select @@global.aria_repair_threads;
+@@global.aria_repair_threads
+1
+set session aria_repair_threads=cast(-1 as unsigned int);
+select @@session.aria_repair_threads;
+@@session.aria_repair_threads
+128
+SET @@global.aria_repair_threads = @start_global_value;

@@ -3,6 +3,11 @@
 -- source include/have_innodb.inc
 -- source include/have_debug.inc
 
+# Note that this test needs to be able to manipulate how/when purge is done
+# using @@innodb_limit_optimistic_insert_debug. This does not work with
+# background purge threads, so we disabled them in the -master.opt (they are
+# off by default in normal 5.5 innodb but on by default in xtradb)
+
 if (`select count(*)=0 from information_schema.global_variables where variable_name = 'INNODB_LIMIT_OPTIMISTIC_INSERT_DEBUG'`)
 {
   --skip Test requires InnoDB built with UNIV_DEBUG definition.

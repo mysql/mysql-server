@@ -1,0 +1,54 @@
+.TH ARIA_DUMP_LOG "1" "May 2014" "aria_dump_log Ver 1.0" "User Commands"
+.SH NAME
+aria_dump_log \- Dump content of Aria log pages.
+.SH SYNOPSIS
+.B aria_dump_log
+\fI-f file OPTIONS\fR
+.SH DESCRIPTION
+Dump content of Aria log pages.
+.TP
+\fB\-#\fR, \fB\-\-debug\fR[=\fIname\fR]
+Output debug log. Often the argument is 'd:t:o,filename'.
+.TP
+\fB\-f\fR, \fB\-\-file\fR=\fIname\fR
+Path to file which will be read
+.TP
+\fB\-?\fR, \fB\-\-help\fR
+Display this help and exit.
+.TP
+\fB\-o\fR, \fB\-\-offset=\fR#
+Start reading log from this offset
+.TP
+\fB\-n\fR, \fB\-\-pages=\fR#
+Number of pages to read
+.TP
+\fB\-U\fR, \fB\-\-unit\-test\fR
+Use unit test record table (for logs created by unittests
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version and exit.
+.PP
+Default options are read from the following files in the given order:
+\fB/etc/my.cnf\fB
+\fB/etc/mysql/my.cnf\fB
+\fB~/.my.cnf\fB
+.PP
+The following groups are read: \fBaria_dump_log\fR
+.PP
+The following options may be given as the first argument:
+.TP
+\fB\-\-print\-defaults\fR
+Print the program argument list and exit.
+.TP
+\fB\-\-no\-defaults\fR
+Don't read default options from any option file.
+.TP
+\fB\-\-defaults\-file=\fR#
+Only read default options from the given file #.
+.TP
+\fB\-\-defaults\-extra\-file=\fR#
+Read this file after the global files are read.
+.PP
+.SH "SEE ALSO"
+For more information, please refer to the MariaDB Knowledge Base,
+which is available online at http://mariadb.com/kb/

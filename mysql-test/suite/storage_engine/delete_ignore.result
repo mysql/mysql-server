@@ -1,0 +1,59 @@
+DROP TABLE IF EXISTS t1,t2;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (10000,'foobar'),(1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
+INSERT INTO t1 (a,b) SELECT a, b FROM t1;
+CREATE TABLE t2 (c <CHAR_COLUMN>, d <INT_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t2 (c,d) SELECT b, a FROM t1;
+SELECT a,b FROM t1;
+a	b
+1	a
+1	a
+10000	foobar
+10000	foobar
+2	b
+2	b
+3	c
+3	c
+4	d
+4	d
+5	e
+5	e
+SELECT c,d FROM t2;
+c	d
+a	1
+a	1
+b	2
+b	2
+c	3
+c	3
+d	4
+d	4
+e	5
+e	5
+foobar	10000
+foobar	10000
+DELETE IGNORE FROM t1 WHERE b IS NOT NULL ORDER BY a LIMIT 1;
+SELECT a,b FROM t1;
+a	b
+1	a
+10000	foobar
+10000	foobar
+2	b
+2	b
+3	c
+3	c
+4	d
+4	d
+5	e
+5	e
+DELETE IGNORE t1.*, t2.* FROM t1, t2 WHERE c < b OR a != ( SELECT 1 UNION SELECT 2 );
+Warnings:
+Warning	1242	Subquery returns more than 1 row
+SELECT a,b FROM t1;
+a	b
+1	a
+SELECT c,d FROM t2;
+c	d
+foobar	10000
+foobar	10000
+DROP TABLE t1, t2;

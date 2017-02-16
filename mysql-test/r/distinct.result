@@ -173,9 +173,9 @@ INSERT INTO t2 values (1),(2),(3);
 INSERT INTO t3 VALUES (1,'1'),(2,'2'),(1,'1'),(2,'2');
 explain SELECT distinct t3.a FROM t3,t2,t1 WHERE t3.a=t1.b AND t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	4	Using temporary
-1	SIMPLE	t3	ref	a	a	5	test.t1.b	2	Using where; Using index
-1	SIMPLE	t2	index	a	a	4	NULL	5	Using where; Using index; Distinct; Using join buffer
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	4	Using where; Using temporary
+1	SIMPLE	t3	ref	a	a	5	test.t1.b	2	Using index
+1	SIMPLE	t2	index	a	a	4	NULL	5	Using where; Using index; Distinct; Using join buffer (flat, BNL join)
 SELECT distinct t3.a FROM t3,t2,t1 WHERE t3.a=t1.b AND t1.a=t2.a;
 a
 1
@@ -190,7 +190,7 @@ insert into t3 select * from t4;
 explain select distinct t1.a from t1,t3 where t1.a=t3.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	4	Using index; Using temporary
-1	SIMPLE	t3	ref	a	a	5	test.t1.a	11	Using where; Using index; Distinct
+1	SIMPLE	t3	ref	a	a	5	test.t1.a	11	Using index; Distinct
 select distinct t1.a from t1,t3 where t1.a=t3.a;
 a
 1
@@ -280,6 +280,8 @@ unique	(id, idx)
 insert into t1 values (1,'yes'), (2,'no');
 insert into t2 values (1,1);
 insert into t3 values (1,1);
+set @save_join_cache_level=@@join_cache_level;
+set join_cache_level=1;
 EXPLAIN
 SELECT DISTINCT
 t1.id
@@ -300,11 +302,11 @@ WHERE
 AND ((t1.id=j_lj_t3.id AND t3_lj.id IS NULL) OR (t1.id=t3.id AND t3.idx=2));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	id	id	4	NULL	2	Using index; Using temporary
-1	SIMPLE	t2	index	id	id	8	NULL	1	Using index; Distinct; Using join buffer
-1	SIMPLE	t3	index	id	id	8	NULL	1	Using index; Distinct; Using join buffer
-1	SIMPLE	j_lj_t2	index	id	id	4	NULL	2	Using where; Using index; Distinct; Using join buffer
+1	SIMPLE	t2	index	id	id	8	NULL	1	Using index; Distinct; Using join buffer (flat, BNL join)
+1	SIMPLE	t3	index	id	id	8	NULL	1	Using index; Distinct; Using join buffer (flat, BNL join)
+1	SIMPLE	j_lj_t2	index	id	id	4	NULL	2	Using where; Using index; Distinct; Using join buffer (flat, BNL join)
 1	SIMPLE	t2_lj	ref	id	id	4	test.j_lj_t2.id	1	Using where; Using index; Distinct
-1	SIMPLE	j_lj_t3	index	id	id	4	NULL	2	Using where; Using index; Distinct; Using join buffer
+1	SIMPLE	j_lj_t3	index	id	id	4	NULL	2	Using where; Using index; Distinct; Using join buffer (flat, BNL join)
 1	SIMPLE	t3_lj	ref	id	id	4	test.j_lj_t3.id	1	Using where; Using index; Distinct
 SELECT DISTINCT
 t1.id
@@ -326,6 +328,7 @@ AND ((t1.id=j_lj_t3.id AND t3_lj.id IS NULL) OR (t1.id=t3.id AND t3.idx=2));
 id
 2
 drop table t1,t2,t3;
+set join_cache_level=@save_join_cache_level;
 create table t1 (a int not null, b int not null, t time);
 insert into t1 values (1,1,"00:06:15"),(1,2,"00:06:15"),(1,2,"00:30:15"),(1,3,"00:06:15"),(1,3,"00:30:15");
 select a,sec_to_time(sum(time_to_sec(t))) from t1 group by a,b;
@@ -515,7 +518,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN SELECT DISTINCT t1_1.a, t1_1.b FROM t1 t1_1, t1 t1_2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1_1	ALL	NULL	NULL	NULL	NULL	3	Using temporary
-1	SIMPLE	t1_2	index	NULL	PRIMARY	4	NULL	3	Using index; Distinct; Using join buffer
+1	SIMPLE	t1_2	index	NULL	PRIMARY	4	NULL	3	Using index; Distinct; Using join buffer (flat, BNL join)
 EXPLAIN SELECT DISTINCT t1_1.a, t1_1.b FROM t1 t1_1, t1 t1_2
 WHERE t1_1.a = t1_2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -794,6 +797,198 @@ DROP TABLE t1;
 SET @@sort_buffer_size = @old_sort_buffer_size;
 SET @@max_heap_table_size = @old_max_heap_table_size;
 End of 5.1 tests
+create table t1 (a varchar(100));
+insert t1 values ('2010-10-10'), ('20101010');
+select * from t1 where a = DATE('2010-10-10');
+a
+2010-10-10
+20101010
+select distinct a from t1 where a = DATE('2010-10-10');
+a
+2010-10-10
+20101010
+explain select distinct a from t1 where a = DATE('2010-10-10');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using temporary
+drop table t1;
+# date = string
+create table t1 (a date);
+insert t1 values ('2010-10-10'), ('20101010');
+explain select distinct a from t1 where a = '2010-10-10';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+drop table t1;
+# double = string
+create table t1 (a double);
+insert t1 values (2), (2);
+explain select distinct a from t1 where a = '2';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+# double = int
+explain select distinct a from t1 where a = 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+# string = double
+alter table t1 modify a varchar(100);
+explain select distinct a from t1 where a = 2e0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using temporary
+drop table t1;
+create table t1 (f1 varchar(40));
+insert into t1 values ('2010-10-10 00:00:00.0001'),('2010-10-10 00:00:00.0002'),('2010-10-10 00:00:00.0003');
+select time(f1) from t1 ;
+time(f1)
+00:00:00.000100
+00:00:00.000200
+00:00:00.000300
+select distinct time(f1) from t1 ;
+time(f1)
+00:00:00.000100
+00:00:00.000200
+00:00:00.000300
+drop table t1;
+create table t1(i int, g int);
+insert into t1 values (null, 1), (0, 2);
+select distinct i from t1 group by g;
+i
+NULL
+0
+drop table t1;
+create table t1(i int, g blob);
+insert into t1 values (null, 1), (0, 2);
+select distinct i from t1 group by g;
+i
+NULL
+0
+drop table t1;
+create table t1 (a int) engine=myisam;
+insert into t1 values (0),(7);
+create table t2 (b int) engine=myisam;
+insert into t2 values (7),(0),(3);
+create algorithm=temptable view v as
+select distinct (select max(a) from t1 where alias.b = a) as field1 from t2 as alias group by field1;
+select * from v;
+field1
+NULL
+0
+7
+select distinct (select max(a) from t1 where alias.b = a) as field1 from t2 as alias group by field1;
+field1
+NULL
+0
+7
+drop view v;
+drop table t1, t2;
+CREATE TABLE t1 (
+id int, i1 int, i2 int DEFAULT 0,
+d1 date DEFAULT '2000-01-01', d2 date DEFAULT '2000-01-01',
+t1 time DEFAULT '00:00:00', t2 time DEFAULT '00:00:00',
+dt1 datetime NOT NULL DEFAULT '2000-01-01 00:00:00',
+dt2 datetime NOT NULL DEFAULT '2000-01-01 00:00:00',
+c1 varchar(1) NOT NULL, c2 varchar(1) NOT NULL
+) ENGINE=MyISAM;
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+INSERT INTO t1 (id,i1,c1,c2) VALUES 
+(1,7,'t','t'),(2,4,'k','k'),(3,2,'e','e'),(4,0,'i','i'),(5,1,'t','t'),(6,91,'m','m'),
+(7,6,'z','z'),(8,3,'c','c'),(9,6,'i','i'),(10,8,'v','v'), (11,1,'l','l'),(12,4,'j','j'),
+(13,5,'w','w'),(14,0,'r','r'),(15,7,'o','o'),(16,9,'o','o'),(17,7,'u','u'),(18,6,'f','f'),
+(19,0,'l','l'),(20,6,'g','g'),(21,1,'e','e'),(22,7,'y','y'),(23,0,'p','p'),(24,6,'v','v'),
+(25,5,'d','d'),(26,9,'i','i'),(27,5,'z','z'),(28,2,'q','q'),(29,4,'j','j'),(30,9,'m','m'),
+(31,8,'d','d'),(32,5,'r','r'),(33,1,'r','r'),(34,1,'k','k'),(35,4,'p','p'),(36,2,'x','x'),
+(37,5,'w','w'),(38,0,'k','k'),(39,7,'y','y'),(40,4,'p','p'),(41,9,'l','l'),(42,2,'u','u'),
+(43,3,'r','r'),(44,5,'y','y'),(45,3,'u','u'),(46,9,'t','t'),(47,8,'f','f'),(48,2,'f','f'),
+(49,2,'q','q'),(50,6,'v','v'),(51,6,'u','u'),(52,0,'b','b'),(53,1,'n','n'),(54,2,'p','p'),
+(55,0,'y','y'),(56,1,'l','l'),(57,1,'c','c'),(58,0,'d','d'),(59,2,'y','y'),(60,7,'l','l'),
+(61,6,'m','m'),(62,9,'q','q'),(63,0,'j','j'),(64,3,'u','u'),(65,4,'w','w'),(66,5,'p','p'),
+(67,8,'z','z'),(68,5,'u','u'),(69,7,'b','b'),(70,0,'f','f'),(71,6,'u','u'),(72,1,'i','i'),
+(73,9,'s','s'),(74,3,'y','y'),(75,5,'s','s'),(76,8,'x','x'),(77,3,'s','s'),(78,3,'l','l'),
+(79,8,'b','b'),(80,0,'p','p'),(81,9,'m','m'),(82,5,'k','k'),(83,7,'u','u'),(84,0,'y','y'),
+(85,2,'x','x'),(86,5,'h','h'),(87,5,'j','j'),(88,5,'o','o'),(89,9,'o','o'),(90,1,'c','c'),
+(91,7,'k','k'),(92,9,'t','t'),(93,3,'h','h'),(94,6,'g','g'),(95,9,'r','r'),(96,2,'i','i');
+CREATE TABLE t2 (i INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (7),(8);
+SELECT STRAIGHT_JOIN COUNT(DISTINCT t1.id)  FROM
+t1, v1, t2 WHERE v1.id = t2.i AND t1.i1 = v1.i1 AND t2.i != 3;
+COUNT(DISTINCT t1.id)
+18
+EXPLAIN EXTENDED
+SELECT STRAIGHT_JOIN DISTINCT t1.id  FROM
+t1, v1, t2 WHERE v1.id = t2.i AND t1.i1 = v1.i1 AND t2.i != 3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	96	100.00	Using where; Using temporary
+1	PRIMARY	<derived2>	ref	key0	key0	5	test.t1.i1	9	100.00	Using where; Distinct
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Distinct; Using join buffer (flat, BNL join)
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	96	100.00	
+Warnings:
+Note	1003	select straight_join distinct `test`.`t1`.`id` AS `id` from `test`.`t1` join `test`.`v1` join `test`.`t2` where ((`test`.`t2`.`i` = `v1`.`id`) and (`v1`.`i1` = `test`.`t1`.`i1`) and (`v1`.`id` <> 3))
+set join_buffer_size=1024;
+SELECT STRAIGHT_JOIN DISTINCT t1.id  FROM
+t1, v1, t2 WHERE v1.id = t2.i AND t1.i1 = v1.i1 AND t2.i != 3;
+id
+7
+8
+9
+18
+20
+24
+43
+45
+50
+51
+61
+64
+71
+74
+77
+78
+93
+94
+set join_buffer_size=1024*16;
+SELECT STRAIGHT_JOIN DISTINCT t1.id  FROM
+t1, v1, t2 WHERE v1.id = t2.i AND t1.i1 = v1.i1 AND t2.i != 3;
+id
+7
+9
+18
+20
+24
+8
+50
+51
+61
+43
+45
+71
+64
+74
+77
+78
+94
+93
+set join_buffer_size=default;
+SELECT STRAIGHT_JOIN DISTINCT t1.id  FROM
+t1, v1, t2 WHERE v1.id = t2.i AND t1.i1 = v1.i1 AND t2.i != 3;
+id
+7
+9
+18
+20
+24
+50
+51
+61
+71
+94
+8
+43
+45
+64
+74
+77
+78
+93
+DROP VIEW v1;
+DROP TABLE t1,t2;
 #
 # Bug #11744875: 4082: integer lengths cause truncation with distinct concat and innodb
 #

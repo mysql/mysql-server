@@ -1,5 +1,6 @@
-/* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002-2007 MySQL AB & tommy@valley.ne.jp
+   Copyright (c) 2002, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, SkySQL Ab.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -19,11 +20,10 @@
 /* This file is for binary pseudo charset, created by bar@mysql.com */
 
 
-#include <my_global.h>
-#include "m_string.h"
-#include "m_ctype.h"
+#include "strings_def.h"
+#include <m_ctype.h>
 
-static uchar ctype_bin[]=
+static const uchar ctype_bin[]=
 {
   0,
   32, 32, 32, 32, 32, 32, 32, 32, 32, 40, 40, 40, 40, 40, 32, 32,
@@ -47,7 +47,7 @@ static uchar ctype_bin[]=
 
 /* Dummy array for toupper / tolower / sortorder */
 
-static uchar bin_char_array[] =
+static const uchar bin_char_array[] =
 {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
@@ -69,7 +69,7 @@ static uchar bin_char_array[] =
 
 
 static my_bool 
-my_coll_init_8bit_bin(CHARSET_INFO *cs,
+my_coll_init_8bit_bin(struct charset_info_st *cs,
                       void *(*alloc)(size_t) __attribute__((unused)))
 {
   cs->max_sort_char=255; 
@@ -560,7 +560,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 };
 
 
-CHARSET_INFO my_charset_bin =
+struct charset_info_st my_charset_bin =
 {
     63,0,0,			/* number        */
     MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_PRIMARY,/* state */

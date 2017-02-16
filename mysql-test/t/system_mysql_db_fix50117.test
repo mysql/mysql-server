@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS event ( db char(64) CHARACTER SET utf8 COLLATE utf8_b
 CREATE TABLE IF NOT EXISTS ndb_binlog_index (Position BIGINT UNSIGNED NOT NULL, File VARCHAR(255) NOT NULL, epoch BIGINT UNSIGNED NOT NULL, inserts BIGINT UNSIGNED NOT NULL, updates BIGINT UNSIGNED NOT NULL, deletes BIGINT UNSIGNED NOT NULL, schemaops BIGINT UNSIGNED NOT NULL, PRIMARY KEY(epoch)) ENGINE=MYISAM;
 
 # Run the mysql_fix_privilege_tables.sql using "mysql --force"
---exec $MYSQL --force test < $MYSQL_FIX_PRIVILEGE_TABLES > $MYSQLTEST_VARDIR/log/system_mysql_db_fix50117.log 2>&1
+--exec $MYSQL --force test < $MYSQL_FIX_PRIVILEGE_TABLES
 
 -- enable_query_log
 -- enable_result_log

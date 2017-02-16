@@ -5,6 +5,7 @@
 char *push1=0;
 
 #include <my_global.h>  /* This includes dbug.h */
+#include <my_sys.h>
 #include <my_pthread.h>
 #include <string.h>
 
@@ -16,7 +17,7 @@ const char *func3()
 
 void func2()
 {
-  const char *s;
+  const char *s __attribute__((unused));
   DBUG_ENTER("func2");
   s=func3();
   DBUG_PRINT("info", ("s=%s", s));
@@ -35,16 +36,17 @@ int func1()
   DBUG_RETURN(10);
 }
 
-int main (int argc, char *argv[])
+int main (int argc __attribute__((unused)),
+          char *argv[] __attribute__((unused)))
 {
-  int i;
 #ifdef DBUG_OFF
   return 1;
-#endif
+#else
+  int i;
   if (argc == 1)
     return 0;
 
-  my_thread_global_init();
+  MY_INIT("dbug-tests");
 
   dup2(1, 2);
   for (i = 1; i < argc; i++)
@@ -56,7 +58,6 @@ int main (int argc, char *argv[])
   }
   {
     DBUG_ENTER ("main");
-    DBUG_PROCESS ("dbug-tests");
     func1();
     DBUG_EXECUTE_IF("dump",
     {
@@ -78,6 +79,10 @@ int main (int argc, char *argv[])
       DBUG_PRINT("explain", ("dbug explained: %s", s));
     }
     func2();
-    DBUG_RETURN (0);
+    DBUG_LEAVE;
   }
+  DBUG_SET(""); /* to not have my_end() in the traces */
+  my_end(0);
+  return 0;
+#endif /* DBUG_OFF */
 }

@@ -45,7 +45,7 @@ set session rpl_semi_sync_master_enabled=1;
 ERROR HY000: Variable 'rpl_semi_sync_master_enabled' is a GLOBAL variable and should be set with SET GLOBAL
 select @@global.rpl_semi_sync_master_enabled;
 @@global.rpl_semi_sync_master_enabled
--1
+1
 select @@session.rpl_semi_sync_master_enabled;
 ERROR HY000: Variable 'rpl_semi_sync_master_enabled' is a GLOBAL variable
 show global variables like 'rpl_semi_sync_master_enabled';

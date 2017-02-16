@@ -357,6 +357,7 @@ let $wait_condition=
   AND info = "INSERT INTO t2 SELECT a FROM t1";
 --echo # Waiting until INSERT ... is blocked
 --source include/wait_condition.inc
+--sleep 0.1
 DELETE FROM t1;
 
 --echo # Connection con2

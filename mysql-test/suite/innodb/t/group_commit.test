@@ -1,0 +1,117 @@
+--source include/have_innodb.inc
+--source include/have_debug_sync.inc
+--source include/have_log_bin.inc
+
+# Test some group commit code paths by using debug_sync to do controlled
+# commits of 6 transactions: first 1 alone, then 3 as a group, then 2 as a
+# group.
+#
+# Group 3 is allowed to race as far as possible ahead before group 2 finishes
+# to check some edge case for concurrency control.
+
+CREATE TABLE t1 (a VARCHAR(10) PRIMARY KEY) ENGINE=innodb;
+
+SELECT variable_value INTO @commits FROM information_schema.global_status
+ WHERE variable_name = 'binlog_commits';
+SELECT variable_value INTO @group_commits FROM information_schema.global_status
+ WHERE variable_name = 'binlog_group_commits';
+
+connect(con1,localhost,root,,);
+connect(con2,localhost,root,,);
+connect(con3,localhost,root,,);
+connect(con4,localhost,root,,);
+connect(con5,localhost,root,,);
+connect(con6,localhost,root,,);
+
+# Start group1 (with one thread) doing commit, waiting for
+# group2 to queue up before finishing.
+
+connection con1;
+SET DEBUG_SYNC= "commit_before_get_LOCK_commit_ordered SIGNAL group1_running WAIT_FOR group2_queued";
+send INSERT INTO t1 VALUES ("con1");
+
+# Make group2 (with three threads) queue up.
+# Make sure con2 is the group commit leader for group2.
+# Make group2 wait with running commit_ordered() until group3 has committed.
+
+connection con2;
+set DEBUG_SYNC= "now WAIT_FOR group1_running";
+SET DEBUG_SYNC= "commit_after_prepare_ordered SIGNAL group2_con2";
+SET DEBUG_SYNC= "commit_before_get_LOCK_commit_ordered SIGNAL group2_running";
+SET DEBUG_SYNC= "commit_after_release_LOCK_log WAIT_FOR group3_committed";
+SET DEBUG_SYNC= "commit_after_group_run_commit_ordered SIGNAL group2_visible WAIT_FOR group2_checked";
+send INSERT INTO t1 VALUES ("con2");
+connection con3;
+SET DEBUG_SYNC= "now WAIT_FOR group2_con2";
+SET DEBUG_SYNC= "commit_after_prepare_ordered SIGNAL group2_con3";
+send INSERT INTO t1 VALUES ("con3");
+connection con4;
+SET DEBUG_SYNC= "now WAIT_FOR group2_con3";
+SET DEBUG_SYNC= "commit_after_prepare_ordered SIGNAL group2_con4";
+send INSERT INTO t1 VALUES ("con4");
+
+# When group2 is queued, let group1 continue and queue group3.
+
+connection default;
+SET DEBUG_SYNC= "now WAIT_FOR group2_con4";
+
+# At this point, trasaction 1 is still not visible as commit_ordered() has not
+# been called yet.
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SELECT * FROM t1 ORDER BY a;
+
+SET DEBUG_SYNC= "now SIGNAL group2_queued";
+connection con1;
+reap;
+
+# Now transaction 1 is visible.
+connection default;
+SELECT * FROM t1 ORDER BY a;
+
+connection con5;
+SET DEBUG_SYNC= "commit_before_get_LOCK_commit_ordered SIGNAL group3_con5";
+SET DEBUG_SYNC= "commit_after_get_LOCK_log SIGNAL con5_leader WAIT_FOR con6_queued";
+set DEBUG_SYNC= "now WAIT_FOR group2_running";
+send INSERT INTO t1 VALUES ("con5");
+
+connection con6;
+SET DEBUG_SYNC= "now WAIT_FOR con5_leader";
+SET DEBUG_SYNC= "commit_after_prepare_ordered SIGNAL con6_queued";
+send INSERT INTO t1 VALUES ("con6");
+
+connection default;
+SET DEBUG_SYNC= "now WAIT_FOR group3_con5";
+# Still only transaction 1 visible, as group2 have not yet run commit_ordered().
+SELECT * FROM t1 ORDER BY a;
+SET DEBUG_SYNC= "now SIGNAL group3_committed";
+SET DEBUG_SYNC= "now WAIT_FOR group2_visible";
+# Now transactions 1-4 visible.
+SELECT * FROM t1 ORDER BY a;
+SET DEBUG_SYNC= "now SIGNAL group2_checked";
+
+connection con2;
+reap;
+
+connection con3;
+reap;
+
+connection con4;
+reap;
+
+connection con5;
+reap;
+
+connection con6;
+reap;
+
+connection default;
+# Check all transactions finally visible.
+SELECT * FROM t1 ORDER BY a;
+
+SELECT variable_value - @commits FROM information_schema.global_status
+ WHERE variable_name = 'binlog_commits';
+SELECT variable_value - @group_commits FROM information_schema.global_status
+ WHERE variable_name = 'binlog_group_commits';
+
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;

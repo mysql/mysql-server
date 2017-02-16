@@ -1,0 +1,65 @@
+--source include/have_innodb.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+# Valgrind does not work well with test that crashes the server
+--source include/not_valgrind.inc
+
+# (We do not need to restore these settings, as we crash the server).
+SET GLOBAL max_binlog_size= 4096;
+SET GLOBAL innodb_flush_log_at_trx_commit= 1;
+RESET MASTER;
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b MEDIUMTEXT) ENGINE=Innodb;
+
+# One connection does an insert that causes a binlog rotate.
+# The rotate is paused after writing new file but before updating index.
+connect(con1,localhost,root,,);
+SET DEBUG_SYNC= "binlog_open_before_update_index SIGNAL con1_ready WAIT_FOR con1_cont";
+SET SESSION debug_dbug="+d,crash_create_critical_before_update_index";
+send INSERT INTO t1 VALUES (1, REPEAT("x", 4100));
+
+connection default;
+SET DEBUG_SYNC= "now WAIT_FOR con1_ready";
+
+# Another connection creates a prepared transaction.
+# After the transaction is prepared, it will hang waiting for LOCK_log.
+connect(con2,localhost,root,,);
+SET DEBUG_SYNC= "ha_commit_trans_after_prepare SIGNAL con2_ready";
+send INSERT INTO t1 VALUES (2, NULL);
+
+connection default;
+SET DEBUG_SYNC= "now WAIT_FOR con2_ready";
+
+# Now crash the server in con1, with old binlog closed, new binlog not yet in
+# index, and one transaction in prepared-but-not-committed state.
+--write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+wait-binlog_mdev342.test
+EOF
+# If con1 manages to race ahead and crash, we can see the crash already in the
+# SET DEBUG_SYNC statement, so need --error here also.
+--error 0,2006,2013
+SET DEBUG_SYNC= "now SIGNAL con1_cont";
+connection con1;
+--error 2006,2013
+reap;
+
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+restart-binlog_mdev342.test
+EOF
+
+connection default;
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# Check that all transactions are recovered.
+SELECT a FROM t1 ORDER BY a;
+
+--source include/show_binary_logs.inc
+--let $binlog_file= master-bin.000001
+--let $binlog_start= 4
+--source include/show_binlog_events.inc
+
+# Cleanup
+connection default;
+DROP TABLE t1;

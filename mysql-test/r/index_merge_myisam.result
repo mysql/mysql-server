@@ -1,3 +1,5 @@
+set @optimizer_switch_save= @@optimizer_switch;
+set optimizer_switch='index_merge_sort_intersection=off';
 #---------------- Index merge test 1 -------------------------------------------
 SET SESSION STORAGE_ENGINE = MyISAM;
 drop table if exists t0, t1, t2, t3, t4;
@@ -19,7 +21,7 @@ Table	Op	Msg_type	Msg_text
 test.t0	analyze	status	OK
 explain select * from t0 where key1 < 3 or key1 > 1020;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	range	i1	i1	4	NULL	78	Using where
+1	SIMPLE	t0	range	i1	i1	4	NULL	78	Using index condition; Using where
 explain
 select * from t0 where key1 < 3 or key2 > 1020;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -115,11 +117,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t0 where
 (key1 < 3 or key2 < 3) and (key3 < 100);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	range	i1,i2,i3	i3	4	NULL	95	Using where
+1	SIMPLE	t0	index_merge	i1,i2,i3	i1,i2	4,4	NULL	6	Using sort_union(i1,i2); Using where
 explain select * from t0 where
 (key1 < 3 or key2 < 3) and (key3 < 1000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	ALL	i1,i2,i3	NULL	NULL	NULL	1024	Using where
+1	SIMPLE	t0	index_merge	i1,i2,i3	i1,i2	4,4	NULL	6	Using sort_union(i1,i2); Using where
 explain select * from t0 where
 ((key1 < 4 or key2 < 4) and (key2 <5 or key3 < 4))
 or
@@ -203,12 +205,12 @@ alter table t2 add index i321(key3, key2, key1);
 explain select key3 from t2 where key1 = 100 or key2 = 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index_merge	i1_3,i2_3	i1_3,i2_3	4,4	NULL	2	Using sort_union(i1_3,i2_3); Using where
-explain select key3 from t2 where key1 <100 or key2 < 100;
+explain select key3 from t2 where key1 < 500 or key2 < 500;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	i1_3,i2_3	i321	12	NULL	1024	Using where; Using index
 explain select key7 from t2 where key1 <100 or key2 < 100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	i1_3,i2_3	NULL	NULL	NULL	1024	Using where
+1	SIMPLE	t2	index_merge	i1_3,i2_3	i1_3,i2_3	4,4	NULL	188	Using sort_union(i1_3,i2_3); Using where
 create table t4 (
 key1a int not null,
 key1b int not null,
@@ -259,7 +261,7 @@ explain
 select * from t0,t1 where (t0.key1=t1.key1) and
 (t0.key1=3 or t0.key2=4) and t1.key1<200;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	ALL	i1,i2	NULL	NULL	NULL	1024	Using where
+1	SIMPLE	t0	index_merge	i1,i2	i1,i2	4,4	NULL	2	Using union(i1,i2); Using where
 1	SIMPLE	t1	ref	i1	i1	4	test.t0.key1	1	
 explain
 select * from t0,t1 where (t0.key1=t1.key1) and
@@ -271,11 +273,11 @@ explain select * from t0,t1 where t0.key1 = 5 and
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t0	ref	i1	i1	4	const	1	
-1	SIMPLE	t1	index_merge	i1,i8	i1,i8	4,4	NULL	2	Using union(i1,i8); Using where; Using join buffer
+1	SIMPLE	t1	index_merge	i1,i8	i1,i8	4,4	NULL	2	Using union(i1,i8); Using where; Using join buffer (flat, BNL join)
 explain select * from t0,t1 where t0.key1 < 3 and
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	range	i1	i1	4	NULL	3	Using where
+1	SIMPLE	t0	range	i1	i1	4	NULL	3	Using index condition
 1	SIMPLE	t1	ALL	i1,i8	NULL	NULL	NULL	1024	Range checked for each record (index map: 0x81)
 explain select * from t1 where key1=3 or key2=4
 union select * from t1 where key1<4 or key3=5;
@@ -283,10 +285,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index_merge	i1,i2	i1,i2	4,4	NULL	2	Using union(i1,i2); Using where
 2	UNION	t1	index_merge	i1,i3	i1,i3	4,4	NULL	5	Using sort_union(i1,i3); Using where
 NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 explain select * from (select * from t1 where key1 = 3 or key2 =3) as Z where key8 >5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
-2	DERIVED	t1	index_merge	i1,i2	i1,i2	4,4	NULL	2	Using union(i1,i2); Using where; Using index
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DERIVED	t1	index_merge	i1,i2	i1,i2	4,4	NULL	2	Using union(i1,i2); Using where
+set optimizer_switch=@tmp_optimizer_switch;
 create table t3 like t0;
 insert into t3 select * from t0;
 alter table t3 add key9 int not null, add index i9(key9);
@@ -348,7 +353,7 @@ where (A.key1 < 500000 or A.key2 < 3)
 and   (B.key1 < 500000 or B.key2 < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	A	index_merge	i1,i2	i1,i2	4,4	NULL	1013	Using sort_union(i1,i2); Using where
-1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1013	Using sort_union(i1,i2); Using where; Using join buffer
+1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1013	Using sort_union(i1,i2); Using where; Using join buffer (flat, BNL join)
 select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
 from t0 as A force index(i1,i2), t0 as B force index (i1,i2)
 where (A.key1 < 500000 or A.key2 < 3)
@@ -362,7 +367,7 @@ where (A.key1 = 1 or A.key2 = 1)
 and   (B.key1 = 1 or B.key2 = 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	A	index_merge	i1,i2	i1,i2	4,4	NULL	1020	Using union(i1,i2); Using where
-1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1020	Using union(i1,i2); Using where; Using join buffer
+1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1020	Using union(i1,i2); Using where; Using join buffer (flat, BNL join)
 select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
 from t0 as A force index(i1,i2), t0 as B force index (i1,i2)
 where (A.key1 = 1 or A.key2 = 1)
@@ -372,14 +377,14 @@ max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.ke
 alter table t0 add filler1 char(200), add filler2 char(200), add filler3 char(200);
 update t0 set key2=1, key3=1, key4=1, key5=1,key6=1,key7=1 where key7 < 500;
 explain select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
-from t0 as A, t0 as B
+from t0 as A straight_join t0 as B
 where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.key6=1 and A.key7 = 1 or A.key8=1)
 and (B.key1 = 1 and B.key2 = 1 and B.key3 = 1 and B.key4=1 and B.key5=1 and B.key6=1 and B.key7 = 1 or B.key8=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	A	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where
-1	SIMPLE	B	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where; Using join buffer
+1	SIMPLE	B	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where; Using join buffer (flat, BNL join)
 select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
-from t0 as A, t0 as B
+from t0 as A straight_join t0 as B
 where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.key6=1 and A.key7 = 1 or A.key8=1)
 and (B.key1 = 1 and B.key2 = 1 and B.key3 = 1 and B.key4=1 and B.key5=1 and B.key6=1 and B.key7 = 1 or B.key8=1);
 max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
@@ -567,9 +572,7 @@ INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
-SET SESSION sort_buffer_size=1;
-Warnings:
-Warning	1292	Truncated incorrect sort_buffer_size value: '1'
+SET SESSION sort_buffer_size=1024*8;
 EXPLAIN 
 SELECT * FROM t1 FORCE INDEX(a,b) WHERE a LIKE 'a%' OR b LIKE 'b%' 
 ORDER BY a,b;
@@ -943,7 +946,7 @@ count(*)
 explain select count(*) from t1 where
 key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	i1,i2	i1,i2	10,10	NULL	2	Using intersect(i1,i2); Using where; Using index
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	10,10	NULL	REF	Using intersect(i1,i2); Using where; Using index
 select count(*) from t1 where
 key1a = 2 and key1b is null and key2a = 2 and key2b is null;
 count(*)
@@ -951,7 +954,7 @@ count(*)
 explain select count(*) from t1 where
 key1a = 2 and key1b is null and key3a = 2 and key3b is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	i1,i3	i1,i3	10,10	NULL	2	Using intersect(i1,i3); Using where; Using index
+1	SIMPLE	t1	index_merge	i1,i3	i1,i3	10,10	NULL	REF	Using intersect(i1,i3); Using where; Using index
 select count(*) from t1 where
 key1a = 2 and key1b is null and key3a = 2 and key3b is null;
 count(*)
@@ -1143,7 +1146,7 @@ alter table t1 add index i3(key3);
 update t1 set key2=key1,key3=key1;
 explain select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	i2,i3	i3,i2	4,4	NULL	11	Using sort_union(i3,i2); Using where
+1	SIMPLE	t1	index_merge	i2,i3	i3,i2	4,4	NULL	REF	Using sort_union(i3,i2); Using where
 select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
 key1	key2	key3
 31	31	31
@@ -1379,7 +1382,7 @@ primary key (pk1, pk2)
 );
 explain select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,key1	PRIMARY	8	NULL	7	Using where
+1	SIMPLE	t1	range	PRIMARY,key1	PRIMARY	8	NULL	7	Using index condition; Using where
 select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
 pk1	pk2	key1	key2	pktail1ok	pktail2ok	pktail3bad	pktail4bad	pktail5bad	pk2copy	badkey	filler1	filler2
 1	10	0	0	0	0	0	0	0	10	0	filler-data-10	filler2
@@ -1484,67 +1487,8 @@ EXPLAIN SELECT t1.f1 FROM t1
 WHERE (SELECT COUNT(*) FROM t2 WHERE t2.f3 = 'h' AND t2.f2 = t1.f1) = 0 AND t1.f1 = 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	PRIMARY	NULL	NULL	NULL	1	
-2	DEPENDENT SUBQUERY	t2	ref	f2,f3	f2	5		1	Using where
+2	SUBQUERY	t2	ref	f2,f3	f2	5	const	1	Using where
 DROP TABLE t1,t2;
-#
-# Generic @@optimizer_switch tests (move those into a separate file if
-#  we get another @@optimizer_switch user)
-#
-select @@optimizer_switch;
-@@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
-set optimizer_switch='index_merge=off,index_merge_union=off';
-select @@optimizer_switch;
-@@optimizer_switch
-index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
-set optimizer_switch='index_merge_union=on';
-select @@optimizer_switch;
-@@optimizer_switch
-index_merge=off,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
-set optimizer_switch='default,index_merge_sort_union=off';
-select @@optimizer_switch;
-@@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=off,index_merge_intersection=on,engine_condition_pushdown=on
-set optimizer_switch=4;
-set optimizer_switch=NULL;
-ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'NULL'
-set optimizer_switch='default,index_merge';
-ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge'
-set optimizer_switch='index_merge=index_merge';
-ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge=index_merge'
-set optimizer_switch='index_merge=on,but...';
-ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'but...'
-set optimizer_switch='index_merge=';
-ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge='
-set optimizer_switch='index_merge';
-ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge'
-set optimizer_switch='on';
-ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'on'
-set optimizer_switch='index_merge=on,index_merge=off';
-ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge=off'
-set optimizer_switch='index_merge_union=on,index_merge_union=default';
-ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge_union=default'
-set optimizer_switch='default,index_merge=on,index_merge=off,default';
-ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'index_merge=off,default'
-set optimizer_switch=default;
-set optimizer_switch='index_merge=off,index_merge_union=off,default';
-select @@optimizer_switch;
-@@optimizer_switch
-index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
-set optimizer_switch=default;
-select @@global.optimizer_switch;
-@@global.optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
-set @@global.optimizer_switch=default;
-select @@global.optimizer_switch;
-@@global.optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
-#
-# Check index_merge's @@optimizer_switch flags
-#
-select @@optimizer_switch;
-@@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 (a int, b int, c int, filler char(100), 
@@ -1621,7 +1565,7 @@ explain select * from t1 where a=10 and b=10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	a,b	a	5	const	49	Using where
 No intersect if it is disabled:
-set optimizer_switch='default,index_merge_intersection=off';
+set optimizer_switch='default,index_merge_sort_intersection=off,index_merge_intersection=off';
 explain select * from t1 where a=10 and b=10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	a,b	a	5	const	49	Using where
@@ -1652,7 +1596,111 @@ explain select * from t1 where a=10 and b=10 or c=10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index_merge	a,b,c	a,c	5,5	NULL	54	Using sort_union(a,c); Using where
 set optimizer_switch=default;
-show variables like 'optimizer_switch';
-Variable_name	Value
-optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
 drop table t0, t1;
+#
+# BUG#834514 Assertion `!table || (!table->read_set || bitmap_is_set(...' with aggregates
+#
+CREATE TABLE t1 ( a int , b int, c int, KEY (b), PRIMARY KEY (a)) ;
+INSERT INTO t1 VALUES (1,4,0),(5,0,0),(6,7,0),(7,7,0),(8,1,0),(9,7,0),(10,1,0);
+CREATE TABLE t2 ( b int, c int, KEY (c,b)) ;
+INSERT INTO t2 VALUES (7,0),(1,0),(7,0),(1,0);
+CREATE TABLE t3 ( a int ) ;
+SELECT COUNT(DISTINCT t2.b), CONCAT(t1.c)
+FROM t1, t2
+WHERE (t2.c = t1.c)
+AND (
+t1.b IN ( 4 )
+OR t1.a = 137
+AND EXISTS ( SELECT a FROM t3 )
+)
+GROUP BY 2;
+COUNT(DISTINCT t2.b)	CONCAT(t1.c)
+2	0
+DROP TABLE t1,t2,t3;
+#
+# MDEV-4556 Server crashes in SEL_ARG::rb_insert with index_merge+index_merge_sort_union, FORCE INDEX
+#
+CREATE TABLE t1 (
+pk int,
+code char(2),
+population_rate int,
+area_rate int,
+primary key (pk),
+index (code),
+key (population_rate),
+key (area_rate)
+);
+INSERT INTO t1 VALUES  (1,'WI',20, 23), (2, 'WA', 13, 18);
+EXPLAIN
+SELECT * FROM t1 FORCE INDEX ( PRIMARY, population_rate, area_rate, code ) 
+WHERE pk = 1 OR population_rate = 1 OR ( area_rate IN ( 1,2 ) OR area_rate IS NULL )
+AND (population_rate = 25 OR area_rate BETWEEN 2 AND 25 OR code BETWEEN 'MA' AND 'TX');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	PRIMARY,code,population_rate,area_rate	PRIMARY,population_rate,area_rate	4,5,5	NULL	2	Using sort_union(PRIMARY,population_rate,area_rate); Using where
+SELECT * FROM t1 FORCE INDEX ( PRIMARY, population_rate, area_rate, code ) 
+WHERE pk = 1 OR population_rate = 1 OR ( area_rate IN ( 1,2 ) OR area_rate IS NULL )
+AND (population_rate = 25 OR area_rate BETWEEN 2 AND 25 OR code BETWEEN 'MA' AND 'TX');
+pk	code	population_rate	area_rate
+1	WI	20	23
+DROP TABLE t1;
+#
+# MDEV-5069: Server crashes in SEL_ARG::increment_use_count with index_merge+index_merge_sort_union, FORCE INDEX
+#
+CREATE TABLE t1 (
+c1 varchar(64),
+i int,
+pk integer auto_increment,
+c2 varchar(64),
+index (c1),
+index (i),
+primary key (pk),
+key (c2)) ENGINE=myisam;
+ALTER TABLE t1 DISABLE KEYS;
+INSERT INTO t1 VALUES 
+('West Virginia', 6121, NULL, 'California'),('Georgia', 60177, NULL, 'Arkansas'),
+('Delaware', 90, NULL, 'Oregon'),('Wyoming', 7, NULL, 'Missouri'),(
+'Delaware', 2, NULL, 'Utah'),('Wisconsin', 0, NULL, 'Iowa'),
+('Kansas', 0, NULL, 'Florida'),('Ohio', 34358, NULL, 'Colorado'),
+('Maine', 118, NULL, 'Texas'),('Mississippi', 0, NULL, 'Georgia'),
+('Tennessee', 4, NULL, 'N/A'),('Georgia', 0, NULL, 'New Hampshire'),
+('Wyoming', 2, NULL, 'N/A'),('Florida', 0, NULL, 'Arizona'),
+('Rhode Island', -24002, NULL, 'Michigan'),('Alabama', 142, NULL, 'Indiana'),
+('Colorado', 0, NULL, 'Louisiana'),('Michigan', 21194, NULL, 'Louisiana'),
+('Oklahoma', 31475, NULL, 'Alabama'),('Pennsylvania', 0, NULL, 'Oklahoma'),
+('Texas', 0, NULL, 'Texas'),('West Virginia', 5, NULL, 'Utah'),
+('Florida', 49653, NULL, 'Kentucky'),('Tennessee', 19075, NULL, 'Oregon'),
+('Maine', 3, NULL, 'Kansas, Kentucky, Iowa'),('Iowa', 1, NULL, 'South Dakota'),
+('Kansas', -4037, NULL, 'Virginia'),('Delaware', 22550, NULL, 'Utah'),
+('Illinois', 14634, NULL, 'South Carolina, Colorado'),
+('Kansas', 6, NULL, 'South Dakota'),('Delaware', 9, NULL, ''),
+('', 0, NULL, 'Utah, Delaware, Florida, Georgia, Nevada'),
+('Colorado', 8, NULL, 'Montana'),('Maryland', 2689, NULL, 'Hawaii'),
+('Florida', -12306, NULL, 'Delaware'),
+('Indiana', 38567, NULL, 'Iowa, Minnesota, Maine'),
+('Oklahoma', 9, NULL, 'Delaware, Kansas, Oregon, Nebraska, Maryland, Minnesota'),
+('Tennessee', 12460, NULL, NULL),('Kentucky', 0, NULL, 'Ohio'),
+('Nevada', 7, NULL, 'Vermont, Oregon, Oklahoma, Montana'),
+('Nebraska', 61966, NULL, 'Nevada'),('Alaska', 131, NULL, 'Louisiana, Maine'),
+('Wisconsin', 4, NULL, 'Nevada'),('South Carolina', 0, NULL, 'Washington'),
+('West Virginia', 51314, NULL, 'Ohio'),('Louisiana', 0, NULL, ''),
+('Pennsylvania', 0, NULL, 'Iowa, Idaho'),('Arkansas', 14010, NULL, 'Indiana'),
+('Wyoming', -15514, NULL, 'Maine'),('Georgia', 0, NULL, 'N/A'),
+('Kentucky', 1, NULL, 'Idaho'),('Wyoming', 60249, NULL, 'Indiana, Iowa'),
+('Pennsylvania', 69, NULL, 'W'),
+('New Mexico', 11480, NULL, 'Florida, Georgia, Hawaii'),
+('South Carolina', 9, NULL, 'Iowa'),('Virginia', 0, NULL, 'Connecticut'),
+('Mississippi', 19749, NULL, 'Rhode Island'),('Illinois', 5, NULL, 'Virginia'),
+('Texas', -1749, NULL, 'Tennessee'),('Arizona', 28, NULL, 'California'),
+('Florida', 62151, NULL, 'Kansas'),('California', 172, NULL, 'SC'),
+('New Jersey', 0, NULL, 'North Carolina'),('Wyoming', 4, NULL, 'I'),
+('Kansas', 10683, NULL, 'California'),('Arkansas', -14275, NULL, 'K'),
+('Arizona', 5, NULL, 'California, Delaware, Rhode Island, Maryland'),
+('Florida', 0, NULL, 'T'),('Alaska', 241, NULL, 'Virginia');
+ALTER TABLE t1 ENABLE KEYS;
+EXPLAIN
+SELECT  * FROM t1 FORCE KEY (PRIMARY , i , c1 , c2) 
+WHERE pk = 255 OR i = 22 OR (pk  IN (1 , 136) AND c2  IN ('c' , 'w') AND (c1 NOT BETWEEN 'e' AND 'i' OR  c2 > 'g'))  OR pk != 1  ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	PRIMARY,c1,i,c2	NULL	NULL	NULL	69	Using where
+DROP TABLE t1;
+set optimizer_switch= @optimizer_switch_save;

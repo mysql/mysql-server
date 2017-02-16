@@ -31,6 +31,7 @@ enum file_opt_type {
   FILE_OPTIONS_STRING,		/**< String (LEX_STRING) */
   FILE_OPTIONS_ESTRING,		/**< Escaped string (LEX_STRING) */
   FILE_OPTIONS_ULONGLONG,	/**< ulonglong parameter (ulonglong) */
+  FILE_OPTIONS_VIEW_ALGO,	/**< Similar to longlong, but needs conversion */
   FILE_OPTIONS_TIMESTAMP,	/**< timestamp (LEX_STRING have to be
 				   allocated with length 20 (19+1) */
   FILE_OPTIONS_STRLIST,         /**< list of escaped strings
@@ -41,9 +42,9 @@ enum file_opt_type {
 
 struct File_option
 {
-  LEX_STRING name;		/**< Name of the option */
-  int offset;			/**< offset to base address of value */
-  file_opt_type type;		/**< Option type */
+  LEX_STRING name;              /**< Name of the option */
+  my_ptrdiff_t offset;          /**< offset to base address of value */
+  file_opt_type type;           /**< Option type */
 };
 
 
@@ -97,12 +98,12 @@ class File_parser: public Sql_alloc
 {
   char *buff, *start, *end;
   LEX_STRING file_type;
-  my_bool content_ok;
+  bool content_ok;
 public:
   File_parser() :buff(0), start(0), end(0), content_ok(0)
     { file_type.str= 0; file_type.length= 0; }
 
-  my_bool ok() { return content_ok; }
+  bool ok() { return content_ok; }
   LEX_STRING *type() { return &file_type; }
   my_bool parse(uchar* base, MEM_ROOT *mem_root,
 		struct File_option *parameters, uint required,

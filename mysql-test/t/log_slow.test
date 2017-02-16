@@ -1,0 +1,60 @@
+#
+# Testing of slow log query options
+#
+
+select @@log_slow_filter;
+select @@log_slow_rate_limit;
+select @@log_slow_verbosity;
+show variables like "log_slow%";
+set @org_slow_query_log= @@global.slow_query_log;
+
+# Some simple test to set log_slow_filter
+set @@log_slow_filter= "filesort,filesort_on_disk,full_join,full_scan,query_cache,query_cache_miss,tmp_table,tmp_table_on_disk,admin";
+select @@log_slow_filter;
+set @@log_slow_filter="admin,admin";
+select @@log_slow_filter;
+set @@log_slow_filter=7;
+select @@log_slow_filter;
+
+# Test of wrong values
+--error 1231
+set @@log_slow_filter= "filesort,impossible,impossible2,admin";
+--error 1231
+set @@log_slow_filter= "filesort, admin";
+--error 1231
+set @@log_slow_filter= 1<<31;
+select @@log_slow_filter;
+
+# Some simple test to set log_slow_verbosity
+set @@log_slow_verbosity= "query_plan,innodb";
+select @@log_slow_verbosity;
+set @@log_slow_verbosity=1;
+select @@log_slow_verbosity;
+
+#
+# Check which fields are in slow_log table
+#
+
+show fields from mysql.slow_log;
+
+#
+# Check flush command
+#
+
+flush slow logs;
+
+# MDEV-4206 (empty filter should be no filter)
+set long_query_time=0.1;
+set log_slow_filter='';
+set global slow_query_log=1;
+set global log_output='TABLE';
+select sleep(0.5);
+select count(*) FROM mysql.slow_log;
+
+# Reset used variables
+set @@long_query_time=default;
+set global slow_query_log= @org_slow_query_log;
+set @@log_slow_filter=default;
+set @@log_slow_verbosity=default;
+set global log_output= default;
+truncate mysql.slow_log;

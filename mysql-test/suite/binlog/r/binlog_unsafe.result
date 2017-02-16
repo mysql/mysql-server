@@ -2640,9 +2640,8 @@ INSERT INTO t1 VALUES (VERSION());
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 INSERT INTO t1 VALUES (RAND());
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 DELETE FROM t1;
+SET TIME_ZONE= '+03:00';
 SET TIMESTAMP=1000000;
 INSERT INTO t1 VALUES
 (CURDATE()),
@@ -2679,10 +2678,11 @@ CREATE TABLE replace_table (a INT, b INT, PRIMARY KEY(a));
 INSERT INTO replace_table values (1,1),(2,2);
 CREATE TABLE update_table (a INT, b INT, PRIMARY KEY(a));
 INSERT INTO update_table values (1,1),(2,2);
-CREATE TABLE insert_2_keys (a INT UNIQUE KEY, b INT UNIQUE KEY) ENGINE = InnoDB;
+CREATE TABLE insert_2_keys (a INT UNIQUE KEY, b INT UNIQUE KEY);
 INSERT INTO insert_2_keys values (1, 1);
 INSERT IGNORE INTO insert_table SELECT * FROM filler_table;
 Warnings:
+Warning	1062	Duplicate entry '1' for key 'PRIMARY'
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT IGNORE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave.
 TRUNCATE TABLE insert_table;
 INSERT INTO insert_table SELECT * FROM filler_table ON DUPLICATE KEY UPDATE a = 1;

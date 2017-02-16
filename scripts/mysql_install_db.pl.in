@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 #
-# Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2013, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -121,7 +121,7 @@ sub parse_arguments
              "basedir=s",
              "builddir=s",      # FIXME not documented
              "srcdir=s",
-             "ldata|datadir=s",
+             "ldata|datadir|data=s",
 
              # Note that the user will be passed to mysqld so that it runs
              # as 'user' (crucial e.g. if log-bin=/some_other_path/
@@ -279,7 +279,7 @@ else
 
 my @default_options;
 my $cmd = quote_options($print_defaults,$opt->{'defaults-file'},
-                        "mysqld","mysql_install_db");
+                        "mysqld","mariadb","mysql_install_db","server","client-server");
 open(PIPE, "$cmd |") or error($opt,"can't run $cmd: $!");
 while ( <PIPE> )
 {
@@ -560,7 +560,7 @@ else
         "database and look at the grant tables:",
         "",
         "shell> $bindir/mysql -u root mysql",
-        "mysql> show tables",
+        "mysql> show tables;",
         "",
         "Try 'mysqld --help' if you have problems with paths. Using --log",
         "gives you a log in $opt->{ldata} that may be helpful.",

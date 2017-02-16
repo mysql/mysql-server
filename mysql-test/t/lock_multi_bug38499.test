@@ -16,7 +16,9 @@ connect (writer,localhost,root,,);
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 CREATE TABLE t1( a INT, b INT );
+CREATE TABLE t2( a INT, b INT );
 INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4);
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3), (4, 4);
 
 --echo # 1. test regular tables
 --echo # 1.1. test altering of columns that multiupdate doesn't use
@@ -28,7 +30,7 @@ while ($i) {
 --dec $i
 
 --connection writer
-  send UPDATE t1, (SELECT 1 FROM t1 t1i) d SET a = 0 WHERE 1=0;
+  send UPDATE t1, (SELECT 1 FROM t2 t1i) d SET a = 0 WHERE 1=0;
 
 --connection locker
   ALTER TABLE t1 ADD COLUMN (c INT);
@@ -41,7 +43,7 @@ while ($i) {
 --echo # 1.1.2. PS mode
 
 --connection writer
-PREPARE stmt FROM 'UPDATE t1, (SELECT 1 FROM t1 t1i) d SET a = 0 WHERE 1=0';
+PREPARE stmt FROM 'UPDATE t1, (SELECT 1 FROM t2 t1i) d SET a = 0 WHERE 1=0';
 
 let $i = 100;
 while ($i) {
@@ -75,7 +77,7 @@ while ($i) {
   UPDATE t1 SET a=b;
 
 --connection writer
---send UPDATE t1, (SELECT 1 FROM t1 t1i) d SET a = 0 WHERE 1=0;
+--send UPDATE t1, (SELECT 1 FROM t2 t1i) d SET a = 0 WHERE 1=0;
 
 --connection locker
 --error 0,ER_CANT_DROP_FIELD_OR_KEY
@@ -100,7 +102,7 @@ while ($i) {
   UPDATE t1 SET a=b;
 
 --connection writer
-  PREPARE stmt FROM 'UPDATE t1, (SELECT 1 FROM t1 t1i) d SET a = 0 WHERE 1=0';
+  PREPARE stmt FROM 'UPDATE t1, (SELECT 1 FROM t2 t1i) d SET a = 0 WHERE 1=0';
 --send EXECUTE stmt
 
 --connection locker
@@ -210,7 +212,7 @@ while ($i) {
 }
 --enable_query_log
 --connection default
-DROP TABLE t1;
+DROP TABLE t1,t2;
 
 
 # Close connections

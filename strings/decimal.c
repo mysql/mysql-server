@@ -1,4 +1,5 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +29,7 @@
   integer that determines the number of significant digits in a
   particular radix R, where R is either 2 or 10. S is a non-negative
   integer. Every value of an exact numeric type of scale S is of the
-  form n*10^{-S}, where n is an integer such that ­-R^P <= n <= R^P.
+  form n*10^{-S}, where n is an integer such that -R^P <= n <= R^P.
 
   [...]
 
@@ -97,11 +98,10 @@
       implementation-defined.
 */
 
-#include <my_global.h>
+#include "strings_def.h"
 #include <m_ctype.h>
 #include <myisampack.h>
 #include <my_sys.h> /* for my_alloca */
-#include <m_string.h>
 #include <decimal.h>
 
 /*
@@ -127,7 +127,6 @@ typedef longlong      dec2;
 #define DIG_BASE     1000000000
 #define DIG_MAX      (DIG_BASE-1)
 #define DIG_BASE2    ((dec2)DIG_BASE * (dec2)DIG_BASE)
-#define ROUND_UP(X)  (((X)+DIG_PER_DEC1-1)/DIG_PER_DEC1)
 static const dec1 powers10[DIG_PER_DEC1+1]={
   1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
 static const int dig2bytes[DIG_PER_DEC1+1]={0, 1, 1, 2, 2, 3, 3, 4, 4, 4};
@@ -136,7 +135,12 @@ static const dec1 frac_max[DIG_PER_DEC1-1]={
   999900000, 999990000, 999999000,
   999999900, 999999990 };
 
-#ifdef HAVE_purify
+static inline int ROUND_UP(int x)
+{
+  return (x + (x > 0 ? DIG_PER_DEC1 - 1 : 0)) / DIG_PER_DEC1;
+}
+
+#ifdef HAVE_valgrind
 #define sanity(d) DBUG_ASSERT((d)->len > 0)
 #else
 #define sanity(d) DBUG_ASSERT((d)->len >0 && ((d)->buf[0] | \
@@ -298,7 +302,7 @@ int decimal_actual_fraction(decimal_t *from)
   {
     for (i= DIG_PER_DEC1 - ((frac - 1) % DIG_PER_DEC1);
          *buf0 % powers10[i++] == 0;
-         frac--) ;
+         frac--) {}
   }
   return frac;
 }
@@ -339,7 +343,7 @@ int decimal2string(const decimal_t *from, char *to, int *to_len,
   char *s=to;
   dec1 *buf, *buf0=from->buf, tmp;
 
-  DBUG_ASSERT(*to_len >= 2+from->sign);
+  DBUG_ASSERT(*to_len >= 2+ (int) from->sign);
 
   /* removing leading zeroes */
   buf0= remove_leading_zeroes(from, &intg);
@@ -379,7 +383,8 @@ int decimal2string(const decimal_t *from, char *to, int *to_len,
     }
     else
       frac-=j;
-    len= from->sign + intg_len + test(frac) + frac_len;
+    frac_len= frac;
+    len= from->sign + intg_len + test(frac) + frac;
   }
   *to_len=len;
   s[len]=0;
@@ -493,7 +498,7 @@ static void digits_bounds(decimal_t *from, int *start_result, int *end_result)
     stop= (int) ((buf_end - from->buf + 1) * DIG_PER_DEC1);
     i= 1;
   }
-  for (; *buf_end % powers10[i++] == 0; stop--) ;
+  for (; *buf_end % powers10[i++] == 0; stop--) {}
   *end_result= stop; /* index of position after last decimal digit (from 0) */
 }
 
@@ -669,7 +674,7 @@ int decimal_shift(decimal_t *dec, int shift)
     if (do_left)
     {
       do_mini_left_shift(dec, l_mini_shift, beg, end);
-      mini_shift=- l_mini_shift;
+      mini_shift= -l_mini_shift;
     }
     else
     {
@@ -923,6 +928,8 @@ internal_str2dec(const char *from, decimal_t *to, char **end, my_bool fixed)
         error= decimal_shift(to, (int) exponent);
     }
   }
+  if (to->sign && decimal_is_zero(to))
+    to->sign= 0;
   return error;
 
 fatal_error:
@@ -993,7 +1000,7 @@ static int ull2dec(ulonglong from, decimal_t *to)
 
   sanity(to);
 
-  for (intg1=1; from >= DIG_BASE; intg1++, from/=DIG_BASE) ;
+  for (intg1=1; from >= DIG_BASE; intg1++, from/=DIG_BASE) {}
   if (unlikely(intg1 > to->len))
   {
     intg1=to->len;
@@ -1020,11 +1027,15 @@ int ulonglong2decimal(ulonglong from, decimal_t *to)
 int longlong2decimal(longlong from, decimal_t *to)
 {
   if ((to->sign= from < 0))
+  {
+    if (from == LONGLONG_MIN) // avoid undefined behavior
+      return ull2dec((ulonglong)LONGLONG_MIN, to);
     return ull2dec(-from, to);
+  }
   return ull2dec(from, to);
 }
 
-int decimal2ulonglong(decimal_t *from, ulonglong *to)
+int decimal2ulonglong(const decimal_t *from, ulonglong *to)
 {
   dec1 *buf=from->buf;
   ulonglong x=0;
@@ -1053,7 +1064,7 @@ int decimal2ulonglong(decimal_t *from, ulonglong *to)
   return E_DEC_OK;
 }
 
-int decimal2longlong(decimal_t *from, longlong *to)
+int decimal2longlong(const decimal_t *from, longlong *to)
 {
   dec1 *buf=from->buf;
   longlong x=0;
@@ -1172,7 +1183,7 @@ int decimal2longlong(decimal_t *from, longlong *to)
 
                 7E F2 04 C7 2D FB 2D
 */
-int decimal2bin(decimal_t *from, uchar *to, int precision, int frac)
+int decimal2bin(const decimal_t *from, uchar *to, int precision, int frac)
 {
   dec1 mask=from->sign ? -1 : 0, *buf1=from->buf, *stop1;
   int error=E_DEC_OK, intg=precision-frac,
@@ -1445,7 +1456,9 @@ int decimal_bin_size(int precision, int scale)
       intg0=intg/DIG_PER_DEC1, frac0=scale/DIG_PER_DEC1,
       intg0x=intg-intg0*DIG_PER_DEC1, frac0x=scale-frac0*DIG_PER_DEC1;
 
-  DBUG_ASSERT(scale >= 0 && precision > 0 && scale <= precision);
+  DBUG_ASSERT(scale >= 0);
+  DBUG_ASSERT(precision > 0);
+  DBUG_ASSERT(scale <= precision);
   return intg0*sizeof(dec1)+dig2bytes[intg0x]+
          frac0*sizeof(dec1)+dig2bytes[frac0x];
 }
@@ -1795,7 +1808,8 @@ static int do_sub(const decimal_t *from1, const decimal_t *from2, decimal_t *to)
   int intg1=ROUND_UP(from1->intg), intg2=ROUND_UP(from2->intg),
       frac1=ROUND_UP(from1->frac), frac2=ROUND_UP(from2->frac);
   int frac0=max(frac1, frac2), error;
-  dec1 *buf1, *buf2, *buf0, *stop1, *stop2, *start1, *start2, carry=0;
+  dec1 *buf1, *buf2, *buf0, *stop1, *stop2, *start1, *start2;
+  my_bool carry=0;
 
   /* let carry:=1 if from2 > from1 */
   start1=buf1=from1->buf; stop1=buf1+intg1;
@@ -1863,7 +1877,7 @@ static int do_sub(const decimal_t *from1, const decimal_t *from2, decimal_t *to)
     swap_variables(dec1 *,start1, start2);
     swap_variables(int,intg1,intg2);
     swap_variables(int,frac1,frac2);
-    to->sign= 1 - to->sign;
+    to->sign= !to->sign;
   }
 
   FIX_INTG_FRAC_ERROR(to->len, intg1, frac0, error);
@@ -1989,45 +2003,44 @@ int decimal_mul(const decimal_t *from1, const decimal_t *from2, decimal_t *to)
   int intg1=ROUND_UP(from1->intg), intg2=ROUND_UP(from2->intg),
       frac1=ROUND_UP(from1->frac), frac2=ROUND_UP(from2->frac),
       intg0=ROUND_UP(from1->intg+from2->intg),
-      frac0=frac1+frac2, error, iii, jjj, d_to_move;
+      frac0=frac1+frac2, error, i, j, d_to_move;
   dec1 *buf1=from1->buf+intg1, *buf2=from2->buf+intg2, *buf0,
        *start2, *stop2, *stop1, *start0, carry;
 
   sanity(to);
 
-  iii= intg0;                                       /* save 'ideal' values */
-  jjj= frac0;
+  i=intg0;                                       /* save 'ideal' values */
+  j=frac0;
   FIX_INTG_FRAC_ERROR(to->len, intg0, frac0, error);  /* bound size */
-  to->sign= from1->sign != from2->sign;
-  to->frac= from1->frac + from2->frac;              /* store size in digits */
-  set_if_smaller(to->frac, NOT_FIXED_DEC);
+  to->sign=from1->sign != from2->sign;
+  to->frac=from1->frac+from2->frac;              /* store size in digits */
   to->intg=intg0*DIG_PER_DEC1;
 
   if (unlikely(error))
   {
     set_if_smaller(to->frac, frac0*DIG_PER_DEC1);
     set_if_smaller(to->intg, intg0*DIG_PER_DEC1);
-    if (unlikely(iii > intg0))                     /* bounded integer-part */
+    if (unlikely(i > intg0))                     /* bounded integer-part */
     {
-      iii-=intg0;
-      jjj= iii >> 1;
-      intg1-= jjj;
-      intg2-=iii-jjj;
+      i-=intg0;
+      j=i >> 1;
+      intg1-= j;
+      intg2-=i-j;
       frac1=frac2=0; /* frac0 is already 0 here */
     }
     else                                         /* bounded fract part */
     {
-      jjj-=frac0;
-      iii=jjj >> 1;
+      j-=frac0;
+      i=j >> 1;
       if (frac1 <= frac2)
       {
-        frac1-= iii;
-        frac2-=jjj-iii;
+        frac1-= i;
+        frac2-=j-i;
       }
       else
       {
-        frac2-= iii;
-        frac1-=jjj-iii;
+        frac2-= i;
+        frac1-=j-i;
       }
     }
   }
@@ -2293,7 +2306,11 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
       DBUG_ASSERT(buf0 < to->buf + to->len);
       *buf0=(dec1)guess;
     }
+#ifdef WORKAROUND_GCC_4_3_2_BUG
+    dcarry= *(volatile dec1 *)start1;
+#else
     dcarry= *start1;
+#endif
     start1++;
   }
   if (mod)

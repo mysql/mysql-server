@@ -19,7 +19,12 @@
 #define SERVICE_VERSION void *
 #endif
 
-#define VERSION_my_snprintf     0x0100
-#define VERSION_thd_alloc       0x0100
-#define VERSION_thd_wait        0x0100
-#define VERSION_my_thread_scheduler 0x0100
+#define VERSION_my_snprintf             0x0100
+#define VERSION_thd_alloc               0x0100
+#define VERSION_thd_wait                0x0100
+#define VERSION_my_thread_scheduler     0x0100
+#define VERSION_progress_report         0x0100
+#define VERSION_debug_sync              0x1000
+#define VERSION_kill_statement          0x1000
+#define VERSION_logger                  0x0100
+

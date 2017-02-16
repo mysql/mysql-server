@@ -1,0 +1,37 @@
+--source include/have_semisync_plugin.inc
+--source include/not_embedded.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_mixed_or_statement.inc
+--source include/master-slave.inc
+
+# MDEV-359: There was a server crash when the code first checks if semisync
+# is enabled without lock, then if so takes the lock and tests again.
+# If semisync was disabled in-between the first and the second test, an
+# assert was incorrectly made that referenced a NULL pointer.
+#
+# This tests uses debug_sync to pause one thread at the critical point in
+# the code, disable the semisync, and then continue the paused thread.
+
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master';
+SET GLOBAL rpl_semi_sync_master_enabled = ON;
+--connection master1
+SET DEBUG_SYNC = "rpl_semisync_master_commit_trx_before_lock SIGNAL m1_ready WAIT_FOR m1_cont";
+--send
+INSERT INTO t1 SELECT * FROM t1;
+--connection master
+SET DEBUG_SYNC= "now WAIT_FOR m1_ready";
+SET GLOBAL rpl_semi_sync_master_enabled = OFF;
+SET DEBUG_SYNC= "now SIGNAL m1_cont";
+--connection master1
+--reap
+
+connection master;
+DROP TABLE t1;
+SET DEBUG_SYNC= "RESET";
+
+disable_warnings;
+UNINSTALL PLUGIN rpl_semi_sync_master;
+enable_warnings;
+
+--source include/rpl_end.inc

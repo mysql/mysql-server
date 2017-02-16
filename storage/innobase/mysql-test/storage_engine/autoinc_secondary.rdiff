@@ -1,0 +1,30 @@
+--- suite/storage_engine/autoinc_secondary.result	2012-07-12 04:34:18.153885986 +0400
++++ suite/storage_engine/autoinc_secondary.reject	2012-07-15 17:47:03.937703666 +0400
+@@ -13,18 +13,15 @@
+ 5	a
+ DROP TABLE t1;
+ CREATE TABLE t1 (a <CHAR_COLUMN>, b <INT_COLUMN> AUTO_INCREMENT, PRIMARY KEY (a,b)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+-INSERT INTO t1 (a) VALUES ('a'),('b'),('b'),('c'),('a');
+-SELECT LAST_INSERT_ID();
+-LAST_INSERT_ID()
+-1
+-SELECT a,b FROM t1;
+-a	b
+-a	1
+-a	2
+-b	1
+-b	2
+-c	1
+-DROP TABLE t1;
++ERROR 42000: Incorrect table definition; there can be only one auto column and it must be defined as a key
++# ERROR: Statement ended with errno 1075, errname ER_WRONG_AUTO_KEY (expected to succeed)
++# ------------ UNEXPECTED RESULT ------------
++# The statement|command finished with ER_WRONG_AUTO_KEY.
++# Multi-part keys or PK or AUTO_INCREMENT (on a secondary column) or the mix could be unsupported|malfunctioning, or the problem was caused by previous errors. 
++# You can change the engine code, or create an rdiff, or disable the test by adding it to disabled.def.
++# Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
++# Also, this problem may cause a chain effect (more errors of different kinds in the test).
++# -------------------------------------------
+ CREATE TABLE t1 (a <CHAR_COLUMN>, b <INT_COLUMN> AUTO_INCREMENT, PRIMARY KEY (a,b), <CUSTOM_INDEX>(b)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ INSERT INTO t1 (a) VALUES ('a'),('b'),('b'),('c'),('a');
+ SELECT LAST_INSERT_ID();

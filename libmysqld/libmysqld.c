@@ -77,7 +77,6 @@ static my_bool is_NT(void)
 }
 #endif
 
-
 int mysql_init_character_set(MYSQL *mysql);
 
 MYSQL * STDCALL

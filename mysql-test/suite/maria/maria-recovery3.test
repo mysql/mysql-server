@@ -1,0 +1,135 @@
+--source include/not_embedded.inc
+# Don't test this under valgrind, memory leaks will occur as we crash
+--source include/not_valgrind.inc
+# Binary must be compiled with debug for crash to occur
+--source include/have_debug.inc
+--source include/have_maria.inc
+
+set global aria_log_file_size=4294959104;
+let $MARIA_LOG=../../tmp;
+
+--disable_warnings
+drop database if exists mysqltest;
+--enable_warnings
+create database mysqltest;
+let $mms_tname=t;
+
+# Include scripts can perform SQL. For it to not influence the main test
+# they use a separate connection. This way if they use a DDL it would
+# not autocommit in the main test.
+connect (admin, 127.0.0.1, root,,mysqltest,,);
+--enable_reconnect
+
+connection default;
+use mysqltest;
+--enable_reconnect
+
+let $mms_tables=1;
+let $mvr_restore_old_snapshot=0;
+let $mms_compare_physically=0;
+let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
+let $mvr_crash_statement= set global aria_checkpoint_interval=1;
+
+-- source include/maria_empty_logs.inc
+
+# Test for BUG#41037 (recovery failure)
+--echo * TEST of Checkpoint between writing the commit log record and committing in trnman
+# we want recovery to use the tables as they were at time of crash
+let $mvr_restore_old_snapshot=0;
+# UNDO phase prevents physical comparison, normally,
+# so we'll only use checksums to compare.
+let $mms_compare_physically=0;
+create table t1(a int primary key) engine=aria;
+insert into t1 values(1);
+-- source include/maria_make_snapshot_for_comparison.inc
+set session debug_dbug="+d,maria_sleep_in_commit";
+send insert into t1 values(2);
+sleep 1;
+# Now the INSERT of 2 has written a commit record
+# but not yet called trnman_commit(), so for checkpoint it's not
+# committed.
+connection admin;
+set global aria_checkpoint_interval=1000; # force a checkpoint
+connection default;
+reap; # end of INSERT
+delete from t1 where a=2;
+# Bug was that: Recovery starts REDO scanning from too far: from
+# Checkpoint record which says INSERT is not committed, so
+# Recovery executes the INSERT's UNDO and finds no key to delete
+# (as DELETE already deleted it), fails.
+-- source include/maria_verify_recovery.inc
+drop table t1;
+
+# Note that even if machine is loaded and thus INSERT is committed
+# before checkpoint happens, test should still pass (though it won't
+# reproduce the conditions of the bug).
+
+# Test for BUG#41493 Aria: two recovery failures (wrong logging of BLOB pages)
+--echo * TEST of logging of BLOBs
+let $mvr_restore_old_snapshot=1;
+let $mms_compare_physically=1;
+CREATE TABLE `t1` (
+`blob` blob,
+`blob_key` blob
+) ENGINE=aria ROW_FORMAT=page
+;
+-- source include/maria_make_snapshot_for_feeding_recovery.inc
+set global aria_checkpoint_interval=0; # no checkpoints
+INSERT INTO `t1` VALUES (NULL,repeat('A',5198));
+INSERT INTO `t1` VALUES (NULL,repeat('B',65535));
+INSERT INTO `t1` VALUES (repeat('K',5198),repeat('L',2325));
+INSERT INTO `t1` VALUES (repeat('C',65535),NULL);
+INSERT INTO `t1` VALUES (NULL,repeat('D',65535));
+INSERT INTO `t1` VALUES (repeat('E',65535),repeat('F',16111));
+INSERT INTO `t1` VALUES (repeat('G',65535),repeat('H',65535));
+INSERT INTO `t1` VALUES (repeat('I',5198),repeat('J',65535));
+check table t1 extended;
+-- source include/maria_make_snapshot_for_comparison.inc
+-- source include/maria_verify_recovery.inc
+drop table t1;
+
+# Test for BUG#42112 "Aria: recovery failure (pushbuild2) Assertion
+# `rownr == 0 && new_page' failed"
+
+let $mvr_restore_old_snapshot=0;
+let $mms_compare_physically=0;
+create table t1 engine=aria select 1;
+-- source include/maria_make_snapshot_for_feeding_recovery.inc
+set global aria_checkpoint_interval=0; # no checkpoints
+insert into t1 values(2);
+truncate table t1;
+-- source include/maria_make_snapshot_for_comparison.inc
+let $mvr_crash_statement= truncate table t1;
+let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash_create_table";
+truncate table t1;
+-- source include/maria_verify_recovery.inc
+# Table is bad but at least Recovery didn't crash and a new truncate
+# can succeed:
+truncate table t1;
+check table t1 extended;
+drop table t1;
+
+#
+# Test for BUG#887051; Failure in recovery with delete
+#
+
+let $mvr_restore_old_snapshot=0;
+let $mms_compare_physically=0;
+let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
+let $mvr_crash_statement= set global aria_checkpoint_interval=1;
+CREATE TABLE t1 ( word VARCHAR(255) PRIMARY KEY ) ENGINE=Aria;
+LOAD DATA INFILE '../../std_data/bug887051.txt' INTO TABLE t1;
+SET AUTOCOMMIT=0;
+DELETE FROM t1;
+LOAD DATA INFILE '../../std_data/bug887051.txt' INTO TABLE t1 IGNORE 1 LINES;
+COMMIT; 
+-- source include/maria_verify_recovery.inc
+select * from t1;
+drop table t1;
+
+# clean up everything
+let $mms_purpose=feeding_recovery;
+eval drop database mysqltest_for_$mms_purpose;
+let $mms_purpose=comparison;
+eval drop database mysqltest_for_$mms_purpose;
+drop database mysqltest;

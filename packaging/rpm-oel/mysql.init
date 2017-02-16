@@ -3,7 +3,7 @@
 # mysqld	This shell script takes care of starting and stopping
 #		the MySQL subsystem (mysqld).
 #
-# chkconfig: 345 64 36
+# chkconfig: - 64 36
 # description:	MySQL database server.
 # processname: mysqld
 # config: /etc/my.cnf
@@ -70,39 +70,29 @@ start(){
 	ret=0
     else
     	# prepare for start
-	if [ ! -e "$errlogfile" -a ! -h "$errlogfile" -a "x$(dirname "$errlogfile")" = "x/var/log" ]; then
-	    install /dev/null -m0640 -omysql -gmysql "$errlogfile"
-	fi
+	touch "$errlogfile"
+	chown mysql:mysql "$errlogfile" 
+	chmod 0640 "$errlogfile"
 	[ -x /sbin/restorecon ] && /sbin/restorecon "$errlogfile"
 	if [ ! -d "$datadir/mysql" ] ; then
 	    # First, make sure $datadir is there with correct permissions
-	    if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
-		install -d -m0755 -omysql -gmysql "$datadir" || exit 1
+	    if [ ! -e "$datadir" -a ! -h "$datadir" ]
+	    then
+		mkdir -p "$datadir" || exit 1
 	    fi
-	    if [ ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
-		chown mysql:mysql "$datadir"
-		chmod 0755 "$datadir"
-	    fi
-	    if [ -x /sbin/restorecon ]; then
-		/sbin/restorecon "$datadir"
-		for dir in /var/lib/mysql-files ; do
-		    if [ -x /usr/sbin/semanage -a -d /var/lib/mysql -a -d $dir ] ; then
-			/usr/sbin/semanage fcontext -a -e /var/lib/mysql $dir >/dev/null 2>&1
-			/sbin/restorecon $dir
-		    fi
-		done
-	    fi
+	    chown mysql:mysql "$datadir"
+	    chmod 0755 "$datadir"
+	    [ -x /sbin/restorecon ] && /sbin/restorecon "$datadir"
 	    # Now create the database
 	    action $"Initializing MySQL database: " /usr/bin/mysql_install_db --rpm --datadir="$datadir" --user=mysql
 	    ret=$?
+	    chown -R mysql:mysql "$datadir"
 	    if [ $ret -ne 0 ] ; then
 		return $ret
 	    fi
 	fi
-	if [ ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
-	    chown mysql:mysql "$datadir"
-	    chmod 0755 "$datadir"
-	fi
+	chown mysql:mysql "$datadir"
+	chmod 0755 "$datadir"
 	# Pass all the options determined above, to ensure consistent behavior.
 	# In many cases mysqld_safe would arrive at the same conclusions anyway
 	# but we need to be sure.  (An exception is that we don't force the
@@ -112,7 +102,7 @@ start(){
 	# alarms, per bug #547485
 	$exec   --datadir="$datadir" --socket="$socketfile" \
 		--pid-file="$mypidfile" \
-		--basedir=/usr --user=mysql >/dev/null &
+		--basedir=/usr --user=mysql >/dev/null 2>&1 &
 	safe_pid=$!
 	# Spin for a maximum of N seconds waiting for the server to come up;
 	# exit the loop immediately if mysqld_safe process disappears.

@@ -1,0 +1,12 @@
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=ON;
+
+
+
+#drop table foo;

@@ -1,0 +1,41 @@
+# Test for BUG#43101 "MyISAM&Maria gives rows for <>NULL and >NULL
+# with LIMIT clause"
+
+--source include/have_debug.inc
+
+# Goes away with
+#set session debug_dbug=+d,optimizer_no_icp;
+
+CREATE TABLE t1(c1 TIME NOT NULL, c2 TIME NULL, c3 DATE, PRIMARY
+KEY(c1), UNIQUE INDEX(c2));
+
+insert into t1 values('-838:59:59','-838:59:59','2009-01-21');
+insert into t1 values('00:00:00','00:00:00','2009-01-09');
+insert into t1 values('00:00:11','00:00:11','2009-01-20');
+insert into t1 values('00:00:12','00:00:12','2009-01-13');
+insert into t1 values('00:00:45','00:00:45','2009-01-07');
+insert into t1 values('00:11:12','00:11:12','2009-01-19');
+insert into t1 values('00:12:30','00:12:30','2009-01-23');
+insert into t1 values('00:12:34','00:12:34','2009-01-14');
+insert into t1 values('01:23:00','01:23:00','2009-01-03');
+insert into t1 values('08:03:02','08:03:02','2009-01-18');
+insert into t1 values('08:29:45',NULL,'2009-02-01');
+insert into t1 values('09:00:45','09:00:45','2009-01-24');
+insert into t1 values('09:36:00','09:36:00','2009-01-25');
+insert into t1 values('10:00:00','10:00:00','2009-01-06');
+insert into t1 values('10:11:12','10:11:12','2009-01-11');
+insert into t1 values('10:22:33','10:22:33','2009-01-02');
+insert into t1 values('11:11:12','11:11:12','2009-01-12');
+insert into t1 values('11:11:27','11:11:27','2009-01-17');
+insert into t1 values('12:34:56','12:34:56','2009-01-01');
+insert into t1 values('12:34:58','12:34:58','2009-01-15');
+insert into t1 values('12:35:56','12:35:56','2009-01-16');
+insert into t1 values('491:22:33','491:22:33','2009-01-04');
+insert into t1 values('825:23:00','825:23:00','2009-01-05');
+insert into t1 values('838:59:59','838:59:59','2009-01-21');
+
+SELECT * FROM t1 WHERE c2 <> NULL ORDER BY c2 DESC;
+
+SELECT * FROM t1 WHERE c2 <> NULL ORDER BY c2 DESC LIMIT 2;
+
+drop table t1;

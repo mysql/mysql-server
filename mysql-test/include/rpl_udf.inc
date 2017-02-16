@@ -9,6 +9,11 @@
 #####################################################################
 
 --source include/have_udf.inc
+--source include/master-slave.inc
+
+disable_query_log;
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+enable_query_log;
 
 #
 # To run this tests the "sql/udf_example.c" need to be compiled into
@@ -27,13 +32,13 @@ drop table if exists t1;
 --echo "*** Test 1) Test UDFs via loadable libraries ***
 --echo "Running on the master"
 --enable_info
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION myfunc_double RETURNS REAL SONAME "$UDF_EXAMPLE_LIB";
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval CREATE FUNCTION myfunc_double RETURNS REAL SONAME "$UDF_EXAMPLE_SO";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_SO";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
 --error ER_CANT_FIND_DL_ENTRY
-eval CREATE FUNCTION myfunc_nonexist RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+eval CREATE FUNCTION myfunc_nonexist RETURNS INTEGER SONAME "$UDF_EXAMPLE_SO";
 --replace_column 3 UDF_LIB
 SELECT * FROM mysql.func ORDER BY name;
 --disable_info

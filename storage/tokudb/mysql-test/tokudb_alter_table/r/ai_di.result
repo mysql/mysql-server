@@ -1,0 +1,50 @@
+set default_storage_engine='tokudb';
+drop table if exists foo;
+set session tokudb_disable_slow_alter=ON;
+create table foo (a int, b int, c int, key(a))engine=TokuDB;
+insert into foo values (1,10,100),(2,20,200),(3,30,300),(3,30,300);
+select * from foo;
+a	b	c
+1	10	100
+2	20	200
+3	30	300
+3	30	300
+explain select sum(a) from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	NULL	a	5	NULL	4	Using index
+select sum(a) from foo;
+sum(a)
+9
+alter table foo add unique index b(b), drop index a;
+ERROR 23000: Duplicate entry '30' for key 'b'
+select * from foo;
+a	b	c
+1	10	100
+2	20	200
+3	30	300
+3	30	300
+explain select sum(a) from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	NULL	a	5	NULL	4	Using index
+select sum(a) from foo;
+sum(a)
+9
+#test that we can still add an index named 'b'
+alter table foo add index b(b);
+explain select sum(b) from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	NULL	b	5	NULL	4	Using index
+select sum(b) from foo;
+sum(b)
+90
+set autocommit=0;
+drop index b on foo;
+create index b on foo (b);
+explain select sum(b) from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	NULL	b	5	NULL	4	Using index
+select sum(b) from foo;
+sum(b)
+90
+set autocommit=1;
+drop table foo;

@@ -1,0 +1,14 @@
+--source include/not_windows.inc
+--source include/not_embedded.inc
+--source include/have_pool_of_threads.inc
+
+SELECT @@global.thread_pool_size;
+
+# Set lower value
+SET @@global.thread_pool_size=150;
+# Set original value
+SET @@global.thread_pool_size=200;
+# Try higher value
+SET @@global.thread_pool_size=201;
+
+SELECT @@global.thread_pool_size;

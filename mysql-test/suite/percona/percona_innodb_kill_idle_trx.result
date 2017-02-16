@@ -1,0 +1,41 @@
+DROP TABLE IF EXISTS t1;
+SET autocommit=0;
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
+Variable_name	Value
+innodb_kill_idle_transaction	0
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_KILL_IDLE_TRANSACTION	0
+SET GLOBAL innodb_kill_idle_transaction=1;
+SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
+Variable_name	Value
+innodb_kill_idle_transaction	1
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_KILL_IDLE_TRANSACTION	1
+BEGIN;
+INSERT INTO t1 VALUES (1),(2),(3);
+COMMIT;
+SELECT * FROM t1;
+a
+1
+2
+3
+BEGIN;
+INSERT INTO t1 VALUES (4),(5),(6);
+SELECT * FROM t1;
+ERROR HY000: MySQL server has gone away
+SELECT * FROM t1;
+a
+1
+2
+3
+DROP TABLE t1;
+SET GLOBAL innodb_kill_idle_transaction=0;
+SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
+Variable_name	Value
+innodb_kill_idle_transaction	0
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_KILL_IDLE_TRANSACTION	0

@@ -1,0 +1,47 @@
+#
+# Test of alter table with transactional tables
+#
+
+--source include/have_innodb.inc
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+#
+# This test caused a crash in wait_if_global_read_lock()
+#
+CREATE TABLE t1 (a INT, INDEX(a)) engine=innodb;
+ALTER TABLE t1 RENAME TO t2, DISABLE KEYS;
+DROP TABLE t2;
+
+#
+# MDEV-5406 add index to an innodb table with a uniqueness violation crashes mysqld
+#
+
+CREATE TABLE t1 (
+  col4 text NOT NULL,
+  col2 int(11) NOT NULL DEFAULT '0',
+  col3 int(11) DEFAULT NULL,
+  extra int(11) DEFAULT NULL,
+  KEY idx (col4(10))
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+insert t1 values (repeat('1', 8193),3,1,1);
+insert t1 values (repeat('3', 8193),3,1,1);
+--error ER_DUP_ENTRY
+ALTER TABLE t1 ADD PRIMARY KEY (col4(10)) , ADD UNIQUE KEY uidx (col3);
+DROP TABLE t1;
+
+#
+# MDEV-5743 Server crashes in mysql_alter_table on an attempt to add a primary key to InnoDB table
+#
+
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (2);
+ALTER TABLE t1 ADD PRIMARY KEY (a);
+ALTER TABLE t1 DROP PRIMARY KEY;
+INSERT INTO t1 VALUES (2);
+--error ER_DUP_ENTRY
+ALTER TABLE t1 ADD PRIMARY KEY (a);
+DROP TABLE t1;
+

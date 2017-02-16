@@ -1,0 +1,50 @@
+# ticket 895 is a query optimization problem with the primary key
+
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo,bar;
+--enable_warnings
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+create table foo (a int, b int, key(b,a), primary key (a))engine=TokuDB;
+create table bar (a bigint)engine=TokuDB;
+alter table foo drop index b;
+alter table bar add index (a);
+
+# Write file to make mysql-test-run.pl expect the "crash", but don't start
+# it until it's told to
+--write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+wait
+EOF
+
+# Send shutdown to the connected server and give
+# it 10 seconds to die before zapping it
+shutdown_server 10;
+
+remove_file $MYSQLD_DATADIR/test/foo.frm;
+copy_file $MYSQLD_DATADIR/test/bar.frm $MYSQLD_DATADIR/test/foo.frm;
+remove_file $MYSQLD_DATADIR/test/bar.frm;
+
+# Write file to make mysql-test-run.pl start up the server again
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+restart
+EOF
+
+# Turn on reconnect
+--enable_reconnect
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+# Turn off reconnect again
+--disable_reconnect
+
+show create table foo;
+show create table bar;
+
+# Final cleanup.
+DROP TABLE foo,bar;
+

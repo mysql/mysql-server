@@ -1,0 +1,42 @@
+# ulong session
+
+SET @start_global_value = @@global.mrr_buffer_size;
+
+#
+# exists as global only
+#
+select @@global.mrr_buffer_size;
+select @@session.mrr_buffer_size;
+show global variables like 'mrr_buffer_size';
+show session variables like 'mrr_buffer_size';
+select * from information_schema.global_variables where variable_name='mrr_buffer_size';
+select * from information_schema.session_variables where variable_name='mrr_buffer_size';
+
+#
+# show that it's writable
+#
+set global mrr_buffer_size=10;
+select @@global.mrr_buffer_size;
+set session mrr_buffer_size=10;
+select @@session.mrr_buffer_size;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global mrr_buffer_size=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session mrr_buffer_size=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global mrr_buffer_size="foo";
+
+#
+# min/max values, block size
+#
+set global mrr_buffer_size=0;
+select @@global.mrr_buffer_size;
+set session mrr_buffer_size=cast(-1 as unsigned int);
+select @@session.mrr_buffer_size;
+
+SET @@global.mrr_buffer_size = @start_global_value;
+

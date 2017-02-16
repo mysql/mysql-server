@@ -1,0 +1,268 @@
+# ticket 895 is a query optimization problem with the primary key
+
+--source include/have_tokudb.inc
+--echo # Establish connection conn1 (user = root)
+connect (conn1,localhost,root,,);
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+connection conn1;
+set session transaction isolation level serializable;
+create table foo ( a double, b double, c double, primary key (a,b));
+insert into foo values (4,4,4),(4,5,5),(4,6,6),(5,4,4),(5,5,5),(5,6,6),(6,4,4),(6,5,5),(6,6,6);
+begin;
+select * from foo where a > 5;
+
+connection default;
+set session transaction isolation level serializable;
+insert into foo values (5,10,10);
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (5.0001,10,10);
+
+connection conn1;
+commit;
+begin;
+select * from foo where a >= 5;
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (5,1,10);
+insert into foo values (4.999,10,10);
+
+connection conn1;
+commit;
+begin;
+select * from foo where a < 5;
+
+connection default;
+insert into foo values (5,0.1,10);
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (4.9999,10,10);
+
+connection conn1;
+commit;
+begin;
+select * from foo where a <= 5;
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (5,0.01,10);
+insert into foo values (5.001,10,10);
+
+connection conn1;
+commit;
+begin;
+select * from foo where a = 5;
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (5,0.01,10);
+insert into foo values (5.0001,10,10);
+insert into foo values (4.99999,1,10);
+
+connection conn1;
+commit;
+begin;
+select * from foo where a > 4 and a < 6;
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (4.1,0.01,10);
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (5.9,10,10);
+insert into foo values (6,10,10);
+insert into foo values (4,10,10);
+
+
+connection conn1;
+commit;
+begin;
+select * from foo where a >= 4 and a < 6;
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (4,0.01,10);
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (5.9,10,10);
+insert into foo values (6,1.1,10);
+insert into foo values (3.99,10,10);
+
+connection conn1;
+commit;
+begin;
+select * from foo where a > 4 and a <= 6;
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (4.0001,0.01,10);
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (6,1110,10);
+insert into foo values (6.001,1.1,10);
+insert into foo values (4,1110,10);
+
+connection conn1;
+commit;
+begin;
+select * from foo where a >= 4 and a <= 6;
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (4,0.001,10);
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (6,11110,10);
+insert into foo values (6.0001,1.1,10);
+insert into foo values (3.99,10110,10);
+
+connection conn1;
+commit;
+delete from foo;
+insert into foo values (4,4,4),(4,5,5),(4,6,6),(5,4,4),(5,5,5),(5,6,6),(6,4,4),(6,5,5),(6,6,6);
+begin;
+select * from foo where a > 5 order by a desc;
+
+connection default;
+insert into foo values (5,10,10);
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (5.0001,10,10);
+
+connection conn1;
+commit;
+begin;
+select * from foo where a >= 5 order by a desc;
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (5,1,10);
+insert into foo values (4.999,10,10);
+
+connection conn1;
+commit;
+begin;
+select * from foo where a < 5 order by a desc;
+
+connection default;
+insert into foo values (5,0.1,10);
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (4.9999,10,10);
+
+connection conn1;
+commit;
+begin;
+select * from foo where a <= 5 order by a desc;
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (5,0.01,10);
+insert into foo values (5.001,10,10);
+
+connection conn1;
+commit;
+begin;
+select * from foo where a = 5 order by a desc;
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (5,0.01,10);
+insert into foo values (5.0001,10,10);
+insert into foo values (4.99999,1,10);
+
+connection conn1;
+commit;
+begin;
+select * from foo where a > 4 and a < 6 order by a desc;
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (4.1,0.01,10);
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (5.9,10,10);
+insert into foo values (6,10,10);
+insert into foo values (4,10,10);
+
+
+connection conn1;
+commit;
+begin;
+select * from foo where a >= 4 and a < 6 order by a desc;
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (4,0.01,10);
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (5.9,10,10);
+insert into foo values (6,1.1,10);
+insert into foo values (3.99,10,10);
+
+connection conn1;
+commit;
+begin;
+select * from foo where a > 4 and a <= 6 order by a desc;
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (4.0001,0.01,10);
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (6,1110,10);
+insert into foo values (6.001,1.1,10);
+insert into foo values (4,1110,10);
+
+connection conn1;
+commit;
+begin;
+select * from foo where a >= 4 and a <= 6 order by a desc;
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (4,0.001,10);
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (6,11110,10);
+insert into foo values (6.0001,1.1,10);
+insert into foo values (3.99,10110,10);
+
+connection conn1;
+commit;
+begin;
+select count(*) from foo;
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (0,0.001,10);
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (9999999,11110,10);
+
+connection conn1;
+commit;
+begin;
+select * from foo order by a desc;
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (0,0.001,10);
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (9999999,11110,10);
+
+
+connection conn1;
+commit;
+alter table foo drop primary key;
+begin;
+select * from foo;
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (0,0.001,10);
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (9999999,11110,10);
+
+
+connection conn1;
+commit;
+
+disconnect conn1;
+
+connection default;
+# Final cleanup.
+DROP TABLE foo;

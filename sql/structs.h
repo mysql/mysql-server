@@ -25,6 +25,7 @@
 #include "my_time.h"                   /* enum_mysql_timestamp_type */
 #include "thr_lock.h"                  /* thr_lock_type */
 #include "my_base.h"                   /* ha_rows, ha_key_alg */
+#include <mysql_com.h>                  /* USERNAME_LENGTH */
 
 struct TABLE;
 class Field;
@@ -65,7 +66,8 @@ typedef struct st_key_part_info {	/* Info about a key part */
   Field *field;
   uint	offset;				/* offset in record (from 0) */
   uint	null_offset;			/* Offset to null_bit in record */
-  uint16 length;                        /* Length of keypart value in bytes */
+  /* Length of key part in bytes, excluding NULL flag and length bytes */
+  uint16 length;
   /* 
     Number of bytes required to store the keypart value. This may be
     different from the "length" field as it also counts
@@ -74,20 +76,26 @@ typedef struct st_key_part_info {	/* Info about a key part */
   */
   uint16 store_length;
   uint16 key_type;
+  /* Fieldnr begins counting from 1 */
   uint16 fieldnr;			/* Fieldnum in UNIREG */
   uint16 key_part_flag;			/* 0 or HA_REVERSE_SORT */
   uint8 type;
   uint8 null_bit;			/* Position to null_bit */
 } KEY_PART_INFO ;
 
+class engine_option_value;
+struct ha_index_option_struct;
 
 typedef struct st_key {
   uint	key_length;			/* Tot length of key */
   ulong flags;                          /* dupp key and pack flags */
   uint	key_parts;			/* How many key_parts */
-  uint  extra_length;
   uint	usable_key_parts;		/* Should normally be = key_parts */
+  uint ext_key_parts;              /* Number of key parts in extended key */
+  ulong ext_key_flags;             /* Flags for extended key              */
+  key_part_map ext_key_part_map;   /* Bitmap of pk key parts in extension */ 
   uint  block_size;
+  uint  name_length;
   enum  ha_key_alg algorithm;
   /*
     Note that parser is used when the table is opened for use, and
@@ -100,6 +108,8 @@ typedef struct st_key {
   };
   KEY_PART_INFO *key_part;
   char	*name;				/* Name of key */
+  /* Unique name for cache;  db + \0 + table_name + \0 + key_name + \0 */
+  uchar *cache_name;
   /*
     Array of AVG(#records with the same field value) for 1st ... Nth key part.
     0 means 'not known'.
@@ -111,6 +121,9 @@ typedef struct st_key {
   } handler;
   TABLE *table;
   LEX_STRING comment;
+  /** reference to the list of options or NULL */
+  engine_option_value *option_list;
+  ha_index_option_struct *option_struct;                  /* structure with parsed options */
 } KEY;
 
 
@@ -174,8 +187,11 @@ typedef struct user_resources {
   uint updates;
   /* Maximum number of connections established per hour. */
   uint conn_per_hour;
-  /* Maximum number of concurrent connections. */
-  uint user_conn;
+  /*
+    Maximum number of concurrent connections. If -1 then no new
+    connections allowed
+  */
+  int user_conn;
   /*
      Values of this enum and specified_limits member are used by the
      parser to store which user limits were specified in GRANT statement.
@@ -208,7 +224,7 @@ typedef struct  user_conn {
   /* Total length of the key. */
   uint len;
   /* Current amount of concurrent connections for this account. */
-  uint connections;
+  int connections;
   /*
      Current number of connections per hour, number of updating statements
      per hour and total number of statements per hour for this account.
@@ -217,6 +233,111 @@ typedef struct  user_conn {
   /* Maximum amount of resources which account is allowed to consume. */
   USER_RESOURCES user_resources;
 } USER_CONN;
+
+typedef struct st_user_stats
+{
+  char user[max(USERNAME_LENGTH, LIST_PROCESS_HOST_LEN) + 1];
+  // Account name the user is mapped to when this is a user from mapped_user.
+  // Otherwise, the same value as user.
+  char priv_user[max(USERNAME_LENGTH, LIST_PROCESS_HOST_LEN) + 1];
+  uint user_name_length;
+  uint total_connections;
+  uint concurrent_connections;
+  time_t connected_time;  // in seconds
+  double busy_time;       // in seconds
+  double cpu_time;        // in seconds
+  ulonglong bytes_received;
+  ulonglong bytes_sent;
+  ulonglong binlog_bytes_written;
+  ha_rows   rows_read, rows_sent;
+  ha_rows rows_updated, rows_deleted, rows_inserted;
+  ulonglong select_commands, update_commands, other_commands;
+  ulonglong commit_trans, rollback_trans;
+  ulonglong denied_connections, lost_connections;
+  ulonglong access_denied_errors;
+  ulonglong empty_queries;
+} USER_STATS;
+
+/* Lookup function for hash tables with USER_STATS entries */
+extern "C" uchar *get_key_user_stats(USER_STATS *user_stats, size_t *length,
+                                     my_bool not_used __attribute__((unused)));
+
+/* Free all memory for a hash table with USER_STATS entries */
+extern void free_user_stats(USER_STATS* user_stats);
+
+/* Intialize an instance of USER_STATS */
+extern void
+init_user_stats(USER_STATS *user_stats,
+                const char *user,
+                size_t user_length,
+                const char *priv_user,
+                uint total_connections,
+                uint concurrent_connections,
+                time_t connected_time,
+                double busy_time,
+                double cpu_time,
+                ulonglong bytes_received,
+                ulonglong bytes_sent,
+                ulonglong binlog_bytes_written,
+                ha_rows rows_sent,
+                ha_rows rows_read,
+                ha_rows rows_inserted,
+                ha_rows rows_deleted,
+                ha_rows rows_updated,
+                ulonglong select_commands,
+                ulonglong update_commands,
+                ulonglong other_commands,
+                ulonglong commit_trans,
+                ulonglong rollback_trans,
+                ulonglong denied_connections,
+                ulonglong lost_connections,
+                ulonglong access_denied_errors,
+                ulonglong empty_queries);
+
+/* Increment values of an instance of USER_STATS */
+extern void
+add_user_stats(USER_STATS *user_stats,
+               uint total_connections,
+               uint concurrent_connections,
+               time_t connected_time,
+               double busy_time,
+               double cpu_time,
+               ulonglong bytes_received,
+               ulonglong bytes_sent,
+               ulonglong binlog_bytes_written,
+               ha_rows rows_sent,
+               ha_rows rows_read,
+               ha_rows rows_inserted,
+               ha_rows rows_deleted,
+               ha_rows rows_updated,
+               ulonglong select_commands,
+               ulonglong update_commands,
+               ulonglong other_commands,
+               ulonglong commit_trans,
+               ulonglong rollback_trans,
+               ulonglong denied_connections,
+               ulonglong lost_connections,
+               ulonglong access_denied_errors,
+               ulonglong empty_queries);
+
+typedef struct st_table_stats
+{
+  char table[NAME_LEN * 2 + 2];  // [db] + '\0' + [table] + '\0'
+  uint table_name_length;
+  ulonglong rows_read, rows_changed;
+  ulonglong rows_changed_x_indexes;
+  /* Stores enum db_type, but forward declarations cannot be done */
+  int engine_type;
+} TABLE_STATS;
+
+typedef struct st_index_stats
+{
+  // [db] + '\0' + [table] + '\0' + [index] + '\0'
+  char index[NAME_LEN * 3 + 3];
+  uint index_name_length;                       /* Length of 'index' */
+  ulonglong rows_read;
+} INDEX_STATS;
+
 
 	/* Bits in form->update */
 #define REG_MAKE_DUPP		1	/* Make a copy of record when read */

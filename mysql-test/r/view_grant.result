@@ -1154,6 +1154,8 @@ drop user olga@localhost;
 drop user pjotr@localhost;
 drop user quintessa@localhost;
 drop database mysqltest1;
+select * from information_schema.table_privileges;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 End of 5.0 tests.
 DROP VIEW IF EXISTS v1;
 DROP TABLE IF EXISTS t1;

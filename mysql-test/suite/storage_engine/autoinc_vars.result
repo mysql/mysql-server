@@ -1,0 +1,53 @@
+DROP TABLE IF EXISTS t1;
+SET auto_increment_offset = 200;
+CREATE TABLE t1 (a <INT_COLUMN> AUTO_INCREMENT, b <CHAR_COLUMN>, <CUSTOM_INDEX>(a)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (NULL,'a'),(NULL,'b'),(NULL,'c');
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+1
+SELECT a,b FROM t1;
+a	b
+1	a
+2	b
+3	c
+SET auto_increment_increment = 300;
+INSERT INTO t1 (a,b) VALUES (NULL,'d'),(NULL,'e'),(NULL,'f');
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+200
+SELECT a,b FROM t1;
+a	b
+1	a
+2	b
+200	d
+3	c
+500	e
+800	f
+SET auto_increment_increment = 50;
+INSERT INTO t1 (a,b) VALUES (NULL,'g'),(NULL,'h'),(NULL,'i');
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+850
+SELECT a,b FROM t1;
+a	b
+1	a
+2	b
+200	d
+3	c
+500	e
+800	f
+850	g
+900	h
+950	i
+DROP TABLE t1;
+SET auto_increment_increment = 500;
+SET auto_increment_offset = 300;
+CREATE TABLE t1 (a TINYINT <CUSTOM_COL_OPTIONS> AUTO_INCREMENT, <CUSTOM_INDEX>(a)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a) VALUES (NULL);
+ERROR 22003: Out of range value for column 'a' at row 1
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+850
+SELECT a FROM t1;
+a
+DROP TABLE t1;

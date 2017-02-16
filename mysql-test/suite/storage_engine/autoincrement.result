@@ -1,0 +1,133 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a <INT_COLUMN> AUTO_INCREMENT, b <CHAR_COLUMN>, <CUSTOM_INDEX>(a)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` char(8) DEFAULT NULL,
+  KEY `a` (`a`)
+) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1
+INSERT INTO t1 (b) VALUES ('a'),('b');
+SELECT a,b FROM t1 ORDER BY a;
+a	b
+1	a
+2	b
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+1
+INSERT INTO t1 (a,b) VALUES (NULL,'c'),(0,'d');
+SELECT a,b FROM t1 ORDER BY a;
+a	b
+1	a
+2	b
+3	c
+4	d
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+3
+SET sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
+INSERT INTO t1 (a,b) VALUES (NULL,'e');
+SELECT a,b FROM t1 ORDER BY a;
+a	b
+1	a
+2	b
+3	c
+4	d
+5	e
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+5
+INSERT INTO t1 (a,b) VALUES (0,'f');
+SELECT a,b FROM t1 ORDER BY a;
+a	b
+0	f
+1	a
+2	b
+3	c
+4	d
+5	e
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+5
+SET sql_mode = '<INITIAL_SQL_MODE>';
+SHOW TABLE STATUS FROM test LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	<STORAGE_ENGINE>	#	#	#	#	#	#	#	#	6	#	#	#	#	#	#	#
+INSERT INTO t1 (a,b) VALUES (6,'g'),(7,'h');
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+5
+SHOW TABLE STATUS FROM test LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	#	#	#	#	#	#	#	#	#	8	#	#	#	#	#	#	#
+INSERT INTO t1 (a,b) VALUES (NULL,'i'),(9,'j');
+SELECT a,b FROM t1 ORDER BY a;
+a	b
+0	f
+1	a
+2	b
+3	c
+4	d
+5	e
+6	g
+7	h
+8	i
+9	j
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+8
+SHOW TABLE STATUS FROM test LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	#	#	#	#	#	#	#	#	#	10	#	#	#	#	#	#	#
+INSERT INTO t1 (a,b) VALUES (20,'k');
+SHOW TABLE STATUS FROM test LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	#	#	#	#	#	#	#	#	#	21	#	#	#	#	#	#	#
+INSERT INTO t1 (a,b) VALUES (NULL,'l');
+SELECT a,b FROM t1 ORDER BY a;
+a	b
+0	f
+1	a
+2	b
+3	c
+4	d
+5	e
+6	g
+7	h
+8	i
+9	j
+20	k
+21	l
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+21
+SHOW TABLE STATUS FROM test LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	#	#	#	#	#	#	#	#	#	22	#	#	#	#	#	#	#
+INSERT INTO t1 (a,b) VALUES (-5,'m');
+SELECT a,b FROM t1 ORDER BY a;
+a	b
+-5	m
+0	f
+1	a
+2	b
+3	c
+4	d
+5	e
+6	g
+7	h
+8	i
+9	j
+20	k
+21	l
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN> AUTO_INCREMENT, b <CHAR_COLUMN>, <CUSTOM_INDEX>(a)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> AUTO_INCREMENT = 100;
+INSERT INTO t1 (a,b) VALUES (NULL,'a'),(NULL,'b');
+SELECT a,b FROM t1;
+a	b
+100	a
+101	b
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+100
+DROP TABLE t1;

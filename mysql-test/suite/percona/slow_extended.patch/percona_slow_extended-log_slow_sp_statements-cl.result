@@ -1,0 +1,3 @@
+show global variables like 'log_slow_sp_statements';
+Variable_name	Value
+log_slow_sp_statements	ON

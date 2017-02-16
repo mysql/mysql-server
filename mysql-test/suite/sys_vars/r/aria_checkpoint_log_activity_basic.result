@@ -1,0 +1,43 @@
+SET @start_global_value = @@global.aria_checkpoint_log_activity;
+select @@global.aria_checkpoint_log_activity;
+@@global.aria_checkpoint_log_activity
+1048576
+select @@session.aria_checkpoint_log_activity;
+ERROR HY000: Variable 'aria_checkpoint_log_activity' is a GLOBAL variable
+show global variables like 'aria_checkpoint_log_activity';
+Variable_name	Value
+aria_checkpoint_log_activity	1048576
+show session variables like 'aria_checkpoint_log_activity';
+Variable_name	Value
+aria_checkpoint_log_activity	1048576
+select * from information_schema.global_variables where variable_name='aria_checkpoint_log_activity';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_CHECKPOINT_LOG_ACTIVITY	1048576
+select * from information_schema.session_variables where variable_name='aria_checkpoint_log_activity';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_CHECKPOINT_LOG_ACTIVITY	1048576
+set global aria_checkpoint_log_activity=1;
+select @@global.aria_checkpoint_log_activity;
+@@global.aria_checkpoint_log_activity
+1
+set session aria_checkpoint_log_activity=1;
+ERROR HY000: Variable 'aria_checkpoint_log_activity' is a GLOBAL variable and should be set with SET GLOBAL
+set global aria_checkpoint_log_activity=1.1;
+ERROR 42000: Incorrect argument type to variable 'aria_checkpoint_log_activity'
+set global aria_checkpoint_log_activity=1e1;
+ERROR 42000: Incorrect argument type to variable 'aria_checkpoint_log_activity'
+set global aria_checkpoint_log_activity="foo";
+ERROR 42000: Incorrect argument type to variable 'aria_checkpoint_log_activity'
+set global aria_checkpoint_log_activity=0;
+select @@global.aria_checkpoint_log_activity;
+@@global.aria_checkpoint_log_activity
+0
+set global aria_checkpoint_log_activity=cast(-1 as unsigned int);
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1292	Truncated incorrect aria_checkpoint_log_activity value: '18446744073709551615'
+select @@global.aria_checkpoint_log_activity;
+@@global.aria_checkpoint_log_activity
+4294967295
+SET @@global.aria_checkpoint_log_activity = @start_global_value;

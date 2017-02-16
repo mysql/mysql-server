@@ -1,7 +1,9 @@
-drop table if exists t1,t2,t3,t4,t9,`t1a``b`,v1,v2,v3,v4,v5,v6;
-drop view if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
+drop table if exists t1,t2,t3,t4,t5,t6,t9,`t1a``b`,v1,v2,v3,v4,v5,v6;
+drop view if exists t1,t2,t3,t4,t5,t6,t9,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop database if exists mysqltest;
 use test;
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 create view v1 (c,d) as select a,b from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 create temporary table t1 (a int, b int);
@@ -117,7 +119,7 @@ c
 12
 explain extended select c from v5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	<derived3>	ALL	NULL	NULL	NULL	NULL	5	100.00	
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
 Warnings:
 Note	1003	select (`v2`.`c` + 1) AS `c` from `test`.`v2`
@@ -155,13 +157,13 @@ v5	VIEW
 v6	VIEW
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	10	Fixed	5	9	45	#	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
-v1	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
-v2	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
-v3	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
-v4	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
-v5	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
-v6	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+t1	MyISAM	10	Fixed	5	9	45	#	1024	0	NULL	#	#	#	latin1_swedish_ci	NULL		
+v1	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	#	NULL	NULL	NULL	VIEW
+v2	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	#	NULL	NULL	NULL	VIEW
+v3	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	#	NULL	NULL	NULL	VIEW
+v4	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	#	NULL	NULL	NULL	VIEW
+v5	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	#	NULL	NULL	NULL	VIEW
+v6	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	#	NULL	NULL	NULL	VIEW
 drop view v1,v2,v3,v4,v5,v6;
 create view v1 (c,d,e,f) as select a,b,
 a in (select a+2 from t1), a = all (select a from t1) from t1;
@@ -237,7 +239,7 @@ a
 3
 explain select * from v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary
 select * from t1;
 a
@@ -844,6 +846,24 @@ Warnings:
 Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v1;
 drop table t1;
+create table t1 (a varchar(20));
+create view v1 as select a from t1;
+alter table t1 change a aa int;
+select * from v1;
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	0	0	0	#	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+v1	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Warnings:
+Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
+Warnings:
+Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+drop view v1;
+drop table t1;
 create view v1 as select 99999999999999999999999999999999999999999999999999999 as col1;
 show create view v1;
 View	Create View	character_set_client	collation_connection
@@ -1418,10 +1438,10 @@ a	a	b
 explain extended select * from t3 left join v3 on (t3.a = v3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join `test`.`t2` on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`a` = `test`.`t1`.`a`)) where 1
+Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t3`.`a`))) on((`test`.`t1`.`a` = `test`.`t3`.`a`)) where 1
 create view v1 (a) as select a from t1;
 create view v2 (a) as select a from t2;
 create view v4 (a,b) as select v1.a as a, v2.a as b from v1 left join v2 on (v1.a=v2.a);
@@ -1433,10 +1453,10 @@ a	a	b
 explain extended select * from t3 left join v4 on (t3.a = v4.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join (`test`.`t2`) on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`a` = `test`.`t1`.`a`)) where 1
+Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join (`test`.`t2`) on((`test`.`t2`.`a` = `test`.`t3`.`a`))) on((`test`.`t1`.`a` = `test`.`t3`.`a`)) where 1
 prepare stmt1 from "select * from t3 left join v4 on (t3.a = v4.a);";
 execute stmt1;
 a	a	b
@@ -2345,15 +2365,15 @@ CREATE VIEW v2 AS SELECT t3.* FROM t1,t3 WHERE t1.a=t3.a;
 EXPLAIN SELECT t1.* FROM t1 JOIN t2 WHERE t1.a=t2.a AND t1.b=t2.b AND t1.a=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	a	a	5	const	1	Using where; Using index
-1	SIMPLE	t2	ref	a	a	10	const,test.t1.b	1	Using where; Using index
+1	SIMPLE	t2	ref	a	a	10	const,test.t1.b	1	Using index
 EXPLAIN SELECT * FROM v1 WHERE a=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	a	a	5	const	1	Using where; Using index
-1	SIMPLE	t2	ref	a	a	10	const,test.t1.b	1	Using where; Using index
+1	SIMPLE	t2	ref	a	a	10	const,test.t1.b	1	Using index
 EXPLAIN SELECT * FROM v2 WHERE a=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	5	const	1	Using where; Using index
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
+1	SIMPLE	t1	ref	a	a	5	const	1	Using index
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
 DROP VIEW v1,v2;
 DROP TABLE t1,t2,t3;
 create table t1 (f1 int);
@@ -3136,17 +3156,18 @@ Warnings:
 Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f2`
 select * from v1 order by f1;
 f1	f2
-1	1
 1	2
 1	3
+1	1
+2	3
 2	1
 2	2
-2	3
 explain extended select * from v1 order by f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
 Warnings:
-Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1`,`test`.`t1`.`f2`
+Note	1926	View 'test'.'v1' ORDER BY clause ignored because there is other ORDER BY clause already.
+Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1`
 drop view v1;
 drop table t1;
 CREATE TABLE t1 (
@@ -3823,7 +3844,7 @@ CREATE TABLE t1 (c INT);
 CREATE VIEW v1 (view_column) AS SELECT c AS alias FROM t1 HAVING alias;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`c` AS `view_column` from `t1` having `view_column`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`c` AS `view_column` from `t1` having (`view_column` <> 0)	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 view_column
 
@@ -4021,9 +4042,669 @@ SELECT * FROM v1;
 a
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# LP BUG#777809 (a retrograded condition for view ON)
+#
+CREATE TABLE t1 ( f1 int NOT NULL , f6 int NOT NULL ) ;
+INSERT IGNORE INTO t1 VALUES (20, 2);
+CREATE TABLE t2 ( f3 int NOT NULL ) ;
+INSERT IGNORE INTO t2 VALUES (7);
+CREATE OR REPLACE VIEW v2 AS SELECT * FROM t2;
+PREPARE prep_stmt FROM 'SELECT t1.f6 FROM t1 RIGHT JOIN v2 ON v2.f3 WHERE t1.f1 != 0';
+EXECUTE prep_stmt;
+f6
+2
+EXECUTE prep_stmt;
+f6
+2
+drop view v2;
+drop table t1,t2;
 # -----------------------------------------------------------------
 # -- End of 5.1 tests.
 # -----------------------------------------------------------------
+#
+# Bug #794005: crash in st_table::mark_virtual_columns_for_write
+#
+CREATE TABLE t1 (a int);
+insert into t1 values (1);
+CREATE TABLE t2 (a int);
+insert into t2 values (1);
+CREATE VIEW v2 AS SELECT * FROM t2;
+CREATE VIEW v1 AS SELECT * FROM v2;
+CREATE VIEW v3 AS SELECT t2.a,v1.a as b FROM t2,v1 where t2.a=v1.a;
+CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW v2 AS SELECT * FROM t1;
+UPDATE v1 SET a = 10;
+ERROR HY000: The target table v1 of the UPDATE is not updatable
+REPLACE v1 SET a = 10;
+ERROR HY000: The target table v1 of the INSERT is not insertable-into
+INSERT into v1 values (20);
+ERROR HY000: The target table v1 of the INSERT is not insertable-into
+DELETE from v1;
+ERROR HY000: The target table v1 of the DELETE is not updatable
+UPDATE v3 SET b= 10;
+ERROR HY000: The target table v2 of the UPDATE is not updatable
+REPLACE v3 SET b= 10;
+ERROR HY000: The target table v3 of the INSERT is not insertable-into
+INSERT into v3(b) values (20);
+ERROR HY000: The target table v3 of the INSERT is not insertable-into
+DELETE from v3 where b=20;
+ERROR HY000: Can not delete from join view 'test.v3'
+DELETE from v3 where a=20;
+ERROR HY000: Can not delete from join view 'test.v3'
+DELETE v1 from v1,t1 where v1.a=t1.a;
+ERROR HY000: The target table v1 of the DELETE is not updatable
+UPDATE v3 SET a = 10;
+REPLACE v3 SET a = 11;
+INSERT INTO v3(a) values (20);
+select * from t1;
+a
+1
+select * from t2;
+a
+10
+11
+20
+CREATE OR REPLACE ALGORITHM = MERGE VIEW v2 AS SELECT * FROM t2;
+DELETE from v1 where a=11;
+DELETE v1 from v1,t1 where v1.a=t1.a;
+select * from t1;
+a
+1
+select * from t2;
+a
+10
+20
+DROP VIEW v1,v2,v3;
+DROP TABLE t1,t2;
+#
+# MDEV-6251: SIGSEGV in query optimizer (in set_check_materialized 
+# with MERGE view)
+#
+CREATE TABLE t1 (a1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t2 (b1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t3 (c1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t4 (d1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t5 (e1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t6 (f1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE OR REPLACE view v1 AS
+SELECT 1
+FROM t1 a_alias_1
+LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+;
+SELECT 1
+FROM ((  SELECT 1
+FROM t1 a_alias_1
+LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t1)
+LEFT OUTER JOIN ((  SELECT 1
+FROM t1 a_alias_1
+LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t2) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+FROM t1 a_alias_1
+LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t3) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+FROM t1 a_alias_1
+LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t4) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+FROM t1 a_alias_1
+LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t5) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+FROM t1 a_alias_1
+LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t6) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+FROM t1 a_alias_1
+LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t7) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+FROM t1 a_alias_1
+LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t8) ON 1=1
+;
+1
+SELECT 1
+FROM (v1 t1)
+LEFT OUTER JOIN (v1 t2) ON 1=1
+LEFT OUTER JOIN (v1 t3) ON 1=1
+LEFT OUTER JOIN (v1 t4) ON 1=1
+LEFT OUTER JOIN (v1 t5) ON 1=1
+LEFT OUTER JOIN (v1 t6) ON 1=1
+LEFT OUTER JOIN (v1 t7) ON 1=1
+LEFT OUTER JOIN (v1 t8) ON 1=1
+;
+1
+drop view v1;
+drop table t1,t2,t3,t4,t5,t6;
+# -----------------------------------------------------------------
+# -- End of 5.2 tests.
+# -----------------------------------------------------------------
+#
+# Bug #59696 Optimizer does not use equalities for conditions over view 
+#
+CREATE TABLE t1 (a int NOT NULL);
+INSERT INTO t1 VALUES 
+(9), (2), (8), (1), (3), (4), (2), (5),
+(9), (2), (8), (1), (3), (4), (2), (5);
+CREATE TABLE t2 (pk int PRIMARY KEY, c int NOT NULL);
+INSERT INTO t2 VALUES
+(9,90), (16, 160), (11,110), (1,10), (18,180), (2,20),
+(14,140), (15, 150), (12,120), (3,30), (17,170), (19,190);
+EXPLAIN EXTENDED
+SELECT t1.a,t2.c  FROM t1,t2 WHERE t2.pk = t1.a AND t2.pk > 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`pk` = `test`.`t1`.`a`) and (`test`.`t1`.`a` > 8))
+FLUSH STATUS;
+SELECT t1.a,t2.c  FROM t1,t2 WHERE t2.pk = t1.a AND t2.pk > 8;
+a	c
+9	90
+9	90
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	17
+CREATE VIEW v AS SELECT * FROM t2;
+EXPLAIN EXTENDED
+SELECT t1.a,v.c  FROM t1,v WHERE v.pk = t1.a AND v.pk > 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`pk` = `test`.`t1`.`a`) and (`test`.`t1`.`a` > 8))
+FLUSH STATUS;
+SELECT t1.a,v.c  FROM t1,v WHERE v.pk = t1.a AND v.pk > 8;
+a	c
+9	90
+9	90
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	17
+DROP VIEW v;
+DROP TABLE t1, t2;
+#
+# Bug#702403: crash with multiple equalities and a view
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (10);
+CREATE TABLE t2 (pk int PRIMARY KEY, b int, INDEX idx (b));
+INSERT INTO t2 VALUES (1,2), (3,4);
+CREATE TABLE t3 (pk int PRIMARY KEY, b int, INDEX idx (b));
+INSERT INTO t3 VALUES (1,2), (3,4);
+CREATE VIEW v1 AS SELECT * FROM t1;
+EXPLAIN 
+SELECT * FROM v1, t2, t3 
+WHERE t3.pk = v1.a AND t2.b = 1 AND t2.b = t3.pk AND v1.a BETWEEN 2 AND 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+SELECT * FROM v1, t2, t3 
+WHERE t3.pk = v1.a AND t2.b = 1 AND t2.b = t3.pk AND v1.a BETWEEN 2 AND 5;
+a	pk	b	pk	b
+DROP VIEW v1;
+DROP TABLE t1, t2, t3;
+#
+# Bug#717577: substitution for best field in a query over a view and
+#             with OR in the WHERE condition 
+#
+create table t1 (a int, b int);
+insert into t1 values (2,4), (1,3);
+create table t2 (c int);
+insert into t2 values (6), (4), (1), (3), (8), (3), (4), (2);
+select * from t1,t2 where t2.c=t1.a and t2.c < 3 or t2.c=t1.b and t2.c >=4;
+a	b	c
+2	4	4
+1	3	1
+2	4	4
+2	4	2
+explain extended
+select * from t1,t2 where t2.c=t1.a and t2.c < 3 or t2.c=t1.b and t2.c >=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where (((`test`.`t2`.`c` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < 3)) or ((`test`.`t2`.`c` = `test`.`t1`.`b`) and (`test`.`t1`.`b` >= 4)))
+create view v1 as select * from t2;
+select * from t1,v1 where v1.c=t1.a and v1.c < 3 or v1.c=t1.b and v1.c >=4;
+a	b	c
+2	4	4
+1	3	1
+2	4	4
+2	4	2
+explain extended
+select * from t1,v1 where v1.c=t1.a and v1.c < 3 or v1.c=t1.b and v1.c >=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where (((`test`.`t2`.`c` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < 3)) or ((`test`.`t2`.`c` = `test`.`t1`.`b`) and (`test`.`t1`.`b` >= 4)))
+create view v2 as select * from v1;
+select * from t1,v2 where v2.c=t1.a and v2.c < 3 or v2.c=t1.b and v2.c >=4;
+a	b	c
+2	4	4
+1	3	1
+2	4	4
+2	4	2
+explain extended
+select * from t1,v2 where v2.c=t1.a and v2.c < 3 or v2.c=t1.b and v2.c >=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where (((`test`.`t2`.`c` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < 3)) or ((`test`.`t2`.`c` = `test`.`t1`.`b`) and (`test`.`t1`.`b` >= 4)))
+create view v3 as select * from t1;
+select * from v3,v2 where v2.c=v3.a and v2.c < 3 or v2.c=v3.b and v2.c >=4;
+a	b	c
+2	4	4
+1	3	1
+2	4	4
+2	4	2
+explain extended
+select * from v3,v2 where v2.c=v3.a and v2.c < 3 or v2.c=v3.b and v2.c >=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where (((`test`.`t2`.`c` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < 3)) or ((`test`.`t2`.`c` = `test`.`t1`.`b`) and (`test`.`t1`.`b` >= 4)))
+drop view v1,v2,v3;
+drop table t1,t2;
+#
+# Bug#724942: substitution of the constant into a view field
+#              
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (2), (9), (9), (6), (5), (4), (7);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT * FROM v1 WHERE a > -1 OR a > 6 AND a = 3;
+a
+2
+9
+9
+6
+5
+4
+7
+EXPLAIN EXTENDED
+SELECT * FROM v1 WHERE a > -1 OR a > 6 AND a = 3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > <cache>(-(1)))
+SELECT * FROM v1 WHERE a > -1 OR a AND a = 0;
+a
+2
+9
+9
+6
+5
+4
+7
+EXPLAIN EXTENDED
+SELECT * FROM v1 WHERE a > -1 OR a AND a = 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > <cache>(-(1)))
+CREATE VIEW v2 AS SELECT * FROM v1;
+SELECT * FROM v2 WHERE a > -1 OR a AND a = 0;
+a
+2
+9
+9
+6
+5
+4
+7
+EXPLAIN EXTENDED
+SELECT * FROM v2 WHERE a > -1 OR a AND a = 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > <cache>(-(1)))
+DROP VIEW v1,v2;
+DROP TABLE t1;
+CREATE TABLE t1 (a varchar(10), KEY (a)) ;
+INSERT INTO t1 VALUES
+('DD'), ('ZZ'), ('ZZ'), ('KK'), ('FF'), ('HH'),('MM');
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT * FROM v1 WHERE a > 'JJ' OR a <> 0 AND a = 'VV';
+a
+KK
+MM
+ZZ
+ZZ
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'VV'
+EXPLAIN EXTENDED
+SELECT * FROM v1 WHERE a > 'JJ' OR a <> 0 AND a = 'VV';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	range	a	a	13	NULL	4	100.00	Using where; Using index
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'VV'
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 'JJ')
+SELECT * FROM v1 WHERE a > 'JJ' OR a AND a = 'VV';
+a
+KK
+MM
+ZZ
+ZZ
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'VV'
+EXPLAIN EXTENDED
+SELECT * FROM v1 WHERE a > 'JJ' OR a AND a = 'VV';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	range	a	a	13	NULL	4	100.00	Using where; Using index
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'VV'
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 'JJ')
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# Bug#777745: crash  with equality propagation 
+#             over view fields
+#
+CREATE TABLE t1 (a int NOT NULL ) ;
+INSERT INTO t1 VALUES (2), (1);
+CREATE TABLE t2 (a int NOT NULL , b int NOT NULL) ;
+INSERT INTO t2 VALUES (2,20),(2,30);
+CREATE VIEW  v2 AS SELECT * FROM t2;
+EXPLAIN
+SELECT * FROM t1,v2 
+WHERE v2.a = t1.a AND v2.a = 2 AND v2.a IS NULL AND t1.a != 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+SELECT * FROM t1,v2 
+WHERE v2.a = t1.a AND v2.a = 2 AND v2.a IS NULL AND t1.a != 0;
+a	a	b
+EXPLAIN
+SELECT * FROM t1,v2 
+WHERE v2.a = t1.a AND v2.a = 2 AND v2.a+1 > 2 AND t1.a != 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+SELECT * FROM t1,v2 
+WHERE v2.a = t1.a AND v2.a = 2 AND v2.a+1 > 2 AND t1.a != 0;
+a	a	b
+2	2	20
+2	2	30
+DROP VIEW v2;
+DROP TABLE t1,t2;
+#
+# Bug#794038: crash  with INSERT/UPDATE/DELETE 
+#             over a non-updatable view
+#
+CREATE TABLE t1 (a int);
+CREATE ALGORITHM = TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+CREATE ALGORITHM = MERGE VIEW v2 AS SELECT * FROM v1;
+CREATE ALGORITHM = TEMPTABLE VIEW v3 AS SELECT * FROM v2;
+INSERT INTO v3 VALUES (1);
+ERROR HY000: The target table v3 of the INSERT is not insertable-into
+UPDATE v3 SET a=0;
+ERROR HY000: The target table v3 of the UPDATE is not updatable
+DELETE FROM v3;
+ERROR HY000: The target table v3 of the DELETE is not updatable
+DROP VIEW v1,v2,v3;
+DROP TABLE t1;
+#
+# Bug#798621: crash with a view string field equal  
+#             to a constant
+#
+CREATE TABLE t1 (a varchar(32), b int) ;
+INSERT INTO t1 VALUES ('j', NULL), ('c', 8), ('c', 1);
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE TABLE t2 (a varchar(32)) ;
+INSERT INTO t2 VALUES ('j'), ('c');
+SELECT * FROM v1 LEFT JOIN t2 ON t2.a = v1.a 
+WHERE v1.b = 1 OR v1.a = 'a' AND LENGTH(v1.a) >= v1.b;
+a	b	a
+c	1	c
+EXPLAIN EXTENDED
+SELECT * FROM v1 LEFT JOIN t2 ON t2.a = v1.a 
+WHERE v1.b = 1 OR v1.a = 'a' AND LENGTH(v1.a) >= v1.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where ((`test`.`t1`.`b` = 1) or ((`test`.`t1`.`a` = 'a') and (length(`test`.`t1`.`a`) >= `test`.`t1`.`b`)))
+DROP VIEW v1;
+DROP TABLE t1,t2;
+# Bug#798625: duplicate of the previous one, but without crash  
+CREATE TABLE t1 (f1 int NOT NULL, f2 int, f3 int, f4 varchar(32), f5 int) ;
+INSERT INTO t1 VALUES (20,5,2,'r', 0);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT v1.f4 FROM v1 
+WHERE f1<>0 OR f2<>0 AND f4='v' AND (f2<>0 OR f3<>0 AND f5<>0 OR f4 LIKE '%b%');
+f4
+r
+EXPLAIN EXTENDED
+SELECT v1.f4 FROM v1 
+WHERE f1<>0 OR f2<>0 AND f4='v' AND (f2<>0 OR f3<>0 AND f5<>0 OR f4 LIKE '%b%');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+Warnings:
+Note	1003	select 'r' AS `f4` from dual where 1
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# Bug#798576: abort on a GROUP BY query over a view with left join 
+#             that can be converted to inner join
+#
+CREATE TABLE t1 (a int NOT NULL , b int NOT NULL) ;
+INSERT INTO t1 VALUES (214,0), (6,6), (6,0), (7,0);
+CREATE TABLE t2 (b int) ;
+INSERT INTO t2 VALUES (88), (78), (6);
+CREATE ALGORITHM=MERGE VIEW v1 AS 
+SELECT t1.a, t2.b FROM (t2 LEFT JOIN t1 ON t2.b > t1.a) WHERE t1.b <= 0;
+SELECT * FROM v1;
+a	b
+6	88
+6	78
+7	88
+7	78
+SELECT a, MIN(b) FROM v1 GROUP BY a;
+a	MIN(b)
+6	78
+7	78
+DROP VIEW v1;
+DROP TABLE t1,t2;
+#
+# LP bug #793386: unexpected 'Duplicate column name ''' error
+#                 at the second execution of a PS using a view 
+#
+CREATE TABLE t1 (f1 int, f2 int, f3 int, f4 int);
+CREATE VIEW v1 AS
+SELECT t.f1, t.f2, s.f3, s.f4 FROM t1 t, t1 s
+WHERE t.f4 >= s.f2 AND s.f3 < 0;
+PREPARE stmt1 FROM 
+"SELECT s.f1 AS f1, s.f2 AS f2, s.f3 AS f3, t.f4 AS f4
+    FROM v1 AS t LEFT JOIN v1 AS s ON t.f4=s.f4 WHERE t.f2 <> 1225";
+EXECUTE stmt1;
+f1	f2	f3	f4
+EXECUTE stmt1;
+f1	f2	f3	f4
+DEALLOCATE PREPARE stmt1;
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# LP BUG#806071 (2 views with ORDER BY)
+#
+CREATE TABLE t1 (f1 int);
+INSERT INTO t1 VALUES (1),(1);
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT f1 FROM t1;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT f1 FROM v1 ORDER BY f1;
+SELECT * FROM v2 AS a1, v2 AS a2;
+f1	f1
+1	1
+1	1
+1	1
+1	1
+EXPLAIN EXTENDED SELECT * FROM v2 AS a1, v2 AS a2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<derived3>	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	<derived5>	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (flat, BNL join)
+5	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+Warnings:
+Note	1926	View 'test'.'v2' ORDER BY clause ignored because there is other ORDER BY clause already.
+Note	1003	select `v1`.`f1` AS `f1`,`v1`.`f1` AS `f1` from `test`.`v1` join `test`.`v1` order by `v1`.`f1`
+DROP VIEW v1, v2;
+DROP TABLE t1;
+#
+# LP bug #823189: dependent subquery with RIGHT JOIN
+#                 referencing view in WHERE
+#
+CREATE TABLE t1 (a varchar(32));
+INSERT INTO t1 VALUES ('y'), ('w');
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (10);
+CREATE TABLE t3 (a varchar(32), b int);
+CREATE TABLE t4 (a varchar(32));
+INSERT INTO t4 VALUES ('y'), ('w');
+CREATE VIEW v1 AS SELECT * FROM t1;
+EXPLAIN EXTENDED
+SELECT * FROM t1, t2
+WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
+WHERE t4.a >= t1.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t1`.`a` AS `a`,10 AS `a` from `test`.`t1` where (not(<expr_cache><10,`test`.`t1`.`a`>(<in_optimizer>(10,<exists>(select NULL from `test`.`t4` where ((`test`.`t4`.`a` >= `test`.`t1`.`a`) and trigcond(((<cache>(10) = NULL) or <cache>(isnull(NULL))))) having trigcond(<is_not_null_test>(NULL)))))))
+SELECT * FROM t1, t2
+WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
+WHERE t4.a >= t1.a);
+a	a
+EXPLAIN EXTENDED
+SELECT * FROM v1, t2
+WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
+WHERE t4.a >= v1.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'v1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t1`.`a` AS `a`,10 AS `a` from `test`.`t1` where (not(<expr_cache><10,`test`.`t1`.`a`>(<in_optimizer>(10,<exists>(select NULL from `test`.`t4` where ((`test`.`t4`.`a` >= `test`.`t1`.`a`) and trigcond(((<cache>(10) = NULL) or <cache>(isnull(NULL))))) having trigcond(<is_not_null_test>(NULL)))))))
+SELECT * FROM v1, t2
+WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
+WHERE t4.a >= v1.a);
+a	a
+DROP VIEW v1;
+DROP TABLE t1,t2,t3,t4;
+#
+# LP bug #823237: dependent subquery with LEFT JOIN
+#                 referencing view in WHERE
+# (duplicate of LP bug #823189)
+# 
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 ( b int, d int, e int);
+INSERT INTO t2 VALUES (7,8,0);
+CREATE TABLE t3 ( c int);
+INSERT INTO t3 VALUES (0);
+CREATE TABLE t4 (a int, b int, c int);
+INSERT INTO t4 VALUES (93,1,0), (95,NULL,0);
+CREATE VIEW v4 AS SELECT * FROM t4;
+EXPLAIN EXTENDED
+SELECT * FROM t3 , t4 
+WHERE t4.c <= (SELECT t2.e FROM t2 LEFT JOIN t1 ON ( t1.a = t2.d )
+WHERE t2.b > t4.b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+2	DEPENDENT SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+Warnings:
+Note	1276	Field or reference 'test.t4.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	select 0 AS `c`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c` from `test`.`t4` where (`test`.`t4`.`c` <= <expr_cache><`test`.`t4`.`b`>((select 0 from dual where (7 > `test`.`t4`.`b`))))
+SELECT * FROM t3 , t4 
+WHERE t4.c <= (SELECT t2.e FROM t2 LEFT JOIN t1 ON ( t1.a = t2.d )
+WHERE t2.b > t4.b);
+c	a	b	c
+0	93	1	0
+EXPLAIN EXTENDED
+SELECT * FROM t3, v4 
+WHERE v4.c <= (SELECT t2.e FROM t2 LEFT JOIN t1 ON ( t1.a = t2.d )
+WHERE t2.b > v4.b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+2	DEPENDENT SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+Warnings:
+Note	1276	Field or reference 'v4.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	select 0 AS `c`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c` from `test`.`t4` where (`test`.`t4`.`c` <= <expr_cache><`test`.`t4`.`b`>((select 0 from dual where (7 > `test`.`t4`.`b`))))
+SELECT * FROM t3, v4 
+WHERE v4.c <= (SELECT t2.e FROM t2 LEFT JOIN t1 ON ( t1.a = t2.d )
+WHERE t2.b > v4.b);
+c	a	b	c
+0	93	1	0
+DROP VIEW v4;
+DROP TABLE t1,t2,t3,t4;
 drop table if exists t_9801;
 drop view if exists v_9801;
 create table t_9801 (s1 int);
@@ -4122,6 +4803,8 @@ CREATE VIEW v3 AS (SELECT 'BUG#14117018' AS col1 FROM DUAL) UNION ALL
 CREATE VIEW v4 AS (SELECT 'BUG#14117018' AS col1 FROM DUAL) UNION ALL
 (SELECT '' AS col2 FROM DUAL) UNION ALL
 (SELECT '' FROM DUAL);
+CREATE VIEW v5 AS (SELECT 'buggy' AS col1, 'fix' as col2 FROM DUAL) UNION ALL
+(SELECT 'buggy' as a, 'fix' as a FROM DUAL);
 # Name for the column in select1 is set properly with or
 # without this fix.
 SHOW CREATE VIEW v1;
@@ -4132,20 +4815,20 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 # columns in select2.
 SHOW CREATE VIEW v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS (select 'BUG#14117018' AS `col1`) union all (select '' AS `Name_exp_2`)	latin1	latin1_swedish_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS (select 'BUG#14117018' AS `col1`) union all (select '' AS `Name_exp_1`)	latin1	latin1_swedish_ci
 # Name for the field item in select2 & select3 is set with this fix.
 # Without this fix, name would not have set for the
 # columns in select2 & select3.
 SHOW CREATE VIEW v3;
 View	Create View	character_set_client	collation_connection
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS (select 'BUG#14117018' AS `col1`) union all (select '' AS `Name_exp_2`) union all (select '' AS `Name_exp_3`)	latin1	latin1_swedish_ci
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS (select 'BUG#14117018' AS `col1`) union all (select '' AS `Name_exp_1`) union all (select '' AS `Name_exp_1`)	latin1	latin1_swedish_ci
 # Name for the field item in select3 is set with this fix.
 # Without this fix, name would not have set for the
 # columns in select3.
 SHOW CREATE VIEW v4;
 View	Create View	character_set_client	collation_connection
-v4	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS (select 'BUG#14117018' AS `col1`) union all (select '' AS `col2`) union all (select '' AS `Name_exp_3`)	latin1	latin1_swedish_ci
-DROP VIEW v1, v2, v3, v4;
+v4	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS (select 'BUG#14117018' AS `col1`) union all (select '' AS `col2`) union all (select '' AS `Name_exp_1`)	latin1	latin1_swedish_ci
+DROP VIEW v1, v2, v3, v4, v5;
 #
 # BUG#19886430: VIEW CREATION WITH NAMED COLUMNS, OVER UNION,
 #               IS REJECTED
@@ -4181,3 +4864,678 @@ SELECT 1 AS a, 1 AS a;
 ERROR 42S21: Duplicate column name 'a'
 # Cleanup
 DROP VIEW v1, v2, v3;
+#
+# lp:833600 Wrong result with view + outer join + uncorrelated subquery (non-semijoin) 
+#
+CREATE TABLE t1 ( a int, b int );
+INSERT INTO t1 VALUES (0,0),(0,0);
+CREATE TABLE t2 ( a int, b int );
+INSERT IGNORE INTO t2 VALUES (1,0),(1,0);
+CREATE TABLE t3 ( b int );
+INSERT IGNORE INTO t3 VALUES (0),(0);
+CREATE OR REPLACE VIEW v2 AS SELECT * FROM t2;
+SELECT * FROM t1 RIGHT JOIN v2 ON ( v2.a = t1.a ) WHERE v2.b IN ( SELECT b FROM t3 ) AND t1.b IS NULL ;
+a	b	a	b
+NULL	NULL	1	0
+NULL	NULL	1	0
+SELECT * FROM t1 RIGHT JOIN v2 ON ( v2.a = t1.a ) WHERE v2.b IN ( SELECT b FROM t3 ) AND t1.b IS NULL ;
+a	b	a	b
+NULL	NULL	1	0
+NULL	NULL	1	0
+DROP VIEW v2;
+DROP TABLE t1, t2, t3;
+#
+# BUG#915222: Valgrind complains or crashes with INSERT SELECT
+#              within a trigger that uses a view
+#
+CREATE TABLE t1 (a char(1));
+CREATE TABLE t2 (d int, e char(1));
+INSERT INTO t2 VALUES (13,'z');
+CREATE TRIGGER tr AFTER UPDATE ON t2
+FOR EACH ROW
+REPLACE INTO t3
+SELECT f, a AS alias FROM t3, v;
+CREATE TABLE t3 (f int, g char(8));
+CREATE VIEW v AS SELECT a, e FROM t2, t1;
+UPDATE t2 SET d=7;
+UPDATE t2 SET d=7;
+UPDATE t2 SET d=7;
+UPDATE t2 SET d=7;
+DROP TRIGGER tr;
+DROP VIEW v;
+DROP TABLE t1,t2,t3;
+#
+# BUG#972943: Assertion failure with INSERT SELECT within a trigger 
+#             that uses derived table and materialized view
+#
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (1,0), (2,8);
+CREATE ALGORITHM=TEMPTABLE VIEW v1
+AS SELECT * FROM t1;
+CREATE TABLE t2 (c int);
+CREATE TABLE t3 (d int, e int);
+CREATE TRIGGER tr BEFORE INSERT ON t2 FOR EACH ROW
+INSERT INTO t3
+SELECT t1.*
+FROM (SELECT * FROM t1 WHERE b IN (SELECT b FROM v1)) AS alias1, t1
+WHERE t1.a = 3 OR t1.a > 5;
+INSERT INTO t2 VALUES (1);
+DROP TRIGGER tr;
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+#
+# LP bug#1007622 Server crashes in handler::increment_statistics on
+# inserting into a view over a view
+#
+flush status;
+CREATE TABLE t1 (a INT);
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT a1.* FROM t1 AS a1, t1 AS a2;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT * FROM v1;
+INSERT INTO v2 (a) VALUES (1) ;
+select * from t1;
+a
+1
+drop view v2,v1;
+drop table t1;
+show status like '%view%';
+Variable_name	Value
+Com_create_view	2
+Com_drop_view	1
+Opened_views	3
+show status like 'Opened_table%';
+Variable_name	Value
+Opened_table_definitions	2
+Opened_tables	2
+#
+# MDEV-486 LP BUG#1010116 Incorrect query results in
+# view and derived tables
+#
+SELECT
+`Derived1`.`id`,
+`Derived2`.`Val1`
+FROM (select 30631 as `id`) AS `Derived1` LEFT OUTER JOIN (SELECT
+2 as `id`,
+1 AS `Val1`
+FROM (select 30631 as `id`) AS `Derived3`) AS `Derived2` ON `Derived1`.`id` = `Derived2`.`id`;
+id	Val1
+30631	NULL
+create table t1 ( id int );
+insert into t1 values (30631);
+create table t2 ( id int );
+insert into t2 values (30631);
+create algorithm=MERGE view v2 as select 2 as id, 1 as val1 from t2;
+select t1.*, v2.* from t1 left join v2 on t1.id = v2.id;
+id	id	val1
+30631	NULL	NULL
+drop view v2;
+drop table t1,t2;
+create table t1 ( id int );
+insert into t1 values (30631);
+create table t2 ( id int );
+insert into t2 values (30631);
+create algorithm=MERGE view v2 as select 2 as id, id is null as bbb, id as iddqd, 1 as val1 from t2;
+select t1.*, v2.* from t1 left join v2 on t1.id = v2.id;
+id	id	bbb	iddqd	val1
+30631	NULL	NULL	NULL	NULL
+drop view v2;
+drop table t1,t2;
+#
+# MDEV-3914: Wrong result (NULLs instead of real values)
+# with INNER and RIGHT JOIN in a FROM subquery, derived_merge=on
+# (fix of above MDEV-486 fix)
+#
+SET @save_optimizer_switch_MDEV_3914=@@optimizer_switch;
+SET optimizer_switch = 'derived_merge=on';
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (b INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (3),(4);
+CREATE TABLE t3 (c INT) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (5),(6);
+SELECT * FROM ( SELECT c FROM ( t1 INNER JOIN t2 ) RIGHT JOIN t3 ON a = c ) AS alias;
+c
+5
+6
+SET optimizer_switch = 'derived_merge=off';
+SELECT * FROM ( SELECT c FROM ( t1 INNER JOIN t2 ) RIGHT JOIN t3 ON a = c ) AS alias;
+c
+5
+6
+SET optimizer_switch=@save_optimizer_switch_MDEV_3914;
+drop table t1,t2,t3;
+#
+# MDEV-589 (LP BUG#1007647) :
+# Assertion `vcol_table == 0 || vcol_table == table' failed in
+# fill_record(THD*, List<Item>&, List<Item>&, bool)
+#
+CREATE TABLE t1 (f1 INT, f2 INT);
+CREATE TABLE t2 (f1 INT, f2 INT);
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT a1.f1, a2.f2 FROM t1 AS a1, t1 AS a2;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT * FROM v1;
+CREATE ALGORITHM=MERGE VIEW v3 AS SELECT a1.f1, a2.f2 FROM t1 AS a1, t2 AS a2;
+CREATE ALGORITHM=MERGE VIEW v4 AS SELECT * FROM v3;
+INSERT INTO v3 (f1, f2) VALUES (1, 2);
+ERROR HY000: Can not modify more than one base table through a join view 'test.v3'
+INSERT INTO v1 (f1, f2) VALUES (1, 2);
+ERROR HY000: Can not modify more than one base table through a join view 'test.v1'
+INSERT INTO v4 (f1, f2) VALUES (1, 2);
+ERROR HY000: Can not modify more than one base table through a join view 'test.v4'
+INSERT INTO v2 (f1, f2) VALUES (1, 2);
+ERROR HY000: Can not modify more than one base table through a join view 'test.v2'
+drop view v4,v3,v2,v1;
+drop table t1,t2;
+#
+# MDEV-3799 fix of above bugfix (MDEV-589) 
+# Wrong result (NULLs instead of real values) with RIGHT JOIN
+# in a FROM subquery and derived_merge=on
+#
+CREATE TABLE t1 (f1 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (4),(6);
+CREATE TABLE t2 (f2 INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (7),(8);
+SELECT * FROM (  
+SELECT * FROM t1 RIGHT JOIN t2 ON f1 = f2
+) AS alias;
+f1	f2
+NULL	7
+NULL	8
+SELECT * FROM (  
+SELECT * FROM t2 LEFT JOIN t1 ON f1 = f2
+) AS alias;
+f2	f1
+7	NULL
+8	NULL
+drop tables t1,t2;
+#
+# MDEV-3876 Wrong result (extra rows) with ALL subquery
+# from a MERGE view (duplicate of MDEV-3873)
+#
+CREATE TABLE t1 (a INT NOT NULL) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (b INT NOT NULL) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1),(3);
+CREATE OR REPLACE ALGORITHM=MERGE VIEW v1 AS SELECT * FROM t2;
+SELECT a FROM t1 AS alias
+WHERE a >= ALL ( 
+SELECT b FROM t1 LEFT JOIN v1 ON (a = b) 
+WHERE a = alias.a );
+a
+1
+drop view v1;
+drop table t1,t2;
+#
+# MDEV-4593: p_s: crash in simplify_joins with delete using subselect
+# from view
+#
+create table `t1`(`a` int);
+create table `t2`(`a` int);
+create or replace view `v1` as select `a` from `t1`;
+prepare s from "delete  from `t2` order by (select 1 from `v1`)";
+execute s;
+deallocate prepare s;
+drop view v1;
+drop tables t1,t2;
+#
+# MDEV-5034 (duplicate of MDEV-5107):
+# Left Join Yields All Nulls Instead of Appropriate Matches
+#
+# test #1
+CREATE TABLE t1 (state VARCHAR(32), INDEX(state));
+INSERT INTO t1 VALUES ('Indiana'),('Vermont');
+CREATE TABLE t2 (state VARCHAR(32));
+INSERT INTO t2 VALUES ('Hawaii'),('Oregon'),('Vermont');
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT t1.* FROM t2, t1;
+SELECT * FROM t1 AS outer_t1 LEFT JOIN v1 AS joined_t1
+ON (joined_t1.state = outer_t1.state AND joined_t1.state IN ( SELECT 'Vermont' UNION  SELECT 'Florida' ) );
+state	state
+Indiana	NULL
+Vermont	Vermont
+Vermont	Vermont
+Vermont	Vermont
+SELECT * FROM t1 AS outer_t1 LEFT JOIN (SELECT t1.* FROM t2, t1) AS joined_t1 ON (joined_t1.state = outer_t1.state AND joined_t1.state IN ( SELECT 'Vermont' UNION  SELECT 'Florida' ) );
+state	state
+Indiana	NULL
+Vermont	Vermont
+Vermont	Vermont
+Vermont	Vermont
+drop view v1;
+drop table t1, t2;
+# test #1
+CREATE TABLE t1 (a INT, b VARCHAR(1), INDEX(b,a));
+INSERT INTO t1 VALUES (4,'p'),(1,'q'),(9,'w');
+CREATE TABLE t2 (c VARCHAR(1), INDEX(c));
+INSERT INTO t2 VALUES ('q'),('a');
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT t1a.* FROM t1, t1 AS t1a;
+SELECT * FROM t2 LEFT JOIN v1 ON ( c=b AND a IN ( 1,6 ) );
+c	a	b
+a	NULL	NULL
+q	1	q
+q	1	q
+q	1	q
+CREATE OR REPLACE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT t1a.* FROM t1, t1 AS t1a;
+SELECT * FROM t2 LEFT JOIN v1 ON ( c=b AND a IN ( 1,6 ) );
+c	a	b
+a	NULL	NULL
+q	1	q
+q	1	q
+q	1	q
+drop view v1;
+drop table t1,t2;
+#
+# MDEV-5153: Server crashes in Item_ref::fix_fields on 2nd execution
+# of PS with LEFT JOIN and MERGE view or SELECT SQ
+#
+CREATE TABLE t1 (i1 INT, c1 VARCHAR(6)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,'foo'),(2,'bar');
+CREATE TABLE t2 (c2 VARCHAR(6)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('foobar'),('qux');
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT * FROM t1 WHERE ( c1 ) IN ( SELECT c2 FROM t2 ) AND i1 <= 2 ;
+PREPARE stmt FROM 'SELECT * FROM t1 LEFT JOIN v1 ON (v1.i1 = t1.i1)';
+EXECUTE stmt;
+i1	c1	i1	c1
+1	foo	NULL	NULL
+2	bar	NULL	NULL
+EXECUTE stmt;
+i1	c1	i1	c1
+1	foo	NULL	NULL
+2	bar	NULL	NULL
+drop view v1;
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT * FROM t1 WHERE ( c1, c1 ) IN ( SELECT c2, c2 FROM t2 ) AND i1 <= 2 ;
+EXECUTE stmt;
+i1	c1	i1	c1
+1	foo	NULL	NULL
+2	bar	NULL	NULL
+EXECUTE stmt;
+i1	c1	i1	c1
+1	foo	NULL	NULL
+2	bar	NULL	NULL
+deallocate prepare stmt;
+drop view v1;
+drop table t1,t2;
+create table t1 (a int);
+insert into t1 values (1),(2);
+create view v1 (a,r) as select a,rand() from t1;
+create table t2 select a, r as r1, r as r2, r as r3 from v1;
+select a, r1 = r2, r2 = r3 from t2;
+a	r1 = r2	r2 = r3
+1	1	1
+2	1	1
+drop view v1;
+drop table t1,t2;
+#
+# MDEV-5515: 2nd execution of a prepared statement returns wrong results
+#
+CREATE TABLE t1 (i1 INT, j1 INT NOT NULL, PRIMARY KEY (i1));
+INSERT INTO t1 VALUES (30,300),(40,400);
+CREATE TABLE t2 (i2 INT);
+INSERT INTO t2 VALUES (50),(60);
+CREATE TABLE t3 (c3 VARCHAR(20), i3 INT);
+INSERT INTO t3 VALUES ('a',10),('b',2);
+CREATE TABLE t4 (i4 INT);
+INSERT INTO t4 VALUES (1),(2);
+DROP VIEW IF EXISTS v1;
+Warnings:
+Note	1051	Unknown table 'test.v1'
+CREATE VIEW v1 AS select coalesce(j1,i3) AS v1_field1 from t2 join t3 left join t1 on ( i1 = i2 );
+CREATE VIEW v2 AS select v1_field1 from t4 join v1;
+prepare my_stmt from "select v1_field1 from v2";
+execute my_stmt;
+v1_field1
+10
+10
+10
+10
+2
+2
+2
+2
+execute my_stmt;
+v1_field1
+10
+10
+10
+10
+2
+2
+2
+2
+deallocate prepare my_stmt;
+DROP VIEW v1,v2;
+DROP TABLE t1,t2,t3,t4;
+#
+#MDEV-5717: Server crash with insert statement containing DEFAULT into
+#view
+#
+CREATE TABLE t1 (
+`id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+`test` tinyint(3) unsigned NOT NULL DEFAULT '0',
+PRIMARY KEY (`id`)
+);
+CREATE VIEW v1 AS (select  t1.id AS id,  t1.test AS test from t1);
+INSERT INTO v1 SET test = DEFAULT;
+select * from v1;
+id	test
+1	0
+drop view v1;
+drop table t1;
+#
+# MDEV-5981: name resolution issues with views and multi-update
+# in ps-protocol
+#
+create table t1 (id1 int primary key, val1 varchar(20));
+insert into t1 values (1, 'test1');
+create table t2 (id2 int primary key, val2 varchar(20));
+insert into t2 values (1, 'test2');
+create algorithm=merge view v1 as select id1 as id1v1, val1 as val1v1 from t1;
+create algorithm=merge view v2 as
+select t2.id2 as id2v2, t2.val2 as val2v2
+from t2, v1
+where t2.id2 = v1.id1v1;
+prepare stmt1 from "update v2 set val2v2 = 'test19' where 1 = id2v2";
+execute stmt1;
+deallocate prepare stmt1;
+drop view v1,v2;
+drop table t1,t2;
+#
+# MDEV-6251: SIGSEGV in query optimizer (in set_check_materialized 
+# with MERGE view)
+#
+CREATE TABLE t1 (a1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t2 (b1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t3 (c1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t4 (d1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t5 (e1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t6 (f1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE OR REPLACE view v1 AS
+SELECT 1
+FROM t1 a_alias_1
+LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+;
+SELECT 1
+FROM ((  SELECT 1
+FROM t1 a_alias_1
+LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t1)
+LEFT OUTER JOIN ((  SELECT 1
+FROM t1 a_alias_1
+LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t2) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+FROM t1 a_alias_1
+LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t3) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+FROM t1 a_alias_1
+LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t4) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+FROM t1 a_alias_1
+LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t5) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+FROM t1 a_alias_1
+LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t6) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+FROM t1 a_alias_1
+LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t7) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+FROM t1 a_alias_1
+LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t8) ON 1=1
+;
+1
+SELECT 1
+FROM (v1 t1)
+LEFT OUTER JOIN (v1 t2) ON 1=1
+LEFT OUTER JOIN (v1 t3) ON 1=1
+LEFT OUTER JOIN (v1 t4) ON 1=1
+LEFT OUTER JOIN (v1 t5) ON 1=1
+LEFT OUTER JOIN (v1 t6) ON 1=1
+LEFT OUTER JOIN (v1 t7) ON 1=1
+LEFT OUTER JOIN (v1 t8) ON 1=1
+;
+1
+drop view v1;
+drop table t1,t2,t3,t4,t5,t6;
+# -----------------------------------------------------------------
+# -- End of 5.3 tests.
+# -----------------------------------------------------------------
+#
+# MDEV-3874: Server crashes in Item_field::print on a SELECT
+# from a MERGE view with materialization+semijoin, subquery, ORDER BY
+#
+SET @save_optimizer_switch_MDEV_3874=@@optimizer_switch;
+SET optimizer_switch = 'materialization=on,semijoin=on';
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(7);
+CREATE TABLE t2 (b INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (4),(6);
+CREATE TABLE t3 (c INT) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (1),(2);
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT  
+( SELECT a FROM t1 WHERE ( 1, 1 ) IN ( 
+SELECT b, c FROM t2, t3 HAVING c > 2 ) ) AS field1, 
+b + c AS field2 
+FROM t2, t3 AS table1
+GROUP BY field1, field2 ORDER BY field1;
+Warnings:
+Warning	1354	View merge algorithm can't be used here for now (assumed undefined algorithm)
+SELECT * FROM v1;
+field1	field2
+NULL	5
+NULL	7
+NULL	6
+NULL	8
+drop view v1;
+drop table t1,t2,t3;
+SET optimizer_switch=@save_optimizer_switch_MDEV_3874;
+CREATE TABLE `t1` (
+`id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+`f0` int(11) unsigned NOT NULL DEFAULT '0',
+`f1` int(11) unsigned NOT NULL DEFAULT '0',
+PRIMARY KEY (`id`),
+UNIQUE KEY `id` (`id`)
+);
+CREATE TABLE `t2` (
+`id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+`f02` bigint(20) unsigned NOT NULL DEFAULT '0',
+`f03` int(11) unsigned NOT NULL DEFAULT '0',
+PRIMARY KEY (`id`),
+UNIQUE KEY `id` (`id`)
+);
+CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v1` AS 
+SELECT 
+`t1`.`f0` AS `f0`,
+`t1`.`f1` AS `f1`,
+`t2`.`f02` AS `f02`,
+`t2`.`f03` AS `f03` 
+FROM 
+(`t1` LEFT JOIN `t2` ON((`t1`.`id` = `t2`.`f02`)));
+CREATE FUNCTION `f1`(
+p0 BIGINT(20) UNSIGNED
+)
+RETURNS bigint(20) unsigned
+DETERMINISTIC
+CONTAINS SQL
+SQL SECURITY DEFINER
+COMMENT ''
+BEGIN
+DECLARE k0 INTEGER UNSIGNED DEFAULT 0;
+DECLARE lResult INTEGER UNSIGNED DEFAULT 0;
+SET k0 = 0;
+WHILE k0 < 1 DO
+SELECT COUNT(*) as `f00` INTO lResult  FROM `v1` WHERE `v1`.`f0` = p0; -- BUG
+SET k0 = k0 + 1;
+END WHILE;
+RETURN(k0);
+END|
+SELECT `f1`(1);
+`f1`(1)
+1
+SELECT `f1`(1);
+`f1`(1)
+1
+SELECT `f1`(1);
+`f1`(1)
+1
+SELECT `f1`(1);
+`f1`(1)
+1
+DROP FUNCTION f1;
+DROP VIEW v1;
+DROP TABLE t1, t2;
+create view v1 as select 1;
+drop view v1;
+#
+# MDEV-7260: Crash in get_best_combination when executing multi-table
+# UPDATE with nested views
+#
+CREATE TABLE `t1` (`id` bigint(20));
+INSERT INTO `t1` VALUES (1),(2);
+CREATE TABLE `t2` (`id` bigint(20));
+CREATE TABLE `t3` (`id` bigint(20), `flag` tinyint(4));
+create view v1 as select id from t1;
+create view v2 as select t2.* from (t2 left join v1 using (id));
+update t3 left join v2 using (id) set flag=flag+1;
+drop view v2, v1;
+drop table t1, t2, t3;
+#
+# MDEV-7207 - ALTER VIEW does not change ALGORITM
+#
+create table t1 (a int, b int);
+create algorithm=temptable view v2 (c) as select b+1 from t1;
+show create view v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t1`.`b` + 1) AS `c` from `t1`	latin1	latin1_swedish_ci
+alter algorithm=undefined view v2 (c) as select b+1 from t1;
+show create view v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t1`.`b` + 1) AS `c` from `t1`	latin1	latin1_swedish_ci
+alter algorithm=merge view v2 (c) as select b+1 from t1;
+show create view v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t1`.`b` + 1) AS `c` from `t1`	latin1	latin1_swedish_ci
+drop view v2;
+drop table t1;
+#
+# MDEV-8554: Server crashes in base_list_iterator::next_fast on 1st execution of PS with a multi-table update
+#
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (b INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (3),(4);
+CREATE TABLE t3 (c INT) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (5),(6);
+CREATE OR REPLACE ALGORITHM=MERGE VIEW v3 AS SELECT * FROM t3;
+PREPARE stmt FROM 'UPDATE t1, t2 SET a = 1 WHERE a IN ( SELECT 0 FROM t3 )';
+UPDATE t1, t2 SET a = 1 WHERE a IN ( SELECT 0 FROM v3 );
+EXECUTE stmt;
+DROP TABLE t1, t2, t3;
+DROP VIEW v3;
+#
+# MDEV-8632: Segmentation fault on INSERT
+#
+CREATE TABLE `t1` (
+`id` int(10) unsigned NOT NULL,
+`r` float NOT NULL,
+PRIMARY KEY (`id`)
+) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+create view v1 as select id, if(r=r,1,2) as d from t1;
+create view v2 as
+select id, 
+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d as p
+from v1;
+insert into t1 (id, r)
+select id,p from
+(
+select id, 
+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d+d as p
+from (
+select id, if(r=r,1,2) as d
+from t1
+) a
+) b
+on duplicate key update r=p;
+insert into t1 (id, r)
+select id,p from v2 
+on duplicate key update r=p;
+prepare stmt from "insert into t1 (id, r) select id,p from v2 on duplicate key update r=p";
+execute stmt;
+execute stmt;
+deallocate prepare stmt;
+drop view v1,v2;
+drop table `t1`;
+create table t1 (a int, b int);
+create view v1 as select a+b from t1;
+alter table v1 check partition p1;
+Table	Op	Msg_type	Msg_text
+test.v1	check	Error	'test.v1' is not BASE TABLE
+test.v1	check	status	Operation failed
+drop view v1;
+drop table t1;
+#
+# MDEV-10419: crash in mariadb 10.1.16-MariaDB-1~trusty
+#
+CREATE TABLE t1 (c1 CHAR(13));
+CREATE TABLE t2 (c2 CHAR(13));
+CREATE FUNCTION f() RETURNS INT RETURN 0;
+CREATE OR REPLACE VIEW v1 AS select f() from t1 where c1 in (select c2 from t2);
+DROP FUNCTION f;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `f`() AS `f()` from `t1` where `test`.`t1`.`c1` in (select `test`.`t2`.`c2` from `t2`)	latin1	latin1_swedish_ci
+Warnings:
+Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+drop view v1;
+drop table t1,t2;
+# -----------------------------------------------------------------
+# -- End of 5.5 tests.
+# -----------------------------------------------------------------
+SET optimizer_switch=@save_optimizer_switch;

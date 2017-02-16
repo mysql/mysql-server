@@ -1,0 +1,443 @@
+# Brazilian Portuguese (pt_BR) debconf template translation for
+# Debian's mysql-dfsg source package.
+# Debian-BR Project <debian-l10n-portuguese@lists.debian.org>
+# André Luís Lopes, <andrelop@debian.org> , 2004
+# André Luís Lopes, <andrelop@debian.org> , 2006
+# André Luís Lopes, <andrelop@debian.org> , 2007
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: mysql-dfsg-5.1\n"
+"Report-Msgid-Bugs-To: mariadb-5.5@packages.debian.org\n"
+"POT-Creation-Date: 2012-01-12 13:08+0100\n"
+"PO-Revision-Date: 2007-04-21 15:59-0300\n"
+"Last-Translator: André Luís Lopes <andrelop@debian.org>\n"
+"Language-Team: Debian-BR Project <debian-l10n-portuguese@lists.debian.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"pt_BR utf-8\n"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+msgid "Really proceed with downgrade?"
+msgstr "Realmente proceder com o rebaixamento de versão?"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+msgid "A file named /var/lib/mysql/debian-*.flag exists on this system."
+msgstr "Um arquivo de nome /var/lib/mysql/debian-*.flag existe no sistema."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+#, fuzzy
+#| msgid ""
+#| "Such file is an indication that a mariadb-server package with a higher "
+#| "version has been installed earlier."
+msgid ""
+"Such a file is an indication that a mariadb-server package with a higher "
+"version has been installed previously."
+msgstr ""
+"A presença de um arquivo como este é uma indicação de que um pacote mariadb-"
+"server com um número de versão mais alto já foi instalado anteriormente."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+msgid ""
+"There is no guarantee that the version you're currently installing will be "
+"able to use the current databases."
+msgstr ""
+"Não há garantias de que a versão que você está instalando no momento "
+"conseguirá utilizar as bases de dados existentes."
+
+#. Type: note
+#. Description
+#: ../mariadb-server-5.5.templates:3001
+msgid "Important note for NIS/YP users"
+msgstr "Aviso importante para usuários NIS/YP"
+
+#. Type: note
+#. Description
+#: ../mariadb-server-5.5.templates:3001
+msgid ""
+"Using MariaDB under NIS/YP requires a mysql user account to be added on the "
+"local system with:"
+msgstr ""
+
+#. Type: note
+#. Description
+#: ../mariadb-server-5.5.templates:3001
+#, fuzzy
+#| msgid ""
+#| "You should also check the permissions and the owner of the /var/lib/mysql "
+#| "directory:"
+msgid ""
+"You should also check the permissions and ownership of the /var/lib/mysql "
+"directory:"
+msgstr ""
+"Você deverá também checar as permissões e o dono do diretório /var/lib/mysql:"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:4001
+msgid "Remove all MariaDB databases?"
+msgstr "Remover todas as bases de dados do MariaDB?"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:4001
+msgid ""
+"The /var/lib/mysql directory which contains the MariaDB databases is about "
+"to be removed."
+msgstr ""
+"O diretório /var/lib/mysql, o qual contém as bases de dados do MariaDB, está "
+"prestes a ser removido."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:4001
+msgid ""
+"If you're removing the MariaDB package in order to later install a more "
+"recent version or if a different mariadb-server package is already using it, "
+"the data should be kept."
+msgstr ""
+"Caso você esteja removendo o pacote MariaDB para posteriormente instalar uma "
+"versão mais recente ou, caso uma versão diferente do pacote mariadb-server "
+"esteja sendo utilizada, os dados deverão ser mantidos."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:5001
+msgid "Start the MariaDB server on boot?"
+msgstr "Iniciar o servidor MariaDB junto a inicialização da máquina?"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:5001
+msgid ""
+"The MariaDB server can be launched automatically at boot time or manually "
+"with the '/etc/init.d/mysql start' command."
+msgstr ""
+"O servidor MariaDB pode ser iniciado automaticamente junto a inicialização "
+"da máquina ou manualmente com o comando '/etc/init.d/mysql start'."
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:6001
+msgid "New password for the MariaDB \"root\" user:"
+msgstr "Nova senha para o usuário \"root\" do MariaDB:"
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:6001
+msgid ""
+"While not mandatory, it is highly recommended that you set a password for "
+"the MariaDB administrative \"root\" user."
+msgstr ""
+"Apesar de não ser mandatório, é altamente recomendado que você defina uma "
+"senha para o usuário administrativo \"root\" do MariaDB."
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:6001
+#, fuzzy
+#| msgid "If that field is left blank, the password will not be changed."
+msgid "If this field is left blank, the password will not be changed."
+msgstr "Caso este campo seja deixado em branco, a senha não sera mudada."
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:7001
+#, fuzzy
+#| msgid "New password for the MySQL \"root\" user:"
+msgid "Repeat password for the MariaDB \"root\" user:"
+msgstr "Nova senha para o usuário \"root\" do MariaDB:"
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+msgid "Unable to set password for the MariaDB \"root\" user"
+msgstr "Impossível definir senha para o usuário \"root\" do MariaDB"
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+msgid ""
+"An error occurred while setting the password for the MariaDB administrative "
+"user. This may have happened because the account already has a password, or "
+"because of a communication problem with the MariaDB server."
+msgstr ""
+"Um erro ocorreu durante a definição da senha para o usuário administrativo "
+"do MariaDB. Isso pode ter acontecido devido a esse usuário já possuir uma "
+"senha definida ou devido a ocorrência de um problema de comunicação com o "
+"servidor MariaDB."
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+#, fuzzy
+#| msgid ""
+#| "You should check the account's password after tha package installation."
+msgid "You should check the account's password after the package installation."
+msgstr "Você deverá checar a senha dessa conta após a instalação deste pacote."
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+#, fuzzy
+#| msgid ""
+#| "Please read the /usr/share/doc/mysql-server-5.1/README.Debian file for "
+#| "more information."
+msgid ""
+"Please read the /usr/share/doc/mariadb-server-5.5/README.Debian file for "
+"more information."
+msgstr ""
+"Por favor, leia o arquivo /usr/share/doc/mariadb-server-5.5/README.Debian "
+"para maiores informações."
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:9001
+msgid "Password input error"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:9001
+msgid "The two passwords you entered were not the same. Please try again."
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:10001
+msgid "NDB Cluster seems to be in use"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:10001
+msgid ""
+"MySQL-5.1 no longer provides NDB Cluster support. Please migrate to the new "
+"mysql-cluster package and remove all lines starting with \"ndb\" from all "
+"config files below /etc/mysql/."
+msgstr ""
+
+#~ msgid ""
+#~ "To use MariaDB, the following entries for users and groups should be "
+#~ "added to the system:"
+#~ msgstr ""
+#~ "Para utilizar o MariaDB, as seguintes entradas para usuários e grupos "
+#~ "devem ser adicionadas ao sistema:"
+
+#~ msgid ""
+#~ "Support MySQL connections from hosts running Debian \"sarge\" or older?"
+#~ msgstr ""
+#~ "Suportar conexões MySQL originadas de hosts executando o Debian \"sarge\" "
+#~ "ou mais antigos ?"
+
+#~ msgid ""
+#~ "In old versions of MySQL clients on Debian, passwords were not stored "
+#~ "securely. This has been improved since then, however clients (such as "
+#~ "PHP) from hosts running Debian 3.1 Sarge will not be able to connect to "
+#~ "recent accounts or accounts whose password have been changed."
+#~ msgstr ""
+#~ "Em versões antigas dos clientes MySQL no Debian, as senhas não eram "
+#~ "armazenadas de forma segura. Isto foi corrigido desde então, porém, "
+#~ "clientes (como o PHP) em hosts executando o Debian 3.1 Sarge não serão "
+#~ "capazes de conectar em contas recentes ou contas as quais as senhas "
+#~ "tenham sido modificadas."
+
+#~ msgid ""
+#~ "To use mysql you must install an equivalent user and group to the "
+#~ "following and ensure yourself that /var/lib/mysql has the right "
+#~ "permissions (the uid/gid may be different)."
+#~ msgstr ""
+#~ "Para utilizar o MySQL, você deve instalar um usuário e um grupo "
+#~ "equivalentes ao usuário e grupo a seguir para se certificar de que o "
+#~ "diretório /var/lib/mysql possua as permissões correctas (o uid/gid podem "
+#~ "ser diferentes)."
+
+#~ msgid ""
+#~ "/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+#~ msgstr ""
+#~ "/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+
+#~ msgid "/etc/group:       mysql:x:101:"
+#~ msgstr "/etc/group:       mysql:x:101:"
+
+#~ msgid "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+#~ msgstr "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+
+#~ msgid "Remove the databases used by all MySQL versions?"
+#~ msgstr "Remover as bases de dados utilizadas por todas as versões do MySQL?"
+
+#~ msgid ""
+#~ "If you do not provide a password no changes will be made to the account."
+#~ msgstr ""
+#~ "Caso você não forneça uma senha, nenhuma mudança será feita na conta."
+
+#~ msgid ""
+#~ "When installation finishes, you should verify that the account is "
+#~ "properly protected with a password (see README.Debian for more "
+#~ "information)."
+#~ msgstr ""
+#~ "Quando a instalação finalizar, você deverá verificar se a conta está "
+#~ "apropriadamente protegida com uma senha (consulte o arquivo README.Debian "
+#~ "para maiores informações)."
+
+#~ msgid "internal"
+#~ msgstr "interno"
+
+#~ msgid "Only internally used."
+#~ msgstr "Somente utilizado internamente."
+
+#, fuzzy
+#~ msgid "Update Hints"
+#~ msgstr "Dicas de atualização"
+
+#, fuzzy
+#~ msgid ""
+#~ "Rarely, e.g. on new major versions, the privilege system is improved. To "
+#~ "make use of it mysql_fix_privilege_tables must be executed manually. The "
+#~ "script is not supposed to give any user more rights that he had before,"
+#~ msgstr ""
+#~ "Raramente, por exemplo, em novas versões maiores, o sistema de "
+#~ "privilégios é melhorado. Para fazer uso disso, o script "
+#~ "mysql_fix_privilege_tables deve ser executado manualmente. O script não "
+#~ "atribuirá a nenhum usuário mais direitos do que os mesmos já possuíam "
+#~ "anteriormente."
+
+#~ msgid "Please also read http://www.mysql.com/doc/en/Upgrade.html"
+#~ msgstr "Por favor, leia http://www.mysql.com/doc/en/Upgrade.html"
+
+#, fuzzy
+#~ msgid "Install Hints"
+#~ msgstr "Dicas de instalação"
+
+#, fuzzy
+#~ msgid ""
+#~ "MySQL will only install if you have a non-numeric hostname that is "
+#~ "resolvable via the /etc/hosts file. E.g. if the \"hostname\" command "
+#~ "returns \"myhostname\" then there must be a line like \"10.0.0.1 "
+#~ "myhostname\"."
+#~ msgstr ""
+#~ "O MySQL será instalado somente caso você possua um nome de host NÃO "
+#~ "NUMÉRICO que possa ser resolvido através do arquivo /etc/hosts, ou seja, "
+#~ "caso o comando \"hostname\" retorne \"myhostname\", uma linha como "
+#~ "\"10.0.0.1 myhostname\" deverá existir no arquivo /etc/hosts."
+
+#~ msgid ""
+#~ "A new mysql user \"debian-sys-maint\" will be created. This mysql account "
+#~ "is used in the start/stop and cron scripts. Don't delete."
+#~ msgstr ""
+#~ "Um novo usuário MySQL de nome \"debian-sys-maint\" será criado. Essa "
+#~ "conta MySQL é utilizada pelos scripts de inicialização/parada e pelos "
+#~ "scripts cron. Não remova esse usuário."
+
+#, fuzzy
+#~ msgid ""
+#~ "Please remember to set a PASSWORD for the MySQL root user! If you use a /"
+#~ "root/.my.cnf, always write the \"user\" and the \"password\" lines in "
+#~ "there, never only the password!"
+#~ msgstr ""
+#~ "Por favor, lembre-se de definir uma SENHA para o usuário root do MySQL ! "
+#~ "Caso você utilize um arquivo /root/.my.cnf, sempre inclua as linhas \"user"
+#~ "\" e \"password\" nesse arquivo, nunca somente a senha ! Consulte o "
+#~ "arquivo /usr/share/doc/mysql-server/README.Debian para mais informações."
+
+#~ msgid ""
+#~ "Should I remove all databases below /var/lib/mysql as you are purging the "
+#~ "mysql-server package?"
+#~ msgstr ""
+#~ "Todas as base de dados sob o diretório /var/lib/mysql devem ser removidas "
+#~ "quando você remover o pacote pacote mysql-server ?"
+
+#~ msgid ""
+#~ "Networking is disabled by default for security reasons. You can enable it "
+#~ "by commenting out the skip-networking option in /etc/mysql/my.cnf."
+#~ msgstr ""
+#~ "O suporte ao funcionamento em rede está desativado por padrão por "
+#~ "questões de segurança. Você poderá ativá-lo comentando a opção 'skip-"
+#~ "networking' no arquivo /etc/mysql/my.cnf."
+
+#~ msgid "security and update notice"
+#~ msgstr "aviso de segurança e actualização"
+
+#~ msgid ""
+#~ "Should I remove everything below /var/lib/mysql when you purge the mysql-"
+#~ "server package with the \"dpkg --purge mysql-server\" command (i.e. "
+#~ "remove everything including the configuration) somewhen? (default is not)"
+#~ msgstr ""
+#~ "Devo remover tudo abaixo de /var/lib/mysql quando fizer o purge do pacote "
+#~ "mysql-server com o comando \"dpkg --purge mysql-server\" (ou seja, "
+#~ "remover tudo incluíndo a configuração)? (o padrão é não remover)"
+
+#~ msgid "Make MySQL reachable via network?"
+#~ msgstr "Fazer com que o MySQL seja acessível via rede?"
+
+#~ msgid ""
+#~ "Should MySQL listen on a network reachable TCP port? This is not "
+#~ "necessary for use on a single computer and could be a security problem."
+#~ msgstr ""
+#~ "O MySQL deve aguardar ligações numa porta TCP acessível via rede? Isto "
+#~ "não é necessário para uso num único computador e pode ser um problema de "
+#~ "segurança."
+
+#~ msgid "Enable chroot mode?"
+#~ msgstr "Activar o modo chroot?"
+
+#~ msgid ""
+#~ "MySQL is able to jail itself into the /var/lib/mysql_jail directory so "
+#~ "that users cannot modify any files outside this directory. This improves "
+#~ "resistence against crackers, too, as they are not able to modify system "
+#~ "files."
+#~ msgstr ""
+#~ "O MySQL é capaz de se prender no diretório /var/lib/mysql_jail, assim os "
+#~ "utilizadores não poderão modificar ficheiros fora deste directório. Isto "
+#~ "aumenta também a resistência contra crackers, pois eles não poderão "
+#~ "modificar arquivos de sistema."
+
+#~ msgid "Please run mysql_fix_privilege_tables !"
+#~ msgstr "Por favor execute mysql_fix_privilege_tables !"
+
+#~ msgid ""
+#~ "I will ensure secure permissions of /var/lib/mysql by replacing GIDs "
+#~ "other than root and mysql with mysql."
+#~ msgstr ""
+#~ "Permissões seguras para o diretório /var/lib/mysql serão asseguradas "
+#~ "substituíndo GIDs diferentes de root e mysql por mysql."
+
+#~ msgid ""
+#~ "Instructions how to enable SSL support are in /usr/share/doc/mysql-server/"
+#~ msgstr ""
+#~ "Instruções sobre como activar o suporte de SSL estão disponíveis no "
+#~ "directório /usr/share/doc/mysql-server/."
+
+#, fuzzy
+#~ msgid "mysql_fix_privileges_tables should be executed"
+#~ msgstr "mysql_fix_privileges_tables será executado"
+
+#, fuzzy
+#~ msgid ""
+#~ "The latest MySQL versions have an enhanced, more fine grained, privilege "
+#~ "system. To make use of it, some new fields must be added to the tables "
+#~ "in  the \"mysql\" database. This will not happen automatically."
+#~ msgstr ""
+#~ "As últimas versões do MySQL possuem um sistema de privilégios melhorado e "
+#~ "mais refinado. Para utilizá-lo, alguns novos campos devem ser adicionados "
+#~ "as tabelas na base de dados \"mysql\". Isto é feito pelo script "
+#~ "mysql_fix_privileges_tables durante esta actualização independente do "
+#~ "servidor estar a correr ou não !"
+
+#~ msgid ""
+#~ "This script is not supposed to give any user more rights that he had "
+#~ "before, if you encounter such a case, please contact me."
+#~ msgstr ""
+#~ "Este script não deverá fornecer mais direitos a um utilizador além dos "
+#~ "quais ele já possua anteriormente. SE encontrar um caso desses, por favor "
+#~ "entre em contacto com o mantainer deste pacote Debian."

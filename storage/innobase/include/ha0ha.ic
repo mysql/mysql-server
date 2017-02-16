@@ -58,7 +58,7 @@ ha_node_set_data_func(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	buf_block_t*	block,	/*!< in: buffer block containing the data */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-	const rec_t*	data)	/*!< in: pointer to the data */
+	rec_t*	data)	/*!< in: pointer to the data */
 {
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	node->block = block;
@@ -111,7 +111,7 @@ Looks for an element in a hash table.
 @return pointer to the data of the first hash table node in chain
 having the fold number, NULL if not found */
 UNIV_INLINE
-const rec_t*
+rec_t*
 ha_search_and_get_data(
 /*===================*/
 	hash_table_t*	table,	/*!< in: hash table */

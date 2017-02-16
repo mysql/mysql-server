@@ -24,7 +24,7 @@ select count(*),b from t1;
 ERROR 42S22: Unknown column 'b' in 'field list'
 drop table t1;
 create table t1 (a int(256));
-ERROR 42000: Display width out of range for column 'a' (max = 255)
+ERROR 42000: Display width out of range for 'a' (max = 255)
 set sql_mode='traditional';
 create table t1 (a varchar(66000));
 ERROR 42000: Column length too big for column 'a' (max = 65535); use BLOB or TEXT instead
@@ -160,3 +160,11 @@ ERROR 42S22: Unknown column '' in 'VALUES() function'
 INSERT INTO t2(a,b) VALUES (1,0) ON DUPLICATE KEY UPDATE
 b=(SELECT VALUES(a)+2 FROM t1);
 DROP TABLE t1, t2;
+#
+# MDEV-492: incorrect error check before sending OK in mysql_update 
+#
+CREATE TABLE t1 (a CHAR(3), b BLOB);
+UPDATE t1 SET a = 'new'
+WHERE COLUMN_CREATE( 1, 'v', 1, 'w' ) IS NULL;
+ERROR 22007: Illegal value used as argument of dynamic column function
+drop table t1;

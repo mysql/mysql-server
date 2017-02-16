@@ -1,0 +1,47 @@
+--echo #
+--echo # Range optimizer (and related) tests that need InnoDB.
+--echo # 
+
+--source include/have_innodb.inc
+
+--disable_warnings
+drop table if exists t0, t1, t2;
+--enable_warnings
+
+--echo #
+--echo # MDEV-6735: Range checked for each record used with key
+--echo #
+
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t1(a int);
+insert into t1 select A.a + B.a* 10 + C.a * 100 + D.a * 1000
+from t0 A, t0 B, t0 C, t0 D;
+
+create table t2 ( 
+ a int,
+ b int,
+ filler1 char(100),
+ filler2 char(100),
+ filler3 char(100),
+ filler4 char(100),
+ key(a),
+ key(b)
+) engine=innodb;
+
+insert into t2 
+select 
+   a,a,
+  repeat('0123456789', 10), 
+  repeat('0123456789', 10), 
+  repeat('0123456789', 10),
+  repeat('0123456789', 10)
+from t1;
+
+analyze table t2;
+--echo # The following must not use "Range checked for each record":
+explain select * from t0 left join t2 on t2.a <t0.a and t2.b between 50 and 250;
+
+drop table t0,t1,t2;
+

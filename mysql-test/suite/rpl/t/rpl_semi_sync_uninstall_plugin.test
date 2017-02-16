@@ -21,19 +21,19 @@
 #  not in use i.e., when asynchronous replication is active.
 ###############################################################################
 # Step 1.1: Install semi sync master plugin on master
---replace_result $SEMISYNC_MASTER_PLUGIN SEMISYNC_MASTER_PLUGIN
-eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master';
 
 # Step 1.2: Install semi sync slave plugin on slave
 --connection slave
---replace_result $SEMISYNC_SLAVE_PLUGIN SEMISYNC_SLAVE_PLUGIN
-eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
+--echo [connection slave]
+INSTALL PLUGIN rpl_semi_sync_slave SONAME 'semisync_slave';
 
 # Step 1.3: Uninstallation of semisync plugin on master and slave should be
 #  allowed at this state as there is no semi sync replication enabled between
 #  master and slave.
 UNINSTALL PLUGIN rpl_semi_sync_slave;
 --connection master
+--echo [connection master]
 UNINSTALL PLUGIN rpl_semi_sync_master;
 
 # Step 1.4: Check that replication is working fine at the end of the test case.
@@ -41,6 +41,7 @@ CREATE TABLE t1(i int);
 INSERT INTO t1 values (1);
 DROP TABLE t1;
 --sync_slave_with_master
+--echo [connection slave]
 
 ###############################################################################
 # Case 2: Uninstallation of semi sync plugins should be disallowed
@@ -52,40 +53,27 @@ DROP TABLE t1;
 # Step 2.2: Check that rpl_semi_sync_slave uninstallation on Slave is not
 #  possible at this state
 --connection slave
-call mtr.add_suppression("Plugin 'rpl_semi_sync_slave' cannot be uninstalled now");
---error ER_UNKNOWN_ERROR
+--echo [connection slave]
 UNINSTALL PLUGIN rpl_semi_sync_slave;
+select plugin_name,plugin_status from information_schema.plugins where plugin_name like 'rpl_%';
 
 # Step 2.3: Check that rpl_semi_sync_master uninstallation on Master is not
 #  possible at this state
 --connection master
-call mtr.add_suppression("Plugin 'rpl_semi_sync_master' cannot be uninstalled now");
---error ER_UNKNOWN_ERROR
+--echo [connection master]
 UNINSTALL PLUGIN rpl_semi_sync_master;
+select plugin_name,plugin_status from information_schema.plugins where plugin_name like 'rpl_%';
 
 # Step 2.4: Check that replication is working fine at the end of the test case.
 CREATE TABLE t1(i int);
 INSERT INTO t1 values (2);
 DROP TABLE t1;
 --sync_slave_with_master
+--echo [connection slave]
 
 # Step 2.5: Make sure rpl_semi_sync_master_status on Master and
 # rpl_semi_sync_slave_staus on Slave are ON
---let $slave_status=[show status like "Rpl_semi_sync_slave_status", Value, 1]
---let assert_cond= "$slave_status" = "ON"
---let assert_text= semi sync slave status should be ON.
---source include/assert.inc
-
---connection master
---let $master_status=[show status like "Rpl_semi_sync_master_status", Value, 1]
---let assert_cond= "$master_status" = "ON"
---let assert_text= semi sync master status should be ON.
---source include/assert.inc
-
---let $master_clients=[show status like "Rpl_semi_sync_master_clients", Value, 1]
---let assert_cond= $master_clients = 1
---let assert_text= semi sync master clients should be 1.
---source include/assert.inc
+show status like "Rpl_semi_sync_slave_status";
 
 ###############################################################################
 # Case 3: Uninstallation of semi sync plugin should be disallowed when there
@@ -93,18 +81,15 @@ DROP TABLE t1;
 ###############################################################################
 # Step 3.1: Disable semi sync on master
 --connection master
-SET GLOBAL rpl_semi_sync_master_enabled = OFF;
+--echo [connection master]
+show status like "Rpl_semi_sync_master_status";
 
 # Step 3.2: Check that still Rpl_semi_sync_master_clients is 1
---let $master_clients=[show status like "Rpl_semi_sync_master_clients", Value, 1]
---let assert_cond= $master_clients = 1
---let assert_text= semi sync master clients should be 1.
---source include/assert.inc
+show status like "Rpl_semi_sync_master_clients";
 
 # Step 3.3: Since Rpl_semi_sync_master_clients is 1, uninstallation of
 #  rpl_semi_sync_master should be disallowed.
---error ER_UNKNOWN_ERROR
-UNINSTALL PLUGIN rpl_semi_sync_master;
+select plugin_name,plugin_status from information_schema.plugins where plugin_name like 'rpl_%';
 
 ###############################################################################
 # Case 4: Uninstallation of semi sync plugin should be allowed when it is not
@@ -114,32 +99,32 @@ UNINSTALL PLUGIN rpl_semi_sync_master;
 
 # Step 4.1: Stop IO thread on slave.
 --connection slave
+--echo [connection slave]
 --source include/stop_slave.inc
 
 # Step 4.2: Disable semi sync on slave.
-SET GLOBAL rpl_semi_sync_slave_enabled = OFF;
+select plugin_name,plugin_status from information_schema.plugins where plugin_name like 'rpl_%';
 
 # Step 4.3: Start IO thread on slave.
 --source include/start_slave.inc
 
 # Step 4.4: Uninstall semi sync plugin, it should be successful now.
-UNINSTALL PLUGIN rpl_semi_sync_slave;
+select plugin_name,plugin_status from information_schema.plugins where plugin_name like 'rpl_%';
 
 # Step 4.5: On Master, check that semi sync slaves are now '0'.
 --connection master
---let $master_clients=[show status like "Rpl_semi_sync_master_clients", Value, 1]
---let assert_cond= $master_clients = 0
---let assert_text= semi sync master clients should be 0.
---source include/assert.inc
+--echo [connection master]
+show status like "Rpl_semi_sync_master_clients";
 
 # Step 4.6: So uninstalling semi sync plugin should be allowed
-UNINSTALL PLUGIN rpl_semi_sync_master;
+select plugin_name,plugin_status from information_schema.plugins where plugin_name like 'rpl_%';
 
 # Step 4.7: Check that replication is working fine at the end of the test case
 CREATE TABLE t1(i int);
 INSERT INTO t1 values (3);
 DROP TABLE t1;
 --sync_slave_with_master
+--echo [connection slave]
 
 # Cleanup
 source include/rpl_end.inc;

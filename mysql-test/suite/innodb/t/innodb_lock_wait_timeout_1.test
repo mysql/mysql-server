@@ -140,6 +140,7 @@ insert into t1 values (1,1), (2,null), (3,1), (4,1),
 --echo # used later in the test JT_EQ_REF access method is used.
 --echo #
 --vertical_results
+--replace_result "Using index condition; Using where" "Using where"
 explain
 select 1 from t1 natural join (select 2 as a, 1 as b union all
                                select 2 as a, 2 as b) as t2 for update;
@@ -236,6 +237,7 @@ begin;
 --echo #
 --echo # Verify that JT_EQ_REF is used.
 --vertical_results
+--replace_result "Using index condition; Using where" "Using where"
 explain
 select 1 from t1 natural join (select 3 as a, 2 as b union all
                                select 3 as a, 1 as b) as t2 for update;

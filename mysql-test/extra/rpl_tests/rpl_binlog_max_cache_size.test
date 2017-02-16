@@ -98,6 +98,7 @@ connection master;
 TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 TRUNCATE TABLE t3;
+set default_storage_engine=innodb;
 
 BEGIN;
 --disable_query_log
@@ -110,14 +111,12 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (5, $data);
 --error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (6, $data);
+--enable_query_log
 --eval INSERT INTO t1 (a, data) VALUES (7, 's');
 --eval INSERT INTO t2 (a, data) VALUES (8, 's');
 --eval INSERT INTO t1 (a, data) VALUES (9, 's');
---enable_query_log
 
---disable_query_log
 ALTER TABLE t3 ADD COLUMN d int;
---enable_query_log
 
 --disable_query_log
 --eval INSERT INTO t2 (a, data) VALUES (10, $data);
@@ -135,23 +134,19 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (17, $data);
 --error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (18, $data);
+--enable_query_log
 --eval INSERT INTO t1 (a, data) VALUES (19, 's');
 --eval INSERT INTO t2 (a, data) VALUES (20, 's');
 --eval INSERT INTO t1 (a, data) VALUES (21, 's');
---enable_query_log
 
 if (`SELECT @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
 {
-  --disable_query_log
   CREATE TABLE t4 SELECT * FROM t1;
-  --enable_query_log
 }
 if (`SELECT @@binlog_format = 'ROW'`)
 {
-  --disable_query_log
   --error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
   CREATE TABLE t4 SELECT * FROM t1;
-  --enable_query_log
 }
 
 --disable_query_log
@@ -167,14 +162,12 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (25, $data);
 --error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (26, $data);
+--enable_query_log
 --eval INSERT INTO t1 (a, data) VALUES (27, 's');
 --eval INSERT INTO t2 (a, data) VALUES (28, 's');
 --eval INSERT INTO t1 (a, data) VALUES (29, 's');
---enable_query_log
 
---disable_query_log
 CREATE TABLE t5 (a int);
---enable_query_log
 
 --sync_slave_with_master
 --let $diff_tables= master:t1,slave:t1
@@ -311,10 +304,10 @@ SAVEPOINT sv;
 --eval INSERT INTO t1 (a, data) VALUES (5, $data);
 --error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (6, $data);
+--enable_query_log
 --eval INSERT INTO t1 (a, data) VALUES (7, 's');
 --eval INSERT INTO t2 (a, data) VALUES (8, 's');
 --eval INSERT INTO t1 (a, data) VALUES (9, 's');
---enable_query_log
 ROLLBACK TO sv;
 COMMIT;
 
@@ -344,11 +337,11 @@ BEGIN;
 --error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (7, $data);
 --eval UPDATE t2 SET data= CONCAT($data, $data);
+--enable_query_log
 --eval INSERT INTO t1 (a, data) VALUES (8, 's');
 --eval INSERT INTO t1 (a, data) VALUES (9, 's');
 --eval INSERT INTO t2 (a, data) VALUES (10, 's');
 --eval INSERT INTO t1 (a, data) VALUES (11, 's');
---enable_query_log
 COMMIT;
 
 BEGIN;

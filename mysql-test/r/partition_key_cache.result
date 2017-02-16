@@ -52,7 +52,7 @@ SELECT COUNT(b) FROM t1 WHERE b >= 0;
 COUNT(b)
 2048
 Zero key reads?
-No!
+Yes!
 INSERT t2 SELECT a,b,c FROM t1;
 reads vs requests
 reads == requests
@@ -63,7 +63,7 @@ SELECT COUNT(b) FROM t2 WHERE b >= 0;
 COUNT(b)
 2048
 Zero key reads?
-No!
+Yes!
 FLUSH TABLES;
 # Setting the default key cache to 1M
 SET GLOBAL key_buffer_size = 1024*1024;
@@ -231,10 +231,10 @@ CACHE INDEX t1 PARTITION (p0) KEY (`inx_b`) IN cold_cache;
 Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
 CACHE INDEX t1 PARTITIONS (p0) KEY (`inx_b`) IN cold_cache;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PARTITIONS (p0) KEY (`inx_b`) IN cold_cache' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'PARTITIONS (p0) KEY (`inx_b`) IN cold_cache' at line 1
 # only one table at a time if specifying partitions
 CACHE INDEX t1,t2 PARTITION (p0) KEY (`inx_b`) IN cold_cache;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PARTITION (p0) KEY (`inx_b`) IN cold_cache' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'PARTITION (p0) KEY (`inx_b`) IN cold_cache' at line 1
 CACHE INDEX t1 PARTITION (`p0`,p1) INDEX (`PRIMARY`) IN warm_cache;
 Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
@@ -276,7 +276,7 @@ test.t2	preload_keys	error	Indexes use different block sizes
 test.t2	preload_keys	status	Operation failed
 # Must have INDEX or KEY before the index list
 LOAD INDEX INTO CACHE t2 (`PRIMARY`);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(`PRIMARY`)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '(`PRIMARY`)' at line 1
 # Test of IGNORE LEAVES
 LOAD INDEX INTO CACHE t2 INDEX (`PRIMARY`);
 Table	Op	Msg_type	Msg_text
@@ -333,7 +333,7 @@ test.t1	preload_keys	status	OK
 test.t2	preload_keys	status	OK
 # only one table at a time if specifying partitions
 LOAD INDEX INTO CACHE t1 PARTITION (p0), t2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' t2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ' t2' at line 1
 LOAD INDEX INTO CACHE t1 IGNORE LEAVES;
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	error	Indexes use different block sizes
@@ -372,7 +372,7 @@ LOAD INDEX INTO CACHE t1 PARTITION (ALL);
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
 LOAD INDEX INTO CACHE t1 PARTITIONS ALL;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PARTITIONS ALL' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'PARTITIONS ALL' at line 1
 LOAD INDEX INTO CACHE t1 PARTITION (p1,`p0`) IGNORE LEAVES;
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	error	Indexes use different block sizes

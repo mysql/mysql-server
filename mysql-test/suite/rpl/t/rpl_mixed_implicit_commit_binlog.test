@@ -6,5 +6,6 @@
 --source include/have_innodb.inc
 
 --let $engine=Innodb
+set session storage_engine=innodb;
 --source extra/rpl_tests/rpl_implicit_commit_binlog.test
 --source include/rpl_end.inc

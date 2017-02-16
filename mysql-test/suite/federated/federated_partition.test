@@ -1,0 +1,53 @@
+#
+# Tests for partitioned FEDERATED
+#
+source have_federatedx.inc;
+source include/have_partition.inc;
+source include/have_innodb.inc;
+source include/federated.inc;
+
+disable_warnings;
+drop table if exists t1;
+enable_warnings;
+
+#
+# Federated + partition
+#
+# Create 2 tables on the Slave, we can use different storage engines.
+# Then create a Federated table on the Master, using different connect
+# string to specify the two different target partitions we want to use.
+#
+
+connection slave;
+create table federated.t1_1 (s1 int primary key) engine=myisam;
+create table federated.t1_2 (s1 int primary key) engine=innodb;
+
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create table t1 (s1 int primary key) engine=federated
+  partition by list (s1)
+  (partition p1 values in (1,3)
+     connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1_1',
+   partition p2 values in (2,4)
+     connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1_2');
+
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+show create table t1;
+
+insert into t1 values (1), (2), (3), (4);
+select * from t1;
+
+connection slave;
+select * from federated.t1_1;
+select * from federated.t1_2;
+
+connection master;
+drop table t1;
+
+connection slave;
+drop table federated.t1_1;
+drop table federated.t1_2;
+
+--echo End of 5.1 tests
+
+source include/federated_cleanup.inc;

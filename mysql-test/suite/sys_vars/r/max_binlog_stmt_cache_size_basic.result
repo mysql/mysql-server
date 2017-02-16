@@ -1,7 +1,7 @@
 SET @start_value = @@global.max_binlog_stmt_cache_size;
 SELECT @start_value;
 @start_value
-18446744073709547520
+max_binlog_stmt_cache_size
 '#--------------------FN_DYNVARS_072_01------------------------#'
 SET @@global.max_binlog_stmt_cache_size = 5000;
 Warnings:
@@ -9,7 +9,7 @@ Warning	1292	Truncated incorrect max_binlog_stmt_cache_size value: '5000'
 SET @@global.max_binlog_stmt_cache_size = DEFAULT;
 SELECT @@global.max_binlog_stmt_cache_size;
 @@global.max_binlog_stmt_cache_size
-18446744073709547520
+max_binlog_stmt_cache_size
 '#---------------------FN_DYNVARS_072_02-------------------------#'
 SET @@global.max_binlog_stmt_cache_size = @start_value;
 SELECT @@global.max_binlog_stmt_cache_size = 4294967295;
@@ -56,12 +56,13 @@ Warnings:
 Warning	1292	Truncated incorrect max_binlog_stmt_cache_size value: '100000000000'
 SELECT @@global.max_binlog_stmt_cache_size;
 @@global.max_binlog_stmt_cache_size
-99999997952
+max_binlog_stmt_cache_size
+SET @@global.max_binlog_stmt_cache_size = 1024*1024;
 SET @@global.max_binlog_stmt_cache_size = 10000.01;
 ERROR 42000: Incorrect argument type to variable 'max_binlog_stmt_cache_size'
 SELECT @@global.max_binlog_stmt_cache_size;
 @@global.max_binlog_stmt_cache_size
-99999997952
+1048576
 SET @@global.max_binlog_stmt_cache_size = -1024;
 Warnings:
 Warning	1292	Truncated incorrect max_binlog_stmt_cache_size value: '-1024'
@@ -77,7 +78,7 @@ SELECT @@global.max_binlog_stmt_cache_size;
 SET @@global.max_binlog_stmt_cache_size = 4294967296;
 SELECT @@global.max_binlog_stmt_cache_size;
 @@global.max_binlog_stmt_cache_size
-4294967296
+max_binlog_stmt_cache_size
 SET @@global.max_binlog_stmt_cache_size = 4095;
 Warnings:
 Warning	1292	Truncated incorrect max_binlog_stmt_cache_size value: '4095'
@@ -137,11 +138,11 @@ SELECT @@max_binlog_stmt_cache_size;
 @@max_binlog_stmt_cache_size
 4096
 SET local.max_binlog_stmt_cache_size = 7000;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'max_binlog_stmt_cache_size = 7000' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'max_binlog_stmt_cache_size = 7000' at line 1
 SELECT local.max_binlog_stmt_cache_size;
 ERROR 42S02: Unknown table 'local' in field list
 SET global.max_binlog_stmt_cache_size = 8000;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'max_binlog_stmt_cache_size = 8000' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'max_binlog_stmt_cache_size = 8000' at line 1
 SELECT global.max_binlog_stmt_cache_size;
 ERROR 42S02: Unknown table 'global' in field list
 SELECT max_binlog_stmt_cache_size = @@session.max_binlog_stmt_cache_size;
@@ -149,4 +150,4 @@ ERROR 42S22: Unknown column 'max_binlog_stmt_cache_size' in 'field list'
 SET @@global.max_binlog_stmt_cache_size = @start_value;
 SELECT @@global.max_binlog_stmt_cache_size;
 @@global.max_binlog_stmt_cache_size
-18446744073709547520
+max_binlog_stmt_cache_size

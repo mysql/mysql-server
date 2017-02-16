@@ -1,4 +1,5 @@
-/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2001, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,7 +35,6 @@
 #include "rpl_mi.h"
 #include "rpl_filter.h"
 #include "log_event.h"
-#include "sql_db.h"                             // mysql_create_db
 #include <mysql.h>
 
 #define SLAVE_LIST_CHUNK 128
@@ -216,7 +216,6 @@ void end_slave_list()
     mysql_mutex_destroy(&LOCK_slave_list);
   }
 }
-
 
 /**
   Execute a SHOW SLAVE HOSTS statement.

@@ -273,5 +273,21 @@ drop table t2;
 drop procedure sp_bug26199;
 drop function sf_bug26199;
 SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
+set names utf8;
+CREATE FUNCTION f() RETURNS timestamp DETERMINISTIC
+BEGIN RETURN '2012-12-21 12:12:12'; END |
+CREATE PROCEDURE p(t timestamp) 
+BEGIN
+SET @t = t;
+PREPARE stmt FROM " 
+  UPDATE t1 SET a = @t WHERE '2012-12-31 08:00:00' < f() ";
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+END |
+create table t1 (a timestamp);
+call p('2012-12-31 08:00:00');
+drop table t1;
+drop procedure p;
+drop function f;
 end of the tests
 include/rpl_end.inc

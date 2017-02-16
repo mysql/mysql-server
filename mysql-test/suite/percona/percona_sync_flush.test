@@ -1,0 +1,33 @@
+# Test for InnoDB sync state flushing.
+
+--source include/have_xtradb.inc
+--source include/have_debug.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (id INT AUTO_INCREMENT, foo CHAR(255), PRIMARY KEY (id)) ENGINE=InnoDB;
+
+# It is hard to get to InnoDB sync state flushing in MTR with regular workload.  Perhaps
+# it is possible with many parallel connections, but that would be brittle anyway.
+# So, just disable preflushing and checkpointing and issue simple workload.
+SET @@global.innodb_flush_checkpoint_debug=1;
+
+INSERT INTO t1(foo) VALUES ('a'), ('b');
+
+let $rep=0;
+while ($rep < 14)
+{
+        INSERT INTO t1(foo) SELECT foo FROM t1;
+        UPDATE t1 SET foo='c';
+        inc $rep;
+}
+
+# By now checkpoint age should be well past sync flush point.  Allow
+# preflushing/checkpointing again and do some work in order to do the sync flush.
+SET @@global.innodb_flush_checkpoint_debug=0;
+
+UPDATE t1 SET foo='d' WHERE foo='c';
+
+DROP TABLE t1;

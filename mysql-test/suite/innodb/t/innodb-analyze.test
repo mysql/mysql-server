@@ -1,9 +1,8 @@
+--source include/have_innodb.inc
 #
 # Test that mysqld does not crash when running ANALYZE TABLE with
 # different values of the parameter innodb_stats_sample_pages.
 #
-
--- source include/have_innodb.inc
 
 # we care only that the following SQL commands do not produce errors
 # and do not crash the server

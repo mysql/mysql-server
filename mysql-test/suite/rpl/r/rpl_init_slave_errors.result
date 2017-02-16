@@ -2,12 +2,12 @@ include/master-slave.inc
 [connection master]
 stop slave;
 reset slave;
-SET GLOBAL debug= "d,simulate_io_slave_error_on_init,simulate_sql_slave_error_on_init";
+SET GLOBAL debug_dbug= "d,simulate_io_slave_error_on_init,simulate_sql_slave_error_on_init";
 start slave;
 include/wait_for_slave_sql_error.inc [errno=1593]
 Last_SQL_Error = 'Failed during slave thread initialization'
 call mtr.add_suppression("Failed during slave.* thread initialization");
-SET GLOBAL debug= "";
+SET GLOBAL debug_dbug= "";
 reset slave;
 SET GLOBAL init_slave= "garbage";
 start slave;

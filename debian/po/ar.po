@@ -1,0 +1,252 @@
+# translation of templates.po to Arabic
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+#
+# Ossama M. Khayat <okhayat@yahoo.com>, 2007.
+msgid ""
+msgstr ""
+"Project-Id-Version: templates\n"
+"Report-Msgid-Bugs-To: mariadb-5.5@packages.debian.org\n"
+"POT-Creation-Date: 2012-01-12 13:08+0100\n"
+"PO-Revision-Date: 2007-05-01 13:04+0300\n"
+"Last-Translator: Ossama M. Khayat <okhayat@yahoo.com>\n"
+"Language-Team: Arabic <support@arabeyes.org>\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: KBabel 1.11.4\n"
+"Plural-Forms: nplurals=6; plural=n==1 ? 0 : n==0 ? 1 : n==2 ? 2: n%100>=3 && "
+"n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5\n"
+": n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5\n"
+": n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5\n"
+": n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5\n"
+": n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5\n"
+": n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5\n"
+": n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5\n"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+msgid "Really proceed with downgrade?"
+msgstr "هل فعلاً تريد التثبيط؟"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+msgid "A file named /var/lib/mysql/debian-*.flag exists on this system."
+msgstr "هناك ملف مسمى /var/lib/mysql/debian-*.flag موجود على هذا النظام."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+#, fuzzy
+#| msgid ""
+#| "Such file is an indication that a mariadb-server package with a higher "
+#| "version has been installed earlier."
+msgid ""
+"Such a file is an indication that a mariadb-server package with a higher "
+"version has been installed previously."
+msgstr ""
+"هذا الملف دلالة على أن نسخة أحدث من حزمة mariadb-server تم تثبيتها مسبقاً."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:2001
+msgid ""
+"There is no guarantee that the version you're currently installing will be "
+"able to use the current databases."
+msgstr ""
+"ليست هناك أية ضمانة أن النسخة التي تقوم بتثبيتها ستكون قادرة على استخدام "
+"قواعد البيانات الحالية."
+
+#. Type: note
+#. Description
+#: ../mariadb-server-5.5.templates:3001
+msgid "Important note for NIS/YP users"
+msgstr "ملاحظة هامة لمستخدمي NIS/YP"
+
+#. Type: note
+#. Description
+#: ../mariadb-server-5.5.templates:3001
+msgid ""
+"Using MariaDB under NIS/YP requires a mysql user account to be added on the "
+"local system with:"
+msgstr ""
+
+#. Type: note
+#. Description
+#: ../mariadb-server-5.5.templates:3001
+#, fuzzy
+#| msgid ""
+#| "You should also check the permissions and the owner of the /var/lib/mysql "
+#| "directory:"
+msgid ""
+"You should also check the permissions and ownership of the /var/lib/mysql "
+"directory:"
+msgstr "عليك أيضاً أن تقوم بالتأكد من صلاحيات مالك الملف /var/lib/mysql: "
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:4001
+msgid "Remove all MariaDB databases?"
+msgstr "إزالة جميع قواعد بيانات MariaDB؟"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:4001
+msgid ""
+"The /var/lib/mysql directory which contains the MariaDB databases is about "
+"to be removed."
+msgstr "الدليل /var/lib/mysql الذي يحتوي قواعد بيانات MariaDB ستتم إزالته."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:4001
+msgid ""
+"If you're removing the MariaDB package in order to later install a more "
+"recent version or if a different mariadb-server package is already using it, "
+"the data should be kept."
+msgstr ""
+"إن كنت تقوم بإزالة حزمة MariaDB كي تقوم لاحقاً بتثبيت نسخة أحدث أو إن كانت "
+"حزمة mariadb-server مختلفة تستخدمها، فيجب إبقاء البيانات."
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:5001
+msgid "Start the MariaDB server on boot?"
+msgstr "تشغيل خادم MariaDB عند الإقلاع؟"
+
+#. Type: boolean
+#. Description
+#: ../mariadb-server-5.5.templates:5001
+msgid ""
+"The MariaDB server can be launched automatically at boot time or manually "
+"with the '/etc/init.d/mysql start' command."
+msgstr ""
+"يمكن تشغيل خادم MariaDB آلياً وقت الإقلاع أو يدوياً باستخدام الأمر '/etc/init."
+"d/mysql start'."
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:6001
+msgid "New password for the MariaDB \"root\" user:"
+msgstr "كلمة المرور الجديدة لمستخد \"root\" الخاص بـMariaDB:"
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:6001
+msgid ""
+"While not mandatory, it is highly recommended that you set a password for "
+"the MariaDB administrative \"root\" user."
+msgstr ""
+"مع أنه ليس إجبارياً، ولكن من المستحسن أن تقوم بتعيين كلمة مرور خاصة بمستخدم "
+"MariaDB الإداري \"root\"."
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:6001
+#, fuzzy
+#| msgid "If that field is left blank, the password will not be changed."
+msgid "If this field is left blank, the password will not be changed."
+msgstr "إن ترك الحقل فارغاً، فلن يتم تغيير كلمة المرور."
+
+#. Type: password
+#. Description
+#: ../mariadb-server-5.5.templates:7001
+#, fuzzy
+#| msgid "New password for the MariaDB \"root\" user:"
+msgid "Repeat password for the MariaDB \"root\" user:"
+msgstr "كلمة المرور الجديدة لمستخد \"root\" الخاص بـMariaDB:"
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+msgid "Unable to set password for the MariaDB \"root\" user"
+msgstr "تعذر تعيين كلمة مرور للمستخدم \"root\" الخاص بـMariaDB."
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+msgid ""
+"An error occurred while setting the password for the MariaDB administrative "
+"user. This may have happened because the account already has a password, or "
+"because of a communication problem with the MariaDB server."
+msgstr ""
+"حدث خطأ أثناء تعيين كلمة المرور لمستخدم MariaDB الإداري. قد يكون هذا حدث "
+"بسبب أن حساب المستخدم له كلمة مرور معيّنة مسبقاً، أو بسبب مشكلة في الاتصال مع "
+"خادم MariaDB."
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+#, fuzzy
+#| msgid ""
+#| "You should check the account's password after tha package installation."
+msgid "You should check the account's password after the package installation."
+msgstr "يجب عليك التحقق من كلمة مرور الحساب عقب تثبيت الحزمة."
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:8001
+#, fuzzy
+#| msgid ""
+#| "Please read the /usr/share/doc/mysql-server-5.1/README.Debian file for "
+#| "more information."
+msgid ""
+"Please read the /usr/share/doc/mariadb-server-5.5/README.Debian file for "
+"more information."
+msgstr ""
+"الرجاء قراءة الملف /usr/share/doc/mariadb-server-5.5/README.Debian للمزيد من "
+"المعلومات."
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:9001
+msgid "Password input error"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:9001
+msgid "The two passwords you entered were not the same. Please try again."
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:10001
+msgid "NDB Cluster seems to be in use"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mariadb-server-5.5.templates:10001
+msgid ""
+"MySQL-5.1 no longer provides NDB Cluster support. Please migrate to the new "
+"mysql-cluster package and remove all lines starting with \"ndb\" from all "
+"config files below /etc/mysql/."
+msgstr ""
+
+#~ msgid ""
+#~ "To use MariaDB, the following entries for users and groups should be "
+#~ "added to the system:"
+#~ msgstr ""
+#~ "كي تستخدم MariaDB، يجب إضافة المُدخلات التالية الخاصة بالمستخدمين "
+#~ "والمجموعات إلى النظام:"
+
+#~ msgid ""
+#~ "Support MySQL connections from hosts running Debian \"sarge\" or older?"
+#~ msgstr ""
+#~ "هل تريد دعم اتصالات MySQL من الأجهزة التي تعمل على ديبيان \"sarge\" أو "
+#~ "أقدم؟"
+
+#~ msgid ""
+#~ "In old versions of MySQL clients on Debian, passwords were not stored "
+#~ "securely. This has been improved since then, however clients (such as "
+#~ "PHP) from hosts running Debian 3.1 Sarge will not be able to connect to "
+#~ "recent accounts or accounts whose password have been changed."
+#~ msgstr ""
+#~ "في إصدارات عملاء MySQL القديمة من ديبيان، لم تكن كلمات المرور تحفظ بشكل "
+#~ "آمن. ولقد حل هذه المشكلة بعدها، غير أن العملاء (مثل PHP) المتصلين من "
+#~ "أجهزة تعمل على ديبيان Sarge 3.1 لن يكونوا قادرين على الاتصال باستخدام "
+#~ "الحسابات الحديثة أو الحسابات التي تم تغيير كلمة مرورها."

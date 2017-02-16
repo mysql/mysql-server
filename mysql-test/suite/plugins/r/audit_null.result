@@ -1,0 +1,102 @@
+set @old_global_general_log=@@global.general_log;
+set global general_log=OFF;
+grant select on *.* to testuser@localhost;
+install plugin audit_null soname 'adt_null';
+select 1;
+1
+1
+select foobar;
+ERROR 42S22: Unknown column 'foobar' in 'field list'
+show status like 'audit_null%';
+Variable_name	Value
+Audit_null_called	9
+Audit_null_general_error	1
+Audit_null_general_log	3
+Audit_null_general_result	2
+create procedure au1(x char(16)) select concat("test1", x);
+call au1("-12");
+concat("test1", x)
+test1-12
+show status like 'audit_null%';
+Variable_name	Value
+Audit_null_called	21
+Audit_null_general_error	1
+Audit_null_general_log	7
+Audit_null_general_result	5
+create table t1 (a int);
+insert t1 values (1), (2);
+select * from t1;
+a
+1
+2
+rename table t1 to t2;
+alter table t2 add column b int;
+create definer=testuser@localhost view v1 as select t2.a+1, t2_copy.a+2 from t2, t2 as t2_copy;
+select * from v1;
+t2.a+1	t2_copy.a+2
+2	3
+3	3
+2	4
+3	4
+drop view v1;
+create temporary table t2 (a date);
+insert t2 values ('2020-10-09');
+select * from t2;
+a
+2020-10-09
+alter table t2 add column b int;
+drop table t2;
+explain select distinct * from t2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using temporary
+select distinct * from t2;
+a	b
+1	NULL
+2	NULL
+drop table t2;
+uninstall plugin audit_null;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+drop procedure au1;
+drop user testuser@localhost;
+set global general_log=@old_global_general_log;
+root[root] @ localhost []	>> select 1
+root[root] @ localhost []	>> select foobar
+root[root] @ localhost []	>> show status like 'audit_null%'
+root[root] @ localhost []	>> create procedure au1(x char(16)) select concat("test1", x)
+root[root] @ localhost []	mysql.proc : write
+root[root] @ localhost []	>> call au1("-12")
+root[root] @ localhost []	mysql.proc : read
+root[root] @ localhost []	>> select concat("test1",  NAME_CONST('x',_latin1'-12' COLLATE 'latin1_swedish_ci'))
+root[root] @ localhost []	>> show status like 'audit_null%'
+root[root] @ localhost []	>> create table t1 (a int)
+root[root] @ localhost []	test.t1 : create
+root[root] @ localhost []	>> insert t1 values (1), (2)
+root[root] @ localhost []	test.t1 : write
+root[root] @ localhost []	>> select * from t1
+root[root] @ localhost []	test.t1 : read
+root[root] @ localhost []	>> rename table t1 to t2
+root[root] @ localhost []	test.t1 : rename to test.t2
+root[root] @ localhost []	>> alter table t2 add column b int
+root[root] @ localhost []	test.t2 : read
+root[root] @ localhost []	test.t2 : alter
+root[root] @ localhost []	>> create definer=testuser@localhost view v1 as select t2.a+1, t2_copy.a+2 from t2, t2 as t2_copy
+root[root] @ localhost []	test.t2 : read
+root[root] @ localhost []	test.t2 : read
+root[root] @ localhost []	>> select * from v1
+root[root] @ localhost []	test.t2 : read
+root[root] @ localhost []	test.t2 : read
+root[root] @ localhost []	>> drop view v1
+root[root] @ localhost []	>> create temporary table t2 (a date)
+root[root] @ localhost []	>> insert t2 values ('2020-10-09')
+root[root] @ localhost []	>> select * from t2
+root[root] @ localhost []	>> alter table t2 add column b int
+root[root] @ localhost []	>> drop table t2
+root[root] @ localhost []	>> explain select distinct * from t2
+root[root] @ localhost []	test.t2 : read
+root[root] @ localhost []	>> select distinct * from t2
+root[root] @ localhost []	test.t2 : read
+root[root] @ localhost []	>> drop table t2
+root[root] @ localhost []	test.t2 : drop
+root[root] @ localhost []	>> uninstall plugin audit_null
+root[root] @ localhost []	mysql.plugin : write

@@ -1,0 +1,43 @@
+drop table if exists graph;
+
+CREATE TABLE graph (
+    latch   SMALLINT  UNSIGNED NULL,
+    origid  BIGINT    UNSIGNED NULL,
+    destid  BIGINT    UNSIGNED NULL,
+    weight  DOUBLE    NULL,
+    seq     BIGINT    UNSIGNED NULL,
+    linkid  BIGINT    UNSIGNED NULL,
+    KEY (latch, origid, destid) USING HASH,
+    KEY (latch, destid, origid) USING HASH
+  ) ENGINE=OQGRAPH;
+
+delete from graph;
+
+insert into graph(origid, destid) values (1,2), (2,1);
+insert into graph(origid, destid) values (1,3), (3,1);
+insert into graph(origid, destid) values (3,4), (4,3);
+insert into graph(origid, destid) values (3,5), (5,3);
+insert into graph(origid, destid) values (5,6), (6,5);
+
+select * from graph where latch = 2 and origid = 1 and weight = 1;
+
+select * from graph where latch = 2 and origid = 1 and weight = 2;
+
+select * from graph 
+where latch = 2 and origid = 1 and (weight = 1 or weight = 2);
+
+select * from graph where latch=1 and origid=1 and destid=6;
+select * from graph where latch=1 and origid=1 and destid=4;
+select * from graph where latch=1 and origid=4 and destid=1;
+
+insert into graph (origid,destid) values (4,6);
+
+delete from graph where origid=5;
+delete from graph where origid=3 and destid=5;
+
+select * from graph where latch=1 and origid=1 and destid=6;
+select * from graph where latch=1 and origid=6 and destid=1;
+
+truncate table graph;
+
+drop table graph;

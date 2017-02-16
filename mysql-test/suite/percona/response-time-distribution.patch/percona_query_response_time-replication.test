@@ -1,0 +1,57 @@
+--source include/have_response_time_distribution.inc
+--source include/master-slave.inc
+--source include/have_binlog_format_statement.inc
+--source include/have_debug.inc
+SET SESSION debug="+d,response_time_distribution_log_only_more_300_milliseconds";
+
+connection master;
+-- disable_warnings
+DROP TABLE IF EXISTS t;
+-- enable_warnings
+CREATE TABLE t(id INT);
+SELECT * from t;
+
+sync_slave_with_master;
+
+connection slave;
+SELECT * from t;
+SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 1;
+SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
+SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 10;
+SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
+source include/percona_query_response_time_flush.inc;
+SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=ON;
+
+connection master;
+INSERT INTO t SELECT SLEEP(0.4);
+SELECT SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
+INSERT INTO t SELECT SLEEP(0.4);
+SELECT SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
+sync_slave_with_master;
+
+connection slave;
+SELECT SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
+SELECT SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
+
+SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 2;
+SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
+source include/percona_query_response_time_flush.inc;
+
+connection master;
+INSERT INTO t SELECT SLEEP(0.4);
+SELECT SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
+INSERT INTO t SELECT SLEEP(0.4);
+SELECT SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
+sync_slave_with_master;
+
+connection slave;
+SELECT SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
+SELECT SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
+
+connection master;
+DROP TABLE IF EXISTS t;
+sync_slave_with_master;
+connection slave;
+SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 10;
+SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=OFF;
+SET SESSION debug="-d,response_time_distribution_log_only_more_300_milliseconds";

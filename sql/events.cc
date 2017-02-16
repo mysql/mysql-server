@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -234,7 +234,6 @@ common_1_lev_code:
   case INTERVAL_MICROSECOND:
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "MICROSECOND");
     return 1;
-    break;
   case INTERVAL_QUARTER:
     expr/= 3;
     close_quote= FALSE;
@@ -361,8 +360,8 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
                                                      parse_data->name,
                                                      new_element)))
       {
-        if (!db_repository->drop_event(thd, parse_data->dbname, parse_data->name,
-                                       TRUE))
+        if (!db_repository->drop_event(thd, parse_data->dbname,
+                                       parse_data->name, TRUE))
           dropped= 1;
         delete new_element;
       }
@@ -384,16 +383,19 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
       String log_query;
       if (create_query_string(thd, &log_query))
       {
-        sql_print_error("Event Error: An error occurred while creating query string, "
-                        "before writing it into binary log.");
+        sql_print_error("Event Error: An error occurred while creating query "
+                        "string, before writing it into binary log.");
         ret= true;
       }
       else
+      {
         /*
-          If the definer is not set or set to CURRENT_USER, the value of CURRENT_USER
-          will be written into the binary log as the definer for the SQL thread.
+          If the definer is not set or set to CURRENT_USER, the value
+          of CURRENT_USER will be written into the binary log as the
+          definer for the SQL thread.
         */
-        ret= write_bin_log(thd, TRUE, log_query.c_ptr(), log_query.length());
+        ret= write_bin_log(thd, TRUE, log_query.ptr(), log_query.length());
+      }
     }
   }
   /* Restore the state of binlog format */
@@ -668,7 +670,7 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
   protocol->store(et->name.str, et->name.length, system_charset_info);
   protocol->store(sql_mode.str, sql_mode.length, system_charset_info);
   protocol->store(tz_name->ptr(), tz_name->length(), system_charset_info);
-  protocol->store(show_str.c_ptr(), show_str.length(),
+  protocol->store(show_str.ptr(), show_str.length(),
                   et->creation_ctx->get_client_cs());
   protocol->store(et->creation_ctx->get_client_cs()->csname,
                   strlen(et->creation_ctx->get_client_cs()->csname),
@@ -794,7 +796,7 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
 */
 
 bool
-Events::init(my_bool opt_noacl_or_bootstrap)
+Events::init(bool opt_noacl_or_bootstrap)
 {
 
   THD *thd;
@@ -1077,7 +1079,12 @@ Events::load_events_from_db(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
-  init_read_record(&read_record_info, thd, table, NULL, 0, 1, FALSE);
+  if (init_read_record(&read_record_info, thd, table, NULL, 0, 1, FALSE))
+  {
+    close_thread_tables(thd);
+    DBUG_RETURN(TRUE);
+  }
+
   while (!(read_record_info.read_record(&read_record_info)))
   {
     Event_queue_element *et;
@@ -1128,8 +1135,9 @@ Events::load_events_from_db(THD *thd)
       }
     }
   }
-  sql_print_information("Event Scheduler: Loaded %d event%s",
-                        count, (count == 1) ? "" : "s");
+  if (global_system_variables.log_warnings)
+    sql_print_information("Event Scheduler: Loaded %d event%s",
+                          count, (count == 1) ? "" : "s");
   ret= FALSE;
 
 end:

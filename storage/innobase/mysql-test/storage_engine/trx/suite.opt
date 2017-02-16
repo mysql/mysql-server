@@ -1,0 +1,5 @@
+--ignore-builtin-innodb
+--plugin-load=ha_innodb
+--innodb
+--innodb-lock-wait-timeout=1
+

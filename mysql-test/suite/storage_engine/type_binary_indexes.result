@@ -1,0 +1,126 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (b BINARY <CUSTOM_COL_OPTIONS>,
+b20 BINARY(20) <CUSTOM_COL_OPTIONS>,
+v16 VARBINARY(16) <CUSTOM_COL_OPTIONS>,
+v128 VARBINARY(128) <CUSTOM_COL_OPTIONS>,
+<CUSTOM_INDEX> b20 (b20)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	#	1	b20	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (b,b20,v16,v128) VALUES ('a','char1','varchar1a','varchar1b'),('a','char2','varchar2a','varchar2b'),('b','char3','varchar1a','varchar1b'),('c','char4','varchar3a','varchar3b');
+SELECT HEX(b20) FROM t1 ORDER BY b20;
+HEX(b20)
+6368617231000000000000000000000000000000
+6368617232000000000000000000000000000000
+6368617233000000000000000000000000000000
+6368617234000000000000000000000000000000
+DROP TABLE t1;
+CREATE TABLE t1 (b BINARY <CUSTOM_COL_OPTIONS>,
+b20 BINARY(20) <CUSTOM_COL_OPTIONS> PRIMARY KEY,
+v16 VARBINARY(16) <CUSTOM_COL_OPTIONS>,
+v128 VARBINARY(128) <CUSTOM_COL_OPTIONS>
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	b20	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (b,b20,v16,v128) VALUES ('a','char1','varchar1a','varchar1b'),('a','char2','varchar2a','varchar2b'),('b','char3','varchar1a','varchar1b'),('c','char4','varchar3a','varchar3b');
+EXPLAIN SELECT HEX(b20) FROM t1 ORDER BY b20;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	PRIMARY	#	#	#	#
+SELECT HEX(b20) FROM t1 ORDER BY b20;
+HEX(b20)
+6368617231000000000000000000000000000000
+6368617232000000000000000000000000000000
+6368617233000000000000000000000000000000
+6368617234000000000000000000000000000000
+EXPLAIN SELECT HEX(b20) FROM t1 IGNORE INDEX (PRIMARY) ORDER BY b20 DESC;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	NULL	#	#	#	#
+SELECT HEX(b20) FROM t1 ORDER BY b20 DESC;
+HEX(b20)
+6368617234000000000000000000000000000000
+6368617233000000000000000000000000000000
+6368617232000000000000000000000000000000
+6368617231000000000000000000000000000000
+DROP TABLE t1;
+CREATE TABLE t1 (b BINARY <CUSTOM_COL_OPTIONS>,
+b20 BINARY(20) <CUSTOM_COL_OPTIONS>,
+v16 VARBINARY(16) <CUSTOM_COL_OPTIONS>,
+v128 VARBINARY(128) <CUSTOM_COL_OPTIONS>,
+UNIQUE INDEX b_v (b,v128)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	b_v	1	b	#	#	NULL	NULL	#	#		
+t1	0	b_v	2	v128	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (b,b20,v16,v128) VALUES ('a','char1','varchar1a','varchar1b'),('a','char2','varchar2a','varchar2b'),('b','char3','varchar1a','varchar1b'),('c','char4','varchar3a','varchar3b');
+EXPLAIN SELECT HEX(b), HEX(v128) FROM t1 WHERE b != 'a' AND v128 > 'varchar';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	b_v	#	#	#	#
+SELECT HEX(b), HEX(v128) FROM t1 WHERE b != 'a' AND v128 > 'varchar';
+HEX(b)	HEX(v128)
+62	766172636861723162
+63	766172636861723362
+EXPLAIN SELECT HEX(b), HEX(v128) FROM t1 USE INDEX (b_v) WHERE b != 'a' AND v128 > 'varchar';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	b_v	#	#	#	#
+SELECT HEX(b), HEX(v128) FROM t1 USE INDEX (b_v) WHERE b != 'a' AND v128 > 'varchar';
+HEX(b)	HEX(v128)
+62	766172636861723162
+63	766172636861723362
+EXPLAIN SELECT HEX(v128), COUNT(*) FROM t1 GROUP BY HEX(v128);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	b_v	#	#	#	#
+SELECT HEX(v128), COUNT(*) FROM t1 GROUP BY HEX(v128);
+HEX(v128)	COUNT(*)
+766172636861723162	2
+766172636861723262	1
+766172636861723362	1
+DROP TABLE t1;
+CREATE TABLE t1 (b BINARY <CUSTOM_COL_OPTIONS>,
+b20 BINARY(20) <CUSTOM_COL_OPTIONS>,
+v16 VARBINARY(16) <CUSTOM_COL_OPTIONS>,
+v128 VARBINARY(128) <CUSTOM_COL_OPTIONS>,
+INDEX (v16(10))
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	v16	1	v16	#	#	10	NULL	#	#		
+INSERT INTO t1 (b,b20,v16,v128) VALUES ('a','char1','varchar1a','varchar1b'),('a','char2','varchar2a','varchar2b'),('b','char3','varchar1a','varchar1b'),('c','char4','varchar3a','varchar3b'),('d','char5','varchar4a','varchar3b'),('e','char6','varchar2a','varchar3b');
+INSERT INTO t1 (b,b20,v16,v128) SELECT b,b20,v16,v128 FROM t1;
+EXPLAIN SELECT HEX(SUBSTRING(v16,0,3)) FROM t1 WHERE v16 LIKE 'varchar%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	NULL	#	#	#	#
+SELECT HEX(SUBSTRING(v16,7,3)) FROM t1 WHERE v16 LIKE 'varchar%';
+HEX(SUBSTRING(v16,7,3))
+723161
+723161
+723161
+723161
+723261
+723261
+723261
+723261
+723361
+723361
+723461
+723461
+EXPLAIN SELECT HEX(SUBSTRING(v16,0,3)) FROM t1 FORCE INDEX (v16) WHERE v16 LIKE 'varchar%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	v16	#	#	#	#
+SELECT HEX(SUBSTRING(v16,7,3)) FROM t1 FORCE INDEX (v16) WHERE v16 LIKE 'varchar%';
+HEX(SUBSTRING(v16,7,3))
+723161
+723161
+723161
+723161
+723261
+723261
+723261
+723261
+723361
+723361
+723461
+723461
+DROP TABLE t1;

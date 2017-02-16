@@ -13,13 +13,11 @@ INSERT INTO init_file.startup VALUES ( NOW() );
 SELECT * INTO @X FROM init_file.startup limit 0,1;
 SELECT * INTO @Y FROM init_file.startup limit 1,1;
 SELECT YEAR(@X)-YEAR(@Y);
-# Enable this DROP DATABASE only after resolving bug #42507
-DROP DATABASE init_file;
 
 --echo ok
 --echo end of 4.1 tests
 #
-# Chec 5.x features
+# Check 5.x features
 #
 # Expected:
 #   3, 5, 7, 11, 13 
@@ -27,10 +25,13 @@ select * from t1;
 # Expected:
 #   30, 3, 11, 13
 select * from t2;
-# Enable this DROP TABLE only after resolving bug #42507
-drop table t1, t2;
 
-# MTR will restart server anyway, but by forcing it we avoid being warned
-# about the apparent side effect
+#
+# we don't drop tables (t1, t2) and databases (init_file)
+# created by init-file script, because they existed when before-test
+# check was run, and if they won't exist after the test, after-test check
+# will complain.
+# But it's safe to keep them, because mysqld will be restarted after the
+# test (--init-file option) and datadir will be reinitialized.
+#
 
---source include/force_restart.inc

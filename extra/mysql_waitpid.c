@@ -1,4 +1,5 @@
-/* Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,10 +50,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   switch(optid) {
   case 'V':
     printf("%s version %s by Jani Tolonen\n", progname, VER);
-    exit(-1);
+    exit(0);
   case 'I':
   case '?':
     usage();
+    exit(0);
   }
   return 0;
 }
@@ -68,7 +70,10 @@ int main(int argc, char *argv[])
     exit(-1);
   if (!argv[0] || !argv[1] || (pid= atoi(argv[0])) <= 0 ||
       (t= atoi(argv[1])) <= 0)
+  {
     usage();
+    exit(-1);
+  }
   for (; t > 0; t--)
   {
     if (kill((pid_t) pid, sig))
@@ -99,5 +104,4 @@ void usage(void)
   printf("integer arguments.\n\n");
   printf("Options:\n");
   my_print_help(my_long_options);
-  exit(-1);
 }

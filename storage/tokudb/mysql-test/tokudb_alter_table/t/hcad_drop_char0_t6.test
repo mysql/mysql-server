@@ -1,0 +1,17 @@
+# test case reduced from an RQG trial 
+# the alter table asserts because tokudb classifies the char(0) column as a blob
+
+source include/have_tokudb.inc;
+set default_storage_engine=tokudb;
+
+disable_warnings;
+drop table if exists t6;
+enable_warnings;
+
+CREATE TABLE t6 (  c32 char(0) DEFAULT NULL,  c15 year(4) DEFAULT NULL,  c13 varchar(240) DEFAULT NULL,  c35 date NOT NULL,  c24 text,  c27 text,  c1 int(11) DEFAULT NULL,  c4 int(11) DEFAULT NULL,  c10 int(10) unsigned NOT NULL,  c14 varchar(240) DEFAULT NULL,  c26 text,  c25 text,  c17 varchar(240) NOT NULL,  c28 text NOT NULL,  c7 int(10) unsigned DEFAULT NULL,  c34 date NOT NULL,  c21 blob,  c29 text NOT NULL,  c22 blob NOT NULL,  c19 blob,  c3 int(10) unsigned DEFAULT NULL,  c2 int(10) unsigned DEFAULT NULL,  c8 int(11) NOT NULL,  c16 varchar(240) NOT NULL,  c5 int(11) DEFAULT NULL,  c18 blob,  c23 blob NOT NULL,  c9 int(11) NOT NULL,  c20 blob,  c12 varchar(240) DEFAULT NULL,  c33 date DEFAULT NULL,  c11 int(10) unsigned NOT NULL,  c30 date DEFAULT NULL,  c6 int(10) unsigned DEFAULT NULL,  c31 date DEFAULT NULL,  c0 int(11) DEFAULT NULL,  KEY c13 (c13),  KEY c35 (c35),  KEY c27 (c27(255)),  KEY c1 (c1),  KEY c25 (c25(255)),  KEY c17 (c17),  KEY c7 (c7),  KEY c21 (c21(255)),  KEY c29 (c29(255)),  KEY c19 (c19(255)),  KEY c3 (c3),  KEY c5 (c5),  KEY c23 (c23(255)),  KEY c15 (c15),  KEY c9 (c9),  KEY c33 (c33),  KEY c11 (c11),  KEY c31 (c31));
+
+ALTER TABLE t6 DROP COLUMN c32;
+
+DROP TABLE t6;
+
+

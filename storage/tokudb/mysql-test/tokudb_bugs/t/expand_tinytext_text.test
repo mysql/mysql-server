@@ -1,0 +1,15 @@
+# this test verifies that column expansion of a tinytext to text column retains the correct data
+--source include/have_tokudb.inc
+set default_storage_engine='tokudb';
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+
+create table t (u tinytext, v text);
+insert into t values ('hi', 'there');
+select * from t;
+alter table t change column u u text;
+select * from t;
+
+# Final cleanup.
+drop table t;

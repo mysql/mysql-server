@@ -1,0 +1,52 @@
+#
+# READ LOCAL / WRITE CONCURRENT locks.
+# This test is separate from the main lock.test
+# because the feature is likely to be unsupported.
+#
+
+--source have_engine.inc
+
+--source include/count_sessions.inc
+
+SET lock_wait_timeout = 1;
+
+--let $create_definition = a $int_col
+--source create_table.inc
+
+LOCK TABLES t1 WRITE CONCURRENT, t1 AS t2 READ;
+
+connect (con1,localhost,root,,);
+SET lock_wait_timeout = 1;
+
+# If this statement fails with ER_LOCK_WAIT_TIMEOUT,
+# most likely the engine does not support LOCK .. WRITE CONCURRENT
+LOCK TABLES t1 READ LOCAL;
+if ($mysql_errname)
+{
+  --let $functionality = LOCK .. WRITE CONCURRENT
+  --source unexpected_result.inc
+}
+
+UNLOCK TABLES;
+
+connection default;
+UNLOCK TABLES;
+
+connection con1;
+LOCK TABLES t1 READ LOCAL;
+
+connection default;
+LOCK TABLES t1 WRITE CONCURRENT, t1 AS t2 READ;
+UNLOCK TABLES;
+
+connection con1;
+UNLOCK TABLES;
+disconnect con1;
+
+connection default;
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc
+
+--source cleanup_engine.inc
+

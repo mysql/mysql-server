@@ -1,0 +1,9 @@
+###############################################################################
+# WL47: Store in binlog text of statements that caused RBR events
+# Wrapper for extra/rpl/rpl_row_annotate.test.
+# Intended to test that if the --replicate-annotate-row-events option
+# is switched off on slave then Annotate_events are not reproduced.
+###############################################################################
+
+--source include/have_binlog_format_row.inc
+--source extra/rpl_tests/rpl_row_annotate.test

@@ -1,0 +1,45 @@
+SET @start_global_value = @@global.deadlock_timeout_short;
+select @@global.deadlock_timeout_short;
+@@global.deadlock_timeout_short
+10000
+select @@session.deadlock_timeout_short;
+@@session.deadlock_timeout_short
+10000
+show global variables like 'deadlock_timeout_short';
+Variable_name	Value
+deadlock_timeout_short	10000
+show session variables like 'deadlock_timeout_short';
+Variable_name	Value
+deadlock_timeout_short	10000
+select * from information_schema.global_variables where variable_name='deadlock_timeout_short';
+VARIABLE_NAME	VARIABLE_VALUE
+DEADLOCK_TIMEOUT_SHORT	10000
+select * from information_schema.session_variables where variable_name='deadlock_timeout_short';
+VARIABLE_NAME	VARIABLE_VALUE
+DEADLOCK_TIMEOUT_SHORT	10000
+set global deadlock_timeout_short=10;
+select @@global.deadlock_timeout_short;
+@@global.deadlock_timeout_short
+10
+set session deadlock_timeout_short=10;
+select @@session.deadlock_timeout_short;
+@@session.deadlock_timeout_short
+10
+set global deadlock_timeout_short=1.1;
+ERROR 42000: Incorrect argument type to variable 'deadlock_timeout_short'
+set session deadlock_timeout_short=1e1;
+ERROR 42000: Incorrect argument type to variable 'deadlock_timeout_short'
+set global deadlock_timeout_short="foo";
+ERROR 42000: Incorrect argument type to variable 'deadlock_timeout_short'
+set global deadlock_timeout_short=0;
+select @@global.deadlock_timeout_short;
+@@global.deadlock_timeout_short
+0
+set session deadlock_timeout_short=cast(-1 as unsigned int);
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1292	Truncated incorrect deadlock_timeout_short value: '18446744073709551615'
+select @@session.deadlock_timeout_short;
+@@session.deadlock_timeout_short
+4294967295
+SET @@global.deadlock_timeout_short = @start_global_value;

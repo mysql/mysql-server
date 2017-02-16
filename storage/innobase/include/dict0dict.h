@@ -1123,7 +1123,13 @@ dict_index_calc_min_rec_len(
 /*========================*/
 	const dict_index_t*	index);	/*!< in: index */
 
-/** Calculate new statistics if 1 / 16 of table has been modified
+/**
+
+If user has provided upper bound for how many rows needs to be updated
+before we calculate new statistics we use minimum of provided value
+and 1/16 of table every 16th round. If no upper bound is provided
+(srv_stats_modified_counter = 0, default) then calculate new statistics
+if 1 / 16 of table has been modified
 since the last time a statistics batch was run.
 We calculate statistics at most every 16th round, since we may have
 a counter table which is very small and updated very often.
@@ -1132,7 +1138,9 @@ a counter table which is very small and updated very often.
 recalculated
 */
 #define DICT_TABLE_CHANGED_TOO_MUCH(t) \
-	((ib_int64_t) (t)->stat_modified_counter > 16 + (t)->stat_n_rows / 16)
+	((ib_int64_t) (t)->stat_modified_counter > (srv_stats_modified_counter ? \
+	(ib_int64_t) ut_min(srv_stats_modified_counter, (16 + (t)->stat_n_rows / 16)) : \
+		16 + (t)->stat_n_rows / 16))
 
 /*********************************************************************//**
 Calculates new estimates for table and index statistics. The statistics

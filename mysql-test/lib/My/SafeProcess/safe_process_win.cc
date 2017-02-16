@@ -357,14 +357,14 @@ int main(int argc, const char** argv )
   CloseHandle(job_handle);
   message("Job terminated and closed");
 
-  if (!jobobject_assigned)
-  {
-    GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, process_info.dwProcessId);
-    TerminateProcess(process_info.hProcess, 202);
-  }
+
 
   if (wait_res != WAIT_OBJECT_0 + CHILD)
   {
+    if (!jobobject_assigned)
+    {
+      TerminateProcess(process_info.hProcess, 202);
+    }
     /* The child has not yet returned, wait for it */
     message("waiting for child to exit");
     if ((wait_res= WaitForSingleObject(wait_handles[CHILD], INFINITE))

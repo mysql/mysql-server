@@ -17,13 +17,23 @@
 #include "mysys_err.h"
 #include <my_sys.h>
 
+#ifdef _WIN32
+static int my_win_unlink(const char *name);
+#endif
+
 int my_delete(const char *name, myf MyFlags)
 {
   int err;
   DBUG_ENTER("my_delete");
   DBUG_PRINT("my",("name %s MyFlags %d", name, MyFlags));
 
-  if ((err = unlink(name)) == -1)
+#ifdef _WIN32
+  err = my_win_unlink(name);
+#else
+  err = unlink(name);
+#endif
+
+  if(err)
   {
     my_errno=errno;
     if (MyFlags & (MY_FAE+MY_WME))
@@ -36,90 +46,108 @@ int my_delete(const char *name, myf MyFlags)
   DBUG_RETURN(err);
 } /* my_delete */
 
-#if defined(__WIN__)
-/**
-  Delete file which is possibly not closed.
 
-  This function is intended to be used exclusively as a temporal solution
-  for Win NT in case when it is needed to delete a not closed file (note
-  that the file must be opened everywhere with FILE_SHARE_DELETE mode).
-  Deleting not-closed files can not be supported on Win 98|ME (and because
-  of that is considered harmful).
+#if defined (_WIN32)
+/* 
+  Delete file.
+
+  The function also makes best effort to minimize number of errors, 
+  where another program (or thread in the current program) has the the same file
+  open.
+
+  We're using 2 tricks to prevent the errors.
+
+  1. A usual Win32's DeleteFile() can with ERROR_SHARED_VIOLATION,
+  because the file is opened in another application (often, antivirus or backup)
   
-  The function deletes the file with its preliminary renaming. This is
-  because when not-closed share-delete file is deleted it still lives on
-  a disk until it will not be closed everwhere. This may conflict with an
-  attempt to create a new file with the same name. The deleted file is
-  renamed to <name>.<num>.deleted where <name> - the initial name of the
-  file, <num> - a hexadecimal number chosen to make the temporal name to
-  be unique.
+  We avoid the error by using CreateFile() with FILE_FLAG_DELETE_ON_CLOSE, instead
+  of DeleteFile()
 
-  @param the name of the being deleted file
-  @param the flags instructing how to react on an error internally in
-         the function
+  2. If file which is deleted (delete on close) but has not entirely gone,
+  because it is still opened by some app, an attempt to trcreate file with the 
+  same name would  result in yet another error. The workaround here is renaming 
+  a file to unique name.
 
-  @note The per-thread @c my_errno holds additional info for a caller to
-        decide how critical the error can be.
-
-  @retval
-    0	ok
-  @retval
-    1   error
-
-
-*/
-int nt_share_delete(const char *name, myf MyFlags)
+  Symbolic link are deleted without renaming. Directories are not deleted.
+ */
+static int my_win_unlink(const char *name)
 {
-  char buf[MAX_PATH + 20];
-  ulong cnt;
-  DBUG_ENTER("nt_share_delete");
-  DBUG_PRINT("my",("name %s MyFlags %d", name, MyFlags));
+  HANDLE handle= INVALID_HANDLE_VALUE;
+  DWORD attributes;
+  DWORD last_error;
+  char unique_filename[MAX_PATH + 35];
+  unsigned long long tsc; /* time stamp counter, for unique filename*/
 
-  for (cnt= GetTickCount(); cnt; cnt--)
+  DBUG_ENTER("my_win_unlink");
+  attributes= GetFileAttributes(name);
+  if (attributes == INVALID_FILE_ATTRIBUTES)
   {
-    errno= 0;
-    sprintf(buf, "%s.%08X.deleted", name, cnt);
-    if (MoveFile(name, buf))
-      break;
-
-    if ((errno= GetLastError()) == ERROR_ALREADY_EXISTS)
-      continue;
-
-    /* This happened during tests with MERGE tables. */
-    if (errno == ERROR_ACCESS_DENIED)
-      continue;
-
-    DBUG_PRINT("warning", ("Failed to rename %s to %s, errno: %d",
-                           name, buf, errno));
-    break;
+    last_error= GetLastError();
+    DBUG_PRINT("error",("GetFileAttributes(%s) failed with %u\n", name, last_error));
+    goto error;
   }
 
-  if (errno == ERROR_FILE_NOT_FOUND)
+  if (attributes & FILE_ATTRIBUTE_DIRECTORY)
   {
-    my_errno= ENOENT;    // marking, that `name' doesn't exist 
+    DBUG_PRINT("error",("can't remove %s - it is a directory\n", name));
+    errno= EINVAL;
+    DBUG_RETURN(-1);
   }
-  else if (errno == 0)
+ 
+  if (attributes & FILE_ATTRIBUTE_REPARSE_POINT)
   {
-    if (DeleteFile(buf))
-      DBUG_RETURN(0);
+    /* Symbolic link. Delete link, the not target */
+    if (!DeleteFile(name))
+    {
+       last_error= GetLastError();
+       DBUG_PRINT("error",("DeleteFile(%s) failed with %u\n", name,last_error));
+       goto error;
+    }
+    DBUG_RETURN(0);
+  }
+
+  handle= CreateFile(name, DELETE, 0,  NULL, OPEN_EXISTING, FILE_FLAG_DELETE_ON_CLOSE, NULL);
+  if (handle != INVALID_HANDLE_VALUE)
+  {
     /*
-      The below is more complicated than necessary. For some reason, the
-      assignment to my_errno clears the error number, which is retrieved
-      by GetLastError() (VC2005EE). Assigning to errno first, allows to
-      retrieve the correct value.
+      We opened file without sharing flags (exclusive), noone else has this file
+      opened, thus it is save to close handle to remove it. No renaming is 
+      necessary.
     */
-    errno= GetLastError();
-    if (errno == 0)
-      my_errno= ENOENT; // marking, that `buf' doesn't exist
-    else
-      my_errno= errno;
+    CloseHandle(handle);
+    DBUG_RETURN(0);
   }
-  else
-    my_errno= errno;
 
-  if (MyFlags & (MY_FAE+MY_WME))
-    my_error(EE_DELETE, MYF(ME_BELL + ME_WAITTANG + (MyFlags & ME_NOINPUT)),
-             name, my_errno);
+  /*
+     Can't open file exclusively, hence the file must be already opened by 
+     someone else. Open it for delete (with all FILE_SHARE flags set), 
+     rename to unique name, close.
+  */
+  handle= CreateFile(name, DELETE, FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
+    NULL, OPEN_EXISTING, FILE_FLAG_DELETE_ON_CLOSE, NULL);
+  if (handle == INVALID_HANDLE_VALUE)
+  {
+     last_error= GetLastError();
+     DBUG_PRINT("error",
+       ("CreateFile(%s) with FILE_FLAG_DELETE_ON_CLOSE failed with %u\n",
+        name,last_error));
+     goto error;
+  }
+
+  tsc= __rdtsc();
+  my_snprintf(unique_filename,sizeof(unique_filename),"%s.%llx.deleted", 
+    name, tsc);
+  if (!MoveFile(name, unique_filename)) 
+  {
+    DBUG_PRINT("warning",  ("moving %s to unique filename failed, error %u\n",
+    name,GetLastError()));
+  }
+
+  CloseHandle(handle);
+  DBUG_RETURN(0);
+ 
+error:
+  my_osmaperr(last_error);
   DBUG_RETURN(-1);
 }
 #endif

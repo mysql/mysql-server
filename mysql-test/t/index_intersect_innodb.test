@@ -1,0 +1,7 @@
+--source include/have_innodb.inc
+
+SET SESSION STORAGE_ENGINE='InnoDB';
+
+--source t/index_intersect.test
+
+SET SESSION STORAGE_ENGINE=DEFAULT;

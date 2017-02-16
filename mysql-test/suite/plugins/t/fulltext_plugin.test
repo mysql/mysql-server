@@ -1,0 +1,17 @@
+--source include/have_simple_parser.inc
+
+#
+# BUG#39746 - Debug flag breaks struct definition (server crash)
+#
+--replace_result .dll .so
+eval INSTALL PLUGIN simple_parser SONAME '$MYPLUGLIB_SO';
+CREATE TABLE t1(a TEXT, b TEXT, FULLTEXT(a) WITH PARSER simple_parser);
+ALTER TABLE t1 ADD FULLTEXT(b) WITH PARSER simple_parser;
+DROP TABLE t1;
+UNINSTALL PLUGIN simple_parser;
+
+#
+# Bug #69682 - mysqld crashes after uninstall of plugin with "first" status var
+#
+show status like 'a%status';
+

@@ -173,12 +173,7 @@ SELECT @@global.query_cache_type;
 # Check if query_cache_type can be accessed with and without @@ sign #
 ######################################################################
 
-SET query_cache_type = 'ON';
-
---Error ER_PARSE_ERROR
-SET session.query_cache_type = 'OFF';
---Error ER_PARSE_ERROR
-SET global.query_cache_type = 'DEMAND';
+SET global query_cache_type = 'ON';
 
 SET session query_cache_type = 1;
 SELECT @@query_cache_type;

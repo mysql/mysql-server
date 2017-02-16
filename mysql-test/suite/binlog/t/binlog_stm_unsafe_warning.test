@@ -130,6 +130,7 @@ if(!$log_error_)
   # does not know the location of its .err log, use default location
   let $log_error_ = $MYSQLTEST_VARDIR/log/mysqld.1.err;
 }
+
 # Assign env variable LOG_ERROR
 let LOG_ERROR=$log_error_;
 
@@ -138,14 +139,31 @@ let LOG_ERROR=$log_error_;
 
 perl;
   use strict;
+  use Cwd;
   my $log_error= $ENV{'LOG_ERROR'} or die "LOG_ERROR not set";
-  open(FILE, "$log_error") or die("Unable to open $log_error: $!\n");
+  open(FILE, "$log_error") or die("Unable to open '$log_error' from directory " . cwd() . " :$! \n");
   my $binlog_counter= $ENV{'BINLOG_COUNTER1'} or die "BINLOG_COUNTER1 not set";
   my $count = () = grep(/$binlog_counter/g,<FILE>); 
   # Grep the timestamp value from the error file.
   print "Occurrences: $count\n";
   close(FILE);
 EOF
+
+#
+# Check how RAND() can be used with replication
+#
+
+create table t1 (n1 int, n2 int, n3 int,
+                key (n1, n2, n3),
+                key (n2, n3, n1),
+                key (n3, n1, n2));
+insert into t1 values (1,1,1);
+# This should work fine
+insert into t1 values (RAND()*1000+10, RAND()*1000+10, RAND()*1000+10);
+# This should need row based logging.
+update t1 set n1=rand() where n1=1;
+delete from t1 where n2=1 + rand()*0;
+drop table t1;
 
 # bug#50192: diplaying the unsafe warning comes out to the user warning stack
 -- disable_warnings

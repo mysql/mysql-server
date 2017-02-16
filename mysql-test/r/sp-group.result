@@ -1,0 +1,156 @@
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+drop view if exists view_t1;
+Warnings:
+Note	1051	Unknown table 'test.view_t1'
+SET sql_mode=ONLY_FULL_GROUP_BY;
+CREATE TABLE t1 (
+pk INT, 
+f0 INT, f1 INT, f2 INT, f3 INT, f4 INT, 
+f5 INT, f6 INT, f7 INT, f8 INT, f9 INT, 
+PRIMARY KEY (pk)
+);
+CREATE VIEW view_t1 AS SELECT * FROM t1;
+CREATE PROCEDURE s1() 
+SELECT * FROM (
+INFORMATION_SCHEMA.`INNODB_BUFFER_PAGE_LRU` AS table1
+LEFT JOIN test.view_t1 AS table2
+ON ( table2.`f6` = table1.FREE_PAGE_CLOCK) 
+) 
+ORDER BY table1.NUMBER_RECORDS
+LIMIT 0
+;
+CALL s1;
+POOL_ID	LRU_POSITION	SPACE	PAGE_NUMBER	PAGE_TYPE	FLUSH_TYPE	FIX_COUNT	IS_HASHED	NEWEST_MODIFICATION	OLDEST_MODIFICATION	ACCESS_TIME	TABLE_NAME	INDEX_NAME	NUMBER_RECORDS	DATA_SIZE	COMPRESSED_SIZE	COMPRESSED	IO_FIX	IS_OLD	FREE_PAGE_CLOCK	pk	f0	f1	f2	f3	f4	f5	f6	f7	f8	f9
+CALL s1;
+POOL_ID	LRU_POSITION	SPACE	PAGE_NUMBER	PAGE_TYPE	FLUSH_TYPE	FIX_COUNT	IS_HASHED	NEWEST_MODIFICATION	OLDEST_MODIFICATION	ACCESS_TIME	TABLE_NAME	INDEX_NAME	NUMBER_RECORDS	DATA_SIZE	COMPRESSED_SIZE	COMPRESSED	IO_FIX	IS_OLD	FREE_PAGE_CLOCK	pk	f0	f1	f2	f3	f4	f5	f6	f7	f8	f9
+drop table t1;
+drop view view_t1;
+drop procedure s1;
+CREATE TABLE A (
+pk INTEGER AUTO_INCREMENT,
+col_int_key INTEGER,
+col_varchar_key VARCHAR(1),
+PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+CREATE VIEW view_A AS SELECT * FROM A;
+CREATE TABLE C (
+pk INTEGER AUTO_INCREMENT,
+col_int_nokey INTEGER,
+col_int_key INTEGER,
+col_date_key DATE,
+col_date_nokey DATE,
+col_time_key TIME,
+col_time_nokey TIME,
+col_datetime_key DATETIME,
+col_datetime_nokey DATETIME,
+col_varchar_key VARCHAR(1),
+col_varchar_nokey VARCHAR(1),
+PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+CREATE VIEW view_C AS SELECT * FROM C;
+CREATE TABLE AA (
+pk INTEGER AUTO_INCREMENT,
+col_int_nokey INTEGER,
+col_int_key INTEGER,
+col_date_key DATE,
+col_date_nokey DATE,
+col_time_key TIME,
+col_time_nokey TIME,
+col_datetime_key DATETIME,
+col_datetime_nokey DATETIME,
+col_varchar_key VARCHAR(1),
+col_varchar_nokey VARCHAR(1),
+PRIMARY KEY (pk),
+KEY (col_varchar_key, col_int_key)
+) ENGINE=MyISAM;
+CREATE VIEW view_AA AS SELECT * FROM AA;
+CREATE TABLE BB (
+pk INTEGER AUTO_INCREMENT,
+col_int_key INTEGER,
+col_varchar_key VARCHAR(1),
+col_varchar_nokey VARCHAR(1),
+PRIMARY KEY (pk),
+KEY (col_varchar_key, col_int_key)
+) ENGINE=MyISAM;
+CREATE VIEW view_BB AS SELECT * FROM BB;
+CREATE TABLE DD (
+pk INTEGER AUTO_INCREMENT,
+col_int_key INTEGER,
+col_date_key DATE,
+col_time_key TIME,
+col_datetime_key DATETIME,
+col_varchar_key VARCHAR(1),
+PRIMARY KEY (pk),
+KEY (col_varchar_key, col_int_key)
+) ENGINE=MyISAM;
+CREATE VIEW view_DD AS SELECT * FROM DD;
+CREATE TRIGGER k BEFORE INSERT ON `DD` FOR EACH ROW INSERT INTO `view_BB` SELECT * FROM `view_A` LIMIT 0 ;
+CREATE TRIGGER r BEFORE INSERT ON `A` FOR EACH ROW INSERT INTO `view_AA` SELECT * FROM `view_C` LIMIT 0 ;
+ALTER TABLE `DD` DROP PRIMARY KEY;
+ERROR 42000: Incorrect table definition; there can be only one auto column and it must be defined as a key
+INSERT INTO `view_A` ( `pk` ) VALUES (NULL);
+INSERT INTO `DD` ( `pk` ) VALUES (NULL);
+INSERT INTO `A` ( `pk` ) VALUES (NULL);
+INSERT INTO `view_DD` ( `pk` ) VALUES (NULL);
+drop trigger r;
+drop trigger k;
+drop view view_A,view_AA,view_C,view_BB,view_DD;
+drop table A,C,AA,BB,DD;
+CREATE TABLE A (
+i INT,
+i1 INT,
+i2 INT,
+d1 DATE,
+d2 DATE,
+col_time_nokey1 TIME,
+col_time_nokey2 TIME,
+col_datetime_nokey1 DATETIME,
+col_datetime_nokey2 DATETIME,
+col_varchar_nokey1 VARCHAR(1),
+col_varchar_nokey2 VARCHAR(1)
+) ENGINE=MyISAM;
+CREATE VIEW view_A AS SELECT * FROM A;
+CREATE TABLE B (
+col_varchar_nokey VARCHAR(1)
+) ENGINE=MyISAM;
+CREATE TABLE AA (
+i INT,
+i1 INT,
+i2 INT,
+d1 DATE,
+d2 DATE,
+col_time_nokey1 TIME,
+col_time_nokey2 TIME,
+col_datetime_nokey1 DATETIME,
+col_datetime_nokey2 DATETIME,
+col_varchar_nokey1 VARCHAR(1),
+col_varchar_nokey2 VARCHAR(1)
+) ENGINE=MyISAM;
+CREATE VIEW view_AA AS SELECT * FROM AA;
+CREATE TABLE DD (
+i INT,
+i1 INT,
+i2 INT,
+d1 DATE,
+d2 DATE,
+col_time_nokey1 TIME,
+col_time_nokey2 TIME,
+col_datetime_nokey1 DATETIME,
+col_datetime_nokey2 DATETIME,
+col_varchar_nokey1 VARCHAR(1),
+col_varchar_nokey2 VARCHAR(1)
+) ENGINE=MyISAM;
+CREATE VIEW view_DD AS SELECT * FROM DD;
+CREATE TRIGGER tr1 BEFORE INSERT ON `AA` FOR EACH ROW INSERT INTO `view_A` SELECT * FROM `view_AA` LIMIT 0 ;
+CREATE TRIGGER tr2 BEFORE INSERT ON `B` FOR EACH ROW INSERT INTO `D` SELECT * FROM `A` LIMIT 0 ;
+INSERT INTO `view_AA` ( `i` ) VALUES (1);
+INSERT INTO `AA` ( `i` ) VALUES (2);
+DELETE FROM `B`;
+INSERT INTO `view_DD` ( `i` ) VALUES (1);
+INSERT INTO `view_AA` ( `i` ) VALUES (3);
+drop trigger tr1;
+drop trigger tr2;
+drop view view_A, view_AA,view_DD;
+drop table A,B,AA,DD;

@@ -1,4 +1,5 @@
 drop table if exists t1,t2,t3;
+call mtr.add_suppression("Out of sort memory; increase server sort buffer size");
 CREATE TABLE t1 (
 id int(6) DEFAULT '0' NOT NULL,
 idservice int(5),
@@ -178,6 +179,8 @@ INSERT INTO t2 VALUES (1,50);
 INSERT INTO t2 VALUES (2,25);
 INSERT INTO t3 VALUES (1,'123 Park Place');
 INSERT INTO t3 VALUES (2,'453 Boardwalk');
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 SELECT    a,b,if(b = 1,i,if(b = 2,v,''))
 FROM      t1
 LEFT JOIN t2 USING(c)
@@ -216,6 +219,7 @@ a	b	if(b = 1,i,if(b = 2,v,''))
 2	1	25
 3	2	123 Park Place
 4	2	453 Boardwalk
+SET optimizer_switch=@save_optimizer_switch;
 drop table t1,t2,t3;
 create table t1 (ID int not null primary key, TransactionID int not null);
 insert into t1 (ID, TransactionID) values  (1,  87), (2,  89), (3,  92), (4,  94), (5,  486), (6,  490), (7,  753), (9,  828), (10, 832), (11, 834), (12, 840);
@@ -353,6 +357,12 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t1 where a = 1 order by b desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	a	a	4	const	5	Using where; Using index
+explain select * from t1 where a = 2 and b > 0 order by a desc,b desc,b,a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	9	NULL	5	Using where; Using index
+explain select * from t1 where a = 2 and b < 2 order by a desc,a,b desc,a,b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	9	NULL	2	Using where; Using index
 select * from t1 where a = 1 order by b desc;
 a	b	c
 1	3	b
@@ -514,7 +524,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN SELECT t1.gid, t3.uid from t1, t3 where t1.skr = t3.uid order by t1.gid,t3.skr;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	2	test.t1.skr	1	Using where
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	2	test.t1.skr	1	Using index condition
 drop table t1,t2,t3;
 CREATE TABLE t1 (
 `titre` char(80) NOT NULL default '',
@@ -607,9 +617,14 @@ FieldKey	LongVal	StringVal
 1	0	2
 1	1	3
 1	2	1
-EXPLAIN SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY LongVal;
+DS-MRR: use two IGNORE INDEX queries, otherwise we get cost races, because
+DS-MRR: records_in_range/read_time return the same numbers for all three indexes
+EXPLAIN SELECT * FROM t1 IGNORE INDEX (LongField, StringField) WHERE FieldKey > '2' ORDER BY LongVal;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	FieldKey,LongField,StringField	FieldKey	38	NULL	4	Using where; Using filesort
+1	SIMPLE	t1	range	FieldKey	FieldKey	38	NULL	4	Using index condition; Using filesort
+EXPLAIN SELECT * FROM t1 IGNORE INDEX (FieldKey, LongField) WHERE FieldKey > '2' ORDER BY LongVal;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	StringField	StringField	38	NULL	4	Using where; Using filesort
 SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY LongVal;
 FieldKey	LongVal	StringVal
 3	1	2
@@ -636,9 +651,10 @@ id
 drop table t1;
 create table t1(a int, b int, index(b));
 insert into t1 values (2, 1), (1, 1), (4, NULL), (3, NULL), (6, 2), (5, 2);
+insert into t1 values (12, 11), (11, 11), (14, 3), (13, 5), (16, 12), (15, 12);
 explain select * from t1 where b=1 or b is null order by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref_or_null	b	b	5	const	3	Using where; Using filesort
+1	SIMPLE	t1	ref_or_null	b	b	5	const	4	Using index condition; Using where; Using filesort
 select * from t1 where b=1 or b is null order by a;
 a	b
 1	1
@@ -647,7 +663,7 @@ a	b
 4	NULL
 explain select * from t1 where b=2 or b is null order by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref_or_null	b	b	5	const	4	Using where; Using filesort
+1	SIMPLE	t1	ref_or_null	b	b	5	const	3	Using index condition; Using where; Using filesort
 select * from t1 where b=2 or b is null order by a;
 a	b
 3	NULL
@@ -1004,7 +1020,7 @@ t1 LEFT JOIN t1 t2 ON (t1.a = t2.a AND t2.a = 2)
 ORDER BY c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
-1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	
+1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	Using where
 SELECT t2.b as c FROM 
 t1 LEFT JOIN t1 t2 ON (t1.a = t2.a AND t2.a = 2) 
 ORDER BY c;
@@ -1107,7 +1123,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	k2	k3	5	NULL	73	Using where
 EXPLAIN SELECT id,c3 FROM t2 WHERE c2 BETWEEN 20 AND 30 ORDER BY c3 LIMIT 4000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	k2	k2	5	NULL	386	Using where; Using filesort
+1	SIMPLE	t2	range	k2	k2	5	NULL	386	Using index condition; Using filesort
 SELECT id,c3 FROM t2 WHERE c2=11 ORDER BY c3 LIMIT 20;
 id	c3
 6	14
@@ -1421,15 +1437,14 @@ DROP TABLE t1;
 #
 create table t1(a int, b tinytext);
 insert into t1 values (1,2),(3,2);
-set session sort_buffer_size= 30000;
+set session sort_buffer_size= 1000;
 Warnings:
-Warning	1292	Truncated incorrect sort_buffer_size value: '30000'
+Warning	1292	Truncated incorrect sort_buffer_size value: '1000'
 set session max_sort_length= 2180;
 CALL mtr.add_suppression("Out of sort memory");
 select * from t1 order by b;
 ERROR HY001: Out of sort memory, consider increasing server sort buffer size
 drop table t1;
-call mtr.add_suppression("Out of sort memory; increase server sort buffer size");
 #
 # Bug #39844: Query Crash Mysql Server 5.0.67
 #
@@ -1460,7 +1475,7 @@ INSERT INTO t1 VALUES (1, 10), (2, NULL);
 EXPLAIN
 SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref_or_null	a_c,a	a_c	10	const,const	1	Using where
+1	SIMPLE	t1	ref_or_null	a_c,a	a_c	10	const,const	2	Using where; Using index; Using filesort
 # Must return 1 row
 SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
 col
@@ -1486,8 +1501,8 @@ SELECT d FROM t1, t2
 WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
 ORDER BY t2.c LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a,b	b	4	const	4	Using where; Using temporary; Using filesort
-1	SIMPLE	t2	ref	a,b,c	a	40	test.t1.a,const	11	Using where
+1	SIMPLE	t1	ref	a,b	b	4	const	4	Using index condition; Using where; Using temporary; Using filesort
+1	SIMPLE	t2	ref	a,b,c	a	40	test.t1.a,const	11	Using index condition
 SELECT d FROM t1, t2
 WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
 ORDER BY t2.c LIMIT 1;
@@ -1505,6 +1520,24 @@ WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
 ORDER BY t2.c LIMIT 1;
 d
 52.5
+SELECT t1.*,t2.* FROM t1, t2
+WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
+ORDER BY t2.c LIMIT 5;
+a	b	a	b	c	d
+ppfcz1	DE	ppfcz1	14	6	52.5
+ppfcz1	DE	ppfcz1	14	7	55.5
+ppfcz1	DE	ppfcz1	14	8	57.5
+ppfcz1	DE	ppfcz1	14	9	59.5
+ppfcz1	DE	ppfcz1	14	10	61.5
+SELECT t1.*, t2.* FROM t3 AS t1, t2 AS t2 
+WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
+ORDER BY t2.c LIMIT 5;
+a	b	a	b	c	d
+ppfcz1	DE	ppfcz1	14	6	52.5
+ppfcz1	DE	ppfcz1	14	7	55.5
+ppfcz1	DE	ppfcz1	14	8	57.5
+ppfcz1	DE	ppfcz1	14	9	59.5
+ppfcz1	DE	ppfcz1	14	10	61.5
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (
 id1 INT NULL,
@@ -1604,20 +1637,20 @@ INSERT INTO t2 SELECT a+4, b FROM t2;
 EXPLAIN 
 SELECT * FROM t1 FORCE INDEX FOR ORDER BY (a), t2 WHERE t1.a < 2 ORDER BY t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	2	Using where
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	
+1	SIMPLE	t1	range	a	a	5	NULL	2	Using index condition; Using temporary; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (flat, BNL join)
 # should have "using filesort"
 EXPLAIN 
 SELECT * FROM t1 USE INDEX FOR ORDER BY (a), t2 WHERE t1.a < 2 ORDER BY t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	2	Using where; Using temporary; Using filesort
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using join buffer
+1	SIMPLE	t1	range	a	a	5	NULL	2	Using index condition; Using temporary; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (flat, BNL join)
 # should have "using filesort"
 EXPLAIN 
 SELECT * FROM t1 FORCE INDEX FOR JOIN (a), t2 WHERE t1.a < 2 ORDER BY t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	2	Using where; Using temporary; Using filesort
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using join buffer
+1	SIMPLE	t1	range	a	a	5	NULL	2	Using index condition; Using temporary; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (flat, BNL join)
 DROP TABLE t1, t2;
 #
 # Bug #50394: Regression in EXPLAIN with index scan, LIMIT, GROUP BY and
@@ -1640,6 +1673,36 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	a	8	NULL	10	Using index; Using temporary; Using filesort
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	Using where
 DROP TABLE t1, t2;
+#
+# Bug #707848: WHERE condition with OR + ORDER BY + field substitution  
+#
+CREATE TABLE t1 (a int PRIMARY KEY);
+INSERT INTO t1 VALUES
+(9), (7), (11), (15), (2), (4), (1), (5), (14), (54), (3), (8);
+EXPLAIN EXTENDED
+SELECT * FROM t1 r JOIN t1 s ON r.a = s.a 
+WHERE s.a IN (2,9) OR s.a < 100  AND s.a != 0
+ORDER BY 1 LIMIT 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	r	index	PRIMARY	PRIMARY	4	NULL	10	100.00	Using where; Using index
+1	SIMPLE	s	eq_ref	PRIMARY	PRIMARY	4	test.r.a	1	100.00	Using index
+Warnings:
+Note	1003	select `test`.`r`.`a` AS `a`,`test`.`s`.`a` AS `a` from `test`.`t1` `r` join `test`.`t1` `s` where ((`test`.`s`.`a` = `test`.`r`.`a`) and ((`test`.`r`.`a` in (2,9)) or ((`test`.`r`.`a` < 100) and (`test`.`r`.`a` <> 0)))) order by 1 limit 10
+SELECT * FROM t1 r JOIN t1 s ON r.a = s.a 
+WHERE s.a IN (2,9) OR s.a < 100 AND s.a != 0
+ORDER BY 1 LIMIT 10;
+a	a
+1	1
+2	2
+3	3
+4	4
+5	5
+7	7
+8	8
+9	9
+11	11
+14	14
+DROP TABLE t1;
 #
 # Bug #59110: Memory leak of QUICK_SELECT_I allocated memory 
 #  and
@@ -1688,7 +1751,7 @@ LEFT JOIN t3 ON t2.i2 = t3.i3
 ORDER BY t1.i1 LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
-1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	5	240.00	Using index
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	5	100.00	Using index
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.i1	1	100.00	Using index
 Warnings:
 Note	1003	select `test`.`t1`.`i1` AS `i1`,`test`.`t2`.`i2` AS `i2` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`i2` = `test`.`t1`.`i1`) order by `test`.`t1`.`i1` limit 5
@@ -1702,3 +1765,300 @@ i1	i2
 4	4
 5	5
 DROP TABLE t1, t2, t3;
+#
+# Fix of LP BUG#793589 Wrong result with double ORDER BY
+#
+CREATE TABLE t1 ( b int) ;
+INSERT INTO t1 VALUES (8),(9);
+CREATE TABLE t2 ( a int, b int, PRIMARY KEY (a)) ;
+INSERT INTO t2 VALUES (6,7),(7,7),(8,1),(9,7),(10,1),(11,5),(12,2),(13,0),(14,1),(15,8),(16,1),(17,1),(18,9),(19,1),(20,5);
+SELECT t2.b AS field1 FROM t1, t2 WHERE t1.b = t2.a GROUP BY field1 ORDER BY t1.b, field1;
+field1
+1
+7
+SELECT t2.b, t1.b FROM t1, t2 WHERE t1.b = t2.a GROUP BY t2.b ORDER BY t1.b, t2.b;
+b	b
+1	8
+7	9
+SELECT t2.b,t1.b FROM t1, t2 WHERE t1.b = t2.a GROUP BY t2.b ORDER BY t1.b;
+b	b
+1	8
+7	9
+SELECT t2.b FROM t1, t2 WHERE t1.b = t2.a GROUP BY t2.b ORDER BY t1.b;
+b
+1
+7
+# field1 removed from ORDER BY
+explain extended
+SELECT t2.b AS field1 FROM t1, t2 WHERE t1.b = t2.a GROUP BY field1 ORDER BY t1.b, field1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using temporary; Using filesort
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	
+Warnings:
+Note	1003	select `test`.`t2`.`b` AS `field1` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`b`) group by `test`.`t2`.`b` order by `test`.`t1`.`b`
+explain extended
+SELECT t2.b, t1.b FROM t1, t2 WHERE t1.b = t2.a GROUP BY t2.b ORDER BY t1.b, t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using temporary; Using filesort
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	
+Warnings:
+Note	1003	select `test`.`t2`.`b` AS `b`,`test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`b`) group by `test`.`t2`.`b` order by `test`.`t1`.`b`
+explain extended
+SELECT t2.b,t1.b FROM t1, t2 WHERE t1.b = t2.a GROUP BY t2.b ORDER BY t1.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using temporary; Using filesort
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	
+Warnings:
+Note	1003	select `test`.`t2`.`b` AS `b`,`test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`b`) group by `test`.`t2`.`b` order by `test`.`t1`.`b`
+explain extended
+SELECT t2.b FROM t1, t2 WHERE t1.b = t2.a GROUP BY t2.b ORDER BY t1.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using temporary; Using filesort
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	
+Warnings:
+Note	1003	select `test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`b`) group by `test`.`t2`.`b` order by `test`.`t1`.`b`
+drop table t1,t2;
+End of 5.2 tests
+#
+# Bug mdev-449: ORDER BY with small sort_buffer_size
+#
+CREATE TABLE t1(f0 int auto_increment primary key, f1 int, f2 varchar(200));
+INSERT INTO t1(f1, f2) VALUES 
+(0,"0"),(1,"1"),(2,"2"),(3,"3"),(4,"4"),(5,"5"),
+(6,"6"),(7,"7"),(8,"8"),(9,"9"),(10,"10"),
+(11,"11"),(12,"12"),(13,"13"),(14,"14"),(15,"15"),
+(16,"16"),(17,"17"),(18,"18"),(19,"19"),(20,"20"),
+(21,"21"),(22,"22"),(23,"23"),(24,"24"),(25,"25"),
+(26,"26"),(27,"27"),(28,"28"),(29,"29"),(30,"30"),
+(31,"31"),(32,"32"),(33,"33"),(34,"34"),(35,"35"),
+(36,"36"),(37,"37"),(38,"38"),(39,"39"),(40,"40"),
+(41,"41"),(42,"42"),(43,"43"),(44,"44"),(45,"45"),
+(46,"46"),(47,"47"),(48,"48"),(49,"49"),(50,"50"),
+(51,"51"),(52,"52"),(53,"53"),(54,"54"),(55,"55"),
+(56,"56"),(57,"57"),(58,"58"),(59,"59"),(60,"60"),
+(61,"61"),(62,"62"),(63,"63"),(64,"64"),(65,"65"),
+(66,"66"),(67,"67"),(68,"68"),(69,"69"),(70,"70"),
+(71,"71"),(72,"72"),(73,"73"),(74,"74"),(75,"75"),
+(76,"76"),(77,"77"),(78,"78"),(79,"79"),(80,"80"),
+(81,"81"),(82,"82"),(83,"83"),(84,"84"),(85,"85"),
+(86,"86"),(87,"87"),(88,"88"),(89,"89"),(90,"90"),
+(91,"91"),(92,"92"),(93,"93"),(94,"94"),(95,"95"),
+(96,"96"),(97,"97"),(98,"98"),(99,"99");
+set @save_sort_buffer_size= @@sort_buffer_size;
+set sort_buffer_size= 2000;
+SELECT * FROM t1 ORDER BY f1 DESC, f0;
+f0	f1	f2
+100	99	99
+99	98	98
+98	97	97
+97	96	96
+96	95	95
+95	94	94
+94	93	93
+93	92	92
+92	91	91
+91	90	90
+90	89	89
+89	88	88
+88	87	87
+87	86	86
+86	85	85
+85	84	84
+84	83	83
+83	82	82
+82	81	81
+81	80	80
+80	79	79
+79	78	78
+78	77	77
+77	76	76
+76	75	75
+75	74	74
+74	73	73
+73	72	72
+72	71	71
+71	70	70
+70	69	69
+69	68	68
+68	67	67
+67	66	66
+66	65	65
+65	64	64
+64	63	63
+63	62	62
+62	61	61
+61	60	60
+60	59	59
+59	58	58
+58	57	57
+57	56	56
+56	55	55
+55	54	54
+54	53	53
+53	52	52
+52	51	51
+51	50	50
+50	49	49
+49	48	48
+48	47	47
+47	46	46
+46	45	45
+45	44	44
+44	43	43
+43	42	42
+42	41	41
+41	40	40
+40	39	39
+39	38	38
+38	37	37
+37	36	36
+36	35	35
+35	34	34
+34	33	33
+33	32	32
+32	31	31
+31	30	30
+30	29	29
+29	28	28
+28	27	27
+27	26	26
+26	25	25
+25	24	24
+24	23	23
+23	22	22
+22	21	21
+21	20	20
+20	19	19
+19	18	18
+18	17	17
+17	16	16
+16	15	15
+15	14	14
+14	13	13
+13	12	12
+12	11	11
+11	10	10
+10	9	9
+9	8	8
+8	7	7
+7	6	6
+6	5	5
+5	4	4
+4	3	3
+3	2	2
+2	1	1
+1	0	0
+set sort_buffer_size= @save_sort_buffer_size;
+DROP TABLE t1;
+End of 5.3 tests
+#
+# Bug 54599: discarded fast range scan for query with 
+#            GROUP BY + ORDER BY + LIMIT 
+#
+create table t0 (a int);
+insert into t0 values (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+create table t1 (a int, b int, index idx1(a,b), index idx2(b,a));
+insert into t1
+select 1000*s4.a+100*s3.a+10*s2.a + s1.a, 1000*s4.a+100*s3.a+10*s2.a+s1.a
+from t0 s1, t0 s2, t0 s3, t0 s4;
+analyze table t1;
+explain
+select b, count(*) num_cnt from t1
+where a > 9750 group by b order by num_cnt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	idx1	idx1	5	NULL	502	Using where; Using index; Using temporary; Using filesort
+flush status;
+select b, count(*) num_cnt from t1
+where a > 9750 group by b order by num_cnt;
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	250
+Handler_read_last	0
+Handler_read_next	249
+Handler_read_prev	0
+Handler_read_rnd	249
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	250
+explain
+select b, count(*) num_cnt from t1 
+where a > 9750 group by b order by num_cnt limit 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	idx1	idx1	5	NULL	502	Using where; Using index; Using temporary; Using filesort
+flush status;
+select b, count(*) num_cnt from t1 
+where a > 9750 group by b order by num_cnt limit 1;
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	250
+Handler_read_last	0
+Handler_read_next	249
+Handler_read_prev	0
+Handler_read_rnd	1
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	250
+drop table t0, t1;
+#
+# LP bug #1002508 : the number  of expected rows to be examined is off
+# (bug #13528826)
+#             
+CREATE TABLE t1(a int PRIMARY KEY, b int) ENGINE=myisam;
+INSERT INTO t1 VALUES
+(5, 10), (2, 70), (7, 80), (6, 20), (1, 50), (9, 40), (8, 30), (3, 60);
+CREATE TABLE t2 (p int, a int, INDEX i_a(a)) ENGINE=myisam;
+INSERT INTO t2 VALUES
+(103, 7), (109, 3), (102, 3), (108, 1), (106, 3),
+(107, 7), (105, 1), (101, 3), (100, 7), (110, 1);
+EXPLAIN 
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	8	Using index
+1	SIMPLE	t2	ref	i_a	i_a	5	test.t1.a	2	Using index
+EXPLAIN 
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a LIMIT 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using index
+1	SIMPLE	t2	ref	i_a	i_a	5	test.t1.a	2	Using index
+EXPLAIN 
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a LIMIT 100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	8	Using index
+1	SIMPLE	t2	ref	i_a	i_a	5	test.t1.a	2	Using index
+DROP TABLE t1,t2;
+#
+# MDEV-4974 memory leak in 5.5.32-MariaDB-1~wheezy-log
+#
+set sort_buffer_size=default;
+set max_sort_length=default;
+create table t1(a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (b int,
+col1 varchar(255),
+col2 varchar(255)
+) character set utf8;
+insert into t2 select 
+A.a+10*B.a,
+concat('wow-wow-col1-value-', A.a+10*B.a+100*C.a),
+concat('wow-wow-col2-value-', A.a+10*B.a+100*C.a)
+from 
+t1 A, t1 B, t1 C where C.a < 8;
+create table t3 as 
+select distinct A.col1 as XX, B.col1 as YY
+from 
+t2 A, t2 B 
+where A.b = B.b
+order by A.col2, B.col2 limit 10, 1000000;
+drop table t1,t2,t3;
+#
+# mdev-10705 : long order by list that can be skipped
+#
+SELECT 1 
+UNION 
+( SELECT 2 
+ORDER BY NULL, @a0 := 3, @a1 := 3, @a2 := 3, @a3 := 3, @a4 := 3,
+@a5 := 3, @a6 := 3, @a7 := 3, @a8 := 3, @a9 := 3, @a10 := 3 );
+1
+1
+2
+End of 5.5 tests

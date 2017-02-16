@@ -20,9 +20,10 @@
 #include <m_ctype.h>
 
 
-#define is_field_separator(X) ((X) == ',' || (X) == '=')
+#define is_field_separator(F, X) \
+  ((F & FIND_TYPE_COMMA_TERM) && ((X) == ',' || (X) == '='))
 
-int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
+int find_type_with_warning(const char *x, TYPELIB *typelib, const char *option)
 {
   int res;
   const char **ptr;
@@ -38,6 +39,17 @@ int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
     while (*++ptr)
       fprintf(stderr, ",'%s'", *ptr);
     fprintf(stderr, "\n");
+  }
+  return res;
+}
+
+
+int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
+{
+  int res;
+  if ((res= find_type_with_warning(x, typelib, option)) <= 0)
+  {
+    sf_leaking_memory= 1; /* no memory leak reports here */
     exit(1);
   }
   return res;
@@ -47,14 +59,14 @@ int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
 /**
   Search after a string in a list of strings. Endspace in x is not compared.
 
-  @param x              String to find
+  @param x              pointer to string to find
+                        (not necessarily zero-terminated).
+                        by return it'll be advanced to point to the terminator.
   @param typelib        TYPELIB (struct of pointer to values + count)
   @param flags          flags to tune behaviour: a combination of
                         FIND_TYPE_NO_PREFIX
-                        FIND_TYPE_ALLOW_NUMBER
                         FIND_TYPE_COMMA_TERM.
-                        FIND_TYPE_NO_OVERWRITE can be passed but is
-                        superfluous (is always implicitely on).
+  @param eol            a pointer to the end of the string.
 
   @retval
     -1  Too many matching values
@@ -65,17 +77,20 @@ int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
 */
 
 
-int find_type(const char *x, const TYPELIB *typelib, uint flags)
+static int find_type_eol(const char **x, const TYPELIB *typelib, uint flags,
+                         const char *eol)
 {
   int find,pos;
   int UNINIT_VAR(findpos);                       /* guarded by find */
+  const char *UNINIT_VAR(termptr);
   const char *i;
   const char *j;
-  DBUG_ENTER("find_type");
-  DBUG_PRINT("enter",("x: '%s'  lib: 0x%lx", x, (long) typelib));
+  CHARSET_INFO *cs= &my_charset_latin1;
+  DBUG_ENTER("find_type_eol");
+  DBUG_PRINT("enter",("x: '%s'  lib: 0x%lx", *x, (long) typelib));
 
-  DBUG_ASSERT(!(flags & ~(FIND_TYPE_NO_PREFIX | FIND_TYPE_ALLOW_NUMBER |
-                          FIND_TYPE_NO_OVERWRITE | FIND_TYPE_COMMA_TERM)));
+  DBUG_ASSERT(!(flags & ~(FIND_TYPE_NO_PREFIX | FIND_TYPE_COMMA_TERM)));
+
   if (!typelib->count)
   {
     DBUG_PRINT("exit",("no count"));
@@ -84,42 +99,52 @@ int find_type(const char *x, const TYPELIB *typelib, uint flags)
   find=0;
   for (pos=0 ; (j=typelib->type_names[pos]) ; pos++)
   {
-    for (i=x ; 
-    	*i && (!(flags & FIND_TYPE_COMMA_TERM) || !is_field_separator(*i)) &&
-        my_toupper(&my_charset_latin1,*i) == 
-    		my_toupper(&my_charset_latin1,*j) ; i++, j++) ;
+    for (i=*x ; 
+         i < eol && !is_field_separator(flags, *i) &&
+         my_toupper(cs, *i) == my_toupper(cs, *j) ; i++, j++) ;
     if (! *j)
     {
-      while (*i == ' ')
+      while (i < eol && *i == ' ')
 	i++;					/* skip_end_space */
-      if (! *i || ((flags & FIND_TYPE_COMMA_TERM) && is_field_separator(*i)))
+      if (i >= eol || is_field_separator(flags, *i))
+      {
+        *x= i;
 	DBUG_RETURN(pos+1);
+      }
     }
-    if ((!*i &&
-         (!(flags & FIND_TYPE_COMMA_TERM) || !is_field_separator(*i))) &&
+    if ((i >= eol && !is_field_separator(flags, *i)) &&
         (!*j || !(flags & FIND_TYPE_NO_PREFIX)))
     {
       find++;
       findpos=pos;
+      termptr=i;
     }
   }
-  if (find == 0 && (flags & FIND_TYPE_ALLOW_NUMBER) && x[0] == '#' &&
-      strend(x)[-1] == '#' &&
-      (findpos=atoi(x+1)-1) >= 0 && (uint) findpos < typelib->count)
-    find=1;
-  else if (find == 0 || ! x[0])
+  if (find == 0 || *x == eol)
   {
     DBUG_PRINT("exit",("Couldn't find type"));
     DBUG_RETURN(0);
   }
   else if (find != 1 || (flags & FIND_TYPE_NO_PREFIX))
   {
-    DBUG_PRINT("exit",("Too many possybilities"));
+    DBUG_PRINT("exit",("Too many possibilities"));
     DBUG_RETURN(-1);
   }
+  *x= termptr;
   DBUG_RETURN(findpos+1);
-} /* find_type */
+} /* find_type_eol */
 
+
+/**
+  Search after a string in a list of strings. Endspace in x is not compared.
+
+  Same as find_type_eol, but for zero-terminated strings,
+  and without advancing the pointer.
+*/
+int find_type(const char *x, const TYPELIB *typelib, uint flags)
+{
+  return find_type_eol(&x, typelib, flags, x + strlen(x));
+}
 
 /**
   Get name of type nr
@@ -187,7 +212,7 @@ my_ulonglong find_typeset(char *x, TYPELIB *lib, int *err)
   {
     (*err)++;
     i= x;
-    while (*x && !is_field_separator(*x))
+    while (*x && *x != ',')
       x++;
     if (x[0] && x[1])      /* skip separator if found */
       x++;
@@ -272,12 +297,10 @@ static TYPELIB on_off_default_typelib= {array_elements(on_off_default_names)-1,
     >0  Offset+1 in typelib for matched name
 */
 
-static uint parse_name(const TYPELIB *lib, const char **strpos, const char *end)
+static uint parse_name(const TYPELIB *lib, const char **pos, const char *end)
 {
-  const char *pos= *strpos;
-  uint find= find_type(pos, lib, FIND_TYPE_COMMA_TERM);
-  for (; pos != end && *pos != '=' && *pos !=',' ; pos++);
-  *strpos= pos;
+  uint find= find_type_eol(pos, lib,
+                           FIND_TYPE_COMMA_TERM | FIND_TYPE_NO_PREFIX, end);
   return find;
 }
 

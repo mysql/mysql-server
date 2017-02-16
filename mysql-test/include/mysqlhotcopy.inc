@@ -89,7 +89,9 @@ USE hotcopy_test;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --list_files $MYSQLTEST_VARDIR/tmp/hotcopy_test
 #--exec rm -rf $MYSQLTEST_VARDIR/tmp/hotcopy_test
+--disable_warnings
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp/hotcopy_test *
+--enable_warnings
 --rmdir $MYSQLTEST_VARDIR/tmp/hotcopy_test
 
 # backup without full index files
@@ -107,7 +109,7 @@ DROP DATABASE hotcopy_save;
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --list_files $MYSQLD_DATADIR/hotcopy_save
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
---error 9,11,2304
+--error 1
 --exec $MYSQLHOTCOPY --quiet -S $MASTER_MYSOCK -u root hotcopy_test hotcopy_save
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --exec $MYSQLHOTCOPY --quiet --allowold -S $MASTER_MYSOCK -u root hotcopy_test hotcopy_save

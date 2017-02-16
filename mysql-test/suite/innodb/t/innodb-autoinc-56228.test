@@ -1,5 +1,4 @@
--- source include/have_innodb.inc
-
+--source include/have_innodb.inc
 ##
 # Bug #56228: dropping tables from within an active statement crashes server
 #

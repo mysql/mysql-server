@@ -1,6 +1,6 @@
--- source include/master-slave.inc
 -- source include/have_binlog_format_row.inc
 -- source include/have_utf32.inc
+-- source include/master-slave.inc
 
 #
 # BUG#51787 Assertion `(n % 4) == 0' on slave upon INSERT into a table with UTF32

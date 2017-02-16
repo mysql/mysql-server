@@ -1,0 +1,18 @@
+--source include/have_debug_sync.inc
+
+create table t1 (a int) engine=tokudb;
+insert t1 values (1),(2),(3);
+
+set debug_sync='before_admin_operator_func WAIT_FOR go';
+send OPTIMIZE TABLE t1;
+
+connect (c1,localhost,root,,);
+select * from t1;
+set debug_sync='now SIGNAL go';
+disconnect c1;
+connection default;
+
+reap;
+drop table t1;
+set debug_sync='reset';
+

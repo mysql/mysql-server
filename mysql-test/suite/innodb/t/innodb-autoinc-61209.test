@@ -1,0 +1,55 @@
+# This is the test case for bug #61209 - duplicate key errors
+# when using auto_increment_increment > 1 and auto_increment_offset > 1
+#
+--source include/have_innodb.inc
+
+#
+# Precautionary clean up.
+#
+--disable_warnings
+DROP TABLE IF EXISTS bug_61209;
+--enable_warnings
+
+#
+# Create test data.
+#
+CREATE TABLE bug_61209 (a INT auto_increment, PRIMARY KEY(a)) ENGINE=InnoDB;
+
+INSERT INTO bug_61209 VALUES (), (), (), ();
+
+--echo
+--echo # Connect con1
+--connect (con1,localhost,root,,)
+--echo
+--echo # Connect con2
+--connect (con2,localhost,root,,)
+
+--echo
+--echo # Connection con1
+--connection con1
+SET SESSION auto_increment_increment=3;
+SET SESSION auto_increment_offset=2;
+SELECT GET_LOCK('a', 9);
+
+--echo
+--echo # Connection con2
+--connection con2
+SET SESSION auto_increment_increment=3;
+SET SESSION auto_increment_offset=2;
+send INSERT INTO bug_61209 (a) VALUES (NULL), (NULL), (NULL + GET_LOCK('a', 10));
+
+--echo
+--echo # Connection con1 reap
+--connection con1
+INSERT INTO bug_61209 (a) VALUES (NULL), (NULL), (NULL);
+SELECT RELEASE_LOCK('a');
+
+--echo
+--echo # Connection con2 reap
+--connection con2
+reap;
+
+#
+# Clean up
+#
+DROP TABLE bug_61209;

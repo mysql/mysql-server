@@ -1,3 +1,4 @@
 include/master-slave.inc
 [connection master]
+call mtr.add_suppression("Aborted connection");
 include/rpl_end.inc

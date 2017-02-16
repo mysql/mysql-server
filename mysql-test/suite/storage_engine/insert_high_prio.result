@@ -1,0 +1,64 @@
+DROP TABLE IF EXISTS t1;
+SET @low_prio_updates = @@global.low_priority_updates;
+SET @concur_insert = @@global.concurrent_insert;
+SET GLOBAL concurrent_insert = NEVER;
+connect  con0,localhost,root,,;
+SET lock_wait_timeout = 4;
+connect  con1,localhost,root,,;
+SET lock_wait_timeout = 4;
+connect  con2,localhost,root,,;
+SET lock_wait_timeout = 4;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (1,'f'),(2,'b');
+SET GLOBAL LOW_PRIORITY_UPDATES = 1;
+connection con1;
+SELECT SLEEP(1) FROM t1;
+connection con0;
+INSERT INTO t1 (a,b) VALUES (3,'z');
+connection con2;
+# Should return only 2 rows
+SELECT SLEEP(1) FROM t1;
+SLEEP(1)
+0
+0
+connection con1;
+SLEEP(1)
+0
+0
+connection con0;
+SELECT a,b FROM t1;
+a	b
+1	f
+2	b
+3	z
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (1,'f'),(2,'b');
+connection con1;
+SELECT SLEEP(1) FROM t1;
+connection con0;
+INSERT HIGH_PRIORITY INTO t1 (a,b) VALUES (3,'z');
+connection con2;
+# Should return 3 rows
+SELECT SLEEP(1) FROM t1;
+SLEEP(1)
+0
+0
+0
+connection con1;
+SLEEP(1)
+0
+0
+connection con0;
+SELECT a,b FROM t1;
+a	b
+1	f
+2	b
+3	z
+disconnect con1;
+disconnect con2;
+disconnect con0;
+connection default;
+SET GLOBAL low_priority_updates = @low_prio_updates;
+SET GLOBAL concurrent_insert = @concur_insert;
+DROP TABLE t1;

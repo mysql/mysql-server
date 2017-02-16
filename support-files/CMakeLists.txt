@@ -1,4 +1,5 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates.
+# Copyright (c) 2012, 2014, SkySQL Ab.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,8 +50,7 @@ ENDFOREACH()
 
 IF(UNIX)
   SET(prefix ${CMAKE_INSTALL_PREFIX})
-  FOREACH(script  mysqld_multi.server mysql-log-rotate binary-configure
-    config.medium.ini config.small.ini config.huge.ini ndb-config-2-node.ini)
+  FOREACH(script  mysqld_multi.server mysql-log-rotate binary-configure)
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${script}.sh 
                    ${CMAKE_CURRENT_BINARY_DIR}/${script} @ONLY )
 
@@ -67,6 +67,7 @@ IF(UNIX)
   ENDFOREACH()
   IF(INSTALL_SUPPORTFILESDIR)
     INSTALL(FILES magic DESTINATION ${inst_location} COMPONENT SupportFiles)
+    ADD_SUBDIRECTORY(SELinux)
   ENDIF()
 
   INSTALL(FILES mysql.m4 DESTINATION ${INSTALL_SHAREDIR}/aclocal COMPONENT Development)
@@ -93,4 +94,33 @@ IF(UNIX)
     DESTINATION ${inst_location} COMPONENT SupportFiles
     PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ 
     GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+
+  IF (INSTALL_SYSCONFDIR)
+    INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/mysql-log-rotate DESTINATION ${INSTALL_SYSCONFDIR}/logrotate.d
+            RENAME mysql COMPONENT SupportFiles)
+    INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/mysql.server
+            DESTINATION  ${INSTALL_SYSCONFDIR}/init.d
+            RENAME mysql COMPONENT SupportFiles
+            PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ 
+            GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+
+    INSTALL(FILES rpm/my.cnf DESTINATION ${INSTALL_SYSCONFDIR}
+            COMPONENT Common)
+
+    IF (INSTALL_SYSCONF2DIR)
+      INSTALL(FILES rpm/client.cnf DESTINATION ${INSTALL_SYSCONF2DIR}
+              COMPONENT SharedLibraries)
+      INSTALL(FILES rpm/mysql-clients.cnf DESTINATION ${INSTALL_SYSCONF2DIR}
+              COMPONENT Client)
+      INSTALL(FILES rpm/server.cnf DESTINATION ${INSTALL_SYSCONF2DIR}
+              COMPONENT IniFiles)
+    ENDIF()
+
+    # This is for SuSE:
+    INSTALL(CODE "EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E create_symlink
+                   ${INSTALL_SYSCONFDIR}/init.d/mysql
+                   ${INSTALL_SBINDIR}/rcmysql
+                   WORKING_DIRECTORY \$ENV{DESTDIR}${prefix})"
+                   COMPONENT SupportFiles)
+  ENDIF(INSTALL_SYSCONFDIR)
 ENDIF()

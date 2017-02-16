@@ -412,12 +412,12 @@ max(t)
 2004-02-01 00:00:00
 drop table t1;
 set sql_mode='maxdb';
-create table t1 (a timestamp, b timestamp);
+create table t1 (a timestamp, b timestamp(5));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE "t1" (
   "a" datetime DEFAULT NULL,
-  "b" datetime DEFAULT NULL
+  "b" datetime(5) DEFAULT NULL
 )
 set sql_mode='';
 drop table t1;
@@ -587,6 +587,19 @@ Variable_name	Value
 Handler_read_next	1
 DROP TABLE t1, t2;
 End of 5.1 tests
+#
+# lp:923429 Crash in decimal_cmp on using UNIX_TIMESTAMP with a wrongly formatted timestamp
+#
+SELECT UNIX_TIMESTAMP('abc') > 0;
+UNIX_TIMESTAMP('abc') > 0
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: 'abc'
+SELECT UNIX_TIMESTAMP('abc');
+UNIX_TIMESTAMP('abc')
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: 'abc'
 
 Bug#50888 valgrind warnings in Field_timestamp::val_str
 
@@ -630,5 +643,14 @@ MAX(ts) = '2011-01-06 12:34:30'
 SELECT MAX(dt) = '2011-01-06 12:34:30' FROM t1;
 MAX(dt) = '2011-01-06 12:34:30'
 1
+DROP TABLE t1;
+#
+# MDEV-9413 "datetime >= coalesce(c1(NULL))" doesn't return expected NULL
+#
+CREATE TABLE t1(c1 TIMESTAMP(6) NULL DEFAULT NULL);
+INSERT INTO t1 VALUES(NULL);
+SELECT c1, '2016-06-13 20:00:00.000003' >= COALESCE( c1 ) FROM t1;
+c1	'2016-06-13 20:00:00.000003' >= COALESCE( c1 )
+NULL	NULL
 DROP TABLE t1;
 End of 5.5 tests

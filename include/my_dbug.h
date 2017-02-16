@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. 
+   Copyright (C) 2000-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,16 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef MY_DBUG_INCLUDED
-#define MY_DBUG_INCLUDED
+#ifndef _my_dbug_h
+#define _my_dbug_h
 
 #ifndef __WIN__
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 #include <signal.h>
 #endif  /* not __WIN__ */
 
@@ -64,11 +59,14 @@ extern  void _db_lock_file_(void);
 extern  void _db_unlock_file_(void);
 extern  FILE *_db_fp_(void);
 extern  void _db_flush_();
+extern void dbug_swap_code_state(void **code_state_store);
+extern void dbug_free_code_state(void **code_state_store);
 extern  const char* _db_get_func_(void);
 
 #define DBUG_ENTER(a) struct _db_stack_frame_ _db_stack_frame_; \
         _db_enter_ (a,__FILE__,__LINE__,&_db_stack_frame_)
 #define DBUG_LEAVE _db_return_ (__LINE__, &_db_stack_frame_)
+
 #define DBUG_RETURN(a1) do {DBUG_LEAVE; return(a1);} while(0)
 #define DBUG_VOID_RETURN do {DBUG_LEAVE; return;} while(0)
 #define DBUG_EXECUTE(keyword,a1) \
@@ -87,17 +85,19 @@ extern  const char* _db_get_func_(void);
 #define DBUG_SET_INITIAL(a1) _db_set_init_ (a1)
 #define DBUG_PROCESS(a1) _db_process_(a1)
 #define DBUG_FILE _db_fp_()
-#define DBUG_SETJMP(a1) (_db_setjmp_ (), setjmp (a1))
-#define DBUG_LONGJMP(a1,a2) (_db_longjmp_ (), longjmp (a1, a2))
 #define DBUG_DUMP(keyword,a1,a2) _db_dump_(__LINE__,keyword,a1,a2)
 #define DBUG_END()  _db_end_ ()
 #define DBUG_LOCK_FILE _db_lock_file_()
 #define DBUG_UNLOCK_FILE _db_unlock_file_()
-#define DBUG_ASSERT(A) assert(A)
+#define DBUG_ASSERT(A) do { _db_flush_(); assert(A); } while(0)
 #define DBUG_EXPLAIN(buf,len) _db_explain_(0, (buf),(len))
 #define DBUG_EXPLAIN_INITIAL(buf,len) _db_explain_init_((buf),(len))
 #define DEBUGGER_OFF                    do { _dbug_on_= 0; } while(0)
 #define DEBUGGER_ON                     do { _dbug_on_= 1; } while(0)
+#define IF_DBUG(A,B)                    A
+#define DBUG_SWAP_CODE_STATE(arg) dbug_swap_code_state(arg)
+#define DBUG_FREE_CODE_STATE(arg) dbug_free_code_state(arg)
+
 #ifndef __WIN__
 #define DBUG_ABORT()                    (_db_flush_(), abort())
 #else
@@ -111,15 +111,6 @@ extern  const char* _db_get_func_(void);
                      (void)_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR),\
                      _exit(3))
 #endif
-#define DBUG_CHECK_CRASH(func, op) \
-  do { char _dbuf_[255]; strxnmov(_dbuf_, sizeof(_dbuf_)-1, (func), (op)); \
-    DBUG_EXECUTE_IF(_dbuf_, DBUG_ABORT()); } while(0)
-#define DBUG_CRASH_ENTER(func) \
-  DBUG_ENTER(func); DBUG_CHECK_CRASH(func, "_crash_enter")
-#define DBUG_CRASH_RETURN(val) \
-  DBUG_CHECK_CRASH(_db_get_func_(), "_crash_return")
-#define DBUG_CRASH_VOID_RETURN \
-  DBUG_CHECK_CRASH (_db_get_func_(), "_crash_return")
 
 /*
   Make the program fail, without creating a core file.
@@ -139,6 +130,7 @@ extern void _db_suicide_();
 #else                                           /* No debugger */
 
 #define DBUG_ENTER(a1)
+#define DBUG_VIOLATION_HELPER_LEAVE do { } while(0)
 #define DBUG_LEAVE
 #define DBUG_RETURN(a1)                 do { return(a1); } while(0)
 #define DBUG_VOID_RETURN                do { return; } while(0)
@@ -152,8 +144,6 @@ extern void _db_suicide_();
 #define DBUG_SET_INITIAL(a1)            do { } while(0)
 #define DBUG_POP()                      do { } while(0)
 #define DBUG_PROCESS(a1)                do { } while(0)
-#define DBUG_SETJMP(a1) setjmp(a1)
-#define DBUG_LONGJMP(a1) longjmp(a1)
 #define DBUG_DUMP(keyword,a1,a2)        do { } while(0)
 #define DBUG_END()                      do { } while(0)
 #define DBUG_ASSERT(A)                  do { } while(0)
@@ -164,6 +154,9 @@ extern void _db_suicide_();
 #define DBUG_EXPLAIN_INITIAL(buf,len)
 #define DEBUGGER_OFF                    do { } while(0)
 #define DEBUGGER_ON                     do { } while(0)
+#define IF_DBUG(A,B)                    B
+#define DBUG_SWAP_CODE_STATE(arg)       do { } while(0)
+#define DBUG_FREE_CODE_STATE(arg)       do { } while(0)
 #define DBUG_ABORT()                    do { } while(0)
 #define DBUG_CRASH_ENTER(func)
 #define DBUG_CRASH_RETURN(val)          do { return(val); } while(0)
@@ -191,4 +184,4 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 }
 #endif
 
-#endif /* MY_DBUG_INCLUDED */
+#endif /* _my_dbug_h */

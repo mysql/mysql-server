@@ -15,18 +15,21 @@ insert into t1 values (5);
 
 grant select on test.* to ssl_user1@localhost require SSL;
 grant select on test.* to ssl_user2@localhost require cipher "DHE-RSA-AES256-SHA";
-grant select on test.* to ssl_user3@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client";
-grant select on test.* to ssl_user4@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
+grant select on test.* to ssl_user3@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=FI/ST=Helsinki/L=Helsinki/O=MariaDB/CN=client";
+grant select on test.* to ssl_user4@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=FI/ST=Helsinki/L=Helsinki/O=MariaDB/CN=client" ISSUER "/CN=cacert/C=FI/ST=Helsinki/L=Helsinki/O=MariaDB";
 grant select on test.* to ssl_user5@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "xxx";
 flush privileges;
 
-connect (con1,localhost,ssl_user1,,,,,SSL);
-connect (con2,localhost,ssl_user2,,,,,SSL);
-connect (con3,localhost,ssl_user3,,,,,SSL);
-connect (con4,localhost,ssl_user4,,,,,SSL);
+connect (con1,localhost,ssl_user1,,,,,SSL-CIPHER=DHE-RSA-AES256-SHA);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect (con5,localhost,ssl_user5,,,,,SSL);
+connect (con2,localhost,ssl_user2,,,,,SSL-CIPHER=RC4-SHA);
+connect (con2,localhost,ssl_user2,,,,,SSL-CIPHER=DHE-RSA-AES256-SHA);
+connect (con3,localhost,ssl_user3,,,,,SSL-CIPHER=DHE-RSA-AES256-SHA);
+connect (con4,localhost,ssl_user4,,,,,SSL-CIPHER=DHE-RSA-AES256-SHA);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect (con5,localhost,ssl_user5,,,,,SSL-CIPHER=DHE-RSA-AES256-SHA);
 
 connection con1;
 # Check ssl turned on
@@ -73,6 +76,8 @@ drop table t1;
 # a different cacert
 #
 --exec echo "this query should not execute;" > $MYSQLTEST_VARDIR/tmp/test.sql
+# Handle that openssl gives different error messages from YaSSL.
+#--replace_regex /error:00000001:lib\(0\):func\(0\):reason\(1\)/ASN: bad other signature confirmation/
 --replace_regex /2026 SSL connection error.*/2026 SSL connection error: xxxx/
 --error 1
 --exec $MYSQL_TEST --ssl-ca=$MYSQL_TEST_DIR/std_data/untrusted-cacert.pem --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
@@ -82,6 +87,7 @@ drop table t1;
 # Test that we can't open connection to server if we are using
 # a blank ca
 #
+#--replace_regex /error:00000001:lib\(0\):func\(0\):reason\(1\)/ASN: bad other signature confirmation/
 --replace_regex /2026 SSL connection error.*/2026 SSL connection error: xxxx/
 --error 1
 --exec $MYSQL_TEST --ssl-ca= --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
@@ -91,6 +97,7 @@ drop table t1;
 # Test that we can't open connection to server if we are using
 # a nonexistent ca file
 #
+#--replace_regex /error:00000001:lib\(0\):func\(0\):reason\(1\)/ASN: bad other signature confirmation/
 --replace_regex /2026 SSL connection error.*/2026 SSL connection error: xxxx/
 --error 1
 --exec $MYSQL_TEST --ssl-ca=nonexisting_file.pem --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
@@ -125,6 +132,7 @@ drop table t1;
 # verification of servers certificate by setting both ca certificate
 # and ca path to NULL
 #
+--replace_result DHE-RSA-AES256-GCM-SHA384 DHE-RSA-AES256-SHA
 --exec $MYSQL --ssl --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1
 --echo End of 5.0 tests
 
@@ -199,7 +207,7 @@ INSERT INTO t1 VALUES (1), (2);
 --exec $MYSQL_DUMP --skip-create-options --skip-comments --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem test
 
 # With wrong parameters
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR mysqldump.exe mysqldump
 --error 2
 --exec $MYSQL_DUMP --skip-create-options --skip-comments --ssl --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem test 2>&1
 
@@ -214,7 +222,6 @@ DROP TABLE t1;
 # Common ciphers to openssl and yassl
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-cipher=DHE-RSA-AES256-SHA
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-cipher=EDH-RSA-DES-CBC3-SHA
---exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-cipher=EDH-RSA-DES-CBC-SHA
 --exec $MYSQL --host=localhost -e "SHOW STATUS LIKE 'Ssl_cipher';" --ssl-cipher=RC4-SHA
 --disable_query_log
 --disable_result_log
@@ -251,6 +258,7 @@ select 'is still running; no cipher request crashed the server' as result from d
 GRANT SELECT ON test.* TO bug42158@localhost REQUIRE X509;
 FLUSH PRIVILEGES;
 connect(con1,localhost,bug42158,,,,,SSL);
+--replace_result DHE-RSA-AES256-GCM-SHA384 DHE-RSA-AES256-SHA
 SHOW STATUS LIKE 'Ssl_cipher';
 disconnect con1;
 connection default;

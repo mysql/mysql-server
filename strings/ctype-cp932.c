@@ -1,4 +1,5 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +17,8 @@
 /* This file is for cp932 charaset (Windows Japanese),
    and created based on ctype-sjis.c file  */
 
-#include <my_global.h>
-#include "m_string.h"
-#include "m_ctype.h"
+#include "strings_def.h"
+#include <m_ctype.h>
 
 #ifdef HAVE_CHARSET_cp932
 
@@ -31,7 +31,7 @@
  * .configure. mbmaxlen_cp932=2
  */
 
-static uchar ctype_cp932[257] =
+static const uchar ctype_cp932[257] =
 {
     0,				/* For standard library */
     0040, 0040, 0040, 0040, 0040, 0040, 0040, 0040,	/* NUL ^A - ^G */
@@ -68,7 +68,7 @@ static uchar ctype_cp932[257] =
     0020, 0020, 0020, 0020, 0020, 0000, 0000, 0000
 };
 
-static uchar to_lower_cp932[]=
+static const uchar to_lower_cp932[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -104,7 +104,7 @@ static uchar to_lower_cp932[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar to_upper_cp932[]=
+static const uchar to_upper_cp932[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -140,7 +140,7 @@ static uchar to_upper_cp932[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar sort_order_cp932[]=
+static const uchar sort_order_cp932[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -1812,7 +1812,7 @@ static size_t my_strnxfrm_cp932(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static uint16 cp932_to_unicode[65536]=
+static const uint16 cp932_to_unicode[65536]=
 {
       0x0000,      0x0001,      0x0002,      0x0003, /* 0000 */
       0x0004,      0x0005,      0x0006,      0x0007,
@@ -18201,7 +18201,7 @@ static uint16 cp932_to_unicode[65536]=
 };
 
 
-static uint16 unicode_to_cp932[65536]=
+static const uint16 unicode_to_cp932[65536]=
 {
       0x0000,      0x0001,      0x0002,      0x0003, /* 0000 */
       0x0004,      0x0005,      0x0006,      0x0007,
@@ -34822,7 +34822,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 };
 
 
-CHARSET_INFO my_charset_cp932_japanese_ci=
+struct charset_info_st my_charset_cp932_japanese_ci=
 {
     95,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */
@@ -34854,7 +34854,7 @@ CHARSET_INFO my_charset_cp932_japanese_ci=
     &my_collation_ci_handler
 };
 
-CHARSET_INFO my_charset_cp932_bin=
+struct charset_info_st my_charset_cp932_bin=
 {
     96,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_BINSORT,	/* state      */

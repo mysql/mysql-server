@@ -1,0 +1,35 @@
+This file should contain all known fatal bugs in Mariadb and the Aria
+storage engine for the last source or binary release. Minor bugs,
+extensions and feature requests, and bugs found since this release can
+be found in the MariaDB bugs database at: http://mariadb.org/jira and
+in the MySQL bugs databases at: http://bugs.mysql.com/ (category
+"Maria storage engine").
+
+There should not normally be any bugs which affect normal operations
+in any MariaDB release. Still, there are always exceptions and edge
+cases and that is what this file is for.
+
+If you have found a bug that is not listed here, please add it to
+http://mariadb.org/jira so we can either fix it for next release or in
+the worst case add it here for others to know!
+
+
+IMPORTANT:
+
+If you have been using the Maria (now Aria) storage engine with the
+MySQL-5.1-Maria-alpha build and are upgrading to a newer MariaDB you
+MUST run [m]aria_chk --recover on all your Aria tables. This is because
+we made an incompatible change with how the transaction id is stored
+and old transaction id's must be reset!
+
+cd mysql-data-directory
+aria_chk --recover */*.MAI
+
+Going forward, we will do our best to not introduce any incompatible
+changes in the data format for Aria tables. If this would be ever be
+needed, we will, if possible, support both the old and the new version
+to make upgrades as easy as possible.
+
+Note that for the MariaDB 5.1 release the Aria storage engine is
+classified as 'beta'; It should work, but use it with caution. Please
+report all bugs to http://mariadb.org/jira so we can fix them!

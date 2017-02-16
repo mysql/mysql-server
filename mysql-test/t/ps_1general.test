@@ -827,6 +827,16 @@ execute stmt1 ;
 
 drop table t1, t5, t9;
 
+--echo #
+--echo # testcase for bug#11765413 - Crash with dependent subquery and
+--echo #                             prepared statement
+create table t1 (c1 int);
+insert into t1 values (1);
+prepare stmt1 from "select 1 from t1 where 1=(select 1 from t1 having c1)";  
+execute stmt1;
+drop prepare stmt1;
+drop table t1;
+
 ##### RULES OF THUMB TO PRESERVE THE SYSTEMATICS OF THE PS TEST CASES #####
 #
 # 0. You  don't have the time to 
@@ -926,3 +936,10 @@ drop table t1, t5, t9;
 #     Matthias
 
 # End of 4.1 tests
+
+#
+# MDEV-10318 unset params in --ps --embedded
+#
+--error ER_PARSE_ERROR,2031
+select ?+1;
+

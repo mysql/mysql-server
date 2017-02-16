@@ -1,0 +1,51 @@
+# test simple mvcc, that a transaction does not read a transaction's element that was live when it began
+
+set session transaction isolation level repeatable read;
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--echo # Establish connection conn1 (user = root)
+connect (conn1,localhost,root,,);
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+connection conn1;
+set session transaction isolation level repeatable read;
+create table foo (a int, b int, primary key (a))engine=TokuDB;
+show create table foo;
+insert into foo values (1,1);
+begin;
+select * from foo;
+
+connection default;
+begin;
+select * from foo;
+
+connection conn1;
+replace into foo values (1,100), (2,200);
+--echo #transaction that did the insert about to read
+select * from foo;
+
+connection default;
+--echo #this should read just (1,1)
+select * from foo;
+
+connection conn1;
+commit;
+--echo # this should read 2 values, (1,100) and (2,200)
+select * from foo;
+
+connection default;
+--echo #this should read just (1,1)
+select * from foo;
+commit;
+
+connection default;
+disconnect conn1;
+
+connection default;
+# Final cleanup.
+set session transaction isolation level serializable;
+DROP TABLE foo;

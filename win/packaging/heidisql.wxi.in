@@ -1,0 +1,85 @@
+<Include>
+<Property Id="HEIDISQLINSTALLED" Secure="yes">
+<RegistrySearch Id="HeidiSQL"
+          Root="HKLM"
+          Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\HeidiSQL_is1"
+          Name="UninstallString"
+          Type="raw"
+          Win64="no"
+/>
+</Property>
+<DirectoryRef Id="MariaDBShared">
+  <Directory Id="D.HeidiSQL" Name="HeidiSQL">
+   <Component Id="component.HeidiSQL" Guid="96ea3879-5320-4098-8f26-2f655d2f716c"  Win64="no"> 
+
+    <File Id="heidisql.gpl.txt" Name="gpl.txt" Source="${HEIDISQL_DOWNLOAD_DIR}\gpl.txt" />
+    <File Id="heidisql.heidisql.exe" Name="heidisql.exe" Source="${HEIDISQL_DOWNLOAD_DIR}\heidisql.exe" KeyPath="yes">
+      <Shortcut Id="desktopHeidiSQL" Directory="DesktopFolder" Name="HeidiSQL" Advertise="yes"/>
+    </File>
+    <!-- 
+      Forced file removal for heidisql.exe might be required. 
+      HeidiSQL is self-updating, thus the version that was installed by MSI not necessarily matches
+      the version of the file on uninstall. MSI would not touch such file by default and leave it after 
+      uninstallation. We use RemoveFile to force delete in any case.
+    -->
+    <RemoveFile Id="Remove_HeidiSQL_exe" Name="heidisql.exe" On="uninstall" />
+    <!-- remove readme.txt too, it's not included in HeidiSQL-9.1-Portable.zip -->
+    <RemoveFile Id="Remove_readme_txt" Name="readme.txt" On="uninstall" />
+
+    <File Id="heidisql.license.txt" Name="license.txt" Source="${HEIDISQL_DOWNLOAD_DIR}\license.txt" />
+    </Component>
+    <Component Id="component.HeidiSQL_MenuShortcut" Guid="*" Win64="no">
+      <RegistryValue  Root="HKCU" Key="Software\@CPACK_WIX_PACKAGE_NAME@\Uninstall" Name="shortcuts.heidisql" Value="1" Type="string" KeyPath="yes"  />
+      <Shortcut Id="startmenuHeidiSQL" Directory="ShortcutFolder" Name="HeidiSQL"  Target="[D.HeidiSQL]\heidisql.exe"/>
+    </Component>
+    <Component Id="component.HeidiSQL_libmysql.dll" Guid="*" Win64="no">
+      <File Id="heidisql.libmysql.dll" Name="libmysql.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\libmysql.dll" />
+    </Component>
+
+    <Component Id="component.HeidiSQL_libeay32.dll" Guid="*" Win64="no">
+      <File Id="heidisql.libeay32.dll" Name="libeay32.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\libeay32.dll" />
+    </Component>
+    <Component Id="component.HeidiSQL_libpq.dll" Guid="*" Win64="no">
+      <File Id="heidisql.libpq.dll" Name="libpq.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\libpq.dll" />
+    </Component>
+    <Component Id="component.HeidiSQL_ssleay32.dll" Guid="*" Win64="no">
+      <File Id="heidisql.ssleay32.dll" Name="ssleay32.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\ssleay32.dll" />
+    </Component>
+    <Component Id="component.HeidiSQL_libintl_8.dll" Guid="*" Win64="no">
+      <File Id="heidisql.libintl_8.dll" Name="libintl-8.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\libintl-8.dll" />
+    </Component>
+    <Component Id="component.HeidiSQL_libiconv_2.dll" Guid="*" Win64="no">
+      <File Id="heidisql.libiconv_2.dll" Name="libiconv-2.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\libiconv-2.dll" />
+    </Component>
+
+    <Directory Id="D.HeidiSQL.plugins" Name="plugins">
+      <Component Id="component.HeidiSQL_dialog.dll" Guid="*" Win64="no">
+        <File Id="heidisql.dialog.dll" Name="dialog.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\plugins\dialog.dll" />
+      </Component>
+      <Component Id="component.HeidiSQL_auth_gssapi_client.dll" Guid="*" Win64="no">
+        <File Id="heidisql.auth_gssapi_client.dll" Name="auth_gssapi_client.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\plugins\auth_gssapi_client.dll" />
+      </Component>
+    </Directory>
+
+    <Component Id="component.HeidiSQL_CleanupSettings" Guid="*" Win64="no">
+     <Condition>HEIDISQLINSTALLED</Condition>
+     <RegistryValue  Root="HKCU" Key="Software\@CPACK_WIX_PACKAGE_NAME@\UninstallCleanupHeidiSQLSettings" Name="cleanup.heidisql" Value="1" Type="string" KeyPath="yes"  />
+     <RemoveRegistryKey Id="HeidiSQL_RegistryCleanup" Root="HKCU" Key="SOFTWARE\HeidiSQL" Action="removeOnUninstall" />
+    </Component>
+  </Directory>
+</DirectoryRef>
+
+<ComponentGroup Id="HeidiSQL">
+  <ComponentRef Id="component.HeidiSQL"/>
+  <ComponentRef Id="component.HeidiSQL_MenuShortcut"/>
+  <ComponentRef Id="component.HeidiSQL_libmysql.dll"/>
+  <ComponentRef Id="component.HeidiSQL_libeay32.dll" />
+  <ComponentRef Id="component.HeidiSQL_libpq.dll" />
+  <ComponentRef Id="component.HeidiSQL_ssleay32.dll" />
+  <ComponentRef Id="component.HeidiSQL_libintl_8.dll" />
+  <ComponentRef Id="component.HeidiSQL_libiconv_2.dll" />
+  <ComponentRef Id="component.HeidiSQL_dialog.dll" />
+  <ComponentRef Id="component.HeidiSQL_auth_gssapi_client.dll" />
+  <ComponentRef Id="component.HeidiSQL_CleanupSettings"/>
+</ComponentGroup>
+</Include>

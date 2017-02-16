@@ -1,0 +1,62 @@
+# 
+# INSERT DELAYED
+#
+
+--source have_engine.inc
+
+if (`SELECT @@log_bin AND @@binlog_format IN ('statement','mixed')`)
+{
+  --source cleanup_engine.inc
+  --skip # INSERT DELAYED does not work with binlog format STATEMENT or MIXED
+}
+
+--source include/count_sessions.inc
+
+--enable_connect_log
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--let $create_definition = a $int_col, b $char_col
+--source create_table.inc
+INSERT INTO t1 (a,b) VALUES (1,'f'),(2,'b');
+
+LOCK TABLE t1 READ;
+if ($mysql_errname)
+{
+  --let $functionality = LOCK TABLE .. READ
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --connect (con0,localhost,root,,)
+  SET lock_wait_timeout = 1;
+  INSERT DELAYED INTO t1 (a,b) VALUES (3,'c');
+  if ($mysql_errname)
+  {
+    --let $functionality = INSERT DELAYED
+    --source unexpected_result.inc
+  }
+  INSERT DELAYED INTO t1 SET a=4, b='d';
+  # DELAYED is ignored with INSERT .. SELECT
+  --let $error_codes = ER_LOCK_WAIT_TIMEOUT
+  INSERT DELAYED INTO t1 (a,b) SELECT 5, 'e';
+  --source check_errors.inc
+
+  --disconnect con0
+  --connection default
+  SELECT a,b FROM t1;
+}
+UNLOCK TABLES;
+FLUSH TABLES;
+SELECT a,b FROM t1;
+
+# Cleanup
+DROP TABLE t1;
+
+let $wait_timeout = 30;
+--source include/wait_until_count_sessions.inc
+
+--source cleanup_engine.inc
+

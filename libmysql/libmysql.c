@@ -1,11 +1,13 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates
+   Copyright (c) 2009, 2014, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation.
 
    There are special exceptions to the terms and conditions of the GPL as it
-   is applied to this software.
+   is applied to this software. View the full text of the exception in file
+   EXCEPTIONS-CLIENT in the directory of this software distribution.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -202,22 +204,31 @@ void STDCALL mysql_server_end()
 
   mysql_client_plugin_deinit();
 
+  finish_client_errs();
+  if (mariadb_deinitialize_ssl)
+    vio_end();
 #ifdef EMBEDDED_LIBRARY
   end_embedded_server();
 #endif
-  finish_client_errs();
-  vio_end();
 
   /* If library called my_init(), free memory allocated by it */
   if (!org_my_init_done)
   {
     my_end(0);
   }
+#ifdef NOT_NEEDED
+  /*
+    The following is not needed as if the program explicitely called
+    my_init() then we can assume it will also call my_end().
+    The reason to not also do it here is in that case we can't get
+    statistics from my_end() to debug log.
+  */
   else
   {
     free_charsets();
     mysql_thread_end();
   }
+#endif
 
   mysql_client_init= org_my_init_done= 0;
 }
@@ -977,6 +988,19 @@ const char * STDCALL
 mysql_get_server_info(MYSQL *mysql)
 {
   return((char*) mysql->server_version);
+}
+
+
+my_bool STDCALL mariadb_connection(MYSQL *mysql)
+{
+  return (strstr(mysql->server_version, "MariaDB") ||
+          strstr(mysql->server_version, "-maria-"));
+}
+
+const char * STDCALL
+mysql_get_server_name(MYSQL *mysql)
+{
+  return mariadb_connection(mysql) ? "MariaDB" : "MySQL";
 }
 
 
@@ -3181,7 +3205,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   case MYSQL_TYPE_TIME:
   {
     MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
-    str_to_time(value, length, tm, &err);
+    str_to_time(value, length, tm, 0, &err);
     *param->error= test(err);
     break;
   }
@@ -3190,7 +3214,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   case MYSQL_TYPE_TIMESTAMP:
   {
     MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
-    (void) str_to_datetime(value, length, tm, TIME_FUZZY_DATE, &err);
+    (void) str_to_datetime(value, length, tm, 0, &err);
     *param->error= test(err) && (param->buffer_type == MYSQL_TYPE_DATE &&
                                  tm->time_type != MYSQL_TIMESTAMP_DATE);
     break;
@@ -3313,8 +3337,7 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   case MYSQL_TYPE_DATETIME:
   {
     int error;
-    value= number_to_datetime(value, (MYSQL_TIME *) buffer, TIME_FUZZY_DATE,
-                              &error);
+    value= number_to_datetime(value, 0, (MYSQL_TIME *) buffer, 0, &error);
     *param->error= test(error);
     break;
   }
@@ -3519,7 +3542,7 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
       fetch_string_with_conversion:
     */
     char buff[MAX_DATE_STRING_REP_LENGTH];
-    uint length= my_TIME_to_str(my_time, buff);
+    uint length= my_TIME_to_str(my_time, buff, field->decimals);
     /* Resort to string conversion */
     fetch_string_with_conversion(param, (char *)buff, length);
     break;
@@ -3996,7 +4019,7 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
     field->max_length= MAX_DOUBLE_STRING_REP_LENGTH;
     break;
   case MYSQL_TYPE_TIME:
-    field->max_length= 15;                    /* 19:23:48.123456 */
+    field->max_length= 17;                    /* -819:23:48.123456 */
     param->skip_result= skip_result_with_length;
     break;
   case MYSQL_TYPE_DATE:
@@ -4872,5 +4895,22 @@ MYSQL_RES * STDCALL mysql_use_result(MYSQL *mysql)
 my_bool STDCALL mysql_read_query_result(MYSQL *mysql)
 {
   return (*mysql->methods->read_query_result)(mysql);
+}
+
+/********************************************************************
+  mysql_net_ functions - low-level API to MySQL protocol
+*********************************************************************/
+#if MYSQL_VERSION_ID > 100100
+#error remove these wrappers in 10.1, rename functions instead
+#endif
+
+ulong STDCALL mysql_net_read_packet(MYSQL *mysql)
+{
+  return cli_safe_read(mysql);
+}
+
+ulong STDCALL mysql_net_field_length(uchar **packet)
+{
+  return net_field_length(packet);
 }
 

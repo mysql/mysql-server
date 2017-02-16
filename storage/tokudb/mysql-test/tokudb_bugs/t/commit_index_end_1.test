@@ -1,0 +1,23 @@
+# this test crashes because tokudb does not handle index_end after txn commit (MDEV-5396)
+
+source include/have_tokudb.inc;
+
+disable_warnings;
+drop table if exists t1,t2,t3;
+enable_warnings;
+
+SET NAMES latin1;
+
+CREATE TABLE t1 (a INT) ENGINE=TokuDB;
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE TABLE t2 (b INT) ENGINE=TokuDB;
+INSERT INTO t2 VALUES (3),(4);
+
+CREATE TABLE t3 (c VARCHAR(3), INDEX(c)) ENGINE=TokuDB;
+INSERT INTO t3 VALUES ('foo'),('bar');
+
+EXPLAIN SELECT * FROM t1
+WHERE a IN ( SELECT b FROM t2 ) OR ( 'qux' ) IN ( SELECT c FROM t3 );
+
+drop table if exists t1,t2,t3;

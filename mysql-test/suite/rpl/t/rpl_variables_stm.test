@@ -52,8 +52,8 @@
 # safely in statement mode are replicated correctly in mixed or row
 # mode.
 
-source include/master-slave.inc;
 source include/have_binlog_format_mixed_or_statement.inc;
+source include/master-slave.inc;
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 

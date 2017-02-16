@@ -1,0 +1,99 @@
+# Tests which cannot be run in embedded server.
+
+-- source include/not_embedded.inc
+-- source include/have_maria.inc
+
+let $default_engine=`select @@session.storage_engine`;
+set session storage_engine=aria;
+
+# Verify that INSERT DELAYED is disabled only for transactional tables
+# ("embedded" server translates them to plain INSERT)
+
+create table t1 (a int) row_format=page;
+--error ER_DELAYED_NOT_SUPPORTED
+insert delayed into t1 values(1);
+drop table t1;
+create table t1 (a int) row_format=page transactional=0;
+insert delayed into t1 values(1);
+flush table t1;
+select * from t1;
+select count(*) from t1;
+drop table t1;
+create table t1 (a int) row_format=dynamic;
+insert delayed into t1 values(1);
+flush table t1;
+select * from t1;
+select count(*) from t1;
+drop table t1;
+
+# This cannot be run in embedded server, see BUG#40661, because
+# mysqltest runs "send" commands in separate OS thread.
+#
+# an example of a deadlock
+#
+create table t1 (a int unique) transactional=1;
+insert t1 values (1);
+
+lock table t1 write concurrent;
+insert t1 values (2);
+
+connect(con_a,localhost,root,,);
+lock table t1 write concurrent;
+insert t1 values (3);
+send insert t1 values (2);
+
+connect(con_b,localhost,root,,);
+lock table t1 write concurrent;
+insert t1 values (4);
+send insert t1 values (3);
+
+connect(con_c,localhost,root,,);
+lock table t1 write concurrent;
+insert t1 values (5);
+send insert t1 values (4);
+
+connect(con_d,localhost,root,,);
+lock table t1 write concurrent;
+insert t1 values (6);
+send insert t1 values (5);
+
+connection default;
+let $wait_condition=select count(*) = 4 from information_schema.processlist where state="waiting for a resource";
+--source include/wait_condition.inc
+--error ER_LOCK_DEADLOCK
+insert t1 values (6);
+unlock tables;
+
+connection con_a;
+--error ER_DUP_ENTRY
+reap;
+unlock tables;
+disconnect con_a;
+
+connection con_b;
+--error ER_DUP_ENTRY
+reap;
+unlock tables;
+disconnect con_b;
+
+connection con_c;
+--error ER_DUP_ENTRY
+reap;
+unlock tables;
+disconnect con_c;
+
+connection con_d;
+--error ER_DUP_ENTRY
+reap;
+unlock tables;
+disconnect con_d;
+
+connection default;
+check table t1;
+drop table t1;
+
+--disable_result_log
+--disable_query_log
+eval set session storage_engine=$default_engine;
+--enable_result_log
+--enable_query_log

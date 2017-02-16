@@ -1,0 +1,29 @@
+source include/have_tokudb.inc;
+# test that varchar to varbin change is not supported inplace
+
+--disable_warnings
+DROP TABLE IF EXISTS t;
+--enable_warnings
+
+SET SESSION TOKUDB_DISABLE_SLOW_ALTER=ON;
+
+CREATE TABLE t (a VARCHAR(1)) ENGINE=TokuDB;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN a a VARBINARY(1);
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN a a VARBINARY(100);
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN a a VARBINARY(1000);
+
+DROP TABLE t;
+
+
+
+
+

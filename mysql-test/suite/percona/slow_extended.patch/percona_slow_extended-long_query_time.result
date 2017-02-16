@@ -1,0 +1,24 @@
+SET GLOBAL SLOW_QUERY_LOG=ON;
+SELECT sleep(1);
+sleep(1)
+0
+SELECT sleep(3);
+sleep(3)
+0
+SELECT sleep(5);
+sleep(5)
+0
+set long_query_time=4;
+SELECT sleep(1);
+sleep(1)
+0
+SELECT sleep(3);
+sleep(3)
+0
+SELECT sleep(5);
+sleep(5)
+0
+set long_query_time=2;
+SET GLOBAL SLOW_QUERY_LOG=OFF;
+FLUSH LOGS;
+3

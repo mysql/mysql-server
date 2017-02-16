@@ -1,0 +1,39 @@
+# test simple MVCC, that a transaction does not read something committed after it
+
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+set session transaction isolation level repeatable read;
+
+--echo # Establish connection conn1 (user = root)
+connect (conn1,localhost,root,,);
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+connection conn1;
+set session transaction isolation level repeatable read;
+create table foo (a int) engine=TokuDB;
+insert into foo values (1);
+begin;
+select * from foo;
+
+connection default;
+insert into foo values (1000000);
+
+connection conn1;
+select * From foo;
+
+connection default;
+select * from foo;
+
+connection conn1;
+commit;
+
+connection default;
+disconnect conn1;
+
+connection default;
+# Final cleanup.
+set session transaction isolation level serializable;
+DROP TABLE foo;

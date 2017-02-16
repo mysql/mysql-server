@@ -1,0 +1,51 @@
+# 
+# Transactional DELETE
+#
+
+--source ../have_engine.inc
+--source support_transactions.inc
+--source support_savepoints.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--source ../create_table.inc
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(6,'f'),(7,'g'),(8,'h'),(10000,'foobar');
+INSERT INTO t1 (a,b) SELECT a, b FROM t1;
+
+BEGIN;
+DELETE FROM t1 WHERE b IN ('c');
+if ($mysql_errname)
+{
+  --let $functionality = DELETE
+  --source ../unexpected_result.inc
+}
+--sorted_result
+SELECT a,b FROM t1;
+DELETE FROM t1 WHERE a < 0 OR b = 'a';
+COMMIT;
+--sorted_result
+SELECT a,b FROM t1;
+
+BEGIN;
+DELETE FROM t1 WHERE a <= 4 ORDER BY b DESC LIMIT 1;
+SAVEPOINT spt1;
+DELETE FROM t1;
+RELEASE SAVEPOINT spt1;
+ROLLBACK;
+--sorted_result
+SELECT a,b FROM t1;
+
+BEGIN;
+DELETE FROM t1 WHERE a <= 4 ORDER BY b DESC LIMIT 1;
+SAVEPOINT spt1;
+DELETE FROM t1;
+INSERT INTO t1 (a,b) VALUES (1,'a');
+ROLLBACK TO SAVEPOINT spt1;
+COMMIT;
+
+DROP TABLE t1;
+
+--source ../cleanup_engine.inc
+

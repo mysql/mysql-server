@@ -1,0 +1,9 @@
+set session debug_dbug="+d,optimizer_innodb_icp";
+create table `t1` (`c1` char(1) default null,`c2` char(10) default null,
+key (`c1`))
+engine=innodb default charset=latin1;
+insert into `t1` values ('3',null);
+select * from `t1` where `c1`='3' for update;
+c1	c2
+3	NULL
+drop table `t1`;

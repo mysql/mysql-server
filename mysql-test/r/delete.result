@@ -126,8 +126,8 @@ a	b
 2	12
 delete ignore t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select b from t2 where t11.a < t2.a);
 Warnings:
-Error	1242	Subquery returns more than 1 row
-Error	1242	Subquery returns more than 1 row
+Warning	1242	Subquery returns more than 1 row
+Warning	1242	Subquery returns more than 1 row
 select * from t11;
 a	b
 0	10
@@ -146,8 +146,8 @@ a	b
 2	12
 delete ignore from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
 Warnings:
-Error	1242	Subquery returns more than 1 row
-Error	1242	Subquery returns more than 1 row
+Warning	1242	Subquery returns more than 1 row
+Warning	1242	Subquery returns more than 1 row
 select * from t11;
 a	b
 0	10
@@ -251,13 +251,13 @@ a INT
 );
 INSERT INTO db2.t1 (a) SELECT * FROM t2;
 DELETE FROM t1 alias USING t1, t2 alias WHERE t1.a = alias.a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'alias USING t1, t2 alias WHERE t1.a = alias.a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'alias USING t1, t2 alias WHERE t1.a = alias.a' at line 1
 DELETE FROM alias USING t1, t2 alias WHERE t1.a = alias.a;
 DELETE FROM t1, alias USING t1, t2 alias WHERE t1.a = alias.a;
 DELETE FROM t1, t2 USING t1, t2 alias WHERE t1.a = alias.a;
 ERROR 42S02: Unknown table 't2' in MULTI DELETE
 DELETE FROM db1.t1 alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a' at line 1
 DELETE FROM alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a;
 DELETE FROM db2.alias USING db1.t1, db2.t1 alias WHERE db1.t1.a = alias.a;
 ERROR 42S02: Unknown table 'alias' in MULTI DELETE
@@ -265,7 +265,7 @@ DELETE FROM t1 USING t1 WHERE a = 1;
 SELECT * FROM t1;
 a
 DELETE FROM t1 alias USING t1 alias WHERE a = 2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'alias USING t1 alias WHERE a = 2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'alias USING t1 alias WHERE a = 2' at line 1
 SELECT * FROM t1;
 a
 DROP TABLE t1, t2;

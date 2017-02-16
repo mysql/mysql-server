@@ -1,0 +1,431 @@
+drop table if exists t;
+create table t (
+a int, b int, c int, 
+primary key (a, b), 
+key (b)
+) engine = tokudb;
+insert into t values
+(0, 0, 0),
+(1, 1, 10),
+(2, 2, 20),
+(3, 3, 30),
+(4, 4, 40),
+(5, 5, 50),
+(6, 6, 60),
+(7, 7, 70),
+(8, 8, 80),
+(9, 9, 90),
+(10, 10, 100),
+(11, 11, 110),
+(12, 12, 120),
+(13, 13, 130),
+(14, 14, 140),
+(15, 15, 150),
+(16, 16, 160),
+(17, 17, 170),
+(18, 18, 180),
+(19, 19, 190),
+(20, 20, 200),
+(21, 21, 210),
+(22, 22, 220),
+(23, 23, 230),
+(24, 24, 240),
+(25, 25, 250),
+(26, 26, 260),
+(27, 27, 270),
+(28, 28, 280),
+(29, 29, 290),
+(30, 30, 300),
+(31, 31, 310),
+(32, 32, 320),
+(33, 33, 330),
+(34, 34, 340),
+(35, 35, 350),
+(36, 36, 360),
+(37, 37, 370),
+(38, 38, 380),
+(39, 39, 390),
+(40, 40, 400),
+(41, 41, 410),
+(42, 42, 420),
+(43, 43, 430),
+(44, 44, 440),
+(45, 45, 450),
+(46, 46, 460),
+(47, 47, 470),
+(48, 48, 480),
+(49, 49, 490),
+(50, 50, 500);
+insert ignore t values (8, 8, -1);
+explain select * from t where a = 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	PRIMARY	PRIMARY	4	const	1	
+select * from t where a = 8;
+a	b	c
+8	8	80
+explain select * from t force index (b) where b = 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	b	b	4	const	1	
+select * from t force index (b) where b = 8;
+a	b	c
+8	8	80
+explain select * from t where c = 80;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	52	Using where
+select * from t where c = 80;
+a	b	c
+8	8	80
+explain select * from t where c = -1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	52	Using where
+select * from t where c = -1;
+a	b	c
+insert ignore t values (15, 15, -1);
+explain select * from t where a = 15;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	PRIMARY	PRIMARY	4	const	1	
+select * from t where a = 15;
+a	b	c
+15	15	150
+explain select * from t force index (b) where b = 15;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	b	b	4	const	1	
+select * from t force index (b) where b = 15;
+a	b	c
+15	15	150
+explain select * from t where c = 150;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	53	Using where
+select * from t where c = 150;
+a	b	c
+15	15	150
+explain select * from t where c = -1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	53	Using where
+select * from t where c = -1;
+a	b	c
+drop table t;
+create table t (
+a int, b int, c int, 
+primary key (a, b), 
+key (b), key(c)
+) engine = tokudb;
+insert into t values
+(0, 0, 0),
+(1, 1, 10),
+(2, 2, 20),
+(3, 3, 30),
+(4, 4, 40),
+(5, 5, 50),
+(6, 6, 60),
+(7, 7, 70),
+(8, 8, 80),
+(9, 9, 90),
+(10, 10, 100),
+(11, 11, 110),
+(12, 12, 120),
+(13, 13, 130),
+(14, 14, 140),
+(15, 15, 150),
+(16, 16, 160),
+(17, 17, 170),
+(18, 18, 180),
+(19, 19, 190),
+(20, 20, 200),
+(21, 21, 210),
+(22, 22, 220),
+(23, 23, 230),
+(24, 24, 240),
+(25, 25, 250),
+(26, 26, 260),
+(27, 27, 270),
+(28, 28, 280),
+(29, 29, 290),
+(30, 30, 300),
+(31, 31, 310),
+(32, 32, 320),
+(33, 33, 330),
+(34, 34, 340),
+(35, 35, 350),
+(36, 36, 360),
+(37, 37, 370),
+(38, 38, 380),
+(39, 39, 390),
+(40, 40, 400),
+(41, 41, 410),
+(42, 42, 420),
+(43, 43, 430),
+(44, 44, 440),
+(45, 45, 450),
+(46, 46, 460),
+(47, 47, 470),
+(48, 48, 480),
+(49, 49, 490),
+(50, 50, 500);
+insert ignore t values (8, 8, -1);
+Warnings:
+Warning	1062	Duplicate entry '8-8' for key 'PRIMARY'
+explain select * from t where a = 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	PRIMARY	PRIMARY	4	const	1	
+select * from t where a = 8;
+a	b	c
+8	8	80
+explain select * from t force index (b) where b = 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	b	b	4	const	1	
+select * from t force index (b) where b = 8;
+a	b	c
+8	8	80
+explain select * from t where c = 80;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	c	c	5	const	1	Using index
+select * from t where c = 80;
+a	b	c
+8	8	80
+explain select * from t where c = -1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	c	c	5	const	1	Using where; Using index
+select * from t where c = -1;
+a	b	c
+insert ignore t values (15, 15, -1);
+Warnings:
+Warning	1062	Duplicate entry '15-15' for key 'PRIMARY'
+explain select * from t where a = 15;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	PRIMARY	PRIMARY	4	const	1	
+select * from t where a = 15;
+a	b	c
+15	15	150
+explain select * from t force index (b) where b = 15;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	b	b	4	const	1	
+select * from t force index (b) where b = 15;
+a	b	c
+15	15	150
+explain select * from t where c = 150;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	c	c	5	const	1	Using index
+select * from t where c = 150;
+a	b	c
+15	15	150
+explain select * from t where c = -1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	c	c	5	const	1	Using where; Using index
+select * from t where c = -1;
+a	b	c
+drop table t;
+create table t (
+a int, b int, c int, 
+primary key (a, b), 
+key (b)
+) engine = tokudb;
+insert into t values
+(0, 0, 0),
+(1, 1, 10),
+(2, 2, 20),
+(3, 3, 30),
+(4, 4, 40),
+(5, 5, 50),
+(6, 6, 60),
+(7, 7, 70),
+(8, 8, 80),
+(9, 9, 90),
+(10, 10, 100),
+(11, 11, 110),
+(12, 12, 120),
+(13, 13, 130),
+(14, 14, 140),
+(15, 15, 150),
+(16, 16, 160),
+(17, 17, 170),
+(18, 18, 180),
+(19, 19, 190),
+(20, 20, 200),
+(21, 21, 210),
+(22, 22, 220),
+(23, 23, 230),
+(24, 24, 240),
+(25, 25, 250),
+(26, 26, 260),
+(27, 27, 270),
+(28, 28, 280),
+(29, 29, 290),
+(30, 30, 300),
+(31, 31, 310),
+(32, 32, 320),
+(33, 33, 330),
+(34, 34, 340),
+(35, 35, 350),
+(36, 36, 360),
+(37, 37, 370),
+(38, 38, 380),
+(39, 39, 390),
+(40, 40, 400),
+(41, 41, 410),
+(42, 42, 420),
+(43, 43, 430),
+(44, 44, 440),
+(45, 45, 450),
+(46, 46, 460),
+(47, 47, 470),
+(48, 48, 480),
+(49, 49, 490),
+(50, 50, 500);
+replace into t values (8, 8, -1);
+explain select * from t where a = 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	PRIMARY	PRIMARY	4	const	1	
+select * from t where a = 8;
+a	b	c
+8	8	-1
+explain select * from t force index (b) where b = 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	b	b	4	const	1	
+select * from t force index (b) where b = 8;
+a	b	c
+8	8	-1
+explain select * from t where c = 80;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	52	Using where
+select * from t where c = 80;
+a	b	c
+explain select * from t where c = -1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	52	Using where
+select * from t where c = -1;
+a	b	c
+8	8	-1
+replace into t values (15, 15, -1);
+explain select * from t where a = 15;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	PRIMARY	PRIMARY	4	const	1	
+select * from t where a = 15;
+a	b	c
+15	15	-1
+explain select * from t force index (b) where b = 15;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	b	b	4	const	1	
+select * from t force index (b) where b = 15;
+a	b	c
+15	15	-1
+explain select * from t where c = 150;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	53	Using where
+select * from t where c = 150;
+a	b	c
+explain select * from t where c = -1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	53	Using where
+select * from t where c = -1;
+a	b	c
+8	8	-1
+15	15	-1
+drop table t;
+create table t (
+a int, b int, c int, 
+primary key (a, b), 
+key (b), key(c)
+) engine = tokudb;
+insert into t values
+(0, 0, 0),
+(1, 1, 10),
+(2, 2, 20),
+(3, 3, 30),
+(4, 4, 40),
+(5, 5, 50),
+(6, 6, 60),
+(7, 7, 70),
+(8, 8, 80),
+(9, 9, 90),
+(10, 10, 100),
+(11, 11, 110),
+(12, 12, 120),
+(13, 13, 130),
+(14, 14, 140),
+(15, 15, 150),
+(16, 16, 160),
+(17, 17, 170),
+(18, 18, 180),
+(19, 19, 190),
+(20, 20, 200),
+(21, 21, 210),
+(22, 22, 220),
+(23, 23, 230),
+(24, 24, 240),
+(25, 25, 250),
+(26, 26, 260),
+(27, 27, 270),
+(28, 28, 280),
+(29, 29, 290),
+(30, 30, 300),
+(31, 31, 310),
+(32, 32, 320),
+(33, 33, 330),
+(34, 34, 340),
+(35, 35, 350),
+(36, 36, 360),
+(37, 37, 370),
+(38, 38, 380),
+(39, 39, 390),
+(40, 40, 400),
+(41, 41, 410),
+(42, 42, 420),
+(43, 43, 430),
+(44, 44, 440),
+(45, 45, 450),
+(46, 46, 460),
+(47, 47, 470),
+(48, 48, 480),
+(49, 49, 490),
+(50, 50, 500);
+replace into t values (8, 8, -1);
+explain select * from t where a = 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	PRIMARY	PRIMARY	4	const	1	
+select * from t where a = 8;
+a	b	c
+8	8	-1
+explain select * from t force index (b) where b = 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	b	b	4	const	1	
+select * from t force index (b) where b = 8;
+a	b	c
+8	8	-1
+explain select * from t where c = 80;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	c	c	5	const	1	Using index
+select * from t where c = 80;
+a	b	c
+explain select * from t where c = -1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	c	c	5	const	1	Using where; Using index
+select * from t where c = -1;
+a	b	c
+8	8	-1
+replace into t values (15, 15, -1);
+explain select * from t where a = 15;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	PRIMARY	PRIMARY	4	const	1	
+select * from t where a = 15;
+a	b	c
+15	15	-1
+explain select * from t force index (b) where b = 15;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	b	b	4	const	1	
+select * from t force index (b) where b = 15;
+a	b	c
+15	15	-1
+explain select * from t where c = 150;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	c	c	5	const	1	Using index
+select * from t where c = 150;
+a	b	c
+explain select * from t where c = -1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ref	c	c	5	const	2	Using where; Using index
+select * from t where c = -1;
+a	b	c
+8	8	-1
+15	15	-1
+drop table t;

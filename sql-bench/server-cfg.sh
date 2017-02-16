@@ -160,6 +160,7 @@ sub new
   $limits{'max_index'}		= 16; # Max number of keys
   $limits{'max_index_parts'}	= 16; # Max segments/key
   $limits{'max_tables'}		= (($machine || '') =~ "^win") ? 5000 : 65000;
+  $limits{'max_temporary_tables'}= 400;
   $limits{'max_text_size'}	= 1000000; # Good enough for tests
   $limits{'multi_drop'}		= 1; # Drop table can take many tables
   $limits{'order_by_position'}  = 1; # Can use 'ORDER BY 1'
@@ -179,6 +180,12 @@ sub new
   {
     $limits{'working_blobs'}	= 0; # HEAP tables can't handle BLOB's
   }
+  # HEAP is deprecated in favor of MEMORY
+  if (defined($main::opt_create_options) &&
+      $main::opt_create_options =~ /engine=memory/i)
+  {
+    $limits{'working_blobs'}	= 0; # MEMORY tables can't handle BLOB's
+  }
   if (defined($main::opt_create_options) &&
       $main::opt_create_options =~ /engine=innodb/i)
   {
@@ -190,6 +197,7 @@ sub new
     $self->{'transactions'}	= 1;	# Transactions enabled
     $limits{'max_columns'}	= 90;	# Max number of columns in table
     $limits{'max_tables'}	= 32;   # No comments
+    $limits{'max_temporary_tables'}= $limits{"max_tables"};
   }
   if (defined($main::opt_create_options) &&
       $main::opt_create_options =~ /engine=bdb/i)
@@ -201,6 +209,7 @@ sub new
   {
     $limits{'working_blobs'}	= 0; # Blobs not implemented yet
     $limits{'max_tables'}	= 500;
+    $limits{'max_temporary_tables'}= $limits{"max_tables"};
     $self->{'transactions'}	= 1;	# Transactions enabled
   }
 
@@ -250,6 +259,11 @@ sub connect
 		      die "Got error: '$DBI::errstr' when connecting to " . $self->{'data_source'} ." with user: '$main::opt_user' password: '$main::opt_password'\n";
 
   $dbh->do("SET OPTION LOG_OFF=1,UPDATE_LOG=0");
+  if ($main::opt_connect_command ne "")
+  {
+    $dbh->do($main::opt_connect_command) or
+      die "Can't execute connect_command: $main::opt_connect_command  error: $DBI::errstr\n";
+  }
   return $dbh;
 }
 
@@ -266,7 +280,14 @@ sub create
   my($self,$table_name,$fields,$index,$options) = @_;
   my($query,@queries);
 
-  $query="create table $table_name (";
+  if ($main::opt_temporary_tables)
+  {
+    $query="create temporary table $table_name (";
+  }
+  else
+  {
+    $query="create table $table_name (";
+  }
   foreach $field (@$fields)
   {
 #    $field =~ s/ decimal/ double(10,2)/i;
@@ -389,6 +410,7 @@ sub new
   $limits{'max_conditions'}	= 74;
   $limits{'max_columns'}	= 75;
   $limits{'max_tables'}		= 65000;	# Should be big enough
+  $limits{'max_temporary_tables'}= $limits{"max_tables"};
   $limits{'max_text_size'}	= 32000;
   $limits{'query_size'}		= 65535;
   $limits{'max_index'}		= 5;
@@ -618,7 +640,9 @@ sub new
   $limits{'max_conditions'}	= 9999;		# This makes Pg real slow
   $limits{'max_index'}		= 64;		# Big enough
   $limits{'max_index_parts'}	= 16;
-  $limits{'max_tables'}		= 5000;		# 10000 crashes pg 7.0.2
+  $limits{'max_tables'}		= 65000;
+  $limits{'max_temporary_tables'}= $limits{"max_tables"};
+
   $limits{'max_text_size'}	= 65000;	# Good enough for test
   $limits{'multi_drop'}		= 1;
   $limits{'order_by_position'}  = 1;
@@ -869,6 +893,8 @@ sub new
   $limits{'max_conditions'}	= 9999;		# Probably big enough
   $limits{'max_columns'}	= 2000;		# From crash-me
   $limits{'max_tables'}		= 65000;	# Should be big enough
+  $limits{'max_temporary_tables'}= $limits{"max_tables"};
+
   $limits{'max_text_size'}	= 65492;	# According to tests
   $limits{'query_size'}		= 65535;	# Probably a limit
   $limits{'max_index'}		= 64;		# Probably big enough
@@ -1100,6 +1126,7 @@ sub new
 			# above this value .... but can handle 2419 columns
 			# maybe something for crash-me ... but how to check ???
   $limits{'max_tables'}		= 65000;	# Should be big enough
+  $limits{'max_temporary_tables'}= $limits{"max_tables"};
   $limits{'max_text_size'}	= 4095;		# max returned ....
   $limits{'query_size'}		= 65535;	# Not a limit, big enough
   $limits{'max_index'}		= 64;		# Big enough
@@ -1370,6 +1397,8 @@ sub new
   $limits{'max_conditions'}	= 9999; # (Actually not a limit)
   $limits{'max_columns'}	= 254;	# Max number of columns in table
   $limits{'max_tables'}		= 65000; # Should be big enough
+  $limits{'max_temporary_tables'}= $limits{"max_tables"};
+
   $limits{'max_text_size'}	= 2000; # Limit for blob test-connect
   $limits{'query_size'}		= 65525; # Max size with default buffers.
   $limits{'max_index'}		= 16; # Max number of keys
@@ -1643,6 +1672,8 @@ sub new
   $limits{'max_column_name'}	= 18; # max table and column name
   $limits{'max_columns'}	= 994;	# Max number of columns in table
   $limits{'max_tables'}		= 65000;	# Should be big enough
+  $limits{'max_temporary_tables'}= $limits{"max_tables"};
+
   $limits{'max_index'}		= 64; # Max number of keys
   $limits{'max_index_parts'}	= 15; # Max segments/key
   $limits{'max_text_size'}	= 65535;  # Max size with default buffers. ??
@@ -1831,6 +1862,8 @@ sub new
   $limits{'max_conditions'}	= 97; # We get 'Query is too complex'
   $limits{'max_columns'}	= 255;	# Max number of columns in table
   $limits{'max_tables'}		= 65000;	# Should be big enough
+  $limits{'max_temporary_tables'}= $limits{"max_tables"};
+
   $limits{'max_text_size'}	= 255;  # Max size with default buffers.
   $limits{'query_size'}		= 65535; # Not a limit, big enough
   $limits{'max_index'}		= 32; # Max number of keys
@@ -2016,6 +2049,8 @@ sub new
   $limits{'max_conditions'}	= 1030; # We get 'Query is too complex'
   $limits{'max_columns'}	= 250;	# Max number of columns in table
   $limits{'max_tables'}		= 65000;	# Should be big enough
+  $limits{'max_temporary_tables'}= $limits{"max_tables"};
+
   $limits{'max_text_size'}	= 9830;  # Max size with default buffers.
   $limits{'query_size'}		= 9830; # Max size with default buffers.
   $limits{'max_index'}		= 64; # Max number of keys
@@ -2212,6 +2247,8 @@ sub new
   $limits{'max_conditions'}	= 1030; # We get 'Query is too complex'
   $limits{'max_columns'}	= 250;	# Max number of columns in table
   $limits{'max_tables'}		= 65000;	# Should be big enough
+  $limits{'max_temporary_tables'}= $limits{"max_tables"};
+
   $limits{'max_text_size'}	= 9830;  # Max size with default buffers.
   $limits{'query_size'}		= 9830; # Max size with default buffers.
   $limits{'max_index'}		= 64; # Max number of keys
@@ -2444,6 +2481,8 @@ sub new
   $limits{'max_conditions'}	= 50; # (Actually not a limit)
   $limits{'max_columns'}	= 254;	# Max number of columns in table
   $limits{'max_tables'}		= 65000;	# Should be big enough
+  $limits{'max_temporary_tables'}= $limits{"max_tables"};
+
   $limits{'max_text_size'}	= 2000; # Limit for blob test-connect
   $limits{'query_size'}		= 65525; # Max size with default buffers.
   $limits{'max_index'}		= 16; # Max number of keys
@@ -2648,6 +2687,8 @@ sub new
   $limits{'max_conditions'}	= 418; # We get 'Query is too complex'
   $limits{'max_columns'}	= 500;	# Max number of columns in table
   $limits{'max_tables'}		= 65000;	# Should be big enough
+  $limits{'max_temporary_tables'}= $limits{"max_tables"};
+
   $limits{'max_text_size'}	= 254;  # Max size with default buffers.
   $limits{'query_size'}		= 254; # Max size with default buffers.
   $limits{'max_index'}		= 48; # Max number of keys
@@ -2826,6 +2867,7 @@ sub new
   $limits{'max_conditions'}	= 9999; # (Actually not a limit)
   $limits{'max_columns'}	= 252;	# Max number of columns in table
   $limits{'max_tables'}		= 65000;	# Should be big enough
+  $limits{'max_temporary_tables'}= $limits{"max_tables"};
   $limits{'max_text_size'}	= 15000; # Max size with default buffers.
   $limits{'query_size'}		= 1000000; # Max size with default buffers.
   $limits{'max_index'}		= 32; # Max number of keys
@@ -3028,6 +3070,7 @@ sub new
   $limits{'max_conditions'}	= 9999; # (Actually not a limit)
   $limits{'max_columns'}	= 252;	# Max number of columns in table
   $limits{'max_tables'}		= 65000;	# Should be big enough
+  $limits{'max_temporary_tables'}= $limits{"max_tables"};
   $limits{'max_text_size'}	= 15000; # Max size with default buffers.
   $limits{'query_size'}		= 1000000; # Max size with default buffers.
   $limits{'max_index'}		= 65000; # Max number of keys
@@ -3224,6 +3267,7 @@ sub new
   # The following should be 8192, but is smaller because Frontbase crashes..
   $limits{'max_columns'}	= 150;	# Max number of columns in table
   $limits{'max_tables'}		= 5000;	# 10000 crashed FrontBase
+  $limits{'max_temporary_tables'}= $limits{"max_tables"};
   $limits{'max_text_size'}	= 65000; # Max size with default buffers.
   $limits{'query_size'}		= 8000000; # Max size with default buffers.
   $limits{'max_index'}		= 38; # Max number of keys
@@ -3436,6 +3480,7 @@ sub new
   $limits{'max_conditions'}	= 9999; # (Actually not a limit) *
   $limits{'max_columns'}	= 1023;	# Max number of columns in table *
   $limits{'max_tables'}		= 65000;	# Should be big enough * unlimited actually
+  $limits{'max_temporary_tables'}= $limits{"max_tables"};
   $limits{'max_text_size'}	= 15000; # Max size with default buffers. 
   $limits{'query_size'}		= 64*1024; # Max size with default buffers. *64 kb by default. May be set by system variable 
   $limits{'max_index'}		= 510; # Max number of keys *

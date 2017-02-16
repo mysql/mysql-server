@@ -70,7 +70,7 @@ while (`$_query`)
 {
   if (!$_status_timeout_counter)
   {
-    --echo **** ERROR: failed while waiting for $status_type $status_var $_status_var_comparsion $status_var_value ****
+    --echo **** ERROR: failed while waiting for '$status_type' '$status_var' $_status_var_comparsion '$status_var_value' ****
     --echo Note: the following output may have changed since the failure was detected
     --echo **** Showing STATUS, PROCESSLIST ****
     eval SHOW $status_type STATUS LIKE '$status_var';

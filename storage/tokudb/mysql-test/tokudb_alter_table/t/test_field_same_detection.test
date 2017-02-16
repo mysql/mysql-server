@@ -1,0 +1,151 @@
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo,bar;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=ON;
+
+
+create table foo (
+a1 int,
+a2 int unsigned,
+a3 tinyint,
+a4 tinyint unsigned,
+a5 bit,
+a6 smallint,
+a7 smallint unsigned,
+a8 mediumint,
+a9 mediumint unsigned,
+a10 bigint,
+a11 bigint unsigned,
+a12 double,
+a13 double unsigned,
+a14 float,
+a15 float unsigned,
+a16 decimal,
+a17 date,
+a18 datetime,
+a19 timestamp,
+a20 time,
+a21 year,
+a22 binary(100),
+a23 varbinary(100),
+a24 varchar(10),
+a25 varchar(10) CHARACTER SET latin1 COLLATE latin1_general_cs,
+a26 char(10),
+a27 char(10) CHARACTER SET latin1 COLLATE latin1_general_cs,
+a28 ENUM('a','b','c') CHARACTER SET binary,
+a29 tinyblob,
+a30 tinytext CHARACTER SET latin1 COLLATE latin1_general_cs,
+a31 blob,
+a32 text CHARACTER SET latin1 COLLATE latin1_general_cs,
+a33 mediumblob,
+a34 mediumtext CHARACTER SET latin1 COLLATE latin1_general_cs,
+a35 longblob,
+a36 longtext CHARACTER SET latin1 COLLATE latin1_general_cs
+)engine = TokuDB;
+
+alter table foo add column b int;
+drop table foo;
+
+create table foo (a tinyint NOT NULL)engine=TokuDB;
+insert into foo values(1),(0),(-1);
+select * from foo;
+
+alter table foo add column a5 bit(8) NOT NULL default b'1' first;
+show create table foo;
+select a5+0,a from foo;
+alter table foo drop column a5;
+select * from foo;
+
+alter table foo add column b smallint NOT NULL default -1 first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b mediumint NOT NULL default -1 first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b double NOT NULL default -1.0 first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b float NOT NULL default -1.0 first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b date NOT NULL default '1981-11-01' first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b datetime NOT NULL default '1981-11-01 17:17:17' first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b timestamp NOT NULL default '1981-11-01 17:17:17' first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b time NOT NULL default '17:17:17' first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b year NOT NULL default '1981' first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b binary(255) NOT NULL default "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b varbinary(255) NOT NULL default "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b char(255) NOT NULL default "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b varchar(255) NOT NULL default "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b ENUM('a','b','c') CHARACTER SET binary NOT NULL default 'b' first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b blob first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b tinyblob first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b mediumblob first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b longblob first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b text first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b tinytext first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b mediumtext first;
+select * from foo;
+alter table foo drop column b;
+
+alter table foo add column b longtext first;
+select * from foo;
+alter table foo drop column b;
+
+drop table foo;

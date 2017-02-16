@@ -1,0 +1,565 @@
+set @subselect_mat_cost=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+set long_query_time=0.1;
+TEST GROUP 1:
+Typical cases of in-to-exists and materialization subquery strategies
+=====================================================================
+drop database if exists world;
+set names utf8;
+create database world;
+use world;
+CREATE TABLE Country (
+Code char(3) NOT NULL default '',
+Name char(52) NOT NULL default '',
+SurfaceArea float(10,2) NOT NULL default '0.00',
+Population int(11) NOT NULL default '0',
+Capital int(11) default NULL,
+PRIMARY KEY  (Code),
+UNIQUE INDEX (Name)
+);
+CREATE TABLE City (
+ID int(11) NOT NULL auto_increment,
+Name char(35) NOT NULL default '',
+Country char(3) NOT NULL default '',
+Population int(11) NOT NULL default '0',
+PRIMARY KEY  (ID),
+INDEX (Population),
+INDEX (Country) 
+);
+CREATE TABLE CountryLanguage (
+Country char(3) NOT NULL default '',
+Language char(30) NOT NULL default '',
+Percentage float(3,1) NOT NULL default '0.0',
+PRIMARY KEY  (Country, Language),
+INDEX (Percentage)
+);
+Make the schema and data more diverse by adding more indexes, nullable
+columns, and NULL data.
+create index SurfaceArea on Country(SurfaceArea);
+create index Language on CountryLanguage(Language);
+create index CityName on City(Name);
+alter table City change population population int(11) null default 0;
+select max(id) from City into @max_city_id;
+insert into City values (@max_city_id + 1,'Kilifarevo','BGR',NULL);
+SELECT COUNT(*) FROM Country;
+COUNT(*)
+239
+SELECT COUNT(*) FROM City;
+COUNT(*)
+4080
+SELECT COUNT(*) FROM CountryLanguage;
+COUNT(*)
+984
+set @@optimizer_switch = 'in_to_exists=on,semijoin=on,materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on';
+
+1. Subquery in a disjunctive WHERE clause of the outer query.
+
+
+Q1.1m:
+MATERIALIZATION: there are too many rows in the outer query
+to be looked up in the inner table.
+EXPLAIN
+SELECT Name FROM Country
+WHERE (Code IN (select Country from City where City.Population > 100000) OR
+Name LIKE 'L%') AND
+surfacearea > 1000000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	Country	ALL	Name,SurfaceArea	NULL	NULL	NULL	239	Using where
+2	MATERIALIZED	City	ALL	Population,Country	NULL	NULL	NULL	4080	Using where
+SELECT Name FROM Country
+WHERE (Code IN (select Country from City where City.Population > 100000) OR
+Name LIKE 'L%') AND
+surfacearea > 1000000;
+Name
+Algeria
+Angola
+Argentina
+Australia
+Bolivia
+Brazil
+Egypt
+South Africa
+Ethiopia
+Indonesia
+India
+Iran
+Canada
+Kazakstan
+China
+Colombia
+Congo, The Democratic Republic of the
+Libyan Arab Jamahiriya
+Mali
+Mauritania
+Mexico
+Mongolia
+Niger
+Peru
+Saudi Arabia
+Sudan
+Chad
+Russian Federation
+United States
+Q1.1e:
+IN-EXISTS: the materialization cost is the same as above, but
+there are much fewer outer rows to be looked up, thus the
+materialization cost is too high to compensate for fast lookups.
+EXPLAIN
+SELECT Name FROM Country
+WHERE (Code IN (select Country from City where City.Population > 100000) OR
+Name LIKE 'L%') AND
+surfacearea > 10*1000000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	Country	range	Name,SurfaceArea	SurfaceArea	4	NULL	5	Using index condition; Using where; Rowid-ordered scan
+2	DEPENDENT SUBQUERY	City	index_subquery	Population,Country	Country	3	func	18	Using where
+SELECT Name FROM Country
+WHERE (Code IN (select Country from City where City.Population > 100000) OR
+Name LIKE 'L%') AND
+surfacearea > 10*1000000;
+Name
+Russian Federation
+
+Q1.2m:
+MATERIALIZATION: the IN predicate is pushed (attached) to the last table
+in the join order (Country, City), therefore there are too many row
+combinations to filter by re-executing the subquery for each combination.
+EXPLAIN
+SELECT *
+FROM Country, City
+WHERE City.Country = Country.Code AND
+Country.SurfaceArea < 3000 AND Country.SurfaceArea > 10 AND
+(City.Name IN
+(select Language from CountryLanguage where Percentage > 50) OR
+City.name LIKE '%Island%');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	Country	ALL	PRIMARY,SurfaceArea	NULL	NULL	NULL	239	Using where
+1	PRIMARY	City	ref	Country	Country	3	world.Country.Code	18	Using where
+2	MATERIALIZED	CountryLanguage	ALL	Percentage,Language	NULL	NULL	NULL	984	Using where
+SELECT *
+FROM Country, City
+WHERE City.Country = Country.Code AND
+Country.SurfaceArea < 3000 AND Country.SurfaceArea > 10 AND
+(City.Name IN
+(select Language from CountryLanguage where Percentage > 50) OR
+City.name LIKE '%Island%');
+Code	Name	SurfaceArea	Population	Capital	ID	Name	Country	population
+CCK	Cocos (Keeling) Islands	14.00	600	2317	2317	West Island	CCK	167
+Q1.2e:
+IN_EXISTS: join order is the same, but the left IN operand refers to
+only the first table in the join order (Country), so there are much
+fewer rows to filter by subquery re-execution.
+EXPLAIN
+SELECT *
+FROM Country, City
+WHERE City.Country = Country.Code AND
+Country.SurfaceArea < 3000 AND Country.SurfaceArea > 10 AND
+(Country.Name IN
+(select Language from CountryLanguage where Percentage > 50) OR
+Country.name LIKE '%Island%');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	Country	ALL	PRIMARY,SurfaceArea	NULL	NULL	NULL	239	Using where
+1	PRIMARY	City	ref	Country	Country	3	world.Country.Code	18	
+2	DEPENDENT SUBQUERY	CountryLanguage	index_subquery	Percentage,Language	Language	30	func	2	Using where
+SELECT *
+FROM Country, City
+WHERE City.Country = Country.Code AND
+Country.SurfaceArea < 3000 AND Country.SurfaceArea > 10 AND
+(Country.Name IN
+(select Language from CountryLanguage where Percentage > 50) OR
+Country.name LIKE '%Island%');
+Code	Name	SurfaceArea	Population	Capital	ID	Name	Country	population
+VGB	Virgin Islands, British	151.00	21000	537	537	Road Town	VGB	8000
+CYM	Cayman Islands	264.00	38000	553	553	George Town	CYM	19600
+COK	Cook Islands	236.00	20000	583	583	Avarua	COK	11900
+FRO	Faroe Islands	1399.00	43000	901	901	Tórshavn	FRO	14542
+CXR	Christmas Island	135.00	2500	1791	1791	Flying Fish Cove	CXR	700
+KIR	Kiribati	726.00	83000	2256	2255	Bikenibeu	KIR	5055
+KIR	Kiribati	726.00	83000	2256	2256	Bairiki	KIR	2226
+CCK	Cocos (Keeling) Islands	14.00	600	2317	2316	Bantam	CCK	503
+CCK	Cocos (Keeling) Islands	14.00	600	2317	2317	West Island	CCK	167
+MHL	Marshall Islands	181.00	64000	2507	2507	Dalap-Uliga-Darrit	MHL	28000
+NRU	Nauru	21.00	12000	2728	2727	Yangor	NRU	4050
+NRU	Nauru	21.00	12000	2728	2728	Yaren	NRU	559
+NFK	Norfolk Island	36.00	2000	2806	2806	Kingston	NFK	800
+PLW	Palau	459.00	19000	2881	2881	Koror	PLW	12000
+MNP	Northern Mariana Islands	464.00	78000	2913	2913	Garapan	MNP	9200
+TCA	Turks and Caicos Islands	430.00	17000	3423	3423	Cockburn Town	TCA	4800
+TUV	Tuvalu	26.00	12000	3424	3424	Funafuti	TUV	4600
+VIR	Virgin Islands, U.S.	347.00	93000	4067	4067	Charlotte Amalie	VIR	13000
+
+Q1.3:
+For the same reasons as in Q2 IN-EXISTS and MATERIALIZATION chosen
+for each respective subquery.
+EXPLAIN
+SELECT City.Name, Country.Name
+FROM City,Country
+WHERE City.Country = Country.Code AND
+Country.SurfaceArea < 30000 AND Country.SurfaceArea > 10 AND
+((Country.Code, Country.Name) IN
+(select Country, Language from CountryLanguage where Percentage > 50) AND
+Country.Population > 3000000
+OR
+(Country.Code, City.Name) IN
+(select Country, Language from CountryLanguage));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	Country	ALL	PRIMARY,SurfaceArea	NULL	NULL	NULL	239	Using where
+1	PRIMARY	City	ref	Country	Country	3	world.Country.Code	18	Using where
+3	MATERIALIZED	CountryLanguage	index	PRIMARY,Language	PRIMARY	33	NULL	984	Using index
+2	DEPENDENT SUBQUERY	CountryLanguage	unique_subquery	PRIMARY,Percentage,Language	PRIMARY	33	func,func	1	Using where
+SELECT City.Name, Country.Name
+FROM City,Country
+WHERE City.Country = Country.Code AND
+Country.SurfaceArea < 30000 AND Country.SurfaceArea > 10 AND
+((Country.Code, Country.Name) IN
+(select Country, Language from CountryLanguage where Percentage > 50) AND
+Country.Population > 3000000
+OR
+(Country.Code, City.Name) IN
+(select Country, Language from CountryLanguage));
+Name	Name
+Kigali	Rwanda
+
+2. NOT IN subqueries
+
+
+Q2.1:
+Number of cities that are not capitals in countries with small population.
+MATERIALIZATION is 50 times faster because the cost of each subquery
+re-execution is much higher than the cost of index lookups into the
+materialized subquery.
+EXPLAIN
+select count(*) from City
+where City.id not in (select capital from Country
+where capital is not null and population < 100000);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	City	index	NULL	PRIMARY	4	NULL	4080	Using where; Using index
+2	MATERIALIZED	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+
+Q2.2e:
+Countries that speak French, but do not speak English
+IN-EXISTS because the outer query filters many rows, thus
+there are few lookups to make.
+EXPLAIN
+SELECT Country.Name
+FROM Country, CountryLanguage 
+WHERE Code NOT IN (SELECT Country FROM CountryLanguage WHERE Language = 'English')
+AND CountryLanguage.Language = 'French'
+  AND Code = Country;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	CountryLanguage	ref	PRIMARY,Language	Language	30	const	20	Using index condition
+1	PRIMARY	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where
+2	DEPENDENT SUBQUERY	CountryLanguage	unique_subquery	PRIMARY,Language	PRIMARY	33	func,const	1	Using index; Using where
+SELECT Country.Name
+FROM Country, CountryLanguage 
+WHERE Code NOT IN (SELECT Country FROM CountryLanguage WHERE Language = 'English')
+AND CountryLanguage.Language = 'French'
+  AND Code = Country;
+Name
+France
+Saint Pierre and Miquelon
+Belgium
+Burundi
+Guadeloupe
+Haiti
+Madagascar
+Martinique
+Mayotte
+French Polynesia
+Rwanda
+Sao Tome and Principe
+Switzerland
+New Caledonia
+Lebanon
+Mauritius
+Andorra
+Italy
+Luxembourg
+Q2.2m:
+Countries that speak French OR Spanish, but do not speak English
+MATERIALIZATION because the outer query filters less rows than Q5-a,
+so there are more lookups.
+EXPLAIN
+SELECT Country.Name
+FROM Country, CountryLanguage 
+WHERE Code NOT IN (SELECT Country FROM CountryLanguage WHERE Language = 'English')
+AND (CountryLanguage.Language = 'French' OR CountryLanguage.Language = 'Spanish')
+AND Code = Country;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	CountryLanguage	range	PRIMARY,Language	Language	30	NULL	45	Using index condition; Using where; Rowid-ordered scan
+1	PRIMARY	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where
+2	MATERIALIZED	CountryLanguage	ref	PRIMARY,Language	Language	30	const	47	Using index condition
+SELECT Country.Name
+FROM Country, CountryLanguage 
+WHERE Code NOT IN (SELECT Country FROM CountryLanguage WHERE Language = 'English')
+AND (CountryLanguage.Language = 'French' OR CountryLanguage.Language = 'Spanish')
+AND Code = Country;
+Name
+Andorra
+Argentina
+Bolivia
+Chile
+Costa Rica
+Dominican Republic
+Ecuador
+El Salvador
+Spain
+Guatemala
+Honduras
+Colombia
+Cuba
+Mexico
+Nicaragua
+Panama
+Paraguay
+Peru
+France
+Saint Pierre and Miquelon
+Uruguay
+Venezuela
+Belgium
+Burundi
+Guadeloupe
+Haiti
+Madagascar
+Martinique
+Mayotte
+French Polynesia
+Rwanda
+Sao Tome and Principe
+Switzerland
+New Caledonia
+Lebanon
+Mauritius
+Andorra
+Italy
+Luxembourg
+France
+Sweden
+
+Q2.3e:
+Not a very meaningful query that tests NOT IN.
+IN-EXISTS because the outer query is cheap enough to reexecute many times.
+EXPLAIN
+select count(*)
+from CountryLanguage
+where (Language, Country) NOT IN
+(SELECT City.Name, Country.Code
+FROM City LEFT JOIN Country ON (Country = Code and City.Population < 10000))
+AND Language IN ('English','Spanish');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	CountryLanguage	range	Language	Language	30	NULL	72	Using index condition; Using where; Rowid-ordered scan
+2	DEPENDENT SUBQUERY	City	ref	CityName	CityName	35	func	1	Using index condition; Using where
+2	DEPENDENT SUBQUERY	Country	eq_ref	PRIMARY	PRIMARY	3	world.City.Country	1	Using where; Using index
+select count(*)
+from CountryLanguage
+where (Language, Country) NOT IN
+(SELECT City.Name, Country.Code
+FROM City LEFT JOIN Country ON (Country = Code and City.Population < 10000))
+AND Language IN ('English','Spanish');
+count(*)
+88
+Q2.3m:
+MATERIALIZATION with the PARTIAL_MATCH_MERGE strategy, because the HAVING
+clause prevents the use of the index on City(Name), and in practice reduces
+radically the size of the temp table.
+EXPLAIN
+select count(*)
+from CountryLanguage
+where (Language, Country) NOT IN
+(SELECT City.Name, Country.Code
+FROM City LEFT JOIN Country ON (Country = Code)
+HAVING City.Name LIKE "Santa%");
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	CountryLanguage	index	NULL	PRIMARY	33	NULL	984	Using where; Using index
+2	MATERIALIZED	City	ALL	NULL	NULL	NULL	NULL	4080	
+2	MATERIALIZED	Country	eq_ref	PRIMARY	PRIMARY	3	world.City.Country	1	Using index
+select count(*)
+from CountryLanguage
+where (Language, Country) NOT IN
+(SELECT City.Name, Country.Code
+FROM City LEFT JOIN Country ON (Country = Code)
+HAVING City.Name LIKE "Santa%");
+count(*)
+984
+
+3. Subqueries with GROUP BY, HAVING, and aggregate functions
+
+Q3.1:
+Languages that are spoken in countries with 10 or 11 languages
+MATERIALIZATION is about 100 times faster than IN-EXISTS.
+EXPLAIN
+select count(*)
+from CountryLanguage
+where
+(Country, 10) IN (SELECT Code, COUNT(*) FROM CountryLanguage, Country
+WHERE Code = Country GROUP BY Code)
+OR
+(Country, 11) IN (SELECT Code, COUNT(*) FROM CountryLanguage, Country
+WHERE Code = Country GROUP BY Code)
+order by Country;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	CountryLanguage	index	NULL	PRIMARY	33	NULL	984	Using where; Using index
+3	MATERIALIZED	CountryLanguage	index	PRIMARY	PRIMARY	33	NULL	984	Using index; Using temporary
+3	MATERIALIZED	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using index
+2	MATERIALIZED	CountryLanguage	index	PRIMARY	PRIMARY	33	NULL	984	Using index; Using temporary
+2	MATERIALIZED	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using index
+select count(*)
+from CountryLanguage
+where
+(Country, 10) IN (SELECT Code, COUNT(*) FROM CountryLanguage, Country
+WHERE Code = Country GROUP BY Code)
+OR
+(Country, 11) IN (SELECT Code, COUNT(*) FROM CountryLanguage, Country
+WHERE Code = Country GROUP BY Code)
+order by Country;
+count(*)
+102
+
+Q3.2:
+Countries whose capital is a city name that names more than one
+cities.
+MATERIALIZATION because the cost of single subquery execution is
+close to that of materializing the subquery.
+EXPLAIN
+select * from Country, City
+where capital = id and
+(City.name in (SELECT name FROM City
+GROUP BY name HAVING Count(*) > 2) OR
+capital is null);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+1	PRIMARY	City	eq_ref	PRIMARY	PRIMARY	4	world.Country.Capital	1	Using where
+2	MATERIALIZED	City	index	NULL	CityName	35	NULL	4080	Using index
+select * from Country, City
+where capital = id and
+(City.name in (SELECT name FROM City
+GROUP BY name HAVING Count(*) > 2) OR
+capital is null);
+Code	Name	SurfaceArea	Population	Capital	ID	Name	Country	population
+BMU	Bermuda	53.00	65000	191	191	Hamilton	BMU	1200
+BOL	Bolivia	1098581.00	8329000	194	194	La Paz	BOL	758141
+CRI	Costa Rica	51100.00	4023000	584	584	San José	CRI	339131
+HKG	Hong Kong	1075.00	6782000	937	937	Victoria	HKG	1312637
+SYC	Seychelles	455.00	77000	3206	3206	Victoria	SYC	41000
+
+Q3.3: MATERIALIZATION is 25 times faster than IN-EXISTS
+EXPLAIN
+SELECT Name
+FROM Country
+WHERE Country.Code NOT IN
+(SELECT Country FROM City GROUP BY Name HAVING COUNT(Name) = 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+2	MATERIALIZED	City	ALL	NULL	NULL	NULL	NULL	4080	Using temporary
+SELECT Name
+FROM Country
+WHERE Country.Code NOT IN
+(SELECT Country FROM City GROUP BY Name HAVING COUNT(Name) = 1);
+Name
+Antigua and Barbuda
+Costa Rica
+Montserrat
+Norfolk Island
+Seychelles
+Antarctica
+Bouvet Island
+British Indian Ocean Territory
+South Georgia and the South Sandwich Islands
+Heard Island and McDonald Islands
+French Southern territories
+United States Minor Outlying Islands
+
+4. Subqueries in the SELECT and HAVING clauses
+
+Q4.1m:
+Capital information about very big cities
+MATERIALIZATION
+EXPLAIN
+select Name, City.id in (select capital from Country where capital is not null) as is_capital
+from City
+where City.population > 10000000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	City	range	Population	Population	5	NULL	4	Using index condition; Rowid-ordered scan
+2	MATERIALIZED	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+select Name, City.id in (select capital from Country where capital is not null) as is_capital
+from City
+where City.population > 10000000;
+Name	is_capital
+Mumbai (Bombay)	0
+Q4.1e:
+IN-TO-EXISTS after adding an index to make the subquery re-execution
+efficient.
+create index CountryCapital on Country(capital);
+EXPLAIN
+select Name, City.id in (select capital from Country where capital is not null) as is_capital
+from City
+where City.population > 10000000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	City	range	Population	Population	5	NULL	4	Using index condition; Rowid-ordered scan
+2	SUBQUERY	Country	index_subquery	CountryCapital	CountryCapital	5	func	2	Using index; Using where
+select Name, City.id in (select capital from Country where capital is not null) as is_capital
+from City
+where City.population > 10000000;
+Name	is_capital
+Mumbai (Bombay)	0
+drop index CountryCapital on Country;
+
+Q4.2:
+MATERIALIZATION
+EXPLAIN
+SELECT City.Name, City.Population
+FROM City JOIN Country ON City.Country = Country.Code
+GROUP BY City.Name
+HAVING City.Name IN (select Name from Country where population < 1000000);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	Country	index	PRIMARY	PRIMARY	3	NULL	239	Using index; Using temporary; Using filesort
+1	PRIMARY	City	ref	Country	Country	3	world.Country.Code	18	
+2	MATERIALIZED	Country	ALL	Name	NULL	NULL	NULL	239	Using where
+SELECT City.Name, City.Population
+FROM City JOIN Country ON City.Country = Country.Code
+GROUP BY City.Name
+HAVING City.Name IN (select Name from Country where population < 1000000);
+Name	Population
+Djibouti	383000
+Gibraltar	27025
+Macao	437500
+San Marino	2294
+
+5. Subqueries with UNION
+
+Q5.1:
+EXPLAIN
+SELECT * from City where (Name, 91) in
+(SELECT Name, round(Population/1000)
+FROM City
+WHERE Country = "IND" AND Population > 2500000
+UNION
+SELECT Name, round(Population/1000)
+FROM City
+WHERE Country = "IND" AND Population < 100000);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	City	ALL	NULL	NULL	NULL	NULL	4080	Using where
+2	DEPENDENT SUBQUERY	City	ref	Population,Country,CityName	CityName	35	func	1	Using where
+3	DEPENDENT UNION	City	ref	Population,Country,CityName	CityName	35	func	1	Using where
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+SELECT * from City where (Name, 91) in
+(SELECT Name, round(Population/1000)
+FROM City
+WHERE Country = "IND" AND Population > 2500000
+UNION
+SELECT Name, round(Population/1000)
+FROM City
+WHERE Country = "IND" AND Population < 100000);
+ID	Name	Country	population
+1359	Hassan	IND	90803
+1360	Ambala Sadar	IND	90712
+1361	Baidyabati	IND	90601
+set @@optimizer_switch='default';
+drop database world;
+
+
+TEST GROUP 2:
+Tests of various combinations of optimizer switches, types of queries,
+available indexes, column nullability, constness of tables/predicates.
+=====================================================================
+set optimizer_switch=@subselect_mat_cost;

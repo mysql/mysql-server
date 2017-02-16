@@ -1,15 +1,15 @@
 #
 # Bug#11760927: 53375: RBR + NO PK => HIGH LOAD ON SLAVE (TABLE SCAN/CPU) => SLAVE FAILURE
 #
---source include/master-slave.inc
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
+--source include/master-slave.inc
 
 # SETUP
 # - setup log_warnings and debug 
 --connection slave
 --source include/stop_slave.inc
---let $debug_save= `SELECT @@GLOBAL.debug`
+--let $debug_save= `SELECT @@GLOBAL.debug_dbug`
 --let $log_warnings_save= `SELECT @@GLOBAL.log_warnings`
 
 SET GLOBAL log_warnings = 2;
@@ -26,7 +26,7 @@ if(!$log_error_)
 let LOG_ERROR=$log_error_;
 
 # force printing the notes to the error log
-SET GLOBAL debug="d,inject_long_find_row_note";
+SET GLOBAL debug_dbug="d,inject_long_find_row_note";
 --source include/start_slave.inc
 
 # test
@@ -55,7 +55,7 @@ EOF
 
 # cleanup
 --source include/stop_slave.inc
---eval SET GLOBAL debug = '$debug_save'
+--eval SET GLOBAL debug_dbug = '$debug_save'
 --eval SET GLOBAL log_warnings = $log_warnings_save
 --source include/start_slave.inc
 

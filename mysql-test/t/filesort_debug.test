@@ -11,11 +11,11 @@ SET @old_debug= @@session.debug;
 CREATE TABLE t1(f0 int auto_increment primary key, f1 int);
 INSERT INTO t1(f1) VALUES (0),(1),(2),(3),(4),(5);
 
-SET session debug= '+d,make_char_array_fail';
+SET session debug_dbug= '+d,make_sort_keys_alloc_fail';
 CALL mtr.add_suppression("Out of sort memory");
 --error ER_OUT_OF_SORTMEMORY
 SELECT * FROM t1 ORDER BY f1 ASC, f0;
-SET session debug= @old_debug;
+SET session debug_dbug= @old_debug;
 
 CREATE FUNCTION f1() RETURNS INT RETURN 1;
 --error ER_SP_WRONG_NO_OF_ARGS
@@ -85,8 +85,7 @@ CREATE TABLE t1 (
   c27 TEXT,
   c28 TEXT,
   primary key (pk)
-) ENGINE=InnoDB
-;
+);
 
 CALL mtr.add_suppression("Out of sort memory");
 

@@ -490,7 +490,7 @@ struct trx_struct{
 				       	transaction has been registered with
 				       	the coordinator using the XA API, and
 				       	is set to 0 after commit or rollback. */
-	unsigned	owns_prepare_mutex:1;/* 1 if owns prepare mutex, if
+	unsigned	active_commit_ordered:1;/* 1 if owns prepare mutex, if
 					this is set to 1 then registered should
 					also be set to 1. This is used in the
 					XA code */

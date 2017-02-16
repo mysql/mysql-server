@@ -1,0 +1,51 @@
+##########################################################################
+# LP bug #1035225 / MySQL bug #66301: INSERT ... ON DUPLICATE KEY UPDATE +
+# innodb_autoinc_lock_mode=1 is broken
+##########################################################################
+
+--source include/have_innodb.inc
+--source include/have_debug_sync.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+CREATE TABLE t1(
+       id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+       k INT,
+       c CHAR(1),
+       UNIQUE KEY(k)) ENGINE=InnoDB;
+
+--enable_info
+
+--connect(con1, localhost, root)
+--connect(con2, localhost, root)
+
+--connection con1
+
+--echo #
+--echo # Connection 1
+--echo #
+SET DEBUG_SYNC='ha_write_row_end SIGNAL continue2 WAIT_FOR continue1';
+--send INSERT INTO t1(k) VALUES (1), (2), (3) ON DUPLICATE KEY UPDATE c='1'
+
+--connection con2
+--echo #
+--echo # Connection 2
+--echo #
+SET DEBUG_SYNC='ha_write_row_start WAIT_FOR continue2';
+SET DEBUG_SYNC='after_mysql_insert SIGNAL continue1';
+INSERT INTO t1(k) VALUES (2), (4), (5) ON DUPLICATE KEY UPDATE c='2';
+
+--connection con1
+--reap
+--disable_info
+SET DEBUG_SYNC='RESET';
+SELECT * FROM t1 ORDER BY k;
+
+--disconnect con1
+--disconnect con2
+
+--connection default
+
+DROP TABLE t1;

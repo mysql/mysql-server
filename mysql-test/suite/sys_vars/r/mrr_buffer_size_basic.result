@@ -1,0 +1,51 @@
+SET @start_global_value = @@global.mrr_buffer_size;
+select @@global.mrr_buffer_size;
+@@global.mrr_buffer_size
+262144
+select @@session.mrr_buffer_size;
+@@session.mrr_buffer_size
+262144
+show global variables like 'mrr_buffer_size';
+Variable_name	Value
+mrr_buffer_size	262144
+show session variables like 'mrr_buffer_size';
+Variable_name	Value
+mrr_buffer_size	262144
+select * from information_schema.global_variables where variable_name='mrr_buffer_size';
+VARIABLE_NAME	VARIABLE_VALUE
+MRR_BUFFER_SIZE	262144
+select * from information_schema.session_variables where variable_name='mrr_buffer_size';
+VARIABLE_NAME	VARIABLE_VALUE
+MRR_BUFFER_SIZE	262144
+set global mrr_buffer_size=10;
+Warnings:
+Warning	1292	Truncated incorrect mrr_buffer_size value: '10'
+select @@global.mrr_buffer_size;
+@@global.mrr_buffer_size
+8192
+set session mrr_buffer_size=10;
+Warnings:
+Warning	1292	Truncated incorrect mrr_buffer_size value: '10'
+select @@session.mrr_buffer_size;
+@@session.mrr_buffer_size
+8192
+set global mrr_buffer_size=1.1;
+ERROR 42000: Incorrect argument type to variable 'mrr_buffer_size'
+set session mrr_buffer_size=1e1;
+ERROR 42000: Incorrect argument type to variable 'mrr_buffer_size'
+set global mrr_buffer_size="foo";
+ERROR 42000: Incorrect argument type to variable 'mrr_buffer_size'
+set global mrr_buffer_size=0;
+Warnings:
+Warning	1292	Truncated incorrect mrr_buffer_size value: '0'
+select @@global.mrr_buffer_size;
+@@global.mrr_buffer_size
+8192
+set session mrr_buffer_size=cast(-1 as unsigned int);
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1292	Truncated incorrect mrr_buffer_size value: '18446744073709551615'
+select @@session.mrr_buffer_size;
+@@session.mrr_buffer_size
+2147483647
+SET @@global.mrr_buffer_size = @start_global_value;

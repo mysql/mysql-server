@@ -27,26 +27,9 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 # [LINK_LIBRARIES lib1...libN]
 # [DEPENDENCIES target1...targetN]
 
-# Append collections files for the plugin to the common files
-# Make sure we don't copy twice if running cmake again
-
-MACRO(PLUGIN_APPEND_COLLECTIONS plugin)
-  SET(fcopied "${CMAKE_CURRENT_SOURCE_DIR}/tests/collections/FilesCopied")
-  IF(NOT EXISTS ${fcopied})
-    FILE(GLOB collections ${CMAKE_CURRENT_SOURCE_DIR}/tests/collections/*)
-    FOREACH(cfile ${collections})
-      FILE(READ ${cfile} contents)
-      GET_FILENAME_COMPONENT(fname ${cfile} NAME)
-      FILE(APPEND ${CMAKE_SOURCE_DIR}/mysql-test/collections/${fname} "${contents}")
-      FILE(APPEND ${fcopied} "${fname}\n")
-      MESSAGE(STATUS "Appended ${cfile}")
-    ENDFOREACH()
-  ENDIF()
-ENDMACRO()
-
 MACRO(MYSQL_ADD_PLUGIN)
   MYSQL_PARSE_ARGUMENTS(ARG
-    "LINK_LIBRARIES;DEPENDENCIES;MODULE_OUTPUT_NAME;STATIC_OUTPUT_NAME"
+    "LINK_LIBRARIES;DEPENDENCIES;MODULE_OUTPUT_NAME;STATIC_OUTPUT_NAME;COMPONENT"
     "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;MANDATORY;DEFAULT;DISABLED;RECOMPILE_FOR_EMBEDDED"
     ${ARGN}
   )
@@ -82,7 +65,7 @@ MACRO(MYSQL_ADD_PLUGIN)
   ENDIF()
   
   IF(WITH_${plugin}_STORAGE_ENGINE 
-    OR WITH_{$plugin}
+    OR WITH_${plugin}
     OR WITH_ALL 
     OR WITH_MAX 
     AND NOT WITHOUT_${plugin}_STORAGE_ENGINE
@@ -112,12 +95,31 @@ MACRO(MYSQL_ADD_PLUGIN)
     SET(ARG_DEPENDENCIES)
   ENDIF()
   SET(BUILD_PLUGIN 1)
+  
+  IF(NOT ARG_MODULE_OUTPUT_NAME)
+    IF(ARG_STORAGE_ENGINE)
+      SET(ARG_MODULE_OUTPUT_NAME "ha_${target}")
+    ELSE()
+      SET(ARG_MODULE_OUTPUT_NAME "${target}")
+    ENDIF()
+  ENDIF()
+
   # Build either static library or module
   IF (WITH_${plugin} AND NOT ARG_MODULE_ONLY)
+
+    IF(CMAKE_GENERATOR MATCHES "Makefiles")
+      # If there is a shared library from previous shared build,
+      # remove it. This is done just for mysql-test-run.pl 
+      # so it does not try to use stale shared lib as plugin 
+      # in test.
+      FILE(REMOVE 
+        ${CMAKE_CURRENT_BINARY_DIR}/${ARG_MODULE_OUTPUT_NAME}${CMAKE_SHARED_MODULE_SUFFIX})
+    ENDIF()
+
     ADD_LIBRARY(${target} STATIC ${SOURCES})
-    SET_TARGET_PROPERTIES(${target} PROPERTIES COMPILE_DEFINITONS "MYSQL_SERVER")
     DTRACE_INSTRUMENT(${target})
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
+    RESTRICT_SYMBOL_EXPORTS(${target})
     IF(WITH_EMBEDDED_SERVER)
       # Embedded library should contain PIC code and be linkable
       # to shared libraries (on systems that need PIC)
@@ -127,7 +129,7 @@ MACRO(MYSQL_ADD_PLUGIN)
         DTRACE_INSTRUMENT(${target}_embedded)   
         IF(ARG_RECOMPILE_FOR_EMBEDDED)
           SET_TARGET_PROPERTIES(${target}_embedded 
-            PROPERTIES COMPILE_DEFINITIONS "MYSQL_SERVER;EMBEDDED_LIBRARY")
+            PROPERTIES COMPILE_DEFINITIONS "EMBEDDED_LIBRARY")
         ENDIF()
         ADD_DEPENDENCIES(${target}_embedded GenError)
       ENDIF()
@@ -152,22 +154,15 @@ MACRO(MYSQL_ADD_PLUGIN)
 
     IF(ARG_MANDATORY)
       SET (mysql_mandatory_plugins  
-        "${mysql_mandatory_plugins} builtin_${target}_plugin," 
+        "${mysql_mandatory_plugins} builtin_maria_${target}_plugin," 
       PARENT_SCOPE)
     ELSE()
       SET (mysql_optional_plugins  
-        "${mysql_optional_plugins} builtin_${target}_plugin,"
+        "${mysql_optional_plugins} builtin_maria_${target}_plugin,"
       PARENT_SCOPE)
     ENDIF()
   ELSEIF(NOT WITHOUT_${plugin} AND NOT ARG_STATIC_ONLY  AND NOT WITHOUT_DYNAMIC_PLUGINS)
-    IF(NOT ARG_MODULE_OUTPUT_NAME)
-      IF(ARG_STORAGE_ENGINE)
-        SET(ARG_MODULE_OUTPUT_NAME "ha_${target}")
-      ELSE()
-        SET(ARG_MODULE_OUTPUT_NAME "${target}")
-      ENDIF()
-    ENDIF()
-
+  
     ADD_VERSION_INFO(${target} MODULE SOURCES)
     ADD_LIBRARY(${target} MODULE ${SOURCES}) 
     DTRACE_INSTRUMENT(${target})
@@ -195,16 +190,21 @@ MACRO(MYSQL_ADD_PLUGIN)
     SET_TARGET_PROPERTIES(${target} PROPERTIES 
       OUTPUT_NAME "${ARG_MODULE_OUTPUT_NAME}")  
     # Install dynamic library
-    MYSQL_INSTALL_TARGETS(${target} DESTINATION ${INSTALL_PLUGINDIR} COMPONENT Server)
-    INSTALL_DEBUG_TARGET(${target} DESTINATION ${INSTALL_PLUGINDIR}/debug)
-    # Add installed files to list for RPMs
-    FILE(APPEND ${CMAKE_BINARY_DIR}/support-files/plugins.files
-            "%attr(755, root, root) %{_prefix}/${INSTALL_PLUGINDIR}/${ARG_MODULE_OUTPUT_NAME}.so\n"
-            "%attr(755, root, root) %{_prefix}/${INSTALL_PLUGINDIR}/debug/${ARG_MODULE_OUTPUT_NAME}.so\n")
-    # For internal testing in PB2, append collections files
-    IF(DEFINED ENV{PB2WORKDIR})
-      PLUGIN_APPEND_COLLECTIONS(${plugin})
+    IF(ARG_COMPONENT)
+      IF(RPM AND NOT CPACK_COMPONENTS_ALL MATCHES ${ARG_COMPONENT})
+        SET(CPACK_COMPONENTS_ALL ${CPACK_COMPONENTS_ALL} ${ARG_COMPONENT} PARENT_SCOPE)
+        SET(CPACK_RPM_${ARG_COMPONENT}_PACKAGE_REQUIRES "MariaDB-server" PARENT_SCOPE)
+
+        # workarounds for cmake issues #13248 and #12864:
+        SET(CPACK_RPM_${ARG_COMPONENT}_USER_FILELIST ${ignored} PARENT_SCOPE)
+        SET(CPACK_RPM_${ARG_COMPONENT}_PACKAGE_PROVIDES "cmake_bug_13248" PARENT_SCOPE)
+        SET(CPACK_RPM_${ARG_COMPONENT}_PACKAGE_OBSOLETES "cmake_bug_13248" PARENT_SCOPE)
+      ENDIF()
+    ELSE()
+      SET(ARG_COMPONENT Server)
     ENDIF()
+    MYSQL_INSTALL_TARGETS(${target} DESTINATION ${INSTALL_PLUGINDIR} COMPONENT ${ARG_COMPONENT})
+    #INSTALL_DEBUG_TARGET(${target} DESTINATION ${INSTALL_PLUGINDIR}/debug COMPONENT ${ARG_COMPONENT})
   ELSE()
     IF(WITHOUT_${plugin})
       # Update cache variable
@@ -217,6 +217,11 @@ MACRO(MYSQL_ADD_PLUGIN)
 
   IF(BUILD_PLUGIN AND ARG_LINK_LIBRARIES)
     TARGET_LINK_LIBRARIES (${target} ${ARG_LINK_LIBRARIES})
+  ENDIF()
+
+  GET_FILENAME_COMPONENT(subpath ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+  IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mysql-test")
+    INSTALL_MYSQL_TEST("${CMAKE_CURRENT_SOURCE_DIR}/mysql-test/" "plugin/${subpath}")
   ENDIF()
 
 ENDMACRO()

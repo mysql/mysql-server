@@ -48,14 +48,10 @@ insert into `txu#p#p1` values (1);
 select * from `txu@0023p@0023p1`;
 ERROR 42S02: Table 'test.txu@0023p@0023p1' doesn't exist
 create table `txu@0023p@0023p1` (s1 int);
-insert into `txu@0023p@0023p1` values (2);
-select * from `txu@0023p@0023p1`;
-s1
-2
+ERROR 42S01: Table '#mysql50#txu@0023p@0023p1' already exists
 select * from `txu#p#p1`;
 s1
 1
-drop table `txu@0023p@0023p1`;
 drop table `txu#p#p1`;
 #
 # Bug#37631 Incorrect key file for table after upgrading from 5.0 to 5.1
@@ -139,4 +135,12 @@ USE `#mysql50#.`;
 ERROR 42000: Incorrect database name '#mysql50#.'
 USE `#mysql50#../blablabla`;
 ERROR 42000: Incorrect database name '#mysql50#../blablabla'
+show full tables;
+Tables_in_test	Table_type
+#mysql50#ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com	BASE TABLE
+rename table `#mysql50#ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com` to `ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com`;
+show full tables;
+Tables_in_test	Table_type
+ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com	BASE TABLE
+drop table `ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com`;
 # End of 5.1 tests

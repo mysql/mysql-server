@@ -1,0 +1,81 @@
+# 
+# TRUNCATE TABLE
+#
+
+--source have_engine.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--source create_table.inc
+TRUNCATE TABLE t1;
+if ($mysql_errname)
+{
+  --let $functionality = TRUNCATE TABLE
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a,b) VALUES (1,'a'), (2,'b'), (3,'c');
+  TRUNCATE TABLE t1;
+  SELECT a,b FROM t1;
+}
+DROP TABLE t1;
+
+
+# Truncate resets auto-increment value on the table
+
+--let $create_definition = a $int_indexed_col KEY AUTO_INCREMENT, c $char_col
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = PK or AUTO_INCREMENT
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 2 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 12 # 13 # 14 # 15 # 16 # 17 # 18 #
+  SHOW TABLE STATUS LIKE 't1';
+
+  INSERT INTO t1 (c) VALUES ('a'),('b'),('c');
+  --replace_column 2 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 12 # 13 # 14 # 15 # 16 # 17 # 18 #
+  SHOW TABLE STATUS LIKE 't1';
+
+  TRUNCATE TABLE t1;
+  --replace_column 2 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 12 # 13 # 14 # 15 # 16 # 17 # 18 #
+  SHOW TABLE STATUS LIKE 't1';
+
+  INSERT INTO t1 (c) VALUES ('d');
+  --replace_column 2 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 12 # 13 # 14 # 15 # 16 # 17 # 18 #
+  SHOW TABLE STATUS LIKE 't1';
+
+  SELECT a,c FROM t1;
+  DROP TABLE t1;
+}
+
+# Truncate closes handlers
+
+--source create_table.inc
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c');
+HANDLER t1 OPEN AS h1;
+if ($mysql_errname)
+{
+  --let $functionality = HANDLER
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  HANDLER h1 READ FIRST;
+  TRUNCATE TABLE t1;
+  --let $error_codes = ER_UNKNOWN_TABLE
+  HANDLER h1 READ NEXT;
+  --source check_errors.inc
+  HANDLER t1 OPEN AS h2;
+  HANDLER h2 READ FIRST;
+}  
+DROP TABLE t1;
+
+--source cleanup_engine.inc
+

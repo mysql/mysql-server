@@ -1,5 +1,7 @@
 /* Copyright (c) 2000-2003, 2005-2007 MySQL AB, 2009 Sun Microsystems, Inc.
+   Copyright (c) 2009-2011, Monty Program Ab
    Use is subject to license terms.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,8 +16,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
-#include <m_string.h>
+#include "strings_def.h"
 #include <m_ctype.h>
 #include <fcntl.h>
 #include <my_xml.h>
@@ -24,15 +25,14 @@
 #define ROW16_LEN	8
 #define MAX_BUF		64*1024
 
-static CHARSET_INFO all_charsets[512];
-
+static struct charset_info_st all_charsets[512];
 
 void
-print_array(FILE *f, const char *set, const char *name, uchar *a, int n)
+print_array(FILE *f, const char *set, const char *name, const uchar *a, int n)
 {
   int i;
 
-  fprintf(f,"uchar %s_%s[] = {\n", name, set);
+  fprintf(f,"static const uchar %s_%s[] = {\n", name, set);
   
   for (i=0 ;i<n ; i++)
   {
@@ -45,11 +45,11 @@ print_array(FILE *f, const char *set, const char *name, uchar *a, int n)
 
 
 void
-print_array16(FILE *f, const char *set, const char *name, uint16 *a, int n)
+print_array16(FILE *f, const char *set, const char *name, const uint16 *a, int n)
 {
   int i;
 
-  fprintf(f,"uint16 %s_%s[] = {\n", name, set);
+  fprintf(f,"static const uint16 %s_%s[] = {\n", name, set);
   
   for (i=0 ;i<n ; i++)
   {
@@ -83,7 +83,7 @@ char *mdup(const char *src, uint len)
   return dst;
 }
 
-static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
+static void simple_cs_copy_data(struct charset_info_st *to, CHARSET_INFO *from)
 {
   to->number= from->number ? from->number : to->number;
   to->state|= from->state;
@@ -125,7 +125,7 @@ static my_bool simple_cs_is_full(CHARSET_INFO *cs)
 	  (cs->sort_order || (cs->state & MY_CS_BINSORT))));
 }
 
-static int add_collation(CHARSET_INFO *cs)
+static int add_collation(struct charset_info_st *cs)
 {
   if (cs->name && (cs->number || (cs->number=get_charset_number(cs->name))))
   {
@@ -253,7 +253,9 @@ static void
 fprint_copyright(FILE *file)
 {
   fprintf(file,
-"/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.\n"
+"/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems Inc.\n"
+"   Copyright 2010-2011 Monty Program Ab\n"
+"   Copyright (c) 2003, 2011, Oracle and/or its affiliates\n"
 "\n"
 "   This program is free software; you can redistribute it and/or modify\n"
 "   it under the terms of the GNU General Public License as published by\n"
@@ -274,7 +276,7 @@ fprint_copyright(FILE *file)
 int
 main(int argc, char **argv  __attribute__((unused)))
 {
-  CHARSET_INFO  ncs;
+  struct charset_info_st ncs;
   CHARSET_INFO  *cs;
   char filename[256];
   FILE *f= stdout;
@@ -336,7 +338,7 @@ main(int argc, char **argv  __attribute__((unused)))
     }
   }
   
-  fprintf(f,"CHARSET_INFO compiled_charsets[] = {\n");
+  fprintf(f,"struct charset_info_st compiled_charsets[] = {\n");
   for (cs= all_charsets;
        cs < all_charsets + array_elements(all_charsets);
        cs++)

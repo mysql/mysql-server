@@ -1,0 +1,59 @@
+#
+# Test bugs in MyISAM that may cause problems for metadata
+#
+
+--source include/big_test.inc
+--source include/have_debug_sync.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#
+# LP:989055 - Querying myisam table metadata may corrupt the table
+#
+
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  a VARCHAR(100),
+  INDEX(a)
+) ENGINE=MyISAM;
+ALTER TABLE t1 DISABLE KEYS;
+
+let $1=100000;
+--disable_query_log
+while ($1)
+{
+ eval insert into t1 values($1, "line number $1");
+ dec $1;
+}
+--enable_query_log
+
+--connect(con1,localhost,root,,)
+# Set a debug_sync waitpoint.
+# This is just to ensure that the ALTER does not have time to complete
+# its operation and change the status away from "Repair by sorting" before
+# wait_condition has a chance to see it.
+SET debug_sync= 'myisam_after_repair_by_sort WAIT_FOR go';
+send
+  ALTER TABLE t1 ENABLE KEYS;
+
+--connection default
+--let $wait_timeout=60
+--let $show_statement= SHOW PROCESSLIST
+--let $field= State
+# If the sort completes early and we hit the debug_sync point, the processlist
+# will show the debug_sync state, so we need to check for that also.
+--let $condition= RLIKE 'Repair by sorting|myisam_after_repair_by_sort'
+--source include/wait_show_condition.inc
+SET debug_sync= 'now SIGNAL go';
+
+--replace_column 7 # 8 # 9 # 12 # 13 # 14 #
+SHOW TABLE STATUS LIKE 't1';
+
+--connection con1
+--reap
+--connection default
+--disconnect con1
+DROP TABLE t1;
+set debug_sync='reset';

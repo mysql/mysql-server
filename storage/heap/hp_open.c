@@ -30,7 +30,7 @@ HP_INFO *heap_open_from_share(HP_SHARE *share, int mode)
   HP_INFO *info;
   DBUG_ENTER("heap_open_from_share");
 
-  if (!(info= (HP_INFO*) my_malloc((uint) sizeof(HP_INFO) +
+  if (!(info= (HP_INFO*) my_malloc(sizeof(HP_INFO) +
 				  2 * share->max_key_length,
 				  MYF(MY_ZEROFILL))))
   {
@@ -47,7 +47,7 @@ HP_INFO *heap_open_from_share(HP_SHARE *share, int mode)
 #ifndef DBUG_OFF
   info->opt_flag= READ_CHECK_USED;		/* Check when changing */
 #endif
-  DBUG_PRINT("exit",("heap: 0x%lx  reclength: %d  records_in_block: %d",
+  DBUG_PRINT("exit",("heap: 0x%lx  reclength: %d  records_in_block: %lu",
 		     (long) info, share->reclength,
                      share->block.records_in_block));
   DBUG_RETURN(info);

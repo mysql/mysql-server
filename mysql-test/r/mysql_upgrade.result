@@ -1,11 +1,17 @@
 Run mysql_upgrade once
+Phase 1/4: Fixing views
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
+Processing databases
+information_schema
+mtr
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+mysql
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
-mysql.general_log                                  OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -17,7 +23,6 @@ mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.servers                                      OK
-mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -25,16 +30,26 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+performance_schema
+test
+Phase 4/4: Running 'mysql_fix_privilege_tables'
+OK
 Run it again - should say already completed
 This installation of MySQL is already upgraded to VERSION, use --force if you still need to run mysql_upgrade
-Force should run it regardless of wether it's been run before
+Force should run it regardless of whether it has been run before
+Phase 1/4: Fixing views
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
+Processing databases
+information_schema
+mtr
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+mysql
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
-mysql.general_log                                  OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -46,7 +61,6 @@ mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.servers                                      OK
-mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -54,16 +68,26 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+performance_schema
+test
+Phase 4/4: Running 'mysql_fix_privilege_tables'
+OK
 CREATE USER mysqltest1@'%' IDENTIFIED by 'sakila';
 GRANT ALL ON *.* TO mysqltest1@'%';
 Run mysql_upgrade with password protected account
+Phase 1/4: Fixing views
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
+Processing databases
+information_schema
+mtr
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+mysql
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
-mysql.general_log                                  OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -75,7 +99,6 @@ mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.servers                                      OK
-mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -83,18 +106,31 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+performance_schema
+test
+Phase 4/4: Running 'mysql_fix_privilege_tables'
+OK
 DROP USER mysqltest1@'%';
+Version check failed. Got the following error when calling the 'mysql' command line client
+ERROR 1045 (28000): Access denied for user 'mysqltest1'@'localhost' (using password: YES)
+FATAL ERROR: Upgrade failed
 Run mysql_upgrade with a non existing server socket
 mysqlcheck: Got error: 2005: Unknown MySQL server host 'not_existing_host' (errno) when trying to connect
-FATAL ERROR: Error during call to mysql_check for fixing the db/tables names.
+FATAL ERROR: Upgrade failed
 set GLOBAL sql_mode='STRICT_ALL_TABLES,ANSI_QUOTES,NO_ZERO_DATE';
+Phase 1/4: Fixing views
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
+Processing databases
+information_schema
+mtr
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+mysql
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
-mysql.general_log                                  OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -106,7 +142,6 @@ mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.servers                                      OK
-mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -114,6 +149,10 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+performance_schema
+test
+Phase 4/4: Running 'mysql_fix_privilege_tables'
+OK
 set GLOBAL sql_mode=default;
 #
 # Bug #41569 mysql_upgrade (ver 5.1) add 3 fields to mysql.proc table 
@@ -123,13 +162,19 @@ CREATE PROCEDURE testproc() BEGIN END;
 UPDATE mysql.proc SET character_set_client = NULL WHERE name LIKE 'testproc';
 UPDATE mysql.proc SET collation_connection = NULL WHERE name LIKE 'testproc';
 UPDATE mysql.proc SET db_collation = NULL WHERE name LIKE 'testproc';
+Phase 1/4: Fixing views
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
+Processing databases
+information_schema
+mtr
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+mysql
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
-mysql.general_log                                  OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -141,7 +186,6 @@ mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.servers                                      OK
-mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -149,6 +193,10 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+performance_schema
+test
+Phase 4/4: Running 'mysql_fix_privilege_tables'
+OK
 CALL testproc();
 DROP PROCEDURE testproc;
 WARNING: NULL values of the 'character_set_client' column ('mysql.proc' table) have been updated with a default value (latin1). Please verify if necessary.
@@ -161,13 +209,19 @@ WARNING: NULL values of the 'db_collation' column ('mysql.proc' table) have been
 GRANT USAGE ON *.* TO 'user3'@'%';
 GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%';
 Run mysql_upgrade with all privileges on a user
+Phase 1/4: Fixing views
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
+Processing databases
+information_schema
+mtr
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+mysql
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
-mysql.general_log                                  OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -179,7 +233,6 @@ mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.servers                                      OK
-mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -187,26 +240,41 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+performance_schema
+test
+Phase 4/4: Running 'mysql_fix_privilege_tables'
+OK
 SHOW GRANTS FOR 'user3'@'%';
 Grants for user3@%
 GRANT USAGE ON *.* TO 'user3'@'%'
 GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%'
 DROP USER 'user3'@'%';
 End of 5.1 tests
-The --upgrade-system-tables option was used, databases won't be touched.
+The --upgrade-system-tables option was used, user tables won't be touched.
+Phase 1/4: Fixing views... Skipped
+Phase 2/4: Fixing table and database names ... Skipped
+Phase 3/4: Checking and upgrading tables... Skipped
+Phase 4/4: Running 'mysql_fix_privilege_tables'
+OK
 #
 # Bug#11827359 60223: MYSQL_UPGRADE PROBLEM WITH OPTION
 #                     SKIP-WRITE-BINLOG
 #
 # Droping the previously created mysql_upgrade_info file..
 # Running mysql_upgrade with --skip-write-binlog..
+Phase 1/4: Fixing views
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
+Processing databases
+information_schema
+mtr
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+mysql
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
-mysql.general_log                                  OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -218,7 +286,6 @@ mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.servers                                      OK
-mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -226,10 +293,99 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+performance_schema
+test
+Phase 4/4: Running 'mysql_fix_privilege_tables'
+OK
 #
 # Bug #21489398: MYSQL_UPGRADE: FATAL ERROR: UPGRADE FAILED - IMPROVE ERROR
 #
 Run mysql_upgrade with unauthorized access
-Error: Failed while fetching Server version! Could be due to unauthorized access.
+Version check failed. Got the following error when calling the 'mysql' command line client
+ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: YES)
 FATAL ERROR: Upgrade failed
+#
+# MDEV-4332 Increase username length from 16 characters
+# MDEV-6068, MDEV-6178 mysql_upgrade breaks databases with long user names
+#
+alter table mysql.user         modify User         char(80)  binary not null default '';
+alter table mysql.db           modify User         char(80)  binary not null default '';
+alter table mysql.tables_priv  modify User         char(80)  binary not null default '';
+alter table mysql.columns_priv modify User         char(80)  binary not null default '';
+alter table mysql.procs_priv   modify User         char(80)  binary not null default '';
+alter table mysql.proc         modify definer      char(141) collate utf8_bin not null default '';
+alter table mysql.event        modify definer      char(141) collate utf8_bin not null default '';
+alter table mysql.proxies_priv modify User         char(80)  COLLATE utf8_bin not null default '';
+alter table mysql.proxies_priv modify Proxied_user char(80)  COLLATE utf8_bin not null default '';
+alter table mysql.proxies_priv modify Grantor      char(141) COLLATE utf8_bin not null default '';
+alter table mysql.servers      modify Username     char(80)                   not null default '';
+alter table mysql.procs_priv   modify Grantor      char(141) COLLATE utf8_bin not null default '';
+alter table mysql.tables_priv  modify Grantor      char(141) COLLATE utf8_bin not null default '';
+flush privileges;
+GRANT SELECT ON mysql.* TO very_long_user_name_number_1;
+GRANT SELECT ON mysql.* TO very_long_user_name_number_2;
+GRANT ALL ON *.* TO even_longer_user_name_number_3_to_test_the_grantor_and_definer_field_length@localhost WITH GRANT OPTION;
+GRANT INSERT ON mysql.user TO very_long_user_name_number_1;
+GRANT INSERT ON mysql.user TO very_long_user_name_number_2;
+GRANT UPDATE (User) ON mysql.db TO very_long_user_name_number_1;
+GRANT UPDATE (User) ON mysql.db TO very_long_user_name_number_2;
+CREATE PROCEDURE test.pr() BEGIN END;
+Phase 1/4: Fixing views
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
+Processing databases
+information_schema
+mtr
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+mysql
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.host                                         OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.servers                                      OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+performance_schema
+test
+Phase 4/4: Running 'mysql_fix_privilege_tables'
+OK
+SELECT definer FROM mysql.proc WHERE db = 'test' AND name = 'pr';
+definer
+even_longer_user_name_number_3_to_test_the_grantor_and_definer_field_length@localhost
+SELECT grantor FROM mysql.tables_priv WHERE db = 'mysql' AND table_name = 'user';
+grantor
+even_longer_user_name_number_3_to_test_the_grantor_and_definer_field_length@localhost
+even_longer_user_name_number_3_to_test_the_grantor_and_definer_field_length@localhost
+DROP USER very_long_user_name_number_1, very_long_user_name_number_2, even_longer_user_name_number_3_to_test_the_grantor_and_definer_field_length@localhost;
+DROP PROCEDURE test.pr;
+alter table mysql.user         modify User         char(16)  binary not null default '';
+alter table mysql.db           modify User         char(16)  binary not null default '';
+alter table mysql.tables_priv  modify User         char(16)  binary not null default '';
+alter table mysql.columns_priv modify User         char(16)  binary not null default '';
+alter table mysql.procs_priv   modify User         char(16)  binary not null default '';
+alter table mysql.proc         modify definer      char(77) collate utf8_bin not null default '';
+alter table mysql.event        modify definer      char(77) collate utf8_bin not null default '';
+alter table mysql.proxies_priv modify User         char(16)  COLLATE utf8_bin not null default '';
+alter table mysql.proxies_priv modify Proxied_user char(16)  COLLATE utf8_bin not null default '';
+alter table mysql.proxies_priv modify Grantor      char(77) COLLATE utf8_bin not null default '';
+alter table mysql.servers      modify Username     char(64)                   not null default '';
+alter table mysql.procs_priv   modify Grantor      char(77) COLLATE utf8_bin not null default '';
+alter table mysql.tables_priv  modify Grantor      char(77) COLLATE utf8_bin not null default '';
+flush privileges;
 End of tests

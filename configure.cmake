@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -137,14 +137,13 @@ IF(UNIX)
   FIND_PACKAGE(Threads)
 
   SET(CMAKE_REQUIRED_LIBRARIES 
-    ${LIBM} ${LIBNSL} ${LIBBIND} ${LIBCRYPT} ${LIBSOCKET} ${LIBDL} ${CMAKE_THREAD_LIBS_INIT} ${LIBRT})
+    ${LIBM} ${LIBNSL} ${LIBBIND} ${LIBCRYPT} ${LIBSOCKET} ${LIBDL} ${CMAKE_THREAD_LIBS_INIT} ${LIBRT} ${LIBEXECINFO})
   # Need explicit pthread for gcc -fsanitize=address
   IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
     SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} pthread)
   ENDIF()
 
-  LIST(LENGTH CMAKE_REQUIRED_LIBRARIES required_libs_length)
-  IF(${required_libs_length} GREATER 0)
+  IF(CMAKE_REQUIRED_LIBRARIES)
     LIST(REMOVE_DUPLICATES CMAKE_REQUIRED_LIBRARIES)
   ENDIF()  
   LINK_LIBRARIES(${CMAKE_THREAD_LIBS_INIT})
@@ -155,6 +154,7 @@ IF(UNIX)
     SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} wrap)
     CHECK_C_SOURCE_COMPILES(
     "
+    #include <sys/types.h>
     #include <tcpd.h>
     int allow_severity = 0;
     int deny_severity  = 0;
@@ -175,6 +175,7 @@ ENDIF()
 # Tests for header files
 #
 INCLUDE (CheckIncludeFiles)
+INCLUDE (CheckIncludeFileCXX)
 
 CHECK_INCLUDE_FILES ("stdlib.h;stdarg.h;string.h;float.h" STDC_HEADERS)
 CHECK_INCLUDE_FILES (sys/types.h HAVE_SYS_TYPES_H)
@@ -182,7 +183,8 @@ CHECK_INCLUDE_FILES (alloca.h HAVE_ALLOCA_H)
 CHECK_INCLUDE_FILES (aio.h HAVE_AIO_H)
 CHECK_INCLUDE_FILES (arpa/inet.h HAVE_ARPA_INET_H)
 CHECK_INCLUDE_FILES (crypt.h HAVE_CRYPT_H)
-CHECK_INCLUDE_FILES (cxxabi.h HAVE_CXXABI_H)
+CHECK_INCLUDE_FILE_CXX (cxxabi.h HAVE_CXXABI_H)
+CHECK_INCLUDE_FILES (bfd.h BFD_H_EXISTS)
 CHECK_INCLUDE_FILES (dirent.h HAVE_DIRENT_H)
 CHECK_INCLUDE_FILES (dlfcn.h HAVE_DLFCN_H)
 CHECK_INCLUDE_FILES (execinfo.h HAVE_EXECINFO_H)
@@ -195,6 +197,7 @@ CHECK_INCLUDE_FILES (grp.h HAVE_GRP_H)
 CHECK_INCLUDE_FILES (ieeefp.h HAVE_IEEEFP_H)
 CHECK_INCLUDE_FILES (inttypes.h HAVE_INTTYPES_H)
 CHECK_INCLUDE_FILES (langinfo.h HAVE_LANGINFO_H)
+CHECK_INCLUDE_FILES (linux/unistd.h HAVE_LINUX_UNISTD_H)
 CHECK_INCLUDE_FILES (limits.h HAVE_LIMITS_H)
 CHECK_INCLUDE_FILES (locale.h HAVE_LOCALE_H)
 CHECK_INCLUDE_FILES (malloc.h HAVE_MALLOC_H)
@@ -209,6 +212,7 @@ CHECK_INCLUDE_FILES (sched.h HAVE_SCHED_H)
 CHECK_INCLUDE_FILES (select.h HAVE_SELECT_H)
 CHECK_INCLUDE_FILES (semaphore.h HAVE_SEMAPHORE_H)
 CHECK_INCLUDE_FILES ("sys/types.h;sys/dir.h" HAVE_SYS_DIR_H)
+CHECK_INCLUDE_FILES ("sys/types.h;sys/event.h" HAVE_SYS_EVENT_H)
 CHECK_INCLUDE_FILES (sys/ndir.h HAVE_SYS_NDIR_H)
 CHECK_INCLUDE_FILES (sys/pte.h HAVE_SYS_PTE_H)
 CHECK_INCLUDE_FILES (stddef.h HAVE_STDDEF_H)
@@ -222,19 +226,17 @@ CHECK_INCLUDE_FILES (sys/cdefs.h HAVE_SYS_CDEFS_H)
 CHECK_INCLUDE_FILES (sys/file.h HAVE_SYS_FILE_H)
 CHECK_INCLUDE_FILES (sys/fpu.h HAVE_SYS_FPU_H)
 CHECK_INCLUDE_FILES (sys/ioctl.h HAVE_SYS_IOCTL_H)
-CHECK_INCLUDE_FILES (sys/ipc.h HAVE_SYS_IPC_H)
-CHECK_INCLUDE_FILES (sys/malloc.h HAVE_SYS_MALLOC_H)
+CHECK_INCLUDE_FILES ("sys/types.h;sys/ipc.h" HAVE_SYS_IPC_H)
+CHECK_INCLUDE_FILES ("sys/types.h;sys/malloc.h" HAVE_SYS_MALLOC_H)
 CHECK_INCLUDE_FILES (sys/mman.h HAVE_SYS_MMAN_H)
 CHECK_INCLUDE_FILES (sys/prctl.h HAVE_SYS_PRCTL_H)
 CHECK_INCLUDE_FILES (sys/resource.h HAVE_SYS_RESOURCE_H)
 CHECK_INCLUDE_FILES (sys/select.h HAVE_SYS_SELECT_H)
-CHECK_INCLUDE_FILES (sys/shm.h HAVE_SYS_SHM_H)
+CHECK_INCLUDE_FILES ("sys/types.h;sys/shm.h" HAVE_SYS_SHM_H)
 CHECK_INCLUDE_FILES (sys/socket.h HAVE_SYS_SOCKET_H)
 CHECK_INCLUDE_FILES (sys/stat.h HAVE_SYS_STAT_H)
 CHECK_INCLUDE_FILES (sys/stream.h HAVE_SYS_STREAM_H)
 CHECK_INCLUDE_FILES (sys/termcap.h HAVE_SYS_TERMCAP_H)
-CHECK_INCLUDE_FILES ("time.h;sys/timeb.h" HAVE_SYS_TIMEB_H)
-CHECK_INCLUDE_FILES ("curses.h;term.h" HAVE_TERM_H)
 CHECK_INCLUDE_FILES (asm/termbits.h HAVE_ASM_TERMBITS_H)
 CHECK_INCLUDE_FILES (termbits.h HAVE_TERMBITS_H)
 CHECK_INCLUDE_FILES (termios.h HAVE_TERMIOS_H)
@@ -254,6 +256,15 @@ CHECK_INCLUDE_FILES ("stdlib.h;sys/un.h" HAVE_SYS_UN_H)
 CHECK_INCLUDE_FILES (vis.h HAVE_VIS_H)
 CHECK_INCLUDE_FILES (wchar.h HAVE_WCHAR_H)
 CHECK_INCLUDE_FILES (wctype.h HAVE_WCTYPE_H)
+CHECK_INCLUDE_FILES (sys/sockio.h HAVE_SYS_SOCKIO_H)
+CHECK_INCLUDE_FILES (sys/utsname.h HAVE_SYS_UTSNAME_H)
+
+IF(BFD_H_EXISTS)
+  IF(NOT_FOR_DISTRIBUTION)
+    SET(NON_DISTRIBUTABLE_WARNING 1)
+    SET(HAVE_BFD_H 1)
+  ENDIF()
+ENDIF()
 
 IF(HAVE_SYS_STREAM_H)
   # Needs sys/stream.h on Solaris
@@ -312,6 +323,7 @@ ENDIF()
 #
 # Tests for functions
 #
+CHECK_FUNCTION_EXISTS (access HAVE_ACCESS)
 #CHECK_FUNCTION_EXISTS (aiowait HAVE_AIOWAIT)
 CHECK_FUNCTION_EXISTS (aio_read HAVE_AIO_READ)
 CHECK_FUNCTION_EXISTS (alarm HAVE_ALARM)
@@ -385,6 +397,7 @@ CHECK_FUNCTION_EXISTS (pread HAVE_PREAD)
 CHECK_FUNCTION_EXISTS (pthread_attr_create HAVE_PTHREAD_ATTR_CREATE)
 CHECK_FUNCTION_EXISTS (pthread_attr_getstacksize HAVE_PTHREAD_ATTR_GETSTACKSIZE)
 CHECK_FUNCTION_EXISTS (pthread_attr_setscope HAVE_PTHREAD_ATTR_SETSCOPE)
+CHECK_FUNCTION_EXISTS (pthread_attr_getguardsize HAVE_PTHREAD_ATTR_GETGUARDSIZE)
 CHECK_FUNCTION_EXISTS (pthread_attr_setstacksize HAVE_PTHREAD_ATTR_SETSTACKSIZE)
 CHECK_FUNCTION_EXISTS (pthread_condattr_create HAVE_PTHREAD_CONDATTR_CREATE)
 CHECK_FUNCTION_EXISTS (pthread_condattr_setclock HAVE_PTHREAD_CONDATTR_SETCLOCK)
@@ -423,7 +436,6 @@ CHECK_FUNCTION_EXISTS (strlcat HAVE_STRLCAT)
 CHECK_FUNCTION_EXISTS (strsignal HAVE_STRSIGNAL)
 CHECK_FUNCTION_EXISTS (fgetln HAVE_FGETLN)
 CHECK_FUNCTION_EXISTS (strpbrk HAVE_STRPBRK)
-CHECK_FUNCTION_EXISTS (strsep HAVE_STRSEP)
 CHECK_FUNCTION_EXISTS (strstr HAVE_STRSTR)
 CHECK_FUNCTION_EXISTS (strtok_r HAVE_STRTOK_R)
 CHECK_FUNCTION_EXISTS (strtol HAVE_STRTOL)
@@ -448,6 +460,10 @@ CHECK_FUNCTION_EXISTS (valloc HAVE_VALLOC)
 CHECK_FUNCTION_EXISTS (memalign HAVE_MEMALIGN)
 CHECK_FUNCTION_EXISTS (chown HAVE_CHOWN)
 CHECK_FUNCTION_EXISTS (nl_langinfo HAVE_NL_LANGINFO)
+
+IF(HAVE_SYS_EVENT_H)
+CHECK_FUNCTION_EXISTS (kqueue HAVE_KQUEUE)
+ENDIF()
 
 #--------------------------------------------------------------------
 # Support for WL#2373 (Use cycle counter for timing)
@@ -480,7 +496,7 @@ CHECK_FUNCTION_EXISTS(rdtscll HAVE_RDTSCLL)
 # Tests for symbols
 #
 
-CHECK_SYMBOL_EXISTS(sys_errlist "stdio.h" HAVE_SYS_ERRLIST)
+#CHECK_SYMBOL_EXISTS(sys_errlist "stdio.h" HAVE_SYS_ERRLIST)
 CHECK_SYMBOL_EXISTS(madvise "sys/mman.h" HAVE_DECL_MADVISE)
 CHECK_SYMBOL_EXISTS(tzname "time.h" HAVE_TZNAME)
 CHECK_SYMBOL_EXISTS(lrand48 "stdlib.h" HAVE_LRAND48)
@@ -540,6 +556,10 @@ IF(NOT SIZEOF_MODE_T)
  SET(mode_t int)
 ENDIF()
 
+IF(HAVE_NETINET_IN_H)
+  SET(CMAKE_EXTRA_INCLUDE_FILES netinet/in.h)
+  MY_CHECK_TYPE_SIZE(in_addr_t IN_ADDR_T)
+ENDIF(HAVE_NETINET_IN_H)
 
 IF(HAVE_STDINT_H)
   SET(CMAKE_EXTRA_INCLUDE_FILES stdint.h)
@@ -561,7 +581,7 @@ MY_CHECK_TYPE_SIZE(char CHAR)
 MY_CHECK_TYPE_SIZE(short SHORT)
 MY_CHECK_TYPE_SIZE(int INT)
 MY_CHECK_TYPE_SIZE("long long" LONG_LONG)
-SET(CMAKE_EXTRA_INCLUDE_FILES stdio.h sys/types.h time.h)
+SET(CMAKE_EXTRA_INCLUDE_FILES stdio.h sys/types.h)
 MY_CHECK_TYPE_SIZE(off_t OFF_T)
 MY_CHECK_TYPE_SIZE(uchar UCHAR)
 MY_CHECK_TYPE_SIZE(uint UINT)
@@ -576,7 +596,6 @@ MY_CHECK_TYPE_SIZE(u_int32_t U_INT32_T)
 MY_CHECK_TYPE_SIZE(int64 INT64)
 MY_CHECK_TYPE_SIZE(uint64 UINT64)
 MY_CHECK_TYPE_SIZE(time_t TIME_T)
-MY_CHECK_TYPE_SIZE("struct timespec" STRUCT_TIMESPEC)
 SET (CMAKE_EXTRA_INCLUDE_FILES sys/types.h)
 MY_CHECK_TYPE_SIZE(bool  BOOL)
 SET(CMAKE_EXTRA_INCLUDE_FILES)
@@ -778,16 +797,36 @@ ENDIF()
 #
 # Test for how the C compiler does inline, if at all
 #
+# SunPro is weird, apparently it only supports inline at -xO3 or -xO4.
+# And if CMAKE_C_FLAGS has -xO4 but CMAKE_C_FLAGS_${CMAKE_BUILD_TYPE} has -xO2
+# then CHECK_C_SOURCE_COMPILES will succeed but the built will fail.
+# We must test all flags here.
+# XXX actually, we can do this for all compilers, not only SunPro
+IF (CMAKE_CXX_COMPILER_ID MATCHES "SunPro" AND
+    CMAKE_GENERATOR MATCHES "Makefiles")
+  STRING(TOUPPER "CMAKE_C_FLAGS_${CMAKE_BUILD_TYPE}" flags)
+  SET(CMAKE_REQUIRED_FLAGS "${${flags}}")
+ENDIF()
 CHECK_C_SOURCE_COMPILES("
-static inline int foo(){return 0;}
+extern int bar(int x);
+static inline int foo(){return bar(1);}
 int main(int argc, char *argv[]){return 0;}"
                             C_HAS_inline)
 IF(NOT C_HAS_inline)
   CHECK_C_SOURCE_COMPILES("
-  static __inline int foo(){return 0;}
+  extern int bar(int x);
+  static __inline int foo(){return bar(1);}
   int main(int argc, char *argv[]){return 0;}"
                             C_HAS___inline)
-  SET(C_INLINE __inline)
+  IF(C_HAS___inline)
+    SET(C_INLINE __inline)
+  ElSE()
+    SET(C_INLINE)
+    MESSAGE(WARNING "C compiler does not support funcion inlining")
+    IF(NOT NOINLINE)
+      MESSAGE(FATAL_ERROR "Use -DNOINLINE=TRUE to allow compilation without inlining")
+    ENDIF()
+  ENDIF()
 ENDIF()
 
 IF(NOT CMAKE_CROSSCOMPILING AND NOT MSVC)
@@ -934,11 +973,14 @@ CHECK_CXX_SOURCE_COMPILES("
 # they are silently ignored. For those OS's we will not attempt
 # to use SO_SNDTIMEO and SO_RCVTIMEO even if it is said to work.
 # See Bug#29093 for the problem with SO_SND/RCVTIMEO on HP/UX.
+# Solaris11 has a similar problem
 # To use alarm is simple, simply avoid setting anything.
 
 IF(WIN32)
   SET(HAVE_SOCKET_TIMEOUT 1)
 ELSEIF(CMAKE_SYSTEM MATCHES "HP-UX")
+  SET(HAVE_SOCKET_TIMEOUT 0)
+ELSEIF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
   SET(HAVE_SOCKET_TIMEOUT 0)
 ELSEIF(CMAKE_CROSSCOMPILING)
   SET(HAVE_SOCKET_TIMEOUT 0)
@@ -1014,12 +1056,11 @@ if available and 'smp' configuration otherwise.")
 MARK_AS_ADVANCED(WITH_ATOMIC_LOCKS MY_ATOMIC_MODE_RWLOCK MY_ATOMIC_MODE_DUMMY)
 
 IF(WITH_VALGRIND)
-  CHECK_INCLUDE_FILES("valgrind/memcheck.h;valgrind/valgrind.h" 
-    HAVE_VALGRIND_HEADERS)
-  IF(HAVE_VALGRIND_HEADERS)
-    SET(HAVE_VALGRIND 1)
-  ENDIF()
+  SET(HAVE_valgrind 1)
 ENDIF()
+
+CHECK_INCLUDE_FILES("valgrind/memcheck.h;valgrind/valgrind.h" 
+  HAVE_VALGRIND)
 
 #--------------------------------------------------------------------
 # Check for IPv6 support
@@ -1075,3 +1116,9 @@ SET(CMAKE_EXTRA_INCLUDE_FILES)
 CHECK_STRUCT_HAS_MEMBER("struct dirent" d_ino "dirent.h"  STRUCT_DIRENT_HAS_D_INO)
 CHECK_STRUCT_HAS_MEMBER("struct dirent" d_namlen "dirent.h"  STRUCT_DIRENT_HAS_D_NAMLEN)
 SET(SPRINTF_RETURNS_INT 1)
+CHECK_INCLUDE_FILE(ucontext.h HAVE_UCONTEXT_H)
+IF(NOT HAVE_UCONTEXT_H)
+  CHECK_INCLUDE_FILE(sys/ucontext.h HAVE_UCONTEXT_H)
+ENDIF()
+CHECK_STRUCT_HAS_MEMBER("struct timespec" tv_sec "time.h" STRUCT_TIMESPEC_HAS_TV_SEC)
+CHECK_STRUCT_HAS_MEMBER("struct timespec" tv_nsec "time.h" STRUCT_TIMESPEC_HAS_TV_NSEC)

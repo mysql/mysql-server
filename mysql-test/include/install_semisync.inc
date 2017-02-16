@@ -14,7 +14,7 @@
 if ($value == No such row)
 {
     SET sql_log_bin = 0;
-    eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+    install plugin rpl_semi_sync_master soname 'semisync_master';
     SET GLOBAL rpl_semi_sync_master_enabled = 1;
     SET sql_log_bin = 1;
 }
@@ -28,7 +28,7 @@ if ($value == No such row)
 if ($value == No such row)
 {
     SET sql_log_bin = 0;
-    eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
+    install plugin rpl_semi_sync_slave soname 'semisync_slave';
     SET GLOBAL rpl_semi_sync_slave_enabled = 1;
     SET sql_log_bin = 1;
 }

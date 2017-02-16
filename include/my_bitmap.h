@@ -1,5 +1,5 @@
-/*
-   Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,14 +20,13 @@
 #define MY_BIT_NONE (~(uint) 0)
 
 #include <m_string.h>
+#include <my_pthread.h>
 
 typedef uint32 my_bitmap_map;
 
 typedef struct st_bitmap
 {
   my_bitmap_map *bitmap;
-  uint n_bits; /* number of bits occupied by the above */
-  my_bitmap_map last_word_mask;
   my_bitmap_map *last_word_ptr;
   /*
      mutex will be acquired for the duration of each bitmap operation if
@@ -35,12 +34,15 @@ typedef struct st_bitmap
      acquiring the mutex
    */
   mysql_mutex_t *mutex;
+  my_bitmap_map last_word_mask;
+  uint32	n_bits; /* number of bits occupied by the above */
 } MY_BITMAP;
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 extern void create_last_word_mask(MY_BITMAP *map);
+#define bitmap_init(A,B,C,D) my_bitmap_init(A,B,C,D)
 extern my_bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
                            my_bool thread_safe);
 extern my_bool bitmap_is_clear_all(const MY_BITMAP *map);
@@ -52,6 +54,12 @@ extern my_bool bitmap_is_overlapping(const MY_BITMAP *map1,
 extern my_bool bitmap_test_and_set(MY_BITMAP *map, uint bitmap_bit);
 extern my_bool bitmap_test_and_clear(MY_BITMAP *map, uint bitmap_bit);
 extern my_bool bitmap_fast_test_and_set(MY_BITMAP *map, uint bitmap_bit);
+extern my_bool bitmap_union_is_set_all(const MY_BITMAP *map1,
+                                       const MY_BITMAP *map2);
+extern my_bool bitmap_exists_intersection(const MY_BITMAP **bitmap_array,
+                                          uint bitmap_count,
+                                          uint start_bit, uint end_bit);
+
 extern uint bitmap_set_next(MY_BITMAP *map);
 extern uint bitmap_get_first(const MY_BITMAP *map);
 extern uint bitmap_get_first_set(const MY_BITMAP *map);

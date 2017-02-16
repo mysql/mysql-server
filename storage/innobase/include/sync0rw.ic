@@ -200,14 +200,14 @@ rw_lock_lock_word_decr(
 	ulint		amount)		/*!< in: amount to decrement */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
-        lint local_lock_word = lock->lock_word;
-	while (local_lock_word > 0) {
+	lint local_lock_word;
+        os_rmb;
+	while ((local_lock_word= lock->lock_word) > 0) {
 		if (os_compare_and_swap_lint(&lock->lock_word,
 					     local_lock_word,
 					     local_lock_word - amount)) {
 			return(TRUE);
 		}
-		local_lock_word = lock->lock_word;
 	}
 	return(FALSE);
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
@@ -438,6 +438,7 @@ rw_lock_x_lock_func_nowait(
 	os_thread_id_t	curr_thread	= os_thread_get_curr_id();
 
 	ibool success;
+	ibool local_recursive= lock->recursive;
 
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	success = os_compare_and_swap_lint(&lock->lock_word, X_LOCK_DECR, 0);
@@ -452,10 +453,14 @@ rw_lock_x_lock_func_nowait(
 	mutex_exit(&(lock->mutex));
 
 #endif
+	/* Note: recursive must be loaded before writer_thread see
+	comment for rw_lock_set_writer_id_and_recursion_flag().
+	To achieve this we load it before os_compare_and_swap_lint(),
+	which implies full memory barrier in current implementation. */
 	if (success) {
 		rw_lock_set_writer_id_and_recursion_flag(lock, TRUE);
 
-	} else if (lock->recursive
+	} else if (local_recursive
 		   && os_thread_eq(lock->writer_thread, curr_thread)) {
 		/* Relock: this lock_word modification is safe since no other
 		threads can modify (lock, unlock, or reserve) lock_word while

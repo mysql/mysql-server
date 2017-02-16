@@ -1,6 +1,7 @@
 Copyright (c) 2009, 2010 Sun Microsystems, Inc.
+Copyright (c) 2012 Monty Program Ab
 
-How to Build MySQL server with CMake
+How to Build MariaDB server with CMake
 
 WHAT YOU NEED
 ---------------------------------------------------------------
@@ -11,7 +12,7 @@ HOW TO INSTALL:
 Linux distributions:
 shell> sudo apt-get install cmake
 
-The above works on do Debian/Ubuntu based distributions.On others, command 
+The above works on Debian/Ubuntu based distributions. On others, the command
 line needs to be modified to e.g "yum install" on Fedora or "zypper install" 
 on OpenSUSE.
 
@@ -20,8 +21,9 @@ shell> pfexec pkgadd install SUNWcmake
 
 Windows and Mac OSX:
 Download and install the latest distribution from 
-http://www.cmake.org/cmake/resources/software.html.On Windows, download 
-installer exe file and run it. On Mac, download the .dmg image and open it.
+http://www.cmake.org/cmake/resources/software.html
+On Windows, download installer exe file and run it. On MacOS, download
+the .dmg image and open it.
 
 Other Unixes:
 Precompiled packages for other Unix flavors (HPUX, AIX) are available from 
@@ -134,7 +136,7 @@ as cmake-gui. It is less user-friendly compared to cmake-gui but works also
 on exotic Unixes like HPUX, AIX or Solaris.
 
 Besides storage engines, probably the most important parameter from a 
-developer's point of view is WITH_DEBUG (this allows to build server with 
+developer's point of view is CMAKE_BUILD_TYPE (this allows to build server with 
 dbug tracing library and with debug compile flags).
 
 After changing the configuration, recompile using
@@ -243,3 +245,4 @@ later corrected, the cached result is still used. If you encounter this
 situation,  which should be a rare occation, you need either to remove the 
 offending entry from CMakeCache.txt (if test was for HAVE_FOO, remove lines 
 containing HAVE_FOO from CMakeCache.txt) or just remove the cache file.
+

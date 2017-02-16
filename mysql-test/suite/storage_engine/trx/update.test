@@ -1,0 +1,50 @@
+# 
+# Transactional UPDATE
+#
+
+--source ../have_engine.inc
+--source support_transactions.inc
+--source support_savepoints.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--source ../create_table.inc
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(10000,'foobar');
+INSERT INTO t1 (a,b) SELECT a, b FROM t1;
+
+BEGIN;
+UPDATE t1 SET a=a+100;
+if ($mysql_errname)
+{
+  --let $functionality = UPDATE
+  --source ../unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  UPDATE t1 SET a=a-50, b=DEFAULT WHERE a>100;
+  COMMIT;
+  --sorted_result
+  SELECT a,b FROM t1;
+
+  BEGIN;
+  UPDATE t1 SET b = 'update' WHERE a <= 4 ORDER BY a DESC, b ASC LIMIT 3;
+  UPDATE t1 SET b = '';
+  ROLLBACK;
+
+  BEGIN;
+  UPDATE t1 SET b = 'update2' WHERE a <= 100;
+  SAVEPOINT spt1;
+  UPDATE t1 SET b = '';
+  ROLLBACK TO SAVEPOINT spt1;
+  UPDATE t1 SET b = 'upd' WHERE a = 10050;
+  COMMIT;
+  --sorted_result
+  SELECT a,b FROM t1;
+}
+
+DROP TABLE t1;
+
+--source ../cleanup_engine.inc
+

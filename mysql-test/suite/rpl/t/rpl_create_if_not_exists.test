@@ -139,7 +139,7 @@ INSERT INTO t2 VALUES (2), (2);
 
 CREATE VIEW v1 AS SELECT id FROM t2;
 --let binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
-CREATE TABLE IF NOT EXISTS v1(a int, b int) SELECT id, id FROM t1;
+CREATE TABLE IF NOT EXISTS v1(a int, b int) SELECT id, id as di FROM t1;
 --source include/show_binlog_events.inc
 
 SHOW CREATE TABLE v1;

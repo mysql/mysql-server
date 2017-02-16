@@ -15,7 +15,7 @@ INSERT INTO t1 (b) VALUES ('corrupt me');
 Munged a string.
 Munged a string.
 # Write file to make mysql-test-run.pl start up the server again
-SET DEBUG = '+d,innodb_page_corruption_retries';
+SET DEBUG_DBUG = '+d,innodb_page_corruption_retries';
 # Write file to make mysql-test-run.pl expect the "crash", but don't
 # start it until it's told to
 # The below SELECT query will crash the server because some pages

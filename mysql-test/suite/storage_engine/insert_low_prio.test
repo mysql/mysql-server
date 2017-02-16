@@ -1,0 +1,95 @@
+# 
+# INSERT LOW_PRIORITY
+#
+--source have_engine.inc
+
+--source include/count_sessions.inc
+
+--enable_connect_log
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# We will be changing the GLOBAL value of low_priority_updates
+# due to bug#64892 
+# (Session-level low_priority_updates does not work for INSERT)
+SET @low_prio_updates = @@global.low_priority_updates;
+
+# Concurrent insert might interfere
+# with HIGH|LOW_PRIORITY logic
+SET @concur_insert = @@global.concurrent_insert;
+SET GLOBAL concurrent_insert = NEVER;
+
+--source create_table.inc
+INSERT INTO t1 (a,b) VALUES (1,'f'),(2,'b');
+
+# We will have 3 connections: 
+#   con1 will start SELECT which should give us enough time;
+#   con0 will run INSERT 
+#   con2 will then start another SELECT.
+# With INSERT LOW_PRIORITY we should see only old rows in both resultsets.
+
+--connect (con0,localhost,root,,)
+SET lock_wait_timeout = 4;
+--connect (con1,localhost,root,,)
+SET lock_wait_timeout = 4;
+--connect (con2,localhost,root,,)
+SET lock_wait_timeout = 4;
+
+--connection con1
+
+--send
+SELECT SLEEP(1) FROM t1;
+
+--connection con0
+let $show_statement = SHOW PROCESSLIST;
+let $field = State;
+let $condition = = 'User sleep';
+# We don't need to wait long,
+# thread should show up in the processlist right away
+let $wait_timeout = 2;
+--source include/wait_show_condition.inc
+--send
+INSERT LOW_PRIORITY INTO t1 (a,b) VALUES (3,'z');
+
+--connection con2
+
+let $condition =  = 'Waiting for table level lock';
+let $wait_timeout = 2;
+--source include/wait_show_condition.inc
+if (!$found)
+{
+  --let $mysql_errname = timeout in wait_show_condition
+  --let $functionality = INSERT LOW_PRIORITY or table locking
+  --source unexpected_result.inc
+}
+if ($found)
+{
+  --echo # Should return only 2 rows
+  SELECT SLEEP(1) FROM t1;
+}
+
+--connection con1
+--reap
+
+--connection con0
+--reap
+--sorted_result
+SELECT a,b FROM t1;
+
+--disconnect con0
+--disconnect con1
+--disconnect con2
+--connection default
+
+SET GLOBAL low_priority_updates = @low_prio_updates;
+SET GLOBAL concurrent_insert = @concur_insert;
+
+# Cleanup
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc
+
+--source cleanup_engine.inc
+

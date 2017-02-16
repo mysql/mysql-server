@@ -43,6 +43,10 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 #include "sql_priv.h"
 #include "unireg.h"
 
+#ifdef __WIN__
+#include <psapi.h>
+#endif
+
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
@@ -174,6 +178,8 @@ private:
   struct rusage rusage;
 #elif defined(_WIN32)
   FILETIME ftKernel, ftUser;
+  IO_COUNTERS io_count;
+  PROCESS_MEMORY_COUNTERS mem_count;
 #endif
 
   char *function;
@@ -283,5 +289,5 @@ public:
   int fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond);
 };
 
-#  endif /* HAVE_PROFILING */
+#  endif /* ENABLED_PROFILING */
 #endif /* _SQL_PROFILE_H */

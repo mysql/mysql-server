@@ -18,6 +18,8 @@
 #include <my_sys.h>
 #include <zlib.h>
 
+ulong my_crc_dbug_check= ~0;               /* Cannot happen */
+
 /*
   Calculate a long checksum for a memoryblock.
 
@@ -30,6 +32,9 @@
 
 ha_checksum my_checksum(ha_checksum crc, const uchar *pos, size_t length)
 {
-  return (ha_checksum)crc32((uint)crc, pos, (uint)length);
+  crc= (ha_checksum) crc32((uint)crc, pos, (uint) length);
+  DBUG_PRINT("info", ("crc: %lu", (ulong) crc));
+  if ((ulong)crc == my_crc_dbug_check)
+    my_debug_put_break_here();
+  return crc;
 }
-

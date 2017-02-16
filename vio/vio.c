@@ -1,4 +1,5 @@
 /* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,6 +50,25 @@ static my_bool has_no_data(Vio *vio __attribute__((unused)))
   return FALSE;
 }
 
+#ifdef _WIN32
+my_bool vio_shared_memory_has_data(Vio *vio)
+{
+  return (vio->shared_memory_remain > 0);
+}
+
+int vio_shared_memory_shutdown(Vio *vio, int how)
+{
+  SetEvent(vio->event_conn_closed);
+  SetEvent(vio->event_server_wrote);
+  return 0;
+}
+
+int vio_pipe_shutdown(Vio *vio, int how)
+{
+  return cancel_io(vio->hPipe, vio->thread_id);
+}
+#endif
+
 /*
  * Helper to fill most of the Vio* with defaults.
  */
@@ -89,6 +109,7 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->poll_read      =no_poll_read;
     vio->is_connected   =vio_is_connected_pipe;
     vio->has_data       =has_no_data;
+    vio->shutdown       =vio_pipe_shutdown;
 
     vio->timeout=vio_win32_timeout;
     /* Set default timeout */
@@ -116,7 +137,8 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
 
     vio->poll_read      =no_poll_read;
     vio->is_connected   =vio_is_connected_shared_memory;
-    vio->has_data       =has_no_data;
+    vio->has_data       =vio_shared_memory_has_data;
+    vio->shutdown       =vio_shared_memory_shutdown;
 
     /* Currently, shared memory is on Windows only, hence the below is ok*/
     vio->timeout= vio_win32_timeout; 
@@ -145,6 +167,7 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->poll_read      =vio_poll_read;
     vio->is_connected   =vio_is_connected;
     vio->has_data       =vio_ssl_has_data;
+    vio->shutdown       =vio_socket_shutdown;
     DBUG_VOID_RETURN;
   }
 #endif /* HAVE_OPENSSL */
@@ -163,6 +186,7 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
   vio->timeout          =vio_timeout;
   vio->poll_read        =vio_poll_read;
   vio->is_connected     =vio_is_connected;
+  vio->shutdown         =vio_socket_shutdown;
   vio->has_data=        (flags & VIO_BUFFERED_READ) ?
                             vio_buff_has_data : has_no_data;
   DBUG_VOID_RETURN;
@@ -287,5 +311,11 @@ void vio_end(void)
 {
 #ifdef HAVE_YASSL
   yaSSL_CleanUp();
+#elif defined(HAVE_OPENSSL)
+  // This one is needed on the client side
+  ERR_remove_state(0);
+  ERR_free_strings();
+  EVP_cleanup();
+  CRYPTO_cleanup_all_ex_data();
 #endif
 }

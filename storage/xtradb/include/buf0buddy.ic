@@ -1,0 +1,159 @@
+/*****************************************************************************
+
+Copyright (c) 2006, 2011, Oracle and/or its affiliates. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+
+*****************************************************************************/
+
+/**************************************************//**
+@file include/buf0buddy.ic
+Binary buddy allocator for compressed pages
+
+Created December 2006 by Marko Makela
+*******************************************************/
+
+#ifdef UNIV_MATERIALIZE
+# undef UNIV_INLINE
+# define UNIV_INLINE
+#endif
+
+#include "buf0buf.h"
+#include "buf0buddy.h"
+#include "ut0ut.h"
+#include "sync0sync.h"
+
+/**********************************************************************//**
+Allocate a block.  The thread calling this function must hold
+buf_pool->mutex and must not hold buf_pool->zip_mutex or any block->mutex.
+The buf_pool_mutex may be released and reacquired.
+@return	allocated block, never NULL */
+UNIV_INTERN
+void*
+buf_buddy_alloc_low(
+/*================*/
+	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool instance */
+	ulint		i,		/*!< in: index of buf_pool->zip_free[],
+					or BUF_BUDDY_SIZES */
+	ibool*		lru,		/*!< in: pointer to a variable that
+					will be assigned TRUE if storage was
+					allocated from the LRU list and
+					buf_pool->mutex was temporarily
+					released */
+	ibool		have_page_hash_mutex)
+	__attribute__((malloc, nonnull));
+
+/**********************************************************************//**
+Deallocate a block. */
+UNIV_INTERN
+void
+buf_buddy_free_low(
+/*===============*/
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+	void*		buf,		/*!< in: block to be freed, must not be
+					pointed to by the buffer pool */
+	ulint		i,		/*!< in: index of buf_pool->zip_free[],
+					or BUF_BUDDY_SIZES */
+	ibool		have_page_hash_mutex)
+	__attribute__((nonnull));
+
+/**********************************************************************//**
+Get the index of buf_pool->zip_free[] for a given block size.
+@return	index of buf_pool->zip_free[], or BUF_BUDDY_SIZES */
+UNIV_INLINE
+ulint
+buf_buddy_get_slot(
+/*===============*/
+	ulint	size)	/*!< in: block size */
+{
+	ulint	i;
+	ulint	s;
+
+	ut_ad(size >= PAGE_ZIP_MIN_SIZE);
+
+	for (i = 0, s = BUF_BUDDY_LOW; s < size; i++, s <<= 1) {
+	}
+
+	ut_ad(i <= BUF_BUDDY_SIZES);
+	return(i);
+}
+
+/**********************************************************************//**
+Allocate a block.  The thread calling this function must hold
+buf_pool->mutex and must not hold buf_pool->zip_mutex or any
+block->mutex.  The buf_pool->mutex may be released and reacquired.
+This function should only be used for allocating compressed page frames.
+@return	allocated block, never NULL */
+UNIV_INLINE
+byte*
+buf_buddy_alloc(
+/*============*/
+	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool in which
+					the page resides */
+	ulint		size,		/*!< in: compressed page size
+					(between PAGE_ZIP_MIN_SIZE and
+					UNIV_PAGE_SIZE) */
+	ibool*		lru,		/*!< in: pointer to a variable
+					that will be assigned TRUE if
+				       	storage was allocated from the
+				       	LRU list and buf_pool->mutex was
+				       	temporarily released */
+	ibool		have_page_hash_mutex)
+{
+	//ut_ad(buf_pool_mutex_own(buf_pool));
+	ut_ad(ut_is_2pow(size));
+	ut_ad(size >= PAGE_ZIP_MIN_SIZE);
+	ut_ad(size <= UNIV_PAGE_SIZE);
+
+	return((byte*) buf_buddy_alloc_low(buf_pool, buf_buddy_get_slot(size),
+					   lru, have_page_hash_mutex));
+}
+
+/**********************************************************************//**
+Deallocate a block. */
+UNIV_INLINE
+void
+buf_buddy_free(
+/*===========*/
+	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool in which
+					the block resides */
+	void*		buf,		/*!< in: block to be freed, must not
+					be pointed to by the buffer pool */
+	ulint		size,		/*!< in: block size,
+					up to UNIV_PAGE_SIZE */
+	ibool		have_page_hash_mutex)
+{
+	//ut_ad(buf_pool_mutex_own(buf_pool));
+	ut_ad(ut_is_2pow(size));
+	ut_ad(size >= PAGE_ZIP_MIN_SIZE);
+	ut_ad(size <= UNIV_PAGE_SIZE);
+
+	if (!have_page_hash_mutex) {
+		mutex_enter(&buf_pool->LRU_list_mutex);
+		rw_lock_x_lock(&buf_pool->page_hash_latch);
+	}
+
+	mutex_enter(&buf_pool->zip_free_mutex);
+	buf_buddy_free_low(buf_pool, buf, buf_buddy_get_slot(size), TRUE);
+	mutex_exit(&buf_pool->zip_free_mutex);
+
+	if (!have_page_hash_mutex) {
+		mutex_exit(&buf_pool->LRU_list_mutex);
+		rw_lock_x_unlock(&buf_pool->page_hash_latch);
+	}
+}
+
+#ifdef UNIV_MATERIALIZE
+# undef UNIV_INLINE
+# define UNIV_INLINE	UNIV_INLINE_ORIGINAL
+#endif

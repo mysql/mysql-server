@@ -1,0 +1,59 @@
+# Test of Maria-specific replication bugs
+
+--source include/have_maria.inc
+--source include/have_binlog_format_mixed_or_statement.inc 
+--source include/master-slave.inc
+
+# Suppress warnings that rand() is unsafe in statement binlog mode
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+--enable_warnings
+
+# This one taken from rpl_trigger.test (from BUG#12482)
+# used to segfault slave in execution of row-based events
+
+# Need an explicit ENGINE= clause as @@STORAGE_ENGINE is not replicated
+create table t1 (a int auto_increment, primary key (a), b int,
+rand_value double not null) engine=maria;
+create table t2 (a int auto_increment, primary key (a), b int) engine=maria;
+create table t3 (a int auto_increment, primary key (a), name
+varchar(64) not null, old_a int, old_b int, rand_value double not
+null) engine=maria;
+
+delimiter |;
+create trigger t1 before insert on t1 for each row
+begin
+ insert into t3 values (NULL, "t1", new.a, new.b, rand());
+end|
+
+create trigger t2 after insert on t2 for each row
+begin
+ insert into t3 values (NULL, "t2", new.a, new.b, rand());
+end|
+delimiter ;|
+
+insert into t3 values(100,"log",0,0,0);
+
+SET @@RAND_SEED1=658490765, @@RAND_SEED2=635893186;
+
+--disable_warnings
+insert into t1 values(1,1,rand()),(NULL,2,rand());
+insert into t2 (b) values(last_insert_id());
+insert into t2 values(3,0),(NULL,0);
+insert into t2 values(NULL,0),(500,0);
+--enable_warnings
+
+select a,b, truncate(rand_value,4) from t1;
+select * from t2;
+select a,name, old_a, old_b, truncate(rand_value,4) from t3;
+sync_slave_with_master;
+connection master;
+drop table t1,t2,t3;
+sync_slave_with_master;
+
+# End of tests
+--source include/rpl_end.inc

@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -104,6 +105,15 @@ struct sys_var_with_base
   LEX_STRING base_name;
 };
 
+struct LEX_TYPE
+{
+  enum enum_field_types type;
+  char *length, *dec;
+  CHARSET_INFO *charset;
+  void set(int t, char *l, char *d, CHARSET_INFO *cs)
+  { type= (enum_field_types)t; length= l; dec= d; charset= cs; }
+};
+
 #ifdef MYSQL_SERVER
 /*
   The following hack is needed because mysql_yacc.cc does not define
@@ -191,6 +201,9 @@ enum enum_sql_command {
   SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
   SQLCOM_SIGNAL, SQLCOM_RESIGNAL,
   SQLCOM_SHOW_RELAYLOG_EVENTS, 
+  SQLCOM_SHOW_USER_STATS, SQLCOM_SHOW_TABLE_STATS, SQLCOM_SHOW_INDEX_STATS,
+  SQLCOM_SHOW_CLIENT_STATS,
+
   /*
     When a command is added here, be sure it's also added in mysqld.cc
     in "struct show_var_st status_vars[]= {" ...
@@ -277,25 +290,41 @@ typedef struct st_lex_server_options
   would better be renamed to st_lex_replication_info).  Some fields,
   e.g., delay, are saved in Relay_log_info, not in Master_info.
 */
-typedef struct st_lex_master_info
+struct LEX_MASTER_INFO
 {
+  DYNAMIC_ARRAY repl_ignore_server_ids;
   char *host, *user, *password, *log_file_name;
+  char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
+  char *relay_log_name;
+  ulonglong pos;
+  ulong relay_log_pos;
+  ulong server_id;
   uint port, connect_retry;
   float heartbeat_period;
-  ulonglong pos;
-  ulong server_id;
   /*
     Enum is used for making it possible to detect if the user
     changed variable or if it should be left at old value
    */
   enum {LEX_MI_UNCHANGED, LEX_MI_DISABLE, LEX_MI_ENABLE}
     ssl, ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt;
-  char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
-  char *relay_log_name;
-  ulong relay_log_pos;
-  DYNAMIC_ARRAY repl_ignore_server_ids;
-  ulong server_ids_buffer[2];
-} LEX_MASTER_INFO;
+
+  void init()
+  {
+    bzero(this, sizeof(*this));
+    my_init_dynamic_array(&repl_ignore_server_ids,
+                          sizeof(::server_id), 0, 16);
+  }
+  void reset()
+  {
+    delete_dynamic(&repl_ignore_server_ids);
+    host= user= password= log_file_name= ssl_key= ssl_cert= ssl_ca=
+      ssl_capath= ssl_cipher= relay_log_name= 0;
+    pos= relay_log_pos= server_id= port= connect_retry= 0;
+    heartbeat_period= 0;
+    ssl= ssl_verify_server_cert= heartbeat_opt=
+      repl_ignore_server_ids_opt= LEX_MI_UNCHANGED;
+  }
+};
 
 typedef struct st_lex_reset_slave
 {
@@ -502,7 +531,8 @@ public:
 
   /*
     result of this query can't be cached, bit field, can be :
-      UNCACHEABLE_DEPENDENT
+      UNCACHEABLE_DEPENDENT_GENERATED
+      UNCACHEABLE_DEPENDENT_INJECTED
       UNCACHEABLE_RAND
       UNCACHEABLE_SIDEEFFECT
       UNCACHEABLE_EXPLAIN
@@ -511,7 +541,6 @@ public:
   uint8 uncacheable;
   enum sub_select_type linkage;
   bool no_table_names_allowed; /* used for global order by */
-  bool no_error; /* suppress error message (convert it to warnings) */
 
   static void *operator new(size_t size) throw ()
   {
@@ -536,10 +565,12 @@ public:
   virtual void init_query();
   virtual void init_select();
   void include_down(st_select_lex_node *upper);
+  void add_slave(st_select_lex_node *slave_arg);
   void include_neighbour(st_select_lex_node *before);
   void include_standalone(st_select_lex_node *sel, st_select_lex_node **ref);
   void include_global(st_select_lex_node **plink);
   void exclude();
+  void exclude_from_tree();
 
   virtual st_select_lex_unit* master_unit()= 0;
   virtual st_select_lex* outer_select()= 0;
@@ -564,6 +595,11 @@ public:
   friend bool mysql_new_select(LEX *lex, bool move_down);
   friend bool mysql_make_view(THD *thd, File_parser *parser,
                               TABLE_LIST *table, uint flags);
+  friend bool mysql_derived_prepare(THD *thd, LEX *lex,
+                                  TABLE_LIST *orig_table_list);
+  friend bool mysql_derived_merge(THD *thd, LEX *lex,
+                                  TABLE_LIST *orig_table_list);
+  friend bool TABLE_LIST::init_derived(THD *thd, bool init_view);
 private:
   void fast_exclude();
 };
@@ -584,9 +620,6 @@ class st_select_lex_unit: public st_select_lex_node {
 protected:
   TABLE_LIST result_table_list;
   select_union *union_result;
-  TABLE *table; /* temporary table using for appending UNION results */
-
-  select_result *result;
   ulonglong found_rows_for_union;
   bool saved_error;
 
@@ -599,6 +632,9 @@ public:
   {
   }
 
+
+  TABLE *table; /* temporary table using for appending UNION results */
+  select_result *result;
   bool  prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)
     executed, // already executed
@@ -625,6 +661,11 @@ public:
   ha_rows select_limit_cnt, offset_limit_cnt;
   /* not NULL if unit used in subselect, point to subselect item */
   Item_subselect *item;
+  /*
+    TABLE_LIST representing this union in the embedding select. Used for
+    derived tables/views handling.
+  */
+  TABLE_LIST *derived;
   /* thread handler */
   THD *thd;
   /*
@@ -636,6 +677,13 @@ public:
   st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */
   bool describe; /* union exec() called for EXPLAIN */
   Procedure *last_procedure;	 /* Pointer to procedure, if such exists */
+
+  /* 
+    Insert table with stored virtual columns.
+    This is used only in those rare cases 
+    when the list of inserted values is empty.
+  */
+  TABLE *insert_table_with_stored_vcol;
 
   void init_query();
   st_select_lex_unit* master_unit();
@@ -654,6 +702,7 @@ public:
 
   /* UNION methods */
   bool prepare(THD *thd, select_result *result, ulong additional_options);
+  bool optimize();
   bool exec();
   bool cleanup();
   inline void unclean() { cleaned= 0; }
@@ -662,12 +711,15 @@ public:
   void print(String *str, enum_query_type query_type);
 
   bool add_fake_select_lex(THD *thd);
-  void init_prepare_fake_select_lex(THD *thd);
+  void init_prepare_fake_select_lex(THD *thd, bool first_execution);
   inline bool is_prepared() { return prepared; }
-  bool change_result(select_subselect *result, select_subselect *old_result);
+  bool change_result(select_result_interceptor *result,
+                     select_result_interceptor *old_result);
   void set_limit(st_select_lex *values);
   void set_thd(THD *thd_arg) { thd= thd_arg; }
   inline bool is_union (); 
+
+  void set_unique_exclude();
 
   friend void lex_start(THD *thd);
   friend int subselect_union_engine::exec();
@@ -718,12 +770,31 @@ public:
   List<TABLE_LIST> top_join_list; /* join list of the top level          */
   List<TABLE_LIST> *join_list;    /* list for the currently parsed join  */
   TABLE_LIST *embedding;          /* table embedding to the above list   */
+  List<TABLE_LIST> sj_nests;      /* Semi-join nests within this join */
   /*
     Beginning of the list of leaves in a FROM clause, where the leaves
     inlcude all base tables including view tables. The tables are connected
     by TABLE_LIST::next_leaf, so leaf_tables points to the left-most leaf.
+
+    List of all base tables local to a subquery including all view
+    tables. Unlike 'next_local', this in this list views are *not*
+    leaves. Created in setup_tables() -> make_leaves_list().
   */
-  TABLE_LIST *leaf_tables;
+  /* 
+    Subqueries that will need to be converted to semi-join nests, including
+    those converted to jtbm nests. The list is emptied when conversion is done.
+  */
+  List<Item_in_subselect> sj_subselects;
+
+  List<TABLE_LIST> leaf_tables;
+  List<TABLE_LIST> leaf_tables_exec;
+  List<TABLE_LIST> leaf_tables_prep;
+  enum leaf_list_state {UNINIT, READY, SAVED};
+  enum leaf_list_state prep_leaf_list_state;
+  uint insert_tables;
+  st_select_lex *merged_into; /* select which this select is merged into */
+                              /* (not 0 only for views/derived tables)   */
+
   const char *type;               /* type of select for EXPLAIN          */
 
   SQL_I_List<ORDER> order_list;   /* ORDER clause */
@@ -753,14 +824,19 @@ public:
   ulong table_join_options;
   uint in_sum_expr;
   uint select_number; /* number of select (used for EXPLAIN) */
+
+  /*
+    nest_levels are local to the query or VIEW,
+    and that view merge procedure does not re-calculate them.
+    So we also have to remember unit against which we count levels.
+  */
+  SELECT_LEX_UNIT *nest_level_base;
   int nest_level;     /* nesting level of select */
   Item_sum *inner_sum_func_list; /* list of sum func in nested selects */ 
   uint with_wild; /* item list contain '*' */
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
   bool having_fix_field;
-  /* TRUE when GROUP BY fix field called in processing of this SELECT */
-  bool group_fix_field;
   /* List of references to fields referenced from inner selects */
   List<Item_outer_ref> inner_refs_list;
   /* Number of Item_sum-derived objects in this SELECT */
@@ -770,6 +846,11 @@ public:
 
   /* explicit LIMIT clause was used */
   bool explicit_limit;
+  /*
+    This array is used to note  whether we have any candidates for
+    expression caching in the corresponding clauses
+  */
+  bool expr_cache_may_be_used[PARSING_PLACE_SIZE];
   /*
     there are subquery in HAVING clause => we can't close tables before
     query processing end even if we use temporary table
@@ -796,8 +877,6 @@ public:
   bool no_wrap_view_item;
   /* exclude this select from check of unique_table() */
   bool exclude_from_table_unique_test;
-  /* List of fields that aren't under an aggregate function */
-  List<Item_field> non_agg_fields;
   /* index in the select list of the expression currently being fixed */
   int cur_pos_in_select_list;
 
@@ -817,6 +896,9 @@ public:
     joins on the right.
   */
   List<String> *prev_join_using;
+
+  /* namp of nesting SELECT visibility (for aggregate functions check) */
+  nesting_map name_visibility_map;
 
   void init_query();
   void init_select();
@@ -839,8 +921,9 @@ public:
   {
     return master_unit()->return_after_parsing();
   }
+  inline bool is_subquery_function() { return master_unit()->item != 0; }
 
-  void mark_as_dependent(st_select_lex *last);
+  bool mark_as_dependent(THD *thd, st_select_lex *last, Item *dependency);
 
   bool set_braces(bool value);
   bool inc_in_sum_expr();
@@ -927,6 +1010,34 @@ public:
   }
 
   void clear_index_hints(void) { index_hints= NULL; }
+  bool is_part_of_union() { return master_unit()->is_union(); }
+  bool optimize_unflattened_subqueries(bool const_only);
+  /* Set the EXPLAIN type for this subquery. */
+  void set_explain_type();
+  bool handle_derived(LEX *lex, uint phases);
+  void append_table_to_list(TABLE_LIST *TABLE_LIST::*link, TABLE_LIST *table);
+  bool get_free_table_map(table_map *map, uint *tablenr);
+  void replace_leaf_table(TABLE_LIST *table, List<TABLE_LIST> &tbl_list);
+  void remap_tables(TABLE_LIST *derived, table_map map,
+                    uint tablenr, st_select_lex *parent_lex);
+  bool merge_subquery(THD *thd, TABLE_LIST *derived, st_select_lex *subq_lex,
+                      uint tablenr, table_map map);
+  inline bool is_mergeable()
+  {
+    return (next_select() == 0 && group_list.elements == 0 &&
+            having == 0 && with_sum_func == 0 &&
+            table_list.elements >= 1 && !(options & SELECT_DISTINCT) &&
+            select_limit == 0);
+  }
+  void mark_as_belong_to_derived(TABLE_LIST *derived);
+  void increase_derived_records(ha_rows records);
+  void update_used_tables();
+  void update_correlated_cache();
+  void mark_const_derived(bool empty);
+
+  bool save_leaf_tables(THD *thd);
+  bool save_prep_leaf_tables(THD *thd);
+  bool is_merged_child_of(st_select_lex *ancestor);
 
   /*
     For MODE_ONLY_FULL_GROUP_BY we need to maintain two flags:
@@ -949,6 +1060,13 @@ private:
   index_clause_map current_index_hint_clause;
   /* a list of USE/FORCE/IGNORE INDEX */
   List<Index_hint> *index_hints;
+
+public:
+  inline void add_where_field(st_select_lex *sel)
+  {
+    DBUG_ASSERT(this != sel);
+    select_n_where_fields+= sel->select_n_where_fields;
+  }
 };
 typedef class st_select_lex SELECT_LEX;
 
@@ -1086,6 +1204,7 @@ enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
                       XA_SUSPEND, XA_FOR_MIGRATE};
 
 extern const LEX_STRING null_lex_str;
+extern const LEX_STRING empty_lex_str;
 
 class Sroutine_hash_entry;
 
@@ -2261,6 +2380,7 @@ struct LEX: public Query_tables_list
   LEX_USER *grant_user;
   XID *xid;
   THD *thd;
+  Virtual_column_info *vcol_info;
 
   /* maintain a list of used plugins for this LEX */
   DYNAMIC_ARRAY plugins;
@@ -2268,8 +2388,6 @@ struct LEX: public Query_tables_list
 
   CHARSET_INFO *charset;
   bool text_string_is_7bit;
-  /* store original leaf_tables for INSERT SELECT and PS/SP */
-  TABLE_LIST *leaf_tables_insert;
 
   /** SELECT of CREATE VIEW statement */
   LEX_STRING create_view_select;
@@ -2290,13 +2408,6 @@ struct LEX: public Query_tables_list
 
   List<Key_part_spec> col_list;
   List<Key_part_spec> ref_list;
-  /*
-    A list of strings is maintained to store the SET clause command user strings
-    which are specified in load data operation.  This list will be used
-    during the reconstruction of "load data" statement at the time of writing
-    to binary log.
-   */
-  List<String>        load_set_str_list;
   List<String>	      interval_list;
   List<LEX_USER>      users_list;
   List<LEX_COLUMN>    columns;
@@ -2334,6 +2445,9 @@ struct LEX: public Query_tables_list
   USER_RESOURCES mqh;
   LEX_RESET_SLAVE reset_slave_info;
   ulong type;
+  /* The following is used by KILL */
+  killed_state kill_signal;
+  killed_type  kill_type;
   /*
     This variable is used in post-parse stage to declare that sum-functions,
     or functions which have sense only if GROUP BY is present, are allowed.
@@ -2354,6 +2468,14 @@ struct LEX: public Query_tables_list
     syntax error back.
   */
   bool expr_allows_subselect;
+  /*
+    A special command "PARSE_VCOL_EXPR" is defined for the parser 
+    to translate a defining expression of a virtual column into an 
+    Item object.
+    The following flag is used to prevent other applications to use 
+    this command.
+  */
+  bool parse_vcol_expr;
 
   enum SSL_type ssl_type;			/* defined in violite.h */
   enum enum_duplicates duplicates;
@@ -2389,7 +2511,7 @@ struct LEX: public Query_tables_list
     DERIVED_SUBQUERY and DERIVED_VIEW).
   */
   uint8 derived_tables;
-  uint8 create_view_algorithm;
+  uint16 create_view_algorithm;
   uint8 create_view_check;
   uint8 context_analysis_only;
   bool drop_if_exists, drop_temporary, local_file, one_shot_set;
@@ -2398,7 +2520,7 @@ struct LEX: public Query_tables_list
 
   enum enum_yes_no_unknown tx_chain, tx_release;
   bool safe_to_cache_query;
-  bool subqueries, ignore;
+  bool subqueries, ignore, online;
   st_parsing_options parsing_options;
   Alter_info alter_info;
   /*
@@ -2476,6 +2598,11 @@ struct LEX: public Query_tables_list
   };
 
   /**
+    Collects create options for Field and KEY
+  */
+  engine_option_value *option_list, *option_list_last;
+
+  /**
     During name resolution search only in the table list given by 
     Name_resolution_context::first_name_resolution_table and
     Name_resolution_context::last_name_resolution_table
@@ -2501,6 +2628,22 @@ struct LEX: public Query_tables_list
     into the select_lex.
   */
   table_map  used_tables;
+  /**
+    Maximum number of rows and/or keys examined by the query, both read,
+    changed or written. This is the argument of LIMIT ROWS EXAMINED.
+    The limit is represented by two variables - the Item is needed because
+    in case of parameters we have to delay its evaluation until execution.
+    Once evaluated, its value is stored in examined_rows_limit_cnt.
+  */
+  Item *limit_rows_examined;
+  ulonglong limit_rows_examined_cnt;
+  inline void set_limit_rows_examined()
+  {
+    if (limit_rows_examined)
+      limit_rows_examined_cnt= limit_rows_examined->val_uint();
+    else
+      limit_rows_examined_cnt= ULONGLONG_MAX;
+  }
 
   LEX();
 
@@ -2515,7 +2658,13 @@ struct LEX: public Query_tables_list
   {
     return (context_analysis_only &
             (CONTEXT_ANALYSIS_ONLY_PREPARE |
+             CONTEXT_ANALYSIS_ONLY_VCOL_EXPR |
              CONTEXT_ANALYSIS_ONLY_VIEW));
+  }
+
+  inline bool is_view_context_analysis()
+  {
+    return (context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW);
   }
 
   inline void uncacheable(uint8 cause)
@@ -2536,6 +2685,7 @@ struct LEX: public Query_tables_list
       sl->uncacheable|= cause;
       un->uncacheable|= cause;
     }
+    select_lex.uncacheable|= cause;
   }
   void set_trg_event_type_for_tables();
 
@@ -2564,6 +2714,8 @@ struct LEX: public Query_tables_list
     switch (sql_command) {
     case SQLCOM_UPDATE:
     case SQLCOM_UPDATE_MULTI:
+    case SQLCOM_DELETE:
+    case SQLCOM_DELETE_MULTI:
     case SQLCOM_INSERT:
     case SQLCOM_INSERT_SELECT:
     case SQLCOM_REPLACE:
@@ -2625,6 +2777,8 @@ struct LEX: public Query_tables_list
     }
     return FALSE;
   }
+
+  bool save_prep_leaf_tables();
 };
 
 
@@ -2798,7 +2952,11 @@ extern void lex_init(void);
 extern void lex_free(void);
 extern void lex_start(THD *thd);
 extern void lex_end(LEX *lex);
-extern int MYSQLlex(union YYSTYPE *yylval, class THD *thd);
+extern void lex_end_stage1(LEX *lex);
+extern void lex_end_stage2(LEX *lex);
+void end_lex_with_single_table(THD *thd, TABLE *table, LEX *old_lex);
+int init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex);
+extern int MYSQLlex(union YYSTYPE *yylval, THD *thd);
 
 extern void trim_whitespace(CHARSET_INFO *cs, LEX_STRING *str);
 

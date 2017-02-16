@@ -14,7 +14,7 @@ SET DEBUG_SYNC='now SIGNAL go1';
 a	RIGHT(b,20)
 1	aaaaaaaaaaaaaaaaaaaa
 2	bbbbbbbbbbbbbbbbbbbb
-SET DEBUG='+d,row_ins_extern_checkpoint';
+SET DEBUG_DBUG='+d,row_ins_extern_checkpoint';
 SET DEBUG_SYNC='before_row_ins_extern_latch SIGNAL rec_not_blob WAIT_FOR crash';
 ROLLBACK;
 BEGIN;
@@ -33,7 +33,7 @@ a
 1
 2
 3
-SET DEBUG='+d,crash_commit_before';
+SET DEBUG_DBUG='+d,crash_commit_before';
 INSERT INTO t2 VALUES (42);
 ERROR HY000: Lost connection to MySQL server during query
 ERROR HY000: Lost connection to MySQL server during query
@@ -62,7 +62,7 @@ test.t2	check	status	OK
 test.t3	check	status	OK
 BEGIN;
 INSERT INTO t2 VALUES (347);
-SET DEBUG='+d,row_upd_extern_checkpoint';
+SET DEBUG_DBUG='+d,row_upd_extern_checkpoint';
 SET DEBUG_SYNC='before_row_upd_extern SIGNAL have_latch WAIT_FOR crash';
 UPDATE t3 SET c=REPEAT('i',3000) WHERE a=2;
 SET DEBUG_SYNC='now WAIT_FOR have_latch';
@@ -70,7 +70,7 @@ SELECT info FROM information_schema.processlist
 WHERE state = 'debug sync point: before_row_upd_extern';
 info
 UPDATE t3 SET c=REPEAT('i',3000) WHERE a=2
-SET DEBUG='+d,crash_commit_before';
+SET DEBUG_DBUG='+d,crash_commit_before';
 COMMIT;
 ERROR HY000: Lost connection to MySQL server during query
 ERROR HY000: Lost connection to MySQL server during query
@@ -89,7 +89,7 @@ a
 2
 BEGIN;
 INSERT INTO t2 VALUES (33101);
-SET DEBUG='+d,row_upd_extern_checkpoint';
+SET DEBUG_DBUG='+d,row_upd_extern_checkpoint';
 SET DEBUG_SYNC='after_row_upd_extern SIGNAL have_latch WAIT_FOR crash';
 UPDATE t3 SET c=REPEAT('j',3000) WHERE a=2;
 SET DEBUG_SYNC='now WAIT_FOR have_latch';
@@ -97,7 +97,7 @@ SELECT info FROM information_schema.processlist
 WHERE state = 'debug sync point: after_row_upd_extern';
 info
 UPDATE t3 SET c=REPEAT('j',3000) WHERE a=2
-SET DEBUG='+d,crash_commit_before';
+SET DEBUG_DBUG='+d,crash_commit_before';
 COMMIT;
 ERROR HY000: Lost connection to MySQL server during query
 ERROR HY000: Lost connection to MySQL server during query

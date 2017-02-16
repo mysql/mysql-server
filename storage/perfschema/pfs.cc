@@ -119,7 +119,7 @@
   mode when a server is installed.
 
   The implementation of the database creation script is located in
-  @verbatim ./scripts/mysql_system_tables.sql @endverbatim
+  @verbatim ./scripts/mysql_performance_tables.sql @endverbatim
 
   @subsection INT_CONFIG Runtime configuration interface
 

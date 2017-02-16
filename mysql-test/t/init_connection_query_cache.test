@@ -1,0 +1,26 @@
+-- source include/have_query_cache.inc
+
+--echo #
+--echo # MDEV-4520: Assertion `0' fails in Query_cache::end_of_result on
+--echo # concurrent drop event and event execution
+--echo #
+set GLOBAL query_cache_size=1355776;
+
+create user mysqltest1@localhost;
+grant SELECT on test.* to mysqltest1@localhost;
+
+create table t1 (a int);
+
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+--echo # This explain put here to be sure that init connection query
+--echo # has 'Impossible WHERE'.
+explain extended select * from test.t1 where 0;
+connection default;
+disconnect con1;
+revoke all privileges, grant option from mysqltest1@localhost;
+drop user mysqltest1@localhost;
+
+drop table t1;
+
+set GLOBAL query_cache_size=default;

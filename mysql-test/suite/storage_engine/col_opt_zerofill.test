@@ -1,0 +1,88 @@
+# 
+# ZEROFILL column attribute 
+#
+
+let $extra_type_opts = ZEROFILL;
+
+--source have_engine.inc
+
+--echo #
+--echo # Fixed point columns (NUMERIC, DECIMAL)
+--echo #
+
+--source type_fixed.inc
+let $create_definition =
+    a DECIMAL $col_opts,
+    b NUMERIC $col_opts
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $functionality = Fixed point types or ZEROFILL columns
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 3 # 4 # 5 # 6 #
+  SHOW COLUMNS IN t1;
+
+  INSERT INTO t1 (a,b) VALUES (1.1,1234);
+  SELECT a,b FROM t1;
+  DROP TABLE t1;
+}
+
+--echo #
+--echo # Floating point columns (FLOAT, DOUBLE)
+--echo #
+
+--source type_float.inc
+let $create_definition =
+  a DOUBLE $col_opts,
+  b FLOAT $col_opts
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $functionality = Floating point types or ZEROFILL columns
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 3 # 4 # 5 # 6 #
+  SHOW COLUMNS IN t1;
+
+  INSERT INTO t1 (a,b) VALUES (1,1234.5);
+  SELECT a,b FROM t1;
+  DROP TABLE t1;
+}
+
+--echo #
+--echo # INT columns
+--echo #
+
+--source type_int.inc
+let $create_definition = 
+    t TINYINT $col_opts,
+    s SMALLINT $col_opts,
+    m MEDIUMINT $col_opts,
+    i INT $col_opts,
+    b BIGINT $col_opts
+; 
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $functionality = INT types or UNSIGNED columns
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 3 # 4 # 5 # 6 #
+  SHOW COLUMNS IN t1;
+
+  INSERT INTO t1 (t,s,m,i,b) VALUES (1,10,100,1000,0);
+  SELECT t,s,m,i,b FROM t1;
+  DROP TABLE t1;
+}
+
+--source cleanup_engine.inc
+

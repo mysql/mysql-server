@@ -1,0 +1,117 @@
+--source include/have_tokudb.inc
+--source include/have_debug.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+# Ensure that all tables are properly closed before we start simulating
+# crashes
+FLUSH TABLES;
+
+# test that simple xa commands work with TokuDB
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=tokudb;
+
+xa begin 'a','ab';
+insert into t1 values (1);
+select * from t1;
+xa end 'a','ab';
+SET SESSION debug="d,tokudb_crash_prepare_before";
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error 2013
+xa prepare 'a','ab';
+
+--enable_reconnect
+
+--source include/wait_until_connected_again.inc
+
+--error ER_XAER_NOTA
+xa commit'a','ab';
+drop table t1;
+
+# this warning is expected, we want to test that
+# a prepared transaction is around after we come back up
+CALL mtr.add_suppression("Found 1 prepared XA transactions");
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=tokudb;
+xa begin 'a','ab';
+insert into t1 values (1);
+select * from t1;
+xa end 'a','ab';
+SET SESSION debug="d,tokudb_crash_prepare_after";
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+
+--error 2013
+xa prepare 'a','ab';
+
+
+--enable_reconnect
+
+--source include/wait_until_connected_again.inc
+
+xa commit 'a','ab';
+select * from t1;
+drop table t1;
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=tokudb;
+xa begin 'a','ab';
+insert into t1 values (1);
+select * from t1;
+xa end 'a','ab';
+SET SESSION debug="d,tokudb_crash_prepare_after";
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error 2013
+xa prepare 'a','ab';
+
+
+--enable_reconnect
+
+--source include/wait_until_connected_again.inc
+
+xa rollback 'a','ab';
+select * from t1;
+drop table t1;
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=tokudb;
+xa begin 'a','ab';
+insert into t1 values (1);
+select * from t1;
+xa end 'a','ab';
+SET SESSION debug="d,tokudb_crash_commit_before";
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+xa prepare 'a','ab';
+--error 2013
+xa commit 'a','ab';
+
+--enable_reconnect
+
+--source include/wait_until_connected_again.inc
+
+xa commit 'a','ab';
+select * from t1;
+drop table t1;
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=tokudb;
+xa begin 'a','ab';
+insert into t1 values (1);
+select * from t1;
+xa end 'a','ab';
+SET SESSION debug="d,tokudb_crash_commit_before";
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+
+xa prepare 'a','ab';
+--error 2013
+xa commit 'a','ab';
+
+--enable_reconnect
+
+--source include/wait_until_connected_again.inc
+
+xa rollback 'a','ab';
+select * from t1;
+drop table t1;

@@ -1,4 +1,7 @@
--- source include/have_innodb.inc
+--source include/have_innodb.inc
+
+let collation=utf32_bin;
+--source include/have_collation.inc
 
 CREATE TABLE bug52199 (a INT NOT NULL,
 b CHAR(125) CHARACTER SET utf32 COLLATE utf32_bin NOT NULL

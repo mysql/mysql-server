@@ -150,7 +150,7 @@ select last_insert_id();
 last_insert_id()
 255
 insert into t1 set i = null;
-ERROR 23000: Duplicate entry '255' for key 'PRIMARY'
+ERROR 22003: Out of range value for column 'i' at row 1
 select last_insert_id();
 last_insert_id()
 255
@@ -162,8 +162,7 @@ select last_insert_id();
 last_insert_id()
 255
 insert into t1 set i = null;
-Warnings:
-Warning	1264	Out of range value for column 'i' at row 1
+ERROR 22003: Out of range value for column 'i' at row 1
 select last_insert_id();
 last_insert_id()
 255
@@ -487,7 +486,7 @@ SELECT @@SESSION.AUTO_INCREMENT_OFFSET;
 @@SESSION.AUTO_INCREMENT_OFFSET
 1
 INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
-ERROR 22003: Out of range value for column 't1' at row 167
+ERROR 22003: Out of range value for column 'c1' at row 2
 SELECT * FROM t1;
 c1
 1
@@ -516,3 +515,25 @@ pk
 1
 18446744073709551614
 DROP TABLE t1;
+CREATE TABLE t1 (pk BIGINT UNSIGNED AUTO_INCREMENT, PRIMARY KEY (pk));
+insert into t1 values((1<<63)+1);
+insert into t1 values(null);
+select last_insert_id();
+last_insert_id()
+9223372036854775810
+select * from t1;
+pk
+9223372036854775809
+9223372036854775810
+drop table t1;
+CREATE TABLE t1 (pk BIGINT AUTO_INCREMENT, PRIMARY KEY (pk));
+insert into t1 values(-5);
+insert into t1 values(null);
+select last_insert_id();
+last_insert_id()
+1
+select * from t1;
+pk
+-5
+1
+drop table t1;

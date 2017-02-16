@@ -1,0 +1,31 @@
+#
+# SHOW ENGINE STATUS command
+#
+# The result might be empty, in which case the test will require rdiff,
+# as it is optimistically expects some output from the command
+#
+
+--source have_engine.inc
+
+--echo # For most engines SHOW ENGINE .. STATUS produces an empty result,
+--echo # so the default result file is empty; but returning a value here is not an error.
+--echo # The Status column is masked, because it is likely to contain some
+--echo # volatile data (timestamps, memory info, etc.)
+
+--source mask_engine.inc
+--replace_column 3 '### Engine status, can be long and changeable ###'
+eval
+SHOW ENGINE $storage_engine STATUS;
+
+--echo # For SHOW MUTEX even the number of lines is volatile, so the result logging is disabled,
+--echo # the test only checks that the command does not produce any errors
+--disable_result_log
+--source mask_engine.inc
+eval
+SHOW ENGINE $storage_engine MUTEX;
+--source mask_engine.inc
+SHOW ENGINE ALL MUTEX;
+--enable_result_log
+
+--source cleanup_engine.inc
+

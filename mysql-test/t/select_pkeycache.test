@@ -1,0 +1,8 @@
+
+# 
+# Run select.test with the segmented default key cache (with 7 segments)
+# (see setting the number of segments in select_pkecache-master.opt)
+# The result is expected the same as for select.test
+#
+
+--source t/select.test

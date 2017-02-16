@@ -1,0 +1,126 @@
+'#--------------------begin------------------------#'
+SET @session_start_value = @@session.tokudb_support_xa;
+SELECT @session_start_value;
+@session_start_value
+1
+SET @global_start_value = @@global.tokudb_support_xa;
+SELECT @global_start_value;
+@global_start_value
+1
+SET @@session.tokudb_support_xa = 0;
+SET @@session.tokudb_support_xa = DEFAULT;
+SELECT @@session.tokudb_support_xa;
+@@session.tokudb_support_xa
+1
+SET @@global.tokudb_support_xa = 0;
+SET @@global.tokudb_support_xa = DEFAULT;
+SELECT @@global.tokudb_support_xa;
+@@global.tokudb_support_xa
+1
+'#--------------------case#1 valid set support_xa------------------------#'
+SET @@session.tokudb_support_xa = 0;
+SELECT @@session.tokudb_support_xa;
+@@session.tokudb_support_xa
+0
+SET @@session.tokudb_support_xa = 1;
+SELECT @@session.tokudb_support_xa;
+@@session.tokudb_support_xa
+1
+SET @@global.tokudb_support_xa = 0;
+SELECT @@global.tokudb_support_xa;
+@@global.tokudb_support_xa
+0
+SET @@global.tokudb_support_xa = 1;
+SELECT @@global.tokudb_support_xa;
+@@global.tokudb_support_xa
+1
+'#--------------------case#2 invalid set support_xa------------------------#'
+SET @@session.tokudb_support_xa = -0.6;
+ERROR 42000: Incorrect argument type to variable 'tokudb_support_xa'
+SET @@session.tokudb_support_xa = 1.6;
+ERROR 42000: Incorrect argument type to variable 'tokudb_support_xa'
+SET @@session.tokudb_support_xa = "T";
+ERROR 42000: Variable 'tokudb_support_xa' can't be set to the value of 'T'
+SET @@session.tokudb_support_xa = "Y";
+ERROR 42000: Variable 'tokudb_support_xa' can't be set to the value of 'Y'
+SET @@session.tokudb_support_xa = OF;
+SELECT @@session.tokudb_support_xa;
+@@session.tokudb_support_xa
+0
+SET @@global.tokudb_support_xa = 2;
+ERROR 42000: Variable 'tokudb_support_xa' can't be set to the value of '2'
+SET @@global.tokudb_support_xa = "T";
+ERROR 42000: Variable 'tokudb_support_xa' can't be set to the value of 'T'
+SET @@global.tokudb_support_xa = "Y";
+ERROR 42000: Variable 'tokudb_support_xa' can't be set to the value of 'Y'
+'#--------------------case#3 xa.test port from tokudb_mariadb/xa.test ------------------------#'
+'#--------------------xa.test with tokudb_support_xa OFF ------------------------#'
+SET @@global.tokudb_support_xa = OFF;
+SELECT @@global.tokudb_support_xa;
+@@global.tokudb_support_xa
+0
+create table t1 (a int) engine=tokudb;
+xa start 'test1';
+insert t1 values (10);
+xa end 'test1';
+xa prepare 'test1';
+xa rollback 'test1';
+select * from t1;
+a
+xa start 'test2';
+xa start 'test-bad';
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  ACTIVE state
+insert t1 values (20);
+xa prepare 'test2';
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  ACTIVE state
+xa end 'test2';
+xa prepare 'test2';
+xa commit 'test2';
+select * from t1;
+a
+20
+xa start 'testa','testb';
+insert t1 values (30);
+commit;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  ACTIVE state
+xa end 'testa','testb';
+begin;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  IDLE state
+create table t2 (a int);
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  IDLE state
+xa start 'testa','testb';
+ERROR XAE08: XAER_DUPID: The XID already exists
+xa start 'testa','testb', 123;
+ERROR XAE08: XAER_DUPID: The XID already exists
+xa start 0x7465737462, 0x2030405060, 0xb;
+insert t1 values (40);
+xa end 'testb',' 0@P`',11;
+xa prepare 'testb',0x2030405060,11;
+start transaction;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
+xa recover;
+formatID	gtrid_length	bqual_length	data
+11	5	5	testb 0@P`
+xa prepare 'testa','testb';
+xa recover;
+formatID	gtrid_length	bqual_length	data
+11	5	5	testb 0@P`
+1	5	5	testatestb
+xa commit 'testb',0x2030405060,11;
+ERROR XAE04: XAER_NOTA: Unknown XID
+xa rollback 'testa','testb';
+xa start 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your XYZ server version for the right syntax to use near '' at line 1
+select * from t1;
+a
+20
+drop table t1;
+'#--------------------end------------------------#'
+SET @@session.tokudb_support_xa = @session_start_value;
+SELECT @@session.tokudb_support_xa;
+@@session.tokudb_support_xa
+1
+SET @@global.tokudb_support_xa = @global_start_value;
+SELECT @@global.tokudb_support_xa;
+@@global.tokudb_support_xa
+1

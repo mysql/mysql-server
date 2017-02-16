@@ -1,0 +1,149 @@
+#
+# Simple foreign keys setup
+#
+
+--source have_engine.inc
+--source have_default_index.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+
+let $create_definition = 
+  a $int_indexed_col, 
+  b $char_col,
+  $default_index (a)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  let $create_definition = 
+    a $int_indexed_col, 
+    b $char_col,
+    FOREIGN KEY (a) REFERENCES t1(a)
+  ;
+  --let $table_name = t2
+  --source create_table.inc
+  if ($mysql_errname)
+  {
+    --let $functionality = Foreign keys
+    --source unexpected_result.inc
+  }
+  if (!$mysql_errname)
+  {
+    --source mask_engine.inc
+    SHOW CREATE TABLE t2;
+
+    --let $error_codes = ER_NO_REFERENCED_ROW_2
+    INSERT INTO t2 (a,b) VALUES (1,'a'),(2,'b');
+    --source check_errors.inc
+    if ($mysql_errname != ER_NO_REFERENCED_ROW_2)
+    {
+      --let $functionality = Foreign keys
+      --source unexpected_result.inc
+    }
+    INSERT INTO t1 (a,b) VALUES (1,'c'),(2,'d');
+    INSERT INTO t2 (a,b) VALUES (1,'a'),(2,'b');
+
+    --let $error_codes = ER_NO_REFERENCED_ROW_2
+    UPDATE t2 SET a=a+1;
+    --source check_errors.inc
+    if ($mysql_errname != ER_NO_REFERENCED_ROW_2)
+    {
+      --let $functionality = Foreign keys
+      --source unexpected_result.inc
+    }
+
+    --let $error_codes = ER_ROW_IS_REFERENCED_2
+    UPDATE t1 SET a=3 WHERE a=2;
+    --source check_errors.inc
+
+    --let $error_codes = ER_ROW_IS_REFERENCED_2
+    DELETE FROM t1 WHERE a=2;
+    --source check_errors.inc
+    if ($mysql_errname != ER_ROW_IS_REFERENCED_2)
+    {
+      --let $functionality = Foreign keys
+      --source unexpected_result.inc
+    }
+
+    DELETE FROM t2 WHERE a=2;
+
+    --sorted_result
+    SELECT a,b FROM t1;
+    --sorted_result
+    SELECT a,b FROM t2;
+
+    --let $error_codes = ER_ROW_IS_REFERENCED
+    DROP TABLE t1;
+    --source check_errors.inc
+    if ($mysql_errname != ER_ROW_IS_REFERENCED)
+    {
+      --let $functionality = Foreign keys
+      --source unexpected_result.inc
+    }
+
+    DROP TABLE t2;
+  }
+
+  let $create_definition = 
+    a $int_indexed_col, 
+    b $char_col,
+    FOREIGN KEY (a) REFERENCES t1(a)
+    ON DELETE CASCADE ON UPDATE CASCADE
+  ;
+  --let $table_name = t2
+  --source create_table.inc
+  if ($mysql_errname)
+  {
+    --let $functionality = Foreign keys or ON DELETE|UPDATE CASCADE
+    --source unexpected_result.inc
+  }
+  if (!$mysql_errname)
+  {
+    --source mask_engine.inc
+    SHOW CREATE TABLE t2;
+
+    --let $error_codes = ER_NO_REFERENCED_ROW_2
+    INSERT INTO t2 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d');
+    --source check_errors.inc
+    INSERT INTO t1 (a,b) VALUES (3,'a'),(4,'a');
+    INSERT INTO t2 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(4,'e'),(3,'a');
+
+    UPDATE t1 SET a=a+1;
+    if ($mysql_errname)
+    {
+      --let $functionality = UPDATE
+      --source unexpected_result.inc
+    }
+    --sorted_result
+    SELECT a,b FROM t2;
+
+    DELETE FROM t1 WHERE b='a' LIMIT 2;
+    if ($mysql_errname)
+    {
+      --let $functionality = DELETE
+      --source unexpected_result.inc
+    }
+    --sorted_result
+    SELECT a,b FROM t2;
+
+    --let $error_codes = ER_TRUNCATE_ILLEGAL_FK
+    TRUNCATE TABLE t1;
+    --source check_errors.inc
+    if ($mysql_errname != ER_TRUNCATE_ILLEGAL_FK)
+    {
+      --let $functionality = Foreign keys
+      --source unexpected_result.inc
+    }
+
+    DROP TABLE t2;
+  }
+  DROP TABLE t1;
+}
+
+--source cleanup_engine.inc
+

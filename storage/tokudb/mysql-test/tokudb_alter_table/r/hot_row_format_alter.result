@@ -1,0 +1,103 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+set tokudb_hide_default_row_format=false;
+DROP TABLE IF EXISTS foo;
+set session tokudb_disable_slow_alter=ON;
+CREATE TABLE foo(a int auto_increment, b int, primary key(a))engine=TokuDB;
+INSERT INTO foo (b)
+VALUES (11), (21), (32);
+SELECT * FROM foo;
+a	b
+1	11
+2	21
+3	32
+ALTER TABLE foo row_format=TOKUDB_LZMA;
+SHOW CREATE TABLE foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=TOKUDB_LZMA
+select * from foo;
+a	b
+1	11
+2	21
+3	32
+ALTER TABLE foo row_format=TOKUDB_QUICKLZ;
+SHOW CREATE TABLE foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=TOKUDB_QUICKLZ
+select * from foo;
+a	b
+1	11
+2	21
+3	32
+ALTER TABLE foo row_format=TOKUDB_UNCOMPRESSED;
+SHOW CREATE TABLE foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=TOKUDB_UNCOMPRESSED
+select * from foo;
+a	b
+1	11
+2	21
+3	32
+ALTER TABLE foo row_format=TOKUDB_ZLIB;
+SHOW CREATE TABLE foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=TOKUDB_ZLIB
+select * from foo;
+a	b
+1	11
+2	21
+3	32
+ALTER TABLE foo row_format=TOKUDB_FAST;
+SHOW CREATE TABLE foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=TOKUDB_QUICKLZ
+select * from foo;
+a	b
+1	11
+2	21
+3	32
+ALTER TABLE foo row_format=TOKUDB_SMALL;
+SHOW CREATE TABLE foo;
+Table	Create Table
+foo	CREATE TABLE `foo` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=TokuDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=TOKUDB_LZMA
+select * from foo;
+a	b
+1	11
+2	21
+3	32
+ALTER TABLE foo row_format=TOKUDB_LZMA, add column c int;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE foo row_format=TOKUDB_LZMA, drop column b;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE foo row_format=TOKUDB_LZMA,  add key b(b);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE foo row_format=TOKUDB_LZMA,  change b b bigint;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE foo row_format=TOKUDB_LZMA, change b c int;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE foo auto_increment=100000, ROW_FORMAT=TOKUDB_LZMA;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+DROP TABLE foo;

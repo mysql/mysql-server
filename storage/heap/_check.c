@@ -111,8 +111,13 @@ static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
   for (i=found=max_links=seek=0 ; i < records ; i++)
   {
     hash_info=hp_find_hash(&keydef->block,i);
-    if (hp_mask(hp_rec_hashnr(keydef, hash_info->ptr_to_rec),
-		blength,records) == i)
+    if (hash_info->hash_of_key != hp_rec_hashnr(keydef, hash_info->ptr_to_rec))
+    {
+      DBUG_PRINT("error",
+                 ("Found row with wrong hash_of_key at position %lu", i));
+      error= 1;
+    }
+    if (hp_mask(hash_info->hash_of_key, blength, records) == i)
     {
       found++;
       seek++;
@@ -120,9 +125,7 @@ static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
       while ((hash_info=hash_info->next_key) && found < records + 1)
       {
 	seek+= ++links;
-	if ((rec_link = hp_mask(hp_rec_hashnr(keydef, hash_info->ptr_to_rec),
-			        blength, records))
-	    != i)
+	if ((rec_link= hp_mask(hash_info->hash_of_key, blength, records)) != i)
 	{
 	  DBUG_PRINT("error",
                      ("Record in wrong link: Link %lu  Record: 0x%lx  Record-link %lu",
@@ -148,14 +151,14 @@ static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
     error=1;
   }
   DBUG_PRINT("info",
-	     ("records: %ld   seeks: %lu   max links: %lu   hitrate: %.2f   "
-              "buckets: %lu",
-	      records,seek,max_links,
+	     ("key: %u  records: %ld  seeks: %lu  max links: %lu  "
+              "hitrate: %.2f  buckets: %lu",
+	      keynr, records,seek,max_links,
 	      (float) seek / (float) (records ? records : 1), 
               hash_buckets_found));
   if (print_status)
-    printf("Key: %d  records: %ld   seeks: %lu   max links: %lu   "
-           "hitrate: %.2f   buckets: %lu\n",
+    printf("Key: %u  records: %ld  seeks: %lu  max links: %lu  "
+           "hitrate: %.2f  buckets: %lu\n",
 	   keynr, records, seek, max_links,
 	   (float) seek / (float) (records ? records : 1), 
            hash_buckets_found);

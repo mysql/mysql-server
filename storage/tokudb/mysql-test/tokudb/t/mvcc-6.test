@@ -1,0 +1,52 @@
+# make sure reads done during writes take read locks
+
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--echo # Establish connection conn1 (user = root)
+connect (conn1,localhost,root,,);
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+connection default;
+set session transaction isolation level repeatable read;
+create table foo (a int, b int, primary key (a), key (b))engine=TokuDB;
+show create table foo;
+insert into foo values (100,100);
+begin;
+insert into foo values (1,100);
+
+
+connection conn1;
+set session transaction isolation level repeatable read;
+begin;
+--echo # should NOT see (1,100)
+select * from foo;
+--echo # should be empty
+select * from foo where a=1;
+--echo # should fail with a lock wait timeout
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (1,1000);
+
+connection default;
+commit;
+--echo # should return two values
+select * from foo;
+
+connection conn1;
+--echo # should be empty
+select * from foo where a=1;
+--echo # should fail with a dup entry
+--error ER_DUP_ENTRY
+insert into foo values (1,1000);
+commit;
+
+connection default;
+disconnect conn1;
+
+connection default;
+# Final cleanup.
+set session transaction isolation level serializable;
+DROP TABLE foo;

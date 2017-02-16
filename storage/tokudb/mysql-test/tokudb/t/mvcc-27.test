@@ -1,0 +1,53 @@
+# ticket 895 is a query optimization problem with the primary key
+
+--source include/have_tokudb.inc
+--source include/not_5_5.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--echo # Establish connection conn1 (user = root)
+connect (conn1,localhost,root,,);
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+connection default;
+create table foo (a int, b varchar(100), primary key (a))engine=TokudB;
+--echo # should return nothing
+select * from foo;
+
+connection conn1;
+begin;
+set session transaction isolation level repeatable read;
+select * from foo;
+
+connection default;
+replace into foo values (1,"G");
+replace into foo values (1,"GA");
+replace into foo values (1,"GAR");
+replace into foo values (1,"GARB");
+replace into foo values (1,"GARBA");
+replace into foo values (1,"GARBAG");
+replace into foo values (1,"GARBAGE");
+replace into foo values (1,"a");
+--echo # should return one element, 
+select * from foo;
+
+optimize table foo;
+
+connection conn1;
+--echo # should return nothing
+select * from foo;
+commit;
+
+connection default;
+--echo # should return one element, 
+select * from foo;
+
+connection default;
+disconnect conn1;
+
+connection default;
+# Final cleanup.
+set session transaction isolation level serializable;
+DROP TABLE foo;

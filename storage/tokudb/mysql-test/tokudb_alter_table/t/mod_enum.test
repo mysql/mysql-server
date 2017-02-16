@@ -1,0 +1,56 @@
+# test for bogus inplace alter of an enum field
+
+source include/have_tokudb.inc;
+set default_storage_engine=tokudb;
+
+disable_warnings;
+drop table if exists test_enum;
+enable_warnings;
+
+# no change in enum list
+CREATE TABLE test_enum (col1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT, col2 ENUM('value1','value2','value3') NULL);
+INSERT INTO test_enum (col2) VALUES ('value1'),('value1'),('value3');
+SELECT * FROM test_enum;
+
+set tokudb_disable_hot_alter=0;
+set tokudb_disable_slow_alter=1;
+ALTER TABLE test_enum MODIFY COLUMN col2 ENUM('value1','value2','value3');
+SELECT * FROM test_enum;
+
+drop table test_enum;
+
+# change number in enum list
+CREATE TABLE test_enum (col1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT, col2 ENUM('value1','value2','value3') NULL);
+INSERT INTO test_enum (col2) VALUES ('value1'),('value1'),('value3');
+SELECT * FROM test_enum;
+
+set tokudb_disable_hot_alter=0;
+set tokudb_disable_slow_alter=1;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+#--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE test_enum MODIFY COLUMN col2 ENUM('value1','value3');
+
+set tokudb_disable_hot_alter=1;
+set tokudb_disable_slow_alter=0;
+ALTER TABLE test_enum MODIFY COLUMN col2 ENUM('value1','value3');
+SELECT * FROM test_enum;
+
+drop table test_enum;
+
+# change values in enum list
+CREATE TABLE test_enum (col1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT, col2 ENUM('value1','value2','value3') NULL);
+INSERT INTO test_enum (col2) VALUES ('value1'),('value1'),('value3');
+SELECT * FROM test_enum;
+
+set tokudb_disable_hot_alter=0;
+set tokudb_disable_slow_alter=1;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE test_enum MODIFY COLUMN col2 ENUM('value1','value2','value4');
+
+set tokudb_disable_hot_alter=1;
+set tokudb_disable_slow_alter=0;
+ALTER TABLE test_enum MODIFY COLUMN col2 ENUM('value1','value2','value4');
+SELECT * FROM test_enum;
+
+drop table test_enum;

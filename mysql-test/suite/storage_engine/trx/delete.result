@@ -1,0 +1,72 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(6,'f'),(7,'g'),(8,'h'),(10000,'foobar');
+INSERT INTO t1 (a,b) SELECT a, b FROM t1;
+BEGIN;
+DELETE FROM t1 WHERE b IN ('c');
+SELECT a,b FROM t1;
+a	b
+1	a
+1	a
+10000	foobar
+10000	foobar
+2	b
+2	b
+4	d
+4	d
+5	e
+5	e
+6	f
+6	f
+7	g
+7	g
+8	h
+8	h
+DELETE FROM t1 WHERE a < 0 OR b = 'a';
+COMMIT;
+SELECT a,b FROM t1;
+a	b
+10000	foobar
+10000	foobar
+2	b
+2	b
+4	d
+4	d
+5	e
+5	e
+6	f
+6	f
+7	g
+7	g
+8	h
+8	h
+BEGIN;
+DELETE FROM t1 WHERE a <= 4 ORDER BY b DESC LIMIT 1;
+SAVEPOINT spt1;
+DELETE FROM t1;
+RELEASE SAVEPOINT spt1;
+ROLLBACK;
+SELECT a,b FROM t1;
+a	b
+10000	foobar
+10000	foobar
+2	b
+2	b
+4	d
+4	d
+5	e
+5	e
+6	f
+6	f
+7	g
+7	g
+8	h
+8	h
+BEGIN;
+DELETE FROM t1 WHERE a <= 4 ORDER BY b DESC LIMIT 1;
+SAVEPOINT spt1;
+DELETE FROM t1;
+INSERT INTO t1 (a,b) VALUES (1,'a');
+ROLLBACK TO SAVEPOINT spt1;
+COMMIT;
+DROP TABLE t1;

@@ -1,0 +1,24 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+set session transaction isolation level repeatable read;
+set session tokudb_disable_slow_alter=ON;
+# Establish connection conn1 (user = root)
+DROP TABLE IF EXISTS foo;
+set session transaction isolation level repeatable read;
+create table foo (a int, b int) engine=TokuDB;
+insert into foo values (1,10);
+begin;
+select * from foo;
+a	b
+1	10
+alter table foo add column c int;
+alter table foo drop column b;
+commit;
+begin;
+insert into foo values (1,10);
+alter table foo add column cc int;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+alter table foo drop column c;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+set session transaction isolation level serializable;
+DROP TABLE foo;

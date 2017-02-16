@@ -1,0 +1,45 @@
+SET @start_global_value = @@global.aria_pagecache_division_limit;
+select @@global.aria_pagecache_division_limit;
+@@global.aria_pagecache_division_limit
+100
+select @@session.aria_pagecache_division_limit;
+ERROR HY000: Variable 'aria_pagecache_division_limit' is a GLOBAL variable
+show global variables like 'aria_pagecache_division_limit';
+Variable_name	Value
+aria_pagecache_division_limit	100
+show session variables like 'aria_pagecache_division_limit';
+Variable_name	Value
+aria_pagecache_division_limit	100
+select * from information_schema.global_variables where variable_name='aria_pagecache_division_limit';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_PAGECACHE_DIVISION_LIMIT	100
+select * from information_schema.session_variables where variable_name='aria_pagecache_division_limit';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_PAGECACHE_DIVISION_LIMIT	100
+set global aria_pagecache_division_limit=20;
+select @@global.aria_pagecache_division_limit;
+@@global.aria_pagecache_division_limit
+20
+set session aria_pagecache_division_limit=1;
+ERROR HY000: Variable 'aria_pagecache_division_limit' is a GLOBAL variable and should be set with SET GLOBAL
+set global aria_pagecache_division_limit=1.1;
+ERROR 42000: Incorrect argument type to variable 'aria_pagecache_division_limit'
+set global aria_pagecache_division_limit=1e1;
+ERROR 42000: Incorrect argument type to variable 'aria_pagecache_division_limit'
+set global aria_pagecache_division_limit="foo";
+ERROR 42000: Incorrect argument type to variable 'aria_pagecache_division_limit'
+set global aria_pagecache_division_limit=0;
+Warnings:
+Warning	1292	Truncated incorrect aria_pagecache_division_limit value: '0'
+select @@global.aria_pagecache_division_limit;
+@@global.aria_pagecache_division_limit
+1
+set global aria_pagecache_division_limit=cast(-1 as unsigned int);
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1292	Truncated incorrect aria_pagecache_division_limit value: '18446744073709551615'
+select @@global.aria_pagecache_division_limit;
+@@global.aria_pagecache_division_limit
+100
+SET @@global.aria_pagecache_division_limit = @start_global_value;

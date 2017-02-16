@@ -1,0 +1,45 @@
+--source include/have_tokudb.inc
+#
+# Record inconsistency.
+#
+#
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+create table foo (a int, b int, c blob, primary key (a))engine=tokudb;
+insert into foo values (1,10,"100");
+select * from foo; 
+replace into foo values (1,100,"aaaaa");
+select * from foo;
+drop table foo;
+
+create table foo (a int, b blob, c int, d blob, primary key (a));
+insert into foo values (1,"10",100,"1000"),(4,"40",400,"4000"),(6,"60",600,"6000"),(2,"20",200,"2000"),(5,"50",500,"5000"),(3,"30",300,"3000");
+select * from foo;
+update foo set b="alpha" where a=4;
+select * From foo;
+update foo set b="beta", d="gamma" where a=2;
+select * From foo;
+update foo set b=d where a>4;
+select * from foo;
+update foo set b="holy" where c > 100;
+select * from foo;
+
+delete from foo;
+insert into foo values (1,"10",100,"1000"),(4,"40",400,"4000"),(6,"60",600,"6000"),(2,"20",200,"2000"),(5,"50",500,"5000"),(3,"30",300,"3000");
+select * from foo;
+replace into foo values (2,"twenty",200,"two thousand"),(3,"thirty",300,"three grand");
+select * from foo;
+
+delete from foo;
+insert into foo values (1,"10",100,"1000"),(4,"40",400,"4000"),(6,"60",600,"6000"),(2,"20",200,"2000"),(5,"50",500,"5000"),(3,"30",300,"3000");
+select * from foo;
+insert into foo values (2,"twenty",200,"two thousand"),(3,"thirty",300,"three grand") on duplicate key update a = a*1000, b = "updated", d = "column";
+select * from foo;
+
+
+# Final cleanup.
+DROP TABLE foo;
+

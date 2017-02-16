@@ -1,0 +1,42 @@
+SET @start_global_value = @@global.key_cache_segments;
+select @@global.key_cache_segments;
+@@global.key_cache_segments
+0
+select @@session.key_cache_segments;
+ERROR HY000: Variable 'key_cache_segments' is a GLOBAL variable
+show global variables like 'key_cache_segments';
+Variable_name	Value
+key_cache_segments	0
+show session variables like 'key_cache_segments';
+Variable_name	Value
+key_cache_segments	0
+select * from information_schema.global_variables where variable_name='key_cache_segments';
+VARIABLE_NAME	VARIABLE_VALUE
+KEY_CACHE_SEGMENTS	0
+select * from information_schema.session_variables where variable_name='key_cache_segments';
+VARIABLE_NAME	VARIABLE_VALUE
+KEY_CACHE_SEGMENTS	0
+set global key_cache_segments=1;
+select @@global.key_cache_segments;
+@@global.key_cache_segments
+1
+set session key_cache_segments=1;
+ERROR HY000: Variable 'key_cache_segments' is a GLOBAL variable and should be set with SET GLOBAL
+set global key_cache_segments=1.1;
+ERROR 42000: Incorrect argument type to variable 'key_cache_segments'
+set global key_cache_segments=1e1;
+ERROR 42000: Incorrect argument type to variable 'key_cache_segments'
+set global key_cache_segments="foo";
+ERROR 42000: Incorrect argument type to variable 'key_cache_segments'
+set global key_cache_segments=0;
+select @@global.key_cache_segments;
+@@global.key_cache_segments
+0
+set global key_cache_segments=cast(-1 as unsigned int);
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1292	Truncated incorrect key_cache_segments value: '18446744073709551615'
+select @@global.key_cache_segments;
+@@global.key_cache_segments
+64
+SET @@global.key_cache_segments = @start_global_value;

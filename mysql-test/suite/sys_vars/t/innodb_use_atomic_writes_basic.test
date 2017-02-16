@@ -1,0 +1,22 @@
+--source include/have_innodb.inc
+# bool readonly
+
+#
+# show values;
+#
+select @@global.innodb_use_atomic_writes;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_use_atomic_writes;
+show global variables like 'innodb_use_atomic_writes';
+show session variables like 'innodb_use_atomic_writes';
+select * from information_schema.global_variables where variable_name='innodb_use_atomic_writes';
+select * from information_schema.session_variables where variable_name='innodb_use_atomic_writes';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_use_atomic_writes=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session innodb_use_atomic_writes=1;
+

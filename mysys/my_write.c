@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,25 +29,36 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
   DBUG_PRINT("my",("fd: %d  Buffer: %p  Count: %lu  MyFlags: %d",
 		   Filedes, Buffer, (ulong) Count, MyFlags));
   errors= 0; written= 0;
+  if (!(MyFlags & (MY_WME | MY_FAE | MY_FNABP)))
+    MyFlags|= my_global_flags;
 
   /* The behavior of write(fd, buf, 0) is not portable */
   if (unlikely(!Count))
     DBUG_RETURN(0);
   
-  DBUG_EXECUTE_IF ("simulate_no_free_space_error",
-                   { DBUG_SET("+d,simulate_file_write_error");});
   for (;;)
   {
 #ifdef _WIN32
+    if(Filedes < 0)
+    {
+      my_errno= errno= EBADF;
+      DBUG_RETURN((size_t)-1);
+    }
     writtenbytes= my_win_write(Filedes, Buffer, Count);
 #else
     writtenbytes= write(Filedes, Buffer, Count);
 #endif
-    DBUG_EXECUTE_IF("simulate_file_write_error",
-                    {
-                      errno= ENOSPC;
-                      writtenbytes= (size_t) -1;
-                    });
+
+    /**
+       To simulate the write error set the errno = error code
+       and the number pf written bytes to -1.
+     */
+    DBUG_EXECUTE_IF ("simulate_file_write_error",
+                     if (!errors) {
+                       errno= ENOSPC;
+                       writtenbytes= (size_t) -1;
+                     });
+
     if (writtenbytes == Count)
       break;
     if (writtenbytes != (size_t) -1)
@@ -67,8 +79,6 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
     {
       wait_for_free_space(my_filename(Filedes), errors);
       errors++;
-      DBUG_EXECUTE_IF("simulate_no_free_space_error",
-                      { DBUG_SET("-d,simulate_file_write_error");});
       continue;
     }
 
@@ -91,19 +101,20 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
     else
       continue;					/* Retry */
 #endif
+
+    /* Don't give a warning if it's ok that we only write part of the data */
     if (MyFlags & (MY_NABP | MY_FNABP))
     {
       if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
       {
-	my_error(EE_WRITE, MYF(ME_BELL+ME_WAITTANG),
+	my_error(EE_WRITE, MYF(ME_BELL | ME_WAITTANG | (MyFlags & (ME_JUST_INFO | ME_NOREFRESH))),
 		 my_filename(Filedes),my_errno);
       }
       DBUG_RETURN(MY_FILE_ERROR);		/* Error on read */
     }
-    else
-      break;					/* Return bytes written */
+    break;					/* Return bytes written */
   }
   if (MyFlags & (MY_NABP | MY_FNABP))
-    DBUG_RETURN(0);			/* Want only errors */
+    DBUG_RETURN(0);                             /* Want only errors */
   DBUG_RETURN(writtenbytes+written);
 } /* my_write */

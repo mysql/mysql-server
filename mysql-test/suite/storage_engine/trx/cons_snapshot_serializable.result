@@ -1,0 +1,18 @@
+DROP TABLE IF EXISTS t1;
+connect  con1,localhost,root,,;
+connect  con2,localhost,root,,;
+connection con1;
+CREATE TABLE t1 (a <INT_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+connection con2;
+INSERT INTO t1 (a) VALUES (1);
+connection con1;
+# If consistent read works on this isolation level (SERIALIZABLE), the following SELECT should not return the value we inserted (1)
+SELECT a FROM t1;
+a
+COMMIT;
+connection default;
+disconnect con1;
+disconnect con2;
+DROP TABLE t1;

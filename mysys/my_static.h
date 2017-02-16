@@ -43,8 +43,6 @@ extern uint	 my_once_extra;
 
 extern struct st_my_file_info my_file_info_default[MY_NFILE];
 
-extern ulonglong query_performance_frequency, query_performance_offset;
-
 C_MODE_END
 
 #endif /* MYSYS_MY_STATIC_INCLUDED */

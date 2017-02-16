@@ -1,0 +1,61 @@
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+create table t1(a int, b int, c int, d int, primary key(a), key(b) clustering=yes)engine=tokudb;
+
+insert into t1 values (1,10,100,1000),(2,20,200,2000),(3,30,300,3000),(4,40,400,4000),(5,50,500,5000),(6,60,600,6000),(7,70,700,7000),(8,80,800,8000),(9,90,900,9000);
+select * from t1;
+
+#delete on non-index column
+delete from t1 where d > 8000;
+select * from t1;
+# ignore rows column
+--replace_column 9 NULL;
+explain select * From t1 where b > 0;
+select * From t1 where b > 0;
+
+#delete on prim_key
+delete from t1 where a > 7;
+select * from t1;
+# ignore rows column
+--replace_column 9 NULL;
+explain select * From t1 where b > 0;
+select * From t1 where b > 0;
+
+#delete on clustering key
+delete from t1 where b > 30;
+select * from t1;
+# ignore rows column
+--replace_column 9 NULL;
+explain select * From t1 where b > 0;
+select * From t1 where b > 0;
+
+drop table t1;
+
+
+create table t1(a int, b int, c int, d int, key(b) clustering=yes)engine=tokudb;
+
+insert into t1 values (2,20,200,2000),(4,40,400,4000),(1,10,100,1000),(5,50,500,5000),(6,60,600,6000),(7,70,700,7000),(8,80,800,8000),(3,30,300,3000),(9,90,900,9000);
+select * from t1;
+
+#delete on non-index column
+delete from t1 where d > 8000;
+select * from t1;
+# ignore rows column
+--replace_column 9 NULL;
+explain select * From t1 where b > 0;
+select * From t1 where b > 0;
+
+#delete on clustering key
+delete from t1 where b > 30;
+select * from t1;
+# ignore rows column
+--replace_column 9 NULL;
+explain select * From t1 where b > 0;
+select * From t1 where b > 0;
+
+drop table t1;

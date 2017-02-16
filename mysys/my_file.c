@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2010, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,7 +52,7 @@ static uint set_max_open_files(uint max_file_limit)
     DBUG_PRINT("info", ("rlim_cur: %u  rlim_max: %u",
 			(uint) rlimit.rlim_cur,
 			(uint) rlimit.rlim_max));
-    if (rlimit.rlim_cur == RLIM_INFINITY)
+    if ((ulonglong) rlimit.rlim_cur == (ulonglong) RLIM_INFINITY)
       rlimit.rlim_cur = max_file_limit;
     if (rlimit.rlim_cur >= max_file_limit)
       DBUG_RETURN(rlimit.rlim_cur);		/* purecov: inspected */

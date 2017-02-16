@@ -29,7 +29,9 @@ commit work;
 
 perl;
 my $filesize = -s $ENV{'IBDATA1'};
-print "ibdata1 size: $filesize bytes\n";
+my $filename = $ENV{MYSQL_TMP_DIR} . '/innodb_bug11766634.txt';
+open F, '>', $filename or die "open(>$filename): $!";
+print F $filesize;
 EOF
 
 drop table t1;
@@ -48,7 +50,9 @@ commit work;
 
 perl;
 my $filesize = -s $ENV{'IBDATA1'};
-print "ibdata1 size: $filesize bytes\n";
+my $filename = $ENV{MYSQL_TMP_DIR} . '/innodb_bug11766634.txt';
+$_=do $filename;
+print $_ == $filesize, "\n";
 EOF
 
 drop table t1;

@@ -1,0 +1,16 @@
+if (`SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME = 'innodb' AND PLUGIN_LIBRARY IS NULL`)
+{
+  --skip Requires built-in InnoDB.
+}
+
+let $cmd=`select replace("$MYSQLD_BOOTSTRAP_CMD", " --default-storage-engine=myisam", "")`;
+
+#
+# Now it *must* fail, because if InnoDB is compiled in, it is used as a default
+# storage engine. but $MYSQLD_BOOTSTRAP_CMD includes --skip-innodb
+#
+error 1;
+exec $cmd;
+
+echo "all ok"; # to not have zero-length result file
+

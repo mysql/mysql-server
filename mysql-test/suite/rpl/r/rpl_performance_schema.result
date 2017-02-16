@@ -1,0 +1,4 @@
+include/master-slave.inc
+[connection master]
+UPDATE performance_schema.setup_instruments SET ENABLED="NO";
+include/rpl_end.inc

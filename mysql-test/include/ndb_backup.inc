@@ -18,8 +18,10 @@ CREATE TABLE helper1(c1 VARCHAR(20));
 # dump raw data to file
 let $ndb_backup_file1= $MYSQLTEST_VARDIR/ndb_backup_tmp.dat;
 let $ndb_backup_file2= $MYSQLTEST_VARDIR/tmp.dat;
+--disable_warnings
 --error 0,1
 --remove_file $ndb_backup_file1
+--enable_warnings
 --exec $NDB_TOOLS_DIR/ndb_select_all --ndb-connectstring="$NDB_CONNECTSTRING" -d sys --delimiter=',' SYSTAB_0 > $ndb_backup_file1
 # load the table from the raw data file
 eval LOAD DATA INFILE '$ndb_backup_file1' INTO TABLE helper1;

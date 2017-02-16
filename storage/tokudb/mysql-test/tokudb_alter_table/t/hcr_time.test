@@ -1,0 +1,34 @@
+--source include/have_tokudb.inc
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+set default_storage_engine='tokudb';
+set tokudb_disable_slow_alter=1;
+
+create table t (a timestamp null);
+alter table t change column a aa timestamp null;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 timestamp not null;
+
+drop table t;
+
+create table t (a date);
+alter table t change column a aa date;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 date not null;
+
+drop table t;
+
+create table t (a datetime);
+alter table t change column a aa datetime;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 datetime not null;
+
+drop table t;
+

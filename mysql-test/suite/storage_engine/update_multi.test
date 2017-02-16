@@ -1,0 +1,44 @@
+# 
+# Multi-table UPDATE statements.
+#
+
+--source have_engine.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+--enable_warnings
+
+--source create_table.inc
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(10000,'foobar');
+INSERT INTO t1 (a,b) SELECT a, b FROM t1;
+
+--let $table_name = t2
+--let $create_definition = c $char_col, d $int_col
+--source create_table.inc
+INSERT INTO t2 (c,d) SELECT b, a FROM t1;
+
+UPDATE t1, t2 SET t1.a = t2.d+100, t2.c = 'multi' WHERE c < b AND a + d != 1;
+if ($mysql_errname)
+{
+  --let $functionality = UPDATE
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --sorted_result
+  SELECT a,b FROM t1;
+  --sorted_result
+  SELECT c,d FROM t2;
+
+  UPDATE t2, t1 SET t2.d = DEFAULT WHERE c = 'foobar' and b = c;
+  --sorted_result
+  SELECT a,b FROM t1;
+  --sorted_result
+  SELECT c,d FROM t2;
+}
+
+# Cleanup
+DROP TABLE t1, t2;
+
+--source cleanup_engine.inc
+

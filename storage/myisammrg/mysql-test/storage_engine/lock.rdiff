@@ -1,0 +1,80 @@
+--- lock.result	2013-01-23 01:24:01.797100027 +0400
++++ lock.reject	2013-01-23 02:50:53.291582487 +0400
+@@ -42,34 +42,67 @@
+ UPDATE t1 SET id=1 WHERE id=-1;
+ DROP TABLE t1,t2;
+ CREATE TABLE t1 (i1 <INT_COLUMN>, nr <INT_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
++ERROR HY000: Table 't1' was not locked with LOCK TABLES
++# ERROR: Statement ended with errno 1100, errname ER_TABLE_NOT_LOCKED (expected to succeed)
+ CREATE TABLE t2 (nr <INT_COLUMN>, nm <INT_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
++ERROR HY000: Table 't2' was not locked with LOCK TABLES
++# ERROR: Statement ended with errno 1100, errname ER_TABLE_NOT_LOCKED (expected to succeed)
+ INSERT INTO t2 (nr,nm) VALUES (1,3);
++ERROR HY000: Table 't2' was not locked with LOCK TABLES
+ INSERT INTO t2 (nr,nm) VALUES (2,4);
++ERROR HY000: Table 't2' was not locked with LOCK TABLES
+ lock tables t1 write, t2 read;
++ERROR 42S02: Table 'test.t1' doesn't exist
+ INSERT INTO t1 (i1,nr) SELECT 1, nr FROM t2 WHERE nm=3;
++ERROR 42S02: Table 'test.t1' doesn't exist
+ INSERT INTO t1 (i1,nr) SELECT 2, nr FROM t2 WHERE nm=4;
++ERROR 42S02: Table 'test.t1' doesn't exist
+ UNLOCK TABLES;
+ LOCK TABLES t1 WRITE;
++ERROR 42S02: Table 'test.t1' doesn't exist
+ INSERT INTO t1 (i1,nr) SELECT i1, nr FROM t1;
+-ERROR HY000: Table 't1' was not locked with LOCK TABLES
++ERROR 42S02: Table 'test.t1' doesn't exist
++# ERROR: Statement ended with errno 1146, errname ER_NO_SUCH_TABLE (expected results: ER_TABLE_NOT_LOCKED)
+ UNLOCK TABLES;
+ LOCK TABLES t1 WRITE, t1 AS t1_alias READ;
++ERROR 42S02: Table 'test.t1' doesn't exist
+ INSERT INTO t1 (i1,nr) SELECT i1, nr FROM t1 AS t1_alias;
++ERROR 42S02: Table 'test.t1' doesn't exist
+ DROP TABLE t1,t2;
+-ERROR HY000: Table 't2' was not locked with LOCK TABLES
++ERROR 42S02: Unknown table 't1,t2'
++# ERROR: Statement ended with errno 1051, errname ER_BAD_TABLE_ERROR (expected results: ER_TABLE_NOT_LOCKED)
+ UNLOCK TABLES;
+ DROP TABLE t1,t2;
++ERROR 42S02: Unknown table 't1,t2'
+ CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ CREATE TABLE t2 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ CREATE TABLE t3 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE;
+ DROP TABLE t2, t3, t1;
+ CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
++ERROR HY000: Table 't1' was not locked with LOCK TABLES
++# ERROR: Statement ended with errno 1100, errname ER_TABLE_NOT_LOCKED (expected to succeed)
+ CREATE TABLE t2 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
++ERROR HY000: Table 't2' was not locked with LOCK TABLES
++# ERROR: Statement ended with errno 1100, errname ER_TABLE_NOT_LOCKED (expected to succeed)
+ CREATE TABLE t3 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
++ERROR HY000: Table 't3' was not locked with LOCK TABLES
++# ERROR: Statement ended with errno 1100, errname ER_TABLE_NOT_LOCKED (expected to succeed)
+ LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE, t1 AS t4 READ;
++ERROR 42S02: Table 'test.t1' doesn't exist
+ ALTER TABLE t2 ADD COLUMN c2 <INT_COLUMN>;
++ERROR 42S02: Table 'test.t2' doesn't exist
++# ERROR: Statement ended with errno 1146, errname ER_NO_SUCH_TABLE (expected to succeed)
++# ------------ UNEXPECTED RESULT ------------
++# [ ALTER TABLE t2 ADD COLUMN c2 INT(11) /*!*/ /*Custom column options*/ ]
++# The statement|command finished with ER_NO_SUCH_TABLE.
++# ALTER TABLE or the mix could be unsupported|malfunctioning, or the problem was caused by previous errors. 
++# You can change the engine code, or create an rdiff, or disable the test by adding it to disabled.def.
++# Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
++# Also, this problem may cause a chain effect (more errors of different kinds in the test).
++# -------------------------------------------
+ DROP TABLE t1, t2, t3;
++ERROR 42S02: Unknown table 't1,t2,t3'
+ CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ CREATE TABLE t2 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ LOCK TABLE t1 READ, t2 READ;
+@@ -106,6 +139,6 @@
+ FLUSH TABLE t1;
+ DROP TEMPORARY TABLE t1;
+ SELECT a,b FROM t1;
+-a	b
++ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+ UNLOCK TABLES;
+ DROP TABLE t1, t2;

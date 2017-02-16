@@ -22,7 +22,6 @@ SET DEBUG_SYNC= 'after_show_binlog_events SIGNAL on_show_binlog_events WAIT_FOR 
 SET DEBUG_SYNC= 'now WAIT_FOR on_show_binlog_events';
 FLUSH LOGS;
 SET DEBUG_SYNC= 'now SIGNAL end';
-SET DEBUG_SYNC= 'RESET';
 
 --echo [connection slave]
 --connection slave

@@ -1,0 +1,59 @@
+# ticket 895 is a query optimization problem with the primary key
+
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+create table foo (a int, b int, c int, d int, primary key (a), key (b), key (c) clustering=yes) engine=TokuDB;
+insert into foo values (1,10,100,1000),(2,20,200,2000),(3,30,300,3000),(4,40,400,4000),(5,50,500,5000);
+
+select * from foo use index ();
+select b,a from foo;
+select * from foo order by c desc;
+
+alter table foo drop primary key;
+select * from foo use index ();
+select b from foo;
+select * from foo order by c desc;
+
+drop table foo;
+create table foo (a int, primary key (a))engine=TOkuDB;
+insert into foo values (1),(2),(3),(4);
+select * from foo;
+--error ER_DUP_ENTRY
+insert into foo values (2);
+
+insert ignore into foo values (5),(2),(6);
+select * From foo;
+alter table foo drop primary key;
+alter table foo add unique index (a);
+--error ER_DUP_ENTRY
+insert into foo values (3);
+insert ignore into foo values (7),(2),(8);
+select * from foo;
+
+drop table foo;
+create table foo (a int, b int, c int, d int, primary key (a), key (b), key (c) clustering=yes)engine=TokuDB;
+insert into foo values (1,10,100,1000),(2,20,200,2000),(3,30,300,3000),(4,40,400,4000),(5,50,500,5000);
+select * from foo;
+update foo set b=b+1;
+select * From foo;
+select b,a from foo;
+update foo set c=c+1;
+select * from foo;
+select c,a from foo order by c desc;
+update foo set a=a+1 where a=5;
+select * from foo;
+select a from foo;
+
+delete from foo where a > 3;
+select * from foo;
+select b,a from foo;
+select * from foo order by c desc;
+
+
+# Final cleanup.
+DROP TABLE foo;

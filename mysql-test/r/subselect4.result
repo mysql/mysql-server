@@ -1,3 +1,9 @@
+drop table if exists t0,t1,t2,t3,t4,t5,t6;
+drop view if exists v1, v2;
+set @subselect4_tmp= @@optimizer_switch;
+set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
+set optimizer_switch='semijoin_with_cache=on';
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 #
 # Bug #46791: Assertion failed:(table->key_read==0),function unknown
 #    function,file sql_base.cc
@@ -13,9 +19,9 @@ SELECT 1 FROM t1
 WHERE NOT EXISTS (SELECT 1 FROM t2 WHERE 1 = (SELECT MIN(t2.b) FROM t3))
 ORDER BY count(*);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	NULL	a	5	NULL	2	Using index; Using temporary
+1	PRIMARY	t1	index	NULL	a	5	NULL	2	Using where; Using index; Using temporary
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+3	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 # should not crash the next statement
 SELECT 1 FROM t1
 WHERE NOT EXISTS (SELECT 1 FROM t2 WHERE 1 = (SELECT MIN(t2.b) FROM t3))
@@ -51,7 +57,7 @@ FROM t3 WHERE 1 = 0 GROUP BY 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	DEPENDENT SUBQUERY	t1	index	NULL	PRIMARY	4	NULL	2	Using index
-2	DEPENDENT SUBQUERY	t2	index	b	b	5	NULL	2	Using where; Using index; Using join buffer
+2	DEPENDENT SUBQUERY	t2	ALL	b	NULL	NULL	NULL	2	Range checked for each record (index map: 0x2)
 # should return 0 rows
 SELECT
 (SELECT 1 FROM t1,t2 WHERE t2.b > t3.b)
@@ -59,6 +65,28 @@ FROM t3 WHERE 1 = 0 GROUP BY 1;
 (SELECT 1 FROM t1,t2 WHERE t2.b > t3.b)
 DROP TABLE t1,t2,t3;
 End of 5.0 tests.
+CREATE TABLE t1 (col_int_nokey int(11) NOT NULL, col_varchar_nokey varchar(1) NOT NULL) engine=myisam;
+INSERT INTO t1 VALUES (2,'s'),(0,'v'),(2,'s');
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+`col_int_key` int(11) NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY `col_int_key` (`col_int_key`),
+KEY `col_varchar_key` (`col_varchar_key`)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (4,10,'g'), (5,20,'v');
+SELECT t1.col_int_nokey,(SELECT MIN( t2_a.col_int_key ) FROM t2 t2_a, t2 t2_b, t1 t1_a WHERE t1_a.col_varchar_nokey = t2_b.col_varchar_key and t1.col_int_nokey ) as sub FROM t1;
+col_int_nokey	sub
+2	10
+0	NULL
+2	10
+SELECT t1.col_int_nokey,(SELECT MIN( t2_a.col_int_key ) +1 FROM t2 t2_a, t2 t2_b, t1 t1_a WHERE t1_a.col_varchar_nokey = t2_b.col_varchar_key and t1.col_int_nokey ) as sub FROM t1;
+col_int_nokey	sub
+2	11
+0	NULL
+2	11
+DROP TABLE t1,t2;
 #
 # Bug#54568: create view cause Assertion failed: 0, 
 # file .\item_subselect.cc, line 836
@@ -91,6 +119,8 @@ CREATE TABLE t4 ( a INT );
 INSERT INTO t4 VALUES (1), (2), (3);
 CREATE TABLE t5 ( a INT );
 INSERT INTO t5 VALUES (NULL), (2);
+SET @old_optimizer_switch = @@session.optimizer_switch;
+SET SESSION optimizer_switch = 'materialization=off,in_to_exists=on,semijoin=off';
 EXPLAIN
 SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -162,6 +192,7 @@ SELECT * FROM t1 WHERE NULL NOT IN ( SELECT c FROM t2 WHERE c = 1 AND c <> 1 );
 a	b
 1	NULL
 2	NULL
+SET SESSION optimizer_switch = @old_optimizer_switch;
 DROP TABLE t1, t2, t3, t4, t5;
 #
 # Bug#58207: invalid memory reads when using default column value and 
@@ -175,7 +206,444 @@ default(a)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 DROP TABLE t;
 #
+# LP BUG#1009187, MDEV-373, MYSQL bug#58628
+# Wrong result for a query with [NOT] IN subquery predicate if
+# the left part of the predicate is explicit NULL
+#
+CREATE TABLE t1 (pk INT NOT NULL, i INT NOT NULL);
+INSERT INTO t1 VALUES (0,10), (1,20), (2,30), (3,40);
+CREATE TABLE t2a (pk INT NOT NULL, i INT NOT NULL, PRIMARY KEY(i,pk));
+INSERT INTO t2a VALUES (0,0), (1,1), (2,2), (3,3);
+CREATE TABLE t2b (pk INT, i INT);
+INSERT INTO t2b VALUES (0,0), (1,1), (2,2), (3,3);
+CREATE TABLE t2c (pk INT NOT NULL, i INT NOT NULL);
+INSERT INTO t2c VALUES (0,0), (1,1), (2,2), (3,3);
+create index it2c on t2c (i,pk);
+CREATE TABLE t2d (pk INT NOT NULL, i INT NOT NULL, PRIMARY KEY(i));
+INSERT INTO t2d VALUES (0,0), (1,1), (2,2), (3,3);
+EXPLAIN
+SELECT * FROM t1 WHERE NULL NOT IN (SELECT t2a.i FROM t2a WHERE t2a.pk = t1.pk);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DEPENDENT SUBQUERY	t2a	unique_subquery	PRIMARY	PRIMARY	8	const,test.t1.pk	1	Using index; Using where; Full scan on NULL key
+SELECT * FROM t1 WHERE NULL NOT IN (SELECT t2a.i FROM t2a WHERE t2a.pk = t1.pk);
+pk	i
+SELECT * FROM t1 WHERE 1+NULL NOT IN (SELECT t2a.i FROM t2a WHERE t2a.pk = t1.pk);
+pk	i
+SELECT * FROM t1 WHERE NULL     IN (SELECT t2a.i FROM t2a WHERE t2a.pk = t1.pk) IS UNKNOWN;
+pk	i
+0	10
+1	20
+2	30
+3	40
+SELECT t1.pk, NULL NOT IN (SELECT t2a.i FROM t2a  WHERE t2a.pk = t1.pk) FROM t1;
+pk	NULL NOT IN (SELECT t2a.i FROM t2a  WHERE t2a.pk = t1.pk)
+0	NULL
+1	NULL
+2	NULL
+3	NULL
+EXPLAIN
+SELECT * FROM t1 WHERE NULL NOT IN (SELECT t2b.i FROM t2b WHERE t2b.pk = t1.pk);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DEPENDENT SUBQUERY	t2b	ALL	NULL	NULL	NULL	NULL	4	Using where
+SELECT * FROM t1 WHERE NULL NOT IN (SELECT t2b.i FROM t2b WHERE t2b.pk = t1.pk);
+pk	i
+SELECT * FROM t1 WHERE NULL     IN (SELECT t2b.i FROM t2b WHERE t2b.pk = t1.pk) IS UNKNOWN;
+pk	i
+0	10
+1	20
+2	30
+3	40
+SELECT t1.pk, NULL NOT IN (SELECT t2b.i FROM t2b  WHERE t2b.pk = t1.pk) FROM t1;
+pk	NULL NOT IN (SELECT t2b.i FROM t2b  WHERE t2b.pk = t1.pk)
+0	NULL
+1	NULL
+2	NULL
+3	NULL
+EXPLAIN
+SELECT * FROM t1 WHERE NULL NOT IN (SELECT t2c.i FROM t2c WHERE t2c.pk = t1.pk);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DEPENDENT SUBQUERY	t2c	index_subquery	it2c	it2c	8	const,test.t1.pk	2	Using index; Using where; Full scan on NULL key
+SELECT * FROM t1 WHERE NULL NOT IN (SELECT t2c.i FROM t2c WHERE t2c.pk = t1.pk);
+pk	i
+SELECT * FROM t1 WHERE NULL     IN (SELECT t2c.i FROM t2c WHERE t2c.pk = t1.pk) IS UNKNOWN;
+pk	i
+0	10
+1	20
+2	30
+3	40
+SELECT t1.pk, NULL NOT IN (SELECT t2c.i FROM t2c  WHERE t2c.pk = t1.pk) FROM t1;
+pk	NULL NOT IN (SELECT t2c.i FROM t2c  WHERE t2c.pk = t1.pk)
+0	NULL
+1	NULL
+2	NULL
+3	NULL
+EXPLAIN
+SELECT * FROM t1 WHERE NULL NOT IN (SELECT t2d.i FROM t2d WHERE t2d.pk = t1.pk);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DEPENDENT SUBQUERY	t2d	const	PRIMARY	PRIMARY	4	const	1	Using where; Full scan on NULL key
+SELECT * FROM t1 WHERE NULL NOT IN (SELECT t2d.i FROM t2d WHERE t2d.pk = t1.pk);
+pk	i
+SELECT * FROM t1 WHERE NULL     IN (SELECT t2d.i FROM t2d WHERE t2d.pk = t1.pk) IS UNKNOWN;
+pk	i
+0	10
+1	20
+2	30
+3	40
+SELECT t1.pk, NULL NOT IN (SELECT t2d.i FROM t2d  WHERE t2d.pk = t1.pk) FROM t1;
+pk	NULL NOT IN (SELECT t2d.i FROM t2d  WHERE t2d.pk = t1.pk)
+0	NULL
+1	NULL
+2	NULL
+3	NULL
+EXPLAIN
+SELECT * FROM t1 WHERE (NULL, 1) NOT IN (SELECT t2a.i, t2a.pk FROM t2a WHERE t2a.pk = t1.pk);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DEPENDENT SUBQUERY	t2a	eq_ref	PRIMARY	PRIMARY	8	const,test.t1.pk	1	Using where; Using index; Full scan on NULL key
+SELECT * FROM t1 WHERE (NULL, 1) NOT IN (SELECT t2a.i, t2a.pk FROM t2a WHERE t2a.pk = t1.pk);
+pk	i
+0	10
+2	30
+3	40
+SELECT (NULL, 1) NOT IN (SELECT t2a.i, t2a.pk FROM t2a WHERE t2a.pk = t1.pk) from t1;
+(NULL, 1) NOT IN (SELECT t2a.i, t2a.pk FROM t2a WHERE t2a.pk = t1.pk)
+1
+NULL
+1
+1
+EXPLAIN
+SELECT * FROM t1 WHERE (NULL, 1) NOT IN (SELECT t2b.i, t2b.pk FROM t2b WHERE t2b.pk = t1.pk);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DEPENDENT SUBQUERY	t2b	ALL	NULL	NULL	NULL	NULL	4	Using where
+SELECT * FROM t1 WHERE (NULL, 1) NOT IN (SELECT t2b.i, t2b.pk FROM t2b WHERE t2b.pk = t1.pk);
+pk	i
+0	10
+2	30
+3	40
+SELECT (NULL, 1) NOT IN (SELECT t2b.i, t2b.pk FROM t2b WHERE t2b.pk = t1.pk) from t1;
+(NULL, 1) NOT IN (SELECT t2b.i, t2b.pk FROM t2b WHERE t2b.pk = t1.pk)
+1
+NULL
+1
+1
+EXPLAIN
+SELECT * FROM t1 WHERE (NULL, 1) NOT IN (SELECT t2c.i, t2c.pk FROM t2c WHERE t2c.pk = t1.pk);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DEPENDENT SUBQUERY	t2c	ref	it2c	it2c	8	const,test.t1.pk	2	Using where; Using index; Full scan on NULL key
+SELECT * FROM t1 WHERE (NULL, 1) NOT IN (SELECT t2c.i, t2c.pk FROM t2c WHERE t2c.pk = t1.pk);
+pk	i
+0	10
+2	30
+3	40
+SELECT (NULL, 1) NOT IN (SELECT t2c.i, t2c.pk FROM t2c WHERE t2c.pk = t1.pk) from t1;
+(NULL, 1) NOT IN (SELECT t2c.i, t2c.pk FROM t2c WHERE t2c.pk = t1.pk)
+1
+NULL
+1
+1
+EXPLAIN
+SELECT * FROM t1 WHERE (NULL, 1) NOT IN (SELECT t2d.i, t2d.pk FROM t2d WHERE t2d.pk = t1.pk);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DEPENDENT SUBQUERY	t2d	const	PRIMARY	PRIMARY	4	const	1	Using where; Full scan on NULL key
+SELECT * FROM t1 WHERE (NULL, 1) NOT IN (SELECT t2d.i, t2d.pk FROM t2d WHERE t2d.pk = t1.pk);
+pk	i
+0	10
+2	30
+3	40
+SELECT (NULL, 1) NOT IN (SELECT t2d.i, t2d.pk FROM t2d WHERE t2d.pk = t1.pk) from t1;
+(NULL, 1) NOT IN (SELECT t2d.i, t2d.pk FROM t2d WHERE t2d.pk = t1.pk)
+1
+NULL
+1
+1
+drop table t1, t2a, t2b, t2c, t2d;
+#
 # End of 5.1 tests.
+#
+#
+# BUG#46743 "Azalea processing correlated, aggregate SELECT
+# subqueries incorrectly"
+#
+CREATE TABLE t1 (c int);
+INSERT INTO t1 VALUES (NULL);
+CREATE TABLE t2 (d int , KEY (d));
+INSERT INTO t2 VALUES (NULL),(NULL);
+0 rows in subquery
+SELECT 1 AS RESULT FROM t2,t1 WHERE d = c;
+RESULT
+base query
+SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 ;
+RESULT
+NULL
+EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+Warnings:
+Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
+Note	1003	select (select 1 from `test`.`t2` where 0) AS `RESULT` from dual
+first equivalent variant
+SELECT (SELECT 1 FROM t2 WHERE d = IFNULL(c,NULL)) AS RESULT FROM t1 GROUP BY c ;
+RESULT
+NULL
+EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = IFNULL(c,NULL)) AS RESULT FROM t1 GROUP BY c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+Warnings:
+Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
+Note	1003	select (select 1 from `test`.`t2` where 0) AS `RESULT` from dual group by NULL
+second equivalent variant
+SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP BY c ;
+RESULT
+NULL
+EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP BY c ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+Warnings:
+Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
+Note	1003	select (select 1 from `test`.`t2` where 0) AS `RESULT` from dual group by NULL
+DROP TABLE t1,t2;
+#
+# BUG#45928 "Differing query results depending on MRR and
+# engine_condition_pushdown settings"
+#
+CREATE TABLE `t1` (
+`pk` int(11) NOT NULL AUTO_INCREMENT,
+`time_nokey` time NOT NULL,
+`varchar_key` varchar(1) NOT NULL,
+`varchar_nokey` varchar(1) NOT NULL,
+PRIMARY KEY (`pk`),
+KEY `varchar_key` (`varchar_key`)
+) AUTO_INCREMENT=12 DEFAULT CHARSET=latin1;
+INSERT INTO `t1` VALUES (10,'00:00:00','i','i'),(11,'00:00:00','','');
+set @old_optimizer_switch          = @@session.optimizer_switch,
+@old_engine_condition_pushdown = @@session.engine_condition_pushdown;
+SET SESSION OPTIMIZER_SWITCH = 'materialization=off,semijoin=off,loosescan=off,firstmatch=off,mrr=on';
+SET SESSION engine_condition_pushdown = 1;
+Warnings:
+Warning	1287	'@@engine_condition_pushdown' is deprecated and will be removed in a future release. Please use '@@optimizer_switch' instead
+SELECT `time_nokey` G1  FROM t1  WHERE ( `varchar_nokey`  , `varchar_key`  )  IN ( 
+SELECT `varchar_nokey`  , `varchar_nokey`  )  AND `varchar_key`  >= 'c' HAVING G1  ORDER 
+BY `pk`   ;
+G1
+set @@session.optimizer_switch          = @old_optimizer_switch,
+@@session.engine_condition_pushdown = @old_engine_condition_pushdown;
+Warnings:
+Warning	1287	'@@engine_condition_pushdown' is deprecated and will be removed in a future release. Please use '@@optimizer_switch' instead
+DROP TABLE t1;
+#
+# During work with BUG#45863 I had problems with a query that was
+# optimized differently in regular and prepared mode.
+# Because there was a bug in one of the selected strategies, I became
+# aware of the problem. Adding an EXPLAIN query to catch this.
+DROP TABLE IF EXISTS t1, t2, t3;
+CREATE TABLE t1
+(EMPNUM   CHAR(3) NOT NULL,
+EMPNAME  CHAR(20),
+GRADE    DECIMAL(4),
+CITY     CHAR(15));
+CREATE TABLE t2
+(PNUM     CHAR(3) NOT NULL,
+PNAME    CHAR(20),
+PTYPE    CHAR(6),
+BUDGET   DECIMAL(9),
+CITY     CHAR(15));
+CREATE TABLE t3
+(EMPNUM   CHAR(3) NOT NULL,
+PNUM     CHAR(3) NOT NULL,
+HOURS    DECIMAL(5));
+INSERT INTO t1 VALUES ('E1','Alice',12,'Deale');
+INSERT INTO t1 VALUES ('E2','Betty',10,'Vienna');
+INSERT INTO t1 VALUES ('E3','Carmen',13,'Vienna');
+INSERT INTO t1 VALUES ('E4','Don',12,'Deale');
+INSERT INTO t1 VALUES ('E5','Ed',13,'Akron');
+INSERT INTO t2 VALUES ('P1','MXSS','Design',10000,'Deale');
+INSERT INTO t2 VALUES ('P2','CALM','Code',30000,'Vienna');
+INSERT INTO t2 VALUES ('P3','SDP','Test',30000,'Tampa');
+INSERT INTO t2 VALUES ('P4','SDP','Design',20000,'Deale');
+INSERT INTO t2 VALUES ('P5','IRM','Test',10000,'Vienna');
+INSERT INTO t2 VALUES ('P6','PAYR','Design',50000,'Deale');
+INSERT INTO t3 VALUES  ('E1','P1',40);
+INSERT INTO t3 VALUES  ('E1','P2',20);
+INSERT INTO t3 VALUES  ('E1','P3',80);
+INSERT INTO t3 VALUES  ('E1','P4',20);
+INSERT INTO t3 VALUES  ('E1','P5',12);
+INSERT INTO t3 VALUES  ('E1','P6',12);
+INSERT INTO t3 VALUES  ('E2','P1',40);
+INSERT INTO t3 VALUES  ('E2','P2',80);
+INSERT INTO t3 VALUES  ('E3','P2',20);
+INSERT INTO t3 VALUES  ('E4','P2',20);
+INSERT INTO t3 VALUES  ('E4','P4',40);
+INSERT INTO t3 VALUES  ('E4','P5',80);
+SET @old_optimizer_switch = @@session.optimizer_switch;
+SET @old_join_cache_level = @@session.join_cache_level;
+SET SESSION optimizer_switch = 'firstmatch=on,loosescan=on,materialization=on,in_to_exists=off,semijoin=on';
+SET SESSION join_cache_level = 1;
+CREATE UNIQUE INDEX t1_IDX ON t1(EMPNUM);
+EXPLAIN SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+(SELECT EMPNUM
+FROM t3
+WHERE PNUM IN
+(SELECT PNUM
+FROM t2
+WHERE PTYPE = 'Design'));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	t1_IDX	NULL	NULL	NULL	5	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	3	func	1	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
+2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
+PREPARE stmt FROM "EXPLAIN SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'))";
+EXECUTE stmt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	t1_IDX	NULL	NULL	NULL	5	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	3	func	1	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
+2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
+EXECUTE stmt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	t1_IDX	NULL	NULL	NULL	5	
+1	SIMPLE	<subquery2>	eq_ref	distinct_key	distinct_key	3	func	1	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
+2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
+DEALLOCATE PREPARE stmt;
+DROP INDEX t1_IDX ON t1;
+CREATE INDEX t1_IDX ON t1(EMPNUM);
+EXPLAIN SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+(SELECT EMPNUM
+FROM t3
+WHERE PNUM IN
+(SELECT PNUM
+FROM t2
+WHERE PTYPE = 'Design'));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	t1_IDX	NULL	NULL	NULL	5	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	3	func	1	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
+2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
+PREPARE stmt FROM "EXPLAIN SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'))";
+EXECUTE stmt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	t1_IDX	NULL	NULL	NULL	5	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	3	func	1	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
+2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
+EXECUTE stmt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	t1_IDX	NULL	NULL	NULL	5	
+1	SIMPLE	<subquery2>	eq_ref	distinct_key	distinct_key	3	func	1	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
+2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
+DEALLOCATE PREPARE stmt;
+DROP INDEX t1_IDX ON t1;
+EXPLAIN SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+(SELECT EMPNUM
+FROM t3
+WHERE PNUM IN
+(SELECT PNUM
+FROM t2
+WHERE PTYPE = 'Design'));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	3	func	1	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
+2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
+PREPARE stmt FROM "EXPLAIN SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'))";
+EXECUTE stmt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	3	func	1	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
+2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
+EXECUTE stmt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	<subquery2>	eq_ref	distinct_key	distinct_key	3	func	1	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
+2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
+DEALLOCATE PREPARE stmt;
+SET SESSION optimizer_switch = @old_optimizer_switch;
+SET SESSION join_cache_level = @old_join_cache_level;
+DROP TABLE t1, t2, t3;
+#
+# BUG#45221 Query SELECT pk FROM C WHERE pk IN (SELECT int_key) failing
+#
+CREATE TABLE t1 (
+i1_key INT,
+i2 INT,
+i3 INT,
+KEY i1_index (i1_key)
+);
+INSERT INTO t1 VALUES (9,1,2), (9,2,1);
+CREATE TABLE t2 (
+pk INT NOT NULL,
+i1 INT,
+PRIMARY KEY (pk)
+);
+INSERT INTO t2 VALUES (9,1);
+# Enable Index condition pushdown
+SELECT @old_icp:=@@engine_condition_pushdown;
+@old_icp:=@@engine_condition_pushdown
+#
+SET SESSION engine_condition_pushdown = 'ON';
+Warnings:
+Warning	1287	'@@engine_condition_pushdown' is deprecated and will be removed in a future release. Please use '@@optimizer_switch' instead
+
+SELECT pk
+FROM t2
+WHERE 
+pk IN ( 
+SELECT i1_key
+FROM t1
+WHERE t1.i2 < t1.i3 XOR t2.i1 > 1
+ORDER BY t1.i2 desc);
+pk
+9
+# Restore old value for Index condition pushdown
+SET SESSION engine_condition_pushdown=@old_icp;
+Warnings:
+Warning	1287	'@@engine_condition_pushdown' is deprecated and will be removed in a future release. Please use '@@optimizer_switch' instead
+DROP TABLE t1,t2;
+#
+# End of 5.3 tests.
 #
 #
 # Bug#53236 Segfault in DTCollation::set(DTCollation&)
@@ -202,3 +670,1784 @@ SUBQUERY1_t1.col_varchar) ) )
 ;
 pk
 drop table t1;
+#
+# BUG#716293: "Range checked for each record" is not used if condition refers to outside of subquery
+#
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (a int, b int, `filler` char(200), key(a), key (b));
+insert into t2 
+select A.a + 10*B.a + 100 * C.a, A.a + 10*B.a + 100 * C.a, 'filler' from t1 A, t1 B, t1 C;
+# The following must use "Range checked for each record" for table B
+explain 
+select a, 
+(select sum(X.a+B.b) from t1 X, t2 B where B.a=A.a or B.b=A.a)
+from t1 A;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	10	
+2	DEPENDENT SUBQUERY	X	ALL	NULL	NULL	NULL	NULL	10	
+2	DEPENDENT SUBQUERY	B	ALL	a,b	NULL	NULL	NULL	1000	Range checked for each record (index map: 0x3)
+drop table t1, t2;
+#
+# BUG#723822: Crash in get_constant_key_infix with EXISTS ( SELECT .. DISTINCT )
+#
+CREATE TABLE t1 ( f1 int(11), f3 varchar(1)) ;
+INSERT INTO t1 VALUES ('8','c'),('5','f');
+ALTER TABLE t1 ADD KEY (f3,f1);
+CREATE TABLE t2 ( f4 varchar(1)) ;
+INSERT INTO t2 VALUES ('f'),('d');
+SELECT * FROM t2
+WHERE EXISTS (
+SELECT DISTINCT f3
+FROM t1
+WHERE f3 <= t2.f4
+);
+f4
+f
+d
+drop table t1,t2;
+#
+# LP BUG#718763 Second crash in select_describe() and materialization
+#
+CREATE TABLE t1 ( f1 int(11), f3 int(11), f10 varchar(1), KEY (f3)) ;
+INSERT INTO t1 VALUES ('28','6','m'),('29','4','c');
+CREATE TABLE t2 (f11 varchar(1)) ;
+INSERT INTO t2 VALUES ('f'),('d');
+SET @old_optimizer_switch = @@session.optimizer_switch;
+SET SESSION optimizer_switch = 'materialization=on,in_to_exists=off';
+EXPLAIN
+SELECT * FROM t1
+WHERE f3 = (
+SELECT t1.f3 FROM t1
+WHERE ( t1.f10 ) IN ( SELECT f11 FROM t2 GROUP BY f11 ));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	<subquery3>	eq_ref	distinct_key	distinct_key	4	func	1	
+3	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t1
+WHERE f3 = (
+SELECT t1.f3 FROM t1
+WHERE ( t1.f10 ) IN ( SELECT f11 FROM t2 GROUP BY f11 ));
+f1	f3	f10
+EXPLAIN
+SELECT * FROM t1
+WHERE f3 = (
+SELECT f3 FROM t1
+WHERE ( f10, f10 ) IN ( SELECT f11, f11 FROM t2 GROUP BY f11 ));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	<subquery3>	eq_ref	distinct_key	distinct_key	8	func,func	1	
+3	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t1
+WHERE f3 = (
+SELECT f3 FROM t1
+WHERE ( f10, f10 ) IN ( SELECT f11, f11 FROM t2 GROUP BY f11 ));
+f1	f3	f10
+SET @@optimizer_switch = 'materialization=on,in_to_exists=off,semijoin=off';
+EXPLAIN
+SELECT * FROM t1
+WHERE f3 = (
+SELECT t1.f3 FROM t1
+WHERE ( t1.f10 ) IN ( SELECT max(f11) FROM t2 GROUP BY f11 ));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ref	f3	f3	5	const	0	Using where
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	Using temporary
+SELECT * FROM t1
+WHERE f3 = (
+SELECT t1.f3 FROM t1
+WHERE ( t1.f10 ) IN ( SELECT max(f11) FROM t2 GROUP BY f11 ));
+f1	f3	f10
+EXPLAIN
+SELECT * FROM t1
+WHERE f3 = (
+SELECT f3 FROM t1
+WHERE ( f10, f10 ) IN ( SELECT max(f11), f11 FROM t2 GROUP BY f11 ));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ref	f3	f3	5	const	0	Using where
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	Using temporary
+SELECT * FROM t1
+WHERE f3 = (
+SELECT f3 FROM t1
+WHERE ( f10, f10 ) IN ( SELECT max(f11), f11 FROM t2 GROUP BY f11 ));
+f1	f3	f10
+SET SESSION optimizer_switch = @old_optimizer_switch;
+drop table t1,t2;
+#
+# LP BUG#715738: Wrong result with implicit grouping and empty result set
+#
+CREATE TABLE t1 (f1 int, f2 int);
+CREATE TABLE t2 (f3 int, f4 int not null, PRIMARY KEY (f3));
+set @save_optimizer_switch=@@optimizer_switch;
+SET @@optimizer_switch = 'materialization=on,in_to_exists=off,semijoin=off';
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	MATERIALIZED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2);
+f1	f2
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	MATERIALIZED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2);
+f1	f2
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	MATERIALIZED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2);
+f1	f2
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	MATERIALIZED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2);
+f1	f2
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	MATERIALIZED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2);
+f1	f2
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 HAVING max(f4) > 7) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 HAVING max(f4) > 7) as not_in;
+not_in
+1
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 HAVING max(f4) is null) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 HAVING max(f4) is null) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2);
+f1	f2
+SET @@optimizer_switch = 'materialization=off,in_to_exists=on,semijoin=off';
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2);
+f1	f2
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2);
+f1	f2
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2);
+f1	f2
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2);
+f1	f2
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2);
+f1	f2
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 HAVING max(f4) > 7) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 HAVING max(f4) > 7) as not_in;
+not_in
+1
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 HAVING max(f4) is null) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 HAVING max(f4) is null) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2);
+f1	f2
+INSERT INTO t1 VALUES (1, 2);
+INSERT INTO t1 VALUES (3, 4);
+INSERT INTO t2 VALUES (5, 6);
+INSERT INTO t2 VALUES (7, 8);
+SET @@optimizer_switch = 'materialization=on,in_to_exists=off,semijoin=off';
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	MATERIALIZED	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10);
+f1	f2
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2 WHERE f3 > 10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	MATERIALIZED	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2 WHERE f3 > 10);
+f1	f2
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2 WHERE f3 > 10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	MATERIALIZED	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2 WHERE f3 > 10);
+f1	f2
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	MATERIALIZED	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10);
+f1	f2
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2 WHERE f3 > 10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	MATERIALIZED	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2 WHERE f3 > 10);
+f1	f2
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) > 7) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) > 7) as not_in;
+not_in
+1
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) is null) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) is null) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2 WHERE f3 > 10) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2 WHERE f3 > 10) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2 WHERE f3 > 10) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2 WHERE f3 > 10) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2 WHERE f3 > 10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2 WHERE f3 > 10);
+f1	f2
+SET @@optimizer_switch = 'materialization=off,in_to_exists=on,semijoin=off';
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10);
+f1	f2
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2 WHERE f3 > 10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2 WHERE f3 > 10);
+f1	f2
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2 WHERE f3 > 10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2 WHERE f3 > 10);
+f1	f2
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10);
+f1	f2
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2 WHERE f3 > 10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2 WHERE f3 > 10);
+f1	f2
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) > 7) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) > 7) as not_in;
+not_in
+1
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) is null) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) is null) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2 WHERE f3 > 10) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2 WHERE f3 > 10) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2 WHERE f3 > 10) as not_in;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2 WHERE f3 > 10) as not_in;
+not_in
+NULL
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2 WHERE f3 > 10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2 WHERE f3 > 10);
+f1	f2
+set @@optimizer_switch=@save_optimizer_switch;
+drop table t1,t2;
+#
+# LP BUG#613029 Wrong result with materialization and semijoin, and
+# valgrind warnings in Protocol::net_store_data with materialization
+# for implicit grouping
+#
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+f2 int(11) NOT NULL,
+f3 varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY f2 (f2));
+INSERT INTO t1 VALUES (1,9,'x');
+INSERT INTO t1 VALUES (2,5,'g');
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+f2 int(11) NOT NULL,
+f3 varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY f2 (f2));
+INSERT INTO t2 VALUES (1,7,'p');
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=off';
+EXPLAIN
+SELECT t1.f3, MAX(t1.f2)
+FROM t1, t2
+WHERE (t2.pk = t1.pk) AND t2.pk IN (SELECT f2 FROM t1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	PRIMARY	NULL	NULL	NULL	1	
+1	PRIMARY	t1	const	PRIMARY	PRIMARY	4	const	1	
+2	DEPENDENT SUBQUERY	t1	index_subquery	f2	f2	4	func	2	Using index
+SELECT t1.f3, MAX(t1.f2)
+FROM t1, t2
+WHERE (t2.pk = t1.pk) AND t2.pk IN (SELECT f2 FROM t1);
+f3	MAX(t1.f2)
+NULL	NULL
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
+EXPLAIN
+SELECT t1.f3, MAX(t1.f2)
+FROM t1, t2
+WHERE (t2.pk = t1.pk) AND t2.pk IN (SELECT f2 FROM t1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	PRIMARY	NULL	NULL	NULL	1	
+1	PRIMARY	t1	const	PRIMARY	PRIMARY	4	const	1	
+2	MATERIALIZED	t1	index	NULL	f2	4	NULL	2	Using index
+SELECT t1.f3, MAX(t1.f2)
+FROM t1, t2
+WHERE (t2.pk = t1.pk) AND t2.pk IN (SELECT f2 FROM t1);
+f3	MAX(t1.f2)
+NULL	NULL
+TODO: add a test case for semijoin when the wrong result is fixed
+set @@optimizer_switch='materialization=off,semijoin=on';
+set @@optimizer_switch=@save_optimizer_switch;
+drop table t1, t2;
+#
+# LP BUG#777691 Wrong result with subqery in select list and subquery cache=off in maria-5.3
+#
+CREATE TABLE t1 ( f1 varchar(32)) ;
+INSERT INTO t1 VALUES ('b'),('x'),('c'),('x');
+CREATE TABLE t2 ( f2 int, f3 varchar(32)) ;
+INSERT INTO t2 VALUES (1,'x');
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=off,in_to_exists=on,subquery_cache=off';
+EXPLAIN
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+f1	max_f2
+b	NULL
+x	1
+c	NULL
+x	1
+set @@optimizer_switch='materialization=on,in_to_exists=off,subquery_cache=off';
+EXPLAIN
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+f1	max_f2
+b	NULL
+x	1
+c	NULL
+x	1
+set @@optimizer_switch='materialization=off,in_to_exists=on,subquery_cache=off';
+Even when t2 is not constant table, the result must be the same.
+INSERT INTO t2 VALUES (2,'y');
+EXPLAIN
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+f1	max_f2
+b	NULL
+x	1
+c	NULL
+x	1
+set @@optimizer_switch=@save_optimizer_switch;
+drop table t1, t2;
+#
+# LP BUG#641203 Query returns rows where no result is expected (impossible WHERE)
+#
+CREATE TABLE t1 (c1 varchar(1) DEFAULT NULL);
+CREATE TABLE t2 (c1 varchar(1) DEFAULT NULL);
+INSERT INTO t2 VALUES ('k'), ('d');
+CREATE TABLE t3 (c1 varchar(1) DEFAULT NULL);
+INSERT INTO t3 VALUES ('a'), ('b'), ('c');
+CREATE TABLE t4 (c1 varchar(1) primary key);
+INSERT INTO t4 VALUES ('k'), ('d');
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+SET optimizer_switch='semijoin_with_cache=off';
+SET optimizer_switch='materialization=off';
+EXPLAIN
+SELECT * FROM t1 RIGHT JOIN t2 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+SELECT * FROM t1 RIGHT JOIN t2 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
+c1	c1
+EXPLAIN
+SELECT * FROM t2 LEFT JOIN t1 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+SELECT * FROM t2 LEFT JOIN t1 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
+c1	c1
+SET optimizer_switch='materialization=on';
+EXPLAIN
+SELECT * FROM (t2 LEFT JOIN t1 ON t1.c1) LEFT JOIN t3 on t3.c1 WHERE 's' IN (SELECT c1 FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	4	func	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM (t2 LEFT JOIN t1 ON t1.c1) LEFT JOIN t3 on t3.c1 WHERE 's' IN (SELECT c1 FROM t2);
+c1	c1	c1
+EXPLAIN
+SELECT * FROM t4 LEFT JOIN t2 ON t4.c1 WHERE 's' IN (SELECT c1 FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	4	func	1	
+1	PRIMARY	t4	index	NULL	PRIMARY	3	NULL	2	Using index; Using join buffer (flat, BNL join)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t4 LEFT JOIN t2 ON t4.c1 WHERE 's' IN (SELECT c1 FROM t2);
+c1	c1
+SET optimizer_switch=@save_optimizer_switch;
+drop table t1, t2, t3, t4;
+#
+# LP BUG#675981 Assertion `cache != __null' failed in sub_select_cache()
+#               on EXPLAIN
+#
+CREATE TABLE t1 (f1 int,f2 int) ;
+INSERT IGNORE INTO t1 VALUES ('2','5'),('2',NULL);
+CREATE TABLE t2 (f1 int, f5 int) ;
+INSERT IGNORE INTO t2 VALUES (1,0);
+CREATE TABLE t3 (f4 int) ;
+INSERT IGNORE INTO t3 VALUES (0),(0);
+set @@optimizer_switch='in_to_exists=on,materialization=off,semijoin=off';
+EXPLAIN
+SELECT * FROM t2
+WHERE f1 IN (SELECT t1.f2 FROM t1 JOIN t3 ON t3.f4);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+drop table t1, t2, t3;
+#
+# LP BUG#680005 Second assertion `cache != __null' failed in
+#                sub_select_cache() on EXPLAIN
+#
+CREATE TABLE t1 (f1 int,f2 int,f4 int,f6 int,KEY (f4)) ;
+INSERT IGNORE INTO t1 VALUES
+('1','5','1','0'),('2','1','1','0'),('2','2','2','0'),('0',NULL,'0','0'),
+('2','1','2','0'),('2','0','0','0'),('2','2','2','0'),('2','8','2','0'),
+('2','7','2','0'),('2','5','2','0'),('2',NULL,'1','0');
+CREATE TABLE t2 (f3 int) ;
+INSERT IGNORE INTO t2 VALUES ('7');
+CREATE TABLE t3 (f3 int) ;
+INSERT IGNORE INTO t3 VALUES ('2');
+EXPLAIN
+SELECT t1.f4
+FROM t2 JOIN t1 ON t1.f6
+WHERE
+( t1.f2 ) IN (SELECT SUBQUERY2_t1.f3
+FROM t3 AS SUBQUERY2_t1
+JOIN
+(t1 AS SUBQUERY2_t2
+JOIN
+t1 AS SUBQUERY2_t3 ON SUBQUERY2_t3.f1)
+ON SUBQUERY2_t3.f2)
+GROUP BY t1.f4 ORDER BY t1.f1 LIMIT 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	Using temporary; Using filesort
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	11	Using where
+2	DEPENDENT SUBQUERY	SUBQUERY2_t1	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	SUBQUERY2_t2	index	NULL	f4	5	NULL	11	Using index
+2	DEPENDENT SUBQUERY	SUBQUERY2_t3	ALL	NULL	NULL	NULL	NULL	11	Using where; Using join buffer (flat, BNL join)
+drop table t1, t2, t3;
+#
+# LP BUG#680038 bool close_thread_table(THD*, TABLE**):
+#               Assertion `table->key_read == 0' failed in EXPLAIN
+#
+CREATE TABLE t1 (f1 int,f3 int,f4 int) ;
+INSERT IGNORE INTO t1 VALUES (NULL,1,0);
+CREATE TABLE t2 (f2 int,f4 int,f5 int) ;
+INSERT IGNORE INTO t2 VALUES (8,0,0),(5,0,0);
+CREATE TABLE t3 (f4 int,KEY (f4)) ;
+INSERT IGNORE INTO t3 VALUES (0),(0);
+set @@optimizer_switch='semijoin=off';
+EXPLAIN
+SELECT * FROM t1 WHERE
+(SELECT f2 FROM t2
+WHERE f4 <= ALL
+(SELECT max(SQ1_t1.f4)
+FROM t3 AS SQ1_t1 JOIN t3 AS SQ1_t3 ON SQ1_t3.f4
+GROUP BY SQ1_t1.f4));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	SUBQUERY	SQ1_t1	index	NULL	f4	5	NULL	2	Using index; Using temporary
+3	SUBQUERY	SQ1_t3	index	f4	f4	5	NULL	2	Using where; Using index; Using join buffer (flat, BNL join)
+SELECT * FROM t1 WHERE
+(SELECT f2 FROM t2
+WHERE f4 <= ALL
+(SELECT max(SQ1_t1.f4)
+FROM t3 AS SQ1_t1 JOIN t3 AS SQ1_t3 ON SQ1_t3.f4
+GROUP BY SQ1_t1.f4));
+ERROR 21000: Subquery returns more than 1 row
+drop table t1, t2, t3;
+#
+# BUG#52317: Assertion failing in Field_varstring::store() 
+# 	    at field.cc:6833
+#
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (i INTEGER, KEY k(i));
+INSERT INTO t2 VALUES (1), (2);
+EXPLAIN  
+SELECT i FROM t1 WHERE (1) NOT IN (SELECT i FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	index_subquery	k	k	5	const	2	Using index
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# LP BUG#680846: Crash in clear_tables() with subqueries
+#
+CREATE TABLE t1 (f3 int) ;
+INSERT IGNORE INTO t1 VALUES (0),(0);
+CREATE TABLE t2 (f1 int,f3 int,f4 varchar(32)) ;
+INSERT IGNORE INTO t2 VALUES (1,0,'f');
+EXPLAIN
+SELECT COUNT(t2.f3),
+(SELECT COUNT(f3) FROM t1 WHERE t2.f1) AS f9
+FROM t2 JOIN t1 ON t1.f3
+WHERE ('v') IN (SELECT f4 FROM t2)
+GROUP BY f9;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT COUNT(t2.f3),
+(SELECT COUNT(f3) FROM t1 WHERE t2.f1) AS f9
+FROM t2 JOIN t1 ON t1.f3
+WHERE ('v') IN (SELECT f4 FROM t2)
+GROUP BY f9;
+COUNT(t2.f3)	f9
+EXPLAIN
+SELECT COUNT(t2.f3),
+(SELECT COUNT(f3) FROM t1 WHERE t2.f1) AS f9
+FROM t2 JOIN t1 ON t1.f3
+WHERE ('v') IN (SELECT f4 FROM t2)
+ORDER BY f9;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT COUNT(t2.f3),
+(SELECT COUNT(f3) FROM t1 WHERE t2.f1) AS f9
+FROM t2 JOIN t1 ON t1.f3
+WHERE ('v') IN (SELECT f4 FROM t2)
+ORDER BY f9;
+COUNT(t2.f3)	f9
+0	NULL
+EXPLAIN
+SELECT COUNT(t2.f3),
+(SELECT t2.f1 FROM t1 limit 1) AS f9
+FROM t2 JOIN t1
+WHERE ('v') IN (SELECT f4 FROM t2)
+GROUP BY f9;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT COUNT(t2.f3),
+(SELECT t2.f1 FROM t1 limit 1) AS f9
+FROM t2 JOIN t1
+WHERE ('v') IN (SELECT f4 FROM t2)
+GROUP BY f9;
+COUNT(t2.f3)	f9
+EXPLAIN
+SELECT COUNT(t2.f3),
+(SELECT t2.f1 FROM t1 limit 1) AS f9
+FROM t2 JOIN t1
+WHERE ('v') IN (SELECT f4 FROM t2)
+ORDER BY f9;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT COUNT(t2.f3),
+(SELECT t2.f1 FROM t1 limit 1) AS f9
+FROM t2 JOIN t1
+WHERE ('v') IN (SELECT f4 FROM t2)
+ORDER BY f9;
+COUNT(t2.f3)	f9
+0	NULL
+drop table t1,t2;
+#
+# LP BUG#682683 Crash in create_tmp_table called from
+#               JOIN::init_execution
+#
+CREATE TABLE t2 (f1 int) ;
+INSERT INTO t2 VALUES (1),(2);
+CREATE TABLE t1 (f1 int) ;
+EXPLAIN
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 GROUP BY field1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 GROUP BY field1;
+field1
+NULL
+EXPLAIN
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 ORDER BY field1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 ORDER BY field1;
+field1
+NULL
+NULL
+INSERT INTO t1 VALUES (1),(2);
+EXPLAIN
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 GROUP BY field1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 GROUP BY field1;
+ERROR 21000: Subquery returns more than 1 row
+EXPLAIN
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 ORDER BY field1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 ORDER BY field1;
+ERROR 21000: Subquery returns more than 1 row
+drop table t1,t2;
+#
+# LP BUG#680943 Assertion `!table || (!table->read_set ||
+# bitmap_is_set(table->read_set, field_index))' failed with subquery
+#
+CREATE TABLE t1 (f1 int,f3 int) ;
+INSERT IGNORE INTO t1 VALUES ('6','0'),('4','0');
+CREATE TABLE t2 (f1 int,f2 int,f3 int) ;
+INSERT IGNORE INTO t2 VALUES ('6','0','0'),('2','0','0');
+SELECT f2
+FROM (SELECT * FROM t2) AS alias1
+WHERE (SELECT SQ2_t2.f1
+FROM t1 JOIN t1 AS SQ2_t2 ON SQ2_t2.f3
+WHERE SQ2_t2.f3 AND alias1.f1)
+ORDER BY f3 ;
+f2
+drop table t1,t2;
+#
+# LP BUG#715062: Wrong result with VIEW + UNION + subquery in maria-5.3-mwl89
+#
+create table t1 (f1 int);
+create table t2 (f2 int);
+create table t3 (f3 int);
+insert into t1 values (2);
+insert into t2 values (2);
+insert into t3 values (7);
+CREATE VIEW v1 AS SELECT 2 UNION SELECT 2 ;
+CREATE VIEW v2 AS SELECT * from t1 UNION SELECT * from t2 ;
+set @save_optimizer_switch=@@optimizer_switch;
+SET @@optimizer_switch = 'in_to_exists=off,semijoin=off,materialization=on';
+EXPLAIN
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN ( SELECT * FROM v1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+4	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union3,4>	ALL	NULL	NULL	NULL	NULL	NULL	
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN ( SELECT * FROM v1 );
+bug
+EXPLAIN
+SELECT ( 5 ) IN ( SELECT * FROM v1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+4	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union3,4>	ALL	NULL	NULL	NULL	NULL	NULL	
+SELECT ( 5 ) IN ( SELECT * FROM v1 );
+( 5 ) IN ( SELECT * FROM v1 )
+0
+EXPLAIN
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN (SELECT * FROM v2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DERIVED	t1	system	NULL	NULL	NULL	NULL	1	
+4	UNION	t2	system	NULL	NULL	NULL	NULL	1	
+NULL	UNION RESULT	<union3,4>	ALL	NULL	NULL	NULL	NULL	NULL	
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN (SELECT * FROM v2);
+bug
+EXPLAIN
+SELECT 'bug' FROM t3 WHERE ( 5 ) IN (SELECT * FROM v2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
+2	MATERIALIZED	<derived3>	ALL	NULL	NULL	NULL	NULL	2	
+3	DERIVED	t1	system	NULL	NULL	NULL	NULL	1	
+4	UNION	t2	system	NULL	NULL	NULL	NULL	1	
+NULL	UNION RESULT	<union3,4>	ALL	NULL	NULL	NULL	NULL	NULL	
+SELECT 'bug' FROM t3 WHERE ( 5 ) IN (SELECT * FROM v2);
+bug
+EXPLAIN
+SELECT ( 5 ) IN ( SELECT * FROM v2 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DERIVED	t1	system	NULL	NULL	NULL	NULL	1	
+4	UNION	t2	system	NULL	NULL	NULL	NULL	1	
+NULL	UNION RESULT	<union3,4>	ALL	NULL	NULL	NULL	NULL	NULL	
+SELECT ( 5 ) IN ( SELECT * FROM v2 );
+( 5 ) IN ( SELECT * FROM v2 )
+0
+SET @@optimizer_switch = 'in_to_exists=on,semijoin=off,materialization=off';
+EXPLAIN
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN ( SELECT * FROM v1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+4	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union3,4>	ALL	NULL	NULL	NULL	NULL	NULL	
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN ( SELECT * FROM v1 );
+bug
+EXPLAIN
+SELECT ( 5 ) IN ( SELECT * FROM v1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+4	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union3,4>	ALL	NULL	NULL	NULL	NULL	NULL	
+SELECT ( 5 ) IN ( SELECT * FROM v1 );
+( 5 ) IN ( SELECT * FROM v1 )
+0
+EXPLAIN
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN (SELECT * FROM v2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DERIVED	t1	system	NULL	NULL	NULL	NULL	1	
+4	UNION	t2	system	NULL	NULL	NULL	NULL	1	
+NULL	UNION RESULT	<union3,4>	ALL	NULL	NULL	NULL	NULL	NULL	
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN (SELECT * FROM v2);
+bug
+EXPLAIN
+SELECT 'bug' FROM t3 WHERE ( 5 ) IN (SELECT * FROM v2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DERIVED	t1	system	NULL	NULL	NULL	NULL	1	
+4	UNION	t2	system	NULL	NULL	NULL	NULL	1	
+NULL	UNION RESULT	<union3,4>	ALL	NULL	NULL	NULL	NULL	NULL	
+SELECT 'bug' FROM t3 WHERE ( 5 ) IN (SELECT * FROM v2);
+bug
+EXPLAIN
+SELECT ( 5 ) IN ( SELECT * FROM v2 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DERIVED	t1	system	NULL	NULL	NULL	NULL	1	
+4	UNION	t2	system	NULL	NULL	NULL	NULL	1	
+NULL	UNION RESULT	<union3,4>	ALL	NULL	NULL	NULL	NULL	NULL	
+SELECT ( 5 ) IN ( SELECT * FROM v2 );
+( 5 ) IN ( SELECT * FROM v2 )
+0
+set @@optimizer_switch=@save_optimizer_switch;
+drop table t1,t2,t3;
+drop view v1,v2;
+#
+# LP BUG#715069 Wrong result with GROUP BY inside subquery and materialization=off
+#
+CREATE TABLE t0 ( f1 int(11), f2 int(11), f10 varchar(1), PRIMARY KEY (f1)) ;
+INSERT INTO t0 VALUES (8,8,'u'),(10,5,'o');
+CREATE TABLE t1 (f1a int, f2a int not null, f3a varchar(3) not null, PRIMARY KEY (f1a)) ;
+INSERT INTO t1 VALUES
+(8,8,'a1a'),
+(10,5,'b1b');
+CREATE TABLE t2 (f1b int, f2b int not null, f3b varchar(3) not null, PRIMARY KEY (f1b)) ;
+INSERT INTO t2 VALUES
+(10,5,'d1d');
+set @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+set @@optimizer_switch = 'in_to_exists=on,materialization=off,semijoin=off';
+EXPLAIN
+SELECT alias2.f1 , alias2.f2
+FROM t0 AS alias1
+RIGHT JOIN t0 AS alias2 ON alias2.f10
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT max(f2) , f1 FROM t0 GROUP BY f2 , f1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	alias1	index	NULL	PRIMARY	4	NULL	2	Using where; Using index
+2	DEPENDENT SUBQUERY	t0	ALL	NULL	NULL	NULL	NULL	2	Using temporary
+SELECT alias2.f1 , alias2.f2
+FROM t0 AS alias1
+RIGHT JOIN t0 AS alias2 ON alias2.f10
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT max(f2) , f1 FROM t0 GROUP BY f2 , f1 );
+f1	f2
+8	8
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'u'
+EXPLAIN
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT max(f1a), f2a FROM t1 GROUP BY f1a, f2a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT max(f1a), f2a FROM t1 GROUP BY f1a, f2a);
+f1b	f2b	f3b
+10	5	d1d
+EXPLAIN
+SELECT * FROM t2 WHERE (f1b) IN (SELECT max(f1a) FROM t1 GROUP BY f1a, f2a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary
+SELECT * FROM t2 WHERE (f1b) IN (SELECT max(f1a) FROM t1 GROUP BY f1a, f2a);
+f1b	f2b	f3b
+10	5	d1d
+set @@optimizer_switch = 'in_to_exists=off,materialization=on,semijoin=off';
+EXPLAIN
+SELECT alias2.f1 , alias2.f2
+FROM t0 AS alias1
+RIGHT JOIN t0 AS alias2 ON alias2.f10
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT max(f2) , f1 FROM t0 GROUP BY f2 , f1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	alias1	index	NULL	PRIMARY	4	NULL	2	Using where; Using index
+2	MATERIALIZED	t0	ALL	NULL	NULL	NULL	NULL	2	Using temporary
+SELECT alias2.f1 , alias2.f2
+FROM t0 AS alias1
+RIGHT JOIN t0 AS alias2 ON alias2.f10
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT max(f2) , f1 FROM t0 GROUP BY f2 , f1 );
+f1	f2
+8	8
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'u'
+EXPLAIN
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT max(f1a), f2a FROM t1 GROUP BY f1a, f2a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT max(f1a), f2a FROM t1 GROUP BY f1a, f2a);
+f1b	f2b	f3b
+10	5	d1d
+EXPLAIN
+SELECT * FROM t2 WHERE (f1b) IN (SELECT max(f1a) FROM t1 GROUP BY f1a, f2a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary
+SELECT * FROM t2 WHERE (f1b) IN (SELECT max(f1a) FROM t1 GROUP BY f1a, f2a);
+f1b	f2b	f3b
+10	5	d1d
+set @@optimizer_switch=@save_optimizer_switch;
+drop table t0,t1,t2;
+#                                                                                                                                                     
+# LP BUG#715759 Wrong result with in_to_exists=on in maria-5.3-mwl89
+#                                                                                                                                                     
+set @save_optimizer_switch=@@optimizer_switch;
+CREATE TABLE t1 (a1 int, a2 int) ;
+INSERT INTO t1 VALUES (1, 2);
+INSERT INTO t1 VALUES (3, 4);
+CREATE TABLE t2 (b1 int, b2 int) ;
+INSERT INTO t2 VALUES (1, 2);
+SET @@optimizer_switch = 'in_to_exists=on,materialization=off,semijoin=off';
+EXPLAIN SELECT * FROM t1 WHERE a1 IN (SELECT b1 FROM t2 WHERE b1 = b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE a1 IN (SELECT b1 FROM t2 WHERE b1 = b2);
+a1	a2
+set @@optimizer_switch=@save_optimizer_switch;
+drop table t1, t2;
+#                                                                                                                                                     
+# LP BUG#772309 join_tab_cmp_straight(): Assertion `!jt2->emb_sj_nest' failed in maria-5.3-mwl89 with semijoin
+#                                                                                                                                                     
+CREATE TABLE t1 ( f2 int) ;
+INSERT INTO t1 VALUES (0),(0);
+CREATE TABLE t2 ( f1 int NOT NULL ) ;
+INSERT INTO t2 VALUES (0),(0);
+CREATE TABLE t3 ( f1 int NOT NULL , f2 int) ;
+INSERT INTO t3 VALUES (0,0), (0,0);
+EXPLAIN SELECT STRAIGHT_JOIN (
+SELECT f2 FROM t1 WHERE ( f2 ) IN ( SELECT t3.f2 FROM t3 JOIN t2 ON t2.f1 = 1 )
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+SELECT STRAIGHT_JOIN (
+SELECT f2 FROM t1 WHERE ( f2 ) IN ( SELECT t3.f2 FROM t3 JOIN t2 ON t2.f1 = 1 )
+);
+(
+SELECT f2 FROM t1 WHERE ( f2 ) IN ( SELECT t3.f2 FROM t3 JOIN t2 ON t2.f1 = 1 )
+)
+NULL
+drop table t1, t2, t3;
+#                                                                                                                                                     
+# LP BUG#777597 Wrong result with multipart keys, in_to_exists=on, NOT IN in MWL#89
+#                                                                                                                                                     
+CREATE TABLE t1 ( f4 int);
+INSERT IGNORE INTO t1 VALUES (2),(2);
+CREATE TABLE t2 ( f3 int, f10 int, KEY (f10,f3) );
+INSERT IGNORE INTO t2 VALUES (6, 1), (6, 1);
+CREATE TABLE t3 ( f10 int );
+INSERT IGNORE INTO t3 VALUES (1);
+SET SESSION optimizer_switch='in_to_exists=on,materialization=off';
+EXPLAIN
+SELECT * FROM t1 WHERE ( 6 ) NOT IN ( SELECT t2.f3 FROM t2 JOIN t3 ON t3.f10 = t2.f10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	ref_or_null	f10	f10	10	const,const	2	Using where; Using index
+SELECT * FROM t1 WHERE ( 6 ) NOT IN ( SELECT t2.f3 FROM t2 JOIN t3 ON t3.f10 = t2.f10);
+f4
+drop table t1,t2,t3;
+#                                                                                                                                                     
+# LP BUG#778413 Third crash in select_describe() in maria-5.3-mwl89
+#                                                                                                                                                     
+CREATE TABLE t1 ( f11 int) ;
+INSERT INTO t1 VALUES (1),(1);
+CREATE TABLE t2 ( f1 int NOT NULL) ;
+INSERT INTO t2 VALUES (20);
+CREATE TABLE t3 (f3 int) ;
+INSERT INTO t3 VALUES (2),(2);
+EXPLAIN SELECT * FROM t2
+WHERE t2.f1 = (
+SELECT MAX( f3 ) FROM t3
+WHERE EXISTS (
+SELECT DISTINCT f11
+FROM t1));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+3	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+drop table t1, t2, t3;
+#
+# LP BUG#802979 Assertion `table->key_read == 0' in close_thread_table
+#
+CREATE TABLE t1 ( f1 int, f2 int , KEY (f1)) ;
+INSERT IGNORE INTO t1 VALUES (1,0),(5,0);
+CREATE TABLE t2 ( f1 int, f2 int , KEY (f1)) ;
+INSERT IGNORE INTO t2 VALUES (1,0),(5,0);
+CREATE TABLE t3 ( f1 int, f2 int , KEY (f1)) ;
+INSERT IGNORE INTO t3 VALUES (1,0),(5,0);
+CREATE TABLE t4 ( f1 int, f2 int , KEY (f1)) ;
+INSERT IGNORE INTO t4 VALUES (1,0),(5,0);
+EXPLAIN
+SELECT *
+FROM t1, t2
+WHERE t2.f2 = (SELECT f2 FROM t3
+WHERE EXISTS (SELECT DISTINCT f1 FROM t4))
+AND t2.f2 = t1.f1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ref	f1	f1	5	const	0	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+3	SUBQUERY	t4	index	NULL	f1	5	NULL	2	Using index
+SELECT *
+FROM t1, t2
+WHERE t2.f2 = (SELECT f2 FROM t3
+WHERE EXISTS (SELECT DISTINCT f1 FROM t4))
+AND t2.f2 = t1.f1;
+ERROR 21000: Subquery returns more than 1 row
+EXPLAIN
+SELECT *
+FROM t1, t2
+WHERE t2.f2 = (SELECT f2 FROM t3
+WHERE EXISTS (SELECT DISTINCT f1 FROM t4) LIMIT 1)
+AND t2.f2 = t1.f1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ref	f1	f1	5	const	0	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+3	SUBQUERY	t4	index	NULL	f1	5	NULL	2	Using index
+SELECT *
+FROM t1, t2
+WHERE t2.f2 = (SELECT f2 FROM t3
+WHERE EXISTS (SELECT DISTINCT f1 FROM t4) LIMIT 1)
+AND t2.f2 = t1.f1;
+f1	f2	f1	f2
+drop table t1,t2,t3,t4;
+#
+# LP BUG#611690 Crash in select_describe() with nested subqueries
+#
+CREATE TABLE t1 (
+col_int_key int(11) DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_varchar_nokey varchar(1) DEFAULT NULL,
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (8,'v','v');
+INSERT INTO t1 VALUES (9,'r','r');
+CREATE TABLE t2 (
+col_int_key int(11) DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_varchar_nokey varchar(1) DEFAULT NULL,
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t2 VALUES (2,'w','w');
+INSERT INTO t2 VALUES (9,'m','m');
+set @old_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='subquery_cache=off,materialization=on,in_to_exists=off,semijoin=off';
+EXPLAIN
+SELECT col_int_key
+FROM t2
+WHERE (SELECT SUBQUERY2_t1.col_int_key
+FROM t1 SUBQUERY2_t1 STRAIGHT_JOIN t1 SUBQUERY2_t2
+ON SUBQUERY2_t2.col_varchar_key
+WHERE SUBQUERY2_t2.col_varchar_nokey IN
+(SELECT col_varchar_nokey FROM t1 GROUP BY col_varchar_nokey));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	NULL	col_int_key	5	NULL	2	Using index
+2	SUBQUERY	SUBQUERY2_t1	index	NULL	col_int_key	5	NULL	2	Using index
+2	SUBQUERY	SUBQUERY2_t2	ALL	col_varchar_key	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+3	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT col_int_key
+FROM t2
+WHERE (SELECT SUBQUERY2_t1.col_int_key
+FROM t1 SUBQUERY2_t1 STRAIGHT_JOIN t1 SUBQUERY2_t2
+ON SUBQUERY2_t2.col_varchar_key
+WHERE SUBQUERY2_t2.col_varchar_nokey IN
+(SELECT col_varchar_nokey FROM t1 GROUP BY col_varchar_nokey));
+col_int_key
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'v'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+set @@optimizer_switch='subquery_cache=off,materialization=off,in_to_exists=on,semijoin=off';
+EXPLAIN
+SELECT col_int_key
+FROM t2
+WHERE (SELECT SUBQUERY2_t1.col_int_key
+FROM t1 SUBQUERY2_t1 STRAIGHT_JOIN t1 SUBQUERY2_t2
+ON SUBQUERY2_t2.col_varchar_key
+WHERE SUBQUERY2_t2.col_varchar_nokey IN
+(SELECT col_varchar_nokey FROM t1 GROUP BY col_varchar_nokey));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	NULL	col_int_key	5	NULL	2	Using index
+2	SUBQUERY	SUBQUERY2_t1	index	NULL	col_int_key	5	NULL	2	Using index
+2	SUBQUERY	SUBQUERY2_t2	ALL	col_varchar_key	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+3	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT col_int_key
+FROM t2
+WHERE (SELECT SUBQUERY2_t1.col_int_key
+FROM t1 SUBQUERY2_t1 STRAIGHT_JOIN t1 SUBQUERY2_t2
+ON SUBQUERY2_t2.col_varchar_key
+WHERE SUBQUERY2_t2.col_varchar_nokey IN
+(SELECT col_varchar_nokey FROM t1 GROUP BY col_varchar_nokey));
+col_int_key
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'v'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+drop table t1, t2;
+set @@optimizer_switch = @old_optimizer_switch;
+#
+# LP BUG#612543 Crash in Item_field::used_tables() with view + subquery + prepared statements
+#
+CREATE TABLE t1 ( f1 int(11), f2 varchar(1));
+CREATE TABLE t2 ( f3 varchar(1));
+insert into t1 values (2,'x'), (5,'y');
+insert into t2 values ('x'), ('z');
+CREATE VIEW v2 AS SELECT * FROM t2;
+set @old_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off,subquery_cache=off';
+EXPLAIN SELECT * FROM t1 JOIN v2 ON t1.f2 > 'a' WHERE v2.f3 IN ( SELECT f2 FROM t1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	2	
+PREPARE st1 FROM "SELECT * FROM t1 JOIN v2 ON t1.f2 > 'a' WHERE v2.f3 IN ( SELECT f2 FROM t1 )";
+EXECUTE st1;
+f1	f2	f3
+2	x	x
+5	y	x
+EXECUTE st1;
+f1	f2	f3
+2	x	x
+5	y	x
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=off,subquery_cache=off';
+EXPLAIN SELECT * FROM t1 JOIN v2 ON t1.f2 > 'a' WHERE v2.f3 IN ( SELECT f2 FROM t1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+PREPARE st2 FROM "SELECT * FROM t1 JOIN v2 ON t1.f2 > 'a' WHERE v2.f3 IN ( SELECT f2 FROM t1 )";
+EXECUTE st2;
+f1	f2	f3
+2	x	x
+5	y	x
+EXECUTE st2;
+f1	f2	f3
+2	x	x
+5	y	x
+set @@optimizer_switch='materialization=on,in_to_exists=on,semijoin=off,subquery_cache=off';
+EXPLAIN SELECT * FROM t1 JOIN v2 ON t1.f2 > 'a' WHERE v2.f3 IN ( SELECT f2 FROM t1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	2	
+PREPARE st3 FROM "SELECT * FROM t1 JOIN v2 ON t1.f2 > 'a' WHERE v2.f3 IN ( SELECT f2 FROM t1 )";
+EXECUTE st3;
+f1	f2	f3
+2	x	x
+5	y	x
+EXECUTE st3;
+f1	f2	f3
+2	x	x
+5	y	x
+set @@optimizer_switch = @old_optimizer_switch;
+drop table t1, t2;
+drop view v2;
+#
+# LP BUG#611396 RQG: crash in Item_field::register_field_in_read_map with semijoin=off
+# and prepared statements and materialization
+CREATE TABLE t1 ( f1 int(11), f2 int(11)) ;
+CREATE TABLE t2 ( f1 int(11), f4 varchar(1), PRIMARY KEY (f1)) ;
+INSERT INTO t2 VALUES ('23','j'),('24','e');
+CREATE TABLE t3 ( f1 int(11), f4 varchar(1)) ;
+INSERT INTO t3 VALUES ('8','j');
+set @old_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
+EXPLAIN
+SELECT t2.f1, (SELECT f2 FROM t1 WHERE (7) IN (SELECT f1 FROM t1))
+FROM t2 JOIN t3 ON t3.f4 = t2.f4
+WHERE t3.f1 = 8
+GROUP BY 1, 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	Using filesort
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+3	MATERIALIZED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+PREPARE st1 FROM "
+SELECT t2.f1, (SELECT f2 FROM t1 WHERE (7) IN (SELECT f1 FROM t1))
+FROM t2 JOIN t3 ON t3.f4 = t2.f4
+WHERE t3.f1 = 8
+GROUP BY 1, 2";
+EXECUTE st1;
+f1	(SELECT f2 FROM t1 WHERE (7) IN (SELECT f1 FROM t1))
+23	NULL
+EXECUTE st1;
+f1	(SELECT f2 FROM t1 WHERE (7) IN (SELECT f1 FROM t1))
+23	NULL
+set @@optimizer_switch = @old_optimizer_switch;
+drop table t1, t2, t3;
+#
+# LP BUG#611382 RQG: Query returns extra rows when executed with materialization=on
+#
+CREATE TABLE t1 ( f4 varchar(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (NULL);
+CREATE TABLE t2 ( f2 date, f3 varchar(1), f4 varchar(1)) ;
+INSERT INTO t2 VALUES ('2005-05-03','c','c'),('1900-01-01','d','d');
+CREATE TABLE t3 ( f3 varchar(1)) ;
+INSERT INTO t3 VALUES ('c');
+set @old_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch = 'materialization=on,in_to_exists=off,semijoin=off';
+EXPLAIN SELECT t1.f4
+FROM t1 JOIN ( t2 JOIN t3 ON t3.f3 = t2.f4 ) ON t3.f3 = t2.f3
+WHERE t1.f4 IN ( SELECT f4 FROM t2 ) ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	
+SELECT t1.f4
+FROM t1 JOIN ( t2 JOIN t3 ON t3.f3 = t2.f4 ) ON t3.f3 = t2.f3
+WHERE t1.f4 IN ( SELECT f4 FROM t2 ) ;
+f4
+set @@optimizer_switch = 'materialization=off,in_to_exists=on,semijoin=off';
+EXPLAIN SELECT t1.f4
+FROM t1 JOIN ( t2 JOIN t3 ON t3.f3 = t2.f4 ) ON t3.f3 = t2.f3
+WHERE t1.f4 IN ( SELECT f4 FROM t2 ) ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT t1.f4
+FROM t1 JOIN ( t2 JOIN t3 ON t3.f3 = t2.f4 ) ON t3.f3 = t2.f3
+WHERE t1.f4 IN ( SELECT f4 FROM t2 ) ;
+f4
+set @@optimizer_switch = @old_optimizer_switch;
+drop table t1, t2, t3;
+#
+# LP BUG#782305: Wrong result/valgrind warning in Item_sum_hybrid::any_value()
+#
+CREATE TABLE t1 ( f1 int) ;
+INSERT INTO t1 VALUES (2),(3);
+CREATE TABLE t2 (f2 int) ;
+INSERT INTO t2 VALUES (2),(3);
+PREPARE st1 FROM '
+SELECT * FROM t2
+WHERE f2 <= SOME ( SELECT f1 FROM t1 );
+';
+EXECUTE st1;
+f2
+2
+3
+EXECUTE st1;
+f2
+2
+3
+PREPARE st2 FROM '
+SELECT * FROM t2
+WHERE f2 <= SOME (SELECT f1-2 FROM t1 UNION SELECT f1-1 FROM t1);
+';
+EXECUTE st2;
+f2
+2
+EXECUTE st2;
+f2
+2
+drop table t1, t2;
+#
+# LP BUG#825018: Crash in check_and_do_in_subquery_rewrites() with corrlated subquery in select list
+#
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (10,1),(11,7);
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (2),(3);
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (1,1);
+CREATE PROCEDURE sp1 () LANGUAGE SQL
+SELECT (SELECT t1.a
+FROM t1
+WHERE t1.b = t3.b
+AND t1.b IN ( SELECT a FROM t2 )) sq
+FROM t3
+GROUP BY 1;
+CALL sp1();
+sq
+NULL
+CALL sp1();
+sq
+NULL
+drop procedure sp1;
+prepare st1 from "
+SELECT (SELECT t1.a
+        FROM t1
+        WHERE t1.b = t3.b
+        AND t1.b IN ( SELECT a FROM t2 )) sq
+FROM t3
+GROUP BY 1";
+execute st1;
+sq
+NULL
+execute st1;
+sq
+NULL
+deallocate prepare st1;
+drop table t1, t2, t3;
+set optimizer_switch=@subselect4_tmp;
+#
+# LP BUG#833702 Wrong result with nested IN and singlerow subqueries and equality propagation
+#
+CREATE TABLE t2 (c int , a int, b int);
+INSERT INTO t2 VALUES (10,7,0);
+CREATE TABLE t3 (a int, b int) ;
+INSERT INTO t3 VALUES (5,0),(7,0);
+CREATE TABLE t4 (a int);
+INSERT INTO t4 VALUES (2),(8);
+set @@optimizer_switch='semijoin=off,in_to_exists=on,materialization=off,subquery_cache=off';
+SELECT * FROM t2
+WHERE t2.b IN (SELECT b FROM t3 WHERE t3.a = t2.a AND a < SOME (SELECT * FROM t4))
+OR ( t2.c > 242 );
+c	a	b
+10	7	0
+EXPLAIN SELECT * FROM t2
+WHERE t2.b IN (SELECT t3.b FROM t3 WHERE t3.a < ANY (SELECT t4.a FROM t4) and t3.a = 7);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t2
+WHERE t2.b IN (SELECT t3.b FROM t3 WHERE t3.a < ANY (SELECT t4.a FROM t4) and t3.a = 7);
+c	a	b
+10	7	0
+drop table t2, t3, t4;
+#
+# BUG#934597: Assertion `! is_set()' failed in Diagnostics_area::set_ok_status(THD...
+#
+CREATE TABLE t1 ( a VARCHAR(1) );
+INSERT INTO t1 VALUES ('u'),('k');
+CREATE TABLE t2 AS
+SELECT a AS field1 FROM t1
+WHERE ( SELECT alias1.a
+FROM t1 AS alias1
+) IS NOT NULL;
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t2;
+ERROR 42S02: Unknown table 't2'
+DROP TABLE t1;
+#
+# LP BUG#1000649 EXPLAIN shows incorrectly a non-correlated constant IN subquery is correlated
+#
+create table ten (a int);
+insert into ten values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, b int, c int);
+insert into t1 select a,a,a from ten;
+create table five (a int, b int, c int);
+insert into five select a,a,a from ten limit 5;
+set @@optimizer_switch='semijoin=on,in_to_exists=on,materialization=off';
+explain select * from t1 where 33 in (select b from five) or c > 11;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using where
+2	SUBQUERY	five	ALL	NULL	NULL	NULL	NULL	5	Using where
+drop table ten, t1, five;
+#
+# LP BUG#1008773 Wrong result (NULL instead of a value) with no matching rows, subquery in FROM and HAVING
+#
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+CREATE TABLE t2 (b INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1);
+EXPLAIN
+SELECT MAX(a), ( SELECT 1 FROM t2 ) AS bb FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+SELECT MAX(a), ( SELECT 1 FROM t2 ) AS bb FROM t1;
+MAX(a)	bb
+NULL	1
+EXPLAIN
+SELECT MAX(a), 1 in ( SELECT b FROM t2 ) AS bb FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+SELECT MAX(a), 1 in ( SELECT b FROM t2 ) AS bb FROM t1;
+MAX(a)	bb
+NULL	1
+EXPLAIN
+SELECT MAX(a), 1 >= ALL ( SELECT b FROM t2 ) AS bb FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT MAX(a), 1 >= ALL ( SELECT b FROM t2 ) AS bb FROM t1;
+MAX(a)	bb
+NULL	1
+EXPLAIN
+SELECT MAX(a), ( SELECT 1 FROM t2 where b = a) AS bb FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT MAX(a), ( SELECT 1 FROM t2 where b = a) AS bb FROM t1;
+MAX(a)	bb
+NULL	NULL
+EXPLAIN
+SELECT MAX(a), a in ( SELECT b FROM t2 ) AS bb FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+SELECT MAX(a), a in ( SELECT b FROM t2 ) AS bb FROM t1;
+MAX(a)	bb
+NULL	NULL
+EXPLAIN
+SELECT MAX(a), a >= ALL ( SELECT b FROM t2 ) AS bb FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+SELECT MAX(a), a >= ALL ( SELECT b FROM t2 ) AS bb FROM t1;
+MAX(a)	bb
+NULL	NULL
+drop table t1, t2;
+set optimizer_switch=@subselect4_tmp;
+#
+# MDEV-3928  Assertion `example' failed in Item_cache::is_expensive_processor with a 2-level IN subquery 
+#
+CREATE TABLE t1 (a1 INT, b1 TIME) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (4,'21:22:34'),(6,'10:50:38');
+CREATE TABLE t2 (a2 INT, b2 TIME) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (8, '06:17:39');
+CREATE TABLE t3 (a3 INT, b3 TIME) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (1,'00:00:01'),(7,'00:00:02');
+EXPLAIN
+SELECT * FROM t1 WHERE a1 IN ( 
+SELECT a2 FROM t2 WHERE a2 IN ( 
+SELECT a3 FROM t3 WHERE b2 = b1 AND b2 <= b1 ORDER BY b3 
+)
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1 WHERE a1 IN ( 
+SELECT a2 FROM t2 WHERE a2 IN ( 
+SELECT a3 FROM t3 WHERE b2 = b1 AND b2 <= b1 ORDER BY b3 
+)
+);
+a1	b1
+drop table t1, t2, t3;
+#
+# MDEV-4056:Server crashes in Item_func_trig_cond::val_int
+# with FROM and NOT IN subqueries, LEFT JOIN, derived_merge+in_to_exists
+#
+set @optimizer_switch_MDEV4056 = @@optimizer_switch;
+SET optimizer_switch = 'derived_merge=on,in_to_exists=on';
+CREATE TABLE t1 (a VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('x'),('d');
+CREATE TABLE t2 (pk INT PRIMARY KEY, b INT, c VARCHAR(1))  ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,2,'v'),(2,150,'v');
+SELECT * FROM t1 LEFT JOIN (  
+SELECT * FROM t2 WHERE ( pk, pk ) NOT IN ( 
+SELECT MIN(b), SUM(pk) FROM t1
+) 
+) AS alias1 ON (a = c) 
+WHERE b IS NULL OR a < 'u';
+a	pk	b	c
+x	NULL	NULL	NULL
+d	NULL	NULL	NULL
+drop table t1,t2;
+set @@optimizer_switch = @optimizer_switch_MDEV4056;
+#
+# MDEV-5103: server crashed on singular Item_equal
+#
+CREATE TABLE t1 (
+a enum('p','r') NOT NULL DEFAULT 'r',
+b int NOT NULL DEFAULT '0',
+c char(32) NOT NULL,
+d varchar(255) NOT NULL,
+PRIMARY KEY (a, b), UNIQUE KEY idx(a, c)
+);
+INSERT INTO t1 VALUES ('r', 1, 'ad18832202b199728921807033a8a515', '001_cbr643');
+CREATE TABLE t2 (
+a enum('p','r') NOT NULL DEFAULT 'r',
+b int NOT NULL DEFAULT '0',
+e datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+PRIMARY KEY (a, b, e)
+);
+INSERT INTO t2 VALUES ('r', 1, '2013-10-05 14:25:30');
+SELECT * FROM t1 AS t 
+WHERE a='r' AND (c,b) NOT IN (SELECT c,b FROM t2 WHERE (c,b)=(t.c,t.b));
+a	b	c	d
+DROP TABLE t1, t2;
+#
+# MDEV-5468: assertion failure with a simplified condition in subselect
+#
+CREATE TABLE t1 (a int, b int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,1);
+CREATE TABLE t2 ( pk int PRIMARY KEY, c INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,4), (2,6);
+SELECT ( SELECT MAX(b) FROM t1, t2 WHERE pk = a AND b < from_sq.c ) AS select_sq,
+COUNT( DISTINCT from_sq.c ) 
+FROM ( SELECT DISTINCT t2_1.* FROM t2 AS t2_1, t2 AS t2_2 ) AS from_sq
+GROUP BY select_sq ;
+select_sq	COUNT( DISTINCT from_sq.c )
+1	2
+DROP TABLE t1,t2;
+CREATE TABLE t1 (id int, a2 char(2), a3 char(3)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,'BE','BEL');
+CREATE TABLE t2 (id int, a2 char(2), a3 char(3)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,'BE','BEL'), (2,'MX','MEX');
+CREATE VIEW v2 AS SELECT DISTINCT * FROM t2;
+SELECT * FROM t1 AS outer_t1, v2  
+WHERE v2.a3 = outer_t1.a3 
+AND EXISTS ( SELECT * FROM t1 WHERE a2 < v2.a2 AND id = outer_t1.id )
+AND outer_t1.a3 < 'J'    
+ORDER BY v2.id;
+id	a2	a3	id	a2	a3
+DROP VIEW v2;
+DROP TABLE t1,t2;
+#
+# MDEV-5686: degenerate disjunct in NOT IN subquery
+#
+CREATE TABLE t1 (a int, b int, c varchar(3)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,1,'CAN'),(2,2,'AUS');
+CREATE TABLE t2 (f int) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (3);
+EXPLAIN EXTENDED
+SELECT * FROM t2 
+WHERE f NOT IN (SELECT b FROM t1
+WHERE 0 OR (c IN ('USA') OR c NOT IN ('USA')) AND a = b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select 3 AS `f` from dual where (not(<expr_cache><3>(<in_optimizer>(3,<exists>(select `test`.`t1`.`b` from `test`.`t1` where (((`test`.`t1`.`c` = 'USA') or (`test`.`t1`.`c` <> 'USA')) and trigcond(((<cache>(3) = `test`.`t1`.`b`) or isnull(`test`.`t1`.`b`))) and (`test`.`t1`.`b` = `test`.`t1`.`a`)) having trigcond(<is_not_null_test>(`test`.`t1`.`b`)))))))
+SELECT * FROM t2 
+WHERE f NOT IN (SELECT b FROM t1
+WHERE 0 OR (c IN ('USA') OR c NOT IN ('USA')) AND a = b);
+f
+3
+DROP TABLE t1,t2;
+#
+# MDEV-3899  Valgrind warnings (blocks are definitely lost) in filesort on IN subquery with SUM and DISTINCT
+#
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(9);
+CREATE TABLE t2 (b INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (8);
+SELECT * FROM t1 
+WHERE (1, 1) IN (SELECT a, SUM(DISTINCT a) FROM t1, t2 GROUP BY a);
+a
+1
+9
+drop table t1, t2;
+#
+# MDEV-3902  Assertion `record_length == m_record_length' failed at Filesort_buffer::alloc_sort_buffer 
+#
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (pk INT PRIMARY KEY, b INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,1),(2,7);
+CREATE TABLE t3 (c INT) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (8);
+SELECT * FROM t1
+WHERE (1, 5)  IN (SELECT b, SUM(DISTINCT b) FROM t2, t3 GROUP BY b);
+a
+SELECT * FROM t2 AS alias1, t2 AS alias2
+WHERE EXISTS ( SELECT 1 ) AND (alias2.pk = alias1.b )
+ORDER BY alias1.b;
+pk	b	pk	b
+1	1	1	1
+drop table t1, t2, t3;
+#
+# MDEV-4144 simple subquery causes full scan instead of range scan
+#
+CREATE TABLE t1 (id int not null auto_increment, x int not null, primary key(id));
+INSERT INTO t1 (x) VALUES (0),(0),(0);
+EXPLAIN
+SELECT x FROM t1 WHERE id > (SELECT MAX(id) - 1000 FROM t1) ORDER BY x LIMIT 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	range	PRIMARY	PRIMARY	4	NULL	3	Using where; Using filesort
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT x FROM t1 WHERE id > (SELECT MAX(id) - 1000 FROM t1) ORDER BY x LIMIT 1;
+x
+0
+drop table t1;
+#
+# MDEV-7691: Assertion `outer_context || !*from_field || *from_field == not_found_field' ...
+#
+set optimizer_switch=default;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (4),(6);
+CREATE TABLE t2 (b INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1),(8);
+PREPARE stmt FROM "
+SELECT * FROM t2
+HAVING 0 IN (
+  SELECT a FROM t1
+  WHERE a IN ( 
+    SELECT a FROM t1
+    WHERE b = a
+  )
+)
+";
+EXECUTE stmt;
+b
+EXECUTE stmt;
+b
+# Alternative test case, without HAVING
+CREATE TABLE t3 (i INT) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (4),(6);
+PREPARE stmt FROM "
+SELECT * FROM t3 AS t10
+WHERE EXISTS ( 
+  SELECT * FROM t3 AS t20 WHERE t10.i IN ( 
+    SELECT i FROM t3 
+  ) 
+)";
+EXECUTE stmt;
+i
+6
+EXECUTE stmt;
+i
+6
+drop table t1, t2, t3;
+SET optimizer_switch= @@global.optimizer_switch;
+set @@tmp_table_size= @@global.tmp_table_size;

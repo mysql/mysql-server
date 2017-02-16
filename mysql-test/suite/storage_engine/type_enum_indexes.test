@@ -1,0 +1,146 @@
+#
+# ENUM columns with indexes
+#
+
+--source have_engine.inc
+--source have_default_index.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# Default index as set in define_engine.inc
+
+let $create_definition =
+  a ENUM('N.America','S.America','Africa','Europe','Australia','Asia','Antarctica') $col_indexed_opts,
+  b ENUM('test1','test2','test3','test4','test5') $col_opts,
+  c ENUM('1a','1b','1d','1j','4a','4z','5a','5b','6v','6z') $col_opts,
+  $default_index a (a)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = ENUM types or indexes
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a,b,c) VALUES
+  ('N.America','test1','5a'),('Europe','test1','5b'),('Europe','test2','6v'),
+  ('Africa','test3','4z'),('Africa','test4','1j'),('Antarctica','test4','1d');
+
+  --replace_column 3 # 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  SELECT a FROM t1 WHERE b > 'test2' ORDER BY a;
+  DROP TABLE t1;
+}
+
+
+# PK, UNIQUE INDEX, INDEX
+
+let $create_definition =
+  a ENUM('N.America','S.America','Africa','Europe','Australia','Asia','Antarctica') $col_indexed_opts,
+  b ENUM('test1','test2','test3','test4','test5') $col_indexed_opts,
+  c ENUM('1a','1b','1d','1j','4a','4z','5a','5b','6v','6z') $col_opts,
+  UNIQUE KEY a_b (a,b)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = ENUM types or unique keys or multi-part keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a,b,c) VALUES
+  ('N.America','test1','5a'),('Europe','test1','5b'),('Europe','test2','6v'),
+  ('Africa','test3','4z'),('Africa','test4','1j'),('Antarctica','test4','1d');
+
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT a FROM t1 WHERE b > 'test2' ORDER BY a;
+  SELECT a FROM t1 WHERE b > 'test2' ORDER BY a;
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT a FROM t1 FORCE INDEX (a_b) WHERE b > 'test2' ORDER BY a;
+  SELECT a FROM t1 FORCE INDEX (a_b) WHERE b > 'test2' ORDER BY a;
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  a ENUM('N.America','S.America','Africa','Europe','Australia','Asia','Antarctica') $col_opts,
+  b ENUM('test1','test2','test3','test4','test5') $col_opts,
+  c ENUM('1a','1b','1d','1j','4a','4z','5a','5b','6v','6z') $col_indexed_opts PRIMARY KEY
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = ENUM types or PK
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a,b,c) VALUES
+  ('N.America','test1','5a'),('Europe','test1','5b'),('Europe','test2','6v'),
+  ('Africa','test3','4z'),('Africa','test4','1j'),('Antarctica','test4','1d');
+
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT c FROM t1 WHERE c BETWEEN '1d' AND '6u';
+  --sorted_result
+  SELECT c FROM t1 WHERE c BETWEEN '1d' AND '6u';
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT c FROM t1 USE INDEX () WHERE c BETWEEN '1d' AND '6u';
+  --sorted_result
+  SELECT c FROM t1 USE INDEX () WHERE c BETWEEN '1d' AND '6u';
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  a ENUM('N.America','S.America','Africa','Europe','Australia','Asia','Antarctica') $col_opts,
+  b ENUM('test1','test2','test3','test4','test5') $col_indexed_opts,
+  c ENUM('1a','1b','1d','1j','4a','4z','5a','5b','6v','6z') $col_opts,
+  INDEX(b)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = ENUM types or non-unique keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a,b,c) VALUES
+  ('N.America','test1','5a'),('Europe','test1','5b'),('Europe','test2','6v'),
+  ('Africa','test3','4z'),('Africa','test4','1j'),('Antarctica','test4','1d');
+
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT DISTINCT b FROM t1;
+  --sorted_result
+  SELECT DISTINCT b FROM t1;
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT DISTINCT b FROM t1 IGNORE INDEX (b);
+  --sorted_result
+  SELECT DISTINCT b FROM t1 IGNORE INDEX (b);
+
+  DROP TABLE t1;
+}
+
+--source cleanup_engine.inc
+

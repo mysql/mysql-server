@@ -1,0 +1,19 @@
+DROP TABLE IF EXISTS t;
+SET SESSION TOKUDB_DISABLE_SLOW_ALTER=ON;
+SET SESSION DEFAULT_STORAGE_ENGINE='TokuDB';
+CREATE TABLE t (a CHAR(100));
+ALTER TABLE t CHANGE COLUMN a a CHAR(1) CHARACTER SET latin1 COLLATE latin1_general_cs;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(100) CHARACTER SET latin1 COLLATE latin1_general_cs;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(255) CHARACTER SET latin1 COLLATE latin1_general_cs;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(100) CHARACTER SET latin1 COLLATE latin1_general_cs);
+ALTER TABLE t CHANGE COLUMN a a CHAR(1);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(100);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(255);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;

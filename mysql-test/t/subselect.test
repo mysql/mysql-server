@@ -1,7 +1,30 @@
+#
+# NOTE. Please do not switch connection inside this test.
+#       subselect.test is included from several other test cases which set
+#       explicit session properties that must be preserved throughout the test.
+#       If you need to use a dedicated connection for a test case,
+#       close the new connection and switch back to "default" as soon
+#       as possible.
+#
 # Initialise
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
+drop view if exists v2;
 --enable_warnings
+
+set @subselect_tmp=@@optimizer_switch;
+set @@optimizer_switch=ifnull(@optimizer_switch_for_subselect_test,
+                              "semijoin=on,firstmatch=on,loosescan=on,semijoin_with_cache=on,partial_match_rowid_merge=off,partial_match_table_scan=off");
+
+if (`select @join_cache_level_for_subselect_test is null`)
+{
+  set join_cache_level=1;
+}
+if (`select @join_cache_level_for_subselect_test is not null`)
+{
+  set join_cache_level=@join_cache_level_for_subselect_test;
+}
+ set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 
 select (select 2);
 explain extended select (select 2);
@@ -80,8 +103,11 @@ explain extended (select * from t2 where t2.b=(select a from t3 order by 1 desc 
 select (select a from t3 where a<t2.a*4 order by 1 desc limit 1), a from t2;
 select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from
 (select * from t2 where a>1) as tt;
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 explain extended select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from
 (select * from t2 where a>1) as tt;
+set optimizer_switch=@tmp_optimizer_switch;
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3) order by 1 desc limit 1);
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3 where t3.a > t1.a) order by 1 desc limit 1);
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3 where t3.a < t1.a) order by 1 desc limit 1);
@@ -248,6 +274,7 @@ INSERT INTO t1 (numeropost,maxnumrep) VALUES (1,0),(2,1);
 select numeropost as a FROM t1 GROUP BY (SELECT 1 FROM t1 HAVING a=1);
 -- error ER_SUBQUERY_NO_1_ROW
 select numeropost as a FROM t1 ORDER BY (SELECT 1 FROM t1 HAVING a=1);
+show warnings;
 drop table t1;
 
 create table t1 (a int);
@@ -279,6 +306,8 @@ SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=1) FROM (SELECT 
 INSERT INTO t1 (numeropost,numreponse,pseudo) VALUES (1,1,'joce'),(1,2,'joce'),(1,3,'test');
 -- error ER_SUBQUERY_NO_1_ROW
 EXPLAIN EXTENDED SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT 1 FROM t1 WHERE numeropost='1');
+-- error ER_SUBQUERY_NO_1_ROW
+SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT 1 FROM t1 WHERE numeropost='1');
 EXPLAIN EXTENDED SELECT MAX(numreponse) FROM t1 WHERE numeropost='1';
 EXPLAIN EXTENDED SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT MAX(numreponse) FROM t1 WHERE numeropost='1');
 drop table t1;
@@ -310,7 +339,7 @@ insert into t2 values (1, 21),(2, 12),(3, 23);
 select * from t1;
 select * from t1 where b = (select b from t2 where t1.a = t2.a);
 -- error ER_UPDATE_TABLE_USED
-delete from t1 where b = (select b from t1);
+delete from t1 where b in (select b from t1);
 -- error ER_SUBQUERY_NO_1_ROW
 delete from t1 where b = (select b from t2);
 delete from t1 where b = (select b from t2 where t1.a = t2.a);
@@ -337,8 +366,8 @@ select * from t12;
 drop table t11, t12, t2;
 
 #insert with subselects
-CREATE TABLE t1 (x int);
-create table t2 (a int);
+CREATE TABLE t1 (x int) ENGINE=MyISAM;
+create table t2 (a int) ENGINE=MyISAM;
 create table t3 (b int);
 insert into t2 values (1);
 insert into t3 values (1),(2);
@@ -373,7 +402,7 @@ select * from t1;
 drop table t1, t2, t3;
 
 #replace with subselects
-CREATE TABLE t1 (x int not null, y int, primary key (x));
+CREATE TABLE t1 (x int not null, y int, primary key (x)) ENGINE=MyISAM;
 create table t2 (a int);
 create table t3 (a int);
 insert into t2 values (1);
@@ -487,6 +516,54 @@ INSERT INTO t3 VALUES (1),(2),(3);
 SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) FROM t1;
 explain extended SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) FROM t1;
 drop table t1,t2,t3;
+
+--echo # check correct NULL Processing for normal IN/ALL/ANY
+--echo # and 2 ways of max/min optimization
+create table t1 (a int);
+insert into t1 values (1), (100), (NULL), (1000);
+create table t2 (a int not null);
+
+--echo # subselect returns empty set (for NULL and non-NULL left part)
+select a, a in (select * from t2) from t1;
+select a, a > any (select * from t2) from t1;
+select a, a > all (select * from t2) from t1;
+select a from t1 where a in (select * from t2);
+select a from t1 where a > any (select * from t2);
+select a from t1 where a > all (select * from t2);
+select a from t1 where a in (select * from t2 group by a);
+select a from t1 where a > any (select * from t2 group by a);
+select a from t1 where a > all (select * from t2 group by a);
+
+insert into t2 values (1),(200);
+
+--echo # sebselect returns non-empty set without NULLs
+select a, a in (select * from t2) from t1;
+select a, a > any (select * from t2) from t1;
+select a, a > all (select * from t2) from t1;
+select a from t1 where a in (select * from t2);
+select a from t1 where a > any (select * from t2);
+select a from t1 where a > all (select * from t2);
+select a from t1 where a in (select * from t2 group by a);
+select a from t1 where a > any (select * from t2 group by a);
+select a from t1 where a > all (select * from t2 group by a);
+
+drop table t2;
+create table t2 (a int);
+insert into t2 values (1),(NULL),(200);
+
+--echo # sebselect returns non-empty set with NULLs
+select a, a in (select * from t2) from t1;
+select a, a > any (select * from t2) from t1;
+select a, a > all (select * from t2) from t1;
+select a from t1 where a in (select * from t2);
+select a from t1 where a > any (select * from t2);
+select a from t1 where a > all (select * from t2);
+select a from t1 where a in (select * from t2 group by a);
+select a from t1 where a > any (select * from t2 group by a);
+select a from t1 where a > all (select * from t2 group by a);
+
+
+drop table t1, t2;
 
 #LIMIT is not supported now
 create table t1 (a float);
@@ -811,15 +888,12 @@ create table t1 (a int, b int, index a (a,b));
 create table t2 (a int, index a (a));
 create table t3 (a int, b int, index a (a));
 insert into t1 values (1,10), (2,20), (3,30), (4,40);
-disable_query_log;
 # making table large enough
-let $1 = 10000;
-while ($1)
- {
-  eval insert into t1 values (rand()*100000+200,rand()*100000);
-  dec $1;
- }
-enable_query_log;
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+insert into t1
+select rand()*100000+200,rand()*100000 from t0 A, t0 B, t0 C, t0 D;
+
 insert into t2 values (2), (3), (4), (5);
 insert into t3 values (10,3), (20,4), (30,5);
 select * from t2 where t2.a in (select a from t1);
@@ -832,7 +906,7 @@ insert into t1 values (3,31);
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30 and t1.b <> 31);
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
-drop table t1, t2, t3;
+drop table t0, t1, t2, t3;
 
 #
 # alloc_group_fields() working
@@ -922,7 +996,7 @@ drop table t1,t2;
 #
 # correct ALL optimisation
 #
-create table t2 (a int, b int);
+create table t2 (a int, b int not null);
 create table t3 (a int);
 insert into t3 values (6),(7),(3);
 select * from t3 where a >= all (select b from t2);
@@ -1492,12 +1566,13 @@ drop table t1;
 
 #
 # Subselect in non-select command just after connection
+# Disconnect new connection and switch back when test is finished
 #
 connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection root;
 set @got_val= (SELECT 1 FROM (SELECT 'A' as my_col) as T1 ) ;
-connection default;
 disconnect root;
+connection default;
 
 #
 # primary query with temporary table and subquery with grouping
@@ -1804,6 +1879,9 @@ drop table t1;
 # Bug#11867 queries with ROW(,elems>) IN (SELECT DISTINCT <cols> FROM ...)
 #
 
+set @tmp11867_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='semijoin_with_cache=off';
+
 CREATE TABLE t1 (one int, two int, flag char(1));
 CREATE TABLE t2 (one int, two int, flag char(1));
 INSERT INTO t1 VALUES(1,2,'Y'),(2,3,'Y'),(3,4,'Y'),(5,6,'N'),(7,8,'N');
@@ -1831,6 +1909,7 @@ explain extended SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FR
 explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0' group by one,two) as 'test' from t1;
 DROP TABLE t1,t2;
 
+set optimizer_switch=@tmp11867_optimizer_switch;
 
 #
 # Bug#12392 where cond with IN predicate for rows and NULL values in table
@@ -2068,7 +2147,7 @@ SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 2);
 --error ER_SUBQUERY_NO_1_ROW
 SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 1);
 
-
+--sorted_result
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 2),
                 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
@@ -2076,7 +2155,7 @@ SELECT a FROM t1 GROUP BY a
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 1),
                 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
-
+--sorted_result
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 4),
                 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
@@ -2084,7 +2163,7 @@ SELECT a FROM t1 GROUP BY a
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 4),
                 (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b)) > 3;
-
+--sorted_result
 SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 2),
                   (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
@@ -2092,7 +2171,7 @@ SELECT a FROM t1
 SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 1),
                   (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b));
-
+--sorted_result
 SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 4),
                   (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
@@ -2599,24 +2678,15 @@ DROP TABLE t1,t2;
 #           slow with big sort_buffer_size
 #
 
-CREATE TABLE t1 (a int, b int auto_increment, PRIMARY KEY (b));
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (b));
 CREATE TABLE t2 (x int auto_increment, y int, z int,
                  PRIMARY KEY (x), FOREIGN KEY (y) REFERENCES t1 (b));
+create table t3 (a int);
+insert into t3 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
-disable_query_log;
-let $1=3000;
-while ($1)
-{
-  eval INSERT INTO t1(a) VALUES(RAND()*1000);
-  eval SELECT MAX(b) FROM t1 INTO @id;
-  let $2=10;
-  while ($2)
-  {
-    eval INSERT INTO t2(y,z) VALUES(@id,RAND()*1000);
-    dec $2;
-  }
-  dec $1;
-}
+insert into t1 select RAND()*1000, A.a + 10*(B.a+10*(C.a+10*D.a))
+from t3 A, t3 B, t3 C, t3 D where D.a<3;
+insert into t2(y,z) select t1.b, RAND()*1000 from t1, t3;
 enable_query_log;
 
 SET SESSION sort_buffer_size = 32 * 1024;
@@ -2629,8 +2699,7 @@ SELECT SQL_NO_CACHE COUNT(*)
   FROM (SELECT  a, b, (SELECT x FROM t2 WHERE y=b ORDER BY z DESC LIMIT 1) c
           FROM t1) t;
 
-DROP TABLE t1,t2;
-
+DROP TABLE t1,t2,t3;
 
 #
 # Bug#25219 EXIST subquery with UNION over a mix of
@@ -3086,6 +3155,53 @@ SELECT ((a1,a2) IN (SELECT * FROM t2 WHERE b2 > 0)) IS NULL FROM t1;
 DROP TABLE t1, t2;
 
 #
+# Bug31048 Many nested subqueries may cause server crash.
+#
+#create table t1(a int,b int,key(a),key(b));
+#insert into t1(a,b) values (1,2),(2,1),(2,3),(3,4),(5,4),(5,5),
+#  (6,7),(7,4),(5,3);
+#  TODO: enable the test after fixing 33266 in 6.0
+
+#let $nesting= 26;
+#let $should_work_nesting= 5;
+#let $start= select sum(a),a from t1 where a> ( select sum(a) from t1 ;
+#let $end= )group by a ;
+#let $start_app= where a> ( select sum(a) from t1 ;
+#let $end_pre= )group by b limit 1 ;
+
+#--disable_result_log
+#--disable_query_log
+# At least 4 level nesting should work without errors
+#while ($should_work_nesting)
+#{
+#--echo $should_work_nesting
+#  eval $start $end;
+#  eval explain $start $end;
+#  let $start= $start
+#  $start_app;
+#  let $end= $end_pre
+#  $end;
+#  dec $should_work_nesting;
+#}
+# Other may fail with the 'stack overrun error'
+#while ($nesting)
+#{
+#--echo $nesting
+#--error 0,1436
+#  eval $start $end;
+#--error 0,1436
+#  eval explain $start $end;
+#  let $start= $start
+#  $start_app;
+#  let $end= $end_pre
+#  $end;
+#  dec $nesting;
+#}
+#--enable_result_log
+#--enable_query_log
+#drop table t1;
+
+#
 # Bug#28076 inconsistent binary/varbinary comparison
 #
 
@@ -3132,6 +3248,10 @@ DROP TABLE t1, t2, t3;
 # Bug#30788 Inconsistent retrieval of char/varchar
 #
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
+SET optimizer_switch='materialization=off';
+
 CREATE TABLE t1 (a CHAR(1), b VARCHAR(10));
 INSERT INTO t1 VALUES ('a', 'aa');
 INSERT INTO t1 VALUES ('a', 'aaa');
@@ -3153,6 +3273,7 @@ SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 
 DROP TABLE t1,t2;
 
+SET optimizer_switch= @save_optimizer_switch;
 
 #
 # Bug#32400 Complex SELECT query returns correct result only on some occasions
@@ -3210,25 +3331,21 @@ DROP TABLE t1,t2;
 # Bug#33675 Usage of an uninitialized memory by filesort in a subquery
 #           caused server crash.
 #
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1(f11 int, f12 int);
 create table t2(f21 int unsigned not null, f22 int, f23 varchar(10));
 insert into t1 values(1,1),(2,2), (3, 3);
-let $i=10000;
---disable_query_log
 --disable_warnings
-while ($i)
-{
-  eval insert into t2 values (-1 , $i/5000 + 1, '$i');
-  dec $i;
-}
+insert into t2
+select -1 , (@a:=(A.a + 10 * (B.a + 10 * (C.a+10*D.a))))/5000 + 1, @a
+from t0 A, t0 B, t0 C, t0 D;
 --enable_warnings
---enable_query_log
 set session sort_buffer_size= 33*1024;
 select count(*) from t1 where f12 =
 (select f22 from t2 where f22 = f12 order by f21 desc, f22, f23 limit 1);
 
-drop table t1,t2;
-
+drop table t0,t1,t2;
 
 #
 # Bug#33794 "MySQL crashes executing specific query on specific dump"
@@ -3305,8 +3422,11 @@ drop table t1, t2;
 
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2);
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 GROUP BY a);
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 WHERE a > 3 GROUP BY a);
+SET @save_join_cache_level=@@join_cache_level;
+SET join_cache_level=0;
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT min(a) FROM t1 GROUP BY a);
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT min(a) FROM t1 WHERE a > 3 GROUP BY a);
+SET join_cache_level=@save_join_cache_level;
 DROP TABLE t1;
 
 --echo #
@@ -3400,6 +3520,8 @@ SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
 
 ## First a simpler query, illustrating the transformation
 ## '1 < some (...)' => '1 < max(...)'
+EXPLAIN EXTENDED
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t1);
 SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t1);
 
 ## The query which made the server crash.
@@ -3477,6 +3599,183 @@ drop table t2, t1;
 drop view v1;
 
 --echo End of 5.0 tests.
+
+#
+# Test [NOT] IN truth table (both as top-level and general predicate).
+#
+
+create table t_out (subcase char(3),
+                    a1 char(2), b1 char(2), c1 char(2));
+create table t_in  (a2 char(2), b2 char(2), c2 char(2));
+
+insert into t_out values ('A.1','2a', NULL, '2a');
+#------------------------- A.2 - impossible
+insert into t_out values ('A.3', '2a', NULL, '2a');
+insert into t_out values ('A.4', '2a', NULL, 'xx');
+insert into t_out values ('B.1', '2a', '2a', '2a');
+insert into t_out values ('B.2', '2a', '2a', '2a');
+insert into t_out values ('B.3', '3a', 'xx', '3a');
+insert into t_out values ('B.4', 'xx', '3a', '3a');
+
+insert into t_in values ('1a', '1a', '1a');
+insert into t_in values ('2a', '2a', '2a');
+insert into t_in values (NULL, '2a', '2a');
+insert into t_in values ('3a', NULL, '3a');
+-- echo
+-- echo Test general IN semantics (not top-level)
+-- echo
+-- echo case A.1
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in where a2 = 'no_match') pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in where a2 = 'no_match') pred_not_in
+from t_out where subcase = 'A.1';
+
+-- echo case A.2 - impossible
+
+-- echo case A.3
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in) pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'A.3';
+
+-- echo case A.4
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in) pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'A.4';
+
+-- echo case B.1
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in where a2 = 'no_match') pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in where a2 = 'no_match') pred_not_in
+from t_out where subcase = 'B.1';
+
+-- echo case B.2
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in) pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'B.2';
+
+-- echo case B.3
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in) pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'B.3';
+
+-- echo case B.4
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in) pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'B.4';
+
+-- echo
+-- echo Test IN as top-level predicate, and
+-- echo as non-top level for cases A.3, B.3 (the only cases with NULL result).
+-- echo
+-- echo case A.1
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'A.1' and
+      (a1, b1, c1) IN (select * from t_in where a1 = 'no_match');
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'A.1' and
+      (a1, b1, c1) NOT IN (select * from t_in where a1 = 'no_match');
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'A.1' and
+      NOT((a1, b1, c1) IN (select * from t_in where a1 = 'no_match'));
+
+-- echo case A.3
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'A.3' and
+      (a1, b1, c1) IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'A.3' and
+      (a1, b1, c1) NOT IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'A.3' and
+      NOT((a1, b1, c1) IN (select * from t_in));
+# test non-top level result indirectly
+select case when count(*) > 0 then 'N' else 'wrong result' end as pred_in from t_out
+where subcase = 'A.3' and
+      ((a1, b1, c1) IN (select * from t_in)) is NULL and
+      ((a1, b1, c1) NOT IN (select * from t_in)) is NULL;
+
+-- echo case A.4
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'A.4' and
+      (a1, b1, c1) IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'A.4' and
+      (a1, b1, c1) NOT IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'A.4' and
+      NOT((a1, b1, c1) IN (select * from t_in));
+
+-- echo case B.1
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.1' and
+      (a1, b1, c1) IN (select * from t_in where a1 = 'no_match');
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.1' and
+      (a1, b1, c1) NOT IN (select * from t_in where a1 = 'no_match');
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.1' and
+      NOT((a1, b1, c1) IN (select * from t_in where a1 = 'no_match'));
+
+-- echo case B.2
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.2' and
+      (a1, b1, c1) IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.2' and
+      (a1, b1, c1) NOT IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.2' and
+      NOT((a1, b1, c1) IN (select * from t_in));
+
+-- echo case B.3
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.3' and
+      (a1, b1, c1) IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.3' and
+      (a1, b1, c1) NOT IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.3' and
+      NOT((a1, b1, c1) IN (select * from t_in));
+# test non-top level result indirectly
+select case when count(*) > 0 then 'N' else 'wrong result' end as pred_in from t_out
+where subcase = 'B.3' and
+      ((a1, b1, c1) IN (select * from t_in)) is NULL and
+      ((a1, b1, c1) NOT IN (select * from t_in)) is NULL;
+
+-- echo case B.4
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.4' and
+      (a1, b1, c1) IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.4' and
+      (a1, b1, c1) NOT IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.4' and
+      NOT((a1, b1, c1) IN (select * from t_in));
+
+drop table t_out;
+drop table t_in;
+
 
 #
 # Bug#27348 SET FUNCTION used in  a subquery from WHERE condition
@@ -3582,6 +3881,231 @@ SELECT t1.a, (SELECT 1 FROM t2 WHERE t2.b=t3.c AND t2.c=t1.a ORDER BY t2.d LIMIT
 
 DROP TABLE t1,t2,t3;
 
+# -- echo #
+# -- echo # Bug#33204: INTO is allowed in subselect, causing inconsistent results
+# -- echo #
+# CREATE TABLE t1( a INT );
+# INSERT INTO t1 VALUES (1),(2);
+# 
+# CREATE TABLE t2( a INT, b INT );
+# 
+# --error ER_PARSE_ERROR
+# SELECT *
+# FROM (SELECT a INTO @var FROM t1 WHERE a = 2) t1a;
+# --error ER_PARSE_ERROR
+# SELECT *
+# FROM (SELECT a INTO OUTFILE 'file' FROM t1 WHERE a = 2) t1a;
+# --error ER_PARSE_ERROR
+# SELECT *
+# FROM (SELECT a INTO DUMPFILE 'file' FROM t1 WHERE a = 2) t1a;
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM (
+#   SELECT 1 a
+#   UNION
+#   SELECT a INTO @var FROM t1 WHERE a = 2
+# ) t1a;
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM (
+#   SELECT 1 a
+#   UNION
+#   SELECT a INTO OUTFILE 'file' FROM t1 WHERE a = 2
+# ) t1a;
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM (
+#   SELECT 1 a
+#   UNION
+#   SELECT a INTO DUMPFILE 'file' FROM t1 WHERE a = 2
+# ) t1a;
+# 
+# SELECT * FROM (SELECT a FROM t1 WHERE a = 2) t1a;
+# 
+# SELECT * FROM (
+#   SELECT a FROM t1 WHERE a = 2
+#   UNION
+#   SELECT a FROM t1 WHERE a = 2
+# ) t1a;
+# 
+# SELECT * FROM (
+#   SELECT 1 a
+#   UNION
+#   SELECT a FROM t1 WHERE a = 2
+#   UNION
+#   SELECT a FROM t1 WHERE a = 2
+# ) t1a;
+# 
+# # This was not allowed previously. Possibly, it should be allowed on the future.
+# # For now, the intent is to keep the fix as non-intrusive as possible.
+# --error ER_PARSE_ERROR
+# SELECT * FROM ((SELECT 1 a) UNION SELECT 1 a);
+# SELECT * FROM (SELECT 1 a UNION (SELECT 1 a)) alias;
+# SELECT * FROM (SELECT 1 UNION SELECT 1) t1a;
+# --error ER_PARSE_ERROR
+# SELECT * FROM ((SELECT 1 a INTO @a)) t1a;
+# --error ER_PARSE_ERROR
+# SELECT * FROM ((SELECT 1 a INTO OUTFILE 'file' )) t1a;
+# --error ER_PARSE_ERROR
+# SELECT * FROM ((SELECT 1 a INTO DUMPFILE 'file' )) t1a;
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO @a)) t1a;
+# --error ER_PARSE_ERROR
+# SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO DUMPFILE 'file' )) t1a;
+# --error ER_PARSE_ERROR
+# SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO OUTFILE 'file' )) t1a;
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO @a))) t1a;
+# --error ER_PARSE_ERROR
+# SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO DUMPFILE 'file' ))) t1a;
+# --error ER_PARSE_ERROR
+# SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO OUTFILE 'file' ))) t1a;
+# 
+# SELECT * FROM (SELECT 1 a ORDER BY a) t1a;
+# SELECT * FROM (SELECT 1 a UNION SELECT 1 a ORDER BY a) t1a;
+# SELECT * FROM (SELECT 1 a UNION SELECT 1 a LIMIT 1) t1a;
+# SELECT * FROM (SELECT 1 a UNION SELECT 1 a ORDER BY a LIMIT 1) t1a;
+# 
+# # Test of rule
+# # table_factor:  '(' get_select_lex query_expression_body ')' opt_table_alias
+# # UNION should not be allowed inside the parentheses, nor should
+# # aliases after.
+# #
+# SELECT * FROM t1 JOIN  (SELECT 1 UNION SELECT 1) alias ON 1;
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 JOIN ((SELECT 1 UNION SELECT 1)) ON 1;
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 JOIN  (t1 t1a UNION SELECT 1)  ON 1;
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 JOIN ((t1 t1a UNION SELECT 1)) ON 1;
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 JOIN  (t1 t1a)  t1a ON 1;
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 JOIN ((t1 t1a)) t1a ON 1;
+# 
+# SELECT * FROM t1 JOIN  (t1 t1a)  ON 1;
+# SELECT * FROM t1 JOIN ((t1 t1a)) ON 1;
+# 
+# SELECT * FROM (t1 t1a);
+# SELECT * FROM ((t1 t1a));
+# 
+# SELECT * FROM t1 JOIN  (SELECT 1 t1a) alias ON 1;
+# SELECT * FROM t1 JOIN ((SELECT 1 t1a)) alias ON 1;
+# 
+# SELECT * FROM t1 JOIN  (SELECT 1 a)  a ON 1;
+# SELECT * FROM t1 JOIN ((SELECT 1 a)) a ON 1;
+# 
+# # For the join, TABLE_LIST::select_lex == NULL
+# # Check that we handle this.
+# --error ER_PARSE_ERROR
+# SELECT * FROM (t1 JOIN (SELECT 1) t1a1 ON 1) t1a2;
+# 
+# SELECT * FROM t1 WHERE a = ALL ( SELECT 1 );
+# SELECT * FROM t1 WHERE a = ALL ( SELECT 1 UNION SELECT 1 );
+# SELECT * FROM t1 WHERE a = ANY ( SELECT 3 UNION SELECT 1 );
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 INTO @a);
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' );
+# 
+# SELECT * FROM t1 WHERE a = ( SELECT 1 );
+# SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ( SELECT 1 INTO @a);
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ( SELECT 1 INTO OUTFILE 'file' );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ( SELECT 1 INTO DUMPFILE 'file' );
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 INTO @a);
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' );
+# 
+# --error ER_PARSE_ERROR
+# SELECT ( SELECT 1 INTO @v );
+# --error ER_PARSE_ERROR
+# SELECT ( SELECT 1 INTO OUTFILE 'file' );
+# --error ER_PARSE_ERROR
+# SELECT ( SELECT 1 INTO DUMPFILE 'file' );
+# 
+# --error ER_PARSE_ERROR
+# SELECT ( SELECT 1 UNION SELECT 1 INTO @v );
+# --error ER_PARSE_ERROR
+# SELECT ( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' );
+# --error ER_PARSE_ERROR
+# SELECT ( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' );
+# 
+# # Make sure context is popped when we leave the nested select
+# SELECT ( SELECT a FROM t1 WHERE a = 1 ), a FROM t1;
+# SELECT ( SELECT a FROM t1 WHERE a = 1 UNION SELECT 1 ), a FROM t1;
+# 
+# # Make sure we have feature F561 (see .yy file)
+# SELECT * FROM t2 WHERE (a, b) IN (SELECT a, b FROM t2);
+# 
+# # Make sure the parser does not allow nested UNIONs anywhere
+# 
+# --error ER_PARSE_ERROR
+# SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
+# --error ER_PARSE_ERROR
+# ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
+# 
+# --error ER_PARSE_ERROR
+# SELECT ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
+# --error ER_PARSE_ERROR
+# SELECT ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
+# SELECT ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
+# SELECT ((SELECT 1 UNION SELECT 1 UNION SELECT 1));
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
+# --error ER_PARSE_ERROR
+# SELECT * FROM ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 );
+# SELECT * FROM ( SELECT 1 UNION SELECT 1 UNION SELECT 1 ) a;
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a =     ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ALL ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a IN    ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a =     ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ALL ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ANY ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a IN    ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
+# 
+# SELECT * FROM t1 WHERE a =     ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
+# SELECT * FROM t1 WHERE a = ALL ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
+# SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
+# SELECT * FROM t1 WHERE a IN    ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE EXISTS ( SELECT 1 UNION SELECT 1 INTO @v );
+# SELECT EXISTS(SELECT 1+1);
+# --error ER_PARSE_ERROR
+# SELECT EXISTS(SELECT 1+1 INTO @test);
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a IN ( SELECT 1 UNION SELECT 1 INTO @v );
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE EXISTS ( SELECT 1 INTO @v );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a IN ( SELECT 1 INTO @v );
+# DROP TABLE t1, t2;
 #
 # Bug#37460 Assertion failed:
 # !table->file || table->file->inited == handler::NONE
@@ -3605,7 +4129,11 @@ WHERE t1.id=t2.id AND 1 IN (SELECT id FROM t1) WITH CHECK OPTION;
 
 --error ER_VIEW_CHECK_FAILED
 INSERT INTO v2(a,b) VALUES (2,2);
+
+# disabled for now as this refers to old content of t2
+--disable_parsing
 INSERT INTO v2(a,b) VALUES (1,2);
+--enable_parsing
 SELECT * FROM v1;
 
 CREATE VIEW v3 AS
@@ -3616,6 +4144,41 @@ DELETE FROM v3;
 
 DROP VIEW v1,v2,v3;
 DROP TABLE t1,t2;
+
+--echo #
+--echo # BUG#37822 Correlated subquery with IN and IS UNKNOWN provides wrong result
+--echo #
+create table t1(id integer primary key, g integer, v integer, s char(1));
+create table t2(id integer primary key, g integer, v integer, s char(1));
+insert into t1 values
+  (10, 10, 10,   'l'),
+  (20, 20, 20,   'l'),
+  (40, 40, 40,   'l'),
+  (41, 40, null, 'l'),
+  (50, 50, 50,   'l'),
+  (51, 50, null, 'l'),
+  (60, 60, 60,   'l'),
+  (61, 60, null, 'l'),
+  (70, 70, 70,   'l'),
+  (90, 90, null, 'l');
+insert into t2 values
+  (10, 10, 10,   'r'),
+  (30, 30, 30,   'r'),
+  (50, 50, 50,   'r'),
+  (60, 60, 60,   'r'),
+  (61, 60, null, 'r'),
+  (70, 70, 70,   'r'),
+  (71, 70, null, 'r'),
+  (80, 80, 80,   'r'),
+  (81, 80, null, 'r'),
+  (100,100,null, 'r');
+
+select *
+from t1
+where v in(select v
+           from t2
+           where t1.g=t2.g) is unknown;
+drop table t1, t2;
 
 --echo #
 --echo # Bug#37822 Correlated subquery with IN and IS UNKNOWN provides wrong result
@@ -3893,6 +4456,7 @@ SELECT 1 FROM t1 GROUP BY
   (SELECT LAST_INSERT_ID() FROM t1 ORDER BY MIN(a) ASC LIMIT 1);
 DROP TABLE t1;
 
+#Seems to be not needed here: set @@optimizer_switch=@subselect_tmp;
 --echo #
 --echo # Bug #49512 : subquery with aggregate function crash 
 --echo #   subselect_single_select_engine::exec()
@@ -3924,8 +4488,6 @@ WHERE t1.a = d1.a;
 
 DROP TABLE t1;
 
-
---echo End of 5.1 tests.
 
 #
 # Bug #47904 Incorrect results w/ table subquery, derived SQs, and LEFT JOIN on index
@@ -4082,6 +4644,45 @@ SELECT * FROM t1
 
 DROP TABLE t1,t1s,t2s;
 
+--echo # LP BUG#675248 - select->prep_where references on freed memory 
+
+CREATE TABLE t1 (a int, b int);
+insert into t1 values (1,1),(0,0);
+
+CREATE TABLE t2 (c int);
+insert into t2 values (1),(2);
+
+prepare stmt1 from "select sum(a),(select sum(c) from t2 where table1.b) as sub
+from t1 as table1 group by sub";
+
+execute stmt1;
+
+deallocate prepare stmt1;
+
+prepare stmt1 from "select sum(a),(select sum(c) from t2 having table1.b) as sub
+from t1 as table1";
+
+execute stmt1;
+
+deallocate prepare stmt1;
+
+drop table t1,t2;
+
+--echo #
+--echo # Bug LP#693935/#58727: Assertion failure with 
+--echo # a single row subquery returning more than one row
+--echo #
+
+create table t1 (a char(1) charset utf8);
+insert into t1 values ('a'), ('b');
+create table t2 (a binary(1));
+insert into t2 values ('x'), ('y');
+
+-- error ER_SUBQUERY_NO_1_ROW
+select * from t2 where a=(select a from t1) and a='x';
+
+drop table t1,t2;
+
 --echo End of 5.1 tests
 
 --echo #
@@ -4132,4 +4733,1268 @@ INSERT INTO t1 VALUES ('00:00:32');
 SELECT 1 FROM t1 WHERE a >
 (SELECT timestamp(a) AS a FROM t1);
 
+DROP TABLE t1;
+
+--echo #
+--echo # No BUG#, a case brought from 5.2's innodb_mysql_lock.test
+--echo #
+
+create table t1 (i int  not null primary key);
+insert into t1 values (1),(2),(3),(4),(5);
+
+create table t2 (j int not null  primary key);
+insert into t2 values (1),(2),(3),(4),(5);
+
+create table t3 (k int not null primary key);
+insert into t3 values (1),(2),(3);
+
+create view v2 as select t2.j as j from t2 where t2.j in (select t1.i from t1);
+
+select * from t3 where k in (select j from v2);
+
+drop table t1,t2,t3;
+drop view v2;
+
+--echo #
+--echo # Bug#52068: Optimizer generates invalid semijoin materialization plan
+--echo #
+--disable_warnings
+drop table if exists ot1, ot2, it1, it2;
+--enable_warnings
+CREATE TABLE ot1(a INTEGER);
+INSERT INTO ot1 VALUES(5), (8);
+CREATE TABLE it2(a INTEGER);
+INSERT INTO it2 VALUES(9), (5), (1), (8);
+CREATE TABLE it3(a INTEGER);
+INSERT INTO it3 VALUES(7), (1), (0), (5), (1), (4);
+CREATE TABLE ot4(a INTEGER);
+INSERT INTO ot4 VALUES(1), (3), (5), (7), (9), (7), (3), (1);
+
+let $query=
+SELECT * FROM ot1,ot4
+WHERE (ot1.a,ot4.a) IN (SELECT it2.a,it3.a
+                        FROM it2,it3);
+
+eval $query;
+eval explain $query;
+
+DROP TABLE IF EXISTS ot1, ot4, it2, it3;
+
+
+--echo #
+--echo # Bug#729039: NULL keys used to evaluate subquery
+--echo #
+
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (NULL), (1), (NULL), (2);
+
+CREATE TABLE t2 (a int, INDEX idx(a)) ;
+INSERT INTO t2 VALUES (NULL), (1), (NULL);
+
+SELECT * FROM t1
+  WHERE EXISTS (SELECT a FROM t2 USE INDEX () WHERE t2.a = t1.a);
+EXPLAIN
+SELECT * FROM t1
+  WHERE EXISTS (SELECT a FROM t2 USE INDEX() WHERE t2.a = t1.a);
+
+SELECT * FROM t1
+  WHERE EXISTS (SELECT a FROM t2 WHERE t2.a = t1.a);
+EXPLAIN
+SELECT * FROM t1
+  WHERE EXISTS (SELECT a FROM t2 WHERE t2.a = t1.a);
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # BUG#752992: Wrong results for a subquery with 'semijoin=on'
+--echo #
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY, i INTEGER NOT NULL);
+INSERT INTO t1 VALUES (11,0);
+INSERT INTO t1 VALUES (12,5);
+INSERT INTO t1 VALUES (15,0);
+CREATE TABLE t2 (pk INTEGER PRIMARY KEY, i INTEGER NOT NULL);
+INSERT INTO t2 VALUES (11,1);
+INSERT INTO t2 VALUES (12,2);
+INSERT INTO t2 VALUES (15,4);
+
+
+SET @save_join_cache_level=@@join_cache_level;
+SET join_cache_level=0;
+EXPLAIN SELECT * FROM t1 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON 1);
+SELECT * FROM t1 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON 1);
+SET join_cache_level=@save_join_cache_level;
+
+DROP table t1,t2;
+
+--echo #
+--echo # Bug#751350: crash with pushed condition for outer references when
+--echo #             there should be none of such conditions
+--echo #
+
+CREATE TABLE t1 (a int, b int) ;
+INSERT INTO t1 VALUES (0,0),(0,0);
+set @optimizer_switch_save=@@optimizer_switch;
+set @@optimizer_switch='semijoin=off,materialization=on,in_to_exists=on';
+EXPLAIN
+SELECT b FROM t1
+  WHERE ('0') IN ( SELECT a  FROM t1 GROUP BY a )
+    GROUP BY b;
+
+SELECT b FROM t1
+  WHERE ('0') IN ( SELECT a  FROM t1 GROUP BY a )
+    GROUP BY b;
+set @@optimizer_switch=@optimizer_switch_save;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #11765713 58705:
+--echo # OPTIMIZER LET ENGINE DEPEND ON UNINITIALIZED VALUES
+--echo # CREATED BY OPT_SUM_QUERY
+--echo #
+
+CREATE TABLE t1(a INT NOT NULL, KEY (a));
+INSERT INTO t1 VALUES (0), (1);
+
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 as foo FROM t1 WHERE a < SOME
+  (SELECT a FROM t1 WHERE a <=>
+    (SELECT a FROM t1)
+  );
+
+SELECT 1 as foo FROM t1 WHERE a < SOME
+  (SELECT a FROM t1 WHERE a <=>
+    (SELECT a FROM t1 where a is null)
+  ); 
+
+DROP TABLE t1;
+
+#
+# LP BUG#823169 NULLs with ALL/ANY and maxmin optimization
+#
+CREATE TABLE t1 (a int(11), b varchar(1));
+INSERT INTO t1 VALUES (2,NULL),(5,'d'),(7,'g');
+
+SELECT a FROM t1 WHERE b < ANY ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b < ANY ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b > ANY ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b > ANY ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b <= ANY ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b <= ANY ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b >= ANY ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b >= ANY ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b = ANY ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b = ANY ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b <> ANY ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b <> ANY ( SELECT b FROM t1 GROUP BY b );
+
+SELECT a FROM t1 WHERE b < ALL ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b < ALL ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b > ALL ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b > ALL ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b <= ALL ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b <= ALL ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b >= ALL ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b >= ALL ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b = ALL ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b = ALL ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b <> ALL ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b <> ALL ( SELECT b FROM t1 GROUP BY b );
+
+delete from t1;
+INSERT INTO t1 VALUES (2,NULL),(5,'d'),(7,'g');
+
+SELECT a FROM t1 WHERE b < ANY ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b < ANY ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b > ANY ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b > ANY ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b <= ANY ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b <= ANY ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b >= ANY ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b >= ANY ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b = ANY ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b = ANY ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b <> ANY ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b <> ANY ( SELECT b FROM t1 GROUP BY b );
+
+SELECT a FROM t1 WHERE b < ALL ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b < ALL ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b > ALL ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b > ALL ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b <= ALL ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b <= ALL ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b >= ALL ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b >= ALL ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b = ALL ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b = ALL ( SELECT b FROM t1 GROUP BY b );
+SELECT a FROM t1 WHERE b <> ALL ( SELECT b FROM t1 );
+SELECT a FROM t1 WHERE b <> ALL ( SELECT b FROM t1 GROUP BY b );
+
+drop table t1;
+
+--echo #
+--echo # Fix of lp:780386 (NULL left part with empty ALL subquery).
+--echo #
+CREATE TABLE t1 ( f11 int) ;
+INSERT IGNORE INTO t1 VALUES (0),(0);
+
+CREATE TABLE t2 ( f3 int, f10 int, KEY (f10,f3)) ;
+INSERT IGNORE INTO t2 VALUES (NULL,NULL),(5,0);
+
+DROP TABLE IF EXISTS t3;
+CREATE TABLE t3 ( f3 int) ;
+INSERT INTO t3 VALUES (0),(0);
+
+SELECT a1.f3 AS r FROM t2 AS a1 , t1 WHERE a1.f3 < ALL ( SELECT f3 FROM t3 WHERE f3 = 1 ) ;
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#12763207 - ASSERT IN SUBSELECT::SINGLE_VALUE_TRANSFORMER
+--echo #
+
+CREATE TABLE t1(a1 int);
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE TABLE t2(a1 int);
+INSERT INTO t2 VALUES (3);
+
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+
+## All these are subject to the transformation
+## '1 < some (...)' => '1 < max(...)'
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 2 FROM t2);
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 2.0 FROM t2);
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 'a' FROM t2);
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t2);
+
+SET SESSION sql_mode=@old_sql_mode;
+
+DROP TABLE t1, t2;
+
+create table t2(i int);
+insert into t2 values(0);
+
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+
+CREATE VIEW v1 AS  
+SELECT 'f' FROM t2 UNION SELECT 'x' FROM t2
+;
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+SELECT t1.pk
+FROM t1
+WHERE t1.col_varchar_key < ALL ( SELECT * FROM v1 )
+;
+
+SET SESSION sql_mode=@old_sql_mode;
+
+drop table t2, t1;
+drop view v1;
+
+--echo #
+--echo # BUG#50257: Missing info in REF column of the EXPLAIN 
+--echo #            lines for subselects
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, INDEX (a));
+INSERT INTO t1 VALUES (3, 10), (2, 20), (7, 10), (5, 20);
+
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a=7) t;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
+
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#12616253 - WRONG RESULT WITH EXISTS(SUBQUERY) (MISSING ROWS)
+--echo # (duplicate of LP bug #888456)
+--echo #
+
+CREATE TABLE t1 (f1 varchar(1));
+INSERT INTO t1 VALUES ('v'),('s');
+
+CREATE TABLE t2 (f1_key varchar(1), KEY (f1_key));
+INSERT INTO t2 VALUES ('j'),('v'),('c'),('m'),('d'),
+('d'),('y'),('t'),('d'),('s');
+
+EXPLAIN
+SELECT table1.f1, table2.f1_key FROM t1 AS table1, t2 AS table2
+  WHERE EXISTS (SELECT DISTINCT f1_key FROM t2 
+                  WHERE f1_key != table2.f1_key AND f1_key >= table1.f1);
+SELECT table1.f1, table2.f1_key FROM t1 AS table1, t2 AS table2
+  WHERE EXISTS (SELECT DISTINCT f1_key FROM t2 
+                  WHERE f1_key != table2.f1_key AND f1_key >= table1.f1);
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # LP bug 919427: EXPLAIN for a query over a single-row table 
+--echo #                with IN subquery in WHERE condition
+--echo # 
+
+CREATE TABLE ot (
+  col_int_nokey int(11), 
+  col_varchar_nokey varchar(1)
+) ;
+INSERT INTO ot VALUES (1,'x');
+
+CREATE TABLE it1(
+  col_int_key int(11), 
+  col_varchar_key varchar(1), 
+  KEY idx_cvk_cik (col_varchar_key,col_int_key)
+);
+INSERT INTO it1 VALUES (NULL,'x'), (NULL,'f');
+
+CREATE TABLE it2 (
+   col_int_key int(11),
+   col_varchar_key varchar(1),
+   col_varchar_key2 varchar(1),
+   KEY idx_cvk_cvk2_cik (col_varchar_key, col_varchar_key2, col_int_key),
+   KEY idx_cvk_cik (col_varchar_key, col_int_key)
+);
+INSERT INTO it2 VALUES (NULL,'x','x'), (NULL,'f','f');
+
+EXPLAIN
+SELECT col_int_nokey FROM ot 
+  WHERE col_varchar_nokey IN 
+        (SELECT col_varchar_key FROM it1 WHERE col_int_key IS NULL);
+SELECT col_int_nokey FROM ot 
+  WHERE col_varchar_nokey IN 
+        (SELECT col_varchar_key FROM it1 WHERE col_int_key IS NULL);
+
+EXPLAIN
+SELECT col_int_nokey FROM ot
+  WHERE (col_varchar_nokey, 'x') IN
+        (SELECT col_varchar_key, col_varchar_key2 FROM it2);
+SELECT col_int_nokey FROM ot
+  WHERE (col_varchar_nokey, 'x') IN
+        (SELECT col_varchar_key, col_varchar_key2 FROM it2);
+
+DROP TABLE ot,it1,it2;
+
+--echo #
+--echo # MDEV-746
+--echo # Bug#13651009 WRONG RESULT FROM DERIVED TABLE IF THE SUBQUERY
+--echo # HAS AN EMPTY RESULT
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_nokey int NOT NULL,
+  col_int_key int NOT NULL,
+  col_time_key time NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_time_key (col_time_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM;
+
+CREATE TABLE t2 (
+  pk int NOT NULL AUTO_INCREMENT,
+  col_int_nokey int NOT NULL,
+  col_int_key int NOT NULL,
+  col_time_key time NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_time_key (col_time_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (1,4,4,'00:00:00','b','b');
+
+SET @var2:=4, @var3:=8;
+
+--echo
+--echo Testcase without inner subquery
+
+let $subq=
+SELECT @var3:=12, sq4_alias1.*
+FROM t1 AS sq4_alias1
+WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
+      sq4_alias1.col_varchar_key = @var3;
+
+eval EXPLAIN $subq;
+eval $subq;
+SELECT @var3;
+
+# Now as derived table:
+eval EXPLAIN SELECT * FROM ( $subq ) AS alias3;
+eval SELECT * FROM ( $subq ) AS alias3;
+SELECT @var3;
+
+--echo
+--echo Testcase with inner subquery; crashed WL#6095
+SET @var3=8;
+let $subq=
+SELECT sq4_alias1.*
+FROM t1 AS sq4_alias1
+WHERE (sq4_alias1.col_varchar_key , sq4_alias1.col_varchar_nokey)
+      NOT IN
+      (SELECT c_sq1_alias1.col_varchar_key AS c_sq1_field1,
+              c_sq1_alias1.col_varchar_nokey AS c_sq1_field2
+       FROM t2 AS c_sq1_alias1
+       WHERE (c_sq1_alias1.col_int_nokey != @var2
+              OR c_sq1_alias1.pk != @var3));
+
+eval EXPLAIN $subq;
+eval $subq;
+# Now as derived table:
+eval EXPLAIN SELECT * FROM ( $subq ) AS alias3;
+eval SELECT * FROM ( $subq ) AS alias3;
+
+DROP TABLE t1,t2;
+
+--echo End of 5.2 tests
+
+--echo #
+--echo # BUG#779885: Crash in eliminate_item_equal with materialization=on in
+--echo #
+
+CREATE TABLE t1 ( f1 int );
+INSERT INTO t1 VALUES (19), (20);
+
+CREATE TABLE t2 ( f10 varchar(32) );
+INSERT INTO t2 VALUES ('c'),('d');
+
+CREATE TABLE t3 ( f10 varchar(32) );
+INSERT INTO t3 VALUES ('a'),('b');
+
+SELECT *
+FROM t1
+WHERE
+( 't' ) IN (
+        SELECT t3.f10
+        FROM t3
+        JOIN t2
+        ON t2.f10 = t3.f10
+);
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # BUG lp:813473: Wrong result with outer join + NOT IN subquery
+--echo # This bug is a duplicate of Bug#11764086 whose test case is added below
+--echo #
+
+CREATE TABLE t1 (c int) ;
+INSERT INTO t1 VALUES (5),(6);
+
+CREATE TABLE t2 (a int, b int) ;
+INSERT INTO t2 VALUES (20,9),(20,9);
+
+create table t3 (d int, e int);
+insert into t3 values (2, 9), (3,10);
+
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+
+EXPLAIN
+SELECT t2.b , t1.c
+FROM t2 LEFT JOIN t1 ON t1.c < 3
+WHERE (t2.b , t1.c) NOT IN (SELECT * from t3);
+
+SELECT t2.b , t1.c
+FROM t2 LEFT JOIN t1 ON t1.c < 3
+WHERE (t2.b, t1.c) NOT IN (SELECT * from t3);
+
+SET optimizer_switch=@save_optimizer_switch;
+
+drop table t1, t2, t3;
+
+--echo #
+--echo # BUG#50257: Missing info in REF column of the EXPLAIN 
+--echo #            lines for subselects
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, INDEX (a));
+INSERT INTO t1 VALUES (3, 10), (2, 20), (7, 10), (5, 20);
+
+--echo
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a=7) t;
+set optimizer_switch=@tmp_optimizer_switch;
+--echo
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
+
+--echo
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#11764086: Null left operand to NOT IN in WHERE clause
+--echo # behaves differently than real NULL
+--echo #
+
+CREATE TABLE parent (id int);
+INSERT INTO parent VALUES (1), (2);
+
+CREATE TABLE child (parent_id int, other int);
+INSERT INTO child VALUES (1,NULL);
+
+--echo # Offending query (c.parent_id is NULL for null-complemented rows only)
+
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id NOT IN (
+              SELECT parent_id 
+              FROM   child
+              WHERE  parent_id = 3
+          );
+
+--echo # Some syntactic variations with IS FALSE and IS NOT TRUE
+
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id IN (
+              SELECT parent_id 
+              FROM   child
+              WHERE  parent_id = 3
+          ) IS NOT TRUE;
+
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id IN (
+              SELECT parent_id 
+              FROM   child
+              WHERE  parent_id = 3
+          ) IS FALSE;
+
+DROP TABLE parent, child;
+
+--echo # End of test for bug#11764086.
+
+--echo #
+--echo # Bug 11765699 - 58690: !TABLE || (!TABLE->READ_SET || 
+--echo #                BITMAP_IS_SET(TABLE->READ_SET, FIELD_INDEX
+--echo #
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0), (1); 
+
+CREATE TABLE t2(
+  b TEXT, 
+  c INT, 
+  PRIMARY KEY (b(1))
+);
+INSERT INTO t2 VALUES ('a', 2), ('b', 3);
+
+SELECT 1 FROM t1 WHERE a = 
+ (SELECT 1 FROM t2 WHERE b = 
+  (SELECT 1 FROM t1 t11 WHERE c = 1 OR t1.a = 1 AND 1 = 2)
+   ORDER BY b
+ );
+
+SELECT 1 FROM t1 WHERE a = 
+ (SELECT 1 FROM t2 WHERE b = 
+  (SELECT 1 FROM t1 t11 WHERE c = 1 OR t1.a = 1 AND 1 = 2)
+   GROUP BY b
+ );
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#12616253 - WRONG RESULT WITH EXISTS(SUBQUERY) (MISSING ROWS)
+--echo #
+
+CREATE TABLE t1 (f1 varchar(1));
+INSERT INTO t1 VALUES ('v'),('s');
+
+CREATE TABLE t2 (f1_key varchar(1), KEY (f1_key));
+INSERT INTO t2 VALUES ('j'),('v'),('c'),('m'),('d'),
+('d'),('y'),('t'),('d'),('s');
+
+let $query=SELECT table1.f1, table2.f1_key
+FROM t1 AS table1, t2 AS table2
+WHERE EXISTS 
+( 
+SELECT DISTINCT f1_key 
+FROM t2 
+WHERE f1_key != table2.f1_key AND f1_key >= table1.f1 );
+
+eval $query;
+eval explain $query;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # lp:826279: assertion failure with GROUP BY a result of subquery
+--echo #
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (0), (0);
+
+CREATE TABLE t2 (a int, b int, c int);
+INSERT INTO t2 VALUES (10,7,0), (0,7,0);
+
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (10,7), (0,7);
+
+SELECT SUM(DISTINCT b),
+       (SELECT t2.a FROM t1 JOIN t2 ON t2.c != 0
+          WHERE t.a != 0 AND t2.a != 0)
+  FROM (SELECT * FROM t3) AS t
+GROUP BY 2;
+
+SELECT SUM(DISTINCT b), 
+       (SELECT t2.a FROM t1,t2 WHERE t.a != 0 or 1=2 LIMIT 1)
+  FROM (SELECT * FROM t3) AS t
+GROUP BY 2;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug#12329653 
+--echo # EXPLAIN, UNION, PREPARED STATEMENT, CRASH, SQL_FULL_GROUP_BY
+--echo #
+ 
+CREATE TABLE t1(a1 int);
+INSERT INTO t1 VALUES (1),(2);
+ 
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+ 
+## First a simpler query, illustrating the transformation
+## '1 < some (...)' => '1 < max(...)'
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t1);
+ 
+## The query which made the server crash.
+PREPARE stmt FROM 
+'SELECT 1 UNION ALL 
+SELECT 1 FROM t1
+ORDER BY
+(SELECT 1 FROM t1 AS t1_0  
+  WHERE 1 < SOME (SELECT a1 FROM t1)
+)' ;
+ 
+--error ER_SUBQUERY_NO_1_ROW
+EXECUTE stmt ;
+--error ER_SUBQUERY_NO_1_ROW
+EXECUTE stmt ;
+ 
+SET SESSION sql_mode=@old_sql_mode;
+    
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+
+--echo #
+--echo # LP BUG#833777 Performance regression with deeply nested subqueries
+--echo #
+
+create table t1 (a int not null, b char(10) not null);
+insert into t1 values (1, 'a');
+set @@optimizer_switch='in_to_exists=on,semijoin=off,materialization=off,subquery_cache=off';
+select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1 where a in (select a from t1)))))))))))))))))))))))))))));
+set @@optimizer_switch=@subselect_tmp;
+drop table t1;
+
+--echo #
+--echo # LP BUG#894397 Wrong result with in_to_exists, constant table , semijoin=OFF,materialization=OFF
+--echo #
+
+CREATE TABLE t1 (a varchar(3));
+INSERT INTO t1 VALUES ('AAA'),('BBB');
+CREATE TABLE t2 (a varchar(3));
+INSERT INTO t2 VALUES ('CCC');
+set @@optimizer_switch='semijoin=off,materialization=off,in_to_exists=on,subquery_cache=off';
+SELECT * FROM t1 WHERE t1.a IN (SELECT t2.a FROM t2 WHERE t2.a < 'ZZZ');
+set @@optimizer_switch=@subselect_tmp;
+drop table t1, t2;
+
+--echo #
+--echo # LP bug #859375: Assertion `0' failed in st_select_lex_unit::optimize
+--echo # with view , UNION and prepared statement (rewriting fake_select
+--echo # condition).
+--echo #
+
+CREATE TABLE t1 ( f1 int NOT NULL, f4 varchar(1) NOT NULL) ;
+INSERT INTO t1 VALUES (6,'d'),(7,'y');
+
+CREATE TABLE t2 ( f1 int NOT NULL, f2 int NOT NULL) ;
+INSERT INTO t2 VALUES (10,7);
+
+CREATE VIEW v2 AS SELECT * FROM t2;
+
+PREPARE st1 FROM "
+        SELECT *
+        FROM t1
+        LEFT JOIN v2 ON ( v2.f2 = t1.f1 )
+        WHERE v2.f1 NOT IN (
+                SELECT 1 UNION
+                SELECT 247
+        )
+";
+
+EXECUTE st1;
+deallocate prepare st1;
+
+DROP VIEW v2;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # LP bug #887458 Crash in subselect_union_engine::no_rows with
+--echo # double UNION and join_cache_level=3,8
+--echo # (IN/ALL/ANY optimizations should not be applied to fake_select)
+
+CREATE TABLE t2 ( a int, b varchar(1)) ;
+INSERT IGNORE INTO t2 VALUES (8,'y'),(8,'y');
+
+CREATE TABLE t1 ( b varchar(1)) ;
+INSERT IGNORE INTO t1 VALUES (NULL),(NULL);
+
+set @save_join_cache_level=@@join_cache_level;
+SET SESSION join_cache_level=3;
+
+SELECT *
+FROM t1, t2
+WHERE t2.b IN (
+        SELECT 'm' UNION
+        SELECT 'm'
+) OR t1.b <> SOME (
+        SELECT 'v' UNION
+        SELECT 't'
+);
+
+set @@join_cache_level= @save_join_cache_level;
+drop table t1,t2;
+
+
+--echo #
+--echo # LP bug #885162 Got error 124 from storage engine with UNION inside
+--echo # subquery and join_cache_level=3..8
+--echo # (IN/ALL/ANY optimizations should not be applied to fake_select)
+--echo #
+
+CREATE TABLE t1 (
+  f1 varchar(1) DEFAULT NULL
+  );
+INSERT INTO t1 VALUES ('c');
+set @save_join_cache_level=@@join_cache_level;
+SET SESSION join_cache_level=8;
+SELECT * FROM t1 WHERE t1.f1 IN ( SELECT 'k' UNION SELECT 'e' );
+set @@join_cache_level= @save_join_cache_level;
+drop table t1;
+
+
+--echo #
+--echo # LP BUG#747278 incorrect values of the NULL (no rows) single 
+--echo # row subquery requested via element_index() interface
+--echo #
+
+CREATE TABLE t1 (f1a int, f1b int) ;
+INSERT IGNORE INTO t1 VALUES (1,1),(2,2);
+CREATE TABLE t2 ( f2 int);
+INSERT IGNORE INTO t2 VALUES (3),(4);
+CREATE TABLE t3 (f3a int default 1, f3b int default 2);
+INSERT INTO t3 VALUES (1,1),(2,2);
+
+# check different IN with switches where the bug was found
+set @old_optimizer_switch = @@session.optimizer_switch;
+set @@optimizer_switch='materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off,subquery_cache=off,semijoin=off';
+
+SELECT (SELECT f3a FROM t3 where f3a > 3) NOT IN (SELECT f1a FROM t1) FROM t2;
+SELECT (SELECT f3a,f3a  FROM t3 where f3a > 3) NOT IN (SELECT f1a,f1a FROM t1) FROM t2;
+SELECT (SELECT f3a, f3b FROM t3 where f3a > 3) NOT IN (SELECT f1a, f1b FROM t1) FROM t2;
+SELECT (SELECT f3a, f3b FROM t3 where f3a > 3) NOT IN (SELECT f1a, f1b FROM t1);
+SELECT (SELECT f3a FROM t3 where f3a > 3) IN (SELECT f1a FROM t1) FROM t2;
+SELECT (SELECT f3a,f3a  FROM t3 where f3a > 3) IN (SELECT f1a,f1a FROM t1) FROM t2;
+SELECT (SELECT f3a, f3b FROM t3 where f3a > 3) IN (SELECT f1a, f1b FROM t1) FROM t2;
+SELECT (SELECT f3a, f3b FROM t3 where f3a > 3) IN (SELECT f1a, f1b FROM t1);
+
+set @@session.optimizer_switch=@old_optimizer_switch;
+
+# check different IN with default switches
+SELECT (SELECT f3a FROM t3 where f3a > 3) NOT IN (SELECT f1a FROM t1) FROM t2;
+SELECT (SELECT f3a,f3a  FROM t3 where f3a > 3) NOT IN (SELECT f1a,f1a FROM t1) FROM t2;
+SELECT (SELECT f3a, f3b FROM t3 where f3a > 3) NOT IN (SELECT f1a, f1b FROM t1) FROM t2;
+SELECT (SELECT f3a, f3b FROM t3 where f3a > 3) NOT IN (SELECT f1a, f1b FROM t1);
+SELECT (SELECT f3a FROM t3 where f3a > 3) IN (SELECT f1a FROM t1) FROM t2;
+SELECT (SELECT f3a,f3a  FROM t3 where f3a > 3) IN (SELECT f1a,f1a FROM t1) FROM t2;
+SELECT (SELECT f3a, f3b FROM t3 where f3a > 3) IN (SELECT f1a, f1b FROM t1) FROM t2;
+SELECT (SELECT f3a, f3b FROM t3 where f3a > 3) IN (SELECT f1a, f1b FROM t1);
+
+# other row operation with NULL single row subquery also should work
+select (null, null) = (null, null);
+SELECT (SELECT f3a, f3a FROM t3  where f3a > 3) = (0, 0);
+
+drop tables t1,t2,t3;
+
+--echo #
+--echo # LP BUG#825051 Wrong result with date/datetime and subquery with GROUP BY and in_to_exists
+--echo #
+
+CREATE TABLE t1 (a date, KEY (a)) ;
+INSERT INTO t1 VALUES ('2009-01-01'),('2009-02-02');
+set @old_optimizer_switch = @@optimizer_switch;
+SET @@optimizer_switch='semijoin=off,materialization=off,in_to_exists=on,subquery_cache=off';
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a AS field1 FROM t1 GROUP BY field1);
+SELECT * FROM t1 WHERE a IN (SELECT a AS field1 FROM t1 GROUP BY field1);
+SET @@optimizer_switch='semijoin=off,materialization=on,in_to_exists=off,subquery_cache=off';
+EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT a AS field1 FROM t1 GROUP BY field1);
+SELECT * FROM t1 WHERE a IN (SELECT a AS field1 FROM t1 GROUP BY field1);
+set @@optimizer_switch=@old_optimizer_switch;
+drop table t1;
+
+--echo #
+--echo # LP BUG#908269 incorrect condition in case of subqueries depending
+--echo # on constant tables
+--echo #
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (1),(5);
+
+# t2 must be MyISAM or Aria and contain 1 row
+CREATE TABLE t2 ( b INT ) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1);
+
+CREATE TABLE t3 ( c INT );
+INSERT INTO t3 VALUES (4),(5);
+
+SET optimizer_switch='subquery_cache=off';
+
+SELECT ( SELECT b FROM t2 WHERE b = a OR EXISTS ( SELECT c FROM t3 WHERE c = b ) ) FROM t1;
+
+# This query just for example, it should return the same as above (1 and NULL)
+SELECT ( SELECT b FROM t2 WHERE b = a OR b * 0) FROM t1;
+
+# example with "random"
+SELECT ( SELECT b FROM t2 WHERE b = a OR rand() * 0) FROM t1;
+
+drop table t1,t2,t3;
+set optimizer_switch=@subselect_tmp;
+
+--echo #
+--echo # LP BUG#905353 Wrong non-empty result with a constant table,
+--echo # aggregate function in subquery, MyISAM or Aria
+--echo #
+
+CREATE TABLE t1 ( a INT ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+
+SELECT a FROM t1 WHERE ( SELECT MIN(a) = 100 );
+
+drop table t1;
+
+--echo #
+--echo # LP BUG#985667 Wrong result with subquery in SELECT clause, and constant table in 
+--echo # main query and implicit grouping
+--echo #
+
+CREATE TABLE t1 (f1 int) engine=MyISAM;
+INSERT INTO t1 VALUES (7),(8);
+
+CREATE TABLE t2 (f2 int, f3 varchar(1)) engine=MyISAM;
+INSERT INTO t2 VALUES (3,'f');
+
+EXPLAIN
+SELECT COUNT(f1), (SELECT f1 FROM t1 WHERE f2 > 0 limit 1) AS f4 FROM t2, t1 WHERE 'v'= f3;
+SELECT COUNT(f1), (SELECT f1 FROM t1 WHERE f2 > 0 limit 1) AS f4 FROM t2, t1 WHERE 'v'= f3;
+
+EXPLAIN
+SELECT COUNT(f1), exists(SELECT f1 FROM t1 WHERE f2 > 0 limit 1) AS f4 FROM t2, t1 WHERE 'v'= f3;
+SELECT COUNT(f1), exists(SELECT f1 FROM t1 WHERE f2 > 0 limit 1) AS f4 FROM t2, t1 WHERE 'v'= f3;
+
+EXPLAIN
+SELECT COUNT(f1), f2 > ALL (SELECT f1 FROM t1 WHERE f2 > 0) AS f4 FROM t2, t1 WHERE 'v'= f3;
+SELECT COUNT(f1), f2 > ALL (SELECT f1 FROM t1 WHERE f2 > 0) AS f4 FROM t2, t1 WHERE 'v'= f3;
+
+EXPLAIN
+SELECT COUNT(f1), f2 IN (SELECT f1 FROM t1 WHERE f2 > 0) AS f4 FROM t2, t1 WHERE 'v'= f3;
+SELECT COUNT(f1), f2 IN (SELECT f1 FROM t1 WHERE f2 > 0) AS f4 FROM t2, t1 WHERE 'v'= f3;
+
+drop table t1,t2;
+
+--echo #
+--echo # LP BUG#1002079 Server crashes in Item_singlerow_subselect::val_int with constant table,
+--echo # HAVING, UNION in subquery
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (7),(0);
+CREATE TABLE t2 (b INT);
+
+EXPLAIN
+SELECT SUM(a) AS f1, a AS f2 FROM (t1, t2) HAVING f2 >= ALL (SELECT 4 UNION SELECT 5) AND f1 = 7;
+
+SELECT SUM(a) AS f1, a AS f2 FROM (t1, t2) HAVING f2 >= ALL (SELECT 4 UNION SELECT 5) AND f1 = 7;
+
+drop table t1,t2;
+
+--echo #
+--echo # LP BUG#1008686 Server crashes in subselect_union_engine::no_rows on SELECT with impossible
+--echo # WHERE and UNION in HAVING
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(7);
+
+EXPLAIN
+SELECT MIN(a) AS min_a, a FROM t1 WHERE 0 HAVING a NOT IN ( SELECT 2 UNION SELECT 5 ) OR min_a != 1;
+SELECT MIN(a) AS min_a, a FROM t1 WHERE 0 HAVING a NOT IN ( SELECT 2 UNION SELECT 5 ) OR min_a != 1;
+
+EXPLAIN
+SELECT MIN(a) AS min_a, a FROM t1 WHERE 1=2 HAVING a NOT IN ( SELECT a from t1 UNION select a+1 from t1 ) OR min_a != 1;
+SELECT MIN(a) AS min_a, a FROM t1 WHERE 1=2 HAVING a NOT IN ( SELECT a from t1 UNION select a+1 from t1 ) OR min_a != 1;
+
+drop table t1;
+
+--echo #
+--echo # MDEV-367: Different results with and without subquery_cache on
+--echo # a query with a constant NOT IN condition
+--echo #
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2),(3);
+
+set @mdev367_optimizer_switch = @@optimizer_switch;
+
+set optimizer_switch = 'subquery_cache=on';
+SELECT * FROM t1 WHERE ( 3, 3 ) NOT IN ( SELECT NULL, NULL ) OR a > 100;
+SELECT *, ( 3, 3 ) NOT IN ( SELECT NULL, NULL ) FROM t1;
+set optimizer_switch=@mdev367_optimizer_switch;
+ 
+set optimizer_switch = 'subquery_cache=off';
+SELECT * FROM t1 WHERE ( 3, 3 ) NOT IN ( SELECT NULL, NULL ) OR a > 100;
+SELECT *, ( 3, 3 ) NOT IN ( SELECT NULL, NULL ) FROM t1;
+set optimizer_switch=@mdev367_optimizer_switch;
+
+DROP TABLE t1;
+
+--echo #
+--echo # MDEV-521 single value subselect transformation problem
+--echo #
+CREATE TABLE t1 (f1 char(2), PRIMARY KEY (f1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('u1'),('u2');
+
+SELECT a.* FROM t1 a WHERE ( SELECT EXISTS ( SELECT 1 FROM t1 b WHERE b.f1 = a.f1 ) );
+FLUSH TABLES;
+SELECT a.* FROM t1 a WHERE ( SELECT EXISTS ( SELECT 1 FROM t1 b WHERE b.f1 = a.f1 ) );
+
+# Cleanup
+DROP TABLE t1;
+
+--echo # return optimizer switch changed in the beginning of this test
+set optimizer_switch=@subselect_tmp;
+
+--echo #
+--echo # lp:944706 Query with impossible or constant subquery in WHERE or HAVING is not
+--echo # precomputed and thus not part of optimization
+--echo #
+
+CREATE TABLE t1 ( a VARCHAR(16), KEY (a) );
+INSERT INTO t1 VALUES ('Abilene'),('Akron'),('Albany'),('Albuquerque'),('Alexandria'),('Allentown'),
+('Amarillo'),('Anaheim'),('Anchorage'),('Ann Arbor'),('Arden-Arcade');
+
+EXPLAIN
+SELECT MAX( alias2.a ) AS field
+FROM t1 AS alias1, t1 AS alias2, t1 AS alias3
+WHERE alias1.a = alias2.a OR alias1.a = 'y'
+HAVING field>'B' AND ( 'Moscow' ) IN ( SELECT a FROM t1 );
+
+SELECT MAX( alias2.a ) AS field
+FROM t1 AS alias1, t1 AS alias2, t1 AS alias3
+WHERE alias1.a = alias2.a OR alias1.a = 'y'
+HAVING field>'B' AND ( 'Moscow' ) IN ( SELECT a FROM t1 );
+
+EXPLAIN
+SELECT MAX( alias2.a )
+FROM t1 AS alias1, t1 AS alias2, t1 AS alias3
+WHERE alias1.a = alias2.a OR ('Moscow') IN ( SELECT a FROM t1 );
+
+SELECT MAX( alias2.a )
+FROM t1 AS alias1, t1 AS alias2, t1 AS alias3
+WHERE alias1.a = alias2.a OR ('Moscow') IN ( SELECT a FROM t1 );
+
+drop table t1;
+
+--echo #
+--echo # MDEV-277 CHEAP SQ: Server crashes in st_join_table::get_examined_rows
+--echo # with semijoin+materialization, IN and = subqueries
+--echo #
+
+CREATE TABLE t1 (a1 INT);
+INSERT INTO t1 VALUES (4),(6);
+CREATE TABLE t2 (b1 INT);
+INSERT INTO t2 VALUES (1),(7);
+
+EXPLAIN
+SELECT * FROM t1
+WHERE a1 = (SELECT COUNT(*) FROM t1 WHERE a1 IN (SELECT a1 FROM t1, t2));
+
+SELECT * FROM t1
+WHERE a1 = (SELECT COUNT(*) FROM t1 WHERE a1 IN (SELECT a1 FROM t1, t2));
+
+drop table t1, t2;
+
+--echo #
+--echo # MDEV-287 CHEAP SQ: A query with subquery in SELECT list, EXISTS,
+--echo # inner joins takes hundreds times longer
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(7);
+
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (4),(5);
+
+CREATE TABLE t3 (c INT);
+INSERT INTO t3 VALUES (8),(3);
+
+set @@expensive_subquery_limit= 0;
+
+EXPLAIN
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+
+flush status;
+
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+set @@expensive_subquery_limit= default;
+
+EXPLAIN
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+
+flush status;
+
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+drop table t1, t2, t3;
+
+--echo #
+--echo # MDEV-288 CHEAP SQ: Valgrind warnings "Memory lost" with IN and EXISTS nested subquery, materialization+semijoin
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0),(8);
+
+CREATE TABLE t2 (b INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1),(2);
+
+EXPLAIN
+SELECT * FROM t1 WHERE 4 IN (SELECT MAX(b) FROM t2 WHERE EXISTS (SELECT * FROM t1));
+SELECT * FROM t1 WHERE 4 IN (SELECT MAX(b) FROM t2 WHERE EXISTS (SELECT * FROM t1));
+
+drop table t1,t2;
+
+
+--echo #
+--echo # MDEV-410: EXPLAIN shows type=range, while SHOW EXPLAIN and userstat show full table scan is used
+--echo #
+CREATE TABLE t1 (a VARCHAR(3) PRIMARY KEY) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('USA');
+
+CREATE TABLE t2 (b INT, c VARCHAR(52), KEY(b)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (3813,'United States'),(3940,'Russia');
+
+CREATE TABLE t3 (d INT, KEY(d)) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (12),(22),(9),(45);
+
+create table t4 like t3;
+insert into t4 select * from t3;
+
+--echo # This should not show range access for table t2
+explain
+SELECT MIN(b) FROM ( SELECT * FROM t1, t2, t3 WHERE d = b ) AS alias1 
+WHERE SLEEP(0.1) OR c < 'p' OR b = ( SELECT MIN(b) FROM t2 );
+
+set @tmp_mdev410=@@global.userstat;
+set global userstat=on;
+flush table_statistics;
+flush index_statistics;
+
+SELECT MIN(b) FROM ( SELECT * FROM t1, t2, t3 WHERE d = b ) AS alias1 
+WHERE SLEEP(0.1) OR c < 'p' OR b = ( SELECT MIN(b) FROM t2 );
+
+--echo # The following shows that t2 was indeed scanned with a full scan.
+show table_statistics;
+show index_statistics;
+set global userstat=@tmp_mdev410;
+
+DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # MDEV-430: Server crashes in select_describe on EXPLAIN with 
+--echo #    materialization+semijoin, 2 nested subqueries, aggregate functions
+--echo #
+CREATE TABLE t1 (a INT, KEY(a));
+INSERT INTO t1 VALUES (1),(8);
+
+CREATE TABLE t2 (b INT, KEY(b));
+INSERT INTO t2 VALUES (45),(17),(20);
+
+EXPLAIN SELECT * FROM t1 WHERE EXISTS ( SELECT a FROM t1, t2 WHERE b = a GROUP BY a HAVING a <> 1 ) ;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # MDEV-435: Expensive subqueries may be evaluated during optimization in merge_key_fields
+--echo #
+
+CREATE TABLE t1 (a INT, KEY(a)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (8),(0);
+
+CREATE TABLE t2 (b INT, c VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (4,'j'),(6,'v');
+
+CREATE TABLE t3 (d VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t3 VALUES ('b'),('c');
+
+EXPLAIN
+SELECT * FROM t1
+WHERE a = (SELECT MAX(b) FROM t2 WHERE c IN (SELECT MAX(d) FROM t3)) OR a = 10;
+
+SELECT * FROM t1
+WHERE a = (SELECT MAX(b) FROM t2 WHERE c IN (SELECT MAX(d) FROM t3)) OR a = 10;
+
+drop table t1, t2, t3;
+
+
+--echo #
+--echo # MDEV-405: Server crashes in test_if_skip_sort_order on EXPLAIN with GROUP BY and HAVING in EXISTS subquery
+--echo #
+CREATE TABLE t1 (a INT, KEY(a));
+INSERT INTO t1 VALUES (1),(8);
+
+CREATE TABLE t2 (b INT, KEY(b));
+INSERT INTO t2 VALUES (45),(17),(20);
+
+EXPLAIN SELECT * FROM t1 WHERE EXISTS ( SELECT a FROM t1, t2 WHERE b = a GROUP BY a HAVING a <> 1 ) ;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # MDEV-5991: crash in Item_field::used_tables
+--echo #
+create table t1 (c int);
+select exists(select 1 from t1 group by `c` in (select `c` from t1));
+drop table t1;
+
+--echo #
+--echo # MDEV-7565: Server crash with Signal 6 (part 2)
+--echo #
+Select 
+  (Select Sum(`TestCase`.Revenue) From mysql.slow_log E           
+    Where TestCase.TemplateID not in (Select 1 from mysql.slow_log where 2=2)
+  ) As `ControlRev`
+From 
+(Select  3 as Revenue, 4 as TemplateID) As `TestCase` 
+Group By  TestCase.Revenue, TestCase.TemplateID;
+
+--echo #
+--echo # MDEV-7445:Server crash with Signal 6
+--echo #
+
+--delimiter |
+CREATE PROCEDURE procedure2()
+BEGIN
+  Select 
+    (Select Sum(`TestCase`.Revenue) From mysql.slow_log E           
+      Where TestCase.TemplateID not in (Select 1 from mysql.slow_log where 2=2)
+     ) As `ControlRev`
+  From 
+  (Select  3 as Revenue, 4 as TemplateID) As `TestCase` 
+  Group By  TestCase.Revenue, TestCase.TemplateID;
+
+END |
+--delimiter ;
+call procedure2();
+call procedure2();
+
+drop procedure procedure2;
+
+
+SELECT
+  (SELECT user FROM mysql.user
+    WHERE h.host in (SELECT host FROM mysql.user)
+  ) AS sq
+FROM mysql.host h GROUP BY h.host;
+
+
+--echo #
+--echo # MDEV-7846:Server crashes in Item_subselect::fix
+--echo #_fields or fails with Thread stack overrun
+--echo #
+CREATE TABLE t1 (column1 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (3),(9);
+
+CREATE TABLE t2 (column2 INT) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (1),(4);
+
+CREATE TABLE t3 (column3 INT) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (6),(8);
+
+CREATE TABLE t4 (column4 INT) ENGINE=MyISAM;
+INSERT INTO t4 VALUES (2),(5);
+
+
+PREPARE stmt FROM "
+SELECT ( 
+  SELECT MAX( table1.column1 ) AS field1 
+  FROM t1 AS table1
+  WHERE table3.column3 IN ( SELECT table2.column2 AS field2 FROM t2 AS table2 ) 
+) AS sq
+FROM t3 AS table3, t4 AS table4 GROUP BY sq
+";
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+deallocate prepare stmt;
+drop table t1,t2,t3,t4;
+
+--echo # MDEV-7122
+--echo # Assertion `0' failed in subselect_hash_sj_engine::init
+--echo #
+SET SESSION big_tables=1;
+CREATE TABLE t1(a char(255) DEFAULT '', KEY(a(10))) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+INSERT INTO t1 VALUES(0),(0),(0);
+SELECT * FROM t1 WHERE a IN(SELECT MIN(a) FROM t1);
+DROP TABLE t1;
+SET SESSION big_tables=0;
+
+
+--echo #
+--echo # MDEV-10776: Server crash on query
+--echo #
+create table t1 (field1 int);
+
+insert into t1 values (1);
+
+select round((select 1 from t1 limit 1))
+from t1
+group by round((select 1 from t1 limit 1));
+
+drop table t1;
+
+--echo #
+--echo # MDEV-10386 Assertion `fixed == 1' failed in virtual String* Item_func_conv_charset::val_str(String*)
+--echo #
+
+CREATE TABLE t1 (f1 CHAR(3) CHARACTER SET utf8 NULL, f2 CHAR(3) CHARACTER SET latin1 NULL);
+INSERT INTO t1 VALUES ('foo','bar');
+SELECT * FROM t1 WHERE f2 >= SOME ( SELECT f1 FROM t1 );
+SELECT * FROM t1 WHERE f2 <= SOME ( SELECT f1 FROM t1 );
 DROP TABLE t1;

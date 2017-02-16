@@ -1,3 +1,5 @@
+set @subselect_innodb_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 drop table if exists t1,t2,t3;
 CREATE TABLE t1
 (
@@ -253,6 +255,8 @@ INSERT INTO t1 VALUES ('2011-05-13', 0);
 SELECT * FROM t1 WHERE b < (SELECT CAST(a as date) FROM t1 GROUP BY a);
 a	b
 2011-05-13	0
+Warnings:
+Warning	1292	Incorrect datetime value: '0'
 DROP TABLE t1;
 #
 # Bug #11766300  59387: FAILING ASSERTION: CURSOR->POS_STATE == 1997660512 (BTR_PCUR_IS_POSITIONE
@@ -301,7 +305,7 @@ FROM t1
 LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	1	
-2	DEPENDENT SUBQUERY	t2	ref	t1_id,t1_id_position	t1_id_position	5	test.t1.id	1	Using where
+2	DEPENDENT SUBQUERY	t2	ref	t1_id,t1_id_position	t1_id_position	5	test.t1.id	1	Using where; Using index
 SELECT
 (SELECT position FROM t2
 WHERE t2.t1_id = t1.id
@@ -314,3 +318,139 @@ maxkey
 NULL
 DROP TABLE t1,t2;
 End of 5.1 tests
+#
+# lp:827416 Crash in select_describe() on EXPLAIN with DISTINCT in nested subqueries
+#
+CREATE TABLE t3 ( b int) ENGINE=InnoDB;
+CREATE TABLE t2 ( c int) ENGINE=InnoDB;
+CREATE TABLE t1 ( a int NOT NULL , PRIMARY KEY (a)) ENGINE=InnoDB;
+EXPLAIN SELECT *
+FROM t1
+WHERE t1.a = (
+SELECT SUM( c )
+FROM t2
+WHERE (SELECT DISTINCT b FROM t3) > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using temporary
+SELECT *
+FROM t1
+WHERE t1.a = (
+SELECT SUM( c )
+FROM t2
+WHERE (SELECT DISTINCT b FROM t3) > 0);
+a
+DROP TABLE t1, t2, t3;
+#
+# lp:858148 Fourth crash in select_describe() with nested subqueries
+#
+CREATE TABLE t1 ( f1 int(11)) ENGINE=InnoDB;
+CREATE TABLE t2 ( f1 int(11), f2 int(11), PRIMARY KEY (f1)) ;
+CREATE TABLE t3 ( f3 int(11)) ENGINE=InnoDB;
+EXPLAIN
+SELECT MAX( f1 ) FROM t2
+WHERE f2 >= (
+SELECT SUM( f1 )
+FROM t1
+WHERE EXISTS (
+SELECT f3
+FROM t3
+GROUP BY 1
+)
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	
+SELECT MAX( f1 ) FROM t2
+WHERE f2 >= (
+SELECT SUM( f1 )
+FROM t1
+WHERE EXISTS (
+SELECT f3
+FROM t3
+GROUP BY 1
+)
+);
+MAX( f1 )
+NULL
+drop table t1, t2, t3;
+#
+# LP BUG#1006231 crash in select_describe
+#
+create table t1(a1 int) ENGINE=InnoDB;
+insert into t1 values (1);
+explain
+select 1 from t1 where 1 like (select 1 from t1 where 1 <=> (select 1 from t1 group by a1));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	1	
+3	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	1	Using temporary; Using filesort
+select 1 from t1 where 1 like (select 1 from t1 where 1 <=> (select 1 from t1 group by a1));
+1
+1
+drop table t1;
+#
+# MDEV-3988 crash in create_tmp_table
+#
+drop table if exists `t1`,`t2`;
+Warnings:
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
+create table `t1`(`a` char(1) character set utf8)engine=innodb;
+create table `t2`(`b` char(1) character set utf8)engine=memory;
+select distinct (select 1 from `t2` where `a`) `d2` from `t1`;
+d2
+select distinct (select 1 from `t2` where `a`) `d2`, a from `t1`;
+d2	a
+select distinct a, (select 1 from `t2` where `a`) `d2` from `t1`;
+a	d2
+select distinct (1 + (select 1 from `t2` where `a`)) `d2` from `t1`;
+d2
+drop table t1,t2;
+#
+# MDEV-4042: Assertion `table->key_read == 0' fails in close_thread_table on EXPLAIN with GROUP BY and HAVING in EXISTS SQ, 
+# MDEV-4536: ...sql/sql_base.cc:1598: bool close_thread_table(THD*, TABLE**): Assertion `table->key_read == 0' failed.
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE t2 (b INT PRIMARY KEY, c INT) ENGINE=InnoDB;
+CREATE TABLE t3 (d INT) ENGINE=InnoDB;
+EXPLAIN 
+SELECT * FROM t1 WHERE EXISTS ( SELECT b FROM t2, t3 GROUP BY b HAVING b != 3 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	index	NULL	PRIMARY	4	NULL	1	Using index; Using temporary; Using filesort
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (flat, BNL join)
+SELECT * FROM t1 WHERE EXISTS ( SELECT b FROM t2, t3 GROUP BY b HAVING b != 3 );
+a
+DROP TABLE t1,t2,t3;
+CREATE TABLE t1 (
+pk int auto_increment primary key, 
+col_int_key int(11),
+key col_int_key (col_int_key),col_varchar_key varchar(128), 
+key (col_varchar_key)
+) engine=innodb;
+EXPLAIN 
+SELECT 1 FROM t1 AS alias1 
+WHERE EXISTS ( SELECT SQ2_alias1 . col_int_key AS SQ2_field1 
+FROM ( t1 AS SQ2_alias1 RIGHT OUTER JOIN 
+t1 AS SQ2_alias2 ON (SQ2_alias2 . col_int_key = SQ2_alias1 . col_int_key ) 
+) 
+GROUP BY SQ2_field1 
+HAVING SQ2_alias1 . col_int_key >= 7
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	SQ2_alias2	index	NULL	col_int_key	5	NULL	1	Using index; Using temporary; Using filesort
+2	SUBQUERY	SQ2_alias1	ref	col_int_key	col_int_key	5	test.SQ2_alias2.col_int_key	1	Using where; Using index
+SELECT 1 FROM t1 AS alias1 
+WHERE EXISTS ( SELECT SQ2_alias1 . col_int_key AS SQ2_field1 
+FROM ( t1 AS SQ2_alias1 RIGHT OUTER JOIN 
+t1 AS SQ2_alias2 ON (SQ2_alias2 . col_int_key = SQ2_alias1 . col_int_key ) 
+) 
+GROUP BY SQ2_field1 
+HAVING SQ2_alias1 . col_int_key >= 7
+);
+1
+drop table t1;
+set optimizer_switch=@subselect_innodb_tmp;

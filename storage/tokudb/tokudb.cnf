@@ -1,0 +1,15 @@
+[mariadb]
+# See https://mariadb.com/kb/en/how-to-enable-tokudb-in-mariadb/
+# for instructions how to enable TokuDB
+#
+# See https://mariadb.com/kb/en/tokudb-differences/ for differences
+# between TokuDB in MariaDB and TokuDB from http://www.tokutek.com/
+
+# Note, that only one plugin-load option will be recognized by the
+# MariaDB server. If you uncomment the line below, make sure that
+# you don't also have plugin-load options in your other
+# my.cnf files. Otherwise, add ha_tokudb.so to the existing
+# plugin-load option, instead of uncommenting the line below.
+
+#plugin-load=ha_tokudb.so
+

@@ -1,13 +1,9 @@
-#include <mysql/plugin.h>
-#include <mysql/services.h>
-#include <mysql/service_my_snprintf.h>
 extern struct my_snprintf_service_st {
   size_t (*my_snprintf_type)(char*, size_t, const char*, ...);
   size_t (*my_vsnprintf_type)(char *, size_t, const char*, va_list);
 } *my_snprintf_service;
 size_t my_snprintf(char* to, size_t n, const char* fmt, ...);
 size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap);
-#include <mysql/service_thd_alloc.h>
 struct st_mysql_lex_string
 {
   char *str;
@@ -31,7 +27,6 @@ void *thd_memdup(void* thd, const void* str, unsigned int size);
 MYSQL_LEX_STRING *thd_make_lex_string(void* thd, MYSQL_LEX_STRING *lex_str,
                                       const char *str, unsigned int size,
                                       int allocate_lex_string);
-#include <mysql/service_thd_wait.h>
 typedef enum _thd_wait_type_e {
   THD_WAIT_SLEEP= 1,
   THD_WAIT_DISKIO= 2,
@@ -51,7 +46,6 @@ extern struct thd_wait_service_st {
 } *thd_wait_service;
 void thd_wait_begin(void* thd, int wait_type);
 void thd_wait_end(void* thd);
-#include <mysql/service_thread_scheduler.h>
 struct scheduler_functions;
 extern struct my_thread_scheduler_service {
   int (*set)(struct scheduler_functions *scheduler);
@@ -59,6 +53,57 @@ extern struct my_thread_scheduler_service {
 } *my_thread_scheduler_service;
 int my_thread_scheduler_set(struct scheduler_functions *scheduler);
 int my_thread_scheduler_reset();
+extern struct progress_report_service_st {
+  void (*thd_progress_init_func)(void* thd, unsigned int max_stage);
+  void (*thd_progress_report_func)(void* thd,
+                                   unsigned long long progress,
+                                   unsigned long long max_progress);
+  void (*thd_progress_next_stage_func)(void* thd);
+  void (*thd_progress_end_func)(void* thd);
+  const char *(*set_thd_proc_info_func)(void*, const char *info,
+                                        const char *func,
+                                        const char *file,
+                                        unsigned int line);
+} *progress_report_service;
+void thd_progress_init(void* thd, unsigned int max_stage);
+void thd_progress_report(void* thd,
+                         unsigned long long progress,
+                         unsigned long long max_progress);
+void thd_progress_next_stage(void* thd);
+void thd_progress_end(void* thd);
+const char *set_thd_proc_info(void*, const char * info, const char *func,
+                              const char *file, unsigned int line);
+extern void (*debug_sync_C_callback_ptr)(void*, const char *, size_t);
+enum thd_kill_levels {
+  THD_IS_NOT_KILLED=0,
+  THD_ABORT_SOFTLY=50,
+  THD_ABORT_ASAP=100,
+};
+extern struct kill_statement_service_st {
+  enum thd_kill_levels (*thd_kill_level_func)(const void*);
+} *thd_kill_statement_service;
+enum thd_kill_levels thd_kill_level(const void*);
+typedef struct logger_handle_st LOGGER_HANDLE;
+extern struct logger_service_st {
+  void (*logger_init_mutexes)();
+  LOGGER_HANDLE* (*open)(const char *path,
+                         unsigned long long size_limit,
+                         unsigned int rotations);
+  int (*close)(LOGGER_HANDLE *log);
+  int (*vprintf)(LOGGER_HANDLE *log, const char *fmt, va_list argptr);
+  int (*printf)(LOGGER_HANDLE *log, const char *fmt, ...);
+  int (*write)(LOGGER_HANDLE *log, const char *buffer, size_t size);
+  int (*rotate)(LOGGER_HANDLE *log);
+} *logger_service;
+  void logger_init_mutexes();
+  LOGGER_HANDLE *logger_open(const char *path,
+                             unsigned long long size_limit,
+                             unsigned int rotations);
+  int logger_close(LOGGER_HANDLE *log);
+  int logger_vprintf(LOGGER_HANDLE *log, const char *fmt, va_list argptr);
+  int logger_printf(LOGGER_HANDLE *log, const char *fmt, ...);
+  int logger_write(LOGGER_HANDLE *log, const char *buffer, size_t size);
+  int logger_rotate(LOGGER_HANDLE *log);
 struct st_mysql_xid {
   long formatID;
   long gtrid_length;
@@ -68,9 +113,10 @@ struct st_mysql_xid {
 typedef struct st_mysql_xid MYSQL_XID;
 enum enum_mysql_show_type
 {
-  SHOW_UNDEF, SHOW_BOOL, SHOW_INT, SHOW_LONG,
-  SHOW_LONGLONG, SHOW_CHAR, SHOW_CHAR_PTR,
+  SHOW_UNDEF, SHOW_BOOL, SHOW_UINT, SHOW_ULONG,
+  SHOW_ULONGLONG, SHOW_CHAR, SHOW_CHAR_PTR,
   SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE,
+  SHOW_SINT, SHOW_SLONG, SHOW_SLONGLONG,
   SHOW_always_last
 };
 struct st_mysql_show_var {
@@ -103,8 +149,22 @@ struct st_mysql_plugin
   void * __reserved1;
   unsigned long flags;
 };
-#include "plugin_ftparser.h"
-#include "plugin.h"
+struct st_maria_plugin
+{
+  int type;
+  void *info;
+  const char *name;
+  const char *author;
+  const char *descr;
+  int license;
+  int (*init)(void *);
+  int (*deinit)(void *);
+  unsigned int version;
+  struct st_mysql_show_var *status_vars;
+  struct st_mysql_sys_var **system_vars;
+  const char *version_info;
+  unsigned int maturity;
+};
 enum enum_ftparser_mode
 {
   MYSQL_FTPARSER_SIMPLE_MODE= 0,
@@ -132,16 +192,16 @@ typedef struct st_mysql_ftparser_boolean_info
 typedef struct st_mysql_ftparser_param
 {
   int (*mysql_parse)(struct st_mysql_ftparser_param *,
-                     char *doc, int doc_len);
+                     const char *doc, int doc_len);
   int (*mysql_add_word)(struct st_mysql_ftparser_param *,
-                        char *word, int word_len,
+                        const char *word, int word_len,
                         MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info);
   void *ftparser_state;
   void *mysql_ftparam;
-  struct charset_info_st *cs;
-  char *doc;
+  const struct charset_info_st *cs;
+  const char *doc;
   int length;
-  int flags;
+  unsigned int flags;
   enum enum_ftparser_mode mode;
 } MYSQL_FTPARSER_PARAM;
 struct st_mysql_ftparser
@@ -179,7 +239,6 @@ int thd_in_lock_tables(const void* thd);
 int thd_tablespace_op(const void* thd);
 long long thd_test_options(const void* thd, long long test_options);
 int thd_sql_command(const void* thd);
-const char *thd_proc_info(void* thd, const char *info);
 void **thd_ha_data(const void* thd, const struct handlerton *hton);
 void thd_storage_lock_wait(void* thd, long long value);
 int thd_tx_isolation(const void* thd);
@@ -187,7 +246,6 @@ char *thd_security_context(void* thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
 void thd_inc_row_count(void* thd);
 int mysql_tmpfile(const char *prefix);
-int thd_killed(const void* thd);
 unsigned long thd_get_thread_id(const void* thd);
 void thd_get_xid(const void* thd, MYSQL_XID *xid);
 void mysql_query_cache_invalidate4(void* thd,
@@ -196,7 +254,6 @@ void mysql_query_cache_invalidate4(void* thd,
 void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
 void thd_set_ha_data(void* thd, const struct handlerton *hton,
                      const void *ha_data);
-#include <mysql/plugin_auth_common.h>
 typedef struct st_plugin_vio_info
 {
   enum { MYSQL_VIO_INVALID, MYSQL_VIO_TCP, MYSQL_VIO_SOCKET,
@@ -218,8 +275,8 @@ typedef struct st_mysql_server_auth_info
   unsigned int user_name_length;
   const char *auth_string;
   unsigned long auth_string_length;
-  char authenticated_as[48 +1];
-  char external_user[512];
+  char authenticated_as[512 +1];
+  char external_user[512 +1];
   int password_used;
   const char *host_or_ip;
   unsigned int host_or_ip_length;

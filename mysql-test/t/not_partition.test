@@ -1,5 +1,5 @@
 --disable_abort_on_error
-# Run this test only when mysqld don't has partitioning (not compiled with)
+# Run this test only when mysqld doesn't have partitioning (not compiled with)
 # the statements are not expected to work, just check that we
 # can't crash the server
 -- require r/not_partition.require

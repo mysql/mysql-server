@@ -213,6 +213,9 @@ typedef struct st_mysql_cond mysql_cond_t;
 #define mysql_mutex_assert_not_owner(M) \
   safe_mutex_assert_not_owner(&(M)->m_mutex)
 
+#define mysql_mutex_setflags(M, F) \
+  safe_mutex_setflags(&(M)->m_mutex, (F))
+
 /** Wrappers for instrumented prlock objects.  */
 
 #define mysql_prlock_assert_write_owner(M) \
@@ -233,7 +236,7 @@ typedef struct st_mysql_cond mysql_cond_t;
 #ifdef HAVE_PSI_INTERFACE
   #ifdef SAFE_MUTEX
     #define mysql_mutex_init(K, M, A) \
-      inline_mysql_mutex_init(K, M, A, __FILE__, __LINE__)
+      inline_mysql_mutex_init(K, M, A, #M, __FILE__, __LINE__)
   #else
     #define mysql_mutex_init(K, M, A) \
       inline_mysql_mutex_init(K, M, A)
@@ -241,7 +244,7 @@ typedef struct st_mysql_cond mysql_cond_t;
 #else
   #ifdef SAFE_MUTEX
     #define mysql_mutex_init(K, M, A) \
-      inline_mysql_mutex_init(M, A, __FILE__, __LINE__)
+      inline_mysql_mutex_init(M, A, #M, __FILE__, __LINE__)
   #else
     #define mysql_mutex_init(K, M, A) \
       inline_mysql_mutex_init(M, A)
@@ -474,7 +477,7 @@ typedef struct st_mysql_cond mysql_cond_t;
   Instrumented cond_wait.
   @c mysql_cond_wait is a drop-in replacement for @c pthread_cond_wait.
 */
-#ifdef HAVE_PSI_INTERFACE
+#if defined(HAVE_PSI_INTERFACE) || defined(SAFE_MUTEX)
   #define mysql_cond_wait(C, M) \
     inline_mysql_cond_wait(C, M, __FILE__, __LINE__)
 #else
@@ -488,7 +491,7 @@ typedef struct st_mysql_cond mysql_cond_t;
   @c mysql_cond_timedwait is a drop-in replacement
   for @c pthread_cond_timedwait.
 */
-#ifdef HAVE_PSI_INTERFACE
+#if defined(HAVE_PSI_INTERFACE) || defined(SAFE_MUTEX)
   #define mysql_cond_timedwait(C, M, W) \
     inline_mysql_cond_timedwait(C, M, W, __FILE__, __LINE__)
 #else
@@ -555,7 +558,7 @@ static inline int inline_mysql_mutex_init(
   mysql_mutex_t *that,
   const pthread_mutexattr_t *attr
 #ifdef SAFE_MUTEX
-  , const char *src_file, uint src_line
+  , const char *src_name, const char *src_file, uint src_line
 #endif
   )
 {
@@ -566,7 +569,7 @@ static inline int inline_mysql_mutex_init(
   that->m_psi= NULL;
 #endif
 #ifdef SAFE_MUTEX
-  return safe_mutex_init(&that->m_mutex, attr, src_file, src_line);
+  return safe_mutex_init(&that->m_mutex, attr, src_name, src_file, src_line);
 #else
   return pthread_mutex_init(&that->m_mutex, attr);
 #endif
@@ -960,7 +963,7 @@ static inline int inline_mysql_cond_destroy(
 static inline int inline_mysql_cond_wait(
   mysql_cond_t *that,
   mysql_mutex_t *mutex
-#ifdef HAVE_PSI_INTERFACE
+#if defined(HAVE_PSI_INTERFACE) || defined(SAFE_MUTEX)
   , const char *src_file, uint src_line
 #endif
   )
@@ -977,7 +980,11 @@ static inline int inline_mysql_cond_wait(
       PSI_server->start_cond_wait(locker, src_file, src_line);
   }
 #endif
+#ifdef SAFE_MUTEX
+  result= safe_cond_wait(&that->m_cond, &mutex->m_mutex, src_file, src_line);
+#else
   result= pthread_cond_wait(&that->m_cond, &mutex->m_mutex);
+#endif
 #ifdef HAVE_PSI_INTERFACE
   if (likely(locker != NULL))
     PSI_server->end_cond_wait(locker, result);
@@ -989,7 +996,7 @@ static inline int inline_mysql_cond_timedwait(
   mysql_cond_t *that,
   mysql_mutex_t *mutex,
   const struct timespec *abstime
-#ifdef HAVE_PSI_INTERFACE
+#if defined(HAVE_PSI_INTERFACE) || defined(SAFE_MUTEX)
   , const char *src_file, uint src_line
 #endif
   )
@@ -1006,7 +1013,12 @@ static inline int inline_mysql_cond_timedwait(
       PSI_server->start_cond_wait(locker, src_file, src_line);
   }
 #endif
+#ifdef SAFE_MUTEX
+  result= safe_cond_timedwait(&that->m_cond, &mutex->m_mutex, abstime,
+                              src_file, src_line);
+#else
   result= pthread_cond_timedwait(&that->m_cond, &mutex->m_mutex, abstime);
+#endif
 #ifdef HAVE_PSI_INTERFACE
   if (likely(locker != NULL))
     PSI_server->end_cond_wait(locker, result);

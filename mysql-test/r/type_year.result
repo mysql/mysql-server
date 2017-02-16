@@ -357,6 +357,9 @@ c1
 SELECT COUNT(*) AS total_rows, MIN(c1) AS min_value, MAX(c1) FROM t1;
 total_rows	min_value	MAX(c1)
 3	0	2155
+SELECT COUNT(*) AS total_rows, MIN(c1+0) AS min_value, MAX(c1+0) FROM t1;
+total_rows	min_value	MAX(c1+0)
+3	0	2155
 DROP TABLE t1;
 #
 # WL#6219: Deprecate and remove YEAR(2) type
@@ -371,3 +374,23 @@ Note	1287	'YEAR(2)' is deprecated and will be removed in a future release. Pleas
 DROP TABLE t1;
 #
 End of 5.1 tests
+create function y2k() returns int deterministic return 2000;
+create table t1 (a year(2), b int);
+Warnings:
+Note	1287	'YEAR(2)' is deprecated and will be removed in a future release. Please use YEAR(4) instead
+insert t1 values (0,2000);
+select a from t1 where a=2000;
+a
+00
+select a from t1 where a=1000+1000;
+a
+00
+select a from t1 where a=(select 2000 from dual where 1);
+a
+select a from t1 where a=y2k();
+a
+00
+select a from t1 where a=b;
+a
+drop table t1;
+drop function y2k;

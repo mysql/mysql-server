@@ -1,0 +1,16 @@
+install plugin feedback soname 'feedback.so';
+select plugin_status from information_schema.plugins where plugin_name='feedback';
+plugin_status
+ACTIVE
+select * from information_schema.feedback where variable_name like 'feed%'
+       and variable_name not like  '%_uid'
+       and variable_name not like '%debug%';
+VARIABLE_NAME	VARIABLE_VALUE
+FEEDBACK used	1
+FEEDBACK version	1.1
+FEEDBACK_HTTP_PROXY	
+FEEDBACK_SEND_RETRY_WAIT	60
+FEEDBACK_SEND_TIMEOUT	60
+FEEDBACK_URL	http://mariadb.org/feedback_plugin/post
+FEEDBACK_USER_INFO	mysql-test
+uninstall plugin feedback;

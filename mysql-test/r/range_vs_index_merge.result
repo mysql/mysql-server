@@ -1,0 +1,1804 @@
+DROP TABLE IF EXISTS t1,t2,t3,t4;
+DROP DATABASE IF EXISTS world;
+set names utf8;
+CREATE DATABASE world;
+use world;
+CREATE TABLE Country (
+Code char(3) NOT NULL default '',
+Name char(52) NOT NULL default '',
+SurfaceArea float(10,2) NOT NULL default '0.00',
+Population int(11) NOT NULL default '0',
+Capital int(11) default NULL,
+PRIMARY KEY  (Code),
+UNIQUE INDEX (Name)
+);
+CREATE TABLE City (
+ID int(11) NOT NULL auto_increment,
+Name char(35) NOT NULL default '',
+Country char(3) NOT NULL default '',
+Population int(11) NOT NULL default '0',
+PRIMARY KEY  (ID),
+INDEX (Population),
+INDEX (Country) 
+);
+CREATE TABLE CountryLanguage (
+Country char(3) NOT NULL default '',
+Language char(30) NOT NULL default '',
+Percentage float(3,1) NOT NULL default '0.0',
+PRIMARY KEY  (Country, Language),
+INDEX (Percentage)
+);
+SELECT COUNT(*) FROM Country;
+COUNT(*)
+239
+SELECT COUNT(*) FROM City;
+COUNT(*)
+4079
+SELECT COUNT(*) FROM CountryLanguage;
+COUNT(*)
+984
+CREATE INDEX Name ON City(Name);
+set session optimizer_switch='index_merge_sort_intersection=off';
+EXPLAIN
+SELECT * FROM City
+WHERE (Population >= 100000 OR Name LIKE 'P%' OR Population < 100000);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	ALL	Population,Name	NULL	NULL	NULL	4079	Using where
+EXPLAIN
+SELECT * FROM City
+WHERE (Population >= 100000 OR Name LIKE 'P%') AND Country='CAN' OR
+(Population < 100000 OR Name Like 'T%') AND Country='ARG';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Population,Country,Name	Country	3	NULL	104	Using index condition; Using where
+EXPLAIN
+SELECT * FROM City
+WHERE Population < 200000 AND Name LIKE 'P%' AND
+(Population > 300000 OR Name LIKE 'T%') AND
+(Population < 100000 OR Name LIKE 'Pa%');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Population,Name	Name	35	NULL	135	Using index condition; Using where
+EXPLAIN
+SELECT * FROM City
+WHERE Population > 100000 AND Name LIKE 'Aba%' OR
+Country IN ('CAN', 'ARG') AND  ID BETWEEN 120 AND 130 OR
+Country <= 'ALB' AND Name LIKE 'L%' OR
+ID BETWEEN 3807 AND 3810;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	PRIMARY,Population,Country,Name	Name,PRIMARY,Country	35,4,3	NULL	31	Using sort_union(Name,PRIMARY,Country); Using where
+EXPLAIN 
+SELECT * FROM City
+WHERE (Population > 101000 AND Population < 115000);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Population	Population	4	NULL	459	Using index condition
+EXPLAIN 
+SELECT * FROM City
+WHERE (Population > 101000 AND Population < 102000);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Population	Population	4	NULL	39	Using index condition
+EXPLAIN 
+SELECT * FROM City
+WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	Country,Name	Name,Country	35,3	NULL	172	Using sort_union(Name,Country); Using where
+EXPLAIN 
+SELECT * FROM City
+WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
+AND (Population > 101000 AND Population < 115000);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	Population,Country,Name	Name,Country	35,3	NULL	172	Using sort_union(Name,Country); Using where
+EXPLAIN 
+SELECT * FROM City
+WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
+AND (Population > 101000 AND Population < 102000);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Population,Country,Name	Population	4	NULL	39	Using index condition; Using where
+SELECT * FROM City USE INDEX ()
+WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
+AND (Population > 101000 AND Population < 115000);
+ID	Name	Country	Population
+403	Catanduva	BRA	107761
+412	Cachoeirinha	BRA	103240
+636	Bilbays	EGY	113608
+637	Mit Ghamr	EGY	101801
+701	Tarragona	ESP	113016
+702	Lleida (Lérida)	ESP	112207
+703	Jaén	ESP	109247
+704	Ourense (Orense)	ESP	109120
+705	Mataró	ESP	104095
+706	Algeciras	ESP	103106
+707	Marbella	ESP	101144
+759	Gonder	ETH	112249
+869	Cabuyao	PHL	106630
+870	Calapan	PHL	105910
+873	Cauayan	PHL	103952
+1844	Cape Breton	CAN	114733
+1847	Cambridge	CAN	109186
+2908	Cajamarca	PER	108009
+3003	Caen	FRA	113987
+3411	Ceyhan	TUR	102412
+3571	Calabozo	VEN	107146
+3786	Cam Ranh	VNM	114041
+3792	Tartu	EST	101246
+4002	Carrollton	USA	109576
+4027	Cape Coral	USA	102286
+4032	Cambridge	USA	101355
+SELECT * FROM City
+WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
+AND (Population > 101000 AND Population < 115000);
+ID	Name	Country	Population
+403	Catanduva	BRA	107761
+412	Cachoeirinha	BRA	103240
+636	Bilbays	EGY	113608
+637	Mit Ghamr	EGY	101801
+701	Tarragona	ESP	113016
+702	Lleida (Lérida)	ESP	112207
+703	Jaén	ESP	109247
+704	Ourense (Orense)	ESP	109120
+705	Mataró	ESP	104095
+706	Algeciras	ESP	103106
+707	Marbella	ESP	101144
+759	Gonder	ETH	112249
+869	Cabuyao	PHL	106630
+870	Calapan	PHL	105910
+873	Cauayan	PHL	103952
+1844	Cape Breton	CAN	114733
+1847	Cambridge	CAN	109186
+2908	Cajamarca	PER	108009
+3003	Caen	FRA	113987
+3411	Ceyhan	TUR	102412
+3571	Calabozo	VEN	107146
+3786	Cam Ranh	VNM	114041
+3792	Tartu	EST	101246
+4002	Carrollton	USA	109576
+4027	Cape Coral	USA	102286
+4032	Cambridge	USA	101355
+SELECT * FROM City USE INDEX ()
+WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
+AND (Population > 101000 AND Population < 102000);
+ID	Name	Country	Population
+637	Mit Ghamr	EGY	101801
+707	Marbella	ESP	101144
+3792	Tartu	EST	101246
+4032	Cambridge	USA	101355
+SELECT * FROM City
+WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
+AND (Population > 101000 AND Population < 102000);
+ID	Name	Country	Population
+707	Marbella	ESP	101144
+3792	Tartu	EST	101246
+4032	Cambridge	USA	101355
+637	Mit Ghamr	EGY	101801
+EXPLAIN
+SELECT  * FROM City WHERE (Name < 'Ac');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Name	Name	35	NULL	13	Using index condition
+EXPLAIN
+SELECT  * FROM City WHERE (Name < 'Bb');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Name	Name	35	NULL	208	Using index condition
+EXPLAIN
+SELECT  * FROM City WHERE (Country > 'A' AND Country < 'B');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Country	Country	3	NULL	104	Using index condition
+EXPLAIN
+SELECT  * FROM City WHERE (Name BETWEEN 'P' AND 'Pb');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Name	Name	35	NULL	39	Using index condition
+EXPLAIN
+SELECT  * FROM City WHERE (Name BETWEEN 'P' AND 'S');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Name	Name	35	NULL	221	Using index condition
+EXPLAIN
+SELECT  * FROM City WHERE (Population > 101000 AND Population < 110000);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Population	Population	4	NULL	328	Using index condition
+EXPLAIN
+SELECT  * FROM City WHERE (Population > 103000 AND Population < 104000);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Population	Population	4	NULL	37	Using index condition
+EXPLAIN
+SELECT  * FROM City 
+WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
+(Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Population,Country,Name	Name	35	NULL	52	Using index condition; Using where
+EXPLAIN
+SELECT  * FROM City
+WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
+(Name BETWEEN 'P' AND 'S' AND (Population > 103000 AND Population < 104000));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	Population,Country,Name	Name,Population	35,4	NULL	50	Using sort_union(Name,Population); Using where
+EXPLAIN
+SELECT  * FROM City
+WHERE (Name < 'Bb' AND (Country > 'A' AND Country < 'B')) OR
+(Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	Population,Country,Name	Country,Name	3,35	NULL	143	Using sort_union(Country,Name); Using where
+EXPLAIN
+SELECT  * FROM City
+WHERE (Name < 'Bb' AND (Country > 'A' AND Country < 'B')) OR
+(Name BETWEEN 'P' AND 'S' AND (Population > 103000 AND Population < 104000));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	Population,Country,Name	Country,Population	3,4	NULL	141	Using sort_union(Country,Population); Using where
+SELECT  * FROM City USE INDEX ()
+WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
+(Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
+ID	Name	Country	Population
+65	Abu Dhabi	ARE	398695
+168	Pabna	BGD	103277
+189	Parakou	BEN	103577
+750	Paarl	ZAF	105768
+2865	Pak Pattan	PAK	107800
+SELECT  * FROM City 
+WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
+(Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
+ID	Name	Country	Population
+65	Abu Dhabi	ARE	398695
+750	Paarl	ZAF	105768
+168	Pabna	BGD	103277
+2865	Pak Pattan	PAK	107800
+189	Parakou	BEN	103577
+SELECT  * FROM City USE INDEX ()
+WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
+(Name BETWEEN 'P' AND 'S' AND (Population > 103000 AND Population < 104000));
+ID	Name	Country	Population
+65	Abu Dhabi	ARE	398695
+168	Pabna	BGD	103277
+189	Parakou	BEN	103577
+1003	Pemalang	IDN	103500
+2663	Río Bravo	MEX	103901
+SELECT  * FROM City
+WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
+(Name BETWEEN 'P' AND 'S' AND (Population > 103000 AND Population < 104000));
+ID	Name	Country	Population
+65	Abu Dhabi	ARE	398695
+168	Pabna	BGD	103277
+189	Parakou	BEN	103577
+1003	Pemalang	IDN	103500
+2663	Río Bravo	MEX	103901
+SELECT  * FROM City USE INDEX ()
+WHERE (Name < 'Bb' AND (Country > 'A' AND Country < 'B')) OR
+(Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
+ID	Name	Country	Population
+55	Andorra la Vella	AND	21189
+65	Abu Dhabi	ARE	398695
+67	al-Ayn	ARE	225970
+68	Ajman	ARE	114395
+75	Almirante Brown	ARG	538918
+85	Avellaneda	ARG	353046
+96	Bahía Blanca	ARG	239810
+134	Adelaide	AUS	978100
+144	Baku	AZE	1787800
+168	Pabna	BGD	103277
+189	Parakou	BEN	103577
+750	Paarl	ZAF	105768
+2865	Pak Pattan	PAK	107800
+SELECT  * FROM City
+WHERE (Name < 'Bb' AND (Country > 'A' AND Country < 'B')) OR
+(Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
+ID	Name	Country	Population
+55	Andorra la Vella	AND	21189
+65	Abu Dhabi	ARE	398695
+67	al-Ayn	ARE	225970
+68	Ajman	ARE	114395
+75	Almirante Brown	ARG	538918
+85	Avellaneda	ARG	353046
+96	Bahía Blanca	ARG	239810
+134	Adelaide	AUS	978100
+144	Baku	AZE	1787800
+168	Pabna	BGD	103277
+189	Parakou	BEN	103577
+750	Paarl	ZAF	105768
+2865	Pak Pattan	PAK	107800
+SELECT  * FROM City USE INDEX ()
+WHERE (Name < 'Bb' AND (Country > 'A' AND Country < 'B')) OR
+(Name BETWEEN 'P' AND 'S' AND (Population > 103000 AND Population < 104000));
+ID	Name	Country	Population
+55	Andorra la Vella	AND	21189
+65	Abu Dhabi	ARE	398695
+67	al-Ayn	ARE	225970
+68	Ajman	ARE	114395
+75	Almirante Brown	ARG	538918
+85	Avellaneda	ARG	353046
+96	Bahía Blanca	ARG	239810
+134	Adelaide	AUS	978100
+144	Baku	AZE	1787800
+168	Pabna	BGD	103277
+189	Parakou	BEN	103577
+1003	Pemalang	IDN	103500
+2663	Río Bravo	MEX	103901
+SELECT  * FROM City
+WHERE (Name < 'Bb' AND (Country > 'A' AND Country < 'B')) OR
+(Name BETWEEN 'P' AND 'S' AND (Population > 103000 AND Population < 104000));
+ID	Name	Country	Population
+55	Andorra la Vella	AND	21189
+65	Abu Dhabi	ARE	398695
+67	al-Ayn	ARE	225970
+68	Ajman	ARE	114395
+75	Almirante Brown	ARG	538918
+85	Avellaneda	ARG	353046
+96	Bahía Blanca	ARG	239810
+134	Adelaide	AUS	978100
+144	Baku	AZE	1787800
+168	Pabna	BGD	103277
+189	Parakou	BEN	103577
+1003	Pemalang	IDN	103500
+2663	Río Bravo	MEX	103901
+EXPLAIN
+SELECT * FROM City WHERE (ID < 10) OR (ID BETWEEN 100 AND 110);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	21	Using index condition; Using where
+EXPLAIN
+SELECT * FROM City WHERE (ID < 200) OR (ID BETWEEN 100 AND 200);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	201	Using index condition; Using where
+EXPLAIN
+SELECT * FROM City WHERE (ID < 600) OR (ID BETWEEN 900 AND 1500);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	ALL	PRIMARY	NULL	NULL	NULL	4079	Using where
+EXPLAIN
+SELECT * FROM City WHERE Country > 'A' AND Country < 'ARG';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Country	Country	3	NULL	19	Using index condition
+EXPLAIN
+SELECT * FROM City WHERE Name LIKE 'H%' OR Name LIKE 'P%' ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Name	Name	35	NULL	222	Using index condition; Using where
+EXPLAIN
+SELECT * FROM City WHERE Name LIKE 'Ha%' OR Name LIKE 'Pa%' ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Name	Name	35	NULL	72	Using index condition; Using where
+EXPLAIN
+SELECT * FROM City
+WHERE ((ID < 10) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
+OR ((ID BETWEEN 100 AND 110) AND 
+(Name LIKE 'P%' OR (Population > 103000 AND Population < 104000)));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	PRIMARY,Population,Country,Name	PRIMARY	4	NULL	21	Using index condition; Using where
+EXPLAIN
+SELECT * FROM City
+WHERE ((ID < 800) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
+OR ((ID BETWEEN 900 AND 1500) AND 
+(Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	PRIMARY,Population,Country,Name	Name,Country,Population	35,3,4	NULL	128	Using sort_union(Name,Country,Population); Using where
+EXPLAIN
+SELECT * FROM City
+WHERE ((ID < 200) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
+OR ((ID BETWEEN 100 AND 200) AND 
+(Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	PRIMARY,Population,Country,Name	Name,Country,Population	35,3,4	NULL	128	Using sort_union(Name,Country,Population); Using where
+SELECT * FROM City USE INDEX ()
+WHERE ((ID < 10) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
+OR ((ID BETWEEN 100 AND 110) AND 
+(Name LIKE 'P%' OR (Population > 103000 AND Population < 104000)));
+ID	Name	Country	Population
+1	Kabul	AFG	1780000
+2	Qandahar	AFG	237500
+3	Herat	AFG	186800
+4	Mazar-e-Sharif	AFG	127800
+7	Haag	NLD	440900
+100	Paraná	ARG	207041
+102	Posadas	ARG	201273
+SELECT * FROM City
+WHERE ((ID < 10) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
+OR ((ID BETWEEN 100 AND 110) AND 
+(Name LIKE 'P%' OR (Population > 103000 AND Population < 104000)));
+ID	Name	Country	Population
+1	Kabul	AFG	1780000
+2	Qandahar	AFG	237500
+3	Herat	AFG	186800
+4	Mazar-e-Sharif	AFG	127800
+7	Haag	NLD	440900
+100	Paraná	ARG	207041
+102	Posadas	ARG	201273
+SELECT * FROM City USE INDEX()
+WHERE ((ID < 800) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
+OR ((ID BETWEEN 900 AND 1500) AND 
+(Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
+ID	Name	Country	Population
+1	Kabul	AFG	1780000
+2	Qandahar	AFG	237500
+3	Herat	AFG	186800
+4	Mazar-e-Sharif	AFG	127800
+7	Haag	NLD	440900
+16	Haarlem	NLD	148772
+25	Haarlemmermeer	NLD	110722
+33	Willemstad	ANT	2345
+34	Tirana	ALB	270000
+55	Andorra la Vella	AND	21189
+56	Luanda	AGO	2022000
+57	Huambo	AGO	163100
+58	Lobito	AGO	130000
+59	Benguela	AGO	128300
+60	Namibe	AGO	118200
+61	South Hill	AIA	961
+62	The Valley	AIA	595
+64	Dubai	ARE	669181
+65	Abu Dhabi	ARE	398695
+66	Sharja	ARE	320095
+67	al-Ayn	ARE	225970
+68	Ajman	ARE	114395
+129	Oranjestad	ABW	29034
+191	Hamilton	BMU	1200
+528	Hartlepool	GBR	92000
+529	Halifax	GBR	91069
+914	Sekondi-Takoradi	GHA	103653
+943	Palembang	IDN	1222764
+950	Padang	IDN	534474
+983	Palu	IDN	142800
+984	Pasuruan	IDN	134019
+991	Pangkal Pinang	IDN	124000
+1003	Pemalang	IDN	103500
+1004	Klaten	IDN	103300
+1007	Palangka Raya	IDN	99693
+1020	Padang Sidempuan	IDN	91200
+1045	Patna	IND	917243
+1114	Panihati	IND	275990
+1129	Patiala	IND	238368
+1142	Panipat	IND	215218
+1159	Parbhani	IND	190255
+1231	Pali	IND	136842
+1263	Pathankot	IND	123930
+1265	Palghat (Palakkad)	IND	123289
+1293	Pallavaram	IND	111866
+1319	Tellicherry (Thalassery)	IND	103579
+1339	Palayankottai	IND	97662
+1345	Patan	IND	96109
+1436	Marv Dasht	IRN	103579
+1468	Palermo	ITA	683794
+1478	Padova	ITA	211391
+1484	Parma	ITA	168717
+SELECT * FROM City
+WHERE ((ID < 800) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
+OR ((ID BETWEEN 900 AND 1500) AND 
+(Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
+ID	Name	Country	Population
+1	Kabul	AFG	1780000
+2	Qandahar	AFG	237500
+3	Herat	AFG	186800
+4	Mazar-e-Sharif	AFG	127800
+7	Haag	NLD	440900
+16	Haarlem	NLD	148772
+25	Haarlemmermeer	NLD	110722
+33	Willemstad	ANT	2345
+34	Tirana	ALB	270000
+55	Andorra la Vella	AND	21189
+56	Luanda	AGO	2022000
+57	Huambo	AGO	163100
+58	Lobito	AGO	130000
+59	Benguela	AGO	128300
+60	Namibe	AGO	118200
+61	South Hill	AIA	961
+62	The Valley	AIA	595
+64	Dubai	ARE	669181
+65	Abu Dhabi	ARE	398695
+66	Sharja	ARE	320095
+67	al-Ayn	ARE	225970
+68	Ajman	ARE	114395
+129	Oranjestad	ABW	29034
+191	Hamilton	BMU	1200
+528	Hartlepool	GBR	92000
+529	Halifax	GBR	91069
+914	Sekondi-Takoradi	GHA	103653
+943	Palembang	IDN	1222764
+950	Padang	IDN	534474
+983	Palu	IDN	142800
+984	Pasuruan	IDN	134019
+991	Pangkal Pinang	IDN	124000
+1003	Pemalang	IDN	103500
+1004	Klaten	IDN	103300
+1007	Palangka Raya	IDN	99693
+1020	Padang Sidempuan	IDN	91200
+1045	Patna	IND	917243
+1114	Panihati	IND	275990
+1129	Patiala	IND	238368
+1142	Panipat	IND	215218
+1159	Parbhani	IND	190255
+1231	Pali	IND	136842
+1263	Pathankot	IND	123930
+1265	Palghat (Palakkad)	IND	123289
+1293	Pallavaram	IND	111866
+1319	Tellicherry (Thalassery)	IND	103579
+1339	Palayankottai	IND	97662
+1345	Patan	IND	96109
+1436	Marv Dasht	IRN	103579
+1468	Palermo	ITA	683794
+1478	Padova	ITA	211391
+1484	Parma	ITA	168717
+SELECT * FROM City USE INDEX ()
+WHERE ((ID < 200) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
+OR ((ID BETWEEN 100 AND 200) AND 
+(Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
+ID	Name	Country	Population
+1	Kabul	AFG	1780000
+2	Qandahar	AFG	237500
+3	Herat	AFG	186800
+4	Mazar-e-Sharif	AFG	127800
+7	Haag	NLD	440900
+16	Haarlem	NLD	148772
+25	Haarlemmermeer	NLD	110722
+33	Willemstad	ANT	2345
+34	Tirana	ALB	270000
+55	Andorra la Vella	AND	21189
+56	Luanda	AGO	2022000
+57	Huambo	AGO	163100
+58	Lobito	AGO	130000
+59	Benguela	AGO	128300
+60	Namibe	AGO	118200
+61	South Hill	AIA	961
+62	The Valley	AIA	595
+64	Dubai	ARE	669181
+65	Abu Dhabi	ARE	398695
+66	Sharja	ARE	320095
+67	al-Ayn	ARE	225970
+68	Ajman	ARE	114395
+100	Paraná	ARG	207041
+129	Oranjestad	ABW	29034
+167	Jamalpur	BGD	103556
+168	Pabna	BGD	103277
+189	Parakou	BEN	103577
+191	Hamilton	BMU	1200
+SELECT * FROM City
+WHERE ((ID < 200) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
+OR ((ID BETWEEN 100 AND 200) AND 
+(Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
+ID	Name	Country	Population
+1	Kabul	AFG	1780000
+2	Qandahar	AFG	237500
+3	Herat	AFG	186800
+4	Mazar-e-Sharif	AFG	127800
+7	Haag	NLD	440900
+16	Haarlem	NLD	148772
+25	Haarlemmermeer	NLD	110722
+33	Willemstad	ANT	2345
+34	Tirana	ALB	270000
+55	Andorra la Vella	AND	21189
+56	Luanda	AGO	2022000
+57	Huambo	AGO	163100
+58	Lobito	AGO	130000
+59	Benguela	AGO	128300
+60	Namibe	AGO	118200
+61	South Hill	AIA	961
+62	The Valley	AIA	595
+64	Dubai	ARE	669181
+65	Abu Dhabi	ARE	398695
+66	Sharja	ARE	320095
+67	al-Ayn	ARE	225970
+68	Ajman	ARE	114395
+100	Paraná	ARG	207041
+129	Oranjestad	ABW	29034
+167	Jamalpur	BGD	103556
+168	Pabna	BGD	103277
+189	Parakou	BEN	103577
+191	Hamilton	BMU	1200
+EXPLAIN 
+SELECT * FROM City WHERE Population > 101000 AND Population < 102000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Population	Population	4	NULL	39	Using index condition
+EXPLAIN 
+SELECT * FROM City WHERE Population > 101000 AND Population < 110000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Population	Population	4	NULL	328	Using index condition
+EXPLAIN 
+SELECT * FROM City WHERE Country < 'C';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Country	Country	3	NULL	436	Using index condition
+EXPLAIN 
+SELECT * FROM City WHERE Country < 'AGO';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Country	Country	3	NULL	6	Using index condition
+EXPLAIN 
+SELECT * FROM City WHERE Name BETWEEN 'P' AND 'S';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Name	Name	35	NULL	221	Using index condition
+EXPLAIN 
+SELECT * FROM City WHERE Name BETWEEN 'P' AND 'Pb';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Name	Name	35	NULL	39	Using index condition
+EXPLAIN 
+SELECT * FROM City WHERE ID BETWEEN 3400 AND 3800;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	401	Using index condition
+EXPLAIN 
+SELECT * FROM City WHERE ID BETWEEN 3790 AND 3800;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition
+EXPLAIN 
+SELECT * FROM City WHERE Name LIKE 'P%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Name	Name	35	NULL	135	Using index condition
+EXPLAIN
+SELECT * FROM City
+WHERE ((Population > 101000 AND Population < 102000) AND
+(Country < 'C' OR Name BETWEEN 'P' AND 'S')) OR
+((ID BETWEEN 3400 AND 3800) AND 
+(Country < 'AGO' OR Name LIKE 'Pa%'));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	PRIMARY,Population,Country,Name	Country,Name,Population	3,35,4	NULL	84	Using sort_union(Country,Name,Population); Using where
+EXPLAIN
+SELECT * FROM City
+WHERE ((Population > 101000 AND Population < 110000) AND
+(Country < 'AGO' OR Name BETWEEN 'P' AND 'Pb')) OR
+((ID BETWEEN 3790 AND 3800) AND 
+(Country < 'C' OR Name LIKE 'P%'));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	PRIMARY,Population,Country,Name	Country,Name,PRIMARY	3,35,4	NULL	56	Using sort_union(Country,Name,PRIMARY); Using where
+SELECT * FROM City USE INDEX ()
+WHERE ((Population > 101000 AND Population < 102000) AND
+(Country < 'C' OR Name BETWEEN 'P' AND 'S')) OR
+((ID BETWEEN 3400 AND 3800) AND 
+(Country < 'AGO' OR Name LIKE 'Pa%'));
+ID	Name	Country	Population
+169	Naogaon	BGD	101266
+205	Francistown	BWA	101805
+417	Itaituba	BRA	101320
+418	Araras	BRA	101046
+751	Potchefstroom	ZAF	101817
+2909	Puno	PER	101578
+3463	Pavlograd	UKR	127000
+SELECT * FROM City
+WHERE ((Population > 101000 AND Population < 102000) AND
+(Country < 'C' OR Name BETWEEN 'P' AND 'S')) OR
+((ID BETWEEN 3400 AND 3800) AND 
+(Country < 'AGO' OR Name LIKE 'Pa%'));
+ID	Name	Country	Population
+169	Naogaon	BGD	101266
+205	Francistown	BWA	101805
+417	Itaituba	BRA	101320
+418	Araras	BRA	101046
+751	Potchefstroom	ZAF	101817
+2909	Puno	PER	101578
+3463	Pavlograd	UKR	127000
+SELECT * FROM City USE INDEX ()
+WHERE ((Population > 101000 AND Population < 110000) AND
+(Country < 'AGO' OR Name BETWEEN 'P' AND 'Pb')) OR
+((ID BETWEEN 3790 AND 3800) AND 
+(Country < 'C' OR Name LIKE 'P%'));
+ID	Name	Country	Population
+168	Pabna	BGD	103277
+189	Parakou	BEN	103577
+750	Paarl	ZAF	105768
+2865	Pak Pattan	PAK	107800
+3797	Philadelphia	USA	1517550
+3798	Phoenix	USA	1321045
+SELECT * FROM City
+WHERE ((Population > 101000 AND Population < 110000) AND
+(Country < 'AGO' OR Name BETWEEN 'P' AND 'Pb')) OR
+((ID BETWEEN 3790 AND 3800) AND 
+(Country < 'C' OR Name LIKE 'P%'));
+ID	Name	Country	Population
+168	Pabna	BGD	103277
+189	Parakou	BEN	103577
+750	Paarl	ZAF	105768
+2865	Pak Pattan	PAK	107800
+3797	Philadelphia	USA	1517550
+3798	Phoenix	USA	1321045
+CREATE INDEX CountryPopulation ON City(Country,Population);
+EXPLAIN
+SELECT * FROM City WHERE Name LIKE 'Pas%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Name	Name	35	NULL	5	Using index condition
+EXPLAIN
+SELECT * FROM City WHERE Name LIKE 'P%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Name	Name	35	NULL	135	Using index condition
+EXPLAIN
+SELECT * FROM City WHERE (Population > 101000 AND Population < 103000);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Population	Population	4	NULL	81	Using index condition
+EXPLAIN
+SELECT * FROM City WHERE Country='USA';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	ref	Country,CountryPopulation	Country	3	const	267	Using index condition
+EXPLAIN
+SELECT * FROM City WHERE Country='FIN';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	ref	Country,CountryPopulation	Country	3	const	6	Using index condition
+EXPLAIN
+SELECT * FROM City 
+WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'Pas%')
+AND Country='USA';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	Population,Country,Name,CountryPopulation	CountryPopulation,Name	7,35	NULL	15	Using sort_union(CountryPopulation,Name); Using where
+EXPLAIN
+SELECT * FROM City 
+WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'P%')
+AND Country='FIN';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	ref	Population,Country,Name,CountryPopulation	Country	3	const	6	Using index condition; Using where
+SELECT * FROM City 
+WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'Pas%')
+AND Country='USA';
+ID	Name	Country	Population
+3943	Pasadena	USA	141674
+3953	Pasadena	USA	133936
+4023	Gary	USA	102746
+4024	Berkeley	USA	102743
+4025	Santa Clara	USA	102361
+4026	Green Bay	USA	102313
+4027	Cape Coral	USA	102286
+4028	Arvada	USA	102153
+4029	Pueblo	USA	102121
+4030	Sandy	USA	101853
+4031	Athens-Clarke County	USA	101489
+4032	Cambridge	USA	101355
+SELECT * FROM City USE INDEX ()
+WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'Pas%')
+AND Country='USA';
+ID	Name	Country	Population
+3943	Pasadena	USA	141674
+3953	Pasadena	USA	133936
+4023	Gary	USA	102746
+4024	Berkeley	USA	102743
+4025	Santa Clara	USA	102361
+4026	Green Bay	USA	102313
+4027	Cape Coral	USA	102286
+4028	Arvada	USA	102153
+4029	Pueblo	USA	102121
+4030	Sandy	USA	101853
+4031	Athens-Clarke County	USA	101489
+4032	Cambridge	USA	101355
+SELECT * FROM City 
+WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'P%')
+AND Country='FIN';
+ID	Name	Country	Population
+SELECT * FROM City USE INDEX ()
+WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'P%')
+AND Country='FIN';
+ID	Name	Country	Population
+CREATE INDEX CountryName ON City(Country,Name);
+EXPLAIN
+SELECT * FROM City WHERE Country='USA';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	ref	Country,CountryPopulation,CountryName	Country	3	const	267	Using index condition
+EXPLAIN
+SELECT * FROM City WHERE Country='FIN';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	ref	Country,CountryPopulation,CountryName	CountryName	3	const	5	Using index condition
+EXPLAIN
+SELECT * FROM City WHERE Country='BRA';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	ref	Country,CountryPopulation,CountryName	CountryName	3	const	221	Using index condition
+EXPLAIN
+SELECT * FROM City WHERE ID BETWEEN 3790 AND 3800;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition
+EXPLAIN
+SELECT * FROM City WHERE ID BETWEEN 4025 AND 4035;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition
+EXPLAIN
+SELECT * FROM City WHERE ID BETWEEN 4028 AND 4032;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	5	Using index condition
+EXPLAIN
+SELECT * FROM City WHERE ID BETWEEN 3500 AND 3800;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	301	Using index condition
+EXPLAIN
+SELECT * FROM City WHERE ID BETWEEN 4000 AND 4300;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	80	Using index condition
+EXPLAIN
+SELECT * FROM City WHERE ID BETWEEN 250 and 260 ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition
+EXPLAIN
+SELECT * FROM City WHERE (Population > 101000 AND Population < 102000);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Population	Population	4	NULL	39	Using index condition
+EXPLAIN
+SELECT * FROM City WHERE (Population > 101000 AND Population < 103000);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Population	Population	4	NULL	81	Using index condition
+EXPLAIN
+SELECT * FROM City WHERE Name LIKE 'Pa%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Name	Name	35	NULL	41	Using index condition
+EXPLAIN
+SELECT * FROM City
+WHERE ((Population > 101000 AND Population < 102000) OR
+ID BETWEEN 3790 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pa%' OR ID BETWEEN 4025 AND 4035);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	PRIMARY,Population,Country,Name,CountryPopulation,CountryName	CountryPopulation,PRIMARY	7,4	NULL	14	Using sort_union(CountryPopulation,PRIMARY); Using where
+EXPLAIN
+SELECT * FROM City
+WHERE ((Population > 101000 AND Population < 103000) OR
+ID BETWEEN 3790 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pa%' OR ID BETWEEN 4028 AND 4032);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	PRIMARY,Population,Country,Name,CountryPopulation,CountryName	CountryName,PRIMARY	38,4	NULL	11	Using sort_union(CountryName,PRIMARY); Using where
+EXPLAIN
+SELECT * FROM City
+WHERE ((Population > 101000 AND Population < 110000) OR
+ID BETWEEN 3500 AND 3800) AND Country='FIN'
+        AND (Name BETWEEN 'P' AND 'T' OR ID BETWEEN 4000 AND 4300);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	ref	PRIMARY,Population,Country,Name,CountryPopulation,CountryName	CountryName	3	const	5	Using index condition; Using where
+SELECT * FROM City USE INDEX ()
+WHERE ((Population > 101000 AND Population < 102000) OR
+ID BETWEEN 3790 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pa%' OR ID BETWEEN 4025 AND 4035);
+ID	Name	Country	Population
+4030	Sandy	USA	101853
+4031	Athens-Clarke County	USA	101489
+4032	Cambridge	USA	101355
+SELECT * FROM City
+WHERE ((Population > 101000 AND Population < 102000) OR
+ID BETWEEN 3790 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pa%' OR ID BETWEEN 4025 AND 4035);
+ID	Name	Country	Population
+4030	Sandy	USA	101853
+4031	Athens-Clarke County	USA	101489
+4032	Cambridge	USA	101355
+SELECT * FROM City USE INDEX ()
+WHERE ((Population > 101000 AND Population < 102000) OR
+ID BETWEEN 3790 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pa%' OR ID BETWEEN 4028 AND 4032);
+ID	Name	Country	Population
+4030	Sandy	USA	101853
+4031	Athens-Clarke County	USA	101489
+4032	Cambridge	USA	101355
+SELECT * FROM City
+WHERE ((Population > 101000 AND Population < 102000) OR
+ID BETWEEN 3790 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pa%' OR ID BETWEEN 4028 AND 4032);
+ID	Name	Country	Population
+4030	Sandy	USA	101853
+4031	Athens-Clarke County	USA	101489
+4032	Cambridge	USA	101355
+SELECT * FROM City USE INDEX ()
+WHERE ((Population > 101000 AND Population < 102000) OR
+ID BETWEEN 3790 AND 3800) AND Country='FIN'
+        AND (Name LIKE 'Pa%' OR ID BETWEEN 4025 AND 4035);
+ID	Name	Country	Population
+SELECT * FROM City
+WHERE ((Population > 101000 AND Population < 102000) OR
+ID BETWEEN 3790 AND 3800) AND Country='FIN'
+        AND (Name LIKE 'Pa%' OR ID BETWEEN 4025 AND 4035);
+ID	Name	Country	Population
+EXPLAIN
+SELECT * FROM City
+WHERE ((Population > 101000 and Population < 102000) OR
+ID BETWEEN 3790 AND 3800) AND Country='USA'
+        OR (Name LIKE 'Pa%' OR ID BETWEEN 250 AND 260) AND Country='BRA';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	PRIMARY,Population,Country,Name,CountryPopulation,CountryName	CountryPopulation,PRIMARY,CountryName	7,4,38	NULL	35	Using sort_union(CountryPopulation,PRIMARY,CountryName); Using where
+SELECT * FROM City USE INDEX ()
+WHERE ((Population > 101000 and Population < 102000) OR
+ID BETWEEN 3790 AND 3800) AND Country='USA'
+        OR (Name LIKE 'Pa%' OR ID BETWEEN 250 AND 260) AND Country='BRA';
+ID	Name	Country	Population
+250	Mauá	BRA	375055
+251	Carapicuíba	BRA	357552
+252	Olinda	BRA	354732
+253	Campina Grande	BRA	352497
+254	São José do Rio Preto	BRA	351944
+255	Caxias do Sul	BRA	349581
+256	Moji das Cruzes	BRA	339194
+257	Diadema	BRA	335078
+258	Aparecida de Goiânia	BRA	324662
+259	Piracicaba	BRA	319104
+260	Cariacica	BRA	319033
+285	Paulista	BRA	248473
+339	Passo Fundo	BRA	166343
+364	Parnaíba	BRA	129756
+372	Paranaguá	BRA	126076
+379	Palmas	BRA	121919
+386	Patos de Minas	BRA	119262
+424	Passos	BRA	98570
+430	Paulo Afonso	BRA	97291
+435	Parnamirim	BRA	96210
+448	Patos	BRA	90519
+451	Palhoça	BRA	89465
+3793	New York	USA	8008278
+3794	Los Angeles	USA	3694820
+3795	Chicago	USA	2896016
+3796	Houston	USA	1953631
+3797	Philadelphia	USA	1517550
+3798	Phoenix	USA	1321045
+3799	San Diego	USA	1223400
+3800	Dallas	USA	1188580
+4030	Sandy	USA	101853
+4031	Athens-Clarke County	USA	101489
+4032	Cambridge	USA	101355
+SELECT * FROM City
+WHERE ((Population > 101000 and Population < 102000) OR
+ID BETWEEN 3790 AND 3800) AND Country='USA'
+        OR (Name LIKE 'Pa%' OR ID BETWEEN 250 AND 260) AND Country='BRA';
+ID	Name	Country	Population
+250	Mauá	BRA	375055
+251	Carapicuíba	BRA	357552
+252	Olinda	BRA	354732
+253	Campina Grande	BRA	352497
+254	São José do Rio Preto	BRA	351944
+255	Caxias do Sul	BRA	349581
+256	Moji das Cruzes	BRA	339194
+257	Diadema	BRA	335078
+258	Aparecida de Goiânia	BRA	324662
+259	Piracicaba	BRA	319104
+260	Cariacica	BRA	319033
+285	Paulista	BRA	248473
+339	Passo Fundo	BRA	166343
+364	Parnaíba	BRA	129756
+372	Paranaguá	BRA	126076
+379	Palmas	BRA	121919
+386	Patos de Minas	BRA	119262
+424	Passos	BRA	98570
+430	Paulo Afonso	BRA	97291
+435	Parnamirim	BRA	96210
+448	Patos	BRA	90519
+451	Palhoça	BRA	89465
+3793	New York	USA	8008278
+3794	Los Angeles	USA	3694820
+3795	Chicago	USA	2896016
+3796	Houston	USA	1953631
+3797	Philadelphia	USA	1517550
+3798	Phoenix	USA	1321045
+3799	San Diego	USA	1223400
+3800	Dallas	USA	1188580
+4030	Sandy	USA	101853
+4031	Athens-Clarke County	USA	101489
+4032	Cambridge	USA	101355
+EXPLAIN
+SELECT * FROM City
+WHERE ((Population > 101000 AND Population < 11000) OR
+ID BETWEEN 3500 AND 3800) AND Country='USA'
+        AND (Name LIKE 'P%' OR ID BETWEEN 4000 AND 4300);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	PRIMARY,Population,Country,Name,CountryPopulation,CountryName	CountryName	38	NULL	23	Using index condition; Using where
+EXPLAIN
+SELECT * FROM City
+WHERE ((Population > 101000 AND Population < 11000) OR
+ID BETWEEN 3500 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pho%' OR ID BETWEEN 4000 AND 4300);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	PRIMARY,Population,Country,Name,CountryPopulation,CountryName	Name	35	NULL	1	Using where
+SELECT * FROM City USE INDEX ()
+WHERE ((Population > 101000 AND Population < 11000) OR
+ID BETWEEN 3500 AND 3800) AND Country='USA'
+        AND (Name LIKE 'P%' OR ID BETWEEN 4000 AND 4300);
+ID	Name	Country	Population
+3797	Philadelphia	USA	1517550
+3798	Phoenix	USA	1321045
+SELECT * FROM City
+WHERE ((Population > 101000 AND Population < 11000) OR
+ID BETWEEN 3500 AND 3800) AND Country='USA'
+        AND (Name LIKE 'P%' OR ID BETWEEN 4000 AND 4300);
+ID	Name	Country	Population
+3797	Philadelphia	USA	1517550
+3798	Phoenix	USA	1321045
+SELECT * FROM City USE INDEX ()
+WHERE ((Population > 101000 AND Population < 11000) OR
+ID BETWEEN 3500 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pho%' OR ID BETWEEN 4000 AND 4300);
+ID	Name	Country	Population
+3798	Phoenix	USA	1321045
+SELECT * FROM City
+WHERE ((Population > 101000 AND Population < 11000) OR
+ID BETWEEN 3500 AND 3800) AND Country='USA'
+        AND (Name LIKE 'Pho%' OR ID BETWEEN 4000 AND 4300);
+ID	Name	Country	Population
+3798	Phoenix	USA	1321045
+DROP INDEX Population ON City;
+DROP INDEX Name ON City;
+EXPLAIN
+SELECT * FROM City
+WHERE Country='USA' AND Population BETWEEN 101000 AND 102000 OR
+Country='USA' AND Name LIKE 'Pa%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	Country,CountryPopulation,CountryName	CountryPopulation,CountryName	7,38	NULL	10	Using sort_union(CountryPopulation,CountryName); Using where
+SELECT * FROM City USE INDEX()
+WHERE Country='USA' AND Population BETWEEN 101000 AND 102000 OR
+Country='USA' AND Name LIKE 'Pa%';
+ID	Name	Country	Population
+3932	Paterson	USA	149222
+3943	Pasadena	USA	141674
+3953	Pasadena	USA	133936
+3967	Paradise	USA	124682
+3986	Palmdale	USA	116670
+4030	Sandy	USA	101853
+4031	Athens-Clarke County	USA	101489
+4032	Cambridge	USA	101355
+SELECT * FROM City
+WHERE Country='USA' AND Population BETWEEN 101000 AND 102000 OR
+Country='USA' AND Name LIKE 'Pa%';
+ID	Name	Country	Population
+3932	Paterson	USA	149222
+3943	Pasadena	USA	141674
+3953	Pasadena	USA	133936
+3967	Paradise	USA	124682
+3986	Palmdale	USA	116670
+4030	Sandy	USA	101853
+4031	Athens-Clarke County	USA	101489
+4032	Cambridge	USA	101355
+EXPLAIN
+SELECT * FROM City
+WHERE Country='USA' AND 
+(Population BETWEEN 101000 AND 102000 OR Name LIKE 'Pa%');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	Country,CountryPopulation,CountryName	CountryPopulation,CountryName	7,38	NULL	10	Using sort_union(CountryPopulation,CountryName); Using where
+SELECT * FROM City
+WHERE Country='USA' AND 
+(Population BETWEEN 101000 AND 102000 OR Name LIKE 'Pa%');
+ID	Name	Country	Population
+3932	Paterson	USA	149222
+3943	Pasadena	USA	141674
+3953	Pasadena	USA	133936
+3967	Paradise	USA	124682
+3986	Palmdale	USA	116670
+4030	Sandy	USA	101853
+4031	Athens-Clarke County	USA	101489
+4032	Cambridge	USA	101355
+SELECT * FROM City
+WHERE Country='USA' AND 
+(Population BETWEEN 101000 AND 102000 OR Name LIKE 'Pa%');
+ID	Name	Country	Population
+3932	Paterson	USA	149222
+3943	Pasadena	USA	141674
+3953	Pasadena	USA	133936
+3967	Paradise	USA	124682
+3986	Palmdale	USA	116670
+4030	Sandy	USA	101853
+4031	Athens-Clarke County	USA	101489
+4032	Cambridge	USA	101355
+set @save_optimizer_switch=@@optimizer_switch;
+CREATE INDEX CityName on City(Name);
+EXPLAIN SELECT Name, Country, Population FROM City WHERE
+(Name='Manila' AND Country='PHL') OR
+(Name='Addis Abeba' AND Country='ETH') OR          
+(Name='Jakarta' AND Country='IDN') OR  
+(Name='Bangalore' AND Country='IND') OR
+(Name='Teheran' AND Country='IRN') OR          
+(Name='Roma' AND Country='ITA') OR  
+(Name='Delhi' AND Country='IND') OR  
+(Name='Venezia' AND Country='ITA') OR  
+(Name='Tokyo' AND Country='JPN') OR
+(Name='Toronto' AND Country='CAN') OR  
+(Name='Peking' AND Country='CHN') OR  
+(Name='Lagos' AND Country='NGA') OR  
+(Name='Tijuana' AND Country='MEX') OR
+(Name='Rabat' AND Country='MAR') OR          
+(Name='Seoul' AND Country='KOR') OR  
+(Name='Vancouver' AND Country='CAN') OR  
+(Name='Kaunas' AND Country='LTU') OR  
+(Name='Paris' AND Country='FRA') OR
+(Name='Dakar' AND Country='SEN') OR          
+(Name='Basel' AND Country='CHE') OR  
+(Name='Praha' AND Country='CZE') OR  
+(Name='Ankara' AND Country='TUR') OR  
+(Name='Dresden' AND Country='DEU') OR
+(Name='Lugansk' AND Country='UKR') OR          
+(Name='Caracas' AND Country='VEN') OR  
+(Name='Samara' AND Country='RUS') OR  
+(Name='Seattle' AND Country='USA');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	Country,CountryPopulation,CountryName,CityName	CountryName,CityName	38,35	NULL	28	Using sort_union(CountryName,CityName); Using where
+SELECT Name, Country, Population FROM City WHERE
+(Name='Manila' AND Country='PHL') OR
+(Name='Addis Abeba' AND Country='ETH') OR          
+(Name='Jakarta' AND Country='IDN') OR  
+(Name='Bangalore' AND Country='IND') OR
+(Name='Teheran' AND Country='IRN') OR          
+(Name='Roma' AND Country='ITA') OR  
+(Name='Delhi' AND Country='IND') OR  
+(Name='Venezia' AND Country='ITA') OR  
+(Name='Tokyo' AND Country='JPN') OR
+(Name='Toronto' AND Country='CAN') OR  
+(Name='Peking' AND Country='CHN') OR  
+(Name='Lagos' AND Country='NGA') OR  
+(Name='Tijuana' AND Country='MEX') OR
+(Name='Rabat' AND Country='MAR') OR          
+(Name='Seoul' AND Country='KOR') OR  
+(Name='Vancouver' AND Country='CAN') OR  
+(Name='Kaunas' AND Country='LTU') OR  
+(Name='Paris' AND Country='FRA') OR
+(Name='Dakar' AND Country='SEN') OR          
+(Name='Basel' AND Country='CHE') OR  
+(Name='Praha' AND Country='CZE') OR  
+(Name='Ankara' AND Country='TUR') OR  
+(Name='Dresden' AND Country='DEU') OR
+(Name='Lugansk' AND Country='UKR') OR          
+(Name='Caracas' AND Country='VEN') OR  
+(Name='Samara' AND Country='RUS') OR  
+(Name='Seattle' AND Country='USA');
+Name	Country	Population
+Addis Abeba	ETH	2495000
+Manila	PHL	1581082
+Jakarta	IDN	9604900
+Delhi	IND	7206704
+Bangalore	IND	2660088
+Teheran	IRN	6758845
+Roma	ITA	2643581
+Venezia	ITA	277305
+Tokyo	JPN	7980230
+Toronto	CAN	688275
+Vancouver	CAN	514008
+Peking	CHN	7472000
+Seoul	KOR	9981619
+Kaunas	LTU	412639
+Rabat	MAR	623457
+Tijuana	MEX	1212232
+Lagos	NGA	1518000
+Paris	FRA	2125246
+Dresden	DEU	476668
+Dakar	SEN	785071
+Basel	CHE	166700
+Praha	CZE	1181126
+Ankara	TUR	3038159
+Lugansk	UKR	469000
+Caracas	VEN	1975294
+Samara	RUS	1156100
+Seattle	USA	563374
+set optimizer_switch='index_merge=off';
+EXPLAIN SELECT Name, Country, Population FROM City WHERE
+(Name='Manila' AND Country='PHL') OR
+(Name='Addis Abeba' AND Country='ETH') OR          
+(Name='Jakarta' AND Country='IDN') OR  
+(Name='Bangalore' AND Country='IND') OR
+(Name='Teheran' AND Country='IRN') OR          
+(Name='Roma' AND Country='ITA') OR  
+(Name='Delhi' AND Country='IND') OR  
+(Name='Venezia' AND Country='ITA') OR  
+(Name='Tokyo' AND Country='JPN') OR
+(Name='Toronto' AND Country='CAN') OR  
+(Name='Peking' AND Country='CHN') OR  
+(Name='Lagos' AND Country='NGA') OR  
+(Name='Tijuana' AND Country='MEX') OR
+(Name='Rabat' AND Country='MAR') OR          
+(Name='Seoul' AND Country='KOR') OR  
+(Name='Vancouver' AND Country='CAN') OR  
+(Name='Kaunas' AND Country='LTU') OR  
+(Name='Paris' AND Country='FRA') OR
+(Name='Dakar' AND Country='SEN') OR          
+(Name='Basel' AND Country='CHE') OR  
+(Name='Praha' AND Country='CZE') OR  
+(Name='Ankara' AND Country='TUR') OR  
+(Name='Dresden' AND Country='DEU') OR
+(Name='Lugansk' AND Country='UKR') OR          
+(Name='Caracas' AND Country='VEN') OR  
+(Name='Samara' AND Country='RUS') OR  
+(Name='Seattle' AND Country='USA');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Country,CountryPopulation,CountryName,CityName	CountryName	38	NULL	29	Using index condition; Using where
+SELECT Name, Country, Population FROM City WHERE
+(Name='Manila' AND Country='PHL') OR
+(Name='Addis Abeba' AND Country='ETH') OR          
+(Name='Jakarta' AND Country='IDN') OR  
+(Name='Bangalore' AND Country='IND') OR
+(Name='Teheran' AND Country='IRN') OR          
+(Name='Roma' AND Country='ITA') OR  
+(Name='Delhi' AND Country='IND') OR  
+(Name='Venezia' AND Country='ITA') OR  
+(Name='Tokyo' AND Country='JPN') OR
+(Name='Toronto' AND Country='CAN') OR  
+(Name='Peking' AND Country='CHN') OR  
+(Name='Lagos' AND Country='NGA') OR  
+(Name='Tijuana' AND Country='MEX') OR
+(Name='Rabat' AND Country='MAR') OR          
+(Name='Seoul' AND Country='KOR') OR  
+(Name='Vancouver' AND Country='CAN') OR  
+(Name='Kaunas' AND Country='LTU') OR  
+(Name='Paris' AND Country='FRA') OR
+(Name='Dakar' AND Country='SEN') OR          
+(Name='Basel' AND Country='CHE') OR  
+(Name='Praha' AND Country='CZE') OR  
+(Name='Ankara' AND Country='TUR') OR  
+(Name='Dresden' AND Country='DEU') OR
+(Name='Lugansk' AND Country='UKR') OR          
+(Name='Caracas' AND Country='VEN') OR  
+(Name='Samara' AND Country='RUS') OR  
+(Name='Seattle' AND Country='USA');
+Name	Country	Population
+Toronto	CAN	688275
+Vancouver	CAN	514008
+Basel	CHE	166700
+Peking	CHN	7472000
+Praha	CZE	1181126
+Dresden	DEU	476668
+Addis Abeba	ETH	2495000
+Paris	FRA	2125246
+Jakarta	IDN	9604900
+Bangalore	IND	2660088
+Delhi	IND	7206704
+Teheran	IRN	6758845
+Roma	ITA	2643581
+Venezia	ITA	277305
+Tokyo	JPN	7980230
+Seoul	KOR	9981619
+Kaunas	LTU	412639
+Rabat	MAR	623457
+Tijuana	MEX	1212232
+Lagos	NGA	1518000
+Manila	PHL	1581082
+Samara	RUS	1156100
+Dakar	SEN	785071
+Ankara	TUR	3038159
+Lugansk	UKR	469000
+Seattle	USA	563374
+Caracas	VEN	1975294
+set optimizer_switch=@save_optimizer_switch;
+# 
+# Bug mdev-585: range vs index-merge with ORDER BY ... LIMIT n
+# (LP bug #637962)
+# 
+DROP INDEX CountryPopulation ON City;
+DROP INDEX CountryName ON City;
+DROP INDEX CityName on City;
+CREATE INDEX Name ON City(Name);
+CREATE INDEX Population ON City(Population);
+EXPLAIN 
+SELECT * FROM City
+WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'H'))
+AND (Population >= 100000 AND Population < 120000);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	Country,Name,Population	Name,Country	35,3	NULL	#	Using sort_union(Name,Country); Using where
+FLUSH STATUS;
+SELECT * FROM City
+WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'H'))
+AND (Population >= 100000 AND Population < 120000);
+ID	Name	Country	Population
+384	Cabo Frio	BRA	119503
+387	Camaragibe	BRA	118968
+403	Catanduva	BRA	107761
+412	Cachoeirinha	BRA	103240
+508	Watford	GBR	113080
+509	Ipswich	GBR	114000
+510	Slough	GBR	112000
+511	Exeter	GBR	111000
+512	Cheltenham	GBR	106000
+513	Gloucester	GBR	107000
+514	Saint Helens	GBR	106293
+515	Sutton Coldfield	GBR	106001
+516	York	GBR	104425
+517	Oldham	GBR	103931
+518	Basildon	GBR	100924
+519	Worthing	GBR	100000
+635	Mallawi	EGY	119283
+636	Bilbays	EGY	113608
+637	Mit Ghamr	EGY	101801
+638	al-Arish	EGY	100447
+701	Tarragona	ESP	113016
+702	Lleida (Lérida)	ESP	112207
+703	Jaén	ESP	109247
+704	Ourense (Orense)	ESP	109120
+705	Mataró	ESP	104095
+706	Algeciras	ESP	103106
+707	Marbella	ESP	101144
+759	Gonder	ETH	112249
+869	Cabuyao	PHL	106630
+870	Calapan	PHL	105910
+873	Cauayan	PHL	103952
+903	Serekunda	GMB	102600
+909	Sohumi	GEO	111700
+913	Tema	GHA	109975
+914	Sekondi-Takoradi	GHA	103653
+924	Villa Nueva	GTM	101295
+1844	Cape Breton	CAN	114733
+1847	Cambridge	CAN	109186
+2406	Herakleion	GRC	116178
+2407	Kallithea	GRC	114233
+2408	Larisa	GRC	113090
+2908	Cajamarca	PER	108009
+3002	Besançon	FRA	117733
+3003	Caen	FRA	113987
+3004	Orléans	FRA	113126
+3005	Mulhouse	FRA	110359
+3006	Rouen	FRA	106592
+3007	Boulogne-Billancourt	FRA	106367
+3008	Perpignan	FRA	105115
+3009	Nancy	FRA	103605
+3411	Ceyhan	TUR	102412
+3567	Carúpano	VEN	119639
+3568	Catia La Mar	VEN	117012
+3571	Calabozo	VEN	107146
+3786	Cam Ranh	VNM	114041
+3792	Tartu	EST	101246
+4002	Carrollton	USA	109576
+4027	Cape Coral	USA	102286
+4032	Cambridge	USA	101355
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	385
+Handler_read_prev	0
+Handler_read_rnd	377
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+EXPLAIN 
+SELECT * FROM City
+WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'H'))
+AND (Population >= 100000 AND Population < 120000)
+ORDER BY Population LIMIT 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Country,Name,Population	Population	4	NULL	#	Using where
+FLUSH STATUS;
+SELECT * FROM City
+WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'H'))
+AND (Population >= 100000 AND Population < 120000)
+ORDER BY Population LIMIT 5;
+ID	Name	Country	Population
+519	Worthing	GBR	100000
+638	al-Arish	EGY	100447
+518	Basildon	GBR	100924
+707	Marbella	ESP	101144
+3792	Tartu	EST	101246
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	59
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch='index_merge=off';
+EXPLAIN 
+SELECT * FROM City
+WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'H'))
+AND (Population >= 100000 AND Population < 120000)
+ORDER BY Population LIMIT 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Country,Name,Population	Population	4	NULL	#	Using index condition; Using where
+FLUSH STATUS;
+SELECT * FROM City
+WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'H'))
+AND (Population >= 100000 AND Population < 120000)
+ORDER BY Population LIMIT 5;
+ID	Name	Country	Population
+519	Worthing	GBR	100000
+638	al-Arish	EGY	100447
+518	Basildon	GBR	100924
+707	Marbella	ESP	101144
+3792	Tartu	EST	101246
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	59
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	0
+set optimizer_switch=@save_optimizer_switch;
+DROP DATABASE world;
+use test;
+CREATE TABLE t1 (
+id int(10) unsigned NOT NULL auto_increment,
+account_id int(10) unsigned NOT NULL,
+first_name varchar(50) default NULL,
+middle_name varchar(50) default NULL,
+last_name  varchar(100) default NULL,
+home_address_1 varchar(150) default NULL,
+home_city varchar(75) default NULL,
+home_state char(2) default NULL,
+home_postal_code varchar(50) default NULL,
+home_county varchar(75) default NULL,
+home_country char(3) default NULL,
+work_address_1 varchar(150) default NULL,
+work_city varchar(75) default NULL,
+work_state char(2) default NULL,
+work_postal_code varchar(50) default NULL,
+work_county varchar(75) default NULL,
+work_country char(3) default NULL,
+login varchar(50) NOT NULL,
+PRIMARY KEY  (id),
+KEY login (login,account_id),
+KEY account_id (account_id),
+KEY user_home_country_indx (home_country),
+KEY user_work_country_indx (work_country),
+KEY user_home_state_indx (home_state),
+KEY user_work_state_indx (work_state),
+KEY user_home_city_indx (home_city),
+KEY user_work_city_indx (work_city),
+KEY user_first_name_indx (first_name),
+KEY user_last_name_indx (last_name)
+);
+insert into t1(account_id, login, home_state, work_state) values
+(1, 'pw', 'ia', 'ia'), (1, 'pw', 'ia', 'ia'), (1, 'pw', 'ia', 'ia'),
+(1, 'pw', 'ia', 'ia'), (1, 'pw', 'ia', 'ia'), (1, 'pw', 'ia', 'ia');
+insert into t1(account_id, login, home_state, work_state)
+select 1, 'pw', 'ak', 'ak' from t1;
+insert into t1(account_id, login, home_state, work_state)
+select 1, 'pw', 'ak', 'ak' from t1;
+insert into t1(account_id, login, home_state, work_state)
+select 1, 'pw', 'ak', 'ak' from t1;
+insert into t1(account_id, login, home_state, work_state)
+select 1, 'pw', 'ak', 'ak' from t1;
+insert into t1(account_id, login, home_state, work_state)
+select 1, 'pw', 'ak', 'ak' from t1;
+insert into t1(account_id, login, home_state, work_state)
+select 1, 'pw', 'ak', 'ak' from t1;
+insert into t1(account_id, login, home_state, work_state)
+select 1, 'pw', 'ak', 'ak' from t1;
+insert into t1(account_id, login, home_state, work_state)
+select 1, 'pw', 'ak', 'ak' from t1;
+insert into t1(account_id, login, home_state, work_state)
+select 1, 'pw', 'ak', 'ak' from t1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select count(*) from t1 where account_id = 1;
+count(*)
+3072
+select * from t1
+where (home_state = 'ia' or work_state='ia') and account_id = 1;
+id	account_id	first_name	middle_name	last_name	home_address_1	home_city	home_state	home_postal_code	home_county	home_country	work_address_1	work_city	work_state	work_postal_code	work_county	work_country	login
+1	1	NULL	NULL	NULL	NULL	NULL	ia	NULL	NULL	NULL	NULL	NULL	ia	NULL	NULL	NULL	pw
+2	1	NULL	NULL	NULL	NULL	NULL	ia	NULL	NULL	NULL	NULL	NULL	ia	NULL	NULL	NULL	pw
+3	1	NULL	NULL	NULL	NULL	NULL	ia	NULL	NULL	NULL	NULL	NULL	ia	NULL	NULL	NULL	pw
+4	1	NULL	NULL	NULL	NULL	NULL	ia	NULL	NULL	NULL	NULL	NULL	ia	NULL	NULL	NULL	pw
+5	1	NULL	NULL	NULL	NULL	NULL	ia	NULL	NULL	NULL	NULL	NULL	ia	NULL	NULL	NULL	pw
+6	1	NULL	NULL	NULL	NULL	NULL	ia	NULL	NULL	NULL	NULL	NULL	ia	NULL	NULL	NULL	pw
+explain
+select * from t1
+where (home_state = 'ia' or work_state='ia') and account_id = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	account_id,user_home_state_indx,user_work_state_indx	user_home_state_indx,user_work_state_indx	3,3	NULL	6	Using union(user_home_state_indx,user_work_state_indx); Using where
+drop table t1;
+CREATE TABLE t1 (
+c1 int(11) NOT NULL auto_increment,
+c2 decimal(10,0) default NULL,
+c3 decimal(10,0) default NULL,
+c4 decimal(10,0) default NULL,
+c5 decimal(10,0) default NULL,
+cp decimal(1,0) default NULL,
+ce decimal(10,0) default NULL,
+cdata char(20),
+PRIMARY KEY  (c1),
+KEY k1 (c2,c3,cp,ce),
+KEY k2 (c4,c5,cp,ce)
+);
+insert into t1 (c2, c3, c4, c5, cp) values(1,1,1,1,1);
+insert into t1 (c2, c3, c4, c5, cp) values(2,1,1,1,4);
+insert into t1 (c2, c3, c4, c5, cp) values(2,1,2,1,1);
+insert into t1 (c2, c3, c4, c5, cp) values(2,1,3,1,4);
+insert into t1 (c2, c3, c4, c5, cp) values(3,1,4,1,4);
+insert into t1 (c2, c3, c4, c5, cp)
+select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+select c2, c3, c4, c5, cp from t1 where cp = 4;
+insert into t1 (c2, c3, c4, c5, cp)
+select c2, c3, c4, c5, cp from t1 where cp = 4;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+explain
+select * from t1 where (c2=1 and c3=1) or (c4=2 and c5=1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	k1,k2	k1,k2	12,12	NULL	2	Using sort_union(k1,k2); Using where
+explain
+select * from t1
+where (c2=1 and c3=1 and cp=1) or (c4=2 and c5=1 and cp=1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	k1,k2	k1,k2	14,14	NULL	2	Using sort_union(k1,k2); Using where
+explain
+select * from t1
+where ((c2=1 and c3=1) or (c4=2 and c5=1)) and cp=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	k1,k2	k1,k2	14,14	NULL	2	Using sort_union(k1,k2); Using where
+select * from t1
+where (c2=1 and c3=1 and cp=1) or (c4=2 and c5=1 and cp=1);
+c1	c2	c3	c4	c5	cp	ce	cdata
+1	1	1	1	1	1	NULL	NULL
+3	2	1	2	1	1	NULL	NULL
+select * from t1
+where ((c2=1 and c3=1) or (c4=2 and c5=1)) and cp=1;
+c1	c2	c3	c4	c5	cp	ce	cdata
+1	1	1	1	1	1	NULL	NULL
+3	2	1	2	1	1	NULL	NULL
+drop table t1;
+create table t1 (
+c1 int auto_increment primary key,
+c2 char(20),
+c3 char (20), 
+c4 int
+);
+alter table t1 add key k1 (c2);
+alter table t1 add key k2 (c3);
+alter table t1 add key k3 (c4);
+insert into t1 values(null, 'a', 'b', 0);
+insert into t1 values(null, 'c', 'b', 0);
+insert into t1 values(null, 'a', 'd', 0);
+insert into t1 values(null, 'ccc', 'qqq', 0);
+insert into t1 (c2,c3) select c2,c3 from t1 where c2 != 'a';
+insert into t1 (c2,c3) select c2,c3 from t1 where c2 != 'a';
+insert into t1 (c2,c3) select c2,c3 from t1 where c2 != 'a';
+insert into t1 (c2,c3) select c2,c3 from t1 where c2 != 'a';
+insert into t1 (c2,c3) select c2,c3 from t1 where c2 != 'a';
+insert into t1 (c2,c3) select c2,c3 from t1 where c2 != 'a';
+insert into t1 (c2,c3) select c2,c3 from t1 where c2 != 'a';
+insert into t1 (c2,c3,c4) select c2,c3,1 from t1 where c2 != 'a';
+insert into t1 (c2,c3,c4) select c2,c3,2 from t1 where c2 != 'a';
+insert into t1 (c2,c3,c4) select c2,c3,3 from t1 where c2 != 'a';
+insert into t1 (c2,c3,c4) select c2,c3,4 from t1 where c2 != 'a';
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select count(*) from t1 where (c2='e' OR c3='q');
+count(*)
+0
+select count(*) from t1 where c4 != 0;
+count(*)
+3840
+explain
+select distinct c1 from t1 where (c2='e' OR c3='q');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	k1,k2	k1,k2	21,21	NULL	2	Using union(k1,k2); Using where
+explain
+select distinct c1 from t1 where (c4!= 0) AND (c2='e' OR c3='q');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	k1,k2,k3	k1,k2	21,21	NULL	2	Using union(k1,k2); Using where
+drop table t1;
+create table t1 (
+id int unsigned auto_increment primary key,
+c1 char(12),
+c2 char(15),
+c3 char(1)
+);
+insert into t1 (c3) values ('1'), ('2');
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+insert into t1 (c3) select c3 from t1;
+update t1 set c1=lpad(id+1000, 12, ' '), c2=lpad(id+10000, 15, ' ');
+alter table t1 add unique index (c1), add unique index (c2), add index (c3);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+explain
+select * from t1 where (c1='      100000' or c2='         2000000');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	c1,c2	c1,c2	13,16	NULL	2	Using union(c1,c2); Using where
+explain
+select * from t1 where (c1='      100000' or c2='         2000000') and c3='2';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	c1,c2,c3	c1,c2	13,16	NULL	2	Using union(c1,c2); Using where
+select * from t1 where (c1='      100000' or c2='         2000000');
+id	c1	c2	c3
+select * from t1 where (c1='      100000' or c2='         2000000') and c3='2';
+id	c1	c2	c3
+drop table t1;
+CREATE TABLE t1 (
+a smallint DEFAULT NULL,
+pk int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+b varchar(10) DEFAULT NULL,
+c varchar(64) DEFAULT NULL,
+INDEX idx1 (a),
+INDEX idx2 (b),
+INDEX idx3 (c)
+);
+SELECT COUNT(*) FROM t1 IGNORE INDEX (idx2,idx3)
+WHERE c  = 'i'  OR b IN ( 'Arkansas' , 'd' , 'pdib' , 'can' )  OR
+(pk BETWEEN 120 AND 79 + 255 OR a IN ( 4 , 179 , 1 ) ) AND a > 8 ;
+COUNT(*)
+5
+SELECT COUNT(*) FROM t1 
+WHERE c  = 'i'  OR b IN ( 'Arkansas' , 'd' , 'pdib' , 'can' )  OR
+(pk BETWEEN 120 AND 79 + 255 OR a IN ( 4 , 179 , 1 ) ) AND a > 8 ;
+COUNT(*)
+5
+EXPLAIN
+SELECT COUNT(*) FROM t1 
+WHERE c  = 'i'  OR b IN ( 'Arkansas' , 'd' , 'pdib' , 'can' )  OR
+(pk BETWEEN 120 AND 79 + 255 OR a IN ( 4 , 179 , 1 ) ) AND a > 8 ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	PRIMARY,idx1,idx2,idx3	idx3,idx2,PRIMARY,idx1	67,13,4,3	NULL	8	Using sort_union(idx3,idx2,PRIMARY,idx1); Using where
+DROP TABLE t1;
+CREATE TABLE t1 (
+f1 int, f2 int, f3 int, f4 int, f5 int,
+PRIMARY KEY (f4), KEY (f1), KEY (f2), KEY (f3)
+) ;
+INSERT INTO t1 VALUES (0,0,NULL,9,5), (0,0,1,9425,NULL);
+SELECT f5 FROM t1
+WHERE f2 != 1 OR f1 IS NULL OR f4 = 4 OR
+f2 AND (f4 BETWEEN 6 AND 255 OR f3 IS NULL);
+f5
+5
+NULL
+DROP TABLE t1;
+CREATE TABLE t1 (
+f1 int, f2 int, f3 int, f4 int,
+PRIMARY KEY (f1), KEY (f3), KEY (f4)
+);
+INSERT INTO t1 VALUES (9,0,2,6), (9930,0,0,NULL);
+SET SESSION optimizer_switch='index_merge_intersection=off';
+SET SESSION optimizer_switch='index_merge_sort_union=off';
+SET SESSION optimizer_switch='index_merge_union=off';
+EXPLAIN
+SELECT * FROM t1 FORCE KEY (PRIMARY,f3,f4)
+WHERE ( f3 = 1 OR f1 = 7 ) AND f1 < 10
+OR f3 BETWEEN 2 AND 2 AND ( f3 = 1 OR f4 != 1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	PRIMARY,f3,f4	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1 FORCE KEY (PRIMARY,f3,f4)
+WHERE ( f3 = 1 OR f1 = 7 ) AND f1 < 10
+OR f3 BETWEEN 2 AND 2 AND ( f3 = 1 OR f4 != 1 );
+f1	f2	f3	f4
+9	0	2	6
+SET SESSION optimizer_switch='index_merge_union=on';
+EXPLAIN
+SELECT * FROM t1 FORCE KEY (PRIMARY,f3,f4)
+WHERE ( f3 = 1 OR f1 = 7 ) AND f1 < 10
+OR f3 BETWEEN 2 AND 2 AND ( f3 = 1 OR f4 != 1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	PRIMARY,f3,f4	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1 FORCE KEY (PRIMARY,f3,f4)
+WHERE ( f3 = 1 OR f1 = 7 ) AND f1 < 10
+OR f3 BETWEEN 2 AND 2 AND ( f3 = 1 OR f4 != 1 );
+f1	f2	f3	f4
+9	0	2	6
+INSERT INTO t1 VALUES 
+(93,0,3,6), (9933,0,3,3), (94,0,4,6), (9934,0,4,4),
+(95,0,5,6), (9935,0,5,5), (96,0,6,6), (9936,0,6,6),
+(97,0,7,6), (9937,0,7,7), (98,0,8,6), (9938,0,8,8),
+(99,0,9,6), (9939,0,9,9);
+SET SESSION optimizer_switch='index_merge_union=off';
+EXPLAIN
+SELECT * FROM t1 FORCE KEY (PRIMARY,f3,f4)
+WHERE ( f3 = 1 OR f1 = 7 ) AND f1 < 10
+OR f3 BETWEEN 2 AND 2 AND ( f3 = 1 OR f4 != 1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	PRIMARY,f3,f4	NULL	NULL	NULL	16	Using where
+SELECT * FROM t1 FORCE KEY (PRIMARY,f3,f4)
+WHERE ( f3 = 1 OR f1 = 7 ) AND f1 < 10
+OR f3 BETWEEN 2 AND 2 AND ( f3 = 1 OR f4 != 1 );
+f1	f2	f3	f4
+9	0	2	6
+SET SESSION optimizer_switch='index_merge_union=on';
+EXPLAIN
+SELECT * FROM t1 FORCE KEY (PRIMARY,f3,f4)
+WHERE ( f3 = 1 OR f1 = 7 ) AND f1 < 10
+OR f3 BETWEEN 2 AND 2 AND ( f3 = 1 OR f4 != 1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	PRIMARY,f3,f4	f3,PRIMARY,f3	5,4,5	NULL	3	Using union(f3,PRIMARY,f3); Using where
+SELECT * FROM t1 FORCE KEY (PRIMARY,f3,f4)
+WHERE ( f3 = 1 OR f1 = 7 ) AND f1 < 10
+OR f3 BETWEEN 2 AND 2 AND ( f3 = 1 OR f4 != 1 );
+f1	f2	f3	f4
+9	0	2	6
+SET SESSION optimizer_switch=DEFAULT;
+DROP TABLE t1;
+CREATE TABLE t1 (f1 int) ;
+INSERT INTO t1 VALUES (0), (0);
+CREATE TABLE t2 (f1 int, f2 int, f3 int, f4 int, INDEX idx (f3,f2)) ;
+INSERT INTO t2 VALUES (5,6,0,0), (0,4,0,0);
+CREATE TABLE t3 (f1 int, f2 int, INDEX idx1 (f2,f1) , INDEX idx2 (f1)) ;
+INSERT INTO t3 VALUES (6,0),( 4,0);
+SELECT * FROM t1,t2,t3
+WHERE (t2.f3 = 1 OR t3.f1=t2.f1) AND t3.f1 <> t2.f2 AND t3.f2 = t2.f4;
+f1	f1	f2	f3	f4	f1	f2
+DROP TABLE t1,t2,t3;
+CREATE TABLE t1 (
+a int, b int, c int, d int,
+PRIMARY KEY(b), INDEX idx1(d), INDEX idx2(d,b,c)
+);
+INSERT INTO t1 VALUES 
+(0,58,7,7),(0,63,2,0),(0,64,186,8),(0,65,1,-2), (0,71,190,-3),
+(0,72,321,-7),(0,73,0,3),(0,74,5,25),(0,75,5,3);
+SET SESSION optimizer_switch='index_merge_sort_union=off';
+EXPLAIN
+SELECT * FROM t1 
+WHERE t1.b>7 AND t1.d>1 AND t1.d<>8  OR t1.d>=7 AND t1.d<8 OR t1.d>7;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	PRIMARY,idx1,idx2	NULL	NULL	NULL	9	Using where
+SELECT * FROM t1 
+WHERE t1.b>7 AND t1.d>1 AND t1.d<>8  OR t1.d>=7 AND t1.d<8 OR t1.d>7;
+a	b	c	d
+0	58	7	7
+0	64	186	8
+0	73	0	3
+0	74	5	25
+0	75	5	3
+SET SESSION optimizer_switch='index_merge_sort_union=on';
+EXPLAIN
+SELECT * FROM t1 
+WHERE t1.b>7 AND t1.d>1 AND t1.d<>8  OR t1.d>=7 AND t1.d<8 OR t1.d>7;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	PRIMARY,idx1,idx2	NULL	NULL	NULL	9	Using where
+SELECT * FROM t1 
+WHERE t1.b>7 AND t1.d>1 AND t1.d<>8  OR t1.d>=7 AND t1.d<8 OR t1.d>7;
+a	b	c	d
+0	58	7	7
+0	64	186	8
+0	73	0	3
+0	74	5	25
+0	75	5	3
+SET SESSION optimizer_switch=DEFAULT;
+DROP TABLE t1;
+CREATE TABLE t1 (a int NOT NULL PRIMARY KEY, b int, c int, INDEX idx(c,b));
+INSERT INTO t1 VALUES (19,1,NULL), (20,5,7);
+EXPLAIN
+SELECT * FROM t1
+WHERE t1.a>300 AND t1.c!=0 AND t1.b>=350 AND t1.b<=400 AND
+(t1.c=0 OR t1.a=500);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY,idx	PRIMARY	4	NULL	1	Using index condition; Using where
+SELECT * FROM t1
+WHERE t1.a>300 AND t1.c!=0 AND t1.b>=350 AND t1.b<=400 AND
+(t1.c=0 OR t1.a=500);
+a	b	c
+DROP TABLE t1;
+CREATE TABLE t1 (a int PRIMARY KEY, b int, INDEX idx(b));
+INSERT INTO t1 VALUES (167,9999), (168,10000);
+EXPLAIN
+SELECT * FROM t1
+WHERE a BETWEEN 4 AND 5 AND b IN (255,4) OR a IN (2,14,25) OR a!=2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	PRIMARY,idx	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1
+WHERE a BETWEEN 4 AND 5 AND b IN (255,4) OR a IN (2,14,25) OR a!=2;
+a	b
+167	9999
+168	10000
+DROP TABLE t1;
+#
+# MDEV-8603: Wrong result OR/AND condition over index fields
+#
+CREATE TABLE t1 (
+id INT NOT NULL,
+state VARCHAR(64),
+capital VARCHAR(64),
+UNIQUE KEY (id),
+KEY state (state,id),
+KEY capital (capital, id)
+);
+INSERT INTO t1 VALUES  
+(1,'Arizona','Phoenix'), 
+(2,'Hawaii','Honolulu'),
+(3,'Georgia','Atlanta'), 
+(4,'Florida','Tallahassee'), 
+(5,'Alaska','Juneau'),
+(6,'Michigan','Lansing'),
+(7,'Pennsylvania','Harrisburg'),
+(8,'Virginia','Richmond')
+;
+EXPLAIN
+SELECT * FROM t1 FORCE KEY (state,capital) 
+WHERE ( state = 'Alabama' OR state >= 'Colorado' ) AND id != 9 
+OR ( capital >= 'Topeka' OR state = 'Kansas' ) AND state != 'Texas';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	state,capital	state	71	NULL	12	Using index condition; Using where
+SELECT * FROM t1 FORCE KEY (state,capital) 
+WHERE ( state = 'Alabama' OR state >= 'Colorado' ) AND id != 9 
+OR ( capital >= 'Topeka' OR state = 'Kansas' ) AND state != 'Texas';
+id	state	capital
+4	Florida	Tallahassee
+3	Georgia	Atlanta
+2	Hawaii	Honolulu
+6	Michigan	Lansing
+7	Pennsylvania	Harrisburg
+8	Virginia	Richmond
+DROP TABLE t1;
+set session optimizer_switch='index_merge_sort_intersection=default';

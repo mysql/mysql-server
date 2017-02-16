@@ -1,0 +1,33 @@
+#
+# MDEV-4824 userstats - wrong user statistics
+#
+--source include/not_embedded.inc
+
+create user foo@localhost identified by 'foo';
+flush user_statistics;
+set global userstat=1;
+
+connect(foo, localhost, foo, foo);
+select 1;
+disconnect foo;
+connection default;
+
+# wait for user_statistics changes to become visible
+let $wait_condition= select count(*) = 1 from information_schema.processlist;
+--source include/wait_condition.inc
+
+# 41 is for ps-procotol
+--replace_result 41 18
+select user, bytes_received from information_schema.user_statistics where user = 'foo';
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(foo, localhost, foo, bar);
+
+connection default;
+
+--replace_result 41 18
+select user, bytes_received from information_schema.user_statistics where user = 'foo';
+
+drop user foo@localhost;
+set global userstat=0;

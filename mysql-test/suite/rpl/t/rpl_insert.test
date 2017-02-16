@@ -15,7 +15,7 @@ CREATE SCHEMA IF NOT EXISTS mysqlslap;
 USE mysqlslap;
 --enable_warnings
 
-CREATE TABLE t1 (id INT, name VARCHAR(64));
+CREATE TABLE t1 (id INT, name VARCHAR(64)) ENGINE=MyISAM;
 
 sync_slave_with_master;
 connection master;

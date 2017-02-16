@@ -4,6 +4,7 @@ drop procedure if exists p_verify_reprepare_count;
 drop procedure if exists p1;
 drop function if exists f1;
 drop view if exists v1, v2;
+TRUNCATE TABLE mysql.general_log;
 create procedure p_verify_reprepare_count(expected int)
 begin
 declare old_reprepare_count int default @reprepare_count;
@@ -786,7 +787,7 @@ SUCCESS
 
 drop view t1;
 execute stmt;
-table_name
+ERROR 42S02: Table 'test.t1' doesn't exist
 call p_verify_reprepare_count(0);
 SUCCESS
 
@@ -2129,13 +2130,13 @@ deallocate prepare stmt;
 drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show engine all status where (1) in (select * from t1)";
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'where (1) in (select * from t1)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'where (1) in (select * from t1)' at line 1
 prepare stmt from "show engine all logs where (1) in (select * from t1)";
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'where (1) in (select * from t1)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'where (1) in (select * from t1)' at line 1
 prepare stmt from "show engine all mutex where (1) in (select * from t1)";
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'where (1) in (select * from t1)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'where (1) in (select * from t1)' at line 1
 prepare stmt from "show processlist where (1) in (select * from t1)";
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'where (1) in (select * from t1)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'where (1) in (select * from t1)' at line 1
 drop table t1;
 #
 # SQLCOM_SHOW_CHARSETS

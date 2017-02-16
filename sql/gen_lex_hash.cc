@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -310,6 +310,7 @@ void print_find_structs()
   add_structs_to_map(root_by_len,max_len);
   set_links(root_by_len,max_len);
   print_hash_map("sql_functions_map");
+  free(hash_map);
 
   hash_map= 0;
   size_hash_map= 0;
@@ -319,6 +320,7 @@ void print_find_structs()
   add_structs_to_map(root_by_len2,max_len2);
   set_links(root_by_len2,max_len2);
   print_hash_map("symbols_map");
+  free(hash_map);
 }
 
 

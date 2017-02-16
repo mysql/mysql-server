@@ -5,47 +5,47 @@ drop table ADDDATE;
 create table ADDDATE (a int);
 drop table ADDDATE;
 create table BIT_AND(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'BIT_AND(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'BIT_AND(a int)' at line 1
 create table BIT_AND (a int);
 drop table BIT_AND;
 create table BIT_OR(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'BIT_OR(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'BIT_OR(a int)' at line 1
 create table BIT_OR (a int);
 drop table BIT_OR;
 create table BIT_XOR(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'BIT_XOR(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'BIT_XOR(a int)' at line 1
 create table BIT_XOR (a int);
 drop table BIT_XOR;
 create table CAST(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CAST(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CAST(a int)' at line 1
 create table CAST (a int);
 drop table CAST;
 create table COUNT(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COUNT(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'COUNT(a int)' at line 1
 create table COUNT (a int);
 drop table COUNT;
 create table CURDATE(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CURDATE(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CURDATE(a int)' at line 1
 create table CURDATE (a int);
 drop table CURDATE;
 create table CURTIME(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CURTIME(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CURTIME(a int)' at line 1
 create table CURTIME (a int);
 drop table CURTIME;
 create table DATE_ADD(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DATE_ADD(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'DATE_ADD(a int)' at line 1
 create table DATE_ADD (a int);
 drop table DATE_ADD;
 create table DATE_SUB(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DATE_SUB(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'DATE_SUB(a int)' at line 1
 create table DATE_SUB (a int);
 drop table DATE_SUB;
 create table EXTRACT(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'EXTRACT(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'EXTRACT(a int)' at line 1
 create table EXTRACT (a int);
 drop table EXTRACT;
 create table GROUP_CONCAT(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GROUP_CONCAT(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'GROUP_CONCAT(a int)' at line 1
 create table GROUP_CONCAT (a int);
 drop table GROUP_CONCAT;
 create table GROUP_UNIQUE_USERS(a int);
@@ -53,23 +53,23 @@ drop table GROUP_UNIQUE_USERS;
 create table GROUP_UNIQUE_USERS (a int);
 drop table GROUP_UNIQUE_USERS;
 create table MAX(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MAX(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'MAX(a int)' at line 1
 create table MAX (a int);
 drop table MAX;
 create table MID(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MID(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'MID(a int)' at line 1
 create table MID (a int);
 drop table MID;
 create table MIN(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MIN(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'MIN(a int)' at line 1
 create table MIN (a int);
 drop table MIN;
 create table NOW(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NOW(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'NOW(a int)' at line 1
 create table NOW (a int);
 drop table NOW;
 create table POSITION(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'POSITION(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'POSITION(a int)' at line 1
 create table POSITION (a int);
 drop table POSITION;
 create table SESSION_USER(a int);
@@ -77,19 +77,19 @@ drop table SESSION_USER;
 create table SESSION_USER (a int);
 drop table SESSION_USER;
 create table STD(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'STD(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'STD(a int)' at line 1
 create table STD (a int);
 drop table STD;
 create table STDDEV(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'STDDEV(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'STDDEV(a int)' at line 1
 create table STDDEV (a int);
 drop table STDDEV;
 create table STDDEV_POP(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'STDDEV_POP(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'STDDEV_POP(a int)' at line 1
 create table STDDEV_POP (a int);
 drop table STDDEV_POP;
 create table STDDEV_SAMP(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'STDDEV_SAMP(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'STDDEV_SAMP(a int)' at line 1
 create table STDDEV_SAMP (a int);
 drop table STDDEV_SAMP;
 create table SUBDATE(a int);
@@ -97,19 +97,19 @@ drop table SUBDATE;
 create table SUBDATE (a int);
 drop table SUBDATE;
 create table SUBSTR(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SUBSTR(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SUBSTR(a int)' at line 1
 create table SUBSTR (a int);
 drop table SUBSTR;
 create table SUBSTRING(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SUBSTRING(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SUBSTRING(a int)' at line 1
 create table SUBSTRING (a int);
 drop table SUBSTRING;
 create table SUM(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SUM(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SUM(a int)' at line 1
 create table SUM (a int);
 drop table SUM;
 create table SYSDATE(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SYSDATE(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SYSDATE(a int)' at line 1
 create table SYSDATE (a int);
 drop table SYSDATE;
 create table SYSTEM_USER(a int);
@@ -117,7 +117,7 @@ drop table SYSTEM_USER;
 create table SYSTEM_USER (a int);
 drop table SYSTEM_USER;
 create table TRIM(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TRIM(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'TRIM(a int)' at line 1
 create table TRIM (a int);
 drop table TRIM;
 create table UNIQUE_USERS(a int);
@@ -125,15 +125,15 @@ drop table UNIQUE_USERS;
 create table UNIQUE_USERS (a int);
 drop table UNIQUE_USERS;
 create table VARIANCE(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VARIANCE(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'VARIANCE(a int)' at line 1
 create table VARIANCE (a int);
 drop table VARIANCE;
 create table VAR_POP(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VAR_POP(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'VAR_POP(a int)' at line 1
 create table VAR_POP (a int);
 drop table VAR_POP;
 create table VAR_SAMP(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VAR_SAMP(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'VAR_SAMP(a int)' at line 1
 create table VAR_SAMP (a int);
 drop table VAR_SAMP;
 set SQL_MODE='IGNORE_SPACE';
@@ -142,137 +142,137 @@ drop table ADDDATE;
 create table ADDDATE (a int);
 drop table ADDDATE;
 create table BIT_AND(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'BIT_AND(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'BIT_AND(a int)' at line 1
 create table BIT_AND (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'BIT_AND (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'BIT_AND (a int)' at line 1
 create table BIT_OR(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'BIT_OR(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'BIT_OR(a int)' at line 1
 create table BIT_OR (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'BIT_OR (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'BIT_OR (a int)' at line 1
 create table BIT_XOR(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'BIT_XOR(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'BIT_XOR(a int)' at line 1
 create table BIT_XOR (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'BIT_XOR (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'BIT_XOR (a int)' at line 1
 create table CAST(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CAST(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CAST(a int)' at line 1
 create table CAST (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CAST (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CAST (a int)' at line 1
 create table COUNT(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COUNT(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'COUNT(a int)' at line 1
 create table COUNT (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COUNT (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'COUNT (a int)' at line 1
 create table CURDATE(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CURDATE(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CURDATE(a int)' at line 1
 create table CURDATE (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CURDATE (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CURDATE (a int)' at line 1
 create table CURTIME(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CURTIME(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CURTIME(a int)' at line 1
 create table CURTIME (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CURTIME (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CURTIME (a int)' at line 1
 create table DATE_ADD(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DATE_ADD(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'DATE_ADD(a int)' at line 1
 create table DATE_ADD (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DATE_ADD (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'DATE_ADD (a int)' at line 1
 create table DATE_SUB(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DATE_SUB(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'DATE_SUB(a int)' at line 1
 create table DATE_SUB (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DATE_SUB (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'DATE_SUB (a int)' at line 1
 create table EXTRACT(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'EXTRACT(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'EXTRACT(a int)' at line 1
 create table EXTRACT (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'EXTRACT (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'EXTRACT (a int)' at line 1
 create table GROUP_CONCAT(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GROUP_CONCAT(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'GROUP_CONCAT(a int)' at line 1
 create table GROUP_CONCAT (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GROUP_CONCAT (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'GROUP_CONCAT (a int)' at line 1
 create table GROUP_UNIQUE_USERS(a int);
 drop table GROUP_UNIQUE_USERS;
 create table GROUP_UNIQUE_USERS (a int);
 drop table GROUP_UNIQUE_USERS;
 create table MAX(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MAX(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'MAX(a int)' at line 1
 create table MAX (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MAX (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'MAX (a int)' at line 1
 create table MID(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MID(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'MID(a int)' at line 1
 create table MID (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MID (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'MID (a int)' at line 1
 create table MIN(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MIN(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'MIN(a int)' at line 1
 create table MIN (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MIN (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'MIN (a int)' at line 1
 create table NOW(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NOW(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'NOW(a int)' at line 1
 create table NOW (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NOW (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'NOW (a int)' at line 1
 create table POSITION(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'POSITION(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'POSITION(a int)' at line 1
 create table POSITION (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'POSITION (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'POSITION (a int)' at line 1
 create table SESSION_USER(a int);
 drop table SESSION_USER;
 create table SESSION_USER (a int);
 drop table SESSION_USER;
 create table STD(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'STD(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'STD(a int)' at line 1
 create table STD (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'STD (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'STD (a int)' at line 1
 create table STDDEV(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'STDDEV(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'STDDEV(a int)' at line 1
 create table STDDEV (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'STDDEV (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'STDDEV (a int)' at line 1
 create table STDDEV_POP(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'STDDEV_POP(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'STDDEV_POP(a int)' at line 1
 create table STDDEV_POP (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'STDDEV_POP (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'STDDEV_POP (a int)' at line 1
 create table STDDEV_SAMP(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'STDDEV_SAMP(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'STDDEV_SAMP(a int)' at line 1
 create table STDDEV_SAMP (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'STDDEV_SAMP (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'STDDEV_SAMP (a int)' at line 1
 create table SUBDATE(a int);
 drop table SUBDATE;
 create table SUBDATE (a int);
 drop table SUBDATE;
 create table SUBSTR(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SUBSTR(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SUBSTR(a int)' at line 1
 create table SUBSTR (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SUBSTR (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SUBSTR (a int)' at line 1
 create table SUBSTRING(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SUBSTRING(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SUBSTRING(a int)' at line 1
 create table SUBSTRING (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SUBSTRING (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SUBSTRING (a int)' at line 1
 create table SUM(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SUM(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SUM(a int)' at line 1
 create table SUM (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SUM (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SUM (a int)' at line 1
 create table SYSDATE(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SYSDATE(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SYSDATE(a int)' at line 1
 create table SYSDATE (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SYSDATE (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SYSDATE (a int)' at line 1
 create table SYSTEM_USER(a int);
 drop table SYSTEM_USER;
 create table SYSTEM_USER (a int);
 drop table SYSTEM_USER;
 create table TRIM(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TRIM(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'TRIM(a int)' at line 1
 create table TRIM (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TRIM (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'TRIM (a int)' at line 1
 create table UNIQUE_USERS(a int);
 drop table UNIQUE_USERS;
 create table UNIQUE_USERS (a int);
 drop table UNIQUE_USERS;
 create table VARIANCE(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VARIANCE(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'VARIANCE(a int)' at line 1
 create table VARIANCE (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VARIANCE (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'VARIANCE (a int)' at line 1
 create table VAR_POP(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VAR_POP(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'VAR_POP(a int)' at line 1
 create table VAR_POP (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VAR_POP (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'VAR_POP (a int)' at line 1
 create table VAR_SAMP(a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VAR_SAMP(a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'VAR_SAMP(a int)' at line 1
 create table VAR_SAMP (a int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VAR_SAMP (a int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'VAR_SAMP (a int)' at line 1
 DROP TABLE IF EXISTS table_25930_a;
 DROP TABLE IF EXISTS table_25930_b;
 SET SQL_MODE = 'ANSI_QUOTES';
@@ -555,14 +555,10 @@ ERROR 42000: Incorrect parameters in the call to native function 'atan'
 DROP TABLE IF EXISTS t1;
 SELECT STR_TO_DATE('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
 STR_TO_DATE('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE
-NULL
-Warnings:
-Warning	1411	Incorrect datetime value: '10:00 PM' for function str_to_date
+22:10:00
 SELECT STR_TO_DATE('10:00 PM', '%h:%i %p') + INTERVAL (INTERVAL(1,2,3) + 1) MINUTE;
 STR_TO_DATE('10:00 PM', '%h:%i %p') + INTERVAL (INTERVAL(1,2,3) + 1) MINUTE
-NULL
-Warnings:
-Warning	1411	Incorrect datetime value: '10:00 PM' for function str_to_date
+22:01:00
 SELECT "1997-12-31 23:59:59" + INTERVAL 1 SECOND;
 "1997-12-31 23:59:59" + INTERVAL 1 SECOND
 1998-01-01 00:00:00
@@ -646,4 +642,33 @@ CREATE TABLE t1 (s VARCHAR(100));
 CREATE TRIGGER trigger1 BEFORE INSERT ON t1 FOR EACH ROW
 SET default_storage_engine = NEW.INNODB;
 ERROR 42S22: Unknown column 'INNODB' in 'NEW'
+DROP TABLE t1;
+select 0==0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '=0' at line 1
+select 1=!0,  1 = ! 0;
+1=!0	1 = ! 0
+1	1
+select !!0,     ! ! 0;
+!!0	! ! 0
+0	0
+select 2>!0,  2 > ! 0;
+2>!0	2 > ! 0
+1	1
+select 0<=!0, 0 <= !0;
+0<=!0	0 <= !0
+1	1
+select 1<<!0, 1 << !0;
+1<<!0	1 << !0
+2	2
+select 0<!0,  0 < ! 0;
+0<!0	0 < ! 0
+1	1
+#
+# MDEV-11171 Assertion `m_cpp_buf <= ptr && ptr <= m_cpp_buf + m_buf_length' failed in Lex_input_stream::body_utf8_append(const char*, const char*)
+#
+CREATE TABLE t1 (id INT);
+CREATE TRIGGER tr AFTER DELETE ON t1 FOR EACH ROW SET @a = 1\;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '\' at line 1
+PREPARE stmt FROM 'CREATE TRIGGER tr AFTER DELETE ON t1 FOR EACH ROW SET @a = 1\\';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '\' at line 1
 DROP TABLE t1;

@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2010, Oracle and/or its affiliates
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ BEGIN
   eval 'sub USE_NETPING { $use_netping }';
 }
   
-sub sleep_until_file_created ($$$);
+sub sleep_until_file_created ($$$$);
 sub mtr_ping_port ($);
 
 sub mtr_ping_port ($) {
@@ -102,10 +102,11 @@ sub mtr_ping_port ($) {
 
 # FIXME check that the pidfile contains the expected pid!
 
-sub sleep_until_file_created ($$$) {
+sub sleep_until_file_created ($$$$) {
   my $pidfile= shift;
   my $timeout= shift;
   my $proc=     shift;
+  my $warn_seconds = shift;
   my $sleeptime= 100; # Milliseconds
   my $loops= ($timeout * 1000) / $sleeptime;
 
@@ -128,8 +129,8 @@ sub sleep_until_file_created ($$$) {
 
     mtr_debug("Sleep $sleeptime milliseconds waiting for $pidfile");
 
-    # Print extra message every 60 seconds
-    if ( $seconds > 1 && int($seconds * 10) % 600 == 0 && $seconds < $timeout )
+    # Print extra message every $warn_seconds seconds
+    if ( $seconds > 1 && ($seconds*10) % ($warn_seconds*10) == 0 && $seconds < $timeout )
     {
       my $left= $timeout - $seconds;
       mtr_warning("Waited $seconds seconds for $pidfile to be created, " .

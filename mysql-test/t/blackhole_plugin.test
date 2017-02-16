@@ -1,20 +1,18 @@
---source include/not_windows.inc
---source include/have_blackhole_plugin.inc
-
-# When running in parallel we get
-# Warning 1620 Plugin is busy and will be uninstalled on shutdown
---source include/not_parallel.inc
+if (!$HA_BLACKHOLE_SO) {
+  --skip Need blackhole plugin
+}
 
 CREATE TABLE t1(a int) ENGINE=BLACKHOLE;
 DROP TABLE t1;
-
-eval INSTALL PLUGIN blackhole SONAME 'ha_blackhole.so';
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN blackhole SONAME '$HA_BLACKHOLE_SO';
+--replace_regex /\.dll/.so/
 --error 1125
-eval INSTALL PLUGIN BLACKHOLE SONAME 'ha_blackhole.so';
+eval INSTALL PLUGIN BLACKHOLE SONAME '$HA_BLACKHOLE_SO';
 
 UNINSTALL PLUGIN blackhole;
-
-eval INSTALL PLUGIN blackhole SONAME 'ha_blackhole.so';
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN blackhole SONAME '$HA_BLACKHOLE_SO';
 
 CREATE TABLE t1(a int) ENGINE=BLACKHOLE;
 

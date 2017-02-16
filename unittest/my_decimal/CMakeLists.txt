@@ -19,14 +19,5 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include
                     ${CMAKE_SOURCE_DIR}/unittest/mytap)
 
-
-MACRO (MY_ADD_TEST name)
-  ADD_EXECUTABLE(${name}-t ${name}-t.cc)
-  TARGET_LINK_LIBRARIES(${name}-t mytap mysys strings)
-  ADD_TEST(${name} ${name}-t)
-ENDMACRO()
-
-
-FOREACH(testname my_decimal)
-  MY_ADD_TEST(${testname})
-ENDFOREACH()
+#
+MY_ADD_TESTS(my_decimal EXT "cc" LINK_LIBRARIES strings dbug)

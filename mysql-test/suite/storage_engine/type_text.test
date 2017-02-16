@@ -1,0 +1,10 @@
+#
+# TEXT column types
+#
+
+--source have_engine.inc
+
+--source type_text.inc
+
+--source cleanup_engine.inc
+

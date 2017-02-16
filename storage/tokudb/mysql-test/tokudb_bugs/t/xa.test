@@ -1,0 +1,246 @@
+#
+# WL#1756
+#
+-- source include/have_tokudb.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+create table t1 (a int) engine=tokudb;
+xa start 'test1';
+insert t1 values (10);
+xa end 'test1';
+xa prepare 'test1';
+xa rollback 'test1';
+select * from t1;
+
+xa start 'test2';
+--error ER_XAER_RMFAIL
+xa start 'test-bad';
+insert t1 values (20);
+--error ER_XAER_RMFAIL
+xa prepare 'test2';
+xa end 'test2';
+xa prepare 'test2';
+xa commit 'test2';
+select * from t1;
+
+xa start 'testa','testb';
+insert t1 values (30);
+
+--error ER_XAER_RMFAIL
+commit;
+
+xa end 'testa','testb';
+
+--error ER_XAER_RMFAIL
+begin;
+--error ER_XAER_RMFAIL
+create table t2 (a int);
+
+connect (con1,localhost,root,,);
+connection con1;
+
+--error ER_XAER_DUPID
+xa start 'testa','testb';
+--error ER_XAER_DUPID
+xa start 'testa','testb', 123;
+
+#        gtrid [ , bqual [ , formatID ] ]
+xa start 0x7465737462, 0x2030405060, 0xb;
+insert t1 values (40);
+xa end 'testb',' 0@P`',11;
+xa prepare 'testb',0x2030405060,11;
+
+--error ER_XAER_RMFAIL
+start transaction;
+
+xa recover;
+
+# uncomment the line below when binlog will be able to prepare
+#disconnect con1;
+connection default;
+
+xa prepare 'testa','testb';
+
+xa recover;
+
+--error ER_XAER_NOTA
+xa commit 'testb',0x2030405060,11;
+xa rollback 'testa','testb';
+
+--error ER_PARSE_ERROR
+xa start 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz';
+
+connection con1;
+xa rollback  'testb',0x2030405060,11;
+connection default;
+
+select * from t1;
+drop table t1;
+
+disconnect con1;
+
+#
+# Bug#28323: Server crashed in xid cache operations
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1(a int, b int, c varchar(20), primary key(a)) engine = tokudb;
+insert into t1 values(1, 1, 'a');
+insert into t1 values(2, 2, 'b');
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+--connection con1
+xa start 'a','b';
+update t1 set c = 'aa' where a = 1;
+--connection con2
+xa start 'a','c';
+update t1 set c = 'bb' where a = 2;
+--connection con1
+--send update t1 set c = 'bb' where a = 2
+--connection con2
+--sleep 1
+--error ER_LOCK_DEADLOCK
+update t1 set c = 'aa' where a = 1;
+select count(*) from t1;
+### unlike InnoDB, for TokuDB, this does not have an error
+#--error ER_XA_RBDEADLOCK
+xa end 'a','c';
+xa rollback 'a','c';
+--disconnect con2
+
+connect (con3,localhost,root,,);
+--connection con3
+xa start 'a','c';
+
+--connection con1
+--reap
+xa end 'a','b';
+xa rollback 'a','b';
+--connection con3
+--disconnect con1
+--disconnect con3
+--connection default
+drop table t1;
+
+--echo #
+--echo # BUG#51342 - more xid crashing
+--echo #
+CREATE TABLE t1(a INT) ENGINE=TokuDB;
+XA START 'x';
+SET SESSION autocommit=0;
+INSERT INTO t1 VALUES(1);
+--error ER_XAER_RMFAIL
+SET SESSION autocommit=1;
+SELECT @@autocommit;
+INSERT INTO t1 VALUES(1);
+XA END 'x';
+XA COMMIT 'x' ONE PHASE;
+DROP TABLE t1;
+SET SESSION autocommit=1;
+
+--echo End of 5.0 tests
+
+#
+# Bug#44672: Assertion failed: thd->transaction.xid_state.xid.is_null()
+#
+
+xa start 'a';
+xa end 'a';
+xa rollback 'a';
+xa start 'a';
+xa end 'a';
+xa rollback 'a';
+
+#
+# Bug#45548: XA transaction without access to TokuDB tables crashes the server
+#
+
+xa start 'a';
+xa end 'a';
+xa prepare 'a';
+xa commit 'a';
+
+xa start 'a';
+xa end 'a';
+xa prepare 'a';
+xa commit 'a';
+
+#
+# BUG#43171 - Assertion failed: thd->transaction.xid_state.xid.is_null()
+#
+CREATE TABLE t1(a INT, KEY(a)) ENGINE=TokuDB;
+INSERT INTO t1 VALUES(1),(2);
+connect(con1,localhost,root,,);
+
+# Part 1: Prepare to test XA START after regular transaction deadlock
+BEGIN;
+UPDATE t1 SET a=3 WHERE a=1;
+
+connection default;
+BEGIN;
+UPDATE t1 SET a=4 WHERE a=2;
+
+connection con1;
+let $conn_id= `SELECT CONNECTION_ID()`;
+SEND UPDATE t1 SET a=5 WHERE a=2;
+
+connection default;
+let $wait_timeout= 2;
+let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE ID=$conn_id AND STATE='Searching rows for update';
+--source include/wait_condition.inc
+
+--error ER_LOCK_DEADLOCK
+UPDATE t1 SET a=5 WHERE a=1;
+ROLLBACK;
+
+# Part 2: Prepare to test XA START after XA transaction deadlock
+connection con1;
+REAP;
+ROLLBACK;
+BEGIN;
+UPDATE t1 SET a=3 WHERE a=1;
+
+connection default;
+XA START 'xid1';
+UPDATE t1 SET a=4 WHERE a=2;
+
+connection con1;
+SEND UPDATE t1 SET a=5 WHERE a=2;
+
+connection default;
+let $wait_timeout= 2;
+let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE ID=$conn_id AND STATE='Searching rows for update';
+--source include/wait_condition.inc
+
+--error ER_LOCK_DEADLOCK
+UPDATE t1 SET a=5 WHERE a=1;
+
+XA END 'xid1';
+XA ROLLBACK 'xid1';
+
+XA START 'xid1';
+XA END 'xid1';
+XA ROLLBACK 'xid1';
+
+connection con1;
+--reap
+commit;
+connection default;
+disconnect con1;
+DROP TABLE t1;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+

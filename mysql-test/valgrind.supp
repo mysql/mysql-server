@@ -1,4 +1,5 @@
-# Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2015, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2016, MariaDB
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -17,27 +18,6 @@
 #
 # Suppress some common (not fatal) errors in system libraries found by valgrind
 #
-
-#
-# Pthread doesn't free all thread specific memory before program exists
-#
-{
-   pthread allocate_tls memory loss
-   Memcheck:Leak
-   fun:calloc
-   fun:_dl_allocate_tls
-   fun:allocate_stack
-   fun:pthread_create*
-}
-
-{
-   pthread allocate_tls memory loss
-   Memcheck:Leak
-   fun:calloc
-   fun:_dl_allocate_tls
-   fun:pthread_create*
-
-}
 
 {
    pthead_exit memory loss 1
@@ -80,34 +60,6 @@
 }
 
 {
-   pthread allocate_dtv memory loss
-   Memcheck:Leak
-   fun:calloc
-   fun:allocate_dtv
-   fun:_dl_allocate_tls_storage
-   fun:__GI__dl_allocate_tls
-   fun:pthread_create
-}
-
-{
-   pthread allocate_dtv memory loss second
-   Memcheck:Leak
-   fun:calloc
-   fun:allocate_dtv
-   fun:_dl_allocate_tls
-   fun:pthread_create*
-}
-
-{
-   pthread memalign memory loss
-   Memcheck:Leak
-   fun:memalign
-   fun:_dl_allocate_tls_storage
-   fun:__GI__dl_allocate_tls
-   fun:pthread_create
-}
-
-{
    pthread pthread_key_create
    Memcheck:Leak
    fun:malloc
@@ -140,23 +92,13 @@
 }
 
 {  
-   strlen/_dl_init_paths/dl_main/_dl_sysdep_start(Cond)
+   somewhere in ld.so, when loading mysqld
    Memcheck:Cond
-   fun:strlen
-   fun:_dl_init_paths
+   ...
    fun:dl_main
    fun:_dl_sysdep_start
+   fun:_dl_start
 }
-
-{
-   pthread errno
-   Memcheck:Leak
-   fun:calloc
-   fun:_dlerror_run
-   fun:dlsym
-   fun:__errno_location
-}
-
 
 #
 # Warnings in libz becasue it works with aligned memory(?)
@@ -281,6 +223,15 @@
    fun:do_flush
 }
 
+{
+   libz inflatereset2
+   Memcheck:Cond
+   fun:inflateReset2
+   fun:inflateInit2_
+   fun:uncompress
+}
+
+
 #
 # Warning from my_thread_init becasue mysqld dies before kill thread exists
 #
@@ -299,18 +250,6 @@
    dl_relocate_object
    Memcheck:Cond
    fun:_dl_relocate_object
-}
-
-#
-# Warning from my_thread_init becasue mysqld dies before kill thread exists
-#
-
-{
-   my_thread_init kill thread memory loss second
-   Memcheck:Leak
-   fun:calloc
-   fun:my_thread_init
-   fun:kill_server_thread
 }
 
 #
@@ -404,6 +343,105 @@
    Memcheck:Addr4
    fun:__sigjmp_save
    fun:__libc_start_main
+}
+
+
+#
+#  dlclose can allocate memory for error message, the memory will be
+#  freed by dlerror or other dl* function.
+#
+{
+   memory "loss" from dlclose error messages
+   Memcheck:Leak
+   fun:*alloc
+   ...
+   fun:dlclose
+}
+
+
+#
+#  dlsym can allocate memory for error message, the memory will be
+#  freed by dlerror or other dl* function.
+#
+{
+   memory "loss" from dlclose error messages
+   Memcheck:Leak
+   fun:*alloc
+   ...
+   fun:dlsym
+}
+
+
+{
+   dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 32/64 bit ver 1
+   Memcheck:Leak
+   fun:*alloc
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+}
+
+{
+   dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 32/64 bit ver 2
+   Memcheck:Leak
+   fun:*alloc
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+}
+
+{
+   dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 32/64 bit
+   Memcheck:Leak
+   fun:*alloc
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+}
+
+
+#
+# Reading wrong addresses on SuSe Linux 10.3 32 bit
+#
+
+{
+   Reading wrong data in libc_dlopen
+   Memcheck:Addr4
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
 }
 
 #
@@ -512,6 +550,8 @@
    fun:_ZN19TransporterRegistry11performSendEv
    fun:_ZN19TransporterRegistry14forceSendCheckEi
 }
+
+#
 # Warning when printing stack trace (to suppress some not needed warnings)
 #
 
@@ -539,6 +579,14 @@
    fun:kill_server
 }
 
+{
+   Aria checkpoint background thread not dying fast enough
+   Memcheck:Leak
+   fun:calloc
+   fun:my_thread_init
+   fun:ma_checkpoint_background
+}
+
 #
 # Warning caused by small memory leak in threaded dlopen
 #
@@ -549,6 +597,92 @@
    fun:calloc
    obj:*/libdl-*.so
    fun:dlopen*
+}
+
+#
+# In glibc (checked version 2.7), inet_ntoa allocates an 18-byte
+# per-thread static buffer for the return value. That memory is freed
+# at thread exit, however if called from the main thread, Valgrind
+# does not see the free (test main.no-threads).
+#
+# Since inet_ntoa() does not allocate memory dynamically per-call, this
+# suppression is safe.
+#
+
+{
+   inet_ntoa thread local storage
+   Memcheck:Leak
+   fun:malloc
+   fun:inet_ntoa
+}
+
+
+#
+# Some problem inside glibc on Ubuntu 9.04, x86 (but not amd64):
+# 
+# ==5985== 19 bytes in 1 blocks are still reachable in loss record 1 of 6
+# ==5985==    at 0x7AF3FDE: malloc (vg_replace_malloc.c:207) 
+#               ... 11,12, or 13 functions w/o symbols ...
+# ==5985==    by 0x8717185: nptl_pthread_exit_hack_handler (my_thr_init.c:55)
+#
+# Since valgrind 3.3.0 doesn't support '...' multi-function pattern, using
+# multiple suppressions:
+#
+{
+   Mem loss inside nptl_pthread_exit_hack_handler
+   Memcheck:Leak
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:nptl_pthread_exit_hack_handler 
+}
+
+{
+   Mem loss inside nptl_pthread_exit_hack_handler
+   Memcheck:Leak
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:nptl_pthread_exit_hack_handler 
+}
+
+{
+   Mem loss inside nptl_pthread_exit_hack_handler
+   Memcheck:Leak
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+   fun:nptl_pthread_exit_hack_handler 
 }
 
 #
@@ -659,6 +793,20 @@
    fun:start_thread
 }
 
+#
+# Problem with glibc and gethostbyaddr_r
+#
+
+{
+   libc_res_nsend: Conditional jump or move depends on uninitialised value
+   Memcheck:Cond
+   fun: __libc_res_nsend
+   fun: __libc_res_nquery
+   obj: /lib64/libnss_dns-*so)
+   obj: /lib64/libnss_dns-*so)
+   fun: gethostbyaddr_r
+}
+
 # suppressions for glibc 2.6.1 64 bit
 
 {
@@ -745,94 +893,60 @@
    fun:nptl_pthread_exit_hack_handler
 }
 
+{
+   Invalid read within nptl_pthread_exit_hack_handler
+   Memcheck:Addr8
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+   fun:__pthread_unwind
+   fun:pthread_exit
+   fun:nptl_pthread_exit_hack_handler
+}
+
+{
+   memory "leak" in backtrace() of glibc 2.9 (not present in 2.13)
+   Memcheck:Leak
+   fun:malloc
+   ...
+   fun:pthread_once
+   fun:backtrace
+}
+
+{
+   memory leak in mysqld_exit
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_close_worker
+   fun:_dl_close
+}
+
 #
-# Pthread doesn't free all thread specific memory before program exists
+# Bug in Glibc 2.9: http://sourceware.org/bugzilla/show_bug.cgi?id=10391
+# Fixed in latest Glibc, but suppressed here for running tests on hosts
+# with older Glibc version.
 #
 {
-   pthread allocate_tls memory loss in 2.6.1.
-   Memcheck:Leak 
-   fun:calloc
-   obj:*/ld-*.so
-   fun:_dl_allocate_tls
-   fun:pthread_create*
+   Glibc bug in __libc_res_nsend
+   Memcheck:Cond
+   fun:__libc_res_nsend
+   fun:__libc_res_nquery
 }
 
 {
    buf_buddy_relocate peeking (space,page) in potentially free blocks
    Memcheck:Addr1
    fun:buf_buddy_relocate
-}
-
-#
-# See related Bug#56666
-# Race condition between the server main thread and the kill server thread.
-#
-# Because of this race condition, the call to shutdown_performance_schema()
-# was commented in sql/mysqld.cc, causing the reported leaks.
-#
-
-{
-   missing shutdown_performance_schema 1
-   Memcheck:Leak
-   fun:malloc
-   fun:_Z10pfs_mallocmi
-}
-
-{
-   missing shutdown_performance_schema 2
-   Memcheck:Leak
-   fun:malloc
-   fun:my_malloc
-   fun:_lf_alloc_new
-   fun:lf_hash_insert
-}
-
-#
-# Note that initialize_bucket() is reccursive,
-# can't provide more stack context.
-#
-{
-   missing shutdown_performance_schema 3
-   Memcheck:Leak
-   fun:malloc
-   fun:my_malloc
-   fun:initialize_bucket
-}
-
-{
-   missing shutdown_performance_schema 4
-   Memcheck:Leak
-   fun:malloc
-   fun:my_malloc
-   fun:_lf_dynarray_lvalue
-   fun:_lf_pinbox_get_pins
-}
-
-{
-   missing shutdown_performance_schema 5
-   Memcheck:Leak
-   fun:malloc
-   fun:my_malloc
-   fun:_lf_dynarray_lvalue
-   fun:lf_hash_insert
-}
-
-{
-   missing shutdown_performance_schema 6
-   Memcheck:Leak
-   fun:malloc
-   fun:my_malloc
-   fun:_lf_dynarray_lvalue
-   fun:lf_hash_delete
-}
-
-{
-   missing shutdown_performance_schema 7
-   Memcheck:Leak
-   fun:malloc
-   fun:my_malloc
-   fun:_lf_dynarray_lvalue
-   fun:lf_hash_search
 }
 
 {
@@ -918,4 +1032,45 @@
    ...
    fun:my_b_flush_io_cache
    fun:_Z8filesortP3THDP5TABLEP13st_sort_fieldjP10SQL_SELECTybPy
+}
+
+{
+   OpenSSL still reachable.
+   Memcheck:Leak
+   fun:*alloc
+   fun:CRYPTO_malloc
+   fun:sk_new
+   obj:*libssl*
+   fun:SSL_COMP_get_compression_methods
+   fun:SSL_library_init
+}
+
+
+{
+  Problem with udf and libresolve
+  Memcheck:Cond
+   obj:*/libresolv*.so
+   fun:__libc_res_nquery
+   fun:_nss_dns_gethostbyaddr2_r
+   fun:_nss_dns_gethostbyaddr_r
+   fun:gethostbyaddr_r
+}
+
+
+#
+# Detached threads may not complete deiniitialization by the time shutdown
+# thread calls exit. This is unfortunate property of detached threads, which
+# we currently can only ignore. Unfortunately there is no way to distinguish
+# between false positives generated by detached threads and real memory leaks
+# generated by not joined joinable threads. So we hide both cases.
+#
+# To avoid enumeration of the whole variety of possible traces we ignore all
+# "possibly lost" blocks allocated by pthread_create (and it's callees).
+#
+{
+   Detached threads memory loss
+   Memcheck:Leak
+   match-leak-kinds:possible
+   ...
+   fun:pthread_create*
 }

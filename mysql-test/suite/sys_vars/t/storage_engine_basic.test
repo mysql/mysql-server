@@ -29,9 +29,7 @@
 #############################################################
 
 SET @start_global_value = @@global.storage_engine;
-SELECT @start_global_value;
 SET @start_session_value = @@session.storage_engine;
-SELECT @start_session_value;
 
 
 --echo '#--------------------FN_DYNVARS_005_01-------------------------#'
@@ -41,10 +39,12 @@ SELECT @start_session_value;
 
 SET @@global.storage_engine = INNODB;
 SET @@global.storage_engine = DEFAULT;
+--replace_result MyISAM InnoDB
 SELECT @@global.storage_engine;
 
 SET @@session.storage_engine = INNODB;
 SET @@session.storage_engine = DEFAULT;
+--replace_result MyISAM InnoDB
 SELECT @@session.storage_engine;
 
 
@@ -173,9 +173,7 @@ SET @@storage_engine = @start_global_value;
 ####################################
 
 SET @@global.storage_engine = @start_global_value;
-SELECT @@global.storage_engine;
 SET @@session.storage_engine = @start_session_value;
-SELECT @@session.storage_engine;
 
 
 #############################################################

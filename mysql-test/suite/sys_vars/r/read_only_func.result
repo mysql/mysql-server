@@ -27,7 +27,7 @@ id INT NOT NULL auto_increment,
 PRIMARY KEY (id),
 name BLOB
 );
-ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+ERROR HY000: The MariaDB server is running with the --read-only option so it cannot execute this statement
 not updating values
 INSERT into t2(name) values("aaassssssssddddddddffffff");
 Got one of the listed errors

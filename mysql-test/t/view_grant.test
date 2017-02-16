@@ -1595,6 +1595,12 @@ disconnect root;
 
 connection default;
 
+#
+# MDEV-4951 drop user leaves privileges
+#
+#verify that no privileges were left after the above
+select * from information_schema.table_privileges;
+
 --echo End of 5.0 tests.
 
 

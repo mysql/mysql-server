@@ -1,0 +1,167 @@
+# 
+# UPDATE LOW_PRIORITY
+#
+--source have_engine.inc
+
+--source include/count_sessions.inc
+
+--enable_connect_log
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--source create_table.inc
+INSERT INTO t1 (a,b) VALUES (11,'foobar'),(12,'b');
+
+# We will have 3 connections: 
+#   con1 will start SELECT which should give us enough time;
+#   default will run UPDATE
+#   con2 will then start another SELECT.
+# With LOW_PRIORITY_UPDATES = 0,
+# with standard UPDATE we should see old data in con1 resultset,
+# but new data in con2 resultset.
+# With UPDATE LOW_PRIORITY we should see old data in both resultsets.
+# Then we will set LOW_PRIORITY_UPDATES to 1.
+# Then with standard UPDATE we should also see old data in both resultsets.
+
+SET LOW_PRIORITY_UPDATES = 0;
+SET lock_wait_timeout = 4;
+
+# Normal UPDATE with low_priority_updates=0
+
+--connect (con1,localhost,root,,)
+SET lock_wait_timeout = 2;
+--send
+SELECT a+SLEEP(1) FROM t1;
+
+--connection default
+let $show_statement = SHOW PROCESSLIST;
+let $field = State;
+let $condition = = 'User sleep';
+# We don't need to wait long, 
+# if the feature works, threads
+# should show up in the processlist right away
+let $wait_timeout = 2;
+--source include/wait_show_condition.inc
+--send
+UPDATE t1 SET a=a+10;
+
+--connect (con2,localhost,root,,)
+SET lock_wait_timeout = 3;
+let $field = Info;
+let $condition =  = 'UPDATE t1 SET a=a+10';
+let $wait_timeout = 2;
+--source include/wait_show_condition.inc
+if (!$found)
+{
+  --let $mysql_errname = timeout in wait_show_condition.inc
+  --let $functionality = Table locking
+  --source unexpected_result.inc
+}
+--sorted_result
+SELECT a+SLEEP(1) FROM t1;
+
+--connection con1
+--sorted_result
+--reap
+
+--connection default
+--reap
+if ($mysql_errname)
+{
+  --let $my_last_stmt = UPDATE t1 SET a=a+10
+  --let $functionality = UPDATE
+  --source unexpected_result.inc
+}
+
+--sorted_result
+SELECT a,b FROM t1;
+
+# UPDATE LOW_PRIORITY
+
+--connection con1
+--send
+SELECT a+SLEEP(1) FROM t1;
+
+--connection default
+let $field = State;
+let $condition = = 'User sleep';
+let $wait_timeout = 2;
+--source include/wait_show_condition.inc
+--send
+UPDATE LOW_PRIORITY t1 SET a=a+20;
+
+--connection con2
+let $field = Info;
+let $condition =  = 'UPDATE LOW_PRIORITY t1 SET a=a+20';
+let $wait_timeout = 2;
+--source include/wait_show_condition.inc
+--sorted_result
+SELECT a+SLEEP(1) FROM t1;
+
+--connection con1
+--sorted_result
+--reap
+
+--connection default
+--reap
+--sorted_result
+SELECT a,b FROM t1;
+
+SET LOW_PRIORITY_UPDATES = 1;
+
+# Normal UPDATE with low_priority_updates=1
+
+--connection con1
+--send
+SELECT a+SLEEP(1) FROM t1;
+
+--connection default
+let $field = State;
+let $condition = = 'User sleep';
+let $wait_timeout = 2;
+--source include/wait_show_condition.inc
+--send
+UPDATE t1 SET a=a+30;
+
+--connection con2
+let $field = Info;
+let $condition =  = 'UPDATE t1 SET a=a+30';
+let $wait_timeout = 2;
+--source include/wait_show_condition.inc
+if (!$found)
+{
+  --let $mysql_errname = timeout in wait_show_condition.inc
+  --let $functionality = Table locking
+  --source unexpected_result.inc
+}
+--sorted_result
+SELECT a+SLEEP(1) FROM t1;
+
+--connection con1
+--sorted_result
+--reap
+
+--connection default
+--reap
+if ($mysql_errname)
+{
+  --let $my_last_stmt = UPDATE t1 SET a=a+30
+  --let $functionality = UPDATE
+  --source unexpected_result.inc
+}
+--sorted_result
+SELECT a,b FROM t1;
+
+--disconnect con1
+--disconnect con2
+
+--connection default
+# Cleanup
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc
+
+--source cleanup_engine.inc
+

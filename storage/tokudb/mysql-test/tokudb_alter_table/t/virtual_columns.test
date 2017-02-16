@@ -1,0 +1,22 @@
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=ON;
+
+--error ER_UNSUPPORTED_ENGINE_FOR_VIRTUAL_COLUMNS
+create table foo (a int, b int, c int, d int as (a mod 10) virtual, key(a))engine=TokuDB;
+
+
+
+create table foo (a int, b int, c int)engine=TokuDB;
+--error ER_UNSUPPORTED_ENGINE_FOR_VIRTUAL_COLUMNS
+alter table foo add column d int as (a mod 10) virtual;
+--error ER_UNSUPPORTED_ENGINE_FOR_VIRTUAL_COLUMNS
+alter table foo add column d int as (a mod 10) persistent;
+
+
+drop table foo;

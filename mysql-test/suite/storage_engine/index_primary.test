@@ -1,0 +1,136 @@
+# 
+# Basic syntax related to primary keys 
+#
+
+--source have_engine.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+let $create_definition =
+  a $int_indexed_col PRIMARY KEY,
+  b $char_col
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt =  $create_statement
+  --let $functionality = PRIMARY KEY
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW KEYS IN t1;
+
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
+  --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+  INSERT INTO t1 (a,b) VALUES (1,'c');
+  --source check_errors.inc
+
+  DROP TABLE t1;
+}
+
+--let $error_codes = ER_MULTIPLE_PRI_KEY
+let $create_definition = 
+  a $int_indexed_col PRIMARY KEY,
+  b $char_indexed_col PRIMARY KEY
+;
+--source create_table.inc
+if ($mysql_errname != ER_MULTIPLE_PRI_KEY)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = PRIMARY KEY
+  --source unexpected_result.inc
+}
+
+let $create_definition = 
+  a $int_indexed_col,
+  b $char_indexed_col,
+  PRIMARY KEY (a,b)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt =  $create_statement
+  --let $functionality = Multi-part keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(1,'b'),(2,'a'),(2,'b');
+  --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+  INSERT INTO t1 (a,b) VALUES (1,'b');
+  --source check_errors.inc
+  DROP TABLE t1;
+}
+
+
+--let $continue = 1
+--source have_default_index.inc
+if ($have_default_index)
+{
+  # KEY in a column definition means PK!
+  let $create_definition = 
+    a $int_indexed_col KEY,
+    b $char_indexed_col,
+    $default_index (b)
+  ;
+  --source create_table.inc
+  if ($mysql_errname)
+  {
+    --let $my_last_stmt =  $create_statement
+    --let $functionality = Multiple keys or PK or keys on CHAR columns
+    --source unexpected_result.inc
+  }
+  if (!$mysql_errname)
+  {
+    --replace_column 6 # 7 # 10 # 11 #
+    SHOW INDEX IN t1;
+    DROP TABLE t1;
+  }
+}
+
+let $create_definition =
+  a $int_indexed_col,
+  b $char_indexed_col PRIMARY KEY
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt =  $create_statement
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  --let $alter_definition = DROP INDEX `PRIMARY`
+  --source alter_table.inc
+  if ($mysql_errname)
+  {
+    --let $my_last_stmt =  $alter_statement
+    --let $functionality = ALTER TABLE
+    --source unexpected_result.inc
+  }
+  if (!$mysql_errname)
+  {
+    --let $alter_definition = ADD CONSTRAINT PRIMARY KEY pk (a)
+    --source alter_table.inc
+    --source mask_engine.inc
+    --replace_column 6 # 7 # 10 # 11 #
+    SHOW KEYS IN t1;
+    --let $alter_definition = DROP PRIMARY KEY
+    --source alter_table.inc
+  }
+
+  DROP TABLE t1;
+}
+
+--source cleanup_engine.inc
+

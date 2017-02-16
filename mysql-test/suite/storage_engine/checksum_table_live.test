@@ -1,0 +1,13 @@
+# 
+# CHECKSUM TABLE statements for live CHECKSUM.
+#
+# Note: the feature is likely to be unsupported, in which case
+# instead of numeric values some CHECKSUMs will produce NULL
+# 
+
+--source have_engine.inc
+
+--source checksum_table_live.inc
+
+--source cleanup_engine.inc
+

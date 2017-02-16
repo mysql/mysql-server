@@ -1,0 +1,33 @@
+--- suite/storage_engine/index_enable_disable.result	2012-07-15 00:30:05.296641931 +0400
++++ suite/storage_engine/index_enable_disable.reject	2012-07-15 17:49:12.988081281 +0400
+@@ -11,15 +11,19 @@
+ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+ t1	1	a	1	a	#	#	NULL	NULL	YES	BTREE		
+ ALTER TABLE t1 DISABLE KEYS;
++Warnings:
++Note	1031	Table storage engine for 't1' doesn't have this option
+ SHOW INDEX IN t1;
+ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+-t1	1	a	1	a	#	#	NULL	NULL	YES	BTREE	disabled	
++t1	1	a	1	a	#	#	NULL	NULL	YES	BTREE		
+ EXPLAIN SELECT a FROM t1 ORDER BY a;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	19	Using filesort
++1	SIMPLE	t1	index	NULL	a	5	NULL	19	Using index
+ INSERT INTO t1 (a) VALUES
+ (11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+ ALTER TABLE t1 ENABLE KEYS;
++Warnings:
++Note	1031	Table storage engine for 't1' doesn't have this option
+ SHOW INDEX IN t1;
+ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+ t1	1	a	1	a	#	#	NULL	NULL	YES	BTREE		
+@@ -32,6 +36,8 @@
+ (1),(2),(3),(4),(5),(6),(7),(8),(9),
+ (21),(22),(23),(24),(25),(26),(27),(28),(29);
+ ALTER TABLE t1 DISABLE KEYS;
++Warnings:
++Note	1031	Table storage engine for 't1' doesn't have this option
+ INSERT INTO t1 (a) VALUES (29);
+ ERROR 23000: Duplicate entry '29' for key 'a'
+ # Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 

@@ -1,0 +1,60 @@
+--source include/have_unix_socket.inc
+
+if (!$USER) {
+  skip USER variable is undefined;
+}
+
+let $plugindir=`SELECT @@global.plugin_dir`;
+
+eval install plugin unix_socket soname '$AUTH_SOCKET_SO';
+
+--echo #
+--echo # with named user
+--echo #
+
+--let $replace=create user $USER
+--replace_result $replace "create user USER"
+eval create user $USER identified via unix_socket;
+
+--write_file $MYSQLTEST_VARDIR/tmp/peercred_test.txt
+--let $replace1=$USER@localhost
+--let $replace2=$USER@%
+--replace_result $replace1 "USER@localhost" $replace2 "USER@%"
+select user(), current_user(), database();
+EOF
+
+--echo #
+--echo # name match = ok
+--echo #
+--exec $MYSQL_TEST -u $USER --plugin-dir=$plugindir < $MYSQLTEST_VARDIR/tmp/peercred_test.txt
+
+--echo #
+--echo # name does not match = failure
+--echo #
+--error 1
+--exec $MYSQL_TEST -u foobar --plugin-dir=$plugindir < $MYSQLTEST_VARDIR/tmp/peercred_test.txt
+
+--let $replace=drop user $USER
+--replace_result $replace "drop user USER"
+eval drop user $USER;
+
+--echo #
+--echo # and now with anonymous user
+--echo #
+grant SELECT ON test.* TO '' identified via unix_socket;
+--echo #
+--echo # name match = ok
+--echo #
+--exec $MYSQL_TEST -u $USER --plugin-dir=$plugindir < $MYSQLTEST_VARDIR/tmp/peercred_test.txt
+
+--echo #
+--echo # name does not match = failure
+--echo #
+--error 1
+--exec $MYSQL_TEST -u foobar --plugin-dir=$plugindir < $MYSQLTEST_VARDIR/tmp/peercred_test.txt
+
+# restoring mysql.user to the original state.
+delete from mysql.user where user='';
+uninstall plugin unix_socket;
+--remove_file $MYSQLTEST_VARDIR/tmp/peercred_test.txt
+

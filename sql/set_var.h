@@ -1,6 +1,7 @@
 #ifndef SET_VAR_INCLUDED
 #define SET_VAR_INCLUDED
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, SkySQL Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,9 +61,7 @@ public:
   sys_var *next;
   LEX_CSTRING name;
   enum flag_enum { GLOBAL, SESSION, ONLY_SESSION, SCOPE_MASK=1023,
-                   READONLY=1024, ALLOCATED=2048 };
-  static const int PARSE_EARLY= 1;
-  static const int PARSE_NORMAL= 2;
+                   READONLY=1024, ALLOCATED=2048, PARSE_EARLY=4096 };
   /**
     Enumeration type to indicate for a system variable whether
     it will be written to the binlog or not.
@@ -75,7 +74,6 @@ protected:
   typedef bool (*on_update_function)(sys_var *self, THD *thd, enum_var_type type);
 
   int flags;            ///< or'ed flag_enum values
-  int m_parse_flag;     ///< either PARSE_EARLY or PARSE_NORMAL.
   const SHOW_TYPE show_val_type; ///< what value_ptr() returns for sql_show.cc
   my_option option;     ///< min, max, default values are stored here
   PolyLock *guard;      ///< *second* lock that protects the variable
@@ -91,7 +89,7 @@ public:
           enum get_opt_arg_type getopt_arg_type, SHOW_TYPE show_val_type_arg,
           longlong def_val, PolyLock *lock, enum binlog_status_enum binlog_status_arg,
           on_check_function on_check_func, on_update_function on_update_func,
-          const char *substitute, int parse_flag);
+          const char *substitute);
 
   virtual ~sys_var() {}
 
@@ -140,7 +138,7 @@ public:
   }
   bool register_option(DYNAMIC_ARRAY *array, int parse_flags)
   {
-    return (option.id != -1) && (m_parse_flag & parse_flags) &&
+    return (option.id != -1) && ((flags & PARSE_EARLY) == parse_flags) &&
            insert_dynamic(array, (uchar*)&option);
   }
   void do_deprecated_warning(THD *thd);
@@ -181,6 +179,7 @@ protected:
 
 #include "sql_plugin.h"                    /* SHOW_HA_ROWS, SHOW_MY_BOOL */
 
+
 /****************************************************************************
   Classes for parsing of the SET command
 ****************************************************************************/
@@ -212,12 +211,13 @@ public:
   enum_var_type type;
   union ///< temp storage to hold a value between sys_var::check and ::update
   {
-    ulonglong ulonglong_value;          ///< for all integer, set, enum sysvars
+    ulonglong ulonglong_value;          ///< for unsigned integer, set, enum sysvars
+    longlong longlong_value;            ///< for signed integer
     double double_value;                ///< for Sys_var_double
     plugin_ref plugin;                  ///< for Sys_var_plugin
     Time_zone *time_zone;               ///< for Sys_var_tz
     LEX_STRING string_value;            ///< for Sys_var_charptr and others
-    void *ptr;                          ///< for Sys_var_struct
+    const void *ptr;                    ///< for Sys_var_struct
   } save_result;
   LEX_STRING base; /**< for structured variables, like keycache_name.variable_name */
 
@@ -232,23 +232,13 @@ public:
     if (value_arg && value_arg->type() == Item::FIELD_ITEM)
     {
       Item_field *item= (Item_field*) value_arg;
-      if (item->field_name)
-      {
-        if (!(value= new Item_string(item->field_name,
-                                     (uint) strlen(item->field_name),
-                                     system_charset_info))) // names are utf8
-	  value= value_arg;			/* Give error message later */
-      }
-      else
-      {
-        /* Both Item_field and Item_insert_value will return the type as
-        Item::FIELD_ITEM. If the item->field_name is NULL, we assume the
-        object to be Item_insert_value. */
-        value= value_arg;
-      }
+      if (!(value=new Item_string(item->field_name,
+                                  (uint) strlen(item->field_name),
+                                  system_charset_info))) // names are utf8
+        value=value_arg;                        /* Give error message later */
     }
     else
-      value= value_arg;
+      value=value_arg;
   }
   int check(THD *thd);
   int update(THD *thd);
@@ -326,8 +316,8 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list);
 
 bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type);
 
-ulong expand_sql_mode(ulonglong sql_mode);
-bool sql_mode_string_representation(THD *thd, ulong sql_mode, LEX_STRING *ls);
+ulonglong expand_sql_mode(ulonglong sql_mode);
+bool sql_mode_string_representation(THD *thd, ulonglong sql_mode, LEX_STRING *ls);
 
 extern sys_var *Sys_autocommit_ptr;
 

@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2010, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -147,8 +148,8 @@ uchar *hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *key,
       {
 	flag=0;					/* Reset flag */
 	if (hp_find_hash(&keyinfo->block,
-			 hp_mask(hp_rec_hashnr(keyinfo, pos->ptr_to_rec),
-				  share->blength, share->records)) != pos)
+			 hp_mask(pos->hash_of_key,
+                                 share->blength, share->records)) != pos)
 	  break;				/* Wrong link */
       }
     }
@@ -298,7 +299,9 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const uchar *key)
       }
     }
   }
+#ifdef ONLY_FOR_HASH_DEBUGGING
   DBUG_PRINT("exit", ("hash: 0x%lx", nr));
+#endif
   return((ulong) nr);
 }
 
@@ -345,10 +348,21 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const uchar *rec)
                                 seg->length/cs->mbmaxlen);
         set_if_smaller(length, char_length);
       }
+      else
+        set_if_smaller(length, seg->length);
       cs->coll->hash_sort(cs, pos+pack_length, length, &nr, &nr2);
     }
     else
     {
+      if (seg->type == HA_KEYTYPE_BIT && seg->bit_length)
+      {
+        uchar bits= get_rec_bits(rec + seg->bit_pos,
+                                 seg->bit_start, seg->bit_length);
+	nr^=(ulong) ((((uint) nr & 63)+nr2)*((uint) bits))+ (nr << 8);
+	nr2+=3;
+        end--;
+      }
+
       for (; pos < end ; pos++)
       {
 	nr^=(ulong) ((((uint) nr & 63)+nr2)*((uint) *pos))+ (nr << 8);
@@ -356,7 +370,9 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const uchar *rec)
       }
     }
   }
+#ifdef ONLY_FOR_HASH_DEBUGGING
   DBUG_PRINT("exit", ("hash: 0x%lx", nr));
+#endif
   return(nr);
 }
 
@@ -427,7 +443,9 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const uchar *key)
       }
     }
   }
+#ifdef ONLY_FOR_HASH_DEBUGGING
   DBUG_PRINT("exit", ("hash: 0x%lx", nr));
+#endif
   return(nr);
 }
 
@@ -465,6 +483,14 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const uchar *rec)
     else
     {
       uchar *end= pos+seg->length;
+      if (seg->type == HA_KEYTYPE_BIT && seg->bit_length)
+      {
+        uchar bits= get_rec_bits(rec + seg->bit_pos,
+                                 seg->bit_start, seg->bit_length);
+	nr *=16777619;
+	nr ^=(uint) bits;
+        end--;
+      }
       for ( ; pos < end ; pos++)
       {
 	nr *=16777619; 
@@ -472,7 +498,9 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const uchar *rec)
       }
     }
   }
+#ifdef ONLY_FOR_HASH_DEBUGGING
   DBUG_PRINT("exit", ("hash: 0x%lx", nr));
+#endif
   return(nr);
 }
 
@@ -567,6 +595,11 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const uchar *rec1, const uchar *rec2,
         char_length2= my_charpos(cs, pos2, pos2 + char_length2, char_length);
         set_if_smaller(char_length2, safe_length2);
       }
+      else
+      {
+        set_if_smaller(char_length1, seg->length);
+        set_if_smaller(char_length2, seg->length);
+      }
 
       if (cs->coll->strnncollsp(seg->charset,
                                 pos1, char_length1,
@@ -577,7 +610,18 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const uchar *rec1, const uchar *rec2,
     }
     else
     {
-      if (memcmp(rec1+seg->start,rec2+seg->start,seg->length))
+      uint dec= 0;
+      if (seg->type == HA_KEYTYPE_BIT && seg->bit_length)
+      {
+        uchar bits1= get_rec_bits(rec1 + seg->bit_pos,
+                                  seg->bit_start, seg->bit_length);
+        uchar bits2= get_rec_bits(rec2 + seg->bit_pos,
+                                  seg->bit_start, seg->bit_length);
+        if (bits1 != bits2)
+          return 1;
+        dec= 1;
+      }
+      if (bcmp(rec1 + seg->start, rec2 + seg->start, seg->length - dec))
 	return 1;
     }
   }
@@ -652,6 +696,8 @@ int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key)
         char_length2= my_charpos(cs, pos, pos + char_length_rec, char_length2);
         set_if_smaller(char_length_rec, char_length2);
       }
+      else
+        set_if_smaller(char_length_rec, seg->length);
 
       if (cs->coll->strnncollsp(seg->charset,
                                 (uchar*) pos, char_length_rec,
@@ -660,7 +706,18 @@ int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key)
     }
     else
     {
-      if (memcmp(rec+seg->start,key,seg->length))
+      uint dec= 0;
+      if (seg->type == HA_KEYTYPE_BIT && seg->bit_length)
+      {
+        uchar bits= get_rec_bits(rec + seg->bit_pos,
+                                 seg->bit_start, seg->bit_length);
+        if (bits != (*key))
+          return 1;
+        dec= 1;
+        key++;
+      }
+
+      if (bcmp(rec + seg->start, key, seg->length - dec))
 	return 1;
     }
   }
@@ -689,6 +746,12 @@ void hp_make_key(HP_KEYDEF *keydef, uchar *key, const uchar *rec)
     }
     if (seg->type == HA_KEYTYPE_VARTEXT1)
       char_length+= seg->bit_start;             /* Copy also length */
+    else if (seg->type == HA_KEYTYPE_BIT && seg->bit_length)
+    {
+      *key++= get_rec_bits(rec + seg->bit_pos,
+                           seg->bit_start, seg->bit_length);
+      char_length--;
+    }
     memcpy(key,rec+seg->start,(size_t) char_length);
     key+= char_length;
   }
@@ -720,7 +783,8 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
     {
       uint length= seg->length;
       uchar *pos= (uchar*) rec + seg->start;
-      
+      DBUG_ASSERT(seg->type != HA_KEYTYPE_BIT);
+
 #ifdef HAVE_ISNAN
       if (seg->type == HA_KEYTYPE_FLOAT)
       {
@@ -784,6 +848,12 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
         seg->charset->cset->fill(seg->charset, (char*) key + char_length,
                                  seg->length - char_length, ' ');
     }
+    if (seg->type == HA_KEYTYPE_BIT && seg->bit_length)
+    {
+      *key++= get_rec_bits(rec + seg->bit_pos,
+                           seg->bit_start, seg->bit_length);
+      char_length--;
+    }
     memcpy(key, rec + seg->start, (size_t) char_length);
     key+= seg->length;
   }
@@ -806,8 +876,13 @@ uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
     if (seg->null_bit)
     {
       if (!(*key++= (char) 1 - *old++))
+      {
+	/* Add key pack length (2) to key for VARCHAR segments */
+        if (seg->type == HA_KEYTYPE_VARTEXT1)
+          old+= 2;
         continue;
       }
+    }
     if (seg->flag & HA_SWAP_KEY)
     {
       uint length= seg->length;

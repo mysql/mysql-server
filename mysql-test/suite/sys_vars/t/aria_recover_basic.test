@@ -1,0 +1,53 @@
+# set global
+--source include/have_maria.inc
+
+SET @start_global_value = @@global.aria_recover;
+
+#
+# exists as global only
+#
+select @@global.aria_recover;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.aria_recover;
+show global variables like 'aria_recover';
+show session variables like 'aria_recover';
+select * from information_schema.global_variables where variable_name='aria_recover';
+select * from information_schema.session_variables where variable_name='aria_recover';
+
+#
+# show that it's writable
+#
+set global aria_recover=1;
+select @@global.aria_recover;
+--error ER_GLOBAL_VARIABLE
+set session aria_recover=1;
+
+#
+# valid values
+#
+set global aria_recover=normal;
+select @@global.aria_recover;
+set global aria_recover=backup;
+select @@global.aria_recover;
+set global aria_recover='force';
+select @@global.aria_recover;
+set global aria_recover=off;
+select @@global.aria_recover;
+set global aria_recover='quick,force';
+select @@global.aria_recover;
+set global aria_recover=16;
+select @@global.aria_recover;
+
+#
+# incorrect types/values
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_recover=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_recover=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global aria_recover="foo";
+--error ER_WRONG_VALUE_FOR_VAR
+set global aria_recover=32;
+
+SET @@global.aria_recover = @start_global_value;

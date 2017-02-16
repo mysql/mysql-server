@@ -1,4 +1,5 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2014, Monty Program Ab
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,10 +20,10 @@ if("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" GREATER 2.6)
  CMAKE_POLICY(VERSION 2.8)
 endif()
 
-# We use PROPERTIES LINK_INTERFACE_LIBRARIES. See cmake --help-policy CMP0022
-IF(CMAKE_VERSION VERSION_EQUAL "2.8.12" OR
-   CMAKE_VERSION VERSION_GREATER "2.8.12")
- CMAKE_POLICY(SET CMP0022 OLD)
+# explicitly set the policy to OLD
+# (cannot use NEW, not everyone is on cmake-2.8.12 yet)
+IF(POLICY CMP0022)
+  CMAKE_POLICY(SET CMP0022 OLD)
 ENDIF()
 
 # We use the LOCATION target property (CMP0026)
@@ -37,23 +38,7 @@ ENDIF()
 
 MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
 
-# Will set GIT_EXECUTABLE and GIT_FOUND
-FIND_PACKAGE(Git)
-
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
-
-# First, decide about build type (debug or release)
-# If custom compiler flags are set or cmake is invoked with -DCMAKE_BUILD_TYPE, 
-# respect user wishes and do not (re)define CMAKE_BUILD_TYPE. If WITH_DEBUG{_FULL} 
-# is given, set CMAKE_BUILD_TYPE = Debug. Otherwise, use Relwithdebinfo.
-
-
-IF(DEFINED CMAKE_BUILD_TYPE)
-  SET(HAVE_CMAKE_BUILD_TYPE TRUE)
-ENDIF()
-SET(CUSTOM_C_FLAGS $ENV{CFLAGS})
-
-OPTION(WITH_DEBUG "Use dbug/safemutex" OFF)
 
 # Distinguish between community and non-community builds, with the
 # default being a community build. This does not impact the feature
@@ -62,39 +47,31 @@ OPTION(WITH_DEBUG "Use dbug/safemutex" OFF)
 OPTION(COMMUNITY_BUILD "Set to true if this is a community build" ON) 
 
 # Use a default manufacturer if no manufacturer was identified.
-SET(MANUFACTURER_DOCSTRING
-  "Set the entity that appears as the manufacturer of packages that support a manufacturer field.")
 IF(NOT DEFINED MANUFACTURER) 
-  SET(MANUFACTURER "Built from Source" CACHE  STRING ${MANUFACTURER_DOCSTRING})
+  SET(MANUFACTURER "Built from Source" CACHE  STRING
+     "Set the entity that appears as the manufacturer of packages that support a manufacturer field.")
   MARK_AS_ADVANCED(MANUFACTURER)
 ENDIF()
 
-# We choose to provide WITH_DEBUG as alias to standard CMAKE_BUILD_TYPE=Debug
-# which turns out to be not trivial, as this involves synchronization 
-# between CMAKE_BUILD_TYPE and WITH_DEBUG. Besides, we have to deal with cases
-# where WITH_DEBUG is  reset from ON to OFF  and here we need to reset 
-# CMAKE_BUILD_TYPE to either none or default RelWithDebInfo
+SET(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING
+   "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel")
 
-SET(BUILDTYPE_DOCSTRING
- "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or
- CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel")
-
-IF(WITH_DEBUG)
-  SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING ${BUILDTYPE_DOCSTRING} FORCE)
-  IF(UNIX AND NOT APPLE)
-    # Compiling with PIC speeds up embedded build, on PIC sensitive systems 
-    # Predefine it to ON, in case user chooses to build embedded. 
-    SET(WITH_PIC ON CACHE BOOL "Compile with PIC")
+IF(UNIX AND NOT APPLE)
+  # Note, that generally one should not change settings depending
+  # on CMAKE_BUILD_TYPE, because VS and Xcode configure once (with
+  # the empty CMAKE_BUILD_TYPE) and the build many times for
+  # different build types without re-running cmake!
+  # But we only care about WITH_PIC on Unix, where the check for
+  # CMAKE_BUILD_TYPE hapen to work.
+  IF (CMAKE_BUILD_TYPE MATCHES "Debug")
+    SET(WITH_PIC_DEFAULT ON)
+  ELSE()
+    SET(WITH_PIC_DEFAULT OFF)
   ENDIF()
-  SET(OLD_WITH_DEBUG 1 CACHE INTERNAL "" FORCE)
-ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
-  IF(CUSTOM_C_FLAGS)
-    SET(CMAKE_BUILD_TYPE "" CACHE STRING ${BUILDTYPE_DOCSTRING} FORCE)
-  ELSE(CMAKE_BUILD_TYPE MATCHES "Debug" OR NOT HAVE_CMAKE_BUILD_TYPE)
-    SET(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING 
-       ${BUILDTYPE_DOCSTRING} FORCE)
-  ENDIF()
-  SET(OLD_WITH_DEBUG 0 CACHE INTERNAL "" FORCE)
+  # Compiling with PIC speeds up embedded build, on PIC sensitive systems 
+  # Predefine it to OFF in release builds, because of the performance penalty
+  SET(WITH_PIC ${WITH_PIC_DEFAULT} CACHE BOOL "Compile with PIC.")
+  MARK_AS_ADVANCED(WITH_PIC)
 ENDIF()
 
 # Optionally set project name, e.g.
@@ -109,15 +86,6 @@ ELSE()
   MARK_AS_ADVANCED(MYSQL_PROJECT_NAME)
 ENDIF()
 PROJECT(${MYSQL_PROJECT_NAME})
-
-# Maintainer mode is default on only for Linux debug builds using GCC/G++
-IF(CMAKE_BUILD_TYPE MATCHES "Debug" OR WITH_DEBUG)
-  IF(CMAKE_SYSTEM_NAME MATCHES "Linux" AND
-     CMAKE_COMPILER_IS_GNUCC AND CMAKE_COMPILER_IS_GNUCXX)
-    SET(MYSQL_MAINTAINER_MODE ON CACHE BOOL
-        "MySQL maintainer-specific development environment")
-  ENDIF()
-ENDIF()
 
 IF(BUILD_CONFIG)
   INCLUDE(
@@ -148,17 +116,35 @@ IF(DEFINED ENV{CPPFLAGS})
   ADD_DEFINITIONS($ENV{CPPFLAGS})
 ENDIF()
 
+SET(MYSQL_MAINTAINER_MODE "AUTO" CACHE STRING "MySQL maintainer-specific development environment. Options are: ON OFF AUTO.")
+MARK_AS_ADVANCED(MYSQL_MAINTAINER_MODE)
+
+# Packaging
+IF (NOT CPACK_GENERATOR)
+  IF(WIN32)
+    SET(CPACK_GENERATOR "ZIP")
+  ELSE()
+    SET(CPACK_GENERATOR "TGZ")
+  ENDIF(WIN32) 
+ENDIF(NOT CPACK_GENERATOR)
+
+INCLUDE(mysql_version)
+INCLUDE(cpack_source_ignore_files)
+INCLUDE(install_layout)
+INCLUDE(cpack_rpm)
+INCLUDE(cpack_deb)
+
 # Add macros
 INCLUDE(character_sets)
 INCLUDE(zlib)
 INCLUDE(ssl)
 INCLUDE(readline)
-INCLUDE(mysql_version)
 INCLUDE(libutils)
 INCLUDE(dtrace)
+INCLUDE(jemalloc)
+INCLUDE(ctest)
 INCLUDE(plugin)
 INCLUDE(install_macros)
-INCLUDE(install_layout)
 INCLUDE(mysql_add_executable)
 
 # Handle options
@@ -177,6 +163,7 @@ ENDIF()
 OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
 MARK_AS_ADVANCED(CYBOZU BACKUP_TEST WITHOUT_SERVER DISABLE_SHARED)
 
+OPTION(NOT_FOR_DISTRIBUTION "Allow linking with GPLv2-incompatible system libraries. Only set it you never plan to distribute the resulting binaries" OFF)
 
 include(CheckCSourceCompiles)
 include(CheckCXXSourceCompiles)
@@ -266,6 +253,12 @@ IF (ENABLE_GCOV AND NOT WIN32 AND NOT APPLE)
   SET(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage -lgcov")
 ENDIF()
 
+MY_CHECK_C_COMPILER_FLAG(-ggdb3 HAVE_GGDB3)
+IF(HAVE_GGDB3)
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb3")
+  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb3")
+ENDIF()
+
 OPTION(ENABLED_LOCAL_INFILE
  "If we should should enable LOAD DATA LOCAL by default" ${IF_WIN})
 MARK_AS_ADVANCED(ENABLED_LOCAL_INFILE)
@@ -276,8 +269,11 @@ MARK_AS_ADVANCED(WITH_FAST_MUTEXES)
 # Set DBUG_OFF and other optional release-only flags for non-debug project types
 FOREACH(BUILD_TYPE RELEASE RELWITHDEBINFO MINSIZEREL)
   FOREACH(LANG C CXX)
-    SET(CMAKE_${LANG}_FLAGS_${BUILD_TYPE} 
-     "${CMAKE_${LANG}_FLAGS_${BUILD_TYPE}} -DDBUG_OFF")
+    IF (NOT CMAKE_${LANG}_FLAGS_${BUILD_TYPE} MATCHES "DDBUG_" AND
+        NOT CMAKE_${LANG}_FLAGS MATCHES "DDBUG_")
+      SET(CMAKE_${LANG}_FLAGS_${BUILD_TYPE} 
+       "${CMAKE_${LANG}_FLAGS_${BUILD_TYPE}} -DDBUG_OFF")
+    ENDIF()
     IF(WITH_FAST_MUTEXES)
       SET(CMAKE_${LANG}_FLAGS_${BUILD_TYPE} 
         "${CMAKE_${LANG}_FLAGS_${BUILD_TYPE}} -DMY_PTHREAD_FASTMUTEX=1")
@@ -285,31 +281,32 @@ FOREACH(BUILD_TYPE RELEASE RELWITHDEBINFO MINSIZEREL)
   ENDFOREACH()
 ENDFOREACH()
 
-IF(NOT CMAKE_BUILD_TYPE
-    AND NOT CMAKE_GENERATOR MATCHES "Visual Studio" 
-    AND NOT CMAKE_GENERATOR MATCHES "Xcode") 
-    # This is the case of no CMAKE_BUILD_TYPE choosen, typical for VS and Xcode
-    # or if custom C flags are set. In VS and Xcode for non-Debug configurations 
-    # DBUG_OFF is already correctly set. Use DBUG_OFF for Makefile based projects 
-    # without build type too, unless user specifically requests DBUG. 
-    IF(NOT CMAKE_C_FLAGS MATCHES "-DDBUG_ON")
-      ADD_DEFINITIONS(-DDBUG_OFF)
-    ENDIF()
-ENDIF()
-
 # Add safemutex for debug configurations, except on Windows
 # (safemutex has never worked on Windows)
-IF(WITH_DEBUG AND NOT WIN32)
+IF(NOT WIN32)
   FOREACH(LANG C CXX)
-      SET(CMAKE_${LANG}_FLAGS_DEBUG
-          "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
+      SET(CMAKE_${LANG}_FLAGS_DEBUG "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
   ENDFOREACH()
 ENDIF()
 
+# safemalloc can be enabled and disabled independently
+SET(WITH_SAFEMALLOC "AUTO" CACHE STRING "Use safemalloc memory debugger. Will result in slower execution. Options are: ON OFF AUTO.")
+
+# force -DUSE_MYSYS_NEW unless already done by HAVE_CXX_NEW
+IF(HAVE_CXX_NEW)
+  SET(DUSE_MYSYS_NEW "-DUSE_MYSYS_NEW")
+ENDIF()
+
+IF(WITH_SAFEMALLOC MATCHES "ON")
+  ADD_DEFINITIONS( -DSAFEMALLOC ${DUSE_MYSYS_NEW})
+ELSEIF(WITH_SAFEMALLOC MATCHES "AUTO" AND NOT WIN32 AND NOT WITH_VALGRIND)
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC")
+  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC ${DUSE_MYSYS_NEW}")
+ENDIF()
 
 # Set commonly used variables
 IF(WIN32)
-  SET(DEFAULT_MYSQL_HOME "C:/Program Files/MySQL/MySQL Server ${MYSQL_BASE_VERSION}" )
+  SET(DEFAULT_MYSQL_HOME "C:/MariaDB${MYSQL_BASE_VERSION}")
   SET(SHAREDIR share)
 ELSE()
   SET(DEFAULT_MYSQL_HOME ${CMAKE_INSTALL_PREFIX})
@@ -324,21 +321,14 @@ ELSE()
 ENDIF()
 SET(DEFAULT_CHARSET_HOME "${DEFAULT_MYSQL_HOME}")
 SET(PLUGINDIR "${DEFAULT_MYSQL_HOME}/${INSTALL_PLUGINDIR}")
-IF(SYSCONFDIR)
-  SET(DEFAULT_SYSCONFDIR "${SYSCONFDIR}")
+IF(INSTALL_SYSCONFDIR)
+  SET(DEFAULT_SYSCONFDIR "${INSTALL_SYSCONFDIR}")
 ENDIF()
 
-IF(WIN32) # P_tmpdir is not defined on Windows as of VS2015.
-  SET(TMPDIR "" # So we use empty path as default. In practice TMP/TEMP is used
-    CACHE PATH
-    "PATH to MySQL TMP dir")
-ELSE()
-  SET(TMPDIR "P_tmpdir"
-    CACHE PATH
-    "PATH to MySQL TMP dir. Defaults to the P_tmpdir macro in <stdio.h>")
-ENDIF()
-
-IF(TMPDIR STREQUAL "P_tmpdir")
+SET(TMPDIR ""
+  CACHE PATH
+  "PATH to MySQL TMP dir. Defaults to the P_tmpdir macro in <stdio.h>")
+IF(TMPDIR STREQUAL "")
   # Do not quote it, to refer to the P_tmpdir macro.
   SET(DEFAULT_TMPDIR "P_tmpdir")
 ELSE()
@@ -360,21 +350,34 @@ MYSQL_CHECK_SSL()
 # Add readline or libedit.
 MYSQL_CHECK_READLINE()
 
+CHECK_JEMALLOC()
+
+IF(CMAKE_CROSSCOMPILING)
+  SET(IMPORT_EXECUTABLES "IMPORTFILE-NOTFOUND" CACHE FILEPATH "Path to import_executables.cmake from a native build")
+  INCLUDE(${IMPORT_EXECUTABLES})
+ENDIF()
+
 #
 # Setup maintainer mode options by the end. Platform checks are
 # not run with the warning options as to not perturb fragile checks
 # (i.e. do not make warnings into errors).
 #
-# Why doesn't these flags affect the entire build?
-# Because things may already have been included with ADD_SUBDIRECTORY
-#
-OPTION(MYSQL_MAINTAINER_MODE
-       "MySQL maintainer-specific development environment" OFF)
-
 INCLUDE(maintainer)
 
+IF(WITH_UNIT_TESTS)
+ ENABLE_TESTING()
+ ADD_SUBDIRECTORY(unittest/mytap)
+ ADD_SUBDIRECTORY(unittest/strings)
+ ADD_SUBDIRECTORY(unittest/examples)
+ ADD_SUBDIRECTORY(unittest/mysys)
+ ADD_SUBDIRECTORY(unittest/my_decimal)
+ IF(NOT WITHOUT_SERVER)
+   ADD_SUBDIRECTORY(unittest/sql)
+ ENDIF()
+ENDIF()
+
 IF(NOT WITHOUT_SERVER)
-SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
+ SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
  # Add storage engines and plugins.
  CONFIGURE_PLUGINS()
 ENDIF()
@@ -386,23 +389,16 @@ ADD_SUBDIRECTORY(vio)
 ADD_SUBDIRECTORY(regex)
 ADD_SUBDIRECTORY(mysys)
 ADD_SUBDIRECTORY(libmysql)
-
-IF(WITH_UNIT_TESTS)
- ENABLE_TESTING()
-ENDIF()
-IF(WITH_UNIT_TESTS)
-  ADD_SUBDIRECTORY(unittest/mytap)
-  ADD_SUBDIRECTORY(unittest/mysys)
-  ADD_SUBDIRECTORY(unittest/my_decimal)
-ENDIF()
-
+ADD_SUBDIRECTORY(client)
 ADD_SUBDIRECTORY(extra)
+ADD_SUBDIRECTORY(libservices)
+ADD_SUBDIRECTORY(scripts)
+ADD_SUBDIRECTORY(sql/share)
+ADD_SUBDIRECTORY(support-files)
+
 IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(tests)
-  ADD_SUBDIRECTORY(client)
   ADD_SUBDIRECTORY(sql)
-  ADD_SUBDIRECTORY(sql/share)
-  ADD_SUBDIRECTORY(libservices)
   OPTION (WITH_EMBEDDED_SERVER "Compile MySQL with embedded server" OFF)
   IF(WITH_EMBEDDED_SERVER) 
    ADD_SUBDIRECTORY(libmysqld)
@@ -411,22 +407,26 @@ IF(NOT WITHOUT_SERVER)
 
   ADD_SUBDIRECTORY(mysql-test)
   ADD_SUBDIRECTORY(mysql-test/lib/My/SafeProcess)
-  ADD_SUBDIRECTORY(support-files)
-  ADD_SUBDIRECTORY(scripts)
   ADD_SUBDIRECTORY(sql-bench)
-  IF(UNIX)
-    ADD_SUBDIRECTORY(man)
-  ENDIF()
+
   IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
     ADD_SUBDIRECTORY(internal)
   ENDIF()
   ADD_SUBDIRECTORY(packaging/rpm-oel)
-  ADD_SUBDIRECTORY(packaging/rpm-sles)
-  ADD_SUBDIRECTORY(packaging/rpm-docker)
+ENDIF()
+
+IF(UNIX)
+  ADD_SUBDIRECTORY(man)
 ENDIF()
 
 INCLUDE(cmake/abi_check.cmake)
 INCLUDE(cmake/tags.cmake)
+
+IF(WIN32)
+  ADD_SUBDIRECTORY(win/upgrade_wizard)
+  ADD_SUBDIRECTORY(win/packaging)
+ENDIF()
+ADD_SUBDIRECTORY(packaging/solaris)
 
 CONFIGURE_FILE(config.h.cmake   ${CMAKE_BINARY_DIR}/include/my_config.h)
 CONFIGURE_FILE(config.h.cmake   ${CMAKE_BINARY_DIR}/include/config.h)
@@ -437,6 +437,12 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in
 CONFIGURE_FILE(
     ${CMAKE_SOURCE_DIR}/cmake/info_macros.cmake.in
     ${CMAKE_BINARY_DIR}/info_macros.cmake @ONLY)
+
+IF(DEB)
+  CONFIGURE_FILE(
+    ${CMAKE_SOURCE_DIR}/debian/mariadb-server-5.5.files.in
+    ${CMAKE_SOURCE_DIR}/debian/mariadb-server-5.5.files)
+ENDIF(DEB)
 
 # Handle the "INFO_*" files.
 INCLUDE(${CMAKE_BINARY_DIR}/info_macros.cmake)
@@ -454,83 +460,20 @@ ADD_CUSTOM_TARGET(INFO_BIN ALL
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
-# Packaging
-IF(WIN32)
-  SET(CPACK_GENERATOR "ZIP")
-ELSE()
-  SET(CPACK_GENERATOR "TGZ")
-ENDIF() 
-ADD_SUBDIRECTORY(packaging/WiX)
-ADD_SUBDIRECTORY(packaging/solaris)
+INSTALL_DOCUMENTATION(README COPYING COPYING.LESSER EXCEPTIONS-CLIENT
+                      COMPONENT Readme)
 
-# Create a single package with "make package"
-# (see http://public.kitware.com/Bug/view.php?id=11452)
-SET(CPACK_MONOLITHIC_INSTALL 1 CACHE INTERNAL "")
+# MDEV-6526 these files are not installed anymore
+#INSTALL_DOCUMENTATION(${CMAKE_BINARY_DIR}/Docs/INFO_SRC
+#                      ${CMAKE_BINARY_DIR}/Docs/INFO_BIN)
 
 IF(UNIX)
-  INSTALL(FILES Docs/mysql.info DESTINATION ${INSTALL_INFODIR} OPTIONAL COMPONENT Info)
-ENDIF()
-#
-# RPM installs documentation directly from the source tree
-#
-IF(NOT INSTALL_LAYOUT MATCHES "RPM")
-  INSTALL(FILES COPYING LICENSE.mysql 
-  DESTINATION ${INSTALL_DOCREADMEDIR} 
-  COMPONENT Readme
-  OPTIONAL
-  )
-  INSTALL(FILES README DESTINATION ${INSTALL_DOCREADMEDIR} COMPONENT Readme)
-  INSTALL(FILES ${CMAKE_BINARY_DIR}/Docs/INFO_SRC ${CMAKE_BINARY_DIR}/Docs/INFO_BIN DESTINATION ${INSTALL_DOCDIR})
-  IF(UNIX)
-    INSTALL(FILES Docs/INSTALL-BINARY DESTINATION ${INSTALL_DOCREADMEDIR} COMPONENT Readme)
-  ENDIF()
-  # MYSQL_DOCS_LOCATON is used in "make dist", points to the documentation directory
-  SET(MYSQL_DOCS_LOCATION "" CACHE PATH "Location from where documentation is copied")
-  MARK_AS_ADVANCED(MYSQL_DOCS_LOCATION)
-  INSTALL(DIRECTORY Docs/ DESTINATION ${INSTALL_DOCDIR}
-    COMPONENT Documentation
-    PATTERN "INSTALL-BINARY" EXCLUDE
-    PATTERN "Makefile.*" EXCLUDE
-    PATTERN "glibc*" EXCLUDE
-    PATTERN "linuxthreads.txt" EXCLUDE
-    PATTERN "myisam.txt" EXCLUDE
-    PATTERN "mysql.info" EXCLUDE
-    PATTERN "sp-imp-spec.txt" EXCLUDE
-  )
+  INSTALL_DOCUMENTATION(Docs/INSTALL-BINARY COMPONENT Readme)
 ENDIF()
 
 INCLUDE(CPack)
 
-# C compiler flags consist of:
-# CPPFLAGS        Taken from environment, see above.
-# ADD_DEFINITIONS In each individual CMakeLists.txt
-# CMAKE_C_FLAGS   From command line.
-#                 We extend these in maintainer.cmake
-# ENV{CFLAGS}     From environment, but environment is ignored if
-#                 CMAKE_C_FLAGS is also given on command line
-# CMAKE_C_FLAGS_${CMAKE_BUILD_TYPE}
-#                 We extend these in compiler_options.cmake
-#
-# Note that CMakeCache.txt contains cmake builtins for these variables,
-# *not* the values that will actually be used:
-
-IF(CMAKE_GENERATOR MATCHES "Makefiles")
-  MESSAGE(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
-ENDIF()
-GET_PROPERTY(cwd_definitions DIRECTORY PROPERTY COMPILE_DEFINITIONS)
-MESSAGE(STATUS "COMPILE_DEFINITIONS: ${cwd_definitions}")
-MESSAGE(STATUS "CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
-MESSAGE(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
-IF(CMAKE_BUILD_TYPE AND CMAKE_GENERATOR MATCHES "Makefiles")
-  STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
-  MESSAGE(STATUS "CMAKE_C_FLAGS_${CMAKEBT}: ${CMAKE_C_FLAGS_${CMAKEBT}}")
-  MESSAGE(STATUS "CMAKE_CXX_FLAGS_${CMAKEBT}: ${CMAKE_CXX_FLAGS_${CMAKEBT}}")
-ENDIF()
-IF(NOT CMAKE_GENERATOR MATCHES "Makefiles")
-  MESSAGE(STATUS "CMAKE_C_FLAGS_DEBUG: ${CMAKE_C_FLAGS_DEBUG}")
-  MESSAGE(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
-  MESSAGE(STATUS
-    "CMAKE_C_FLAGS_RELWITHDEBINFO: ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-  MESSAGE(STATUS
-    "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+IF(NON_DISTRIBUTABLE_WARNING)
+  MESSAGE(WARNING "
+You have linked MariaDB with GPLv3 libraries!  You may not distribute the resulting binary. If you do, you will put yourself into a legal problem with Free Software Foundation.")
 ENDIF()

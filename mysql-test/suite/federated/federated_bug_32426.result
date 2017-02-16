@@ -1,0 +1,30 @@
+CREATE DATABASE federated;
+CREATE DATABASE federated;
+#
+# Bug #32426: FEDERATED query returns corrupt results for ORDER BY 
+# on a TEXT column
+#
+CREATE TABLE federated.t1(a TEXT);
+INSERT INTO federated.t1 VALUES('abc'), ('gh'), ('f'), ('ijk'), ('de');
+CREATE TABLE federated.t1(a TEXT) ENGINE=FEDERATED
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+SELECT * FROM federated.t1 ORDER BY A;
+a
+abc
+de
+f
+gh
+ijk
+SELECT * FROM federated.t1 ORDER BY A DESC;
+a
+ijk
+gh
+f
+de
+abc
+DROP TABLE federated.t1;
+DROP TABLE federated.t1;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE IF EXISTS federated;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE IF EXISTS federated;

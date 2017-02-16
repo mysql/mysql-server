@@ -1,0 +1,60 @@
+# 
+# Standard options in CREATE and ALTER TABLE 
+#
+# Note: the test does not check whether the options
+#       have any real effect on the table, only 
+#       that they are accepted
+# 
+
+--source have_engine.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# Create table with standard options
+
+let $table_options =
+  DEFAULT CHARACTER SET = utf8
+  COLLATE = utf8_general_ci
+  COMMENT = 'standard table options'
+;
+--source create_table.inc
+--source mask_engine.inc
+SHOW CREATE TABLE t1;  
+
+
+# Alter comment
+
+--let $alter_definition = COMMENT = 'table altered'
+--source alter_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $alter_statement
+  --let $functionality = ALTER TABLE
+  --source unexpected_result.inc
+}
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+# Alter ENGINE value
+
+--let $alter_definition = ENGINE=MEMORY
+--source alter_table.inc
+SHOW CREATE TABLE t1;
+--let $alter_definition = ENGINE=$storage_engine
+--source alter_table.inc
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+# Alter character set and collation
+
+--let $alter_definition = CHARACTER SET = latin1 COLLATE = latin1_swedish_ci
+--source alter_table.inc
+--source mask_engine.inc
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+--source cleanup_engine.inc
+  

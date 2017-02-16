@@ -1,0 +1,29 @@
+#
+# Test KILL and KILL QUERY statements.
+#
+# Killing a connection in an embedded server does not work like in a normal
+# server, if it is waiting for a new statement. In an embedded server, the
+# connection does not read() from a socket, but returns control to the
+# application. 'mysqltest' does not handle the kill request.
+#
+
+-- source include/not_embedded.inc
+-- source include/not_threadpool.inc
+
+--echo #
+--echo # MDEV-6896 kill user command cause MariaDB crash!
+--echo #
+
+create user foo@'127.0.0.1';
+
+--connect (con1,127.0.0.1,foo,,)
+
+--connection default
+select user from information_schema.processlist;
+kill user foo@'127.0.0.1';
+
+let $wait_condition=
+    select count(*) = 0 from information_schema.processlist
+    where user = "foo";
+--source include/wait_condition.inc
+drop user foo@'127.0.0.1';

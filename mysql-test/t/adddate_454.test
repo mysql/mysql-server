@@ -1,0 +1,9 @@
+#
+# MDEV-454 Addition of a time interval reduces the resulting value
+#
+create table t1 (d date);
+insert into t1 values ('2012-00-00');
+select * from t1;
+update t1 set d = adddate(d, interval 1 day);
+select * from t1;
+drop table t1;

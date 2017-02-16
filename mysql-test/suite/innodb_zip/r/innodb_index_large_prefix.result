@@ -37,7 +37,7 @@ select @@session.tx_isolation;
 REPEATABLE-READ
 explain select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	worklog5743	ref	idx	idx	5	const	1	Using where
+1	SIMPLE	worklog5743	ref	idx	idx	5	const	1	
 select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 a1	a2 = repeat("a", 10000)
 9	1
@@ -60,7 +60,7 @@ select @@session.tx_isolation;
 REPEATABLE-READ
 explain select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	worklog5743	ref	idx	idx	5	const	1	Using where
+1	SIMPLE	worklog5743	ref	idx	idx	5	const	1	
 select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 a1	a2 = repeat("a", 10000)
 9	1
@@ -92,7 +92,7 @@ select @@session.tx_isolation;
 REPEATABLE-READ
 explain select a1, a2 = repeat("a", 10000) from worklog5743_2 where a1 = 9;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	worklog5743_2	ref	idx1	idx1	5	const	1	Using where
+1	SIMPLE	worklog5743_2	ref	idx1	idx1	5	const	1	
 select a1, a2 = repeat("a", 10000) from worklog5743_2 where a1 = 9;
 a1	a2 = repeat("a", 10000)
 9	1
@@ -121,7 +121,7 @@ select @@session.tx_isolation;
 REPEATABLE-READ
 explain select a1 from worklog5743 where a1 = 9;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	worklog5743	ref	idx	idx	5	const	1	Using where; Using index
+1	SIMPLE	worklog5743	ref	idx	idx	5	const	1	Using index
 select a1 from worklog5743 where a1 = 9;
 a1
 9

@@ -1,0 +1,49 @@
+CREATE TABLE t1 ( i INT ) ENGINE=Aria PARTITION BY HASH(i) PARTITIONS 2;
+SET AUTOCOMMIT = 0;
+TRUNCATE TABLE t1;
+DROP TABLE t1;
+CREATE TABLE t1 ( i INT ) ENGINE=Aria;
+CREATE TABLE t2 ( i INT ) ENGINE=Aria;
+insert into t1 values(1);
+lock table t1 write;
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+insert into t1 values(2);
+select count(*) from t1;
+count(*)
+1
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+insert into t1 values(3);
+select count(*) from t1;
+count(*)
+1
+select * from t2;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+unlock tables;
+insert into t1 values(4);
+select * from t1;
+i
+3
+4
+truncate t1;
+select count(*) from t1;
+count(*)
+0
+drop table t1,t2;
+CREATE TEMPORARY TABLE t1 ( i int) ENGINE=aria;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+TRUNCATE TABLE t1;
+INSERT INTO t1 (i) VALUES (1);
+lock table t1 write;
+truncate table t1;
+unlock tables;
+drop table t1;

@@ -1,0 +1,26 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+set global tokudb_lock_timeout=0;
+select @@tokudb_lock_timeout;
+@@tokudb_lock_timeout
+0
+drop table if exists t;
+create table t (a int primary key, b int);
+insert into t values (1,0),(2,0),(3,0),(4,0);
+commit;
+select @@autocommit;
+@@autocommit
+1
+set autocommit=off;
+select @@autocommit;
+@@autocommit
+1
+set autocommit=off;
+select * from t where a=1 for update;
+a	b
+1	0
+select * from t where a=1 for update;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+commit;
+set global tokudb_lock_timeout=30000000;
+drop table t;

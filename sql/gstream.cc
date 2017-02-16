@@ -41,6 +41,29 @@ enum Gis_read_stream::enum_tok_types Gis_read_stream::get_next_toc_type()
 }
 
 
+bool Gis_read_stream::lookup_next_word(LEX_STRING *res)
+{
+  const char *cur= m_cur;
+
+  skip_space();
+  res->str= (char*) cur;
+  /* The following will also test for \0 */
+  if ((cur >= m_limit) || !my_isvar_start(&my_charset_bin, *cur))
+    return 1;
+
+  /*
+    We can't combine the following increment with my_isvar() because
+    my_isvar() is a macro that would cause side effects
+  */
+  cur++;
+  while ((cur < m_limit) && my_isvar(&my_charset_bin, *cur))
+    cur++;
+
+  res->length= (uint32) (cur - res->str);
+  return 0;
+}
+
+
 bool Gis_read_stream::get_next_word(LEX_STRING *res)
 {
   skip_space();

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,10 +29,14 @@
 #include "sql_partition.h"                      // struct partition_info
 #include "sql_table.h"                          // check_duplicate_warning
 #include "sql_class.h"                  // THD, Internal_error_handler
+#include "create_options.h"
 #include <m_ctype.h>
 #include <assert.h>
 
 #define FCOMP			17		/* Bytes for a packed field */
+
+/* threshold for safe_alloca */
+#define ALLOCA_THRESHOLD       2048
 
 static uchar * pack_screens(List<Create_field> &create_fields,
 			    uint *info_length, uint *screens, bool small_file);
@@ -117,6 +121,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   ulong key_buff_length;
   File file;
   ulong filepos, data_offset;
+  uint options_len;
   uchar fileinfo[64],forminfo[288],*keybuff;
   uchar *screen_buff;
   char buff[128];
@@ -125,9 +130,6 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 #endif
   Pack_header_error_handler pack_header_error_handler;
   int error;
-  const uint format_section_header_size= 8;
-  uint format_section_length;
-  uint tablespace_length= 0;
   DBUG_ENTER("mysql_create_frm");
 
   DBUG_ASSERT(*fn_rext((char*)file_name)); // Check .frm extension
@@ -170,8 +172,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   reclength=uint2korr(forminfo+266);
 
   /* Calculate extra data segment length */
-  str_db_type.str= (char *) ha_resolve_storage_engine_name(create_info->db_type);
-  str_db_type.length= strlen(str_db_type.str);
+  str_db_type= *hton_name(create_info->db_type);
   /* str_db_type */
   create_info->extra_size= (2 + str_db_type.length +
                             2 + create_info->connect_string.length);
@@ -195,6 +196,19 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     if (key_info[i].parser_name)
       create_info->extra_size+= key_info[i].parser_name->length + 1;
   }
+
+  options_len= engine_table_options_frm_length(create_info->option_list,
+                                               create_fields,
+                                               keys, key_info);
+  DBUG_PRINT("info", ("Options length: %u", options_len));
+  if (options_len)
+  {
+    create_info->table_options|= HA_OPTION_TEXT_CREATE_OPTIONS;
+    create_info->extra_size+= (options_len + 4);
+  }
+  else
+    create_info->table_options&= ~HA_OPTION_TEXT_CREATE_OPTIONS;
+
   /*
     This gives us the byte-position of the character at
     (character-position, not byte-position) TABLE_COMMENT_MAXLEN.
@@ -259,18 +273,6 @@ bool mysql_create_frm(THD *thd, const char *file_name,
             create_info->comment.str : "", create_info->comment.length);
     forminfo[46]=(uchar) create_info->comment.length;
   }
-
-  /*
-    Add room in extra segment for "format section" with additional
-    table and column properties
-  */
-  if (create_info->tablespace)
-    tablespace_length= strlen(create_info->tablespace);
-  format_section_length=
-    format_section_header_size +
-    tablespace_length + 1 +
-    create_fields.elements;
-  create_info->extra_size+= format_section_length;
 
   if ((file=create_frm(thd, file_name, db, table, reclength, fileinfo,
 		       create_info, keys, key_info)) < 0)
@@ -350,6 +352,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     if (mysql_file_write(file, (uchar*) buff, 6, MYF_RW))
       goto err;
   }
+
   for (i= 0; i < keys; i++)
   {
     if (key_info[i].parser_name)
@@ -369,53 +372,22 @@ bool mysql_create_frm(THD *thd, const char *file_name,
       goto err;
   }
 
-  /* "Format section" with additional table and column properties */
+  if (options_len)
   {
-    uchar *ptr, *format_section_buff;
-    if (!(format_section_buff=(uchar*) my_malloc(format_section_length,
-                                                 MYF(MY_WME))))
+    uchar *optbuff= (uchar *)my_safe_alloca(options_len + 4, ALLOCA_THRESHOLD);
+    my_bool error;
+    DBUG_PRINT("info", ("Create options length: %u", options_len));
+    if (!optbuff)
       goto err;
-    ptr= format_section_buff;
-
-    /* header */
-    const uint format_section_flags=
-      create_info->storage_media; // 3 bits
-    const uint format_section_unused= 0;
-    int2store(ptr+0, format_section_length);
-    int4store(ptr+2, format_section_flags);
-    int2store(ptr+6, format_section_unused);
-    ptr+= format_section_header_size;
-
-    /* tablespace name */
-    if (tablespace_length > 0)
-      memcpy(ptr, create_info->tablespace, tablespace_length);
-    ptr+= tablespace_length;
-    *ptr= 0; /* tablespace string terminating zero */
-    ptr++;
-
-    /* column properties  */
-    Create_field *field;
-    List_iterator<Create_field> it(create_fields);
-    while ((field=it++))
-    {
-      const uchar field_storage= 0; /* Used in MySQL Cluster */
-      const uchar field_column_format= 0; /* Used in MySQL Cluster */
-      const uchar field_flags=
-        field_storage + (field_column_format << COLUMN_FORMAT_SHIFT);
-      *ptr= field_flags;
-      ptr++;
-    }
-    DBUG_ASSERT(format_section_buff + format_section_length == ptr);
-
-    if (mysql_file_write(file, format_section_buff,
-                         format_section_length, MYF_RW))
-    {
-      my_free(format_section_buff);
+    int4store(optbuff, options_len);
+    engine_table_options_frm_image(optbuff + 4,
+                                   create_info->option_list,
+                                   create_fields,
+                                   keys, key_info);
+    error= my_write(file, optbuff, options_len + 4, MYF_RW);
+    my_safe_afree(optbuff, options_len + 4, ALLOCA_THRESHOLD);
+    if (error)
       goto err;
-    }
-    DBUG_PRINT("info", ("wrote format section, length: %u",
-                        format_section_length));
-    my_free(format_section_buff);
   }
 
   mysql_file_seek(file, filepos, MY_SEEK_SET, MYF(0));
@@ -637,7 +609,7 @@ static uint pack_keys(uchar *keybuff, uint key_count, KEY *keyinfo,
     int2store(pos+6, key->block_size);
     pos+=8;
     key_parts+=key->key_parts;
-    DBUG_PRINT("loop", ("flags: %lu  key_parts: %d at 0x%lx",
+    DBUG_PRINT("loop", ("flags: %lu  key_parts: %d  key_part: 0x%lx",
                         key->flags, key->key_parts,
                         (long) key->key_part));
     for (key_part=key->key_part,key_part_end=key_part+key->key_parts ;
@@ -707,7 +679,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
 {
   uint length,int_count,int_length,no_empty, int_parts;
   uint time_stamp_pos,null_fields;
-  ulong reclength, totlength, n_length, com_length;
+  ulong reclength, totlength, n_length, com_length, vcol_info_length;
   DBUG_ENTER("pack_header");
 
   if (create_fields.elements > MAX_FIELDS)
@@ -718,8 +690,8 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
 
   totlength= 0L;
   reclength= data_offset;
-  no_empty=int_count=int_parts=int_length=time_stamp_pos=null_fields=
-    com_length=0;
+  no_empty=int_count=int_parts=int_length=time_stamp_pos=null_fields=0;
+  com_length=vcol_info_length=0;
   n_length=2L;
 
 	/* Check fields */
@@ -752,6 +724,31 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
                      ER_TOO_LONG_FIELD_COMMENT, warn_buff);
       field->comment.length= tmp_len;
     }
+    if (field->vcol_info)
+    {
+      uint col_expr_maxlen= field->virtual_col_expr_maxlen();
+      tmp_len=
+        system_charset_info->cset->charpos(system_charset_info,
+                                           field->vcol_info->expr_str.str,
+                                           field->vcol_info->expr_str.str +
+                                           field->vcol_info->expr_str.length,
+                                           col_expr_maxlen);
+
+      if (tmp_len < field->vcol_info->expr_str.length)
+      {
+        my_error(ER_WRONG_STRING_LENGTH, MYF(0),
+                 field->vcol_info->expr_str.str,"VIRTUAL COLUMN EXPRESSION",
+                 col_expr_maxlen);
+        DBUG_RETURN(1);
+      }
+      /*
+        Sum up the length of the expression string and the length of the
+        mandatory header to the total length of info on the defining 
+        expressions saved in the frm file for virtual columns.
+      */
+      vcol_info_length+= field->vcol_info->expr_str.length+
+	                 FRM_VCOL_HEADER_SIZE(field->interval!=NULL);
+    }
 
     totlength+= field->length;
     com_length+= field->comment.length;
@@ -771,8 +768,6 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
 	!time_stamp_pos)
       time_stamp_pos= (uint) field->offset+ (uint) data_offset + 1;
     length=field->pack_length;
-    /* Ensure we don't have any bugs when generating offsets */
-    DBUG_ASSERT(reclength == field->offset + data_offset);
     if ((uint) field->offset+ (uint) data_offset+ length > reclength)
       reclength=(uint) (field->offset+ data_offset + length);
     n_length+= (ulong) strlen(field->field_name)+1;
@@ -839,7 +834,8 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
   /* Hack to avoid bugs with small static rows in MySQL */
   reclength=max(file->min_record_length(table_options),reclength);
   if (info_length+(ulong) create_fields.elements*FCOMP+288+
-      n_length+int_length+com_length > 65535L || int_count > 255)
+      n_length+int_length+com_length+vcol_info_length > 65535L || 
+      int_count > 255)
   {
     my_message(ER_TOO_MANY_FIELDS, ER(ER_TOO_MANY_FIELDS), MYF(0));
     DBUG_RETURN(1);
@@ -847,7 +843,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
 
   bzero((char*)forminfo,288);
   length=(info_length+create_fields.elements*FCOMP+288+n_length+int_length+
-	  com_length);
+	  com_length+vcol_info_length);
   int2store(forminfo,length);
   forminfo[256] = (uint8) screens;
   int2store(forminfo+258,create_fields.elements);
@@ -864,7 +860,8 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
   int2store(forminfo+280,22);			/* Rows needed */
   int2store(forminfo+282,null_fields);
   int2store(forminfo+284,com_length);
-  /* Up to forminfo+288 is free to use for additional information */
+  int2store(forminfo+286,vcol_info_length);
+  /* forminfo+288 is free to use for additional information */
   DBUG_RETURN(0);
 } /* pack_header */
 
@@ -903,7 +900,7 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
                         ulong data_offset)
 {
   reg2 uint i;
-  uint int_count, comment_length=0;
+  uint int_count, comment_length= 0, vcol_info_length=0;
   uchar buff[MAX_FIELD_WIDTH];
   Create_field *field;
   DBUG_ENTER("pack_fields");
@@ -916,6 +913,7 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
   while ((field=it++))
   {
     uint recpos;
+    uint cur_vcol_expr_len= 0;
     buff[0]= (uchar) field->row;
     buff[1]= (uchar) field->col;
     buff[2]= (uchar) field->sc_length;
@@ -945,6 +943,18 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
     {
       buff[11]= buff[14]= 0;			// Numerical
     }
+    if (field->vcol_info)
+    {
+      /* 
+        Use the interval_id place in the .frm file to store the length of
+        the additional data saved for the virtual field
+      */
+      buff[12]= cur_vcol_expr_len= field->vcol_info->expr_str.length +
+	                           FRM_VCOL_HEADER_SIZE(field->interval!=NULL);
+      vcol_info_length+= cur_vcol_expr_len + 
+	                 FRM_VCOL_HEADER_SIZE(field->interval!=NULL);
+      buff[13]= (uchar) MYSQL_TYPE_VIRTUAL;
+    }
     int2store(buff+15, field->comment.length);
     comment_length+= field->comment.length;
     set_if_bigger(int_count,field->interval_id);
@@ -961,7 +971,7 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
   while ((field=it++))
   {
     char *pos= strmov((char*) buff,field->field_name);
-    *pos++=NAMES_SEP_CHAR;
+    * (uchar*) pos++= (uchar) NAMES_SEP_CHAR;
     if (i == create_fields.elements-1)
       *pos++=0;
     if (mysql_file_write(file, buff, (size_t) (pos-(char*) buff), MYF_RW))
@@ -1039,6 +1049,37 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
 	  DBUG_RETURN(1);
     }
   }
+  if (vcol_info_length)
+  {
+    it.rewind();
+    int_count=0;
+    while ((field=it++))
+    {
+      /*
+        Pack each virtual field as follows:
+        byte 1      = interval_id == 0 ? 1 : 2 
+        byte 2      = sql_type
+        byte 3      = flags (as of now, 0 - no flags, 1 - field is physically stored)
+        [byte 4]    = possible interval_id for sql_type
+        next byte ...  = virtual column expression (text data)
+      */
+      if (field->vcol_info && field->vcol_info->expr_str.length)
+      {
+        buff[0]= (uchar)(1 + test(field->interval_id));
+        buff[1]= (uchar) field->sql_type;
+        buff[2]= (uchar) field->stored_in_db;
+        if (field->interval_id)
+          buff[3]= (uchar) field->interval_id;
+      if (my_write(file, buff, 3 + test(field->interval_id), MYF_RW))
+          DBUG_RETURN(1);
+        if (my_write(file,
+                     (uchar*) field->vcol_info->expr_str.str,
+                     field->vcol_info->expr_str.length,
+                     MYF_RW))
+          DBUG_RETURN(1);
+      }
+    }
+  }
   DBUG_RETURN(0);
 }
 
@@ -1073,7 +1114,6 @@ static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
   }
 
   table.in_use= thd;
-  table.s->db_low_byte_first= handler->low_byte_first();
   table.s->blob_ptr_size= portable_sizeof_char_ptr;
 
   null_count=0;

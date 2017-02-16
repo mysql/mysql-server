@@ -1,0 +1,45 @@
+# ticket 895 is a query optimization problem with the primary key
+
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--echo # Establish connection conn1 (user = root)
+connect (conn1,localhost,root,,);
+
+--disable_warnings
+DROP TABLE IF EXISTS foo,foo1;
+--enable_warnings
+
+connection default;
+set session transaction isolation level repeatable read;
+create table foo (a int) engine=TokuDB;
+show create table foo;
+begin;
+select * from foo;
+
+connection conn1;
+set session transaction isolation level repeatable read;
+create table foo1(a int, b int, c int, primary key (a)) engine=TokuDB;
+insert into foo1 values (1,10,100),(2,20,200),(3,30,300),(4,40,400),(5,50,500);
+
+connection default;
+--error ER_TABLE_DEF_CHANGED
+select a from foo1;
+--error ER_TABLE_DEF_CHANGED
+select a from foo1 order by a desc;
+--error ER_TABLE_DEF_CHANGED
+select * from foo1 where a=3;
+--error ER_TABLE_DEF_CHANGED
+select * from foo1 where a>3;
+--error ER_TABLE_DEF_CHANGED
+select * from foo1 where a>3 order by a desc;
+--error ER_TABLE_DEF_CHANGED
+select * from foo1;
+
+connection default;
+disconnect conn1;
+
+connection default;
+# Final cleanup.
+set session transaction isolation level serializable;
+DROP TABLE foo,foo1;

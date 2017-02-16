@@ -158,6 +158,10 @@ create table t3 (
 insert into t1 values (1,'yes'), (2,'no');
 insert into t2 values (1,1);
 insert into t3 values (1,1);
+
+set @save_join_cache_level=@@join_cache_level;
+set join_cache_level=1;
+
 EXPLAIN
 SELECT DISTINCT
     t1.id
@@ -194,6 +198,8 @@ WHERE
     ((t1.id=j_lj_t2.id AND t2_lj.id IS NULL) OR (t1.id=t2.id AND t2.idx=2))
     AND ((t1.id=j_lj_t3.id AND t3_lj.id IS NULL) OR (t1.id=t3.id AND t3.idx=2));
 drop table t1,t2,t3;
+
+set join_cache_level=@save_join_cache_level;
 
 #
 # Test using DISTINCT on a function that contains a group function
@@ -615,6 +621,125 @@ SET @@max_heap_table_size = @old_max_heap_table_size;
 
 --echo End of 5.1 tests
 
+#
+# test_if_equality_guarantees_uniqueness() and dates
+#
+create table t1 (a varchar(100));
+insert t1 values ('2010-10-10'), ('20101010');
+select * from t1 where a = DATE('2010-10-10');
+select distinct a from t1 where a = DATE('2010-10-10');
+explain select distinct a from t1 where a = DATE('2010-10-10');
+drop table t1;
+#
+# test_if_equality_guarantees_uniqueness() and different type combinations
+#
+--echo # date = string
+create table t1 (a date);
+insert t1 values ('2010-10-10'), ('20101010');
+explain select distinct a from t1 where a = '2010-10-10';
+drop table t1;
+--echo # double = string
+create table t1 (a double);
+insert t1 values (2), (2);
+explain select distinct a from t1 where a = '2';
+--echo # double = int
+explain select distinct a from t1 where a = 2;
+--echo # string = double
+alter table t1 modify a varchar(100);
+explain select distinct a from t1 where a = 2e0;
+drop table t1;
+
+#
+# lp:731124 Loss of precision on DISTINCT
+#
+create table t1 (f1 varchar(40));
+insert into t1 values ('2010-10-10 00:00:00.0001'),('2010-10-10 00:00:00.0002'),('2010-10-10 00:00:00.0003');
+select time(f1) from t1 ;
+select distinct time(f1) from t1 ;
+drop table t1;
+
+#
+# MDEV-3875 Wrong result (missing row) on a DISTINCT query with the same subquery in the SELECT list and GROUP BY
+# MySQL Bug#66896 Distinct not distinguishing 0 from NULL when GROUP BY is used
+#
+create table t1(i int, g int); # remove_dup_with_hash_index
+insert into t1 values (null, 1), (0, 2);
+select distinct i from t1 group by g;
+drop table t1;
+
+create table t1(i int, g blob); # remove_dup_with_compare
+insert into t1 values (null, 1), (0, 2);
+select distinct i from t1 group by g;
+drop table t1;
+
+create table t1 (a int) engine=myisam;
+insert into t1 values (0),(7);
+create table t2 (b int) engine=myisam;
+insert into t2 values (7),(0),(3);
+create algorithm=temptable view v as
+select distinct (select max(a) from t1 where alias.b = a) as field1 from t2 as alias group by field1;
+select * from v;
+select distinct (select max(a) from t1 where alias.b = a) as field1 from t2 as alias group by field1;
+drop view v;
+drop table t1, t2;
+
+#
+# Bug mdev-5028: invalid distinct optimization when join buffer is used
+#
+
+CREATE TABLE t1 (
+  id int, i1 int, i2 int DEFAULT 0,
+  d1 date DEFAULT '2000-01-01', d2 date DEFAULT '2000-01-01',
+  t1 time DEFAULT '00:00:00', t2 time DEFAULT '00:00:00',
+  dt1 datetime NOT NULL DEFAULT '2000-01-01 00:00:00',
+  dt2 datetime NOT NULL DEFAULT '2000-01-01 00:00:00',
+  c1 varchar(1) NOT NULL, c2 varchar(1) NOT NULL
+) ENGINE=MyISAM;
+
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+
+INSERT INTO t1 (id,i1,c1,c2) VALUES 
+(1,7,'t','t'),(2,4,'k','k'),(3,2,'e','e'),(4,0,'i','i'),(5,1,'t','t'),(6,91,'m','m'),
+(7,6,'z','z'),(8,3,'c','c'),(9,6,'i','i'),(10,8,'v','v'), (11,1,'l','l'),(12,4,'j','j'),
+(13,5,'w','w'),(14,0,'r','r'),(15,7,'o','o'),(16,9,'o','o'),(17,7,'u','u'),(18,6,'f','f'),
+(19,0,'l','l'),(20,6,'g','g'),(21,1,'e','e'),(22,7,'y','y'),(23,0,'p','p'),(24,6,'v','v'),
+(25,5,'d','d'),(26,9,'i','i'),(27,5,'z','z'),(28,2,'q','q'),(29,4,'j','j'),(30,9,'m','m'),
+(31,8,'d','d'),(32,5,'r','r'),(33,1,'r','r'),(34,1,'k','k'),(35,4,'p','p'),(36,2,'x','x'),
+(37,5,'w','w'),(38,0,'k','k'),(39,7,'y','y'),(40,4,'p','p'),(41,9,'l','l'),(42,2,'u','u'),
+(43,3,'r','r'),(44,5,'y','y'),(45,3,'u','u'),(46,9,'t','t'),(47,8,'f','f'),(48,2,'f','f'),
+(49,2,'q','q'),(50,6,'v','v'),(51,6,'u','u'),(52,0,'b','b'),(53,1,'n','n'),(54,2,'p','p'),
+(55,0,'y','y'),(56,1,'l','l'),(57,1,'c','c'),(58,0,'d','d'),(59,2,'y','y'),(60,7,'l','l'),
+(61,6,'m','m'),(62,9,'q','q'),(63,0,'j','j'),(64,3,'u','u'),(65,4,'w','w'),(66,5,'p','p'),
+(67,8,'z','z'),(68,5,'u','u'),(69,7,'b','b'),(70,0,'f','f'),(71,6,'u','u'),(72,1,'i','i'),
+(73,9,'s','s'),(74,3,'y','y'),(75,5,'s','s'),(76,8,'x','x'),(77,3,'s','s'),(78,3,'l','l'),
+(79,8,'b','b'),(80,0,'p','p'),(81,9,'m','m'),(82,5,'k','k'),(83,7,'u','u'),(84,0,'y','y'),
+(85,2,'x','x'),(86,5,'h','h'),(87,5,'j','j'),(88,5,'o','o'),(89,9,'o','o'),(90,1,'c','c'),
+(91,7,'k','k'),(92,9,'t','t'),(93,3,'h','h'),(94,6,'g','g'),(95,9,'r','r'),(96,2,'i','i');
+
+CREATE TABLE t2 (i INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (7),(8);
+
+SELECT STRAIGHT_JOIN COUNT(DISTINCT t1.id)  FROM
+  t1, v1, t2 WHERE v1.id = t2.i AND t1.i1 = v1.i1 AND t2.i != 3;
+
+EXPLAIN EXTENDED
+SELECT STRAIGHT_JOIN DISTINCT t1.id  FROM
+  t1, v1, t2 WHERE v1.id = t2.i AND t1.i1 = v1.i1 AND t2.i != 3;
+
+set join_buffer_size=1024;
+SELECT STRAIGHT_JOIN DISTINCT t1.id  FROM
+  t1, v1, t2 WHERE v1.id = t2.i AND t1.i1 = v1.i1 AND t2.i != 3;
+
+set join_buffer_size=1024*16;
+SELECT STRAIGHT_JOIN DISTINCT t1.id  FROM
+  t1, v1, t2 WHERE v1.id = t2.i AND t1.i1 = v1.i1 AND t2.i != 3;
+
+set join_buffer_size=default;
+SELECT STRAIGHT_JOIN DISTINCT t1.id  FROM
+  t1, v1, t2 WHERE v1.id = t2.i AND t1.i1 = v1.i1 AND t2.i != 3;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
 
 --echo #
 --echo # Bug #11744875: 4082: integer lengths cause truncation with distinct concat and innodb

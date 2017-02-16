@@ -77,9 +77,9 @@ SET @@global.max_user_connections = 2;
 SELECT @@global.max_user_connections;
 SET @@global.max_user_connections = 65536;
 SELECT @@global.max_user_connections;
-SET @@global.max_user_connections = 4294967295;
+SET @@global.max_user_connections = 2147483647;
 SELECT @@global.max_user_connections;
-SET @@global.max_user_connections = 4294967294;
+SET @@global.max_user_connections = 2147483646;
 SELECT @@global.max_user_connections;
 
 

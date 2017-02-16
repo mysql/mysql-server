@@ -1,0 +1,33 @@
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+#
+# Test year
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (y year,y2 year(2));
+insert into t1 values (0,0),(1999,1999),(2000,2000),(2001,2001),(70,70),(69,69);
+select * from t1;
+select * from t1 order by y;
+select * from t1 order by y2;
+drop table t1;
+
+#
+# Bug 2335
+#
+
+create table t1 (y year);
+insert into t1 values (now());
+select if(y = now(), 1, 0) from t1;
+drop table t1;
+
+#
+# Bug #27176: Assigning a string to an year column has unexpected results
+#
+create table t1(a year);
+insert into t1 values (2000.5), ('2000.5'), ('2001a'), ('2.001E3');
+select * from t1;
+drop table t1;
+
+--echo End of 5.0 tests

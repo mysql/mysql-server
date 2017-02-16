@@ -1,0 +1,38 @@
+# bool global
+
+SET @start_global_value = @@global.userstat;
+
+#
+# exists as global only
+#
+select @@global.userstat;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.userstat;
+show global variables like 'userstat';
+show session variables like 'userstat';
+select * from information_schema.global_variables where variable_name='userstat';
+select * from information_schema.session_variables where variable_name='userstat';
+
+#
+# show that it's writable
+#
+set global userstat=ON;
+select @@global.userstat;
+set global userstat=OFF;
+select @@global.userstat;
+set global userstat=1;
+select @@global.userstat;
+--error ER_GLOBAL_VARIABLE
+set session userstat=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global userstat=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global userstat=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global userstat="foo";
+
+SET @@global.userstat = @start_global_value;

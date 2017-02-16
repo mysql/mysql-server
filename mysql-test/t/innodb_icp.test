@@ -1,0 +1,78 @@
+#
+# ICP/InnoDB tests (Index Condition Pushdown)
+#
+
+--source include/have_innodb.inc
+
+set @save_storage_engine= @@storage_engine;
+set storage_engine=InnoDB;
+
+set @innodb_icp_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+
+--source include/icp_tests.inc
+
+--echo #
+--echo # BUG#920132: Assert trx->n_active_thrs == 1 failed at que0que.c line 1050 
+--echo #
+CREATE TABLE t1 ( a INT )
+  ENGINE=InnoDB;
+INSERT INTO t1 VALUES (7),(7);
+
+CREATE TABLE t2 ( b VARCHAR(1) );
+INSERT INTO t2 VALUES ('j'),('v');
+
+CREATE TABLE t3 (
+  c INT, d VARCHAR(1), e VARCHAR(1),
+  KEY (d,c)
+) ENGINE=InnoDB;
+INSERT INTO t3
+  VALUES (6,'w','w'),
+    (1,'v','v'),(7,'s','s'),(4,'l','l'),
+    (7,'y','y'),(0,'c','c'),(2,'i','i'),
+    (9,'h','h'),(4,'q','q'),(0,'a','a'),
+    (9,'v','v'),(1,'u','u'),(3,'s','s'),
+    (8,'z','z'),(1,'h','h'),(8,'p','p'),
+    (6,'e','e'),(3,'i','i'),(6,'y','y');
+
+SELECT *
+FROM t1 INNER JOIN t2 INNER JOIN t3
+  ON d = b
+WHERE
+  NOT EXISTS ( SELECT * FROM t3 )
+  OR a = c
+ORDER BY e;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # MDEV-5337: Wrong result in mariadb 5.5.32 with ORDER BY + LIMIT when index_condition_pushdown=on
+--echo # MDEV-5512: Wrong result (WHERE clause ignored) with multiple clauses using Percona-XtraDB engine
+--echo #
+
+create table t1(a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t2 (pk int primary key, 
+  key1 char(32),
+  key2 char(32),
+  key(key1),
+  key(key2)
+) engine=innodb;
+
+insert into t2 select 
+  A.a+10*B.a+100*C.a,
+  concat('rare-', A.a+10*B.a),
+  concat('rare-', A.a+10*B.a)
+from
+  t1 A, t1 B, t1 C;
+update t2 set key1='frequent-val' where pk between 100 and 350;
+select * from t2 ignore key(PRIMARY) 
+where key1='frequent-val' and key2 between 'rare-400' and 'rare-450' order by pk limit 2;
+
+drop table t1, t2;
+
+
+set optimizer_switch=@innodb_icp_tmp;
+set storage_engine= @save_storage_engine;
+

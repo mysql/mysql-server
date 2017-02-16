@@ -3,7 +3,7 @@
 #
 
 --disable_warnings
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3,t4,t5,t6;
 --enable_warnings
 
 set @sav_dpi= @@div_precision_increment;
@@ -138,6 +138,8 @@ insert into t2 values('AAA', 10, 0.5);
 insert into t2 values('BBB', 20, 1.0);
 select t1.a1, t1.a2, t2.a1, t2.a2 from t1,t2;
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 select max(t1.a1), max(t2.a1) from t1, t2 where t2.a2=9;
 select max(t2.a1), max(t1.a1) from t1, t2 where t2.a2=9;
 select t1.a1, t1.a2, t2.a1, t2.a2 from t1 left outer join t2 on t1.a1=10;
@@ -146,6 +148,7 @@ select max(t2.a1) from t2 left outer join t1 on t2.a2=10 where t2.a2=20;
 select max(t2.a1) from t2 left outer join t1 on t2.a2=10 where t2.a2=10;
 select max(t2.a1) from t1 left outer join t2 on t1.a2=t2.a1 and 1=0 where t2.a1='AAA';
 select max(t1.a2),max(t2.a1) from t1 left outer join t2 on t1.a1=10;
+SET optimizer_switch=@save_optimizer_switch;
 drop table t1,t2;
 
 #
@@ -978,10 +981,13 @@ DROP TABLE D;
 #
 # Bug #39656: Behaviour different for agg functions with & without where -
 # ONLY_FULL_GROUP_BY
+# MDEV-5617 mysqld crashes when running a query with ONLY_FULL_GROUP_BY
 #
 
 CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (1,1), (1,2), (1,3);
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (3),(4);
 
 SET SQL_MODE='ONLY_FULL_GROUP_BY';
 
@@ -997,11 +1003,18 @@ SELECT COUNT(*) FROM t1 a JOIN t1 b ON a.a= b.a;
 SELECT COUNT(*), (SELECT count(*) FROM t1 inr WHERE inr.a = outr.a) 
   FROM t1 outr;
 
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT COUNT(*) FROM t1 outr, (SELECT b, count(*) FROM t2) as t3;
+
+SELECT COUNT(*) FROM t1 outr where (1,1) in (SELECT a, count(*) FROM t2);
+
 SELECT COUNT(*) FROM t1 a JOIN t1 outr 
   ON a.a= (SELECT count(*) FROM t1 inr WHERE inr.a = outr.a);
 
+SELECT * FROM (SELECT a FROM t1 GROUP BY a) sq JOIN t2 ON a = b;
+
 SET SQL_MODE=default;
-DROP TABLE t1;
+DROP TABLE t1,t2;
 
 
 ###
@@ -1063,7 +1076,8 @@ insert into t1 values
   (02,2002,20020101,"2002-01-01 23:59:59"),
   (60,2060,20600101,"2060-01-01 11:11:11"),
   (70,1970,19700101,"1970-11-11 22:22:22"),
-  (NULL,NULL,NULL,NULL);
+  (NULL,NULL,NULL,NULL),
+  (71,1971,19710101,"1971-11-11 22:22:22");
 select min(f1),max(f1) from t1;
 select min(f2),max(f2) from t1;
 select min(f3),max(f3) from t1;
@@ -1138,11 +1152,289 @@ INSERT INTO t1 VALUES (0000),(2001);
 --disable_metadata
 DROP TABLE t1;
 
+--echo #
+--echo # LP BUG#813418 - incorrect optimisation of max/min by index for
+--echo # negated BETWEEN
+CREATE TABLE t1 (a int, KEY (a));
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+SELECT MAX(a) FROM t1 WHERE a NOT BETWEEN 3 AND 9;
+drop table t1;
 
 --echo #
 --echo End of 5.1 tests
 
-###
+--echo #
+--echo # Bug #904345: MIN/MAX optimization  with constant FALSE condition
+--echo #
+
+CREATE TABLE t1 (a int NOT NULL, KEY(a));
+INSERT INTO t1 VALUES (10), (8), (11), (7), (15), (12), (9);
+
+CREATE TABLE t2 (a int, b int);
+INSERT INTO t2 VALUES
+  (8,2), (6,9), (8,4), (5,3), (9,1);
+
+EXPLAIN EXTENDED
+SELECT MAX(a) FROM t1 WHERE (1,2) IN (SELECT 3,4) AND a<10;
+SELECT MAX(a) FROM t1 WHERE (1,2) IN (SELECT 3,4) AND a<10;
+
+EXPLAIN EXTENDED
+SELECT MAX(a) FROM t1 WHERE (1,2) IN (SELECT a,b FROM t2 WHERE b<5) and a<10; 
+SELECT MAX(a) FROM t1 WHERE (1,2) IN (SELECT a,b FROM t2 WHERE b<5) and a<10; 
+
+EXPLAIN EXTENDED
+SELECT MAX(a) FROM t1 WHERE RAND()*0<>0 AND a<10;
+SELECT MAX(a) FROM t1 WHERE RAND()*0<>0 AND a<10;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug #879860: MIN/MAX for subquery returning empty set 
+--echo #
+
+CREATE TABLE t1 (a int PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2 (a int NOT NULL);
+INSERT INTO t2 VALUES (10);
+
+CREATE TABLE t3 ( a int, b int);
+INSERT INTO t3 VALUES (19,1), (20,5);
+
+EXPLAIN EXTENDED
+SELECT (SELECT MIN(t1.a) FROM t1,t2 WHERE t2.a = t3.b) FROM t3;
+SELECT (SELECT MIN(t1.a) FROM t1,t2 WHERE t2.a = t3.b) FROM t3;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug #884175: MIN/MAX for short varchar = long const  
+--echo #
+
+CREATE TABLE t1 (f1 varchar(1), f2 varchar(1), KEY (f2));
+INSERT INTO t1 VALUES ('b', 'b'), ('a','a');
+
+EXPLAIN 
+SELECT MAX(f1) FROM t1 WHERE f1 = 'abc';
+SELECT MAX(f1) FROM t1 WHERE f1 = 'abc';
+
+EXPLAIN
+SELECT MAX(f2) FROM t1 WHERE f2 = 'abc';
+SELECT MAX(f2) FROM t1 WHERE f2 = 'abc';
+
+EXPLAIN
+SELECT MIN(f1) FROM t1 WHERE f1 >= 'abc';
+SELECT MIN(f1) FROM t1 WHERE f1 >= 'abc';
+
+EXPLAIN
+SELECT MIN(f2) FROM t1 WHERE f2 >= 'abc';
+SELECT MIN(f2) FROM t1 WHERE f2 >= 'abc';
+
+EXPLAIN
+SELECT MIN(f1) FROM t1 WHERE f1 BETWEEN 'abc' AND 'b' ;
+SELECT MIN(f1) FROM t1 WHERE f1 BETWEEN 'abc' AND 'b' ;
+
+EXPLAIN
+SELECT MIN(f2) FROM t1 WHERE f2 BETWEEN 'abc' AND 'b' ;
+SELECT MIN(f2) FROM t1 WHERE f2 BETWEEN 'abc' AND 'b' ;
+
+DROP TABLE t1;
+
+
+--echo End of 5.2 tests
+
+--echo #
+--echo # BUG#46680 - Assertion failed in file item_subselect.cc, 
+--echo #             line 305 crashing on HAVING subquery
+--echo #
+
+--echo # Create tables
+--echo #
+
+CREATE TABLE t1 (
+  pk INT,
+  v VARCHAR(1) DEFAULT NULL,
+  PRIMARY KEY(pk)
+);
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+CREATE TABLE empty1 (a int);
+
+INSERT INTO t1 VALUES (1,'c'),(2,NULL);
+INSERT INTO t2 VALUES (3,'m'),(4,NULL);
+INSERT INTO t3 VALUES (1,'n');
+
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
+
+--echo
+--echo #
+--echo # 1) Test that subquery materialization is setup for query with
+--echo #    premature optimize() exit due to "Impossible WHERE"
+--echo #
+SELECT MIN(t2.pk)
+FROM t2 JOIN t1 ON t1.pk=t2.pk
+WHERE 'j'
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo
+EXPLAIN
+SELECT MIN(t2.pk)
+FROM t2 JOIN t1 ON t1.pk=t2.pk
+WHERE 'j'
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo 
+--echo #
+--echo # 2) Test that subquery materialization is setup for query with
+--echo #    premature optimize() exit due to "No matching min/max row"
+--echo #
+SELECT MIN(t2.pk)
+FROM t2 
+WHERE t2.pk>10
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo
+EXPLAIN
+SELECT MIN(t2.pk)
+FROM t2 
+WHERE t2.pk>10
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo
+--echo #
+--echo # 3) Test that subquery materialization is setup for query with
+--echo #    premature optimize() exit due to "Select tables optimized away"
+--echo #
+SELECT MIN(pk)
+FROM t1
+WHERE pk=NULL
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo
+EXPLAIN
+SELECT MIN(pk)
+FROM t1
+WHERE pk=NULL
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo 
+--echo #
+--echo # 4) Test that subquery materialization is setup for query with
+--echo #    premature optimize() exit due to "No matching row in const table"
+--echo #
+--echo
+SELECT MIN(a)
+FROM (SELECT a FROM empty1) tt
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
+EXPLAIN 
+SELECT MIN(a)
+FROM (SELECT a FROM empty1) tt
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+set optimizer_switch=@tmp_optimizer_switch;
+
+--echo 
+--echo #
+--echo # 5) Test that subquery materialization is setup for query with
+--echo #    premature optimize() exit due to "Impossible WHERE noticed 
+--echo #    after reading const tables"
+--echo #
+SELECT min(t1.pk)
+FROM t1
+WHERE t1.pk IN (SELECT 1 from t3 where pk>10)
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo
+EXPLAIN
+SELECT min(t1.pk)
+FROM t1
+WHERE t1.pk IN (SELECT 1 from t3 where pk>10)
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+set @@optimizer_switch=@save_optimizer_switch;
+
+--echo #
+--echo # Cleanup for BUG#46680
+--echo #
+DROP TABLE IF EXISTS t1,t2,t3,empty1;
+
+#
+# MDEV-4286 Server crashes in Protocol_text::store, stack smashing detected
+#
+create table t1 (i int, d date);
+insert into t1 values (1, '2008-10-02'), (2, '2010-12-12');
+select avg(export_set( 3, 'y', sha(i))), group_concat(d) from t1 group by d order by i;
+drop table t1;
+
+--echo #
+--echo # MDEV-4290: crash in st_select_lex::mark_as_dependent
+--echo #
+create table `t1`(`a` int);
+
+--error ER_INVALID_GROUP_FUNC_USE
+select 1 from t1 v1 right join t1 on count(*);
+--error ER_INVALID_GROUP_FUNC_USE
+select 1 from t1 order by
+(
+	select 1 from 
+	(
+		select 1 from t1 v1 right join t1 on count(*)
+	) v   
+);
+insert into t1 values (1),(1),(2),(2);
+select count(*) from t1;
+select z from (select count(*) as z from t1) v; 
+--echo # next is how it implemented now (may be changed in case of dependent
+--echo # derived tables)
+select z from (select count(*) as z from t1) v group by 1; 
+drop table t1;
+
+#
+# Bug mdev-5015: Degenerate OR condition in an aggregated join
+#
+
+CREATE TABLE t1 (i1 int, INDEX(i1));
+INSERT INTO t1 VALUES (9),(8);
+
+CREATE TABLE t2 (i2 int);
+INSERT INTO t2 VALUES (8),(4);
+
+
+CREATE TABLE t3 (i3 int, INDEX(i3));
+INSERT INTO t3 VALUES (9),(8);
+
+SELECT MAX(t3.i3) FROM t3, t2, t1 WHERE t1.i1 = t2.i2 AND ( 0 OR t3.i3 = t2.i2 );
+
+SELECT MAX(t3.i3) FROM t3, t2, t1 WHERE t1.i1 = t2.i2 AND  t3.i3 = t2.i2;
+
+DROP TABLE  t1,t2,t3;
+
+--echo # end of 5.3 tests
+
 --echo #
 --echo # Bug#52123 Assertion failed: aggregator == aggr->Aggrtype(),
 --echo #           file .\item_sum.cc, line 587
@@ -1183,3 +1475,124 @@ SELECT AVG(DISTINCT outr.col_int_nokey) FROM t1 AS outr LEFT JOIN t1 AS outr2 ON
 outr.col_int_nokey = outr2.col_int_nokey;
 DROP TABLE t1;
 --echo # End of the bug#57932
+
+
+--echo #
+--echo # MDEV-5257: MIN/MAX Optimization (Select tables optimized away) does not work for DateTime
+--echo # MDEV-3855: MIN/MAX optimization doesnt work for int_col > INET_ATON
+--echo #  (correct the fix for Bug #884175)
+--echo #
+
+CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` datetime DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `idx_b` (`b`)
+);
+
+INSERT INTO `t1` (b) VALUES ('2013-01-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-02-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-03-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-04-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-05-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-06-06 23:59:59');
+INSERT INTO `t1` (b) VALUES ('2013-07-06 23:59:59');
+
+--echo # The following should produce "Select tables optimized away"
+EXPLAIN SELECT MIN(b) FROM t1 WHERE b <= '2013-11-06 23:59:59';
+
+-- connect (con1,localhost,root,,)
+-- connection con1
+set names utf8;
+-- echo # Should be the same as above:
+EXPLAIN SELECT MIN(b) FROM t1 WHERE b <= '2013-11-06 23:59:59';
+
+--connection default
+--disconnect con1
+
+DROP TABLE t1;
+
+CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` bigint(20) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `idx_b` (`b`)
+);
+
+insert into t1 (b) values (INET_ATON('192.168.0.1'));
+insert into t1 (b) values (INET_ATON('192.168.0.2'));
+insert into t1 (b) values (INET_ATON('192.168.0.3'));
+insert into t1 (b) values (INET_ATON('192.168.0.4'));
+insert into t1 (b) values (INET_ATON('192.168.200.200'));
+--echo # should show "Select tables optimized away"
+explain select MIN(b) from t1 where b >= inet_aton('192.168.119.32');
+DROP TABLE t1;
+
+--echo #
+--echo # MDEV-6743 crash in GROUP_CONCAT(IF () ORDER BY 1)
+--echo #
+
+CREATE TABLE t1 (pk INT, t2_id INT, t5_id INT, PRIMARY KEY (pk));
+INSERT INTO t1 VALUES (1,3,12),(2,3,15);
+
+CREATE TABLE t2 (pk INT, PRIMARY KEY (pk));
+INSERT INTO t2 VALUES (4),(5);
+
+CREATE TABLE t3 (t2_id INT, t4_id INT);
+INSERT INTO t3 VALUES (6,11),(7,12);
+
+CREATE TABLE t4 (id INT);
+INSERT INTO t4 VALUES (13),(14);
+
+CREATE TABLE t5 (pk INT, f VARCHAR(50), t6_id INT, PRIMARY KEY (pk));
+INSERT INTO t5 VALUES (9,'FOO',NULL);
+
+CREATE TABLE t6 (pk INT, f VARCHAR(120), b TINYINT(4), PRIMARY KEY (pk));
+
+PREPARE stmt FROM "
+  SELECT      t1.t2_id, GROUP_CONCAT(IF (t6.b, t6.f, t5.f) ORDER BY 1)
+  FROM        t1
+  JOIN        t2 ON t1.t2_id = t2.pk
+  JOIN        t3 ON t2.pk = t3.t2_id
+  JOIN        t4 ON t4.id = t3.t4_id
+  JOIN        t5 ON t1.t5_id = t5.pk
+  LEFT JOIN   t6 ON t6.pk = t5.t6_id
+  GROUP BY    t1.t2_id
+";
+
+EXECUTE stmt;
+EXECUTE stmt;
+EXECUTE stmt;
+
+DROP TABLE t1,t2,t3,t4,t5,t6;
+
+--echo #
+--echo # MDEV-10500 CASE/IF Statement returns multiple values and shifts further result values to the next column
+--echo #
+
+CREATE TABLE t1 (
+  id int not null AUTO_INCREMENT,
+  active bool not null,
+  data1 bigint,
+  data2 bigint,
+  data3 bigint,
+  primary key (id)
+);
+INSERT INTO t1 (active,data1,data2,data3) VALUES (1,null,100,200);
+SELECT
+  CASE WHEN active THEN SUM(data1) END AS C_1,
+  SUM(data2) AS C_2,
+  SUM(data3) AS C_3
+FROM t1;
+SELECT
+  IF(active, SUM(data1), 5) AS C_1,
+  SUM(data2) AS C_2,
+  SUM(data3) AS C_3
+FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # MDEV-10468 Assertion `nr >= 0.0' failed in Item_sum_std::val_real()
+--echo #
+SELECT STDDEV_POP(f) FROM (SELECT "1e+309" AS f UNION SELECT "-1e+309" AS f) tbl;
+SELECT STDDEV(f) FROM (SELECT 1.7976931348623157e+308 AS f UNION SELECT -1.7976931348623157e+308 AS f) tbl;

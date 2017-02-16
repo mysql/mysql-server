@@ -1,0 +1,30 @@
+#
+# test syntax
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+set @OLD_SQL_MODE=@@SESSION.SQL_MODE;
+create table t1 (a int, b int generated always  as (a+1));
+show create table t1;
+drop table t1;
+create table t1 (a int, b int as (a+1) virtual);
+show create table t1;
+drop table t1;
+create table t1 (a int, b int generated always  as (a+1) persistent);
+show create table t1;
+drop table t1;
+
+set session sql_mode='ORACLE';
+create table t1 (a int, b int as (a+1));
+show create table t1;
+drop table t1;
+create table t1 (a int, b int generated always as (a+1) virtual);
+show create table t1;
+drop table t1;
+create table t1 (a int, b int as (a+1) persistent);
+show create table t1;
+drop table t1;
+set session sql_mode=@OLD_SQL_MODE;
+

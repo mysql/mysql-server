@@ -30,7 +30,7 @@ SET @@global.general_log = ON;
 SET @@global.general_log_file = 'bug45387_general.log';
 
 # turn on output of timestamps on all log file entries
-SET SESSION debug='+d,reset_log_last_time';
+SET SESSION debug_dbug='+d,reset_log_last_time';
 
 let CONN_ID= `SELECT CONNECTION_ID()`;
 FLUSH LOGS;
@@ -38,7 +38,7 @@ FLUSH LOGS;
 # reset log settings
 SET @@global.general_log = @old_general_log;
 SET @@global.general_log_file = @old_general_log_file;
-SET SESSION debug='-d';
+SET SESSION debug_dbug='-d';
 
 perl;
   # get the relevant info from the surrounding perl invocation

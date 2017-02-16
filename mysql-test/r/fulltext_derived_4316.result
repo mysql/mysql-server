@@ -1,0 +1,8 @@
+create table t1 (ft text) engine=myisam;
+insert into t1 values ('test1'),('test2');
+select distinct match(ft) against("test1" in boolean mode) from
+(select distinct ft from t1) as t;
+match(ft) against("test1" in boolean mode)
+1
+0
+drop table t1;

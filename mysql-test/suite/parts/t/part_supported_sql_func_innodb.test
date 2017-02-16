@@ -25,11 +25,11 @@
 let $debug= 0;
 let $do_long_tests= 1;
 
-# The server must support partitioning.
---source include/have_partition.inc
-
+#
 # This test takes long time, so only run it with the --big mtr-flag.
 --source include/big_test.inc
+# The server must support partitioning.
+--source include/have_partition.inc
 
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements

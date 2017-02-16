@@ -1,0 +1,47 @@
+--source include/have_tokudb.inc
+SET @@DEFAULT_STORAGE_ENGINE = tokudb;
+#
+# Bug #23692: Falcon: searches fail if data is 0x00
+#
+--echo *** Bug #23692 ***
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+DROP TABLE IF EXISTS t4;
+--enable_warnings
+
+CREATE TABLE t1 (a char(1), key (a));
+INSERT INTO t1 VALUES (0x00);
+SELECT count(*) FROM t1 WHERE a < '';
+SELECT count(*) FROM t1 WHERE a = '';
+SELECT count(*) FROM t1 WHERE a > '';
+
+CREATE TABLE t2 (a varbinary(5));
+CREATE INDEX i ON t2 (a);
+INSERT INTO t2 VALUES (0x02), (0x0202);
+SELECT count(*) FROM t2 WHERE a >= 0x02 OR a = 0x0202;
+SELECT hex(a) FROM t2 WHERE a < 0x02;
+SELECT hex(a) FROM t2 WHERE a = 0x02;
+SELECT hex(a) FROM t2 WHERE a > 0x02;
+
+CREATE TABLE t3 (a char(5));
+CREATE INDEX i ON t3 (a);
+INSERT INTO t3 VALUES (0x4200), (0x4209), (0x42), (0x4220), (0x4242);
+SELECT hex(a) FROM t3 WHERE a < 0x42;
+SELECT hex(a) FROM t3 WHERE a = 0x42;
+SELECT hex(a) FROM t3 WHERE a > 0x42;
+SELECT hex(a) FROM t3 WHERE a LIKE 'a%';
+
+CREATE TABLE t4 (a varchar(5) character set ucs2, key(a)) engine=tokudb;
+INSERT INTO t4 VALUES (0x00420000), (0x00420009), (0x0041001f), (0x0042), (0x00420020), (0x00420042);
+SELECT hex(a) FROM t4 WHERE a < 'a';
+SELECT hex(a) FROM t4 WHERE a = 'a';
+SELECT hex(a) FROM t4 WHERE a > 'a';
+SELECT hex(a) FROM t4 WHERE a LIKE 'a%';
+
+# Final cleanup.
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;

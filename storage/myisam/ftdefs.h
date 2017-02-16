@@ -97,16 +97,16 @@
 #define FTB_RQUOT (ft_boolean_syntax[11])
 
 typedef struct st_ft_word {
-  uchar * pos;
-  uint	 len;
+  const uchar *pos;
   double weight;
+  size_t len;
 } FT_WORD;
 
-int is_stopword(char *word, uint len);
+int is_stopword(const char *word, size_t len);
 
 uint _ft_make_key(MI_INFO *, uint , uchar *, FT_WORD *, my_off_t);
 
-uchar ft_get_word(CHARSET_INFO *, uchar **, uchar *, FT_WORD *,
+uchar ft_get_word(CHARSET_INFO *, const uchar **, const uchar *, FT_WORD *,
                   MYSQL_FTPARSER_BOOLEAN_INFO *);
 uchar ft_simple_get_word(CHARSET_INFO *, uchar **, const uchar *,
                          FT_WORD *, my_bool);

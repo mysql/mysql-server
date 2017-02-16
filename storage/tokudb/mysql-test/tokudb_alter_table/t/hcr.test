@@ -1,0 +1,60 @@
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=ON;
+
+# test that modifying a column with more than just a rename is not fast
+create table foo (a int, b varchar(10), c blob)engine=TokuDB;
+insert into foo values(1,"bb","cccc");
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change a aa int, change b bb varchar(10);
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change b bb varchar(11);
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change a aa smallint;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change a aa int NOT NULL;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change a aa int, change b bb varchar(10);
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change b bb varchar(10) CHARACTER SET latin1 COLLATE latin1_general_cs;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change c cc mediumblob;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change a aa int, add column d int;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change a aa int, drop column c;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change a aa int, add index (b);
+alter table foo add index(b);
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change a aa int, drop index b;
+show create table foo;
+select * from foo;
+
+alter table foo change a aa int DEFAULT 1000;
+
+drop table foo;
+
+create table foo (a int, b int, c int) engine=TokuDB;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table foo change c cc int, change a b int, change b a int first;
+
+drop table foo;

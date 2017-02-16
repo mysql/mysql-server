@@ -1,0 +1,57 @@
+# ticket 895 is a query optimization problem with the primary key
+
+--source include/have_tokudb.inc
+--echo # Establish connection conn1 (user = root)
+connect (conn1,localhost,root,,);
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo,foo_isam;
+--enable_warnings
+
+connection conn1;
+set session transaction isolation level read committed;
+create table foo ( a int, b int, primary key (a));
+insert into foo values (1,1),(2,2),(3,1),(4,3);
+select * from foo;
+begin;
+update foo set b=10 where b=1;
+select * from foo;
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (5,5);
+
+connection conn1;
+rollback;
+select * from foo;
+begin;
+delete from foo where b=2;
+select * from foo;
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+insert into foo values (5,5);
+
+connection conn1;
+rollback;
+select * from foo;
+create table foo_isam (a int, b int)engine=MyISAM;
+begin;
+insert into foo_isam select * from foo;
+
+connection default;
+insert into foo values (5,5);
+select * from foo;
+
+
+connection conn1;
+commit;
+
+connection default;
+disconnect conn1;
+
+connection default;
+# Final cleanup.
+set session transaction isolation level serializable;
+DROP TABLE foo, foo_isam;

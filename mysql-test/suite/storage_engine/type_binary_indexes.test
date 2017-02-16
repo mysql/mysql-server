@@ -1,0 +1,149 @@
+#
+# BINARY and VARBINARY columns with indexes
+#
+
+--source have_engine.inc
+--source have_default_index.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# Default index as set in define_engine.inc
+
+let $create_definition =
+  b BINARY $col_opts,
+  b20 BINARY(20) $col_indexed_opts,
+  v16 VARBINARY(16) $col_opts,
+  v128 VARBINARY(128) $col_opts,
+  $default_index b20 (b20)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = BINARY or VARBINARY types or indexes
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 3 # 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (b,b20,v16,v128) VALUES ('a','char1','varchar1a','varchar1b'),('a','char2','varchar2a','varchar2b'),('b','char3','varchar1a','varchar1b'),('c','char4','varchar3a','varchar3b');
+
+  SELECT HEX(b20) FROM t1 ORDER BY b20;
+  DROP TABLE t1;
+}
+
+
+# PK, UNIQUE INDEX, INDEX
+
+let $create_definition =
+  b BINARY $col_opts,
+  b20 BINARY(20) $col_indexed_opts PRIMARY KEY,
+  v16 VARBINARY(16) $col_opts,
+  v128 VARBINARY(128) $col_opts
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = BINARY or VARBINARY types or PK
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (b,b20,v16,v128) VALUES ('a','char1','varchar1a','varchar1b'),('a','char2','varchar2a','varchar2b'),('b','char3','varchar1a','varchar1b'),('c','char4','varchar3a','varchar3b');
+
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT HEX(b20) FROM t1 ORDER BY b20;
+  SELECT HEX(b20) FROM t1 ORDER BY b20;
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT HEX(b20) FROM t1 IGNORE INDEX (PRIMARY) ORDER BY b20 DESC;
+  SELECT HEX(b20) FROM t1 ORDER BY b20 DESC;
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  b BINARY $col_indexed_opts,
+  b20 BINARY(20) $col_opts,
+  v16 VARBINARY(16) $col_opts,
+  v128 VARBINARY(128) $col_indexed_opts,
+  UNIQUE INDEX b_v (b,v128)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = BINARY or VARBINARY types or unique keys or multi-part keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (b,b20,v16,v128) VALUES ('a','char1','varchar1a','varchar1b'),('a','char2','varchar2a','varchar2b'),('b','char3','varchar1a','varchar1b'),('c','char4','varchar3a','varchar3b');
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT HEX(b), HEX(v128) FROM t1 WHERE b != 'a' AND v128 > 'varchar';
+  --sorted_result
+  SELECT HEX(b), HEX(v128) FROM t1 WHERE b != 'a' AND v128 > 'varchar';
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT HEX(b), HEX(v128) FROM t1 USE INDEX (b_v) WHERE b != 'a' AND v128 > 'varchar';
+  --sorted_result
+  SELECT HEX(b), HEX(v128) FROM t1 USE INDEX (b_v) WHERE b != 'a' AND v128 > 'varchar';
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT HEX(v128), COUNT(*) FROM t1 GROUP BY HEX(v128);
+  --sorted_result
+  SELECT HEX(v128), COUNT(*) FROM t1 GROUP BY HEX(v128);
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  b BINARY $col_opts,
+  b20 BINARY(20) $col_opts,
+  v16 VARBINARY(16) $col_indexed_opts,
+  v128 VARBINARY(128) $col_opts,
+  INDEX (v16(10))
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = BINARY or VARBINARY types or non-unique keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (b,b20,v16,v128) VALUES ('a','char1','varchar1a','varchar1b'),('a','char2','varchar2a','varchar2b'),('b','char3','varchar1a','varchar1b'),('c','char4','varchar3a','varchar3b'),('d','char5','varchar4a','varchar3b'),('e','char6','varchar2a','varchar3b');
+  INSERT INTO t1 (b,b20,v16,v128) SELECT b,b20,v16,v128 FROM t1;
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT HEX(SUBSTRING(v16,0,3)) FROM t1 WHERE v16 LIKE 'varchar%';
+  --sorted_result
+  SELECT HEX(SUBSTRING(v16,7,3)) FROM t1 WHERE v16 LIKE 'varchar%';
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT HEX(SUBSTRING(v16,0,3)) FROM t1 FORCE INDEX (v16) WHERE v16 LIKE 'varchar%';
+  --sorted_result
+  SELECT HEX(SUBSTRING(v16,7,3)) FROM t1 FORCE INDEX (v16) WHERE v16 LIKE 'varchar%';
+
+  DROP TABLE t1;
+}
+
+--source cleanup_engine.inc
+

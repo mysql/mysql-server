@@ -42,7 +42,7 @@ if (!$debug_sync_action)
 # Restart slave
 --source include/stop_slave.inc
 
-eval SET @@global.debug= "+d,$dbug_sync_point";
+eval SET @@global.debug_dbug= "+d,$dbug_sync_point";
 
 --source include/start_slave.inc
 --echo slave is going to hang in get_master_version_and_clock
@@ -71,7 +71,7 @@ source include/wait_for_slave_io_error.inc;
 # now to avoid restarting IO-thread to re-enter it.
 # There will be a new IO thread forked out with its @@session.debug
 # unset.
-eval set @@global.debug = "-d,$dbug_sync_point";
+eval set @@global.debug_dbug= "-d,$dbug_sync_point";
 
 --let $rpl_server_number= 1
 --source include/rpl_start_server.inc

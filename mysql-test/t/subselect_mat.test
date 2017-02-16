@@ -1,0 +1,256 @@
+#
+# Hash semi-join regression tests
+# (WL#1110: Subquery optimization: materialization)
+#
+
+
+# force the use of materialization
+set @subselect_mat_test_optimizer_switch_value='materialization=on,in_to_exists=off,semijoin=off';
+
+--source t/subselect_sj_mat.test
+set @subselect_mat_test_optimizer_switch_value=null;
+
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+#
+# Test that the contents of the temp table of a materialized subquery is
+# cleaned up between PS re-executions.
+#
+
+create table t0 (a int);
+insert into t0 values (0),(1),(2);
+create table t1 (a int);
+insert into t1 values (0),(1),(2);
+explain select a, a in (select a from t1) from t0;
+select a, a in (select a from t1) from t0;
+prepare s from 'select a, a in (select a from t1) from t0';
+execute s;
+update t1 set a=123;
+execute s;
+drop table t0, t1;
+
+
+--echo #
+--echo # LPBUG#609121: RQG: wrong result on aggregate + NOT IN + HAVING and
+--echo # partial_match_table_scan=on
+--echo #
+
+create table t1 (c1 int);
+create table t2 (c2 int);
+insert into t1 values (1);
+insert into t2 values (2);
+
+set @@optimizer_switch='semijoin=off';
+
+EXPLAIN
+SELECT SUM(c1) c1_sum FROM t1 WHERE c1 IN (SELECT c2 FROM t2);
+SELECT SUM(c1) c1_sum FROM t1 WHERE c1 IN (SELECT c2 FROM t2);
+EXPLAIN
+SELECT SUM(c1) c1_sum FROM t1 WHERE c1 IN (SELECT c2 FROM t2) HAVING c1_sum;
+SELECT SUM(c1) c1_sum FROM t1 WHERE c1 IN (SELECT c2 FROM t2) HAVING c1_sum;
+
+drop table t1, t2;
+
+--echo #
+--echo # BUG#52344 - Subquery materialization: 
+--echo #  	     Assertion if subquery in on-clause of outer join
+--echo #
+
+set @@optimizer_switch='semijoin=off';
+
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 VALUES (10);
+
+CREATE TABLE t2 (j INTEGER);
+INSERT INTO t2 VALUES (5);
+
+CREATE TABLE t3 (k INTEGER);
+
+EXPLAIN
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
+
+EXPLAIN
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # LPBUG#611622/BUG#52344: Subquery materialization:  Assertion 
+--echo #                         if subquery in on-clause of outer join
+--echo #
+
+CREATE TABLE t1 (c1 int);
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE TABLE t2 (c2 int);
+INSERT INTO t2 VALUES (10);
+
+PREPARE st1 FROM "
+SELECT *
+FROM t2 LEFT JOIN t2 t3 ON (8, 4) IN (SELECT c1, c1 FROM t1)";
+
+EXECUTE st1;
+EXECUTE st1;
+
+DROP TABLE t1, t2;
+
+--echo # 
+--echo # Testcase backport: BUG#46548 IN-subqueries return 0 rows with materialization=on
+--echo # 
+CREATE TABLE t1 (
+  pk int,
+  a varchar(1),
+  b varchar(4),
+  c varchar(4),
+  d varchar(4),
+  PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1,'o','ffff','ffff','ffoo'),(2,'f','ffff','ffff','ffff');
+
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES (1,'i','iiii','iiii','iiii'),(2,'f','ffff','ffff','ffff');
+
+SET @@optimizer_switch='default,semijoin=on,materialization=on';
+EXPLAIN SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
+SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
+SELECT pk FROM t1 WHERE (b,c,d) IN (SELECT b,c,d FROM t2 WHERE pk > 0);
+DROP TABLE t1, t2;
+
+
+-- echo #
+-- echo # BUG#724228: Wrong result with materialization=on and three aggregates in maria-5.3-mwl90
+-- echo #
+CREATE TABLE t1 ( f2 int(11)) ;
+INSERT IGNORE INTO t1 VALUES ('7'),('9'),('7'),('4'),('2'),('6'),('8'),('5'),('6'),('188'),('2'),('1'),('1'),('0'),('9'),('4');
+
+CREATE TABLE t2 ( f1 int(11), f2 int(11)) ENGINE=MyISAM;
+INSERT IGNORE INTO t2 VALUES ('1','1');
+
+CREATE TABLE t3 ( f1 int(11), f2 int(11), f3 int(11), PRIMARY KEY (f1)) ;
+INSERT IGNORE INTO t3 VALUES ('16','6','1'),('18','3','4'),('19',NULL,'9'),('20','0','6'),('41','2','0'),('42','2','5'),('43','9','6'),('44','7','4'),('45','1','4'),('46','222','238'),('47','3','6'),('48','6','6'),('49',NULL,'1'),('50','5','1');
+
+SET @_save_join_cache_level = @@join_cache_level;
+SET @_save_optimizer_switch = @@optimizer_switch;
+
+SET join_cache_level = 1;
+SET optimizer_switch='materialization=on';
+
+SELECT f1 FROM t3
+WHERE 
+  f1 NOT IN (SELECT MAX(f2) FROM t1) AND 
+  f3 IN (SELECT MIN(f1) FROM t2) AND 
+  f1 IN (SELECT COUNT(f2) FROM t1);
+
+SET @@join_cache_level = @_save_join_cache_level;
+SET @@optimizer_switch = @_save_optimizer_switch;
+
+drop table t1, t2, t3;
+
+--echo #
+--echo # LPBUG#719198 Ordered_key::cmp_key_with_search_key(rownum_t): Assertion `!compare_pred[i]->null_value'
+--echo # failed with subquery on both sides of NOT IN and materialization
+--echo #
+
+CREATE TABLE t1 (f1a int, f1b int) ;
+INSERT IGNORE INTO t1 VALUES (1,1),(2,2);
+CREATE TABLE t2 ( f2 int);
+INSERT IGNORE INTO t2 VALUES (3),(4);
+CREATE TABLE t3 (f3a int, f3b int);
+
+set @@optimizer_switch='materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off,in_to_exists=off';
+
+EXPLAIN
+SELECT * FROM t2 WHERE (SELECT f3a FROM t3) NOT IN (SELECT f1a FROM t1);
+SELECT * FROM t2 WHERE (SELECT f3a FROM t3) NOT IN (SELECT f1a FROM t1);
+
+EXPLAIN
+SELECT (SELECT f3a FROM t3) NOT IN (SELECT f1a FROM t1);
+SELECT (SELECT f3a FROM t3) NOT IN (SELECT f1a FROM t1);
+
+EXPLAIN
+SELECT * FROM t2 WHERE (SELECT f3a, f3b FROM t3) NOT IN (SELECT f1a, f1b FROM t1);
+SELECT * FROM t2 WHERE (SELECT f3a, f3b FROM t3) NOT IN (SELECT f1a, f1b FROM t1);
+
+EXPLAIN
+SELECT (SELECT f3a, f3b FROM t3) NOT IN (SELECT f1a, f1b FROM t1);
+SELECT (SELECT f3a, f3b FROM t3) NOT IN (SELECT f1a, f1b FROM t1);
+
+drop table t1, t2, t3;
+
+--echo #
+--echo # LPBUG#730604 Assertion `bit < (map)->n_bits' failed in maria-5.3 with
+--echo #  partial_match_rowid_merge
+--echo #
+
+CREATE TABLE t1 (f1 int NOT NULL, f2 int, f3 int) ;
+CREATE TABLE t2 (f1 int NOT NULL, f2 int, f3 int) ;
+
+INSERT INTO t1 VALUES (60, 3, null), (61, null, 77);
+INSERT INTO t2 VALUES (1000,6,2);
+
+set @@optimizer_switch='materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off,in_to_exists=off';
+
+EXPLAIN
+SELECT (f1, f2, f3) NOT IN
+       (SELECT COUNT(DISTINCT f2), f1, f3 FROM t1 GROUP BY f1, f3)
+FROM t2;
+
+SELECT (f1, f2, f3) NOT IN
+       (SELECT COUNT(DISTINCT f2), f1, f3 FROM t1 GROUP BY f1, f3)
+FROM t2;
+
+drop table t1, t2;
+
+--echo #
+--echo # LPBUG#702301: MAX in select + always false WHERE with SQ
+--echo #
+
+CREATE TABLE t1 (a int, b int, KEY (b));
+INSERT INTO t1 VALUES (3,1), (4,2);
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (7), (8);
+
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
+
+SELECT MAX(t1.b) AS max_res FROM t1 WHERE (9) IN (SELECT a FROM t2);
+EXPLAIN EXTENDED
+SELECT MAX(t1.b) AS max_res FROM t1 WHERE (9) IN (SELECT a FROM t2);
+
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=off';
+
+SELECT MAX(t1.b) AS max_res FROM t1 WHERE (9) IN (SELECT a FROM t2);
+EXPLAIN EXTENDED
+SELECT MAX(t1.b) AS max_res FROM t1 WHERE (9) IN (SELECT a FROM t2);
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # LPBUG#825095: Wrong result with materialization and NOT IN with 2 expressions
+--echo #
+
+CREATE TABLE t1 (a int,b int);
+INSERT INTO t1 VALUES (4,4),(4,2);
+
+CREATE TABLE t2 (b int, a int);
+INSERT INTO t2 VALUES (4,3),(8,4);
+
+set @@optimizer_switch='semijoin=off,in_to_exists=off,materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off';
+
+EXPLAIN SELECT *
+FROM t1
+WHERE (a, b) NOT IN (SELECT a, b FROM t2);
+
+SELECT *
+FROM t1
+WHERE (a, b) NOT IN (SELECT a, b FROM t2);
+
+EXPLAIN
+SELECT a, b, (a, b) NOT IN (SELECT a, b FROM t2) as sq
+FROM t1;
+
+SELECT a, b, (a, b) NOT IN (SELECT a, b FROM t2) as sq
+FROM t1;
+
+drop table t1, t2;

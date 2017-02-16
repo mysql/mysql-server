@@ -3,7 +3,7 @@ SET @start_value = @@global.key_buffer_size;
 SET @@global.key_buffer_size = DEFAULT;
 SELECT @@global.key_buffer_size;
 @@global.key_buffer_size
-8388608
+134217728
 '#---------------------FN_DYNVARS_055_02-------------------------#'
 SET @@global.key_buffer_size = @start_value;
 SELECT @@global.key_buffer_size = @start_value;
@@ -63,11 +63,11 @@ SELECT @@key_buffer_size = @@global.key_buffer_size;
 SET key_buffer_size = 8 ;
 ERROR HY000: Variable 'key_buffer_size' is a GLOBAL variable and should be set with SET GLOBAL
 SET local.key_buffer_size = 10;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size = 10' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'key_buffer_size = 10' at line 1
 SELECT local.key_buffer_size;
 ERROR 42S02: Unknown table 'local' in field list
 SET global.key_buffer_size = 10;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size = 10' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'key_buffer_size = 10' at line 1
 SELECT global.key_buffer_size;
 ERROR 42S02: Unknown table 'global' in field list
 SELECT key_buffer_size = @@session.key_buffer_size;

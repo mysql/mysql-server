@@ -136,21 +136,21 @@ Testcase: 3.5.1.2:
 ------------------
 Create trigger trg_1 after insert
 on tb3 for each statement set @x= 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'statement set @x= 1' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'statement set @x= 1' at line 2
 drop trigger trg_1;
 
 Testcase 3.5.1.3:
 -----------------
 CREATE TRIGGER trg3_1 on tb3 BEFORE INSERT for each row set new.f120 = 't';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'on tb3 BEFORE INSERT for each row set new.f120 = 't'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'on tb3 BEFORE INSERT for each row set new.f120 = 't'' at line 1
 CREATE trg3_2 TRIGGER AFTER INSERT on tb3 for each row set new.f120 = 's';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'trg3_2 TRIGGER AFTER INSERT on tb3 for each row set new.f120 = 's'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'trg3_2 TRIGGER AFTER INSERT on tb3 for each row set new.f120 = 's'' at line 1
 CREATE TRIGGER trg3_3 Before DELETE on tb3 set @ret1 = 'test' for each row;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'set @ret1 = 'test' for each row' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'set @ret1 = 'test' for each row' at line 1
 CREATE TRIGGER trg3_4 DELETE AFTER on tb3 set @ret1 = 'test' for each row;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DELETE AFTER on tb3 set @ret1 = 'test' for each row' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'DELETE AFTER on tb3 set @ret1 = 'test' for each row' at line 1
 CREATE for each row TRIGGER trg3_5 AFTER UPDATE on tb3 set @ret1 = 'test';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'for each row TRIGGER trg3_5 AFTER UPDATE on tb3 set @ret1 = 'test'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'for each row TRIGGER trg3_5 AFTER UPDATE on tb3 set @ret1 = 'test'' at line 1
 drop trigger trg3_1;
 drop trigger trg3_2;
 drop trigger trg3_3;
@@ -160,17 +160,17 @@ drop trigger trg3_5;
 Testcase: 3.5.1.5:
 ------------------
 CREATE TRIGGER trg4_1 AFTER on tb3 for each row set new.f120 = 'e';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'on tb3 for each row set new.f120 = 'e'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'on tb3 for each row set new.f120 = 'e'' at line 1
 CREATE TRIGGER trg4_2 INSERT on tb3 for each set row  new.f120 = 'f';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INSERT on tb3 for each set row  new.f120 = 'f'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'INSERT on tb3 for each set row  new.f120 = 'f'' at line 1
 CREATE TRIGGER trg4_3 BEFORE INSERT tb3 for each row set new.f120 = 'g';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'tb3 for each row set new.f120 = 'g'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'tb3 for each row set new.f120 = 'g'' at line 1
 CREATE TRIGGER trg4_4 AFTER UPDATE on tb3 for each set new.f120 = 'g';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'set new.f120 = 'g'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'set new.f120 = 'g'' at line 1
 CREATE trg4_5 AFTER DELETE on tb3 for each set new.f120 = 'g';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'trg4_5 AFTER DELETE on tb3 for each set new.f120 = 'g'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'trg4_5 AFTER DELETE on tb3 for each set new.f120 = 'g'' at line 1
 CREATE TRIGGER trg4_6 BEFORE DELETE for each row set new.f120 = 'g';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'for each row set new.f120 = 'g'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'for each row set new.f120 = 'g'' at line 1
 drop trigger trg4_1;
 drop trigger trg4_2;
 drop trigger trg4_3;
@@ -217,15 +217,15 @@ drop table t1;
 Testcase 3.5.1.8:
 -----------------
 CREATE TRIGGER trg12* before insert on tb3 for each row set new.f120 = 't';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '* before insert on tb3 for each row set new.f120 = 't'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '* before insert on tb3 for each row set new.f120 = 't'' at line 1
 CREATE TRIGGER trigger before insert on tb3 for each row set new.f120 = 't';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'trigger before insert on tb3 for each row set new.f120 = 't'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'trigger before insert on tb3 for each row set new.f120 = 't'' at line 1
 CREATE TRIGGER 100 before insert on tb3 for each row set new.f120 = 't';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '100 before insert on tb3 for each row set new.f120 = 't'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '100 before insert on tb3 for each row set new.f120 = 't'' at line 1
 CREATE TRIGGER @@view before insert on tb3 for each row set new.f120 = 't';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@@view before insert on tb3 for each row set new.f120 = 't'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '@@view before insert on tb3 for each row set new.f120 = 't'' at line 1
 CREATE TRIGGER @name before insert on tb3 for each row set new.f120 = 't';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@name before insert on tb3 for each row set new.f120 = 't'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '@name before insert on tb3 for each row set new.f120 = 't'' at line 1
 CREATE TRIGGER tb3.trg6_1 BEFORE INSERT on test.tb3
 for each row set new.f120 ='X';
 ERROR HY000: Trigger in wrong schema

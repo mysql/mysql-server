@@ -1,0 +1,32 @@
+drop table if exists t1,t2;
+Warnings:
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
+CREATE TABLE t1 (i INT) ENGINE=Aria;
+CREATE TABLE t2 (i INT) ENGINE=Aria;
+LOCK TABLE t1 WRITE, t2 WRITE;
+DROP TABLE t1;
+UNLOCK TABLES;
+DROP TABLE t2;
+CREATE TABLE t1 (i INT) ENGINE=Aria;
+CREATE TABLE t2 (i INT) ENGINE=Aria;
+LOCK TABLE t1 WRITE, t2 WRITE;
+FLUSH TABLE t1;
+select * from t1;
+i
+unlock tables;
+drop table t1,t2;
+CREATE TABLE t1 (i INT) ENGINE=Aria;
+CREATE TABLE t2 (i INT) ENGINE=Aria;
+LOCK TABLE t1 WRITE, t2 WRITE;
+repair table t1 use_frm;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+select * from t1;
+i
+drop table t2;
+unlock tables;
+drop table t1;
+CREATE TABLE t1 (i INT) ENGINE=Aria;
+LOCK TABLES t1 WRITE, t1 AS t1a WRITE;
+DROP TABLE t1;

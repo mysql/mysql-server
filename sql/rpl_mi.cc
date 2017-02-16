@@ -1,4 +1,5 @@
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2012, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,19 +25,13 @@
 
 #define DEFAULT_CONNECT_RETRY 60
 
-// Defined in slave.cc
-int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
-int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
-			  const char *default_val);
-int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val);
-int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f);
-
 static void init_master_log_pos(Master_info* mi);
 
 Master_info::Master_info(bool is_slave_recovery)
   :Slave_reporting_capability("I/O"),
-   ssl(0), ssl_verify_server_cert(0), fd(-1), io_thd(0), 
+   ssl(0), ssl_verify_server_cert(1), fd(-1), io_thd(0), 
    rli(is_slave_recovery), port(MYSQL_PORT),
+   checksum_alg_before_fd(BINLOG_CHECKSUM_ALG_UNDEF),
    connect_retry(DEFAULT_CONNECT_RETRY), inited(0), abort_slave(0),
    slave_running(0), slave_run_id(0), sync_counter(0),
    heartbeat_period(0), received_heartbeats(0), master_id(0)
@@ -49,6 +44,8 @@ Master_info::Master_info(bool is_slave_recovery)
   bzero((char*) &file, sizeof(file));
   mysql_mutex_init(key_master_info_run_lock, &run_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_master_info_data_lock, &data_lock, MY_MUTEX_INIT_FAST);
+  mysql_mutex_setflags(&run_lock, MYF_NO_DEADLOCK_DETECTION);
+  mysql_mutex_setflags(&data_lock, MYF_NO_DEADLOCK_DETECTION);
   mysql_mutex_init(key_master_info_sleep_lock, &sleep_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_master_info_data_cond, &data_cond, NULL);
   mysql_cond_init(key_master_info_start_cond, &start_cond, NULL);

@@ -1,0 +1,34 @@
+#
+# Checks that assigning variable 'debug' in one session has no influence on
+# other session. (BUG#45632 of bugs.mysql.com)
+#
+# (this will not work with embedded server because mysqltest_embedded uses the
+#  same thread for all connections)
+#
+--source include/have_debug.inc
+--source include/not_embedded.inc
+
+connect(con1,localhost,root,,test,,);
+connect(con2,localhost,root,,test,,);
+
+# makes output independant of current debug status
+connection con1;
+set session debug_dbug="t";
+show session variables like 'debug';
+connection con2;
+set session debug_dbug="t";
+show session variables like 'debug';
+
+# checks influence one session debug variable on another
+connection con1;
+set session debug_dbug="d:t";
+show session variables like 'debug';
+connection con2;
+show session variables like 'debug';
+
+disconnect con1;
+disconnect con2;
+
+connection default;
+
+

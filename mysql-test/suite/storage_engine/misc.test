@@ -1,0 +1,47 @@
+#
+# Different statements not related to an engine,
+# but added to provide function coverage for handler.cc and handler.h.
+# The test can be disabled or removed later.
+#
+
+# hits get_error_message(int, String*) 
+
+--source have_engine.inc
+
+INSERT INTO mysql.event (
+  db,
+  name,
+  body,
+  definer,
+  interval_value,
+  interval_field,
+  originator,
+  character_set_client,
+  collation_connection,
+  db_collation,
+  body_utf8)
+values (
+  database(),
+  "ev1",
+  "select 1",
+  user(),
+  100,
+  "SECOND_MICROSECOND",
+  1,
+  'utf8',
+  'utf8_general_ci',
+  'utf8_general_ci',
+  'select 1');
+
+--let $error_codes = ER_NOT_SUPPORTED_YET
+SHOW EVENTS;
+--source check_errors.inc
+DROP EVENT ev1;
+
+# hits get_foreign_key_list(THD*, List<st_foreign_key_info>*)
+--sorted_result
+SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE ORDER BY TABLE_NAME;
+
+--source cleanup_engine.inc
+

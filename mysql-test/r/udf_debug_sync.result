@@ -1,0 +1,20 @@
+CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+CREATE VIEW v1 AS SELECT myfunc_int(1);
+SET debug_sync='mysql_create_function_after_lock SIGNAL locked WAIT_FOR go';
+CREATE FUNCTION myfunc_double RETURNS REAL SONAME "UDF_EXAMPLE_LIB";
+SET debug_sync='now WAIT_FOR locked';
+SET debug_sync='find_udf_before_lock SIGNAL go';
+SELECT * FROM v1;
+myfunc_int(1)
+1
+FLUSH TABLES;
+SET debug_sync='mysql_drop_function_after_lock SIGNAL locked WAIT_FOR go';
+DROP FUNCTION myfunc_double;
+SET debug_sync='now WAIT_FOR locked';
+SET debug_sync='find_udf_before_lock SIGNAL go';
+SELECT * FROM v1;
+myfunc_int(1)
+1
+SET debug_sync='RESET';
+DROP VIEW v1;
+DROP FUNCTION myfunc_int;

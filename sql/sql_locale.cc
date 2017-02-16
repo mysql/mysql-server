@@ -426,7 +426,7 @@ MY_LOCALE my_locale_da_DK
 
 /***** LOCALE BEGIN de_AT: German - Austria *****/
 static const char *my_locale_month_names_de_AT[13] = 
- {"Jänner","Feber","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember", NullS };
+ {"Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember", NullS };
 static const char *my_locale_ab_month_names_de_AT[13] = 
  {"Jän","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez", NullS };
 static const char *my_locale_day_names_de_AT[8] = 

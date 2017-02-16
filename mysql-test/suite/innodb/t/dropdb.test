@@ -7,6 +7,6 @@
 set session default_storage_engine=innodb;
 create database `b`;
 use `b`;
---error ER_CANT_CREATE_TABLE
+--error ER_WRONG_TABLE_NAME
 create table `#mysql50#q.q` select 1;
 drop database `b`;

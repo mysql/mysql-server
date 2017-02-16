@@ -1,0 +1,26 @@
+
+--source include/not_embedded.inc
+
+# We used an invalid command-line option and InnoDB failed to start.
+# Ignore all related warnings
+call mtr.add_suppression("InnoDB");
+
+--vertical_results
+SELECT
+PLUGIN_NAME,PLUGIN_STATUS,PLUGIN_TYPE,PLUGIN_LIBRARY,PLUGIN_LIBRARY_VERSION,LOAD_OPTION
+FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name = 'innodb';
+
+--echo #
+--echo # MDEV-6351 --plugin=force has no effect for built-in plugins
+--echo #
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--error 1
+--exec $MYSQLD_CMD --innodb=force --innodb-page-size=6000
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect

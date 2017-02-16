@@ -24,6 +24,7 @@ delete from t2;
 let $count=$maxrows;
 --echo $maxrows*3 inserts;
 --disable_query_log
+begin;
 while ($count)
 {
 eval insert into t2 values ($count);
@@ -31,6 +32,8 @@ eval insert into t2 values ($count+0.33);
 eval insert into t2 values ($count+0.75);
 dec $count;
 }
+commit;
 --enable_query_log
 select count(*) from t2;
 drop table t2;
+

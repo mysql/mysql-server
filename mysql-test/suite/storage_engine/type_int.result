@@ -1,0 +1,209 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (i INT <CUSTOM_COL_OPTIONS>,
+i0 INT(0) <CUSTOM_COL_OPTIONS>,
+i1 INT(1) <CUSTOM_COL_OPTIONS>,
+i20 INT(20) <CUSTOM_COL_OPTIONS>,
+t TINYINT <CUSTOM_COL_OPTIONS>,
+t0 TINYINT(0) <CUSTOM_COL_OPTIONS>,
+t1 TINYINT(1) <CUSTOM_COL_OPTIONS>,
+t20 TINYINT(20) <CUSTOM_COL_OPTIONS>,
+s SMALLINT <CUSTOM_COL_OPTIONS>,
+s0 SMALLINT(0) <CUSTOM_COL_OPTIONS>,
+s1 SMALLINT(1) <CUSTOM_COL_OPTIONS>,
+s20 SMALLINT(20) <CUSTOM_COL_OPTIONS>,
+m MEDIUMINT <CUSTOM_COL_OPTIONS>,
+m0 MEDIUMINT(0) <CUSTOM_COL_OPTIONS>,
+m1 MEDIUMINT(1) <CUSTOM_COL_OPTIONS>,
+m20 MEDIUMINT(20) <CUSTOM_COL_OPTIONS>,
+b BIGINT <CUSTOM_COL_OPTIONS>,
+b0 BIGINT(0) <CUSTOM_COL_OPTIONS>,
+b1 BIGINT(1) <CUSTOM_COL_OPTIONS>,
+b20 BIGINT(20) <CUSTOM_COL_OPTIONS>
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW COLUMNS IN t1;
+Field	Type	Null	Key	Default	Extra
+i	int(11)	#	#	#	
+i0	int(11)	#	#	#	
+i1	int(1)	#	#	#	
+i20	int(20)	#	#	#	
+t	tinyint(4)	#	#	#	
+t0	tinyint(4)	#	#	#	
+t1	tinyint(1)	#	#	#	
+t20	tinyint(20)	#	#	#	
+s	smallint(6)	#	#	#	
+s0	smallint(6)	#	#	#	
+s1	smallint(1)	#	#	#	
+s20	smallint(20)	#	#	#	
+m	mediumint(9)	#	#	#	
+m0	mediumint(9)	#	#	#	
+m1	mediumint(1)	#	#	#	
+m20	mediumint(20)	#	#	#	
+b	bigint(20)	#	#	#	
+b0	bigint(20)	#	#	#	
+b1	bigint(1)	#	#	#	
+b20	bigint(20)	#	#	#	
+INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) VALUES (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20);
+INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) VALUES (0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) VALUES (2147483647,2147483647,2147483647,2147483647,127,127,127,127,32767,32767,32767,32767,8388607,8388607,8388607,8388607,9223372036854775807,9223372036854775807,9223372036854775807,9223372036854775807);
+SELECT i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20 FROM t1;
+i	i0	i1	i20	t	t0	t1	t20	s	s0	s1	s20	m	m0	m1	m20	b	b0	b1	b20
+0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20
+2147483647	2147483647	2147483647	2147483647	127	127	127	127	32767	32767	32767	32767	8388607	8388607	8388607	8388607	9223372036854775807	9223372036854775807	9223372036854775807	9223372036854775807
+INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) VALUES (-2147483648,-2147483648,-2147483648,-2147483648,-128,-128,-128,-128,-32768,-32768,-32768,-32768,-8388608,-8388608,-8388608,-8388608,-9223372036854775808,-9223372036854775808,-9223372036854775808,-9223372036854775808);
+INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) VALUES (4294967295,4294967295,4294967295,4294967295,255,255,255,255,65535,65535,65535,65535,16777215,16777215,16777215,16777215,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615);
+Warnings:
+Warning	1264	Out of range value for column 'i' at row 1
+Warning	1264	Out of range value for column 'i0' at row 1
+Warning	1264	Out of range value for column 'i1' at row 1
+Warning	1264	Out of range value for column 'i20' at row 1
+Warning	1264	Out of range value for column 't' at row 1
+Warning	1264	Out of range value for column 't0' at row 1
+Warning	1264	Out of range value for column 't1' at row 1
+Warning	1264	Out of range value for column 't20' at row 1
+Warning	1264	Out of range value for column 's' at row 1
+Warning	1264	Out of range value for column 's0' at row 1
+Warning	1264	Out of range value for column 's1' at row 1
+Warning	1264	Out of range value for column 's20' at row 1
+Warning	1264	Out of range value for column 'm' at row 1
+Warning	1264	Out of range value for column 'm0' at row 1
+Warning	1264	Out of range value for column 'm1' at row 1
+Warning	1264	Out of range value for column 'm20' at row 1
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'b0' at row 1
+Warning	1264	Out of range value for column 'b1' at row 1
+Warning	1264	Out of range value for column 'b20' at row 1
+SELECT i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20 FROM t1;
+i	i0	i1	i20	t	t0	t1	t20	s	s0	s1	s20	m	m0	m1	m20	b	b0	b1	b20
+-2147483648	-2147483648	-2147483648	-2147483648	-128	-128	-128	-128	-32768	-32768	-32768	-32768	-8388608	-8388608	-8388608	-8388608	-9223372036854775808	-9223372036854775808	-9223372036854775808	-9223372036854775808
+0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20
+2147483647	2147483647	2147483647	2147483647	127	127	127	127	32767	32767	32767	32767	8388607	8388607	8388607	8388607	9223372036854775807	9223372036854775807	9223372036854775807	9223372036854775807
+2147483647	2147483647	2147483647	2147483647	127	127	127	127	32767	32767	32767	32767	8388607	8388607	8388607	8388607	9223372036854775807	9223372036854775807	9223372036854775807	9223372036854775807
+INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) VALUES (-2147483649,-2147483649,-2147483649,-2147483649,-129,-129,-129,-129,-32769,-32769,-32769,-32769,-8388609,-8388609,-8388609,-8388609,-9223372036854775809,-9223372036854775809,-9223372036854775809,-9223372036854775809);
+Warnings:
+Warning	1264	Out of range value for column 'i' at row 1
+Warning	1264	Out of range value for column 'i0' at row 1
+Warning	1264	Out of range value for column 'i1' at row 1
+Warning	1264	Out of range value for column 'i20' at row 1
+Warning	1264	Out of range value for column 't' at row 1
+Warning	1264	Out of range value for column 't0' at row 1
+Warning	1264	Out of range value for column 't1' at row 1
+Warning	1264	Out of range value for column 't20' at row 1
+Warning	1264	Out of range value for column 's' at row 1
+Warning	1264	Out of range value for column 's0' at row 1
+Warning	1264	Out of range value for column 's1' at row 1
+Warning	1264	Out of range value for column 's20' at row 1
+Warning	1264	Out of range value for column 'm' at row 1
+Warning	1264	Out of range value for column 'm0' at row 1
+Warning	1264	Out of range value for column 'm1' at row 1
+Warning	1264	Out of range value for column 'm20' at row 1
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'b0' at row 1
+Warning	1264	Out of range value for column 'b1' at row 1
+Warning	1264	Out of range value for column 'b20' at row 1
+INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) VALUES (4294967296,4294967296,4294967296,4294967296,256,256,256,256,65536,65536,65536,65536,16777216,16777216,16777216,16777216,18446744073709551616,18446744073709551616,18446744073709551616,18446744073709551616);
+Warnings:
+Warning	1264	Out of range value for column 'i' at row 1
+Warning	1264	Out of range value for column 'i0' at row 1
+Warning	1264	Out of range value for column 'i1' at row 1
+Warning	1264	Out of range value for column 'i20' at row 1
+Warning	1264	Out of range value for column 't' at row 1
+Warning	1264	Out of range value for column 't0' at row 1
+Warning	1264	Out of range value for column 't1' at row 1
+Warning	1264	Out of range value for column 't20' at row 1
+Warning	1264	Out of range value for column 's' at row 1
+Warning	1264	Out of range value for column 's0' at row 1
+Warning	1264	Out of range value for column 's1' at row 1
+Warning	1264	Out of range value for column 's20' at row 1
+Warning	1264	Out of range value for column 'm' at row 1
+Warning	1264	Out of range value for column 'm0' at row 1
+Warning	1264	Out of range value for column 'm1' at row 1
+Warning	1264	Out of range value for column 'm20' at row 1
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'b0' at row 1
+Warning	1264	Out of range value for column 'b1' at row 1
+Warning	1264	Out of range value for column 'b20' at row 1
+INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) SELECT b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b FROM t1 WHERE b IN (-9223372036854775808,9223372036854775807,18446744073709551615);
+Warnings:
+Warning	1264	Out of range value for column 'i' at row 1
+Warning	1264	Out of range value for column 'i0' at row 1
+Warning	1264	Out of range value for column 'i1' at row 1
+Warning	1264	Out of range value for column 'i20' at row 1
+Warning	1264	Out of range value for column 't' at row 1
+Warning	1264	Out of range value for column 't0' at row 1
+Warning	1264	Out of range value for column 't1' at row 1
+Warning	1264	Out of range value for column 't20' at row 1
+Warning	1264	Out of range value for column 's' at row 1
+Warning	1264	Out of range value for column 's0' at row 1
+Warning	1264	Out of range value for column 's1' at row 1
+Warning	1264	Out of range value for column 's20' at row 1
+Warning	1264	Out of range value for column 'm' at row 1
+Warning	1264	Out of range value for column 'm0' at row 1
+Warning	1264	Out of range value for column 'm1' at row 1
+Warning	1264	Out of range value for column 'm20' at row 1
+Warning	1264	Out of range value for column 'i' at row 2
+Warning	1264	Out of range value for column 'i0' at row 2
+Warning	1264	Out of range value for column 'i1' at row 2
+Warning	1264	Out of range value for column 'i20' at row 2
+Warning	1264	Out of range value for column 't' at row 2
+Warning	1264	Out of range value for column 't0' at row 2
+Warning	1264	Out of range value for column 't1' at row 2
+Warning	1264	Out of range value for column 't20' at row 2
+Warning	1264	Out of range value for column 's' at row 2
+Warning	1264	Out of range value for column 's0' at row 2
+Warning	1264	Out of range value for column 's1' at row 2
+Warning	1264	Out of range value for column 's20' at row 2
+Warning	1264	Out of range value for column 'm' at row 2
+Warning	1264	Out of range value for column 'm0' at row 2
+Warning	1264	Out of range value for column 'm1' at row 2
+Warning	1264	Out of range value for column 'm20' at row 2
+Warning	1264	Out of range value for column 'i' at row 3
+Warning	1264	Out of range value for column 'i0' at row 3
+Warning	1264	Out of range value for column 'i1' at row 3
+Warning	1264	Out of range value for column 'i20' at row 3
+Warning	1264	Out of range value for column 't' at row 3
+Warning	1264	Out of range value for column 't0' at row 3
+Warning	1264	Out of range value for column 't1' at row 3
+Warning	1264	Out of range value for column 't20' at row 3
+Warning	1264	Out of range value for column 's' at row 3
+Warning	1264	Out of range value for column 's0' at row 3
+Warning	1264	Out of range value for column 's1' at row 3
+Warning	1264	Out of range value for column 's20' at row 3
+Warning	1264	Out of range value for column 'm' at row 3
+Warning	1264	Out of range value for column 'm0' at row 3
+Warning	1264	Out of range value for column 'm1' at row 3
+Warning	1264	Out of range value for column 'm20' at row 3
+Warning	1264	Out of range value for column 'i' at row 4
+Warning	1264	Out of range value for column 'i0' at row 4
+Warning	1264	Out of range value for column 'i1' at row 4
+Warning	1264	Out of range value for column 'i20' at row 4
+Warning	1264	Out of range value for column 't' at row 4
+Warning	1264	Out of range value for column 't0' at row 4
+Warning	1264	Out of range value for column 't1' at row 4
+Warning	1264	Out of range value for column 't20' at row 4
+Warning	1264	Out of range value for column 's' at row 4
+Warning	1264	Out of range value for column 's0' at row 4
+Warning	1264	Out of range value for column 's1' at row 4
+Warning	1264	Out of range value for column 's20' at row 4
+Warning	1264	Out of range value for column 'm' at row 4
+Warning	1264	Out of range value for column 'm0' at row 4
+Warning	1264	Out of range value for column 'm1' at row 4
+Warning	1264	Out of range value for column 'm20' at row 4
+SELECT i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20 FROM t1;
+i	i0	i1	i20	t	t0	t1	t20	s	s0	s1	s20	m	m0	m1	m20	b	b0	b1	b20
+-2147483648	-2147483648	-2147483648	-2147483648	-128	-128	-128	-128	-32768	-32768	-32768	-32768	-8388608	-8388608	-8388608	-8388608	-9223372036854775808	-9223372036854775808	-9223372036854775808	-9223372036854775808
+-2147483648	-2147483648	-2147483648	-2147483648	-128	-128	-128	-128	-32768	-32768	-32768	-32768	-8388608	-8388608	-8388608	-8388608	-9223372036854775808	-9223372036854775808	-9223372036854775808	-9223372036854775808
+-2147483648	-2147483648	-2147483648	-2147483648	-128	-128	-128	-128	-32768	-32768	-32768	-32768	-8388608	-8388608	-8388608	-8388608	-9223372036854775808	-9223372036854775808	-9223372036854775808	-9223372036854775808
+-2147483648	-2147483648	-2147483648	-2147483648	-128	-128	-128	-128	-32768	-32768	-32768	-32768	-8388608	-8388608	-8388608	-8388608	-9223372036854775808	-9223372036854775808	-9223372036854775808	-9223372036854775808
+0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20
+2147483647	2147483647	2147483647	2147483647	127	127	127	127	32767	32767	32767	32767	8388607	8388607	8388607	8388607	9223372036854775807	9223372036854775807	9223372036854775807	9223372036854775807
+2147483647	2147483647	2147483647	2147483647	127	127	127	127	32767	32767	32767	32767	8388607	8388607	8388607	8388607	9223372036854775807	9223372036854775807	9223372036854775807	9223372036854775807
+2147483647	2147483647	2147483647	2147483647	127	127	127	127	32767	32767	32767	32767	8388607	8388607	8388607	8388607	9223372036854775807	9223372036854775807	9223372036854775807	9223372036854775807
+2147483647	2147483647	2147483647	2147483647	127	127	127	127	32767	32767	32767	32767	8388607	8388607	8388607	8388607	9223372036854775807	9223372036854775807	9223372036854775807	9223372036854775807
+2147483647	2147483647	2147483647	2147483647	127	127	127	127	32767	32767	32767	32767	8388607	8388607	8388607	8388607	9223372036854775807	9223372036854775807	9223372036854775807	9223372036854775807
+2147483647	2147483647	2147483647	2147483647	127	127	127	127	32767	32767	32767	32767	8388607	8388607	8388607	8388607	9223372036854775807	9223372036854775807	9223372036854775807	9223372036854775807
+ALTER TABLE t1 ADD COLUMN i257 INT(257);
+ERROR 42000: Display width out of range for 'i257' (max = 255)
+DROP TABLE t1;

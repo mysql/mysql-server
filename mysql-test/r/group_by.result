@@ -451,6 +451,8 @@ drop table t1,t2;
 CREATE TABLE t1 (ID1 int, ID2 int, ID int NOT NULL AUTO_INCREMENT,PRIMARY KEY(ID
 ));
 insert into t1 values (1,244,NULL),(2,243,NULL),(134,223,NULL),(185,186,NULL);
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 select S.ID as xID, S.ID1 as xID1 from t1 as S left join t1 as yS  on S.ID1 between yS.ID1 and yS.ID2;
 xID	xID1
 1	1
@@ -469,6 +471,7 @@ xID	xID1	Level
 2	2	**
 3	134	***
 4	185	****
+SET optimizer_switch=@save_optimizer_switch;
 drop table t1;
 CREATE TABLE t1 (
 pid int(11) unsigned NOT NULL default '0',
@@ -538,11 +541,11 @@ a	b
 explain select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	4	Using where; Using join buffer
+1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	4	Using where; Using join buffer (flat, BNL join)
 explain select t1.a,t2.b from t1,t2 where t1.a=t2.a group by t1.a,t2.b ORDER BY NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	4	Using where; Using join buffer
+1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	4	Using where; Using join buffer (flat, BNL join)
 drop table t1,t2;
 create table t1 (a int, b int);
 insert into t1 values (1, 4),(10, 40),(1, 4),(10, 43),(1, 4),(10, 41),(1, 4),(10, 43),(1, 4);
@@ -874,7 +877,7 @@ explain
 SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
 where t2.b=v1.a GROUP BY t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	b	b	2	NULL	10	Using index
+1	SIMPLE	t2	index	b	b	2	NULL	10	Using where; Using index
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	1	test.t2.b	1	
 SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
 where t2.b=v1.a GROUP BY t2.b;
@@ -1511,9 +1514,9 @@ EXPLAIN SELECT a FROM t1 USE INDEX (i2) USE INDEX ();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	i2	9	NULL	144	Using index
 EXPLAIN SELECT a FROM t1 FORCE INDEX ();
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ')' at line 1
 EXPLAIN SELECT a FROM t1 IGNORE INDEX ();
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ')' at line 1
 EXPLAIN SELECT a FROM t1 USE INDEX FOR JOIN (i2) 
 USE INDEX FOR GROUP BY (i2) GROUP BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1540,11 +1543,15 @@ USE INDEX FOR JOIN (i2)
 USE INDEX FOR JOIN (i2,i2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	i2	9	NULL	144	Using index
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
 EXPLAIN SELECT 1 FROM t1 WHERE a IN
 (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	144	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	144	Using where
+1	PRIMARY	t1	index	PRIMARY,i2	PRIMARY	4	NULL	144	Using index
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	4	func	1	
+2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	144	
+SET optimizer_switch=@save_optimizer_switch;
 CREATE TABLE t2 (a INT, b INT, KEY(a));
 INSERT INTO t2 VALUES (1, 1), (2, 2), (3,3), (4,4);
 EXPLAIN SELECT a, SUM(b) FROM t2 GROUP BY a LIMIT 2;
@@ -1553,16 +1560,14 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN SELECT a, SUM(b) FROM t2 IGNORE INDEX (a) GROUP BY a LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	Using temporary; Using filesort
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
 EXPLAIN SELECT 1 FROM t2 WHERE a IN
 (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	144	Using where
-SHOW VARIABLES LIKE 'old';
-Variable_name	Value
-old	OFF
-SET @@old = off;
-ERROR HY000: Variable 'old' is a read only variable
+1	PRIMARY	t2	index	a	a	5	NULL	4	Using index
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	144	Using where; FirstMatch(t2)
+SET optimizer_switch=@save_optimizer_switch;
 DROP TABLE t1, t2;
 CREATE TABLE t1(
 a INT, 
@@ -1743,7 +1748,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select `test`.`t1`.`a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by ((select `test`.`t1`.`a`) + 0)
+Note	1003	select <expr_cache><`test`.`t1`.`a`>((select `test`.`t1`.`a`)) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by (<expr_cache><`test`.`t1`.`a`>((select `test`.`t1`.`a`)) + 0)
 EXPLAIN EXTENDED
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY -aa;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1751,7 +1756,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select `test`.`t1`.`a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by -((select `test`.`t1`.`a`))
+Note	1003	select <expr_cache><`test`.`t1`.`a`>((select `test`.`t1`.`a`)) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by -(<expr_cache><`test`.`t1`.`a`>((select `test`.`t1`.`a`)))
 # should return only one record
 SELECT (SELECT tt.a FROM t1 tt LIMIT 1) aa, COUNT(DISTINCT b) FROM t1
 GROUP BY aa;
@@ -1810,6 +1815,23 @@ SELECT MAX(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
 MAX(t2.a)
 2
 DROP TABLE t1, t2;
+CREATE TABLE t1 (a int(11) NOT NULL);
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (
+key_col int(11) NOT NULL,
+KEY (key_col)
+);
+INSERT INTO t2 VALUES (1),(2);
+select min(t2.key_col) from t1,t2 where t1.a=1;
+min(t2.key_col)
+1
+select min(t2.key_col) from t1,t2 where t1.a > 1000;
+min(t2.key_col)
+NULL
+select min(t2.key_col)+1 from t1,t2 where t1.a> 1000;
+min(t2.key_col)+1
+NULL
+drop table t1,t2;
 #
 # Bug#55188: GROUP BY, GROUP_CONCAT and TEXT - inconsistent results
 #
@@ -1882,8 +1904,8 @@ SELECT a, AVG(t1.b),
 FROM t1 GROUP BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	a	10	NULL	9	Using index
-3	DEPENDENT SUBQUERY	t12	ref	a	a	10	func,func	2	Using where
-2	DEPENDENT SUBQUERY	t11	ref	a	a	10	func,func	2	Using where
+3	DEPENDENT SUBQUERY	t12	ref	a	a	10	func,func	2	Using index condition
+2	DEPENDENT SUBQUERY	t11	ref	a	a	10	func,func	2	Using index condition
 SELECT a, AVG(t1.b),
 (SELECT t11.c FROM t1 t11 WHERE t11.a = t1.a AND t11.b = AVG(t1.b)) AS t11c,
 (SELECT t12.c FROM t1 t12 WHERE t12.a = t1.a AND t12.b = AVG(t1.b)) AS t12c
@@ -1924,7 +1946,495 @@ Warning	1292	Truncated incorrect INTEGER value: 'K'
 Warning	1292	Truncated incorrect INTEGER value: 'jxW<'
 DROP TABLE t1;
 SET SQL_BIG_TABLES=0;
+#
+# MDEV-641 LP:1002108 - Wrong result (or crash) from a query with duplicated field in the group list and a limit clause
+# Bug#11761078: 53534: INCORRECT 'SELECT SQL_BIG_RESULT...' 
+#               WITH GROUP BY ON DUPLICATED FIELDS
+#
+CREATE TABLE t1(
+col1 int, 
+UNIQUE INDEX idx (col1));
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
+(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+EXPLAIN SELECT col1 AS field1, col1 AS field2
+FROM t1 GROUP BY field1, field2+0;;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	idx	5	NULL	20	Using index; Using temporary; Using filesort
+FLUSH STATUS;
+SELECT col1 AS field1, col1 AS field2
+FROM t1 GROUP BY field1, field2+0;;
+field1	field2
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+20	20
+SHOW SESSION STATUS LIKE 'Sort_scan%';
+Variable_name	Value
+Sort_scan	1
+EXPLAIN SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
+FROM t1 GROUP BY field1, field2;;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	idx	5	NULL	20	Using index; Using filesort
+FLUSH STATUS;
+SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
+FROM t1 GROUP BY field1, field2;;
+field1	field2
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+20	20
+SHOW SESSION STATUS LIKE 'Sort_scan%';
+Variable_name	Value
+Sort_scan	1
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
+FROM v1 
+GROUP BY field1, field2;
+field1	field2
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+20	20
+SELECT SQL_BIG_RESULT tbl1.col1 AS field1, tbl2.col1 AS field2
+FROM t1 as tbl1, t1 as tbl2 
+GROUP BY field1, field2 
+LIMIT 3;
+field1	field2
+1	1
+1	2
+1	3
+explain
+select col1 f1, col1 f2 from t1 order by f2, f1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	idx	5	NULL	20	Using index
+explain
+select col1 f1, col1 f2 from t1 order by f2, f1+0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	idx	5	NULL	20	Using index; Using filesort
+select col1 f1, col1 f2 from t1 order by f2, f1+0;
+f1	f2
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+20	20
+explain
+select col1 f1, col1 f2 from t1 group by f2 order by f2, f1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	NULL	idx	5	NULL	7	Using index for group-by
+select col1 f1, col1 f2 from t1 group by f2 order by f2, f1;
+f1	f2
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+20	20
+explain
+select col1 f1, col1 f2 from t1 group by f1, f2 order by f2, f1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	idx	5	NULL	20	Using index
+select col1 f1, col1 f2 from t1 group by f1, f2 order by f2, f1;
+f1	f2
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+20	20
+CREATE TABLE t2(
+col1 int, 
+col2 int, 
+UNIQUE INDEX idx (col1, col2));
+INSERT INTO t2(col1, col2) VALUES
+(1,20),(2,19),(3,18),(4,17),(5,16),(6,15),(7,14),(8,13),(9,12),(10,11),
+(11,10),(12,9),(13,8),(14,7),(15,6),(16,5),(17,4),(18,3),(19,2),(20,1);
+explain
+select col1 f1, col2 f2, col1 f3 from t2 group by f1, f2, f3+0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	NULL	idx	10	NULL	20	Using index; Using temporary; Using filesort
+select col1 f1, col2 f2, col1 f3 from t2 group by f1, f2, f3+0;
+f1	f2	f3
+1	20	1
+2	19	2
+3	18	3
+4	17	4
+5	16	5
+6	15	6
+7	14	7
+8	13	8
+9	12	9
+10	11	10
+11	10	11
+12	9	12
+13	8	13
+14	7	14
+15	6	15
+16	5	16
+17	4	17
+18	3	18
+19	2	19
+20	1	20
+explain
+select col1 f1, col2 f2, col1 f3 from t2 order by f1, f2, f3+0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	NULL	idx	10	NULL	20	Using index; Using filesort
+select col1 f1, col2 f2, col1 f3 from t2 order by f1, f2, f3+0;
+f1	f2	f3
+1	20	1
+2	19	2
+3	18	3
+4	17	4
+5	16	5
+6	15	6
+7	14	7
+8	13	8
+9	12	9
+10	11	10
+11	10	11
+12	9	12
+13	8	13
+14	7	14
+15	6	15
+16	5	16
+17	4	17
+18	3	18
+19	2	19
+20	1	20
+DROP VIEW v1;
+DROP TABLE t1, t2;
 # End of 5.1 tests
+#
+# LP bug#694450 Wrong result with non-standard GROUP BY + ORDER BY
+#
+SET SESSION SQL_MODE='ONLY_FULL_GROUP_BY';
+CREATE TABLE t1 (
+f1 int(11), f2 int(11), f3 datetime, f4 varchar(1), PRIMARY KEY (f1)) ;
+INSERT IGNORE INTO t1 VALUES ('1','9','2004-10-11 18:13','x'),('2','5','2004-03-07 14:02','g'),('3','1','2004-04-09 09:38','o'),('4','0','1900-01-01 00:00','g'),('5','1','2009-02-19 02:05','v');
+SELECT alias2.f3 AS field1 , alias2.f1 AS field2 FROM t1 AS alias1 JOIN t1 AS alias2 ON alias2.f1 = alias1.f2 AND alias2.f1 != alias1.f4 GROUP BY field1 , field2 ORDER BY alias1.f2 , field2;
+field1	field2
+2004-10-11 18:13:00	1
+2009-02-19 02:05:00	5
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'x'
+Warning	1292	Truncated incorrect DOUBLE value: 'g'
+Warning	1292	Truncated incorrect DOUBLE value: 'o'
+Warning	1292	Truncated incorrect DOUBLE value: 'g'
+Warning	1292	Truncated incorrect DOUBLE value: 'v'
+SELECT alias2.f3 AS field1 , alias2.f1 AS field2 FROM t1 AS alias1 JOIN t1 AS alias2 ON alias2.f1 = alias1.f2 AND alias2.f1 != alias1.f4 GROUP BY field1 , field2 ;
+field1	field2
+2004-10-11 18:13:00	1
+2009-02-19 02:05:00	5
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'x'
+Warning	1292	Truncated incorrect DOUBLE value: 'g'
+Warning	1292	Truncated incorrect DOUBLE value: 'o'
+Warning	1292	Truncated incorrect DOUBLE value: 'g'
+Warning	1292	Truncated incorrect DOUBLE value: 'v'
+SET SESSION SQL_MODE=default;
+drop table t1;
+#
+# LP bug#967242 Wrong result (extra rows, not grouped) with JOIN, AND in ON condition, multi-part key, GROUP BY, OR in WHERE
+#
+CREATE TABLE t1 ( a VARCHAR(1) ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('x');
+CREATE TABLE t2 ( b INT, c VARCHAR(1), KEY (c, b) ) ENGINE=MyISAM;
+INSERT INTO t2 VALUES
+(4, 'd'),(8, 'g'),(3, 'x'),(3, 'f'),
+(0, 'p'),(3, 'j'),(8, 'c');
+SELECT t2_1.b as zzz
+FROM t1 JOIN t2 AS t2_1 JOIN t2 AS t2_2
+ON (t2_2.b = t2_1.b ) AND (t2_2.c = t2_1.c )
+WHERE
+rand() + 1 > 0 OR
+a = t2_1.c
+GROUP BY zzz;
+zzz
+0
+3
+4
+8
+SELECT t2_1.b as zzz
+FROM t1 JOIN t2 AS t2_1 JOIN t2 AS t2_2
+ON (t2_2.b = t2_1.b ) AND (t2_2.c = t2_1.c )
+WHERE
+1 > 0 OR
+a = t2_1.c
+GROUP BY zzz;
+zzz
+0
+3
+4
+8
+SELECT t2_1.b as zzz
+FROM t1 JOIN t2 AS t2_1 JOIN t2 AS t2_2
+ON (t2_2.b = t2_1.b ) AND (t2_2.c = t2_1.c )
+WHERE
+t2_1.b + 1 > 0 OR
+a = t2_1.c
+GROUP BY zzz;
+zzz
+0
+3
+4
+8
+SET @save_optimizer_switch967242=@@optimizer_switch;
+SET optimizer_switch = 'in_to_exists=on';
+SELECT t2_1.b
+FROM t1 JOIN t2 AS t2_1 JOIN t2 AS t2_2
+ON (t2_2.b = t2_1.b ) AND (t2_2.c = t2_1.c )
+WHERE
+( SELECT COUNT(*) FROM t2 ) IS NOT NULL
+OR a = t2_1.c
+GROUP BY t2_1.b;
+b
+0
+3
+4
+8
+SET optimizer_switch=@save_optimizer_switch967242;
+drop table t1, t2;
+#
+# Bug#12578908: SELECT SQL_BUFFER_RESULT OUTPUTS TOO MANY 
+#               ROWS WHEN GROUP IS OPTIMIZED AWAY
+#
+CREATE TABLE t1 (col1 int, col2 int) ;
+INSERT INTO t1 VALUES (10,1),(11,7);
+CREATE TABLE t2 (col1 int, col2 int) ;
+INSERT INTO t2 VALUES (10,8);
+
+EXPLAIN SELECT SQL_BUFFER_RESULT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	Using temporary
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT SQL_BUFFER_RESULT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
+col2
+8
+
+EXPLAIN SELECT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
+col2
+8
+
+DROP TABLE t1,t2;
+#
+# BUG#12640437: USING SQL_BUFFER_RESULT RESULTS IN A
+#               DIFFERENT QUERY OUTPUT
+#
+CREATE TABLE t1 (
+a int,
+b varchar(1),
+KEY (b,a)
+);
+INSERT INTO t1 VALUES (1,NULL),(0,'a');
+
+EXPLAIN SELECT SQL_BUFFER_RESULT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	b	b	9	NULL	2	Using where; Using index for group-by; Using temporary
+
+SELECT SQL_BUFFER_RESULT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
+MIN(a)	b
+0	a
+
+EXPLAIN SELECT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	b	b	9	NULL	2	Using where; Using index for group-by
+
+SELECT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
+MIN(a)	b
+0	a
+
+DROP TABLE t1;
+create table t1 (a int, b int);
+insert into t1 values (1,11), (1,12), (2,22),(2,23), (4,44),(4,45);
+create table t2 (c int, d int);
+insert into t2 values (1,11), (2,22), (4,44);
+select distinct a,sum(b), (select d from t2 where c=a order by max(b) limit 1) from t1 group by a order by max(b);
+a	sum(b)	(select d from t2 where c=a order by max(b) limit 1)
+1	23	11
+2	45	22
+4	89	44
+drop table t1, t2;
+#
+# LP bug#993726 Wrong result from a query with ALL subquery predicate in WHERE
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0);
+SELECT 1 FROM t1 WHERE 1 > ALL(SELECT 1 FROM t1 WHERE a!=0);
+1
+1
+SELECT max(1) FROM t1 WHERE a!=0;
+max(1)
+NULL
+drop table t1;
+# End of 5.2 tests
+#
+# lp:872702: Crash in add_ref_to_table_cond() when grouping by a PK
+#
+CREATE TABLE t1 (a int, PRIMARY KEY (a)) ;
+INSERT INTO t1 VALUES (14),(15),(16),(17),(18),(19),(20);
+CREATE TABLE t2 (a int) ;
+SELECT a
+FROM t1
+WHERE a = (
+SELECT t2.a
+FROM t2
+) OR t1.a = 73
+GROUP BY 1;
+a
+DROP TABLE t1, t2;
+FLUSH STATUS;
+CREATE TABLE t1 (f1 INT, f2 decimal(20,1), f3 blob);
+INSERT INTO t1 values(11,NULL,'blob'),(11,NULL,'blob');
+SELECT f3, MIN(f2) FROM t1 GROUP BY f1 LIMIT 1;
+f3	MIN(f2)
+blob	NULL
+DROP TABLE t1;
+the value below *must* be 1
+show status like 'Created_tmp_disk_tables';
+Variable_name	Value
+Created_tmp_disk_tables	1
+#
+#  Bug #1002146: Unneeded filesort if usage of join buffer is not allowed
+#  (bug mdev-645)
+#
+CREATE TABLE t1 (pk int PRIMARY KEY, a int, INDEX idx(a));
+INSERT INTO t1 VALUES (3,2), (2,3), (5,3), (6,4);
+CREATE TABLE t2 (pk int PRIMARY KEY, a int, INDEX idx(a));
+INSERT INTO t2 VALUES (9,0), (10,3), (6,4), (1,6), (3,100), (5,200);
+set join_cache_level=0;
+EXPLAIN
+SELECT t2.a FROM t2 STRAIGHT_JOIN t1 ON t2.a <> 0 WHERE t2.a <> 6
+GROUP BY t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	idx	idx	5	NULL	5	Using where; Using index
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using index
+SELECT t2.a FROM t2 STRAIGHT_JOIN t1 ON t2.a <> 0 WHERE t2.a <> 6
+GROUP BY t2.a;
+a
+3
+4
+100
+200
+set join_cache_level=default;
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='outer_join_with_cache=off';
+EXPLAIN
+SELECT t2.a FROM t2 LEFT JOIN t1 ON t2.a <> 0 WHERE t2.a <> 6
+GROUP BY t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	idx	idx	5	NULL	5	Using where; Using index
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using where; Using index
+SELECT t2.a FROM t2 LEFT JOIN t1 ON t2.a <> 0 WHERE t2.a <> 6
+GROUP BY t2.a;
+a
+0
+3
+4
+100
+200
+set optimizer_switch=@save_optimizer_switch;
+DROP TABLE t1,t2;
+#
+# MDEV-5104 crash in Item_field::used_tables with broken order by
+#
+(select 1 order by x(y)) order by 1;
+ERROR 42S22: Unknown column 'y' in 'order clause'
+# End of 5.3 tests
 #
 # Bug#49771: Incorrect MIN (date) when minimum value is 0000-00-00
 #
@@ -1954,3 +2464,70 @@ f1	MIN(f2)	MAX(f2)
 4	00:25:00	00:25:00
 DROP TABLE t1;
 #End of test#49771
+#
+# Test of bug in GROUP_CONCAT with ROLLUP
+#
+CREATE TABLE t1 ( b VARCHAR(8) NOT NULL, a INT NOT NULL ) ENGINE=MyISAM;
+INSERT INTO t1 (a,b) VALUES (1,'c'),(2,'v');
+CREATE TABLE t2 ( c VARCHAR(8), d INT, KEY (c, d) ) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('v',6),('c',4),('v',3);
+SELECT b, GROUP_CONCAT( a, b ORDER BY a, b )
+FROM t1 JOIN t2 ON c = b GROUP BY b;
+b	GROUP_CONCAT( a, b ORDER BY a, b )
+c	1c
+v	2v,2v
+SELECT b, GROUP_CONCAT( a, b ORDER BY a, b )
+FROM t1 JOIN t2 ON c = b GROUP BY b WITH ROLLUP;
+b	GROUP_CONCAT( a, b ORDER BY a, b )
+c	1c
+v	2v,2v
+NULL	1c,2v,2v
+DROP TABLE t1,t2;
+#
+# MDEV-6129: Server crashes during UNION with ORDER BY field IS NULL
+#
+SET sql_mode='ONLY_FULL_GROUP_BY';
+SELECT 1 AS test UNION SELECT 2 AS test ORDER BY test IS NULL ASC;
+test
+1
+2
+SET sql_mode='';
+#
+# MDEV-6484: Assertion `tab->ref.use_count' failed on query with joins, constant table, multi-part key
+#
+CREATE TABLE t1 (i1 INT, c1 VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (6,'b');
+CREATE TABLE t2 (pk2 INT, i2 INT, c2 VARCHAR(1), PRIMARY KEY(pk2), KEY(pk2,i2)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,2,'s'),(2,4,'r'),(3,8,'m'),(4,4,'b'),(5,4,'x'),(6,7,'g'),(7,4,'p');
+SELECT i2 FROM t1 AS t1a STRAIGHT_JOIN ( t2 INNER JOIN t1 AS t1b ON (t1b.c1 = c2) ) ON (t1b.i1 = pk2 ) 
+WHERE t1a.c1 = c2 GROUP BY i2;
+i2
+DROP TABLE t1,t2;
+#
+# MDEV-6855
+# MIN(*) with subqueries with IS NOT NULL in WHERE clause crashed.
+#
+CREATE TABLE t1 (i INT, c VARCHAR(3), KEY(c,i)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (7,'foo'),(0,'bar');
+CREATE TABLE t2 (j INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (0),(8),(1),(8),(9);
+SELECT MAX(i), c FROM t1 
+WHERE c != 'qux' AND ( SELECT SUM(j) FROM t1, t2 ) IS NOT NULL GROUP BY c;
+MAX(i)	c
+0	bar
+7	foo
+drop table t1,t2;
+#
+# ONLY_FULL_GROUP_BY references
+#
+set @save_sql_mode = @@sql_mode;
+set sql_mode='ONLY_FULL_GROUP_BY';
+create table t1 (a int, b int);
+select a+b as x from t1 group by x having x > 1;
+x
+select a as x from t1 group by x having x > 1;
+x
+select a from t1 group by a having a > 1;
+a
+drop table t1;
+set sql_mode= @save_sql_mode;

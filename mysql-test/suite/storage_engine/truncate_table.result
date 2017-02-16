@@ -1,0 +1,41 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+TRUNCATE TABLE t1;
+INSERT INTO t1 (a,b) VALUES (1,'a'), (2,'b'), (3,'c');
+TRUNCATE TABLE t1;
+SELECT a,b FROM t1;
+a	b
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN> KEY AUTO_INCREMENT, c <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	#	#	#	#	#	#	#	#	#	1	#	#	#	#	#	#	#
+INSERT INTO t1 (c) VALUES ('a'),('b'),('c');
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	#	#	#	#	#	#	#	#	#	4	#	#	#	#	#	#	#
+TRUNCATE TABLE t1;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	#	#	#	#	#	#	#	#	#	1	#	#	#	#	#	#	#
+INSERT INTO t1 (c) VALUES ('d');
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	#	#	#	#	#	#	#	#	#	2	#	#	#	#	#	#	#
+SELECT a,c FROM t1;
+a	c
+1	d
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c');
+HANDLER t1 OPEN AS h1;
+HANDLER h1 READ FIRST;
+a	b
+1	a
+TRUNCATE TABLE t1;
+HANDLER h1 READ NEXT;
+ERROR 42S02: Unknown table 'h1' in HANDLER
+HANDLER t1 OPEN AS h2;
+HANDLER h2 READ FIRST;
+a	b
+DROP TABLE t1;

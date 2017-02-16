@@ -1,0 +1,23 @@
+select @@tokudb_lock_timeout;
+@@tokudb_lock_timeout
+4000
+set session tokudb_lock_timeout=1234567;
+select @@tokudb_lock_timeout;
+@@tokudb_lock_timeout
+1234567
+set session tokudb_lock_timeout=0;
+select @@tokudb_lock_timeout;
+@@tokudb_lock_timeout
+0
+set session tokudb_lock_timeout=5000000;
+select @@tokudb_lock_timeout;
+@@tokudb_lock_timeout
+5000000
+set session tokudb_lock_timeout=1000000;
+select @@tokudb_lock_timeout;
+@@tokudb_lock_timeout
+1000000
+set session tokudb_lock_timeout=4000;
+select @@tokudb_lock_timeout;
+@@tokudb_lock_timeout
+4000

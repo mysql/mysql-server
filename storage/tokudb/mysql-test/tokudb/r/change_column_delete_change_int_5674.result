@@ -1,0 +1,7 @@
+drop table if exists t;
+set default_storage_engine='tokudb';
+create table t (x int);
+insert into t values (1);
+delete from t where x=1;
+alter table t change column x x bigint;
+drop table t;

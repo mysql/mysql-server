@@ -1,3 +1,5 @@
+SET TIME_ZONE = _latin1 '+03:00';
+
 --echo #
 --echo # Start of WL#2649 Number-to-string conversions
 --echo #
@@ -1741,6 +1743,11 @@ DROP TABLE t1;
 --echo # Bug #31384 	DATE_ADD() and DATE_SUB() return binary data
 --echo #
 SELECT @@collation_connection, @@character_set_results;
+SELECT
+  CHARSET(DATE_SUB('2007-08-03', INTERVAL 1 MINUTE)) AS field_str1,
+  CHARSET(DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE)) AS field_str2,
+  CHARSET(DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY)) AS field_date,
+  CHARSET(DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE)) AS field_datetime;
 CREATE TABLE t1 AS
 SELECT
   DATE_SUB('2007-08-03', INTERVAL 1 MINUTE) AS field_str1,
@@ -1764,7 +1771,26 @@ SELECT
   HEX(DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE)) AS field1_str2,
   HEX(DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY)) AS field_date,
   HEX(DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE)) AS field_datetime;
- 
+
+--echo #
+--echo # MDEV-4841 Wrong character set of ADDTIME() and DATE_ADD()
+--echo #
+SELECT @@collation_connection, @@character_set_results;
+SELECT
+  CHARSET(ADDTIME(_latin1'10:01:01',_latin1'10:00:00')) AS addtime1,
+  CHARSET(ADDTIME('10:01:01','10:00:00')) AS addtime2,
+  CHARSET(DATE_ADD(_latin1'2001-01-01 10:01:01',interval 10 second)) AS date_add1,
+  CHARSET(DATE_ADD('2001-01-01 10:01:01',interval 10 second)) AS date_add2;
+CREATE TABLE t1 AS
+SELECT
+  ADDTIME(_latin1'10:01:01',_latin1'10:00:00') AS addtime1,
+  ADDTIME('10:01:01','10:00:00') AS addtime2,
+  DATE_ADD(_latin1'2001-01-01 10:01:01',interval 10 second) AS date_add1,
+  DATE_ADD('2001-01-01 10:01:01',interval 10 second) AS date_add2;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
 --echo #
 --echo # Bug#11926811 / Bug#60625 Illegal mix of collations
 --echo #
@@ -1791,6 +1817,23 @@ INSERT INTO t1 VALUES (0);
 SELECT f1() FROM t1 LEFT JOIN (SELECT 1 AS a FROM t1 LIMIT 0) AS d ON 1 GROUP BY a;
 DROP FUNCTION f1;
 DROP TABLE t1;
+
+--echo #
+--echo # MDEV-9662 Assertion `precision || !scale' failed in my_decimal_precision_to_length_no_truncation(uint, uint8, bool)
+--echo #
+SELECT @@collation_connection;
+SELECT CASE 1 WHEN 2 THEN ( - '3' ) END;
+
+--echo #
+--echo # MDEV-5702 Incorrect results are returned with NULLIF()
+--echo #
+CREATE TABLE t1 (d DATE);
+INSERT INTO t1 VALUES ('1999-11-11'),('2014-02-04');
+SELECT DISTINCT d, CAST(d AS CHAR), NULLIF(d,"2000-01-01") AS bad, NULLIF(CAST(d AS CHAR),"2000-01-01") AS good FROM t1;
+CREATE TABLE t2 AS SELECT DISTINCT d, NULLIF(d,'2000-01-01') AS bad FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t1, t2;
+
 
 SET NAMES latin1;
 SET sql_mode='';

@@ -43,7 +43,7 @@ C_MODE_START
 #include <sys/ioctl.h>
 #endif
 
-#if !defined(__WIN__) && !defined(HAVE_BROKEN_NETINET_INCLUDES)
+#if !defined(__WIN__)
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>

@@ -1,0 +1,239 @@
+
+set @mrr_icp_extra_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+SET NAMES latin1;
+CREATE TABLE t1 
+(s1 char(10) COLLATE latin1_german1_ci,
+ s2 char(10) COLLATE latin1_swedish_ci,
+ KEY(s1),
+ KEY(s2));
+
+INSERT INTO t1 VALUES ('a','a');
+INSERT INTO t1 VALUES ('b','b');
+INSERT INTO t1 VALUES ('c','c');
+INSERT INTO t1 VALUES ('d','d');
+INSERT INTO t1 VALUES ('e','e');
+INSERT INTO t1 VALUES ('f','f');
+INSERT INTO t1 VALUES ('g','g');
+INSERT INTO t1 VALUES ('h','h');
+INSERT INTO t1 VALUES ('i','i');
+INSERT INTO t1 VALUES ('j','j');
+
+EXPLAIN SELECT * FROM t1 WHERE s1='a';
+EXPLAIN SELECT * FROM t1 WHERE s2='a';
+EXPLAIN SELECT * FROM t1 WHERE s1='a' COLLATE latin1_german1_ci;
+EXPLAIN SELECT * FROM t1 WHERE s2='a' COLLATE latin1_german1_ci;
+
+EXPLAIN SELECT * FROM t1 WHERE s1 BETWEEN 'a' AND 'b' COLLATE latin1_german1_ci;
+EXPLAIN SELECT * FROM t1 WHERE s2 BETWEEN 'a' AND 'b' COLLATE latin1_german1_ci;
+
+EXPLAIN SELECT * FROM t1 WHERE s1 IN  ('a','b' COLLATE latin1_german1_ci);
+EXPLAIN SELECT * FROM t1 WHERE s2 IN  ('a','b' COLLATE latin1_german1_ci);
+
+EXPLAIN SELECT * FROM t1 WHERE s1 LIKE 'a' COLLATE latin1_german1_ci;
+EXPLAIN SELECT * FROM t1 WHERE s2 LIKE 'a' COLLATE latin1_german1_ci;
+
+DROP TABLE t1;
+
+--echo #
+--echo #
+
+CREATE TABLE t2 (a varchar(32), b int(11), c float, d double, 
+UNIQUE KEY a (a,b,c), KEY b (b), KEY c (c));
+CREATE TABLE t1 (a varchar(32), b char(3), UNIQUE KEY a (a,b), KEY b (b));
+CREATE TABLE t3 (a varchar(32), b char(3), UNIQUE KEY a (a,b));
+INSERT INTO t3 SELECT * FROM t1;
+EXPLAIN
+SELECT d FROM t1, t2
+WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
+ORDER BY t2.c LIMIT 1;
+SELECT d FROM t1, t2
+WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
+ORDER BY t2.c LIMIT 1;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo #
+create table t1(a int, b int, index(b));
+insert into t1 values (2, 1), (1, 1), (4, NULL), (3, NULL), (6, 2), (5, 2);
+insert into t1 values (2, 11), (1, 11), (4, 14), (3, 14), (6, 12), (5, 12);
+explain select * from t1 where b=1 or b is null order by a;
+select * from t1 where b=1 or b is null order by a;
+explain select * from t1 where b=2 or b is null order by a;
+select * from t1 where b=2 or b is null order by a;
+drop table t1;
+
+--echo #
+--echo #
+CREATE TABLE t1 (
+FieldKey varchar(36) NOT NULL default '',
+LongVal bigint(20) default NULL,
+StringVal mediumtext,
+KEY FieldKey (FieldKey),
+KEY LongField (FieldKey,LongVal),
+KEY StringField (FieldKey,StringVal(32))
+);
+INSERT INTO t1 VALUES ('0',3,'0'),('0',2,'1'),('0',1,'2'),('1',2,'1'),('1',1,'3'), ('1',0,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('3',2,'1'),('3',1,'2'),('3','3','3');
+EXPLAIN SELECT * FROM t1 IGNORE INDEX (LongField, StringField) WHERE FieldKey > '2' ORDER BY LongVal;
+EXPLAIN SELECT * FROM t1 IGNORE INDEX (FieldKey, LongField) WHERE FieldKey > '2' ORDER BY LongVal;
+SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY LongVal;
+DROP TABLE t1;
+--echo #
+--echo #
+CREATE TABLE t1 (a int not null, b int, c int, key(b), key(c), key(a,b), key(c,a));
+INSERT into t1 values (0, null, 0), (0, null, 1), (0, null, 2), (0, null,3), (1,1,4);
+create table t2 (a int not null, b int, c int, key(b), key(c), key(a));
+INSERT into t2 values (1,1,1), (2,2,2);
+optimize table t1;
+explain select * from t1 force index (a) where a=0 or a=2;
+select * from t1 force index (a) where a=0 or a=2;
+drop table t1;
+--echo #
+--echo #
+create table t1
+(
+  pk1 int not null,
+  pk2 int not null,
+
+  key1 int not null,
+  key2 int not null,
+
+  pktail1ok  int not null,
+  pktail2ok  int not null,
+  pktail3bad int not null,
+  pktail4bad int not null,
+  pktail5bad int not null,
+
+  pk2copy int not null,
+  badkey  int not null,
+
+  filler1 char (200),
+  filler2 char (200),
+  key (key1),
+  key (key2),
+
+  /* keys with tails from CPK members */
+  key (pktail1ok, pk1),
+  key (pktail2ok, pk1, pk2),
+  key (pktail3bad, pk2, pk1),
+  key (pktail4bad, pk1, pk2copy),
+  key (pktail5bad, pk1, pk2, pk2copy),
+
+  primary key (pk1, pk2)
+);
+
+--disable_query_log
+set autocommit=0;
+let $1=10000;
+while ($1)
+{
+  eval insert into t1 values ($1 div 10,$1 mod 100,   $1/100,$1/100,   $1/100,$1/100,$1/100,$1/100,$1/100, $1 mod 100, $1/1000,'filler-data-$1','filler2');
+  dec $1;
+}
+set autocommit=1;
+--enable_query_log
+explain select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
+select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
+drop table t1;
+
+--echo #
+--echo #
+CREATE TABLE t1 (
+f1 int,
+f4 varchar(32),
+f5 int,
+PRIMARY KEY (f1),
+KEY (f4)
+);
+INSERT INTO t1 VALUES 
+(5,'H',1), (9,'g',0), (527,'i',0), (528,'y',1), (529,'S',6),
+(530,'m',7), (531,'b',2), (532,'N',1), (533,'V',NULL), (534,'l',1),
+(535,'M',0), (536,'w',1), (537,'j',5), (538,'l',0), (539,'n',2),
+(540,'m',2), (541,'r',2), (542,'l',2), (543,'h',3),(544,'o',0),
+(956,'h',0), (957,'g',0), (958,'W',5), (959,'s',3), (960,'w',0),
+(961,'q',0), (962,'e',NULL), (963,'u',7), (964,'q',1), (965,'N',NULL),
+(966,'e',0), (967,'t',3), (968,'e',6), (969,'f',NULL), (970,'j',0),
+(971,'s',3), (972,'I',0), (973,'h',4), (974,'g',1), (975,'s',0),
+(976,'r',3), (977,'x',1), (978,'v',8), (979,'j',NULL), (980,'z',7),
+(981,'t',9), (982,'j',5), (983,'u',NULL), (984,'g',6), (985,'w',1),
+(986,'h',1), (987,'v',0), (988,'v',0), (989,'c',2), (990,'b',7),
+(991,'z',0), (992,'M',1), (993,'u',2), (994,'r',2), (995,'b',4),
+(996,'A',2), (997,'u',0), (998,'a',0), (999,'j',2), (1,'I',2);
+EXPLAIN
+SELECT * FROM t1
+WHERE (f1 < 535  OR  f1 > 985) AND ( f4='r' OR f4 LIKE 'a%' ) ;
+SELECT * FROM t1
+WHERE (f1 < 535  OR  f1 > 985) AND ( f4='r' OR f4 LIKE 'a%' ) ;
+drop table t1;
+
+--echo #
+--echo #
+--source include/varchar.inc
+
+--echo #
+--echo #
+--disable_warnings
+drop database if exists world;
+--enable_warnings
+CREATE DATABASE world;
+
+use world;
+
+--source include/world_schema.inc
+
+--disable_query_log
+--disable_result_log
+--disable_warnings
+--source include/world.inc
+--enable_warnings
+--enable_result_log
+--enable_query_log
+
+SELECT * FROM City
+WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
+AND (Population > 101000 AND Population < 102000);
+
+--replace_column 9 #
+explain
+SELECT * FROM City
+WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
+AND (Population > 101000 AND Population < 102000);
+
+--replace_column 9 #
+explain
+SELECT  * FROM City 
+WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
+(Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
+
+SELECT  * FROM City 
+WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
+(Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
+
+SELECT * FROM City
+WHERE Name LIKE 'M%' AND Population > 7000000;
+
+--replace_column 9 #
+explain
+SELECT * FROM City
+WHERE Name LIKE 'M%' AND Population > 7000000;
+
+--replace_column 6 # 7 # 9 #
+explain 
+SELECT * FROM City 
+WHERE Name BETWEEN 'G' AND 'K' AND Population > 500000 AND Country LIKE 'C%';
+SELECT * FROM City 
+WHERE Name BETWEEN 'G' AND 'K' AND Population > 500000 AND Country LIKE 'C%';
+
+--replace_column 6 # 7 # 9 #
+explain
+SELECT * FROM City 
+WHERE  Name BETWEEN 'G' AND 'J' AND Population > 500000 AND Country LIKE 'C%';
+SELECT * FROM City 
+WHERE  Name BETWEEN 'G' AND 'J' AND Population > 500000 AND Country LIKE 'C%';
+
+drop database world;
+use test;
+
+set @mrr_icp_extra_tmp=@@optimizer_switch;
+

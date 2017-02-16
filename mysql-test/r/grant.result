@@ -54,7 +54,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	NULL
+authentication_string	
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' REQUIRE CIPHER 'EDH-RSA-DES-CBC3-SHA'
@@ -69,15 +69,15 @@ show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
 GRANT SELECT ON `mysqltest`.* TO 'mysqltest_1'@'localhost'
-grant USAGE on mysqltest.* to mysqltest_1@localhost require cipher "EDH-RSA-DES-CBC3-SHA" AND SUBJECT "testsubject" ISSUER "MySQL AB";
+grant USAGE on mysqltest.* to mysqltest_1@localhost require cipher "EDH-RSA-DES-CBC3-SHA" AND SUBJECT "testsubject" ISSUER "Monty Program Ab";
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' REQUIRE ISSUER 'MySQL AB' SUBJECT 'testsubject' CIPHER 'EDH-RSA-DES-CBC3-SHA'
+GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' REQUIRE ISSUER 'Monty Program Ab' SUBJECT 'testsubject' CIPHER 'EDH-RSA-DES-CBC3-SHA'
 GRANT SELECT ON `mysqltest`.* TO 'mysqltest_1'@'localhost'
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
-GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' REQUIRE ISSUER 'MySQL AB' SUBJECT 'testsubject' CIPHER 'EDH-RSA-DES-CBC3-SHA'
+GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' REQUIRE ISSUER 'Monty Program Ab' SUBJECT 'testsubject' CIPHER 'EDH-RSA-DES-CBC3-SHA'
 delete from mysql.user where user='mysqltest_1';
 flush privileges;
 delete from mysql.user where user='mysqltest_1';
@@ -125,7 +125,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	NULL
+authentication_string	
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' WITH MAX_QUERIES_PER_HOUR 10
@@ -172,7 +172,7 @@ max_updates	20
 max_connections	30
 max_user_connections	0
 plugin	
-authentication_string	NULL
+authentication_string	
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' WITH MAX_QUERIES_PER_HOUR 10 MAX_UPDATES_PER_HOUR 20 MAX_CONNECTIONS_PER_HOUR 30
@@ -284,6 +284,7 @@ Warnings:
 Warning	1364	Field 'ssl_cipher' doesn't have a default value
 Warning	1364	Field 'x509_issuer' doesn't have a default value
 Warning	1364	Field 'x509_subject' doesn't have a default value
+Warning	1364	Field 'authentication_string' doesn't have a default value
 insert into mysql.db (host, db, user, select_priv) values
 ('localhost', 'a%', 'test11', 'Y'), ('localhost', 'ab%', 'test11', 'Y');
 alter table mysql.db order by db asc;
@@ -1614,8 +1615,8 @@ ERROR 42000: SELECT command denied to user 'mysqluser1'@'localhost' for table 't
 show grants for mysqluser10@localhost;
 Grants for mysqluser10@localhost
 GRANT USAGE ON *.* TO 'mysqluser10'@'localhost'
-GRANT SELECT ON `mysqltest1`.`t22` TO 'mysqluser10'@'localhost'
 GRANT SELECT ON `mysqltest1`.`t11` TO 'mysqluser10'@'localhost'
+GRANT SELECT ON `mysqltest1`.`t22` TO 'mysqluser10'@'localhost'
 GRANT EXECUTE ON PROCEDURE `mysqltest1`.`p1` TO 'mysqluser10'@'localhost'
 GRANT EXECUTE ON FUNCTION `mysqltest1`.`f1` TO 'mysqluser10'@'localhost'
 select db, routine_name, routine_type, proc_priv from mysql.procs_priv where user='mysqluser10' and host='localhost';
@@ -1833,7 +1834,7 @@ ERROR 42S02: Table 'db1.../db2/tb2' doesn't exist
 SELECT * FROM `../db2`.tb2;
 ERROR 42000: SELECT command denied to user 'testbug'@'localhost' for table 'tb2'
 SELECT * FROM `#mysql50#/../db2/tb2`;
-ERROR 42S02: Table 'db1.#mysql50#/../db2/tb2' doesn't exist
+ERROR 42000: Incorrect table name '#mysql50#/../db2/tb2'
 DROP USER 'testbug'@localhost;
 DROP TABLE db2.t1;
 DROP DATABASE db1;

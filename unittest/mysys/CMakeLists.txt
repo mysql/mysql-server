@@ -13,29 +13,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
-                    ${CMAKE_SOURCE_DIR}/sql
-                    ${CMAKE_SOURCE_DIR}/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include
-                    ${CMAKE_SOURCE_DIR}/unittest/mytap)
-
-
-MACRO (MY_ADD_TEST name)
-  ADD_EXECUTABLE(${name}-t ${name}-t.c)
-  TARGET_LINK_LIBRARIES(${name}-t mytap mysys strings)
-  ADD_TEST(${name} ${name}-t)
-ENDMACRO()
-
-
-FOREACH(testname bitmap base64 my_vsnprintf my_atomic my_rdtsc lf my_malloc)
-  MY_ADD_TEST(${testname})
-ENDFOREACH()
+MY_ADD_TESTS(bitmap base64 my_atomic my_rdtsc lf my_malloc my_getopt dynstring
+             LINK_LIBRARIES mysys)
+MY_ADD_TESTS(my_vsnprintf LINK_LIBRARIES strings mysys)
 
 IF(WIN32)
-  ADD_EXECUTABLE(explain_filename-t explain_filename-t.cc
-                                    ../../sql/nt_servc.cc)
-ELSE()
-  ADD_EXECUTABLE(explain_filename-t explain_filename-t.cc)
+  MY_ADD_TESTS(my_delete LINK_LIBRARIES mysys)
 ENDIF()
-TARGET_LINK_LIBRARIES(explain_filename-t sql mytap)
-ADD_TEST(explain_filename explain_filename-t)
+

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -4404,8 +4404,8 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
 int ha_ndbcluster::end_bulk_insert()
 {
   int error= 0;
-
   DBUG_ENTER("end_bulk_insert");
+
   // Check if last inserts need to be flushed
   if (m_bulk_insert_not_flushed)
   {
@@ -4757,7 +4757,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
 
-  DBUG_PRINT("enter", ("this: 0x%lx  thd: 0x%lx  thd_ndb: %lx  "
+  DBUG_PRINT("enter", ("this: 0x%lx  thd: 0x%lx  thd_ndb: 0x%lx  "
                        "thd_ndb->lock_count: %d",
                        (long) this, (long) thd, (long) thd_ndb,
                        thd_ndb->lock_count));
@@ -8979,6 +8979,8 @@ ha_ndbcluster::null_value_index_search(KEY_MULTI_RANGE *ranges,
   DBUG_RETURN(FALSE);
 }
 
+#if 0 
+/* MRR/NDB is disabled, for details see method declarations in ha_ndbcluster.h */
 int
 ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                       KEY_MULTI_RANGE *ranges, 
@@ -9391,6 +9393,7 @@ found_next:
   m_multi_range_result_ptr += reclength;
   DBUG_RETURN(0);
 }
+#endif 
 
 int
 ha_ndbcluster::setup_recattr(const NdbRecAttr* curr)
@@ -11027,5 +11030,24 @@ mysql_declare_plugin(ndbcluster)
   0,                          /* flags                           */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(ndbcluster)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &ndbcluster_storage_engine,
+  ndbcluster_hton_name,
+  "MySQL AB",
+  "Clustered, fault-tolerant tables",
+  PLUGIN_LICENSE_GPL,
+  ndbcluster_init, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+  ndb_status_variables_export,/* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_GAMMA /* maturity */
+}
+maria_declare_plugin_end;
 
+#else
+int Sun_ar_require_a_symbol_here= 0;
 #endif

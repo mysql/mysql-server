@@ -4026,11 +4026,11 @@ CREATE TRIGGER tr1 BEFORE INSERT ON v1 FOR EACH ROW SET @a:=1 ;
 ERROR HY000: 'test.v1' is not BASE TABLE
 RENAME TABLE v1 TO v2;
 RENAME VIEW  v2 TO v1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VIEW  v2 TO v1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'VIEW  v2 TO v1' at line 1
 ALTER TABLE v2 RENAME AS v1;
 ERROR HY000: 'test.v2' is not BASE TABLE
 ALTER VIEW  v1 RENAME AS v2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RENAME AS v2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'RENAME AS v2' at line 1
 DROP TABLE IF EXISTS t1, t2 ;
 DROP VIEW  IF EXISTS v1 ;
 DROP VIEW  IF EXISTS v2 ;
@@ -4040,7 +4040,7 @@ ALTER  TABLE t1 ADD PRIMARY KEY(f1);
 ALTER  TABLE v1 ADD PRIMARY KEY(f1);
 ERROR HY000: 'test.v1' is not BASE TABLE
 ALTER  VIEW  v1 ADD PRIMARY KEY(f1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ADD PRIMARY KEY(f1)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ADD PRIMARY KEY(f1)' at line 1
 CREATE INDEX t1_idx ON t1(f3);
 CREATE INDEX v1_idx ON v1(f3);
 ERROR HY000: 'test.v1' is not BASE TABLE
@@ -4051,81 +4051,81 @@ Testcase 3.3.1.3 + 3.1.1.4
 --------------------------------------------------------------------------------
 DROP VIEW  IF EXISTS v1 ;
 CREATE VIEW v1 or REPLACE AS Select * from tb2 my_table;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'or REPLACE AS Select * from tb2 my_table' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'or REPLACE AS Select * from tb2 my_table' at line 1
 CREATE VIEW v1 WITH CASCADED CHECK OPTION AS Select *
 from tb2 my_table limit 50;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CASCADED CHECK OPTION AS Select *
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CASCADED CHECK OPTION AS Select *
 from tb2 my_table limit 50' at line 1
 CREATE VIEW v1 WITH LOCAL CHECK OPTION AS Select *
 from tb2 my_table limit 50;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'LOCAL CHECK OPTION AS Select *
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'LOCAL CHECK OPTION AS Select *
 from tb2 my_table limit 50' at line 1
 SELECT * FROM tb2 my_table CREATE VIEW As v1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CREATE VIEW As v1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CREATE VIEW As v1' at line 1
 CREATE or REPLACE VIEW v1 Select f59, f60
 from test.tb2 my_table where f59 = 250 ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'Select f59, f60
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'Select f59, f60
 from test.tb2 my_table where f59 = 250' at line 1
 CREATE OR REPLACE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table WITH CASCADED CHECK OPTION;
 DROP VIEW v1;
 REPLACE OR CREATE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table WITH CASCADED CHECK OPTION;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OR CREATE VIEW v1 AS SELECT F59, F60
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'OR CREATE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table WITH CASCADED CHECK ' at line 1
 CREATE OR REPLACE VIEW v1 SELECT AS F59, F60
 FROM test.tb2 my_table WITH CASCADED CHECK OPTION;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT AS F59, F60
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SELECT AS F59, F60
 FROM test.tb2 my_table WITH CASCADED CHECK OPTION' at line 1
 CREATE OR REPLACE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table CASCADED WITH CHECK OPTION;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CASCADED WITH CHECK OPTION' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CASCADED WITH CHECK OPTION' at line 2
 CREATE OR REPLACE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table WITH CASCADED OPTION CHECK;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OPTION CHECK' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'OPTION CHECK' at line 2
 CREATE OR REPLACE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table CHECK OPTION WITH CASCADED;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CHECK OPTION WITH CASCADED' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CHECK OPTION WITH CASCADED' at line 2
 CREATE OR REPLACE VIEW v1 WITH CASCADED CHECK OPTION
 AS SELECT F59, F60 FROM test.tb2 my_table;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CASCADED CHECK OPTION
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CASCADED CHECK OPTION
 AS SELECT F59, F60 FROM test.tb2 my_table' at line 1
 CREATE OR REPLACE AS SELECT F59, F60
 FROM test.tb2 my_table VIEW v1 WITH CASCADED CHECK OPTION;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS SELECT F59, F60
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'AS SELECT F59, F60
 FROM test.tb2 my_table VIEW v1 WITH CASCADED CHECK OPTION' at line 1
 CREATE OR REPLACE AS SELECT F59, F60
 FROM test.tb2 my_table WITH CASCADED CHECK OPTION VIEW v1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS SELECT F59, F60
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'AS SELECT F59, F60
 FROM test.tb2 my_table WITH CASCADED CHECK OPTION VIEW v1' at line 1
 REPLACE OR CREATE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table WITH LOCAL CHECK OPTION;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OR CREATE VIEW v1 AS SELECT F59, F60
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'OR CREATE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table WITH LOCAL CHECK OPT' at line 1
 CREATE OR REPLACE VIEW v1 SELECT AS F59, F60
 FROM test.tb2 my_table WITH LOCAL CHECK OPTION;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT AS F59, F60
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SELECT AS F59, F60
 FROM test.tb2 my_table WITH LOCAL CHECK OPTION' at line 1
 CREATE OR REPLACE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table LOCAL WITH CHECK OPTION;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'LOCAL WITH CHECK OPTION' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'LOCAL WITH CHECK OPTION' at line 2
 CREATE OR REPLACE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table WITH LOCAL OPTION CHECK;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OPTION CHECK' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'OPTION CHECK' at line 2
 CREATE OR REPLACE VIEW v1 AS SELECT F59, F60
 FROM test.tb2 my_table CHECK OPTION WITH LOCAL;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CHECK OPTION WITH LOCAL' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CHECK OPTION WITH LOCAL' at line 2
 CREATE OR REPLACE VIEW v1 WITH CASCADED CHECK OPTION
 AS SELECT F59, F60 FROM test.tb2 my_table;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CASCADED CHECK OPTION
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CASCADED CHECK OPTION
 AS SELECT F59, F60 FROM test.tb2 my_table' at line 1
 CREATE OR REPLACE AS SELECT F59, F60
 FROM test.tb2 my_table VIEW v1 WITH LOCAL CHECK OPTION;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS SELECT F59, F60
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'AS SELECT F59, F60
 FROM test.tb2 my_table VIEW v1 WITH LOCAL CHECK OPTION' at line 1
 CREATE OR REPLACE AS SELECT F59, F60
 FROM test.tb2 my_table WITH LOCAL CHECK OPTION VIEW v1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS SELECT F59, F60
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'AS SELECT F59, F60
 FROM test.tb2 my_table WITH LOCAL CHECK OPTION VIEW v1' at line 1
 Drop table if exists t1 ;
 CREATE table t1 (f1 int ,f2 int)  ;
@@ -4133,36 +4133,36 @@ INSERT INTO t1 values (235, 22);
 INSERT INTO t1 values (554, 11);
 CREATE or REPLACE view v1 as (Select from f59 tb2)
 Union ALL (Select from f1 t1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'from f59 tb2)
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'from f59 tb2)
 Union ALL (Select from f1 t1)' at line 1
 CREATE or REPLACE view v1 as Select f59, f60
 from tb2 by order f59;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'by order f59' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'by order f59' at line 2
 CREATE or REPLACE view v1 as Select f59, f60
 from tb2 by group f59  ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'by group f59' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'by group f59' at line 2
 
 Testcase 3.3.1.5 
 --------------------------------------------------------------------------------
 DROP VIEW  IF EXISTS v1 ;
 CREATE VIEW v1 SELECT * FROM tb2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT * FROM tb2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SELECT * FROM tb2' at line 1
 CREATE v1 AS SELECT * FROM tb2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'v1 AS SELECT * FROM tb2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'v1 AS SELECT * FROM tb2' at line 1
 VIEW v1 AS SELECT * FROM tb2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VIEW v1 AS SELECT * FROM tb2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'VIEW v1 AS SELECT * FROM tb2' at line 1
 CREATE VIEW v1 AS SELECT 1;
 DROP VIEW v1;
 VIEW v1 AS SELECT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VIEW v1 AS SELECT 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'VIEW v1 AS SELECT 1' at line 1
 CREATE      v1 AS SELECT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'v1 AS SELECT 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'v1 AS SELECT 1' at line 1
 CREATE VIEW    AS SELECT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS SELECT 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'AS SELECT 1' at line 1
 CREATE VIEW v1    SELECT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SELECT 1' at line 1
 CREATE VIEW v1 AS         ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 1
 
 Testcase 3.3.1.6 
 --------------------------------------------------------------------------------
@@ -4179,31 +4179,31 @@ CREATE or REPLACE ALGORITHM = TEMPTABLE VIEW v1
 as SELECT * from tb2;
 CREATE or REPLACE           = TEMPTABLE VIEW v1
 as SELECT * from tb2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '= TEMPTABLE VIEW v1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '= TEMPTABLE VIEW v1
 as SELECT * from tb2' at line 1
 CREATE or REPLACE ALGORITHM   TEMPTABLE VIEW v1
 as SELECT * from tb2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TEMPTABLE VIEW v1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'TEMPTABLE VIEW v1
 as SELECT * from tb2' at line 1
 CREATE or REPLACE ALGORITHM =           VIEW v1
 as SELECT * from tb2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VIEW v1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'VIEW v1
 as SELECT * from tb2' at line 1
 CREATE or REPLACE TEMPTABLE = ALGORITHM VIEW v1
 as SELECT * from tb2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TEMPTABLE = ALGORITHM VIEW v1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'TEMPTABLE = ALGORITHM VIEW v1
 as SELECT * from tb2' at line 1
 CREATE or REPLACE TEMPTABLE - ALGORITHM VIEW v1
 as SELECT * from tb2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TEMPTABLE - ALGORITHM VIEW v1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'TEMPTABLE - ALGORITHM VIEW v1
 as SELECT * from tb2' at line 1
 CREATE or REPLACE GARBAGE   = TEMPTABLE VIEW v1
 as SELECT * from tb2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GARBAGE   = TEMPTABLE VIEW v1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'GARBAGE   = TEMPTABLE VIEW v1
 as SELECT * from tb2' at line 1
 CREATE or REPLACE ALGORITHM = GARBAGE VIEW v1
 as SELECT * from tb2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GARBAGE VIEW v1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'GARBAGE VIEW v1
 as SELECT * from tb2' at line 1
 Drop view if exists v1 ;
 CREATE or REPLACE VIEW v1
@@ -4216,16 +4216,16 @@ CREATE or REPLACE VIEW v1
 AS SELECT * from tb2 where f59 < 1 WITH LOCAL    CHECK OPTION;
 CREATE or REPLACE VIEW v1
 AS SELECT * from tb2 where f59 < 1 WITH NO       CHECK OPTION;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NO       CHECK OPTION' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'NO       CHECK OPTION' at line 2
 CREATE or REPLACE VIEW v1
 AS SELECT * from tb2 where f59 < 1      CASCADED CHECK OPTION;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CASCADED CHECK OPTION' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CASCADED CHECK OPTION' at line 2
 CREATE or REPLACE VIEW v1
 AS SELECT * from tb2 where f59 < 1 WITH CASCADED       OPTION;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OPTION' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'OPTION' at line 2
 CREATE or REPLACE VIEW v1
 AS SELECT * from tb2 where f59 < 1 WITH CASCADED CHECK       ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 2
 
 Testcase 3.3.1.7 
 --------------------------------------------------------------------------------
@@ -4256,17 +4256,17 @@ DROP VIEW  IF EXISTS V1 ;
 Testcase 3.3.1.8 
 --------------------------------------------------------------------------------
 Create view select AS Select * from test.tb2 limit 100;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select AS Select * from test.tb2 limit 100' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'select AS Select * from test.tb2 limit 100' at line 1
 Create view as AS Select * from test.tb2 limit 100;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'as AS Select * from test.tb2 limit 100' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'as AS Select * from test.tb2 limit 100' at line 1
 Create view where AS Select * from test.tb2 limit 100;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'where AS Select * from test.tb2 limit 100' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'where AS Select * from test.tb2 limit 100' at line 1
 Create view from AS Select * from test.tb2 limit 100;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'from AS Select * from test.tb2 limit 100' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'from AS Select * from test.tb2 limit 100' at line 1
 Create view while AS Select * from test.tb2 limit 100;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'while AS Select * from test.tb2 limit 100' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'while AS Select * from test.tb2 limit 100' at line 1
 Create view asdkj*(&*&&^ as Select * from test.tb2 limit 100 ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '*(&*&&^ as Select * from test.tb2 limit 100' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '*(&*&&^ as Select * from test.tb2 limit 100' at line 1
 Drop view if exists test.procedure ;
 Create view test.procedure as Select * from test.tb2 limit 100 ;
 Drop view if exists test.procedure ;
@@ -8396,11 +8396,11 @@ Testcase 3.3.1.42
 Drop VIEW if exists test.v1 ;
 CREATE TEMPORARY VIEW test.v1 AS
 SELECT * FROM test.tb2 limit 2 ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VIEW test.v1 AS
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'VIEW test.v1 AS
 SELECT * FROM test.tb2 limit 2' at line 1
 CREATE OR REPLACE TEMPORARY VIEW test.v1 AS
 SELECT * FROM test.tb2 limit 2 ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TEMPORARY VIEW test.v1 AS
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'TEMPORARY VIEW test.v1 AS
 SELECT * FROM test.tb2 limit 2' at line 1
 Drop view if exists test.v1 ;
 Use test;
@@ -22755,6 +22755,8 @@ f59	f60	f61	a	b
 2	double	6	2	2
 3	single-f3	6	NULL	3
 4	single	4	NULL	4
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='outer_join_with_cache=off';
 Create or replace view test.v1 as
 Select t1.f59 t1_f59, t2.f59 t2_f59, t1.f60 t1_f60, t2.f60 t2_f60,
 t1.f61 t1_f61, t2.f61 t2_f61
@@ -22785,6 +22787,7 @@ f59	f60	a	b
 1	single	1	NULL
 2	double	2	2
 3	single-f3	3	NULL
+set optimizer_switch=@save_optimizer_switch;
 drop table t1, t2;
 drop view  v1 ;
 Use test;

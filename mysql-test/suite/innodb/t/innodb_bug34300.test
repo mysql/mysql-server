@@ -1,9 +1,8 @@
+--source include/have_innodb.inc
 #
 # Bug#34300 Tinyblob & tinytext fields currupted after export/import and alter in 5.1
 # http://bugs.mysql.com/34300
 #
-
--- source include/have_innodb.inc
 
 -- disable_query_log
 -- disable_result_log

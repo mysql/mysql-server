@@ -476,7 +476,7 @@ a	(a DIV 2)
 t	0
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '1a'
-Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1918	Encountered illegal value '' when converting to DECIMAL
 Warning	1292	Truncated incorrect DECIMAL value: 't '
 SELECT a,CAST(a AS SIGNED) FROM t1 ORDER BY a;
 a	CAST(a AS SIGNED)

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ int mi_update(register MI_INFO *info, const uchar *oldrec, uchar *newrec)
   int flag,key_changed,save_errno;
   reg3 my_off_t pos;
   uint i;
-  uchar old_key[MI_MAX_KEY_BUFF],*new_key;
+  uchar old_key[HA_MAX_KEY_BUFF],*new_key;
   my_bool auto_key_changed=0;
   ulonglong changed;
   MYISAM_SHARE *share=info->s;

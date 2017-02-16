@@ -1,0 +1,26 @@
+--- suite/storage_engine/insert_delayed.result	2013-01-23 01:23:49.461254916 +0400
++++ suite/storage_engine/insert_delayed.reject	2013-01-23 01:47:05.975698364 +0400
+@@ -5,7 +5,16 @@
+ connect  con0,localhost,root,,;
+ SET lock_wait_timeout = 1;
+ INSERT DELAYED INTO t1 (a,b) VALUES (3,'c');
++ERROR HY000: DELAYED option not supported for table 't1'
++# ------------ UNEXPECTED RESULT ------------
++# The statement|command finished with ER_DELAYED_NOT_SUPPORTED.
++# INSERT DELAYED or the mix could be unsupported|malfunctioning, or the problem was caused by previous errors. 
++# You can change the engine code, or create an rdiff, or disable the test by adding it to disabled.def.
++# Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
++# Also, this problem may cause a chain effect (more errors of different kinds in the test).
++# -------------------------------------------
+ INSERT DELAYED INTO t1 SET a=4, b='d';
++ERROR HY000: DELAYED option not supported for table 't1'
+ INSERT DELAYED INTO t1 (a,b) SELECT 5, 'e';
+ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ disconnect con0;
+@@ -20,6 +29,4 @@
+ a	b
+ 1	f
+ 2	b
+-3	c
+-4	d
+ DROP TABLE t1;

@@ -28,6 +28,7 @@ int mi_rprev(MI_INFO *info, uchar *buf, int inx)
   int error,changed;
   register uint flag;
   MYISAM_SHARE *share=info->s;
+  ICP_RESULT icp_res= ICP_MATCH;
   DBUG_ENTER("mi_rprev");
 
   if ((inx = _mi_check_index(info,inx)) < 0)
@@ -52,31 +53,55 @@ int mi_rprev(MI_INFO *info, uchar *buf, int inx)
     error=_mi_search(info,share->keyinfo+inx,info->lastkey,
 		     USE_WHOLE_KEY, flag, share->state.key_root[inx]);
 
-  if (share->concurrent_insert)
+  if (!error)
   {
-    if (!error)
+    my_off_t cur_keypage= info->last_keypage;
+    while ((share->concurrent_insert && 
+            info->lastpos >= info->state->data_file_length) ||
+           (info->index_cond_func &&
+            (icp_res= mi_check_index_cond(info, inx, buf)) == ICP_NO_MATCH))
     {
-      while (info->lastpos >= info->state->data_file_length)
+      /*
+        If we are at the last (i.e. first?) key on the key page, 
+        allow writers to access the index.
+      */
+      if (info->last_keypage != cur_keypage)
       {
-	/* Skip rows that are inserted by other threads since we got a lock */
-	if  ((error=_mi_search_next(info,share->keyinfo+inx,info->lastkey,
-				    info->lastkey_length,
-				    SEARCH_SMALLER,
-				    share->state.key_root[inx])))
-	  break;
+        cur_keypage= info->last_keypage;
+        if (mi_yield_and_check_if_killed(info, inx))
+        {
+          error= 1;
+          break;
+        }
       }
+
+      /* 
+         Skip rows that are either inserted by other threads since
+         we got a lock or do not match pushed index conditions
+      */
+      if  ((error=_mi_search_next(info,share->keyinfo+inx,info->lastkey,
+                                  info->lastkey_length,
+                                  SEARCH_SMALLER,
+                                  share->state.key_root[inx])))
+        break;
     }
-    mysql_rwlock_unlock(&share->key_root_lock[inx]);
   }
+
+  if (share->concurrent_insert)
+    mysql_rwlock_unlock(&share->key_root_lock[inx]);
+
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= HA_STATE_PREV_FOUND;
-  if (error)
+
+  if (error || icp_res != ICP_MATCH)
   {
+    fast_mi_writeinfo(info);
     if (my_errno == HA_ERR_KEY_NOT_FOUND)
       my_errno=HA_ERR_END_OF_FILE;
   }
   else if (!buf)
   {
+    fast_mi_writeinfo(info);
     DBUG_RETURN(info->lastpos==HA_OFFSET_ERROR ? my_errno : 0);
   }
   else if (!(*info->read_record)(info,info->lastpos,buf))

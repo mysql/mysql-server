@@ -1,0 +1,42 @@
+# ulong session
+
+SET @start_global_value = @@global.deadlock_timeout_short;
+
+#
+# exists as global only
+#
+select @@global.deadlock_timeout_short;
+select @@session.deadlock_timeout_short;
+show global variables like 'deadlock_timeout_short';
+show session variables like 'deadlock_timeout_short';
+select * from information_schema.global_variables where variable_name='deadlock_timeout_short';
+select * from information_schema.session_variables where variable_name='deadlock_timeout_short';
+
+#
+# show that it's writable
+#
+set global deadlock_timeout_short=10;
+select @@global.deadlock_timeout_short;
+set session deadlock_timeout_short=10;
+select @@session.deadlock_timeout_short;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global deadlock_timeout_short=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session deadlock_timeout_short=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global deadlock_timeout_short="foo";
+
+#
+# min/max values, block size
+#
+set global deadlock_timeout_short=0;
+select @@global.deadlock_timeout_short;
+set session deadlock_timeout_short=cast(-1 as unsigned int);
+select @@session.deadlock_timeout_short;
+
+SET @@global.deadlock_timeout_short = @start_global_value;
+

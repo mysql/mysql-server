@@ -1,0 +1,27 @@
+#
+# MDEV-5405 RQG induced crash in mi_assign_to_key_cache in safe mutex unlock
+#
+--source include/have_debug_sync.inc
+create table t1 (f int, key(f)) engine=myisam;
+set global kc1.key_buffer_size = 65536;
+
+connect (con1, localhost, root);
+
+set debug_sync='assign_key_cache_op_unlock wait_for op_locked';
+send cache index t1 in kc1;
+
+connection default;
+sleep 1;
+set debug_sync='assign_key_cache_op_lock signal op_locked wait_for assigned';
+send cache index t1 in kc1;
+
+connection con1;
+reap;
+set debug_sync='now signal assigned';
+disconnect con1;
+connection default;
+reap;
+
+drop table t1;
+set global kc1.key_buffer_size = 0;
+set debug_sync='reset';

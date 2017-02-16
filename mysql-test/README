@@ -4,13 +4,14 @@ this directory. It will fire up the newly built mysqld and test it.
 
 Note that you do not have to have to do "make install", and you could
 actually have a co-existing MySQL installation. The tests will not
-conflict with it.
+conflict with it. To run the test suite in a source directory, you
+must do make first.
 
 All tests must pass. If one or more of them fail on your system, please
 read the following manual section for instructions on how to report the
 problem:
 
-http://dev.mysql.com/doc/mysql/en/mysql-test-suite.html
+http://kb.askmonty.org/v/reporting-bugs
 
 If you want to use an already running MySQL server for specific tests,
 use the --extern option to mysql-test-run. Please note that in this mode,
@@ -18,7 +19,7 @@ the test suite expects you to provide the names of the tests to run.
 For example, here is the command to run the "alias" and "analyze" tests
 with an external server:
 
-mysql-test-run --extern alias analyze
+mysql-test-run --extern socket=/tmp/mysql.sock alias analyze
 
 To match your setup, you might also need to provide --socket, --user, and
 other relevant options.
@@ -26,7 +27,6 @@ other relevant options.
 With no test cases named on the command line, mysql-test-run falls back
 to the normal "non-extern" behavior. The reason for this is that some
 tests cannot run with an external server.
-
 
 You can create your own test cases. To create a test case, create a new
 file in the t subdirectory using a text editor. The file should have a .test
@@ -60,13 +60,19 @@ extension. For example:
 
  mysql test < t/test_case_name.test > r/test_case_name.result
 
- mysqltest --record --record-file=r/test_case_name.result < t/test_case_name.test
+ mysqltest --record --database test --result-file=r/test_case_name.result < t/test_case_name.test
 
  When this is done, take a look at r/test_case_name.result
  - If the result is incorrect, you have found a bug. In this case, you should
    edit the test result to the correct results so that we can verify
    that the bug is corrected in future releases.
 
-To submit your test case, put your .test file and .result file(s) into
-a tar.gz or zip archive, create a bug report at http://bugs.mysql.com/
-and attach the archive to the bug report.
+If you want to submit your test case you can send it 
+to maria-developers@lists.launchpad.com or attach it to a bug report on
+http://mariadb.org/jira/.
+
+If the test case is really big or if it contains 'not public' data,
+then put your .test file and .result file(s) into a tar.gz archive,
+add a README that explains the problem, ftp the archive to
+ftp://ftp.askmonty.org/private and submit a report to
+http://mariadb.org/jira about it.

@@ -1,0 +1,13 @@
+include/master-slave.inc
+[connection master]
+CREATE TABLE t1(`a` INT) ENGINE=TokuDB;
+CREATE TABLE t2(`a` INT) ENGINE=InnoDB;
+begin;
+insert into t1 values (1);
+insert into t2 values (1);
+commit;
+TABLES t1 and t2 must be equal otherwise an error will be thrown.
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/diff_tables.inc [master:test.t2, slave:test.t2]
+drop table t1,t2;
+include/rpl_end.inc

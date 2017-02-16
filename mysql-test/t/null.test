@@ -255,3 +255,43 @@ DESCRIBE t2;
 DROP TABLE t1, t2;
 
 --echo # End of 5.0 tests
+
+--echo #
+--echo # MDEV-4895 Valgrind warnings (Conditional jump or move depends on uninitialised value) in Field_datetime::get_date on GREATEST(..) IS NULL
+--echo #
+
+CREATE TABLE t1 (dt DATETIME NOT NULL);
+INSERT INTO t1 VALUES (NOW()),(NOW());
+
+EXPLAIN
+SELECT * FROM t1 WHERE concat( dt, '2012-12-21 12:12:12' ) IS NULL;
+SELECT * FROM t1 WHERE concat( dt, '2012-12-21 12:12:12' ) IS NULL;
+
+DROP TABLE t1;
+CREATE TABLE t1 (dt INT NOT NULL);
+INSERT INTO t1 VALUES (1),(2);
+EXPLAIN
+SELECT * FROM t1 WHERE concat( dt, '1' ) IS NULL;
+SELECT * FROM t1 WHERE concat( dt, '1' ) IS NULL;
+
+DROP TABLE t1;
+CREATE TABLE t1 (dt INT NOT NULL);
+INSERT INTO t1 VALUES (1),(2);
+
+EXPLAIN
+SELECT * FROM t1 WHERE NOT (concat( dt, '1' ) IS NOT NULL); 
+SELECT * FROM t1 WHERE NOT (concat( dt, '1' ) IS NOT NULL); 
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug mdev-5132: crash when exeicuting a join query
+--echo #                with IS NULL and IS NOT NULL in where
+--echo #
+
+CREATE TABLE t1 (a DATE, b INT, c INT, KEY(a), KEY(b), KEY(c)) ENGINE=MyISAM; 
+CREATE TABLE t2 (d DATE) ENGINE=MyISAM; 
+
+SELECT  * FROM t1,t2 WHERE  1 IS NOT NULL AND t1.b IS NULL;
+
+DROP TABLE t1,t2;

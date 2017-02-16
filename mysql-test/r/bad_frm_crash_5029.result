@@ -1,0 +1,13 @@
+show create table t1;
+ERROR 42000: Unknown storage engine 'InnoDB'
+call mtr.add_suppression("t1.frm is inconsistent: engine typecode 43, engine name Aria");
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  KEY `a` (`a`),
+  KEY `b` (`b`)
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+drop table t1;

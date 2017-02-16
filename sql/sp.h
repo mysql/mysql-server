@@ -36,6 +36,17 @@ struct TABLE_LIST;
 typedef struct st_hash HASH;
 template <typename T> class SQL_I_List;
 
+/*
+  Values for the type enum. This reflects the order of the enum declaration
+  in the CREATE TABLE command.
+*/
+enum stored_procedure_type
+{
+  TYPE_ENUM_FUNCTION=1,
+  TYPE_ENUM_PROCEDURE=2,
+  TYPE_ENUM_TRIGGER=3,
+  TYPE_ENUM_PROXY=4
+};
 
 /* Tells what SP_DEFAULT_ACCESS should be mapped to */
 #define SP_DEFAULT_ACCESS_MAPPING SP_CONTAINS_SQL
@@ -97,7 +108,7 @@ sp_drop_db_routines(THD *thd, char *db);
 bool lock_db_routines(THD *thd, char *db);
 
 sp_head *
-sp_find_routine(THD *thd, int type, sp_name *name,
+sp_find_routine(THD *thd, stored_procedure_type type, sp_name *name,
                 sp_cache **cp, bool cache_only);
 
 int
@@ -106,23 +117,24 @@ sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
 
 
 int
-sp_cache_routine(THD *thd, int type, sp_name *name,
+sp_cache_routine(THD *thd, stored_procedure_type type, sp_name *name,
                  bool lookup_only, sp_head **sp);
 
 bool
 sp_exist_routines(THD *thd, TABLE_LIST *procs, bool any);
 
 bool
-sp_show_create_routine(THD *thd, int type, sp_name *name);
+sp_show_create_routine(THD *thd, stored_procedure_type type, sp_name *name);
 
 int
-sp_create_routine(THD *thd, int type, sp_head *sp);
+sp_create_routine(THD *thd, stored_procedure_type type, sp_head *sp);
 
 int
-sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics);
+sp_update_routine(THD *thd, stored_procedure_type type, sp_name *name,
+                  st_sp_chistics *chistics);
 
 int
-sp_drop_routine(THD *thd, int type, sp_name *name);
+sp_drop_routine(THD *thd, stored_procedure_type type, sp_name *name);
 
 
 /**
@@ -166,7 +178,7 @@ public:
   Procedures for handling sets of stored routines used by statement or routine.
 */
 void sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
-                         sp_name *rt, char rt_type);
+                         sp_name *rt, stored_procedure_type rt_type);
 bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                          const MDL_key *key, TABLE_LIST *belong_to_view);
 void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx);
@@ -188,7 +200,7 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup);
 
 sp_head *
 sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
-                               String *name, ulong sql_mode, int type,
+                               String *name, ulong sql_mode, stored_procedure_type type,
                                const char *returns, const char *params,
                                bool *free_sp_head);
 

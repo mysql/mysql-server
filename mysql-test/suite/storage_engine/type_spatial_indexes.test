@@ -1,0 +1,15 @@
+#
+# Indexes on spatial objects
+# (spatial and non-spatial indexes)
+#
+
+--source have_engine.inc
+
+--let $index = $default_index
+--source type_spatial.inc
+
+let $index = SPATIAL;
+--source type_spatial.inc
+
+--source cleanup_engine.inc
+

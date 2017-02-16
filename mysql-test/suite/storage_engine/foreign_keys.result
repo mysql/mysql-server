@@ -1,0 +1,71 @@
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (a <INT_COLUMN>, 
+b <CHAR_COLUMN>,
+<CUSTOM_INDEX> (a)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+CREATE TABLE t2 (a <INT_COLUMN>, 
+b <CHAR_COLUMN>,
+FOREIGN KEY (a) REFERENCES t1(a)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` char(8) DEFAULT NULL,
+  KEY `a` (`a`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`)
+) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1
+INSERT INTO t2 (a,b) VALUES (1,'a'),(2,'b');
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
+INSERT INTO t1 (a,b) VALUES (1,'c'),(2,'d');
+INSERT INTO t2 (a,b) VALUES (1,'a'),(2,'b');
+UPDATE t2 SET a=a+1;
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
+UPDATE t1 SET a=3 WHERE a=2;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
+DELETE FROM t1 WHERE a=2;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
+DELETE FROM t2 WHERE a=2;
+SELECT a,b FROM t1;
+a	b
+1	c
+2	d
+SELECT a,b FROM t2;
+a	b
+1	a
+DROP TABLE t1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+DROP TABLE t2;
+CREATE TABLE t2 (a <INT_COLUMN>, 
+b <CHAR_COLUMN>,
+FOREIGN KEY (a) REFERENCES t1(a)
+ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` char(8) DEFAULT NULL,
+  KEY `a` (`a`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1
+INSERT INTO t2 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d');
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE CASCADE ON UPDATE CASCADE)
+INSERT INTO t1 (a,b) VALUES (3,'a'),(4,'a');
+INSERT INTO t2 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(4,'e'),(3,'a');
+UPDATE t1 SET a=a+1;
+SELECT a,b FROM t2;
+a	b
+5	a
+5	a
+5	b
+5	c
+5	d
+5	e
+DELETE FROM t1 WHERE b='a' LIMIT 2;
+SELECT a,b FROM t2;
+a	b
+TRUNCATE TABLE t1;
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `test`.`t1` (`a`))
+DROP TABLE t2;
+DROP TABLE t1;

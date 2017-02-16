@@ -5,8 +5,8 @@ Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 Warning	1265	Data truncated for column 'c' at row 1
 Warning	1265	Data truncated for column 'd' at row 1
-Warning	1265	Data truncated for column 'a' at row 2
-Warning	1265	Data truncated for column 'b' at row 2
+Warning	1264	Out of range value for column 'a' at row 2
+Warning	1264	Out of range value for column 'b' at row 2
 Warning	1265	Data truncated for column 'd' at row 2
 load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' IGNORE 2 LINES;
 SELECT * from t1;
@@ -20,7 +20,7 @@ load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated 
 Warnings:
 Warning	1265	Data truncated for column 'c' at row 1
 Warning	1265	Data truncated for column 'd' at row 1
-Warning	1265	Data truncated for column 'b' at row 2
+Warning	1264	Out of range value for column 'b' at row 2
 Warning	1265	Data truncated for column 'd' at row 2
 SELECT * from t1;
 a	b	c	d
@@ -531,4 +531,22 @@ LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/mysql' REPLACE INTO TABLE t1
 FIELDS TERMINATED BY 't' LINES TERMINATED BY '';
 Got one of the listed errors
 SET @@sql_mode= @old_mode;
+DROP TABLE t1;
+#
+# MDEV-11079 Regression: LOAD DATA INFILE lost BLOB support using utf8 load files
+#
+CREATE TABLE t1 (a mediumblob NOT NULL) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+LOAD DATA INFILE '../../std_data/loaddata/mdev-11079.txt' INTO TABLE t1 CHARSET utf8 FIELDS TERMINATED BY ';' ENCLOSED BY '"' ESCAPED BY '\\' LINES TERMINATED BY '\n';
+SELECT HEX(a) FROM t1;
+HEX(a)
+25AAABAC
+DROP TABLE t1;
+#
+# MDEV-11631 LOAD DATA INFILE fails to load data with an escape character followed by a multi-byte character
+#
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf8);
+LOAD DATA INFILE '../../std_data/loaddata/mdev-11631.txt' INTO TABLE t1 CHARACTER SET utf8;
+SELECT HEX(a) FROM t1;
+HEX(a)
+C3A4
 DROP TABLE t1;

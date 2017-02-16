@@ -1,0 +1,892 @@
+set @mrr_icp_extra_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+SET NAMES latin1;
+CREATE TABLE t1 
+(s1 char(10) COLLATE latin1_german1_ci,
+s2 char(10) COLLATE latin1_swedish_ci,
+KEY(s1),
+KEY(s2));
+INSERT INTO t1 VALUES ('a','a');
+INSERT INTO t1 VALUES ('b','b');
+INSERT INTO t1 VALUES ('c','c');
+INSERT INTO t1 VALUES ('d','d');
+INSERT INTO t1 VALUES ('e','e');
+INSERT INTO t1 VALUES ('f','f');
+INSERT INTO t1 VALUES ('g','g');
+INSERT INTO t1 VALUES ('h','h');
+INSERT INTO t1 VALUES ('i','i');
+INSERT INTO t1 VALUES ('j','j');
+EXPLAIN SELECT * FROM t1 WHERE s1='a';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	s1	s1	11	const	1	Using index condition
+EXPLAIN SELECT * FROM t1 WHERE s2='a';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	s2	s2	11	const	1	Using index condition
+EXPLAIN SELECT * FROM t1 WHERE s1='a' COLLATE latin1_german1_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	s1	s1	11	const	1	Using index condition
+EXPLAIN SELECT * FROM t1 WHERE s2='a' COLLATE latin1_german1_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	s2	NULL	NULL	NULL	10	Using where
+EXPLAIN SELECT * FROM t1 WHERE s1 BETWEEN 'a' AND 'b' COLLATE latin1_german1_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	s1	s1	11	NULL	2	Using index condition; Rowid-ordered scan
+EXPLAIN SELECT * FROM t1 WHERE s2 BETWEEN 'a' AND 'b' COLLATE latin1_german1_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	s2	NULL	NULL	NULL	10	Using where
+EXPLAIN SELECT * FROM t1 WHERE s1 IN  ('a','b' COLLATE latin1_german1_ci);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	s1	s1	11	NULL	2	Using index condition; Rowid-ordered scan
+EXPLAIN SELECT * FROM t1 WHERE s2 IN  ('a','b' COLLATE latin1_german1_ci);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	s2	NULL	NULL	NULL	10	Using where
+EXPLAIN SELECT * FROM t1 WHERE s1 LIKE 'a' COLLATE latin1_german1_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	s1	s1	11	NULL	1	Using index condition; Rowid-ordered scan
+EXPLAIN SELECT * FROM t1 WHERE s2 LIKE 'a' COLLATE latin1_german1_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	s2	NULL	NULL	NULL	10	Using where
+DROP TABLE t1;
+#
+#
+CREATE TABLE t2 (a varchar(32), b int(11), c float, d double, 
+UNIQUE KEY a (a,b,c), KEY b (b), KEY c (c));
+CREATE TABLE t1 (a varchar(32), b char(3), UNIQUE KEY a (a,b), KEY b (b));
+CREATE TABLE t3 (a varchar(32), b char(3), UNIQUE KEY a (a,b));
+INSERT INTO t3 SELECT * FROM t1;
+EXPLAIN
+SELECT d FROM t1, t2
+WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
+ORDER BY t2.c LIMIT 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT d FROM t1, t2
+WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
+ORDER BY t2.c LIMIT 1;
+d
+DROP TABLE t1,t2,t3;
+#
+#
+create table t1(a int, b int, index(b));
+insert into t1 values (2, 1), (1, 1), (4, NULL), (3, NULL), (6, 2), (5, 2);
+insert into t1 values (2, 11), (1, 11), (4, 14), (3, 14), (6, 12), (5, 12);
+explain select * from t1 where b=1 or b is null order by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref_or_null	b	b	5	const	4	Using index condition; Using where; Using filesort
+select * from t1 where b=1 or b is null order by a;
+a	b
+1	1
+2	1
+3	NULL
+4	NULL
+explain select * from t1 where b=2 or b is null order by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref_or_null	b	b	5	const	3	Using index condition; Using where; Using filesort
+select * from t1 where b=2 or b is null order by a;
+a	b
+3	NULL
+4	NULL
+5	2
+6	2
+drop table t1;
+#
+#
+CREATE TABLE t1 (
+FieldKey varchar(36) NOT NULL default '',
+LongVal bigint(20) default NULL,
+StringVal mediumtext,
+KEY FieldKey (FieldKey),
+KEY LongField (FieldKey,LongVal),
+KEY StringField (FieldKey,StringVal(32))
+);
+INSERT INTO t1 VALUES ('0',3,'0'),('0',2,'1'),('0',1,'2'),('1',2,'1'),('1',1,'3'), ('1',0,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('3',2,'1'),('3',1,'2'),('3','3','3');
+EXPLAIN SELECT * FROM t1 IGNORE INDEX (LongField, StringField) WHERE FieldKey > '2' ORDER BY LongVal;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	FieldKey	FieldKey	38	NULL	4	Using index condition; Rowid-ordered scan; Using filesort
+EXPLAIN SELECT * FROM t1 IGNORE INDEX (FieldKey, LongField) WHERE FieldKey > '2' ORDER BY LongVal;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	StringField	StringField	38	NULL	4	Using where; Using filesort
+SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY LongVal;
+FieldKey	LongVal	StringVal
+3	1	2
+3	2	1
+3	3	3
+DROP TABLE t1;
+#
+#
+CREATE TABLE t1 (a int not null, b int, c int, key(b), key(c), key(a,b), key(c,a));
+INSERT into t1 values (0, null, 0), (0, null, 1), (0, null, 2), (0, null,3), (1,1,4);
+create table t2 (a int not null, b int, c int, key(b), key(c), key(a));
+INSERT into t2 values (1,1,1), (2,2,2);
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+explain select * from t1 force index (a) where a=0 or a=2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	4	NULL	4	Using index condition; Using where; Rowid-ordered scan
+select * from t1 force index (a) where a=0 or a=2;
+a	b	c
+0	NULL	0
+0	NULL	1
+0	NULL	2
+0	NULL	3
+drop table t1;
+#
+#
+create table t1
+(
+pk1 int not null,
+pk2 int not null,
+key1 int not null,
+key2 int not null,
+pktail1ok  int not null,
+pktail2ok  int not null,
+pktail3bad int not null,
+pktail4bad int not null,
+pktail5bad int not null,
+pk2copy int not null,
+badkey  int not null,
+filler1 char (200),
+filler2 char (200),
+key (key1),
+key (key2),
+/* keys with tails from CPK members */
+key (pktail1ok, pk1),
+key (pktail2ok, pk1, pk2),
+key (pktail3bad, pk2, pk1),
+key (pktail4bad, pk1, pk2copy),
+key (pktail5bad, pk1, pk2, pk2copy),
+primary key (pk1, pk2)
+);
+explain select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY,key1	PRIMARY	8	NULL	7	Using index condition; Using where; Rowid-ordered scan
+select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
+pk1	pk2	key1	key2	pktail1ok	pktail2ok	pktail3bad	pktail4bad	pktail5bad	pk2copy	badkey	filler1	filler2
+1	19	0	0	0	0	0	0	0	19	0	filler-data-19	filler2
+1	18	0	0	0	0	0	0	0	18	0	filler-data-18	filler2
+1	17	0	0	0	0	0	0	0	17	0	filler-data-17	filler2
+1	16	0	0	0	0	0	0	0	16	0	filler-data-16	filler2
+1	15	0	0	0	0	0	0	0	15	0	filler-data-15	filler2
+1	14	0	0	0	0	0	0	0	14	0	filler-data-14	filler2
+1	13	0	0	0	0	0	0	0	13	0	filler-data-13	filler2
+1	12	0	0	0	0	0	0	0	12	0	filler-data-12	filler2
+1	11	0	0	0	0	0	0	0	11	0	filler-data-11	filler2
+1	10	0	0	0	0	0	0	0	10	0	filler-data-10	filler2
+drop table t1;
+#
+#
+CREATE TABLE t1 (
+f1 int,
+f4 varchar(32),
+f5 int,
+PRIMARY KEY (f1),
+KEY (f4)
+);
+INSERT INTO t1 VALUES 
+(5,'H',1), (9,'g',0), (527,'i',0), (528,'y',1), (529,'S',6),
+(530,'m',7), (531,'b',2), (532,'N',1), (533,'V',NULL), (534,'l',1),
+(535,'M',0), (536,'w',1), (537,'j',5), (538,'l',0), (539,'n',2),
+(540,'m',2), (541,'r',2), (542,'l',2), (543,'h',3),(544,'o',0),
+(956,'h',0), (957,'g',0), (958,'W',5), (959,'s',3), (960,'w',0),
+(961,'q',0), (962,'e',NULL), (963,'u',7), (964,'q',1), (965,'N',NULL),
+(966,'e',0), (967,'t',3), (968,'e',6), (969,'f',NULL), (970,'j',0),
+(971,'s',3), (972,'I',0), (973,'h',4), (974,'g',1), (975,'s',0),
+(976,'r',3), (977,'x',1), (978,'v',8), (979,'j',NULL), (980,'z',7),
+(981,'t',9), (982,'j',5), (983,'u',NULL), (984,'g',6), (985,'w',1),
+(986,'h',1), (987,'v',0), (988,'v',0), (989,'c',2), (990,'b',7),
+(991,'z',0), (992,'M',1), (993,'u',2), (994,'r',2), (995,'b',4),
+(996,'A',2), (997,'u',0), (998,'a',0), (999,'j',2), (1,'I',2);
+EXPLAIN
+SELECT * FROM t1
+WHERE (f1 < 535  OR  f1 > 985) AND ( f4='r' OR f4 LIKE 'a%' ) ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY,f4	f4	35	NULL	5	Using index condition; Using where; Rowid-ordered scan
+SELECT * FROM t1
+WHERE (f1 < 535  OR  f1 > 985) AND ( f4='r' OR f4 LIKE 'a%' ) ;
+f1	f4	f5
+994	r	2
+996	A	2
+998	a	0
+drop table t1;
+#
+#
+drop table if exists t1,t2,t3;
+--- Testing varchar ---
+--- Testing varchar ---
+create table t1 (v varchar(10), c char(10), t text);
+insert into t1 values('+ ', '+ ', '+ ');
+set @a=repeat(' ',20);
+insert into t1 values (concat('+',@a),concat('+',@a),concat('+',@a));
+Warnings:
+Note	1265	Data truncated for column 'v' at row 1
+select concat('*',v,'*',c,'*',t,'*') from t1;
+concat('*',v,'*',c,'*',t,'*')
+*+ *+*+ *
+*+         *+*+                    *
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `t` text
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+create table t2 like t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `t` text
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+create table t3 select * from t1;
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `t` text
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+alter table t1 modify c varchar(10);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) DEFAULT NULL,
+  `c` varchar(10) DEFAULT NULL,
+  `t` text
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+alter table t1 modify v char(10);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` char(10) DEFAULT NULL,
+  `c` varchar(10) DEFAULT NULL,
+  `t` text
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+alter table t1 modify t varchar(10);
+Warnings:
+Note	1265	Data truncated for column 't' at row 2
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` char(10) DEFAULT NULL,
+  `c` varchar(10) DEFAULT NULL,
+  `t` varchar(10) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select concat('*',v,'*',c,'*',t,'*') from t1;
+concat('*',v,'*',c,'*',t,'*')
+*+*+*+ *
+*+*+*+         *
+drop table t1,t2,t3;
+create table t1 (v varchar(10), c char(10), t text, key(v), key(c), key(t(10)));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `t` text,
+  KEY `v` (`v`),
+  KEY `c` (`c`),
+  KEY `t` (`t`(10))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select count(*) from t1;
+count(*)
+270
+insert into t1 values(concat('a',char(1)),concat('a',char(1)),concat('a',char(1)));
+select count(*) from t1 where v='a';
+count(*)
+10
+select count(*) from t1 where c='a';
+count(*)
+10
+select count(*) from t1 where t='a';
+count(*)
+10
+select count(*) from t1 where v='a  ';
+count(*)
+10
+select count(*) from t1 where c='a  ';
+count(*)
+10
+select count(*) from t1 where t='a  ';
+count(*)
+10
+select count(*) from t1 where v between 'a' and 'a ';
+count(*)
+10
+select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
+count(*)
+10
+select count(*) from t1 where v like 'a%';
+count(*)
+11
+select count(*) from t1 where c like 'a%';
+count(*)
+11
+select count(*) from t1 where t like 'a%';
+count(*)
+11
+select count(*) from t1 where v like 'a %';
+count(*)
+9
+explain select count(*) from t1 where v='a  ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	v	v	13	const	#	Using where; Using index
+explain select count(*) from t1 where c='a  ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	c	c	11	const	#	Using where; Using index
+explain select count(*) from t1 where t='a  ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	t	t	13	const	#	Using where
+explain select count(*) from t1 where v like 'a%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	13	NULL	#	Using where; Using index
+explain select count(*) from t1 where v between 'a' and 'a ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	v	v	13	const	#	Using where; Using index
+explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	v	v	13	const	#	Using where; Using index
+alter table t1 add unique(v);
+ERROR 23000: Duplicate entry '{ ' for key 'v_2'
+alter table t1 add key(v);
+select concat('*',v,'*',c,'*',t,'*') as qq from t1 where v='a';
+qq
+*a*a*a*
+*a *a*a *
+*a  *a*a  *
+*a   *a*a   *
+*a    *a*a    *
+*a     *a*a     *
+*a      *a*a      *
+*a       *a*a       *
+*a        *a*a        *
+*a         *a*a         *
+explain select * from t1 where v='a';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	v,v_2	#	13	const	#	#
+select v,count(*) from t1 group by v limit 10;
+v	count(*)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select v,count(t) from t1 group by v limit 10;
+v	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select v,count(c) from t1 group by v limit 10;
+v	count(c)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select sql_big_result v,count(t) from t1 group by v limit 10;
+v	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select sql_big_result v,count(c) from t1 group by v limit 10;
+v	count(c)
+a	1
+a 	10
+b     	10
+c    	10
+d   	10
+e  	10
+f     	10
+g    	10
+h	10
+i     	10
+select c,count(*) from t1 group by c limit 10;
+c	count(*)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select c,count(t) from t1 group by c limit 10;
+c	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select sql_big_result c,count(t) from t1 group by c limit 10;
+c	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select t,count(*) from t1 group by t limit 10;
+t	count(*)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select t,count(t) from t1 group by t limit 10;
+t	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select sql_big_result t,count(t) from t1 group by t limit 10;
+t	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+alter table t1 modify v varchar(300), drop key v, drop key v_2, add key v (v);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(300) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `t` text,
+  KEY `c` (`c`),
+  KEY `t` (`t`(10)),
+  KEY `v` (`v`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select count(*) from t1 where v='a';
+count(*)
+10
+select count(*) from t1 where v='a  ';
+count(*)
+10
+select count(*) from t1 where v between 'a' and 'a ';
+count(*)
+10
+select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
+count(*)
+10
+select count(*) from t1 where v like 'a%';
+count(*)
+11
+select count(*) from t1 where v like 'a %';
+count(*)
+9
+explain select count(*) from t1 where v='a  ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	v	v	303	const	#	Using where; Using index
+explain select count(*) from t1 where v like 'a%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	303	NULL	#	Using where; Using index
+explain select count(*) from t1 where v between 'a' and 'a ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	v	v	303	const	#	Using where; Using index
+explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	v	v	303	const	#	Using where; Using index
+explain select * from t1 where v='a';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	v	v	303	const	#	#
+select v,count(*) from t1 group by v limit 10;
+v	count(*)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select v,count(t) from t1 group by v limit 10;
+v	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select sql_big_result v,count(t) from t1 group by v limit 10;
+v	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+alter table t1 drop key v, add key v (v(30));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(300) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `t` text,
+  KEY `c` (`c`),
+  KEY `t` (`t`(10)),
+  KEY `v` (`v`(30))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select count(*) from t1 where v='a';
+count(*)
+10
+select count(*) from t1 where v='a  ';
+count(*)
+10
+select count(*) from t1 where v between 'a' and 'a ';
+count(*)
+10
+select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
+count(*)
+10
+select count(*) from t1 where v like 'a%';
+count(*)
+11
+select count(*) from t1 where v like 'a %';
+count(*)
+9
+explain select count(*) from t1 where v='a  ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	v	v	33	const	#	Using where
+explain select count(*) from t1 where v like 'a%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	33	NULL	#	Using where
+explain select count(*) from t1 where v between 'a' and 'a ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	v	v	33	const	#	Using where
+explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	v	v	33	const	#	Using where
+explain select * from t1 where v='a';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	v	v	33	const	#	#
+select v,count(*) from t1 group by v limit 10;
+v	count(*)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select v,count(t) from t1 group by v limit 10;
+v	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select sql_big_result v,count(t) from t1 group by v limit 10;
+v	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+alter table t1 modify v varchar(600), drop key v, add key v (v);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(600) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `t` text,
+  KEY `c` (`c`),
+  KEY `t` (`t`(10)),
+  KEY `v` (`v`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select v,count(*) from t1 group by v limit 10;
+v	count(*)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select v,count(t) from t1 group by v limit 10;
+v	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select sql_big_result v,count(t) from t1 group by v limit 10;
+v	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+drop table t1;
+create table t1 (a char(10), unique (a));
+insert into t1 values ('a   ');
+insert into t1 values ('a ');
+ERROR 23000: Duplicate entry 'a' for key 'a'
+alter table t1 modify a varchar(10);
+insert into t1 values ('a '),('a  '),('a   '),('a         ');
+ERROR 23000: Duplicate entry 'a ' for key 'a'
+insert into t1 values ('a     ');
+ERROR 23000: Duplicate entry 'a     ' for key 'a'
+insert into t1 values ('a          ');
+ERROR 23000: Duplicate entry 'a         ' for key 'a'
+insert into t1 values ('a ');
+ERROR 23000: Duplicate entry 'a ' for key 'a'
+update t1 set a='a  ' where a like 'a%';
+select concat(a,'.') from t1;
+concat(a,'.')
+a  .
+update t1 set a='abc    ' where a like 'a ';
+select concat(a,'.') from t1;
+concat(a,'.')
+a  .
+update t1 set a='a      ' where a like 'a %';
+select concat(a,'.') from t1;
+concat(a,'.')
+a      .
+update t1 set a='a  ' where a like 'a      ';
+select concat(a,'.') from t1;
+concat(a,'.')
+a  .
+drop table t1;
+create table t1 (v varchar(10), c char(10), t text, key(v(5)), key(c(5)), key(t(5)));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL,
+  `t` text,
+  KEY `v` (`v`(5)),
+  KEY `c` (`c`(5)),
+  KEY `t` (`t`(5))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (v char(10) character set utf8);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` char(10) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (v varchar(10), c char(10)) row_format=fixed;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) DEFAULT NULL,
+  `c` char(10) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED
+insert into t1 values('a','a'),('a ','a ');
+select concat('*',v,'*',c,'*') from t1;
+concat('*',v,'*',c,'*')
+*a*a*
+*a *a*
+drop table t1;
+create table t1 (v varchar(65530), key(v(10)));
+insert into t1 values(repeat('a',65530));
+select length(v) from t1 where v=repeat('a',65530);
+length(v)
+65530
+drop table t1;
+create table t1(a int, b varchar(12), key ba(b, a));
+insert into t1 values (1, 'A'), (20, NULL);
+explain select * from t1 where a=20 and b is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	ba	ba	20	const,const	1	Using where; Using index
+select * from t1 where a=20 and b is null;
+a	b
+20	NULL
+drop table t1;
+#
+#
+drop database if exists world;
+CREATE DATABASE world;
+use world;
+CREATE TABLE Country (
+Code char(3) NOT NULL default '',
+Name char(52) NOT NULL default '',
+SurfaceArea float(10,2) NOT NULL default '0.00',
+Population int(11) NOT NULL default '0',
+Capital int(11) default NULL,
+PRIMARY KEY  (Code),
+UNIQUE INDEX (Name)
+);
+CREATE TABLE City (
+ID int(11) NOT NULL auto_increment,
+Name char(35) NOT NULL default '',
+Country char(3) NOT NULL default '',
+Population int(11) NOT NULL default '0',
+PRIMARY KEY  (ID),
+INDEX (Population),
+INDEX (Country) 
+);
+CREATE TABLE CountryLanguage (
+Country char(3) NOT NULL default '',
+Language char(30) NOT NULL default '',
+Percentage float(3,1) NOT NULL default '0.0',
+PRIMARY KEY  (Country, Language),
+INDEX (Percentage)
+);
+SELECT * FROM City
+WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
+AND (Population > 101000 AND Population < 102000);
+ID	Name	Country	Population
+637	Mit Ghamr	EGY	101801
+707	Marbella	ESP	101144
+3792	Tartu	EST	101246
+4032	Cambridge	USA	101355
+explain
+SELECT * FROM City
+WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
+AND (Population > 101000 AND Population < 102000);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Population,Country	Population	4	NULL	#	Using index condition; Using where; Rowid-ordered scan
+explain
+SELECT  * FROM City 
+WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
+(Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	Population,Country	Country,Population	3,4	NULL	#	Using sort_union(Country,Population); Using where
+SELECT  * FROM City 
+WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
+(Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
+ID	Name	Country	Population
+65	Abu Dhabi	ARE	398695
+168	Pabna	BGD	103277
+189	Parakou	BEN	103577
+750	Paarl	ZAF	105768
+2865	Pak Pattan	PAK	107800
+SELECT * FROM City
+WHERE Name LIKE 'M%' AND Population > 7000000;
+ID	Name	Country	Population
+1024	Mumbai (Bombay)	IND	10500000
+3580	Moscow	RUS	8389200
+explain
+SELECT * FROM City
+WHERE Name LIKE 'M%' AND Population > 7000000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Population	Population	4	NULL	#	Using index condition; Using where; Rowid-ordered scan
+explain 
+SELECT * FROM City 
+WHERE Name BETWEEN 'G' AND 'K' AND Population > 500000 AND Country LIKE 'C%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Population,Country	#	#	NULL	#	Using index condition; Using where; Rowid-ordered scan
+SELECT * FROM City 
+WHERE Name BETWEEN 'G' AND 'K' AND Population > 500000 AND Country LIKE 'C%';
+ID	Name	Country	Population
+1895	Harbin	CHN	4289800
+1904	Jinan	CHN	2278100
+1905	Hangzhou	CHN	2190500
+1914	Guiyang	CHN	1465200
+1916	Hefei	CHN	1369100
+1923	Jilin	CHN	1040000
+1927	Hohhot	CHN	916700
+1928	Handan	CHN	840000
+1937	Huainan	CHN	700000
+1938	Jixi	CHN	683885
+1944	Jinzhou	CHN	570000
+1950	Hegang	CHN	520000
+explain
+SELECT * FROM City 
+WHERE  Name BETWEEN 'G' AND 'J' AND Population > 500000 AND Country LIKE 'C%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Population,Country	#	#	NULL	#	Using index condition; Using where; Rowid-ordered scan
+SELECT * FROM City 
+WHERE  Name BETWEEN 'G' AND 'J' AND Population > 500000 AND Country LIKE 'C%';
+ID	Name	Country	Population
+1895	Harbin	CHN	4289800
+1905	Hangzhou	CHN	2190500
+1914	Guiyang	CHN	1465200
+1916	Hefei	CHN	1369100
+1927	Hohhot	CHN	916700
+1928	Handan	CHN	840000
+1937	Huainan	CHN	700000
+1950	Hegang	CHN	520000
+drop database world;
+use test;
+set @mrr_icp_extra_tmp=@@optimizer_switch;

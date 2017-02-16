@@ -1,0 +1,24 @@
+--source include/have_xtradb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo # Verifying that X_LOCK not acquired
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+--connect (conn1,localhost,root,,)
+--connection conn1
+SET autocommit=0;
+SET innodb_fake_changes=1;
+BEGIN;
+SELECT * FROM t1 FOR UPDATE;
+--connection default
+SET innodb_lock_wait_timeout=3;
+--error 1205
+UPDATE t1 SET a=2;
+SELECT * FROM t1 LOCK IN SHARE MODE;
+--connection conn1
+ROLLBACK;
+SET innodb_fake_changes=default;
+DROP TABLE t1;

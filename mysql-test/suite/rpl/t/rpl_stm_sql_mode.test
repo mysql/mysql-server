@@ -1,5 +1,5 @@
--- source include/master-slave.inc
 -- source include/have_binlog_format_statement.inc
+-- source include/master-slave.inc
 
 #
 # Bug #51055    Replication failure on duplicate key + traditional SQL mode

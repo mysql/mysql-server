@@ -1,0 +1,57 @@
+SET @start_global_value = @@global.aria_recover;
+select @@global.aria_recover;
+@@global.aria_recover
+NORMAL
+select @@session.aria_recover;
+ERROR HY000: Variable 'aria_recover' is a GLOBAL variable
+show global variables like 'aria_recover';
+Variable_name	Value
+aria_recover	NORMAL
+show session variables like 'aria_recover';
+Variable_name	Value
+aria_recover	NORMAL
+select * from information_schema.global_variables where variable_name='aria_recover';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_RECOVER	NORMAL
+select * from information_schema.session_variables where variable_name='aria_recover';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_RECOVER	NORMAL
+set global aria_recover=1;
+select @@global.aria_recover;
+@@global.aria_recover
+NORMAL
+set session aria_recover=1;
+ERROR HY000: Variable 'aria_recover' is a GLOBAL variable and should be set with SET GLOBAL
+set global aria_recover=normal;
+select @@global.aria_recover;
+@@global.aria_recover
+NORMAL
+set global aria_recover=backup;
+select @@global.aria_recover;
+@@global.aria_recover
+BACKUP
+set global aria_recover='force';
+select @@global.aria_recover;
+@@global.aria_recover
+FORCE
+set global aria_recover=off;
+select @@global.aria_recover;
+@@global.aria_recover
+OFF
+set global aria_recover='quick,force';
+select @@global.aria_recover;
+@@global.aria_recover
+FORCE,QUICK
+set global aria_recover=16;
+select @@global.aria_recover;
+@@global.aria_recover
+OFF
+set global aria_recover=1.1;
+ERROR 42000: Incorrect argument type to variable 'aria_recover'
+set global aria_recover=1e1;
+ERROR 42000: Incorrect argument type to variable 'aria_recover'
+set global aria_recover="foo";
+ERROR 42000: Variable 'aria_recover' can't be set to the value of 'foo'
+set global aria_recover=32;
+ERROR 42000: Variable 'aria_recover' can't be set to the value of '32'
+SET @@global.aria_recover = @start_global_value;

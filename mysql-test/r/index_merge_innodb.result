@@ -1,3 +1,386 @@
+set @optimizer_switch_save= @@optimizer_switch;
+set optimizer_switch='index_merge_sort_intersection=off';
+#---------------- Index merge test 2 -------------------------------------------
+SET SESSION STORAGE_ENGINE = InnoDB;
+drop table if exists t1,t2;
+create table t1
+(
+key1 int not null,
+key2 int not null,
+INDEX i1(key1),
+INDEX i2(key2)
+);
+explain select * from t1 where key1 < 5 or key2 > 197;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	8	Using sort_union(i1,i2); Using where
+select * from t1 where key1 < 5 or key2 > 197;
+key1	key2
+0	200
+1	199
+2	198
+3	197
+4	196
+explain select * from t1 where key1 < 3 or key2 > 195;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	8	Using sort_union(i1,i2); Using where
+select * from t1 where key1 < 3 or key2 > 195;
+key1	key2
+0	200
+1	199
+2	198
+3	197
+4	196
+alter table t1 add str1 char (255) not null,
+add zeroval int not null default 0,
+add str2 char (255) not null,
+add str3 char (255) not null;
+update t1 set str1='aaa', str2='bbb', str3=concat(key2, '-', key1 div 2, '_' ,if(key1 mod 2 = 0, 'a', 'A'));
+alter table t1 add primary key (str1, zeroval, str2, str3);
+explain select * from t1 where key1 < 5 or key2 > 197;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	8	Using sort_union(i1,i2); Using where
+select * from t1 where key1 < 5 or key2 > 197;
+key1	key2	str1	zeroval	str2	str3
+4	196	aaa	0	bbb	196-2_a
+3	197	aaa	0	bbb	197-1_A
+2	198	aaa	0	bbb	198-1_a
+1	199	aaa	0	bbb	199-0_A
+0	200	aaa	0	bbb	200-0_a
+explain select * from t1 where key1 < 3 or key2 > 195;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	8	Using sort_union(i1,i2); Using where
+select * from t1 where key1 < 3 or key2 > 195;
+key1	key2	str1	zeroval	str2	str3
+4	196	aaa	0	bbb	196-2_a
+3	197	aaa	0	bbb	197-1_A
+2	198	aaa	0	bbb	198-1_a
+1	199	aaa	0	bbb	199-0_A
+0	200	aaa	0	bbb	200-0_a
+drop table t1;
+create table t1 (
+pk    integer not null auto_increment primary key,
+key1  integer,
+key2  integer not null,
+filler char  (200),
+index (key1),
+index (key2)
+);
+show warnings;
+Level	Code	Message
+explain select pk from t1 where key1 = 1 and key2 = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	key1,key2	key1,key2	5,4	NULL	1	Using intersect(key1,key2); Using where; Using index
+select pk from t1 where key2 = 1 and key1 = 1;
+pk
+26
+27
+select pk from t1 ignore index(key1,key2) where key2 = 1 and key1 = 1;
+pk
+26
+27
+drop table t1;
+create table t1 (
+pk int primary key auto_increment,
+key1a  int,
+key2a  int,
+key1b  int,
+key2b  int,
+dummy1 int,
+dummy2 int,
+dummy3 int,
+dummy4 int,
+key3a  int,
+key3b  int,
+filler1 char (200),
+index i1(key1a, key1b),
+index i2(key2a, key2b),
+index i3(key3a, key3b)
+);
+create table t2 (a int);
+insert into t2 values (0),(1),(2),(3),(4),(NULL);
+insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b)
+select A.a, B.a, C.a, D.a, C.a, D.a from t2 A,t2 B,t2 C, t2 D;
+insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b)
+select key1a, key1b, key2a, key2b, key3a, key3b from t1;
+insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b)
+select key1a, key1b, key2a, key2b, key3a, key3b from t1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select count(*) from t1;
+count(*)
+5184
+explain select count(*) from t1 where
+key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	10,10	NULL	REF	Using intersect(i1,i2); Using where; Using index
+select count(*) from t1 where
+key1a = 2 and key1b is null and key2a = 2 and key2b is null;
+count(*)
+4
+explain select count(*) from t1 where
+key1a = 2 and key1b is null and key3a = 2 and key3b is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i3	i1,i3	10,10	NULL	REF	Using intersect(i1,i3); Using where; Using index
+select count(*) from t1 where
+key1a = 2 and key1b is null and key3a = 2 and key3b is null;
+count(*)
+4
+drop table t1,t2;
+create table t1 (
+id1 int,
+id2 date ,
+index idx2 (id1,id2),
+index idx1 (id2)
+);
+insert into t1 values(1,'20040101'), (2,'20040102');
+select * from t1  where id1 = 1  and id2= '20040101';
+id1	id2
+1	2004-01-01
+drop table t1;
+drop view if exists v1;
+CREATE TABLE t1 (
+`oid` int(11) unsigned NOT NULL auto_increment,
+`fk_bbk_niederlassung` int(11) unsigned NOT NULL,
+`fk_wochentag` int(11) unsigned NOT NULL,
+`uhrzeit_von` time NOT NULL COMMENT 'HH:MM',
+`uhrzeit_bis` time NOT NULL COMMENT 'HH:MM',
+`geloescht` tinyint(4) NOT NULL,
+`version` int(5) NOT NULL,
+PRIMARY KEY  (`oid`),
+KEY `fk_bbk_niederlassung` (`fk_bbk_niederlassung`),
+KEY `fk_wochentag` (`fk_wochentag`),
+KEY `ix_version` (`version`)
+) DEFAULT CHARSET=latin1;
+insert  into t1 values
+(1, 38, 1, '08:00:00', '13:00:00', 0, 1),
+(2, 38, 2, '08:00:00', '13:00:00', 0, 1),
+(3, 38, 3, '08:00:00', '13:00:00', 0, 1),
+(4, 38, 4, '08:00:00', '13:00:00', 0, 1),
+(5, 38, 5, '08:00:00', '13:00:00', 0, 1),
+(6, 38, 5, '08:00:00', '13:00:00', 1, 2),
+(7, 38, 3, '08:00:00', '13:00:00', 1, 2),
+(8, 38, 1, '08:00:00', '13:00:00', 1, 2),
+(9, 38, 2, '08:00:00', '13:00:00', 1, 2),
+(10, 38, 4, '08:00:00', '13:00:00', 1, 2),
+(11, 38, 1, '08:00:00', '13:00:00', 0, 3),
+(12, 38, 2, '08:00:00', '13:00:00', 0, 3),
+(13, 38, 3, '08:00:00', '13:00:00', 0, 3),
+(14, 38, 4, '08:00:00', '13:00:00', 0, 3),
+(15, 38, 5, '08:00:00', '13:00:00', 0, 3),
+(16, 38, 4, '08:00:00', '13:00:00', 0, 4),
+(17, 38, 5, '08:00:00', '13:00:00', 0, 4),
+(18, 38, 1, '08:00:00', '13:00:00', 0, 4),
+(19, 38, 2, '08:00:00', '13:00:00', 0, 4),
+(20, 38, 3, '08:00:00', '13:00:00', 0, 4),
+(21, 7, 1, '08:00:00', '13:00:00', 0, 1),
+(22, 7, 2, '08:00:00', '13:00:00', 0, 1),
+(23, 7, 3, '08:00:00', '13:00:00', 0, 1),
+(24, 7, 4, '08:00:00', '13:00:00', 0, 1),
+(25, 7, 5, '08:00:00', '13:00:00', 0, 1);
+create view v1 as
+select
+zeit1.oid AS oid,
+zeit1.fk_bbk_niederlassung AS fk_bbk_niederlassung,
+zeit1.fk_wochentag AS fk_wochentag,
+zeit1.uhrzeit_von AS uhrzeit_von,
+zeit1.uhrzeit_bis AS uhrzeit_bis,
+zeit1.geloescht AS geloescht,
+zeit1.version AS version
+from
+t1 zeit1
+where
+(zeit1.version =
+(select max(zeit2.version) AS `max(version)`
+   from t1 zeit2
+where
+((zeit1.fk_bbk_niederlassung = zeit2.fk_bbk_niederlassung) and
+(zeit1.fk_wochentag = zeit2.fk_wochentag) and
+(zeit1.uhrzeit_von = zeit2.uhrzeit_von) and
+(zeit1.uhrzeit_bis = zeit2.uhrzeit_bis)
+)
+)
+)
+and (zeit1.geloescht = 0);
+select * from v1 where oid = 21;
+oid	fk_bbk_niederlassung	fk_wochentag	uhrzeit_von	uhrzeit_bis	geloescht	version
+21	7	1	08:00:00	13:00:00	0	1
+drop view v1;
+drop table t1;
+CREATE TABLE t1(
+t_cpac varchar(2) NOT NULL,
+t_vers varchar(4) NOT NULL,
+t_rele varchar(2) NOT NULL,
+t_cust varchar(4) NOT NULL,
+filler1 char(250) default NULL,
+filler2 char(250) default NULL,
+PRIMARY KEY (t_cpac,t_vers,t_rele,t_cust),
+UNIQUE KEY IX_4 (t_cust,t_cpac,t_vers,t_rele),
+KEY IX_5 (t_vers,t_rele,t_cust)
+);
+insert into t1 values
+('tm','2.5 ','a ','    ','',''), ('tm','2.5U','a ','stnd','',''),
+('da','3.3 ','b ','    ','',''), ('da','3.3U','b ','stnd','',''),
+('tl','7.6 ','a ','    ','',''), ('tt','7.6 ','a ','    ','',''),
+('bc','B61 ','a ','    ','',''), ('bp','B61 ','a ','    ','',''),
+('ca','B61 ','a ','    ','',''), ('ci','B61 ','a ','    ','',''),
+('cp','B61 ','a ','    ','',''), ('dm','B61 ','a ','    ','',''),
+('ec','B61 ','a ','    ','',''), ('ed','B61 ','a ','    ','',''),
+('fm','B61 ','a ','    ','',''), ('nt','B61 ','a ','    ','',''),
+('qm','B61 ','a ','    ','',''), ('tc','B61 ','a ','    ','',''),
+('td','B61 ','a ','    ','',''), ('tf','B61 ','a ','    ','',''),
+('tg','B61 ','a ','    ','',''), ('ti','B61 ','a ','    ','',''),
+('tp','B61 ','a ','    ','',''), ('ts','B61 ','a ','    ','',''),
+('wh','B61 ','a ','    ','',''), ('bc','B61U','a ','stnd','',''),
+('bp','B61U','a ','stnd','',''), ('ca','B61U','a ','stnd','',''),
+('ci','B61U','a ','stnd','',''), ('cp','B61U','a ','stnd','',''),
+('dm','B61U','a ','stnd','',''), ('ec','B61U','a ','stnd','',''),
+('fm','B61U','a ','stnd','',''), ('nt','B61U','a ','stnd','',''),
+('qm','B61U','a ','stnd','',''), ('tc','B61U','a ','stnd','',''),
+('td','B61U','a ','stnd','',''), ('tf','B61U','a ','stnd','',''),
+('tg','B61U','a ','stnd','',''), ('ti','B61U','a ','stnd','',''),
+('tp','B61U','a ','stnd','',''), ('ts','B61U','a ','stnd','',''),
+('wh','B61U','a ','stnd','','');
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `t_cpac` varchar(2) NOT NULL,
+  `t_vers` varchar(4) NOT NULL,
+  `t_rele` varchar(2) NOT NULL,
+  `t_cust` varchar(4) NOT NULL,
+  `filler1` char(250) DEFAULT NULL,
+  `filler2` char(250) DEFAULT NULL,
+  PRIMARY KEY (`t_cpac`,`t_vers`,`t_rele`,`t_cust`),
+  UNIQUE KEY `IX_4` (`t_cust`,`t_cpac`,`t_vers`,`t_rele`),
+  KEY `IX_5` (`t_vers`,`t_rele`,`t_cust`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+select t_vers,t_rele,t_cust,filler1 from t1 where t_vers = '7.6';
+t_vers	t_rele	t_cust	filler1
+7.6 	a 	    	
+7.6 	a 	    	
+select t_vers,t_rele,t_cust,filler1 from t1 where t_vers = '7.6'
+  and t_rele='a' and t_cust = ' ';
+t_vers	t_rele	t_cust	filler1
+7.6 	a 	    	
+7.6 	a 	    	
+drop table t1;
+create table t1 (
+pk int(11) not null auto_increment,
+a int(11) not null default '0',
+b int(11) not null default '0',
+c int(11) not null default '0',
+filler1 datetime, filler2 varchar(15),
+filler3 longtext,
+kp1 varchar(4), kp2 varchar(7),
+kp3 varchar(2), kp4 varchar(4),
+kp5 varchar(7),
+filler4 char(1),
+primary key (pk),
+key idx1(a,b,c),
+key idx2(c),
+key idx3(kp1,kp2,kp3,kp4,kp5)
+) default charset=latin1;
+set @fill=NULL;
+SELECT COUNT(*) FROM t1 WHERE b = 0 AND a = 0 AND c = 13286427 AND
+kp1='279' AND kp2='ELM0678' AND kp3='6' AND kp4='10' AND  kp5 = 'R        ';
+COUNT(*)
+1
+drop table t1;
+create table t1
+(
+key1 int not null, 
+key2 int not null default 0,
+key3 int not null default 0
+);
+insert into t1(key1) values (1),(2),(3),(4),(5),(6),(7),(8);
+set @d=8;
+insert into t1 (key1) select key1+@d from t1;
+set @d=@d*2;
+insert into t1 (key1) select key1+@d from t1;
+set @d=@d*2;
+insert into t1 (key1) select key1+@d from t1;
+set @d=@d*2;
+insert into t1 (key1) select key1+@d from t1;
+set @d=@d*2;
+insert into t1 (key1) select key1+@d from t1;
+set @d=@d*2;
+insert into t1 (key1) select key1+@d from t1;
+set @d=@d*2;
+insert into t1 (key1) select key1+@d from t1;
+set @d=@d*2;
+alter table t1 add index i2(key2);
+alter table t1 add index i3(key3);
+update t1 set key2=key1,key3=key1;
+explain select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i2,i3	i3,i2	4,4	NULL	REF	Using sort_union(i3,i2); Using where
+select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
+key1	key2	key3
+31	31	31
+32	32	32
+33	33	33
+34	34	34
+35	35	35
+36	36	36
+37	37	37
+38	38	38
+39	39	39
+drop table t1;
+#
+# Bug#56423: Different count with SELECT and CREATE SELECT queries
+#
+CREATE TABLE t1 (
+a INT,
+b INT,
+c INT,
+d INT,
+PRIMARY KEY (a),
+KEY (c),
+KEY bd (b,d)
+);
+INSERT INTO t1 VALUES
+(1, 0, 1, 0),
+(2, 1, 1, 1),
+(3, 1, 1, 1),
+(4, 0, 1, 1);
+EXPLAIN
+SELECT a
+FROM t1
+WHERE c = 1 AND b = 1 AND d = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	c,bd	bd	10	const,const	2	Using where
+CREATE TABLE t2 ( a INT )
+SELECT a
+FROM t1
+WHERE c = 1 AND b = 1 AND d = 1;
+SELECT * FROM t2;
+a
+2
+3
+DROP TABLE t1, t2;
+CREATE TABLE t1( a INT, b INT, KEY(a), KEY(b) );
+INSERT INTO t1 VALUES (1, 2), (1, 2), (1, 2), (1, 2);
+SELECT * FROM t1 FORCE INDEX(a, b) WHERE a = 1 AND b = 2;
+a	b
+1	2
+1	2
+1	2
+1	2
+DROP TABLE t1;
+# Code coverage of fix.
+CREATE TABLE t1 ( a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT);
+INSERT INTO t1 (b) VALUES (1);
+UPDATE t1 SET b = 2 WHERE a = 1;
+SELECT * FROM t1;
+a	b
+1	2
+CREATE TABLE t2 ( a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(1) );
+INSERT INTO t2 (b) VALUES ('a');
+UPDATE t2 SET b = 'b' WHERE a = 1;
+SELECT * FROM t2;
+a	b
+1	b
+DROP TABLE t1, t2;
 #---------------- 2-sweeps read Index merge test 2 -------------------------------
 SET SESSION STORAGE_ENGINE = InnoDB;
 drop table if exists t1;
@@ -271,5 +654,171 @@ EXPLAIN SELECT t1.f1 FROM t1
 WHERE (SELECT COUNT(*) FROM t2 WHERE t2.f3 = 'h' AND t2.f2 = t1.f1) = 0 AND t1.f1 = 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	const	PRIMARY	PRIMARY	4	const	1	Using index
-2	DEPENDENT SUBQUERY	t2	index_merge	f2,f3	f3,f2	2,5	NULL	1	Using intersect(f3,f2); Using where; Using index
+2	SUBQUERY	t2	index_merge	f2,f3	f3,f2	2,5	NULL	1	Using intersect(f3,f2); Using where; Using index
 DROP TABLE t1,t2;
+# 
+# BUG#56862/640419: Wrong result with sort_union index merge when one
+#                   of the merged index scans is the primary key scan
+# 
+CREATE TABLE t1 (
+pk int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+a int,
+b int,
+INDEX idx(a))
+ENGINE=INNODB;
+INSERT INTO t1(a,b) VALUES
+(11, 1100), (2, 200), (1, 100), (14, 1400), (5, 500),
+(3, 300), (17, 1700), (4, 400), (12, 1200), (8, 800),
+(6, 600), (18, 1800), (9, 900), (10, 1000), (7, 700),
+(13, 1300), (15, 1500), (19, 1900), (16, 1600), (20, 2000);
+INSERT INTO t1(a,b) SELECT a+20, b+2000 FROM t1;
+INSERT INTO t1(a,b) SELECT a+40, b+4000 FROM t1;
+INSERT INTO t1(a,b) SELECT a+80, b+8000 FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1 VALUES (1000000, 0, 0);
+SET SESSION sort_buffer_size = 1024*36;
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
+EXPLAIN
+SELECT COUNT(*) FROM 
+(SELECT * FROM t1 FORCE INDEX(primary,idx)
+WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6144	
+2	DERIVED	t1	index_merge	PRIMARY,idx	idx,PRIMARY	5,4	NULL	6144	Using sort_union(idx,PRIMARY); Using where
+SELECT COUNT(*) FROM 
+(SELECT * FROM t1 FORCE INDEX(primary,idx)
+WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
+COUNT(*)
+6145
+EXPLAIN
+SELECT COUNT(*) FROM 
+(SELECT * FROM t1 IGNORE INDEX(idx)
+WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	#	
+2	DERIVED	t1	ALL	PRIMARY	NULL	NULL	NULL	#	Using where
+SELECT COUNT(*) FROM 
+(SELECT * FROM t1 IGNORE INDEX(idx)
+WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
+COUNT(*)
+6145
+DROP TABLE t1;
+set optimizer_switch=@tmp_optimizer_switch;
+#
+# Testcase Backport: BUG#48093: 6.0 Server not processing equivalent IN clauses properly
+#            with Innodb tables
+#
+CREATE TABLE t1 (
+i int(11) DEFAULT NULL,
+v1 varchar(1) DEFAULT NULL,
+v2 varchar(20) DEFAULT NULL,
+KEY i (i),
+KEY v (v1,i)
+) ENGINE=innodb;
+INSERT INTO t1 VALUES (1,'f','no');
+INSERT INTO t1 VALUES (2,'u','yes-u');
+INSERT INTO t1 VALUES (2,'h','yes-h');
+INSERT INTO t1 VALUES (3,'d','no');
+
+SELECT v2
+FROM t1
+WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
+v2
+yes-u
+yes-h
+
+# Should not use index_merge
+EXPLAIN
+SELECT v2
+FROM t1
+WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	i,v	i	5	const	2	Using where
+DROP TABLE t1;
+#
+# BUG#1006164: Multi-table DELETE that uses innodb + index_merge/intersect may fail to delete rows
+#
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (
+pk int auto_increment, 
+zone_id int,
+modified tinyint,
+primary key(pk),
+key (zone_id),
+key (modified)
+) engine=innodb;
+insert into t1 (zone_id, modified) select 0,0 from t0 A, t0 B, t0 C, t0 D;
+update t1 set zone_id=487, modified=9 where pk=7259;
+update t1 set zone_id=487, modified=9 where pk=7260;
+update t1 set zone_id=830, modified=9 where pk=8434;
+update t1 set zone_id=830, modified=9 where pk=8435;
+update t1 set zone_id=830, modified=9 where pk=8436;
+update t1 set zone_id=830, modified=9 where pk=8437;
+select * from t1 where t1.zone_id=830 AND modified=9;
+pk	zone_id	modified
+8434	830	9
+8435	830	9
+8436	830	9
+8437	830	9
+begin;
+DELETE t1 FROM t1 WHERE t1.zone_id=830 AND modified=9;
+commit;
+select * from t1 where t1.zone_id=830 AND modified=9;
+pk	zone_id	modified
+drop table t0, t1;
+#
+# MDEV-376: Wrong result (missing rows) with index_merge+index_merge_intersection, join
+#
+CREATE TABLE t1 (
+a INT, b CHAR(1), c CHAR(1), KEY(a), KEY(b)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (8,'v','v'),(8,'m','m'),(9,'d','d');
+SELECT ta.* FROM t1 AS ta, t1 AS tb
+WHERE ( tb.b != ta.b OR tb.a = ta.a )
+AND ( tb.b = ta.c OR tb.b = ta.b );
+a	b	c
+8	v	v
+8	m	m
+9	d	d
+DROP TABLE t1;
+set optimizer_switch= @optimizer_switch_save;
+#
+# MDEV-10927: Crash When Using sort_union Optimization
+#
+set @tmp_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='index_merge_sort_intersection=on';
+SET SESSION sort_buffer_size = 1024;
+create table t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col1 int(11) NOT NULL,
+col2 int(11) NOT NULL,
+col3 int(11) NOT NULL,
+key2 int(11) NOT NULL,
+col4 int(11) NOT NULL,
+key1 int(11) NOT NULL,
+PRIMARY KEY (pk),
+KEY key1 (key1),
+KEY key2 (key2)
+) ENGINE=InnoDB AUTO_INCREMENT=12860259 DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT;
+create table t2(a int);
+insert into t2 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t3(a int);
+insert into t3 select A.a + B.a* 10 + C.a * 100 + D.a*1000 from t2 A, t2 B, t2 C, t2 D;
+insert into t1 (key1, key2, col1,col2,col3,col4)
+select  a,a, a,a,a,a from t3;
+SELECT sum(col1) FROM t1 FORCE INDEX (key1,key2) WHERE  (key1 between 10 and 8191+10) or (key2= 5);
+sum(col1)
+33632261
+drop table t1,t2,t3;
+set optimizer_switch=@tmp_optimizer_switch;

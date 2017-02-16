@@ -27,11 +27,6 @@
   typedef declarations, even when identical, the definition may not be
   repeated.
 */
-#ifndef CHARSET_INFO_DEFINED
-#define CHARSET_INFO_DEFINED
-typedef struct charset_info_st CHARSET_INFO;
-#endif  /* CHARSET_INFO_DEFINED */
-
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -48,6 +43,7 @@ extern "C" {
 typedef uint my_hash_value_type;
 typedef uchar *(*my_hash_get_key)(const uchar *,size_t*,my_bool);
 typedef void (*my_hash_free_key)(void *);
+typedef my_bool (*my_hash_walk_action)(void *,void *);
 
 typedef struct st_hash {
   size_t key_offset,key_length;		/* Length of key if const length */
@@ -96,6 +92,7 @@ my_bool my_hash_update(HASH *hash, uchar *record, uchar *old_key,
                        size_t old_key_length);
 void my_hash_replace(HASH *hash, HASH_SEARCH_STATE *state, uchar *new_row);
 my_bool my_hash_check(HASH *hash); /* Only in debug library */
+my_bool my_hash_iterate(HASH *hash, my_hash_walk_action action, void *argument);
 
 #define my_hash_clear(H) bzero((char*) (H), sizeof(*(H)))
 #define my_hash_inited(H) ((H)->blength != 0)

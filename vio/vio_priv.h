@@ -2,6 +2,7 @@
 #define VIO_PRIV_INCLUDED
 
 /* Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +40,8 @@ size_t vio_read_pipe(Vio *vio, uchar * buf, size_t size);
 size_t vio_write_pipe(Vio *vio, const uchar * buf, size_t size);
 my_bool vio_is_connected_pipe(Vio *vio);
 int vio_close_pipe(Vio * vio);
+int cancel_io(HANDLE handle, DWORD thread_id);
+int vio_shutdown_pipe(Vio *vio,int how);
 #endif
 
 #ifdef HAVE_SMEM
@@ -46,8 +49,11 @@ size_t vio_read_shared_memory(Vio *vio, uchar * buf, size_t size);
 size_t vio_write_shared_memory(Vio *vio, const uchar * buf, size_t size);
 my_bool vio_is_connected_shared_memory(Vio *vio);
 int vio_close_shared_memory(Vio * vio);
+my_bool vio_shared_memory_has_data(Vio *vio);
+int vio_shutdown_shared_memory(Vio *vio, int how);
 #endif
 
+int    vio_socket_shutdown(Vio *vio, int how);
 void	vio_timeout(Vio *vio,uint which, uint timeout);
 my_bool vio_buff_has_data(Vio *vio);
 

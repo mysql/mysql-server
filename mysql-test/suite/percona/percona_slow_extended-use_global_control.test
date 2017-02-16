@@ -1,0 +1,12 @@
+source include/have_xtradb.inc;
+SELECT sleep(2);
+set global log_slow_verbosity=innodb;
+set global slow_query_log_use_global_control="log_slow_verbosity,long_query_time";
+SELECT sleep(2);
+set global slow_query_log_use_global_control='';
+set global log_slow_verbosity='';
+
+FLUSH LOGS;
+--let grep_file = $MYSQLTEST_VARDIR/mysqld.1/data/percona_slow_query_log-control_global_slow.log
+--let grep_pattern = No InnoDB statistics available for this query
+--source grep.inc

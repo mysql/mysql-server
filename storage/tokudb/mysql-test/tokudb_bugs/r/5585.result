@@ -1,0 +1,247 @@
+drop table if exists t1, t2;
+set local default_storage_engine=innodb;
+set local storage_engine=innodb;
+create table t1 (
+file_id bigint unsigned not null auto_increment primary key,
+file_number bigint not null);
+insert into t1 values (1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8), (9,9), (10,10);
+insert into t1 select t1.file_id+10, t1.file_number+10 from t1;
+insert into t1 select t1.file_id+20, t1.file_number+20 from t1;
+insert into t1 select t1.file_id+40, t1.file_number+40 from t1;
+insert into t1 select t1.file_id+100, t1.file_number+100 from t1;
+insert into t1 select t1.file_id+200, t1.file_number+200 from t1;
+insert into t1 select t1.file_id+400, t1.file_number+400 from t1;
+insert into t1 select t1.file_id+1000, t1.file_number+1000 from t1;
+insert into t1 select t1.file_id+10000, t1.file_number+10000 from t1;
+insert into t1 select t1.file_id+100000, t1.file_number+100000 from t1;
+insert into t1 select t1.file_id+1000000, t1.file_number+1000000 from t1;
+insert into t1 select t1.file_id+10000000, t1.file_number+10000000 from t1;
+insert into t1 select t1.file_id+100000000, t1.file_number+100000000 from t1;
+create table t2 (
+file_id bigint unsigned not null,
+country char(2) not null,
+hits bigint not null,
+insert_ts date not null,
+primary key (file_id, insert_ts, country),
+key idx2 (insert_ts, country));
+insert into t2 select t1.file_id, 'US', 5, now() from t1;
+Warnings:
+Note	1265	Data truncated for column 'insert_ts' at row 1
+Note	1265	Data truncated for column 'insert_ts' at row 2
+Note	1265	Data truncated for column 'insert_ts' at row 3
+Note	1265	Data truncated for column 'insert_ts' at row 4
+Note	1265	Data truncated for column 'insert_ts' at row 5
+Note	1265	Data truncated for column 'insert_ts' at row 6
+Note	1265	Data truncated for column 'insert_ts' at row 7
+Note	1265	Data truncated for column 'insert_ts' at row 8
+Note	1265	Data truncated for column 'insert_ts' at row 9
+Note	1265	Data truncated for column 'insert_ts' at row 10
+Note	1265	Data truncated for column 'insert_ts' at row 11
+Note	1265	Data truncated for column 'insert_ts' at row 12
+Note	1265	Data truncated for column 'insert_ts' at row 13
+Note	1265	Data truncated for column 'insert_ts' at row 14
+Note	1265	Data truncated for column 'insert_ts' at row 15
+Note	1265	Data truncated for column 'insert_ts' at row 16
+Note	1265	Data truncated for column 'insert_ts' at row 17
+Note	1265	Data truncated for column 'insert_ts' at row 18
+Note	1265	Data truncated for column 'insert_ts' at row 19
+Note	1265	Data truncated for column 'insert_ts' at row 20
+Note	1265	Data truncated for column 'insert_ts' at row 21
+Note	1265	Data truncated for column 'insert_ts' at row 22
+Note	1265	Data truncated for column 'insert_ts' at row 23
+Note	1265	Data truncated for column 'insert_ts' at row 24
+Note	1265	Data truncated for column 'insert_ts' at row 25
+Note	1265	Data truncated for column 'insert_ts' at row 26
+Note	1265	Data truncated for column 'insert_ts' at row 27
+Note	1265	Data truncated for column 'insert_ts' at row 28
+Note	1265	Data truncated for column 'insert_ts' at row 29
+Note	1265	Data truncated for column 'insert_ts' at row 30
+Note	1265	Data truncated for column 'insert_ts' at row 31
+Note	1265	Data truncated for column 'insert_ts' at row 32
+Note	1265	Data truncated for column 'insert_ts' at row 33
+Note	1265	Data truncated for column 'insert_ts' at row 34
+Note	1265	Data truncated for column 'insert_ts' at row 35
+Note	1265	Data truncated for column 'insert_ts' at row 36
+Note	1265	Data truncated for column 'insert_ts' at row 37
+Note	1265	Data truncated for column 'insert_ts' at row 38
+Note	1265	Data truncated for column 'insert_ts' at row 39
+Note	1265	Data truncated for column 'insert_ts' at row 40
+Note	1265	Data truncated for column 'insert_ts' at row 41
+Note	1265	Data truncated for column 'insert_ts' at row 42
+Note	1265	Data truncated for column 'insert_ts' at row 43
+Note	1265	Data truncated for column 'insert_ts' at row 44
+Note	1265	Data truncated for column 'insert_ts' at row 45
+Note	1265	Data truncated for column 'insert_ts' at row 46
+Note	1265	Data truncated for column 'insert_ts' at row 47
+Note	1265	Data truncated for column 'insert_ts' at row 48
+Note	1265	Data truncated for column 'insert_ts' at row 49
+Note	1265	Data truncated for column 'insert_ts' at row 50
+Note	1265	Data truncated for column 'insert_ts' at row 51
+Note	1265	Data truncated for column 'insert_ts' at row 52
+Note	1265	Data truncated for column 'insert_ts' at row 53
+Note	1265	Data truncated for column 'insert_ts' at row 54
+Note	1265	Data truncated for column 'insert_ts' at row 55
+Note	1265	Data truncated for column 'insert_ts' at row 56
+Note	1265	Data truncated for column 'insert_ts' at row 57
+Note	1265	Data truncated for column 'insert_ts' at row 58
+Note	1265	Data truncated for column 'insert_ts' at row 59
+Note	1265	Data truncated for column 'insert_ts' at row 60
+Note	1265	Data truncated for column 'insert_ts' at row 61
+Note	1265	Data truncated for column 'insert_ts' at row 62
+Note	1265	Data truncated for column 'insert_ts' at row 63
+Note	1265	Data truncated for column 'insert_ts' at row 64
+insert into t2 select t1.file_id, 'CA', 5, now() from t1;
+Warnings:
+Note	1265	Data truncated for column 'insert_ts' at row 1
+Note	1265	Data truncated for column 'insert_ts' at row 2
+Note	1265	Data truncated for column 'insert_ts' at row 3
+Note	1265	Data truncated for column 'insert_ts' at row 4
+Note	1265	Data truncated for column 'insert_ts' at row 5
+Note	1265	Data truncated for column 'insert_ts' at row 6
+Note	1265	Data truncated for column 'insert_ts' at row 7
+Note	1265	Data truncated for column 'insert_ts' at row 8
+Note	1265	Data truncated for column 'insert_ts' at row 9
+Note	1265	Data truncated for column 'insert_ts' at row 10
+Note	1265	Data truncated for column 'insert_ts' at row 11
+Note	1265	Data truncated for column 'insert_ts' at row 12
+Note	1265	Data truncated for column 'insert_ts' at row 13
+Note	1265	Data truncated for column 'insert_ts' at row 14
+Note	1265	Data truncated for column 'insert_ts' at row 15
+Note	1265	Data truncated for column 'insert_ts' at row 16
+Note	1265	Data truncated for column 'insert_ts' at row 17
+Note	1265	Data truncated for column 'insert_ts' at row 18
+Note	1265	Data truncated for column 'insert_ts' at row 19
+Note	1265	Data truncated for column 'insert_ts' at row 20
+Note	1265	Data truncated for column 'insert_ts' at row 21
+Note	1265	Data truncated for column 'insert_ts' at row 22
+Note	1265	Data truncated for column 'insert_ts' at row 23
+Note	1265	Data truncated for column 'insert_ts' at row 24
+Note	1265	Data truncated for column 'insert_ts' at row 25
+Note	1265	Data truncated for column 'insert_ts' at row 26
+Note	1265	Data truncated for column 'insert_ts' at row 27
+Note	1265	Data truncated for column 'insert_ts' at row 28
+Note	1265	Data truncated for column 'insert_ts' at row 29
+Note	1265	Data truncated for column 'insert_ts' at row 30
+Note	1265	Data truncated for column 'insert_ts' at row 31
+Note	1265	Data truncated for column 'insert_ts' at row 32
+Note	1265	Data truncated for column 'insert_ts' at row 33
+Note	1265	Data truncated for column 'insert_ts' at row 34
+Note	1265	Data truncated for column 'insert_ts' at row 35
+Note	1265	Data truncated for column 'insert_ts' at row 36
+Note	1265	Data truncated for column 'insert_ts' at row 37
+Note	1265	Data truncated for column 'insert_ts' at row 38
+Note	1265	Data truncated for column 'insert_ts' at row 39
+Note	1265	Data truncated for column 'insert_ts' at row 40
+Note	1265	Data truncated for column 'insert_ts' at row 41
+Note	1265	Data truncated for column 'insert_ts' at row 42
+Note	1265	Data truncated for column 'insert_ts' at row 43
+Note	1265	Data truncated for column 'insert_ts' at row 44
+Note	1265	Data truncated for column 'insert_ts' at row 45
+Note	1265	Data truncated for column 'insert_ts' at row 46
+Note	1265	Data truncated for column 'insert_ts' at row 47
+Note	1265	Data truncated for column 'insert_ts' at row 48
+Note	1265	Data truncated for column 'insert_ts' at row 49
+Note	1265	Data truncated for column 'insert_ts' at row 50
+Note	1265	Data truncated for column 'insert_ts' at row 51
+Note	1265	Data truncated for column 'insert_ts' at row 52
+Note	1265	Data truncated for column 'insert_ts' at row 53
+Note	1265	Data truncated for column 'insert_ts' at row 54
+Note	1265	Data truncated for column 'insert_ts' at row 55
+Note	1265	Data truncated for column 'insert_ts' at row 56
+Note	1265	Data truncated for column 'insert_ts' at row 57
+Note	1265	Data truncated for column 'insert_ts' at row 58
+Note	1265	Data truncated for column 'insert_ts' at row 59
+Note	1265	Data truncated for column 'insert_ts' at row 60
+Note	1265	Data truncated for column 'insert_ts' at row 61
+Note	1265	Data truncated for column 'insert_ts' at row 62
+Note	1265	Data truncated for column 'insert_ts' at row 63
+Note	1265	Data truncated for column 'insert_ts' at row 64
+insert into t2 select t1.file_id, 'JP', 5, now() from t1;
+Warnings:
+Note	1265	Data truncated for column 'insert_ts' at row 1
+Note	1265	Data truncated for column 'insert_ts' at row 2
+Note	1265	Data truncated for column 'insert_ts' at row 3
+Note	1265	Data truncated for column 'insert_ts' at row 4
+Note	1265	Data truncated for column 'insert_ts' at row 5
+Note	1265	Data truncated for column 'insert_ts' at row 6
+Note	1265	Data truncated for column 'insert_ts' at row 7
+Note	1265	Data truncated for column 'insert_ts' at row 8
+Note	1265	Data truncated for column 'insert_ts' at row 9
+Note	1265	Data truncated for column 'insert_ts' at row 10
+Note	1265	Data truncated for column 'insert_ts' at row 11
+Note	1265	Data truncated for column 'insert_ts' at row 12
+Note	1265	Data truncated for column 'insert_ts' at row 13
+Note	1265	Data truncated for column 'insert_ts' at row 14
+Note	1265	Data truncated for column 'insert_ts' at row 15
+Note	1265	Data truncated for column 'insert_ts' at row 16
+Note	1265	Data truncated for column 'insert_ts' at row 17
+Note	1265	Data truncated for column 'insert_ts' at row 18
+Note	1265	Data truncated for column 'insert_ts' at row 19
+Note	1265	Data truncated for column 'insert_ts' at row 20
+Note	1265	Data truncated for column 'insert_ts' at row 21
+Note	1265	Data truncated for column 'insert_ts' at row 22
+Note	1265	Data truncated for column 'insert_ts' at row 23
+Note	1265	Data truncated for column 'insert_ts' at row 24
+Note	1265	Data truncated for column 'insert_ts' at row 25
+Note	1265	Data truncated for column 'insert_ts' at row 26
+Note	1265	Data truncated for column 'insert_ts' at row 27
+Note	1265	Data truncated for column 'insert_ts' at row 28
+Note	1265	Data truncated for column 'insert_ts' at row 29
+Note	1265	Data truncated for column 'insert_ts' at row 30
+Note	1265	Data truncated for column 'insert_ts' at row 31
+Note	1265	Data truncated for column 'insert_ts' at row 32
+Note	1265	Data truncated for column 'insert_ts' at row 33
+Note	1265	Data truncated for column 'insert_ts' at row 34
+Note	1265	Data truncated for column 'insert_ts' at row 35
+Note	1265	Data truncated for column 'insert_ts' at row 36
+Note	1265	Data truncated for column 'insert_ts' at row 37
+Note	1265	Data truncated for column 'insert_ts' at row 38
+Note	1265	Data truncated for column 'insert_ts' at row 39
+Note	1265	Data truncated for column 'insert_ts' at row 40
+Note	1265	Data truncated for column 'insert_ts' at row 41
+Note	1265	Data truncated for column 'insert_ts' at row 42
+Note	1265	Data truncated for column 'insert_ts' at row 43
+Note	1265	Data truncated for column 'insert_ts' at row 44
+Note	1265	Data truncated for column 'insert_ts' at row 45
+Note	1265	Data truncated for column 'insert_ts' at row 46
+Note	1265	Data truncated for column 'insert_ts' at row 47
+Note	1265	Data truncated for column 'insert_ts' at row 48
+Note	1265	Data truncated for column 'insert_ts' at row 49
+Note	1265	Data truncated for column 'insert_ts' at row 50
+Note	1265	Data truncated for column 'insert_ts' at row 51
+Note	1265	Data truncated for column 'insert_ts' at row 52
+Note	1265	Data truncated for column 'insert_ts' at row 53
+Note	1265	Data truncated for column 'insert_ts' at row 54
+Note	1265	Data truncated for column 'insert_ts' at row 55
+Note	1265	Data truncated for column 'insert_ts' at row 56
+Note	1265	Data truncated for column 'insert_ts' at row 57
+Note	1265	Data truncated for column 'insert_ts' at row 58
+Note	1265	Data truncated for column 'insert_ts' at row 59
+Note	1265	Data truncated for column 'insert_ts' at row 60
+Note	1265	Data truncated for column 'insert_ts' at row 61
+Note	1265	Data truncated for column 'insert_ts' at row 62
+Note	1265	Data truncated for column 'insert_ts' at row 63
+Note	1265	Data truncated for column 'insert_ts' at row 64
+insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 1 day) from t2;
+insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 2 day) from t2;
+insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 4 day) from t2;
+insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 8 day) from t2;
+insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 16 day) from t2;
+explain
+select t1.file_id, 
+t1.file_number, 
+(select hits from t2 where t2.file_id = t1.file_id and t2.insert_ts = date(date_sub(now(),interval 1 day))) as d
+from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	NULL;	
+2	DEPENDENT SUBQUERY	t2	ref	PRIMARY,idx2	PRIMARY	11	test.t1.file_id,const	NULL;	Using where
+alter table t2 engine=tokudb;
+explain
+select t1.file_id, 
+t1.file_number, 
+(select hits from t2 where t2.file_id = t1.file_id and t2.insert_ts = date(date_sub(now(),interval 1 day))) as d
+from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	NULL;	
+2	DEPENDENT SUBQUERY	t2	ref	PRIMARY,idx2	PRIMARY	11	test.t1.file_id,const	NULL;	Using where
+drop table if exists t1, t2;

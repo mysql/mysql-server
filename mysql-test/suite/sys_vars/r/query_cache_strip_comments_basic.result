@@ -1,0 +1,50 @@
+SET @start_global_value = @@global.query_cache_strip_comments;
+select @@global.query_cache_strip_comments;
+@@global.query_cache_strip_comments
+0
+select @@session.query_cache_strip_comments;
+@@session.query_cache_strip_comments
+0
+show global variables like 'query_cache_strip_comments';
+Variable_name	Value
+query_cache_strip_comments	OFF
+show session variables like 'query_cache_strip_comments';
+Variable_name	Value
+query_cache_strip_comments	OFF
+select * from information_schema.global_variables where variable_name='query_cache_strip_comments';
+VARIABLE_NAME	VARIABLE_VALUE
+QUERY_CACHE_STRIP_COMMENTS	OFF
+select * from information_schema.session_variables where variable_name='query_cache_strip_comments';
+VARIABLE_NAME	VARIABLE_VALUE
+QUERY_CACHE_STRIP_COMMENTS	OFF
+set global query_cache_strip_comments=ON;
+select @@global.query_cache_strip_comments;
+@@global.query_cache_strip_comments
+1
+set global query_cache_strip_comments=OFF;
+select @@global.query_cache_strip_comments;
+@@global.query_cache_strip_comments
+0
+set global query_cache_strip_comments=1;
+select @@global.query_cache_strip_comments;
+@@global.query_cache_strip_comments
+1
+set session query_cache_strip_comments=ON;
+select @@session.query_cache_strip_comments;
+@@session.query_cache_strip_comments
+1
+set session query_cache_strip_comments=OFF;
+select @@session.query_cache_strip_comments;
+@@session.query_cache_strip_comments
+0
+set session query_cache_strip_comments=1;
+select @@session.query_cache_strip_comments;
+@@session.query_cache_strip_comments
+1
+set global query_cache_strip_comments=1.1;
+ERROR 42000: Incorrect argument type to variable 'query_cache_strip_comments'
+set session query_cache_strip_comments=1e1;
+ERROR 42000: Incorrect argument type to variable 'query_cache_strip_comments'
+set session query_cache_strip_comments="foo";
+ERROR 42000: Variable 'query_cache_strip_comments' can't be set to the value of 'foo'
+SET @@global.query_cache_strip_comments = @start_global_value;

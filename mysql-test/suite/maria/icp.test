@@ -1,0 +1,17 @@
+#
+# ICP/Maria tests (Index Condition Pushdown)
+#
+
+--source include/have_maria.inc
+
+set @save_storage_engine= @@storage_engine;
+set storage_engine=Maria;
+set @maria_icp_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+
+--source include/icp_tests.inc
+
+set storage_engine= @save_storage_engine;
+set optimizer_switch=@maria_icp_tmp;
+
+

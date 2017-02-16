@@ -1,0 +1,8 @@
+create table t1 as select * from mysql.user;
+truncate table mysql.user;
+flush privileges;
+connect(localhost,u1,,test,MASTER_PORT,MASTER_SOCKET);
+Got one of the listed errors
+insert mysql.user select * from t1;
+drop table t1;
+flush privileges;

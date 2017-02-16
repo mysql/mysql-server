@@ -1,0 +1,103 @@
+# Verify that index and range scans are not slow
+# on tables during create select statements
+# due to tokudb bulk fetch not being used
+
+source include/have_tokudb.inc;
+source include/big_test.inc;
+set default_storage_engine='tokudb';
+disable_warnings;
+drop table if exists t1,t2;
+enable_warnings;
+
+let $debug = 0;
+
+CREATE TABLE `t1` (
+  `num` int(10) unsigned auto_increment NOT NULL,
+  `val` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`num`)
+);
+
+# put 1M rows into t1
+INSERT INTO t1 values (null,null);
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+SELECT count(*) FROM t1;
+
+let $maxq = 10;
+    
+set tokudb_bulk_fetch=ON;
+let $s = `select unix_timestamp()`;
+let $i = 0;
+while ($i < $maxq) {
+    CREATE TABLE t2 AS SELECT count(*) from t1;
+    DROP TABLE t2;
+    inc $i;
+}
+let $time_elapsed_on = `select unix_timestamp() - $s`;
+
+
+set tokudb_bulk_fetch=OFF;
+let $s = `select unix_timestamp()`;
+let $i = 0;
+while ($i < $maxq) {
+    CREATE TABLE t2 AS SELECT count(*) from t1;
+    DROP TABLE t2;
+    inc $i;
+}
+
+let $time_elapsed_off = `select unix_timestamp() - $s`;
+
+# Check that the time with bulk fetch off is greater that with bulk fetch on
+let $verdict = `select $time_elapsed_on > 0 && $time_elapsed_off > $time_elapsed_on`;
+echo $verdict;
+if ($debug) { echo index $verdict $time_elapsed_on $time_elapsed_off; }
+if (!$verdict) { echo index $time_elapsed_on $time_elapsed_off; }
+
+let $maxq = 30;
+
+set tokudb_bulk_fetch=ON;
+let $s = `select unix_timestamp()`;
+let $i = 0;
+while ($i < $maxq) {
+    CREATE TABLE t2 AS SELECT count(*) from t1 where num > 700000;
+    DROP TABLE t2;
+    inc $i;
+}
+let $time_elapsed_on = `select unix_timestamp() - $s`;
+
+set tokudb_bulk_fetch=OFF;
+let $s = `select unix_timestamp()`;
+let $i = 0;
+while ($i < $maxq) {
+    CREATE TABLE t2 AS SELECT count(*) from t1 where num > 700000;
+    DROP TABLE t2;
+    inc $i;
+}
+
+let $time_elapsed_off = `select unix_timestamp() - $s`;
+
+# Check that the time with bulk fetch off is greater that with bulk fetch on
+let $verdict = `select $time_elapsed_on > 0 && $time_elapsed_off > $time_elapsed_on`;
+echo $verdict;
+if ($debug) { echo range $verdict $time_elapsed_on $time_elapsed_off; }
+if (!$verdict) { echo range $time_elapsed_on $time_elapsed_off; }
+
+drop table t1;

@@ -1372,6 +1372,42 @@ os_file_set_nocache(
 #endif
 }
 
+
+#ifdef __linux__
+#include <sys/ioctl.h>
+#ifndef DFS_IOCTL_ATOMIC_WRITE_SET 
+#define DFS_IOCTL_ATOMIC_WRITE_SET _IOW(0x95, 2, uint)
+#endif
+static int os_file_set_atomic_writes(os_file_t file, const char *name) 
+{
+	int atomic_option = 1;
+
+	int ret = ioctl (file, DFS_IOCTL_ATOMIC_WRITE_SET, &atomic_option);
+
+	if (ret) {
+		fprintf(stderr, 
+		"InnoDB : can't use atomic write on %s, errno %d\n",
+		name, errno);
+		return ret;
+	}
+	return ret;
+}
+#else 
+static int os_file_set_atomic_writes(os_file_t file, const char *name) 
+{
+	fprintf(stderr,
+	"InnoDB : can't use atomic writes on %s - not implemented on this platform."
+	"innodb_use_atomic_writes needs to be 0.\n", 
+	name);
+#ifdef _WIN32
+	SetLastError(ERROR_INVALID_FUNCTION);
+#else
+	errno = EINVAL;
+#endif
+	return -1;
+}
+#endif
+
 /****************************************************************//**
 NOTE! Use the corresponding macro os_file_create(), not directly
 this function!
@@ -1523,6 +1559,13 @@ try_again:
 		*success = TRUE;
 	}
 
+	if (srv_use_atomic_writes && type == OS_DATA_FILE && 
+		os_file_set_atomic_writes(file, name)) {
+			 CloseHandle(file);
+			*success = FALSE;
+			file = INVALID_HANDLE_VALUE;
+	}
+
 	return(file);
 #else /* __WIN__ */
 	os_file_t	file;
@@ -1637,6 +1680,12 @@ try_again:
 		file = -1;
 	}
 #endif /* USE_FILE_LOCK */
+	if (srv_use_atomic_writes && type == OS_DATA_FILE 
+		&& os_file_set_atomic_writes(file, name)) {
+			close(file);
+			*success = FALSE;
+			file = -1;
+	}
 
 	return(file);
 #endif /* __WIN__ */
@@ -1980,6 +2029,28 @@ os_file_set_size(
 
 	current_size = 0;
 	desired_size = (ib_int64_t)size + (((ib_int64_t)size_high) << 32);
+
+#ifdef HAVE_POSIX_FALLOCATE
+        if (srv_use_posix_fallocate) {
+		if (posix_fallocate(file, current_size, desired_size) == -1) {
+			fprintf(stderr,
+		 	"InnoDB: Error: preallocating data for"
+			" file %s failed at\n"
+			"InnoDB: offset 0 size %lld %lld. Operating system"
+			" error number %d.\n"
+			"InnoDB: Check that the disk is not full"
+			" or a disk quota exceeded.\n"
+			"InnoDB: Some operating system error numbers"
+			" are described at\n"
+			"InnoDB: "
+			REFMAN "operating-system-error-codes.html\n",
+			name,  (long long)size_high,  (long long)size, errno);
+
+			return (FALSE);
+		}
+		return (TRUE);
+	}
+#endif
 
 	/* Write up to 1 megabyte at a time. */
 	buf_size = ut_min(64, (ulint) (desired_size / UNIV_PAGE_SIZE))
@@ -2823,7 +2894,7 @@ retry:
 			"InnoDB: Check also that the disk is not full"
 			" or a disk quota exceeded.\n",
 			name, (ulong) offset_high, (ulong) offset,
-			(ulong) n, (ulong) len, (ulong) err);
+			(ulong) n, ret ? len : 0, (ulong) err);
 
 		if (strerror((int)err) != NULL) {
 			fprintf(stderr,
@@ -3387,12 +3458,23 @@ os_aio_array_create(
 		if (!os_aio_linux_create_io_ctx(n/n_segments,
 					   &array->aio_ctx[i])) {
 			/* If something bad happened during aio setup
-			we should call it a day and return right away.
-			We don't care about any leaks because a failure
-			to initialize the io subsystem means that the
-			server (or atleast the innodb storage engine)
-			is not going to startup. */
-			return(NULL);
+			we disable linux native aio.
+                        The disadvantage will be a small memory leak
+                        at shutdown but that's ok compared to a crash
+                        or a not working server.
+                        This frequently happens when running the test suite
+                        with many threads on a system with low fs.aio-max-nr!
+                        */
+
+                        fprintf(stderr,
+                                "  InnoDB: Warning: Linux Native AIO disabled "
+                                "because os_aio_linux_create_io_ctx() "
+                                "failed. To get rid of this warning you can "
+                                "try increasing system "
+                                "fs.aio-max-nr to 1048576 or larger or "
+                                "setting innodb_use_native_aio = 0 in my.cnf\n");
+                        srv_use_native_aio = FALSE;
+			goto skip_native_aio;
 		}
 	}
 

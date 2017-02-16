@@ -1,9 +1,9 @@
+--source include/have_innodb.inc
 # This is the test for bug 44369. We should
 # block table creation with columns match
 # some innodb internal reserved key words,
 # both case sensitively and insensitely.
 
---source include/have_innodb.inc
 
 # This create table operation should fail.
 --error ER_WRONG_COLUMN_NAME

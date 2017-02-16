@@ -12,7 +12,7 @@
 # We want master to be alive so that it can replicate the statement to
 # the slave. So in the test case, we must not crash the
 # master. Instead, we fake the crash by just not writing the XID event
-# to the binlog. This is done by the @@debug='d,do_not_write_xid'
+# to the binlog. This is done by the @@debug_dbug='d,do_not_write_xid'
 # flag. This, in turn, requires us to do 'source
 # include/have_debug.inc'
 #
@@ -48,7 +48,7 @@ SHOW CREATE TABLE tinnodb;
 
 # do_not_write_xid stops the master from writing an XID event.
 set @old_debug= @@debug;
-set @@debug= 'd,do_not_write_xid';
+set @@debug_dbug= 'd,do_not_write_xid';
 
 
 --echo ==== Test ====
@@ -88,7 +88,7 @@ SELECT * FROM tinnodb ORDER BY a;
 --echo [on master]
 connection master;
 DROP TABLE tinnodb;
-set @@debug= @old_debug;
+set @@debug_dbug= @old_debug;
 
 --echo [on slave]
 connection slave;

@@ -1,0 +1,22 @@
+# DB-811 test that alter table t2 updates both the schema (FRM) and the data (tokudb files)
+
+source include/have_tokudb.inc;
+source include/have_innodb.inc;
+source include/have_partition.inc;
+disable_warnings;
+drop table if exists t2,t3,t4;
+enable_warnings;
+
+CREATE TABLE t3(a INT,b INT,UNIQUE KEY (a,b)) engine=TOKUDB;
+CREATE TABLE t4(c1 FLOAT ZEROFILL) engine=innodb;
+CREATE TABLE t2(a int KEY,b CHAR (1)) engine=TOKUDB PARTITION BY HASH (a) PARTITIONS 13;
+LOCK TABLES t4 WRITE,t3 WRITE,t2 WRITE;
+INSERT INTO t2(a)VALUES (REPEAT(0,1));
+ALTER TABLE t2 ADD COLUMN(c INT);
+alter table t4 add column c int;
+UPDATE t2 SET a=1;
+select * from t2;
+unlock tables;
+
+drop table t2,t3,t4;
+

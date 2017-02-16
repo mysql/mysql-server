@@ -1,0 +1,19 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # Bug #725050: print keyuse info when  hash join is used 
+--echo #
+
+create table t1 (a int, b int);
+insert into t1 values (2,2), (1,1);
+create table t2 (a int);
+insert into t2 values (2), (3);
+
+set session join_cache_level=3;
+set @@debug_dbug= 'd,opt';
+
+explain select t1.b from t1,t2 where t1.b=t2.a;
+select t1.b from t1,t2 where t1.b=t2.a;
+
+set session join_cache_level=default;
+drop table t1,t2;

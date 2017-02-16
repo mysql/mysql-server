@@ -37,7 +37,6 @@
                              CLIENT_PLUGIN_AUTH)
 
 #define read_user_name(A) {}
-#undef HAVE_SMEM
 #undef _CUSTOMCONFIG_
 
 #define mysql_server_init(a,b,c) mysql_client_plugin_init()

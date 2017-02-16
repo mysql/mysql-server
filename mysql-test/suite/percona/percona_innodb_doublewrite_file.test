@@ -1,0 +1,2 @@
+--source include/have_xtradb.inc
+show variables like 'innodb_doublewrite%';

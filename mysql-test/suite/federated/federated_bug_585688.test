@@ -1,0 +1,53 @@
+source include/federated.inc;
+
+--echo #
+--echo # Bug #585688: maridb crashes in federatedx code
+--echo #
+connection slave;
+CREATE TABLE federated.t1(a TEXT);
+INSERT INTO federated.t1 VALUES('abc'), ('gh'), ('f'), ('ijk'), ('de');
+
+connect (conn_1,127.0.0.1,root,,,$MASTER_MYPORT);
+
+connection master;
+flush tables;
+
+connection conn_1;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.t1(a TEXT) ENGINE=FEDERATED
+  CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+disconnect conn_1;
+
+connection master;
+flush tables;
+
+connect (conn_2,127.0.0.1,root,,,$MASTER_MYPORT);
+connect (conn_3,127.0.0.1,root,,,$MASTER_MYPORT);
+
+connection conn_2;
+describe federated.t1;
+
+connection conn_3;
+--replace_column 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
+show table status from federated;
+
+disconnect conn_2;
+connect (conn_4,127.0.0.1,root,,,$MASTER_MYPORT);
+
+connection conn_4;
+--replace_column 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
+show table status from federated;
+
+disconnect conn_3;
+disconnect conn_4;
+
+connection master;
+DROP TABLE federated.t1;
+
+connection slave;
+DROP TABLE federated.t1;
+
+connection default;
+
+source include/federated_cleanup.inc;
+

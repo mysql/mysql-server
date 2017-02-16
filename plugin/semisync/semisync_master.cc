@@ -1,5 +1,6 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,11 +48,7 @@ static int getWaitTime(const struct timespec& start_ts);
 
 static unsigned long long timespec_to_usec(const struct timespec *ts)
 {
-#ifdef HAVE_STRUCT_TIMESPEC
   return (unsigned long long) ts->tv_sec * TIME_MILLION + ts->tv_nsec / TIME_THOUSAND;
-#else
-  return ts->tv.i64 / 10;
-#endif /* __WIN__ */
 }
 
 /*******************************************************************************
@@ -615,6 +612,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
 
     set_timespec(start_ts, 0);
 
+    DEBUG_SYNC(current_thd, "rpl_semisync_master_commit_trx_before_lock");
     /* Acquire the mutex. */
     lock();
 
@@ -633,7 +631,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
                             (int)is_on());
     }
 
-    while (is_on())
+    while (is_on() && !thd_killed(NULL))
     {
       if (reply_file_name_inited_)
       {
@@ -682,20 +680,11 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
       }
 
       /* Calcuate the waiting period. */
-#ifndef HAVE_STRUCT_TIMESPEC
-      abstime.tv.i64 = start_ts.tv.i64 + (__int64)wait_timeout_ * TIME_THOUSAND * 10;
-      abstime.max_timeout_msec= (long)wait_timeout_;
-#else
-      unsigned long long diff_nsecs =
-        start_ts.tv_nsec + (unsigned long long)wait_timeout_ * TIME_MILLION;
-      abstime.tv_sec = start_ts.tv_sec;
-      while (diff_nsecs >= TIME_BILLION)
-      {
-        abstime.tv_sec++;
-        diff_nsecs -= TIME_BILLION;
-      }
-      abstime.tv_nsec = diff_nsecs;
-#endif /* __WIN__ */
+      long diff_secs = (long) (wait_timeout_ / TIME_THOUSAND); 
+      long diff_nsecs = (long) ((wait_timeout_ % TIME_THOUSAND) * TIME_MILLION);
+      long nsecs = start_ts.tv_nsec + diff_nsecs;
+      abstime.tv_sec = start_ts.tv_sec + diff_secs + nsecs/TIME_BILLION;
+      abstime.tv_nsec = nsecs % TIME_BILLION;
       
       /* In semi-synchronous replication, we wait until the binlog-dump
        * thread has received the reply on the relevant binlog segment from the
@@ -750,15 +739,16 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
       }
     }
 
-  l_end:
     /*
       At this point, the binlog file and position of this transaction
       must have been removed from ActiveTranx.
     */
-    assert(!getMasterEnabled() ||
+    assert(thd_killed(NULL) ||
+           !getMasterEnabled() ||
            !active_tranxs_->is_tranx_end_pos(trx_wait_binlog_name,
                                              trx_wait_binlog_pos));
     
+  l_end:
     /* Update the status counter. */
     if (is_on())
       rpl_semi_sync_master_yes_transactions++;
@@ -1053,9 +1043,10 @@ int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,
   ulong    log_file_len = 0;
   ulong    packet_len;
   int      result = -1;
-
   struct timespec start_ts;
   ulong trc_level = trace_level_;
+
+  LINT_INIT_STRUCT(start_ts);
 
   function_enter(kWho);
 

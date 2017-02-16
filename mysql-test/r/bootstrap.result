@@ -14,7 +14,7 @@ End of 5.1 tests
 SHOW VARIABLES LIKE 'have_innodb';
 Variable_name	Value
 have_innodb	DISABLED
-SELECT SUPPORT FROM INFORMATION_SCHEMA.ENGINES WHERE engine='innodb';
-SUPPORT
-NO
+SELECT 'bug' as '' FROM INFORMATION_SCHEMA.ENGINES WHERE engine='innodb'
+ and SUPPORT='YES';
+
 End of 5.5 tests

@@ -1,0 +1,366 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, Google Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Google, Inc. Those modifications are gratefully acknowledged and are described
+briefly in the InnoDB documentation. The contributions by Google are
+incorporated with their permission, and subject to the conditions contained in
+the file COPYING.Google.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+
+*****************************************************************************/
+
+/**************************************************//**
+@file include/sync0sync.ic
+Mutex, the basic synchronization primitive
+
+Created 9/5/1995 Heikki Tuuri
+*******************************************************/
+
+/******************************************************************//**
+Sets the waiters field in a mutex. */
+UNIV_INTERN
+void
+mutex_set_waiters(
+/*==============*/
+	mutex_t*	mutex,	/*!< in: mutex */
+	ulint		n);	/*!< in: value to set */
+/******************************************************************//**
+Reserves a mutex for the current thread. If the mutex is reserved, the
+function spins a preset time (controlled by SYNC_SPIN_ROUNDS) waiting
+for the mutex before suspending the thread. */
+UNIV_INTERN
+void
+mutex_spin_wait(
+/*============*/
+	mutex_t*	mutex,		/*!< in: pointer to mutex */
+	const char*	file_name,	/*!< in: file name where mutex
+					requested */
+	ulint		line);		/*!< in: line where requested */
+#ifdef UNIV_SYNC_DEBUG
+/******************************************************************//**
+Sets the debug information for a reserved mutex. */
+UNIV_INTERN
+void
+mutex_set_debug_info(
+/*=================*/
+	mutex_t*	mutex,		/*!< in: mutex */
+	const char*	file_name,	/*!< in: file where requested */
+	ulint		line);		/*!< in: line where requested */
+#endif /* UNIV_SYNC_DEBUG */
+/******************************************************************//**
+Releases the threads waiting in the primary wait array for this mutex. */
+UNIV_INTERN
+void
+mutex_signal_object(
+/*================*/
+	mutex_t*	mutex);	/*!< in: mutex */
+
+/******************************************************************//**
+Performs an atomic test-and-set instruction to the lock_word field of a
+mutex.
+@return	the previous value of lock_word: 0 or 1 */
+UNIV_INLINE
+byte
+mutex_test_and_set(
+/*===============*/
+	mutex_t*	mutex)	/*!< in: mutex */
+{
+#if defined(HAVE_ATOMIC_BUILTINS)
+	return(os_atomic_test_and_set(&mutex->lock_word));
+#else
+	ibool	ret;
+
+	ret = os_fast_mutex_trylock_full_barrier(&(mutex->os_fast_mutex));
+
+	if (ret == 0) {
+		/* We check that os_fast_mutex_trylock does not leak
+		and allow race conditions */
+		ut_a(mutex->lock_word == 0);
+
+		mutex->lock_word = 1;
+	}
+
+	return((byte)ret);
+#endif
+}
+
+/******************************************************************//**
+Performs a reset instruction to the lock_word field of a mutex. This
+instruction also serializes memory operations to the program order. */
+UNIV_INLINE
+void
+mutex_reset_lock_word(
+/*==================*/
+	mutex_t*	mutex)	/*!< in: mutex */
+{
+#if defined(HAVE_ATOMIC_BUILTINS)
+	os_atomic_clear(&mutex->lock_word);
+#else
+	mutex->lock_word = 0;
+
+	os_fast_mutex_unlock_full_barrier(&(mutex->os_fast_mutex));
+#endif
+}
+
+/******************************************************************//**
+Gets the value of the lock word. */
+UNIV_INLINE
+lock_word_t
+mutex_get_lock_word(
+/*================*/
+	const mutex_t*	mutex)	/*!< in: mutex */
+{
+	ut_ad(mutex);
+
+	return(mutex->lock_word);
+}
+
+/******************************************************************//**
+Gets the waiters field in a mutex.
+@return	value to set */
+UNIV_INLINE
+ulint
+mutex_get_waiters(
+/*==============*/
+	const mutex_t*	mutex)	/*!< in: mutex */
+{
+	const volatile ulint*	ptr;	/*!< declared volatile to ensure that
+					the value is read from memory */
+	ut_ad(mutex);
+
+	ptr = &(mutex->waiters);
+
+	return(*ptr);		/* Here we assume that the read of a single
+				word from memory is atomic */
+}
+
+/******************************************************************//**
+NOTE! Use the corresponding macro mutex_exit(), not directly this function!
+Unlocks a mutex owned by the current thread. */
+UNIV_INLINE
+void
+mutex_exit_func(
+/*============*/
+	mutex_t*	mutex)	/*!< in: pointer to mutex */
+{
+	ut_ad(mutex_own(mutex));
+
+	ut_d(mutex->thread_id = (os_thread_id_t) ULINT_UNDEFINED);
+
+#ifdef UNIV_SYNC_DEBUG
+	sync_thread_reset_level(mutex);
+#endif
+	mutex_reset_lock_word(mutex);
+
+	/* A problem: we assume that mutex_reset_lock word
+	is a memory barrier, that is when we read the waiters
+	field next, the read must be serialized in memory
+	after the reset. A speculative processor might
+	perform the read first, which could leave a waiting
+	thread hanging indefinitely.
+
+	Our current solution call every second
+	sync_arr_wake_threads_if_sema_free()
+	to wake up possible hanging threads if
+	they are missed in mutex_signal_object. */
+
+	/* We add a memory barrier to prevent reading of the
+	number of waiters before releasing the lock. */
+
+	os_mb;
+
+	if (mutex_get_waiters(mutex) != 0) {
+
+		mutex_signal_object(mutex);
+	}
+
+#ifdef UNIV_SYNC_PERF_STAT
+	mutex_exit_count++;
+#endif
+}
+
+/******************************************************************//**
+Locks a mutex for the current thread. If the mutex is reserved, the function
+spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting for the mutex
+before suspending the thread. */
+UNIV_INLINE
+void
+mutex_enter_func(
+/*=============*/
+	mutex_t*	mutex,		/*!< in: pointer to mutex */
+	const char*	file_name,	/*!< in: file name where locked */
+	ulint		line)		/*!< in: line where locked */
+{
+	ut_ad(mutex_validate(mutex));
+	ut_ad(!mutex_own(mutex));
+
+	/* Note that we do not peek at the value of lock_word before trying
+	the atomic test_and_set; we could peek, and possibly save time. */
+
+	ut_d(mutex->count_using++);
+
+	if (!mutex_test_and_set(mutex)) {
+		ut_d(mutex->thread_id = os_thread_get_curr_id());
+#ifdef UNIV_SYNC_DEBUG
+		mutex_set_debug_info(mutex, file_name, line);
+#endif
+		return;	/* Succeeded! */
+	}
+
+	mutex_spin_wait(mutex, file_name, line);
+}
+
+#ifdef UNIV_PFS_MUTEX
+/******************************************************************//**
+NOTE! Please use the corresponding macro mutex_enter(), not directly
+this function!
+This is a performance schema instrumented wrapper function for
+mutex_enter_func(). */
+UNIV_INLINE
+void
+pfs_mutex_enter_func(
+/*=================*/
+	mutex_t*	mutex,	/*!< in: pointer to mutex */
+	const char*	file_name,	/*!< in: file name where locked */
+	ulint		line)		/*!< in: line where locked */
+{
+	struct PSI_mutex_locker*	locker = NULL;
+	PSI_mutex_locker_state		state;
+	int	result = 0;
+
+	if (UNIV_LIKELY(PSI_server && mutex->pfs_psi)) {
+		locker = PSI_server->get_thread_mutex_locker(
+				&state, mutex->pfs_psi, PSI_MUTEX_LOCK);
+		if (locker) {
+			PSI_server->start_mutex_wait(locker, file_name, line);
+		}
+	}
+
+	mutex_enter_func(mutex, file_name, line);
+
+	if (locker) {
+		PSI_server->end_mutex_wait(locker, result);
+	}
+}
+/********************************************************************//**
+NOTE! Please use the corresponding macro mutex_enter_nowait(), not directly
+this function!
+This is a performance schema instrumented wrapper function for
+mutex_enter_nowait_func.
+@return 0 if succeed, 1 if not */
+UNIV_INLINE
+ulint
+pfs_mutex_enter_nowait_func(
+/*========================*/
+	mutex_t*	mutex,		/*!< in: pointer to mutex */
+	const char*	file_name,	/*!< in: file name where mutex
+					requested */
+	ulint		line)		/*!< in: line where requested */
+{
+	ulint	ret;
+	struct PSI_mutex_locker*	locker = NULL;
+	PSI_mutex_locker_state		state;
+
+	if (UNIV_LIKELY(PSI_server && mutex->pfs_psi)) {
+		locker = PSI_server->get_thread_mutex_locker(
+				&state, mutex->pfs_psi, PSI_MUTEX_TRYLOCK);
+		if (locker) {
+			PSI_server->start_mutex_wait(locker, file_name, line);
+		}
+	}
+
+	ret = mutex_enter_nowait_func(mutex, file_name, line);
+
+	if (locker) {
+		PSI_server->end_mutex_wait(locker, ret);
+	}
+
+	return(ret);
+}
+/******************************************************************//**
+NOTE! Please use the corresponding macro mutex_exit(), not directly
+this function!
+A wrap function of mutex_exit_func() with performance schema instrumentation.
+Unlocks a mutex owned by the current thread. */
+UNIV_INLINE
+void
+pfs_mutex_exit_func(
+/*================*/
+	mutex_t*	mutex)	/*!< in: pointer to mutex */
+{
+	if (UNIV_LIKELY(PSI_server && mutex->pfs_psi)) {
+		PSI_server->unlock_mutex(mutex->pfs_psi);
+	}
+
+	mutex_exit_func(mutex);
+}
+
+/******************************************************************//**
+NOTE! Please use the corresponding macro mutex_create(), not directly
+this function!
+A wrapper function for mutex_create_func(), registers the mutex
+with performance schema if "UNIV_PFS_MUTEX" is defined when
+creating the mutex */
+UNIV_INLINE
+void
+pfs_mutex_create_func(
+/*==================*/
+	mysql_pfs_key_t	key,		/*!< in: Performance Schema key */
+	mutex_t*	mutex,		/*!< in: pointer to memory */
+# ifdef UNIV_DEBUG
+#  ifdef UNIV_SYNC_DEBUG
+	ulint		level,		/*!< in: level */
+#  endif /* UNIV_SYNC_DEBUG */
+	const char*	cfile_name,	/*!< in: file name where created */
+	ulint		cline,		/*!< in: file line where created */
+# endif /* UNIV_DEBUG */
+	const char*	cmutex_name)	/*!< in: mutex name */
+{
+	mutex->pfs_psi = (PSI_server && PFS_IS_INSTRUMENTED(key))
+				? PSI_server->init_mutex(key, mutex)
+				: NULL;
+
+	mutex_create_func(mutex,
+# ifdef UNIV_DEBUG
+#  ifdef UNIV_SYNC_DEBUG
+			  level,
+#  endif /* UNIV_SYNC_DEBUG */
+			  cfile_name,
+			  cline,
+# endif /* UNIV_DEBUG */
+			  cmutex_name);
+}
+/******************************************************************//**
+NOTE! Please use the corresponding macro mutex_free(), not directly
+this function!
+Wrapper function for mutex_free_func(). Also destroys the performance
+schema probes when freeing the mutex */
+UNIV_INLINE
+void
+pfs_mutex_free_func(
+/*================*/
+	mutex_t*	mutex)	/*!< in: mutex */
+{
+	if (UNIV_LIKELY(PSI_server && mutex->pfs_psi)) {
+		PSI_server->destroy_mutex(mutex->pfs_psi);
+		mutex->pfs_psi = NULL;
+	}
+
+	mutex_free_func(mutex);
+}
+
+#endif /* UNIV_PFS_MUTEX */

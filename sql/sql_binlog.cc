@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -84,7 +84,7 @@ void mysql_client_binlog_statement(THD* thd)
   if (!rli)
   {
     rli= thd->rli_fake= new Relay_log_info(FALSE);
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
     rli->is_fake= TRUE;
 #endif
     have_fd_event= FALSE;
@@ -120,7 +120,7 @@ void mysql_client_binlog_statement(THD* thd)
     char const *endptr= 0;
     int bytes_decoded= base64_decode(strptr, coded_len, buf, &endptr);
 
-#ifndef HAVE_purify
+#ifndef HAVE_valgrind
       /*
         This debug printout should not be used for valgrind builds
         since it will read from unassigned memory.
@@ -185,7 +185,7 @@ void mysql_client_binlog_statement(THD* thd)
       */
       if (!have_fd_event)
       {
-        int type = bufptr[EVENT_TYPE_OFFSET];
+        int type = (uchar)bufptr[EVENT_TYPE_OFFSET];
         if (type == FORMAT_DESCRIPTION_EVENT || type == START_EVENT_V3)
           have_fd_event= TRUE;
         else
@@ -197,7 +197,8 @@ void mysql_client_binlog_statement(THD* thd)
       }
 
       ev= Log_event::read_log_event(bufptr, event_len, &error,
-                                    rli->relay_log.description_event_for_exec);
+                                    rli->relay_log.description_event_for_exec,
+                                    0);
 
       DBUG_PRINT("info",("binlog base64 err=%s", error));
       if (!ev)
@@ -224,7 +225,18 @@ void mysql_client_binlog_statement(THD* thd)
         reporting.
       */
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+      ulonglong save_skip_replication=
+                        thd->variables.option_bits & OPTION_SKIP_REPLICATION;
+      thd->variables.option_bits=
+        (thd->variables.option_bits & ~OPTION_SKIP_REPLICATION) |
+        (ev->flags & LOG_EVENT_SKIP_REPLICATION_F ?
+         OPTION_SKIP_REPLICATION : 0);
+
       err= ev->apply_event(rli);
+
+      thd->variables.option_bits=
+        (thd->variables.option_bits & ~OPTION_SKIP_REPLICATION) |
+        save_skip_replication;
 #else
       err= 0;
 #endif

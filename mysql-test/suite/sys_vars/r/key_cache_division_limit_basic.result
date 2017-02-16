@@ -120,11 +120,11 @@ SELECT @@key_cache_division_limit;
 @@key_cache_division_limit
 90
 SET local.key_cache_division_limit = 10;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_cache_division_limit = 10' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'key_cache_division_limit = 10' at line 1
 SELECT local.key_cache_division_limit;
 ERROR 42S02: Unknown table 'local' in field list
 SET global.key_cache_division_limit = 10;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_cache_division_limit = 10' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'key_cache_division_limit = 10' at line 1
 SELECT global.key_cache_division_limit;
 ERROR 42S02: Unknown table 'global' in field list
 SELECT key_cache_division_limit = @@session.key_cache_division_limit;

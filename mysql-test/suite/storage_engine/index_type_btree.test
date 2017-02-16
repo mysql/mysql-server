@@ -1,0 +1,12 @@
+#
+# Index type BTREE
+#
+
+--source have_engine.inc
+
+let $index_type = BTREE;
+
+--source index.inc
+
+--source cleanup_engine.inc
+

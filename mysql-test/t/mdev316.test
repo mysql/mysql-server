@@ -1,0 +1,14 @@
+#
+# MDEV-316 lp:1009085 Assertion failed: warn_item, file item_cmpfunc.cc, line 3613
+#
+set names swe7;
+select '' in ('',convert(0,time));
+select case '' when '' then 1 when convert(0,time) then 2 end;
+
+#
+# Excessive optimization of Item_func_conv_charset:
+#
+select convert(0x0030 using ucs2) div 1, concat(convert(0x0030 using ucs2)) div 1;
+select cast(convert(0x0030 using ucs2) as double), cast(concat(convert(0x0030 using ucs2)) as double);
+select cast(convert(0x0030 using ucs2) as decimal(5.2)), cast(concat(convert(0x0030 using ucs2)) as decimal(5.2));
+select cast(convert(_ucs2 0x0030 using latin1) as date), cast(concat(convert(_ucs2 0x0030 using latin1)) as date);

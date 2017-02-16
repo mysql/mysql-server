@@ -1,0 +1,19 @@
+--- tbl_standard_opts.result	2013-01-22 22:05:05.246633000 +0400
++++ tbl_standard_opts.reject	2013-01-23 02:51:05.991422829 +0400
+@@ -8,14 +8,14 @@
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL,
+   `b` char(8) DEFAULT NULL
+-) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=utf8 COMMENT='standard table options'
++) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=utf8 INSERT_METHOD=LAST UNION=(`mrg`.`t1`) COMMENT='standard table options'
+ ALTER TABLE t1 COMMENT = 'table altered';
+ SHOW CREATE TABLE t1;
+ Table	Create Table
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL,
+   `b` char(8) DEFAULT NULL
+-) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=utf8 COMMENT='table altered'
++) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=utf8 INSERT_METHOD=LAST UNION=(`mrg`.`t1`) COMMENT='table altered'
+ ALTER TABLE t1 ENGINE=MEMORY;
+ SHOW CREATE TABLE t1;
+ Table	Create Table

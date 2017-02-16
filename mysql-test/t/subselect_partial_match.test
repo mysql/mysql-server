@@ -1,0 +1,803 @@
+#
+# Tests for
+# MWL#68: Subquery optimization: Efficient NOT IN execution with NULLs
+#
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+--echo -------------------------------
+--echo Part 1: Feature tests.
+--echo -------------------------------
+
+--echo Default for all tests.
+set @@optimizer_switch = "materialization=on,in_to_exists=off,semijoin=off,subquery_cache=off";
+set @test_default_opt_switch = @@optimizer_switch;
+set @in_exists = "materialization=off,in_to_exists=on,semijoin=off,subquery_cache=off";
+
+--echo -------------------------------------------------------------------------
+--echo Schema requires partial matching, but data analysis discoveres there is
+--echo no need. This is possible only if all outer columns are not NULL.
+--echo -------------------------------------------------------------------------
+
+create table t1 (a1 char(8) not null, a2 char(8) not null);
+create table t2 (b1 char(8), b2 char(8));
+
+insert into t1 values ('1 - 00', '2 - 00');
+insert into t1 values ('1 - 01', '2 - 01');
+
+insert into t2 values ('1 - 00', '2 - 00');
+insert into t2 values ('1 - 01', NULL    );
+insert into t2 values (NULL    , '2 - 02');
+insert into t2 values (NULL    , NULL    );
+insert into t2 values ('1 - 02', '2 - 02');
+
+select * from t1
+where (a1, a2) not in (select * from t2 where b1 is not null and b2 is not null);
+
+select a1, a2, (a1, a2) not in (select * from t2) as in_res from t1;
+
+drop table t1, t2;
+
+--echo -------------------------------------------------------------------------
+--echo NULLs in the outer columns, no NULLs in the suqbuery 
+--echo -------------------------------------------------------------------------
+
+create table t1 (a1 char(8), a2 char(8));
+create table t2 (b1 char(8) not null, b2 char(8) not null);
+
+insert into t1 values (NULL    , '2 - 00');
+insert into t1 values ('1 - 01', '2 - 01');
+insert into t1 values (NULL    , NULL    );
+
+insert into t2 values ('1 - 00', '2 - 00');
+insert into t2 values ('1 - 01', '2 - 01');
+insert into t2 values ('1 - 02', '2 - 00');
+
+select * from t1
+where (a1, a2) not in (select * from t2 where b1 is not null and b2 is not null);
+
+select a1, a2, (a1, a2) not in (select * from t2) as in_res from t1;
+
+select * from t1
+where (a1, a2) in (select * from t2 where b1 is not null and b2 is not null);
+
+select a1, a2, (a1, a2) in (select * from t2) as in_res from t1;
+
+drop table t1, t2;
+
+--echo -------------------------------------------------------------------------
+--echo NULLs in the outer column, NULLs in the subquery, there is
+--echo no value match in any column, but there is a partial match
+--echo such that some of the matching NULLs are in the outer columns,
+--echo the other NULLs are in the inner columns.
+--echo -------------------------------------------------------------------------
+
+create table t1 (a1 char(1), a2 char(1), a3 char(1));
+create table t2 (b1 char(1), b2 char(1), b3 char(1));
+
+insert into t1 values ('c',  NULL, 'a');
+insert into t2 values (NULL,  'x', NULL);
+insert into t2 values (NULL,  'y', NULL);
+insert into t2 values ('o',   'z', 'p');
+
+set @@optimizer_switch='partial_match_rowid_merge=on,partial_match_table_scan=off';
+EXPLAIN
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+
+set @@optimizer_switch='partial_match_rowid_merge=off,partial_match_table_scan=on';
+EXPLAIN
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+
+set @@optimizer_switch=@in_exists;
+EXPLAIN
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+
+set @@optimizer_switch = @test_default_opt_switch;
+
+drop table t1, t2;
+
+create table t1 (a1 char(1), a2 char(1) not null, a3 char(1));
+create table t2 (b1 char(1), b2 char(1),          b3 char(1));
+
+insert into t1 values (NULL,  'y', NULL);
+insert into t2 values ('v', 'x', NULL);
+insert into t2 values (NULL, 'y', 'w');
+
+set @@optimizer_switch='partial_match_rowid_merge=on,partial_match_table_scan=off';
+EXPLAIN
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+
+set @@optimizer_switch='partial_match_rowid_merge=off,partial_match_table_scan=on';
+EXPLAIN
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+
+set @@optimizer_switch=@in_exists;
+EXPLAIN
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+
+set @@optimizer_switch = @test_default_opt_switch;
+
+drop table t1, t2;
+
+--echo -------------------------------------------------------------------------
+--echo There is only one column in the subquery to complement the NULLs in the
+--echo outer reference. It is a NULL column, so a match is guaranteed.
+--echo -------------------------------------------------------------------------
+
+create table t1 (a1 char(1), a2 char(1), a3 char(1));
+create table t2 (b1 char(1), b2 char(1), b3 char(1));
+
+insert into t1 values (NULL,  'g', NULL);
+insert into t2 values ('z',  NULL, 'y');
+insert into t2 values (NULL, 'z', 'y');
+
+set @@optimizer_switch='partial_match_rowid_merge=on,partial_match_table_scan=off';
+EXPLAIN
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+
+set @@optimizer_switch='partial_match_rowid_merge=off,partial_match_table_scan=on';
+EXPLAIN
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+
+set @@optimizer_switch=@in_exists;
+EXPLAIN
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+
+set @@optimizer_switch = @test_default_opt_switch;
+
+drop table t1, t2;
+
+--echo -------------------------------------------------------------------------
+--echo The intersection of the NULL bitmaps is empty because the ranges
+--echo of NULL bits do not overlap.
+--echo -------------------------------------------------------------------------
+
+create table t1 (a1 char(1), a2 char(1), a3 char(1));
+create table t2 (b1 char(1), b2 char(1), b3 char(1));
+
+insert into t1 values ('b',  'g', NULL);
+insert into t2 values ('z',  NULL, 'y');
+insert into t2 values (NULL, 'z', 'y');
+
+set @@optimizer_switch='partial_match_rowid_merge=on,partial_match_table_scan=off';
+EXPLAIN
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+
+set @@optimizer_switch='partial_match_rowid_merge=off,partial_match_table_scan=on';
+EXPLAIN
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+
+set @@optimizer_switch=@in_exists;
+EXPLAIN
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3) NOT IN (select * from t2);
+
+drop table t1, t2;
+
+--echo -------------------------------------------------------------------------
+--echo The intersection of the NULL bitmaps is non-empty, and there is a
+--echo non-NULL column.
+--echo -------------------------------------------------------------------------
+
+create table t1 (a1 char(1), a2 char(1), a3 char(1) not null, a4 char(10));
+create table t2 (b1 char(1), b2 char(1), b3 char(1),          b4 char(1));
+
+insert into t1 values ('a',  'g', 'x', NULL);
+insert into t2 values ('z',  NULL, 'y', 'x');
+insert into t2 values (NULL, NULL, 'x', 'y');
+insert into t2 values ('x',  'w', 'z', NULL);
+
+set @@optimizer_switch='partial_match_rowid_merge=on,partial_match_table_scan=off';
+EXPLAIN
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+
+set @@optimizer_switch='partial_match_rowid_merge=off,partial_match_table_scan=on';
+EXPLAIN
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+
+set @@optimizer_switch=@in_exists;
+EXPLAIN
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+
+drop table t1, t2;
+
+--echo -------------------------------------------------------------------------
+--echo Value match in one row, but the NULL complement match in another.
+--echo The result must be false.
+--echo -------------------------------------------------------------------------
+
+create table t1 (a1 char(2), a2 char(1), a3 char(1) not null, a4 char(10));
+create table t2 (b1 char(2), b2 char(1), b3 char(1),          b4 char(1));
+
+insert into t1 values ('99',  NULL, 'j', 'f');
+
+insert into t2 values ('01',  NULL, 'y', NULL);
+insert into t2 values ('02',  NULL, 'x', 'y');
+insert into t2 values ('03',  'q', 'y', 'x');
+insert into t2 values (NULL,  'q', 'm', 'p');
+insert into t2 values ('m', 'z', 'j', NULL);
+insert into t2 values (NULL, 'z', 'b', NULL);
+insert into t2 values (NULL, 'z', 'a', NULL);
+insert into t2 values ('34',  'q', 'y', 'x');
+
+set @@optimizer_switch='partial_match_rowid_merge=on,partial_match_table_scan=off';
+EXPLAIN
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+
+set @@optimizer_switch='partial_match_rowid_merge=off,partial_match_table_scan=on';
+EXPLAIN
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+
+set @@optimizer_switch=@in_exists;
+EXPLAIN
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+
+drop table t1, t2;
+
+--echo -------------------------------------------------------------------------
+--echo Test the intersection of larger number of rows with NULL, such that
+--echo the number is at the boundary 32. This test is based on the implementation
+--echo of MY_BITMAP which uses 32 bit words, and the intersection operation works
+--echo by intersecting the bitmap word by word.
+--echo -------------------------------------------------------------------------
+
+create table t1 (a1 char(2), a2 char(2), a3 char(1), a4 char(10)) ENGINE=MyISAM;
+create table t2 (b1 char(2), b2 char(2), b3 char(1), b4 char(1)) ENGINE=MyISAM;
+
+insert into t1 values (NULL, '98', NULL, 'b');
+insert into t1 values (NULL, '99', NULL, 'c');
+
+insert into t2 values ('00',  'rr', 'y', NULL);
+insert into t2 values ('01',  'rr', 'y', NULL);
+insert into t2 values ('02',  NULL, 'x', 'y');
+insert into t2 values ('03',  'qq', 'y', 'x');
+insert into t2 values ('04',  'qq', 'm', 'p');
+insert into t2 values ('05',  'rr', 'y', NULL);
+insert into t2 values ('06',  NULL, 'x', 'y');
+insert into t2 values ('07',  'qq', 'y', 'x');
+insert into t2 values ('08',  'qq', 'm', 'q');
+insert into t2 values ('09',  'rr', 'y', NULL);
+insert into t2 values ('10',  NULL, 'x', 'y');
+insert into t2 values ('11',  'qq', 'y', 'x');
+insert into t2 values ('12',  'qq', 'm', 'k');
+insert into t2 values ('13',  'rr', 'y', NULL);
+insert into t2 values ('14',  NULL, 'x', 'y');
+insert into t2 values ('15',  'qq', 'y', 'x');
+insert into t2 values ('16',  'qq', 'm', 's');
+insert into t2 values ('17',  'rr', 'y', NULL);
+insert into t2 values ('18',  NULL, 'x', 'y');
+insert into t2 values ('19',  'qq', 'y', 'x');
+insert into t2 values ('20',  'qq', 'm', 't');
+insert into t2 values ('21',  'rr', 'y', NULL);
+insert into t2 values ('22',  NULL, 'x', 'y');
+insert into t2 values ('23',  'qq', 'y', 'x');
+insert into t2 values ('24',  'qq', 'm', 'u');
+insert into t2 values ('25',  'rr', 'y', NULL);
+insert into t2 values ('26',  NULL, 'x', 'y');
+insert into t2 values ('27',  'qq', 'y', 'x');
+insert into t2 values ('28',  'qq', 'm', 'y');
+insert into t2 values ('29',  'rr', 'y', NULL);
+insert into t2 values ('30',  NULL, 'x', 'z');
+insert into t2 values ('31',  'ss', 'h', NULL);
+insert into t2 values ('32',  'vv', 'i', NULL);
+--echo the only partial matching row
+insert into t2 values ('33',  NULL, 'j', NULL);
+insert into t2 values ('34',  'qq', 'y', 'x');
+
+set @@optimizer_switch='partial_match_rowid_merge=on,partial_match_table_scan=off';
+EXPLAIN
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+
+set @@optimizer_switch='partial_match_rowid_merge=off,partial_match_table_scan=on';
+EXPLAIN
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+
+set @@optimizer_switch=@in_exists;
+EXPLAIN
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+
+--echo change the mathcing row to be the last one in the first bitmap word
+update t2 set b2 = 'zz' where b1 = 33;
+update t2 set b2 = NULL where b1 = 31;
+
+set @@optimizer_switch='partial_match_rowid_merge=on,partial_match_table_scan=off';
+EXPLAIN
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+
+set @@optimizer_switch='partial_match_rowid_merge=off,partial_match_table_scan=on';
+EXPLAIN
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+
+set @@optimizer_switch=@in_exists;
+EXPLAIN
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+EXPLAIN
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+SELECT * from t1 where (a1, a2, a3, a4) NOT IN (select * from t2);
+
+drop table t1, t2;
+
+
+--echo -------------------------------------------------------------------------
+--echo All columns require partial matching (no non-null columns)
+--echo -------------------------------------------------------------------------
+
+--echo TODO
+
+--echo -------------------------------------------------------------------------
+--echo Both non-NULL columns and columns with NULLs
+--echo -------------------------------------------------------------------------
+
+--echo TODO
+
+--echo -------------------------------------------------------------------------
+--echo Covering NULL rows
+--echo -------------------------------------------------------------------------
+
+create table t1 (a1 char(8), a2 char(8));
+create table t2 (b1 char(8), b2 char(8));
+
+insert into t1 values ('1 - 00', '2 - 00');
+insert into t1 values ('1 - 01', '2 - 01');
+
+insert into t2 values ('1 - 01', NULL    );
+insert into t2 values (NULL    , '2 - 02');
+insert into t2 values (NULL    , NULL    );
+insert into t2 values ('1 - 02', '2 - 02');
+
+select * from t1
+where (a1, a2) not in (select * from t2);
+
+select a1, a2, (a1, a2) not in (select * from t2) as in_res from t1;
+
+insert into t2 values ('1 - 01', '2 - 01');
+
+select * from t1
+where (a1, a2) not in (select * from t2);
+
+select a1, a2, (a1, a2) not in (select * from t2) as in_res from t1;
+
+select * from t1
+where (a1, a2) in (select * from t2);
+
+select a1, a2, (a1, a2) in (select * from t2) as in_res from t1;
+
+
+drop table t1, t2;
+
+--echo -------------------------------------------------------------------------
+--echo Covering NULL columns
+--echo -------------------------------------------------------------------------
+
+--echo this case affects only the rowid-merge algorithm
+set @@optimizer_switch="partial_match_rowid_merge=on,partial_match_table_scan=off";
+
+create table t1 (a1 char(8) not null, a2 char(8), a3 char(8) not null);
+create table t2 (b1 char(8) not null, b2 char(8), b3 char(8) not null);
+
+insert into t1 values ('1 - 00', '2 - 00', '3 - 00');
+insert into t1 values ('1 - 01', '2 - 01', '3 - 01');
+
+insert into t2 values ('1 - 01', NULL, '3 - x1');
+insert into t2 values ('1 - 02', NULL, '3 - 02');
+insert into t2 values ('1 - 00', NULL, '3 - 00');
+
+select * from t1
+where (a1, a2, a3) not in (select * from t2);
+
+select *, (a1, a2, a3) not in (select * from t2) as in_res from t1;
+
+select * from t1
+where (a1, a2, a3) in (select * from t2);
+
+select *, (a1, a2, a3) in (select * from t2) as in_res from t1;
+
+drop table t1, t2;
+
+create table t1 (a1 char(8), a2 char(8), a3 char(8) not null);
+create table t2 (b1 char(8), b2 char(8), b3 char(8) not null);
+
+insert into t1 values ('1 - 00', '2 - 00', '3 - 00');
+insert into t1 values ('1 - 01', '2 - 01', '3 - 01');
+
+insert into t2 values (NULL, NULL, '3 - x1');
+insert into t2 values (NULL, NULL, '3 - 02');
+insert into t2 values (NULL, NULL, '3 - 00');
+
+select * from t1
+where (a1, a2, a3) not in (select * from t2);
+
+select *, (a1, a2, a3) not in (select * from t2) as in_res from t1;
+
+select * from t1
+where (a1, a2, a3) in (select * from t2);
+
+select *, (a1, a2, a3) in (select * from t2) as in_res from t1;
+
+drop table t1, t2;
+
+--echo -------------------------------------------------------------------------
+--echo Covering NULL row, and a NULL column
+--echo -------------------------------------------------------------------------
+
+create table t1 (a1 char(8) not null, a2 char(8), a3 char(8));
+create table t2 (b1 char(8),          b2 char(8), b3 char(8));
+
+insert into t1 values ('1 - 00', '2 - 00', '3 - 00');
+insert into t1 values ('1 - 01', '2 - 01', '3 - 01');
+
+insert into t2 values ('1 - 01', NULL, '3 - x1');
+insert into t2 values (NULL    , NULL, NULL    );
+insert into t2 values ('1 - 00', NULL, '3 - 00');
+
+select * from t1
+where (a1, a2, a3) not in (select * from t2);
+
+select *, (a1, a2, a3) not in (select * from t2) as in_res from t1;
+
+select * from t1
+where (a1, a2, a3) in (select * from t2);
+
+select *, (a1, a2, a3) in (select * from t2) as in_res from t1;
+
+drop table t1, t2;
+
+
+--echo -------------------------------------------------------------------------
+--echo Covering NULL row, and covering NULL columns
+--echo -------------------------------------------------------------------------
+
+create table t1 (a1 char(8) not null, a2 char(8), a3 char(8));
+create table t2 (b1 char(8),          b2 char(8), b3 char(8));
+
+insert into t1 values ('1 - 00', '2 - 00', '3 - 00');
+insert into t1 values ('1 - 01', '2 - 01', '3 - 01');
+
+insert into t2 values (NULL, NULL, NULL);
+insert into t2 values (NULL, NULL, NULL);
+
+select * from t1
+where (a1, a2, a3) not in (select * from t2);
+
+select *, (a1, a2, a3) not in (select * from t2) as in_res from t1;
+
+select * from t1
+where (a1, a2, a3) in (select * from t2);
+
+select *, (a1, a2, a3) in (select * from t2) as in_res from t1;
+
+drop table t1, t2;
+
+--echo -------------------------------------------------------------------------
+--echo Small buffer for the rowid_merge partial match algorithm that forces
+--echo reverting to table scan partial match.
+--echo -------------------------------------------------------------------------
+
+set @save_rowid_merge_buff_size = @@rowid_merge_buff_size;
+set @@rowid_merge_buff_size = 0;
+
+create table t1 (a1 char(2), a2 char(2), a3 char(1), a4 char(10));
+create table t2 (b1 char(2), b2 char(2), b3 char(1), b4 char(1));
+
+insert into t1 values (NULL, '98', NULL, 'b');
+insert into t1 values (NULL, '99', NULL, 'c');
+
+insert into t2 values ('00',  'rr', 'y', NULL);
+insert into t2 values ('01',  'rr', 'y', NULL);
+insert into t2 values ('02',  NULL, 'x', 'y');
+insert into t2 values ('03',  'qq', 'y', 'x');
+
+set @@optimizer_switch='partial_match_rowid_merge=on,partial_match_table_scan=off';
+EXPLAIN
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+SELECT t1.*, (a1, a2, a3, a4) IN (select * from t2) as in_res from t1;
+
+drop table t1, t2;
+
+set @@rowid_merge_buff_size = @save_rowid_merge_buff_size;
+
+
+--echo -------------------------------
+--echo Part 2: Test cases for bugs.
+--echo -------------------------------
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+--echo #
+--echo # LP BUG#608744
+--echo #
+set @@optimizer_switch="materialization=on,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=off";
+create table t1 (a1 char(1), a2 char(1));
+insert into t1 values (NULL, 'b');
+create table t2 (b1 char(1), b2 char(2));
+insert into t2 values ('a','b'), ('c', 'd');
+select * from t1 where (a1, a2) NOT IN (select b1, b2 from t2);
+drop table t1,t2;
+
+
+--echo #
+--echo # LP BUG#601156
+--echo #
+
+CREATE TABLE t1 (a1 int DEFAULT NULL, a2 int DEFAULT NULL);
+INSERT INTO t1 VALUES (NULL,2);
+INSERT INTO t1 VALUES (4,NULL);
+CREATE TABLE t2 (b1 int DEFAULT NULL, b2 int DEFAULT NULL);
+INSERT INTO t2 VALUES (6,NULL);
+INSERT INTO t2 VALUES (NULL,0);
+
+set @@optimizer_switch='materialization=on,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on';
+
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
+EXPLAIN EXTENDED
+SELECT * FROM (SELECT * FROM t1 WHERE a1 NOT IN (SELECT b2 FROM t2)) table1;
+set optimizer_switch=@tmp_optimizer_switch;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # LP BUG#613009 Crash in Ordered_key::get_field_idx
+--echo #
+
+set @@optimizer_switch='materialization=on,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=off';
+
+create table t1 (a1 char(3) DEFAULT NULL, a2 char(3) DEFAULT NULL);
+insert into t1 values (NULL, 'a21'), (NULL, 'a22');
+explain select * from t1 where (a1, a2) not in (select a1, a2 from t1);
+select * from t1 where (a1, a2) not in (select a1, a2 from t1);
+drop table t1;
+
+--echo #
+--echo # LP BUG#680058 void Ordered_key::add_key(rownum_t):
+--echo # Assertion `key_buff_elements && cur_key_idx < key_buff_elements' failed
+--echo #
+
+create table t1 (f1 char(1), f2 char(1));
+insert into t1 values ('t', '0'), ('0', 't');
+create table t2 (f3 char(1), f4 char(1));
+insert into t2 values ('t', NULL), ('t', NULL), ('d', 'y');
+
+set @@optimizer_switch='materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off,semijoin=off';
+select * from t1 where (f1, f2) not in (select * from t2);
+drop table t1, t2;
+
+
+--echo #
+--echo # LP BUG#809245 Second assertion `bit < (map)->n_bits' with partial_match_merge
+--echo #
+
+CREATE TABLE t1 (d varchar(32)) ;
+INSERT INTO t1 VALUES ('r');
+
+CREATE TABLE t2 ( a int, c varchar(32)) ;
+INSERT INTO t2 VALUES (5,'r');
+
+CREATE TABLE t3 ( a int NOT NULL , d varchar(32)) ;
+INSERT INTO t3 VALUES (10,'g');
+
+set @@optimizer_switch='materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off,in_to_exists=off';
+
+EXPLAIN SELECT *
+FROM t1
+WHERE (t1.d , t1.d) NOT IN (
+        SELECT t3.d , t2.c
+        FROM t3 LEFT JOIN t2 ON t3.a = t2.a);
+
+SELECT *
+FROM t1
+WHERE (t1.d , t1.d) NOT IN (
+        SELECT t3.d , t2.c
+        FROM t3 LEFT JOIN t2 ON t3.a = t2.a);
+
+set @@optimizer_switch='materialization=off,in_to_exists=on';
+
+EXPLAIN SELECT *
+FROM t1
+WHERE (t1.d , t1.d) NOT IN (
+        SELECT t3.d , t2.c
+        FROM t3 LEFT JOIN t2 ON t3.a = t2.a);
+
+SELECT *
+FROM t1
+WHERE (t1.d , t1.d) NOT IN (
+        SELECT t3.d , t2.c
+        FROM t3 LEFT JOIN t2 ON t3.a = t2.a);
+
+drop table t1, t2, t3;
+
+--echo #
+--echo # LP BUG#809266 Diverging results with partial_match_rowid_merge=on
+--echo #
+
+CREATE TABLE t1 (c int) ;
+INSERT INTO t1 VALUES (0),(0);
+
+CREATE TABLE t2 (a int, b int) ;
+INSERT INTO t2 VALUES (6,3), (9,NULL);
+
+set @@optimizer_switch='materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off,in_to_exists=off';
+
+EXPLAIN
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT b, a FROM t2);
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT b, a FROM t2);
+
+EXPLAIN
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT a, b FROM t2);
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT a, b FROM t2);
+
+set @@optimizer_switch='materialization=off,in_to_exists=on';
+
+EXPLAIN
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT b, a FROM t2);
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT b, a FROM t2);
+
+EXPLAIN
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT a, b FROM t2);
+SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT a, b FROM t2);
+
+drop table t1, t2;
+
+--echo #
+--echo # LP BUG#856152 Wrong result with NOT IN subquery and partial_match_rowid_merge
+--echo #
+
+CREATE TABLE t1 ( f1 integer NOT NULL , f2 integer) ;
+INSERT INTO t1 VALUES (3,3),(48,NULL),(49,1);
+
+CREATE TABLE t2 ( f3 int) ;
+INSERT INTO t2 VALUES (5);
+
+set @@optimizer_switch='in_to_exists=off,materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off';
+EXPLAIN SELECT * FROM t2 WHERE ( 3 , 1 ) NOT IN ( SELECT f1 , f2 FROM t1 );
+SELECT * FROM t2 WHERE ( 3 , 1 ) NOT IN ( SELECT f1 , f2 FROM t1 );
+
+set @@optimizer_switch='in_to_exists=on,materialization=off';
+EXPLAIN SELECT * FROM t2 WHERE ( 3 , 1 ) NOT IN ( SELECT f1 , f2 FROM t1 );
+SELECT * FROM t2 WHERE ( 3 , 1 ) NOT IN ( SELECT f1 , f2 FROM t1 );
+
+drop table t1, t2;
+
+--echo #
+--echo # LP BUG#869036 Wrong result with in_to_exists=ON and NOT IN
+--echo #
+
+create table outer_sq (f1 char(1), f2 char(1));
+insert into outer_sq values (NULL, 'c'), ('g', 'c');
+
+create table inner_sq (f3 char(1), f4 char(1));
+insert into inner_sq values(null, 'i'), ('v', null);
+
+--echo All three strategies below must produce the same result.
+
+set @@optimizer_switch='in_to_exists=off,materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off';
+SELECT outer_sq.*, (f1, f2) IN (select * from inner_sq) from outer_sq;
+SELECT * from outer_sq where (f1, f2) NOT IN (select * from inner_sq);
+
+set @@optimizer_switch='in_to_exists=off,materialization=on,partial_match_rowid_merge=off,partial_match_table_scan=on';
+SELECT outer_sq.*, (f1, f2) IN (select * from inner_sq) from outer_sq;
+SELECT * from outer_sq where (f1, f2) NOT IN (select * from inner_sq);
+
+set @@optimizer_switch='in_to_exists=on,materialization=off';
+SELECT outer_sq.*, (f1, f2) IN (select * from inner_sq) from outer_sq;
+SELECT * from outer_sq where (f1, f2) NOT IN (select * from inner_sq);
+
+drop table outer_sq, inner_sq;
+
+--echo #
+--echo # LP BUG#893486 Wrong result with partial_match_rowid_merge , NOT IN , NULLs
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (0,NULL),(2,NULL);
+
+CREATE TABLE t2 (c int, d int);
+INSERT INTO t2 VALUES (2,3),(4,5),(6, NULL);
+
+set @@optimizer_switch='materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off,in_to_exists=off';
+
+EXPLAIN SELECT * FROM t1 WHERE (a, b) NOT IN (SELECT c, d FROM t2);
+SELECT * FROM t1 WHERE (a, b) NOT IN (SELECT c, d FROM t2);
+SELECT a, b, (a, b) NOT IN (SELECT c, d FROM t2) subq_res FROM t1;
+
+EXPLAIN SELECT * FROM t1 WHERE (a, b) NOT IN (SELECT c, d FROM t2 WHERE d is not NULL);
+SELECT * FROM t1 WHERE (a, b) NOT IN (SELECT c, d FROM t2 WHERE d is not NULL);
+SELECT a, b, (a, b) NOT IN (SELECT c, d FROM t2 WHERE d is not NULL) subq_res FROM t1;
+
+drop table t1,t2;
+
+set @@optimizer_switch=@save_optimizer_switch;

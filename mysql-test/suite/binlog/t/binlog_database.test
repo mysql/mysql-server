@@ -2,6 +2,9 @@
 # correctly. We test all three modes in the same file to avoid
 # unecessary server restarts.
 
+--source include/have_innodb.inc
+--source include/have_binlog_format_statement.inc
+
 set binlog_format=statement;
 source extra/binlog_tests/database.test;
 set binlog_format=mixed;

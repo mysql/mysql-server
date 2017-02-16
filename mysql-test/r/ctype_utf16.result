@@ -1,3 +1,4 @@
+SET TIME_ZONE='+03:00';
 DROP TABLE IF EXISTS t1;
 #
 # Start of 5.5 tests
@@ -582,6 +583,23 @@ utf16_general_ci	00610009
 utf16_general_ci	0061
 utf16_general_ci	00610020
 drop table t1;
+#
+# MDEV-5453 Assertion `src' fails in my_strnxfrm_unicode on GROUP BY MID(..) WITH ROLLUP
+#
+SELECT @@collation_connection;
+@@collation_connection
+utf16_general_ci
+CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+SELECT * FROM t1 GROUP BY MID(CURRENT_USER,0) WITH ROLLUP;
+i
+1
+1
+SELECT * FROM t1 GROUP BY MID('test',0) WITH ROLLUP;
+i
+1
+1
+DROP TABLE t1;
 select @@collation_connection;
 @@collation_connection
 utf16_general_ci
@@ -611,6 +629,23 @@ utf16_bin	00610009
 utf16_bin	0061
 utf16_bin	00610020
 drop table t1;
+#
+# MDEV-5453 Assertion `src' fails in my_strnxfrm_unicode on GROUP BY MID(..) WITH ROLLUP
+#
+SELECT @@collation_connection;
+@@collation_connection
+utf16_bin
+CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+SELECT * FROM t1 GROUP BY MID(CURRENT_USER,0) WITH ROLLUP;
+i
+1
+1
+SELECT * FROM t1 GROUP BY MID('test',0) WITH ROLLUP;
+i
+1
+1
+DROP TABLE t1;
 #
 # Bug#55980 Character sets: supplementary character _bin ordering is wrong
 #
@@ -931,7 +966,7 @@ select 1.1 + '1.2xxx';
 1.1 + '1.2xxx'
 2.3
 Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: ''
+Warning	1292	Truncated incorrect DOUBLE value: '1.2xxx'
 select left('aaa','1');
 left('aaa','1')
 a
@@ -1019,16 +1054,16 @@ insert into t1 values(null,null);
 insert into t1 values('ghi','ghi[');
 select HIGH_PRIORITY s1 regexp s2 from t1;
 s1 regexp s2
-1
-1
-1
-1
-1
-1
-1
 0
 0
 0
+1
+1
+1
+1
+1
+1
+1
 NULL
 NULL
 NULL
@@ -1154,6 +1189,33 @@ id	l
 a	512
 Warnings:
 Warning	1260	Row 1 was cut by GROUP_CONCAT()
+SELECT id, CHAR_LENGTH(GROUP_CONCAT(body)) AS l
+FROM (SELECT 'a' AS id, REPEAT('foo bar', 100) AS body
+UNION ALL
+SELECT 'a' AS id, REPEAT('bla bla', 100) AS body) t1;
+id	l
+a	512
+Warnings:
+Warning	1260	Row 1 was cut by GROUP_CONCAT()
+#
+# MDEV-6865 Merge Bug#18935421 RPAD DIES WITH CERTAIN PADSTR INTPUTS..
+#
+DO RPAD(_utf16 0x0061 COLLATE utf16_unicode_ci, 10000, 0x0061DE989999);
+Warnings:
+Warning	1300	Invalid utf16 character string: 'DE9899'
+DO LPAD(_utf16 0x0061 COLLATE utf16_unicode_ci, 10000, 0x0061DE989999);
+Warnings:
+Warning	1300	Invalid utf16 character string: 'DE9899'
+#
+# MDEV-11685: sql_mode can't be set with non-ascii connection charset
+#
+SET character_set_connection=utf16;
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+SELECT @@sql_mode;
+@@sql_mode
+NO_ENGINE_SUBSTITUTION
+SET sql_mode=DEFAULT;
+SET NAMES utf8;
 #
 # End of 5.5 tests
 #

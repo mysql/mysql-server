@@ -165,6 +165,8 @@ select @log;
 (BEFORE_INSERT: new=(id=1, data=1))(AFTER_INSERT: new=(id=1, data=1))
 set @log:= "";
 insert ignore t1 values (1, 2);
+Warnings:
+Warning	1062	Duplicate entry '1' for key 'PRIMARY'
 select @log;
 @log
 (BEFORE_INSERT: new=(id=1, data=2))
@@ -295,7 +297,7 @@ create trigger trg before insert on t1 for each row set @a:=1;
 create trigger trg after insert on t1 for each row set @a:=1;
 ERROR HY000: Trigger already exists
 create trigger trg2 before insert on t1 for each row set @a:=1;
-ERROR 42000: This version of MySQL doesn't yet support 'multiple triggers with the same action time and event for one table'
+ERROR 42000: This version of MariaDB doesn't yet support 'multiple triggers with the same action time and event for one table'
 create trigger trg before insert on t3 for each row set @a:=1;
 ERROR HY000: Trigger already exists
 create trigger trg2 before insert on t3 for each row set @a:=1;
@@ -1434,33 +1436,6 @@ isave
 1
 2
 drop table t1, t2, t3;
-CREATE TABLE t1 (id INTEGER);
-CREATE TABLE t2 (id INTEGER);
-INSERT INTO t2 VALUES (1),(2);
-CREATE TRIGGER t1_test AFTER INSERT ON t1 FOR EACH ROW 
-INSERT INTO t2 VALUES (new.id);
-SELECT GET_LOCK('B26162',120);
-GET_LOCK('B26162',120)
-1
-SELECT 'rl_acquirer', GET_LOCK('B26162',120), id FROM t2 WHERE id = 1;
-SET SESSION LOW_PRIORITY_UPDATES=1;
-SET GLOBAL LOW_PRIORITY_UPDATES=1;
-INSERT INTO t1 VALUES (5);
-SELECT 'rl_contender', id FROM t2 WHERE id > 1;
-SELECT RELEASE_LOCK('B26162');
-RELEASE_LOCK('B26162')
-1
-rl_acquirer	GET_LOCK('B26162',120)	id
-rl_acquirer	1	1
-SELECT RELEASE_LOCK('B26162');
-RELEASE_LOCK('B26162')
-1
-rl_contender	id
-rl_contender	2
-DROP TRIGGER t1_test;
-DROP TABLE t1,t2;
-SET SESSION LOW_PRIORITY_UPDATES=DEFAULT;
-SET GLOBAL LOW_PRIORITY_UPDATES=DEFAULT;
 
 Bug#28502 Triggers that update another innodb table will block
 on X lock unnecessarily
@@ -1982,7 +1957,7 @@ drop table if exists t1;
 create table t1 (i int, j int);
 create trigger t1_bi before insert on t1 for each row begin end;
 create trigger t1_bi before insert on t1 for each row begin end;
-ERROR 42000: This version of MySQL doesn't yet support 'multiple triggers with the same action time and event for one table'
+ERROR 42000: This version of MariaDB doesn't yet support 'multiple triggers with the same action time and event for one table'
 drop trigger t1_bi;
 drop trigger t1_bi;
 ERROR HY000: Trigger does not exist
@@ -2118,13 +2093,32 @@ CREATE TRIGGER trg1 BEFORE INSERT ON t2 FOR EACH ROW INSERT/*!INTO*/t1 VALUES (1
 SHOW TRIGGERS IN db1;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 INSERT INTO t2 VALUES (1);
-ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VALUES (1)' at line 1'
+ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'VALUES (1)' at line 1'
 SELECT * FROM t1;
 b
 # Work around Bug#45235
 DROP DATABASE db1;
 USE test;
 End of 5.1 tests.
+create table t1 (i int);
+create table t2 (i int);
+flush tables;
+flush status;
+CREATE DEFINER=`root`@`localhost` TRIGGER trg AFTER DELETE ON t1 FOR EACH ROW BEGIN DELETE FROM t2 WHERE t2.i = OLD.i; END //
+insert into t1 values (1),(2);
+insert into t2 values (1),(2);
+delete from t1 where i=1;
+show status like 'Opened_tables';
+Variable_name	Value
+Opened_tables	3
+select * from t1;
+i
+2
+select * from t2;
+i
+2
+drop table t1,t2;
+End of 5.2 tests.
 #
 # Bug#34453 Can't change size of file (Errcode: 1224)
 #
@@ -2208,7 +2202,6 @@ trigger_name
 # Clean-up.
 drop temporary table t1;
 drop table t1;
-
 #
 # Bug #12362125: SP INOUT HANDLING IS BROKEN FOR TEXT TYPE.
 #
@@ -2227,3 +2220,47 @@ aaa
 DROP TABLE t1;
 
 End of 5.5 tests.
+#
+# BUG #910083: materialized subquery in a trigger
+#
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='materialization=on';
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (b int);
+CREATE TRIGGER tr AFTER UPDATE ON t1 FOR EACH ROW
+UPDATE t2 SET b = (SELECT COUNT(a) FROM t1);
+INSERT INTO t1
+VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9);
+INSERT INTO t2
+VALUES (0),(0),(0),(0),(0),(0),(0),(0),(0);
+UPDATE t1 SET a = 3;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+9
+SELECT * FROM t2;
+b
+9
+9
+9
+9
+9
+9
+9
+9
+9
+UPDATE t1 SET a = 2;
+SELECT * FROM t2;
+b
+9
+9
+9
+9
+9
+9
+9
+9
+9
+SET optimizer_switch=@save_optimizer_switch;
+DROP TRIGGER tr;
+DROP TABLE t1, t2;
+End of 5.3 tests.

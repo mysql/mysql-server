@@ -1,0 +1,57 @@
+SET @start_global_value = @@global.join_buffer_space_limit;
+select @@global.join_buffer_space_limit;
+@@global.join_buffer_space_limit
+2097152
+select @@session.join_buffer_space_limit;
+@@session.join_buffer_space_limit
+2097152
+show global variables like 'join_buffer_space_limit';
+Variable_name	Value
+join_buffer_space_limit	2097152
+show session variables like 'join_buffer_space_limit';
+Variable_name	Value
+join_buffer_space_limit	2097152
+select * from information_schema.global_variables where variable_name='join_buffer_space_limit';
+VARIABLE_NAME	VARIABLE_VALUE
+JOIN_BUFFER_SPACE_LIMIT	2097152
+select * from information_schema.session_variables where variable_name='join_buffer_space_limit';
+VARIABLE_NAME	VARIABLE_VALUE
+JOIN_BUFFER_SPACE_LIMIT	2097152
+set global join_buffer_space_limit=10;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_space_limit value: '10'
+select @@global.join_buffer_space_limit;
+@@global.join_buffer_space_limit
+2048
+set session join_buffer_space_limit=10;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_space_limit value: '10'
+select @@session.join_buffer_space_limit;
+@@session.join_buffer_space_limit
+2048
+set global join_buffer_space_limit=1.1;
+ERROR 42000: Incorrect argument type to variable 'join_buffer_space_limit'
+set session join_buffer_space_limit=1e1;
+ERROR 42000: Incorrect argument type to variable 'join_buffer_space_limit'
+set global join_buffer_space_limit="foo";
+ERROR 42000: Incorrect argument type to variable 'join_buffer_space_limit'
+set global join_buffer_space_limit=0;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_space_limit value: '0'
+select @@global.join_buffer_space_limit;
+@@global.join_buffer_space_limit
+2048
+set global join_buffer_space_limit=4095;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_space_limit value: '4095'
+select @@global.join_buffer_space_limit;
+@@global.join_buffer_space_limit
+2048
+set session join_buffer_space_limit=cast(-1 as unsigned int);
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1292	Truncated incorrect join_buffer_space_limit value: '18446744073709551615'
+select @@session.join_buffer_space_limit;
+@@session.join_buffer_space_limit
+18446744073709549568
+SET @@global.join_buffer_space_limit = @start_global_value;

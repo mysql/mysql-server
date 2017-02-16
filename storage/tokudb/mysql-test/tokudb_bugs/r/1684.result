@@ -1,0 +1,20 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+create table foo (a int, b blob)engine=tokudb;
+insert into foo values (1,"one");
+insert into foo values (3,"three");
+insert into foo values (5,"five");
+insert into foo values (2,"two");
+insert into foo values (4,"four");
+alter table foo add key a(a) clustering=yes;
+explain select * From foo where a > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	a	a	5	NULL	NULL;	Using where; Using index
+select * From foo where a > 0;
+a	b
+1	one
+2	two
+3	three
+4	four
+5	five
+DROP TABLE foo;

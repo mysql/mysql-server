@@ -1,0 +1,5 @@
+set default_storage_engine='tokudb';
+drop table if exists t;
+create table t (id int auto_increment primary key, x int);
+create unique index x on t (x);
+drop table t;

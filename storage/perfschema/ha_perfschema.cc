@@ -171,6 +171,24 @@ mysql_declare_plugin(perfschema)
 }
 mysql_declare_plugin_end;
 
+maria_declare_plugin(perfschema)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &pfs_storage_engine,
+  pfs_engine_name,
+  "Marc Alff, Oracle",
+  "Performance Schema",
+  PLUGIN_LICENSE_GPL,
+  pfs_init_func,
+  pfs_done_func,
+  0x0001,
+  pfs_status_vars,
+  NULL,
+  "0.1",
+  MariaDB_PLUGIN_MATURITY_GAMMA /* because MySQL-5.5 is RC */
+}
+maria_declare_plugin_end;
+
 ha_perfschema::ha_perfschema(handlerton *hton, TABLE_SHARE *share)
   : handler(hton, share), m_table_share(NULL), m_table(NULL)
 {}
@@ -249,9 +267,6 @@ void ha_perfschema::use_hidden_primary_key(void)
 int ha_perfschema::update_row(const uchar *old_data, uchar *new_data)
 {
   DBUG_ENTER("ha_perfschema::update_row");
-
-  if (is_executed_by_slave())
-    DBUG_RETURN(0);
 
   DBUG_ASSERT(m_table);
   int result= m_table->update_row(table, old_data, new_data, table->field);
@@ -337,9 +352,6 @@ int ha_perfschema::delete_all_rows(void)
 
   DBUG_ENTER("ha_perfschema::delete_all_rows");
 
-  if (is_executed_by_slave())
-    DBUG_RETURN(0);
-
   DBUG_ASSERT(m_table_share);
   if (m_table_share->m_delete_all_rows)
     result= m_table_share->m_delete_all_rows();
@@ -348,11 +360,6 @@ int ha_perfschema::delete_all_rows(void)
     result= HA_ERR_WRONG_COMMAND;
   }
   DBUG_RETURN(result);
-}
-
-int ha_perfschema::truncate()
-{
-  return delete_all_rows();
 }
 
 THR_LOCK_DATA **ha_perfschema::store_lock(THD *thd,

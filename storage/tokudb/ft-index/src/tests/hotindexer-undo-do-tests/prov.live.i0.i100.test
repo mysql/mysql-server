@@ -1,0 +1,4 @@
+live 100
+key k1
+insert committed 0 v10
+insert provisional 100 v100

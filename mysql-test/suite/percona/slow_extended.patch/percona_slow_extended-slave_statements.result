@@ -1,0 +1,94 @@
+include/master-slave.inc
+[connection master]
+DROP TABLE IF EXISTS t;
+CREATE TABLE t(id INT);
+START SLAVE;
+include/wait_for_slave_to_start.inc
+INSERT INTO t VALUES (1);
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	OFF
+set global log_slow_slave_statements=ON;
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	ON
+INSERT INTO t VALUES (2);
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	ON
+set global log_slow_slave_statements=ON;
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	ON
+STOP SLAVE;
+include/wait_for_slave_to_stop.inc
+START SLAVE;
+include/wait_for_slave_to_start.inc
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	ON
+set global log_slow_slave_statements=ON;
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	ON
+INSERT INTO t VALUES (3);
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	ON
+set global log_slow_slave_statements=OFF;
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	OFF
+INSERT INTO t VALUES (4);
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	OFF
+STOP SLAVE;
+include/wait_for_slave_to_stop.inc
+START SLAVE;
+include/wait_for_slave_to_start.inc
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	OFF
+INSERT INTO t VALUES (5);
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	OFF
+set global log_slow_slave_statements=ON;
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	ON
+INSERT INTO t VALUES (6);
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	ON
+STOP SLAVE;
+include/wait_for_slave_to_stop.inc
+START SLAVE;
+include/wait_for_slave_to_start.inc
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	ON
+INSERT INTO t VALUES (7);
+FLUSH LOGS;
+# Analyse master slow_query_log
+1
+1
+1
+1
+1
+1
+1
+FLUSH LOGS;
+# Analyse slave slow_query_log
+0
+0
+1
+0
+0
+0
+1
+set global log_slow_slave_statements=OFF;
+DROP TABLE t;
+STOP SLAVE;
+include/wait_for_slave_to_stop.inc

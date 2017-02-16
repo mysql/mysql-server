@@ -1,0 +1,73 @@
+/*****************************************************************************
+
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+*****************************************************************************/
+
+/**************************************************//**
+@file include/fsp0fsp.ic
+File space management
+
+Created 12/18/1995 Heikki Tuuri
+*******************************************************/
+
+/***********************************************************************//**
+Checks if a page address is an extent descriptor page address.
+@return	TRUE if a descriptor page */
+UNIV_INLINE
+ibool
+fsp_descr_page(
+/*===========*/
+	ulint	zip_size,/*!< in: compressed page size in bytes;
+			0 for uncompressed pages */
+	ulint	page_no)/*!< in: page number */
+{
+	ut_ad(ut_is_2pow(zip_size));
+
+	if (!zip_size) {
+		return(UNIV_UNLIKELY((page_no & (UNIV_PAGE_SIZE - 1))
+				     == FSP_XDES_OFFSET));
+	}
+
+	return(UNIV_UNLIKELY((page_no & (zip_size - 1)) == FSP_XDES_OFFSET));
+}
+/********************************************************************//**
+Extract the page size from tablespace flags.
+This feature, storing the page_ssize into the tablespace flags, is added
+to InnoDB 5.6.4.  This is here only to protect against a crash if a newer
+database is opened with this code branch.
+@return	page size of the tablespace in bytes */
+UNIV_INLINE
+ulint
+fsp_flags_get_page_size(
+/*====================*/
+	ulint	flags)	/*!< in: tablespace flags */
+{
+	ulint	page_size = 0;
+	ulint	ssize = FSP_FLAGS_GET_PAGE_SSIZE(flags);
+
+	/* Convert from a 'log2 minus 9' to a page size in bytes. */
+	if (UNIV_UNLIKELY(ssize)) {
+		page_size = (512 << ssize);
+
+		ut_ad(page_size <= UNIV_PAGE_SIZE);
+	} else {
+		/* If the page size was not stored, then it is the
+		original 16k. */
+		page_size = UNIV_PAGE_SIZE;
+	}
+
+	return(page_size);
+}

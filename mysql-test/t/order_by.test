@@ -1,10 +1,16 @@
 #
-# Bug with order by
+# Testing ORDER BY
 #
 
 --disable_warnings
 drop table if exists t1,t2,t3;
 --enable_warnings
+
+call mtr.add_suppression("Out of sort memory; increase server sort buffer size");
+
+#
+# Test old ORDER BY bug
+#
 
 CREATE TABLE t1 (
   id int(6) DEFAULT '0' NOT NULL,
@@ -151,6 +157,9 @@ INSERT INTO t2 VALUES (2,25);
 INSERT INTO t3 VALUES (1,'123 Park Place');
 INSERT INTO t3 VALUES (2,'453 Boardwalk');
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
+
 SELECT    a,b,if(b = 1,i,if(b = 2,v,''))
 FROM      t1
 LEFT JOIN t2 USING(c)
@@ -172,6 +181,8 @@ FROM      t1
 LEFT JOIN t2 ON t1.c = t2.c
 LEFT JOIN t3 ON t3.c = t1.c
 ORDER BY a;
+
+SET optimizer_switch=@save_optimizer_switch;
 
 drop table t1,t2,t3;
 
@@ -250,6 +261,9 @@ desc,b desc;
 explain select * from t1 where a = 2 and b > 0 order by a desc,b desc;
 explain select * from t1 where a = 2 and b < 2 order by a desc,b desc;
 explain select * from t1 where a = 1 order by b desc;
+explain select * from t1 where a = 2 and b > 0 order by a desc,b desc,b,a;
+explain select * from t1 where a = 2 and b < 2 order by a desc,a,b desc,a,b;
+
 select * from t1 where a = 1 order by b desc;
 #
 # Test things when we don't have NULL keys
@@ -374,14 +388,16 @@ DROP TABLE t1;
 #
 
 create table t1(id int not null auto_increment primary key, t char(12));
-disable_query_log;
+--disable_query_log
+begin;
 let $1 = 1000;
 while ($1)
  {
   eval insert into t1(t) values ('$1'); 
   dec $1;
  }
-enable_query_log;
+commit;
+--enable_query_log
 explain select id,t from t1 order by id;
 explain select id,t from t1 force index (primary) order by id;
 drop table t1;
@@ -400,7 +416,11 @@ CREATE TABLE t1 (
 INSERT INTO t1 VALUES ('0',3,'0'),('0',2,'1'),('0',1,'2'),('1',2,'1'),('1',1,'3'), ('1',0,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('3',2,'1'),('3',1,'2'),('3','3','3');
 EXPLAIN SELECT * FROM t1 WHERE FieldKey = '1' ORDER BY LongVal;
 SELECT * FROM t1 WHERE FieldKey = '1' ORDER BY LongVal;
-EXPLAIN SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY LongVal;
+--echo DS-MRR: use two IGNORE INDEX queries, otherwise we get cost races, because
+--echo DS-MRR: records_in_range/read_time return the same numbers for all three indexes
+EXPLAIN SELECT * FROM t1 IGNORE INDEX (LongField, StringField) WHERE FieldKey > '2' ORDER BY LongVal;
+EXPLAIN SELECT * FROM t1 IGNORE INDEX (FieldKey, LongField) WHERE FieldKey > '2' ORDER BY LongVal;
+
 SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY LongVal;
 EXPLAIN SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY FieldKey, LongVal;
 SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY FieldKey, LongVal;
@@ -428,6 +448,7 @@ drop table t1;
 
 create table t1(a int, b int, index(b));
 insert into t1 values (2, 1), (1, 1), (4, NULL), (3, NULL), (6, 2), (5, 2);
+insert into t1 values (12, 11), (11, 11), (14, 3), (13, 5), (16, 12), (15, 12);
 explain select * from t1 where b=1 or b is null order by a;
 select * from t1 where b=1 or b is null order by a;
 explain select * from t1 where b=2 or b is null order by a;
@@ -841,13 +862,13 @@ DROP TABLE t1;
 --echo #
 create table t1(a int, b tinytext);
 insert into t1 values (1,2),(3,2);
-set session sort_buffer_size= 30000;
+set session sort_buffer_size= 1000;
 set session max_sort_length= 2180;
 CALL mtr.add_suppression("Out of sort memory");
 --error ER_OUT_OF_SORTMEMORY
 select * from t1 order by b;
 drop table t1;
-call mtr.add_suppression("Out of sort memory; increase server sort buffer size");
+
 --echo #
 --echo # Bug #39844: Query Crash Mysql Server 5.0.67
 --echo #
@@ -1362,6 +1383,14 @@ SELECT d FROM t3 AS t1, t2 AS t2
 WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
 ORDER BY t2.c LIMIT 1;
 
+SELECT t1.*,t2.* FROM t1, t2
+WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
+ORDER BY t2.c LIMIT 5;
+
+SELECT t1.*, t2.* FROM t3 AS t1, t2 AS t2 
+WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
+ORDER BY t2.c LIMIT 5;
+
 DROP TABLE t1,t2,t3;
 
 
@@ -1491,6 +1520,24 @@ LIMIT 2;
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug #707848: WHERE condition with OR + ORDER BY + field substitution  
+--echo #
+
+CREATE TABLE t1 (a int PRIMARY KEY);
+INSERT INTO t1 VALUES
+  (9), (7), (11), (15), (2), (4), (1), (5), (14), (54), (3), (8);
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 r JOIN t1 s ON r.a = s.a 
+  WHERE s.a IN (2,9) OR s.a < 100  AND s.a != 0
+    ORDER BY 1 LIMIT 10;
+
+SELECT * FROM t1 r JOIN t1 s ON r.a = s.a 
+  WHERE s.a IN (2,9) OR s.a < 100 AND s.a != 0
+    ORDER BY 1 LIMIT 10;
+
+DROP TABLE t1;
 
 --echo #
 --echo # Bug #59110: Memory leak of QUICK_SELECT_I allocated memory 
@@ -1518,7 +1565,6 @@ select 1 order by max(1) + min(1);
 
 --echo End of 5.1 tests
 
-
 --echo #
 --echo # Bug #38745: MySQL 5.1 optimizer uses filesort for ORDER BY
 --echo #             when it should use index
@@ -1541,3 +1587,175 @@ SELECT t1.*, t2.* FROM t1 JOIN t2 ON t1.i1 = t2.i2
   ORDER BY t1.i1 LIMIT 5;
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Fix of LP BUG#793589 Wrong result with double ORDER BY
+--echo #
+CREATE TABLE t1 ( b int) ;
+INSERT INTO t1 VALUES (8),(9);
+
+CREATE TABLE t2 ( a int, b int, PRIMARY KEY (a)) ;
+INSERT INTO t2 VALUES (6,7),(7,7),(8,1),(9,7),(10,1),(11,5),(12,2),(13,0),(14,1),(15,8),(16,1),(17,1),(18,9),(19,1),(20,5);
+
+SELECT t2.b AS field1 FROM t1, t2 WHERE t1.b = t2.a GROUP BY field1 ORDER BY t1.b, field1;
+SELECT t2.b, t1.b FROM t1, t2 WHERE t1.b = t2.a GROUP BY t2.b ORDER BY t1.b, t2.b;
+SELECT t2.b,t1.b FROM t1, t2 WHERE t1.b = t2.a GROUP BY t2.b ORDER BY t1.b;
+SELECT t2.b FROM t1, t2 WHERE t1.b = t2.a GROUP BY t2.b ORDER BY t1.b;
+
+--echo # field1 removed from ORDER BY
+explain extended
+SELECT t2.b AS field1 FROM t1, t2 WHERE t1.b = t2.a GROUP BY field1 ORDER BY t1.b, field1;
+explain extended
+SELECT t2.b, t1.b FROM t1, t2 WHERE t1.b = t2.a GROUP BY t2.b ORDER BY t1.b, t2.b;
+explain extended
+SELECT t2.b,t1.b FROM t1, t2 WHERE t1.b = t2.a GROUP BY t2.b ORDER BY t1.b;
+explain extended
+SELECT t2.b FROM t1, t2 WHERE t1.b = t2.a GROUP BY t2.b ORDER BY t1.b;
+
+
+drop table t1,t2;
+
+--echo End of 5.2 tests
+
+--echo #
+--echo # Bug mdev-449: ORDER BY with small sort_buffer_size
+--echo #
+
+CREATE TABLE t1(f0 int auto_increment primary key, f1 int, f2 varchar(200));
+INSERT INTO t1(f1, f2) VALUES 
+(0,"0"),(1,"1"),(2,"2"),(3,"3"),(4,"4"),(5,"5"),
+(6,"6"),(7,"7"),(8,"8"),(9,"9"),(10,"10"),
+(11,"11"),(12,"12"),(13,"13"),(14,"14"),(15,"15"),
+(16,"16"),(17,"17"),(18,"18"),(19,"19"),(20,"20"),
+(21,"21"),(22,"22"),(23,"23"),(24,"24"),(25,"25"),
+(26,"26"),(27,"27"),(28,"28"),(29,"29"),(30,"30"),
+(31,"31"),(32,"32"),(33,"33"),(34,"34"),(35,"35"),
+(36,"36"),(37,"37"),(38,"38"),(39,"39"),(40,"40"),
+(41,"41"),(42,"42"),(43,"43"),(44,"44"),(45,"45"),
+(46,"46"),(47,"47"),(48,"48"),(49,"49"),(50,"50"),
+(51,"51"),(52,"52"),(53,"53"),(54,"54"),(55,"55"),
+(56,"56"),(57,"57"),(58,"58"),(59,"59"),(60,"60"),
+(61,"61"),(62,"62"),(63,"63"),(64,"64"),(65,"65"),
+(66,"66"),(67,"67"),(68,"68"),(69,"69"),(70,"70"),
+(71,"71"),(72,"72"),(73,"73"),(74,"74"),(75,"75"),
+(76,"76"),(77,"77"),(78,"78"),(79,"79"),(80,"80"),
+(81,"81"),(82,"82"),(83,"83"),(84,"84"),(85,"85"),
+(86,"86"),(87,"87"),(88,"88"),(89,"89"),(90,"90"),
+(91,"91"),(92,"92"),(93,"93"),(94,"94"),(95,"95"),
+(96,"96"),(97,"97"),(98,"98"),(99,"99");
+
+set @save_sort_buffer_size= @@sort_buffer_size;
+set sort_buffer_size= 2000;
+
+SELECT * FROM t1 ORDER BY f1 DESC, f0;
+
+set sort_buffer_size= @save_sort_buffer_size; 
+
+DROP TABLE t1;
+
+--echo End of 5.3 tests
+
+--echo #
+--echo # Bug 54599: discarded fast range scan for query with 
+--echo #            GROUP BY + ORDER BY + LIMIT 
+--echo #
+
+create table t0 (a int);
+insert into t0 values (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+
+create table t1 (a int, b int, index idx1(a,b), index idx2(b,a));
+insert into t1
+  select 1000*s4.a+100*s3.a+10*s2.a + s1.a, 1000*s4.a+100*s3.a+10*s2.a+s1.a
+    from t0 s1, t0 s2, t0 s3, t0 s4;
+--disable_result_log
+analyze table t1;
+--enable_result_log
+
+explain
+select b, count(*) num_cnt from t1
+   where a > 9750 group by b order by num_cnt;
+flush status;
+--disable_result_log
+select b, count(*) num_cnt from t1
+   where a > 9750 group by b order by num_cnt;
+--enable_result_log
+show status like '%Handler_read%';
+
+explain
+select b, count(*) num_cnt from t1 
+  where a > 9750 group by b order by num_cnt limit 1;
+flush status;
+--disable_result_log
+select b, count(*) num_cnt from t1 
+  where a > 9750 group by b order by num_cnt limit 1;
+--enable_result_log
+show status like '%Handler_read%';
+
+drop table t0, t1;
+
+--echo #
+--echo # LP bug #1002508 : the number  of expected rows to be examined is off
+--echo # (bug #13528826)
+--echo #             
+
+CREATE TABLE t1(a int PRIMARY KEY, b int) ENGINE=myisam;
+INSERT INTO t1 VALUES
+  (5, 10), (2, 70), (7, 80), (6, 20), (1, 50), (9, 40), (8, 30), (3, 60);
+CREATE TABLE t2 (p int, a int, INDEX i_a(a)) ENGINE=myisam;
+INSERT INTO t2 VALUES
+  (103, 7), (109, 3), (102, 3), (108, 1), (106, 3),
+  (107, 7), (105, 1), (101, 3), (100, 7), (110, 1);
+
+EXPLAIN 
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a;
+
+EXPLAIN 
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a LIMIT 8;
+
+EXPLAIN 
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a LIMIT 100;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # MDEV-4974 memory leak in 5.5.32-MariaDB-1~wheezy-log
+--echo #
+set sort_buffer_size=default;
+set max_sort_length=default;
+create table t1(a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t2 (b int,
+                 col1 varchar(255),
+                 col2 varchar(255)
+                 ) character set utf8;
+
+insert into t2 select 
+  A.a+10*B.a,
+  concat('wow-wow-col1-value-', A.a+10*B.a+100*C.a),
+  concat('wow-wow-col2-value-', A.a+10*B.a+100*C.a)
+from 
+  t1 A, t1 B, t1 C where C.a < 8;
+
+create table t3 as 
+select distinct A.col1 as XX, B.col1 as YY
+from 
+   t2 A, t2 B 
+where A.b = B.b
+order by A.col2, B.col2 limit 10, 1000000;
+
+drop table t1,t2,t3;
+
+--echo #
+--echo # mdev-10705 : long order by list that can be skipped
+--echo #
+
+SELECT 1 
+UNION 
+( SELECT 2 
+    ORDER BY NULL, @a0 := 3, @a1 := 3, @a2 := 3, @a3 := 3, @a4 := 3,
+             @a5 := 3, @a6 := 3, @a7 := 3, @a8 := 3, @a9 := 3, @a10 := 3 );
+
+--echo End of 5.5 tests
+
+

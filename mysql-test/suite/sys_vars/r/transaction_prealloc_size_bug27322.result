@@ -1,0 +1,21 @@
+SET @def_var= @@session.transaction_prealloc_size;
+SET SESSION transaction_prealloc_size=1024*1024*1024*1;
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info	Progress
+<Id>	root	<Host>	test	Query	<Time>	NULL	SHOW PROCESSLIST	0.000
+SET SESSION transaction_prealloc_size=1024*1024*1024*2;
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info	Progress
+<Id>	root	<Host>	test	Query	<Time>	NULL	SHOW PROCESSLIST	0.000
+SET SESSION transaction_prealloc_size=1024*1024*1024*3;
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info	Progress
+<Id>	root	<Host>	test	Query	<Time>	NULL	SHOW PROCESSLIST	0.000
+SET SESSION transaction_prealloc_size=1024*1024*1024*4;
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info	Progress
+<Id>	root	<Host>	test	Query	<Time>	NULL	SHOW PROCESSLIST	0.000
+SET SESSION transaction_prealloc_size=1024*1024*1024*5;
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info	Progress
+<Id>	root	<Host>	test	Query	<Time>	NULL	SHOW PROCESSLIST	0.000

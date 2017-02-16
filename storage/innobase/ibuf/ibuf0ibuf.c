@@ -2731,6 +2731,14 @@ ibuf_contract_for_n_pages(
 	ulint	n_bytes;
 	ulint	n_pag2;
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+	if (ibuf_debug) {
+		return(0);
+	}
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
+
+
 	while (sum_pages < n_pages) {
 		n_bytes = ibuf_contract_ext(&n_pag2, sync);
 

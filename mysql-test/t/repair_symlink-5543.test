@@ -1,0 +1,26 @@
+#
+# MDEV-5543 MyISAM repair unsafe usage of TMD files 
+#
+--source include/have_symlink.inc
+--source include/not_windows.inc
+--source include/have_maria.inc
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval create table t1 (a int) engine=myisam data directory='$MYSQL_TMP_DIR';
+insert t1 values (1);
+--system ln -s $MYSQL_TMP_DIR/foobar5543 $MYSQL_TMP_DIR/t1.TMD
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+repair table t1;
+drop table t1;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval create table t2 (a int) engine=aria data directory='$MYSQL_TMP_DIR';
+insert t2 values (1);
+--system ln -s $MYSQL_TMP_DIR/foobar5543 $MYSQL_TMP_DIR/t2.TMD
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+repair table t2;
+drop table t2;
+
+--list_files $MYSQL_TMP_DIR foobar5543
+--system rm $MYSQL_TMP_DIR/t1.TMD $MYSQL_TMP_DIR/t2.TMD
+

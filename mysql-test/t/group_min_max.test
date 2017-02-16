@@ -406,10 +406,66 @@ explain select a1,a2,b,min(c),max(c) from t1
 where exists ( select * from t2 where t2.c = t1.c )
 group by a1,a2,b;
 
+select a1,a2,b,min(c),max(c) from t1
+where exists ( select * from t2 where t2.c = t1.c )
+group by a1,a2,b;
+
 # the sub-select is unrelated to MIN/MAX
 explain select a1,a2,b,min(c),max(c) from t1
 where exists ( select * from t2 where t2.c > 'b1' )
 group by a1,a2,b;
+
+select a1,a2,b,min(c),max(c) from t1
+where exists ( select * from t2 where t2.c > 'b1' )
+group by a1,a2,b;
+
+# correlated subselect that doesn't reference the min/max argument
+explain select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2 where t1.b > 'a' and t2.c > 'b1' )
+group by a1,a2,b;
+
+select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2 where t1.b > 'a' and t2.c > 'b1' )
+group by a1,a2,b;
+
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
+explain select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2
+               where t2.c in (select c from t3 where t3.c > t1.b) and
+               t2.c > 'b1' )
+group by a1,a2,b;
+
+select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2
+               where t2.c in (select c from t3 where t3.c > t1.b) and
+               t2.c > 'b1' )
+group by a1,a2,b;
+SET optimizer_switch=@save_optimizer_switch;
+
+# correlated subselect that references the min/max argument
+explain select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2 where t1.c > 'a' and t2.c > 'b1' )
+group by a1,a2,b;
+
+select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2 where t1.c > 'a' and t2.c > 'b1' )
+group by a1,a2,b;
+
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
+explain select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2
+               where t2.c in (select c from t3 where t3.c > t1.c) and
+               t2.c > 'b1' )
+group by a1,a2,b;
+
+select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2
+               where t2.c in (select c from t3 where t3.c > t1.c) and
+               t2.c > 'b1' )
+group by a1,a2,b;
+SET optimizer_switch=@save_optimizer_switch;
 
 
 # A,B,C) Predicates referencing mixed classes of attributes
@@ -1099,9 +1155,113 @@ ORDER BY min_a;
 
 DROP TABLE t1;
 
+#
+# MDEV-729 lp:998028 - Server crashes on normal shutdown in closefrm after executing a query from MyISAM table
+#
+create table t1 (a int, b varchar(1), key(b,a)) engine=myisam;
+insert t1 values (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(6,'f'),(7,'g'),(8,'h'),(null,'i');
+select min(a), b from t1 where a=7 or b='z' group by b;
+flush tables;
+drop table t1;
+
+--echo #
+--echo # LP BUG#888456 Wrong result with DISTINCT , ANY , subquery_cache=off , NOT NULL
+--echo #
+
+CREATE TABLE t1 ( a int NOT NULL) ;
+INSERT INTO t1 VALUES (28),(29),(9);
+
+CREATE TABLE t2 ( a int, KEY (a)) ;
+INSERT INTO t2 VALUES (1),(1),(1),(4),(4),(5),(5),(8),(8),(9);
+
+explain select (select t2.a from t2 where t2.a >= t1.a group by t2.a) from t1;
+select (select t2.a from t2 where t2.a >= t1.a group by t2.a) from t1;
+
+drop table t1, t2;
+
+--echo #
+--echo # LP BUG#900375 Wrong result with derived_merge=ON, DISTINCT or GROUP BY, EXISTS
+--echo #
+
+CREATE TABLE t1 ( a INT, b INT, KEY (b) );
+INSERT INTO t1 VALUES
+(100,10),(101,11),(102,12),(103,13),(104,14),
+(105,15),(106,16),(107,17),(108,18),(109,19);
+
+EXPLAIN
+SELECT alias1.* FROM t1, (SELECT * FROM t1) AS alias1
+WHERE EXISTS ( SELECT DISTINCT b FROM t1 WHERE b <= alias1.a ) ;
+SELECT alias1.* FROM t1, (SELECT * FROM t1) AS alias1
+WHERE EXISTS ( SELECT DISTINCT b FROM t1 WHERE b <= alias1.a ) ;
+
+EXPLAIN
+SELECT alias1.* FROM t1, t1 AS alias1
+WHERE EXISTS ( SELECT DISTINCT b FROM t1 WHERE b <= alias1.a ) ;
+SELECT alias1.* FROM t1, t1 AS alias1
+WHERE EXISTS ( SELECT DISTINCT b FROM t1 WHERE b <= alias1.a ) ;
+
+drop table t1;
 
 --echo End of 5.1 tests
 
+--echo #
+--echo # MDEV-765 lp:825075 - Wrong result with GROUP BY + multipart key + MIN/MAX loose scan
+--echo #
+
+CREATE TABLE t1 (a varchar(1), b varchar(1), KEY (b,a));
+INSERT INTO t1 VALUES
+('0',NULL),('9',NULL),('8','c'),('4','d'),('7','d'),(NULL,'f'),
+('7','f'),('8','g'),(NULL,'j');
+
+explain
+SELECT max(a) , b FROM t1 WHERE a IS NULL OR b = 'z' GROUP BY b; 
+SELECT max(a) , b FROM t1 WHERE a IS NULL OR b = 'z' GROUP BY b; 
+
+explain
+SELECT b, min(a) FROM t1 WHERE a = '7' OR b = 'z' GROUP BY b;
+SELECT b, min(a) FROM t1 WHERE a = '7' OR b = 'z' GROUP BY b;
+
+explain
+SELECT b, min(a) FROM t1 WHERE (a = b OR b = 'd' OR b is NULL) GROUP BY b;
+SELECT b, min(a) FROM t1 WHERE (a = b OR b = 'd' OR b is NULL) GROUP BY b;
+
+explain
+SELECT b, min(a) FROM t1 WHERE a > ('0' = b) AND b = 'z' GROUP BY b;
+SELECT b, min(a) FROM t1 WHERE a > ('0' = b) AND b = 'z' GROUP BY b;
+
+explain
+SELECT b, min(a) FROM t1 WHERE a > '0' AND (b < (a = '7')) GROUP BY b;
+SELECT b, min(a) FROM t1 WHERE a > '0' AND (b < (a = '7')) GROUP BY b;
+
+explain
+SELECT b, min(a) FROM t1 WHERE (a > '0' AND (a > '1' OR b = 'd')) GROUP BY b;
+SELECT b, min(a) FROM t1 WHERE (a > '0' AND (a > '1' OR b = 'd')) GROUP BY b;
+
+drop table t1;
+
+--echo #
+--echo # MDEV-4140 Wrong result with GROUP BY + multipart key + MIN/MAX loose scan and a subquery
+--echo #
+
+CREATE TABLE t1 (a int, b int, KEY (b, a)) ;
+INSERT INTO t1 VALUES (0,99),(9,99),(4,0),(7,0),(99,0),(7,0),(8,0),(99,0),(1,0);
+CREATE TABLE t2 (c int) ;
+INSERT INTO t2 VALUES (0),(1);
+
+EXPLAIN
+SELECT MIN(a), b FROM t1 WHERE a > 0 GROUP BY b;
+SELECT MIN(a), b FROM t1 WHERE a > 0 GROUP BY b;
+EXPLAIN
+SELECT MIN(a), b FROM t1 WHERE a > ( SELECT c FROM t2 WHERE c = 0 ) GROUP BY b;
+SELECT MIN(a), b FROM t1 WHERE a > ( SELECT c FROM t2 WHERE c = 0 ) GROUP BY b;
+# this test is for 5.5 to ensure that the subquery is expensive
+EXPLAIN
+SELECT MIN(a), b FROM t1 WHERE a > ( SELECT min(c) FROM t2, t1 t1a, t1 t1b WHERE c = 0 ) GROUP BY b;
+SELECT MIN(a), b FROM t1 WHERE a > ( SELECT min(c) FROM t2, t1 t1a, t1 t1b WHERE c = 0 ) GROUP BY b;
+
+drop table t1, t2;
+
+--echo End of 5.3 tests
 
 --echo #
 --echo # WL#3220 (Loose index scan for COUNT DISTINCT)
@@ -1267,3 +1427,50 @@ EXPLAIN SELECT SUM(DISTINCT a), MIN(b), MAX(b) FROM t;
 SELECT a, SUM(DISTINCT a), MIN(b), MAX(b) FROM t GROUP BY a;
 EXPLAIN SELECT a, SUM(DISTINCT a), MIN(b), MAX(b) FROM t GROUP BY a;
 DROP TABLE t;
+
+--echo #
+--echo # MDEV-4219 A simple select query returns random data (upstream bug#68473)
+--echo #
+
+--disable_warnings
+drop table if exists faulty;
+--enable_warnings
+
+# MySQL's test case
+
+CREATE TABLE faulty (
+a int(11) unsigned NOT NULL AUTO_INCREMENT,
+b int(11) unsigned NOT NULL,
+c datetime NOT NULL,
+PRIMARY KEY (a),
+UNIQUE KEY b_and_c (b,c)
+);
+
+INSERT INTO faulty (b, c) VALUES
+(1801, '2013-02-15 09:00:00'),
+(1802, '2013-02-28 09:00:00'),
+(1802, '2013-03-01 09:00:00'),
+(5,    '1990-02-15 09:00:00'),
+(5,    '2013-02-15 09:00:00'),
+(5,    '2009-02-15 17:00:00');
+
+EXPLAIN
+SELECT DISTINCT b, c FROM faulty WHERE b='1802' ORDER BY c;
+SELECT DISTINCT b, c FROM faulty WHERE b='1802' ORDER BY c;
+
+drop table faulty;
+
+# MariaDB test case
+
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 (a, b) VALUES (1,1), (1,2), (1,3);
+INSERT INTO t1 SELECT a + 1, b FROM t1;
+INSERT INTO t1 SELECT a + 2, b FROM t1;
+
+CREATE INDEX break_it ON t1 (a, b);
+
+EXPLAIN
+SELECT distinct a, b FROM t1 where a = '3' ORDER BY b; 
+SELECT distinct a, b FROM t1 where a = '3' ORDER BY b; 
+
+drop table t1;

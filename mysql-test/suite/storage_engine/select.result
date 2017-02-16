@@ -1,0 +1,390 @@
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (100,'foobar'),(1,'z'),(200,'bar');
+CREATE TABLE t2 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t2 (a,b) SELECT a, b FROM t1;
+INSERT INTO t1 (a,b) SELECT a, b FROM t2;
+SELECT * FROM t1;
+a	b
+1	z
+1	z
+100	foobar
+100	foobar
+200	bar
+200	bar
+SELECT DISTINCT a FROM t1;
+a
+1
+100
+200
+SELECT ALL b, a FROM t1;
+b	a
+bar	200
+bar	200
+foobar	100
+foobar	100
+z	1
+z	1
+SELECT STRAIGHT_JOIN SQL_CACHE t1.* FROM t2, t1 WHERE t1.a <> t2.a;
+a	b
+1	z
+1	z
+1	z
+1	z
+100	foobar
+100	foobar
+100	foobar
+100	foobar
+200	bar
+200	bar
+200	bar
+200	bar
+SELECT SQL_SMALL_RESULT SQL_NO_CACHE t1.a FROM t1, t2;
+a
+1
+1
+1
+1
+1
+1
+100
+100
+100
+100
+100
+100
+200
+200
+200
+200
+200
+200
+SELECT SQL_BIG_RESULT SQL_CALC_FOUND_ROWS DISTINCT(t2.a) 
+FROM t1 t1_1, t2, t1 t1_2;
+a
+1
+100
+200
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+3
+SET GLOBAL query_cache_size = 1024*1024;
+SELECT SQL_CACHE * FROM t1, t2;
+a	b	a	b
+1	z	1	z
+1	z	1	z
+1	z	100	foobar
+1	z	100	foobar
+1	z	200	bar
+1	z	200	bar
+100	foobar	1	z
+100	foobar	1	z
+100	foobar	100	foobar
+100	foobar	100	foobar
+100	foobar	200	bar
+100	foobar	200	bar
+200	bar	1	z
+200	bar	1	z
+200	bar	100	foobar
+200	bar	100	foobar
+200	bar	200	bar
+200	bar	200	bar
+SET GLOBAL query_cache_size = 0;
+SELECT a+10 AS field1, CONCAT(b,':',b) AS field2 FROM t1 
+WHERE b > 'b' AND a IS NOT NULL 
+GROUP BY 2 DESC, field1 ASC
+HAVING field1 < 1000
+ORDER BY field2, 1 DESC, field1*2
+LIMIT 5 OFFSET 1 ROWS EXAMINED 100000;
+field1	field2
+11	z:z
+110	foobar:foobar
+SELECT SUM(a), MAX(a), b FROM t1 GROUP BY b WITH ROLLUP;
+SUM(a)	MAX(a)	b
+2	1	z
+200	100	foobar
+400	200	bar
+602	200	NULL
+SELECT * FROM t2 WHERE a>0 PROCEDURE ANALYSE();
+Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
+test.t2.a	1	200	1	3	0	0	100.3333	81.2418	ENUM('1','100','200') NOT NULL
+test.t2.b	bar	z	1	6	0	0	3.3333	NULL	ENUM('bar','foobar','z') NOT NULL
+SELECT t1.a, t2.b FROM t2, t1 WHERE t1.a = t2.a ORDER BY t2.b, t1.a 
+INTO OUTFILE '<DATADIR>/select.out' 
+CHARACTER SET utf8
+FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '''';
+200,'bar'
+200,'bar'
+100,'foobar'
+100,'foobar'
+1,'z'
+1,'z'
+SELECT t1.a, t2.b FROM t2, t1 WHERE t1.a = t2.a ORDER BY t2.b, t1.a
+INTO DUMPFILE '<DATADIR>/select.dump';
+ERROR 42000: Result consisted of more than one row
+SELECT t1.*, t2.* FROM t1, t2 ORDER BY t2.b, t1.a, t2.a, t1.b LIMIT 1
+INTO DUMPFILE '<DATADIR>/select.dump';
+1z200bar
+SELECT MIN(a), MAX(a) FROM t1 INTO @min, @max;
+SELECT @min, @max;
+@min	@max
+1	200
+SELECT t1_1.*, t2.* FROM t2, t1 AS t1_1, t1 AS t1_2 
+WHERE t1_1.a = t1_2.a AND t2.a = t1_1.a;
+a	b	a	b
+1	z	1	z
+1	z	1	z
+1	z	1	z
+1	z	1	z
+100	foobar	100	foobar
+100	foobar	100	foobar
+100	foobar	100	foobar
+100	foobar	100	foobar
+200	bar	200	bar
+200	bar	200	bar
+200	bar	200	bar
+200	bar	200	bar
+SELECT alias1.* FROM ( SELECT a,b FROM t1 ) alias1, t2 WHERE t2.a IN (100,200);
+a	b
+1	z
+1	z
+1	z
+1	z
+100	foobar
+100	foobar
+100	foobar
+100	foobar
+200	bar
+200	bar
+200	bar
+200	bar
+SELECT t1.a FROM { OJ t1 LEFT OUTER JOIN t2 ON t1.a = t2.a+10 };
+a
+1
+1
+100
+100
+200
+200
+SELECT t1.* FROM t2 INNER JOIN t1;
+a	b
+1	z
+1	z
+1	z
+1	z
+1	z
+1	z
+100	foobar
+100	foobar
+100	foobar
+100	foobar
+100	foobar
+100	foobar
+200	bar
+200	bar
+200	bar
+200	bar
+200	bar
+200	bar
+SELECT t1_2.* FROM t1 t1_1 CROSS JOIN t1 t1_2 ON t1_1.b = t1_2.b;
+a	b
+1	z
+1	z
+1	z
+1	z
+100	foobar
+100	foobar
+100	foobar
+100	foobar
+200	bar
+200	bar
+200	bar
+200	bar
+SELECT t1.a, t2.b FROM t2 STRAIGHT_JOIN t1 WHERE t1.b > t2.b;
+a	b
+1	bar
+1	bar
+1	foobar
+1	foobar
+100	bar
+100	bar
+SELECT t1.a, t2.b FROM t2 STRAIGHT_JOIN t1 ON t1.b > t2.b ORDER BY t1.a, t2.b;
+a	b
+1	bar
+1	bar
+1	foobar
+1	foobar
+100	bar
+100	bar
+SELECT t2.* FROM t1 LEFT JOIN t2 USING (a) ORDER BY t2.a, t2.b LIMIT 1;
+a	b
+1	z
+SELECT t2.* FROM t2 LEFT OUTER JOIN t1 ON t1.a = t2.a WHERE t1.a IS NOT NULL;
+a	b
+1	z
+1	z
+100	foobar
+100	foobar
+200	bar
+200	bar
+SELECT SUM(t2.a) FROM t1 RIGHT JOIN t2 ON t2.b = t1.b;
+SUM(t2.a)
+602
+SELECT MIN(t2.a) FROM t1 RIGHT OUTER JOIN t2 USING (b,a);
+MIN(t2.a)
+1
+SELECT alias.b FROM t1 NATURAL JOIN ( SELECT a,b FROM t1 ) alias WHERE b > '';
+b
+bar
+bar
+bar
+bar
+foobar
+foobar
+foobar
+foobar
+z
+z
+z
+z
+SELECT t2.b FROM ( SELECT a,b FROM t1 ) alias NATURAL LEFT JOIN t2 WHERE b IS NOT NULL;
+b
+bar
+bar
+foobar
+foobar
+z
+z
+SELECT t1.*, t2.* FROM t1 NATURAL LEFT OUTER JOIN t2;
+a	b	a	b
+1	z	1	z
+1	z	1	z
+100	foobar	100	foobar
+100	foobar	100	foobar
+200	bar	200	bar
+200	bar	200	bar
+SELECT t2_2.* FROM t2 t2_1 NATURAL RIGHT JOIN t2 t2_2 WHERE t2_1.a IN ( SELECT a FROM t1 );
+a	b
+1	z
+100	foobar
+200	bar
+SELECT t1_2.b FROM t1 t1_1 NATURAL RIGHT OUTER JOIN t1 t1_2 INNER JOIN t2;
+b
+bar
+bar
+bar
+bar
+bar
+bar
+bar
+bar
+bar
+bar
+bar
+bar
+foobar
+foobar
+foobar
+foobar
+foobar
+foobar
+foobar
+foobar
+foobar
+foobar
+foobar
+foobar
+z
+z
+z
+z
+z
+z
+z
+z
+z
+z
+z
+z
+SELECT ( SELECT MIN(a) FROM ( SELECT a,b FROM t1 ) alias1 ) AS min_a FROM t2;
+min_a
+1
+1
+1
+SELECT a,b FROM t2 WHERE a = ( SELECT MIN(a) FROM t1 );
+a	b
+1	z
+SELECT a,b FROM t2 WHERE b LIKE ( SELECT b FROM t1 ORDER BY b LIMIT 1 );
+a	b
+200	bar
+SELECT t2.* FROM t1 t1_outer, t2 WHERE ( t1_outer.a, t2.b ) IN ( SELECT a, b FROM t2 WHERE a = t1_outer.a );
+a	b
+1	z
+1	z
+100	foobar
+100	foobar
+200	bar
+200	bar
+SELECT a,b FROM t2 WHERE b = ANY ( SELECT b FROM t1 WHERE a > 1 );
+a	b
+100	foobar
+200	bar
+SELECT a,b FROM t2 WHERE b > ALL ( SELECT b FROM t1 WHERE b < 'foo' );
+a	b
+1	z
+100	foobar
+SELECT a,b FROM t1 WHERE ROW(a, b) = ( SELECT a, b FROM t2 ORDER BY a, b LIMIT 1 );
+a	b
+1	z
+1	z
+SELECT a,b FROM t1 WHERE EXISTS ( SELECT a,b FROM t2 WHERE t2.b > t1.b );
+a	b
+100	foobar
+100	foobar
+200	bar
+200	bar
+SELECT t1.* FROM t1, t2 ORDER BY ( SELECT b FROM t1 WHERE a IS NULL ORDER BY b LIMIT 1 ) DESC;
+a	b
+1	z
+1	z
+1	z
+1	z
+1	z
+1	z
+100	foobar
+100	foobar
+100	foobar
+100	foobar
+100	foobar
+100	foobar
+200	bar
+200	bar
+200	bar
+200	bar
+200	bar
+200	bar
+SELECT a, b FROM t1 HAVING a IN ( SELECT a FROM t2 WHERE b = t1.b );
+a	b
+1	z
+1	z
+100	foobar
+100	foobar
+200	bar
+200	bar
+SELECT a,b FROM t1 UNION SELECT a,b FROM t2 UNION DISTINCT SELECT a,b FROM t1;
+a	b
+1	z
+100	foobar
+200	bar
+SELECT a,b FROM t1 UNION SELECT a,b FROM t2 UNION ALL SELECT a,b FROM t1;
+a	b
+1	z
+1	z
+1	z
+100	foobar
+100	foobar
+100	foobar
+200	bar
+200	bar
+200	bar
+DROP TABLE t1, t2;

@@ -1,0 +1,126 @@
+#
+# Testing of PRELOAD
+#
+
+# Slow test, don't run during staging part
+-- source include/not_staging.inc
+-- source include/have_maria.inc
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+# Background dirty pages flushing may influence page cache stats:
+let $def_checkinterval=`select @@global.aria_checkpoint_interval`;
+set global aria_checkpoint_interval=0;
+
+# Work around BUG#34911 "FLUSH STATUS doesn't flush what it should":
+# compute differences in status variables before and after relevant
+# queries. Aria_pagecache_read_requests varies accross machines.
+create temporary table initial
+select variable_name,variable_value from
+information_schema.global_status where variable_name like "Aria_pagecache_reads";
+
+# we don't use block-format because we want page cache stats
+# about indices and not data pages.
+
+create table t1 (
+  a int not null auto_increment,
+  b char(16) not null,
+  primary key (a),
+  key (b)
+) engine=aria row_format=dynamic;
+
+create table t2(
+  a int not null auto_increment,
+  b char(16) not null,
+  primary key (a),
+  key (b)
+) engine=aria row_format=dynamic;
+
+insert into t1(b) values 
+  ('test0'),
+  ('test1'),
+  ('test2'),
+  ('test3'),
+  ('test4'),
+  ('test5'),
+  ('test6'),
+  ('test7');
+  
+insert into t2(b) select b from t1;
+insert into t1(b) select b from t2;  
+insert into t2(b) select b from t1;  
+insert into t1(b) select b from t2;  
+insert into t2(b) select b from t1;  
+insert into t1(b) select b from t2;  
+insert into t2(b) select b from t1;  
+insert into t1(b) select b from t2;  
+insert into t2(b) select b from t1;  
+insert into t1(b) select b from t2;  
+insert into t2(b) select b from t1;  
+insert into t1(b) select b from t2;  
+insert into t2(b) select b from t1;  
+insert into t1(b) select b from t2;  
+insert into t2(b) select b from t1;  
+insert into t1(b) select b from t2;  
+insert into t2(b) select b from t1;  
+insert into t1(b) select b from t2;  
+
+select count(*) from t1;
+select count(*) from t2;
+
+flush tables; flush status;
+let $show_stat=select g.variable_name,g.variable_value-i.variable_value from information_schema.global_status as g,initial as i where g.variable_name like "Aria_pagecache_read%" and g.variable_name=i.variable_name order by g.variable_name desc;
+eval $show_stat;
+select count(*) from t1 where b = 'test1';
+eval $show_stat;
+select count(*) from t1 where b = 'test1';
+eval $show_stat;
+
+flush tables; flush status;
+select @@preload_buffer_size;
+load index into cache t1;
+eval $show_stat;
+select count(*) from t1 where b = 'test1';
+eval $show_stat;
+
+flush tables; flush status;
+eval $show_stat;
+set session preload_buffer_size=256*1024;
+select @@preload_buffer_size;
+load index into cache t1 ignore leaves;
+eval $show_stat;
+select count(*) from t1 where b = 'test1';
+eval $show_stat;
+
+flush tables; flush status; 
+eval $show_stat;
+set session preload_buffer_size=1*1024;
+select @@preload_buffer_size;
+load index into cache t1, t2 key (primary,b) ignore leaves;
+eval $show_stat;
+select count(*) from t1 where b = 'test1';
+select count(*) from t2 where b = 'test1';
+eval $show_stat;
+
+flush tables; flush status;
+eval $show_stat;
+load index into cache t3, t2 key (primary,b) ;
+eval $show_stat;
+flush tables; flush status;
+eval $show_stat;
+load index into cache t3 key (b), t2 key (c) ;
+eval $show_stat;
+
+drop table t1, t2;
+drop temporary table initial;
+
+# check that Aria didn't use key cache
+show status like "key_read%";
+
+--disable_result_log
+--disable_query_log
+eval set global aria_checkpoint_interval=$def_checkinterval;
+--enable_result_log
+--enable_query_log

@@ -1,0 +1,5 @@
+drop table if exists t1,t2;
+CREATE TABLE t1 (a VARCHAR(8), INDEX(a)) ENGINE=TokuDB;
+INSERT INTO t1 VALUES ('foo'),('bar');
+CREATE TABLE t2 AS SELECT ( 'qux' ) IN ( SELECT a FROM t1 ) AS f1;
+drop table t1,t2;

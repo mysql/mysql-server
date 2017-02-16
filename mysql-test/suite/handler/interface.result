@@ -1,0 +1,306 @@
+drop table if exists t1,t3,t4,t5;
+drop database if exists test_test;
+SET SESSION STORAGE_ENGINE = MyISAM;
+drop table if exists t1,t3,t4,t5;
+create table t1 (a int, b char(10), key a using btree (a), key b using btree (a,b));
+insert into t1 values
+(17,"ddd"),(18,"eee"),(19,"fff"),(19,"yyy"),
+(14,"aaa"),(16,"ccc"),(16,"xxx"),
+(20,"ggg"),(21,"hhh"),(22,"iii"),(23,"xxx"),(24,"xxx"),(25,"xxx");
+handler t1 open;
+handler t1 read a=(SELECT 1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'SELECT 1)' at line 1
+handler t1 read a=(1) FIRST;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'FIRST' at line 1
+handler t1 read a=(1) NEXT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'NEXT' at line 1
+handler t1 read last;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 1
+handler t1 close;
+drop table t1;
+CREATE TABLE t1(a INT, PRIMARY KEY(a));
+insert into t1 values(1),(2);
+handler t1 open;
+handler t1 read primary=(1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'primary=(1)' at line 1
+handler t1 read `primary`=(1);
+a
+1
+handler t1 close;
+drop table t1;
+create database test_test;
+use test_test;
+create table t1(table_id char(20), primary key  (table_id));
+insert into t1 values ('test_test.t1');
+insert into t1 values ('');
+handler t1 open;
+handler t1 read first limit 9;
+table_id
+test_test.t1
+
+create table t2(table_id char(20), primary key  (table_id));
+insert into t2 values ('test_test.t2');
+insert into t2 values ('');
+handler t2 open;
+handler t2 read first limit 9;
+table_id
+test_test.t2
+
+use test;
+create table t1(table_id char(20), primary key  (table_id));
+insert into t1 values ('test.t1');
+insert into t1 values ('');
+handler t1 open;
+ERROR 42000: Not unique table/alias: 't1'
+use test;
+handler test.t1 read first limit 9;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'read first limit 9' at line 1
+handler test_test.t1 read first limit 9;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'read first limit 9' at line 1
+handler t1 read first limit 9;
+table_id
+test_test.t1
+
+handler test_test.t2 read first limit 9;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'read first limit 9' at line 1
+handler t2 read first limit 9;
+table_id
+test_test.t2
+
+handler test_test.t1 close;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'close' at line 1
+handler t1 close;
+drop table test_test.t1;
+handler test_test.t2 close;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'close' at line 1
+handler t2 close;
+drop table test_test.t2;
+drop database test_test;
+use test;
+handler test.t1 close;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'close' at line 1
+handler t1 close;
+ERROR 42S02: Unknown table 't1' in HANDLER
+drop table test.t1;
+create database test_test;
+use test_test;
+create table t1 (c1 char(20));
+insert into t1 values ('test_test.t1');
+create table t3 (c1 char(20));
+insert into t3 values ('test_test.t3');
+handler t1 open;
+handler t1 read first limit 9;
+c1
+test_test.t1
+handler t1 open h1;
+handler h1 read first limit 9;
+c1
+test_test.t1
+use test;
+create table t1 (c1 char(20));
+create table t2 (c1 char(20));
+create table t3 (c1 char(20));
+insert into t1 values ('t1');
+insert into t2 values ('t2');
+insert into t3 values ('t3');
+handler t1 open;
+ERROR 42000: Not unique table/alias: 't1'
+handler t2 open t1;
+ERROR 42000: Not unique table/alias: 't1'
+handler t3 open t1;
+ERROR 42000: Not unique table/alias: 't1'
+handler t1 read first limit 9;
+c1
+test_test.t1
+handler test.t1 close;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'close' at line 1
+handler test.t1 open h1;
+ERROR 42000: Not unique table/alias: 'h1'
+handler test_test.t1 open h1;
+ERROR 42000: Not unique table/alias: 'h1'
+handler test_test.t3 open h3;
+handler test.t1 open h2;
+handler t1 read first limit 9;
+c1
+test_test.t1
+handler h1 read first limit 9;
+c1
+test_test.t1
+handler h2 read first limit 9;
+c1
+t1
+handler h3 read first limit 9;
+c1
+test_test.t3
+handler h2 read first limit 9;
+c1
+t1
+handler test.h1 close;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'close' at line 1
+handler t1 close;
+handler h1 close;
+handler h2 close;
+handler t1 read first limit 9;
+ERROR 42S02: Unknown table 't1' in HANDLER
+handler h1 read first limit 9;
+ERROR 42S02: Unknown table 'h1' in HANDLER
+handler h2 read first limit 9;
+ERROR 42S02: Unknown table 'h2' in HANDLER
+handler h3 read first limit 9;
+c1
+test_test.t3
+handler h3 read first limit 9;
+c1
+test_test.t3
+use test_test;
+handler h3 read first limit 9;
+c1
+test_test.t3
+handler test.h3 read first limit 9;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'read first limit 9' at line 1
+handler h3 close;
+use test;
+drop table t3;
+drop table t2;
+drop table t1;
+drop database test_test;
+create table t1 (c1 int);
+create table t2 (c1 int);
+insert into t1 values (1);
+insert into t2 values (2);
+connection: default
+handler t1 open;
+handler t1 read first;
+c1
+1
+connection: flush
+flush tables;
+connection: waiter 
+connection: default
+handler t2 open;
+handler t2 read first;
+c1
+2
+handler t1 read next;
+c1
+1
+handler t1 close;
+handler t2 close;
+drop table t1,t2;
+drop table if exists t1, t0;
+create table t1 (c1 int);
+connection: default
+handler t1 open;
+handler t1 read first;
+c1
+connection: flush
+rename table t1 to t0;
+connection: waiter 
+connection: default
+#
+# RENAME placed two pending locks and waits.
+# When HANDLER t0 OPEN does open_tables(), it calls
+# mysql_ha_flush(), which in turn closes the open HANDLER for t1.
+# RENAME TABLE gets unblocked. If it gets scheduled quickly
+# and manages to complete before open_tables()
+# of HANDLER t0 OPEN, open_tables() and therefore the whole
+# HANDLER t0 OPEN succeeds. Otherwise open_tables() 
+# notices a pending or active exclusive metadata lock on t2
+# and the whole HANDLER t0 OPEN fails with ER_LOCK_DEADLOCK
+# error.
+#
+handler t0 open;
+handler t0 close;
+connection: flush
+handler t1 read next;
+ERROR 42S02: Unknown table 't1' in HANDLER
+handler t1 close;
+ERROR 42S02: Unknown table 't1' in HANDLER
+drop table t0;
+create table t1 (a int);
+handler t1 open as t1_alias;
+drop table t1;
+create table t1 (a int);
+handler t1 open as t1_alias;
+flush tables;
+drop table t1;
+create table t1 (a int);
+handler t1 open as t1_alias;
+handler t1_alias close;
+drop table t1;
+create table t1 (a int);
+handler t1 open as t1_alias;
+handler t1_alias read first;
+a
+drop table t1;
+handler t1_alias read next;
+ERROR 42S02: Unknown table 't1_alias' in HANDLER
+create table t1 (a int, b char(1), key a (a), key b (a,b));
+insert into t1 values (0,"a"),(1,"b"),(2,"c"),(3,"d"),(4,"e"),
+(5,"f"),(6,"g"),(7,"h"),(8,"i"),(9,"j");
+handler t1 open;
+handler t1 read a first;
+a	b
+0	a
+handler t1 read a next;
+a	b
+1	b
+flush tables;
+handler t1 read a next;
+a	b
+0	a
+handler t1 read a next;
+a	b
+1	b
+flush tables with read lock;
+handler t1 read a next;
+a	b
+0	a
+unlock tables;
+drop table t1;
+handler t1 read a next;
+ERROR 42S02: Unknown table 't1' in HANDLER
+drop table if exists t1;
+# First test case which is supposed trigger the execution
+# path on which problem was discovered.
+create table t1 (a int not null);
+insert into t1 values (1);
+handler t1 open;
+lock table t1 write;
+alter table t1 engine=csv;
+handler t1 read a next;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+handler t1 close;
+unlock tables;
+drop table t1;
+# Now test case which was reported originally but which no longer
+# triggers execution path which has caused the problem.
+create table t1 (a int not null);
+insert into t1 values (1);
+handler t1 open;
+alter table t1 engine=csv;
+# Since S metadata lock was already acquired at HANDLER OPEN time
+# and TL_READ lock requested by HANDLER READ is compatible with
+# ALTER's TL_WRITE_ALLOW_READ the below statement should succeed
+# without waiting. The old version of table should be used in it.
+handler t1 read next;
+a
+1
+handler t1 close;
+drop table t1;
+USE information_schema;
+HANDLER COLUMNS OPEN;
+ERROR HY000: Incorrect usage of HANDLER OPEN and information_schema
+USE test;
+PREPARE h_r FROM 'HANDLER t1 READ `PRIMARY` LAST';
+ERROR 42S02: Unknown table 't1' in HANDLER
+create view v as select 1;
+create temporary table v as select 2;
+handler v open;
+prepare stmt from 'create table if not exists v as select 3';
+execute stmt;
+Warnings:
+Note	1050	Table 'v' already exists
+handler v read next;
+ERROR 42S02: Unknown table 'v' in HANDLER
+drop view v;

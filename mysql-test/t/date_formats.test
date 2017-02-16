@@ -32,6 +32,8 @@ ORDER BY variable_name;
 # SET date_format='%d.%m.%Y';
 # SET date_format='%m-%d-%Y';
 # 
+# --error ER_WRONG_VALUE_FOR_VAR
+# SET datetime_format= NULL;
 # set datetime_format= '%Y%m%d%H%i%s';
 # set datetime_format= '%Y-%m-%d %H:%i:%s';
 # set datetime_format= '%m-%d-%y %H:%i:%s.%f';
@@ -123,12 +125,9 @@ ORDER BY variable_name;
 # Test of str_to_date
 #
 
-# PS doesn't support fractions of a second
---disable_ps_protocol
 select str_to_date(concat('15-01-2001',' 2:59:58.999'),
 	           concat('%d-%m-%Y',' ','%H:%i:%s.%f'));
 select STR_TO_DATE('2004.12.12 22.30.61','%Y.%m.%d %T');
---enable_ps_protocol
 
 create table t1 (date char(30), format char(30) not null);
 insert into t1 values
@@ -164,8 +163,6 @@ insert into t1 values
 ('15-01-20', '%d-%m-%y'),
 ('15-2001-1', '%d-%Y-%c');
 
-# PS doesn't support fractional seconds
---disable_ps_protocol
 select date,format,str_to_date(date, format) as str_to_date from t1;
 # Use as a string
 select date,format,concat('',str_to_date(date, format)) as con from t1;
@@ -212,7 +209,6 @@ select date,format,str_to_date(date, format) as str_to_date from t1;
 select date,format,concat(str_to_date(date, format),'') as con from t1;
 
 drop table t1;
---enable_ps_protocol
 
 #
 # Test of get_format

@@ -1,0 +1,454 @@
+DROP TABLE IF EXISTS t1;
+select 1, ST_Intersects(GeomFromText('POLYGON((0 0,20 0,20 20,0 20,0 0))'), GeomFromText('POLYGON((10 10,30 10,30 30,10 30,10 10))'));
+1	ST_Intersects(GeomFromText('POLYGON((0 0,20 0,20 20,0 20,0 0))'), GeomFromText('POLYGON((10 10,30 10,30 30,10 30,10 10))'))
+1	1
+select 0, ST_Intersects(GeomFromText('POLYGON((0 0,20 10,10 30, 0 0))'), GeomFromText('POLYGON((10 40, 40 50, 20 70, 10 40))'));
+0	ST_Intersects(GeomFromText('POLYGON((0 0,20 10,10 30, 0 0))'), GeomFromText('POLYGON((10 40, 40 50, 20 70, 10 40))'))
+0	0
+select 1, ST_Intersects(GeomFromText('POLYGON((0 0,20 10,10 30, 0 0))'), GeomFromText('POINT(10 10)'));
+1	ST_Intersects(GeomFromText('POLYGON((0 0,20 10,10 30, 0 0))'), GeomFromText('POINT(10 10)'))
+1	1
+select 1, ST_Intersects(GeomFromText('POLYGON((0 0,20 10,10 30, 0 0))'), GeomFromText('POLYGON((10 10,30 20,20 40, 10 10))'));
+1	ST_Intersects(GeomFromText('POLYGON((0 0,20 10,10 30, 0 0))'), GeomFromText('POLYGON((10 10,30 20,20 40, 10 10))'))
+1	1
+select 0, ST_Within(GeomFromText('POLYGON((0 0,20 10,10 30, 0 0))'), GeomFromText('POLYGON((10 10,30 20,20 40, 10 10))'));
+0	ST_Within(GeomFromText('POLYGON((0 0,20 10,10 30, 0 0))'), GeomFromText('POLYGON((10 10,30 20,20 40, 10 10))'))
+0	0
+select 1, ST_Within(GeomFromText('POLYGON((1 1,20 10,10 30, 1 1))'), GeomFromText('POLYGON((0 0,30 5,10 40, 0 0))'));
+1	ST_Within(GeomFromText('POLYGON((1 1,20 10,10 30, 1 1))'), GeomFromText('POLYGON((0 0,30 5,10 40, 0 0))'))
+1	1
+create table t1 (g point);
+insert into t1 values 
+(GeomFromText('POINT(2 2)')), (GeomFromText('POINT(2 4)')), (GeomFromText('POINT(2 6)')), (GeomFromText('POINT(2 8)')),
+(GeomFromText('POINT(4 2)')), (GeomFromText('POINT(4 4)')), (GeomFromText('POINT(4 6)')), (GeomFromText('POINT(4 8)')),
+(GeomFromText('POINT(6 2)')), (GeomFromText('POINT(6 4)')), (GeomFromText('POINT(6 6)')), (GeomFromText('POINT(6 8)')),
+(GeomFromText('POINT(8 2)')), (GeomFromText('POINT(8 4)')), (GeomFromText('POINT(8 6)')), (GeomFromText('POINT(8 8)'));
+select astext(g) from t1 where ST_Within(g, GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'));
+astext(g)
+POINT(4 4)
+POINT(6 2)
+POINT(6 4)
+POINT(6 6)
+select 'Contains';
+Contains
+Contains
+select astext(g) from t1 where ST_Contains(GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'), g);
+astext(g)
+POINT(4 4)
+POINT(6 2)
+POINT(6 4)
+POINT(6 6)
+select 'Intersects';
+Intersects
+Intersects
+select astext(g) from t1 where ST_Intersects(GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'), g);
+astext(g)
+POINT(4 4)
+POINT(6 2)
+POINT(6 4)
+POINT(6 6)
+select 'Contains';
+Contains
+Contains
+select astext(g) from t1 where ST_Contains(GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'), g);
+astext(g)
+POINT(4 4)
+POINT(6 2)
+POINT(6 4)
+POINT(6 6)
+select 'Contains2';
+Contains2
+Contains2
+select astext(g) from t1 where ST_Contains(GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1), (5.01 3.01, 6 5, 9 5, 8 3, 5.01 3.01))'), g);
+astext(g)
+POINT(4 4)
+POINT(6 2)
+POINT(6 6)
+POINT(8 4)
+DROP TABLE t1;
+select 0, ST_Within(GeomFromText('LINESTRING(15 15, 50 50, 60 60)'), GeomFromText('POLYGON((10 10,30 20,20 40, 10 10))'));
+0	ST_Within(GeomFromText('LINESTRING(15 15, 50 50, 60 60)'), GeomFromText('POLYGON((10 10,30 20,20 40, 10 10))'))
+0	0
+select 1, ST_Within(GeomFromText('LINESTRING(15 15, 16 16)'), GeomFromText('POLYGON((10 10,30 20,20 40, 10 10))'));
+1	ST_Within(GeomFromText('LINESTRING(15 15, 16 16)'), GeomFromText('POLYGON((10 10,30 20,20 40, 10 10))'))
+1	1
+select 1, ST_Intersects(GeomFromText('LINESTRING(15 15, 50 50)'), GeomFromText('LINESTRING(50 15, 15 50)'));
+1	ST_Intersects(GeomFromText('LINESTRING(15 15, 50 50)'), GeomFromText('LINESTRING(50 15, 15 50)'))
+1	1
+select 0, ST_Intersects(GeomFromText('LINESTRING(15 15, 50 50)'), GeomFromText('LINESTRING(16 16, 51 51)'));
+0	ST_Intersects(GeomFromText('LINESTRING(15 15, 50 50)'), GeomFromText('LINESTRING(16 16, 51 51)'))
+0	1
+select 1, ST_Intersects(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('POLYGON((50 5, 55 10, 0 45, 50 5))'));
+1	ST_Intersects(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('POLYGON((50 5, 55 10, 0 45, 50 5))'))
+1	1
+select astext(ST_Union(geometryfromtext('point(1 1)'), geometryfromtext('polygon((0 0, 2 0, 1 2, 0 0))')));
+astext(ST_Union(geometryfromtext('point(1 1)'), geometryfromtext('polygon((0 0, 2 0, 1 2, 0 0))')))
+POLYGON((0 0,1 2,2 0,0 0))
+select astext(ST_Intersection(geometryfromtext('point(1 1)'), geometryfromtext('polygon((0 0, 2 0, 1 2, 0 0))')));
+astext(ST_Intersection(geometryfromtext('point(1 1)'), geometryfromtext('polygon((0 0, 2 0, 1 2, 0 0))')))
+POINT(1 1)
+select ST_Intersects(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('POLYGON((50 5, 55 10, 0 45, 50 5))'));
+ST_Intersects(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('POLYGON((50 5, 55 10, 0 45, 50 5))'))
+1
+select ST_contains(GeomFromText('MULTIPOLYGON(((0 0, 0 5, 5 5, 5 0, 0 0)), ((6 6, 6 11, 11 11, 11 6, 6 6)))'), GeomFromText('POINT(5 10)'));
+ST_contains(GeomFromText('MULTIPOLYGON(((0 0, 0 5, 5 5, 5 0, 0 0)), ((6 6, 6 11, 11 11, 11 6, 6 6)))'), GeomFromText('POINT(5 10)'))
+0
+select ST_Disjoint(GeomFromText('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'), GeomFromText('POLYGON((10 10, 10 15, 15 15, 15 10, 10 10))'));
+ST_Disjoint(GeomFromText('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'), GeomFromText('POLYGON((10 10, 10 15, 15 15, 15 10, 10 10))'))
+1
+select ST_Disjoint(GeomFromText('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'), GeomFromText('POLYGON((10 10, 10 4, 4 4, 4 10, 10 10))'));
+ST_Disjoint(GeomFromText('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'), GeomFromText('POLYGON((10 10, 10 4, 4 4, 4 10, 10 10))'))
+0
+select ST_Overlaps(GeomFromText('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'), GeomFromText('POLYGON((10 10, 10 4, 4 4, 4 10, 10 10))'));
+ST_Overlaps(GeomFromText('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'), GeomFromText('POLYGON((10 10, 10 4, 4 4, 4 10, 10 10))'))
+1
+select ST_Overlaps(GeomFromText('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'), GeomFromText('POLYGON((1 1, 1 4, 4 4, 4 1, 1 1))'));
+ST_Overlaps(GeomFromText('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'), GeomFromText('POLYGON((1 1, 1 4, 4 4, 4 1, 1 1))'))
+0
+select ST_DISTANCE(geomfromtext('polygon((0 0, 1 2, 2 1, 0 0))'), geomfromtext('polygon((2 2, 3 4, 4 3, 2 2))'));
+ST_DISTANCE(geomfromtext('polygon((0 0, 1 2, 2 1, 0 0))'), geomfromtext('polygon((2 2, 3 4, 4 3, 2 2))'))
+0.7071067811865475
+select ST_DISTANCE(geomfromtext('polygon((0 0, 1 2, 2 1, 0 0))'), geomfromtext('linestring(0 1, 1 0)'));
+ST_DISTANCE(geomfromtext('polygon((0 0, 1 2, 2 1, 0 0))'), geomfromtext('linestring(0 1, 1 0)'))
+0
+select ST_DISTANCE(geomfromtext('polygon((0 0, 3 6, 6 3, 0 0))'), geomfromtext('polygon((2 2, 3 4, 4 3, 2 2))'));
+ST_DISTANCE(geomfromtext('polygon((0 0, 3 6, 6 3, 0 0))'), geomfromtext('polygon((2 2, 3 4, 4 3, 2 2))'))
+0
+select ST_DISTANCE(geomfromtext('polygon((0 0, 3 6, 6 3, 0 0),(2 2, 3 4, 4 3, 2 2))'), geomfromtext('point(3 3)'));
+ST_DISTANCE(geomfromtext('polygon((0 0, 3 6, 6 3, 0 0),(2 2, 3 4, 4 3, 2 2))'), geomfromtext('point(3 3)'))
+0.4472135954999579
+select ST_DISTANCE(geomfromtext('linestring(0 0, 3 6, 6 3, 0 0)'), geomfromtext('polygon((2 2, 3 4, 4 3, 2 2))'));
+ST_DISTANCE(geomfromtext('linestring(0 0, 3 6, 6 3, 0 0)'), geomfromtext('polygon((2 2, 3 4, 4 3, 2 2))'))
+0.8944271909999159
+select astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('POLYGON((50 5, 55 10, 0 45, 50 5))')));
+astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('POLYGON((50 5, 55 10, 0 45, 50 5))')))
+POLYGON((26.47058823529412 23.823529411764707,21.951219512195124 27.439024390243905,23.855421686746986 29.819277108433734,29.289940828402365 26.36094674556213,26.47058823529412 23.823529411764707))
+select astext(ST_Intersection(GeomFromText('LINESTRING(0 0, 50 45, 40 50, 0 0)'), GeomFromText('LINESTRING(50 5, 55 10, 0 45, 50 5)')));
+astext(ST_Intersection(GeomFromText('LINESTRING(0 0, 50 45, 40 50, 0 0)'), GeomFromText('LINESTRING(50 5, 55 10, 0 45, 50 5)')))
+MULTIPOINT(26.47058823529412 23.823529411764707,29.289940828402365 26.36094674556213,21.951219512195124 27.439024390243905,23.855421686746986 29.819277108433734)
+select astext(ST_Intersection(GeomFromText('LINESTRING(0 0, 50 45, 40 50)'), GeomFromText('LINESTRING(50 5, 55 10, 0 45)')));
+astext(ST_Intersection(GeomFromText('LINESTRING(0 0, 50 45, 40 50)'), GeomFromText('LINESTRING(50 5, 55 10, 0 45)')))
+POINT(29.289940828402365 26.36094674556213)
+select astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('POINT(20 20)')));
+astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('POINT(20 20)')))
+POINT(20 20)
+select astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200)')));
+astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200)')))
+LINESTRING(0 0,46.666666666666664 46.666666666666664)
+select astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')));
+astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')))
+MULTILINESTRING((0 0,46.666666666666664 46.666666666666664),(8 10,45.33333333333333 47.33333333333333))
+select astext(ST_UNION(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')));
+astext(ST_UNION(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')))
+GEOMETRYCOLLECTION(LINESTRING(-10 -10,0 0),LINESTRING(-11 -9,8 10),POLYGON((0 0,40 50,50 45,0 0)),LINESTRING(46.666666666666664 46.666666666666664,200 200,199 201,45.33333333333333 47.33333333333333))
+select astext(ST_intersection(geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), geomfromtext('polygon((0 0, 1 1, 0 2, 0 0))')));
+astext(ST_intersection(geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), geomfromtext('polygon((0 0, 1 1, 0 2, 0 0))')))
+POLYGON((0 0,0 1,0.5 0.5,0 0))
+select astext(ST_symdifference(geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), geomfromtext('polygon((0 0, 1 1, 0 2, 0 0))')));
+astext(ST_symdifference(geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), geomfromtext('polygon((0 0, 1 1, 0 2, 0 0))')))
+MULTIPOLYGON(((0 0,0.5 0.5,1 0,0 0)),((0.5 0.5,0 1,0 2,1 1,0.5 0.5)))
+select astext(ST_UNION(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')));
+astext(ST_UNION(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')))
+GEOMETRYCOLLECTION(LINESTRING(-10 -10,0 0),LINESTRING(-11 -9,8 10),POLYGON((0 0,40 50,50 45,0 0)),LINESTRING(46.666666666666664 46.666666666666664,200 200,199 201,45.33333333333333 47.33333333333333))
+select astext(ST_buffer(geometryfromtext('point(1 1)'), 1));
+astext(ST_buffer(geometryfromtext('point(1 1)'), 1))
+POLYGON((1 0,0.950932325672582 0.001204543794827595,0.9019828596704393 0.004815273327803182,0.8532695255446382 0.010823490035218986,0.8049096779838717 0.01921471959676957,0.7570198200967361 0.029968746805456026,0.7097153227455377 0.043059664267791065,0.6631101466077799 0.058455934816979194,0.6173165676349102 0.07612046748871326,0.5724449065697179 0.09601070687655666,0.5286032631740024 0.11807873565164506,0.48589725580677834 0.14227138999972788,0.4444297669803978 0.16853038769745476,0.40430069550756664 0.19679246851935517,0.3656067158363545 0.226989546637263,0.32844104515298167 0.2590488746450409,0.29289321881345254 0.29289321881345254,0.2590488746450409 0.32844104515298167,0.226989546637263 0.3656067158363545,0.19679246851935517 0.40430069550756664,0.16853038769745476 0.4444297669803978,0.14227138999972788 0.48589725580677834,0.11807873565164506 0.5286032631740024,0.09601070687655666 0.5724449065697179,0.07612046748871326 0.6173165676349102,0.058455934816979194 0.6631101466077799,0.043059664267791065 0.7097153227455377,0.029968746805456026 0.7570198200967361,0.01921471959676957 0.8049096779838717,0.010823490035218986 0.8532695255446382,0.004815273327803182 0.9019828596704393,0.001204543794827595 0.950932325672582,0 1,0.004815273327803182 1.0980171403295607,0.010823490035218986 1.146730474455362,0.01921471959676957 1.1950903220161284,0.029968746805456026 1.2429801799032638,0.043059664267791065 1.2902846772544623,0.058455934816979194 1.3368898533922202,0.07612046748871326 1.3826834323650898,0.09601070687655666 1.427555093430282,0.11807873565164506 1.4713967368259975,0.14227138999972788 1.5141027441932216,0.16853038769745476 1.5555702330196022,0.19679246851935517 1.5956993044924332,0.226989546637263 1.6343932841636455,0.2590488746450409 1.6715589548470184,0.29289321881345254 1.7071067811865475,0.32844104515298167 1.7409511253549592,0.3656067158363545 1.7730104533627369,0.40430069550756664 1.8032075314806448,0.4444297669803978 1.8314696123025453,0.48589725580677834 1.8577286100002721,0.5286032631740024 1.881921264348355,0.5724449065697179 1.9039892931234434,0.6173165676349102 1.9238795325112867,0.6631101466077799 1.9415440651830207,0.7097153227455377 1.956940335732209,0.7570198200967361 1.970031253194544,0.8049096779838717 1.9807852804032304,0.8532695255446382 1.9891765099647811,0.9019828596704393 1.9951847266721967,0.950932325672582 1.9987954562051724,1 2,1.049067674327418 1.9987954562051724,1.0980171403295607 1.9951847266721967,1.146730474455362 1.9891765099647811,1.1950903220161284 1.9807852804032304,1.2429801799032638 1.970031253194544,1.2902846772544623 1.956940335732209,1.3368898533922202 1.9415440651830207,1.3826834323650898 1.9238795325112867,1.427555093430282 1.9039892931234434,1.4713967368259975 1.881921264348355,1.5141027441932216 1.8577286100002721,1.5555702330196022 1.8314696123025453,1.5956993044924332 1.8032075314806448,1.6343932841636455 1.7730104533627369,1.6715589548470184 1.7409511253549592,1.7071067811865475 1.7071067811865475,1.7409511253549592 1.6715589548470184,1.7730104533627369 1.6343932841636455,1.8032075314806448 1.5956993044924332,1.8314696123025453 1.5555702330196022,1.8577286100002721 1.5141027441932216,1.881921264348355 1.4713967368259975,1.9039892931234434 1.427555093430282,1.9238795325112867 1.3826834323650898,1.9415440651830207 1.3368898533922202,1.956940335732209 1.2902846772544623,1.970031253194544 1.2429801799032638,1.9807852804032304 1.1950903220161284,1.9891765099647811 1.146730474455362,1.9951847266721967 1.0980171403295607,1.9987954562051724 1.049067674327418,2 1,1.9951847266721967 0.9019828596704393,1.9891765099647811 0.8532695255446382,1.9807852804032304 0.8049096779838717,1.970031253194544 0.7570198200967361,1.956940335732209 0.7097153227455377,1.9415440651830207 0.6631101466077799,1.9238795325112867 0.6173165676349102,1.9039892931234434 0.5724449065697179,1.881921264348355 0.5286032631740024,1.8577286100002721 0.48589725580677834,1.8314696123025453 0.4444297669803978,1.8032075314806448 0.40430069550756664,1.7730104533627369 0.3656067158363545,1.7409511253549592 0.32844104515298167,1.7071067811865475 0.29289321881345254,1.6715589548470184 0.2590488746450409,1.6343932841636455 0.226989546637263,1.5956993044924332 0.19679246851935517,1.5555702330196022 0.16853038769745476,1.5141027441932216 0.14227138999972788,1.4713967368259975 0.11807873565164506,1.427555093430282 0.09601070687655666,1.3826834323650898 0.07612046748871326,1.3368898533922202 0.058455934816979194,1.2902846772544623 0.043059664267791065,1.2429801799032638 0.029968746805456026,1.1950903220161284 0.01921471959676957,1.146730474455362 0.010823490035218986,1.0980171403295607 0.004815273327803182,1.049067674327418 0.001204543794827595,1 0))
+create table t1(geom geometrycollection);
+insert into t1 values (geomfromtext('POLYGON((0 0, 10 10, 0 8, 0 0))'));
+insert into t1 values (geomfromtext('POLYGON((1 1, 10 10, 0 8, 1 1))'));
+select astext(geom), area(geom),round(area(ST_buffer(geom,2)), 7) from t1;
+astext(geom)	area(geom)	round(area(ST_buffer(geom,2)), 7)
+POLYGON((0 0,10 10,0 8,0 0))	40	117.2416764
+POLYGON((1 1,10 10,0 8,1 1))	36	108.5553959
+select ST_NUMPOINTS(ST_EXTERIORRING(ST_buffer(geom,2))) from t1;
+ST_NUMPOINTS(ST_EXTERIORRING(ST_buffer(geom,2)))
+133
+134
+set @geom=geomfromtext('LINESTRING(2 1, 4 2, 2 3, 2 5)');
+set @buff=ST_buffer(@geom,1);
+select ST_NUMPOINTS(ST_EXTERIORRING(@buff));
+ST_NUMPOINTS(ST_EXTERIORRING(@buff))
+202
+DROP TABLE t1;
+select st_touches(geomfromtext('point(0 0)'), geomfromtext('point(1 1)'));
+st_touches(geomfromtext('point(0 0)'), geomfromtext('point(1 1)'))
+0
+select st_touches(geomfromtext('point(1 1)'), geomfromtext('point(1 1)'));
+st_touches(geomfromtext('point(1 1)'), geomfromtext('point(1 1)'))
+1
+select st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('point(1 1)'));
+st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('point(1 1)'))
+1
+select st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('point(1 0)'));
+st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('point(1 0)'))
+0
+select st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('point(1 2)'));
+st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('point(1 2)'))
+0
+select st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('polygon((1 1.2, 1 0, 2 0, 1 1.2))'));
+st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('polygon((1 1.2, 1 0, 2 0, 1 1.2))'))
+1
+select st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('polygon((1 1, 1 0, 2 0, 1 1))'));
+st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('polygon((1 1, 1 0, 2 0, 1 1))'))
+1
+SELECT ST_Equals(PolyFromText('POLYGON((67 13, 67 18, 67 18, 59 18, 59 13, 67 13) )'),PolyFromText('POLYGON((67 13, 67 18, 59 19, 59 13, 59 13, 67 13) )')) as result;
+result
+0
+SELECT ST_Equals(PolyFromText('POLYGON((67 13, 67 18, 67 18, 59 18, 59 13, 67 13) )'),PolyFromText('POLYGON((67 13, 67 18, 59 18, 59 13, 59 13, 67 13) )')) as result;
+result
+1
+SELECT ST_Equals(PointFromText('POINT (12 13)'),PointFromText('POINT (12 13)')) as result;
+result
+1
+SELECT astext(ST_UNION (
+PolyFromText('POLYGON(( 2 2 ,3 2,2 7,2 2),( 0 0,8 2,1 9,0 0))'),
+ExteriorRing( Envelope( MultiLineStringFromText('MULTILINESTRING((3 4,5 3),(3 0,0 5))')))));
+astext(ST_UNION (
+PolyFromText('POLYGON(( 2 2 ,3 2,2 7,2 2),( 0 0,8 2,1 9,0 0))'),
+ExteriorRing( Envelope( MultiLineStringFromText('MULTILINESTRING((3 4,5 3),(3 0,0 5))')))))
+GEOMETRYCOLLECTION(POLYGON((0 0,1 9,8 2,0 0),(2 2,2 7,3 2,2 2)),LINESTRING(0.5555555555555556 5,0 5,0 0,5 0,5 1.25),LINESTRING(2 5,2.4 5))
+SELECT astext(ST_BUFFER(LineStringFromText('LINESTRING(0 0,1 1)'),0));
+astext(ST_BUFFER(LineStringFromText('LINESTRING(0 0,1 1)'),0))
+LINESTRING(0 0,1 1)
+SELECT Round(ST_Area(ST_BUFFER(MultipointFromText('MULTIPOINT(7 7,3 7,7 2,7 4 ,7 7)'), 3)), 5);
+Round(ST_Area(ST_BUFFER(MultipointFromText('MULTIPOINT(7 7,3 7,7 2,7 4 ,7 7)'), 3)), 5)
+78.68426
+SELECT ST_INTERSECTION(NULL, NULL);
+ST_INTERSECTION(NULL, NULL)
+NULL
+SELECT ASTEXT(ST_INTERSECTION(
+MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((2 2,2 8,8 8,8 2,2 2),(4 4,4 6,6 6,6 4,4 4)),
+                        ((0 5,3 5,3 0,0 0,0 1,2 1,2 2,0 2,0 5), (1 3,2 3,2 4,1 4,1 3)),
+                        ((2 2,5 2,4 4,2 8,2 2)))'),
+MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((3 5,2 4,2 5,3 5)),
+                        ((2 2,9 2,0 2,2 6,2 2)),
+                        ((2 2,2 8,8 8,8 2,2 2), (4 4,4 6,6 6,6 4,4 4)),
+                        ((9 9,6 8,7 0,9 9)))')));
+ASTEXT(ST_INTERSECTION(
+MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((2 2,2 8,8 8,8 2,2 2),(4 4,4 6,6 6,6 4,4 4)),
+                        ((0 5,3 5,3 0,0 0,0 1,2 1,2 2,0 2,0 5), (1 3,2 3,2 4,1 4,1 3)),
+                        ((2 2,5 2,4 4,2 8,2 2)))'),
+MULTIPOLY
+POLYGON((0 2,1 4,1 3,2 3,2 4,1 4,1.5 5,2 5,2 8,8 8,8 2,0 2),(4 4,4 6,6 6,6 4,4 4))
+SELECT ROUND(ST_LENGTH(ST_UNION(
+MULTILINESTRINGFROMTEXT('MULTILINESTRING((6 2,4 0,3 5,3 6,4 3,6 4,3 9,0 7,3 7,8 4,2 9,5 0),
+                                                 (8 2,1 3,9 0,4 4))'),
+MULTILINESTRINGFROMTEXT('MULTILINESTRING((2 5,6 7,9 7,5 2,1 6,3 6))'))), 7);
+ROUND(ST_LENGTH(ST_UNION(
+MULTILINESTRINGFROMTEXT('MULTILINESTRING((6 2,4 0,3 5,3 6,4 3,6 4,3 9,0 7,3 7,8 4,2 9,5 0),
+                                                 (8 2,1 3,9 0,4 4))'),
+MULTILINESTRINGFROMTEXT('MULTILINESTRING((2 5,6 7,9 7,5 2,1 6,3 6)
+90.2783626
+SELECT ST_NUMGEOMETRIES((ST_UNION(ST_UNION(
+MULTILINESTRINGFROMTEXT('MULTILINESTRING((2 0,4 2,0 2,1 5,0 3,7 0,8 5,5 8),
+                                                 (6 2,4 0,3 5,3 6,4 3,6 4,3 9,0 7,3 7,8 4,2 9,5 0),
+                                                 (7 8,3 1,0 9,6 0,4 8),
+                                                 (9 3,0 4,5 9,6 4),
+                                                 (8 2,1 3,9 0,4 4))'),
+MULTILINESTRINGFROMTEXT('MULTILINESTRING((6 0,9 3,2 5,3 6,3 2),
+                                                 (2 5,6 7,9 7,5 2,1 6,3 6))')),
+MULTIPOLYGONFROMTEXT('MULTIPOLYGON(((7 7,3 7,3 1,7 8,7 7)),
+                                       ((3 5,2 4,2 5,3 5)),
+                                       ((7 7,8 7,3 7,7 7,7 7)),
+                                       ((0 5,3 5,3 4,1 4,1 3,3 3,3 0,0 0,0 5), (1 1,2 1,2 2,1 2,1 1)))'))));
+ST_NUMGEOMETRIES((ST_UNION(ST_UNION(
+MULTILINESTRINGFROMTEXT('MULTILINESTRING((2 0,4 2,0 2,1 5,0 3,7 0,8 5,5 8),
+                                                 (6 2,4 0,3 5,3 6,4 3,6 4,3 9,0 7,3 7,8 4,2 9,5 0),
+                                          
+192
+SELECT Round(ST_AREA(ST_BUFFER( ST_UNION(
+POLYGONFROMTEXT('POLYGON((7 7, 7 7, 7 4, 7 7, 7 7))'),
+POLYGONFROMTEXT('POLYGON((7 7, 4 7, 2 9, 7 6, 7 7))')), 1)), 6);
+Round(ST_AREA(ST_BUFFER( ST_UNION(
+POLYGONFROMTEXT('POLYGON((7 7, 7 7, 7 4, 7 7, 7 7))'),
+POLYGONFROMTEXT('POLYGON((7 7, 4 7, 2 9, 7 6, 7 7))')), 1)), 6)
+21.901344
+SELECT AsText(ST_UNION(MultiPolygonFromText('
+        MULTIPOLYGON(((2 2, 2 8, 8 8, 8 2, 2 2), (4 4, 4 6, 6 6, 6 4, 4 4)),
+                     ((0 0, 8 3, 7 4, 0 0)),
+                     ((2 2, 2 8, 8 8, 8 2, 2 2), (4 4, 4 6, 6 6, 6 4, 4 4)))'),
+MultiPolygonFromText(' MULTIPOLYGON(((0 0, 1 9, 4 6, 0 0)),
+                     ((0 5, 3 5, 3 4, 1 4, 1 3, 3 3, 3 0, 0 0, 0 5), (1 1, 2 1, 2 2, 1 2, 1 1)),
+                     ((7 7, 4 7, 6 3, 7 2, 7 7)),
+                     ((0 5, 3 5, 3 4, 1 4, 1 3, 3 3, 3 0, 0 0, 0 5), (1 1, 2 1, 2 2, 1 2, 1 1))) ')));
+AsText(ST_UNION(MultiPolygonFromText('
+        MULTIPOLYGON(((2 2, 2 8, 8 8, 8 2, 2 2), (4 4, 4 6, 6 6, 6 4, 4 4)),
+                     ((0 0, 8 3, 7 4, 0 0)),
+                     ((2 2, 2 8, 8 8, 8 2, 2 2), (4 4, 4 6, 6 6, 6 4, 4 4)))'),
+MultiPolygonFr
+POLYGON((0 0,0 5,0.5555555555555556 5,1 9,2 8,8 8,8 2,5.333333333333334 2,3 1.125,3 0,0 0),(1 1,1 1.5,1.3333333333333333 2,2 2,2 1.1428571428571428,1.75 1,1 1),(3 1.7142857142857142,3 2,3.5 2,3 1.7142857142857142),(4 4,4 6,4.5 6,5.5 4,4 4))
+SELECT AsText(ST_SYMDIFFERENCE(
+MultiLineStringFromText('MULTILINESTRING((7 7, 1 7, 8 5, 7 8, 7 7),
+                                                 (6 3, 3 4, 1 1, 9 9, 9 0, 8 4, 9 9))'),
+Envelope(GeometryFromText('MULTIPOINT(7 9, 0 0, 3 7, 1 6, 0 0)'))));
+AsText(ST_SYMDIFFERENCE(
+MultiLineStringFromText('MULTILINESTRING((7 7, 1 7, 8 5, 7 8, 7 7),
+                                                 (6 3, 3 4, 1 1, 9 9, 9 0, 8 4, 9 9))'),
+Envelope(GeometryFromText('MULTIPOINT(7 9, 0 0, 3 7, 1 6, 0 0)'))))
+GEOMETRYCOLLECTION(POLYGON((0 0,0 9,7 9,7 0,0 0)),LINESTRING(9 9,8 4,9 0,9 9),LINESTRING(7 5.285714285714286,8 5,7.25 7.25),LINESTRING(7 7,7.25 7.25),LINESTRING(7.25 7.25,7 8),LINESTRING(7.25 7.25,9 9))
+SELECT AsText(ST_UNION(
+MultiPolygonFromText('MULTIPOLYGON(((9 9, 7 9, 1 1, 9 9)),
+                                           ((2 2, 1 2, 3 3, 2 2, 2 2)),
+                                           ((0 0, 7 5, 9 6, 0 0)),
+                                           ((7 7, 5 7, 1 5, 7 1, 7 7)))'),
+MultiPolygonFromText('MULTIPOLYGON(((2 2, 2 2, 1 5, 2 7, 2 2)),
+                                           ((0 5, 3 5, 3 0, 0 0, 0 5), (1 1, 2 1, 2 4, 1 4, 1 1)))')));
+AsText(ST_UNION(
+MultiPolygonFromText('MULTIPOLYGON(((9 9, 7 9, 1 1, 9 9)),
+                                           ((2 2, 1 2, 3 3, 2 2, 2 2)),
+                                           ((0 0, 7 5, 9 6, 0 0)),
+                                        
+POLYGON((0 0,0 5,1 5,2 7,2 5.5,5 7,5.5 7,7 9,9 9,7 7,7 5,9 6,7 4.666666666666667,7 1,4.25 2.833333333333333,3 2,3 0,0 0),(1 1,1 4,1.3333333333333333 4,1.8571428571428572 2.4285714285714284,1 2,1.75 2,1 1,2 2,2 1.4285714285714284,1.4 1,1 1),(1.5 1,2 1.3333333333333333,2 1,1.5 1),(3 2.142857142857143,3 3,3.4 3.4,4.1034482758620685 2.9310344827586206,3 2.142857142857143))
+SELECT AsText( ST_INTERSECTION(
+LinestringFromText('LINESTRING( 3 5, 2 5, 2 4, 3 4, 3 5 ) ') ,
+LinestringFromText('LINESTRING( 3 5, 2 4, 2 5, 3 5 ) ')
+));
+AsText( ST_INTERSECTION(
+LinestringFromText('LINESTRING( 3 5, 2 5, 2 4, 3 4, 3 5 ) ') ,
+LinestringFromText('LINESTRING( 3 5, 2 4, 2 5, 3 5 ) ')
+))
+LINESTRING(2 4,2 5,3 5)
+SELECT AsText( ST_UNION(
+PolygonFromText(' POLYGON( ( 2 2 , 3 2 , 7 5 , 2 0 , 2 2 ) ) ') ,
+PolygonFromText(' POLYGON( ( 2 2 , 3 2 , 3 3 , 2 5 , 2 2 ) ) ') ) );
+AsText( ST_UNION(
+PolygonFromText(' POLYGON( ( 2 2 , 3 2 , 7 5 , 2 0 , 2 2 ) ) ') ,
+PolygonFromText(' POLYGON( ( 2 2 , 3 2 , 3 3 , 2 5 , 2 2 ) ) ') ) )
+POLYGON((2 0,2 5,3 3,3 2,7 5,2 0))
+SELECT AsText(ST_INTERSECTION(LinestringFromText('LINESTRING(1 1, 2 2)'), GeometryFromText('LINESTRING(3 3, 4 4)')));
+AsText(ST_INTERSECTION(LinestringFromText('LINESTRING(1 1, 2 2)'), GeometryFromText('LINESTRING(3 3, 4 4)')))
+GEOMETRYCOLLECTION EMPTY
+SELECT AsText(ST_UNION(GEOMETRYFROMTEXT('POINT(8 1)') ,MULTILINESTRINGFROMTEXT('MULTILINESTRING((3 5, 2 5, 2 4, 3 4, 3 5))')));
+AsText(ST_UNION(GEOMETRYFROMTEXT('POINT(8 1)') ,MULTILINESTRINGFROMTEXT('MULTILINESTRING((3 5, 2 5, 2 4, 3 4, 3 5))')))
+GEOMETRYCOLLECTION(POINT(8 1),LINESTRING(2 4,2 5,3 5,3 4,2 4))
+SELECT ST_DISTANCE(POINTFROMTEXT('POINT(7 1)'),MULTILINESTRINGFROMTEXT('MULTILINESTRING(
+                (4 7,9 7,6 1,3 4,1 1), (3 5, 2 5, 2 4, 3 4, 3 5))'));
+ST_DISTANCE(POINTFROMTEXT('POINT(7 1)'),MULTILINESTRINGFROMTEXT('MULTILINESTRING(
+                (4 7,9 7,6 1,3 4,1 1), (3 5, 2 5, 2 4, 3 4, 3 5))'))
+1
+SELECT AsText(ST_UNION(POLYGONFROMTEXT('POLYGON((12 9, 3 6, 3 0, 12 9))'), POLYGONFROMTEXT('POLYGON((2 2, 7 2, 4 2, 2 0, 2 2))')));
+AsText(ST_UNION(POLYGONFROMTEXT('POLYGON((12 9, 3 6, 3 0, 12 9))'), POLYGONFROMTEXT('POLYGON((2 2, 7 2, 4 2, 2 0, 2 2))')))
+GEOMETRYCOLLECTION(POLYGON((2 0,2 2,3 2,3 6,12 9,3 0,3 1,2 0)),LINESTRING(5 2,7 2))
+SELECT ST_NUMPOINTS(ST_EXTERIORRING(ST_BUFFER(ST_UNION(
+MULTILINESTRINGFROMTEXT('MULTILINESTRING((3 4, 2 5, 7 6, 1 8),(0 0 ,1 6 ,0 1, 8 9, 2 4, 6 1, 3 5, 4 8), (9 3, 5 4, 1 8, 4 2, 5 8, 3 0))' ) ,
+MULTILINESTRINGFROMTEXT('MULTILINESTRING((3 4, 3 1, 2 7, 4 2, 6 2, 1 5))')
+), 16)));
+ST_NUMPOINTS(ST_EXTERIORRING(ST_BUFFER(ST_UNION(
+MULTILINESTRINGFROMTEXT('MULTILINESTRING((3 4, 2 5, 7 6, 1 8),(0 0 ,1 6 ,0 1, 8 9, 2 4, 6 1, 3 5, 4 8), (9 3, 5 4, 1 8, 4 2, 5 8, 3 0))' ) ,
+MULTILINESTRINGFROMTEXT('MULTILINESTRING((3 4, 3 1, 2 7, 4 2, 6 2
+278
+SELECT ST_NUMGEOMETRIES(ST_DIFFERENCE (
+ST_UNION (
+MULTILINESTRINGFROMTEXT( ' MULTILINESTRING( ( 2 4 , 5 0 , 2 9 , 6 2 , 0 2 ) , ( 4 3 , 5 6 , 9 4 , 0 7 , 7 2 , 2 0 , 8 2 ) , ( 5 0 , 1 5 , 3 7 , 7 7 ) , ( 2 3 , 9 5 , 2 0 , 8 1 ) , ( 0 9 , 9 3 , 2 8 , 8 1 , 9 4 ) ) ' ),
+ST_UNION (
+MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( ( 2 2 , 7 2 , 6 2 , 2 6 , 2 2 ) ) , ( (3 5, 2 5, 2 4, 3 4, 3 5) ) ) ' ) ,
+ENVELOPE(
+MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( (3 5, 2 5, 2 4, 3 4, 3 5) ) ) ' )
+)
+)
+),
+MULTILINESTRINGFROMTEXT( ' MULTILINESTRING( ( 2 9 , 1 3 , 7 3 , 8 5 ) , ( 5 0 , 8 1 , 2 0 , 7 4 , 1 0 ) , ( 9 2 , 5 2 , 6 5 , 8 8 , 0 2 ) , ( 0 8 , 3 9 , 4 0 , 1 0 ) , ( 0 0 , 7 6 , 8 3 , 0 0 ) ) ' )
+));
+ST_NUMGEOMETRIES(ST_DIFFERENCE (
+ST_UNION (
+MULTILINESTRINGFROMTEXT( ' MULTILINESTRING( ( 2 4 , 5 0 , 2 9 , 6 2 , 0 2 ) , ( 4 3 , 5 6 , 9 4 , 0 7 , 7 2 , 2 0 , 8 2 ) , ( 5 0 , 1 5 , 3 7 , 7 7 ) , ( 2 3 , 9 5 , 2 0 , 8 1 ) , ( 0 9 , 9 3 , 2 8 , 8 1 , 9 4 )
+125
+SELECT ASTEXT(ST_DIFFERENCE (
+POLYGONFROMTEXT( ' POLYGON( ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 , 4 6 , 6 6 , 6 4 , 4 4 ) ) ' ) ,
+ST_UNION (
+MULTILINESTRINGFROMTEXT( ' MULTILINESTRING( (3 5, 2 5, 2 4, 3 4, 3 5) ) ' ) ,
+ST_SYMDIFFERENCE (
+MULTILINESTRINGFROMTEXT( ' MULTILINESTRING( ( 3 8 , 0 8 , 6 6 , 6 1 , 0 5 , 6 7 , 3 7 ) , ( 5 8 , 7 7 , 9 0 , 8 7 ) , ( 1 5 , 1 8 , 2 3 , 3 9 ) , ( 1 3 , 9 7 , 5 5 , 0 8 , 6 9 ) , ( 3 6 , 6 9 , 8 7 , 0 2 , 4 6 , 9 5 ) ) ' ) ,
+ST_UNION (
+MULTILINESTRINGFROMTEXT( ' MULTILINESTRING( ( 9 4 , 2 0 , 2 2 , 7 2 , 6 2 ) , ( 5 2 , 8 2 , 4 8 , 3 4 ) , ( 1 0 , 1 4 , 2 7 , 7 0 , 1 5 ) , ( 2 8 , 4 4 , 5 0 , 7 0 , 4 0 ) ) ' ) ,
+GEOMETRYFROMTEXT( ' MULTILINESTRING( ( 3 7 , 7 3 , 5 8 , 4 8 ) , ( 3 2 , 5 0 , 9 3 , 4 4 ) , ( 6 0 , 4 2 , 7 8 , 1 3 ) ) ' )
+)
+)
+)
+));
+ASTEXT(ST_DIFFERENCE (
+POLYGONFROMTEXT( ' POLYGON( ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 , 4 6 , 6 6 , 6 4 , 4 4 ) ) ' ) ,
+ST_UNION (
+MULTILINESTRINGFROMTEXT( ' MULTILINESTRING( (3 5, 2 5, 2 4, 3 4, 3 5) ) ' ) ,
+ST_SYMDIFFERENCE (
+MULTILINESTRINGFROMTEX
+POLYGON((2 2,2 8,8 8,8 2,2 2),(4 4,4 6,6 6,6 4,4 4))
+SELECT ST_NUMGEOMETRIES(ST_UNION (
+MULTILINESTRINGFROMTEXT( ' MULTILINESTRING( ( 0 8 , 1 9 , 5 7 , 2 8 , 5 8 , 6 7 ) , ( 4 5 , 8 4 , 0 3 , 5 1 ) , ( 6 8 , 2 7 , 1 6 , 9 9 , 7 2 ) , ( 9 5 , 2 8 , 1 2 , 9 6 , 2 0 ) ) ' ) ,
+MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( ( 7 7 , 2 7, 6 8, 7 1 , 7 7 ) ) ) ' )
+));
+ST_NUMGEOMETRIES(ST_UNION (
+MULTILINESTRINGFROMTEXT( ' MULTILINESTRING( ( 0 8 , 1 9 , 5 7 , 2 8 , 5 8 , 6 7 ) , ( 4 5 , 8 4 , 0 3 , 5 1 ) , ( 6 8 , 2 7 , 1 6 , 9 9 , 7 2 ) , ( 9 5 , 2 8 , 1 2 , 9 6 , 2 0 ) ) ' ) ,
+MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( (
+50
+SELECT ST_BUFFER (
+LINESTRINGFROMTEXT( ' LINESTRING( 5 4 , 3 8 , 2 6 , 5 5 , 7 9 ) ' ) ,
+ST_DISTANCE (
+MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( (3 5, 2 4, 2 5, 3 5) ) , ( (3 5, 2 5, 2 4, 3 4, 3 5) ) , ( ( 0 0 , 8 3 , 9 5 , 0 0 ) ) ) ' ) ,
+ST_DIFFERENCE (
+MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( (3 5, 2 5, 2 4, 3 4, 3 5) ) ) ' ) ,
+MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 , 4 6 , 6 6 , 6 4 , 4 4 ) ) , ( ( 0 0 , 3 8 , 9 4 , 0 0 ) ) ) ' )
+)
+)
+) ;
+ST_BUFFER (
+LINESTRINGFROMTEXT( ' LINESTRING( 5 4 , 3 8 , 2 6 , 5 5 , 7 9 ) ' ) ,
+ST_DISTANCE (
+MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( (3 5, 2 4, 2 5, 3 5) ) , ( (3 5, 2 5, 2 4, 3 4, 3 5) ) , ( ( 0 0 , 8 3 , 9 5 , 0 0 ) ) ) ' ) ,
+ST_DIFFERENCE (
+MULTIPOL
+NULL
+SELECT   ST_DISTANCE (     ST_DIFFERENCE (                                 MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( (3 5, 2 5, 2 4, 3 4, 3 5) ) ) ' ) ,                                 MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 , 4 6 , 6 6 , 6 4 , 4 4 ) ) , ( ( 0 0 , 3 8 , 9 4 , 0 0 ) ) ) ' )                         ),                         MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( (3 5, 2 4, 2 5, 3 5) ) , ( (3 5, 2 5, 2 4, 3 4, 3 5) ) , ( ( 0 0 , 8 3 , 9 5 , 0 0 ) ) ) ' ) )  ;
+ST_DISTANCE (     ST_DIFFERENCE (                                 MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( (3 5, 2 5, 2 4, 3 4, 3 5) ) ) ' ) ,                                 MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 ,
+NULL
+SELECT ASTEXT(ST_INTERSECTION( GEOMETRYFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(7 7,5.33333333333333 7),LINESTRING(5.33333333333333 7,0 7,5 8,5.33333333333333 7),LINESTRING(5.33333333333333 7,7 2,7 7),POLYGON((0 5,3 5,3 2,1 2,1 1,3 1,3 0,0 0,0 3,2 3,2 4,0 4,0 5)))'), geomETRYFROMTEXT(' MULTILINESTRING( ( 5 1 , 3 7 , 6 1 , 7 0 ) , ( 1 6 , 8 5 , 7 5 , 5 6 ) )') ));
+ASTEXT(ST_INTERSECTION( GEOMETRYFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(7 7,5.33333333333333 7),LINESTRING(5.33333333333333 7,0 7,5 8,5.33333333333333 7),LINESTRING(5.33333333333333 7,7 2,7 7),POLYGON((0 5,3 5,3 2,1 2,1 1,3 1,3 0,0 0,0 3,2 3,2 4,0 4,0 5))
+MULTIPOINT(7 5,7 5.142857142857142,5.899999999999998 5.300000000000001,5.799999999999997 5.600000000000001,3 7)
+SELECT ST_CROSSES( GEOMETRYFROMTEXT(' POLYGON( (3 5, 2 4, 2 5, 3 5) ) ') , POLYGONFROMTEXT(' POLYGON((2 4,3 4,3 5,2 5,2 4)) '));
+ST_CROSSES( GEOMETRYFROMTEXT(' POLYGON( (3 5, 2 4, 2 5, 3 5) ) ') , POLYGONFROMTEXT(' POLYGON((2 4,3 4,3 5,2 5,2 4)) '))
+0
+SELECT ST_WITHIN( POLYGONFROMTEXT(' POLYGON( (0 5, 3 5, 3 4, 2 0 , 1 0, 2 4 , 0 4, 0 5) ) ') , POLYGONFROMTEXT(' POLYGON( (0 5, 3 5, 3 4, 1 4 , 1 3 , 3 3 , 3 0 , 0 0 , 0 5), ( 1 1 , 2 1 , 2 2 , 1 2 , 1 1 ) ) ') );
+ST_WITHIN( POLYGONFROMTEXT(' POLYGON( (0 5, 3 5, 3 4, 2 0 , 1 0, 2 4 , 0 4, 0 5) ) ') , POLYGONFROMTEXT(' POLYGON( (0 5, 3 5, 3 4, 1 4 , 1 3 , 3 3 , 3 0 , 0 0 , 0 5), ( 1 1 , 2 1 , 2 2 , 1 2 , 1 1 ) ) ') )
+0
+SELECT ST_WITHIN( POINTFROMTEXT(' POINT(1 2 ) ') , MULTIPOLYGONFROMTEXT(' MULTIPOLYGON( ( (0 5, 3 5, 3 0, 0 0, 0 5), ( 1 1 , 2 1 , 2 4, 1 4, 1 1 ) ) ) '));
+ST_WITHIN( POINTFROMTEXT(' POINT(1 2 ) ') , MULTIPOLYGONFROMTEXT(' MULTIPOLYGON( ( (0 5, 3 5, 3 0, 0 0, 0 5), ( 1 1 , 2 1 , 2 4, 1 4, 1 1 ) ) ) '))
+1
+select ST_ASTEXT(envelope(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION EMPTY')));
+ST_ASTEXT(envelope(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION EMPTY')))
+GEOMETRYCOLLECTION EMPTY
+SELECT ST_EQUALS( GEOMETRYFROMTEXT(' MULTILINESTRING( (3 5, 2 5, 2 4, 3 4, 3 5) ) ') , GEOMETRYFROMTEXT(' POLYGON( (3 5, 2 5, 2 4, 3 4, 3 5) ) ') );
+ST_EQUALS( GEOMETRYFROMTEXT(' MULTILINESTRING( (3 5, 2 5, 2 4, 3 4, 3 5) ) ') , GEOMETRYFROMTEXT(' POLYGON( (3 5, 2 5, 2 4, 3 4, 3 5) ) ') )
+0
+SELECT ST_TOUCHES( GEOMETRYFROMTEXT(' LINESTRING( 1 1 , 1 4 , 5 0 , 8 3 ) ') , POLYGONFROMTEXT(' POLYGON( ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 , 4 6 , 6 6 , 6 4 , 4 4 ) ) ') );
+ST_TOUCHES( GEOMETRYFROMTEXT(' LINESTRING( 1 1 , 1 4 , 5 0 , 8 3 ) ') , POLYGONFROMTEXT(' POLYGON( ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 , 4 6 , 6 6 , 6 4 , 4 4 ) ) ') )
+0
+SELECT ST_EQUALS( MULTIPOINTFROMTEXT(' MULTIPOINT( 5 1 , 6 9 , 1 4 , 4 0 ) ') , MULTIPOINTFROMTEXT(' MULTIPOINT( 5 8 , 5 2 , 1 8 , 3 0 , 3 0 , 7 8 ) ') );
+ST_EQUALS( MULTIPOINTFROMTEXT(' MULTIPOINT( 5 1 , 6 9 , 1 4 , 4 0 ) ') , MULTIPOINTFROMTEXT(' MULTIPOINT( 5 8 , 5 2 , 1 8 , 3 0 , 3 0 , 7 8 ) ') )
+0
+SELECT ST_EQUALS( MULTIPOINTFROMTEXT(' MULTIPOINT( 5 1 , 6 9 , 1 4 , 4 0 ) ') , MULTIPOINTFROMTEXT('MULTIPOINT( 4 0 , 6 9 , 5 1, 1 4 )') );
+ST_EQUALS( MULTIPOINTFROMTEXT(' MULTIPOINT( 5 1 , 6 9 , 1 4 , 4 0 ) ') , MULTIPOINTFROMTEXT('MULTIPOINT( 4 0 , 6 9 , 5 1, 1 4 )') )
+1
+SELECT ST_WITHIN( MULTIPOINTFROMTEXT(' MULTIPOINT( 2 9 , 2 9 , 4 9 , 9 1 ) ') , POLYGONFROMTEXT(' POLYGON( ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 , 4 6 , 6 6 , 6 4 , 4 4 ) ) '));
+ST_WITHIN( MULTIPOINTFROMTEXT(' MULTIPOINT( 2 9 , 2 9 , 4 9 , 9 1 ) ') , POLYGONFROMTEXT(' POLYGON( ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 , 4 6 , 6 6 , 6 4 , 4 4 ) ) '))
+0
+SELECT ST_INTERSECTS( GeomFromText('MULTILINESTRING( ( 4030 3045 , 3149 2461 , 3004 3831 , 3775 2976 ) )') , GeomFromText('LINESTRING(3058.41 3187.91,3081.52 3153.19,3042.99 3127.57,3019.89 3162.29,3039.07 3175.05,3039.07 3175.05,3058.41 3187.91,3081.52 3153.19,3042.99 3127.57,3019.89 3162.29)') );
+ST_INTERSECTS( GeomFromText('MULTILINESTRING( ( 4030 3045 , 3149 2461 , 3004 3831 , 3775 2976 ) )') , GeomFromText('LINESTRING(3058.41 3187.91,3081.52 3153.19,3042.99 3127.57,3019.89 3162.29,3039.07 3175.05,3039.07 3175.05,3058.41 3187.91,3081.52 3153.19,
+1
+SELECT ST_NUMPOINTS(ST_EXTERIORRING(ST_BUFFER( POLYGONFROMTEXT( 'POLYGON( ( 0.0 -3.0,
+  -2.910427500435995 0.727606875108998,
+  -0.910427500435995 8.727606875108998,
+  7.664100588675687 1.503849116986468,
+  1.664100588675687 -2.496150883013531,
+  0.0 -3.0
+))' ), 3 )));
+ST_NUMPOINTS(ST_EXTERIORRING(ST_BUFFER( POLYGONFROMTEXT( 'POLYGON( ( 0.0 -3.0,
+  -2.910427500435995 0.727606875108998,
+  -0.910427500435995 8.727606875108998,
+  7.664100588675687 1.503849116986468,
+  1.664100588675687 -2.496150883013531,
+  0.0 -3.0
+))' ),
+136
+select astext(buffer(st_linestringfromwkb(linestring(point(-1,1), point(-1,-2))),-1));
+astext(buffer(st_linestringfromwkb(linestring(point(-1,1), point(-1,-2))),-1))
+GEOMETRYCOLLECTION EMPTY

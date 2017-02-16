@@ -1,0 +1,114 @@
+# 
+# Basic AUTO_INCREMENT capabilities
+#
+
+--source have_engine.inc
+
+--let $skip = 1
+--source have_default_index.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--let $create_definition = a $int_indexed_col AUTO_INCREMENT, b $char_col, $default_index(a)
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $functionality = AUTO_INCREMENT
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --source mask_engine.inc
+  SHOW CREATE TABLE t1;
+
+  # Automatic values
+
+  INSERT INTO t1 (b) VALUES ('a'),('b');
+  SELECT a,b FROM t1 ORDER BY a;
+  SELECT LAST_INSERT_ID();
+
+  INSERT INTO t1 (a,b) VALUES (NULL,'c'),(0,'d');
+  SELECT a,b FROM t1 ORDER BY a;
+  SELECT LAST_INSERT_ID();
+
+  let $sql_mode = `SELECT @@sql_mode`;
+  SET sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
+
+  INSERT INTO t1 (a,b) VALUES (NULL,'e');
+  SELECT a,b FROM t1 ORDER BY a;
+  SELECT LAST_INSERT_ID();
+
+  INSERT INTO t1 (a,b) VALUES (0,'f');
+  SELECT a,b FROM t1 ORDER BY a;
+  SELECT LAST_INSERT_ID();
+
+  --replace_result $sql_mode <INITIAL_SQL_MODE>
+  eval SET sql_mode = '$sql_mode';
+
+  # SHOW TABLE STATUS shows the auto-increment value in column 11, 
+  # that's all we need here and further
+  --source mask_engine.inc
+  --replace_column 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 12 # 13 # 14 # 15 # 16 # 17 # 18 #
+  SHOW TABLE STATUS FROM test LIKE 't1';
+
+  # Mix of automatic and explicit values
+
+  INSERT INTO t1 (a,b) VALUES (6,'g'),(7,'h');
+  SELECT LAST_INSERT_ID();
+
+  --replace_column 2 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 12 # 13 # 14 # 15 # 16 # 17 # 18 #
+  SHOW TABLE STATUS FROM test LIKE 't1';
+
+
+  INSERT INTO t1 (a,b) VALUES (NULL,'i'),(9,'j');
+  SELECT a,b FROM t1 ORDER BY a;
+  SELECT LAST_INSERT_ID();
+
+  --replace_column 2 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 12 # 13 # 14 # 15 # 16 # 17 # 18 #
+  SHOW TABLE STATUS FROM test LIKE 't1';
+
+  # Creating a gap in the sequence
+
+  INSERT INTO t1 (a,b) VALUES (20,'k');
+
+  --replace_column 2 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 12 # 13 # 14 # 15 # 16 # 17 # 18 #
+  SHOW TABLE STATUS FROM test LIKE 't1';
+
+  INSERT INTO t1 (a,b) VALUES (NULL,'l');
+  SELECT a,b FROM t1 ORDER BY a;
+  SELECT LAST_INSERT_ID();
+
+  --replace_column 2 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 12 # 13 # 14 # 15 # 16 # 17 # 18 #
+  SHOW TABLE STATUS FROM test LIKE 't1';
+
+  # Negative values: we will try to insert one just to check that it does not cause a crash,
+  # but won't check what happens to the sequence after that, since the behavior is undefined
+
+  INSERT INTO t1 (a,b) VALUES (-5,'m');
+  SELECT a,b FROM t1 ORDER BY a;
+
+  DROP TABLE t1;
+}
+
+# Autoincrement with table option AUTO_INCREMENT
+
+--let $create_definition = a $int_indexed_col AUTO_INCREMENT, b $char_col, $default_index(a)
+--let $table_options = AUTO_INCREMENT = 100
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $functionality = AUTO_INCREMENT column or table option
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a,b) VALUES (NULL,'a'),(NULL,'b');
+  --sorted_result
+  SELECT a,b FROM t1;
+  SELECT LAST_INSERT_ID();
+  DROP TABLE t1;
+}
+--source cleanup_engine.inc
+

@@ -1,0 +1,15 @@
+# 
+# Run subselect.test without semi-join optimization (test materialize)
+#
+select @@optimizer_switch like '%subquery_cache=on%';
+set optimizer_switch='subquery_cache=off';
+
+set join_cache_level=1;
+set @join_cache_level_for_subselect_test=@@join_cache_level;
+
+--source t/subselect.test
+
+set optimizer_switch=default;
+select @@optimizer_switch like '%subquery_cache=on%';
+set @join_cache_level_for_subselect_test=NULL;
+

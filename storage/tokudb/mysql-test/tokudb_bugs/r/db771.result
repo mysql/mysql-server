@@ -1,0 +1,11 @@
+set default_storage_engine=tokudb;
+drop table if exists t1;
+CREATE TABLE t1 (a int key, b varchar(32), c varchar(32));
+REPLACE t1 SET a = 4;
+ALTER TABLE t1 CHANGE COLUMN c c VARCHAR(500);
+update t1 set b='hi';
+update t1 set c='there';
+select * from t1;
+a	b	c
+4	hi	there
+drop table t1;

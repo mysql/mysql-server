@@ -1,0 +1,116 @@
+set global aria_log_file_size=4294959104;
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+* shut down mysqld, removed logs, restarted it
+* TEST of Checkpoint between writing the commit log record and committing in trnman
+create table t1(a int primary key) engine=aria;
+insert into t1 values(1);
+flush table t1;
+* copied t1 for comparison
+set session debug_dbug="+d,maria_sleep_in_commit";
+insert into t1 values(2);
+set global aria_checkpoint_interval=1000;
+delete from t1 where a=2;
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+drop table t1;
+* TEST of logging of BLOBs
+CREATE TABLE `t1` (
+`blob` blob,
+`blob_key` blob
+) ENGINE=aria ROW_FORMAT=page
+;
+* copied t1 for feeding_recovery
+* compared t1 to old version
+set global aria_checkpoint_interval=0;
+INSERT INTO `t1` VALUES (NULL,repeat('A',5198));
+INSERT INTO `t1` VALUES (NULL,repeat('B',65535));
+INSERT INTO `t1` VALUES (repeat('K',5198),repeat('L',2325));
+INSERT INTO `t1` VALUES (repeat('C',65535),NULL);
+INSERT INTO `t1` VALUES (NULL,repeat('D',65535));
+INSERT INTO `t1` VALUES (repeat('E',65535),repeat('F',16111));
+INSERT INTO `t1` VALUES (repeat('G',65535),repeat('H',65535));
+INSERT INTO `t1` VALUES (repeat('I',5198),repeat('J',65535));
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+flush table t1;
+* copied t1 for comparison
+* compared t1 to old version
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* copied t1 back for feeding_recovery
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+* compared t1 to old version
+use mysqltest;
+drop table t1;
+create table t1 engine=aria select 1;
+* copied t1 for feeding_recovery
+set global aria_checkpoint_interval=0;
+insert into t1 values(2);
+truncate table t1;
+flush table t1;
+* copied t1 for comparison
+truncate table t1;
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash_create_table";
+* crashing mysqld intentionally
+truncate table t1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	warning	Size of indexfile is: 372       Expected: 8192
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+truncate table t1;
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+drop table t1;
+CREATE TABLE t1 ( word VARCHAR(255) PRIMARY KEY ) ENGINE=Aria;
+LOAD DATA INFILE '../../std_data/bug887051.txt' INTO TABLE t1;
+SET AUTOCOMMIT=0;
+DELETE FROM t1;
+LOAD DATA INFILE '../../std_data/bug887051.txt' INTO TABLE t1 IGNORE 1 LINES;
+COMMIT;
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+failure
+use mysqltest;
+select * from t1;
+word
+saved2
+drop table t1;
+drop database mysqltest_for_feeding_recovery;
+drop database mysqltest_for_comparison;
+drop database mysqltest;

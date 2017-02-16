@@ -9,6 +9,7 @@ source include/master-slave.inc;
 
 connection slave;
 call mtr.add_suppression("Slave: Can\'t find record in \'t1\' Error_code: .*");
+call mtr.add_suppression("Can't find record in 't.'");
 
 --echo [on slave]
 connection slave;

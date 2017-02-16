@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -123,12 +123,15 @@ typedef my_socket YASSL_SOCKET_T;
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_ERR_remove_thread_state
+#define ERR_remove_state(X) ERR_remove_thread_state(NULL)
+#endif
+
 enum enum_ssl_init_error
 {
   SSL_INITERR_NOERROR= 0, SSL_INITERR_CERT, SSL_INITERR_KEY, 
   SSL_INITERR_NOMATCH, SSL_INITERR_BAD_PATHS, SSL_INITERR_CIPHERS, 
-  SSL_INITERR_MEMFAIL, SSL_INITERR_DHFAIL, SSL_INITERR_LASTERR
+  SSL_INITERR_MEMFAIL, SSL_INITERR_LASTERR
 };
 const char* sslGetErrString(enum enum_ssl_init_error err);
 
@@ -149,7 +152,6 @@ struct st_VioSSLFd
 		      const char *ca_file,const char *ca_path,
 		      const char *cipher, enum enum_ssl_init_error* error);
 void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
-#endif /* ! EMBEDDED_LIBRARY */
 #endif /* HAVE_OPENSSL */
 
 void vio_end(void);
@@ -171,11 +173,29 @@ void vio_end(void);
 #define vio_should_retry(vio) 			(vio)->should_retry(vio)
 #define vio_was_interrupted(vio) 		(vio)->was_interrupted(vio)
 #define vio_close(vio)				((vio)->vioclose)(vio)
+#define vio_shutdown(vio,how)			((vio)->shutdown)(vio,how)
 #define vio_peer_addr(vio, buf, prt, buflen)	(vio)->peer_addr(vio, buf, prt, buflen)
 #define vio_timeout(vio, which, seconds)	(vio)->timeout(vio, which, seconds)
 #define vio_poll_read(vio, timeout)             (vio)->poll_read(vio, timeout)
 #define vio_is_connected(vio)                   (vio)->is_connected(vio)
 #endif /* !defined(DONT_MAP_VIO) */
+
+#ifdef _WIN32
+
+/* shutdown(2) flags */
+#ifndef SHUT_RD
+#define SHUT_RD SD_RECEIVE
+#endif
+
+/*
+  Set thread id for io cancellation (required on Windows XP only,
+  and should to be removed if XP is no more supported)
+*/
+
+#define vio_set_thread_id(vio, tid) if(vio) vio->thread_id= tid
+#else
+#define vio_set_thread_id(vio, tid)
+#endif
 
 /* This enumerator is used in parser - should be always visible */
 enum SSL_type
@@ -205,6 +225,8 @@ struct st_vio
   char                  *read_pos;      /* start of unfetched data in the
                                            read buffer */
   char                  *read_end;      /* end of unfetched data */
+  struct mysql_async_context *async_context; /* For non-blocking API */
+  uint read_timeout, write_timeout;
   /* function pointers. They are similar for socket/SSL/whatever */
   void    (*viodelete)(Vio*);
   int     (*vioerrno)(Vio*);
@@ -222,6 +244,7 @@ struct st_vio
   void	  (*timeout)(Vio*, unsigned int which, unsigned int timeout);
   my_bool (*poll_read)(Vio *vio, uint timeout);
   my_bool (*is_connected)(Vio*);
+  int (*shutdown)(Vio *, int);
   my_bool (*has_data) (Vio*);
 #ifdef HAVE_OPENSSL
   void	  *ssl_arg;
@@ -238,6 +261,7 @@ struct st_vio
   char    *shared_memory_pos;
 #endif /* HAVE_SMEM */
 #ifdef _WIN32
+  DWORD thread_id; /* Used on XP only by vio_shutdown() */
   OVERLAPPED pipe_overlapped;
   DWORD read_timeout_ms;
   DWORD write_timeout_ms;

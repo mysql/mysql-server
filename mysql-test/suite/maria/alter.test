@@ -1,0 +1,27 @@
+# Testing of potential problems in Aria and alter table
+
+-- source include/have_maria.inc
+
+drop table if exists t1;
+
+#
+# MDEV-4970 Wrong result with Aria table populated with disabled keys
+#
+
+CREATE TABLE t1 (pk INT, d DATETIME, PRIMARY KEY(pk), KEY(d)) ENGINE=Aria;
+ALTER TABLE t1 DISABLE KEYS;
+INSERT INTO t1 VALUES (1,'2000-01-01 22:22:22'),(2,'2012-12-21 12:12:12');
+INSERT INTO t1 VALUES (3, '2008-07-24'); 
+ALTER TABLE t1 ENABLE KEYS;
+
+SELECT t1a.pk FROM t1 AS t1a LEFT JOIN t1 AS t1b ON t1a.pk = t1b.pk;
+SELECT * FROM t1 AS t1a LEFT JOIN t1 AS t1b ON t1a.pk = t1b.pk;
+DROP TABLE t1;
+
+CREATE TABLE t1 (pk INT PRIMARY KEY, i INT, KEY(i)) ENGINE=Aria;
+ALTER TABLE t1 DISABLE KEYS;
+INSERT INTO t1 VALUES (1,11);
+INSERT INTO t1 VALUES (2,0),(3,33),(4,0),(5,55),(6,66),(7,0),(8,88),(9,99);
+ALTER TABLE t1 ENABLE KEYS;
+SELECT * FROM t1 WHERE i = 0 OR pk BETWEEN 6 AND 10;
+DROP TABLE t1;

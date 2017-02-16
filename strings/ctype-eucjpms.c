@@ -1,5 +1,6 @@
 /* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, SkySQL Ab.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -27,14 +28,13 @@ ctype-ujis.c file.
  * .configure. mbmaxlen_eucjpms=3
  */
 
-#include <my_global.h>
-#include "m_string.h"
-#include "m_ctype.h"
+#include "strings_def.h"
+#include <m_ctype.h>
 
 #ifdef HAVE_CHARSET_eucjpms
 
 
-static uchar ctype_eucjpms[257] =
+static const uchar ctype_eucjpms[257] =
 {
     0,				/* For standard library */
     0040, 0040, 0040, 0040, 0040, 0040, 0040, 0040,	/* NUL ^A - ^G */
@@ -71,7 +71,7 @@ static uchar ctype_eucjpms[257] =
     0020, 0020, 0020, 0020, 0020, 0020, 0020, 0000,
 };
 
-static uchar to_lower_eucjpms[]=
+static const uchar to_lower_eucjpms[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -107,7 +107,7 @@ static uchar to_lower_eucjpms[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar to_upper_eucjpms[]=
+static const uchar to_upper_eucjpms[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -143,7 +143,7 @@ static uchar to_upper_eucjpms[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar sort_order_eucjpms[]=
+static const uchar sort_order_eucjpms[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -200,7 +200,6 @@ static uint mbcharlen_eucjpms(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (iseucjpms(c)? 2: iseucjpms_ss2(c)? 2: iseucjpms_ss3(c)? 3: 1);
 }
-
 
 
 /* Case info pages for JIS-X-0208 range */
@@ -1731,7 +1730,7 @@ static MY_UNICASE_INFO *my_caseinfo_eucjpms[512]=
 };
 
 
-static uint16 jisx0208_eucjpms_to_unicode[65536]=
+static const uint16 jisx0208_eucjpms_to_unicode[65536]=
 {
       0x0000,      0x0001,      0x0002,      0x0003, /* 0000 */
       0x0004,      0x0005,      0x0006,      0x0007,
@@ -67549,7 +67548,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 
 
 
-CHARSET_INFO my_charset_eucjpms_japanese_ci=
+struct charset_info_st my_charset_eucjpms_japanese_ci=
 {
     97,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state        */
@@ -67582,7 +67581,7 @@ CHARSET_INFO my_charset_eucjpms_japanese_ci=
 };
 
 
-CHARSET_INFO my_charset_eucjpms_bin=
+struct charset_info_st my_charset_eucjpms_bin=
 {
     98,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_BINSORT,	/* state        */

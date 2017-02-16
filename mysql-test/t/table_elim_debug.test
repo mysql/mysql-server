@@ -1,0 +1,28 @@
+#
+# Table elimination (MWL#17) tests that need debug build
+#
+# In MariaDB 5.3, one can switch table_elimination on/off without debug, too: 
+## --source include/have_debug.inc
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+# Check if optimizer_switch works
+
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3);
+
+create table t2 (a int primary key, b int) 
+  as select a, a as b from t1 where a in (1,2);
+
+explain select t1.a from t1 left join t2 on t2.a=t1.a;
+
+set optimizer_switch='table_elimination=off';
+explain select t1.a from t1 left join t2 on t2.a=t1.a;
+set optimizer_switch='table_elimination=on';
+explain select t1.a from t1 left join t2 on t2.a=t1.a;
+set optimizer_switch='table_elimination=default';
+explain select t1.a from t1 left join t2 on t2.a=t1.a;
+
+drop table t1, t2;

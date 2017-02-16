@@ -1,0 +1,44 @@
+# ulong global
+
+--source include/have_debug.inc
+
+SET @start_global_value = @@global.debug_binlog_fsync_sleep;
+
+#
+# exists as global only
+#
+select @@global.debug_binlog_fsync_sleep;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.debug_binlog_fsync_sleep;
+show global variables like 'debug_binlog_fsync_sleep';
+show session variables like 'debug_binlog_fsync_sleep';
+select * from information_schema.global_variables where variable_name='debug_binlog_fsync_sleep';
+select * from information_schema.session_variables where variable_name='debug_binlog_fsync_sleep';
+
+#
+# show that it's writable
+#
+set global debug_binlog_fsync_sleep=20;
+select @@global.debug_binlog_fsync_sleep;
+--error ER_GLOBAL_VARIABLE
+set session debug_binlog_fsync_sleep=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global debug_binlog_fsync_sleep=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global debug_binlog_fsync_sleep=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global debug_binlog_fsync_sleep="foo";
+
+#
+# min/max values, block size
+#
+set global debug_binlog_fsync_sleep=0;
+select @@global.debug_binlog_fsync_sleep;
+set global debug_binlog_fsync_sleep=cast(-1 as unsigned int);
+select @@global.debug_binlog_fsync_sleep;
+
+SET @@global.debug_binlog_fsync_sleep = @start_global_value;

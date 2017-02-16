@@ -1,0 +1,58 @@
+# test simple MVCC, that a transaction does not read something committed after it
+
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+set session transaction isolation level repeatable read;
+
+--echo # Establish connection conn1 (user = root)
+connect (conn1,localhost,root,,);
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+connection conn1;
+set session transaction isolation level repeatable read;
+create table foo (a int) engine=TokuDB;
+insert into foo values (1);
+begin;
+select * from foo;
+
+connection default;
+alter table foo add column b int;
+alter table foo change b b bigint;
+truncate table foo;
+rename table foo to bar;
+drop table bar;
+
+connection conn1;
+--error ER_NO_SUCH_TABLE
+select * From foo;
+
+connection conn1;
+set session transaction isolation level serializable;
+create table foo (a int) engine=TokuDB;
+insert into foo values (1);
+begin;
+insert into foo values(2);
+
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+alter table foo add column b int;
+--error ER_LOCK_WAIT_TIMEOUT
+alter table foo change a a bigint;
+--error ER_LOCK_WAIT_TIMEOUT
+truncate table foo;
+--error ER_ERROR_ON_RENAME
+rename table foo to bar;
+--error ER_BAD_TABLE_ERROR
+drop table foo;
+
+connection conn1;
+select * From foo;
+commit;
+
+connection default;
+disconnect conn1;
+
+drop table foo;

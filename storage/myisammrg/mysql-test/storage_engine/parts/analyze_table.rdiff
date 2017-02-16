@@ -1,0 +1,87 @@
+--- analyze_table.result	2013-01-22 22:05:05.246633000 +0400
++++ analyze_table.reject	2013-01-23 03:16:23.240348427 +0400
+@@ -1,47 +1,62 @@
+ DROP TABLE IF EXISTS t1,t2;
+ CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
+-INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(2,'d'),(4,'e'),(100,'f'),(101,'g');
+-CREATE TABLE t2 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+-INSERT INTO t2 (a,b) SELECT a,b FROM t1;
+-INSERT INTO t1 (a,b) VALUES (3,'c');
+-ALTER TABLE t1 ANALYZE PARTITION p0;
+-Table	Op	Msg_type	Msg_text
+-test.t1	analyze	status	OK
+-INSERT INTO t2 (a,b) VALUES (4,'d'), (1000,'e');
+-ALTER TABLE t1 ANALYZE PARTITION LOCAL ALL;
+-Table	Op	Msg_type	Msg_text
+-test.t1	analyze	status	OK
+-INSERT INTO t1 (a,b) VALUES (5,'f'),(50,'g');
+-ALTER TABLE t1 ANALYZE PARTITION NO_WRITE_TO_BINLOG p1,p0;
+-Table	Op	Msg_type	Msg_text
+-test.t1	analyze	status	OK
+-DROP TABLE t1, t2;
++ERROR HY000: Engine cannot be used in partitioned tables
++# ERROR: Statement ended with errno 1572, errname ER_PARTITION_MERGE_ERROR (expected to succeed)
++# ------------ UNEXPECTED RESULT ------------
++# [ CREATE TABLE t1 (a INT(11) /*!*/ /*Custom column options*/, b CHAR(8) /*!*/ /*Custom column options*/) ENGINE=MRG_MYISAM /*!*/ /*Custom table options*/ UNION(mrg.t1) INSERT_METHOD=LAST PARTITION BY HASH(a) PARTITIONS 2 ]
++# The statement|command finished with ER_PARTITION_MERGE_ERROR.
++# Partitions or the mix could be unsupported|malfunctioning, or the problem was caused by previous errors. 
++# You can change the engine code, or create an rdiff, or disable the test by adding it to disabled.def.
++# Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
++# Also, this problem may cause a chain effect (more errors of different kinds in the test).
++# -------------------------------------------
+ DROP TABLE IF EXISTS t1,t2;
+ CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
++ERROR HY000: Engine cannot be used in partitioned tables
++# ERROR: Statement ended with errno 1572, errname ER_PARTITION_MERGE_ERROR (expected to succeed)
+ INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
++ERROR 42S02: Table 'test.t1' doesn't exist
+ CREATE TABLE t2 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
++ERROR HY000: Engine cannot be used in partitioned tables
++# ERROR: Statement ended with errno 1572, errname ER_PARTITION_MERGE_ERROR (expected to succeed)
+ INSERT INTO t1 (a,b) VALUES (3,'c');
++ERROR 42S02: Table 'test.t1' doesn't exist
+ ANALYZE TABLE t1;
+ Table	Op	Msg_type	Msg_text
+-test.t1	analyze	status	OK
++test.t1	analyze	Error	Table 'test.t1' doesn't exist
++test.t1	analyze	status	Operation failed
+ INSERT INTO t2 (a,b) VALUES (4,'d');
++ERROR 42S02: Table 'test.t2' doesn't exist
+ ANALYZE NO_WRITE_TO_BINLOG TABLE t2;
+ Table	Op	Msg_type	Msg_text
+-test.t2	analyze	status	OK
++test.t2	analyze	Error	Table 'test.t2' doesn't exist
++test.t2	analyze	status	Operation failed
+ INSERT INTO t1 (a,b) VALUES (5,'e');
++ERROR 42S02: Table 'test.t1' doesn't exist
+ INSERT INTO t2 (a,b) VALUES (6,'f');
++ERROR 42S02: Table 'test.t2' doesn't exist
+ ANALYZE LOCAL TABLE t1, t2;
+ Table	Op	Msg_type	Msg_text
+-test.t1	analyze	status	OK
+-test.t2	analyze	status	OK
++test.t1	analyze	Error	Table 'test.t1' doesn't exist
++test.t1	analyze	status	Operation failed
++test.t2	analyze	Error	Table 'test.t2' doesn't exist
++test.t2	analyze	status	Operation failed
+ DROP TABLE t1, t2;
++ERROR 42S02: Unknown table 't1,t2'
+ CREATE TABLE t1 (a <INT_COLUMN>, <CUSTOM_INDEX>(a)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
++ERROR HY000: Engine cannot be used in partitioned tables
++# ERROR: Statement ended with errno 1572, errname ER_PARTITION_MERGE_ERROR (expected to succeed)
+ INSERT INTO t1 (a) VALUES (1),(2),(4),(7);
++ERROR 42S02: Table 'test.t1' doesn't exist
+ ANALYZE TABLE t1;
+ Table	Op	Msg_type	Msg_text
+-test.t1	analyze	status	OK
++test.t1	analyze	Error	Table 'test.t1' doesn't exist
++test.t1	analyze	status	Operation failed
+ INSERT INTO t1 (a) VALUES (8),(10),(11),(12);
++ERROR 42S02: Table 'test.t1' doesn't exist
+ ANALYZE TABLE t1;
+ Table	Op	Msg_type	Msg_text
+-test.t1	analyze	status	OK
++test.t1	analyze	Error	Table 'test.t1' doesn't exist
++test.t1	analyze	status	Operation failed
+ DROP TABLE t1;
++ERROR 42S02: Unknown table 't1'

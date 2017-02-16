@@ -114,7 +114,7 @@ void my_printf_error(uint error, const char *format, myf MyFlags, ...)
   va_list args;
   char ebuff[ERRMSGSIZE];
   DBUG_ENTER("my_printf_error");
-  DBUG_PRINT("my", ("nr: %d  MyFlags: %d  errno: %d  Format: %s",
+  DBUG_PRINT("my", ("nr: %d  MyFlags: %d  errno: %d  format: %s",
 		    error, MyFlags, errno, format));
 
   va_start(args,MyFlags);
@@ -148,27 +148,6 @@ void my_printv_error(uint error, const char *format, myf MyFlags, va_list ap)
   DBUG_VOID_RETURN;
 }
 
-/*
-  Warning as printf
-
-  SYNOPSIS
-    my_printf_warning()
-      format>   Format string
-      ...>      variable list
-*/
-void(*sql_print_warning_hook)(const char *format,...);
-void my_printf_warning(const char *format, ...)
-{
-  va_list args;
-  char wbuff[ERRMSGSIZE];
-  DBUG_ENTER("my_printf_warning");
-  DBUG_PRINT("my", ("Format: %s", format));
-  va_start(args,format);
-  (void) my_vsnprintf (wbuff, sizeof(wbuff), format, args);
-  va_end(args);
-  (*sql_print_warning_hook)(wbuff);
-  DBUG_VOID_RETURN;
-}
 
 /*
   Give message using error_handler_hook

@@ -1,0 +1,18 @@
+# Tests for innodb_track_changed_pages variable
+
+--source include/have_xtradb.inc
+
+SELECT COUNT(@@GLOBAL.innodb_track_changed_pages);
+
+SELECT @@GLOBAL.innodb_track_changed_pages = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_track_changed_pages';
+
+SELECT @@innodb_track_changed_pages = @@GLOBAL.innodb_track_changed_pages;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.innodb_track_changed_pages);
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@LOCAL.innodb_track_changed_pages);
+--error ER_BAD_FIELD_ERROR
+SELECT innodb_track_changed_pages = @@SESSION.innodb_track_changed_pages;

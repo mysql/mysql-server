@@ -1,0 +1,55 @@
+SET @start_global_value = @@global.aria_pagecache_age_threshold;
+select @@global.aria_pagecache_age_threshold;
+@@global.aria_pagecache_age_threshold
+300
+select @@session.aria_pagecache_age_threshold;
+ERROR HY000: Variable 'aria_pagecache_age_threshold' is a GLOBAL variable
+show global variables like 'aria_pagecache_age_threshold';
+Variable_name	Value
+aria_pagecache_age_threshold	300
+show session variables like 'aria_pagecache_age_threshold';
+Variable_name	Value
+aria_pagecache_age_threshold	300
+select * from information_schema.global_variables where variable_name='aria_pagecache_age_threshold';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_PAGECACHE_AGE_THRESHOLD	300
+select * from information_schema.session_variables where variable_name='aria_pagecache_age_threshold';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_PAGECACHE_AGE_THRESHOLD	300
+set global aria_pagecache_age_threshold=200;
+select @@global.aria_pagecache_age_threshold;
+@@global.aria_pagecache_age_threshold
+200
+set session aria_pagecache_age_threshold=1;
+ERROR HY000: Variable 'aria_pagecache_age_threshold' is a GLOBAL variable and should be set with SET GLOBAL
+set global aria_pagecache_age_threshold=1.1;
+ERROR 42000: Incorrect argument type to variable 'aria_pagecache_age_threshold'
+set global aria_pagecache_age_threshold=1e1;
+ERROR 42000: Incorrect argument type to variable 'aria_pagecache_age_threshold'
+set global aria_pagecache_age_threshold="foo";
+ERROR 42000: Incorrect argument type to variable 'aria_pagecache_age_threshold'
+set global aria_pagecache_age_threshold=1;
+Warnings:
+Warning	1292	Truncated incorrect aria_pagecache_age_threshold value: '1'
+select @@global.aria_pagecache_age_threshold;
+@@global.aria_pagecache_age_threshold
+100
+set global aria_pagecache_age_threshold=@@global.aria_pagecache_age_threshold + 100 - 1;
+Warnings:
+Warning	1292	Truncated incorrect aria_pagecache_age_threshold value: '199'
+select @@global.aria_pagecache_age_threshold;
+@@global.aria_pagecache_age_threshold
+100
+set global aria_pagecache_age_threshold=@@global.aria_pagecache_age_threshold + 100;
+select @@global.aria_pagecache_age_threshold;
+@@global.aria_pagecache_age_threshold
+200
+set global aria_pagecache_age_threshold=cast(-1 as unsigned int);
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1292	Truncated incorrect aria_pagecache_age_threshold value: '18446744073709551615'
+select @@global.aria_pagecache_age_threshold;
+@@global.aria_pagecache_age_threshold
+18446744073709551600
+SET @@global.aria_pagecache_age_threshold = @start_global_value;

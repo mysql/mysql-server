@@ -1,0 +1,78 @@
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+#
+# MWL36: Add a mysqlbinlog option to change the used database
+# (Adding --rewrite-db option)
+#
+--disable_warnings
+DROP DATABASE IF EXISTS test1;
+DROP DATABASE IF EXISTS test2;
+DROP DATABASE IF EXISTS test3;
+--enable_warnings
+
+# For SBR --rewrite-db affects only default database and doesn't affect
+# a query (specifically CREATE DATABASE) itself. Hence (for testing
+# purpose) we start binary logging after all databases have been created.
+
+CREATE DATABASE test1;
+CREATE DATABASE test2;
+CREATE DATABASE test3;
+
+# Fix timestamp to avoid varying results.
+SET timestamp=1000000000;
+
+# Delete all existing binary logs.
+RESET MASTER;
+
+# Whe'll call mysqlbinlog with two rewrite rules:
+# --rewrite-db="test1->new_test1"
+# --rewrite-db="test3->new_test3"
+
+USE test1;
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,1),(2,2);
+
+USE test2;
+CREATE TABLE t2 (a INT);
+INSERT INTO t2 VALUES (1),(2);
+
+DELETE FROM test1.t1 WHERE a=1;
+
+USE test3;
+CREATE TABLE t3 (a INT);
+INSERT INTO t3 VALUES (1),(2);
+INSERT INTO test1.t1 VALUES (3,3);
+
+USE test1;
+LOAD DATA INFILE '../../std_data/loaddata7.dat' INTO TABLE t1
+     FIELDS TERMINATED BY ',' LINES TERMINATED BY '\r\n';
+DELETE FROM test3.t3 WHERE a=1;
+
+flush logs;
+
+--echo #
+--echo # mysqlbinlog output
+--echo # --base64-output = decode-rows
+--echo # --rewrite-db = test1->new_test1
+--echo # --rewrite-db = test3->new_test3
+--echo #
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_regex /server id [0-9]*/server id #/ /server v [^ ]*/server v #.##.##/ /exec_time=[0-9]*/exec_time=#/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/
+--exec $MYSQL_BINLOG  --base64-output=decode-rows --rewrite-db="test1->new_test1" --rewrite-db="test3->new_test3" -v -v $MYSQLD_DATADIR/master-bin.000001
+
+--echo #
+--echo # mysqlbinlog output
+--echo # --base64-output = decode-rows
+--echo # --rewrite-db = test1->new_test1
+--echo # --rewrite-db = test3->new_test3
+--echo # --read-from-remote-server
+--echo #
+
+--replace_regex /server id [0-9]*/server id #/ /server v [^ ]*/server v #.##.##/ /exec_time=[0-9]*/exec_time=#/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/
+--exec $MYSQL_BINLOG  --base64-output=decode-rows --rewrite-db="test1->new_test1" --rewrite-db="test3->new_test3" -v -v --read-from-remote-server --user=root --host=localhost --port=$MASTER_MYPORT master-bin.000001
+
+DROP DATABASE test1;
+DROP DATABASE test2;
+DROP DATABASE test3;

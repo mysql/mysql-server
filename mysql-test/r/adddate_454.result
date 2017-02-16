@@ -1,0 +1,12 @@
+create table t1 (d date);
+insert into t1 values ('2012-00-00');
+select * from t1;
+d
+2012-00-00
+update t1 set d = adddate(d, interval 1 day);
+Warnings:
+Warning	1292	Incorrect datetime value: '2012-00-00'
+select * from t1;
+d
+NULL
+drop table t1;

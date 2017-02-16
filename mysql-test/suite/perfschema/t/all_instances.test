@@ -1,0 +1,31 @@
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+--source include/have_maria.inc
+--source include/have_archive.inc
+--source include/have_blackhole.inc
+--source include/have_ssl.inc
+--source include/not_windows.inc
+--source include/one_thread_per_connection.inc
+
+use performance_schema;
+
+#
+# list all instances of everything.
+#
+
+#
+# "group by" sorts and removes duplicates.
+# "where" filters out instances that can be conditionally compiled out
+#
+
+select name from mutex_instances
+ where name not rlike '/(DEBUG_SYNC::mutex)$'
+   and name != 'wait/synch/mutex/mysys/BITMAP::mutex'
+ group by name;
+# CRYPTO_dynlock_value::lock exists only when building with OpenSSL (not YaSSL).
+select name from rwlock_instances
+       where name not in ("wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock")
+       group by name;
+select name from cond_instances where name not rlike '/(DEBUG_SYNC::cond)$' group by name;
+select event_name from file_instances group by event_name;
+select name from threads group by name;

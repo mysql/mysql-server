@@ -1,0 +1,213 @@
+-- source include/have_maria.inc
+#
+# MRR/Maria tests.
+#
+
+--disable_warnings
+drop table if exists t1,t2,t3,t4;
+--enable_warnings
+
+set @maria_mrr_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+
+set @mrr_buffer_size_save= @@mrr_buffer_size;
+
+set @save_storage_engine= @@storage_engine;
+set storage_engine=aria;
+
+--source include/mrr_tests.inc 
+set storage_engine= @save_storage_engine;
+
+set @@mrr_buffer_size= @mrr_buffer_size_save;
+
+--echo # 
+--echo # Crash in quick_range_seq_next() in maria-5.3-dsmrr-cpk with join_cache_level = {8,1}
+--echo # 
+set @save_join_cache_level= @@join_cache_level;
+SET SESSION join_cache_level = 8;
+CREATE TABLE `t1` (
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_datetime_key` datetime DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1;
+INSERT INTO `t1` VALUES (6,'2005-10-07 00:00:00','e','e');
+INSERT INTO `t1` VALUES (51,'2000-07-15 05:00:34','f','f');
+CREATE TABLE `t2` (
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_datetime_key` datetime DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1;
+INSERT INTO `t2` VALUES (2,'2004-10-11 18:13:16','w','w');
+INSERT INTO `t2` VALUES (2,'1900-01-01 00:00:00','d','d');
+SELECT table2 .`col_datetime_key`
+FROM t2 JOIN ( t1 table2 JOIN t2 table3 ON table3 .`col_varchar_key` < table2 .`col_varchar_key` ) ON table3 .`col_varchar_nokey` ;
+
+drop table t1, t2;
+set join_cache_level=@save_join_cache_level;
+
+#
+# Bug #665049:  index condition pushdown with Maria 
+#
+
+CREATE TABLE t1(
+  pk int NOT NULL, i int NOT NULL, v varchar(1) NOT NULL,
+  PRIMARY KEY (pk), INDEX idx (v, i)
+) ENGINE=ARIA;
+INSERT INTO t1 VALUES 
+  (1,9,'x'), (2,5,'g'), (3,1,'o'), (4,0,'g'), (5,1,'v'),
+  (6,190,'m'), (7,6,'x'), (8,3,'c'), (9,4,'z'), (10,3,'i'),
+  (11,186,'x'), (12,1,'g'), (13,8,'q'), (14,226,'m'), (15,133,'p');
+
+CREATE TABLE t2(
+  pk int NOT NULL, i int NOT NULL, v varchar(1) NOT NULL,
+  PRIMARY KEY (pk), INDEX idx (v, i)
+) ENGINE=ARIA;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t2 VALUES (77, 333, 'z');
+
+CREATE TABLE t3(
+  pk int NOT NULL, i int NOT NULL, v varchar(1) NOT NULL,
+  PRIMARY KEY (pk), INDEX idx (v, i)
+) ENGINE=ARIA;
+INSERT INTO t3 SELECT * FROM t1;
+INSERT INTO t3 VALUES
+  (88, 442, 'y'), (99, 445, 'w'), (87, 442, 'z'), (98, 445, 'v'), (86, 442, 'x'),
+  (97, 445, 't'), (85, 442, 'b'), (96, 445, 'l'), (84, 442, 'a'), (95, 445, 'k');
+
+set @save_join_cache_level=@@join_cache_level;
+set join_cache_level=1;
+
+SELECT COUNT(t1.v) FROM t1, t2 IGNORE INDEX (idx), t3 IGNORE INDEX (idx)
+  WHERE t3.v = t2.v AND t3.i < t2.i AND t3.pk > 0 AND t2.pk > 0;
+EXPLAIN 
+SELECT COUNT(t1.v) FROM t1, t2 IGNORE INDEX (idx), t3 IGNORE INDEX (idx)
+  WHERE t3.v = t2.v AND t3.i < t2.i AND t3.pk > 0 AND t2.pk > 0;
+
+SELECT COUNT(t1.v) FROM t1, t2, t3 
+  WHERE t3.v = t2.v AND t3.i < t2.i AND t3.pk > 0 AND t2.pk > 0;
+EXPLAIN 
+  SELECT COUNT(t1.v) FROM t1, t2, t3
+  WHERE t3.v = t2.v AND t3.i < t2.i AND t3.pk > 0 AND t2.pk > 0;
+
+set join_cache_level=@save_join_cache_level;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # BUG#671361: virtual int Mrr_ordered_index_reader::refill_buffer(): Assertion `!know_key_tuple_params
+--echo # (works only on Maria because we need 1024-byte long key)
+--echo #
+
+SET SESSION join_cache_level = 6;
+SET SESSION join_buffer_size = 1024;
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_1024_latin1_key varchar(1024) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_1024_latin1_key (col_varchar_1024_latin1_key)
+) ENGINE=Aria;
+
+INSERT INTO t1 VALUES
+  (1,'z'), (2,'abcdefjhjkl'), (3,'in'), (4,'abcdefjhjkl'), (6,'abcdefjhjkl'),
+  (11,'zx'), (12,'abcdefjhjm'), (13,'jn'), (14,'abcdefjhjp'), (16,'abcdefjhjr');
+
+CREATE TABLE t2 (
+  col_varchar_10_latin1 varchar(10) DEFAULT NULL
+) ENGINE=Aria;
+INSERT INTO t2 VALUES ('foo'), ('foo');
+
+EXPLAIN SELECT count(*)
+FROM t1 AS table1, t2 AS table2
+WHERE
+  table1.col_varchar_1024_latin1_key = table2.col_varchar_10_latin1 AND table1.pk<>0 ;
+
+SELECT count(*)
+FROM t1 AS table1, t2 AS table2
+WHERE
+  table1.col_varchar_1024_latin1_key = table2.col_varchar_10_latin1 AND table1.pk<>0 ;
+
+drop table t1, t2;
+
+--echo #
+--echo # BUG#693747: Assertion multi_range_read.cc:908: int DsMrr_impl::dsmrr_init(
+--echo #
+set @_save_join_cache_level= @@join_cache_level;
+set @_save_join_buffer_size= @@join_buffer_size;
+
+set join_cache_level=8;
+set join_buffer_size=10240;
+
+CREATE TABLE t1 (
+  f2 varchar(32) COLLATE latin1_swedish_ci, 
+  f3 int(11), 
+  f4 varchar(1024) COLLATE utf8_bin, 
+  f5 varchar(1024) COLLATE latin1_bin, 
+  KEY (f5)
+) ENGINE=Aria TRANSACTIONAL=0 ;
+
+--echo # Fill the table with some data
+--disable_query_log
+INSERT IGNORE INTO t1 VALUES 
+('cueikuirqr','0','f4-data','hcueikuirqrzflno'),('her','0','f4-data','ehcueikuirqrzfln'),
+('YKAOE','0','f4-data','qieehcueikuirqrz'),('youre','0','f4-data','nkqieehcueikuirq'),
+('b','0','f4-data','the'),('MGUDG','0','f4-data','m'),
+('UXAGU','0','f4-data','HZXVA'),('bwbgsnkqie','0','f4-data','something'),
+('s','0','f4-data','slelfhjawbwbgsnk'),('the','0','f4-data','if'),
+('TDLKE','0','f4-data','MGWNJ'),('do','0','f4-data','see'),
+('why','0','f4-data','mean'),('THKCG','0','f4-data','YFLDY'),
+('x','0','f4-data','e'),('yncitaeysb','0','f4-data','tgyncitaeysbgucs'),
+('ZEOXX','0','f4-data','jawbwbgsnkqieehc'),('hjawbwbgsn','0','f4-data','fhjawbwbgsnkqiee'),
+('all','0','f4-data','sbgucsgqslelfhja'),('the','0','f4-data','would'),
+('mtgyncitae','0','f4-data','ISNQQ'),('KNCUI','0','f4-data','want'),
+('is','0','f4-data','i'),('out','0','f4-data','jvcmjlmtgyncitae'),
+('it','0','f4-data','you'),('LHDIH','0','f4-data','txmtxyjvcmjlmtgy'),
+('z','0','f4-data','ntxmtxyjvcmjlmtg'),('vyhnmvgmcn','0','f4-data','AIGQK'),
+('ytvyhnmvgm','0','f4-data','z'),('t','0','f4-data','on'),
+('xqegbytvyh','0','f4-data','ixqegbytvyhnmvgm'),('WGVRU','0','f4-data','h'),
+('b','0','f4-data','z'),('who','0','f4-data','gddixqegbytvy'),
+('PMLFL','0','f4-data','vgmcntxmtxyjvcmj'),('back','0','f4-data','n'),
+('i','0','f4-data','PZGUB'),('f','0','f4-data','the'),
+('PNXVP','0','f4-data','v'),('MAKKL','0','f4-data','CGCWF'),
+('RMDAV','0','f4-data','v'),('l','0','f4-data','n'),
+('rhnoypgddi','0','f4-data','VIZNE'),('t','0','f4-data','a'),
+('like','0','f4-data','JSHPZ'),('pskeywslmk','0','f4-data','q'),
+('QZZJJ','0','f4-data','c'),('atlxepskey','0','f4-data','YJRMA'),
+('YUVOU','0','f4-data','eywslmkdrhnoypgd'),('some','0','f4-data','r'),
+('c','0','f4-data','her'),('o','0','f4-data','EMURT'),
+('if','0','f4-data','had'),('when','0','f4-data','CLVWT'),
+('blfufrcdjm','0','f4-data','IZCZN'),('vutblfufrc','0','f4-data','how'),
+('why','0','f4-data','I'),('IXLYQ','0','f4-data','weuwuvutblfufrcd'),
+('here','0','f4-data','m'),('ZOCTJ','0','f4-data','IDSFD'),
+('kqsweuwuvu','0','f4-data','oh'),('ykqsweuwuv','0','f4-data','zykqsweuwuvutblf'),
+('zezykqsweu','0','f4-data','t'),('q','0','f4-data','o'),
+('IBKAU','0','f4-data','oh'),('ivjisuzezy','0','f4-data','XHXKE'),
+('xsivjisuze','0','f4-data','plxsivjisuzezykq'),('have','0','f4-data','uvplxsivjisuzezy'),
+('on','0','f4-data','me'),('ijkfuvplxs','0','f4-data','OGEHV'),
+('u','0','f4-data','okay'),('i','0','f4-data','pajzbbojshnijkfu'),
+('of','0','f4-data','g'),('for','0','f4-data','Im'),
+('or','0','f4-data','ZOJHX'),('n','0','f4-data','you'),
+('that','0','f4-data','just'),('bbojshnijk','0','f4-data','JYGSJ'),
+('k','0','f4-data','y'),('k','0','f4-data','y'),
+('be','0','f4-data','m'),('fnbmxwicrk','0','f4-data','t'),
+('yaffpegvav','0','f4-data','have'),('crkdymahya','0','f4-data','QQWQI'),
+('t','0','f4-data','hnijkfuvplxsivji'),('dgxpajzbbo','0','f4-data','vavdgxpajzbbojsh'),
+('g','0','f4-data','pegvavdgxpajzbbo'),('Im','0','f4-data','ffpegvavdgxpajzb');
+--enable_query_log
+
+
+SELECT alias2.* , alias1.f2 
+FROM 
+  t1 AS alias1
+  LEFT JOIN t1 AS alias2 ON alias1.f2 = alias2.f5
+WHERE
+  alias2.f3 < 0;
+
+set join_cache_level=@_save_join_cache_level;
+set join_buffer_size=@_save_join_buffer_size;
+set optimizer_switch=@maria_mrr_tmp;
+
+drop table t1;

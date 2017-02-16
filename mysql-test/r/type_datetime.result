@@ -52,7 +52,7 @@ t
 truncate table t1;
 insert into t1 values("2003-0303 12:13:14");
 Warnings:
-Warning	1264	Out of range value for column 't' at row 1
+Warning	1265	Data truncated for column 't' at row 1
 select * from t1;
 t
 0000-00-00 00:00:00
@@ -115,12 +115,12 @@ create table t1 (t datetime);
 insert into t1 values (20030102030460),(20030102036301),(20030102240401),
 (20030132030401),(20031302030401),(100001202030401);
 Warnings:
-Warning	1264	Out of range value for column 't' at row 1
-Warning	1264	Out of range value for column 't' at row 2
-Warning	1264	Out of range value for column 't' at row 3
-Warning	1264	Out of range value for column 't' at row 4
-Warning	1264	Out of range value for column 't' at row 5
-Warning	1264	Out of range value for column 't' at row 6
+Warning	1265	Data truncated for column 't' at row 1
+Warning	1265	Data truncated for column 't' at row 2
+Warning	1265	Data truncated for column 't' at row 3
+Warning	1265	Data truncated for column 't' at row 4
+Warning	1265	Data truncated for column 't' at row 5
+Warning	1265	Data truncated for column 't' at row 6
 select * from t1;
 t
 0000-00-00 00:00:00
@@ -134,12 +134,12 @@ insert into t1 values
 ("2003-01-02 03:04:60"),("2003-01-02 03:63:01"),("2003-01-02 24:04:01"),
 ("2003-01-32 03:04:01"),("2003-13-02 03:04:01"), ("10000-12-02 03:04:00");
 Warnings:
-Warning	1264	Out of range value for column 't' at row 1
-Warning	1264	Out of range value for column 't' at row 2
-Warning	1264	Out of range value for column 't' at row 3
-Warning	1264	Out of range value for column 't' at row 4
-Warning	1264	Out of range value for column 't' at row 5
-Warning	1264	Out of range value for column 't' at row 6
+Warning	1265	Data truncated for column 't' at row 1
+Warning	1265	Data truncated for column 't' at row 2
+Warning	1265	Data truncated for column 't' at row 3
+Warning	1265	Data truncated for column 't' at row 4
+Warning	1265	Data truncated for column 't' at row 5
+Warning	1265	Data truncated for column 't' at row 6
 select * from t1;
 t
 0000-00-00 00:00:00
@@ -151,8 +151,8 @@ t
 delete from t1;
 insert into t1 values ("0000-00-00 00:00:00 some trailer"),("2003-01-01 00:00:00 some trailer");
 Warnings:
-Warning	1264	Out of range value for column 't' at row 1
-Warning	1264	Out of range value for column 't' at row 2
+Warning	1265	Data truncated for column 't' at row 1
+Warning	1265	Data truncated for column 't' at row 2
 select * from t1 order by t;
 t
 0000-00-00 00:00:00
@@ -170,7 +170,7 @@ dt
 drop table t1;
 select cast('2006-12-05 22:10:10' as datetime) + 0;
 cast('2006-12-05 22:10:10' as datetime) + 0
-20061205221010.000000
+20061205221010
 CREATE TABLE t1(a DATETIME NOT NULL);
 INSERT INTO t1 VALUES ('20060606155555');
 SELECT a FROM t1 WHERE a=(SELECT MAX(a) FROM t1) AND (a="20060606155555");
@@ -185,14 +185,14 @@ DROP TABLE t1;
 SELECT CAST(CAST('2006-08-10' AS DATE) AS DECIMAL(20,6));
 CAST(CAST('2006-08-10' AS DATE) AS DECIMAL(20,6))
 20060810.000000
-SELECT CAST(CAST('2006-08-10 10:11:12' AS DATETIME) AS DECIMAL(20,6));
-CAST(CAST('2006-08-10 10:11:12' AS DATETIME) AS DECIMAL(20,6))
+SELECT CAST(CAST('2006-08-10 10:11:12' AS DATETIME(6)) AS DECIMAL(20,6));
+CAST(CAST('2006-08-10 10:11:12' AS DATETIME(6)) AS DECIMAL(20,6))
 20060810101112.000000
-SELECT CAST(CAST('2006-08-10 10:11:12' AS DATETIME) + INTERVAL 14 MICROSECOND AS DECIMAL(20,6));
-CAST(CAST('2006-08-10 10:11:12' AS DATETIME) + INTERVAL 14 MICROSECOND AS DECIMAL(20,6))
+SELECT CAST(CAST('2006-08-10 10:11:12' AS DATETIME(6)) + INTERVAL 14 MICROSECOND AS DECIMAL(20,6));
+CAST(CAST('2006-08-10 10:11:12' AS DATETIME(6)) + INTERVAL 14 MICROSECOND AS DECIMAL(20,6))
 20060810101112.000014
-SELECT CAST(CAST('10:11:12.098700' AS TIME) AS DECIMAL(20,6));
-CAST(CAST('10:11:12.098700' AS TIME) AS DECIMAL(20,6))
+SELECT CAST(CAST('10:11:12.098700' AS TIME(6)) AS DECIMAL(20,6));
+CAST(CAST('10:11:12.098700' AS TIME(6)) AS DECIMAL(20,6))
 101112.098700
 set @org_mode=@@sql_mode;
 create table t1 (da date default '1962-03-03 23:33:34', dt datetime default '1962-03-03');
@@ -352,7 +352,7 @@ least(cast('01-01-01' as date), '01-01-02')
 2001-01-01
 select greatest(cast('01-01-01' as date), '01-01-02');
 greatest(cast('01-01-01' as date), '01-01-02')
-01-01-02
+2001-01-02
 select least(cast('01-01-01' as date), '01-01-02') + 0;
 least(cast('01-01-01' as date), '01-01-02') + 0
 20010101
@@ -361,7 +361,7 @@ greatest(cast('01-01-01' as date), '01-01-02') + 0
 20010102
 select least(cast('01-01-01' as datetime), '01-01-02') + 0;
 least(cast('01-01-01' as datetime), '01-01-02') + 0
-20010101000000
+20010101000000.000000
 select cast(least(cast('01-01-01' as datetime), '01-01-02') as signed);
 cast(least(cast('01-01-01' as datetime), '01-01-02') as signed)
 20010101000000
@@ -399,7 +399,7 @@ if(@bug28261 = f1, '', @bug28261:= f1)
 2001-01-01
 2002-02-02
 Warnings:
-Warning	1292	Incorrect date value: '' for column 'f1' at row 1
+Warning	1292	Incorrect datetime value: ''
 select if(@bug28261 = f1, '', @bug28261:= f1) from t1;
 if(@bug28261 = f1, '', @bug28261:= f1)
 2001-01-01
@@ -423,11 +423,11 @@ f1
 2001-01-01 00:00:00
 2002-02-02 00:00:00
 Warnings:
-Warning	1292	Incorrect datetime value: '2002010' for column 'f1' at row 1
+Warning	1292	Incorrect datetime value: '2002010'
 select * from t1 where f1 between 20020101 and 2007010100000;
 f1
 Warnings:
-Warning	1292	Incorrect datetime value: '2007010100000' for column 'f1' at row 1
+Warning	1292	Incorrect datetime value: '2007010100000'
 drop table t1;
 #
 # Bug#27216: functions with parameters of different date types may
@@ -495,9 +495,10 @@ insert into t1 set f1 = '45:44:44';
 insert into t1 set f1 = '15:44:44';
 select * from t1 where (convert(f1,datetime)) != 1;
 f1
+45:44:44
 15:44:44
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 45:44:44'
+Warning	1292	Incorrect datetime value: '1'
 drop table t1;
 create table t1 (a tinyint);
 insert into t1 values (), (), ();
@@ -509,15 +510,16 @@ create table t1 (id int(10) not null, cur_date datetime not null);
 create table t2 (id int(10) not null, cur_date date not null);
 insert into t1 (id, cur_date) values (1, '2007-04-25 18:30:22');
 insert into t2 (id, cur_date) values (1, '2007-04-25');
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
 explain extended
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
 Note	1276	Field or reference 'test.t1.cur_date' of SELECT #2 was resolved in SELECT #1
-Note	1003	select '1' AS `id`,'2007-04-25 18:30:22' AS `cur_date` from dual where <in_optimizer>('1',<exists>(select 1 from `test`.`t1` `x1` where 0))
+Note	1003	select 1 AS `id`,'2007-04-25 18:30:22' AS `cur_date` from (dual) where 0
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 id	cur_date
@@ -526,10 +528,9 @@ select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
 Note	1276	Field or reference 'test.t2.cur_date' of SELECT #2 was resolved in SELECT #1
-Note	1003	select '1' AS `id`,'2007-04-25' AS `cur_date` from dual where <in_optimizer>('1',<exists>(select 1 from `test`.`t2` `x1` where 0))
+Note	1003	select 1 AS `id`,'2007-04-25' AS `cur_date` from (dual) where 0
 select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 id	cur_date
@@ -540,10 +541,10 @@ select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	x1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	PRIMARY	x1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Start temporary; End temporary
 Warnings:
 Note	1276	Field or reference 'test.t1.cur_date' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t1`.`id` AS `id`,`test`.`t1`.`cur_date` AS `cur_date` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`id`,<exists>(select 1 from `test`.`t1` `x1` where ((`test`.`t1`.`cur_date` = 0) and (<cache>(`test`.`t1`.`id`) = `test`.`x1`.`id`))))
+Note	1003	select `test`.`t1`.`id` AS `id`,`test`.`t1`.`cur_date` AS `cur_date` from `test`.`t1` semi join (`test`.`t1` `x1`) where ((`test`.`x1`.`id` = `test`.`t1`.`id`) and (`test`.`t1`.`cur_date` = 0))
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 id	cur_date
@@ -552,13 +553,14 @@ select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	x1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	PRIMARY	x1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Start temporary; End temporary
 Warnings:
 Note	1276	Field or reference 'test.t2.cur_date' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t2`.`id` AS `id`,`test`.`t2`.`cur_date` AS `cur_date` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`id`,<exists>(select 1 from `test`.`t2` `x1` where ((`test`.`t2`.`cur_date` = 0) and (<cache>(`test`.`t2`.`id`) = `test`.`x1`.`id`))))
+Note	1003	select `test`.`t2`.`id` AS `id`,`test`.`t2`.`cur_date` AS `cur_date` from `test`.`t2` semi join (`test`.`t2` `x1`) where ((`test`.`x1`.`id` = `test`.`t2`.`id`) and (`test`.`t2`.`cur_date` = 0))
 select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 id	cur_date
+SET optimizer_switch=@save_optimizer_switch;
 drop table t1,t2;
 SELECT 
 CAST('NULL' AS DATE) <=> CAST('2008-01-01' AS DATE) n1, 
@@ -571,8 +573,10 @@ CAST('NULL' AS DATE) < CAST('2008-01-01' AS DATE) n7,
 CAST('2008-01-01' AS DATE) < CAST('NULL' AS DATE) n8,
 CAST('NULL' AS DATE) < CAST('NULL' AS DATE) n9;
 n1	n2	n3	n4	n5	n6	n7	n8	n9
-0	0	1	NULL	NULL	NULL	NULL	NULL	NULL
+0	0	1	1	1	0	1	0	0
 Warnings:
+Warning	1292	Incorrect datetime value: 'NULL'
+Warning	1292	Incorrect datetime value: 'NULL'
 Warning	1292	Incorrect datetime value: 'NULL'
 Warning	1292	Incorrect datetime value: 'NULL'
 Warning	1292	Incorrect datetime value: 'NULL'
@@ -619,21 +623,21 @@ ERROR 42000: Invalid default value for 'da'
 create table t1 (t time default '916:00:00 a');
 ERROR 42000: Invalid default value for 't'
 set @@sql_mode= @org_mode;
-SELECT CAST(CAST('2006-08-10 10:11:12.0123450' AS DATETIME) AS DECIMAL(30,7));
-CAST(CAST('2006-08-10 10:11:12.0123450' AS DATETIME) AS DECIMAL(30,7))
+SELECT CAST(CAST('2006-08-10 10:11:12.0123450' AS DATETIME(6)) AS DECIMAL(30,7));
+CAST(CAST('2006-08-10 10:11:12.0123450' AS DATETIME(6)) AS DECIMAL(30,7))
 20060810101112.0123450
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '2006-08-10 10:11:12.0123450'
-SELECT CAST(CAST('00000002006-000008-0000010 000010:0000011:00000012.0123450' AS DATETIME) AS DECIMAL(30,7));
-CAST(CAST('00000002006-000008-0000010 000010:0000011:00000012.0123450' AS DATETIME) AS DECIMAL(30,7))
+SELECT CAST(CAST('00000002006-000008-0000010 000010:0000011:00000012.0123450' AS DATETIME(6)) AS DECIMAL(30,7));
+CAST(CAST('00000002006-000008-0000010 000010:0000011:00000012.0123450' AS DATETIME(6)) AS DECIMAL(30,7))
 20060810101112.0123450
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '00000002006-000008-0000010 000010:0000011:00000012.0123450'
-SELECT CAST(CAST('00000002006-000008-0000010 000010:0000011:00000012.012345'  AS DATETIME) AS DECIMAL(30,7));
-CAST(CAST('00000002006-000008-0000010 000010:0000011:00000012.012345'  AS DATETIME) AS DECIMAL(30,7))
+SELECT CAST(CAST('00000002006-000008-0000010 000010:0000011:00000012.012345'  AS DATETIME(6)) AS DECIMAL(30,7));
+CAST(CAST('00000002006-000008-0000010 000010:0000011:00000012.012345'  AS DATETIME(6)) AS DECIMAL(30,7))
 20060810101112.0123450
-SELECT CAST(CAST('2008-07-29T10:42:51.1234567' AS DateTime) AS DECIMAL(30,7));
-CAST(CAST('2008-07-29T10:42:51.1234567' AS DateTime) AS DECIMAL(30,7))
+SELECT CAST(CAST('2008-07-29T10:42:51.1234567' AS DateTime(6)) AS DECIMAL(30,7));
+CAST(CAST('2008-07-29T10:42:51.1234567' AS DateTime(6)) AS DECIMAL(30,7))
 20080729104251.1234560
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '2008-07-29T10:42:51.1234567'
@@ -649,6 +653,87 @@ SELECT * FROM t1;
 dt1
 DROP TABLE t1;
 End of 5.1 tests
+create table t1 (d date, t time) engine=myisam;
+insert into t1 values ('2000-12-03','22:55:23'),('2008-05-03','10:19:31');
+select case when d = '2012-12-12' then d else t end as cond, group_concat( d ) from t1 group by cond;
+cond	group_concat( d )
+0000-00-00 10:19:31	2008-05-03
+0000-00-00 22:55:23	2000-12-03
+drop table t1;
+# 
+# Semantics of the condition <non-nullable datetime field> IS NULL 
+# when the field belongs to an inner table of an outer join 
+# 
+create table t1 (a int, b date not null);
+insert t1 values (1, 0), (2, '1999-01-02');
+create table t2 (c int);
+insert t2 values (1),(3);
+select * from t2 left join t1 on t1.a=t2.c where t1.a is null;
+c	a	b
+3	NULL	NULL
+select * from t2 left join t1 on t1.a=t2.c where t1.b is null;
+c	a	b
+1	1	0000-00-00
+3	NULL	NULL
+drop table t1,t2;
+#
+# MDEV-4634 Crash in CONVERT_TZ
+#
+SELECT CONVERT_TZ(GREATEST(TIMESTAMP('2021-00-00'),TIMESTAMP('2022-00-00')),'+00:00','+7:5');
+CONVERT_TZ(GREATEST(TIMESTAMP('2021-00-00'),TIMESTAMP('2022-00-00')),'+00:00','+7:5')
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '2022-00-00 00:00:00'
+#
+# MDEV-5041 Inserting a TIME with hour>24 into a DATETIME column produces a wrong value
+#
+SELECT CAST(TIME('-800:20:30') AS DATETIME);
+CAST(TIME('-800:20:30') AS DATETIME)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '-800:20:30'
+SELECT CAST(TIME('800:20:30') AS DATETIME);
+CAST(TIME('800:20:30') AS DATETIME)
+0000-01-02 08:20:30
+SELECT CAST(TIME('33 08:20:30') AS DATETIME);
+CAST(TIME('33 08:20:30') AS DATETIME)
+0000-01-02 08:20:30
+CREATE TABLE t1 (a DATETIME);
+INSERT INTO t1 VALUES (TIME('800:20:30'));
+INSERT INTO t1 VALUES (TIME('33 08:20:30'));
+SET SQL_MODE=NO_ZERO_IN_DATE;
+INSERT INTO t1 VALUES (TIME('48:20:30'));
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+SET SQL_MODE=DEFAULT;
+SELECT * FROM t1;
+a
+0000-01-02 08:20:30
+0000-01-02 08:20:30
+0000-00-00 00:00:00
+DROP TABLE t1;
+CREATE PROCEDURE test5041()
+BEGIN
+DECLARE t TIME;
+DECLARE dt DATETIME;
+SET t= TIME('800:20:30');
+SET dt= t;
+SELECT dt;
+END;|
+call test5041();
+dt
+0000-01-02 08:20:30
+drop procedure test5041;
+#
+# MDEV-6097 Inconsistent results for CAST(int,decimal,double AS DATETIME)
+#
+SELECT
+CAST(010203101112 AS DATETIME(1)) AS c1,
+CAST(010203101112.2 AS DATETIME(1)) AS c2,
+CAST(010203101112.2+0e0 AS DATETIME(1)) AS c3;
+c1	c2	c3
+2001-02-03 10:11:12.0	2001-02-03 10:11:12.2	2001-02-03 10:11:12.2
+End of 5.3 tests
 #
 # Start of 5.5 tests
 #
@@ -660,7 +745,7 @@ SET NAMES CP850;
 INSERT INTO t1 VALUES (1,'2010-04-12 22:30:12'), (2,'2010-04-12 22:30:12'), (3,'2010-04-12 22:30:12');
 EXPLAIN EXTENDED SELECT * FROM t1 FORCE INDEX(attime) WHERE AtTime = '2010-02-22 18:40:07';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ref	AtTime	AtTime	9	const	1	100.00	Using where
+1	SIMPLE	t1	ref	AtTime	AtTime	9	const	1	100.00	
 Warnings:
 Note	1003	select `test`.`t1`.`Id` AS `Id`,`test`.`t1`.`AtTime` AS `AtTime` from `test`.`t1` FORCE INDEX (`attime`) where (`test`.`t1`.`AtTime` = '2010-02-22 18:40:07')
 DROP TABLE t1;

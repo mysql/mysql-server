@@ -178,13 +178,16 @@ while ($_dt_tables)
     }
     --diff_files $_dt_prev_outfile $_dt_outfile
     # Remove previous outfile. Keep current file for comparison with next table.
+    --disable_warnings
     --remove_file $_dt_prev_outfile
+    --enable_warnings
   }
   --let $_dt_prev_outfile= $_dt_outfile
 }
 
+--disable_warnings
 --remove_file $_dt_prev_outfile
-
+--enable_warnings
 
 --let $include_filename= diff_tables.inc [$diff_tables]
 --source include/end_include_file.inc

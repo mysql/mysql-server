@@ -9,14 +9,60 @@ select cast(-5 as unsigned) | 1, cast(-5 as unsigned) & -1;
 select cast(-5 as unsigned) -1, cast(-5 as unsigned) + 1;
 select ~5, cast(~5 as signed);
 explain extended select ~5, cast(~5 as signed);
+select cast(18446744073709551615 as signed);
 select cast(5 as unsigned) -6.0;
 select cast(NULL as signed), cast(1/0 as signed);
+select cast(1 as double(5,2));
+select cast("5.2222" as double(5,2));
+select cast(12.444 as double(5,2));
+select cast(cast(12.444 as decimal(10,3)) as double(5,2));
+select cast(null as double(5,2));
+select cast(12.444 as double);
+select cast(cast("20:01:01" as time) as datetime);
+select cast(cast("8:46:06.23434" AS time) as decimal(32,10));
+select cast(cast("2011-04-05 8:46:06.23434" AS datetime) as decimal(32,6));
+
+--echo #
+--echo # Check handling of cast with microseconds
+--echo #
+select cast(cast(20010203101112.121314 as double) as datetime);
+select cast(cast(010203101112.12 as double) as datetime);
+select cast(cast(20010203101112.121314 as decimal(32,6)) as datetime);
+select cast(20010203101112.121314 as datetime);
+select cast(110203101112.121314 as datetime);
+select cast(cast(010203101112.12 as double) as datetime);
+
+select cast("2011-02-03 10:11:12.123456" as datetime);
+select cast("2011-02-03 10:11:12.123456" as datetime(0));
+select cast("2011-02-03 10:11:12.123456" as datetime(5));
+select cast("2011-02-03 10:11:12.123456" as datetime(6));
+select cast("2011-02-03 10:11:12" as datetime(6));
+select cast(cast(20010203101112.5 as double) as datetime(1));
+select cast(cast(010203101112.12 as double) as datetime(2));
+select cast(cast(20010203101112.121314 as decimal(32,6)) as datetime(6));
+select cast(20010203101112.121314 as datetime(6));
+select cast(110203101112.121314 as datetime(6));
+select cast(cast(010203101112.12 as double) as datetime(6));
+
+select cast("2011-02-03 10:11:12.123456" as time);
+select cast("2011-02-03 10:11:12.123456" as time(6));
+select cast("10:11:12.123456" as time);
+select cast("10:11:12.123456" as time(0));
+select cast("10:11:12.123456" as time(5));
+select cast("10:11:12.123456" as time(6));
+select cast("10:11:12" as time(6));
+select cast(cast("2011-04-05 8:46:06.123456" AS datetime) as time);
+select cast(cast("2011-04-05 8:46:06.123456" AS datetime) as time(6));
+select cast(cast("2011-04-05 8:46:06.123456" AS datetime(6)) as time);
+select cast(cast("2011-04-05 8:46:06.123456" AS datetime(6)) as time(6));
+
 #
 # Bug #28250: Run-Time Check Failure #3 - The variable 'value' is being used 
 # without being def
 # 
 # The following line causes Run-Time Check Failure on 
 # binaries built with Visual C++ 2005
+#
 select cast(NULL as unsigned), cast(1/0 as unsigned); 
 select cast("A" as binary) = "a", cast(BINARY "a" as CHAR) = "A";
 select cast("2001-1-1" as DATE), cast("2001-1-1" as DATETIME);
@@ -42,6 +88,44 @@ select cast('a10' as unsigned integer);
 select 10+'a';
 select 10.0+cast('a' as decimal);
 select 10E+0+'a';
+select cast("a" as double(5,2));
+select cast(1000 as decimal(5,2));
+select cast(-1000 as decimal(5,2));
+select cast(1000 as double(5,2));
+select cast(-1000 as double(5,2));
+select cast(010203101112.121314 as datetime);
+select cast(120010203101112.121314 as datetime);
+select cast(cast(1.1 as decimal) as datetime);
+select cast(cast(-1.1 as decimal) as datetime);
+select cast('0' as date);
+select cast('' as date);
+select cast('0' as datetime);
+select cast('' as datetime);
+select cast('0' as time);
+select cast('' as time);
+select cast(NULL as DATE);
+select cast(NULL as DATETIME);
+select cast(NULL as TIME);
+select cast(NULL as BINARY);
+
+#
+# We have to disable warnings for these as the printed double value is
+# not portable
+#
+--disable_warnings
+select cast(cast(120010203101112.121314 as double) as datetime);
+select cast(cast(1.1 as double) as datetime);
+select cast(cast(-1.1 as double) as datetime);
+--enable_warnings
+
+
+#
+# Some EXPLAIN EXTENDED to ensure the print functions are correct
+#
+
+explain extended select cast(10 as double(5,2));
+explain extended select cast(10 as double);
+explain extended select cast(10 as decimal(5,2));
 
 # out-of-range cases
 select cast('18446744073709551616' as unsigned);
@@ -51,6 +135,20 @@ select cast('-1' as unsigned);
 select cast('abc' as signed);
 select cast('1a' as signed);
 select cast('' as signed);
+
+--error ER_M_BIGGER_THAN_D
+select cast(1 as double(5,6));
+--error ER_M_BIGGER_THAN_D
+select cast(1 as decimal(5,6));
+--error ER_TOO_BIG_PRECISION
+select cast(1 as double(66,6));
+--error ER_TOO_BIG_PRECISION
+select cast(1 as decimal(66,6));
+--error ER_TOO_BIG_SCALE
+select cast(1 as decimal(64,63));
+--error ER_TOO_BIG_SCALE
+select cast(1 as double(64,63));
+
 
 #
 # Character set conversion
@@ -124,8 +222,6 @@ set names binary;
 select cast("2001-1-1" as date) = "2001-01-01";
 select cast("2001-1-1" as datetime) = "2001-01-01 00:00:00";
 select cast("1:2:3" as TIME) = "1:02:03";
-select cast(NULL as DATE);
-select cast(NULL as BINARY);
 
 #
 # Bug #5228 ORDER BY CAST(enumcol) sorts incorrectly under certain conditions
@@ -170,6 +266,14 @@ select cast(repeat('1',20) as signed);
 # Bug #13344: cast of large decimal to signed int not handled correctly
 #
 select cast(1.0e+300 as signed int);
+
+#
+# Test that we create the correct types with create ... select cast()
+#
+
+create table t1  select cast(1 as unsigned), cast(1 as signed), cast(1 as double(5,2)), cast(1 as decimal(5,3)), cast("A" as binary), cast("A" as char(100)), cast("2001-1-1" as DATE), cast("2001-1-1" as DATETIME), cast("1:2:3" as TIME);
+show create table t1;
+drop table t1;
 
 #
 # Bugs: #15098: CAST(column double TO signed int), wrong result
@@ -290,6 +394,7 @@ SET @@GLOBAL.max_allowed_packet=2048;
 
 SELECT CONVERT('a', BINARY(2049));  
 SELECT CONVERT('a', CHAR(2049));  
+SELECT length(CONVERT(repeat('a',2048), CHAR(2049)));
 
 connection default;
 disconnect newconn;
@@ -321,3 +426,30 @@ DROP TABLE t1;
 --echo # End of test for Bug#13581962, Bug#14096619
 
 --echo End of 5.1 tests
+
+select cast("2101-00-01 02:03:04" as datetime);
+select cast(cast("2101-00-01 02:03:04" as datetime) as time);
+SELECT CAST(CAST('20:05:05' AS TIME) as date);
+set sql_mode= TRADITIONAL;
+select cast("2101-00-01 02:03:04" as datetime);
+select cast(cast("2101-00-01 02:03:04" as datetime) as time);
+SELECT CAST(CAST('20:05:05' AS TIME) as date);
+set sql_mode=DEFAULT;
+
+#
+# lp:737458 Casting dates and times into integers works differently
+# in 5.1-micro
+#
+create table t1 (f1 time, f2 date, f3 datetime);
+insert into t1 values ('11:22:33','2011-12-13','2011-12-13 11:22:33');
+select cast(f1 as unsigned), cast(f2 as unsigned), cast(f3 as unsigned) from t1;
+drop table t1;
+
+#
+# CAST(... AS DATE) and invalid dates
+#
+SELECT CAST(TIME('10:20:30') AS DATE) + INTERVAL 1 DAY;
+
+SET SQL_MODE=ALLOW_INVALID_DATES;
+SELECT DATE("foo");
+

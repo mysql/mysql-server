@@ -41,11 +41,9 @@ create table `txu#p#p1` (s1 int);
 insert into `txu#p#p1` values (1);
 --error 1146
 select * from `txu@0023p@0023p1`;
+--error ER_TABLE_EXISTS_ERROR
 create table `txu@0023p@0023p1` (s1 int);
-insert into `txu@0023p@0023p1` values (2);
-select * from `txu@0023p@0023p1`;
 select * from `txu#p#p1`;
-drop table `txu@0023p@0023p1`;
 drop table `txu#p#p1`;
 
 --echo #
@@ -168,6 +166,17 @@ ALTER DATABASE `#mysql50#/.` UPGRADE DATA DIRECTORY NAME;
 USE `#mysql50#.`;
 --error ER_WRONG_DB_NAME
 USE `#mysql50#../blablabla`;
+
+#
+# Test of Bug #56441: mysql_upgrade 5.0->5.1 fails for tables with long names
+#
+copy_file $MYSQL_TEST_DIR/std_data/long_table_name.MYI $MYSQLD_DATADIR/test/ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com.MYI;
+copy_file $MYSQL_TEST_DIR/std_data/long_table_name.MYD $MYSQLD_DATADIR/test/ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com.MYD;
+copy_file $MYSQL_TEST_DIR/std_data/long_table_name.frm $MYSQLD_DATADIR/test/ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com.frm;
+show full tables;
+rename table `#mysql50#ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com` to `ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com`;
+show full tables;
+drop table `ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com`;
 
 --echo # End of 5.1 tests
 

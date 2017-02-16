@@ -1,0 +1,12 @@
+--source include/have_example_plugin.inc
+
+# test for --plugin_maturity
+--replace_regex /\.dll/.so/
+--error 1126
+eval INSTALL PLUGIN example SONAME '$HA_EXAMPLE_SO';
+
+--replace_regex /\.dll/.so/
+--error 1126
+eval INSTALL SONAME '$HA_EXAMPLE_SO';
+--replace_regex /\.dll/.so/
+show warnings;

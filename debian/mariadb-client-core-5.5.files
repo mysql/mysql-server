@@ -1,0 +1,4 @@
+usr/bin/mysql
+usr/bin/mysqlcheck
+usr/share/man/man1/mysql.1
+usr/share/man/man1/mysqlcheck.1

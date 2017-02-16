@@ -1,0 +1,8 @@
+--source ../have_engine.inc
+--source support_transactions.inc
+
+let $trx_isolation = REPEATABLE READ;
+--source transaction_isolation.inc
+
+--source ../cleanup_engine.inc
+

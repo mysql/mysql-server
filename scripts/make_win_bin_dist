@@ -1,0 +1,416 @@
+#!/bin/sh
+# Copyright (c) 2006, 2011, Oracle and/or its affiliates.
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+# Exit if failing to copy, we want exact specifications, not
+# just "what happen to be built".
+set -e
+
+# ----------------------------------------------------------------------
+# Read first argument that is the base name of the resulting TAR file.
+# See usage() function below for a description on the arguments.
+#
+# NOTE: We will read the rest of the command line later on.
+# NOTE: Pattern matching with "{..,..}" can't be used, not portable.
+# ----------------------------------------------------------------------
+
+# FIXME why "libmysql.dll" installed both in "bin" and "lib/opt"?
+
+usage()
+{
+  echo <<EOF
+Usage: make_win_bin_dist [ options ] package-base-name [ copy-defs... ]
+
+This is a script to run from the top of a source tree built on Windows.
+The "package-base-name" argument should be something like
+
+  mysql-noinstall-5.0.25-win32  (or winx64)
+
+and will become the name of the directory of the unpacked ZIP (stripping
+away the "noinstall" part of the ZIP file name if any) and the base
+for the resulting package name.
+
+Options are
+
+  --embedded       Pack the embedded server and give error if not built.
+                   The default is to pack it if it is built.
+
+  --no-embedded    Don't pack the embedded server even if built
+
+  --debug          Pack the debug binaries and give error if not built.
+                   The default is to pack them if they are built.
+
+  --no-debug       Don't pack the debug binaries even if built
+
+  --only-debug     The target for this build was "Debug", and we just
+                   want to replace the normal binaries with debug
+                   versions, i.e. no separate "debug" directories.
+
+  --exe-suffix=SUF Add a suffix to the filename part of the "mysqld" binary.
+
+As you might want to include files of directories from other builds
+(like a "mysqld-max.exe" server), you can instruct this script to copy
+them in for you. This is the "copy-def" arguments, and they are of the
+form
+
+  relative-dest-name=source-name .....
+
+i.e. can be something like
+
+  bin/mysqld-max.exe=../my-max-build/sql/release/mysqld.exe
+
+If you specify a directory the whole directory will be copied.
+
+EOF
+  exit 1
+}
+
+# ----------------------------------------------------------------------
+# We need to be at the top of a source tree, check that we are
+# ----------------------------------------------------------------------
+
+if [ ! -d "sql" ] ; then
+  echo "You need to run this script from inside the source tree"
+  usage
+fi
+
+# ----------------------------------------------------------------------
+# Actual argument processing, first part
+# ----------------------------------------------------------------------
+
+NOINST_NAME=""
+TARGET="release"
+PACK_EMBEDDED=""		# Could be "no", "yes" or empty
+PACK_DEBUG=""			# Could be "no", "yes" or empty
+EXE_SUFFIX=""
+
+for arg do
+  shift
+  case "$arg" in
+    --embedded)       PACK_EMBEDDED="yes" ;;
+    --no-embedded)    PACK_EMBEDDED="no" ;;
+    --debug)          PACK_DEBUG="yes" ;;
+    --no-debug)       PACK_DEBUG="no" ;;
+    --only-debug)     TARGET="debug" ; PACK_DEBUG="no" ;;
+    --exe-suffix=*)   EXE_SUFFIX=`echo "$arg" | sed -e "s,--exe-suffix=,,"` ;;
+    -*)
+      echo "Unknown argument '$arg'"
+      usage
+      ;;
+    *)
+      NOINST_NAME="$arg"
+      break
+  esac
+done
+
+if [ x"$NOINST_NAME" = x"" ] ; then
+  echo "No base package name given"
+  usage
+fi
+DESTDIR=`echo $NOINST_NAME | sed 's/-noinstall-/-/'`
+
+if [ -e $DESTDIR ] ; then
+  echo "Please remove the old $DESTDIR before running this script"
+  usage
+fi
+
+trap 'echo "Cleaning up and exiting..." ; rm -fr $DESTDIR; exit 1' ERR
+
+# ----------------------------------------------------------------------
+# Adjust target name if needed, release with debug info has another name
+# ----------------------------------------------------------------------
+
+if [ x"$TARGET" = x"release" -a -f "client/relwithdebinfo/mysql.exe" ]
+then
+  TARGET="relwithdebinfo"
+fi
+
+# ----------------------------------------------------------------------
+# Copy executables, and client DLL
+# ----------------------------------------------------------------------
+MYISAM_BINARIES="myisamchk myisamlog myisampack myisam_ftdump"
+MARIA_BINARIES="aria_chk aria_dump_log aria_ftdump aria_pack aria_read_log"
+mkdir $DESTDIR
+mkdir $DESTDIR/bin
+cp client/$TARGET/*.exe                                  $DESTDIR/bin/
+cp extra/$TARGET/*.exe                                   $DESTDIR/bin/
+
+# MyISAM
+#cp storage/myisam/$TARGET/*.exe                          $DESTDIR/bin/
+for eng in $MYISAM_BINARIES ; do 
+  cp storage/myisam/$TARGET/$eng.{exe,pdb} $DESTDIR/bin
+done
+
+# Maria
+for eng in $MARIA_BINARIES ; do 
+  cp storage/maria/$TARGET/$eng.{exe,pdb} $DESTDIR/bin
+done
+
+if [ x"$TARGET" != x"release" ] ; then
+  cp client/$TARGET/mysql.pdb                            $DESTDIR/bin/
+  cp client/$TARGET/mysqladmin.pdb                       $DESTDIR/bin/
+  cp client/$TARGET/mysqlbinlog.pdb                      $DESTDIR/bin/
+  cp client/$TARGET/mysqldump.pdb                        $DESTDIR/bin/
+  cp client/$TARGET/mysqlimport.pdb                      $DESTDIR/bin/
+  cp client/$TARGET/mysqlshow.pdb                        $DESTDIR/bin/
+fi
+cp tests/$TARGET/*.exe                                   $DESTDIR/bin/
+cp libmysql/$TARGET/libmysql.dll                         $DESTDIR/bin/
+
+cp sql/$TARGET/mysqld.exe                $DESTDIR/bin/mysqld$EXE_SUFFIX.exe
+if [ x"$TARGET" != x"release" ] ; then
+  cp sql/$TARGET/mysqld.pdb              $DESTDIR/bin/mysqld$EXE_SUFFIX.pdb
+fi
+
+if [ x"$PACK_DEBUG" = x"" -a -f "sql/debug/mysqld.exe" -o \
+     x"$PACK_DEBUG" = x"yes" ] ; then
+  cp sql/debug/mysqld.exe                $DESTDIR/bin/mysqld-debug.exe
+  cp sql/debug/mysqld.pdb                $DESTDIR/bin/mysqld-debug.pdb
+fi
+
+# ----------------------------------------------------------------------
+# Copy data directory, readme files etc
+# ----------------------------------------------------------------------
+
+if [ -d win/data ] ; then
+  cp -pR win/data $DESTDIR/
+fi
+
+mkdir $DESTDIR/Docs
+cp Docs/INSTALL-BINARY    $DESTDIR/Docs/
+cp Docs/manual.chm        $DESTDIR/Docs/ || /bin/true
+cp ChangeLog              $DESTDIR/Docs/ || /bin/true
+cp support-files/my-*.ini $DESTDIR/
+cp README                 $DESTDIR/
+
+if [ -f COPYING ] ; then
+  cp COPYING EXCEPTIONS-CLIENT $DESTDIR/
+  cp COPYING                   $DESTDIR/Docs/
+fi
+
+# ----------------------------------------------------------------------
+# These will be filled in when we enable embedded. Note that if no
+# argument is given, it is copied if exists, else a check is done.
+# ----------------------------------------------------------------------
+
+copy_embedded()
+{
+  mkdir -p $DESTDIR/Embedded/DLL/release \
+           $DESTDIR/Embedded/static/release \
+           $DESTDIR/include
+  cp libmysqld/libmysqld.def           $DESTDIR/include/
+  cp libmysqld/$TARGET/mysqlserver.lib $DESTDIR/Embedded/static/release/
+  cp libmysqld/$TARGET/libmysqld.dll   $DESTDIR/Embedded/DLL/release/
+  cp libmysqld/$TARGET/libmysqld.exp   $DESTDIR/Embedded/DLL/release/
+  cp libmysqld/$TARGET/libmysqld.lib   $DESTDIR/Embedded/DLL/release/
+  if [ x"$TARGET" != x"release" ] ; then
+    cp libmysqld/$TARGET/mysqlserver.pdb $DESTDIR/Embedded/static/release/
+    cp libmysqld/$TARGET/libmysqld.pdb   $DESTDIR/Embedded/DLL/release/
+  fi
+
+  if [ x"$PACK_DEBUG" = x"" -a -f "libmysqld/debug/libmysqld.lib" -o \
+       x"$PACK_DEBUG" = x"yes" ] ; then
+    mkdir -p $DESTDIR/Embedded/DLL/debug \
+             $DESTDIR/Embedded/static/debug
+    cp libmysqld/debug/mysqlserver.lib   $DESTDIR/Embedded/static/debug/
+    cp libmysqld/debug/mysqlserver.pdb   $DESTDIR/Embedded/static/debug/
+    cp libmysqld/debug/libmysqld.dll     $DESTDIR/Embedded/DLL/debug/
+    cp libmysqld/debug/libmysqld.exp     $DESTDIR/Embedded/DLL/debug/
+    cp libmysqld/debug/libmysqld.lib     $DESTDIR/Embedded/DLL/debug/
+    cp libmysqld/debug/libmysqld.pdb     $DESTDIR/Embedded/DLL/debug/
+  fi
+}
+
+if [ x"$PACK_EMBEDDED" = x"" -a \
+     -f "libmysqld/$TARGET/mysqlserver.lib" -a \
+     -f "libmysqld/$TARGET/libmysqld.lib" -o \
+     x"$PACK_EMBEDDED" = x"yes" ] ; then
+  copy_embedded
+fi
+
+# ----------------------------------------------------------------------
+# Note: Make sure to sync with include/Makefile.am and WiX installer
+# XML specifications
+# ----------------------------------------------------------------------
+
+mkdir -p $DESTDIR/include
+cp include/mysql.h \
+   include/mysql_com.h \
+   include/mysql_time.h \
+   include/my_list.h \
+   include/my_alloc.h \
+   include/typelib.h \
+   include/my_dbug.h \
+   include/m_string.h \
+   include/my_sys.h \
+   include/my_xml.h \
+   include/mysql_embed.h \
+   include/my_pthread.h \
+   include/my_no_pthread.h \
+   include/decimal.h \
+   include/errmsg.h \
+   include/my_global.h \
+   include/my_config.h \
+   include/my_net.h \
+   include/my_getopt.h \
+   include/sslopt-longopts.h \
+   include/my_dir.h \
+   include/sslopt-vars.h \
+   'include/sslopt-case.h' \
+   include/sql_common.h \
+   include/keycache.h \
+   include/m_ctype.h \
+   include/my_attribute.h \
+   include/my_compiler.h \
+   include/mysqld_error.h \
+   include/sql_state.h \
+   include/mysqld_ername.h \
+   include/mysql_version.h \
+   libmysql/libmysql.def \
+   $DESTDIR/include/
+
+mkdir -p $DESTDIR/include/mysql
+cp include/mysql/plugin.h $DESTDIR/include/mysql/
+
+# ----------------------------------------------------------------------
+# Client libraries, and other libraries
+# ----------------------------------------------------------------------
+
+mkdir -p $DESTDIR/lib/opt
+mkdir -p $DESTDIR/lib/plugin
+cp sql/$TARGET/mysqld.lib $DESTDIR/lib/
+cp libmysql/$TARGET/libmysql.dll \
+   libmysql/$TARGET/libmysql.lib \
+   libmysql/$TARGET/mysqlclient.lib \
+   mysys/$TARGET/mysys.lib \
+   regex/$TARGET/regex.lib \
+   strings/$TARGET/strings.lib \
+   zlib/$TARGET/zlib.lib $DESTDIR/lib/opt/
+cp storage/*/$TARGET/ha_*.dll $DESTDIR/lib/plugin/
+
+if [ x"$TARGET" != x"release" ] ; then
+  cp libmysql/$TARGET/libmysql.pdb \
+     libmysql/$TARGET/mysqlclient.pdb \
+     mysys/$TARGET/mysys.pdb \
+     regex/$TARGET/regex.pdb \
+     strings/$TARGET/strings.pdb \
+     zlib/$TARGET/zlib.pdb $DESTDIR/lib/opt/
+  cp storage/*/$TARGET/ha_*.pdb $DESTDIR/lib/plugin/
+fi
+
+
+if [ x"$PACK_DEBUG" = x"" -a -f "libmysql/debug/libmysql.lib" -o \
+     x"$PACK_DEBUG" = x"yes" ] ; then
+  mkdir -p $DESTDIR/lib/debug
+  mkdir -p $DESTDIR/lib/plugin/debug
+  cp libmysql/debug/libmysql.dll \
+     libmysql/debug/libmysql.lib \
+     libmysql/debug/libmysql.pdb \
+     libmysql/debug/mysqlclient.lib \
+     libmysql/debug/mysqlclient.pdb \
+     mysys/debug/mysys.lib \
+     mysys/debug/mysys.pdb \
+     regex/debug/regex.lib \
+     regex/debug/regex.pdb \
+     strings/debug/strings.lib \
+     strings/debug/strings.pdb \
+     zlib/debug/zlib.lib \
+     zlib/debug/zlib.pdb $DESTDIR/lib/debug/
+  cp storage/*/debug/ha_*.dll \
+     storage/*/debug/ha_*.lib \
+     storage/*/debug/ha_*.pdb \
+     $DESTDIR/lib/plugin/debug/
+fi
+
+# ----------------------------------------------------------------------
+# Copy the test directory
+# ----------------------------------------------------------------------
+
+mkdir $DESTDIR/mysql-test
+cp mysql-test/mysql-test-run.pl $DESTDIR/mysql-test/
+cp mysql-test/mysql-stress-test.pl $DESTDIR/mysql-test/
+cp mysql-test/README $DESTDIR/mysql-test/
+cp -R mysql-test/{t,r,include,suite,std_data,lib,collections} $DESTDIR/mysql-test/
+
+rm -rf $DESTDIR/mysql-test/lib/My/SafeProcess/my_safe_kill.{dir,vcproj}
+rm -rf $DESTDIR/mysql-test/lib/My/SafeProcess/my_safe_process.{dir,vcproj}
+rm -rf $DESTDIR/mysql-test/lib/My/SafeProcess/{Debug,RelWithDebInfo}/*.{ilk,idb}
+
+
+# Note that this will not copy "extra" if a soft link
+if [ -d mysql-test/extra ] ; then
+  mkdir $DESTDIR/mysql-test/extra
+  cp -pR mysql-test/extra/* $DESTDIR/mysql-test/extra/
+fi
+
+# ----------------------------------------------------------------------
+# Copy what could be usable in the "scripts" directory
+# ----------------------------------------------------------------------
+
+mysql_scripts="\
+mysql_config.pl \
+mysql_convert_table_format.pl \
+mysql_install_db.pl \
+mysql_secure_installation.pl \
+mysqld_multi.pl \
+mysqldumpslow.pl \
+mysqlhotcopy.pl \
+mytop.pl \
+"
+
+mkdir -p $DESTDIR/scripts
+
+for i in $mysql_scripts
+do
+  cp scripts/$i $DESTDIR/scripts/$i
+done
+
+cp -pR sql/share $DESTDIR/
+cp -pR sql-bench $DESTDIR/
+rm -f $DESTDIR/sql-bench/*.sh $DESTDIR/sql-bench/Makefile*
+
+# The SQL initialisation code is to be in "share"
+cp scripts/*.sql $DESTDIR/share/
+
+# ----------------------------------------------------------------------
+# Clean up from possibly copied SCCS directories
+# ----------------------------------------------------------------------
+
+rm -rf `/bin/find $DISTDIR -type d -name SCCS -print`
+
+# ----------------------------------------------------------------------
+# Copy other files specified on command line DEST=SOURCE
+# ----------------------------------------------------------------------
+
+for arg do
+  dst=`echo $arg | sed -n 's/=.*$//p'`
+  src=`echo $arg | sed -n 's/^.*=//p'`
+
+  if [ x"$dst" = x"" -o x"$src" = x"" ] ; then
+    echo "Invalid specification of what to copy"
+    usage
+  fi
+
+  mkdir -p `dirname $DESTDIR/$dst`
+  cp -pR "$src" $DESTDIR/$dst
+done
+
+# ----------------------------------------------------------------------
+# Finally create the ZIP archive
+# ----------------------------------------------------------------------
+
+rm -f $NOINST_NAME.zip
+zip -r $NOINST_NAME.zip $DESTDIR
+rm -Rf $DESTDIR

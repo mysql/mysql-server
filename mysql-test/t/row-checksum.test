@@ -1,0 +1,62 @@
+#
+# Test checksum
+#
+
+-- source include/have_innodb.inc
+-- source include/have_maria.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (a int null, v varchar(100)) engine=myisam checksum=0;
+insert into t1 values(null, null), (1, "hello");
+checksum table t1;
+checksum table t1 quick;
+checksum table t1 extended;
+drop table if exists t1;
+create table t1 (a int null, v varchar(100)) engine=myisam checksum=1;
+insert into t1 values(null, null), (1, "hello");
+checksum table t1;
+checksum table t1 quick;
+checksum table t1 extended;
+drop table if exists t1;
+
+create table t1 (a int null, v varchar(100)) engine=innodb checksum=0;
+insert into t1 values(null, null), (1, "hello");
+checksum table t1;
+checksum table t1 quick;
+checksum table t1 extended;
+drop table t1;
+
+create table t1 (a int null, v varchar(100)) engine=maria checksum=0;
+insert into t1 values(null, null), (1, "hello");
+checksum table t1;
+checksum table t1 quick;
+checksum table t1 extended;
+drop table t1;
+create table t1 (a int null, v varchar(100)) engine=maria checksum=1;
+insert into t1 values(null, null), (1, "hello");
+checksum table t1;
+checksum table t1 quick;
+checksum table t1 extended;
+drop table t1;
+
+
+#
+# These checksums will be different prefixes fixed sizes rows with one extra
+# flag byte
+#
+create table t1 (a int null, v varchar(100)) engine=myisam checksum=1 row_format=fixed;
+insert into t1 values(null, null), (1, "hello");
+checksum table t1;
+checksum table t1 quick;
+checksum table t1 extended;
+drop table if exists t1;
+
+create table t1 (a int null, v varchar(100)) engine=innodb checksum=0 row_format=fixed;
+insert into t1 values(null, null), (1, "hello");
+checksum table t1;
+checksum table t1 quick;
+checksum table t1 extended;
+drop table t1;

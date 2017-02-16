@@ -1,0 +1,16 @@
+--source include/have_tokudb.inc
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+set default_storage_engine='tokudb';
+set tokudb_disable_slow_alter=1;
+
+create table t (a char(1));
+
+alter table t change column a aa char(1);
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 char(1) not null;
+
+drop table t;

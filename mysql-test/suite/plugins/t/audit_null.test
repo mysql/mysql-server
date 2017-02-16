@@ -1,0 +1,60 @@
+
+--source include/not_embedded.inc
+
+if (!$ADT_NULL_SO) {
+  skip No NULL_AUDIT plugin;
+}
+
+set @old_global_general_log=@@global.general_log;
+set global general_log=OFF;
+
+grant select on *.* to testuser@localhost;
+
+--disable_ps_protocol
+install plugin audit_null soname 'adt_null';
+
+select 1;
+--error 1054
+select foobar;
+
+show status like 'audit_null%';
+
+create procedure au1(x char(16)) select concat("test1", x);
+call au1("-12");
+
+show status like 'audit_null%';
+
+create table t1 (a int);
+insert t1 values (1), (2);
+select * from t1;
+rename table t1 to t2;
+alter table t2 add column b int;
+
+create definer=testuser@localhost view v1 as select t2.a+1, t2_copy.a+2 from t2, t2 as t2_copy;
+select * from v1;
+drop view v1;
+
+# temp table generates no audit events
+create temporary table t2 (a date);
+insert t2 values ('2020-10-09');
+select * from t2;
+alter table t2 add column b int; # MDEV-4565 ALTER on a temporary table generates an audit event
+drop table t2;
+
+# internal temp table generates no audit events
+explain select distinct * from t2;
+select distinct * from t2;
+
+drop table t2;
+
+uninstall plugin audit_null;
+--enable_ps_protocol
+
+drop procedure au1;
+drop user testuser@localhost;
+set global general_log=@old_global_general_log;
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+--replace_regex /#sql-[0-9a-f_]*/#sql-temporary/ /#sql2-[-0-9a-f_]*/#sql2-temporary/ /::1// /127.0.0.1//
+cat_file $MYSQLD_DATADIR/audit_null_tables.log;
+

@@ -14,4 +14,109 @@ select * from mysqltest.t3;
 n
 45
 drop database mysqltest;
+use test;
+#
+# Test bug where ALTER TABLE MODIFY didn't replicate properly
+#
+create table t1 (a int unsigned primary key, b int);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(10) unsigned NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 (a) values (1),((1<<32)-1);
+select * from t1;
+a	b
+1	NULL
+4294967295	NULL
+alter table t1 modify a bigint;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(20) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select * from t1;
+a	b
+1	NULL
+4294967295	NULL
+alter table t1 modify a int unsigned;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(10) unsigned NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select * from t1;
+a	b
+1	NULL
+4294967295	NULL
+alter table t1 modify a bigint unsigned;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(20) unsigned NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select * from t1;
+a	b
+1	NULL
+4294967295	NULL
+use test;
+select * from t1;
+a	b
+1	NULL
+4294967295	NULL
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(20) unsigned NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+create table t2 (a int unsigned auto_increment primary key, b int);
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+alter table t2 modify a bigint;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` bigint(20) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+alter table t2 modify a bigint auto_increment;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` bigint(20) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1,t2;
+#
+# MDEV-8432:  Slave cannot replicate signed integer-type values
+# with high bit set to 1
+# Test replication when we have int on master and bigint on slave
+#
+create table t1 (a int unsigned primary key, b int);
+SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
+alter table t1 modify a bigint unsigned;
+insert into t1 (a) values (1),((1<<32)-1);
+select * from t1;
+a	b
+1	NULL
+4294967295	NULL
+SET GLOBAL SLAVE_TYPE_CONVERSIONS='';
+drop table t1;
 include/rpl_end.inc

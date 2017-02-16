@@ -31,7 +31,7 @@ Field	Type	Null	Key	Default	Extra
 EVENT_CATALOG	varchar(64)	NO			
 EVENT_SCHEMA	varchar(64)	NO			
 EVENT_NAME	varchar(64)	NO			
-DEFINER	varchar(77)	NO			
+DEFINER	varchar(189)	NO			
 TIME_ZONE	varchar(64)	NO			
 EVENT_BODY	varchar(8)	NO			
 EVENT_DEFINITION	longtext	NO		NULL	
@@ -58,7 +58,7 @@ EVENTS	CREATE TEMPORARY TABLE `EVENTS` (
   `EVENT_CATALOG` varchar(64) NOT NULL DEFAULT '',
   `EVENT_SCHEMA` varchar(64) NOT NULL DEFAULT '',
   `EVENT_NAME` varchar(64) NOT NULL DEFAULT '',
-  `DEFINER` varchar(77) NOT NULL DEFAULT '',
+  `DEFINER` varchar(189) NOT NULL DEFAULT '',
   `TIME_ZONE` varchar(64) NOT NULL DEFAULT '',
   `EVENT_BODY` varchar(8) NOT NULL DEFAULT '',
   `EVENT_DEFINITION` longtext NOT NULL,
@@ -79,13 +79,13 @@ EVENTS	CREATE TEMPORARY TABLE `EVENTS` (
   `CHARACTER_SET_CLIENT` varchar(32) NOT NULL DEFAULT '',
   `COLLATION_CONNECTION` varchar(32) NOT NULL DEFAULT '',
   `DATABASE_COLLATION` varchar(32) NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=utf8
+)  DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.EVENTS;
 Field	Type	Null	Key	Default	Extra
 EVENT_CATALOG	varchar(64)	NO			
 EVENT_SCHEMA	varchar(64)	NO			
 EVENT_NAME	varchar(64)	NO			
-DEFINER	varchar(77)	NO			
+DEFINER	varchar(189)	NO			
 TIME_ZONE	varchar(64)	NO			
 EVENT_BODY	varchar(8)	NO			
 EVENT_DEFINITION	longtext	NO		NULL	

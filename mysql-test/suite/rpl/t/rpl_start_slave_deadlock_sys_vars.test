@@ -1,0 +1,58 @@
+source include/have_debug_sync.inc;
+source include/master-slave.inc;
+
+--echo # connection: slave
+connection slave;
+SET @save_slave_net_timeout = @@GLOBAL.slave_net_timeout;
+STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
+
+--echo # open an extra connection to the slave
+connect(slave2,127.0.0.1,root,,test,$SLAVE_MYPORT,);
+--echo # connection: slave2
+--echo # set debug synchronization point
+SET DEBUG_SYNC='fix_slave_net_timeout SIGNAL parked WAIT_FOR go';
+--echo # attempt to set slave_net_timeout, will wait on sync point
+--send SET @@GLOBAL.slave_net_timeout = 100
+
+--echo # connection: slave
+connection slave;
+SET DEBUG_SYNC='now WAIT_FOR parked';
+
+--echo # connection: slave1
+connection slave1;
+--echo # attempt to start the SQL thread
+--send START SLAVE SQL_THREAD
+
+--echo # connection: slave
+connection slave;
+--echo # wait until SQL thread has been started
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for slave thread to start" and info = "START SLAVE SQL_THREAD";
+--source include/wait_condition.inc
+--echo # sleep a bit so that the SQL thread THD handle is initialized
+sleep 2;
+--echo # signal the set slave_net_timeout to continue
+SET DEBUG_SYNC='now SIGNAL go';
+
+--echo # connection: slave2
+connection slave2;
+--echo # reap result of set slave_net_timeout
+--reap
+
+--echo # connection: slave1
+connection slave1;
+--echo # reap result of starting the SQL thread
+--reap
+
+--echo # disconnect: slave2
+disconnect slave2;
+
+--echo # connection: slave
+connection slave;
+--echo # cleanup
+SET @@GLOBAL.slave_net_timeout = @save_slave_net_timeout;
+SET DEBUG_SYNC='RESET';
+
+source include/rpl_end.inc;

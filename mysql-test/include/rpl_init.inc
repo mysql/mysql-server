@@ -186,13 +186,6 @@ while ($_rpl_server)
 # Signal that initialization is done and all connections created.
 --let $rpl_inited= 1
 
-# Signal that the server is in a dirty state and needs to be restarted
-# if the test is skipped. If the test is not skipped, it will continue
-# to the end and execute its cleanup section (and check-testcase will
-# report if you forget to clean up).
---source include/force_restart_if_skipped.inc
-
-
 # Assert that all hosts have different server_ids
 if ($rpl_check_server_ids)
 {

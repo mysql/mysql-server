@@ -1,0 +1,44 @@
+SET @start_global_value = @@global.extra_max_connections;
+select @@global.extra_max_connections;
+@@global.extra_max_connections
+1
+select @@session.extra_max_connections;
+ERROR HY000: Variable 'extra_max_connections' is a GLOBAL variable
+show global variables like 'extra_max_connections';
+Variable_name	Value
+extra_max_connections	1
+show session variables like 'extra_max_connections';
+Variable_name	Value
+extra_max_connections	1
+select * from information_schema.global_variables where variable_name='extra_max_connections';
+VARIABLE_NAME	VARIABLE_VALUE
+EXTRA_MAX_CONNECTIONS	1
+select * from information_schema.session_variables where variable_name='extra_max_connections';
+VARIABLE_NAME	VARIABLE_VALUE
+EXTRA_MAX_CONNECTIONS	1
+set global extra_max_connections=1;
+select @@global.extra_max_connections;
+@@global.extra_max_connections
+1
+set session extra_max_connections=1;
+ERROR HY000: Variable 'extra_max_connections' is a GLOBAL variable and should be set with SET GLOBAL
+set global extra_max_connections=1.1;
+ERROR 42000: Incorrect argument type to variable 'extra_max_connections'
+set global extra_max_connections=1e1;
+ERROR 42000: Incorrect argument type to variable 'extra_max_connections'
+set global extra_max_connections="foo";
+ERROR 42000: Incorrect argument type to variable 'extra_max_connections'
+set global extra_max_connections=0;
+Warnings:
+Warning	1292	Truncated incorrect extra_max_connections value: '0'
+select @@global.extra_max_connections;
+@@global.extra_max_connections
+1
+set global extra_max_connections=cast(-1 as unsigned int);
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1292	Truncated incorrect extra_max_connections value: '18446744073709551615'
+select @@global.extra_max_connections;
+@@global.extra_max_connections
+100000
+SET @@global.extra_max_connections = @start_global_value;

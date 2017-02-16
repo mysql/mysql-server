@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
-
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +39,14 @@ protected:
     0 means get this number from first argument
   */
   uint allowed_arg_cols;
+  String *val_str_from_val_str_ascii(String *str, String *str2);
+
+  void count_only_length(Item **item, uint nitems);
+  void count_real_length(Item **item, uint nitems);
+  void count_decimal_length(Item **item, uint nitems);
+  void count_datetime_length(Item **item, uint nitems);
+  bool count_string_result_length(enum_field_types field_type,
+                                  Item **item, uint nitems);
 public:
   uint arg_count;
   table_map used_tables_cache, not_null_tables_cache;
@@ -46,7 +54,7 @@ public:
   enum Functype { UNKNOWN_FUNC,EQ_FUNC,EQUAL_FUNC,NE_FUNC,LT_FUNC,LE_FUNC,
 		  GE_FUNC,GT_FUNC,FT_FUNC,
 		  LIKE_FUNC,ISNULL_FUNC,ISNOTNULL_FUNC,
-		  COND_AND_FUNC, COND_OR_FUNC, COND_XOR_FUNC,
+		  COND_AND_FUNC, COND_OR_FUNC, XOR_FUNC,
                   BETWEEN, IN_FUNC, MULT_EQUAL_FUNC,
 		  INTERVAL_FUNC, ISNOTNULLTEST_FUNC,
 		  SP_EQUALS_FUNC, SP_DISJOINT_FUNC,SP_INTERSECTS_FUNC,
@@ -67,6 +75,7 @@ public:
     allowed_arg_cols(1), arg_count(0)
   {
     with_sum_func= 0;
+    with_field= 0;
   }
   Item_func(Item *a):
     allowed_arg_cols(1), arg_count(1)
@@ -74,6 +83,7 @@ public:
     args= tmp_arg;
     args[0]= a;
     with_sum_func= a->with_sum_func;
+    with_field= a->with_field;
   }
   Item_func(Item *a,Item *b):
     allowed_arg_cols(1), arg_count(2)
@@ -81,6 +91,7 @@ public:
     args= tmp_arg;
     args[0]= a; args[1]= b;
     with_sum_func= a->with_sum_func || b->with_sum_func;
+    with_field= a->with_field || b->with_field;
   }
   Item_func(Item *a,Item *b,Item *c):
     allowed_arg_cols(1)
@@ -91,6 +102,7 @@ public:
       arg_count= 3;
       args[0]= a; args[1]= b; args[2]= c;
       with_sum_func= a->with_sum_func || b->with_sum_func || c->with_sum_func;
+      with_field= a->with_field || b->with_field || c->with_field;
     }
   }
   Item_func(Item *a,Item *b,Item *c,Item *d):
@@ -103,6 +115,8 @@ public:
       args[0]= a; args[1]= b; args[2]= c; args[3]= d;
       with_sum_func= a->with_sum_func || b->with_sum_func ||
 	c->with_sum_func || d->with_sum_func;
+      with_field= a->with_field || b->with_field ||
+        c->with_field || d->with_field;
     }
   }
   Item_func(Item *a,Item *b,Item *c,Item *d,Item* e):
@@ -114,12 +128,16 @@ public:
       args[0]= a; args[1]= b; args[2]= c; args[3]= d; args[4]= e;
       with_sum_func= a->with_sum_func || b->with_sum_func ||
 	c->with_sum_func || d->with_sum_func || e->with_sum_func ;
+      with_field= a->with_field || b->with_field ||
+        c->with_field || d->with_field || e->with_field;
     }
   }
   Item_func(List<Item> &list);
   // Constructor used for Item_cond_and/or (see Item comment)
   Item_func(THD *thd, Item_func *item);
   bool fix_fields(THD *, Item **ref);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
+  void quick_fix_field();
   table_map used_tables() const;
   table_map not_null_tables() const;
   void update_used_tables();
@@ -136,17 +154,16 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   void print_op(String *str, enum_query_type query_type);
   void print_args(String *str, uint from, enum_query_type query_type);
-  virtual void fix_num_length_and_dec();
-  void count_only_length();
-  void count_real_length();
-  void count_decimal_length();
-  inline bool get_arg0_date(MYSQL_TIME *ltime, uint fuzzy_date)
+  inline bool get_arg0_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
   {
     return (null_value=args[0]->get_date(ltime, fuzzy_date));
   }
   inline bool get_arg0_time(MYSQL_TIME *ltime)
   {
-    return (null_value=args[0]->get_time(ltime));
+    null_value= args[0]->get_time(ltime);
+    DBUG_ASSERT(null_value ||
+                ltime->time_type != MYSQL_TIMESTAMP_TIME || ltime->day == 0);
+    return null_value;
   }
   bool is_null() { 
     update_null_value();
@@ -160,6 +177,18 @@ public:
 
   my_decimal *val_decimal(my_decimal *);
 
+  void fix_char_length_ulonglong(ulonglong max_char_length_arg)
+  {
+    ulonglong max_result_length= max_char_length_arg *
+                                 collation.collation->mbmaxlen;
+    if (max_result_length >= MAX_BLOB_WIDTH)
+    {
+      max_length= MAX_BLOB_WIDTH;
+      maybe_null= 1;
+    }
+    else
+      max_length= (uint32) max_result_length;
+  }
   bool agg_arg_charsets(DTCollation &c, Item **items, uint nitems,
                         uint flags, int item_sep)
   {
@@ -210,8 +239,9 @@ public:
                 Item_transformer transformer, uchar *arg_t);
   void traverse_cond(Cond_traverser traverser,
                      void * arg, traverse_order order);
-  bool is_expensive_processor(uchar *arg);
-  virtual bool is_expensive() { return 0; }
+  bool eval_not_null_tables(uchar *opt_arg);
+ // bool is_expensive_processor(uchar *arg);
+ // virtual bool is_expensive() { return 0; }
   inline void raise_numeric_overflow(const char *type_name)
   {
     char buf[256];
@@ -315,6 +345,21 @@ public:
   }
 
   /*
+    By default only substitution for a field whose two different values
+    are never equal is allowed in the arguments of a function.
+    This is overruled for the direct arguments of comparison functions.
+  */ 
+  bool subst_argument_checker(uchar **arg) 
+  { 
+    if (*arg)
+    {
+      *arg= (uchar *) Item::IDENTITY_SUBST;
+      return TRUE;
+    }
+    return FALSE;
+  }
+
+  /*
     We assume the result of any function that has a TIMESTAMP argument to be
     timezone-dependent, since a TIMESTAMP value in both numeric and string
     contexts is interpreted according to the current timezone.
@@ -330,6 +375,21 @@ public:
   virtual bool find_function_processor (uchar *arg)
   {
     return functype() == *(Functype *) arg;
+  }
+
+  void no_rows_in_result()
+  {
+    for (uint i= 0; i < arg_count; i++)
+    {
+      args[i]->no_rows_in_result();
+    }
+  }
+  void restore_to_before_no_rows_in_result()
+  {
+    for (uint i= 0; i < arg_count; i++)
+    {
+      args[i]->no_rows_in_result();
+    }
   }
 };
 
@@ -351,29 +411,56 @@ public:
 };
 
 
-class Item_func_numhybrid: public Item_func
+class Item_func_hybrid_result_type: public Item_func
 {
+  /*
+    Helper methods to make sure that the result of
+    decimal_op(), str_op() and date_op() is properly synched with null_value.
+  */
+  bool date_op_with_null_check(MYSQL_TIME *ltime)
+  {
+     bool rc= date_op(ltime,
+                      field_type() == MYSQL_TYPE_TIME ? TIME_TIME_ONLY : 0);
+     DBUG_ASSERT(!rc ^ null_value);
+     return rc;
+  }
+  String *str_op_with_null_check(String *str)
+  {
+    String *res= str_op(str);
+    DBUG_ASSERT((res != NULL) ^ null_value);
+    return res;
+  }
+  my_decimal *decimal_op_with_null_check(my_decimal *decimal_buffer)
+  {
+    my_decimal *res= decimal_op(decimal_buffer);
+    DBUG_ASSERT((res != NULL) ^ null_value);
+    return res;
+  }
 protected:
-  Item_result hybrid_type;
+  Item_result cached_result_type;
+  void fix_attributes(Item **item, uint nitems);
 public:
-  Item_func_numhybrid(Item *a) :Item_func(a), hybrid_type(REAL_RESULT)
+  Item_func_hybrid_result_type() :Item_func(), cached_result_type(REAL_RESULT)
   { collation.set_numeric(); }
-  Item_func_numhybrid(Item *a,Item *b)
-    :Item_func(a,b), hybrid_type(REAL_RESULT)
+  Item_func_hybrid_result_type(Item *a) :Item_func(a), cached_result_type(REAL_RESULT)
   { collation.set_numeric(); }
-  Item_func_numhybrid(List<Item> &list)
-    :Item_func(list), hybrid_type(REAL_RESULT)
+  Item_func_hybrid_result_type(Item *a,Item *b)
+    :Item_func(a,b), cached_result_type(REAL_RESULT)
+  { collation.set_numeric(); }
+  Item_func_hybrid_result_type(Item *a,Item *b,Item *c)
+    :Item_func(a,b,c), cached_result_type(REAL_RESULT)
+  { collation.set_numeric(); }
+  Item_func_hybrid_result_type(List<Item> &list)
+    :Item_func(list), cached_result_type(REAL_RESULT)
   { collation.set_numeric(); }
 
-  enum Item_result result_type () const { return hybrid_type; }
-  void fix_length_and_dec();
-  void fix_num_length_and_dec();
-  virtual void find_num_type()= 0; /* To be called from fix_length_and_dec */
+  enum Item_result result_type () const { return cached_result_type; }
 
   double val_real();
   longlong val_int();
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*str);
+  bool get_date(MYSQL_TIME *res, ulonglong fuzzy_date);
 
   /**
      @brief Performs the operation that this functions implements when the
@@ -410,8 +497,71 @@ public:
      @return The result of the operation.
   */
   virtual String *str_op(String *)= 0;
-  bool is_null() { update_null_value(); return null_value; }
+
+  /**
+     @brief Performs the operation that this functions implements when
+     field type is a temporal type.
+     @return The result of the operation.
+  */
+  virtual bool date_op(MYSQL_TIME *res, uint fuzzy_date)= 0;
+
 };
+
+
+
+class Item_func_hybrid_field_type :public Item_func_hybrid_result_type
+{
+protected:
+  enum_field_types cached_field_type;
+public:
+  Item_func_hybrid_field_type()
+    :Item_func_hybrid_result_type(), cached_field_type(MYSQL_TYPE_DOUBLE)
+  {}
+  Item_func_hybrid_field_type(Item *a, Item *b)
+    :Item_func_hybrid_result_type(a, b), cached_field_type(MYSQL_TYPE_DOUBLE)
+  {}
+  Item_func_hybrid_field_type(Item *a, Item *b, Item *c)
+    :Item_func_hybrid_result_type(a, b, c),
+    cached_field_type(MYSQL_TYPE_DOUBLE)
+  {}
+  Item_func_hybrid_field_type(List<Item> &list)
+    :Item_func_hybrid_result_type(list),
+    cached_field_type(MYSQL_TYPE_DOUBLE)
+  {}
+  enum_field_types field_type() const { return cached_field_type; }
+};
+
+
+
+class Item_func_numhybrid: public Item_func_hybrid_result_type
+{
+protected:
+
+  inline void fix_decimals()
+  {
+    DBUG_ASSERT(result_type() == DECIMAL_RESULT);
+    if (decimals == NOT_FIXED_DEC)
+      set_if_smaller(decimals, max_length - 1);
+  }
+
+public:
+  Item_func_numhybrid() :Item_func_hybrid_result_type()
+  { }
+  Item_func_numhybrid(Item *a) :Item_func_hybrid_result_type(a)
+  { }
+  Item_func_numhybrid(Item *a,Item *b)
+    :Item_func_hybrid_result_type(a,b)
+  { }
+  Item_func_numhybrid(Item *a,Item *b,Item *c)
+    :Item_func_hybrid_result_type(a,b,c)
+  { }
+  Item_func_numhybrid(List<Item> &list)
+    :Item_func_hybrid_result_type(list)
+  { }
+  String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
+  bool date_op(MYSQL_TIME *ltime, uint fuzzydate) { DBUG_ASSERT(0); return true; }
+};
+
 
 /* function where type of result detected by first argument */
 class Item_func_num1: public Item_func_numhybrid
@@ -419,10 +569,7 @@ class Item_func_num1: public Item_func_numhybrid
 public:
   Item_func_num1(Item *a) :Item_func_numhybrid(a) {}
   Item_func_num1(Item *a, Item *b) :Item_func_numhybrid(a, b) {}
-
-  void fix_num_length_and_dec();
-  void find_num_type();
-  String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
+  void fix_length_and_dec();
 };
 
 
@@ -438,30 +585,32 @@ class Item_num_op :public Item_func_numhybrid
     print_op(str, query_type);
   }
 
-  void find_num_type();
-  String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
+  void fix_length_and_dec();
 };
 
 
 class Item_int_func :public Item_func
 {
+protected:
+  bool sargable;
 public:
   Item_int_func() :Item_func()
-  { collation.set_numeric(); fix_char_length(21); }
+  { collation.set_numeric(); fix_char_length(21); sargable= false; }
   Item_int_func(Item *a) :Item_func(a)
-  { collation.set_numeric(); fix_char_length(21); }
+  { collation.set_numeric(); fix_char_length(21); sargable= false; }
   Item_int_func(Item *a,Item *b) :Item_func(a,b)
-  { collation.set_numeric(); fix_char_length(21); }
+  { collation.set_numeric(); fix_char_length(21); sargable= false; }
   Item_int_func(Item *a,Item *b,Item *c) :Item_func(a,b,c)
-  { collation.set_numeric(); fix_char_length(21); }
+  { collation.set_numeric(); fix_char_length(21); sargable= false; }
   Item_int_func(List<Item> &list) :Item_func(list)
-  { collation.set_numeric(); fix_char_length(21); }
+  { collation.set_numeric(); fix_char_length(21); sargable= false; }
   Item_int_func(THD *thd, Item_int_func *item) :Item_func(thd, item)
-  { collation.set_numeric(); }
+  { collation.set_numeric(); sargable= false; }
   double val_real();
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec() {}
+  bool count_sargable_conds(uchar *arg);
 };
 
 
@@ -475,6 +624,7 @@ public:
   void fix_length_and_dec();
   bool fix_fields(THD *thd, Item **ref);
   longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
+  bool check_vcol_func_processor(uchar *int_arg) { return TRUE;}
 };
 
 
@@ -517,7 +667,7 @@ class Item_decimal_typecast :public Item_func
 public:
   Item_decimal_typecast(Item *a, int len, int dec) :Item_func(a)
   {
-    decimals= dec;
+    decimals= (uint8) dec;
     collation.set_numeric();
     fix_char_length(my_decimal_precision_to_length_no_truncation(len, dec,
                                                                  unsigned_flag));
@@ -528,10 +678,27 @@ public:
   my_decimal *val_decimal(my_decimal*);
   enum Item_result result_type () const { return DECIMAL_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_NEWDECIMAL; }
-  void fix_length_and_dec() {};
+  void fix_length_and_dec() {}
   const char *func_name() const { return "decimal_typecast"; }
   virtual void print(String *str, enum_query_type query_type);
 };
+
+
+class Item_double_typecast :public Item_real_func
+{
+public:
+  Item_double_typecast(Item *a, int len, int dec) :Item_real_func(a)
+  {
+    decimals=   (uint8)  dec;
+    max_length= (uint32) len;
+  }
+  double val_real();
+  enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
+  void fix_length_and_dec() { maybe_null= 1; }
+  const char *func_name() const { return "double_typecast"; }
+  virtual void print(String *str, enum_query_type query_type);
+};
+
 
 
 class Item_func_additive_op :public Item_num_op
@@ -540,6 +707,7 @@ public:
   Item_func_additive_op(Item *a,Item *b) :Item_num_op(a,b) {}
   void result_precision();
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -575,6 +743,7 @@ public:
   my_decimal *decimal_op(my_decimal *);
   void result_precision();
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -607,6 +776,7 @@ public:
   }
 
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -621,6 +791,7 @@ public:
   void result_precision();
   void fix_length_and_dec();
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -634,9 +805,9 @@ public:
   const char *func_name() const { return "-"; }
   enum Functype functype() const   { return NEG_FUNC; }
   void fix_length_and_dec();
-  void fix_num_length_and_dec();
   uint decimal_precision() const { return args[0]->decimal_precision(); }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -650,6 +821,7 @@ public:
   const char *func_name() const { return "abs"; }
   void fix_length_and_dec();
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 // A class to handle logarithmic and trigonometric functions
@@ -799,8 +971,7 @@ class Item_func_int_val :public Item_func_num1
 {
 public:
   Item_func_int_val(Item *a) :Item_func_num1(a) {}
-  void fix_num_length_and_dec();
-  void find_num_type();
+  void fix_length_and_dec();
 };
 
 
@@ -813,6 +984,7 @@ public:
   double real_op();
   my_decimal *decimal_op(my_decimal *);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -825,6 +997,7 @@ public:
   double real_op();
   my_decimal *decimal_op(my_decimal *);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 /* This handles round and truncate */
@@ -845,7 +1018,7 @@ public:
 
 class Item_func_rand :public Item_real_func
 {
-  struct rand_struct *rand;
+  struct my_rnd_struct *rand;
   bool first_eval; // TRUE if val_real() is called 1st time
 public:
   Item_func_rand(Item *a) :Item_real_func(a), rand(0), first_eval(TRUE) {}
@@ -856,6 +1029,10 @@ public:
   void update_used_tables();
   bool fix_fields(THD *thd, Item **ref);
   void cleanup() { first_eval= TRUE; Item_real_func::cleanup(); }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 private:
   void seed_random (Item * val);  
 };
@@ -889,25 +1066,20 @@ class Item_func_min_max :public Item_func
   Item_result cmp_type;
   String tmp_value;
   int cmp_sign;
-  /* TRUE <=> arguments should be compared in the DATETIME context. */
-  bool compare_as_dates;
   /* An item used for issuing warnings while string to DATETIME conversion. */
-  Item *datetime_item;
-  THD *thd;
+  Item *compare_as_dates;
 protected:
   enum_field_types cached_field_type;
 public:
   Item_func_min_max(List<Item> &list,int cmp_sign_arg) :Item_func(list),
-    cmp_type(INT_RESULT), cmp_sign(cmp_sign_arg), compare_as_dates(FALSE),
-    datetime_item(0) {}
+    cmp_type(INT_RESULT), cmp_sign(cmp_sign_arg), compare_as_dates(0) {}
   double val_real();
   longlong val_int();
   String *val_str(String *);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *res, ulonglong fuzzy_date);
   void fix_length_and_dec();
   enum Item_result result_type () const { return cmp_type; }
-  bool result_as_longlong() { return compare_as_dates; };
-  uint cmp_datetimes(ulonglong *value);
   enum_field_types field_type() const { return cached_field_type; }
 };
 
@@ -1137,8 +1309,13 @@ public:
     unsigned_flag= TRUE;
     if (arg_count)
       max_length= args[0]->max_length;
+    unsigned_flag=1;
   }
   bool fix_fields(THD *thd, Item **ref);
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -1152,6 +1329,10 @@ public:
   const char *func_name() const { return "benchmark"; }
   void fix_length_and_dec() { max_length=1; maybe_null=0; }
   virtual void print(String *str, enum_query_type query_type);
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -1167,6 +1348,10 @@ public:
     used_tables_cache|= RAND_TABLE_BIT;
   }
   longlong val_int();
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -1177,6 +1362,7 @@ class Item_udf_func :public Item_func
 {
 protected:
   udf_handler udf;
+  bool is_expensive_processor(uchar *arg) { return TRUE; }
 
 public:
   Item_udf_func(udf_func *udf_arg)
@@ -1194,6 +1380,7 @@ public:
     fixed= 1;
     return res;
   }
+  void fix_num_length_and_dec();
   void update_used_tables() 
   {
     /*
@@ -1307,7 +1494,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String *str);
   enum Item_result result_type () const { return DECIMAL_RESULT; }
-  void fix_length_and_dec();
+  void fix_length_and_dec() { fix_num_length_and_dec(); }
 };
 
 
@@ -1416,6 +1603,10 @@ class Item_func_get_lock :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "get_lock"; }
   void fix_length_and_dec() { max_length=1; maybe_null=1;}
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 class Item_func_release_lock :public Item_int_func
@@ -1426,6 +1617,10 @@ public:
   longlong val_int();
   const char *func_name() const { return "release_lock"; }
   void fix_length_and_dec() { max_length=1; maybe_null=1;}
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 /* replication functions */
@@ -1439,6 +1634,10 @@ public:
   longlong val_int();
   const char *func_name() const { return "master_pos_wait"; }
   void fix_length_and_dec() { max_length=21; maybe_null=1;}
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -1461,20 +1660,6 @@ class Item_func_set_user_var :public Item_func
        user variable it the first connection context).
   */
   my_thread_id entry_thread_id;
-  /**
-    Delayed setting of non-constness.
-
-    Normally, Item_func_get_user_var objects are tagged as not const
-    when Item_func_set_user_var::fix_fields() is called for the same
-    variable in the same query. If delayed_non_constness is set, the
-    tagging is delayed until the variable is actually set. This means
-    that Item_func_get_user_var objects will still be treated as a
-    constant by the optimizer and executor until the variable is
-    actually changed.
-
-    @see select_dumpvar::send_data().
-   */
-  bool delayed_non_constness;
   char buffer[MAX_FIELD_WIDTH];
   String value;
   my_decimal decimal_buff;
@@ -1489,9 +1674,9 @@ class Item_func_set_user_var :public Item_func
 
 public:
   LEX_STRING name; // keep it public
-  Item_func_set_user_var(LEX_STRING a,Item *b, bool delayed)
+  Item_func_set_user_var(LEX_STRING a,Item *b)
     :Item_func(b), cached_result_type(INT_RESULT),
-     entry(NULL), entry_thread_id(0), delayed_non_constness(delayed), name(a)
+     entry(NULL), entry_thread_id(0), name(a)
   {}
   Item_func_set_user_var(THD *thd, Item_func_set_user_var *item)
     :Item_func(thd, item), cached_result_type(item->cached_result_type),
@@ -1533,8 +1718,10 @@ public:
   }
   void save_org_in_field(Field *field) { (void)save_in_field(field, 1, 0); }
   bool register_field_in_read_map(uchar *arg);
+  bool register_field_in_bitmap(uchar *arg);
   bool set_entry(THD *thd, bool create_if_not_exists);
   void cleanup();
+  bool check_vcol_func_processor(uchar *int_arg) {return TRUE;}
 };
 
 
@@ -1574,6 +1761,7 @@ public:
   {
     return this;
   }
+  bool check_vcol_func_processor(uchar *int_arg) { return TRUE;}
 };
 
 
@@ -1601,7 +1789,7 @@ public:
   my_decimal *val_decimal(my_decimal *decimal_buffer);
   /* fix_fields() binds variable name with its entry structure */
   bool fix_fields(THD *thd, Item **ref);
-  virtual void print(String *str, enum_query_type query_type);
+  void print_for_load(THD *thd, String *str);
   void set_null_value(CHARSET_INFO* cs);
   void set_value(const char *str, uint length, CHARSET_INFO* cs);
 };
@@ -1621,7 +1809,7 @@ class Item_func_get_system_var :public Item_func
   longlong cached_llval;
   double cached_dval;
   String cached_strval;
-  my_bool cached_null_value;
+  bool cached_null_value;
   query_id_t used_query_id;
   uchar cache_present;
 
@@ -1640,6 +1828,8 @@ public:
   double val_real();
   longlong val_int();
   String* val_str(String*);
+  my_decimal *val_decimal(my_decimal *dec_buf)
+  { return val_decimal_from_real(dec_buf); }
   /* TODO: fix to support views */
   const char *func_name() const { return "get_system_var"; }
   /**
@@ -1654,6 +1844,7 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
 
   void cleanup();
+  bool check_vcol_func_processor(uchar *int_arg) { return TRUE;}
 };
 
 
@@ -1668,7 +1859,6 @@ public:
 
 
 /* for fulltext search */
-#include <ft_global.h>
 
 class Item_func_match :public Item_real_func
 {
@@ -1696,9 +1886,9 @@ public:
     table= 0;           // required by Item_func_match::eq()
     DBUG_VOID_RETURN;
   }
+  bool is_expensive_processor(uchar *arg) { return TRUE; }
   enum Functype functype() const { return FT_FUNC; }
   const char *func_name() const { return "match"; }
-  void update_used_tables() {}
   table_map not_null_tables() const { return 0; }
   bool fix_fields(THD *thd, Item **ref);
   bool eq(const Item *, bool binary_cmp) const;
@@ -1709,6 +1899,11 @@ public:
 
   bool fix_index();
   void init_search(bool no_order);
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    /* TODO: consider adding in support for the MATCH-based virtual columns */
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -1728,6 +1923,10 @@ public:
   longlong val_int();
   const char *func_name() const { return "is_free_lock"; }
   void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1;}
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 class Item_func_is_used_lock :public Item_int_func
@@ -1738,6 +1937,10 @@ public:
   longlong val_int();
   const char *func_name() const { return "is_used_lock"; }
   void fix_length_and_dec() { decimals=0; max_length=10; maybe_null=1;}
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 /* For type casts */
@@ -1746,7 +1949,7 @@ enum Cast_target
 {
   ITEM_CAST_BINARY, ITEM_CAST_SIGNED_INT, ITEM_CAST_UNSIGNED_INT,
   ITEM_CAST_DATE, ITEM_CAST_TIME, ITEM_CAST_DATETIME, ITEM_CAST_CHAR,
-  ITEM_CAST_DECIMAL
+  ITEM_CAST_DECIMAL, ITEM_CAST_DOUBLE
 };
 
 
@@ -1757,6 +1960,11 @@ public:
   longlong val_int();
   const char *func_name() const { return "row_count"; }
   void fix_length_and_dec() { decimals= 0; maybe_null=0; }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -1786,6 +1994,10 @@ private:
   bool execute();
   bool execute_impl(THD *thd);
   bool init_result_field(THD *thd);
+
+protected:
+  bool is_expensive_processor(uchar *arg)
+  { return is_expensive(); }
   
 public:
 
@@ -1851,6 +2063,11 @@ public:
     return str;
   }
 
+  void update_null_value()
+  { 
+    execute();
+  }
+
   virtual bool change_context_processor(uchar *cntx)
     { context= (Name_resolution_context *)cntx; return FALSE; }
 
@@ -1859,11 +2076,20 @@ public:
 
   bool fix_fields(THD *thd, Item **ref);
   void fix_length_and_dec(void);
-  bool is_expensive() { return 1; }
+  bool is_expensive();
 
   inline Field *get_sp_result_field()
   {
     return sp_result_field;
+  }
+
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
+  bool limit_index_condition_pushdown_processor(uchar *opt_arg)
+  {
+    return TRUE;
   }
 };
 
@@ -1875,6 +2101,10 @@ public:
   longlong val_int();
   const char *func_name() const { return "found_rows"; }
   void fix_length_and_dec() { decimals= 0; maybe_null=0; }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -1888,13 +2118,43 @@ public:
   longlong val_int();
   void fix_length_and_dec()
   { max_length= 21; unsigned_flag=1; }
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
+
+
+class Item_func_last_value :public Item_func
+{
+protected:
+  Item *last_value;
+public:
+  Item_func_last_value(List<Item> &list) :Item_func(list) {}
+  double val_real();
+  longlong val_int();
+  String *val_str(String *);
+  my_decimal *val_decimal(my_decimal *);
+  void fix_length_and_dec();
+  enum Item_result result_type () const { return last_value->result_type(); }
+  const char *func_name() const { return "last_value"; }
+  table_map not_null_tables() const { return 0; }
+  enum_field_types field_type() const { return last_value->field_type(); }
+  bool const_item() const { return 0; }
+  void evaluate_sideeffects();
+  void update_used_tables()
+  {
+    Item_func::update_used_tables();
+    maybe_null= last_value->maybe_null;
+  }
+};
+
 
 Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
                      LEX_STRING component);
 extern bool check_reserved_words(LEX_STRING *name);
 extern enum_field_types agg_field_type(Item **items, uint nitems);
+Item *find_date_time_item(Item **args, uint nargs, uint col);
 double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate);
 bool eval_const_cond(COND *cond);

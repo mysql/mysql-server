@@ -3,6 +3,18 @@
 DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
 --enable_warnings
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch=ifnull(@optimizer_switch_for_join_nested_test,'outer_join_with_cache=off');
+if (`select @join_cache_level_for_join_nested_test is null`)
+{
+  set join_cache_level=1;
+}
+if (`select @join_cache_level_for_join_nested_test is not null`)
+{
+  set join_cache_level=@join_cache_level_for_join_nested_test;
+}
+
+
 CREATE TABLE t0 (a int, b int, c int);
 CREATE TABLE t1 (a int, b int, c int);
 CREATE TABLE t2 (a int, b int, c int);
@@ -454,6 +466,7 @@ SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
        ON t3.a=1 AND t2.b=t4.b
     WHERE t1.a <= 2;
 
+INSERT INTO t2 VALUES  (-1,9,0), (-3,10,0), (-2,8,0), (-4,11,0), (-5,15,0);
 CREATE INDEX idx_b ON t2(b);
 
 EXPLAIN EXTENDED
@@ -461,13 +474,12 @@ SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
   FROM (t3,t4)
        LEFT JOIN              
        (t1,t2)
-       ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
-
+       ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b AND t2.a>0;
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
   FROM (t3,t4)
        LEFT JOIN              
        (t1,t2)
-       ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
+       ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b AND t2.a>0;
 
 EXPLAIN EXTENDED
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
@@ -478,7 +490,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
          t2
          LEFT JOIN              
          (t3, t4)
-         ON t3.a=1 AND t2.b=t4.b,
+         ON t3.a=1 AND t2.b=t4.b AND t2.a>0,
          t5 
          LEFT JOIN 
          ( 
@@ -505,6 +517,8 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
            (t8.b=t9.b OR t8.c IS NULL) AND
            (t9.a=1); 
 
+INSERT INTO t4 VALUES (-3,12,0), (-4,13,0), (-1,11,0), (-3,11,0), (-5,15,0);
+INSERT INTO t5 VALUES (-3,11,0), (-2,12,0), (-3,13,0), (-4,12,0);
 CREATE INDEX idx_b ON t4(b);
 CREATE INDEX idx_b ON t5(b);
 
@@ -517,7 +531,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
          t2
          LEFT JOIN              
          (t3, t4)
-         ON t3.a=1 AND t2.b=t4.b,
+         ON t3.a=1 AND t2.b=t4.b AND t2.a>0 AND t4.a>0,
          t5 
          LEFT JOIN 
          ( 
@@ -526,7 +540,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
            t8
            ON t7.b=t8.b AND t6.b < 10
          )
-         ON t6.b >= 2 AND t5.b=t7.b 
+         ON t6.b >= 2 AND t5.b=t7.b AND t5.a>0 
        )
        ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
           (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
@@ -544,6 +558,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
            (t8.b=t9.b OR t8.c IS NULL) AND
            (t9.a=1); 
 
+INSERT INTO t8 VALUES (-3,12,0), (-1,14,0), (-5,15,0), (-1,11,0), (-4,13,0);
 CREATE INDEX idx_b ON t8(b);
 
 EXPLAIN EXTENDED
@@ -555,16 +570,16 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
          t2
          LEFT JOIN              
          (t3, t4)
-         ON t3.a=1 AND t2.b=t4.b,
+         ON t3.a=1 AND t2.b=t4.b AND t2.a>0 AND t4.a>0,
          t5 
          LEFT JOIN 
          ( 
            (t6, t7)
            LEFT JOIN 
            t8
-           ON t7.b=t8.b AND t6.b < 10
+           ON t7.b=t8.b AND t6.b < 10 AND t8.a>=0
          )
-         ON t6.b >= 2 AND t5.b=t7.b 
+         ON t6.b >= 2 AND t5.b=t7.b AND t5.a>0
        )
        ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
           (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
@@ -582,6 +597,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
            (t8.b=t9.b OR t8.c IS NULL) AND
            (t9.a=1); 
 
+INSERT INTO t1 VALUES (-1,133,0), (-2,12,0), (-3,11,0), (-5,15,0);
 CREATE INDEX idx_b ON t1(b);
 CREATE INDEX idx_a ON t0(a);
 
@@ -607,7 +623,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        )
        ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
           (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
-          (t1.a != 2),
+          (t1.a != 2) AND t1.a>0,
        t9
      WHERE t0.a=1 AND
            t0.b=t1.b AND          
@@ -642,7 +658,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        )
        ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
           (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
-          (t1.a != 2),
+          (t1.a != 2) AND t1.a>0,
        t9
      WHERE t0.a=1 AND
            t0.b=t1.b AND          
@@ -1196,5 +1212,102 @@ SELECT COUNT(*)
 
 DROP TABLE t1,t2,t3,t4,t5;
 
+#
+# BUG#49322: Nested left joins + not-exist optimization
+#
+
+CREATE TABLE t1 (
+  pk int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  a int DEFAULT NULL,
+  KEY idx(a)
+);
+CREATE TABLE t2 (
+  pk int  NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  a int DEFAULT NULL,
+  KEY idx(a)
+);
+CREATE TABLE t3 (
+  pk int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  a int DEFAULT NULL,
+  KEY idx(a)
+);
+
+INSERT INTO t1 VALUES 
+  (1,2), (2,7), (3,5), (4,7), (5,5), (6,NULL), (7,NULL), (8,9);
+INSERT INTO t2 VALUES 
+  (1,NULL), (4,2), (5,2), (3,4), (2,8);
+INSERT INTO t3 VALUES
+  (1,9), (2,2), (3,5), (4,2), (5,7), (6,0), (7,5);
+
+SELECT t1.pk, t1.a, t2.pk, t2.a,t3.pk, t3.a 
+  FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t3.a=t2.a) ON t2.a=t1.a;
+
+SELECT t1.pk, t1.a, t2.pk, t2.a,t3.pk, t3.a 
+  FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t3.a=t2.a) ON t2.a=t1.a
+  WHERE t2.pk IS NULL;
+
+SELECT t1.pk, t1.a, t2.pk, t2.a,t3.pk, t3.a 
+  FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t3.a=t2.a) ON t2.a=t1.a
+  WHERE t3.pk IS NULL;
+
+DROP TABLE t1, t2, t3;
+
+
+#
+# LP BUG#817360: Nested left joins + not-exist optimization
+#
+
+CREATE TABLE t1 (a int NOT NULL );
+INSERT INTO t1 VALUES (9), (9);
+
+CREATE TABLE t2 (a int NOT NULL );
+INSERT INTO t2 VALUES (9);
+
+CREATE TABLE t3 (a int NOT NULL, b int);
+INSERT INTO t3 VALUES (19,9);
+
+CREATE TABLE t4 (b int) ;
+
+SELECT * FROM t1 LEFT JOIN
+             ((t2 LEFT JOIN t3 ON t2.a=t3.b) LEFT JOIN t4 ON t3.a=t4.b)
+             ON t1.a=t2.a;
+SELECT * FROM t1 LEFT JOIN
+             ((t2 LEFT JOIN t3 ON t2.a=t3.b) LEFT JOIN t4 ON t3.a=t4.b)
+             ON t1.a=t2.a
+   WHERE t3.a IS NULL;
+EXPLAIN EXTENDED
+SELECT * FROM t1 LEFT JOIN
+             ((t2 LEFT JOIN t3 ON t2.a=t3.b) LEFT JOIN t4 ON t3.a=t4.b)
+             ON t1.a=t2.a
+   WHERE t3.a IS NULL;
+
+DROP TABLE t1,t2,t3,t4;
+
+SET optimizer_switch=@save_optimizer_switch;
+
 --echo End of 5.0 tests
+
+--echo #
+--echo # MDEV-621: LP:693329 - Assertion `!is_interleave_error' failed on low optimizer_search_depth
+--echo #
+set @tmp_mdev621= @@optimizer_search_depth;
+SET SESSION optimizer_search_depth = 4;
+
+CREATE TABLE t1 (f1 int,f2 int,f3 int,f4 int) ;
+INSERT IGNORE INTO t1 VALUES (0,0,2,0),(NULL,0,2,0);
+CREATE TABLE t2 (f1 int) ;
+CREATE TABLE t3 (f3 int,PRIMARY KEY (f3)) ;
+CREATE TABLE t4 (f5 int) ;
+CREATE TABLE t5 (f2 int) ;
+
+SELECT alias2.f4  FROM t1  AS alias1
+LEFT    JOIN t1  AS alias2
+        LEFT  JOIN t2  AS alias3
+        LEFT  JOIN t3  AS alias4  ON alias3.f1 = alias4.f3
+        ON alias2.f1
+LEFT    JOIN t4  AS alias5
+        JOIN t5  ON alias5.f5
+ON alias2.f3  ON alias1.f2;
+DROP TABLE t1,t2,t3,t4,t5;
+set optimizer_search_depth= @tmp_mdev621;
 

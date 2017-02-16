@@ -1,4 +1,5 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2016, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +25,7 @@ class Relay_log_info;
 class Format_description_log_event;
 
 bool trans_has_updated_trans_table(const THD* thd);
-bool stmt_has_updated_trans_table(Ha_trx_info* ha_list);
+bool stmt_has_updated_trans_table(const THD *thd);
 bool use_trans_cache(const THD* thd, bool is_transactional);
 bool ending_trans(THD* thd, const bool all);
 bool ending_single_stmt_trans(THD* thd, const bool all);
@@ -44,9 +45,40 @@ class TC_LOG
 
   virtual int open(const char *opt_name)=0;
   virtual void close()=0;
-  virtual int log_xid(THD *thd, my_xid xid)=0;
+  virtual int log_and_order(THD *thd, my_xid xid, bool all,
+                            bool need_prepare_ordered,
+                            bool need_commit_ordered) = 0;
   virtual int unlog(ulong cookie, my_xid xid)=0;
+
+protected:
+  /*
+    These methods are meant to be invoked from log_and_order() implementations
+    to run any prepare_ordered() respectively commit_ordered() methods in
+    participating handlers.
+
+    They must be called using suitable thread syncronisation to ensure that
+    they are each called in the correct commit order among all
+    transactions. However, it is only necessary to call them if the
+    corresponding flag passed to log_and_order is set (it is safe, but not
+    required, to call them when the flag is false).
+
+    The caller must be holding LOCK_prepare_ordered respectively
+    LOCK_commit_ordered when calling these methods.
+  */
+  void run_prepare_ordered(THD *thd, bool all);
+  void run_commit_ordered(THD *thd, bool all);
 };
+
+/*
+  Locks used to ensure serialised execution of TC_LOG::run_prepare_ordered()
+  and TC_LOG::run_commit_ordered(), or any other code that calls handler
+  prepare_ordered() or commit_ordered() methods.
+*/
+extern mysql_mutex_t LOCK_prepare_ordered;
+extern mysql_mutex_t LOCK_commit_ordered;
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_mutex_key key_LOCK_prepare_ordered, key_LOCK_commit_ordered;
+#endif
 
 class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
 {
@@ -54,7 +86,17 @@ public:
   TC_LOG_DUMMY() {}
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
-  int log_xid(THD *thd, my_xid xid)         { return 1; }
+  /*
+    TC_LOG_DUMMY is only used when there are <= 1 XA-capable engines, and we
+    only use internal XA during commit when >= 2 XA-capable engines
+    participate.
+  */
+  int log_and_order(THD *thd, my_xid xid, bool all,
+                    bool need_prepare_ordered, bool need_commit_ordered)
+  {
+    DBUG_ASSERT(0 /* Internal error - TC_LOG_DUMMY::log_and_order() called */);
+    return 1;
+  }
   int unlog(ulong cookie, my_xid xid)  { return 0; }
 };
 
@@ -80,12 +122,19 @@ class TC_LOG_MMAP: public TC_LOG
     mysql_cond_t  cond; // to wait for a sync
   } PAGE;
 
+  /* List of THDs for which to invoke commit_ordered(), in order. */
+  struct commit_entry
+  {
+    struct commit_entry *next;
+    THD *thd;
+  };
+
   char logname[FN_REFLEN];
   File fd;
   my_off_t file_length;
   uint npages, inited;
   uchar *data;
-  struct st_page *pages, *syncing, *active, *pool, *pool_last;
+  struct st_page *pages, *syncing, *active, *pool, **pool_last_ptr;
   /*
     note that, e.g. LOCK_active is only used to protect
     'active' pointer, to protect the content of the active page
@@ -94,16 +143,38 @@ class TC_LOG_MMAP: public TC_LOG
   */
   mysql_mutex_t LOCK_active, LOCK_pool, LOCK_sync;
   mysql_cond_t COND_pool, COND_active;
+  /*
+    Queue of threads that need to call commit_ordered().
+    Access to this queue must be protected by LOCK_prepare_ordered.
+  */
+  commit_entry *commit_ordered_queue;
+  /*
+    This flag and condition is used to reserve the queue while threads in it
+    each run the commit_ordered() methods one after the other. Only once the
+    last commit_ordered() in the queue is done can we start on a new queue
+    run.
+
+    Since we start this process in the first thread in the queue and finish in
+    the last (and possibly different) thread, we need a condition variable for
+    this (we cannot unlock a mutex in a different thread than the one who
+    locked it).
+
+    The condition is used together with the LOCK_prepare_ordered mutex.
+  */
+  mysql_cond_t COND_queue_busy;
+  my_bool commit_ordered_queue_busy;
 
   public:
   TC_LOG_MMAP(): inited(0) {}
   int open(const char *opt_name);
   void close();
-  int log_xid(THD *thd, my_xid xid);
+  int log_and_order(THD *thd, my_xid xid, bool all,
+                    bool need_prepare_ordered, bool need_commit_ordered);
   int unlog(ulong cookie, my_xid xid);
   int recover();
 
   private:
+  int log_one_transaction(my_xid xid);
   void get_active_from_pool();
   int sync();
   int overflow();
@@ -131,6 +202,7 @@ extern TC_LOG_DUMMY tc_log_dummy;
 #define LOG_CLOSE_INDEX		1
 #define LOG_CLOSE_TO_BE_OPENED	2
 #define LOG_CLOSE_STOP_EVENT	4
+#define LOG_CLOSE_DELAYED_CLOSE 8
 
 /* 
   Maximum unique log filename extension.
@@ -163,14 +235,20 @@ typedef struct st_log_info
   my_off_t pos;
   bool fatal; // if the purge happens to give us a negative offset
   mysql_mutex_t lock;
-  st_log_info()
-    : index_file_offset(0), index_file_start_offset(0),
+  st_log_info() : index_file_offset(0), index_file_start_offset(0),
       pos(0), fatal(0)
-    {
-      log_file_name[0] = '\0';
-      mysql_mutex_init(key_LOG_INFO_lock, &lock, MY_MUTEX_INIT_FAST);
-    }
-  ~st_log_info() { mysql_mutex_destroy(&lock);}
+  {
+    DBUG_ENTER("LOG_INFO");
+    log_file_name[0] = '\0';
+    mysql_mutex_init(key_LOG_INFO_lock, &lock, MY_MUTEX_INIT_FAST);
+    DBUG_VOID_RETURN;
+  }
+  ~st_log_info()
+  {
+    DBUG_ENTER("~LOG_INFO");
+    mysql_mutex_destroy(&lock);
+    DBUG_VOID_RETURN;
+  }
 } LOG_INFO;
 
 /*
@@ -247,7 +325,7 @@ public:
              uint user_host_len, int thread_id,
              const char *command_type, uint command_type_len,
              const char *sql_text, uint sql_text_len);
-  bool write(THD *thd, time_t current_time, time_t query_start_arg,
+  bool write(THD *thd, time_t current_time,
              const char *user_host, uint user_host_len,
              ulonglong query_utime, ulonglong lock_utime, bool is_command,
              const char *sql_text, uint sql_text_len);
@@ -276,6 +354,7 @@ private:
   time_t last_time;
 };
 
+class binlog_cache_mngr;
 class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 {
  private:
@@ -288,7 +367,33 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   PSI_file_key m_key_file_log;
   /** The instrumentation key to use for opening the log index file. */
   PSI_file_key m_key_file_log_index;
+
+  PSI_file_key m_key_COND_queue_busy;
 #endif
+
+  struct group_commit_entry
+  {
+    struct group_commit_entry *next;
+    THD *thd;
+    binlog_cache_mngr *cache_mngr;
+    bool using_stmt_cache;
+    bool using_trx_cache;
+    /*
+      Extra events (BEGIN, COMMIT/ROLLBACK/XID, and possibly INCIDENT) to be
+      written during group commit. The incident_event is only valid if
+      trx_data->has_incident() is true.
+    */
+    Log_event *begin_event;
+    Log_event *end_event;
+    Log_event *incident_event;
+    /* Set during group commit to record any per-thread error. */
+    int error;
+    int commit_errno;
+    IO_CACHE *error_cache;
+    /* This is the `all' parameter for ha_commit_ordered(). */
+    bool all;
+  };
+
   /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
   mysql_mutex_t LOCK_index;
   mysql_mutex_t LOCK_prep_xids;
@@ -330,6 +435,20 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
     In 5.0 it's 0 for relay logs too!
   */
   bool no_auto_events;
+  /* Queue of transactions queued up to participate in group commit. */
+  group_commit_entry *group_commit_queue;
+  /*
+    Condition variable to mark that the group commit queue is busy.
+    Used when each thread does it's own commit_ordered() (when
+    binlog_optimize_thread_scheduling=1).
+    Used with the LOCK_commit_ordered mutex.
+  */
+  my_bool group_commit_queue_busy;
+  mysql_cond_t COND_queue_busy;
+  /* Total number of committed transactions. */
+  ulonglong num_commits;
+  /* Number of group commits done. */
+  ulonglong num_group_commits;
 
   /* pointer to the sync period variable, for binlog this will be
      sync_binlog_period, for relay log this will be
@@ -351,6 +470,11 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   */
   int new_file_without_locking();
   int new_file_impl(bool need_lock);
+  int write_transaction_or_stmt(group_commit_entry *entry);
+  bool write_transaction_to_binlog_events(group_commit_entry *entry);
+  void trx_group_commit_leader(group_commit_entry *leader);
+  void mark_xid_done();
+  void mark_xids_active(uint xid_count);
 
 public:
   using MYSQL_LOG::generate_name;
@@ -359,6 +483,41 @@ public:
   /* This is relay log */
   bool is_relay_log;
   ulong signal_cnt;  // update of the counter is checked by heartbeat
+  uint8 checksum_alg_reset; // to contain a new value when binlog is rotated
+  /*
+    Holds the last seen in Relay-Log FD's checksum alg value.
+    The initial value comes from the slave's local FD that heads
+    the very first Relay-Log file. In the following the value may change
+    with each received master's FD_m.
+    Besides to be used in verification events that IO thread receives
+    (except the 1st fake Rotate, see @c Master_info:: checksum_alg_before_fd), 
+    the value specifies if/how to compute checksum for slave's local events
+    and the first fake Rotate (R_f^1) coming from the master.
+    R_f^1 needs logging checksum-compatibly with the RL's heading FD_s.
+
+    Legends for the checksum related comments:
+
+    FD     - Format-Description event,
+    R      - Rotate event
+    R_f    - the fake Rotate event
+    E      - an arbirary event
+
+    The underscore indexes for any event
+    `_s'   indicates the event is generated by Slave
+    `_m'   - by Master
+
+    Two special underscore indexes of FD:
+    FD_q   - Format Description event for queuing   (relay-logging)
+    FD_e   - Format Description event for executing (relay-logging)
+
+    Upper indexes:
+    E^n    - n:th event is a sequence
+
+    RL     - Relay Log
+    (A)    - checksum algorithm descriptor value
+    FD.(A) - the value of (A) in FD
+  */
+  uint8 relay_log_checksum_alg;
   /*
     These describe the log's format. This is used only for relay logs.
     _for_exec is used by the SQL thread, _for_queue by the I/O thread. It's
@@ -369,6 +528,12 @@ public:
   */
   Format_description_log_event *description_event_for_exec,
     *description_event_for_queue;
+  /*
+    Binlog position of last commit (or non-transactional write) to the binlog.
+    Access to this is protected by LOCK_commit_ordered.
+  */
+  char last_commit_pos_file[FN_REFLEN];
+  my_off_t last_commit_pos_offset;
 
   MYSQL_BIN_LOG(uint *sync_period);
   /*
@@ -381,18 +546,21 @@ public:
   void set_psi_keys(PSI_mutex_key key_LOCK_index,
                     PSI_cond_key key_update_cond,
                     PSI_file_key key_file_log,
-                    PSI_file_key key_file_log_index)
+                    PSI_file_key key_file_log_index,
+                    PSI_file_key key_COND_queue_busy)
   {
     m_key_LOCK_index= key_LOCK_index;
     m_key_update_cond= key_update_cond;
     m_key_file_log= key_file_log;
     m_key_file_log_index= key_file_log_index;
+    m_key_COND_queue_busy= key_COND_queue_busy;
   }
 #endif
 
   int open(const char *opt_name);
   void close();
-  int log_xid(THD *thd, my_xid xid);
+  int log_and_order(THD *thd, my_xid xid, bool all,
+                    bool need_prepare_ordered, bool need_commit_ordered);
   int unlog(ulong cookie, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
 #if !defined(MYSQL_CLIENT)
@@ -438,11 +606,15 @@ public:
   /* Use this to start writing a new log file */
   int new_file();
 
-  bool write(Log_event* event_info); // binary log write
-  bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
-  bool write_incident(THD *thd, bool lock);
+  bool write(Log_event* event_info,
+             my_bool *with_annotate= 0); // binary log write
+  bool write_transaction_to_binlog(THD *thd, binlog_cache_mngr *cache_mngr,
+                                   Log_event *end_ev, bool all,
+                                   bool using_stmt_cache, bool using_trx_cache);
 
-  int  write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
+  bool write_incident_already_locked(THD *thd);
+  bool write_incident(THD *thd);
+  int  write_cache(THD *thd, IO_CACHE *cache);
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
 
@@ -494,6 +666,7 @@ public:
                         bool need_mutex);
   bool reset_logs(THD* thd);
   void close(uint exiting);
+  void clear_inuse_flag_when_closing(File file);
 
   // iterating through the log index file
   int find_log_pos(LOG_INFO* linfo, const char* log_name,
@@ -513,6 +686,7 @@ public:
   inline void unlock_index() { mysql_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
+  void set_status_variables(THD *thd);
 };
 
 class Log_event_handler
@@ -522,14 +696,14 @@ public:
   virtual bool init()= 0;
   virtual void cleanup()= 0;
 
-  virtual bool log_slow(THD *thd, time_t current_time,
-                        time_t query_start_arg, const char *user_host,
+  virtual bool log_slow(THD *thd, my_hrtime_t current_time,
+                        const char *user_host,
                         uint user_host_len, ulonglong query_utime,
                         ulonglong lock_utime, bool is_command,
                         const char *sql_text, uint sql_text_len)= 0;
   virtual bool log_error(enum loglevel level, const char *format,
                          va_list args)= 0;
-  virtual bool log_general(THD *thd, time_t event_time, const char *user_host,
+  virtual bool log_general(THD *thd, my_hrtime_t event_time, const char *user_host,
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
@@ -551,14 +725,14 @@ public:
   virtual bool init();
   virtual void cleanup();
 
-  virtual bool log_slow(THD *thd, time_t current_time,
-                        time_t query_start_arg, const char *user_host,
+  virtual bool log_slow(THD *thd, my_hrtime_t current_time,
+                        const char *user_host,
                         uint user_host_len, ulonglong query_utime,
                         ulonglong lock_utime, bool is_command,
                         const char *sql_text, uint sql_text_len);
   virtual bool log_error(enum loglevel level, const char *format,
                          va_list args);
-  virtual bool log_general(THD *thd, time_t event_time, const char *user_host,
+  virtual bool log_general(THD *thd, my_hrtime_t event_time, const char *user_host,
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
@@ -583,14 +757,14 @@ public:
   virtual bool init();
   virtual void cleanup();
 
-  virtual bool log_slow(THD *thd, time_t current_time,
-                        time_t query_start_arg, const char *user_host,
+  virtual bool log_slow(THD *thd, my_hrtime_t current_time,
+                        const char *user_host,
                         uint user_host_len, ulonglong query_utime,
                         ulonglong lock_utime, bool is_command,
                         const char *sql_text, uint sql_text_len);
   virtual bool log_error(enum loglevel level, const char *format,
                          va_list args);
-  virtual bool log_general(THD *thd, time_t event_time, const char *user_host,
+  virtual bool log_general(THD *thd, my_hrtime_t event_time, const char *user_host,
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
@@ -656,12 +830,12 @@ public:
                          const char *query, uint query_length);
 
   /* we use this function to setup all enabled log event handlers */
-  int set_handlers(uint error_log_printer,
-                   uint slow_log_printer,
-                   uint general_log_printer);
-  void init_error_log(uint error_log_printer);
-  void init_slow_log(uint slow_log_printer);
-  void init_general_log(uint general_log_printer);
+  int set_handlers(ulonglong error_log_printer,
+                   ulonglong slow_log_printer,
+                   ulonglong general_log_printer);
+  void init_error_log(ulonglong error_log_printer);
+  void init_slow_log(ulonglong slow_log_printer);
+  void init_general_log(ulonglong general_log_printer);
   void deactivate_log_handler(THD* thd, uint log_type);
   bool activate_log_handler(THD* thd, uint log_type);
   MYSQL_QUERY_LOG *get_slow_log_file_handler() const
@@ -689,12 +863,10 @@ int query_error_code(THD *thd, bool not_killed);
 uint purge_log_get_error_code(int res);
 
 int vprint_msg_to_log(enum loglevel level, const char *format, va_list args);
-void sql_print_error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
-void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
-void sql_print_information(const char *format, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
-typedef void (*sql_print_message_func)(const char *format, ...)
-  ATTRIBUTE_FORMAT_FPTR(printf, 1, 2);
+void sql_print_error(const char *format, ...);
+void sql_print_warning(const char *format, ...);
+void sql_print_information(const char *format, ...);
+typedef void (*sql_print_message_func)(const char *format, ...);
 extern sql_print_message_func sql_print_message_handlers[];
 
 int error_log_print(enum loglevel level, const char *format,
@@ -715,17 +887,7 @@ bool flush_error_log();
 File open_binlog(IO_CACHE *log, const char *log_file_name,
                  const char **errmsg);
 
-char *make_log_name(char *buff, const char *name, const char* log_ext);
-
-/**
-  Check given log name against certain blacklisted names/extensions.
-
-  @param name     Log name to check
-  @param len      Length of log name
-
-  @returns true if name is valid, false otherwise.
-*/
-bool is_valid_log_name(const char *name, size_t len);
+void make_default_log_name(char **out, const char* log_ext, bool once);
 
 extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
 extern LOGGER logger;
@@ -790,6 +952,13 @@ end:
   DBUG_RETURN(error);
 }
 
-
+static inline TC_LOG *get_tc_log_implementation()
+{
+  if (total_ha_2pc <= 1)
+    return &tc_log_dummy;
+  if (opt_bin_log)
+    return &mysql_bin_log;
+  return &tc_log_mmap;
+}
 
 #endif /* LOG_H */

@@ -1,0 +1,45 @@
+source include/have_tokudb.inc;
+# test that varchar expansion is done inplace while varchar shrinkage is not
+
+--disable_warnings
+DROP TABLE IF EXISTS t;
+--enable_warnings
+
+SET SESSION TOKUDB_DISABLE_SLOW_ALTER=ON;
+
+CREATE TABLE t (a VARCHAR(1)) ENGINE=TokuDB;
+SHOW CREATE TABLE t;
+INSERT INTO t VALUES (null);
+
+# 1->1
+let $i=1
+EVAL ALTER TABLE t CHANGE COLUMN a a VARCHAR($i);
+
+# 1->2 ... 1023->1024 is supported
+# 1024 is an arbitrary limit >= 256
+let $i=2;
+while ($i <= 1024)
+{
+    # $i-1 -> $i
+    EVAL ALTER TABLE t CHANGE COLUMN a a VARCHAR($i);
+    # $i -> $i
+    EVAL ALTER TABLE t CHANGE COLUMN a a VARCHAR($i); 
+    inc $i;
+}
+
+# shrink from 1024->$i where $i < 1024 is not supported
+let $i=1023;
+while ($i > 0)
+{
+    --replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+    --error ER_UNSUPPORTED_EXTENSION
+    EVAL ALTER TABLE t CHANGE COLUMN a a VARCHAR($i);
+    dec $i;
+}
+
+DROP TABLE t;
+
+
+
+
+

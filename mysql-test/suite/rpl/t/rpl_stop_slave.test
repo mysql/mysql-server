@@ -1,8 +1,8 @@
-source include/master-slave.inc;
 source include/have_innodb.inc;
 source include/have_debug.inc;
 source include/have_debug_sync.inc;
 source include/have_binlog_format_mixed_or_statement.inc;
+source include/master-slave.inc;
 
 --echo
 --echo # BUG#56118 STOP SLAVE does not wait till trx with CREATE TMP TABLE ends
@@ -23,7 +23,7 @@ source include/stop_slave.inc;
 --echo # It guarantees that SQL thread is applying the transaction when
 --echo # STOP SLAVE command launchs.
 let $debug_save= `SELECT @@GLOBAL.debug`;
-SET GLOBAL debug= 'd,after_mysql_insert';
+SET GLOBAL debug_dbug= '+d,after_mysql_insert,*';
 source include/start_slave.inc;
 
 --echo
@@ -44,7 +44,9 @@ source extra/rpl_tests/rpl_stop_slave.test;
 
 --echo
 --echo # Test end
-SET GLOBAL debug= '$debug_save';
+--disable_query_log
+eval SET GLOBAL debug_dbug= '$debug_save';
+--enable_query_log
 source include/restart_slave_sql.inc;
 
 connection slave;
@@ -79,7 +81,7 @@ sync_slave_with_master;
 --source include/stop_dump_threads.inc
 
 let $debug_save= `SELECT @@GLOBAL.debug`;
-SET GLOBAL debug= 'd,dump_thread_wait_before_send_xid';
+SET GLOBAL debug_dbug= '+d,dump_thread_wait_before_send_xid,*';
 
 --source include/rpl_connection_slave.inc
 --source include/start_slave.inc
@@ -112,11 +114,7 @@ ROLLBACK;
 --source include/rpl_connection_master.inc
 
 SET DEBUG_SYNC= 'now SIGNAL signal.continue';
-# wait for the dump thread to come out of the
-# waiting phase before resetting the signals
---let $wait_condition= select count(*)=0 from information_schema.processlist where state LIKE '%debug sync point%' and command='Binlog Dump'
---source include/wait_condition.inc
-SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'now WAIT_FOR signal.continued';
 
 --source include/rpl_connection_slave.inc
 source include/wait_for_slave_to_stop.inc;
@@ -129,7 +127,9 @@ reap;
 # sure that we disable the DBUG_EXECUTE_IF
 # that would set the dump thread to wait
 --source include/rpl_connection_master.inc
-SET GLOBAL debug= '$debug_save';
+--disable_query_log
+eval SET GLOBAL debug_dbug= '$debug_save';
+--enable_query_log
 # make sure that there are no zombie threads
 --source include/stop_dump_threads.inc
 
@@ -142,3 +142,4 @@ source include/start_slave.inc;
 --source include/rpl_connection_master.inc
 DROP TABLE t1, t2;
 --source include/rpl_end.inc
+SET DEBUG_SYNC= 'RESET';

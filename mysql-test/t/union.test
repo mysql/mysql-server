@@ -481,7 +481,10 @@ drop table t1;
 #
 create table t1 (   RID int(11) not null default '0',   IID int(11) not null default '0',    nada varchar(50)  not null,NAME varchar(50) not null,PHONE varchar(50) not null) engine=MyISAM;
 insert into t1 ( RID,IID,nada,NAME,PHONE) values (1, 1, 'main', 'a', '111'), (2, 1, 'main', 'b', '222'), (3, 1, 'main', 'c', '333'), (4, 1, 'main', 'd', '444'), (5, 1, 'main', 'e', '555'), (6, 2, 'main', 'c', '333'), (7, 2, 'main', 'd', '454'), (8, 2, 'main', 'e', '555'), (9, 2, 'main', 'f', '666'), (10, 2, 'main', 'g', '777');
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 select A.NAME, A.PHONE, B.NAME, B.PHONE from t1 A left join t1 B on A.NAME = B.NAME and B.IID = 2 where A.IID = 1 and (A.PHONE <> B.PHONE or B.NAME is null) union select A.NAME, A.PHONE, B.NAME, B.PHONE from t1 B left join t1 A on B.NAME = A.NAME and A.IID = 1 where B.IID = 2 and (A.PHONE <> B.PHONE or A.NAME is null);
+SET optimizer_switch=@save_optimizer_switch;
 drop  table t1;
 
 #
@@ -1019,7 +1022,6 @@ ORDER BY a;
 DROP TABLE t1;
 
 
---echo End of 5.0 tests
 -- echo #
 -- echo # Bug#32858: Error: "Incorrect usage of UNION and INTO" does not take 
 -- echo # subselects into account
@@ -1094,6 +1096,7 @@ SELECT * FROM t1 UNION SELECT * FROM t1
   ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
 
 --echo # Should not crash
+--sorted_result
 (SELECT * FROM t1) UNION (SELECT * FROM t1)
   ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
 
@@ -1115,6 +1118,16 @@ SELECT * FROM t2 UNION SELECT * FROM t2
 
 DROP TABLE t1,t2;
 
+#
+# lp:732124 union + limit returns wrong result
+#
+create table t1 (a int);
+insert into t1 values (10),(10),(10),(2),(3),(4),(5),(6),(7),(8),(9),(1),(10);
+--sorted_result
+select a from t1 where false UNION select a from t1 limit 8;
+--sorted_result
+(select a from t1 where false) UNION (select a from t1) limit 8;
+drop table t1;
 
 --echo #
 --echo # Bug#11765255 58201:
@@ -1158,6 +1171,41 @@ execute stmt1;
 deallocate prepare stmt1;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # mdev-5091: Asseirtion failure for UNION with ORDER BY 
+--echo #            in one of selects
+--echo #
+ 
+ CREATE TABLE t1 (i int, c char(1)) ENGINE=MyISAM;
+ INSERT INTO t1 VALUES (6,'b');
+
+ CREATE VIEW v1 AS SELECT * FROM t1;
+
+ ( SELECT i FROM v1 GROUP BY i ORDER BY CONCAT( c, c ) LIMIT 1 )
+ UNION 
+ ( SELECT i FROM t1 );
+
+ DROP VIEW v1;
+ DROP TABLE t1;
+
+--echo #
+--echo # mdev-5382:  UNION with ORDER BY in subselect
+--echo #
+ 
+ CREATE TABLE t1 (a int DEFAULT NULL);
+ INSERT INTO t1 VALUES (2), (4);
+ CREATE TABLE t2 (b int DEFAULT NULL);
+ INSERT INTO t2 VALUES (1), (3);
+ 
+ SELECT c1 FROM (SELECT (SELECT a FROM t1 WHERE t1.a <= t2.b
+                         UNION ALL
+                         SELECT a FROM t1 WHERE t1.a+3<= t2.b
+                         ORDER BY a DESC) AS c1 FROM t2) t3;
+
+ DROP TABLE t1,t2;
+ 
+ --echo End of 5.3 tests
 
 --echo #
 --echo # Bug#57986 ORDER BY clause is not used after a UNION, 
@@ -1256,3 +1304,69 @@ SET @@long_query_time= @old_long_query_time;
 SET @@global.log_output= @old_log_output;
 SET @@global.slow_query_log= @old_slow_query_log;
 
+--echo #
+--echo # lp:1010729: Unexpected syntax error from UNION
+--echo # (bug #54382) with single-table join nest      
+--echo #
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (b int);
+CREATE TABLE t3 (c int);
+SELECT a FROM t1 UNION SELECT b FROM t2 JOIN (t3) ON ( t2.b = t3.c );
+
+DROP TABLE t1, t2, t3;
+
+CREATE TABLE t1 (pk int NOT NULL);
+CREATE TABLE t2 (pk int NOT NULL, fk int NOT NULL);
+SELECT t1.pk FROM t1 LEFT JOIN (t2) ON (t1.pk = t2.fk)
+UNION
+SELECT t1.pk FROM t1 LEFT JOIN (t2) ON (t1.pk = t2.fk);
+
+DROP TABLE t1,t2;
+
+#
+# Bug #18167356: EXPLAIN W/ EXISTS(SELECT* UNION SELECT*)
+#                WHERE ONE OF SELECT* IS DISTINCT FAILS.
+#
+create table t1 (a int);
+insert t1 values (1),(2),(3),(1);
+explain select 1 from dual where exists (select max(a) from t1 group by a union select a+2 from t1);
+drop table t1;
+
+--echo #
+--echo # MDEV-6868:MariaDB  server crash ( select with union and order by
+--echo # with subquery )
+--echo #
+
+CREATE TABLE t1 ( id INTEGER, sample_name1 VARCHAR(100), sample_name2 VARCHAR(100), PRIMARY KEY(id) );
+					
+INSERT INTO t1 ( id, sample_name1, sample_name2 ) VALUES ( 1, 'aaaa', 'bbbb' ), ( 2, 'cccc', 'dddd' );
+										
+(
+	SELECT sample_name1 AS testname FROM t1
+)
+UNION
+(
+	SELECT sample_name2 AS testname FROM t1 C ORDER BY (SELECT T.sample_name1 FROM t1 T WHERE T.id = C.id)
+)
+;
+
+drop table t1;
+
+
+--echo #
+--echo # MDEV-10172: UNION query returns incorrect rows outside
+--echo # conditional evaluation
+--echo #
+
+create table t1 (d datetime not null primary key);
+insert into t1(d) values ('2016-06-01'),('2016-06-02'),('2016-06-03'),('2016-06-04');
+select * from
+(
+	select * from t1 where d between '2016-06-02' and '2016-06-05'
+	union
+	(select * from t1 where d < '2016-06-05' order by d desc limit 1)
+) onlyJun2toJun4
+order by d;
+drop table t1;
+
+--echo End of 5.0 tests

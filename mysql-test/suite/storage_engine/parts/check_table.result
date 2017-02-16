@@ -1,0 +1,104 @@
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(2,'d'),(4,'e'),(100,'f'),(101,'g');
+CREATE TABLE t2 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY RANGE(a) (
+PARTITION p0 VALUES LESS THAN (100), 
+PARTITION p1 VALUES LESS THAN MAXVALUE 
+);
+INSERT INTO t2 (a,b) SELECT a, b FROM t1;
+ALTER TABLE t1 CHECK PARTITION p0;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 (a,b) VALUES (3,'c');
+ALTER TABLE t1 CHECK PARTITION p0, p1 FOR UPGRADE;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t2 (a,b) VALUES (10000,'e');
+ALTER TABLE t2 CHECK PARTITION p0 QUICK;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+INSERT INTO t1 (a,b) VALUES (6,'f');
+ALTER TABLE t1 CHECK PARTITION p1 FAST;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t2 (a,b) VALUES (8,'h');
+ALTER TABLE t2 CHECK PARTITION p1 MEDIUM;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+INSERT INTO t1 (a,b) VALUES (9,'i');
+ALTER TABLE t1 CHECK PARTITION ALL EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 (a,b) VALUES (11,'k');
+ALTER TABLE t1 CHECK PARTITION p0 CHANGED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1, t2;
+DROP TABLE IF EXISTS t1,t2;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
+CREATE TABLE t2 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 (a,b) VALUES (3,'c');
+INSERT INTO t2 (a,b) VALUES (4,'d');
+CHECK TABLE t1, t2 FOR UPGRADE;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+test.t2	check	status	OK
+INSERT INTO t2 (a,b) VALUES (5,'e');
+CHECK TABLE t2 QUICK;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+INSERT INTO t1 (a,b) VALUES (6,'f');
+CHECK TABLE t1 FAST;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 (a,b) VALUES (7,'g');
+INSERT INTO t2 (a,b) VALUES (8,'h');
+CHECK TABLE t2, t1 MEDIUM;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+test.t1	check	status	OK
+INSERT INTO t1 (a,b) VALUES (9,'i');
+INSERT INTO t2 (a,b) VALUES (10,'j');
+CHECK TABLE t1, t2 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+test.t2	check	status	OK
+INSERT INTO t1 (a,b) VALUES (11,'k');
+CHECK TABLE t1 CHANGED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1, t2;
+CREATE TABLE t1 (a <INT_COLUMN>, <CUSTOM_INDEX>(a)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
+INSERT INTO t1 (a) VALUES (1),(2),(5);
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 (a) VALUES (6),(8),(12);
+CHECK TABLE t1 FOR UPGRADE;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 (a) VALUES (13),(15),(16);
+CHECK TABLE t1 QUICK;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 (a) VALUES (17),(120),(132);
+CHECK TABLE t1 FAST;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 (a) VALUES (801),(900),(7714);
+CHECK TABLE t1 MEDIUM;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 (a) VALUES (8760),(10023),(12000);
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 (a) VALUES (13345),(24456),(78302),(143028);
+CHECK TABLE t1 CHANGED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;

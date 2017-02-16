@@ -1,0 +1,161 @@
+set global aria_log_file_size=4294959104;
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+* shut down mysqld, removed logs, restarted it
+CREATE TABLE t1 (
+line POINT NOT NULL,
+kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
+name VARCHAR(32)
+,SPATIAL key (line)
+) transactional=1 row_format=page engine=aria;
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	line	1	line	A	NULL	32	NULL		SPATIAL		
+CREATE TABLE t2 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)
+) transactional=1 row_format=page engine=aria;
+SHOW INDEX FROM t2;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t2	1	a	1	a	NULL	NULL	NULL	NULL	YES	FULLTEXT		
+t2	1	a	2	b	NULL	NULL	NULL	NULL	YES	FULLTEXT		
+* TEST of REDO: see if recovery can reconstruct if we give it an old table
+* copied t2 for feeding_recovery
+* copied t1 for feeding_recovery
+flush table t2;
+* copied t2 for comparison
+flush table t1;
+* copied t1 for comparison
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* copied t2 back for feeding_recovery
+* copied t1 back for feeding_recovery
+* recovery happens
+check table t2 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t2	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+* TEST of INSERT and DELETE's rollback
+flush table t2;
+* copied t2 for comparison
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write, t2 write;
+SET SESSION debug_dbug="+d,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t2 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t2	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+flush table t2;
+* copied t2 for comparison
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write, t2 write;
+SET SESSION debug_dbug="+d,maria_flush_whole_page_cache,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t2 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t2	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+flush table t2;
+* copied t2 for comparison
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write, t2 write;
+SET SESSION debug_dbug="+d,maria_flush_states,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t2 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t2	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+flush table t2;
+* copied t2 for comparison
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write, t2 write;
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t2 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t2	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+SET SESSION debug_dbug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t2 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t2	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+drop database mysqltest_for_feeding_recovery;
+drop database mysqltest_for_comparison;
+drop database mysqltest;

@@ -1,0 +1,50 @@
+--source include/have_symlink.inc
+--source include/not_windows.inc
+
+--echo #
+--echo # MDEV-5226 mysql_tzinfo_to_sql errors with tzdata 2013f and above
+--echo #
+
+--exec mkdir $MYSQLTEST_VARDIR/zoneinfo
+--exec ln -s $MYSQLTEST_VARDIR/zoneinfo $MYSQLTEST_VARDIR/zoneinfo/posix
+--copy_file std_data/zoneinfo/GMT $MYSQLTEST_VARDIR/zoneinfo/GMT
+--copy_file std_data/words.dat $MYSQLTEST_VARDIR/zoneinfo/garbage
+--copy_file std_data/words.dat $MYSQLTEST_VARDIR/zoneinfo/ignored.tab
+
+--echo # Verbose run
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_TZINFO_TO_SQL --verbose $MYSQLTEST_VARDIR/zoneinfo 2>&1
+
+--echo # Silent run
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_TZINFO_TO_SQL $MYSQLTEST_VARDIR/zoneinfo 2>&1
+
+--echo #
+--echo # Testing with explicit timezonefile
+--echo #
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_TZINFO_TO_SQL $MYSQLTEST_VARDIR/zoneinfo/GMT XXX 2>&1
+
+--echo #
+--echo # Testing --leap
+--echo #
+
+--exec $MYSQL_TZINFO_TO_SQL --leap $MYSQLTEST_VARDIR/zoneinfo/GMT 2>&1
+
+#
+# Cleanup
+#
+
+--exec rm -rf $MYSQLTEST_VARDIR/zoneinfo
+
+--echo #
+--echo # MDEV-6236 - [PATCH] mysql_tzinfo_to_sql may produce invalid SQL
+--echo #
+--exec mkdir $MYSQLTEST_VARDIR/zoneinfo
+--copy_file std_data/zoneinfo/GMT $MYSQLTEST_VARDIR/zoneinfo/Factory
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_TZINFO_TO_SQL $MYSQLTEST_VARDIR/zoneinfo 2>&1
+
+--exec rm -rf $MYSQLTEST_VARDIR/zoneinfo

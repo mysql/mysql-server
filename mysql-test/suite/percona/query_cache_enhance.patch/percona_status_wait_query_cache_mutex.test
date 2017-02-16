@@ -1,0 +1,35 @@
+--source include/have_query_cache.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+SET GLOBAL query_cache_size=1355776;
+--source include/percona_query_cache_with_comments_clear.inc
+--let try_lock_mutex_query=SELECT "try_lock_mutex_query" as action
+
+--connect (mutex_locked_conn, localhost, root,,)
+--connect (try_mutex_lock_conn, localhost, root,,)
+
+--connection mutex_locked_conn
+SET DEBUG_SYNC='after_query_cache_mutex SIGNAL mutex_locked WAIT_FOR unlock_mutex';
+send SELECT "mutex_locked_query" as action;
+
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR mutex_locked';
+
+--connection try_mutex_lock_conn
+SET DEBUG_SYNC='before_query_cache_mutex SIGNAL try_lock_mutex';
+send_eval $try_lock_mutex_query;
+
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR try_lock_mutex';
+eval SELECT SQL_NO_CACHE state FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info='$try_lock_mutex_query';
+SET DEBUG_SYNC='now SIGNAL unlock_mutex';
+
+--connection mutex_locked_conn
+reap;
+--connection try_mutex_lock_conn
+reap;
+
+--connection default
+--disconnect mutex_locked_conn
+--disconnect try_mutex_lock_conn
+SET GLOBAL query_cache_size=0;

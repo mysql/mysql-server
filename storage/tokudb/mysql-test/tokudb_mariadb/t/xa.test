@@ -1,0 +1,73 @@
+--source include/not_embedded.inc
+
+--query_vertical select * from information_schema.engines where engine='tokudb'
+create table t1 (a int) engine=tokudb;
+xa start 'test1';
+insert t1 values (10);
+xa end 'test1';
+xa prepare 'test1';
+xa rollback 'test1';
+select * from t1;
+
+xa start 'test2';
+--error ER_XAER_RMFAIL
+xa start 'test-bad';
+insert t1 values (20);
+--error ER_XAER_RMFAIL
+xa prepare 'test2';
+xa end 'test2';
+xa prepare 'test2';
+xa commit 'test2';
+select * from t1;
+
+xa start 'testa','testb';
+insert t1 values (30);
+
+--error ER_XAER_RMFAIL
+commit;
+
+xa end 'testa','testb';
+
+--error ER_XAER_RMFAIL
+begin;
+--error ER_XAER_RMFAIL
+create table t2 (a int);
+
+connect (con1,localhost,root,,);
+connection con1;
+
+--error ER_XAER_DUPID
+xa start 'testa','testb';
+--error ER_XAER_DUPID
+xa start 'testa','testb', 123;
+
+#        gtrid [ , bqual [ , formatID ] ]
+xa start 0x7465737462, 0x2030405060, 0xb;
+insert t1 values (40);
+xa end 'testb',' 0@P`',11;
+xa prepare 'testb',0x2030405060,11;
+
+--error ER_XAER_RMFAIL
+start transaction;
+
+xa recover;
+
+connection default;
+
+xa prepare 'testa','testb';
+
+xa recover;
+
+--error ER_XAER_NOTA
+xa commit 'testb',0x2030405060,11;
+xa rollback 'testa','testb';
+
+--error ER_PARSE_ERROR
+xa start 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz';
+
+select * from t1;
+
+disconnect con1;
+connection default;
+drop table t1;
+

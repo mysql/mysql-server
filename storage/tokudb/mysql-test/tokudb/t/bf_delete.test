@@ -1,0 +1,70 @@
+# Verify that index scans for delete statements use bulk fetch are faster than when not using bulk fetch
+
+source include/have_tokudb.inc;
+source include/big_test.inc;
+set default_storage_engine='tokudb';
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+let $debug = 0;
+
+CREATE TABLE `t` (id bigint not null auto_increment primary key, val bigint not null default 0);
+
+# put 8M rows into t
+INSERT INTO t (id) values (null);
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+SELECT count(*) FROM t;
+
+# run $maxq measurements
+let $maxq = 10;
+
+# measure the time to do $maxq deletes from t that affect no rows with bulk fetch ON
+set tokudb_bulk_fetch = ON;
+let $s = `select unix_timestamp()`;
+let $i = 0;
+while ($i < $maxq) {
+    delete from t where val > 0;
+    inc $i;
+}
+let $time_elapsed_bf_on = `select unix_timestamp() - $s`;
+
+# measure the time to do $maxq deletes from t that affect no rows with bulk fetch OFF
+set tokudb_bulk_fetch = OFF;
+let $s = `select unix_timestamp()`;
+let $i = 0;
+while ($i < $maxq) {
+    delete from t where val > 0;
+    inc $i;
+}
+let $time_elapsed_bf_off = `select unix_timestamp() - $s`;
+
+# verify that a delete scan with bulk fetch ON is greater than with bulk fetch OFF
+let $verdict = `select $time_elapsed_bf_on > 0 && $time_elapsed_bf_off > $time_elapsed_bf_on`;
+echo $verdict;
+if ($debug) { echo range $verdict $time_elapsed_bf_on $time_elapsed_bf_off; }
+if (!$verdict) { echo range $time_elapsed_bf_on $time_elapsed_bf_off; }
+
+drop table t;

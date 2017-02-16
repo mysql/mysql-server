@@ -1,0 +1,55 @@
+source include/have_tokudb.inc;
+# Tokutek
+# test that read locks are not taken with serializable isolation and
+# autocommit on, refs 3532
+
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+
+# low lock wait timeout, to speed up the test a bit
+set global tokudb_lock_timeout = 100;
+set global transaction isolation level serializable;
+
+# main client creates a table and inserts a few rows
+create table t (a int primary key) engine = tokudb;
+insert t values (1),(2),(3);
+# now grab write locks on the entire table
+begin;
+select * from t for update;
+
+# second client should be able to read the table
+connect(conn1, localhost, root);
+select * from t;
+select * from t where a=1;
+select * from t where a=2;
+select * from t where a=3;
+# but not write to it
+--error ER_LOCK_WAIT_TIMEOUT
+replace into t values (1);
+--error ER_LOCK_WAIT_TIMEOUT
+insert ignore t values (3);
+
+# back to the main client, commit the transaction
+connection default;
+commit;
+
+# further, if the main client has an open transaction
+# reading the table, a second client should be able
+# to grab write locks, since we're not supposed to
+# be grabbing read locks.
+connection default;
+begin;
+select * from t;
+
+connection conn1;
+select * from t for update;
+
+# back to the main client, commit the transaction
+connection default;
+commit;
+
+# cleanup
+drop table t;
+set global transaction isolation level repeatable read;
+set global tokudb_lock_timeout = 4000;

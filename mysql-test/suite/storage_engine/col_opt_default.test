@@ -1,0 +1,49 @@
+# 
+# Check whether DEFAULT column attribute 
+# is supported in CREATE and ALTER TABLE.
+# If the attribute is supported at all, it will be covered
+# in more details in col_option_null and col_option_not_null tests.
+#
+
+--source have_engine.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--let $create_definition = a $int_col DEFAULT '0'
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $functionality = DEFAULT values
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 3 #
+  SHOW COLUMNS IN t1;
+
+  INSERT INTO t1 (a) VALUES (1);
+  --sorted_result
+  SELECT a FROM t1;
+
+  --let $alter_definition = ADD COLUMN b $char_col DEFAULT ''
+  --source alter_table.inc
+  if ($mysql_errname)
+  {
+    --let $functionality = ALTER or DEFAULT
+    --source unexpected_result.inc
+  }
+  if (!$mysql_errname)
+  {
+    --replace_column 3 #
+    SHOW COLUMNS IN t1;
+
+    INSERT INTO t1 (b) VALUES ('a');
+    --sorted_result
+    SELECT a,b FROM t1;
+  }
+  DROP TABLE t1;
+}
+--source cleanup_engine.inc
+

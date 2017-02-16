@@ -1,0 +1,60 @@
+--- suite/storage_engine/index_type_hash.result	2012-07-15 01:10:17.919128889 +0400
++++ suite/storage_engine/index_type_hash.reject	2012-07-15 16:21:32.806210722 +0400
+@@ -4,7 +4,7 @@
+ ) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ SHOW KEYS IN t1;
+ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+-t1	1	a	1	a	#	#	NULL	NULL	#	HASH		
++t1	1	a	1	a	#	#	NULL	NULL	#	BTREE		
+ DROP TABLE t1;
+ CREATE TABLE t1 (a <INT_COLUMN>,
+ b <CHAR_COLUMN>,
+@@ -12,8 +12,8 @@
+  ) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ SHOW KEYS IN t1;
+ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+-t1	1	a_b	1	a	#	#	NULL	NULL	#	HASH		a_b index
+-t1	1	a_b	2	b	#	#	NULL	NULL	#	HASH		a_b index
++t1	1	a_b	1	a	#	#	NULL	NULL	#	BTREE		a_b index
++t1	1	a_b	2	b	#	#	NULL	NULL	#	BTREE		a_b index
+ DROP TABLE t1;
+ CREATE TABLE t1 (a <INT_COLUMN>,
+ b <CHAR_COLUMN>,
+@@ -22,8 +22,8 @@
+ ) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ SHOW KEYS IN t1;
+ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+-t1	1	a	1	a	#	#	NULL	NULL	#	HASH		
+-t1	1	b	1	b	#	#	NULL	NULL	#	HASH		
++t1	1	a	1	a	#	#	NULL	NULL	#	BTREE		
++t1	1	b	1	b	#	#	NULL	NULL	#	BTREE		
+ DROP TABLE t1;
+ CREATE TABLE t1 (a <INT_COLUMN>,
+ b <CHAR_COLUMN>,
+@@ -31,7 +31,7 @@
+ ) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ SHOW KEYS IN t1;
+ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+-t1	0	a	1	a	#	#	NULL	NULL	#	HASH		
++t1	0	a	1	a	#	#	NULL	NULL	#	BTREE		
+ INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
+ INSERT INTO t1 (a,b) VALUES (1,'c');
+ ERROR 23000: Duplicate entry '1' for key 'a'
+@@ -43,7 +43,7 @@
+ ALTER TABLE t1 ADD <CUSTOM_INDEX> (a) USING HASH COMMENT 'simple index on a';
+ SHOW INDEX FROM t1;
+ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+-t1	1	a	1	a	#	#	NULL	NULL	#	HASH		simple index on a
++t1	1	a	1	a	#	#	NULL	NULL	#	BTREE		simple index on a
+ ALTER TABLE t1 DROP KEY a;
+ DROP TABLE t1;
+ CREATE TABLE t1 (a <INT_COLUMN>,
+@@ -52,7 +52,7 @@
+ ) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ SHOW KEYS IN t1;
+ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+-t1	0	a	1	a	#	#	NULL	NULL	#	HASH		
++t1	0	a	1	a	#	#	NULL	NULL	#	BTREE		
+ INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
+ INSERT INTO t1 (a,b) VALUES (1,'c');
+ ERROR 23000: Duplicate entry '1' for key 'a'

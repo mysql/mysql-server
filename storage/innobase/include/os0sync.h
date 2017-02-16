@@ -246,10 +246,27 @@ os_fast_mutex_trylock(
 /*==================*/
 	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to acquire */
 /**********************************************************//**
+Acquires ownership of a fast mutex. Implies a full memory barrier even on
+platforms such as PowerPC where this is not normally required.
+@return	0 if success, != 0 if was reserved by another thread */
+UNIV_INLINE
+ulint
+os_fast_mutex_trylock_full_barrier(
+/*==================*/
+	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to acquire */
+/**********************************************************//**
 Releases ownership of a fast mutex. */
 UNIV_INTERN
 void
 os_fast_mutex_unlock(
+/*=================*/
+	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to release */
+/**********************************************************//**
+Releases ownership of a fast mutex. Implies a full memory barrier even on
+platforms such as PowerPC where this is not normally required. */
+UNIV_INTERN
+void
+os_fast_mutex_unlock_full_barrier(
 /*=================*/
 	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to release */
 /*********************************************************//**
@@ -331,20 +348,13 @@ os_atomic_test_and_set(volatile lock_word_t* ptr)
 }
 
 /** Do an atomic release.
-
-In theory __sync_lock_release should be used to release the lock.
-Unfortunately, it does not work properly alone. The workaround is
-that more conservative __sync_lock_test_and_set is used instead.
-
-Performance regression was observed at some conditions for Intel
-architecture. Disable release barrier on Intel architecture for now.
 @param[in,out]	ptr		Memory location to write to
 @return the previous value */
 static inline
-lock_word_t
+void
 os_atomic_clear(volatile lock_word_t* ptr)
 {
-	return(__sync_lock_test_and_set(ptr, 0));
+	__sync_lock_release(ptr);
 }
 
 # elif defined(HAVE_IB_GCC_ATOMIC_TEST_AND_SET)
@@ -506,6 +516,50 @@ os_atomic_clear(volatile lock_word_t* ptr)
 #else
 # define IB_ATOMICS_STARTUP_MSG \
 	"Mutexes and rw_locks use InnoDB's own implementation"
+#endif
+
+/** barrier definitions for memory ordering */
+#ifdef HAVE_IB_GCC_ATOMIC_THREAD_FENCE
+# define HAVE_MEMORY_BARRIER
+# define os_rmb	__atomic_thread_fence(__ATOMIC_ACQUIRE)
+# define os_wmb	__atomic_thread_fence(__ATOMIC_RELEASE)
+# define os_mb __atomic_thread_fence(__ATOMIC_SEQ_CST)
+
+# define IB_MEMORY_BARRIER_STARTUP_MSG \
+	"GCC builtin __atomic_thread_fence() is used for memory barrier"
+
+#elif defined(HAVE_IB_GCC_SYNC_SYNCHRONISE)
+# define HAVE_MEMORY_BARRIER
+# define os_rmb	__sync_synchronize()
+# define os_wmb	__sync_synchronize()
+# define os_mb	__sync_synchronize()
+# define IB_MEMORY_BARRIER_STARTUP_MSG \
+	"GCC builtin __sync_synchronize() is used for memory barrier"
+
+#elif defined(HAVE_IB_MACHINE_BARRIER_SOLARIS)
+# define HAVE_MEMORY_BARRIER
+# include <mbarrier.h>
+# define os_rmb	__machine_r_barrier()
+# define os_wmb	__machine_w_barrier()
+# define os_mb __machine_rw_barrier()
+# define IB_MEMORY_BARRIER_STARTUP_MSG \
+	"Soralis memory ordering functions are used for memory barrier"
+
+#elif defined(HAVE_WINDOWS_MM_FENCE)
+# define HAVE_MEMORY_BARRIER
+# include <intrin.h>
+# define os_rmb	_mm_lfence()
+# define os_wmb	_mm_sfence()
+# define os_mb	_mm_mfence()
+# define IB_MEMORY_BARRIER_STARTUP_MSG \
+	"_mm_lfence() and _mm_sfence() are used for memory barrier"
+
+#else
+# define os_rmb do { } while(0)
+# define os_wmb do { } while(0)
+# define os_mb do { } while(0)
+# define IB_MEMORY_BARRIER_STARTUP_MSG \
+	"Memory barrier is not used"
 #endif
 
 #ifndef UNIV_NONINL

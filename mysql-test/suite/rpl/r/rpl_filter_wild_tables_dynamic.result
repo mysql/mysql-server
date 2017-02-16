@@ -1,0 +1,26 @@
+include/master-slave.inc
+[connection master]
+SET @@GLOBAL.replicate_wild_do_table="test.a%";
+ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
+SET @@GLOBAL.replicate_wild_ignore_table="test.b%";
+ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
+include/stop_slave.inc
+SET @@GLOBAL.replicate_wild_do_table="test.a%";
+SET @@GLOBAL.replicate_wild_ignore_table="test.b%";
+include/start_slave.inc
+CREATE TABLE a1 (a INT);
+CREATE TABLE b1 (a INT);
+CREATE TABLE c1 (a INT);
+INSERT INTO a1 VALUES (1);
+INSERT INTO b1 VALUES (2);
+INSERT INTO c1 VALUES (3);
+[on slave]
+SHOW TABLES LIKE '%1';
+Tables_in_test (%1)
+a1
+[on master]
+[on master]
+DROP TABLE IF EXISTS a1,b1,c1;
+include/rpl_end.inc
+SET @@GLOBAL.replicate_wild_do_table="";
+SET @@GLOBAL.replicate_wild_ignore_table="";

@@ -1,0 +1,33 @@
+# ticket 895 is a query optimization problem with the primary key
+
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+set autocommit=off;
+
+create table foo ( a int);
+select * from foo;
+
+lock tables foo write;
+
+insert into foo values (1);
+select * from foo;
+rollback;
+select * From foo;
+insert into foo values (2);
+select * from foo;
+commit;
+select * From foo;
+insert into foo values (3);
+select * from foo;
+rollback;
+select * From foo;
+
+unlock tables;
+
+# Final cleanup.
+set autocommit=on;
+DROP TABLE foo;

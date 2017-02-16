@@ -2,9 +2,9 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
 start slave;
 Got one of the listed errors
 start slave;
-ERROR HY000: Could not initialize master info structure; more error messages can be found in the MySQL error log
+ERROR HY000: Could not initialize master info structure; more error messages can be found in the MariaDB error log
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
-ERROR HY000: Could not initialize master info structure; more error messages can be found in the MySQL error log
+ERROR HY000: Could not initialize master info structure; more error messages can be found in the MariaDB error log
 reset slave;
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
 reset master;
@@ -17,8 +17,10 @@ insert into t1 values('Could not break slave'),('Tried hard');
 Master_Log_File = 'master-bin.000001'
 Relay_Master_Log_File = 'master-bin.000001'
 include/check_slave_is_running.inc
-include/assert.inc [Table t1 should contain the first inserted line]
-include/assert.inc [Table t1 should contain the second inserted line]
+select * from t1;
+s
+Could not break slave
+Tried hard
 flush logs;
 create table t2(m int not null auto_increment primary key);
 insert into t2 values (34),(67),(123);
@@ -29,7 +31,9 @@ master-bin.000001	#
 master-bin.000002	#
 master-bin.000003	#
 create table t3 select * from temp_table;
-include/assert.inc [Data in t3 should be equal to temp_table]
+select * from t3;
+a
+testing temporary tables
 drop table temp_table, t3;
 insert into t2 values(1234);
 set insert_id=1234;
@@ -56,15 +60,19 @@ insert into t2 values (65);
 Master_Log_File = 'master-bin.000003'
 Relay_Master_Log_File = 'master-bin.000003'
 include/check_slave_is_running.inc
-include/assert.inc [Table t2 should still contain the first inserted line after creation]
-include/assert.inc [Table t2 should contain the line inserted after the purge]
-include/assert.inc [Table t2 should still contain the second insert line after creation]
-include/assert.inc [Table t2 should still contain the third inserted line after creation]
-include/assert.inc [Table t2 should still contain the line from the duplicated key test]
+select * from t2;
+m
+34
+65
+67
+123
+1234
 create temporary table temp_table (a char(80) not null);
 insert into temp_table values ("testing temporary tables part 2");
 create table t3 (n int);
-include/assert.inc [Table t3 should contain 100 lines on the master]
+select count(*) from t3 where n >= 4;
+count(*)
+91
 create table t4 select * from temp_table;
 show binary logs;
 Log_name	File_size
@@ -74,15 +82,20 @@ master-bin.000005	#
 master-bin.000006	#
 master-bin.000007	#
 master-bin.000008	#
+master-bin.000009	#
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000008	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
-include/assert.inc [Data in t4 should be equal to temp_table]
-Master_Log_File = 'master-bin.000008'
-Relay_Master_Log_File = 'master-bin.000008'
+master-bin.000009	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
+select * from t4;
+a
+testing temporary tables part 2
+Master_Log_File = 'master-bin.000009'
+Relay_Master_Log_File = 'master-bin.000009'
 include/check_slave_is_running.inc
 lock tables t3 read;
-include/assert.inc [Table t3 should contain 100 lines on the slave]
+select count(*) from t3 where n >= 4;
+count(*)
+91
 unlock tables;
 drop table if exists t1,t2,t3,t4;
 drop temporary table temp_table;

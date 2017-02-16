@@ -12,11 +12,12 @@
 --source suite/federated/include/federated.inc
 
 --disable_warnings
-CREATE DATABASE IF NOT EXISTS realdb;
 # Federated database exists
-DROP TABLE IF EXISTS realdb.t0;
 DROP TABLE IF EXISTS federated.t0;
 --enable_warnings
+
+--disable_parsing
+# This test doesn't work with federatedx, as it doesn't allow wrong connections
 
 --echo #
 --echo # Create the base table to be referenced
@@ -42,18 +43,20 @@ SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, ROW_FORMAT, TABLE_ROWS, DAT
 # Remove O/S-specific socket error
 --replace_regex /\(.*\)/(socket errno)/
 SHOW WARNINGS;
+DROP TABLE federated.t0;
+
+--enable_parsing
 
 --echo #
 --echo # Create a MyISAM table then corrupt the file
 --echo #
-USE realdb;
 CREATE TABLE t1 (c1 int) ENGINE=MYISAM;
 --echo #
 --echo # Corrupt the MyISAM table by deleting the base file
 --echo #
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
---remove_file $MYSQLD_DATADIR/realdb/t1.MYD
---remove_file $MYSQLD_DATADIR/realdb/t1.MYI
+--remove_file $MYSQLD_DATADIR/test/t1.MYD
+--remove_file $MYSQLD_DATADIR/test/t1.MYI
 
 --echo #
 --echo # Trigger a MyISAM system error during an INFORMATION_SCHEMA.TABLES query
@@ -62,13 +65,13 @@ SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, ROW_FORMAT, TABLE_ROWS, DAT
        FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
 
 SHOW WARNINGS;
+--disable_warnings
+--error 1051
+DROP TABLE t1;
+--enable_warnings
+
 --echo #
 --echo # Cleanup
 --echo #
---disable_warnings
-DROP TABLE IF EXISTS realdb.t0;
-DROP TABLE IF EXISTS federated.t0;
-DROP DATABASE realdb;
---enable_warnings
 
 --source suite/federated/include/federated_cleanup.inc

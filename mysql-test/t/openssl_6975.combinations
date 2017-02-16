@@ -1,0 +1,6 @@
+[tlsv12]
+loose-ssl-cipher=TLSv1.2
+
+[tlsv10]
+loose-ssl-cipher=SSLv3
+

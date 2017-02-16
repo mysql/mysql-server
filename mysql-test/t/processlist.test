@@ -1,0 +1,52 @@
+#
+# MDEV-4578 information_schema.processlist reports incorrect value for Time (2147483647)
+#
+
+source include/have_debug.inc;
+source include/have_debug_sync.inc;
+
+let $tid= `SELECT CONNECTION_ID()`;
+SET DEBUG_SYNC = 'dispatch_command_before_set_time WAIT_FOR do_set_time';
+send SELECT 1;
+
+connect (con1,localhost,root,,);
+
+SET DEBUG_SYNC = 'fill_schema_processlist_after_unow SIGNAL do_set_time WAIT_FOR fill_schema_proceed';
+--replace_result $tid TID
+send_eval SELECT ID, TIME,TIME_MS FROM INFORMATION_SCHEMA.PROCESSLIST WHERE CONCAT(":", ID, ":") = ":$tid:";
+
+connection default;
+reap;
+SET DEBUG_SYNC = 'now SIGNAL fill_schema_proceed';
+
+connection con1;
+--replace_result $tid TID
+reap;
+set debug_sync='reset';
+connection default;
+
+#
+# MDEV-4683 query start_time not reset when going to sleep
+#
+
+connection con1;
+# This DBUG insertion triggers a DEBUG_SYNC signal "query_done" once
+# the below SELECT SLEEP(5) has gone from "Query" to "Sleep" command
+# state. (We cannot just set the DEBUG_SYNC directly here, because
+# then it can trigger at the end of the SET DEBUG_SYNC statement (or
+# at the end of the Prepare step of the SELECT, if --ps-protocol),
+# thus occuring too early).
+SET debug_dbug="+d,sleep_inject_query_done_debug_sync";
+select sleep(5); #run a query that will take some time
+connection default;
+
+# Need to ensure that the previous query has really completed. Otherwise,
+# the select could see the previous query still in "Query" stage in the
+# processlist.
+SET DEBUG_SYNC = 'now WAIT_FOR query_done';
+
+# verify that the time in COM_SLEEP doesn't include the query run time
+select command, time < 5 from information_schema.processlist where id != connection_id();
+
+disconnect con1;
+set debug_sync='reset';

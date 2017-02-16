@@ -13,25 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-IF(INSTALL_MYSQLTESTDIR)
-INSTALL(
- DIRECTORY .
- DESTINATION ${INSTALL_MYSQLTESTDIR}
- USE_SOURCE_PERMISSIONS
- COMPONENT Test
- PATTERN "var/" EXCLUDE
- PATTERN "lib/My/SafeProcess" EXCLUDE
- PATTERN "lib/t*" EXCLUDE
- PATTERN "CPack" EXCLUDE
- PATTERN "CMake*" EXCLUDE
- PATTERN "mtr.out*" EXCLUDE
- PATTERN ".cvsignore" EXCLUDE
- PATTERN "*.am" EXCLUDE
- PATTERN "*.in" EXCLUDE
-)
-ENDIF()
-
-
+INSTALL_MYSQL_TEST("." ".")
 
 IF(NOT ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   # Enable running mtr from build directory
@@ -92,7 +74,7 @@ ENDIF()
 
 IF(WITH_EMBEDDED_SERVER)
  SET(TEST_EMBEDDED  ${MTR_FORCE} --comment=embedded  --timer  --embedded-server 
-   --skip-rpl --skip-ndbcluster $(EXP))
+   --skip-rpl --skip-ndbcluster ${EXP})
 ELSE()
  SET(TEST_EMBEDDED echo "Can not test embedded, not compiled in")
 ENDIF()
@@ -147,13 +129,13 @@ MACRO(PROCESS_COLLECTION_INCLUDE collin collection)
   ENDFOREACH()
 ENDMACRO()
 
-FILE(GLOB infiles "collections/*.in")
-FOREACH(collin ${infiles})
-  STRING(REPLACE ".in" "" collection ${collin})
-  STRING(REPLACE ".in" ".done" colldone ${collin})
-  # Only generate file once
-  IF(NOT EXISTS ${colldone})
-    PROCESS_COLLECTION_INCLUDE(${collin} ${collection})
-    FILE(APPEND ${colldone} "${collin}\n")
-  ENDIF()
-ENDFOREACH()
+#FILE(GLOB infiles "collections/*.in")
+#FOREACH(collin ${infiles})
+#  STRING(REPLACE ".in" "" collection ${collin})
+#  STRING(REPLACE ".in" ".done" colldone ${collin})
+#  # Only generate file once
+#  IF(NOT EXISTS ${colldone})
+#    PROCESS_COLLECTION_INCLUDE(${collin} ${collection})
+#    FILE(APPEND ${colldone} "${collin}\n")
+#  ENDIF()
+#ENDFOREACH()

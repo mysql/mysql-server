@@ -589,5 +589,141 @@ ORDER BY t1.f1;
 
 DROP TABLE t1,t2;
 
-
 --echo End of 5.1 tests
+
+--echo #
+--echo # LP bug:938518 HAVING does not reject the result of aggregation
+--echo #
+CREATE TABLE t1 (pk INT PRIMARY KEY, a INT);
+INSERT INTO t1 VALUES (2,7), (4,7), (6,2), (17,0);
+SELECT MIN(t.pk) FROM t1, t1 as t WHERE t1.pk = 1;
+SELECT MIN(t.pk) FROM t1, t1 as t WHERE t1.pk = 1 HAVING MIN(t.pk) < 10;
+drop table t1;
+
+--echo #
+--echo # LP bug #791761: MAX over an empty join + HAVING
+--echo #
+
+CREATE TABLE t1 (a int, b int , KEY (b)) ;
+INSERT INTO t1 VALUES (3,1);
+
+CREATE TABLE t2 (a int NOT NULL ) ;
+INSERT INTO t2 VALUES (29);
+
+SELECT MAX(t1.b)  FROM t1,t2 WHERE t2.a > 0 HAVING MAX(t1.b) <> 6;
+SELECT MAX(t1.b)  FROM t1,t2 WHERE t2.a > 0 HAVING MAX(t1.b) IS NULL;
+
+EXPLAIN
+SELECT MAX(t1.b)  FROM t1,t2 WHERE t2.a < 0 HAVING MAX(t1.b) <> 6;
+SELECT MAX(t1.b)  FROM t1,t2 WHERE t2.a < 0 HAVING MAX(t1.b) <> 6;
+
+CREATE TABLE t3 ( f3 int) ;
+INSERT INTO t3 VALUES (NULL);
+
+SELECT MAX(t1.b) AS f FROM t1 JOIN t2 ON t2.a != 0
+  WHERE (SELECT f3 FROM t3) <> 0 HAVING f <> 6 ;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug:806955 HAVING not observed with aggregate +subquery
+--echo #
+
+CREATE TABLE t1 (f3 int, f10 varchar(1), f11 int, KEY (f10) );
+INSERT INTO t1 VALUES (NULL,'a',0),(8,'b',0);
+
+CREATE TABLE t2 (f2 int);
+INSERT INTO t2 VALUES (7);
+
+CREATE TABLE t3 (f3 int);
+INSERT INTO t3 VALUES (0),(8);
+
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='semijoin=off,materialization=off';
+
+SELECT MIN( t1.f10 ) AS field1
+FROM t1 , t2
+WHERE t2.f2 IN ( SELECT f3 FROM t3 )
+HAVING field1 < 's';
+
+explain extended 
+SELECT MIN( t1.f10 ) AS field1
+FROM t1 , t2
+WHERE t2.f2 IN ( SELECT f3 FROM t3 )
+HAVING field1 < 's';
+
+set optimizer_switch=@save_optimizer_switch;
+
+drop table t1,t2,t3;
+
+--echo End of 5.2 tests
+
+--echo #
+--echo # Bug mdev-6116: an equality in the conjunction of HAVING
+--echo #                and IN subquery in WHERE
+--echo # (The bug is caused by the same problem as bug mdev-5927)
+--echo #
+
+CREATE TABLE t1 (f_key varchar(1), f_nokey varchar(1), INDEX(f_key));
+INSERT INTO t1 VALUES ('v','v'),('s','s');
+
+CREATE TABLE t2 (f_int int, f_key varchar(1), INDEX(f_key));
+INSERT INTO t2 VALUES 
+(4,'j'),(6,'v'),(3,'c'),(5,'m'),(3,'d'),(2,'d'),(2,'y'),
+(9,'t'),(3,'d'),(8,'s'),(1,'r'),(8,'m'),(8,'b'),(5,'x');
+
+SELECT t2.f_int FROM t1 INNER JOIN t2 ON (t2.f_key = t1.f_nokey) 
+WHERE t1.f_nokey IN ( 
+  SELECT t1.f_key FROM t1, t2 WHERE t1.f_key = t2.f_key 
+) HAVING t2.f_int >= 0 AND t2.f_int != 0;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug mdev-5927: an equality in the conjunction of HAVING
+--echo #                and an equality in WHERE
+--echo #
+
+CREATE TABLE t1 (pk int PRIMARY KEY, f int NOT NULL, INDEX(f));
+INSERT INTO t1 VALUES (1,0), (2,8);
+
+SELECT * FROM t1 WHERE f = 2 HAVING ( pk IN ( SELECT 9 ) AND f != 0 );
+
+DROP TABLE t1;
+
+--echo End of 5.3 tests
+
+--echo #
+--echo # Bug MDEV-7301: Unknown column quoted with backticks in HAVING clause when using function.
+--echo # Bug#16221433 MYSQL REJECTS QUERY DUE TO BAD RESOLUTION OF NAMES IN HAVING; VIEW UNREADABLE
+--echo #
+
+CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `title` varchar(45) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) DEFAULT CHARSET=utf8;
+
+INSERT INTO `t1` VALUES ('1', 'Just for fun');
+INSERT INTO `t1` VALUES ('2', 'Wait until a sunhine');
+INSERT INTO `t1` VALUES ('3', 'Take a new turn');
+
+SELECT `id`, SHA1(`title`) AS `column_1`
+FROM `t1`
+HAVING `column_1` LIKE '8%';
+
+--echo expected 1 row(s) returned
+
+SELECT `id`, SHA1(`title`) AS `column_1`
+FROM `t1`
+HAVING UPPER(column_1) LIKE '8%';
+
+--echo expected -- 1 row(s) returned
+
+SELECT `id`, SHA1(`title`) AS `column_1`
+FROM `t1`
+HAVING UPPER(`column_1`) LIKE '8%';
+
+--echo expected -- 1 row(s) returned not ER_BAD_FIELD_ERROR
+
+drop table t1;

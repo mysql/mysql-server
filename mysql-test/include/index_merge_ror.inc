@@ -63,7 +63,6 @@ create table t1
   key(key3),
   key(key4)
 ) ;
-
 # Fill table
 create table t0 as select * from t1;
 --disable_query_log

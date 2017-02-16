@@ -1,0 +1,4 @@
+# Suppress some warnings we get from jemalloc and lzma, they aren't our fault.
+.*third_party/jemalloc/src/jemalloc.c : .*-Wattributes.*
+.*third_party/jemalloc/src/ctl.c : .*-Wunused-but-set-variable.*
+.*xz/src/build_lzma/src/liblzma/lz/lz_encoder.c : .*-Wunused-but-set-variable.*

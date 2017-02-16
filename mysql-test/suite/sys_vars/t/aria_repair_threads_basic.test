@@ -1,0 +1,46 @@
+# ulong session
+--source include/have_maria.inc
+
+SET @start_global_value = @@global.aria_repair_threads;
+
+#
+# exists as global only
+#
+select @@global.aria_repair_threads;
+select @@session.aria_repair_threads;
+show global variables like 'aria_repair_threads';
+show session variables like 'aria_repair_threads';
+select * from information_schema.global_variables where variable_name='aria_repair_threads';
+select * from information_schema.session_variables where variable_name='aria_repair_threads';
+
+#
+# show that it's writable
+#
+set global aria_repair_threads=10;
+select @@global.aria_repair_threads;
+set session aria_repair_threads=10;
+select @@session.aria_repair_threads;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_repair_threads=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session aria_repair_threads=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_repair_threads="foo";
+
+#
+# min/max values, block size
+#
+set global aria_repair_threads=0;
+select @@global.aria_repair_threads;
+--disable_warnings
+set session aria_repair_threads=cast(-1 as unsigned int);
+--enable_warnings
+--replace_result 4294967295 18446744073709551615
+select @@session.aria_repair_threads;
+
+SET @@global.aria_repair_threads = @start_global_value;
+

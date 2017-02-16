@@ -1,0 +1,12 @@
+#
+# this suite is overlayed in heap and myisam.
+# mtr2-heap has my.cnf, mtr2-myisam has suite.opt
+# it means that all tests from the mtr2 suite will run
+# three times - once for the parent suite, and once for each overlay.
+# even if the test files are not overlayed.
+#
+# overlay.inc is overridden in mtr2-myisam, and there is an rdiff file.
+#
+select 1;
+source overlay.inc;
+

@@ -42,10 +42,12 @@ insert into t5 values (10);
 create view v1 (c) as
 SELECT table_name FROM information_schema.TABLES
 WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND
-table_name not like 'ndb_%' AND table_name not like 'innodb_%';
+table_name not like 'ndb_%' AND table_name not like 'innodb_%' AND
+table_name not like 'xtradb_%';
 select * from v1;
 c
 CHARACTER_SETS
+CLIENT_STATISTICS
 COLLATIONS
 COLLATION_CHARACTER_SET_APPLICABILITY
 COLUMNS
@@ -55,6 +57,8 @@ EVENTS
 FILES
 GLOBAL_STATUS
 GLOBAL_VARIABLES
+INDEX_STATISTICS
+KEY_CACHES
 KEY_COLUMN_USAGE
 PARAMETERS
 PARTITIONS
@@ -72,8 +76,10 @@ TABLES
 TABLESPACES
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
+TABLE_STATISTICS
 TRIGGERS
 USER_PRIVILEGES
+USER_STATISTICS
 VIEWS
 columns_priv
 db
@@ -91,6 +97,11 @@ procs_priv
 proxies_priv
 servers
 slow_log
+t1
+t2
+t3
+t4
+t5
 tables_priv
 time_zone
 time_zone_leap_second
@@ -98,13 +109,8 @@ time_zone_name
 time_zone_transition
 time_zone_transition_type
 user
-t1
-t4
-t2
-t3
-t5
 v1
-select c,table_name from v1
+select c,table_name from v1 
 inner join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 c	table_name
@@ -112,6 +118,7 @@ TABLES	TABLES
 TABLESPACES	TABLESPACES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
+TABLE_STATISTICS	TABLE_STATISTICS
 TRIGGERS	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
@@ -124,7 +131,7 @@ t4	t4
 t2	t2
 t3	t3
 t5	t5
-select c,table_name from v1
+select c,table_name from v1 
 left join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 c	table_name
@@ -132,6 +139,7 @@ TABLES	TABLES
 TABLESPACES	TABLESPACES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
+TABLE_STATISTICS	TABLE_STATISTICS
 TRIGGERS	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
@@ -152,6 +160,7 @@ TABLES	TABLES
 TABLESPACES	TABLESPACES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
+TABLE_STATISTICS	TABLE_STATISTICS
 TRIGGERS	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
@@ -197,8 +206,8 @@ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 c	varchar(64)	utf8_general_ci	NO				select,insert,update,references	
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a";
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
-def	mysqltest	t1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+def	mysqltest	t1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
 show columns from mysqltest.t1 where field like "%a%";
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -305,7 +314,7 @@ information_schema.SCHEMATA b where
 a.ROUTINE_SCHEMA = b.SCHEMA_NAME;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	#	ALL	NULL	NULL	NULL	NULL	NULL	
-1	SIMPLE	#	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Using join buffer
+1	SIMPLE	#	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Using join buffer (flat, BNL join)
 select a.ROUTINE_NAME, b.name from information_schema.ROUTINES a,
 mysql.proc b where a.ROUTINE_NAME = convert(b.name using utf8) AND a.ROUTINE_SCHEMA='test' order by 1;
 ROUTINE_NAME	name
@@ -601,7 +610,7 @@ proc	body	longblob
 proc	definer	char(77)
 proc	created	timestamp
 proc	modified	timestamp
-proc	sql_mode	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')
+proc	sql_mode	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','IGNORE_BAD_TABLE_OPTIONS','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')
 proc	comment	text
 proc	character_set_client	char(32)
 proc	collation_connection	char(32)
@@ -634,13 +643,14 @@ from information_schema.tables
 where table_schema='information_schema' limit 2;
 TABLE_NAME	TABLE_TYPE	ENGINE
 CHARACTER_SETS	SYSTEM VIEW	MEMORY
-COLLATIONS	SYSTEM VIEW	MEMORY
+CLIENT_STATISTICS	SYSTEM VIEW	MEMORY
 show tables from information_schema like "T%";
 Tables_in_information_schema (T%)
 TABLES
 TABLESPACES
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
+TABLE_STATISTICS
 TRIGGERS
 create database information_schema;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
@@ -651,6 +661,7 @@ TABLES	SYSTEM VIEW
 TABLESPACES	SYSTEM VIEW
 TABLE_CONSTRAINTS	SYSTEM VIEW
 TABLE_PRIVILEGES	SYSTEM VIEW
+TABLE_STATISTICS	SYSTEM VIEW
 TRIGGERS	SYSTEM VIEW
 create table t1(a int);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
@@ -664,6 +675,7 @@ TABLES
 TABLESPACES
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
+TABLE_STATISTICS
 TRIGGERS
 select table_name from tables where table_name='user';
 table_name
@@ -849,12 +861,13 @@ x_float	NULL	NULL
 x_double_precision	NULL	NULL
 drop table t1;
 grant select on test.* to mysqltest_4@localhost;
-SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS
-where COLUMN_NAME='TABLE_NAME';
+SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS 
+where COLUMN_NAME='TABLE_NAME' and table_name not like 'innodb%';
 TABLE_NAME	COLUMN_NAME	PRIVILEGES
 COLUMNS	TABLE_NAME	select
 COLUMN_PRIVILEGES	TABLE_NAME	select
 FILES	TABLE_NAME	select
+INDEX_STATISTICS	TABLE_NAME	select
 KEY_COLUMN_USAGE	TABLE_NAME	select
 PARTITIONS	TABLE_NAME	select
 REFERENTIAL_CONSTRAINTS	TABLE_NAME	select
@@ -862,19 +875,11 @@ STATISTICS	TABLE_NAME	select
 TABLES	TABLE_NAME	select
 TABLE_CONSTRAINTS	TABLE_NAME	select
 TABLE_PRIVILEGES	TABLE_NAME	select
+TABLE_STATISTICS	TABLE_NAME	select
 VIEWS	TABLE_NAME	select
-INNODB_BUFFER_PAGE	TABLE_NAME	select
-INNODB_BUFFER_PAGE_LRU	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
-SELECT table_schema, count(*) FROM information_schema.TABLES WHERE
-table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest')
-AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
-GROUP BY TABLE_SCHEMA;
-table_schema	count(*)
-information_schema	30
-mysql	23
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin
@@ -981,19 +986,19 @@ show grants;
 Grants for user3@localhost
 GRANT USAGE ON *.* TO 'user3'@'localhost'
 GRANT SELECT ON `mysqltest`.* TO 'user3'@'localhost'
-select * from information_schema.column_privileges where grantee like '%user%'
+select * from information_schema.column_privileges where grantee like '\'user%'
 order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'user1'@'localhost'	def	mysqltest	t1	f1	SELECT	NO
-select * from information_schema.table_privileges where grantee like '%user%'
+select * from information_schema.table_privileges where grantee like '\'user%'
 order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'user2'@'localhost'	def	mysqltest	t2	SELECT	NO
-select * from information_schema.schema_privileges where grantee like '%user%'
+select * from information_schema.schema_privileges where grantee like '\'user%'
 order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
 'user3'@'localhost'	def	mysqltest	SELECT	NO
-select * from information_schema.user_privileges where grantee like '%user%'
+select * from information_schema.user_privileges where grantee like '\'user%'
 order by grantee;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'user1'@'localhost'	def	USAGE	NO
@@ -1085,7 +1090,7 @@ c	int(11)	YES		NULL
 drop view v1;
 drop table t1;
 alter database information_schema;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 1
 drop database information_schema;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 drop table information_schema.tables;
@@ -1245,12 +1250,12 @@ f1()
 DROP FUNCTION f1;
 DROP PROCEDURE p1;
 DROP USER mysql_bug20230@localhost;
-SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test');
+SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test') and table_name not like 'xtradb%';
 MAX(table_name)
 VIEWS
 SELECT table_name from information_schema.tables
 WHERE table_name=(SELECT MAX(table_name)
-FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test'));
+FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test') and table_name not like 'xtradb%');
 table_name
 VIEWS
 DROP TABLE IF EXISTS bug23037;
@@ -1266,6 +1271,8 @@ COLUMN_NAME	MD5(COLUMN_DEFAULT)	LENGTH(COLUMN_DEFAULT)	COLUMN_DEFAULT=get_value(
 fld1	7cf7a6782be951a1f2464a350da926a5	65532	1
 DROP TABLE bug23037;
 DROP FUNCTION get_value;
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 create view v1 as
 select table_schema as object_schema,
 table_name   as object_name,
@@ -1277,8 +1284,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	tables	ALL	NULL	NULL	NULL	NULL	NULL	Open_frm_only; Scanned all databases; Using filesort
 explain select * from (select table_name from information_schema.tables) as a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
 2	DERIVED	tables	ALL	NULL	NULL	NULL	NULL	NULL	Skip_open_table; Scanned all databases
+set optimizer_switch=@tmp_optimizer_switch;
 drop view v1;
 create table t1 (f1 int(11));
 create table t2 (f1 int(11), f2 int(11));
@@ -1290,58 +1298,6 @@ table_name
 t1
 t2
 drop table t1,t2;
-select 1 as f1 from information_schema.tables  where "CHARACTER_SETS"=
-(select cast(table_name as char)  from information_schema.tables
-order by table_name limit 1) limit 1;
-f1
-1
-select t.table_name, group_concat(t.table_schema, '.', t.table_name),
-count(*) as num1
-from information_schema.tables t
-inner join information_schema.columns c1
-on t.table_schema = c1.table_schema AND t.table_name = c1.table_name
-where t.table_schema = 'information_schema' and
-c1.ordinal_position =
-(select isnull(c2.column_type) -
-isnull(group_concat(c2.table_schema, '.', c2.table_name)) +
-count(*) as num
-from information_schema.columns c2 where
-c2.table_schema='information_schema' and
-(c2.column_type = 'varchar(7)' or c2.column_type = 'varchar(20)')
-group by c2.column_type order by num limit 1)
-and t.table_name not like 'innodb_%'
-group by t.table_name order by num1, t.table_name;
-table_name	group_concat(t.table_schema, '.', t.table_name)	num1
-CHARACTER_SETS	information_schema.CHARACTER_SETS	1
-COLLATIONS	information_schema.COLLATIONS	1
-COLLATION_CHARACTER_SET_APPLICABILITY	information_schema.COLLATION_CHARACTER_SET_APPLICABILITY	1
-COLUMNS	information_schema.COLUMNS	1
-COLUMN_PRIVILEGES	information_schema.COLUMN_PRIVILEGES	1
-ENGINES	information_schema.ENGINES	1
-EVENTS	information_schema.EVENTS	1
-FILES	information_schema.FILES	1
-GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
-GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
-KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
-PARAMETERS	information_schema.PARAMETERS	1
-PARTITIONS	information_schema.PARTITIONS	1
-PLUGINS	information_schema.PLUGINS	1
-PROCESSLIST	information_schema.PROCESSLIST	1
-PROFILING	information_schema.PROFILING	1
-REFERENTIAL_CONSTRAINTS	information_schema.REFERENTIAL_CONSTRAINTS	1
-ROUTINES	information_schema.ROUTINES	1
-SCHEMATA	information_schema.SCHEMATA	1
-SCHEMA_PRIVILEGES	information_schema.SCHEMA_PRIVILEGES	1
-SESSION_STATUS	information_schema.SESSION_STATUS	1
-SESSION_VARIABLES	information_schema.SESSION_VARIABLES	1
-STATISTICS	information_schema.STATISTICS	1
-TABLES	information_schema.TABLES	1
-TABLESPACES	information_schema.TABLESPACES	1
-TABLE_CONSTRAINTS	information_schema.TABLE_CONSTRAINTS	1
-TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
-TRIGGERS	information_schema.TRIGGERS	1
-USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
-VIEWS	information_schema.VIEWS	1
 create table t1(f1 int);
 create view v1 as select f1+1 as a from t1;
 create table t2 (f1 int, f2 int);
@@ -1354,9 +1310,9 @@ delete from v1;
 drop view v1,v2;
 drop table t1,t2;
 alter database;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 1
 alter database test;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '' at line 1
 create database mysqltest;
 create table mysqltest.t1(a int, b int, c int);
 create trigger mysqltest.t1_ai after insert on mysqltest.t1
@@ -1437,6 +1393,17 @@ select user,db from information_schema.processlist;
 user	db
 user3148	test
 drop user user3148@localhost;
+SELECT 'other connection here' AS who;
+who
+other connection here
+SELECT IF(`time` > 0, 'OK', `time`) AS time_low,
+IF(`time` < 1000, 'OK', `time`) AS time_high,
+IF(time_ms >= 1000, 'OK', time_ms) AS time_ms_low,
+IF(time_ms < 1000000, 'OK', time_ms) AS time_ms_high
+FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE ID=@tid;
+time_low	time_high	time_ms_low	time_ms_high
+OK	OK	OK	OK
 DROP TABLE IF EXISTS server_status;
 DROP EVENT IF EXISTS event_status;
 SET GLOBAL event_scheduler=1;
@@ -1480,7 +1447,7 @@ from information_schema.tables a, information_schema.columns b
 where a.table_name='t1' and a.table_schema='test' and b.table_name=a.table_name;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	a	ALL	NULL	TABLE_SCHEMA,TABLE_NAME	NULL	NULL	NULL	Using where; Skip_open_table; Scanned 0 databases
-1	SIMPLE	b	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Open_frm_only; Scanned all databases; Using join buffer
+1	SIMPLE	b	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Open_frm_only; Scanned all databases; Using join buffer (flat, BNL join)
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
 WHERE SCHEMA_NAME = 'mysqltest';
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
@@ -1519,9 +1486,9 @@ WHERE TABLE_SCHEMA='mysql' and TABLE_NAME= 'db';
 TABLE_COLLATION
 utf8_bin
 select * from information_schema.columns where table_schema = NULL;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 select * from `information_schema`.`COLUMNS` where `TABLE_NAME` = NULL;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 select * from `information_schema`.`KEY_COLUMN_USAGE` where `TABLE_SCHEMA` = NULL;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
 select * from `information_schema`.`KEY_COLUMN_USAGE` where `TABLE_NAME` = NULL;
@@ -1587,7 +1554,9 @@ show open tables where f1()=0;
 drop table t1;
 drop function f1;
 select * from information_schema.tables where 1=sleep(100000);
+Got one of the listed errors
 select * from information_schema.columns where 1=sleep(100000);
+Got one of the listed errors
 explain select count(*) from information_schema.tables;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	tables	ALL	NULL	NULL	NULL	NULL	NULL	Skip_open_table; Scanned all databases
@@ -1656,12 +1625,11 @@ drop table t0;
 CREATE TABLE t1(a INT) KEY_BLOCK_SIZE=1;
 SELECT CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1';
 CREATE_OPTIONS
-KEY_BLOCK_SIZE=1
+key_block_size=1
 DROP TABLE t1;
 SET TIMESTAMP=@@TIMESTAMP + 10000000;
-SELECT 'OK' AS TEST_RESULT FROM INFORMATION_SCHEMA.PROCESSLIST WHERE time < 0;
+SELECT 'NOT_OK' AS TEST_RESULT FROM INFORMATION_SCHEMA.PROCESSLIST WHERE time < 0;
 TEST_RESULT
-OK
 SET TIMESTAMP=DEFAULT;
 #
 # Bug #50276: Security flaw in INFORMATION_SCHEMA.TABLES
@@ -1712,6 +1680,12 @@ SELECT length(CAST(b AS CHAR)) FROM ubig;
 length(CAST(b AS CHAR))
 20
 DROP TABLE ubig;
+select 1 from information_schema.tables where table_schema=repeat('a', 2000);
+1
+grant usage on *.* to mysqltest_1@localhost;
+select 1 from information_schema.tables where table_schema=repeat('a', 2000);
+1
+drop user mysqltest_1@localhost;
 End of 5.1 tests.
 #
 # Additional test for WL#3726 "DDL locking for all metadata objects"
@@ -1808,7 +1782,7 @@ LEFT JOIN INFORMATION_SCHEMA.COLUMNS
 USING (TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME)
 WHERE COLUMNS.TABLE_SCHEMA = 'test'
 AND COLUMNS.TABLE_NAME = 't1';
-TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	TABLE_CATALOG	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	TABLE_CATALOG	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 #
 # A test case for Bug#56540 "Exception (crash) in sql_show.cc
 # during rqg_info_schema test on Windows"
@@ -1961,6 +1935,26 @@ event_object_table	trigger_name
 #
 # Switching to connection 'default'.
 #
+#
+# MDEV-3818: Query against view over IS tables worse than equivalent query without view
+#
+create view v1 as select table_schema, table_name, column_name from information_schema.columns;
+explain extended
+select column_name from v1
+where (table_schema = "osm") and (table_name = "test");
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	columns	ALL	NULL	TABLE_SCHEMA,TABLE_NAME	NULL	NULL	NULL	NULL	Using where; Open_frm_only; Scanned 0 databases
+Warnings:
+Note	1003	select `information_schema`.`columns`.`COLUMN_NAME` AS `column_name` from `information_schema`.`columns` where ((`information_schema`.`columns`.`TABLE_SCHEMA` = 'osm') and (`information_schema`.`columns`.`TABLE_NAME` = 'test'))
+explain extended
+select information_schema.columns.column_name as column_name
+from information_schema.columns
+where (information_schema.columns.table_schema = 'osm') and (information_schema.columns.table_name = 'test');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	columns	ALL	NULL	TABLE_SCHEMA,TABLE_NAME	NULL	NULL	NULL	NULL	Using where; Open_frm_only; Scanned 0 databases
+Warnings:
+Note	1003	select `information_schema`.`columns`.`COLUMN_NAME` AS `column_name` from `information_schema`.`columns` where ((`information_schema`.`columns`.`TABLE_SCHEMA` = 'osm') and (`information_schema`.`columns`.`TABLE_NAME` = 'test'))
+drop view v1;
 #
 # Clean-up.
 drop database mysqltest;

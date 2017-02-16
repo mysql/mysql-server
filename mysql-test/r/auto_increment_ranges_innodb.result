@@ -1,0 +1,266 @@
+set default_storage_engine=innodb;
+drop table if exists t1;
+#
+# Testing ranges with smallint
+#
+create table t1 (a smallint primary key auto_increment);
+insert into t1 values(32767);
+insert into t1 values(NULL);
+ERROR 22003: Out of range value for column 'a' at row 1
+truncate table t1;
+insert into t1 values(32767-1);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+ERROR 22003: Out of range value for column 'a' at row 1
+select * from t1;
+a
+32766
+32767
+truncate table t1;
+insert into t1 values(32767),(NULL);
+ERROR 22003: Out of range value for column 'a' at row 2
+select * from t1;
+a
+truncate table t1;
+insert into t1 values(32767-1),(NULL),(NULL);
+ERROR 22003: Out of range value for column 'a' at row 3
+truncate table t1;
+insert into t1 values(32767+1);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+select * from t1;
+a
+32767
+insert into t1 values(NULL);
+ERROR 22003: Out of range value for column 'a' at row 1
+drop table t1;
+#
+# Testing ranges with unsigned smallint
+#
+create table t1 (a smallint unsigned primary key auto_increment);
+insert into t1 values(65535);
+insert into t1 values(NULL);
+ERROR 22003: Out of range value for column 'a' at row 1
+truncate table t1;
+insert into t1 values(65535-1);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+ERROR 22003: Out of range value for column 'a' at row 1
+select * from t1;
+a
+65534
+65535
+truncate table t1;
+insert into t1 values(65535),(NULL);
+ERROR 22003: Out of range value for column 'a' at row 2
+select * from t1;
+a
+truncate table t1;
+insert into t1 values(65535-1),(NULL),(NULL);
+ERROR 22003: Out of range value for column 'a' at row 3
+truncate table t1;
+insert into t1 values(65535+1);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+select * from t1;
+a
+65535
+insert into t1 values(NULL);
+ERROR 22003: Out of range value for column 'a' at row 1
+drop table t1;
+#
+# Testing ranges with integer
+#
+create table t1 (a int primary key auto_increment);
+insert into t1 values(2147483647);
+insert into t1 values(NULL);
+ERROR 22003: Out of range value for column 'a' at row 1
+truncate table t1;
+insert into t1 values(2147483647-1);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+ERROR 22003: Out of range value for column 'a' at row 1
+select * from t1;
+a
+2147483646
+2147483647
+truncate table t1;
+insert into t1 values(2147483647),(NULL);
+ERROR 22003: Out of range value for column 'a' at row 2
+select * from t1;
+a
+truncate table t1;
+insert into t1 values(2147483647-1),(NULL),(NULL);
+ERROR 22003: Out of range value for column 'a' at row 3
+truncate table t1;
+insert into t1 values(2147483647+1);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+select * from t1;
+a
+2147483647
+insert into t1 values(NULL);
+ERROR 22003: Out of range value for column 'a' at row 1
+drop table t1;
+#
+# Testing ranges with unsigned integer
+#
+create table t1 (a int unsigned primary key auto_increment);
+insert into t1 values(4294967295);
+insert into t1 values(NULL);
+ERROR 22003: Out of range value for column 'a' at row 1
+truncate table t1;
+insert into t1 values(4294967295-1);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+ERROR 22003: Out of range value for column 'a' at row 1
+select * from t1;
+a
+4294967294
+4294967295
+truncate table t1;
+insert into t1 values(4294967295),(NULL);
+ERROR 22003: Out of range value for column 'a' at row 2
+select * from t1;
+a
+truncate table t1;
+insert into t1 values(4294967295-1),(NULL),(NULL);
+ERROR 22003: Out of range value for column 'a' at row 3
+truncate table t1;
+insert into t1 values(4294967295+1);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+select * from t1;
+a
+4294967295
+insert into t1 values(NULL);
+ERROR 22003: Out of range value for column 'a' at row 1
+drop table t1;
+#
+# Testing ranges with bigint
+#
+create table t1 (a bigint primary key auto_increment);
+insert into t1 values(cast(9223372036854775807 as unsigned));
+insert into t1 values(NULL);
+ERROR 22003: Out of range value for column 'a' at row 1
+truncate table t1;
+insert into t1 values(cast(9223372036854775807 as unsigned)-1);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+ERROR 22003: Out of range value for column 'a' at row 1
+select * from t1;
+a
+9223372036854775806
+9223372036854775807
+truncate table t1;
+insert into t1 values(cast(9223372036854775807 as unsigned)),(NULL);
+ERROR 22003: Out of range value for column 'a' at row 2
+select * from t1;
+a
+truncate table t1;
+insert into t1 values(cast(9223372036854775807 as unsigned)-1),(NULL),(NULL);
+ERROR 22003: Out of range value for column 'a' at row 3
+truncate table t1;
+insert into t1 values(cast(9223372036854775807 as unsigned)+1);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+select * from t1;
+a
+9223372036854775807
+insert into t1 values(NULL);
+ERROR 22003: Out of range value for column 'a' at row 1
+drop table t1;
+#
+# Testing ranges with unsigned bigint
+#
+create table t1 (a bigint unsigned primary key auto_increment);
+insert into t1 values(18446744073709551615-1);
+insert into t1 values(NULL);
+ERROR HY000: Failed to read auto-increment value from storage engine
+insert into t1 values(NULL);
+ERROR HY000: Failed to read auto-increment value from storage engine
+truncate table t1;
+insert into t1 values(18446744073709551615-1);
+insert into t1 values(NULL);
+ERROR HY000: Failed to read auto-increment value from storage engine
+insert into t1 values(NULL);
+ERROR HY000: Failed to read auto-increment value from storage engine
+select * from t1;
+a
+18446744073709551614
+truncate table t1;
+insert into t1 values(18446744073709551615),(NULL);
+ERROR HY000: Failed to read auto-increment value from storage engine
+select * from t1;
+a
+truncate table t1;
+insert into t1 values(18446744073709551615-1),(NULL),(NULL);
+ERROR HY000: Failed to read auto-increment value from storage engine
+drop table t1;
+#
+# Test IGNORE and strict mode
+#
+create table t1 (a smallint primary key auto_increment);
+insert ignore into t1 values(32766),(NULL),(NULL),(1);
+Warnings:
+Warning	167	Out of range value for column 'a' at row 3
+select * from t1;
+a
+1
+32766
+32767
+truncate table t1;
+set @org_mode=@@sql_mode;
+set @@sql_mode='ansi,traditional';
+insert ignore into t1 values(32766),(NULL),(NULL);
+Warnings:
+Warning	167	Out of range value for column 'a' at row 3
+truncate table t1;
+insert into t1 values(32766),(NULL),(NULL);
+ERROR 22003: Out of range value for column 'a' at row 3
+set @@sql_mode=@org_mode;
+drop table t1;
+#
+# Test auto increment with negative numbers
+#
+CREATE TABLE t1 (a INTEGER AUTO_INCREMENT, PRIMARY KEY (a));
+INSERT INTO t1 VALUES (NULL), (2), (-5), (NULL);
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1;
+a
+-5
+1
+2
+3
+5
+TRUNCATE TABLE t1;
+INSERT INTO t1 VALUES (-5), (NULL);
+SELECT * FROM t1;
+a
+-5
+1
+DROP TABLE t1;
+#
+# Test inserting a value out-of-range into an auto increment column
+#
+CREATE TABLE t1 (a smallint AUTO_INCREMENT, PRIMARY KEY (a));
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (32768);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+INSERT INTO t1 VALUES (NULL);
+ERROR 22003: Out of range value for column 'a' at row 1
+SELECT * FROM t1;
+a
+2
+32767
+DROP TABLE t1;
+#
+# Test old behaviour
+#
+create table t1 (a smallint primary key auto_increment);
+insert into t1 values(32766),(NULL);
+delete from t1 where a=32767;
+insert into t1 values(NULL);
+ERROR 22003: Out of range value for column 'a' at row 1
+drop table t1;

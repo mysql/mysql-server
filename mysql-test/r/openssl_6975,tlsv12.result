@@ -1,0 +1,25 @@
+grant select on test.* to ssl_sslv3@localhost require cipher "RC4-SHA";
+grant select on test.* to ssl_tls12@localhost require cipher "AES128-SHA256";
+TLS1.2 ciphers: user is ok with any cipher
+Variable_name	Value
+Ssl_cipher	AES128-SHA256
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-GCM-SHA384
+TLS1.2 ciphers: user requires SSLv3 cipher RC4-SHA
+ERROR 1045 (28000): Access denied for user 'ssl_sslv3'@'localhost' (using password: NO)
+ERROR 1045 (28000): Access denied for user 'ssl_sslv3'@'localhost' (using password: NO)
+TLS1.2 ciphers: user requires TLSv1.2 cipher AES128-SHA256
+Variable_name	Value
+Ssl_cipher	AES128-SHA256
+ERROR 1045 (28000): Access denied for user 'ssl_tls12'@'localhost' (using password: NO)
+SSLv3 ciphers: user is ok with any cipher
+ERROR 2026 (HY000): SSL connection error: error:14077410:SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure
+ERROR 2026 (HY000): SSL connection error: error:14077410:SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure
+SSLv3 ciphers: user requires SSLv3 cipher RC4-SHA
+ERROR 2026 (HY000): SSL connection error: error:14077410:SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure
+ERROR 2026 (HY000): SSL connection error: error:14077410:SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure
+SSLv3 ciphers: user requires TLSv1.2 cipher AES128-SHA256
+ERROR 2026 (HY000): SSL connection error: error:14077410:SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure
+ERROR 2026 (HY000): SSL connection error: error:14077410:SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure
+drop user ssl_sslv3@localhost;
+drop user ssl_tls12@localhost;

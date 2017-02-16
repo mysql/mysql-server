@@ -1,10 +1,10 @@
+--source include/have_innodb.inc
 # This is the test for bug 47622. There could be index
 # metadata sequence mismatch between MySQL and Innodb
 # after creating index through FIC interfaces.
 # We resolve the problem by sync the index sequence
 # up when opening the table.
 
---source include/have_innodb.inc
 
 connect (a,localhost,root,,);
 connect (b,localhost,root,,);

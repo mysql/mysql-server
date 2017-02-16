@@ -1,0 +1,176 @@
+--- check_table.result	2013-01-22 22:05:05.246633000 +0400
++++ check_table.reject	2013-01-23 03:16:23.872340482 +0400
+@@ -1,104 +1,122 @@
+ DROP TABLE IF EXISTS t1, t2;
+ CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
+-INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(2,'d'),(4,'e'),(100,'f'),(101,'g');
+-CREATE TABLE t2 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY RANGE(a) (
+-PARTITION p0 VALUES LESS THAN (100), 
+-PARTITION p1 VALUES LESS THAN MAXVALUE 
+-);
+-INSERT INTO t2 (a,b) SELECT a, b FROM t1;
+-ALTER TABLE t1 CHECK PARTITION p0;
+-Table	Op	Msg_type	Msg_text
+-test.t1	check	status	OK
+-INSERT INTO t1 (a,b) VALUES (3,'c');
+-ALTER TABLE t1 CHECK PARTITION p0, p1 FOR UPGRADE;
+-Table	Op	Msg_type	Msg_text
+-test.t1	check	status	OK
+-INSERT INTO t2 (a,b) VALUES (10000,'e');
+-ALTER TABLE t2 CHECK PARTITION p0 QUICK;
+-Table	Op	Msg_type	Msg_text
+-test.t2	check	status	OK
+-INSERT INTO t1 (a,b) VALUES (6,'f');
+-ALTER TABLE t1 CHECK PARTITION p1 FAST;
+-Table	Op	Msg_type	Msg_text
+-test.t1	check	status	OK
+-INSERT INTO t2 (a,b) VALUES (8,'h');
+-ALTER TABLE t2 CHECK PARTITION p1 MEDIUM;
+-Table	Op	Msg_type	Msg_text
+-test.t2	check	status	OK
+-INSERT INTO t1 (a,b) VALUES (9,'i');
+-ALTER TABLE t1 CHECK PARTITION ALL EXTENDED;
+-Table	Op	Msg_type	Msg_text
+-test.t1	check	status	OK
+-INSERT INTO t1 (a,b) VALUES (11,'k');
+-ALTER TABLE t1 CHECK PARTITION p0 CHANGED;
+-Table	Op	Msg_type	Msg_text
+-test.t1	check	status	OK
+-DROP TABLE t1, t2;
++ERROR HY000: Engine cannot be used in partitioned tables
++# ERROR: Statement ended with errno 1572, errname ER_PARTITION_MERGE_ERROR (expected to succeed)
++# ------------ UNEXPECTED RESULT ------------
++# [ CREATE TABLE t1 (a INT(11) /*!*/ /*Custom column options*/, b CHAR(8) /*!*/ /*Custom column options*/) ENGINE=MRG_MYISAM /*!*/ /*Custom table options*/ UNION(mrg.t1) INSERT_METHOD=LAST PARTITION BY HASH(a) PARTITIONS 2 ]
++# The statement|command finished with ER_PARTITION_MERGE_ERROR.
++# Partitions or the mix could be unsupported|malfunctioning, or the problem was caused by previous errors. 
++# You can change the engine code, or create an rdiff, or disable the test by adding it to disabled.def.
++# Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
++# Also, this problem may cause a chain effect (more errors of different kinds in the test).
++# -------------------------------------------
+ DROP TABLE IF EXISTS t1,t2;
+ CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
++ERROR HY000: Engine cannot be used in partitioned tables
++# ERROR: Statement ended with errno 1572, errname ER_PARTITION_MERGE_ERROR (expected to succeed)
+ INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
++ERROR 42S02: Table 'test.t1' doesn't exist
+ CREATE TABLE t2 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
++ERROR HY000: Engine cannot be used in partitioned tables
++# ERROR: Statement ended with errno 1572, errname ER_PARTITION_MERGE_ERROR (expected to succeed)
+ CHECK TABLE t1;
+ Table	Op	Msg_type	Msg_text
+-test.t1	check	status	OK
++test.t1	check	Error	Table 'test.t1' doesn't exist
++test.t1	check	status	Operation failed
+ INSERT INTO t1 (a,b) VALUES (3,'c');
++ERROR 42S02: Table 'test.t1' doesn't exist
+ INSERT INTO t2 (a,b) VALUES (4,'d');
++ERROR 42S02: Table 'test.t2' doesn't exist
+ CHECK TABLE t1, t2 FOR UPGRADE;
+ Table	Op	Msg_type	Msg_text
+-test.t1	check	status	OK
+-test.t2	check	status	OK
++test.t1	check	Error	Table 'test.t1' doesn't exist
++test.t1	check	status	Operation failed
++test.t2	check	Error	Table 'test.t2' doesn't exist
++test.t2	check	status	Operation failed
+ INSERT INTO t2 (a,b) VALUES (5,'e');
++ERROR 42S02: Table 'test.t2' doesn't exist
+ CHECK TABLE t2 QUICK;
+ Table	Op	Msg_type	Msg_text
+-test.t2	check	status	OK
++test.t2	check	Error	Table 'test.t2' doesn't exist
++test.t2	check	status	Operation failed
+ INSERT INTO t1 (a,b) VALUES (6,'f');
++ERROR 42S02: Table 'test.t1' doesn't exist
+ CHECK TABLE t1 FAST;
+ Table	Op	Msg_type	Msg_text
+-test.t1	check	status	OK
++test.t1	check	Error	Table 'test.t1' doesn't exist
++test.t1	check	status	Operation failed
+ INSERT INTO t1 (a,b) VALUES (7,'g');
++ERROR 42S02: Table 'test.t1' doesn't exist
+ INSERT INTO t2 (a,b) VALUES (8,'h');
++ERROR 42S02: Table 'test.t2' doesn't exist
+ CHECK TABLE t2, t1 MEDIUM;
+ Table	Op	Msg_type	Msg_text
+-test.t2	check	status	OK
+-test.t1	check	status	OK
++test.t2	check	Error	Table 'test.t2' doesn't exist
++test.t2	check	status	Operation failed
++test.t1	check	Error	Table 'test.t1' doesn't exist
++test.t1	check	status	Operation failed
+ INSERT INTO t1 (a,b) VALUES (9,'i');
++ERROR 42S02: Table 'test.t1' doesn't exist
+ INSERT INTO t2 (a,b) VALUES (10,'j');
++ERROR 42S02: Table 'test.t2' doesn't exist
+ CHECK TABLE t1, t2 EXTENDED;
+ Table	Op	Msg_type	Msg_text
+-test.t1	check	status	OK
+-test.t2	check	status	OK
++test.t1	check	Error	Table 'test.t1' doesn't exist
++test.t1	check	status	Operation failed
++test.t2	check	Error	Table 'test.t2' doesn't exist
++test.t2	check	status	Operation failed
+ INSERT INTO t1 (a,b) VALUES (11,'k');
++ERROR 42S02: Table 'test.t1' doesn't exist
+ CHECK TABLE t1 CHANGED;
+ Table	Op	Msg_type	Msg_text
+-test.t1	check	status	OK
++test.t1	check	Error	Table 'test.t1' doesn't exist
++test.t1	check	status	Operation failed
+ DROP TABLE t1, t2;
++ERROR 42S02: Unknown table 't1,t2'
+ CREATE TABLE t1 (a <INT_COLUMN>, <CUSTOM_INDEX>(a)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> PARTITION BY HASH(a) PARTITIONS 2;
++ERROR HY000: Engine cannot be used in partitioned tables
++# ERROR: Statement ended with errno 1572, errname ER_PARTITION_MERGE_ERROR (expected to succeed)
+ INSERT INTO t1 (a) VALUES (1),(2),(5);
++ERROR 42S02: Table 'test.t1' doesn't exist
+ CHECK TABLE t1;
+ Table	Op	Msg_type	Msg_text
+-test.t1	check	status	OK
++test.t1	check	Error	Table 'test.t1' doesn't exist
++test.t1	check	status	Operation failed
+ INSERT INTO t1 (a) VALUES (6),(8),(12);
++ERROR 42S02: Table 'test.t1' doesn't exist
+ CHECK TABLE t1 FOR UPGRADE;
+ Table	Op	Msg_type	Msg_text
+-test.t1	check	status	OK
++test.t1	check	Error	Table 'test.t1' doesn't exist
++test.t1	check	status	Operation failed
+ INSERT INTO t1 (a) VALUES (13),(15),(16);
++ERROR 42S02: Table 'test.t1' doesn't exist
+ CHECK TABLE t1 QUICK;
+ Table	Op	Msg_type	Msg_text
+-test.t1	check	status	OK
++test.t1	check	Error	Table 'test.t1' doesn't exist
++test.t1	check	status	Operation failed
+ INSERT INTO t1 (a) VALUES (17),(120),(132);
++ERROR 42S02: Table 'test.t1' doesn't exist
+ CHECK TABLE t1 FAST;
+ Table	Op	Msg_type	Msg_text
+-test.t1	check	status	OK
++test.t1	check	Error	Table 'test.t1' doesn't exist
++test.t1	check	status	Operation failed
+ INSERT INTO t1 (a) VALUES (801),(900),(7714);
++ERROR 42S02: Table 'test.t1' doesn't exist
+ CHECK TABLE t1 MEDIUM;
+ Table	Op	Msg_type	Msg_text
+-test.t1	check	status	OK
++test.t1	check	Error	Table 'test.t1' doesn't exist
++test.t1	check	status	Operation failed
+ INSERT INTO t1 (a) VALUES (8760),(10023),(12000);
++ERROR 42S02: Table 'test.t1' doesn't exist
+ CHECK TABLE t1 EXTENDED;
+ Table	Op	Msg_type	Msg_text
+-test.t1	check	status	OK
++test.t1	check	Error	Table 'test.t1' doesn't exist
++test.t1	check	status	Operation failed
+ INSERT INTO t1 (a) VALUES (13345),(24456),(78302),(143028);
++ERROR 42S02: Table 'test.t1' doesn't exist
+ CHECK TABLE t1 CHANGED;
+ Table	Op	Msg_type	Msg_text
+-test.t1	check	status	OK
++test.t1	check	Error	Table 'test.t1' doesn't exist
++test.t1	check	status	Operation failed
+ DROP TABLE t1;
++ERROR 42S02: Unknown table 't1'

@@ -124,10 +124,10 @@
   asm volatile ("push %%ebx;"                                     \
                 "movl (%%ecx), %%ebx;"                            \
                 "movl 4(%%ecx), %%ecx;"                           \
-                LOCK_prefix "; cmpxchg8b %0;"                     \
+                LOCK_prefix "; cmpxchg8b (%%esi);"                \
                 "setz %2; pop %%ebx"                              \
-                : "=m" (*a), "+A" (*cmp), "=c" (ret)              \
-                : "c" (&set), "m" (*a)                            \
+                : "+S" (a), "+A" (*cmp), "=c" (ret)               \
+                : "c" (&set)                                      \
                 : "memory", "esp")
 #endif
 

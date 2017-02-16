@@ -316,7 +316,7 @@ CREATE        INDEX f3_f1     ON test.t1_1 (f3,f1);
 CREATE UNIQUE INDEX f4x_uni   ON test.t1_1 (f4x);
 CREATE        INDEX f2_hash USING HASH ON test.t1_2 (f2);
 CREATE        INDEX f1_idx    ON test.t1_2 (f1) COMMENT = 'COMMENT';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '= 'COMMENT'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '= 'COMMENT'' at line 1
 CREATE        INDEX not_null  ON test.t1_1 (f3x);
 CREATE        INDEX f2_prefix ON test.t1_1 (f2(20));
 SELECT * FROM information_schema.statistics

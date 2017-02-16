@@ -1,0 +1,10 @@
+#
+# VARCHAR column types
+#
+
+--source have_engine.inc
+
+--source type_varchar.inc
+
+--source cleanup_engine.inc
+

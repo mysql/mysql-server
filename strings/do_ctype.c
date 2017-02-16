@@ -1,4 +1,6 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000-2002, 2006, 2007 MySQL AB
+   Copyright (c) 2009-2011, Monty Program Ab
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,10 +22,9 @@
 #undef DBUG_OFF
 #endif
 
-#include <my_global.h>
+#include "strings_def.h"
 #include <ctype.h>
 #include <my_sys.h>
-#include "m_string.h"
 
 uchar to_upper[256];
 uchar to_lower[256], sort_order[256];

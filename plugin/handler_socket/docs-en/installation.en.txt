@@ -1,0 +1,91 @@
+1. Building Handlersocket
+
+ Handlersocket mainly consists of libhsclient, handlersocket, and C++/Perl clients. libhsclient is a common library shared from both client and server(plugin). handlersocket is a MySQL daemon plugin.
+ To build Handlersocket, you need both MySQL source code and MySQL binary. It is not required to pre-build MySQL source code, but source itself is needed because Handlersocket depends on MySQL header files that only MySQL source distribution contains. MySQL binary is just a normal MySQL binary distribution. You can use official MySQL binaries provided by Oracle.
+ Since Handlersocket uses daemon plugin interface supported from MySQL 5.1,
+MySQL 5.1 or higher version is required.
+ Please make sure that you use identical MySQL version between MySQL source
+and MySQL binary. Otherwise you might encounter serious problems (i.e. server
+crash, etc). 
+ Here are steps to build Handlersocket.
+
+* Get MySQL source code
+
+* Get MySQL binary
+
+* Build Handlersocket
+  $ ./autogen.sh
+  $ ./configure --with-mysql-source=/work/mysql-5.1.50 --with-mysql-bindir=/work/mysql-5.1.50-linux-x86_64-glibc23/bin  --with-mysql-plugindir=/work/mysql-5.1.50-linux-x86_64-glibc23/lib/plugin
+
+ --with-mysql-source refers to the top of MySQL source directory,
+--with-mysql-bindir refers to where MySQL binary executables (i.e.
+mysql_config) are located, and --with-mysql-plugindir refers to a plugin
+directory where plugin libraries (*.so) are installed.  
+
+  $ make
+  $ sudo make install
+
+ Both libhsclient and the handlersocket plugin will be installed.
+
+ 
+2. Using Handlersocket
+
+Append configuration options for handlersocket to my.cnf.
+
+  [mysqld]
+  loose_handlersocket_port = 9998
+    # the port number to bind to (for read requests)
+  loose_handlersocket_port_wr = 9999
+    # the port number to bind to (for write requests)
+  loose_handlersocket_threads = 16
+    # the number of worker threads (for read requests)
+  loose_handlersocket_threads_wr = 1
+    # the number of worker threads (for write requests)
+  open_files_limit = 65535
+    # to allow handlersocket accept many concurrent
+    # connections, make open_files_limit as large as
+    # possible.
+
+Log in to mysql as root, and execute the following query.
+
+  mysql> install plugin handlersocket soname 'handlersocket.so';
+
+If handlersocket.so is successfully installed, it starts
+accepting connections on port 9998 and 9999. Running
+'show processlist' should show handlersocket worker threads.
+
+-----------------------------------------------------------------
+On the client side, you need to install libhsclient for c++ apps
+and perl-Net-HandlerSocket for perl apps. They do not require
+MySQL to compile.
+
+  $ ./autogen.sh
+  $ ./configure --disable-handlersocket-server
+  $ make
+  $ sudo make install
+  $ cd perl-Net-HandlerSocket
+  $ perl Makefile.PL
+  $ make
+  $ sudo make install
+
+-----------------------------------------------------------------
+Alternatively, you can use the rpm installation. If your OS
+supports rpms, you can use the following commands to build and
+install handlersocket rpm packages.
+
+(Server side, installs HandlerSocket plugin)
+  $ ./autogen.sh
+  $ ./configure --with-mysql-source=/work/mysql-5.1.50 --with-mysql-bindir=/work/mysql-5.1.50-linux-x86_64-glibc23/bin  --with-mysql-plugindir=/work/mysql-5.1.50-linux-x86_64-glibc23/lib/plugin
+  $ make rpm_cli
+  $ sudo rpm -U dist/RPMS/*/libhsclient*.rpm
+  $ make rpm_c
+  $ sudo rpm -U dist/RPMS/*/handlersocket*.rpm
+
+(Client side, installs client libraries)
+  $ ./autogen.sh
+  $ ./configure --disable-handlersocket-server
+  $ make rpm_cli
+  $ sudo rpm -U dist/RPMS/*/libhsclient*.rpm
+  $ make rpm_perl
+  $ sudo rpm -U dist/RPMS/*/perl-Net-HandlerSocket*.rpm
+

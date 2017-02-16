@@ -1,1 +1,1 @@
---innodb --binlog-ignore-db=db2
+--loose-innodb --binlog-ignore-db=db2

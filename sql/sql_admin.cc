@@ -1,5 +1,5 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights
-   reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,35 @@
 #include "sql_parse.h"                       // check_table_access
 #include "sql_admin.h"
 
+/* Prepare, run and cleanup for mysql_recreate_table() */
+
+static bool admin_recreate_table(THD *thd, TABLE_LIST *table_list)
+{
+  bool result_code;
+  DBUG_ENTER("admin_recreate_table");
+
+  trans_rollback_stmt(thd);
+  trans_rollback(thd);
+  close_thread_tables(thd);
+  thd->mdl_context.release_transactional_locks();
+  DEBUG_SYNC(thd, "ha_admin_try_alter");
+  tmp_disable_binlog(thd); // binlogging is done by caller if wanted
+  result_code= mysql_recreate_table(thd, table_list);
+  reenable_binlog(thd);
+  /*
+    mysql_recreate_table() can push OK or ERROR.
+    Clear 'OK' status. If there is an error, keep it:
+    we will store the error message in a result set row 
+    and then clear.
+  */
+  if (thd->stmt_da->is_ok())
+    thd->stmt_da->reset_diagnostics_area();
+  table_list->table= NULL;
+  result_code= result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
+  DBUG_RETURN(result_code);
+}
+
+
 static int send_check_errmsg(THD *thd, TABLE_LIST* table,
 			     const char* operator_name, const char* errmsg)
 
@@ -52,12 +81,14 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 {
   int error= 0;
   TABLE tmp_table, *table;
+  TABLE_LIST *pos_in_locked_tables= 0;
   TABLE_SHARE *share;
   bool has_mdl_lock= FALSE;
   char from[FN_REFLEN],tmp[FN_REFLEN+32];
   const char **ext;
   MY_STAT stat_info;
   Open_table_context ot_ctx(thd, (MYSQL_OPEN_IGNORE_FLUSH |
+                                  MYSQL_OPEN_FOR_REPAIR |
                                   MYSQL_OPEN_HAS_MDL_LOCK |
                                   MYSQL_LOCK_IGNORE_TIMEOUT));
   DBUG_ENTER("prepare_for_repair");
@@ -132,10 +163,11 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     - Run a normal repair using the new index file and the old data file
   */
 
-  if (table->s->frm_version != FRM_VER_TRUE_VARCHAR)
+  if (table->s->frm_version != FRM_VER_TRUE_VARCHAR &&
+      table->s->varchar_fields)
   {
     error= send_check_errmsg(thd, table_list, "repair",
-                             "Failed repairing incompatible .frm file");
+                             "Failed repairing a very old .frm file as the data file format has changed between versions. Please dump the table in your old system with mysqldump and read it into this system with mysql or mysqlimport");
     goto end;
   }
 
@@ -166,9 +198,14 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
       Table was successfully open in mysql_admin_table(). Now we need
       to close it, but leave it protected by exclusive metadata lock.
     */
-    if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+    pos_in_locked_tables= table->pos_in_locked_tables;
+    if (wait_while_table_is_used(thd, table,
+                                 HA_EXTRA_PREPARE_FOR_FORCED_CLOSE,
+                                 TDC_RT_REMOVE_NOT_OWN_AND_MARK_NOT_USABLE))
       goto end;
-    close_all_tables_for_name(thd, table_list->table->s, FALSE);
+    /* Close table but don't remove from locked list */
+    close_all_tables_for_name(thd, table_list->table->s,
+                              HA_EXTRA_NOT_USED);
     table_list->table= 0;
   }
   /*
@@ -202,18 +239,25 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     goto end;
   }
 
-  if (thd->locked_tables_list.reopen_tables(thd))
-    goto end;
-
-  /*
-    Now we should be able to open the partially repaired table
-    to finish the repair in the handler later on.
-  */
-  if (open_table(thd, table_list, thd->mem_root, &ot_ctx))
+  if (thd->locked_tables_list.locked_tables())
   {
-    error= send_check_errmsg(thd, table_list, "repair",
-                             "Failed to open partially repaired table");
-    goto end;
+    if (thd->locked_tables_list.reopen_tables(thd))
+      goto end;
+    /* Restore the table in the table list with the new opened table */
+    table_list->table= pos_in_locked_tables->table;
+  }
+  else
+  {
+    /*
+      Now we should be able to open the partially repaired table
+      to finish the repair in the handler later on.
+    */
+    if (open_table(thd, table_list, thd->mem_root, &ot_ctx))
+    {
+      error= send_check_errmsg(thd, table_list, "repair",
+                               "Failed to open partially repaired table");
+      goto end;
+    }
   }
 
 end:
@@ -245,6 +289,7 @@ end:
 static inline bool table_not_corrupt_error(uint sql_errno)
 {
   return (sql_errno == ER_NO_SUCH_TABLE ||
+          sql_errno == ER_NO_SUCH_TABLE_IN_ENGINE ||
           sql_errno == ER_FILE_NOT_FOUND ||
           sql_errno == ER_LOCK_WAIT_TIMEOUT ||
           sql_errno == ER_LOCK_DEADLOCK ||
@@ -271,7 +316,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                                                   HA_CHECK_OPT *),
                               int (handler::*operator_func)(THD *,
                                                             HA_CHECK_OPT *),
-                              int (view_operator_func)(THD *, TABLE_LIST*))
+                              int (view_operator_func)(THD *, TABLE_LIST*,
+                                                       HA_CHECK_OPT *))
 {
   TABLE_LIST *table;
   SELECT_LEX *select= &thd->lex->select_lex;
@@ -280,7 +326,9 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   Protocol *protocol= thd->protocol;
   LEX *lex= thd->lex;
   int result_code;
+  bool need_repair_or_alter= 0;
   DBUG_ENTER("mysql_admin_table");
+  DBUG_PRINT("enter", ("extra_open_options: %u", extra_open_options));
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_CHAR_LEN*2));
   item->maybe_null = 1;
@@ -299,13 +347,12 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
   for (table= tables; table; table= table->next_local)
   {
-    char table_name[NAME_LEN*2+2];
+    char table_name[SAFE_NAME_LEN*2+2];
     char* db = table->db;
     bool fatal_error=0;
     bool open_error;
 
     DBUG_PRINT("admin", ("table: '%s'.'%s'", table->db, table->table_name));
-    DBUG_PRINT("admin", ("extra_open_options: %u", extra_open_options));
     strxmov(table_name, db, ".", table->table_name, NullS);
     thd->open_options|= extra_open_options;
     table->lock_type= lock_type;
@@ -342,8 +389,24 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       */
       if (lex->alter_info.flags & ALTER_ADMIN_PARTITION ||
           view_operator_func == NULL)
+      {
         table->required_type=FRMTYPE_TABLE;
+        DBUG_ASSERT(!lex->only_view);
+      }
+      else if (lex->only_view)
+      {
+        table->required_type= FRMTYPE_VIEW;
+      }
+      else if (!lex->only_view && lex->sql_command == SQLCOM_REPAIR)
+      {
+        table->required_type= FRMTYPE_TABLE;
+      }
 
+      if (lex->sql_command == SQLCOM_CHECK ||
+          lex->sql_command == SQLCOM_REPAIR ||
+          lex->sql_command == SQLCOM_ANALYZE ||
+          lex->sql_command == SQLCOM_OPTIMIZE)
+	thd->prepare_derived_at_open= TRUE;
       if (!thd->locked_tables_mode && repair_table_use_frm)
       {
         /*
@@ -376,8 +439,21 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
         open_error= open_and_lock_tables(thd, table, TRUE, 0);
       }
+      thd->prepare_derived_at_open= FALSE;
 
-      table->next_global= save_next_global;
+      /*
+        MERGE engine may adjust table->next_global chain, thus we have to
+        append save_next_global after merge children.
+      */
+      if (save_next_global)
+      {
+        TABLE_LIST *table_list_iterator= table;
+        while (table_list_iterator->next_global)
+          table_list_iterator= table_list_iterator->next_global;
+        table_list_iterator->next_global= save_next_global;
+        save_next_global->prev_global= &table_list_iterator->next_global;
+      }
+
       table->next_local= save_next_local;
       thd->open_options&= ~extra_open_options;
 
@@ -462,9 +538,9 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     }
 
     /*
-      CHECK TABLE command is only command where VIEW allowed here and this
-      command use only temporary teble method for VIEWs resolving => there
-      can't be VIEW tree substitition of join view => if opening table
+      CHECK/REPAIR TABLE command is only command where VIEW allowed here and
+      this command use only temporary table method for VIEWs resolving =>
+      there can't be VIEW tree substitition of join view => if opening table
       succeed then table->table will have real TABLE pointer as value (in
       case of join view substitution table->table can be 0, but here it is
       impossible)
@@ -477,7 +553,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                      ER_CHECK_NO_SUCH_TABLE, ER(ER_CHECK_NO_SUCH_TABLE));
       /* if it was a view will check md5 sum */
       if (table->view &&
-          view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
+          view_check(thd, table, check_opt) == HA_ADMIN_WRONG_CHECKSUM)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                      ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
       if (thd->stmt_da->is_error() &&
@@ -492,7 +568,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (table->view)
     {
       DBUG_PRINT("admin", ("calling view_operator_func"));
-      result_code= (*view_operator_func)(thd, table);
+      result_code= (*view_operator_func)(thd, table, check_opt);
       goto send_result;
     }
 
@@ -549,8 +625,10 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     */
     if (lock_type == TL_WRITE && !table->table->s->tmp_table)
     {
+      table->table->s->protect_against_usage();
       if (wait_while_table_is_used(thd, table->table,
-                                   HA_EXTRA_PREPARE_FOR_RENAME))
+                                   HA_EXTRA_PREPARE_FOR_RENAME,
+                                   TDC_RT_REMOVE_NOT_OWN_AND_MARK_NOT_USABLE))
         goto err;
       DEBUG_SYNC(thd, "after_admin_flush");
       /* Flush entries in the query cache involving this table. */
@@ -580,36 +658,40 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (operator_func == &handler::ha_repair &&
         !(check_opt->sql_flags & TT_USEFRM))
     {
-      if ((table->table->file->check_old_types() == HA_ADMIN_NEEDS_ALTER) ||
-          (table->table->file->ha_check_for_upgrade(check_opt) ==
-           HA_ADMIN_NEEDS_ALTER))
+      handler *file= table->table->file;
+      int check_old_types=   file->check_old_types();
+      int check_for_upgrade= file->ha_check_for_upgrade(check_opt);
+
+      if (check_old_types == HA_ADMIN_NEEDS_ALTER ||
+          check_for_upgrade == HA_ADMIN_NEEDS_ALTER)
       {
-        DBUG_PRINT("admin", ("recreating table"));
-        trans_rollback_stmt(thd);
-        trans_rollback(thd);
-        close_thread_tables(thd);
-        thd->mdl_context.release_transactional_locks();
-        tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-        result_code= mysql_recreate_table(thd, table);
-        reenable_binlog(thd);
-        /*
-          mysql_recreate_table() can push OK or ERROR.
-          Clear 'OK' status. If there is an error, keep it:
-          we will store the error message in a result set row 
-          and then clear.
-        */
-        if (thd->stmt_da->is_ok())
-          thd->stmt_da->reset_diagnostics_area();
-        table->table= NULL;
-        result_code= result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
+        /* We use extra_open_options to be able to open crashed tables */
+        thd->open_options|= extra_open_options;
+        result_code= admin_recreate_table(thd, table);
+        thd->open_options&= ~extra_open_options;
         goto send_result;
+      }
+      if (check_old_types || check_for_upgrade)
+      {
+        /* If repair is not implemented for the engine, run ALTER TABLE */
+        need_repair_or_alter= 1;
       }
     }
 
     DBUG_PRINT("admin", ("calling operator_func '%s'", operator_name));
+    thd_proc_info(thd, "executing");
     result_code = (table->table->file->*operator_func)(thd, check_opt);
+    thd_proc_info(thd, "Sending data");
     DBUG_PRINT("admin", ("operator_func returned: %d", result_code));
 
+    if (result_code == HA_ADMIN_NOT_IMPLEMENTED && need_repair_or_alter)
+    {
+      /*
+        repair was not implemented and we need to upgrade the table
+        to a new version so we recreate the table with ALTER TABLE
+      */
+      result_code= admin_recreate_table(thd, table);
+    }
 send_result:
 
     lex->cleanup_after_one_table_open();
@@ -708,11 +790,6 @@ send_result_message:
         reopen the table and do ha_innobase::analyze() on it.
         We have to end the row, so analyze could return more rows.
       */
-      trans_commit_stmt(thd);
-      trans_commit(thd);
-      close_thread_tables(thd);
-      thd->mdl_context.release_transactional_locks();
-      DEBUG_SYNC(thd, "ha_admin_try_alter");
       protocol->store(STRING_WITH_LEN("note"), system_charset_info);
       if(alter_info->flags & ALTER_ADMIN_PARTITION)
       {
@@ -726,28 +803,20 @@ send_result_message:
         "Table does not support optimize, doing recreate + analyze instead"),
         system_charset_info);
       }
-     if (protocol->write())
+      if (protocol->write())
         goto err;
+      thd_proc_info(thd, "recreating table");
       DBUG_PRINT("info", ("HA_ADMIN_TRY_ALTER, trying analyze..."));
       TABLE_LIST *save_next_local= table->next_local,
                  *save_next_global= table->next_global;
       table->next_local= table->next_global= 0;
-      tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-      result_code= mysql_recreate_table(thd, table);
-      reenable_binlog(thd);
-      /*
-        mysql_recreate_table() can push OK or ERROR.
-        Clear 'OK' status. If there is an error, keep it:
-        we will store the error message in a result set row 
-        and then clear.
-      */
-      if (thd->stmt_da->is_ok())
-        thd->stmt_da->reset_diagnostics_area();
+      result_code= admin_recreate_table(thd, table);
+
       trans_commit_stmt(thd);
       trans_commit(thd);
       close_thread_tables(thd);
       thd->mdl_context.release_transactional_locks();
-      table->table= NULL;
+
       if (!result_code) // recreation went ok
       {
         /* Clear the ticket released above. */
@@ -820,7 +889,16 @@ send_result_message:
       size_t length;
 
       protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-      if (table->table->file->ha_table_flags() & HA_CAN_REPAIR)
+#if MYSQL_VERSION_ID > 100104
+#error fix the error message to take TABLE or VIEW as an argument
+#else
+      if (table->view)
+        length= my_snprintf(buf, sizeof(buf),
+                            "Upgrade required. Please do \"REPAIR VIEW %`s\" or dump/reload to fix it!",
+                            table->table_name);
+      else
+#endif
+      if (table->table->file->ha_table_flags() & HA_CAN_REPAIR || table->view)
         length= my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_UPGRADE),
                             table->table_name);
       else
@@ -843,7 +921,7 @@ send_result_message:
         break;
       }
     }
-    if (table->table)
+    if (table->table && !table->view)
     {
       if (table->table->s->tmp_table)
       {
@@ -941,6 +1019,7 @@ bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
   KEY_CACHE *key_cache;
   DBUG_ENTER("mysql_assign_to_keycache");
 
+  thd_proc_info(thd, "Finding key cache");
   check_opt.init();
   mysql_mutex_lock(&LOCK_global_system_variables);
   if (!(key_cache= get_key_cache(key_cache_name)))
@@ -1033,7 +1112,7 @@ bool Check_table_statement::execute(THD *thd)
 
   res= mysql_admin_table(thd, first_table, &m_lex->check_opt, "check",
                          lock_type, 0, 0, HA_OPEN_FOR_REPAIR, 0,
-                         &handler::ha_check, &view_checksum);
+                         &handler::ha_check, &view_check);
 
   m_lex->select_lex.table_list.first= first_table;
   m_lex->query_tables= first_table;
@@ -1088,7 +1167,7 @@ bool Repair_table_statement::execute(THD *thd)
                          TL_WRITE, 1,
                          test(m_lex->check_opt.sql_flags & TT_USEFRM),
                          HA_OPEN_FOR_REPAIR, &prepare_for_repair,
-                         &handler::ha_repair, 0);
+                         &handler::ha_repair, &view_repair);
 
   /* ! we write after unlocking the table */
   if (!res && !m_lex->no_write_to_binlog)

@@ -3,7 +3,7 @@
 -- source include/have_binlog_format_row.inc
 
 let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
-CREATE TABLE t1 (c1 char(50));
+CREATE TABLE t1 (c1 char(50)) engine=myisam;
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
 LOAD DATA CONCURRENT INFILE '../../std_data/words.dat' INTO TABLE t1;
 -- source include/show_binlog_events.inc

@@ -21,6 +21,16 @@
 connection slave;
 --let $connection_id=`SELECT id FROM information_schema.processlist where state LIKE 'Waiting for master to send event'`
 
+if(!$connection_id)
+{
+  # Something went wrong (timing)
+  # Show process list so that we can debug. In this case we will abort with
+  # wrong result
+  -- echo "Could not find connect id. Dumping process list for debugging"
+  SELECT * FROM information_schema.processlist;
+  exit;
+}
+
 set @time_before_kill := (select CURRENT_TIMESTAMP);
 
 --echo [Time before the query]
@@ -28,7 +38,8 @@ set @time_before_kill := (select CURRENT_TIMESTAMP);
 
 --replace_regex /kill [0-9]*/kill <connection_id>/
 --eval kill $connection_id
-
+let $wait_condition= SELECT COUNT(*) = 0 FROM information_schema.processlist where id=$connection_id;
+--source include/wait_condition.inc
 set @time_after_kill := (select CURRENT_TIMESTAMP);
 
 --echo [Time after the query]
@@ -38,7 +49,9 @@ if(`select TIMESTAMPDIFF(SECOND,@time_after_kill, @time_before_kill) > 60`)
 --echo # assert : The difference between the timestamps 'time_after_kill' and 'time_before_kill' should be less than 60sec.
 --die
 }
-
 --echo [Killing of the slave IO thread was successful]
+
+START SLAVE IO_THREAD;
+
 # End of test
 --source include/rpl_end.inc

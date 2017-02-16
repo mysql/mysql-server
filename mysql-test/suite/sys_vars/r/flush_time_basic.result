@@ -34,6 +34,7 @@ select @@global.flush_time;
 0
 set global flush_time=cast(-1 as unsigned int);
 Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
 Warning	1292	Truncated incorrect flush_time value: '18446744073709551615'
 select @@global.flush_time;
 @@global.flush_time

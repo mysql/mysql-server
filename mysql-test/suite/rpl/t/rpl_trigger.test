@@ -3,7 +3,9 @@
 # Adding statement include due to Bug 12574
 # TODO: Remove statement include once 12574 is patched
 --source include/have_binlog_format_mixed_or_statement.inc 
+--source include/have_innodb.inc
 --source include/master-slave.inc
+connection master;
 
 disable_query_log;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -21,7 +23,7 @@ DROP TABLE IF EXISTS t3;
 #
 
 create table t1 (a int auto_increment, primary key (a), b int, rand_value double not null);
-create table t2 (a int auto_increment, primary key (a), b int);
+create table t2 (a int auto_increment, primary key (a), b int) engine=innodb;
 create table t3 (a int auto_increment, primary key (a), name varchar(64) not null, old_a int, old_b int, rand_value double not null);
 
 delimiter |;
@@ -504,11 +506,9 @@ sync_slave_with_master;
 connection master;
 --source include/rpl_reset.inc
 
-source include/have_innodb.inc;
 connection slave;
-source include/have_innodb.inc;
-
 connection master;
+
 create table t1 ( f int ) engine = innodb;
 create table log ( r int ) engine = myisam; 
 create trigger tr

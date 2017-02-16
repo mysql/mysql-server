@@ -15,10 +15,22 @@
 # Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
 # MA 02110-1301, USA
 
-cflags="$c_warnings $extra_flags"
-cxxflags="$cxx_warnings $base_cxxflags $extra_flags"
-extra_configs="$extra_configs $local_infile_configs"
+cflags="$c_warnings $extra_flags $EXTRA_FLAGS $EXTRA_CFLAGS"
+cxxflags="$cxx_warnings $base_cxxflags $extra_flags $EXTRA_FLAGS $EXTRA_CXXFLAGS"
+extra_configs="$extra_configs $local_infile_configs $EXTRA_CONFIGS"
+
 configure="./configure $base_configs $extra_configs"
+
+if test "$just_print" = "1" -a "$just_configure" = "1"
+then
+  just_print=""
+  configure="$configure --print"
+fi
+
+if test "$AM_EXTRA_MAKEFLAGS" = "VERBOSE=1" -o "$verbose_make" = "1"
+then
+  configure="$configure --verbose"
+fi
 
 commands="\
 /bin/rm -rf configure;
@@ -30,15 +42,14 @@ path=`dirname $0`
 if [ -z "$just_clean" ]
 then
 commands="$commands
-CC=\"$CC\" CFLAGS=\"$cflags\" CXX=\"$CXX\" CXXFLAGS=\"$cxxflags\" CXXLDFLAGS=\"$CXXLDFLAGS\" \
-$configure"
+CC=\"$CC\" CFLAGS=\"$cflags\" CXX=\"$CXX\" CXXFLAGS=\"$cxxflags\" CXXLDFLAGS=\"$CXXLDFLAGS\" $configure"
 fi
 
 if [ -z "$just_configure" -a -z "$just_clean" ]
 then
   commands="$commands
 
-$make $AM_MAKEFLAGS"
+$make $AM_MAKEFLAGS $AM_EXTRA_MAKEFLAGS"
 
   if [ "x$strip" = "xyes" ]
   then

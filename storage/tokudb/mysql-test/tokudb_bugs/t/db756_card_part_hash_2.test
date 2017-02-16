@@ -1,0 +1,14 @@
+# DB-756 verify that cardinality is picked from the partition where the rows are mapped.  in this case, the first partition.
+source include/have_tokudb.inc;
+source include/have_partition.inc;
+set default_storage_engine='tokudb';
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+create table t (id int, x int, primary key (id), key (x)) partition by hash(id) partitions 2;
+show indexes from t;
+insert into t values (2,1),(4,1),(6,1);
+show indexes from t;
+analyze table t;
+show indexes from t;
+drop table t;

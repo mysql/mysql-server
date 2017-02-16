@@ -1,0 +1,11 @@
+#
+# MDEV-6290 Crash in KILL HARD QUERY USER x@y when slave threads are running
+#
+
+# this test doesn't depend on the binlog format, no need to run it three times
+--source include/have_binlog_format_mixed.inc
+
+--source include/master-slave.inc
+--connection server_2
+kill user test2@nohost;
+--source include/rpl_end.inc

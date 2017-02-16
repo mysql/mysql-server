@@ -1,0 +1,653 @@
+select * from INFORMATION_SCHEMA.ENGINES where ENGINE="ARIA";
+ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
+Aria	YES	Crash-safe tables with MyISAM heritage	NO	NO	NO
+set global storage_engine=aria;
+set session storage_engine=aria;
+set global aria_page_checksum=0;
+set global aria_log_file_size=4294959104;
+drop table if exists t1,t2;
+SET SQL_WARNINGS=1;
+create table t1 (a int not null, key `a` (a) key_block_size=512);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  KEY `a` (`a`) KEY_BLOCK_SIZE=8192
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+drop table t1;
+create table t1 (a varchar(2048), key `a` (a) key_block_size=1000000000000000000);
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(2048) DEFAULT NULL,
+  KEY `a` (`a`(1000)) KEY_BLOCK_SIZE=8192
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+drop table t1;
+create table t1 (a int not null, key `a` (a) key_block_size=1025);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  KEY `a` (`a`) KEY_BLOCK_SIZE=8192
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+drop table t1;
+create table t1 (a int not null, key key_block_size=1024 (a));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '=1024 (a))' at line 1
+create table t1 (a int not null, key `a` key_block_size=1024 (a));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'key_block_size=1024 (a))' at line 1
+CREATE TABLE t1 (
+c1 INT,
+c2 VARCHAR(300),
+KEY (c1) KEY_BLOCK_SIZE 1024,
+KEY (c2) KEY_BLOCK_SIZE 8192
+);
+INSERT INTO t1 VALUES (10, REPEAT('a', CEIL(RAND(10) * 300))),
+(11, REPEAT('b', CEIL(RAND() * 300))),
+(12, REPEAT('c', CEIL(RAND() * 300))),
+(13, REPEAT('d', CEIL(RAND() * 300))),
+(14, REPEAT('e', CEIL(RAND() * 300))),
+(15, REPEAT('f', CEIL(RAND() * 300))),
+(16, REPEAT('g', CEIL(RAND() * 300))),
+(17, REPEAT('h', CEIL(RAND() * 300))),
+(18, REPEAT('i', CEIL(RAND() * 300))),
+(19, REPEAT('j', CEIL(RAND() * 300))),
+(20, REPEAT('k', CEIL(RAND() * 300))),
+(21, REPEAT('l', CEIL(RAND() * 300))),
+(22, REPEAT('m', CEIL(RAND() * 300))),
+(23, REPEAT('n', CEIL(RAND() * 300))),
+(24, REPEAT('o', CEIL(RAND() * 300))),
+(25, REPEAT('p', CEIL(RAND() * 300))),
+(26, REPEAT('q', CEIL(RAND() * 300))),
+(27, REPEAT('r', CEIL(RAND() * 300))),
+(28, REPEAT('s', CEIL(RAND() * 300))),
+(29, REPEAT('t', CEIL(RAND() * 300))),
+(30, REPEAT('u', CEIL(RAND() * 300))),
+(31, REPEAT('v', CEIL(RAND() * 300))),
+(32, REPEAT('w', CEIL(RAND() * 300))),
+(33, REPEAT('x', CEIL(RAND() * 300))),
+(34, REPEAT('y', CEIL(RAND() * 300))),
+(35, REPEAT('z', CEIL(RAND() * 300)));
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+DELETE FROM t1 WHERE c1 >= 10;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+create table t1 (a int) transactional=0;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 TRANSACTIONAL=0
+drop table t1;
+create table t1 (a int) row_format=dynamic transactional=0;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=DYNAMIC TRANSACTIONAL=0
+drop table t1;
+create table t1 (a int) row_format=dynamic transactional=1;
+Warnings:
+Note	1478	Row format set to PAGE because of TRANSACTIONAL=1 option
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
+alter table t1 row_format=PAGE;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
+alter table t1 row_format=DYNAMIC;
+Warnings:
+Note	1478	Row format set to PAGE because of TRANSACTIONAL=1 option
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
+alter table t1 transactional=0;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=DYNAMIC TRANSACTIONAL=0
+alter table t1 row_format=DYNAMIC;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=DYNAMIC TRANSACTIONAL=0
+drop table t1;
+create table t1 (a int) row_format=PAGE;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE
+drop table t1;
+create table t1 (a int) row_format=PAGE TRANSACTIONAL=DEFAULT;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE
+alter table t1 row_format=DYNAMIC;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=DYNAMIC
+drop table t1;
+create table t1 (a int) transactional=0 row_format=FIXED;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=FIXED TRANSACTIONAL=0
+alter table t1 transactional=1;
+Warnings:
+Note	1478	Row format set to PAGE because of TRANSACTIONAL=1 option
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
+alter table t1 transactional=0;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=FIXED TRANSACTIONAL=0
+drop table t1;
+create table t1 (a int) transactional=0 row_format=FIXED;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=FIXED TRANSACTIONAL=0
+alter table t1 transactional=1;
+Warnings:
+Note	1478	Row format set to PAGE because of TRANSACTIONAL=1 option
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
+alter table t1 transactional=0;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=FIXED TRANSACTIONAL=0
+drop table t1;
+create table `t1` (
+t1_name varchar(255) default null,
+t1_id int(10) unsigned not null auto_increment,
+key (t1_name),
+primary key (t1_id)
+) engine=aria auto_increment = 1000 default charset=latin1;
+lock tables t1 write;
+INSERT INTO `t1` VALUES ('bla',1000),('bla',1001),('bla',1002);
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+unlock tables;
+create table t2 like t1;
+insert into t2 select * from t1;
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	Table is already up to date
+delete from t2;
+insert into t2 select * from t1;
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	Table is already up to date
+drop table t1,t2;
+create table t1 (a bigint auto_increment, primary key(a), b char(255), c varchar(20000));
+update t1 set b=repeat('a',100) where a between 1 and 100;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+update t1 set c=repeat('a',8192*2) where a between 200 and 202;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+CREATE TABLE t1 (a int, b int, v varchar(60000)) checksum=1 engine=aria;
+insert into t1 values (1,1,"aaa"),(1,2,null);
+checksum table t1;
+Table	Checksum
+test.t1	1112804611
+insert into t1 values (1,3,repeat('c',30000)),(4,4,repeat('a',30000));
+update t1 set v="row5" where b=4;
+delete from t1 where b=3;
+select a, b, length(v) from t1;
+a	b	length(v)
+1	1	3
+1	2	NULL
+4	4	4
+drop table t1;
+CREATE TABLE t1 (
+auto int(5) unsigned NOT NULL auto_increment,
+string char(10) default "hello",
+tiny tinyint(4) DEFAULT '0' NOT NULL ,
+short smallint(6) DEFAULT '1' NOT NULL ,
+medium mediumint(8) DEFAULT '0' NOT NULL,
+long_int int(11) DEFAULT '0' NOT NULL,
+longlong bigint(13) DEFAULT '0' NOT NULL,
+real_float float(13,1) DEFAULT 0.0 NOT NULL,
+real_double double(16,4),
+utiny tinyint(3) unsigned DEFAULT '0' NOT NULL,
+ushort smallint(5) unsigned zerofill DEFAULT '00000' NOT NULL,
+umedium mediumint(8) unsigned DEFAULT '0' NOT NULL,
+ulong int(11) unsigned DEFAULT '0' NOT NULL,
+ulonglong bigint(13) unsigned DEFAULT '0' NOT NULL,
+time_stamp timestamp,
+date_field date,	
+time_field time,	
+date_time datetime,
+blob_col blob,
+tinyblob_col tinyblob,
+mediumblob_col mediumblob  not null default '',
+longblob_col longblob  not null default '',
+options enum('one','two','tree') not null ,
+flags set('one','two','tree') not null default '',
+PRIMARY KEY (auto),
+KEY (utiny),
+KEY (tiny),
+KEY (short),
+KEY any_name (medium),
+KEY (longlong),
+KEY (real_float),
+KEY (ushort),
+KEY (umedium),
+KEY (ulong),
+KEY (ulonglong,ulong),
+KEY (options,flags)
+) engine=aria;
+insert into t1 values (10,1,1,1,1,1,1,1,1,1,1,1,1,1,NULL,0,0,0,1,1,1,1,'one','one');
+create table t2 (primary key (auto)) engine=aria row_format=page select auto+1 as auto,1 as t1, 'a' as t2, repeat('a',256) as t3, binary repeat('b',256) as t4, repeat('a',4096) as t5, binary repeat('b',4096) as t6, '' as t7, binary '' as t8 from t1;
+check table t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+test.t2	check	status	OK
+select t1,t2,length(t3),length(t4),length(t5),length(t6),t7,t8 from t2;
+t1	t2	length(t3)	length(t4)	length(t5)	length(t6)	t7	t8
+1	a	256	256	4096	4096		
+drop table t2;
+create table t2 (primary key (auto)) engine=aria row_format=dynamic select auto+1 as auto,1 as t1, 'a' as t2, repeat('a',256) as t3, binary repeat('b',256) as t4, repeat('a',4096) as t5, binary repeat('b',4096) as t6, '' as t7, binary '' as t8 from t1;
+check table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+drop table t1,t2;
+CREATE TABLE t1 (seq int, s1 int, s2 blob);
+insert into t1 values (1, 1, MD5(1));
+update t1 set s1=2 where seq=1;
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+select lower(variable_name) as Variable_name, Variable_value as Value from information_schema.session_variables where variable_name like "aria%" and variable_name not like "aria_used_for_temp_tables" order by 1;
+Variable_name	Value
+aria_block_size	8192
+aria_checkpoint_interval	30
+aria_checkpoint_log_activity	1048576
+aria_force_start_after_recovery_failures	0
+aria_group_commit	none
+aria_group_commit_interval	0
+aria_log_file_size	4294959104
+aria_log_purge_type	immediate
+aria_max_sort_file_size	9223372036853727232
+aria_pagecache_age_threshold	300
+aria_pagecache_buffer_size	8388608
+aria_pagecache_division_limit	100
+aria_page_checksum	OFF
+aria_recover	NORMAL
+aria_repair_threads	1
+aria_sort_buffer_size	134217728
+aria_stats_method	nulls_unequal
+aria_sync_log_dir	NEWFILE
+show status like 'aria%';
+Variable_name	Value
+Aria_pagecache_blocks_not_flushed	#
+Aria_pagecache_blocks_unused	#
+Aria_pagecache_blocks_used	#
+Aria_pagecache_read_requests	#
+Aria_pagecache_reads	#
+Aria_pagecache_write_requests	#
+Aria_pagecache_writes	#
+Aria_transaction_log_syncs	#
+create table t1 (b char(0));
+insert into t1 values(NULL),("");
+select length(b) from t1;
+length(b)
+NULL
+0
+alter table t1 add column c char(0), add key (c);
+insert into t1 values("",""),("",NULL);
+select length(b),length(c) from t1;
+length(b)	length(c)
+NULL	NULL
+0	NULL
+0	0
+0	NULL
+select length(b),length(c) from t1 where c is null;
+length(b)	length(c)
+NULL	NULL
+0	NULL
+0	NULL
+select length(b),length(c) from t1 where c is not null;
+length(b)	length(c)
+0	0
+select length(b),length(c) from t1 order by c;
+length(b)	length(c)
+NULL	NULL
+0	NULL
+0	NULL
+0	0
+alter table t1 add column d char(0) not null, add key (d);
+ERROR 42000: The used storage engine can't index column 'd'
+drop table t1;
+CREATE TABLE t1 (a bit(3));
+insert into t1 values (NULL),(0),(1),(2),(3),(4),(5),(6),(7);
+select hex(a) from t1;
+hex(a)
+NULL
+0
+1
+2
+3
+4
+5
+6
+7
+drop table t1;
+create table t1(a bit not null);
+insert into t1 values(0),(1);
+select a+0 from t1;
+a+0
+0
+1
+drop table t1;
+CREATE TABLE t1 (col1 int, s1 char(16) DEFAULT NULL, s2 char(16) DEFAULT NULL, KEY (s1,s2));
+insert into t1 (col1) values(0);
+drop table t1;
+set global aria_page_checksum=1;
+create table t1 (a int);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+set global aria_page_checksum=0;
+drop table t1;
+set global aria_log_file_size=4294967296;
+Warnings:
+Warning	1292	Truncated incorrect aria_log_file_size value: '4294967296'
+create table t1 (a int not null);
+lock tables t1 write;
+insert into t1 values (1),(2);
+delete from t1;
+unlock tables;
+select * from t1;
+a
+insert into t1 values (1),(2);
+delete from t1;
+select * from t1;
+a
+drop table t1;
+create table t1 (c int);
+insert into t1 values(1),(2);
+create table t2 select * from t1;
+create table t3 select * from t1, t2;
+ERROR 42S21: Duplicate column name 'c'
+create table t3 select t1.c AS c1, t2.c AS c2,1 as "const" from t1, t2;
+drop table t1, t2, t3;
+create table t1 (t datetime) engine=aria;
+insert into t1 values (101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959),(20030100000000),(20030000000000);
+select * from t1;
+t
+2000-01-01 00:00:00
+2069-12-31 00:00:00
+1970-01-01 00:00:00
+1999-12-31 00:00:00
+1000-01-01 00:00:00
+9999-12-31 00:00:00
+2000-01-01 00:00:00
+2069-12-31 00:00:00
+1970-01-01 00:00:00
+1999-12-31 23:59:59
+1000-01-01 00:00:00
+9999-12-31 23:59:59
+2003-01-00 00:00:00
+2003-00-00 00:00:00
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+delete from t1 where t > 0;
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';
+CREATE TABLE t1 (id int(11) PRIMARY KEY auto_increment,f1 varchar(10) NOT NULL UNIQUE);
+INSERT IGNORE INTO t1 (f1) VALUES ("test1");
+INSERT IGNORE INTO t1 (f1) VALUES ("test1");
+Warnings:
+Warning	1062	Duplicate entry 'test1' for key 'f1'
+INSERT IGNORE INTO t1 (f1) VALUES ("test2");
+SELECT * FROM t1;
+id	f1
+1	test1
+2	test2
+drop table t1;
+SET SQL_MODE = 'TRADITIONAL';
+create table t1 (n int not null primary key auto_increment, c char(1), unique(c));
+insert into t1 values(100, "a");
+insert into t1 values(300, "b");
+insert into t1 values(50, "a");
+ERROR 23000: Duplicate entry 'a' for key 'c'
+insert into t1 values(null, "c");
+select * from t1;
+n	c
+100	a
+300	b
+301	c
+update t1 set n=400,c='a' where n=301;
+ERROR 23000: Duplicate entry 'a' for key 'c'
+insert into t1 values(null, "d");
+select * from t1;
+n	c
+100	a
+300	b
+301	c
+302	d
+drop table t1;
+create table t1 (n int not null primary key auto_increment, c char(1), unique(c)) transactional=0 row_format=dynamic;
+insert into t1 values(100, "a");
+insert into t1 values(300, "b");
+insert into t1 values(50, "a");
+ERROR 23000: Duplicate entry 'a' for key 'c'
+insert into t1 values(null, "c");
+select * from t1;
+n	c
+100	a
+300	b
+301	c
+update t1 set n=400,c='a' where n=301;
+ERROR 23000: Duplicate entry 'a' for key 'c'
+insert into t1 values(null, "d");
+select * from t1;
+n	c
+100	a
+300	b
+301	c
+302	d
+drop table t1;
+create table t1 (n int not null, c char(1)) engine=aria;
+alter table t1 engine=myisam;
+alter table t1 engine=aria;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `n` int(11) NOT NULL,
+  `c` char(1) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+drop table t1;
+create table t1 (n int not null, c char(1)) engine=aria transactional=1;
+alter table t1 engine=myisam;
+Warnings:
+Warning	1478	Table storage engine 'MyISAM' does not support the create option 'TRANSACTIONAL=1'
+alter table t1 engine=aria;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `n` int(11) NOT NULL,
+  `c` char(1) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 TRANSACTIONAL=1
+drop table t1;
+create table t1 (n int not null, c char(1)) engine=myisam transactional=1;
+Warnings:
+Warning	1478	Table storage engine 'MyISAM' does not support the create option 'TRANSACTIONAL=1'
+alter table t1 engine=aria;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `n` int(11) NOT NULL,
+  `c` char(1) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 TRANSACTIONAL=1
+drop table t1;
+create table t1 (a int, key(a)) transactional=0;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t1 select NULL from t1;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+create temporary table t1 (a int, key(a)) transactional=1;
+create temporary table t2 (a int, key(a)) transactional=1;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t2 select * from t1;
+insert into t1 select NULL from t2;
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 where a >= 4;
+count(*)
+1
+drop table t1, t2;
+create temporary table t1 (a int, key(a)) transactional=0 row_format=page;
+create temporary table t2 (a int, key(a)) transactional=0 row_format=page;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t2 select * from t1;
+insert into t1 select NULL from t2;
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 where a >= 4;
+count(*)
+1
+drop table t1, t2;
+create temporary table t1 (a int, key(a)) transactional=0 row_format=fixed;
+create temporary table t2 (a int, key(a)) transactional=0 row_format=dynamic;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t2 select * from t1;
+insert into t1 select NULL from t2;
+select count(*) from t1;
+count(*)
+10
+select count(*) from t1 where a >= 4;
+count(*)
+1
+drop table t1, t2;
+create table t1 (i int auto_increment not null primary key) transactional=0;
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+delete from t1 where i = 10;
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+create table t1 (i int auto_increment not null primary key);
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+delete from t1 where i = 10;
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+CREATE TABLE t1(a VARCHAR(20), FULLTEXT(a)) transactional=0;
+INSERT INTO t1 VALUES('Offside'),('City Of God');
+SELECT a FROM t1 WHERE MATCH a AGAINST ('+city of*' IN BOOLEAN MODE);
+a
+City Of God
+SELECT a FROM t1 WHERE MATCH a AGAINST ('+city (of)*' IN BOOLEAN MODE);
+a
+City Of God
+DROP TABLE t1;
+create table t1(a int) engine=aria transactional=1;
+select CREATE_OPTIONS from information_schema.TABLES where
+TABLE_SCHEMA='test' and TABLE_NAME='t1';
+CREATE_OPTIONS
+transactional=1
+drop table t1;
+create table t1 (a int, unique(a)) engine=aria transactional=1;
+insert into t1 values(1);
+insert into t1 values(2),(2);
+ERROR 23000: Duplicate entry '2' for key 'a'
+create table t2 (a int, unique(a)) engine=aria transactional=0 row_format=dynamic;
+insert into t2 values(1);
+insert into t2 values(2),(2);
+ERROR 23000: Duplicate entry '2' for key 'a'
+insert into t1 values(3);
+insert into t2 values(3);
+drop table t1, t2;
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b CHAR(255),
+c VARCHAR(2048),
+d VARCHAR(18990),
+e CHAR(128),
+f CHAR(192)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+INSERT INTO t1 VALUES
+(1,'A','B','C','','D'),
+(2,'Abcdefghi','E','F','','G');
+CREATE TABLE t2 (
+g INT PRIMARY KEY,
+h CHAR(32),
+i CHAR(255),
+j TEXT
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+INSERT INTO t2 VALUES (1,'M','','H'),
+(2,'N','','H');
+SELECT * FROM t1, t2 WHERE a = g ORDER BY b;
+a	b	c	d	e	f	g	h	i	j
+1	A	B	C		D	1	M		H
+2	Abcdefghi	E	F		G	2	N		H
+drop table t1,t2;
+# End of 5.1 tests
+create table t1 (a int) engine=aria;
+lock table t1 write;
+drop table t1;

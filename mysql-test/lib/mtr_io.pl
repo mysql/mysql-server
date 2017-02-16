@@ -21,6 +21,7 @@
 
 use strict;
 use Carp;
+use My::Platform;
 
 sub mtr_fromfile ($);
 sub mtr_tofile ($@);
@@ -45,10 +46,10 @@ sub mtr_fromfile ($) {
 
 sub mtr_tofile ($@) {
   my $file=  shift;
-
-  open(FILE,">>",$file) or mtr_error("can't open file \"$file\": $!");
-  print FILE join("", @_);
-  close FILE;
+  my $fh= open_for_append $file;
+  mtr_error("can't open file \"$file\": $!") unless defined($fh);
+  print $fh join("", @_);
+  close $fh;
 }
 
 

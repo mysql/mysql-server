@@ -1,0 +1,80 @@
+
+--source include/have_partition.inc
+
+let type=datetime;
+--source include/type_hrtime.inc
+
+#
+# partitioning
+#
+eval CREATE TABLE t1 (
+  taken $type(5) NOT NULL DEFAULT '0000-00-00 00:00:00',
+  id int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (id,taken),
+  KEY taken (taken)
+)
+PARTITION BY RANGE (to_days(taken))
+(
+PARTITION p01 VALUES LESS THAN (732920),
+PARTITION p02 VALUES LESS THAN (732950),
+PARTITION p03 VALUES LESS THAN MAXVALUE);
+
+INSERT INTO t1 VALUES
+('2006-09-27 21:50:01.123456',0),
+('2006-09-27 21:50:01.123456',1),
+('2006-09-27 21:50:01.123456',2),
+('2006-09-28 21:50:01.123456',3),
+('2006-09-29 21:50:01.123456',4),
+('2006-09-29 21:50:01.123456',5),
+('2006-09-30 21:50:01.123456',6),
+('2006-10-01 21:50:01.123456',7),
+('2006-10-02 21:50:01.123456',8),
+('2006-10-02 21:50:01.123456',9);
+
+SELECT id,to_days(taken) FROM t1 order by 2;
+
+eval CREATE TABLE t2 (
+  taken $type(5) NOT NULL DEFAULT '0000-00-00 00:00:00',
+  id int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (id,taken),
+  KEY taken (taken)
+)
+PARTITION BY RANGE (extract(microsecond from taken))
+(
+PARTITION p01 VALUES LESS THAN (123000),
+PARTITION p02 VALUES LESS THAN (500000),
+PARTITION p03 VALUES LESS THAN MAXVALUE);
+
+INSERT INTO t2 VALUES
+('2006-09-27 21:50:01',0),
+('2006-09-27 21:50:01.1',1),
+('2006-09-27 21:50:01.12',2),
+('2006-09-28 21:50:01.123',3),
+('2006-09-29 21:50:01.1234',4),
+('2006-09-29 21:50:01.12345',5),
+('2006-09-30 21:50:01.123456',6),
+('2006-10-01 21:50:01.56',7),
+('2006-10-02 21:50:01.567',8),
+('2006-10-02 21:50:01.5678',9);
+
+select table_name,partition_name,partition_method,partition_expression,partition_description,table_rows from information_schema.partitions where table_name in ('t1', 't2');
+
+drop table t1, t2;
+
+create table t1 (a datetime, b datetime(6));
+insert t1 values ('2010-01-02 03:04:05.678912', '2010-01-02 03:04:05.678912');
+update t1 set b=a;
+select * from t1;
+alter table t1 modify b datetime, modify a datetime(6);
+select * from t1;
+drop table t1;
+
+--echo #
+--echo # MDEV-4651 Crash in my_decimal2decimal in a ORDER BY query
+--echo #
+SET @@time_zone='+00:00';
+CREATE TABLE t1 (a DATETIME(4) NOT NULL);
+INSERT INTO t1 VALUES ('2001-01-01 00:00:00'),('2000-00-00 00:00:00');
+SELECT UNIX_TIMESTAMP(a) FROM t1 ORDER BY 1;
+DROP TABLE t1;
+SET @@time_zone=DEFAULT;

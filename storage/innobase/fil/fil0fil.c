@@ -458,6 +458,21 @@ fil_space_get_by_id(
 }
 
 /*******************************************************************//**
+Returns the table space name for a given id, NULL if not found. */
+const char*
+fil_space_get_name(
+/*================*/
+	ulint	id)	/*!< in: space id */
+{
+	fil_space_t*    space;
+
+	mutex_enter(&fil_system->mutex);
+	space = fil_space_get_by_id(id);
+	mutex_exit(&fil_system->mutex);
+
+	return (space == NULL ? NULL : space->name);
+}
+/*******************************************************************//**
 Returns the table space by a given name, NULL if not found. */
 UNIV_INLINE
 fil_space_t*
@@ -4108,6 +4123,37 @@ fil_extend_space_to_desired_size(
 	start_page_no = space->size;
 	file_start_page_no = space->size - node->size;
 
+#ifdef HAVE_POSIX_FALLOCATE
+	if (srv_use_posix_fallocate) {
+		ib_int64_t start_offset = start_page_no * page_size;
+		ib_int64_t end_offset   = (size_after_extend - start_page_no) * page_size;
+		ib_int64_t desired_size = size_after_extend*page_size;
+
+		mutex_exit(&fil_system->mutex);
+
+		if (posix_fallocate(node->handle, start_offset, end_offset) == -1) {
+			fprintf(stderr, "InnoDB: Error: preallocating file "
+				"space for file \'%s\' failed. Current size "
+				" %lld, len %lld, desired size %lld\n",
+				node->name, start_offset, end_offset, desired_size);
+			success = FALSE;
+		} else {
+			success = TRUE;
+		}
+
+		mutex_enter(&fil_system->mutex);
+
+		if (success) {
+			node->size += (size_after_extend - start_page_no);
+			space->size += (size_after_extend - start_page_no);
+			os_has_said_disk_full = FALSE;
+		}
+
+		fil_node_complete_io(node, fil_system, OS_FILE_READ);
+		goto complete_io;
+	}
+#endif
+
 	/* Extend at most 64 pages at a time */
 	buf_size = ut_min(64, size_after_extend - start_page_no) * page_size;
 	buf2 = mem_alloc(buf_size + page_size);
@@ -4161,6 +4207,8 @@ fil_extend_space_to_desired_size(
 	mem_free(buf2);
 
 	fil_node_complete_io(node, fil_system, OS_FILE_WRITE);
+
+complete_io:
 
 	*actual_size = space->size;
 

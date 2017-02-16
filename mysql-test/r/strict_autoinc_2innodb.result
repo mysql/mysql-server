@@ -20,9 +20,7 @@ count(*)
 0
 set @@sql_mode=@org_mode;
 insert into t1 values(null);
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
+ERROR 22003: Out of range value for column 'a' at row 1
 select * from t1;
 a
-127
 drop table t1;

@@ -1,0 +1,154 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>, <CUSTOM_INDEX>(b)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
+INSERT INTO t1 (a,b) VALUES (100,'a'), (6,'f');
+INSERT INTO t1 (a,b) VALUES (30,'m'),(29,'n');
+INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
+INSERT INTO t1 (a,b) VALUES (3,'a'),(0,'');
+SELECT a,b FROM t1;
+a	b
+0	
+1	a
+1	a
+100	a
+12345	z
+2	b
+29	n
+3	a
+3	c
+30	m
+4	d
+5	e
+6	f
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>, UNIQUE INDEX(a)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
+INSERT INTO t1 (a,b) VALUES (100,'a'), (6,'f');
+INSERT INTO t1 (a,b) VALUES (30,'m'),(29,'n');
+INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
+ERROR 23000: Duplicate entry '1' for key 'a'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+INSERT INTO t1 (a,b) VALUES (3,'a'),(0,'');
+ERROR 23000: Duplicate entry '3' for key 'a'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+INSERT INTO t1 (a,b) VALUES (0,'');
+SELECT a,b FROM t1;
+a	b
+0	
+1	a
+100	a
+2	b
+29	n
+3	c
+30	m
+4	d
+5	e
+6	f
+INSERT IGNORE INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
+Warnings:
+Warning	1062	Duplicate entry '1' for key 'a'
+INSERT INTO t1 (a,b) VALUES (3,'a'),(4,'d') ON DUPLICATE KEY UPDATE a = a+10;
+SELECT a,b FROM t1;
+a	b
+0	
+1	a
+100	a
+12345	z
+13	c
+14	d
+2	b
+29	n
+30	m
+5	e
+6	f
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>, UNIQUE INDEX(a,b)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
+INSERT INTO t1 (a,b) VALUES (100,'a'), (6,'f');
+INSERT INTO t1 (a,b) VALUES (30,'m'),(29,'n');
+INSERT INTO t1 (a,b) VALUES (100,'b'), (2,'c');
+INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
+ERROR 23000: Duplicate entry '1-a' for key 'a'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+SELECT a,b FROM t1;
+a	b
+1	a
+100	a
+100	b
+2	b
+2	c
+29	n
+3	c
+30	m
+4	d
+5	e
+6	f
+INSERT IGNORE INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
+Warnings:
+Warning	1062	Duplicate entry '1-a' for key 'a'
+INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z') ON DUPLICATE KEY UPDATE a = a+VALUES(a);
+SELECT a,b FROM t1;
+a	b
+100	a
+100	b
+2	a
+2	b
+2	c
+24690	z
+29	n
+3	c
+30	m
+4	d
+5	e
+6	f
+INSERT INTO t1 (a,b) VALUES (101,'x'),(101,'x');
+ERROR 23000: Duplicate entry '101-x' for key 'a'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN> PRIMARY KEY, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
+INSERT INTO t1 (a,b) VALUES (100,'a'), (6,'f');
+INSERT INTO t1 (a,b) VALUES (30,'m'),(29,'n');
+INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+INSERT INTO t1 (a,b) VALUES (3,'a'),(0,'');
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+INSERT INTO t1 (a,b) VALUES (0,'');
+SELECT a,b FROM t1;
+a	b
+0	
+1	a
+100	a
+2	b
+29	n
+3	c
+30	m
+4	d
+5	e
+6	f
+INSERT IGNORE INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
+Warnings:
+Warning	1062	Duplicate entry '1' for key 'PRIMARY'
+INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z') ON DUPLICATE KEY UPDATE b = CONCAT(b,b);
+SELECT a,b FROM t1;
+a	b
+0	
+1	aa
+100	a
+12345	zz
+2	b
+29	n
+3	c
+30	m
+4	d
+5	e
+6	f
+DROP TABLE t1;

@@ -1,0 +1,77 @@
+= Hotindexer undo do testing = 
+
+The hotindexer undo do function is tested by feeding it a leafentry,
+capturing the actions taken on the hot dictionary,
+and comparing the actions with the expected actions.
+The test passes if the actions match the expected actions.
+
+Each test is described by a .test file and a .result file.
+The .test file describes the set of transactions that are live
+when the undo do function is called as well as the transaction records
+that comprise a leaf entry.
+
+The .result file describes the actions taken by the undo do function
+when processing the leaf entry.
+
+= Contents of a *.test =
+
+Comments begin with '#'.
+
+An <XIDLIST> is a list of transaction id's separated by a SPACE.
+
+<XIDS> is a stack of transaction id's separated by a COMMA.
+
+An <XID> is a 64 bit number.
+
+A <KEY> is a string.
+
+A <VALUE> is a string.
+
+The field separator is a single SPACE.
+
+== set the leaf entry key == 
+key <KEY>
+
+== add transaction IDs to the live transaction set ==
+live <XIDLIST>
+
+the live transaction set is initially empty
+
+xid <XID> [live|preparing|committing|aborting]
+
+== push a delete transaction record onto the leaf entry stack ==
+delete [committed|provisional] <XID>
+
+== push an insert transaction records onto the leaf entry stack ==
+insert [committed|provisional] <XID> <VALUE>
+
+== push a placeholder onto the leaf entry stack ==
+placeholder <XID>
+
+= Contents of a *.result =
+
+== insert committed ==
+insert_committed [<XIDS>] <KEY> <VALUE>
+commit_any [<XIDS>] <KEY>
+
+== delete committed ==
+delete_committed [<XIDS>] <KEY>
+commit_any [<XIDS>] <KEY>
+
+== insert provisional ==
+insert_provisional [<XIDS>] <KEY> <VALUE>
+
+== delete provisional ==
+delete_provisional [<XIDS>] <KEY>
+
+== lock ==
+lock [<XIDS>] <KEY>
+
+= Schema =
+
+Source dictionary: <source key, source data>
+
+Hot dictionary:    <source data, source key>
+
+
+

@@ -1,0 +1,33 @@
+SET GLOBAL query_cache_size=1024*1024*8;
+CREATE TABLE `test` (
+`uniqueId` INT NOT NULL,
+`partitionId` INT NOT NULL,
+PRIMARY KEY (`uniqueId`,`partitionId`)
+) ENGINE=InnoDB PARTITION BY LIST (partitionId) (
+PARTITION p01 VALUES IN (1),
+PARTITION p02 VALUES IN (2)
+);
+INSERT INTO `test`(`uniqueId`,`partitionId`) VALUES(407237055, 2);
+SELECT * FROM `test`;
+uniqueId	partitionId
+407237055	2
+#Confirms 1 row in partition 'p02'
+SELECT TABLE_NAME, PARTITION_NAME, TABLE_ROWS FROM information_schema.PARTITIONS where TABLE_NAME = 'test';
+TABLE_NAME	PARTITION_NAME	TABLE_ROWS
+test	p01	0
+test	p02	1
+ALTER TABLE `test` TRUNCATE PARTITION `p02`;
+#Confirms no more rows in partition 'p02'
+SELECT TABLE_NAME, PARTITION_NAME, TABLE_ROWS FROM information_schema.PARTITIONS where TABLE_NAME = 'test';
+TABLE_NAME	PARTITION_NAME	TABLE_ROWS
+test	p01	0
+test	p02	0
+#Before the patch, this returned the previously existing values.
+SELECT * FROM `test`;
+uniqueId	partitionId
+SELECT SQL_CACHE * FROM `test`;
+uniqueId	partitionId
+SELECT SQL_NO_CACHE * FROM `test`;
+uniqueId	partitionId
+DROP TABLE test;
+SET GLOBAL query_cache_size=DEFAULT;

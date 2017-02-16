@@ -1,0 +1,24 @@
+source include/have_tokudb.inc;
+# ticket 895 is a query optimization problem with the primary key
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+set session transaction isolation level repeatable read;
+create table foo (a int);
+select * from foo;
+begin;
+insert into foo values (1),(2),(3);
+select * from foo;
+rollback;
+select * from foo;
+optimize table foo;
+select * from foo;
+insert into foo values (1),(2),(3);
+select * from foo;
+optimize table foo;
+select * from foo;
+
+DROP TABLE foo;

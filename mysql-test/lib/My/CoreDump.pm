@@ -261,11 +261,7 @@ sub show {
   # On Windows, rely on cdb to be there...
   if (IS_WINDOWS)
   {
-    # Starting cdb is unsafe when used with --parallel > 1 option 
-    if ( $parallel < 2 )
-    {
-      _cdb($core_name);
-    }
+    _cdb($core_name);
     return;
   }
   

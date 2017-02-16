@@ -1,0 +1,31 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 60_zlib_innodb_workaround.dpatch by Norbert Tretkowski <nobse@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: http://bugs.mysql.com/bug.php?id=47495
+
+@DPATCH@
+diff -Nur mysql-dfsg-5.1-5.1.39.orig/mysql-test/suite/innodb/r/innodb-zip.result mysql-dfsg-5.1-5.1.39/mysql-test/suite/innodb/r/innodb-zip.result
+--- mysql-dfsg-5.1-5.1.39.orig/mysql-test/suite/innodb/r/innodb-zip.result      2009-09-04 19:04:38.000000000 +0200
++++ mysql-dfsg-5.1-5.1.39/mysql-test/suite/innodb/r/innodb-zip.result   2009-09-28 16:01:33.000000000 +0200
+@@ -141,7 +141,7 @@
+ CREATE TABLE t1(c TEXT, PRIMARY KEY (c(440)))
+ ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
+ ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+-CREATE TABLE t1(c TEXT, PRIMARY KEY (c(439)))
++CREATE TABLE t1(c TEXT, PRIMARY KEY (c(438)))
+ ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
+ INSERT INTO t1 VALUES(REPEAT('A',512)),(REPEAT('B',512));
+ DROP TABLE t1;
+diff -Nur mysql-dfsg-5.1-5.1.39.orig/mysql-test/suite/innodb/t/innodb-zip.test mysql-dfsg-5.1-5.1.39/mysql-test/suite/innodb/t/innodb-zip.test
+--- mysql-dfsg-5.1-5.1.39.orig/mysql-test/suite/innodb/t/innodb-zip.test        2009-09-04 19:04:37.000000000 +0200
++++ mysql-dfsg-5.1-5.1.39/mysql-test/suite/innodb/t/innodb-zip.test     2009-09-28 16:01:22.000000000 +0200
+@@ -106,7 +106,7 @@
+ --error ER_TOO_BIG_ROWSIZE
+ CREATE TABLE t1(c TEXT, PRIMARY KEY (c(440)))
+ ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
+-CREATE TABLE t1(c TEXT, PRIMARY KEY (c(439)))
++CREATE TABLE t1(c TEXT, PRIMARY KEY (c(438)))
+ ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
+ INSERT INTO t1 VALUES(REPEAT('A',512)),(REPEAT('B',512));
+ DROP TABLE t1;

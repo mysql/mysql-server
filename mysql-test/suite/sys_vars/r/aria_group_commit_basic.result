@@ -1,0 +1,45 @@
+SET @start_global_value = @@global.aria_group_commit;
+select @@global.aria_group_commit;
+@@global.aria_group_commit
+none
+select @@session.aria_group_commit;
+ERROR HY000: Variable 'aria_group_commit' is a GLOBAL variable
+show global variables like 'aria_group_commit';
+Variable_name	Value
+aria_group_commit	none
+show session variables like 'aria_group_commit';
+Variable_name	Value
+aria_group_commit	none
+select * from information_schema.global_variables where variable_name='aria_group_commit';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_GROUP_COMMIT	none
+select * from information_schema.session_variables where variable_name='aria_group_commit';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_GROUP_COMMIT	none
+set global aria_group_commit=1;
+select @@global.aria_group_commit;
+@@global.aria_group_commit
+hard
+set session aria_group_commit=1;
+ERROR HY000: Variable 'aria_group_commit' is a GLOBAL variable and should be set with SET GLOBAL
+set global aria_group_commit=none;
+select @@global.aria_group_commit;
+@@global.aria_group_commit
+none
+set global aria_group_commit=hard;
+select @@global.aria_group_commit;
+@@global.aria_group_commit
+hard
+set global aria_group_commit=soft;
+select @@global.aria_group_commit;
+@@global.aria_group_commit
+soft
+set global aria_group_commit=1.1;
+ERROR 42000: Incorrect argument type to variable 'aria_group_commit'
+set global aria_group_commit=1e1;
+ERROR 42000: Incorrect argument type to variable 'aria_group_commit'
+set global aria_group_commit="foo";
+ERROR 42000: Variable 'aria_group_commit' can't be set to the value of 'foo'
+set global aria_group_commit=3;
+ERROR 42000: Variable 'aria_group_commit' can't be set to the value of '3'
+SET @@global.aria_group_commit = @start_global_value;

@@ -20,6 +20,8 @@
 
 use strict;
 
+our $basedir;
+
 sub gcov_prepare ($) {
   my ($dir)= @_;
   print "Purging gcov information from '$dir'...\n";
@@ -42,7 +44,7 @@ sub gcov_collect ($$$) {
   # Get current directory to return to later.
   my $start_dir= cwd();
 
-  print "Collecting source coverage info using '$gcov'...\n";
+  print "Collecting source coverage info using '$gcov'...$basedir\n";
   -f "$dir/$gcov_msg" and unlink("$dir/$gcov_msg");
   -f "$dir/$gcov_err" and unlink("$dir/$gcov_err");
 
@@ -58,6 +60,7 @@ sub gcov_collect ($$$) {
 
     foreach my $f (@flist) {
       system("$gcov $f 2>>$dir/$gcov_err >>$dir/$gcov_msg");
+      system("perl", "$basedir/mysql-test/lib/process-purecov-annotations.pl", "$f.gcov");
     }
     chdir($start_dir);
   }

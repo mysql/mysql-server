@@ -21,6 +21,18 @@ select 1 # The rest of the row will be ignored
 # End of 4.1 tests
 
 #
+# Testing of MariaDB executable comments
+#
+
+select 1 /*M! +1 */;
+select 1 /*M!50000 +1 */;
+select 1 /*M!50300 +1 */;
+select 2 /*M!99999 +1 */;
+select 2 /*M!100000 +1 */;
+--error ER_PARSE_ERROR
+select 2 /*M!0000 +1 */;
+
+#
 # Bug#25411 (trigger code truncated)
 #
 
@@ -28,7 +40,7 @@ select 1 # The rest of the row will be ignored
 select 1/*!2*/;
 
 --error ER_PARSE_ERROR
-select 1/*!000002*/;
+select 1/*!0000002*/;
 
 select 1/*!999992*/;
 

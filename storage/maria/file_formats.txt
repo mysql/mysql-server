@@ -1,0 +1,71 @@
+#
+# This should contain a description of the file format for most Maria files
+#
+
+# Description of the header in the index file
+
+Header, 24 bytes
+
+Pos  Length
+
+0    4  file_version
+4    2  options
+6    2  header_length
+8    2  state_info_length
+10   2  base_info_length
+12   2  base_pos
+14   2  key_parts
+16   2  unique_key_parts
+18   1  keys
+19   1  uniques
+20   1  language
+21   1  fulltext_keys
+22   1  data_file_type
+23   1  org_data_file_type
+
+
+Status part
+
+24   2  open_count
+26   2  state_changed
+28   7  create_rename_lsn
+     7  is_of_horizon
+     7  skip_redo_lsn
+     8  state.records
+     8  state->state.del
+     8  state->split
+     8  state->dellink
+     8  state->first_bitmap_with_space
+     8  state->state.key_file_length
+     8  state->state.data_file_length
+     8  state->state.empty
+     8  state->state.key_empty
+     8  state->auto_increment
+     8  state->state.checksum
+     4  state->process
+     4  state->unique
+     4  state->status
+     4  state->update_count
+
+     1  state->sortkey
+     1  reserved
+
+for each key
+     8  state->key_root[i]
+
+     8  state->key_del
+     4  state->sec_index_changed
+     4  state->sec_index_used
+     4  state->version
+     8  state->key_map
+     8  state->create_time
+     8  state->recover_time
+     8  state->check_time
+     8  state->records_at_analyze
+
+for each key
+    4   reserved
+
+for each key part
+    8   state->rec_per_key_part[i]
+    4   state->nulls_per_key_part[i]

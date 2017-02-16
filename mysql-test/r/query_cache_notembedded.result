@@ -383,3 +383,55 @@ set GLOBAL query_cache_type=default;
 set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
 set GLOBAL query_cache_size=default;
+drop table if exists t1|
+create table t1 (
+id   char(16) not null default '',
+data int not null
+)|
+drop procedure if exists bug3583|
+drop procedure if exists bug3583|
+create procedure bug3583()
+begin
+declare c int;
+select * from t1;
+select count(*) into c from t1;
+select c;
+end|
+insert into t1 values ("x", 3), ("y", 5)|
+set @x = @@query_cache_size|
+set global query_cache_size = 10*1024*1024|
+flush status|
+flush query cache|
+show status like 'Qcache_hits'|
+Variable_name	Value
+Qcache_hits	0
+call bug3583()|
+id	data
+x	3
+y	5
+c
+2
+show status like 'Qcache_hits'|
+Variable_name	Value
+Qcache_hits	0
+call bug3583()|
+id	data
+x	3
+y	5
+c
+2
+call bug3583()|
+id	data
+x	3
+y	5
+c
+2
+show status like 'Qcache_hits'|
+Variable_name	Value
+Qcache_hits	2
+set global query_cache_size = @x|
+flush status|
+flush query cache|
+delete from t1|
+drop procedure bug3583|
+drop table t1|

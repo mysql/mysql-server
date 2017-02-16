@@ -1,0 +1,12 @@
+call mtr.add_suppression("Incorrect key file for table.*mysql.plugin.MYI");
+SET debug_dbug='+d,myisam_pretend_crashed_table_on_usage';
+install plugin audit_null soname 'adt_null';
+ERROR HY000: Incorrect key file for table './mysql/plugin.MYI'; try to repair it
+SET debug_dbug='-d,myisam_pretend_crashed_table_on_usage';
+install plugin audit_null soname 'adt_null';
+SET debug_dbug='+d,myisam_pretend_crashed_table_on_usage';
+uninstall plugin audit_null;
+ERROR HY000: Incorrect key file for table './mysql/plugin.MYI'; try to repair it
+SET debug_dbug='-d,myisam_pretend_crashed_table_on_usage';
+uninstall plugin audit_null;
+ERROR 42000: PLUGIN audit_null does not exist

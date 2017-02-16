@@ -1,0 +1,186 @@
+-- source include/have_log_bin.inc
+
+set sql_log_bin=0;
+--disable_warnings
+drop table if exists t1,v1,v2,v3,v4,v1badcheck;
+drop view if exists t1,v1,v2,v3,v4,v1badcheck;
+--enable_warnings
+
+create table t1(a int);
+create table kv(k varchar(30) NOT NULL PRIMARY KEY,v  varchar(50));
+create view v1 as select 1;
+
+repair table t1 quick;
+repair table t1 extended;
+repair table t1 use_frm;
+--error ER_PARSE_ERROR
+repair table t1 from mysql;
+
+--error ER_PARSE_ERROR
+repair view v1 quick;
+--error ER_PARSE_ERROR
+repair view v1 extended;
+--error ER_PARSE_ERROR
+repair view v1 use_frm;
+repair view v1 from mysql;
+
+--error ER_PARSE_ERROR
+check view v1 quick;
+--error ER_PARSE_ERROR
+check view v1 fast;
+--error ER_PARSE_ERROR
+check view v1 medium;
+--error ER_PARSE_ERROR
+check view v1 extended;
+--error ER_PARSE_ERROR
+check view v1 changed;
+check view v1 for upgrade;
+
+drop view v1;
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v1.frm $MYSQLD_DATADIR/test/v1.frm
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v1badcheck.frm $MYSQLD_DATADIR/test/v1badcheck.frm
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v2.frm $MYSQLD_DATADIR/test/v2.frm
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v3.frm $MYSQLD_DATADIR/test/v3.frm
+
+flush tables;
+
+check view v1;
+check view v1badcheck;
+check view v2;
+check view v3;
+
+check view v1 for upgrade;
+check view v1badcheck for upgrade;
+check view v2 for upgrade;
+check view v3 for upgrade;
+
+--replace_result $MYSQLTEST_VARDIR var
+--exec $MYSQL_UPGRADE --force 2>&1
+
+# "Phase 1/4: Fixing views"  expected (without from_mysql)
+
+show create view v1;
+show create view v2;
+show create view v3;
+
+# Now force a mariadb version to be added
+
+set sql_log_bin=1;
+REPAIR VIEW v1,v2;
+REPAIR VIEW v1badcheck;
+REPAIR NO_WRITE_TO_BINLOG VIEW v3;
+set sql_log_bin=0;
+
+--source include/show_binlog_events.inc
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval LOAD DATA INFILE '$MYSQLD_DATADIR/test/v1.frm' REPLACE INTO TABLE kv FIELDS TERMINATED BY '=';
+SELECT k,v from kv where k in ('md5','algorithm');
+SELECT k from kv where k ='mariadb-version';
+truncate table kv;
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval LOAD DATA INFILE '$MYSQLD_DATADIR/test/v2.frm' REPLACE INTO TABLE kv FIELDS TERMINATED BY '=';
+SELECT k,v from kv where k in ('md5','algorithm');
+SELECT k from kv where k ='mariadb-version';
+truncate table kv;
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval LOAD DATA INFILE '$MYSQLD_DATADIR/test/v3.frm' REPLACE INTO TABLE kv FIELDS TERMINATED BY '=';
+SELECT k,v from kv where k in ('md5','algorithm');
+SELECT k from kv where k ='mariadb-version';
+truncate table kv;
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval LOAD DATA INFILE '$MYSQLD_DATADIR/test/v1badcheck.frm' REPLACE INTO TABLE kv FIELDS TERMINATED BY '=';
+SELECT k,v from kv where k in ('md5','algorithm');
+SELECT k from kv where k ='mariadb-version';
+truncate table kv;
+
+--disable_warnings
+drop view if exists v1,v2,v3,v1badcheck;
+--enable_warnings
+
+# Make it look like a MySQL directory now
+
+rename table mysql.event to mysql.ev_bk;
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/event.MYI $MYSQLD_DATADIR/mysql/event.MYI
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/event.MYD $MYSQLD_DATADIR/mysql/event.MYD
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/event.frm $MYSQLD_DATADIR/mysql/event.frm
+
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v1.frm $MYSQLD_DATADIR/test/v1.frm
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v2.frm $MYSQLD_DATADIR/test/v2.frm
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v3.frm $MYSQLD_DATADIR/test/v3.frm
+
+flush tables;
+
+create algorithm=temptable view v4 as select a from t1;
+show create view v1;
+show create view v2;
+show create view v3;
+show create view v4;
+
+# here we test the fixing views from mysql to occur
+--replace_result $MYSQLTEST_VARDIR var
+--exec $MYSQL_UPGRADE --force 2>&1
+
+show create view v1;
+show create view v2;
+show create view v3;
+show create view v4;
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval LOAD DATA INFILE '$MYSQLD_DATADIR/test/v1.frm' REPLACE INTO TABLE kv FIELDS TERMINATED BY '=';
+SELECT k,v from kv where k in ('md5','algorithm');
+SELECT k from kv where k ='mariadb-version';
+truncate table kv;
+
+--disable_warnings
+drop view if exists v1,v2,v3;
+--enable_warnings
+
+# back to mariadb default
+drop table mysql.event;
+rename table mysql.ev_bk to mysql.event;
+
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v1.frm $MYSQLD_DATADIR/test/v1.frm
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v2.frm $MYSQLD_DATADIR/test/v2.frm
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v3.frm $MYSQLD_DATADIR/test/v3.frm
+
+# check of binlog and mixing tables (with table specific options) and views
+--exec $MYSQL_CHECK --repair --write-binlog --process-tables --use-frm --process-views=UPGRADE_FROM_MYSQL test 2>&1
+
+--source include/show_binlog_events.inc
+
+drop table if exists kv;
+drop view v1,v2,v3,v4;
+
+#
+# MDEV-9453 mysql_upgrade.exe error when mysql is migrated to mariadb
+# (mysql_upgrade.exe --upgrade-system-tables fails on fixing views)
+#
+
+# Make it look like a MySQL directory again
+
+rename table mysql.event to mysql.ev_bk;
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/event.MYI $MYSQLD_DATADIR/mysql/event.MYI
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/event.MYD $MYSQLD_DATADIR/mysql/event.MYD
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/event.frm $MYSQLD_DATADIR/mysql/event.frm
+
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v1.frm $MYSQLD_DATADIR/test/v1.frm
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v2.frm $MYSQLD_DATADIR/test/v2.frm
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v3.frm $MYSQLD_DATADIR/test/v3.frm
+
+flush tables;
+
+--replace_result $MYSQLTEST_VARDIR var
+--exec $MYSQL_UPGRADE --force --upgrade-system-tables 2>&1
+
+# back to mariadb default
+drop table mysql.event;
+rename table mysql.ev_bk to mysql.event;
+drop view v1,v2,v3;
+drop table t1;

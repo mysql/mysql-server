@@ -1,0 +1,34 @@
+select @default_binlog_format:=@@global.binlog_format;
+@default_binlog_format:=@@global.binlog_format
+STATEMENT
+set global binlog_format=row;
+set session debug_dbug="+d,optimizer_innodb_ds_mrr";
+set autocommit=0;
+use test;
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+create table t1 (dummy int primary key, a int unique, b int) engine=innodb;
+insert into t1 values(1,1,1),(3,3,3),(5,5,5);
+commit;
+set session transaction isolation level repeatable read;
+select @@tx_isolation;
+@@tx_isolation
+REPEATABLE-READ
+start transaction;
+select * from t1 where a > 2 for update;
+dummy	a	b
+3	3	3
+5	5	5
+use test;
+set autocommit=0;
+start transaction;
+select 1;
+1
+1
+insert into t1 values(2,2,2);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+rollback;
+rollback;
+drop table t1;
+set global binlog_format=@default_binlog_format;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,7 +87,9 @@ static CHARSET_INFO *charset_list[]=
 #endif
 #ifdef HAVE_CHARSET_utf8
   &my_charset_utf8_general_ci,
+#ifdef HAVE_UCA_COLLATIONS
   &my_charset_utf8_unicode_ci,
+#endif
   &my_charset_utf8_bin,
 #endif
 };

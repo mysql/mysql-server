@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,10 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
-#include <m_string.h>
-#include <stdarg.h>
+#include "strings_def.h"
 #include <m_ctype.h>
+#include <stdarg.h>
 
 
 #define MAX_ARGS 32                           /* max positional args count*/
@@ -681,3 +681,66 @@ size_t my_snprintf(char* to, size_t n, const char* fmt, ...)
   return result;
 }
 
+
+/**
+  Writes output to the stream according to a format string.
+
+  @param stream     file to write to
+  @param format     string format
+  @param args       list of parameters
+
+  @retval
+    number of the characters written.
+*/
+
+int my_vfprintf(FILE *stream, const char* format, va_list args)
+{
+  char cvtbuf[1024];
+  int alloc= 0;
+  char *p= cvtbuf;
+  size_t cur_len= sizeof(cvtbuf);
+  int ret;
+
+  /*
+    We do not know how much buffer we need.
+    So start with a reasonably-sized stack-allocated buffer, and increase
+    it exponentially until it is big enough.
+  */
+  for (;;)
+  {
+    size_t new_len;
+    size_t actual= my_vsnprintf(p, cur_len, format, args);
+    if (actual < cur_len - 1)
+      break;
+    /*
+      Not enough space (or just enough with nothing to spare - but we cannot
+      distinguish this case from the return value). Allocate a bigger buffer
+      and try again.
+    */
+    if (alloc)
+      (*my_str_free)(p);
+    else
+      alloc= 1;
+    new_len= cur_len*2;
+    if (new_len < cur_len)
+      return 0;                                 /* Overflow */
+    cur_len= new_len;
+    p= (*my_str_malloc)(cur_len);
+    if (!p)
+      return 0;
+  }
+  ret= fprintf(stream, "%s", p);
+  if (alloc)
+    (*my_str_free)(p);
+  return ret;
+}
+
+int my_fprintf(FILE *stream, const char* format, ...)
+{
+  int result;
+  va_list args;
+  va_start(args, format);
+  result= my_vfprintf(stream, format, args);
+  va_end(args);
+  return result;
+}

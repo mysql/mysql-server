@@ -1,3 +1,4 @@
+-- source include/have_log_bin.inc
 -- source include/have_innodb.inc
 
 create table bug53674(a int)engine=innodb;

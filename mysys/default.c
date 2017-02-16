@@ -577,6 +577,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
                                      handle_default_option, (void *) &ctx,
                                      dirs)))
   {
+    delete_dynamic(&args);
     free_root(&alloc,MYF(0));
     DBUG_RETURN(error);
   }
@@ -814,7 +815,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
       continue;
 
     /* Configuration File Directives */
-    if ((*ptr == '!'))
+    if (*ptr == '!')
     {
       if (recursion_level >= max_recursion_level)
       {
@@ -849,7 +850,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
         for (i= 0; i < (uint) search_dir->number_off_files; i++)
         {
           search_file= search_dir->dir_entry + i;
-          ext= fn_ext(search_file->name);
+          ext= fn_ext2(search_file->name);
 
           /* check extension */
           for (tmp_ext= (char**) f_extensions; *tmp_ext; tmp_ext++)
@@ -1198,10 +1199,11 @@ static const char **init_default_directories(MEM_ROOT *alloc)
   const char **dirs;
   char *env;
   int errors= 0;
+  DBUG_ENTER("init_default_directories");
 
   dirs= (const char **)alloc_root(alloc, DEFAULT_DIRS_SIZE * sizeof(char *));
   if (dirs == NULL)
-    return NULL;
+    DBUG_RETURN(NULL);
   bzero((char *) dirs, DEFAULT_DIRS_SIZE * sizeof(char *));
 
 #ifdef __WIN__
@@ -1242,5 +1244,5 @@ static const char **init_default_directories(MEM_ROOT *alloc)
   errors += add_directory(alloc, "~/", dirs);
 #endif
 
-  return (errors > 0 ? NULL : dirs);
+  DBUG_RETURN(errors > 0 ? NULL : dirs);
 }

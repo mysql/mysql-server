@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, SkySQL Ab. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -46,6 +47,7 @@ Created June 2005 by Marko Makela
 # define lock_move_reorganize_page(block, temp_block)	((void) 0)
 # define buf_LRU_stat_inc_unzip()			((void) 0)
 #endif /* !UNIV_HOTBACKUP */
+#include "srv0srv.h"
 
 #ifndef UNIV_HOTBACKUP
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
@@ -1261,6 +1263,30 @@ page_zip_compress(
 
 	if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE
 			  >= page_zip_get_size(page_zip))) {
+
+		goto err_exit;
+	}
+
+	/* Simulate a compression failure with a probability determined by
+	innodb_simulate_comp_failures, only if the page has 2 or more
+	records. */
+
+	if (srv_simulate_comp_failures
+	    && !dict_index_is_ibuf(index)
+	    && page_get_n_recs(page) >= 2
+	    && ((ulint)(rand() % 100) < srv_simulate_comp_failures)
+	    && strcasecmp(index->table_name, "IBUF_DUMMY") != 0) {
+
+#ifdef UNIV_DEBUG
+		fprintf(stderr,
+			"InnoDB: Simulating a compression failure"
+			" for table %s, index %s, page %lu (%s)\n",
+			index->table_name,
+			index->name,
+			page_get_page_no(page),
+			page_is_leaf(page) ? "leaf" : "non-leaf");
+
+#endif
 
 		goto err_exit;
 	}

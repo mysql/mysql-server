@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,6 +49,11 @@
 class Relay_log_info;
 class Master_info;
 
+int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
+int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
+                          const char *default_val);
+int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val);
+int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f);
 
 /*****************************************************************************
 
@@ -111,11 +117,13 @@ extern MY_BITMAP slave_error_mask;
 extern char slave_skip_error_names[];
 extern bool use_slave_mask;
 extern char *slave_load_tmpdir;
-extern char *master_info_file, *relay_log_info_file;
+extern char *master_info_file;
+extern MYSQL_PLUGIN_IMPORT char *relay_log_info_file;
 extern char *opt_relay_logname, *opt_relaylog_index_name;
 extern my_bool opt_skip_slave_start, opt_reckless_slave;
 extern my_bool opt_log_slave_updates;
 extern char *opt_slave_skip_errors;
+extern my_bool opt_replicate_annotate_row_events;
 extern ulonglong relay_log_space_limit;
 
 /*
@@ -143,6 +151,15 @@ extern ulonglong relay_log_space_limit;
   tried. Otherwise, if first fails, we fail.
 */
 #define SLAVE_FORCE_ALL 4
+
+/*
+  Values for the option --replicate-events-marked-for-skip.
+  Must match the names in replicate_events_marked_for_skip_names in sys_vars.cc
+*/
+#define RPL_SKIP_REPLICATE 0
+#define RPL_SKIP_FILTER_ON_SLAVE 1
+#define RPL_SKIP_FILTER_ON_MASTER 2
+
 
 int init_slave();
 int init_recovery(Master_info* mi, const char** errmsg);
@@ -213,24 +230,20 @@ pthread_handler_t handle_slave_sql(void *arg);
 bool net_request_file(NET* net, const char* fname);
 
 extern bool volatile abort_loop;
-extern Master_info main_mi, *active_mi; /* active_mi for multi-master */
-extern LIST master_list;
+extern Master_info *active_mi; /* active_mi for multi-master */
 extern my_bool replicate_same_server_id;
 
 extern int disconnect_slave_event_count, abort_slave_event_count ;
 
 /* the master variables are defaults read from my.cnf or command line */
-extern uint master_port, master_connect_retry, report_port;
-extern char * master_user, *master_password, *master_host;
-extern char *master_info_file, *relay_log_info_file, *report_user;
+extern uint report_port;
+extern char *master_info_file, *report_user;
 extern char *report_host, *report_password;
 
-extern my_bool master_ssl;
-extern char *master_ssl_ca, *master_ssl_capath, *master_ssl_cert;
-extern char *master_ssl_cipher, *master_ssl_key;
-       
 extern I_List<THD> threads;
 
+#else
+#define close_active_mi() /* no-op */
 #endif /* HAVE_REPLICATION */
 
 /* masks for start/stop operations on io and sql slave threads */

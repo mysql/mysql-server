@@ -892,6 +892,7 @@ drop table t1;
 create table t1 (a int not null, b int not null, key(a), key(b))
   partition by hash(a) partitions 4;
 insert into t1 values (1,1),(2,2),(3,3),(4,4);
+insert into t1 values (5,5),(6,6),(7,7),(8,8);
 
 explain partitions 
 select * from t1 X, t1 Y 
@@ -1105,12 +1106,14 @@ show status like 'Handler_read_key';
 flush status;
 delete from t2 where b > 5;
 show status like 'Handler_read_rnd_next';
+show status like 'Handler_read_rnd_deleted';
 show status like 'Handler_read_key';
 show status like 'Handler_read_prev';
 show status like 'Handler_read_next';
 flush status;
 delete from t2 where b < 5 or b > 3;
 show status like 'Handler_read_rnd_next';
+show status like 'Handler_read_rnd_deleted';
 show status like 'Handler_read_key';
 show status like 'Handler_read_prev';
 show status like 'Handler_read_next';
@@ -1458,3 +1461,60 @@ EXPLAIN PARTITIONS SELECT * FROM t1 WHERE c1 = 2 AND c2 = 4;
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE c1 = 2 AND c2 >= 4;
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE c1 = 2 AND c2 > 4;
 DROP TABLE t1;
+
+--echo #
+--echo # MDEV-6239: Partition pruning is not working as expected in an inner query
+--echo #
+
+create table t1
+(
+  company_id bigint(5),
+  dept_id bigint(5),
+  emp_id bigint(5),
+  emp_name varchar(100),
+  primary key (company_id, emp_id)
+) partition by list (company_id) (
+	partition p_1000 values in (1000),
+	partition p_2000 values in (2000),
+	partition p_3000 values in (3000)
+);
+
+create table t2
+(
+  company_id bigint(5),
+  dept_id bigint(5),
+  dept_name varchar(100),
+  primary key (company_id, dept_id)
+) partition by list (company_id) (
+	partition p_1000 values in (1000),
+	partition p_2000 values in (2000),
+	partition p_3000 values in (3000)
+);
+
+insert into t2 values 
+  (1000, 10, 'Engineering'),
+  (1000, 20, 'Product Management'),
+  (1000, 30, 'QA'),
+  (2000, 40, 'Support'),
+  (2000, 50, 'Professional Services');
+
+insert into t1 values 
+(1000, 10, 1, 'John'),
+(1000, 10, 2, 'Smith'),
+(1000, 20, 3, 'Jacob'),
+(1000, 20, 4, 'Brian'),
+(1000, 30, 5, 'Chris'),
+(1000, 30, 6, 'Ryan'),
+(2000, 40, 7, 'Karin'),
+(2000, 40, 8, 'Jay'),
+(2000, 50, 9, 'Ana'),
+(2000, 50, 10, 'Jessica');
+
+--echo # Table t2 should have only partition p_1000.
+explain partitions
+select * from t1
+where company_id = 1000
+and dept_id in (select dept_id from t2 where COMPANY_ID = 1000);
+
+drop table t1,t2;
+

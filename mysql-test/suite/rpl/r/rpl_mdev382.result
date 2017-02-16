@@ -1,0 +1,373 @@
+include/master-slave.inc
+[connection master]
+create table t1 (a int primary key) engine=innodb;
+create table t2 (a int primary key) engine=myisam;
+begin;
+insert into t1 values (1);
+SET sql_mode = 'ANSI_QUOTES';
+savepoint `a``; create database couldbebadthingshere; savepoint ``dummy`;
+insert into t1 values (2);
+insert into t2 values (1);
+SET sql_mode = '';
+rollback to savepoint `a``; create database couldbebadthingshere; savepoint ``dummy`;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+insert into t1 values (3);
+commit;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int primary key) engine=innodb
+master-bin.000001	#	Query	#	#	use `test`; create table t2 (a int primary key) engine=myisam
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; insert into t2 values (1)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (1)
+master-bin.000001	#	Query	#	#	SAVEPOINT "a`; create database couldbebadthingshere; savepoint `dummy"
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (2)
+master-bin.000001	#	Query	#	#	ROLLBACK TO `a``; create database couldbebadthingshere; savepoint ``dummy`
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (3)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+BEGIN;
+insert into t1 values(10);
+set sql_mode = 'ANSI_QUOTES';
+set sql_quote_show_create = 1;
+savepoint a;
+insert into t1 values(11);
+savepoint "a""a";
+insert into t1 values(12);
+set sql_quote_show_create = 0;
+savepoint b;
+insert into t1 values(13);
+savepoint "b""b";
+insert into t1 values(14);
+set sql_mode = '';
+set sql_quote_show_create = 1;
+savepoint c;
+insert into t1 values(15);
+savepoint `c``c`;
+insert into t1 values(16);
+set sql_quote_show_create = 0;
+savepoint d;
+insert into t1 values(17);
+savepoint `d``d`;
+insert into t1 values(18);
+COMMIT;
+set sql_quote_show_create = 1;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(10)
+master-bin.000001	#	Query	#	#	SAVEPOINT "a"
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(11)
+master-bin.000001	#	Query	#	#	SAVEPOINT "a""a"
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(12)
+master-bin.000001	#	Query	#	#	SAVEPOINT b
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(13)
+master-bin.000001	#	Query	#	#	SAVEPOINT "b""b"
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(14)
+master-bin.000001	#	Query	#	#	SAVEPOINT `c`
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(15)
+master-bin.000001	#	Query	#	#	SAVEPOINT `c``c`
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(16)
+master-bin.000001	#	Query	#	#	SAVEPOINT d
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(17)
+master-bin.000001	#	Query	#	#	SAVEPOINT `d``d`
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(18)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+*** Test correct USE statement in SHOW BINLOG EVENTS ***
+set sql_mode = 'ANSI_QUOTES';
+CREATE DATABASE "db1`; select 'oops!'";
+use "db1`; select 'oops!'";
+CREATE TABLE t1 (a INT PRIMARY KEY) engine=MyISAM;
+INSERT INTO t1 VALUES (1);
+set sql_mode = '';
+INSERT INTO t1 VALUES (2);
+set sql_mode = 'ANSI_QUOTES';
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	CREATE DATABASE "db1`; select 'oops!'"
+master-bin.000001	#	Query	#	#	use "db1`; select 'oops!'"; CREATE TABLE t1 (a INT PRIMARY KEY) engine=MyISAM
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use "db1`; select 'oops!'"; INSERT INTO t1 VALUES (1)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use "db1`; select 'oops!'"; INSERT INTO t1 VALUES (2)
+master-bin.000001	#	Query	#	#	COMMIT
+set sql_mode = '';
+set sql_quote_show_create = 0;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	CREATE DATABASE "db1`; select 'oops!'"
+master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; CREATE TABLE t1 (a INT PRIMARY KEY) engine=MyISAM
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; INSERT INTO t1 VALUES (1)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; INSERT INTO t1 VALUES (2)
+master-bin.000001	#	Query	#	#	COMMIT
+set sql_quote_show_create = 1;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	CREATE DATABASE "db1`; select 'oops!'"
+master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; CREATE TABLE t1 (a INT PRIMARY KEY) engine=MyISAM
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; INSERT INTO t1 VALUES (1)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; INSERT INTO t1 VALUES (2)
+master-bin.000001	#	Query	#	#	COMMIT
+DROP TABLE t1;
+use test;
+***Test LOAD DATA INFILE with various identifiers that need correct quoting ***
+use `db1``; select 'oops!'`;
+set timestamp=1000000000;
+CREATE TABLE `t``1` (`a``1` VARCHAR(4) PRIMARY KEY, `b``2` VARCHAR(3),
+`c``3` VARCHAR(7));
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/f''le.txt' INTO TABLE `t``1`
+  FIELDS TERMINATED BY ',' ESCAPED BY '\\' ENCLOSED BY ''''
+  LINES TERMINATED BY '\n'
+  (`a``1`, @`b```) SET `b``2` = @`b```, `c``3` = concat('|', "b""a'z", "!");
+SELECT * FROM `t``1`;
+a`1	b`2	c`3
+fo\o	bar	|b"a'z!
+truncate `t``1`;
+use test;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/f''le.txt'
+  INTO TABLE `db1``; select 'oops!'`.`t``1`
+  FIELDS TERMINATED BY ',' ESCAPED BY '\\' ENCLOSED BY ''''
+  LINES TERMINATED BY '\n'
+  (`a``1`, `b``2`) SET `c``3` = concat('|', "b""a'z", "!");
+SELECT * FROM `db1``; select 'oops!'`.`t``1`;
+a`1	b`2	c`3
+fo\o	bar	|b"a'z!
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; CREATE TABLE `t``1` (`a``1` VARCHAR(4) PRIMARY KEY, `b``2` VARCHAR(3),
+`c``3` VARCHAR(7))
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
+master-bin.000001	#	Execute_load_query	#	#	use `db1``; select 'oops!'`; LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/f\'le.txt' INTO TABLE `t``1` FIELDS TERMINATED BY ',' ENCLOSED BY '\'' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a``1`, @`b```) SET `b``2`= @`b```, `c``3`= concat('|', "b""a'z", "!") ;file_id=#
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; truncate `t``1`
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
+master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/f\'le.txt' INTO TABLE `db1``; select 'oops!'`.`t``1` FIELDS TERMINATED BY ',' ENCLOSED BY '\'' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a``1`, `b``2`) SET `c``3`= concat('|', "b""a'z", "!") ;file_id=#
+master-bin.000001	#	Query	#	#	COMMIT
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+use `db1``; select 'oops!'`/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+CREATE TABLE `t``1` (`a``1` VARCHAR(4) PRIMARY KEY, `b``2` VARCHAR(3),
+`c``3` VARCHAR(7))
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+LOAD DATA LOCAL INFILE '<name>' INTO TABLE `t``1` FIELDS TERMINATED BY ',' ENCLOSED BY '\'' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a``1`, @`b```) SET `b``2`= @`b```, `c``3`= concat('|', "b""a'z", "!")
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+truncate `t``1`
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+LOAD DATA LOCAL INFILE '<name>' INTO TABLE `db1``; select 'oops!'`.`t``1` FIELDS TERMINATED BY ',' ENCLOSED BY '\'' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a``1`, `b``2`) SET `c``3`= concat('|', "b""a'z", "!")
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+SELECT * FROM `db1``; select 'oops!'`.`t``1`;
+a`1	b`2	c`3
+fo\o	bar	|b"a'z!
+DROP TABLE `db1``; select 'oops!'`.`t``1`;
+drop table t1,t2;
+*** Test truncation of long SET expression in LOAD DATA ***
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(1000));
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/file.txt' INTO TABLE t1
+FIELDS TERMINATED BY ','
+  (a, @b) SET b = CONCAT(@b, '| 123456789A123456789B123456789C123456789D123456789E123456789F123456789G123456789H123456789I123456789J123456789K123456789L123456789M123456789N123456789O123456789P123456789Q123456789R123456789123456789T123456789U123456789V123456789W123456789X123456789Y123456789Z123456789|', @b);
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	X| 123456789A123456789B123456789C123456789D123456789E123456789F123456789G123456789H123456789I123456789J123456789K123456789L123456789M123456789N123456789O123456789P123456789Q123456789R123456789123456789T123456789U123456789V123456789W123456789X123456789Y123456789Z123456789|X
+2	A| 123456789A123456789B123456789C123456789D123456789E123456789F123456789G123456789H123456789I123456789J123456789K123456789L123456789M123456789N123456789O123456789P123456789Q123456789R123456789123456789T123456789U123456789V123456789W123456789X123456789Y123456789Z123456789|A
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
+master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/file.txt' INTO TABLE `t1` FIELDS TERMINATED BY ',' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a`, @`b`) SET `b`= CONCAT(@b, '| 123456789A123456789B123456789C123456789D123456789E123456789F123456789G123456789H123456789I123456789J123456789K123456789L123456789M123456789N123456789O123456789P123456789Q123456789R123456789123456789T123456789U123456789V123456789W123456789X123456789Y123456789Z123456789|', @b) ;file_id=#
+master-bin.000001	#	Query	#	#	COMMIT
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	X| 123456789A123456789B123456789C123456789D123456789E123456789F123456789G123456789H123456789I123456789J123456789K123456789L123456789M123456789N123456789O123456789P123456789Q123456789R123456789123456789T123456789U123456789V123456789W123456789X123456789Y123456789Z123456789|X
+2	A| 123456789A123456789B123456789C123456789D123456789E123456789F123456789G123456789H123456789I123456789J123456789K123456789L123456789M123456789N123456789O123456789P123456789Q123456789R123456789123456789T123456789U123456789V123456789W123456789X123456789Y123456789Z123456789|A
+DROP TABLE t1;
+*** Test user variables whose names require correct quoting ***
+use `db1``; select 'oops!'`;
+CREATE TABLE t1 (a1 BIGINT PRIMARY KEY, a2 BIGINT, a3 BIGINT, a4 BIGINT UNSIGNED, b DOUBLE, c DECIMAL(65,10), d VARCHAR(100));
+INSERT INTO t1 VALUES (-9223372036854775808,42,9223372036854775807,18446744073709551615,-1234560123456789e110, -1234501234567890123456789012345678901234567890123456789.0123456789, REPEAT("x", 100));
+SELECT @`a``1`:=a1, @`a``2`:=a2, @`a``3`:=a3, @`a``4`:=a4, @`b```:=b, @```c`:=c, @```d```:=d FROM t1;
+@`a``1`:=a1	@`a``2`:=a2	@`a``3`:=a3	@`a``4`:=a4	@`b```:=b	@```c`:=c	@```d```:=d
+-9223372036854775808	42	9223372036854775807	18446744073709551615	-1.234560123456789e125	-1234501234567890123456789012345678901234567890123456789.0123456789	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+INSERT INTO t1 VALUES (@`a``1`+1, @`a``2`*100, @`a``3`-1, @`a``4`-1, @`b```/2, @```c`, substr(@```d```, 2, 98));
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; CREATE TABLE t1 (a1 BIGINT PRIMARY KEY, a2 BIGINT, a3 BIGINT, a4 BIGINT UNSIGNED, b DOUBLE, c DECIMAL(65,10), d VARCHAR(100))
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; INSERT INTO t1 VALUES (-9223372036854775808,42,9223372036854775807,18446744073709551615,-1234560123456789e110, -1234501234567890123456789012345678901234567890123456789.0123456789, REPEAT("x", 100))
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	User var	#	#	@`a``1`=-9223372036854775808
+master-bin.000001	#	User var	#	#	@`a``2`=42
+master-bin.000001	#	User var	#	#	@`a``3`=9223372036854775807
+master-bin.000001	#	User var	#	#	@`a``4`=18446744073709551615
+master-bin.000001	#	User var	#	#	@`b```=-1.234560123456789e125
+master-bin.000001	#	User var	#	#	@```c`=-1234501234567890123456789012345678901234567890123456789.0123456789
+master-bin.000001	#	User var	#	#	@```d```=_latin1 X'78787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878' COLLATE latin1_swedish_ci
+master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; INSERT INTO t1 VALUES (@`a``1`+1, @`a``2`*100, @`a``3`-1, @`a``4`-1, @`b```/2, @```c`, substr(@```d```, 2, 98))
+master-bin.000001	#	Query	#	#	COMMIT
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+use `db1``; select 'oops!'`/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+CREATE TABLE t1 (a1 BIGINT PRIMARY KEY, a2 BIGINT, a3 BIGINT, a4 BIGINT UNSIGNED, b DOUBLE, c DECIMAL(65,10), d VARCHAR(100))
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+INSERT INTO t1 VALUES (-9223372036854775808,42,9223372036854775807,18446744073709551615,-1234560123456789e110, -1234501234567890123456789012345678901234567890123456789.0123456789, REPEAT("x", 100))
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+SET @`a``1`:=-9223372036854775808/*!*/;
+SET @`a``2`:=42/*!*/;
+SET @`a``3`:=9223372036854775807/*!*/;
+SET @`a``4`:=18446744073709551615/*!*/;
+SET @`b```:=-1.2345601234568e+125/*!*/;
+SET @```c`:=-1234501234567890123456789012345678901234567890123456789.0123456789/*!*/;
+SET @```d```:=_latin1 X'78787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878' COLLATE `latin1_swedish_ci`/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+INSERT INTO t1 VALUES (@`a``1`+1, @`a``2`*100, @`a``3`-1, @`a``4`-1, @`b```/2, @```c`, substr(@```d```, 2, 98))
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+SELECT * FROM `db1``; select 'oops!'`.t1 ORDER BY a1;
+a1	a2	a3	a4	b	c	d
+-9223372036854775808	42	9223372036854775807	18446744073709551615	-1.234560123456789e125	-1234501234567890123456789012345678901234567890123456789.0123456789	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+-9223372036854775807	4200	9223372036854775806	18446744073709551614	-6.172800617283945e124	-1234501234567890123456789012345678901234567890123456789.0123456789	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+DROP TABLE t1;
+*** Test correct quoting in foreign key error message ***
+use `db1``; select 'oops!'`;
+CREATE TABLE `t``1` ( `a``` INT PRIMARY KEY) ENGINE=innodb;
+CREATE TABLE `t``2` ( `b``` INT PRIMARY KEY, `c``` INT NOT NULL,
+FOREIGN KEY fk (`c```) REFERENCES `t``1`(`a```)) ENGINE=innodb;
+TRUNCATE `t``1`;
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`db1``; select 'oops!'`.`t``2`, CONSTRAINT `t``2_ibfk_1` FOREIGN KEY (`c```) REFERENCES `db1``; select 'oops!'`.`t``1` (`a```))
+DROP TABLE `t``2`;
+DROP TABLE `t``1`;
+*** Test correct quoting of DELETE FROM statement binlogged for HEAP table that is emptied due to server restart
+include/stop_slave.inc
+CREATE TABLE `db1``; select 'oops!'`.`t``1` (`a``` INT PRIMARY KEY) ENGINE=heap;
+INSERT INTO `db1``; select 'oops!'`.`t``1` VALUES (1), (2), (5);
+SELECT * FROM `db1``; select 'oops!'`.`t``1` ORDER BY 1;
+a`
+1
+2
+5
+set timestamp=1000000000;
+# The table should be empty on the master.
+SELECT * FROM `db1``; select 'oops!'`.`t``1`;
+a`
+# The DELETE statement should be correctly quoted
+show binlog events in 'master-bin.000002' from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Query	#	#	DELETE FROM `db1``; select 'oops!'`.`t``1`
+include/start_slave.inc
+# The table should be empty on the slave also.
+SELECT * FROM `db1``; select 'oops!'`.`t``1`;
+a`
+DROP TABLE `db1``; select 'oops!'`.`t``1`;
+use test;
+DROP DATABASE `db1``; select 'oops!'`;
+*** Test correct quoting of mysqlbinlog --rewrite-db option ***
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES(1);
+show binlog events in 'master-bin.000002' from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Query	#	#	BEGIN
+master-bin.000002	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(1)
+master-bin.000002	#	Query	#	#	COMMIT
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `ts``et`/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+DROP TABLE t1;
+include/rpl_end.inc

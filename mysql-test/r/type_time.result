@@ -1,6 +1,8 @@
 drop table if exists t1;
 create table t1 (t time);
 insert into t1 values("10:22:33"),("12:34:56.78"),(10),(1234),(123456.78),(1234559.99),("1"),("1:23"),("1:23:45"), ("10.22"), ("-10  1:22:33.45"),("20 10:22:33"),("1999-02-03 20:33:34");
+Warnings:
+Note	1265	Data truncated for column 't' at row 13
 insert t1 values (30),(1230),("1230"),("12:30"),("12:30:35"),("1 12:30:31.32");
 select * from t1;
 t
@@ -26,9 +28,9 @@ t
 insert into t1 values("10.22.22"),(1234567),(123456789),(123456789.10),("10 22:22"),("12.45a");
 Warnings:
 Warning	1265	Data truncated for column 't' at row 1
-Warning	1264	Out of range value for column 't' at row 2
-Warning	1264	Out of range value for column 't' at row 3
-Warning	1264	Out of range value for column 't' at row 4
+Warning	1265	Data truncated for column 't' at row 2
+Warning	1265	Data truncated for column 't' at row 3
+Warning	1265	Data truncated for column 't' at row 4
 Warning	1265	Data truncated for column 't' at row 6
 select * from t1;
 t
@@ -53,8 +55,8 @@ t
 36:30:31
 00:00:10
 00:00:00
-838:59:59
-838:59:59
+00:00:00
+00:00:00
 262:22:00
 00:00:12
 drop table t1;
@@ -149,6 +151,184 @@ TIMESTAMP(f1,'1')
 NULL
 DROP TABLE t1;
 End of 5.1 tests
+create table t1 (a time);
+insert t1 values (-131415);
+select * from t1;
+a
+-13:14:15
+drop table t1;
+create table t1 (f1 time , f2 varchar(5), key(f1));
+insert into t1 values ('00:20:01','a'),('00:20:03','b');
+select * from t1 force key (f1) where f1 < curdate();
+f1	f2
+00:20:01	a
+00:20:03	b
+select * from t1 ignore key (f1) where f1 < curdate();
+f1	f2
+00:20:01	a
+00:20:03	b
+drop table t1;
+create table t1(f1 time);
+insert into t1 values ('23:38:57');
+select f1, f1 = '2010-10-11 23:38:57' from t1;
+f1	f1 = '2010-10-11 23:38:57'
+23:38:57	0
+drop table t1;
+#
+# MDEV-4634 Crash in CONVERT_TZ
+#
+SELECT CONVERT_TZ(GREATEST(TIME('00:00:00'),TIME('00:00:00')),'+00:00','+7:5');
+CONVERT_TZ(GREATEST(TIME('00:00:00'),TIME('00:00:00')),'+00:00','+7:5')
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '00:00:00'
+#
+# MDEV-4652 Wrong result for CONCAT(GREATEST(TIME('00:00:01'),TIME('00:00:00')))
+#
+SELECT CONCAT(GREATEST(TIME('00:00:01'),TIME('00:00:00')));
+CONCAT(GREATEST(TIME('00:00:01'),TIME('00:00:00')))
+00:00:01
+SELECT CONCAT(GREATEST(TIME('32 00:00:01'),TIME('00:00:00')));
+CONCAT(GREATEST(TIME('32 00:00:01'),TIME('00:00:00')))
+768:00:01
+#
+# MDEV-4859 Wrong value and data type of "SELECT MAX(time_column) + 1 FROM t1"
+#
+CREATE TABLE t1 (t0 TIME);
+INSERT INTO t1 VALUES ('10:10:10');
+SELECT MAX(t0)+1 FROM t1;
+MAX(t0)+1
+101011
+CREATE TABLE t2 AS SELECT MAX(t0)+1 FROM t1;
+SELECT * FROM t2;
+MAX(t0)+1
+101011
+SHOW COLUMNS FROM t2;
+Field	Type	Null	Key	Default	Extra
+MAX(t0)+1	bigint(12)	YES		NULL	
+DROP TABLE t2,t1;
+CREATE TABLE t1 (t0 TIME);
+INSERT INTO t1 VALUES ('10:10:10');
+SELECT MAX(t0)+1.1 FROM t1;
+MAX(t0)+1.1
+101011.1
+CREATE TABLE t2 AS SELECT MAX(t0)+1.1 FROM t1;
+SELECT * FROM t2;
+MAX(t0)+1.1
+101011.1
+SHOW COLUMNS FROM t2;
+Field	Type	Null	Key	Default	Extra
+MAX(t0)+1.1	decimal(12,1)	YES		NULL	
+DROP TABLE t2,t1;
+CREATE TABLE t1 (t0 TIME);
+INSERT INTO t1 VALUES ('10:10:10');
+SELECT MAX(t0)+1e0 FROM t1;
+MAX(t0)+1e0
+101011
+CREATE TABLE t2 AS SELECT MAX(t0)+1e0 FROM t1;
+SELECT * FROM t2;
+MAX(t0)+1e0
+101011
+SHOW COLUMNS FROM t2;
+Field	Type	Null	Key	Default	Extra
+MAX(t0)+1e0	double	YES		NULL	
+DROP TABLE t2,t1;
+CREATE TABLE t1 (t1 TIME(1));
+INSERT INTO t1 VALUES ('10:10:10');
+SELECT MAX(t1)+1 FROM t1;
+MAX(t1)+1
+101011.0
+CREATE TABLE t2 AS SELECT MAX(t1)+1 FROM t1;
+SELECT * FROM t2;
+MAX(t1)+1
+101011.0
+SHOW COLUMNS FROM t2;
+Field	Type	Null	Key	Default	Extra
+MAX(t1)+1	decimal(13,1)	YES		NULL	
+DROP TABLE t2,t1;
+CREATE TABLE t1 (t0 DATETIME);
+INSERT INTO t1 VALUES ('2001-01-01 10:10:10');
+SELECT MAX(t0)+1 FROM t1;
+MAX(t0)+1
+20010101101011
+CREATE TABLE t2 AS SELECT MAX(t0)+1 FROM t1;
+SELECT * FROM t2;
+MAX(t0)+1
+20010101101011
+SHOW COLUMNS FROM t2;
+Field	Type	Null	Key	Default	Extra
+MAX(t0)+1	bigint(21)	YES		NULL	
+DROP TABLE t2,t1;
+CREATE TABLE t1 (t0 DATETIME);
+INSERT INTO t1 VALUES ('2001-01-01 10:10:10');
+SELECT MAX(t0)+1.1 FROM t1;
+MAX(t0)+1.1
+20010101101011.1
+CREATE TABLE t2 AS SELECT MAX(t0)+1.1 FROM t1;
+SELECT * FROM t2;
+MAX(t0)+1.1
+20010101101011.1
+SHOW COLUMNS FROM t2;
+Field	Type	Null	Key	Default	Extra
+MAX(t0)+1.1	decimal(21,1)	YES		NULL	
+DROP TABLE t2,t1;
+CREATE TABLE t1 (t0 DATETIME);
+INSERT INTO t1 VALUES ('2001-01-01 10:10:10');
+SELECT MAX(t0)+1e0 FROM t1;
+MAX(t0)+1e0
+20010101101011
+CREATE TABLE t2 AS SELECT MAX(t0)+1e0 FROM t1;
+SELECT * FROM t2;
+MAX(t0)+1e0
+20010101101011
+SHOW COLUMNS FROM t2;
+Field	Type	Null	Key	Default	Extra
+MAX(t0)+1e0	double	YES		NULL	
+DROP TABLE t2,t1;
+CREATE TABLE t1 (t1 DATETIME(1));
+INSERT INTO t1 VALUES ('2001-01-01 10:10:10');
+SELECT MAX(t1)+1 FROM t1;
+MAX(t1)+1
+20010101101011.0
+CREATE TABLE t2 AS SELECT MAX(t1)+1 FROM t1;
+SELECT * FROM t2;
+MAX(t1)+1
+20010101101011.0
+SHOW COLUMNS FROM t2;
+Field	Type	Null	Key	Default	Extra
+MAX(t1)+1	decimal(22,1)	YES		NULL	
+DROP TABLE t2,t1;
+#
+# MDEV-4858 Wrong results for a huge unsigned value inserted into a TIME column
+#
+SET sql_mode=traditional;
+CREATE TABLE t1 (a TIME(6));
+INSERT INTO t1 VALUES (CAST(0xFFFFFFFF00000000 AS UNSIGNED));
+ERROR 22007: Incorrect time value: '18446744069414584320' for column 'a' at row 1
+SET sql_mode=DEFAULT;
+INSERT INTO t1 VALUES (CAST(0xFFFFFFFF00000000 AS UNSIGNED));
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+SELECT * FROM t1;
+a
+838:59:59.999999
+DROP TABLE t1;
+SELECT TIME'00:00:00'> CAST(0xFFFFFFFF00000000 AS UNSIGNED);
+TIME'00:00:00'> CAST(0xFFFFFFFF00000000 AS UNSIGNED)
+0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '00:00:00'
+#
+# MDEV-6100 No warning on CAST(9000000 AS TIME)
+#
+SELECT CAST(9000000 AS TIME);
+CAST(9000000 AS TIME)
+838:59:59
+Warnings:
+Warning	1292	Truncated incorrect time value: '9000000'
+#
+# End of 5.3 tests
+#
 CREATE TABLE t1 (f1 TIME);
 INSERT INTO t1 VALUES ('24:00:00');
 SELECT      '24:00:00' = (SELECT f1 FROM t1);
@@ -172,4 +352,14 @@ SELECT '-24:00:00' = (SELECT f1 FROM t1);
 '-24:00:00' = (SELECT f1 FROM t1)
 1
 DROP TABLE t1;
-End of 6.0 tests
+#
+# MDEV-6592 Assertion `ltime->day == 0' failed with TIMESTAMP, MAKETIME
+#
+CREATE TABLE t1 (d DATE, c VARCHAR(10), KEY(d))  engine=myisam;
+INSERT INTO t1 VALUES ('2008-10-02','2008-10-02'), ('2008-10-02','2008-10-02');
+SELECT * FROM t1 WHERE TIMESTAMP(c,'02:04:42') AND d <=> MAKETIME(97,0,7);
+d	c
+DROP TABLE t1;
+#
+# End of 5.5 tests
+#

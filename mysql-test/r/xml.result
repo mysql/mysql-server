@@ -132,7 +132,7 @@ xb1 xc1
 SELECT extractValue(@xml,'/a//@x[2]');
 extractValue(@xml,'/a//@x[2]')
 xb2 xc2
-SET @xml='<a><b>b1</b><b>b2</b><c><b>c1b1</b><b>c1b2</b></c><c><b>c2b1</c></b></a>';
+SET @xml='<a><b>b1</b><b>b2</b><c><b>c1b1</b><b>c1b2</b></c><c><b>c2b1</b></c></a>';
 SELECT extractValue(@xml,'//b[1]');
 extractValue(@xml,'//b[1]')
 b1 c1b1 c2b1
@@ -948,20 +948,20 @@ SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["1 and string"]');
 ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["1 and string"]')
 b1
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '1 and string"]'
-Warning	1292	Truncated incorrect INTEGER value: '1 and string"]'
+Warning	1292	Truncated incorrect INTEGER value: '1 and string'
+Warning	1292	Truncated incorrect INTEGER value: '1 and string'
 SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["string and 1"]');
 ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["string and 1"]')
 
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'string and 1"]'
-Warning	1292	Truncated incorrect INTEGER value: 'string and 1"]'
+Warning	1292	Truncated incorrect INTEGER value: 'string and 1'
+Warning	1292	Truncated incorrect INTEGER value: 'string and 1'
 SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["string"]');
 ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b["string"]')
 
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'string"]'
-Warning	1292	Truncated incorrect INTEGER value: 'string"]'
+Warning	1292	Truncated incorrect INTEGER value: 'string'
+Warning	1292	Truncated incorrect INTEGER value: 'string'
 String-to-number conversion from a user variable
 SET @i='1';
 SELECT ExtractValue('<a><b>b1</b><b>b2</b></a>','/a/b[$@i]');
@@ -1134,6 +1134,24 @@ Warnings:
 Warning	1525	Incorrect XML value: 'parse error at line 1 pos 11: STRING unexpected (ident or '/' wanted)'
 End of 5.1 tests
 #
+# Start of 5.3 tests
+#
+#
+# MDEV-5338 XML parser accepts malformed data
+#
+SELECT ExtractValue('<a>xxx</c>','/a/b');
+ExtractValue('<a>xxx</c>','/a/b')
+NULL
+Warnings:
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 10: '</c>' unexpected ('</a>' wanted)'
+SELECT ExtractValue('<a><b>xxx</c></a>','/a/b');
+ExtractValue('<a><b>xxx</c></a>','/a/b')
+NULL
+Warnings:
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 13: '</c>' unexpected ('</b>' wanted)'
+#
+# End of 5.3 tests
+#
 # Start of 5.5 tests
 #
 #
@@ -1161,6 +1179,9 @@ UPDATEXML('<a><c><a>x</a></c></a>','(a)//a','<b />')
 SELECT ExtractValue('<a><a>aa</a><b>bb</b></a>','(a)/a|(a)/b');
 ExtractValue('<a><a>aa</a><b>bb</b></a>','(a)/a|(a)/b')
 aa bb
+SELECT ExtractValue('<a><b>abc</b><c>2</c><d>1</d></a>','substring(/a/b,..)');
+ExtractValue('<a><b>abc</b><c>2</c><d>1</d></a>','substring(/a/b,..)')
+
 #
 # End of 5.5 tests
 #

@@ -260,5 +260,27 @@ SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creato
 
 sync_slave_with_master;
 
+#
+# Bug#16056537: MYSQLD CRASHES IN ITEM_FUNC_GET_USER_VAR::FIX_LENGTH_AND_DEC()
+#
+set names utf8;
+--delimiter |
+CREATE FUNCTION f() RETURNS timestamp DETERMINISTIC
+BEGIN RETURN '2012-12-21 12:12:12'; END |
+CREATE PROCEDURE p(t timestamp) 
+BEGIN
+  SET @t = t;
+  PREPARE stmt FROM " 
+  UPDATE t1 SET a = @t WHERE '2012-12-31 08:00:00' < f() ";
+  EXECUTE stmt;
+  DEALLOCATE PREPARE stmt;
+END |
+--delimiter ;
+create table t1 (a timestamp);
+call p('2012-12-31 08:00:00');
+drop table t1;
+drop procedure p;
+drop function f;
+
 --echo end of the tests
 --source include/rpl_end.inc

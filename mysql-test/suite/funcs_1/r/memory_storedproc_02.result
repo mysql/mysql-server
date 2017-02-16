@@ -490,7 +490,7 @@ DECLARE condname1 CONDITION CHECK SQLSTATE '23000';
 END;
 DECLARE CONTINUE HANDLER FOR condname1 SET x1 = 1;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CHECK SQLSTATE '23000';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'CHECK SQLSTATE '23000';
 END;
 DECLARE CONTINUE HANDLER FOR condname1 SET x1 = 1;
 ' at line 5
@@ -524,7 +524,7 @@ declare undo handler for sqlexception select '1';
 select * from tqq;
 SELECT 'end of 1';
 end;//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'undo handler for sqlexception select '1';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'undo handler for sqlexception select '1';
 select * from tqq;
 SELECT 'end of 1';
 ' at line 3

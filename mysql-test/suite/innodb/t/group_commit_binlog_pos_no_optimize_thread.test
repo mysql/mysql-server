@@ -1,0 +1,90 @@
+--source include/have_innodb.inc
+--source include/have_debug_sync.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_mixed_or_statement.inc
+
+# Need DBUG to crash the server intentionally
+--source include/have_debug.inc
+# Don't test this under valgrind, memory leaks will occur as we crash
+--source include/not_valgrind.inc
+
+# The test case currently uses grep and tail, which may be unavailable on
+# some windows systems. But see MWL#191 for how to remove the need for grep.
+--source include/not_windows.inc
+
+# XtraDB stores the binlog position corresponding to the last commit, and
+# prints it during crash recovery.
+# Test that we get the correct position when we group commit several
+# transactions together.
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb;
+INSERT INTO t1 VALUES (0);
+
+connect(con1,localhost,root,,);
+connect(con2,localhost,root,,);
+connect(con3,localhost,root,,);
+
+# Queue up three commits for group commit.
+
+connection con1;
+SET DEBUG_SYNC= "commit_after_get_LOCK_log SIGNAL con1_waiting WAIT_FOR con3_queued";
+SET DEBUG_SYNC= "commit_loop_entry_commit_ordered SIGNAL con1_loop WAIT_FOR con1_loop_cont";
+send INSERT INTO t1 VALUES (1);
+
+connection con2;
+SET DEBUG_SYNC= "now WAIT_FOR con1_waiting";
+SET DEBUG_SYNC= "commit_after_prepare_ordered SIGNAL con2_queued";
+SET DEBUG_SYNC= "commit_loop_entry_commit_ordered SIGNAL con1_loop WAIT_FOR con1_loop_cont";
+send INSERT INTO t1 VALUES (2);
+
+connection con3;
+SET DEBUG_SYNC= "now WAIT_FOR con2_queued";
+SET DEBUG_SYNC= "commit_after_prepare_ordered SIGNAL con3_queued";
+SET DEBUG_SYNC= "commit_loop_entry_commit_ordered SIGNAL con1_loop WAIT_FOR con1_loop_cont";
+send INSERT INTO t1 VALUES (3);
+
+connection default;
+SET DEBUG_SYNC= "now WAIT_FOR con1_loop";
+# At this point, no transactions are committed.
+SET DEBUG_SYNC= "now SIGNAL con1_loop_cont";
+SET DEBUG_SYNC= "now WAIT_FOR con1_loop";
+# At this point, 1 transaction is committed.
+SET DEBUG_SYNC= "now SIGNAL con1_loop_cont";
+SET DEBUG_SYNC= "now WAIT_FOR con1_loop";
+
+# At this point, 2 transactions are committed.
+SELECT * FROM t1 ORDER BY a;
+
+connection con1;
+reap;
+connection con2;
+reap;
+
+# Now crash the server with 1+2 in-memory committed, 3 only prepared.
+connection default;
+system echo wait-group_commit_binlog_pos_no_optimize_thread.test >> $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+SET SESSION debug_dbug="+d,crash_dispatch_command_before";
+--error 2006,2013
+SELECT 1;
+
+connection con3;
+--error 2006,2013
+reap;
+
+system echo restart-group_commit_binlog_pos_no_optimize_thread.test >> $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+
+connection default;
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# Crash recovery should recover all three transactions.
+SELECT * FROM t1 ORDER BY a;
+
+# Check that the binlog position reported by InnoDB is the correct one
+# for the end of the second transaction (as can be checked with
+# mysqlbinlog).
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+--exec grep 'InnoDB: Last MySQL binlog file position' $MYSQLD_DATADIR/../../log/mysqld.1.err | tail -1
+
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;

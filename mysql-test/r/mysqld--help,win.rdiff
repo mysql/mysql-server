@@ -1,0 +1,92 @@
+--- mysql-test/r/mysqld--help.result	2012-09-08 22:22:06 +0000
++++ mysql-test/r/mysqld--help.result	2012-10-01 14:03:59 +0000
+@@ -244,7 +244,6 @@
+  The number of segments in a key cache
+  -L, --language=name Client error messages in given language. May be given as
+  a full path. Deprecated. Use --lc-messages-dir instead.
+- --large-pages       Enable support for large pages
+  --lc-messages=name  Set the language used for the error messages.
+  -L, --lc-messages-dir=name 
+  Directory where error messages are
+@@ -440,6 +439,7 @@
+  NULLS_UNEQUAL (default behavior for 4.1 and later),
+  NULLS_EQUAL (emulate 4.0 behavior), and NULLS_IGNORED
+  --myisam-use-mmap   Use memory mapping for reading and writing MyISAM tables
++ --named-pipe        Enable the named pipe (NT)
+  --net-buffer-length=# 
+  Buffer length for TCP/IP and socket communication
+  --net-read-timeout=# 
+@@ -707,6 +707,9 @@
+  files within specified directory
+  --server-id=#       Uniquely identifies the server instance in the community
+  of replication partners
++ --shared-memory     Enable the shared memory
++ --shared-memory-base-name=name 
++ Base name of shared memory
+  --show-slave-auth-info 
+  Show user and password in SHOW SLAVE HOSTS on this
+  master.
+@@ -774,6 +777,10 @@
+  Log slow queries to given log file. Defaults logging to
+  'hostname'-slow.log. Must be enabled to activate other
+  slow log options
++ --slow-start-timeout=# 
++ Maximum number of milliseconds that the service control
++ manager should wait before trying to kill the windows
++ service during startup(Default: 15000).
+  --socket=name       Socket file to use for connection
+  --sort-buffer-size=# 
+  Each thread that needs to do a sort allocates a buffer of
+@@ -782,6 +789,7 @@
+  for the complete list of valid sql modes
+  --stack-trace       Print a symbolic stack trace on failure
+  (Defaults to on; use --skip-stack-trace to disable.)
++ --standalone        Dummy option to start as a standalone program (NT).
+  --stored-program-cache=# 
+  The soft upper limit for number of cached stored routines
+  for one connection.
+@@ -822,8 +830,8 @@
+  size, MySQL will automatically convert it to an on-disk
+  MyISAM or Aria table
+  -t, --tmpdir=name   Path for temporary files. Several paths may be specified,
+- separated by a colon (:), in this case they are used in a
+- round-robin fashion
++ separated by a semicolon (;), in this case they are used
++ in a round-robin fashion
+  --transaction-alloc-block-size=# 
+  Allocation block size for transactions to be stored in
+  binary log
+@@ -923,7 +931,6 @@ key-cache-age-threshold 300
+ key-cache-block-size 1024
+ key-cache-division-limit 100
+ key-cache-segments 0
+-large-pages FALSE
+ lc-messages en_US
+ lc-messages-dir MYSQL_SHAREDIR/
+ lc-time-names en_US
+@@ -986,6 +993,7 @@ myisam-repair-threads 1
+ myisam-sort-buffer-size 8388608
+ myisam-stats-method nulls_unequal
+ myisam-use-mmap FALSE
++named-pipe FALSE
+ net-buffer-length 16384
+ net-read-timeout 30
+ net-retry-count 10
+@@ -1051,6 +1059,8 @@ safe-user-create FALSE
+ secure-auth FALSE
+ secure-file-priv (No default value)
+ server-id 0
++shared-memory FALSE
++shared-memory-base-name MYSQL
+ show-slave-auth-info FALSE
+ skip-grant-tables TRUE
+ skip-name-resolve FALSE
+@@ -1067,6 +1077,7 @@ slave-transaction-retries 10
+ slave-type-conversions 
+ slow-launch-time 2
+ slow-query-log FALSE
++slow-start-timeout 15000
+ sort-buffer-size 2097152
+ sql-mode 
+ stack-trace TRUE
+

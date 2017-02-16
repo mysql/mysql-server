@@ -1,4 +1,5 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2014, SkySQL Ab.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,17 +19,23 @@
 
   @brief
   The ha_example engine is a stubbed storage engine for example purposes only;
-  it does nothing at this point. Its purpose is to provide a source
+  it does almost nothing at this point. Its purpose is to provide a source
   code illustration of how to begin writing new storage engines; see also
-  /storage/example/ha_example.h.
+  storage/example/ha_example.h.
+
+  Additionally, this file includes an example of a daemon plugin which does
+  nothing at all - absolutely nothing, even less than example storage engine.
+  But it shows that one dll/so can contain more than one plugin.
 
   @details
   ha_example will let you create/open/delete tables, but
   nothing further (for example, indexes are not supported nor can data
-  be stored in the table). Use this example as a template for
-  implementing the same functionality in your own storage engine. You
-  can enable the example storage engine in your build by doing the
-  following during your build process:<br> ./configure
+  be stored in the table). It also provides new status (example_func_example)
+  and system (example_ulong_var and example_enum_var) variables.
+
+  Use this example as a template for implementing the same functionality in
+  your own storage engine. You can enable the example storage engine in your
+  build by doing the following during your build process:<br> ./configure
   --with-example-storage-engine
 
   Once this is done, MySQL will let you create tables with:<br>
@@ -91,23 +98,16 @@
 #pragma implementation        // gcc: Class implementation
 #endif
 
-#include "sql_priv.h"
-#include "sql_class.h"           // MYSQL_HANDLERTON_INTERFACE_VERSION
+#include <my_config.h>
+#include <mysql/plugin.h>
 #include "ha_example.h"
-#include "probes_mysql.h"
-#include "sql_plugin.h"
+#include "sql_class.h"
 
 static handler *example_create_handler(handlerton *hton,
                                        TABLE_SHARE *table, 
                                        MEM_ROOT *mem_root);
 
 handlerton *example_hton;
-
-/* Interface to mysqld, to check system tables supported by SE */
-static const char* example_system_database();
-static bool example_is_supported_system_table(const char *db,
-                                      const char *table_name,
-                                      bool is_sql_layer_system_table);
 
 /* Variables for example share methods */
 
@@ -119,6 +119,82 @@ static HASH example_open_tables;
 
 /* The mutex used to init the hash; variable for example share methods */
 mysql_mutex_t example_mutex;
+
+
+/**
+  Structure for CREATE TABLE options (table options).
+  It needs to be called ha_table_option_struct.
+
+  The option values can be specified in the CREATE TABLE at the end:
+  CREATE TABLE ( ... ) *here*
+*/
+
+struct ha_table_option_struct
+{
+  const char *strparam;
+  ulonglong ullparam;
+  uint enumparam;
+  bool boolparam;
+};
+
+
+/**
+  Structure for CREATE TABLE options (field options).
+  It needs to be called ha_field_option_struct.
+
+  The option values can be specified in the CREATE TABLE per field:
+  CREATE TABLE ( field ... *here*, ... )
+*/
+
+struct ha_field_option_struct
+{
+  const char *complex_param_to_parse_it_in_engine;
+};
+
+/*
+  no example here, but index options can be declared similarly
+  using the ha_index_option_struct structure.
+
+  Their values can be specified in the CREATE TABLE per index:
+  CREATE TABLE ( field ..., .., INDEX .... *here*, ... )
+*/
+
+ha_create_table_option example_table_option_list[]=
+{
+  /*
+    one numeric option, with the default of UINT_MAX32, valid
+    range of values 0..UINT_MAX32, and a "block size" of 10
+    (any value must be divisible by 10).
+  */
+  HA_TOPTION_NUMBER("ULL", ullparam, UINT_MAX32, 0, UINT_MAX32, 10),
+  /*
+    one option that takes an arbitrary string
+  */
+  HA_TOPTION_STRING("STR", strparam),
+  /*
+    one enum option. a valid values are strings ONE and TWO.
+    A default value is 0, that is "one".
+  */
+  HA_TOPTION_ENUM("one_or_two", enumparam, "one,two", 0),
+  /*
+    one boolean option, the valid values are YES/NO, ON/OFF, 1/0.
+    The default is 1, that is true, yes, on.
+  */
+  HA_TOPTION_BOOL("YESNO", boolparam, 1),
+  HA_TOPTION_END
+};
+
+ha_create_table_option example_field_option_list[]=
+{
+  /*
+    If the engine wants something more complex than a string, number, enum,
+    or boolean - for example a list - it needs to specify the option
+    as a string and parse it internally.
+  */
+  HA_FOPTION_STRING("COMPLEX", complex_param_to_parse_it_in_engine),
+  HA_FOPTION_END
+};
+
 
 /**
   @brief
@@ -171,8 +247,8 @@ static int example_init_func(void *p)
   example_hton->state=   SHOW_OPTION_YES;
   example_hton->create=  example_create_handler;
   example_hton->flags=   HTON_CAN_RECREATE;
-  example_hton->system_database=   example_system_database;
-  example_hton->is_supported_system_table= example_is_supported_system_table;
+  example_hton->table_options= example_table_option_list;
+  example_hton->field_options= example_field_option_list;
 
   DBUG_RETURN(0);
 }
@@ -306,66 +382,6 @@ const char **ha_example::bas_ext() const
   return ha_example_exts;
 }
 
-/*
-  Following handler function provides access to
-  system database specific to SE. This interface
-  is optional, so every SE need not implement it.
-*/
-const char* ha_example_system_database= NULL;
-const char* example_system_database()
-{
-  return ha_example_system_database;
-}
-
-/*
-  List of all system tables specific to the SE.
-  Array element would look like below,
-     { "<database_name>", "<system table name>" },
-  The last element MUST be,
-     { (const char*)NULL, (const char*)NULL }
-
-  This array is optional, so every SE need not implement it.
-*/
-static st_system_tablename ha_example_system_tables[]= {
-  {(const char*)NULL, (const char*)NULL}
-};
-
-/**
-  @brief Check if the given db.tablename is a system table for this SE.
-
-  @param db                         Database name to check.
-  @param table_name                 table name to check.
-  @param is_sql_layer_system_table  if the supplied db.table_name is a SQL
-                                    layer system table.
-
-  @return
-    @retval TRUE   Given db.table_name is supported system table.
-    @retval FALSE  Given db.table_name is not a supported system table.
-*/
-static bool example_is_supported_system_table(const char *db,
-                                              const char *table_name,
-                                              bool is_sql_layer_system_table)
-{
-  st_system_tablename *systab;
-
-  // Does this SE support "ALL" SQL layer system tables ?
-  if (is_sql_layer_system_table)
-    return false;
-
-  // Check if this is SE layer system tables
-  systab= ha_example_system_tables;
-  while (systab && systab->db)
-  {
-    if (systab->db == db &&
-        strcmp(systab->tablename, table_name) == 0)
-      return true;
-    systab++;
-  }
-
-  return false;
-}
-
-
 /**
   @brief
   Used for opening tables. The name will be the name of the file.
@@ -389,6 +405,16 @@ int ha_example::open(const char *name, int mode, uint test_if_locked)
   if (!(share = get_share(name, table)))
     DBUG_RETURN(1);
   thr_lock_data_init(&share->lock,&lock,NULL);
+
+#ifndef DBUG_OFF
+  ha_table_option_struct *options= table->s->option_struct;
+
+  DBUG_ASSERT(options);
+  DBUG_PRINT("info", ("strparam: '%-.64s'  ullparam: %llu  enumparam: %u  "\
+                      "boolparam: %u",
+                      (options->strparam ? options->strparam : "<NULL>"),
+                      options->ullparam, options->enumparam, options->boolparam));
+#endif
 
   DBUG_RETURN(0);
 }
@@ -531,9 +557,7 @@ int ha_example::index_read_map(uchar *buf, const uchar *key,
 {
   int rc;
   DBUG_ENTER("ha_example::index_read");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -547,9 +571,7 @@ int ha_example::index_next(uchar *buf)
 {
   int rc;
   DBUG_ENTER("ha_example::index_next");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -563,9 +585,7 @@ int ha_example::index_prev(uchar *buf)
 {
   int rc;
   DBUG_ENTER("ha_example::index_prev");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -584,9 +604,7 @@ int ha_example::index_first(uchar *buf)
 {
   int rc;
   DBUG_ENTER("ha_example::index_first");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -605,9 +623,7 @@ int ha_example::index_last(uchar *buf)
 {
   int rc;
   DBUG_ENTER("ha_example::index_last");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -628,7 +644,7 @@ int ha_example::index_last(uchar *buf)
 int ha_example::rnd_init(bool scan)
 {
   DBUG_ENTER("ha_example::rnd_init");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  DBUG_RETURN(0);
 }
 
 int ha_example::rnd_end()
@@ -656,10 +672,7 @@ int ha_example::rnd_next(uchar *buf)
 {
   int rc;
   DBUG_ENTER("ha_example::rnd_next");
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       TRUE);
   rc= HA_ERR_END_OF_FILE;
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -709,10 +722,7 @@ int ha_example::rnd_pos(uchar *buf, uchar *pos)
 {
   int rc;
   DBUG_ENTER("ha_example::rnd_pos");
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       TRUE);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -800,29 +810,6 @@ int ha_example::extra(enum ha_extra_function operation)
 int ha_example::delete_all_rows()
 {
   DBUG_ENTER("ha_example::delete_all_rows");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-}
-
-
-/**
-  @brief
-  Used for handler specific truncate table.  The table is locked in
-  exclusive mode and handler is responsible for reseting the auto-
-  increment counter.
-
-  @details
-  Called from Truncate_statement::handler_truncate.
-  Not used if the handlerton supports HTON_CAN_RECREATE, unless this
-  engine can be used as a partition. In this case, it is invoked when
-  a particular partition is to be truncated.
-
-  @see
-  Truncate_statement in sql_truncate.cc
-  Remarks in handler::truncate.
-*/
-int ha_example::truncate()
-{
-  DBUG_ENTER("ha_example::truncate");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
@@ -928,27 +915,6 @@ int ha_example::delete_table(const char *name)
 
 /**
   @brief
-  Renames a table from one name to another via an alter table call.
-
-  @details
-  If you do not implement this, the default rename_table() is called from
-  handler.cc and it will delete all files with the file extensions returned
-  by bas_ext().
-
-  Called from sql_table.cc by mysql_rename_table().
-
-  @see
-  mysql_rename_table() in sql_table.cc
-*/
-int ha_example::rename_table(const char * from, const char * to)
-{
-  DBUG_ENTER("ha_example::rename_table ");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-}
-
-
-/**
-  @brief
   Given a starting key and an ending key, estimate the number of rows that
   will exist between the two keys.
 
@@ -990,12 +956,101 @@ ha_rows ha_example::records_in_range(uint inx, key_range *min_key,
 int ha_example::create(const char *name, TABLE *table_arg,
                        HA_CREATE_INFO *create_info)
 {
+#ifndef DBUG_OFF
+  ha_table_option_struct *options= table_arg->s->option_struct;
   DBUG_ENTER("ha_example::create");
   /*
-    This is not implemented but we want someone to be able to see that it
-    works.
+    This example shows how to support custom engine specific table and field
+    options.
   */
+  DBUG_ASSERT(options);
+  DBUG_PRINT("info", ("strparam: '%-.64s'  ullparam: %llu  enumparam: %u  "\
+                      "boolparam: %u",
+                      (options->strparam ? options->strparam : "<NULL>"),
+                      options->ullparam, options->enumparam, options->boolparam));
+  for (Field **field= table_arg->s->field; *field; field++)
+  {
+    ha_field_option_struct *field_options= (*field)->option_struct;
+    DBUG_ASSERT(field_options);
+    DBUG_PRINT("info", ("field: %s  complex: '%-.64s'",
+                         (*field)->field_name,
+                         (field_options->complex_param_to_parse_it_in_engine ?
+                          field_options->complex_param_to_parse_it_in_engine :
+                          "<NULL>")));
+  }
+#endif
   DBUG_RETURN(0);
+}
+
+
+/**
+  check_if_incompatible_data() called if ALTER TABLE can't detect otherwise
+  if new and old definition are compatible
+
+  @details If there are no other explicit signs like changed number of
+  fields this function will be called by compare_tables()
+  (sql/sql_tables.cc) to decide should we rewrite whole table or only .frm
+  file.
+
+*/
+
+bool ha_example::check_if_incompatible_data(HA_CREATE_INFO *info,
+                                            uint table_changes)
+{
+  ha_table_option_struct *param_old, *param_new;
+  DBUG_ENTER("ha_example::check_if_incompatible_data");
+  /*
+    This example shows how custom engine specific table and field
+    options can be accessed from this function to be compared.
+  */
+  param_new= info->option_struct;
+  DBUG_PRINT("info", ("new strparam: '%-.64s'  ullparam: %llu  enumparam: %u  "
+                      "boolparam: %u",
+                      (param_new->strparam ? param_new->strparam : "<NULL>"),
+                      param_new->ullparam, param_new->enumparam,
+                      param_new->boolparam));
+
+  param_old= table->s->option_struct;
+  DBUG_PRINT("info", ("old strparam: '%-.64s'  ullparam: %llu  enumparam: %u  "
+                      "boolparam: %u",
+                      (param_old->strparam ? param_old->strparam : "<NULL>"),
+                      param_old->ullparam, param_old->enumparam,
+                      param_old->boolparam));
+
+  /*
+    check important parameters:
+    for this example engine, we'll assume that changing ullparam or
+    boolparam requires a table to be rebuilt, while changing strparam
+    or enumparam - does not.
+  */
+  if (param_new->ullparam != param_old->ullparam ||
+      param_new->boolparam != param_old->boolparam)
+    DBUG_RETURN(COMPATIBLE_DATA_NO);
+
+#ifndef DBUG_OFF
+  for (uint i= 0; i < table->s->fields; i++)
+  {
+    ha_field_option_struct *f_old, *f_new;
+    f_old= table->s->field[i]->option_struct;
+    DBUG_ASSERT(f_old);
+    DBUG_PRINT("info", ("old field: %u old complex: '%-.64s'", i,
+                         (f_old->complex_param_to_parse_it_in_engine ?
+                          f_old->complex_param_to_parse_it_in_engine :
+                          "<NULL>")));
+    if (info->fields_option_struct[i])
+    {
+      f_new= info->fields_option_struct[i];
+      DBUG_PRINT("info", ("old field: %u  new complex: '%-.64s'", i,
+                          (f_new->complex_param_to_parse_it_in_engine ?
+                           f_new->complex_param_to_parse_it_in_engine :
+                           "<NULL>")));
+    }
+    else
+      DBUG_PRINT("info", ("old field %i did not changed", i));
+  }
+#endif
+
+  DBUG_RETURN(COMPATIBLE_DATA_YES);
 }
 
 
@@ -1026,6 +1081,9 @@ static MYSQL_SYSVAR_ENUM(
   NULL,                           // update
   0,                              // def
   &enum_var_typelib);             // typelib
+
+static MYSQL_THDVAR_INT(int_var, PLUGIN_VAR_RQCMDARG, "-1..1",
+  NULL, NULL, 0, -1, 1, 0);
 
 static MYSQL_SYSVAR_ULONG(
   ulong_var,
@@ -1065,6 +1123,7 @@ static MYSQL_THDVAR_DOUBLE(
 static struct st_mysql_sys_var* example_system_variables[]= {
   MYSQL_SYSVAR(enum_var),
   MYSQL_SYSVAR(ulong_var),
+  MYSQL_SYSVAR(int_var),
   MYSQL_SYSVAR(double_var),
   MYSQL_SYSVAR(double_thdvar),
   NULL
@@ -1077,9 +1136,10 @@ static int show_func_example(MYSQL_THD thd, struct st_mysql_show_var *var,
   var->type= SHOW_CHAR;
   var->value= buf; // it's of SHOW_VAR_FUNC_BUFF_SIZE bytes
   my_snprintf(buf, SHOW_VAR_FUNC_BUFF_SIZE,
-              "enum_var is %lu, ulong_var is %lu, "
+              "enum_var is %lu, ulong_var is %lu, int_var is %d, "
               "double_var is %f, %.6b", // %b is a MySQL extension
-              srv_enum_var, srv_ulong_var, srv_double_var, "really");
+              srv_enum_var, srv_ulong_var, THDVAR(thd, int_var),
+              srv_double_var, "really");
   return 0;
 }
 
@@ -1088,6 +1148,9 @@ static struct st_mysql_show_var func_status[]=
   {"example_func_example",  (char *)show_func_example, SHOW_FUNC},
   {0,0,SHOW_UNDEF}
 };
+
+struct st_mysql_daemon unusable_example=
+{ MYSQL_DAEMON_INTERFACE_VERSION };
 
 mysql_declare_plugin(example)
 {
@@ -1106,3 +1169,35 @@ mysql_declare_plugin(example)
   0,                                            /* flags */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(example)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &example_storage_engine,
+  "EXAMPLE",
+  "Brian Aker, MySQL AB",
+  "Example storage engine",
+  PLUGIN_LICENSE_GPL,
+  example_init_func,                            /* Plugin Init */
+  example_done_func,                            /* Plugin Deinit */
+  0x0001,                                       /* version number (0.1) */
+  func_status,                                  /* status variables */
+  example_system_variables,                     /* system variables */
+  "0.1",                                        /* string version */
+  MariaDB_PLUGIN_MATURITY_EXPERIMENTAL          /* maturity */
+},
+{
+  MYSQL_DAEMON_PLUGIN,
+  &unusable_example,
+  "UNUSABLE",
+  "Sergei Golubchik",
+  "Unusable Daemon",
+  PLUGIN_LICENSE_GPL,
+  NULL,                                         /* Plugin Init */
+  NULL,                                         /* Plugin Deinit */
+  0x030E,                                       /* version number (3.14) */
+  NULL,                                         /* status variables */
+  NULL,                                         /* system variables */
+  "3.14.15.926" ,                               /* version, as a string */
+  MariaDB_PLUGIN_MATURITY_EXPERIMENTAL          /* maturity */
+}
+maria_declare_plugin_end;

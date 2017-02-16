@@ -1,0 +1,23 @@
+source include/have_tokudb.inc;
+source include/have_innodb.inc;
+
+disable_warnings;
+drop table if exists t1,t2;
+enable_warnings;
+
+CREATE TABLE t1(`a` INT) ENGINE=TokuDB;
+CREATE TABLE t2(`a` INT) ENGINE=InnoDB;
+
+let $n=0;
+while ($n < 2) {
+    begin;
+    eval insert into t1 values ($n);
+    eval insert into t2 values ($n);
+    commit;
+    inc $n;
+}
+
+let $diff_tables= test.t1, test.t2;
+source include/diff_tables.inc;
+
+drop table t1,t2;

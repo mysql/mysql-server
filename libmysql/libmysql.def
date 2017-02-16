@@ -104,3 +104,4 @@ EXPORTS
 	mysql_server_end
 	mysql_set_character_set
 	mysql_get_character_set_info
+	mysql_get_server_name

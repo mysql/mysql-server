@@ -1,4 +1,5 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2013, SkySQL Ab.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,17 +18,14 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/libmysql
   ${CMAKE_SOURCE_DIR}/regex
-  ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/strings
   ${SSL_INCLUDE_DIRS}
   ${SSL_INTERNAL_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIR})
 ADD_DEFINITIONS(${SSL_DEFINES})
 
-SET(CLIENT_API_FUNCTIONS
+SET(CLIENT_API_FUNCTIONS_5_1
 get_tty_password
-handle_options
-load_defaults
 mysql_thread_end
 mysql_thread_init
 myodbc_remove_escape
@@ -59,6 +57,7 @@ mysql_field_count
 mysql_field_seek
 mysql_field_tell
 mysql_free_result
+mysql_get_parameters
 mysql_get_client_info
 mysql_get_host_info
 mysql_get_proto_info
@@ -130,38 +129,299 @@ mysql_server_init
 mysql_server_end
 mysql_set_character_set
 mysql_get_character_set_info
-mysql_stmt_next_result
-
-CACHE INTERNAL "Functions exported by client API"
-
+# These are documented in Paul DuBois' MySQL book,
+# so we treat them as part of the de-facto API.
+handle_options
+load_defaults
+free_defaults
+my_print_help
 )
+
+SET(CLIENT_API_FUNCTIONS_5_5
+my_progname
+mysql_stmt_next_result
+# Charsets
+my_charset_bin
+my_charset_latin1
+my_charset_utf8_general_ci
+# Client plugins
+mysql_client_find_plugin
+mysql_client_register_plugin
+mysql_load_plugin
+mysql_load_plugin_v
+mysql_plugin_options
+# Async API
+mysql_get_timeout_value
+mysql_get_timeout_value_ms
+mysql_get_socket
+mysql_autocommit_cont
+mysql_autocommit_start
+mysql_change_user_cont
+mysql_change_user_start
+mysql_close_cont
+mysql_close_start
+mysql_commit_cont
+mysql_commit_start
+mysql_dump_debug_info_cont
+mysql_dump_debug_info_start
+mysql_fetch_row_cont
+mysql_fetch_row_start
+mysql_free_result_cont
+mysql_free_result_start
+mysql_kill_cont
+mysql_kill_start
+mysql_list_dbs_cont
+mysql_list_dbs_start
+mysql_list_fields_cont
+mysql_list_fields_start
+mysql_list_processes_cont
+mysql_list_processes_start
+mysql_list_tables_cont
+mysql_list_tables_start
+mysql_next_result_cont
+mysql_next_result_start
+mysql_ping_cont
+mysql_ping_start
+mysql_query_cont
+mysql_query_start
+mysql_read_query_result_cont
+mysql_read_query_result_start
+mysql_real_connect_cont
+mysql_real_connect_start
+mysql_real_query_cont
+mysql_real_query_start
+mysql_refresh_cont
+mysql_refresh_start
+mysql_rollback_cont
+mysql_rollback_start
+mysql_select_db_cont
+mysql_select_db_start
+mysql_send_query_cont
+mysql_send_query_start
+mysql_set_character_set_cont
+mysql_set_character_set_start
+mysql_set_server_option_cont
+mysql_set_server_option_start
+mysql_shutdown_cont
+mysql_shutdown_start
+mysql_stat_cont
+mysql_stat_start
+mysql_stmt_close_cont
+mysql_stmt_close_start
+mysql_stmt_execute_cont
+mysql_stmt_execute_start
+mysql_stmt_fetch_cont
+mysql_stmt_fetch_start
+mysql_stmt_free_result_cont
+mysql_stmt_free_result_start
+mysql_stmt_next_result_cont
+mysql_stmt_next_result_start
+mysql_stmt_prepare_cont
+mysql_stmt_prepare_start
+mysql_stmt_reset_cont
+mysql_stmt_reset_start
+mysql_stmt_send_long_data_cont
+mysql_stmt_send_long_data_start
+mysql_stmt_store_result_cont
+mysql_stmt_store_result_start
+mysql_store_result_cont
+mysql_store_result_start
+#dynamic columns api
+dynamic_column_create
+dynamic_column_create_many
+dynamic_column_update
+dynamic_column_update_many
+dynamic_column_delete
+dynamic_column_exists
+dynamic_column_list
+dynamic_column_get
+dynamic_column_prepare_decimal
+#
+mariadb_deinitialize_ssl
+# low-level API to MySQL protocol
+mysql_net_read_packet
+mysql_net_field_length
+)
+
+SET(CLIENT_API_FUNCTIONS
+  ${CLIENT_API_FUNCTIONS_5_1}
+  ${CLIENT_API_FUNCTIONS_5_5}
+  CACHE INTERNAL
+  "Client functions"
+)
+
+IF(CMAKE_SYSTEM_NAME MATCHES "Linux") 
+  IF (NOT DISABLE_LIBMYSQLCLIENT_SYMBOL_VERSIONING)
+
+    INCLUDE (CheckCSourceCompiles)
+    FILE(WRITE "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/src.ld"
+      "VERSION {\nlibmysqlclient_18 {\nglobal: *;\n};\n}\n")
+    SET(CMAKE_REQUIRED_LIBRARIES "-Wl,src.ld")
+    CHECK_C_SOURCE_COMPILES("int main() { return 0; }"
+      SUPPORTS_VERSION_IN_LINK_SCRIPT)
+    SET(CMAKE_REQUIRED_LIBRARIES)
+
+    IF (NOT SUPPORTS_VERSION_IN_LINK_SCRIPT)
+      # https://sourceware.org/bugzilla/show_bug.cgi?id=16895
+      MESSAGE(SEND_ERROR "Your current linker does not support VERSION "
+        "command in linker scripts like a GNU ld or any compatible linker "
+        "should. Perhaps you're using gold? Either switch to GNU ld compatible "
+        "linker or run cmake with -DDISABLE_LIBMYSQLCLIENT_SYMBOL_VERSIONING=TRUE "
+        "to be able to complete the build")
+    ENDIF (NOT SUPPORTS_VERSION_IN_LINK_SCRIPT)
+
+  # When building RPM, or DEB package on Debian, use ELF symbol versioning
+  # for compatibility with distribution packages, so client shared library can 
+  # painlessly replace the one supplied by the distribution.
+  
+  # Also list of exported symbols in distributions may differ from what is
+  # considered official API. Define CLIENT_API_5_1_EXTRA for the set of
+  # symbols, that required to be exported on different platforms.
+  
+  # Fedora & Co declared following functions as part of API 
+  SET(CLIENT_API_5_1_EXTRA
+    # why does Fedora export these?
+    _fini
+    _init
+    my_init
+
+    #  mysql-connector-odbc requires these
+    mysql_default_charset_info
+    mysql_get_charset
+    mysql_get_charset_by_csname
+    mysql_net_realloc
+
+    # PHP's mysqli.so requires this (via the ER() macro)
+    mysql_client_errors
+
+    # Also export the non-renamed variants
+    # (in case someone wants to rebuild mysqli-php or something similar)
+    # See MDEV-4127
+    default_charset_info
+    get_charset
+    get_charset_by_csname
+    net_realloc
+    client_errors
+
+    # pure-ftpd requires this
+    my_make_scrambled_password
+
+    # hydra requires this
+    scramble
+
+    # ODB requires this: https://bugzilla.redhat.com/show_bug.cgi?id=846602
+    THR_KEY_mysys
+
+    # DBD::mysql requires this
+    is_prefix
+  )
+
+ 
+  # And even more so on Debian
+  SET(CLIENT_API_5_5_EXTRA
+    # libmyodbc. Argh!
+    alloc_dynamic
+    alloc_root
+    delete_dynamic
+    dynstr_append
+    dynstr_append_mem
+    dynstr_append_os_quoted
+    dynstr_free
+    dynstr_realloc
+    free_root
+    get_dynamic
+    init_dynamic_array2
+    init_dynamic_string
+    int2str
+    list_add
+    list_delete
+    my_end
+    my_free
+    my_malloc
+    my_memdup
+    my_realloc
+    my_strdup
+    set_dynamic
+    strdup_root
+    strend
+    strfill
+    strmake
+    strmake_root
+    strxmov
+
+    # pam_mysql.so
+    make_scrambled_password
+    make_scrambled_password_323
+  )
+
+  # Generate version script.  
+  # Create semicolon separated lists of functions to export from 
+  # Since RPM packages use separate versioning for 5.1 API
+  # and 5.5 API (libmysqlclient_16 vs libmysqlclient_18), 
+  # we need 2 lists.
+  SET (VERSION_HEADER
+"VERSION {
+  libmysqlclient_18 {
+    global:")
+  SET (VERSION_FOOTER
+"    local:
+      *;
+  };
+
+  libmysqlclient_16 {
+    /* empty here. aliases are added above */
+  };
+}
+")
+
+  SET (CLIENT_API_5_1_LIST)
+  SET (CLIENT_API_5_1_ALIASES)
+  FOREACH (f ${CLIENT_API_FUNCTIONS_5_1} ${CLIENT_API_5_1_EXTRA})
+    SET(CLIENT_API_5_1_LIST "${CLIENT_API_5_1_LIST}\t${f};\n")
+    SET(CLIENT_API_5_1_ALIASES "${CLIENT_API_5_1_ALIASES}\"${f}@libmysqlclient_16\" = ${f};\n")
+  ENDFOREACH()
+      
+  SET (CLIENT_API_5_5_LIST)
+  FOREACH (f ${CLIENT_API_FUNCTIONS_5_5} ${CLIENT_API_5_5_EXTRA})
+    SET(CLIENT_API_5_5_LIST "${CLIENT_API_5_5_LIST}\t${f};\n")
+  ENDFOREACH()
+
+  ELSE (NOT DISABLE_LIBMYSQLCLIENT_SYMBOL_VERSIONING)
+    SET (CLIENT_API_5_1_ALIASES "/* Versioning disabled per user request. MDEV-5982 */")
+  ENDIF (NOT DISABLE_LIBMYSQLCLIENT_SYMBOL_VERSIONING)
+
+  # Linker script to version symbols in Fedora- and Debian- compatible way, MDEV-5529
+  SET(VERSION_SCRIPT_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/libmysql_versions.ld.in)
+
+  CONFIGURE_FILE(
+    ${VERSION_SCRIPT_TEMPLATE}
+    ${CMAKE_CURRENT_BINARY_DIR}/libmysql_versions.ld
+    @ONLY
+  )
+  SET(VERSION_SCRIPT_LINK_FLAGS 
+    "-Wl,${CMAKE_CURRENT_BINARY_DIR}/libmysql_versions.ld")
+
+ENDIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+
 
 SET(CLIENT_SOURCES
   get_password.c 
   libmysql.c
   errmsg.c
   ../sql-common/client.c 
+  ../sql-common/mysql_async.c
   ../sql-common/my_time.c 
   ../sql-common/client_plugin.c 
   ../sql/net_serv.cc
   ../sql-common/pack.c 
   ../sql/password.c
+  ${CLIENT_SOURCES_EXTRA}
 )
 ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES})
 DTRACE_INSTRUMENT(clientlib)
 ADD_DEPENDENCIES(clientlib GenError)
 
 SET(LIBS clientlib dbug strings vio mysys ${ZLIB_LIBRARY} ${SSL_LIBRARIES} ${LIBDL})
-
-#
-# On Windows platform client library includes the client-side 
-# Windows Native Authentication plugin.
-#
-IF(WIN32)
-  ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
-  ADD_SUBDIRECTORY(authentication_win)
-  LIST(APPEND LIBS auth_win_client)
-ENDIF()
 
 # Merge several convenience libraries into one big mysqlclient
 # and link them together into shared library.
@@ -172,12 +432,6 @@ IF(MSVC)
  INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
  INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
 ENDIF()
-
-MACRO(GET_TARGET_NAME target out_name)
-  GET_TARGET_PROPERTY(location ${target} LOCATION)
-  GET_FILENAME_COMPONENT(name ${location} NAME)
-  SET(${out_name} ${name})
-ENDMACRO()
 
 IF(UNIX)
   MACRO(GET_VERSIONED_LIBNAME LIBNAME EXTENSION VERSION OUTNAME)
@@ -191,18 +445,12 @@ IF(UNIX)
       SET(${OUTNAME} ${LIBNAME}${EXTENSION}${DOT_VERSION})
     ENDIF() 
   ENDMACRO()
-ENDIF()
-
-IF(UNIX)
-  GET_TARGET_NAME(mysqlclient lib_name)
-  INSTALL_SYMLINK(mysqlclient
-    ${lib_name} ${CMAKE_STATIC_LIBRARY_PREFIX}mysqlclient_r.a
-    ${INSTALL_LIBDIR} Development)
+  INSTALL_SYMLINK(${CMAKE_STATIC_LIBRARY_PREFIX}mysqlclient_r.a mysqlclient ${INSTALL_LIBDIR} Development)
 ENDIF()
 
 IF(NOT DISABLE_SHARED)
   MERGE_LIBRARIES(libmysql SHARED ${LIBS}
-    EXPORTS ${CLIENT_API_FUNCTIONS}
+    EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_5_1_EXTRA} ${CLIENT_API_5_5_EXTRA}
     COMPONENT SharedLibraries)
   IF(UNIX)
     # libtool compatability
@@ -211,21 +459,17 @@ IF(NOT DISABLE_SHARED)
     ELSEIF(CMAKE_SYSTEM_NAME MATCHES "HP-UX")
       SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}.0")
     ELSE()
-      SET(OS_SHARED_LIB_VERSION
-        "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.0")
+      SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}.0.0")
     ENDIF()
     # Name of shared library is mysqlclient on Unix
     SET_TARGET_PROPERTIES(libmysql PROPERTIES 
       OUTPUT_NAME mysqlclient 
       VERSION "${OS_SHARED_LIB_VERSION}" 
       SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
-    IF(LINK_FLAG_NO_UNDEFINED)
+    IF(LINK_FLAG_NO_UNDEFINED OR VERSION_SCRIPT_LINK_FLAGS)
       GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
-      IF(NOT libmysql_link_flag)
-        SET(libmysql_link_flags)
-      ENDIF()
       SET_TARGET_PROPERTIES(libmysql PROPERTIES LINK_FLAGS 
-        "${libmysql_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
+        "${libmysql_link_flags} ${LINK_FLAG_NO_UNDEFINED} ${VERSION_SCRIPT_LINK_FLAGS}")
     ENDIF() 
     # clean direct output needs to be set several targets have the same name
     #(mysqlclient in this case)
@@ -238,13 +482,8 @@ IF(NOT DISABLE_SHARED)
       "${CMAKE_SHARED_LIBRARY_SUFFIX}"
       ""
       linkname)
-    GET_TARGET_NAME(libmysql lib_name)
-    GET_FILENAME_COMPONENT(lib_name_we ${lib_name} NAME_WE)
-    INSTALL_SYMLINK(libmysql
-      ${lib_name} ${linkname}
-      ${INSTALL_LIBDIR} SharedLibraries)
-    SET(OS_SHARED_LIB_SYMLINKS
-      "${SHARED_LIB_MAJOR_VERSION}" "${OS_SHARED_LIB_VERSION}")
+    INSTALL_SYMLINK(${linkname} libmysql ${INSTALL_LIBDIR} SharedLibraries)
+    SET(OS_SHARED_LIB_SYMLINKS "${SHARED_LIB_MAJOR_VERSION}" "${OS_SHARED_LIB_VERSION}")
     LIST(REMOVE_DUPLICATES OS_SHARED_LIB_SYMLINKS)
     FOREACH(ver ${OS_SHARED_LIB_SYMLINKS})
       GET_VERSIONED_LIBNAME(
@@ -252,11 +491,7 @@ IF(NOT DISABLE_SHARED)
         "${CMAKE_SHARED_LIBRARY_SUFFIX}"
         "${ver}"
         linkname)
-      GET_VERSIONED_LIBNAME(
-        ${lib_name_we} "${CMAKE_SHARED_LIBRARY_SUFFIX}" "${ver}" lib_name_ver)
-      INSTALL_SYMLINK(libmysql
-        ${lib_name_ver} ${linkname}
-        ${INSTALL_LIBDIR} SharedLibraries)
+      INSTALL_SYMLINK(${linkname} libmysql ${INSTALL_LIBDIR} SharedLibraries)
     ENDFOREACH()
   ENDIF()
 ENDIF()

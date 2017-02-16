@@ -1,0 +1,27 @@
+--source include/have_tokudb.inc
+#
+# Record inconsistency.
+#
+#
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=ON;
+create table foo (a int);
+insert into foo values (1),(2),(3);
+alter table foo add column b blob;
+select * from foo;
+alter table foo add column c blob NOT NULL;
+select * from foo;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_PARSE_ERROR
+alter table foo add column d blob DEFAULT="asdf";
+select * from foo;
+
+ 
+# Final cleanup.
+DROP TABLE foo;
+

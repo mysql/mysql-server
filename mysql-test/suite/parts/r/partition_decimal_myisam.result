@@ -109,33 +109,6 @@ SUBPARTITIONS 2
  PARTITION pa8 VALUES LESS THAN (8) ENGINE = MyISAM,
  PARTITION pa10 VALUES LESS THAN (10) ENGINE = MyISAM) */
 9*3 inserts;
-insert into t3 values (9);
-insert into t3 values (9+0.333333333);
-insert into t3 values (9+0.755555555);
-insert into t3 values (8);
-insert into t3 values (8+0.333333333);
-insert into t3 values (8+0.755555555);
-insert into t3 values (7);
-insert into t3 values (7+0.333333333);
-insert into t3 values (7+0.755555555);
-insert into t3 values (6);
-insert into t3 values (6+0.333333333);
-insert into t3 values (6+0.755555555);
-insert into t3 values (5);
-insert into t3 values (5+0.333333333);
-insert into t3 values (5+0.755555555);
-insert into t3 values (4);
-insert into t3 values (4+0.333333333);
-insert into t3 values (4+0.755555555);
-insert into t3 values (3);
-insert into t3 values (3+0.333333333);
-insert into t3 values (3+0.755555555);
-insert into t3 values (2);
-insert into t3 values (2+0.333333333);
-insert into t3 values (2+0.755555555);
-insert into t3 values (1);
-insert into t3 values (1+0.333333333);
-insert into t3 values (1+0.755555555);
 select count(*) from t3;
 count(*)
 27
@@ -163,33 +136,6 @@ SUBPARTITIONS 2
  PARTITION pa8 VALUES IN (7,8) ENGINE = MyISAM,
  PARTITION pa10 VALUES IN (9,10) ENGINE = MyISAM) */
 9*3 inserts;
-insert into t4 values (9);
-insert into t4 values (9+0.333333333);
-insert into t4 values (9+0.755555555);
-insert into t4 values (8);
-insert into t4 values (8+0.333333333);
-insert into t4 values (8+0.755555555);
-insert into t4 values (7);
-insert into t4 values (7+0.333333333);
-insert into t4 values (7+0.755555555);
-insert into t4 values (6);
-insert into t4 values (6+0.333333333);
-insert into t4 values (6+0.755555555);
-insert into t4 values (5);
-insert into t4 values (5+0.333333333);
-insert into t4 values (5+0.755555555);
-insert into t4 values (4);
-insert into t4 values (4+0.333333333);
-insert into t4 values (4+0.755555555);
-insert into t4 values (3);
-insert into t4 values (3+0.333333333);
-insert into t4 values (3+0.755555555);
-insert into t4 values (2);
-insert into t4 values (2+0.333333333);
-insert into t4 values (2+0.755555555);
-insert into t4 values (1);
-insert into t4 values (1+0.333333333);
-insert into t4 values (1+0.755555555);
 select count(*) from t4;
 count(*)
 27

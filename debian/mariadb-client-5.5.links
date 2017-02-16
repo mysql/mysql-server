@@ -1,0 +1,6 @@
+usr/bin/mysqlcheck usr/bin/mysqlrepair
+usr/bin/mysqlcheck usr/bin/mysqlanalyze
+usr/bin/mysqlcheck usr/bin/mysqloptimize
+usr/share/man/man1/mysqlcheck.1.gz usr/share/man/man1/mysqlrepair.1.gz
+usr/share/man/man1/mysqlcheck.1.gz usr/share/man/man1/mysqlanalyze.1.gz
+usr/share/man/man1/mysqlcheck.1.gz usr/share/man/man1/mysqloptimize.1.gz

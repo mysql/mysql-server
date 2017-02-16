@@ -1,5 +1,6 @@
 --source include/have_innodb.inc
 --source include/have_debug.inc
+--source include/have_partition.inc
 
 --echo #
 --echo # Bug#19904003 INNODB_LIMIT_OPTIMISTIC_INSERT_DEBUG=1

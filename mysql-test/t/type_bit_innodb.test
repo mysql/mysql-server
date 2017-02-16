@@ -41,7 +41,7 @@ create table t1 (a bit) engine=innodb;
 insert into t1 values (b'0'), (b'1'), (b'000'), (b'100'), (b'001');
 select hex(a) from t1;
 # It is not deterministic which duplicate will be seen first
---replace_regex /(.*Duplicate entry )'.*'( for key.*)/\1''\2/
+--replace_regex /entry '(.*)' for/entry '' for/
 --error ER_DUP_ENTRY
 alter table t1 add unique (a);
 drop table t1;
@@ -68,6 +68,7 @@ explain select b+0 from t1;
 select b+0 from t1;
 explain select a+0, b+0 from t1;
 select a+0, b+0 from t1;
+--replace_column 9 #
 explain select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
 select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
 explain select a+0, b+0 from t1 where a > 40 and a < 70 order by 2;

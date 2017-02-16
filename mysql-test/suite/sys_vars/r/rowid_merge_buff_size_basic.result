@@ -1,0 +1,45 @@
+SET @start_global_value = @@global.rowid_merge_buff_size;
+select @@global.rowid_merge_buff_size;
+@@global.rowid_merge_buff_size
+8388608
+select @@session.rowid_merge_buff_size;
+@@session.rowid_merge_buff_size
+8388608
+show global variables like 'rowid_merge_buff_size';
+Variable_name	Value
+rowid_merge_buff_size	8388608
+show session variables like 'rowid_merge_buff_size';
+Variable_name	Value
+rowid_merge_buff_size	8388608
+select * from information_schema.global_variables where variable_name='rowid_merge_buff_size';
+VARIABLE_NAME	VARIABLE_VALUE
+ROWID_MERGE_BUFF_SIZE	8388608
+select * from information_schema.session_variables where variable_name='rowid_merge_buff_size';
+VARIABLE_NAME	VARIABLE_VALUE
+ROWID_MERGE_BUFF_SIZE	8388608
+set global rowid_merge_buff_size=10;
+select @@global.rowid_merge_buff_size;
+@@global.rowid_merge_buff_size
+10
+set session rowid_merge_buff_size=10;
+select @@session.rowid_merge_buff_size;
+@@session.rowid_merge_buff_size
+10
+set global rowid_merge_buff_size=1.1;
+ERROR 42000: Incorrect argument type to variable 'rowid_merge_buff_size'
+set session rowid_merge_buff_size=1e1;
+ERROR 42000: Incorrect argument type to variable 'rowid_merge_buff_size'
+set global rowid_merge_buff_size="foo";
+ERROR 42000: Incorrect argument type to variable 'rowid_merge_buff_size'
+set global rowid_merge_buff_size=0;
+select @@global.rowid_merge_buff_size;
+@@global.rowid_merge_buff_size
+0
+set session rowid_merge_buff_size=cast(-1 as unsigned int);
+Warnings:
+Note	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1292	Truncated incorrect rowid_merge_buff_size value: '18446744073709551615'
+select @@session.rowid_merge_buff_size;
+@@session.rowid_merge_buff_size
+9223372036854775807
+SET @@global.rowid_merge_buff_size = @start_global_value;

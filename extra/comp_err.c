@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates
+   Copyright (c) 2008, 2011, Monty Program Ab 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,12 +32,12 @@
 #include <my_getopt.h>
 #include <assert.h>
 #include <my_dir.h>
-#include <mysql_version.h>
 
 #define MAX_ROWS  1000
 #define HEADER_LENGTH 32                /* Length of header in errmsg.sys */
 #define DEFAULT_CHARSET_DIR "../sql/share/charsets"
 #define ER_PREFIX "ER_"
+#define ER_PREFIX2 "MARIA_ER_"
 #define WARN_PREFIX "WARN_"
 static char *OUTFILE= (char*) "errmsg.sys";
 static char *HEADERFILE= (char*) "mysqld_error.h";
@@ -60,7 +61,7 @@ const char *empty_string= "";			/* For empty states */
 */
 
 const char *default_language= "eng";
-int er_offset= 1000;
+uint er_offset= 1000;
 my_bool info_flag= 0;
 
 /* Storage of one error message row (for one language) */
@@ -88,7 +89,7 @@ struct languages
 struct errors
 {
   const char *er_name;			/* Name of the error (ER_HASHCK) */
-  int d_code;                           /* Error code number */
+  uint d_code;                          /* Error code number */
   const char *sql_code1;		/* sql state */
   const char *sql_code2;		/* ODBC state */
   struct errors *next_error;            /* Pointer to next error */
@@ -111,7 +112,8 @@ static struct my_option my_long_options[]=
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Prints version", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"charset", 'C', "Charset dir", &charsets_dir, &charsets_dir,
+  {"charset", 'C', "Charset dir",
+   (char**) &charsets_dir, (char**) &charsets_dir,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"in_file", 'F', "Input file", &TXTFILE, &TXTFILE,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -129,6 +131,7 @@ static struct my_option my_long_options[]=
 };
 
 
+static struct errors *generate_empty_message(uint dcode);
 static struct languages *parse_charset_string(char *str);
 static struct errors *parse_error_string(char *ptr, int er_count);
 static struct message *parse_message_string(struct message *new_message,
@@ -176,23 +179,6 @@ int main(int argc, char *argv[])
       fprintf(stderr, "Failed to parse input file %s\n", TXTFILE);
       DBUG_RETURN(1);
     }
-#if MYSQL_VERSION_ID >= 50100 && MYSQL_VERSION_ID < 50500
-/* Number of error messages in 5.1 - do not change this number! */
-#define MYSQL_OLD_GA_ERROR_MESSAGE_COUNT 641
-#elif MYSQL_VERSION_ID >= 50500 && MYSQL_VERSION_ID < 50600
-/* Number of error messages in 5.5 - do not change this number! */
-#define MYSQL_OLD_GA_ERROR_MESSAGE_COUNT 728
-#endif
-#if MYSQL_OLD_GA_ERROR_MESSAGE_COUNT
-    if (row_count != MYSQL_OLD_GA_ERROR_MESSAGE_COUNT)
-    {
-      fprintf(stderr, "Can only add new error messages to latest GA. ");
-      fprintf(stderr, "Use ER_UNKNOWN_ERROR instead.\n");
-      fprintf(stderr, "Expected %u messages, found %u.\n",
-              MYSQL_OLD_GA_ERROR_MESSAGE_COUNT, row_count);
-      DBUG_RETURN(1);
-    }
-#endif
     if (lang_head == NULL || error_head == NULL)
     {
       fprintf(stderr, "Failed to parse input file %s\n", TXTFILE);
@@ -244,7 +230,7 @@ static int create_header_files(struct errors *error_head)
   struct errors *tmp_error;
   struct message *er_msg;
   const char *er_text;
-
+  uint current_d_code;
   DBUG_ENTER("create_header_files");
 
   if (!(er_definef= my_fopen(HEADERFILE, O_WRONLY, MYF(MY_WME))))
@@ -269,13 +255,22 @@ static int create_header_files(struct errors *error_head)
 
   fprintf(er_definef, "#define ER_ERROR_FIRST %d\n", error_head->d_code);
 
+  current_d_code= error_head->d_code -1;
   for (tmp_error= error_head; tmp_error; tmp_error= tmp_error->next_error)
   {
     /*
        generating mysqld_error.h
        fprintf() will automatically add \r on windows
     */
-    fprintf(er_definef, "#define %s %d\n", tmp_error->er_name,
+
+    if (!tmp_error->er_name)
+      continue;                                 /* Placeholder for gap */
+
+    if (tmp_error->d_code > current_d_code + 1)
+      fprintf(er_definef, "\n/* New section */\n\n");
+    current_d_code= tmp_error->d_code;
+
+    fprintf(er_definef, "#define %s %u\n", tmp_error->er_name,
 	    tmp_error->d_code);
     er_last= tmp_error->d_code;
 
@@ -447,7 +442,8 @@ static int parse_input_file(const char *file_name, struct errors **top_error,
   char *str, buff[1000];
   struct errors *current_error= 0, **tail_error= top_error;
   struct message current_message;
-  int rcount= 0;
+  uint rcount= 0;
+  my_bool er_offset_found= 0;
   DBUG_ENTER("parse_input_file");
 
   *top_error= 0;
@@ -468,10 +464,31 @@ static int parse_input_file(const char *file_name, struct errors **top_error,
     }
     if (is_prefix(str, "start-error-number"))
     {
-      if (!(er_offset= parse_error_offset(str)))
+      uint tmp_er_offset;
+      if (!(tmp_er_offset= parse_error_offset(str)))
       {
 	fprintf(stderr, "Failed to parse the error offset string!\n");
 	DBUG_RETURN(0);
+      }
+      if (!er_offset_found)
+      {
+        er_offset_found= 1;
+        er_offset= tmp_er_offset;
+      }
+      else
+      {
+        /* Create empty error messages between er_offset and tmp_err_offset */
+        if (tmp_er_offset < er_offset + rcount)
+        {
+          fprintf(stderr, "new start-error-number %u is smaller than current error message: %u\n", tmp_er_offset, er_offset + rcount);
+          DBUG_RETURN(0);
+        }
+        for ( ; er_offset + rcount < tmp_er_offset ; rcount++)
+        {
+          current_error= generate_empty_message(er_offset + rcount);
+          *tail_error= current_error;
+          tail_error= &current_error->next_error;
+        }
       }
       continue;
     }
@@ -519,7 +536,8 @@ static int parse_input_file(const char *file_name, struct errors **top_error,
 	DBUG_RETURN(0);
       continue;
     }
-    if (is_prefix(str, ER_PREFIX) || is_prefix(str, WARN_PREFIX))
+    if (is_prefix(str, ER_PREFIX) || is_prefix(str, WARN_PREFIX) ||
+        is_prefix(str, ER_PREFIX2))
     {
       if (!(current_error= parse_error_string(str, rcount)))
       {
@@ -534,12 +552,12 @@ static int parse_input_file(const char *file_name, struct errors **top_error,
       continue;
     }
     if (*str == '#' || *str == '\n')
-      continue;					/* skip comment or empty lines */
+      continue;                      	/* skip comment or empty lines */
 
     fprintf(stderr, "Wrong input file format. Stop!\nLine: %s\n", str);
     DBUG_RETURN(0);
   }
-  *tail_error= 0;				/* Mark end of list */
+  *tail_error= 0;			/* Mark end of list */
 
   my_fclose(file, MYF(0));
   DBUG_RETURN(rcount);
@@ -648,7 +666,6 @@ static struct message *find_message(struct errors *err, const char *lang,
       DBUG_RETURN(tmp);
     if (!strcmp(tmp->lang_short_name, default_language))
     {
-      DBUG_ASSERT(tmp->text[0] != 0);
       return_val= tmp;
     }
   }
@@ -868,6 +885,33 @@ static struct message *parse_message_string(struct message *new_message,
 }
 
 
+static struct errors *generate_empty_message(uint d_code)
+{
+  struct errors *new_error;
+  struct message message;
+
+  /* create a new element */
+  if (!(new_error= (struct errors *) my_malloc(sizeof(*new_error),
+                                               MYF(MY_WME))))
+    return(0);
+  if (my_init_dynamic_array(&new_error->msg, sizeof(struct message), 0, 1))
+    return(0);				/* OOM: Fatal error */
+
+  new_error->er_name= NULL;
+  new_error->d_code=    d_code;
+  new_error->sql_code1= empty_string;
+  new_error->sql_code2= empty_string;
+
+  if (!(message.lang_short_name= my_strdup(default_language, MYF(MY_WME))) ||
+      !(message.text= my_strdup("", MYF(MY_WME))))
+    return(0);
+
+  /* Can't fail as msg is preallocated */
+  (void) insert_dynamic(&new_error->msg, (uchar*) &message);
+  return(new_error);
+}
+
+
 /*
   Parsing the string with error name and codes; returns the pointer to
   the errors struct
@@ -880,7 +924,9 @@ static struct errors *parse_error_string(char *str, int er_count)
   DBUG_PRINT("enter", ("str: %s", str));
 
   /* create a new element */
-  new_error= (struct errors *) my_malloc(sizeof(*new_error), MYF(MY_WME));
+  if (!(new_error= (struct errors *) my_malloc(sizeof(*new_error),
+                                               MYF(MY_WME))))
+    DBUG_RETURN(0);
 
   if (my_init_dynamic_array(&new_error->msg, sizeof(struct message), 0, 0))
     DBUG_RETURN(0);				/* OOM: Fatal error */
@@ -1010,7 +1056,7 @@ static struct languages *parse_charset_string(char *str)
 static void print_version(void)
 {
   DBUG_ENTER("print_version");
-  printf("%s  (Compile errormessage)  Ver %s\n", my_progname, "2.0");
+  printf("%s  (Compile errormessage)  Ver %s\n", my_progname, "3.0");
   DBUG_VOID_RETURN;
 }
 

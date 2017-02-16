@@ -107,7 +107,7 @@ private:
 
 
   void
-  dbug_dump_queue(time_t now);
+  dbug_dump_queue(my_time_t now);
 
   /* LOCK_event_queue is the mutex which protects the access to the queue. */
   mysql_mutex_t LOCK_event_queue;

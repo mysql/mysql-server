@@ -409,3 +409,8 @@ SELECT * FROM t1 WHERE a=0.9;
 SELECT * FROM t1 WHERE a IN (0.8,0.9);
 
 DROP TABLE t1;
+
+--echo #
+--echo # MDEV-9372 select 100 between 1 and 9223372036854775808 returns false
+--echo #
+SELECT 100 BETWEEN 1 AND 9223372036854775808;

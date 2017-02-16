@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006 MySQL AB, 2010 Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,11 @@ SET(MYSQLSERVICES_SOURCES
   my_snprintf_service.c
   thd_alloc_service.c
   thd_wait_service.c
-  my_thread_scheduler_service.c)
+  my_thread_scheduler_service.c
+  progress_report_service.c
+  debug_sync_service.c
+  kill_statement_service.c
+  logger_service.c)
 
-ADD_LIBRARY(mysqlservices ${MYSQLSERVICES_SOURCES})
+ADD_CONVENIENCE_LIBRARY(mysqlservices ${MYSQLSERVICES_SOURCES})
 INSTALL(TARGETS mysqlservices DESTINATION ${INSTALL_LIBDIR} COMPONENT Development)

@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2010, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,7 +56,7 @@ my_off_t my_seek(File fd, my_off_t pos, int whence, myf MyFlags)
       Make sure we are using a valid file descriptor!
   */
   DBUG_ASSERT(fd != -1);
-#if defined (_WIN32)
+#ifdef _WIN32
   newpos= my_win_lseek(fd, pos, whence);
 #else
   newpos= lseek(fd, pos, whence);

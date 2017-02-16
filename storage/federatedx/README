@@ -1,0 +1,33 @@
+This is the FederatedX Storage Engine, developed as an external storage engine.
+
+NOTE:
+
+The following is only relevant if you use it for MySQL.  MariaDB already comes
+with the latest version of FederatedX.
+
+To install, grab a copy of the mysql source code and run this:
+
+./configure --with-mysql=/path/to/src/mysql-5.x --libdir=/usr/local/lib/mysql/
+
+make install
+
+And then inside of MySQL:
+
+mysql> INSTALL PLUGIN federatedx SONAME 'libfederatedx_engine.so';
+
+mysql> CREATE TABLE `d` (`a` varchar(125), b text, primary key(a)) ENGINE=FEDERATEDX CONNECTION="mysql://root@host/schema/table"
+
+or 
+
+mysql> CREATE TABLE `d` (`a` varchar(125), b text, primary key(a)) ENGINE=FEDERATEDX CONNECTION="server" CHARSET=latin1;
+
+You will probably need to edit the Makefile.am in the src/ tree if you want
+to build on anything other then Linux (and the Makefile assumes that the
+server was not compiled for debug). The reason for the two possible
+configure lines is that libdir is dependent on where MySQL was installed. If
+you run the "INSTALL PLUGIN ..." and you get a file not found, check that
+your configured this directory correctly.
+
+For Solaris you can enable DTrace probes by adding to configure
+--enable-dtrace
+

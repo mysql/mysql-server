@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -106,7 +106,7 @@ extern int skip_big_tests;
    @param count The planned number of tests to run.
 */
 
-void plan(int const count);
+void plan(int count);
 
 
 /**
@@ -125,7 +125,7 @@ void plan(int const count);
                use ok1() in this case.
 */
 
-void ok(int const pass, char const *fmt, ...)
+void ok(int pass, char const *fmt, ...)
   __attribute__((format(printf,2,3)));
 
 

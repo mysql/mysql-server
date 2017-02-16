@@ -17,25 +17,25 @@ select @@global.read_only;
 @@global.read_only
 1
 create table t3 (a int);
-ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+ERROR HY000: The MariaDB server is running with the --read-only option so it cannot execute this statement
 insert into t1 values(1);
-ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+ERROR HY000: The MariaDB server is running with the --read-only option so it cannot execute this statement
 update t1 set a=1 where 1=0;
-ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+ERROR HY000: The MariaDB server is running with the --read-only option so it cannot execute this statement
 update t1,t2 set t1.a=t2.a+1 where t1.a=t2.a;
-ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+ERROR HY000: The MariaDB server is running with the --read-only option so it cannot execute this statement
 delete t1,t2 from t1,t2 where t1.a=t2.a;
-ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+ERROR HY000: The MariaDB server is running with the --read-only option so it cannot execute this statement
 create temporary table t3 (a int);
 create temporary table t4 (a int) select * from t3;
 insert into t3 values(1);
 insert into t4 select * from t3;
 update t1,t3 set t1.a=t3.a+1 where t1.a=t3.a;
-ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+ERROR HY000: The MariaDB server is running with the --read-only option so it cannot execute this statement
 update t1,t3 set t3.a=t1.a+1 where t1.a=t3.a;
 update t4,t3 set t4.a=t3.a+1 where t4.a=t3.a;
 delete t1 from t1,t3 where t1.a=t3.a;
-ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+ERROR HY000: The MariaDB server is running with the --read-only option so it cannot execute this statement
 delete t3 from t1,t3 where t1.a=t3.a;
 delete t4 from t3,t4 where t4.a=t3.a;
 create temporary table t1 (a int);
@@ -44,7 +44,7 @@ update t1,t3 set t1.a=t3.a+1 where t1.a=t3.a;
 delete t1 from t1,t3 where t1.a=t3.a;
 drop table t1;
 insert into t1 values(1);
-ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+ERROR HY000: The MariaDB server is running with the --read-only option so it cannot execute this statement
 connection default;
 set global read_only=0;
 lock table t1 write;
@@ -75,18 +75,16 @@ connection default;
 set global read_only=1;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 unlock tables ;
-send set global read_only=1;
 set global read_only=1;
-connection con1;
-select @@global.read_only;
-@@global.read_only
-0
-unlock tables ;
 select @@global.read_only;
 @@global.read_only
 1
+connection con1;
+select @@global.read_only;
+@@global.read_only
+1
+unlock tables ;
 connection default;
-reap;
 connection default;
 set global read_only=0;
 BEGIN;
@@ -145,11 +143,11 @@ flush privileges;
 connect (con_bug27440,127.0.0.1,mysqltest_u1,,test,MASTER_MYPORT,);
 connection con_bug27440;
 create database mysqltest_db2;
-ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+ERROR HY000: The MariaDB server is running with the --read-only option so it cannot execute this statement
 show databases like '%mysqltest_db2%';
 Database (%mysqltest_db2%)
 drop database mysqltest_db1;
-ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+ERROR HY000: The MariaDB server is running with the --read-only option so it cannot execute this statement
 disconnect con_bug27440;
 connection default;
 delete from mysql.user where User like 'mysqltest_%';

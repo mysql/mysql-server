@@ -1,0 +1,17 @@
+# ticket 895 is a query optimization problem with the primary key
+
+--source include/have_tokudb.inc
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=ON;
+
+create table foo (a int NOT NULL, b int, c int)engine=TokuDB;
+insert into foo values(1,10,100),(2,20,200),(3,30,300);
+alter table foo add column d text;
+select * from foo;
+
+drop table foo;

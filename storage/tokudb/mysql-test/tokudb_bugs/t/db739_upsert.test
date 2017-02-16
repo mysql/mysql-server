@@ -1,0 +1,28 @@
+source include/have_tokudb.inc;
+set default_storage_engine=tokudb;
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+create table t (
+    id bigint not null,
+    a bigint not null default 0,
+    b bigint not null default 0,
+    c bigint not null default 0,
+    primary key(id, a)
+);
+
+set tokudb_commit_sync=0;
+let $id=0;
+while ($id < 1000) {
+   let $a=0;
+   while ($a < 100) {
+       eval insert into t (id,a) values ($id,$a);
+       inc $a;
+   }
+   inc $id;
+}
+
+delete from t where id=404;
+insert into t values (404,0,0,0) on duplicate key update b=b+1;
+
+drop table t;

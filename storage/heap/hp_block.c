@@ -64,19 +64,19 @@ int hp_get_new_block(HP_BLOCK *block, size_t *alloc_length)
       break;
 
   /*
-    Allocate space for leaf block plus space for upper level blocks up to
-    first level that has a free slot to put the pointer. 
-    In some cases we actually allocate more then we need:
-    Consider e.g. a situation where we have one level 1 block and one level 0
-    block, the level 0 block is full and this function is called. We only 
-    need a leaf block in this case. Nevertheless, we will get here with i=1 
-    and will also allocate sizeof(HP_PTRS) for non-leaf block and will never 
-    use this space.
-    This doesn't add much overhead - with current values of sizeof(HP_PTRS) 
-    and my_default_record_cache_size we get about 1/128 unused memory.
+    Allocate space for leaf block (data) plus space for upper level blocks
+    up to first level that has a free slot to put the pointer.
+    If this is a new level, we have to allocate pointers to all future
+    lower levels.
+
+    For example, for level 0, we allocate data for X rows.
+    When level 0 is full, we allocate data for HPTRS_IN_NODE + X rows.
+    Next time we allocate data for X rows.
+    When level 1 is full, we allocate data for HPTRS_IN_NODE at level 2 and 1
+    + X rows at level 0.
    */
-  *alloc_length= sizeof(HP_PTRS)* i + (ulonglong) block->records_in_block *
-                                              block->recbuffer;
+  *alloc_length= (sizeof(HP_PTRS) * ((i == block->levels) ? i : i - 1) +
+                  (ulonglong)block->records_in_block * block->recbuffer);
   if (!(root=(HP_PTRS*) my_malloc(*alloc_length,MYF(MY_WME))))
     return 1;
 

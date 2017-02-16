@@ -1,0 +1,36 @@
+--source include/have_tokudb.inc
+let $engine='tokudb';
+
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+
+connect (conn1,localhost,root,,);
+
+connection default;
+eval create table t (a varchar(50), primary key(a)) engine=$engine;
+
+insert into t values ("hello world");
+select * from t;
+
+begin;
+connection conn1;
+select * from t;
+connection default;
+
+update t set a="HELLO WORLD";
+connection conn1;
+select * from t;
+connection default;
+
+select * from t;
+rollback;
+
+connection conn1;
+select * from t;
+connection default;
+
+connection default;
+disconnect conn1;
+
+drop table t;

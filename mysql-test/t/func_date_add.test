@@ -88,3 +88,15 @@ select b + interval a day from t1;
 drop table t1;
 
 --echo End of 5.0 tests
+
+#
+# MDEV-4284 Assertion `cmp_items[(uint)cmp_type]' fails in sql/item_cmpfunc.cc
+#
+
+create table t1 (a varchar(10));
+insert t1 values ('2000-12-03'),('2008-05-03');
+select * from t1 where case a when adddate( '2012-12-12', 7 ) then true end;
+drop table t1;
+
+--echo End of 5.5 tests
+

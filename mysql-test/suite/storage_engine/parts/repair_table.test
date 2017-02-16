@@ -1,0 +1,78 @@
+# 
+# REPAIR TABLE for partitioned tables and REPAIR PARTITION
+#
+
+--source include/have_partition.inc
+--source ../have_engine.inc
+
+call mtr.add_suppression("Table '.*t1.*' is marked as crashed and should be repaired");
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+let $partition_options = PARTITION BY HASH(a) PARTITIONS 2;
+--source ../create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Partitions
+  --source ../unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(2,'d'),(4,'e'),(100,'f'),(101,'g');
+
+  let $table_name = t2;
+  let $partition_options = PARTITION BY RANGE(a) (
+    PARTITION p0 VALUES LESS THAN (100),
+    PARTITION p1 VALUES LESS THAN MAXVALUE
+  );
+  --source ../create_table.inc
+
+  INSERT INTO t2 (a,b) SELECT a, b FROM t1;
+
+  let $alter_definition = REPAIR PARTITION p0;
+  --source ../alter_table.inc
+
+  INSERT INTO t1 (a,b) VALUES (3,'c');
+
+  let $alter_definition = REPAIR PARTITION NO_WRITE_TO_BINLOG p0, p1;
+  --source ../alter_table.inc
+  if ($mysql_errname)
+  {
+    --let $my_last_stmt = $alter_statement
+    --let $functionality = ALTER TABLE
+    --source ../unexpected_result.inc
+  }
+
+  INSERT INTO t2 (a,b) VALUES (5,'e'),(6,'f');
+
+  let $table_name = t2;
+  let $alter_definition = REPAIR PARTITION LOCAL p1;
+  --source ../alter_table.inc
+
+  INSERT INTO t1 (a,b) VALUES (7,'g'),(8,'h');
+
+  let $alter_definition = REPAIR PARTITION LOCAL ALL EXTENDED;
+  --source ../alter_table.inc
+
+  INSERT INTO t1 (a,b) VALUES (10,'j');
+
+  let $alter_definition = REPAIR PARTITION p1 QUICK USE_FRM;
+  --source ../alter_table.inc
+
+  INSERT INTO t2 (a,b) VALUES (12,'l');
+
+  let $table_name = t2;
+  let $alter_definition = REPAIR PARTITION NO_WRITE_TO_BINLOG ALL QUICK EXTENDED USE_FRM;
+  --source ../alter_table.inc
+
+  DROP TABLE t1, t2;
+}
+
+let $extra_tbl_opts = PARTITION BY HASH(a) PARTITIONS 2;
+--source ../repair_table.inc
+
+--source ../cleanup_engine.inc
+

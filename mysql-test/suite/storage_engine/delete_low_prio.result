@@ -1,0 +1,59 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (1,'f'),(2,'b');
+SET LOW_PRIORITY_UPDATES = 0;
+SET lock_wait_timeout = 4;
+connect  con1,localhost,root,,;
+SET lock_wait_timeout = 2;
+SELECT SLEEP(1) FROM t1;
+connection default;
+DELETE FROM t1;
+connect  con2,localhost,root,,;
+SET lock_wait_timeout = 3;
+SELECT SLEEP(1) FROM t1;
+SLEEP(1)
+connection con1;
+SLEEP(1)
+0
+0
+connection default;
+SELECT a,b FROM t1;
+a	b
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
+connection con1;
+SELECT SLEEP(1) FROM t1;
+connection default;
+DELETE LOW_PRIORITY FROM t1;
+connection con2;
+SELECT SLEEP(1) FROM t1;
+SLEEP(1)
+0
+0
+connection con1;
+SLEEP(1)
+0
+0
+connection default;
+SELECT a,b FROM t1;
+a	b
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
+SET LOW_PRIORITY_UPDATES = 1;
+connection con1;
+SELECT SLEEP(1) FROM t1;
+connection default;
+DELETE FROM t1;
+connection con2;
+SELECT SLEEP(1) FROM t1;
+SLEEP(1)
+0
+0
+connection con1;
+SLEEP(1)
+0
+0
+connection default;
+SELECT a,b FROM t1;
+a	b
+disconnect con1;
+disconnect con2;
+DROP TABLE t1;

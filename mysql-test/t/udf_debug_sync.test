@@ -1,0 +1,40 @@
+--source include/have_debug_sync.inc
+--source include/have_udf.inc
+
+#
+# MDEV-5616 - Deadlock between CREATE/DROP FUNCTION and SELECT from view
+#
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_SO";
+CREATE VIEW v1 AS SELECT myfunc_int(1);
+connect(con1, localhost, root,,);
+
+connection con1;
+SET debug_sync='mysql_create_function_after_lock SIGNAL locked WAIT_FOR go';
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+send_eval CREATE FUNCTION myfunc_double RETURNS REAL SONAME "$UDF_EXAMPLE_SO";
+
+connection default;
+SET debug_sync='now WAIT_FOR locked';
+SET debug_sync='find_udf_before_lock SIGNAL go';
+SELECT * FROM v1;
+FLUSH TABLES;
+
+connection con1;
+reap;
+SET debug_sync='mysql_drop_function_after_lock SIGNAL locked WAIT_FOR go';
+send DROP FUNCTION myfunc_double;
+
+connection default;
+SET debug_sync='now WAIT_FOR locked';
+SET debug_sync='find_udf_before_lock SIGNAL go';
+SELECT * FROM v1;
+
+connection con1;
+reap;
+disconnect con1;
+
+connection default;
+SET debug_sync='RESET';
+DROP VIEW v1;
+DROP FUNCTION myfunc_int;

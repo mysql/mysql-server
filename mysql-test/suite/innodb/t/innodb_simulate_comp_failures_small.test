@@ -1,0 +1,5 @@
+--let $num_inserts = 1000
+--let $num_ops = 30
+--source suite/innodb/include/innodb_simulate_comp_failures.inc
+# clean exit
+--exit

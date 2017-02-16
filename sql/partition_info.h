@@ -1,7 +1,7 @@
 #ifndef PARTITION_INFO_INCLUDED
 #define PARTITION_INFO_INCLUDED
 
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -265,7 +265,7 @@ public:
   }
   ~partition_info() {}
 
-  partition_info *get_clone(bool reset = false);
+  partition_info *get_clone();
   /* Answers the question if subpartitioning is used for a certain table */
   bool is_sub_partitioned()
   {
@@ -288,7 +288,7 @@ public:
   bool check_partition_info(THD *thd, handlerton **eng_type,
                             handler *file, HA_CREATE_INFO *info,
                             bool check_partition_function);
-  void print_no_partition_found(TABLE *table);
+  void print_no_partition_found(TABLE *table, myf errflag);
   void print_debug(const char *str, uint*);
   Item* get_column_item(Item *item, Field *field);
   int fix_partition_values(THD *thd,
@@ -348,16 +348,5 @@ void init_all_partitions_iterator(partition_info *part_info,
   part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
   part_iter->get_next= get_next_partition_id_range;
 }
-
-/**
-  Predicate which returns true if any partition or subpartition uses
-  an external data directory or external index directory.
-
-  @param pi partitioning information
-  @retval true if any partition or subpartition has an external
-  data directory or external index directory.
-  @retval false otherwise
- */
-bool has_external_data_or_index_dir(partition_info &pi);
 
 #endif /* PARTITION_INFO_INCLUDED */

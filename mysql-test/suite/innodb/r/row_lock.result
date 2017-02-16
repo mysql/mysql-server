@@ -1,0 +1,16 @@
+CREATE TABLE t1 (a INT, b INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,1),(2,2);
+CREATE TABLE t2 (c INT, d INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,1), (2,2);
+CREATE TABLE t3 (e INT) ENGINE=InnoDB;
+CREATE TABLE t4 ENGINE=InnoDB AS SELECT * FROM t2;
+BEGIN;
+UPDATE t1 SET a = 0 WHERE a = ( SELECT e FROM t3 );
+SET DEBUG_SYNC='srv_suspend_mysql_thread_enter SIGNAL waiting';
+UPDATE t4 SET d = 1 WHERE d in ( SELECT a FROM t1 ) ORDER BY c LIMIT 6;
+SET DEBUG_SYNC='now WAIT_FOR waiting';
+SET DEBUG_SYNC='RESET';
+UPDATE t4 SET d = 9;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+commit;
+drop table t1,t2,t3,t4;

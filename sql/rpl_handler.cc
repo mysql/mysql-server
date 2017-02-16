@@ -38,12 +38,10 @@ typedef struct Trans_binlog_info {
   char log_file[FN_REFLEN];
 } Trans_binlog_info;
 
-static pthread_key(Trans_binlog_info*, RPL_TRANS_BINLOG_INFO);
-
 int get_user_var_int(const char *name,
                      long long int *value, int *null_value)
 {
-  my_bool null_val;
+  bool null_val;
   user_var_entry *entry= 
     (user_var_entry*) my_hash_search(&current_thd->user_vars,
                                   (uchar*) name, strlen(name));
@@ -58,7 +56,7 @@ int get_user_var_int(const char *name,
 int get_user_var_real(const char *name,
                       double *value, int *null_value)
 {
-  my_bool null_val;
+  bool null_val;
   user_var_entry *entry= 
     (user_var_entry*) my_hash_search(&current_thd->user_vars,
                                   (uchar*) name, strlen(name));
@@ -74,7 +72,7 @@ int get_user_var_str(const char *name, char *value,
                      size_t len, unsigned int precision, int *null_value)
 {
   String str;
-  my_bool null_val;
+  bool null_val;
   user_var_entry *entry= 
     (user_var_entry*) my_hash_search(&current_thd->user_vars,
                                   (uchar*) name, strlen(name));
@@ -143,13 +141,6 @@ int delegates_init()
   }
 #endif
 
-  if (pthread_key_create(&RPL_TRANS_BINLOG_INFO, NULL))
-  {
-    sql_print_error("Error while creating pthread specific data key for replication. "
-                    "Please report a bug.");
-    return 1;
-  }
-
   return 0;
 }
 
@@ -170,40 +161,16 @@ void delegates_destroy()
 /*
   This macro is used by almost all the Delegate methods to iterate
   over all the observers running given callback function of the
-  delegate .
-  
-  Add observer plugins to the thd->lex list, after each statement, all
-  plugins add to thd->lex will be automatically unlocked.
+  delegate.
  */
-#define FOREACH_OBSERVER(r, f, thd, args)                               \
+#define FOREACH_OBSERVER(r, f, do_lock, args)                           \
   param.server_id= thd->server_id;                                      \
-  /*
-     Use a struct to make sure that they are allocated adjacent, check
-     delete_dynamic().
-  */                                                                    \
-  struct {                                                              \
-    DYNAMIC_ARRAY plugins;                                              \
-    /* preallocate 8 slots */                                           \
-    plugin_ref plugins_buffer[8];                                       \
-  } s;                                                                  \
-  DYNAMIC_ARRAY *plugins= &s.plugins;                                   \
-  plugin_ref *plugins_buffer= s.plugins_buffer;                         \
-  my_init_dynamic_array2(plugins, sizeof(plugin_ref),                   \
-                         plugins_buffer, 8, 8);                         \
   read_lock();                                                          \
   Observer_info_iterator iter= observer_info_iter();                    \
   Observer_info *info= iter++;                                          \
   for (; info; info= iter++)                                            \
   {                                                                     \
-    plugin_ref plugin=                                                  \
-      my_plugin_lock(0, &info->plugin);                                 \
-    if (!plugin)                                                        \
-    {                                                                   \
-      /* plugin is not intialized or deleted, this is not an error */   \
-      r= 0;                                                             \
-      break;                                                            \
-    }                                                                   \
-    insert_dynamic(plugins, (uchar *)&plugin);                          \
+    if (do_lock) plugin_lock(thd, plugin_int_to_ref(info->plugin_int)); \
     if (((Observer *)info->observer)->f                                 \
         && ((Observer *)info->observer)->f args)                        \
     {                                                                   \
@@ -213,43 +180,33 @@ void delegates_destroy()
       break;                                                            \
     }                                                                   \
   }                                                                     \
-  unlock();                                                             \
-  /* 
-     Unlock plugins should be done after we released the Delegate lock
-     to avoid possible deadlock when this is the last user of the
-     plugin, and when we unlock the plugin, it will try to
-     deinitialize the plugin, which will try to lock the Delegate in
-     order to remove the observers.
-  */                                                                    \
-  plugin_unlock_list(0, (plugin_ref*)plugins->buffer,                   \
-                     plugins->elements);                                \
-  delete_dynamic(plugins)
+  unlock();
 
 
 int Trans_delegate::after_commit(THD *thd, bool all)
 {
   Trans_param param;
+  Trans_binlog_info *log_info;
   bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
+  int ret= 0;
 
   param.flags = is_real_trans ? TRANS_IS_REAL_TRANS : 0;
 
-  Trans_binlog_info *log_info=
-    my_pthread_getspecific_ptr(Trans_binlog_info*, RPL_TRANS_BINLOG_INFO);
+  log_info= thd->semisync_info;
 
-  param.log_file= log_info ? log_info->log_file : 0;
+  param.log_file= log_info && log_info->log_file[0] ? log_info->log_file : 0;
   param.log_pos= log_info ? log_info->log_pos : 0;
 
-  int ret= 0;
-  FOREACH_OBSERVER(ret, after_commit, thd, (&param));
+  FOREACH_OBSERVER(ret, after_commit, false, (&param));
 
   /*
     This is the end of a real transaction or autocommit statement, we
-    can free the memory allocated for binlog file and position.
+    can mark the memory unused.
   */
   if (is_real_trans && log_info)
   {
-    my_pthread_setspecific_ptr(RPL_TRANS_BINLOG_INFO, NULL);
-    my_free(log_info);
+    log_info->log_file[0]= 0;
+    log_info->log_pos= 0;
   }
   return ret;
 }
@@ -257,27 +214,27 @@ int Trans_delegate::after_commit(THD *thd, bool all)
 int Trans_delegate::after_rollback(THD *thd, bool all)
 {
   Trans_param param;
+  Trans_binlog_info *log_info;
   bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
+  int ret= 0;
 
   param.flags = is_real_trans ? TRANS_IS_REAL_TRANS : 0;
 
-  Trans_binlog_info *log_info=
-    my_pthread_getspecific_ptr(Trans_binlog_info*, RPL_TRANS_BINLOG_INFO);
-    
-  param.log_file= log_info ? log_info->log_file : 0;
+  log_info= thd->semisync_info;
+
+  param.log_file= log_info && log_info->log_file[0] ? log_info->log_file : 0;
   param.log_pos= log_info ? log_info->log_pos : 0;
 
-  int ret= 0;
-  FOREACH_OBSERVER(ret, after_rollback, thd, (&param));
+  FOREACH_OBSERVER(ret, after_rollback, false, (&param));
 
   /*
     This is the end of a real transaction or autocommit statement, we
-    can free the memory allocated for binlog file and position.
+    can mark the memory unused.
   */
   if (is_real_trans && log_info)
   {
-    my_pthread_setspecific_ptr(RPL_TRANS_BINLOG_INFO, NULL);
-    my_free(log_info);
+    log_info->log_file[0]= 0;
+    log_info->log_pos= 0;
   }
   return ret;
 }
@@ -288,26 +245,25 @@ int Binlog_storage_delegate::after_flush(THD *thd,
                                          bool synced)
 {
   Binlog_storage_param param;
+  Trans_binlog_info *log_info;
   uint32 flags=0;
+  int ret= 0;
+
   if (synced)
     flags |= BINLOG_STORAGE_IS_SYNCED;
 
-  Trans_binlog_info *log_info=
-    my_pthread_getspecific_ptr(Trans_binlog_info*, RPL_TRANS_BINLOG_INFO);
-    
-  if (!log_info)
+  if (!(log_info= thd->semisync_info))
   {
     if(!(log_info=
-         (Trans_binlog_info *)my_malloc(sizeof(Trans_binlog_info), MYF(0))))
+         (Trans_binlog_info*) my_malloc(sizeof(Trans_binlog_info), MYF(0))))
       return 1;
-    my_pthread_setspecific_ptr(RPL_TRANS_BINLOG_INFO, log_info);
+    thd->semisync_info= log_info;
   }
-    
+
   strcpy(log_info->log_file, log_file+dirname_length(log_file));
   log_info->log_pos = log_pos;
   
-  int ret= 0;
-  FOREACH_OBSERVER(ret, after_flush, thd,
+  FOREACH_OBSERVER(ret, after_flush, false,
                    (&param, log_info->log_file, log_info->log_pos, flags));
   return ret;
 }
@@ -321,7 +277,7 @@ int Binlog_transmit_delegate::transmit_start(THD *thd, ushort flags,
   param.flags= flags;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, transmit_start, thd, (&param, log_file, log_pos));
+  FOREACH_OBSERVER(ret, transmit_start, true, (&param, log_file, log_pos));
   return ret;
 }
 
@@ -331,7 +287,7 @@ int Binlog_transmit_delegate::transmit_stop(THD *thd, ushort flags)
   param.flags= flags;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, transmit_stop, thd, (&param));
+  FOREACH_OBSERVER(ret, transmit_stop, false, (&param));
   return ret;
 }
 
@@ -356,13 +312,6 @@ int Binlog_transmit_delegate::reserve_header(THD *thd, ushort flags,
   Observer_info *info= iter++;
   for (; info; info= iter++)
   {
-    plugin_ref plugin=
-      my_plugin_lock(thd, &info->plugin);
-    if (!plugin)
-    {
-      ret= 1;
-      break;
-    }
     hlen= 0;
     if (((Observer *)info->observer)->reserve_header
         && ((Observer *)info->observer)->reserve_header(&param,
@@ -371,10 +320,8 @@ int Binlog_transmit_delegate::reserve_header(THD *thd, ushort flags,
                                                         &hlen))
     {
       ret= 1;
-      plugin_unlock(thd, plugin);
       break;
     }
-    plugin_unlock(thd, plugin);
     if (hlen == 0)
       continue;
     if (hlen > RESERVE_HEADER_SIZE || packet->append((char *)header, hlen))
@@ -396,7 +343,7 @@ int Binlog_transmit_delegate::before_send_event(THD *thd, ushort flags,
   param.flags= flags;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, before_send_event, thd,
+  FOREACH_OBSERVER(ret, before_send_event, false,
                    (&param, (uchar *)packet->c_ptr(),
                     packet->length(),
                     log_file+dirname_length(log_file), log_pos));
@@ -410,7 +357,7 @@ int Binlog_transmit_delegate::after_send_event(THD *thd, ushort flags,
   param.flags= flags;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_send_event, thd,
+  FOREACH_OBSERVER(ret, after_send_event, false,
                    (&param, packet->c_ptr(), packet->length()));
   return ret;
 }
@@ -422,7 +369,7 @@ int Binlog_transmit_delegate::after_reset_master(THD *thd, ushort flags)
   param.flags= flags;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_reset_master, thd, (&param));
+  FOREACH_OBSERVER(ret, after_reset_master, false, (&param));
   return ret;
 }
 
@@ -443,7 +390,7 @@ int Binlog_relay_IO_delegate::thread_start(THD *thd, Master_info *mi)
   init_param(&param, mi);
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, thread_start, thd, (&param));
+  FOREACH_OBSERVER(ret, thread_start, true, (&param));
   return ret;
 }
 
@@ -455,7 +402,7 @@ int Binlog_relay_IO_delegate::thread_stop(THD *thd, Master_info *mi)
   init_param(&param, mi);
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, thread_stop, thd, (&param));
+  FOREACH_OBSERVER(ret, thread_stop, false, (&param));
   return ret;
 }
 
@@ -467,7 +414,7 @@ int Binlog_relay_IO_delegate::before_request_transmit(THD *thd,
   init_param(&param, mi);
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, before_request_transmit, thd, (&param, (uint32)flags));
+  FOREACH_OBSERVER(ret, before_request_transmit, false, (&param, (uint32)flags));
   return ret;
 }
 
@@ -480,7 +427,7 @@ int Binlog_relay_IO_delegate::after_read_event(THD *thd, Master_info *mi,
   init_param(&param, mi);
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_read_event, thd,
+  FOREACH_OBSERVER(ret, after_read_event, false,
                    (&param, packet, len, event_buf, event_len));
   return ret;
 }
@@ -498,7 +445,7 @@ int Binlog_relay_IO_delegate::after_queue_event(THD *thd, Master_info *mi,
     flags |= BINLOG_STORAGE_IS_SYNCED;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_queue_event, thd,
+  FOREACH_OBSERVER(ret, after_queue_event, false,
                    (&param, event_buf, event_len, flags));
   return ret;
 }
@@ -510,7 +457,7 @@ int Binlog_relay_IO_delegate::after_reset_slave(THD *thd, Master_info *mi)
   init_param(&param, mi);
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_reset_slave, thd, (&param));
+  FOREACH_OBSERVER(ret, after_reset_slave, false, (&param));
   return ret;
 }
 #endif /* HAVE_REPLICATION */

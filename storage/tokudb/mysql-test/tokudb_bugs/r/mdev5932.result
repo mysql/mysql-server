@@ -1,0 +1,27 @@
+drop table if exists t1,t2;
+drop table if exists t1i,t2i;
+drop table if exists tsub,t3;
+CREATE TABLE t1 (a CHAR(3), INDEX(a)) ENGINE=TokuDB;
+INSERT INTO t1 VALUES ('foo'),( NULL);
+SELECT * FROM t1 WHERE 'bar' NOT IN ( SELECT t1_1.a FROM t1 AS t1_1, t1 AS t1_2 );
+a
+CREATE TABLE t2 AS
+SELECT * FROM t1 WHERE 'bar' NOT IN ( SELECT t1_1.a FROM t1 AS t1_1, t1 AS t1_2 );
+SELECT * FROM t2;
+a
+CREATE TABLE tsub AS SELECT t1_1.a FROM t1 AS t1_1, t1 AS t1_2;
+CREATE TABLE t3 AS
+SELECT * FROM t1 WHERE 'bar' NOT IN ( SELECT * FROM tsub );
+SELECT * FROM t3;
+a
+DROP TABLE tsub, t3;
+CREATE TABLE t1i (a CHAR(3), INDEX(a)) ENGINE=InnoDB;
+INSERT INTO t1i VALUES ('foo'),( NULL);
+SELECT * FROM t1i WHERE 'bar' NOT IN ( SELECT t1_1.a FROM t1i AS t1_1, t1i AS t1_2 );
+a
+CREATE TABLE t2i AS
+SELECT * FROM t1i WHERE 'bar' NOT IN ( SELECT t1_1.a FROM t1i AS t1_1, t1i AS t1_2 );
+SELECT * FROM t2i;
+a
+include/diff_tables.inc [t2,t2i]
+drop table t1,t2,t1i,t2i;

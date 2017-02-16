@@ -1,0 +1,52 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+set session unique_checks=off;
+create table foo (a int, b int, c int, primary key (a), key(b));
+insert into foo values (1,10,100),(2,20,200),(3,30,300),(4,40,400),(5,50,500),(6,60,600);
+explain select * from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	ALL	NULL	NULL	NULL	NULL	6	
+select * from foo;
+a	b	c
+1	10	100
+2	20	200
+3	30	300
+4	40	400
+5	50	500
+6	60	600
+explain select b from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	NULL	b	5	NULL	6	Using index
+select b from foo;
+b
+10
+20
+30
+40
+50
+60
+replace into foo values (1,1,1);
+explain select * from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	ALL	NULL	NULL	NULL	NULL	6	
+select * from foo;
+a	b	c
+1	1	1
+2	20	200
+3	30	300
+4	40	400
+5	50	500
+6	60	600
+explain select b from foo;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	foo	index	NULL	b	5	NULL	6	Using index
+select b from foo;
+b
+1
+20
+30
+40
+50
+60
+set session unique_checks=on;
+DROP TABLE foo;

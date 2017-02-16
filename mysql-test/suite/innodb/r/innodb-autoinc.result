@@ -2,7 +2,7 @@ drop table if exists t1;
 CREATE TABLE t1 (c1 BIGINT PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (9223372036854775807, null);
 INSERT INTO t1 (c2) VALUES ('innodb');
-Got one of the listed errors
+ERROR 22003: Out of range value for column 'c1' at row 1
 SELECT * FROM t1;
 c1	c2
 9223372036854775807	NULL
@@ -10,7 +10,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 TINYINT PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (127, null);
 INSERT INTO t1 (c2) VALUES ('innodb');
-Got one of the listed errors
+ERROR 22003: Out of range value for column 'c1' at row 1
 SELECT * FROM t1;
 c1	c2
 127	NULL
@@ -18,7 +18,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 TINYINT UNSIGNED PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (255, null);
 INSERT INTO t1 (c2) VALUES ('innodb');
-Got one of the listed errors
+ERROR 22003: Out of range value for column 'c1' at row 1
 SELECT * FROM t1;
 c1	c2
 255	NULL
@@ -26,7 +26,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 SMALLINT PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (32767, null);
 INSERT INTO t1 (c2) VALUES ('innodb');
-Got one of the listed errors
+ERROR 22003: Out of range value for column 'c1' at row 1
 SELECT * FROM t1;
 c1	c2
 32767	NULL
@@ -34,7 +34,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 SMALLINT UNSIGNED PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (65535, null);
 INSERT INTO t1 (c2) VALUES ('innodb');
-Got one of the listed errors
+ERROR 22003: Out of range value for column 'c1' at row 1
 SELECT * FROM t1;
 c1	c2
 65535	NULL
@@ -42,7 +42,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 MEDIUMINT PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (8388607, null);
 INSERT INTO t1 (c2) VALUES ('innodb');
-Got one of the listed errors
+ERROR 22003: Out of range value for column 'c1' at row 1
 SELECT * FROM t1;
 c1	c2
 8388607	NULL
@@ -50,7 +50,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 MEDIUMINT UNSIGNED PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (16777215, null);
 INSERT INTO t1 (c2) VALUES ('innodb');
-Got one of the listed errors
+ERROR 22003: Out of range value for column 'c1' at row 1
 SELECT * FROM t1;
 c1	c2
 16777215	NULL
@@ -58,7 +58,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (2147483647, null);
 INSERT INTO t1 (c2) VALUES ('innodb');
-Got one of the listed errors
+ERROR 22003: Out of range value for column 'c1' at row 1
 SELECT * FROM t1;
 c1	c2
 2147483647	NULL
@@ -66,7 +66,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (4294967295, null);
 INSERT INTO t1 (c2) VALUES ('innodb');
-Got one of the listed errors
+ERROR 22003: Out of range value for column 'c1' at row 1
 SELECT * FROM t1;
 c1	c2
 4294967295	NULL
@@ -74,7 +74,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 BIGINT PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (9223372036854775807, null);
 INSERT INTO t1 (c2) VALUES ('innodb');
-Got one of the listed errors
+ERROR 22003: Out of range value for column 'c1' at row 1
 SELECT * FROM t1;
 c1	c2
 9223372036854775807	NULL
@@ -567,7 +567,7 @@ Variable_name	Value
 auto_increment_increment	65535
 auto_increment_offset	65535
 INSERT INTO t1 VALUES (NULL),(NULL);
-ERROR 22003: Out of range value for column 't1' at row 167
+ERROR HY000: Failed to read auto-increment value from storage engine
 SELECT * FROM t1;
 c1
 1
@@ -641,6 +641,18 @@ PRIMARY KEY (m)) ENGINE = InnoDB;
 INSERT INTO t2 (n,o) VALUES
 (1 , 'true'), (1 , 'false'), (2 , 'true'), (2 , 'false'), (3 , 'true'),
 (3 , 'false'), (4 , 'true'), (4 , 'false'), (5 , 'true'), (5 , 'false');
+SELECT * FROM t2;
+m	n	o
+1	1	TRUE
+2	1	FALSE
+3	2	TRUE
+4	2	FALSE
+5	3	TRUE
+6	3	FALSE
+7	4	TRUE
+8	4	FALSE
+9	5	TRUE
+10	5	FALSE
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -648,7 +660,7 @@ t2	CREATE TABLE `t2` (
   `n` int(10) unsigned NOT NULL,
   `o` enum('FALSE','TRUE') DEFAULT NULL,
   PRIMARY KEY (`m`)
-) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=latin1
 INSERT INTO t1 (b,c) SELECT n,o FROM t2 ;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -858,7 +870,7 @@ PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t2 SELECT c1 FROM t1;
 Got one of the listed errors
 INSERT INTO t2 SELECT NULL FROM t1;
-Got one of the listed errors
+ERROR 22003: Out of range value for column 'c1' at row 1
 DROP TABLE t1;
 DROP TABLE t2;
 SET @@SESSION.AUTO_INCREMENT_INCREMENT=1, @@SESSION.AUTO_INCREMENT_OFFSET=1;
@@ -1308,54 +1320,6 @@ t1	CREATE TABLE `t1` (
   `c2` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-DROP TABLE t1;
-CREATE TABLE t1 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 INT) ENGINE = MyISAM;
-INSERT INTO t1 (c1) VALUES (NULL), (-290783232), (NULL);
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 3
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
-  `c2` int(11) DEFAULT NULL,
-  PRIMARY KEY (`c1`)
-) ENGINE=MyISAM AUTO_INCREMENT=2147483648 DEFAULT CHARSET=latin1
-SELECT * FROM t1;
-c1	c2
-1	NULL
--290783232	NULL
-2147483647	NULL
-ALTER TABLE t1 ENGINE = InnoDB;
-SELECT * FROM t1;
-c1	c2
--290783232	NULL
-1	NULL
-2147483647	NULL
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
-  `c2` int(11) DEFAULT NULL,
-  PRIMARY KEY (`c1`)
-) ENGINE=InnoDB AUTO_INCREMENT=2147483648 DEFAULT CHARSET=latin1
-REPLACE INTO t1 (c2 ) VALUES (0);
-ERROR HY000: Failed to read auto-increment value from storage engine
-SELECT * FROM t1;
-c1	c2
--290783232	NULL
-1	NULL
-2147483647	NULL
-DROP TABLE t1;
-CREATE TABLE t1 (c1 DOUBLE NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB
-AUTO_INCREMENT=10000000000000000000;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` double NOT NULL AUTO_INCREMENT,
-  PRIMARY KEY (`c1`)
-) ENGINE=InnoDB AUTO_INCREMENT=10000000000000000000 DEFAULT CHARSET=latin1
-INSERT INTO t1 VALUES ();
-ERROR HY000: Failed to read auto-increment value from storage engine
 DROP TABLE t1;
 #
 # Bug #14049391	 INNODB MISCALCULATES AUTO-INCREMENT

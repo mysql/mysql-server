@@ -1,0 +1,10 @@
+#! /bin/sh
+# Builds server without query cache support
+
+path=`dirname $0`
+. "$path/SETUP.sh"
+
+extra_flags="$pentium_cflags $debug_cflags"
+extra_configs="$pentium_configs $debug_configs $max_no_qc_configs"
+
+. "$path/FINISH.sh"

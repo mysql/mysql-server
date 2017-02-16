@@ -1,0 +1,88 @@
+--- handler.result	2013-01-22 22:05:05.246633000 +0400
++++ handler.reject	2013-01-23 02:50:29.411882697 +0400
+@@ -2,76 +2,19 @@
+ CREATE TABLE t1 (a <CHAR_COLUMN>, b <INT_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ INSERT INTO t1 (a,b) VALUES ('foobar',1000),('a',1),('bar',200),('foo',100);
+ HANDLER t1 OPEN AS h1;
+-HANDLER t1 READ FIRST;
+-ERROR 42S02: Unknown table 't1' in HANDLER
+-HANDLER h1 READ FIRST;
+-a	b
+-foobar	1000
+-HANDLER h1 READ NEXT;
+-a	b
+-a	1
+-HANDLER h1 READ FIRST WHERE a < 'foo';
+-a	b
+-a	1
+-HANDLER h1 READ NEXT;
+-a	b
+-bar	200
+-HANDLER h1 READ NEXT;
+-a	b
+-foo	100
+-HANDLER h1 READ NEXT;
+-a	b
+-HANDLER h1 READ FIRST LIMIT 2;
+-a	b
+-foobar	1000
+-a	1
+-HANDLER h1 READ NEXT;
+-a	b
+-bar	200
+-HANDLER h1 READ NEXT WHERE b>500 LIMIT 2;
+-a	b
+-HANDLER t1 OPEN;
+-HANDLER h1 READ FIRST WHERE b>500 LIMIT 5;
+-a	b
+-foobar	1000
+-HANDLER t1 READ NEXT;
+-a	b
+-foobar	1000
+-HANDLER h1 READ NEXT WHERE b<100;
+-a	b
+-HANDLER t1 CLOSE;
+-HANDLER h1 READ FIRST;
+-a	b
+-foobar	1000
+-HANDLER t1 CLOSE;
+-ERROR 42S02: Unknown table 't1' in HANDLER
++ERROR HY000: Table storage engine for 'h1' doesn't have this option
++# ------------ UNEXPECTED RESULT ------------
++# The statement|command finished with ER_ILLEGAL_HA.
++# Functionality or the syntax or the mix could be unsupported. 
++# You can change the engine code, or create an rdiff, or disable the test by adding it to disabled.def.
++# Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
++# Also, this problem may cause a chain effect (more errors of different kinds in the test).
++# -------------------------------------------
+ DROP TABLE t1;
+ HANDLER h1 CLOSE;
+ ERROR 42S02: Unknown table 'h1' in HANDLER
+ CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>, <CUSTOM_INDEX> (a)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ INSERT INTO t1 (b,a) VALUES ('a',1),('b',200),('f',100),('b',101),('c',2);
+ HANDLER t1 OPEN AS h1;
+-HANDLER h1 READ a = (100);
+-a	b
+-100	f
+-HANDLER h1 READ a <= (100) WHERE b < 'f';
+-a	b
+-2	c
+-HANDLER h1 READ a > (2) WHERE b IS NOT NULL LIMIT 2;
+-a	b
+-100	f
+-101	b
+-HANDLER h1 READ a FIRST;
+-a	b
+-1	a
+-HANDLER h1 READ a LAST;
+-a	b
+-200	b
+-HANDLER h1 READ a PREV;
+-a	b
+-101	b
+-HANDLER h1 READ a NEXT;
+-a	b
+-200	b
+-HANDLER h1 CLOSE;
++ERROR HY000: Table storage engine for 'h1' doesn't have this option
+ DROP TABLE t1;

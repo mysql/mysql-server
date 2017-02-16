@@ -15,3 +15,11 @@ select * from t1;
 drop table t1;
 
 # End of 4.1 tests
+
+create table t1 (a bigint unsigned, b mediumint unsigned);
+insert t1 values (1,2),(0xffffffffffffffff,0xffffff);
+select coalesce(a,b), coalesce(b,a) from t1;
+create table t2 as select a from t1 union select b from t1;
+show create table t2;
+select * from t2;
+drop table t1, t2;

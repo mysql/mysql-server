@@ -3,6 +3,7 @@ include/master-slave.inc
 [connection master]
 call mtr.add_suppression('Attempting backtrace');
 call mtr.add_suppression("Recovery from master pos .* and file master-bin.000001");
+flush tables;
 CREATE TABLE t1(a INT, PRIMARY KEY(a)) engine=innodb;
 insert into t1(a) values(1);
 insert into t1(a) values(2);
@@ -14,7 +15,7 @@ insert into t1(a) values(5);
 insert into t1(a) values(6);
 =====Removing relay log files and crashing/recoverying the slave=======;
 include/stop_slave_io.inc
-SET SESSION debug="d,crash_before_rotate_relaylog";
+SET SESSION debug_dbug="d,crash_before_rotate_relaylog";
 FLUSH LOGS;
 ERROR HY000: Lost connection to MySQL server during query
 include/rpl_reconnect.inc
@@ -27,7 +28,7 @@ FLUSH LOGS;
 insert into t1(a) values(7);
 insert into t1(a) values(8);
 insert into t1(a) values(9);
-SET SESSION debug="d,crash_before_rotate_relaylog";
+SET SESSION debug_dbug="d,crash_before_rotate_relaylog";
 FLUSH LOGS;
 ERROR HY000: Lost connection to MySQL server during query
 include/rpl_reconnect.inc

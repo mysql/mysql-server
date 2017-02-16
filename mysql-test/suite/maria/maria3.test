@@ -1,0 +1,569 @@
+-- source include/have_maria.inc
+
+select * from INFORMATION_SCHEMA.ENGINES where ENGINE="ARIA";
+
+let $default_engine=`select @@global.storage_engine`;
+let $default_checksum=`select @@global.aria_page_checksum`;
+set global storage_engine=aria;
+set session storage_engine=aria;
+set global aria_page_checksum=0;
+let $default_log_file_size=`select @@global.aria_log_file_size`;
+set global aria_log_file_size=4294959104;
+
+# Initialise
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+SET SQL_WARNINGS=1;
+
+# Test limits and errors of key_block_size
+
+create table t1 (a int not null, key `a` (a) key_block_size=512);
+show create table t1;
+drop table t1;
+
+create table t1 (a varchar(2048), key `a` (a) key_block_size=1000000000000000000);
+show create table t1;
+drop table t1;
+
+create table t1 (a int not null, key `a` (a) key_block_size=1025);
+show create table t1;
+drop table t1;
+
+--error 1064
+create table t1 (a int not null, key key_block_size=1024 (a));
+--error 1064
+create table t1 (a int not null, key `a` key_block_size=1024 (a));
+
+#
+# Test of changing MI_KEY_BLOCK_LENGTH
+#
+
+CREATE TABLE t1 (
+  c1 INT,
+  c2 VARCHAR(300),
+  KEY (c1) KEY_BLOCK_SIZE 1024,
+  KEY (c2) KEY_BLOCK_SIZE 8192
+  );
+INSERT INTO t1 VALUES (10, REPEAT('a', CEIL(RAND(10) * 300))),
+  (11, REPEAT('b', CEIL(RAND() * 300))),
+  (12, REPEAT('c', CEIL(RAND() * 300))),
+  (13, REPEAT('d', CEIL(RAND() * 300))),
+  (14, REPEAT('e', CEIL(RAND() * 300))),
+  (15, REPEAT('f', CEIL(RAND() * 300))),
+  (16, REPEAT('g', CEIL(RAND() * 300))),
+  (17, REPEAT('h', CEIL(RAND() * 300))),
+  (18, REPEAT('i', CEIL(RAND() * 300))),
+  (19, REPEAT('j', CEIL(RAND() * 300))),
+  (20, REPEAT('k', CEIL(RAND() * 300))),
+  (21, REPEAT('l', CEIL(RAND() * 300))),
+  (22, REPEAT('m', CEIL(RAND() * 300))),
+  (23, REPEAT('n', CEIL(RAND() * 300))),
+  (24, REPEAT('o', CEIL(RAND() * 300))),
+  (25, REPEAT('p', CEIL(RAND() * 300))),
+  (26, REPEAT('q', CEIL(RAND() * 300))),
+  (27, REPEAT('r', CEIL(RAND() * 300))),
+  (28, REPEAT('s', CEIL(RAND() * 300))),
+  (29, REPEAT('t', CEIL(RAND() * 300))),
+  (30, REPEAT('u', CEIL(RAND() * 300))),
+  (31, REPEAT('v', CEIL(RAND() * 300))),
+  (32, REPEAT('w', CEIL(RAND() * 300))),
+  (33, REPEAT('x', CEIL(RAND() * 300))),
+  (34, REPEAT('y', CEIL(RAND() * 300))),
+  (35, REPEAT('z', CEIL(RAND() * 300)));
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+CHECK TABLE t1;
+REPAIR TABLE t1;
+DELETE FROM t1 WHERE c1 >= 10;
+CHECK TABLE t1;
+DROP TABLE t1;
+
+#
+# Test that TRANSACTIONAL is preserved
+#
+
+create table t1 (a int) transactional=0;
+show create table t1;
+drop table t1;
+create table t1 (a int) row_format=dynamic transactional=0;
+show create table t1;
+drop table t1;
+create table t1 (a int) row_format=dynamic transactional=1;
+show create table t1;
+alter table t1 row_format=PAGE;
+show create table t1;
+alter table t1 row_format=DYNAMIC;
+show create table t1;
+alter table t1 transactional=0;
+show create table t1;
+alter table t1 row_format=DYNAMIC;
+show create table t1;
+drop table t1;
+create table t1 (a int) row_format=PAGE;
+show create table t1;
+drop table t1;
+create table t1 (a int) row_format=PAGE TRANSACTIONAL=DEFAULT;
+show create table t1;
+alter table t1 row_format=DYNAMIC;
+show create table t1;
+drop table t1;
+
+#
+# MySQL Bug#39200: optimize table does not recognize ROW_FORMAT=COMPRESSED
+#
+
+create table t1 (a int) transactional=0 row_format=FIXED;
+show create table t1;
+alter table t1 transactional=1;
+show create table t1;
+alter table t1 transactional=0;
+show create table t1;
+drop table t1;
+
+#
+# MySQL Bug#39200: optimize table does not recognize ROW_FORMAT=COMPRESSED
+#
+
+create table t1 (a int) transactional=0 row_format=FIXED;
+show create table t1;
+alter table t1 transactional=1;
+show create table t1;
+alter table t1 transactional=0;
+show create table t1;
+drop table t1;
+
+# CHECK TABLE was reporting
+# "Size of datafile is: 0         Should be: 16384"
+#
+
+create table `t1` (
+    t1_name varchar(255) default null,
+    t1_id int(10) unsigned not null auto_increment,
+    key (t1_name),
+    primary key (t1_id)
+) engine=aria auto_increment = 1000 default charset=latin1;
+lock tables t1 write;
+INSERT INTO `t1` VALUES ('bla',1000),('bla',1001),('bla',1002);
+check table t1;
+unlock tables;
+
+#
+# Check that an empty table uses fast recreate of index when we fill it
+# with insert ... select.
+
+create table t2 like t1;
+insert into t2 select * from t1;
+
+# This should say that the table is already up to date
+analyze table t2;
+delete from t2;
+insert into t2 select * from t1;
+analyze table t2;
+
+drop table t1,t2;
+
+#
+# Test when expanding a row so that it doesn't fit into the same page
+#
+
+create table t1 (a bigint auto_increment, primary key(a), b char(255), c varchar(20000));
+
+let $1=1000;
+--disable_query_log
+--disable_warnings
+lock tables t1 write;
+while ($1)
+{
+  insert into t1 () values();
+  dec $1;
+}
+unlock tables;
+--enable_query_log
+update t1 set b=repeat('a',100) where a between 1 and 100;
+check table t1;
+update t1 set c=repeat('a',8192*2) where a between 200 and 202;
+check table t1;
+drop table t1;
+
+#
+# Test where we shrink varchar
+#
+
+CREATE TABLE t1 (a int, b int, v varchar(60000)) checksum=1 engine=aria;
+insert into t1 values (1,1,"aaa"),(1,2,null);
+checksum table t1;
+insert into t1 values (1,3,repeat('c',30000)),(4,4,repeat('a',30000));
+update t1 set v="row5" where b=4;
+delete from t1 where b=3;
+select a, b, length(v) from t1;
+drop table t1;
+
+#
+# Test tail pages for blobs
+#
+
+CREATE TABLE t1 (
+  auto int(5) unsigned NOT NULL auto_increment,
+  string char(10) default "hello",
+  tiny tinyint(4) DEFAULT '0' NOT NULL ,
+  short smallint(6) DEFAULT '1' NOT NULL ,
+  medium mediumint(8) DEFAULT '0' NOT NULL,
+  long_int int(11) DEFAULT '0' NOT NULL,
+  longlong bigint(13) DEFAULT '0' NOT NULL,
+  real_float float(13,1) DEFAULT 0.0 NOT NULL,
+  real_double double(16,4),
+  utiny tinyint(3) unsigned DEFAULT '0' NOT NULL,
+  ushort smallint(5) unsigned zerofill DEFAULT '00000' NOT NULL,
+  umedium mediumint(8) unsigned DEFAULT '0' NOT NULL,
+  ulong int(11) unsigned DEFAULT '0' NOT NULL,
+  ulonglong bigint(13) unsigned DEFAULT '0' NOT NULL,
+  time_stamp timestamp,
+  date_field date,	
+  time_field time,	
+  date_time datetime,
+  blob_col blob,
+  tinyblob_col tinyblob,
+  mediumblob_col mediumblob  not null default '',
+  longblob_col longblob  not null default '',
+  options enum('one','two','tree') not null ,
+  flags set('one','two','tree') not null default '',
+  PRIMARY KEY (auto),
+  KEY (utiny),
+  KEY (tiny),
+  KEY (short),
+  KEY any_name (medium),
+  KEY (longlong),
+  KEY (real_float),
+  KEY (ushort),
+  KEY (umedium),
+  KEY (ulong),
+  KEY (ulonglong,ulong),
+  KEY (options,flags)
+) engine=aria;
+insert into t1 values (10,1,1,1,1,1,1,1,1,1,1,1,1,1,NULL,0,0,0,1,1,1,1,'one','one');
+create table t2 (primary key (auto)) engine=aria row_format=page select auto+1 as auto,1 as t1, 'a' as t2, repeat('a',256) as t3, binary repeat('b',256) as t4, repeat('a',4096) as t5, binary repeat('b',4096) as t6, '' as t7, binary '' as t8 from t1;
+check table t1,t2;
+select t1,t2,length(t3),length(t4),length(t5),length(t6),t7,t8 from t2;
+drop table t2;
+create table t2 (primary key (auto)) engine=aria row_format=dynamic select auto+1 as auto,1 as t1, 'a' as t2, repeat('a',256) as t3, binary repeat('b',256) as t4, repeat('a',4096) as t5, binary repeat('b',4096) as t6, '' as t7, binary '' as t8 from t1;
+check table t2;
+drop table t1,t2;
+
+# Test UPDATE with small BLOB which fits on head page
+
+CREATE TABLE t1 (seq int, s1 int, s2 blob);
+insert into t1 values (1, 1, MD5(1));
+update t1 set s1=2 where seq=1;
+check table t1 extended;
+drop table t1;
+
+# Fix if we are using safemalloc
+--replace_result 8388572 8388600 134217692 134217720
+select lower(variable_name) as Variable_name, Variable_value as Value from information_schema.session_variables where variable_name like "aria%" and variable_name not like "aria_used_for_temp_tables" order by 1;
+--replace_column 2 #
+show status like 'aria%';
+
+#
+# Test creating table with no field data and index on zero length columns
+#
+
+create table t1 (b char(0));
+insert into t1 values(NULL),("");
+select length(b) from t1;
+alter table t1 add column c char(0), add key (c);
+insert into t1 values("",""),("",NULL);
+select length(b),length(c) from t1;
+select length(b),length(c) from t1 where c is null;
+select length(b),length(c) from t1 where c is not null;
+select length(b),length(c) from t1 order by c;
+--error 1167
+alter table t1 add column d char(0) not null, add key (d);
+drop table t1;
+
+CREATE TABLE t1 (a bit(3));
+insert into t1 values (NULL),(0),(1),(2),(3),(4),(5),(6),(7);
+select hex(a) from t1;
+drop table t1;
+create table t1(a bit not null);
+insert into t1 values(0),(1);
+select a+0 from t1;
+drop table t1;
+
+#
+# Test of min_key_length
+#
+
+CREATE TABLE t1 (col1 int, s1 char(16) DEFAULT NULL, s2 char(16) DEFAULT NULL, KEY (s1,s2));
+insert into t1 (col1) values(0);
+drop table t1;
+
+#
+# Show that page_checksum is remembered
+#
+set global aria_page_checksum=1;
+create table t1 (a int);
+show create table t1;
+set global aria_page_checksum=0;
+drop table t1;
+
+#
+# Test warning on log file size truncates
+#
+
+--enable_warnings
+set global aria_log_file_size=4294967296;
+
+#
+# Test delete of all rows in autocommit and not autocommit
+#
+
+create table t1 (a int not null);
+lock tables t1 write;
+insert into t1 values (1),(2);
+delete from t1;
+unlock tables;
+select * from t1;
+insert into t1 values (1),(2);
+delete from t1;
+select * from t1;
+drop table t1;
+
+# Test for bug "ha_enable_transaction(on) not called by CREATE TABLE"
+# (originally from type_ranges.test)
+
+create table t1 (c int);
+insert into t1 values(1),(2);
+create table t2 select * from t1;
+--error 1060
+create table t3 select * from t1, t2; # Should give an error
+create table t3 select t1.c AS c1, t2.c AS c2,1 as "const" from t1, t2;
+drop table t1, t2, t3;
+
+# Test for bug "aria_repair() (OPTIMIZE) leaves wrong
+# data_file_length" (originally from type_datetime.test)
+
+create table t1 (t datetime) engine=aria;
+insert into t1 values (101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959),(20030100000000),(20030000000000);
+select * from t1;
+optimize table t1;
+check table t1;
+delete from t1 where t > 0;
+optimize table t1;
+check table t1;
+drop table t1;
+
+#
+# Test auto-increment
+#
+
+SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';
+CREATE TABLE t1 (id int(11) PRIMARY KEY auto_increment,f1 varchar(10) NOT NULL UNIQUE);
+INSERT IGNORE INTO t1 (f1) VALUES ("test1");
+INSERT IGNORE INTO t1 (f1) VALUES ("test1");
+INSERT IGNORE INTO t1 (f1) VALUES ("test2");
+SELECT * FROM t1;
+drop table t1;
+SET SQL_MODE = 'TRADITIONAL';
+
+create table t1 (n int not null primary key auto_increment, c char(1), unique(c));
+insert into t1 values(100, "a");
+insert into t1 values(300, "b");
+--error 1062
+insert into t1 values(50, "a");
+insert into t1 values(null, "c");
+select * from t1;
+--error 1062
+update t1 set n=400,c='a' where n=301;
+insert into t1 values(null, "d");
+select * from t1;
+drop table t1;
+
+create table t1 (n int not null primary key auto_increment, c char(1), unique(c)) transactional=0 row_format=dynamic;
+insert into t1 values(100, "a");
+insert into t1 values(300, "b");
+--error 1062
+insert into t1 values(50, "a");
+insert into t1 values(null, "c");
+select * from t1;
+--error 1062
+update t1 set n=400,c='a' where n=301;
+insert into t1 values(null, "d");
+select * from t1;
+drop table t1;
+
+#
+# Test warnings with transactional=1 with MyISAM
+#
+
+create table t1 (n int not null, c char(1)) engine=aria;
+alter table t1 engine=myisam;
+alter table t1 engine=aria;
+show create table t1;
+drop table t1;
+create table t1 (n int not null, c char(1)) engine=aria transactional=1;
+alter table t1 engine=myisam;
+alter table t1 engine=aria;
+show create table t1;
+drop table t1;
+create table t1 (n int not null, c char(1)) engine=myisam transactional=1;
+alter table t1 engine=aria;
+show create table t1;
+drop table t1;
+
+#
+# Some tests that have failed with transactional=0
+#
+
+# Testing buik insert
+create table t1 (a int, key(a)) transactional=0;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t1 select NULL from t1;
+check table t1;
+drop table t1;
+
+#
+# Some tests with temporary tables
+#
+
+create temporary table t1 (a int, key(a)) transactional=1;
+create temporary table t2 (a int, key(a)) transactional=1;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t2 select * from t1;
+insert into t1 select NULL from t2;
+select count(*) from t1;
+select count(*) from t1 where a >= 4;
+drop table t1, t2;
+
+create temporary table t1 (a int, key(a)) transactional=0 row_format=page;
+create temporary table t2 (a int, key(a)) transactional=0 row_format=page;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t2 select * from t1;
+insert into t1 select NULL from t2;
+select count(*) from t1;
+select count(*) from t1 where a >= 4;
+drop table t1, t2;
+
+create temporary table t1 (a int, key(a)) transactional=0 row_format=fixed;
+create temporary table t2 (a int, key(a)) transactional=0 row_format=dynamic;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t2 select * from t1;
+insert into t1 select NULL from t2;
+select count(*) from t1;
+select count(*) from t1 where a >= 4;
+drop table t1, t2;
+
+#
+# Test problems with small rows and row_type=page 
+# Bug 35048 "aria table corruption reported when transactional=0"
+#
+
+create table t1 (i int auto_increment not null primary key) transactional=0;
+
+let $i=510;
+--disable_query_log
+while ($i)
+{
+  dec $i;
+  insert into t1 values (null);
+}
+--enable_query_log
+check table t1 extended;
+delete from t1 where i = 10;
+check table t1 extended;
+drop table t1;
+
+create table t1 (i int auto_increment not null primary key);
+
+let $i=510;
+--disable_query_log
+while ($i)
+{
+  dec $i;
+  insert into t1 values (null);
+}
+--enable_query_log
+check table t1 extended;
+delete from t1 where i = 10;
+check table t1 extended;
+drop table t1;
+
+#
+# BUG#29445 - match ... against () never returns
+#
+CREATE TABLE t1(a VARCHAR(20), FULLTEXT(a)) transactional=0;
+INSERT INTO t1 VALUES('Offside'),('City Of God');
+SELECT a FROM t1 WHERE MATCH a AGAINST ('+city of*' IN BOOLEAN MODE);
+SELECT a FROM t1 WHERE MATCH a AGAINST ('+city (of)*' IN BOOLEAN MODE);
+DROP TABLE t1;
+
+#
+# BUG#36104 - INFORMATION_SCHEMA.TABLES shows TRANSACTIONAL=1 twice in
+# CREATE_OPTIONS
+#
+create table t1(a int) engine=aria transactional=1;
+select CREATE_OPTIONS from information_schema.TABLES where
+TABLE_SCHEMA='test' and TABLE_NAME='t1';
+drop table t1;
+
+#
+# BUG#39697 - Aria: hang when failing to insert due to UNIQUE
+#
+create table t1 (a int, unique(a)) engine=aria transactional=1;
+insert into t1 values(1);
+--error 1062
+insert into t1 values(2),(2);
+create table t2 (a int, unique(a)) engine=aria transactional=0 row_format=dynamic;
+insert into t2 values(1);
+--error 1062
+insert into t2 values(2),(2);
+connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection root;
+insert into t1 values(3);
+insert into t2 values(3);
+connection default;
+drop table t1, t2;
+
+#
+# BUG#909635 - MariaDB crashes on a select with long varchar and blob fields
+#
+
+CREATE TABLE t1 (
+  a INT PRIMARY KEY,
+  b CHAR(255),
+  c VARCHAR(2048),
+  d VARCHAR(18990),
+  e CHAR(128),
+  f CHAR(192)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+INSERT INTO t1 VALUES
+  (1,'A','B','C','','D'),
+  (2,'Abcdefghi','E','F','','G');
+
+CREATE TABLE t2 (
+  g INT PRIMARY KEY,
+  h CHAR(32),
+  i CHAR(255),
+  j TEXT
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+INSERT INTO t2 VALUES (1,'M','','H'),
+  (2,'N','','H');
+
+SELECT * FROM t1, t2 WHERE a = g ORDER BY b;
+drop table t1,t2;
+
+--echo # End of 5.1 tests
+
+create table t1 (a int) engine=aria;
+lock table t1 write;
+drop table t1;
+
+--disable_result_log
+--disable_query_log
+eval set global storage_engine=$default_engine,
+aria_page_checksum=$default_checksum,
+aria_log_file_size=$default_log_file_size;
+--enable_result_log
+--enable_query_log

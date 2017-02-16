@@ -1,0 +1,5 @@
+#
+# this tests how mtr handles a test that has no combinations in the
+# parent suite and one combination in the overlay.
+#
+select 1;

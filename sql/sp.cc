@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2015, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2015, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,7 +35,7 @@
 
 static bool
 create_string(THD *thd, String *buf,
-	      int sp_type,
+	      stored_procedure_type sp_type,
 	      const char *db, ulong dblen,
 	      const char *name, ulong namelen,
 	      const char *params, ulong paramslen,
@@ -43,11 +44,12 @@ create_string(THD *thd, String *buf,
 	      st_sp_chistics *chistics,
               const LEX_STRING *definer_user,
               const LEX_STRING *definer_host,
-              ulong sql_mode);
+              ulonglong sql_mode);
 
 static int
-db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
-                ulong sql_mode, const char *params, const char *returns,
+db_load_routine(THD *thd, stored_procedure_type type, sp_name *name,
+                sp_head **sphp,
+                ulonglong sql_mode, const char *params, const char *returns,
                 const char *body, st_sp_chistics &chistics,
                 const char *definer, longlong created, longlong modified,
                 Stored_program_creation_ctx *creation_ctx);
@@ -113,7 +115,7 @@ TABLE_FIELD_TYPE proc_table_fields[MYSQL_PROC_FIELD_COUNT] =
   },
   {
     { C_STRING_WITH_LEN("definer") },
-    { C_STRING_WITH_LEN("char(77)") },
+    { C_STRING_WITH_LEN("char(") },
     { C_STRING_WITH_LEN("utf8") }
   },
   {
@@ -129,7 +131,8 @@ TABLE_FIELD_TYPE proc_table_fields[MYSQL_PROC_FIELD_COUNT] =
   {
     { C_STRING_WITH_LEN("sql_mode") },
     { C_STRING_WITH_LEN("set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
-    "'IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION',"
+    "'IGNORE_SPACE','IGNORE_BAD_TABLE_OPTIONS','ONLY_FULL_GROUP_BY',"
+    "'NO_UNSIGNED_SUBTRACTION',"
     "'NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB',"
     "'NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40',"
     "'ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES',"
@@ -474,7 +477,8 @@ static TABLE *open_proc_table_for_update(THD *thd)
 */
 
 static int
-db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
+db_find_routine_aux(THD *thd, stored_procedure_type type, sp_name *name,
+                    TABLE *table)
 {
   uchar key[MAX_KEY_LENGTH];	// db, name, optional key length type
   DBUG_ENTER("db_find_routine_aux");
@@ -497,8 +501,9 @@ db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
   key_copy(key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0], 0, key, HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0, key,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
     DBUG_RETURN(SP_KEY_NOT_FOUND);
 
   DBUG_RETURN(SP_OK);
@@ -526,7 +531,8 @@ db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
 */
 
 static int
-db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
+db_find_routine(THD *thd, stored_procedure_type type, sp_name *name,
+                sp_head **sphp)
 {
   TABLE *table;
   const char *params, *returns, *body;
@@ -540,7 +546,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   char buff[65];
   String str(buff, sizeof(buff), &my_charset_bin);
   bool saved_time_zone_used= thd->time_zone_used;
-  ulong sql_mode, saved_mode= thd->variables.sql_mode;
+  ulonglong sql_mode, saved_mode= thd->variables.sql_mode;
   Open_tables_backup open_tables_state_backup;
   Stored_program_creation_ctx *creation_ctx;
 
@@ -714,11 +720,11 @@ Silence_deprecated_warning::handle_condition(
     @retval   0                     error
 */
 
-static sp_head *sp_compile(THD *thd, String *defstr, ulong sql_mode,
+static sp_head *sp_compile(THD *thd, String *defstr, ulonglong sql_mode,
                            Stored_program_creation_ctx *creation_ctx)
 {
   sp_head *sp;
-  ulong old_sql_mode= thd->variables.sql_mode;
+  ulonglong old_sql_mode= thd->variables.sql_mode;
   ha_rows old_select_limit= thd->variables.select_limit;
   sp_rcontext *old_spcont= thd->spcont;
   Silence_deprecated_warning warning_handler;
@@ -727,7 +733,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, ulong sql_mode,
   thd->variables.sql_mode= sql_mode;
   thd->variables.select_limit= HA_POS_ERROR;
 
-  if (parser_state.init(thd, defstr->c_ptr(), defstr->length()))
+  if (parser_state.init(thd, defstr->c_ptr_safe(), defstr->length()))
   {
     thd->variables.sql_mode= old_sql_mode;
     thd->variables.select_limit= old_select_limit;
@@ -795,15 +801,16 @@ Bad_db_error_handler::handle_condition(THD *thd,
 
 
 static int
-db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
-                ulong sql_mode, const char *params, const char *returns,
+db_load_routine(THD *thd, stored_procedure_type type,
+                sp_name *name, sp_head **sphp,
+                ulonglong sql_mode, const char *params, const char *returns,
                 const char *body, st_sp_chistics &chistics,
                 const char *definer, longlong created, longlong modified,
                 Stored_program_creation_ctx *creation_ctx)
 {
   LEX *old_lex= thd->lex, newlex;
   String defstr;
-  char saved_cur_db_name_buf[NAME_LEN+1];
+  char saved_cur_db_name_buf[SAFE_NAME_LEN+1];
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed;
@@ -964,12 +971,12 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
 */
 
 int
-sp_create_routine(THD *thd, int type, sp_head *sp)
+sp_create_routine(THD *thd, stored_procedure_type type, sp_head *sp)
 {
   int ret;
   TABLE *table;
   char definer[USER_HOST_BUFF_SIZE];
-  ulong saved_mode= thd->variables.sql_mode;
+  ulonglong saved_mode= thd->variables.sql_mode;
   MDL_key::enum_mdl_namespace mdl_type= type == TYPE_ENUM_FUNCTION ?
                                         MDL_key::FUNCTION : MDL_key::PROCEDURE;
 
@@ -982,7 +989,8 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   bool save_binlog_row_based;
 
   DBUG_ENTER("sp_create_routine");
-  DBUG_PRINT("enter", ("type: %d  name: %.*s",type, (int) sp->m_name.length,
+  DBUG_PRINT("enter", ("type: %d  name: %.*s", (int) type,
+                       (int) sp->m_name.length,
                        sp->m_name.str));
   String retstr(64);
   retstr.set_charset(system_charset_info);
@@ -1187,7 +1195,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
                          (sp->m_explicit_name ? sp->m_db.length : 0), 
                          sp->m_name.str, sp->m_name.length,
                          sp->m_params.str, sp->m_params.length,
-                         retstr.c_ptr(), retstr.length(),
+                         retstr.ptr(), retstr.length(),
                          sp->m_body.str, sp->m_body.length,
                          sp->m_chistics, &(thd->lex->definer->user),
                          &(thd->lex->definer->host),
@@ -1200,7 +1208,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
       thd->variables.sql_mode= saved_mode;
       /* Such a statement can always go directly to binlog, no trans cache */
       if (thd->binlog_query(THD::STMT_QUERY_TYPE,
-                            log_query.c_ptr(), log_query.length(),
+                            log_query.ptr(), log_query.length(),
                             FALSE, FALSE, FALSE, 0))
         ret= SP_INTERNAL_ERROR;
       thd->variables.sql_mode= 0;
@@ -1234,7 +1242,7 @@ done:
 */
 
 int
-sp_drop_routine(THD *thd, int type, sp_name *name)
+sp_drop_routine(THD *thd, stored_procedure_type type, sp_name *name)
 {
   TABLE *table;
   int ret;
@@ -1315,7 +1323,8 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
 */
 
 int
-sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
+sp_update_routine(THD *thd, stored_procedure_type type, sp_name *name,
+                  st_sp_chistics *chistics)
 {
   TABLE *table;
   int ret;
@@ -1324,7 +1333,8 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
                                         MDL_key::FUNCTION : MDL_key::PROCEDURE;
   DBUG_ENTER("sp_update_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
-		       type, (int) name->m_name.length, name->m_name.str));
+		       (int) type,
+                       (int) name->m_name.length, name->m_name.str));
 
   DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
               type == TYPE_ENUM_FUNCTION);
@@ -1420,6 +1430,7 @@ public:
                         MYSQL_ERROR ** cond_hdl)
   {
     if (sql_errno == ER_NO_SUCH_TABLE ||
+        sql_errno == ER_NO_SUCH_TABLE_IN_ENGINE ||
         sql_errno == ER_CANNOT_LOAD_FROM_TABLE ||
         sql_errno == ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE ||
         sql_errno == ER_COL_COUNT_DOESNT_MATCH_CORRUPTED)
@@ -1445,6 +1456,7 @@ bool lock_db_routines(THD *thd, char *db)
   Open_tables_backup open_tables_state_backup;
   MDL_request_list mdl_requests;
   Lock_db_routines_error_handler err_handler;
+  uchar keybuf[MAX_KEY_LENGTH];
   DBUG_ENTER("lock_db_routines");
 
   /*
@@ -1467,6 +1479,7 @@ bool lock_db_routines(THD *thd, char *db)
 
   table->field[MYSQL_PROC_FIELD_DB]->store(db, strlen(db), system_charset_info);
   key_len= table->key_info->key_part[0].store_length;
+  table->field[MYSQL_PROC_FIELD_DB]->get_key_image(keybuf, key_len, Field::itRAW);
   int nxtres= table->file->ha_index_init(0, 1);
   if (nxtres)
   {
@@ -1475,21 +1488,15 @@ bool lock_db_routines(THD *thd, char *db)
     DBUG_RETURN(true);
   }
 
-  if (! table->file->index_read_map(table->record[0],
-                                    table->field[MYSQL_PROC_FIELD_DB]->ptr,
-                                    (key_part_map)1, HA_READ_KEY_EXACT))
+  if (! table->file->ha_index_read_map(table->record[0], keybuf, (key_part_map)1,
+                                       HA_READ_KEY_EXACT))
   {
     do
     {
       char *sp_name= get_field(thd->mem_root,
                                table->field[MYSQL_PROC_FIELD_NAME]);
-      if (sp_name == NULL)
-      {
-        table->file->ha_index_end();
-        my_error(ER_SP_WRONG_NAME, MYF(0), "");
-        close_system_tables(thd, &open_tables_state_backup);
-        DBUG_RETURN(true);
-      }
+      if (sp_name == NULL) // skip invalid sp names (hand-edited mysql.proc?)
+        continue;
 
       longlong sp_type= table->field[MYSQL_PROC_MYSQL_TYPE]->val_int();
       MDL_request *mdl_request= new (thd->mem_root) MDL_request;
@@ -1497,9 +1504,7 @@ bool lock_db_routines(THD *thd, char *db)
                         MDL_key::FUNCTION : MDL_key::PROCEDURE,
                         db, sp_name, MDL_EXCLUSIVE, MDL_TRANSACTION);
       mdl_requests.push_front(mdl_request);
-    } while (! (nxtres= table->file->index_next_same(table->record[0],
-                                         table->field[MYSQL_PROC_FIELD_DB]->ptr,
-						     key_len)));
+    } while (! (nxtres= table->file->ha_index_next_same(table->record[0], keybuf, key_len)));
   }
   table->file->ha_index_end();
   if (nxtres != 0 && nxtres != HA_ERR_END_OF_FILE)
@@ -1534,6 +1539,7 @@ sp_drop_db_routines(THD *thd, char *db)
   int ret;
   uint key_len;
   MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  uchar keybuf[MAX_KEY_LENGTH];
   DBUG_ENTER("sp_drop_db_routines");
   DBUG_PRINT("enter", ("db: %s", db));
 
@@ -1543,6 +1549,7 @@ sp_drop_db_routines(THD *thd, char *db)
 
   table->field[MYSQL_PROC_FIELD_DB]->store(db, strlen(db), system_charset_info);
   key_len= table->key_info->key_part[0].store_length;
+  table->field[MYSQL_PROC_FIELD_DB]->get_key_image(keybuf, key_len, Field::itRAW);
 
   ret= SP_OK;
   if (table->file->ha_index_init(0, 1))
@@ -1550,10 +1557,8 @@ sp_drop_db_routines(THD *thd, char *db)
     ret= SP_KEY_NOT_FOUND;
     goto err_idx_init;
   }
-
-  if (! table->file->index_read_map(table->record[0],
-                                    (uchar *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
-                                    (key_part_map)1, HA_READ_KEY_EXACT))
+  if (!table->file->ha_index_read_map(table->record[0], keybuf, (key_part_map)1,
+                                      HA_READ_KEY_EXACT))
   {
     int nxtres;
     bool deleted= FALSE;
@@ -1568,9 +1573,8 @@ sp_drop_db_routines(THD *thd, char *db)
 	nxtres= 0;
 	break;
       }
-    } while (! (nxtres= table->file->index_next_same(table->record[0],
-                                (uchar *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
-						     key_len)));
+    } while (!(nxtres= table->file->ha_index_next_same(table->record[0],
+                                                       keybuf, key_len)));
     if (nxtres != HA_ERR_END_OF_FILE)
       ret= SP_KEY_NOT_FOUND;
     if (deleted)
@@ -1608,7 +1612,7 @@ err:
 */
 
 bool
-sp_show_create_routine(THD *thd, int type, sp_name *name)
+sp_show_create_routine(THD *thd, stored_procedure_type type, sp_name *name)
 {
   sp_head *sp;
 
@@ -1664,8 +1668,8 @@ sp_show_create_routine(THD *thd, int type, sp_name *name)
 */
 
 sp_head *
-sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
-                bool cache_only)
+sp_find_routine(THD *thd, stored_procedure_type type, sp_name *name,
+                sp_cache **cp, bool cache_only)
 {
   sp_head *sp;
   ulong depth= (type == TYPE_ENUM_PROCEDURE ?
@@ -1894,7 +1898,7 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 */
 
 void sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
-                         sp_name *rt, char rt_type)
+                         sp_name *rt, enum stored_procedure_type rt_type)
 {
   MDL_key key((rt_type == TYPE_ENUM_FUNCTION) ? MDL_key::FUNCTION :
                                                 MDL_key::PROCEDURE,
@@ -2032,7 +2036,7 @@ int sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
   char qname_buff[NAME_LEN*2+1+1];
   sp_name name(&rt->mdl_request.key, qname_buff);
   MDL_key::enum_mdl_namespace mdl_type= rt->mdl_request.key.mdl_namespace();
-  int type= ((mdl_type == MDL_key::FUNCTION) ?
+  stored_procedure_type type= ((mdl_type == MDL_key::FUNCTION) ?
              TYPE_ENUM_FUNCTION : TYPE_ENUM_PROCEDURE);
 
   /*
@@ -2067,7 +2071,7 @@ int sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
   @retval non-0  Error while loading routine from mysql,proc table.
 */
 
-int sp_cache_routine(THD *thd, int type, sp_name *name,
+int sp_cache_routine(THD *thd, enum stored_procedure_type type, sp_name *name,
                      bool lookup_only, sp_head **sp)
 {
   int ret= 0;
@@ -2077,7 +2081,6 @@ int sp_cache_routine(THD *thd, int type, sp_name *name,
   DBUG_ENTER("sp_cache_routine");
 
   DBUG_ASSERT(type == TYPE_ENUM_FUNCTION || type == TYPE_ENUM_PROCEDURE);
-
 
   *sp= sp_cache_lookup(spc, name);
 
@@ -2145,9 +2148,8 @@ int sp_cache_routine(THD *thd, int type, sp_name *name,
     Returns TRUE on success, FALSE on (alloc) failure.
 */
 static bool
-
 create_string(THD *thd, String *buf,
-              int type,
+              stored_procedure_type type,
               const char *db, ulong dblen,
               const char *name, ulong namelen,
               const char *params, ulong paramslen,
@@ -2156,9 +2158,9 @@ create_string(THD *thd, String *buf,
               st_sp_chistics *chistics,
               const LEX_STRING *definer_user,
               const LEX_STRING *definer_host,
-              ulong sql_mode)
+              ulonglong sql_mode)
 {
-  ulong old_sql_mode= thd->variables.sql_mode;
+  ulonglong old_sql_mode= thd->variables.sql_mode;
   /* Make some room to begin with */
   if (buf->alloc(100 + dblen + 1 + namelen + paramslen + returnslen + bodylen +
 		 chistics->comment.length + 10 /* length of " DEFINER= "*/ +
@@ -2240,7 +2242,7 @@ create_string(THD *thd, String *buf,
 
 sp_head *
 sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
-                               String *name, ulong sql_mode, int type,
+                               String *name, ulong sql_mode, stored_procedure_type type,
                                const char *returns, const char *params,
                                bool *free_sp_head)
 {

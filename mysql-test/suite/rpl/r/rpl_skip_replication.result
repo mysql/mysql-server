@@ -1,0 +1,252 @@
+include/master-slave.inc
+[connection master]
+CREATE USER 'nonsuperuser'@'127.0.0.1';
+GRANT ALTER,CREATE,DELETE,DROP,EVENT,INSERT,PROCESS,REPLICATION SLAVE,
+SELECT,UPDATE ON *.* TO 'nonsuperuser'@'127.0.0.1';
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+DROP USER'nonsuperuser'@'127.0.0.1';
+SELECT @@global.replicate_events_marked_for_skip;
+@@global.replicate_events_marked_for_skip
+replicate
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_SLAVE;
+ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
+SELECT @@global.replicate_events_marked_for_skip;
+@@global.replicate_events_marked_for_skip
+replicate
+STOP SLAVE;
+SET SESSION replicate_events_marked_for_skip=FILTER_ON_MASTER;
+ERROR HY000: Variable 'replicate_events_marked_for_skip' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@global.replicate_events_marked_for_skip;
+@@global.replicate_events_marked_for_skip
+replicate
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
+SELECT @@global.replicate_events_marked_for_skip;
+@@global.replicate_events_marked_for_skip
+filter_on_master
+START SLAVE;
+SELECT @@skip_replication;
+@@skip_replication
+0
+SET GLOBAL skip_replication=1;
+ERROR HY000: Variable 'skip_replication' is a SESSION variable and can't be used with SET GLOBAL
+SELECT @@skip_replication;
+@@skip_replication
+0
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=myisam;
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=innodb;
+INSERT INTO t1(a) VALUES (1);
+INSERT INTO t2(a) VALUES (1);
+SET skip_replication=1;
+CREATE TABLE t3 (a INT PRIMARY KEY, b INT) ENGINE=myisam;
+INSERT INTO t1(a) VALUES (2);
+INSERT INTO t2(a) VALUES (2);
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+SELECT * FROM t1;
+a	b
+1	NULL
+SELECT * FROM t2;
+a	b
+1	NULL
+DROP TABLE t3;
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_SLAVE;
+START SLAVE;
+SET skip_replication=1;
+CREATE TABLE t3 (a INT PRIMARY KEY, b INT) ENGINE=myisam;
+INSERT INTO t1(a) VALUES (3);
+INSERT INTO t2(a) VALUES (3);
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+SELECT * FROM t1;
+a	b
+1	NULL
+SELECT * FROM t2;
+a	b
+1	NULL
+DROP TABLE t3;
+FLUSH NO_WRITE_TO_BINLOG LOGS;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
+START SLAVE;
+SET skip_replication=1;
+CREATE TABLE t3 (a INT PRIMARY KEY, b INT) ENGINE=myisam;
+INSERT INTO t3(a) VALUES(2);
+SELECT * FROM t3;
+a	b
+2	NULL
+DROP TABLE t3;
+TRUNCATE t1;
+RESET MASTER;
+SET skip_replication=0;
+INSERT INTO t1 VALUES (1,0);
+SET skip_replication=1;
+INSERT INTO t1 VALUES (2,0);
+SET skip_replication=0;
+INSERT INTO t1 VALUES (3,0);
+SELECT * FROM t1 ORDER by a;
+a	b
+1	0
+2	0
+3	0
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
+TRUNCATE t1;
+SELECT * FROM t1 ORDER by a;
+a	b
+1	0
+2	0
+3	0
+START SLAVE;
+SELECT * FROM t1 ORDER by a;
+a	b
+1	0
+3	0
+TRUNCATE t1;
+STOP SLAVE;
+SET GLOBAL sql_slave_skip_counter=6;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_SLAVE;
+START SLAVE;
+SET @old_binlog_format= @@binlog_format;
+SET binlog_format= statement;
+SET skip_replication=0;
+INSERT INTO t1 VALUES (1,5);
+SET skip_replication=1;
+INSERT INTO t1 VALUES (2,5);
+SET skip_replication=0;
+INSERT INTO t1 VALUES (3,5);
+INSERT INTO t1 VALUES (4,5);
+SET binlog_format= @old_binlog_format;
+SELECT * FROM t1;
+a	b
+4	5
+include/stop_slave.inc
+SET @old_slave_binlog_format= @@global.binlog_format;
+SET GLOBAL binlog_format= row;
+include/start_slave.inc
+TRUNCATE t1;
+SET @old_binlog_format= @@binlog_format;
+SET binlog_format= row;
+BINLOG 'wlZOTw8BAAAA8QAAAPUAAAAAAAQANS41LjIxLU1hcmlhREItZGVidWctbG9nAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAEzgNAAgAEgAEBAQEEgAA2QAEGggAAAAICAgCAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAA371saA==';
+BINLOG 'wlZOTxMBAAAAKgAAAGMBAAAAgCkAAAAAAAEABHRlc3QAAnQxAAIDAwAC
+wlZOTxcBAAAAJgAAAIkBAAAAgCkAAAAAAAEAAv/8AQAAAAgAAAA=';
+BINLOG 'wlZOTxMBAAAAKgAAADwCAAAAACkAAAAAAAEABHRlc3QAAnQxAAIDAwAC
+wlZOTxcBAAAAJgAAAGICAAAAACkAAAAAAAEAAv/8AgAAAAgAAAA=';
+SET binlog_format= @old_binlog_format;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	8
+2	8
+SELECT * FROM t1 ORDER by a;
+a	b
+2	8
+include/stop_slave.inc
+SET GLOBAL binlog_format= @old_slave_binlog_format;
+include/start_slave.inc
+SET skip_replication=0;
+BEGIN;
+SET skip_replication=0;
+ERROR HY000: Cannot modify @@session.skip_replication inside a transaction
+SET skip_replication=1;
+ERROR HY000: Cannot modify @@session.skip_replication inside a transaction
+ROLLBACK;
+SET skip_replication=1;
+BEGIN;
+SET skip_replication=0;
+ERROR HY000: Cannot modify @@session.skip_replication inside a transaction
+SET skip_replication=1;
+ERROR HY000: Cannot modify @@session.skip_replication inside a transaction
+COMMIT;
+SET autocommit=0;
+INSERT INTO t2(a) VALUES(100);
+SET skip_replication=1;
+ERROR HY000: Cannot modify @@session.skip_replication inside a transaction
+ROLLBACK;
+SET autocommit=1;
+SET skip_replication=1;
+CREATE FUNCTION foo (x INT) RETURNS INT BEGIN SET SESSION skip_replication=x; RETURN x; END|
+CREATE PROCEDURE bar(x INT) BEGIN SET SESSION skip_replication=x; END|
+CREATE FUNCTION baz (x INT) RETURNS INT BEGIN CALL bar(x); RETURN x; END|
+SELECT foo(0);
+ERROR HY000: Cannot modify @@session.skip_replication inside a stored function or trigger
+SELECT baz(0);
+ERROR HY000: Cannot modify @@session.skip_replication inside a stored function or trigger
+SET @a= foo(1);
+ERROR HY000: Cannot modify @@session.skip_replication inside a stored function or trigger
+SET @a= baz(1);
+ERROR HY000: Cannot modify @@session.skip_replication inside a stored function or trigger
+UPDATE t2 SET b=foo(0);
+ERROR HY000: Cannot modify @@session.skip_replication inside a stored function or trigger
+UPDATE t2 SET b=baz(0);
+ERROR HY000: Cannot modify @@session.skip_replication inside a stored function or trigger
+INSERT INTO t1 VALUES (101, foo(1));
+ERROR HY000: Cannot modify @@session.skip_replication inside a stored function or trigger
+INSERT INTO t1 VALUES (101, baz(0));
+ERROR HY000: Cannot modify @@session.skip_replication inside a stored function or trigger
+SELECT @@skip_replication;
+@@skip_replication
+1
+CALL bar(0);
+SELECT @@skip_replication;
+@@skip_replication
+0
+CALL bar(1);
+SELECT @@skip_replication;
+@@skip_replication
+1
+DROP FUNCTION foo;
+DROP PROCEDURE bar;
+DROP FUNCTION baz;
+SET skip_replication= 0;
+TRUNCATE t1;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_MASTER;
+START SLAVE IO_THREAD;
+SET skip_replication= 1;
+INSERT INTO t1(a) VALUES (1);
+SET skip_replication= 0;
+INSERT INTO t1(a) VALUES (2);
+include/save_master_pos.inc
+include/sync_io_with_master.inc
+STOP SLAVE IO_THREAD;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
+START SLAVE;
+SELECT * FROM t1;
+a	b
+2	NULL
+SET skip_replication= 0;
+TRUNCATE t1;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=FILTER_ON_SLAVE;
+START SLAVE IO_THREAD;
+SET skip_replication= 1;
+INSERT INTO t1(a) VALUES (1);
+SET skip_replication= 0;
+INSERT INTO t1(a) VALUES (2);
+include/save_master_pos.inc
+include/sync_io_with_master.inc
+STOP SLAVE IO_THREAD;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
+START SLAVE;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	NULL
+2	NULL
+SET skip_replication=0;
+DROP TABLE t1,t2;
+STOP SLAVE;
+SET GLOBAL replicate_events_marked_for_skip=REPLICATE;
+START SLAVE;
+include/rpl_end.inc

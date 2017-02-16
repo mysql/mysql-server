@@ -1,0 +1,3 @@
+--source include/have_binlog_format_row.inc
+--source suite/rpl/include/hrtime.inc
+

@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2010, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +29,7 @@ int mi_rnext(MI_INFO *info, uchar *buf, int inx)
 {
   int error,changed;
   uint flag;
+  ICP_RESULT icp_res= ICP_MATCH;
   uint update_mask= HA_STATE_NEXT_FOUND;
   DBUG_ENTER("mi_rnext");
 
@@ -64,7 +66,7 @@ int mi_rnext(MI_INFO *info, uchar *buf, int inx)
       Normally SQL layer would never request "search next" if
       "search first" failed. But HANDLER may do anything.
 
-      As mi_rnext() without preceeding mi_rkey()/mi_rfirst()
+      As mi_rnext() without preceding mi_rkey()/mi_rfirst()
       equals to mi_rfirst(), we must restore original state
       as if failing mi_rfirst() was not called.
     */
@@ -96,34 +98,53 @@ int mi_rnext(MI_INFO *info, uchar *buf, int inx)
     }
   }
 
-  if (info->s->concurrent_insert)
+  if (!error)
   {
-    if (!error)
+    while ((info->s->concurrent_insert &&
+            info->lastpos >= info->state->data_file_length) ||
+           (info->index_cond_func &&
+           (icp_res= mi_check_index_cond(info, inx, buf)) == ICP_NO_MATCH))
     {
-      while (info->lastpos >= info->state->data_file_length)
+      /*
+        If we are at the last key on the key page, allow writers to
+        access the index.
+      */
+      if (info->int_keypos >= info->int_maxpos &&
+          mi_yield_and_check_if_killed(info, inx))
       {
-	/* Skip rows inserted by other threads since we got a lock */
-	if  ((error=_mi_search_next(info,info->s->keyinfo+inx,
-				    info->lastkey,
-				    info->lastkey_length,
-				    SEARCH_BIGGER,
-				    info->s->state.key_root[inx])))
-	  break;
+        error= 1;
+        break;
       }
+
+      /* 
+         Skip rows that are either inserted by other threads since
+         we got a lock or do not match pushed index conditions
+      */
+      if  ((error=_mi_search_next(info,info->s->keyinfo+inx,
+                                  info->lastkey,
+                                  info->lastkey_length,
+                                  SEARCH_BIGGER,
+                                  info->s->state.key_root[inx])))
+        break;
     }
-    mysql_rwlock_unlock(&info->s->key_root_lock[inx]);
   }
+  
+  if (info->s->concurrent_insert)
+    mysql_rwlock_unlock(&info->s->key_root_lock[inx]);
+
 	/* Don't clear if database-changed */
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= update_mask;
 
-  if (error)
+  if (error || icp_res != ICP_MATCH)
   {
+    fast_mi_writeinfo(info);
     if (my_errno == HA_ERR_KEY_NOT_FOUND)
       my_errno=HA_ERR_END_OF_FILE;
   }
   else if (!buf)
   {
+    fast_mi_writeinfo(info);
     DBUG_RETURN(info->lastpos==HA_OFFSET_ERROR ? my_errno : 0);
   }
   else if (!(*info->read_record)(info,info->lastpos,buf))

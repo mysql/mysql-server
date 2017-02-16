@@ -60,6 +60,12 @@ extern "C" {
 #define T_VERY_SILENT		(1UL << 29)
 #define T_WAIT_FOREVER		(1UL << 30)
 #define T_WRITE_LOOP		(1UL << 31)
+#define T_ZEROFILL              (1ULL << 32)
+#define T_ZEROFILL_KEEP_LSN     (1ULL << 33)
+/** If repair should not bump create_rename_lsn */
+#define T_NO_CREATE_RENAME_LSN  (1ULL << 34)
+/** If repair shouldn't do any locks */
+#define T_NO_LOCKS		(1ULL << 35)
 
 #define T_REP_ANY		(T_REP | T_REP_BY_SORT | T_REP_PARALLEL)
 

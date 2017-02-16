@@ -1,15 +1,16 @@
 # -*- cperl -*-
-# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2011, Oracle and/or its affiliates.
+# Copyright (c) 2009-2011, Monty Program Ab
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -63,13 +64,9 @@ sub _name {
 
 sub _mtr_report_test_name ($) {
   my $tinfo= shift;
-  my $tname= $tinfo->{name};
+  my $tname= $tinfo->fullname();
 
   return unless defined $verbose;
-
-  # Add combination name if any
-  $tname.= " '$tinfo->{combination}'"
-    if defined $tinfo->{combination};
 
   print _name(). _timestamp();
   printf "%-40s ", $tname;
@@ -228,8 +225,11 @@ sub mtr_report_test ($) {
 }
 
 
-sub mtr_report_stats ($$;$) {
-  my ($prefix, $tests, $dont_error)= @_;
+sub mtr_report_stats ($$$$) {
+  my $prefix= shift;
+  my $fail= shift;
+  my $tests= shift;
+  my $extra_warnings= shift;
 
   # ----------------------------------------------------------------------
   # Find out how we where doing
@@ -308,14 +308,13 @@ sub mtr_report_stats ($$;$) {
   resfile_global("duration", time - $BASETIME) if $::opt_resfile;
 
   my $warnlog= "$::opt_vardir/log/warnings";
-  if ( -f $warnlog )
+  if ( ! $::glob_use_running_server && !$::opt_extern && -f $warnlog)
   {
     mtr_warning("Got errors/warnings while running tests, please examine",
 		"'$warnlog' for details.");
- }
+  }
 
   print "\n";
-
   # Print a list of check_testcases that failed(if any)
   if ( $::opt_check_testcases )
   {
@@ -385,12 +384,29 @@ sub mtr_report_stats ($$;$) {
     print "All $tot_tests tests were successful.\n\n";
   }
 
+  if (@$extra_warnings)
+  {
+    print <<MSG;
+Errors/warnings were found in logfiles during server shutdown after running the
+following sequence(s) of tests:
+MSG
+    print "    $_\n" for @$extra_warnings;
+  }
+
   print "$tot_skipped tests were skipped, ".
     "$tot_skipdetect by the test itself.\n\n" if $tot_skipped;
 
   if ( $tot_failed != 0 || $found_problems)
   {
-    mtr_error("there were failing test cases") unless $dont_error;
+    mtr_error("there were failing test cases");
+  }
+  elsif (@$extra_warnings)
+  {
+    mtr_error("There where errors/warnings in server logs after running test cases.");
+  }
+  elsif ($fail)
+  {
+    mtr_error("Test suite failure, see messages above for possible cause(s).");
   }
 }
 

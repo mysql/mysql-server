@@ -169,7 +169,9 @@ static int do_test()
   for (j=0 ; j < 1000 ; j++)
     if (key1[j] > 1)
       break;
-  if (key1[j] > 1)
+  // j will be 1000 only if we have no keys in the hash. This only happens
+  // when the parameter recant is set to 0 via command line argument.
+  if (j < 1000 && key1[j] > 1)
   {
     HASH_SEARCH_STATE state;
     printf("- Testing identical read\n");

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,15 +78,15 @@ bool String::real_alloc(uint32 length)
 
    @retval true An error occured when attempting to allocate memory.
 */
-bool String::realloc(uint32 alloc_length)
+bool String::realloc_raw(uint32 alloc_length)
 {
-  uint32 len=ALIGN_SIZE(alloc_length+1);
-  DBUG_ASSERT(len > alloc_length);
-  if (len <= alloc_length)
-    return TRUE;                                 /* Overflow */
-  if (Alloced_length < len)
+  if (Alloced_length <= alloc_length)
   {
     char *new_ptr;
+    uint32 len= ALIGN_SIZE(alloc_length+1);
+    DBUG_ASSERT(len > alloc_length);
+    if (len <= alloc_length)
+      return TRUE;                                 /* Overflow */
     if (alloced)
     {
       if (!(new_ptr= (char*) my_realloc(Ptr,len,MYF(MY_WME))))
@@ -106,7 +106,6 @@ bool String::realloc(uint32 alloc_length)
     Ptr= new_ptr;
     Alloced_length= len;
   }
-  Ptr[alloc_length]=0;			// This make other funcs shorter
   return FALSE;
 }
 
@@ -419,7 +418,7 @@ bool String::append(const String &s)
 {
   if (s.length())
   {
-    if (realloc(str_length+s.length()))
+    if (realloc_with_extra_if_needed(str_length+s.length()))
       return TRUE;
     memcpy(Ptr+str_length,s.ptr(),s.length());
     str_length+=s.length();
@@ -444,7 +443,7 @@ bool String::append(const char *s,uint32 arg_length)
   {
     uint32 add_length=arg_length * str_charset->mbmaxlen;
     uint dummy_errors;
-    if (realloc(str_length+ add_length))
+    if (realloc_with_extra_if_needed(str_length+ add_length))
       return TRUE;
     str_length+= copy_and_convert(Ptr+str_length, add_length, str_charset,
 				  s, arg_length, &my_charset_latin1,
@@ -455,7 +454,7 @@ bool String::append(const char *s,uint32 arg_length)
   /*
     For an ASCII compatinble string we can just append.
   */
-  if (realloc(str_length+arg_length))
+  if (realloc_with_extra_if_needed(str_length+arg_length))
     return TRUE;
   memcpy(Ptr+str_length,s,arg_length);
   str_length+=arg_length;
@@ -510,14 +509,14 @@ bool String::append(const char *s,uint32 arg_length, CHARSET_INFO *cs)
 
     add_length= arg_length / cs->mbminlen * str_charset->mbmaxlen;
     uint dummy_errors;
-    if (realloc(str_length + add_length)) 
+    if (realloc_with_extra_if_needed(str_length + add_length)) 
       return TRUE;
     str_length+= copy_and_convert(Ptr+str_length, add_length, str_charset,
 				  s, arg_length, cs, &dummy_errors);
   }
   else
   {
-    if (realloc(str_length + arg_length)) 
+    if (realloc_with_extra_if_needed(str_length + arg_length)) 
       return TRUE;
     memcpy(Ptr + str_length, s, arg_length);
     str_length+= arg_length;
@@ -527,7 +526,7 @@ bool String::append(const char *s,uint32 arg_length, CHARSET_INFO *cs)
 
 bool String::append(IO_CACHE* file, uint32 arg_length)
 {
-  if (realloc(str_length+arg_length))
+  if (realloc_with_extra_if_needed(str_length+arg_length))
     return TRUE;
   if (my_b_read(file, (uchar*) Ptr + str_length, arg_length))
   {
@@ -543,7 +542,7 @@ bool String::append_with_prefill(const char *s,uint32 arg_length,
 {
   int t_length= arg_length > full_length ? arg_length : full_length;
 
-  if (realloc(str_length + t_length))
+  if (realloc_with_extra_if_needed(str_length + t_length))
     return TRUE;
   t_length= full_length - arg_length;
   if (t_length > 0)
@@ -560,11 +559,11 @@ uint32 String::numchars()
   return str_charset->cset->numchars(str_charset, Ptr, Ptr+str_length);
 }
 
-int String::charpos(int i,uint32 offset)
+int String::charpos(longlong i,uint32 offset)
 {
   if (i <= 0)
-    return i;
-  return str_charset->cset->charpos(str_charset,Ptr+offset,Ptr+str_length,i);
+    return (int)i;
+  return (int)str_charset->cset->charpos(str_charset,Ptr+offset,Ptr+str_length,(size_t)i);
 }
 
 int String::strstr(const String &s,uint32 offset)
@@ -652,7 +651,7 @@ bool String::replace(uint32 offset,uint32 arg_length,
     {
       if (diff)
       {
-	if (realloc(str_length+(uint32) diff))
+	if (realloc_with_extra_if_needed(str_length+(uint32) diff))
 	  return TRUE;
 	bmove_upp((uchar*) Ptr+str_length+diff, (uchar*) Ptr+str_length,
 		  str_length-offset-arg_length);
@@ -704,10 +703,10 @@ void String::qs_append(int i)
   str_length+= (int) (end-buff);
 }
 
-void String::qs_append(uint i)
+void String::qs_append(ulonglong i)
 {
   char *buff= Ptr + str_length;
-  char *end= int10_to_str(i, buff, 10);
+  char *end= longlong10_to_str(i, buff,10);
   str_length+= (int) (end-buff);
 }
 
@@ -879,7 +878,7 @@ copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
 
   uint32 length= min(to_length, from_length), length2= length;
 
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
   /*
     Special loop for i386, it allows to refer to a
     non-aligned memory block as UINT32, which makes
@@ -981,6 +980,7 @@ my_copy_with_hex_escaping(CHARSET_INFO *cs,
   }
   return dst - dst0;
 }
+
 
 /*
   copy a string,
@@ -1156,39 +1156,47 @@ outp:
 
 
 
-
-void String::print(String *str)
+/*
+  Append characters to a single-quoted string '...', escaping special
+  characters as necessary.
+  Does not add the enclosing quotes, this is left up to caller.
+*/
+void String::append_for_single_quote(const char *st, uint len)
 {
-  char *st= (char*)Ptr, *end= st+str_length;
+  const char *end= st+len;
   for (; st < end; st++)
   {
     uchar c= *st;
     switch (c)
     {
     case '\\':
-      str->append(STRING_WITH_LEN("\\\\"));
+      append(STRING_WITH_LEN("\\\\"));
       break;
     case '\0':
-      str->append(STRING_WITH_LEN("\\0"));
+      append(STRING_WITH_LEN("\\0"));
       break;
     case '\'':
-      str->append(STRING_WITH_LEN("\\'"));
+      append(STRING_WITH_LEN("\\'"));
       break;
     case '\n':
-      str->append(STRING_WITH_LEN("\\n"));
+      append(STRING_WITH_LEN("\\n"));
       break;
     case '\r':
-      str->append(STRING_WITH_LEN("\\r"));
+      append(STRING_WITH_LEN("\\r"));
       break;
     case '\032': // Ctrl-Z
-      str->append(STRING_WITH_LEN("\\Z"));
+      append(STRING_WITH_LEN("\\Z"));
       break;
     default:
-      str->append(c);
+      append(c);
     }
   }
 }
 
+void String::print(String *str)
+{
+  str->append_for_single_quote(Ptr, str_length);
+}
 
 /*
   Exchange state of this object and argument.
@@ -1280,70 +1288,4 @@ uint convert_to_printable(char *to, size_t to_len,
   else
     *t= '\0';
   return t - to;
-}
-
-/**
-  Check if an input byte sequence is a valid character string of a given charset
-
-  @param cs                     The input character set.
-  @param str                    The input byte sequence to validate.
-  @param length                 A byte length of the str.
-  @param [out] valid_length     A byte length of a valid prefix of the str.
-  @param [out] length_error     True in the case of a character length error:
-                                some byte[s] in the input is not a valid
-                                prefix for a character, i.e. the byte length
-                                of that invalid character is undefined.
-
-  @retval true if the whole input byte sequence is a valid character string.
-               The length_error output parameter is undefined.
-
-  @return
-    if the whole input byte sequence is a valid character string
-    then
-        return false
-    else
-        if the length of some character in the input is undefined (MY_CS_ILSEQ)
-           or the last character is truncated (MY_CS_TOOSMALL)
-        then
-            *length_error= true; // fatal error!
-        else
-            *length_error= false; // non-fatal error: there is no wide character
-                                  // encoding for some input character
-        return true
-*/
-bool validate_string(CHARSET_INFO *cs, const char *str, uint32 length,
-                     size_t *valid_length, bool *length_error)
-{
-  if (cs->mbmaxlen > 1)
-  {
-    int well_formed_error;
-    *valid_length= cs->cset->well_formed_len(cs, str, str + length,
-                                             length, &well_formed_error);
-    *length_error= well_formed_error;
-    return well_formed_error;
-  }
-
-  /*
-    well_formed_len() is not functional on single-byte character sets,
-    so use mb_wc() instead:
-  */
-  *length_error= false;
-
-  const uchar *from= reinterpret_cast<const uchar *>(str);
-  const uchar *from_end= from + length;
-  my_charset_conv_mb_wc mb_wc= cs->cset->mb_wc;
-
-  while (from < from_end)
-  {
-    my_wc_t wc;
-    int cnvres= (*mb_wc)(cs, &wc, (uchar*) from, from_end);
-    if (cnvres <= 0)
-    {
-      *valid_length= from - reinterpret_cast<const uchar *>(str);
-      return true;
-    }
-    from+= cnvres;
-  }
-  *valid_length= length;
-  return false;
 }

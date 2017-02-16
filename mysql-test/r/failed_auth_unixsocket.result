@@ -1,0 +1,12 @@
+update mysql.user set plugin='unix_socket';
+flush privileges;
+connect(localhost,USER,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Plugin 'unix_socket' is not loaded
+ERROR HY000: Plugin 'unix_socket' is not loaded
+install plugin unix_socket soname 'auth_socket.so';
+connect(localhost,USER,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'USER'@'localhost'
+ERROR 28000: Access denied for user 'USER'@'localhost'
+update mysql.user set plugin='';
+flush privileges;
+uninstall plugin unix_socket;

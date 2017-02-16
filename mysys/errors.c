@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,7 +53,9 @@ const char *globerrs[GLOBERRS]=
   "File '%s' (fileno: %d) was not closed",
   "Can't change ownership of the file '%s' (Errcode: %d)",
   "Can't change permissions of the file '%s' (Errcode: %d)",
-  "Can't seek in file '%s' (Errcode: %d)"
+  "Can't seek in file '%s' (Errcode: %d)",
+  "Can't change mode for file '%s' to 0x%lx (Error: %d)",
+  "Warning: Can't copy ownership for file '%s' (Error: %d)"
 };
 
 void init_glob_errs(void)
@@ -96,32 +99,22 @@ void init_glob_errs()
   EE(EE_CHANGE_OWNERSHIP)   = "Can't change ownership of the file '%s' (Errcode: %d)";
   EE(EE_CHANGE_PERMISSIONS) = "Can't change permissions of the file '%s' (Errcode: %d)";
   EE(EE_CANT_SEEK)      = "Can't seek in file '%s' (Errcode: %d)";
+  EE(EE_CANT_CHMOD)    = "Can't change mode for file '%s' to 0x%lx (Error: %d)";
+  EE(EE_CANT_COPY_OWNERSHIP)= "Warning: Can't copy ownership for file '%s' (Error: %d)";
 }
 #endif
 
-/*
- We cannot call my_error/my_printf_error here in this function.
-  Those functions will set status variable in diagnostic area
-  and there is no provision to reset them back.
-  Here we are waiting for free space and will wait forever till
-  space is created. So just giving warning in the error file
-  should be enough.
-*/
 void wait_for_free_space(const char *filename, int errors)
 {
-  if (!(errors % MY_WAIT_GIVE_USER_A_MESSAGE))
-  {
-    my_printf_warning(EE(EE_DISK_FULL),
+  if (errors == 0)
+    my_error(EE_DISK_FULL,MYF(ME_BELL | ME_NOREFRESH | ME_JUST_WARNING),
              filename,my_errno,MY_WAIT_FOR_USER_TO_FIX_PANIC);
-    my_printf_warning("Retry in %d secs. Message reprinted in %d secs",
+  if (!(errors % MY_WAIT_GIVE_USER_A_MESSAGE))
+    my_printf_error(EE_DISK_FULL,
+                    "Retry in %d secs. Message reprinted in %d secs",
+                    MYF(ME_BELL | ME_NOREFRESH | ME_JUST_WARNING),
                     MY_WAIT_FOR_USER_TO_FIX_PANIC,
                     MY_WAIT_GIVE_USER_A_MESSAGE * MY_WAIT_FOR_USER_TO_FIX_PANIC );
-  }
-  DBUG_EXECUTE_IF("simulate_no_free_space_error",
-                 {
-                   (void) sleep(1);
-                   return;
-                 });
   (void) sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC);
 }
 

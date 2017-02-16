@@ -1,0 +1,90 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>, INDEX(b)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(6,'x'),(7,'y'),(8,'z');
+UPDATE t1 SET a=100, b='f' WHERE b IN ('b','c');
+UPDATE t1 SET b='m' WHERE b = 'f';
+UPDATE t1 SET b='z' WHERE a < 2;
+UPDATE t1 SET b='';
+SELECT a,b FROM t1;
+a	b
+1	
+100	
+100	
+4	
+5	
+6	
+7	
+8	
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>, UNIQUE INDEX(a)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(0,'f'),(100,'a');
+UPDATE t1 SET a=a+200;
+UPDATE t1 SET a=0 WHERE a > 250;
+UPDATE t1 SET a=205 WHERE a=200;
+ERROR 23000: Duplicate entry '205' for key 'a'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+UPDATE t1 SET a=12345 ORDER BY a, b LIMIT 1;
+SELECT a,b FROM t1;
+a	b
+12345	a
+200	f
+201	a
+202	b
+203	c
+204	d
+205	e
+UPDATE t1 SET a=80 WHERE a IN (202,203);
+ERROR 23000: Duplicate entry '80' for key 'a'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>, UNIQUE INDEX(a,b)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(100,'a'),(6,'f');
+UPDATE t1 SET a=6 WHERE a=3;
+UPDATE t1 SET a=100 WHERE a=1;
+ERROR 23000: Duplicate entry '100-a' for key 'a'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+UPDATE t1 SET a=4, b='d' WHERE b='f';
+ERROR 23000: Duplicate entry '4-d' for key 'a'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+UPDATE t1 SET a=a+1;
+SELECT a,b FROM t1;
+a	b
+101	a
+2	a
+3	b
+5	d
+6	e
+7	c
+7	f
+UPDATE t1 SET b='z';
+ERROR 23000: Duplicate entry '7-z' for key 'a'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN> PRIMARY KEY, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(0,'f'),(100,'a');
+UPDATE t1 SET a=a+200;
+UPDATE t1 SET a=0 WHERE a > 250;
+UPDATE t1 SET a=205 WHERE a=200;
+ERROR 23000: Duplicate entry '205' for key 'PRIMARY'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+UPDATE t1 SET a=12345 ORDER BY a DESC, b LIMIT 1;
+SELECT a,b FROM t1;
+a	b
+0	a
+12345	e
+200	f
+201	a
+202	b
+203	c
+204	d
+UPDATE t1 SET a=80 WHERE a IN (202,203);
+ERROR 23000: Duplicate entry '80' for key 'PRIMARY'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+DROP TABLE t1;

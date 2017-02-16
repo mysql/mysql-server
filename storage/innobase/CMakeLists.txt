@@ -97,6 +97,25 @@ IF(NOT CMAKE_CROSSCOMPILING)
   }"
   HAVE_IB_GCC_ATOMIC_TEST_AND_SET
   )
+  CHECK_C_SOURCE_RUNS(
+  "#include<stdint.h>
+  int main()
+  {
+    __sync_synchronize();
+    return(0);
+  }"
+  HAVE_IB_GCC_SYNC_SYNCHRONISE
+  )
+  CHECK_C_SOURCE_RUNS(
+  "#include<stdint.h>
+  int main()
+  {
+    __atomic_thread_fence(__ATOMIC_ACQUIRE);
+    __atomic_thread_fence(__ATOMIC_RELEASE);
+    return(0);
+  }"
+  HAVE_IB_GCC_ATOMIC_THREAD_FENCE
+  )
 ENDIF()
 
 IF(HAVE_IB_GCC_ATOMIC_BUILTINS)
@@ -105,6 +124,14 @@ ENDIF()
 
 IF(HAVE_IB_GCC_ATOMIC_TEST_AND_SET)
  ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_TEST_AND_SET=1)
+ENDIF()
+
+IF(HAVE_IB_GCC_SYNC_SYNCHRONISE)
+ ADD_DEFINITIONS(-DHAVE_IB_GCC_SYNC_SYNCHRONISE=1)
+ENDIF()
+
+IF(HAVE_IB_GCC_ATOMIC_THREAD_FENCE)
+ ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_THREAD_FENCE=1)
 ENDIF()
 
  # either define HAVE_IB_ATOMIC_PTHREAD_T_GCC or not
@@ -132,6 +159,8 @@ ENDIF()
 IF(HAVE_IB_ATOMIC_PTHREAD_T_GCC)
   ADD_DEFINITIONS(-DHAVE_IB_ATOMIC_PTHREAD_T_GCC=1)
 ENDIF()
+
+CHECK_C_SOURCE_COMPILES("struct t1{ int a; char *b; }; struct t1 c= { .a=1, .b=0 }; main() { }" HAVE_C99_INITIALIZERS)
 
 ENDIF(NOT MSVC)
 
@@ -185,9 +214,20 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
       return(0);
     }
   " HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS)
+  CHECK_C_SOURCE_COMPILES(
+  "#include <mbarrier.h>
+  int main() {
+    __machine_r_barrier();
+    __machine_w_barrier();
+    return(0);
+  }"
+  HAVE_IB_MACHINE_BARRIER_SOLARIS)
   ENDIF()
   IF(HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS)
     ADD_DEFINITIONS(-DHAVE_IB_ATOMIC_PTHREAD_T_SOLARIS=1)
+  ENDIF()
+  IF(HAVE_IB_MACHINE_BARRIER_SOLARIS)
+    ADD_DEFINITIONS(-DHAVE_IB_MACHINE_BARRIER_SOLARIS=1)
   ENDIF()
 ENDIF()
 
@@ -206,6 +246,7 @@ ENDIF()
 
 IF(MSVC)
   ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS)
+  ADD_DEFINITIONS(-DHAVE_WINDOWS_MM_FENCE)
 ENDIF()
 
 
@@ -228,6 +269,15 @@ ENDIF()
 IF (MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 8)
 	SET_SOURCE_FILES_PROPERTIES(mem/mem0mem.c mem/mem0pool.c
 				    PROPERTIES COMPILE_FLAGS -Od)
+ENDIF()
+
+IF(MSVC)
+  # Avoid "unreferenced label" warning in generated file
+  GET_FILENAME_COMPONENT(_SRC_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
+  SET_SOURCE_FILES_PROPERTIES(${_SRC_DIR}/pars/pars0grm.c
+          PROPERTIES COMPILE_FLAGS "/wd4102")
+  SET_SOURCE_FILES_PROPERTIES(${_SRC_DIR}/pars/lexyy.c
+          PROPERTIES COMPILE_FLAGS "/wd4003")
 ENDIF()
 
 SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
@@ -276,7 +326,18 @@ IF(WITH_INNODB)
   SET(WITH_INNOBASE_STORAGE_ENGINE TRUE)
 ENDIF()
 
+
+# On solaris, reduce symbol visibility, so loader does not mix
+# the same symbols from builtin innodb and from shared one.
+# Only required for old GCC (3.4.3) that does not support hidden visibility
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCC 
+  AND NOT HAVE_VISIBILITY_HIDDEN)
+  SET(LINKER_SCRIPT "-Wl,-M${CMAKE_CURRENT_SOURCE_DIR}/plugin_exports")
+ELSE()
+  SET(LINKER_SCRIPT)
+ENDIF()
+
 MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE 
-  DEFAULT
+  MODULE_ONLY
   MODULE_OUTPUT_NAME ha_innodb
-  LINK_LIBRARIES ${ZLIB_LIBRARY})
+  LINK_LIBRARIES ${ZLIB_LIBRARY} ${LINKER_SCRIPT})

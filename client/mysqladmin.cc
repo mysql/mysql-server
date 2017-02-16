@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2016, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +25,7 @@
 #include <sql_common.h>
 #include <welcome_copyright_notice.h>           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-#define ADMIN_VERSION "8.42"
+#define ADMIN_VERSION "9.0"
 #define MAX_MYSQL_VAR 512
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -44,8 +45,6 @@ static uint opt_count_iterations= 0, my_end_arg;
 static ulong opt_connect_timeout, opt_shutdown_timeout;
 static char * unix_port=0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
-static uint opt_enable_cleartext_plugin= 0;
-static my_bool using_opt_enable_cleartext_plugin= 0;
 
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
@@ -101,7 +100,10 @@ enum commands {
   ADMIN_FLUSH_HOSTS,      ADMIN_FLUSH_TABLES,    ADMIN_PASSWORD,
   ADMIN_PING,             ADMIN_EXTENDED_STATUS, ADMIN_FLUSH_STATUS,
   ADMIN_FLUSH_PRIVILEGES, ADMIN_START_SLAVE,     ADMIN_STOP_SLAVE,
-  ADMIN_FLUSH_THREADS,    ADMIN_OLD_PASSWORD
+  ADMIN_FLUSH_THREADS,    ADMIN_OLD_PASSWORD,    ADMIN_FLUSH_SLOW_LOG,
+  ADMIN_FLUSH_TABLE_STATISTICS, ADMIN_FLUSH_INDEX_STATISTICS,
+  ADMIN_FLUSH_USER_STATISTICS, ADMIN_FLUSH_CLIENT_STATISTICS,
+  ADMIN_FLUSH_ALL_STATUS, ADMIN_FLUSH_ALL_STATISTICS
 };
 static const char *command_names[]= {
   "create",               "drop",                "shutdown",
@@ -111,7 +113,10 @@ static const char *command_names[]= {
   "flush-hosts",          "flush-tables",        "password",
   "ping",                 "extended-status",     "flush-status",
   "flush-privileges",     "start-slave",         "stop-slave",
-  "flush-threads","old-password",
+  "flush-threads", "old-password", "flush-slow-log",
+  "flush-table-statistics", "flush-index-statistics",
+  "flush-user-statistics", "flush-client-statistics",
+  "flush-all-status", "flush-all-statistics",
   NullS
 };
 
@@ -216,22 +221,17 @@ static struct my_option my_long_options[] =
    "Default authentication client-side plugin to use.",
    &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"enable_cleartext_plugin", OPT_ENABLE_CLEARTEXT_PLUGIN, 
-    "Enable/disable the clear text authentication plugin.",
-   &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin, 
-   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 
-static const char *load_default_groups[]= { "mysqladmin","client",0 };
+static const char *load_default_groups[]=
+{ "mysqladmin", "client", "client-server", "client-mariadb", 0 };
 
 my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
-  int error = 0;
-
   switch(optid) {
   case 'c':
     opt_count_iterations= 1;
@@ -279,8 +279,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case '?':
   case 'I':					/* Info */
-    error++;
-    break;
+    usage();
+    exit(0);
   case OPT_CHARSETS_DIR:
 #if MYSQL_VERSION_ID > 32300
     charsets_dir = argument;
@@ -290,14 +290,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
     break;
-  case OPT_ENABLE_CLEARTEXT_PLUGIN:
-    using_opt_enable_cleartext_plugin= TRUE;
-    break;
-  }
-  if (error)
-  {
-    usage();
-    exit(1);
   }
   return 0;
 }
@@ -305,20 +297,21 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 
 int main(int argc,char *argv[])
 {
-  int error= 0, ho_error, temp_argc;
+  int error= 0, temp_argc;
   MYSQL mysql;
   char **commands, **save_argv, **temp_argv;
 
   MY_INIT(argv[0]);
   mysql_init(&mysql);
-  if (load_defaults("my",load_default_groups,&argc,&argv))
-   exit(1); 
+  sf_leaking_memory=1; /* don't report memory leaks on early exits */
+  if ((error= load_defaults("my",load_default_groups,&argc,&argv)))
+    goto err1;
   save_argv = argv;				/* Save for free_defaults */
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
-  {
-    free_defaults(save_argv);
-    exit(ho_error);
-  }
+
+  if ((error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+    goto err2;
+  temp_argv= mask_password(argc, &argv);
+  temp_argc= argc;
 
   if (debug_info_flag)
     my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
@@ -330,16 +323,14 @@ int main(int argc,char *argv[])
     usage();
     exit(1);
   }
-
-  temp_argv= mask_password(argc, &argv);
-  temp_argc= argc;
-
   commands = temp_argv;
   if (tty_password)
     opt_password = get_tty_password(NullS);
 
   (void) signal(SIGINT,endprog);			/* Here if abort */
   (void) signal(SIGTERM,endprog);		/* Here if abort */
+
+  sf_leaking_memory=0; /* from now on we cleanup properly */
 
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
@@ -369,10 +360,6 @@ int main(int argc,char *argv[])
 
   if (opt_default_auth && *opt_default_auth)
     mysql_options(&mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
-
-  if (using_opt_enable_cleartext_plugin)
-    mysql_options(&mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN, 
-                  (char*) &opt_enable_cleartext_plugin);
 
   if (sql_connect(&mysql, option_wait))
   {
@@ -476,12 +463,6 @@ int main(int argc,char *argv[])
   }                                             /* got connection */
 
   mysql_close(&mysql);
-  my_free(opt_password);
-  my_free(user);
-#ifdef HAVE_SMEM
-  my_free(shared_memory_base_name);
-#endif
-  free_defaults(save_argv);
   temp_argc--;
   while(temp_argc >= 0)
   {
@@ -489,8 +470,17 @@ int main(int argc,char *argv[])
     temp_argc--;
   }
   my_free(temp_argv);
+err2:
+  mysql_library_end();
+  my_free(opt_password);
+  my_free(user);
+#ifdef HAVE_SMEM
+  my_free(shared_memory_base_name);
+#endif
+  free_defaults(save_argv);
+err1:
   my_end(my_end_arg);
-  exit(error ? 1 : 0);
+  exit(error);
   return 0;
 }
 
@@ -518,9 +508,8 @@ static my_bool sql_connect(MYSQL *mysql, uint wait)
 
   for (;;)
   {
-    if (mysql_connect_ssl_check(mysql, host, user, opt_password, NullS,
-                                tcp_port, unix_port,
-                                CLIENT_REMEMBER_OPTIONS, opt_ssl_required))
+    if (mysql_real_connect(mysql,host,user,opt_password,NullS,tcp_port,
+			   unix_port, CLIENT_REMEMBER_OPTIONS))
     {
       mysql->reconnect= 1;
       if (info)
@@ -617,11 +606,12 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     If this behaviour is ever changed, Docs should be notified.
   */
 
-  struct rand_struct rand_st;
+  struct my_rnd_struct rand_st;
 
   for (; argc > 0 ; argv++,argc--)
   {
-    switch (find_type(argv[0],&command_typelib, FIND_TYPE_BASIC)) {
+    int command;
+    switch ((command= find_type(argv[0],&command_typelib,FIND_TYPE_BASIC))) {
     case ADMIN_CREATE:
     {
       char buff[FN_REFLEN+20];
@@ -698,7 +688,10 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       if (mysql_refresh(mysql,
 			(uint) ~(REFRESH_GRANT | REFRESH_STATUS |
 				 REFRESH_READ_LOCK | REFRESH_SLAVE |
-				 REFRESH_MASTER)))
+				 REFRESH_MASTER | REFRESH_TABLE_STATS |
+                                 REFRESH_INDEX_STATS |
+                                 REFRESH_USER_STATS |
+                                 REFRESH_CLIENT_STATS)))
       {
 	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
 			mysql_error(mysql));
@@ -891,9 +884,19 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     }
     case ADMIN_FLUSH_LOGS:
     {
-      if (mysql_refresh(mysql,REFRESH_LOG))
+      if (mysql_query(mysql,"flush logs"))
       {
-	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      break;
+    }
+    case ADMIN_FLUSH_SLOW_LOG:
+    {
+      if (mysql_query(mysql,"flush slow logs"))
+      {
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -903,7 +906,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     {
       if (mysql_query(mysql,"flush hosts"))
       {
-	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -913,7 +916,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     {
       if (mysql_query(mysql,"flush tables"))
       {
-	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -923,7 +926,71 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     {
       if (mysql_query(mysql,"flush status"))
       {
-	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      break;
+    }
+    case ADMIN_FLUSH_TABLE_STATISTICS:
+    {
+      if (mysql_query(mysql,"flush table_statistics"))
+      {
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      break;
+    }
+    case ADMIN_FLUSH_INDEX_STATISTICS:
+    {
+      if (mysql_query(mysql,"flush index_statistics"))
+      {
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      break;
+    }
+    case ADMIN_FLUSH_USER_STATISTICS:
+    {
+      if (mysql_query(mysql,"flush user_statistics"))
+      {
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      break;
+    }
+    case ADMIN_FLUSH_CLIENT_STATISTICS:
+    {
+      if (mysql_query(mysql,"flush client_statistics"))
+      {
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      break;
+    }
+    case ADMIN_FLUSH_ALL_STATISTICS:
+    {
+      if (mysql_query(mysql,
+                      "flush table_statistics,index_statistics,"
+                      "user_statistics,client_statistics"))
+      {
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      break;
+    }
+    case ADMIN_FLUSH_ALL_STATUS:
+    {
+      if (mysql_query(mysql,
+                      "flush status,table_statistics,index_statistics,"
+                      "user_statistics,client_statistics"))
+      {
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -937,7 +1004,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       char *typed_password= NULL, *verified= NULL;
       /* Do initialization the same way as we do in mysqld */
       start_time=time((time_t*) 0);
-      randominit(&rand_st,(ulong) start_time,(ulong) start_time/2);
+      my_rnd_init(&rand_st,(ulong) start_time,(ulong) start_time/2);
 
       if (argc < 1)
       {
@@ -1124,6 +1191,9 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 static char **mask_password(int argc, char ***argv)
 {
   char **temp_argv;
+  if (!argc)
+    return NULL;
+
   temp_argv= (char **)(my_malloc(sizeof(char *) * argc, MYF(MY_WME)));
   argc--;
   while (argc > 0)
@@ -1158,20 +1228,28 @@ static void usage(void)
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   puts("Administration program for the mysqld daemon.");
   printf("Usage: %s [OPTIONS] command command....\n", my_progname);
+  print_defaults("my",load_default_groups);
+  puts("");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
-  print_defaults("my",load_default_groups);
   puts("\nWhere command is a one or more of: (Commands may be shortened)\n\
-  create databasename	Create a new database\n\
-  debug			Instruct server to write debug information to log\n\
-  drop databasename	Delete a database and all its tables\n\
-  extended-status       Gives an extended status message from the server\n\
-  flush-hosts           Flush all cached hosts\n\
-  flush-logs            Flush all logs\n\
-  flush-status		Clear status variables\n\
-  flush-tables          Flush all tables\n\
-  flush-threads         Flush the thread cache\n\
-  flush-privileges      Reload grant tables (same as reload)\n\
+  create databasename	  Create a new database\n\
+  debug			  Instruct server to write debug information to log\n\
+  drop databasename	  Delete a database and all its tables\n\
+  extended-status         Gives an extended status message from the server\n\
+  flush-all-statistics    Flush all statistics tables\n\
+  flush-all-status        Flush status and statistics\n\
+  flush-client-statistics Flush client statistics\n\
+  flush-hosts             Flush all cached hosts\n\
+  flush-index-statistics  Flush index statistics\n\
+  flush-logs              Flush all logs\n\
+  flush-privileges        Reload grant tables (same as reload)\n\
+  flush-slow-log          Flush slow query log\n\
+  flush-status		  Clear status variables\n\
+  flush-table-statistics  Clear table statistics\n\
+  flush-tables            Flush all tables\n\
+  flush-threads           Flush the thread cache\n\
+  flush-user-statistics   Flush user statistics\n\
   kill id,id,...	Kill mysql threads");
 #if MYSQL_VERSION_ID >= 32200
   puts("\
@@ -1463,7 +1541,7 @@ static my_bool wait_pidfile(char *pidfile, time_t last_modified,
 			    struct stat *pidfile_status)
 {
   char buff[FN_REFLEN];
-  int error= 1;
+  my_bool error= 1;
   uint count= 0;
   DBUG_ENTER("wait_pidfile");
 

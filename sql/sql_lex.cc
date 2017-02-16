@@ -1,5 +1,5 @@
-/*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,8 +26,9 @@
 #include "item_create.h"
 #include <m_ctype.h>
 #include <hash.h>
-#include "sp.h"
 #include "sp_head.h"
+#include "sp.h"
+#include "sql_select.h"
 
 static int lex_one_token(YYSTYPE *yylval, THD *thd);
 
@@ -141,6 +142,88 @@ void lex_free(void)
 {					// Call this when daemon ends
   DBUG_ENTER("lex_free");
   DBUG_VOID_RETURN;
+}
+
+/**
+  Initialize lex object for use in fix_fields and parsing.
+
+  SYNOPSIS
+    init_lex_with_single_table()
+    @param thd                 The thread object
+    @param table               The table object
+  @return Operation status
+    @retval TRUE                An error occurred, memory allocation error
+    @retval FALSE               Ok
+
+  DESCRIPTION
+    This function is used to initialize a lex object on the
+    stack for use by fix_fields and for parsing. In order to
+    work properly it also needs to initialize the
+    Name_resolution_context object of the lexer.
+    Finally it needs to set a couple of variables to ensure
+    proper functioning of fix_fields.
+*/
+
+int
+init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
+{
+  TABLE_LIST *table_list;
+  Table_ident *table_ident;
+  SELECT_LEX *select_lex= &lex->select_lex;
+  Name_resolution_context *context= &select_lex->context;
+  /*
+    We will call the parser to create a part_info struct based on the
+    partition string stored in the frm file.
+    We will use a local lex object for this purpose. However we also
+    need to set the Name_resolution_object for this lex object. We
+    do this by using add_table_to_list where we add the table that
+    we're working with to the Name_resolution_context.
+  */
+  thd->lex= lex;
+  lex_start(thd);
+  context->init();
+  if ((!(table_ident= new Table_ident(thd,
+                                      table->s->table_name,
+                                      table->s->db, TRUE))) ||
+      (!(table_list= select_lex->add_table_to_list(thd,
+                                                   table_ident,
+                                                   NULL,
+                                                   0))))
+    return TRUE;
+  context->resolve_in_table_list_only(table_list);
+  lex->use_only_table_context= TRUE;
+  lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VCOL_EXPR;
+  select_lex->cur_pos_in_select_list= UNDEF_POS;
+  table->map= 1; //To ensure correct calculation of const item
+  table->get_fields_in_item_tree= TRUE;
+  table_list->table= table;
+  table_list->cacheable_table= false;
+  return FALSE;
+}
+
+/**
+  End use of local lex with single table
+
+  SYNOPSIS
+    end_lex_with_single_table()
+    @param thd               The thread object
+    @param table             The table object
+    @param old_lex           The real lex object connected to THD
+
+  DESCRIPTION
+    This function restores the real lex object after calling
+    init_lex_with_single_table and also restores some table
+    variables temporarily set.
+*/
+
+void
+end_lex_with_single_table(THD *thd, TABLE *table, LEX *old_lex)
+{
+  LEX *lex= thd->lex;
+  table->map= 0;
+  table->get_fields_in_item_tree= FALSE;
+  lex_end(lex);
+  thd->lex= old_lex;
 }
 
 
@@ -372,7 +455,6 @@ void lex_start(THD *thd)
   /* 'parent_lex' is used in init_query() so it must be before it. */
   lex->select_lex.parent_lex= lex;
   lex->select_lex.init_query();
-  lex->load_set_str_list.empty();
   lex->value_list.empty();
   lex->update_list.empty();
   lex->set_var_list.empty();
@@ -400,7 +482,6 @@ void lex_start(THD *thd)
   lex->context_analysis_only= 0;
   lex->derived_tables= 0;
   lex->safe_to_cache_query= 1;
-  lex->leaf_tables_insert= 0;
   lex->parsing_options.reset();
   lex->empty_field_list_on_rset= 0;
   lex->select_lex.select_number= 1;
@@ -424,12 +505,14 @@ void lex_start(THD *thd)
   lex->reset_query_tables_list(FALSE);
   lex->expr_allows_subselect= TRUE;
   lex->use_only_table_context= FALSE;
+  lex->parse_vcol_expr= FALSE;
 
   lex->name.str= 0;
   lex->name.length= 0;
   lex->event_parse_data= NULL;
   lex->profile_options= PROFILE_NONE;
   lex->nest_level=0 ;
+  lex->select_lex.nest_level_base= &lex->unit;
   lex->allow_sum_func= 0;
   lex->in_sum_func= NULL;
   /*
@@ -450,7 +533,10 @@ void lex_start(THD *thd)
 
   lex->is_lex_started= TRUE;
   lex->used_tables= 0;
+  lex->only_view= FALSE;
   lex->reset_slave_info.all= false;
+  lex->limit_rows_examined= 0;
+  lex->limit_rows_examined_cnt= ULONGLONG_MAX;
   DBUG_VOID_RETURN;
 }
 
@@ -458,6 +544,16 @@ void lex_end(LEX *lex)
 {
   DBUG_ENTER("lex_end");
   DBUG_PRINT("enter", ("lex: 0x%lx", (long) lex));
+
+  lex_end_stage1(lex);
+  lex_end_stage2(lex);
+
+  DBUG_VOID_RETURN;
+}
+
+void lex_end_stage1(LEX *lex)
+{
+  DBUG_ENTER("lex_end_stage1");
 
   /* release used plugins */
   if (lex->plugins.elements) /* No function call and no mutex if no plugins. */
@@ -469,6 +565,21 @@ void lex_end(LEX *lex)
 
   delete lex->sphead;
   lex->sphead= NULL;
+
+  DBUG_VOID_RETURN;
+}
+
+/*
+  MASTER INFO parameters (or state) is normally cleared towards the end
+  of a statement. But in case of PS, the state needs to be preserved during
+  its lifetime and should only be cleared on PS close or deallocation.
+*/
+void lex_end_stage2(LEX *lex)
+{
+  DBUG_ENTER("lex_end_stage2");
+
+  /* Reset LEX_MASTER_INFO */
+  lex->mi.reset();
 
   DBUG_VOID_RETURN;
 }
@@ -926,17 +1037,18 @@ int MYSQLlex(YYSTYPE *yylval, THD *thd)
 
 static int lex_one_token(YYSTYPE *yylval, THD *thd)
 {
-  reg1	uchar c= 0;
+  reg1	uchar c;
   bool comment_closed;
   int	tokval, result_state;
   uint length;
   enum my_lex_states state;
   Lex_input_stream *lip= & thd->m_parser_state->m_lip;
   LEX *lex= thd->lex;
-  CHARSET_INFO *cs= thd->charset();
-  uchar *state_map= cs->state_map;
-  uchar *ident_map= cs->ident_map;
+  CHARSET_INFO *const cs= thd->charset();
+  const uchar *const state_map= cs->state_map;
+  const uchar *const ident_map= cs->ident_map;
 
+  LINT_INIT(c);
   lip->yylval=yylval;			// The global state
 
   lip->start_token();
@@ -962,50 +1074,54 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       state= (enum my_lex_states) state_map[c];
       break;
     case MY_LEX_ESCAPE:
-      if (lip->yyGet() == 'N')
+      if (!lip->eof() && lip->yyGet() == 'N')
       {					// Allow \N as shortcut for NULL
 	yylval->lex_str.str=(char*) "\\N";
 	yylval->lex_str.length=2;
 	return NULL_SYM;
       }
+      /* Fall through */
     case MY_LEX_CHAR:			// Unknown or single char token
     case MY_LEX_SKIP:			// This should not happen
-      if (c == '-' && lip->yyPeek() == '-' &&
+      if (c != ')')
+	lip->next_state= MY_LEX_START;	// Allow signed numbers
+      return((int) c);
+
+    case MY_LEX_MINUS_OR_COMMENT:
+      if (lip->yyPeek() == '-' &&
           (my_isspace(cs,lip->yyPeekn(1)) ||
            my_iscntrl(cs,lip->yyPeekn(1))))
       {
         state=MY_LEX_COMMENT;
         break;
       }
+      lip->next_state= MY_LEX_START;	// Allow signed numbers
+      return((int) c);
 
-      if (c != ')')
-	lip->next_state= MY_LEX_START;	// Allow signed numbers
-
-      if (c == ',')
-      {
-        /*
-          Warning:
-          This is a work around, to make the "remember_name" rule in
-          sql/sql_yacc.yy work properly.
-          The problem is that, when parsing "select expr1, expr2",
-          the code generated by bison executes the *pre* action
-          remember_name (see select_item) *before* actually parsing the
-          first token of expr2.
-        */
-        lip->restart_token();
-      }
-      else
-      {
-        /*
-          Check for a placeholder: it should not precede a possible identifier
-          because of binlogging: when a placeholder is replaced with
-          its value in a query for the binlog, the query must stay
-          grammatically correct.
-        */
-        if (c == '?' && lip->stmt_prepare_mode && !ident_map[lip->yyPeek()])
+    case MY_LEX_PLACEHOLDER:
+      /*
+        Check for a placeholder: it should not precede a possible identifier
+        because of binlogging: when a placeholder is replaced with
+        its value in a query for the binlog, the query must stay
+        grammatically correct.
+      */
+      lip->next_state= MY_LEX_START;	// Allow signed numbers
+      if (lip->stmt_prepare_mode && !ident_map[(uchar) lip->yyPeek()])
         return(PARAM_MARKER);
-      }
+      return((int) c);
 
+    case MY_LEX_COMMA:
+      lip->next_state= MY_LEX_START;	// Allow signed numbers
+      /*
+        Warning:
+        This is a work around, to make the "remember_name" rule in
+        sql/sql_yacc.yy work properly.
+        The problem is that, when parsing "select expr1, expr2",
+        the code generated by bison executes the *pre* action
+        remember_name (see select_item) *before* actually parsing the
+        first token of expr2.
+      */
+      lip->restart_token();
       return((int) c);
 
     case MY_LEX_IDENT_OR_NCHAR:
@@ -1070,7 +1186,10 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       else
 #endif
       {
-        for (result_state= c; ident_map[c= lip->yyGet()]; result_state|= c) ;
+        for (result_state= c;
+             ident_map[(uchar) (c= lip->yyGet())];
+             result_state|= c)
+          ;
         /* If there were non-ASCII characters, mark that we must convert */
         result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
       }
@@ -1082,9 +1201,11 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
           If we find a space then this can't be an identifier. We notice this
           below by checking start != lex->ptr.
         */
-        for (; state_map[c] == MY_LEX_SKIP ; c= lip->yyGet()) ;
+        for (; state_map[(uchar) c] == MY_LEX_SKIP ; c= lip->yyGet())
+          ;
       }
-      if (start == lip->get_ptr() && c == '.' && ident_map[lip->yyPeek()])
+      if (start == lip->get_ptr() && c == '.' &&
+          ident_map[(uchar) lip->yyPeek()])
 	lip->next_state=MY_LEX_IDENT_SEP;
       else
       {					// '(' must follow directly if function
@@ -1127,12 +1248,12 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 
       return(result_state);			// IDENT or IDENT_QUOTED
 
-    case MY_LEX_IDENT_SEP:		// Found ident and now '.'
+    case MY_LEX_IDENT_SEP:                  // Found ident and now '.'
       yylval->lex_str.str= (char*) lip->get_ptr();
       yylval->lex_str.length= 1;
-      c= lip->yyGet();                  // should be '.'
-      lip->next_state= MY_LEX_IDENT_START;// Next is an ident (not a keyword)
-      if (!ident_map[lip->yyPeek()])            // Probably ` or "
+      c= lip->yyGet();                          // should be '.'
+      lip->next_state= MY_LEX_IDENT_START;      // Next is ident (not keyword)
+      if (!ident_map[(uchar) lip->yyPeek()])    // Probably ` or "
 	lip->next_state= MY_LEX_START;
       return((int) c);
 
@@ -1155,7 +1276,8 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
         }
         else if (c == 'b')
         {
-          while ((c= lip->yyGet()) == '0' || c == '1') ;
+          while ((c= lip->yyGet()) == '0' || c == '1')
+            ;
           if ((lip->yyLength() >= 3) && !ident_map[c])
           {
             /* Skip '0b' */
@@ -1214,11 +1336,12 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       else
 #endif
       {
-        for (result_state=0; ident_map[c= lip->yyGet()]; result_state|= c) ;
+        for (result_state=0; ident_map[c= lip->yyGet()]; result_state|= c)
+          ;
         /* If there were non-ASCII characters, mark that we must convert */
         result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
       }
-      if (c == '.' && ident_map[lip->yyPeek()])
+      if (c == '.' && ident_map[(uchar) lip->yyPeek()])
 	lip->next_state=MY_LEX_IDENT_SEP;// Next is '.'
 
       yylval->lex_str= get_token(lip, 0, lip->yyLength());
@@ -1313,11 +1436,12 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       yylval->lex_str=get_token(lip,
                                 2,          // skip x'
                                 length-3);  // don't count x' and last '
-      return (HEX_NUM);
+      return HEX_STRING;
 
     case MY_LEX_BIN_NUMBER:           // Found b'bin-string'
       lip->yySkip();                  // Accept opening '
-      while ((c= lip->yyGet()) == '0' || c == '1') ;
+      while ((c= lip->yyGet()) == '0' || c == '1')
+        ;
       if (c != '\'')
         return(ABORT_SYM);            // Illegal hex constant
       lip->yySkip();                  // Accept closing '
@@ -1328,32 +1452,35 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       return (BIN_NUM);
 
     case MY_LEX_CMP_OP:			// Incomplete comparison operator
-      if (state_map[lip->yyPeek()] == MY_LEX_CMP_OP ||
-          state_map[lip->yyPeek()] == MY_LEX_LONG_CMP_OP)
-        lip->yySkip();
-      if ((tokval = find_keyword(lip, lip->yyLength() + 1, 0)))
+      lip->next_state= MY_LEX_START;	// Allow signed numbers
+      if (state_map[(uchar) lip->yyPeek()] == MY_LEX_CMP_OP ||
+          state_map[(uchar) lip->yyPeek()] == MY_LEX_LONG_CMP_OP)
       {
-	lip->next_state= MY_LEX_START;	// Allow signed numbers
-	return(tokval);
+        lip->yySkip();
+        if ((tokval= find_keyword(lip, 2, 0)))
+          return(tokval);
+        lip->yyUnget();
       }
-      state = MY_LEX_CHAR;		// Something fishy found
-      break;
+      return(c);
 
     case MY_LEX_LONG_CMP_OP:		// Incomplete comparison operator
-      if (state_map[lip->yyPeek()] == MY_LEX_CMP_OP ||
-          state_map[lip->yyPeek()] == MY_LEX_LONG_CMP_OP)
+      lip->next_state= MY_LEX_START;
+      if (state_map[(uchar) lip->yyPeek()] == MY_LEX_CMP_OP ||
+          state_map[(uchar) lip->yyPeek()] == MY_LEX_LONG_CMP_OP)
       {
         lip->yySkip();
-        if (state_map[lip->yyPeek()] == MY_LEX_CMP_OP)
+        if (state_map[(uchar) lip->yyPeek()] == MY_LEX_CMP_OP)
+        {
           lip->yySkip();
+          if ((tokval= find_keyword(lip, 3, 0)))
+            return(tokval);
+          lip->yyUnget();
+        }
+        if ((tokval= find_keyword(lip, 2, 0)))
+          return(tokval);
+        lip->yyUnget();
       }
-      if ((tokval = find_keyword(lip, lip->yyLength() + 1, 0)))
-      {
-	lip->next_state= MY_LEX_START;	// Found long op
-	return(tokval);
-      }
-      state = MY_LEX_CHAR;		// Something fishy found
-      break;
+      return(c);
 
     case MY_LEX_BOOL:
       if (c != lip->yyPeek())
@@ -1410,44 +1537,47 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 
       lip->save_in_comment_state();
 
-      if (lip->yyPeekn(2) == '!')
+      if (lip->yyPeekn(2) == '!' ||
+          (lip->yyPeekn(2) == 'M' && lip->yyPeekn(3) == '!'))
       {
+        bool maria_comment_syntax= lip->yyPeekn(2) == 'M';
         lip->in_comment= DISCARD_COMMENT;
         /* Accept '/' '*' '!', but do not keep this marker. */
         lip->set_echo(FALSE);
-        lip->yySkip();
-        lip->yySkip();
-        lip->yySkip();
+        lip->yySkipn(maria_comment_syntax ? 4 : 3);
 
         /*
           The special comment format is very strict:
-          '/' '*' '!', followed by exactly
-          1 digit (major), 2 digits (minor), then 2 digits (dot).
-          32302 -> 3.23.02
-          50032 -> 5.0.32
-          50114 -> 5.1.14
+          '/' '*' '!', followed by an optional 'M' and exactly
+          1-2 digits (major), 2 digits (minor), then 2 digits (dot).
+          32302  -> 3.23.02
+          50032  -> 5.0.32
+          50114  -> 5.1.14
+          100000 -> 10.0.0
         */
-        char version_str[6];
-        version_str[0]= lip->yyPeekn(0);
-        version_str[1]= lip->yyPeekn(1);
-        version_str[2]= lip->yyPeekn(2);
-        version_str[3]= lip->yyPeekn(3);
-        version_str[4]= lip->yyPeekn(4);
-        version_str[5]= 0;
-        if (  my_isdigit(cs, version_str[0])
-           && my_isdigit(cs, version_str[1])
-           && my_isdigit(cs, version_str[2])
-           && my_isdigit(cs, version_str[3])
-           && my_isdigit(cs, version_str[4])
+        if (  my_isdigit(cs, lip->yyPeekn(0))
+           && my_isdigit(cs, lip->yyPeekn(1))
+           && my_isdigit(cs, lip->yyPeekn(2))
+           && my_isdigit(cs, lip->yyPeekn(3))
+           && my_isdigit(cs, lip->yyPeekn(4))
            )
         {
           ulong version;
-          version=strtol(version_str, NULL, 10);
+          uint length= 5;
+          char *end_ptr= (char*) lip->get_ptr()+length;
+          int error;
+          if (my_isdigit(cs, lip->yyPeekn(5)))
+          {
+            end_ptr++;                          // 6 digit number
+            length++;
+          }
+
+          version= (ulong) my_strtoll10(lip->get_ptr(), &end_ptr, &error);
 
           if (version <= MYSQL_VERSION_ID)
           {
             /* Accept 'M' 'm' 'm' 'd' 'd' */
-            lip->yySkipn(5);
+            lip->yySkipn(length);
             /* Expand the content of the special comment as real code */
             lip->set_echo(TRUE);
             state=MY_LEX_START;
@@ -1563,7 +1693,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       }
       break;
     case MY_LEX_USER_END:		// end '@' of user@hostname
-      switch (state_map[lip->yyPeek()]) {
+      switch (state_map[(uchar) lip->yyPeek()]) {
       case MY_LEX_STRING:
       case MY_LEX_USER_VARIABLE_DELIMITER:
       case MY_LEX_STRING_OR_DELIMITER:
@@ -1588,7 +1718,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       yylval->lex_str.str=(char*) lip->get_ptr();
       yylval->lex_str.length=1;
       lip->yySkip();                                    // Skip '@'
-      lip->next_state= (state_map[lip->yyPeek()] ==
+      lip->next_state= (state_map[(uchar) lip->yyPeek()] ==
 			MY_LEX_USER_VARIABLE_DELIMITER ?
 			MY_LEX_OPERATOR_OR_IDENT :
 			MY_LEX_IDENT_OR_KEYWORD);
@@ -1600,7 +1730,8 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 	[(global | local | session) .]variable_name
       */
 
-      for (result_state= 0; ident_map[c= lip->yyGet()]; result_state|= c) ;
+      for (result_state= 0; ident_map[c= lip->yyGet()]; result_state|= c)
+        ;
       /* If there were non-ASCII characters, mark that we must convert */
       result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
 
@@ -1705,7 +1836,7 @@ void st_select_lex_node::init_query()
   options= 0;
   sql_cache= SQL_CACHE_UNSPECIFIED;
   linkage= UNSPECIFIED_TYPE;
-  no_error= no_table_names_allowed= 0;
+  no_table_names_allowed= 0;
   uncacheable= 0;
 }
 
@@ -1730,6 +1861,8 @@ void st_select_lex_unit::init_query()
   item_list.empty();
   describe= 0;
   found_rows_for_union= 0;
+  insert_table_with_stored_vcol= 0;
+  derived= 0;
 }
 
 void st_select_lex::init_query()
@@ -1738,13 +1871,14 @@ void st_select_lex::init_query()
   table_list.empty();
   top_join_list.empty();
   join_list= &top_join_list;
-  embedding= leaf_tables= 0;
+  embedding= 0;
+  leaf_tables_prep.empty();
+  leaf_tables.empty();
   item_list.empty();
   join= 0;
   having= prep_having= where= prep_where= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
   having_fix_field= 0;
-  group_fix_field= 0;
   context.select_lex= this;
   context.init();
   /*
@@ -1774,6 +1908,8 @@ void st_select_lex::init_query()
   exclude_from_table_unique_test= no_wrap_view_item= FALSE;
   nest_level= 0;
   link_next= 0;
+  prep_leaf_list_state= UNINIT;
+  bzero((char*) expr_cache_may_be_used, sizeof(expr_cache_may_be_used));
   m_non_agg_field_used= false;
   m_agg_func_used= false;
 }
@@ -1781,6 +1917,8 @@ void st_select_lex::init_query()
 void st_select_lex::init_select()
 {
   st_select_lex_node::init_select();
+  sj_nests.empty();
+  sj_subselects.empty();
   group_list.empty();
   if (group_list_ptrs)
     group_list_ptrs->clear();
@@ -1805,11 +1943,14 @@ void st_select_lex::init_select()
   with_sum_func= 0;
   is_correlated= 0;
   cur_pos_in_select_list= UNDEF_POS;
-  non_agg_fields.empty();
   cond_value= having_value= Item::COND_UNDEF;
   inner_refs_list.empty();
+  insert_tables= 0;
+  merged_into= 0;
   m_non_agg_field_used= false;
   m_agg_func_used= false;
+  name_visibility_map= 0;
+  join= 0;
 }
 
 /*
@@ -1826,6 +1967,31 @@ void st_select_lex_node::include_down(st_select_lex_node *upper)
   master= upper;
   slave= 0;
 }
+
+
+void st_select_lex_node::add_slave(st_select_lex_node *slave_arg)
+{
+  for (; slave; slave= slave->next)
+    if (slave == slave_arg)
+      return;
+
+  if (slave)
+  {
+    st_select_lex_node *slave_arg_slave= slave_arg->slave;
+    /* Insert in the front of list of slaves if any. */
+    slave_arg->include_neighbour(slave);
+    /* include_neighbour() sets slave_arg->slave=0, restore it. */
+    slave_arg->slave= slave_arg_slave;
+    /* Count on include_neighbour() setting the master. */
+    DBUG_ASSERT(slave_arg->master == this);
+  }
+  else
+  {
+    slave= slave_arg;
+    slave_arg->master= this;
+  }
+}
+
 
 /*
   include on level down (but do not link)
@@ -1878,17 +2044,29 @@ void st_select_lex_node::fast_exclude()
   
 }
 
+
 /*
-  excluding select_lex structure (except first (first select can't be
+  Exclude a node from the tree lex structure, but leave it in the global
+  list of nodes.
+*/
+
+void st_select_lex_node::exclude_from_tree()
+{
+  if ((*prev= next))
+    next->prev= prev;
+}
+
+
+/*
+  Exclude select_lex structure (except first (first select can't be
   deleted, because it is most upper select))
 */
 void st_select_lex_node::exclude()
 {
-  //exclude from global list
+  /* exclude from global list */
   fast_exclude();
-  //exclude from other structures
-  if ((*prev= next))
-    next->prev= prev;
+  /* exclude from other structures */
+  exclude_from_tree();
   /* 
      We do not need following statements, because prev pointer of first 
      list element point to master->slave
@@ -1980,39 +2158,51 @@ void st_select_lex_unit::exclude_tree()
   this to 'last' as dependent
 
   SYNOPSIS
-    last - pointer to last st_select_lex struct, before wich all 
+    last - pointer to last st_select_lex struct, before which all 
            st_select_lex have to be marked as dependent
 
   NOTE
     'last' should be reachable from this st_select_lex_node
 */
 
-void st_select_lex::mark_as_dependent(st_select_lex *last)
+bool st_select_lex::mark_as_dependent(THD *thd, st_select_lex *last,
+                                      Item *dependency)
 {
+
+  DBUG_ASSERT(this != last);
+
   /*
     Mark all selects from resolved to 1 before select where was
     found table as depended (of select where was found table)
   */
-  for (SELECT_LEX *s= this;
-       s && s != last;
-       s= s->outer_select())
-    if (!(s->uncacheable & UNCACHEABLE_DEPENDENT))
+  SELECT_LEX *s= this;
+  do
+  {
+    if (!(s->uncacheable & UNCACHEABLE_DEPENDENT_GENERATED))
     {
       // Select is dependent of outer select
       s->uncacheable= (s->uncacheable & ~UNCACHEABLE_UNITED) |
-                       UNCACHEABLE_DEPENDENT;
+                       UNCACHEABLE_DEPENDENT_GENERATED;
       SELECT_LEX_UNIT *munit= s->master_unit();
       munit->uncacheable= (munit->uncacheable & ~UNCACHEABLE_UNITED) |
-                       UNCACHEABLE_DEPENDENT;
+                       UNCACHEABLE_DEPENDENT_GENERATED;
       for (SELECT_LEX *sl= munit->first_select(); sl ; sl= sl->next_select())
       {
         if (sl != s &&
-            !(sl->uncacheable & (UNCACHEABLE_DEPENDENT | UNCACHEABLE_UNITED)))
+            !(sl->uncacheable & (UNCACHEABLE_DEPENDENT_GENERATED |
+                                 UNCACHEABLE_UNITED)))
           sl->uncacheable|= UNCACHEABLE_UNITED;
       }
     }
+
+    Item_subselect *subquery_expr= s->master_unit()->item;
+    if (subquery_expr && subquery_expr->mark_as_dependent(thd, last, 
+                                                          dependency))
+      return TRUE;
+  } while ((s= s->outer_select()) != last && s != 0);
   is_correlated= TRUE;
   this->master_unit()->item->is_correlated= TRUE;
+  return FALSE;
 }
 
 bool st_select_lex_node::set_braces(bool value)      { return 1; }
@@ -2147,7 +2337,7 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
   order_group_num*= 2;
 
   /*
-    We have to create array in prepared statement memory if it is
+    We have to create array in prepared statement memory if it is a
     prepared statement
   */
   Query_arena *arena= thd->stmt_arena;
@@ -2167,7 +2357,10 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
       If we need a bigger array, we must allocate a new one.
     */
     if (ref_pointer_array_size >= n_elems)
+    {
+      DBUG_PRINT("info", ("reusing old ref_array"));
       return false;
+    }
   }
   ref_pointer_array= static_cast<Item**>(arena->alloc(sizeof(Item*) * n_elems));
   if (ref_pointer_array != NULL)
@@ -2218,9 +2411,27 @@ void st_select_lex::print_order(String *str,
   {
     if (order->counter_used)
     {
-      char buffer[20];
-      size_t length= my_snprintf(buffer, 20, "%d", order->counter);
-      str->append(buffer, (uint) length);
+      if (query_type != QT_VIEW_INTERNAL)
+      {
+        char buffer[20];
+        size_t length= my_snprintf(buffer, 20, "%d", order->counter);
+        str->append(buffer, (uint) length);
+      }
+      else
+      {
+        /* replace numeric reference with expression */
+        if (order->item[0]->type() == Item::INT_ITEM &&
+            order->item[0]->basic_const_item())
+        {
+          char buffer[20];
+          size_t length= my_snprintf(buffer, 20, "%d", order->counter);
+          str->append(buffer, (uint) length);
+          /* make it expression instead of integer constant */
+          str->append(STRING_WITH_LEN("+0"));
+        }
+        else
+          (*order->item)->print(str, query_type);
+      }
     }
     else
       (*order->item)->print(str, query_type);
@@ -2238,16 +2449,17 @@ void st_select_lex::print_limit(THD *thd,
 {
   SELECT_LEX_UNIT *unit= master_unit();
   Item_subselect *item= unit->item;
-  if (item && unit->global_parameters == this &&
-      (item->substype() == Item_subselect::EXISTS_SUBS ||
-       item->substype() == Item_subselect::IN_SUBS ||
-       item->substype() == Item_subselect::ALL_SUBS))
-  {
-    DBUG_ASSERT(!item->fixed ||
-                (select_limit->val_int() == LL(1) && offset_limit == 0));
-    return;
-  }
 
+  if (item && unit->global_parameters == this)
+  {
+    Item_subselect::subs_type subs_type= item->substype();
+    if (subs_type == Item_subselect::EXISTS_SUBS ||
+        subs_type == Item_subselect::IN_SUBS ||
+        subs_type == Item_subselect::ALL_SUBS)
+    {
+      return;
+    }
+  }
   if (explicit_limit)
   {
     str->append(STRING_WITH_LEN(" limit "));
@@ -2259,6 +2471,7 @@ void st_select_lex::print_limit(THD *thd,
     select_limit->print(str, query_type);
   }
 }
+
 
 /**
   @brief Restore the LEX and THD in case of a parse error.
@@ -2376,15 +2589,16 @@ void Query_tables_list::destroy_query_tables_list()
 */
 
 LEX::LEX()
-  :result(0), option_type(OPT_DEFAULT), is_lex_started(0)
+  :result(0), option_type(OPT_DEFAULT), is_lex_started(0),
+   limit_rows_examined_cnt(ULONGLONG_MAX)
 {
 
   my_init_dynamic_array2(&plugins, sizeof(plugin_ref),
                          plugins_static_buffer,
                          INITIAL_LEX_PLUGIN_LIST_SIZE, 
                          INITIAL_LEX_PLUGIN_LIST_SIZE);
-  memset(&mi, 0, sizeof(LEX_MASTER_INFO));
   reset_query_tables_list(TRUE);
+  mi.init();
 }
 
 
@@ -2411,7 +2625,9 @@ bool LEX::can_be_merged()
   // TODO: do not forget implement case when select_lex.table_list.elements==0
 
   /* find non VIEW subqueries/unions */
-  bool selects_allow_merge= select_lex.next_select() == 0;
+  bool selects_allow_merge= (select_lex.next_select() == 0 &&
+                             !(select_lex.uncacheable &
+                               UNCACHEABLE_RAND));
   if (selects_allow_merge)
   {
     for (SELECT_LEX_UNIT *tmp_unit= select_lex.first_inner_unit();
@@ -2700,7 +2916,7 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
 
       DBUG_ASSERT(fix_fields_successful);
     }
-    val= fix_fields_successful ? item->val_uint() : HA_POS_ERROR;
+    val= fix_fields_successful ? item->val_uint() : 0;
   }
   else
     val= ULL(0);
@@ -2743,6 +2959,7 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
 void LEX::set_trg_event_type_for_tables()
 {
   uint8 new_trg_event_map= 0;
+  DBUG_ENTER("LEX::set_trg_event_type_for_tables");
 
   /*
     Some auxiliary operations
@@ -2862,6 +3079,7 @@ void LEX::set_trg_event_type_for_tables()
       tables->trg_event_map= new_trg_event_map;
     tables= tables->next_local;
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3018,6 +3236,7 @@ void LEX::cleanup_after_one_table_open()
   if (all_selects_list != &select_lex)
   {
     derived_tables= 0;
+    select_lex.exclude_from_table_unique_test= false;
     /* cleunup underlying units (units of VIEW) */
     for (SELECT_LEX_UNIT *un= select_lex.first_inner_unit();
          un;
@@ -3107,12 +3326,16 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
 {
   for (; tbl; tbl= tbl->next_local)
   {
-    if (tbl->on_expr)
+    if (tbl->on_expr && !tbl->prep_on_expr)
     {
-      tbl->prep_on_expr= tbl->on_expr;
+      thd->check_and_register_item_tree(&tbl->prep_on_expr, &tbl->on_expr);
       tbl->on_expr= tbl->on_expr->copy_andor_structure(thd);
     }
-    fix_prepare_info_in_table_list(thd, tbl->merge_underlying_list);
+    if (tbl->is_view_or_derived() && tbl->is_merged_derived())
+    {
+      SELECT_LEX *sel= tbl->get_single_select();
+      fix_prepare_info_in_table_list(thd, sel->get_table_list());
+    }
   }
 }
 
@@ -3140,6 +3363,7 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
 void st_select_lex::fix_prepare_information(THD *thd, Item **conds, 
                                             Item **having_conds)
 {
+  DBUG_ENTER("st_select_lex::fix_prepare_information");
   if (!thd->stmt_arena->is_conventional() && first_execution)
   {
     first_execution= 0;
@@ -3158,35 +3382,17 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
     }
     if (*conds)
     {
-      /*
-        In "WHERE outer_field", *conds may be an Item_outer_ref allocated in
-        the execution memroot.
-        @todo change this line in WL#7082. Currently, when we execute a SP,
-        containing "SELECT (SELECT ... WHERE t1.col) FROM t1",
-        resolution may make *conds equal to an Item_outer_ref, then below
-        *conds becomes Item_field, which then goes straight on to execution,
-        undoing the effects of putting Item_outer_ref in the first place...
-        With a PS the problem is not as severe, as after the code below we
-        don't go to execution: a next execution will do a new name resolution
-        which will create Item_outer_ref again.
-
-        To reviewers: in WL#7082,
-        prep_where= (*conds)->real_item();
-        becomes:
-        prep_where= *conds;
-        thd->change_item_tree_place(conds, &prep_where);
-        and same for HAVING.
-      */
-      prep_where= (*conds)->real_item();
+      thd->check_and_register_item_tree(&prep_where, conds);
       *conds= where= prep_where->copy_andor_structure(thd);
     }
     if (*having_conds)
     {
-      prep_having= *having_conds;
+      thd->check_and_register_item_tree(&prep_having, having_conds);
       *having_conds= having= prep_having->copy_andor_structure(thd);
     }
     fix_prepare_info_in_table_list(thd, table_list.first);
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3261,6 +3467,799 @@ bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
                                             str, length));
 }
 
+
+/**
+  Optimize all subqueries that have not been flattened into semi-joins.
+
+  @details
+  This functionality is a method of SELECT_LEX instead of JOIN because
+  SQL statements as DELETE/UPDATE do not have a corresponding JOIN object.
+
+  @see JOIN::optimize_unflattened_subqueries
+
+  @param const_only  Restrict subquery optimization to constant subqueries
+
+  @return Operation status
+  @retval FALSE     success.
+  @retval TRUE      error occurred.
+*/
+
+bool st_select_lex::optimize_unflattened_subqueries(bool const_only)
+{
+  SELECT_LEX_UNIT *next_unit= NULL;
+  for (SELECT_LEX_UNIT *un= first_inner_unit();
+       un;
+       un= next_unit ? next_unit : un->next_unit())
+  {
+    Item_subselect *subquery_predicate= un->item;
+    next_unit= NULL;
+
+    if (subquery_predicate)
+    {
+      if (!subquery_predicate->fixed)
+      {
+	/*
+	 This subquery was excluded as part of some expression so it is
+	 invisible from all prepared expression.
+       */
+	next_unit= un->next_unit();
+	un->exclude_level();
+	if (next_unit)
+	  continue;
+	break;
+      }
+      if (subquery_predicate->substype() == Item_subselect::IN_SUBS)
+      {
+        Item_in_subselect *in_subs= (Item_in_subselect*) subquery_predicate;
+        if (in_subs->is_jtbm_merged)
+          continue;
+      }
+
+      if (const_only && !subquery_predicate->const_item())
+      {
+        /* Skip non-constant subqueries if the caller asked so. */
+        continue;
+      }
+
+      bool empty_union_result= true;
+      bool is_correlated_unit= false;
+      /*
+        If the subquery is a UNION, optimize all the subqueries in the UNION. If
+        there is no UNION, then the loop will execute once for the subquery.
+      */
+      for (SELECT_LEX *sl= un->first_select(); sl; sl= sl->next_select())
+      {
+        JOIN *inner_join= sl->join;
+        if (!inner_join)
+          continue;
+        SELECT_LEX *save_select= un->thd->lex->current_select;
+        ulonglong save_options;
+        int res;
+        /* We need only 1 row to determine existence */
+        un->set_limit(un->global_parameters);
+        un->thd->lex->current_select= sl;
+        save_options= inner_join->select_options;
+        if (options & SELECT_DESCRIBE)
+        {
+          /* Optimize the subquery in the context of EXPLAIN. */
+          sl->set_explain_type();
+          sl->options|= SELECT_DESCRIBE;
+          inner_join->select_options|= SELECT_DESCRIBE;
+        }
+        res= inner_join->optimize();
+        sl->update_correlated_cache();
+        is_correlated_unit|= sl->is_correlated;
+        inner_join->select_options= save_options;
+        un->thd->lex->current_select= save_select;
+        if (empty_union_result)
+        {
+          /*
+            If at least one subquery in a union is non-empty, the UNION result
+            is non-empty. If there is no UNION, the only subquery is non-empy.
+          */
+          empty_union_result= inner_join->empty_result();
+        }
+        if (res)
+          return TRUE;
+      }
+      if (empty_union_result)
+        subquery_predicate->no_rows_in_result();
+      if (!is_correlated_unit)
+        un->uncacheable&= ~UNCACHEABLE_DEPENDENT;
+      subquery_predicate->is_correlated= is_correlated_unit;
+    }
+  }
+  return FALSE;
+}
+
+
+
+/**
+  @brief Process all derived tables/views of the SELECT.
+
+  @param lex    LEX of this thread
+  @param phase  phases to run derived tables/views through
+
+  @details
+  This function runs specified 'phases' on all tables from the
+  table_list of this select.
+
+  @return FALSE ok.
+  @return TRUE an error occur.
+*/
+
+bool st_select_lex::handle_derived(LEX *lex, uint phases)
+{
+  for (TABLE_LIST *cursor= (TABLE_LIST*) table_list.first;
+       cursor;
+       cursor= cursor->next_local)
+  {
+    if (cursor->is_view_or_derived() && cursor->handle_derived(lex, phases))
+      return TRUE;
+  }
+  return FALSE;
+}
+
+
+/**
+  @brief
+  Returns first unoccupied table map and table number
+
+  @param map     [out] return found map
+  @param tablenr [out] return found tablenr
+
+  @details
+  Returns first unoccupied table map and table number in this select.
+  Map and table are returned in *'map' and *'tablenr' accordingly.
+
+  @retrun TRUE  no free table map/table number
+  @return FALSE found free table map/table number
+*/
+
+bool st_select_lex::get_free_table_map(table_map *map, uint *tablenr)
+{
+  *map= 0;
+  *tablenr= 0;
+  TABLE_LIST *tl;
+  List_iterator<TABLE_LIST> ti(leaf_tables);
+  while ((tl= ti++))
+  {
+    if (tl->table->map > *map)
+      *map= tl->table->map;
+    if (tl->table->tablenr > *tablenr)
+      *tablenr= tl->table->tablenr;
+  }
+  (*map)<<= 1;
+  (*tablenr)++;
+  if (*tablenr >= MAX_TABLES)
+    return TRUE;
+  return FALSE;
+}
+
+
+/**
+  @brief
+  Append given table to the leaf_tables list.
+
+  @param link  Offset to which list in table structure to use
+  @param table Table to append
+
+  @details
+  Append given 'table' to the leaf_tables list using the 'link' offset.
+  If the 'table' is linked with other tables through next_leaf/next_local
+  chains then whole list will be appended.
+*/
+
+void st_select_lex::append_table_to_list(TABLE_LIST *TABLE_LIST::*link,
+                                         TABLE_LIST *table)
+{
+  TABLE_LIST *tl;
+  for (tl= leaf_tables.head(); tl->*link; tl= tl->*link) ;
+  tl->*link= table;
+}
+
+
+/*
+  @brief
+  Replace given table from the leaf_tables list for a list of tables 
+
+  @param table Table to replace
+  @param list  List to substititute the table for
+
+  @details
+  Replace 'table' from the leaf_tables list for a list of tables 'tbl_list'.
+*/
+
+void st_select_lex::replace_leaf_table(TABLE_LIST *table, List<TABLE_LIST> &tbl_list)
+{
+  TABLE_LIST *tl;
+  List_iterator<TABLE_LIST> ti(leaf_tables);
+  while ((tl= ti++))
+  {
+    if (tl == table)
+    {
+      ti.replace(tbl_list);
+      break;
+    }
+  }
+}
+
+
+/**
+  @brief
+  Assigns new table maps to tables in the leaf_tables list
+
+  @param derived    Derived table to take initial table map from
+  @param map        table map to begin with
+  @param tablenr    table number to begin with
+  @param parent_lex new parent select_lex
+
+  @details
+  Assign new table maps/table numbers to all tables in the leaf_tables list.
+  'map'/'tablenr' are used for the first table and shifted to left/
+  increased for each consequent table in the leaf_tables list.
+  If the 'derived' table is given then it's table map/number is used for the
+  first table in the list and 'map'/'tablenr' are used for the second and
+  all consequent tables.
+  The 'parent_lex' is set as the new parent select_lex for all tables in the
+  list.
+*/
+
+void st_select_lex::remap_tables(TABLE_LIST *derived, table_map map,
+                                 uint tablenr, SELECT_LEX *parent_lex)
+{
+  bool first_table= TRUE;
+  TABLE_LIST *tl;
+  table_map first_map;
+  uint first_tablenr;
+
+  if (derived && derived->table)
+  {
+    first_map= derived->table->map;
+    first_tablenr= derived->table->tablenr;
+  }
+  else
+  {
+    first_map= map;
+    map<<= 1;
+    first_tablenr= tablenr++;
+  }
+  /*
+    Assign table bit/table number.
+    To the first table of the subselect the table bit/tablenr of the
+    derived table is assigned. The rest of tables are getting bits
+    sequentially, starting from the provided table map/tablenr.
+  */
+  List_iterator<TABLE_LIST> ti(leaf_tables);
+  while ((tl= ti++))
+  {
+    if (first_table)
+    {
+      first_table= FALSE;
+      tl->table->set_table_map(first_map, first_tablenr);
+    }
+    else
+    {
+      tl->table->set_table_map(map, tablenr);
+      tablenr++;
+      map<<= 1;
+    }
+    SELECT_LEX *old_sl= tl->select_lex;
+    tl->select_lex= parent_lex;
+    for(TABLE_LIST *emb= tl->embedding;
+        emb && emb->select_lex == old_sl;
+        emb= emb->embedding)
+      emb->select_lex= parent_lex;
+  }
+}
+
+/**
+  @brief
+  Merge a subquery into this select.
+
+  @param derived     derived table of the subquery to be merged
+  @param subq_select select_lex of the subquery
+  @param map         table map for assigning to merged tables from subquery
+  @param table_no    table number for assigning to merged tables from subquery
+
+  @details
+  This function merges a subquery into its parent select. In short the
+  merge operation appends the subquery FROM table list to the parent's
+  FROM table list. In more details:
+    .) the top_join_list of the subquery is wrapped into a join_nest
+       and attached to 'derived'
+    .) subquery's leaf_tables list  is merged with the leaf_tables
+       list of this select_lex
+    .) the table maps and table numbers of the tables merged from
+       the subquery are adjusted to reflect their new binding to
+       this select
+
+  @return TRUE  an error occur
+  @return FALSE ok
+*/
+
+bool SELECT_LEX::merge_subquery(THD *thd, TABLE_LIST *derived,
+                                SELECT_LEX *subq_select,
+                                uint table_no, table_map map)
+{
+  derived->wrap_into_nested_join(subq_select->top_join_list);
+
+  ftfunc_list->concat(subq_select->ftfunc_list);
+  if (join ||
+      thd->lex->sql_command == SQLCOM_UPDATE_MULTI ||
+      thd->lex->sql_command == SQLCOM_DELETE_MULTI)
+  {
+    List_iterator_fast<Item_in_subselect> li(subq_select->sj_subselects);
+    Item_in_subselect *in_subq;
+    while ((in_subq= li++))
+    {
+      sj_subselects.push_back(in_subq);
+      if (in_subq->emb_on_expr_nest == NO_JOIN_NEST)
+         in_subq->emb_on_expr_nest= derived;
+    }
+  }
+
+  /* Walk through child's tables and adjust table map, tablenr,
+   * parent_lex */
+  subq_select->remap_tables(derived, map, table_no, this);
+  subq_select->merged_into= this;
+
+  replace_leaf_table(derived, subq_select->leaf_tables);
+
+  return FALSE;
+}
+
+
+/**
+  @brief
+  Mark tables from the leaf_tables list as belong to a derived table.
+
+  @param derived   tables will be marked as belonging to this derived
+
+  @details
+  Run through the leaf_list and mark all tables as belonging to the 'derived'.
+*/
+
+void SELECT_LEX::mark_as_belong_to_derived(TABLE_LIST *derived)
+{
+  /* Mark tables as belonging to this DT */
+  TABLE_LIST *tl;
+  List_iterator<TABLE_LIST> ti(leaf_tables);
+  while ((tl= ti++))
+    tl->belong_to_derived= derived;
+}
+
+
+/**
+  @brief
+  Update used_tables cache for this select
+
+  @details
+  This function updates used_tables cache of ON expressions of all tables
+  in the leaf_tables list and of the conds expression (if any).
+*/
+
+void SELECT_LEX::update_used_tables()
+{
+  TABLE_LIST *tl;
+  List_iterator<TABLE_LIST> ti(leaf_tables);
+
+  while ((tl= ti++))
+  {
+    if (tl->table && !tl->is_view_or_derived())
+    {
+      TABLE_LIST *embedding= tl->embedding;
+      for (embedding= tl->embedding; embedding; embedding=embedding->embedding)
+      {
+        if (embedding->is_view_or_derived())
+	{
+          DBUG_ASSERT(embedding->is_merged_derived());
+          TABLE *tab= tl->table;
+          tab->covering_keys= tab->s->keys_for_keyread;
+          tab->covering_keys.intersect(tab->keys_in_use_for_query);
+          tab->merge_keys.clear_all();
+          bitmap_clear_all(tab->read_set);
+          bitmap_clear_all(tab->vcol_set);
+          break;
+        }
+      }
+    }
+  }
+
+  ti.rewind();
+  while ((tl= ti++))
+  {
+    TABLE_LIST *embedding= tl;
+    do
+    {
+      bool maybe_null;
+      if ((maybe_null= test(embedding->outer_join)))
+      {
+	tl->table->maybe_null= maybe_null;
+        break;
+      }
+    }
+    while ((embedding= embedding->embedding));
+    if (tl->on_expr)
+    {
+      tl->on_expr->update_used_tables();
+      tl->on_expr->walk(&Item::eval_not_null_tables, 0, NULL);
+    }
+    /*
+      - There is no need to check sj_on_expr, because merged semi-joins inject
+        sj_on_expr into the parent's WHERE clase.
+      - For non-merged semi-joins (aka JTBMs), we need to check their
+        left_expr. There is no need to check the rest of the subselect, we know
+        it is uncorrelated and so cannot refer to any tables in this select.
+    */
+    if (tl->jtbm_subselect)
+    {
+      Item *left_expr= tl->jtbm_subselect->left_expr;
+      left_expr->walk(&Item::update_table_bitmaps_processor, FALSE, NULL);
+    }
+
+    embedding= tl->embedding;
+    while (embedding)
+    {
+      if (embedding->on_expr && 
+          embedding->nested_join->join_list.head() == tl)
+      {
+        embedding->on_expr->update_used_tables();
+        embedding->on_expr->walk(&Item::eval_not_null_tables, 0, NULL);
+      }
+      tl= embedding;
+      embedding= tl->embedding;
+    }
+  }
+
+  if (join->conds)
+  {
+    join->conds->update_used_tables();
+    join->conds->walk(&Item::eval_not_null_tables, 0, NULL);
+  }
+  if (join->having)
+  {
+    join->having->update_used_tables();
+  }
+
+  Item *item;
+  List_iterator_fast<Item> it(join->fields_list);
+  while ((item= it++))
+  {
+    item->update_used_tables();
+  }
+  Item_outer_ref *ref;
+  List_iterator_fast<Item_outer_ref> ref_it(inner_refs_list);
+  while ((ref= ref_it++))
+  {
+    item= ref->outer_ref;
+    item->update_used_tables();
+  }
+  for (ORDER *order= group_list.first; order; order= order->next)
+    (*order->item)->update_used_tables();
+  if (!master_unit()->is_union() || master_unit()->global_parameters != this)
+  {
+    for (ORDER *order= order_list.first; order; order= order->next)
+      (*order->item)->update_used_tables();
+  }
+  join->result->update_used_tables();
+}
+
+
+/**
+  @brief
+  Update is_correlated cache for this select
+
+  @details
+*/
+
+void st_select_lex::update_correlated_cache()
+{
+  TABLE_LIST *tl;
+  List_iterator<TABLE_LIST> ti(leaf_tables);
+
+  is_correlated= false;
+
+  while ((tl= ti++))
+  {
+    if (tl->on_expr)
+      is_correlated|= test(tl->on_expr->used_tables() & OUTER_REF_TABLE_BIT);
+    for (TABLE_LIST *embedding= tl->embedding ; embedding ;
+         embedding= embedding->embedding)
+    {
+      if (embedding->on_expr)
+        is_correlated|= test(embedding->on_expr->used_tables() &
+                            OUTER_REF_TABLE_BIT);
+    }
+  }
+
+  if (join->conds)
+    is_correlated|= test(join->conds->used_tables() & OUTER_REF_TABLE_BIT);
+
+  if (join->having)
+    is_correlated|= test(join->having->used_tables() & OUTER_REF_TABLE_BIT);
+
+  if (join->tmp_having)
+    is_correlated|= test(join->tmp_having->used_tables() & OUTER_REF_TABLE_BIT);
+
+  Item *item;
+  List_iterator_fast<Item> it(join->fields_list);
+  while ((item= it++))
+    is_correlated|= test(item->used_tables() & OUTER_REF_TABLE_BIT);
+
+  for (ORDER *order= group_list.first; order; order= order->next)
+    is_correlated|= test((*order->item)->used_tables() & OUTER_REF_TABLE_BIT);
+
+  if (!master_unit()->is_union())
+  {
+    for (ORDER *order= order_list.first; order; order= order->next)
+      is_correlated|= test((*order->item)->used_tables() & OUTER_REF_TABLE_BIT);
+  }
+
+  if (!is_correlated)
+    uncacheable&= ~UNCACHEABLE_DEPENDENT;
+}
+
+
+/**
+  Set the EXPLAIN type for this subquery.
+*/
+
+void st_select_lex::set_explain_type()
+{
+  bool is_primary= FALSE;
+  if (next_select())
+    is_primary= TRUE;
+
+  if (!is_primary && first_inner_unit())
+  {
+    /*
+      If there is at least one materialized derived|view then it's a PRIMARY select.
+      Otherwise, all derived tables/views were merged and this select is a SIMPLE one.
+    */
+    for (SELECT_LEX_UNIT *un= first_inner_unit(); un; un= un->next_unit())
+    {
+      if ((!un->derived || un->derived->is_materialized_derived()))
+      {
+        is_primary= TRUE;
+        break;
+      }
+    }
+  }
+
+  SELECT_LEX *first= master_unit()->first_select();
+  /* drop UNCACHEABLE_EXPLAIN, because it is for internal usage only */
+  uint8 is_uncacheable= (uncacheable & ~UNCACHEABLE_EXPLAIN);
+  
+  bool using_materialization= FALSE;
+  Item_subselect *parent_item;
+  if ((parent_item= master_unit()->item) &&
+      parent_item->substype() == Item_subselect::IN_SUBS)
+  {
+    Item_in_subselect *in_subs= (Item_in_subselect*)parent_item;
+    /*
+      Surprisingly, in_subs->is_set_strategy() can return FALSE here,
+      even for the last invocation of this function for the select.
+    */
+    if (in_subs->test_strategy(SUBS_MATERIALIZATION))
+      using_materialization= TRUE;
+  }
+
+  if (&master_unit()->thd->lex->select_lex == this)
+  {
+     type= is_primary ? "PRIMARY" : "SIMPLE";
+  }
+  else
+  {
+    if (this == first)
+    {
+      /* If we're a direct child of a UNION, we're the first sibling there */
+      if (linkage == DERIVED_TABLE_TYPE)
+        type= "DERIVED";
+      else if (using_materialization)
+        type= "MATERIALIZED";
+      else
+      {
+         if (is_uncacheable & UNCACHEABLE_DEPENDENT)
+           type= "DEPENDENT SUBQUERY";
+         else
+         {
+           type= is_uncacheable? "UNCACHEABLE SUBQUERY" :
+                                 "SUBQUERY";
+         }
+      }
+    }
+    else
+    {
+      /* This a non-first sibling in UNION */
+      if (is_uncacheable & UNCACHEABLE_DEPENDENT)
+        type= "DEPENDENT UNION";
+      else if (using_materialization)
+        type= "MATERIALIZED UNION";
+      else
+      {
+        type= is_uncacheable ? "UNCACHEABLE UNION": "UNION";
+      }
+    }
+  }
+  options|= SELECT_DESCRIBE;
+}
+
+
+/**
+  @brief
+  Increase estimated number of records for a derived table/view
+
+  @param records  number of records to increase estimate by
+
+  @details
+  This function increases estimated number of records by the 'records'
+  for the derived table to which this select belongs to.
+*/
+
+void SELECT_LEX::increase_derived_records(ha_rows records)
+{
+  SELECT_LEX_UNIT *unit= master_unit();
+  DBUG_ASSERT(unit->derived);
+
+  select_union *result= (select_union*)unit->result;
+  result->records+= records;
+}
+
+
+/**
+  @brief
+  Mark select's derived table as a const one.
+
+  @param empty Whether select has an empty result set
+
+  @details
+  Mark derived table/view of this select as a constant one (to
+  materialize it at the optimization phase) unless this select belongs to a
+  union. Estimated number of rows is incremented if this select has non empty
+  result set.
+*/
+
+void SELECT_LEX::mark_const_derived(bool empty)
+{
+  TABLE_LIST *derived= master_unit()->derived;
+  if (!join->thd->lex->describe && derived)
+  {
+    if (!empty)
+      increase_derived_records(1);
+    if (!master_unit()->is_union() && !derived->is_merged_derived())
+      derived->fill_me= TRUE;
+  }
+}
+
+
+bool st_select_lex::save_leaf_tables(THD *thd)
+{
+  Query_arena *arena, backup;
+  arena= thd->activate_stmt_arena_if_needed(&backup);
+
+  List_iterator_fast<TABLE_LIST> li(leaf_tables);
+  TABLE_LIST *table;
+  while ((table= li++))
+  {
+    if (leaf_tables_exec.push_back(table))
+      return 1;
+    table->tablenr_exec= table->get_tablenr();
+    table->map_exec= table->get_map();
+    if (join && (join->select_options & SELECT_DESCRIBE))
+      table->maybe_null_exec= 0;
+    else
+      table->maybe_null_exec= table->table?  table->table->maybe_null: 0;
+  }
+  if (arena)
+    thd->restore_active_arena(arena, &backup);
+
+  return 0;
+}
+
+
+bool LEX::save_prep_leaf_tables()
+{
+  if (!thd->save_prep_leaf_list)
+    return FALSE;
+
+  Query_arena *arena= thd->stmt_arena, backup;
+  arena= thd->activate_stmt_arena_if_needed(&backup);
+  //It is used for DETETE/UPDATE so top level has only one SELECT
+  DBUG_ASSERT(select_lex.next_select() == NULL);
+  bool res= select_lex.save_prep_leaf_tables(thd);
+
+  if (arena)
+    thd->restore_active_arena(arena, &backup);
+
+  if (res)
+    return TRUE;
+
+  thd->save_prep_leaf_list= FALSE;
+  return FALSE;
+}
+
+
+bool st_select_lex::save_prep_leaf_tables(THD *thd)
+{
+  List_iterator_fast<TABLE_LIST> li(leaf_tables);
+  TABLE_LIST *table;
+
+  /*
+    Check that the SELECT_LEX was really prepared and so tables are setup.
+
+    It can be subquery in SET clause of UPDATE which was not prepared yet, so
+    its tables are not yet setup and ready for storing.
+  */
+  if (prep_leaf_list_state != READY)
+    return FALSE;
+
+  while ((table= li++))
+  {
+    if (leaf_tables_prep.push_back(table))
+      return TRUE;
+  }
+  prep_leaf_list_state= SAVED;
+  for (SELECT_LEX_UNIT *u= first_inner_unit(); u; u= u->next_unit())
+  {
+    for (SELECT_LEX *sl= u->first_select(); sl; sl= sl->next_select())
+    {
+      if (sl->save_prep_leaf_tables(thd))
+        return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+
+/*
+  Return true if this select_lex has been converted into a semi-join nest
+  within 'ancestor'.
+
+  We need a loop to check this because there could be several nested
+  subselects, like
+
+    SELECT ... FROM grand_parent 
+      WHERE expr1 IN (SELECT ... FROM parent 
+                        WHERE expr2 IN ( SELECT ... FROM child)
+
+  which were converted into:
+  
+    SELECT ... 
+    FROM grand_parent SEMI_JOIN (parent JOIN child) 
+    WHERE 
+      expr1 AND expr2
+
+  In this case, both parent and child selects were merged into the parent.
+*/
+
+bool st_select_lex::is_merged_child_of(st_select_lex *ancestor)
+{
+  bool all_merged= TRUE;
+  for (SELECT_LEX *sl= this; sl && sl!=ancestor;
+       sl=sl->outer_select())
+  {
+    Item *subs= sl->master_unit()->item;
+    if (subs && subs->type() == Item::SUBSELECT_ITEM && 
+        ((Item_subselect*)subs)->substype() == Item_subselect::IN_SUBS &&
+        ((Item_in_subselect*)subs)->test_strategy(SUBS_SEMI_JOIN))
+    {
+      continue;
+    }
+
+    if (sl->master_unit()->derived &&
+      sl->master_unit()->derived->is_merged_derived())
+    {
+      continue;
+    }
+    all_merged= FALSE;
+    break;
+  }
+  return all_merged;
+}
+
+
 /**
   A routine used by the parser to decide whether we are specifying a full
   partitioning or if only partitions to add or to split.
@@ -3278,7 +4277,6 @@ bool LEX::is_partition_management() const
           (alter_info.flags == ALTER_ADD_PARTITION ||
            alter_info.flags == ALTER_REORGANIZE_PARTITION));
 }
-
 
 #ifdef MYSQL_SERVER
 uint binlog_unsafe_map[256];

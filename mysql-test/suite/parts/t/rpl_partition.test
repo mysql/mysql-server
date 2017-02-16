@@ -1,6 +1,7 @@
 --source include/have_partition.inc
 --source include/have_innodb.inc
 --source include/master-slave.inc
+--source include/big_test.inc
 
 --vertical_results
 
@@ -139,11 +140,17 @@ delimiter ;|
 
 ############ Test Section ###################
 
+begin;
 CALL p1();
+commit;
 SELECT count(*) as "Master regular" FROM t1;
+begin;
 CALL p2();
+commit;
 SELECT count(*) as "Master bykey" FROM t2;
+begin;
 CALL p3();
+commit;
 SELECT count(*) as "Master byrange" FROM t3;
 
 --sync_slave_with_master

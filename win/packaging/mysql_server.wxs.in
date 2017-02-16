@@ -1,0 +1,89 @@
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" 
+      xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+  <Product 
+    Id="*" 
+    UpgradeCode="@CPACK_WIX_UPGRADE_CODE@"
+    Name="@CPACK_WIX_PACKAGE_NAME@" 
+    Version="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@.@TINY_VERSION@" 
+    Language="1033" 
+    Manufacturer="@MANUFACTURER@">
+    
+    <Package Id='*'
+       Keywords='Installer'
+       Description='MariaDB Server'
+       Manufacturer='@MANUFACTURER@'
+       InstallerVersion='200'
+       Languages='1033'
+       Compressed='yes'
+       SummaryCodepage='1252'
+       Platform='@Platform@'/>
+    
+    <Media Id='1' Cabinet='product.cab' EmbedCab='yes' CompressionLevel='high' />
+
+    <!-- Upgrade -->
+    <Upgrade Id="@CPACK_WIX_UPGRADE_CODE@">
+      <?if "@PATCH_VERSION@" != "0"?>
+      <UpgradeVersion 
+        Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.0"
+        IncludeMinimum="yes"
+        Maximum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@.@TINY_VERSION@"
+        IncludeMaximum="yes"
+        Property="OLDERVERSIONBEINGUPGRADED"
+        MigrateFeatures="yes"
+        />
+     <?endif?>
+      <UpgradeVersion 
+        Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@.@TINY_VERSION@"
+        Maximum="@MAJOR_VERSION@.@MINOR_VERSION@.999"
+        IncludeMinimum="no"
+        OnlyDetect="yes"
+        Property="NEWERVERSIONDETECTED" />
+    </Upgrade>
+    <Condition Message="A more recent version of [ProductName] is already installed. Setup will now exit.">
+      NOT NEWERVERSIONDETECTED OR Installed
+    </Condition>
+    <InstallExecuteSequence>
+      <RemoveExistingProducts After="InstallFinalize"/>
+    </InstallExecuteSequence>
+
+ 
+    <InstallUISequence>
+      <AppSearch After="FindRelatedProducts"/>
+    </InstallUISequence>
+    
+    <!-- UI -->
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"></Property>
+    <UIRef Id="WixUI_ErrorProgressText" />
+    <UIRef Id="@CPACK_WIX_UI@" />
+
+    
+    <!-- License -->
+    <WixVariable
+      Id="WixUILicenseRtf"
+      Value="@COPYING_RTF@"/>
+
+    <!-- Installation root-->
+    <Directory Id='TARGETDIR' Name='SourceDir'>
+      <Directory Id='@PlatformProgramFilesFolder@'>
+          <Directory Id='INSTALLDIR' Name='@CPACK_WIX_PACKAGE_BASE_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@'>
+          </Directory>
+      </Directory>
+    </Directory>
+    
+    <!-- CPACK_WIX_FEATURES -->
+    @CPACK_WIX_FEATURES@
+    
+    <!-- CPACK_WIX_DIRECTORIES -->
+    @CPACK_WIX_DIRECTORIES@
+    
+    <!--CPACK_WIX_COMPONENTS-->
+    @CPACK_WIX_COMPONENTS@
+    
+    <!--CPACK_WIX_COMPONENTS_GROUPS -->
+    @CPACK_WIX_COMPONENT_GROUPS@
+    
+    <!--CPACK_WIX_INCLUDES -->
+    @CPACK_WIX_INCLUDES@
+  </Product>
+
+</Wix>

@@ -1,0 +1,111 @@
+# Testing of feature statistics
+
+-- source include/have_geometry.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+show status like "feature%";
+
+--echo #
+--echo # Feature GIS
+--echo #
+
+CREATE TABLE t1 (g POINT);
+SHOW FIELDS FROM t1;
+INSERT INTO t1 VALUES
+    (PointFromText('POINT(10 10)')),
+    (PointFromText('POINT(20 10)')),
+    (PointFromText('POINT(20 20)')),
+    (PointFromWKB(AsWKB(PointFromText('POINT(10 20)'))));
+drop table t1;
+
+show status like "feature_gis";
+
+--echo #
+--echo # Feature dynamic columns
+--echo #
+set @a= COLUMN_CREATE(1, 1212 AS int);
+set @b= column_add(@a, 2, 1212 as integer);
+select column_get(@b, 2 as integer);
+
+show status like "feature_dynamic_columns";
+
+--echo #
+--echo # Feature fulltext
+--echo #
+
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) engine=myisam;
+INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
+                       ('Full-text indexes', 'are called collections'),
+                          ('Only MyISAM tables','support collections'),
+             ('Function MATCH ... AGAINST()','is used to do a search'),
+        ('Full-text search in MySQL', 'implements vector space model');
+select * from t1 where MATCH(a,b) AGAINST ("collections");
+select * from t1 where MATCH(a,b) AGAINST ("indexes");
+drop table t1;
+
+# We need the following when running with --ps-protocol
+--replace_result 4 2
+show status like "feature_fulltext";
+
+
+--echo #
+--echo # Feature locale
+--echo #
+
+SET lc_messages=sr_RS;
+SET lc_messages=en_US;
+show status like "feature_locale";
+
+--echo #
+--echo # Feature subquery
+--echo #
+
+select (select 2);
+SELECT (SELECT 1) UNION SELECT (SELECT 2);
+
+create table t1 (a int);
+insert into t1 values (2);
+select (select a from t1 where t1.a=t2.a), a from t1 as t2;
+drop table t1;
+--replace_result 8 4
+show status like "feature_subquery";
+
+--echo #
+--echo # Feature timezone
+--echo #
+
+SELECT FROM_UNIXTIME(unix_timestamp()) > "1970-01-01";
+set time_zone="+03:00";
+SELECT FROM_UNIXTIME(unix_timestamp()) > "1970-01-01";
+set time_zone= @@global.time_zone;
+show status like "feature_timezone";
+
+--echo #
+--echo # Feature triggers
+--echo #
+
+create table t1 (i int);
+--echo # let us test some very simple trigger
+create trigger trg before insert on t1 for each row set @a:=1;
+set @a:=0;
+select @a;
+insert into t1 values (1),(2);
+select @a;
+SHOW TRIGGERS IN test like 't1';
+drop trigger trg;
+drop table t1;
+
+show status like "%trigger%";
+
+--echo #
+--echo # Feature xml
+--echo #
+SET @xml='<a aa1="aa1" aa2="aa2">a1<b ba1="ba1">b1<c>c1</c>b2</b>a2</a>';
+SELECT extractValue(@xml,'/a');
+select updatexml('<div><div><span>1</span><span>2</span></div></div>',
+                 '/','<tr><td>1</td><td>2</td></tr>') as upd1;
+--replace_result 4 2
+show status like "feature_xml";

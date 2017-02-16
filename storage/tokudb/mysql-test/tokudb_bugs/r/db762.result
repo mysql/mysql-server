@@ -1,0 +1,7 @@
+drop table if exists t1,t2;
+create table t1 (x int) engine=innodb;
+lock table t1 read;
+create temporary table t2 (x int) engine=tokudb;
+insert into t2 values (1);
+unlock tables;
+drop table t1, t2;

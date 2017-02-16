@@ -1,4 +1,6 @@
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2004, 2010, Oracle and/or its affiliates
+   Copyright (c) 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,8 +23,17 @@
 
 #ifndef MAIN
 
-#ifdef __FreeBSD__
+static my_bool memcpy_and_test(uchar *to, uchar *from, uint len)
+{
+  uint i, res= 1;
 
+  for (i= 0; i < len; i++)
+    if ((*to++= *from++))
+      res= 0;
+  return res;
+}
+
+#if defined(__APPLE__) || defined(__FreeBSD__)
 #include <net/ethernet.h>
 #include <sys/sysctl.h>
 #include <net/route.h>
@@ -32,11 +43,10 @@
 my_bool my_gethwaddr(uchar *to)
 {
   size_t len;
-  char *buf, *next, *end;
+  uchar  *buf, *next, *end, *addr;
   struct if_msghdr *ifm;
   struct sockaddr_dl *sdl;
-  int res=1, mib[6]={CTL_NET, AF_ROUTE, 0, AF_LINK, NET_RT_IFLIST, 0};
-  char zero_array[ETHER_ADDR_LEN] = {0};
+  int res= 1, mib[6]= {CTL_NET, AF_ROUTE, 0, AF_LINK, NET_RT_IFLIST, 0};
 
   if (sysctl(mib, 6, NULL, &len, NULL, 0) == -1)
     goto err;
@@ -52,9 +62,9 @@ my_bool my_gethwaddr(uchar *to)
     ifm = (struct if_msghdr *)next;
     if (ifm->ifm_type == RTM_IFINFO)
     {
-      sdl= (struct sockaddr_dl *)(ifm + 1);
-      memcpy(to, LLADDR(sdl), ETHER_ADDR_LEN);
-      res= memcmp(to, zero_array, ETHER_ADDR_LEN) ? 0 : 1;
+      sdl = (struct sockaddr_dl *)(ifm + 1);
+      addr= (uchar *)LLADDR(sdl);
+      res= memcpy_and_test(to, addr, ETHER_ADDR_LEN);
     }
   }
 
@@ -62,140 +72,98 @@ err:
   return res;
 }
 
-#elif __linux__
-
+#elif defined(__linux__) || defined(__sun)
 #include <net/if.h>
 #include <sys/ioctl.h>
-#include <net/ethernet.h>
+#include <net/if_arp.h>
+#ifdef HAVE_SYS_SOCKIO_H
+#include <sys/sockio.h>
+#endif
+
+#define ETHER_ADDR_LEN 6
 
 my_bool my_gethwaddr(uchar *to)
 {
   int fd, res= 1;
-  struct ifreq ifr;
-  char zero_array[ETHER_ADDR_LEN] = {0};
+  struct ifreq ifr[32];
+  struct ifconf ifc;
+
+  ifc.ifc_req= ifr;
+  ifc.ifc_len= sizeof(ifr);
 
   fd = socket(AF_INET, SOCK_DGRAM, 0);
   if (fd < 0)
     goto err;
 
-  bzero(&ifr, sizeof(ifr));
-  strnmov(ifr.ifr_name, "eth0", sizeof(ifr.ifr_name) - 1);
-
-  do
+  if (ioctl(fd, SIOCGIFCONF, (char*)&ifc) >= 0)
   {
-    if (ioctl(fd, SIOCGIFHWADDR, &ifr) >= 0)
+    uint i;
+    for (i= 0; res && i < ifc.ifc_len / sizeof(ifr[0]); i++)
     {
-      memcpy(to, &ifr.ifr_hwaddr.sa_data, ETHER_ADDR_LEN);
-      res= memcmp(to, zero_array, ETHER_ADDR_LEN) ? 0 : 1;
+#ifdef __linux__
+      if (ioctl(fd, SIOCGIFHWADDR, &ifr[i]) >= 0)
+        res= memcpy_and_test(to, (uchar *)&ifr[i].ifr_hwaddr.sa_data,
+                             ETHER_ADDR_LEN);
+#else
+      /*
+        A bug in OpenSolaris used to prevent non-root from getting a mac address:
+        {no url. Oracle killed the old OpenSolaris bug database}
+
+        Thus, we'll use an alternative method and extract the address from the
+        arp table.
+      */
+      struct arpreq arpr;
+      arpr.arp_pa= ifr[i].ifr_addr;
+
+      if (ioctl(fd, SIOCGARP, (char*)&arpr) >= 0)
+        res= memcpy_and_test(to, (uchar *)&arpr.arp_ha.sa_data,
+                             ETHER_ADDR_LEN);
+#endif
     }
-  } while (res && (errno == 0 || errno == ENODEV) && ifr.ifr_name[3]++ < '6');
+  }
 
   close(fd);
 err:
   return res;
 }
 
-#elif defined(__WIN__)
-
-/*
-  Workaround for BUG#32082 (Definition of VOID in my_global.h conflicts with
-  windows headers)
-*/
-#ifdef VOID
-#undef VOID
-#define VOID void
-#endif
-
+#elif defined(_WIN32)
+#include <winsock2.h>
 #include <iphlpapi.h>
+#pragma comment(lib, "iphlpapi.lib")
 
-/*
-  The following typedef is for dynamically loading iphlpapi.dll /
-  GetAdaptersAddresses. Dynamic loading is used because
-  GetAdaptersAddresses is not available on Windows 2000 which MySQL
-  still supports. Static linking would cause an unresolved export.
-*/
-typedef DWORD (WINAPI *pfnGetAdaptersAddresses)(IN ULONG Family,
-    IN DWORD Flags,IN PVOID Reserved,
-    OUT PIP_ADAPTER_ADDRESSES pAdapterAddresses,
-    IN OUT PULONG pOutBufLen);
+#define ETHER_ADDR_LEN 6
 
-/*
-  my_gethwaddr - Windows version
-
-  @brief Retrieve MAC address from network hardware
-
-  @param[out]  to MAC address exactly six bytes
-
-  @return Operation status
-    @retval 0       OK
-    @retval <>0     FAILED
-*/
 my_bool my_gethwaddr(uchar *to)
 {
-  PIP_ADAPTER_ADDRESSES pAdapterAddresses;
-  PIP_ADAPTER_ADDRESSES pCurrAddresses;
-  IP_ADAPTER_ADDRESSES  adapterAddresses;
-  ULONG                 address_len;
-  my_bool               return_val= 1;
-  static pfnGetAdaptersAddresses fnGetAdaptersAddresses=
-                                (pfnGetAdaptersAddresses)-1;
+  my_bool res= 1;
 
-  if(fnGetAdaptersAddresses == (pfnGetAdaptersAddresses)-1)
+  IP_ADAPTER_INFO *info= NULL;
+  ULONG info_len= 0;
+
+  if (GetAdaptersInfo(info, &info_len) != ERROR_BUFFER_OVERFLOW)
+    goto err;
+
+  info= (IP_ADAPTER_INFO *)alloca(info_len);
+
+  if (GetAdaptersInfo(info, &info_len) != NO_ERROR)
+    goto err;
+
+  while (info && res)
   {
-    /* Get the function from the DLL */
-    fnGetAdaptersAddresses= (pfnGetAdaptersAddresses)
-                            GetProcAddress(LoadLibrary("iphlpapi.dll"),
-                                          "GetAdaptersAddresses");
-  }
-  if (!fnGetAdaptersAddresses)
-    return 1;                                   /* failed to get function */
-  address_len= sizeof (IP_ADAPTER_ADDRESSES);
-
-  /* Get the required size for the address data. */
-  if (fnGetAdaptersAddresses(AF_UNSPEC, 0, 0, &adapterAddresses, &address_len)
-      == ERROR_BUFFER_OVERFLOW)
-  {
-    pAdapterAddresses= my_malloc(address_len, 0);
-    if (!pAdapterAddresses)
-      return 1;                                   /* error, alloc failed */
-  }
-  else
-    pAdapterAddresses= &adapterAddresses;         /* one is enough don't alloc */
-
-  /* Get the hardware info. */
-  if (fnGetAdaptersAddresses(AF_UNSPEC, 0, 0, pAdapterAddresses, &address_len)
-      == NO_ERROR)
-  {
-    pCurrAddresses= pAdapterAddresses;
-
-    while (pCurrAddresses)
+    if (info->Type == MIB_IF_TYPE_ETHERNET &&
+        info->AddressLength == ETHER_ADDR_LEN)
     {
-      /* Look for ethernet cards. */
-      if (pCurrAddresses->IfType == IF_TYPE_ETHERNET_CSMACD)
-      {
-        /* check for a good address */
-        if (pCurrAddresses->PhysicalAddressLength < 6)
-            continue;                           /* bad address */
-
-        /* save 6 bytes of the address in the 'to' parameter */
-        memcpy(to, pCurrAddresses->PhysicalAddress, 6);
-
-        /* Network card found, we're done. */
-        return_val= 0;
-        break;
-      }
-      pCurrAddresses= pCurrAddresses->Next;
+      res= memcpy_and_test(to, info->Address, ETHER_ADDR_LEN);
     }
+    info = info->Next;
   }
 
-  /* Clean up memory allocation. */
-  if (pAdapterAddresses != &adapterAddresses)
-    my_free(pAdapterAddresses);
-
-  return return_val;
+err:
+  return res;
 }
 
-#else /* __FreeBSD__ || __linux__ || __WIN__ */
+#else /* unsupported system */
 /* just fail */
 my_bool my_gethwaddr(uchar *to __attribute__((unused)))
 {
@@ -214,7 +182,7 @@ int main(int argc __attribute__((unused)),char **argv)
     printf("my_gethwaddr failed with errno %d\n", errno);
     exit(1);
   }
-  for (i=0; i < sizeof(mac); i++)
+  for (i= 0; i < sizeof(mac); i++)
   {
     if (i) printf(":");
     printf("%02x", mac[i]);

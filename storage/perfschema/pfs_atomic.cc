@@ -61,6 +61,7 @@
   operation.
 */
 my_atomic_rwlock_t PFS_atomic::m_rwlock_array[256];
+static int init_done;
 
 void PFS_atomic::init(void)
 {
@@ -68,12 +69,14 @@ void PFS_atomic::init(void)
 
   for (i=0; i< array_elements(m_rwlock_array); i++)
     my_atomic_rwlock_init(&m_rwlock_array[i]);
+  init_done= 1;
 }
 
 void PFS_atomic::cleanup(void)
 {
   uint i;
-
+  if (!init_done)
+    return;
   for (i=0; i< array_elements(m_rwlock_array); i++)
     my_atomic_rwlock_destroy(&m_rwlock_array[i]);
 }

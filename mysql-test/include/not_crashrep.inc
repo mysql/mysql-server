@@ -22,3 +22,9 @@ EOF
 if ($crashrep) {
   --skip CrashReporter would popup a window
 }
+
+# the test will crash mysqld. flush tables now to make sure that
+# system tables aren't corrupted by the crash
+--disable_query_log ONCE
+FLUSH TABLES;
+

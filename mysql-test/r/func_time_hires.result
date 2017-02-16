@@ -1,0 +1,208 @@
+set time_zone='+03:00';
+set timestamp=unix_timestamp('2011-01-01 01:01:01.123456');
+select sec_to_time(12345), sec_to_time(12345.6789), sec_to_time(1234567e-2);
+sec_to_time(12345)	03:25:45
+sec_to_time(12345.6789)	03:25:45.6789
+sec_to_time(1234567e-2)	03:25:45.670000
+select now(), curtime(0), utc_timestamp(1), utc_time(2), current_time(3),
+current_timestamp(4), localtime(5), localtimestamp(6), time_to_sec('12:34:56'),
+time_to_sec('12:34:56.789');
+now()	2011-01-01 01:01:01
+curtime(0)	01:01:01
+utc_timestamp(1)	2010-12-31 22:01:01.1
+utc_time(2)	22:01:01.12
+current_time(3)	01:01:01.123
+current_timestamp(4)	2011-01-01 01:01:01.1234
+localtime(5)	2011-01-01 01:01:01.12345
+localtimestamp(6)	2011-01-01 01:01:01.123456
+time_to_sec('12:34:56')	45296
+time_to_sec('12:34:56.789')	45296.789
+select sec_to_time(time_to_sec('1:2:3')), sec_to_time(time_to_sec('2:3:4.567890'));
+sec_to_time(time_to_sec('1:2:3'))	01:02:03
+sec_to_time(time_to_sec('2:3:4.567890'))	02:03:04.56789
+select time_to_sec(sec_to_time(11111)), time_to_sec(sec_to_time(11111.22222));
+time_to_sec(sec_to_time(11111))	11111
+time_to_sec(sec_to_time(11111.22222))	11111.22222
+select current_timestamp(7);
+ERROR 42000: Too big precision 7 specified for 'now'. Maximum is 6.
+select curtime(7);
+ERROR 42000: Too big precision 7 specified for 'curtime'. Maximum is 6.
+drop table if exists t1;
+create table t1 select sec_to_time(12345), sec_to_time(12345.6789),
+sec_to_time(1234567e-2), now(), curtime(0),
+utc_timestamp(1), utc_time(2), current_time(3),
+current_timestamp(4), localtime(5), localtimestamp(6),
+time_to_sec(123456), time_to_sec('12:34:56.789');
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `sec_to_time(12345)` time DEFAULT NULL,
+  `sec_to_time(12345.6789)` time(4) DEFAULT NULL,
+  `sec_to_time(1234567e-2)` time(6) DEFAULT NULL,
+  `now()` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `curtime(0)` time NOT NULL DEFAULT '00:00:00',
+  `utc_timestamp(1)` datetime(1) NOT NULL DEFAULT '0000-00-00 00:00:00.0',
+  `utc_time(2)` time(2) NOT NULL DEFAULT '00:00:00.00',
+  `current_time(3)` time(3) NOT NULL DEFAULT '00:00:00.000',
+  `current_timestamp(4)` datetime(4) NOT NULL DEFAULT '0000-00-00 00:00:00.0000',
+  `localtime(5)` datetime(5) NOT NULL DEFAULT '0000-00-00 00:00:00.00000',
+  `localtimestamp(6)` datetime(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000',
+  `time_to_sec(123456)` bigint(17) DEFAULT NULL,
+  `time_to_sec('12:34:56.789')` decimal(19,3) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select * from t1;
+sec_to_time(12345)	03:25:45
+sec_to_time(12345.6789)	03:25:45.6789
+sec_to_time(1234567e-2)	03:25:45.670000
+now()	2011-01-01 01:01:01
+curtime(0)	01:01:01
+utc_timestamp(1)	2010-12-31 22:01:01.1
+utc_time(2)	22:01:01.12
+current_time(3)	01:01:01.123
+current_timestamp(4)	2011-01-01 01:01:01.1234
+localtime(5)	2011-01-01 01:01:01.12345
+localtimestamp(6)	2011-01-01 01:01:01.123456
+time_to_sec(123456)	45296
+time_to_sec('12:34:56.789')	45296.789
+drop table t1;
+select unix_timestamp('2011-01-01 01:01:01'), unix_timestamp('2011-01-01 01:01:01.123456'), unix_timestamp(cast('2011-01-01 01:01:01.123456' as datetime(0))), unix_timestamp(cast('2011-01-01 01:01:01.123456' as datetime(4)));;
+unix_timestamp('2011-01-01 01:01:01')	1293832861
+unix_timestamp('2011-01-01 01:01:01.123456')	1293832861.123456
+unix_timestamp(cast('2011-01-01 01:01:01.123456' as datetime(0)))	1293832861
+unix_timestamp(cast('2011-01-01 01:01:01.123456' as datetime(4)))	1293832861.1234
+select from_unixtime(unix_timestamp('2011/1/1 1:1:1')), from_unixtime(unix_timestamp('2011/1/1 1:1:1.123456')), from_unixtime(unix_timestamp(cast('2011/1/1 1:1:1.123456' as datetime(0)))), from_unixtime(unix_timestamp(cast('2011/1/1 1:1:1.123456' as datetime(4))));;
+from_unixtime(unix_timestamp('2011/1/1 1:1:1'))	2011-01-01 01:01:01
+from_unixtime(unix_timestamp('2011/1/1 1:1:1.123456'))	2011-01-01 01:01:01.123456
+from_unixtime(unix_timestamp(cast('2011/1/1 1:1:1.123456' as datetime(0))))	2011-01-01 01:01:01
+from_unixtime(unix_timestamp(cast('2011/1/1 1:1:1.123456' as datetime(4))))	2011-01-01 01:01:01.1234
+select sec_to_time(3020399.99999), sec_to_time(3020399.999999), sec_to_time(3020399.9999999);
+sec_to_time(3020399.99999)	sec_to_time(3020399.999999)	sec_to_time(3020399.9999999)
+838:59:59.99999	838:59:59.999999	838:59:59.999999
+select sec_to_time(-3020399.99999), sec_to_time(-3020399.999999), sec_to_time(-3020399.9999999);
+sec_to_time(-3020399.99999)	sec_to_time(-3020399.999999)	sec_to_time(-3020399.9999999)
+-838:59:59.99999	-838:59:59.999999	-838:59:59.999999
+select 20010101000203.000000004 + interval 1 day;
+20010101000203.000000004 + interval 1 day
+2001-01-02 00:02:03.000000
+select 20010101000203.4 + interval 1 day;
+20010101000203.4 + interval 1 day
+2001-01-02 00:02:03.4
+set @a=cast('2011-01-02 12:13:14' as datetime);
+select @a + interval 1 minute;
+@a + interval 1 minute
+2011-01-02 12:14:14
+select @a + interval 10 microsecond;
+@a + interval 10 microsecond
+2011-01-02 12:13:14.000010
+select @a + interval 10 microsecond + interval 999990 microsecond;
+@a + interval 10 microsecond + interval 999990 microsecond
+2011-01-02 12:13:15.000000
+set @a='2011-01-02 12:13:14.123456';
+create table t1 select CAST(@a AS DATETIME) as dauto,
+CAST(@a AS DATETIME(0)) as d0,
+CAST(@a AS DATETIME(1)) as d1,
+CAST(@a AS DATETIME(2)) as d2,
+CAST(@a AS DATETIME(3)) as d3,
+CAST(@a AS DATETIME(4)) as d4,
+CAST(@a AS DATETIME(5)) as d5,
+CAST(@a AS DATETIME(6)) as d6,
+CAST(@a AS TIME) as tauto,
+CAST(@a AS TIME(0)) as t0,
+CAST(@a AS TIME(1)) as t1,
+CAST(@a AS TIME(2)) as t2,
+CAST(@a AS TIME(3)) as t3,
+CAST(@a AS TIME(4)) as t4,
+CAST(@a AS TIME(5)) as t5,
+CAST(@a AS TIME(6)) as t6;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `dauto` datetime DEFAULT NULL,
+  `d0` datetime DEFAULT NULL,
+  `d1` datetime(1) DEFAULT NULL,
+  `d2` datetime(2) DEFAULT NULL,
+  `d3` datetime(3) DEFAULT NULL,
+  `d4` datetime(4) DEFAULT NULL,
+  `d5` datetime(5) DEFAULT NULL,
+  `d6` datetime(6) DEFAULT NULL,
+  `tauto` time DEFAULT NULL,
+  `t0` time DEFAULT NULL,
+  `t1` time(1) DEFAULT NULL,
+  `t2` time(2) DEFAULT NULL,
+  `t3` time(3) DEFAULT NULL,
+  `t4` time(4) DEFAULT NULL,
+  `t5` time(5) DEFAULT NULL,
+  `t6` time(6) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select * from t1;
+dauto	2011-01-02 12:13:14
+d0	2011-01-02 12:13:14
+d1	2011-01-02 12:13:14.1
+d2	2011-01-02 12:13:14.12
+d3	2011-01-02 12:13:14.123
+d4	2011-01-02 12:13:14.1234
+d5	2011-01-02 12:13:14.12345
+d6	2011-01-02 12:13:14.123456
+tauto	12:13:14
+t0	12:13:14
+t1	12:13:14.1
+t2	12:13:14.12
+t3	12:13:14.123
+t4	12:13:14.1234
+t5	12:13:14.12345
+t6	12:13:14.123456
+drop table t1;
+explain extended select cast(cast(@a as datetime(4)) as time(0));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select cast(cast((@`a`) as datetime(4)) as time) AS `cast(cast(@a as datetime(4)) as time(0))`
+select cast(cast(@a as time(2)) as time(6));
+cast(cast(@a as time(2)) as time(6))
+12:13:14.120000
+select CAST(@a AS DATETIME(7));
+ERROR 42000: Too big precision 7 specified for '(@`a`)'. Maximum is 6.
+SELECT CONVERT_TZ('2011-01-02 12:00:00', '+00:00', '+03:00');
+CONVERT_TZ('2011-01-02 12:00:00', '+00:00', '+03:00')
+2011-01-02 15:00:00
+SELECT CONVERT_TZ('2011-01-02 12:00:00.123', '+00:00', '+03:00');
+CONVERT_TZ('2011-01-02 12:00:00.123', '+00:00', '+03:00')
+2011-01-02 15:00:00.123
+SELECT CONVERT_TZ('2011-01-02 12:00:00.123456', '+00:00', '+03:00');
+CONVERT_TZ('2011-01-02 12:00:00.123456', '+00:00', '+03:00')
+2011-01-02 15:00:00.123456
+SELECT CONVERT_TZ(CAST('2010-10-10 10:10:10.123456' AS DATETIME(4)), '+00:00', '+03:00');
+CONVERT_TZ(CAST('2010-10-10 10:10:10.123456' AS DATETIME(4)), '+00:00', '+03:00')
+2010-10-10 13:10:10.1234
+create table t1 (a varchar(200));
+insert t1 values (now(6));
+select * from t1;
+a
+2011-01-01 01:01:01.123456
+drop table t1;
+create table t1 (f1 timestamp(6));
+insert into t1 values ('2002-07-15 21:00:00');
+select time(f1) from t1;
+time(f1)
+21:00:00.000000
+select time(f1) from t1 union all select time(f1 + interval 1 second) from t1;
+time(f1)
+21:00:00.000000
+21:00:01.000000
+alter table t1 modify f1 timestamp;
+select time(f1) from t1;
+time(f1)
+21:00:00
+select time(f1) from t1 union all select time(f1 + interval 1 second) from t1;
+time(f1)
+21:00:00
+21:00:01
+alter table t1 modify f1 varchar(100);
+select time(f1) from t1;
+time(f1)
+21:00:00.000000
+select time(f1) from t1 union all select time(f1 + interval 1 second) from t1;
+time(f1)
+21:00:00.000000
+21:00:01.000000
+drop table t1;

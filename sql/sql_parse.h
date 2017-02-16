@@ -47,13 +47,12 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table);
 bool check_fk_parent_table_access(THD *thd,
                                   HA_CREATE_INFO *create_info,
-                                  Alter_info *alter_info);
+                                  Alter_info *alter_info,
+                                  const char* create_db);
 
 bool parse_sql(THD *thd,
                Parser_state *parser_state,
                Object_creation_ctx *creation_ctx);
-
-uint kill_one_thread(THD *thd, ulong id, bool only_kill_query);
 
 void free_items(Item *item);
 void cleanup_items(Item *item);
@@ -76,6 +75,7 @@ bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
 bool check_string_char_length(LEX_STRING *str, const char *err_msg,
                               uint max_char_length, CHARSET_INFO *cs,
                               bool no_error);
+bool check_ident_length(LEX_STRING *ident);
 CHARSET_INFO* merge_charset_and_collation(CHARSET_INFO *cs, CHARSET_INFO *cl);
 bool check_host_name(LEX_STRING *str);
 bool check_identifier_name(LEX_STRING *str, uint max_char_length,
@@ -115,7 +115,9 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum enum_field_types t
 		       LEX_STRING *comment,
 		       char *change, List<String> *interval_list,
 		       CHARSET_INFO *cs,
-		       uint uint_geom_type);
+		       uint uint_geom_type,
+                       Virtual_column_info *vcol_info,
+                       engine_option_value *create_options);
 bool add_to_list(THD *thd, SQL_I_List<ORDER> &list, Item *group, bool asc);
 void add_join_on(TABLE_LIST *b,Item *expr);
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b,List<String> *using_fields,
@@ -127,6 +129,7 @@ bool push_new_name_resolution_context(THD *thd,
 void store_position_for_column(const char *name);
 void init_update_queries(void);
 bool check_simple_select();
+Item *normalize_cond(Item *cond);
 Item *negate_expression(THD *thd, Item *expr);
 bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
 
@@ -198,7 +201,7 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
 
 /* These were under the INNODB_COMPATIBILITY_HOOKS */
 
-bool check_global_access(THD *thd, ulong want_access);
+bool check_global_access(THD *thd, ulong want_access, bool no_errors= false);
 
 inline bool is_supported_parser_charset(CHARSET_INFO *cs)
 {

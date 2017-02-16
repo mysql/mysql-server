@@ -1,0 +1,28 @@
+set default_storage_engine=tokudb;
+drop table if exists t;
+create table t (id int, unique key(id));
+set tokudb_prelock_empty=OFF;
+begin;
+insert into t values (1);
+begin;
+insert into t values (2);
+commit;
+commit;
+select * from t;
+id
+1
+2
+drop table if exists t;
+create table t (id int not null, unique key(id));
+set tokudb_prelock_empty=OFF;
+begin;
+insert into t values (1);
+begin;
+insert into t values (2);
+commit;
+commit;
+select * from t;
+id
+1
+2
+drop table if exists t;

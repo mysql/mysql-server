@@ -75,6 +75,7 @@ eval SHOW TABLES FROM information_schema LIKE '$is_table';
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
 eval DESCRIBE          information_schema.$is_table;
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
+--replace_result ENGINE=MyISAM "" ENGINE=Aria "" " PAGE_CHECKSUM=1" "" " PAGE_CHECKSUM=0" ""
 eval SHOW CREATE TABLE information_schema.$is_table;
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
 eval SHOW COLUMNS FROM information_schema.$is_table;
@@ -181,19 +182,19 @@ FLUSH PRIVILEGES;
 --echo # Establish connection testuser1 (user=testuser1)
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser1, localhost, testuser1, , db_datadict);
---replace_column 23 "YYYY-MM-DD hh:mm:ss" 24 "YYYY-MM-DD hh:mm:ss"
+--replace_column 24 "YYYY-MM-DD hh:mm:ss" 25 "YYYY-MM-DD hh:mm:ss"
 SELECT * FROM information_schema.routines;
 
 --echo # Establish connection testuser2 (user=testuser2)
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser2, localhost, testuser2, , db_datadict);
---replace_column 23 "YYYY-MM-DD hh:mm:ss" 24 "YYYY-MM-DD hh:mm:ss"
+--replace_column 24 "YYYY-MM-DD hh:mm:ss" 25 "YYYY-MM-DD hh:mm:ss"
 SELECT * FROM information_schema.routines;
 
 --echo # Establish connection testuser3 (user=testuser3)
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser3, localhost, testuser3, , test);
---replace_column 23 "YYYY-MM-DD hh:mm:ss" 24 "YYYY-MM-DD hh:mm:ss"
+--replace_column 24 "YYYY-MM-DD hh:mm:ss" 25 "YYYY-MM-DD hh:mm:ss"
 SELECT * FROM information_schema.routines;
 
 # Cleanup
@@ -238,7 +239,7 @@ USE db_datadict;
 CREATE PROCEDURE sp_for_routines()      SELECT 'db_datadict';
 CREATE FUNCTION function_for_routines() RETURNS INT RETURN 0;
 --vertical_results
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM information_schema.routines WHERE routine_schema = 'db_datadict'
 ORDER BY routine_name;
 --horizontal_results
@@ -246,7 +247,7 @@ ORDER BY routine_name;
 ALTER PROCEDURE sp_for_routines SQL SECURITY INVOKER;
 ALTER FUNCTION function_for_routines COMMENT 'updated comments';
 --vertical_results
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM information_schema.routines WHERE routine_schema = 'db_datadict'
 ORDER BY routine_name;
 --horizontal_results
@@ -258,7 +259,7 @@ SELECT * FROM information_schema.routines WHERE routine_schema = 'db_datadict';
 CREATE PROCEDURE sp_for_routines()      SELECT 'db_datadict';
 CREATE FUNCTION function_for_routines() RETURNS INT RETURN 0;
 --vertical_results
---replace_column 23 <created> 24 <modified>
+--replace_column 24 <created> 25 <modified>
 SELECT * FROM information_schema.routines WHERE routine_schema = 'db_datadict'
 ORDER BY routine_name;
 --horizontal_results
@@ -403,7 +404,7 @@ CALL db_datadict.sp_6_408004 ();
 SELECT * FROM db_datadict.res_6_408004_2;
 
 --vertical_results
---replace_column 23 "YYYY-MM-DD hh:mm:ss" 24 "YYYY-MM-DD hh:mm:ss"
+--replace_column 24 "YYYY-MM-DD hh:mm:ss" 25 "YYYY-MM-DD hh:mm:ss"
 SELECT *, LENGTH(routine_definition) FROM information_schema.routines
 WHERE routine_schema = 'db_datadict';
 --horizontal_results

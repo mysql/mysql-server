@@ -1,0 +1,13 @@
+create database mysqltest1;
+use mysqltest1;
+create table t1(id int primary key);
+create definer=unknownuser@'%' sql security definer view v1 as select t1.id from t1 group by t1.id;
+Warnings:
+Note	1449	The user specified as a definer ('unknownuser'@'%') does not exist
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	0	0	0	#	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+v1	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+Warnings:
+Note	1449	The user specified as a definer ('unknownuser'@'%') does not exist
+drop database mysqltest1;

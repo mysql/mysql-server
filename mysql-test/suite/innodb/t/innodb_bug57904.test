@@ -1,8 +1,7 @@
+--source include/have_innodb.inc
 #
 # Bug #57904 Missing constraint from information schema REFERENTIAL_CONSTRAINTS table
 #
--- source include/have_innodb.inc
-
 CREATE TABLE product (category INT NOT NULL, id INT NOT NULL,
 	price DECIMAL, PRIMARY KEY(category, id)) ENGINE=INNODB;
 CREATE TABLE customer (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=INNODB;

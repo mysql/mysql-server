@@ -17,6 +17,7 @@
 # Bug#14294223: CHANGES NOT ALLOWED TO TEMPORARY TABLES ON READ-ONLY SERVERS
 ###############################################################################
 --source include/have_log_bin.inc
+--source include/have_innodb.inc
 --disable_warnings
 DROP TABLE IF EXISTS t1 ;
 --enable_warnings

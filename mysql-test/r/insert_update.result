@@ -172,11 +172,15 @@ DROP TABLE t2;
 create table t1 (a int not null unique) engine=myisam;
 insert into t1 values (1),(2);
 insert ignore into t1 select 1 on duplicate key update a=2;
+Warnings:
+Warning	1062	Duplicate entry '2' for key 'a'
 select * from t1;
 a
 1
 2
 insert ignore into t1 select a from t1 as t2 on duplicate key update a=t1.a+1 ;
+Warnings:
+Warning	1062	Duplicate entry '2' for key 'a'
 select * from t1;
 a
 1
@@ -379,7 +383,6 @@ INSERT IGNORE INTO t1 (id,c1) SELECT 1,NULL
 ON DUPLICATE KEY UPDATE c1=NULL, cnt=cnt+1;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
-Error	1048	Column 'c1' cannot be null
 SELECT * FROM t1;
 id	c1	cnt
 1	0	2
@@ -387,7 +390,6 @@ INSERT IGNORE INTO t1 (id,c1) SELECT * FROM t2
 ON DUPLICATE KEY UPDATE c1=NULL, cnt=cnt+1;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
-Error	1048	Column 'c1' cannot be null
 SELECT * FROM t1;
 id	c1	cnt
 1	0	3

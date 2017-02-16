@@ -157,6 +157,7 @@ CREATE TABLE t1(c1 YEAR(4));
 INSERT INTO t1 VALUES (1901),(2155),(0000);
 SELECT * FROM t1;
 SELECT COUNT(*) AS total_rows, MIN(c1) AS min_value, MAX(c1) FROM t1;
+SELECT COUNT(*) AS total_rows, MIN(c1+0) AS min_value, MAX(c1+0) FROM t1;
 DROP TABLE t1;
 
 --echo #
@@ -170,3 +171,20 @@ DROP TABLE t1;
 --echo #
 
 --echo End of 5.1 tests
+#
+# fun with convert_const_to_int
+# in some cases 00 is equal to 2000, in others it is not.
+#
+create function y2k() returns int deterministic return 2000;
+create table t1 (a year(2), b int);
+insert t1 values (0,2000);
+select a from t1 where a=2000;  # constant.
+select a from t1 where a=1000+1000; # still a constant.
+# select a from t1 where a=(select 2000); # even this is a constant
+select a from t1 where a=(select 2000 from dual where 1); # constant, but "expensive"
+select a from t1 where a=y2k(); # constant, but "expensive"
+select a from t1 where a=b; # not a constant
+drop table t1;
+drop function y2k;
+
+

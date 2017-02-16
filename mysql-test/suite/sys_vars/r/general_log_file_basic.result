@@ -4,15 +4,24 @@ SELECT @start_value;
 test.log
 '#---------------------FN_DYNVARS_004_01-------------------------#'
 SET @@global.general_log_file = DEFAULT;
-SET @a=concat(left(@@hostname, instr(concat(@@hostname, '.'), '.')-1), '.log');
-SELECT RIGHT(@@global.general_log_file, length(@a)) = @a;
-RIGHT(@@global.general_log_file, length(@a)) = @a
-1
+SELECT @@global.general_log_file;
+@@global.general_log_file
+mysqld.log
 '#--------------------FN_DYNVARS_004_02------------------------#'
 SET @@global.general_log_file = mytest.log;
 ERROR 42000: Incorrect argument type to variable 'general_log_file'
 SET @@global.general_log_file = 12;
 ERROR 42000: Incorrect argument type to variable 'general_log_file'
+SET @@global.general_log_file = 'my.cnf';
+ERROR 42000: Variable 'general_log_file' can't be set to the value of 'my.cnf'
+SET @@global.general_log_file = '/tmp/my.cnf';
+ERROR 42000: Variable 'general_log_file' can't be set to the value of '/tmp/my.cnf'
+SET @@global.general_log_file = '.my.cnf';
+ERROR 42000: Variable 'general_log_file' can't be set to the value of '.my.cnf'
+SET @@global.general_log_file = 'my.cnf\0foo';
+ERROR 42000: Variable 'general_log_file' can't be set to the value of 'my.cnf'
+SET @@global.general_log_file = 'my.ini';
+ERROR 42000: Variable 'general_log_file' can't be set to the value of 'my.ini'
 '#----------------------FN_DYNVARS_004_03------------------------#'
 SELECT @@global.general_log_file = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 

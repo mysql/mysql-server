@@ -27,16 +27,18 @@ typedef struct st_typelib {	/* Different types saved here */
 } TYPELIB;
 
 extern my_ulonglong find_typeset(char *x, TYPELIB *typelib,int *error_position);
+extern int find_type_with_warning(const char *x, TYPELIB *typelib,
+                                  const char *option);
 extern int find_type_or_exit(const char *x, TYPELIB *typelib,
                              const char *option);
 #define FIND_TYPE_BASIC           0
 /** makes @c find_type() require the whole name, no prefix */
 #define FIND_TYPE_NO_PREFIX      (1 << 0)
 /** always implicitely on, so unused, but old code may pass it */
-#define FIND_TYPE_NO_OVERWRITE   (1 << 1)
-/** makes @c find_type() accept a number */
-#define FIND_TYPE_ALLOW_NUMBER   (1 << 2)
-/** makes @c find_type() treat ',' as terminator */
+#define FIND_TYPE_NO_OVERWRITE   0
+/** makes @c find_type() accept a number. Not used either */
+#define FIND_TYPE_ALLOW_NUMBER   0
+/** makes @c find_type() treat ',' and '=' as terminators */
 #define FIND_TYPE_COMMA_TERM     (1 << 3)
 
 extern int find_type(const char *x, const TYPELIB *typelib, unsigned int flags);

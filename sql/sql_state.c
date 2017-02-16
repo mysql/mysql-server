@@ -18,6 +18,7 @@
 
 #include <my_global.h>
 #include <mysqld_error.h>
+#include <my_base.h>
 
 struct st_map_errno_to_sqlstate
 {
@@ -28,6 +29,7 @@ struct st_map_errno_to_sqlstate
 
 struct st_map_errno_to_sqlstate sqlstate_map[]=
 {
+#include <handler_state.h>
 #include <sql_state.h>
 };
 

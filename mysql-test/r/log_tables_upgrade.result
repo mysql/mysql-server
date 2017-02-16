@@ -11,13 +11,19 @@ Table	Op	Msg_type	Msg_text
 test.bug49823	repair	status	OK
 RENAME TABLE general_log TO renamed_general_log;
 RENAME TABLE test.bug49823 TO general_log;
+Phase 1/4: Fixing views
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
+Processing databases
+information_schema
+mtr
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+mysql
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
-mysql.general_log                                  OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -30,7 +36,6 @@ mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.renamed_general_log                          OK
 mysql.servers                                      OK
-mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -38,6 +43,10 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+performance_schema
+test
+Phase 4/4: Running 'mysql_fix_privilege_tables'
+OK
 DROP TABLE general_log;
 RENAME TABLE renamed_general_log TO general_log;
 SET GLOBAL general_log = @saved_general_log;

@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -117,7 +118,7 @@ int mi_munmap_file(MI_INFO *info)
 {
   int ret;
   DBUG_ENTER("mi_unmap_file");
-  if ((ret= my_munmap((void*) info->s->file_map, info->s->mmaped_length)))
+  if ((ret= my_munmap(info->s->file_map, (size_t) info->s->mmaped_length)))
     DBUG_RETURN(ret);
   info->s->file_read= mi_nommap_pread;
   info->s->file_write= mi_nommap_pwrite;
@@ -280,7 +281,7 @@ int _mi_write_blob_record(MI_INFO *info, const uchar *record)
   extra= (ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER)+MI_SPLIT_LENGTH+
 	  MI_DYN_DELETE_BLOCK_HEADER+1);
   reclength= (info->s->base.pack_reclength +
-	      _my_calc_total_blob_length(info,record)+ extra);
+	      _mi_calc_total_blob_length(info,record)+ extra);
   if (!(rec_buff=(uchar*) my_alloca(reclength)))
   {
     my_errno= HA_ERR_OUT_OF_MEM; /* purecov: inspected */
@@ -307,7 +308,7 @@ int _mi_update_blob_record(MI_INFO *info, my_off_t pos, const uchar *record)
   extra= (ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER)+MI_SPLIT_LENGTH+
 	  MI_DYN_DELETE_BLOCK_HEADER);
   reclength= (info->s->base.pack_reclength+
-	      _my_calc_total_blob_length(info,record)+ extra);
+	      _mi_calc_total_blob_length(info,record)+ extra);
   if (!(rec_buff=(uchar*) my_alloca(reclength)))
   {
     my_errno= HA_ERR_OUT_OF_MEM; /* purecov: inspected */
@@ -1351,7 +1352,7 @@ err:
 
 	/* Calc length of blob. Update info in blobs->length */
 
-ulong _my_calc_total_blob_length(MI_INFO *info, const uchar *record)
+ulong _mi_calc_total_blob_length(MI_INFO *info, const uchar *record)
 {
   ulong length;
   MI_BLOB *blob,*end;
@@ -1385,7 +1386,7 @@ ulong _mi_calc_blob_length(uint length, const uchar *pos)
 }
 
 
-void _my_store_blob_length(uchar *pos,uint pack_length,uint length)
+void _mi_store_blob_length(uchar *pos,uint pack_length,uint length)
 {
   switch (pack_length) {
   case 1:
@@ -1593,7 +1594,7 @@ int _mi_cmp_dynamic_record(register MI_INFO *info, register const uchar *record)
     if (info->s->base.blobs)
     {
       if (!(buffer=(uchar*) my_alloca(info->s->base.pack_reclength+
-				     _my_calc_total_blob_length(info,record))))
+				     _mi_calc_total_blob_length(info,record))))
 	DBUG_RETURN(-1);
     }
     reclength=_mi_rec_pack(info,buffer,record);
@@ -1851,7 +1852,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
         if (mysql_file_read(info->dfile, (uchar*) to, block_info.data_len,
                             MYF(MY_NABP)))
 	{
-	  if (my_errno == -1)
+	  if (my_errno == HA_ERR_FILE_TOO_SHORT)
 	    my_errno= HA_ERR_WRONG_IN_RECORD;	/* Unexpected end of file */
 	  goto err;
 	}

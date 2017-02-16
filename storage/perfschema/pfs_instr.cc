@@ -148,6 +148,7 @@ int init_instruments(const PFS_global_param *param)
 {
   uint thread_history_sizing;
   uint index;
+  DBUG_ENTER("init_instruments");
 
   mutex_max= param->m_mutex_sizing;
   mutex_lost= 0;
@@ -194,49 +195,49 @@ int init_instruments(const PFS_global_param *param)
   {
     mutex_array= PFS_MALLOC_ARRAY(mutex_max, PFS_mutex, MYF(MY_ZEROFILL));
     if (unlikely(mutex_array == NULL))
-      return 1;
+      DBUG_RETURN(1);
   }
 
   if (rwlock_max > 0)
   {
     rwlock_array= PFS_MALLOC_ARRAY(rwlock_max, PFS_rwlock, MYF(MY_ZEROFILL));
     if (unlikely(rwlock_array == NULL))
-      return 1;
+      DBUG_RETURN(1);
   }
 
   if (cond_max > 0)
   {
     cond_array= PFS_MALLOC_ARRAY(cond_max, PFS_cond, MYF(MY_ZEROFILL));
     if (unlikely(cond_array == NULL))
-      return 1;
+      DBUG_RETURN(1);
   }
 
   if (file_max > 0)
   {
     file_array= PFS_MALLOC_ARRAY(file_max, PFS_file, MYF(MY_ZEROFILL));
     if (unlikely(file_array == NULL))
-      return 1;
+      DBUG_RETURN(1);
   }
 
   if (file_handle_max > 0)
   {
     file_handle_array= PFS_MALLOC_ARRAY(file_handle_max, PFS_file*, MYF(MY_ZEROFILL));
     if (unlikely(file_handle_array == NULL))
-      return 1;
+      DBUG_RETURN(1);
   }
 
   if (table_max > 0)
   {
     table_array= PFS_MALLOC_ARRAY(table_max, PFS_table, MYF(MY_ZEROFILL));
     if (unlikely(table_array == NULL))
-      return 1;
+      DBUG_RETURN(1);
   }
 
   if (thread_max > 0)
   {
     thread_array= PFS_MALLOC_ARRAY(thread_max, PFS_thread, MYF(MY_ZEROFILL));
     if (unlikely(thread_array == NULL))
-      return 1;
+      DBUG_RETURN(1);
   }
 
   if (thread_history_sizing > 0)
@@ -245,7 +246,7 @@ int init_instruments(const PFS_global_param *param)
       PFS_MALLOC_ARRAY(thread_history_sizing, PFS_events_waits,
                        MYF(MY_ZEROFILL));
     if (unlikely(thread_history_array == NULL))
-      return 1;
+      DBUG_RETURN(1);
   }
 
   if (thread_instr_class_waits_sizing > 0)
@@ -254,7 +255,7 @@ int init_instruments(const PFS_global_param *param)
       PFS_MALLOC_ARRAY(thread_instr_class_waits_sizing,
                        PFS_single_stat_chain, MYF(MY_ZEROFILL));
     if (unlikely(thread_instr_class_waits_array == NULL))
-      return 1;
+      DBUG_RETURN(1);
   }
 
   for (index= 0; index < thread_instr_class_waits_sizing; index++)
@@ -277,7 +278,7 @@ int init_instruments(const PFS_global_param *param)
       &thread_instr_class_waits_array[index * instr_class_per_thread];
   }
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 /**
@@ -292,6 +293,7 @@ find_per_thread_mutex_class_wait_stat(PFS_thread *thread,
 {
   PFS_single_stat_chain *stat;
   uint index;
+  DBUG_ENTER("find_per_thread_mutex_class_wait_stat");
 
   DBUG_ASSERT(thread != NULL);
   DBUG_ASSERT(klass != NULL);
@@ -299,7 +301,7 @@ find_per_thread_mutex_class_wait_stat(PFS_thread *thread,
   DBUG_ASSERT(index < mutex_class_max);
 
   stat= &(thread->m_instr_class_wait_stats[index]);
-  return stat;
+  DBUG_RETURN(stat);
 }
 
 /**
@@ -314,6 +316,7 @@ find_per_thread_rwlock_class_wait_stat(PFS_thread *thread,
 {
   PFS_single_stat_chain *stat;
   uint index;
+  DBUG_ENTER("find_per_thread_rwlock_class_wait_stat");
 
   DBUG_ASSERT(thread != NULL);
   DBUG_ASSERT(klass != NULL);
@@ -322,7 +325,7 @@ find_per_thread_rwlock_class_wait_stat(PFS_thread *thread,
 
   stat= &(thread->m_instr_class_wait_stats
           [per_thread_rwlock_class_start + index]);
-  return stat;
+  DBUG_RETURN(stat);
 }
 
 /**
@@ -337,6 +340,7 @@ find_per_thread_cond_class_wait_stat(PFS_thread *thread,
 {
   PFS_single_stat_chain *stat;
   uint index;
+  DBUG_ENTER("find_per_thread_cond_class_wait_stat");
 
   DBUG_ASSERT(thread != NULL);
   DBUG_ASSERT(klass != NULL);
@@ -345,7 +349,7 @@ find_per_thread_cond_class_wait_stat(PFS_thread *thread,
 
   stat= &(thread->m_instr_class_wait_stats
           [per_thread_cond_class_start + index]);
-  return stat;
+  DBUG_RETURN(stat);
 }
 
 /**
@@ -360,6 +364,7 @@ find_per_thread_file_class_wait_stat(PFS_thread *thread,
 {
   PFS_single_stat_chain *stat;
   uint index;
+  DBUG_ENTER("find_per_thread_file_class_wait_stat");
 
   DBUG_ASSERT(thread != NULL);
   DBUG_ASSERT(klass != NULL);
@@ -368,7 +373,7 @@ find_per_thread_file_class_wait_stat(PFS_thread *thread,
 
   stat= &(thread->m_instr_class_wait_stats
           [per_thread_file_class_start + index]);
-  return stat;
+  DBUG_RETURN(stat);
 }
 
 /** Reset the wait statistics per thread. */
@@ -376,14 +381,18 @@ void reset_per_thread_wait_stat(void)
 {
   PFS_single_stat_chain *stat= thread_instr_class_waits_array;
   PFS_single_stat_chain *stat_last= stat + thread_instr_class_waits_sizing;
+  DBUG_ENTER("reset_per_thread_wait_stat");
 
   for ( ; stat < stat_last; stat++)
     reset_single_stat_link(stat);
+  DBUG_VOID_RETURN;
 }
 
 /** Cleanup all the instruments buffers. */
 void cleanup_instruments(void)
 {
+  DBUG_ENTER("cleanup_instruments");
+
   pfs_free(mutex_array);
   mutex_array= NULL;
   mutex_max= 0;
@@ -409,6 +418,7 @@ void cleanup_instruments(void)
   thread_history_array= NULL;
   pfs_free(thread_instr_class_waits_array);
   thread_instr_class_waits_array= NULL;
+  DBUG_VOID_RETURN;
 }
 
 extern "C"
@@ -419,13 +429,15 @@ static uchar *filename_hash_get_key(const uchar *entry, size_t *length,
   const PFS_file * const *typed_entry;
   const PFS_file *file;
   const void *result;
+  DBUG_ENTER("filename_hash_get_key");
+
   typed_entry= reinterpret_cast<const PFS_file* const *> (entry);
   DBUG_ASSERT(typed_entry != NULL);
   file= *typed_entry;
   DBUG_ASSERT(file != NULL);
   *length= file->m_filename_length;
   result= file->m_filename;
-  return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
+  DBUG_RETURN(const_cast<uchar*> (reinterpret_cast<const uchar*> (result)));
 }
 }
 
@@ -435,34 +447,41 @@ static uchar *filename_hash_get_key(const uchar *entry, size_t *length,
 */
 int init_file_hash(void)
 {
+  DBUG_ENTER("init_file_hash");
+
   if (! filename_hash_inited)
   {
     lf_hash_init(&filename_hash, sizeof(PFS_file*), LF_HASH_UNIQUE,
                  0, 0, filename_hash_get_key, &my_charset_bin);
     filename_hash_inited= true;
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 /** Cleanup the file name hash. */
 void cleanup_file_hash(void)
 {
+  DBUG_ENTER("cleanup_file_hash");
+
   if (filename_hash_inited)
   {
     lf_hash_destroy(&filename_hash);
     filename_hash_inited= false;
   }
+  DBUG_VOID_RETURN;
 }
 
 void PFS_scan::init(uint random, uint max_size)
 {
+  DBUG_ENTER("PFS_scan::init");
+
   m_pass= 0;
 
   if (max_size == 0)
   {
     /* Degenerated case, no buffer */
     m_pass_max= 0;
-    return;
+    DBUG_VOID_RETURN;
   }
 
   DBUG_ASSERT(random < max_size);
@@ -521,6 +540,7 @@ void PFS_scan::init(uint random, uint max_size)
   /* The combined length of all passes should not exceed PFS_MAX_ALLOC_RETRY. */
   DBUG_ASSERT((m_last[0] - m_first[0]) +
               (m_last[1] - m_first[1]) <= PFS_MAX_ALLOC_RETRY);
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -533,6 +553,7 @@ PFS_mutex* create_mutex(PFS_mutex_class *klass, const void *identity)
 {
   PFS_scan scan;
   uint random= randomized_index(identity, mutex_max);
+  DBUG_ENTER("create_mutex");
 
   for (scan.init(random, mutex_max);
        scan.has_pass();
@@ -559,14 +580,14 @@ PFS_mutex* create_mutex(PFS_mutex_class *klass, const void *identity)
           pfs->m_owner= NULL;
           pfs->m_last_locked= 0;
           pfs->m_lock.dirty_to_allocated();
-          return pfs;
+          DBUG_RETURN(pfs);
         }
       }
     }
   }
 
   mutex_lost++;
-  return NULL;
+  DBUG_RETURN(NULL);
 }
 
 /**
@@ -575,8 +596,11 @@ PFS_mutex* create_mutex(PFS_mutex_class *klass, const void *identity)
 */
 void destroy_mutex(PFS_mutex *pfs)
 {
+  DBUG_ENTER("destroy_mutex");
+
   DBUG_ASSERT(pfs != NULL);
   pfs->m_lock.allocated_to_free();
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -589,6 +613,7 @@ PFS_rwlock* create_rwlock(PFS_rwlock_class *klass, const void *identity)
 {
   PFS_scan scan;
   uint random= randomized_index(identity, rwlock_max);
+  DBUG_ENTER("create_rwlock");
 
   for (scan.init(random, rwlock_max);
        scan.has_pass();
@@ -621,14 +646,14 @@ PFS_rwlock* create_rwlock(PFS_rwlock_class *klass, const void *identity)
           pfs->m_readers= 0;
           pfs->m_last_written= 0;
           pfs->m_last_read= 0;
-          return pfs;
+          DBUG_RETURN(pfs);
         }
       }
     }
   }
 
   rwlock_lost++;
-  return NULL;
+  DBUG_RETURN(NULL);
 }
 
 /**
@@ -637,8 +662,11 @@ PFS_rwlock* create_rwlock(PFS_rwlock_class *klass, const void *identity)
 */
 void destroy_rwlock(PFS_rwlock *pfs)
 {
+  DBUG_ENTER("destroy_rwlock");
+
   DBUG_ASSERT(pfs != NULL);
   pfs->m_lock.allocated_to_free();
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -651,6 +679,7 @@ PFS_cond* create_cond(PFS_cond_class *klass, const void *identity)
 {
   PFS_scan scan;
   uint random= randomized_index(identity, cond_max);
+  DBUG_ENTER("create_cond");
 
   for (scan.init(random, cond_max);
        scan.has_pass();
@@ -673,14 +702,14 @@ PFS_cond* create_cond(PFS_cond_class *klass, const void *identity)
           pfs->m_wait_stat.m_parent= &klass->m_wait_stat;
           reset_single_stat_link(&pfs->m_wait_stat);
           pfs->m_lock.dirty_to_allocated();
-          return pfs;
+          DBUG_RETURN(pfs);
         }
       }
     }
   }
 
   cond_lost++;
-  return NULL;
+  DBUG_RETURN(NULL);
 }
 
 /**
@@ -689,8 +718,11 @@ PFS_cond* create_cond(PFS_cond_class *klass, const void *identity)
 */
 void destroy_cond(PFS_cond *pfs)
 {
+  DBUG_ENTER("destroy_cond");
+
   DBUG_ASSERT(pfs != NULL);
   pfs->m_lock.allocated_to_free();
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -707,6 +739,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
 {
   PFS_scan scan;
   uint random= randomized_index(identity, thread_max);
+  DBUG_ENTER("create_thread");
 
   for (scan.init(random, thread_max);
        scan.has_pass();
@@ -737,14 +770,14 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
           pfs->m_filename_hash_pins= NULL;
           pfs->m_table_share_hash_pins= NULL;
           pfs->m_lock.dirty_to_allocated();
-          return pfs;
+          DBUG_RETURN(pfs);
         }
       }
     }
   }
 
   thread_lost++;
-  return NULL;
+  DBUG_RETURN(NULL);
 }
 
 /**
@@ -766,6 +799,7 @@ const char *sanitize_file_name(const char *unsafe)
   intptr ptr= (intptr) unsafe;
   intptr first= (intptr) &file_array[0];
   intptr last= (intptr) &file_array[file_max];
+  DBUG_ENTER("sanitize_file_name");
 
   /* Check if unsafe points inside file_array[] */
   if (likely((first <= ptr) && (ptr < last)))
@@ -775,10 +809,10 @@ const char *sanitize_file_name(const char *unsafe)
     intptr valid_offset= my_offsetof(PFS_file, m_filename[0]);
     if (likely(offset == valid_offset))
     {   
-      return unsafe;
+      DBUG_RETURN(unsafe);
     }   
   }
-  return NULL;
+  DBUG_RETURN(NULL);
 }
 
 /**
@@ -787,6 +821,8 @@ const char *sanitize_file_name(const char *unsafe)
 */
 void destroy_thread(PFS_thread *pfs)
 {
+  DBUG_ENTER("destroy_thread");
+
   DBUG_ASSERT(pfs != NULL);
   if (pfs->m_filename_hash_pins)
   {
@@ -799,6 +835,7 @@ void destroy_thread(PFS_thread *pfs)
     pfs->m_table_share_hash_pins= NULL;
   }
   pfs->m_lock.allocated_to_free();
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -831,12 +868,13 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
 {
   PFS_file *pfs;
   PFS_scan scan;
+  DBUG_ENTER("find_or_create_file");
 
   LF_PINS *pins= get_filename_hash_pins(thread);
   if (unlikely(pins == NULL))
   {
     file_lost++;
-    return NULL;
+    DBUG_RETURN(NULL);
   }
 
   char safe_buffer[FN_REFLEN];
@@ -904,7 +942,7 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
   if (my_realpath(buffer, dirbuffer, MYF(0)) != 0)
   {
     file_lost++;
-    return NULL;
+    DBUG_RETURN(NULL);
   }
 
   /* Append the unresolved file name to the resolved path */
@@ -931,7 +969,7 @@ search:
     pfs= *entry;
     pfs->m_file_stat.m_open_count++;
     lf_hash_search_unpin(pins);
-    return pfs;
+    DBUG_RETURN(pfs);
   }
 
   lf_hash_search_unpin(pins);
@@ -967,7 +1005,7 @@ search:
           if (likely(res == 0))
           {
             pfs->m_lock.dirty_to_allocated();
-            return pfs;
+            DBUG_RETURN(pfs);
           }
 
           pfs->m_lock.dirty_to_free();
@@ -979,21 +1017,21 @@ search:
             {
               /* Avoid infinite loops */
               file_lost++;
-              return NULL;
+              DBUG_RETURN(NULL);
             }
             goto search;
           }
 
           /* OOM in lf_hash_insert */
           file_lost++;
-          return NULL;
+          DBUG_RETURN(NULL);
         }
       }
     }
   }
 
   file_lost++;
-  return NULL;
+  DBUG_RETURN(NULL);
 }
 
 /**
@@ -1002,8 +1040,11 @@ search:
 */
 void release_file(PFS_file *pfs)
 {
+  DBUG_ENTER("release_file");
+
   DBUG_ASSERT(pfs != NULL);
   pfs->m_file_stat.m_open_count--;
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -1013,6 +1054,8 @@ void release_file(PFS_file *pfs)
 */
 void destroy_file(PFS_thread *thread, PFS_file *pfs)
 {
+  DBUG_ENTER("destroy_file");
+
   DBUG_ASSERT(thread != NULL);
   DBUG_ASSERT(pfs != NULL);
 
@@ -1022,6 +1065,7 @@ void destroy_file(PFS_thread *thread, PFS_file *pfs)
   lf_hash_delete(&filename_hash, pins,
                  pfs->m_filename, pfs->m_filename_length);
   pfs->m_lock.allocated_to_free();
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -1034,6 +1078,7 @@ PFS_table* create_table(PFS_table_share *share, const void *identity)
 {
   PFS_scan scan;
   uint random= randomized_index(identity, table_max);
+  DBUG_ENTER("create_table");
 
   for (scan.init(random, table_max);
        scan.has_pass();
@@ -1054,14 +1099,14 @@ PFS_table* create_table(PFS_table_share *share, const void *identity)
           pfs->m_wait_stat.m_parent= &share->m_wait_stat;
           reset_single_stat_link(&pfs->m_wait_stat);
           pfs->m_lock.dirty_to_allocated();
-          return pfs;
+          DBUG_RETURN(pfs);
         }
       }
     }
   }
 
   table_lost++;
-  return NULL;
+  DBUG_RETURN(NULL);
 }
 
 /**
@@ -1070,53 +1115,67 @@ PFS_table* create_table(PFS_table_share *share, const void *identity)
 */
 void destroy_table(PFS_table *pfs)
 {
+  DBUG_ENTER("destroy_table");
+
   DBUG_ASSERT(pfs != NULL);
   pfs->m_lock.allocated_to_free();
+  DBUG_VOID_RETURN;
 }
 
 static void reset_mutex_waits_by_instance(void)
 {
   PFS_mutex *pfs= mutex_array;
   PFS_mutex *pfs_last= mutex_array + mutex_max;
+  DBUG_ENTER("reset_mutex_waits_by_instance");
 
   for ( ; pfs < pfs_last; pfs++)
     reset_single_stat_link(&pfs->m_wait_stat);
+  DBUG_VOID_RETURN;
 }
 
 static void reset_rwlock_waits_by_instance(void)
 {
   PFS_rwlock *pfs= rwlock_array;
   PFS_rwlock *pfs_last= rwlock_array + rwlock_max;
+  DBUG_ENTER("reset_rwlock_waits_by_instance");
 
   for ( ; pfs < pfs_last; pfs++)
     reset_single_stat_link(&pfs->m_wait_stat);
+  DBUG_VOID_RETURN;
 }
 
 static void reset_cond_waits_by_instance(void)
 {
   PFS_cond *pfs= cond_array;
   PFS_cond *pfs_last= cond_array + cond_max;
+  DBUG_ENTER("reset_cond_waits_by_instance");
 
   for ( ; pfs < pfs_last; pfs++)
     reset_single_stat_link(&pfs->m_wait_stat);
+  DBUG_VOID_RETURN;
 }
 
 static void reset_file_waits_by_instance(void)
 {
   PFS_file *pfs= file_array;
   PFS_file *pfs_last= file_array + file_max;
+  DBUG_ENTER("reset_file_waits_by_instance");
 
   for ( ; pfs < pfs_last; pfs++)
     reset_single_stat_link(&pfs->m_wait_stat);
+  DBUG_VOID_RETURN;
 }
 
 /** Reset the wait statistics per object instance. */
 void reset_events_waits_by_instance(void)
 {
+  DBUG_ENTER("reset_events_waits_by_instance");
+
   reset_mutex_waits_by_instance();
   reset_rwlock_waits_by_instance();
   reset_cond_waits_by_instance();
   reset_file_waits_by_instance();
+  DBUG_VOID_RETURN;
 }
 
 /** Reset the io statistics per file instance. */
@@ -1124,9 +1183,11 @@ void reset_file_instance_io(void)
 {
   PFS_file *pfs= file_array;
   PFS_file *pfs_last= file_array + file_max;
+  DBUG_ENTER("reset_file_instance_io");
 
   for ( ; pfs < pfs_last; pfs++)
     reset_file_stat(&pfs->m_file_stat);
+  DBUG_VOID_RETURN;
 }
 
 /** @} */

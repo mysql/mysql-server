@@ -1,0 +1,60 @@
+source include/have_tokudb.inc;
+# verify that trickle loads or bulk loads can not insert values > 32MB
+
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+
+call mtr.add_suppression("TokuDB.*");
+call mtr.add_suppression(".*returned handler error 22");
+
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+
+create table t (id int not null primary key, v0 longblob not null,v1 longblob not null);
+
+select @@max_allowed_packet into @my_max_allowed_packet;
+--disable_warnings
+set global max_allowed_packet=100000000;
+--enable_warnings
+
+connect(conn1,localhost,root,,);
+
+# find a value that works
+--error 1030
+insert into t values (1,repeat('a',16*1024*1024),repeat('b',16*1024*1024));
+--error 1030
+insert into t values (1,repeat('a',16*1024*1024),repeat('b',16*1024*1024-1));
+--error 1030
+insert into t values (1,repeat('a',16*1024*1024),repeat('b',16*1024*1024-2));
+--error 1030
+insert into t values (1,repeat('a',16*1024*1024),repeat('b',16*1024*1024-3));
+--error 1030
+insert into t values (1,repeat('a',16*1024*1024),repeat('b',16*1024*1024-4));
+--error 1030
+insert into t values (1,repeat('a',16*1024*1024),repeat('b',16*1024*1024-5));
+--error 1030
+insert into t values (1,repeat('a',16*1024*1024),repeat('b',16*1024*1024-6));
+--error 1030
+insert into t values (1,repeat('a',16*1024*1024),repeat('b',16*1024*1024-7));
+insert into t values (1,repeat('a',16*1024*1024),repeat('b',16*1024*1024-8));
+
+select id,length(v0),length(v1) from t;
+
+# the bulk loader should detect the large row and fail
+truncate table t;
+--error 1030
+insert into t values (1,'a','a'),(2,'b','b'),(3,'c','c'),(4,'d','d'),(5,repeat('e',16*1024*1024),repeat('f',16*1024*1024));
+select id,length(v0),length(v1) from t;
+
+# the trickle loader should detect the large row and fail
+truncate table t;
+insert into t values (1,'a','a'),(2,'b','b'),(3,'c','c'),(4,'d','d');
+--error 1030
+insert into t values (5,repeat('e',16*1024*1024),repeat('f',16*1024*1024));
+select id,length(v0),length(v1) from t;
+
+connection default;
+disconnect conn1;
+set global max_allowed_packet=@my_max_allowed_packet;
+
+drop table t;

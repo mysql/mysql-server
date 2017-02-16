@@ -1,0 +1,12 @@
+# test DB-718, a crash caused by broken error handling in tokudb's fractal_tree_info information schema
+source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+create table t (id int primary key);
+begin;
+insert into t values (1),(2);
+select dictionary_name from information_schema.tokudb_fractal_tree_info;
+commit;
+drop table t;

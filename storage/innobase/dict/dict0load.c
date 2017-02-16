@@ -1889,7 +1889,7 @@ err_exit:
 	/* Initialize table foreign_child value. Its value could be
 	changed when dict_load_foreigns() is called below */
 	table->fk_max_recusive_level = 0;
-
+ 
 	/* If the force recovery flag is set, we open the table irrespective
 	of the error condition, since the user may want to dump data from the
 	clustered index. However we load the foreign key information only if
@@ -2124,6 +2124,23 @@ dict_load_foreign_cols(
 		ut_a(!rec_get_deleted_flag(rec, 0));
 
 		field = rec_get_nth_field_old(rec, 0, &len);
+
+		if (len != id_len || ut_memcmp(id, field, len) != 0) {
+			char * tmp,*tmp2;
+
+			tmp = mem_heap_alloc(foreign->heap, id_len+4);
+			ut_memcpy(tmp, id, id_len);
+			tmp[id_len]='\0';
+			tmp2 = mem_heap_alloc(foreign->heap, len+4);
+			ut_memcpy(tmp2, id, len);
+			tmp2[len]='\0';
+			fprintf(stderr, "InnoDB: Error: len = %lu != id_len %lu\n",
+				len, id_len);
+			fprintf(stderr, "InnoDB: Error: id %s != field %s\n",
+				tmp, tmp2);
+
+		}
+
 		ut_a(len == id_len);
 		ut_a(ut_memcmp(id, field, len) == 0);
 
@@ -2495,6 +2512,7 @@ contain the same set of foreign key objects; and check if
 dict_table_t::referenced_rbt and dict_table::referenced_list contain
 the same set of foreign key objects.
 @return	TRUE if correct, FALSE otherwise. */
+UNIV_INTERN
 ibool
 dict_table_check_foreign_keys(
 /*==========================*/

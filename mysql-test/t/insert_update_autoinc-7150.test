@@ -1,0 +1,8 @@
+#
+# MDEV-7150 Wrong auto increment values on INSERT .. ON DUPLICATE KEY UPDATE when the inserted columns include NULL in an auto-increment column
+#
+create table t1 (a int(10) auto_increment primary key, b int(11));
+insert t1 values (null,1);
+insert t1 values (null,2), (1,-1), (null,3) on duplicate key update b=values(b);
+select * from t1;
+drop table t1;

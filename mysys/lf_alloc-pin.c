@@ -103,6 +103,12 @@
 #include <my_sys.h>
 #include <lf.h>
 
+/*
+  when using alloca() leave at least that many bytes of the stack -
+  for functions we might be calling from within this stack frame
+*/
+#define ALLOCA_SAFETY_MARGIN 8192
+
 #define LF_PINBOX_MAX_PINS 65536
 
 static void _lf_pinbox_real_free(LF_PINS *pins);
@@ -115,7 +121,7 @@ void lf_pinbox_init(LF_PINBOX *pinbox, uint free_ptr_offset,
                     lf_pinbox_free_func *free_func, void *free_func_arg)
 {
   DBUG_ASSERT(free_ptr_offset % sizeof(void *) == 0);
-  compile_time_assert(sizeof(LF_PINS) == 64);
+  compile_time_assert(sizeof(LF_PINS) == 128);
   lf_dynarray_init(&pinbox->pinarray, sizeof(LF_PINS));
   pinbox->pinstack_top_ver= 0;
   pinbox->pins_in_array= 0;
@@ -271,7 +277,7 @@ static int ptr_cmp(void **a, void **b)
 void _lf_pinbox_free(LF_PINS *pins, void *addr)
 {
   add_to_purgatory(pins, addr);
-  if (pins->purgatory_count % LF_PURGATORY_SIZE)
+  if (pins->purgatory_count % LF_PURGATORY_SIZE == 0)
     _lf_pinbox_real_free(pins);
 }
 
@@ -349,7 +355,8 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
   {
     int alloca_size= sizeof(void *)*LF_PINBOX_PINS*npins;
     /* create a sorted list of pinned addresses, to speed up searches */
-    if (available_stack_size(&pinbox, *pins->stack_ends_here) > alloca_size)
+    if (available_stack_size(&pinbox, *pins->stack_ends_here) >
+        alloca_size + ALLOCA_SAFETY_MARGIN)
     {
       struct st_harvester hv;
       addr= (void **) alloca(alloca_size);
@@ -459,6 +466,8 @@ void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset)
   allocator->top= 0;
   allocator->mallocs= 0;
   allocator->element_size= size;
+  allocator->constructor= 0;
+  allocator->destructor= 0;
   DBUG_ASSERT(size >= sizeof(void*) + free_ptr_offset);
 }
 
@@ -479,6 +488,8 @@ void lf_alloc_destroy(LF_ALLOCATOR *allocator)
   while (node)
   {
     uchar *tmp= anext_node(node);
+    if (allocator->destructor)
+      allocator->destructor(node);
     my_free(node);
     node= tmp;
   }
@@ -507,6 +518,8 @@ void *_lf_alloc_new(LF_PINS *pins)
     if (!node)
     {
       node= (void *)my_malloc(allocator->element_size, MYF(MY_WME));
+      if (allocator->constructor)
+        allocator->constructor(node);
 #ifdef MY_LF_EXTRA_DEBUG
       if (likely(node != 0))
         my_atomic_add32(&allocator->mallocs, 1);

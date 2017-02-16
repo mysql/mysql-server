@@ -1,0 +1,48 @@
+SELECT COUNT(@@GLOBAL.innodb_use_stacktrace);
+COUNT(@@GLOBAL.innodb_use_stacktrace)
+1
+1 Expected
+SET @@GLOBAL.innodb_use_stacktrace=1;
+ERROR HY000: Variable 'innodb_use_stacktrace' is a read only variable
+Expected error 'Read only variable'
+SELECT COUNT(@@GLOBAL.innodb_use_stacktrace);
+COUNT(@@GLOBAL.innodb_use_stacktrace)
+1
+1 Expected
+SELECT IF(@@GLOBAL.innodb_use_stacktrace, 'ON', 'OFF') = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_use_stacktrace';
+IF(@@GLOBAL.innodb_use_stacktrace, 'ON', 'OFF') = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.innodb_use_stacktrace);
+COUNT(@@GLOBAL.innodb_use_stacktrace)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='innodb_use_stacktrace';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+SELECT @@innodb_use_stacktrace = @@GLOBAL.innodb_use_stacktrace;
+@@innodb_use_stacktrace = @@GLOBAL.innodb_use_stacktrace
+1
+1 Expected
+SELECT COUNT(@@innodb_use_stacktrace);
+COUNT(@@innodb_use_stacktrace)
+1
+1 Expected
+SELECT COUNT(@@local.innodb_use_stacktrace);
+ERROR HY000: Variable 'innodb_use_stacktrace' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.innodb_use_stacktrace);
+ERROR HY000: Variable 'innodb_use_stacktrace' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@GLOBAL.innodb_use_stacktrace);
+COUNT(@@GLOBAL.innodb_use_stacktrace)
+1
+1 Expected
+SELECT innodb_use_stacktrace = @@SESSION.innodb_use_stacktrace;
+ERROR 42S22: Unknown column 'innodb_use_stacktrace' in 'field list'
+Expected error 'Readonly variable'

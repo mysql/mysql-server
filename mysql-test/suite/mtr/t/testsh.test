@@ -1,0 +1,6 @@
+#
+# There is testsh-master.sh in the example overlay. That makes the test
+# "affected by the overlay" and it will run twice: for the parent suite and
+# for the overlay.
+#
+select 1;

@@ -1,0 +1,16 @@
+#
+# MDEV-4610 SQL query crashes MariaDB with derived_with_keys
+#
+--source include/have_innodb.inc
+create table t1 (f1 char(4) primary key) engine=innodb charset=utf8 ;
+insert into t1 values ('aaaa');
+create table t2 (f2 text, f3 char(4) not null) engine=innodb charset=utf8 ;
+create table t3 (id int not null) engine=innodb charset=utf8 ;
+create table t4 (val int not null) engine=innodb charset=utf8;
+explain select 1 from
+  (select f2, f3, val, count(id) from t4 join t2 left join t3 on 0) top
+  join t1 on f1 = f3 where f3 = 'aaaa' order by val;
+select 1 from
+  (select f2, f3, val, count(id) from t4 join t2 left join t3 on 0) top
+  join t1 on f1 = f3 where f3 = 'aaaa' order by val;
+drop table t1, t2, t3, t4;

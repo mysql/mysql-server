@@ -1,0 +1,67 @@
+SET DEFAULT_STORAGE_ENGINE = 'TokuDB';
+DROP TABLE IF EXISTS t1;
+create table t1 (n int not null primary key) engine=tokudb;
+set autocommit=0;
+insert into t1 values (4);
+rollback;
+select n, "after rollback" from t1;
+n	after rollback
+insert into t1 values (4);
+commit;
+select n, "after commit" from t1;
+n	after commit
+4	after commit
+commit;
+insert into t1 values (5);
+insert into t1 values (4);
+ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+commit;
+select n, "after commit" from t1;
+n	after commit
+4	after commit
+5	after commit
+set autocommit=1;
+insert into t1 values (6);
+insert into t1 values (4);
+ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+select n from t1;
+n
+4
+5
+6
+set autocommit=0;
+begin;
+savepoint `my_savepoint`;
+insert into t1 values (7);
+savepoint `savept2`;
+insert into t1 values (3);
+select n from t1;
+n
+3
+4
+5
+6
+7
+savepoint savept3;
+rollback to savepoint savept2;
+rollback to savepoint savept3;
+ERROR 42000: SAVEPOINT savept3 does not exist
+rollback to savepoint savept2;
+release savepoint `my_savepoint`;
+select n from t1;
+n
+4
+5
+6
+7
+rollback to savepoint `my_savepoint`;
+ERROR 42000: SAVEPOINT my_savepoint does not exist
+rollback to savepoint savept2;
+ERROR 42000: SAVEPOINT savept2 does not exist
+insert into t1 values (8);
+savepoint sv;
+commit;
+savepoint sv;
+set autocommit=1;
+rollback;
+drop table t1;

@@ -1,0 +1,44 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+create table foo ( a int);
+insert into foo values (1),(2),(22),(3),(4);
+select * from foo;
+a
+1
+2
+22
+3
+4
+begin;
+delete from foo;
+select * from foo;
+a
+rollback;
+select * from foo;
+a
+1
+2
+22
+3
+4
+insert into foo values (1),(2),(22),(3),(4);
+select * from foo;
+a
+1
+2
+22
+3
+4
+1
+2
+22
+3
+4
+begin;
+delete from foo;
+select * from foo;
+a
+commit;
+select * from foo;
+a
+DROP TABLE foo;

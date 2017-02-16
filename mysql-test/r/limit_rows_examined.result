@@ -1,0 +1,852 @@
+set @save_join_cache_level = @@join_cache_level;
+create table t1 (c1 char(2));
+create table t2 (c2 char(2));
+insert into t1 values ('bb'), ('cc'), ('aa'), ('dd');
+insert into t2 values ('bb'), ('cc'), ('dd'), ('ff');
+create table t1i (c1 char(2) key);
+create table t2i (c2 char(2) key);
+insert into t1i values ('bb'), ('cc'), ('aa'), ('dd');
+insert into t2i values ('bb'), ('cc'), ('dd'), ('ff');
+=========================================================================
+Simple joins
+=========================================================================
+Simple nested loops join without blocking
+set @@join_cache_level=0;
+explain
+select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	Using where
+select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 2;
+c1	c2
+bb	bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 3 rows, which exceeds LIMIT ROWS EXAMINED (2). The query result may be incomplete.
+explain
+select * from t1i, t2i where c1 = c2 LIMIT ROWS EXAMINED 4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1i	index	PRIMARY	PRIMARY	2	NULL	4	Using index
+1	SIMPLE	t2i	eq_ref	PRIMARY	PRIMARY	2	test.t1i.c1	1	Using index
+select * from t1i, t2i where c1 = c2 LIMIT ROWS EXAMINED 4;
+c1	c2
+bb	bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 5 rows, which exceeds LIMIT ROWS EXAMINED (4). The query result may be incomplete.
+Blocked nested loops join, empty result set because of blocking
+set @@join_cache_level=1;
+explain
+select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 6;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (flat, BNL join)
+select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 6;
+c1	c2
+bb	bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 7 rows, which exceeds LIMIT ROWS EXAMINED (6). The query result may be incomplete.
+explain
+select * from t1i, t2i where c1 = c2 LIMIT ROWS EXAMINED 6;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1i	index	PRIMARY	PRIMARY	2	NULL	4	Using index
+1	SIMPLE	t2i	index	PRIMARY	PRIMARY	2	NULL	4	Using where; Using index; Using join buffer (flat, BNL join)
+select * from t1i, t2i where c1 = c2 LIMIT ROWS EXAMINED 6;
+c1	c2
+bb	bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 7 rows, which exceeds LIMIT ROWS EXAMINED (6). The query result may be incomplete.
+set @@join_cache_level=6;
+explain
+select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t2	hash_ALL	NULL	#hash#$hj	3	test.t1.c1	4	Using where; Using join buffer (flat, BNLH join)
+select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 3;
+c1	c2
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 4 rows, which exceeds LIMIT ROWS EXAMINED (3). The query result may be incomplete.
+explain
+select * from t1i, t2i where c1 = c2 LIMIT ROWS EXAMINED 6;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1i	index	PRIMARY	PRIMARY	2	NULL	4	Using index
+1	SIMPLE	t2i	index	PRIMARY	PRIMARY	2	NULL	4	Using where; Using index; Using join buffer (flat, BNL join)
+select * from t1i, t2i where c1 = c2 LIMIT ROWS EXAMINED 6;
+c1	c2
+bb	bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 7 rows, which exceeds LIMIT ROWS EXAMINED (6). The query result may be incomplete.
+Mix LIMIT ROWS EXAMINED with LIMIT
+set @@join_cache_level=0;
+explain
+select * from t1, t2 where c1 < c2 LIMIT 1 ROWS EXAMINED 4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	Using where
+select * from t1, t2 where c1 < c2 LIMIT 1 ROWS EXAMINED 4;
+c1	c2
+bb	cc
+explain
+select * from t1, t2 where c1 < c2 LIMIT 1,1 ROWS EXAMINED 4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	Using where
+select * from t1, t2 where c1 < c2 LIMIT 1,1 ROWS EXAMINED 4;
+c1	c2
+bb	dd
+Empty table optimized away during constant optimization
+create table t0 (c0 int);
+explain
+select * from t0 LIMIT ROWS EXAMINED 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	system	NULL	NULL	NULL	NULL	0	const row not found
+explain
+select * from t0 LIMIT ROWS EXAMINED 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	system	NULL	NULL	NULL	NULL	0	const row not found
+select * from t0 LIMIT ROWS EXAMINED 1;
+c0
+drop table t0;
+create table t0 (c0 char(2) primary key);
+insert into t0 values  ('bb'), ('cc'), ('aa');
+explain
+select * from t0 where c0 = 'bb' LIMIT ROWS EXAMINED 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	const	PRIMARY	PRIMARY	2	const	1	Using index
+select * from t0 where c0 = 'bb' LIMIT ROWS EXAMINED 0;
+c0
+bb
+explain
+select * from t0, t1 where c0 = 'bb' and c1 > c0 LIMIT ROWS EXAMINED 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	const	PRIMARY	PRIMARY	2	const	1	Using index
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+select * from t0, t1 where c0 = 'bb' and c1 > c0 LIMIT ROWS EXAMINED 0;
+c0	c1
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 2 rows, which exceeds LIMIT ROWS EXAMINED (0). The query result may be incomplete.
+set @@join_cache_level = @save_join_cache_level;
+drop table t0;
+=========================================================================
+LIMIT ROWS EXAMINED with parameter argument
+=========================================================================
+set @@join_cache_level=0;
+set @l = 2;
+Prepared statement parameter
+prepare st1 from "select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED ?";
+execute st1 using @l;
+c1	c2
+bb	bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 3 rows, which exceeds LIMIT ROWS EXAMINED (2). The query result may be incomplete.
+deallocate prepare st1;
+User variable (not supported for LIMIT in MariaDB 5.3/MySQL 5.1)
+select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED @l;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '@l' at line 1
+Stored procedure parameter
+create procedure test_limit_rows(l int)
+begin
+select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED l;
+end|
+call test_limit_rows(3);
+c1	c2
+bb	bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 4 rows, which exceeds LIMIT ROWS EXAMINED (3). The query result may be incomplete.
+drop procedure test_limit_rows;
+set @@join_cache_level = @save_join_cache_level;
+=========================================================================
+UNIONs (with several LIMIT ROWS EXAMINED clauses)
+=========================================================================
+(select * from t1, t2 where c1 = c2)
+UNION
+(select * from t1, t2 where c1 < c2) LIMIT ROWS EXAMINED 6;
+c1	c2
+bb	bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 8 rows, which exceeds LIMIT ROWS EXAMINED (6). The query result may be incomplete.
+(select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 0)
+UNION
+(select * from t1, t2 where c1 < c2 LIMIT ROWS EXAMINED 6);
+c1	c2
+bb	bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 8 rows, which exceeds LIMIT ROWS EXAMINED (6). The query result may be incomplete.
+select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 0
+UNION
+select * from t1, t2 where c1 < c2 LIMIT ROWS EXAMINED 6;
+c1	c2
+bb	bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 8 rows, which exceeds LIMIT ROWS EXAMINED (6). The query result may be incomplete.
+(select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 0)
+UNION
+(select * from t1, t2 where c1 < c2 LIMIT ROWS EXAMINED 0)
+LIMIT ROWS EXAMINED 6;
+c1	c2
+bb	bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 8 rows, which exceeds LIMIT ROWS EXAMINED (6). The query result may be incomplete.
+(select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 0)
+UNION
+(select * from t1, t2 where c1 < c2 LIMIT ROWS EXAMINED 0)
+LIMIT 1 ROWS EXAMINED 6;
+c1	c2
+bb	bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 8 rows, which exceeds LIMIT ROWS EXAMINED (6). The query result may be incomplete.
+(select * from t1, t2 where c1 = c2 LIMIT ROWS EXAMINED 0)
+UNION
+(select * from t1, t2 where c1 < c2 LIMIT ROWS EXAMINED 0)
+LIMIT 2 ROWS EXAMINED 10;
+c1	c2
+bb	bb
+cc	cc
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 12 rows, which exceeds LIMIT ROWS EXAMINED (10). The query result may be incomplete.
+=========================================================================
+Subqueries (with several LIMIT ROWS EXAMINED clauses)
+=========================================================================
+Subqueries, semi-join
+explain
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 11);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	2	func	1	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	4	Using where
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 11);
+c1
+bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 12 rows, which exceeds LIMIT ROWS EXAMINED (11). The query result may be incomplete.
+explain
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ')
+LIMIT ROWS EXAMINED 11;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	2	func	1	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	4	Using where
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ')
+LIMIT ROWS EXAMINED 11;
+c1
+bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 12 rows, which exceeds LIMIT ROWS EXAMINED (11). The query result may be incomplete.
+explain
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 0)
+LIMIT ROWS EXAMINED 11;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	2	func	1	
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	4	Using where
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 0)
+LIMIT ROWS EXAMINED 11;
+c1
+bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 12 rows, which exceeds LIMIT ROWS EXAMINED (11). The query result may be incomplete.
+explain
+select * from t1i
+where c1 IN (select * from t2i where c2 > ' ')
+LIMIT ROWS EXAMINED 6;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1i	index	PRIMARY	PRIMARY	2	NULL	4	Using where; Using index
+1	PRIMARY	t2i	index	PRIMARY	PRIMARY	2	NULL	4	Using where; Using index; Using join buffer (flat, BNL join)
+select * from t1i
+where c1 IN (select * from t2i where c2 > ' ')
+LIMIT ROWS EXAMINED 6;
+c1
+bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 7 rows, which exceeds LIMIT ROWS EXAMINED (6). The query result may be incomplete.
+Subqueries with IN-TO-EXISTS
+set @@optimizer_switch='semijoin=off,in_to_exists=on,materialization=off';
+explain
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 4);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	4	Using where
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 4);
+c1
+bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 5 rows, which exceeds LIMIT ROWS EXAMINED (4). The query result may be incomplete.
+explain
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ')
+LIMIT ROWS EXAMINED 4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	4	Using where
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ')
+LIMIT ROWS EXAMINED 4;
+c1
+bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 5 rows, which exceeds LIMIT ROWS EXAMINED (4). The query result may be incomplete.
+explain
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 0)
+LIMIT ROWS EXAMINED 4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	4	Using where
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 0)
+LIMIT ROWS EXAMINED 4;
+c1
+bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 5 rows, which exceeds LIMIT ROWS EXAMINED (4). The query result may be incomplete.
+explain
+select * from t1i
+where c1 IN (select * from t2i where c2 > ' ')
+LIMIT ROWS EXAMINED 9;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1i	index	NULL	PRIMARY	2	NULL	4	Using where; Using index
+2	DEPENDENT SUBQUERY	t2i	unique_subquery	PRIMARY	PRIMARY	2	func	1	Using index; Using where
+select * from t1i
+where c1 IN (select * from t2i where c2 > ' ')
+LIMIT ROWS EXAMINED 9;
+c1
+bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 12 rows, which exceeds LIMIT ROWS EXAMINED (9). The query result may be incomplete.
+Same as above, without subquery cache
+set @@optimizer_switch='subquery_cache=off';
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 2);
+c1
+bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 3 rows, which exceeds LIMIT ROWS EXAMINED (2). The query result may be incomplete.
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ')
+LIMIT ROWS EXAMINED 2;
+c1
+bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 3 rows, which exceeds LIMIT ROWS EXAMINED (2). The query result may be incomplete.
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 0)
+LIMIT ROWS EXAMINED 2;
+c1
+bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 3 rows, which exceeds LIMIT ROWS EXAMINED (2). The query result may be incomplete.
+select * from t1i
+where c1 IN (select * from t2i where c2 > ' ')
+LIMIT ROWS EXAMINED 5;
+c1
+bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 7 rows, which exceeds LIMIT ROWS EXAMINED (5). The query result may be incomplete.
+Subqueries with materialization
+set @@optimizer_switch='semijoin=off,in_to_exists=off,materialization=on,subquery_cache=on';
+explain
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 13);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	4	Using where
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 13);
+c1
+bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 14 rows, which exceeds LIMIT ROWS EXAMINED (13). The query result may be incomplete.
+explain
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ') LIMIT ROWS EXAMINED 13;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	4	Using where
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ') LIMIT ROWS EXAMINED 13;
+c1
+bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 14 rows, which exceeds LIMIT ROWS EXAMINED (13). The query result may be incomplete.
+explain
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 0)
+LIMIT ROWS EXAMINED 13;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	4	Using where
+select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 0)
+LIMIT ROWS EXAMINED 13;
+c1
+bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 14 rows, which exceeds LIMIT ROWS EXAMINED (13). The query result may be incomplete.
+explain
+select * from t1i
+where c1 IN (select * from t2i where c2 > ' ') LIMIT ROWS EXAMINED 17;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1i	index	NULL	PRIMARY	2	NULL	4	Using where; Using index
+2	MATERIALIZED	t2i	index	PRIMARY	PRIMARY	2	NULL	4	Using where; Using index
+select * from t1i
+where c1 IN (select * from t2i where c2 > ' ') LIMIT ROWS EXAMINED 17;
+c1
+bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 18 rows, which exceeds LIMIT ROWS EXAMINED (17). The query result may be incomplete.
+set @@optimizer_switch='default';
+=========================================================================
+Views and derived tables
+=========================================================================
+create view v1 as
+select * from t1 where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 13);
+ERROR 42000: This version of MariaDB doesn't yet support 'LIMIT ROWS EXAMINED inside views'
+create view v1 as
+select * from t1 where c1 IN (select * from t2 where c2 > ' ');
+select * from v1;
+c1
+bb
+cc
+dd
+select * from v1 LIMIT ROWS EXAMINED 17;
+c1
+bb
+cc
+dd
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 18 rows, which exceeds LIMIT ROWS EXAMINED (17). The query result may be incomplete.
+select * from v1 LIMIT ROWS EXAMINED 16;
+c1
+bb
+cc
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 18 rows, which exceeds LIMIT ROWS EXAMINED (16). The query result may be incomplete.
+select * from v1 LIMIT ROWS EXAMINED 11;
+c1
+bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 12 rows, which exceeds LIMIT ROWS EXAMINED (11). The query result may be incomplete.
+drop view v1;
+explain
+select *
+from (select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 0)) as tmp
+LIMIT ROWS EXAMINED 11;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+3	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	4	Using where
+select *
+from (select * from t1
+where c1 IN (select * from t2 where c2 > ' ' LIMIT ROWS EXAMINED 0)) as tmp
+LIMIT ROWS EXAMINED 11;
+c1
+bb
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 12 rows, which exceeds LIMIT ROWS EXAMINED (11). The query result may be incomplete.
+=========================================================================
+Aggregation
+=========================================================================
+create table t3 (c1 char(2), c2 int);
+insert into t3 values
+('aa', 1), ('aa', 2),
+('bb', 3), ('bb', 4), ('bb', 5);
+explain
+select c1, sum(c2) from t3 group by c1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	5	Using temporary; Using filesort
+select c1, sum(c2) from t3 group by c1;
+c1	sum(c2)
+aa	3
+bb	12
+explain
+select c1, sum(c2) from t3 group by c1 LIMIT ROWS EXAMINED 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	5	Using temporary; Using filesort
+select c1, sum(c2) from t3 group by c1 LIMIT ROWS EXAMINED 0;
+c1	sum(c2)
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 2 rows, which exceeds LIMIT ROWS EXAMINED (0). The query result may be incomplete.
+select c1, sum(c2) from t3 group by c1 LIMIT ROWS EXAMINED 1;
+ERROR HY000: Sort aborted: 
+select c1, sum(c2) from t3 group by c1 LIMIT ROWS EXAMINED 20;
+c1	sum(c2)
+aa	3
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 21 rows, which exceeds LIMIT ROWS EXAMINED (20). The query result may be incomplete.
+select c1, sum(c2) from t3 group by c1 LIMIT ROWS EXAMINED 21;
+c1	sum(c2)
+aa	3
+bb	12
+create table t3i (c1 char(2), c2 int);
+create index it3i on t3i(c1);
+create index it3j on t3i(c2,c1);
+insert into t3i values
+('aa', 1), ('aa', 2),
+('bb', 3), ('bb', 4), ('bb', 5);
+explain
+select c1, sum(c2) from t3i group by c1 LIMIT ROWS EXAMINED 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3i	index	NULL	it3j	8	NULL	5	Using index; Using temporary; Using filesort
+select c1, sum(c2) from t3i group by c1 LIMIT ROWS EXAMINED 0;
+c1	sum(c2)
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 2 rows, which exceeds LIMIT ROWS EXAMINED (0). The query result may be incomplete.
+select c1, sum(c2) from t3i group by c1 LIMIT ROWS EXAMINED 1;
+ERROR HY000: Sort aborted: 
+select c1, sum(c2) from t3i group by c1 LIMIT ROWS EXAMINED 20;
+c1	sum(c2)
+aa	3
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 21 rows, which exceeds LIMIT ROWS EXAMINED (20). The query result may be incomplete.
+select c1, sum(c2) from t3i group by c1 LIMIT ROWS EXAMINED 21;
+c1	sum(c2)
+aa	3
+bb	12
+Aggregation without grouping
+explain
+select min(c2) from t3 LIMIT ROWS EXAMINED 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	5	
+select min(c2) from t3 LIMIT ROWS EXAMINED 5;
+min(c2)
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 6 rows, which exceeds LIMIT ROWS EXAMINED (5). The query result may be incomplete.
+select max(c2) from t3 LIMIT ROWS EXAMINED 6;
+max(c2)
+5
+select max(c2) from t3 LIMIT ROWS EXAMINED 0;
+max(c2)
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 1 rows, which exceeds LIMIT ROWS EXAMINED (0). The query result may be incomplete.
+explain
+select max(c2) from t3 where c2 > 10 LIMIT ROWS EXAMINED 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	5	Using where
+select max(c2) from t3 where c2 > 10 LIMIT ROWS EXAMINED 5;
+max(c2)
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 6 rows, which exceeds LIMIT ROWS EXAMINED (5). The query result may be incomplete.
+select max(c2) from t3 where c2 > 10 LIMIT ROWS EXAMINED 6;
+max(c2)
+NULL
+select max(c2) from t3 where c2 > 10 LIMIT ROWS EXAMINED 0;
+max(c2)
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 1 rows, which exceeds LIMIT ROWS EXAMINED (0). The query result may be incomplete.
+explain
+select count(c2) from t3 LIMIT ROWS EXAMINED 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	5	
+select count(c2) from t3 LIMIT ROWS EXAMINED 5;
+count(c2)
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 6 rows, which exceeds LIMIT ROWS EXAMINED (5). The query result may be incomplete.
+select count(c2) from t3 LIMIT ROWS EXAMINED 6;
+count(c2)
+5
+select count(c2) from t3 LIMIT ROWS EXAMINED 0;
+count(c2)
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 1 rows, which exceeds LIMIT ROWS EXAMINED (0). The query result may be incomplete.
+explain
+select count(c2) from t3 where c2 > 10 LIMIT ROWS EXAMINED 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	5	Using where
+select count(c2) from t3 where c2 > 10 LIMIT ROWS EXAMINED 5;
+count(c2)
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 6 rows, which exceeds LIMIT ROWS EXAMINED (5). The query result may be incomplete.
+select count(c2) from t3 where c2 > 10 LIMIT ROWS EXAMINED 6;
+count(c2)
+0
+explain
+select sum(c2) from t3 LIMIT ROWS EXAMINED 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	5	
+select sum(c2) from t3 LIMIT ROWS EXAMINED 5;
+sum(c2)
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 6 rows, which exceeds LIMIT ROWS EXAMINED (5). The query result may be incomplete.
+select sum(c2) from t3 LIMIT ROWS EXAMINED 6;
+sum(c2)
+15
+The query result is found during optimization, LIMIT ROWS EXAMINED has no effect.
+explain
+select max(c1) from t3i LIMIT ROWS EXAMINED 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select max(c1) from t3i LIMIT ROWS EXAMINED 0;
+max(c1)
+bb
+create table t3_empty like t3;
+explain
+select max(c1) from t3_empty LIMIT ROWS EXAMINED 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3_empty	system	NULL	NULL	NULL	NULL	0	const row not found
+select max(c1) from t3_empty LIMIT ROWS EXAMINED 0;
+max(c1)
+NULL
+drop table t3_empty;
+=========================================================================
+Sorting
+=========================================================================
+explain
+select c1, c2 from t3 order by c2, c1 LIMIT ROWS EXAMINED 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	5	Using filesort
+select c1, c2 from t3 order by c2, c1 LIMIT ROWS EXAMINED 2;
+ERROR HY000: Sort aborted: 
+explain
+select c1, c2 from t3i order by c2, c1 LIMIT ROWS EXAMINED 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3i	index	NULL	it3j	8	NULL	5	Using index
+select c1, c2 from t3i order by c2, c1 LIMIT ROWS EXAMINED 2;
+c1	c2
+aa	1
+aa	2
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 3 rows, which exceeds LIMIT ROWS EXAMINED (2). The query result may be incomplete.
+explain
+select c1, c2 from t3i order by c2, c1 desc LIMIT ROWS EXAMINED 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3i	index	NULL	it3j	8	NULL	5	Using index; Using filesort
+select c1, c2 from t3i order by c2, c1 desc LIMIT ROWS EXAMINED 2;
+ERROR HY000: Sort aborted: 
+drop table t3,t3i;
+=========================================================================
+INSERT/DELETE/UPDATE
+=========================================================================
+INSERT ... SELECT
+CREATE TABLE t4 (a int);
+INSERT INTO t4 values (1), (2);
+INSERT INTO t4 SELECT a + 2 FROM t4 LIMIT ROWS EXAMINED 0;
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 2 rows, which exceeds LIMIT ROWS EXAMINED (0). The query result may be incomplete.
+select * from t4;
+a
+1
+2
+INSERT INTO t4 SELECT a + 2 FROM t4 LIMIT ROWS EXAMINED 6;
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 8 rows, which exceeds LIMIT ROWS EXAMINED (6). The query result may be incomplete.
+select * from t4;
+a
+1
+2
+3
+drop table t4;
+DELETE - LIMIT ROWS EXAMINED not supported
+CREATE TABLE t4 (a int);
+INSERT INTO t4 values (1), (2);
+DELETE FROM t4 WHERE t4.a > 0 LIMIT ROWS EXAMINED 0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'EXAMINED 0' at line 1
+DELETE FROM t4 WHERE t4.a > 0 LIMIT 0 ROWS EXAMINED 0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'EXAMINED 0' at line 1
+drop table t4;
+UPDATE - LIMIT ROWS EXAMINED not supported
+CREATE TABLE t4 (a int);
+INSERT INTO t4 values (1), (2);
+update t4 set a=a+10 LIMIT ROWS EXAMINED 0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'EXAMINED 0' at line 1
+update t4 set a=a+10 LIMIT 0 ROWS EXAMINED 0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'EXAMINED 0' at line 1
+drop table t4;
+drop table t1,t2,t1i,t2i;
+=========================================================================
+Test cases for bugs
+=========================================================================
+
+MDEV-115
+
+SET @@optimizer_switch='in_to_exists=on,outer_join_with_cache=on';
+CREATE TABLE t1 ( a VARCHAR(3) ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('USA');
+CREATE TABLE t2 ( b INT );
+INSERT INTO t2 VALUES (3899),(3914),(3888);
+CREATE TABLE t3 ( c VARCHAR(33), d INT );
+INSERT INTO t3 VALUES ('USASpanish',8),('USATagalog',0),('USAVietnamese',0);
+EXPLAIN
+SELECT DISTINCT a AS field1 FROM t1, t2 
+WHERE EXISTS (SELECT c FROM t3 LEFT JOIN t2 ON b = d) 
+HAVING field1 > 'aaa' LIMIT ROWS EXAMINED 20;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	Using temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	Distinct
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
+SELECT DISTINCT a AS field1 FROM t1, t2 
+WHERE EXISTS (SELECT c FROM t3 LEFT JOIN t2 ON b = d) 
+HAVING field1 > 'aaa' LIMIT ROWS EXAMINED 20;
+field1
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 23 rows, which exceeds LIMIT ROWS EXAMINED (20). The query result may be incomplete.
+EXPLAIN
+SELECT DISTINCT a FROM t1, t2  HAVING a > ' ' LIMIT ROWS EXAMINED 14;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	Using temporary
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Distinct
+SELECT DISTINCT a FROM t1, t2  HAVING a > ' ' LIMIT ROWS EXAMINED 14;
+a
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 15 rows, which exceeds LIMIT ROWS EXAMINED (14). The query result may be incomplete.
+SELECT DISTINCT a FROM t1, t2  HAVING a > ' ' LIMIT ROWS EXAMINED 15;
+a
+USA
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 16 rows, which exceeds LIMIT ROWS EXAMINED (15). The query result may be incomplete.
+SELECT DISTINCT a FROM t1, t2  HAVING a > ' ' LIMIT ROWS EXAMINED 16;
+a
+USA
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 17 rows, which exceeds LIMIT ROWS EXAMINED (16). The query result may be incomplete.
+drop table t1,t2,t3;
+set @@optimizer_switch='default';
+
+MDEV-153
+
+CREATE TABLE t1 ( a TIME, b DATETIME, KEY(a), KEY(b) ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES 
+('21:22:34.025509', '2002-02-13 17:30:06.013935'), 
+('10:50:38.059966', '2008-09-27 00:34:58.026613'), 
+('00:21:38.058143', '2007-05-28 00:00:00');
+CREATE TABLE t2 ( c INT, d TIME, e DATETIME, f VARCHAR(1), KEY(c) ) ENGINE=MyISAM;
+INSERT INTO t2 VALUES
+(0, '11:03:22.062907', '2007-06-02 11:16:01.053212', 'a'), 
+(0, '08:14:05.001407', '1900-01-01 00:00:00', 'm'), 
+(5, '19:03:16.024974', '1900-01-01 00:00:00', 'f'), 
+(1, '07:23:34.034234', '2000-11-26 05:01:11.054228', 'z'), 
+(6, '12:29:32.019411', '2006-02-13 00:00:00', 'f'), 
+(6, '06:07:10.010496', '2007-06-08 04:35:26.020373', 'a'), 
+(7, '22:55:09.020772', '2005-04-27 00:00:00', 'i');
+EXPLAIN
+SELECT a AS field1, alias2.d AS field2, alias2.f AS field3, alias2.e AS field4, b AS field5
+FROM t1, t2 AS alias2, t2 AS alias3 
+WHERE alias3.c IN ( SELECT 1 UNION SELECT 6 ) 
+GROUP BY field1, field2, field3, field4, field5
+LIMIT ROWS EXAMINED 120;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
+1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	7	Using join buffer (flat, BNL join)
+1	PRIMARY	alias3	index	NULL	c	5	NULL	7	Using where; Using index; Using join buffer (incremental, BNL join)
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+FLUSH STATUS;
+SELECT a AS field1, alias2.d AS field2, alias2.f AS field3, alias2.e AS field4, b AS field5
+FROM t1, t2 AS alias2, t2 AS alias3 
+WHERE alias3.c IN ( SELECT 1 UNION SELECT 6 ) 
+GROUP BY field1, field2, field3, field4, field5
+LIMIT ROWS EXAMINED 120;
+ERROR HY000: Sort aborted: 
+SHOW STATUS LIKE 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	4
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	52
+SHOW STATUS LIKE 'Handler_tmp%';
+Variable_name	Value
+Handler_tmp_update	0
+Handler_tmp_write	66
+FLUSH STATUS;
+SELECT a AS field1, alias2.d AS field2, alias2.f AS field3, alias2.e AS field4, b AS field5
+FROM t1, t2 AS alias2, t2 AS alias3 
+WHERE alias3.c IN ( SELECT 1 UNION SELECT 6 ) 
+GROUP BY field1, field2, field3, field4, field5
+LIMIT ROWS EXAMINED 250;
+field1	field2	field3	field4	field5
+00:21:38	06:07:10	a	2007-06-08 04:35:26	2007-05-28 00:00:00
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 251 rows, which exceeds LIMIT ROWS EXAMINED (250). The query result may be incomplete.
+SHOW STATUS LIKE 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	5
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	2
+Handler_read_rnd_deleted	1
+Handler_read_rnd_next	110
+SHOW STATUS LIKE 'Handler_tmp%';
+Variable_name	Value
+Handler_tmp_update	0
+Handler_tmp_write	133
+drop table t1, t2;
+
+MDEV-161 LIMIT_ROWS EXAMINED: query with the limit and NOT EXISTS, without GROUP BY or aggregate,
+returns rows, while the same query without the limit returns empty set
+
+CREATE TABLE t1 ( a INT, b INT );
+INSERT INTO t1 VALUES (3911,17),(3847,33),(3857,26);
+CREATE TABLE t2 ( c VARCHAR(16) );
+INSERT INTO t2 VALUES ('English'),('French'),('German');
+CREATE TABLE t3 ( d INT, e VARCHAR(32) );
+INSERT INTO t3 VALUES (3813,'United States'),(3814,'United States');
+SELECT * FROM t1 AS alias1, t2 AS alias2 
+WHERE NOT EXISTS (
+SELECT * FROM t1 LEFT OUTER JOIN t3 
+ON (d = a) 
+WHERE b <= alias1.b OR e != alias2.c  
+);
+a	b	c
+SELECT * FROM t1 AS alias1, t2 AS alias2 
+WHERE NOT EXISTS ( 
+SELECT * FROM t1 LEFT OUTER JOIN t3 
+ON (d = a) 
+WHERE b <= alias1.b OR e != alias2.c  
+) LIMIT ROWS EXAMINED 20;
+a	b	c
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 25 rows, which exceeds LIMIT ROWS EXAMINED (20). The query result may be incomplete.
+drop table t1, t2, t3;
+
+MDEV-174: LIMIT ROWS EXAMINED: Assertion `0' failed in net_end_statement(THD*)
+with subquery in SELECT, constant table, aggregate function
+
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( b INT, c INT, KEY(c) );
+INSERT INTO t2 VALUES 
+(5, 0),(3, 4),(6, 1),
+(5, 8),(4, 9),(8, 1);
+SELECT (SELECT MAX(c) FROM t1, t2)
+FROM t2
+WHERE c = (SELECT MAX(b) FROM t2)
+LIMIT ROWS EXAMINED 3;
+(SELECT MAX(c) FROM t1, t2)
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 10 rows, which exceeds LIMIT ROWS EXAMINED (3). The query result may be incomplete.
+drop table t1, t2;
+
+MDEV-178: LIMIT ROWS EXAMINED: Assertion `0' failed in net_end_statement(THD*) on the
+2nd PS execution, with DISTINCT, FROM subquery or view in SELECT, JOIN in nested subquery
+
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (2),(3),(150);
+CREATE TABLE t2 ( b INT );
+INSERT INTO t2 VALUES (2),(17),(3),(6);
+CREATE VIEW v AS
+SELECT DISTINCT * FROM t1 WHERE a > (SELECT COUNT(*) FROM t1, t2 WHERE a = b);
+PREPARE ps FROM 'SELECT * FROM v LIMIT ROWS EXAMINED 21';
+EXECUTE ps;
+a
+3
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 22 rows, which exceeds LIMIT ROWS EXAMINED (21). The query result may be incomplete.
+EXECUTE ps;
+a
+3
+Warnings:
+Warning	1931	Query execution was interrupted. The query examined at least 22 rows, which exceeds LIMIT ROWS EXAMINED (21). The query result may be incomplete.
+drop view v;
+drop table t1, t2;

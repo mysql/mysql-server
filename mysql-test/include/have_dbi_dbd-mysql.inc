@@ -58,9 +58,7 @@
 --let $perlChecker= $MYSQLTEST_VARDIR/std_data/checkDBI_DBD-mysql.pl
 --let $resultFile= $MYSQL_TMP_DIR/dbidbd-mysql.txt
 
-# Make the script executable and execute it.
---chmod 0755 $perlChecker
---exec $perlChecker
+--exec perl $perlChecker
 
 # Source the resulting temporary file and look for a variable being set.
 --source $resultFile

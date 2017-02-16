@@ -28,6 +28,7 @@
 # BUG#20627: INSERT DELAYED does not honour auto_increment_* variables
 # Bug in this test: BUG#38068: binlog_stm_binlog fails sporadically in pushbuild
 
+reset master;
 
 create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
 

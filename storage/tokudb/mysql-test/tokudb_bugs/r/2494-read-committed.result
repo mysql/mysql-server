@@ -1,0 +1,95 @@
+# Establish connection conn1 (user = root)
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+set session transaction isolation level read committed;
+create table foo ( a int, b int, primary key (a));
+insert into foo values (1,1),(2,2),(3,1),(4,3);
+select * from foo;
+a	b
+1	1
+2	2
+3	1
+4	3
+begin;
+update foo set b=10 where b=1;
+select * from foo;
+a	b
+1	10
+2	2
+3	10
+4	3
+set session transaction isolation level read committed;
+select * from foo;
+a	b
+1	1
+2	2
+3	1
+4	3
+set session transaction isolation level read uncommitted;
+select * from foo;
+a	b
+1	10
+2	2
+3	10
+4	3
+rollback;
+begin;
+insert into foo values (5,1),(6,2),(7,1),(8,3);
+select * from foo;
+a	b
+1	1
+2	2
+3	1
+4	3
+5	1
+6	2
+7	1
+8	3
+set session transaction isolation level read committed;
+select * from foo;
+a	b
+1	1
+2	2
+3	1
+4	3
+set session transaction isolation level read uncommitted;
+select * from foo;
+a	b
+1	1
+2	2
+3	1
+4	3
+5	1
+6	2
+7	1
+8	3
+commit;
+begin;
+delete from foo where b=1;
+select * from foo;
+a	b
+2	2
+4	3
+6	2
+8	3
+set session transaction isolation level read committed;
+select * from foo;
+a	b
+1	1
+2	2
+3	1
+4	3
+5	1
+6	2
+7	1
+8	3
+set session transaction isolation level read uncommitted;
+select * from foo;
+a	b
+2	2
+4	3
+6	2
+8	3
+commit;
+set session transaction isolation level serializable;
+DROP TABLE foo;

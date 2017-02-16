@@ -504,7 +504,7 @@ trx_rollback_active(
 			ut_print_name(stderr, trx, TRUE, table->name);
 			fputs(" in recovery\n", stderr);
 
-			err = row_drop_table_for_mysql(table->name, trx, TRUE);
+			err = row_drop_table_for_mysql(table->name, trx, TRUE, FALSE);
 			trx_commit_for_mysql(trx);
 
 			ut_a(err == (int) DB_SUCCESS);

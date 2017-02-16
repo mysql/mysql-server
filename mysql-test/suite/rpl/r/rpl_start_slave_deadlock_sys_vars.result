@@ -1,0 +1,32 @@
+include/master-slave.inc
+[connection master]
+# connection: slave
+SET @save_slave_net_timeout = @@GLOBAL.slave_net_timeout;
+STOP SLAVE;
+include/wait_for_slave_to_stop.inc
+# open an extra connection to the slave
+# connection: slave2
+# set debug synchronization point
+SET DEBUG_SYNC='fix_slave_net_timeout SIGNAL parked WAIT_FOR go';
+# attempt to set slave_net_timeout, will wait on sync point
+SET @@GLOBAL.slave_net_timeout = 100;
+# connection: slave
+SET DEBUG_SYNC='now WAIT_FOR parked';
+# connection: slave1
+# attempt to start the SQL thread
+START SLAVE SQL_THREAD;
+# connection: slave
+# wait until SQL thread has been started
+# sleep a bit so that the SQL thread THD handle is initialized
+# signal the set slave_net_timeout to continue
+SET DEBUG_SYNC='now SIGNAL go';
+# connection: slave2
+# reap result of set slave_net_timeout
+# connection: slave1
+# reap result of starting the SQL thread
+# disconnect: slave2
+# connection: slave
+# cleanup
+SET @@GLOBAL.slave_net_timeout = @save_slave_net_timeout;
+SET DEBUG_SYNC='RESET';
+include/rpl_end.inc

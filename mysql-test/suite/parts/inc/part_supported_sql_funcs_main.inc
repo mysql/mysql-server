@@ -114,7 +114,7 @@ let $val4 =  '10:30';
 
 let $sqlfunc = microsecond(col1);
 let $valsqlfunc = microsecond('10:30:10.000010');
-let $coltype = time;
+let $coltype = time(6);
 let $infile = part_supported_sql_funcs_int_time.inc;
 let $val1 =  '09:09:15.000002';
 let $val2 =  '04:30:01.000018';
@@ -164,6 +164,8 @@ let $val3 =  '2006-09-25';
 let $val4 =  '2006-07-30';
 --source suite/parts/inc/partition_supported_sql_funcs.inc
 
+# time_to_sec() is now a double function, so it can't be portioned upon
+--disable_parsing
 let $sqlfunc = time_to_sec(col1)-(time_to_sec(col1)-20);
 let $valsqlfunc = time_to_sec('18:30:14')-(time_to_sec('17:59:59'));
 let $coltype = time;
@@ -173,6 +175,7 @@ let $val2 =  '14:30:45';
 let $val3 =  '21:59:22';
 let $val4 =  '10:33:11';
 --source suite/parts/inc/partition_supported_sql_funcs.inc
+--enable_parsing
 
 # to_days(non_date_col) is disabled after bug#54483.
 #let $sqlfunc = to_days(col1)-to_days('2006-01-01');

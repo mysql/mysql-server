@@ -86,6 +86,40 @@ write_escaped_string(IO_CACHE *file, LEX_STRING *val_s)
   return FALSE;
 }
 
+static ulonglong view_algo_to_frm(ulonglong val)
+{
+  switch(val)
+  {
+    case VIEW_ALGORITHM_UNDEFINED:
+      return VIEW_ALGORITHM_UNDEFINED_FRM;
+    case VIEW_ALGORITHM_MERGE:
+      return VIEW_ALGORITHM_MERGE_FRM;
+    case VIEW_ALGORITHM_TMPTABLE:
+      return VIEW_ALGORITHM_TMPTABLE_FRM;
+  }
+  DBUG_ASSERT(0); /* Should never happen */
+  return VIEW_ALGORITHM_UNDEFINED;
+}
+
+static ulonglong view_algo_from_frm(ulonglong val)
+{
+  switch(val)
+  {
+    case VIEW_ALGORITHM_UNDEFINED_FRM:
+      return VIEW_ALGORITHM_UNDEFINED;
+    case VIEW_ALGORITHM_MERGE_FRM:
+      return VIEW_ALGORITHM_MERGE;
+    case VIEW_ALGORITHM_TMPTABLE_FRM:
+      return VIEW_ALGORITHM_TMPTABLE;
+  }
+
+  /*
+    Early versions of MariaDB 5.2/5.3 had identical in-memory and frm values
+    Return input value.
+  */
+  return val;
+}
+
 
 /**
   Write parameter value to IO_CACHE.
@@ -124,8 +158,14 @@ write_parameter(IO_CACHE *file, uchar* base, File_option *parameter)
     break;
   }
   case FILE_OPTIONS_ULONGLONG:
+  case FILE_OPTIONS_VIEW_ALGO:
   {
-    num.set(*((ulonglong *)(base + parameter->offset)), &my_charset_bin);
+    ulonglong val= *(ulonglong *)(base + parameter->offset);
+
+    if (parameter->type == FILE_OPTIONS_VIEW_ALGO)
+      val= view_algo_to_frm(val);
+
+    num.set(val, &my_charset_bin);
     if (my_b_append(file, (const uchar *)num.ptr(), num.length()))
       DBUG_RETURN(TRUE);
     break;
@@ -219,7 +259,7 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
   File_option *param;
   DBUG_ENTER("sql_create_definition_file");
   DBUG_PRINT("enter", ("Dir: %s, file: %s, base 0x%lx",
-		       dir ? dir->str : "(null)",
+		       dir ? dir->str : "",
                        file_name->str, (ulong) base));
 
   if (dir)
@@ -386,7 +426,7 @@ sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
     DBUG_RETURN(0);
   }
 
-  if (!(parser->buff= (char*) alloc_root(mem_root, stat_info.st_size+1)))
+  if (!(parser->buff= (char*) alloc_root(mem_root, (size_t)(stat_info.st_size+1))))
   {
     DBUG_RETURN(0);
   }
@@ -769,6 +809,7 @@ File_parser::parse(uchar* base, MEM_ROOT *mem_root,
 	  break;
 	}
 	case FILE_OPTIONS_ULONGLONG:
+	case FILE_OPTIONS_VIEW_ALGO:
 	  if (!(eol= strchr(ptr, '\n')))
 	  {
 	    my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
@@ -777,8 +818,12 @@ File_parser::parse(uchar* base, MEM_ROOT *mem_root,
 	  }
           {
             int not_used;
-	    *((ulonglong*)(base + parameter->offset))=
-              my_strtoll10(ptr, 0, &not_used);
+            ulonglong val= (ulonglong)my_strtoll10(ptr, 0, &not_used);
+
+            if (parameter->type == FILE_OPTIONS_VIEW_ALGO)
+              val= view_algo_from_frm(val);
+
+            *((ulonglong*)(base + parameter->offset))= val;
           }
 	  ptr= eol+1;
 	  break;

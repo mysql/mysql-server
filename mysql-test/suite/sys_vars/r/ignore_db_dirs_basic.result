@@ -1,0 +1,49 @@
+select @@ignore_db_dirs;
+@@ignore_db_dirs
+e,lost+found,.mysqlgui,ignored_db
+# Check that SHOW DATABASES ignores all directories from
+# @@ignore_db_dirs and all directories with names starting
+# with '.'
+SHOW DATABASES;
+Database
+information_schema
+#mysql50#.otherdir
+mtr
+mysql
+performance_schema
+test
+USE ignored_db;
+ERROR 42000: Incorrect database name 'ignored_db'
+SELECT * FROM ignored_db.t1;
+ERROR 42000: Incorrect database name 'ignored_db'
+CALL ignored_db.p1();
+ERROR 42000: Incorrect database name 'ignored_db'
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='ignored_db';
+COUNT(*)
+1
+CREATE DATABASE ignored_db;
+ERROR 42000: Incorrect database name 'ignored_db'
+CREATE DATABASE `lost+found`;
+USE `lost+found`;
+CREATE TABLE t1(id INT);
+INSERT INTO t1 VALUES (1), (2);
+SELECT * FROM `lost+found`.t1;
+id
+1
+2
+SHOW DATABASES;
+Database
+information_schema
+#mysql50#.otherdir
+lost+found
+mtr
+mysql
+performance_schema
+test
+DROP DATABASE `lost+found`;
+SET @@global.ignore_db_dirs = 'aha';
+ERROR HY000: Variable 'ignore_db_dirs' is a read only variable
+SET @@local.ignore_db_dirs = 'aha';
+ERROR HY000: Variable 'ignore_db_dirs' is a read only variable
+SET @@ignore_db_dirs = 'aha';
+ERROR HY000: Variable 'ignore_db_dirs' is a read only variable

@@ -1,0 +1,36 @@
+create table t1 (a int auto_increment, b bigint(20), primary key (b,a)) engine=tokudb;
+start transaction;
+insert t1 (b) values (1);
+set tokudb_lock_timeout=1;
+insert t1 (b) values (1);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+set tokudb_lock_timeout=default;
+insert t1 (b) values (1);
+insert t1 (b) values (1);
+commit;
+commit;
+select * from t1;
+a	b
+1	1
+2	1
+3	1
+alter table t1 partition by range (b) (partition p0 values less than (9));
+start transaction;
+insert t1 (b) values (2);
+set tokudb_lock_timeout=1;
+insert t1 (b) values (2);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+set tokudb_lock_timeout=default;
+insert t1 (b) values (2);
+insert t1 (b) values (2);
+commit;
+commit;
+select * from t1;
+a	b
+1	1
+2	1
+3	1
+1	2
+2	2
+3	2
+drop table t1;

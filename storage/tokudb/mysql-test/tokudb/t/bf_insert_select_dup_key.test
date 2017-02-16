@@ -1,0 +1,105 @@
+# Verify that index and range scans are not slow
+# on tables during insert select on duplicate key statements
+# due to tokudb bulk fetch not being used.
+# In this test case, the on duplicate key condition does not need to fire
+# since the performance of the embedded select statement is all we are measuring.
+
+source include/have_tokudb.inc;
+source include/big_test.inc;
+set default_storage_engine='tokudb';
+disable_warnings;
+drop table if exists t1,t2;
+enable_warnings;
+
+let $debug = 0;
+
+CREATE TABLE `t1` (
+  `num` int(10) unsigned auto_increment NOT NULL,
+  `val` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`num`)
+);
+
+# put 1M rows into t1
+INSERT INTO t1 values (null,null);
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+INSERT INTO t1 SELECT null,val FROM t1;
+SELECT count(*) FROM t1;
+
+# Create second table t2 that will serve as the target for the insert select statment
+CREATE TABLE `t2` (
+  `num` int(10) unsigned auto_increment NOT NULL, 
+  `count` bigint(20) NOT NULL,
+  UNIQUE (num)
+);
+
+let $maxq = 20;
+
+set tokudb_bulk_fetch=ON;
+let $s = `select unix_timestamp()`;
+let $i = 0;
+while ($i < $maxq) {
+    INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+    inc $i;
+}
+let $time_elapsed_on = `select unix_timestamp() - $s`;
+
+set tokudb_bulk_fetch=OFF;
+let $s = `select unix_timestamp()`;
+let $i = 0;
+while ($i < $maxq) {
+    INSERT into t2 (num,count) SELECT NULL,count(*) from t1 on DUPLICATE KEY UPDATE count=count+1;
+    inc $i;
+}
+let $time_elapsed_off = `select unix_timestamp() - $s`;
+
+# check that bulk fetch on is greater than with bulk fetch off
+let $verdict = `select $time_elapsed_on > 0 && $time_elapsed_off > $time_elapsed_on`;
+echo $verdict;
+if ($debug) { echo index $verdict $time_elapsed_off $time_elapsed_on; }
+if (!$verdict) { echo index $time_elapsed_off $time_elapsed_on; }
+
+let $maxq = 20;
+
+set tokudb_bulk_fetch=ON;
+let $s = `select unix_timestamp()`;
+let $i = 0;
+while ($i < $maxq) {
+    INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+    inc $i;
+}
+let $time_elapsed_on = `select unix_timestamp() - $s`;
+
+set tokudb_bulk_fetch=OFF;
+let $s = `select unix_timestamp()`;
+let $i = 0;
+while ($i < $maxq) {
+    INSERT into t2 (num,count) SELECT NULL,count(*) from t1 where num > 700000 on DUPLICATE KEY UPDATE count=count+1;
+    inc $i;
+}
+let $time_elapsed_off = `select unix_timestamp() - $s`;
+
+# check that bulk fetch on is greater than bulk fetch off
+let $verdict = `select $time_elapsed_on > 0 && $time_elapsed_off > $time_elapsed_on`;
+echo $verdict;
+if ($debug) { echo range $verdict $time_elapsed_off $time_elapsed_on; }
+if (!$verdict) { echo range $time_elapsed_off $time_elapsed_on; }
+
+drop table t1,t2;

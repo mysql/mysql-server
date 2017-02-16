@@ -823,28 +823,6 @@ number of bytes to dump.
 .SP 1
 EX: \fCDBUG_DBUG\ ("net",\ packet,\ len);\fR
 .SP 1
-.LI DBUG_SETJMP\ 
-Used in place of the setjmp() function to first save the current
-debugger state and then execute the standard setjmp call.
-This allows to the debugger to restore its state when the
-DBUG_LONGJMP macro is used to invoke the standard longjmp() call.
-Currently all instances of DBUG_SETJMP must occur within the
-same function and at the same function nesting level.
-.SP 1
-EX: \fCDBUG_SETJMP\ (env);\fR
-.SP 1
-.LI DBUG_LONGJMP\ 
-Used in place of the longjmp() function to first restore the
-previous debugger state at the time of the last DBUG_SETJMP
-and then execute the standard longjmp() call.
-Note that currently all DBUG_LONGJMP macros restore the state
-at the time of the last DBUG_SETJMP.
-It would be possible to maintain separate DBUG_SETJMP and DBUG_LONGJMP
-pairs by having the debugger runtime support module use the first
-argument to differentiate the pairs.
-.SP 1
-EX: \fCDBUG_LONGJMP\ (env,val);\fR
-.SP 1
 .LI DBUG_LOCK_FILE\ 
 Used in multi-threaded environment to lock DBUG_FILE stream.
 It can be used, for example, in functions that need to write something to a
@@ -971,15 +949,6 @@ containing the macro causing the output.
 .LI i
 Mark each debugger output line with the PID (or thread ID) of the
 current process.
-.LI g,[functions]
-Enable profiling for the specified list of functions.
-Every function can be a
-.I glob(7)
-pattern.
-An empty list of functions enables profiling for all functions.
-See
-.B PROFILING\ WITH\ DBUG
-below.
 .LI L
 Mark each debugger output line with the source file line number of
 the macro causing the output.
@@ -1019,6 +988,14 @@ Most useful with
 .B DBUG_PUSH 
 macros used to temporarily alter the
 debugger state.
+.LI S
+When compiled with
+.I safemalloc
+this flag invokes "sanity" memory checks (for overwrites/underwrites)
+on each
+.B DBUG_ENTER
+and
+.B DBUG_RETURN.
 .LI t[,N]
 Enable function control flow tracing.
 The maximum nesting depth is specified by N, and defaults to
@@ -1078,76 +1055,7 @@ all writes to a file are always followed by a flush.
 
 .SK
 .B
-PROFILING WITH DBUG
-.R
 
-.P
-With
-.I dbug
-one can do profiling in a machine independent fashion,
-without a need for profiled version of system libraries.
-For this,
-.I dbug
-can write out a file
-called
-.B dbugmon.out
-(by default).  This is an ascii file containing lines of the form:
-.DS CB N
-\fC<function-name> E <time-entered>
-<function-name> X <time-exited>
-.DE
-
-.P
-A second program (\fBanalyze\fR) reads this file, and produces a report on
-standard output.
-
-.P
-Profiling is enabled through the 
-.B g
-flag.  It can take a list of
-function names for which profiling is enabled.  By default, it
-profiles all functions.
-
-.P
-The profile file is opened for appending.  This
-is in order that one can run a program several times, and get the
-sum total of all the times, etc.
-
-.P
-An example of the report generated follows:
-.DS CB N
-\fC
-            Profile of Execution
-            Execution times are in milliseconds
-
-                Calls                        Time
-                -----                        ----
-            Times   Percentage   Time Spent    Percentage
-Function    Called  of total     in Function   of total    Importance
-========    ======  ==========   ===========   ==========  ==========
-factorial        5       83.33            30       100.00        8333
-main             1       16.67             0         0.00           0
-========    ======  ==========   ===========   ==========
-Totals           6      100.00            30       100.00
-.DE
-.P
-As you can see, it's quite self-evident.  The 
-.B Importance
-column is a
-metric obtained by multiplying the percentage of the calls and the percentage
-of the time.  Functions with higher 'importance' benefit the most from
-being sped up.
-
-.P
-As a limitation - setjmp/longjmp, or child processes, are ignored
-for the time being. Also, profiling does not work
-in a multi-threaded environment.
-
-.P
-Profiling code is (c) Binayak Banerjee.
-
-.SK
-.B
 HINTS AND MISCELLANEOUS
 .R
 

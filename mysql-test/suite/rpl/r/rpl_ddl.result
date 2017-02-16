@@ -1,15 +1,8 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 
 -------- switch to master -------
 SET AUTOCOMMIT = 1;
-DROP DATABASE IF EXISTS mysqltest1;
-DROP DATABASE IF EXISTS mysqltest2;
-DROP DATABASE IF EXISTS mysqltest3;
 CREATE DATABASE mysqltest1;
 CREATE DATABASE mysqltest2;
 CREATE TABLE mysqltest1.t1 (f1 BIGINT) ENGINE=InnoDB;
@@ -878,11 +871,11 @@ TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 
 -------- switch to master -------
 SHOW INDEX FROM mysqltest1.t6;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 
 -------- switch to slave --------
 SHOW INDEX FROM mysqltest1.t6;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 
 -------- switch to master -------
 
@@ -927,13 +920,13 @@ TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 
 -------- switch to master -------
 SHOW INDEX FROM mysqltest1.t5;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t5	1	my_idx5	1	f1	A	0	NULL	NULL	YES	BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t5	1	my_idx5	1	f1	A	0	NULL	NULL	YES	BTREE		
 
 -------- switch to slave --------
 SHOW INDEX FROM mysqltest1.t5;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t5	1	my_idx5	1	f1	A	NULL	NULL	NULL	YES	BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t5	1	my_idx5	1	f1	A	NULL	NULL	NULL	YES	BTREE		
 
 -------- switch to master -------
 
@@ -1624,5 +1617,7 @@ user
 use test;
 
 -------- switch to master -------
+DROP TEMPORARY TABLE mysqltest1.t22;
 DROP DATABASE mysqltest1;
 DROP DATABASE mysqltest3;
+include/rpl_end.inc

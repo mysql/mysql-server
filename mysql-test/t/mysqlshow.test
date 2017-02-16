@@ -1,7 +1,5 @@
 # Can't run test of external client with embedded server
 -- source include/not_embedded.inc
-# Test lists tables in Information_schema, and InnoDB adds some
--- source include/have_innodb.inc
 # Don't test when thread_pool active
 --source include/not_threadpool.inc
 
@@ -30,11 +28,15 @@ select "---- -v -v -t ------" as "";
 --exec $MYSQL_SHOW test -v -v -t
 DROP TABLE t1, t2;
 
+
+# because of lp:1066512 this test shows xtradb I_S plugins, even when
+# xtradb is supposed to be disabled
+
 #
 # Bug #19147: mysqlshow INFORMATION_SCHEMA does not work
 #
---exec $MYSQL_SHOW information_schema
---exec $MYSQL_SHOW INFORMATION_SCHEMA
---exec $MYSQL_SHOW inf_rmation_schema
+#--exec $MYSQL_SHOW information_schema
+#--exec $MYSQL_SHOW INFORMATION_SCHEMA
+#--exec $MYSQL_SHOW inf_rmation_schema
 
 --echo End of 5.0 tests

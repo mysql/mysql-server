@@ -1,4 +1,3 @@
-
 # Initialise
 --disable_warnings
 drop table if exists t1,t2,t3;
@@ -339,8 +338,11 @@ drop table t1,t2;
 CREATE TABLE t1 (ID1 int, ID2 int, ID int NOT NULL AUTO_INCREMENT,PRIMARY KEY(ID
 ));
 insert into t1 values (1,244,NULL),(2,243,NULL),(134,223,NULL),(185,186,NULL);
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='outer_join_with_cache=off';
 select S.ID as xID, S.ID1 as xID1 from t1 as S left join t1 as yS  on S.ID1 between yS.ID1 and yS.ID2;
 select S.ID as xID, S.ID1 as xID1, repeat('*',count(distinct yS.ID)) as Level from t1 as S left join t1 as yS  on S.ID1 between yS.ID1 and yS.ID2 group by xID order by xID1;
+SET optimizer_switch=@save_optimizer_switch;
 drop table t1;
 
 #
@@ -1032,20 +1034,22 @@ EXPLAIN SELECT a FROM t1
   USE INDEX FOR JOIN (i2) 
   USE INDEX FOR JOIN (i2,i2);
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
 EXPLAIN SELECT 1 FROM t1 WHERE a IN
   (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
+SET optimizer_switch=@save_optimizer_switch;
 
 CREATE TABLE t2 (a INT, b INT, KEY(a));
 INSERT INTO t2 VALUES (1, 1), (2, 2), (3,3), (4,4);
 EXPLAIN SELECT a, SUM(b) FROM t2 GROUP BY a LIMIT 2; 
 EXPLAIN SELECT a, SUM(b) FROM t2 IGNORE INDEX (a) GROUP BY a LIMIT 2;
 
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='semijoin_with_cache=off';
 EXPLAIN SELECT 1 FROM t2 WHERE a IN
   (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
-
-SHOW VARIABLES LIKE 'old';  
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@old = off;  
+SET optimizer_switch=@save_optimizer_switch;
 
 DROP TABLE t1, t2;
 
@@ -1220,6 +1224,23 @@ EXPLAIN SELECT MAX(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
 SELECT MAX(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
 DROP TABLE t1, t2;
 
+#
+# min() returns wrong value when used in expression when there is no matching
+# rows
+#
+
+CREATE TABLE t1 (a int(11) NOT NULL);
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (
+ key_col int(11) NOT NULL,
+ KEY (key_col)
+);
+INSERT INTO t2 VALUES (1),(2);
+
+select min(t2.key_col) from t1,t2 where t1.a=1;
+select min(t2.key_col) from t1,t2 where t1.a > 1000;
+select min(t2.key_col)+1 from t1,t2 where t1.a> 1000;
+drop table t1,t2;
 
 --echo #
 --echo # Bug#55188: GROUP BY, GROUP_CONCAT and TEXT - inconsistent results
@@ -1299,7 +1320,298 @@ SELECT 1 FROM t1 GROUP BY SUBSTRING(SYSDATE() FROM 'K' FOR 'jxW<');
 DROP TABLE t1;
 SET SQL_BIG_TABLES=0;
 
+--echo #
+--echo # MDEV-641 LP:1002108 - Wrong result (or crash) from a query with duplicated field in the group list and a limit clause
+--echo # Bug#11761078: 53534: INCORRECT 'SELECT SQL_BIG_RESULT...' 
+--echo #               WITH GROUP BY ON DUPLICATED FIELDS
+--echo #
+
+CREATE TABLE t1(
+ col1 int, 
+ UNIQUE INDEX idx (col1));
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
+   (11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+
+let $query0=SELECT col1 AS field1, col1 AS field2
+            FROM t1 GROUP BY field1, field2+0;
+
+# Needs to be range to exercise bug
+--eval EXPLAIN $query0;
+FLUSH STATUS;
+--eval $query0;
+SHOW SESSION STATUS LIKE 'Sort_scan%';
+
+let $query=SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
+           FROM t1 GROUP BY field1, field2;
+
+# Needs to be range to exercise bug
+--eval EXPLAIN $query;
+FLUSH STATUS;
+--eval $query;
+SHOW SESSION STATUS LIKE 'Sort_scan%';
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
+FROM v1 
+GROUP BY field1, field2; 
+
+SELECT SQL_BIG_RESULT tbl1.col1 AS field1, tbl2.col1 AS field2
+FROM t1 as tbl1, t1 as tbl2 
+GROUP BY field1, field2 
+LIMIT 3;
+
+explain
+select col1 f1, col1 f2 from t1 order by f2, f1;
+explain
+select col1 f1, col1 f2 from t1 order by f2, f1+0;
+select col1 f1, col1 f2 from t1 order by f2, f1+0;
+
+explain
+select col1 f1, col1 f2 from t1 group by f2 order by f2, f1;
+select col1 f1, col1 f2 from t1 group by f2 order by f2, f1;
+
+explain
+select col1 f1, col1 f2 from t1 group by f1, f2 order by f2, f1;
+select col1 f1, col1 f2 from t1 group by f1, f2 order by f2, f1;
+
+CREATE TABLE t2(
+ col1 int, 
+ col2 int, 
+ UNIQUE INDEX idx (col1, col2));
+
+INSERT INTO t2(col1, col2) VALUES
+   (1,20),(2,19),(3,18),(4,17),(5,16),(6,15),(7,14),(8,13),(9,12),(10,11),
+   (11,10),(12,9),(13,8),(14,7),(15,6),(16,5),(17,4),(18,3),(19,2),(20,1);
+
+explain
+select col1 f1, col2 f2, col1 f3 from t2 group by f1, f2, f3+0;
+select col1 f1, col2 f2, col1 f3 from t2 group by f1, f2, f3+0;
+
+explain
+select col1 f1, col2 f2, col1 f3 from t2 order by f1, f2, f3+0;
+select col1 f1, col2 f2, col1 f3 from t2 order by f1, f2, f3+0;
+
+DROP VIEW v1;
+DROP TABLE t1, t2;
+
 --echo # End of 5.1 tests
+
+--echo #
+--echo # LP bug#694450 Wrong result with non-standard GROUP BY + ORDER BY
+--echo #
+SET SESSION SQL_MODE='ONLY_FULL_GROUP_BY';
+CREATE TABLE t1 (
+f1 int(11), f2 int(11), f3 datetime, f4 varchar(1), PRIMARY KEY (f1)) ;
+INSERT IGNORE INTO t1 VALUES ('1','9','2004-10-11 18:13','x'),('2','5','2004-03-07 14:02','g'),('3','1','2004-04-09 09:38','o'),('4','0','1900-01-01 00:00','g'),('5','1','2009-02-19 02:05','v');
+
+# This must return an error, but instead returns 1 row
+SELECT alias2.f3 AS field1 , alias2.f1 AS field2 FROM t1 AS alias1 JOIN t1 AS alias2 ON alias2.f1 = alias1.f2 AND alias2.f1 != alias1.f4 GROUP BY field1 , field2 ORDER BY alias1.f2 , field2;
+
+# This returns several rows
+SELECT alias2.f3 AS field1 , alias2.f1 AS field2 FROM t1 AS alias1 JOIN t1 AS alias2 ON alias2.f1 = alias1.f2 AND alias2.f1 != alias1.f4 GROUP BY field1 , field2 ;
+SET SESSION SQL_MODE=default;
+drop table t1;
+
+--echo #
+--echo # LP bug#967242 Wrong result (extra rows, not grouped) with JOIN, AND in ON condition, multi-part key, GROUP BY, OR in WHERE
+--echo #
+
+CREATE TABLE t1 ( a VARCHAR(1) ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('x');
+CREATE TABLE t2 ( b INT, c VARCHAR(1), KEY (c, b) ) ENGINE=MyISAM;
+INSERT INTO t2 VALUES
+(4, 'd'),(8, 'g'),(3, 'x'),(3, 'f'),
+(0, 'p'),(3, 'j'),(8, 'c');
+
+SELECT t2_1.b as zzz
+FROM t1 JOIN t2 AS t2_1 JOIN t2 AS t2_2
+ON (t2_2.b = t2_1.b ) AND (t2_2.c = t2_1.c )
+WHERE
+rand() + 1 > 0 OR
+a = t2_1.c
+GROUP BY zzz;
+
+SELECT t2_1.b as zzz
+FROM t1 JOIN t2 AS t2_1 JOIN t2 AS t2_2
+ON (t2_2.b = t2_1.b ) AND (t2_2.c = t2_1.c )
+WHERE
+1 > 0 OR
+a = t2_1.c
+GROUP BY zzz;
+
+SELECT t2_1.b as zzz
+FROM t1 JOIN t2 AS t2_1 JOIN t2 AS t2_2
+ON (t2_2.b = t2_1.b ) AND (t2_2.c = t2_1.c )
+WHERE
+t2_1.b + 1 > 0 OR
+a = t2_1.c
+GROUP BY zzz;
+
+SET @save_optimizer_switch967242=@@optimizer_switch;
+SET optimizer_switch = 'in_to_exists=on';
+
+SELECT t2_1.b
+FROM t1 JOIN t2 AS t2_1 JOIN t2 AS t2_2
+    ON (t2_2.b = t2_1.b ) AND (t2_2.c = t2_1.c )
+WHERE
+  ( SELECT COUNT(*) FROM t2 ) IS NOT NULL
+  OR a = t2_1.c
+GROUP BY t2_1.b;
+SET optimizer_switch=@save_optimizer_switch967242;
+
+drop table t1, t2;
+
+--echo #
+--echo # Bug#12578908: SELECT SQL_BUFFER_RESULT OUTPUTS TOO MANY 
+--echo #               ROWS WHEN GROUP IS OPTIMIZED AWAY
+--echo #
+
+CREATE TABLE t1 (col1 int, col2 int) ;
+INSERT INTO t1 VALUES (10,1),(11,7);
+
+CREATE TABLE t2 (col1 int, col2 int) ;
+INSERT INTO t2 VALUES (10,8);
+
+let $q_body=t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
+
+--echo
+--eval EXPLAIN SELECT SQL_BUFFER_RESULT $q_body
+--eval SELECT SQL_BUFFER_RESULT $q_body
+--echo
+--eval EXPLAIN SELECT $q_body
+--eval SELECT $q_body
+
+--echo
+DROP TABLE t1,t2;
+
+--echo #
+--echo # BUG#12640437: USING SQL_BUFFER_RESULT RESULTS IN A
+--echo #               DIFFERENT QUERY OUTPUT
+--echo #
+
+CREATE TABLE t1 (
+  a int,
+  b varchar(1),
+  KEY (b,a)
+);
+
+INSERT INTO t1 VALUES (1,NULL),(0,'a');
+
+let $query=
+  SELECT SQL_BUFFER_RESULT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
+
+--echo
+--eval EXPLAIN $query
+--echo
+--eval $query
+
+let $query= SELECT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
+--echo
+--eval EXPLAIN $query
+--echo
+--eval $query
+
+--echo
+DROP TABLE t1;
+
+
+#
+# Bug#19880368 : GROUP_CONCAT CRASHES AFTER DUMP_LEAF_KEY
+#
+create table t1 (a int, b int);
+insert into t1 values (1,11), (1,12), (2,22),(2,23), (4,44),(4,45);
+create table t2 (c int, d int);
+insert into t2 values (1,11), (2,22), (4,44);
+select distinct a,sum(b), (select d from t2 where c=a order by max(b) limit 1) from t1 group by a order by max(b);
+drop table t1, t2;
+
+--echo #
+--echo # LP bug#993726 Wrong result from a query with ALL subquery predicate in WHERE
+--echo #
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0);
+SELECT 1 FROM t1 WHERE 1 > ALL(SELECT 1 FROM t1 WHERE a!=0);
+SELECT max(1) FROM t1 WHERE a!=0;
+drop table t1;
+
+--echo # End of 5.2 tests
+
+--echo #
+--echo # lp:872702: Crash in add_ref_to_table_cond() when grouping by a PK
+--echo #
+CREATE TABLE t1 (a int, PRIMARY KEY (a)) ;
+INSERT INTO t1 VALUES (14),(15),(16),(17),(18),(19),(20);
+
+CREATE TABLE t2 (a int) ;
+
+SELECT a
+FROM t1
+WHERE a = (
+        SELECT t2.a
+        FROM t2
+) OR t1.a = 73
+GROUP BY 1;
+DROP TABLE t1, t2;
+
+#
+# MDEV-736 LP:1004615 - Unexpected warnings "Encountered illegal value '' when converting to DECIMAL" on a query with aggregate functions and GROUP BY
+#
+
+FLUSH STATUS; # this test case *must* use Aria temp tables
+
+CREATE TABLE t1 (f1 INT, f2 decimal(20,1), f3 blob);
+INSERT INTO t1 values(11,NULL,'blob'),(11,NULL,'blob');
+SELECT f3, MIN(f2) FROM t1 GROUP BY f1 LIMIT 1;
+DROP TABLE t1;
+
+--echo the value below *must* be 1
+show status like 'Created_tmp_disk_tables';
+
+--echo #
+--echo #  Bug #1002146: Unneeded filesort if usage of join buffer is not allowed
+--echo #  (bug mdev-645)
+--echo #
+
+CREATE TABLE t1 (pk int PRIMARY KEY, a int, INDEX idx(a));
+INSERT INTO t1 VALUES (3,2), (2,3), (5,3), (6,4);
+
+CREATE TABLE t2 (pk int PRIMARY KEY, a int, INDEX idx(a));
+INSERT INTO t2 VALUES (9,0), (10,3), (6,4), (1,6), (3,100), (5,200);
+
+set join_cache_level=0;
+
+EXPLAIN
+SELECT t2.a FROM t2 STRAIGHT_JOIN t1 ON t2.a <> 0 WHERE t2.a <> 6
+  GROUP BY t2.a;
+SELECT t2.a FROM t2 STRAIGHT_JOIN t1 ON t2.a <> 0 WHERE t2.a <> 6
+  GROUP BY t2.a;
+
+set join_cache_level=default;
+
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='outer_join_with_cache=off';
+
+EXPLAIN
+SELECT t2.a FROM t2 LEFT JOIN t1 ON t2.a <> 0 WHERE t2.a <> 6
+  GROUP BY t2.a;
+SELECT t2.a FROM t2 LEFT JOIN t1 ON t2.a <> 0 WHERE t2.a <> 6
+  GROUP BY t2.a;
+
+set optimizer_switch=@save_optimizer_switch;
+
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # MDEV-5104 crash in Item_field::used_tables with broken order by
+--echo #
+
+--error ER_BAD_FIELD_ERROR
+(select 1 order by x(y)) order by 1;
+
+--echo # End of 5.3 tests
 
 --echo #
 --echo # Bug#49771: Incorrect MIN (date) when minimum value is 0000-00-00
@@ -1323,3 +1635,74 @@ SELECT f1,MIN(f2),MAX(f2) FROM t1 GROUP BY 1;
 
 DROP TABLE t1;
 --echo #End of test#49771
+
+--echo #
+--echo # Test of bug in GROUP_CONCAT with ROLLUP
+--echo #
+
+CREATE TABLE t1 ( b VARCHAR(8) NOT NULL, a INT NOT NULL ) ENGINE=MyISAM;
+INSERT INTO t1 (a,b) VALUES (1,'c'),(2,'v');
+
+CREATE TABLE t2 ( c VARCHAR(8), d INT, KEY (c, d) ) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('v',6),('c',4),('v',3);
+
+SELECT b, GROUP_CONCAT( a, b ORDER BY a, b )
+FROM t1 JOIN t2 ON c = b GROUP BY b;
+
+SELECT b, GROUP_CONCAT( a, b ORDER BY a, b )
+FROM t1 JOIN t2 ON c = b GROUP BY b WITH ROLLUP;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # MDEV-6129: Server crashes during UNION with ORDER BY field IS NULL
+--echo #
+
+SET sql_mode='ONLY_FULL_GROUP_BY';
+SELECT 1 AS test UNION SELECT 2 AS test ORDER BY test IS NULL ASC;
+SET sql_mode='';
+
+--echo #
+--echo # MDEV-6484: Assertion `tab->ref.use_count' failed on query with joins, constant table, multi-part key
+--echo #
+CREATE TABLE t1 (i1 INT, c1 VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (6,'b');
+
+CREATE TABLE t2 (pk2 INT, i2 INT, c2 VARCHAR(1), PRIMARY KEY(pk2), KEY(pk2,i2)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,2,'s'),(2,4,'r'),(3,8,'m'),(4,4,'b'),(5,4,'x'),(6,7,'g'),(7,4,'p');
+
+SELECT i2 FROM t1 AS t1a STRAIGHT_JOIN ( t2 INNER JOIN t1 AS t1b ON (t1b.c1 = c2) ) ON (t1b.i1 = pk2 ) 
+WHERE t1a.c1 = c2 GROUP BY i2;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # MDEV-6855
+--echo # MIN(*) with subqueries with IS NOT NULL in WHERE clause crashed.
+--echo #
+
+CREATE TABLE t1 (i INT, c VARCHAR(3), KEY(c,i)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (7,'foo'),(0,'bar');
+
+CREATE TABLE t2 (j INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (0),(8),(1),(8),(9);
+
+SELECT MAX(i), c FROM t1 
+WHERE c != 'qux' AND ( SELECT SUM(j) FROM t1, t2 ) IS NOT NULL GROUP BY c;
+drop table t1,t2;
+
+--echo #
+--echo # ONLY_FULL_GROUP_BY references
+--echo #
+
+set @save_sql_mode = @@sql_mode;
+set sql_mode='ONLY_FULL_GROUP_BY';
+create table t1 (a int, b int);
+select a+b as x from t1 group by x having x > 1;
+select a as x from t1 group by x having x > 1;
+select a from t1 group by a having a > 1;
+drop table t1;
+set sql_mode= @save_sql_mode;
+#
+# End of MariaDB 5.5 tests
+#

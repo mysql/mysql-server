@@ -1,0 +1,1 @@
+--slow-query-log-file=percona_log_slow_slave_statements-master.log --long-query-time=1

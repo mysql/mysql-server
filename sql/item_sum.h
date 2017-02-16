@@ -1,8 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
-
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved. reserved.
-   reserved.
+/* Copyright (c) 2000, 2013 Oracle and/or its affiliates.
+   Copyright (c) 2008, 2013 Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -372,6 +371,12 @@ protected:
   */
   Item **orig_args, *tmp_orig_args[2];
   table_map used_tables_cache;
+  
+  /*
+    TRUE <=> We've managed to calculate the value of this Item in
+    opt_sum_query(), hence it can be considered constant at all subsequent
+    steps.
+  */
   bool forced_const;
   static ulonglong ram_limitation(THD *thd);
 
@@ -432,6 +437,15 @@ public:
   virtual void fix_length_and_dec() { maybe_null=1; null_value=1; }
   virtual Item *result_item(Field *field)
     { return new Item_field(field); }
+  /*
+    Return bitmap of tables that are needed to evaluate the item.
+
+    The implementation takes into account the used strategy: items resolved
+    at optimization phase will report 0.
+    Items that depend on the number of join output records, but not columns
+    of any particular table (like COUNT(*)) will report 0 from used_tables(),
+    but will still return false from const_item().
+  */
   table_map used_tables() const { return used_tables_cache; }
   void update_used_tables ();
   bool is_null() { return null_value; }
@@ -467,6 +481,7 @@ public:
   virtual Field *create_tmp_field(bool group, TABLE *table,
                                   uint convert_blob_length);
   bool walk(Item_processor processor, bool walk_subquery, uchar *argument);
+  virtual bool collect_outer_ref_processor(uchar *param);
   bool init_sum_func_check(THD *thd);
   bool check_sum_func(THD *thd, Item **ref);
   bool register_sum_func(THD *thd, Item **ref);
@@ -523,6 +538,10 @@ public:
   virtual bool setup(THD *thd) { return false; }
 
   virtual void cleanup();
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name()); 
+  }
 };
 
 
@@ -628,6 +647,7 @@ public:
   virtual bool arg_is_null(bool use_null_value);
 
   bool unique_walk_function(void *element);
+  bool unique_walk_function_for_count(void *element);
   static int composite_key_cmp(void* arg, uchar* key1, uchar* key2);
 };
 
@@ -815,6 +835,10 @@ public:
   }
   void fix_length_and_dec() {}
   enum Item_result result_type () const { return hybrid_type; }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor("avg_field");
+  }
   const char *func_name() const { DBUG_ASSERT(0); return "avg_field"; }
 };
 
@@ -892,6 +916,10 @@ public:
   }
   void fix_length_and_dec() {}
   enum Item_result result_type () const { return hybrid_type; }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor("var_field");
+  }
   const char *func_name() const { DBUG_ASSERT(0); return "variance_field"; }
 };
 
@@ -1005,6 +1033,7 @@ protected:
   enum_field_types hybrid_field_type;
   int cmp_sign;
   bool was_values;  // Set if we have found at least one row (for max/min only)
+  bool was_null_value;
 
   public:
   Item_sum_hybrid(Item *item_par,int sign)
@@ -1036,13 +1065,9 @@ protected:
   void cleanup();
   bool any_value() { return was_values; }
   void no_rows_in_result();
+  void restore_to_before_no_rows_in_result();
   Field *create_tmp_field(bool group, TABLE *table,
 			  uint convert_blob_length);
-  /*
-    MIN/MAX uses Item_cache_datetime for storing DATETIME values, thus
-    in this case a correct INT value can be provided.
-  */
-  bool result_as_longlong() { return args[0]->result_as_longlong(); }
 };
 
 
@@ -1369,6 +1394,7 @@ class Item_func_group_concat : public Item_sum
   String *separator;
   TREE tree_base;
   TREE *tree;
+  Item **ref_pointer_array;
 
   /**
      If DISTINCT is used with this GROUP_CONCAT, this member is used to filter
@@ -1420,7 +1446,7 @@ public:
   virtual Field *make_string_field(TABLE *table);
   enum_field_types field_type() const
   {
-    if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB )
+    if (too_big_for_varchar())
       return MYSQL_TYPE_BLOB;
     else
       return MYSQL_TYPE_VARCHAR;
@@ -1434,8 +1460,13 @@ public:
   void make_unique();
   double val_real()
   {
-    String *res;  res=val_str(&str_value);
-    return res ? my_atof(res->c_ptr()) : 0.0;
+    int error;
+    const char *end;
+    String *res;
+    if (!(res= val_str(&str_value)))
+      return 0.0;
+    end= res->ptr() + res->length();
+    return (my_strtod(res->ptr(), (char**) &end, &error));
   }
   longlong val_int()
   {

@@ -1,0 +1,89 @@
+# These templates have been reviewed by the debian-l10n-english
+# team
+#
+# If modifications/additions/rewording are needed, please ask
+# for an advice to debian-l10n-english@lists.debian.org
+#
+# Even minor modifications require translation updates and such
+# changes should be coordinated with translators and reviewers.
+
+Template: mariadb-server-5.5/really_downgrade
+Type: boolean
+Default: false
+_Description: Really proceed with downgrade?
+ A file named /var/lib/mysql/debian-*.flag exists on this system.
+ .
+ Such a file is an indication that a mariadb-server package with a higher
+ version has been installed previously.
+ .
+ There is no guarantee that the version you're currently installing
+ will be able to use the current databases.
+
+Template: mysql-server-5.1/nis_warning
+Type: note
+#flag:translate!:3,5
+_Description: Important note for NIS/YP users
+ Using MariaDB under NIS/YP requires a mysql user account to be added on
+ the local system with:
+ .
+  adduser --system --group --home /var/lib/mysql mysql
+ .
+ You should also check the permissions and ownership of the
+ /var/lib/mysql directory:
+ .
+  /var/lib/mysql: drwxr-xr-x   mysql    mysql
+
+Template: mysql-server-5.1/postrm_remove_databases
+Type: boolean
+Default: false
+_Description: Remove all MariaDB databases?
+ The /var/lib/mysql directory which contains the MariaDB databases is about
+ to be removed.
+ .
+ If you're removing the MariaDB package in order to later install a more
+ recent version or if a different mariadb-server package is already
+ using it, the data should be kept.
+
+Template: mysql-server-5.1/start_on_boot
+Type: boolean
+Default: true
+_Description: Start the MariaDB server on boot?
+ The MariaDB server can be launched automatically at boot time or manually
+ with the '/etc/init.d/mysql start' command.
+
+Template: mysql-server/root_password
+Type: password
+_Description: New password for the MariaDB "root" user:
+ While not mandatory, it is highly recommended that you set a password
+ for the MariaDB administrative "root" user.
+ .
+ If this field is left blank, the password will not be changed.
+
+Template: mysql-server/root_password_again
+Type: password
+_Description: Repeat password for the MariaDB "root" user:
+
+Template: mysql-server/error_setting_password
+Type: error
+_Description: Unable to set password for the MariaDB "root" user
+ An error occurred while setting the password for the MariaDB
+ administrative user. This may have happened because the account
+ already has a password, or because of a communication problem with
+ the MariaDB server.
+ .
+ You should check the account's password after the package installation.
+ .
+ Please read the /usr/share/doc/mariadb-server-5.5/README.Debian file
+ for more information.
+
+Template: mysql-server/password_mismatch
+Type: error
+_Description: Password input error
+ The two passwords you entered were not the same. Please try again.
+
+Template: mysql-server/no_upgrade_when_using_ndb
+Type: error
+_Description: NDB Cluster seems to be in use
+ MySQL-5.1 no longer provides NDB Cluster support. Please migrate to the new
+ mysql-cluster package and remove all lines starting with "ndb" from
+ all config files below /etc/mysql/.

@@ -1,4 +1,5 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2013, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,6 +54,7 @@
 #define READ_ONLY sys_var::READONLY+
 // this means that Sys_var_charptr initial value was malloc()ed
 #define PREALLOCATED sys_var::ALLOCATED+
+#define PARSED_EARLY sys_var::PARSE_EARLY+
 /*
   Sys_var_bit meaning is reversed, like in
   @@foreign_key_checks <-> OPTION_NO_FOREIGN_KEY_CHECKS
@@ -69,9 +71,25 @@
 #define GET_HA_ROWS GET_ULONG
 #endif
 
+/*
+  special assert for sysvars. Tells the name of the variable,
+  and fails even in non-debug builds.
+
+  It is supposed to be used *only* in Sys_var* constructors,
+  and has name_arg hard-coded to prevent incorrect usage.
+*/
+#define SYSVAR_ASSERT(X)                                                \
+    while(!(X))                                                         \
+    {                                                                   \
+      fprintf(stderr, "Sysvar '%s' failed '%s'\n", name_arg, #X);           \
+      DBUG_ABORT();                                                    \
+      exit(255);                                                        \
+    }
+
 enum charset_enum {IN_SYSTEM_CHARSET, IN_FS_CHARSET};
 
 static const char *bool_values[3]= {"OFF", "ON", 0};
+TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
 
 /**
   A small wrapper class to pass getopt arguments as a pair
@@ -87,33 +105,32 @@ struct CMD_LINE
 };
 
 /**
-  Sys_var_unsigned template is used to generate Sys_var_* classes
-  for variables that represent the value as an unsigned integer.
-  They are Sys_var_uint, Sys_var_ulong, Sys_var_harows, Sys_var_ulonglong.
+  Sys_var_integer template is used to generate Sys_var_* classes
+  for variables that represent the value as an integer number.
+  They are Sys_var_uint, Sys_var_ulong, Sys_var_harows, Sys_var_ulonglong,
+  Sys_var_int.
 
   An integer variable has a minimal and maximal values, and a "block_size"
   (any valid value of the variable must be divisible by the block_size).
 
   Class specific constructor arguments: min, max, block_size
-  Backing store: uint, ulong, ha_rows, ulonglong, depending on the Sys_var_*
+  Backing store: int, uint, ulong, ha_rows, ulonglong, depending on the class
 */
 template <typename T, ulong ARGT, enum enum_mysql_show_type SHOWT>
-class Sys_var_unsigned: public sys_var
+class Sys_var_integer: public sys_var
 {
 public:
-  Sys_var_unsigned(const char *name_arg,
+  Sys_var_integer(const char *name_arg,
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
           T min_val, T max_val, T def_val, uint block_size, PolyLock *lock=0,
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
-          const char *substitute=0,
-          int parse_flag= PARSE_NORMAL)
+          const char *substitute=0)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOWT, def_val, lock, binlog_status_arg,
-              on_check_func, on_update_func,
-              substitute, parse_flag)
+              on_check_func, on_update_func, substitute)
   {
     option.var_type= ARGT;
     option.min_value= min_val;
@@ -123,47 +140,69 @@ public:
     if (max_var_ptr())
       *max_var_ptr()= max_val;
 
-    // Do not set global_var for Sys_var_keycache objects
-    if (offset >= 0)
-      global_var(T)= def_val;
-
-    DBUG_ASSERT(size == sizeof(T));
-    DBUG_ASSERT(min_val < max_val);
-    DBUG_ASSERT(min_val <= def_val);
-    DBUG_ASSERT(max_val >= def_val);
-    DBUG_ASSERT(block_size > 0);
-    DBUG_ASSERT(def_val % block_size == 0);
+    global_var(T)= def_val;
+    SYSVAR_ASSERT(size == sizeof(T));
+    SYSVAR_ASSERT(min_val < max_val);
+    SYSVAR_ASSERT(min_val <= def_val);
+    SYSVAR_ASSERT(max_val >= def_val);
+    SYSVAR_ASSERT(block_size > 0);
+    SYSVAR_ASSERT(def_val % block_size == 0);
   }
   bool do_check(THD *thd, set_var *var)
   {
-    my_bool fixed= FALSE;
-    ulonglong uv;
-    longlong v;
+    my_bool fixed= FALSE, unused;
+    longlong v= var->value->val_int();
 
-    v= var->value->val_int();
-    if (var->value->unsigned_flag)
-      uv= (ulonglong) v;
+    if ((ARGT == GET_HA_ROWS) || (ARGT == GET_UINT) ||
+        (ARGT == GET_ULONG)   || (ARGT == GET_ULL))
+    {
+      ulonglong uv;
+
+      /*
+        if the value is signed and negative,
+        and a variable is unsigned, it is set to zero
+      */
+      if ((fixed= (!var->value->unsigned_flag && v < 0)))
+        uv= 0;
+      else
+        uv= v;
+
+      var->save_result.ulonglong_value=
+        getopt_ull_limit_value(uv, &option, &unused);
+
+      if (max_var_ptr() && (T)var->save_result.ulonglong_value > *max_var_ptr())
+        var->save_result.ulonglong_value= *max_var_ptr();
+
+      fixed= fixed || var->save_result.ulonglong_value != uv;
+    }
     else
-      uv= (ulonglong) (v < 0 ? 0 : v);
+    {
+      /*
+        if the value is unsigned and has the highest bit set
+        and a variable is signed, it is set to max signed value
+      */
+      if ((fixed= (var->value->unsigned_flag && v < 0)))
+        v= LONGLONG_MAX;
 
-    var->save_result.ulonglong_value=
-      getopt_ull_limit_value(uv, &option, &fixed);
+      var->save_result.longlong_value=
+        getopt_ll_limit_value(v, &option, &unused);
 
-    if (max_var_ptr() && var->save_result.ulonglong_value > *max_var_ptr())
-      var->save_result.ulonglong_value= *max_var_ptr();
+      if (max_var_ptr() && (T)var->save_result.longlong_value > *max_var_ptr())
+        var->save_result.longlong_value= *max_var_ptr();
 
-    return throw_bounds_warning(thd, name.str,
-                                var->save_result.ulonglong_value != uv,
+      fixed= fixed || var->save_result.longlong_value != v;
+    }
+    return throw_bounds_warning(thd, name.str, fixed,
                                 var->value->unsigned_flag, v);
   }
   bool session_update(THD *thd, set_var *var)
   {
-    session_var(thd, T)= var->save_result.ulonglong_value;
+    session_var(thd, T)= static_cast<T>(var->save_result.ulonglong_value);
     return false;
   }
   bool global_update(THD *thd, set_var *var)
   {
-    global_var(T)= var->save_result.ulonglong_value;
+    global_var(T)= static_cast<T>(var->save_result.ulonglong_value);
     return false;
   }
   bool check_update_type(Item_result type)
@@ -180,10 +219,11 @@ public:
   }
 };
 
-typedef Sys_var_unsigned<uint, GET_UINT, SHOW_INT> Sys_var_uint;
-typedef Sys_var_unsigned<ulong, GET_ULONG, SHOW_LONG> Sys_var_ulong;
-typedef Sys_var_unsigned<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS> Sys_var_harows;
-typedef Sys_var_unsigned<ulonglong, GET_ULL, SHOW_LONGLONG> Sys_var_ulonglong;
+typedef Sys_var_integer<int, GET_INT, SHOW_SINT> Sys_var_int;
+typedef Sys_var_integer<uint, GET_UINT, SHOW_UINT> Sys_var_uint;
+typedef Sys_var_integer<ulong, GET_ULONG, SHOW_ULONG> Sys_var_ulong;
+typedef Sys_var_integer<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS> Sys_var_harows;
+typedef Sys_var_integer<ulonglong, GET_ULL, SHOW_ULONGLONG> Sys_var_ulonglong;
 
 /**
   Helper class for variables that take values from a TYPELIB
@@ -200,11 +240,11 @@ public:
           ulonglong def_val, PolyLock *lock,
           enum binlog_status_enum binlog_status_arg,
           on_check_function on_check_func, on_update_function on_update_func,
-          const char *substitute, int parse_flag= PARSE_NORMAL)
+          const char *substitute)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, show_val_type_arg, def_val, lock,
               binlog_status_arg, on_check_func,
-              on_update_func, substitute, parse_flag)
+              on_update_func, substitute)
   {
     for (typelib.count= 0; values[typelib.count]; typelib.count++) /*no-op */;
     typelib.name="";
@@ -275,17 +315,17 @@ public:
   {
     option.var_type= GET_ENUM;
     global_var(ulong)= def_val;
-    DBUG_ASSERT(def_val < typelib.count);
-    DBUG_ASSERT(size == sizeof(ulong));
+    SYSVAR_ASSERT(def_val < typelib.count);
+    SYSVAR_ASSERT(size == sizeof(ulong));
   }
   bool session_update(THD *thd, set_var *var)
   {
-    session_var(thd, ulong)= var->save_result.ulonglong_value;
+    session_var(thd, ulong)= static_cast<ulong>(var->save_result.ulonglong_value);
     return false;
   }
   bool global_update(THD *thd, set_var *var)
   {
-    global_var(ulong)= var->save_result.ulonglong_value;
+    global_var(ulong)= static_cast<ulong>(var->save_result.ulonglong_value);
     return false;
   }
   void session_save_default(THD *thd, set_var *var)
@@ -314,27 +354,26 @@ public:
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
-          const char *substitute=0,
-          int parse_flag= PARSE_NORMAL)
+          const char *substitute=0)
     : Sys_var_typelib(name_arg, comment, flag_args, off, getopt,
                       SHOW_MY_BOOL, bool_values, def_val, lock,
                       binlog_status_arg, on_check_func, on_update_func,
-                      substitute, parse_flag)
+                      substitute)
   {
     option.var_type= GET_BOOL;
     global_var(my_bool)= def_val;
-    DBUG_ASSERT(def_val < 2);
-    DBUG_ASSERT(getopt.arg_type == OPT_ARG || getopt.id == -1);
-    DBUG_ASSERT(size == sizeof(my_bool));
+    SYSVAR_ASSERT(def_val < 2);
+    SYSVAR_ASSERT(getopt.arg_type == OPT_ARG || getopt.id == -1);
+    SYSVAR_ASSERT(size == sizeof(my_bool));
   }
   bool session_update(THD *thd, set_var *var)
   {
-    session_var(thd, my_bool)= var->save_result.ulonglong_value;
+    session_var(thd, my_bool)= var->save_result.ulonglong_value != 0;
     return false;
   }
   bool global_update(THD *thd, set_var *var)
   {
-    global_var(my_bool)= var->save_result.ulonglong_value;
+    global_var(my_bool)= var->save_result.ulonglong_value != 0;
     return false;
   }
   void session_save_default(THD *thd, set_var *var)
@@ -370,12 +409,11 @@ public:
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
-          const char *substitute=0,
-          int parse_flag= PARSE_NORMAL)
+          const char *substitute=0)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOW_CHAR_PTR, (intptr)def_val,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              substitute, parse_flag)
+              substitute)
   {
     is_os_charset= is_os_charset_arg == IN_FS_CHARSET;
     /*
@@ -385,20 +423,23 @@ public:
     */
     option.var_type= (flags & ALLOCATED) ? GET_STR_ALLOC : GET_STR;
     global_var(const char*)= def_val;
-    DBUG_ASSERT(scope() == GLOBAL);
-    DBUG_ASSERT(size == sizeof(char *));
+    SYSVAR_ASSERT(scope() == GLOBAL);
+    SYSVAR_ASSERT(size == sizeof(char *));
   }
   void cleanup()
   {
     if (flags & ALLOCATED)
+    {
       my_free(global_var(char*));
+      global_var(char *)= NULL;
+    }
     flags&= ~ALLOCATED;
   }
-  bool do_check(THD *thd, set_var *var)
+  static bool do_string_check(THD *thd, set_var *var, CHARSET_INFO *charset)
   {
     char buff[STRING_BUFFER_USUAL_SIZE], buff2[STRING_BUFFER_USUAL_SIZE];
-    String str(buff, sizeof(buff), charset(thd));
-    String str2(buff2, sizeof(buff2), charset(thd)), *res;
+    String str(buff, sizeof(buff), charset);
+    String str2(buff2, sizeof(buff2), charset), *res;
 
     if (!(res=var->value->val_str(&str)))
       var->save_result.string_value.str= 0;
@@ -406,10 +447,10 @@ public:
     {
       uint32 unused;
       if (String::needs_conversion(res->length(), res->charset(),
-                                   charset(thd), &unused))
+                                   charset, &unused))
       {
         uint errors;
-        str2.copy(res->ptr(), res->length(), res->charset(), charset(thd),
+        str2.copy(res->ptr(), res->length(), res->charset(), charset,
                   &errors);
         res=&str2;
 
@@ -420,6 +461,8 @@ public:
 
     return false;
   }
+  bool do_check(THD *thd, set_var *var)
+  { return do_string_check(thd, var, charset(thd)); }
   bool session_update(THD *thd, set_var *var)
   {
     DBUG_ASSERT(FALSE);
@@ -464,7 +507,7 @@ public:
     : sys_var(&all_sys_vars, name_arg, comment,
               sys_var::READONLY+sys_var::ONLY_SESSION, 0, -1,
               NO_ARG, SHOW_CHAR, 0, NULL, VARIABLE_NOT_IN_BINLOG,
-              NULL, NULL, NULL, PARSE_NORMAL)
+              NULL, NULL, NULL)
   {
     is_os_charset= is_os_charset_arg == IN_FS_CHARSET;
     option.var_type= GET_STR;
@@ -509,9 +552,48 @@ public:
 protected:
   virtual uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   {
-    return thd->security_ctx->proxy_user[0] ?
-      (uchar *) &(thd->security_ctx->proxy_user[0]) : NULL;
+    return (uchar*)thd->security_ctx->external_user;
   }
+};
+
+class Sys_var_rpl_filter: public sys_var
+{
+private:
+  int opt_id;
+
+public:
+  Sys_var_rpl_filter(const char *name, int getopt_id, const char *comment)
+    : sys_var(&all_sys_vars, name, comment, sys_var::GLOBAL, 0, -1,
+              NO_ARG, SHOW_CHAR, 0, NULL, VARIABLE_NOT_IN_BINLOG,
+              NULL, NULL, NULL), opt_id(getopt_id)
+  {
+    option.var_type= GET_STR;
+  }
+
+  bool check_update_type(Item_result type)
+  { return type != STRING_RESULT; }
+
+  bool do_check(THD *thd, set_var *var);
+
+  void session_save_default(THD *thd, set_var *var)
+  { DBUG_ASSERT(FALSE); }
+
+  void global_save_default(THD *thd, set_var *var)
+  { DBUG_ASSERT(FALSE); }
+
+  bool session_update(THD *thd, set_var *var)
+  {
+    DBUG_ASSERT(FALSE);
+    return true;
+  }
+
+  bool global_update(THD *thd, set_var *var);
+
+protected:
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base);
+  bool set_filter_value(const char *value);
+  void lock(void);
+  void unlock(void);
 };
 
 /**
@@ -543,7 +625,7 @@ public:
               on_check_func, on_update_func, substitute)
   {
     global_var(LEX_STRING).length= strlen(def_val);
-    DBUG_ASSERT(size == sizeof(LEX_STRING));
+    SYSVAR_ASSERT(size == sizeof(LEX_STRING));
     *const_cast<SHOW_TYPE*>(&show_val_type)= SHOW_LEX_STRING;
   }
   bool global_update(THD *thd, set_var *var)
@@ -577,12 +659,11 @@ public:
                enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
                on_check_function on_check_func=0,
                on_update_function on_update_func=0,
-               const char *substitute=0,
-               int parse_flag= PARSE_NORMAL)
+               const char *substitute=0)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, 0, getopt.id,
               getopt.arg_type, SHOW_CHAR, (intptr)def_val,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              substitute, parse_flag)
+              substitute)
   { option.var_type= GET_NO_ARG; }
   bool do_check(THD *thd, set_var *var)
   {
@@ -634,7 +715,7 @@ public:
 };
 #endif
 
-#define KEYCACHE_VAR(X) sys_var::GLOBAL,offsetof(KEY_CACHE, X), sizeof(((KEY_CACHE *)0)->X)
+#define KEYCACHE_VAR(X) GLOBAL_VAR(dflt_key_cache_var.X)
 #define keycache_var_ptr(KC, OFF) (((uchar*)(KC))+(OFF))
 #define keycache_var(KC, OFF) (*(ulonglong*)keycache_var_ptr(KC, OFF))
 typedef bool (*keycache_update_function)(THD *, KEY_CACHE *, ptrdiff_t, ulonglong);
@@ -658,24 +739,22 @@ public:
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
           ulonglong min_val, ulonglong max_val, ulonglong def_val,
-          ulonglong block_size, PolyLock *lock,
+          uint block_size, PolyLock *lock,
           enum binlog_status_enum binlog_status_arg,
           on_check_function on_check_func,
           keycache_update_function on_update_func,
           const char *substitute=0)
-    : Sys_var_ulonglong(name_arg, comment, flag_args,
-                        -1,     /* offset, see base class CTOR */
-                        size,
-                        getopt, min_val, max_val, def_val,
-                        block_size, lock, binlog_status_arg, on_check_func, 0,
-                        substitute),
+    : Sys_var_ulonglong(name_arg, comment, flag_args, off, size,
+              getopt, min_val, max_val, def_val,
+              block_size, lock, binlog_status_arg, on_check_func, 0,
+              substitute),
     keycache_update(on_update_func)
   {
-    offset= off; /* Remember offset in KEY_CACHE */
     option.var_type|= GET_ASK_ADDR;
     option.value= (uchar**)1; // crash me, please
-    keycache_var(dflt_key_cache, off)= def_val;
-    DBUG_ASSERT(scope() == GLOBAL);
+    // fix an offset from global_system_variables to be an offset in KEY_CACHE
+    offset= global_var_ptr() - (uchar*)dflt_key_cache;
+    SYSVAR_ASSERT(scope() == GLOBAL);
   }
   bool global_update(THD *thd, set_var *var)
   {
@@ -716,6 +795,98 @@ public:
   }
 };
 
+static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
+                               ptrdiff_t offset, ulonglong new_value)
+{
+  bool error= false;
+  DBUG_ASSERT(offset == offsetof(KEY_CACHE, param_buff_size));
+
+  if (new_value == 0)
+  {
+    if (key_cache == dflt_key_cache)
+    {
+      my_error(ER_WARN_CANT_DROP_DEFAULT_KEYCACHE, MYF(0));
+      return true;
+    }
+
+    if (key_cache->key_cache_inited)            // If initied
+    {
+      /*
+        Move tables using this key cache to the default key cache
+        and clear the old key cache.
+      */
+      key_cache->in_init= 1;
+      mysql_mutex_unlock(&LOCK_global_system_variables);
+      key_cache->param_buff_size= 0;
+      ha_resize_key_cache(key_cache);
+      ha_change_key_cache(key_cache, dflt_key_cache);
+      /*
+        We don't delete the key cache as some running threads my still be in
+        the key cache code with a pointer to the deleted (empty) key cache
+      */
+      mysql_mutex_lock(&LOCK_global_system_variables);
+      key_cache->in_init= 0;
+    }
+    return error;
+  }
+
+  key_cache->param_buff_size= new_value;
+
+  /* If key cache didn't exist initialize it, else resize it */
+  key_cache->in_init= 1;
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+
+  if (!key_cache->key_cache_inited)
+    error= ha_init_key_cache(0, key_cache, 0);
+  else
+    error= ha_resize_key_cache(key_cache);
+
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  key_cache->in_init= 0;
+
+  return error;
+}
+
+static bool update_keycache(THD *thd, KEY_CACHE *key_cache,
+                            ptrdiff_t offset, ulonglong new_value,
+                            int (*func)(KEY_CACHE *))
+{
+  bool error= false;
+  DBUG_ASSERT(offset != offsetof(KEY_CACHE, param_buff_size));
+
+  keycache_var(key_cache, offset)= new_value;
+
+  key_cache->in_init= 1;
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+  error= func(key_cache);
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  key_cache->in_init= 0;
+
+  return error;
+}
+
+static bool resize_keycache(THD *thd, KEY_CACHE *key_cache,
+                            ptrdiff_t offset, ulonglong new_value)
+{
+  return update_keycache(thd, key_cache, offset, new_value,
+                         ha_resize_key_cache);
+}
+
+static bool change_keycache_param(THD *thd, KEY_CACHE *key_cache,
+                                  ptrdiff_t offset, ulonglong new_value)
+{
+  return update_keycache(thd, key_cache, offset, new_value,
+                         ha_change_key_cache_param);
+}
+
+static bool repartition_keycache(THD *thd, KEY_CACHE *key_cache,
+                                 ptrdiff_t offset, ulonglong new_value)
+{
+  return update_keycache(thd, key_cache, offset, new_value,
+                         ha_repartition_key_cache);
+}
+
+
 /**
   The class for floating point variables
 
@@ -733,22 +904,21 @@ public:
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
-          const char *substitute=0,
-          int parse_flag= PARSE_NORMAL)
+          const char *substitute=0)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOW_DOUBLE,
               (longlong) getopt_double2ulonglong(def_val),
               lock, binlog_status_arg, on_check_func, on_update_func,
-              substitute, parse_flag)
+              substitute)
   {
     option.var_type= GET_DOUBLE;
     option.min_value= (longlong) getopt_double2ulonglong(min_val);
     option.max_value= (longlong) getopt_double2ulonglong(max_val);
     global_var(double)= (double)option.def_value;
-    DBUG_ASSERT(min_val < max_val);
-    DBUG_ASSERT(min_val <= def_val);
-    DBUG_ASSERT(max_val >= def_val);
-    DBUG_ASSERT(size == sizeof(double));
+    SYSVAR_ASSERT(min_val < max_val);
+    SYSVAR_ASSERT(min_val <= def_val);
+    SYSVAR_ASSERT(max_val >= def_val);
+    SYSVAR_ASSERT(size == sizeof(double));
   }
   bool do_check(THD *thd, set_var *var)
   {
@@ -788,28 +958,27 @@ public:
 
   Backing store: uint
 */
-class Sys_var_max_user_conn: public Sys_var_uint
+class Sys_var_max_user_conn: public Sys_var_int
 {
 public:
   Sys_var_max_user_conn(const char *name_arg,
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
-          uint min_val, uint max_val, uint def_val,
+          int min_val, int max_val, int def_val,
           uint block_size, PolyLock *lock=0,
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
           const char *substitute=0)
-    : Sys_var_uint(name_arg, comment, SESSION, off, size, getopt,
+    : Sys_var_int(name_arg, comment, SESSION, off, size, getopt,
               min_val, max_val, def_val, block_size,
               lock, binlog_status_arg, on_check_func, on_update_func,
               substitute)
   { }
   uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   {
-    const USER_CONN *uc= thd->get_user_connect();
-    if (uc && uc->user_resources.user_conn)
-      return (uchar*) &(uc->user_resources.user_conn);
+    if (thd->user_connect && thd->user_connect->user_resources.user_conn)
+      return (uchar*) &(thd->user_connect->user_resources.user_conn);
     return global_value_ptr(thd, base);
   }
 };
@@ -849,11 +1018,11 @@ public:
   {
     option.var_type= GET_FLAGSET;
     global_var(ulonglong)= def_val;
-    DBUG_ASSERT(typelib.count > 1);
-    DBUG_ASSERT(typelib.count <= 65);
-    DBUG_ASSERT(def_val < MAX_SET(typelib.count));
-    DBUG_ASSERT(strcmp(values[typelib.count-1], "default") == 0);
-    DBUG_ASSERT(size == sizeof(ulonglong));
+    SYSVAR_ASSERT(typelib.count > 1);
+    SYSVAR_ASSERT(typelib.count <= 65);
+    SYSVAR_ASSERT(def_val < MAX_SET(typelib.count));
+    SYSVAR_ASSERT(strcmp(values[typelib.count-1], "default") == 0);
+    SYSVAR_ASSERT(size == sizeof(ulonglong));
   }
   bool do_check(THD *thd, set_var *var)
   {
@@ -960,10 +1129,10 @@ public:
   {
     option.var_type= GET_SET;
     global_var(ulonglong)= def_val;
-    DBUG_ASSERT(typelib.count > 0);
-    DBUG_ASSERT(typelib.count <= 64);
-    DBUG_ASSERT(def_val < MAX_SET(typelib.count));
-    DBUG_ASSERT(size == sizeof(ulonglong));
+    SYSVAR_ASSERT(typelib.count > 0);
+    SYSVAR_ASSERT(typelib.count <= 64);
+    SYSVAR_ASSERT(def_val <= MAX_SET(typelib.count));
+    SYSVAR_ASSERT(size == sizeof(ulonglong));
   }
   bool do_check(THD *thd, set_var *var)
   {
@@ -972,7 +1141,7 @@ public:
 
     if (var->value->result_type() == STRING_RESULT)
     {
-      if (!(res=var->value->val_str(&str)))
+      if (!(res=var->value->val_str_ascii(&str)))
         return true;
       else
       {
@@ -1058,17 +1227,16 @@ public:
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
-          const char *substitute=0,
-          int parse_flag= PARSE_NORMAL)
+          const char *substitute=0)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOW_CHAR, (intptr)def_val,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              substitute, parse_flag),
+              substitute),
     plugin_type(plugin_type_arg)
   {
     option.var_type= GET_STR;
-    DBUG_ASSERT(size == sizeof(plugin_ref));
-    DBUG_ASSERT(getopt.id == -1); // force NO_CMD_LINE
+    SYSVAR_ASSERT(size == sizeof(plugin_ref));
+    SYSVAR_ASSERT(getopt.id == -1); // force NO_CMD_LINE
   }
   bool do_check(THD *thd, set_var *var)
   {
@@ -1105,7 +1273,7 @@ public:
     plugin_ref oldval= *valptr;
     if (oldval != newval)
     {
-      *valptr= my_plugin_lock(NULL, &newval);
+      *valptr= my_plugin_lock(NULL, newval);
       plugin_unlock(NULL, oldval);
     }
   }
@@ -1124,7 +1292,7 @@ public:
   void session_save_default(THD *thd, set_var *var)
   {
     plugin_ref plugin= global_var(plugin_ref);
-    var->save_result.plugin= my_plugin_lock(thd, &plugin);
+    var->save_result.plugin= my_plugin_lock(thd, plugin);
   }
   void global_save_default(THD *thd, set_var *var)
   {
@@ -1140,7 +1308,7 @@ public:
       plugin= my_plugin_lock_by_name(thd, &pname, plugin_type);
     DBUG_ASSERT(plugin);
 
-    var->save_result.plugin= my_plugin_lock(thd, &plugin);
+    var->save_result.plugin= my_plugin_lock(thd, plugin);
   }
   bool check_update_type(Item_result type)
   { return type != STRING_RESULT; }
@@ -1172,14 +1340,13 @@ public:
                enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
                on_check_function on_check_func=0,
                on_update_function on_update_func=0,
-               const char *substitute=0,
-               int parse_flag= PARSE_NORMAL)
+               const char *substitute=0)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, 0, getopt.id,
               getopt.arg_type, SHOW_CHAR, (intptr)def_val,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              substitute, parse_flag)
+              substitute)
   {
-    DBUG_ASSERT(scope() == ONLY_SESSION);
+    SYSVAR_ASSERT(scope() == ONLY_SESSION);
     option.var_type= GET_NO_ARG;
   }
   bool do_check(THD *thd, set_var *var)
@@ -1275,9 +1442,9 @@ public:
     reverse_semantics= my_count_bits(bitmask_arg) > 1;
     bitmask= reverse_semantics ? ~bitmask_arg : bitmask_arg;
     set(global_var_ptr(), def_val);
-    DBUG_ASSERT(def_val < 2);
-    DBUG_ASSERT(getopt.id == -1); // force NO_CMD_LINE
-    DBUG_ASSERT(size == sizeof(ulonglong));
+    SYSVAR_ASSERT(def_val < 2);
+    SYSVAR_ASSERT(getopt.id == -1); // force NO_CMD_LINE
+    SYSVAR_ASSERT(size == sizeof(ulonglong));
   }
   bool session_update(THD *thd, set_var *var)
   {
@@ -1333,7 +1500,7 @@ public:
   Sys_var_session_special(const char *name_arg,
                const char *comment, int flag_args,
                CMD_LINE getopt,
-               ulonglong min_val, ulonglong max_val, ulonglong block_size,
+               ulonglong min_val, ulonglong max_val, uint block_size,
                PolyLock *lock, enum binlog_status_enum binlog_status_arg,
                on_check_function on_check_func,
                session_special_update_function update_func_arg,
@@ -1345,8 +1512,8 @@ public:
               substitute),
       read_func(read_func_arg), update_func(update_func_arg)
   {
-    DBUG_ASSERT(scope() == ONLY_SESSION);
-    DBUG_ASSERT(getopt.id == -1); // NO_CMD_LINE, because the offset is fake
+    SYSVAR_ASSERT(scope() == ONLY_SESSION);
+    SYSVAR_ASSERT(getopt.id == -1); // NO_CMD_LINE, because the offset is fake
   }
   bool session_update(THD *thd, set_var *var)
   { return update_func(thd, var); }
@@ -1371,6 +1538,57 @@ public:
   }
 };
 
+
+class Sys_var_session_special_double: public Sys_var_double
+{
+  typedef bool (*session_special_update_function)(THD *thd, set_var *var);
+  typedef double (*session_special_read_function)(THD *thd);
+
+  session_special_read_function read_func;
+  session_special_update_function update_func;
+public:
+  Sys_var_session_special_double(const char *name_arg,
+               const char *comment, int flag_args,
+               CMD_LINE getopt,
+               double min_val, double max_val,
+               PolyLock *lock, enum binlog_status_enum binlog_status_arg,
+               on_check_function on_check_func,
+               session_special_update_function update_func_arg,
+               session_special_read_function read_func_arg,
+               const char *substitute=0)
+    : Sys_var_double(name_arg, comment, flag_args, 0,
+              sizeof(double), getopt, min_val,
+              max_val, 0, lock, binlog_status_arg, on_check_func, 0,
+              substitute),
+      read_func(read_func_arg), update_func(update_func_arg)
+  {
+    SYSVAR_ASSERT(scope() == ONLY_SESSION);
+    SYSVAR_ASSERT(getopt.id == -1); // NO_CMD_LINE, because the offset is fake
+  }
+  bool session_update(THD *thd, set_var *var)
+  { return update_func(thd, var); }
+  bool global_update(THD *thd, set_var *var)
+  {
+    DBUG_ASSERT(FALSE);
+    return true;
+  }
+  void session_save_default(THD *thd, set_var *var)
+  { var->value= 0; }
+  void global_save_default(THD *thd, set_var *var)
+  { DBUG_ASSERT(FALSE); }
+  uchar *session_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    thd->sys_var_tmp.double_value= read_func(thd);
+    return (uchar*) &thd->sys_var_tmp.double_value;
+  }
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    DBUG_ASSERT(FALSE);
+    return 0;
+  }
+};
+
+
 /**
   The class for read-only variables that show whether a particular
   feature is supported by the server. Example: have_compression
@@ -1391,20 +1609,19 @@ public:
                enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
                on_check_function on_check_func=0,
                on_update_function on_update_func=0,
-               const char *substitute=0,
-               int parse_flag= PARSE_NORMAL)
+               const char *substitute=0)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOW_CHAR, 0,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              substitute, parse_flag)
+              substitute)
   {
-    DBUG_ASSERT(scope() == GLOBAL);
-    DBUG_ASSERT(getopt.id == -1);
-    DBUG_ASSERT(lock == 0);
-    DBUG_ASSERT(binlog_status_arg == VARIABLE_NOT_IN_BINLOG);
-    DBUG_ASSERT(is_readonly());
-    DBUG_ASSERT(on_update == 0);
-    DBUG_ASSERT(size == sizeof(enum SHOW_COMP_OPTION));
+    SYSVAR_ASSERT(scope() == GLOBAL);
+    SYSVAR_ASSERT(getopt.id == -1);
+    SYSVAR_ASSERT(lock == 0);
+    SYSVAR_ASSERT(binlog_status_arg == VARIABLE_NOT_IN_BINLOG);
+    SYSVAR_ASSERT(is_readonly());
+    SYSVAR_ASSERT(on_update == 0);
+    SYSVAR_ASSERT(size == sizeof(enum SHOW_COMP_OPTION));
   }
   bool do_check(THD *thd, set_var *var) {
     DBUG_ASSERT(FALSE);
@@ -1460,12 +1677,11 @@ public:
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
-          const char *substitute=0,
-          int parse_flag= PARSE_NORMAL)
+          const char *substitute=0)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOW_CHAR, (intptr)def_val,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              substitute, parse_flag),
+              substitute),
       name_offset(name_off)
   {
     option.var_type= GET_STR;
@@ -1477,19 +1693,19 @@ public:
       thus all struct command-line options should be added manually
       to my_long_options in mysqld.cc
     */
-    DBUG_ASSERT(getopt.id == -1);
-    DBUG_ASSERT(size == sizeof(void *));
+    SYSVAR_ASSERT(getopt.id == -1);
+    SYSVAR_ASSERT(size == sizeof(void *));
   }
   bool do_check(THD *thd, set_var *var)
   { return false; }
   bool session_update(THD *thd, set_var *var)
   {
-    session_var(thd, void*)= var->save_result.ptr;
+    session_var(thd, const void*)= var->save_result.ptr;
     return false;
   }
   bool global_update(THD *thd, set_var *var)
   {
-    global_var(void*)= var->save_result.ptr;
+    global_var(const void*)= var->save_result.ptr;
     return false;
   }
   void session_save_default(THD *thd, set_var *var)
@@ -1533,15 +1749,14 @@ public:
              enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
              on_check_function on_check_func=0,
              on_update_function on_update_func=0,
-             const char *substitute=0,
-             int parse_flag= PARSE_NORMAL)
+             const char *substitute=0)
     : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
               getopt.arg_type, SHOW_CHAR, (intptr)def_val,
               lock, binlog_status_arg, on_check_func, on_update_func,
-              substitute, parse_flag)
+              substitute)
   {
-    DBUG_ASSERT(getopt.id == -1);
-    DBUG_ASSERT(size == sizeof(Time_zone *));
+    SYSVAR_ASSERT(getopt.id == -1);
+    SYSVAR_ASSERT(size == sizeof(Time_zone *));
   }
   bool do_check(THD *thd, set_var *var)
   {
@@ -1600,7 +1815,16 @@ public:
   { return type != STRING_RESULT; }
 };
 
+/**
+  Special implementation for transaction isolation, that
+  distingushes between
 
+  SET GLOBAL TRANSACTION ISOLATION (stored in global_system_variables)
+  SET SESSION TRANSACTION ISOLATION (stored in thd->variables)
+  SET TRANSACTION ISOLATION (stored in thd->tx_isolation)
+
+  where the last statement sets isolation level for the next transaction only
+*/
 class Sys_var_tx_isolation: public Sys_var_enum
 {
 public:
@@ -1613,5 +1837,47 @@ public:
     :Sys_var_enum(name_arg, comment, flag_args, off, size, getopt,
                   values, def_val, lock, binlog_status_arg, on_check_func)
   {}
-  virtual bool session_update(THD *thd, set_var *var);
+  bool session_update(THD *thd, set_var *var)
+  {
+    if (var->type == OPT_SESSION && Sys_var_enum::session_update(thd, var))
+      return TRUE;
+    if (var->type == OPT_DEFAULT || !thd->in_active_multi_stmt_transaction())
+      thd->tx_isolation= (enum_tx_isolation) var->save_result.ulonglong_value;
+    return FALSE;
+  }
 };
+
+/*
+  Class for replicate_events_marked_for_skip.
+  We need a custom update function that ensures the slave is stopped when
+  the update is happening.
+*/
+class Sys_var_replicate_events_marked_for_skip: public Sys_var_enum
+{
+public:
+  Sys_var_replicate_events_marked_for_skip(const char *name_arg,
+          const char *comment, int flag_args, ptrdiff_t off, size_t size,
+          CMD_LINE getopt,
+          const char *values[], uint def_val, PolyLock *lock,
+          enum binlog_status_enum binlog_status_arg,
+          on_check_function on_check_func)
+    :Sys_var_enum(name_arg, comment, flag_args, off, size, getopt,
+                  values, def_val, lock, binlog_status_arg, on_check_func)
+  {}
+  bool global_update(THD *thd, set_var *var);
+};
+
+/****************************************************************************
+  Used templates
+****************************************************************************/
+
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
+template class List<set_var_base>;
+template class List_iterator_fast<set_var_base>;
+template class Sys_var_integer<int, GET_INT, SHOW_SINT>;
+template class Sys_var_integer<uint, GET_UINT, SHOW_INT>;
+template class Sys_var_integer<ulong, GET_ULONG, SHOW_LONG>;
+template class Sys_var_integer<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS>;
+template class Sys_var_integer<ulonglong, GET_ULL, SHOW_LONGLONG>;
+#endif
+

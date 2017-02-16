@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,8 +21,22 @@
 */
 
 #include "vio_priv.h"
+#include "my_context.h"
+#include <mysql_async.h>
 
 #ifdef HAVE_OPENSSL
+
+#ifndef HAVE_YASSL
+/*
+  yassl seem to be different here, SSL_get_error() value can be
+  directly passed to ERR_error_string(), and these errors don't go
+  into ERR_get_error() stack.
+  in openssl, apparently, SSL_get_error() values live in a different
+  namespace, one needs to use ERR_get_error() as an argument
+  for ERR_error_string().
+*/
+#define SSL_get_error(X,Y) ERR_get_error()
+#endif
 
 #ifndef DBUG_OFF
 
@@ -44,8 +58,13 @@ report_errors(SSL* ssl)
   }
 
   if (ssl)
-    DBUG_PRINT("error", ("error: %s",
-                         ERR_error_string(SSL_get_error(ssl, l), buf)));
+  {
+#ifndef DBUG_OFF
+    int error= SSL_get_error(ssl, l);
+    DBUG_PRINT("error", ("error: %s (%d)",
+                         ERR_error_string(error, buf), error));
+#endif
+  }
 
   DBUG_PRINT("info", ("socket_errno: %d", socket_errno));
   DBUG_VOID_RETURN;
@@ -61,7 +80,10 @@ size_t vio_ssl_read(Vio *vio, uchar* buf, size_t size)
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u  ssl: 0x%lx",
 		       vio->sd, (long) buf, (uint) size, (long) vio->ssl_arg));
 
-  r= SSL_read((SSL*) vio->ssl_arg, buf, size);
+  if (vio->async_context && vio->async_context->active)
+    r= my_ssl_read_async(vio->async_context, (SSL *)vio->ssl_arg, buf, size);
+  else
+    r= SSL_read((SSL*) vio->ssl_arg, buf, size);
 #ifndef DBUG_OFF
   if (r == (size_t) -1)
     report_errors((SSL*) vio->ssl_arg);
@@ -78,7 +100,10 @@ size_t vio_ssl_write(Vio *vio, const uchar* buf, size_t size)
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd,
                        (long) buf, (uint) size));
 
-  r= SSL_write((SSL*) vio->ssl_arg, buf, size);
+  if (vio->async_context && vio->async_context->active)
+    r= my_ssl_write_async(vio->async_context, (SSL *)vio->ssl_arg, buf, size);
+  else
+    r= SSL_write((SSL*) vio->ssl_arg, buf, size);
 #ifndef DBUG_OFF
   if (r == (size_t) -1)
     report_errors((SSL*) vio->ssl_arg);
@@ -119,7 +144,7 @@ int vio_ssl_close(Vio *vio)
       break;
     default: /* Shutdown failed */
       DBUG_PRINT("vio_error", ("SSL_shutdown() failed, error: %d",
-                               SSL_get_error(ssl, r)));
+                               (int)SSL_get_error(ssl, r)));
       break;
     }
   }
@@ -152,11 +177,6 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   SSL *ssl;
   my_bool unused;
   my_bool was_blocking;
-  /* Declared here to make compiler happy */
-#if !defined(HAVE_YASSL) && !defined(DBUG_OFF)
-  int j, n;
-#endif
-
   DBUG_ENTER("ssl_do");
   DBUG_PRINT("enter", ("ptr: 0x%lx, sd: %d  ctx: 0x%lx",
                        (long) ptr, vio->sd, (long) ptr->ssl_context));
@@ -175,27 +195,8 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   SSL_clear(ssl);
   SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
   SSL_set_fd(ssl, vio->sd);
-#if !defined(HAVE_YASSL) && defined(SSL_OP_NO_COMPRESSION)
-  SSL_set_options(ssl, SSL_OP_NO_COMPRESSION); /* OpenSSL >= 1.0 only */
-#elif OPENSSL_VERSION_NUMBER >= 0x00908000L /* workaround for OpenSSL 0.9.8 */
-  sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
-#endif
-
-#if !defined(HAVE_YASSL) && !defined(DBUG_OFF)
-  {
-    STACK_OF(SSL_COMP) *ssl_comp_methods = NULL;
-    ssl_comp_methods = SSL_COMP_get_compression_methods();
-    n= sk_SSL_COMP_num(ssl_comp_methods);
-    DBUG_PRINT("info", ("Available compression methods:\n"));
-    if (n == 0)
-      DBUG_PRINT("info", ("NONE\n"));
-    else
-      for (j = 0; j < n; j++)
-      {
-        SSL_COMP *c = sk_SSL_COMP_value(ssl_comp_methods, j);
-        DBUG_PRINT("info", ("  %d: %s\n", c->id, c->name));
-      }
-  }
+#if  !defined(HAVE_YASSL) && defined(SSL_OP_NO_COMPRESSION)
+  SSL_set_options(ssl, SSL_OP_NO_COMPRESSION);
 #endif
 
   if ((r= connect_accept_func(ssl)) < 1)

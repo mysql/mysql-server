@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -77,13 +78,13 @@ static void rb_insert(TREE *tree,TREE_ELEMENT ***parent,
 static void rb_delete_fixup(TREE *tree,TREE_ELEMENT ***parent);
 
 
-	/* The actuall code for handling binary trees */
+/* The actual code for handling binary trees */
 
 #ifndef DBUG_OFF
 static int test_rb_tree(TREE_ELEMENT *element);
 #endif
 
-void init_tree(TREE *tree, size_t default_alloc_size, ulong memory_limit,
+void init_tree(TREE *tree, size_t default_alloc_size, size_t memory_limit,
                int size, qsort_cmp2 compare, my_bool with_delete,
 	       tree_element_free free_element, void *custom_arg)
 {
@@ -96,7 +97,7 @@ void init_tree(TREE *tree, size_t default_alloc_size, ulong memory_limit,
   bzero((uchar*) &tree->null_element,sizeof(tree->null_element));
   tree->root= &tree->null_element;
   tree->compare=compare;
-  tree->size_of_element=size > 0 ? (uint) size : 0;
+  tree->size_of_element= size > 0 ? (uint) size : 0;
   tree->memory_limit=memory_limit;
   tree->free=free_element;
   tree->allocated=0;
@@ -221,7 +222,10 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size,
   }
   if (element == &tree->null_element)
   {
-    uint alloc_size=sizeof(TREE_ELEMENT)+key_size+tree->size_of_element;
+    uint alloc_size;
+    if (tree->flag & TREE_ONLY_DUPS)
+      return((TREE_ELEMENT *) 1);
+    alloc_size=sizeof(TREE_ELEMENT)+key_size+tree->size_of_element;
     tree->allocated+=alloc_size;
 
     if (tree->memory_limit && tree->elements_in_tree
@@ -375,6 +379,7 @@ void *tree_search_key(TREE *tree, const void *key,
       case HA_READ_KEY_EXACT:
       case HA_READ_KEY_OR_NEXT:
       case HA_READ_BEFORE_KEY:
+      case HA_READ_KEY_OR_PREV:
 	last_equal_element= parents;
 	cmp= 1;
 	break;
@@ -417,6 +422,9 @@ void *tree_search_key(TREE *tree, const void *key,
     break;
   case HA_READ_BEFORE_KEY:
     *last_pos= last_right_step_parent;
+    break;
+  case HA_READ_KEY_OR_PREV:
+    *last_pos= last_equal_element ? last_equal_element : last_right_step_parent;
     break;
   default:
     return NULL;

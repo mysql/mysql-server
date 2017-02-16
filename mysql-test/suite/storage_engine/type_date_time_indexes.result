@@ -1,0 +1,278 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (d DATE <CUSTOM_COL_OPTIONS>,
+dt DATETIME <CUSTOM_COL_OPTIONS>,
+ts TIMESTAMP <CUSTOM_COL_OPTIONS>,
+t TIME <CUSTOM_COL_OPTIONS>,
+y YEAR <CUSTOM_COL_OPTIONS>,
+<CUSTOM_INDEX> d (d)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	#	1	d	#	#	NULL	NULL	#	#		
+SET @tm = '2012-04-09 05:27:00';
+INSERT INTO t1 (d,dt,ts,t,y) VALUES
+('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:55', '00:12:33', '2000'),
+('2012-01-22', '2010-11-22 11:43:14', '2011-11-14 21:45:55', '00:12:32', '2001'),
+('2012-03-31', '2011-08-28 21:33:56', '1999-04-30 19:11:08', '12:00:00', '1999'),
+('2012-03-13', '2011-08-27 21:33:56', '1999-03-30 19:11:08', '12:10:00', '1998'),
+('2011-03-31', '2011-08-28 20:33:56', '1997-01-31 11:54:01', '22:04:10', '1994'),
+(DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm));
+SELECT d FROM t1 ORDER BY d LIMIT 3;
+d
+2011-03-31
+2012-01-12
+2012-01-22
+DROP TABLE t1;
+CREATE TABLE t1 (d DATE <CUSTOM_COL_OPTIONS>,
+dt DATETIME <CUSTOM_COL_OPTIONS>,
+ts TIMESTAMP <CUSTOM_COL_OPTIONS>,
+t TIME <CUSTOM_COL_OPTIONS>,
+y YEAR <CUSTOM_COL_OPTIONS>,
+<CUSTOM_INDEX> dt (dt)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	#	1	dt	#	#	NULL	NULL	#	#		
+SET @tm = '2012-04-09 05:27:00';
+INSERT INTO t1 (d,dt,ts,t,y) VALUES
+('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:55', '00:12:33', '2000'),
+('2012-01-12', '2010-11-22 11:43:14', '2011-11-14 21:45:55', '00:12:32', '2001'),
+('2012-03-31', '2011-08-28 21:33:56', '1999-04-30 19:11:08', '12:00:00', '1999'),
+('2012-03-13', '2011-08-27 21:33:56', '1999-03-30 19:11:08', '12:10:00', '1998'),
+('2011-03-31', '2011-08-28 20:33:56', '1997-01-31 11:54:01', '22:04:10', '1994'),
+(DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm));
+SELECT dt FROM t1 ORDER BY dt LIMIT 3;
+dt
+2010-11-22 11:43:14
+2010-11-22 12:33:54
+2011-08-27 21:33:56
+DROP TABLE t1;
+CREATE TABLE t1 (d DATE <CUSTOM_COL_OPTIONS>,
+dt DATETIME <CUSTOM_COL_OPTIONS>,
+ts TIMESTAMP <CUSTOM_COL_OPTIONS>,
+t TIME <CUSTOM_COL_OPTIONS>,
+y YEAR <CUSTOM_COL_OPTIONS>,
+<CUSTOM_INDEX> ts (ts)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	#	1	ts	#	#	NULL	NULL	#	#		
+SET @tm = '2012-04-09 05:27:00';
+INSERT INTO t1 (d,dt,ts,t,y) VALUES
+('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:25', '00:12:33', '2000'),
+('2012-01-12', '2010-11-22 11:43:14', '2011-11-14 21:45:55', '00:12:32', '2001'),
+('2012-03-31', '2011-08-28 21:33:56', '1999-04-30 19:11:08', '12:00:00', '1999'),
+('2012-03-13', '2011-08-27 21:33:56', '1999-03-30 19:11:08', '12:10:00', '1998'),
+('2011-03-31', '2011-08-28 20:33:56', '1997-01-31 11:54:01', '22:04:10', '1994'),
+(DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm));
+SELECT ts FROM t1 ORDER BY ts LIMIT 3;
+ts
+1997-01-31 11:54:01
+1999-03-30 19:11:08
+1999-04-30 19:11:08
+DROP TABLE t1;
+CREATE TABLE t1 (d DATE <CUSTOM_COL_OPTIONS>,
+dt DATETIME <CUSTOM_COL_OPTIONS>,
+ts TIMESTAMP <CUSTOM_COL_OPTIONS>,
+t TIME <CUSTOM_COL_OPTIONS>,
+y YEAR <CUSTOM_COL_OPTIONS>,
+<CUSTOM_INDEX> t (t)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	#	1	t	#	#	NULL	NULL	#	#		
+SET @tm = '2012-04-09 05:27:00';
+INSERT INTO t1 (d,dt,ts,t,y) VALUES
+('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:25', '00:12:33', '2000'),
+('2012-01-12', '2010-11-22 11:43:14', '2011-11-14 21:45:55', '00:12:32', '2001'),
+('2012-03-31', '2011-08-28 21:33:56', '1999-04-30 19:11:08', '12:00:00', '1999'),
+('2012-03-13', '2011-08-27 21:33:56', '1999-03-30 19:11:08', '12:10:00', '1998'),
+('2011-03-31', '2011-08-28 20:33:56', '1997-01-31 11:54:01', '22:04:10', '1994'),
+(DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm));
+SELECT t FROM t1 ORDER BY t LIMIT 3;
+t
+00:12:32
+00:12:33
+05:27:00
+DROP TABLE t1;
+CREATE TABLE t1 (d DATE <CUSTOM_COL_OPTIONS>,
+dt DATETIME <CUSTOM_COL_OPTIONS>,
+ts TIMESTAMP <CUSTOM_COL_OPTIONS>,
+t TIME <CUSTOM_COL_OPTIONS>,
+y YEAR <CUSTOM_COL_OPTIONS>,
+<CUSTOM_INDEX> y (y)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	#	1	y	#	#	NULL	NULL	#	#		
+SET @tm = '2012-04-09 05:27:00';
+INSERT INTO t1 (d,dt,ts,t,y) VALUES
+('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:25', '00:12:33', '2000'),
+('2012-01-12', '2010-11-22 11:43:14', '2011-11-14 21:45:55', '00:12:32', '2001'),
+('2012-03-31', '2011-08-28 21:33:56', '1999-04-30 19:11:08', '12:00:00', '1999'),
+('2012-03-13', '2011-08-27 21:33:56', '1999-03-30 19:11:08', '12:10:00', '1998'),
+('2011-03-31', '2011-08-28 20:33:56', '1997-01-31 11:54:01', '22:04:10', '1994'),
+(DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm));
+SELECT y FROM t1 ORDER BY y LIMIT 3;
+y
+1994
+1998
+1999
+DROP TABLE t1;
+CREATE TABLE t1 (d DATE <CUSTOM_COL_OPTIONS>,
+dt DATETIME <CUSTOM_COL_OPTIONS> PRIMARY KEY,
+ts TIMESTAMP <CUSTOM_COL_OPTIONS>,
+t TIME <CUSTOM_COL_OPTIONS>,
+y YEAR <CUSTOM_COL_OPTIONS>
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	dt	#	#	NULL	NULL	#	#		
+SET @tm = '2012-04-09 05:27:00';
+INSERT INTO t1 (d,dt,ts,t,y) VALUES
+('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:55', '00:12:33', '2000'),
+('2012-01-12', '2010-11-22 11:43:14', '2011-11-14 21:45:55', '00:12:32', '2001'),
+('2012-03-31', '2011-08-28 21:33:56', '1999-04-30 19:11:08', '12:00:00', '1999'),
+('2012-03-13', '2011-08-27 21:33:56', '1999-03-30 19:11:08', '12:10:00', '1998'),
+('2011-03-31', '2011-08-28 20:33:56', '1997-01-31 11:54:01', '22:04:10', '1994'),
+(DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm));
+EXPLAIN SELECT dt FROM t1 ORDER BY dt LIMIT 3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	PRIMARY	#	#	#	#
+SELECT dt FROM t1 ORDER BY dt LIMIT 3;
+dt
+2010-11-22 11:43:14
+2010-11-22 12:33:54
+2011-08-27 21:33:56
+EXPLAIN SELECT dt FROM t1 FORCE INDEX FOR ORDER BY (PRIMARY) ORDER BY dt LIMIT 3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	PRIMARY	#	#	#	#
+SELECT dt FROM t1 FORCE INDEX FOR ORDER BY (PRIMARY) ORDER BY dt LIMIT 3;
+dt
+2010-11-22 11:43:14
+2010-11-22 12:33:54
+2011-08-27 21:33:56
+INSERT INTO t1 (d,dt,ts,t,y) VALUES
+('2012-01-11', '2010-11-22 12:33:54', '2011-11-14 21:45:55', '00:12:33', '2000');
+ERROR 23000: Duplicate entry '2010-11-22 12:33:54' for key 'PRIMARY'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+DROP TABLE t1;
+CREATE TABLE t1 (d DATE <CUSTOM_COL_OPTIONS>,
+dt DATETIME <CUSTOM_COL_OPTIONS>,
+ts TIMESTAMP <CUSTOM_COL_OPTIONS>,
+t TIME <CUSTOM_COL_OPTIONS>,
+y YEAR <CUSTOM_COL_OPTIONS>,
+INDEX (ts)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	ts	1	ts	#	#	NULL	NULL	#	#		
+SET @tm = '2012-04-09 05:27:00';
+INSERT INTO t1 (d,dt,ts,t,y) VALUES
+('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:55', '00:12:33', '2000'),
+('2012-01-12', '2010-11-22 11:43:14', '2011-11-14 21:45:55', '00:12:32', '2001'),
+('2012-03-31', '2011-08-28 21:33:56', '1999-04-30 19:11:08', '12:00:00', '1999'),
+('2012-03-13', '2011-08-27 21:33:56', '1999-03-30 19:11:08', '12:10:00', '1998'),
+('2011-03-31', '2011-08-28 20:33:56', '1997-01-31 11:54:01', '22:04:10', '1994'),
+(DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm));
+EXPLAIN SELECT ts FROM t1 WHERE ts > NOW();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	ts	#	#	#	#
+SELECT ts FROM t1 WHERE ts > NOW();
+ts
+EXPLAIN SELECT ts FROM t1 USE INDEX () WHERE ts > NOW();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	NULL	#	#	#	#
+SELECT ts FROM t1 USE INDEX () WHERE ts > NOW();
+ts
+DROP TABLE t1;
+CREATE TABLE t1 (d DATE <CUSTOM_COL_OPTIONS>,
+dt DATETIME <CUSTOM_COL_OPTIONS>,
+ts TIMESTAMP <CUSTOM_COL_OPTIONS>,
+t TIME <CUSTOM_COL_OPTIONS>,
+y YEAR <CUSTOM_COL_OPTIONS>,
+UNIQUE INDEX d_t (d,t)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	d_t	1	d	#	#	NULL	NULL	#	#		
+t1	0	d_t	2	t	#	#	NULL	NULL	#	#		
+SET @tm = '2012-04-09 05:27:00';
+INSERT INTO t1 (d,dt,ts,t,y) VALUES
+('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:55', '00:12:33', '2000'),
+('2012-01-12', '2010-11-22 11:43:14', '2011-11-14 21:45:55', '00:12:32', '2001'),
+('2012-03-31', '2011-08-28 21:33:56', '1999-04-30 19:11:08', '12:00:00', '1999'),
+('2012-03-13', '2011-08-27 21:33:56', '1999-03-30 19:11:08', '12:10:00', '1998'),
+('2011-03-31', '2011-08-28 20:33:56', '1997-01-31 11:54:01', '22:04:10', '1994'),
+(DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm));
+EXPLAIN SELECT d, t FROM t1 WHERE CONCAT(d,' ',t) != CURRENT_DATE();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	d_t	#	#	#	#
+SELECT d, t FROM t1 WHERE CONCAT(d,' ',t) != CURRENT_DATE();
+d	t
+2011-03-31	22:04:10
+2012-01-12	00:12:32
+2012-01-12	00:12:33
+2012-03-13	12:10:00
+2012-03-31	12:00:00
+2012-04-09	05:27:00
+EXPLAIN SELECT d, t FROM t1 IGNORE INDEX (d_t) WHERE CONCAT(d,' ',t) != CURRENT_DATE();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	NULL	#	#	#	#
+SELECT d, t FROM t1 IGNORE INDEX (d_t) WHERE CONCAT(d,' ',t) != CURRENT_DATE();
+d	t
+2011-03-31	22:04:10
+2012-01-12	00:12:32
+2012-01-12	00:12:33
+2012-03-13	12:10:00
+2012-03-31	12:00:00
+2012-04-09	05:27:00
+INSERT INTO t1 (d,dt,ts,t,y) VALUES
+('2012-01-12', '2010-11-22 12:33:53', '2011-11-14 21:45:55', '00:12:33', '2000');
+ERROR 23000: Duplicate entry '2012-01-12-00:12:33' for key 'd_t'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+DROP TABLE t1;
+CREATE TABLE t1 (d DATE <CUSTOM_COL_OPTIONS>,
+dt DATETIME <CUSTOM_COL_OPTIONS>,
+ts TIMESTAMP <CUSTOM_COL_OPTIONS>,
+t TIME <CUSTOM_COL_OPTIONS>,
+y YEAR <CUSTOM_COL_OPTIONS>,
+INDEX (y,t)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	y	1	y	#	#	NULL	NULL	#	#		
+t1	1	y	2	t	#	#	NULL	NULL	#	#		
+SET @tm = '2012-04-09 05:27:00';
+INSERT INTO t1 (d,dt,ts,t,y) VALUES
+('2012-01-12', '2010-11-22 12:33:54', '2011-11-14 21:45:55', '00:12:33', '2000'),
+('2012-01-12', '2010-11-22 11:43:14', '2011-11-14 21:45:55', '00:12:32', '2001'),
+('2012-03-31', '2011-08-28 21:33:56', '1999-04-30 19:11:08', '12:00:00', '1999'),
+('2012-03-13', '2011-08-27 21:33:56', '1999-03-30 19:11:08', '12:10:00', '1998'),
+('2011-03-31', '2011-08-28 20:33:56', '1997-01-31 11:54:01', '22:04:10', '1994'),
+(DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm));
+EXPLAIN SELECT y, COUNT(*) FROM t1 GROUP BY y;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	y	#	#	#	#
+SELECT y, COUNT(*) FROM t1 GROUP BY y;
+y	COUNT(*)
+1994	1
+1998	1
+1999	1
+2000	1
+2001	1
+2012	1
+EXPLAIN SELECT y, COUNT(*) FROM t1 USE INDEX FOR GROUP BY () GROUP BY y;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	y	#	#	#	#
+SELECT y, COUNT(*) FROM t1 USE INDEX FOR GROUP BY () GROUP BY y;
+y	COUNT(*)
+1994	1
+1998	1
+1999	1
+2000	1
+2001	1
+2012	1
+DROP TABLE t1;

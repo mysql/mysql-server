@@ -1,0 +1,88 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1 
+FIELDS TERMINATED BY ',' (a,b);
+SELECT a,b FROM t1;
+a	b
+1	foo
+2	bar
+3	
+4	abc
+LOAD DATA LOCAL INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1
+CHARACTER SET utf8 COLUMNS TERMINATED BY ','
+    ESCAPED BY '/' (a,b);
+SELECT a,b FROM t1;
+a	b
+1	foo
+1	foo
+2	bar
+2	bar
+3	
+3	
+4	abc
+4	abc
+LOAD DATA LOCAL INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1
+FIELDS TERMINATED BY ';'
+    (a) SET b='loaded';
+Warnings:
+Warning	1262	Row 1 was truncated; it contained more data than there were input columns
+Warning	1262	Row 2 was truncated; it contained more data than there were input columns
+Warning	1262	Row 3 was truncated; it contained more data than there were input columns
+SELECT a,b FROM t1;
+a	b
+0	loaded
+1	foo
+1	foo
+102	loaded
+2	bar
+2	bar
+3	
+3	
+4	abc
+4	abc
+5	loaded
+LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1
+FIELDS TERMINATED BY ';'
+    OPTIONALLY ENCLOSED BY ''''
+    LINES STARTING BY 'prefix:' 
+IGNORE 2 LINES (a,b);
+Warnings:
+Warning	1262	Row 2 was truncated; it contained more data than there were input columns
+SELECT a,b FROM t1;
+a	b
+0	
+0	loaded
+1	foo
+1	foo
+100	foo
+102	loaded
+2	bar
+2	bar
+3	
+3	
+4	abc
+4	abc
+5	loaded
+7	test
+LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1;
+SELECT a,b FROM t1;
+a	b
+0	
+0	loaded
+1	foo
+1	foo
+1	foo
+100	foo
+102	loaded
+2	bar
+2	bar
+2	bar
+3	
+3	
+3	
+4	abc
+4	abc
+4	abc
+5	loaded
+7	test
+DROP TABLE t1;

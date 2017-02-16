@@ -2,6 +2,8 @@
 # test of updating of keys
 #
 
+-- source include/have_innodb.inc
+
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
@@ -516,3 +518,117 @@ UPDATE t1 SET b = c, c = 'inject';
 SELECT c, b FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # MDEV-3948 Assertion `records_are_comparable(table)' fails in compare_record(const TABLE*) on UPDATE with simple AND condition, index_merge+index_merge_intersection, InnoDB
+--echo #
+--echo # Verify that UPDATE does the same number of handler_update
+--echo # operations, no matter if there is ORDER BY or not.
+--echo #
+
+CREATE TABLE t1 (i INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
+                      (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
+                      (30),(31),(32),(33),(34),(35);
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2),
+                 INDEX idx (a,b(1),c)) ENGINE=INNODB;
+INSERT INTO t2 SELECT i, i, i, i FROM t1;
+FLUSH STATUS; # FLUSH is autocommit, so we put it outside of transaction
+START TRANSACTION;
+UPDATE t2 SET d = 10 WHERE b = 10 LIMIT 5;
+SHOW STATUS LIKE 'HANDLER_UPDATE';
+ROLLBACK;
+FLUSH STATUS;
+START TRANSACTION;
+UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
+SHOW STATUS LIKE 'HANDLER_UPDATE';
+ROLLBACK;
+
+--echo Same test with a different UPDATE.
+
+ALTER TABLE t2 DROP INDEX idx, ADD INDEX idx2 (a, b);
+FLUSH STATUS;
+START TRANSACTION;
+UPDATE t2 SET c = 10 LIMIT 5;
+SHOW STATUS LIKE 'HANDLER_UPDATE';
+ROLLBACK;
+FLUSH STATUS;
+START TRANSACTION;
+UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5;
+SHOW STATUS LIKE 'HANDLER_UPDATE';
+ROLLBACK;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # MDEV-8938: Server Crash on Update with joins
+--echo #
+
+CREATE TABLE `t1` (
+  `name` varchar(255) NOT NULL,
+  `value` varchar(4095) DEFAULT NULL,
+  PRIMARY KEY (`name`)
+);
+
+UPDATE `t1` SET value = CONCAT("*.",(SELECT `temptable`.`value` FROM (SELECT * FROM `t1` WHERE `name`="consoleproxy.url.domain") AS `temptable` WHERE `temptable`.`name`="consoleproxy.url.domain")) WHERE `name`="consoleproxy.url.domain";
+
+drop table t1;
+
+CREATE TABLE `t1` (
+  `name` varchar(255) NOT NULL,
+  `value` varchar(4095) DEFAULT NULL,
+  PRIMARY KEY (`name`)
+);
+
+create table t2 (
+  `name` varchar(255) NOT NULL,
+  `value` varchar(4095) DEFAULT NULL,
+  PRIMARY KEY (`name`)
+);
+
+UPDATE t1
+SET value = (SELECT value FROM t2 WHERE `name`= t1.name) 
+WHERE value is null ;
+
+drop table t1,t2;
+
+--echo #
+--echo #MDEV-8701: Crash on derived query
+--echo #
+
+CREATE TABLE t1 (
+  data_exit_entry_id int(11) NOT NULL,
+  data_entry_id int(11) NOT NULL,
+  data_entry_exit_id int(11) NOT NULL,
+  data_exit_entry_quantity double NOT NULL
+) DEFAULT CHARSET=utf8;
+
+CREATE TABLE t2 (
+  data_entry_id int(11) NOT NULL,
+  data_entry_cost double NOT NULL,
+  data_entry_quantity double NOT NULL
+) DEFAULT CHARSET=utf8;
+
+create  algorithm=temptable view v1 as SELECT data_entry_exit_id, data_exit_entry_quantity, data_entry_cost 
+          FROM t1 INNER JOIN t2 as dt ON dt.data_entry_id = t1.data_entry_id;
+
+UPDATE t2 
+SET data_entry_cost
+  = ( ( SELECT SUM(data_exit_entry_quantity * data_entry_cost)
+	FROM 
+        v1 AS query 
+        WHERE data_entry_exit_id = t2.data_entry_id
+      )
+    );
+
+UPDATE t2 
+SET data_entry_cost
+  = ( ( SELECT SUM(data_exit_entry_quantity * data_entry_cost)
+	FROM 
+        ( SELECT data_entry_exit_id, data_exit_entry_quantity, data_entry_cost 
+          FROM t1 INNER JOIN t2 as dt ON dt.data_entry_id = t1.data_entry_id) AS query 
+        WHERE data_entry_exit_id = t2.data_entry_id
+      )
+    );
+
+drop view v1;
+drop table t1, t2; 

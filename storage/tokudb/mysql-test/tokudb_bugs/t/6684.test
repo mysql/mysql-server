@@ -1,0 +1,58 @@
+--source include/have_tokudb.inc
+use test;
+
+drop table if exists site;
+drop table if exists screenshot;
+
+CREATE TABLE `site` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `title` varchar(200) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  KEY `owner_title` (`title`)
+) ENGINE=TokuDB AUTO_INCREMENT=575 DEFAULT CHARSET=utf8;
+
+CREATE TABLE `screenshot` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `site` int(11) unsigned NOT NULL,
+  `timestamp` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (`id`)
+) ENGINE=TokuDB AUTO_INCREMENT=82720 DEFAULT CHARSET=utf8;
+
+INSERT INTO `site` (`id`, `title`)
+VALUES
+	(9, 'Facebook'),
+	(6, 'Google');
+
+INSERT INTO `screenshot` (`id`, `site`, `timestamp`)
+VALUES
+	(74675, 6, '2013-04-28 12:37:03'),
+	(82712, 6, '2013-04-30 12:47:04'),
+	(299, 9, '2012-09-09 13:15:28'),
+	(63038, 9, '2013-04-26 12:07:06'),
+	(82213, 9, '2013-04-29 20:00:11'),
+	(3911, 33, '2012-11-12 00:00:42');
+
+#this query is always correct
+SELECT * 
+FROM site 
+LEFT JOIN screenshot
+    ON site.id = screenshot.site 
+    AND timestamp > '2013-04-28 13:30:00'
+WHERE screenshot.id IS NULL;
+
+# this query is always correct
+SELECT * FROM site where site.id not in (select screenshot.site from screenshot where timestamp > '2013-04-28 13:30:00');
+
+# adding either of these two indexes causes the SQL to return an incorrect rowset (1 rows instead of 0 rows)
+ create index `site` on screenshot(`site`);
+
+# this query is wrong when one or both of the above indexes is added
+SELECT * 
+FROM site 
+LEFT JOIN screenshot
+    ON site.id = screenshot.site 
+    AND timestamp > '2013-04-28 13:30:00'
+WHERE screenshot.id IS NULL;
+
+drop table site;
+drop table screenshot;

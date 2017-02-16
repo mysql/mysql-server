@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,10 +55,11 @@ static int ft_add_stopword(const char *w)
 
 int ft_init_stopwords()
 {
+  DBUG_ENTER("ft_init_stopwords");
   if (!stopwords3)
   {
     if (!(stopwords3=(TREE *)my_malloc(sizeof(TREE),MYF(0))))
-      return -1;
+      DBUG_RETURN(-1);
     init_tree(stopwords3,0,0,sizeof(FT_STOPWORD),(qsort_cmp2)&FT_STOPWORD_cmp,
               0,
               (ft_stopword_file ? (tree_element_free)&FT_STOPWORD_free : 0),
@@ -82,10 +83,10 @@ int ft_init_stopwords()
     int error=-1;
 
     if (!*ft_stopword_file)
-      return 0;
+      DBUG_RETURN(0);
 
     if ((fd=my_open(ft_stopword_file, O_RDONLY, MYF(MY_WME))) == -1)
-      return -1;
+      DBUG_RETURN(-1);
     len=(uint)my_seek(fd, 0L, MY_SEEK_END, MYF(0));
     my_seek(fd, 0L, MY_SEEK_SET, MYF(0));
     if (!(start=buffer=my_malloc(len+1, MYF(MY_WME))))
@@ -102,7 +103,7 @@ err1:
     my_free(buffer);
 err0:
     my_close(fd, MYF(MY_WME));
-    return error;
+    DBUG_RETURN(error);
   }
   else
   {
@@ -112,14 +113,14 @@ err0:
     for (;*sws;sws++)
     {
       if (ft_add_stopword(*sws))
-        return -1;
+        DBUG_RETURN(-1);
     }
     ft_stopword_file="(built-in)"; /* for SHOW VARIABLES */
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
-int is_stopword(char *word, uint len)
+int is_stopword(const char *word, size_t len)
 {
   FT_STOPWORD sw;
   sw.pos=word;
@@ -130,6 +131,8 @@ int is_stopword(char *word, uint len)
 
 void ft_free_stopwords()
 {
+  DBUG_ENTER("ft_free_stopwords");
+
   if (stopwords3)
   {
     delete_tree(stopwords3); /* purecov: inspected */
@@ -137,4 +140,5 @@ void ft_free_stopwords()
     stopwords3=0;
   }
   ft_stopword_file= 0;
+  DBUG_VOID_RETURN;
 }

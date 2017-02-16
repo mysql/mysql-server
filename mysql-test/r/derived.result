@@ -1,4 +1,6 @@
 drop table if exists t1,t2,t3;
+set @save_derived_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 select * from (select 2 from DUAL) b;
 2
 2
@@ -58,7 +60,7 @@ a	b	a	b
 explain select * from t1 as x1, (select * from t1) as x2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	x1	ALL	NULL	NULL	NULL	NULL	4	
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	Using join buffer
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	Using join buffer (flat, BNL join)
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	
 drop table if exists  t2,t3;
 select * from (select 1) as a;
@@ -91,7 +93,7 @@ a	b
 2	b
 explain select * from (select * from t1 union select * from t1) a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	8	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	
 3	UNION	t1	ALL	NULL	NULL	NULL	NULL	4	
 NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
@@ -113,7 +115,7 @@ a	b
 3	c
 explain select * from (select t1.*, t2.a as t2a from t1,t2 where t1.a=t2.a) t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	
 2	DERIVED	t2	system	NULL	NULL	NULL	NULL	1	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
 drop table t1, t2;
@@ -142,7 +144,8 @@ a	t
 20	20
 explain select count(*) from t1 as tt1, (select * from t1) as tt2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+1	PRIMARY	tt1	index	NULL	a	4	NULL	10000	Using index
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	10000	Using join buffer (flat, BNL join)
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	10000	
 drop table t1;
 SELECT * FROM (SELECT (SELECT * FROM (SELECT 1 as a) as a )) as b;
@@ -189,13 +192,13 @@ pla_id	test
 explain SELECT STRAIGHT_JOIN d.pla_id, m2.mat_id FROM t1 m2 INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	9	Using where; Using join buffer (flat, BNL join)
 2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
 2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	
 explain SELECT STRAIGHT_JOIN d.pla_id, m2.test FROM t1 m2  INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	9	Using where; Using join buffer (flat, BNL join)
 2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
 2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	
 drop table t1,t2;
@@ -204,6 +207,7 @@ x
 1
 create user mysqltest_1;
 create table t1 select 1 as a;
+set optimizer_switch='derived_merge=off,derived_with_keys=off';
 select 2 as a from (select * from t1) b;
 ERROR 3D000: No database selected
 use test;
@@ -212,15 +216,15 @@ a
 2
 drop table t1;
 select mail_id,  if(folder.f_description!='', folder.f_description, folder.f_name) as folder_name,  date, address_id, phrase, address,  subject from folder, (select  mail.mail_id as mail_id,  date_format(mail.h_date, '%b %e, %Y %h:%i') as date,  mail.folder_id,  sender.address_id as address_id,  sender.phrase as phrase, sender.address as address,    mail.h_subject as subject from    mail left join mxa as mxa_sender on mail.mail_id=mxa_sender.mail_id and mxa_sender.type='from' left join address as sender on mxa_sender.address_id=sender.address_id  mxa as mxa_recipient,   address as recipient, where 1     and mail.mail_id=mxa_recipient.mail_id   and mxa_recipient.address_id=recipient.address_id   and mxa_recipient.type='to'  and  match(sender.phrase, sender.address, sender.comment) against ('jeremy' in boolean mode)   and  match(recipient.phrase, recipient.address, recipient.comment) against ('monty' in boolean mode) order by mail.h_date desc limit 0, 25 ) as query where query.folder_id=folder.folder_id;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'mxa as mxa_recipient,   address as recipient, where 1     and mail.mail_id=mxa_r' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'mxa as mxa_recipient,   address as recipient, where 1     and mail.mail_id=mxa_r' at line 1
 create table t1 (a int);
 insert into t1 values (1),(2),(3);
 update (select * from t1) as t1 set a = 5;
 ERROR HY000: The target table t1 of the UPDATE is not updatable
 delete from (select * from t1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select * from t1)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '(select * from t1)' at line 1
 insert into  (select * from t1) values (5);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select * from t1) values (5)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '(select * from t1) values (5)' at line 1
 drop table t1;
 create table t1 (E1 INTEGER UNSIGNED NOT NULL, E2 INTEGER UNSIGNED NOT NULL, E3 INTEGER UNSIGNED NOT NULL, PRIMARY KEY(E1)
 );
@@ -245,8 +249,8 @@ a	a
 2	2
 explain select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	<derived4>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	
+1	PRIMARY	<derived4>	ALL	NULL	NULL	NULL	NULL	4	Using join buffer (flat, BNL join)
 4	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
 5	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	
 NULL	UNION RESULT	<union4,5>	ALL	NULL	NULL	NULL	NULL	NULL	
@@ -311,9 +315,9 @@ a	7.0000
 b	3.5000
 explain SELECT s.name, AVG(s.val) AS median FROM (SELECT x.name, x.val FROM t1 x, t1 y WHERE x.name=y.name GROUP BY x.name, x.val HAVING SUM(y.val <= x.val) >= COUNT(*)/2 AND SUM(y.val >= x.val) >= COUNT(*)/2) AS s GROUP BY s.name;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	289	Using temporary; Using filesort
 2	DERIVED	x	ALL	NULL	NULL	NULL	NULL	17	Using temporary; Using filesort
-2	DERIVED	y	ALL	NULL	NULL	NULL	NULL	17	Using where; Using join buffer
+2	DERIVED	y	ALL	NULL	NULL	NULL	NULL	17	Using where; Using join buffer (flat, BNL join)
 drop table t1;
 create table t2 (a int, b int, primary key (a));
 insert into t2 values (1,7),(2,7);
@@ -322,7 +326,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
 explain select a from (select a from t2 where a>1) tt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
 2	DERIVED	t2	index	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
 drop table t2;
 CREATE TABLE `t1` ( `itemid` int(11) NOT NULL default '0', `grpid` varchar(15) NOT NULL default '', `vendor` int(11) NOT NULL default '0', `date_` date NOT NULL default '0000-00-00', `price` decimal(12,2) NOT NULL default '0.00', PRIMARY KEY  (`itemid`,`grpid`,`vendor`,`date_`), KEY `itemid` (`itemid`,`vendor`), KEY `itemid_2` (`itemid`,`date_`));
@@ -413,6 +417,92 @@ MIN(i)
 DROP TABLE t1;
 # End of 5.0 tests
 #
+# MDEV-5005: Subquery in Procedure somehow affecting temporary table
+#
+create temporary table if not exists t1 (id int not null);
+select A.* from ( select tt.* from t1 tt ) A;
+id
+prepare stmt from "select A.* from ( select tt.* from t1 tt ) A ";
+execute stmt;
+id
+deallocate prepare stmt;
+drop temporary table t1;
+CREATE PROCEDURE p ()
+BEGIN
+select A.* from ( select tt.* from t1 tt ) A ;
+END |
+create temporary table if not exists t1 (id int not null);
+CALL p();
+id
+CALL p();
+id
+drop procedure p;
+drop temporary table t1;
+#
+# MDEV-5143: update of a joined table with a nested subquery with 
+# a syntax error crashes mysqld with signal 11
+#
+create table t1 (id int(11) not null auto_increment, val varchar(100) null,primary key (id));
+create table t2 (id int(11) not null auto_increment, val varchar(100) null,primary key (id));
+insert into t1 (val) values('a');
+insert into t2 (val) values('1');
+update 
+(
+select 
+val
+from
+(
+select 
+v.val
+from 
+t2 wrong_table_alias
+) t4
+) t3
+inner join t1 on 
+t1.id=t3.val
+set 
+t1.val=t3.val
+;
+ERROR 42S22: Unknown column 'v.val' in 'field list'
+drop table t1, t2;
+#
+# MDEV-5353: server crash on subselect if WHERE applied to some
+# result field
+#
+SELECT * FROM 
+( SELECT 100 a, subsel.b FROM ( SELECT 200 b ) subsel ) tmp
+WHERE tmp.b;
+a	b
+100	200
+SELECT * FROM 
+( SELECT 100 a, subsel.b FROM ( SELECT 200 b ) subsel ) tmp
+WHERE tmp.a;
+a	b
+100	200
+#
+# MDEV-5356: Server crashes in Item_equal::contains on 2nd
+# execution of a PS
+#
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,2),(3,4);
+CREATE TABLE t2 (c INT);
+INSERT INTO t2 VALUES (5),(6);
+CREATE TABLE t3 (d INT);
+INSERT INTO t3 VALUES (7),(8);
+CREATE PROCEDURE pr()
+UPDATE t3,
+(SELECT c FROM
+(SELECT 1 FROM t1 WHERE a=72 AND NOT b) sq, 
+t2
+) sq2
+SET d=sq2.c;
+CALL pr();
+CALL pr();
+CALL pr();
+drop procedure pr;
+drop table t1,t2,t3;
+# End of 5.3 tests
+#
 # Bug#58730 Assertion failed: table->key_read == 0 in close_thread_table,
 #           temptable views
 #
@@ -424,6 +514,478 @@ CREATE algorithm=temptable VIEW v1 AS
 SELECT 1 FROM t1 LEFT JOIN t1 t3 ON 1 > (SELECT 1 FROM t1);
 CREATE algorithm=temptable VIEW v2 AS SELECT 1 FROM t2;
 EXPLAIN SELECT 1 FROM t1 JOIN v1 ON 1 > (SELECT 1 FROM v2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	4	Using join buffer (flat, BNL join)
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
+3	DERIVED	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+4	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	<derived5>	ALL	NULL	NULL	NULL	NULL	2	
+5	DERIVED	t2	index	NULL	b	5	NULL	2	Using index
+SELECT 1 FROM t1 JOIN v1 ON 1 > (SELECT 1 FROM v2);
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1, t2;
 DROP VIEW v1, v2;
+create table t1 (n bigint(20) unsigned, d1 datetime, d2 datetime, key (d1));
+insert t1 values (2085,'2012-01-01 00:00:00','2013-01-01 00:00:00');
+insert t1 values (2084,'2012-02-01 00:00:00','2013-01-01 00:00:00');
+insert t1 values (2088,'2012-03-01 00:00:00','2013-01-01 00:00:00');
+select * from (
+select n, d1, d2, @result := 0 as result
+from t1
+where d1 < '2012-12-12 12:12:12' and n in (2085, 2084) order by d2 asc
+) as calculated_result;
+n	d1	d2	result
+2085	2012-01-01 00:00:00	2013-01-01 00:00:00	0
+2084	2012-02-01 00:00:00	2013-01-01 00:00:00	0
+drop table t1;
+set @save_derived_optimizer_switch_bug=@@optimizer_switch;
+SET optimizer_switch = 'derived_merge=on,derived_with_keys=on,in_to_exists=on';
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (8);
+CREATE TABLE t2 (b INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1),(7);
+EXPLAIN SELECT * FROM (SELECT * FROM t1) AS table1,
+(SELECT DISTINCT * FROM t2) AS table2 WHERE b = a AND a <> ANY (SELECT 9);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<derived3>	ref	key0	key0	5	const	0	
+3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	Using temporary
+Warnings:
+Note	1249	Select 4 was reduced during optimization
+DROP TABLE t1, t2;
+set optimizer_switch=@save_derived_optimizer_switch_bug;
+#
+# MDEV-6163: Error while executing an update query that has the
+# same table in a sub-query
+#
+set @save_derived_optimizer_switch_bug=@@optimizer_switch;
+SET optimizer_switch = 'derived_merge=on';
+create table t1 (balance float, accountId varchar(64), primary key (accountId));
+insert into t1 (accountId,balance) values 
+('dealer-1',199354.0),('dealer-2',0),('dealer-3',0),('dealer-5',0),('FINANCE',-200000),('OPERATOR',0);
+update t1 set balance=(select sum(balance) from (SELECT balance FROM t1 where accountId like 'dealer%') AS copied) where accountId = 'OPERATOR';
+set optimizer_switch=@save_derived_optimizer_switch_bug;
+drop table t1;
+set optimizer_switch=@save_derived_optimizer_switch;
+#
+# MDEV-6892: WHERE does not apply
+#
+create table t1 (id int);
+create table t2 (id int);
+insert into t1 values(1),(2),(3);
+insert into t2 values(4),(5),(6);
+select x.id, message from (select id from t1) x left join
+(select id, 1 as message from t2) y on x.id=y.id
+where coalesce(message,0) <> 0;
+id	message
+drop table t1,t2;
+#
+# MDEV-7827: Assertion `!table || (!table->read_set ||
+# bitmap_is_set(table->read_set, field_index))' failed
+# in Field_long::val_str on EXPLAIN EXTENDED
+#
+CREATE TABLE t1 (f1 INT, f2 INT, KEY(f2)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (6,9);
+CREATE TABLE t2 (f3 INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (2),(0);
+EXPLAIN EXTENDED
+SELECT f1 FROM ( SELECT * FROM t1 ) AS sq
+WHERE f1 IN (
+SELECT f3 FROM t2 WHERE f2 IN (
+SELECT f3 FROM t2 HAVING f3 >= 8
+)
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	<subquery4>	eq_ref	distinct_key	distinct_key	4	test.t1.f2	1	100.00	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(<subquery4>); Using join buffer (flat, BNL join)
+4	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+Warnings:
+Note	1276	Field or reference 'f2' of SELECT #3 was resolved in SELECT #1
+Note	1003	select 6 AS `f1` from  <materialize> (select `test`.`t2`.`f3` from `test`.`t2` having (`test`.`t2`.`f3` >= 8)) semi join (`test`.`t2`) where ((`test`.`t2`.`f3` = 6) and (9 = `<subquery4>`.`f3`))
+DROP TABLE t2,t1;
+#
+# MDEV-9462: Out of memory using explain on 2 empty tables 
+#
+CREATE TABLE `t1` (
+`REC_GROUP` char(2) DEFAULT NULL,
+`CLIENT_INFO` text CHARACTER SET utf8,
+`NAME` text,
+`PHONE_NUMBER` text,
+`ATTENTION_NAME` text,
+`PAYMENT_TERM` text CHARACTER SET utf8,
+`CREDIT_LIMIT` decimal(12,2) DEFAULT NULL,
+`LAST_PAY_DATE` text CHARACTER SET utf8,
+`TOTAL` double DEFAULT NULL,
+`TOTAL_MCL` double DEFAULT NULL,
+`TOTAL_MFS` double DEFAULT NULL,
+`TOTAL_MIS` double DEFAULT NULL,
+`BEFORE_DUE_7_MCL` double DEFAULT NULL,
+`BEFORE_DUE_7_MFS` double DEFAULT NULL,
+`BEFORE_DUE_7_MIS` double DEFAULT NULL,
+`PER1_MCL` double DEFAULT NULL,
+`PER1_MFS` double DEFAULT NULL,
+`PER1_MIS` double DEFAULT NULL,
+`PER2_MCL` double DEFAULT NULL,
+`PER2_MFS` double DEFAULT NULL,
+`PER2_MIS` double DEFAULT NULL,
+`PER3_MCL` double DEFAULT NULL,
+`PER3_MFS` double DEFAULT NULL,
+`PER3_MIS` double DEFAULT NULL,
+`PER4_MCL` double DEFAULT NULL,
+`PER4_MFS` double DEFAULT NULL,
+`PER4_MIS` double DEFAULT NULL,
+`PER5_MCL` double DEFAULT NULL,
+`PER5_MFS` double DEFAULT NULL,
+`PER5_MIS` double DEFAULT NULL,
+`PER6_MCL` double DEFAULT NULL,
+`PER6_MFS` double DEFAULT NULL,
+`PER6_MIS` double DEFAULT NULL,
+`PER7_MCL` double DEFAULT NULL,
+`PER7_MFS` double DEFAULT NULL,
+`PER7_MIS` double DEFAULT NULL,
+`BEFORE_DUE_7` double DEFAULT NULL,
+`PER1` double DEFAULT NULL,
+`PER2` double DEFAULT NULL,
+`PER3` double DEFAULT NULL,
+`PER4` double DEFAULT NULL,
+`PER5` double DEFAULT NULL,
+`PER6` double DEFAULT NULL,
+`PER7` double DEFAULT NULL,
+`REF` varchar(30) DEFAULT NULL,
+`TYPE` varchar(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL
+);
+CREATE TABLE `t2` (
+`RECEIVABLE_GROUP` char(2) DEFAULT NULL,
+`CLIENT_NUMBER` varchar(35) DEFAULT NULL,
+`CLIENT_NAME` varchar(73) DEFAULT NULL,
+`PHONE_NUMBER` char(12) DEFAULT NULL,
+`ATTENTION_NAME` char(26) DEFAULT NULL,
+`PAYMENT_TERM` varchar(26) CHARACTER SET utf8 DEFAULT NULL,
+`CREDIT_LIMIT` decimal(12,2) DEFAULT NULL,
+`LAST_PAY_DATE` varchar(42) CHARACTER SET utf8 DEFAULT NULL,
+`TOTAL` decimal(12,2) DEFAULT NULL,
+`BEFORE_DUE_7` decimal(12,2) DEFAULT NULL,
+`PER1` decimal(12,2) DEFAULT NULL,
+`PER2` decimal(12,2) DEFAULT NULL,
+`PER3` decimal(12,2) DEFAULT NULL,
+`PER4` decimal(12,2) DEFAULT NULL,
+`PER5` decimal(12,2) DEFAULT NULL,
+`PER6` decimal(12,2) DEFAULT NULL,
+`PER7` decimal(12,2) DEFAULT NULL,
+`DIVISION` varchar(3) CHARACTER SET utf8 NOT NULL,
+`CLIENT_INFO` varchar(294) CHARACTER SET utf8 DEFAULT NULL,
+`EXCHANGE_RATE` double NOT NULL,
+`REF` varchar(30) DEFAULT NULL
+);
+explain
+SELECT A.RECEIVABLE_GROUP,A.CLIENT_INFO,A.CLIENT_NAME,A.PHONE_NUMBER,A.ATTENTION_NAME,A.PAYMENT_TERM,A.CREDIT_LIMIT,A.LAST_PAY_DATE,A.TOTAL,
+COALESCE(B.TOTAL_MCL,0) AS TOTAL_MCL,
+COALESCE(C.TOTAL_MFS,0) AS TOTAL_MFS,
+COALESCE(D.TOTAL_MIS,0) AS TOTAL_MIS,
+COALESCE(F.BEFORE_DUE_7_MCL,0) AS BEFORE_DUE_7_MCL,
+COALESCE(G.BEFORE_DUE_7_MFS,0) AS BEFORE_DUE_7_MFS,
+COALESCE(H.BEFORE_DUE_7_MIS,0) AS BEFORE_DUE_7_MIS,
+COALESCE(I.PER1_MCL,0) AS PER1_MCL,
+COALESCE(J.PER1_MFS,0) AS PER1_MFS,
+COALESCE(K.PER1_MIS,0) AS PER1_MIS,
+COALESCE(L.PER2_MCL,0) AS PER2_MCL,
+COALESCE(M.PER2_MFS,0) AS PER2_MFS,
+COALESCE(N.PER2_MIS,0) AS PER2_MIS,
+COALESCE(O.PER3_MCL,0) AS PER3_MCL,
+COALESCE(P.PER3_MFS,0) AS PER3_MFS,
+COALESCE(R.PER3_MIS,0) AS PER3_MIS,
+COALESCE(S.PER4_MCL,0) AS PER4_MCL,
+COALESCE(T.PER4_MFS,0) AS PER4_MFS,
+COALESCE(U.PER4_MIS,0) AS PER4_MIS,
+COALESCE(V.PER5_MCL,0) AS PER5_MCL,
+COALESCE(X.PER5_MFS,0) AS PER5_MFS,
+COALESCE(Z.PER5_MIS,0) AS PER5_MIS,
+COALESCE(Q.PER6_MCL,0) AS PER6_MCL,
+COALESCE(Y.PER6_MFS,0) AS PER6_MFS,
+COALESCE(W.PER6_MIS,0) AS PER6_MIS,
+COALESCE(A1.PER7_MCL,0) AS PER7_MCL,
+COALESCE(B1.PER7_MFS,0) AS PER7_MFS,
+COALESCE(C1.PER7_MIS,0) AS PER7_MIS,
+A.BEFORE_DUE_7,A.PER1,A.PER2,A.PER3,A.PER4,A.PER5,A.PER6,A.PER7,
+CONCAT(A.DIVISION,'-',A.CLIENT_NUMBER) AS REF,"2" AS TYPE FROM
+(SELECT RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,
+GROUP_CONCAT(DISTINCT CLIENT_INFO SEPARATOR '<br>') AS CLIENT_INFO,
+GROUP_CONCAT(DISTINCT CLIENT_NAME SEPARATOR '<br>') AS CLIENT_NAME, 
+GROUP_CONCAT( DISTINCT `PHONE_NUMBER` SEPARATOR '<br>' ) AS PHONE_NUMBER , 
+GROUP_CONCAT( DISTINCT `ATTENTION_NAME` SEPARATOR '<br>' )  AS ATTENTION_NAME, 
+GROUP_CONCAT( DISTINCT `PAYMENT_TERM` SEPARATOR '<br>' ) AS PAYMENT_TERM, 
+CREDIT_LIMIT , 
+GROUP_CONCAT( `LAST_PAY_DATE` SEPARATOR '<br>' ) AS LAST_PAY_DATE, 
+SUM( `TOTAL`*EXCHANGE_RATE ) AS TOTAL, 
+SUM( `BEFORE_DUE_7`*EXCHANGE_RATE ) AS BEFORE_DUE_7, 
+SUM( `PER1`*EXCHANGE_RATE ) AS PER1, 
+SUM( `PER2`*EXCHANGE_RATE ) AS PER2, 
+SUM( `PER3`*EXCHANGE_RATE ) AS PER3, 
+SUM( `PER4`*EXCHANGE_RATE ) AS PER4, 
+SUM( `PER5`*EXCHANGE_RATE ) AS PER5, 
+SUM( `PER6`*EXCHANGE_RATE ) AS PER6, 
+SUM( `PER7`*EXCHANGE_RATE ) AS PER7
+FROM `t2`
+WHERE REF IS NULL GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS A 
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( `TOTAL`*EXCHANGE_RATE ) AS TOTAL_MCL
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MCL" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS B ON A.CLIENT_NUMBER=B.CLIENT_NUMBER AND 
+A.DIVISION=B.DIVISION AND A.RECEIVABLE_GROUP=B.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=B.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( `TOTAL`*EXCHANGE_RATE ) AS TOTAL_MFS
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MFS" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS C ON A.CLIENT_NUMBER=C.CLIENT_NUMBER 
+AND 
+A.DIVISION=C.DIVISION AND A.RECEIVABLE_GROUP=C.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=C.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( `TOTAL`*EXCHANGE_RATE ) AS TOTAL_MIS
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MIS" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS D ON A.CLIENT_NUMBER=D.CLIENT_NUMBER AND 
+A.DIVISION=D.DIVISION AND A.RECEIVABLE_GROUP=D.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=D.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( BEFORE_DUE_7*EXCHANGE_RATE ) AS BEFORE_DUE_7_MCL
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MCL" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS F ON A.CLIENT_NUMBER=F.CLIENT_NUMBER AND 
+A.DIVISION=F.DIVISION AND A.RECEIVABLE_GROUP=F.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=F.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( BEFORE_DUE_7*EXCHANGE_RATE ) AS BEFORE_DUE_7_MFS
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MFS" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS G ON A.CLIENT_NUMBER=G.CLIENT_NUMBER AND 
+A.DIVISION=G.DIVISION AND A.RECEIVABLE_GROUP=G.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=G.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( BEFORE_DUE_7*EXCHANGE_RATE ) AS BEFORE_DUE_7_MIS
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MIS" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS H ON A.CLIENT_NUMBER=H.CLIENT_NUMBER AND 
+A.DIVISION=H.DIVISION AND A.RECEIVABLE_GROUP=H.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=H.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER1*EXCHANGE_RATE ) AS PER1_MCL
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MCL" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS I ON A.CLIENT_NUMBER=I.CLIENT_NUMBER  AND 
+A.DIVISION=I.DIVISION AND A.RECEIVABLE_GROUP=I.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=I.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER1*EXCHANGE_RATE ) AS PER1_MFS
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MFS" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS J ON A.CLIENT_NUMBER=J.CLIENT_NUMBER AND 
+A.DIVISION=J.DIVISION AND A.RECEIVABLE_GROUP=J.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=J.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER1*EXCHANGE_RATE ) AS PER1_MIS
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MIS" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS K ON A.CLIENT_NUMBER=K.CLIENT_NUMBER AND 
+A.DIVISION=K.DIVISION AND A.RECEIVABLE_GROUP=K.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=K.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER2*EXCHANGE_RATE ) AS PER2_MCL
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MCL" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS L ON A.CLIENT_NUMBER=L.CLIENT_NUMBER AND 
+A.DIVISION=L.DIVISION AND A.RECEIVABLE_GROUP=L.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=L.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER2*EXCHANGE_RATE ) AS PER2_MFS
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MFS" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS M ON A.CLIENT_NUMBER=M.CLIENT_NUMBER AND 
+A.DIVISION=M.DIVISION AND A.RECEIVABLE_GROUP=M.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=M.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER2*EXCHANGE_RATE ) AS PER2_MIS
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MIS" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS N ON A.CLIENT_NUMBER=N.CLIENT_NUMBER AND 
+A.DIVISION=N.DIVISION AND A.RECEIVABLE_GROUP=N.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=N.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER3*EXCHANGE_RATE ) AS PER3_MCL
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MCL" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS O ON A.CLIENT_NUMBER=O.CLIENT_NUMBER AND 
+A.DIVISION=O.DIVISION AND A.RECEIVABLE_GROUP=O.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=O.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER3*EXCHANGE_RATE ) AS PER3_MFS
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MFS" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS P ON A.CLIENT_NUMBER=P.CLIENT_NUMBER AND 
+A.DIVISION=P.DIVISION AND A.RECEIVABLE_GROUP=P.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=P.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER3*EXCHANGE_RATE ) AS PER3_MIS
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MIS" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS R ON A.CLIENT_NUMBER=R.CLIENT_NUMBER AND 
+A.DIVISION=R.DIVISION AND A.RECEIVABLE_GROUP=R.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=R.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER4*EXCHANGE_RATE ) AS PER4_MCL
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MCL" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS S ON A.CLIENT_NUMBER=S.CLIENT_NUMBER AND 
+A.DIVISION=S.DIVISION AND A.RECEIVABLE_GROUP=S.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=S.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER4*EXCHANGE_RATE ) AS PER4_MFS
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MFS" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS T ON A.CLIENT_NUMBER=T.CLIENT_NUMBER AND 
+A.DIVISION=T.DIVISION AND A.RECEIVABLE_GROUP=T.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=T.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER4*EXCHANGE_RATE ) AS PER4_MIS
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MIS" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS U ON A.CLIENT_NUMBER=U.CLIENT_NUMBER AND 
+A.DIVISION=U.DIVISION AND A.RECEIVABLE_GROUP=U.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=U.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER5*EXCHANGE_RATE ) AS PER5_MCL
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MCL" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS V ON A.CLIENT_NUMBER=V.CLIENT_NUMBER AND 
+A.DIVISION=V.DIVISION AND A.RECEIVABLE_GROUP=V.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=V.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER5*EXCHANGE_RATE ) AS PER5_MFS
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MFS" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS X ON A.CLIENT_NUMBER=X.CLIENT_NUMBER AND 
+A.DIVISION=X.DIVISION AND A.RECEIVABLE_GROUP=X.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=X.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER5*EXCHANGE_RATE ) AS PER5_MIS
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MIS" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS Z ON A.CLIENT_NUMBER=Z.CLIENT_NUMBER AND 
+A.DIVISION=Z.DIVISION AND A.RECEIVABLE_GROUP=Z.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=Z.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER6*EXCHANGE_RATE ) AS PER6_MCL
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MCL" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS Q ON A.CLIENT_NUMBER=Q.CLIENT_NUMBER AND 
+A.DIVISION=Q.DIVISION AND A.RECEIVABLE_GROUP=Q.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=Q.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER6*EXCHANGE_RATE ) AS PER6_MFS
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MFS" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS Y ON A.CLIENT_NUMBER=Y.CLIENT_NUMBER AND 
+A.DIVISION=Y.DIVISION AND A.RECEIVABLE_GROUP=Y.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=Y.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER6*EXCHANGE_RATE ) AS PER6_MIS
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MIS" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS W ON A.CLIENT_NUMBER=W.CLIENT_NUMBER AND 
+A.DIVISION=W.DIVISION AND A.RECEIVABLE_GROUP=W.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=W.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER7*EXCHANGE_RATE ) AS PER7_MCL
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MCL" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS A1 ON A.CLIENT_NUMBER=A1.CLIENT_NUMBER AND 
+A.DIVISION=A1.DIVISION AND A.RECEIVABLE_GROUP=A1.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=A1.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER7*EXCHANGE_RATE ) AS PER7_MFS
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MFS" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS B1 ON A.CLIENT_NUMBER=B1.CLIENT_NUMBER AND 
+A.DIVISION=B1.DIVISION AND A.RECEIVABLE_GROUP=B1.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=B1.CREDIT_LIMIT
+LEFT JOIN
+(SELECT  RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT,SUM( PER7*EXCHANGE_RATE ) AS PER7_MIS
+FROM `t2`
+WHERE REF IS NULL AND DIVISION="MIS" GROUP BY RECEIVABLE_GROUP,DIVISION,CLIENT_NUMBER,CREDIT_LIMIT) AS C1 ON A.CLIENT_NUMBER=C1.CLIENT_NUMBER AND 
+A.DIVISION=C1.DIVISION AND A.RECEIVABLE_GROUP=C1.RECEIVABLE_GROUP AND A.CREDIT_LIMIT=C1.CREDIT_LIMIT
+ORDER BY TOTAL DESC;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived3>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived4>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived5>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived6>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived7>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived8>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived9>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived10>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived11>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived12>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived13>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived14>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived15>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived16>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived17>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived18>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived19>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived20>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived21>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived22>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived23>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived24>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived25>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived26>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived27>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived28>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived29>	system	NULL	NULL	NULL	NULL	0	const row not found
+29	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+28	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+27	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+26	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+25	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+24	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+23	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+22	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+21	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+20	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+19	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+18	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+17	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+16	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+15	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+14	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+13	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+12	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+11	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+10	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+9	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+8	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+7	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+5	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+4	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+DROP TABLES t1,t2;
+#
+# MDEV-10663: Use of Inline table columns in HAVING clause
+# throws 1463 Error
+#
+set @save_sql_mode = @@sql_mode;
+set sql_mode='ONLY_FULL_GROUP_BY,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+CREATE TABLE `example1463` (
+`Customer` varchar(255) NOT NULL,
+`DeliveryStatus` varchar(255) NOT NULL,
+`OrderSize` int(11) NOT NULL
+);
+INSERT INTO example1463 VALUES ('Charlie', 'Success', 100);
+INSERT INTO example1463 VALUES ('David', 'Success', 110);
+INSERT INTO example1463 VALUES ('Charlie', 'Failed', 200);
+INSERT INTO example1463 VALUES ('David', 'Success', 100);
+INSERT INTO example1463 VALUES ('David', 'Unknown', 100);
+INSERT INTO example1463 VALUES ('Edward', 'Success', 150);
+INSERT INTO example1463 VALUES ('Edward', 'Pending', 150);
+SELECT Customer, Success, SUM(OrderSize)
+FROM (SELECT Customer,
+CASE WHEN DeliveryStatus='Success' THEN 'Yes' ELSE 'No' END AS Success,
+OrderSize
+FROM example1463) as subQ
+GROUP BY Success, Customer
+WITH ROLLUP;
+Customer	Success	SUM(OrderSize)
+Charlie	No	200
+David	No	100
+Edward	No	150
+NULL	No	450
+Charlie	Yes	100
+David	Yes	210
+Edward	Yes	150
+NULL	Yes	460
+NULL	NULL	910
+SELECT Customer, Success, SUM(OrderSize)
+FROM (SELECT Customer,
+CASE WHEN DeliveryStatus='Success' THEN 'Yes' ELSE 'No' END AS Success,
+OrderSize
+FROM example1463) as subQ
+GROUP BY Success, Customer;
+Customer	Success	SUM(OrderSize)
+Charlie	No	200
+David	No	100
+Edward	No	150
+Charlie	Yes	100
+David	Yes	210
+Edward	Yes	150
+SELECT Customer, Success, SUM(OrderSize)
+FROM (SELECT Customer,
+CASE WHEN DeliveryStatus='Success' THEN 'Yes' ELSE 'No' END AS Success,
+OrderSize
+FROM example1463) as subQ
+GROUP BY Success, Customer
+HAVING Success IS NOT NULL;
+Customer	Success	SUM(OrderSize)
+Charlie	No	200
+David	No	100
+Edward	No	150
+Charlie	Yes	100
+David	Yes	210
+Edward	Yes	150
+DROP TABLE example1463;
+set sql_mode= @save_sql_mode;
+# end of 5.5

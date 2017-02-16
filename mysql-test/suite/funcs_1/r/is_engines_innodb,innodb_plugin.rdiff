@@ -1,0 +1,11 @@
+--- suite/funcs_1/r/is_engines_innodb.result	2011-10-21 23:35:26.000000000 +0200
++++ suite/funcs_1/r/is_engines_innodb.reject	2012-02-07 12:44:19.000000000 +0100
+@@ -2,7 +2,7 @@
+ WHERE ENGINE = 'InnoDB';
+ ENGINE	InnoDB
+ SUPPORT	YES
+-COMMENT	Percona-XtraDB, Supports transactions, row-level locking, and foreign keys
++COMMENT	Supports transactions, row-level locking, and foreign keys
+ TRANSACTIONS	YES
+ XA	YES
+ SAVEPOINTS	YES

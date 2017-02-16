@@ -1,0 +1,10 @@
+#
+# This test has two combinations in the mtr suite (from combs.combinations)
+# and one combination from mtr-example (overlayed combs.combinations).
+# But it also has test2.opt file in the overlay. Thus it will run
+# two times in the parent suite, and three times in the overlay.
+#
+--disable_result_log
+source combs.inc;
+--enable_result_log
+select @@max_error_count;

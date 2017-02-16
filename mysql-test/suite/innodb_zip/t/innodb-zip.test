@@ -1,5 +1,6 @@
 -- source include/have_innodb.inc
 
+
 let $per_table=`select @@innodb_file_per_table`;
 let $format=`select @@innodb_file_format`;
 let $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;

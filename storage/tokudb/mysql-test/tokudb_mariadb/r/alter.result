@@ -1,0 +1,35 @@
+create table t1 (i int) engine=TokuDB;
+insert t1 values (1);
+alter table t1 add column j int default '0';
+select * from t1;
+i	j
+1	0
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT '0'
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+alter table t1 modify i int default '1';
+select * from t1;
+i	j
+1	0
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT '1',
+  `j` int(11) DEFAULT '0'
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+alter table t1 modify j int default '2', rename t2;
+select * from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+select * from t2;
+i	j
+1	0
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT '1',
+  `j` int(11) DEFAULT '2'
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+drop table t2;
