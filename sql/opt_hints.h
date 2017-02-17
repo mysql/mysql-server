@@ -550,7 +550,7 @@ public:
     @param thd   pointer to THD object
     @param str   pointer to String object
   */
-  virtual void append_name(THD *thd, String *str)
+  virtual void append_name(THD *thd, String *str) override
   {
     append_identifier(thd, str, get_name()->str, get_name()->length);
     get_parent()->append_name(thd, str);
@@ -562,7 +562,7 @@ public:
     @param table      Pointer to TABLE_LIST object
   */
   void adjust_key_hints(TABLE_LIST *table);
-  virtual PT_hint *get_complex_hints(opt_hints_enum type);
+  virtual PT_hint *get_complex_hints(opt_hints_enum type) override;
 
   void set_resolved() override
   {

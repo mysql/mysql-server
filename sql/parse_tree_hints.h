@@ -231,7 +231,7 @@ public:
     @return  true in case of error,
              false otherwise
   */
-  virtual bool contextualize(Parse_context *pc);
+  virtual bool contextualize(Parse_context *pc) override;
   void append_args(THD *thd, String *str) const override;
 };
 
