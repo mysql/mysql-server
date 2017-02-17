@@ -26,8 +26,8 @@
 #endif
 
 #include "runtime.hpp"
-#include "thread_utils.h"
 #include "yassl_int.hpp"
+#include "thread_utils.h"
 
 namespace {
 
