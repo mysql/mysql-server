@@ -1,5 +1,14 @@
 # Verify that contents of directory for databases
 # ndb_ddl_test and ndb_ddkl_test2 match on all mysqld
+#
+# NOTE! this file currently only verifies the contents
+# of mysqld's datadir which is nowadays supposed to be more
+# or less empty when everything is in the DD. Thus the script
+# need to be extended to also verify the contents of the
+# DD. That can most likely be achieved by dumping the DD contents
+# using select queries from information_schema(or the like).
+#
+#
 echo == verify_mysql_dd.inc ==;
 
 # First create the reference
