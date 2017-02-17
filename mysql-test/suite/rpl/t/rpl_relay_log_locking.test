@@ -72,6 +72,13 @@ UNLOCK TABLES;
 --let $wait_condition= SELECT COUNT(*) = $num_inserts FROM t1
 --source include/wait_condition_or_abort.inc
 
+# It is possible to show the events in the active relay log
+--let $binlog_file= slave-relay-bin.000002
+--let $binlog_limit= 1, 6
+--let $keep_gtid_events= 1
+--let $mask_anonymous_gtid_events= 1
+--source include/show_relaylog_events.inc
+
 --let $debug_point=pause_on_queue_event_after_write_buffer
 --source include/remove_debug_point.inc
 SET DEBUG_SYNC='now SIGNAL receiver_continue_queuing_event';

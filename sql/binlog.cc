@@ -3296,7 +3296,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
     my_off_t pos = max<my_off_t>(BIN_LOG_HEADER_SIZE, lex_mi->pos); // user-friendly
     char search_file_name[FN_REFLEN], *name;
     const char *log_file_name = lex_mi->log_file_name;
-    mysql_mutex_t *log_lock = binary_log->get_log_lock();
+    mysql_mutex_t *end_pos_lock= binary_log->get_binlog_end_pos_lock();
     Log_event* ev;
 
     unit->set_limit(thd, thd->lex->current_select());
@@ -3324,24 +3324,24 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
     if ((file=open_binlog_file(&log, linfo.log_file_name, &errmsg)) < 0)
       goto err;
 
-    my_off_t end_pos;
-    /*
-      Acquire LOCK_log only for the duration to calculate the
-      log's end position. LOCK_log should be acquired even while
-      we are checking whether the log is active log or not.
-    */
-    mysql_mutex_lock(log_lock);
+    my_off_t end_pos= 0;
+    bool is_hot_log= false;
     if (binary_log->is_active(linfo.log_file_name))
     {
-      LOG_INFO li;
-      binary_log->get_current_log(&li, false /*LOCK_log is already acquired*/);
-      end_pos= li.pos;
+      /*
+        Acquire binlog_end_pos_lock only for the duration to calculate the
+        log's end position. Need to check if log is still hot after acquiring
+        binlog_end_pos_lock.
+      */
+      mysql_mutex_lock(end_pos_lock);
+      if ((is_hot_log= binary_log->is_active(linfo.log_file_name)))
+        end_pos= binary_log->get_binlog_end_pos();
+      mysql_mutex_unlock(end_pos_lock);
     }
-    else
+    if (!is_hot_log)
     {
       end_pos= my_b_filelength(&log);
     }
-    mysql_mutex_unlock(log_lock);
 
     /*
       to account binlog event header size
