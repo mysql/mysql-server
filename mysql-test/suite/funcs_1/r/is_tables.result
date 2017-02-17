@@ -82,7 +82,7 @@ TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME
 # Testcase 3.2.12.2 + 3.2.12.3: INFORMATION_SCHEMA.TABLES accessible information
 ################################################################################
 DROP DATABASE IF EXISTS db_datadict;
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 DROP   USER 'testuser1'@'localhost';
 CREATE USER 'testuser1'@'localhost';
 GRANT CREATE, CREATE VIEW, INSERT, SELECT ON db_datadict.*
@@ -170,7 +170,7 @@ DROP DATABASE db_datadict;
 #########################################################################
 DROP TABLE IF EXISTS test.t1_my_table;
 DROP DATABASE IF EXISTS db_datadict;
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 SELECT table_name FROM information_schema.tables
 WHERE table_name LIKE 't1_my_table%';
 TABLE_NAME
@@ -413,7 +413,7 @@ TABLE_NAME
 #           DDL on INFORMATION_SCHEMA tables are not supported
 ########################################################################
 DROP DATABASE IF EXISTS db_datadict;
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 CREATE TABLE db_datadict.t1 (f1 BIGINT)
 ENGINE = <engine_type>;
 ANALYZE TABLE db_datadict.t1;

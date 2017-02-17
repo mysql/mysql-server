@@ -118,7 +118,7 @@ DROP FUNCTION  function_for_routines;
 ################################################################################
 DROP DATABASE IF EXISTS db_datadict;
 DROP DATABASE IF EXISTS db_datadict_2;
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 USE db_datadict;
 CREATE TABLE res_6_408002_1(f1 CHAR(3), f2 TEXT(25), f3 DATE, f4 INT)
 ENGINE = <other_engine_type>;
@@ -129,7 +129,7 @@ CREATE PROCEDURE sp_6_408002_1()
 BEGIN
 SELECT * FROM db_datadict.res_6_408002_1;
 END//
-CREATE DATABASE db_datadict_2;
+CREATE DATABASE db_datadict_2 charset latin1;
 USE db_datadict_2;
 CREATE TABLE res_6_408002_2(f1 CHAR(3), f2 TEXT(25), f3 DATE, f4 INT)
 ENGINE = <other_engine_type>;
@@ -177,7 +177,7 @@ DROP DATABASE db_datadict_2;
 # 3.2.1.13+3.2.1.14+3.2.1.15: INFORMATION_SCHEMA.ROUTINES modifications
 #########################################################################
 DROP DATABASE IF EXISTS db_datadict;
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 SELECT * FROM information_schema.routines WHERE routine_schema = 'db_datadict';
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 USE db_datadict;
@@ -392,7 +392,7 @@ SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE
 #          ROUTINE_DEFINITION column
 #########################################################################
 DROP DATABASE IF EXISTS db_datadict;
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 USE db_datadict;
 CREATE TABLE db_datadict.res_6_408004_1
 (f1 LONGTEXT , f2 MEDIUMINT , f3 LONGBLOB , f4 REAL , f5 YEAR)
@@ -657,7 +657,7 @@ DROP DATABASE db_datadict;
 #           DDL on INFORMATION_SCHEMA table are not supported
 ########################################################################
 DROP DATABASE IF EXISTS db_datadict;
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 USE db_datadict;
 CREATE PROCEDURE sp_for_routines() SELECT 'db_datadict';
 USE test;

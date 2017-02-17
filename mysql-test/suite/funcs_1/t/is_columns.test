@@ -113,7 +113,7 @@ FROM information_schema.columns WHERE table_catalog IS NULL OR table_catalog <> 
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset utf8mb4;
 
 --error 0,ER_CANNOT_USER
 DROP   USER 'testuser1'@'localhost';
@@ -204,7 +204,7 @@ DROP DATABASE IF EXISTS db_datadict;
 DROP TABLE IF EXISTS test.t1_my_table;
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset utf8mb4;
 
 SELECT table_name FROM information_schema.columns
 WHERE table_name LIKE 't1_my_table%';
@@ -420,7 +420,7 @@ WHERE table_name = 't1_my_tablex';
 DROP DATABASE IF EXISTS db_datadict;
 DROP TABLE IF EXISTS test.t1;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset utf8mb4;
 CREATE TABLE test.t1 (f1 BIGINT);
 
 --error ER_DBACCESS_DENIED_ERROR

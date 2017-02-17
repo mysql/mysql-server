@@ -58,8 +58,8 @@ def	mtr	NULL
 ###############################################################################
 DROP DATABASE IF EXISTS db_datadict_1;
 DROP DATABASE IF EXISTS db_datadict_2;
-CREATE DATABASE db_datadict_1;
-CREATE DATABASE db_datadict_2;
+CREATE DATABASE db_datadict_1 charset latin1;
+CREATE DATABASE db_datadict_2 charset latin1;
 DROP   USER 'testuser1'@'localhost';
 CREATE USER 'testuser1'@'localhost';
 DROP   USER 'testuser2'@'localhost';

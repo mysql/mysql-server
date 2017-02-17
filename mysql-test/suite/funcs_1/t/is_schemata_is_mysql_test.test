@@ -24,7 +24,7 @@
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 
 # Create a low privileged user.
 # Note: The database db_datadict is just a "home" for the low privileged user
@@ -35,7 +35,7 @@ CREATE USER 'testuser1'@'localhost';
 GRANT SELECT ON db_datadict.* TO 'testuser1'@'localhost';
 
 let $my_select = SELECT * FROM information_schema.schemata
-WHERE schema_name IN ('information_schema','mysql','test')
+WHERE schema_name IN ('information_schema','mysql','db_datadict')
 ORDER BY schema_name;
 let $my_show1 = SHOW DATABASES LIKE 'information_schema';
 let $my_show2 = SHOW DATABASES LIKE 'mysql';

@@ -98,7 +98,7 @@ WHERE trigger_catalog IS NOT NULL OR event_object_catalog IS NOT NULL
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 --error 0,ER_CANNOT_USER
 DROP   USER 'testuser1'@'localhost';
 CREATE USER 'testuser1'@'localhost';
@@ -225,7 +225,7 @@ DROP DATABASE db_datadict;
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 --replace_result $engine_type <engine_type>
 eval
 CREATE TABLE db_datadict.t1 (f1 BIGINT)

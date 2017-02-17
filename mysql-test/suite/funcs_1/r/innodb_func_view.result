@@ -6,7 +6,7 @@ CREATE TABLE t1_values
 id BIGINT AUTO_INCREMENT,
 select_id BIGINT,
 PRIMARY KEY(id)
-) ENGINE = <engine_to_be_tested>;
+) charset latin1 ENGINE = <engine_to_be_tested>;
 ALTER TABLE t1_values ADD my_char_30        CHAR(30);
 ALTER TABLE t1_values ADD my_varchar_1000   VARCHAR(1000);
 ALTER TABLE t1_values ADD my_binary_30      BINARY(30);

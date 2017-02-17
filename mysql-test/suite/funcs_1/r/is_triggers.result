@@ -90,7 +90,7 @@ def	mtr	gs_insert	INSERT	def	mtr	global_suppressions	1	NULL	BEGIN   DECLARE dumm
 # Testcase 3.2.18.2 + 3.2.18.3: INFORMATION_SCHEMA.TRIGGERS accessible information
 ##################################################################################
 DROP DATABASE IF EXISTS db_datadict;
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 DROP   USER 'testuser1'@'localhost';
 CREATE USER 'testuser1'@'localhost';
 DROP   USER 'testuser2'@'localhost';
@@ -179,7 +179,7 @@ DROP DATABASE db_datadict;
 #           DDL on INFORMATION_SCHEMA tables are not supported
 ########################################################################
 DROP DATABASE IF EXISTS db_datadict;
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 CREATE TABLE db_datadict.t1 (f1 BIGINT)
 ENGINE = <engine_type>;
 CREATE TRIGGER db_datadict.trg1 BEFORE INSERT
