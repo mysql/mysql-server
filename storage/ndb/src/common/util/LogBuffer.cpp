@@ -184,6 +184,11 @@ LogBuffer::append(void* buf, size_t write_bytes)
   size_t ret = 0;
   bool buffer_was_empty = (m_size == 0);
 
+  if(write_bytes == 0)
+  {
+    // nothing to be appended
+    return ret;
+  }
   // preliminary check for space availability
   if(!checkForBufferSpace(write_bytes))
   {
@@ -231,6 +236,11 @@ LogBuffer::append(const char* fmt, va_list ap, size_t len, bool append_ln)
   // extra byte for null termination, will be discarded
   size_t write_bytes = len + 1 + append_ln;
 
+  if(write_bytes == 1)
+  {
+    // nothing to be appended
+    return ret;
+  }
   assert(write_bytes > 0);
   assert(write_bytes <= m_max_size);
 
@@ -394,6 +404,8 @@ bool
 LogBuffer::checkInvariants() const
 {
   assert(m_read_ptr <= m_buf_end); // equal if log buf is empty or has one byte
+  assert(m_size <= m_max_size);
+  assert(m_write_ptr < m_top);
 
   if(m_size == 0)
   {
@@ -590,30 +602,43 @@ TAPTEST(LogBuffer)
   const uint bufsize = 11;
   char buf1[bufsize];
 
+  /**
+   * Note: There are a few comments below that represent the contents of the LogBuffer
+   * at the particular line of code during execution.
+   * '*' represents a free byte
+   * '#' represents the top of the buffer (empty byte, should never be written by append()/get())
+   *  All other characters represent the content of the occupied byte.
+   */
 
   // should return 0 after sleeping for 1s since the log buffer is empty
+  // **********#
   bytes = buf_t1->get(buf1, 5, 1000);
+  // **********#
   OK(bytes == 0);
-  printf("Sub-test 1 OK\n");
   clearbuf(buf1, bufsize);
+  printf("Sub-test 1 OK\n");
 
 
+  // **********#
   OK(buf_t1->append((void*)"123", 3) == 3);
-
+  // 123*******#
   // should return 3 immediately
   bytes = buf_t1->get(buf1, 5, 1000);
+  // **********#
   OK(bytes == 3);
   buf1[bytes] = '\0';
   OK(strcmp(buf1, "123") == 0);
-  printf("Sub-test 2 OK\n");
   clearbuf(buf1, bufsize);
+  printf("Sub-test 2 OK\n");
 
 
   va_list empty_ap;
   // append string of max. length that the log buffer can hold
+  // **********#
   OK(buf_t1->append("123456789", empty_ap, 9) == 9);
-
+  // 123456789*#
   bytes = buf_t1->get(buf1, 10);
+  // **********#
   OK(bytes == 9);
   buf1[bytes] = '\0';
   OK(strcmp("123456789", buf1) == 0);
@@ -621,56 +646,125 @@ TAPTEST(LogBuffer)
   clearbuf(buf1, bufsize);
 
 
-  OK(buf_t1->append((void*)"01234", 5) == 5);
-  OK(buf_t1->append((void*)"56789", 5) == 5);
-
-  buf_t1->get(buf1, 5);
-  OK(buf_t1->append((void*)"01234", 5) == 5);
-
+  // **********#
+  OK(buf_t1->append((void*)"01234", 5) == 5); // w == r, empty logbuf
+  // 01234*****#
+  OK(buf_t1->append((void*)"56789", 5) == 5); // w > r, no-wrap
+  // 0123456789#
+  buf_t1->get(buf1, 5); // read in one go, w < r
+  // *****56789#
+  OK(buf_t1->append((void*)"01234", 5) == 5); // w < r
+  // 0123456789#
   clearbuf(buf1, bufsize);
-  bytes = buf_t1->get(buf1, 3);
+  bytes = buf_t1->get(buf1, 3); // read in one go, w == r
+  // 01234***89#
   buf1[bytes] = '\0';
   OK(strcmp("567", buf1) == 0);
   bytes = buf_t1->get(buf1, 10);// read in parts, empty the log buffer
+  // **********#
   buf1[bytes] = '\0';
-
   OK(strcmp(buf1, "8901234") == 0);
   printf("Sub-test 4 OK\n");
   clearbuf(buf1, bufsize);
+  assert(buf_t1->getSize() == 0);
+
+
+  // **********#
+  OK(buf_t1->append((void*)"01234", 5) == 5);
+  // 01234*****#
+  OK(buf_t1->append((void*)"56789", 5) == 5);
+  // 0123456789#
+  buf_t1->get(buf1, 5);
+  // *****56789#
+  OK(buf_t1->append((void*)"01234", 5) == 5);
+  // 0123456789#
+  clearbuf(buf1, bufsize);
+  bytes = buf_t1->get(buf1, 3); // read in one go, w == r
+  // 01234***89#
+  buf1[bytes] = '\0';
+  OK(strcmp("567", buf1) == 0);
+  bytes = buf_t1->get(buf1, 2);// read in parts, empty the log buffer
+  // 01234*****#
+  buf1[bytes] = '\0';
+  OK(strcmp(buf1, "89") == 0);
+  bytes = buf_t1->get(buf1, 3);
+  // **34*****#
+  buf1[bytes] = '\0';
+  OK(strcmp(buf1, "012") == 0); // read in one go, w > r
+  bytes = buf_t1->get(buf1, 3);
+  // **********#
+  buf1[bytes] = '\0';
+  OK(strcmp(buf1, "34") == 0);
+  clearbuf(buf1, bufsize);
+  assert(buf_t1->getSize() == 0);
+  printf("Sub-test 5 OK\n");
+
+
+  // **********#
+  OK(buf_t1->append("01234567", empty_ap, 8) == 8);
+  // 01234567**#
+  bytes = buf_t1->get(buf1, 4);
+  // ****4567**#
+  buf1[bytes] = '\0';
+  OK(strcmp(buf1, "0123") == 0);
+  OK(buf_t1->append("012", empty_ap, 3) == 3); // w > r, wrap
+  // 012*4567**#
+  OK(buf_t1->append((void*)"3", 1) == 1); // w < r
+  // 01234567**#
+  bytes = buf_t1->get(buf1, 10);
+  buf1[bytes] = '\0';
+  OK(strcmp(buf1, "45670123") == 0);
+  // **********#
+  clearbuf(buf1, bufsize);
+  assert(buf_t1->getSize() == 0);
+  printf("Sub-test 6 OK\n");
 
 
   //check functionality after reading in parts
-  //fill the buffer completely
+  //append string of length = size_of_buf - 1
+  // **********#
   OK(buf_t1->append("123456789", empty_ap, 9) == 9);
-
+  // 123456789*#
   bytes = buf_t1->get(buf1, 9);
   OK(bytes == 9);
+  // **********#
   buf1[bytes] = '\0';
   OK(strcmp("123456789", buf1) == 0);
-  printf("Sub-test 5 OK\n");
-  clearbuf(buf1, bufsize);
-
-
-  OK(buf_t1->append((void*)"012345678", 9) == 9);
-  buf_t1->get(buf1, 4);
-
-  OK(buf_t1->append("90a", empty_ap, 3) == 3); // append in the beginning
-  OK(buf_t1->get(buf1, 8) == 8);// read in parts
-  buf1[8] = '\0';
-  OK(strcmp(buf1, "4567890a") == 0);
-  printf("Sub-test 6 OK\n");
-  clearbuf(buf1, bufsize);
-
-
-  buf_t1->append((void*)"01234", 5);
-  buf_t1->append((void*)"56789", 5);
-
-  OK(buf_t1->append("will fail", empty_ap, 9) == 0);// full log buffer
-  OK(buf_t1->append("will fail", empty_ap, 9) == 0);// ,,
-
-  OK(buf_t1->getLostCount() == 18);
   printf("Sub-test 7 OK\n");
   clearbuf(buf1, bufsize);
+
+
+  // **********#
+  OK(buf_t1->append((void*)"012345678", 9) == 9);
+  // 012345678*#
+  buf_t1->get(buf1, 4);
+  // ****45678*#
+  OK(buf_t1->append("90a", empty_ap, 3) == 3); // append in the beginning
+  // 90a*45678*#
+  OK(buf_t1->get(buf1, 8) == 8); // read in parts
+  // **********#
+  buf1[8] = '\0';
+  OK(strcmp(buf1, "4567890a") == 0);
+  OK(buf_t1->append((void*)"123", 0) == 0); // length zero
+  OK(buf_t1->append("", empty_ap, 0) == 0); // length zero
+  assert(buf_t1->getSize() == 0);
+  printf("Sub-test 8 OK\n");
+  clearbuf(buf1, bufsize);
+
+
+  // **********#
+  buf_t1->append((void*)"01234", 5);
+  // 01234*****#
+  buf_t1->append((void*)"56789", 5);
+  // 0123456789#
+  OK(buf_t1->append("will fail", empty_ap, 9) == 0); // full log buffer
+  // 0123456789#
+  OK(buf_t1->append("will fail", empty_ap, 9) == 0); // ,,
+  // 0123456789#
+  OK(buf_t1->getLostCount() == 18);
+  clearbuf(buf1, bufsize);
+
+  printf("Sub-test 9 OK\n");
 
   printf("\n--------TESTCASE 1 COMPLETE--------\n\n");;
 
