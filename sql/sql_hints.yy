@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,6 +67,8 @@
 %token JOIN_SUFFIX_HINT
 %token JOIN_ORDER_HINT
 %token JOIN_FIXED_ORDER_HINT
+%token INDEX_MERGE_HINT
+%token NO_INDEX_MERGE_HINT
 
 /* Other tokens */
 
@@ -452,6 +454,10 @@ key_level_hint_type_on:
           {
             $$= NO_RANGE_HINT_ENUM;
           }
+        | INDEX_MERGE_HINT
+          {
+            $$= INDEX_MERGE_HINT_ENUM;
+          }
         ;
 
 key_level_hint_type_off:
@@ -462,6 +468,10 @@ key_level_hint_type_off:
         | NO_MRR_HINT
           {
             $$= MRR_HINT_ENUM;
+          }
+        | NO_INDEX_MERGE_HINT
+          {
+            $$= INDEX_MERGE_HINT_ENUM;
           }
         ;
 

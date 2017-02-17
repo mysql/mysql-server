@@ -176,6 +176,10 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
                                              table_map *ref_depend_map,
                                              uint *used_key_parts)
 {
+  // Skip finding best_ref if quick object is forced by hint.
+  if (tab->quick() && tab->quick()->forced_by_hint)
+    return NULL;
+
   // Return value - will point to Key_use of the index with cheapest ref access
   Key_use *best_ref= NULL;
 

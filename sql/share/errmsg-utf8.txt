@@ -7962,6 +7962,9 @@ ER_IMP_INCOMPATIBLE_DD_VERSION
 ER_IMP_INCOMPATIBLE_SDI_VERSION
   eng "Imported sdi version (%llu) is not compatible with current (%llu)"
 
+ER_WARN_INVALID_HINT
+  eng "Invalid number of arguments for hint %s"
+
 #
 #  End of 8.0 error messages.
 #

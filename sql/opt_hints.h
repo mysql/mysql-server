@@ -67,6 +67,7 @@ enum opt_hints_enum
   JOIN_SUFFIX_HINT_ENUM,
   JOIN_ORDER_HINT_ENUM,
   JOIN_FIXED_ORDER_HINT_ENUM,
+  INDEX_MERGE_HINT_ENUM,
   MAX_HINT_ENUM
 };
 
@@ -230,8 +231,32 @@ public:
   virtual const LEX_CSTRING *get_name() const { return name; }
   void set_name(const LEX_CSTRING *name_arg) { name= name_arg; }
   Opt_hints *get_parent() const { return parent; }
-  void set_resolved() { resolved= true; }
-  bool is_resolved() const { return resolved; }
+  virtual void set_resolved() { resolved= true; }
+  /**
+    Returns 'resolved' flag value for depending on hint type.
+
+    @param type_arg  hint type
+
+    @return  true if all hint objects are resolved, false otherwise.
+  */
+  virtual bool is_resolved(opt_hints_enum type_arg) { return resolved; }
+  /**
+    Set hint to unresolved state.
+
+    @param type_arg  hint type
+  */
+  virtual void set_unresolved(opt_hints_enum type_arg) {}
+  /**
+    If ignore_print() returns true, hint is not printed
+    in Opt_hints::print() function. Atm used for
+    INDEX_MERGE hint only.
+
+    @param type_arg  hint type
+
+    @return  true if the hint should not be printed
+    in Opt_hints::print() function, false otherwise.
+  */
+  virtual bool ignore_print(opt_hints_enum type_arg) const { return false; }
   void incr_resolved_children() { resolved_children++; }
   Mem_root_array<Opt_hints*> *child_array_ptr() { return &child_array; }
 
@@ -471,6 +496,38 @@ private:
 };
 
 
+class PT_key_level_hint;
+
+/**
+  Auxiluary class for compound key objects.
+*/
+class Compound_key_hint
+{
+  PT_key_level_hint *pt_hint; // Pointer to PT_key_level_hint object.
+  Key_map key_map;            // Indexes, specified in the hint.
+  bool resolved;              // true if hint does not have unresolved index.
+
+public:
+
+  Compound_key_hint()
+  {
+    key_map.init();
+    resolved= false;
+    pt_hint= NULL;
+  }
+
+  void set_pt_hint( PT_key_level_hint *pt_hint_arg) { pt_hint= pt_hint_arg; }
+  PT_key_level_hint *get_pt_hint() { return pt_hint; }
+
+  void set_resolved(bool arg) { resolved= arg; }
+  bool is_resolved() { return resolved; }
+
+  void set_key_map(uint i) { key_map.set_bit(i); }
+  bool is_set_key_map(uint i) { return key_map.is_set(i); }
+  bool is_key_map_clear_all() { return key_map.is_clear_all(); }
+};
+
+
 /**
   Table level hints.
 */
@@ -479,6 +536,7 @@ class Opt_hints_table : public Opt_hints
 {
 public:
   Mem_root_array<Opt_hints_key*> keyinfo_array;
+  Compound_key_hint index_merge;
 
   Opt_hints_table(const LEX_CSTRING *table_name_arg,
                   Opt_hints_qb *qb_hints_arg,
@@ -505,6 +563,33 @@ public:
     @param table      Pointer to TABLE_LIST object
   */
   void adjust_key_hints(TABLE_LIST *table);
+  virtual PT_hint *get_complex_hints(opt_hints_enum type);
+
+  void set_resolved() override
+  {
+    Opt_hints::set_resolved();
+    if (is_specified(INDEX_MERGE_HINT_ENUM))
+      index_merge.set_resolved(true);
+  }
+
+  void set_unresolved(opt_hints_enum type_arg) override
+  {
+    if (type_arg == INDEX_MERGE_HINT_ENUM && is_specified(INDEX_MERGE_HINT_ENUM))
+      index_merge.set_resolved(false);
+  }
+
+  bool is_resolved(opt_hints_enum type_arg) override
+  {
+    if (type_arg == INDEX_MERGE_HINT_ENUM)
+      return Opt_hints::is_resolved(type_arg) && index_merge.is_resolved();
+    return Opt_hints::is_resolved(type_arg);
+  }
+
+  void set_compound_key_hint_map(Opt_hints* hint, uint arg)
+  {
+    if (hint->is_specified(INDEX_MERGE_HINT_ENUM))
+      index_merge.set_key_map(arg);
+  }
 };
 
 
@@ -533,6 +618,14 @@ public:
     get_parent()->append_name(thd, str);
     str->append(' ');
     append_identifier(thd, str, get_name()->str, get_name()->length);
+  }
+  /**
+    Ignore printing of the object since parent complex hint has
+    its own printing method.
+  */
+  virtual bool ignore_print(opt_hints_enum type_arg) const
+  {
+    return (type_arg == INDEX_MERGE_HINT_ENUM);
   }
 };
 
@@ -580,5 +673,34 @@ bool hint_table_state(const THD *thd, const TABLE_LIST *table,
 void append_table_name(THD *thd, String *str,
                        const LEX_CSTRING *qb_name,
                        const LEX_CSTRING *table_name);
+
+/**
+  Returns true if index merge hint state is on with or without
+  specified keys, otherwise returns false.
+  If index merge hint state is on and hint is specified without indexes,
+  function returns 'true' for any 'keyno' argument. If hint specified
+  with indexes, function returns true only for appropriate 'keyno' index.
+
+
+  @param table              Pointer to TABLE object
+  @param keyno              Key number
+
+  @return true if index merge hint state is on with or without
+          specified keys, otherwise returns false.
+*/
+bool idx_merge_key_enabled(const TABLE *table, uint keyno);
+
+
+/**
+  Returns true if index merge hint state is on otherwise returns false.
+
+  @param table                     Pointer to TABLE object
+  @param use_cheapest_index_merge  IN/OUT Returns true if INDEX_MERGE hint is
+                                          used without any specified key.
+
+  @return true if index merge hint state is on otherwise returns false.
+*/
+
+bool idx_merge_hint_state(const TABLE *table, bool *use_cheapest_index_merge);
 
 #endif /* OPT_HINTS_INCLUDED */
