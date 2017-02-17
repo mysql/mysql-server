@@ -6041,14 +6041,12 @@ bool SELECT_LEX::init_nested_join(THD *thd)
     If the current level contains only one member, the function
     moves it one level up, eliminating the nest.
 
-  @param thd         current thread
-
   @return
     - Pointer to TABLE_LIST element added to the total table list, if success
     - 0, otherwise
 */
 
-TABLE_LIST *SELECT_LEX::end_nested_join(THD *thd)
+TABLE_LIST *SELECT_LEX::end_nested_join()
 {
   TABLE_LIST *ptr;
   NESTED_JOIN *nested_join;
@@ -6991,9 +6989,9 @@ public:
   {}
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
-                                const char* sqlstate,
+                                const char*,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*)
   {
     if (*level == Sql_condition::SL_ERROR)
     {

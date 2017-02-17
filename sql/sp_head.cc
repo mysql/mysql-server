@@ -1866,7 +1866,7 @@ bool sp_head::setup_trigger_fields(THD *thd,
     for (Item_trigger_field *f= trig_field_list->first; f;
          f= f->next_trg_field)
     {
-      f->setup_field(thd, tfs, subject_table_grant);
+      f->setup_field(tfs, subject_table_grant);
 
       if (need_fix_fields &&
           !f->fixed &&

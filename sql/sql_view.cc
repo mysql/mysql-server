@@ -277,7 +277,7 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
 
   key_length= get_table_def_key(view, &key);
 
-  if (tdc_open_view(thd, &decoy, decoy.alias, key, key_length,
+  if (tdc_open_view(thd, &decoy, key, key_length,
                     OPEN_VIEW_NO_PARSE))
     return TRUE;
 

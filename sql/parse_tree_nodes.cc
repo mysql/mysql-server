@@ -1120,7 +1120,7 @@ bool PT_table_factor_joined_table::contextualize(Parse_context *pc)
     return true;
   value= m_joined_table->value;
 
-  if (outer_select->end_nested_join(pc->thd) == NULL)
+  if (outer_select->end_nested_join() == nullptr)
     return true;
 
   return false;

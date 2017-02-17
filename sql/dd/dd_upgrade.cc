@@ -1113,7 +1113,7 @@ static bool create_unlinked_view(THD *thd,
   TABLE_LIST *saved_query_tables= thd->lex->query_tables;
   SQL_I_List<Sroutine_hash_entry> saved_sroutines_list;
   // For creation of view without column information.
-  SELECT_LEX select(NULL, NULL, NULL, NULL, NULL, NULL);
+  SELECT_LEX select(nullptr, nullptr);
 
   // Backup
   thd->lex->select_lex= &select;

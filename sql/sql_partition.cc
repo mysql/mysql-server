@@ -1056,7 +1056,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   LEX *old_lex= thd->lex;
   LEX lex;
   SELECT_LEX_UNIT unit(CTX_NONE);
-  SELECT_LEX select(NULL, NULL, NULL, NULL, NULL, NULL);
+  SELECT_LEX select(nullptr, nullptr);
   lex.new_static_query(&unit, &select);
 
   DBUG_ENTER("fix_fields_part_func");
@@ -1281,13 +1281,12 @@ static bool check_unique_keys(TABLE *table)
 
   SYNOPSIS
     check_range_capable_PF()
-    table                TABLE object for which partition fields are set-up
 
   DESCRIPTION
     Support for this is not implemented yet.
 */
 
-static void check_range_capable_PF(TABLE *table)
+static void check_range_capable_PF(TABLE*)
 {
   DBUG_ENTER("check_range_capable_PF");
 
@@ -1298,7 +1297,6 @@ static void check_range_capable_PF(TABLE *table)
 /**
   Set up partition bitmaps
 
-    @param thd           Thread object
     @param part_info     Reference to partitioning data structure
 
   @return Operation status
@@ -1309,7 +1307,7 @@ static void check_range_capable_PF(TABLE *table)
     and initialise it.
 */
 
-static bool set_up_partition_bitmaps(THD *thd, partition_info *part_info)
+static bool set_up_partition_bitmaps(partition_info *part_info)
 {
   uint32 *bitmap_buf;
   uint bitmap_bits= part_info->num_subparts?
@@ -1854,7 +1852,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
       (table->s->db_type()->partition_flags() & HA_CAN_PARTITION_UNIQUE))) &&
                check_unique_keys(table)))
     goto end;
-  if (unlikely(set_up_partition_bitmaps(thd, part_info)))
+  if (unlikely(set_up_partition_bitmaps(part_info)))
     goto end;
   if (unlikely(part_info->set_up_charset_field_preps()))
   {
@@ -3296,7 +3294,7 @@ static int get_part_id_charset_func_subpart(partition_info *part_info,
 
 static int get_partition_id_list_col(partition_info *part_info,
                                      uint32 *part_id,
-                                     longlong *func_value)
+                                     longlong*)
 {
   part_column_list_val *list_col_array= part_info->list_col_array;
   uint num_columns= part_info->part_field_list.elements;
@@ -3550,7 +3548,7 @@ notfound:
 
 static int get_partition_id_range_col(partition_info *part_info,
                                       uint32 *part_id,
-                                      longlong *func_value)
+                                      longlong*)
 {
   part_column_list_val *range_col_array= part_info->range_col_array;
   uint num_columns= part_info->part_field_list.elements;
@@ -4530,7 +4528,7 @@ bool mysql_unpack_partition(THD *thd,
   LEX *old_lex= thd->lex;
   LEX lex;
   SELECT_LEX_UNIT unit(CTX_NONE);
-  SELECT_LEX select(NULL, NULL, NULL, NULL, NULL, NULL);
+  SELECT_LEX select(nullptr, nullptr);
   lex.new_static_query(&unit, &select);
 
   sql_digest_state *parent_digest= thd->m_digest;
@@ -7676,7 +7674,7 @@ static uint32 get_partition_id_cols_range_for_endpoint(partition_info *part_info
 
 
 static int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
-                                                   bool is_subpart,
+                                                   bool,
                                                    uint32 *store_length_array,
                                                    uchar *min_value, uchar *max_value,
                                                    uint min_len, uint max_len,

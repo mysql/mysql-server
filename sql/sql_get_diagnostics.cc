@@ -296,7 +296,7 @@ Condition_information::aggregate(THD *thd, const Diagnostics_area *da)
 */
 
 Item *
-Condition_information_item::make_utf8_string_item(THD *thd, const String *str)
+Condition_information_item::make_utf8_string_item(const String *str)
 {
   /* Default is utf8 character set and utf8_general_ci collation. */
   const CHARSET_INFO *to_cs= &my_charset_utf8_general_ci;
@@ -329,44 +329,44 @@ Condition_information_item::get_value(THD *thd, const Sql_condition *cond)
   switch (m_name)
   {
   case CLASS_ORIGIN:
-    value= make_utf8_string_item(thd, &(cond->m_class_origin));
+    value= make_utf8_string_item(&(cond->m_class_origin));
     break;
   case SUBCLASS_ORIGIN:
-    value= make_utf8_string_item(thd, &(cond->m_subclass_origin));
+    value= make_utf8_string_item(&(cond->m_subclass_origin));
     break;
   case CONSTRAINT_CATALOG:
-    value= make_utf8_string_item(thd, &(cond->m_constraint_catalog));
+    value= make_utf8_string_item(&(cond->m_constraint_catalog));
     break;
   case CONSTRAINT_SCHEMA:
-    value= make_utf8_string_item(thd, &(cond->m_constraint_schema));
+    value= make_utf8_string_item(&(cond->m_constraint_schema));
     break;
   case CONSTRAINT_NAME:
-    value= make_utf8_string_item(thd, &(cond->m_constraint_name));
+    value= make_utf8_string_item(&(cond->m_constraint_name));
     break;
   case CATALOG_NAME:
-    value= make_utf8_string_item(thd, &(cond->m_catalog_name));
+    value= make_utf8_string_item(&(cond->m_catalog_name));
     break;
   case SCHEMA_NAME:
-    value= make_utf8_string_item(thd, &(cond->m_schema_name));
+    value= make_utf8_string_item(&(cond->m_schema_name));
     break;
   case TABLE_NAME:
-    value= make_utf8_string_item(thd, &(cond->m_table_name));
+    value= make_utf8_string_item(&(cond->m_table_name));
     break;
   case COLUMN_NAME:
-    value= make_utf8_string_item(thd, &(cond->m_column_name));
+    value= make_utf8_string_item(&(cond->m_column_name));
     break;
   case CURSOR_NAME:
-    value= make_utf8_string_item(thd, &(cond->m_cursor_name));
+    value= make_utf8_string_item( &(cond->m_cursor_name));
     break;
   case MESSAGE_TEXT:
-    value= make_utf8_string_item(thd, &(cond->m_message_text));
+    value= make_utf8_string_item(&(cond->m_message_text));
     break;
   case MYSQL_ERRNO:
     value= new (thd->mem_root) Item_uint(cond->m_mysql_errno);
     break;
   case RETURNED_SQLSTATE:
     str.set_ascii(cond->returned_sqlstate(), strlen(cond->returned_sqlstate()));
-    value= make_utf8_string_item(thd, &str);
+    value= make_utf8_string_item(&str);
     break;
   }
 

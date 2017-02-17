@@ -2614,7 +2614,7 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
     a proper ref access for this table.
   */
   Key_use_array *keyuse=
-   create_keyuse_for_table(thd, table, field_count, sjm_opt->mat_fields,
+   create_keyuse_for_table(thd, field_count, sjm_opt->mat_fields,
                            emb_sj_nest->nested_join->sj_outer_exprs);
   if (!keyuse)
     DBUG_RETURN(true);

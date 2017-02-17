@@ -286,7 +286,7 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
                         uint *cached_field_index_ptr,
                         bool register_tree_change, TABLE_LIST **actual_table);
 Field *
-find_field_in_table(THD *thd, TABLE *table, const char *name, size_t length,
+find_field_in_table(TABLE *table, const char *name, size_t length,
                     bool allow_rowid, uint *cached_field_index_ptr);
 Field *
 find_field_in_table_sef(TABLE *table, const char *name);
@@ -324,7 +324,7 @@ void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 void close_thread_table(THD *thd, TABLE **table_ptr);
 bool close_temporary_tables(THD *thd);
-TABLE_LIST *unique_table(THD *thd, const TABLE_LIST *table,
+TABLE_LIST *unique_table(const TABLE_LIST *table,
                          TABLE_LIST *table_list, bool check_alias);
 void drop_temporary_table(THD *thd, TABLE_LIST *table_list);
 void close_temporary_table(THD *thd, TABLE *table, bool free_share,
@@ -352,7 +352,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild);
 void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
                       const char *db, const char *table_name,
                       bool has_lock);
-bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
+bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
                    const char *cache_key, size_t cache_key_length, uint flags);
 void tdc_flush_unused_tables();
 TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,

@@ -35,8 +35,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @brief
   Log current command to binlog
 
-  @param [IN] is_transactional - Whether statement is transactional or not
-
   @returns false on success,
            true on error
 
@@ -44,7 +42,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 */
 
 bool
-Alter_instance::log_to_binlog(bool is_transactional)
+Alter_instance::log_to_binlog()
 {
   bool res= false;
   if (!m_thd->lex->no_write_to_binlog)
@@ -101,7 +99,7 @@ Rotate_innodb_master_key::execute()
     return true;
   }
 
-  if (log_to_binlog(false))
+  if (log_to_binlog())
   {
     /*
       Though we failed to write to binlog,

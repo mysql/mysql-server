@@ -1945,7 +1945,7 @@ Prepared_statement_map::Prepared_statement_map()
 }
 
 
-int Prepared_statement_map::insert(THD *thd, Prepared_statement *statement)
+int Prepared_statement_map::insert(Prepared_statement *statement)
 {
   if (my_hash_insert(&st_hash, (uchar*) statement))
   {

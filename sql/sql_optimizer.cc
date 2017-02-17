@@ -94,7 +94,6 @@ static ORDER *create_distinct_group(THD *thd,
                                     Ref_item_array ref_item_array,
                                     ORDER *order,
                                     List<Item> &fields,
-                                    List<Item> &all_fields,
                                     bool *all_order_by_fields_used);
 static TABLE *get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables);
 static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab);
@@ -103,7 +102,7 @@ static void trace_table_dependencies(Opt_trace_context * trace,
                                      uint table_count);
 static bool
 update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
-                    uint tables, Item *cond, COND_EQUAL *cond_equal,
+                    uint tables, Item *cond,
                     table_map normal_tables, SELECT_LEX *select_lex,
                     SARGABLE_PARAM **sargables);
 static bool pull_out_semijoin_tables(JOIN *join);
@@ -1258,7 +1257,7 @@ bool JOIN::optimize_distinct_group_order()
     ORDER *o;
     bool all_order_fields_used;
     if ((o= create_distinct_group(thd, ref_items[REF_SLICE_BASE],
-                                  order, fields_list, all_fields,
+                                  order, fields_list,
 				  &all_order_fields_used)))
     {
       group_list= ORDER_with_src(o, ESC_DISTINCT);
@@ -5106,7 +5105,7 @@ bool JOIN::make_join_plan()
   if (where_cond || select_lex->outer_join)
   {
     if (update_ref_and_keys(thd, &keyuse_array, join_tab, tables, where_cond,
-                            cond_equal, ~select_lex->outer_join, select_lex,
+                            ~select_lex->outer_join, select_lex,
                             &sargables))
       DBUG_RETURN(true);
   }
@@ -8216,7 +8215,6 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
   @param       tables         Number of tables in join
   @param       cond           WHERE condition (note that the function analyzes
                               join_tab[i]->join_cond() too)
-  @param       cond_equal
   @param       normal_tables  Tables not inner w.r.t some outer join (ones
                               for which we can make ref access based the WHERE
                               clause)
@@ -8231,7 +8229,7 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
 
 static bool
 update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
-                    uint tables, Item *cond, COND_EQUAL *cond_equal,
+                    uint tables, Item *cond,
                     table_map normal_tables, SELECT_LEX *select_lex,
                     SARGABLE_PARAM **sargables)
 {
@@ -8410,14 +8408,13 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
   To be used when creating a materialized temporary table.
 
   @param thd         THD pointer, for memory allocation
-  @param table       Table object representing table
   @param keyparts    Number of key parts in the primary key
   @param fields
   @param outer_exprs List of items used for key lookup
 
   @return Pointer to created keyuse array, or NULL if error
 */
-Key_use_array *create_keyuse_for_table(THD *thd, TABLE *table, uint keyparts,
+Key_use_array *create_keyuse_for_table(THD *thd, uint keyparts,
                                        Item_field **fields,
                                        List<Item> outer_exprs)
 {
@@ -10662,7 +10659,6 @@ create_distinct_group(THD *thd,
                       Ref_item_array ref_item_array,
                       ORDER *order_list,
                       List<Item> &fields,
-                      List<Item> &all_fields,
                       bool *all_order_by_fields_used)
 {
   List_iterator<Item> li(fields);

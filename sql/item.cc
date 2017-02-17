@@ -9076,7 +9076,6 @@ void Item_insert_value::print(String *str, enum_query_type query_type)
   Find index of Field object which will be appropriate for item
   representing field of row being changed in trigger.
 
-  @param thd     current thread context
   @param table_triggers     Table_trigger_field_support instance. Do not use
                             TABLE::triggers as it might be not initialized at
                             the moment.
@@ -9095,15 +9094,14 @@ void Item_insert_value::print(String *str, enum_query_type query_type)
     Another difference is that the field is not marked in read_set/write_set.
 */
 
-void Item_trigger_field::setup_field(THD *thd,
-                                     Table_trigger_field_support *table_triggers,
+void Item_trigger_field::setup_field(Table_trigger_field_support *table_triggers,
                                      GRANT_INFO *table_grant_info)
 {
   /*
     Try to find field by its name and if it will be found
     set field_idx properly.
   */
-  (void) find_field_in_table(thd, table_triggers->get_subject_table(),
+  (void) find_field_in_table(table_triggers->get_subject_table(),
                              field_name, strlen(field_name),
                              0, &field_idx);
   triggers= table_triggers;

@@ -161,8 +161,7 @@ private:
                 uint last_inner, TABLE_LIST *sjm_nest,
                 double *newcount, double *newcost);
   void semijoin_dupsweedout_access_paths(
-                uint first_tab, uint last_tab, 
-                table_map remaining_tables, 
+                uint first_tab, uint last_tab,
                 double *newcount, double *newcost);
 
   static uint determine_search_depth(uint search_depth, uint table_count);

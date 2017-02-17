@@ -317,7 +317,7 @@ public:
                       reached. An error is sent to the client, the statement
                       is deleted.
   */
-  int insert(THD *thd, Prepared_statement *statement);
+  int insert(Prepared_statement *statement);
 
   /** Find prepared statement by name. */
   Prepared_statement *find_by_name(const LEX_CSTRING &name);
@@ -4157,7 +4157,7 @@ inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
 
 inline bool add_item_to_list(THD *thd, Item *item)
 {
-  return thd->lex->select_lex->add_item_to_list(thd, item);
+  return thd->lex->select_lex->add_item_to_list(item);
 }
 
 inline void add_order_to_list(THD *thd, ORDER *order)

@@ -1458,7 +1458,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
   {
     if (tr->updating)
     {
-      TABLE_LIST *duplicate= unique_table(thd, tr, select->leaf_tables, 0);
+      TABLE_LIST *duplicate= unique_table(tr, select->leaf_tables, 0);
       if (duplicate != NULL)
       {
         update_non_unique_table_error(select->leaf_tables, "UPDATE", duplicate);
@@ -1749,7 +1749,6 @@ bool Query_result_update::prepare(List<Item> &not_used_values,
 
   SYNOPSIS
     safe_update_on_fly()
-    thd                 Thread handler
     join_tab            How table is used in join
     all_tables          List of tables
 
@@ -1783,11 +1782,11 @@ bool Query_result_update::prepare(List<Item> &not_used_values,
     1		Safe to update
 */
 
-static bool safe_update_on_fly(THD *thd, JOIN_TAB *join_tab,
+static bool safe_update_on_fly(JOIN_TAB *join_tab,
                                TABLE_LIST *table_ref, TABLE_LIST *all_tables)
 {
   TABLE *table= join_tab->table();
-  if (unique_table(thd, table_ref, all_tables, 0))
+  if (unique_table(table_ref, all_tables, 0))
     return 0;
   switch (join_tab->type()) {
   case JT_SYSTEM:
@@ -1917,7 +1916,7 @@ bool Query_result_update::optimize()
           }
         }
       }
-      if (safe_update_on_fly(thd, join->best_ref[0], table_ref,
+      if (safe_update_on_fly(join->best_ref[0], table_ref,
                              select->get_table_list()))
       {
         table->mark_columns_needed_for_update(thd, true/*mark_binlog_columns=true*/);

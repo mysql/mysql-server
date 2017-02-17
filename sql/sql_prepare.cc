@@ -1577,7 +1577,7 @@ mysql_stmt_precheck(THD *thd, const COM_DATA *com_data,
       // out of memory: error is set in Sql_alloc
       goto silent_error;           /* purecov: inspected */
 
-    if (thd->stmt_map.insert(thd, *stmt))
+    if (thd->stmt_map.insert(*stmt))
       /*
         The error is set in the insert. The statement itself
         will be also deleted there (this is how the hash works).
@@ -1786,7 +1786,7 @@ void mysql_sql_stmt_prepare(THD *thd)
     DBUG_VOID_RETURN;
   }
 
-  if (thd->stmt_map.insert(thd, stmt))
+  if (thd->stmt_map.insert(stmt))
   {
     /* The statement is deleted and an error is set if insert fails */
     DBUG_VOID_RETURN;

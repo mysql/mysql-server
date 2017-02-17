@@ -3882,8 +3882,6 @@ void Optimize_table_order::semijoin_mat_lookup_access_paths(
 
   @param first_tab        The first tab to calculate access paths for
   @param last_tab         The last tab to calculate access paths for
-  @param remaining_tables Bitmap of tables that are not in the
-                          [0...last_tab] join prefix
   @param[out] newcount    New output row count
   @param[out] newcost     New join prefix cost
 
@@ -3901,8 +3899,7 @@ void Optimize_table_order::semijoin_mat_lookup_access_paths(
 */
 
 void Optimize_table_order::semijoin_dupsweedout_access_paths(
-                uint first_tab, uint last_tab, 
-                table_map remaining_tables, 
+                uint first_tab, uint last_tab,
                 double *newcount, double *newcost)
 {
   DBUG_ENTER("Optimize_table_order::semijoin_dupsweedout_access_paths");
@@ -4491,7 +4488,7 @@ void Optimize_table_order::advance_sj_state(
       */
       double rowcount, cost;
       semijoin_dupsweedout_access_paths(pos->first_dupsweedout_table, idx,
-                                        remaining_tables, &rowcount, &cost);
+                                        &rowcount, &cost);
       /*
         Use the strategy if
          * it is cheaper then what we've had, and strategy is enabled, or

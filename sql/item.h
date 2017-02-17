@@ -5406,8 +5406,7 @@ public:
      field_idx((uint)-1), original_privilege(priv),
      want_privilege(priv), table_grants(NULL), read_only (ro)
   {}
-  void setup_field(THD *thd,
-                   Table_trigger_field_support *table_triggers,
+  void setup_field(Table_trigger_field_support *table_triggers,
                    GRANT_INFO *table_grant_info);
   enum Type type() const override { return TRIGGER_FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const override;

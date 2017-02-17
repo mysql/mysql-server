@@ -1252,7 +1252,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
   if (!select_insert)
   {
     TABLE_LIST *const duplicate=
-      unique_table(thd, lex->insert_table_leaf, table_list->next_global, true);
+      unique_table(lex->insert_table_leaf, table_list->next_global, true);
     if (duplicate)
     {
       update_non_unique_table_error(table_list, "INSERT", duplicate);
@@ -1267,7 +1267,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
     ulong added_options= SELECT_NO_UNLOCK;
 
     // Is inserted table used somewhere in other parts of query
-    if (unique_table(thd, lex->insert_table_leaf, table_list->next_global, 0))
+    if (unique_table(lex->insert_table_leaf, table_list->next_global, 0))
     {
       // Using same table for INSERT and SELECT, buffer the selection
       added_options|= OPTION_BUFFER_RESULT;
@@ -2047,7 +2047,7 @@ bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
 }
 
 
-bool Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
+bool Query_result_insert::prepare(List<Item>&, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("Query_result_insert::prepare");
 

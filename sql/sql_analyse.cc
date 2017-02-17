@@ -1082,7 +1082,7 @@ int collect_real(double *element, element_count count MY_ATTRIBUTE((unused)),
 } // collect_real
 
 
-int collect_decimal(uchar *element, element_count count,
+int collect_decimal(uchar *element, element_count,
                     TREE_INFO *info)
 {
   char buff[DECIMAL_MAX_STR_LENGTH + 1];

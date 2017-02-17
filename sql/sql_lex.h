@@ -1240,11 +1240,10 @@ public:
   /**
     @note the group_by and order_by lists below will probably be added to the
           constructor when the parser is converted into a true bottom-up design.
+
+          //SQL_I_LIST<ORDER> *group_by, SQL_I_LIST<ORDER> order_by
   */
-  SELECT_LEX(TABLE_LIST *table_list, List<Item> *item_list,
-                Item *where, Item *having, Item *limit, Item *offset
-                //SQL_I_LIST<ORDER> *group_by, SQL_I_LIST<ORDER> order_by
-                );
+  SELECT_LEX(Item *where, Item *having);
 
   SELECT_LEX_UNIT *master_unit() const { return master; }
   SELECT_LEX_UNIT *first_inner_unit() const { return slave; }
@@ -1329,7 +1328,7 @@ public:
   bool set_braces(bool value);
   uint get_in_sum_expr() const { return in_sum_expr; }
 
-  bool add_item_to_list(THD *thd, Item *item);
+  bool add_item_to_list(Item *item);
   bool add_ftfunc_to_list(Item_func_match *func);
   void add_order_to_list(ORDER *order);
   TABLE_LIST* add_table_to_list(THD *thd, Table_ident *table,
@@ -1343,7 +1342,7 @@ public:
                                 Parse_context *pc= NULL);
   TABLE_LIST* get_table_list() const { return table_list.first; }
   bool init_nested_join(THD *thd);
-  TABLE_LIST *end_nested_join(THD *thd);
+  TABLE_LIST *end_nested_join();
   TABLE_LIST *nest_last_join(THD *thd, size_t table_cnt= 2);
   bool add_joined_table(TABLE_LIST *table);
   TABLE_LIST *convert_right_join();
@@ -1416,7 +1415,7 @@ public:
   static void print_order(String *str,
                           ORDER *order,
                           enum_query_type query_type);
-  void print_limit(THD *thd, String *str, enum_query_type query_type);
+  void print_limit(String *str, enum_query_type query_type);
   void fix_prepare_information(THD *thd);
 
   bool accept(Select_lex_visitor *visitor);

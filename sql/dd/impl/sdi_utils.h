@@ -88,7 +88,7 @@ template <typename CONDITION_HANDLER_CLOS>
 class Closure_error_handler : public Internal_error_handler
 {
   CONDITION_HANDLER_CLOS *m_ch;
-  bool handle_condition(THD *thd, uint sql_errno, const char* sqlstate,
+  bool handle_condition(THD*, uint sql_errno, const char* sqlstate,
                         Sql_condition::enum_severity_level *level,
                         const char* msg)
   {

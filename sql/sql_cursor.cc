@@ -411,7 +411,7 @@ Materialized_cursor::~Materialized_cursor()
 ****************************************************************************/
 
 bool Query_result_materialize::send_result_set_metadata(List<Item> &list,
-                                                        uint flags)
+                                                        uint)
 {
   DBUG_ASSERT(table == 0);
   /*

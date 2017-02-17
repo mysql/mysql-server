@@ -129,11 +129,11 @@ public:
     : m_handled_errors(false), m_unhandled_errors(false)
   {}
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_WRONG_MRG_TABLE)
     {
@@ -864,7 +864,6 @@ void release_table_share(TABLE_SHARE *share)
   by another thread (m_open_in_progress flag is true) return share.
   Do not wait for share opening to finish.
 
-  @param thd        thread descriptor.
   @param db         database name.
   @param table_name table name.
 
@@ -873,7 +872,7 @@ void release_table_share(TABLE_SHARE *share)
 */
 
 static
-TABLE_SHARE *get_cached_table_share(THD *thd, const char *db,
+TABLE_SHARE *get_cached_table_share(const char *db,
                                     const char *table_name)
 {
   char key[MAX_DBKEY_LENGTH];
@@ -1082,7 +1081,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
     bool found=0;
     for (TABLE_LIST *table= tables; table; table= table->next_local)
     {
-      TABLE_SHARE *share= get_cached_table_share(thd, table->db,
+      TABLE_SHARE *share= get_cached_table_share(table->db,
                                                  table->table_name);
 
       if (share)
@@ -1173,7 +1172,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
     {
       for (TABLE_LIST *table= tables; table; table= table->next_local)
       {
-        share= get_cached_table_share(thd, table->db, table->table_name);
+        share= get_cached_table_share(table->db, table->table_name);
         if (share && share->has_old_version())
         {
 	  found= TRUE;
@@ -1713,7 +1712,7 @@ void close_thread_table(THD *thd, TABLE **table_ptr)
 
 
 /* close_temporary_tables' internal, 4 is due to uint4korr definition */
-static inline uint  tmpkeyval(THD *thd, TABLE *table)
+static inline uint tmpkeyval(TABLE *table)
 {
   return uint4korr(table->s->table_cache_key.str + table->s->table_cache_key.length - 4);
 }
@@ -1835,7 +1834,7 @@ bool close_temporary_tables(THD *thd)
            prev_sorted= sorted, sorted= sorted->next)
       {
         if (!is_user_table(sorted) ||
-            tmpkeyval(thd, sorted) > tmpkeyval(thd, table))
+            tmpkeyval(sorted) > tmpkeyval(table))
         {
           /* move into the sorted part of the list from the unsorted */
           prev_table->next= table->next;
@@ -1870,7 +1869,7 @@ bool close_temporary_tables(THD *thd)
       bool save_thread_specific_used= thd->thread_specific_used;
       my_thread_id save_pseudo_thread_id= thd->variables.pseudo_thread_id;
       /* Set pseudo_thread_id to be that of the processed table */
-      thd->variables.pseudo_thread_id= tmpkeyval(thd, table);
+      thd->variables.pseudo_thread_id= tmpkeyval(table);
       String db;
       db.append(table->s->db.str);
       /* Loop forward through all tables that belong to a common database
@@ -1880,7 +1879,7 @@ bool close_temporary_tables(THD *thd)
       for (s_query_trans.length(stub_len), s_query_non_trans.length(stub_len),
            found_trans_table= false, found_non_trans_table= false;
            table && is_user_table(table) &&
-             tmpkeyval(thd, table) == thd->variables.pseudo_thread_id &&
+             tmpkeyval(table) == thd->variables.pseudo_thread_id &&
              table->s->db.length == db.length() &&
              strcmp(table->s->db.str, db.ptr()) == 0;
            table= next)
@@ -2036,7 +2035,6 @@ TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
 /**
   Test that table is unique (It's only exists once in the table list)
 
-  @param  thd          thread handle
   @param  table        table to be checked (must be updatable base table)
   @param  table_list   list of tables
   @param  check_alias  whether to check tables' aliases
@@ -2067,7 +2065,7 @@ TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
   @retval 0 if table is unique
 */
 
-static TABLE_LIST* find_dup_table(THD *thd, const TABLE_LIST *table,
+static TABLE_LIST* find_dup_table(const TABLE_LIST *table,
                                   TABLE_LIST *table_list, bool check_alias)
 {
   TABLE_LIST *res;
@@ -2150,7 +2148,6 @@ next:
   tables of @c table (if any) are listed right after it and that
   their @c parent_l field points at the main table.
 
-  @param  thd        thread handle
   @param  table      table to be checked (must be updatable base table)
   @param  table_list List of tables to check against
   @param  check_alias whether to check tables' aliases
@@ -2160,7 +2157,7 @@ next:
   @retval NULL     No duplicates found.
 */
 
-TABLE_LIST *unique_table(THD *thd, const TABLE_LIST *table,
+TABLE_LIST *unique_table(const TABLE_LIST *table,
                          TABLE_LIST *table_list, bool check_alias)
 {
   DBUG_ASSERT(table == ((TABLE_LIST *)table)->updatable_base_table());
@@ -2174,12 +2171,12 @@ TABLE_LIST *unique_table(THD *thd, const TABLE_LIST *table,
     for (child= table->next_global; child && child->parent_l == table;
          child= child->next_global)
     {
-      if ((dup= find_dup_table(thd, child, child->next_global, check_alias)))
+      if ((dup= find_dup_table(child, child->next_global, check_alias)))
         break;
     }
   }
   else
-    dup= find_dup_table(thd, table, table_list, check_alias);
+    dup= find_dup_table(table, table_list, check_alias);
   return dup;
 }
 
@@ -2547,11 +2544,11 @@ public:
     : m_ot_ctx(ot_ctx_arg), m_is_active(FALSE)
   {}
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (! m_is_active && sql_errno == ER_LOCK_DEADLOCK)
     {
@@ -2777,7 +2774,7 @@ tdc_wait_for_old_version(THD *thd, const char *db, const char *table_name,
   bool res= FALSE;
 
   mysql_mutex_lock(&LOCK_open);
-  if ((share= get_cached_table_share(thd, db, table_name)) &&
+  if ((share= get_cached_table_share(db, table_name)) &&
       share->has_old_version())
   {
     struct timespec abstime;
@@ -3017,7 +3014,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
           DBUG_RETURN(true);
         }
 
-        if (!tdc_open_view(thd, table_list, alias, key, key_length,
+        if (!tdc_open_view(thd, table_list, key, key_length,
                            CHECK_METADATA_VERSION))
         {
           DBUG_ASSERT(table_list->is_view());
@@ -4166,7 +4163,6 @@ check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
 
    @param thd               Thread handle
    @param table_list        TABLE_LIST with db, table_name & belong_to_view
-   @param alias             Alias name
    @param cache_key         Key for table definition cache
    @param cache_key_length  Length of cache_key
    @param flags             Flags which modify how we open the view
@@ -4177,7 +4173,7 @@ check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
    @return FALSE if success, TRUE - otherwise.
 */
 
-bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
+bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
                    const char *cache_key, size_t cache_key_length, uint flags)
 {
   my_hash_value_type hash_value;
@@ -4384,11 +4380,11 @@ end_unlock:
 class Fix_row_type_error_handler : public Internal_error_handler
 {
 public:
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     return sql_errno == ER_GET_ERRNO &&
            my_errno() == HA_ERR_ROW_FORMAT_CHANGED;
@@ -4625,9 +4621,9 @@ class MDL_deadlock_discovery_repair_handler : public Internal_error_handler
 public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_LOCK_DEADLOCK)
     {
@@ -5029,9 +5025,6 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
   @param[in]     lex                  LEX structure for statement.
   @param[in]     tables               Table list element to be processed.
   @param[in,out] counter              Number of tables which are open.
-  @param[in]     flags                Bitmap of flags to modify how the tables
-                                      will be open, see open_table() description
-                                      for details.
   @param[in]     prelocking_strategy  Strategy which specifies how the
                                       prelocking set should be extended
                                       when table or view is processed.
@@ -5046,7 +5039,7 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
 
 static bool
 open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *const tables,
-                       uint *counter, uint flags,
+                       uint *counter,
                        Prelocking_strategy *prelocking_strategy,
                        bool has_prelocking_list,
                        Open_table_context *ot_ctx)
@@ -5617,8 +5610,6 @@ lock_table_names(THD *thd,
   @param tables_start  Start of list of tables on which upgradable locks
                        should be searched for.
   @param tables_end    End of list of tables.
-  @param flags         Bitmap of flags to modify how the tables will be
-                       open, see open_table() description for details.
 
   @retval FALSE  Success.
   @retval TRUE   Failure (e.g. connection was killed)
@@ -5626,7 +5617,7 @@ lock_table_names(THD *thd,
 
 static bool
 open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
-                                 TABLE_LIST *tables_end, uint flags)
+                                 TABLE_LIST *tables_end)
 {
   TABLE_LIST *table;
 
@@ -5778,8 +5769,7 @@ restart:
         need to check if appropriate locks were pre-acquired.
       */
       if (open_tables_check_upgradable_mdl(thd, *start,
-                                           thd->lex->first_not_own_table(),
-                                           flags))
+                                           thd->lex->first_not_own_table()))
       {
         error= TRUE;
         goto err;
@@ -5820,7 +5810,7 @@ restart:
          table_to_open= &tables->next_global, tables= tables->next_global)
     {
       error= open_and_process_table(thd, thd->lex, tables, counter,
-                                    flags, prelocking_strategy,
+                                    prelocking_strategy,
                                     has_prelocking_list, &ot_ctx);
 
       if (error)
@@ -6256,8 +6246,8 @@ handle_table(THD *thd, Query_tables_list *prelocking_ctx,
 */
 
 bool Alter_table_prelocking_strategy::
-handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
-               Sroutine_hash_entry *rt, sp_head *sp, bool *need_prelocking)
+handle_routine(THD*, Query_tables_list*,
+               Sroutine_hash_entry*, sp_head*, bool*)
 {
   return FALSE;
 }
@@ -6268,21 +6258,11 @@ handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
   table list elements.
 
   Unlike in DML, we do not process triggers here.
-
-  @param[in]  thd              Thread context.
-  @param[in]  prelocking_ctx   Prelocking context of the statement.
-  @param[in]  table_list       Table list element for table.
-  @param[out] need_prelocking  Set to TRUE if method detects that prelocking
-                               required, not changed otherwise.
-
-
-  @retval FALSE  Success.
-  @retval TRUE   Failure (OOM).
 */
 
 bool Alter_table_prelocking_strategy::
-handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-             TABLE_LIST *table_list, bool *need_prelocking)
+handle_table(THD*, Query_tables_list*,
+             TABLE_LIST*, bool*)
 {
   return FALSE;
 }
@@ -6296,8 +6276,8 @@ handle_table(THD *thd, Query_tables_list *prelocking_ctx,
 */
 
 bool Alter_table_prelocking_strategy::
-handle_view(THD *thd, Query_tables_list *prelocking_ctx,
-            TABLE_LIST *table_list, bool *need_prelocking)
+handle_view(THD*, Query_tables_list*,
+            TABLE_LIST*, bool*)
 {
   return FALSE;
 }
@@ -7297,7 +7277,6 @@ bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list)
     thd				thread handler
     table_list			view to search for 'name'
     name			name of field
-    length			length of name
     item_name                   name of item if it will be created (VIEW)
     ref				expression substituted in VIEW should be passed
                                 using this reference (return view_ref_found)
@@ -7312,7 +7291,7 @@ bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list)
 
 static Field *
 find_field_in_view(THD *thd, TABLE_LIST *table_list,
-                   const char *name, size_t length,
+                   const char *name,
                    const char *item_name, Item **ref,
                    bool register_tree_change)
 {
@@ -7376,7 +7355,6 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
   @param thd thread handler
   @param table_ref table reference to search
   @param name name of field
-  @param length	length of name
   @param [in,out] ref if 'name' is resolved to a view field, ref is
                                set to point to the found view field
   @param register_tree_change TRUE if ref is not stack variable and we
@@ -7403,7 +7381,7 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
 
 static Field *
 find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
-                           size_t length, Item **ref, bool register_tree_change,
+                           Item **ref, bool register_tree_change,
                            TABLE_LIST **actual_table)
 {
   List_iterator_fast<Natural_join_column>
@@ -7511,7 +7489,6 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
 
   SYNOPSIS
     find_field_in_table()
-    thd				thread handler
     table			table where to search for the field
     name			name of field
     length			length of name
@@ -7525,7 +7502,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
 */
 
 Field *
-find_field_in_table(THD *thd, TABLE *table, const char *name, size_t length,
+find_field_in_table(TABLE *table, const char *name, size_t length,
                     bool allow_rowid, uint *cached_field_index_ptr)
 {
   Field **field_ptr, *field;
@@ -7683,7 +7660,7 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
   if (table_list->field_translation)
   {
     /* 'table_list' is a view or an information schema table. */
-    if ((fld= find_field_in_view(thd, table_list, name, length, item_name, ref,
+    if ((fld= find_field_in_view(thd, table_list, name, item_name, ref,
                                  register_tree_change)))
       *actual_table= table_list;
   }
@@ -7691,7 +7668,7 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
   {
     /* 'table_list' is a stored table. */
     DBUG_ASSERT(table_list->table);
-    if ((fld= find_field_in_table(thd, table_list->table, name, length,
+    if ((fld= find_field_in_table(table_list->table, name, length,
                                   allow_rowid,
                                   cached_field_index_ptr)))
       *actual_table= table_list;
@@ -7726,7 +7703,7 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
       natural join, thus if the field is not qualified, we will search
       directly the top-most NATURAL/USING join.
     */
-    fld= find_field_in_natural_join(thd, table_list, name, length, ref,
+    fld= find_field_in_natural_join(thd, table_list, name, ref,
                                     register_tree_change, actual_table);
   }
 
@@ -7896,7 +7873,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
       */
     if (table_ref->table && !table_ref->is_view())
     {
-      found= find_field_in_table(thd, table_ref->table, name, length,
+      found= find_field_in_table(table_ref->table, name, length,
                                  TRUE, &(item->cached_field_index));
       // Check if there are sufficient privileges to the found field.
       if (found && want_privilege &&

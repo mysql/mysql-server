@@ -5336,7 +5336,7 @@ public:
     @param  [in]      key_info      Array of KEY objects describing table
                                     indexes.
     @param  [in]      key_count     Number of indexes in the table.
-    @param  [in,out]  table         dd::Table object describing the table
+    @param  [in,out]  table_obj     dd::Table object describing the table
                                     to be created. Implicit columns and
                                     indexes are to be added to this object.
                                     Adjusted table description will be
@@ -5352,7 +5352,7 @@ public:
                                *create_list MY_ATTRIBUTE((unused)),
                                const KEY *key_info MY_ATTRIBUTE((unused)),
                                uint key_count MY_ATTRIBUTE((unused)),
-                               dd::Table *table MY_ATTRIBUTE((unused)))
+                               dd::Table *table_obj MY_ATTRIBUTE((unused)))
   { return 0; }
 
   virtual bool set_ha_share_ref(Handler_share **arg_ha_share)

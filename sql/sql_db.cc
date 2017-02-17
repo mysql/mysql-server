@@ -474,9 +474,9 @@ public:
   {}
 
   virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
+                                uint,
+                                const char*,
+                                Sql_condition::enum_severity_level*,
                                 const char* msg)
   {
     if (! m_is_active)

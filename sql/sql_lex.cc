@@ -575,9 +575,9 @@ void lex_end(LEX *lex)
 SELECT_LEX *LEX::new_empty_query_block()
 {
   SELECT_LEX *select=
-    new (thd->mem_root) SELECT_LEX(NULL, NULL, NULL, NULL, NULL, NULL);
-  if (select == NULL)
-    return NULL;             /* purecov: inspected */
+    new (thd->mem_root) SELECT_LEX(nullptr, nullptr);
+  if (select == nullptr)
+    return nullptr;             /* purecov: inspected */
 
   select->parent_lex= this;
 
@@ -2268,11 +2268,7 @@ SELECT_LEX_UNIT::SELECT_LEX_UNIT(enum_parsing_context parsing_context) :
   Construct and initialize SELECT_LEX object.
 */
 
-SELECT_LEX::SELECT_LEX
-               (TABLE_LIST *table_list,
-                List<Item> *item_list_arg,       // unused
-                Item *where, Item *having, Item *limit, Item *offset)
-                //SQL_I_LIST<ORDER> *group_by, SQL_I_LIST<ORDER> order_by)
+SELECT_LEX::SELECT_LEX(Item *where, Item *having)
   :
   next(NULL),
   prev(NULL),
@@ -2660,7 +2656,7 @@ void SELECT_LEX::add_order_to_list(ORDER *order)
 }
 
 
-bool SELECT_LEX::add_item_to_list(THD *thd, Item *item)
+bool SELECT_LEX::add_item_to_list(Item *item)
 {
   DBUG_ENTER("SELECT_LEX::add_item_to_list");
   DBUG_PRINT("info", ("Item: %p", item));
@@ -2800,10 +2796,10 @@ void SELECT_LEX_UNIT::print(String *str, enum_query_type query_type)
         fake_select_lex->order_list.first,
         query_type);
     }
-    fake_select_lex->print_limit(thd, str, query_type);
+    fake_select_lex->print_limit(str, query_type);
   }
   else if (saved_fake_select_lex)
-    saved_fake_select_lex->print_limit(thd, str, query_type);
+    saved_fake_select_lex->print_limit(str, query_type);
 }
 
 
@@ -2824,8 +2820,7 @@ void SELECT_LEX::print_order(String *str,
 }
  
 
-void SELECT_LEX::print_limit(THD *thd,
-                             String *str,
+void SELECT_LEX::print_limit(String *str,
                              enum_query_type query_type)
 {
   SELECT_LEX_UNIT *unit= master_unit();
@@ -3329,7 +3324,7 @@ void SELECT_LEX::print(THD *thd, String *str, enum_query_type query_type)
   }
 
   // limit
-  print_limit(thd, str, query_type);
+  print_limit(str, query_type);
 
   // PROCEDURE unsupported here
 }

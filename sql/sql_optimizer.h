@@ -975,7 +975,7 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
                        List<TABLE_LIST> *join_list,
                        COND_EQUAL **cond_equal_ref);
 bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
-Key_use_array *create_keyuse_for_table(THD *thd, TABLE *table, uint keyparts,
+Key_use_array *create_keyuse_for_table(THD *thd, uint keyparts,
                                        Item_field **fields,
                                        List<Item> outer_exprs);
 Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal);
