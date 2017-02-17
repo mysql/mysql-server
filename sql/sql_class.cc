@@ -2231,6 +2231,13 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   num_truncated_fields= 0;
   get_transaction()->m_savepoints= 0;
   first_successful_insert_id_in_cur_stmt= 0;
+
+  /* Reset savepoint on transaction write set */
+  if (is_current_stmt_binlog_row_enabled_with_write_set_extraction())
+  {
+      get_transaction()->get_transaction_write_set_ctx()
+          ->reset_savepoint_list();
+  }
 }
 
 
@@ -2298,6 +2305,14 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   */
   inc_examined_row_count(backup->examined_row_count);
   num_truncated_fields+= backup->num_truncated_fields;
+
+  /* Restore savepoint on transaction write set */
+  if (is_current_stmt_binlog_row_enabled_with_write_set_extraction())
+  {
+      get_transaction()->get_transaction_write_set_ctx()
+          ->restore_savepoint_list();
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -2888,4 +2903,11 @@ bool THD::is_current_stmt_binlog_disabled() const
 {
   return (!(variables.option_bits & OPTION_BIN_LOG) ||
           !mysql_bin_log.is_open());
+}
+
+bool THD::is_current_stmt_binlog_row_enabled_with_write_set_extraction() const
+{
+  return ((variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF) &&
+          is_current_stmt_binlog_format_row() &&
+          !is_current_stmt_binlog_disabled());
 }

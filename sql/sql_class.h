@@ -1407,6 +1407,14 @@ public:
 
   bool is_current_stmt_binlog_disabled() const;
 
+  /**
+    Determine if binloging is enabled in row format and write set extraction is
+    enabled for this session
+    @retval true  if is enable
+    @retval false otherwise
+  */
+  bool is_current_stmt_binlog_row_enabled_with_write_set_extraction() const;
+
   /** Tells whether the given optimizer_switch flag is on */
   inline bool optimizer_switch_flag(ulonglong flag) const
   {
