@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1154,6 +1154,13 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
       m_config.m_waitfor_timeout = timeout;
     }
   }
+
+  // System name
+  ndb_mgm_configuration_iterator s_iter(config, CFG_SECTION_SYSTEM);
+  const char * tmp_system_name;
+  s_iter.get(CFG_SYS_NAME, & tmp_system_name);
+  m_system_name.assign(tmp_system_name);
+
   DBUG_RETURN(init_nodes_vector(nodeId, config));
 }
 
@@ -1222,6 +1229,11 @@ void Ndb_cluster_connection::set_name(const char *name)
 void Ndb_cluster_connection::set_application_address(const char * addr, int port)
 {
   m_impl.set_application_address(addr, port);
+}
+
+const char * Ndb_cluster_connection::get_system_name() const
+{
+  return m_impl.m_system_name.c_str();
 }
 
 int Ndb_cluster_connection_impl::connect(int no_retries,

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -202,6 +202,11 @@ public:
    */
   void set_auto_reconnect(int value);
   int get_auto_reconnect() const;
+
+  /**
+   *  Get system.name from cluster configuration
+   */
+  const char * get_system_name() const;
 
   /**
    * Collect client statistics for all Ndb objects in this connection
