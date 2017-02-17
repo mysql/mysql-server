@@ -251,7 +251,9 @@ Ndb_local_schema::Table::remove_table(void) const
   (void)remove_file(ndb_ext);
 
   // Remove the table from DD
-  if (dd::drop_table<dd::Table>(m_thd, m_db, m_name, true))
+  if (dd::drop_table<dd::Table>(m_thd,
+                                m_db, m_name,
+                                true)) /* commit_dd_changes */
   {
     log_warning("Failed to drop table from DD");
     return;
@@ -273,12 +275,60 @@ Ndb_local_schema::Table::remove_table(void) const
 }
 
 
+bool
+Ndb_local_schema::Table::mdl_try_lock_for_rename(const char* new_db,
+                                                 const char* new_name) const
+{
+  MDL_request_list mdl_requests;
+  MDL_request schema_request;
+  MDL_request mdl_request;
+
+  MDL_REQUEST_INIT(&schema_request,
+                   MDL_key::SCHEMA, new_db, "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&mdl_request,
+                   MDL_key::TABLE, new_db, new_name, MDL_EXCLUSIVE,
+                   MDL_TRANSACTION);
+
+  mdl_requests.push_front(&mdl_request);
+  mdl_requests.push_front(&schema_request);
+  if (m_thd->mdl_context.acquire_locks(&mdl_requests,
+                                       0 /* don't wait for lock */))
+  {
+    // Check that an error has been pushed to thd and then
+    // clear it since this is just a _try lock_
+    assert(m_thd->is_error());
+    m_thd->clear_error();
+
+    log_warning("Failed to acquire exclusive metadata lock for %s.%s",
+                new_db, new_name);
+
+    return false;
+  }
+  DBUG_PRINT("info", ("acquired metadata lock"));
+  return true;
+}
+
+
 void
 Ndb_local_schema::Table::rename_table(const char* new_db,
                                       const char* new_name) const
 {
-  (void)rename_file(new_db, new_name, reg_ext);
-  (void)rename_file(new_db, new_name, ndb_ext);
+  // Take write lock for the new table name
+  if (mdl_try_lock_for_rename(new_db, new_name))
+  {
+    return;
+  }
+
+  if (dd::rename_table<dd::Table>(m_thd,
+                                  m_db, m_name,
+                                  new_db, new_name,
+                                  false, /* mark_as_hidden */
+                                  true)) /* commit_dd_changes */
+  {
+    log_warning("Failed to rename table in DD");
+    return;
+  }
 
   if (m_has_triggers)
   {

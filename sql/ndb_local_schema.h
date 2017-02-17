@@ -67,6 +67,9 @@ public:
     // Read the engine type from .frm and return true if it says NDB
     bool frm_engine_is_ndb(void) const;
 
+    bool mdl_try_lock_for_rename(const char* new_db,
+                                 const char* new_name) const;
+
   public:
     Table(); // Not implemented
     Table(const Table&); // Not implemented
