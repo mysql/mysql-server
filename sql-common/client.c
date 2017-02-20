@@ -717,6 +717,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
 {
   size_t total_len, len;
   uchar *pos, *saved_pos;
+  my_ulonglong affected_rows, insert_id;
   char *db;
 
   struct charset_info_st *saved_cs;
@@ -730,15 +731,29 @@ void read_ok_ex(MYSQL *mysql, ulong length)
 
   pos= mysql->net.read_pos + 1;
 
-  /* affected rows */
-  mysql->affected_rows= net_field_length_ll(&pos);
-  /* insert id */
-  mysql->insert_id= net_field_length_ll(&pos);
+  affected_rows = net_field_length_ll(&pos); /* affected rows */
+  insert_id = net_field_length_ll(&pos); /* insert id */
 
-  DBUG_PRINT("info",("affected_rows: %lu  insert_id: %lu",
-                     (ulong) mysql->affected_rows,
-                     (ulong) mysql->insert_id));
+  /*
+   The following check ensures that we skip the assignment for the
+   above read fields (i.e. affected_rows and insert_id) wherein the
+   EOF packets are deprecated and the server sends OK packet instead
+   with a packet header of 0xFE (254) to identify it as an EOF packet.
+   We ignore this assignment as the valid contents of EOF packet include
+   packet marker, server status and warning count only. However, we would
+   assign these values to the connection handle if it was an OK packet
+   with a packet header of 0x00.
+  */
+  if (!((mysql->server_capabilities & CLIENT_DEPRECATE_EOF) &&
+        mysql->net.read_pos[0] == 254))
+  {
+    mysql->affected_rows= affected_rows;
+    mysql->insert_id= insert_id;
 
+    DBUG_PRINT("info",("affected_rows: %lu  insert_id: %lu",
+                       (ulong) mysql->affected_rows,
+                       (ulong) mysql->insert_id));
+  }
   /* server status */
   mysql->server_status= uint2korr(pos);
   pos += 2;
