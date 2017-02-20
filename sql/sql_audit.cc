@@ -128,7 +128,7 @@ public:
     if (m_active && handle())
     {
       /* Error has been rejected. Write warning message. */
-      print_warning(m_warning_message);
+      print_warning(m_warning_message, sql_errno, sqlstate, msg);
 
       m_error_reported = true;
 
@@ -143,9 +143,15 @@ public:
 
     @param warn_msg Warning message to be printed.
   */
-  virtual void print_warning(const char *warn_msg)
+  virtual void print_warning(const char *warn_msg,
+                             uint sql_errno,
+                             const char* sqlstate,
+                             const char* msg)
   {
-    sql_print_warning("%s", warn_msg);
+    sql_print_warning("%s. The trigger error was (%d) [%s]: %s", warn_msg,
+                      sql_errno,
+                      sqlstate ? sqlstate : "<NO_STATE>",
+                      msg ? msg : "<NO_MESSAGE>");
   }
 
   /**
@@ -338,7 +344,7 @@ public:
     @param event_name
   */
   Ignore_event_error_handler(THD *thd, const char *event_name) :
-    Audit_error_handler(thd, "Event '%s' cannot be aborted."),
+    Audit_error_handler(thd, ""),
     m_event_name(event_name)
   {
   }
@@ -358,9 +364,17 @@ public:
 
   @param warn_msg Placeholding warning message to be printed.
   */
-  virtual void print_warning(const char *warn_msg)
+  virtual void print_warning(const char *warn_msg,
+                             uint sql_errno,
+                             const char* sqlstate,
+                             const char* msg)
   {
-    sql_print_warning(warn_msg, m_event_name);
+    sql_print_warning("Event '%s' cannot be aborted. "
+                      "The trigger error was (%d) [%s]: %s",
+                      m_event_name,
+                      sql_errno,
+                      sqlstate ? sqlstate : "<NO_STATE>",
+                      msg ? msg : "<NO_MESSAGE>");
   }
 
 private:
@@ -818,8 +832,7 @@ public:
   Ignore_command_start_error_handler(THD *thd,
                                      enum_server_command command,
                                      const char *command_text) :
-    Audit_error_handler(thd, "Command '%s' cannot be aborted.",
-                        ignore_command(command)),
+    Audit_error_handler(thd, "", ignore_command(command)),
     m_command(command),
     m_command_text(command_text)
   {
@@ -840,9 +853,17 @@ public:
 
     @param warn_msg Placeholding warning message text.
   */
-  virtual void print_warning(const char *warn_msg)
+  virtual void print_warning(const char *warn_msg,
+                             uint sql_errno,
+                             const char* sqlstate,
+                             const char* msg)
   {
-    sql_print_warning(warn_msg, m_command_text);
+    sql_print_warning("Command '%s' cannot be aborted. "
+                      "The trigger error was (%d) [%s]: %s",
+                      m_command_text,
+                      sql_errno,
+                      sqlstate ? sqlstate : "<NO_STATE>",
+                      msg ? msg : "<NO_MESSAGE>");
   }
 
   /**
@@ -1083,7 +1104,7 @@ int mysql_audit_acquire_plugins(THD *thd, mysql_event_class_t event_class,
 
 /**
   Release any resources associated with the current thd.
-  
+
   @param[in] thd
 
 */
@@ -1091,16 +1112,16 @@ int mysql_audit_acquire_plugins(THD *thd, mysql_event_class_t event_class,
 void mysql_audit_release(THD *thd)
 {
   plugin_ref *plugins, *plugins_last;
-  
+
   if (!thd || thd->audit_class_plugins.empty())
     return;
-  
+
   plugins= thd->audit_class_plugins.begin();
   plugins_last= thd->audit_class_plugins.end();
   for (; plugins != plugins_last; plugins++)
   {
     st_mysql_audit *data= plugin_data<st_mysql_audit*>(*plugins);
-	
+
     /* Check to see if the plugin has a release method */
     if (!(data->release_thd))
       continue;
@@ -1109,10 +1130,10 @@ void mysql_audit_release(THD *thd)
     data->release_thd(thd);
   }
 
-  /* Now we actually unlock the plugins */  
+  /* Now we actually unlock the plugins */
   plugin_unlock_list(NULL, thd->audit_class_plugins.begin(),
                      thd->audit_class_plugins.size());
-  
+
   /* Reset the state of thread values */
   thd->audit_class_plugins.clear();
   thd->audit_class_mask.clear();
@@ -1122,7 +1143,7 @@ void mysql_audit_release(THD *thd)
 
 /**
   Initialize thd variables used by Audit
-  
+
   @param[in] thd
 
 */
@@ -1180,7 +1201,7 @@ void mysql_audit_initialize()
 
 
 /**
-  Finalize Audit global variables  
+  Finalize Audit global variables
 */
 
 void mysql_audit_finalize()
@@ -1191,7 +1212,7 @@ void mysql_audit_finalize()
 
 /**
   Initialize an Audit plug-in
-  
+
   @param[in] plugin
 
   @retval FALSE  OK
@@ -1223,7 +1244,7 @@ int initialize_audit_plugin(st_plugin_int *plugin)
                     plugin->name.str);
     return 1;
   }
-  
+
   if (plugin->plugin->init && plugin->plugin->init(plugin))
   {
     sql_print_error("Plugin '%s' init function returned error.",
@@ -1263,7 +1284,7 @@ static my_bool calc_class_mask(THD *thd, plugin_ref plugin, void *arg)
 
 /**
   Finalize an Audit plug-in
-  
+
   @param[in] plugin
 
   @retval FALSE  OK
@@ -1272,14 +1293,14 @@ static my_bool calc_class_mask(THD *thd, plugin_ref plugin, void *arg)
 int finalize_audit_plugin(st_plugin_int *plugin)
 {
   unsigned long event_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
-  
+
   if (plugin->plugin->deinit && plugin->plugin->deinit(NULL))
   {
     DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
                             plugin->name.str));
     DBUG_EXECUTE("finalize_audit_plugin", return 1; );
   }
-  
+
   plugin->data= NULL;
   memset(&event_class_mask, 0, sizeof(event_class_mask));
 
@@ -1302,7 +1323,7 @@ int finalize_audit_plugin(st_plugin_int *plugin)
 
 
 /**
-  Dispatches an event by invoking the plugin's event_notify method.  
+  Dispatches an event by invoking the plugin's event_notify method.
 
   @param[in] thd
   @param[in] plugin
@@ -1334,7 +1355,7 @@ static my_bool plugins_dispatch_bool(THD *thd, plugin_ref plugin, void *arg)
 
 /**
   Distributes an audit event to plug-ins
-  
+
   @param[in] thd
   @param     event_class
   @param[in] event
