@@ -55,6 +55,7 @@ template<class LOGGER_TYPE>
 class Logger {
 public:
   Logger(std::string file_name);
+  Logger();
   ~Logger();
   template<log_type::type type>
   void log(std::string msg);
@@ -75,9 +76,18 @@ Logger<LOGGER_TYPE>::Logger(std::string file_name) {
 }
 
 template<class LOGGER_TYPE>
+Logger<LOGGER_TYPE>::Logger() {
+  m_logger_initilzed = -1;
+  m_log_level = LOG_LEVEL_NONE;
+  m_log_writer = NULL;
+}
+
+template<class LOGGER_TYPE>
 Logger<LOGGER_TYPE>::~Logger() {
-  m_log_writer->close();
-  delete (LOGGER_TYPE*) m_log_writer;
+  if (m_log_writer) {
+    m_log_writer->close();
+    delete (LOGGER_TYPE*) m_log_writer;
+  }
 }
 
 template<class LOGGER_TYPE>

@@ -13,6 +13,7 @@
 
 MYSQL_PLUGIN g_ldap_plugin_info = NULL;
 Logger<Log_writer_error> g_logger("");
+extern int sasl_client_done();
 
 void Sasl_client::interact(sasl_interact_t *ilist) {
   while (ilist->id != SASL_CB_LIST_END) {
@@ -99,7 +100,37 @@ int Sasl_client::de_initilize() {
   if (m_connection) {
     sasl_dispose(&m_connection);
     m_connection =  NULL;
-    sasl_client_done();
+    sasl_client_done_wrapper();
+  }
+  return rc_sasl;
+}
+
+int Sasl_client::sasl_client_done_wrapper() {
+  const char *impl_version = NULL;
+  uint32_t version = 0;
+  uint16_t major = 0;
+  uint8_t minor = 0;
+  uint8_t step = 0;
+  int rc_sasl = SASL_FAIL;
+  sasl_version(&impl_version, (int*)&version);
+  major = version >> 24;
+  minor = (version << 8) >> 24;
+  step = (version << 24) >> 24;
+
+  typedef int (*__sasl_client_done)();
+  static __sasl_client_done _sasl_client_done = NULL;
+  typedef void (*__sasl_done)();
+  static __sasl_done _sasl_done = NULL;
+
+  if ((major > 2) || (major == 2 && minor > 1) ||(major == 2 && minor == 1 && step >= 24)) {
+    _sasl_client_done = &sasl_client_done;
+    rc_sasl = _sasl_client_done();
+    log_dbg("sasl_client_done()");
+  }
+  else {
+    _sasl_done = &sasl_done;
+    _sasl_done();
+    log_dbg("sasl_done()");
   }
   return rc_sasl;
 }
