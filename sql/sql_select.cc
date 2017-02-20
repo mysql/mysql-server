@@ -1657,8 +1657,7 @@ bool SELECT_LEX::optimize(THD *thd)
   Find how much space the prevous read not const tables takes in cache.
 */
 
-void calc_used_field_length(THD *thd,
-                            TABLE *table,
+void calc_used_field_length(TABLE *table,
                             bool keep_current_rowid,
                             uint *p_used_fields,
                             uint *p_used_fieldlength,
@@ -3747,14 +3746,13 @@ bool JOIN::make_sum_func_list(List<Item> &field_list,
 /**
   Free joins of subselect of this select.
 
-  @param thd      THD pointer
   @param select   pointer to SELECT_LEX which subselects joins we will free
 
   @todo when the final use of this function (from SET statements) is removed,
   this function can be deleted.
 */
 
-void free_underlaid_joins(THD *thd, SELECT_LEX *select)
+void free_underlaid_joins(SELECT_LEX *select)
 {
   for (SELECT_LEX_UNIT *unit= select->first_inner_unit();
        unit;

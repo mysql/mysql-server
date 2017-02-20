@@ -452,7 +452,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
 
   table->mark_columns_needed_for_update(thd, false/*mark_binlog_columns=false*/);
   if (table->vfield &&
-      validate_gc_assignment(thd, update_field_list, update_value_list, table))
+      validate_gc_assignment(update_field_list, update_value_list, table))
     DBUG_RETURN(true);
 
   qep_tab.set_table(table);
@@ -1563,7 +1563,7 @@ bool Sql_cmd_update::execute_inner(THD *thd)
   Connect fields with tables and create list of tables that are updated
 */
 
-bool Query_result_update::prepare(List<Item> &not_used_values,
+bool Query_result_update::prepare(List<Item>&,
                                  SELECT_LEX_UNIT *u)
 {
   SQL_I_List<TABLE_LIST> update;
@@ -1927,7 +1927,7 @@ bool Query_result_update::optimize()
     table->mark_columns_needed_for_update(thd, true/*mark_binlog_columns=true*/);
 
     if (table->vfield &&
-        validate_gc_assignment(thd, fields, values, table))
+        validate_gc_assignment(fields, values, table))
       DBUG_RETURN(false);                      /* purecov: inspected */
     /*
       enable uncacheable flag if we update a view with check option
@@ -2075,7 +2075,7 @@ void Query_result_update::cleanup()
 }
 
 
-bool Query_result_update::send_data(List<Item> &not_used_values)
+bool Query_result_update::send_data(List<Item>&)
 {
   TABLE_LIST *cur_table;
   DBUG_ENTER("Query_result_update::send_data");

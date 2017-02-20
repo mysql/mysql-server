@@ -139,9 +139,7 @@ static bool is_tablespace_command(ts_command_type ts_cmd_type)
 /**
   Prepare dd::Tablespace objects for ALTER TABLESPACE command.
 
-  @param thd          Thread executing the operation.
   @param ts_info      Tablespace metadata from the DDL.
-  @param old_ts_def   Old version of tablespace definition.
   @param new_ts_def   New version of tablespace definition.
 
   @note ALTER TABLESPACE is only supported by NDB for now.
@@ -150,8 +148,7 @@ static bool is_tablespace_command(ts_command_type ts_cmd_type)
   @return true - On failure.
 */
 
-static bool prepare_alter_tablespace(THD *thd, st_alter_tablespace *ts_info,
-                                     const dd::Tablespace *old_ts_def,
+static bool prepare_alter_tablespace(st_alter_tablespace *ts_info,
                                      dd::Tablespace *new_ts_def)
 {
   DBUG_ENTER("dd_alter_tablespace");
@@ -309,7 +306,7 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
         DBUG_RETURN(true);
       }
 
-      if (prepare_alter_tablespace(thd, ts_info, old_ts_def, new_ts_def))
+      if (prepare_alter_tablespace(ts_info, new_ts_def))
       {
         // Error should be reported already.
         goto err;

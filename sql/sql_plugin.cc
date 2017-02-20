@@ -473,7 +473,7 @@ static SHOW_TYPE pluginvar_show_type(st_mysql_sys_var *plugin_var);
 */
 class sys_var_pluginvar: public sys_var
 {
-  static bool on_check_pluginvar(sys_var *self, THD *thd, set_var *var);
+  static bool on_check_pluginvar(sys_var *self, THD*, set_var *var);
 public:
   st_plugin_int *plugin;
   st_mysql_sys_var *plugin_var;
@@ -487,14 +487,15 @@ public:
   const char *orig_pluginvar_name;
 
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg= std::nothrow) throw ()
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused))=
+                            std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
 
   static void operator delete(void *ptr_arg,size_t size)
   { TRASH(ptr_arg, size); }
 
-  static void operator delete(void *ptr, MEM_ROOT *mem_root,
-                              const std::nothrow_t &arg) throw ()
+  static void operator delete(void*, MEM_ROOT*,
+                              const std::nothrow_t&) throw ()
   { /* never called */ }
 
   sys_var_pluginvar(sys_var_chain *chain, const char *name_arg,
@@ -522,8 +523,8 @@ public:
   uchar* global_value_ptr(THD *thd, LEX_STRING *base)
   { return do_value_ptr(thd, OPT_GLOBAL, base); }
   bool do_check(THD *thd, set_var *var);
-  virtual void session_save_default(THD *thd, set_var *var) {}
-  virtual void global_save_default(THD *thd, set_var *var) {}
+  virtual void session_save_default(THD*, set_var*) {}
+  virtual void global_save_default(THD*, set_var*) {}
   bool session_update(THD *thd, set_var *var);
   bool global_update(THD *thd, set_var *var);
   bool is_default(THD *thd, set_var *var);
@@ -545,7 +546,7 @@ static int test_plugin_options(MEM_ROOT *, st_plugin_int *,
                                int *, char **);
 static bool register_builtin(st_mysql_plugin *, st_plugin_int *,
                              st_plugin_int **);
-static void unlock_variables(THD *thd, struct System_variables *vars);
+static void unlock_variables(struct System_variables *vars);
 static void cleanup_variables(THD *thd, struct System_variables *vars);
 static void plugin_vars_free_values(sys_var *vars);
 static bool plugin_var_memalloc_session_update(THD *thd,
@@ -2117,8 +2118,8 @@ void plugin_shutdown(void)
         /*
           release any plugin references held.
         */
-        unlock_variables(NULL, &global_system_variables);
-        unlock_variables(NULL, &max_system_variables);
+        unlock_variables(&global_system_variables);
+        unlock_variables(&max_system_variables);
       }
     }
 
@@ -2624,7 +2625,7 @@ typedef DECLARE_MYSQL_THDVAR_SIMPLE(thdvar_double_t, double);
   default variable data check and update functions
 ****************************************************************************/
 
-static int check_func_bool(THD *thd, st_mysql_sys_var *var,
+static int check_func_bool(THD*, st_mysql_sys_var*,
                            void *save, st_mysql_value *value)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -2740,7 +2741,7 @@ static int check_func_longlong(THD *thd, st_mysql_sys_var *var,
                               value->is_unsigned(value), orig);
 }
 
-static int check_func_str(THD *thd, st_mysql_sys_var *var,
+static int check_func_str(THD *thd, st_mysql_sys_var*,
                           void *save, st_mysql_value *value)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -2755,7 +2756,7 @@ static int check_func_str(THD *thd, st_mysql_sys_var *var,
 }
 
 
-static int check_func_enum(THD *thd, st_mysql_sys_var *var,
+static int check_func_enum(THD*, st_mysql_sys_var *var,
                            void *save, st_mysql_value *value)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -2793,7 +2794,7 @@ err:
 }
 
 
-static int check_func_set(THD *thd, st_mysql_sys_var *var,
+static int check_func_set(THD*, st_mysql_sys_var *var,
                           void *save, st_mysql_value *value)
 {
   char buff[STRING_BUFFER_USUAL_SIZE], *error= 0;
@@ -2848,41 +2849,41 @@ static int check_func_double(THD *thd, st_mysql_sys_var *var,
 }
 
 
-static void update_func_bool(THD *thd, st_mysql_sys_var *var,
+static void update_func_bool(THD*, st_mysql_sys_var*,
                              void *tgt, const void *save)
 {
   *(my_bool *) tgt= *(my_bool *) save ? TRUE : FALSE;
 }
 
 
-static void update_func_int(THD *thd, st_mysql_sys_var *var,
-                             void *tgt, const void *save)
+static void update_func_int(THD*, st_mysql_sys_var*,
+                            void *tgt, const void *save)
 {
   *(int *)tgt= *(int *) save;
 }
 
 
-static void update_func_long(THD *thd, st_mysql_sys_var *var,
+static void update_func_long(THD*, st_mysql_sys_var*,
                              void *tgt, const void *save)
 {
   *(long *)tgt= *(long *) save;
 }
 
 
-static void update_func_longlong(THD *thd, st_mysql_sys_var *var,
-                             void *tgt, const void *save)
+static void update_func_longlong(THD*, st_mysql_sys_var*,
+                                 void *tgt, const void *save)
 {
   *(longlong *)tgt= *(ulonglong *) save;
 }
 
 
-static void update_func_str(THD *thd, st_mysql_sys_var *var,
+static void update_func_str(THD*, st_mysql_sys_var*,
                              void *tgt, const void *save)
 {
   *(char **) tgt= *(char **) save;
 }
 
-static void update_func_double(THD *thd, st_mysql_sys_var *var,
+static void update_func_double(THD*, st_mysql_sys_var*,
                                void *tgt, const void *save)
 {
   *(double *) tgt= *(double *) save;
@@ -3331,7 +3332,7 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins)
 /*
   Unlocks all system variables which hold a reference
 */
-static void unlock_variables(THD *thd, struct System_variables *vars)
+static void unlock_variables(struct System_variables *vars)
 {
   intern_plugin_unlock(NULL, vars->table_plugin);
   intern_plugin_unlock(NULL, vars->temp_table_plugin);
@@ -3376,7 +3377,7 @@ void plugin_thdvar_cleanup(THD *thd, bool enable_plugins)
   if (enable_plugins)
   {
     Mutex_lock plugin_lock(&LOCK_plugin);
-    unlock_variables(thd, &thd->variables);
+    unlock_variables(&thd->variables);
     size_t idx;
     if ((idx= thd->lex->plugins.size()))
     {
@@ -3668,7 +3669,7 @@ TYPELIB* sys_var_pluginvar::plugin_var_typelib(void)
 
 
 uchar* sys_var_pluginvar::do_value_ptr(THD *running_thd, THD *target_thd, enum_var_type type,
-                                       LEX_STRING *base)
+                                       LEX_STRING*)
 {
   uchar* result;
 
@@ -3909,13 +3910,12 @@ ulonglong sys_var_pluginvar::get_max_value()
     sys_var_pluginvar::do_check(), PLUGIN_VAR_NODEFAULT
 
   @param self   the sys_var structure for the variable being set
-  @param thd    the current thread
   @param var    the data about the value being set
   @return is the setting valid
   @retval true not valid
   @retval false valid
 */
-bool sys_var_pluginvar::on_check_pluginvar(sys_var *self, THD *thd, set_var *var)
+bool sys_var_pluginvar::on_check_pluginvar(sys_var *self, THD*, set_var *var)
 {
   /* This handler is installed only if NO_DEFAULT is specified */
   DBUG_ASSERT(((sys_var_pluginvar *) self)->plugin_var->flags &
@@ -4046,12 +4046,10 @@ static void plugin_opt_set_limits(struct my_option *options,
     options->arg_type= OPT_ARG;
 }
 
-extern "C" my_bool get_one_plugin_option(int optid, const struct my_option *,
+extern "C" my_bool get_one_plugin_option(int, const struct my_option*,
                                          char *);
 
-my_bool get_one_plugin_option(int optid MY_ATTRIBUTE((unused)),
-                              const struct my_option *opt,
-                              char *argument)
+my_bool get_one_plugin_option(int, const struct my_option*, char*)
 {
   return 0;
 }

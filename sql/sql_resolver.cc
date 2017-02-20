@@ -3726,7 +3726,6 @@ bool SELECT_LEX::resolve_rollup(THD *thd)
   Check whether the other values except DEFAULT are assigned
   for generated columns.
 
-  @param thd                        thread handler
   @param fields                     Item_fields list to be filled
   @param values                     values to fill with
   @param table                      table to be checked
@@ -3737,9 +3736,8 @@ bool SELECT_LEX::resolve_rollup(THD *thd)
   @note  This function must be called after table->write_set has been
          filled.
 */
-bool
-validate_gc_assignment(THD * thd, List<Item> *fields,
-                       List<Item> *values, TABLE *table)
+bool validate_gc_assignment(List<Item> *fields,
+                            List<Item> *values, TABLE *table)
 {
   Field **fld= NULL;
   MY_BITMAP *bitmap= table->write_set;

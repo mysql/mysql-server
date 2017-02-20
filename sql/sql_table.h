@@ -251,7 +251,6 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 bool quick_rm_table(THD *thd, handlerton *base, const char *db,
                     const char *table_name, uint flags);
 bool prepare_sp_create_field(THD *thd,
-                             enum enum_field_types field_type,
                              Create_field *field_def);
 bool prepare_pack_create_field(THD *thd, Create_field *sql_field,
                                longlong table_flags);

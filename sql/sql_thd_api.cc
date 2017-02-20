@@ -158,7 +158,7 @@ void thd_set_killed(THD *thd)
   @param thd              THD object
 */
 
-void thd_clear_errors(THD *thd)
+void thd_clear_errors(THD *thd MY_ATTRIBUTE((unused)))
 {
   set_my_errno(0);
 }
@@ -707,7 +707,8 @@ void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all)
 */
 extern "C"
 void mysql_query_cache_invalidate4(THD *thd,
-                                   const char *key, unsigned key_length,
+                                   const char *key,
+                                   unsigned key_length MY_ATTRIBUTE((unused)),
                                    int using_trx)
 {
   char qcache_key_name[2 * (NAME_LEN + 1)];

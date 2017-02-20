@@ -396,8 +396,7 @@ public:
   bool is_sql_prepare() const { return flags & (uint) IS_SQL_PREPARE; }
   void set_sql_prepare() { flags|= (uint) IS_SQL_PREPARE; }
   bool prepare(const char *packet, size_t packet_length);
-  bool execute_loop(String *expanded_query, bool open_cursor,
-                    PS_PARAM *parameters);
+  bool execute_loop(String *expanded_query, bool open_cursor);
   bool execute_server_runnable(Server_runnable *server_runnable);
 #ifdef HAVE_PSI_PS_INTERFACE
   PSI_prepared_stmt* get_PS_prepared_stmt()

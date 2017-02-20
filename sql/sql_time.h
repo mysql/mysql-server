@@ -193,8 +193,7 @@ ulonglong TIME_to_ulonglong_time_round(const MYSQL_TIME *ltime);
 
 bool time_add_nanoseconds_with_truncate(MYSQL_TIME *ltime, uint nanoseconds,
                                         int *warnings);
-bool datetime_add_nanoseconds_with_truncate(MYSQL_TIME *ltime, uint nanoseconds,
-                                        int *warnings);
+bool datetime_add_nanoseconds_with_truncate(MYSQL_TIME *ltime, uint nanoseconds);
 bool time_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime, uint nanoseconds,
                                       int *warnings, bool truncate);
 bool datetime_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime, uint nanoseconds,

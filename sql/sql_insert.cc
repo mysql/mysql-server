@@ -1203,7 +1203,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
       DBUG_RETURN(true);         /* purecov: inspected */
 
     if (insert_table->has_gcol() &&
-        validate_gc_assignment(thd, &insert_field_list, values, insert_table))
+        validate_gc_assignment(&insert_field_list, values, insert_table))
       DBUG_RETURN(true);
   }
 
@@ -1323,7 +1323,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
     }
 
     if (insert_table->has_gcol() &&
-        validate_gc_assignment(thd, &insert_field_list,
+        validate_gc_assignment(&insert_field_list,
                                unit->get_unit_column_types(), insert_table))
       DBUG_RETURN(true);
   }
@@ -1367,7 +1367,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
       DBUG_RETURN(true);
 
     if (insert_table->has_gcol() &&
-        validate_gc_assignment(thd, &update_field_list, &update_value_list,
+        validate_gc_assignment(&update_field_list, &update_value_list,
                                insert_table))
       DBUG_RETURN(true);
 

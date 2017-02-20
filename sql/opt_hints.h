@@ -238,13 +238,15 @@ public:
 
     @return  true if all hint objects are resolved, false otherwise.
   */
-  virtual bool is_resolved(opt_hints_enum type_arg) { return resolved; }
+  virtual bool is_resolved(opt_hints_enum type_arg MY_ATTRIBUTE((unused)))
+  { return resolved; }
   /**
     Set hint to unresolved state.
 
     @param type_arg  hint type
   */
-  virtual void set_unresolved(opt_hints_enum type_arg) {}
+  virtual void set_unresolved(opt_hints_enum type_arg MY_ATTRIBUTE((unused)))
+  {}
   /**
     If ignore_print() returns true, hint is not printed
     in Opt_hints::print() function. Atm used for
@@ -255,7 +257,8 @@ public:
     @return  true if the hint should not be printed
     in Opt_hints::print() function, false otherwise.
   */
-  virtual bool ignore_print(opt_hints_enum type_arg) const { return false; }
+  virtual bool ignore_print(opt_hints_enum type_arg MY_ATTRIBUTE((unused))) const
+  { return false; }
   void incr_resolved_children() { resolved_children++; }
   Mem_root_array<Opt_hints*> *child_array_ptr() { return &child_array; }
 

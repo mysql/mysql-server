@@ -62,7 +62,7 @@
 #include "sql_select.h"
 #include "sql_tmp_table.h"                      // tmp tables
 
-bool Query_result_union::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+bool Query_result_union::prepare(List<Item>&, SELECT_LEX_UNIT *u)
 {
   unit= u;
   return false;
@@ -302,7 +302,7 @@ public:
     result->abort_result_set(); /* purecov: inspected */
   }
   void cleanup() override {}
-  void set_thd(THD *thd_arg)
+  void set_thd(THD*)
   {
     /*
       Only called for top-level Query_results, usually Query_result_send,
@@ -337,7 +337,7 @@ bool Query_result_union_direct::postponed_prepare(List<Item> &types)
 }
 
 
-bool Query_result_union_direct::send_result_set_metadata(List<Item> &list,
+bool Query_result_union_direct::send_result_set_metadata(List<Item>&,
                                                          uint flags)
 {
   if (result_set_metadata_sent)

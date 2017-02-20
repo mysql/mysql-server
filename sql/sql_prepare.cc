@@ -207,11 +207,9 @@ public:
   virtual bool end_result_metadata();
   virtual bool send_field_metadata(Send_field *field, const CHARSET_INFO *charset);
   virtual bool flush() { return true; }
-  virtual bool send_parameters(List<Item_param> *parameters,
-                               bool is_sql_prepare)
+  virtual bool send_parameters(List<Item_param>*, bool)
   { return false; }
-  bool store_ps_status(ulong stmt_id, uint column_count, uint param_count,
-                       ulong cond_count)
+  bool store_ps_status(ulong, uint, uint, ulong)
   { return false; }
 protected:
   String *convert;
@@ -1417,7 +1415,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
 }
 
 
-static int Item_param_comp(Item_param *e1, Item_param *e2, void *arg)
+static int Item_param_comp(Item_param *e1, Item_param *e2, void*)
 {
   return ((e1->pos_in_query < e2->pos_in_query) ? -1 :
           ((e1->pos_in_query > e2->pos_in_query) ? 1 : 0));
@@ -2031,7 +2029,7 @@ mysqld_stmt_execute(THD *thd, Prepared_statement *stmt, bool has_new_types,
   {
     bool open_cursor=
       static_cast<bool>(execute_flags & (ulong) CURSOR_TYPE_READ_ONLY);
-    stmt->execute_loop(&expanded_query, open_cursor, parameters);
+    stmt->execute_loop(&expanded_query, open_cursor);
   }
 
   if (switch_protocol)
@@ -2093,7 +2091,7 @@ void mysql_sql_stmt_execute(THD *thd)
   if(stmt->set_parameters(&expanded_query))
     DBUG_VOID_RETURN;
 
-  stmt->execute_loop(&expanded_query, false, nullptr);
+  stmt->execute_loop(&expanded_query, false);
 
   DBUG_VOID_RETURN;
 }
@@ -2911,7 +2909,6 @@ bool Prepared_statement::set_parameters(String *expanded_query)
 
   @param expanded_query   Query string.
   @param open_cursor      Flag to specift if a cursor should be used.
-  @param parameters       Prepared statement's parsed parameters.
 
   @return  a bool value representing the function execution status.
   @retval  true    error: either MAX_REPREPARE_ATTEMPTS has been reached,
@@ -2921,8 +2918,7 @@ bool Prepared_statement::set_parameters(String *expanded_query)
 */
 
 bool
-Prepared_statement::execute_loop(String *expanded_query, bool open_cursor,
-                                 PS_PARAM *parameters)
+Prepared_statement::execute_loop(String *expanded_query, bool open_cursor)
 {
   const int MAX_REPREPARE_ATTEMPTS= 3;
   Reprepare_observer reprepare_observer;
@@ -3430,7 +3426,7 @@ void Prepared_statement::deallocate()
   server code.
 */
 
-void Ed_result_set::operator delete(void *ptr, size_t size) throw ()
+void Ed_result_set::operator delete(void *ptr, size_t) throw ()
 {
   if (ptr)
   {
@@ -3715,7 +3711,7 @@ bool Protocol_local::store_long(longlong value)
 
 /** Store a "longlong" as is (8 bytes, host order) in a result set column. */
 
-bool Protocol_local::store_longlong(longlong value, bool unsigned_flag)
+bool Protocol_local::store_longlong(longlong value, bool)
 {
   int64 v= (int64) value;
   return store_column(&v, 8);
@@ -3790,7 +3786,7 @@ bool Protocol_local::store_time(MYSQL_TIME *time,
 
 /* Store a floating point number, as is. */
 
-bool Protocol_local::store(float value, uint32 decimals, String *buffer)
+bool Protocol_local::store(float value, uint32, String*)
 {
   return store_column(&value, sizeof(float));
 }
@@ -3798,7 +3794,7 @@ bool Protocol_local::store(float value, uint32 decimals, String *buffer)
 
 /* Store a double precision number, as is. */
 
-bool Protocol_local::store(double value, uint32 decimals, String *buffer)
+bool Protocol_local::store(double value, uint32, String*)
 {
   return store_column(&value, sizeof (double));
 }
@@ -3815,10 +3811,7 @@ bool Protocol_local::store(Proto_field *field)
 
 /** Called for statements that don't have a result set, at statement end. */
 
-bool
-Protocol_local::send_ok(uint server_status, uint statement_warn_count,
-                        ulonglong affected_rows, ulonglong last_insert_id,
-                        const char *message)
+bool Protocol_local::send_ok(uint, uint, ulonglong, ulonglong, const char*)
 {
   /*
     Just make sure nothing is sent to the client, we have grabbed
@@ -3836,7 +3829,7 @@ Protocol_local::send_ok(uint server_status, uint statement_warn_count,
   building of the result set at hand.
 */
 
-bool Protocol_local::send_eof(uint server_status, uint statement_warn_count)
+bool Protocol_local::send_eof(uint, uint)
 {
   Ed_result_set *ed_result_set;
 
@@ -3867,8 +3860,7 @@ bool Protocol_local::send_eof(uint server_status, uint statement_warn_count)
 
 /** Called to send an error to the client at the end of a statement. */
 
-bool
-Protocol_local::send_error(uint sql_errno, const char *err_msg, const char*)
+bool Protocol_local::send_error(uint, const char*, const char*)
 {
   /*
     Just make sure that nothing is sent to the client (default
@@ -3890,8 +3882,7 @@ Protocol_local::get_client_capabilities()
   return 0;
 }
 
-bool
-Protocol_local::has_client_capability(unsigned long client_capability)
+bool Protocol_local::has_client_capability(unsigned long)
 {
   return false;
 }
@@ -3903,8 +3894,7 @@ bool Protocol_local::connection_alive()
 
 void Protocol_local::end_partial_result_set() {}
 
-int
-Protocol_local::shutdown(bool server_shutdown)
+int Protocol_local::shutdown(bool)
 {
   return 0;
 }
@@ -3951,8 +3941,8 @@ uint Protocol_local::get_rw_status()
   return 0;
 }
 
-bool Protocol_local::start_result_metadata(uint num_cols, uint flags,
-                                           const CHARSET_INFO *charset)
+bool Protocol_local::start_result_metadata(uint, uint,
+                                           const CHARSET_INFO*)
 {
   return 0;
 }
@@ -3960,15 +3950,15 @@ bool Protocol_local::start_result_metadata(uint num_cols, uint flags,
 bool Protocol_local::end_result_metadata() { return false; }
 
 bool
-Protocol_local::send_field_metadata(Send_field *field,
-                                    const CHARSET_INFO *charset)
+Protocol_local::send_field_metadata(Send_field*,
+                                    const CHARSET_INFO*)
 {
   return false;
 }
 
 bool Protocol_local::get_compression() { return false; }
 
-int Protocol_local::get_command(COM_DATA *com_data, enum_server_command *cmd)
+int Protocol_local::get_command(COM_DATA*, enum_server_command*)
 {
   return -1;
 }

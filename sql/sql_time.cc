@@ -318,8 +318,7 @@ bool datetime_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime, uint nanoseconds,
                                           int *warnings, bool truncate)
 {
   if (truncate)
-    return datetime_add_nanoseconds_with_truncate(ltime, nanoseconds,
-                                                  warnings);
+    return datetime_add_nanoseconds_with_truncate(ltime, nanoseconds);
   else
     return datetime_add_nanoseconds_with_round(ltime, nanoseconds, warnings);
 }
@@ -371,11 +370,10 @@ bool time_add_nanoseconds_with_truncate(MYSQL_TIME *ltime,
 
   @param [in,out] ltime        MYSQL_TIME variable to add to.
   @param          nanoseconds  Nanoseconds value.
-  @param [in,out] warnings     Warning flag vector.
   @retval                      False on success. No real failure case here.
 */
 bool datetime_add_nanoseconds_with_truncate(MYSQL_TIME *ltime,
-                                            uint nanoseconds, int *warnings)
+                                            uint nanoseconds)
 {
   /*
     If second_part is not set then only add nanoseconds to it.
@@ -1591,24 +1589,6 @@ bool my_time_truncate(MYSQL_TIME *ltime, uint dec)
   DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
   bool rc= time_add_nanoseconds_with_truncate(ltime,
                                               msec_round_add[dec], &warnings);
-  /* Truncate non-significant digits */
-  my_time_trunc(ltime, dec);
-  return rc;
-}
-
-/**
-  Truncate time value to the given precision.
-
-  @param [in,out]  ltime    The value to truncate.
-  @param           dec      Precision.
-  @param [in,out]  warnings Warning flag vector.
-  @return                   False on success, true on error.
-*/
-bool my_datetime_truncate(MYSQL_TIME *ltime, uint dec, int *warnings)
-{
-  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
-  bool rc= datetime_add_nanoseconds_with_truncate(ltime, msec_round_add[dec],
-                                                  warnings);
   /* Truncate non-significant digits */
   my_time_trunc(ltime, dec);
   return rc;

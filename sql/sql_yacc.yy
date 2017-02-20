@@ -2962,7 +2962,6 @@ sp_fdparam:
             }
 
             if (prepare_sp_create_field(thd,
-                                        field_type,
                                         &spvar->field_def))
             {
               MYSQL_YYABORT;
@@ -3022,7 +3021,6 @@ sp_pdparam:
             }
 
             if (prepare_sp_create_field(thd,
-                                        field_type,
                                         &spvar->field_def))
             {
               MYSQL_YYABORT;
@@ -3150,7 +3148,7 @@ sp_decl:
                 MYSQL_YYABORT;
               }
 
-              if (prepare_sp_create_field(thd, var_type, &spvar->field_def))
+              if (prepare_sp_create_field(thd, &spvar->field_def))
                 MYSQL_YYABORT;
 
               spvar->field_def.field_name= spvar->name.str;
@@ -15170,7 +15168,6 @@ sf_tail:
             }
 
             if (prepare_sp_create_field(YYTHD,
-                                        field_type,
                                         &sp->m_return_field_def))
               MYSQL_YYABORT;
 

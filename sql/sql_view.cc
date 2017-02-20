@@ -1235,11 +1235,11 @@ public:
   DD_table_access_error_handler()
   {}
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     return (sql_errno == ER_NO_SYSTEM_TABLE_ACCESS);
   }

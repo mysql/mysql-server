@@ -85,7 +85,6 @@ cache_record_length(JOIN *join,uint idx)
 {
   uint length=0;
   JOIN_TAB **pos,**end;
-  THD *thd=join->thd;
 
   for (pos=join->best_ref+join->const_tables,end=join->best_ref+idx ;
        pos != end ;
@@ -100,7 +99,7 @@ cache_record_length(JOIN *join,uint idx)
         (1) keep_current_rowid: we don't know if Duplicate Weedout may be
         used, length will thus be inaccurate, this is acceptable.
       */
-      calc_used_field_length(thd, join_tab->table(),
+      calc_used_field_length(join_tab->table(),
                              false,             // (1)
                              &used_fields, &join_tab->used_fieldlength,
                              &used_blobs, &used_null_fields,

@@ -336,7 +336,7 @@ static my_bool show_plugins(THD *thd, plugin_ref plugin,
 }
 
 
-static int fill_plugins(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_plugins(THD *thd, TABLE_LIST *tables, Item*)
 {
   DBUG_ENTER("fill_plugins");
 
@@ -637,8 +637,8 @@ private:
 public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
-                                const char *sqlstate,
-                                Sql_condition::enum_severity_level *level,
+                                const char*,
+                                Sql_condition::enum_severity_level*,
                                 const char *msg)
   {
     /*
@@ -2394,7 +2394,7 @@ public:
   }
 };
 
-static int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
+static int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item*)
 {
   DBUG_ENTER("fill_schema_processlist");
 
@@ -3507,7 +3507,6 @@ static int schema_tables_add(THD *thd, List<LEX_STRING> *files,
   @param[in]      lookup_field_vals     pointer to LOOKUP_FIELD_VALUE struct
   @param[in]      with_i_schema         TRUE means that we add I_S tables to list
   @param[in]      db_name               database name
-  @param          tmp_mem_root
 
   @return         Operation status
     @retval       0           ok
@@ -3518,8 +3517,7 @@ static int schema_tables_add(THD *thd, List<LEX_STRING> *files,
 static int
 make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
                      LOOKUP_FIELD_VALUES *lookup_field_vals,
-                     bool with_i_schema, LEX_STRING *db_name,
-                     MEM_ROOT *tmp_mem_root)
+                     bool with_i_schema, LEX_STRING *db_name)
 {
   char path[FN_REFLEN + 1];
   build_table_filename(path, sizeof(path) - 1, db_name->str, "", "", 0);
@@ -3858,15 +3856,13 @@ end:
                   OPEN_FULL_TABLE - open FRM, data, index files
   @param[in]      tables               I_S table table_list
   @param[in]      schema_table         I_S table struct
-  @param[in]      schema_table_idx     I_S table index
 
   @return         return a set of flags
     @retval       SKIP_OPEN_TABLE | OPEN_FRM_ONLY | OPEN_FULL_TABLE
 */
 
 static uint get_table_open_method(TABLE_LIST *tables,
-                                  ST_SCHEMA_TABLE *schema_table,
-                                  enum enum_schema_tables schema_table_idx)
+                                  ST_SCHEMA_TABLE *schema_table)
 {
   /*
     determine which method will be used for table opening
@@ -3960,7 +3956,6 @@ try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
   @param[in]      schema_table             I_S table struct
   @param[in]      db_name                  database name
   @param[in]      table_name               table name
-  @param[in]      schema_table_idx         I_S table index
   @param[in]      open_tables_state_backup Open_tables_state object which is used
                                            to save/restore original state of metadata
                                            locks.
@@ -3980,7 +3975,6 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
                                       ST_SCHEMA_TABLE *schema_table,
                                       LEX_STRING *db_name,
                                       LEX_STRING *table_name,
-                                      enum enum_schema_tables schema_table_idx,
                                       Open_tables_backup *open_tables_state_backup,
                                       bool can_deadlock)
 {
@@ -4198,11 +4192,11 @@ end:
 class Trigger_error_handler : public Internal_error_handler
 {
 public:
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_PARSE_ERROR ||
         sql_errno == ER_TRG_NO_CREATION_CTX)
@@ -4215,11 +4209,11 @@ public:
 class Silence_deprecation_warnings : public Internal_error_handler
 {
 public:
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_WARN_DEPRECATED_SYNTAX)
       return true;
@@ -4258,7 +4252,6 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   LOOKUP_FIELD_VALUES lookup_field_vals;
   LEX_STRING *db_name, *table_name;
   bool with_i_schema;
-  enum enum_schema_tables schema_table_idx;
   List<LEX_STRING> db_names;
   List_iterator_fast<LEX_STRING> it(db_names);
   Item *partial_cond= 0;
@@ -4293,9 +4286,8 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   */
   thd->reset_n_backup_open_tables_state(&open_tables_state_backup, 0);
 
-  schema_table_idx= get_schema_table_idx(schema_table);
   tables->table_open_method= table_open_method=
-    get_table_open_method(tables, schema_table, schema_table_idx);
+    get_table_open_method(tables, schema_table);
   DBUG_PRINT("open_method", ("%d", tables->table_open_method));
   /* 
     this branch processes SHOW FIELDS, SHOW INDEXES commands.
@@ -4397,7 +4389,7 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
       List<LEX_STRING> table_names;
       int res= make_table_name_list(thd, &table_names, lex,
                                     &lookup_field_vals,
-                                    with_i_schema, db_name, &tmp_mem_root);
+                                    with_i_schema, db_name);
       if (res == 2)   /* Not fatal error, continue */
         continue;
       if (res)
@@ -4440,7 +4432,6 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 
             int res= fill_schema_table_from_frm(thd, tables, schema_table,
                                                 db_name, table_name,
-                                                schema_table_idx,
                                                 &open_tables_state_backup,
                                                 can_deadlock);
 
@@ -4700,7 +4691,7 @@ static my_bool iter_schema_engines(THD *thd, plugin_ref plugin,
   DBUG_RETURN(0);
 }
 
-static int fill_schema_engines(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_schema_engines(THD *thd, TABLE_LIST *tables, Item*)
 {
   DBUG_ENTER("fill_schema_engines");
   if (plugin_foreach_with_mask(thd, iter_schema_engines,
@@ -4713,7 +4704,7 @@ static int fill_schema_engines(THD *thd, TABLE_LIST *tables, Item *cond)
 
 static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
                                             TABLE *table, bool res,
-                                            LEX_STRING *db_name,
+                                            LEX_STRING*,
                                             LEX_STRING *table_name)
 {
   DBUG_ENTER("get_schema_tmp_table_keys_record");
@@ -5306,7 +5297,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
 }
 
 
-static int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_open_tables(THD *thd, TABLE_LIST *tables, Item*)
 {
   DBUG_ENTER("fill_open_tables");
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
@@ -5419,7 +5410,6 @@ struct schema_table_ref
 
   SYNOPSIS
     find_schema_table_in_plugin()
-    thd                 thread handler
     plugin              plugin
     table_name          table name
 
@@ -5427,7 +5417,7 @@ struct schema_table_ref
     0	table not found
     1   found the schema table
 */
-static my_bool find_schema_table_in_plugin(THD *thd, plugin_ref plugin,
+static my_bool find_schema_table_in_plugin(THD*, plugin_ref plugin,
                                            void* p_table)
 {
   schema_table_ref *p_schema_table= (schema_table_ref *)p_table;

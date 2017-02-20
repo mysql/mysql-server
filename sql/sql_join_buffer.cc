@@ -194,7 +194,7 @@ void JOIN_CACHE::calc_record_fields()
   for ( ; tab < qep_tab ; tab++)
   {
     uint used_fields, used_fieldlength, used_blobs;
-    calc_used_field_length(join->thd, tab->table(),
+    calc_used_field_length(tab->table(),
                            tab->keep_current_rowid,
                            &used_fields, &used_fieldlength, &used_blobs,
                            &tab->used_null_fields, &tab->used_uneven_bit_fields);

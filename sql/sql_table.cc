@@ -4679,14 +4679,12 @@ static TYPELIB *create_typelib(MEM_ROOT *mem_root, Create_field *field_def)
   (fill all necessary attributes). Only used for stored programs.
 
   @param[in]  thd          Thread handle
-  @param[in]  field_type   Field type
   @param[out] field_def    An instance of initialized create_field
 
   @return Error status.
 */
 
 bool prepare_sp_create_field(THD *thd,
-                             enum enum_field_types field_type,
                              Create_field *field_def)
 {
   if (field_def->sql_type == MYSQL_TYPE_SET)

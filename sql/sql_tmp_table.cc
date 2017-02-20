@@ -137,7 +137,6 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
 /**
   Create field for temporary table using type of given item.
 
-  @param thd                   Thread handler
   @param item                  Item to create a field for
   @param table                 Temporary table
   @param copy_func             If set and item is a function, store copy of
@@ -156,7 +155,7 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
     new_created field
 */
 
-static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
+static Field *create_tmp_field_from_item(Item *item, TABLE *table,
                                          Func_ptr_array *copy_func,
                                          bool modify_item)
 {
@@ -236,7 +235,6 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
 /**
   Create field for information schema table.
 
-  @param thd		Thread handler
   @param table		Temporary table
   @param item		Item to create a field for
 
@@ -246,7 +244,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     new_created field
 */
 
-static Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
+static Field *create_tmp_field_for_schema(Item *item, TABLE *table)
 {
   if (item->data_type() == MYSQL_TYPE_VARCHAR)
   {
@@ -340,7 +338,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     */
     if (field->maybe_null && !field->field->maybe_null())
     {
-      result= create_tmp_field_from_item(thd, item, table, NULL,
+      result= create_tmp_field_from_item(item, table, NULL,
                                          modify_item);
       if (!result)
         break;
@@ -352,7 +350,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
              MYSQL_TYPE_BIT)
     {
       *from_field= field->field;
-      result= create_tmp_field_from_item(thd, item, table, copy_func,
+      result= create_tmp_field_from_item(item, table, copy_func,
                                          modify_item);
       if (!result)
         break;
@@ -432,7 +430,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       DBUG_ASSERT(((Item_result_field*)item)->result_field);
       *from_field= ((Item_result_field*)item)->result_field;
     }
-    result= create_tmp_field_from_item(thd, item, table,
+    result= create_tmp_field_from_item(item, table,
                                        (make_copy_field ? NULL : copy_func),
                                        modify_item);
     break;
@@ -1002,7 +1000,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         that in the later case group is set to the row pointer.
       */
       new_field= (param->schema_table) ?
-        create_tmp_field_for_schema(thd, item, table) :
+        create_tmp_field_for_schema(item, table) :
         create_tmp_field(thd, table, item, type, copy_func,
                          tmp_from_field, &default_field[fieldnr],
                          group != 0,
@@ -2292,7 +2290,6 @@ static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
   SYNOPSIS
     create_innodb_tmp_table()
       table           Table object that describes the table to be created
-      keyinfo         Description of the index (there is always one index)
 
   DESCRIPTION
     Create an InnoDB temporary table according to passed description. It is
@@ -2312,7 +2309,7 @@ static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
      FALSE - OK
      TRUE  - Error
 */
-static bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
+static bool create_innodb_tmp_table(TABLE *table)
 {
   TABLE_SHARE *share= table->s;
 
@@ -2412,7 +2409,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
 
   if (share->db_type() == innodb_hton)
   {
-    if (create_innodb_tmp_table(table, keyinfo))
+    if (create_innodb_tmp_table(table))
       return TRUE;
     // Make empty record so random data is not written to disk
     empty_record(table);
@@ -2697,7 +2694,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
       }
       else if (share.db_type() == innodb_hton)
       {
-        if (create_innodb_tmp_table(&new_table, share.key_info))
+        if (create_innodb_tmp_table(&new_table))
           goto err_after_alloc;                 /* purecov: inspected */
       }
       table_on_disk= true;
