@@ -56,6 +56,7 @@ public:
   int sasl_step(char* server_in, int server_in_length, char** client_out, int* client_out_length);
   int send_sasl_request_to_server(const unsigned char *request, int request_len, unsigned char** reponse, int* response_len);
   void set_user_info(std::string name, std::string pwd);
+  int sasl_client_done_wrapper();
 protected:
   char m_user_name[SASL_MAX_STR_SIZE];
   char m_user_pwd[SASL_MAX_STR_SIZE];
