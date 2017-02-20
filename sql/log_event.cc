@@ -6398,6 +6398,25 @@ bool XA_prepare_log_event::do_commit(THD *thd)
   bool error= false;
   xid_t xid;
 
+  enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
+  if (state == GTID_STATEMENT_EXECUTE)
+  {
+    if (gtid_pre_statement_post_implicit_commit_checks(thd))
+      state= GTID_STATEMENT_CANCEL;
+  }
+  if (state == GTID_STATEMENT_CANCEL)
+  {
+    uint error= thd->get_stmt_da()->mysql_errno();
+    DBUG_ASSERT(error != 0);
+    thd->rli_slave->report(ERROR_LEVEL, error,
+                           "Error executing XA PREPARE event: '%s'",
+                           thd->get_stmt_da()->message_text());
+    thd->is_slave_error= 1;
+    return true;
+  }
+  else if (state == GTID_STATEMENT_SKIP)
+    return false;
+
   xid.set(my_xid.formatID,
           my_xid.data, my_xid.gtrid_length,
           my_xid.data + my_xid.gtrid_length, my_xid.bqual_length);
