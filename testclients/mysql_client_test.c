@@ -15527,6 +15527,75 @@ static void test_mysql_insert_id()
 }
 
 /*
+  Test for bug#22028117: MYSQLCLIENT DOES NOT RETURN CORRECT
+  MYSQL_INSERT_ID VIA DATABASE HANDLE
+*/
+
+static void test_bug22028117()
+{
+  my_ulonglong res;
+  int rc;
+  MYSQL_STMT *stmt;
+
+  myheader("test_bug22028117");
+
+  rc = mysql_query(mysql, "USE test");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE TABLE t1 ("
+                         "f1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT,"
+                         "f2 VARCHAR(255))");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+
+  rc= mysql_query(mysql, "INSERT INTO t1 (f2) VALUES ('a')");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 1);
+
+  rc= mysql_query(mysql, "INSERT INTO t1 (f2) VALUES ('b')");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 2);
+
+  /* Make sure that the value of insert_id is not lost after SELECT */
+  stmt= mysql_simple_prepare(mysql, "SELECT MAX(f1) FROM t1");
+  check_stmt(stmt);
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  rc= my_process_stmt_result(stmt);
+  DIE_UNLESS(rc == 1);
+  mysql_stmt_close(stmt);
+
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 2);
+  /* insert_id will be reset to 0 after a new table is created */
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t2");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE TABLE t2 ("
+                         "f1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT,"
+                         "f2 VARCHAR(255))");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+
+  /*
+    mysql_insert_id() should return expr when the INSERT query contains
+    last_insert_id(expr)
+  */
+  rc= mysql_query(mysql, "INSERT INTO t1 (f1) VALUES (last_insert_id(100))");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 100);
+
+  rc= mysql_query(mysql, "DROP TABLE t1,t2");
+  myquery(rc);
+}
+
+/*
   Bug#20152: mysql_stmt_execute() writes to MYSQL_TYPE_DATE buffer
 */
 
@@ -21177,6 +21246,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug22559575", test_bug22559575 },
   { "test_bug24963580", test_bug24963580 },
   { "test_mysql_binlog", test_mysql_binlog },
+  { "test_bug22028117", test_bug22028117 },
   { 0, 0 }
 };
 
