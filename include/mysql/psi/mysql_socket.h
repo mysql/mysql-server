@@ -35,8 +35,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 /* For socket api */
 #ifdef _WIN32
 #include <MSWSock.h>
+#ifdef WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #include <ws2def.h>
+#endif
 #define SOCKBUF_T char
 #else
 #include <netinet/in.h>

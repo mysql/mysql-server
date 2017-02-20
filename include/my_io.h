@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,8 +27,10 @@
 #ifdef _WIN32
 /* Include common headers.*/
 # include <io.h>       /* access(), chmod() */
-# include <winsock2.h>
-# include <ws2tcpip.h> /* SOCKET */
+#ifdef WIN32_LEAN_AND_MEAN
+#include <winsock2.h>
+#include <ws2tcpip.h> /* SOCKET */
+#endif
 #endif
 
 #ifndef MYSQL_ABI_CHECK
