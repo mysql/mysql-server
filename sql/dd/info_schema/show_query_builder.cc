@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "my_dbug.h"
 #include "parse_tree_helpers.h"
 #include "parse_tree_items.h"                  // PTI_simple_ident_ident
+#include "parse_tree_nodes.h"                  // PT_select_item_list
 #include "sql_lex.h"                           // Query_options
 #include "sql_string.h"
 
@@ -35,6 +36,34 @@ static const Query_options options=
   0, /* query_spec_options */
   SELECT_LEX::SQL_CACHE_UNSPECIFIED /* sql_cache */
 };
+
+
+Select_lex_builder::Select_lex_builder(const POS *pc, THD *thd)
+  :m_pos(pc),
+   m_thd(thd),
+   m_select_item_list(nullptr),
+   m_where_clause(nullptr),
+   m_order_by_list(nullptr)
+{
+  m_table_reference_list.init(m_thd->mem_root);
+}
+
+
+bool Select_lex_builder::add_to_select_item_list(Item *expr)
+{
+  // Prepare list if not exist.
+  if (!m_select_item_list)
+  {
+    m_select_item_list= new (m_thd->mem_root) PT_select_item_list();
+
+    if (m_select_item_list == nullptr)
+      return true;
+  }
+
+  m_select_item_list->push_back(expr);
+
+  return false;
+}
 
 
 // Add item representing star in "SELECT '*' ...".

@@ -21,7 +21,6 @@
 
 #include "dd/string_type.h"
 #include "mem_root_fwd.h"
-#include "strfunc.h"
 
 class THD;
 class MDL_request;

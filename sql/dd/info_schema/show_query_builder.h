@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,17 +16,20 @@
 #ifndef SQL_DD_SHOW_QUERY_BUILDER_H
 #define SQL_DD_SHOW_QUERY_BUILDER_H
 
-#include "m_string.h"                  // C_STRING_WITH_LEN
 #include "mem_root_array.h"
 #include "mysql/mysql_lex_string.h"    // LEX_STRING
-#include "mysqld.h"
-#include "parse_tree_node_base.h"
-#include "parse_tree_nodes.h"          // PT_select_item_list
-#include "sql_class.h"                 // THD
 
 class Item;
+class PT_derived_table;
+class PT_order_list;
+class PT_select_item_list;
+class PT_table_reference;
 class SELECT_LEX;
 class String;
+class THD;
+struct YYLTYPE;
+typedef YYLTYPE POS;
+typedef struct st_mysql_lex_string LEX_STRING;
 
 namespace dd {
 namespace info_schema {
@@ -69,15 +72,7 @@ namespace info_schema {
 class Select_lex_builder
 {
 public:
-  Select_lex_builder(const POS *pc, THD *thd)
-    :m_pos(pc),
-     m_thd(thd),
-     m_select_item_list(nullptr),
-     m_where_clause(nullptr),
-     m_order_by_list(nullptr)
-  {
-    m_table_reference_list.init(m_thd->mem_root);
-  }
+  Select_lex_builder(const POS *pc, THD *thd);
 
   /**
     Add item representing star in "SELECT '*' ...".
@@ -232,23 +227,7 @@ private:
             true  on failure.
   */
 
-  template <typename T>
-  bool add_to_select_item_list(T *expr)
-  {
-    // Prepare list if not exist.
-    if (!m_select_item_list)
-    {
-      m_select_item_list= new (m_thd->mem_root) PT_select_item_list();
-
-      if (m_select_item_list == nullptr)
-        return true;
-    }
-
-    m_select_item_list->push_back(expr);
-
-    return false;
-  }
-
+  bool add_to_select_item_list(Item *expr);
 
 private:
   // Parser current position represented by YYLTYPE

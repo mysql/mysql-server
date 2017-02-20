@@ -18,11 +18,11 @@
 #ifndef DD_ROUTINE_INCLUDED
 #define DD_ROUTINE_INCLUDED
 
-#include "sql_lex.h"
-
 class THD;
 class sp_head;
 class sp_name;
+struct st_sp_chistics;
+typedef struct st_lex_user LEX_USER;
 
 namespace dd {
   class Schema;

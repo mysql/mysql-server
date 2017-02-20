@@ -16,13 +16,13 @@
 #ifndef SQL_DD_SHOW_H
 #define SQL_DD_SHOW_H
 
-#include "parse_tree_node_base.h"  // POS
-
 class Item;
 class String;
 class THD;
 class SELECT_LEX;
 class Table_ident;
+struct YYLTYPE;
+typedef YYLTYPE POS;
 
 namespace dd {
   namespace info_schema {

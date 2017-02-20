@@ -17,7 +17,8 @@
 #define DD_UPGRADE_INCLUDED
 
 #include "dd/impl/system_registry.h"          // dd::System_tables
-#include "sql_class.h"
+
+class THD;
 
 namespace dd {
 

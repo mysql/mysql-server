@@ -26,24 +26,19 @@
 #include "my_inttypes.h"
 #include "prealloced_array.h"        // Prealloced_array
 #include "sql_alter.h"               // Alter_info::enum_enable_or_disable
-#include "system_variables.h"
-#include "table.h"                   // ST_FIELD_INFO
 
 
 class Create_field;
+class KEY;
 class FOREIGN_KEY;
 class THD;
-namespace dd {
-class Abstract_table;
-}  // namespace dd
 struct TABLE_LIST;
 struct TABLE_SHARE;
-
 typedef struct st_ha_create_information HA_CREATE_INFO;
-class KEY;
 template <class T> class List;
 
 namespace dd {
+  class Abstract_table;
   class Trigger;
   class Table;
 
