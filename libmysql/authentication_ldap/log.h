@@ -20,31 +20,31 @@ struct log_type {
 };
 
 enum log_level {
-  LOG_LEVEL_NONE = 1, LOG_LEVEL_ERROR_WARNING, LOG_LEVEL_ERROR_WARNING_INFO, LOG_LEVEL_ALL
+  LOG_LEVEL_NONE = 1, LOG_LEVEL_ERROR, LOG_LEVEL_ERROR_WARNING, LOG_LEVEL_ERROR_WARNING_INFO, LOG_LEVEL_ALL
 };
 
 class Log_writer {
 public:
   virtual ~Log_writer() {};
-  virtual int Open(std::string file_name) = 0;
-  virtual int Close() = 0;
-  virtual void Write(std::string data) = 0;
+  virtual int open(std::string file_name) = 0;
+  virtual int close() = 0;
+  virtual void write(std::string data) = 0;
 };
 
 class Log_writer_error: Log_writer {
 public:
-  int Open(std::string file_name);
-  int Close();
-  void Write(std::string data);
+  int open(std::string file_name);
+  int close();
+  void write(std::string data);
 };
 
 class Log_writer_file: Log_writer {
 public:
   Log_writer_file();
   ~Log_writer_file();
-  int Open(std::string file_name);
-  int Close();
-  void Write(std::string data);
+  int open(std::string file_name);
+  int close();
+  void write(std::string data);
 
 private:
   std::string m_file_name;
@@ -57,8 +57,8 @@ public:
   Logger(std::string file_name);
   ~Logger();
   template<log_type::type type>
-  void Log(std::string msg);
-  void SetLogLevel(log_level level);
+  void log(std::string msg);
+  void set_log_level(log_level level);
 private:
   Log_writer *m_log_writer;
   log_level m_log_level;
@@ -71,48 +71,55 @@ Logger<LOGGER_TYPE>::Logger(std::string file_name) {
   m_log_level = LOG_LEVEL_NONE;
   m_log_writer = NULL;
   m_log_writer = (Log_writer*) (new LOGGER_TYPE());
-  m_logger_initilzed = m_log_writer->Open(file_name);
+  m_logger_initilzed = m_log_writer->open(file_name);
 }
 
 template<class LOGGER_TYPE>
 Logger<LOGGER_TYPE>::~Logger() {
-  m_log_writer->Close();
+  m_log_writer->close();
   delete (LOGGER_TYPE*) m_log_writer;
 }
 
 template<class LOGGER_TYPE>
 template<log_type::type type>
-void Logger<LOGGER_TYPE>::Log(std::string msg) {
+void Logger<LOGGER_TYPE>::log(std::string msg) {
   std::stringstream header;
+#ifdef MYSQL_SERVER
   int plugin_error_level = MY_INFORMATION_LEVEL;
-
+#endif
   switch (type) {
   case log_type::LOG_DBG:
     if (LOG_LEVEL_ALL > m_log_level) {
       goto  WRITE_SERVER_LOG;
     }
-    header << "<DBG> ";
+    header << "[DBG] ";
     break;
   case log_type::LOG_INFO:
+#ifdef MYSQL_SERVER
     plugin_error_level = MY_INFORMATION_LEVEL;
+#endif
     if (LOG_LEVEL_ERROR_WARNING_INFO > m_log_level) {
       goto  WRITE_SERVER_LOG;
     }
-    header << "<INFO> ";
+    header << "[Note] ";
     break;
   case log_type::LOG_WARNING:
+#ifdef MYSQL_SERVER
     plugin_error_level = MY_WARNING_LEVEL;
+#endif
     if (LOG_LEVEL_ERROR_WARNING > m_log_level) {
       goto  WRITE_SERVER_LOG;
     }
-    header << "<WARNING> ";
+    header << "[Warning] ";
     break;
   case log_type::LOG_ERROR:
+#ifdef MYSQL_SERVER
     plugin_error_level = MY_ERROR_LEVEL;
+#endif
     if (LOG_LEVEL_NONE >= m_log_level) {
       goto  WRITE_SERVER_LOG;
     }
-    header << "<ERROR> ";
+    header << "[Error] ";
     break;
   };
 
@@ -121,30 +128,32 @@ void Logger<LOGGER_TYPE>::Log(std::string msg) {
   /** For MySQL client this will come from environment variable */
   if (m_log_writer){
     header << my_getsystime() << ": ";
-    m_log_writer->Write(header.str());
-    m_log_writer->Write(msg);
+    m_log_writer->write(header.str());
+    m_log_writer->write(msg);
   }
 
 WRITE_SERVER_LOG:
-    
-  if(g_ldap_plugin_info && (type != log_type::LOG_DBG)) {
-     DBUG_PRINT("ldap plugin log type: ", (": %d", plugin_error_level));
+#ifdef MYSQL_SERVER
+  if (g_ldap_plugin_info && (type != log_type::LOG_DBG)) {
+    DBUG_PRINT("");
+    my_plugin_log_message(&g_ldap_plugin_info,
+                          (plugin_log_level) plugin_error_level, msg.c_str());
   }
-  
+#endif
   /** Log all the messages as debug messages as well. */
   DBUG_PRINT("ldap plugin: ", (": %s", msg.c_str()));
 }
 
 template<class LOGGER_TYPE>
-void Logger<LOGGER_TYPE>::SetLogLevel(log_level level) {
+void Logger<LOGGER_TYPE>::set_log_level(log_level level) {
   m_log_level = level;
 }
 
 extern Logger<Log_writer_error> g_logger;
 
-#define log_dbg g_logger.Log< log_type::LOG_DBG >
-#define log_info g_logger.Log< log_type::LOG_INFO >
-#define log_warning g_logger.Log< log_type::LOG_WARNING >
-#define log_error g_logger.Log< log_type::LOG_ERROR >
+#define log_dbg g_logger.log< log_type::LOG_DBG >
+#define log_info g_logger.log< log_type::LOG_INFO >
+#define log_warning g_logger.log< log_type::LOG_WARNING >
+#define log_error g_logger.log< log_type::LOG_ERROR >
 
 #endif
