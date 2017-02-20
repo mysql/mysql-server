@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lex_string.h"
 #include "my_byteorder.h"    /* uint8korr */
 #include "my_config.h"
 #include "my_dbug.h"
@@ -336,19 +337,9 @@ static inline char *ullstr(longlong value, char *buff)
 }
 #endif
 
-/*
-  LEX_STRING -- a pair of a C-string and its length.
-  (it's part of the plugin API as a MYSQL_LEX_STRING)
-  Ditto LEX_CSTRING/MYSQL_LEX_CSTRING.
-*/
-
-typedef struct st_mysql_lex_string LEX_STRING;
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
-
 #define STRING_WITH_LEN(X) (X), ((sizeof(X) - 1))
 #define USTRING_WITH_LEN(X) ((uchar*) X), ((sizeof(X) - 1))
 #define C_STRING_WITH_LEN(X) ((char *) (X)), ((sizeof(X) - 1))
-
 
 /**
   Skip trailing space.

@@ -20,6 +20,7 @@
 #include <sys/types.h>
 
 #include "hash.h"                   // my_hash_value_type
+#include "lex_string.h"
 #include "m_string.h"
 #include "mdl.h"                    // MDL_savepoint
 #include "my_base.h"                // ha_extra_function

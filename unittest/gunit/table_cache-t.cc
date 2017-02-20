@@ -17,6 +17,7 @@
 #include <sys/types.h>
 
 #include "ha_example.h"
+#include "lex_string.h"
 #include "my_inttypes.h"
 #include "mysqld_thd_manager.h"
 #include "table_cache.h"

@@ -44,6 +44,7 @@
 #include "item.h"
 #include "key.h"
 #include "key_spec.h"                   /* Key_spec */
+#include "lex_string.h"
 #include "log.h"                        /* sql_print_warning */
 #include "m_ctype.h"
 #include "m_string.h"

@@ -27,6 +27,7 @@
 #include "current_thd.h"
 #include "decimal.h"
 #include "derror.h"             // ER_DEFAULT
+#include "lex_string.h"
 #include "log.h"                 // Query log
 #include "m_ctype.h"
 #include "mutex_lock.h"

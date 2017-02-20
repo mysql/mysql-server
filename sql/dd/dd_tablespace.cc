@@ -32,6 +32,7 @@
 #include "dd/types/tablespace.h"              // dd::Tablespace
 #include "dd/types/tablespace_file.h"         // dd::Tablespace_file
 #include "handler.h"
+#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"

@@ -16,6 +16,7 @@
 #ifndef PFS_COLUMN_VALUES_H
 #define PFS_COLUMN_VALUES_H
 
+#include "lex_string.h"
 #include "m_string.h" /* LEX_STRING */
 
 /**

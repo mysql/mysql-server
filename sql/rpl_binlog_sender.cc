@@ -23,6 +23,7 @@
 #include "derror.h"                  // ER_THD
 #include "hash.h"
 #include "item_func.h"               // user_var_entry
+#include "lex_string.h"
 #include "log.h"                     // sql_print_information
 #include "log_event.h"               // MAX_MAX_ALLOWED_PACKET
 #include "m_string.h"

@@ -40,6 +40,7 @@
 #include "event_db_repository.h"              // Events
 #include "event_parse_data.h"                 // Event_parse_data
 #include "handler.h"                          // legacy_db_type
+#include "lex_string.h"
 #include "lock.h"                             // Tablespace_hash_set
 #include "log.h"                              // sql_print_warning
 #include "my_dbug.h"

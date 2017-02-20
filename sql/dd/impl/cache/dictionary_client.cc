@@ -65,6 +65,7 @@
 #include "dd/types/view_table.h"             // View_table
 #include "debug_sync.h"                      // DEBUG_SYNC()
 #include "handler.h"
+#include "lex_string.h"
 #include "log.h"                             // sql_print_warning()
 #include "m_ctype.h"
 #include "m_string.h"

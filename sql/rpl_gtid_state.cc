@@ -20,6 +20,7 @@
 #include "control_events.h"
 #include "current_thd.h"
 #include "debug_sync.h"            // DEBUG_SYNC
+#include "lex_string.h"
 #include "mdl.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

@@ -21,6 +21,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 
@@ -51,8 +52,6 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 
 #if defined(ENABLED_PROFILING)
 #include "mysql/mysql_lex_string.h"         // LEX_STRING
-
-typedef struct st_mysql_lex_string LEX_STRING;
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>

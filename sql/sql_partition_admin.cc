@@ -25,6 +25,7 @@
 #include "dd/types/table.h"                 // dd::Table
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "handler.h"
+#include "lex_string.h"
 #include "log.h"
 #include "m_ctype.h"
 #include "mdl.h"

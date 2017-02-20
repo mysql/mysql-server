@@ -46,6 +46,7 @@ Smart ALTER TABLE
 #include "ha_innopart.h"
 #include "ha_prototypes.h"
 #include "handler0alter.h"
+#include "lex_string.h"
 #include "log0log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

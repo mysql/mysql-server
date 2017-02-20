@@ -21,6 +21,7 @@
 #include <algorithm>
 
 #include "auth/auth_common.h"
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_sharedlib.h"

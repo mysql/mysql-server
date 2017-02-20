@@ -30,6 +30,7 @@
 #include "current_thd.h"
 #include "derror.h"
 #include "key.h"                                // key_copy
+#include "lex_string.h"
 #include "log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

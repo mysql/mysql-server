@@ -19,6 +19,7 @@
 
 #include <stddef.h>
 
+#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_time.h"                 // interval_type
@@ -28,8 +29,6 @@
 class Item;
 class THD;
 class sp_name;
-
-typedef struct st_mysql_lex_string LEX_STRING;
 
 #define EVEX_GET_FIELD_FAILED   -2
 #define EVEX_BAD_PARAMS         -5

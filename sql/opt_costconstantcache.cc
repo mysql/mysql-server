@@ -18,6 +18,7 @@
 
 #include "current_thd.h"                  // current_thd
 #include "field.h"                        // Field
+#include "lex_string.h"
 #include "log.h"                          // sql_print_warning
 #include "m_ctype.h"
 #include "m_string.h"

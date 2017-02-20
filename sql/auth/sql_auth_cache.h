@@ -25,6 +25,7 @@
 #include "handler.h"
 #include "hash.h"                       // HASH
 #include "key.h"
+#include "lex_string.h"
 #include "lf.h"
 #include "mf_wcomp.h"                   // wild_many, wild_one, wild_prefix
 #include "my_atomic.h"

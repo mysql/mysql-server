@@ -29,6 +29,7 @@
 #include "field.h"
 #include "hash.h"
 #include "item.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"

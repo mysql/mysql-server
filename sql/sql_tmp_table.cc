@@ -37,6 +37,7 @@
 #include "item_func.h"            // Item_func
 #include "item_sum.h"             // Item_sum
 #include "key.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mem_root_array.h"       // Mem_root_array

@@ -21,6 +21,7 @@
 
 #include "current_thd.h" // my_thread_set_THR_THD
 #include "handler.h"     // ha_rollback_trans
+#include "lex_string.h"
 #include "log.h"         // sql_print_warning
 #include "my_dbug.h"
 #include "my_inttypes.h"

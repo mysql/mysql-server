@@ -23,6 +23,7 @@
 
 #include "dd/properties.h"         // dd::Properties
 #include "dd/string_type.h"        // dd::String_type
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

@@ -36,6 +36,7 @@
 #include "field.h"
 #include "item.h"
 #include "key.h"
+#include "lex_string.h"
 #include "lock.h"                     // mysql_unlock_tables
 #include "m_string.h"
 #include "my_base.h"

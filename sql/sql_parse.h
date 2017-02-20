@@ -21,6 +21,7 @@
 
 #include "handler.h"                 // enum_schema_tables
 #include "key.h"
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_command.h"
 #include "my_sqlcommand.h"

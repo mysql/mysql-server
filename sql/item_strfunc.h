@@ -29,6 +29,7 @@
 #include "item.h"
 #include "item_cmpfunc.h"             // Item_bool_func
 #include "item_func.h"                // Item_func
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_decimal.h"

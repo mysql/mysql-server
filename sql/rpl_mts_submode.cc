@@ -23,6 +23,7 @@
 #include "debug_sync.h"
 #include "handler.h"
 #include "hash.h"                           // HASH
+#include "lex_string.h"
 #include "log.h"                            // sql_print_information
 #include "log_event.h"                      // Query_log_event
 #include "m_string.h"

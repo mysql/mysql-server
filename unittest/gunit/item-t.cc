@@ -25,6 +25,7 @@
 #include "item_create.h"
 #include "item_strfunc.h"
 #include "item_timefunc.h"
+#include "lex_string.h"
 #include "mock_field_timestamp.h"
 #include "my_inttypes.h"
 #include "my_macros.h"

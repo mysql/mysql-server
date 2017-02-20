@@ -26,6 +26,7 @@
   @file storage/perfschema/pfs.cc
   The performance schema implementation of all instruments.
 */
+#include "lex_string.h"
 #include "mdl.h" /* mdl_key_init */
 #include "my_compiler.h"
 #include "my_dbug.h"

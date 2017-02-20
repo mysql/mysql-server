@@ -34,6 +34,7 @@
 #include "dd/types/view.h"
 #include "field.h"
 #include "key.h"
+#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_inttypes.h"

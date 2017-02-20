@@ -102,6 +102,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "i_s.h"
 #include "ibuf0ibuf.h"
+#include "lex_string.h"
 #include "lob0lob.h"
 #include "lock0lock.h"
 #include "log0log.h"

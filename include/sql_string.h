@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <new>
 
+#include "lex_string.h"
 #include "m_ctype.h"                         // my_convert
 #include "m_string.h"                        // LEX_CSTRING
 #include "mem_root_fwd.h"
@@ -38,9 +39,6 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"       // my_free
-
-typedef struct st_mysql_lex_string LEX_STRING;
-
 
 #ifdef MYSQL_SERVER
 extern "C" {

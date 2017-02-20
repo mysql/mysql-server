@@ -343,6 +343,7 @@ TODO list:
 #include "debug_sync.h"       // DEBUG_SYNC
 #include "handler.h"
 #include "key.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"

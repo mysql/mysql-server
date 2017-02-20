@@ -27,12 +27,12 @@
 
 #include "item_timefunc.h"
 
+#include "my_config.h"
+
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "my_config.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -43,6 +43,7 @@
 #include "dd/object_id.h"    // dd::Object_id
 #include "decimal.h"
 #include "derror.h"          // ER_THD
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

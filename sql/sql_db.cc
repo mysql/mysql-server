@@ -47,6 +47,7 @@
 #include "error_handler.h"   // Drop_table_error_handler
 #include "events.h"          // Events
 #include "handler.h"
+#include "lex_string.h"
 #include "lock.h"            // lock_schema_name
 #include "log.h"             // sql_print_error
 #include "log_event.h"       // Query_log_event

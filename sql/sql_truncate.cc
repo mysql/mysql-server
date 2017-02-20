@@ -27,6 +27,7 @@
 #include "dd/types/table.h" // dd::Table
 #include "debug_sync.h"     // DEBUG_SYNC
 #include "handler.h"
+#include "lex_string.h"
 #include "lock.h"           // MYSQL_OPEN_* flags
 #include "m_ctype.h"
 #include "mdl.h"

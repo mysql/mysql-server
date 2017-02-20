@@ -27,6 +27,7 @@
 
 #include "derror.h"
 #include "field.h"
+#include "lex_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"

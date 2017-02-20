@@ -29,6 +29,7 @@
 #include "ft_global.h"
 #include "handler.h"
 #include "item.h"       // Item_result_field
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_byteorder.h"

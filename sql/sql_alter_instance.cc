@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "auth_acls.h"
 #include "derror.h"                     /* ER_THD */
 #include "handler.h"                    /* ha_resolve_by_legacy_type */
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

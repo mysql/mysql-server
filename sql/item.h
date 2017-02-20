@@ -28,6 +28,7 @@
 #include "enum_query_type.h"
 #include "field.h"       // Derivation
 #include "handler.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_bitmap.h"

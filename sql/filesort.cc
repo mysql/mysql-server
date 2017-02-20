@@ -45,6 +45,7 @@
 #include "item.h"
 #include "item_subselect.h"
 #include "json_dom.h"                   // Json_wrapper
+#include "lex_string.h"
 #include "log.h"
 #include "m_ctype.h"
 #include "malloc_allocator.h"

@@ -19,6 +19,7 @@
 #include <stddef.h>
 
 #include "control_events.h" // enum_incidents
+#include "lex_string.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

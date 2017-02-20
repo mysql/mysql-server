@@ -21,6 +21,7 @@
 #include "handler.h"
 #include "hash.h"
 #include "item.h"
+#include "lex_string.h"
 #include "log_event.h"                  /* append_query_string */
 #include "m_ctype.h"
 #include "m_string.h"

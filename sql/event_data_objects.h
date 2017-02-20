@@ -24,6 +24,7 @@
 
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "my_alloc.h"                   // MEM_ROOT
 #include "my_inttypes.h"
 #include "my_psi_config.h"
@@ -36,8 +37,6 @@ class THD;
 class Time_zone;
 
 typedef ulonglong sql_mode_t;
-typedef struct st_mysql_lex_string LEX_STRING;
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
 namespace dd
 {
   class Event;

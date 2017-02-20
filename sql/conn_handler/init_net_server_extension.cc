@@ -19,6 +19,7 @@
 
 #include <stddef.h>
 
+#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/psi/mysql_idle.h"       // MYSQL_SOCKET_SET_STATE,

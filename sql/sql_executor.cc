@@ -41,6 +41,7 @@
 #include "item_sum.h"         // Item_sum
 #include "json_dom.h"         // Json_wrapper
 #include "key.h"              // key_cmp
+#include "lex_string.h"
 #include "log.h"              // sql_print_error
 #include "m_ctype.h"
 #include "my_bitmap.h"

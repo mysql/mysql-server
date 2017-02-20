@@ -110,6 +110,8 @@
 
 #include "opt_range.h"
 
+#include "my_config.h"
+
 #include <fcntl.h>
 #include <float.h>
 #include <stdio.h>
@@ -133,6 +135,7 @@
 #include "item_row.h"
 #include "item_sum.h"            // Item_sum
 #include "key.h"                 // is_key_used
+#include "lex_string.h"
 #include "log.h"                 // sql_print_error
 #include "m_ctype.h"
 #include "malloc_allocator.h"
@@ -141,7 +144,6 @@
 #include "my_alloc.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -175,7 +177,6 @@
 #include "template_utils.h"
 #include "thr_malloc.h"
 #include "uniques.h"             // Unique
-#include "opt_hints.h"           // hint_table_state(),idx_merge_key_enabled()
                                  // idx_merge_hint_state()
 
 using std::min;

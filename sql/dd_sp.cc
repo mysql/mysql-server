@@ -30,6 +30,7 @@
 #include "dd/types/view.h"
 #include "dd_table_share.h"                    // dd_get_mysql_charset
 #include "field.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"

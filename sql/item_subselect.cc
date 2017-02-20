@@ -23,6 +23,8 @@
 
 #include "item_subselect.h"
 
+#include "my_config.h"
+
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -39,10 +41,10 @@
 #include "item_func.h"
 #include "item_sum.h"            // Item_sum_max
 #include "key.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sqlcommand.h"

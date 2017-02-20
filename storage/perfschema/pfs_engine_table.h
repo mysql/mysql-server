@@ -21,6 +21,7 @@
 
 #include "auth_common.h" /* struct ACL_* */
 #include "key.h"
+#include "lex_string.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

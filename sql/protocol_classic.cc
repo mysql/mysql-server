@@ -217,6 +217,7 @@
 #include "field.h"
 #include "item.h"
 #include "item_func.h"                          // Item_func_set_user_var
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_byteorder.h"

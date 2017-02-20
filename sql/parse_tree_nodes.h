@@ -26,6 +26,7 @@
 #include "item_func.h"
 #include "key.h"
 #include "key_spec.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "mem_root_array.h"
 #include "my_base.h"

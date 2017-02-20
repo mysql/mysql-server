@@ -26,6 +26,7 @@
 #include "dd/dd_table.h"      // dd::table_exists
 #include "dd/types/abstract_table.h" // dd::Abstract_table
 #include "dd_sql_view.h"      // View_metadata_updater
+#include "lex_string.h"
 #include "log.h"              // query_logger
 #include "my_dbug.h"
 #include "my_inttypes.h"

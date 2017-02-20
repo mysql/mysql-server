@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <vector>
 
+#include "lex_string.h"
 #include "my_getopt.h"        // get_opt_arg_type
 #include "my_inttypes.h"
 #include "mysql/plugin.h"     // enum_mysql_show_type

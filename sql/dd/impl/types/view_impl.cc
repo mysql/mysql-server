@@ -31,11 +31,12 @@
 #include "dd/types/view_routine.h"
 #include "dd/types/view_table.h"
 #include "dd/types/weak_object.h"
-#include "mysql_com.h"
-#include "mysqld_error.h"                     // ER_*
-#include "mysqld.h"
+#include "lex_string.h"
 #include "my_sys.h"
 #include "my_user.h"                          // parse_user
+#include "mysql_com.h"
+#include "mysqld.h"
+#include "mysqld_error.h"                     // ER_*
 
 using dd::tables::Tables;
 using dd::tables::View_table_usage;

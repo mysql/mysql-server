@@ -83,6 +83,7 @@
 #include "auth_common.h"                   // SUPER_ACL
 #include "debug_sync.h"
 #include "handler.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"

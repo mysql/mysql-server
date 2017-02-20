@@ -21,6 +21,7 @@
 
 #include "handler.h"
 #include "hash.h"
+#include "lex_string.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"

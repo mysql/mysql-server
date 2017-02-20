@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
+#include "lex_string.h"
 #include "my_macros.h"
 #include "my_systime.h"
 #ifdef HAVE_UNISTD_H

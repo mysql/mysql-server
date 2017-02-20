@@ -37,6 +37,7 @@
 
 #include "field.h"
 #include "handler.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"          // strmake
 #include "my_base.h"

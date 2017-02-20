@@ -21,6 +21,7 @@
 
 #include <string.h>
 
+#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -43,8 +44,6 @@ class Query_tables_list;
 class String;
 class Trigger;
 class Trigger_chain;
-
-typedef struct st_mysql_lex_string LEX_STRING;
 
 ///////////////////////////////////////////////////////////////////////////
 

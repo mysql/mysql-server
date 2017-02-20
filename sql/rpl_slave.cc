@@ -62,6 +62,7 @@
 #include "errmsg.h"                            // CR_*
 #include "handler.h"
 #include "item.h"
+#include "lex_string.h"
 #include "log.h"                               // sql_print_error
 #include "log_event.h"                         // Rotate_log_event
 #include "m_ctype.h"

@@ -37,6 +37,7 @@
 
 #include "binlog_event.h"
 #include "control_events.h"
+#include "lex_string.h"
 #include "load_data_events.h"
 #include "m_string.h"                // native_strncasecmp
 #include "my_bitmap.h"               // MY_BITMAP

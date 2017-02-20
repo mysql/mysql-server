@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,10 @@
 #ifndef DD_TRIGGER_INCLUDED
 #define DD_TRIGGER_INCLUDED
 
+#include "dd/string_type.h"  // dd::String_type
+#include "lex_string.h"
 #include "m_string.h"        // LEX_CSTRING
 #include "trigger_def.h"     // enum_trigger_order_type
-
-#include "dd/string_type.h"  // dd::String_type
 
 class THD;
 class Trigger;

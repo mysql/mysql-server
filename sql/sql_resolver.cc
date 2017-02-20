@@ -44,6 +44,7 @@
 #include "item_row.h"
 #include "item_subselect.h"
 #include "item_sum.h"            // Item_sum
+#include "lex_string.h"
 #include "mem_root_array.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"

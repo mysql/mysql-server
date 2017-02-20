@@ -19,6 +19,7 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
@@ -34,8 +35,6 @@
 
 class THD;
 class my_decimal;
-
-typedef struct st_mysql_lex_string LEX_STRING;
 
 ///////////////////////////////////////////////////////////////////////////
 

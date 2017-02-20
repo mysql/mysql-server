@@ -21,6 +21,7 @@
 
 #include "binary_log_types.h"
 #include "key.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_bitmap.h"

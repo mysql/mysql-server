@@ -35,6 +35,7 @@
 #include "item.h"                 // Item
 #include "keycache.h"             // dflt_key_cache
 #include "keycaches.h"            // default_key_cache_base
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_bit.h"               // my_count_bits

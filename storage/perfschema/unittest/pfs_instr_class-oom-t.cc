@@ -21,6 +21,7 @@
 #include <sql_class.h>
 #include <tap.h>
 
+#include "lex_string.h"
 #include "stub_pfs_global.h"
 
 static void test_oom()

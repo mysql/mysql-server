@@ -28,6 +28,7 @@
 #include "field.h"
 #include "hash.h"
 #include "key.h"                             // key_rec_cmp
+#include "lex_string.h"
 #include "log.h"                             // sql_print_error
 #include "m_ctype.h"
 #include "m_string.h"

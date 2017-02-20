@@ -23,6 +23,7 @@
 #include <time.h>
 #include <atomic>
 
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_atomic.h"
@@ -56,8 +57,6 @@ class THD;
 class Time_zone;
 struct handlerton;
 
-typedef struct st_mysql_lex_string LEX_STRING;
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
 typedef struct st_mysql_show_var SHOW_VAR;
 typedef struct st_bitmap MY_BITMAP;
 typedef struct charset_info_st CHARSET_INFO;

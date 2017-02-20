@@ -22,16 +22,6 @@
 */
 #include "item_geofunc.h"
 
-#include <float.h>
-#include <string.h>
-#include <algorithm>
-#include <cmath>          // std::isfinite, std::isnan
-#include <map>
-#include <new>
-#include <stack>
-#include <string>
-#include <utility>
-
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/area.hpp>
 #include <boost/geometry/algorithms/centroid.hpp>
@@ -43,6 +33,15 @@
 #include <boost/geometry/strategies/spherical/distance_haversine.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 #include <boost/move/utility_core.hpp>
+#include <float.h>
+#include <string.h>
+#include <algorithm>
+#include <cmath>          // std::isfinite, std::isnan
+#include <map>
+#include <new>
+#include <stack>
+#include <string>
+#include <utility>
 
 #include "binlog_config.h"
 #include "current_thd.h"
@@ -53,6 +52,7 @@
 #include "gstream.h"      // Gis_read_stream
 #include "item_geofunc_internal.h"
 #include "json_dom.h"     // Json_wrapper
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_byteorder.h"

@@ -33,6 +33,7 @@
 #include "key.h"
 #include "keycache.h"
 #include "keycaches.h"
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

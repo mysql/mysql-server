@@ -24,6 +24,7 @@
 #include "auth_common.h"                        // check_global_access
 #include "base64.h"                             // base64_needed_decoded_length
 #include "binlog_event.h"
+#include "lex_string.h"
 #include "log_event.h"                          // Format_description_log_event
 #include "my_byteorder.h"
 #include "my_dbug.h"

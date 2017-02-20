@@ -22,6 +22,7 @@
 
 #include "binary_log_types.h"
 #include "field.h"                              // Create_field
+#include "lex_string.h"
 #include "mem_root_array.h"                     // Mem_root_array
 #include "my_dbug.h"
 #include "mysql_com.h"

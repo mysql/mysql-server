@@ -42,6 +42,7 @@
 #include "handler.h"
 #include "hash.h"
 #include "key.h"
+#include "lex_string.h"
 #include "log.h"                              // sql_print_error
 #include "my_base.h"
 #include "my_bitmap.h"

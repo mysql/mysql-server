@@ -19,6 +19,7 @@
 
 #include "derror.h"
 #include "item_subselect.h"
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"

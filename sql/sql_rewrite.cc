@@ -75,6 +75,7 @@
 #include "auth_common.h"    // GRANT_ACL
 #include "handler.h"
 #include "key.h"
+#include "lex_string.h"
 #include "log_event.h"      // append_query_string
 #include "m_ctype.h"
 #include "m_string.h"

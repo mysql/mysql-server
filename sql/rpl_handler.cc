@@ -25,6 +25,7 @@
 #include "hash.h"
 #include "item_func.h"         // user_var_entry
 #include "key.h"
+#include "lex_string.h"
 #include "log.h"               // sql_print_error
 #include "my_compiler.h"
 #include "my_dbug.h"

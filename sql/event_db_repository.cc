@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "derror.h"
 #include "event_data_objects.h"
 #include "event_parse_data.h"
+#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysqld_error.h"

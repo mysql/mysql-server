@@ -25,6 +25,7 @@
 
 #include "binlog.h"               // mysql_bin_log
 #include "current_thd.h"          // current_thd
+#include "lex_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

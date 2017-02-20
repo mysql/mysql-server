@@ -36,6 +36,7 @@
 #include "item.h"                     // Name_resolution_context
 #include "item_subselect.h"           // chooser_compare_func_creator
 #include "key_spec.h"                 // KEY_CREATE_INFO
+#include "lex_string.h"
 #include "lex_symbol.h"               // LEX_SYMBOL
 #include "m_string.h"
 #include "mdl.h"

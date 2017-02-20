@@ -25,6 +25,7 @@
 #include "des_key_file.h"
 #include "handler.h"
 #include "hostname.h"    // hostname_cache_refresh
+#include "lex_string.h"
 #include "log.h"         // query_logger
 #include "mdl.h"
 #include "my_base.h"

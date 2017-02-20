@@ -52,6 +52,7 @@
 #include "dd/types/view.h"                    // dd::View
 #include "error_handler.h"                    // No_such_table_error_handler
 #include "handler.h"                          // dict_init_mode_t
+#include "lex_string.h"
 #include "log.h"                              // sql_print_warning()
 #include "m_ctype.h"
 #include "m_string.h"                         // STRING_WITH_LEN

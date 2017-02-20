@@ -27,6 +27,7 @@
 #include "derror.h"
 #include "event_parse_data.h"
 #include "events.h"
+#include "lex_string.h"
                                                // append_identifier
 #include "log.h"
 #include "m_ctype.h"

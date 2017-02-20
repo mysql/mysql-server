@@ -20,14 +20,13 @@
 
 #include <sys/types.h>
 
-#include "mysql/mysql_lex_string.h"  // LEX_STRING
+#include "lex_string.h"
+#include "mysql/mysql_lex_string.h"
 #include "thr_lock.h"                // thr_lock_type
 
 class Open_tables_backup;
 class THD;
 struct TABLE;
-
-typedef struct st_mysql_lex_string LEX_STRING;
 
 
 /**

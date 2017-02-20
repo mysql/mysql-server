@@ -19,6 +19,7 @@
 
 #include "item.h"
 #include "item_func.h"
+#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql_get_diagnostics.h"

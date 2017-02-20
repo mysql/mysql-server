@@ -22,6 +22,7 @@
 #include <sys/types.h>
 
 #include "binary_log_types.h" // enum_field_types
+#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_sqlcommand.h"
@@ -40,8 +41,6 @@ class Key_spec;
 class String;
 class THD;
 struct TABLE_LIST;
-
-typedef struct st_mysql_lex_string LEX_STRING;
 
 namespace dd {
   class Trigger;

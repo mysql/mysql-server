@@ -20,6 +20,7 @@
 #ifdef MYSQL_SERVER
 #include "table.h"       // TABLE
 #endif
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_sys.h"

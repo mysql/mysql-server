@@ -54,6 +54,7 @@
 #include "item_timefunc.h"            // Item_func_now_local
 #include "key.h"                      // KEY
 #include "key_spec.h"                 // Key_part_spec
+#include "lex_string.h"
 #include "lock.h"                     // mysql_lock_remove, lock_tablespace_names
 #include "log.h"                      // sql_print_error
 #include "log_event.h"                // Query_log_event

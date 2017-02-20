@@ -20,6 +20,7 @@
 #include "sql/sql_digest.h"
 
 #include "item_create.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

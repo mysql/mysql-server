@@ -23,6 +23,7 @@
 #include "current_thd.h"
 #include "field.h"
 #include "handler.h"
+#include "lex_string.h"
 #include "log.h"                    // sql_print_error
 #include "m_string.h"
 #include "my_base.h"

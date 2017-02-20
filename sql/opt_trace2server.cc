@@ -33,6 +33,7 @@
 #include "binary_log_types.h"
 #include "enum_query_type.h"
 #include "field.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

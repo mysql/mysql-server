@@ -21,6 +21,7 @@
 
 #include "storage/perfschema/pfs_column_types.h"
 
+#include "lex_string.h"
 #include "m_string.h" /* LEX_STRING */
 
 struct s_object_type_map

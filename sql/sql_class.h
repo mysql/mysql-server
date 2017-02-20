@@ -45,6 +45,7 @@
 #include "field.h"
 #include "handler.h"
 #include "item.h"
+#include "lex_string.h"
 #include "mdl.h"
 #include "my_base.h"
 #include "my_command.h"
@@ -131,7 +132,6 @@ struct Binlog_user_var_event;
 struct Query_cache_block;
 
 typedef struct st_log_info LOG_INFO;
-typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct user_conn USER_CONN;
 typedef struct st_mysql_lock MYSQL_LOCK;
 

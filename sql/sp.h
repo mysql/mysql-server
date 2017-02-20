@@ -22,6 +22,7 @@
 #include "binary_log_types.h"
 #include "hash.h"
 #include "item.h"            // Item::Type
+#include "lex_string.h"
 #include "mdl.h"             // MDL_request
 #include "my_dbug.h"
 #include "my_inttypes.h"

@@ -29,6 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include <server_component.h>
 #include <stddef.h>
 
+#include "lex_string.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 
@@ -55,8 +56,6 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
 /* TODO following code resembles symbols used in sql library, these should be
   some day extracted to be reused both in sql library and server component unit
   tests. */
-typedef struct st_mysql_lex_string LEX_STRING;
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
 typedef struct charset_info_st CHARSET_INFO;
 
 extern "C"

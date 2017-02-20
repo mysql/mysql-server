@@ -37,6 +37,7 @@
 #include "event_scheduler.h"       // Event_scheduler
 #include "item.h"
 #include "item_create.h"
+#include "lex_string.h"
 #include "lock.h"                  // lock_object_name
 #include "log.h"                   // sql_print_error
 #include "m_ctype.h"               // CHARSET_INFO

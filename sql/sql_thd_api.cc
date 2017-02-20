@@ -25,6 +25,7 @@
 #include "current_thd.h"                // current_thd
 #include "handler.h"
 #include "key.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_io.h"

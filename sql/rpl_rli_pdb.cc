@@ -31,6 +31,7 @@
 #include "debug_sync.h"
 #include "handler.h"
 #include "hash.h"
+#include "lex_string.h"
 #include "log.h"                            // sql_print_error
 #include "m_ctype.h"
 #include "m_string.h"

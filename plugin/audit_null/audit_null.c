@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_macros.h"

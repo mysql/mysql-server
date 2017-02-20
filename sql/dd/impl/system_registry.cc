@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@
 #include "dd/impl/tables/version.h"                  // Version
 #include "dd/impl/tables/view_routine_usage.h"       // View_routine_usage
 #include "dd/impl/tables/view_table_usage.h"         // View_table_usage
+#include "lex_string.h"
 #include "m_string.h"
 #include "table.h"                                   // MYSQL_SYSTEM_SCHEMA
 

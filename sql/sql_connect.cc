@@ -47,11 +47,11 @@
 #include "hostname.h"                   // Host_errors
 #include "item_func.h"                  // mqh_used
 #include "key.h"
+#include "lex_string.h"
 #include "log.h"                        // sql_print_information
 #include "m_ctype.h"
 #include "m_string.h"                   // my_stpcpy
 #include "my_command.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"

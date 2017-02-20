@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "auth_acls.h"                          /* ACL information */
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_command.h"
 #include "my_dbug.h"

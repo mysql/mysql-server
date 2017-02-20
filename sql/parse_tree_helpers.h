@@ -22,6 +22,7 @@
 
 #include "item.h"
 #include "item_func.h"      // Item etc.
+#include "lex_string.h"
 #include "mem_root_array.h"
 #include "my_dbug.h"
 #include "my_decimal.h"

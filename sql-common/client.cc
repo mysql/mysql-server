@@ -47,6 +47,7 @@
 
 #include "errmsg.h"
 #include "hash.h"
+#include "lex_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"

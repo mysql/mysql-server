@@ -22,6 +22,7 @@
 #include "current_thd.h"
 #include "error_handler.h"                      // Internal_error_handler
 #include "key.h"
+#include "lex_string.h"
 #include "log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

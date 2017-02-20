@@ -21,6 +21,7 @@
 #include "dd/types/schema.h"
 #include "event_parse_data.h"   // Event_parse_data
 #include "key.h"
+#include "lex_string.h"
 #include "log.h"                // sql_print_error
 #include "my_dbug.h"
 #include "my_sys.h"

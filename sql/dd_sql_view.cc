@@ -32,6 +32,7 @@
 #include "derror.h"                     // ER_THD
 #include "error_handler.h"              // Internal_error_handler
 #include "handler.h"                    // HA_LEX_CREATE_TMP_TABLE
+#include "lex_string.h"
 #include "mdl.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

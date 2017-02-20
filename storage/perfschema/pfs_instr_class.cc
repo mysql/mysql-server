@@ -22,6 +22,7 @@
 
 #include <string.h>
 
+#include "lex_string.h"
 #include "lf.h"
 #include "my_dbug.h"
 #include "my_macros.h"

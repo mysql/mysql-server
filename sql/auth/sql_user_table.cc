@@ -36,6 +36,7 @@
 #include "hash.h"
 #include "item_func.h"                  /* mqh_used */
 #include "key.h"                        /* key_copy, key_cmp_if_same */
+#include "lex_string.h"
                                         /* key_restore */
 #include "log.h"                        /* sql_print_warning */
 #include "m_ctype.h"

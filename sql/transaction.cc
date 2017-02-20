@@ -23,6 +23,7 @@
 #include "dd/cache/dictionary_client.h"
 #include "debug_sync.h"       // DEBUG_SYNC
 #include "handler.h"
+#include "lex_string.h"
 #include "log.h"              // sql_print_warning
 #include "m_ctype.h"
 #include "mdl.h"

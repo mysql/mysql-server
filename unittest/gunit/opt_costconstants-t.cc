@@ -23,6 +23,7 @@
 
 #include "fake_table.h"
 #include "item.h"
+#include "lex_string.h"
 #include "opt_costmodel.h"
 #include "test_utils.h"
 

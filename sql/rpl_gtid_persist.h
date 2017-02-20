@@ -23,6 +23,7 @@
 #include <atomic>
 #include <string>
 
+#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysqld_error.h"

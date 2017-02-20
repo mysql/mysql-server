@@ -20,6 +20,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "m_string.h"                           // LEX_CSTRING
 #include "my_dbug.h"
 #include "prealloced_array.h"

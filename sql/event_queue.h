@@ -31,6 +31,7 @@
 
 #include "event_data_objects.h"                 // Event_queue_element
 #include "event_parse_data.h"                   // Event_parse_data
+#include "lex_string.h"
 #include "malloc_allocator.h"                   // Malloc_allocator, IWYU pragma: keep
 #include "my_psi_config.h"
 #include "my_time.h"

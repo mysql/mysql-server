@@ -19,6 +19,7 @@
 #include <stddef.h>
 
 #include "item_cmpfunc.h"              // Item_func_like
+#include "lex_string.h"
 #include "m_string.h"                  // C_STRING_WITH_LEN
 #include "mem_root_array.h"
 #include "my_sqlcommand.h"
