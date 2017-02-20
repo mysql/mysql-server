@@ -16,6 +16,7 @@
 #include "dd/impl/types/tablespace_file_impl.h"
 
 #include <sstream>
+#include <string>
 
 #include "dd/impl/properties_impl.h"         // Properties_impl
 #include "dd/impl/raw/raw_record.h"          // Raw_record
@@ -33,6 +34,8 @@
 #include "mysqld_error.h"                    // ER_*
 #include "rapidjson/document.h"
 #include "rapidjson/prettywriter.h"
+#include "sql_class.h"
+#include "sql_error.h"
 
 using dd::tables::Tablespace_files;
 

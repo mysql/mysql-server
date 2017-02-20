@@ -16,6 +16,7 @@
 #include "dd/impl/types/view_routine_impl.h"
 
 #include <ostream>
+#include <string>
 
 #include "dd/impl/raw/raw_record.h"            // Raw_record
 #include "dd/impl/tables/view_routine_usage.h" // View_routine_usage

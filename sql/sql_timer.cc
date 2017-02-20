@@ -16,6 +16,7 @@
 #include "sql/sql_timer.h"
 
 #include <stddef.h>
+#include <atomic>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -23,6 +24,7 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "my_timer.h"           // my_timer_t
+#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"             // key_thd_timer_mutex

@@ -31,8 +31,11 @@
 #include "my_sqlcommand.h"
 #include "my_systime.h"
 #include "my_thread.h"
+#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/psi/psi_stage.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/service_thd_wait.h"
 #include "mysql_com.h"
@@ -51,9 +54,12 @@
 #include "sql_base.h"              // close_thread_tables
 #include "sql_error.h"
 #include "sql_list.h"
+#include "sql_plugin.h"
 #include "strfunc.h"               // strconvert
 #include "thr_mutex.h"
 #include "transaction.h"           // trans_commit_stmt
+#include "transaction_info.h"
+#include "xa.h"
 
 class Item;
 

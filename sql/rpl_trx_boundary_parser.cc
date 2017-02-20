@@ -24,6 +24,8 @@
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
+#include "mysqld_error.h"
 
 
 #ifndef DBUG_OFF

@@ -31,37 +31,42 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
 
+#include "dd/types/event.h"
 #include "field.h"
 #include "handler.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"          // strmake
+#include "map_helpers.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_time.h"           // MY_TIME_T_MIN
+#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_memory_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_memory.h"
-#include "mysql/psi/psi_mutex.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysql/udf_registration_types.h"
+#include "mysqld_error.h"
+#include "psi_memory_key.h"
 #include "sql_const.h"
 #include "sql_error.h"
-#include "sql_plugin.h"
 #include "sql_servers.h"
 #include "system_variables.h"
 #include "template_utils.h"
@@ -69,6 +74,7 @@
 #include "thr_malloc.h"
 #include "thr_mutex.h"
 #include "tzfile.h"            // TZ_MAX_REV_RANGES
+#include "value_map.h"
 
 #if !defined(TZINFO2SQL)
 #include "debug_sync.h"        // DEBUG_SYNC
@@ -82,6 +88,9 @@
 #endif
 
 #include <algorithm>
+#include <string>
+#include <unordered_map>
+#include <utility>
 
 #include "print_version.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
@@ -1590,6 +1599,7 @@ static PSI_memory_info all_tz_memory[]=
 };
 
 class Tz_names_entry;
+
 static collation_unordered_map<std::string, Tz_names_entry*> tz_names
   {&my_charset_latin1, key_memory_tz_storage};
 static malloc_unordered_map<long, Time_zone_offset *> offset_tzs

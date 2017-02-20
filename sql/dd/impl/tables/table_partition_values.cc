@@ -27,7 +27,7 @@
 #include "field.h"                          // Field
 #include "key.h"
 #include "my_base.h"                        // HA_WHOLE_KEY
-#include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
 #include "table.h"
 
 namespace dd {

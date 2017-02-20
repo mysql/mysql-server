@@ -30,6 +30,7 @@
 
 #include "json_dom.h"
 #include "m_ctype.h"
+#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "psi_memory_key.h"           // key_memory_JSON

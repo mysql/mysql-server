@@ -19,7 +19,6 @@
 
 #include "derror.h"
 #include "item_subselect.h"
-#include "lex_string.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
@@ -30,6 +29,7 @@
 #include "sql_const.h"
 #include "sql_error.h"
 #include "sql_lex.h"
+#include "sql_security_ctx.h"
 
 
 extern struct st_opt_hint_info opt_hint_info[];

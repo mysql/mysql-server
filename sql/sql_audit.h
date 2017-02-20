@@ -18,10 +18,10 @@
 
 #include <string.h>
 
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_command.h"
 #include "mysql/plugin_audit.h"
-#include "sql_plugin.h"
 #include "sql_security_ctx.h"       // Security_context
 
 class THD;

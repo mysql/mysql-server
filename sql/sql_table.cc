@@ -24,13 +24,17 @@
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
+#include <atomic>
 #include <memory>
+#include <string>
 
 #include "auth_acls.h"
 #include "auth_common.h"              // check_fk_parent_table_access
+#include "binary_log_types.h"
 #include "binlog.h"                   // mysql_bin_log
 #include "binlog_event.h"
 #include "dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
+#include "dd/collection.h"
 #include "dd/dd.h"                        // dd::get_dictionary
 #include "dd/dd_schema.h"                 // dd::schema_exists
 #include "dd/dd_table.h"                  // dd::drop_table, dd::update_keys...
@@ -43,7 +47,9 @@
 #include "dd/types/foreign_key_element.h" // dd::Foreign_key_element
 #include "dd/types/index.h"               // dd::Index
 #include "dd/types/index_element.h"       // dd::Index_element
+#include "dd/types/schema.h"
 #include "dd/types/table.h"               // dd::Table
+#include "dd/types/trigger.h"
 #include "dd_sql_view.h"              // update_referencing_views_metadata
 #include "dd_table_share.h"           // open_table_def
 #include "debug_sync.h"               // DEBUG_SYNC
@@ -64,22 +70,24 @@
 #include "m_string.h"                 // my_stpncpy
 #include "mdl.h"
 #include "mem_root_array.h"
+#include "my_alloc.h"
 #include "my_base.h"
-#include "my_byteorder.h"
 #include "my_check_opt.h"             // T_EXTEND
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_io.h"
-#include "my_macros.h"
+#include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "my_time.h"
-#include "mysql/psi/mysql_file.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_stage.h"
+#include "mysql/psi/psi_table.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
@@ -97,6 +105,7 @@
 #include "rpl_gtid.h"
 #include "rpl_rli.h"                  // rli_slave etc
 #include "session_tracker.h"
+#include "sql/histograms/histogram.h"
 #include "sql_alter.h"
 #include "sql_base.h"                 // lock_table_names
 #include "sql_class.h"                // THD
@@ -107,7 +116,7 @@
 #include "sql_lex.h"
 #include "sql_list.h"
 #include "sql_parse.h"                // test_if_data_home_dir
-#include "sql_plugin.h"
+#include "sql_partition.h"
 #include "sql_plugin_ref.h"
 #include "sql_resolver.h"             // setup_order
 #include "sql_show.h"
@@ -116,19 +125,21 @@
 #include "sql_tablespace.h"           // validate_tablespace_name
 #include "sql_time.h"                 // make_truncated_value_warning
 #include "sql_trigger.h"              // change_trigger_table_name
-#include "sql/histograms/histogram.h"
 #include "strfunc.h"                  // find_type2
 #include "system_variables.h"
 #include "table.h"
 #include "template_utils.h"
 #include "thr_lock.h"
 #include "thr_malloc.h"
-#include "thr_mutex.h"
 #include "transaction.h"              // trans_commit_stmt
 #include "transaction_info.h"
 #include "trigger.h"
 #include "typelib.h"
 #include "xa.h"
+
+namespace dd {
+class View;
+}  // namespace dd
 
 using std::max;
 using std::min;

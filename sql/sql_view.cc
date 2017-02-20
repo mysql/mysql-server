@@ -19,6 +19,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <utility>
 
 #include "auth_acls.h"
 #include "auth_common.h"    // CREATE_VIEW_ACL
@@ -34,7 +35,6 @@
 #include "enum_query_type.h"
 #include "error_handler.h"  // Internal_error_handler
 #include "field.h"
-#include "handler.h"
 #include "item.h"
 #include "key.h"
 #include "lex_string.h"
@@ -48,38 +48,35 @@
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld.h"         // stage_end reg_ext key_file_frm
 #include "mysqld_error.h"
 #include "opt_trace.h"      // opt_trace_disable_if_no_view_access
 #include "parse_tree_node_base.h"
 #include "query_options.h"
-#include "set_var.h"
 #include "sp_cache.h"       // sp_cache_invalidate
-#include "sql_admin.h"
 #include "sql_base.h"       // get_table_def_key
 #include "sql_class.h"      // THD
+#include "sql_connect.h"
 #include "sql_const.h"
 #include "sql_digest_stream.h"
 #include "sql_error.h"
 #include "sql_lex.h"
 #include "sql_list.h"
 #include "sql_parse.h"      // create_default_definer
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
 #include "sql_security_ctx.h"
 #include "sql_show.h"       // append_identifier
 #include "sql_string.h"
 #include "sql_table.h"      // write_bin_log
-#include "sql_udf.h"
 #include "system_variables.h"
 #include "table.h"
 #include "thr_lock.h"
 #include "transaction.h"
 
-class Field;
 namespace dd {
 class View;
+class Schema;
 }  // namespace dd
 
 /*

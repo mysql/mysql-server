@@ -23,8 +23,10 @@
 #include "dd/impl/types/object_table_impl.h"            // dd::Object_table_i...
 #include "dd/impl/types/trigger_impl.h"                 // dd::Trigger_impl
 #include "dd/object_id.h"
+#include "dd/string_type.h"
 
 class THD;
+
 namespace dd {
 class Object_key;
 }  // namespace dd

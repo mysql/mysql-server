@@ -17,7 +17,6 @@
 #define DD_TABLES__INDEX_STATS_INCLUDED
 
 #include <new>
-#include <string>
 
 #include "dd/impl/types/entity_object_table_impl.h"
 #include "dd/impl/types/index_stat_impl.h"

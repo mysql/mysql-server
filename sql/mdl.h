@@ -21,16 +21,23 @@
 #include <new>
 
 #include "m_string.h"
-#include "my_alloc.h"
+#include "mem_root_fwd.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/mysql_rwlock_bits.h"
+#include "mysql/components/services/psi_mdl_bits.h"
+#include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/psi_mdl.h"
 #include "mysql/psi/psi_stage.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "sql_plist.h"
 
@@ -41,7 +48,6 @@ class THD;
 struct MDL_key;
 
 typedef struct st_lf_pins LF_PINS;
-struct PSI_metadata_lock;
 
 /**
   @def ENTER_COND(C, M, S, O)

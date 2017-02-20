@@ -26,8 +26,11 @@
 
 #include "sql_optimizer.h"
 
+#include "my_config.h"
+
 #include <limits.h>
 #include <algorithm>
+#include <atomic>
 #include <new>
 #include <utility>
 
@@ -44,15 +47,16 @@
 #include "item_row.h"
 #include "item_sum.h"            // Item_sum
 #include "key.h"
+#include "key_spec.h"
 #include "lock.h"                // mysql_unlock_some_tables
 #include "m_ctype.h"
 #include "my_bit.h"              // my_count_bits
 #include "my_bitmap.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld.h"              // stage_optimizing
 #include "mysqld_error.h"
@@ -75,7 +79,9 @@
 #include "sql_test.h"            // print_where
 #include "sql_tmp_table.h"       // get_max_key_and_part_length
 #include "system_variables.h"
+#include "table.h"
 #include "thr_malloc.h"
+#include "window.h"
 
 using std::max;
 using std::min;

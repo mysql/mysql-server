@@ -23,6 +23,7 @@
 #include "sql/records.h"
 
 #include <string.h>
+#include <atomic>
 
 #include "field.h"
 #include "filesort.h"            // filesort_free_buffers
@@ -34,6 +35,7 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "opt_range.h"           // QUICK_SELECT_I
 #include "psi_memory_key.h"
 #include "sort_param.h"

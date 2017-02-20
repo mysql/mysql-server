@@ -26,16 +26,17 @@
 
 #include "binary_log_types.h"
 #include "current_thd.h"        // current_thd
-#include "field.h"
 #include "item.h"               // Cached_item, ...
 #include "json_dom.h"           // Json_wrapper
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_inttypes.h"
-#include "mysql_com.h"
+#include "mysql/udf_registration_types.h"
 #include "sql_class.h"          // THD
 #include "sql_string.h"
 #include "system_variables.h"
+#include "template_utils.h"
+#include "thr_malloc.h"
 
 using std::min;
 using std::max;

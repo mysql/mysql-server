@@ -24,7 +24,9 @@
 #include <string.h>
 #include <sys/types.h>
 #include <map>
+#include <memory>
 #include <new>
+#include <string>
 #include <utility>
 
 #include "binary_log_types.h"
@@ -33,7 +35,9 @@
 #include "field.h"
 #include "handler.h"
 #include "item.h"                     // Name_resolution_context
+#include "item_create.h"              // Cast_target
 #include "item_subselect.h"           // chooser_compare_func_creator
+#include "key.h"
 #include "key_spec.h"                 // KEY_CREATE_INFO
 #include "lex_string.h"
 #include "lex_symbol.h"               // LEX_SYMBOL
@@ -51,7 +55,10 @@
 #include "my_table_map.h"
 #include "my_thread_local.h"
 #include "my_time.h"
+#include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_statement.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "opt_hints.h"
 #include "parse_tree_hints.h"
@@ -69,21 +76,23 @@
 #include "sql_data_change.h"          // enum_duplicates
 #include "sql_get_diagnostics.h"      // Diagnostics_information
 #include "sql_list.h"
-#include "sql_plugin.h"
 #include "sql_plugin_ref.h"
 #include "sql_servers.h"              // Server_options
 #include "sql_signal.h"               // enum_condition_item_name
 #include "sql_string.h"
+#include "sql_udf.h"                  // Item_udftype
 #include "table.h"                    // TABLE_LIST
 #include "thr_lock.h"                 // thr_lock_type
 #include "thr_malloc.h"
 #include "trigger_def.h"              // enum_trigger_action_time_type
 #include "violite.h"                  // SSL_type
-#include "xa.h"                       // xa_option_words
 #include "window_lex.h"
+#include "xa.h"                       // xa_option_words
 
 class Item_func_set_user_var;
 class Item_sum;
+class PT_alter_table_standalone_action;
+class PT_assign_to_keycache;
 class PT_base_index_option;
 class PT_column_attr_base;
 class PT_create_table_option;
@@ -94,8 +103,11 @@ class PT_part_value_item_list_paren;
 class PT_part_values;
 class PT_partition;
 class PT_partition_option;
+class PT_preload_keys;
 class PT_query_expression;
+class PT_role_or_privilege;
 class PT_subpartition;
+class PT_subquery;
 class PT_table_element;
 class PT_table_reference;
 class Protocol;
@@ -103,9 +115,6 @@ class SELECT_LEX_UNIT;
 class Select_lex_visitor;
 class THD;
 class Window;
-
-#include "item_create.h"              // Cast_target
-#include "sql_udf.h"                  // Item_udftype
 
 /* YACC and LEX Definitions */
 
@@ -120,7 +129,6 @@ class sp_head;
 class sp_name;
 class sp_pcontext;
 class sql_exchange;
-struct PSI_digest_locker;
 struct sql_digest_state;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
@@ -597,10 +605,9 @@ public:
 
 
 class JOIN;
+class PT_with_clause;
 class Query_result;
 class Query_result_union;
-class PT_with_clause;
-class THD;
 struct LEX;
 
 /**

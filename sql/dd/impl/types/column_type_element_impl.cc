@@ -16,17 +16,19 @@
 #include "dd/impl/types/column_type_element_impl.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include "dd/impl/raw/raw_record.h"               // Raw_record
 #include "dd/impl/sdi_impl.h"                     // sdi read/write functions
 #include "dd/impl/tables/column_type_elements.h"  // Column_type_elements
 #include "dd/impl/transaction_impl.h"             // Open_dictionary_tables_ctx
 #include "dd/impl/types/column_impl.h"            // Column_impl
-#include "dd/impl/types/entity_object_impl.h"
 #include "dd/types/object_table.h"
 #include "dd/types/weak_object.h"
 #include "dd_table_share.h"                       // dd_get_mysql_charset
+#include "m_ctype.h"
 #include "m_string.h"
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                         // ER_*
@@ -39,6 +41,7 @@ class Column;
 class Object_key;
 class Sdi_rcontext;
 class Sdi_wcontext;
+class Entity_object_impl;
 }  // namespace dd
 
 

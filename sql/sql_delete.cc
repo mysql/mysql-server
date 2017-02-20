@@ -23,6 +23,7 @@
 
 #include <limits.h>
 #include <string.h>
+#include <atomic>
 
 #include "auth_acls.h"
 #include "auth_common.h"              // check_table_access
@@ -32,11 +33,13 @@
 #include "handler.h"
 #include "item.h"
 #include "key.h"
+#include "key_spec.h"
 #include "mem_root_array.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld.h"                   // stage_...
 #include "mysqld_error.h"
@@ -47,7 +50,6 @@
 #include "psi_memory_key.h"
 #include "query_options.h"
 #include "records.h"                  // READ_RECORD
-#include "session_tracker.h"
 #include "sql_base.h"                 // update_non_unique_table_error
 #include "sql_bitmap.h"
 #include "sql_class.h"

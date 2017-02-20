@@ -17,21 +17,24 @@
 
 #include <string.h>
 #include <sys/types.h>
-
 #include <algorithm>
+#include <atomic>
 
 #include "debug_sync.h"
 #include "field.h"
 #include "handler.h"
 #include "item.h"
 #include "item_cmpfunc.h"           // Item_func_like
+#include "key_spec.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "opt_range.h"              // SQL_SELECT
 #include "opt_trace.h"              // Opt_trace_object

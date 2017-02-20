@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include <sys/types.h>
 
 #include "auth_common.h"
+#include "enum_query_type.h"
 #include "handler.h"
 #include "item.h"
 #include "item_create.h"
@@ -28,6 +29,7 @@
 #include "key_spec.h"
 #include "lex_string.h"
 #include "m_ctype.h"
+#include "mdl.h"
 #include "mem_root_array.h"
 #include "my_base.h"
 #include "my_bit.h"                  // is_single_bit
@@ -35,16 +37,22 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "my_time.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld.h"                  // table_alias_charset
 #include "mysqld_error.h"
 #include "parse_location.h"
 #include "parse_tree_helpers.h"      // PT_item_list
 #include "parse_tree_node_base.h"
 #include "parse_tree_partitions.h"
+#include "partition_info.h"
 #include "query_result.h"            // Query_result
+#include "session_tracker.h"
 #include "set_var.h"
 #include "sp_head.h"                 // sp_head
 #include "sql_admin.h"               // Sql_cmd_shutdown etc.
+#include "sql_alloc.h"
 #include "sql_alter.h"
 #include "sql_class.h"               // THD
 #include "sql_cmd_ddl_table.h"       // Sql_cmd_create_table
@@ -53,10 +61,14 @@
 #include "sql_parse.h"               // add_join_natural
 #include "sql_partition_admin.h"
 #include "sql_security_ctx.h"
+#include "sql_servers.h"
+#include "sql_show.h"
+#include "sql_string.h"
 #include "sql_truncate.h"            // Sql_cmd_truncate_table
 #include "table.h"                   // Common_table_expr
 #include "thr_lock.h"
 #include "window.h"                  // Window
+#include "window_lex.h"
 
 class PT_field_def_base;
 class PT_hint_list;

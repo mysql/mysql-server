@@ -16,14 +16,16 @@
    02110-1301 USA */
 
 #include <stddef.h>
+#include <memory>
+#include <unordered_map>
+#include <utility>
 
-#include "m_ctype.h"
+#include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysqld_error.h"      // ER_*
 #include "prealloced_array.h"
 #include "psi_memory_key.h"
 #include "rpl_gtid.h"

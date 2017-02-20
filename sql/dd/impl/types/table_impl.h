@@ -26,7 +26,9 @@
 #include "dd/impl/types/entity_object_impl.h"
 #include "dd/impl/types/weak_object_impl.h"
 #include "dd/object_id.h"
+#include "dd/properties.h"
 #include "dd/sdi_fwd.h"
+#include "dd/string_type.h"
 #include "dd/types/abstract_table.h"
 #include "dd/types/entity_object_table.h"      // dd::Entity_object_table
 #include "dd/types/foreign_key.h"              // dd::Foreign_key
@@ -51,6 +53,7 @@ class Sdi_rcontext;
 class Sdi_wcontext;
 class Trigger_impl;
 class Weak_object;
+class Object_table;
 
 class Table_impl : public Abstract_table_impl,
                    virtual public Table

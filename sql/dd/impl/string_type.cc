@@ -19,6 +19,7 @@
 #include "my_murmur3.h"                 // my_murmur3_32
 #include "my_sys.h"                     // MY_WME, MY_FATALERROR
 #include "mysql/service_mysql_alloc.h"  // my_malloc
+#include "mysql/udf_registration_types.h"
 #include "psi_memory_key.h"             // key_memory_DD_String_type
 
 

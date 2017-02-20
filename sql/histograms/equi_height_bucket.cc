@@ -20,7 +20,6 @@
 
 #include "binary_log_types.h"
 #include "equi_height_bucket.h"  // equi_height::Bucket
-#include "histogram.h"           // Histogram_comparator
 #include "json_dom.h"            // Json_*
 #include "my_base.h"             // ha_rows
 #include "my_dbug.h"

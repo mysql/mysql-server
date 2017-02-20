@@ -22,19 +22,18 @@
 #include "dynamic_ids.h"        // Server_ids
 #include "log.h"
 #include "my_dbug.h"
-#include "my_macros.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
-#include "mysql/psi/psi_stage.h"
+#include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql_version.h"
 #include "mysqld.h"             // sync_masterinfo_period
+#include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "rpl_info_handler.h"
 #include "rpl_msr.h"            // channel_map
 #include "rpl_slave.h"          // master_retry_count
 #include "sql_class.h"
-
-class Relay_log_info;
 
 
 enum {

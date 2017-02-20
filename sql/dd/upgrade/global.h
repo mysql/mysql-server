@@ -16,8 +16,17 @@
 #ifndef DD_UPGRADE__GLOBAL_H_INCLUDED
 #define DD_UPGRADE__GLOBAL_H_INCLUDED
 
+#include <sys/types.h>
+
+#include "dd/string_type.h"
+#include "item_create.h"
+#include "my_inttypes.h"
 #include "sql/sql_class.h"
 #include "sql/table.h"                            // Table_check_intact
+#include "sql_servers.h"
+
+class THD;
+class Time_zone;
 
 using sql_mode_t= ulonglong;
 

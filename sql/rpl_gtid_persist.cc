@@ -20,7 +20,10 @@
 #include "my_config.h"
 
 #include <assert.h>
-#include <stddef.h>
+
+#include "derror.h"
+#include "my_loglevel.h"
+#include "mysql/udf_registration_types.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -45,7 +48,6 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/thread_type.h"
-#include "mysql_com.h"
 #include "mysqld.h"           // gtid_executed_compression_period
 #include "query_options.h"
 #include "replication.h"      // THD_ENTER_COND

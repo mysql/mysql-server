@@ -16,20 +16,23 @@
    02110-1301 USA */
 
 #include <string.h>
+#include <memory>
+#include <unordered_map>
+#include <utility>
 
 #include "control_events.h"
-#include "m_ctype.h"
+#include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysqld_error.h"    // ER_*
+#include "mysqld_error.h"  // IWYU pragma: keep
 #include "prealloced_array.h"
 #include "rpl_gtid.h"
+#include "thr_malloc.h"
 
 #ifndef MYSQL_SERVER
-#include "mysqlbinlog.h"
+#include "mysqlbinlog.h"  // IWYU pragma: keep
 #endif
 
 extern "C" {

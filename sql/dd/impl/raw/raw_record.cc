@@ -20,16 +20,17 @@
 #include "dd/properties.h"          // dd::Properties
 #include "field.h"                  // Field
 #include "handler.h"
-#include "json_dom.h"               // Json_wrapper
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
+#include "my_decimal.h"
 #include "my_time.h"
-#include "mysql_time.h"
+#include "mysql/udf_registration_types.h"
 #include "sql_const.h"
 #include "sql_string.h"
 #include "table.h"                  // TABLE
+#include "template_utils.h"
 #include "tztime.h"                 // Time_zone_offset
 
 namespace dd {

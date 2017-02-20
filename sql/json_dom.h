@@ -33,6 +33,7 @@
 #include "my_dbug.h"
 #include "my_decimal.h"         // my_decimal
 #include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_time.h"         // MYSQL_TIME
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql_alloc.h"          // Sql_alloc

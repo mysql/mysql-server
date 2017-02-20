@@ -17,10 +17,9 @@
 #define RPL_RLI_PDB_H
 
 #include <stdarg.h>
-#include <stdarg.h>
 #include <sys/types.h>
 #include <time.h>
-
+#include <atomic>
 #include <atomic>
 
 #include "binlog_event.h"
@@ -30,10 +29,14 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "prealloced_array.h"  // Prealloced_array
 #include "rpl_gtid.h"
 #include "rpl_mts_submode.h"   // enum_mts_parallel_type

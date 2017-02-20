@@ -21,7 +21,6 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "mysql/mysql_lex_string.h"
 #include "thr_lock.h"                // thr_lock_type
 
 class Open_tables_backup;

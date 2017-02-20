@@ -16,16 +16,17 @@
 #ifndef DD__SDI_FILE_INCLUDED
 #define DD__SDI_FILE_INCLUDED
 
+#include <stddef.h>
 #include <utility>
 
-#include "dd/object_id.h"       // dd::Object_id
 #include "dd/impl/sdi.h"        // dd::Sdi_type
+#include "dd/object_id.h"       // dd::Object_id
 #include "dd/string_type.h"     // dd::String_type
 #include "prealloced_array.h"   // Prealloced_array
 
 class THD;
-struct st_mysql_const_lex_string;
 struct handlerton;
+struct st_mysql_const_lex_string;
 
 namespace dd {
 class Entity_object;

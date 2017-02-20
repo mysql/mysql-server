@@ -17,8 +17,8 @@
 #define RPL_INFO_FACTORY_H
 
 #include <sys/types.h>
-#include <vector>
 #include <string>
+#include <vector>
 
 #include "my_io.h"
 #include "rpl_channel_service_interface.h" // enum_channel_type

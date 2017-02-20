@@ -18,6 +18,7 @@
 #include <string.h>
 #include <algorithm>            // std::min
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -28,12 +29,13 @@
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "table.h"              // TABLE::add_binary_diff()
 #include "sql_class.h"          // THD
 #include "sql_const.h"
 #include "sql_string.h"
 #include "system_variables.h"
+#include "table.h"              // TABLE::add_binary_diff()
 #include "template_utils.h"     // down_cast
 
 namespace

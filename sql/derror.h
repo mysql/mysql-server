@@ -19,6 +19,7 @@
 #include <my_inttypes.h>
 #include <my_macros.h>
 #include <stddef.h>
+#include <sys/types.h>
 
 #ifdef EXTRA_CODE_FOR_UNIT_TESTING
 #include "mysqld_error.h"

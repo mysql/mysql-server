@@ -16,33 +16,39 @@
 #include "sql/rpl_channel_service_interface.h"
 
 #include <string.h>
-#include <sys/types.h>
+#include <atomic>
+#include <map>
+#include <utility>
 
-#include "binlog_event.h"
+#include "binlog.h"
 #include "current_thd.h"
 #include "log.h"
 #include "log_event.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_stage.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql_com.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld.h"          // opt_mts_slave_parallel_workers
 #include "mysqld_error.h"
 #include "mysqld_thd_manager.h" // Global_THD_manager
 #include "rpl_gtid.h"
 #include "rpl_info_factory.h"
 #include "rpl_info_handler.h"
+#include "rpl_mi.h"
 #include "rpl_msr.h"         /* Multisource replication */
 #include "rpl_mts_submode.h"
 #include "rpl_rli.h"
 #include "rpl_rli_pdb.h"
 #include "rpl_slave.h"
+#include "rpl_trx_boundary_parser.h"
 #include "sql_class.h"
 #include "sql_lex.h"
 #include "sql_security_ctx.h"

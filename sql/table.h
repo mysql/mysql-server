@@ -18,13 +18,22 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <string>
 #include <vector>
 
 #include "binary_log_types.h"
+#include "dd/properties.h"
+#include "enum_query_type.h" // enum_query_type
+#include "handler.h"       // row_type
+#include "json_diff.h"
 #include "key.h"
+#include "key_spec.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
+#include "mdl.h"           // MDL_wait_for_subgraph
+#include "mem_root_array.h"
+#include "memroot_allocator.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
@@ -33,57 +42,57 @@
 #include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_table_map.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_table_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_table.h"
+#include "mysql/udf_registration_types.h"
+#include "opt_costmodel.h" // Cost_model_table
+#include "record_buffer.h" // Record_buffer
 #include "sql_alloc.h"
+#include "sql_bitmap.h"    // Bitmap
 #include "sql_const.h"
 #include "sql_list.h"
 #include "sql_plist.h"
 #include "sql_plugin_ref.h"
-#include "system_variables.h"
-#include "thr_lock.h"
-#include "typelib.h"
-
-class Field;
-class Field_json;
-class Item;
-class Json_diff;
-class Json_seekable_path;
-class Json_wrapper;
-class String;
-class THD;
-class partition_info;
-struct Partial_update_info;
-struct TABLE;
-struct TABLE_LIST;
-struct TABLE_SHARE;
-template <class T> class Memroot_allocator;
-
-#include "enum_query_type.h" // enum_query_type
-#include "handler.h"       // row_type
-#include "mdl.h"           // MDL_wait_for_subgraph
-#include "mem_root_array.h"
-#include "opt_costmodel.h" // Cost_model_table
-#include "record_buffer.h" // Record_buffer
-#include "sql_bitmap.h"    // Bitmap
 #include "sql_sort.h"      // Filesort_info
+#include "sql_string.h"
+#include "system_variables.h"
 #include "table_id.h"      // Table_id
+#include "thr_lock.h"
+#include "thr_malloc.h"
+#include "typelib.h"
 
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
 class COND_EQUAL;
+class Field;
+class Field_json;
 /* Structs that defines the TABLE */
 class File_parser;
 class GRANT_TABLE;
 class Index_hint;
+class Item;
 class Item_field;
+class Json_diff;
+class Json_seekable_path;
+class Json_wrapper;
 class Query_result_union;
 class SELECT_LEX_UNIT;
 class Security_context;
+class String;
+class THD;
 class Table_cache_element;
 class Table_trigger_dispatcher;
 class Temp_table_param;
+class partition_info;
 struct LEX;
+struct Partial_update_info;
+struct TABLE;
+struct TABLE_LIST;
+struct TABLE_SHARE;
+template <class Key, class Value> class collation_unordered_map;
+template <class T> class Memroot_allocator;
 
 typedef int8 plan_idx;
 class Opt_hints_qb;
@@ -97,6 +106,7 @@ namespace dd {
   enum class enum_table_type;
 }
 class Common_table_expr;
+
 typedef Mem_root_array_YY<LEX_CSTRING> Create_col_name_list;
 
 typedef int64 query_id_t;

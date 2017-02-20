@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include "m_ctype.h"
 #include "my_base.h"                   // HA_WHOLE_KEY
 #include "my_dbug.h"
+#include "mysql/udf_registration_types.h"
 #include "table.h"                     // TABLE
 
 namespace dd {

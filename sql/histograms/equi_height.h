@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_EQUI_HEIGHT_INCLUDED
 #define HISTOGRAMS_EQUI_HEIGHT_INCLUDED
 
-/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,15 +68,22 @@
 */
 
 #include <cstddef>                     // size_t
+#include <new>
 #include <string>                      // std::string
 #include <vector>                      // std::vector
 
 #include "equi_height_bucket.h"        // equi_height::Bucket, IWYU pragma: keep
 #include "histogram.h"                 // Histogram, value_map_type
 #include "my_base.h"                   // ha_rows
+#include "my_decimal.h"
+#include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
 #include "sql/histograms/value_map.h"  // Value_map
+#include "sql_string.h"
+#include "template_utils.h"
 #include "thr_malloc.h"
 
+class Json_array;
 class Json_object;
 template <class T> class Memroot_allocator;
 

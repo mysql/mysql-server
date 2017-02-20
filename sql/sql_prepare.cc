@@ -85,9 +85,17 @@ When one supplies long data for a placeholder:
 
 #include "sql_prepare.h"
 
+#include "my_config.h"
+
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
+#include <algorithm>
+#include <atomic>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <utility>
 
 #include "auth_acls.h"
 #include "auth_common.h"        // check_table_access
@@ -102,11 +110,12 @@ When one supplies long data for a placeholder:
 #include "log.h"                // query_logger
 #include "m_ctype.h"
 #include "m_string.h"
+#include "map_helpers.h"
 #include "mdl.h"
+#include "my_alloc.h"
 #include "my_byteorder.h"
 #include "my_command.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_sqlcommand.h"
@@ -115,17 +124,19 @@ When one supplies long data for a placeholder:
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_ps.h" // MYSQL_EXECUTE_PS
+#include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld.h"             // opt_general_log
 #include "mysqld_error.h"
 #include "opt_trace.h"          // Opt_trace_array
 #include "protocol.h"
 #include "psi_memory_key.h"
+#include "session_tracker.h"
 #include "set_var.h"            // set_var_base
-#include "sp.h"                 // Sroutine_hash_entry
 #include "sp_cache.h"           // sp_cache_enforce_limit
 #include "sql_audit.h"          // mysql_global_audit_mask
 #include "sql_base.h"           // open_tables_for_query, open_temporary_table
+#include "sql_cmd.h"
 #include "sql_cmd_ddl_table.h"
 #include "sql_const.h"
 #include "sql_cursor.h"         // Server_side_cursor
@@ -135,25 +146,18 @@ When one supplies long data for a placeholder:
 #include "sql_lex.h"
 #include "sql_parse.h"          // sql_command_flags
 #include "sql_profile.h"
+#include "sql_query_rewrite.h"
 #include "sql_rewrite.h"        // mysql_rewrite_query
 #include "sql_security_ctx.h"
 #include "sql_string.h"
-#include "sql_udf.h"
 #include "sql_view.h"           // create_view_precheck
 #include "system_variables.h"
 #include "table.h"
 #include "thr_malloc.h"
 #include "transaction.h"        // trans_rollback_implicit
+#include "value_map.h"
 #include "violite.h"
 #include "window.h"
-
-#include "mysql_com.h"
-#include <algorithm>
-
-#include "sql_query_rewrite.h"
-
-struct PSI_statement_locker;
-union COM_DATA;
 
 using std::max;
 using std::min;

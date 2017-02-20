@@ -19,9 +19,9 @@
 #include <limits.h>
 #include <string.h>
 #include <time.h>
+#include <memory>
 
 #include "debug_sync.h"
-#include "handler.h"
 #include "lex_string.h"
 #include "log.h"
 #include "log_event.h"                      // Query_log_event
@@ -30,11 +30,13 @@
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_systime.h"
 #include "my_thread.h"
+#include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_stage.h"
 #include "mysqld.h"                         // stage_worker_....
 #include "mysqld_error.h"
 #include "query_options.h"
@@ -44,7 +46,6 @@
 #include "rpl_slave.h"
 #include "rpl_slave_commit_order_manager.h" // Commit_order_manager
 #include "sql_class.h"                      // THD
-#include "sql_plugin_ref.h"
 #include "system_variables.h"
 #include "table.h"
 

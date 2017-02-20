@@ -27,7 +27,6 @@
 #include "sql_lex.h"
 
 class Item;
-class JOIN;
 class THD;
 class Unique;
 struct TABLE;

@@ -24,13 +24,17 @@
 #include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "mysql_time.h"
 #include "protocol.h"            // Protocol
 #include "sql_string.h"
 #include "violite.h"
 
 class Proto_field;
 class Send_field;
+class my_decimal;
+template <class T> class List;
 union COM_DATA;
 
 typedef struct st_mysql_field MYSQL_FIELD;

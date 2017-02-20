@@ -16,11 +16,11 @@
 
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/equals.hpp>
-#include <boost/geometry/algorithms/overlaps.hpp>
 #include <boost/geometry/geometries/box.hpp>
 #include <boost/geometry/index/rtree.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 #include <stddef.h>
+#include <memory>
 #include <set>
 #include <utility>
 #include <vector>
@@ -42,12 +42,14 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "parse_tree_node_base.h"
 #include "spatial.h"
 #include "sql_class.h"  // THD
 #include "sql_error.h"
+#include "sql_exception_handler.h"
 #include "sql_string.h"
+#include "srs_fetcher.h"
 
 namespace boost {
 namespace geometry {
@@ -56,9 +58,6 @@ struct cartesian;
 }  // namespace cs
 }  // namespace geometry
 }  // namespace boost
-namespace dd {
-class Spatial_reference_system;
-}  // namespace dd
 
 /*
   Functions for spatial relations

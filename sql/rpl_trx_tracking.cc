@@ -15,9 +15,20 @@
 
 #include "rpl_trx_tracking.h"
 
-#include "mysqld.h"
-#include "current_thd.h"
+#include <algorithm>
+#include <utility>
+#include <vector>
+
 #include "binlog.h"
+#include "binlog_event.h"
+#include "current_thd.h"
+#include "my_inttypes.h"
+#include "mysqld.h"
+#include "rpl_context.h"
+#include "rpl_transaction_write_set_ctx.h"
+#include "sql_class.h"
+#include "system_variables.h"
+#include "transaction_info.h"
 
 
 Logical_clock::Logical_clock()

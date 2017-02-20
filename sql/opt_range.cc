@@ -115,8 +115,10 @@
 #include <fcntl.h>
 #include <float.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <algorithm>
+#include <atomic>
 #include <cmath>                 // std::log2
 #include <memory>
 #include <new>
@@ -145,11 +147,14 @@
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
+#include "mysqld.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"           // EE_CAPACITY_EXCEEDED
 #include "opt_costmodel.h"
@@ -167,12 +172,11 @@
 #include "sql_lex.h"
 #include "sql_opt_exec_shared.h" // QEP_shared_owner
 #include "sql_optimizer.h"       // JOIN
-#include "sql_parse.h"           // check_stack_overrun
 #include "sql_partition.h"       // HA_USE_AUTO_PARTITION
-#include "sql_plugin_ref.h"
 #include "sql_security_ctx.h"
 #include "sql_select.h"
 #include "sql_servers.h"
+#include "sql_tmp_table.h"
 #include "system_variables.h"
 #include "template_utils.h"
 #include "thr_malloc.h"

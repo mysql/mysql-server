@@ -16,8 +16,6 @@
 
 #include "log_event.h"
 
-#include "my_config.h"
-
 #include <assert.h>
 #include <stdlib.h>
 #ifdef HAVE_SYS_TIME_H
@@ -25,12 +23,14 @@
 #endif
 #include <algorithm>
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 
 #include "base64.h"
 #include "binary_log_funcs.h"  // my_timestamp_binary_length
 #include "binary_log_types.h"
+#include "config.h"
 #include "debug_vars.h"
 #include "decimal.h"
 #include "m_ctype.h"
@@ -44,14 +44,19 @@
 #include "my_macros.h"
 #include "my_table_map.h"
 #include "my_time.h"           // MAX_DATE_STRING_REP_LENGTH
-#include "rpl_handler.h"       // RUN_HOOK
 #include "mysql.h"             // MYSQL_OPT_MAX_ALLOWED_PACKET
+#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_my_snprintf.h" // my_snprintf
 #include "mysql_time.h"
+#include "rpl_handler.h"       // RUN_HOOK
 #include "rpl_tblmap.h"
+#include "session_tracker.h"
 #include "sql_string.h"
 #include "system_variables.h"
 #include "table_id.h"
+#include "tc_log.h"
 #include "wrapper_functions.h"
 
 #ifndef MYSQL_SERVER
@@ -67,6 +72,7 @@
 
 #include "auth/auth_common.h"
 #include "auth/sql_security_ctx.h"
+#include "binary_log.h"        // binary_log
 #include "binlog.h"
 #include "current_thd.h"
 #include "dd/types/abstract_table.h" // dd::enum_table_type
@@ -96,6 +102,7 @@
 #include "prealloced_array.h"
 #include "protocol.h"
 #include "query_result.h"      // sql_exchange
+#include "rpl_msr.h"           // channel_map
 #include "rpl_mts_submode.h"   // Mts_submode
 #include "rpl_reporting.h"
 #include "rpl_rli.h"           // Relay_log_info
@@ -122,8 +129,6 @@
 #include "transaction.h"       // trans_rollback_stmt
 #include "transaction_info.h"
 #include "tztime.h"            // Time_zone
-#include "rpl_msr.h"           // channel_map
-#include "binary_log.h"        // binary_log
 
 #define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
 Error_log_throttle

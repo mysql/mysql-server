@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,25 +16,28 @@
 #include "auth_acls.h"
 #include "derror.h"
 #include "handler.h"
-#include "item_create.h"
+#include "key.h"
 #include "m_string.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysqld.h"
 #include "mysqld_error.h"
 #include "parse_tree_helpers.h"
+#include "parse_tree_nodes.h"
 #include "sp_head.h"
 #include "sp_instr.h"
 #include "sp_pcontext.h"
 #include "sql_class.h"
 #include "sql_error.h"
 #include "sql_lex.h"
-#include "sql_plugin.h"
 #include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
 #include "system_variables.h"
 #include "trigger_def.h"
-#include "parse_tree_nodes.h"
-#include <array>
 
 
 /**

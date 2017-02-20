@@ -19,6 +19,7 @@
 #include <memory>
 
 #include "dd/impl/types/entity_object_impl.h"
+#include "dd/types/entity_object.h"
 #include "my_dbug.h"
 
 namespace dd {

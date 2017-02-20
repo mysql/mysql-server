@@ -24,7 +24,6 @@
 #include "derror.h"                          // ER_THD
 #include "error_handler.h"                   // Strict_error_handler
 #include "field.h"
-#include "handler.h"
                                              // mysql_exchange_partition
 #include "log.h"
 #include "m_ctype.h"
@@ -43,7 +42,6 @@
 #include "sql_lex.h"
 #include "sql_servers.h"
 #include "sql_table.h"                       // mysql_alter_table,
-#include "sql_udf.h"
 #include "table.h"
 #include "template_utils.h"                  // delete_container_pointers
 

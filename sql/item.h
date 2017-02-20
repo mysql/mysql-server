@@ -25,12 +25,14 @@
 #include <new>
 
 #include "binary_log_types.h"
+#include "dd/properties.h"
 #include "enum_query_type.h"
 #include "field.h"       // Derivation
 #include "handler.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "mem_root_array.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -41,13 +43,13 @@
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_time.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "parse_tree_node_base.h" // Parse_tree_node
 #include "sql_alloc.h"
 #include "sql_array.h"   // Bounds_checked_array
 #include "sql_const.h"
-#include "sql_plugin_ref.h"
 #include "sql_string.h"
 #include "system_variables.h"
 #include "table.h"
@@ -5342,6 +5344,7 @@ public:
 
 
 class Item_cache;
+
 /**
   This is used for segregating rows in groups (e.g. GROUP BY, windows), to
   detect boundaries of groups.

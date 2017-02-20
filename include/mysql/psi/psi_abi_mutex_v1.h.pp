@@ -21,6 +21,7 @@ typedef int myf;
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_mutex_bits.h"
+#include "my_inttypes.h"
 #include "my_macros.h"
 typedef unsigned int PSI_mutex_key;
 struct PSI_mutex_info_v1

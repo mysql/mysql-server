@@ -22,14 +22,17 @@
 #include <vector>
 
 #include "dd/object_id.h"
+#include "dd/string_type.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "object_registry.h"                  // Object_registry
 
 class THD;
+
 namespace dd {
 class Schema;
 class Table;
+class Entity_object;
 }  // namespace dd
 
 namespace dd {

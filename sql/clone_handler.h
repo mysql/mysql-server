@@ -21,10 +21,14 @@ Clone handler interface to access clone plugin
 #ifndef CLONE_HANDLER_INCLUDED
 #define CLONE_HANDLER_INCLUDED
 
+#include <string>
+
+#include "my_io.h"
 #include "mysql/plugin_clone.h"
 #include "sql_plugin_ref.h"    // plugin_ref
 
-#include <string>
+class THD;
+struct Mysql_clone;
 
 /**
   Clone plugin handler to convenient way to. Takes

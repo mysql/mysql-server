@@ -18,18 +18,19 @@
 
 #include "current_thd.h"                  // current_thd
 #include "field.h"                        // Field
-#include "lex_string.h"
 #include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysqld.h"                       // key_LOCK_cost_const
+#include "mysqld_error.h"
 #include "records.h"                      // READ_RECORD
 #include "sql_base.h"                     // open_and_lock_tables
 #include "sql_class.h"                    // THD
 #include "sql_const.h"
 #include "sql_lex.h"                      // lex_start/lex_end
-#include "sql_plugin.h"
 #include "sql_string.h"
 #include "sql_tmp_table.h"                // init_cache_tmp_engine_properties
 #include "table.h"                        // TABLE

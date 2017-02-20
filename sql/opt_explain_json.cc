@@ -15,25 +15,33 @@
 
 #include "opt_explain_json.h"
 
+#include "my_config.h"
+
 #include <limits.h>
 #include <sys/types.h>
 
 #include "current_thd.h"            // current_thd
+#include "enum_query_type.h"
 #include "item.h"
 #include "item_sum.h"
-#include "my_config.h"
+#include "key_spec.h"
+#include "m_string.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysqld.h"
 #include "opt_trace.h"              // Opt_trace_object
 #include "opt_trace_context.h"      // Opt_trace_context
 #include "protocol.h"               // Protocol
 #include "query_result.h"           // Query_result
 #include "sql_class.h"              // THD
 #include "sql_list.h"
+#include "sql_parse.h"
 #include "sql_security_ctx.h"
 #include "sql_string.h"
 #include "system_variables.h"
 #include "temp_table_param.h"
+#include "window.h"
 
 class SELECT_LEX_UNIT;
 

@@ -19,16 +19,15 @@
 
 #include "derror.h"        // ER_THD
 #include "key.h"
-#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_table_map.h"
-#include "mysql/psi/mysql_statement.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld.h"        // table_alias_charset
 #include "mysqld_error.h"
+#include "opt_trace.h"
 #include "parse_tree_hints.h"
-#include "session_tracker.h"
 #include "sql_class.h"     // THD
 #include "sql_const.h"
 #include "sql_error.h"     // Sql_condition

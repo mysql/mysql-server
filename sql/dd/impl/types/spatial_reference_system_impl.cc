@@ -18,7 +18,6 @@
 #include <stdint.h>
 
 #include "dd/impl/dictionary_impl.h"       // Dictionary_impl
-#include "dd/impl/raw/object_keys.h"       // id_key_type
 #include "dd/impl/raw/raw_record.h"        // Raw_record
 #include "dd/impl/sdi_impl.h"              // sdi read/write functions
 #include "dd/impl/tables/spatial_reference_systems.h" // Spatial_reference_sy...

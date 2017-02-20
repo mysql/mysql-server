@@ -15,8 +15,6 @@
 
 #include "keycaches.h"
 
-#include <stddef.h>
-
 #include "../mysys/mysys_priv.h"
 #include "m_string.h"
 #include "my_dbug.h"

@@ -27,7 +27,6 @@
 #include "parse_tree_node_base.h"
 #include "partition_element.h"
 #include "partition_info.h"
-#include "sql_udf.h"
 
 class Item;
 class THD;

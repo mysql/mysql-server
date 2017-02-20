@@ -16,17 +16,17 @@
 #include "sql/rpl_tblmap.h"
 
 #include <stddef.h>
+#include <unordered_map>
+#include <utility>
 
 #ifdef MYSQL_SERVER
 #include "table.h"       // TABLE
 #endif
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
 #include "psi_memory_key.h"
-#include "sql_plugin_ref.h"
 
 #ifndef MYSQL_SERVER
 #define MAYBE_TABLE_NAME(T) ("")

@@ -18,6 +18,7 @@
 
 #include "dd/types/entity_object.h"   // dd::Entity_object
 #include "my_inttypes.h"
+#include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
 
 typedef long my_time_t;
 
@@ -27,7 +28,6 @@ namespace dd {
 
 class Entity_object_table;
 class Object_type;
-class Primary_id_key;
 class Void_key;
 class Item_name_key;
 

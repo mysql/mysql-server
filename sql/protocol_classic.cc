@@ -212,6 +212,7 @@
 
 #include <string.h>
 #include <algorithm>
+#include <limits>
 
 #include "decimal.h"
 #include "field.h"
@@ -223,20 +224,25 @@
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_decimal.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql/com_data.h"
 #include "mysql/psi/mysql_socket.h"
+#include "mysql/psi/mysql_statement.h"
 #include "mysqld.h"                             // global_system_variables
 #include "mysqld_error.h"
+#include "openssl/ssl.h"
 #include "session_tracker.h"
 #include "sql_class.h"                          // THD
 #include "sql_error.h"
 #include "sql_lex.h"
 #include "sql_list.h"
 #include "sql_prepare.h"                        // Prepared_statement
+#include "sql_security_ctx.h"
 #include "system_variables.h"
+#include "value_map.h"
 
 
 using std::min;

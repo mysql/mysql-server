@@ -22,7 +22,7 @@
 #include "lex_string.h"
 #include "my_alloc.h"
 #include "my_inttypes.h"
-#include "mysql/mysql_lex_string.h"     // LEX_STRING
+#include "mysql/udf_registration_types.h"
 #include "sql_alloc.h"                  // Sql_alloc
 
 typedef struct st_mem_root MEM_ROOT;

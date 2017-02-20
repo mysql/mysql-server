@@ -24,6 +24,7 @@
 #include <math.h>
 #include <string.h>
 #include <sys/types.h>
+#include <atomic>
 
 #include "auth_acls.h"
 #include "current_thd.h"
@@ -39,6 +40,7 @@
 #include "key.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -50,6 +52,7 @@
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld.h"        // stage_explaining
 #include "mysqld_error.h"
@@ -62,6 +65,7 @@
 #include "sql_base.h"      // lock_tables
 #include "sql_bitmap.h"
 #include "sql_class.h"
+#include "sql_cmd.h"
 #include "sql_const.h"
 #include "sql_error.h"
 #include "sql_executor.h"
@@ -72,7 +76,6 @@
 #include "sql_optimizer.h" // JOIN
 #include "sql_parse.h"     // is_explainable_query
 #include "sql_partition.h" // for make_used_partitions_str()
-#include "sql_plugin.h"
 #include "sql_security_ctx.h"
 #include "sql_select.h"
 #include "sql_string.h"

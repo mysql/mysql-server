@@ -19,14 +19,19 @@
 #include <sys/types.h>
 #include <new>
 
+#include "key.h"
 #include "lex_string.h"
+#include "my_command.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
+#include "mysql/com_data.h"
+#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/psi/psi_statement.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "protocol_classic.h"
 #include "query_result.h" // Query_result_send
-#include "session_tracker.h"
 #include "sql_alloc.h"
 #include "sql_class.h"    // Query_arena
 #include "sql_error.h"
@@ -35,9 +40,10 @@
 
 class Item;
 class Item_param;
+class Prepared_statement;
 class String;
 struct LEX;
-struct PSI_prepared_stmt;
+struct TABLE_LIST;
 
 /**
   An interface that is used to take an action when

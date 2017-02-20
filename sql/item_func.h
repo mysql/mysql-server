@@ -31,6 +31,7 @@
 #include "item.h"       // Item_result_field
 #include "lex_string.h"
 #include "m_ctype.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
@@ -43,6 +44,7 @@
 #include "my_thread_local.h"
 #include "my_time.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "parse_tree_node_base.h"
@@ -2980,6 +2982,7 @@ public:
 #define GET_SYS_VAR_CACHE_STRING   4
 
 class Item_func_get_system_var;
+
 /** Class to log audit event MYSQL_AUDIT_GLOBAL_VARIABLE_GET. */
 class Audit_global_variable_get_event
 {

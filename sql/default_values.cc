@@ -28,6 +28,7 @@
 #include "field.h"             // calc_pack_length
 #include "handler.h"           // handler
 #include "item.h"              // Item
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_compare.h"
 #include "my_dbug.h"
@@ -35,6 +36,7 @@
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql_class.h"         // THD

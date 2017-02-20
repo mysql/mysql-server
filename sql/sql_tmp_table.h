@@ -30,11 +30,11 @@
 #include "mem_root_array.h"
 #include "my_base.h"        // ha_rows
 #include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
 #include "table.h"
 
 class Create_field;
 class Field;
-class Opt_trace_context;
 class SJ_TMP_TABLE;
 class THD;
 class Temp_table_param;

@@ -15,6 +15,10 @@
 
 #include "dd/impl/system_views/statistics.h"
 
+#include <string>
+
+#include "stateless_allocator.h"
+
 namespace dd {
 namespace system_views {
 

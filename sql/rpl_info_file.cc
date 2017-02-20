@@ -21,6 +21,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "my_inttypes.h"
+#include "my_loglevel.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -28,7 +31,6 @@
 #include "dynamic_ids.h"       // Server_ids
 #include "log.h"
 #include "m_string.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"            // MY_STAT
 #include "my_thread_local.h"   // my_errno

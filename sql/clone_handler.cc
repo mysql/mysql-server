@@ -20,13 +20,25 @@ Clone handler implementation
 
 #include "clone_handler.h"
 
+#include <string.h>
+
+#include "log.h"                  // sql_print_error
+#include "my_dbug.h"
+#include "my_dir.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_sys.h"
+#include "mysql/plugin.h"
+#include "mysql/plugin_clone.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysqld.h"
 #include "mysqld_error.h"
-#include "mysql/psi/mysql_file.h"
-#include "log.h"                  // sql_print_error
+#include "sql_parse.h"
 #include "sql_plugin.h"           // plugin_unlock
 #include "sql_string.h"           // to_lex_cstring
-#include "sql_parse.h"
+
+class THD;
 
 /** Clone handler global */
 Clone_handler* clone_handle= nullptr;

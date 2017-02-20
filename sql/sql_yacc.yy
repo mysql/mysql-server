@@ -35,7 +35,8 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #define YYMAXDEPTH 3200                        /* Because of 64K stack */
 #define Lex (YYTHD->lex)
 #define Select Lex->current_select()
-#include "auth_common.h"                      /* *_ACL */
+#include "auth_acls.h"
+#include "auth_common.h"
 #include "binlog.h"                          // for MAX_LOG_UNIQUE_FN_EXT
 #include "dd/info_schema/show.h"             // build_show_...
 #include "dd/types/abstract_table.h"         // TT_BASE_TABLE
@@ -76,9 +77,9 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql_base.h"                        // find_temporary_table
 #include "sql_class.h"      /* Key_part_spec, enum_filetype */
 #include "sql_component.h"
-#include "sql_import.h"                        // Sql_cmd_import_table
 #include "sql_get_diagnostics.h"               // Sql_cmd_get_diagnostics
 #include "sql_handler.h"                       // Sql_cmd_handler_*
+#include "sql_import.h"                        // Sql_cmd_import_table
 #include "sql_parse.h"                        /* comp_*_creator */
 #include "sql_partition.h"                    /* mem_alloc_error */
 #include "sql_partition_admin.h"               // Sql_cmd_alter_table_*_part.

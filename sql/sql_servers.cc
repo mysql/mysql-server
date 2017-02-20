@@ -37,25 +37,35 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
+#include <atomic>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <utility>
 
 #include "auth_acls.h"
 #include "auth_common.h"
 #include "field.h"
 #include "handler.h"
+#include "histogram.h"
 #include "log.h"
 #include "m_string.h"
+#include "map_helpers.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/mysql_rwlock_bits.h"
+#include "mysql/components/services/psi_memory_bits.h"
+#include "mysql/components/services/psi_rwlock_bits.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_memory.h"
-#include "mysql/psi/psi_rwlock.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "psi_memory_key.h"                     // key_memory_servers
 #include "records.h"          // init_read_record, end_read_record
@@ -63,12 +73,11 @@
 #include "sql_class.h"
 #include "sql_const.h"
 #include "sql_error.h"
+#include "sql_security_ctx.h"
 #include "table.h"
-#include "template_utils.h"
 #include "thr_lock.h"
 #include "thr_malloc.h"
 #include "transaction.h"      // trans_rollback_stmt, trans_commit_stmt
-#include "typelib.h"
 
 /*
   We only use 1 mutex to guard the data structures - THR_LOCK_servers.

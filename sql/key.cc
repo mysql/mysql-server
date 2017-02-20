@@ -29,6 +29,7 @@
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compare.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "sql_const.h"

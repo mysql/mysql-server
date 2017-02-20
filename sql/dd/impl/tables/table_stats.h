@@ -24,6 +24,7 @@
 #include "dd/impl/types/entity_object_table_impl.h"
                                               // Entity_object_table_impl
 #include "dd/impl/types/table_stat_impl.h"    // Table_stat
+#include "dd/string_type.h"
 #include "dd/types/table_stat.h"
 
 namespace dd {

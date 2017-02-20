@@ -17,6 +17,7 @@
 
 #include <stddef.h>
 #include <sstream>
+#include <string>
 
 #include "dd/impl/raw/raw_record.h"                  // Raw_record
 #include "dd/impl/sdi_impl.h"                        // sdi read/write functions
@@ -25,7 +26,7 @@
 #include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
 #include "dd/impl/types/foreign_key_element_impl.h"  // Foreign_key_element_impl
 #include "dd/impl/types/table_impl.h"                // Table_impl
-#include "dd/properties.h"                           // Needed for destructor
+#include "dd/impl/types/weak_object_impl.h"
 #include "dd/string_type.h"                          // dd::String_type
 #include "dd/types/foreign_key_element.h"
 #include "dd/types/index.h"                          // Index

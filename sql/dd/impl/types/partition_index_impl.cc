@@ -16,13 +16,13 @@
 #include "dd/impl/types/partition_index_impl.h"
 
 #include <sstream>
+#include <string>
 
 #include "dd/impl/properties_impl.h"          // Properties_impl
 #include "dd/impl/raw/raw_record.h"           // Raw_record
 #include "dd/impl/sdi_impl.h"                 // sdi read/write functions
 #include "dd/impl/tables/index_partitions.h"  // Index_partitions
 #include "dd/impl/transaction_impl.h"         // Open_dictionary_tables_ctx
-#include "dd/impl/types/entity_object_impl.h"
 #include "dd/impl/types/partition_impl.h"     // Partition_impl
 #include "dd/impl/types/table_impl.h"         // Table_impl
 #include "dd/string_type.h"                   // dd::String_type
@@ -35,6 +35,10 @@
 #include "mysqld_error.h"                     // ER_*
 #include "rapidjson/document.h"
 #include "rapidjson/prettywriter.h"
+
+namespace dd {
+class Entity_object_impl;
+}  // namespace dd
 
 using dd::tables::Index_partitions;
 

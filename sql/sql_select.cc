@@ -27,6 +27,7 @@
 
 #include <string.h>
 #include <algorithm>
+#include <atomic>
 
 #include "auth_acls.h"
 #include "auth_common.h"         // *_ACL
@@ -66,6 +67,7 @@
 #include "sql_list.h"
 #include "sql_optimizer.h"       // JOIN
 #include "sql_planner.h"         // calculate_condition_filter
+#include "sql_security_ctx.h"
 #include "sql_show.h"            // append_identifier
 #include "sql_sort.h"
 #include "sql_test.h"            // misc. debug printing utilities

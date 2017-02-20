@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,13 +15,12 @@
 
 #include "shared_multi_map.h"
 
-#include <stddef.h>
 #include <new>
 
 #include "dd/impl/cache/cache_element.h"
-#include "dd/types/column_statistics.h"      // Column_statistics
 #include "log.h"                             // sql_print_warning()
 #include "my_dbug.h"
+#include "my_loglevel.h"
 #include "mysqld_error.h"
 
 namespace dd {

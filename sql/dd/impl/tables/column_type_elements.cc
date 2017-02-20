@@ -17,9 +17,10 @@
 
 #include <new>
 
-#include "sql_const.h"                // MAX_INTERVAL_VALUE_LENGTH
 #include "dd/impl/raw/object_keys.h"  // Parent_id_range_key
 #include "dd/impl/types/object_table_definition_impl.h"
+#include "my_dbug.h"
+#include "sql_const.h"                // MAX_INTERVAL_VALUE_LENGTH
 
 namespace dd {
 namespace tables {

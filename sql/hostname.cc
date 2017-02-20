@@ -28,6 +28,13 @@
 
 #include "my_config.h"
 
+#include "map_helpers.h"
+#include "my_loglevel.h"
+#include "my_psi_config.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
+#include "thr_mutex.h"
+
 #ifndef _WIN32
 #include <netdb.h>
 #endif
@@ -40,8 +47,10 @@
 
 #include <list>
 #include <memory>
+#include <new>
 #include <string>
 #include <unordered_map>
+#include <utility>
 
 #include "log.h"
 #include "m_ctype.h"
@@ -54,8 +63,6 @@
 #include "mysqld.h"                             // specialflag
 #include "mysqld_error.h"
 #include "psi_memory_key.h"
-                                                // vio_get_normalized_ip_string
-#include "template_utils.h"
 #include "violite.h"                            // vio_getnameinfo,
 
 #ifdef HAVE_ARPA_INET_H

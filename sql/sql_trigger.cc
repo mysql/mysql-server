@@ -18,6 +18,9 @@
 #include "sql/sql_trigger.h"
 
 #include <stddef.h>
+#include <string.h>
+#include <string>
+#include <utility>
 
 #include "auth_acls.h"
 #include "auth_common.h"              // check_table_access
@@ -27,10 +30,14 @@
 #include "dd/string_type.h"
 #include "dd/types/abstract_table.h"  // dd::enum_table_type
 #include "dd/types/table.h"
+#include "dd/types/trigger.h"
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_THD
+#include "key.h"
 #include "m_ctype.h"
+#include "m_string.h"
 #include "my_base.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
@@ -46,17 +53,19 @@
 #include "sql_error.h"
 #include "sql_handler.h"              // mysql_ha_rm_tables()
 #include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_plugin.h"
 #include "sql_security_ctx.h"
 #include "sql_string.h"
 #include "sql_table.h"                // build_table_filename()
+#include "stateless_allocator.h"
 #include "system_variables.h"
 #include "table.h"
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "thr_lock.h"
 #include "transaction.h"              // trans_commit_stmt, trans_commit
-#include "trigger.h"                  // Trigger
+
+namespace dd {
+class Schema;
+}  // namespace dd
 ///////////////////////////////////////////////////////////////////////////
 
 bool get_table_for_trigger(THD *thd,

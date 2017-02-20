@@ -17,6 +17,8 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <atomic>
+#include <memory>
 #include <new>
 #include <string>
 #include <utility>
@@ -25,7 +27,6 @@
 #include "auth_acls.h"
 #include "auth_common.h"           // EVENT_ACL
 #include "dd/cache/dictionary_client.h"
-#include "dd/dd_event.h"
 #include "dd/dd_schema.h"               // dd::Schema_MDL_locker
 #include "dd/string_type.h"
 #include "dd/types/event.h"
@@ -36,7 +37,6 @@
 #include "event_queue.h"           // Event_queue
 #include "event_scheduler.h"       // Event_scheduler
 #include "item.h"
-#include "item_create.h"
 #include "lex_string.h"
 #include "lock.h"                  // lock_object_name
 #include "log.h"
@@ -44,36 +44,36 @@
 #include "m_string.h"
 #include "mdl.h"
 #include "my_dbug.h"
-#include "my_sqlcommand.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql/psi/psi_cond.h"
-#include "mysql/psi/psi_mutex.h"
-#include "mysql/psi/psi_thread.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld.h"                // LOCK_global_system_variables
 #include "mysqld_error.h"          // ER_*
 #include "protocol.h"
+#include "psi_memory_key.h"
+#include "session_tracker.h"
 #include "set_var.h"
 #include "sp_head.h"               // Stored_program_creation_ctx
-#include "sql_admin.h"
 #include "sql_class.h"             // THD
+#include "sql_connect.h"
 #include "sql_const.h"
 #include "sql_lex.h"
 #include "sql_list.h"
-#include "sql_plugin.h"
 #include "sql_show.h"              // append_definer
 #include "sql_string.h"            // String
 #include "sql_table.h"             // write_bin_log
 #include "system_variables.h"
-#include "table.h"
-#include "template_utils.h"
-#include "thr_malloc.h"
 #include "transaction.h"
 #include "tztime.h"                // Time_zone
 

@@ -39,6 +39,17 @@
 #include "my_sys.h"                        // MY_TMPDIR
 #include "my_thread.h"                     // my_thread_attr_t
 #include "my_thread_local.h"               // my_get_thread_local
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/mysql_rwlock_bits.h"
+#include "mysql/components/services/psi_cond_bits.h"
+#include "mysql/components/services/psi_file_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/components/services/psi_rwlock_bits.h"
+#include "mysql/components/services/psi_socket_bits.h"
+#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_cond.h"
@@ -47,12 +58,15 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_statement.h"       /* PSI_statement_info */
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"                     // SERVER_VERSION_LENGTH
+#include "rpl_filter.h"                    // Rpl_filter
 #include "sql_bitmap.h"
 #include "sql_const.h"                     // UUID_LENGTH
 #include "system_variables.h"
-#include "rpl_filter.h"                    // Rpl_filter
+#include "thr_malloc.h"
 
+class Rpl_filter;
 class THD;
 class Time_zone;
 struct handlerton;

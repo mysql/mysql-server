@@ -18,7 +18,10 @@
 
 #include "lex_string.h"
 #include "mem_root_array.h"
+#include "my_sqlcommand.h"
 #include "sql_cmd.h"       // Sql_cmd
+
+class THD;
 
 /**
   @file sql/sql_import.h Declaration of command class for the IMPORT TABLES command.

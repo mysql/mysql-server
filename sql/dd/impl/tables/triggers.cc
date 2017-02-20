@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "dd/impl/raw/raw_record.h"    // dd::Raw_record
 #include "dd/impl/raw/raw_table.h"     // dd::Raw_table
 #include "dd/impl/transaction_impl.h"  // Transaction_ro
+#include "dd/impl/types/object_table_definition_impl.h"
 #include "dd/types/table.h"
 #include "handler.h"
 #include "my_dbug.h"

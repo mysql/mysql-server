@@ -19,6 +19,9 @@
 #include <fcntl.h>
 #include <string.h>
 #include <sys/types.h>
+#include <memory>
+#include <unordered_map>
+#include <utility>
 
 #include "auth_acls.h"
 #include "auth_common.h"                        // check_global_access
@@ -26,7 +29,6 @@
 #include "binlog.h"                             // mysql_bin_log
 #include "current_thd.h"
 #include "debug_sync.h"                         // DEBUG_SYNC
-#include "handler.h"
 #include "item.h"
 #include "item_func.h"                          // user_var_entry
 #include "log.h"                                // log_*()
@@ -37,12 +39,16 @@
 #include "my_command.h"
 #include "my_dbug.h"
 #include "my_io.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_mutex.h"
+#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"                             // server_id
 #include "mysqld_error.h"
@@ -59,7 +65,6 @@
 #include "sql_list.h"
 #include "sql_string.h"
 #include "system_variables.h"
-#include "template_utils.h"
 #include "thr_mutex.h"
 #include "typelib.h"
 

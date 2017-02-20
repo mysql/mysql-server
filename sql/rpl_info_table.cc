@@ -24,22 +24,22 @@
 #include "handler.h"
 #include "key.h"
 #include "log.h"
+#include "log_event.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
-#include "mysql_com.h"
+#include "mysql/udf_registration_types.h"
+#include "mysqld_error.h"
 #include "psi_memory_key.h"
+#include "query_options.h"
 #include "rpl_info_table_access.h"  // Rpl_info_table_access
 #include "rpl_info_values.h"        // Rpl_info_values
-#ifndef DBUG_OFF
-#include "rpl_rli.h"                // rli_slave
-#endif
-#include "set_var.h"
 #include "sql_class.h"              // THD
 #include "sql_string.h"
 #include "system_variables.h"

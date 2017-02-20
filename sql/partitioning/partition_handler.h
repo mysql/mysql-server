@@ -21,17 +21,23 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <memory>
 #include <new>
+#include <string>
 #include <vector>
 
 #include "handler.h"              // Handler_share
 #include "key.h"                  // key_rec_cmp
+#include "map_helpers.h"
 #include "my_alloc.h"
 #include "my_base.h"              // ha_rows.
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"         // ER_ILLEGAL_HA
 #include "priority_queue.h"
 #include "sql_alloc.h"
@@ -41,6 +47,10 @@ class Field;
 class THD;
 class partition_element;
 class partition_info;
+
+namespace dd {
+class Table;
+}  // namespace dd
 struct TABLE;
 struct TABLE_SHARE;
 

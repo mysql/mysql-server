@@ -16,34 +16,29 @@
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
-#include "my_config.h"
-
+#include <mysql/components/my_service.h>
+#include <mysql/components/service.h>
+#include <mysql/components/services/dynamic_privilege.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include <functional>
 #include <set>
 #include <utility>
 #include <vector>
 
-#include "auth_acls.h"                          /* ACL information */
+#include "dynamic_privileges_impl.h"
 #include "lex_string.h"
-#include "m_string.h"
 #include "my_command.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "sql_string.h"                         /* String */
 #include "template_utils.h"
 #include "thr_malloc.h"
-#include <mysql/components/service.h>
-#include <mysql/components/my_service.h>
-#include <mysql/components/services/dynamic_privilege.h>
-#include "dynamic_privileges_impl.h"
-
-#include <functional>
 
 /* Forward Declarations */
 class Alter_info;
 class Field_iterator_table_ref;
 class LEX_COLUMN;
+class String;
 class THD;
 template <class T> class List;
 

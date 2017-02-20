@@ -20,6 +20,7 @@
 
 #include "storage/perfschema/pfs_engine_table.h"
 
+#include "auth_acls.h"
 #include "current_thd.h"
 #include "derror.h"
 #include "lock.h"  // MYSQL_LOCK_IGNORE_TIMEOUT
@@ -52,12 +53,12 @@
 #include "table_esgs_by_thread_by_event_name.h"
 #include "table_esgs_by_user_by_event_name.h"
 #include "table_esgs_global_by_event_name.h"
+#include "table_esmh_by_digest.h"
+#include "table_esmh_global.h"
 #include "table_esms_by_account_by_event_name.h"
 #include "table_esms_by_digest.h"
 #include "table_esms_by_host_by_event_name.h"
 #include "table_esms_by_program.h"
-#include "table_esmh_global.h"
-#include "table_esmh_by_digest.h"
 #include "table_esms_by_thread_by_event_name.h"
 #include "table_esms_by_user_by_event_name.h"
 #include "table_esms_global_by_event_name.h"
@@ -91,9 +92,12 @@
 #include "table_mems_global_by_event_name.h"
 #include "table_os_global_by_type.h"
 #include "table_performance_timers.h"
+#include "table_persisted_variables.h"
 #include "table_plugin_table.h"
 #include "table_prepared_stmt_instances.h"
 #include "table_replication_applier_configuration.h"
+#include "table_replication_applier_filters.h"
+#include "table_replication_applier_global_filters.h"
 #include "table_replication_applier_status.h"
 #include "table_replication_applier_status_by_coordinator.h"
 #include "table_replication_applier_status_by_worker.h"
@@ -102,8 +106,6 @@
 #include "table_replication_connection_status.h"
 #include "table_replication_group_member_stats.h"
 #include "table_replication_group_members.h"
-#include "table_replication_applier_filters.h"
-#include "table_replication_applier_global_filters.h"
 #include "table_session_account_connect_attrs.h"
 #include "table_session_connect_attrs.h"
 #include "table_session_status.h"
@@ -126,12 +128,11 @@
 #include "table_tiws_by_index_usage.h"
 #include "table_tiws_by_table.h"
 #include "table_tlws_by_table.h"
+#include "table_user_defined_functions.h"
 #include "table_users.h"
 #include "table_uvar_by_thread.h"
 #include "table_variables_by_thread.h"
 #include "table_variables_info.h"
-#include "table_persisted_variables.h"
-#include "table_user_defined_functions.h"
 
 /* clang-format off */
 /**

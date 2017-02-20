@@ -15,25 +15,28 @@
 
 #include "sql/binlog.h"
 
-#include "my_config.h"
-
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/stat.h>
 
+#include "check_stack.h"
+#include "config.h"
 #include "lex_string.h"
+#include "map_helpers.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_systime.h"
+#include "my_thread.h"
+#include "mysql/components/services/log_shared.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #include <algorithm>
 #include <list>
+#include <map>
 #include <new>
 #include <string>
 
@@ -52,7 +55,6 @@
 #include "log.h"
 #include "log_event.h"                      // Rows_log_event
 #include "m_ctype.h"
-#include "mdl.h"
 #include "mf_wcomp.h"                       // wild_one, wild_many
 #include "my_base.h"
 #include "my_bitmap.h"
@@ -65,7 +67,6 @@
 #include "my_thread_local.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/psi/psi_stage.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
 #include "mysqld.h"                         // sync_binlog_period ...
@@ -87,7 +88,6 @@
 #include "rpl_slave_commit_order_manager.h" // Commit_order_manager
 #include "rpl_transaction_ctx.h"
 #include "rpl_trx_boundary_parser.h"        // Transaction_boundary_parser
-#include "rpl_context.h"
 #include "rpl_utility.h"
 #include "sql_bitmap.h"
 #include "sql_class.h"                      // THD
@@ -97,11 +97,8 @@
 #include "sql_lex.h"
 #include "sql_list.h"
 #include "sql_parse.h"                      // sqlcom_can_generate_row_events
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
 #include "sql_servers.h"
 #include "sql_show.h"                       // append_identifier
-#include "sql_udf.h"
 #include "statement_events.h"
 #include "system_variables.h"
 #include "table.h"
@@ -111,7 +108,6 @@
 #include "xa.h"
 
 class Item;
-class Gtid_event;
 
 using std::max;
 using std::min;

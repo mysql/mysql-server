@@ -24,10 +24,12 @@
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/components/services/psi_error_bits.h"
 #include "mysql/psi/mysql_error.h"
 #include "mysql/psi/mysql_statement.h"
-#include "mysql/psi/psi_error.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"      // ER_*
 #include "sp_pcontext.h"       // sp_condition_value
 #include "sp_rcontext.h"       // sp_rcontext

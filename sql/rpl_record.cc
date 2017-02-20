@@ -26,6 +26,7 @@
 #include "my_bitmap.h"        // MY_BITMAP
 #include "my_dbug.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld.h"           // ER
 #include "mysqld_error.h"

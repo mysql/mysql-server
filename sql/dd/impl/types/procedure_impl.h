@@ -17,12 +17,12 @@
 #define DD__PROCEDURE_IMPL_INCLUDED
 
 #include <new>
-#include <string>
 
 #include "dd/impl/types/entity_object_impl.h"
 #include "dd/impl/types/routine_impl.h"        // dd::Routine_impl
 #include "dd/impl/types/weak_object_impl.h"
 #include "dd/object_id.h"
+#include "dd/string_type.h"
 #include "dd/types/object_type.h"              // dd::Object_type
 #include "dd/types/procedure.h"                // dd::Procedure
 #include "dd/types/routine.h"
@@ -36,6 +36,7 @@ namespace dd {
 class Open_dictionary_tables_ctx;
 class Parameter;
 class Weak_object;
+class Object_table;
 
 class Procedure_impl : public Routine_impl,
                        public Procedure

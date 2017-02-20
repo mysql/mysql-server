@@ -19,6 +19,7 @@
 #include <string>
 
 #include "dd/impl/types/entity_object_table_impl.h"
+#include "dd/string_type.h"
 #include "dd/types/collation.h"
 
 class THD;

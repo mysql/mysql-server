@@ -20,10 +20,12 @@
 
 #include <algorithm>               // std::fill
 #include <cstring>
+#include <memory>
 #include <new>
 #include <string>
 #include <utility>
 
+#include "binary_log_types.h"
 #include "current_thd.h"           // current_thd
 #include "item_cmpfunc.h"          // Item_func_like
 #include "item_subselect.h"
@@ -32,17 +34,21 @@
 #include "json_path.h"
 #include "m_string.h"
 #include "my_compare.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "mysql/psi/mysql_statement.h"
 #include "mysqld_error.h"
-#include "prealloced_array.h"      // Prealloced_array
-#include "psi_memory_key.h"        // key_memory_JSON
-#include "sql_class.h"             // THD
+#include "prealloced_array.h"   // Prealloced_array
+#include "psi_memory_key.h"     // key_memory_JSON
+#include "session_tracker.h"
+#include "sql_class.h"          // THD
 #include "sql_const.h"
+#include "sql_error.h"
 #include "sql_exception_handler.h" // handle_std_exception
 #include "sql_time.h"              // field_type_to_timestamp_type
+#include "table.h"
 #include "template_utils.h"        // down_cast
+#include "value_map.h"
 
 class PT_item_list;
 
