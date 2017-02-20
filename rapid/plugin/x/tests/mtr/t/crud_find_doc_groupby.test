@@ -19,7 +19,7 @@ INSERT INTO xtest.xcoll (doc) VALUES
 --write_file $MYSQL_TMP_DIR/crud_find_doc_groupby.tmp
 -->quiet
 
-# group by name
+-->echo group by name
 Mysqlx.Crud.Find {
   collection { name: "xcoll" schema: "xtest" }
   data_model: DOCUMENT
@@ -47,7 +47,7 @@ Mysqlx.Crud.Find {
 }
 -->recvresult
 
-# group by name and count
+-->echo group by name and count
 Mysqlx.Crud.Find {
   collection { name: "xcoll" schema: "xtest" }
   data_model: DOCUMENT
@@ -91,7 +91,7 @@ Mysqlx.Crud.Find {
 }
 -->recvresult
 
-# group by name, age and count
+-->echo group by name, age and count
 Mysqlx.Crud.Find {
   collection { name: "xcoll" schema: "xtest" }
   data_model: DOCUMENT
@@ -156,7 +156,7 @@ Mysqlx.Crud.Find {
 }
 -->recvresult
 
-## no projection - error expected
+-->echo no projection - error expected
 Mysqlx.Crud.Find {
   collection { name: "xcoll" schema: "xtest" }
   data_model: DOCUMENT
@@ -170,10 +170,10 @@ Mysqlx.Crud.Find {
     }
   }
 }
--->expecterror 5114
+-->expecterror ER_X_BAD_PROJECTION
 -->recvresult
 
-# group by name, count name and criteria on count
+-->echo group by name, count name and criteria on count
 Mysqlx.Crud.Find {
   collection { name: "xcoll" schema: "xtest" }
   data_model: DOCUMENT
@@ -235,18 +235,17 @@ Mysqlx.Crud.Find {
         }
       }
     }
-  } 
+  }
 }
+-->expecterror ER_X_EXPR_BAD_VALUE
 -->recvresult
 
 
-
-# error: wrong memeber path in grouping criteria
+-->echo group by name, criteria on max(age)
 Mysqlx.Crud.Find {
   collection { name: "xcoll" schema: "xtest" }
   data_model: DOCUMENT
   projection {
-    alias: "name"
     source {
       type: IDENT
       identifier {
@@ -256,20 +255,33 @@ Mysqlx.Crud.Find {
         }
       }
     }
+    alias: "my_name"
   }
   projection {
-    alias: "count"
     source {
       type: FUNC_CALL
       function_call {
         name {
-          name: "count"
+          name: "max"
         }
         param {
-          type: OPERATOR operator {
-            name: "*"
+          type: IDENT
+          identifier {
+            document_path {
+              type: MEMBER
+              value: "age"
+            }
           }
         }
+      }
+    }
+    alias: "my_age"
+  }
+  order {
+    expr {
+      type: IDENT
+      identifier {
+        name: "my_age"
       }
     }
   }
@@ -287,12 +299,19 @@ Mysqlx.Crud.Find {
     operator {
       name: ">"
       param {
-        type: IDENT
-        identifier {
-          name: "nowhere"
-          document_path {
-            type: MEMBER
-            value: "count"
+        type: FUNC_CALL
+        function_call {
+          name {
+            name: "max"
+          }
+          param {
+            type: IDENT
+            identifier {
+              document_path {
+                type: MEMBER
+                value: "age"
+              }
+            }
           }
         }
       }
@@ -300,13 +319,12 @@ Mysqlx.Crud.Find {
         type: LITERAL
         literal {
           type: V_UINT
-          v_unsigned_int: 1
+          v_unsigned_int: 5
         }
       }
     }
-  } 
+  }
 }
--->expecterror 5117
 -->recvresult
 EOF
 
