@@ -1593,7 +1593,8 @@ get_redo_logpart_maxusage(NDBT_Context* ctx, Uint32 &nodeid,
       // Requested row is found
       if (node_id == nodeid && logpart == logpart_with_maxusage)
       {
-        g_err << "Row with requested nodeid " << nodeid << " and logpart " << logpart "  is found." << endl;
+        g_err << "Row with requested nodeid " << nodeid << " and logpart " << logpart
+              << "  is found. Usage " << usage << endl;
         return usage;
       }
 
