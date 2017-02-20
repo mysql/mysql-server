@@ -65,8 +65,6 @@ enum_return_status Owned_gtids::ensure_sidno(rpl_sidno sidno)
   rpl_sidno max_sidno= get_max_sidno();
   if (sidno > max_sidno || get_hash(sidno) == NULL)
   {
-    if (sidno > get_max_sidno())
-      sidno_to_hash.resize(sidno);
     for (int i= max_sidno; i < sidno; i++)
     {
       HASH *hash= (HASH *)my_malloc(key_memory_Owned_gtids_sidno_to_hash,
@@ -77,7 +75,7 @@ enum_return_status Owned_gtids::ensure_sidno(rpl_sidno sidno)
                    node_get_key,
                    my_free, 0,
                    key_memory_Owned_gtids_sidno_to_hash);
-      sidno_to_hash[i]= hash;
+      sidno_to_hash.push_back(hash);
     }
   }
   RETURN_OK;

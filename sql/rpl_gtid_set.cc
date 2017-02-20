@@ -178,8 +178,6 @@ enum_return_status Gtid_set::ensure_sidno(rpl_sidno sidno)
         }
       }
     }
-    if (m_intervals.reserve(sid_map == NULL ? sidno : sid_map->get_max_sidno()))
-      goto error;
     Interval *null_p= NULL;
     for (rpl_sidno i= max_sidno; i < sidno; i++)
       if (m_intervals.push_back(null_p))
