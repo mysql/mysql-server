@@ -6,15 +6,15 @@
 
 bool external_logging = false;
 
-int Log_writer_error::Open(std::string file_name) {
+int Log_writer_error::open(std::string file_name) {
   return 0;
 }
 
-int Log_writer_error::Close() {
+int Log_writer_error::close() {
   return 0;
 }
 
-void Log_writer_error::Write(std::string data) {
+void Log_writer_error::write(std::string data) {
   std::cerr << data << "\n";
   std::cerr.flush();
 }
@@ -29,7 +29,7 @@ Log_writer_file::~Log_writer_file() {
   }
 }
 
-int Log_writer_file::Open(std::string file_name) {
+int Log_writer_file::open(std::string file_name) {
   int ret_val = -1;
   m_file_name = file_name;
   if (m_file_name == "") {
@@ -46,11 +46,11 @@ EXIT:
   return ret_val;
 }
 
-void Log_writer_file::Write(std::string data) {
+void Log_writer_file::write(std::string data) {
   *m_file_stream << data;
 }
 
-int Log_writer_file::Close() {
+int Log_writer_file::close() {
   if(m_file_stream) {
     m_file_stream->close();
   }

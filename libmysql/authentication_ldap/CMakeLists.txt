@@ -3,19 +3,27 @@ INCLUDE(CheckIncludeFiles)
 
 CHECK_INCLUDE_FILES(sasl/sasl.h HAVE_SASL_H)
 CHECK_INCLUDE_FILES(lber.h HAVE_LBER_H)
+
+# If cmake was invoked with -DWITH_AUTHENTICATION_LDAP=1
+# then fail if we are unable to build the LDAP plugin.
+MACRO(CROAK_AND_RETURN)
+  IF (WITH_AUTHENTICATION_LDAP)
+    MESSAGE(SEND_ERROR ${ARGV})
+  ELSE()
+    MESSAGE(STATUS ${ARGV} " Skipping the LDAP SASL client authentication plugin.")
+    RETURN()
+  ENDIF()
+ENDMACRO()
+
 IF(HAVE_SASL_H)
   SET(CMAKE_EXTRA_INCLUDE_FILES sasl/sasl.h)
+ELSE()
+  CROAK_AND_RETURN("Required SASL library is missing.")
 ENDIF()
 IF(HAVE_LBER_H)
   SET(CMAKE_EXTRA_INCLUDE_FILES lber.h)
-ENDIF()
-IF(NOT HAVE_SASL_H)
-  MESSAGE(STATUS "Required SASL library is missing. Skipping the LDAP authentication plugin.")
-  RETURN()
-ENDIF()
-IF(NOT HAVE_LBER_H)
-  MESSAGE(STATUS "Required LBER library is missing. Skipping the LDAP authentication plugin.")
-  RETURN()
+ELSE()
+  CROAK_AND_RETURN("Required LBER library is missing.")
 ENDIF()
 
 # LDAP authentication SASL client will not build on windows, as windows don't have cyrus sasl.

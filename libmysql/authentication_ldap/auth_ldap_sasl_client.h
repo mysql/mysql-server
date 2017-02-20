@@ -30,26 +30,32 @@ static const sasl_callback_t callbacks[] = {
 };
 
 sasl_security_properties_t security_properties = {
+  /** Minimum acceptable final level. */
   0,
+  /** Maximum acceptable final level. */
   1,
+  /** Maximum security layer receive buffer size. */
   0,
+  /** security flags */
   0,
+  /** Property names. */
   NULL,
+  /** Property values. */
   NULL,
 };
 
 class Sasl_client {
 public:
   Sasl_client();
-  int Initilize();
-  int UnInitilize();
-  void SetPluginInfo(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
-  void Interact(sasl_interact_t *ilist);
-  int ReadMethodNameFromServer();
-  int SaslStart(char **client_output, int* client_output_length);
-  int SaslStep(char* server_in, int server_in_length, char** client_out, int* client_out_length);
-  int SendSaslRequestToServer(const unsigned char *request, int request_len, unsigned char** reponse, int* response_len);
-  void SetUserInfo(std::string name, std::string pwd);
+  int initilize();
+  int de_initilize();
+  void set_plugin_info(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
+  void interact(sasl_interact_t *ilist);
+  int read_method_name_from_server();
+  int sasl_start(char **client_output, int* client_output_length);
+  int sasl_step(char* server_in, int server_in_length, char** client_out, int* client_out_length);
+  int send_sasl_request_to_server(const unsigned char *request, int request_len, unsigned char** reponse, int* response_len);
+  void set_user_info(std::string name, std::string pwd);
 protected:
   char m_user_name[SASL_MAX_STR_SIZE];
   char m_user_pwd[SASL_MAX_STR_SIZE];
