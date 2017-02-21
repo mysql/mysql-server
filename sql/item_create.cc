@@ -1851,7 +1851,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "INTERNAL_UPDATE_TIME", SQL_FN_INTERNAL(Item_func_internal_update_time, 4) },
   { "INTERNAL_CHECK_TIME", SQL_FN_INTERNAL(Item_func_internal_check_time, 4) },
   { "INTERNAL_KEYS_DISABLED", SQL_FN_INTERNAL(Item_func_internal_keys_disabled, 1) },
-  { "INTERNAL_INDEX_COLUMN_CARDINALITY", SQL_FN_LIST_INTERNAL(Item_func_internal_index_column_cardinality, 7) },
+  { "INTERNAL_INDEX_COLUMN_CARDINALITY", SQL_FN_LIST_INTERNAL(Item_func_internal_index_column_cardinality, 8) },
   { "INTERNAL_GET_COMMENT_OR_ERROR", SQL_FN_LIST_INTERNAL(Item_func_internal_get_comment_or_error, 5) },
   { "INTERNAL_GET_VIEW_WARNING_OR_ERROR", SQL_FN_LIST_INTERNAL(Item_func_internal_get_view_warning_or_error, 4) }
 };

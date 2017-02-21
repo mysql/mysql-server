@@ -9840,7 +9840,11 @@ longlong Item_func_internal_keys_disabled::val_int()
           schema_name,
           table_name,
           index_name,
-          column_ordinal_position);
+          index_ordinal_position,
+          column_ordinal_position,
+          engine,
+          se_private_id,
+          is_hidden);
 
   @returns Cardinatily. Or sets null_value to true if cardinality is -1.
 */
@@ -9861,9 +9865,11 @@ longlong Item_func_internal_index_column_cardinality::val_int()
   uint index_ordinal_position= args[3]->val_uint();
   uint column_ordinal_position= args[4]->val_uint();
   dd::Object_id se_private_id= (dd::Object_id) args[6]->val_uint();
+  bool hidden_index= args[7]->val_int();
   if (schema_name_ptr == nullptr || table_name_ptr == nullptr ||
       index_name_ptr == nullptr || engine_name_ptr == nullptr ||
-      args[3]->null_value || args[4]->null_value)
+      args[3]->null_value || args[4]->null_value ||
+      args[7]->null_value || hidden_index)
   {
     null_value= TRUE;
     DBUG_RETURN(0);

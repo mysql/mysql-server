@@ -649,7 +649,8 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.STATISTICS_
     idx.ordinal_position AS INDEX_ORDINAL_POSITION,
     icu.ordinal_position AS COLUMN_ORDINAL_POSITION,
     tbl.engine AS ENGINE,
-    tbl.se_private_id AS SE_PRIVATE_ID
+    tbl.se_private_id AS SE_PRIVATE_ID,
+    idx.hidden OR icu.hidden AS IS_HIDDEN
   FROM mysql.index_column_usage icu JOIN mysql.indexes idx ON idx.id=icu.index_id
     JOIN mysql.tables tbl ON idx.table_id=tbl.id
     JOIN mysql.columns col ON icu.column_id=col.id
@@ -696,11 +697,10 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.STATISTICS_
     SEQ_IN_INDEX,
     COLUMN_NAME,
     COLLATION,
-    INTERNAL_INDEX_COLUMN_CARDINALITY(TABLE_SCHEMA,TABLE_NAME, INDEX_NAME,
+    INTERNAL_INDEX_COLUMN_CARDINALITY(TABLE_SCHEMA, TABLE_NAME, INDEX_NAME,
                                       INDEX_ORDINAL_POSITION,
                                       COLUMN_ORDINAL_POSITION,
-                                      ENGINE,
-                                      SE_PRIVATE_ID)
+                                      ENGINE, SE_PRIVATE_ID, IS_HIDDEN)
       AS CARDINALITY,
     SUB_PART,
     PACKED,
@@ -4751,8 +4751,7 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.SHOW_STATIS
     INTERNAL_INDEX_COLUMN_CARDINALITY(TABLE_SCHEMA, TABLE_NAME, INDEX_NAME,
                                       INDEX_ORDINAL_POSITION,
                                       COLUMN_ORDINAL_POSITION,
-                                      ENGINE,
-                                      SE_PRIVATE_ID)
+                                      ENGINE, SE_PRIVATE_ID, IS_HIDDEN)
       AS `Cardinality`,
     SUB_PART AS `Sub_part`,
     PACKED AS `Packed`,

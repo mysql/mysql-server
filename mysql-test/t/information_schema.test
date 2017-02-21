@@ -2195,3 +2195,14 @@ ENGINE = InnoDB charset utf8mb4;
 SELECT * FROM INFORMATION_SCHEMA.`REFERENTIAL_CONSTRAINTS`;
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug#25576205 WRONG COLUMN CARDINALITY PASSED TO GET STATS
+--echo #
+--echo # The test case crashes if server requests for cardinality for
+--echo # InnoDB SE even for hidden index.
+--echo #
+
+set information_schema_stats=latest;
+SELECT INDEX_NAME FROM INFORMATION_SCHEMA.`STATISTICS` WHERE `TABLE_NAME` = 'innodb_table_stats' AND Cardinality ;
+

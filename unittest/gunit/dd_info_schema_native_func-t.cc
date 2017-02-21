@@ -137,7 +137,7 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
 
   // INTERNAL_INDEX_COLUMN_CARDINALITY(NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_index_column_cardinality,
-              prepare_null_list(null_list, null, 7));
+              prepare_null_list(null_list, null, 8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
