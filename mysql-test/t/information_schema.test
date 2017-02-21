@@ -2181,3 +2181,17 @@ SHOW COLUMNS FROM `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 aaaaaaaaaaaaaaaa`.`t1`;
+
+--echo #
+--echo # Bug#25583588 `M_PREBUILT->TABLE->N_REF_COUNT > 0' AT
+--echo # HA_INNOBASE::UPDATE_THD IN HANDLER
+--echo #
+--echo # This test would crash especially with a FULLTEXT
+--echo # index and hidden FTS tables that are created by InnoDB.
+--echo #
+
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b))
+ENGINE = InnoDB charset utf8mb4;
+SELECT * FROM INFORMATION_SCHEMA.`REFERENTIAL_CONSTRAINTS`;
+DROP TABLE t1;
+

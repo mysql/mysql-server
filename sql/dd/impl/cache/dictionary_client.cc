@@ -502,6 +502,16 @@ public:
             is_locked(thd, routine, MDL_EXCLUSIVE));
   }
 };
+
+// Check if the component is hidden.
+template <typename T>
+bool is_component_hidden(dd::Raw_record *r)
+{ return false; }
+
+template <>
+bool is_component_hidden<dd::Abstract_table>(dd::Raw_record *r)
+{ return r->read_bool(dd::tables::Tables::FIELD_HIDDEN); }
+
 }
 
 
@@ -1796,10 +1806,12 @@ bool Dictionary_client::fetch_schema_component_names(
   }
 
   Raw_record *r= rs->current_record();
+  String_type s;
   while (r)
   {
-    // Here, we need only the table name.
-    names->push_back(r->read_str(T::cache_partition_table_type::FIELD_NAME));
+    // Get the table name, but only unless the object is hidden.
+    if (!is_component_hidden<T>(r))
+      names->push_back(r->read_str(T::cache_partition_table_type::FIELD_NAME));
 
     if (rs->next(r))
     {

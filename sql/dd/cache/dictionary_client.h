@@ -795,7 +795,8 @@ public:
 
 
   /**
-    Fetch the names of all the components in the schema.
+    Fetch the names of the components in the schema. Hidden components are
+    ignored. E.g., Object with dd::Table::hidden() == true will be ignored.
 
     @note          This is an intermediate solution which will be replaced
                    by the implementation in WL#6599.

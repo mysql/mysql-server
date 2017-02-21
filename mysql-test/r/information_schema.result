@@ -2331,3 +2331,15 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 aaaaaaaaaaaaaaaa`.`t1`;
 ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+#
+# Bug#25583588 `M_PREBUILT->TABLE->N_REF_COUNT > 0' AT
+# HA_INNOBASE::UPDATE_THD IN HANDLER
+#
+# This test would crash especially with a FULLTEXT
+# index and hidden FTS tables that are created by InnoDB.
+#
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b))
+ENGINE = InnoDB charset utf8mb4;
+SELECT * FROM INFORMATION_SCHEMA.`REFERENTIAL_CONSTRAINTS`;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+DROP TABLE t1;

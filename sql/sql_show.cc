@@ -4400,14 +4400,6 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
       List_iterator_fast<LEX_STRING> it_files(table_names);
       while ((table_name= it_files++))
       {
-        // TODO
-        // Hack - ignoring DD tables, to handle MTR failure
-        const dd::Object_table *dd_table=
-          dd::get_dictionary()->get_dd_table(db_name->str, table_name->str);
-
-        if (dd_table && dd_table->hidden())
-          continue;
-
         DBUG_ASSERT(table_name->length <= NAME_LEN);
 	restore_record(table, s->default_values);
         table->field[schema_table->idx_field1]->
