@@ -369,13 +369,19 @@ bool sys_var::is_default(THD*, set_var *var)
 
 void sys_var::set_user_host(THD *thd)
 {
-  memset(user, 0 , sizeof(user));
-  /* set client user */
-  strncpy(user, thd->security_context()->user().str,
-          thd->security_context()->user().length);
-  memset(host, 0, sizeof(host));
-  strncpy(host, thd->security_context()->host().str,
-          thd->security_context()->host().length);
+  if (user)
+  {
+    memset(user, 0 , sizeof(user));
+    /* set client user */
+    strncpy(user, thd->security_context()->user().str,
+            thd->security_context()->user().length);
+  }
+  if (host)
+  {
+    memset(host, 0, sizeof(host));
+    strncpy(host, thd->security_context()->host().str,
+            thd->security_context()->host().length);
+  }
 }
 
 ulonglong sys_var::get_timestamp()
