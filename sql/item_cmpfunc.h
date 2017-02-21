@@ -296,7 +296,7 @@ public:
 };
 
 
-static const my_bool UNKNOWN= static_cast<my_bool>(-1);
+static const int UNKNOWN= -1;
 
 
 /*
@@ -330,7 +330,7 @@ private:
       FALSE   - result is FALSE
       TRUE    - result is NULL
   */
-  my_bool result_for_null_param;
+  int result_for_null_param;
 public:
   Item_in_optimizer(Item *a, Item_in_subselect *b):
     Item_bool_func(a, reinterpret_cast<Item *>(b)), cache(0),

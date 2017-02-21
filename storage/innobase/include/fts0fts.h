@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -136,7 +136,7 @@ extern ulong		fts_num_word_optimize;
 
 /** Variable specifying whether we do additional FTS diagnostic printout
 in the log */
-extern char		fts_enable_diag_print;
+extern my_bool		fts_enable_diag_print;
 
 /** FTS rank type, which will be between 0 .. 1 inclusive */
 typedef float 		fts_rank_t;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -349,7 +349,7 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd,
 */
 
 #define MYSQL_SYSVAR_BOOL(name, varname, opt, comment, check, update, def) \
-DECLARE_MYSQL_SYSVAR_BASIC(name, char) = { \
+DECLARE_MYSQL_SYSVAR_BASIC(name, my_bool) = { \
   PLUGIN_VAR_BOOL | ((opt) & PLUGIN_VAR_MASK), \
   #name, comment, check, update, &varname, def}
 

@@ -10437,12 +10437,12 @@ void free_replace()
 
 
 typedef struct st_replace {
-  my_bool found;
+  int found;
   struct st_replace *next[256];
 } REPLACE;
 
 typedef struct st_replace_found {
-  my_bool found;
+  int found;
   char *replace_string;
   uint to_offset;
   int from_offset;

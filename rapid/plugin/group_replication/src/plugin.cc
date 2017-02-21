@@ -183,10 +183,10 @@ int flow_control_certifier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 int flow_control_applier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 
 /* Downgrade options */
-char allow_local_lower_version_join_var= 0;
+my_bool allow_local_lower_version_join_var= 0;
 
 /* Allow errand transactions */
-char allow_local_disjoint_gtids_join_var= 0;
+my_bool allow_local_disjoint_gtids_join_var= 0;
 
 /* Certification latch */
 Wait_ticket<my_thread_id> *certification_latch;

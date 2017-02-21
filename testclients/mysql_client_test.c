@@ -9827,7 +9827,7 @@ static void test_bind_nagative()
   my_bind[0].buffer_type= MYSQL_TYPE_LONG;
   my_bind[0].buffer= (void *)&my_val;
   my_bind[0].length= &my_length;
-  my_bind[0].is_null= (char*)&my_null;
+  my_bind[0].is_null= &my_null;
 
   rc= mysql_stmt_bind_param(stmt_insert, my_bind);
   check_execute(stmt_insert, rc);
@@ -9876,7 +9876,7 @@ ENGINE=InnoDB DEFAULT CHARSET=utf8");
   my_bind[0].buffer_type= MYSQL_TYPE_LONG;
   my_bind[0].buffer= (void *)&my_val;
   my_bind[0].length= &my_length;
-  my_bind[0].is_null= (char*)&my_null;
+  my_bind[0].is_null= &my_null;
   my_val= 1;
   rc= mysql_stmt_bind_param(stmt, my_bind);
   check_execute(stmt, rc);
@@ -10393,12 +10393,12 @@ static void test_union_param()
   my_bind[0].buffer=         (char*) &my_val;
   my_bind[0].buffer_length=  4;
   my_bind[0].length=         &my_length;
-  my_bind[0].is_null=        (char*)&my_null;
+  my_bind[0].is_null=        &my_null;
   my_bind[1].buffer_type=    MYSQL_TYPE_STRING;
   my_bind[1].buffer=         (char*) &my_val;
   my_bind[1].buffer_length=  4;
   my_bind[1].length=         &my_length;
-  my_bind[1].is_null=        (char*)&my_null;
+  my_bind[1].is_null=        &my_null;
 
   rc= mysql_stmt_bind_param(stmt, my_bind);
   check_execute(stmt, rc);
@@ -10914,7 +10914,7 @@ static void test_view()
   MYSQL_BIND      my_bind[1];
   char            str_data[50];
   ulong           length = 0L;
-  long            is_null = 0L;
+  my_bool         is_null = 0L;
   const char *query=
     "SELECT COUNT(*) FROM v1 WHERE SERVERNAME=?";
 
@@ -10970,7 +10970,7 @@ static void test_view()
   my_bind[0].buffer_length= 50;
   my_bind[0].length= &length;
   length= 4;
-  my_bind[0].is_null= (char*)&is_null;
+  my_bind[0].is_null= &is_null;
   rc= mysql_stmt_bind_param(stmt, my_bind);
   check_execute(stmt,rc);
 
@@ -11177,7 +11177,7 @@ static void test_view_insert()
   MYSQL_BIND      my_bind[1];
   int             my_val = 0;
   ulong           my_length = 0L;
-  long            my_null = 0L;
+  my_bool         my_null = 0L;
   const char *query=
     "insert into v1 values (?)";
 
@@ -11206,7 +11206,7 @@ static void test_view_insert()
   my_bind[0].buffer_type = MYSQL_TYPE_LONG;
   my_bind[0].buffer = (char *)&my_val;
   my_bind[0].length = &my_length;
-  my_bind[0].is_null = (char*)&my_null;
+  my_bind[0].is_null = &my_null;
   rc= mysql_stmt_bind_param(insert_stmt, my_bind);
   check_execute(insert_stmt, rc);
 

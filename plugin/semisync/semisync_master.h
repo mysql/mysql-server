@@ -872,7 +872,7 @@ public:
 };
 
 /* System and status variables for the master component */
-extern char rpl_semi_sync_master_enabled;
+extern my_bool rpl_semi_sync_master_enabled;
 extern char rpl_semi_sync_master_status;
 extern unsigned long rpl_semi_sync_master_clients;
 extern unsigned long rpl_semi_sync_master_timeout;
@@ -898,5 +898,5 @@ extern unsigned long long rpl_semi_sync_master_trx_wait_time;
      0           : stop waiting if detected no avaialable semi-sync slave.
      1 (default) : keep waiting until timeout even no available semi-sync slave.
 */
-extern char rpl_semi_sync_master_wait_no_slave;
+extern my_bool rpl_semi_sync_master_wait_no_slave;
 #endif /* SEMISYNC_MASTER_H */

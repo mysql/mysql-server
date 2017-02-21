@@ -3248,9 +3248,9 @@ static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
   construct_options to their respective types.
 */
 
-static char *mysql_sys_var_char(THD* thd, int offset)
+static my_bool *mysql_sys_var_bool(THD* thd, int offset)
 {
-  return (char *) intern_sys_var_ptr(thd, offset, true);
+  return (my_bool *) intern_sys_var_ptr(thd, offset, true);
 }
 
 static int *mysql_sys_var_int(THD* thd, int offset)
@@ -4161,7 +4161,7 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
       continue;
     switch (opt->flags & PLUGIN_VAR_TYPEMASK) {
     case PLUGIN_VAR_BOOL:
-      ((thdvar_bool_t *) opt)->resolve= mysql_sys_var_char;
+      ((thdvar_bool_t *) opt)->resolve= mysql_sys_var_bool;
       break;
     case PLUGIN_VAR_INT:
       ((thdvar_int_t *) opt)->resolve= mysql_sys_var_int;

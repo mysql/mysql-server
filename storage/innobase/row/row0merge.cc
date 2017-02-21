@@ -58,7 +58,7 @@ Completed by Sunny Bains and Marko Makela
 #endif /* _WIN32 */
 
 /* Whether to disable file system cache */
-char	srv_disable_sort_file_cache;
+my_bool	srv_disable_sort_file_cache;
 
 /** Class that caches index row tuples made from a single cluster
 index page scan, and then insert into corresponding index tree */

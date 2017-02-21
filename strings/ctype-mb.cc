@@ -784,7 +784,7 @@ static void pad_max_char(const CHARSET_INFO *cs, char *str, char *end)
 
 my_bool my_like_range_mb(const CHARSET_INFO *cs,
 			 const char *ptr,size_t ptr_length,
-			 my_bool escape, my_bool w_one, my_bool w_many,
+			 char escape, char w_one, char w_many,
 			 size_t res_length,
 			 char *min_str,char *max_str,
 			 size_t *min_length,size_t *max_length)
@@ -940,7 +940,7 @@ fill_max_and_min:
 my_bool
 my_like_range_generic(const CHARSET_INFO *cs,
                       const char *ptr, size_t ptr_length,
-                      my_bool escape, my_bool w_one, my_bool w_many,
+                      char escape, char w_one, char w_many,
                       size_t res_length,
                       char *min_str,char *max_str,
                       size_t *min_length,size_t *max_length)

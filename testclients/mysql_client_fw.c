@@ -41,7 +41,8 @@ static char *opt_unix_socket= 0;
 static char *shared_memory_base_name= 0;
 #endif
 static unsigned int  opt_port;
-static my_bool tty_password= 0, opt_silent= 0;
+static my_bool tty_password= 0;
+static int opt_silent= 0;
 
 static my_bool opt_secure_auth= 1;
 static MYSQL *mysql= 0;

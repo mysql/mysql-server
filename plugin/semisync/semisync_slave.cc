@@ -24,7 +24,7 @@
 #include "my_dbug.h"
 #include "mysql.h"
 
-char rpl_semi_sync_slave_enabled;
+my_bool rpl_semi_sync_slave_enabled;
 char rpl_semi_sync_slave_status= 0;
 unsigned long rpl_semi_sync_slave_trace_level;
 

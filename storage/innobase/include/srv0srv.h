@@ -152,11 +152,11 @@ extern char*		srv_buf_dump_filename;
 
 /** Boolean config knobs that tell InnoDB to dump the buffer pool at shutdown
 and/or load it during startup. */
-extern char		srv_buffer_pool_dump_at_shutdown;
-extern char		srv_buffer_pool_load_at_startup;
+extern my_bool		srv_buffer_pool_dump_at_shutdown;
+extern my_bool		srv_buffer_pool_load_at_startup;
 
 /* Whether to disable file system cache if it is defined */
-extern char		srv_disable_sort_file_cache;
+extern my_bool		srv_disable_sort_file_cache;
 
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
