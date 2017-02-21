@@ -247,8 +247,17 @@ ndb_dd_install_table(class THD *thd,
         DBUG_RETURN(false);
       }
 
-      // Continue and overwrite
-      DBUG_ASSERT(false); // No such case yet
+      // Continue and remove the old table before
+      // installing the new
+      DBUG_PRINT("info", ("dropping existing table"));
+      if (client->drop(existing))
+      {
+        // Failed to drop existing
+        DBUG_ASSERT(false); // Catch in debug, unexpected error
+        thd->variables.option_bits = save_option_bits;
+        DBUG_RETURN(false);
+      }
+
     }
 
     if (client->store(table_object.get()))

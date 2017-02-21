@@ -2673,6 +2673,8 @@ class Ndb_schema_event_handler {
     }
   }; //class Ndb_schema_op
 
+
+  // NOTE! This function has misleading name
   static void
   print_could_not_discover_error(THD *thd,
                                  const Ndb_schema_op *schema)
@@ -3364,9 +3366,13 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
-    // Instantiate a new 'share' for the altered table.
-    if (ndb_create_table_from_engine(m_thd, schema->db, schema->name))
+    // Install table from NDB, overwrite the existing table
+    if (ndb_create_table_from_engine(m_thd,
+                                     schema->db, schema->name,
+                                     true /* force_overwrite */))
     {
+      // NOTE! The below function has a rather misleading name of
+      // actual functionality which failed
       print_could_not_discover_error(m_thd, schema);
     }
     DBUG_VOID_RETURN;
@@ -3780,6 +3786,8 @@ class Ndb_schema_event_handler {
 
     if (ndb_create_table_from_engine(m_thd, schema->db, schema->name))
     {
+      // NOTE! The below function has a rather misleading name of
+      // actual functionality which failed
       print_could_not_discover_error(m_thd, schema);
     }
 
@@ -3810,6 +3818,8 @@ class Ndb_schema_event_handler {
 
     if (ndb_create_table_from_engine(m_thd, schema->db, schema->name))
     {
+      // NOTE! The below function has a rather misleading name of
+      // actual functionality which failed
       print_could_not_discover_error(m_thd, schema);
     }
 
