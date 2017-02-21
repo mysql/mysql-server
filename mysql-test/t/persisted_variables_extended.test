@@ -207,6 +207,7 @@ eval SET PERSIST slow_query_log_file='$slow_query_log_on';
 --echo # Check values after restart.
 # Slow_query_log_file cleanup.
 SET PERSIST slow_query_log_file=DEFAULT;
+RESET PERSIST slow_query_log_file;
 SET PERSIST slow_query_log=DEFAULT;
 # Global and dynamic Variables values should be taken from mysql-auto.cnf file.
 
@@ -292,7 +293,7 @@ SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET PERSIST %';
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET PERSIST general_log_file = '$general_file_on';
-SET PERSIST general_log_file=DEFAULT;
+RESET PERSIST general_log_file;
 SET PERSIST log_output=DEFAULT ,PERSIST general_log=DEFAULT;
 
 --remove_file $general_file_on
@@ -312,6 +313,90 @@ SET PERSIST innodb_fast_shutdown=DEFAULT,PERSIST innodb_default_row_format=DEFAU
     PERSIST log_bin_trust_function_creators=DEFAULT, PERSIST autocommit=DEFAULT;
 --cat_file $MYSQLD_DATADIR/mysqld-auto.cnf
 
+--echo WL#9720 - SET PERSIST to capture user, host and timestamp
+# Verify new columns SET_TIME, SET_USER and SET_HOST added in
+# performance_schema.variables_info
+show create table performance_schema.variables_info;
+
+# performance_schema.variables_info.SET_USER column represents
+# which user has set the variable.
+# performance_schema.variables_info.SET_HOST column represents
+# host on which the variable is set.
+# Successful execution of SET statement will update these columns
+# (SET_USER,SET_HOST,SET_TIME) accordingly.
+--connection default
+CREATE USER 'user1'@'localhost' IDENTIFIED BY 'pass1';
+GRANT ALL ON *.* TO 'user1'@'localhost';
+
+--connect (con1,localhost,user1,pass1,)
+
+--connection con1
+SET @@global.max_connections = 100;
+SET @@persist.event_scheduler=DEFAULT;
+SET PERSIST auto_increment_increment=10;
+SET PERSIST innodb_checksum_algorithm=strict_crc32;
+
+--connection default
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER, SET_HOST
+FROM performance_schema.variables_info
+WHERE VARIABLE_NAME IN ('max_connections','event_scheduler',
+'auto_increment_increment','innodb_checksum_algorithm');
+
+# RESET PERSIST statement should have no effect on these new columns.
+
+--connection con1
+RESET PERSIST auto_increment_increment;
+RESET PERSIST innodb_checksum_algorithm;
+
+--connection default
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER, SET_HOST
+FROM performance_schema.variables_info
+WHERE VARIABLE_NAME IN ('auto_increment_increment',
+'innodb_checksum_algorithm');
+
+# Verify SET_USER, SET_HOST column for proxy_user:
+select @@global.max_connections into @saved_max_connections;
+select @@global.autocommit into @saved_autocommit;
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN test_plugin_server SONAME '$PLUGIN_AUTH';
+
+# Create proxied user:
+CREATE USER 'internal_proxied'@'%' IDENTIFIED BY 'proxy_password';
+
+# Create proxy user 1:
+CREATE USER 'external_u1'@'%' IDENTIFIED WITH test_plugin_server AS 'internal_proxied';
+
+# Create proxy user 2:
+CREATE USER 'external_u2'@'%' IDENTIFIED WITH test_plugin_server AS 'internal_proxied';
+
+GRANT PROXY ON 'internal_proxied'@'%' TO 'external_u1'@'%','external_u2'@'%';
+GRANT ALL ON *.* TO 'internal_proxied'@'%';
+
+--connect (con2,localhost,external_u1,internal_proxied,)
+--connect (con3,localhost,external_u2,internal_proxied,)
+
+--connection con2
+SET @@global.max_connections=50;
+
+--connection con3
+SET @@global.autocommit=1;
+
+--connection default
+--replace_column 4 #
+SELECt VARIABLE_NAME, SET_USER, SET_HOST, SET_TIME from
+performance_schema.variables_info where variable_name='max_connections' or
+variable_name='autocommit';
+
 --echo # Cleanup
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
 --remove_file $MYSQLTEST_VARDIR/tmp/my.cnf
+UNINSTALL PLUGIN test_plugin_server;
+drop USER 'internal_proxied'@'%';
+drop USER 'external_u1'@'%';
+drop USER 'external_u2'@'%';
+SET GLOBAL max_connections = @saved_max_connections;
+SET GLOBAL autocommit = @saved_autocommit;
+--disconnect con1
+--disconnect con2
+--disconnect con3

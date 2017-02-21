@@ -194,6 +194,10 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   /* set default values */
   source.m_source= enum_variable_source::COMPILED;
 
+  timestamp= 0;
+  user[0]= '\0';
+  host[0]= '\0';
+
   source.m_name= 0;
   option.arg_source = &source;
 
@@ -361,6 +365,24 @@ bool sys_var::is_default(THD*, set_var *var)
       break;
   }
   DBUG_RETURN(ret);
+}
+
+void sys_var::set_user_host(THD *thd)
+{
+  memset(user, 0 , sizeof(user));
+  /* set client user */
+  strncpy(user, thd->security_context()->user().str,
+          thd->security_context()->user().length);
+  memset(host, 0, sizeof(host));
+  strncpy(host, thd->security_context()->host().str,
+          thd->security_context()->host().length);
+}
+
+ulonglong sys_var::get_timestamp()
+{
+  if (!timestamp)
+    timestamp= my_getsystime()/10.0;
+  return timestamp;
 }
 
 void sys_var::do_deprecated_warning(THD *thd)
@@ -928,6 +950,16 @@ void set_var::update_source()
     var->set_source(enum_variable_source::DYNAMIC);
     var->set_source_name("");
 }
+
+/**
+  Update variables USER, HOST, TIMESTAMP
+*/
+void set_var::update_user_host_timestamp(THD *thd)
+{
+  var->set_user_host(thd);
+  var->set_timestamp();
+}
+
 /**
   Update variable
 
@@ -948,8 +980,10 @@ int set_var::update(THD *thd)
   else
     ret= (int)var->set_default(thd, this);
   if (ret == 0)
+  {
+    update_user_host_timestamp(thd);
     update_source();
-
+  }
   return ret;
 }
 

@@ -62,12 +62,27 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("MAX_VALUE") },
     { C_STRING_WITH_LEN("varchar(64)") },
     { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SET_TIME") },
+    { C_STRING_WITH_LEN("timestamp") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SET_USER") },
+    { C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SET_HOST") },
+    { C_STRING_WITH_LEN("char(60)") },
+    { NULL, 0}
   }
 };
 /* clang-format on */
 
 TABLE_FIELD_DEF
-table_variables_info::m_field_def = {5, field_types};
+table_variables_info::m_field_def = {8, field_types};
 
 PFS_engine_table_share table_variables_info::m_share = {
   {C_STRING_WITH_LEN("variables_info")},
@@ -182,6 +197,16 @@ table_variables_info::make_row(const System_variable *system_var)
          system_var->m_max_value_length);
   m_row.m_max_value_length = system_var->m_max_value_length;
 
+  m_row.m_set_time= system_var->m_set_time;
+
+  memcpy(m_row.m_set_user_str,
+         system_var->m_set_user_str, system_var->m_set_user_str_length);
+  m_row.m_set_user_str_length= system_var->m_set_user_str_length;
+
+  memcpy(m_row.m_set_host_str,
+         system_var->m_set_host_str, system_var->m_set_host_str_length);
+  m_row.m_set_host_str_length= system_var->m_set_host_str_length;
+
   return 0;
 }
 
@@ -219,6 +244,18 @@ table_variables_info::read_row_values(TABLE *table,
         break;
       case 4: /* VARIABLE_MAX_VALUE */
         set_field_varchar_utf8(f, m_row.m_max_value, m_row.m_max_value_length);
+        break;
+      case 5: /* VARIABLE_SET_TIME */
+        if (m_row.m_set_time != 0)
+          set_field_timestamp(f, m_row.m_set_time);
+        break;
+      case 6: /* VARIABLE_SET_USER */
+        set_field_char_utf8(f,
+            m_row.m_set_user_str, m_row.m_set_user_str_length);
+        break;
+      case 7: /* VARIABLE_SET_HOST */
+        set_field_char_utf8(f,
+            m_row.m_set_host_str, m_row.m_set_host_str_length);
         break;
 
       default:

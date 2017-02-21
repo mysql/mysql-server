@@ -37,6 +37,7 @@
 #include "sql_plugin_ref.h"   // plugin_ref
 #include "thr_malloc.h"
 #include "typelib.h"          // TYPELIB
+#include "my_systime.h"
 
 class Item;
 class Item_func_set_user_var;
@@ -122,6 +123,9 @@ protected:
   const char *const deprecation_substitute;
   bool is_os_charset; ///< true if the value is in character_set_filesystem
   struct get_opt_arg_source source;
+  char user[USERNAME_CHAR_LENGTH];  /* which user  has set this variable */
+  char host[HOSTNAME_LENGTH];       /* host on which this variable is set */
+  ulonglong timestamp;  /* represents when this variable was set */
 
 public:
   sys_var(sys_var_chain *chain, const char *name_arg, const char *comment,
@@ -157,6 +161,16 @@ public:
   const char* get_source_name() { return source.m_name; }
   void set_source(enum_variable_source src) { option.arg_source->m_source= src; }
   void set_source_name(const char* path) { option.arg_source->m_name= path; }
+  const char* get_user() { return user; }
+  const char* get_host() { return host; }
+  ulonglong get_timestamp();
+  void set_user_host(THD* thd);
+  /**
+    THD::query_start_timeval_trunc() is used to measure query execution time
+    We dont need this as this is not about elapsed time for query, we only
+    need current  timestamp, thus using this function.
+  */
+  void set_timestamp() { timestamp= my_getsystime() / 10.0; }
 
   /**
      Update the system variable with the default value from either
@@ -295,6 +309,7 @@ public:
   int check(THD *thd);
   int update(THD *thd);
   void update_source();
+  void update_user_host_timestamp(THD *thd);
   int light_check(THD *thd);
   void print(THD*, String *str);	/* To self-print */
 #ifdef OPTIMIZER_TRACE

@@ -50,6 +50,14 @@ struct row_variables_info
   /** Column MAX_VALUE. */
   char m_max_value[COL_SOURCE_SIZE];
   uint m_max_value_length;
+  /** Column SET_TIME. */
+  ulonglong m_set_time;
+  /** Column SET_USER. */
+  char m_set_user_str[USERNAME_LENGTH];
+  uint m_set_user_str_length;
+  /** Column SET_HOST. */
+  char m_set_host_str[HOSTNAME_LENGTH];
+  uint m_set_host_str_length;
 };
 
 /** Table PERFORMANCE_SCHEMA.VARIABLES_INFO. */

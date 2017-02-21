@@ -18,7 +18,8 @@ select VARIABLE_NAME, VARIABLE_SOURCE
 
 --echo # Test command line options
 
-select * from performance_schema.variables_info
+select VARIABLE_NAME, VARIABLE_SOURCE
+  from performance_schema.variables_info
   where VARIABLE_SOURCE = 'COMMAND_LINE' AND
   (VARIABLE_NAME = 'max_connections' OR
   VARIABLE_NAME = 'skip_networking')
@@ -32,7 +33,8 @@ select * from performance_schema.variables_info
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
-select * from performance_schema.variables_info
+select VARIABLE_NAME, VARIABLE_SOURCE
+  from performance_schema.variables_info
   where VARIABLE_SOURCE = 'COMMAND_LINE' AND
   (VARIABLE_NAME = 'max_connections' OR
   VARIABLE_NAME = 'skip_networking')
@@ -141,5 +143,118 @@ select VARIABLE_NAME, VARIABLE_SOURCE
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
+
+--echo #
+--echo # WL#9720: SET PERSIST capture user + timestamp
+--echo #
+
+CREATE USER WL9720@localhost;
+GRANT ALL ON *.* to WL9720@localhost;
+
+--connect(con1, localhost, WL9720)
+
+SET SESSION max_heap_table_size=999424;
+--echo # user must be WL9720
+select VARIABLE_NAME, SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'max_heap_table_size';
+
+disconnect con1;
+connection default;
+--echo # user must be root
+select VARIABLE_NAME, SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'max_heap_table_size';
+
+--echo # user must be root
+select VARIABLE_NAME, SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'session_track_system_variables';
+
+--connect(con1, localhost, WL9720)
+SET GLOBAL session_track_system_variables=DEFAULT;
+--echo # user must be WL9720
+select VARIABLE_NAME, SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'session_track_system_variables';
+
+disconnect con1;
+connection default;
+--echo # user must be WL9720 since variable was changed globally by wl9720 user
+select VARIABLE_NAME, SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'session_track_system_variables';
+
+--echo # Restart server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # user must be root
+select VARIABLE_NAME, SET_USER, SET_HOST
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'session_track_system_variables';
+
+#Clean up
+DROP USER WL9720@localhost;
+
+--echo # check timestamp column values
+select SET_TIME INTO @init_time
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'sql_auto_is_null';
+--echo Sleep 1 second
+sleep 1;
+SET SESSION sql_auto_is_null= 1;
+select SET_TIME INTO @set_time
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'sql_auto_is_null';
+--echo # should return 0
+SELECT (@init_time = @set_time);
+
+select SET_TIME INTO @init_time
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'sort_buffer_size';
+--echo Sleep 1 second
+sleep 1;
+SET GLOBAL sort_buffer_size= 256000;
+select SET_TIME INTO @set_time
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'sort_buffer_size';
+--echo # should return 0
+SELECT (@init_time = @set_time);
+
+select SET_TIME INTO @init_time
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'foreign_key_checks';
+--echo Sleep 1 second
+sleep 1;
+SET PERSIST foreign_key_checks = 0;
+select SET_TIME INTO @set_time
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'foreign_key_checks';
+--echo # should return 0
+SELECT (@init_time = @set_time);
+
+select SET_TIME INTO @init_time
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'sql_log_bin';
+--echo Sleep 1 second
+sleep 1;
+--echo # since SET statement fails there should be no change in timestamp
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@persist.sql_log_bin=0;
+select SET_TIME INTO @set_time
+  from performance_schema.variables_info
+  where VARIABLE_NAME = 'sql_log_bin';
+--echo # should return 1
+SELECT (@init_time = @set_time);
+
+#Cleanup
+SET GLOBAL sort_buffer_size= DEFAULT;
+SET PERSIST foreign_key_checks = DEFAULT;
+RESET PERSIST;
 
 SELECT 'END OF TEST';

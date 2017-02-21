@@ -62,6 +62,7 @@ performance_schema	metadata_locks	def
 performance_schema	mutex_instances	def
 performance_schema	objects_summary_global_by_type	def
 performance_schema	performance_timers	def
+performance_schema	persisted_variables	def
 performance_schema	prepared_statements_instances	def
 performance_schema	replication_applier_configuration	def
 performance_schema	replication_applier_status	def
@@ -161,6 +162,7 @@ metadata_locks	BASE TABLE	PERFORMANCE_SCHEMA
 mutex_instances	BASE TABLE	PERFORMANCE_SCHEMA
 objects_summary_global_by_type	BASE TABLE	PERFORMANCE_SCHEMA
 performance_timers	BASE TABLE	PERFORMANCE_SCHEMA
+persisted_variables	BASE TABLE	PERFORMANCE_SCHEMA
 prepared_statements_instances	BASE TABLE	PERFORMANCE_SCHEMA
 replication_applier_configuration	BASE TABLE	PERFORMANCE_SCHEMA
 replication_applier_status	BASE TABLE	PERFORMANCE_SCHEMA
@@ -260,6 +262,7 @@ metadata_locks	10	Dynamic
 mutex_instances	10	Dynamic
 objects_summary_global_by_type	10	Dynamic
 performance_timers	10	Fixed
+persisted_variables	10	Dynamic
 prepared_statements_instances	10	Dynamic
 replication_applier_configuration	10	Fixed
 replication_applier_status	10	Fixed
@@ -392,6 +395,7 @@ lower(TABLE_NAME) regexp '^variables|variables$|^status|session_status|global_st
 lower(TABLE_NAME)	TABLE_ROWS	AVG_ROW_LENGTH
 global_status	table_rows	avg_row_len
 global_variables	table_rows	avg_row_len
+persisted_variables	table_rows	avg_row_len
 session_status	table_rows	avg_row_len
 session_variables	table_rows	avg_row_len
 status_by_account	table_rows	avg_row_len
@@ -464,6 +468,7 @@ metadata_locks	NULL	NULL
 mutex_instances	NULL	NULL
 objects_summary_global_by_type	NULL	NULL
 performance_timers	NULL	NULL
+persisted_variables	NULL	NULL
 prepared_statements_instances	NULL	NULL
 replication_applier_configuration	NULL	NULL
 replication_applier_status	NULL	NULL
@@ -563,6 +568,7 @@ metadata_locks	NULL	NULL	NULL
 mutex_instances	NULL	NULL	NULL
 objects_summary_global_by_type	NULL	NULL	NULL
 performance_timers	NULL	NULL	NULL
+persisted_variables	NULL	NULL	NULL
 prepared_statements_instances	NULL	NULL	NULL
 replication_applier_configuration	NULL	NULL	NULL
 replication_applier_status	NULL	NULL	NULL
@@ -662,6 +668,7 @@ metadata_locks	NULL	NULL	NULL
 mutex_instances	NULL	NULL	NULL
 objects_summary_global_by_type	NULL	NULL	NULL
 performance_timers	NULL	NULL	NULL
+persisted_variables	NULL	NULL	NULL
 prepared_statements_instances	NULL	NULL	NULL
 replication_applier_configuration	NULL	NULL	NULL
 replication_applier_status	NULL	NULL	NULL
@@ -761,6 +768,7 @@ metadata_locks	utf8_general_ci	NULL
 mutex_instances	utf8_general_ci	NULL
 objects_summary_global_by_type	utf8_general_ci	NULL
 performance_timers	utf8_general_ci	NULL
+persisted_variables	utf8_general_ci	NULL
 prepared_statements_instances	utf8_general_ci	NULL
 replication_applier_configuration	utf8_general_ci	NULL
 replication_applier_status	utf8_general_ci	NULL
@@ -860,6 +868,7 @@ metadata_locks
 mutex_instances	
 objects_summary_global_by_type	
 performance_timers	
+persisted_variables	
 prepared_statements_instances	
 replication_applier_configuration	
 replication_applier_status	
@@ -959,6 +968,7 @@ metadata_locks
 mutex_instances	
 objects_summary_global_by_type	
 performance_timers	
+persisted_variables	
 prepared_statements_instances	
 replication_applier_configuration	
 replication_applier_status	

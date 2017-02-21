@@ -76,6 +76,7 @@ mutex_instances	1	performance_schema	LOCKED_BY_THREAD_ID	HASH
 mutex_instances	1	performance_schema	NAME	HASH	
 mutex_instances	0	performance_schema	PRIMARY	HASH	
 objects_summary_global_by_type	0	performance_schema	OBJECT	HASH	
+persisted_variables	0	performance_schema	PRIMARY	HASH	
 prepared_statements_instances	1	performance_schema	OWNER_OBJECT_TYPE	HASH	
 prepared_statements_instances	0	performance_schema	OWNER_THREAD_ID	HASH	
 prepared_statements_instances	0	performance_schema	PRIMARY	HASH	
@@ -266,6 +267,7 @@ mutex_instances	0	performance_schema	PRIMARY	1	OBJECT_INSTANCE_BEGIN	NULL
 objects_summary_global_by_type	0	performance_schema	OBJECT	1	OBJECT_TYPE	NULL	YES
 objects_summary_global_by_type	0	performance_schema	OBJECT	2	OBJECT_SCHEMA	NULL	YES
 objects_summary_global_by_type	0	performance_schema	OBJECT	3	OBJECT_NAME	NULL	YES
+persisted_variables	0	performance_schema	PRIMARY	1	VARIABLE_NAME	NULL	
 prepared_statements_instances	1	performance_schema	OWNER_OBJECT_TYPE	1	OWNER_OBJECT_TYPE	NULL	YES
 prepared_statements_instances	1	performance_schema	OWNER_OBJECT_TYPE	2	OWNER_OBJECT_SCHEMA	NULL	YES
 prepared_statements_instances	1	performance_schema	OWNER_OBJECT_TYPE	3	OWNER_OBJECT_NAME	NULL	YES

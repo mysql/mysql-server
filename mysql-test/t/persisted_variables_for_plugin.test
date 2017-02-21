@@ -70,3 +70,25 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
+
+--echo # Test RESET PERSIST for plugin variables.
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN validate_password SONAME '$VALIDATE_PASSWORD';
+SELECT * FROM performance_schema.persisted_variables;
+SET PERSIST validate_password_policy= 2;
+# return 1 row
+SELECT * FROM performance_schema.persisted_variables;
+SET PERSIST validate_password_length= 13;
+# return 2 rows
+SELECT * FROM performance_schema.persisted_variables;
+RESET PERSIST validate_password_length;
+# return 1 row
+SELECT * FROM performance_schema.persisted_variables;
+--echo # uninstall plugin
+UNINSTALL PLUGIN validate_password;
+# return 1 row
+SELECT * FROM performance_schema.persisted_variables;
+--echo # Test RESET PERSIST after plugin is uninstalled
+RESET PERSIST;
+# return 0 rows
+SELECT * FROM performance_schema.persisted_variables;

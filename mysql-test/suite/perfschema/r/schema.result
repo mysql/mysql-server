@@ -67,6 +67,7 @@ metadata_locks
 mutex_instances
 objects_summary_global_by_type
 performance_timers
+persisted_variables
 prepared_statements_instances
 replication_applier_configuration
 replication_applier_status

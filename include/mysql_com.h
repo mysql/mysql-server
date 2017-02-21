@@ -172,6 +172,7 @@
 #define REFRESH_USER_RESOURCES	0x80000L
 #define REFRESH_FOR_EXPORT      0x100000L /** FLUSH TABLES ... FOR EXPORT */
 #define REFRESH_OPTIMIZER_COSTS 0x200000L /** FLUSH OPTIMIZER_COSTS */
+#define REFRESH_PERSIST         0x400000L /** RESET PERSIST */
 
 /**
    @defgroup group_cs_capabilities_flags Capabilities Flags

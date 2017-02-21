@@ -12376,11 +12376,33 @@ reset:
           }
           reset_options
           {}
+        | RESET_SYM PERSIST_SYM opt_if_exists_ident
+          {
+            LEX *lex=Lex;
+            lex->sql_command= SQLCOM_RESET;
+            lex->type|= REFRESH_PERSIST;
+            lex->option_type= OPT_PERSIST;
+          }
         ;
 
 reset_options:
           reset_options ',' reset_option
         | reset_option
+        ;
+
+opt_if_exists_ident:
+          /* empty */
+          {
+            LEX *lex=Lex;
+            lex->drop_if_exists= false;
+            lex->name= NULL_STR;
+          }
+        | if_exists ident
+          {
+            LEX *lex=Lex;
+            lex->drop_if_exists= $1;
+            lex->name= $2;
+          }
         ;
 
 reset_option:

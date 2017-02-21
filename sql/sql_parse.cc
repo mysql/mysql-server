@@ -76,6 +76,7 @@
 #include "opt_trace.h"        // Opt_trace_start
 #include "parse_location.h"
 #include "parse_tree_node_base.h"
+#include "persisted_variable.h"
 #include "parse_tree_nodes.h"
 #include "prealloced_array.h"
 #include "protocol.h"
@@ -3800,6 +3801,16 @@ mysql_execute_command(THD *thd, bool first_level)
       initialize this variable because RESET shares the same code as FLUSH
     */
     lex->no_write_to_binlog= 1;
+    if ((lex->type & REFRESH_PERSIST) && (lex->option_type == OPT_PERSIST))
+    {
+      Persisted_variables_cache *pv= Persisted_variables_cache::get_instance();
+      if (pv)
+        if (pv->reset_persisted_variables(thd, lex->name.str,
+            lex->drop_if_exists))
+          goto error;
+      my_ok(thd);
+      break;
+    }
   case SQLCOM_FLUSH:
   {
     int write_to_binlog;

@@ -3533,7 +3533,25 @@ SET @cmd="CREATE TABLE performance_schema.variables_info("
   "VARIABLE_SOURCE ENUM('COMPILED','GLOBAL','SERVER','EXPLICIT','EXTRA','USER','LOGIN','COMMAND_LINE','PERSISTED','DYNAMIC') DEFAULT 'COMPILED',"
   "VARIABLE_PATH varchar(1024),"
   "MIN_VALUE varchar(64),"
-  "MAX_VALUE varchar(64)"
+  "MAX_VALUE varchar(64),"
+  "SET_TIME TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+  "SET_USER CHAR(32) collate utf8_bin default null,"
+  "SET_HOST CHAR(60) collate utf8_bin default null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE PERSISTED_VARIABLES
+--
+
+SET @cmd="CREATE TABLE performance_schema.persisted_variables("
+  "VARIABLE_NAME VARCHAR(64) not null,"
+  "VARIABLE_VALUE VARCHAR(1024),"
+  "PRIMARY KEY (VARIABLE_NAME) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');

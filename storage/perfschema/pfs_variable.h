@@ -189,6 +189,11 @@ public:
   size_t m_min_value_length;
   char m_max_value_str[SHOW_VAR_FUNC_BUFF_SIZE + 1];
   size_t m_max_value_length;
+  ulonglong m_set_time;
+  char m_set_user_str[USERNAME_LENGTH];
+  size_t m_set_user_str_length;
+  char m_set_host_str[HOSTNAME_LENGTH];
+  size_t m_set_host_str_length;
 
 private:
   bool m_initialized;
@@ -754,6 +759,25 @@ public:
   {
   }
   ~PFS_system_variable_info_cache()
+  {
+  }
+
+private:
+  /* Global and Session - THD */
+  int do_materialize_all(THD *thd);
+};
+
+/**
+  CLASS PFS_system_persisted_variables_cache - Persisted variables cache.
+*/
+class PFS_system_persisted_variables_cache : public PFS_system_variable_cache
+{
+public:
+  PFS_system_persisted_variables_cache(bool external_init)
+    : PFS_system_variable_cache(external_init)
+  {
+  }
+  ~PFS_system_persisted_variables_cache()
   {
   }
 
