@@ -21,6 +21,8 @@ source include/have_mysqlx_plugin.inc;
 source include/not_embedded.inc;
 
 --source include/xplugin_install_and_wait.inc
+--source mysqlxtest_macro_dir.inc
+
 
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");

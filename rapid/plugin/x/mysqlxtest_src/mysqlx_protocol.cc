@@ -345,6 +345,13 @@ void XProtocol::close()
   }
 }
 
+unsigned long XProtocol::get_received_msg_counter(const std::string &id) const
+{
+  std::map<std::string, unsigned long>::const_iterator i =
+      m_received_msg_counters.find(id);
+  return i == m_received_msg_counters.end() ? 0ul : i->second;
+}
+
 void XProtocol::perform_close()
 {
   if (m_dont_wait_for_disconnect)
@@ -843,7 +850,7 @@ Message *XProtocol::recv_payload(const int mid, const std::size_t msglen)
   }
 
   delete[] mbuf;
-
+  update_received_msg_counter(ret_val);
   return ret_val;
 }
 
@@ -908,6 +915,25 @@ ngs::shared_ptr<Result> XProtocol::new_result(bool expect_data)
   m_last_result.reset(new Result(shared_from_this(), expect_data));
 
   return m_last_result;
+}
+
+void XProtocol::update_received_msg_counter(const Message* msg)
+{
+  const std::string &id = msg->GetDescriptor()->full_name();
+  ++m_received_msg_counters[id];
+
+  if (id != Mysqlx::Notice::Frame::descriptor()->full_name()) return;
+
+  static const std::string *notice_type_id[] = {
+      &Mysqlx::Notice::Warning::descriptor()->full_name(),
+      &Mysqlx::Notice::SessionVariableChanged::descriptor()->full_name(),
+      &Mysqlx::Notice::SessionStateChanged::descriptor()->full_name()};
+  static const unsigned notice_type_id_size =
+      sizeof(notice_type_id) / sizeof(notice_type_id[0]);
+  const ::google::protobuf::uint32 notice_type =
+      static_cast<const Mysqlx::Notice::Frame *>(msg)->type() - 1u;
+  if (notice_type < notice_type_id_size)
+    ++m_received_msg_counters[*notice_type_id[notice_type]];
 }
 
 #ifdef WIN32
