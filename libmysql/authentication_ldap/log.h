@@ -33,6 +33,8 @@ public:
 
 class Log_writer_error: Log_writer {
 public:
+  Log_writer_error();
+  ~Log_writer_error();
   int open(std::string file_name);
   int close();
   void write(std::string data);

@@ -29,6 +29,12 @@ Log_writer_file::~Log_writer_file() {
   }
 }
 
+Log_writer_error::Log_writer_error() {
+}
+
+Log_writer_error::~Log_writer_error() {
+}
+
 int Log_writer_file::open(std::string file_name) {
   int ret_val = -1;
   m_file_name = file_name;
