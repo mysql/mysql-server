@@ -8142,6 +8142,7 @@ pfs_error:
     sql_print_warning("The use of InnoDB is mandatory since MySQL 5.7. "
                       "The former options like '--innodb=0/1/OFF/ON' or "
                       "'--skip-innodb' are ignored.");
+    break;
   case OPT_AVOID_TEMPORAL_UPGRADE:
     push_deprecated_warn_no_replacement(NULL, "avoid_temporal_upgrade");
     break;
