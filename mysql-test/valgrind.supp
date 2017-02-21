@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -913,6 +913,33 @@
    fun:_Z10unireg_endv
    fun:_ZL11kill_serverPv
    fun:kill_server_thread
+}
+
+{
+   Bug#25391948 RPL_CHECK_GTID TEST FAILS SPORADICALLY ON PB2 - WEEKLY-5.6 FOR LINUX-VALGRIND
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:_dl_close_worker
+   fun:_dl_close
+   fun:_dl_catch_error
+   fun:__libc_dlclose
+   ...
+}
+
+{
+   Bug#25391948 RPL_CHECK_GTID TEST FAILS SPORADICALLY ON PB2 - WEEKLY-5.6 FOR LINUX-VALGRIND
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:dl_open_worker
+   fun:_dl_catch_error
+   fun:_dl_open
+   fun:do_dlopen
+   fun:_dl_catch_error
+   fun:__libc_dlopen_mode
+   ...
 }
 
 #Suppress warnings from glibc implementation of 'malloc_info' 
