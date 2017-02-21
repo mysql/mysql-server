@@ -158,7 +158,7 @@
   pfs -> pfs_table : rnd_init()
 
   == for each row ==
-  server -> pfs : rnd_next()
+  server -> pfs : ha_perfschema::rnd_next()
   pfs -> pfs_table : rnd_next()
   server -> pfs : ha_perfschema::read_row_values()
   pfs -> pfs_table : read_row_values()

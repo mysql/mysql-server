@@ -313,6 +313,7 @@ OPTION(DISABLE_PSI_STATEMENT_DIGEST "Exclude the performance schema statement di
 OPTION(DISABLE_PSI_METADATA "Exclude the performance schema metadata instrumentation" OFF)
 OPTION(DISABLE_PSI_MEMORY "Exclude the performance schema memory instrumentation" OFF)
 OPTION(DISABLE_PSI_TRANSACTION "Exclude the performance schema transaction instrumentation" OFF)
+OPTION(DISABLE_PSI_ERROR "Exclude the performance schema server error instrumentation" OFF)
 OPTION(DISABLE_PSI_DATA_LOCK "Exclude the performance schema data lock instrumentation" OFF)
 
 MARK_AS_ADVANCED(DISABLE_PSI_THREAD)
@@ -332,5 +333,6 @@ MARK_AS_ADVANCED(DISABLE_PSI_STATEMENT_DIGEST)
 MARK_AS_ADVANCED(DISABLE_PSI_METADATA)
 MARK_AS_ADVANCED(DISABLE_PSI_MEMORY)
 MARK_AS_ADVANCED(DISABLE_PSI_TRANSACTION)
+MARK_AS_ADVANCED(DISABLE_PSI_ERROR)
 MARK_AS_ADVANCED(DISABLE_PSI_DATA_LOCK)
 
