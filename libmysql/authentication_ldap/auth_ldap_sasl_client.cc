@@ -11,9 +11,12 @@
 #include <mysql/client_plugin.h>
 #include <mysql.h>
 
+#if SASL_VERSION_FULL<0x020118
+#define sasl_client_done()
+#endif
+
 MYSQL_PLUGIN g_ldap_plugin_info = NULL;
 Logger<Log_writer_error> g_logger("");
-extern int sasl_client_done();
 
 void Sasl_client::interact(sasl_interact_t *ilist) {
   while (ilist->id != SASL_CB_LIST_END) {
