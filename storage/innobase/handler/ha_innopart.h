@@ -220,7 +220,7 @@ public:
 	has changed.
 	@param[in,out]	engine_data	Data for call_back (not used).
 	@return TRUE if query caching of the table is permitted. */
-	my_bool
+	bool
 	register_query_cache_table(
 		THD*			thd,
 		char*			table_key,
@@ -337,7 +337,7 @@ public:
 
 	int
 	discard_or_import_tablespace(
-		my_bool		discard,
+		bool		discard,
 		dd::Table*	table_def);
 
 	/** Compare key and rowid.

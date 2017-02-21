@@ -147,7 +147,7 @@ inline void set_binlog_nologging(NDB_SHARE *share)
   DBUG_PRINT("info", ("set_binlog_nologging"));
   share->flags|= NSF_NO_BINLOG;
 }
-inline my_bool get_binlog_nologging(NDB_SHARE *share)
+inline bool get_binlog_nologging(NDB_SHARE *share)
 { return (share->flags & NSF_NO_BINLOG) != 0; }
 inline void set_binlog_updated_only(NDB_SHARE *share)
 {
@@ -159,7 +159,7 @@ inline void set_binlog_full(NDB_SHARE *share)
   DBUG_PRINT("info", ("set_binlog_full"));
   share->flags|= NSF_BINLOG_FULL;
 }
-inline my_bool get_binlog_full(NDB_SHARE *share)
+inline bool get_binlog_full(NDB_SHARE *share)
 { return (share->flags & NSF_BINLOG_FULL) != 0; }
 inline void set_binlog_use_write(NDB_SHARE *share)
 {
@@ -171,7 +171,7 @@ inline void set_binlog_use_update(NDB_SHARE *share)
   DBUG_PRINT("info", ("set_binlog_use_update"));
   share->flags|= NSF_BINLOG_USE_UPDATE;
 }
-inline my_bool get_binlog_use_update(NDB_SHARE *share)
+inline bool get_binlog_use_update(NDB_SHARE *share)
 { return (share->flags & NSF_BINLOG_USE_UPDATE) != 0; }
 
 

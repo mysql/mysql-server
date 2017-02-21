@@ -39,7 +39,7 @@ char * myisam_log_filename=(char*) "myisam.log";
 File	myisam_log_file= -1;
 uint	myisam_quick_table_bits=9;
 ulong	myisam_block_size= MI_KEY_BLOCK_LENGTH;		/* Best by test */
-my_bool myisam_flush=0, myisam_delay_key_write=0, myisam_single_user=0;
+bool myisam_flush=0, myisam_delay_key_write=0, myisam_single_user=0;
 /* Assume that we are in a single threaded program by default. */
 ulong myisam_concurrent_insert= 0;
 ulonglong myisam_max_temp_length= MAX_FILE_SIZE;

@@ -281,7 +281,7 @@ usage()
 
 /** Parse the options passed to tool. */
 extern "C"
-my_bool
+bool
 ibd2sdi_get_one_option(
 	int			optid,
 	const struct my_option	*opt MY_ATTRIBUTE((unused)),

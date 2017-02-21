@@ -34,7 +34,7 @@ Created 7/19/1997 Heikki Tuuri
 #include "sync0sync.h"
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
-my_bool	srv_ibuf_disable_background_merge;
+bool	srv_ibuf_disable_background_merge;
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 /** Number of bits describing a single page */

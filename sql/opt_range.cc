@@ -3809,11 +3809,11 @@ typedef struct st_part_prune_param
                                used in partitioning)
     Used to maintain current values of cur_part_fields and cur_subpart_fields
   */
-  my_bool *is_part_keypart;
+  bool *is_part_keypart;
   /* Same as above for subpartitioning */
-  my_bool *is_subpart_keypart;
+  bool *is_subpart_keypart;
 
-  my_bool ignore_part_fields; /* Ignore rest of partioning fields */
+  bool ignore_part_fields; /* Ignore rest of partioning fields */
 
   /***************************************************************
    Following fields form find_used_partitions() recursion context:
@@ -4851,9 +4851,9 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
                                                total_parts)) ||
       !(ppar->arg_stack= (SEL_ARG**)alloc_root(alloc, sizeof(SEL_ARG*)* 
                                                       total_parts)) ||
-      !(ppar->is_part_keypart= (my_bool*)alloc_root(alloc, sizeof(my_bool)*
-                                                           total_parts)) ||
-      !(ppar->is_subpart_keypart= (my_bool*)alloc_root(alloc, sizeof(my_bool)*
+      !(ppar->is_part_keypart= (bool*)alloc_root(alloc, sizeof(bool)*
+                                                        total_parts)) ||
+      !(ppar->is_subpart_keypart= (bool*)alloc_root(alloc, sizeof(bool)*
                                                            total_parts)))
     return TRUE;
  

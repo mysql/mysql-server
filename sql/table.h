@@ -1310,7 +1310,7 @@ private:
     If true, this table is inner w.r.t. some outer join operation, all columns
     are nullable (in the query), and null_row may be true.
   */
-  my_bool nullable;
+  bool nullable;
 
   uint8   m_status;                     /* What's in record[0] */
 public:
@@ -1319,65 +1319,65 @@ public:
     NULL, including columns declared as "not null" (see nullable).
     @todo make it private, currently join buffering changes it through a pointer
   */
-  my_bool null_row;
+  bool null_row;
 
-  my_bool copy_blobs;                   /* copy_blobs when storing */
+  bool copy_blobs;                   /* copy_blobs when storing */
 
   /*
     TODO: Each of the following flags take up 8 bits. They can just as easily
     be put into one single unsigned long and instead of taking up 18
     bytes, it would take up 4.
   */
-  my_bool force_index;
+  bool force_index;
 
   /**
     Flag set when the statement contains FORCE INDEX FOR ORDER BY
     See TABLE_LIST::process_index_hints().
   */
-  my_bool force_index_order;
+  bool force_index_order;
 
   /**
     Flag set when the statement contains FORCE INDEX FOR GROUP BY
     See TABLE_LIST::process_index_hints().
   */
-  my_bool force_index_group;
-  my_bool distinct;
-  my_bool const_table;
+  bool force_index_group;
+  bool distinct;
+  bool const_table;
   /// True if writes to this table should not write rows and just write keys.
-  my_bool no_rows;
+  bool no_rows;
 
   /**
      If set, the optimizer has found that row retrieval should access index 
      tree only.
    */
-  my_bool key_read;
+  bool key_read;
   /**
      Certain statements which need the full row, set this to ban index-only
      access.
   */
-  my_bool no_keyread;
+  bool no_keyread;
   /**
     If set, indicate that the table is not replicated by the server.
   */
-  my_bool no_replicate;
-  my_bool fulltext_searched;
-  my_bool no_cache;
+  bool no_replicate;
+  bool fulltext_searched;
+  bool no_cache;
   /* To signal that the table is associated with a HANDLER statement */
-  my_bool open_by_handler;
+  bool open_by_handler;
   /*
     To indicate that a non-null value of the auto_increment field
     was provided by the user or retrieved from the current record.
     Used only in the MODE_NO_AUTO_VALUE_ON_ZERO mode.
   */
-  my_bool auto_increment_field_not_null;
-  my_bool alias_name_used;		/* true if table_name is alias */
-  my_bool get_fields_in_item_tree;      /* Signal to fix_field */
+  bool auto_increment_field_not_null;
+  bool alias_name_used;		/* true if table_name is alias */
+  bool get_fields_in_item_tree;      /* Signal to fix_field */
   /**
     This table must be reopened and is not to be reused.
     NOTE: The TABLE will not be reopened during LOCK TABLES in
     close_thread_tables!!!
   */
-  my_bool m_needs_reopen;
+  bool m_needs_reopen;
 private:
   /**
     For tmp tables. TRUE <=> tmp table has been instantiated.

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -42,7 +42,7 @@ system with os_mem_alloc_large(). */
 extern ulint	os_total_large_mem_allocated;
 
 /** Whether to use large pages in the buffer pool */
-extern my_bool	os_use_large_pages;
+extern bool	os_use_large_pages;
 
 /** Large page size. This may be a boot-time option on some platforms */
 extern uint	os_large_page_size;

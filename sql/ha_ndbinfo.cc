@@ -97,7 +97,7 @@ static MYSQL_SYSVAR_UINT(
   0                                 /* block */
 );
 
-static my_bool opt_ndbinfo_offline;
+static bool opt_ndbinfo_offline;
 
 static
 void
@@ -106,8 +106,8 @@ offline_update(THD* thd, struct st_mysql_sys_var* var,
 {
   DBUG_ENTER("offline_update");
 
-  const my_bool new_offline =
-    (*(static_cast<const my_bool*>(save)) != 0);
+  const bool new_offline =
+    (*(static_cast<const bool*>(save)) != 0);
   if (new_offline == opt_ndbinfo_offline)
   {
     // No change

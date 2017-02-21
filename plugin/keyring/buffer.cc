@@ -32,7 +32,7 @@ namespace keyring
     DBUG_ASSERT(size == 0 && position == 0);
   }
 
-  my_bool Buffer::get_next_key(IKey **key)
+  bool Buffer::get_next_key(IKey **key)
   {
     *key= NULL;
 
@@ -53,7 +53,7 @@ namespace keyring
     return FALSE;
   }
 
-  my_bool Buffer::has_next_key()
+  bool Buffer::has_next_key()
   {
     return position < size;
   }

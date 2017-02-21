@@ -510,7 +510,7 @@ log_mem_free(void);
 extern log_t*	log_sys;
 
 /** Whether to generate and require checksums on the redo log pages */
-extern my_bool	innodb_log_checksums;
+extern bool	innodb_log_checksums;
 
 /* Values used as flags */
 #define LOG_FLUSH	7652559

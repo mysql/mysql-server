@@ -130,7 +130,7 @@ LEX_CSTRING default_auth_plugin_name;
 
 plugin_ref native_password_plugin;
 
-my_bool disconnect_on_expired_password= TRUE;
+bool disconnect_on_expired_password= TRUE;
 
 extern bool initialized;
 
@@ -149,11 +149,11 @@ extern bool initialized;
 
 #define MAX_CN_NAME_LENGTH 64
 
-my_bool opt_auto_generate_certs= TRUE;
+bool opt_auto_generate_certs= TRUE;
 
 char *auth_rsa_private_key_path;
 char *auth_rsa_public_key_path;
-my_bool auth_rsa_auto_generate_rsa_keys= TRUE;
+bool auth_rsa_auto_generate_rsa_keys= TRUE;
 
 static bool do_auto_rsa_keys_generation();
 static Rsa_authentication_keys g_rsa_keys;

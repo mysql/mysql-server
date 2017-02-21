@@ -148,7 +148,6 @@ typedef unsigned long long my_ulonglong;
 typedef intptr_t intptr;
 typedef ulonglong my_off_t;
 typedef ptrdiff_t my_ptrdiff_t;
-typedef char my_bool;
 typedef int myf;
 enum enum_mysql_timestamp_type
 {
@@ -159,7 +158,7 @@ typedef struct st_mysql_time
 {
   unsigned int year, month, day, hour, minute, second;
   unsigned long second_part;
-  my_bool neg;
+  bool neg;
   enum enum_mysql_timestamp_type time_type;
 } MYSQL_TIME;
 #include "decimal.h"
@@ -171,7 +170,7 @@ typedef enum
 typedef int32 decimal_digit_t;
 typedef struct st_decimal_t {
   int intg, frac, len;
-  my_bool sign;
+  bool sign;
   decimal_digit_t *buf;
 } decimal_t;
 struct st_send_field
@@ -528,8 +527,8 @@ struct st_transaction_termination_ctx
 {
   unsigned long m_thread_id;
   unsigned int m_flags;
-  char m_rollback_transaction;
-  char m_generated_gtid;
+  bool m_rollback_transaction;
+  bool m_generated_gtid;
   int m_sidno;
   long long int m_gno;
 };

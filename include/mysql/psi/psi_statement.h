@@ -154,9 +154,9 @@ typedef struct PSI_statement_info_v1 PSI_statement_info_v1;
 struct PSI_statement_locker_state_v1
 {
   /** Discarded flag. */
-  my_bool m_discarded;
+  bool m_discarded;
   /** In prepare flag. */
-  my_bool m_in_prepare;
+  bool m_in_prepare;
   /** Metric, no index used flag. */
   uchar m_no_index_used;
   /** Metric, no good index used flag. */

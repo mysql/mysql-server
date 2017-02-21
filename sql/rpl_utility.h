@@ -341,7 +341,7 @@ public:
     This function returns whether the field on the master can be null.
     This value is derived from field->maybe_null().
   */
-  my_bool maybe_null(uint index) const
+  bool maybe_null(uint index) const
   {
     DBUG_ASSERT(index < m_size);
     return ((m_null_bits[(index / 8)] & 

@@ -144,27 +144,27 @@ static native_mutex_t LOCK_hostname;
 /* These must be right or mysqld will not find the symbol! */
 
 C_MODE_START
-my_bool metaphon_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+bool metaphon_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 void metaphon_deinit(UDF_INIT *initid);
 char *metaphon(UDF_INIT *initid, UDF_ARGS *args, char *result,
 	       unsigned long *length, char *is_null, char *error);
-my_bool myfunc_double_init(UDF_INIT *, UDF_ARGS *args, char *message);
+bool myfunc_double_init(UDF_INIT *, UDF_ARGS *args, char *message);
 double myfunc_double(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 		     char *error);
-my_bool myfunc_int_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+bool myfunc_int_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 longlong myfunc_int(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 		    char *error);
-my_bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
  void sequence_deinit(UDF_INIT *initid);
 longlong sequence(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 		   char *error);
-my_bool avgcost_init( UDF_INIT* initid, UDF_ARGS* args, char* message );
+bool avgcost_init( UDF_INIT* initid, UDF_ARGS* args, char* message );
 void avgcost_deinit( UDF_INIT* initid );
 void avgcost_reset( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error );
 void avgcost_clear( UDF_INIT* initid, char* is_null, char *error );
 void avgcost_add( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error );
 double avgcost( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error );
-my_bool is_const_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+bool is_const_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 char *is_const(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long
                *length, char *is_null, char *error);
 C_MODE_END
@@ -174,7 +174,7 @@ C_MODE_END
 ** Arguments:
 ** initid	Points to a structure that the init function should fill.
 **		This argument is given to all other functions.
-**	my_bool maybe_null	1 if function can return NULL
+**	bool maybe_null	1 if function can return NULL
 **				Default value is 1 if any of the arguments
 **				is declared maybe_null.
 **	unsigned int decimals	Number of decimals.
@@ -209,7 +209,7 @@ C_MODE_END
 
 #define MAXMETAPH 8
 
-my_bool metaphon_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+bool metaphon_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   if (args->arg_count != 1 || args->arg_type[0] != STRING_RESULT)
   {
@@ -529,7 +529,7 @@ char *metaphon(UDF_INIT *initid MY_ATTRIBUTE((unused)),
 ** This function should return the result.
 ***************************************************************************/
 
-my_bool myfunc_double_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+bool myfunc_double_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   uint i;
 
@@ -622,9 +622,9 @@ longlong myfunc_int(UDF_INIT *initid MY_ATTRIBUTE((unused)), UDF_ARGS *args,
   At least one of _init/_deinit is needed unless the server is started
   with --allow_suspicious_udfs.
 */
-my_bool myfunc_int_init(UDF_INIT *initid MY_ATTRIBUTE((unused)),
-                        UDF_ARGS *args MY_ATTRIBUTE((unused)),
-                        char *message MY_ATTRIBUTE((unused)))
+bool myfunc_int_init(UDF_INIT *initid MY_ATTRIBUTE((unused)),
+                     UDF_ARGS *args MY_ATTRIBUTE((unused)),
+                     char *message MY_ATTRIBUTE((unused)))
 {
   return 0;
 }
@@ -634,7 +634,7 @@ my_bool myfunc_int_init(UDF_INIT *initid MY_ATTRIBUTE((unused)),
   or 1 if no arguments have been given
 */
 
-my_bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   if (args->arg_count > 1)
   {
@@ -698,11 +698,11 @@ longlong sequence(UDF_INIT *initid MY_ATTRIBUTE((unused)), UDF_ARGS *args,
 #endif
 
 C_MODE_START
-my_bool lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+bool lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 void lookup_deinit(UDF_INIT *initid);
 char *lookup(UDF_INIT *initid, UDF_ARGS *args, char *result,
 	     unsigned long *length, char *null_value, char *error);
-my_bool reverse_lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+bool reverse_lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 void reverse_lookup_deinit(UDF_INIT *initid);
 char *reverse_lookup(UDF_INIT *initid, UDF_ARGS *args, char *result,
 		     unsigned long *length, char *null_value, char *error);
@@ -717,7 +717,7 @@ C_MODE_END
 ****************************************************************************/
 
 
-my_bool lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+bool lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   if (args->arg_count != 1 || args->arg_type[0] != STRING_RESULT)
   {
@@ -791,7 +791,7 @@ char *lookup(UDF_INIT *initid MY_ATTRIBUTE((unused)), UDF_ARGS *args,
 ** four numbers.
 ****************************************************************************/
 
-my_bool reverse_lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+bool reverse_lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   if (args->arg_count == 1)
     args->arg_type[0]= STRING_RESULT;
@@ -909,7 +909,7 @@ struct avgcost_data
 /*
 ** Average Cost Aggregate Function.
 */
-my_bool
+bool
 avgcost_init( UDF_INIT* initid, UDF_ARGS* args, char* message )
 {
   struct avgcost_data*	data;
@@ -1048,14 +1048,14 @@ avgcost( UDF_INIT* initid, UDF_ARGS* args MY_ATTRIBUTE((unused)),
   return data->totalprice/(double)data->totalquantity;
 }
 
-my_bool myfunc_argument_name_init(UDF_INIT *initid, UDF_ARGS *args,
-				  char *message);
+bool myfunc_argument_name_init(UDF_INIT *initid, UDF_ARGS *args,
+                               char *message);
 char *myfunc_argument_name(UDF_INIT *initid, UDF_ARGS *args, char *result,
 			   unsigned long *length, char *null_value,
 			   char *error);
 
-my_bool myfunc_argument_name_init(UDF_INIT *initid, UDF_ARGS *args,
-				  char *message)
+bool myfunc_argument_name_init(UDF_INIT *initid, UDF_ARGS *args,
+                               char *message)
 {
   if (args->arg_count != 1)
   {
@@ -1088,7 +1088,7 @@ char *myfunc_argument_name(UDF_INIT *initid MY_ATTRIBUTE((unused)),
 
 
 
-my_bool is_const_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+bool is_const_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   if (args->arg_count != 1)
   {
@@ -1116,7 +1116,7 @@ char * is_const(UDF_INIT *initid, UDF_ARGS *args MY_ATTRIBUTE((unused)),
 
 
 extern "C"
-my_bool check_const_len_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+bool check_const_len_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   if (args->arg_count != 1)
   {
@@ -1152,7 +1152,7 @@ char * check_const_len(UDF_INIT *initid, UDF_ARGS *args MY_ATTRIBUTE((unused)),
 
 
 C_MODE_START
-my_bool  my_median_init  (UDF_INIT *initid, UDF_ARGS *args, char *message);
+bool     my_median_init  (UDF_INIT *initid, UDF_ARGS *args, char *message);
 void     my_median_deinit(UDF_INIT* initid);
 void     my_median_add   (UDF_INIT* initid, UDF_ARGS* args,
                           char* is_null, char *error);
@@ -1168,7 +1168,7 @@ struct My_median_data
 };
 
 
-my_bool  my_median_init  (UDF_INIT *initid, UDF_ARGS *args, char *message)
+bool  my_median_init  (UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   My_median_data *data= new (std::nothrow) My_median_data;
   if (!data)
@@ -1227,7 +1227,7 @@ longlong my_median(UDF_INIT* initid, UDF_ARGS* args,
 }
 
 C_MODE_START
-my_bool  my_cpp11_re_match_init  (UDF_INIT *initid, UDF_ARGS *args, char *message);
+bool     my_cpp11_re_match_init  (UDF_INIT *initid, UDF_ARGS *args, char *message);
 void     my_cpp11_re_match_deinit(UDF_INIT* initid);
 
 long long my_cpp11_re_match      (UDF_INIT* initid, UDF_ARGS* args,
@@ -1235,8 +1235,8 @@ long long my_cpp11_re_match      (UDF_INIT* initid, UDF_ARGS* args,
 C_MODE_END
 
 
-my_bool my_cpp11_re_match_init (UDF_INIT *initid, UDF_ARGS *args,
-                                char *message)
+bool my_cpp11_re_match_init (UDF_INIT *initid, UDF_ARGS *args,
+                             char *message)
 {
   initid->maybe_null= TRUE;
 

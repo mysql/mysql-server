@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,8 +41,8 @@ struct Opts {
   uint rpkvar;
   uint scanpct;
   uint eqscans;
-  my_bool keeptable;
-  my_bool abort;
+  bool keeptable;
+  bool abort;
   const char* dump;
   Opts() :
     loglevel(0),

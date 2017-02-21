@@ -104,7 +104,7 @@ bool ndb_binlog_is_read_only(void);
 
 extern NDB_SHARE *ndb_apply_status_share;
 
-extern my_bool ndb_binlog_running;
+extern bool ndb_binlog_running;
 
 /* Prints ndb binlog status string in buf */
 size_t ndbcluster_show_status_binlog(char* buf, size_t buf_size);

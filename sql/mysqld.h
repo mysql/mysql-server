@@ -128,23 +128,23 @@ enum_server_operational_state get_server_state();
 
 extern bool opt_large_files, server_id_supplied;
 extern bool opt_bin_log;
-extern my_bool opt_log_slave_updates;
-extern my_bool opt_log_unsafe_statements;
+extern bool opt_log_slave_updates;
+extern bool opt_log_unsafe_statements;
 extern bool opt_general_log, opt_slow_log, opt_general_log_raw;
 extern ulonglong log_output_options;
-extern my_bool opt_log_queries_not_using_indexes;
+extern bool opt_log_queries_not_using_indexes;
 extern ulong opt_log_throttle_queries_not_using_indexes;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern bool opt_skip_name_resolve;
-extern my_bool opt_help;
-extern my_bool opt_verbose;
+extern bool opt_help;
+extern bool opt_verbose;
 extern bool opt_ignore_builtin_innodb;
-extern my_bool opt_character_set_client_handshake;
+extern bool opt_character_set_client_handshake;
 extern MYSQL_PLUGIN_IMPORT int32 volatile connection_events_loop_aborted_flag;
-extern my_bool opt_initialize;
-extern my_bool opt_safe_user_create;
-extern my_bool opt_local_infile, opt_myisam_use_mmap;
-extern my_bool opt_slave_compressed_protocol;
+extern bool opt_initialize;
+extern bool opt_safe_user_create;
+extern bool opt_local_infile, opt_myisam_use_mmap;
+extern bool opt_slave_compressed_protocol;
 extern ulong slave_exec_mode_options;
 
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
@@ -153,33 +153,33 @@ enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_SIGNED};
 extern ulonglong slave_type_conversions_options;
 
-extern my_bool read_only, opt_readonly;
-extern my_bool super_read_only, opt_super_readonly;
-extern my_bool lower_case_file_system;
+extern bool read_only, opt_readonly;
+extern bool super_read_only, opt_super_readonly;
+extern bool lower_case_file_system;
 
 enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
                                          SLAVE_ROWS_INDEX_SCAN = (1U << 1),
                                          SLAVE_ROWS_HASH_SCAN  = (1U << 2)};
 extern ulonglong slave_rows_search_algorithms_options;
-extern my_bool opt_require_secure_transport;
+extern bool opt_require_secure_transport;
 
-extern my_bool opt_slave_preserve_commit_order;
+extern bool opt_slave_preserve_commit_order;
 
 #ifndef DBUG_OFF
 extern uint slave_rows_last_search_algorithm_used;
 #endif
 extern ulong mts_parallel_option;
 #ifdef _WIN32
-extern my_bool opt_enable_named_pipe;
-extern my_bool opt_enable_shared_memory;
+extern bool opt_enable_named_pipe;
+extern bool opt_enable_shared_memory;
 #endif
-extern my_bool opt_allow_suspicious_udfs;
-extern my_bool opt_secure_auth;
+extern bool opt_allow_suspicious_udfs;
+extern bool opt_secure_auth;
 extern char* opt_secure_file_priv;
-extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
-extern my_bool sp_automatic_privileges, opt_noacl;
-extern my_bool opt_old_style_user_limits, trust_function_creators;
-extern my_bool check_proxy_users, mysql_native_password_proxy_users, sha256_password_proxy_users;
+extern bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
+extern bool sp_automatic_privileges, opt_noacl;
+extern bool opt_old_style_user_limits, trust_function_creators;
+extern bool check_proxy_users, mysql_native_password_proxy_users, sha256_password_proxy_users;
 extern char *shared_memory_base_name, *mysqld_unix_port;
 extern char *default_tz_name;
 extern Time_zone *default_tz;
@@ -187,7 +187,7 @@ extern char *default_storage_engine;
 extern char *default_tmp_storage_engine;
 extern ulong internal_tmp_disk_storage_engine;
 extern bool  using_udf_functions;
-extern my_bool locked_in_memory;
+extern bool locked_in_memory;
 extern bool opt_using_transactions;
 extern ulong current_pid;
 extern ulong expire_logs_days;
@@ -196,10 +196,10 @@ extern uint sync_binlog_period, sync_relaylog_period,
             opt_mts_checkpoint_period, opt_mts_checkpoint_group;
 extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;
-extern my_bool relay_log_purge;
-extern my_bool relay_log_recovery;
-extern my_bool offline_mode;
-extern my_bool opt_log_builtin_as_identified_by_password;
+extern bool relay_log_purge;
+extern bool relay_log_recovery;
+extern bool offline_mode;
+extern bool opt_log_builtin_as_identified_by_password;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port;
 
@@ -237,13 +237,13 @@ extern ulong tablespace_def_size;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
 extern ulong max_digest_length;
 extern ulong max_connect_errors, connect_timeout;
-extern my_bool opt_slave_allow_batching;
+extern bool opt_slave_allow_batching;
 extern ulong slave_trans_retries;
 extern uint  slave_net_timeout;
 extern ulong opt_mts_slave_parallel_workers;
 extern ulonglong opt_mts_pending_jobs_size_max;
 extern ulong rpl_stop_slave_timeout;
-extern my_bool log_bin_use_v1_row_events;
+extern bool log_bin_use_v1_row_events;
 extern ulong what_to_log,flush_time;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong open_files_limit;
@@ -257,10 +257,10 @@ extern ulong slave_max_allowed_packet;
 extern ulong opt_binlog_rows_event_max_size;
 extern ulong binlog_checksum_options;
 extern const char *binlog_checksum_type_names[];
-extern my_bool opt_master_verify_checksum;
-extern my_bool opt_slave_sql_verify_checksum;
+extern bool opt_master_verify_checksum;
+extern bool opt_slave_sql_verify_checksum;
 extern uint32 gtid_executed_compression_period;
-extern my_bool binlog_gtid_simple_recovery;
+extern bool binlog_gtid_simple_recovery;
 extern ulong binlog_error_action;
 extern ulong locked_account_connection_count;
 enum enum_binlog_error_action
@@ -303,10 +303,10 @@ extern bool mysqld_server_started;
 extern "C" MYSQL_PLUGIN_IMPORT int orig_argc;
 extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
 extern my_thread_attr_t connection_attrib;
-extern my_bool old_mode;
-extern my_bool avoid_temporal_upgrade;
-extern my_bool dd_upgrade_flag;
-extern my_bool dd_upgrade_skip_se;
+extern bool old_mode;
+extern bool avoid_temporal_upgrade;
+extern bool dd_upgrade_flag;
+extern bool dd_upgrade_skip_se;
 extern LEX_STRING opt_init_connect, opt_init_slave;
 extern ulong connection_errors_internal;
 extern ulong connection_errors_peer_addr;
@@ -321,7 +321,7 @@ extern char *opt_log_syslog_facility;
 extern uint host_cache_size;
 extern ulong log_error_verbosity;
 
-extern my_bool persisted_globals_load;
+extern bool persisted_globals_load;
 
 extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
 
@@ -598,7 +598,7 @@ extern PSI_statement_info stmt_info_rpl;
 extern struct st_VioSSLFd * ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
-extern my_bool opt_large_pages;
+extern bool opt_large_pages;
 extern uint opt_large_page_size;
 extern char lc_messages_dir[FN_REFLEN];
 extern char *lc_messages_dir_ptr;

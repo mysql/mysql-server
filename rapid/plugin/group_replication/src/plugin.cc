@@ -66,7 +66,7 @@ char *group_seeds_var= NULL;
 char *force_members_var= NULL;
 bool force_members_running= false;
 static mysql_mutex_t force_members_running_mutex;
-my_bool bootstrap_group_var= false;
+bool bootstrap_group_var= false;
 ulong poll_spin_loops_var= 0;
 ulong ssl_mode_var= 0;
 
@@ -110,10 +110,10 @@ Compatibility_module* compatibility_mgr= NULL;
 /* Plugin group related options */
 const char *group_replication_plugin_name= "group_replication";
 char *group_name_var= NULL;
-my_bool start_group_replication_at_boot_var= true;
+bool start_group_replication_at_boot_var= true;
 rpl_sidno group_sidno;
-my_bool single_primary_mode_var= FALSE;
-my_bool enforce_update_everywhere_checks_var= TRUE;
+bool single_primary_mode_var= FALSE;
+bool enforce_update_everywhere_checks_var= TRUE;
 
 /* Applier module related */
 bool known_server_reset;
@@ -132,7 +132,7 @@ static const int RECOVERY_SSL_CRLPATH_OPT= 7;
 std::map<const char*, int> recovery_ssl_opt_map;
 
 // SSL options
-my_bool recovery_use_ssl_var= false;
+bool recovery_use_ssl_var= false;
 char* recovery_ssl_ca_var= NULL;
 char* recovery_ssl_capath_var= NULL;
 char* recovery_ssl_cert_var= NULL;
@@ -140,7 +140,7 @@ char* recovery_ssl_cipher_var= NULL;
 char* recovery_ssl_key_var= NULL;
 char* recovery_ssl_crl_var= NULL;
 char* recovery_ssl_crlpath_var= NULL;
-my_bool recovery_ssl_verify_server_cert_var= false;
+bool recovery_ssl_verify_server_cert_var= false;
 ulong  recovery_completion_policy_var;
 
 ulong recovery_retry_count_var= 0;
@@ -183,10 +183,10 @@ int flow_control_certifier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 int flow_control_applier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 
 /* Downgrade options */
-my_bool allow_local_lower_version_join_var= 0;
+bool allow_local_lower_version_join_var= 0;
 
 /* Allow errand transactions */
-my_bool allow_local_disjoint_gtids_join_var= 0;
+bool allow_local_disjoint_gtids_join_var= 0;
 
 /* Certification latch */
 Wait_ticket<my_thread_id> *certification_latch;
@@ -1605,8 +1605,8 @@ update_ssl_use(MYSQL_THD thd, SYS_VAR *var,
 {
   DBUG_ENTER("update_ssl_use");
 
-  bool use_ssl_val= *((my_bool *) save);
-  (*(my_bool *) var_ptr)= (*(my_bool *) save);
+  bool use_ssl_val= *((bool *) save);
+  (*(bool *) var_ptr)= (*(bool *) save);
 
   if (recovery_module != NULL)
   {
@@ -1717,8 +1717,8 @@ update_ssl_server_cert_verification(MYSQL_THD thd, SYS_VAR *var,
 {
   DBUG_ENTER("update_ssl_server_cert_verification");
 
-  bool ssl_verify_server_cert= *((my_bool *) save);
-  (*(my_bool *) var_ptr)= (*(my_bool *) save);
+  bool ssl_verify_server_cert= *((bool *) save);
+  (*(bool *) var_ptr)= (*(bool *) save);
 
   if (recovery_module != NULL)
   {
@@ -1980,7 +1980,7 @@ static int check_gtid_assignment_block_size(MYSQL_THD thd, SYS_VAR *var,
 
 static bool
 get_bool_value_using_type_lib(struct st_mysql_value *value,
-                              my_bool &resulting_value)
+                              bool &resulting_value)
 {
   DBUG_ENTER("get_bool_value_using_type_lib");
   longlong value_to_check;
@@ -2025,7 +2025,7 @@ check_single_primary_mode(MYSQL_THD thd, SYS_VAR *var,
                           struct st_mysql_value *value)
 {
   DBUG_ENTER("check_single_primary_mode");
-  my_bool single_primary_mode_val;
+  bool single_primary_mode_val;
 
   if (!get_bool_value_using_type_lib(value, single_primary_mode_val))
     DBUG_RETURN(1);
@@ -2047,7 +2047,7 @@ check_single_primary_mode(MYSQL_THD thd, SYS_VAR *var,
     DBUG_RETURN(1);
   }
 
-  *(my_bool *)save = single_primary_mode_val;
+  *(bool *)save = single_primary_mode_val;
 
   DBUG_RETURN(0);
 }
@@ -2058,7 +2058,7 @@ check_enforce_update_everywhere_checks(MYSQL_THD thd, SYS_VAR *var,
                                        struct st_mysql_value *value)
 {
   DBUG_ENTER("check_enforce_update_everywhere_checks");
-  my_bool enforce_update_everywhere_checks_val;
+  bool enforce_update_everywhere_checks_val;
 
   if (!get_bool_value_using_type_lib(value, enforce_update_everywhere_checks_val))
     DBUG_RETURN(1);
@@ -2080,7 +2080,7 @@ check_enforce_update_everywhere_checks(MYSQL_THD thd, SYS_VAR *var,
     DBUG_RETURN(1);
   }
 
-  *(my_bool *)save = enforce_update_everywhere_checks_val;
+  *(bool *)save = enforce_update_everywhere_checks_val;
 
   DBUG_RETURN(0);
 }

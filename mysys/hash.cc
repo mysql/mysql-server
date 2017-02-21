@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -385,7 +385,7 @@ static int hashcmp(const HASH *hash, HASH_LINK *pos, const uchar *key,
 
 	/* Write a hash-key to the hash-index */
 
-my_bool my_hash_insert(HASH *info, const uchar *record)
+bool my_hash_insert(HASH *info, const uchar *record)
 {
   int flag;
   size_t idx,halfbuff,first_index;
@@ -523,7 +523,7 @@ my_bool my_hash_insert(HASH *info, const uchar *record)
 ** if there is a free-function it's called for record if found
 ******************************************************************************/
 
-my_bool my_hash_delete(HASH *hash, uchar *record)
+bool my_hash_delete(HASH *hash, uchar *record)
 {
   size_t blength;
   uint pos2, idx, empty_index;
@@ -612,8 +612,8 @@ exit:
 	  This is much more efficent than using a delete & insert.
 	  */
 
-my_bool my_hash_update(HASH *hash, uchar *record, uchar *old_key,
-                       size_t old_key_length)
+bool my_hash_update(HASH *hash, uchar *record, uchar *old_key,
+                    size_t old_key_length)
 {
   uint new_index,new_pos_index,records;
   size_t blength, idx, empty;
@@ -735,7 +735,7 @@ void my_hash_replace(HASH *hash, HASH_SEARCH_STATE *current_record,
 
 #ifndef DBUG_OFF
 
-my_bool my_hash_check(HASH *hash)
+bool my_hash_check(HASH *hash)
 {
   int error;
   uint i,rec_link,found,max_links,seek,links,idx;

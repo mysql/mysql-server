@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,8 +38,8 @@
 	** If dir is not given, use TMPDIR.
 	*/
 
-my_bool open_cached_file(IO_CACHE *cache, const char* dir, const char *prefix,
-                         size_t cache_size, myf cache_myflags)
+bool open_cached_file(IO_CACHE *cache, const char* dir, const char *prefix,
+                      size_t cache_size, myf cache_myflags)
 {
   DBUG_ENTER("open_cached_file");
   cache->dir=	 dir ? my_strdup(key_memory_IO_CACHE,
@@ -61,7 +61,7 @@ my_bool open_cached_file(IO_CACHE *cache, const char* dir, const char *prefix,
 
 /* Create the temporary file */
 
-my_bool real_open_cached_file(IO_CACHE *cache)
+bool real_open_cached_file(IO_CACHE *cache)
 {
   char name_buff[FN_REFLEN];
   int error=1;

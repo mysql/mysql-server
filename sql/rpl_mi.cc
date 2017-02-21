@@ -502,8 +502,8 @@ bool Master_info::read_info(Rpl_info_handler *from)
       DBUG_RETURN(true);
   }
 
-  ssl= (my_bool) MY_TEST(temp_ssl);
-  ssl_verify_server_cert= (my_bool) MY_TEST(temp_ssl_verify_server_cert);
+  ssl= (bool) MY_TEST(temp_ssl);
+  ssl_verify_server_cert= (bool) MY_TEST(temp_ssl_verify_server_cert);
   master_log_pos= (my_off_t) temp_master_log_pos;
   auto_position= MY_TEST(temp_auto_position);
 

@@ -38,12 +38,12 @@
 C_MODE_START
 
 PSI_table_share*
-pfs_get_table_share_v1(my_bool temporary, struct TABLE_SHARE *share);
+pfs_get_table_share_v1(bool temporary, struct TABLE_SHARE *share);
 
 void pfs_release_table_share_v1(PSI_table_share* share);
 
 void
-pfs_drop_table_share_v1(my_bool temporary,
+pfs_drop_table_share_v1(bool temporary,
                         const char *schema_name, int schema_name_length,
                         const char *table_name, int table_name_length);
 

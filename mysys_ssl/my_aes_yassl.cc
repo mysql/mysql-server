@@ -221,7 +221,7 @@ int my_aes_get_size(uint32 source_length, my_aes_opmode)
 }
 
 
-my_bool my_aes_needs_iv(my_aes_opmode opmode)
+bool my_aes_needs_iv(my_aes_opmode opmode)
 {
   MyCipherCtx<TaoCrypt::ENCRYPTION> enc(opmode);
 

@@ -3482,7 +3482,7 @@ extern "C" {
 static int my_strnncoll_gbk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                             const uchar *a, size_t a_length,
                             const uchar *b, size_t b_length,
-                            my_bool b_is_prefix)
+                            bool b_is_prefix)
 {
   size_t length= MY_MIN(a_length, b_length);
   int res= my_strnncoll_gbk_internal(&a, &b, length);

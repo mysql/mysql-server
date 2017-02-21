@@ -250,9 +250,9 @@ get_page_size(
 @return true if decompress succeeded */
 static
 bool page_decompress(
-	byte*		buf,
-	byte*		scratch,
-	page_size_t	page_size)
+        byte*           buf,
+        byte*           scratch,
+        page_size_t     page_size)
 {
 	dberr_t		err;
 
@@ -1368,7 +1368,7 @@ static void usage(void)
 	my_print_variables(innochecksum_options);
 }
 
-extern "C" my_bool
+extern "C" bool
 innochecksum_get_one_option(
 	int			optid,
 	const struct my_option	*opt MY_ATTRIBUTE((unused)),

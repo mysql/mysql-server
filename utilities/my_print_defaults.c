@@ -40,7 +40,7 @@
 
 const char *config_file="my";			/* Default config file */
 static char *my_login_path;
-static my_bool *show_passwords;
+static bool *show_passwords;
 uint verbose= 0, opt_defaults_file_used= 0;
 const char *default_dbug_option="d:t:o,/tmp/my_print_defaults.trace";
 
@@ -109,7 +109,7 @@ static struct my_option my_long_options[] =
 };
 
 
-static void usage(my_bool version)
+static void usage(bool version)
 {
   print_version();
   if (version)
@@ -124,7 +124,7 @@ static void usage(my_bool version)
 }
 
 
-static my_bool
+static bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument MY_ATTRIBUTE((unused)))
 {

@@ -1587,7 +1587,7 @@ private:
     Transaction_ctx *m_trx;
 
     /// Transaction read-only state.
-    my_bool m_tx_read_only;
+    bool m_tx_read_only;
 
     /// THD options.
     ulonglong m_thd_option_bits;
@@ -2369,7 +2369,7 @@ public:
   /* Used by the sys_var class to store temporary values */
   union
   {
-    my_bool   my_bool_value;
+    bool      bool_value;
     long      long_value;
     ulong     ulong_value;
     ulonglong ulonglong_value;
@@ -2751,8 +2751,8 @@ public:
                               bool allocate_lex_string);
 
   bool convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
-		      const char *from, size_t from_length,
-		      const CHARSET_INFO *from_cs);
+                      const char *from, size_t from_length,
+                      const CHARSET_INFO *from_cs);
 
   bool convert_string(String *s, const CHARSET_INFO *from_cs,
                       const CHARSET_INFO *to_cs);

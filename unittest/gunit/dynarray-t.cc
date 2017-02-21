@@ -96,11 +96,11 @@ namespace dynarray_unittest {
 // We still want to unit-test this, to compare performance.
 #undef my_init_dynamic_array
 extern "C" 
-my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
-                              PSI_memory_key key,
-                              uint element_size,
-                              void *init_buffer, uint init_alloc,
-                              uint alloc_increment);
+bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
+                           PSI_memory_key key,
+                           uint element_size,
+                           void *init_buffer, uint init_alloc,
+                           uint alloc_increment);
 /*
   Cut'n paste this function from sql_select.cc,
   to avoid linking in the entire server for this unit test.

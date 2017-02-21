@@ -37,7 +37,7 @@ private:
   bool is_active;
 };
 
-extern my_bool opt_initialize_insecure;
+extern bool opt_initialize_insecure;
 bool initialize_create_data_directory(const char *data_home);
 
 #endif /* SQL_INITIALIZE_H */

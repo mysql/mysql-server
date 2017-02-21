@@ -239,7 +239,7 @@ struct fts_msg_t {
 ulong	fts_num_word_optimize;
 
 // FIXME
-my_bool	fts_enable_diag_print;
+bool	fts_enable_diag_print;
 
 /** ZLib compressed block size.*/
 static ulint FTS_ZIP_BLOCK_SIZE	= 1024;

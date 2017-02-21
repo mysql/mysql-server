@@ -69,14 +69,14 @@
 
 /* WSAStartup needs winsock library*/
 #pragma comment(lib, "ws2_32")
-my_bool have_tcpip=0;
+bool have_tcpip=0;
 static void my_win_init();
 #endif
 
 #define SCALE_SEC       100
 #define SCALE_USEC      10000
 
-my_bool my_init_done= FALSE;
+bool my_init_done= FALSE;
 ulong  my_thread_stack_size= 65536;
 MYSQL_FILE *mysql_stdin= NULL;
 static MYSQL_FILE instrumented_stdin;
@@ -123,7 +123,7 @@ int set_crt_report_leaks()
     @retval FALSE Success
     @retval TRUE  Error. Couldn't initialize environment
 */
-my_bool my_init()
+bool my_init()
 {
   char *str;
 
@@ -397,7 +397,7 @@ static void win_init_registry()
 #define WINSOCK2KEY "SYSTEM\\CurrentControlSet\\Services\\Winsock2\\Parameters"
 #define WINSOCKKEY  "SYSTEM\\CurrentControlSet\\Services\\Winsock\\Parameters"
 
-static my_bool win32_have_tcpip()
+static bool win32_have_tcpip()
 {
   HKEY hTcpipRegKey;
   if (RegOpenKeyEx ( HKEY_LOCAL_MACHINE, TCPIPKEY, 0, KEY_READ,
@@ -417,7 +417,7 @@ static my_bool win32_have_tcpip()
 }
 
 
-static my_bool win32_init_tcp_ip()
+static bool win32_init_tcp_ip()
 {
   if (win32_have_tcpip())
   {

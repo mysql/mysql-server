@@ -44,7 +44,7 @@ struct file_info {
   char *name, *show_name;
   uchar *record;
   MI_INFO *isam;
-  my_bool closed, used;
+  bool closed, used;
   ulong accessed;
 };
 
@@ -77,7 +77,7 @@ static int reopen_closed_file(TREE *tree,struct file_info *file_info);
 static int find_record_with_key(struct file_info *file_info,uchar *record);
 static void printf_log(const char *str,...)
   MY_ATTRIBUTE((format(printf, 1, 2)));
-static my_bool cmp_filename(struct file_info *file_info,char * name);
+static bool cmp_filename(struct file_info *file_info,char * name);
 
 static uint verbose=0,update=0,test_info=0,max_files=0,re_open_count=0,
   recover=0,prefix_remove=0,opt_processes=0;
@@ -859,7 +859,7 @@ static void printf_log(const char *format,...)
 }
 
 
-static my_bool cmp_filename(struct file_info *file_info, char * name)
+static bool cmp_filename(struct file_info *file_info, char * name)
 {
   if (!file_info)
     return 1;

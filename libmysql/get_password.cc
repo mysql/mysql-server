@@ -110,7 +110,7 @@ char *get_tty_password(const char *opt_message)
   to will not include the eol characters.
 */
 
-static void get_password(char *to,uint length,int fd, my_bool echo)
+static void get_password(char *to,uint length,int fd, bool echo)
 {
   char *pos=to,*end=to+length;
 

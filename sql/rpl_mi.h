@@ -250,11 +250,11 @@ public:
       strmake(start_plugin_dir, src, sizeof(start_plugin_dir) - 1);
   }
 
-  my_bool ssl; // enables use of SSL connection if true
+  bool ssl; // enables use of SSL connection if true
   char ssl_ca[FN_REFLEN], ssl_capath[FN_REFLEN], ssl_cert[FN_REFLEN];
   char ssl_cipher[FN_REFLEN], ssl_key[FN_REFLEN], tls_version[FN_REFLEN];
   char ssl_crl[FN_REFLEN], ssl_crlpath[FN_REFLEN];
-  my_bool ssl_verify_server_cert;
+  bool ssl_verify_server_cert;
 
   MYSQL* mysql;
   uint32 file_id;				/* for 3.23 load data infile */

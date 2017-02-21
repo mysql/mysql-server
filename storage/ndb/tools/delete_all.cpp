@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,9 +29,9 @@ static int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
 const char *load_default_groups[]= { "mysql_cluster",0 };
 
 static const char* _dbname = "TEST_DB";
-static my_bool _transactional = false;
-static my_bool _tupscan = 0;
-static my_bool _diskscan = 0;
+static bool _transactional = false;
+static bool _tupscan = 0;
+static bool _diskscan = 0;
 
 static struct my_option my_long_options[] =
 {

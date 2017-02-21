@@ -37,12 +37,12 @@ public:
   ~Digest();
 
   void assign(const char *value);
-  my_bool operator==(const Digest &digest);
+  bool operator==(const Digest &digest);
   Digest& operator=(const Digest &digest);
   void compute(uchar* memory, size_t memory_size);
 
   unsigned char *value;
-  my_bool is_empty;
+  bool is_empty;
   unsigned int length;
 protected:
   void set_digest_kind(DigestKind digest_kind);

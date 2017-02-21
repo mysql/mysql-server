@@ -2996,7 +2996,7 @@ commit time.
 @return	0 or error number. */
 int
 ha_innopart::discard_or_import_tablespace(
-	my_bool		discard,
+	bool		discard,
 	dd::Table*	table_def)
 {
 	int	error = 0;

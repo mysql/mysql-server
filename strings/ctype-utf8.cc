@@ -4871,7 +4871,7 @@ my_wildcmp_unicode_impl(const CHARSET_INFO *cs,
   {
     while (1)
     {
-      my_bool escaped= 0;
+      bool escaped= 0;
       if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
                        (const uchar*)wildend)) <= 0)
         return 1;
@@ -5595,7 +5595,7 @@ static size_t my_casedn_str_utf8(const CHARSET_INFO *cs, char *src)
 static int my_strnncoll_utf8(const CHARSET_INFO *cs,
                              const uchar *s, size_t slen,
                              const uchar *t, size_t tlen,
-                             my_bool t_is_prefix)
+                             bool t_is_prefix)
 {
   int s_res,t_res;
   my_wc_t s_wc= 0, t_wc= 0;
@@ -7845,7 +7845,7 @@ static int
 my_strnncoll_utf8mb4(const CHARSET_INFO *cs,
                      const uchar *s, size_t slen,
                      const uchar *t, size_t tlen,
-                     my_bool t_is_prefix)
+                     bool t_is_prefix)
 {
   my_wc_t s_wc= 0;
   my_wc_t t_wc= 0;

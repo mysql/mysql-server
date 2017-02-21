@@ -323,7 +323,7 @@ static ulint	buf_dbg_counter	= 0;
 #ifdef UNIV_DEBUG
 /** This is used to enable multiple buffer pool instances
 with small buffer pool size. */
-my_bool	srv_buf_pool_debug;
+bool	srv_buf_pool_debug;
 #endif /* UNIV_DEBUG */
 
 #if defined UNIV_PFS_MUTEX || defined UNIV_PFS_RWLOCK

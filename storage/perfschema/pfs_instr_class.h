@@ -64,7 +64,7 @@ class PFS_opaque_container_page;
   @{
 */
 
-extern my_bool pfs_enabled;
+extern bool pfs_enabled;
 extern enum_timer_name *class_timers[];
 
 /** Key, naming a synch instrument (mutex, rwlock, cond). */

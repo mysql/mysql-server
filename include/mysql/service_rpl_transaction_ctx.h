@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,16 +43,14 @@ struct st_transaction_termination_ctx
   /*
     If the instruction is to rollback the transaction,
     then this flag is set to false.
-    Note: type is char like on my_bool.
    */
-  char m_rollback_transaction;
+  bool m_rollback_transaction;
 
   /*
     If the plugin has generated a GTID, then the follwoing
     fields MUST be set.
-    Note: type is char like on my_bool.
    */
-  char m_generated_gtid;
+  bool m_generated_gtid;
   int m_sidno;
   long long int m_gno;
 };

@@ -1689,7 +1689,7 @@ void calc_used_field_length(TABLE *table,
   if (null_fields || uneven_bit_fields)
     rec_length+= (table->s->null_fields + 7) / 8;
   if (table->is_nullable())
-    rec_length+= sizeof(my_bool);
+    rec_length+= sizeof(bool);
   if (blobs)
   {
     uint blob_length=(uint) (table->file->stats.mean_rec_length-
@@ -3706,7 +3706,7 @@ bool JOIN::alloc_func_list()
 
 bool JOIN::make_sum_func_list(List<Item> &field_list,
                               List<Item> &send_result_set_metadata,
-			      bool before_group_by, bool recompute)
+                              bool before_group_by, bool recompute)
 {
   List_iterator_fast<Item> it(field_list);
   Item_sum **func;
@@ -3834,7 +3834,7 @@ bool JOIN::rollup_process_const_fields()
 */
 
 bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
-			      Item_sum ***func)
+                              Item_sum ***func)
 {
   List_iterator_fast<Item> it(fields_arg);
   Item *first_field= sel_fields.head();

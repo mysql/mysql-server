@@ -2196,7 +2196,7 @@ bool open_tmp_table(TABLE *table)
 static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
                                     MI_COLUMNDEF *start_recinfo,
                                     MI_COLUMNDEF **recinfo,
-                                    ulonglong options, my_bool big_tables)
+                                    ulonglong options, bool big_tables)
 {
   int error;
   MI_KEYDEF keydef;
@@ -2398,7 +2398,7 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table)
 bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
                            MI_COLUMNDEF *start_recinfo,
                            MI_COLUMNDEF **recinfo, 
-                           ulonglong options, my_bool big_tables)
+                           ulonglong options, bool big_tables)
 {
   TABLE_SHARE *const share= table->s;
 #ifndef DBUG_OFF
@@ -2577,7 +2577,7 @@ void free_tmp_table(THD *thd, TABLE *entry)
 bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
                              MI_COLUMNDEF *start_recinfo,
                              MI_COLUMNDEF **recinfo, 
-			     int error, bool ignore_last_dup,
+                             int error, bool ignore_last_dup,
                              bool *is_duplicate)
 {
   int write_err= 0;

@@ -216,39 +216,39 @@ static void set_vtoken_string_length()
 
 
 // UDF
-PLUGIN_EXPORT my_bool version_tokens_set_init(UDF_INIT *initid, UDF_ARGS *args,
+PLUGIN_EXPORT bool version_tokens_set_init(UDF_INIT *initid, UDF_ARGS *args,
                                               char *message);
 PLUGIN_EXPORT char *version_tokens_set(UDF_INIT *initid, UDF_ARGS *args,
                                        char *result, unsigned long *length,
 				       char *null_value, char *error);
 
-PLUGIN_EXPORT my_bool version_tokens_show_init(UDF_INIT *initid, UDF_ARGS *args,
+PLUGIN_EXPORT bool version_tokens_show_init(UDF_INIT *initid, UDF_ARGS *args,
                                                char *message);
 PLUGIN_EXPORT void version_tokens_show_deinit(UDF_INIT *initid);
 PLUGIN_EXPORT char *version_tokens_show(UDF_INIT *initid, UDF_ARGS *args,
                                         char *result, unsigned long *length,
 					char *null_value, char *error);
 
-PLUGIN_EXPORT my_bool version_tokens_edit_init(UDF_INIT *initid, UDF_ARGS *args,
+PLUGIN_EXPORT bool version_tokens_edit_init(UDF_INIT *initid, UDF_ARGS *args,
                                                char *message);
 PLUGIN_EXPORT char *version_tokens_edit(UDF_INIT *initid, UDF_ARGS *args,
                                         char *result, unsigned long *length,
 					char *null_value, char *error);
 
-PLUGIN_EXPORT my_bool version_tokens_delete_init(UDF_INIT *initid,
+PLUGIN_EXPORT bool version_tokens_delete_init(UDF_INIT *initid,
                                                  UDF_ARGS *args, char *message);
 PLUGIN_EXPORT char *version_tokens_delete(UDF_INIT *initid, UDF_ARGS *args,
                                           char *result, unsigned long *length,
 					  char *null_value, char *error);
-PLUGIN_EXPORT my_bool version_tokens_lock_shared_init(
+PLUGIN_EXPORT bool version_tokens_lock_shared_init(
   UDF_INIT *initid, UDF_ARGS *args, char *message);
 PLUGIN_EXPORT long long version_tokens_lock_shared(
   UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error);
-PLUGIN_EXPORT my_bool version_tokens_lock_exclusive_init(
+PLUGIN_EXPORT bool version_tokens_lock_exclusive_init(
   UDF_INIT *initid, UDF_ARGS *args, char *message);
 PLUGIN_EXPORT long long version_tokens_lock_exclusive(
   UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error);
-PLUGIN_EXPORT my_bool version_tokens_unlock_init(
+PLUGIN_EXPORT bool version_tokens_unlock_init(
   UDF_INIT *initid, UDF_ARGS *args, char *message);
 PLUGIN_EXPORT long long version_tokens_unlock(
   UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error);
@@ -702,7 +702,7 @@ static bool is_hash_inited(const char *function, char *error)
   VERSION_TOKENS_SET(tokens_list varchar)
 */
 
-PLUGIN_EXPORT my_bool version_tokens_set_init(UDF_INIT* initid, UDF_ARGS* args,
+PLUGIN_EXPORT bool version_tokens_set_init(UDF_INIT* initid, UDF_ARGS* args,
                                               char* message)
 {
   THD *thd= current_thd;
@@ -796,7 +796,7 @@ PLUGIN_EXPORT char *version_tokens_set(UDF_INIT *initid, UDF_ARGS *args,
   VERSION_TOKENS_EDIT(tokens_list varchar)
 */
 
-PLUGIN_EXPORT my_bool version_tokens_edit_init(UDF_INIT *initid, UDF_ARGS *args,
+PLUGIN_EXPORT bool version_tokens_edit_init(UDF_INIT *initid, UDF_ARGS *args,
                                                char *message)
 {
   THD *thd= current_thd;
@@ -880,7 +880,7 @@ PLUGIN_EXPORT char *version_tokens_edit(UDF_INIT *initid, UDF_ARGS *args,
   VERSION_TOKENS_DELETE(tokens_list varchar)
 */
 
-PLUGIN_EXPORT my_bool version_tokens_delete_init(UDF_INIT *initid,
+PLUGIN_EXPORT bool version_tokens_delete_init(UDF_INIT *initid,
                                                  UDF_ARGS *args, char *message)
 {
   THD *thd= current_thd;
@@ -985,7 +985,7 @@ PLUGIN_EXPORT char *version_tokens_delete(UDF_INIT *initid, UDF_ARGS *args,
   VERSION_TOKENS_SHOW()
 */
 
-PLUGIN_EXPORT my_bool version_tokens_show_init(UDF_INIT *initid, UDF_ARGS *args,
+PLUGIN_EXPORT bool version_tokens_show_init(UDF_INIT *initid, UDF_ARGS *args,
                                                char *message)
 {
   int i= 0;
@@ -1084,7 +1084,7 @@ PLUGIN_EXPORT char *version_tokens_show(UDF_INIT *initid, UDF_ARGS *args,
   return result_str;
 }
 
-static inline my_bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
+static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   initid->maybe_null= FALSE;
   initid->decimals= 0;
@@ -1129,7 +1129,7 @@ static inline my_bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *messa
   return FALSE;
 }
 
-PLUGIN_EXPORT my_bool version_tokens_lock_shared_init(
+PLUGIN_EXPORT bool version_tokens_lock_shared_init(
   UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   return init_acquire(initid, args, message);
@@ -1158,7 +1158,7 @@ PLUGIN_EXPORT long long version_tokens_lock_shared(
 }
 
 
-PLUGIN_EXPORT my_bool version_tokens_lock_exclusive_init(
+PLUGIN_EXPORT bool version_tokens_lock_exclusive_init(
   UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   return init_acquire(initid, args, message);
@@ -1186,7 +1186,7 @@ PLUGIN_EXPORT long long version_tokens_lock_exclusive(
 					LOCKING_SERVICE_WRITE, (unsigned long) timeout);
 }
 
-PLUGIN_EXPORT my_bool version_tokens_unlock_init(
+PLUGIN_EXPORT bool version_tokens_unlock_init(
   UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   THD *thd= current_thd;

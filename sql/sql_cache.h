@@ -47,9 +47,9 @@ static const ulong QUERY_CACHE_MIN_RESULT_DATA_SIZE= 1024*4;
 
 typedef size_t TABLE_COUNTER_TYPE;
 
-typedef my_bool (*qc_engine_callback)(THD *thd, const char *table_key,
-                                      uint key_length,
-                                      ulonglong *engine_data);
+typedef bool (*qc_engine_callback)(THD *thd, const char *table_key,
+                                   uint key_length,
+                                   ulonglong *engine_data);
 
 /**
   libmysql convenience wrapper to insert data into query cache.

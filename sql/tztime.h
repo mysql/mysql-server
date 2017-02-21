@@ -51,7 +51,7 @@ public:
     falls into spring time-gap (or lefts it untouched otherwise).
   */
   virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, 
-                                    my_bool *in_dst_time_gap) const = 0;
+                                    bool *in_dst_time_gap) const = 0;
   /**
     Converts time in my_time_t representation to local time in
     broken down MYSQL_TIME representation.
@@ -87,7 +87,7 @@ extern Time_zone * my_tz_UTC;
 extern Time_zone * my_tz_SYSTEM;
 extern Time_zone * my_tz_OFFSET0;
 extern Time_zone * my_tz_find(THD *thd, const String *name);
-extern my_bool     my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap);
+extern bool        my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap);
 extern void        my_tz_free();
 extern my_time_t   sec_since_epoch_TIME(MYSQL_TIME *t);
 

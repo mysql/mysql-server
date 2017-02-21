@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ void hint_lex_init_maps(charset_info_st *cs,
 }
 
 
-my_bool init_state_maps(charset_info_st *cs)
+bool init_state_maps(charset_info_st *cs)
 {
   uint i;
   uchar *ident_map;

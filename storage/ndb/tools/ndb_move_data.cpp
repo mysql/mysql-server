@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,14 +23,14 @@
 #include <ndb_lib_move_data.hpp>
 
 static const char* opt_dbname = "TEST_DB";
-static my_bool opt_exclude_missing_columns = false;
-static my_bool opt_promote_attributes = false;
-static my_bool opt_lossy_conversions = false;
+static bool opt_exclude_missing_columns = false;
+static bool opt_promote_attributes = false;
+static bool opt_lossy_conversions = false;
 static const char* opt_staging_tries = 0;
-static my_bool opt_drop_source = false;
-static my_bool opt_verbose = false;
-static my_bool opt_error_insert = false;
-static my_bool opt_abort_on_error = false;
+static bool opt_drop_source = false;
+static bool opt_verbose = false;
+static bool opt_error_insert = false;
+static bool opt_abort_on_error = false;
 
 static char g_staging_tries_default[100];
 static Ndb_move_data::Opts::Tries g_opts_tries;

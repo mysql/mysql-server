@@ -2822,7 +2822,7 @@ longlong Item_func_interval::val_int()
     {
       uint mid= (start + end + 1) / 2;
       interval_range *range= intervals + mid;
-      my_bool cmp_result;
+      bool cmp_result;
       /*
         The values in the range intervall may have different types,
         Only do a decimal comparision of the first argument is a decimal

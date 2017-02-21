@@ -91,7 +91,7 @@ reduce the size of the log.
 log_t*	log_sys	= NULL;
 
 /** Whether to generate and require checksums on the redo log pages */
-my_bool	innodb_log_checksums;
+bool	innodb_log_checksums;
 
 /** Pointer to the log checksum calculation function */
 log_checksum_func_t log_checksum_algorithm_ptr;
@@ -2075,7 +2075,7 @@ log_checkpoint(
 		if (write_always) {
 			DEBUG_SYNC_C("wa_checkpoint_middle");
 
-			const my_bool b = TRUE;
+			const bool b = TRUE;
 			buf_flush_page_cleaner_disabled_debug_update(
 				NULL, NULL, NULL, &b);
 			dict_stats_disabled_debug_update(

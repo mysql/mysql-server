@@ -2019,7 +2019,7 @@ loop_end:
     tmp_param->group_parts=1;
     tmp_param->group_length= table->file->ref_length;
     /* small table, ignore SQL_BIG_TABLES */
-    my_bool save_big_tables= thd->variables.big_tables; 
+    bool save_big_tables= thd->variables.big_tables; 
     thd->variables.big_tables= FALSE;
     tmp_tables[cnt]=create_tmp_table(thd, tmp_param, temp_fields,
                                      &group, 0, 0,

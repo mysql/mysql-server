@@ -113,7 +113,7 @@ private:
     Redirects call to option_parsed of main Abstract_program instance.
     If we have anonymous functions or binding this should be removed.
   */
-  static my_bool callback_option_parsed(int optid,
+  static bool callback_option_parsed(int optid,
     const struct my_option *opt MY_ATTRIBUTE((unused)),
     char *argument);
 

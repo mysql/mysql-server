@@ -33,7 +33,7 @@
 */
 
 // Common initialization code for get_read_lock and get_write_lock
-static inline my_bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
+static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   initid->maybe_null= FALSE;
   initid->decimals= 0;
@@ -73,8 +73,8 @@ static inline my_bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *messa
 
 C_MODE_START
 
-my_bool service_get_read_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                   char *message)
+bool service_get_read_locks_init(UDF_INIT *initid, UDF_ARGS *args,
+                                 char *message)
 {
   return init_acquire(initid, args, message);
 }
@@ -95,8 +95,8 @@ long long service_get_read_locks(UDF_INIT *initid, UDF_ARGS *args,
 }
 
 
-my_bool service_get_write_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                    char *message)
+bool service_get_write_locks_init(UDF_INIT *initid, UDF_ARGS *args,
+                                  char *message)
 {
   return init_acquire(initid, args, message);
 }
@@ -117,8 +117,8 @@ long long service_get_write_locks(UDF_INIT *initid, UDF_ARGS *args,
 }
 
 
-my_bool service_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                   char *message)
+bool service_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
+                                char *message)
 {
   initid->maybe_null= FALSE;
   initid->decimals= 0;

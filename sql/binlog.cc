@@ -10193,17 +10193,17 @@ int THD::decide_logging_format(TABLE_LIST *tables)
        If different types of engines are about to be updated.
        For example: Innodb and Falcon; Innodb and MyIsam.
     */
-    my_bool multi_write_engine= FALSE;
+    bool multi_write_engine= FALSE;
     /*
        If different types of engines are about to be accessed 
        and any of them is about to be updated. For example:
        Innodb and Falcon; Innodb and MyIsam.
     */
-    my_bool multi_access_engine= FALSE;
+    bool multi_access_engine= FALSE;
     /*
        Identifies if a table is changed.
     */
-    my_bool is_write= FALSE;
+    bool is_write= FALSE;
     /*
        A pointer to a previous table that was changed.
     */
@@ -10336,7 +10336,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 
       replicated_tables_count++;
 
-      my_bool trans= table->table->file->has_transactions();
+      bool trans= table->table->file->has_transactions();
 
       if (table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE)
       {

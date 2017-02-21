@@ -41,7 +41,7 @@ int main(int argc, char **argv)
   HA_KEYSEG keyseg[4];
   HP_CREATE_INFO hp_create_info;
   HP_SHARE *tmp_share;
-  my_bool unused;
+  bool unused;
   MY_INIT(argv[0]);
 
   filename= "test1";

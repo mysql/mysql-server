@@ -22,12 +22,12 @@
 
 namespace keyring
 {
-  my_bool Buffered_file_io_10::flush_to_file(PSI_file_key *file_key,
-                                             const std::string* filename,
-                                             const Digest *digest)
+  bool Buffered_file_io_10::flush_to_file(PSI_file_key *file_key,
+                                          const std::string* filename,
+                                          const Digest *digest)
   {
     File file;
-    my_bool was_error= TRUE;
+    bool was_error= TRUE;
     file= mysql_file_open(*file_key, filename->c_str(),
                           O_TRUNC | O_WRONLY | O_CREAT, MYF(0));
     if (file >= 0 &&

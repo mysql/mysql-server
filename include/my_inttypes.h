@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -117,12 +117,6 @@ typedef unsigned long my_off_t;
   adressable obj.
 */
 typedef ptrdiff_t       my_ptrdiff_t;
-
-typedef char            my_bool; /* Small bool */
-
-#if !defined(__cplusplus) && !defined(bool)
-#define bool In_C_you_should_use_my_bool_instead()
-#endif
 
 /* Define some general constants */
 #ifndef TRUE

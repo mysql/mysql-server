@@ -150,7 +150,7 @@ MY_BITMAP slave_error_mask;
 char slave_skip_error_names[SHOW_VAR_FUNC_BUFF_SIZE];
 
 char* slave_load_tmpdir = 0;
-my_bool replicate_same_server_id;
+bool replicate_same_server_id;
 ulonglong relay_log_space_limit = 0;
 
 const char *relay_log_index= 0;

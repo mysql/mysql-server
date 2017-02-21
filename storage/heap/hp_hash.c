@@ -790,7 +790,7 @@ uint hp_rb_var_key_length(HP_KEYDEF *keydef, const uchar *key)
     0 otherwise
 */
 
-my_bool hp_if_null_in_key(HP_KEYDEF *keydef, const uchar *record)
+bool hp_if_null_in_key(HP_KEYDEF *keydef, const uchar *record)
 {
   HA_KEYSEG *seg,*endseg;
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)

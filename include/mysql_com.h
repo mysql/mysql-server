@@ -21,6 +21,10 @@
 #ifndef _mysql_com_h
 #define _mysql_com_h
 
+#ifndef MYSQL_ABI_CHECK
+#include <stdbool.h>
+#endif
+
 #include "my_command.h"
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -788,7 +792,7 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool compress;
+  bool compress;
   /**
     Pointer to query object in query cache, do not equal NULL (0) for
     queries in cache that have not stored its results yet
@@ -942,18 +946,18 @@ enum enum_session_state_type
 extern "C" {
 #endif
 
-my_bool	my_net_init(NET *net, MYSQL_VIO vio);
+bool	my_net_init(NET *net, MYSQL_VIO vio);
 void my_net_local_init(NET *net);
 void net_end(NET *net);
-void net_clear(NET *net, my_bool check_buffer);
+void net_clear(NET *net, bool check_buffer);
 void net_claim_memory_ownership(NET *net);
-my_bool net_realloc(NET *net, size_t length);
-my_bool	net_flush(NET *net);
-my_bool	my_net_write(NET *net,const unsigned char *packet, size_t len);
-my_bool	net_write_command(NET *net,unsigned char command,
+bool net_realloc(NET *net, size_t length);
+bool	net_flush(NET *net);
+bool	my_net_write(NET *net,const unsigned char *packet, size_t len);
+bool	net_write_command(NET *net,unsigned char command,
 			  const unsigned char *header, size_t head_len,
 			  const unsigned char *packet, size_t len);
-my_bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
+bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
 unsigned long my_net_read(NET *net);
 
 void my_net_set_write_timeout(NET *net, uint timeout);
@@ -995,11 +999,11 @@ typedef struct st_udf_args
 */
 typedef struct st_udf_init
 {
-  my_bool maybe_null;          /** 1 if function can return NULL */
+  bool maybe_null;             /** 1 if function can return NULL */
   unsigned int decimals;       /** for real functions */
   unsigned long max_length;    /** For string functions */
   char *ptr;                   /** free pointer for function data */
-  my_bool const_item;          /** 1 if function always returns the same value */
+  bool const_item;             /** 1 if function always returns the same value */
   void *extension;
 } UDF_INIT;
 
@@ -1031,15 +1035,15 @@ void create_random_string(char *to, unsigned int length, struct rand_struct *ran
 void hash_password(unsigned long *to, const char *password, unsigned int password_len);
 void make_scrambled_password_323(char *to, const char *password);
 void scramble_323(char *to, const char *message, const char *password);
-my_bool check_scramble_323(const unsigned char *reply, const char *message,
-                           unsigned long *salt);
+bool check_scramble_323(const unsigned char *reply, const char *message,
+                        unsigned long *salt);
 void get_salt_from_password_323(unsigned long *res, const char *password);
 void make_password_from_salt_323(char *to, const unsigned long *salt);
 
 void make_scrambled_password(char *to, const char *password);
 void scramble(char *to, const char *message, const char *password);
-my_bool check_scramble(const unsigned char *reply, const char *message,
-                       const unsigned char *hash_stage2);
+bool check_scramble(const unsigned char *reply, const char *message,
+                    const unsigned char *hash_stage2);
 void get_salt_from_password(unsigned char *res, const char *password);
 void make_password_from_salt(char *to, const unsigned char *hash_stage2);
 char *octet2hex(char *to, const char *str, unsigned int len);
@@ -1051,7 +1055,7 @@ const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 
 /* Some other useful functions */
 
-my_bool my_thread_init(void);
+bool my_thread_init(void);
 void my_thread_end(void);
 
 #ifdef STDCALL

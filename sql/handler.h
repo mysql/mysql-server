@@ -89,9 +89,9 @@ namespace dd {
   typedef struct sdi_vector sdi_vector_t;
 }
 
-typedef my_bool (*qc_engine_callback)(THD *thd, const char *table_key,
-                                      uint key_length,
-                                      ulonglong *engine_data);
+typedef bool (*qc_engine_callback)(THD *thd, const char *table_key,
+                                   uint key_length,
+                                   ulonglong *engine_data);
 
 typedef bool (stat_print_fn)(THD *thd, const char *type, size_t type_len,
                              const char *file, size_t file_len,
@@ -3484,7 +3484,7 @@ public:
   bool ha_check_and_repair(THD *thd);
   int ha_disable_indexes(uint mode);
   int ha_enable_indexes(uint mode);
-  int ha_discard_or_import_tablespace(my_bool discard, dd::Table *table_def);
+  int ha_discard_or_import_tablespace(bool discard, dd::Table *table_def);
   int ha_rename_table(const char *from, const char *to,
                       const dd::Table *from_table_def,
                       dd::Table *to_table_def);
@@ -4420,7 +4420,7 @@ public:
         cached
   */
 
-  virtual my_bool
+  virtual bool
   register_query_cache_table(THD *thd MY_ATTRIBUTE((unused)),
                              char *table_key MY_ATTRIBUTE((unused)),
                              size_t key_length MY_ATTRIBUTE((unused)),
@@ -5292,7 +5292,7 @@ public:
     @retval   != 0  Error.
   */
 
-  virtual int discard_or_import_tablespace(my_bool discard MY_ATTRIBUTE((unused)),
+  virtual int discard_or_import_tablespace(bool discard MY_ATTRIBUTE((unused)),
                 dd::Table *table_def MY_ATTRIBUTE((unused)))
   {
     set_my_errno(HA_ERR_WRONG_COMMAND);
@@ -5399,7 +5399,7 @@ public:
     @retval false on success
   */
   static bool my_eval_gcolumn_expr(THD *thd, TABLE *table,
-				   const MY_BITMAP *const fields,
+                                   const MY_BITMAP *const fields,
                                    uchar *record);
 
   /* This must be implemented if the handlerton's partition_flags() is set. */

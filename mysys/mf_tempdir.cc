@@ -32,7 +32,7 @@
 #define DELIM ':'
 #endif
 
-my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
+bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
 {
   char *end, *copy;
   char buff[FN_REFLEN];

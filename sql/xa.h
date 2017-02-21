@@ -651,8 +651,8 @@ struct st_plugin_int *plugin_find_by_type(const LEX_CSTRING &plugin, int type);
   @return    FALSE   on success, TRUE otherwise.
 */
 
-my_bool detach_native_trx(THD *thd, plugin_ref plugin,
-                                      void *unused);
+bool detach_native_trx(THD *thd, plugin_ref plugin,
+                       void *unused);
 
 /**
   Reset some transaction state information and delete corresponding

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -630,7 +630,7 @@ char *my_safe_utoa(int base, ulonglong val, char *buf)
 char *my_safe_itoa(int base, longlong val, char *buf)
 {
   char *orig_buf= buf;
-  const my_bool is_neg= (val < 0);
+  const bool is_neg= (val < 0);
   *buf--= 0;
 
   if (is_neg)
@@ -681,7 +681,7 @@ char *my_safe_itoa(int base, longlong val, char *buf)
 }
 
 
-static const char *check_longlong(const char *fmt, my_bool *have_longlong)
+static const char *check_longlong(const char *fmt, bool *have_longlong)
 {
   *have_longlong= FALSE;
   if (*fmt == 'l')
@@ -705,7 +705,7 @@ static size_t my_safe_vsnprintf(char *to, size_t size,
   char *end= start + size - 1;
   for (; *format; ++format)
   {
-    my_bool have_longlong = FALSE;
+    bool have_longlong = FALSE;
     if (*format != '%')
     {
       if (to == end)                            /* end of buffer */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -112,8 +112,8 @@ static const uchar *safe_hash_entry_get(const uchar *arg, size_t *length)
     1  error
 */
 
-static my_bool safe_hash_init(SAFE_HASH *hash, uint elements,
-			      uchar *default_value)
+static bool safe_hash_init(SAFE_HASH *hash, uint elements,
+                           uchar *default_value)
 {
   DBUG_ENTER("safe_hash");
   if (my_hash_init(&hash->hash, &my_charset_bin, elements, 0,
@@ -192,11 +192,11 @@ static uchar *safe_hash_search(SAFE_HASH *hash, const uchar *key, uint length)
     1  error (Can only be EOM). In this case my_message() is called.
 */
 
-static my_bool safe_hash_set(SAFE_HASH *hash, const uchar *key, uint length,
-			     uchar *data)
+static bool safe_hash_set(SAFE_HASH *hash, const uchar *key, uint length,
+                          uchar *data)
 {
   SAFE_HASH_ENTRY *entry;
-  my_bool error= 0;
+  bool error= 0;
   DBUG_ENTER("safe_hash_set");
   DBUG_PRINT("enter",("key: %.*s  data: %p", length, key, data));
 
@@ -307,7 +307,7 @@ static void safe_hash_change(SAFE_HASH *hash, uchar *old_data, uchar *new_data)
 static SAFE_HASH key_cache_hash;
 
 
-my_bool multi_keycache_init(void)
+bool multi_keycache_init(void)
 {
   return safe_hash_init(&key_cache_hash, 16, (uchar*) dflt_key_cache);
 }
@@ -359,8 +359,8 @@ KEY_CACHE *multi_key_cache_search(uchar *key, uint length)
 */
 
 
-my_bool multi_key_cache_set(const uchar *key, uint length,
-			    KEY_CACHE *key_cache)
+bool multi_key_cache_set(const uchar *key, uint length,
+                         KEY_CACHE *key_cache)
 {
   return safe_hash_set(&key_cache_hash, key, length, (uchar*) key_cache);
 }

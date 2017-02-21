@@ -201,7 +201,7 @@ public:
   }
   bool do_check(THD *thd, set_var *var)
   {
-    my_bool fixed= FALSE;
+    bool fixed= FALSE;
     longlong v;
     ulonglong uv;
 
@@ -341,7 +341,7 @@ public:
     typelib.type_lengths= 0;    // only used by Fields_enum and Field_set
     option.typelib= &typelib;
   }
-  bool do_check(THD*, set_var *var) // works for enums and my_bool
+  bool do_check(THD*, set_var *var) // works for enums and bool
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
     String str(buff, sizeof(buff), system_charset_info), *res;
@@ -433,15 +433,15 @@ public:
   The class for boolean variables - a variant of ENUM variables
   with the fixed list of values of { OFF , ON }
 
-  Backing store: my_bool
+  Backing store: bool
 */
-class Sys_var_mybool: public Sys_var_typelib
+class Sys_var_bool: public Sys_var_typelib
 {
 public:
-  Sys_var_mybool(const char *name_arg,
+  Sys_var_bool(const char *name_arg,
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
-          my_bool def_val, PolyLock *lock=0,
+          bool def_val, PolyLock *lock=0,
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
@@ -453,27 +453,26 @@ public:
                       substitute, parse_flag)
   {
     option.var_type= GET_BOOL;
-    global_var(my_bool)= def_val;
-    DBUG_ASSERT(def_val < 2);
+    global_var(bool)= def_val;
     DBUG_ASSERT(getopt.arg_type == OPT_ARG || getopt.id == -1);
-    DBUG_ASSERT(size == sizeof(my_bool));
+    DBUG_ASSERT(size == sizeof(bool));
   }
   bool session_update(THD *thd, set_var *var)
   {
-    session_var(thd, my_bool)=
-      static_cast<my_bool>(var->save_result.ulonglong_value);
+    session_var(thd, bool)=
+      static_cast<bool>(var->save_result.ulonglong_value);
     return false;
   }
   bool global_update(THD*, set_var *var)
   {
-    global_var(my_bool)=
-      static_cast<my_bool>(var->save_result.ulonglong_value);
+    global_var(bool)=
+      static_cast<bool>(var->save_result.ulonglong_value);
     return false;
   }
   void session_save_default(THD *thd, set_var *var)
   {
     var->save_result.ulonglong_value=
-      static_cast<ulonglong>(*(my_bool *)global_value_ptr(thd, 0));
+      static_cast<ulonglong>(*(bool *)global_value_ptr(thd, 0));
   }
   void global_save_default(THD*, set_var *var)
   { var->save_result.ulonglong_value= option.def_value; }
@@ -1187,7 +1186,7 @@ public:
   }
   bool do_check(THD *thd, set_var *var)
   {
-    my_bool fixed;
+    bool fixed;
     double v= var->value->val_real();
     var->save_result.double_value= getopt_double_limit_value(v, &option, &fixed);
 
@@ -1221,13 +1220,13 @@ public:
     Caller need not pass in a variable as we make up the value on the
     fly, that is, we derive it from the global test_flags bit vector.
 
-  Backing store: my_bool
+  Backing store: bool
 */
 class Sys_var_test_flag: public Sys_var_mybool
 {
 private:
-  my_bool test_flag_value;
-  uint    test_flag_mask;
+  bool test_flag_value;
+  uint test_flag_mask;
 public:
   Sys_var_test_flag(const char *name_arg, const char *comment, uint mask)
   : Sys_var_mybool(name_arg, comment, READ_ONLY GLOBAL_VAR(test_flag_value),
@@ -1732,7 +1731,7 @@ public:
   Sys_var_bit(const char *name_arg,
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
-          ulonglong bitmask_arg, my_bool def_val, PolyLock *lock=0,
+          ulonglong bitmask_arg, bool def_val, PolyLock *lock=0,
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,
           on_update_function on_update_func=0,
@@ -1746,7 +1745,6 @@ public:
     reverse_semantics= my_count_bits(bitmask_arg) > 1;
     bitmask= reverse_semantics ? ~bitmask_arg : bitmask_arg;
     set(global_var_ptr(), def_val);
-    DBUG_ASSERT(def_val < 2);
     DBUG_ASSERT(getopt.id == -1); // force NO_CMD_LINE
     DBUG_ASSERT(size == sizeof(ulonglong));
   }
@@ -1766,17 +1764,17 @@ public:
   { var->save_result.ulonglong_value= option.def_value; }
   uchar *session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING*)
   {
-    running_thd->sys_var_tmp.my_bool_value=
-      static_cast<my_bool>(reverse_semantics ^
-                           ((session_var(target_thd, ulonglong) & bitmask) != 0));
-    return (uchar*) &running_thd->sys_var_tmp.my_bool_value;
+    running_thd->sys_var_tmp.bool_value=
+      static_cast<bool>(reverse_semantics ^
+                        ((session_var(target_thd, ulonglong) & bitmask) != 0));
+    return (uchar*) &running_thd->sys_var_tmp.bool_value;
   }
   uchar *global_value_ptr(THD *thd, LEX_STRING*)
   {
-    thd->sys_var_tmp.my_bool_value=
-      static_cast<my_bool>(reverse_semantics ^
-                           ((global_var(ulonglong) & bitmask) != 0));
-    return (uchar*) &thd->sys_var_tmp.my_bool_value;
+    thd->sys_var_tmp.bool_value=
+      static_cast<bool>(reverse_semantics ^
+                        ((global_var(ulonglong) & bitmask) != 0));
+    return (uchar*) &thd->sys_var_tmp.bool_value;
   }
 };
 
@@ -2158,7 +2156,7 @@ class Sys_var_tx_read_only: public Sys_var_mybool
 public:
   Sys_var_tx_read_only(const char *name_arg, const char *comment, int flag_args,
                        ptrdiff_t off, size_t size, CMD_LINE getopt,
-                       my_bool def_val, PolyLock *lock,
+                       bool def_val, PolyLock *lock,
                        enum binlog_status_enum binlog_status_arg,
                        on_check_function on_check_func)
     :Sys_var_mybool(name_arg, comment, flag_args, off, size, getopt,
@@ -2178,7 +2176,7 @@ class Sys_var_sql_log_bin: public Sys_var_mybool
 public:
   Sys_var_sql_log_bin(const char *name_arg, const char *comment, int flag_args,
                       ptrdiff_t off, size_t size, CMD_LINE getopt,
-                      my_bool def_val, PolyLock *lock,
+                      bool def_val, PolyLock *lock,
                       enum binlog_status_enum binlog_status_arg,
                       on_check_function on_check_func,
                       on_update_function on_update_func)

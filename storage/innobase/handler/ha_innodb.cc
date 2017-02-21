@@ -201,11 +201,11 @@ static char*	innobase_server_stopword_table		= NULL;
 /* Below we have boolean-valued start-up parameters, and their default
 values */
 
-static my_bool	innobase_use_doublewrite		= TRUE;
-static my_bool	innobase_rollback_on_timeout		= FALSE;
-static my_bool	innobase_create_status_file		= FALSE;
-my_bool	innobase_stats_on_metadata		= TRUE;
-static my_bool	innodb_optimize_fulltext_only		= FALSE;
+static bool	innobase_use_doublewrite		= TRUE;
+static bool	innobase_rollback_on_timeout		= FALSE;
+static bool	innobase_create_status_file		= FALSE;
+bool		innobase_stats_on_metadata		= TRUE;
+static bool	innodb_optimize_fulltext_only		= FALSE;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
 
@@ -2244,7 +2244,7 @@ innobase_convert_from_table_id(
 /**********************************************************************
 Check if the length of the identifier exceeds the maximum allowed.
 return true when length of identifier is too long. */
-my_bool
+bool
 innobase_check_identifier_length(
 /*=============================*/
 	const char*	id)	/* in: FK identifier to check excluding the
@@ -3147,7 +3147,7 @@ the InnoDB trx_sys->mutex.
 does not mean we should invalidate the query cache: invalidation is
 called explicitly */
 static
-my_bool
+bool
 innobase_query_caching_of_table_permitted(
 /*======================================*/
 	THD*	thd,		/*!< in: thd of the user who is trying to
@@ -3168,7 +3168,7 @@ innobase_query_caching_of_table_permitted(
 		/* In the SERIALIZABLE mode we add LOCK IN SHARE MODE to every
 		plain SELECT if AUTOCOMMIT is not on. */
 
-		return(static_cast<my_bool>(false));
+		return(false);
 	}
 
 	innobase_srv_conc_force_exit_innodb(trx);
@@ -3200,7 +3200,7 @@ innobase_query_caching_of_table_permitted(
 		then trx2 would have already invalidated the cache. Thus we
 		can trust the result in the cache is ok for this query. */
 
-		return((my_bool)TRUE);
+		return(true);
 	}
 
 	/* Normalize the table name to InnoDB format */
@@ -3210,10 +3210,10 @@ innobase_query_caching_of_table_permitted(
 
 	if (row_search_check_if_query_cache_permitted(trx, norm_name)) {
 
-		return(static_cast<my_bool>(true));
+		return(true);
 	}
 
-	return(static_cast<my_bool>(false));
+	return(false);
 }
 
 /*****************************************************************//**
@@ -3577,8 +3577,8 @@ system tables in InnoDB. Please don't add any SE-specific system tables here.
 */
 
 static bool innobase_is_supported_system_table(const char *db,
-						const char *table_name,
-						bool is_sql_layer_system_table)
+                                               const char *table_name,
+                                               bool is_sql_layer_system_table)
 {
 	static const char* supported_system_tables[]= { "columns_priv",
 							"db",
@@ -13125,7 +13125,7 @@ commit time.
 int
 ha_innobase::discard_or_import_tablespace(
 /*======================================*/
-	my_bool		discard,
+	bool		discard,
 	dd::Table*	table_def)
 {
 
@@ -18042,7 +18042,7 @@ ha_innobase::cmp_ref(
 Ask InnoDB if a query to a table can be cached.
 @return TRUE if query caching of the table is permitted */
 
-my_bool
+bool
 ha_innobase::register_query_cache_table(
 /*====================================*/
 	THD*		thd,		/*!< in: user thread handle */
@@ -18666,7 +18666,7 @@ innodb_adaptive_hash_index_update(
 	const void*			save)	/*!< in: immediate result
 						from check function */
 {
-	if (*(my_bool*) save) {
+	if (*(bool*) save) {
 		btr_search_enable();
 	} else {
 		btr_search_disable(true);
@@ -18690,11 +18690,11 @@ innodb_cmp_per_index_update(
 {
 	/* Reset the stats whenever we enable the table
 	INFORMATION_SCHEMA.innodb_cmp_per_index. */
-	if (!srv_cmp_per_index_enabled && *(my_bool*) save) {
+	if (!srv_cmp_per_index_enabled && *(bool*) save) {
 		page_zip_reset_stat_per_index();
 	}
 
-	srv_cmp_per_index_enabled = !!(*(my_bool*) save);
+	srv_cmp_per_index_enabled = !!(*(bool*) save);
 }
 
 /****************************************************************//**
@@ -19594,11 +19594,11 @@ innobase_fts_find_ranking(
 }
 
 #ifdef UNIV_DEBUG
-static my_bool	innodb_background_drop_list_empty = TRUE;
-static my_bool	innodb_purge_run_now = TRUE;
-static my_bool	innodb_purge_stop_now = TRUE;
-static my_bool	innodb_log_checkpoint_now = TRUE;
-static my_bool	innodb_buf_flush_list_now = TRUE;
+static bool	innodb_background_drop_list_empty = TRUE;
+static bool	innodb_purge_run_now = TRUE;
+static bool	innodb_purge_stop_now = TRUE;
+static bool	innodb_log_checkpoint_now = TRUE;
+static bool	innodb_buf_flush_list_now = TRUE;
 static uint	innodb_merge_threshold_set_all_debug
 	= DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
 
@@ -19638,7 +19638,7 @@ purge_run_now_set(
 	const void*			save)	/*!< in: immediate result from
 						check function */
 {
-	if (*(my_bool*) save && trx_purge_state() != PURGE_STATE_DISABLED) {
+	if (*(bool*) save && trx_purge_state() != PURGE_STATE_DISABLED) {
 		trx_purge_run();
 	}
 }
@@ -19661,7 +19661,7 @@ purge_stop_now_set(
 	const void*			save)	/*!< in: immediate result from
 						check function */
 {
-	if (*(my_bool*) save && trx_purge_state() != PURGE_STATE_DISABLED) {
+	if (*(bool*) save && trx_purge_state() != PURGE_STATE_DISABLED) {
 		trx_purge_stop();
 	}
 }
@@ -19683,7 +19683,7 @@ checkpoint_now_set(
 	const void*			save)	/*!< in: immediate result from
 						check function */
 {
-	if (*(my_bool*) save) {
+	if (*(bool*) save) {
 		while (log_sys->last_checkpoint_lsn
 		       + SIZE_OF_MLOG_CHECKPOINT
 		       + (log_sys->append_on_checkpoint != NULL
@@ -19713,7 +19713,7 @@ buf_flush_list_now_set(
 	const void*			save)	/*!< in: immediate result from
 						check function */
 {
-	if (*(my_bool*) save) {
+	if (*(bool*) save) {
 		buf_flush_sync_all_buf_pools();
 	}
 }
@@ -19776,9 +19776,9 @@ are queried, e.g.:
   SELECT @@innodb_buffer_pool_dump_now;
   SELECT @@innodb_buffer_pool_load_now;
   SELECT @@innodb_buffer_pool_load_abort; */
-static my_bool	innodb_buffer_pool_dump_now = FALSE;
-static my_bool	innodb_buffer_pool_load_now = FALSE;
-static my_bool	innodb_buffer_pool_load_abort = FALSE;
+static bool	innodb_buffer_pool_dump_now = FALSE;
+static bool	innodb_buffer_pool_load_now = FALSE;
+static bool	innodb_buffer_pool_load_abort = FALSE;
 
 /****************************************************************//**
 Trigger a dump of the buffer pool if innodb_buffer_pool_dump_now is set
@@ -19798,7 +19798,7 @@ buffer_pool_dump_now(
 	const void*			save)	/*!< in: immediate result from
 						check function */
 {
-	if (*(my_bool*) save && !srv_read_only_mode) {
+	if (*(bool*) save && !srv_read_only_mode) {
 		buf_dump_start();
 	}
 }
@@ -19821,7 +19821,7 @@ buffer_pool_load_now(
 	const void*			save)	/*!< in: immediate result from
 						check function */
 {
-	if (*(my_bool*) save) {
+	if (*(bool*) save) {
 		buf_load_start();
 	}
 }
@@ -19844,7 +19844,7 @@ buffer_pool_load_abort(
 	const void*			save)	/*!< in: immediate result from
 						check function */
 {
-	if (*(my_bool*) save) {
+	if (*(bool*) save) {
 		buf_load_abort();
 	}
 }
@@ -19909,7 +19909,7 @@ innodb_status_output_update(
 	void*				var_ptr,
 	const void*			save)
 {
-	*static_cast<my_bool*>(var_ptr) = *static_cast<const my_bool*>(save);
+	*static_cast<bool*>(var_ptr) = *static_cast<const bool*>(save);
 	/* The lock timeout monitor thread also takes care of this
 	output. */
 	os_event_set(lock_sys->timeout_event);
@@ -19928,8 +19928,8 @@ innodb_log_checksums_update(
 	void*				var_ptr,
 	const void*			save)
 {
-	my_bool	check = *static_cast<my_bool*>(var_ptr)
-		= *static_cast<const my_bool*>(save);
+	bool	check = *static_cast<bool*>(var_ptr)
+		= *static_cast<const bool*>(save);
 
 	/* Make sure we are the only log user */
 	mutex_enter(&log_sys->mutex);

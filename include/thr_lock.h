@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -144,7 +144,7 @@ typedef struct st_thr_lock {
   void (*copy_status)(void*,void*);
   void (*update_status)(void*);		/* Before release of write */
   void (*restore_status)(void*);         /* Before release of read */
-  my_bool (*check_status)(void *);
+  bool (*check_status)(void *);
 } THR_LOCK;
 
 

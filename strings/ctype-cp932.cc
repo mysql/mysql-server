@@ -1750,7 +1750,7 @@ extern "C" {
 static int my_strnncoll_cp932(const CHARSET_INFO *cs,
 			      const uchar *a, size_t a_length,
 			      const uchar *b, size_t b_length,
-                              my_bool b_is_prefix)
+                              bool b_is_prefix)
 {
   int res= my_strnncoll_cp932_internal(cs, &a, a_length, &b, b_length);
   if (b_is_prefix && a_length > b_length)

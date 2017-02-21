@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -158,7 +158,7 @@ typedef struct st_heap_share
   char * name;			/* Name of "memory-file" */
   time_t create_time;
   THR_LOCK lock;
-  my_bool delete_on_close;
+  bool delete_on_close;
   LIST open_list;
   uint auto_key;
   uint auto_key_type;			/* real type of the auto key segment */
@@ -182,7 +182,7 @@ typedef struct st_heap_info
   TREE_ELEMENT *parents[MAX_TREE_HEIGHT+1];
   TREE_ELEMENT **last_pos;
   uint lastkey_len;
-  my_bool implicit_emptied;
+  bool implicit_emptied;
   THR_LOCK_DATA lock;
   LIST open_list;
 } HP_INFO;
@@ -199,14 +199,14 @@ typedef struct st_heap_create_info
   uint reclength;
   ulonglong max_table_size;
   ulonglong auto_increment;
-  my_bool with_auto_increment;
-  my_bool single_instance;
-  my_bool delete_on_close;
+  bool with_auto_increment;
+  bool single_instance;
+  bool delete_on_close;
   /*
     TRUE if heap_create should 'pin' the created share by setting
     open_count to 1. Is only looked at if not internal_table.
   */
-  my_bool pin_share;
+  bool pin_share;
 } HP_CREATE_INFO;
 
 	/* Prototypes for heap-functions */
@@ -214,7 +214,7 @@ typedef struct st_heap_create_info
 extern HP_INFO *heap_open(const char *name, int mode);
 extern HP_INFO *heap_open_from_share(HP_SHARE *share, int mode);
 extern HP_INFO *heap_open_from_share_and_register(HP_SHARE *share, int mode);
-extern void heap_release_share(HP_SHARE *share, my_bool single_instance);
+extern void heap_release_share(HP_SHARE *share, bool single_instance);
 extern int heap_close(HP_INFO *info);
 extern int heap_write(HP_INFO *info,const uchar *buff);
 extern int heap_update(HP_INFO *info,const uchar *old,const uchar *newdata);
@@ -225,7 +225,7 @@ extern int heap_delete(HP_INFO *info,const uchar *buff);
 extern int heap_info(HP_INFO *info,HEAPINFO *x,int flag);
 extern int heap_create(const char *name,
                        HP_CREATE_INFO *create_info, HP_SHARE **share,
-                       my_bool *created_new_share);
+                       bool *created_new_share);
 extern int heap_delete_table(const char *name);
 extern void heap_drop_table(HP_INFO *info);
 extern int heap_extra(HP_INFO *info,enum ha_extra_function function);
@@ -249,7 +249,7 @@ int hp_panic(enum ha_panic_function flag);
 int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key,
               key_part_map keypart_map, enum ha_rkey_function find_flag);
 extern uchar * heap_find(HP_INFO *info,int inx,const uchar *key);
-extern int heap_check_heap(HP_INFO *info, my_bool print_status);
+extern int heap_check_heap(HP_INFO *info, bool print_status);
 extern uchar *heap_position(HP_INFO *info);
 
 typedef uchar *HEAP_PTR;

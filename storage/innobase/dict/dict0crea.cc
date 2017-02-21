@@ -1589,7 +1589,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 /*================================================*/
 {
 	trx_t*		trx;
-	my_bool		srv_file_per_table_backup;
+	bool		srv_file_per_table_backup;
 	dberr_t		err;
 	dberr_t		sys_foreign_err;
 	dberr_t		sys_foreign_cols_err;
@@ -1722,7 +1722,7 @@ dberr_t
 dict_create_or_check_sys_virtual()
 {
 	trx_t*		trx;
-	my_bool		srv_file_per_table_backup;
+	bool		srv_file_per_table_backup;
 	dberr_t		err;
 
 	/* Note: The master thread has not been started at this point. */
@@ -2242,7 +2242,7 @@ dict_create_or_check_sys_tablespace(void)
 /*=====================================*/
 {
 	trx_t*		trx;
-	my_bool		srv_file_per_table_backup;
+	bool		srv_file_per_table_backup;
 	dberr_t		err;
 	dberr_t		sys_tablespaces_err;
 	dberr_t		sys_datafiles_err;

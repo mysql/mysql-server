@@ -609,7 +609,7 @@ protected:
   */
   bool write_header(IO_CACHE* file, size_t data_length);
   bool write_footer(IO_CACHE* file);
-  my_bool need_checksum();
+  bool need_checksum();
 
 
 public:
@@ -709,7 +709,7 @@ public:
                                    mysql_mutex_t* log_lock,
                                    const Format_description_log_event
                                    *description_event,
-                                   my_bool crc_check);
+                                   bool crc_check);
 
   /*
    This function will read the common header into the buffer.
@@ -823,7 +823,7 @@ public:
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event
-                                   *description_event, my_bool crc_check,
+                                   *description_event, bool crc_check,
                                    read_log_event_filter_function f);
   /* print*() functions are used by mysqlbinlog */
   virtual void print(FILE* file, PRINT_EVENT_INFO* print_event_info) = 0;
@@ -945,7 +945,7 @@ public:
   static Log_event* read_log_event(const char* buf, uint event_len,
 				   const char **error,
                                    const Format_description_log_event
-                                   *description_event, my_bool crc_check);
+                                   *description_event, bool crc_check);
   /**
     Returns the human readable name of the given event type.
   */

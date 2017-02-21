@@ -39,7 +39,7 @@ namespace keyring
 extern mysql_rwlock_t LOCK_keyring;
 
 extern std::unique_ptr<IKeys_container> keys;
-extern my_bool is_keys_container_initialized;
+extern bool is_keys_container_initialized;
 extern std::unique_ptr<ILogger> logger;
 extern std::unique_ptr<char[]> keyring_file_data;
 
@@ -47,23 +47,23 @@ extern std::unique_ptr<char[]> keyring_file_data;
 void keyring_init_psi_keys(void);
 #endif //HAVE_PSI_INTERFACE
 
-my_bool init_keyring_locks();
+bool init_keyring_locks();
 
 void update_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
                               struct st_mysql_sys_var *var  MY_ATTRIBUTE((unused)),
                               void *var_ptr MY_ATTRIBUTE((unused)),
                               const void *save_ptr);
 
-my_bool mysql_key_fetch(std::unique_ptr<IKey> key_to_fetch, char **key_type,
-                        void **key, size_t *key_len);
-my_bool mysql_key_store(std::unique_ptr<IKey> key_to_store);
-my_bool mysql_key_remove(std::unique_ptr<IKey> key_to_remove);
+bool mysql_key_fetch(std::unique_ptr<IKey> key_to_fetch, char **key_type,
+                     void **key, size_t *key_len);
+bool mysql_key_store(std::unique_ptr<IKey> key_to_store);
+bool mysql_key_remove(std::unique_ptr<IKey> key_to_remove);
 
-my_bool check_key_for_writting(IKey* key, std::string error_for);
+bool check_key_for_writting(IKey* key, std::string error_for);
 
 template <typename T>
-my_bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id,
-                        void **key, size_t *key_len)
+bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id,
+                     void **key, size_t *key_len)
 {
   try
   {
@@ -79,8 +79,8 @@ my_bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id
 }
 
 template <typename T>
-my_bool mysql_key_store(const char *key_id, const char *key_type,
-                        const char *user_id, const void *key, size_t key_len)
+bool mysql_key_store(const char *key_id, const char *key_type,
+                     const char *user_id, const void *key, size_t key_len)
 {
   try
   {
@@ -96,7 +96,7 @@ my_bool mysql_key_store(const char *key_id, const char *key_type,
 }
 
 template <typename T>
-my_bool mysql_key_remove(const char *key_id, const char *user_id)
+bool mysql_key_remove(const char *key_id, const char *user_id)
 {
   try
   {

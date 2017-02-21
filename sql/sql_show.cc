@@ -220,8 +220,8 @@ static size_t make_version_string(char *buf, size_t buf_length, uint version)
   return my_snprintf(buf, buf_length, "%d.%d", version>>8,version&0xff);
 }
 
-static my_bool show_plugins(THD *thd, plugin_ref plugin,
-                            void *arg)
+static bool show_plugins(THD *thd, plugin_ref plugin,
+                         void *arg)
 {
   TABLE *table= (TABLE*) arg;
   struct st_mysql_plugin *plug= plugin_decl(plugin);
@@ -1941,14 +1941,14 @@ void append_definer(THD *thd, String *buffer, const LEX_CSTRING &definer_user,
 static int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
 {
-  my_bool compact_view_name= TRUE;
-  my_bool compact_view_format= TRUE;
-  my_bool foreign_db_mode= (thd->variables.sql_mode & (MODE_POSTGRESQL |
-                                                       MODE_ORACLE |
-                                                       MODE_MSSQL |
-                                                       MODE_DB2 |
-                                                       MODE_MAXDB |
-                                                       MODE_ANSI)) != 0;
+  bool compact_view_name= TRUE;
+  bool compact_view_format= TRUE;
+  bool foreign_db_mode= (thd->variables.sql_mode & (MODE_POSTGRESQL |
+                                                    MODE_ORACLE |
+                                                    MODE_MSSQL |
+                                                    MODE_DB2 |
+                                                    MODE_MAXDB |
+                                                    MODE_ANSI)) != 0;
 
   if (!thd->db().str || strcmp(thd->db().str, table->view_db.str))
     /*
@@ -2770,7 +2770,7 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
       break;
 
     case SHOW_MY_BOOL:
-      end= my_stpcpy(buff, *(my_bool*) value ? "ON" : "OFF");
+      end= my_stpcpy(buff, *(bool*) value ? "ON" : "OFF");
       value_charset= system_charset_info;
       break;
 
@@ -3416,8 +3416,8 @@ struct st_add_schema_table
 };
 
 
-static my_bool add_schema_table(THD *thd, plugin_ref plugin,
-                                void* p_data)
+static bool add_schema_table(THD *thd, plugin_ref plugin,
+                             void* p_data)
 {
   LEX_STRING *file_name= 0;
   st_add_schema_table *data= (st_add_schema_table *)p_data;
@@ -4619,8 +4619,8 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
 }
 
 
-static my_bool iter_schema_engines(THD *thd, plugin_ref plugin,
-                                 void *ptable)
+static bool iter_schema_engines(THD *thd, plugin_ref plugin,
+                                void *ptable)
 {
   TABLE *table= (TABLE *) ptable;
   handlerton *hton= plugin_data<handlerton*>(plugin);
@@ -5409,8 +5409,8 @@ struct schema_table_ref
     0	table not found
     1   found the schema table
 */
-static my_bool find_schema_table_in_plugin(THD*, plugin_ref plugin,
-                                           void* p_table)
+static bool find_schema_table_in_plugin(THD*, plugin_ref plugin,
+                                        void* p_table)
 {
   schema_table_ref *p_schema_table= (schema_table_ref *)p_table;
   const char* table_name= p_schema_table->table_name;
@@ -6035,8 +6035,8 @@ struct run_hton_fill_schema_table_args
   Item *cond;
 };
 
-static my_bool run_hton_fill_schema_table(THD *thd, plugin_ref plugin,
-                                          void *arg)
+static bool run_hton_fill_schema_table(THD *thd, plugin_ref plugin,
+                                       void *arg)
 {
   struct run_hton_fill_schema_table_args *args=
     (run_hton_fill_schema_table_args *) arg;

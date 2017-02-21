@@ -77,7 +77,7 @@ uint	page_zip_level = DEFAULT_COMPRESSION_LEVEL;
 
 /* Whether or not to log compressed page images to avoid possible
 compression algorithm changes in zlib. */
-my_bool	page_zip_log_pages = true;
+bool	page_zip_log_pages = true;
 
 /* Please refer to ../include/page0zip.ic for a description of the
 compressed page format. */
@@ -1068,7 +1068,7 @@ page_zip_compress(
 	/* A local copy of srv_cmp_per_index_enabled to avoid reading that
 	variable multiple times in this function since it can be changed at
 	anytime. */
-	my_bool			cmp_per_index_enabled;
+	bool			cmp_per_index_enabled;
 	cmp_per_index_enabled	= srv_cmp_per_index_enabled;
 
 	ut_a(page_is_comp(page));

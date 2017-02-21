@@ -74,7 +74,7 @@ static const uchar bin_char_array[] =
 
 
 extern "C" {
-static my_bool 
+static bool 
 my_coll_init_8bit_bin(CHARSET_INFO *cs,
                       MY_CHARSET_LOADER *loader MY_ATTRIBUTE((unused)))
 {
@@ -85,7 +85,7 @@ my_coll_init_8bit_bin(CHARSET_INFO *cs,
 static int my_strnncoll_binary(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                const uchar *s, size_t slen,
                                const uchar *t, size_t tlen,
-                               my_bool t_is_prefix)
+                               bool t_is_prefix)
 {
   size_t len= std::min(slen,tlen);
   const int cmp= len == 0 ? 0 :  memcmp(s,t,len); // memcmp(a, b, 0) == 0
@@ -137,7 +137,7 @@ static int my_strnncoll_8bit_bin(const CHARSET_INFO *cs
                                  MY_ATTRIBUTE((unused)),
                                  const uchar *s, size_t slen,
                                  const uchar *t, size_t tlen,
-                                 my_bool t_is_prefix)
+                                 bool t_is_prefix)
 {
   size_t len=MY_MIN(slen,tlen);
   int cmp= memcmp(s,t,len);

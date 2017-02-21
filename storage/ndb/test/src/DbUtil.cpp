@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -415,7 +415,7 @@ DbUtil::runQuery(const char* sql,
     Update max_length, making it possible to know how big
     buffers to allocate
   */
-  my_bool one= 1;
+  bool one= 1;
   mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void*) &one);
 
   if (mysql_stmt_store_result(stmt))
@@ -467,7 +467,7 @@ DbUtil::runQuery(const char* sql,
       }
 
       bind_result[i].buffer_length= buf_len;
-      bind_result[i].is_null = (my_bool*)malloc(sizeof(my_bool));
+      bind_result[i].is_null = (bool*)malloc(sizeof(bool));
       if (bind_result[i].is_null == NULL)
       {
           free(bind_result[i].buffer);

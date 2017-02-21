@@ -442,7 +442,7 @@ static int my_strnncoll_win1250ch(const CHARSET_INFO *cs
                                   MY_ATTRIBUTE((unused)),
 				  const uchar *s1, size_t len1,
                                   const uchar *s2, size_t len2,
-                                  my_bool s2_is_prefix)
+                                  bool s2_is_prefix)
 {
   int v1, v2;
   const uchar *p1, * p2;
@@ -616,7 +616,7 @@ static const uchar like_range_prefix_max_win1250ch[]=
 */
 
 extern "C" {
-static my_bool
+static bool
 my_like_range_win1250ch(const CHARSET_INFO *cs,
 			const char *ptr, size_t ptr_length,
 			char escape, char w_one, char w_many,

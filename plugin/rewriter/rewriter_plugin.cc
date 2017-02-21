@@ -104,7 +104,7 @@ static st_mysql_show_var rewriter_plugin_status_vars[]=
 static int sys_var_verbose;
 
 /// Enabled.
-static my_bool sys_var_enabled;
+static bool sys_var_enabled;
 
 /// Updater function for the status variable ..._verbose.
 static void update_verbose(MYSQL_THD, struct st_mysql_sys_var *, void *,

@@ -30,7 +30,7 @@
 	   */
 
 int myrg_create(const char *name, const char **table_names,
-                uint insert_method, my_bool fix_names)
+                uint insert_method, bool fix_names)
 {
   int save_errno;
   uint errpos;

@@ -1144,8 +1144,8 @@ out:
     @retval TRUE The statement should be denied.
     @retval FALSE The statement isn't updating any relevant tables.
 */
-static my_bool deny_updates_if_read_only_option(THD *thd,
-                                                TABLE_LIST *all_tables)
+static bool deny_updates_if_read_only_option(THD *thd,
+                                             TABLE_LIST *all_tables)
 {
   DBUG_ENTER("deny_updates_if_read_only_option");
 
@@ -1160,24 +1160,24 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
   if (lex->sql_command == SQLCOM_UPDATE_MULTI)
     DBUG_RETURN(FALSE);
 
-  const my_bool create_temp_tables= 
+  const bool create_temp_tables= 
     (lex->sql_command == SQLCOM_CREATE_TABLE) &&
     (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE);
 
-   const my_bool create_real_tables=
+   const bool create_real_tables=
      (lex->sql_command == SQLCOM_CREATE_TABLE) &&
      !(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE);
 
-  const my_bool drop_temp_tables= 
+  const bool drop_temp_tables= 
     (lex->sql_command == SQLCOM_DROP_TABLE) &&
     lex->drop_temporary;
 
-  const my_bool update_real_tables=
+  const bool update_real_tables=
     ((create_real_tables ||
       some_non_temp_table_to_be_updated(thd, all_tables)) &&
      !(create_temp_tables || drop_temp_tables));
 
-  const my_bool create_or_drop_databases=
+  const bool create_or_drop_databases=
     (lex->sql_command == SQLCOM_CREATE_DB) ||
     (lex->sql_command == SQLCOM_DROP_DB);
 
@@ -5306,13 +5306,13 @@ bool mysql_test_parse_for_slave(THD *thd)
 bool Alter_info::add_field(THD *thd,
                            const LEX_STRING *field_name,
                            enum_field_types type,
-		           const char *length, const char *decimals,
-		           uint type_modifier,
-		           Item *default_value, Item *on_update_value,
+                           const char *length, const char *decimals,
+                           uint type_modifier,
+                           Item *default_value, Item *on_update_value,
                            LEX_STRING *comment,
-		           const char *change,
+                           const char *change,
                            List<String> *interval_list, const CHARSET_INFO *cs,
-		           uint uint_geom_type,
+                           uint uint_geom_type,
                            Generated_column *gcol_info,
                            const char *opt_after)
 {

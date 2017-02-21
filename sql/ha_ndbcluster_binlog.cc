@@ -49,18 +49,18 @@
 #include "derror.h"         // ER_THD
 #include "log.h"            // sql_print_*
 
-extern my_bool opt_ndb_log_orig;
-extern my_bool opt_ndb_log_bin;
-extern my_bool opt_ndb_log_update_as_write;
-extern my_bool opt_ndb_log_updated_only;
-extern my_bool opt_ndb_log_binlog_index;
-extern my_bool opt_ndb_log_apply_status;
+extern bool opt_ndb_log_orig;
+extern bool opt_ndb_log_bin;
+extern bool opt_ndb_log_update_as_write;
+extern bool opt_ndb_log_updated_only;
+extern bool opt_ndb_log_binlog_index;
+extern bool opt_ndb_log_apply_status;
 extern ulong opt_ndb_extra_logging;
 extern st_ndb_slave_state g_ndb_slave_state;
-extern my_bool opt_ndb_log_transaction_id;
-extern my_bool log_bin_use_v1_row_events;
-extern my_bool opt_ndb_log_empty_update;
-extern my_bool opt_ndb_clear_apply_status;
+extern bool opt_ndb_log_transaction_id;
+extern bool log_bin_use_v1_row_events;
+extern bool opt_ndb_log_empty_update;
+extern bool opt_ndb_clear_apply_status;
 
 bool ndb_log_empty_epochs(void);
 
@@ -153,9 +153,9 @@ static mysql_cond_t  injector_data_cond;
   Flag showing if the ndb binlog should be created, if so == TRUE
   FALSE if not
 */
-my_bool ndb_binlog_running= FALSE;
-static my_bool ndb_binlog_tables_inited= FALSE;  //injector_data_mutex, relaxed
-static my_bool ndb_binlog_is_ready= FALSE;       //injector_data_mutex, relaxed
+bool ndb_binlog_running= FALSE;
+static bool ndb_binlog_tables_inited= FALSE;  //injector_data_mutex, relaxed
+static bool ndb_binlog_is_ready= FALSE;       //injector_data_mutex, relaxed
  
 bool
 ndb_binlog_is_read_only(void)
@@ -207,8 +207,8 @@ static ulonglong ndb_latest_received_binlog_epoch= 0;
 NDB_SHARE *ndb_apply_status_share= NULL;
 static NDB_SHARE *ndb_schema_share= NULL; //Need injector_data_mutex
 
-extern my_bool opt_log_slave_updates;
-static my_bool g_ndb_log_slave_updates;
+extern bool opt_log_slave_updates;
+static bool g_ndb_log_slave_updates;
 
 static bool g_injector_v1_warning_emitted = false;
 

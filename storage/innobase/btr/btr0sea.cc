@@ -48,7 +48,7 @@ Created 2/17/1996 Heikki Tuuri
 
 /** Is search system enabled.
 Search system is protected by array of latches. */
-my_bool		btr_search_enabled	= true;
+bool		btr_search_enabled	= true;
 
 /** Number of adaptive hash index partition. */
 ulong		btr_ahi_parts		= 8;

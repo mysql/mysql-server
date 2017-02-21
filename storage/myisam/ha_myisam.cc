@@ -901,7 +901,7 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked,
 
 int ha_myisam::close(void)
 {
-  my_bool closed_share= FALSE;
+  bool closed_share= FALSE;
   lock_shared_ha_data();
   int err= mi_close_share(file, &closed_share);
   file= 0;
@@ -1360,7 +1360,7 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT*)
   const char *errmsg;
   ulonglong map;
   TABLE_LIST *table_list= table->pos_in_table_list;
-  my_bool ignore_leaves= table_list->ignore_leaves;
+  bool ignore_leaves= table_list->ignore_leaves;
   char buf[MYSQL_ERRMSG_SIZE];
 
   DBUG_ENTER("ha_myisam::preload_keys");
@@ -2197,7 +2197,7 @@ uint ha_myisam::checksum() const
 
 
 bool ha_myisam::check_if_incompatible_data(HA_CREATE_INFO *info,
-					   uint table_changes)
+                                           uint table_changes)
 {
   uint options= table->s->db_options_in_use;
 
@@ -2451,7 +2451,7 @@ mysql_declare_plugin_end;
     @retval FALSE An error occured
 */
 
-my_bool
+bool
 ha_myisam::register_query_cache_table(THD *thd MY_ATTRIBUTE((unused)),
                                       char *table_name MY_ATTRIBUTE((unused)),
                                       size_t table_name_len MY_ATTRIBUTE((unused)),

@@ -33,14 +33,14 @@
 
 #include "print_version.h"
 
-static my_bool verbose;
+static bool verbose;
 
 #include "../include/my_base.h"
 #include "../mysys/my_handler_errors.h"
 #include "my_compiler.h"
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-static my_bool ndb_code;
+static bool ndb_code;
 static char ndb_string[1024];
 int mgmapi_error_string(int err_no, char *str, int size)
 {
@@ -89,7 +89,7 @@ static void usage(void)
 }
 
 
-static my_bool
+static bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument MY_ATTRIBUTE((unused)))
 {
@@ -187,7 +187,7 @@ int get_ER_error_msg(uint code, const char **name_ptr, const char **msg_ptr)
 }
 
 #if defined(_WIN32)
-static my_bool print_win_error_msg(DWORD error, my_bool verbose)
+static bool print_win_error_msg(DWORD error, bool verbose)
 {
   LPTSTR s;
   if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
@@ -249,7 +249,7 @@ int main(int argc,char *argv[])
   const char *name;
   char *unknown_error = 0;
 #if defined(_WIN32)
-  my_bool skip_win_message= 0;
+  bool skip_win_message= 0;
 #endif
   MY_INIT(argv[0]);
 

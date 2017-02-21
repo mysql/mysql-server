@@ -147,7 +147,7 @@ struct System_variables
   ulonglong max_heap_table_size;
   ulonglong tmp_table_size;
   ulonglong long_query_time;
-  my_bool end_markers_in_json;
+  bool end_markers_in_json;
   /* A bitmap for switching optimizations on/off */
   ulonglong optimizer_switch;
   ulonglong optimizer_trace; ///< bitmap to tune optimizer tracing
@@ -201,9 +201,9 @@ struct System_variables
 
   ulong binlog_format; ///< binlog format for this thd (see enum_binlog_format)
   ulong rbr_exec_mode_options; // see enum_rbr_exec_mode
-  my_bool binlog_direct_non_trans_update;
+  bool binlog_direct_non_trans_update;
   ulong binlog_row_image; // see enum_binlog_row_image
-  my_bool sql_log_bin;
+  bool sql_log_bin;
   // see enum_transaction_write_set_hashing_algorithm
   ulong transaction_write_set_extraction;
   ulong completion_type;
@@ -221,15 +221,15 @@ struct System_variables
   /**
     Default transaction access mode. READ ONLY (true) or READ WRITE (false).
   */
-  my_bool tx_read_only;
-  my_bool low_priority_updates;
-  my_bool new_mode;
-  my_bool query_cache_wlock_invalidate;
-  my_bool keep_files_on_create;
+  bool tx_read_only;
+  bool low_priority_updates;
+  bool new_mode;
+  bool query_cache_wlock_invalidate;
+  bool keep_files_on_create;
 
-  my_bool old_alter_table;
+  bool old_alter_table;
   uint old_passwords;
-  my_bool big_tables;
+  bool big_tables;
 
   plugin_ref table_plugin;
   plugin_ref temp_table_plugin;
@@ -257,14 +257,14 @@ struct System_variables
     default clause. i.e., when set columns are defined as NULL,
     instead of NOT NULL by default.
   */
-  my_bool explicit_defaults_for_timestamp;
+  bool explicit_defaults_for_timestamp;
 
-  my_bool sysdate_is_now;
-  my_bool binlog_rows_query_log_events;
+  bool sysdate_is_now;
+  bool binlog_rows_query_log_events;
 
   double long_query_time_double;
 
-  my_bool pseudo_slave_mode;
+  bool pseudo_slave_mode;
 
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
@@ -273,8 +273,8 @@ struct System_variables
   ulong max_execution_time;
 
   char *track_sysvars_ptr;
-  my_bool session_track_schema;
-  my_bool session_track_state_change;
+  bool session_track_schema;
+  bool session_track_state_change;
   ulong   session_track_transaction_info;
 
   ulong information_schema_stats; // see dd::info_schema::enum_information_...
@@ -284,7 +284,7 @@ struct System_variables
     the old format using comments for SHOW CREATE TABLE and in I_S.COLUMNS
     'COLUMN_TYPE' field.
   */
-  my_bool show_old_temporals;
+  bool show_old_temporals;
   // Used for replication delay and lag monitoring
   uint64 original_commit_timestamp;
 };

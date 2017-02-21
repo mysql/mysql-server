@@ -82,7 +82,7 @@ static int write_meta_file(File meta_file, ha_rows rows, bool dirty);
 
 extern "C" void tina_get_status(void* param, int concurrent_insert);
 extern "C" void tina_update_status(void* param);
-extern "C" my_bool tina_check_status(void* param);
+extern "C" bool tina_check_status(void* param);
 
 /* Stuff for shares */
 mysql_mutex_t tina_mutex;
@@ -887,7 +887,7 @@ void tina_update_status(void* param)
 }
 
 /* this should exist and return 0 for concurrent insert to work */
-my_bool tina_check_status(void*)
+bool tina_check_status(void*)
 {
   return 0;
 }

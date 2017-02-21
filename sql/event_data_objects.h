@@ -106,9 +106,9 @@ public:
   my_time_t m_execute_at;
   my_time_t m_starts;
   my_time_t m_ends;
-  my_bool m_starts_null;
-  my_bool m_ends_null;
-  my_bool m_execute_at_null;
+  bool m_starts_null;
+  bool m_ends_null;
+  bool m_execute_at_null;
 
   longlong m_expression;
   interval_type m_interval;

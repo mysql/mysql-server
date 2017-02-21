@@ -32,7 +32,7 @@
 namespace keyring
 {
 
-my_bool is_super_user()
+bool is_super_user()
 {
   THD *thd = current_thd;
   MYSQL_SECURITY_CONTEXT sec_ctx;
@@ -160,7 +160,7 @@ int File_io::fstat(File file, MY_STAT *stat_area, myf myFlags)
   return result;
 }
 
-my_bool File_io::remove(const char *filename, myf myFlags)
+bool File_io::remove(const char *filename, myf myFlags)
 {
   if (::remove(filename) != 0 && (myFlags & MY_WME))
   {
@@ -176,7 +176,7 @@ my_bool File_io::remove(const char *filename, myf myFlags)
   return FALSE;
 }
 
-my_bool File_io::truncate(File file, myf myFlags)
+bool File_io::truncate(File file, myf myFlags)
 {
 #ifdef _WIN32
   LARGE_INTEGER length;

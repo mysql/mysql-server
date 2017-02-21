@@ -636,11 +636,11 @@ const char *first_keyword= "first", *binary_keyword= "BINARY";
 const char *my_localhost= "localhost";
 
 bool opt_large_files= sizeof(my_off_t) > 4;
-static my_bool opt_autocommit; ///< for --autocommit command-line option
+static bool opt_autocommit; ///< for --autocommit command-line option
 /*
   Used with --help for detailed option
 */
-my_bool opt_help= 0, opt_verbose= 0;
+bool opt_help= 0, opt_verbose= 0;
 
 arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
 {{&Arg_comparator::compare_string,     &Arg_comparator::compare_e_string},
@@ -725,10 +725,10 @@ static bool lower_case_table_names_used= 0;
 #if !defined(_WIN32)
 static bool socket_listener_active= false;
 static int pipe_write_fd= -1;
-static my_bool opt_daemonize= 0;
+static bool opt_daemonize= 0;
 #endif
-static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
-static my_bool opt_short_log_format= 0;
+static bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
+static bool opt_short_log_format= 0;
 static char *mysqld_user, *mysqld_chroot;
 static char *default_character_set_name;
 static char *character_set_filesystem_name;
@@ -753,15 +753,15 @@ LEX_STRING opt_init_connect, opt_init_slave;
 bool opt_bin_log, opt_ignore_builtin_innodb= 0;
 bool opt_general_log, opt_slow_log, opt_general_log_raw;
 ulonglong log_output_options;
-my_bool opt_log_queries_not_using_indexes= 0;
+bool opt_log_queries_not_using_indexes= 0;
 ulong opt_log_throttle_queries_not_using_indexes= 0;
 bool opt_disable_networking=0, opt_skip_show_db=0;
 bool opt_skip_name_resolve=0;
-my_bool opt_character_set_client_handshake= 1;
+bool opt_character_set_client_handshake= 1;
 bool server_id_supplied = false;
 static bool opt_endinfo;
 bool using_udf_functions;
-my_bool locked_in_memory;
+bool locked_in_memory;
 bool opt_using_transactions;
 ulong opt_tc_log_size;
 int32 volatile connection_events_loop_aborted_flag;
@@ -787,22 +787,22 @@ ulong log_error_verbosity= 3; // have a non-zero value during early start-up
 ulong slow_start_timeout;
 #endif
 
-my_bool opt_initialize= 0;
-my_bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
-my_bool opt_reckless_slave = 0;
-my_bool opt_enable_named_pipe= 0;
-my_bool opt_local_infile, opt_slave_compressed_protocol;
-my_bool opt_safe_user_create = 0;
-my_bool opt_show_slave_auth_info;
-my_bool opt_log_slave_updates= 0;
+bool opt_initialize= 0;
+bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
+bool opt_reckless_slave = 0;
+bool opt_enable_named_pipe= 0;
+bool opt_local_infile, opt_slave_compressed_protocol;
+bool opt_safe_user_create = 0;
+bool opt_show_slave_auth_info;
+bool opt_log_slave_updates= 0;
 char *opt_slave_skip_errors;
-my_bool opt_slave_allow_batching= 0;
+bool opt_slave_allow_batching= 0;
 
 /**
   compatibility option:
     - index usage hints (USE INDEX without a FOR clause) behave as in 5.0
 */
-my_bool old_mode;
+bool old_mode;
 
 /*
   Legacy global handlerton. These will be removed (please do not add more).
@@ -814,22 +814,22 @@ handlerton *innodb_hton;
 char *opt_disabled_storage_engines;
 uint opt_server_id_bits= 0;
 ulong opt_server_id_mask= 0;
-my_bool read_only= 0, opt_readonly= 0;
-my_bool super_read_only= 0, opt_super_readonly= 0;
-my_bool opt_require_secure_transport= 0;
-my_bool relay_log_purge;
-my_bool relay_log_recovery;
-my_bool opt_allow_suspicious_udfs;
-my_bool opt_secure_auth= 0;
+bool read_only= 0, opt_readonly= 0;
+bool super_read_only= 0, opt_super_readonly= 0;
+bool opt_require_secure_transport= 0;
+bool relay_log_purge;
+bool relay_log_recovery;
+bool opt_allow_suspicious_udfs;
+bool opt_secure_auth= 0;
 char* opt_secure_file_priv;
-my_bool opt_log_slow_admin_statements= 0;
-my_bool opt_log_slow_slave_statements= 0;
-my_bool lower_case_file_system= 0;
-my_bool opt_large_pages= 0;
-my_bool opt_super_large_pages= 0;
-my_bool opt_myisam_use_mmap= 0;
-my_bool offline_mode= 0;
-my_bool opt_log_builtin_as_identified_by_password= 0;
+bool opt_log_slow_admin_statements= 0;
+bool opt_log_slow_slave_statements= 0;
+bool lower_case_file_system= 0;
+bool opt_large_pages= 0;
+bool opt_super_large_pages= 0;
+bool opt_myisam_use_mmap= 0;
+bool offline_mode= 0;
+bool opt_log_builtin_as_identified_by_password= 0;
 uint   opt_large_page_size= 0;
 uint default_password_lifetime= 0;
 
@@ -838,27 +838,27 @@ mysql_mutex_t LOCK_default_password_lifetime;
 #if defined(ENABLED_DEBUG_SYNC)
 MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
-my_bool check_proxy_users= 0, mysql_native_password_proxy_users= 0, sha256_password_proxy_users= 0;
+bool opt_old_style_user_limits= 0, trust_function_creators= 0;
+bool check_proxy_users= 0, mysql_native_password_proxy_users= 0, sha256_password_proxy_users= 0;
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
   changed). False otherwise.
 */
 volatile bool mqh_used = 0;
-my_bool opt_noacl= 0;
-my_bool sp_automatic_privileges= 1;
+bool opt_noacl= 0;
+bool sp_automatic_privileges= 1;
 
 ulong opt_binlog_rows_event_max_size;
 ulong binlog_checksum_options;
-my_bool opt_master_verify_checksum= 0;
-my_bool opt_slave_sql_verify_checksum= 1;
+bool opt_master_verify_checksum= 0;
+bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
-my_bool binlog_gtid_simple_recovery;
+bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
 const char *binlog_error_action_list[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
 uint32 gtid_executed_compression_period= 0;
-my_bool opt_log_unsafe_statements;
+bool opt_log_unsafe_statements;
 
 #ifdef HAVE_INITGROUPS
 volatile sig_atomic_t calling_initgroups= 0; /**< Used in SIGSEGV handler. */
@@ -890,7 +890,7 @@ ulonglong slave_type_conversions_options;
 ulong opt_mts_slave_parallel_workers;
 ulonglong opt_mts_pending_jobs_size_max;
 ulonglong slave_rows_search_algorithms_options;
-my_bool opt_slave_preserve_commit_order;
+bool opt_slave_preserve_commit_order;
 #ifndef DBUG_OFF
 uint slave_rows_last_search_algorithm_used;
 #endif
@@ -915,7 +915,7 @@ ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
 ulong rpl_stop_slave_timeout= LONG_TIMEOUT;
-my_bool log_bin_use_v1_row_events= 0;
+bool log_bin_use_v1_row_events= 0;
 bool thread_cache_size_specified= false;
 bool host_cache_size_specified= false;
 bool table_definition_cache_specified= false;
@@ -951,9 +951,9 @@ ulong stored_program_cache_size= 0;
   Compatibility option to prevent auto upgrade of old temporals
   during certain ALTER TABLE operations.
 */
-my_bool avoid_temporal_upgrade;
+bool avoid_temporal_upgrade;
 
-my_bool persisted_globals_load= TRUE;
+bool persisted_globals_load= TRUE;
 
 const double log_10[] = {
   1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009,
@@ -1125,7 +1125,7 @@ char *opt_general_logname, *opt_slow_logname, *opt_bin_logname;
 
 /* Static variables */
 
-static my_bool opt_myisam_log;
+static bool opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag;
 char *opt_binlog_index_name;
@@ -1250,7 +1250,7 @@ static mysql_mutex_t LOCK_handler_count;
 static mysql_cond_t COND_handler_count;
 static HANDLE hEventShutdown;
 char *shared_memory_base_name= default_shared_memory_base_name;
-my_bool opt_enable_shared_memory;
+bool opt_enable_shared_memory;
 static char shutdown_event_name[40];
 static   NTService  Service;        ///< Service object for WinNT
 #endif /* _WIN32 */
@@ -1263,7 +1263,7 @@ static const char* default_dbug_option;
 ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
 Query_cache query_cache;
 
-my_bool opt_use_ssl= 1;
+bool opt_use_ssl= 1;
 char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
      *opt_ssl_cipher= NULL, *opt_ssl_key= NULL, *opt_ssl_crl= NULL,
      *opt_ssl_crlpath= NULL, *opt_tls_version= NULL;
@@ -1279,7 +1279,7 @@ SSL *ssl_acceptor;
 static int mysql_init_variables(void);
 static int get_options(int *argc_ptr, char ***argv_ptr);
 static void add_terminator(vector<my_option> *options);
-extern "C" my_bool mysqld_get_one_option(int, const struct my_option *, char *);
+extern "C" bool mysqld_get_one_option(int, const struct my_option *, char *);
 static void set_server_version(void);
 static int init_thread_environment();
 static char *get_relative_path(const char *path);
@@ -6749,7 +6749,7 @@ static int show_slave_running(THD*, SHOW_VAR *var, char *buff)
   {
     var->type= SHOW_MY_BOOL;
     var->value= buff;
-    *((my_bool *)buff)= (my_bool) (mi &&
+    *((bool *)buff)= (bool) (mi &&
                                    mi->slave_running == MYSQL_SLAVE_RUN_CONNECT &&
                                    mi->rli->slave_running);
   }
@@ -7760,7 +7760,7 @@ static int mysql_init_variables(void)
   return 0;
 }
 
-my_bool
+bool
 mysqld_get_one_option(int optid,
                       const struct my_option *opt MY_ATTRIBUTE((unused)),
                       char *argument)
@@ -8034,8 +8034,8 @@ mysqld_get_one_option(int optid,
           performance_schema_instrument = '%='OFF''
       */
       char *name= argument,*p= NULL, *val= NULL;
-      my_bool quote= false; /* true if quote detected */
-      my_bool error= true;  /* false if no errors detected */
+      bool quote= false; /* true if quote detected */
+      bool error= true;  /* false if no errors detected */
       const int PFS_BUFFER_SIZE= 128;
       char orig_argument[PFS_BUFFER_SIZE+1];
       orig_argument[0]= 0;

@@ -24,8 +24,8 @@
 
 class Format_description_log_event;
 
-extern my_bool force_opt;
-extern my_bool short_form;
+extern bool force_opt;
+extern bool short_form;
 extern ulong opt_server_id_mask;
 extern ulong opt_binlog_rows_event_max_size;
 

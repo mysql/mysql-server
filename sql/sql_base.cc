@@ -2426,7 +2426,7 @@ void close_temporary(THD *thd, TABLE *table, bool free_share, bool delete_table)
 */
 
 bool rename_temporary_table(THD* thd, TABLE *table, const char *db,
-			    const char *table_name)
+                            const char *table_name)
 {
   char *key;
   size_t key_length;
@@ -8886,8 +8886,8 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     FALSE  OK
 */
  bool setup_natural_join_row_types(THD *thd,
-                                         List<TABLE_LIST> *from_clause,
-                                         Name_resolution_context *context)
+                                   List<TABLE_LIST> *from_clause,
+                                   Name_resolution_context *context)
 {
   DBUG_ENTER("setup_natural_join_row_types");
   thd->where= "from clause";
@@ -9833,7 +9833,7 @@ bool mysql_rm_tmp_tables(void)
   List_iterator<LEX_STRING> files_it;
   MEM_ROOT files_root;
   LEX_STRING *file_str;
-  my_bool result= true;
+  bool result= true;
   DBUG_ENTER("mysql_rm_tmp_tables");
 
   if (!(thd= new THD))

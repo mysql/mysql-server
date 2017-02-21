@@ -93,7 +93,7 @@
   tables  only from SE but not from Dictionary cache. This flag is used to
   avoid deletion of dd::Table objects from cache.
 */
-my_bool dd_upgrade_flag= false;
+bool dd_upgrade_flag= false;
 
 /*
   The variable is used to differentiate the actions within SE during a
@@ -104,7 +104,7 @@ my_bool dd_upgrade_flag= false;
   se_private_data should not be retrieved from InnoDB in case dd::Table
   objects are being created to check if we are upgrading or restarting.
 */
-my_bool dd_upgrade_skip_se= false;
+bool dd_upgrade_skip_se= false;
 
 
 // Execute a single SQL query.
@@ -260,7 +260,7 @@ bool store_single_schema_table_meta_data(THD *thd,
     false on success
     true when fails to store the metadata.
 */
-my_bool store_schema_table_meta_data(THD *thd, plugin_ref plugin, void *unused)
+bool store_schema_table_meta_data(THD *thd, plugin_ref plugin, void *unused)
 {
   // Fetch schema ID of IS schema.
   const dd::Schema *IS_schema_obj= nullptr;

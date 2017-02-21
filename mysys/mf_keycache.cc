@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -626,7 +626,7 @@ static void change_key_cache_param(KEY_CACHE *keycache,
     none
 */
 
-void end_key_cache(KEY_CACHE *keycache, my_bool cleanup)
+void end_key_cache(KEY_CACHE *keycache, bool cleanup)
 {
   DBUG_ENTER("end_key_cache");
   DBUG_PRINT("enter", ("key_cache: %p", keycache));
@@ -905,7 +905,7 @@ static inline void link_changed(BLOCK_LINK *block, BLOCK_LINK **phead)
 
 static void link_to_file_list(KEY_CACHE *keycache,
                               BLOCK_LINK *block, int file,
-                              my_bool unlink_block)
+                              bool unlink_block)
 {
   DBUG_ASSERT(block->status & BLOCK_IN_USE);
   DBUG_ASSERT(block->hash_link && block->hash_link->block == block);
@@ -999,8 +999,8 @@ static void link_to_changed_list(KEY_CACHE *keycache,
     not linked in the LRU ring.
 */
 
-static void link_block(KEY_CACHE *keycache, BLOCK_LINK *block, my_bool hot,
-                       my_bool at_end)
+static void link_block(KEY_CACHE *keycache, BLOCK_LINK *block, bool hot,
+                       bool at_end)
 {
   BLOCK_LINK *ins;
   BLOCK_LINK **pins;
@@ -1207,7 +1207,7 @@ static void unreg_request(KEY_CACHE *keycache,
   */
   if (!--block->requests && !(block->status & BLOCK_ERROR))
   {
-    my_bool hot;
+    bool hot;
     if (block->hits_left)
       block->hits_left--;
     hot= !block->hits_left && at_end &&
@@ -1218,7 +1218,7 @@ static void unreg_request(KEY_CACHE *keycache,
         keycache->warm_blocks--;
       block->temperature= BLOCK_HOT;
     }
-    link_block(keycache, block, hot, (my_bool)at_end);
+    link_block(keycache, block, hot, at_end);
     block->last_hit_time= keycache->keycache_time;
     keycache->keycache_time++;
     /*
@@ -2180,7 +2180,7 @@ restart:
 static void read_block(KEY_CACHE *keycache,
                        st_keycache_thread_var *thread_var,
                        BLOCK_LINK *block, uint read_length,
-                       uint min_length, my_bool primary)
+                       uint min_length, bool primary)
 {
   size_t got_length;
 
@@ -2292,7 +2292,7 @@ uchar *key_cache_read(KEY_CACHE *keycache,
                       uint block_length,
                       int return_buffer MY_ATTRIBUTE((unused)))
 {
-  my_bool locked_and_incremented= FALSE;
+  bool locked_and_incremented= FALSE;
   int error=0;
   uchar *start= buff;
   DBUG_ENTER("key_cache_read");
@@ -2380,7 +2380,7 @@ uchar *key_cache_read(KEY_CACHE *keycache,
           /* The requested page is to be read into the block buffer */
           read_block(keycache, thread_var, block,
                      keycache->key_cache_block_size, read_length+offset,
-                     (my_bool)(page_st == PAGE_TO_BE_READ));
+                     page_st == PAGE_TO_BE_READ);
           /*
             A secondary request must now have the block assigned to the
             requested file block. It does not hurt to check it for
@@ -2511,7 +2511,7 @@ int key_cache_insert(KEY_CACHE *keycache,
     uint read_length;
     uint offset;
     int page_st;
-    my_bool locked_and_incremented= FALSE;
+    bool locked_and_incremented= FALSE;
 
     /*
       When the keycache is once initialized, we use the cache_lock to
@@ -2746,7 +2746,7 @@ int key_cache_write(KEY_CACHE *keycache,
                     uint block_length  MY_ATTRIBUTE((unused)),
                     int dont_write)
 {
-  my_bool locked_and_incremented= FALSE;
+  bool locked_and_incremented= FALSE;
   int error=0;
   DBUG_ENTER("key_cache_write");
   DBUG_PRINT("enter",

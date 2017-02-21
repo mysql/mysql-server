@@ -127,13 +127,13 @@ static void ssl_set_sys_error(int ssl_error)
   @retval FALSE   Indeterminate failure.
 */
 
-static my_bool ssl_should_retry(Vio *vio, int ret,
-                                enum enum_vio_io_event *event,
-                                unsigned long *ssl_errno_holder)
+static bool ssl_should_retry(Vio *vio, int ret,
+                             enum enum_vio_io_event *event,
+                             unsigned long *ssl_errno_holder)
 {
   int ssl_error;
   SSL *ssl= static_cast<SSL*>(vio->ssl_arg);
-  my_bool should_retry= TRUE;
+  bool should_retry= TRUE;
 
   /* Retrieve the result for the SSL I/O operation. */
   ssl_error= SSL_get_error(ssl, ret);
@@ -528,7 +528,7 @@ int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
 }
 
 
-my_bool vio_ssl_has_data(Vio *vio)
+bool vio_ssl_has_data(Vio *vio)
 {
   return SSL_pending(static_cast<SSL*>(vio->ssl_arg)) > 0 ? TRUE : FALSE;
 }

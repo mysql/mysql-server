@@ -41,17 +41,17 @@ static char *opt_unix_socket= 0;
 static char *shared_memory_base_name= 0;
 #endif
 static unsigned int  opt_port;
-static my_bool tty_password= 0;
+static bool tty_password= 0;
 static int opt_silent= 0;
 
-static my_bool opt_secure_auth= 1;
+static bool opt_secure_auth= 1;
 static MYSQL *mysql= 0;
 static char current_db[]= "client_test_db";
 static unsigned int test_count= 0;
 static unsigned int opt_count= 0;
 static unsigned int opt_count_read= 0;
 static unsigned int iter_count= 0;
-static my_bool have_innodb= FALSE;
+static bool have_innodb= FALSE;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static unsigned int opt_drop_db= 1;
 
@@ -209,7 +209,7 @@ static void verify_field_count(MYSQL_RES *result,
                                uint exp_count) MY_ATTRIBUTE((unused));
 static void execute_prepare_query(const char *query,
                                   ulonglong exp_count) MY_ATTRIBUTE((unused));
-static my_bool thread_query(const char *query) MY_ATTRIBUTE((unused));
+static bool thread_query(const char *query) MY_ATTRIBUTE((unused));
 
 
 /* A workaround for Sun Forte 5.6 on Solaris x86 */
@@ -289,12 +289,12 @@ Disable direct calls of mysql_init, as it disregards  shared memory base.
 
 /* Check if the connection has InnoDB tables */
 
-static my_bool check_have_innodb(MYSQL *conn)
+static bool check_have_innodb(MYSQL *conn)
 {
  MYSQL_RES *res;
  MYSQL_ROW row;
  int rc;
- my_bool result= FALSE;
+ bool result= FALSE;
 
  rc= mysql_query(conn, 
  "SELECT (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') "
@@ -342,7 +342,7 @@ opt_port and opt_unix_socket.
    
 @return pointer to initialized and connected MYSQL object
 */
-static MYSQL* client_connect(ulong flag, uint protocol, my_bool auto_reconnect)
+static MYSQL* client_connect(ulong flag, uint protocol, bool auto_reconnect)
 {
  MYSQL* mysql;
  int  rc;
@@ -601,7 +601,7 @@ static int my_process_stmt_result(MYSQL_STMT *stmt)
  MYSQL_RES   *result;
  char        data[MAX_RES_FIELDS][MAX_FIELD_DATA_SIZE];
  ulong       length[MAX_RES_FIELDS];
- my_bool     is_null[MAX_RES_FIELDS];
+ bool        is_null[MAX_RES_FIELDS];
  int         rc, i;
 
  if (!(result= mysql_stmt_result_metadata(stmt))) /* No meta info */
@@ -963,7 +963,7 @@ typedef struct st_stmt_fetch
 const char *query;
 unsigned stmt_no;
 MYSQL_STMT *handle;
-my_bool is_open;
+bool is_open;
 MYSQL_BIND *bind_array;
 char **out_data;
 unsigned long *out_data_length;
@@ -1089,7 +1089,7 @@ reading from the rest.
 
 enum fetch_type { USE_ROW_BY_ROW_FETCH= 0, USE_STORE_RESULT= 1 };
 
-my_bool fetch_n(const char **query_list, unsigned query_count,
+bool fetch_n(const char **query_list, unsigned query_count,
 enum fetch_type fetch_type)
 {
  unsigned open_statements= query_count;
@@ -1157,10 +1157,10 @@ enum fetch_type fetch_type)
 
 /* Separate thread query to test some cases */
 
-static my_bool thread_query(const char *query)
+static bool thread_query(const char *query)
 {
  MYSQL *l_mysql;
- my_bool error;
+ bool error;
 
  error= 0;
  if (!opt_silent)
@@ -1268,7 +1268,7 @@ static struct my_tests_st *get_my_tests();  /* To be defined in main .c file */
 
 static struct my_tests_st *my_testlist= 0;
 
-static my_bool
+static bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 char *argument)
 {

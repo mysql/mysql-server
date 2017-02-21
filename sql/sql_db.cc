@@ -104,7 +104,7 @@ static bool find_unknown_and_remove_deletable_files(THD *thd, MY_DIR *dirp,
 static bool find_db_tables(THD *thd, const char *db, TABLE_LIST **tables);
 
 static long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
-static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error);
+static bool rm_dir_w_symlink(const char *org_path, bool send_error);
 static void mysql_change_db_impl(THD *thd,
                                  const LEX_CSTRING &new_db_name,
                                  ulong new_db_access,
@@ -1000,7 +1000,7 @@ static bool find_db_tables(THD *thd, const char *db, TABLE_LIST **tables)
     1 ERROR
 */
 
-static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error)
+static bool rm_dir_w_symlink(const char *org_path, bool send_error)
 {
   char tmp_path[FN_REFLEN], *pos;
   char *path= tmp_path;

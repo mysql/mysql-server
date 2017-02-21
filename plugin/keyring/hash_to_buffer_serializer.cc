@@ -20,8 +20,8 @@
 
 namespace keyring
 {
-  my_bool Hash_to_buffer_serializer::store_key_in_buffer(const IKey* key,
-                                                         Buffer *buffer)
+  bool Hash_to_buffer_serializer::store_key_in_buffer(const IKey* key,
+                                                      Buffer *buffer)
   {
     if (buffer->size < buffer->position + key->get_key_pod_size())
       return TRUE;
@@ -29,8 +29,8 @@ namespace keyring
     return FALSE;
   }
 
-  my_bool Hash_to_buffer_serializer::store_keys_in_buffer(HASH *keys_hash,
-                                                          Buffer *buffer)
+  bool Hash_to_buffer_serializer::store_keys_in_buffer(HASH *keys_hash,
+                                                       Buffer *buffer)
   {
     for (uint i= 0 ; i < keys_hash->records ; ++i)
     {

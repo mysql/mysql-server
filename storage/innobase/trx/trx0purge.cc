@@ -61,7 +61,7 @@ ulong		srv_max_purge_lag_delay = 0;
 trx_purge_t*	purge_sys = NULL;
 
 #ifdef UNIV_DEBUG
-my_bool		srv_purge_view_update_only_debug;
+bool		srv_purge_view_update_only_debug;
 bool		trx_commit_disallowed = false;
 #endif /* UNIV_DEBUG */
 

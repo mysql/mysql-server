@@ -53,13 +53,13 @@ InnoDB Native API
 #include "trx0roll.h"
 
 /** configure variable for binlog option with InnoDB APIs */
-my_bool ib_binlog_enabled = FALSE;
+bool ib_binlog_enabled = FALSE;
 
 /** configure variable for MDL option with InnoDB APIs */
-my_bool ib_mdl_enabled = FALSE;
+bool ib_mdl_enabled = FALSE;
 
 /** configure variable for disable rowlock with InnoDB APIs */
-my_bool ib_disable_row_lock = FALSE;
+bool ib_disable_row_lock = FALSE;
 
 /** configure variable for Transaction isolation levels */
 ulong ib_trx_level_setting = IB_TRX_READ_UNCOMMITTED;

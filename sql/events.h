@@ -118,7 +118,7 @@ public:
   /* A hack needed for Event_queue_element */
   static Event_db_repository *get_db_repository() { return db_repository; }
 
-  static bool init(my_bool opt_noacl);
+  static bool init(bool opt_noacl);
 
   static void deinit();
 

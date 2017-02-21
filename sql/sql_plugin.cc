@@ -539,9 +539,9 @@ public:
 static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv);
 static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
                              const char *list);
-static my_bool check_if_option_is_deprecated(int optid,
-                                             const struct my_option *opt,
-                                             char *argument);
+static bool check_if_option_is_deprecated(int optid,
+                                          const struct my_option *opt,
+                                          char *argument);
 static int test_plugin_options(MEM_ROOT *, st_plugin_int *,
                                int *, char **);
 static bool register_builtin(st_mysql_plugin *, st_plugin_int *,
@@ -2594,8 +2594,8 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
 
 #define EXTRA_OPTIONS 3 /* options for: 'foo', 'plugin-foo' and NULL */
 
-typedef DECLARE_MYSQL_SYSVAR_BASIC(sysvar_bool_t, my_bool);
-typedef DECLARE_MYSQL_THDVAR_BASIC(thdvar_bool_t, my_bool);
+typedef DECLARE_MYSQL_SYSVAR_BASIC(sysvar_bool_t, bool);
+typedef DECLARE_MYSQL_THDVAR_BASIC(thdvar_bool_t, bool);
 typedef DECLARE_MYSQL_SYSVAR_BASIC(sysvar_str_t, char *);
 typedef DECLARE_MYSQL_THDVAR_BASIC(thdvar_str_t, char *);
 
@@ -2648,7 +2648,7 @@ static int check_func_bool(THD*, st_mysql_sys_var*,
       goto err;
     result= (int) tmp;
   }
-  *(my_bool *) save= result ? TRUE : FALSE;
+  *(bool *) save= result ? TRUE : FALSE;
   return 0;
 err:
   return 1;
@@ -2658,7 +2658,7 @@ err:
 static int check_func_int(THD *thd, st_mysql_sys_var *var,
                           void *save, st_mysql_value *value)
 {
-  my_bool fixed1, fixed2;
+  bool fixed1, fixed2;
   long long orig, val;
   struct my_option options;
   value->val_int(value, &orig);
@@ -2687,7 +2687,7 @@ static int check_func_int(THD *thd, st_mysql_sys_var *var,
 static int check_func_long(THD *thd, st_mysql_sys_var *var,
                           void *save, st_mysql_value *value)
 {
-  my_bool fixed1, fixed2;
+  bool fixed1, fixed2;
   long long orig, val;
   struct my_option options;
   value->val_int(value, &orig);
@@ -2716,7 +2716,7 @@ static int check_func_long(THD *thd, st_mysql_sys_var *var,
 static int check_func_longlong(THD *thd, st_mysql_sys_var *var,
                                void *save, st_mysql_value *value)
 {
-  my_bool fixed1, fixed2;
+  bool fixed1, fixed2;
   long long orig, val;
   struct my_option options;
   value->val_int(value, &orig);
@@ -2838,7 +2838,7 @@ static int check_func_double(THD *thd, st_mysql_sys_var *var,
                              void *save, st_mysql_value *value)
 {
   double v;
-  my_bool fixed;
+  bool fixed;
   struct my_option option;
 
   value->val_real(value, &v);
@@ -2852,7 +2852,7 @@ static int check_func_double(THD *thd, st_mysql_sys_var *var,
 static void update_func_bool(THD*, st_mysql_sys_var*,
                              void *tgt, const void *save)
 {
-  *(my_bool *) tgt= *(my_bool *) save ? TRUE : FALSE;
+  *(bool *) tgt= *(bool *) save ? TRUE : FALSE;
 }
 
 
@@ -3007,7 +3007,7 @@ static st_bookmark *register_var(const char *plugin, const char *name,
 
   switch (flags & PLUGIN_VAR_TYPEMASK) {
   case PLUGIN_VAR_BOOL:
-    size= sizeof(my_bool);
+    size= sizeof(bool);
     break;
   case PLUGIN_VAR_INT:
     size= sizeof(int);
@@ -3248,9 +3248,9 @@ static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
   construct_options to their respective types.
 */
 
-static my_bool *mysql_sys_var_bool(THD* thd, int offset)
+static bool *mysql_sys_var_bool(THD* thd, int offset)
 {
-  return (my_bool *) intern_sys_var_ptr(thd, offset, true);
+  return (bool *) intern_sys_var_ptr(thd, offset, true);
 }
 
 static int *mysql_sys_var_int(THD* thd, int offset)
@@ -3815,7 +3815,7 @@ bool sys_var_pluginvar::is_default(THD *thd, set_var *var)
     case PLUGIN_VAR_SET:
       return (((sysvar_set_t*) plugin_var)->def_val == *(ulong *)tgt);
     case PLUGIN_VAR_BOOL:
-      return (((sysvar_bool_t*) plugin_var)->def_val == *(my_bool *)tgt);
+      return (((sysvar_bool_t*) plugin_var)->def_val == *(bool *)tgt);
     case PLUGIN_VAR_STR:
       return
         !strcmp((char*)(((sysvar_str_t*) plugin_var)->def_val),*(char **)tgt);
@@ -3833,7 +3833,7 @@ bool sys_var_pluginvar::is_default(THD *thd, set_var *var)
     case PLUGIN_VAR_SET | PLUGIN_VAR_THDLOCAL:
       return (((thdvar_set_t*) plugin_var)->def_val == *(ulong *)tgt);
     case PLUGIN_VAR_BOOL | PLUGIN_VAR_THDLOCAL:
-      return (((thdvar_bool_t*) plugin_var)->def_val == *(my_bool *)tgt);
+      return (((thdvar_bool_t*) plugin_var)->def_val == *(bool *)tgt);
     case PLUGIN_VAR_STR | PLUGIN_VAR_THDLOCAL:
       return
         !strcmp((char*)(((thdvar_str_t*) plugin_var)->def_val),*(char **)tgt);
@@ -4046,10 +4046,10 @@ static void plugin_opt_set_limits(struct my_option *options,
     options->arg_type= OPT_ARG;
 }
 
-extern "C" my_bool get_one_plugin_option(int, const struct my_option*,
-                                         char *);
+extern "C" bool get_one_plugin_option(int, const struct my_option*,
+                                      char *);
 
-my_bool get_one_plugin_option(int, const struct my_option*, char*)
+bool get_one_plugin_option(int, const struct my_option*, char*)
 {
   return 0;
 }
@@ -4380,9 +4380,9 @@ static my_option *construct_help_options(MEM_ROOT *mem_root,
   @retval 0 Success
 */
 
-static my_bool check_if_option_is_deprecated(int optid,
-                                             const struct my_option *opt,
-                                             char *argument MY_ATTRIBUTE((unused)))
+static bool check_if_option_is_deprecated(int optid,
+                                          const struct my_option *opt,
+                                          char *argument MY_ATTRIBUTE((unused)))
 {
   if (optid == -1)
   {

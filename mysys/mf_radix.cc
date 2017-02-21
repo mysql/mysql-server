@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"  // IWYU pragma: keep
 
-my_bool radixsort_is_appliccable(uint n_items, size_t size_of_element)
+bool radixsort_is_appliccable(uint n_items, size_t size_of_element)
 {
   return size_of_element <= 20 && n_items >= 1000 && n_items < 100000;
 }

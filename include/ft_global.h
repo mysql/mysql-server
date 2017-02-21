@@ -129,7 +129,7 @@ struct ft_hints
 
 FT_INFO *ft_init_search(uint,void *, uint, uchar *, uint,
                         const CHARSET_INFO *, uchar *);
-my_bool ft_boolean_check_syntax_string(const uchar *);
+bool ft_boolean_check_syntax_string(const uchar *);
 
 #ifdef  __cplusplus
 }

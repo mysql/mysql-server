@@ -111,7 +111,7 @@ struct passwd *user_info= 0;
 #endif /* HAVE_CHOWN */
 Path dir_string;
 Sql_string_t suffix_string;
-my_bool opt_verbose;
+bool opt_verbose;
 
 static const char *load_default_groups[]=
 {
@@ -359,7 +359,7 @@ void usage(void)
 
 
 extern "C" {
-static my_bool
+static bool
 my_arguments_get_one_option(int optid,
                             const struct my_option *opt MY_ATTRIBUTE((unused)),
                             char *argument)
@@ -398,7 +398,7 @@ int main(int argc, char *argv[])
 {
   int ret_val= 0;
   Sql_string_t openssl_check("openssl version");
-  my_bool save_skip_unknown= my_getopt_skip_unknown;
+  bool save_skip_unknown= my_getopt_skip_unknown;
 
   MY_INIT(argv[0]);
   DBUG_ENTER("main");

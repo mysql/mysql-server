@@ -523,7 +523,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
       share->options|= HA_OPTION_READ_ONLY_DATA;
       info.s=share;
       if (_mi_read_pack_info(&info,
-			     (my_bool)
+			     (bool)
 			     MY_TEST(!(share->options &
                                        (HA_OPTION_PACK_RECORD |
                                         HA_OPTION_TEMP_COMPRESS_RECORD)))))
@@ -998,7 +998,7 @@ uchar *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state)
 }
 
 
-uint mi_state_info_read_dsk(File file, MI_STATE_INFO *state, my_bool pRead)
+uint mi_state_info_read_dsk(File file, MI_STATE_INFO *state, bool pRead)
 {
   uchar	buff[MI_STATE_INFO_SIZE + MI_STATE_EXTRA_SIZE];
 

@@ -93,7 +93,7 @@ void Row_builder::add_null_field()
 }
 
 
-void Row_builder::add_longlong_field(longlong value, my_bool unsigned_flag)
+void Row_builder::add_longlong_field(longlong value, bool unsigned_flag)
 {
   ADD_FIELD_HEADER();
 

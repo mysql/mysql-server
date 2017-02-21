@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -819,7 +819,7 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 */
 
 bool
-Events::init(my_bool opt_noacl_or_bootstrap)
+Events::init(bool opt_noacl_or_bootstrap)
 {
 
   THD *thd;

@@ -111,28 +111,28 @@ static ulong find_set(TYPELIB *lib, const char *x, size_t length,
 static char *alloc_query_str(size_t size);
 
 static void field_escape(DYNAMIC_STRING* in, const char *from);
-static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
-                quick= 1, extended_insert= 1,
-                lock_tables= 1, opt_force= 0, flush_logs= 0,
-                flush_privileges= 0,
-                opt_drop=1,opt_keywords=0,opt_lock=1,opt_compress=0,
-                create_options=1,opt_quoted=0,opt_databases=0,
-                opt_alldbs=0,opt_create_db=0,opt_lock_all_tables=0,
-                opt_set_charset=0, opt_dump_date=1,
-                opt_autocommit=0,opt_disable_keys=1,opt_xml=0,
-                opt_delete_master_logs=0, tty_password=0,
-                opt_single_transaction=0, opt_comments= 0, opt_compact= 0,
-                opt_hex_blob=0, opt_order_by_primary=0, opt_ignore=0,
-                opt_complete_insert= 0, opt_drop_database= 0,
-                opt_replace_into= 0,
-                opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1,
-                opt_slave_apply= 0, 
-                opt_include_master_host_port= 0,
-                opt_events= 0, opt_comments_used= 0,
-                opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0,
-                opt_secure_auth= TRUE, opt_network_timeout= 0,
-                stats_tables_included= 0;
-static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
+static bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
+             quick= 1, extended_insert= 1,
+             lock_tables= 1, opt_force= 0, flush_logs= 0,
+             flush_privileges= 0,
+             opt_drop=1,opt_keywords=0,opt_lock=1,opt_compress=0,
+             create_options=1,opt_quoted=0,opt_databases=0,
+             opt_alldbs=0,opt_create_db=0,opt_lock_all_tables=0,
+             opt_set_charset=0, opt_dump_date=1,
+             opt_autocommit=0,opt_disable_keys=1,opt_xml=0,
+             opt_delete_master_logs=0, tty_password=0,
+             opt_single_transaction=0, opt_comments= 0, opt_compact= 0,
+             opt_hex_blob=0, opt_order_by_primary=0, opt_ignore=0,
+             opt_complete_insert= 0, opt_drop_database= 0,
+             opt_replace_into= 0,
+             opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1,
+             opt_slave_apply= 0, 
+             opt_include_master_host_port= 0,
+             opt_events= 0, opt_comments_used= 0,
+             opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0,
+             opt_secure_auth= TRUE, opt_network_timeout= 0,
+             stats_tables_included= 0;
+static bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
 static DYNAMIC_STRING insert_pat;
@@ -146,14 +146,14 @@ static char  *opt_password=0,*current_user=0,
 static char **defaults_argv= 0;
 static char compatible_mode_normal_str[255];
 /* Server supports character_set_results session variable? */
-static my_bool server_supports_switching_charsets= TRUE;
+static bool server_supports_switching_charsets= TRUE;
 static ulong opt_compatible_mode= 0;
 #define MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL 1
 #define MYSQL_OPT_MASTER_DATA_COMMENTED_SQL 2
 #define MYSQL_OPT_SLAVE_DATA_EFFECTIVE_SQL 1
 #define MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL 2
 static uint opt_enable_cleartext_plugin= 0;
-static my_bool using_opt_enable_cleartext_plugin= 0;
+static bool using_opt_enable_cleartext_plugin= 0;
 static uint opt_mysql_port= 0, opt_master_data;
 static uint opt_slave_data;
 static uint my_end_arg;
@@ -208,7 +208,7 @@ static char *default_charset;
 static CHARSET_INFO *charset_info= &my_charset_latin1;
 const char *default_dbug_option="d:t:o,/tmp/mysqldump.trace";
 /* have we seen any VIEWs during table scanning? */
-my_bool seen_views= 0;
+bool seen_views= 0;
 const char *compatible_mode_names[]=
 {
   "MYSQL323", "MYSQL40", "POSTGRESQL", "ORACLE", "MSSQL", "DB2",
@@ -605,17 +605,17 @@ static int init_dumping_tables(char *);
 static int init_dumping(char *, int init_func(char*));
 static int dump_databases(char **);
 static int dump_all_databases();
-static char *quote_name(const char *name, char *buff, my_bool force);
+static char *quote_name(const char *name, char *buff, bool force);
 char check_if_ignore_table(const char *table_name, char *table_type);
 bool is_infoschema_db(const char *db);
 static char *primary_key_fields(const char *table_name);
-static my_bool get_view_structure(char *table, char* db);
-static my_bool dump_all_views_in_db(char *database);
+static bool get_view_structure(char *table, char* db);
+static bool dump_all_views_in_db(char *database);
 static int dump_all_tablespaces();
 static int dump_tablespaces_for_tables(char *db, char **table_names, int tables);
 static int dump_tablespaces_for_databases(char** databases);
 static int dump_tablespaces(char* ts_where);
-static void print_comment(FILE *sql_file, my_bool is_error, const char *format,
+static void print_comment(FILE *sql_file, bool is_error, const char *format,
                           ...);
 static void verbose_msg(const char *fmt, ...)
   MY_ATTRIBUTE((format(printf,1,2)));
@@ -821,7 +821,7 @@ static const uchar* get_table_key(const uchar *entry, size_t *length)
 }
 
 
-static my_bool
+static bool
 get_one_option(int optid, const struct my_option *opt,
                char *argument)
 {
@@ -1237,7 +1237,7 @@ static int fetch_db_collation(const char *db_name,
                               char *db_cl_name,
                               int db_cl_size)
 {
-  my_bool err_status= FALSE;
+  bool err_status= FALSE;
   char query[QUERY_LENGTH];
   MYSQL_RES *db_cl_res;
   MYSQL_ROW db_cl_row;
@@ -1616,10 +1616,10 @@ error:
       @retval 1     yes
               0     no
 */
-static my_bool do_ignore_error()
+static bool do_ignore_error()
 {
   uint last_errno;
-  my_bool found= 0;
+  bool found= 0;
 
   DBUG_ENTER("do_ignore_error");
 
@@ -1821,7 +1821,7 @@ static void unescape(FILE *file,char *pos, size_t length)
 } /* unescape */
 
 
-static my_bool test_if_special_chars(const char *str)
+static bool test_if_special_chars(const char *str)
 {
   for ( ; *str ; str++)
     if (!my_isvar(charset_info,*str) && *str != '$')
@@ -1847,7 +1847,7 @@ static my_bool test_if_special_chars(const char *str)
   buff                 quoted string
 
 */
-static char *quote_name(const char *name, char *buff, my_bool force)
+static char *quote_name(const char *name, char *buff, bool force)
 {
   char *to= buff;
   char qtype= (opt_compatible_mode & MASK_ANSI_QUOTES) ? '\"' : '`';
@@ -1923,7 +1923,7 @@ static char *quote_for_like(const char *name, char *buff)
 */
 
 static void print_quoted_xml(FILE *xml_file, const char *str, size_t len,
-                             my_bool is_attribute_name)
+                             bool is_attribute_name)
 {
   const char *end;
 
@@ -2206,7 +2206,7 @@ static void print_xml_comment(FILE *xml_file, size_t len,
 
 /* A common printing function for xml and non-xml modes. */
 
-static void print_comment(FILE *sql_file, my_bool is_error, const char *format,
+static void print_comment(FILE *sql_file, bool is_error, const char *format,
                           ...)
 {
   static char comment_buff[COMMENT_LENGTH];
@@ -2658,8 +2658,8 @@ static uint dump_routines_for_db(char *db)
 }
 
 /* general_log or slow_log tables under mysql database */
-static inline my_bool general_log_or_slow_log_tables(const char *db,
-                                                     const char *table)
+static inline bool general_log_or_slow_log_tables(const char *db,
+                                                  const char *table)
 {
   return (!my_strcasecmp(charset_info, db, "mysql")) &&
           (!my_strcasecmp(charset_info, table, "general_log") ||
@@ -2675,8 +2675,8 @@ static inline my_bool general_log_or_slow_log_tables(const char *db,
   @return
     @retval TRUE if it is innodb stats table else FALSE
 */
-static inline my_bool innodb_stats_tables(const char *db,
-                                          const char *table)
+static inline bool innodb_stats_tables(const char *db,
+                                       const char *table)
 {
   return (!my_strcasecmp(charset_info, db, "mysql")) &&
           (!my_strcasecmp(charset_info, table, "innodb_table_stats") ||
@@ -2693,7 +2693,7 @@ static inline my_bool innodb_stats_tables(const char *db,
   @return
     @retval TRUE if dump contains innodb stats table or else FALSE
 */
-static inline my_bool is_innodb_stats_tables_included(int argc, char**argv)
+static inline bool is_innodb_stats_tables_included(int argc, char**argv)
 {
   if (opt_alldbs)
     return true;
@@ -2738,9 +2738,9 @@ static inline my_bool is_innodb_stats_tables_included(int argc, char**argv)
 */
 
 static uint get_table_structure(char *table, char *db, char *table_type,
-                                char *ignore_flag, my_bool real_columns[])
+                                char *ignore_flag, bool real_columns[])
 {
-  my_bool    init=0, write_data, complete_insert, skip_ddl;
+  bool    init=0, write_data, complete_insert, skip_ddl;
   my_ulonglong num_fields;
   char       *result_table, *opt_quoted_table;
   const char *insert_option;
@@ -2758,7 +2758,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
                                 "ORDER BY ORDINAL_POSITION";
   FILE       *sql_file= md_result_file;
   size_t     len;
-  my_bool    is_log_table;
+  bool    is_log_table;
   unsigned int colno;
   MYSQL_RES  *result;
   MYSQL_ROW  row;
@@ -3728,7 +3728,7 @@ static void dump_table(char *table, char *db)
   MYSQL_RES     *res;
   MYSQL_FIELD   *field;
   MYSQL_ROW     row;
-  my_bool real_columns[MAX_FIELDS];
+  bool real_columns[MAX_FIELDS];
   DBUG_ENTER("dump_table");
 
   /*
@@ -4723,7 +4723,7 @@ static int init_dumping(char *database, int init_func(char*))
 
 /* Return 1 if we should copy the table */
 
-static my_bool include_table(const uchar *hash_key, size_t len)
+static bool include_table(const uchar *hash_key, size_t len)
 {
   return ! my_hash_search(&ignore_table, hash_key, len);
 }
@@ -4736,9 +4736,9 @@ static int dump_all_tables_in_db(char *database)
   char table_buff[NAME_LEN*2+3];
   char hash_key[2*NAME_LEN+2];  /* "db.tablename" */
   char *afterdot;
-  my_bool general_log_table_exists= 0, slow_log_table_exists=0;
+  bool general_log_table_exists= 0, slow_log_table_exists=0;
   int using_mysql_db= !my_strcasecmp(charset_info, database, "mysql");
-  my_bool real_columns[MAX_FIELDS];
+  bool real_columns[MAX_FIELDS];
 
   DBUG_ENTER("dump_all_tables_in_db");
 
@@ -4906,7 +4906,7 @@ static int dump_all_tables_in_db(char *database)
     1 ERROR
 */
 
-static my_bool dump_all_views_in_db(char *database)
+static bool dump_all_views_in_db(char *database)
 {
   char *table;
   uint numrows;
@@ -5759,9 +5759,9 @@ static int replace(DYNAMIC_STRING *ds_str,
                                 restore the session binlog.
 */
 
-static void set_session_binlog(my_bool flag)
+static void set_session_binlog(bool flag)
 {
-  static my_bool is_binlog_disabled= FALSE;
+  static bool is_binlog_disabled= FALSE;
 
   if (!flag && !is_binlog_disabled)
   {
@@ -5792,7 +5792,7 @@ static void set_session_binlog(my_bool flag)
 
 */
 
-static my_bool add_set_gtid_purged(MYSQL *mysql_con)
+static bool add_set_gtid_purged(MYSQL *mysql_con)
 {
   MYSQL_RES  *gtid_purged_res;
   MYSQL_ROW  gtid_set;
@@ -5841,7 +5841,7 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con)
   @retval             TRUE          fail.
 */
 
-static my_bool process_set_gtid_purged(MYSQL* mysql_con)
+static bool process_set_gtid_purged(MYSQL* mysql_con)
 {
   MYSQL_RES  *gtid_mode_res;
   MYSQL_ROW  gtid_mode_row;
@@ -5921,7 +5921,7 @@ static my_bool process_set_gtid_purged(MYSQL* mysql_con)
     1 ERROR
 */
 
-static my_bool get_view_structure(char *table, char* db)
+static bool get_view_structure(char *table, char* db)
 {
   MYSQL_RES  *table_res;
   MYSQL_ROW  row;

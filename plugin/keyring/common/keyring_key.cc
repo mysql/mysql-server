@@ -85,9 +85,9 @@ void Key::store_in_buffer(uchar* buffer, size_t *buffer_position) const
   DBUG_ASSERT(*buffer_position % sizeof(size_t) == 0);
 }
 
-my_bool Key::load_string_from_buffer(const uchar *buffer, size_t *buffer_position,
-                                     size_t key_pod_size, std::string *string,
-                                     size_t string_length)
+bool Key::load_string_from_buffer(const uchar *buffer, size_t *buffer_position,
+                                  size_t key_pod_size, std::string *string,
+                                  size_t string_length)
 {
   if (key_pod_size < *buffer_position + string_length)
     return TRUE;
@@ -98,8 +98,8 @@ my_bool Key::load_string_from_buffer(const uchar *buffer, size_t *buffer_positio
   return FALSE;
 }
 
-my_bool Key::load_field_size(const uchar *buffer, size_t *buffer_position,
-                             size_t key_pod_size, size_t *field_length)
+bool Key::load_field_size(const uchar *buffer, size_t *buffer_position,
+                          size_t key_pod_size, size_t *field_length)
 {
   if (key_pod_size <  *buffer_position + sizeof(size_t))
     return TRUE;
@@ -109,8 +109,8 @@ my_bool Key::load_field_size(const uchar *buffer, size_t *buffer_position,
   return FALSE;
 }
 
-my_bool Key::load_from_buffer(uchar* buffer, size_t *number_of_bytes_read_from_buffer,
-                              size_t input_buffer_size)
+bool Key::load_from_buffer(uchar* buffer, size_t *number_of_bytes_read_from_buffer,
+                           size_t input_buffer_size)
 {
   size_t key_pod_size;
   size_t key_id_length;
@@ -179,18 +179,18 @@ void Key::xor_data()
     key.get()[i]^= obfuscate_str[l];
 }
 
-my_bool Key::is_key_id_valid()
+bool Key::is_key_id_valid()
 {
   return key_id.length() > 0;
 }
 
-my_bool Key::is_key_type_valid()
+bool Key::is_key_type_valid()
 {
   return key_type.length() && (key_type == "AES" || key_type == "RSA" ||
                                key_type == "DSA");
 }
 
-my_bool Key::is_key_valid()
+bool Key::is_key_valid()
 {
   return is_key_id_valid() || is_key_type_valid();
 }

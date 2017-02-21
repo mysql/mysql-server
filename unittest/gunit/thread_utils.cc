@@ -77,7 +77,7 @@ void Thread::join()
 
 void Thread::run_wrapper(Thread *start_arg)
 {
-  const my_bool error= my_thread_init();
+  const bool error= my_thread_init();
   ASSERT_FALSE(error);
   start_arg->run();
   my_thread_end();

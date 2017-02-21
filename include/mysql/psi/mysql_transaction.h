@@ -136,8 +136,8 @@ inline_mysql_start_transaction(PSI_transaction_locker_state *state,
                                const void *xid,
                                const ulonglong *trxid,
                                int isolation_level,
-                               my_bool read_only,
-                               my_bool autocommit,
+                               bool read_only,
+                               bool autocommit,
                                const char *src_file,
                                int src_line)
 {

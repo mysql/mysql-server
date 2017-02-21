@@ -7745,7 +7745,7 @@ longlong Item_func_get_system_var::val_int()
   case SHOW_BOOL:
     return get_sys_var_safe<bool>(thd);
   case SHOW_MY_BOOL:
-    return get_sys_var_safe<my_bool>(thd);
+    return get_sys_var_safe<bool>(thd);
   case SHOW_DOUBLE:
     {
       double dval= val_real();

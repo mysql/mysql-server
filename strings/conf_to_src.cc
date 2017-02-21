@@ -131,7 +131,7 @@ static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
   }
 }
 
-static my_bool simple_cs_is_full(CHARSET_INFO *cs)
+static bool simple_cs_is_full(CHARSET_INFO *cs)
 {
   return ((cs->csname && cs->tab_to_uni && cs->ctype && cs->to_upper &&
 	   cs->to_lower) &&

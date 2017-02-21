@@ -47,7 +47,7 @@ os_event_t			dict_stats_event = NULL;
 
 #ifdef UNIV_DEBUG
 /** Used by SET GLOBAL innodb_dict_stats_disabled_debug = 1; */
-my_bool				innodb_dict_stats_disabled_debug;
+bool				innodb_dict_stats_disabled_debug;
 
 static os_event_t		dict_stats_disabled_event;
 #endif /* UNIV_DEBUG */
@@ -381,7 +381,7 @@ dict_stats_disabled_debug_update(
 	/* This method is protected by mutex, as every SET GLOBAL .. */
 	ut_ad(dict_stats_disabled_event != NULL);
 
-	const bool disable = *static_cast<const my_bool*>(save);
+	const bool disable = *static_cast<const bool*>(save);
 
 	const int64_t sig_count = os_event_reset(dict_stats_disabled_event);
 

@@ -489,7 +489,7 @@ int
 my_strnncoll_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                     const uchar *s, size_t slen,
                     const uchar *t, size_t tlen,
-                    my_bool t_is_prefix)
+                    bool t_is_prefix)
 {
   size_t len= MY_MIN(slen,tlen);
   int cmp= memcmp(s,t,len);
@@ -782,12 +782,12 @@ static void pad_max_char(const CHARSET_INFO *cs, char *str, char *end)
 ** optimized !
 */
 
-my_bool my_like_range_mb(const CHARSET_INFO *cs,
-			 const char *ptr,size_t ptr_length,
-			 char escape, char w_one, char w_many,
-			 size_t res_length,
-			 char *min_str,char *max_str,
-			 size_t *min_length,size_t *max_length)
+bool my_like_range_mb(const CHARSET_INFO *cs,
+                      const char *ptr,size_t ptr_length,
+                      char escape, char w_one, char w_many,
+                      size_t res_length,
+                      char *min_str,char *max_str,
+                      size_t *min_length,size_t *max_length)
 {
   uint mb_len;
   const char *end= ptr + ptr_length;
@@ -937,7 +937,7 @@ fill_max_and_min:
    @retval FALSE if LIKE pattern can be optimized
    @retval TRUE if LIKE can't be optimized.
 */
-my_bool
+bool
 my_like_range_generic(const CHARSET_INFO *cs,
                       const char *ptr, size_t ptr_length,
                       char escape, char w_one, char w_many,

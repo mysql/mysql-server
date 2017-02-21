@@ -3867,7 +3867,7 @@ Table_check_intact::check(THD *thd, TABLE *table,
                           const TABLE_FIELD_DEF *table_def)
 {
   uint i;
-  my_bool error= FALSE;
+  bool error= FALSE;
   const TABLE_FIELD_TYPE *field_def= table_def->field;
   DBUG_ENTER("table_check_intact");
   DBUG_PRINT("info",("table: %s  expected_count: %d",
@@ -7142,7 +7142,7 @@ int TABLE_LIST::fetch_number_of_rows()
 */
 
 static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
-                             table_map ref_by_tbl)
+                            table_map ref_by_tbl)
 {
   uint key= 0;
   Derived_key *entry= 0;
