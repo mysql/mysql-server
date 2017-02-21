@@ -36,12 +36,13 @@ class PFS_index_persisted_variables : public PFS_engine_index
 {
 public:
   PFS_index_persisted_variables()
-    : PFS_engine_index(&m_key),
-    m_key("VARIABLE_NAME")
-  {}
+    : PFS_engine_index(&m_key), m_key("VARIABLE_NAME")
+  {
+  }
 
   ~PFS_index_persisted_variables()
-  {}
+  {
+  }
 
   virtual bool match(const System_variable *pfs);
 
@@ -56,8 +57,10 @@ private:
 class table_persisted_variables_context : public PFS_table_context
 {
 public:
-  table_persisted_variables_context(ulonglong hash_version, bool restore) :
-    PFS_table_context(hash_version, restore, THR_PFS_SV) {}
+  table_persisted_variables_context(ulonglong hash_version, bool restore)
+    : PFS_table_context(hash_version, restore, THR_PFS_SV)
+  {
+  }
 };
 
 /**
@@ -80,7 +83,7 @@ class table_persisted_variables : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
 
   virtual void reset_position(void);
@@ -101,7 +104,8 @@ protected:
 
 public:
   ~table_persisted_variables()
-  {}
+  {
+  }
 
 protected:
   int make_row(const System_variable *system_var);

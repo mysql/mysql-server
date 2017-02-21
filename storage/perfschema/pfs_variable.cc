@@ -544,36 +544,38 @@ PFS_system_variable_info_cache::do_materialize_all(THD *unsafe_thd)
 /**
   Build PERSISTED system variable cache.
 */
-int PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd)
+int
+PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd)
 {
-  int ret= 1;
-  m_unsafe_thd= unsafe_thd;
-  m_safe_thd= NULL;
-  m_materialized= false;
+  int ret = 1;
+  m_unsafe_thd = unsafe_thd;
+  m_safe_thd = NULL;
+  m_materialized = false;
   m_cache.clear();
 
   /* Block plugins from unloading. */
   mysql_mutex_lock(&LOCK_plugin_delete);
 
   /* Get and lock a validated THD from the thread manager. */
-  if ((m_safe_thd= get_THD(unsafe_thd)) != NULL)
+  if ((m_safe_thd = get_THD(unsafe_thd)) != NULL)
   {
-    Persisted_variables_cache *pv= Persisted_variables_cache::get_instance();
+    Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
     if (pv)
     {
-      map<string, string> *persist_hash= pv->get_persist_hash();
+      map<string, string> *persist_hash = pv->get_persist_hash();
       map<string, string>::const_iterator iter;
-      for (iter= persist_hash->begin(); iter != persist_hash->end(); iter++)
+      for (iter = persist_hash->begin(); iter != persist_hash->end(); iter++)
       {
         System_variable system_var;
-        system_var.m_charset= system_charset_info;
+        system_var.m_charset = system_charset_info;
 
-        system_var.m_name= iter->first.c_str();
-        system_var.m_name_length= iter->first.length();
-        system_var.m_value_length= iter->second.length();
-        memcpy(system_var.m_value_str, iter->second.c_str(),
+        system_var.m_name = iter->first.c_str();
+        system_var.m_name_length = iter->first.length();
+        system_var.m_value_length = iter->second.length();
+        memcpy(system_var.m_value_str,
+               iter->second.c_str(),
                system_var.m_value_length);
-        system_var.m_value_str[system_var.m_value_length]= 0;
+        system_var.m_value_str[system_var.m_value_length] = 0;
 
         m_cache.push_back(system_var);
       }
@@ -581,13 +583,12 @@ int PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd)
     /* Release lock taken in get_THD(). */
     mysql_mutex_unlock(&m_safe_thd->LOCK_thd_data);
 
-    m_materialized= true;
-    ret= 0;
+    m_materialized = true;
+    ret = 0;
   }
 
   mysql_mutex_unlock(&LOCK_plugin_delete);
   return ret;
-
 }
 
 /**
@@ -811,13 +812,11 @@ System_variable::init(THD *target_thd, const SHOW_VAR *show_var)
               system_var->get_max_value());
   m_max_value_length = strlen(m_max_value_str);
 
-  m_set_time= system_var->get_timestamp();
-  m_set_user_str_length= strlen(system_var->get_user());
-  memcpy(m_set_user_str, system_var->get_user(),
-         m_set_user_str_length);
-  m_set_host_str_length= strlen(system_var->get_host());
-  memcpy(m_set_host_str, system_var->get_host(),
-         m_set_host_str_length);
+  m_set_time = system_var->get_timestamp();
+  m_set_user_str_length = strlen(system_var->get_user());
+  memcpy(m_set_user_str, system_var->get_user(), m_set_user_str_length);
+  m_set_host_str_length = strlen(system_var->get_host());
+  memcpy(m_set_host_str, system_var->get_host(), m_set_host_str_length);
 
   mysql_mutex_unlock(&LOCK_global_system_variables);
   if (target_thd != current_thread)

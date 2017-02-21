@@ -197,15 +197,17 @@ table_variables_info::make_row(const System_variable *system_var)
          system_var->m_max_value_length);
   m_row.m_max_value_length = system_var->m_max_value_length;
 
-  m_row.m_set_time= system_var->m_set_time;
+  m_row.m_set_time = system_var->m_set_time;
 
   memcpy(m_row.m_set_user_str,
-         system_var->m_set_user_str, system_var->m_set_user_str_length);
-  m_row.m_set_user_str_length= system_var->m_set_user_str_length;
+         system_var->m_set_user_str,
+         system_var->m_set_user_str_length);
+  m_row.m_set_user_str_length = system_var->m_set_user_str_length;
 
   memcpy(m_row.m_set_host_str,
-         system_var->m_set_host_str, system_var->m_set_host_str_length);
-  m_row.m_set_host_str_length= system_var->m_set_host_str_length;
+         system_var->m_set_host_str,
+         system_var->m_set_host_str_length);
+  m_row.m_set_host_str_length = system_var->m_set_host_str_length;
 
   return 0;
 }
@@ -250,12 +252,12 @@ table_variables_info::read_row_values(TABLE *table,
           set_field_timestamp(f, m_row.m_set_time);
         break;
       case 6: /* VARIABLE_SET_USER */
-        set_field_char_utf8(f,
-            m_row.m_set_user_str, m_row.m_set_user_str_length);
+        set_field_char_utf8(
+          f, m_row.m_set_user_str, m_row.m_set_user_str_length);
         break;
       case 7: /* VARIABLE_SET_HOST */
-        set_field_char_utf8(f,
-            m_row.m_set_host_str, m_row.m_set_host_str_length);
+        set_field_char_utf8(
+          f, m_row.m_set_host_str, m_row.m_set_host_str_length);
         break;
 
       default:

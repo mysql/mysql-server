@@ -32,7 +32,8 @@
 #include "persisted_variable.h"
 #include "table_persisted_variables.h"
 
-bool PFS_index_persisted_variables::match(const System_variable *pfs)
+bool
+PFS_index_persisted_variables::match(const System_variable *pfs)
 {
   if (m_fields >= 1)
   {
@@ -45,6 +46,7 @@ bool PFS_index_persisted_variables::match(const System_variable *pfs)
 
 THR_LOCK table_persisted_variables::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -58,15 +60,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_persisted_variables::m_field_def=
-{ 2, field_types };
+table_persisted_variables::m_field_def = {2, field_types};
 
-PFS_engine_table_share
-table_persisted_variables::m_share=
-{
-  { C_STRING_WITH_LEN("persisted_variables") },
+PFS_engine_table_share table_persisted_variables::m_share = {
+  {C_STRING_WITH_LEN("persisted_variables")},
   &pfs_readonly_world_acl,
   table_persisted_variables::create,
   NULL, /* write_row */
@@ -79,15 +79,16 @@ table_persisted_variables::m_share=
   true   /* perpetual */
 };
 
-PFS_engine_table*
+PFS_engine_table *
 table_persisted_variables::create(void)
 {
   return new table_persisted_variables();
 }
 
-ha_rows table_persisted_variables::get_row_count(void)
+ha_rows
+table_persisted_variables::get_row_count(void)
 {
-  Persisted_variables_cache *pv= Persisted_variables_cache::get_instance();
+  Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
   if (pv)
     return pv->get_persist_hash()->size();
   else
@@ -96,29 +97,36 @@ ha_rows table_persisted_variables::get_row_count(void)
 
 table_persisted_variables::table_persisted_variables()
   : PFS_engine_table(&m_share, &m_pos),
-    m_sysvar_cache(false), m_pos(0), m_next_pos(0),
+    m_sysvar_cache(false),
+    m_pos(0),
+    m_next_pos(0),
     m_context(NULL)
-{}
+{
+}
 
-void table_persisted_variables::reset_position(void)
+void
+table_persisted_variables::reset_position(void)
 {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-int table_persisted_variables::rnd_init(bool scan)
+int
+table_persisted_variables::rnd_init(bool scan)
 {
   /* Build a cache of system variables for this thread. */
   m_sysvar_cache.materialize_all(current_thd);
 
   /* Record the version of the system variable hash, store in TLS. */
-  ulonglong hash_version= m_sysvar_cache.get_sysvar_hash_version();
-  m_context= (table_persisted_variables_context *)current_thd->alloc(sizeof(table_persisted_variables_context));
-  new(m_context) table_persisted_variables_context(hash_version, !scan);
+  ulonglong hash_version = m_sysvar_cache.get_sysvar_hash_version();
+  m_context = (table_persisted_variables_context *)current_thd->alloc(
+    sizeof(table_persisted_variables_context));
+  new (m_context) table_persisted_variables_context(hash_version, !scan);
   return 0;
 }
 
-int table_persisted_variables::rnd_next(void)
+int
+table_persisted_variables::rnd_next(void)
 {
   if (m_context && !m_context->versions_match())
   {
@@ -126,13 +134,12 @@ int table_persisted_variables::rnd_next(void)
     return HA_ERR_END_OF_FILE;
   }
 
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < m_sysvar_cache.size();
+  for (m_pos.set_at(&m_next_pos); m_pos.m_index < m_sysvar_cache.size();
        m_pos.next())
   {
     if (m_sysvar_cache.is_materialized())
     {
-      const System_variable *system_var= m_sysvar_cache.get(m_pos.m_index);
+      const System_variable *system_var = m_sysvar_cache.get(m_pos.m_index);
       if (system_var != NULL)
       {
         if (!make_row(system_var))
@@ -146,7 +153,8 @@ int table_persisted_variables::rnd_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_persisted_variables::rnd_pos(const void *pos)
+int
+table_persisted_variables::rnd_pos(const void *pos)
 {
   if (!m_context->versions_match())
   {
@@ -159,7 +167,7 @@ int table_persisted_variables::rnd_pos(const void *pos)
 
   if (m_sysvar_cache.is_materialized())
   {
-    const System_variable *system_var= m_sysvar_cache.get(m_pos.m_index);
+    const System_variable *system_var = m_sysvar_cache.get(m_pos.m_index);
     if (system_var != NULL)
     {
       return make_row(system_var);
@@ -168,7 +176,8 @@ int table_persisted_variables::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_persisted_variables::index_init(uint idx, bool)
+int
+table_persisted_variables::index_init(uint idx, bool)
 {
   /*
     Build a cache of system variables for this thread.
@@ -176,20 +185,22 @@ int table_persisted_variables::index_init(uint idx, bool)
   m_sysvar_cache.materialize_all(current_thd);
 
   /* Record the version of the system variable hash, store in TLS. */
-  ulonglong hash_version= m_sysvar_cache.get_sysvar_hash_version();
-  m_context= (table_persisted_variables_context *)current_thd->alloc(sizeof(table_persisted_variables_context));
-  new(m_context) table_persisted_variables_context(hash_version, false);
+  ulonglong hash_version = m_sysvar_cache.get_sysvar_hash_version();
+  m_context = (table_persisted_variables_context *)current_thd->alloc(
+    sizeof(table_persisted_variables_context));
+  new (m_context) table_persisted_variables_context(hash_version, false);
 
-  PFS_index_persisted_variables *result= NULL;
+  PFS_index_persisted_variables *result = NULL;
   DBUG_ASSERT(idx == 0);
-  result= PFS_NEW(PFS_index_persisted_variables);
-  m_opened_index= result;
-  m_index= result;
+  result = PFS_NEW(PFS_index_persisted_variables);
+  m_opened_index = result;
+  m_index = result;
 
   return 0;
 }
 
-int table_persisted_variables::index_next(void)
+int
+table_persisted_variables::index_next(void)
 {
   if (m_context && !m_context->versions_match())
   {
@@ -197,13 +208,12 @@ int table_persisted_variables::index_next(void)
     return HA_ERR_END_OF_FILE;
   }
 
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < m_sysvar_cache.size();
+  for (m_pos.set_at(&m_next_pos); m_pos.m_index < m_sysvar_cache.size();
        m_pos.next())
   {
     if (m_sysvar_cache.is_materialized())
     {
-      const System_variable *system_var= m_sysvar_cache.get(m_pos.m_index);
+      const System_variable *system_var = m_sysvar_cache.get(m_pos.m_index);
       if (system_var != NULL)
       {
         if (m_opened_index->match(system_var))
@@ -221,8 +231,8 @@ int table_persisted_variables::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int table_persisted_variables
-::make_row(const System_variable *system_var)
+int
+table_persisted_variables::make_row(const System_variable *system_var)
 {
   if (m_row.m_variable_name.make_row(system_var->m_name,
                                      system_var->m_name_length))
@@ -234,26 +244,27 @@ int table_persisted_variables
   return 0;
 }
 
-int table_persisted_variables
-::read_row_values(TABLE *table,
-                  unsigned char *buf,
-                  Field **fields,
-                  bool read_all)
+int
+table_persisted_variables::read_row_values(TABLE *table,
+                                           unsigned char *buf,
+                                           Field **fields,
+                                           bool read_all)
 {
   Field *f;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* VARIABLE_NAME */
-        set_field_varchar_utf8(f, m_row.m_variable_name.m_str, m_row.m_variable_name.m_length);
+        set_field_varchar_utf8(
+          f, m_row.m_variable_name.m_str, m_row.m_variable_name.m_length);
         break;
       case 1: /* VARIABLE_VALUE */
         m_row.m_variable_value.set_field(f);
