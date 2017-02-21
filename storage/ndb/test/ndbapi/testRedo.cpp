@@ -1563,7 +1563,11 @@ get_redo_logpart_maxusage(NDBT_Context* ctx, Uint32 &nodeid,
     return -1;
   }
 
+  // Help variables to trace the max usage and the log part/node id having it
   int max_usage = -1, usage = -1;
+  Uint32 max_logpart = UINT32_MAX;
+  Uint32 max_node_id = 0;
+
   while(scanOp->nextResult() == 1)
   {
     Uint32 node_id = nodeid_colval->u_32_value();
@@ -1572,12 +1576,13 @@ get_redo_logpart_maxusage(NDBT_Context* ctx, Uint32 &nodeid,
     Uint32 logtype = logtype_colval->u_32_value();
     Uint32 logpart = logpart_colval->u_32_value();
 
-    // Check whether this result row is relevant for our search
-    if (logtype != 0 && // Not a redo log
-        nodeid != 0 && nodeid != node_id &&  // Not the requested nodeid
-        logpart_with_maxusage != UINT32_MAX && logpart_with_maxusage != logpart
-        // Not the requested logpart
-        )
+    /* The result row can be skipped if
+     * - it is NOT a redo log data or
+     * - it is NOT the row the test has requested to retrieve
+     */
+    if (logtype != 0 || // Not a redo log
+        (nodeid != 0 && logpart_with_maxusage != UINT32_MAX &&
+         nodeid != node_id && logpart_with_maxusage != logpart))
     {
       continue;
     }
@@ -1593,7 +1598,7 @@ get_redo_logpart_maxusage(NDBT_Context* ctx, Uint32 &nodeid,
       // Requested row is found
       if (node_id == nodeid && logpart == logpart_with_maxusage)
       {
-        g_err << "Row with requested nodeid " << nodeid << " and logpart " << logpart
+        g_info << "Row with requested nodeid " << nodeid << " and logpart " << logpart
               << "  is found. Usage " << usage << endl;
         return usage;
       }
@@ -1605,9 +1610,9 @@ get_redo_logpart_maxusage(NDBT_Context* ctx, Uint32 &nodeid,
        * since the latter calls this method without LCPs performed.
        */
       if (usage > 0 && usage == max_usage &&
-          logpart_with_maxusage != logpart && nodeid != node_id)
+          max_logpart != logpart && max_node_id != node_id)
       {
-        g_err << "Two log parts having same usage is not handled" << endl;
+        g_err << "Two non-peer log parts having same usage is not handled" << endl;
         return -1;
       }
 
@@ -1617,21 +1622,26 @@ get_redo_logpart_maxusage(NDBT_Context* ctx, Uint32 &nodeid,
       if (usage > max_usage)
       {
         max_usage = usage;
-        logpart_with_maxusage = logpart;
-        nodeid = node_id;
+        max_logpart = logpart;
+        max_node_id = node_id;
       }
     }
   }
   ndbinfo.releaseScanOperation(scanOp);
   ndbinfo.closeTable(table);
 
+  // Return the results
+  logpart_with_maxusage = max_logpart;
+  nodeid = max_node_id;
+
   g_info << "get_redo_logpart_maxusage returns: nodeid " << nodeid
         << " lp " << logpart_with_maxusage
         << " usage " << max_usage << endl;
 
   if (max_usage <= 0)
-    g_err << " Redo log usage before SR : usage " << usage
+    g_err << " The test could not fill the redo log. Redo log usage : usage " << usage
           << " max usage " << max_usage << endl;
+  
   return max_usage;
 }
 
