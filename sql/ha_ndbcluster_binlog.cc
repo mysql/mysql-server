@@ -396,8 +396,7 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share,
                                     (uint) (OPEN_FRM_FILE_ONLY | DELAYED_OPEN | READ_ALL),
                                     0, shadow_table, false, table_def)))
   {
-    DBUG_PRINT("error", ("failed to open shadow table, error: %d my_errno: %d",
-                         error, my_errno()));
+    DBUG_PRINT("error", ("failed to open shadow table, error: %d", error));
     free_table_share(shadow_table_share);
     delete event_data;
     share->event_data= 0;
@@ -2680,10 +2679,9 @@ class Ndb_schema_event_handler {
                                  const Ndb_schema_op *schema)
   {
     sql_print_error("NDB Binlog: Could not discover table '%s.%s' from "
-                    "binlog schema event '%s' from node %d. "
-                    "my_errno: %d",
+                    "binlog schema event '%s' from node %d.",
                     schema->db, schema->name, schema->query,
-                    schema->node_id, my_errno());
+                    schema->node_id);
 
     // Print thd's list of warnings to error log
     {
