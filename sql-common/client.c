@@ -3179,7 +3179,7 @@ static auth_plugin_t sha256_password_client_plugin=
 extern auth_plugin_t win_auth_client_plugin;
 #endif
 
-#if !defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
+#ifdef AUTHENTICATION_LDAP_SASL
 extern auth_plugin_t ldap_auth_client_plugin;
 #endif
 /*
@@ -3203,7 +3203,7 @@ struct st_mysql_client_plugin *mysql_client_builtins[]=
 #ifdef AUTHENTICATION_WIN
   (struct st_mysql_client_plugin *)&win_auth_client_plugin,
 #endif
-#if !defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
+#ifdef AUTHENTICATION_LDAP_SASL
   (struct st_mysql_client_plugin *)&ldap_auth_client_plugin,
 #endif
 #if defined(CLIENT_PROTOCOL_TRACING) \

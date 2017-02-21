@@ -231,7 +231,11 @@ IF(WIN32)
 ENDIF()
 
 # LDAP authentication SASL client plugin
-IF (NOT WIN32)
+INCLUDE(CheckIncludeFiles)
+CHECK_INCLUDE_FILES(sasl/sasl.h HAVE_SASL_H)
+CHECK_INCLUDE_FILES(lber.h HAVE_LBER_H)
+IF (HAVE_SASL_H AND HAVE_LBER_H)
+  ADD_DEFINITIONS(-D AUTHENTICATION_LDAP_SASL)
   ADD_SUBDIRECTORY(authentication_ldap)
   LIST(APPEND LIBS authentication_ldap_sasl_client)
 ENDIF()
