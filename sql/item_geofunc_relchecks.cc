@@ -388,16 +388,16 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2)
                 none 0 for positive.
  */
 int Item_func_spatial_rel::
-geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
+geocol_relcheck_intersect_disjoint(const BG_geometry_collection::
                                    Geometry_list *gv1,
-                                   const typename BG_geometry_collection::
+                                   const BG_geometry_collection::
                                    Geometry_list *gv2)
 {
   int tres= 0;
 
   DBUG_ASSERT(functype() == SP_DISJOINT_FUNC ||
               functype() == SP_INTERSECTS_FUNC);
-  const typename BG_geometry_collection::Geometry_list *gv= NULL, *gvr= NULL;
+  const BG_geometry_collection::Geometry_list *gv= NULL, *gvr= NULL;
 
   if (gv1->size() > gv2->size())
   {

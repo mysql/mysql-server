@@ -1013,9 +1013,9 @@ private:
 
   template<typename Coordsys>
   int geocol_relation_check(Geometry *g1, Geometry *g2);
-  int geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
+  int geocol_relcheck_intersect_disjoint(const BG_geometry_collection::
                                          Geometry_list *gv1,
-                                         const typename BG_geometry_collection::
+                                         const BG_geometry_collection::
                                          Geometry_list *gv2);
   template<typename Coordsys>
   int geocol_relcheck_within(const typename BG_geometry_collection::
