@@ -141,7 +141,12 @@ public:
   /**
     @brief Warning print routine.
 
-    @param warn_msg Warning message to be printed.
+    Also prints the underlying error attributes if supplied.
+
+    @param warn_msg  Warning message to be printed.
+    @param sql_errno The error number of the underlying error
+    @param sqlstate  The SQL state of the underlying error. NULL if none
+    @param msg       The text of the underlying error. NULL if none
   */
   virtual void print_warning(const char *warn_msg,
                              uint sql_errno,
@@ -360,9 +365,14 @@ public:
   }
 
   /**
-  @brief Custom warning print routine.
+    @brief Custom warning print routine.
 
-  @param warn_msg Placeholding warning message to be printed.
+    Also prints the underlying error attributes if supplied.
+
+    @param warn_msg  Warning message to be printed.
+    @param sql_errno The error number of the underlying error
+    @param sqlstate  The SQL state of the underlying error. NULL if none
+    @param msg       The text of the underlying error. NULL if none
   */
   virtual void print_warning(const char *warn_msg,
                              uint sql_errno,
@@ -851,7 +861,12 @@ public:
   /**
     @brief Custom warning print routine.
 
-    @param warn_msg Placeholding warning message text.
+    Also prints the underlying error attributes if supplied.
+
+    @param warn_msg  Warning message to be printed.
+    @param sql_errno The error number of the underlying error
+    @param sqlstate  The SQL state of the underlying error. NULL if none
+    @param msg       The text of the underlying error. NULL if none
   */
   virtual void print_warning(const char *warn_msg,
                              uint sql_errno,
