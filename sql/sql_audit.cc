@@ -113,7 +113,12 @@ public:
   /**
     @brief Warning print routine.
 
-    @param warn_msg[in] Warning message to be printed.
+    Also prints the underlying error attributes if supplied.
+
+    @param warn_msg[in]  Warning message to be printed.
+    @param sql_errno[in] The error number of the underlying error
+    @param sqlstate[in]  The SQL state of the underlying error. NULL if none
+    @param msg[in]       The text of the underlying error. NULL if none
   */
   virtual void print_warning(const char *warn_msg,
                              uint sql_errno,
