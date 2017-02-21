@@ -818,10 +818,13 @@ srv_undo_tablespace_open(
 	os_offset_t size = os_file_get_size(fh);
 	ut_a(size != (os_offset_t)-1);
 
-	/* Load the tablespace into InnoDB's internal
-	data structures. */
+	/* We set the biggest space id to the undo tablespace
+	because InnoDB hasn't opened any other tablespace apart
+	from the system tablespace. */
+	fil_set_max_space_id_if_bigger(space_id);
 
-	/* Set the compressed page size to 0 (non-compressed) */
+	/* Load the tablespace into InnoDB's internal data structures.
+	Set the compressed page size to 0 (non-compressed) */
 	flags = fsp_flags_init(
 		univ_page_size, false, false, false, false);
 	fil_space_t* space = fil_space_create(
@@ -882,8 +885,6 @@ srv_undo_tablespaces_open()
 		     it != spaces_to_open.end(); ++it) {
 			space_id = *it;
 
-			fil_set_max_space_id_if_bigger(space_id);
-
 			/* Check if this undo tablespace was in the
 			process of being truncated.  If so, recreate it
 			and add it to the construction list. */
@@ -928,8 +929,6 @@ srv_undo_tablespaces_open()
 		if (err != DB_SUCCESS) {
 			break;
 		}
-
-		fil_set_max_space_id_if_bigger(space_id);
 
 		/* Add this undo tablespace to the active list if the
 		startup setting allows. */
@@ -986,8 +985,6 @@ srv_undo_tablespaces_create()
 		if (trx_sys_undo_spaces->contains(space_id)) {
 			continue;
 		}
-
-		fil_set_max_space_id_if_bigger(space_id);
 
 		err = srv_undo_tablespace_create(space_id);
 		if (err != DB_SUCCESS) {
