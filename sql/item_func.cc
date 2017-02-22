@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4857,7 +4857,23 @@ longlong Item_master_pos_wait::val_int()
 #ifdef HAVE_REPLICATION
   Master_info *mi;
   longlong pos = (ulong)args[1]->val_int();
-  longlong timeout = (arg_count>=3) ? args[2]->val_int() : 0 ;
+  double timeout = (arg_count >= 3) ? args[2]->val_real() : 0;
+  if (timeout < 0)
+  {
+    if (thd->is_strict_mode())
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "MASTER_POS_WAIT.");
+    }
+    else
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WRONG_ARGUMENTS,
+                          ER(ER_WRONG_ARGUMENTS),
+                          "MASTER_POS_WAIT.");
+      null_value= 1;
+    }
+    return 0;
+  }
 
   channel_map.rdlock();
 
@@ -4979,7 +4995,25 @@ longlong Item_wait_for_executed_gtid_set::val_int()
 
   gtid_state->begin_gtid_wait(GTID_MODE_LOCK_SID);
 
-  longlong timeout= (arg_count== 2) ? args[1]->val_int() : 0;
+  double timeout = (arg_count == 2) ? args[1]->val_real() : 0;
+  if (timeout < 0)
+  {
+    if (thd->is_strict_mode())
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "WAIT_FOR_EXECUTED_GTID_SET.");
+    }
+    else
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WRONG_ARGUMENTS,
+                          ER(ER_WRONG_ARGUMENTS),
+                          "WAIT_FOR_EXECUTED_GTID_SET.");
+      null_value= 1;
+    }
+    gtid_state->end_gtid_wait();
+    global_sid_lock->unlock();
+    DBUG_RETURN(0);
+  }
 
   bool result= gtid_state->wait_for_gtid_set(thd, &wait_for_gtid_set, timeout);
   global_sid_lock->unlock();
@@ -5012,7 +5046,23 @@ longlong Item_master_gtid_set_wait::val_int()
   String *gtid= args[0]->val_str(&value);
   THD* thd = current_thd;
   Master_info *mi= NULL;
-  longlong timeout = (arg_count>= 2) ? args[1]->val_int() : 0;
+  double timeout = (arg_count >= 2) ? args[1]->val_real() : 0;
+  if (timeout < 0)
+  {
+    if (thd->is_strict_mode())
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.");
+    }
+    else
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WRONG_ARGUMENTS,
+                          ER(ER_WRONG_ARGUMENTS),
+                          "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.");
+      null_value= 1;
+    }
+    DBUG_RETURN(0);
+  }
 
   if (thd->slave_thread || !gtid)
   {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -219,7 +219,7 @@ bool Applier_handler::is_applier_thread_waiting()
   DBUG_RETURN(result);
 }
 
-int Applier_handler::wait_for_gtid_execution(longlong timeout)
+int Applier_handler::wait_for_gtid_execution(double timeout)
 {
   DBUG_ENTER("Applier_handler::wait_for_gtid_execution");
 
