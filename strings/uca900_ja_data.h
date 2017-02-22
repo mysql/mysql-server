@@ -16,7 +16,7 @@
 #ifndef UCA900_JA_DATA_H
 #define UCA900_JA_DATA_H
 
-static const char ja_cldr_29[]=
+static const char ja_cldr_30[]=
   "&\\u309D <<<< \\u30FD"
   "&[before 3]\\u3041 <<<\\u3041|\\u30FC=\\u3042|\\u30FC=\\u304B|\\u30FC"
                        "=\\u3095|\\u30FC=\\u304C|\\u30FC=\\u3055|\\u30FC"

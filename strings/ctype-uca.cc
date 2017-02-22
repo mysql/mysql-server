@@ -442,13 +442,13 @@ static const char vietnamese[]=
    " << \\u1EF5 <<< \\u1EF4";
 
 /* German Phonebook */
-static const char de_pb_cldr_29[]=
+static const char de_pb_cldr_30[]=
   "&AE << \\u00E4 <<< \\u00C4 "
   "&OE << \\u00F6 <<< \\u00D6 "
   "&UE << \\u00FC <<< \\u00DC ";
 
 /* Icelandic */
-static const char is_cldr_29[]=
+static const char is_cldr_30[]=
   "&[before 1]b       <  \\u00E1 <<< \\u00C1 "
   "&          d       << \\u0111 <<< \\u0110 < \\u00F0 <<< \\u00D0 "
   "&[before 1]f       <  \\u00E9 <<< \\u00C9 "
@@ -461,7 +461,7 @@ static const char is_cldr_29[]=
                      "<  \\u00E5 <<< \\u00C5";
 
 /* Latvian */
-static const char lv_cldr_29[]=
+static const char lv_cldr_30[]=
   "&[before 1]D       <  \\u010D <<< \\u010C "
   "&[before 1]H       <  \\u0123 <<< \\u0122 "
   "&          I       << y       <<< Y "
@@ -473,21 +473,21 @@ static const char lv_cldr_29[]=
   "&[before 1]\\u01B7 <  \\u017E <<< \\u017D";
 
 /* Romanian */
-static const char ro_cldr_29[]=
+static const char ro_cldr_30[]=
   "&A < \\u0103 <<< \\u0102 <   \\u00E2 <<< \\u00C2 "
   "&I < \\u00EE <<< \\u00CE "
   "&S < \\u015F =   \\u0219 <<< \\u015E =   \\u0218 "
   "&T < \\u0163 =   \\u021B <<< \\u0162 =   \\u021A";
 
 /* Slovenian */
-static const char sl_cldr_29[]=
+static const char sl_cldr_30[]=
   "&C < \\u010D <<< \\u010C < \\u0107 <<< \\u0106 "
   "&D < \\u0111 <<< \\u0110 "
   "&S < \\u0161 <<< \\u0160 "
   "&Z < \\u017E <<< \\u017D";
 
 /* Polish */
-static const char pl_cldr_29[]=
+static const char pl_cldr_30[]=
   "&A < \\u0105 <<< \\u0104 "
   "&C < \\u0107 <<< \\u0106 "
   "&E < \\u0119 <<< \\u0118 "
@@ -498,14 +498,14 @@ static const char pl_cldr_29[]=
   "&Z < \\u017A <<< \\u0179 < \\u017C <<< \\u017B";
 
 /* Estonian */
-static const char et_cldr_29[]=
+static const char et_cldr_30[]=
   "&[before 1]T <   \\u0161 <<< \\u0160 < z         <<< Z "
                "<   \\u017E <<< \\u017D "
   "&[before 1]X <   \\u00F5 <<< \\u00D5 <   \\u00E4 <<< \\u00C4 "
                "<   \\u00F6 <<< \\u00D6 <   \\u00FC <<< \\u00DC";
 
 /* Swedish */
-static const char sv_cldr_29[]=
+static const char sv_cldr_30[]=
   "&          D       <<  \\u0111   <<< \\u0110 <<  \\u00F0 <<< \\u00D0 "
   "&          t       <<< \\u00FE/h "
   "&          T       <<< \\u00DE/H "
@@ -517,7 +517,7 @@ static const char sv_cldr_29[]=
                       "<< \\u00F4   <<< \\u00D4";
 
 /* Turkish */
-static const char tr_cldr_29[]=
+static const char tr_cldr_30[]=
   "&          C <   \\u00E7 <<< \\u00C7 "
   "&          G <   \\u011F <<< \\u011E "
   "&[before 1]i <   \\u0131 <<< I "
@@ -527,7 +527,7 @@ static const char tr_cldr_29[]=
   "&          U <   \\u00FC <<< \\u00DC ";
 
 /* Czech */
-static const char cs_cldr_29[]=
+static const char cs_cldr_30[]=
   "&C < \\u010D <<< \\u010C "
   "&H < ch      <<< cH       <<< Ch <<< CH "
   "&R < \\u0159 <<< \\u0158"
@@ -535,7 +535,7 @@ static const char cs_cldr_29[]=
   "&Z < \\u017E <<< \\u017D";
 
 /* Danish */
-static const char da_cldr_29[]=
+static const char da_cldr_30[]=
   "&          D       <<  \\u0111   <<< \\u0110 <<  \\u00F0 <<< \\u00D0 "
   "&          t       <<< \\u00FE/h "
   "&          T       <<< \\u00DE/H "
@@ -551,7 +551,7 @@ static Coll_param da_coll_param= {
 };
 
 /* Lithuanian */
-static const char lt_cldr_29[]=
+static const char lt_cldr_30[]=
   "&\\u0300 = \\u0307\\u0300 "
   "&\\u0301 = \\u0307\\u0301 "
   "&\\u0303 = \\u0307\\u0303 "
@@ -564,7 +564,7 @@ static const char lt_cldr_29[]=
   "&Z <  \\u017E <<< \\u017D";
 
 /* Slovak */
-static const char sk_cldr_29[]=
+static const char sk_cldr_30[]=
   "&A < \\u00E4 <<< \\u00C4 "
   "&C < \\u010D <<< \\u010C "
   "&H < ch      <<< cH      <<< Ch <<< CH "
@@ -574,14 +574,14 @@ static const char sk_cldr_29[]=
   "&Z < \\u017E <<< \\u017D";
 
 /* Spanish (Traditional) */
-static const char es_trad_cldr_29[]=
+static const char es_trad_cldr_30[]=
   "&N <  \\u00F1 <<< \\u00D1 "
   "&C <  ch      <<< Ch      <<< CH "
   "&l <  ll      <<< Ll      <<< LL";
 
 /* Persian */
 #if 0
-static const char fa_cldr_29[]=
+static const char fa_cldr_30[]=
   "&          \\u064E << \\u0650 << \\u064F <<  \\u064B << \\u064D "
                      "<< \\u064C "
   "&[before 1]\\u0627 <  \\u0622 "
@@ -605,7 +605,7 @@ static Coll_param fa_coll_param= {
 #endif
 
 /* Hungarian */
-static const char hu_cldr_29[]=
+static const char hu_cldr_30[]=
   "&C  <   cs      <<< Cs      <<< CS "
   "&D  <   dz      <<< Dz      <<< DZ "
   "&DZ <   dzs     <<< Dzs     <<< DZS "
@@ -646,7 +646,7 @@ static const char hu_cldr_29[]=
   "&ZS <<< ZZS/ZS";
 
 /* Croatian */
-static const char hr_cldr_29[]=
+static const char hr_cldr_30[]=
   "&C <   \\u010D  <<< \\u010C <   \\u0107  <<< \\u0106 "
   "&D <   d\\u017E <<< \\u01C6 <<< D\\u017E <<< \\u01C5 <<< D\\u017D "
      "<<< \\u01C4  <   \\u0111 <<< \\u0110 "
@@ -667,13 +667,13 @@ static Coll_param hr_coll_param= {
 
 /* Sinhala */
 #if 0
-static const char si_cldr_29[]=
+static const char si_cldr_30[]=
   "&\\u0D96 < \\u0D82 < \\u0D83 "
   "&\\u0DA5 < \\u0DA4";
 #endif
 
 /* Vietnamese */
-static const char vi_cldr_29[]=
+static const char vi_cldr_30[]=
   "&\\u0300 << \\u0309 <<  \\u0303 << \\u0301 <<  \\u0323 "
   "&a       < \\u0103 <<< \\u0102 <  \\u00E2 <<< \\u00C2 "
   "&d       < \\u0111 <<< \\u0110 "
@@ -687,7 +687,7 @@ static Coll_param vi_coll_param= {
 
 static Reorder_param ja_reorder_param= {
   /*
-    Per CLDR 29, Japanese reorder rule is defined as [Latn Kana Hani],
+    Per CLDR 30, Japanese reorder rule is defined as [Latn Kana Hani],
     but for Hani characters, their weight is implicit according to UCA,
     which is different from other character groups. We don't add "Hani"
     below and will have special handling for them in
@@ -5085,7 +5085,7 @@ static void adjust_japanese_weight(CHARSET_INFO *cs, MY_COLL_RULES *rules,
                                    int rec_ind)
 {
   /*
-    Per CLDR29, Japanese collations need to reorder characters as
+    Per CLDR 30, Japanese collations need to reorder characters as
     [Latin, Kana, Han, others]. So for the original character group list:
     [Latin, CharA, Kana, CharB, Han, Others], it should be reordered as
     [Latin, Kana, Han, CharA, CharB, Others]. But my_prepare_reorder()
@@ -10146,7 +10146,7 @@ CHARSET_INFO my_charset_utf8mb4_de_pb_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_de_pb_0900_ai_ci",/* name */
   "",                 /* comment      */
-  de_pb_cldr_29,      /* tailoring    */
+  de_pb_cldr_30,      /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10180,7 +10180,7 @@ CHARSET_INFO my_charset_utf8mb4_is_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_is_0900_ai_ci",/* name */
   "",                 /* comment      */
-  is_cldr_29,         /* tailoring    */
+  is_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10214,7 +10214,7 @@ CHARSET_INFO my_charset_utf8mb4_lv_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_lv_0900_ai_ci",/* name */
   "",                 /* comment      */
-  lv_cldr_29,         /* tailoring    */
+  lv_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10248,7 +10248,7 @@ CHARSET_INFO my_charset_utf8mb4_ro_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_ro_0900_ai_ci",/* name */
   "",                 /* comment      */
-  ro_cldr_29,         /* tailoring    */
+  ro_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10282,7 +10282,7 @@ CHARSET_INFO my_charset_utf8mb4_sl_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_sl_0900_ai_ci",/* name */
   "",                 /* comment      */
-  sl_cldr_29,         /* tailoring    */
+  sl_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10316,7 +10316,7 @@ CHARSET_INFO my_charset_utf8mb4_pl_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_pl_0900_ai_ci",/* name */
   "",                 /* comment      */
-  pl_cldr_29,         /* tailoring    */
+  pl_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10350,7 +10350,7 @@ CHARSET_INFO my_charset_utf8mb4_et_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_et_0900_ai_ci",/* name */
   "",                 /* comment      */
-  et_cldr_29,         /* tailoring    */
+  et_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10418,7 +10418,7 @@ CHARSET_INFO my_charset_utf8mb4_sv_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_sv_0900_ai_ci",/* name */
   "",                 /* comment      */
-  sv_cldr_29,         /* tailoring    */
+  sv_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10452,7 +10452,7 @@ CHARSET_INFO my_charset_utf8mb4_tr_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_tr_0900_ai_ci",/* name */
   "",                 /* comment      */
-  tr_cldr_29,         /* tailoring    */
+  tr_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10486,7 +10486,7 @@ CHARSET_INFO my_charset_utf8mb4_cs_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_cs_0900_ai_ci",/* name */
   "",                 /* comment      */
-  cs_cldr_29,         /* tailoring    */
+  cs_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10520,7 +10520,7 @@ CHARSET_INFO my_charset_utf8mb4_da_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_da_0900_ai_ci",/* name */
   "",                 /* comment      */
-  da_cldr_29,         /* tailoring    */
+  da_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10554,7 +10554,7 @@ CHARSET_INFO my_charset_utf8mb4_lt_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_lt_0900_ai_ci",/* name */
   "",                 /* comment      */
-  lt_cldr_29,         /* tailoring    */
+  lt_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10588,7 +10588,7 @@ CHARSET_INFO my_charset_utf8mb4_sk_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_sk_0900_ai_ci",/* name */
   "",                 /* comment      */
-  sk_cldr_29,         /* tailoring    */
+  sk_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10622,7 +10622,7 @@ CHARSET_INFO my_charset_utf8mb4_es_trad_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_es_trad_0900_ai_ci",/* name */
   "",                 /* comment      */
-  es_trad_cldr_29,    /* tailoring    */
+  es_trad_cldr_30,    /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10691,7 +10691,7 @@ CHARSET_INFO my_charset_utf8mb4_fa_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_fa_0900_ai_ci",/* name */
   "",                 /* comment      */
-  fa_cldr_29,         /* tailoring    */
+  fa_cldr_30,         /* tailoring    */
   &fa_coll_param,     /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10760,7 +10760,7 @@ CHARSET_INFO my_charset_utf8mb4_hu_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_hu_0900_ai_ci",/* name */
   "",                 /* comment      */
-  hu_cldr_29,         /* tailoring    */
+  hu_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10794,7 +10794,7 @@ CHARSET_INFO my_charset_utf8mb4_hr_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_hr_0900_ai_ci",/* name */
   "",                 /* comment      */
-  hr_cldr_29,         /* tailoring    */
+  hr_cldr_30,         /* tailoring    */
   &hr_coll_param,     /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10829,7 +10829,7 @@ CHARSET_INFO my_charset_utf8mb4_si_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_si_0900_ai_ci",/* name */
   "",                 /* comment      */
-  si_cldr_29,         /* tailoring    */
+  si_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10864,7 +10864,7 @@ CHARSET_INFO my_charset_utf8mb4_vi_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_vi_0900_ai_ci",/* name */
   "",                 /* comment      */
-  vi_cldr_29,         /* tailoring    */
+  vi_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10932,7 +10932,7 @@ CHARSET_INFO my_charset_utf8mb4_de_pb_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_de_pb_0900_as_cs",/* name */
   "",                 /* comment      */
-  de_pb_cldr_29,/* tailoring    */
+  de_pb_cldr_30,/* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10966,7 +10966,7 @@ CHARSET_INFO my_charset_utf8mb4_is_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_is_0900_as_cs",/* name */
   "",                 /* comment      */
-  is_cldr_29,         /* tailoring    */
+  is_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11000,7 +11000,7 @@ CHARSET_INFO my_charset_utf8mb4_lv_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_lv_0900_as_cs",/* name */
   "",                 /* comment      */
-  lv_cldr_29,         /* tailoring    */
+  lv_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11034,7 +11034,7 @@ CHARSET_INFO my_charset_utf8mb4_ro_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_ro_0900_as_cs",/* name */
   "",                 /* comment      */
-  ro_cldr_29,         /* tailoring    */
+  ro_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11068,7 +11068,7 @@ CHARSET_INFO my_charset_utf8mb4_sl_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_sl_0900_as_cs",/* name */
   "",                 /* comment      */
-  sl_cldr_29,         /* tailoring    */
+  sl_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11102,7 +11102,7 @@ CHARSET_INFO my_charset_utf8mb4_pl_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_pl_0900_as_cs",/* name */
   "",                 /* comment      */
-  pl_cldr_29,         /* tailoring    */
+  pl_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11136,7 +11136,7 @@ CHARSET_INFO my_charset_utf8mb4_et_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_et_0900_as_cs",/* name */
   "",                 /* comment      */
-  et_cldr_29,         /* tailoring    */
+  et_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11204,7 +11204,7 @@ CHARSET_INFO my_charset_utf8mb4_sv_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_sv_0900_as_cs",/* name */
   "",                 /* comment      */
-  sv_cldr_29,         /* tailoring    */
+  sv_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11238,7 +11238,7 @@ CHARSET_INFO my_charset_utf8mb4_tr_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_tr_0900_as_cs",/* name */
   "",                 /* comment      */
-  tr_cldr_29,         /* tailoring    */
+  tr_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11272,7 +11272,7 @@ CHARSET_INFO my_charset_utf8mb4_cs_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_cs_0900_as_cs",/* name */
   "",                 /* comment      */
-  cs_cldr_29,         /* tailoring    */
+  cs_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11306,7 +11306,7 @@ CHARSET_INFO my_charset_utf8mb4_da_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_da_0900_as_cs",/* name */
   "",                 /* comment      */
-  da_cldr_29,         /* tailoring    */
+  da_cldr_30,         /* tailoring    */
   &da_coll_param,     /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11340,7 +11340,7 @@ CHARSET_INFO my_charset_utf8mb4_lt_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_lt_0900_as_cs",/* name */
   "",                 /* comment      */
-  lt_cldr_29,         /* tailoring    */
+  lt_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11374,7 +11374,7 @@ CHARSET_INFO my_charset_utf8mb4_sk_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_sk_0900_as_cs",/* name */
   "",                 /* comment      */
-  sk_cldr_29,         /* tailoring    */
+  sk_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11408,7 +11408,7 @@ CHARSET_INFO my_charset_utf8mb4_es_trad_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_es_trad_0900_as_cs",/* name */
   "",                 /* comment      */
-  es_trad_cldr_29,/* tailoring    */
+  es_trad_cldr_30,/* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11477,7 +11477,7 @@ CHARSET_INFO my_charset_utf8mb4_fa_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_fa_0900_as_cs",/* name */
   "",                 /* comment      */
-  fa_cldr_29,         /* tailoring    */
+  fa_cldr_30,         /* tailoring    */
   &fa_coll_param,     /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11546,7 +11546,7 @@ CHARSET_INFO my_charset_utf8mb4_hu_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_hu_0900_as_cs",/* name */
   "",                 /* comment      */
-  hu_cldr_29,         /* tailoring    */
+  hu_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11580,7 +11580,7 @@ CHARSET_INFO my_charset_utf8mb4_hr_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_hr_0900_as_cs",/* name */
   "",                 /* comment      */
-  hr_cldr_29,         /* tailoring    */
+  hr_cldr_30,         /* tailoring    */
   &hr_coll_param,     /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11615,7 +11615,7 @@ CHARSET_INFO my_charset_utf8mb4_si_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_si_0900_as_cs",/* name */
   "",                 /* comment      */
-  si_cldr_29,         /* tailoring    */
+  si_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11650,7 +11650,7 @@ CHARSET_INFO my_charset_utf8mb4_vi_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_vi_0900_as_cs",/* name */
   "",                 /* comment      */
-  vi_cldr_29,         /* tailoring    */
+  vi_cldr_30,         /* tailoring    */
   &vi_coll_param,     /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11684,7 +11684,7 @@ CHARSET_INFO my_charset_utf8mb4_ja_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_ja_0900_as_cs",/* name */
   "",                 /* comment      */
-  ja_cldr_29,         /* tailoring    */
+  ja_cldr_30,         /* tailoring    */
   &ja_coll_param,     /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
