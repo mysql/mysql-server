@@ -1861,6 +1861,45 @@ INSERT INTO t1 VALUES (_utf16 0x1F8C , _utf16 0x1F02, 1),
 SELECT a, b, c FROM t1 where (a > b) <> c;
 a	b	c
 DROP TABLE t1;
+CREATE TABLE t1(a CHAR, description VARCHAR(30)) COLLATE utf8mb4_ja_0900_as_cs;
+INSERT INTO t1 VALUES('a', 'Latin'), ('A', 'Latin'), (_utf16 0x02AC, 'Latin'),
+(_utf16 0x02AD, 'Latin'), (_utf16 0x03B1, 'Greak'), (_utf16 0x2C81, 'Coptic'),
+(_utf16 0x0430, 'Cyrillic'), (_utf16 0xD7FB, 'Hangul'),
+(_utf16 0x3041, 'Hiragana'), (_utf16 0x3105, 'Bopomofo'),
+(_utf16 0x2F00, 'Other Han'), (_utf16 0x4E00, 'Japanese Han'),
+(_utf16 0x9FFF, 'Other'), (_utf16 0xA000, 'Other'),
+(_utf16 0x9FD5, 'Other Han'), (_utf16 0xFA0E, 'Other Han'),
+(_utf16 0x3400, 'Other Han'), (_utf16 0x4E9C, 'Japanese Han'),
+(_utf16 0x7199, 'Japanese Han'), (_utf16 0x6190, 'Japanese Han'),
+(_utf16 0x30F3, 'Katakana'), (_utf16 0x306F, 'Hiragana HA'),
+(_utf16 0x3070, 'Hiragana BA'), (_utf16 0x3071, 'Hiragana PA');
+SELECT HEX(CONVERT(a USING utf16)), description FROM t1 ORDER BY a;
+HEX(CONVERT(a USING utf16))	description
+0061	Latin
+0041	Latin
+02AC	Latin
+02AD	Latin
+3041	Hiragana
+306F	Hiragana HA
+3070	Hiragana BA
+3071	Hiragana PA
+30F3	Katakana
+4E9C	Japanese Han
+4E00	Japanese Han
+6190	Japanese Han
+7199	Japanese Han
+2F00	Other Han
+9FD5	Other Han
+FA0E	Other Han
+3400	Other Han
+03B1	Greak
+2C81	Coptic
+0430	Cyrillic
+D7FB	Hangul
+3105	Bopomofo
+A000	Other
+9FFF	Other
+DROP TABLE t1;
 #
 # End of 5.8 tests
 #

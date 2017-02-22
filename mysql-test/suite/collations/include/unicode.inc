@@ -12002,8 +12002,6 @@ insert into unicode values
     (0x33FE, _utf32 0x33FE, 'IDEOGRAPHIC TELEGRAPH SYMBOL FOR DAY THIRTY-ONE', 'So'),
     (0x33FF, _utf32 0x33FF, 'SQUARE GAL', 'So');
 insert into unicode values 
-    (0x3400, _utf32 0x3400, '<CJK Ideograph Extension A, First>', 'Lo'),
-    (0x4DB5, _utf32 0x4DB5, '<CJK Ideograph Extension A, Last>', 'Lo'),
     (0x4DC0, _utf32 0x4DC0, 'HEXAGRAM FOR THE CREATIVE HEAVEN', 'So'),
     (0x4DC1, _utf32 0x4DC1, 'HEXAGRAM FOR THE RECEPTIVE EARTH', 'So'),
     (0x4DC2, _utf32 0x4DC2, 'HEXAGRAM FOR DIFFICULTY AT THE BEGINNING', 'So'),
@@ -12068,9 +12066,6 @@ insert into unicode values
     (0x4DFD, _utf32 0x4DFD, 'HEXAGRAM FOR SMALL PREPONDERANCE', 'So'),
     (0x4DFE, _utf32 0x4DFE, 'HEXAGRAM FOR AFTER COMPLETION', 'So'),
     (0x4DFF, _utf32 0x4DFF, 'HEXAGRAM FOR BEFORE COMPLETION', 'So');
-insert into unicode values 
-    (0x4E00, _utf32 0x4E00, '<CJK Ideograph, First>', 'Lo'),
-    (0x9FD5, _utf32 0x9FD5, '<CJK Ideograph, Last>', 'Lo');
 insert into unicode values 
     (0xA000, _utf32 0xA000, 'YI SYLLABLE IT', 'Lo'),
     (0xA001, _utf32 0xA001, 'YI SYLLABLE IX', 'Lo'),
@@ -14988,17 +14983,6 @@ insert into unicode values
     (0xD7F9, _utf32 0xD7F9, 'HANGUL JONGSEONG SSANGCIEUC', 'Lo'),
     (0xD7FA, _utf32 0xD7FA, 'HANGUL JONGSEONG PHIEUPH-SIOS', 'Lo'),
     (0xD7FB, _utf32 0xD7FB, 'HANGUL JONGSEONG PHIEUPH-THIEUTH', 'Lo');
-insert into unicode values 
-    (0xD800, _utf32 0xD800, '<Non Private Use High Surrogate, First>', 'Cs'),
-    (0xDB7F, _utf32 0xDB7F, '<Non Private Use High Surrogate, Last>', 'Cs'),
-    (0xDB80, _utf32 0xDB80, '<Private Use High Surrogate, First>', 'Cs'),
-    (0xDBFF, _utf32 0xDBFF, '<Private Use High Surrogate, Last>', 'Cs');
-insert into unicode values 
-    (0xDC00, _utf32 0xDC00, '<Low Surrogate, First>', 'Cs'),
-    (0xDFFF, _utf32 0xDFFF, '<Low Surrogate, Last>', 'Cs');
-insert into unicode values 
-    (0xE000, _utf32 0xE000, '<Private Use, First>', 'Co'),
-    (0xF8FF, _utf32 0xF8FF, '<Private Use, Last>', 'Co');
 insert into unicode values 
     (0xF900, _utf32 0xF900, 'CJK COMPATIBILITY IDEOGRAPH-F900', 'Lo'),
     (0xF901, _utf32 0xF901, 'CJK COMPATIBILITY IDEOGRAPH-F901', 'Lo'),
@@ -24199,9 +24183,6 @@ insert into unicode values
     (0x16F9F, _utf32 0x16F9F, 'MIAO LETTER REFORMED TONE-8', 'Lm'),
     (0x16FE0, _utf32 0x16FE0, 'TANGUT ITERATION MARK', 'Lm');
 insert into unicode values 
-    (0x17000, _utf32 0x17000, '<Tangut Ideograph, First>', 'Lo'),
-    (0x187EC, _utf32 0x187EC, '<Tangut Ideograph, Last>', 'Lo');
-insert into unicode values 
     (0x18800, _utf32 0x18800, 'TANGUT COMPONENT-001', 'Lo'),
     (0x18801, _utf32 0x18801, 'TANGUT COMPONENT-002', 'Lo'),
     (0x18802, _utf32 0x18802, 'TANGUT COMPONENT-003', 'Lo'),
@@ -29841,16 +29822,6 @@ insert into unicode values
     (0x1F991, _utf32 0x1F991, 'SQUID', 'So'),
     (0x1F9C0, _utf32 0x1F9C0, 'CHEESE WEDGE', 'So');
 insert into unicode values 
-    (0x20000, _utf32 0x20000, '<CJK Ideograph Extension B, First>', 'Lo'),
-    (0x2A6D6, _utf32 0x2A6D6, '<CJK Ideograph Extension B, Last>', 'Lo');
-insert into unicode values 
-    (0x2A700, _utf32 0x2A700, '<CJK Ideograph Extension C, First>', 'Lo'),
-    (0x2B734, _utf32 0x2B734, '<CJK Ideograph Extension C, Last>', 'Lo'),
-    (0x2B740, _utf32 0x2B740, '<CJK Ideograph Extension D, First>', 'Lo'),
-    (0x2B81D, _utf32 0x2B81D, '<CJK Ideograph Extension D, Last>', 'Lo'),
-    (0x2B820, _utf32 0x2B820, '<CJK Ideograph Extension E, First>', 'Lo'),
-    (0x2CEA1, _utf32 0x2CEA1, '<CJK Ideograph Extension E, Last>', 'Lo');
-insert into unicode values 
     (0x2F800, _utf32 0x2F800, 'CJK COMPATIBILITY IDEOGRAPH-2F800', 'Lo'),
     (0x2F801, _utf32 0x2F801, 'CJK COMPATIBILITY IDEOGRAPH-2F801', 'Lo'),
     (0x2F802, _utf32 0x2F802, 'CJK COMPATIBILITY IDEOGRAPH-2F802', 'Lo'),
@@ -30733,11 +30704,5 @@ insert into unicode values
     (0xE01ED, _utf32 0xE01ED, 'VARIATION SELECTOR-254', 'Mn'),
     (0xE01EE, _utf32 0xE01EE, 'VARIATION SELECTOR-255', 'Mn'),
     (0xE01EF, _utf32 0xE01EF, 'VARIATION SELECTOR-256', 'Mn');
-insert into unicode values 
-    (0xF0000, _utf32 0xF0000, '<Plane 15 Private Use, First>', 'Co'),
-    (0xFFFFD, _utf32 0xFFFFD, '<Plane 15 Private Use, Last>', 'Co');
-insert into unicode values 
-    (0x100000, _utf32 0x100000, '<Plane 16 Private Use, First>', 'Co'),
-    (0x10FFFD, _utf32 0x10FFFD, '<Plane 16 Private Use, Last>', 'Co');
 --enable_query_log
 --enable_warnings

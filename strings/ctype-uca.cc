@@ -50,6 +50,7 @@
 #include "str_uca_type.h"
 #include "template_utils.h"
 #include "uca900_data.h"
+#include "uca900_ja_data.h"
 #include "uca_data.h"
 
 MY_UCA_INFO my_uca_v400=
@@ -684,6 +685,24 @@ static Coll_param vi_coll_param= {
   nullptr, TRUE, CASE_FIRST_OFF
 };
 
+static Reorder_param ja_reorder_param= {
+  /*
+    Per CLDR 29, Japanese reorder rule is defined as [Latn Kana Hani],
+    but for Hani characters, their weight is implicit according to UCA,
+    which is different from other character groups. We don't add "Hani"
+    below and will have special handling for them in
+    adjust_japanese_weight() and apply_reorder_param(). Implicit weight
+    has two collation elements. To make strnxfrm() run faster, we give
+    Japanese Han characters tailored weight which has only one collation
+    element. These characters' weight is defined in ja_han_pages.
+  */
+  {CHARGRP_LATIN, CHARGRP_KANA, CHARGRP_NONE}, {{{0, 0}, {0, 0}}}, 0
+};
+
+static Coll_param ja_coll_param= {
+  &ja_reorder_param, false/*norm_enabled*/, CASE_FIRST_OFF
+};
+
 static constexpr uint16 nochar[]= {0,0};
 
 /**
@@ -811,8 +830,15 @@ private:
   inline int next_raw();
   inline int more_weight();
   uint16 apply_case_first(uint16 weight);
+  uint16 apply_reorder_param(uint16 weight);
   inline int next_implicit(my_wc_t ch);
   void my_put_jamo_weights(my_wc_t *hangul_jamo, int jamo_cnt);
+  /*
+    apply_reorder_param() needs to return two weights for each origin
+    weight. This boolean signals whether we have already returned the
+    FB86 weight, and are ready to return the origin weight.
+  */
+  bool return_origin_weight{true};
 };
 
 
@@ -1715,27 +1741,51 @@ ALWAYS_INLINE void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(
 
 /**
   Change a weight according to the reorder parameters.
-  @param   wt_rec     Weight boundary for each character group and gap
-                      between groups
-  @param   max_weight The maximum weight of char groups to reorder
   @param   weight     The weight to change
+  @retval  reordered weight
 */
-static uint16
-my_apply_reorder_param(const Reorder_wt_rec(&wt_rec)[2 * UCA_MAX_CHAR_GRP],
-                       const int max_weight, uint16 weight)
+template<class Mb_wc, int LEVELS_FOR_COMPARE>
+uint16 uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::apply_reorder_param(
+    uint16 weight)
 {
-  if (weight >= START_WEIGHT_TO_REORDER && weight <= max_weight)
+  const Reorder_param *param= cs->coll_param->reorder_param;
+  if (weight >= START_WEIGHT_TO_REORDER && weight <= param->max_weight)
   {
-    for (int rec_ind= 0; rec_ind < 2 * UCA_MAX_CHAR_GRP; ++rec_ind)
+    for (int rec_ind= 0; rec_ind < param->wt_rec_num; ++rec_ind)
     {
-      if (wt_rec[rec_ind].old_wt_bdy.begin == 0 &&
-          wt_rec[rec_ind].old_wt_bdy.end == 0)
-        break;
-      if (weight >= wt_rec[rec_ind].old_wt_bdy.begin &&
-          weight <= wt_rec[rec_ind].old_wt_bdy.end)
+      const Reorder_wt_rec *wt_rec= param->wt_rec + rec_ind;
+      if (weight >= wt_rec->old_wt_bdy.begin &&
+          weight <= wt_rec->old_wt_bdy.end)
       {
-        return weight - wt_rec[rec_ind].old_wt_bdy.begin +
-          wt_rec[rec_ind].new_wt_bdy.begin;
+        /*
+          As commented in adjust_japanese_weight(), if this is a Japanese
+          collation, for characters whose weight is between Latin and Kana
+          group, and for the characters whose weight is between Kana and
+          Han, we need to change their weight to be after all Han
+          characters. We decide to give them the weights [FB86 0000 0000]
+          [origin weight] to make sure the new weights are greater than
+          the maximum implicit weight of Han characters. If this character's
+          origin weight has more than one non-ignorable primary weight, for
+          example, [AAAA 0020 0002][BBBB 0020 0002], both AAAA and BBBB need
+          to be changed. The new weight should be:
+          [FB86 0000 0000][AAAA 0020 0002][FB86 0000 0000][BBBB 0020 0002].
+        */
+        if (param == &ja_reorder_param && wt_rec->new_wt_bdy.begin == 0)
+        {
+          return_origin_weight= !return_origin_weight;
+          if (return_origin_weight) break;
+
+          /*
+            We didn't consume the weight; rewind the iterator, so we will
+            get another call where we can output it.
+          */
+          wbeg-= wbeg_stride;
+          ++num_of_ce_left;
+          return 0xFB86;
+        }
+
+        // Regular (non-Japanese-specific) reordering.
+        return weight - wt_rec->old_wt_bdy.begin + wt_rec->new_wt_bdy.begin;
       }
     }
   }
@@ -1781,9 +1831,7 @@ ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next()
   {
     /* Reorder weight change only on primary level. */
     if (param->reorder_param && weight_lv == 0)
-      res= my_apply_reorder_param(param->reorder_param->wt_rec,
-                                  param->reorder_param->max_weight,
-                                  res);
+      res= apply_reorder_param(res);
     if (param->case_first != CASE_FIRST_OFF)
       res= apply_case_first(res);
   }
@@ -3703,8 +3751,26 @@ my_coll_parser_scan_shift_sequence(MY_COLL_RULE_PARSER *p)
     */
     my_coll_parser_scan(p);
     p->rule.with_context= TRUE;
-    if (!my_coll_parser_scan_character_list(p, p->rule.curr + 1, 1, "context"))
+    if (!my_coll_parser_scan_character_list(p, p->rule.curr + 1,
+                                            MY_UCA_MAX_EXPANSION - 1,
+                                            "context"))
       return 0;
+    /*
+      It might be CONTEXT followed by EXPANSION. For example, Japanese
+      collation has one rule defined as:
+      "&[before 3]へ<<<へ|ゝ=べ|ゝ=へ|ゞ/\u3099"
+      The part of "へ|ゞ/\u3099" is CONTEXT ('|') followed by EXPANSION ('/').
+    */
+    if (my_coll_parser_curr(p)->term == MY_COLL_LEXEM_EXTEND)
+    {
+      my_coll_parser_scan(p);
+      size_t len= my_wstrnlen(p->rule.base, MY_UCA_MAX_EXPANSION);
+      if (!my_coll_parser_scan_character_list(p, p->rule.base + len,
+                                              MY_UCA_MAX_EXPANSION - len,
+                                              "Expansion"))
+        return 0;
+    }
+
   }
 
   /* Add rule to the rule list */
@@ -4218,67 +4284,111 @@ my_uca_copy_page(CHARSET_INFO *cs,
 }
 
 static bool
-apply_shift_900(MY_CHARSET_LOADER *loader,
-                MY_COLL_RULES *rules, MY_COLL_RULE *r, int level,
-                uint16 *to, size_t to_stride, size_t nweights)
+apply_primary_shift_900(MY_CHARSET_LOADER *loader, MY_COLL_RULES *rules,
+                        MY_COLL_RULE *r, uint16 *to, size_t to_stride,
+                        size_t nweights, uint16 * const last_weight_ptr)
 {
-  /* Apply level difference. */
-  if (nweights)
+  /*
+    Find the second-to-last non-ignorable primary weight to apply shift,
+    because the last one is the extra CE we added in my_char_weight_put_900().
+  */
+  int last_sec_pri= 0;
+  for (last_sec_pri= nweights - 2; last_sec_pri >= 0; --last_sec_pri)
   {
-    uint16 * const last_weight_ptr = to + (nweights - 1) * to_stride * MY_UCA_900_CE_SIZE;
-    last_weight_ptr[0]+= r->diff[0];
-    last_weight_ptr[to_stride]+= r->diff[1];
-    last_weight_ptr[to_stride * 2]+= r->diff[2];
-    if (r->before_level == 1) /* Apply "&[before primary]" */
+    if (to[last_sec_pri * to_stride * MY_UCA_900_CE_SIZE])
+      break;
+  }
+  if (last_sec_pri >= 0)
+  {
+    to[last_sec_pri * to_stride * MY_UCA_900_CE_SIZE]--; /* Reset before */
+    if (rules->shift_after_method == my_shift_method_expand)
     {
-      int last_sec_pri_pos= 0;
-      for (int i= nweights - 2; i >= 0; --i)
-      {
-        if (to[i * to_stride * MY_UCA_900_CE_SIZE])
-        {
-          last_sec_pri_pos= i;
-          break;
-        }
-      }
-      if (last_sec_pri_pos >= 0)
-      {
-        to[last_sec_pri_pos * to_stride * MY_UCA_900_CE_SIZE]--; /* Reset before */
-        if (rules->shift_after_method == my_shift_method_expand)
-        {
-          /*
-            Special case. Don't let characters shifted after X
-            and before next(X) intermix to each other.
+      /*
+        Special case. Don't let characters shifted after X
+        and before next(X) intermix to each other.
 
-            For example:
-            "[shift-after-method expand] &0 < a &[before primary]1 < A".
-            I.e. we reorder 'a' after '0', and then 'A' before '1'.
-            'a' must be sorted before 'A'.
+        For example:
+        "[shift-after-method expand] &0 < a &[before primary]1 < A".
+        I.e. we reorder 'a' after '0', and then 'A' before '1'.
+        'a' must be sorted before 'A'.
 
-            Note, there are no real collations in CLDR which shift
-            after and before two neighbourgh characters. We need this
-            just in case. Reserving 4096 (0x1000) weights for such
-            cases is perfectly enough.
-          */
-          /* W3-TODO: const may vary on levels 2,3*/
-          last_weight_ptr[0]+= 0x1000;
-        }
-      }
-      else
-      {
-        my_snprintf(loader->error, sizeof(loader->error),
-                    "Can't reset before "
-                    "a primary ignorable character U+%04lX", r->base[0]);
-        return TRUE;
-      }
+        Note, there are no real collations in CLDR which shift
+        after and before two neighbouring characters. We need this
+        just in case. Reserving 4096 (0x1000) weights for such
+        cases is perfectly enough.
+      */
+      /* W3-TODO: const may vary on levels 2,3*/
+      last_weight_ptr[0]+= 0x1000;
     }
   }
   else
   {
-    /* Shift to an ignorable character, e.g.: & \u0000 < \u0001 */
-    DBUG_ASSERT(to[0] == 0);
-    to[0]= r->diff[level];
+    my_snprintf(loader->error, sizeof(loader->error),
+                "Can't reset before "
+                "a primary ignorable character U+%04lX", r->base[0]);
+    return true;
   }
-  return FALSE;
+  return false;
+}
+
+static bool
+apply_tertiary_shift_900(MY_CHARSET_LOADER *loader, MY_COLL_RULES *rules,
+                         MY_COLL_RULE *r, uint16 *to, size_t to_stride,
+                         size_t nweights, uint16 * const last_weight_ptr)
+{
+  /*
+    Find the second-to-last non-ignorable tertiary weight to apply shift,
+    because the last one is the extra CE we added in my_char_weight_put_900().
+  */
+  int last_sec_ter;
+  for (last_sec_ter= nweights - 2; last_sec_ter >= 0; --last_sec_ter)
+  {
+    if (to[last_sec_ter * MY_UCA_900_CE_SIZE * to_stride + 2 * to_stride])
+      break;
+  }
+  if (last_sec_ter >= 0)
+  {
+    // Reset before.
+    to[last_sec_ter * MY_UCA_900_CE_SIZE * to_stride + 2 * to_stride]--;
+    if (rules->shift_after_method == my_shift_method_expand)
+    {
+      /*
+        Same reason as in apply_primary_shift_900(), reserve 16 (0x10)
+        weights for tertiary level.
+      */
+      last_weight_ptr[to_stride * 2]+= 0x10;
+    }
+  }
+  else
+  {
+    my_snprintf(loader->error, sizeof(loader->error),
+                "Can't reset before "
+                "a tertiary ignorable character U+%04lX", r->base[0]);
+    return true;
+  }
+  return false;
+}
+
+static bool
+apply_shift_900(MY_CHARSET_LOADER *loader,
+                MY_COLL_RULES *rules, MY_COLL_RULE *r, int level,
+                uint16 *to, size_t to_stride, size_t nweights)
+{
+  // nweights should not less than 1 because of the extra CE.
+  DBUG_ASSERT(nweights);
+  // Apply level difference.
+  uint16 * const last_weight_ptr=
+    to + (nweights - 1) * to_stride * MY_UCA_900_CE_SIZE;
+  last_weight_ptr[0]+= r->diff[0];
+  last_weight_ptr[to_stride]+= r->diff[1];
+  last_weight_ptr[to_stride * 2]+= r->diff[2];
+  if (r->before_level == 1) // Apply "&[before primary]".
+    return apply_primary_shift_900(loader, rules, r, to, to_stride,
+                                   nweights, last_weight_ptr);
+  else if (r->before_level == 3) // Apply "[before 3]".
+    return apply_tertiary_shift_900(loader, rules, r, to, to_stride,
+                                    nweights, last_weight_ptr);
+  return false;
 }
 
 static my_bool
@@ -4457,6 +4567,20 @@ synthesize_lengths_900(uchar *lengths,
   }
 }
 
+static void
+copy_ja_han_pages(const CHARSET_INFO *cs, MY_UCA_INFO *dst)
+{
+  if (!cs->uca || cs->uca->version != UCA_V900 ||
+      cs->coll_param != &ja_coll_param)
+    return;
+  for (int page= 0x4E; page <= 0x9F; page++)
+  {
+    // In DUCET, weight is not assigned to code points in [U+4E00, U+9FFF].
+    DBUG_ASSERT(dst->weights[page] == nullptr);
+    dst->weights[page]= ja_han_pages[page - 0x4E];
+  }
+}
+
 static my_bool
 init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
                   MY_COLL_RULES *rules, int level,
@@ -4548,6 +4672,8 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
         (rc= my_uca_copy_page(cs, loader, src, dst, i)))
       return rc;
   }
+
+  copy_ja_han_pages(cs, dst);
 
   if (dst->contractions.has_contractions)
   {
@@ -4880,7 +5006,7 @@ my_calc_char_grp_param(const CHARSET_INFO *cs, int &rec_ind)
   @param      rec_ind    The position from where to store weight boundary
 */
 static void
-my_calc_char_grp_gap_param(CHARSET_INFO *cs, int rec_ind)
+my_calc_char_grp_gap_param(CHARSET_INFO *cs, int &rec_ind)
 {
   Reorder_param *param= cs->coll_param->reorder_param;
   uint16 weight_start= param->wt_rec[rec_ind - 1].new_wt_bdy.end + 1;
@@ -4925,6 +5051,7 @@ my_calc_char_grp_gap_param(CHARSET_INFO *cs, int rec_ind)
       break;
     }
   }
+  param->wt_rec_num= rec_ind;
 }
 
 
@@ -4933,10 +5060,10 @@ my_calc_char_grp_gap_param(CHARSET_INFO *cs, int rec_ind)
   Prepare reorder parameters.
   @param  cs     Character set info
 */
-static void my_prepare_reorder(CHARSET_INFO *cs)
+static int my_prepare_reorder(CHARSET_INFO *cs)
 {
   if (!cs->coll_param->reorder_param)
-    return;
+    return 0;
   /*
     For each group of character, for example, latin characters,
     their weights are in a seperate range. The default sequence
@@ -4951,6 +5078,49 @@ static void my_prepare_reorder(CHARSET_INFO *cs)
   int rec_ind= 0;
   my_calc_char_grp_param(cs, rec_ind);
   my_calc_char_grp_gap_param(cs, rec_ind);
+  return rec_ind;
+}
+
+static void adjust_japanese_weight(CHARSET_INFO *cs, MY_COLL_RULES *rules,
+                                   int rec_ind)
+{
+  /*
+    Per CLDR29, Japanese collations need to reorder characters as
+    [Latin, Kana, Han, others]. So for the original character group list:
+    [Latin, CharA, Kana, CharB, Han, Others], it should be reordered as
+    [Latin, Kana, Han, CharA, CharB, Others]. But my_prepare_reorder()
+    reorders original group to be [Latin, Kana, CharA, CharB, Han, Others].
+    This is because Han characters are different from others in that Han
+    characters' weight is implicit and has two primary weights for each
+    character. Other characters have only one primary weight for each (base)
+    character. Han characters always sort bigger.
+
+    CLDR defines the collating order for 6355 Japanese Han characters. All
+    of them are in [U+4E00, U+9FFF]; we give them tailored primary weights
+    in ja_han_pages. The tailored primary weights are just after Kana,
+    because these characters are very common. These Han characters' weight
+    pages will be added to collation's UCA data in copy_ja_han_pages().
+    For the other Han characters, we don't change their implicit weights,
+    which is [FB80 - FB85, 0020, 0002][XXXX, 0000, 0000].
+
+    To make sure CharA and CharB's weight is greater than all Han characters,
+    we give them weight as [FB86, 0000, 0000][origin weights]. This will be
+    done in apply_reorder_param().
+
+    Because the values stored in last wt_rec element is calculated for moving
+    CharA to be after Kana, but we want them to be after all Han character,
+    we reset the weight boundary here, and will change all these characters'
+    weight in apply_reorder_param().
+  */
+  Reorder_param *param= cs->coll_param->reorder_param;
+  param->wt_rec[rec_ind - 1].new_wt_bdy.begin= 0;
+  param->wt_rec[rec_ind - 1].new_wt_bdy.end= 0;
+  param->wt_rec[rec_ind].old_wt_bdy.begin= param->wt_rec[1].old_wt_bdy.end + 1;
+  param->wt_rec[rec_ind].old_wt_bdy.end= 0x54A3;
+  param->wt_rec[rec_ind].new_wt_bdy.begin= 0;
+  param->wt_rec[rec_ind].new_wt_bdy.end= 0;
+  param->wt_rec_num++;
+  param->max_weight= 0x54A3;
 }
 
 /**
@@ -4965,9 +5135,12 @@ static bool my_prepare_coll_param(CHARSET_INFO *cs, MY_COLL_RULES *rules)
   if (rules->uca->version != UCA_V900 || !cs->coll_param)
     return false;
 
-  my_prepare_reorder(cs);
+  int rec_ind= my_prepare_reorder(cs);
   if (add_normalization_rules(cs, rules))
     return true;
+
+  if (cs->coll_param == &ja_coll_param)
+    adjust_japanese_weight(cs, rules, rec_ind);
   /* Might add other parametric tailoring rules later. */
   return false;
 }
@@ -11479,6 +11652,40 @@ CHARSET_INFO my_charset_utf8mb4_vi_0900_as_cs=
   "",                 /* comment      */
   vi_cldr_29,         /* tailoring    */
   &vi_coll_param,     /* coll_param   */
+  ctype_utf8,         /* ctype        */
+  NULL,               /* to_lower     */
+  NULL,               /* to_upper     */
+  NULL,               /* sort_order   */
+  &my_uca_v900,       /* uca          */
+  NULL,               /* tab_to_uni   */
+  NULL,               /* tab_from_uni */
+  &my_unicase_unicode900,/* caseinfo     */
+  NULL,               /* state_map    */
+  NULL,               /* ident_map    */
+  24,                 /* strxfrm_multiply */
+  1,                  /* caseup_multiply  */
+  1,                  /* casedn_multiply  */
+  1,                  /* mbminlen      */
+  4,                  /* mbmaxlen      */
+  1,                  /* mbmaxlenlen   */
+  32,                 /* min_sort_char */
+  0x10FFFF,           /* max_sort_char */
+  ' ',                /* pad char      */
+  0,                  /* escape_with_backslash_is_dangerous */
+  3,                  /* levels_for_compare */
+  &my_charset_utf8mb4_handler,
+  &my_collation_uca_900_handler
+};
+
+CHARSET_INFO my_charset_utf8mb4_ja_0900_as_cs=
+{
+  303, 0, 0,            /* number       */
+  MY_CS_UTF8MB4_UCA_FLAGS|MY_CS_CSSORT,/* state    */
+  MY_UTF8MB4,         /* csname       */
+  MY_UTF8MB4 "_ja_0900_as_cs",/* name */
+  "",                 /* comment      */
+  ja_cldr_29,         /* tailoring    */
+  &ja_coll_param,     /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */

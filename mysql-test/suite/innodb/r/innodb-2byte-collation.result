@@ -44,6 +44,7 @@ utf8mb4_eo_0900_as_cs	utf8mb4	296		Yes	24
 utf8mb4_hu_0900_as_cs	utf8mb4	297		Yes	24
 utf8mb4_hr_0900_as_cs	utf8mb4	298		Yes	24
 utf8mb4_vi_0900_as_cs	utf8mb4	300		Yes	24
+utf8mb4_ja_0900_as_cs	utf8mb4	303		Yes	24
 utf8mb4_test_ci	utf8mb4	326			8
 utf16_test_ci	utf16	327			8
 utf8mb4_test_400_ci	utf8mb4	328			8
