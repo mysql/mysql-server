@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4206,7 +4206,27 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
     Uint32 varpart_len= Uint32(dst_ptr - varstart);
     vp->m_len = varpart_len;
     sizes[MM] = varpart_len;
-    ptr->m_header_bits |= (varpart_len) ? Tuple_header::VAR_PART : 0;
+    if (varpart_len != 0)
+    {
+      ptr->m_header_bits |= Tuple_header::VAR_PART;
+    }
+    else if ((ptr->m_header_bits & Tuple_header::VAR_PART) == 0)
+    {
+      /*
+       * No varpart present.
+       * And this is not an update where the dynamic column is set to null.
+       * So skip storing the var part altogether.
+       */
+      ndbassert(((Uint32*) vp) == ptr->get_end_of_fix_part_ptr(tabPtrP));
+      dst_ptr= (Uint32*)vp;
+    }
+    else
+    {
+      /*
+       * varpart_len is now 0, but tuple already had a varpart.
+       * It will be released at commit time.
+       */
+    }
     
     ndbassert((UintPtr(ptr) & 3) == 0);
     ndbassert(varpart_len < 0x10000);
