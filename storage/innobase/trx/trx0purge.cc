@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -692,7 +692,8 @@ trx_purge_get_rseg_with_min_trx_id(
 
 	/* We assume in purge of externally stored fields that space id is
 	in the range of UNDO tablespace space ids */
-	ut_a(purge_sys->rseg->space <= srv_undo_tablespaces_open);
+	ut_a(purge_sys->rseg->space == 0
+	     || srv_is_undo_tablespace(purge_sys->rseg->space));
 
 	zip_size = purge_sys->rseg->zip_size;
 
