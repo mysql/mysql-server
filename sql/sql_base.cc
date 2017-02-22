@@ -7923,41 +7923,17 @@ find_field_in_tables(THD *thd, Item_ident *item,
     Field *cur_field=
       find_field_in_table_ref(thd, cur_table, name, length,
                               item->item_name.ptr(), db, table_name, ref,
-                              (thd->lex->sql_command == SQLCOM_SHOW_FIELDS) ?
-                                0 : want_privilege,
+                              want_privilege,
                               allow_rowid,
                               &(item->cached_field_index),
                               register_tree_change,
                               &actual_table);
-    if (cur_field == NULL && thd->is_error())
-      return NULL;
+    if ((cur_field == NULL && thd->is_error()) ||
+        cur_field == WRONG_GRANT)
+      return nullptr;
 
     if (cur_field)
     {
-      if (cur_field == WRONG_GRANT)
-      {
-        if (thd->lex->sql_command != SQLCOM_SHOW_FIELDS)
-          return (Field*) 0;
-
-        thd->clear_error();
-        cur_field=
-          find_field_in_table_ref(thd, cur_table, name, length,
-                                  item->item_name.ptr(), db, table_name, ref,
-                                  0,
-                                  allow_rowid,
-                                  &(item->cached_field_index),
-                                  register_tree_change,
-                                  &actual_table);
-        if (cur_field)
-        {
-          Field *nf=new Field_null(NULL,0,Field::NONE,
-                                   cur_field->field_name,
-                                   &my_charset_bin);
-          nf->init(cur_table->table);
-          cur_field= nf;
-        }
-      }
-
       /*
         Store the original table of the field, which may be different from
         cur_table in the case of NATURAL/USING join.
@@ -8020,8 +7996,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
          and throw column access error.
       */
       if (!first_table ||
-          !(thd->lex->sql_command == SQLCOM_SHOW_FIELDS ? 
-            false : want_privilege) ||
+          (want_privilege == 0) ||
           !check_column_grant_in_table_ref(thd, first_table, name, length,
                                            want_privilege))
              my_error(ER_BAD_FIELD_ERROR, MYF(0), item->full_name(), thd->where);

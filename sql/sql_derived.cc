@@ -586,11 +586,8 @@ bool SELECT_LEX_UNIT::check_materialized_derived_query_blocks(THD *thd_arg)
 
     /*
       SELECT privilege is needed for all materialized derived tables and views,
-      and columns must be marked for read, unless command is SHOW FIELDS.
+      and columns must be marked for read.
     */
-    if (thd_arg->lex->sql_command == SQLCOM_SHOW_FIELDS)
-      continue;
-
     if (sl->check_view_privileges(thd_arg, SELECT_ACL, SELECT_ACL))
       return true;
 
