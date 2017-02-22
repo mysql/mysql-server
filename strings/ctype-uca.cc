@@ -658,7 +658,7 @@ static const char hr_cldr_29[]=
   "&Z <   \\u017E  <<< \\u017D ";
 
 static Reorder_param hr_reorder_param= {
-  {CHARGRP_LATIN, CHARGRP_CYRILLIC, CHARGRP_NONE}, {{{0, 0}, {0, 0}}}, 0
+  {CHARGRP_LATIN, CHARGRP_CYRILLIC, CHARGRP_NONE}, {{{0, 0}, {0, 0}}}, 0, 0
 };
 
 static Coll_param hr_coll_param= {
@@ -696,7 +696,7 @@ static Reorder_param ja_reorder_param= {
     Japanese Han characters tailored weight which has only one collation
     element. These characters' weight is defined in ja_han_pages.
   */
-  {CHARGRP_LATIN, CHARGRP_KANA, CHARGRP_NONE}, {{{0, 0}, {0, 0}}}, 0
+  {CHARGRP_LATIN, CHARGRP_KANA, CHARGRP_NONE}, {{{0, 0}, {0, 0}}}, 0, 0
 };
 
 static Coll_param ja_coll_param= {
