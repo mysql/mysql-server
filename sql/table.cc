@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -7855,4 +7855,18 @@ void TABLE::mark_gcol_in_maps(Field *field)
         bitmap_set_bit(write_set, i);
     }
   }
+}
+
+bool TABLE::contains_records(THD *thd, bool *retval)
+{
+  READ_RECORD info_read_record;
+  *retval= true;
+  if (init_read_record(&info_read_record, thd, this, NULL, 1, 1, FALSE))
+    return true;
+
+  // read_record returns -1 for EOF.
+  *retval= (info_read_record.read_record(&info_read_record) != -1);
+  end_read_record(&info_read_record);
+
+  return false;
 }
