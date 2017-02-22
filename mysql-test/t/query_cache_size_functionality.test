@@ -22,7 +22,6 @@
 ###############################################################################
 
 -- source include/not_embedded.inc
--- source include/have_innodb_16k.inc
 
 echo '#________________________VAR_02_query_cache_size__________________#'
 echo '##'

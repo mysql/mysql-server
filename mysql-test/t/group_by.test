@@ -1,5 +1,4 @@
 # Innodb page size 16k required
---source include/have_innodb_16k.inc
 
 # Initialise
 --disable_warnings

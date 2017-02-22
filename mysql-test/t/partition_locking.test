@@ -8,7 +8,6 @@
 
 # Different page sizes gives different query plans
 # results based on default 16k.
---source include/have_innodb_16k.inc
 
 --echo # The results where created without innodb persistent stats.
 SET @old_innodb_stats_persistent= @@global.innodb_stats_persistent;

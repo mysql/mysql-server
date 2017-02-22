@@ -3,7 +3,6 @@
 #
 
 -- source include/not_embedded.inc
--- source include/have_innodb_16k.inc
 
 SET default_storage_engine=InnoDB;
 

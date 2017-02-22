@@ -6,7 +6,6 @@
 --source include/not_embedded.inc
 --source include/not_valgrind.inc
 #Zipped data directory was created with default 16K page size
---source include/have_innodb_16k.inc
 #Innodb does not recognizes partition table created in linux from windows
 #due to difference in path format.
 --source include/not_windows.inc

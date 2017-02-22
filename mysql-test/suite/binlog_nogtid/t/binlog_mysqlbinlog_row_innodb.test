@@ -9,8 +9,6 @@
 # See there for more informaton.
 #
 
-
---source include/have_innodb_16k.inc
 let $engine_type=InnoDB;
 
 #

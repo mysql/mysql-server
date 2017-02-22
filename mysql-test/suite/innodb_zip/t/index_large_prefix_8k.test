@@ -1,6 +1,5 @@
 # Testcase for worklog #5743: Lift the limit of index key prefixes
 
---source include/have_innodb_8k.inc
 SET default_storage_engine=InnoDB;
 
 --disable_query_log

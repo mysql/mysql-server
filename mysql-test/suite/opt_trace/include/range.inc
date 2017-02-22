@@ -2,7 +2,6 @@
 
 --source include/have_optimizer_trace.inc
 # InnoDB page size influences cost => makes trace vary.
---source include/have_innodb_16k.inc
 
 SET optimizer_trace_max_mem_size=1048576; # 1MB
 SET end_markers_in_json=on;

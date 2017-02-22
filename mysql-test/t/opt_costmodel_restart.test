@@ -7,7 +7,6 @@
 
 # To get stable cost estimates, the test should only be run with 
 # 16K InnoDB page size.
---source include/have_innodb_16k.inc
 
 #
 # Test that changes to cost constants are used after restarting server

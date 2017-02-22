@@ -22,7 +22,6 @@
 ###############################################################################
 
 -- source include/not_embedded.inc
--- source include/have_innodb_16k.inc
 --disable_warnings
 echo '#________________________VAR_06_Host_Cache_Size__________________#'
 echo '##'

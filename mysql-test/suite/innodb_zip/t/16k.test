@@ -1,7 +1,6 @@
 
 # Tests for setting innodb-page-size=16k; default value
 --source include/big_test.inc
---source include/have_innodb_16k.inc
 SET default_storage_engine=InnoDB;
 
 --disable_query_log

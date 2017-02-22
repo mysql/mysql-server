@@ -7,5 +7,4 @@
 # Example: ./mtr innodb_undo.i_s_files_4k --mysqld=--innodb-page-size=4k
 #          --mysqld=--innodb_undo_tablespaces=2 --bootstrap=--innodb_undo_tablespaces=2
 
---source include/have_innodb_4k.inc
 --source suite/innodb_undo/include/i_s_files.inc

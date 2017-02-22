@@ -1,5 +1,4 @@
 # InnoDB page size 16k is required
---source include/have_innodb_16k.inc
 
 #
 # Test of alter table

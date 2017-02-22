@@ -1,6 +1,5 @@
 # Tests for setting innodb-page-size=8k
 
---source include/have_innodb_8k.inc
 SET default_storage_engine=InnoDB;
 
 --disable_query_log

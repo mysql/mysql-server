@@ -22,7 +22,6 @@
 ###############################################################################
 
 -- source include/not_embedded.inc
--- source include/have_innodb_16k.inc
 
 echo '#________________________VAR_09_INNODB_LOG_FILE_SIZE__________________#'
 echo '##'

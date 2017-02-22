@@ -15,7 +15,6 @@ if (!$require_case_insensitive_file_system)
 # NOTE: PLEASE SEE THE DETAILED DESCRIPTION AT THE BOTTOM OF THIS FILE
 #       BEFORE ADDING NEW TEST CASES HERE !!!
 # one subtest needs page size > 8k
---source include/have_innodb_16k.inc
 --disable_warnings
 # Test needs myisam for a few testcases
 --source include/have_myisam.inc

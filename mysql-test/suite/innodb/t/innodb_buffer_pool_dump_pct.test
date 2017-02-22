@@ -6,7 +6,6 @@
 # step 3.Compare the size of both the dump files
 # Here if the size of step 1 > size of step 2 (pass) else fail
 #*************************************************************
---source include/have_innodb_16k.inc
 
 --echo # Set the environmental variables
 let MYSQLD_DATADIR = `SELECT @@datadir`;

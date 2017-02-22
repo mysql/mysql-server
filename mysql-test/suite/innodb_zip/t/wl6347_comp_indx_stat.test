@@ -10,7 +10,6 @@
 
 # This test case needs InnoDB.
 -- source include/not_embedded.inc
--- source include/have_innodb_16k.inc
 -- source include/big_test.inc
 
 -- vertical_results

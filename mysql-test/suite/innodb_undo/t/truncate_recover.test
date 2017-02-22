@@ -7,7 +7,6 @@
 --source include/have_debug.inc
 # We are printing size of undo log below and if page size keeps on
 # varying then initial size too keeps on varying.
---source include/have_innodb_16k.inc
 --source include/have_undo_tablespaces.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.

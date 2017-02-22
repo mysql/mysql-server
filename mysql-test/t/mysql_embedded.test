@@ -9,7 +9,6 @@
 # Thus, the InnoDB page size must be the default. Otherwise, the server
 # with the default page size will refuse to start on the data set with custom
 # page size.
---source include/have_innodb_16k.inc
 --source include/have_no_undo_tablespaces.inc
 
 --echo #

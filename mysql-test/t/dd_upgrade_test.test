@@ -4,7 +4,6 @@
 --source include/not_embedded.inc
 --source include/not_valgrind.inc
 #Zipped data directory was created with default 16K page size
---source include/have_innodb_16k.inc
 
 call mtr.add_suppression("Plugin * after shutdown");
 call mtr.add_suppression(".* Native table .* has the wrong structure");

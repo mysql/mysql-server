@@ -8,7 +8,6 @@
 # In order to support innodb_limit_optimistic_insert_debug
 --source include/have_debug.inc
 # In order to make the output of explain json-format stable
---source include/have_innodb_16k.inc
 # Contains several strange queries with GROUP BY, so:
 --source include/turn_off_only_full_group_by.inc
 # =======================initialization====================

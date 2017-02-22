@@ -3,7 +3,6 @@
 # columns are stored off-page.
 
 # The 7000 in this test is a bit less than half the innodb_page_size.
---source include/have_innodb_16k.inc
 
 # DEBUG_SYNC must be compiled in.
 --source include/have_debug_sync.inc

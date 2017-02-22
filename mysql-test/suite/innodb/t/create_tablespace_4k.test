@@ -2,7 +2,6 @@
 # WL#6205 - A series of tests to show the correct behavior for
 # CREATE TABLESPACE and associated SQL statements for 4k page size.
 #
---source include/have_innodb_4k.inc
 --source include/not_embedded.inc
 
 --echo #
