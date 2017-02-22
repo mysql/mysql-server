@@ -6626,7 +6626,7 @@ void TABLE_LIST::reinit_before_use(THD *thd)
 
   mdl_request.ticket= NULL;
 
-  if (is_recursive_reference && select_lex)
+  if (is_recursive_reference() && select_lex)
     set_derived_unit(select_lex->recursive_dummy_unit);
 
   /*
@@ -6935,7 +6935,7 @@ int TABLE_LIST::fetch_number_of_rows()
     */
     table->file->stats.records= derived->query_result()->estimated_rowcount;
   }
-  else if (is_recursive_reference)
+  else if (is_recursive_reference())
   {
     /*
       Use the estimated row count of all query blocks before this one, as the
@@ -7655,6 +7655,16 @@ void TABLE::mark_gcol_in_maps(Field *field)
         bitmap_set_bit(write_set, i);
     }
   }
+}
+
+
+bool TABLE_LIST::set_recursive_reference()
+{
+  if (select_lex->recursive_reference != nullptr)
+    return true;
+  select_lex->recursive_reference= this;
+  m_is_recursive_reference= true;
+  return false;
 }
 
 

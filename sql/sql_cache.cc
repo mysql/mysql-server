@@ -1639,19 +1639,22 @@ int Query_cache::send_result_to_client(THD *thd, const LEX_CSTRING &sql)
       i++;
 
     /*
-      Test if the query is a SELECT
-      (pre-space is removed in dispatch_command).
-
-      First '/' looks like comment before command it is not
-      frequently appeared in real life, consequently we can
-      check all such queries, too.
+      Test if this is a SELECT statement.
+      Leading spaces have been removed by dispatch_command().
+      If query doesn't start with a comment, then if it is a SELECT statement
+      it must start with SELECT or WITH.
     */
-    if ((my_toupper(system_charset_info, sql.str[i])     != 'S' ||
+    char first_letter= my_toupper(system_charset_info, sql.str[i]);
+    if ((first_letter                                    != 'S' ||
          my_toupper(system_charset_info, sql.str[i + 1]) != 'E' ||
          my_toupper(system_charset_info, sql.str[i + 2]) != 'L' ||
          my_toupper(system_charset_info, sql.str[i + 3]) != 'E' ||
          my_toupper(system_charset_info, sql.str[i + 4]) != 'C' ||
          my_toupper(system_charset_info, sql.str[i + 5]) != 'T') &&
+        (first_letter                                    != 'W' ||
+         my_toupper(system_charset_info, sql.str[i + 1]) != 'I' ||
+         my_toupper(system_charset_info, sql.str[i + 2]) != 'T' ||
+         my_toupper(system_charset_info, sql.str[i + 3]) != 'H') &&
         (sql.str[i] != '/' || sql.length < i+6))
     {
       DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
@@ -3043,9 +3046,9 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
        tables_used;
        tables_used= tables_used->next_global, n++, block_table++)
   {
-    if (tables_used->is_derived())
+    if (tables_used->is_derived() || tables_used->is_recursive_reference())
     {
-      DBUG_PRINT("qcache", ("derived table skipped"));
+      DBUG_PRINT("qcache", ("derived table or recursive reference skipped"));
       n--;
       block_table--;
       continue;
@@ -3719,11 +3722,11 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
     }
     else
     {
-      if (tables_used->is_derived())
+      if (tables_used->is_derived() || tables_used->is_recursive_reference())
       {
         DBUG_PRINT("qcache", ("table: %s", tables_used->alias));
         table_count--;
-        DBUG_PRINT("qcache", ("derived table skipped"));
+        DBUG_PRINT("qcache", ("derived table or recursive reference skipped"));
         continue;
       }
       DBUG_PRINT("qcache", ("table: %s  db:  %s  type: %u",

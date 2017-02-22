@@ -2783,7 +2783,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
       /* remove heap table and change to use on-disk table */
 
       if (table->pos_in_table_list &&
-          table->pos_in_table_list->is_recursive_reference &&
+          table->pos_in_table_list->is_recursive_reference() &&
           table->file->inited)
       {
         /*

@@ -5558,20 +5558,10 @@ SELECT_LEX::find_common_table_expr(THD *thd, Table_ident *table_name,
   if (cte == nullptr)
     return false;
   *found= true;
-  if (tl->is_recursive_reference)
-  {
-    if (recursive_reference != nullptr)
-    {
-      my_error(ER_CTE_RECURSIVE_REQUIRES_SINGLE_REFERENCE,
-               MYF(0), cte->name().str);
-      return true;
-    }
-    recursive_reference= tl;
-  }
 
   const auto save_reparse_cte= thd->lex->reparse_common_table_expr_at;
   PT_subquery *node;
-  if (tl->is_recursive_reference)
+  if (tl->is_recursive_reference())
   {
     LEX_STRING dummy_subq= {C_STRING_WITH_LEN("(select 0)")};
     if (reparse_common_table_expr(thd, dummy_subq, 0, &node))
@@ -5599,7 +5589,7 @@ SELECT_LEX::find_common_table_expr(THD *thd, Table_ident *table_name,
   tl->is_alias= true;
   SELECT_LEX_UNIT *node_unit= node->value()->master_unit();
   *table_name= Table_ident(node_unit);
-  if (tl->is_recursive_reference)
+  if (tl->is_recursive_reference())
     recursive_dummy_unit= node_unit;
   DBUG_ASSERT(table_name->is_derived_table());
   tl->db= const_cast<char*>(table_name->db.str);
@@ -5714,7 +5704,12 @@ bool PT_common_table_expr::match_table_ref(TABLE_LIST *tl, bool in_self,
     if (in_self)
     {
       m_postparse.recursive= true;
-      tl->is_recursive_reference= true;
+      if (tl->set_recursive_reference())
+      {
+        my_error(ER_CTE_RECURSIVE_REQUIRES_SINGLE_REFERENCE,
+                 MYF(0), name().str);
+        return true;
+      }
     }
     else
     {

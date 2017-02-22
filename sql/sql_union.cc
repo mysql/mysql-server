@@ -505,8 +505,7 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg)
       repeatedly, so this table has all the attributes of a recursive
       reference:
     */
-    result_table_list.is_recursive_reference= true;
-    fake_select_lex->recursive_reference= &result_table_list;
+    result_table_list.set_recursive_reference();
   }
 
   if (fake_select_lex->prepare(thd_arg))
@@ -1387,6 +1386,7 @@ bool SELECT_LEX_UNIT::cleanup(bool full)
       error:
     */
     fake_select_lex->table_list.empty();
+    fake_select_lex->recursive_reference= nullptr;
     error|= fake_select_lex->cleanup(full);
   }
 
@@ -1564,7 +1564,7 @@ static void destroy_materialized(THD *thd, TABLE_LIST *list)
       if (tl->common_table_expr())
         tl->common_table_expr()->tmp_tables.clear();
     }
-    else if (!tl->is_recursive_reference && !tl->schema_table)
+    else if (!tl->is_recursive_reference() && !tl->schema_table)
       continue;
     free_tmp_table(thd, tl->table);
   }

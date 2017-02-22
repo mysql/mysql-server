@@ -2089,7 +2089,7 @@ struct TABLE_LIST
   bool is_placeholder() const
   {
     return is_view_or_derived() || schema_table || !table ||
-      is_recursive_reference;
+      m_is_recursive_reference;
   }
 
   /// Produce a textual identification of this object
@@ -2141,6 +2141,22 @@ struct TABLE_LIST
   {
     return derived != NULL;
   }
+
+  /**
+     @returns true if this is a recursive reference inside the definition of a
+     recursive CTE.
+     @note that it starts its existence as a dummy derived table, until the
+     end of resolution when it's not a derived table anymore, just a reference
+     to the materialized temporary table. Whereas a non-recursive
+     reference to the recursive CTE is a derived table.
+  */
+  bool is_recursive_reference() const { return m_is_recursive_reference; }
+
+  /**
+    @see is_recursive_reference().
+    @returns true if error
+  */
+  bool set_recursive_reference();
 
   /// Return true if view or derived table and can be merged
   bool is_mergeable() const;
@@ -2936,8 +2952,9 @@ public:
     could be re-used while statement re-execution.
   */
   bool          derived_keys_ready;
+private:
   /// If a recursive reference inside the definition of a CTE.
-  bool          is_recursive_reference;
+  bool          m_is_recursive_reference;
   // End of group for optimization
 
 private:
@@ -3522,7 +3539,7 @@ public:
 
 /**
    This iterates on those references to a derived table / view / CTE which are
-   materialized.
+   materialized. If a recursive CTE, this includes recursive references.
    Upon construction it is passed a non-recursive materialized reference
    to the derived table (TABLE_LIST*).
    For a CTE it may return more than one reference; for a derived table or a

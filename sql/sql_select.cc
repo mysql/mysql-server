@@ -2934,7 +2934,7 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
                                    false) : COND_FILTER_ALLPASS;
     }
 
-    DBUG_ASSERT(!qep_tab->table_ref->is_recursive_reference ||
+    DBUG_ASSERT(!qep_tab->table_ref->is_recursive_reference() ||
                 qep_tab->type() == JT_ALL);
 
     qep_tab->pick_table_access_method(tab);

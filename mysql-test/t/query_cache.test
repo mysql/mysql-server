@@ -1510,4 +1510,108 @@ INSERT INTO spoiled_child VALUES (1),(2);
 DELETE FROM parent WHERE a>1;
 DROP DATABASE `tttttttttttttttttttttttttttttttttttttttttt`;
 
+--echo #
+--echo # Bug#25573143 SELECT USING CTE NEVER USES THE QUERY CACHE
+--echo #
+
+CREATE DATABASE mysqltest;
+USE mysqltest;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES(1),(2),(3);
+
+--echo # Simple CTE
+FLUSH STATUS;
+WITH cte AS (SELECT * FROM t1 LIMIT 2) SELECT * FROM cte;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+--echo # Hits in query cache:
+WITH cte AS (SELECT * FROM t1 LIMIT 2) SELECT * FROM cte;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+--echo # If requested, no cache
+FLUSH STATUS;
+WITH cte AS (SELECT * FROM t1 LIMIT 2) SELECT SQL_NO_CACHE * FROM cte;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+WITH cte AS (SELECT * FROM t1 LIMIT 2) SELECT SQL_NO_CACHE * FROM cte;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+
+--echo Recursive CTE, referenced twice, with PS parameters
+PREPARE s FROM
+ 'WITH RECURSIVE cte AS (
+   SELECT * FROM t1 WHERE a=1 UNION ALL
+   SELECT a+1 FROM cte WHERE a<?)
+  SELECT * FROM cte AS cte1, cte AS cte2';
+SET @par=3;
+FLUSH STATUS;
+EXECUTE s USING @par;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+EXECUTE s USING @par;
+--echo # Hits in query cache:
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+--echo # Change parameter's value, doesn't hit in cache:
+SET @par=4;
+FLUSH STATUS;
+EXECUTE s USING @par;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+EXECUTE s USING @par;
+--echo # Hits in query cache:
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+SET @par=3;
+FLUSH STATUS;
+--echo # Hits in query cache:
+EXECUTE s USING @par;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+
+--echo Same CTE but with UNION DISTINCT
+PREPARE s FROM
+ 'WITH RECURSIVE cte AS (
+   SELECT * FROM t1 WHERE a=1 UNION DISTINCT
+   SELECT a+1 FROM cte WHERE a<?)
+  SELECT * FROM cte AS cte1, cte AS cte2';
+SET @par=3;
+FLUSH STATUS;
+EXECUTE s USING @par;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+EXECUTE s USING @par;
+--echo # Hits in query cache:
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+--echo # Change parameter's value, doesn't hit in cache:
+SET @par=4;
+FLUSH STATUS;
+EXECUTE s USING @par;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+EXECUTE s USING @par;
+--echo # Hits in query cache:
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+SET @par=3;
+FLUSH STATUS;
+--echo # Hits in query cache:
+EXECUTE s USING @par;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+
+--echo # Data-modifying statement with CTE isn't cached:
+FLUSH STATUS;
+WITH cte AS (SELECT * FROM t1 LIMIT 2) UPDATE t1, cte
+ SET t1.a=cte.a+1 WHERE t1.a=cte.a;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+WITH cte AS (SELECT * FROM t1 LIMIT 2) UPDATE t1, cte
+ SET t1.a=cte.a+1 WHERE t1.a=cte.a;
+SHOW STATUS LIKE "Qcache_hits";
+SHOW STATUS LIKE "Qcache_queries_in_cache";
+
+DROP DATABASE mysqltest;
+
 SET GLOBAL query_cache_size = @query_cache_size.saved;

@@ -1469,7 +1469,7 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
     table->file->start_psi_batch_mode();
 
   bool in_first_read= true;
-  const bool is_recursive_ref= qep_tab->table_ref->is_recursive_reference;
+  const bool is_recursive_ref= qep_tab->table_ref->is_recursive_reference();
   const ha_rows *recursive_row_count= nullptr;
 
   if (is_recursive_ref)
