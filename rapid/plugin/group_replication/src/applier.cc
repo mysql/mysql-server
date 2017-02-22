@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -800,7 +800,7 @@ Applier_module::is_applier_thread_waiting()
 }
 
 int
-Applier_module::wait_for_applier_event_execution(ulonglong timeout)
+Applier_module::wait_for_applier_event_execution(double timeout)
 {
   DBUG_ENTER("Applier_module::wait_for_applier_event_execution");
   int error= 0;

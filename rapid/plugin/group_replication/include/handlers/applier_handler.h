@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,7 +85,7 @@ public:
       @retval -1     A timeout occurred
       @retval -2     An error occurred
   */
-  int wait_for_gtid_execution(longlong timeout);
+  int wait_for_gtid_execution(double timeout);
 
   /**
     Checks if the channel's relay log contains partial transaction.

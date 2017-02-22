@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -138,7 +138,7 @@ public:
                                                    bool wait_for_execution= true)= 0;
   virtual void awake_applier_module()= 0;
   virtual void interrupt_applier_suspension_wait()= 0;
-  virtual int wait_for_applier_event_execution(ulonglong timeout)= 0;
+  virtual int wait_for_applier_event_execution(double timeout)= 0;
   virtual size_t get_message_queue_size()= 0;
   virtual Member_applier_state get_applier_status()= 0;
   virtual void add_suspension_packet()= 0;
@@ -438,7 +438,7 @@ public:
       @retval -1     A timeout occurred
       @retval -2     An error occurred
   */
-  virtual int wait_for_applier_event_execution(ulonglong timeout);
+  virtual int wait_for_applier_event_execution(double timeout);
 
   /**
     Returns the handler instance in the applier module responsible for

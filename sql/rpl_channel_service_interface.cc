@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -759,7 +759,7 @@ int channel_queue_packet(const char* channel,
 }
 
 int channel_wait_until_apply_queue_applied(const char* channel,
-                                           long long timeout)
+                                           double timeout)
 {
   DBUG_ENTER("channel_wait_until_apply_queue_applied(channel, timeout)");
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -2779,7 +2779,7 @@ public:
     @retval true Failure: either timeout or thread was killed.  If
     thread was killed, the error has been generated.
    */
-  bool wait_for_gtid_set(THD *thd, Gtid_set *gtid_set, longlong timeout);
+  bool wait_for_gtid_set(THD *thd, Gtid_set *gtid_set, double timeout);
 #endif // ifndef MYSQL_CLIENT
   /**
     Locks one mutex for each SIDNO where the given Gtid_set has at
