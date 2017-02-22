@@ -231,6 +231,19 @@ public:
     STMT_CONVENTIONAL_EXECUTION= 3, STMT_EXECUTED= 4, STMT_ERROR= -1
   };
 
+  /*
+    State and state changes in SP:
+    1) When state is STMT_INITIALIZED_FOR_SP, objects in the item tree are
+       created on the statement memroot. This is enforced through
+       ps_arena_holder checking the state.
+    2) After the first execute (call p1()), this state should change to
+       STMT_EXECUTED. Objects will be created on the execution memroot and will
+       be destroyed at the end of each execution.
+    3) In case an ER_NEED_REPREPARE error occurs, state should be changed to
+       STMT_INITIALIZED_FOR_SP and objects will again be created on the
+       statement memroot. At the end of this execution, state should change to
+       STMT_EXECUTED.
+  */
   enum_state state;
 
   Query_arena(MEM_ROOT *mem_root_arg, enum enum_state state_arg) :

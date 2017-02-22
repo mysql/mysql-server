@@ -360,6 +360,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
       thd->session_tracker.changed_any())
     thd->lex->safe_to_cache_query= 0;
 
+  bool open_table_success= true;
   /* Open tables if needed. */
 
   if (!error)
@@ -391,6 +392,8 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
 
       if (!error)
         error= open_and_lock_tables(thd, m_lex->query_tables, 0);
+
+      open_table_success= !error;
 
       if (!error)
       {
@@ -459,15 +462,50 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
   thd->rollback_item_tree_changes();
 
   /*
-    Update the state of the active arena if no errors on
-    open_tables stage.
-  */
+    Change state of current arena according to outcome of execution.
 
-  if (!error || !thd->is_error() ||
-      (thd->get_stmt_da()->mysql_errno() != ER_CANT_REOPEN_TABLE &&
-       thd->get_stmt_da()->mysql_errno() != ER_NO_SUCH_TABLE &&
-       thd->get_stmt_da()->mysql_errno() != ER_UPDATE_TABLE_USED))
-    thd->stmt_arena->state= Query_arena::STMT_EXECUTED;
+    When entering this function, state is STMT_INITIALIZED_FOR_SP if this is
+    the first execution, otherwise it is STMT_EXECUTED.
+
+    When an error occurs during opening tables, no execution takes place and
+    no state change will take place.
+
+    When a re-prepare error is raised, the next execution will re-prepare the
+    statement. To make sure that items are created in the statement mem_root,
+    change state to STMT_INITIALIZED_FOR_SP.
+
+    In other cases, the state should become (or remain) STMT_EXECUTED.
+    See Query_arena->state definition for explanation.
+
+    Some special handling of CREATE TABLE .... SELECT in an SP is required. The
+    state is always set to STMT_INITIALIZED_FOR_SP in such a case.
+
+    Why is this necessary? A useful pointer would be to note how
+    PREPARE/EXECUTE uses functions like select_like_stmt_test to implement
+    CREATE TABLE .... SELECT. The SELECT part of the DDL is resolved first.
+    Then there is an attempt to create the table. So in the execution phase,
+    if "table exists" error occurs or flush table preceeds the execute, the
+    item tree of the select is re-created and followed by an attempt to create
+    the table.
+
+    But SP uses mysql_execute_command (which is used by the conventional
+    execute) after doing a parse. This creates a problem for SP since it
+    tries to preserve the item tree from the previous execution.
+  */
+  if (open_table_success)
+  {
+    bool reprepare_error=
+      error && thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE;
+    bool is_create_table_select=
+      thd->lex && thd->lex->m_sql_cmd &&
+      thd->lex->m_sql_cmd->sql_command_code() == SQLCOM_CREATE_TABLE &&
+      thd->lex->select_lex && thd->lex->select_lex->item_list.elements > 0;
+
+    if (reprepare_error || is_create_table_select)
+      thd->stmt_arena->state= Query_arena::STMT_INITIALIZED_FOR_SP;
+    else
+      thd->stmt_arena->state= Query_arena::STMT_EXECUTED;
+  }
 
   /*
     Merge here with the saved parent's values
@@ -540,7 +578,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
     initiated. Also set the statement query arena to the lex mem_root.
   */
   MEM_ROOT *execution_mem_root= thd->mem_root;
-  Query_arena parse_arena(&m_lex_mem_root, STMT_INITIALIZED_FOR_SP);
+  Query_arena parse_arena(&m_lex_mem_root, thd->stmt_arena->state);
 
   thd->mem_root= &m_lex_mem_root;
   thd->stmt_arena->set_query_arena(&parse_arena);
