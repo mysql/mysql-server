@@ -261,11 +261,15 @@ TEST(StrXfrmTest, JapaneseUTF8MB4)
 {
   CHARSET_INFO *cs= init_collation("utf8mb4_ja_0900_as_cs");
 
-  const char* src= u8"aAʬʭ" // latin
-    "ぁンはばぱ" // Hiragana and Katakana
-    "亜熙憐" // Japanese Han
-    "﨎㐀" // Other Han
-    "αⲁаⳤퟻ"; // Greek, Coptic etc.
+  const char* src= "\x61\x41\xCA\xAC\xCA\xAD" // latin 'aAʬʭ'
+    // Hiragana and Katakana 'ぁンはばぱ'
+    "\xE3\x81\x81\xE3\x83\xB3\xE3\x81\xAF\xE3\x81\xB0\xE3\x81\xB1"
+    // Japanese Han '亜熙憐'
+    "\xE4\xBA\x9C\xE7\x86\x99\xE6\x86\x90"
+    // Other Han '﨎㐀'
+    "\xEF\xA8\x8E\xE3\x90\x80"
+    // Greek, Coptic etc. 'αⲁаⳤퟻ'
+    "\xCE\xB1\xE2\xB2\x81\xD0\xB0\xE2\xB3\xA4\xED\x9F\xBB";
 
   static const unsigned char full_answer_with_pad[156]= {
                                                     // Level 1
