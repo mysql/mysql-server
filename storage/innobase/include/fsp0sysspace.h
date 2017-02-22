@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -302,7 +302,7 @@ is_system_or_undo_tablespace(
 	ulint   id)
 {
 	return(id == srv_sys_space.space_id()
-	       || id <= srv_undo_tablespaces_open);
+	       || srv_is_undo_tablespace(id));
 }
 
 /** Check if predefined shared tablespace.
@@ -314,7 +314,7 @@ is_predefined_tablespace(
 {
 	ut_ad(srv_sys_space.space_id() == TRX_SYS_SPACE);
 	ut_ad(TRX_SYS_SPACE == 0);
-	return(id <= srv_undo_tablespaces_open
+	return(is_system_or_undo_tablespace(id)
 	       || id == srv_tmp_space.space_id());
 }
 #endif /* fsp0sysspace_h */

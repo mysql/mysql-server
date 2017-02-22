@@ -232,7 +232,7 @@ bool
 fil_is_user_tablespace_id(
 	ulint	space_id)
 {
-	return(space_id > srv_undo_tablespaces_open
+	return(!srv_is_undo_tablespace(space_id)
 	       && space_id != srv_tmp_space.space_id());
 }
 
