@@ -117,6 +117,9 @@ lsn_t	srv_shutdown_lsn;
 /** TRUE if a raw partition is in use */
 ibool	srv_start_raw_disk_in_use = FALSE;
 
+/** UNDO tablespaces starts with space id. */
+ulint	srv_undo_space_id_start;
+
 /** Number of IO threads to use */
 ulint	srv_n_file_io_threads = 0;
 
@@ -816,14 +819,35 @@ srv_undo_tablespaces_init(
 	restriction will/should be lifted. */
 
 	for (i = 0; create_new_db && i < n_conf_tablespaces; ++i) {
-		char	name[OS_FILE_MAX_PATH];
+		char		name[OS_FILE_MAX_PATH];
+		ulint		space_id;
+
+		DBUG_EXECUTE_IF("innodb_undo_upgrade",
+			if (i == 0) {
+				dict_hdr_get_new_id(
+					NULL, NULL, &space_id, NULL, true);
+				dict_hdr_get_new_id(
+					NULL, NULL, &space_id, NULL, true);
+				dict_hdr_get_new_id(
+					NULL, NULL, &space_id, NULL, true);
+			});
+
+		dict_hdr_get_new_id(NULL, NULL, &space_id, NULL, true);
+
+		fil_set_max_space_id_if_bigger(space_id);
+
+		if (i == 0) {
+			srv_undo_space_id_start = space_id;
+			prev_space_id = srv_undo_space_id_start - 1;
+		}
 
 		ut_snprintf(
 			name, sizeof(name),
 			"%s%cundo%03lu",
-			srv_undo_dir, OS_PATH_SEPARATOR, i + 1);
+			srv_undo_dir, OS_PATH_SEPARATOR, space_id);
 
-		/* Undo space ids start from 1. */
+		undo_tablespace_ids[i] = space_id;
+
 		err = srv_undo_tablespace_create(
 			name, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES);
 
@@ -844,6 +868,11 @@ srv_undo_tablespaces_init(
 			undo_tablespace_ids);
 
 		srv_undo_tablespaces_active = n_undo_tablespaces;
+
+		if (srv_undo_tablespaces_active != 0) {
+			srv_undo_space_id_start = undo_tablespace_ids[0];
+			prev_space_id = srv_undo_space_id_start - 1;
+		}
 
 		/* Check if any of the UNDO tablespace needs fix-up because
 		server crashed while truncate was active on UNDO tablespace.*/
@@ -880,11 +909,7 @@ srv_undo_tablespaces_init(
 	} else {
 		n_undo_tablespaces = n_conf_tablespaces;
 
-		for (i = 1; i <= n_undo_tablespaces; ++i) {
-			undo_tablespace_ids[i - 1] = i;
-		}
-
-		undo_tablespace_ids[i] = ULINT_UNDEFINED;
+		undo_tablespace_ids[n_conf_tablespaces] = ULINT_UNDEFINED;
 	}
 
 	/* Open all the undo tablespaces that are currently in use. If we
@@ -908,7 +933,7 @@ srv_undo_tablespaces_init(
 		ut_a(undo_tablespace_ids[i] != 0);
 		ut_a(undo_tablespace_ids[i] != ULINT_UNDEFINED);
 
-		/* Undo space ids start from 1. */
+		fil_set_max_space_id_if_bigger(undo_tablespace_ids[i]);
 
 		err = srv_undo_tablespace_open(name, undo_tablespace_ids[i]);
 
@@ -935,16 +960,27 @@ srv_undo_tablespaces_init(
 			name, sizeof(name),
 			"%s%cundo%03lu", srv_undo_dir, OS_PATH_SEPARATOR, i);
 
-		/* Undo space ids start from 1. */
 		err = srv_undo_tablespace_open(name, i);
 
 		if (err != DB_SUCCESS) {
 			break;
 		}
 
+		/** Note the first undo tablespace id in case of
+		no active undo tablespace. */
+		if (n_undo_tablespaces == 0) {
+			srv_undo_space_id_start = i;
+		}
+
 		++n_undo_tablespaces;
 
 		++*n_opened;
+	}
+
+	/** Explictly specify the srv_undo_space_id_start
+	as zero when there are no undo tablespaces. */
+	if (n_undo_tablespaces == 0) {
+		srv_undo_space_id_start = 0;
 	}
 
 	/* If the user says that there are fewer than what we find we
@@ -982,10 +1018,11 @@ srv_undo_tablespaces_init(
 		mtr_start(&mtr);
 
 		/* The undo log tablespace */
-		for (i = 1; i <= n_undo_tablespaces; ++i) {
+		for (i = 0; i < n_undo_tablespaces; ++i) {
 
 			fsp_header_init(
-				i, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
+				undo_tablespace_ids[i],
+				SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
 		}
 
 		mtr_commit(&mtr);
