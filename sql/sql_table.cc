@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -7415,16 +7415,20 @@ static bool mysql_inplace_alter_table(THD *thd,
       goto cleanup;
     }
 
-    // Check if the handler supports ha_records()
-    if (!(table_list->table->file->ha_table_flags() & HA_HAS_RECORDS))
+    bool has_records= true;
+    if (table_list->table->file->ha_table_flags() & HA_HAS_RECORDS)
     {
-      // If ha_records() is not supported, be conservative.
+      ha_rows tmp= 0;
+      if (!table_list->table->file->ha_records(&tmp) && tmp == 0)
+        has_records= false;
+    }
+    else if(table_list->table->contains_records(thd, &has_records))
+    {
       my_error(ER_INVALID_USE_OF_NULL, MYF(0));
       goto cleanup;
     }
 
-    ha_rows tmp= 0;
-    if (table_list->table->file->ha_records(&tmp) || tmp > 0)
+    if (has_records)
     {
       if (alter_ctx->error_if_not_empty &
           Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT)
