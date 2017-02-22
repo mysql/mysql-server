@@ -34,6 +34,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "m_string.h"
+
 typedef unsigned char  uchar;
 typedef unsigned short uint16;
 typedef unsigned int   uint;
@@ -603,7 +605,7 @@ int dump_ja_hans()
 int
 main(int ac, char **av)
 {
-  if (ac == 2 && !strcasecmp(av[1], "ja"))
+  if (ac == 2 && !native_strcasecmp(av[1], "ja"))
     return dump_ja_hans();
   static MY_UCA uca;
   int maxchar= MY_UCA_MAXCHAR;
