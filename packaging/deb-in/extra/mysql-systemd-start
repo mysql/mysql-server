@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,73 +22,14 @@
 # pre mode  :  try to perform sanity check for configuration, log, data
 # post mode :  ping server until answer is received
 
-pinger () {
-	while /bin/true ; do
-		sleep 1
-		mysqladmin ping >/dev/null 2>&1 && break
-	done
-}
-
-get_path () {
-	my_print_defaults mysqld | grep "$1" | cut -d= -f2 | tail -n 1
-}
-
-# Runs an arbitrary init sql file supplied in $1. Does not require login access
-run_init_sql() {
-	tmpdir=$(mktemp -d)
-	chown mysql:mysql "$tmpdir"
-	mysqld --user=mysql --bootstrap --socket="$tmpdir/mysqld.sock" --pid-file="$tmpdir/mysqld.pid" > /dev/null 2>&1 < "$1"
-	result=$?
-	rm -rf "$tmpdir"
-	return $result
-}
+# Include helper functions
+. /usr/share/mysql/mysql-helpers
 
 sanity () {
-	MYSQLRUN=/var/run/mysqld
-	MYSQLDATA=/var/lib/mysql
-	MYSQLFILES=/var/lib/mysql-files
-	MYSQLKEYRING=/var/lib/mysql-keyring
-	MYSQLLOG=/var/log/mysql
+# Make sure database and required directories exist
+	verify_ready
+	verify_database
 
-	if [ ! -d ${MYSQLDATA} -a ! -L ${MYSQLDATA} ];
-	then
-		install -d -m0750 -omysql -gmysql ${MYSQLDATA}
-	fi
-
-	if [ ! -d ${MYSQLFILES} -a ! -L ${MYSQLFILES} ];
-	then
-		install -d -m0770 -omysql -gmysql ${MYSQLFILES}
-	fi
-
-	if [ ! -d ${MYSQLKEYRING} -a ! -L ${MYSQLKEYRING} ];
-	then
-		install -d -m0750 -omysql -gmysql ${MYSQLKEYRING}
-	fi
-
-	if [ ! "$(ls -A ${MYSQLDATA}/mysql)" ];
-	then
-		SQL=$(mktemp -u ${MYSQLFILES}/XXXXXXXXXX)
-		install /dev/null -m0600 -omysql -gmysql "${SQL}"
-		cat << EOF > ${SQL}
-UPDATE user SET password=PASSWORD('${PASSWD}') WHERE user='root';
-DELETE FROM user WHERE user='';
-FLUSH PRIVILEGES;
-EOF
-		mysql_install_db --user=mysql > /dev/null
-		run_init_sql "$SQL"
-		rm -f "$SQL"
-	fi
-
-	if [ -x /usr/bin/mysql_ssl_rsa_setup -a ! -e "${MYSQLDATA}/server-key.pem" ];
-	then
-		/usr/bin/mysql_ssl_rsa_setup --datadir="${MYSQLDATA}" --uid=mysql >/dev/null 2>&1
-	fi
-
-	if [ ! -d ${MYSQLLOG} -a ! -L ${MYSQLLOG} ];
-	then
-		install -d -m0750 -omysql -gadm ${MYSQLLOG}
-		install /dev/null -m0640 -omysql -gadm ${MYSQLLOG}/error.log
-	fi
 
 	@DEB_INIT_APPARMOR@
 
