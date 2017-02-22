@@ -17958,7 +17958,7 @@ inplace_unsupported(Alter_inplace_info *alter_info,
 
 void
 ha_ndbcluster::check_implicit_column_format_change(TABLE *altered_table,
-                                                   Alter_inplace_info *ha_alter_info)
+                                                   Alter_inplace_info *ha_alter_info) const
 {
   /*
     We need to check if the table was defined when the default COLUMN_FORMAT

@@ -402,9 +402,9 @@ private:
     check_inplace_alter_supported(TABLE *altered_table,
                                   Alter_inplace_info *ha_alter_info);
   void
-    check_implicit_column_format_change(TABLE *altered_table,
-                                        Alter_inplace_info *ha_alter_info);
-  
+  check_implicit_column_format_change(TABLE *altered_table,
+                                      Alter_inplace_info *ha_alter_info) const;
+
   bool abort_inplace_alter_table(TABLE *altered_table,
                                  Alter_inplace_info *ha_alter_info);
   int prepare_conflict_detection(enum_conflicting_op_type op_type,
