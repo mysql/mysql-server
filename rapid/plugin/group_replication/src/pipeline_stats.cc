@@ -509,7 +509,10 @@ Flow_control_module::flow_control_step()
       else
       {
         if (quota_size > 0 && (quota_size * RELEASE_FACTOR) < MAXTPS)
-          quota_size= static_cast<int64>(quota_size * RELEASE_FACTOR);
+        {
+          int64 quota_size_next= static_cast<int64>(quota_size * RELEASE_FACTOR);
+          quota_size= quota_size_next > quota_size ? quota_size_next : quota_size + 1;
+        }
         else
           quota_size= 0;
 
