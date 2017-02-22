@@ -781,7 +781,7 @@ int channel_queue_packet(const char* channel,
 }
 
 int channel_wait_until_apply_queue_applied(const char* channel,
-                                           long long timeout)
+                                           double timeout)
 {
   DBUG_ENTER("channel_wait_until_apply_queue_applied(channel, timeout)");
 

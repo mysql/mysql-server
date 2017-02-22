@@ -806,7 +806,7 @@ Applier_module::is_applier_thread_waiting()
 }
 
 int
-Applier_module::wait_for_applier_event_execution(ulonglong timeout)
+Applier_module::wait_for_applier_event_execution(double timeout)
 {
   DBUG_ENTER("Applier_module::wait_for_applier_event_execution");
   int error= 0;

@@ -507,10 +507,11 @@ public:
   int inc_group_relay_log_pos(ulonglong log_pos,
                               bool need_data_lock);
 
-  int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
-		   longlong timeout);
-  int wait_for_gtid_set(THD* thd, String* gtid, longlong timeout);
-  int wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set, longlong timeout);
+  int wait_for_pos(THD* thd, String* log_name, longlong log_pos,
+                   double timeout);
+  int wait_for_gtid_set(THD* thd, String* gtid, double timeout);
+  int wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
+                        double timeout);
 
   void close_temporary_tables();
 

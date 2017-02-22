@@ -331,20 +331,20 @@ bool Gtid_state::wait_for_gtid(THD *thd, const Gtid &gtid,
 
 
 bool Gtid_state::wait_for_gtid_set(THD *thd, Gtid_set* wait_for,
-                                   longlong timeout)
+                                   double timeout)
 {
   struct timespec abstime;
   DBUG_ENTER("Gtid_state::wait_for_gtid_set");
   DEBUG_SYNC(thd, "begin_wait_for_executed_gtid_set");
   wait_for->dbug_print("Waiting for");
-  DBUG_PRINT("info", ("Timeout %lld", timeout));
+  DBUG_PRINT("info", ("Timeout %f", timeout));
 
   global_sid_lock->assert_some_rdlock();
 
   DBUG_ASSERT(wait_for->get_sid_map() == global_sid_map);
 
   if (timeout > 0)
-    set_timespec(&abstime, timeout);
+    set_timespec_nsec(&abstime, timeout * 1000000000ULL);
 
   /*
     Algorithm:

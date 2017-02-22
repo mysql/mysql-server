@@ -2806,7 +2806,7 @@ public:
     @retval true Failure: either timeout or thread was killed.  If
     thread was killed, the error has been generated.
    */
-  bool wait_for_gtid_set(THD *thd, Gtid_set *gtid_set, longlong timeout);
+  bool wait_for_gtid_set(THD *thd, Gtid_set *gtid_set, double timeout);
 #endif // ifdef MYSQL_SERVER
   /**
     Locks one mutex for each SIDNO where the given Gtid_set has at

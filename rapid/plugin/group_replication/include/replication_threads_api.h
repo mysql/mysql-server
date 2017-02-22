@@ -208,7 +208,7 @@ public:
       @retval REPLICATION_THREAD_WAIT_TIMEOUT_ERROR     A timeout occurred
       @retval REPLICATION_THREAD_WAIT_NO_INFO_ERROR     An error occurred
   */
-  int wait_for_gtid_execution(longlong timeout);
+  int wait_for_gtid_execution(double timeout);
 
   /**
     Method to get applier ids from the configured channel
