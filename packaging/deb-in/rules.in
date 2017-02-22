@@ -76,6 +76,8 @@ override_dh_auto_install:
 	for file in debian/extra/*-plugin; do NEW=`echo $$file | cut -d- -f1`; mv $$file $$NEW.so; done
 	install -g root -o root -m 0755 debian/extra/*.so debian/tmp/usr/lib/mysql/plugin/debug
 	install -g root -o root -m 0755 debian/extra/daemon_example.ini debian/tmp/usr/lib/mysql/plugin/debug
+	# Add helper functions for maintainer scripts
+	install -m 0644 debian/extra/mysql-helpers debian/tmp/usr/share/mysql/
 	# add apparmor profile
 	@DEB_RULES_INSTALL_APPARMOR@
 	# add systemd script
