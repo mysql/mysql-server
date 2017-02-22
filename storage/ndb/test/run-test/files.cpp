@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -182,6 +182,21 @@ setup_files(atrt_config& config, int setup, int sshx)
   
   if (setup == 2 || config.m_generated)
   {
+    bool use_mysqld = false;
+    {
+      BaseString tmp;
+      tmp.assfmt("%s --help --verbose", g_mysqld_bin_path);
+      FILE *f = popen(tmp.c_str(), "re");
+      char buf[1000];
+      while (NULL != fgets(buf, sizeof(buf), f))
+      {
+        if (strncmp(buf, "initialize-insecure ", 20) == 0)
+        {
+          use_mysqld = true;
+        }
+      }
+      pclose(f);
+    }
     /**
      * Do mysql_install_db
      */
@@ -197,26 +212,63 @@ setup_files(atrt_config& config, int setup, int sshx)
 	  const char * val;
 	  require(proc.m_options.m_loaded.get("--datadir=", &val));
 	  BaseString tmp;
-	  tmp.assfmt("%s --defaults-file=%s/my.cnf --basedir=%s --datadir=%s > %s/mysql_install_db.log 2>&1",
-		     g_mysql_install_db_bin_path, g_basedir, g_prefix0, val, proc.m_proc.m_cwd.c_str());
-
+          if (use_mysqld)
+          {
+            tmp.assfmt("%s --defaults-file=%s/my.cnf --basedir=%s "
+                         "--datadir=%s --initialize-insecure "
+                         "> %s/mysqld-initialize.log 2>&1",
+                       g_mysqld_bin_path,
+                       g_basedir,
+                       g_prefix,
+                       val,
+                       proc.m_proc.m_cwd.c_str());
+          }
+          else
+          {
+            tmp.assfmt("%s --defaults-file=%s/my.cnf --basedir=%s "
+                         "--datadir=%s > %s/mysql_install_db.log 2>&1",
+                       g_mysql_install_db_bin_path,
+                       g_basedir,
+                       g_prefix0,
+                       val,
+                       proc.m_proc.m_cwd.c_str());
+          }
           to_fwd_slashes(tmp);
-	  if (sh(tmp.c_str()) != 0)
-	  {
-	    g_logger.error("Failed to mysql_install_db for %s, cmd: '%s'",
-			   proc.m_proc.m_cwd.c_str(),
-			   tmp.c_str());
-	  }
-	  else
-	  {
-	    g_logger.info("mysql_install_db for %s",
-			  proc.m_proc.m_cwd.c_str());
-	  }
+          if (sh(tmp.c_str()) != 0)
+          {
+            if (use_mysqld)
+            {
+              g_logger.error("Failed to mysqld --initialize-insecure for "
+                               "%s, cmd: '%s'",
+                             proc.m_proc.m_cwd.c_str(),
+                             tmp.c_str());
+            }
+            else
+            {
+              g_logger.error("Failed to mysql_install_db for %s, cmd: '%s'",
+                             proc.m_proc.m_cwd.c_str(),
+                             tmp.c_str());
+            }
+          }
+          else
+          {
+            if (use_mysqld)
+            {
+              g_logger.info("mysqld --initialize-insecure for %s",
+                            proc.m_proc.m_cwd.c_str());
+            }
+            else
+            {
+              g_logger.info("mysql_install_db for %s",
+                            proc.m_proc.m_cwd.c_str());
+            }
+          }
         }
 #else
         {
-          g_logger.info("not running mysql_install_db for %s",
-                         proc.m_proc.m_cwd.c_str());
+          g_logger.info("not running mysqld --initialize-insecure nor "
+                          "mysql_install_db for %s",
+                        proc.m_proc.m_cwd.c_str());
         }
 #endif
       }
