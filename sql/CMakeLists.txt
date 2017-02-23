@@ -168,6 +168,7 @@ SET(SQL_GIS_SOURCES
   geometry_rtree.cc
   gis/srs/srs.cc
   gis/srs/wkt_parser.cc
+  gis/srs/rtree_support.cc
   item_geofunc.cc
   item_geofunc_buffer.cc
   item_geofunc_internal.cc
@@ -582,6 +583,7 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
   )
 ENDIF()
 
+ADD_CONVENIENCE_LIBRARY(sql_rtree gis/srs/rtree_support.cc)
 ADD_CONVENIENCE_LIBRARY(sql_main ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
@@ -589,7 +591,7 @@ ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_main GenSysSchema)
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS} 
   ${MYSQLD_STATIC_COMPONENT_LIBS}  mysys mysys_ssl dbug strings vio regex
-  binlogevents_static  ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
+  binlogevents_static sql_rtree ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
 
 ADD_CONVENIENCE_LIBRARY(sql_gis ${SQL_GIS_SOURCES})
 ADD_DEPENDENCIES(sql_gis GenServerSource)

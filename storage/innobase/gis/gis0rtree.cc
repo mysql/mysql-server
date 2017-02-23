@@ -1839,7 +1839,7 @@ rtr_rec_cal_increase(
 	ret = rtree_area_increase(
 		rec_b_ptr,
 		static_cast<const byte*>(dfield_get_data(dtuple_field)),
-		static_cast<int>(dtuple_f_len), area);
+		static_cast<int>(dtuple_f_len), area, 0);
 
 	return(ret);
 }
@@ -1965,13 +1965,15 @@ rtr_estimate_n_rows_in_range(
 			case PAGE_CUR_CONTAIN:
 			case PAGE_CUR_INTERSECT:
 				area += rtree_area_overlapping(range_mbr_ptr,
-						field, DATA_MBR_LEN) / rec_area;
+						field, DATA_MBR_LEN, 0)
+					/ rec_area;
 				break;
 
 			case PAGE_CUR_DISJOINT:
 				area += 1;
 				area -= rtree_area_overlapping(range_mbr_ptr,
-						field, DATA_MBR_LEN) / rec_area;
+						field, DATA_MBR_LEN, 0)
+					/ rec_area;
 				break;
 
 			case PAGE_CUR_WITHIN:

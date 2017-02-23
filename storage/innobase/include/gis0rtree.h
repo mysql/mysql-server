@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -44,29 +44,6 @@ Created 2013/03/27 Jimmy Yang and Allen Lai
 #include "gis0type.h"
 #include "btr0types.h"
 #include "btr0cur.h"
-
-/* Whether MBR 'a' contains 'b' */
-#define	MBR_CONTAIN_CMP(a, b)					\
-	((((b)->xmin >= (a)->xmin) && ((b)->xmax <= (a)->xmax)	\
-	 && ((b)->ymin >= (a)->ymin) && ((b)->ymax <= (a)->ymax)))
-
-/* Whether MBR 'a' equals to 'b' */
-#define	MBR_EQUAL_CMP(a, b)					\
-	((((b)->xmin == (a)->xmin) && ((b)->xmax == (a)->xmax))	\
-	 && (((b)->ymin == (a)->ymin) && ((b)->ymax == (a)->ymax)))
-
-/* Whether MBR 'a' intersects 'b' */
-#define	MBR_INTERSECT_CMP(a, b)					\
-	((((b)->xmin <= (a)->xmax) || ((b)->xmax >= (a)->xmin))	\
-	 && (((b)->ymin <= (a)->ymax) || ((b)->ymax >= (a)->ymin)))
-
-/* Whether MBR 'a' and 'b' disjoint */
-#define	MBR_DISJOINT_CMP(a, b)	(!MBR_INTERSECT_CMP(a, b))
-
-/* Whether MBR 'a' within 'b' */
-#define	MBR_WITHIN_CMP(a, b)					\
-	((((b)->xmin <= (a)->xmin) && ((b)->xmax >= (a)->xmax))	\
-	 && (((b)->ymin <= (a)->ymin) && ((b)->ymax >= (a)->ymax)))
 
 /* Define it for rtree search mode checking. */
 #define RTREE_SEARCH_MODE(mode)					\

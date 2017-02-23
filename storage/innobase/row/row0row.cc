@@ -31,7 +31,6 @@ Created 4/20/1996 Heikki Tuuri
 #include "data0type.h"
 #include "dict0boot.h"
 #include "dict0dict.h"
-#include "gis0geo.h"
 #include "ha_prototypes.h"
 #include "lob0lob.h"
 #include "mach0data.h"
@@ -257,10 +256,9 @@ row_build_index_entry_low(
 						tmp_mbr[i * 2 + 1] = -DBL_MAX;
 					}
 				} else {
-					rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-							   static_cast<uint>(dlen
-							   - GEO_DATA_HEADER_SIZE),
-							   SPDIMS, tmp_mbr);
+					get_mbr_from_store(
+						dptr, static_cast<uint>(dlen),
+						SPDIMS, tmp_mbr);
 				}
 				dfield_write_mbr(dfield, tmp_mbr);
 				if (temp_heap) {

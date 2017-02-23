@@ -1648,10 +1648,8 @@ row_upd_changes_ord_field_binary_func(
 				dlen = dfield->len;
 			}
 
-			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-					   static_cast<uint>(dlen
-					   - GEO_DATA_HEADER_SIZE),
-					   SPDIMS, mbr1);
+			get_mbr_from_store(
+				dptr, static_cast<uint>(dlen), SPDIMS, mbr1);
 			old_mbr = reinterpret_cast<rtr_mbr_t*>(mbr1);
 
 			/* Get the new mbr. */
@@ -1689,17 +1687,16 @@ row_upd_changes_ord_field_binary_func(
 				dptr = static_cast<uchar*>(upd_field->new_val.data);
 				dlen = upd_field->new_val.len;
 			}
-			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-					   static_cast<uint>(dlen
-					   - GEO_DATA_HEADER_SIZE),
-					   SPDIMS, mbr2);
+			get_mbr_from_store(
+				dptr, static_cast<uint>(dlen), SPDIMS, mbr2);
+
 			new_mbr = reinterpret_cast<rtr_mbr_t*>(mbr2);
 
 			if (temp_heap) {
 				mem_heap_free(temp_heap);
 			}
 
-			if (!MBR_EQUAL_CMP(old_mbr, new_mbr)) {
+			if (!mbr_equal_cmp(old_mbr, new_mbr, 0)) {
 				return(TRUE);
 			} else {
 				continue;

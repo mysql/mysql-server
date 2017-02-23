@@ -23,7 +23,6 @@ Comparison services for records
 Created 7/1/1994 Heikki Tuuri
 ************************************************************************/
 
-#include <gis0geo.h>
 #include <gstream.h>
 #include <page0cur.h>
 #include <spatial.h>

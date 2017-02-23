@@ -304,15 +304,12 @@ row_sel_sec_rec_is_for_clust_rec(
 					heap);
 			}
 
-			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-					   static_cast<uint>(clust_len
-					   - GEO_DATA_HEADER_SIZE),
+			get_mbr_from_store(dptr, static_cast<uint>(clust_len),
 					   SPDIMS,
-					   reinterpret_cast<double*>(
-						&tmp_mbr));
+					   reinterpret_cast<double*>(&tmp_mbr));
 			rtr_read_mbr(sec_field, &sec_mbr);
 
-			if (!MBR_EQUAL_CMP(&sec_mbr, &tmp_mbr)) {
+			if (!mbr_equal_cmp(&sec_mbr, &tmp_mbr, 0)) {
 				is_equal = FALSE;
 				goto func_exit;
 			}

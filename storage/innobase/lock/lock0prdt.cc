@@ -132,19 +132,19 @@ lock_prdt_consistent(
 
 	switch (action) {
 	case PAGE_CUR_CONTAIN:
-		ret = MBR_CONTAIN_CMP(mbr1, mbr2);
+		ret = mbr_contain_cmp(mbr1, mbr2, 0);
 		break;
 	case PAGE_CUR_DISJOINT:
-		ret = MBR_DISJOINT_CMP(mbr1, mbr2);
+		ret = mbr_disjoint_cmp(mbr1, mbr2, 0);
 		break;
 	case PAGE_CUR_MBR_EQUAL:
-		ret = MBR_EQUAL_CMP(mbr1, mbr2);
+		ret = mbr_equal_cmp(mbr1, mbr2, 0);
 		break;
 	case PAGE_CUR_INTERSECT:
-		ret = MBR_INTERSECT_CMP(mbr1, mbr2);
+		ret = mbr_intersect_cmp(mbr1, mbr2, 0);
 		break;
 	case PAGE_CUR_WITHIN:
-		ret = MBR_WITHIN_CMP(mbr1, mbr2);
+		ret = mbr_within_cmp(mbr1, mbr2, 0);
 		break;
 	default:
 		ib::error() << "invalid operator " << action;
@@ -378,7 +378,7 @@ lock_prdt_is_same(
 	rtr_mbr_t*	mbr1 = prdt_get_mbr_from_prdt(prdt1);
 	rtr_mbr_t*	mbr2 = prdt_get_mbr_from_prdt(prdt2);
 
-	if (prdt1->op == prdt2->op && MBR_EQUAL_CMP(mbr1, mbr2)) {
+	if (prdt1->op == prdt2->op && mbr_equal_cmp(mbr1, mbr2, 0)) {
 		return(true);
 	}
 
