@@ -80,24 +80,6 @@ enum enum_server_command
   COM_RESET_CONNECTION,
   COM_END
 };
-#include "my_inttypes.h"
-#include "my_config.h"
-typedef unsigned char uchar;
-typedef signed char int8;
-typedef unsigned char uint8;
-typedef short int16;
-typedef unsigned short uint16;
-typedef int int32;
-typedef unsigned int uint32;
-typedef unsigned long long int ulonglong;
-typedef long long int longlong;
-typedef longlong int64;
-typedef ulonglong uint64;
-typedef unsigned long long my_ulonglong;
-typedef intptr_t intptr;
-typedef ulonglong my_off_t;
-typedef ptrdiff_t my_ptrdiff_t;
-typedef int myf;
 #include "my_io.h"
 #include "my_config.h"
 static inline int is_directory_separator(char c)
@@ -189,9 +171,9 @@ bool net_write_command(NET *net,unsigned char command,
      const unsigned char *packet, size_t len);
 bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
 unsigned long my_net_read(NET *net);
-void my_net_set_write_timeout(NET *net, uint timeout);
-void my_net_set_read_timeout(NET *net, uint timeout);
-void my_net_set_retry_count(NET *net, uint retry_count);
+void my_net_set_write_timeout(NET *net, unsigned int timeout);
+void my_net_set_read_timeout(NET *net, unsigned int timeout);
+void my_net_set_retry_count(NET *net, unsigned int retry_count);
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
   double max_value_dbl;
@@ -241,11 +223,11 @@ char *get_tty_password(const char *opt_message);
 const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 bool my_thread_init(void);
 void my_thread_end(void);
-ulong net_field_length(uchar **packet);
-my_ulonglong net_field_length_ll(uchar **packet);
-uchar *net_store_length(uchar *pkg, ulonglong length);
-unsigned int net_length_size(ulonglong num);
-unsigned int net_field_length_size(uchar *pos);
+unsigned long net_field_length(unsigned char **packet);
+unsigned long long net_field_length_ll(unsigned char **packet);
+unsigned char *net_store_length(unsigned char *pkg, unsigned long long length);
+unsigned int net_length_size(unsigned long long num);
+unsigned int net_field_length_size(unsigned char *pos);
 #include "mysql/client_plugin.h"
 struct st_mysql_client_plugin
 {
@@ -288,7 +270,6 @@ int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
                          const char *option, const void *value);
 #include "mysql_version.h"
 #include "mysql_time.h"
-#include "my_inttypes.h"
 enum enum_mysql_timestamp_type
 {
   MYSQL_TIMESTAMP_NONE= -2, MYSQL_TIMESTAMP_ERROR= -1,
