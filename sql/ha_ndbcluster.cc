@@ -2227,9 +2227,6 @@ int ha_ndbcluster::get_metadata(THD *thd, const dd::Table* table_def)
     DBUG_RETURN(1);
   }
 
-  std::cout << "magnus, open table, expect sdi with length " << sdi.length() << " for " << m_tabname << ": " << std::endl
-          << "'" << sdi.c_str() << "'" << std::endl;
-
   ndb->setDatabaseName(m_dbname);
   Ndb_table_guard ndbtab_g(dict, m_tabname);
   if (!(tab= ndbtab_g.get_table()))
@@ -12109,9 +12106,6 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
       my_error(ER_INTERNAL_ERROR, MYF(0), "Table def. serialization failed");
       DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
     }
-
-    std::cout << "magnus, new sdi with length " << sdi.length() << " for " << new_tabname << ": " << std::endl
-            << "'" << sdi.c_str() << "'" << std::endl;
 
     const int set_result =
         new_tab.setExtraMetadata(2, // version 2 for sdi

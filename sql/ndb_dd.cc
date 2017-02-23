@@ -19,8 +19,6 @@
 
 #include "dd/impl/sdi.h"
 
-#include <iostream> // cout
-
 bool ndb_sdi_serialize(class THD *thd,
                        const dd::Table &table_def,
                        const char* schema_name,
@@ -29,9 +27,6 @@ bool ndb_sdi_serialize(class THD *thd,
   sdi = dd::serialize(thd, table_def, dd::String_type(schema_name));
   if (sdi.empty())
     return false; // Failed to serialize
-
-  // Write the sdi string to stdout
-  std::cout << "  sdi: '" << sdi.c_str() << "'" << std::endl;
 
   return true; // OK
 }
