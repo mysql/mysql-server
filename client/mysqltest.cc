@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
 #include <my_dir.h>
 #include <hash.h>
 #include <stdarg.h>
+#include <string>
 #include <violite.h>
 #include "my_regex.h" /* Our own version of regex */
 #include "my_thread_local.h"
@@ -57,6 +58,7 @@
 
 using std::min;
 using std::max;
+using std::string;
 
 #ifdef _WIN32
 #include <crtdbg.h>
@@ -4426,7 +4428,11 @@ void do_perl(struct st_command *command)
       die("Failed to create temporary file for perl command");
     my_close(fd, MYF(0));
 
-    str_to_file(temp_file_path, ds_script.str, ds_script.length);
+    /* Compatibility for Perl 5.24 and newer. */
+    string script = "push @INC, \".\";\n";
+    script.append(ds_script.str, ds_script.length);
+
+    str_to_file(temp_file_path, &script[0], script.size());
 
     /* Format the "perl <filename>" command */
     my_snprintf(buf, sizeof(buf), "perl %s", temp_file_path);
