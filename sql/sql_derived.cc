@@ -257,14 +257,51 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
 {
   DBUG_ENTER("TABLE_LIST::resolve_derived");
 
+  /*
+    Helper class which takes care of restoration of THD::LEX::allow_sum_func
+    and THD::derived_tables_processing. These members are changed in this
+    method scope for resolving derived tables.
+  */
+  class Context_handler
+  {
+  public:
+    Context_handler(THD *thd)
+      : m_thd(thd),
+        m_allow_sum_func_saved(thd->lex->allow_sum_func),
+        m_derived_tables_processing_saved(thd->derived_tables_processing)
+    {
+      /*
+        Since derived tables do not allow outer references, they cannot allow
+        aggregation to occur in any outer query blocks.
+      */
+      m_thd->lex->allow_sum_func= 0;
+
+      m_thd->derived_tables_processing= true;
+    }
+
+    ~Context_handler()
+    {
+      m_thd->lex->allow_sum_func= m_allow_sum_func_saved;
+      m_thd->derived_tables_processing= m_derived_tables_processing_saved;
+    }
+  private:
+    // Thread handle.
+    THD *m_thd;
+
+    // Saved state of THD::LEX::allow_sum_func.
+    nesting_map m_allow_sum_func_saved;
+
+    // Saved state of THD::derived_tables_processing.
+    bool m_derived_tables_processing_saved;
+  };
+
   if (!is_view_or_derived() || is_merged())
     DBUG_RETURN(false);
 
   // Dummy derived tables for recursive references disappear before this stage
   DBUG_ASSERT(this != select_lex->recursive_reference);
 
-  const bool derived_tables_saved= thd->derived_tables_processing;
-  thd->derived_tables_processing= true;
+  Context_handler ctx_handler(thd);
 
   if (derived->prepare_limit(thd, derived->global_parameters()))
     DBUG_RETURN(true);              /* purecov: inspected */
@@ -387,13 +424,6 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
     DBUG_RETURN(true);              /* purecov: inspected */
 
   /*
-    Since derived tables do not allow outer references, they cannot allow
-    aggregation to occur in any outer query blocks.
-  */
-  nesting_map allow_sum_func_saved= thd->lex->allow_sum_func;
-  thd->lex->allow_sum_func= 0;
-
-  /*
     Prepare the underlying query expression of the derived table.
     The SELECT_STRAIGHT_JOIN option prevents semi-join transformation.
   */
@@ -418,10 +448,6 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
   */
     set_privileges(SELECT_ACL);
   }
-
-  thd->lex->allow_sum_func= allow_sum_func_saved;
-
-  thd->derived_tables_processing= derived_tables_saved;
 
   DBUG_RETURN(false);
 }

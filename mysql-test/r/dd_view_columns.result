@@ -600,3 +600,39 @@ DROP TABLES t1,t3;
 DROP FUNCTION sf1;
 DEALLOCATE PREPARE check_view_columns;
 DEALLOCATE PREPARE check_view_status;
+#
+# Bug#24834622 - ASSERT IN UPDATING VIEW METADATA FOR SYS SCHEMA VIEW.
+#
+# Creating views with dependency on view/base table/stored functions
+# as below,
+#    View v2 is dependent on stored function f2.
+#    View v1 is dependent on stored function f1 and view v2.
+#    View z1 is dependent on view v2 and table t1 (having datetime column).
+CREATE TABLE t1 (f1 DATETIME default '2016-11-01');
+CREATE FUNCTION f1() RETURNS INT return 1;
+CREATE FUNCTION f2() RETURNS INT return 2;
+CREATE VIEW v2 AS SELECT f2() AS f2;
+CREATE VIEW v1 AS SELECT v2.f2 AS f2,
+a3.x as f3 from v2,
+(SELECT a.x FROM (SELECT f1() AS x)
+as a HAVING a.x=1) as a3;
+CREATE VIEW z1 AS SELECT t1.f1 AS f1, v2.f2 AS f2 FROM t1, v2;
+# View v1 is dependent on stored function f1 and view v2.
+# Dropping stored function f1 leaves view v1 in invalid state.
+DROP FUNCTION f1;
+# View v2 is dependent on stored function f2.
+# Dropping stored function f2 leaves view v2 and views using v2
+# (i.e v1 and z1) in invalid state.
+DROP FUNCTION f2;
+# Recreating the stored function f2 updates columns of dependent view v2
+# and views dependent on v2 (i.e. v1 and z1) in DD tables COLUMNS.
+# View v1 is dependent on f1 too. So parsing view v1 fails while
+# updating views column metadata.
+# Without fix, THD::derived_tables_processing is not unset to false
+# on view v1 parse failure. This causes an assert condition failure while
+# updating metadata of datatime type column of view z1 as read flag
+# for column is not set with the THD::derived_tables_processing on.
+CREATE FUNCTION f2() RETURNS INT return 2;
+DROP FUNCTION f2;
+DROP VIEW v1, v2, z1;
+DROP TABLE t1;
