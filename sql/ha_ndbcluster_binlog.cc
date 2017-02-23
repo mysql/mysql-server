@@ -3068,66 +3068,6 @@ class Ndb_schema_event_handler {
   }
 
 
-  void
-  mysqld_write_frm_from_ndb(const char* db_name,
-                            const char* table_name) const
-  {
-    DBUG_ENTER("mysqld_write_frm_from_ndb");
-    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
-    Ndb *ndb= thd_ndb->ndb;
-    Ndb_table_guard ndbtab_g(ndb->getDictionary(), table_name);
-    const NDBTAB *ndbtab= ndbtab_g.get_table();
-    if (!ndbtab)
-    {
-      /*
-        Bug#14773491 reports crash due to ndbtab* being NULL -> bail out here
-      */
-      sql_print_error("NDB schema: Could not find table '%s.%s' in NDB",
-                      db_name, table_name);
-      DBUG_ASSERT(false);
-      DBUG_VOID_RETURN;
-    }
-
-    char key[FN_REFLEN];
-    build_table_filename(key, sizeof(key)-1,
-                         db_name, table_name, NullS, 0);
-
-    uchar *data = NULL;
-    size_t length;
-    if (readfrm(key, &data, &length) == 0 &&
-        cmp_unpacked_frm(ndbtab, data, length))
-    {
-      // Table frm file changed, extract extra metadata for
-      // this table and write a new frm file for this table
-      Uint32 version;
-      void* unpacked_data;
-      Uint32 unpacked_len;
-      const int get_result =
-          ndbtab->getExtraMetadata(version,
-                                   &unpacked_data, &unpacked_len);
-      if (get_result != 0)
-      {
-        ndb_log_error("Failed to get extra metadata for %s.%s, error %d",
-                      db_name, table_name, get_result);
-      }
-      else
-      {
-        const int write_result =
-            writefrm(key,
-                     (const uchar*)unpacked_data, unpacked_len);
-        if (write_result != 0)
-        {
-          ndb_log_error("Failed to write frm for %s.%s, error %d",
-                        db_name, table_name, write_result);
-        }
-        free(unpacked_data);
-      }
-    }
-    my_free(data);
-    DBUG_VOID_RETURN;
-  }
-
-
   NDB_SHARE* get_share(const Ndb_schema_op* schema) const
   {
     DBUG_ENTER("get_share(Ndb_schema_op*)");
@@ -3390,7 +3330,15 @@ class Ndb_schema_event_handler {
       write_schema_op_to_binlog(m_thd, schema);
       if (!is_local_table(schema->db, schema->name))
       {
-        mysqld_write_frm_from_ndb(schema->db, schema->name);
+        // Install table from NDB, overwrite the existing table
+        if (ndb_create_table_from_engine(m_thd,
+                                         schema->db, schema->name,
+                                         true /* force_overwrite */))
+        {
+          // NOTE! The below function has a rather misleading name of
+          // actual functionality which failed
+          print_could_not_discover_error(m_thd, schema);
+        }
       }
     }
     else
