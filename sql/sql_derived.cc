@@ -50,6 +50,7 @@
 #include "system_variables.h"
 #include "table.h"
 #include "temp_table_param.h"
+#include "debug_sync.h"                       // DEBUG_SYNC
 
 class Opt_trace_context;
 
@@ -377,6 +378,8 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
     derived->first_recursive= last_non_recursive->next_select();
     DBUG_ASSERT(derived->is_recursive());
   }
+
+  DEBUG_SYNC(thd, "derived_not_set");
 
   derived->derived_table= this;
 

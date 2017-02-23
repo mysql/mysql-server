@@ -656,6 +656,14 @@ bool Sql_cmd_dml::execute(THD *thd)
   if (statement_timer_armed && thd->timer)
     reset_statement_timer(thd);
 
+  /*
+    This sync point is normally right before thd->query_plan is reset, so
+    EXPLAIN FOR CONNECTION can catch the plan. It is copied here as
+    after unprepare() EXPLAIN considers the query as "not ready".
+    @todo remove in WL#6570 together with unprepare().
+  */
+  DEBUG_SYNC(thd, "before_reset_query_plan");
+
   // "unprepare" this object since unit->cleanup actually unprepares.
   unprepare(thd);
 

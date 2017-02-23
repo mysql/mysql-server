@@ -2419,11 +2419,25 @@ void mysql_explain_other(THD *thd)
       1) Prepared statements
       2) EXPLAIN to avoid clash in EXPLAIN code
       3) statements of stored routine
+      4) Resolver has not finished (then data structures are changing too much
+        and are not safely readable).
+        m_sql_cmd is set during parsing and cleared in LEX::reset(), without
+        mutex. If we are here, the explained connection has set its qp to
+        something else than SQLCOM_END with set_query_plan(), so is in a phase
+        after parsing and before LEX::reset(). Thus we can read m_sql_cmd.
+        m_sql_cmd::m_prepared is set at end of resolution and cleared at end
+        of execution (before setting qp to SQLCOM_END), without mutex.
+        So if we see it false while it just changed to true, we'll bail out
+        which is ok; if we see it true while it just changed to false, we can
+        indeed explain as the plan is still valid and will remain so as we
+        hold the mutex.
     */
     if (!qp->is_ps_query() &&                                        // (1)
         is_explainable_query(qp->get_command()) &&
         !qp->get_lex()->describe &&                                  // (2)
-        qp->get_lex()->sphead == NULL)                               // (3)
+        qp->get_lex()->sphead == NULL &&                             // (3)
+        (!qp->get_lex()->m_sql_cmd ||
+         qp->get_lex()->m_sql_cmd->is_prepared()))                   // (4)
     {
       Security_context *tmp_sctx= query_thd->security_context();
       DBUG_ASSERT(tmp_sctx->user().str);
@@ -2442,6 +2456,11 @@ void mysql_explain_other(THD *thd)
     }
     else
     {
+      /*
+        Note that we send "not supported" for a supported stmt (e.g. SELECT)
+        which is in-parsing or in-preparation, which is a bit confusing, but
+        ok as the user is unlikely to try EXPLAIN in these short phases.
+      */
       my_error(ER_EXPLAIN_NOT_SUPPORTED, MYF(0));
       goto err;
     }
