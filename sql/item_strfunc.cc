@@ -4907,6 +4907,16 @@ String *Item_func_quote::val_str(String *str)
   *to= '\'';
 
 ret:
+  if (new_length > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                        ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                        func_name(),
+                        current_thd->variables.max_allowed_packet);
+    return error_str();
+  }
+
   tmp_value.length(new_length);
   tmp_value.set_charset(collation.collation);
   null_value= 0;
