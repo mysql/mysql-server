@@ -658,7 +658,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
   DBUG_PRINT("enter",("log_name: '%s'  log_pos: %lu  timeout: %lu",
                       log_name->c_ptr_safe(), (ulong) log_pos, (ulong) timeout));
 
-  set_timespec_nsec(abstime, timeout * 1000000000ULL);
+  set_timespec_nsec(abstime, (ulonglong) timeout * 1000000000ULL);
   mysql_mutex_lock(&data_lock);
   thd->ENTER_COND(&data_cond, &data_lock,
                   &stage_waiting_for_the_slave_thread_to_advance_position,
@@ -853,7 +853,7 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
   DBUG_PRINT("info", ("Waiting for %s timeout %f", gtid->c_ptr_safe(),
              timeout));
 
-  set_timespec_nsec(abstime, timeout * 1000000000ULL);
+  set_timespec_nsec(abstime, (ulonglong) timeout * 1000000000ULL);
   mysql_mutex_lock(&data_lock);
   thd->ENTER_COND(&data_cond, &data_lock,
                   &stage_waiting_for_the_slave_thread_to_advance_position,
