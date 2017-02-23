@@ -228,7 +228,7 @@ Resource_limits::check() const
     curr += rl[i].m_curr;
     spare += rl[i].m_spare;
     sumres += rl[i].m_min;
-    assert(rl[i].m_max == 0 || rl[i].m_curr <= rl[i].m_max);
+    // assert(rl[i].m_max == 0 || rl[i].m_curr <= rl[i].m_max);
     if (rl[i].m_curr + rl[i].m_spare > rl[i].m_min)
     {
       shared_alloc += rl[i].m_curr + rl[i].m_spare - rl[i].m_min;
