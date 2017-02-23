@@ -79,6 +79,11 @@ struct NDB_SHARE {
   class NdbEventOperation *op;
   class NdbEventOperation *new_op;
 
+  // Raw pointer for passing table definition from schema dist client to
+  // participant in the same node to avoid that paritcipant have to access
+  // the DD to open the table definition.
+  const void* inplace_alter_new_table_def;
+
   static NDB_SHARE* create(const char* key,
                          struct TABLE* table);
   static void destroy(NDB_SHARE* share);

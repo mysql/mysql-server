@@ -345,10 +345,14 @@ ndb_binlog_close_shadow_table(NDB_SHARE *share)
   - The shadow table is (mainly) used when an event is
     received from the data nodes which need to be written
     to the binlog injector.
+  - the caller may provide table_def in order to avoid that
+    open_table_def() has to access the DD. This in turn avoids
+    that MDL lock is necessary when calling this function.
 */
 
 static int
-ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
+ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share,
+                             const dd::Table* table_def = NULL)
 {
   int error;
   DBUG_ASSERT(share->event_data == 0);
@@ -369,10 +373,10 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
                        share->db, 0,
                        share->table_name,
                        share->key_string(), nullptr);
-  if ((error= open_table_def(thd, shadow_table_share, false, NULL)) ||
+  if ((error= open_table_def(thd, shadow_table_share, false, table_def)) ||
       (error= open_table_from_share(thd, shadow_table_share, "", 0,
                                     (uint) (OPEN_FRM_FILE_ONLY | DELAYED_OPEN | READ_ALL),
-                                    0, shadow_table, false, NULL)))
+                                    0, shadow_table, false, table_def)))
   {
     DBUG_PRINT("error", ("failed to open shadow table, error: %d my_errno: %d",
                          error, my_errno()));
@@ -427,7 +431,34 @@ int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *_table)
     DBUG_RETURN(0);
   }
 
-  DBUG_RETURN(ndb_binlog_open_shadow_table(thd, share));
+  // Acquire shared mdl lock on table since the DD is
+  // acessed when opening the shadow table
+  MDL_ticket *mdl_ticket;
+  {
+    MDL_request mdl_request;
+    MDL_REQUEST_INIT(&mdl_request,
+                     MDL_key::TABLE, share->db, share->table_name,
+                     MDL_SHARED, MDL_EXPLICIT);
+
+    if (thd->mdl_context.acquire_lock(&mdl_request,
+                                      thd->variables.lock_wait_timeout))
+    {
+      DBUG_RETURN(1); // Failed to acquire MDL lock
+    }
+    // Save the ticket to allow only this lock be released
+    mdl_ticket= mdl_request.ticket;
+  }
+
+  // NOTE! When better control of who actually _creates_ the NDB_SHARE
+  // is acheived, the table_def could be provided to this function
+  // and passed to ndb_binlog_open_shadow_table() in order to avoid
+  // taking these additional MDL lock(s).
+  const int open_shadow_result =
+      ndb_binlog_open_shadow_table(thd, share, NULL);
+
+  thd->mdl_context.release_lock(mdl_ticket);
+
+  DBUG_RETURN(open_shadow_result);
 }
 
 static int
@@ -3252,6 +3283,69 @@ class Ndb_schema_event_handler {
         mysqld_write_frm_from_ndb(schema->db, schema->name);
       }
     }
+    else
+    {
+      // Special case for schema dist participant in own node!
+      // The schema dist client has exclusive MDL lock and thus
+      // the schema dist participant(this code) on the same mysqld
+      // can't open the table def from the DD, trying to acquire
+      // another MDL lock will just block.
+      // Instead(since this is in the same mysqld) it provides the new
+      // table def via a pointer in the NDB_SHARE.
+      //
+      // Presumably also the code for remote participants which opens
+      // the shadow table can be moved here. Better to do it all in one place
+      // even if doihng it slightly different.
+
+      NDB_SHARE *share= get_share(schema);
+      mysql_mutex_lock(&share->mutex);
+      ndb_binlog_close_shadow_table(share);
+
+      const dd::Table* new_table_def =
+          static_cast<const dd::Table*>(share->inplace_alter_new_table_def);
+      DBUG_ASSERT(new_table_def);
+
+      if (ndb_binlog_open_shadow_table(m_thd, share, new_table_def))
+      {
+        sql_print_error("NDB Binlog: Failed to re-open shadow table %s.%s",
+                        schema->db, schema->name);
+      }
+      mysql_mutex_unlock(&share->mutex);
+
+      free_share(&share);     // temporary ref.
+    }
+  }
+
+
+  int
+  remote_participant_inplace_alter_open_shadow_table(NDB_SHARE *share) const
+  {
+    DBUG_ENTER("remote_participant_inplace_alter_open_shadow_table");
+
+    // Acquire shared mdl lock on table since the DD is
+    // acessed when opening the shadow table
+    MDL_ticket *mdl_ticket;
+    {
+      MDL_request mdl_request;
+      MDL_REQUEST_INIT(&mdl_request,
+                       MDL_key::TABLE, share->db, share->table_name,
+                       MDL_SHARED, MDL_EXPLICIT);
+
+      if (m_thd->mdl_context.acquire_lock(&mdl_request,
+                                          m_thd->variables.lock_wait_timeout))
+      {
+        DBUG_RETURN(1); // Failed to acquire MDL lock
+      }
+      // Save the ticket to allow only this lock be released
+      mdl_ticket= mdl_request.ticket;
+    }
+
+    const int open_shadow_result =
+        ndb_binlog_open_shadow_table(m_thd, share, NULL);
+
+    m_thd->mdl_context.release_lock(mdl_ticket);
+
+    DBUG_RETURN(open_shadow_result);
   }
 
 
@@ -3267,15 +3361,23 @@ class Ndb_schema_event_handler {
         sql_print_information("NDB Binlog: handling online alter/rename");
 
       mysql_mutex_lock(&share->mutex);
-      ndb_binlog_close_shadow_table(share);
 
-      if (ndb_binlog_open_shadow_table(m_thd, share))
+      int open_shadow_result = 0;
+      if (schema->node_id != own_nodeid())
       {
-        sql_print_error("NDB Binlog: Failed to re-open shadow table %s.%s",
-                        schema->db, schema->name);
-        mysql_mutex_unlock(&share->mutex);
+        ndb_binlog_close_shadow_table(share);
+
+        open_shadow_result =
+            remote_participant_inplace_alter_open_shadow_table(share);
+        if (open_shadow_result)
+        {
+          sql_print_error("NDB Binlog: Failed to re-open shadow table %s.%s",
+                          schema->db, schema->name);
+          mysql_mutex_unlock(&share->mutex);
+        }
       }
-      else
+
+      if(!open_shadow_result)
       {
         /*
           Start subscribing to data changes to the new table definition

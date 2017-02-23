@@ -15357,6 +15357,9 @@ NDB_SHARE::create(const char* key, TABLE* table)
   share->event_data= 0;
   share->stored_columns.bitmap= 0;
 
+  // NDB_SHARE has been allocated with zerofill, just verify pointer is NULL
+  DBUG_ASSERT(share->inplace_alter_new_table_def == nullptr);
+
   if (ndbcluster_binlog_init_share(current_thd, share, table))
   {
     DBUG_PRINT("error", ("get_share: %s could not init share", key));
@@ -19238,7 +19241,8 @@ bool
 ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
                                           Alter_inplace_info *ha_alter_info,
                                           bool commit,
-                                          const dd::Table *, dd::Table *)
+                                          const dd::Table*,
+                                          dd::Table* new_table_def)
 {
   DBUG_ENTER("ha_ndbcluster::commit_inplace_alter_table");
 
@@ -19259,11 +19263,18 @@ ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
   const Uint32 table_id= alter_data->table_id;
   const Uint32 table_version= alter_data->old_table_version;
 
+  // Pass pointer to table_def for usage by schema dist participant
+  // in the binlog thread of this mysqld.
+  m_share->inplace_alter_new_table_def = new_table_def;
+
   ndbcluster_log_schema_op(thd, thd->query().str, thd->query().length,
                            db, name,
                            table_id, table_version,
                            SOT_ONLINE_ALTER_TABLE_PREPARE,
                            NULL, NULL);
+
+  // The pointer to new table_def is not valid anymore
+  m_share->inplace_alter_new_table_def = nullptr;
 
   delete alter_data;
   ha_alter_info->handler_ctx= 0;
