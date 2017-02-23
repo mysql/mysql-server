@@ -502,14 +502,14 @@ DO SELECT 1 $
 
 DELIMITER ;$
 # EVENTS
---replace_column 6 # 7 # 8 # 9 #
+--replace_column 6 # 7 # 8 # 9 # 15 DATABASE_COLLATION
 SHOW EVENTS LIKE 'teste_bug11763507';
---replace_column 6 # 7 # 8 # 9 #
+--replace_column 6 # 7 # 8 # 9 # 15 DATABASE_COLLATION
 SHOW EVENTS LIKE 'TESTE_bug11763507';
 
---replace_column 4 # 
+--replace_column 4 # 7 DATABASE_COLLATION
 SHOW CREATE EVENT teste_bug11763507;
---replace_column 4 # 
+--replace_column 4 # 7 DATABASE_COLLATION
 SHOW CREATE EVENT TESTE_bug11763507;
 
 DROP EVENT teste_bug11763507;

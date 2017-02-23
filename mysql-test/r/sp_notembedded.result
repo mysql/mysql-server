@@ -332,16 +332,16 @@ CREATE EVENT teste_bug11763507 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOU
 DO SELECT 1 $
 SHOW EVENTS LIKE 'teste_bug11763507';
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-test	teste_bug11763507	root@localhost	SYSTEM	ONE TIME	#	#	#	#	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+test	teste_bug11763507	root@localhost	SYSTEM	ONE TIME	#	#	#	#	NULL	ENABLED	1	latin1	latin1_swedish_ci	DATABASE_COLLATION
 SHOW EVENTS LIKE 'TESTE_bug11763507';
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-test	teste_bug11763507	root@localhost	SYSTEM	ONE TIME	#	#	#	#	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+test	teste_bug11763507	root@localhost	SYSTEM	ONE TIME	#	#	#	#	NULL	ENABLED	1	latin1	latin1_swedish_ci	DATABASE_COLLATION
 SHOW CREATE EVENT teste_bug11763507;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-teste_bug11763507		SYSTEM	#	latin1	latin1_swedish_ci	latin1_swedish_ci
+teste_bug11763507		SYSTEM	#	latin1	latin1_swedish_ci	DATABASE_COLLATION
 SHOW CREATE EVENT TESTE_bug11763507;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-teste_bug11763507		SYSTEM	#	latin1	latin1_swedish_ci	latin1_swedish_ci
+teste_bug11763507		SYSTEM	#	latin1	latin1_swedish_ci	DATABASE_COLLATION
 DROP EVENT teste_bug11763507;
 #END OF BUG#11763507 test.
 

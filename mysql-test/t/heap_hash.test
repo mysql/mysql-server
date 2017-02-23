@@ -114,7 +114,7 @@ drop table t1;
 # Test when using part key searches
 #
 
-create table t1 (btn char(10) not null, key using HASH (btn)) engine=heap;
+create table t1 (btn char(10) not null, key using HASH (btn)) charset utf8mb4 engine=heap;
 insert into t1 values ("hello"),("hello"),("hello"),("hello"),("hello"),("a"),("b"),("c"),("d"),("e"),("f"),("g"),("h"),("i");
 explain select * from t1 where btn like "q%";
 select * from t1 where btn like "q%";
@@ -166,7 +166,7 @@ create table t1
   b char(20) not null,
   c int not null,
   key (a)
-) engine=heap;
+) charset utf8mb4 engine=heap;
 
 insert into t1 values ('aaaa', 'prefill-hash=5',0);
 insert into t1 values ('aaab', 'prefill-hash=0',0);
@@ -214,14 +214,14 @@ create table t1 (
   name varchar(20) not null,
   index heap_idx(name),
   index btree_idx using btree(name)
-) engine=heap;
+) charset latin1 engine=heap;
 
 create table t2 (
   id int unsigned not null primary key auto_increment, 
   name varchar(20) not null,
   index btree_idx using btree(name),
   index heap_idx(name)
-) engine=heap;
+) charset latin1 engine=heap;
 
 insert into t1 (name) values ('Matt'), ('Lilu'), ('Corbin'), ('Carly'), 
   ('Suzy'), ('Hoppy'), ('Burrito'), ('Mimi'), ('Sherry'), ('Ben'), ('Phil'), 
@@ -258,7 +258,7 @@ create table t3
   a varchar(20) not null,
   b varchar(20) not null,
   key (a,b)
-) engine=heap;
+) charset latin1 engine=heap;
 insert into t3 select name, name from t1;
 analyze table t3;
 show index from t3;
