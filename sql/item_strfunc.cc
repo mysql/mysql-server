@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3649,6 +3649,17 @@ String *Item_func_quote::val_str(String *str)
   *to= '\'';
 
 ret:
+  if (new_length > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                        ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                        func_name(),
+                        current_thd->variables.max_allowed_packet);
+    null_value= true;
+    return NULL;
+  }
+
   tmp_value.length(new_length);
   tmp_value.set_charset(collation.collation);
   null_value= 0;
