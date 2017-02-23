@@ -384,7 +384,12 @@ ENDIF()
 #
 # authentication LDAP SASL client
 #
-IF(NOT WIN32)
+INCLUDE(CheckIncludeFiles)
+CHECK_INCLUDE_FILES(sasl/sasl.h HAVE_SASL_H)
+CHECK_INCLUDE_FILES(lber.h HAVE_LBER_H)
+IF (HAVE_SASL_H AND HAVE_LBER_H)
+  MESSAGE(STATUS "Adding LDAP authentication SASL client. link.")
+  ADD_DEFINITIONS(-DAUTHENTICATION_LDAP_SASL_CLIENT)
   TARGET_LINK_LIBRARIES(sql authentication_ldap_sasl_client)
 ENDIF()
 

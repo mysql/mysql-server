@@ -11,10 +11,6 @@
 #include <mysql/client_plugin.h>
 #include <mysql.h>
 
-#if SASL_VERSION_FULL<0x020118
-#define sasl_client_done()
-#endif
-
 MYSQL_PLUGIN g_ldap_plugin_info = NULL;
 Logger<Log_writer_error> g_logger("");
 
@@ -109,32 +105,12 @@ int Sasl_client::de_initilize() {
 }
 
 int Sasl_client::sasl_client_done_wrapper() {
-  const char *impl_version = NULL;
-  uint32_t version = 0;
-  uint16_t major = 0;
-  uint8_t minor = 0;
-  uint8_t step = 0;
   int rc_sasl = SASL_FAIL;
-  sasl_version(&impl_version, (int*)&version);
-  major = version >> 24;
-  minor = (version << 8) >> 24;
-  step = (version << 24) >> 24;
-
-  typedef int (*__sasl_client_done)();
-  static __sasl_client_done _sasl_client_done = NULL;
-  typedef void (*__sasl_done)();
-  static __sasl_done _sasl_done = NULL;
-
-  if ((major > 2) || (major == 2 && minor > 1) ||(major == 2 && minor == 1 && step >= 24)) {
-    _sasl_client_done = &sasl_client_done;
-    rc_sasl = _sasl_client_done();
-    log_dbg("sasl_client_done()");
-  }
-  else {
-    _sasl_done = &sasl_done;
-    _sasl_done();
-    log_dbg("sasl_done()");
-  }
+#if HAVE_SASL_CLIENT_DONE == 1
+  rc_sasl = sasl_client_done();
+#else
+  sasl_done();
+#endif
   return rc_sasl;
 }
 
