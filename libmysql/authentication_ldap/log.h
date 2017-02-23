@@ -12,6 +12,7 @@
 #include <my_dbug.h>
 
 extern MYSQL_PLUGIN g_ldap_plugin_info;
+//#define LDAP_SERVER_PLUGIN
 
 struct log_type {
   typedef enum {
@@ -96,7 +97,7 @@ template<class LOGGER_TYPE>
 template<log_type::type type>
 void Logger<LOGGER_TYPE>::log(std::string msg) {
   std::stringstream header;
-#ifdef MYSQL_SERVER
+#ifdef LDAP_SERVER_PLUGIN
   int plugin_error_level = MY_INFORMATION_LEVEL;
 #endif
   switch (type) {
@@ -107,7 +108,7 @@ void Logger<LOGGER_TYPE>::log(std::string msg) {
     header << "[DBG] ";
     break;
   case log_type::LOG_INFO:
-#ifdef MYSQL_SERVER
+#ifdef LDAP_SERVER_PLUGIN
     plugin_error_level = MY_INFORMATION_LEVEL;
 #endif
     if (LOG_LEVEL_ERROR_WARNING_INFO > m_log_level) {
@@ -116,7 +117,7 @@ void Logger<LOGGER_TYPE>::log(std::string msg) {
     header << "[Note] ";
     break;
   case log_type::LOG_WARNING:
-#ifdef MYSQL_SERVER
+#ifdef LDAP_SERVER_PLUGIN
     plugin_error_level = MY_WARNING_LEVEL;
 #endif
     if (LOG_LEVEL_ERROR_WARNING > m_log_level) {
@@ -125,7 +126,7 @@ void Logger<LOGGER_TYPE>::log(std::string msg) {
     header << "[Warning] ";
     break;
   case log_type::LOG_ERROR:
-#ifdef MYSQL_SERVER
+#ifdef LDAP_SERVER_PLUGIN
     plugin_error_level = MY_ERROR_LEVEL;
 #endif
     if (LOG_LEVEL_NONE >= m_log_level) {
@@ -145,9 +146,8 @@ void Logger<LOGGER_TYPE>::log(std::string msg) {
   }
 
 WRITE_SERVER_LOG:
-#ifdef MYSQL_SERVER
+#ifdef LDAP_SERVER_PLUGIN
   if (g_ldap_plugin_info && (type != log_type::LOG_DBG)) {
-    DBUG_PRINT("");
     my_plugin_log_message(&g_ldap_plugin_info,
                           (plugin_log_level) plugin_error_level, msg.c_str());
   }
