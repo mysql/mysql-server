@@ -344,7 +344,7 @@ bool Gtid_state::wait_for_gtid_set(THD *thd, Gtid_set* wait_for,
   DBUG_ASSERT(wait_for->get_sid_map() == global_sid_map);
 
   if (timeout > 0)
-    set_timespec_nsec(&abstime, timeout * 1000000000ULL);
+    set_timespec_nsec(&abstime, (ulonglong) timeout * 1000000000ULL);
 
   /*
     Algorithm:
