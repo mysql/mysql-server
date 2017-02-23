@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs230=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 #
 # This file contains tests covering the parser
 #
@@ -1969,3 +1980,11 @@ FROM ( SELECT 1 FROM t1 JOIN t2 ON @@q ) AS d
 JOIN t3 LEFT JOIN t4 ON 1;
 
 DROP TABLE t1, t2, t3, t4;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs230;
+--enable_query_log
+########################################

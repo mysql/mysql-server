@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs66=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 ######## suite/innodb/t/innodb_prefix_iindex_restart_server.test #####
 #                                                                    #
 # Testcase for worklog WL#5743: Lift the limit of index key prefixes #
@@ -109,3 +120,11 @@ create table t1(f1 varchar(3800) binary not null, key(f1))
 insert into t1 values('aaa');
 drop table t1;
 SET sql_mode=default;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs66;
+--enable_query_log
+########################################

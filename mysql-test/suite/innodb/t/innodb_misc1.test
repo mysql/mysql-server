@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs64=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # Performance Schema is partially supported by embedded server. Hence skip when test runs with embedded mode.
 -- source include/not_embedded.inc
 
@@ -1201,3 +1212,11 @@ SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
 
 -- enable_query_log
 -- source suite/innodb/include/check_pfs_mem_other_is_zero.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs64;
+--enable_query_log
+########################################

@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs120=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --disable_warnings
@@ -130,3 +141,11 @@ CREATE INDEX i2 ON t1_toupg(c2) COMMENT '012345678901234567890123456789012345678
 drop table t1_toupg;
 
 SET sql_mode = default;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs120;
+--enable_query_log
+########################################

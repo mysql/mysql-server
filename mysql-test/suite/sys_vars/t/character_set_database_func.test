@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs380=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 ############## mysql-test\t\character_set_database_func.test  #################
 #                                                                             #
 # Variable Name: character_set_database                                       #
@@ -126,3 +137,11 @@ SET @@global.character_set_server = @global_character_set_server;
 ############################################################
 # End of functionality Testing for character_set_database  #
 ############################################################
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs380;
+--enable_query_log
+########################################
