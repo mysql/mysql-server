@@ -446,7 +446,6 @@ ERROR 42000: Incorrect parameter count in the call to native function 'master_po
 SET @save_sql_mode_before_master_pos_wait=@@SESSION.SQL_MODE;
 SET @@SESSION.SQL_MODE="STRICT_ALL_TABLES";
 select master_pos_wait('master-bin.999999', 4, -1);
-ERROR HY000: Incorrect arguments to MASTER_POS_WAIT.
 SET @@SESSION.SQL_MODE=@save_sql_mode_before_master_pos_wait;
 select rand(1, 2, 3);
 ERROR 42000: Incorrect parameter count in the call to native function 'rand'
