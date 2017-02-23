@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2168,6 +2168,7 @@ private:
     SignalCounter m_LAST_LCP_FRAG_ORD;
     NdbNodeBitmask m_participatingLQH;
     NdbNodeBitmask m_participatingDIH;
+    NdbNodeBitmask m_allReplicasQueuedLQH;
     
     Uint32 m_masterLcpDihRef;
     bool   m_MASTER_LCPREQ_Received;
