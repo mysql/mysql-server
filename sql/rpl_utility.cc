@@ -189,7 +189,7 @@ static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
       const CHARSET_INFO *cs= str->charset();
       size_t length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
-                           "varchar(%u)", metadata);
+                           "varchar(%u(bytes))", metadata);
       str->length(length);
     }
     break;
@@ -239,22 +239,22 @@ static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
       it is necessary to check the pack length to figure out what kind
       of blob it really is.
      */
-    switch (get_blob_type_from_length(metadata))
+    switch (metadata)
     {
-    case MYSQL_TYPE_TINY_BLOB:
+    case 1:
       str->set_ascii(STRING_WITH_LEN("tinyblob"));
       break;
 
-    case MYSQL_TYPE_MEDIUM_BLOB:
+    case 2:
+      str->set_ascii(STRING_WITH_LEN("blob"));
+      break;
+
+    case 3:
       str->set_ascii(STRING_WITH_LEN("mediumblob"));
       break;
 
-    case MYSQL_TYPE_LONG_BLOB:
+    case 4:
       str->set_ascii(STRING_WITH_LEN("longblob"));
-      break;
-
-    case MYSQL_TYPE_BLOB:
-      str->set_ascii(STRING_WITH_LEN("blob"));
       break;
 
     default:
@@ -272,7 +272,7 @@ static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
       uint bytes= (((metadata >> 4) & 0x300) ^ 0x300) + (metadata & 0x00ff);
       size_t length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
-                           "char(%d)", bytes / field_cs->mbmaxlen);
+                           "char(%d(bytes))", bytes);
       str->length(length);
     }
     break;
@@ -710,6 +710,7 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
       const char *tbl_name= table->s->table_name.str;
       char source_buf[MAX_FIELD_WIDTH];
       char target_buf[MAX_FIELD_WIDTH];
+      String field_sql_type;
       enum loglevel report_level= INFORMATION_LEVEL;
       String source_type(source_buf, sizeof(source_buf), &my_charset_latin1);
       String target_type(target_buf, sizeof(target_buf), &my_charset_latin1);
@@ -723,6 +724,24 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
       /* In case of ignored errors report warnings only if log_warnings > 1. */
       else if (log_warnings > 1)
         report_level= WARNING_LEVEL;
+
+      if (field->has_charset() &&
+          (field->type() == MYSQL_TYPE_VARCHAR ||
+           field->type() == MYSQL_TYPE_STRING))
+      {
+        field_sql_type.append((field->type() == MYSQL_TYPE_VARCHAR) ?
+                              "varchar" : "char");
+        const CHARSET_INFO *cs= field->charset();
+        size_t length= cs->cset->snprintf(cs, (char*) target_type.ptr(),
+                                          target_type.alloced_length(),
+                                          "%s(%u(bytes) %s)",
+                                          field_sql_type.c_ptr_safe(),
+                                          field->field_length,
+                                          field->charset()->csname);
+        target_type.length(length);
+      }
+      else
+        field->sql_type(target_type);
 
       if (report_level != INFORMATION_LEVEL)
         rli->report(report_level, ER_SLAVE_CONVERSION_FAILED,
