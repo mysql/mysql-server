@@ -489,6 +489,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   DBUG_ASSERT((!table_ref->table) ||
               (table_ref->table && table_ref->table->s));
 
+  dd::Schema_MDL_locker mdl_locker(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   /* Initialize, or reinitialize in case of reexecution (SP). */
@@ -542,6 +543,9 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   }
   else /* It's not a temporary table. */
   {
+    if (mdl_locker.ensure_locked(table_ref->db))
+      DBUG_RETURN(true);
+
     if (lock_table(thd, table_ref, &hton))
       DBUG_RETURN(TRUE);
 
