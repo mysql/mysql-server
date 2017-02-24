@@ -1547,7 +1547,7 @@ void set_variable_source(const char *opt_name, void* value)
   {
     if ((get_opt_arg_source*)value)
     {
-      ((get_opt_arg_source*)value)->m_name=
+      ((get_opt_arg_source*)value)->m_path_name=
         it->second.m_config_file_name.c_str();
       ((get_opt_arg_source*)value)->m_source= it->second.m_source;
     }

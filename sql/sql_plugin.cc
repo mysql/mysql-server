@@ -531,7 +531,7 @@ public:
   longlong get_min_value();
   ulonglong get_max_value();
   void set_arg_source(get_opt_arg_source *src)
-  { source.m_name= src->m_name; source.m_source= src->m_source; }
+  { source.m_path_name= src->m_path_name; source.m_source= src->m_source; }
 };
 
 
@@ -4133,7 +4133,7 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
     options[0].arg_source= options[1].arg_source=
       (get_opt_arg_source *)alloc_root(mem_root, sizeof(get_opt_arg_source));
     memset(options[0].arg_source, 0, sizeof(get_opt_arg_source));
-    options[0].arg_source->m_name= options[1].arg_source->m_name= 0;
+    options[0].arg_source->m_path_name= options[1].arg_source->m_path_name= 0;
     options[0].arg_source->m_source= options[1].arg_source->m_source=
       enum_variable_source::COMPILED;
 
@@ -4323,7 +4323,7 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
     options[0].arg_source= options[1].arg_source=
       (get_opt_arg_source *)alloc_root(mem_root, sizeof(get_opt_arg_source));
     memset(options[0].arg_source, 0, sizeof(get_opt_arg_source));
-    options[0].arg_source->m_name= options[1].arg_source->m_name= 0;
+    options[0].arg_source->m_path_name= options[1].arg_source->m_path_name= 0;
     options[0].arg_source->m_source= options[1].arg_source->m_source=
       enum_variable_source::COMPILED;
 

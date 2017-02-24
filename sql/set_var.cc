@@ -198,7 +198,7 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   user[0]= '\0';
   host[0]= '\0';
 
-  source.m_name= 0;
+  source.m_path_name= 0;
   option.arg_source = &source;
 
   if (chain->last)
@@ -950,7 +950,7 @@ int set_var::light_check(THD *thd)
 void set_var::update_source()
 {
     var->set_source(enum_variable_source::DYNAMIC);
-    var->set_source_name("");
+    var->set_source_name(EMPTY_STR.str);
 }
 
 /**

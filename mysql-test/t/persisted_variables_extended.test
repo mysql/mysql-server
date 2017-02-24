@@ -2,6 +2,7 @@
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
+--source include/have_plugin_auth.inc
 
 --echo #
 --echo # WL#8688: Support ability to persist SET GLOBAL settings
@@ -358,9 +359,6 @@ WHERE VARIABLE_NAME IN ('auto_increment_increment',
 select @@global.max_connections into @saved_max_connections;
 select @@global.autocommit into @saved_autocommit;
 
---replace_regex /\.dll/.so/
-eval INSTALL PLUGIN test_plugin_server SONAME '$PLUGIN_AUTH';
-
 # Create proxied user:
 CREATE USER 'internal_proxied'@'%' IDENTIFIED BY 'proxy_password';
 
@@ -384,14 +382,13 @@ SET @@global.autocommit=1;
 
 --connection default
 --replace_column 4 #
-SELECt VARIABLE_NAME, SET_USER, SET_HOST, SET_TIME from
+SELECT VARIABLE_NAME, SET_USER, SET_HOST, SET_TIME from
 performance_schema.variables_info where variable_name='max_connections' or
 variable_name='autocommit';
 
 --echo # Cleanup
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
 --remove_file $MYSQLTEST_VARDIR/tmp/my.cnf
-UNINSTALL PLUGIN test_plugin_server;
 drop USER 'internal_proxied'@'%';
 drop USER 'external_u1'@'%';
 drop USER 'external_u2'@'%';
