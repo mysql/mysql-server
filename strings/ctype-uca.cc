@@ -4371,7 +4371,7 @@ apply_tertiary_shift_900(MY_CHARSET_LOADER *loader, MY_COLL_RULES *rules,
 
 static bool
 apply_shift_900(MY_CHARSET_LOADER *loader,
-                MY_COLL_RULES *rules, MY_COLL_RULE *r, int level,
+                MY_COLL_RULES *rules, MY_COLL_RULE *r,
                 uint16 *to, size_t to_stride, size_t nweights)
 {
   // nweights should not less than 1 because of the extra CE.
@@ -4397,7 +4397,7 @@ apply_shift(MY_CHARSET_LOADER *loader,
             uint16 *to, size_t to_stride, size_t nweights)
 {
   if (rules->uca->version == UCA_V900)
-    return apply_shift_900(loader, rules, r, level, to, to_stride, nweights);
+    return apply_shift_900(loader, rules, r, to, to_stride, nweights);
 
   DBUG_ASSERT(to_stride == 1);
 
@@ -5081,8 +5081,7 @@ static int my_prepare_reorder(CHARSET_INFO *cs)
   return rec_ind;
 }
 
-static void adjust_japanese_weight(CHARSET_INFO *cs, MY_COLL_RULES *rules,
-                                   int rec_ind)
+static void adjust_japanese_weight(CHARSET_INFO *cs, int rec_ind)
 {
   /*
     Per CLDR 30, Japanese collations need to reorder characters as
@@ -5140,7 +5139,7 @@ static bool my_prepare_coll_param(CHARSET_INFO *cs, MY_COLL_RULES *rules)
     return true;
 
   if (cs->coll_param == &ja_coll_param)
-    adjust_japanese_weight(cs, rules, rec_ind);
+    adjust_japanese_weight(cs, rec_ind);
   /* Might add other parametric tailoring rules later. */
   return false;
 }

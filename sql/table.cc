@@ -133,7 +133,7 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
                                const char *name,
                                Name_resolution_context *context);
 static void open_table_error(THD *thd, TABLE_SHARE *share,
-                             int error, int db_errno, int errarg);
+                             int error, int db_errno);
 
 inline bool is_system_table_name(const char *name, size_t length);
 
@@ -2539,7 +2539,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   delete handler_file;
   my_hash_free(&share->name_hash);
 
-  open_table_error(thd, share, error, my_errno(), errarg);
+  open_table_error(thd, share, error, my_errno());
   DBUG_RETURN(error);
 } /*open_binary_frm*/
 
@@ -3400,7 +3400,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
  err:
   if (! error_reported)
-    open_table_error(thd, share, error, my_errno(), 0);
+    open_table_error(thd, share, error, my_errno());
   delete outparam->file;
   if (outparam->part_info)
     free_items(outparam->part_info->item_free_list);
@@ -3512,7 +3512,7 @@ void free_blob_buffers_and_reset(TABLE *table, uint32 size)
 	/* error message when opening a table defintion */
 
 static void open_table_error(THD *thd, TABLE_SHARE *share,
-                             int error, int db_errno, int errarg)
+                             int error, int db_errno)
 {
   int err_no;
   char buff[FN_REFLEN];
@@ -7253,7 +7253,7 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
   See TABLE_LIST::generate_keys.
 */
 
-static int Derived_key_comp(Derived_key *e1, Derived_key *e2, void *arg)
+static int Derived_key_comp(Derived_key *e1, Derived_key *e2, void*)
 {
   /* Move entries for tables with greater table bit to the end. */
   return ((e1->referenced_by < e2->referenced_by) ? -1 :
@@ -7740,7 +7740,6 @@ st_lex_user::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
   @param  share                     TABLE_SHARE object to be filled.
   @param  frm_context               FRM_context for structures removed from
                                     TABLE_SHARE
-  @param  db                        database name
   @param  table                     table name
   @param  is_fix_view_cols_and_deps Flag to indicate that we are recreating view
                                     to create view dependency entry in DD tables
@@ -7751,7 +7750,6 @@ st_lex_user::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
 static bool read_frm_file(THD *thd,
                           TABLE_SHARE *share,
                           FRM_context *frm_context,
-                          const std::string &db,
                           const std::string &table,
                           bool is_fix_view_cols_and_deps)
 {
@@ -7875,7 +7873,7 @@ bool create_table_share_for_upgrade(THD *thd,
   mysql_mutex_init(key_TABLE_SHARE_LOCK_ha_data,
                      &share->LOCK_ha_data, MY_MUTEX_INIT_FAST);
 
-  if (read_frm_file(thd, share, frm_context, db_name,
+  if (read_frm_file(thd, share, frm_context,
                     table_name, is_fix_view_cols_and_deps))
   {
     free_table_share(share);

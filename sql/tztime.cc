@@ -1199,7 +1199,9 @@ public:
     0
 */
 my_time_t
-Time_zone_utc::TIME_to_gmt_sec(const MYSQL_TIME *t, bool *in_dst_time_gap) const
+Time_zone_utc::TIME_to_gmt_sec(
+  const MYSQL_TIME *t MY_ATTRIBUTE((unused)),
+  bool *in_dst_time_gap MY_ATTRIBUTE((unused))) const
 {
   /* Should be never called */
   DBUG_ASSERT(0);
@@ -1412,7 +1414,9 @@ Time_zone_offset::Time_zone_offset(long tz_offset_arg):
     Corresponding my_time_t value or 0 in case of error
 */
 my_time_t
-Time_zone_offset::TIME_to_gmt_sec(const MYSQL_TIME *t, bool *in_dst_time_gap) const
+Time_zone_offset::TIME_to_gmt_sec(
+  const MYSQL_TIME *t,
+  bool *in_dst_time_gap MY_ATTRIBUTE((unused))) const
 {
   my_time_t local_t;
   int shift= 0;

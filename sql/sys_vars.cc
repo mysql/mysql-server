@@ -120,7 +120,7 @@
 
 TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
 
-static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
+static bool update_buffer_size(THD*, KEY_CACHE *key_cache,
                                ptrdiff_t offset, ulonglong new_value)
 {
   bool error= false;
@@ -172,7 +172,7 @@ static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
   return error;
 }
 
-static bool update_keycache_param(THD *thd, KEY_CACHE *key_cache,
+static bool update_keycache_param(THD*, KEY_CACHE *key_cache,
                                   ptrdiff_t offset, ulonglong new_value)
 {
   bool error= false;
@@ -759,13 +759,13 @@ static Sys_var_charptr Sys_my_bind_addr(
        READ_ONLY GLOBAL_VAR(my_bind_addr_str), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(MY_BIND_ALL_ADDRESSES));
 
-static bool fix_binlog_cache_size(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_binlog_cache_size(sys_var*, THD *thd, enum_var_type)
 {
   check_binlog_cache_size(thd);
   return false;
 }
 
-static bool fix_binlog_stmt_cache_size(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_binlog_stmt_cache_size(sys_var*, THD *thd, enum_var_type)
 {
   check_binlog_stmt_cache_size(thd);
   return false;
@@ -826,7 +826,7 @@ static Sys_var_ulong Sys_binlog_group_commit_sync_no_delay_count(
        DEFAULT(0), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
-static bool check_has_super(sys_var *self, THD *thd, set_var *var)
+static bool check_has_super(sys_var *self, THD *thd, set_var*)
 {
   DBUG_ASSERT(self->scope() != sys_var::GLOBAL);// don't abuse check_has_super()
   if (!(thd->security_context()->check_access(SUPER_ACL)))
@@ -837,7 +837,7 @@ static bool check_has_super(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
-static bool check_outside_trx(sys_var *self, THD *thd, set_var *var)
+static bool check_outside_trx(sys_var*, THD *thd, set_var *var)
 {
   if (thd->in_active_multi_stmt_transaction())
   {
@@ -976,7 +976,7 @@ static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
-static bool fix_binlog_format_after_update(sys_var *self, THD *thd,
+static bool fix_binlog_format_after_update(sys_var*, THD *thd,
                                            enum_var_type type)
 {
   if (type == OPT_SESSION)
@@ -984,7 +984,7 @@ static bool fix_binlog_format_after_update(sys_var *self, THD *thd,
   return false;
 }
 
-static bool prevent_global_rbr_exec_mode_idempotent(sys_var *self, THD *thd,
+static bool prevent_global_rbr_exec_mode_idempotent(sys_var *self, THD*,
                                                     set_var *var )
 {
   if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
@@ -1044,8 +1044,7 @@ static Sys_var_enum Sys_binlog_row_image(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(NULL));
 
-static bool on_session_track_gtids_update(sys_var *self, THD *thd,
-                                          enum_var_type type)
+static bool on_session_track_gtids_update(sys_var*, THD *thd, enum_var_type)
 {
   thd->session_tracker.get_tracker(SESSION_GTIDS_TRACKER)->update(thd);
   return false;
@@ -1271,7 +1270,7 @@ static Sys_var_charptr Sys_character_sets_dir(
        READ_ONLY GLOBAL_VAR(charsets_dir), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
 
-static bool check_not_null(sys_var *self, THD *thd, set_var *var)
+static bool check_not_null(sys_var*, THD*, set_var *var)
 {
   return var->value && var->value->is_null();
 }
@@ -1329,7 +1328,7 @@ static bool check_storage_engine(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
-static bool check_charset(sys_var *self, THD *thd, set_var *var)
+static bool check_charset(sys_var*, THD*, set_var *var)
 {
   if (!var->value)
     return false;
@@ -1412,7 +1411,7 @@ static bool check_charset_db(sys_var *self, THD *thd, set_var *var)
     var->save_result.ptr= thd->db_charset;
   return false;
 }
-static bool update_deprecated(sys_var *self, THD *thd, enum_var_type type)
+static bool update_deprecated(sys_var *self, THD *thd, enum_var_type)
 {
   push_warning_printf(thd, Sql_condition::SL_WARNING,
                       ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
@@ -1439,7 +1438,7 @@ static bool check_cs_client(sys_var *self, THD *thd, set_var *var)
 
   return false;
 }
-static bool fix_thd_charset(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_thd_charset(sys_var*, THD *thd, enum_var_type type)
 {
   if (type == OPT_SESSION)
     thd->update_charset();
@@ -1577,7 +1576,7 @@ static Sys_var_dbug Sys_dbug(
     of all MyISAM tables to ensure that they are reopen with the
     new attribute.
 */
-export bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type)
+export bool fix_delay_key_write(sys_var*, THD*, enum_var_type)
 {
   switch (delay_key_write_options) {
   case DELAY_KEY_WRITE_NONE:
@@ -1634,7 +1633,7 @@ static Sys_var_ulong Sys_delayed_queue_size(
        DEPRECATED(""));
 
 static const char *event_scheduler_names[]= { "OFF", "ON", "DISABLED", NullS };
-static bool event_scheduler_check(sys_var *self, THD *thd, set_var *var)
+static bool event_scheduler_check(sys_var*, THD*, set_var *var)
 {
   /* DISABLED is only accepted on the command line */
   if (var->save_result.ulonglong_value == Events::EVENTS_DISABLED)
@@ -1647,7 +1646,7 @@ static bool event_scheduler_check(sys_var *self, THD *thd, set_var *var)
   }
   return false;
 }
-static bool event_scheduler_update(sys_var *self, THD *thd, enum_var_type type)
+static bool event_scheduler_update(sys_var*, THD*, enum_var_type)
 {
   int err_no= 0;
   ulong opt_event_scheduler_value= Events::opt_event_scheduler;
@@ -1709,12 +1708,12 @@ static Sys_var_ulong Sys_flush_time(
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, LONG_TIMEOUT),
        DEFAULT(0), BLOCK_SIZE(1));
 
-static bool check_ftb_syntax(sys_var *self, THD *thd, set_var *var)
+static bool check_ftb_syntax(sys_var*, THD*, set_var *var)
 {
   return ft_boolean_check_syntax_string((uchar*)
                       (var->save_result.string_value.str));
 }
-static bool query_cache_flush(sys_var *self, THD *thd, enum_var_type type)
+static bool query_cache_flush(sys_var*, THD *thd, enum_var_type)
 {
   query_cache.flush(thd);
   return false;
@@ -1764,7 +1763,7 @@ static Sys_var_bool Sys_ignore_builtin_innodb(
        READ_ONLY GLOBAL_VAR(opt_ignore_builtin_innodb),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
-static bool check_init_string(sys_var *self, THD *thd, set_var *var)
+static bool check_init_string(sys_var*, THD*, set_var *var)
 {
   if (var->save_result.string_value.str == 0)
   {
@@ -1894,7 +1893,7 @@ static Sys_var_bool Sys_log_bin(
        "log_bin", "Whether the binary log is enabled",
        READ_ONLY GLOBAL_VAR(opt_bin_log), NO_CMD_LINE, DEFAULT(FALSE));
 
-static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var)
+static bool transaction_write_set_check(sys_var*, THD *thd, set_var *var)
 {
   // Can't change the algorithm when group replication is enabled.
   if (is_group_replication_running())
@@ -2042,9 +2041,9 @@ static Sys_var_bool Sys_log_slow_slave_statements(
        GLOBAL_VAR(opt_log_slow_slave_statements),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
-static bool update_log_throttle_queries_not_using_indexes(sys_var *self,
+static bool update_log_throttle_queries_not_using_indexes(sys_var*,
                                                           THD *thd,
-                                                          enum_var_type type)
+                                                          enum_var_type)
 {
   // Check if we should print a summary of any suppressed lines to the slow log
   // now since opt_log_throttle_queries_not_using_indexes was changed.
@@ -2065,7 +2064,7 @@ static Sys_var_ulong Sys_log_throttle_queries_not_using_indexes(
        ON_CHECK(0),
        ON_UPDATE(update_log_throttle_queries_not_using_indexes));
 
-static bool update_log_warnings(sys_var *self, THD *thd, enum_var_type type)
+static bool update_log_warnings(sys_var*, THD*, enum_var_type)
 {
   // log_warnings is deprecated, but for now, we'll set the
   // new log_error_verbosity from it for backward compatibility.
@@ -2082,8 +2081,7 @@ static Sys_var_ulong Sys_log_warnings(
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(update_log_warnings),
        DEPRECATED("log_error_verbosity"));
 
-static bool update_log_error_verbosity(sys_var *self, THD *thd,
-                                       enum_var_type type)
+static bool update_log_error_verbosity(sys_var*, THD*, enum_var_type)
 {
   // log_warnings is deprecated, but for now, we'll set it from
   // the new log_error_verbosity for backward compatibility.
@@ -2123,12 +2121,12 @@ static Sys_var_bool Sys_log_statements_unsafe_for_binlog(
 
 /* logging to host OS's syslog */
 
-static bool fix_syslog(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_syslog(sys_var*, THD*, enum_var_type)
 {
   return log_syslog_update_settings();
 }
 
-static bool check_syslog_tag(sys_var *self, THD *THD, set_var *var)
+static bool check_syslog_tag(sys_var*, THD*, set_var *var)
 {
   return ((var->save_result.string_value.str != NULL) &&
           (strchr(var->save_result.string_value.str, FN_LIBCHAR) != NULL));
@@ -2165,7 +2163,7 @@ static Sys_var_charptr Sys_log_syslog_tag(
 
 #ifndef _WIN32
 
-static bool check_syslog_facility(sys_var *self, THD *THD, set_var *var)
+static bool check_syslog_facility(sys_var*, THD*, set_var *var)
 {
   SYSLOG_FACILITY rsf;
 
@@ -2175,7 +2173,7 @@ static bool check_syslog_facility(sys_var *self, THD *THD, set_var *var)
   return false;
 }
 
-static bool fix_syslog_facility(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_syslog_facility(sys_var*, THD*, enum_var_type)
 {
   if (opt_log_syslog_facility == NULL)
     return true;
@@ -2203,7 +2201,7 @@ static Sys_var_bool Sys_log_syslog_log_pid(
 
 #endif
 
-static bool update_cached_long_query_time(sys_var *self, THD *thd,
+static bool update_cached_long_query_time(sys_var*, THD *thd,
                                           enum_var_type type)
 {
   if (type == OPT_SESSION)
@@ -2225,7 +2223,7 @@ static Sys_var_double Sys_long_query_time(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(update_cached_long_query_time));
 
-static bool fix_low_prio_updates(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_low_prio_updates(sys_var*, THD *thd, enum_var_type type)
 {
   if (type == OPT_SESSION)
   {
@@ -2270,7 +2268,7 @@ static Sys_var_uint Sys_lower_case_table_names(
 #endif
        BLOCK_SIZE(1));
 
-static bool session_readonly(sys_var *self, THD *thd, set_var *var)
+static bool session_readonly(sys_var *self, THD*, set_var *var)
 {
   if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
     return false;
@@ -2334,7 +2332,7 @@ static Sys_var_ulonglong Sys_max_binlog_stmt_cache_size(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_binlog_stmt_cache_size));
 
-static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_max_binlog_size(sys_var*, THD*, enum_var_type)
 {
   mysql_bin_log.set_max_size(max_binlog_size);
   /*
@@ -2395,7 +2393,7 @@ static Sys_var_long Sys_max_digest_length(
        DEFAULT(1024),
        BLOCK_SIZE(1));
 
-static bool check_max_delayed_threads(sys_var *self, THD *thd, set_var *var)
+static bool check_max_delayed_threads(sys_var*, THD*, set_var *var)
 {
   return (var->type != OPT_GLOBAL && var->type != OPT_PERSIST) &&
          var->save_result.ulonglong_value != 0 &&
@@ -2464,7 +2462,7 @@ static Sys_var_uint Sys_pseudo_thread_id(
        BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG,
        ON_CHECK(check_has_super));
 
-static bool fix_max_join_size(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_max_join_size(sys_var*, THD *thd, enum_var_type type)
 {
   System_variables *sv= (type == OPT_GLOBAL || type == OPT_PERSIST)
        ? &global_system_variables : &thd->variables;
@@ -2513,7 +2511,7 @@ static Sys_var_ulong Sys_max_prepared_stmt_count(
        /* max_prepared_stmt_count is used as a sizing hint by the performance schema. */
        sys_var::PARSE_EARLY);
 
-static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_max_relay_log_size(sys_var*, THD*, enum_var_type)
 {
   Master_info *mi= NULL;
 
@@ -2614,7 +2612,7 @@ static Sys_var_ulong Sys_net_buffer_length(
        VALID_RANGE(1024, 1024*1024), DEFAULT(16384), BLOCK_SIZE(1024),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_net_buffer_length));
 
-static bool fix_net_read_timeout(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_net_read_timeout(sys_var*, THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL && type != OPT_PERSIST)
   {
@@ -2638,7 +2636,7 @@ static Sys_var_ulong Sys_net_read_timeout(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_net_read_timeout));
 
-static bool fix_net_write_timeout(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_net_write_timeout(sys_var*, THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL && type != OPT_PERSIST)
   {
@@ -2662,7 +2660,7 @@ static Sys_var_ulong Sys_net_write_timeout(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_net_write_timeout));
 
-static bool fix_net_retry_count(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_net_retry_count(sys_var*, THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL && type != OPT_PERSIST)
   {
@@ -2763,8 +2761,7 @@ static Sys_var_ulong Sys_range_optimizer_max_mem_size(
       DEFAULT(8388608),
       BLOCK_SIZE(1));
 
-static bool
-limit_parser_max_mem_size(sys_var *self, THD *thd, set_var *var)
+static bool limit_parser_max_mem_size(sys_var*, THD *thd, set_var *var)
 {
   if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
     return false;
@@ -2884,8 +2881,7 @@ static Sys_var_flagset Sys_optimizer_trace_features(
        DEFAULT(Opt_trace_context::default_features));
 
 /** Delete all old optimizer traces */
-static bool optimizer_trace_update(sys_var *self, THD *thd,
-                                   enum_var_type type)
+static bool optimizer_trace_update(sys_var*, THD *thd, enum_var_type)
 {
   thd->opt_trace.reset();
   return false;
@@ -2965,7 +2961,7 @@ static Sys_var_ulong Sys_read_buff_size(
        VALID_RANGE(IO_SIZE*2, INT_MAX32), DEFAULT(128*1024),
        BLOCK_SIZE(IO_SIZE));
 
-static bool check_read_only(sys_var *self, THD *thd, set_var *var)
+static bool check_read_only(sys_var*, THD *thd, set_var*)
 {
   /* Prevent self dead-lock */
   if (thd->locked_tables_mode || thd->in_active_multi_stmt_transaction())
@@ -2976,7 +2972,8 @@ static bool check_read_only(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
-static bool check_require_secure_transport(sys_var *self, THD *thd, set_var *var)
+static bool check_require_secure_transport(sys_var*, THD*,
+                                           set_var *var MY_ATTRIBUTE((unused)))
 {
 
 #if !defined (_WIN32)
@@ -3004,7 +3001,7 @@ static bool check_require_secure_transport(sys_var *self, THD *thd, set_var *var
 }
 
 
-static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_read_only(sys_var *self, THD *thd, enum_var_type)
 {
   bool result= true;
   bool new_read_only= read_only; // make a copy before releasing a mutex
@@ -3077,7 +3074,7 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
   DBUG_RETURN(result);
 }
 
-static bool fix_super_read_only(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_super_read_only(sys_var*, THD *thd, enum_var_type type)
 {
   DBUG_ENTER("sys_var_opt_super_readonly::update");
 
@@ -3217,7 +3214,7 @@ static Sys_var_ulong Sys_multi_range_count(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
        DEPRECATED(""));
 
-static bool fix_thd_mem_root(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_thd_mem_root(sys_var*, THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL && type != OPT_PERSIST)
     reset_root_defaults(thd->mem_root,
@@ -3299,7 +3296,7 @@ static Sys_var_charptr Sys_tmpdir(
        READ_ONLY GLOBAL_VAR(opt_mysql_tmpdir), CMD_LINE(REQUIRED_ARG, 't'),
        IN_FS_CHARSET, DEFAULT(0));
 
-static bool fix_trans_mem_root(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_trans_mem_root(sys_var*, THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL && type != OPT_PERSIST)
     thd->get_transaction()->init_mem_root_defaults(
@@ -3335,7 +3332,7 @@ static Sys_var_enum Sys_thread_handling(
        , READ_ONLY GLOBAL_VAR(Connection_handler_manager::thread_handling),
        CMD_LINE(REQUIRED_ARG), thread_handling_names, DEFAULT(0));
 
-static bool fix_query_cache_size(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_query_cache_size(sys_var*, THD *thd, enum_var_type)
 {
   ulong new_cache_size= query_cache.resize(thd, query_cache_size);
   /*
@@ -3364,7 +3361,7 @@ static Sys_var_ulong Sys_query_cache_limit(
        GLOBAL_VAR(query_cache.query_cache_limit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*1024), BLOCK_SIZE(1));
 
-static bool fix_qcache_min_res_unit(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_qcache_min_res_unit(sys_var*, THD*, enum_var_type)
 {
   query_cache_min_res_unit=
     query_cache.set_min_res_unit(query_cache_min_res_unit);
@@ -3379,7 +3376,7 @@ static Sys_var_ulong Sys_query_cache_min_res_unit(
        ON_UPDATE(fix_qcache_min_res_unit));
 
 static const char *query_cache_type_names[]= { "OFF", "ON", "DEMAND", 0 };
-static bool check_query_cache_type(sys_var *self, THD *thd, set_var *var)
+static bool check_query_cache_type(sys_var*, THD*, set_var *var)
 {
   /*
    Setting it to 0 (or OFF) is always OK, even if the query cache
@@ -3409,8 +3406,7 @@ static Sys_var_bool Sys_query_cache_wlock_invalidate(
        SESSION_VAR(query_cache_wlock_invalidate), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));
 
-static bool
-on_check_opt_secure_auth(sys_var *self, THD *thd, set_var *var)
+static bool on_check_opt_secure_auth(sys_var*, THD *thd, set_var *var)
 {
   push_deprecated_warn_no_replacement(thd, "--secure-auth");
   return (!var->save_result.ulonglong_value);
@@ -3433,7 +3429,7 @@ static Sys_var_charptr Sys_secure_file_priv(
        READ_ONLY GLOBAL_VAR(opt_secure_file_priv),
        CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(DEFAULT_SECURE_FILE_PRIV_DIR));
 
-static bool fix_server_id(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_server_id(sys_var*, THD *thd, enum_var_type)
 {
   // server_id is 'MYSQL_PLUGIN_IMPORT ulong'
   // So we cast here, rather than change its type.
@@ -3583,7 +3579,7 @@ static Sys_var_bool Sys_slave_preserve_commit_order(
        ON_CHECK(check_slave_stopped),
        ON_UPDATE(NULL));
 
-bool Sys_var_charptr::global_update(THD *thd, set_var *var)
+bool Sys_var_charptr::global_update(THD*, set_var *var)
 {
   char *new_val, *ptr= var->save_result.string_value.str;
   size_t len=var->save_result.string_value.length;
@@ -3604,7 +3600,7 @@ bool Sys_var_charptr::global_update(THD *thd, set_var *var)
 }
 
 
-bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
+bool Sys_var_enum_binlog_checksum::global_update(THD*, set_var *var)
 {
   bool check_purge= false;
 
@@ -3713,7 +3709,7 @@ bool Sys_var_gtid_set::session_update(THD *thd, set_var *var)
 #endif // HAVE_GTID_NEXT_LIST
 
 
-bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var)
+bool Sys_var_gtid_mode::global_update(THD*, set_var *var)
 {
   DBUG_ENTER("Sys_var_gtid_mode::global_update");
   bool ret= true;
@@ -4109,7 +4105,7 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode, THD *thd)
   check_sub_modes_of_strict_mode(sql_mode, thd);
   return sql_mode;
 }
-static bool check_sql_mode(sys_var *self, THD *thd, set_var *var)
+static bool check_sql_mode(sys_var*, THD *thd, set_var *var)
 {
   var->save_result.ulonglong_value=
     expand_sql_mode(var->save_result.ulonglong_value, thd);
@@ -4130,7 +4126,7 @@ static bool check_sql_mode(sys_var *self, THD *thd, set_var *var)
 
   return false;
 }
-static bool fix_sql_mode(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_sql_mode(sys_var*, THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL && type != OPT_PERSIST)
   {
@@ -4328,7 +4324,7 @@ static Sys_var_ulong Sys_stored_program_def_size(
        DEFAULT(STORED_PROGRAM_DEF_CACHE_DEFAULT),
        BLOCK_SIZE(1));
 
-static bool fix_table_cache_size(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_table_cache_size(sys_var*, THD*, enum_var_type)
 {
   /*
     table_open_cache parameter is a soft limit for total number of objects
@@ -4377,7 +4373,7 @@ static Sys_var_ulong Sys_thread_cache_size(
   transaction.
 */
 
-static bool check_tx_isolation(sys_var *self, THD *thd, set_var *var)
+static bool check_tx_isolation(sys_var*, THD *thd, set_var *var)
 {
   if (var->type == OPT_DEFAULT && (thd->in_active_multi_stmt_transaction() ||
                                    thd->in_sub_stmt))
@@ -4469,7 +4465,7 @@ static Sys_var_tx_isolation Sys_tx_isolation(
   transaction.
 */
 
-static bool check_tx_read_only(sys_var *self, THD *thd, set_var *var)
+static bool check_tx_read_only(sys_var*, THD *thd, set_var *var)
 {
   if (var->type == OPT_DEFAULT && (thd->in_active_multi_stmt_transaction() ||
                                    thd->in_sub_stmt))
@@ -4638,7 +4634,7 @@ static Sys_var_charptr Sys_time_format(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
        DEPRECATED(""));
 
-static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_autocommit(sys_var*, THD *thd, enum_var_type type)
 {
   if (type == OPT_GLOBAL || type == OPT_PERSIST)
   {
@@ -4715,13 +4711,11 @@ static Sys_var_bit Sys_log_off(
   to reflect changes to @@session.sql_log_bin.
 
   @param     thd    Current thread
-  @param[in] self   A pointer to the sys_var, i.e. Sys_log_binlog.
   @param[in] type   The type either session or global.
 
   @return @c FALSE.
 */
-static bool fix_sql_log_bin_after_update(sys_var *self, THD *thd,
-                                         enum_var_type type)
+static bool fix_sql_log_bin_after_update(sys_var*, THD *thd, enum_var_type type)
 {
   DBUG_ASSERT(type == OPT_SESSION);
 
@@ -4869,7 +4863,7 @@ static double read_timestamp(THD *thd)
 }
 
 
-static bool check_timestamp(sys_var *self, THD *thd, set_var *var)
+static bool check_timestamp(sys_var*, THD*, set_var *var)
 {
   double val;
 
@@ -4978,7 +4972,7 @@ static bool update_rand_seed1(THD *thd, set_var *var)
   thd->rand.seed1= (ulong) var->save_result.ulonglong_value;
   return false;
 }
-static ulonglong read_rand_seed(THD *thd)
+static ulonglong read_rand_seed(THD*)
 {
   return 0;
 }
@@ -5097,7 +5091,7 @@ static Sys_var_charptr Sys_license(
        READ_ONLY GLOBAL_VAR(license), NO_CMD_LINE, IN_SYSTEM_CHARSET,
        DEFAULT(STRINGIFY_ARG(LICENSE)));
 
-static bool check_log_path(sys_var *self, THD *thd, set_var *var)
+static bool check_log_path(sys_var *self, THD*, set_var *var)
 {
   if (!var->value)
     return false; // DEFAULT is ok
@@ -5158,7 +5152,7 @@ static bool check_log_path(sys_var *self, THD *thd, set_var *var)
 
   return false;
 }
-static bool fix_general_log_file(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_general_log_file(sys_var*, THD*, enum_var_type)
 {
   if (!opt_general_logname) // SET ... = DEFAULT
   {
@@ -5186,7 +5180,7 @@ static Sys_var_charptr Sys_general_log_path(
        IN_FS_CHARSET, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_log_path), ON_UPDATE(fix_general_log_file));
 
-static bool fix_slow_log_file(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_slow_log_file(sys_var*, THD*, enum_var_type)
 {
   if (!opt_slow_logname) // SET ... = DEFAULT
   {
@@ -5261,7 +5255,7 @@ static Sys_var_have Sys_have_statement_timeout(
        "have_statement_timeout", "have_statement_timeout",
        READ_ONLY GLOBAL_VAR(have_statement_timeout), NO_CMD_LINE);
 
-static bool fix_general_log_state(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_general_log_state(sys_var*, THD *thd, enum_var_type)
 {
   if (query_logger.is_log_file_enabled(QUERY_LOG_GENERAL) == opt_general_log)
     return false;
@@ -5291,7 +5285,7 @@ static Sys_var_bool Sys_general_log(
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_general_log_state));
 
-static bool fix_slow_log_state(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_slow_log_state(sys_var*, THD *thd, enum_var_type)
 {
   if (query_logger.is_log_file_enabled(QUERY_LOG_SLOW) == opt_slow_log)
     return false;
@@ -5322,11 +5316,11 @@ static Sys_var_bool Sys_slow_query_log(
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_slow_log_state));
 
-static bool check_not_empty_set(sys_var *self, THD *thd, set_var *var)
+static bool check_not_empty_set(sys_var*, THD*, set_var *var)
 {
   return var->save_result.ulonglong_value == 0;
 }
-static bool fix_log_output(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_log_output(sys_var*, THD*, enum_var_type)
 {
   query_logger.set_handlers(static_cast<uint>(log_output_options));
   return false;
@@ -5415,7 +5409,7 @@ static Sys_var_charptr Sys_slave_load_tmpdir(
        READ_ONLY GLOBAL_VAR(slave_load_tmpdir), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
 
-static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_slave_net_timeout(sys_var*, THD *thd, enum_var_type)
 {
   DEBUG_SYNC(thd, "fix_slave_net_timeout");
   Master_info *mi;
@@ -5467,7 +5461,7 @@ static Sys_var_uint Sys_slave_net_timeout(
        &PLock_slave_net_timeout, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_slave_net_timeout));
 
-static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
+static bool check_slave_skip_counter(sys_var*, THD*, set_var*)
 {
   /*
     @todo: move this check into the set function and hold the lock on
@@ -5734,7 +5728,7 @@ static Sys_var_ulong Sys_sp_cache_size(
        GLOBAL_VAR(stored_program_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(16, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
 
-static bool check_pseudo_slave_mode(sys_var *self, THD *thd, set_var *var)
+static bool check_pseudo_slave_mode(sys_var*, THD *thd, set_var *var)
 {
   longlong previous_val= thd->variables.pseudo_slave_mode;
   longlong val= (longlong) var->save_result.ulonglong_value;
@@ -5989,14 +5983,14 @@ static Sys_var_enum Sys_block_encryption_mode(
   SESSION_VAR(my_aes_mode), CMD_LINE(REQUIRED_ARG),
   my_aes_opmode_names, DEFAULT(my_aes_128_ecb));
 
-static bool check_track_session_sys_vars(sys_var *self, THD *thd, set_var *var)
+static bool check_track_session_sys_vars(sys_var*, THD *thd, set_var *var)
 {
   DBUG_ENTER("check_sysvar_change_reporter");
   DBUG_RETURN(thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->check(thd, var));
   DBUG_RETURN(false);
 }
 
-static bool update_track_session_sys_vars(sys_var *self, THD *thd,
+static bool update_track_session_sys_vars(sys_var*, THD *thd,
                                           enum_var_type type)
 {
   DBUG_ENTER("check_sysvar_change_reporter");
@@ -6020,8 +6014,7 @@ static Sys_var_charptr Sys_track_session_sys_vars(
        ON_UPDATE(update_track_session_sys_vars)
 );
 
-static bool update_session_track_schema(sys_var *self, THD *thd,
-                                        enum_var_type type)
+static bool update_session_track_schema(sys_var*, THD *thd, enum_var_type)
 {
   DBUG_ENTER("update_session_track_schema");
   DBUG_RETURN(thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->update(thd));
@@ -6036,8 +6029,7 @@ static Sys_var_bool Sys_session_track_schema(
        ON_CHECK(0),
        ON_UPDATE(update_session_track_schema));
 
-static bool update_session_track_tx_info(sys_var *self, THD *thd,
-                                         enum_var_type type)
+static bool update_session_track_tx_info(sys_var*, THD *thd, enum_var_type)
 {
   DBUG_ENTER("update_session_track_tx_info");
   DBUG_RETURN(thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER)->update(thd));
@@ -6060,8 +6052,7 @@ static Sys_var_enum Sys_session_track_transaction_info(
        DEFAULT(OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(update_session_track_tx_info));
 
-static bool update_session_track_state_change(sys_var *self, THD *thd,
-                                              enum_var_type type)
+static bool update_session_track_state_change(sys_var*, THD *thd, enum_var_type)
 {
   DBUG_ENTER("update_session_track_state_change");
   DBUG_RETURN(thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->update(thd));
@@ -6076,7 +6067,7 @@ static Sys_var_bool Sys_session_track_state_change(
        ON_CHECK(0),
        ON_UPDATE(update_session_track_state_change));
 
-static bool handle_offline_mode(sys_var *self, THD *thd, enum_var_type type)
+static bool handle_offline_mode(sys_var*, THD *thd, enum_var_type)
 {
   DBUG_ENTER("handle_offline_mode");
   if (offline_mode == TRUE)

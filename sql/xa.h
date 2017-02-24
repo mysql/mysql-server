@@ -647,13 +647,11 @@ struct st_plugin_int *plugin_find_by_type(const LEX_CSTRING &plugin, int type);
 
   @param[in,out]     thd     Thread context
   @param             plugin  Reference to handlerton
-  @param             unused  Unused
 
   @return    FALSE   on success, TRUE otherwise.
 */
 
-bool detach_native_trx(THD *thd, plugin_ref plugin,
-                       void *unused);
+bool detach_native_trx(THD *thd, plugin_ref plugin, void *);
 
 /**
   Reset some transaction state information and delete corresponding

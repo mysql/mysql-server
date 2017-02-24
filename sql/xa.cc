@@ -104,8 +104,7 @@ void xid_t::set(my_xid xid)
 }
 
 
-static bool xacommit_handlerton(THD *unused1, plugin_ref plugin,
-                                void *arg)
+static bool xacommit_handlerton(THD*, plugin_ref plugin, void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->recover)
@@ -115,8 +114,7 @@ static bool xacommit_handlerton(THD *unused1, plugin_ref plugin,
 }
 
 
-static bool xarollback_handlerton(THD *unused1, plugin_ref plugin,
-                                  void *arg)
+static bool xarollback_handlerton(THD*, plugin_ref plugin, void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->recover)
@@ -126,7 +124,7 @@ static bool xarollback_handlerton(THD *unused1, plugin_ref plugin,
 }
 
 
-static void ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit)
+static void ha_commit_or_rollback_by_xid(THD*, XID *xid, bool commit)
 {
   plugin_foreach(NULL, commit ? xacommit_handlerton : xarollback_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, xid);
@@ -142,8 +140,7 @@ struct xarecover_st
 };
 
 
-static bool xarecover_handlerton(THD *unused, plugin_ref plugin,
-                                 void *arg)
+static bool xarecover_handlerton(THD*, plugin_ref plugin, void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   struct xarecover_st *info= (struct xarecover_st *) arg;
@@ -1319,12 +1316,11 @@ bool applier_reset_xa_trans(THD *thd)
 
   @param[in,out]     thd     Thread context
   @param             plugin  Reference to handlerton
-  @param             unused  Unused
 
   @return    FALSE   on success, TRUE otherwise.
 */
 
-bool detach_native_trx(THD *thd, plugin_ref plugin, void *unused)
+bool detach_native_trx(THD *thd, plugin_ref plugin, void*)
 {
   handlerton *hton= plugin_data<handlerton *>(plugin);
 
