@@ -141,7 +141,7 @@ verify_database() {
 	MYSQLFILES=$(get_mysql_option mysqld secure-file-priv "/var/lib/mysql-files")
 
 	if [ ! -d "${MYSQLDATA}/mysql" ] && [ -d "${MYSQLFILES}" ]; then
-		su - mysql -s /bin/bash -c "mysqld --initialize-insecure > /dev/null"
+		su - mysql -s /bin/bash -c "/usr/sbin/mysqld --initialize-insecure > /dev/null"
 		SQL=$(mktemp -u ${MYSQLFILES}/XXXXXXXXXX)
 		install /dev/null -m0600 -omysql -gmysql "${SQL}"
 		cat << EOF > ${SQL}
