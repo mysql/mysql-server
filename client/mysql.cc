@@ -1616,7 +1616,7 @@ void kill_query(const char *reason)
     goto err;
   }
 
-  interrupted_query ++;
+  interrupted_query= true;
 
   /* mysqld < 5 does not understand KILL QUERY, skip to KILL CONNECTION */
   sprintf(kill_buffer, "KILL %s%lu",
