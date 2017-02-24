@@ -44,26 +44,26 @@ create database mysqltest;
 Got one of the listed errors
 unlock tables;
 create database mysqltest;
-select schema_name from information_schema.schemata where schema_name != 'sys';
+select schema_name from information_schema.schemata where schema_name != 'sys' order by schema_name;
 SCHEMA_NAME
-mysql
 information_schema
+mtr
+mysql
+mysqltest
 performance_schema
 test
-mtr
-mysqltest
 flush tables with read lock;
 drop database mysqltest;
 Got one of the listed errors
 unlock tables;
 drop database mysqltest;
-select schema_name from information_schema.schemata where schema_name != 'sys';
+select schema_name from information_schema.schemata where schema_name != 'sys' order by schema_name;
 SCHEMA_NAME
-mysql
 information_schema
+mtr
+mysql
 performance_schema
 test
-mtr
 drop database mysqltest;
 ERROR HY000: Can't drop database 'mysqltest'; database doesn't exist
 drop table t1;
