@@ -1,0 +1,33 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+################################################################
+# 1. Create clients connections.
+
+################################################################
+# 2. Create initial data.
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT NOT NULL) ENGINE=InnoDB;
+INSERT INTO t1 (c1,c2) VALUES (0,0);
+include/rpl_sync.inc
+
+################################################################
+# 3. Update the same row on server 1 in parallel by all clients.
+
+################################################################
+# 4. Assert that the row has the expected value, the total
+#    number of updates.
+[connection server1]
+include/assert.inc [Table t1 must have 1 entry]
+include/assert.inc [Table t1 entry must have total number of updates as c2 value]
+
+################################################################
+# 5. Disconnect clients connections.
+
+################################################################
+# 6. Clean up,
+DROP TABLE t1;
+include/group_replication_end.inc

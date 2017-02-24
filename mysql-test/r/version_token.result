@@ -1,3 +1,21 @@
+#
+# Bug #23210850: VERSION_TOKEN better protected
+#
+# Define a UDF before installing the plugin
+create function version_tokens_show returns string soname 'version_token.so';
+SELECT version_tokens_show();
+ERROR HY000: Can't initialize function 'version_tokens_show'; version_token plugin is not installed.
+# Testing installing the plugin twice while there's a UDF defined
+INSTALL PLUGIN version_tokens SONAME 'version_token.so';
+UNINSTALL PLUGIN version_tokens;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+INSTALL PLUGIN version_tokens SONAME 'version_token.so';
+UNINSTALL PLUGIN version_tokens;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Should not crash when unloading the so through removing the UDF
+drop function version_tokens_show;
 INSTALL PLUGIN version_tokens SONAME 'version_token.so';
 create function version_tokens_set returns string soname 'version_token.so';
 create function version_tokens_show returns string soname 'version_token.so';

@@ -29,17 +29,14 @@ namespace test
 class Update_statement_builder_impl: public Update_statement_builder
 {
 public:
-  Update_statement_builder_impl(const Update_statement_builder::Update& msg, Query_string_builder &qb)
-  : Update_statement_builder(msg, qb)
-  { m_is_relational = true;}
-
-  void set_document_model() { m_is_relational = false; }
+  Update_statement_builder_impl(Expression_generator &gen) : Update_statement_builder(gen) {}
   using Update_statement_builder::add_operation;
   using Update_statement_builder::add_table_operation;
   using Update_statement_builder::add_document_operation;
   using Update_statement_builder::add_document_operation_item;
   using Update_statement_builder::Operation_list;
   using Update_statement_builder::Operation_item;
+  using Update_statement_builder::Generator;
 };
 
 
@@ -47,24 +44,32 @@ class Update_statement_builder_test : public ::testing::Test
 {
 public:
   Update_statement_builder_test()
-  : builder(msg, query),
-    args(*msg.mutable_args())
+  : args(*msg.mutable_args()),
+    expr_gen(query, args, schema, true),
+    builder(expr_gen),
+    oper(-1)
   {}
   Update_statement_builder::Update msg;
-  Query_string_builder query;
-  Update_statement_builder_impl builder;
   Expression_generator::Args &args;
+  Query_string_builder query;
+  std::string schema;
+  Expression_generator expr_gen;
+  Update_statement_builder_impl builder;
+  int oper;
+
+  enum {DM_DOCUMENT = 0, DM_TABLE = 1};
+
   typedef ::Mysqlx::Crud::UpdateOperation UpdateOperation;
 };
 
 
+
 namespace
 {
-const char* const DOC = "doc";
 
 void operator<< (::google::protobuf::Message &msg, const std::string& txt)
 {
-  ::google::protobuf::TextFormat::ParseFromString(txt, &msg);
+  ASSERT_TRUE(::google::protobuf::TextFormat::ParseFromString(txt, &msg));
 }
 
 const std::string value_ = "value: {type: LITERAL literal {type: ";
@@ -78,7 +83,7 @@ const std::string placeholder_0 = "value: {type: PLACEHOLDER position: 0}";
 TEST_F(Update_statement_builder_test, add_operation_empty_list)
 {
   Update_statement_builder_impl::Operation_list operation;
-  EXPECT_THROW(builder.add_operation(operation), ngs::Error_code);
+  EXPECT_THROW(builder.add_operation(operation, DM_TABLE), ngs::Error_code);
 }
 
 
@@ -101,6 +106,18 @@ TEST_F(Update_statement_builder_test, add_table_operation_two_items)
       "operation: SET "  + value_2;
   EXPECT_NO_THROW(builder.add_table_operation(operation));
   EXPECT_EQ("`xfield`=1,`yfield`='two'", query.get());
+}
+
+
+TEST_F(Update_statement_builder_test, add_table_operation_two_items_same_source)
+{
+  Update_statement_builder_impl::Operation_list operation;
+  *operation.Add() << "source {name: 'xfield'}"
+      "operation: SET " + value_1;;
+  *operation.Add() << "source {name: 'xfield'}"
+      "operation: SET "  + value_2;
+  EXPECT_NO_THROW(builder.add_table_operation(operation));
+  EXPECT_EQ("`xfield`=1,`xfield`='two'", query.get());
 }
 
 
@@ -149,7 +166,7 @@ TEST_F(Update_statement_builder_test, add_operation_one_item_for_table)
   Update_statement_builder_impl::Operation_list operation;
   *operation.Add() << "source {name: 'xfield'}"
         "operation: SET " + value_1;
-  EXPECT_NO_THROW(builder.add_operation(operation));
+  EXPECT_NO_THROW(builder.add_operation(operation, DM_TABLE));
   EXPECT_EQ(" SET `xfield`=1", query.get());
 }
 
@@ -175,7 +192,7 @@ const std::string table_full_message(
 TEST_F(Update_statement_builder_test, build_update_for_table)
 {
   msg << table_full_message + "limit {row_count: 2}";
-  EXPECT_EQ(ngs::Error_code(), builder.build());
+  EXPECT_NO_THROW(builder.build(msg));
   EXPECT_EQ("UPDATE `xschema`.`xtable`"
       " SET `yfield`='booom'"
       " WHERE (`xfield` > 1)"
@@ -186,7 +203,7 @@ TEST_F(Update_statement_builder_test, build_update_for_table)
 TEST_F(Update_statement_builder_test, build_update_for_table_forrbiden_offset_in_limit)
 {
   msg << table_full_message + "limit {row_count: 2 offset: 5}";
-  EXPECT_NE(ngs::Error_code(), builder.build());
+  EXPECT_THROW(builder.build(msg), ngs::Error_code);
 }
 
 
@@ -221,7 +238,7 @@ TEST_F(Update_statement_builder_test, add_document_operation_not_allowed_set)
 {
   Update_statement_builder_impl::Operation_list operation;
   *operation.Add() << source_first + "operation: SET " + value_1;
-  EXPECT_THROW(builder.add_document_operation(operation, DOC), ngs::Error_code);
+  EXPECT_THROW(builder.add_document_operation(operation), ngs::Error_code);
 }
 
 
@@ -229,7 +246,7 @@ TEST_F(Update_statement_builder_test, add_document_operation_remove)
 {
   Update_statement_builder_impl::Operation_list operation;
   *operation.Add() << source_first + "operation: ITEM_REMOVE ";
-  EXPECT_NO_THROW(builder.add_document_operation(operation, DOC));
+  EXPECT_NO_THROW(builder.add_document_operation(operation));
   EXPECT_EQ("doc=JSON_REMOVE(doc,'$.first')", query.get());
 }
 
@@ -238,7 +255,7 @@ TEST_F(Update_statement_builder_test, add_document_operation_set)
 {
   Update_statement_builder_impl::Operation_list operation;
   *operation.Add() << source_first + "operation: ITEM_SET " + value_1;
-  EXPECT_NO_THROW(builder.add_document_operation(operation, DOC));
+  EXPECT_NO_THROW(builder.add_document_operation(operation));
   EXPECT_EQ("doc=JSON_SET(doc,'$.first',1)",
             query.get());
 }
@@ -248,7 +265,7 @@ TEST_F(Update_statement_builder_test, add_document_operation_replace)
 {
   Update_statement_builder_impl::Operation_list operation;
   *operation.Add() << source_first + "operation: ITEM_REPLACE " + value_1;
-  EXPECT_NO_THROW(builder.add_document_operation(operation, DOC));
+  EXPECT_NO_THROW(builder.add_document_operation(operation));
   EXPECT_EQ("doc=JSON_REPLACE(doc,'$.first',1)",
             query.get());
 }
@@ -260,7 +277,7 @@ TEST_F(Update_statement_builder_test, add_document_operation_merge)
   *operation.Add() << source_first +
       "operation: ITEM_MERGE "
       "value {type: LITERAL literal {type: V_OCTETS v_octets {value: '{\\\"two\\\": 2.0}'}}}";
-  ASSERT_NO_THROW(builder.add_document_operation(operation, DOC));
+  ASSERT_NO_THROW(builder.add_document_operation(operation));
   EXPECT_EQ(
       "doc=JSON_MERGE(doc,IF(JSON_TYPE('{\\\"two\\\": 2.0}')='OBJECT',"
       "JSON_REMOVE('{\\\"two\\\": 2.0}','$._id'),'_ERROR_'))",
@@ -272,7 +289,7 @@ TEST_F(Update_statement_builder_test, add_document_operation_array_insert)
 {
   Update_statement_builder_impl::Operation_list operation;
   *operation.Add() << source_index_first_0 + "operation: ARRAY_INSERT " + value_1;
-  EXPECT_NO_THROW(builder.add_document_operation(operation, DOC));
+  EXPECT_NO_THROW(builder.add_document_operation(operation));
   EXPECT_EQ("doc=JSON_ARRAY_INSERT(doc,'$.first[0]',1)",
         query.get());
 }
@@ -282,7 +299,7 @@ TEST_F(Update_statement_builder_test, add_document_operation_array_append)
 {
   Update_statement_builder_impl::Operation_list operation;
   *operation.Add() << source_first + "operation: ARRAY_APPEND " + value_1;
-  EXPECT_NO_THROW(builder.add_document_operation(operation, DOC));
+  EXPECT_NO_THROW(builder.add_document_operation(operation));
   EXPECT_EQ("doc=JSON_ARRAY_APPEND(doc,'$.first',1)",
             query.get());
 }
@@ -293,7 +310,7 @@ TEST_F(Update_statement_builder_test, add_document_operation_array_append_twice)
   Update_statement_builder_impl::Operation_list operation;
   *operation.Add() << source_first + "operation: ARRAY_APPEND " + value_1;
   *operation.Add() << source_first + "operation: ARRAY_APPEND " + value_2;
-  EXPECT_NO_THROW(builder.add_document_operation(operation, DOC));
+  EXPECT_NO_THROW(builder.add_document_operation(operation));
   EXPECT_EQ("doc=JSON_ARRAY_APPEND(doc,'$.first',1,'$.first','two')",
             query.get());
 }
@@ -304,7 +321,7 @@ TEST_F(Update_statement_builder_test, add_document_operation_remove_twice)
   Update_statement_builder_impl::Operation_list operation;
   *operation.Add() << source_first + "operation: ITEM_REMOVE ";
   *operation.Add() << source_second + "operation: ITEM_REMOVE ";
-  EXPECT_NO_THROW(builder.add_document_operation(operation, DOC));
+  EXPECT_NO_THROW(builder.add_document_operation(operation));
   EXPECT_EQ("doc=JSON_REMOVE(doc,'$.first','$.second')",
             query.get());
 }
@@ -315,7 +332,7 @@ TEST_F(Update_statement_builder_test, add_document_operation_set_twice)
   Update_statement_builder_impl::Operation_list operation;
   *operation.Add() << source_first + "operation: ITEM_SET " + value_1;
   *operation.Add() << source_second + "operation: ITEM_SET " + value_2;
-  EXPECT_NO_THROW(builder.add_document_operation(operation, DOC));
+  EXPECT_NO_THROW(builder.add_document_operation(operation));
   EXPECT_EQ("doc=JSON_SET(doc,'$.first',1,'$.second','two')",
             query.get());
 }
@@ -328,7 +345,7 @@ TEST_F(Update_statement_builder_test, add_document_operation_set_twice_placehold
   Update_statement_builder_impl::Operation_list operation;
   *operation.Add() << source_first + "operation: ITEM_SET " + value_1;
   *operation.Add() << source_second + "operation: ITEM_SET " + placeholder_0;
-  EXPECT_NO_THROW(builder.add_document_operation(operation, DOC));
+  EXPECT_NO_THROW(builder.add_document_operation(operation));
   EXPECT_EQ("doc=JSON_SET(doc,'$.first',1,'$.second',2.2)",
             query.get());
 }
@@ -341,7 +358,7 @@ TEST_F(Update_statement_builder_test, add_document_operation_merge_twice)
       "value {type: LITERAL literal {type: V_OCTETS v_octets {value: '{\\\"two\\\": 2.0}'}}}";
   *operation.Add() << "source {} operation: ITEM_MERGE "
       "value {type: LITERAL literal {type: V_OCTETS v_octets {value: '{\\\"three\\\": 3.0}'}}}";
-  ASSERT_NO_THROW(builder.add_document_operation(operation, DOC));
+  ASSERT_NO_THROW(builder.add_document_operation(operation));
   EXPECT_EQ(
       "doc=JSON_MERGE(doc,IF(JSON_TYPE('{\\\"two\\\": 2.0}')='OBJECT',"
       "JSON_REMOVE('{\\\"two\\\": 2.0}','$._id'),'_ERROR_'),"
@@ -356,7 +373,7 @@ TEST_F(Update_statement_builder_test, add_document_operation_remove_set)
   Update_statement_builder_impl::Operation_list operation;
   *operation.Add() << source_first + "operation: ITEM_REMOVE ";
   *operation.Add() << source_second + "operation: ITEM_SET " + value_2;
-  EXPECT_NO_THROW(builder.add_document_operation(operation, DOC));
+  EXPECT_NO_THROW(builder.add_document_operation(operation));
   EXPECT_EQ("doc=JSON_SET(JSON_REMOVE(doc,'$.first'),'$.second','two')",
             query.get());
 }
@@ -368,7 +385,7 @@ TEST_F(Update_statement_builder_test, add_document_operation_remove_twice_set)
   *operation.Add() << source_first + "operation: ITEM_REMOVE ";
   *operation.Add() << source_second + "operation: ITEM_REMOVE ";
   *operation.Add() << source_third + "operation: ITEM_SET " + value_3;
-  EXPECT_NO_THROW(builder.add_document_operation(operation, DOC));
+  EXPECT_NO_THROW(builder.add_document_operation(operation));
   EXPECT_EQ("doc=JSON_SET(JSON_REMOVE(doc,'$.first','$.second'),'$.third',-3)",
             query.get());
 }
@@ -380,7 +397,7 @@ TEST_F(Update_statement_builder_test, add_document_operation_set_remove_set)
   *operation.Add() << source_first + "operation: ITEM_SET " + value_1;
   *operation.Add() << source_second + "operation: ITEM_REMOVE ";
   *operation.Add() << source_third + "operation: ITEM_SET "  + value_3;
-  EXPECT_NO_THROW(builder.add_document_operation(operation, DOC));
+  EXPECT_NO_THROW(builder.add_document_operation(operation));
   EXPECT_EQ("doc=JSON_SET(JSON_REMOVE("
             "JSON_SET(doc,'$.first',1),'$.second'),'$.third',-3)",
             query.get());
@@ -393,7 +410,7 @@ TEST_F(Update_statement_builder_test, add_document_operation_set_merge)
   *operation.Add() << source_first + "operation: ITEM_SET " + value_1;
   *operation.Add() << "source {} operation: ITEM_MERGE "
       "value {type: LITERAL literal {type: V_OCTETS v_octets {value: '{\\\"three\\\": 3.0}'}}}";
-  ASSERT_NO_THROW(builder.add_document_operation(operation, DOC));
+  ASSERT_NO_THROW(builder.add_document_operation(operation));
   EXPECT_EQ(
       "doc=JSON_MERGE(JSON_SET(doc,'$.first',1),"
       "IF(JSON_TYPE('{\\\"three\\\": 3.0}')='OBJECT',"
@@ -404,163 +421,119 @@ TEST_F(Update_statement_builder_test, add_document_operation_set_merge)
 
 TEST_F(Update_statement_builder_test, add_document_operation_item_forbiden_column)
 {
-  Update_statement_builder_impl::Builder bld(query, args, "", true);
-  int oper = -1;
-  bool synch = true;
   Update_statement_builder_impl::Operation_item operation;
   operation << "source {name: 'xcolumn'} operation: ITEM_SET " + value_3;
-  ASSERT_THROW(builder.add_document_operation_item(operation, bld, synch, oper),
+  ASSERT_THROW(builder.add_document_operation_item(operation, oper),
                ngs::Error_code);
   ASSERT_EQ(UpdateOperation::ITEM_SET, oper);
-  EXPECT_TRUE(synch);
 }
 
 
 TEST_F(Update_statement_builder_test, add_document_operation_item_forbiden_schema)
 {
-  Update_statement_builder_impl::Builder bld(query, args, "", true);
-  int oper = -1;
-  bool synch = true;
   Update_statement_builder_impl::Operation_item operation;
   operation << "source {schema_name: 'xschema'} operation: ITEM_SET "
       + value_3;
-  ASSERT_THROW(builder.add_document_operation_item(operation, bld, synch, oper),
+  ASSERT_THROW(builder.add_document_operation_item(operation, oper),
                ngs::Error_code);
   ASSERT_EQ(UpdateOperation::ITEM_SET, oper);
-  EXPECT_TRUE(synch);
 }
 
 
 TEST_F(Update_statement_builder_test, add_document_operation_item_forbiden_table)
 {
-  Update_statement_builder_impl::Builder bld(query, args, "", true);
-  int oper = -1;
-  bool synch = true;
   Update_statement_builder_impl::Operation_item operation;
   operation << "source {table_name: 'xtable'} operation: ITEM_SET "
       + value_3;
-  ASSERT_THROW(builder.add_document_operation_item(operation, bld, synch, oper),
+  ASSERT_THROW(builder.add_document_operation_item(operation, oper),
                ngs::Error_code);
   ASSERT_EQ(UpdateOperation::ITEM_SET, oper);
-  EXPECT_TRUE(synch);
 }
 
 
 TEST_F(Update_statement_builder_test, add_document_operation_item_forbiden_id_change)
 {
-  Update_statement_builder_impl::Builder bld(query, args, "", true);
-  int oper = -1;
-  bool synch = true;
   Update_statement_builder_impl::Operation_item operation;
   operation << "source {document_path {type: MEMBER value: '_id'}} operation: ITEM_SET "
       + value_3;
-  ASSERT_THROW(builder.add_document_operation_item(operation, bld, synch, oper),
+  ASSERT_THROW(builder.add_document_operation_item(operation, oper),
                ngs::Error_code);
   ASSERT_EQ(UpdateOperation::ITEM_SET, oper);
-  EXPECT_TRUE(synch);
 }
 
 
 TEST_F(Update_statement_builder_test, add_document_operation_item_empty_document_path)
 {
-  Update_statement_builder_impl::Builder bld(query, args, "", true);
-  int oper = -1;
-  bool synch = true;
   Update_statement_builder_impl::Operation_item operation;
   operation << "source {} operation: ITEM_SET " + value_3;
-  ASSERT_THROW(builder.add_document_operation_item(operation, bld, synch, oper),
+  ASSERT_THROW(builder.add_document_operation_item(operation, oper),
                ngs::Error_code);
   ASSERT_EQ(UpdateOperation::ITEM_SET, oper);
-  EXPECT_TRUE(synch);
 }
 
 
 TEST_F(Update_statement_builder_test, add_document_operation_item_root_path)
 {
-  Update_statement_builder_impl::Builder bld(query, args, "", true);
-  int oper = -1;
-  bool synch = true;
   Update_statement_builder_impl::Operation_item operation;
   operation << "source {document_path {type: MEMBER value: ''}} operation: ITEM_SET " + value_3;
-  ASSERT_NO_THROW(builder.add_document_operation_item(operation, bld, synch, oper));
+  ASSERT_NO_THROW(builder.add_document_operation_item(operation, oper));
   ASSERT_EQ(UpdateOperation::ITEM_SET, oper);
-  EXPECT_FALSE(synch);
 }
 
 
 TEST_F(Update_statement_builder_test, add_document_operation_item_empty_member)
 {
-  Update_statement_builder_impl::Builder bld(query, args, "", true);
-  int oper = -1;
-  bool synch = true;
   Update_statement_builder_impl::Operation_item operation;
   operation << "source {document_path {type: MEMBER value: 'first'} "
       "document_path {type: MEMBER value: ''}} "
       "operation: ITEM_SET " + value_3;
-  ASSERT_THROW(builder.add_document_operation_item(operation, bld, synch, oper),
+  ASSERT_THROW(builder.add_document_operation_item(operation, oper),
                xpl::Expression_generator::Error);
   ASSERT_EQ(UpdateOperation::ITEM_SET, oper);
-  EXPECT_TRUE(synch);
 }
 
 
 TEST_F(Update_statement_builder_test, add_document_operation_item_empty_member_reverse)
 {
-  Update_statement_builder_impl::Builder bld(query, args, "", true);
-  int oper = -1;
-  bool synch = true;
   Update_statement_builder_impl::Operation_item operation;
   operation << "source {document_path {type: MEMBER value: ''} "
       "document_path {type: MEMBER value: 'first'}} "
       "operation: ITEM_SET " + value_3;
-  ASSERT_THROW(builder.add_document_operation_item(operation, bld, synch, oper),
+  ASSERT_THROW(builder.add_document_operation_item(operation, oper),
                xpl::Expression_generator::Error);
   ASSERT_EQ(UpdateOperation::ITEM_SET, oper);
-  EXPECT_TRUE(synch);
 }
 
 
 TEST_F(Update_statement_builder_test, add_document_operation_item_root_as_array)
 {
-  Update_statement_builder_impl::Builder bld(query, args, "", true);
-  int oper = -1;
-  bool synch = true;
   Update_statement_builder_impl::Operation_item operation;
   operation << source_index_0 + "operation: ITEM_SET " + value_3;
-  ASSERT_THROW(builder.add_document_operation_item(operation, bld, synch, oper),
+  ASSERT_THROW(builder.add_document_operation_item(operation, oper),
                ngs::Error_code);
   ASSERT_EQ(UpdateOperation::ITEM_SET, oper);
-  EXPECT_TRUE(synch);
 }
 
 
 TEST_F(Update_statement_builder_test, add_document_operation_item_root_as_array_asterisk)
 {
-  Update_statement_builder_impl::Builder bld(query, args, "", true);
-  int oper = -1;
-  bool synch = true;
   Update_statement_builder_impl::Operation_item operation;
   operation << "source {document_path {type: ARRAY_INDEX_ASTERISK}} "
       "operation: ITEM_SET " + value_3;
-  ASSERT_THROW(builder.add_document_operation_item(operation, bld, synch, oper),
+  ASSERT_THROW(builder.add_document_operation_item(operation, oper),
                ngs::Error_code);
   ASSERT_EQ(UpdateOperation::ITEM_SET, oper);
-  EXPECT_TRUE(synch);
 }
 
 
 TEST_F(Update_statement_builder_test, add_document_operation_item_root_double_asterisk)
 {
-  Update_statement_builder_impl::Builder bld(query, args, "", true);
-  int oper = -1;
-  bool synch = true;
   Update_statement_builder_impl::Operation_item operation;
   operation << "source {document_path {type: DOUBLE_ASTERISK}} "
       "operation: ITEM_SET " + value_3;
-  ASSERT_THROW(builder.add_document_operation_item(operation, bld, synch, oper),
+  ASSERT_THROW(builder.add_document_operation_item(operation, oper),
                ngs::Error_code);
   ASSERT_EQ(UpdateOperation::ITEM_SET, oper);
-  EXPECT_TRUE(synch);
 }
 
 
@@ -568,8 +541,7 @@ TEST_F(Update_statement_builder_test, add_operation_one_item_for_document)
 {
   Update_statement_builder_impl::Operation_list operation;
   *operation.Add() << source_first + "operation: ITEM_SET " + value_1;
-  builder.set_document_model();
-  EXPECT_NO_THROW(builder.add_operation(operation));
+  EXPECT_NO_THROW(builder.add_operation(operation, DM_DOCUMENT));
   EXPECT_EQ(" SET doc=JSON_SET(doc,'$.first',1)",
             query.get());
 }
@@ -578,8 +550,7 @@ TEST_F(Update_statement_builder_test, add_operation_one_item_for_document)
 TEST_F(Update_statement_builder_test, build_update_for_document)
 {
   msg << document_full_message + "limit {row_count: 2}";
-  builder.set_document_model();
-  EXPECT_EQ(ngs::Error_code(), builder.build());
+  EXPECT_NO_THROW(builder.build(msg));
   EXPECT_EQ("UPDATE `xschema`.`xtable` "
       "SET doc=JSON_SET(doc,'$.first',1) "
       "WHERE (JSON_EXTRACT(doc,'$.second') > 1) "
@@ -625,8 +596,8 @@ TEST_F(Update_statement_builder_test, add_document_operation_set_whole_doc)
 {
   Update_statement_builder_impl::Operation_list operation;
   *operation.Add() << get_operation("", "$", "ITEM_SET", value_2);
-  EXPECT_NO_THROW(builder.add_document_operation(operation, DOC));
-  EXPECT_EQ("doc=JSON_SET(JSON_SET(doc,'$.','two'),'$._id',_id)",
+  EXPECT_NO_THROW(builder.add_document_operation(operation));
+  EXPECT_EQ("doc=JSON_SET(doc,'$','two')",
             query.get());
 }
 

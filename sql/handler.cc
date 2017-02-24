@@ -88,8 +88,9 @@
           case PSI_BATCH_MODE_NONE:                           \
           {                                                   \
             PSI_table_locker *sub_locker= NULL;               \
+            PSI_table_locker_state reentrant_safe_state;      \
             sub_locker= PSI_TABLE_CALL(start_table_io_wait)   \
-              (& m_psi_locker_state, m_psi, OP, INDEX,        \
+              (& reentrant_safe_state, m_psi, OP, INDEX,      \
                __FILE__, __LINE__);                           \
             PAYLOAD                                           \
             if (sub_locker != NULL)                           \
@@ -1370,6 +1371,16 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
   Ha_trx_info *knownn_trans= trn_ctx->ha_trx_info(trx_scope);
   if (all)
   {
+    /*
+      Ensure no active backup engine data exists, unless the current transaction
+      is from replication and in active xa state.
+    */
+    DBUG_ASSERT(thd->ha_data[ht_arg->slot].ha_ptr_backup == NULL ||
+                (thd->get_transaction()->xid_state()->
+                 has_state(XID_STATE::XA_ACTIVE)));
+    DBUG_ASSERT(thd->ha_data[ht_arg->slot].ha_ptr_backup == NULL ||
+                (thd->is_binlog_applier() || thd->slave_thread));
+
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     if (thd->tx_read_only)
       thd->server_status|= SERVER_STATUS_IN_TRANS_READONLY;
@@ -1756,14 +1767,13 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
       release_mdl= true;
 
       DEBUG_SYNC(thd, "ha_commit_trans_after_acquire_commit_lock");
-    }
 
-    if (rw_trans && stmt_has_updated_trans_table(ha_info)
-        && check_readonly(thd, true))
-    {
-      ha_rollback_trans(thd, all);
-      error= 1;
-      goto end;
+      if (stmt_has_updated_trans_table(ha_info) && check_readonly(thd, true))
+      {
+        ha_rollback_trans(thd, all);
+        error= 1;
+        goto end;
+      }
     }
 
     if (!trn_ctx->no_2pc(trx_scope) && (trn_ctx->rw_ha_count(trx_scope) > 1))
@@ -1864,23 +1874,22 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
   Transaction_ctx::enum_trx_scope trx_scope=
     all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
   Ha_trx_info *ha_info= trn_ctx->ha_trx_info(trx_scope), *ha_info_next;
-  bool restore_backup_trx= false;
 
   DBUG_ENTER("ha_commit_low");
 
   if (ha_info)
   {
+    bool restore_backup_ha_data= false;
     /*
-      binlog applier thread can execute XA COMMIT and it would
-      have to restore its local thread native transaction
-      context, previously saved at XA START.
+      At execution of XA COMMIT ONE PHASE binlog or slave applier
+      reattaches the engine ha_data to THD, previously saved at XA START.
     */
-    if (thd->lex->sql_command == SQLCOM_XA_COMMIT &&
-        thd->binlog_applier_has_detached_trx())
+    if (all && thd->rpl_unflag_detached_engine_ha_data())
     {
-      DBUG_ASSERT(all && static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->
+      DBUG_ASSERT(thd->lex->sql_command == SQLCOM_XA_COMMIT);
+      DBUG_ASSERT(static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->
                   get_xa_opt() == XA_ONE_PHASE);
-      restore_backup_trx= true;
+      restore_backup_ha_data= true;
     }
 
     for (; ha_info; ha_info= ha_info_next)
@@ -1894,14 +1903,8 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
       }
       thd->status_var.ha_commit_count++;
       ha_info_next= ha_info->next();
-
-      if (restore_backup_trx && ht->replace_native_transaction_in_thd)
-      {
-        void **trx_backup= thd_ha_data_backup(thd, ht);
-
-        ht->replace_native_transaction_in_thd(thd, *trx_backup, NULL);
-        *trx_backup= NULL;
-      }
+      if (restore_backup_ha_data)
+        reattach_engine_ha_data_to_thd(thd, ht);
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
     trn_ctx->reset_scope(trx_scope);
@@ -1948,6 +1951,19 @@ int ha_rollback_low(THD *thd, bool all)
 
   if (ha_info)
   {
+    bool restore_backup_ha_data= false;
+    /*
+      Similarly to the commit case, the binlog or slave applier
+      reattaches the engine ha_data to THD.
+    */
+    if (all && thd->rpl_unflag_detached_engine_ha_data())
+    {
+      DBUG_ASSERT(trn_ctx->xid_state()->get_state() != XID_STATE::XA_NOTR ||
+                  thd->killed == THD::KILL_CONNECTION);
+
+      restore_backup_ha_data= true;
+    }
+
     for (; ha_info; ha_info= ha_info_next)
     {
       int err;
@@ -1959,6 +1975,8 @@ int ha_rollback_low(THD *thd, bool all)
       }
       thd->status_var.ha_rollback_count++;
       ha_info_next= ha_info->next();
+      if (restore_backup_ha_data)
+        reattach_engine_ha_data_to_thd(thd, ht);
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
     trn_ctx->reset_scope(trx_scope);
@@ -1967,8 +1985,22 @@ int ha_rollback_low(THD *thd, bool all)
   /*
     Thanks to possibility of MDL deadlock rollback request can come even if
     transaction hasn't been started in any transactional storage engine.
+
+    It is possible to have a call of ha_rollback_low() while handling
+    failure from ha_prepare() and an error in Daignostics_area still
+    wasn't set. Therefore it is required to check that an error in
+    Diagnostics_area is set before calling the method XID_STATE::set_error().
+
+    If it wasn't done it would lead to failure of the assertion
+      DBUG_ASSERT(m_status == DA_ERROR)
+    in the method Diagnostics_area::mysql_errno().
+
+    In case ha_prepare is failed and an error wasn't set in Diagnostics_area
+    the error ER_XA_RBROLLBACK is set in the Diagnostics_area from
+    the method Sql_cmd_xa_prepare::trans_xa_prepare() when non-zero result code
+    returned by ha_prepare() is handled.
   */
-  if (all && thd->transaction_rollback_request)
+  if (all && thd->transaction_rollback_request && thd->is_error())
     trn_ctx->xid_state()->set_error(thd);
 
   (void) RUN_HOOK(transaction, after_rollback, (thd, all));
@@ -7406,6 +7438,60 @@ int handler::compare_key_icp(const key_range *range) const
   return cmp;
 }
 
+/**
+  Change the offsets of all the fields in a key range.
+
+  @param range	  the key range
+  @param key_part the first key part
+  @param diff	  how much to change the offsets with
+*/
+static inline void
+move_key_field_offsets(const key_range *range, const KEY_PART_INFO *key_part,
+		       my_ptrdiff_t diff)
+{
+  for (size_t len= 0; len < range->length;
+       len+= key_part->store_length, ++key_part)
+    key_part->field->move_field_offset(diff);
+}
+
+/**
+  Check if the key in the given buffer (which is not necessarily
+  TABLE::record[0]) is within range. Called by the storage engine to
+  avoid reading too many rows.
+
+  @param buf  the buffer that holds the key
+  @retval -1 if the key is within the range
+  @retval  0 if the key is equal to the end_range key, and
+             key_compare_result_on_equal is 0
+  @retval  1 if the key is outside the range
+*/
+int handler::compare_key_in_buffer(const uchar *buf) const
+{
+  DBUG_ASSERT(end_range != NULL);
+
+  /*
+    End range on descending scans is only checked with ICP for now, and then we
+    check it with compare_key_icp() instead of this function.
+  */
+  DBUG_ASSERT(range_scan_direction == RANGE_SCAN_ASC);
+
+  // Make the fields in the key point into the buffer instead of record[0].
+  const my_ptrdiff_t diff= buf - table->record[0];
+  if (diff != 0)
+    move_key_field_offsets(end_range, range_key_part, diff);
+
+  // Compare the key in buf against end_range.
+  int cmp= key_cmp(range_key_part, end_range->key, end_range->length);
+  if (cmp == 0)
+    cmp= key_compare_result_on_equal;
+
+  // Reset the field offsets.
+  if (diff != 0)
+    move_key_field_offsets(end_range, range_key_part, -diff);
+
+  return cmp;
+}
+
 int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                 key_part_map keypart_map,
                                 enum ha_rkey_function find_flag)
@@ -8425,9 +8511,17 @@ bool handler::my_eval_gcolumn_expr(THD *thd, TABLE *table,
 
 struct HTON_NOTIFY_PARAMS
 {
+  HTON_NOTIFY_PARAMS(const MDL_key *mdl_key,
+                     ha_notification_type mdl_type)
+    : key(mdl_key), notification_type(mdl_type),
+      some_htons_were_notified(false),
+      victimized(false)
+  {}
+
   const MDL_key *key;
   const ha_notification_type notification_type;
   bool some_htons_were_notified;
+  bool victimized;
 };
 
 
@@ -8440,7 +8534,8 @@ notify_exclusive_mdl_helper(THD *thd, plugin_ref plugin, void *arg)
     HTON_NOTIFY_PARAMS *params= reinterpret_cast<HTON_NOTIFY_PARAMS*>(arg);
 
     if (hton->notify_exclusive_mdl(thd, params->key,
-                                   params->notification_type))
+                                   params->notification_type,
+                                   &params->victimized))
     {
       // Ignore failures from post event notification.
       if (params->notification_type == HA_NOTIFY_PRE_EVENT)
@@ -8463,6 +8558,8 @@ notify_exclusive_mdl_helper(THD *thd, plugin_ref plugin, void *arg)
                             lock is to be acquired/was released.
   @param notification_type  Indicates whether this is pre-acquire or
                             post-release notification.
+  @param victimized        'true' if locking failed as we were selected
+                            as a victim in order to avoid possible deadlocks.
 
   @note @see handlerton::notify_exclusive_mdl for details about
         calling convention and error reporting.
@@ -8472,12 +8569,15 @@ notify_exclusive_mdl_helper(THD *thd, plugin_ref plugin, void *arg)
 */
 
 bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
-                             ha_notification_type notification_type)
+                             ha_notification_type notification_type,
+                             bool *victimized)
 {
-  HTON_NOTIFY_PARAMS params = {mdl_key, notification_type, false};
+  HTON_NOTIFY_PARAMS params(mdl_key, notification_type);
+  *victimized = false;
   if (plugin_foreach(thd, notify_exclusive_mdl_helper,
                      MYSQL_STORAGE_ENGINE_PLUGIN, &params))
   {
+    *victimized = params.victimized;
     /*
       If some SE hasn't given its permission to acquire lock and some SEs
       has given their permissions, we need to notify the latter group about
@@ -8487,8 +8587,7 @@ bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
     if (notification_type == HA_NOTIFY_PRE_EVENT &&
         params.some_htons_were_notified)
     {
-      HTON_NOTIFY_PARAMS rollback_params = {mdl_key, HA_NOTIFY_POST_EVENT,
-                                            false};
+      HTON_NOTIFY_PARAMS rollback_params(mdl_key, HA_NOTIFY_POST_EVENT);
       (void) plugin_foreach(thd, notify_exclusive_mdl_helper,
                             MYSQL_STORAGE_ENGINE_PLUGIN, &rollback_params);
     }
@@ -8539,7 +8638,7 @@ notify_alter_table_helper(THD *thd, plugin_ref plugin, void *arg)
 bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
                            ha_notification_type notification_type)
 {
-  HTON_NOTIFY_PARAMS params = {mdl_key, notification_type, false};
+  HTON_NOTIFY_PARAMS params(mdl_key, notification_type);
 
   if (plugin_foreach(thd, notify_alter_table_helper,
                      MYSQL_STORAGE_ENGINE_PLUGIN, &params))
@@ -8553,8 +8652,7 @@ bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
     if (notification_type == HA_NOTIFY_PRE_EVENT &&
         params.some_htons_were_notified)
     {
-      HTON_NOTIFY_PARAMS rollback_params = {mdl_key, HA_NOTIFY_POST_EVENT,
-                                            false};
+      HTON_NOTIFY_PARAMS rollback_params(mdl_key, HA_NOTIFY_POST_EVENT);
       (void) plugin_foreach(thd, notify_alter_table_helper,
                             MYSQL_STORAGE_ENGINE_PLUGIN, &rollback_params);
     }

@@ -1,0 +1,111 @@
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+########################################################
+# 1. Start a single server
+#######################################################
+
+## START SERVER 1
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+include/gr_wait_primary_member_uuid.inc
+
+## START SERVERS 2-4
+[connection server2]
+include/start_group_replication.inc
+include/gr_wait_primary_member_uuid.inc
+[connection server3]
+include/start_group_replication.inc
+include/gr_wait_primary_member_uuid.inc
+[connection server4]
+include/start_group_replication.inc
+include/gr_wait_primary_member_uuid.inc
+
+## TRY TO CREATE TABLES test1 TO test4 ON CORESPONDING SERVERS 1-4
+[connection server1]
+CREATE TABLE test1(`id` INT PRIMARY KEY AUTO_INCREMENT, `name` VARCHAR(255) NOT NULL);;
+INSERT INTO test1(`name`) VALUES("First ROW"), ("Second ROW"), ("Third ROW");;
+INSERT INTO test1(`name`) VALUES("First ROW created in second query"), ("Second ROW created in second query");;
+UPDATE test1 SET `name`="2 ROW" WHERE `name` LIKE '%Second%';;
+include/rpl_sync.inc
+[connection server2]
+CREATE TABLE test2(`id` INT PRIMARY KEY AUTO_INCREMENT, `name` VARCHAR(255) NOT NULL);;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+INSERT INTO test2(`name`) VALUES("First ROW"), ("Second ROW"), ("Third ROW");;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+INSERT INTO test2(`name`) VALUES("First ROW created in second query"), ("Second ROW created in second query");;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+UPDATE test2 SET `name`="2 ROW" WHERE `name` LIKE '%Second%';;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+include/rpl_sync.inc
+[connection server3]
+CREATE TABLE test3(`id` INT PRIMARY KEY AUTO_INCREMENT, `name` VARCHAR(255) NOT NULL);;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+INSERT INTO test3(`name`) VALUES("First ROW"), ("Second ROW"), ("Third ROW");;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+INSERT INTO test3(`name`) VALUES("First ROW created in second query"), ("Second ROW created in second query");;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+UPDATE test3 SET `name`="2 ROW" WHERE `name` LIKE '%Second%';;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+include/rpl_sync.inc
+[connection server4]
+CREATE TABLE test4(`id` INT PRIMARY KEY AUTO_INCREMENT, `name` VARCHAR(255) NOT NULL);;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+INSERT INTO test4(`name`) VALUES("First ROW"), ("Second ROW"), ("Third ROW");;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+INSERT INTO test4(`name`) VALUES("First ROW created in second query"), ("Second ROW created in second query");;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+UPDATE test4 SET `name`="2 ROW" WHERE `name` LIKE '%Second%';;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+include/rpl_sync.inc
+
+## STOP SERVER 1 AND START IT AGAIN (MAKE IT TO SECONDARY NODE)
+[connection server1]
+include/stop_group_replication.inc
+include/start_group_replication.inc
+
+## FIND NEW PRIMARY SERVER AND INSERT DATA ON PRIMARY
+include/gr_find_a_primary.inc
+INSERT INTO test1(`name`) VALUES("First ROW created in third query"), ("Second ROW created in third query");
+INSERT INTO test1(`name`) VALUES("First ROW created in fourth query"), ("Second ROW created in fourth query");
+UPDATE test1 SET `name`="3 query" WHERE `name` LIKE '%third query%';
+UPDATE test1 SET `name`="Second ROW" WHERE `name` LIKE '%2 ROW%';
+include/rpl_sync.inc
+
+## CHECK SECONDARY SERVERS THAT ARE SET IN READ ONLY MODE
+TRUNCATE TABLE `test1`;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+TRUNCATE TABLE `test1`;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+TRUNCATE TABLE `test1`;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+
+## CHECK IF TABLE test1 IS IT PRESENT ON ALL SERVERS
+[connection new primary]
+SELECT * FROM test1;
+id	name
+1	First ROW
+2	Second ROW
+3	Third ROW
+4	Second ROW
+5	Second ROW
+6	3 query
+7	3 query
+8	First ROW created in fourth query
+9	Second ROW created in fourth query
+include/diff_tables.inc [server1:test1, server2:test1]
+include/diff_tables.inc [server1:test1, server3:test1]
+include/diff_tables.inc [server1:test1, server4:test1]
+
+## CHECK TABLE test2-4, THEY SHOULDN'T BE THERE
+include/assert.inc ['Number of tables in current schema should be equal 1, it should be only "test1" table']
+include/assert.inc ['Number of tables in current schema should be equal 1, it should be only "test1" table']
+include/assert.inc ['Number of tables in current schema should be equal 1, it should be only "test1" table']
+include/assert.inc ['Number of tables in current schema should be equal 1, it should be only "test1" table']
+
+## CLEANUP
+DROP TABLE `test1`;
+include/rpl_sync.inc
+include/group_replication_end.inc

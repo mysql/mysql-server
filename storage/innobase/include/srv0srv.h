@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -378,6 +378,7 @@ extern unsigned long long	srv_stats_transient_sample_pages;
 extern my_bool			srv_stats_persistent;
 extern unsigned long long	srv_stats_persistent_sample_pages;
 extern my_bool			srv_stats_auto_recalc;
+extern my_bool			srv_stats_include_delete_marked;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ulong	srv_doublewrite_batch_size;
@@ -481,7 +482,7 @@ extern mysql_pfs_key_t	trx_rollback_clean_thread_key;
 schema */
 #  define pfs_register_thread(key)			\
 do {								\
-	struct PSI_thread* psi = PSI_THREAD_CALL(new_thread)(key, NULL, 0);\
+	struct PSI_thread* psi = PSI_THREAD_CALL(new_thread)(key.m_value, NULL, 0);\
 	PSI_THREAD_CALL(set_thread_os_id)(psi);			\
 	PSI_THREAD_CALL(set_thread)(psi);			\
 } while (0)
@@ -837,6 +838,13 @@ srv_is_tablespace_truncated(ulint space_id);
 MLOG_TRUNCATE REDO log record. */
 bool
 srv_was_tablespace_truncated(const fil_space_t* space);
+
+/** Check whether given space id is undo tablespace id
+@param[in]	space_id	space id to check
+@return true if it is undo tablespace else false. */
+bool
+srv_is_undo_tablespace(
+	ulint	space_id);
 
 #ifdef UNIV_DEBUG
 /** Disables master thread. It's used by:

@@ -700,3 +700,34 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 --echo # End of test for Bug#18698556
+
+--echo #
+--echo # Bug#21032418: PERFORMANCE REGRESSION IN 5.6: UPDATE DOES NOT USE INDEX
+--echo #
+
+CREATE TABLE t1(
+id INTEGER NOT NULL AUTO_INCREMENT,
+token VARCHAR(255) DEFAULT NULL,
+PRIMARY KEY (id),
+KEY token (token)
+)DEFAULT CHARSET=utf8;
+
+INSERT INTO t1 VALUES (1, "abc"), (2, "def");
+
+SET sql_mode='';
+UPDATE t1 SET token = X'ad';
+SELECT * FROM t1;
+
+let query=UPDATE t1 SET token = NULL WHERE token = X'ad';
+eval EXPLAIN $query;
+eval $query;
+
+SET sql_mode=default;
+eval EXPLAIN $query;
+eval $query;
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--echo # End of test for Bug#21032418
+

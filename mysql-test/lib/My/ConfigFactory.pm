@@ -93,6 +93,11 @@ sub fix_port {
   return $self->{HOSTS}->{$hostname}++;
 }
 
+sub fix_x_port {
+  my ($self, $config, $group_name, $group)= @_;
+  return $self->{ARGS}->{mysqlxbaseport}++;
+}
+
 sub fix_host {
   my ($self)= @_;
   # Get next host from HOSTS array
@@ -265,6 +270,7 @@ my @mysqld_rules=
  { '#host' => \&fix_host },
  { 'port' => \&fix_port },
  { 'socket' => \&fix_socket },
+ { 'loose-mysqlx-port' => \&fix_x_port },
  { 'loose-mysqlx-socket' => \&fix_x_socket },
  { '#log-error' => \&fix_log_error },
  { 'general_log' => 1 },

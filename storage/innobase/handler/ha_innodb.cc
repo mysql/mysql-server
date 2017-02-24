@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -348,9 +348,9 @@ const struct _ft_vft_ext ft_vft_ext_result = {innobase_fts_get_version,
 					      innobase_fts_count_matches};
 
 #ifdef HAVE_PSI_INTERFACE
-# define PSI_KEY(n) {&n##_key, #n, 0}
+# define PSI_KEY(n) {&n##_key.m_value, #n, 0}
 /* All RWLOCK used in Innodb are SX-locks */
-# define PSI_RWLOCK_KEY(n) {&n##_key, #n, PSI_RWLOCK_FLAG_SX}
+# define PSI_RWLOCK_KEY(n) {&n##_key.m_value, #n, PSI_RWLOCK_FLAG_SX}
 
 /* Keys to register pthread mutexes/cond in the current file with
 performance schema */
@@ -389,6 +389,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(fts_delete_mutex),
 	PSI_KEY(fts_optimize_mutex),
 	PSI_KEY(fts_doc_id_mutex),
+	PSI_KEY(fts_pll_tokenize_mutex),
 	PSI_KEY(log_flush_order_mutex),
 	PSI_KEY(hash_table_mutex),
 	PSI_KEY(ibuf_bitmap_mutex),
@@ -396,7 +397,9 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(ibuf_pessimistic_insert_mutex),
 	PSI_KEY(log_sys_mutex),
 	PSI_KEY(log_sys_write_mutex),
+	PSI_KEY(log_cmdq_mutex),
 	PSI_KEY(mutex_list_mutex),
+	PSI_KEY(page_cleaner_mutex),
 	PSI_KEY(page_zip_stat_per_index_mutex),
 	PSI_KEY(purge_sys_pq_mutex),
 	PSI_KEY(recv_sys_mutex),
@@ -426,13 +429,17 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(srv_threads_mutex),
 #  ifndef PFS_SKIP_EVENT_MUTEX
 	PSI_KEY(event_mutex),
+	PSI_KEY(event_manager_mutex),
 #  endif /* PFS_SKIP_EVENT_MUTEX */
 	PSI_KEY(rtr_active_mutex),
 	PSI_KEY(rtr_match_mutex),
 	PSI_KEY(rtr_path_mutex),
 	PSI_KEY(rtr_ssn_mutex),
 	PSI_KEY(trx_sys_mutex),
+	PSI_KEY(thread_mutex),
+	PSI_KEY(sync_array_mutex),
 	PSI_KEY(zip_pad_mutex),
+	PSI_KEY(row_drop_list_mutex),
 	PSI_KEY(master_key_id_mutex),
 };
 # endif /* UNIV_PFS_MUTEX */
@@ -2785,9 +2792,11 @@ ha_innobase::ha_innobase(
 			  | HA_CAN_FULLTEXT
 			  | HA_CAN_FULLTEXT_EXT
 			  | HA_CAN_FULLTEXT_HINTS
+#ifdef WL6742
+			  | HA_HAS_RECORDS
+#endif
 			  | HA_CAN_EXPORT
 			  | HA_CAN_RTREEKEYS
-			  | HA_HAS_RECORDS
 			  | HA_NO_READ_LOCAL_LOCK
 			  | HA_GENERATED_COLUMNS
 			  | HA_ATTACHABLE_TRX_COMPATIBLE
@@ -3382,6 +3391,11 @@ innobase_encryption_key_rotation()
 	byte*	master_key = NULL;
 	bool	ret = FALSE;
 
+	if (srv_read_only_mode) {
+		my_error(ER_INNODB_READ_ONLY, MYF(0));
+		return(true);
+	}
+
 	/* Require the mutex to block other rotate request. */
 	mutex_enter(&master_key_id_mutex);
 
@@ -3936,31 +3950,81 @@ innobase_change_buffering_inited_ok:
 	/* Register keys with MySQL performance schema */
 	int	count;
 
+# ifdef UNIV_DEBUG
+	/** Count of Performance Schema keys that have been registered. */
+	int	global_count = 0;
+# endif /* UNIV_DEBUG */
+
 	count = array_elements(all_pthread_mutexes);
 	mysql_mutex_register("innodb", all_pthread_mutexes, count);
+
+# ifdef UNIV_DEBUG
+	global_count += count;
+# endif /* UNIV_DEBUG */
+
 
 # ifdef UNIV_PFS_MUTEX
 	count = array_elements(all_innodb_mutexes);
 	mysql_mutex_register("innodb", all_innodb_mutexes, count);
+
+# ifdef UNIV_DEBUG
+	global_count += count;
+# endif /* UNIV_DEBUG */
+
 # endif /* UNIV_PFS_MUTEX */
+
 
 # ifdef UNIV_PFS_RWLOCK
 	count = array_elements(all_innodb_rwlocks);
 	mysql_rwlock_register("innodb", all_innodb_rwlocks, count);
+
+# ifdef UNIV_DEBUG
+	global_count += count;
+# endif /* UNIV_DEBUG */
+
 # endif /* UNIV_PFS_MUTEX */
+
 
 # ifdef UNIV_PFS_THREAD
 	count = array_elements(all_innodb_threads);
 	mysql_thread_register("innodb", all_innodb_threads, count);
+
+# ifdef UNIV_DEBUG
+	global_count += count;
+# endif /* UNIV_DEBUG */
+
 # endif /* UNIV_PFS_THREAD */
+
 
 # ifdef UNIV_PFS_IO
 	count = array_elements(all_innodb_files);
 	mysql_file_register("innodb", all_innodb_files, count);
+
+# ifdef UNIV_DEBUG
+	global_count += count;
+# endif /* UNIV_DEBUG */
+
 # endif /* UNIV_PFS_IO */
+
 
 	count = array_elements(all_innodb_conds);
 	mysql_cond_register("innodb", all_innodb_conds, count);
+
+# ifdef UNIV_DEBUG
+	global_count += count;
+
+	if (mysql_pfs_key_t::get_count() != global_count) {
+
+		ib::error() << "You have created new InnoDB PFS key(s) but "
+			    << mysql_pfs_key_t::get_count() - global_count
+			    << " key(s) is/are not registered with PFS. Please"
+			    << " register the keys in PFS arrays in"
+			    << " ha_innodb.cc.";
+
+		DBUG_RETURN(HA_ERR_INITIALIZATION);
+	}
+# endif /* UNIV_DEBUG */
+
 #endif /* HAVE_PSI_INTERFACE */
 
 	/* Set buffer pool size to default for fast startup when mysqld is
@@ -4010,12 +4074,12 @@ innobase_change_buffering_inited_ok:
 	ibuf_max_size_update(srv_change_buffer_max_size);
 
 	innobase_open_tables = hash_create(200);
-	mysql_mutex_init(innobase_share_mutex_key,
+	mysql_mutex_init(innobase_share_mutex_key.m_value,
 			 &innobase_share_mutex,
 			 MY_MUTEX_INIT_FAST);
-	mysql_mutex_init(commit_cond_mutex_key,
+	mysql_mutex_init(commit_cond_mutex_key.m_value,
 			 &commit_cond_m, MY_MUTEX_INIT_FAST);
-	mysql_cond_init(commit_cond_key, &commit_cond);
+	mysql_cond_init(commit_cond_key.m_value, &commit_cond);
 
 	innodb_inited= 1;
 #ifdef MYSQL_DYNAMIC_PLUGIN
@@ -5925,6 +5989,7 @@ ha_innobase::open(
 	ut_ad(m_prebuilt->default_rec);
 
 	m_prebuilt->m_mysql_table = table;
+	m_prebuilt->m_mysql_handler = this;
 
 	/* Looks like MySQL-3.23 sometimes has primary key number != 0 */
 	m_primary_key = table->s->primary_key;
@@ -8275,7 +8340,10 @@ ha_innobase::delete_all_rows()
 	if (!dict_table_is_intrinsic(m_prebuilt->table)
 	    && trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
+		innobase_rollback(ht, m_user_thd, false);
+
+		DBUG_RETURN(convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0, m_user_thd));
 	}
 
 	dberr_t	error = row_delete_all_rows(m_prebuilt->table);
@@ -9086,14 +9154,7 @@ ha_innobase::rnd_init(
 	bool	scan)	/*!< in: true if table/index scan FALSE otherwise */
 {
 	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
-
-	if (!dict_table_is_intrinsic(m_prebuilt->table)
-	    && trx_in_innodb.is_aborted()) {
-
-		return(innobase_rollback(ht, m_user_thd, false));
-	}
-
-	int	err;
+	int		err;
 
 	/* Store the active index value so that we can restore the original
 	value after a scan */
@@ -12386,7 +12447,8 @@ ha_innobase::delete_table(
 			index->last_ins_cur->release();
 			index->last_sel_cur->release();
 		}
-	} else if (srv_read_only_mode) {
+	} else if (srv_read_only_mode
+		   ||  srv_force_recovery >= SRV_FORCE_NO_UNDO_LOG_SCAN) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
@@ -13202,7 +13264,14 @@ ha_innobase::rename_table(
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
 }
 
+
+
+#ifdef WL6742
+
 /*********************************************************************//**
+
+Removing WL6742  as part of Bug23046302
+
 Returns the exact number of records that this client can see using this
 handler object.
 @return Error code in case something goes wrong.
@@ -13309,6 +13378,7 @@ ha_innobase::records(
 	*num_rows= n_rows;
 	DBUG_RETURN(0);
 }
+#endif
 
 /*********************************************************************//**
 Estimates the number of index records in a range.
@@ -13881,9 +13951,12 @@ ha_innobase::info_low(
 		HA_STATUS_TIME flag set, while the left join optimizer does not
 		set that flag, we add one to a zero value if the flag is not
 		set. That way SHOW TABLE STATUS will show the best estimate,
-		while the optimizer never sees the table empty. */
+		while the optimizer never sees the table empty.
+		However, if it is internal temporary table used by optimizer,
+		the count should be accurate */
 
-		if (n_rows == 0 && !(flag & HA_STATUS_TIME)) {
+		if (n_rows == 0 && !(flag & HA_STATUS_TIME)
+                  && table_share->table_category != TABLE_CATEGORY_TEMPORARY) {
 			n_rows++;
 		}
 
@@ -14511,7 +14584,7 @@ ha_innobase::check(
 			ret = row_count_rtree_recs(m_prebuilt, &n_rows);
 		} else {
 			ret = row_scan_index_for_mysql(
-				m_prebuilt, index, true, &n_rows);
+				m_prebuilt, index, &n_rows);
 		}
 
 		DBUG_EXECUTE_IF(
@@ -14751,6 +14824,28 @@ get_foreign_key_info(
 	f_key_info.update_method = thd_make_lex_string(
 		thd, f_key_info.update_method, ptr,
 		static_cast<unsigned int>(len), 1);
+
+	/* Load referenced table to update FK referenced key name. */
+	if (foreign->referenced_table == NULL) {
+
+		dict_table_t*	ref_table;
+
+		ut_ad(mutex_own(&dict_sys->mutex));
+		ref_table = dict_table_open_on_name(
+			foreign->referenced_table_name_lookup,
+			TRUE, FALSE, DICT_ERR_IGNORE_NONE);
+
+		if (ref_table == NULL) {
+
+			ib::info() << "Foreign Key referenced table "
+				   << foreign->referenced_table_name
+				   << " not found for foreign table "
+				   << foreign->foreign_table_name;
+		} else {
+
+			dict_table_close(ref_table, TRUE, FALSE);
+		}
+	}
 
 	if (foreign->referenced_index
 	    && foreign->referenced_index->name != NULL) {
@@ -16506,6 +16601,37 @@ ha_innobase::get_auto_increment(
 	ulonglong	col_max_value =
 		table->next_number_field->get_max_int_value();
 
+	/** The following logic is needed to avoid duplicate key error
+	for autoincrement column.
+
+	(1) InnoDB gives the current autoincrement value with respect
+	to increment and offset value.
+
+	(2) Basically it does compute_next_insert_id() logic inside InnoDB
+	to avoid the current auto increment value changed by handler layer.
+
+	(3) It is restricted only for insert operations. */
+
+	if (increment > 1 && thd_sql_command(m_user_thd) != SQLCOM_ALTER_TABLE
+	    && autoinc < col_max_value) {
+
+		ulonglong	prev_auto_inc = autoinc;
+
+		autoinc = ((autoinc - 1) + increment - offset)/ increment;
+
+		autoinc = autoinc * increment + offset;
+
+		/* If autoinc exceeds the col_max_value then reset
+		to old autoinc value. Because in case of non-strict
+		sql mode, boundary value is not considered as error. */
+
+		if (autoinc >= col_max_value) {
+			autoinc = prev_auto_inc;
+		}
+
+		ut_ad(autoinc > 0);
+	}
+
 	/* Called for the first time ? */
 	if (trx->n_autoinc_rows == 0) {
 
@@ -16860,7 +16986,8 @@ innobase_xa_prepare(
 
 	TrxInInnoDB	trx_in_innodb(trx);
 
-	if (trx_in_innodb.is_aborted()) {
+	if (trx_in_innodb.is_aborted() ||
+	    DBUG_EVALUATE_IF("simulate_xa_failure_prepare_in_engine", 1, 0)) {
 
 		innobase_rollback(hton, thd, prepare_trx);
 
@@ -19122,6 +19249,12 @@ static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
   " Disable with --skip-innodb-doublewrite.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(stats_include_delete_marked,
+  srv_stats_include_delete_marked,
+  PLUGIN_VAR_OPCMDARG,
+  "Include delete marked records when calculating persistent statistics",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   PLUGIN_VAR_RQCMDARG,
   "Number of IOPs the server can do. Tunes the background IO rate",
@@ -19797,12 +19930,12 @@ static MYSQL_SYSVAR_BOOL(use_native_aio, srv_use_native_aio,
   "Use native AIO if supported on this platform.",
   NULL, NULL, TRUE);
 
-#if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
+#ifdef HAVE_LIBNUMA
 static MYSQL_SYSVAR_BOOL(numa_interleave, srv_numa_interleave,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
   "Use NUMA interleave memory policy to allocate InnoDB buffer pool.",
   NULL, NULL, FALSE);
-#endif /* HAVE_LIBNUMA && WITH_NUMA */
+#endif /* HAVE_LIBNUMA */
 
 static MYSQL_SYSVAR_BOOL(api_enable_binlog, ib_binlog_enabled,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
@@ -20042,6 +20175,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(temp_data_file_path),
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
+  MYSQL_SYSVAR(stats_include_delete_marked),
   MYSQL_SYSVAR(api_enable_binlog),
   MYSQL_SYSVAR(api_enable_mdl),
   MYSQL_SYSVAR(api_disable_rowlock),
@@ -20123,9 +20257,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(autoinc_lock_mode),
   MYSQL_SYSVAR(version),
   MYSQL_SYSVAR(use_native_aio),
-#if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
+#ifdef HAVE_LIBNUMA
   MYSQL_SYSVAR(numa_interleave),
-#endif /* HAVE_LIBNUMA && WITH_NUMA */
+#endif /* HAVE_LIBNUMA */
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(change_buffer_max_size),
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
@@ -20602,7 +20736,7 @@ innobase_get_computed_value(
 			row_sel_field_store_in_mysql_format(
 				mysql_rec + templ->mysql_col_offset,
 				templ, index, templ->clust_rec_field_no,
-				(const byte*)data, len);
+				(const byte*)data, len, ULINT_UNDEFINED);
 
 			if (templ->mysql_null_bit_mask) {
 				/* It is a nullable column with a

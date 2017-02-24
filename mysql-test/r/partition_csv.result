@@ -26,11 +26,17 @@ SET GLOBAL general_log = 0;
 CREATE TABLE gl_partitioned LIKE general_log;
 ALTER TABLE gl_partitioned ENGINE=myisam;
 ALTER TABLE gl_partitioned PARTITION BY HASH (thread_id) PARTITIONS 10;
+Warnings:
+Warning	1287	The partition engine, used by table 'mysql.gl_partitioned', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE general_log RENAME TO gl_nonpartitioned;
 ALTER TABLE gl_partitioned RENAME TO general_log;
+Warnings:
+Warning	1287	The partition engine, used by table 'mysql.general_log', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT @@global.log_output INTO @old_glo;
 SET GLOBAL log_output='table';
 SET GLOBAL general_log =1;
+Warnings:
+Warning	1287	The partition engine, used by table 'mysql.general_log', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # do some things to be logged to partitioned log, should fail
 USE /* 1 */ test;
 CREATE TABLE t1 (i INT);
@@ -41,11 +47,15 @@ i
 USE mysql;
 SET GLOBAL general_log =0;
 ALTER TABLE general_log RENAME TO gl_partitioned;
+Warnings:
+Warning	1287	The partition engine, used by table 'mysql.gl_partitioned', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE gl_nonpartitioned RENAME TO general_log;
 # show whether we actually logged anything (no) to general_log
 SELECT COUNT(argument) FROM gl_partitioned;
 COUNT(argument)
 0
+Warnings:
+Warning	1287	The partition engine, used by table 'mysql.gl_partitioned', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE gl_partitioned;
 SET GLOBAL log_output = @old_glo;
 SET GLOBAL general_log = 1;

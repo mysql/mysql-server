@@ -172,6 +172,7 @@ word32 DSA_Signer::Sign(const byte* sha_digest, byte* sig,
     const Integer& q = key_.GetSubGroupOrder();
     const Integer& g = key_.GetSubGroupGenerator();
     const Integer& x = key_.GetPrivatePart();
+    byte* tmpPtr = sig;  // initial signature output
 
     Integer k(rng, 1, q - 1);
 
@@ -187,22 +188,23 @@ word32 DSA_Signer::Sign(const byte* sha_digest, byte* sig,
         return -1;
 
     int rSz = r_.ByteCount();
+    int tmpSz = rSz;
 
-    if (rSz == 19) {
-        sig[0] = 0;
-        sig++;
+    while (tmpSz++ < SHA::DIGEST_SIZE) {
+        *sig++ = 0;
     }
     
     r_.Encode(sig,  rSz);
 
+    sig = tmpPtr + SHA::DIGEST_SIZE;  // advance sig output to s
     int sSz = s_.ByteCount();
+    tmpSz = sSz;
 
-    if (sSz == 19) {
-        sig[rSz] = 0;
-        sig++;
+    while (tmpSz++ < SHA::DIGEST_SIZE) {
+        *sig++ = 0;
     }
 
-    s_.Encode(sig + rSz, sSz);
+    s_.Encode(sig, sSz);
 
     return 40;
 }

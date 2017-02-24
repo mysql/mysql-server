@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -5515,6 +5515,10 @@ i_s_innodb_buffer_page_get_info(
 
 			block = reinterpret_cast<const buf_block_t*>(bpage);
 			frame = block->frame;
+			/* Note: this may be a false positive, that
+			is, block->index will not always be set to
+			NULL when the last adaptive hash index
+			reference is dropped. */
 			page_info->hashed = (block->index != NULL);
 		} else {
 			ut_ad(page_info->zip_ssize);
@@ -8937,8 +8941,7 @@ i_s_files_table_fill(
 			space = NULL;
 			continue;
 		case FIL_TYPE_TABLESPACE:
-			if (!is_system_tablespace(space()->id)
-			    && space()->id <= srv_undo_tablespaces_open) {
+			if (srv_is_undo_tablespace(space()->id)) {
 				type = "UNDO LOG";
 				break;
 			} /* else fall through for TABLESPACE */

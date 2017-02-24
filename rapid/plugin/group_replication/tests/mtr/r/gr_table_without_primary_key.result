@@ -1,0 +1,58 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+#  1. Create the test table without primary key on all group
+#     members.
+CREATE TABLE `t1` (
+`col_bit_64` bit(64),
+`col_varchar_255_utf8_key` varchar(255) CHARACTER SET utf8,
+`col_bigint` bigint,
+`col_varchar_255_binary_key` varchar(255) CHARACTER SET binary,
+`col_varchar_255_utf8` varchar(255) CHARACTER SET utf8,
+`col_text_utf8` text CHARACTER SET utf8,
+`col_set_binary_key` set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z')  CHARACTER SET binary,
+`col_text_binary` text CHARACTER SET binary,
+`col_varchar_255_binary` varchar(255) CHARACTER SET binary,
+`col_bigint_key` bigint,
+`col_set_utf8` set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z') CHARACTER SET utf8,
+`col_text_binary_key` text CHARACTER SET binary,
+`col_set_binary` set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z') CHARACTER SET binary,
+`col_set_utf8_key` set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z') CHARACTER SET utf8,
+`col_text_utf8_key` text CHARACTER SET utf8,
+`col_bit_64_key` bit(64),
+key (`col_varchar_255_utf8_key`),
+key (`col_varchar_255_binary_key`),
+key (`col_set_binary_key`),
+key (`col_bigint_key`),
+key (`col_text_binary_key`(255)),
+key (`col_set_utf8_key`),
+key (`col_text_utf8_key` (255)),
+key (`col_bit_64_key`)
+) ENGINE=InnoDB;
+include/rpl_sync.inc
+
+############################################################
+#  2. Execute a query on the table without primary key on
+#     server 1 that will fail on pre-conditions check.
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Plugin group_replication reported: 'Table t1 does not have any PRIMARY KEY. This is not compatible with Group Replication'");
+SET SESSION sql_log_bin= 1;
+INSERT /*! IGNORE */ INTO t1 VALUES (NULL, NULL, -1188668826649100288, 'x', NULL, 'can\'t', 'p', 'didn\'t', 'we', 8, 'what', 'who', NULL, 'can', 'not', 1);
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+
+############################################################
+#  3. Check that table t1 is empty on server 1.
+include/assert.inc ['Table t1 is empty']
+
+############################################################
+#  4. Check that table t1 is empty on server 2.
+include/assert.inc ['Table t1 is empty']
+
+############################################################
+#  5. Clean data.
+DROP TABLE t1;
+include/group_replication_end.inc

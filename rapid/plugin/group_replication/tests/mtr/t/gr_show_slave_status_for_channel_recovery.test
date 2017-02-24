@@ -1,0 +1,68 @@
+################################################################################
+# This test verifies that running
+# `show slave status for channel 'group_replication_recovery'`
+# should not cause assert error.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Bootstrap start a group on M1. Create table t1. Stop the applier to block
+#    recovery on M2.
+# 2. Start GR on M2. Verify it is in recovering stage.
+# 3. Wait for the recovery channel to actually be created. Verify the same with
+#    SHOW SLAVE STATUS FOR CHANNEL "group_replication_recovery" command.
+# 4. Verify Until_Condition is set to SQL_VIEW_ID for channel
+#    group_replication_recovery
+# 5. Clean up.
+################################################################################
+
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--connection server1
+--echo server1
+--source ../inc/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+
+# Stop the applier to block recovery on server 2
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+--let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
+--source include/wait_condition.inc
+
+--connection server2
+--echo server2
+
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+#
+# wait for the recovery channel to actually be created
+# otherwise there is a chance that there is a race
+# between the START GROUP_REPLICATION and the
+# wait_for_slave_param script below as the channel may
+# not show up in SHOW SLAVE STATUS before that script
+# is run.
+#
+--let $show_statement= SHOW SLAVE STATUS FOR CHANNEL "group_replication_recovery"
+--let $field = Channel_Name
+--let $condition= = "group_replication_recovery"
+--source include/wait_show_condition.inc
+
+# Verify Until_Condition is set to SQL_VIEW_ID for channel group_replication_recovery
+--let $slave_param= Until_Condition
+--let $slave_param_value= SQL_VIEW_ID
+--let $rpl_channel_name= group_replication_recovery
+--source include/wait_for_slave_param.inc
+
+# Cleanup
+--connection server1
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+--let $wait_condition= SELECT service_state="ON" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
+--source include/wait_condition.inc
+DROP TABLE t1;
+
+--let $slave_param=
+--let $slave_param_value=
+--let $rpl_channel_name=
+
+--source ../inc/group_replication_end.inc

@@ -60,6 +60,7 @@ private:
 
     static const word32 Te[5][256];
     static const word32 Td[5][256];
+    static const byte   CTd4[256];
 
     static const word32* Te0;
     static const word32* Te1;
@@ -80,9 +81,66 @@ private:
 
     void ProcessAndXorBlock(const byte*, const byte*, byte*) const;
 
+    word32 PreFetchTe() const;
+    word32 PreFetchTd() const;
+    word32 PreFetchCTd4() const;
+
     AES(const AES&);            // hide copy
     AES& operator=(const AES&); // and assign
 };
+
+
+#if defined(__x86_64__) || defined(_M_X64) || \
+           (defined(__ILP32__) && (__ILP32__ >= 1))
+    #define TC_CACHE_LINE_SZ 64
+#else
+    /* default cache line size */
+    #define TC_CACHE_LINE_SZ 32
+#endif
+
+inline word32 AES::PreFetchTe() const
+{
+    word32 x = 0;
+
+    /* 4 tables of 256 entries */
+    for (int i = 0; i < 4; i++) {
+        /* each entry is 4 bytes */
+        for (int j = 0; j < 256; j += TC_CACHE_LINE_SZ/4) {
+            x &= Te[i][j];
+        }
+    }
+
+    return x;
+}
+
+
+inline word32 AES::PreFetchTd() const
+{
+    word32 x = 0;
+
+    /* 4 tables of 256 entries */
+    for (int i = 0; i < 4; i++) {
+        /* each entry is 4 bytes */
+        for (int j = 0; j < 256; j += TC_CACHE_LINE_SZ/4) {
+            x &= Td[i][j];
+        }
+    }
+
+    return x;
+}
+
+
+inline word32 AES::PreFetchCTd4() const
+{
+    word32 x = 0;
+    int i;
+
+    for (i = 0; i < 256; i += TC_CACHE_LINE_SZ) {
+        x &= CTd4[i];
+    }
+
+    return x;
+}
 
 
 typedef BlockCipher<ENCRYPTION, AES, ECB> AES_ECB_Encryption;

@@ -1955,7 +1955,9 @@ static Sys_var_charptr Sys_log_error(
        "log_error", "Error log file",
        READ_ONLY GLOBAL_VAR(log_error_dest),
        CMD_LINE(OPT_ARG, OPT_LOG_ERROR),
-       IN_FS_CHARSET, DEFAULT(disabled_my_option));
+       IN_FS_CHARSET, DEFAULT(disabled_my_option), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL),
+       NULL, sys_var::PARSE_EARLY);
 
 static Sys_var_mybool Sys_log_queries_not_using_indexes(
        "log_queries_not_using_indexes",
@@ -4657,6 +4659,14 @@ static bool check_log_path(sys_var *self, THD *thd, set_var *var)
 
   if (!var->save_result.string_value.str)
     return true;
+
+  if (!is_valid_log_name(var->save_result.string_value.str,
+                         var->save_result.string_value.length))
+  {
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0),
+             self->name.str, var->save_result.string_value.str);
+    return true;
+  }
 
   if (var->save_result.string_value.length > FN_REFLEN)
   { // path is too long

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -46,6 +46,7 @@ Created 2/25/1997 Heikki Tuuri
 #include "que0que.h"
 #include "ibuf0ibuf.h"
 #include "log0log.h"
+#include "fil0fil.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
@@ -352,6 +353,10 @@ row_undo_ins_parse_undo_rec(
 	if (UNIV_UNLIKELY(node->table == NULL)) {
 	} else if (UNIV_UNLIKELY(node->table->ibd_file_missing)) {
 close_table:
+		dict_table_close(node->table, dict_locked, FALSE);
+		node->table = NULL;
+	} else if (fil_space_is_being_truncated(node->table->space)) {
+
 		dict_table_close(node->table, dict_locked, FALSE);
 		node->table = NULL;
 	} else {

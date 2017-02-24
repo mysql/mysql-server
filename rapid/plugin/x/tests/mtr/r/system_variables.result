@@ -1,0 +1,20 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+include/assert.inc [Mysqlx_port must match value set by MTR]
+include/assert.inc [Mysqlx_socket must match value set by MTR]
+include/assert.inc [Mysqlx_max_connections must be 1 connection, default values]
+include/assert.inc [Mysqlx_min_worker_threads must be 2 workers, default values]
+include/assert.inc [Mysqlx_idle_worker_thread_timeout must be 60 seconds, default values]
+include/assert.inc [Mysqlx_max_allowed_packet must be 1M, the default value]
+include/assert.inc [Mysqlx_connect_timeout must be 30 seconds, the default value]
+include/assert.inc [Mysqlx_ssl_key must be empty, the default value]
+include/assert.inc [Mysqlx_ssl_ca must be empty, the default value]
+include/assert.inc [Mysqlx_ssl_capath must be empty, the default value]
+include/assert.inc [Mysqlx_ssl_cert must be empty, the default value]
+include/assert.inc [Mysqlx_ssl_cipher must be empty, the default value]
+include/assert.inc [Mysqlx_ssl_crl must be empty, the default value]
+include/assert.inc [Mysqlx_ssl_crlpath must be empty, the default value]
+include/assert.inc [Mysqlx_bind_address must be "*", the default value]
+include/assert.inc [Mysqlx_port_open_timeout must be 0 seconds, the default value]
+uninstall plugin mysqlx;

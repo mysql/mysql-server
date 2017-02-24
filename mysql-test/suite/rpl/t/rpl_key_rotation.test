@@ -34,13 +34,6 @@ INSERT INTO t2 SELECT * FROM t1;
 SELECT COUNT(*) FROM t2;
 
 --echo
-# If we remove the keyring file and the server
-# is still running the keyring will stay in the memory
-# and the encrypted tables will be accessible.
---echo # Removed keyring file on master.
---remove_file $MYSQL_TMP_DIR/keyring_master/keyring_master
-
---echo
 --echo # Check for keyring file on master.
 --list_files $MYSQL_TMP_DIR/keyring_master/
 --echo
@@ -64,8 +57,6 @@ SELECT * FROM t1;
 SELECT COUNT(*) FROM t2;
 SELECT * FROM t1;
 
---echo # Removed keyring file on slave.
---remove_file $MYSQL_TMP_DIR/keyring_slave/keyring_slave
 --echo # Check for keyring file on slave.
 --list_files $MYSQL_TMP_DIR/keyring_slave/
 
@@ -114,7 +105,8 @@ eval SET @@global.keyring_file_data='$MYSQL_TMP_DIR/keyring_slave/keyring_slave'
 query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
 --source include/start_slave_sql.inc
---sleep 2
+--connection master
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t4;
 
 --connection master

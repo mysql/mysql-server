@@ -323,6 +323,8 @@ ERROR 42000: Row size too large. The maximum row size for the used table type, n
 create table t1 (a bit(27), primary key (a)) engine=myisam
 partition by hash (a)
 (partition p0, partition p1, partition p2);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -333,6 +335,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 ENGINE = MyISAM,
  PARTITION p1 ENGINE = MyISAM,
  PARTITION p2 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (1),(4),(7),(10),(13),(16),(19),(22),(25),(28),(31),(34);
 select hex(a) from t1 where a = 7;
 hex(a)
@@ -359,6 +363,8 @@ PARTITION `p-2012-MSK-1` VALUES LESS THAN (UNIX_TIMESTAMP('2011-10-30 00:00:00')
 PARTITION `p-2012-MSK-2` VALUES LESS THAN (UNIX_TIMESTAMP('2012-03-24 23:00:00')),
 PARTITION `pEnd` VALUES LESS THAN (UNIX_TIMESTAMP('2038-01-19 03:14:07')),
 PARTITION `pMax` VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
@@ -449,6 +455,8 @@ INSERT INTO t1 VALUES ('2011-10-30 03:00:00', 'Moscow');
 INSERT INTO t1 VALUES ('2011-10-30 03:00:01', 'Moscow');
 SET @@session.time_zone = 'UTC';
 INSERT INTO t2 SELECT * FROM t1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
 WHERE TABLE_NAME = 't2';
 PARTITION_NAME	TABLE_ROWS
@@ -882,7 +890,11 @@ t2	CREATE TABLE `t2` (
  PARTITION `p-2012-MSK-2` VALUES LESS THAN (1332630000) ENGINE = MyISAM,
  PARTITION pEnd VALUES LESS THAN (2147483647) ENGINE = MyISAM,
  PARTITION pMax VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 TRUNCATE TABLE t2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SET @@session.time_zone = 'Europe/Moscow';
 INSERT INTO t2 SELECT * FROM t1;
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
@@ -1398,7 +1410,11 @@ t2	CREATE TABLE `t2` (
  PARTITION `p-2012-MSK-2` VALUES LESS THAN (1332630000) ENGINE = MyISAM,
  PARTITION pEnd VALUES LESS THAN (2147483647) ENGINE = MyISAM,
  PARTITION pMax VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 TRUNCATE TABLE t2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SET sql_mode = default;
 DROP TABLE t1, t2;
 SET @@session.time_zone= @old_time_zone;

@@ -913,7 +913,7 @@ static int process_options(int argc, char *argv[], char *operation)
   if (opt_basedir)
   {
     i= (int)strlength(opt_basedir);
-    if (opt_basedir[i-1] != FN_LIBCHAR || opt_basedir[i-1] != FN_LIBCHAR2)
+    if (!is_directory_separator(opt_basedir[i-1]))
     {
       char buff[FN_REFLEN];
       memset(buff, 0, sizeof(buff));

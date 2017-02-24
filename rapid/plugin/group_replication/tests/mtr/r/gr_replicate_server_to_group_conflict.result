@@ -1,0 +1,163 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+SET SESSION sql_log_bin= 0;
+include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+SET SESSION sql_log_bin= 0;
+include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+
+############################################################
+#  1. Setup Group Replication on server 1 and 2.
+include/start_and_bootstrap_group_replication.inc
+include/start_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+
+############################################################
+#  2. Setup a asynchronous replication connection from server 3
+#     into group (server 1)
+CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=SERVER_3_PORT, MASTER_AUTO_POSITION=1 FOR CHANNEL "";
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+
+############################################################
+#  3. Execute some transactions on server 3.
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+SET GTID_NEXT= 'AUTOMATIC';
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+INSERT INTO t1 VALUES (0);
+SET GTID_NEXT= 'AUTOMATIC';
+
+############################################################
+#  4. Wait until transactions executed on server 3 are
+#     applied on group.
+include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc
+
+############################################################
+#  5. Commit a transaction (T1) on server 3 that won't
+#     replicate to group due to conflicts with T1.
+#     Before that make server 1 block before message
+#     broadcast to group.
+include/stop_slave.inc
+SET @server1_debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,debug.wait_after_set_snapshot_version_on_transaction_context_log_event';
+include/start_slave.inc
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:3';
+UPDATE t1 SET c1=3 WHERE c1=0;
+SET GTID_NEXT= 'AUTOMATIC';
+
+############################################################
+#  6. Wait until server 1 SQL thread from server 3 reaches
+#     the debug sync point:
+#     wait_after_set_snapshot_version_on_transaction_context_log_event
+[connection server1]
+
+############################################################
+#  7. Commit a transaction (T2) on group on server 2.
+UPDATE t1 SET c1=2 WHERE c1=0;
+
+############################################################
+#  8. Resume message broadcast to group on server 1.
+#     Check that conflict was detected on asynchronous
+#     replication connection.
+SET @@GLOBAL.DEBUG= @debug_saved;
+SET DEBUG_SYNC= 'now SIGNAL signal.resume_after_set_snapshot_version_on_transaction_context_log_event';
+include/sync_slave_sql_with_master.inc
+include/wait_for_slave_sql_error.inc [errno=3101]
+SET DEBUG_SYNC= 'RESET';
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Slave SQL for channel '': Error in Xid_log_event: Commit could not be completed, 'Plugin instructed the server to rollback the current transaction.', Error_code:.*");
+call mtr.add_suppression("Slave: Plugin instructed the server to rollback the current transaction. Error_code:.*");
+call mtr.add_suppression("Slave SQL for channel '': Worker.* failed executing transaction");
+call mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*. Error_code: 1756");
+SET SESSION sql_log_bin= 1;
+
+############################################################
+#  9. Force conflicting transaction on group, by committing
+#     a empty transaction with the same GTID. No data merge
+#     is done.
+#     Commit a new transaction on server 3 to assert that
+#     asynchronous replication is working properly.
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:3';
+BEGIN;
+COMMIT;
+SET GTID_NEXT= 'AUTOMATIC';
+include/rpl_sync.inc
+include/start_slave_sql.inc
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:4';
+INSERT INTO t1 VALUES (4);
+SET GTID_NEXT= 'AUTOMATIC';
+
+############################################################
+# 10. Wait until transactions executed on server 3 are
+#     applied on group.
+include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc
+
+############################################################
+# 11. Validate data on server 3.
+include/assert.inc [GTID_EXECUTED must contain all committed GTIDs]
+include/assert.inc ['There is no value 0 in table t1']
+include/assert.inc ['There is no value 2 in table t1']
+include/assert.inc ['There is a value 3 in table t1']
+include/assert.inc ['There is a value 4 in table t1']
+
+############################################################
+# 12. GTID_EXECUTED on server 1 must contain GTID_EXECUTED
+#     from server 3.
+#     Validate data on server 1.
+include/assert.inc [GTID_EXECUTED must contain server 3 GTID_EXECUTED]
+include/assert.inc ['There is no value 0 in table t1']
+include/assert.inc ['There is a value 2 in table t1']
+include/assert.inc ['There is no value 3 in table t1']
+include/assert.inc ['There is a value 4 in table t1']
+
+############################################################
+# 13. GTID_EXECUTED on server 2 must contain GTID_EXECUTED
+#     from server 3.
+#     Validate data on server 2.
+include/assert.inc [GTID_EXECUTED must contain server 3 GTID_EXECUTED]
+include/assert.inc ['There is no value 0 in table t1']
+include/assert.inc ['There is a value 2 in table t1']
+include/assert.inc ['There is no value 3 in table t1']
+include/assert.inc ['There is a value 4 in table t1']
+
+############################################################
+# 14. Clean data.
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc
+
+############################################################
+# 15. Stop asynchronous replication connection from server 3
+#     into group (server 1)
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_AUTO_POSITION=0 FOR CHANNEL "";
+
+############################################################
+# 16. Stop Group Replication on server 1 and 2.
+include/stop_group_replication.inc
+include/stop_group_replication.inc
+
+############################################################
+# 17. Uninstall GTID utils.
+SET SESSION sql_log_bin= 0;
+include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+SET SESSION sql_log_bin= 0;
+include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+SET SESSION sql_log_bin= 0;
+include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+include/group_replication_end.inc

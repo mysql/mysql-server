@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1122,18 +1122,22 @@ bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
 /**
   This needn't be format-tolerant, because we only read
   LOG_EVENT_MINIMAL_HEADER_LEN (we just want to read the event's length).
+
+  The caller should allocate the packet buffer before calling this function.
 */
 
 int Log_event::read_log_event(IO_CACHE* file, String* packet,
                               mysql_mutex_t* log_lock,
                               enum_binlog_checksum_alg checksum_alg_arg,
                               const char *log_file_name_arg,
-                              bool* is_binlog_active)
+                              bool* is_binlog_active,
+                              char *event_header)
 {
 
   ulong data_len;
   int result=0;
-  char buf[LOG_EVENT_MINIMAL_HEADER_LEN];
+  char local_buf[LOG_EVENT_MINIMAL_HEADER_LEN];
+  char *buf= event_header != NULL ? event_header : local_buf;
   uchar ev_offset= packet->length();
   DBUG_ENTER("Log_event::read_log_event(IO_CACHE *, String *, mysql_mutex_t, uint8)");
 
@@ -1143,20 +1147,27 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
   if (log_file_name_arg)
     *is_binlog_active= mysql_bin_log.is_active(log_file_name_arg);
 
-  if (my_b_read(file, (uchar*) buf, sizeof(buf)))
+  /* If the event header wasn't passed, we need to read it. */
+  if (buf == local_buf)
   {
-    /*
-      If the read hits eof, we must report it as eof so the caller
-      will know it can go into cond_wait to be woken up on the next
-      update to the log.
-    */
-    DBUG_PRINT("error",("my_b_read failed. file->error: %d", file->error));
-    if (!file->error)
-      result= LOG_READ_EOF;
-    else
-      result= (file->error > 0 ? LOG_READ_TRUNC : LOG_READ_IO);
-    goto end;
+    if (my_b_read(file, (uchar*) buf, LOG_EVENT_MINIMAL_HEADER_LEN))
+    {
+      /*
+        If the read hits eof, we must report it as eof so the caller
+        will know it can go into cond_wait to be woken up on the next
+        update to the log.
+      */
+      DBUG_PRINT("error",("my_b_read failed. file->error: %d", file->error));
+      if (!file->error)
+        result= LOG_READ_EOF;
+      else
+        result= (file->error > 0 ? LOG_READ_TRUNC : LOG_READ_IO);
+      goto end;
+    }
   }
+  else
+    DBUG_PRINT("info",("Skipped reading the event header. Using the provided one."));
+
   data_len= uint4korr(buf + EVENT_LEN_OFFSET);
   if (data_len < LOG_EVENT_MINIMAL_HEADER_LEN ||
       data_len > max(current_thd->variables.max_allowed_packet,
@@ -1168,8 +1179,27 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
     goto end;
   }
 
-  /* Append the log event header to packet */
-  if (packet->append(buf, sizeof(buf)))
+  /*
+    If the event header wasn't passed, the caller doesn't know the event size
+    yet, so the packet size may not have enough space to load the entire
+    event. We need to adjust the packet size here since the call to my_b_read()
+    below expects the buffer to be allocated.
+  */
+  if (buf == local_buf)
+  {
+    ulong new_alloc_len= packet->length() + data_len;
+    if (new_alloc_len > packet->alloced_length() &&
+        packet->mem_realloc(new_alloc_len))
+    {
+      /* Failed to allocate packet */
+      result= LOG_READ_MEM;
+      goto end;
+    }
+  }
+
+  /* Check packet buffer size and append the log event header to it */
+  if (packet->alloced_length() - packet->length() < data_len ||
+      packet->append(buf, LOG_EVENT_MINIMAL_HEADER_LEN))
   {
     DBUG_PRINT("info", ("first packet->append failed (out of memory)"));
     /* Failed to allocate packet */
@@ -1179,8 +1209,20 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
   data_len-= LOG_EVENT_MINIMAL_HEADER_LEN;
   if (data_len)
   {
-    /* Append rest of event, read directly from file into packet */
-    if (packet->append(file, data_len))
+    /*
+      Append rest of event, read directly from file into packet.
+
+      We are avoiding to call packet->append(IO_CACHE, size_t) at this point
+      because the String::append logic will call String::mem_realloc() that
+      might resize the buffer (changing its pointer) in order to reserve a
+      space for a trailing '\0' that we don't need.
+    */
+    char *event_data_buffer= const_cast<char*>(packet->ptr() +
+                                               packet->length());
+    result= my_b_read(file,
+                      reinterpret_cast<uchar*>(event_data_buffer),
+                      data_len);
+    if (result)
     {
       /*
         Fatal error occured when appending rest of the event
@@ -1201,6 +1243,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
     }
     else
     {
+      packet->length(packet->length() + data_len);
       /*
         Corrupt the event for Dump thread.
         We also need to exclude Previous_gtids_log_event and Gtid_log_event
@@ -1214,7 +1257,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
             debug_event_buf_c[EVENT_TYPE_OFFSET] != binary_log::PREVIOUS_GTIDS_LOG_EVENT &&
             debug_event_buf_c[EVENT_TYPE_OFFSET] != binary_log::GTID_LOG_EVENT)
         {
-          int debug_cor_pos = rand() % (data_len + sizeof(buf) -
+          int debug_cor_pos = rand() % (data_len + LOG_EVENT_MINIMAL_HEADER_LEN -
                               BINLOG_CHECKSUM_LEN);
           debug_event_buf_c[debug_cor_pos] =~ debug_event_buf_c[debug_cor_pos];
           DBUG_PRINT("info", ("Corrupt the event at Log_event::read_log_event: byte on position %d", debug_cor_pos));
@@ -1228,7 +1271,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
 
       if (opt_master_verify_checksum &&
         Log_event_footer::event_checksum_test((uchar*)packet->ptr() + ev_offset,
-                                              data_len + sizeof(buf),
+                                              data_len + LOG_EVENT_MINIMAL_HEADER_LEN,
                                               checksum_alg_arg))
       {
         DBUG_PRINT("info", ("checksum test failed"));
@@ -4623,13 +4666,6 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       goto end;
     }
 
-    if (is_query_prefix_match(STRING_WITH_LEN("XA START")) && !thd->is_error())
-    {
-      // detach the "native" thd's trx in favor of dynamically created
-      plugin_foreach(thd, detach_native_trx,
-                     MYSQL_STORAGE_ENGINE_PLUGIN, NULL);
-    }
-
     /* If the query was not ignored, it is printed to the general log */
     if (!thd->is_error() ||
         thd->get_stmt_da()->mysql_errno() != ER_SLAVE_IGNORED_TABLE)
@@ -6443,11 +6479,14 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         (ulong) rli->get_group_master_log_pos()));
     mysql_mutex_unlock(&rli->data_lock);
     if (rli->is_parallel_exec())
+    {
+      bool real_event= server_id && !is_artificial_event();
       rli->reset_notified_checkpoint(0,
-                                     server_id ?
+                                     real_event ?
                                      common_header->when.tv_sec +
                                      (time_t) exec_time : 0,
                                      true/*need_data_lock=true*/);
+    }
 
     /*
       Reset thd->variables.option_bits and sql_mode etc, because this could be the signal of
@@ -7186,6 +7225,25 @@ bool XA_prepare_log_event::do_commit(THD *thd)
   bool error= false;
   xid_t xid;
 
+  enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
+  if (state == GTID_STATEMENT_EXECUTE)
+  {
+    if (gtid_pre_statement_post_implicit_commit_checks(thd))
+      state= GTID_STATEMENT_CANCEL;
+  }
+  if (state == GTID_STATEMENT_CANCEL)
+  {
+    uint error= thd->get_stmt_da()->mysql_errno();
+    DBUG_ASSERT(error != 0);
+    thd->rli_slave->report(ERROR_LEVEL, error,
+                           "Error executing XA PREPARE event: '%s'",
+                           thd->get_stmt_da()->message_text());
+    thd->is_slave_error= 1;
+    return true;
+  }
+  else if (state == GTID_STATEMENT_SKIP)
+    return false;
+
   xid.set(my_xid.formatID,
           my_xid.data, my_xid.gtrid_length,
           my_xid.data + my_xid.gtrid_length, my_xid.bqual_length);
@@ -7197,8 +7255,6 @@ bool XA_prepare_log_event::do_commit(THD *thd)
     thd->lex->sql_command= SQLCOM_XA_PREPARE;
     thd->lex->m_sql_cmd= new Sql_cmd_xa_prepare(&xid);
     error= thd->lex->m_sql_cmd->execute(thd);
-    if (!error)
-      error|= applier_reset_xa_trans(thd);
   }
   else
   {
@@ -13353,6 +13409,7 @@ Transaction_context_log_event(const char *server_uuid_arg,
               Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
 {
   DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event(THD *, const char *, ulonglong)");
+  common_header->flags|= LOG_EVENT_IGNORABLE_F;
   server_uuid= NULL;
   sid_map= new Sid_map(NULL);
   snapshot_version= new Gtid_set(sid_map);
@@ -13404,6 +13461,7 @@ Transaction_context_log_event(const char *buffer, uint event_len,
     Log_event(header(), footer())
 {
   DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event (const char *, uint, const Format_description_event*)");
+  common_header->flags|= LOG_EVENT_IGNORABLE_F;
 
   sid_map= new Sid_map(NULL);
   snapshot_version= new Gtid_set(sid_map);
@@ -13497,11 +13555,11 @@ bool Transaction_context_log_event::write_data_header(IO_CACHE* file)
   char buf[Binary_log_event::TRANSACTION_CONTEXT_HEADER_LEN];
 
   buf[ENCODED_SERVER_UUID_LEN_OFFSET] = (char) strlen(server_uuid);
-  int8store(buf + ENCODED_THREAD_ID_OFFSET, thread_id);
+  int4store(buf + ENCODED_THREAD_ID_OFFSET, thread_id);
   buf[ENCODED_GTID_SPECIFIED_OFFSET] = gtid_specified;
   int4store(buf + ENCODED_SNAPSHOT_VERSION_LEN_OFFSET, get_snapshot_version_size());
-  int2store(buf + ENCODED_WRITE_SET_ITEMS_OFFSET, write_set.size());
-  int2store(buf + ENCODED_READ_SET_ITEMS_OFFSET, read_set.size());
+  int4store(buf + ENCODED_WRITE_SET_ITEMS_OFFSET, write_set.size());
+  int4store(buf + ENCODED_READ_SET_ITEMS_OFFSET, read_set.size());
   DBUG_RETURN(wrapper_my_b_safe_write(file, (const uchar *) buf,
                                       Binary_log_event::TRANSACTION_CONTEXT_HEADER_LEN));
 }
@@ -13625,6 +13683,7 @@ View_change_log_event::View_change_log_event(char* raw_view_id)
               Log_event::EVENT_NORMAL_LOGGING)
 {
   DBUG_ENTER("View_change_log_event::View_change_log_event(char*)");
+  common_header->flags|= LOG_EVENT_IGNORABLE_F;
 
   if (strlen(view_id) != 0)
     is_valid_param= true;
@@ -13642,6 +13701,7 @@ View_change_log_event(const char *buffer,
 {
   DBUG_ENTER("View_change_log_event::View_change_log_event(const char *,"
              " uint, const Format_description_event*)");
+  common_header->flags|= LOG_EVENT_IGNORABLE_F;
 
   if (strlen(view_id) != 0)
     is_valid_param= true;

@@ -84,7 +84,6 @@ Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
-Source4:        my_config.h
 Source10:       http://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
@@ -100,6 +99,10 @@ BuildRequires:  zlib-devel
 BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)
 BuildRequires:  systemd-rpm-macros
+%endif
+%if 0%{?commercial}
+BuildRequires:  cyrus-sasl-devel
+BuildRequires:  openldap2-devel
 %endif
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
@@ -506,6 +509,8 @@ mkdir debug
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
+           -DPIDFILE_RPM="/var/run/mysql/mysqld.pid" \
+           -DLOGFILE_RPM="/var/log/mysql/mysqld.log" \
            -DCMAKE_BUILD_TYPE=Debug \
            -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="$optflags" \
@@ -523,6 +528,7 @@ mkdir debug
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_EMBEDDED_SERVER=1 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
+           -DWITH_NUMA=ON \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
@@ -538,6 +544,8 @@ mkdir release
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
+           -DPIDFILE_RPM="/var/run/mysql/mysqld.pid" \
+           -DLOGFILE_RPM="/var/log/mysql/mysqld.log" \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="%{optflags}" \
@@ -555,6 +563,7 @@ mkdir release
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_EMBEDDED_SERVER=1 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
+           -DWITH_NUMA=ON \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
@@ -579,12 +588,12 @@ cd $MBD/release
 make DESTDIR=%{buildroot} install
 
 # Install logrotate and autostart
-install -D -m 0644 $MBD/release/support-files/mysql-log-rotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
-install -D -m 0644 $MBD/release/packaging/rpm-sles/my.cnf %{buildroot}%{_sysconfdir}/my.cnf
+install -D -m 0644 packaging/rpm-common/mysql.logrotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
+install -D -m 0644 packaging/rpm-common/my.cnf %{buildroot}%{_sysconfdir}/my.cnf
 install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 %if 0%{?systemd}
 %else
-install -D -m 0755 $MBD/release/packaging/rpm-sles/mysql.init %{buildroot}%{_sysconfdir}/init.d/mysql
+install -D -m 0755 packaging/rpm-sles/mysql.init %{buildroot}%{_sysconfdir}/init.d/mysql
 %endif
 
 # Make library links
@@ -595,7 +604,7 @@ echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}
 %ifarch %{multiarchs}
 mv %{buildroot}/%{_includedir}/mysql/my_config.h \
    %{buildroot}/%{_includedir}/mysql/my_config_%{_arch}.h
-install -p -m 0644 %{SOURCE4} %{buildroot}/%{_includedir}/mysql/my_config.h
+install -p -m 0644 packaging/rpm-common/my_config.h %{buildroot}/%{_includedir}/mysql/my_config.h
 %endif
 
 # Remove files pages we explicitly do not want to package
@@ -641,7 +650,7 @@ rm -r $(readlink var) var
 %endif
 
 %post server
-datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p | tail -n 1')
+datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
 /bin/chmod 0751 "$datadir"
 /bin/touch /var/log/mysql/mysqld.log
 /bin/chown mysql:mysql /var/log/mysql/mysqld.log >/dev/null 2>&1 || :
@@ -691,7 +700,6 @@ fi
 %doc %{?license_files_server} %{src_dir}/Docs/ChangeLog
 %doc %{src_dir}/Docs/INFO_SRC*
 %doc release/Docs/INFO_BIN*
-%doc release/support-files/my-default.cnf
 %attr(644, root, root) %{_mandir}/man1/innochecksum.1*
 %attr(644, root, root) %{_mandir}/man1/my_print_defaults.1*
 %attr(644, root, root) %{_mandir}/man1/myisam_ftdump.1*
@@ -757,6 +765,8 @@ fi
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
@@ -775,6 +785,8 @@ fi
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_udf.so
@@ -802,7 +814,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
@@ -812,7 +823,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
@@ -822,7 +832,6 @@ fi
 %attr(644, root, root) %{_datadir}/mysql/mysql_system_tables.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql_system_tables_data.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql_test_data_timezone.sql
-%attr(644, root, root) %{_datadir}/mysql/my-*.cnf
 %attr(644, root, root) %{_datadir}/mysql/mysql-log-rotate
 %attr(644, root, root) %{_datadir}/mysql/mysql_security_commands.sql
 %attr(644, root, root) %{_datadir}/mysql/dictionary.txt
@@ -1135,6 +1144,9 @@ fi
 %endif # cluster
 
 %changelog
+* Tue Sep 13 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.16-1
+- Add connection_control.so to server subpackage
+
 * Fri Jun 03 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.14-1
 - Adapt MySQL server 5.7 packaging to MySQL Cluster 7.5
 

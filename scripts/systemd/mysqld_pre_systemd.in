@@ -30,15 +30,9 @@ get_option () {
 }
 
 install_validate_password_sql_file () {
-    local dir
     local initfile
-    if [ -d /var/lib/mysql-files ]; then
-        dir=/var/lib/mysql-files
-    else
-        dir=/tmp
-    fi
-    initfile="$(mktemp $dir/install-validate-password-plugin.XXXXXX.sql)"
-    chown @MYSQLD_USER@:@MYSQLD_USER@ "$initfile"
+    initfile="$(mktemp /tmp/install-validate-password-plugin.XXXXXX.sql)"
+    chmod a+r "$initfile"
     echo "INSERT INTO mysql.plugin (name, dl) VALUES ('validate_password', 'validate_password.so');" > $initfile
     echo $initfile
 }
@@ -52,15 +46,20 @@ install_db () {
 
     # Restore log, dir, perms and SELinux contexts
 
-    [ -d "$datadir" ] || install -d -m 0751 -o@MYSQLD_USER@ -g@MYSQLD_USER@ "$datadir" || exit 1
+    if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
+	install -d -m 0751 -o@MYSQLD_USER@ -g@MYSQLD_USER@ "$datadir" || exit 1
+    fi
 
-    [ -e $log ] || touch $log
-    chmod 0640 $log
-    chown @MYSQLD_USER@:@MYSQLD_USER@ $log || exit 1
+    if [ ! -e "$log" -a ! -h "$log" -a x$(dirname "$log") = "x/var/log" ]; then
+	case $(basename "$log") in
+	    mysql*.log) install /dev/null -m0640 -o@MYSQLD_USER@ -g@MYSQLD_USER@ "$log" ;;
+	    *) ;;
+	esac
+    fi
 
     if [ -x /usr/sbin/restorecon ]; then
         /usr/sbin/restorecon "$datadir"
-        /usr/sbin/restorecon $log
+        [ -e "$log" ] && /usr/sbin/restorecon "$log"
 	for dir in /var/lib/mysql-files /var/lib/mysql-keyring ; do
             if [ -x /usr/sbin/semanage -a -d /var/lib/mysql -a -d $dir ] ; then
                 /usr/sbin/semanage fcontext -a -e /var/lib/mysql $dir >/dev/null 2>&1

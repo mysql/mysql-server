@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@ IF(NOT CMAKE_CROSSCOMPILING)
  TARGET_LINK_LIBRARIES(comp_sql)
 ENDIF()
 
+# Add compiler information, for easier debugging of output from mysql_config.
+SET(COMPILER_ID_AND_VERSION
+  "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 
 # Build mysql_fix_privilege_tables.sql (concatenate 2 sql scripts)
 IF(NOT WIN32 OR CMAKE_CROSSCOMPILING)
@@ -170,81 +173,57 @@ IF(MALLOC_LIB)
   INSTALL(FILES ${MALLOC_LIB} DESTINATION ${INSTALL_LIBDIR} OPTIONAL)
 ENDIF()
 
-IF(CMAKE_GENERATOR MATCHES "Makefiles")
-  # Strip maintainer mode options if necessary
-  STRING(REPLACE "${MY_C_WARNING_FLAGS}" "" CFLAGS
-    "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-  STRING(REPLACE "${MY_CXX_WARNING_FLAGS}" "" CXXFLAGS
-    "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
-  FOREACH(ARCH ${CMAKE_OSX_ARCHITECTURES})
-    SET(CFLAGS   "${CFLAGS} -arch ${ARCH}")
-    SET(CXXFLAGS "${CXXFLAGS} -arch ${ARCH}")
+SET(COMPILE_DEFINITIONS_WHITELIST
+)
+
+# In practice: only in use on Solaris
+SET(CMAKE_C_FLAGS_WHITELIST
+  "-m32"
+  "-m64"
+)
+
+SET(CFLAGS "")
+SET(CXXFLAGS "")
+
+GET_PROPERTY(cwd_definitions DIRECTORY PROPERTY COMPILE_DEFINITIONS)
+FOREACH(white_flag ${COMPILE_DEFINITIONS_WHITELIST})
+  FOREACH(flag ${cwd_definitions})
+    IF (${flag} MATCHES ${white_flag})
+      SET(CFLAGS "-D${white_flag} ${CFLAGS}")
+      SET(CXXFLAGS "-D${white_flag} ${CXXFLAGS}")
+    ENDIF()
   ENDFOREACH()
-ELSE()
-  # Strip maintainer mode options if necessary
-  STRING(REPLACE "${MY_C_WARNING_FLAGS}" "" CFLAGS
-    "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-  STRING(REPLACE "${MY_CXX_WARNING_FLAGS}" "" CXXFLAGS
-    "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+ENDFOREACH()
+
+IF(CMAKE_BUILD_TYPE AND BUILD_IS_SINGLE_CONFIG)
+  STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
+  SET(CMAKEBT_FLAGS "${CMAKE_C_FLAGS_${CMAKEBT}} ${CMAKE_C_FLAGS}")
+  SEPARATE_ARGUMENTS(CMAKEBT_FLAGS)
 ENDIF()
 
-# Add trailing whitespace, before substitution below.
-SET(CFLAGS "${CFLAGS} ")
-SET(CXXFLAGS "${CXXFLAGS} ")
-
-SET(REPLACE_OPTIONS
-  "-DDBUG_OFF "
-  "-DEXTRA_DEBUG "
-  "-DHAVE_VALGRIND "
-  "-DSAFE_MUTEX "
-  "-fPIC "
-  "-fno-inline "
-  "-fno-strict-aliasing "
-  "-fstack-protector-strong "
-  "-g "
-  "-grecord-gcc-switches "
-  "-ip "
-  "-mp "
-  "-pipe "
-  "-restrict "
-  "-unroll2 "
-)
-
-# Note sequence of -W options here, most specific first.
-SET(REPLACE_REGEX_OPTIONS
-  "-Wp,[-=_A-Za-z0-9]*"
-  "-Werror=[-A-Za-z]*"
-  "-W[-A-Za-z]*"
-  "--param=[-=a-z0-9]*"
-  "-O[0-9]"
-  "-march=[-A-Za-z0-9]*"
-  "-mcpu=[-A-Za-z0-9]*"
-  "-mtune=[-A-Za-z0-9]*"
-  "-specs=[-A-Za-z0-9/]*"
-  "-xO[0-9]"
-)
-
-FOREACH(option ${REPLACE_REGEX_OPTIONS})
-  STRING(REGEX REPLACE "${option}" "" CFLAGS   "${CFLAGS}")
-  STRING(REGEX REPLACE "${option}" "" CXXFLAGS "${CXXFLAGS}")
+FOREACH(white_flag ${CMAKE_C_FLAGS_WHITELIST})
+  FOREACH(flag ${CMAKEBT_FLAGS})
+    IF (${flag} STREQUAL ${white_flag})
+      SET(CFLAGS "${white_flag} ${CFLAGS}")
+      SET(CXXFLAGS "${white_flag} ${CXXFLAGS}")
+    ENDIF()
+  ENDFOREACH()
 ENDFOREACH()
 
-FOREACH(option ${REPLACE_OPTIONS})
-  STRING(REPLACE "${option}" " " CFLAGS   "${CFLAGS}")
-  STRING(REPLACE "${option}" " " CXXFLAGS "${CXXFLAGS}")
-ENDFOREACH()
-STRING(REPLACE "-fexceptions " " " CFLAGS "${CFLAGS}")
-
-# Finally: strip away whitespace.
-STRING(REGEX REPLACE "[ ]+" " " CFLAGS   "${CFLAGS}")
-STRING(REGEX REPLACE "[ ]+" " " CXXFLAGS "${CXXFLAGS}")
-STRING(REGEX REPLACE "^[ ]+" "" CFLAGS   "${CFLAGS}")
-STRING(REGEX REPLACE "^[ ]+" "" CXXFLAGS "${CXXFLAGS}")
-STRING(REGEX REPLACE "[ ]+$" "" CFLAGS   "${CFLAGS}")
-STRING(REGEX REPLACE "[ ]+$" "" CXXFLAGS "${CXXFLAGS}")
+# Do not remove -std=c++11 for Solaris Studio as it is required to get
+# the correct libraries. Only remove for GCC/Clang
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  STRING(REGEX REPLACE "-std=c..[0-9]+" "" CXXFLAGS "${CXXFLAGS}")
+ENDIF()
 
 IF(UNIX)
-  # FIND_PROC and CHECK_PID are used by mysqld_safe
+  # SHELL_PATH, FIND_PROC, CHECK_PID are used by mysqld_safe
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  SET (SHELL_PATH "/bin/bash")
+ELSE()
+  SET (SHELL_PATH "/bin/sh")
+ENDIF()
+
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   SET (FIND_PROC 
     "ps wwwp $PID | grep -v mysqld_safe | grep -- $MYSQLD > /dev/null")
@@ -378,13 +357,15 @@ IF(WITH_EMBEDDED_SERVER)
 ENDIF()
 
 SET(CONFIG_CLIENT_LIBS "${CLIENT_LIBS}")
-IF(QUOTED_CMAKE_C_LINK_FLAGS)
-  SET(CONFIG_CLIENT_LIBS "${CONFIG_CLIENT_LIBS} ${QUOTED_CMAKE_C_LINK_FLAGS}")
-ENDIF()
-
 SET(CONFIG_EMBEDD_LIBS "${EMBEDD_LIBS}")
-IF(QUOTED_CMAKE_CXX_LINK_FLAGS)
-  SET(CONFIG_EMBEDD_LIBS "${CONFIG_EMBEDD_LIBS} ${QUOTED_CMAKE_CXX_LINK_FLAGS}")
+SET(CONFIG_LIBS_PRIVATE "${CLIENT_LIBS}")
+SET(CONFIG_REQUIRES_PRIVATE "")
+# ssl.cmake should have used pkg-config rather than cmake to locate ssl
+IF (WITH_SSL STREQUAL "system")
+  SET(CONFIG_REQUIRES_PRIVATE "openssl")
+  STRING(REPLACE "-lssl" "" CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
+  STRING(REPLACE "-lcrypto" "" CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
+  STRING(REGEX REPLACE "[ ]+" " " CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
 ENDIF()
 
 SET(LIBMYSQLD_LIBS_USAGE "

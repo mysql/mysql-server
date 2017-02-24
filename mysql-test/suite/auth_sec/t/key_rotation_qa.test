@@ -22,6 +22,7 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `test/.*` be
 call mtr.add_suppression("\\[Error\\] InnoDB: Failed to find tablespace for table");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Can't read encryption key from file");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot open table .* from the internal data dictionary of InnoDB though the .frm file for the table exists.*");
+call mtr.add_suppression("Could not flush keys to keyring's backup");
 
 # Invalid syntax
 --error ER_PARSE_ERROR
@@ -36,6 +37,9 @@ ALTER INSTANCE ROTATE INNODB SLAVE KEY;
 # When keyring_file plugin not loaded.
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
+--error 0,1
+--remove_file $MYSQL_TMP_DIR/keyring
 
 --echo
 # Re-starting mysql server with keyring_file plugin.
@@ -60,6 +64,7 @@ SET @@global.early-plugin-load="keyring_file=keyring_file.so";
 # Check keyring_file plugin.
 query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
+# Check if empty keyring file was not created
 --file_exists $MYSQL_TMP_DIR/keyring/keyring
 --echo
 
@@ -80,10 +85,11 @@ CREATE TABLE t2(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 INSERT INTO t2 SELECT * FROM t1;
 SELECT COUNT(*) FROM t2;
 
---echo # Removing keyring file.
+--echo # Remove keyring file.
 # If we remove the keyring file and the server
 # is still running the keyring will stay in the memory
 # and the encrypted table/s will be accessible.
+--copy_file $MYSQL_TMP_DIR/keyring/keyring $MYSQL_TMP_DIR/keyring/keyring_tmp
 --remove_file $MYSQL_TMP_DIR/keyring/keyring
 --echo
 --echo # Check for keyring file.
@@ -97,12 +103,14 @@ INSERT INTO t3 VALUES(2, "ccccc");
 --list_files $MYSQL_TMP_DIR/keyring/
 --echo
 
-# ALTER INSTANCE ROTATE cmd will create keyring file
-# if it is not exists and new master key in it.
+# ALTER INSTANCE ROTATE cmd will fail if keyring file
+# does not exist
+--ERROR ER_CANNOT_FIND_KEY_IN_KEYRING
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
 --echo # Check for keyring file.
 --list_files $MYSQL_TMP_DIR/keyring/
+--error 1
 --file_exists $MYSQL_TMP_DIR/keyring/keyring
 --echo
 SELECT * FROM t1;
@@ -118,6 +126,10 @@ SELECT COUNT(*) FROM t1;
 SELECT * FROM t2;
 
 CREATE TABLE t10(c1 INT, c2 char(20)) ENGINE = InnoDB;
+
+# Recreate the keyring file
+--copy_file $MYSQL_TMP_DIR/keyring/keyring_tmp $MYSQL_TMP_DIR/keyring/keyring
+--remove_file $MYSQL_TMP_DIR/keyring/keyring_tmp
 
 # After restart encrypted table/s should be accessible
 # when using same keyring file.

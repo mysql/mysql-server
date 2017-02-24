@@ -2985,16 +2985,20 @@ int open_file(const char *name)
   DBUG_ENTER("open_file");
   DBUG_PRINT("enter", ("name: %s", name));
 
+  my_bool file_exists= false;
   /* Extract path from current file and try it as base first */
   if (dirname_part(buff, cur_file->file_name, &length))
   {
     strxmov(buff, buff, name, NullS);
-    if (access(buff, F_OK) == 0){
+    if (access(buff, F_OK) == 0)
+    {
       DBUG_PRINT("info", ("The file exists"));
       name= buff;
+      file_exists= true;
     }
   }
-  if (!test_if_hard_path(name))
+
+  if (!test_if_hard_path(name) && !file_exists)
   {
     strxmov(buff, opt_basedir, name, NullS);
     name=buff;
@@ -5052,7 +5056,7 @@ static void abort_process(int pid, const char *path)
       /* Make sure "/mysqld.nnnnnnnnnn.dmp" fits */
       if ((end - name) < (sizeof(name) - 23))
       {
-        if (end[-1] != FN_LIBCHAR && end[-1] != FN_LIBCHAR2)
+        if (!is_directory_separator(end[-1]))
         {
           end[0]= FN_LIBCHAR2;   // datadir path normally uses '/'.
           end++;

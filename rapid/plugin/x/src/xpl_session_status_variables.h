@@ -30,13 +30,10 @@ namespace xpl
 class Session_status_variables : public Common_status_variables
 {
 public:
-  Session_status_variables()
-  {
-  }
+  Session_status_variables() {}
 
 private:
   Session_status_variables(const Session_status_variables &);
-  Session_status_variables &operator=(const Session_status_variables &);
 };
 
 

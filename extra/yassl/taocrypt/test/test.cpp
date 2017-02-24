@@ -1277,6 +1277,9 @@ int dsa_test()
     if (!verifier.Verify(digest, decoded))
         return -90;
 
+    if (!verifier.Verify(digest, signature))
+        return -91;
+
     return 0;
 }
 

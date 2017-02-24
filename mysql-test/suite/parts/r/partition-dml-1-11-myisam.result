@@ -1,5 +1,7 @@
 # Additional tests for WL#5217 by QA, testplan 1.1
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-4, '(pNeg-)subp0');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-3, '(pNeg-)subp0');
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-2, '(pNeg-)subp0');
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-1, '(pNeg-)subp0');
@@ -35,6 +37,10 @@ CREATE USER test_user_1 IDENTIFIED BY 'testpw';
 CREATE USER test_user_2 IDENTIFIED BY 'testpw';
 GRANT ALL PRIVILEGES ON test.* TO test_user_1;
 GRANT ALL PRIVILEGES ON test.* TO test_user_2;
+# FILE is needed to use the DATA DIRECTORY or INDEX DIRECTORY option
+# Need to disable warnings as this gives warning 1287 except when
+# running in embedded mode
+GRANT FILE ON *.* TO test_user_2 IDENTIFIED BY 'testpw';
 connect  session1, localhost, test_user_1,'testpw',test;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
@@ -172,6 +178,8 @@ MUST BE TRUE (1)
 1
 SELECT * FROM t2 PARTITION (`p30-299`);
 a	b
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UPDATE t2 PARTITION (`p30-299`) SET b='p30-299-upd' WHERE a BETWEEN 30 AND 39;
 DELETE FROM t2 PARTITION (`p30-299`) WHERE a BETWEEN 30 AND 39;
 SELECT * FROM t2 PARTITION (`p300-2999`);

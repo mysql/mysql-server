@@ -31,26 +31,7 @@ Mysqlx.Connection.CapabilitiesSet {
 
 -->recvtype Mysqlx.Error
 
--->echo try setting Read only plugin.version capabilities,expect error
-Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "plugin.version"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_STRING
-          v_string {
-            value: "1.0.0"
-          }
-        }
-      }
-    }
-  }
-}
--->recvtype Mysqlx.Error
-
--->echo try setting read only doc.formats capabilites
+-->echo try setting read only doc.formats capabilities
 Mysqlx.Connection.CapabilitiesSet {
   capabilities {
     capabilities {
@@ -523,7 +504,7 @@ EOF
 
 --echo Restart server and verify if ssl callback works
 let $restart_parameters = restart: --ssl=1;
---source include/restart_mysqld.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --echo capabilities.result checks the presence of tls cap
 --exec $MYSQLXTEST -u root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-capabilities-get.tmp 2>&1

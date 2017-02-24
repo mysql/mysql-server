@@ -22,7 +22,11 @@ a	b
 CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # State before crash
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -42,6 +46,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -87,6 +93,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -134,7 +142,11 @@ a	b
 CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # State before crash
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -154,6 +166,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -199,6 +213,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -246,7 +262,11 @@ a	b
 CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # State before crash
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -266,6 +286,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -311,6 +333,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -358,7 +382,11 @@ a	b
 CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # State before crash
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -378,6 +406,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -423,6 +453,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -470,7 +502,11 @@ a	b
 CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # State before crash
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -490,6 +526,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -535,6 +573,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -582,7 +622,11 @@ a	b
 CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # State before crash
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -602,6 +646,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -647,6 +693,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -694,7 +742,11 @@ a	b
 CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # State before crash
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -714,6 +766,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -759,6 +813,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -806,7 +862,11 @@ a	b
 CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # State before crash
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -826,6 +886,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -871,6 +933,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -918,7 +982,11 @@ a	b
 CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # State before crash
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -938,6 +1006,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -983,6 +1053,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 11	Original from partition p1
@@ -1030,7 +1102,11 @@ a	b
 CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # State before failure
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -1050,6 +1126,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -1085,6 +1163,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -1132,7 +1212,11 @@ a	b
 CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # State before failure
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -1152,6 +1236,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -1187,6 +1273,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -1234,7 +1322,11 @@ a	b
 CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # State before failure
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -1254,6 +1346,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -1289,6 +1383,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -1336,7 +1432,11 @@ a	b
 CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # State before failure
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -1356,6 +1456,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -1391,6 +1493,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -1438,7 +1542,11 @@ a	b
 CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # State before failure
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -1458,6 +1566,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -1493,6 +1603,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -1540,7 +1652,11 @@ a	b
 CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # State before failure
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -1560,6 +1676,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -1595,6 +1713,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -1642,7 +1762,11 @@ a	b
 CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # State before failure
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -1662,6 +1786,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -1697,6 +1823,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -1744,7 +1872,11 @@ a	b
 CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # State before failure
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -1764,6 +1896,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -1799,6 +1933,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -1846,7 +1982,11 @@ a	b
 CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # State before failure
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -1866,6 +2006,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -1901,6 +2043,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a	b
 11	Original from partition p1

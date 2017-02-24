@@ -131,7 +131,8 @@
 #    $rpl_group_replication
 #      This checks for whether we have Group Replication enabled or not. Based
 #      on the check this parameter we execute change master or not in this
-#      inc file.
+#      inc file. Moreover, it also sets the default timeouts for the group
+#      replication tests.
 #
 #    $rpl_gtid_utils
 #      Create stored functions for GTID manipulation on every server (see
@@ -280,6 +281,13 @@ if ($gtid_mode == 'ON')
 if ($group_replication_group_name == '')
 {
   --let $group_replication_group_name= `SELECT UUID()`
+}
+
+# if in group replication mode, set the default timeouts
+if($rpl_group_replication)
+{
+  # Reset default timeouts for the group replication tests
+  --source include/group_replication_timeouts.inc
 }
 
 while ($_rpl_server)

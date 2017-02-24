@@ -71,9 +71,13 @@ End of 5.1 tests
 CREATE TABLE t1 (a int) ENGINE = MyISAM;
 CREATE TABLE t2 (a int PRIMARY KEY)
 ENGINE = MyISAM PARTITION BY HASH (a) PARTITIONS 3;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 HANDLER t1 OPEN;
 # Con1
 LOCK TABLES t1 WRITE, t2 READ LOCAL;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Default
 SET DEBUG_SYNC="wait_for_lock SIGNAL locking";
 UPDATE t2 SET a=1;

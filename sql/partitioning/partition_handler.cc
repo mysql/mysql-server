@@ -1823,6 +1823,12 @@ void Partition_helper::set_partition_read_set()
         calculate the partition id to place updated and deleted records.
       */
       bitmap_union(m_table->read_set, &m_part_info->full_part_field_set);
+      /* Fill the base columns of virtual generated columns if necessary */
+      for (Field **ptr= m_part_info->full_part_field_array; *ptr; ptr++)
+      {
+        if ((*ptr)->is_virtual_gcol())
+          m_table->mark_gcol_in_maps(*ptr);
+      }
     }
     // Mark virtual generated columns writable
     for (Field **vf= m_table->vfield; vf && *vf; vf++)

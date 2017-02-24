@@ -1,0 +1,119 @@
+################################################################################
+# The intent of this test is to verify if the validations that were
+# created within the Group Replication plugin in the runtime process
+# are fully functional.
+#
+# It will test the invalid scenarios for table creation.
+#
+#   Table with only unique key.
+#   Table with NULL key.
+#   Table with Unique NULL key.
+#   Table with a normal key. (Not unique)
+#
+# It will cycle all cases in which the runtime validation is verified.
+#
+# Afterwards the plugin will be stopped and one of the cases will be tested in
+# order to assess that the verification is no longer accomplished.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Setup group of two members. Bring both the members ONLINE.
+# 2. On M1:
+#  - Create table t1 with only unique key.
+#  - Create table t2 with possible NULL value for the key.
+#  - Create table t3 with unique NULL key.
+#  - Sync it to the group.
+# 3. Testing all the three tables that will fail with following DML operations:
+#  - Test the INSERT instruction. It must fail.
+#  - Test the UPDATE instruction. It must fail.
+#  - Test the DELETE instruction. It must fail.
+#  - Sync data to the group.
+# 4. Stop GR on M1. Stop GR on M2.
+# 5. Testing all the three tables again with following DML operations on M1:
+#  - Test the INSERT instruction. It must succeed.
+#  - Test the UPDATE instruction. It must succeed.
+#  - Test the DELETE instruction. It must succeed.
+# 6. Clean up.
+################################################################################
+--source ../inc/have_group_replication_plugin.inc
+--source ../inc/group_replication.inc
+
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Table.*does not have any PRIMARY KEY. This is not compatible with Group Replication");
+SET SESSION sql_log_bin=1;
+
+--connection server1
+#Lets create several tables. They will all breach 1 or more rules
+
+#Wrong table with only unique Key
+CREATE TABLE t1 (c1 INT UNIQUE KEY) ENGINE=InnoDB;
+
+#Wrong table with possible NULL value for the key.
+CREATE TABLE t2 (c1 INT, KEY `c1` (`c1`)) ENGINE=InnoDB;
+
+#Wrong table with unique key with null value.
+CREATE TABLE t3 (c1 INT UNIQUE NULL) ENGINE=InnoDB;
+
+--source include/rpl_sync.inc
+
+#
+# The tests begin here.
+#
+--echo #
+--echo # Testing all tables that will fail.
+--echo #
+
+--let $wrong_tables_count=3
+while ($wrong_tables_count)
+{
+  #Test the INSERT instruction
+  --error ER_BEFORE_DML_VALIDATION_ERROR
+  --eval INSERT INTO t$wrong_tables_count VALUES(1)
+
+  #Test the UPDATE instruction
+  --error ER_BEFORE_DML_VALIDATION_ERROR
+  --eval UPDATE t$wrong_tables_count SET c1 = 2
+
+  #Test the DELETE instruction
+  --error ER_BEFORE_DML_VALIDATION_ERROR
+  --eval DELETE FROM t$wrong_tables_count
+
+  --dec $wrong_tables_count
+}
+
+#This will sync data among all group members
+--source include/rpl_sync.inc
+
+--echo # Now, lets repeat all the tests with group replication stopped.
+--source include/stop_group_replication.inc
+--connection server2
+--source include/stop_group_replication.inc
+
+--connection server1
+
+--let $wrong_tables_count=3
+while ($wrong_tables_count)
+{
+  #Test the INSERT instruction
+  --eval INSERT INTO t$wrong_tables_count VALUES(1)
+
+  #Test the UPDATE instruction
+  --eval UPDATE t$wrong_tables_count SET c1 = 2
+
+  #Test the DELETE instruction
+  --eval DELETE FROM t$wrong_tables_count
+
+  #clean up this table
+  --eval DROP TABLE t$wrong_tables_count
+
+  --dec $wrong_tables_count
+}
+
+--connection server2
+--let $table_count= 3
+while ($table_count)
+{
+  --eval DROP TABLE t$table_count
+  --dec $table_count
+}
+--source ../inc/group_replication_end.inc
