@@ -67,6 +67,7 @@
 #include "tztime.h"               // Time_zone
 
 class Sys_var_bit;
+class Sys_var_bool;
 class Sys_var_charptr;
 class Sys_var_double;
 class Sys_var_enforce_gtid_consistency;
@@ -76,7 +77,6 @@ class Sys_var_gtid_mode;
 class Sys_var_have;
 class Sys_var_lexstring;
 class Sys_var_multi_enum;
-class Sys_var_mybool;
 class Sys_var_plugin;
 class Sys_var_set;
 class Sys_var_tz;
@@ -1214,7 +1214,7 @@ public:
 
 /**
   The class for @c test_flags (core_file for now).
-  It's derived from Sys_var_mybool.
+  It's derived from Sys_var_bool.
 
   Class specific constructor arguments:
     Caller need not pass in a variable as we make up the value on the
@@ -1222,14 +1222,14 @@ public:
 
   Backing store: bool
 */
-class Sys_var_test_flag: public Sys_var_mybool
+class Sys_var_test_flag: public Sys_var_bool
 {
 private:
   bool test_flag_value;
   uint test_flag_mask;
 public:
   Sys_var_test_flag(const char *name_arg, const char *comment, uint mask)
-  : Sys_var_mybool(name_arg, comment, READ_ONLY GLOBAL_VAR(test_flag_value),
+  : Sys_var_bool(name_arg, comment, READ_ONLY GLOBAL_VAR(test_flag_value),
           NO_CMD_LINE, DEFAULT(FALSE))
   {
     test_flag_mask= mask;
@@ -2151,7 +2151,7 @@ public:
   only.
 */
 
-class Sys_var_tx_read_only: public Sys_var_mybool
+class Sys_var_tx_read_only: public Sys_var_bool
 {
 public:
   Sys_var_tx_read_only(const char *name_arg, const char *comment, int flag_args,
@@ -2159,7 +2159,7 @@ public:
                        bool def_val, PolyLock *lock,
                        enum binlog_status_enum binlog_status_arg,
                        on_check_function on_check_func)
-    :Sys_var_mybool(name_arg, comment, flag_args, off, size, getopt,
+    :Sys_var_bool(name_arg, comment, flag_args, off, size, getopt,
                     def_val, lock, binlog_status_arg, on_check_func)
   {}
   virtual bool session_update(THD *thd, set_var *var);
@@ -2171,7 +2171,7 @@ public:
   whether logging to the binary log is done.
 */
 
-class Sys_var_sql_log_bin: public Sys_var_mybool
+class Sys_var_sql_log_bin: public Sys_var_bool
 {
 public:
   Sys_var_sql_log_bin(const char *name_arg, const char *comment, int flag_args,
@@ -2180,7 +2180,7 @@ public:
                       enum binlog_status_enum binlog_status_arg,
                       on_check_function on_check_func,
                       on_update_function on_update_func)
-    :Sys_var_mybool(name_arg, comment, flag_args, off, size, getopt,
+    :Sys_var_bool(name_arg, comment, flag_args, off, size, getopt,
                     def_val, lock, binlog_status_arg, on_check_func,
                     on_update_func)
   {}
