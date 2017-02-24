@@ -1,4 +1,6 @@
 --source include/have_innodb.inc
+--source include/have_debug.inc
+
 let bugdir= $MYSQLTEST_VARDIR/tmp/datadir1;
 --mkdir $bugdir
 
