@@ -171,7 +171,7 @@ private:
 };
 
 
-Query_formatter::Query_formatter(std::string &query, charset_info_st &charset)
+Query_formatter::Query_formatter(ngs::PFS_string &query, charset_info_st &charset)
 : m_query(query), m_charset(charset), m_last_tag_position(0)
 {
 }
@@ -214,7 +214,7 @@ Query_formatter &Query_formatter::operator % (const No_escape<std::string> &valu
 
 void Query_formatter::validate_next_tag()
 {
-  std::string::iterator i = std::find_if(m_query.begin() + m_last_tag_position, m_query.end(), Sql_search_tags());
+  ngs::PFS_string::iterator i = std::find_if(m_query.begin() + m_last_tag_position, m_query.end(), Sql_search_tags());
 
   if (m_query.end() == i)
   {
@@ -248,9 +248,9 @@ void Query_formatter::put_value(const char *value, const std::size_t length)
     m_query.resize(length_target, '\0');
   }
 
-  std::string::iterator tag_position = m_query.begin() + m_last_tag_position;
-  std::string::iterator move_to = tag_position + length;
-  std::string::iterator move_from = tag_position + tag_size;
+  ngs::PFS_string::iterator tag_position = m_query.begin() + m_last_tag_position;
+  ngs::PFS_string::iterator move_to = tag_position + length;
+  ngs::PFS_string::iterator move_from = tag_position + tag_size;
 
   std::copy(move_from, m_query.begin() + length_source, move_to);
   std::copy(value, value + length,  tag_position);

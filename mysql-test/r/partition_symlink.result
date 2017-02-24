@@ -13,6 +13,8 @@ PARTITION p1 VALUES IN (1)
 DATA DIRECTORY 'MYSQLTEST_VARDIR/tmp'
   INDEX DIRECTORY 'MYSQLTEST_VARDIR/tmp',
 PARTITION p2 VALUES IN (2));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE t2 (a INT)
 ENGINE = MyISAM
 DATA DIRECTORY 'MYSQLTEST_VARDIR/tmp'
@@ -26,6 +28,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES IN (0) DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/tmp' ENGINE = MyISAM,
  PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/tmp' ENGINE = MyISAM,
  PARTITION p2 VALUES IN (2) ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -43,6 +47,8 @@ DROP TABLE t1, t2;
 # test.t1 have partitions in mysqltest2-directory!
 # user root:
 CREATE USER mysqltest_1@localhost;
+# Need FILE permission to use external datadir or indexdir.
+GRANT FILE ON *.* TO mysqltest_1@localhost;
 CREATE DATABASE mysqltest2;
 USE mysqltest2;
 CREATE TABLE t1 (a INT) ENGINE = MyISAM;
@@ -60,6 +66,8 @@ DATA DIRECTORY 'MYSQLTEST_VARDIR/tmp'
      INDEX DIRECTORY 'MYSQLTEST_VARDIR/tmp',
 PARTITION p2 VALUES IN (2)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # without the patch for bug#32091 this would create
 # files mysqltest2/t1.MYD + .MYI and possible overwrite
 # the mysqltest2.t1 table (depending on bug#32111)
@@ -96,6 +104,8 @@ PARTITION p1 VALUES IN (1)
 DATA DIRECTORY 'MYSQLTEST_VARDIR/tmp'
      INDEX DIRECTORY 'MYSQLTEST_VARDIR/tmp'
    );
+Warnings:
+Warning	1287	The partition engine, used by table 'mysqltest2.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # user mysqltest_1:
 USE test;
 CREATE TABLE t1 (a INT)
@@ -132,6 +142,8 @@ partition p01 values less than (1000)
 data directory="MYSQLTEST_VARDIR/tmp"
     index directory="MYSQLTEST_VARDIR/tmp"
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 set @org_mode=@@sql_mode;
 set @@sql_mode='NO_DIR_IN_CREATE';
 Warnings:
@@ -150,6 +162,7 @@ data directory='/not/existing'
 Warnings:
 Warning	1618	<DATA DIRECTORY> option ignored
 Warning	1618	<INDEX DIRECTORY> option ignored
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -157,6 +170,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (i)
 (PARTITION p01 VALUES LESS THAN (1000) ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1, t2;
 set @@sql_mode=@org_mode;
 Warnings:

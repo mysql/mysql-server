@@ -4,6 +4,8 @@ partition pa1 max_rows=20 min_rows=2,
 partition pa2 max_rows=30 min_rows=3,
 partition pa3 max_rows=30 min_rows=4,
 partition pa4 max_rows=40 min_rows=2);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -15,6 +17,8 @@ t1	CREATE TABLE `t1` (
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = MyISAM,
  PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = MyISAM,
  PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (-3.402823466E+38), (3.402823466E+38), (-1.5), (-1), (0), (1), (1.5);
 select * from t1;
 a
@@ -40,6 +44,8 @@ a
 drop table t1;
 create table t2 (a float not null, primary key(a)) engine='MYISAM' 
 partition by key (a) partitions 10;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -48,6 +54,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 10 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t2 values (-3.402823466E+38), (-3.402823466E+37), (-123.456), (0), (1234546.789), (123.456), (1.5);
 select * from t2;
 a
@@ -94,6 +102,8 @@ partition pa1 max_rows=20 min_rows=2,
 partition pa2 max_rows=30 min_rows=3,
 partition pa3 max_rows=30 min_rows=4,
 partition pa4 max_rows=40 min_rows=2);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -105,6 +115,8 @@ t1	CREATE TABLE `t1` (
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = MyISAM,
  PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = MyISAM,
  PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (-2.2250738585072014E+208), (-2.2250738585072014E-208), (-1.5), (-1), (0), (1.5), (1234.567), (2.2250738585072014E+208);
 select * from t1;
 a
@@ -132,6 +144,8 @@ a
 drop table t1;
 create table t2 (a double not null, primary key(a)) engine='MYISAM' 
 partition by key (a) partitions 10;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -140,6 +154,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 10 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t2 values (-2.2250738585072014E+208), (-2.2250738585072014E-208), (-1.5), (-1), (0), (1.5), (1234.567), (2.2250738585072014E+208);
 select * from t2;
 a

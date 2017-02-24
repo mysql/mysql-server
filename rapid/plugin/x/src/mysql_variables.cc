@@ -17,10 +17,6 @@
  * 02110-1301  USA
  */
 
-#if !defined(MYSQL_DYNAMIC_PLUGIN) && defined(WIN32) && !defined(XPLUGIN_UNIT_TESTS)
-#define MYSQL_DYNAMIC_PLUGIN 1
-#endif
-
 #include "mysql_variables.h"
 #include <mysql/plugin.h>
 #include "mysqld.h"
@@ -42,6 +38,5 @@ const CHARSET_INFO *get_charset_utf8mb4_general_ci()
 {
   return &my_charset_utf8mb4_general_ci;
 }
-
 
 } // namespace mysqld

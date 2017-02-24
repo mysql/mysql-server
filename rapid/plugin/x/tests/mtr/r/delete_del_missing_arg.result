@@ -48,13 +48,8 @@ send Mysqlx.Crud.Delete {
   data_model: DOCUMENT
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5112
-  msg: "Invalid schema"
-  sql_state: "HY000"
-}
 
+3 rows affected
 send Mysqlx.Crud.Delete {
   collection {
     name: "mycoll"
@@ -63,13 +58,8 @@ send Mysqlx.Crud.Delete {
   data_model: TABLE
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5112
-  msg: "Invalid schema"
-  sql_state: "HY000"
-}
 
+0 rows affected
 send Mysqlx.Crud.Delete {
   collection {
     name: ""
@@ -78,13 +68,7 @@ send Mysqlx.Crud.Delete {
   data_model: DOCUMENT
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5113
-  msg: "Invalid collection"
-  sql_state: "HY000"
-}
-
+Got expected error: Invalid name of table/collection (code 5113)
 send Mysqlx.Crud.Delete {
   collection {
     name: ""
@@ -93,18 +77,10 @@ send Mysqlx.Crud.Delete {
   data_model: TABLE
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5113
-  msg: "Invalid table"
-  sql_state: "HY000"
-}
-
-RUN drop schema if exists xtest
-
-2 rows affected
+Got expected error: Invalid name of table/collection (code 5113)
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+drop schema if exists xtest;
 uninstall plugin mysqlx;

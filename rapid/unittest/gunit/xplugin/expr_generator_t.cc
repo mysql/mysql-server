@@ -14,10 +14,8 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "expr_generator.h"
-#include "ngs_common/protocol_protobuf.h"
 #include "mysqlx_pb_wrapper.h"
 #include <gtest/gtest.h>
-#include <boost/scoped_ptr.hpp>
 
 namespace xpl
 {
@@ -101,9 +99,10 @@ TEST(xpl_expr_generator, invalid_operator)
 }
 
 
-TEST(xpl_expr_generator, zeroary_operators)
+TEST(xpl_expr_generator, nullary_operators)
 {
   EXPECT_EQ("*", generate_expression(Operator("*"), EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ("*", generate_expression(Operator("*"), EMPTY_SCHEMA, DM_DOCUMENT));
 }
 
 
@@ -166,20 +165,15 @@ TEST(xpl_expr_generator, identifier)
 
 TEST(xpl_expr_generator, variable)
 {
-  boost::scoped_ptr<Expr> var(Expr::make_variable("'variable`\""));
-
-  //EXPECT_EQ("@`'variable``\"`", generate_expression(*var));
-  EXPECT_THROW(generate_expression(*var, EMPTY_SCHEMA, DM_TABLE), Expression_generator::Error);
+  //EXPECT_EQ("@`'variable``\"`", generate_expression(Expr(Variable("'variable`\""))));
+  EXPECT_THROW(generate_expression(Expr(Variable("'variable`\"")),
+                                   EMPTY_SCHEMA, DM_TABLE), Expression_generator::Error);
 }
 
 
 TEST(xpl_expr_generator, column_identifier)
 {
-  Document_path::Path doc_path;
-
-  doc_path.push_back(
-    std::make_pair(Mysqlx::Expr::DocumentPathItem::MEMBER, "docpath \"'")
-  );
+  Document_path::Path doc_path("docpath \"'");
 
   EXPECT_EQ(
     "`column ``\"'`",
@@ -218,7 +212,8 @@ TEST(xpl_expr_generator, column_identifier)
       ), EMPTY_SCHEMA, DM_TABLE)
   );
   EXPECT_THROW(
-    generate_expression(ColumnIdentifier(EMPTY, "table"), EMPTY_SCHEMA, DM_TABLE), std::invalid_argument
+    generate_expression(ColumnIdentifier(EMPTY, "table"), EMPTY_SCHEMA, DM_TABLE),
+    std::invalid_argument
   );
   EXPECT_THROW(
     generate_expression(ColumnIdentifier("column", EMPTY, "schema"), EMPTY_SCHEMA, DM_TABLE),
@@ -229,30 +224,48 @@ TEST(xpl_expr_generator, column_identifier)
 
 TEST(xpl_expr_generator, column_identifier_doc_id)
 {
-  Document_path::Path path;
-  path.push_back(std::make_pair(Mysqlx::Expr::DocumentPathItem::MEMBER, "_id"));
-  ColumnIdentifier ident(EMPTY, EMPTY, EMPTY, &path);
-  EXPECT_EQ("JSON_EXTRACT(doc,'$._id')", generate_expression(ident, EMPTY_SCHEMA, DM_TABLE));
-  EXPECT_EQ("`_id`", generate_expression(ident, EMPTY_SCHEMA, DM_DOCUMENT));
+  Document_path::Path path("_id");
+  ColumnIdentifier ident(path);
+  ASSERT_EQ("JSON_EXTRACT(doc,'$._id')", generate_expression(ident, EMPTY_SCHEMA, DM_TABLE));
+  ASSERT_EQ("JSON_EXTRACT(doc,'$._id')", generate_expression(ident, EMPTY_SCHEMA, DM_DOCUMENT));
+}
+
+
+TEST(xpl_expr_generator, column_identifier_doc_id_names)
+{
+  Document_path::Path path("_id");
+  ColumnIdentifier ident(path, "field", "table", "schema");
+  ASSERT_EQ("JSON_EXTRACT(`schema`.`table`.`field`,'$._id')", generate_expression(ident, EMPTY_SCHEMA, DM_TABLE));
+  ASSERT_EQ("JSON_EXTRACT(`schema`.`table`.`field`,'$._id')", generate_expression(ident, EMPTY_SCHEMA, DM_DOCUMENT));
+}
+
+
+TEST(xpl_expr_generator, column_identifier_no_column)
+{
+  ColumnIdentifier ident(EMPTY, "table");
+  ASSERT_THROW(generate_expression(ident, EMPTY_SCHEMA, DM_DOCUMENT),
+               Expression_generator::Error);
+
+  ASSERT_THROW(generate_expression(ident, EMPTY_SCHEMA, DM_TABLE),
+               Expression_generator::Error);
+
+  Document_path::Path path("member");
+  ColumnIdentifier ident2(EMPTY, "table", EMPTY, &path);
+  ASSERT_EQ("JSON_EXTRACT(`table`.doc,'$.member')",
+            generate_expression(ident2, EMPTY_SCHEMA, DM_DOCUMENT));
 }
 
 
 TEST(xpl_expr_generator, function_call)
 {
   EXPECT_EQ("schema.func()",
-            generate_expression(FunctionCall(new Identifier("func")), "schema", DM_TABLE));
-  EXPECT_EQ(
-    "schema.func(FALSE,5)",
-    generate_expression(FunctionCall(new Identifier("func"), false, 5), "schema", DM_TABLE)
-  );
-  EXPECT_EQ(
-    "concat(FALSE,5)",
-    generate_expression(FunctionCall(new Identifier("concat"), false, 5), "schema", DM_TABLE)
-  );
-  EXPECT_EQ(
-    "CONCAT(FALSE,5)",
-    generate_expression(FunctionCall(new Identifier("CONCAT"), false, 5), "schema", DM_TABLE)
-  );
+            generate_expression(FunctionCall("func"), "schema", DM_TABLE));
+  EXPECT_EQ("schema.func(FALSE,5)",
+            generate_expression(FunctionCall("func", false, 5), "schema", DM_TABLE));
+  EXPECT_EQ("concat(FALSE,5)",
+            generate_expression(FunctionCall("concat", false, 5), "schema", DM_TABLE));
+  EXPECT_EQ("CONCAT(FALSE,5)",
+            generate_expression(FunctionCall("CONCAT", false, 5), "schema", DM_TABLE));
 }
 
 
@@ -396,189 +409,172 @@ TEST(xpl_expr_generator, complex_expressions)
 {
   EXPECT_EQ(
     "(`schema`.`ident``` NOT LIKE 'string\\'' ESCAPE 'x')",
-    generate_expression(
-      Expr(
-        new Operator(
-          "not_like",
-          new ColumnIdentifier("ident`", "schema"), "string'", "x"
-        )
-      ), EMPTY_SCHEMA, DM_TABLE)
-  );
+    generate_expression(Expr(Operator("not_like",
+                                      ColumnIdentifier("ident`", "schema"), "string'", "x")),
+                        EMPTY_SCHEMA, DM_TABLE));
+
   EXPECT_EQ(
     "((1 * 2) % (3 / 4))",
-    generate_expression(
-      Expr(
-        new Operator(
-          "%",
-          new Operator("*", 1, 2),
-          new Operator("/", 3, 4)
-        )
-      ), EMPTY_SCHEMA, DM_TABLE)
-  );
+    generate_expression(Expr(Operator("%",
+                                      Operator("*", 1, 2),
+                                      Operator("/", 3, 4))),
+                        EMPTY_SCHEMA, DM_TABLE));
+
   EXPECT_EQ(
     "(`schema`.func(5,FALSE) IN (1,(+2),(-(7 - 0))))",
-    generate_expression(
-      Expr(
-        new Operator(
-          "in",
-          new FunctionCall(
-            new Identifier("func", "schema"), 5, false
-          ),
-          1,
-          new Operator("sign_plus", 2),
-          new Operator(
-            "sign_minus",
-            new Operator("-", 7, 0)
-          )
-        )
-      ), EMPTY_SCHEMA, DM_TABLE)
+    generate_expression(Expr(Operator("in",
+                                      FunctionCall(Identifier("func", "schema"), 5, false),
+                                      1,
+                                      Operator("sign_plus", 2),
+                                      Operator("sign_minus", Operator("-", 7, 0)))),
+                        EMPTY_SCHEMA, DM_TABLE)
   );
 }
 
 
 TEST(xpl_expr_generator, document_path_root)
 {
-  Document_path::Path path;
-
-  path.push_back(std::make_pair(Mysqlx::Expr::DocumentPathItem::MEMBER, EMPTY));
-
-  EXPECT_EQ("'$.'", generate_expression(Document_path(path), EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ("'$'",
+            generate_expression(Document_path(Document_path::Path(EMPTY)),
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 
 TEST(xpl_expr_generator, document_path_empty_member)
 {
   Document_path::Path path;
-
-  path.push_back(std::make_pair(Mysqlx::Expr::DocumentPathItem::MEMBER, EMPTY));
-  path.push_back(std::make_pair(Mysqlx::Expr::DocumentPathItem::MEMBER, "name"));
-
-  EXPECT_THROW(generate_expression(Document_path(path), EMPTY_SCHEMA, DM_TABLE), xpl::Expression_generator::Error);
+  EXPECT_THROW(generate_expression(Document_path(path.add_member(EMPTY).add_member("name")),
+                                   EMPTY_SCHEMA, DM_TABLE),
+               xpl::Expression_generator::Error);
 }
 
 
 TEST(xpl_expr_generator, document_path_empty_member_opposite)
 {
   Document_path::Path path;
-
-  path.push_back(std::make_pair(Mysqlx::Expr::DocumentPathItem::MEMBER, "name"));
-  path.push_back(std::make_pair(Mysqlx::Expr::DocumentPathItem::MEMBER, EMPTY));
-
-  EXPECT_THROW(generate_expression(Document_path(path), EMPTY_SCHEMA, DM_TABLE), xpl::Expression_generator::Error);
+  EXPECT_THROW(generate_expression(Document_path(path.add_member("name").add_member(EMPTY)),
+                                   EMPTY_SCHEMA, DM_TABLE),
+               xpl::Expression_generator::Error);
 }
 
 
 TEST(xpl_expr_generator, document_path_array)
 {
   Document_path::Path path;
+  EXPECT_EQ("'$.name[42]'",
+            generate_expression(Document_path(path.add_member("name").add_index(42)),
+                                EMPTY_SCHEMA, DM_TABLE));
+}
 
-  path.push_back(std::make_pair(Mysqlx::Expr::DocumentPathItem::MEMBER, "name"));
-  path.push_back(std::make_pair(Mysqlx::Expr::DocumentPathItem::ARRAY_INDEX, "42"));
 
-  EXPECT_EQ("'$.name[42]'", generate_expression(Document_path(path), EMPTY_SCHEMA, DM_TABLE));
+TEST(xpl_expr_generator, document_path_root_array)
+{
+  Document_path::Path path;
+  EXPECT_EQ("'$[42]'", generate_expression(Document_path(path.add_index(42)),
+                                           EMPTY_SCHEMA, DM_TABLE));
 }
 
 
 TEST(xpl_expr_generator, document_path_member_asterisk)
 {
   Document_path::Path path;
+  EXPECT_EQ("'$.name.*'",
+            generate_expression(Document_path(path.add_member("name").add_asterisk()),
+                                EMPTY_SCHEMA, DM_TABLE));
+}
 
-  path.push_back(std::make_pair(Mysqlx::Expr::DocumentPathItem::MEMBER, "name"));
-  path.push_back(std::make_pair(Mysqlx::Expr::DocumentPathItem::MEMBER_ASTERISK, EMPTY));
 
-  EXPECT_EQ("'$.name.*'", generate_expression(Document_path(path), EMPTY_SCHEMA, DM_TABLE));
+TEST(xpl_expr_generator, document_path_root_asterisk)
+{
+  Document_path::Path path;
+  EXPECT_EQ("'$.*'",
+            generate_expression(Document_path(path.add_asterisk()),
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 
 TEST(xpl_expr_generator, document_path_double_asterisk)
 {
   Document_path::Path path;
+  path.add_member("name").add_double_asterisk();
+  EXPECT_EQ("'$.name**'",
+            generate_expression(Document_path(path),
+                                EMPTY_SCHEMA, DM_TABLE));
+}
 
-  path.push_back(std::make_pair(Mysqlx::Expr::DocumentPathItem::MEMBER, "name"));
-  path.push_back(std::make_pair(Mysqlx::Expr::DocumentPathItem::DOUBLE_ASTERISK, EMPTY));
 
-  EXPECT_EQ("'$.name**'", generate_expression(Document_path(path), EMPTY_SCHEMA, DM_TABLE));
+TEST(xpl_expr_generator, document_path_root_double_asterisk)
+{
+  Document_path::Path path;
+  path.add_double_asterisk();
+
+  EXPECT_EQ("'$**'",
+            generate_expression(Document_path(path), EMPTY_SCHEMA, DM_TABLE));
 }
 
 
 TEST(xpl_expr_generator, placeholder_not_found)
 {
-  boost::scoped_ptr<Expr> expr(Expr::make_placeholder(10));
-  Expression_generator::Args args;
-  EXPECT_THROW(generate_expression(*expr, args, EMPTY_SCHEMA, DM_TABLE), xpl::Expression_generator::Error);
+  EXPECT_THROW(generate_expression(Expr(Placeholder(10)),
+                                   Expression_args(), EMPTY_SCHEMA, DM_TABLE),
+               xpl::Expression_generator::Error);
 }
 
 
 TEST(xpl_expr_generator, placeholder_found)
 {
-  boost::scoped_ptr<Expr> expr(Expr::make_placeholder(0));
-  Expression_generator::Args args;
-  args.AddAllocated(new Scalar(2));
-  EXPECT_EQ("2", generate_expression(*expr, args, EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ("2", generate_expression(Expr(Placeholder(0)),
+                                     Expression_args(2), EMPTY_SCHEMA, DM_TABLE));
 }
 
 
 TEST(xpl_expr_generator, placeholder_opearator_one_arg)
 {
-  Expression_generator::Args args;
-  args.AddAllocated(new Scalar(2));
   EXPECT_EQ("(1 + 2)",
-            generate_expression(Operator("+", 1,
-                                         Expr::make_placeholder(0)),
-                                args, EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Operator("+", 1, Placeholder(0)),
+                                Expression_args(2), EMPTY_SCHEMA, DM_TABLE));
 }
 
 
 TEST(xpl_expr_generator, placeholder_opearator_two_args)
 {
-  Expression_generator::Args args;
-  args.AddAllocated(new Scalar(2));
-  args.AddAllocated(new Scalar(1));
   EXPECT_EQ("(1 + 2)",
             generate_expression(Operator("+",
-                                         Expr::make_placeholder(1),
-                                         Expr::make_placeholder(0)),
-                                args, EMPTY_SCHEMA, DM_TABLE));
+                                         Placeholder(1),
+                                         Placeholder(0)),
+                                Expression_args(2)(1), EMPTY_SCHEMA, DM_TABLE));
 }
 
 
 TEST(xpl_expr_generator, placeholder_function)
 {
-  Expression_generator::Args args;
-  args.AddAllocated(new Scalar(42));
-  args.AddAllocated(new Scalar("foo"));
   EXPECT_EQ("xschema.bar(42,'foo')",
-            generate_expression(FunctionCall(new Identifier("bar"),
-                                             Expr::make_placeholder(0),
-                                             Expr::make_placeholder(1)),
-                                args, "xschema", true));
+            generate_expression(FunctionCall("bar",
+                                             Placeholder(0),
+                                             Placeholder(1)),
+                                Expression_args(42)("foo"), "xschema", true));
 }
 
 
 TEST(xpl_expr_generator, placeholder_function_and_operator)
 {
-  Expression_generator::Args args;
-  args.AddAllocated(new Scalar(42));
-  args.AddAllocated(new Scalar("foo"));
   EXPECT_EQ("(xschema.bar(42,'foo') > 42)",
             generate_expression(Operator(">",
-                                         new FunctionCall(new Identifier("bar"),
-                                                          Expr::make_placeholder(0),
-                                                          Expr::make_placeholder(1)),
-                                         Expr::make_placeholder(0)),
-                                args, "xschema", true));
+                                         FunctionCall("bar",
+                                                      Placeholder(0),
+                                                      Placeholder(1)),
+                                         Placeholder(0)),
+                                Expression_args(42)("foo"), "xschema", true));
 }
 
 
 TEST(xpl_expr_generator, placeholder_operator_null)
 {
-  Expression_generator::Args args;
-  args.AddAllocated(new Scalar(Scalar::Null()));
   EXPECT_EQ("(`bar` IS NOT NULL)",
             generate_expression(Operator("is_not",
-                                         new ColumnIdentifier("bar"),
-                                         Expr::make_placeholder(0)),
-                                args, EMPTY_SCHEMA, DM_TABLE));
+                                         ColumnIdentifier("bar"),
+                                         Placeholder(0)),
+                                Expression_args(Scalar::Null()), EMPTY_SCHEMA, DM_TABLE));
 }
 
 
@@ -614,7 +610,7 @@ TEST(xpl_expr_generator, cast_expr_to_json)
 {
   EXPECT_EQ("CAST(`foo`.`bar` AS JSON)",
             generate_expression(Operator("cast",
-                                         new ColumnIdentifier("bar", "foo"),
+                                         ColumnIdentifier("bar", "foo"),
                                          "JSON"), EMPTY_SCHEMA, DM_TABLE));
 }
 
@@ -726,129 +722,98 @@ TEST(xpl_expr_generator, object_empty)
 
 TEST(xpl_expr_generator, object_empty_key)
 {
-  Object::Values v;
-  v[""] = new Expr(1);
-
-  EXPECT_THROW(generate_expression(Object(v), EMPTY_SCHEMA, DM_TABLE),
+  EXPECT_THROW(generate_expression(Object(Object::Values("", 1)),
+                                   EMPTY_SCHEMA, DM_TABLE),
                Expression_generator::Error);
 }
 
 
 TEST(xpl_expr_generator, object_empty_value)
 {
-  Object::Values v;
-  v["first"] = 0;
-
-  EXPECT_THROW(generate_expression(Object(v), EMPTY_SCHEMA, DM_TABLE),
+  EXPECT_THROW(generate_expression(Object("first", NULL),
+                                   EMPTY_SCHEMA, DM_TABLE),
                Expression_generator::Error);
 }
 
 
 TEST(xpl_expr_generator, object_one_scalar)
 {
-  Object::Values v;
-  v["first"] = new Expr(1);
-
   EXPECT_EQ("JSON_OBJECT('first',1)",
-            generate_expression(Object(v), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Object(Object::Values("first", 1)),
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 
 TEST(xpl_expr_generator, object_two_scalars)
 {
-  Object::Values v;
-  v["first"] = new Expr(1);
-  v["second"] = new Expr("two");
-
   EXPECT_EQ("JSON_OBJECT('first',1,'second','two')",
-            generate_expression(Object(v), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Object(Object::Values("first",1)("second","two")),
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 
 TEST(xpl_expr_generator, object_object)
 {
-  Object::Values v1, v2;
-  v1["first"] = new Expr(1);
-  v2["second"] = new Expr(new Object(v1));
-
   EXPECT_EQ("JSON_OBJECT('second',JSON_OBJECT('first',1))",
-            generate_expression(Object(v2), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Object(Object::Values("second", Object::Values("first", 1))),
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 
 TEST(xpl_expr_generator, object_as_expr)
 {
-  Object::Values v;
-  v["first"] = new Expr(1);
-
   EXPECT_EQ("JSON_OBJECT('first',1)",
-            generate_expression(Expr(new Object(v)), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Expr(Object(Object::Values("first",1))), EMPTY_SCHEMA, DM_TABLE));
 }
 
 
 TEST(xpl_expr_generator, object_operator)
 {
-  Object::Values v;
-  v["sum"] = new Expr(new Operator("+", 1, 2));
-
   EXPECT_EQ("JSON_OBJECT('sum',(1 + 2))",
-            generate_expression(Object(v), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Object(Object::Values("sum", Operator("+", 1, 2))),
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 
 TEST(xpl_expr_generator, object_function)
 {
-  Object::Values v;
-  v["result"] = new Expr(new FunctionCall("foo", "bar"));
-
   EXPECT_EQ("JSON_OBJECT('result',foo('bar'))",
-            generate_expression(Object(v), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Object(Object::Values("result", FunctionCall("foo", "bar"))),
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 
 TEST(xpl_expr_generator, object_array)
 {
-  Expr* va[] = {new Expr(1), new Expr(2)};
-
-  Object::Values v;
-  v["tab"] = new Expr(new Array(va));
-
+  Expr va[] = {1, 2};
   EXPECT_EQ("JSON_OBJECT('tab',JSON_ARRAY(1,2))",
-            generate_expression(Object(v), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Object(Object::Values("tab", Array(va))),
+                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 
 TEST(xpl_expr_generator, object_in_function)
 {
-  Object::Values v;
-  v["first"] = new Expr(1);
-
   EXPECT_EQ("foo(JSON_OBJECT('first',1))",
-            generate_expression(Expr(new FunctionCall("foo",
-                                                      new Object(v))), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Expr(FunctionCall("foo",
+                                                  Object(Object::Values("first", 1)))),
+                                EMPTY_SCHEMA, DM_TABLE));
 }
-
 
 
 TEST(xpl_expr_generator, object_real_example)
 {
-  Document_path::Path path1, path2;
-  path1.push_back(std::make_pair(Mysqlx::Expr::DocumentPathItem::MEMBER, "first_name"));
-  path2.push_back(std::make_pair(Mysqlx::Expr::DocumentPathItem::MEMBER, "last_name"));
-
-  Object::Values v;
-  v["name"] = new Expr(new FunctionCall("concat",
-                                        new ColumnIdentifier(EMPTY, EMPTY, EMPTY, &path1),
-                                        " ",
-                                        new ColumnIdentifier(EMPTY, EMPTY, EMPTY, &path2)
-                                        ));
-  v["number"] = new Expr(new Operator("+", 1, 1));
-
+  Document_path::Path path1("first_name"), path2("last_name");
   EXPECT_EQ(
       "JSON_OBJECT('name',concat("
       "JSON_UNQUOTE(JSON_EXTRACT(doc,'$.first_name')),' ',"
       "JSON_UNQUOTE(JSON_EXTRACT(doc,'$.last_name'))),'number',(1 + 1))",
-      generate_expression(Object(v), EMPTY_SCHEMA, DM_TABLE));
+      generate_expression(Object(Object::Values("name", FunctionCall("concat",
+                                                                     ColumnIdentifier(path1),
+                                                                     " ",
+                                                                     ColumnIdentifier(path2)))
+                                 ("number", Operator("+", 1, 1))),
+                          EMPTY_SCHEMA, DM_TABLE));
 }
 
 
@@ -861,7 +826,7 @@ TEST(xpl_expr_generator, array_empty)
 
 TEST(xpl_expr_generator, array_one_scalar)
 {
-  Expr* v[] = {new Expr(1)};
+  Expr v[] = {1};
 
   EXPECT_EQ("JSON_ARRAY(1)",
             generate_expression(Array(v), EMPTY_SCHEMA, DM_TABLE));
@@ -870,7 +835,7 @@ TEST(xpl_expr_generator, array_one_scalar)
 
 TEST(xpl_expr_generator, array_two_scalars)
 {
-  Expr* v[] = {new Expr(1), new Expr("two")};
+  Expr v[] = {1, "two"};
 
   EXPECT_EQ("JSON_ARRAY(1,'two')",
             generate_expression(Array(v), EMPTY_SCHEMA, DM_TABLE));
@@ -879,16 +844,16 @@ TEST(xpl_expr_generator, array_two_scalars)
 
 TEST(xpl_expr_generator, array_as_expr)
 {
-  Expr* v[] = {new Expr(1)};
+  Expr v[] = {1};
 
   EXPECT_EQ("JSON_ARRAY(1)",
-            generate_expression(Expr(new Array(v)), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Expr(Array(v)), EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, array_array)
 {
-  Expr* v1[] = {new Expr(1),new Expr(2)};
-  Expr* v[] = {new Expr("one"), new Expr(new Array(v1))};
+  Expr v1[] = {1, 2};
+  Expr v[] = {"one", Array(v1)};
 
   EXPECT_EQ("JSON_ARRAY('one',JSON_ARRAY(1,2))",
             generate_expression(Array(v), EMPTY_SCHEMA, DM_TABLE));
@@ -897,9 +862,7 @@ TEST(xpl_expr_generator, array_array)
 
 TEST(xpl_expr_generator, array_object)
 {
-  Object::Values vo;
-  vo["first"] = new Expr(1);
-  Expr* v[] = {new Expr(new Object(vo)), new Expr("two")};
+  Expr v[] = {Object(Object::Values("first", 1)), "two"};
 
   EXPECT_EQ("JSON_ARRAY(JSON_OBJECT('first',1),'two')",
             generate_expression(Array(v), EMPTY_SCHEMA, DM_TABLE));
@@ -908,7 +871,7 @@ TEST(xpl_expr_generator, array_object)
 
 TEST(xpl_expr_generator, array_operator)
 {
-  Expr* v[] = {new Expr(new Operator("+", 1, 2)), new Expr("two")};
+  Expr v[] = {Operator("+", 1, 2), "two"};
 
   EXPECT_EQ("JSON_ARRAY((1 + 2),'two')",
             generate_expression(Array(v), EMPTY_SCHEMA, DM_TABLE));
@@ -917,7 +880,7 @@ TEST(xpl_expr_generator, array_operator)
 
 TEST(xpl_expr_generator, array_function)
 {
-  Expr* v[] = {new Expr(new FunctionCall("foo", "bar")), new Expr("two")};
+  Expr v[] = {FunctionCall("foo", "bar"), "two"};
 
   EXPECT_EQ("JSON_ARRAY(foo('bar'),'two')",
             generate_expression(Array(v), EMPTY_SCHEMA, DM_TABLE));
@@ -926,42 +889,42 @@ TEST(xpl_expr_generator, array_function)
 
 TEST(xpl_expr_generator, array_in_function)
 {
-  Expr* v[] = {new Expr("foo"), new Expr("bar")};
+  Expr v[] = {"foo", "bar"};
 
   EXPECT_EQ("fun(JSON_ARRAY('foo','bar'))",
-            generate_expression(FunctionCall("fun", new Array(v)), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(FunctionCall("fun", Array(v)), EMPTY_SCHEMA, DM_TABLE));
 }
 
 
 TEST(xpl_expr_generator, array_in_operator)
 {
-  Expr* v[] = {new Expr(1), new Expr(2)};
+  Expr v[] = {1, 2};
   EXPECT_EQ("JSON_CONTAINS(JSON_ARRAY(1,2),CAST(1 AS JSON))",
-            generate_expression(Operator("in", 1, new Array(v)), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Operator("in", 1, Array(v)), EMPTY_SCHEMA, DM_TABLE));
 }
 
 
 TEST(xpl_expr_generator, array_not_in_operator)
 {
-  Expr* v[] = {new Expr(1), new Expr(2)};
+  Expr v[] = {1, 2};
   EXPECT_EQ("NOT JSON_CONTAINS(JSON_ARRAY(1,2),CAST(1 AS JSON))",
-            generate_expression(Operator("not_in", 1, new Array(v)), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Operator("not_in", 1, Array(v)), EMPTY_SCHEMA, DM_TABLE));
 }
 
 
 TEST(xpl_expr_generator, array_in_operator_string)
 {
-  Expr* v[] = {new Expr("foo"), new Expr("bar")};
+  Expr v[] = {"foo", "bar"};
   EXPECT_EQ("JSON_CONTAINS(JSON_ARRAY('foo','bar'),JSON_QUOTE('foo'))",
-            generate_expression(Operator("in", "foo", new Array(v)), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Operator("in", "foo", Array(v)), EMPTY_SCHEMA, DM_TABLE));
 }
 
 
 TEST(xpl_expr_generator, array_not_in_operator_string)
 {
-  Expr* v[] = {new Expr("foo"), new Expr("bar")};
+  Expr v[] = {"foo", "bar"};
   EXPECT_EQ("NOT JSON_CONTAINS(JSON_ARRAY('foo','bar'),JSON_QUOTE('foo'))",
-            generate_expression(Operator("not_in", "foo", new Array(v)), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(Operator("not_in", "foo", Array(v)), EMPTY_SCHEMA, DM_TABLE));
 }
 
 
@@ -976,7 +939,7 @@ TEST(xpl_expr_generator, default_operator)
 
 TEST(xpl_expr_generator, scalar_octets_plain)
 {
-  EXPECT_EQ("'ABC'", generate_expression(Scalar(new Scalar::Octets("ABC", Expression_generator::CT_PLAIN)),
+  EXPECT_EQ("'ABC'", generate_expression(Scalar(Scalar::Octets("ABC", Expression_generator::CT_PLAIN)),
                                          EMPTY_SCHEMA, DM_TABLE));
 }
 
@@ -984,7 +947,7 @@ TEST(xpl_expr_generator, scalar_octets_plain)
 TEST(xpl_expr_generator, scalar_octets_geometry)
 {
   EXPECT_EQ("ST_GEOMETRYFROMWKB('010')",
-            generate_expression(Scalar(new Scalar::Octets("010", Expression_generator::CT_GEOMETRY)),
+            generate_expression(Scalar(Scalar::Octets("010", Expression_generator::CT_GEOMETRY)),
                                 EMPTY_SCHEMA, DM_TABLE));
 }
 
@@ -992,7 +955,7 @@ TEST(xpl_expr_generator, scalar_octets_geometry)
 TEST(xpl_expr_generator, scalar_octets_json)
 {
   EXPECT_EQ("CAST('{\\\"a\\\":42}' AS JSON)",
-            generate_expression(Scalar(new Scalar::Octets("{\"a\":42}", Expression_generator::CT_JSON)),
+            generate_expression(Scalar(Scalar::Octets("{\"a\":42}", Expression_generator::CT_JSON)),
                                 EMPTY_SCHEMA, DM_TABLE));
 }
 
@@ -1000,14 +963,14 @@ TEST(xpl_expr_generator, scalar_octets_json)
 TEST(xpl_expr_generator, scalar_octets_xml)
 {
   EXPECT_EQ("'<a>bbb</a>'",
-            generate_expression(Scalar(new Scalar::Octets("<a>bbb</a>", Expression_generator::CT_XML)),
+            generate_expression(Scalar(Scalar::Octets("<a>bbb</a>", Expression_generator::CT_XML)),
                                 EMPTY_SCHEMA, DM_TABLE));
 }
 
 
 TEST(xpl_expr_generator, scalar_octets_unknown)
 {
-  EXPECT_THROW(generate_expression(Scalar(new Scalar::Octets("foo", 666)),
+  EXPECT_THROW(generate_expression(Scalar(Scalar::Octets("foo", 666)),
                                    EMPTY_SCHEMA, DM_TABLE),
                Expression_generator::Error);
 }

@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include "field.h"       // Derivation
 #include "parse_tree_node_base.h" // Parse_tree_node
 #include "sql_array.h"   // Bounds_checked_array
+#include "template_utils.h" // pointer_cast
 #include "trigger_def.h" // enum_trigger_variable_type
 #include "table_trigger_field_support.h" // Table_trigger_field_support
 #include "mysql/service_parser.h"
@@ -1865,7 +1866,31 @@ public:
   virtual bool change_context_processor(uchar *context) { return false; }
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return false; }
   virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
+  /**
+    Mark underlying field in read or write map of a table.
+
+    @param arg        Mark_field object
+  */
   virtual bool mark_field_in_map(uchar *arg) { return false; }
+protected:
+  /**
+    Helper function for mark_field_in_map(uchar *arg).
+
+    @param mark_field Mark_field object
+    @param field      Field to be marked for read/write
+  */
+  static inline bool mark_field_in_map(Mark_field *mark_field, Field* field)
+  {
+    TABLE *table= mark_field->table;
+    if (table != NULL && table != field->table)
+      return false;
+
+    table= field->table;
+    table->mark_column_used(table->in_use, field, mark_field->mark);
+
+    return false;
+  }
+public:
   /**
     Return used table information for the specified query block (level).
     For a field that is resolved from this query block, return the table number.
@@ -1900,6 +1925,15 @@ public:
     @see also SELECT_LEX::delete_unused_merged_columns().
   */
   virtual bool propagate_derived_used(uchar *arg) { return is_derived_used(); }
+
+  /**
+    Called by Item::walk() to set all the referenced items' derived_used flag.
+  */
+  bool propagate_set_derived_used(uchar *)
+  {
+    set_derived_used();
+    return false;
+  }
 
   /// @see Distinct_check::check_query()
   virtual bool aggregate_check_distinct(uchar *arg)
@@ -2234,9 +2268,6 @@ public:
   // @return true if an expression in select list of derived table is used
   bool is_derived_used() const { return derived_used; }
 
-  // Set an expression from select list of derived table as used
-  void set_derived_used() { derived_used= true; }
-
   void mark_subqueries_optimized_away()
   {
     if (has_subquery())
@@ -2271,6 +2302,9 @@ public:
   virtual bool repoint_const_outer_ref(uchar *arg) { return false; }
 private:
   virtual bool subq_opt_away_processor(uchar *arg) { return false; }
+
+  // Set an expression from select list of derived table as used.
+  void set_derived_used() { derived_used= true; }
 };
 
 
@@ -2901,7 +2935,10 @@ public:
   bool remove_column_from_bitmap(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
   bool check_gcol_func_processor(uchar *int_arg);
-  bool mark_field_in_map(uchar *arg);
+  bool mark_field_in_map(uchar *arg)
+  {
+    return Item::mark_field_in_map(pointer_cast<Mark_field *>(arg), field);
+  }
   bool used_tables_for_level(uchar *arg);
   bool check_column_privileges(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) { return false; }
@@ -4292,7 +4329,10 @@ public:
     */
     Mark_field *mark_field= (Mark_field *)arg;
     if (mark_field->mark != MARK_COLUMNS_NONE)
-      (*ref)->set_derived_used();
+      // Set the same flag for all the objects that *ref depends on.
+      (*ref)->walk(&Item::propagate_set_derived_used,
+                   Item::WALK_SUBQUERY_POSTFIX, NULL);
+
     return false;
   }
   virtual longlong val_int();

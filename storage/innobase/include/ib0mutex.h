@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -377,8 +377,8 @@ private:
 	/** Wakeup a waiting thread */
 	void signal() UNIV_NOTHROW
 	{
-		syscall(SYS_futex, &m_lock_word, FUTEX_WAKE_PRIVATE,
-			MUTEX_STATE_LOCKED, 0, 0, 0);
+		syscall(SYS_futex, &m_lock_word, FUTEX_WAKE_PRIVATE, 1, 0, 0,
+			0);
 	}
 
 	/** Poll waiting for mutex to be unlocked.
@@ -1081,7 +1081,7 @@ struct PolicyMutex
 	void pfs_add(mysql_pfs_key_t key) UNIV_NOTHROW
 	{
 		ut_ad(m_ptr == 0);
-		m_ptr = PSI_MUTEX_CALL(init_mutex)(key, this);
+		m_ptr = PSI_MUTEX_CALL(init_mutex)(key.m_value, this);
 	}
 
 private:

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -27,6 +27,7 @@
 #include "ngs/protocol/protocol_config.h"
 #include "ngs/protocol_monitor.h"
 #include "ngs/ngs_error.h"
+#include "ngs_common/operations_factory.h"
 
 #include <string.h>
 #include <algorithm>
@@ -50,13 +51,14 @@ Client::Client(Connection_ptr connection,
 : m_client_id(client_id),
   m_server(server),
   m_connection(connection),
-  m_encoder(NULL),
   m_client_addr("n/c"),
   m_client_port(0),
   m_state(Client_invalid),
   m_removed(false),
   m_protocol_monitor(pmon),
-  m_close_reason(Not_closing)
+  m_close_reason(Not_closing),
+  m_msg_buffer(NULL),
+  m_msg_buffer_size(0)
 {
   my_snprintf(m_id, sizeof(m_id), "%llu", static_cast<ulonglong>(client_id));
 }
@@ -68,19 +70,19 @@ Client::~Client()
   if (m_connection)
     m_connection->close();
 
-  delete m_encoder;
+  if (m_msg_buffer)
+    ngs::free_array(m_msg_buffer);
 }
 
 
-ptime Client::get_accept_time() const
+ngs::chrono::time_point Client::get_accept_time() const
 {
   return m_accept_time;
 }
 
-void Client::reset_accept_time(const Client_state new_state)
+void Client::reset_accept_time()
 {
-  m_state.exchange(new_state);
-  m_accept_time = microsec_clock::universal_time();
+  m_accept_time = chrono::now();
   m_server.restart_client_supervision_timer();
 }
 
@@ -89,7 +91,7 @@ void Client::activate_tls()
 {
   log_debug("%s: enabling TLS for client", client_id());
 
-  if (m_server.ssl_context()->activate_tls(connection(), m_server.get_config()->connect_timeout.total_seconds()))
+  if (m_server.ssl_context()->activate_tls(connection(), chrono::to_seconds(m_server.get_config()->connect_timeout)))
   {
     if (connection().options()->active_tls())
       session()->mark_as_tls_session();
@@ -115,19 +117,19 @@ Capabilities_configurator *Client::capabilities_configurator()
 {
   std::vector<Capability_handler_ptr> handlers;
 
-  handlers.push_back(boost::make_shared<Capability_tls>(boost::ref(*this)));
-  handlers.push_back(boost::make_shared<Capability_auth_mech>(boost::ref(*this)));
+  handlers.push_back(ngs::allocate_shared<Capability_tls>(ngs::ref(*this)));
+  handlers.push_back(ngs::allocate_shared<Capability_auth_mech>(ngs::ref(*this)));
 
-  handlers.push_back(boost::make_shared<Capability_readonly_value>("doc.formats", "text"));
+  handlers.push_back(ngs::allocate_shared<Capability_readonly_value>("doc.formats", "text"));
 
-  return new Capabilities_configurator(handlers);
+  return ngs::allocate_object<Capabilities_configurator>(handlers);
 }
 
 
 void Client::get_capabilities(const Mysqlx::Connection::CapabilitiesGet &msg)
 {
-  boost::scoped_ptr<Capabilities_configurator>        configurator(capabilities_configurator());
-  boost::scoped_ptr<Mysqlx::Connection::Capabilities> caps(configurator->get());
+  ngs::Memory_instrumented<Capabilities_configurator>::Unique_ptr configurator(capabilities_configurator());
+  ngs::Memory_instrumented<Mysqlx::Connection::Capabilities>::Unique_ptr caps(configurator->get());
 
   m_encoder->send_message(Mysqlx::ServerMessages::CONN_CAPABILITIES, *caps);
 }
@@ -135,7 +137,7 @@ void Client::get_capabilities(const Mysqlx::Connection::CapabilitiesGet &msg)
 
 void Client::set_capabilities(const Mysqlx::Connection::CapabilitiesSet &setcap)
 {
-  boost::scoped_ptr<Capabilities_configurator> configurator(capabilities_configurator());
+  ngs::Memory_instrumented<Capabilities_configurator>::Unique_ptr configurator(capabilities_configurator());
   Error_code error_code = configurator->prepare_set(setcap.capabilities());
   m_encoder->send_result(error_code);
   if (!error_code)
@@ -180,7 +182,7 @@ void Client::handle_message(Request &request)
       {
         log_debug("%s: Authenticating client...", client_id());
 
-        boost::shared_ptr<Session_interface> s(session());
+        ngs::shared_ptr<Session_interface> s(session());
         // start redirecting incoming messages directly to the session
         if (s)
         {
@@ -193,9 +195,9 @@ void Client::handle_message(Request &request)
 
     default:
       // invalid message at this time
+      m_protocol_monitor.on_error_unknown_msg_type();
       log_info("%s: Invalid message %i received during client initialization", client_id(), request.get_type());
       m_encoder->send_result(ngs::Fatal(ER_X_BAD_MESSAGE, "Invalid message"));
-
       m_close_reason = Close_error;
       disconnect_and_trigger_close();
       break;
@@ -231,7 +233,7 @@ void Client::on_network_error(int error)
     // trigger all sessions to close and stop whatever they're doing
     log_debug("%s: killing session", client_id());
     if (Session_interface::Closing != m_session->state())
-      server().get_worker_scheduler()->post_and_wait(boost::bind(&Client::on_kill, this, boost::ref(*m_session)));
+      server().get_worker_scheduler()->post_and_wait(ngs::bind(&Client::on_kill, this, ngs::ref(*m_session)));
   }
 }
 
@@ -278,7 +280,7 @@ void Client::on_client_addr(const bool skip_resolve)
 
   try
   {
-    m_client_host = resolve_hostname(m_client_addr);
+    m_client_host = resolve_hostname();
   }
   catch(...)
   {
@@ -293,15 +295,16 @@ void Client::on_accept()
 {
   log_debug("%s: Accepted client connection from %s", client_id(), client_address());
 
+  m_connection->set_socket_thread_owner();
+
   // it can be accessed directly (no other thread access thus object)
   m_state = Client_accepted;
 
-  m_encoder = new Protocol_encoder(m_connection, boost::bind(&Client::on_network_error, this, _1), m_protocol_monitor);
-  reset_accept_time();
+  m_encoder.reset(ngs::allocate_object<Protocol_encoder>(m_connection, ngs::bind(&Client::on_network_error, this, ngs::placeholders::_1), ngs::ref(m_protocol_monitor)));
 
   // pre-allocate the initial session
   // this is also needed for the srv_session to correctly report us to the audit.log as in the Pre-authenticate state
-  boost::shared_ptr<Session_interface> session(m_server.create_session(*this, *m_encoder, 1));
+  ngs::shared_ptr<Session_interface> session(m_server.create_session(*this, *m_encoder, 1));
   if (!session)
   {
     log_warning("%s: Error creating session for connection from %s", client_id(), m_client_addr.c_str());
@@ -355,7 +358,7 @@ void Client::on_session_reset(Session_interface &s)
   log_debug("%s: Resetting session %i", client_id(), s.session_id());
 
   m_state = Client_accepted_with_session;
-  boost::shared_ptr<Session_interface> session(m_server.create_session(*this, *m_encoder, 1));
+  ngs::shared_ptr<Session_interface> session(m_server.create_session(*this, *m_encoder, 1));
   if (!session)
   {
     log_warning("%s: Error creating session for connection from %s", client_id(), m_client_addr.c_str());
@@ -375,7 +378,7 @@ void Client::on_session_reset(Session_interface &s)
     else
     {
       m_session = session;
-      m_encoder->send_ok("");
+      m_encoder->send_ok();
     }
   }
 }
@@ -393,22 +396,33 @@ Protocol_monitor_interface &Client::get_protocol_monitor()
   return m_protocol_monitor;
 }
 
+void Client::get_last_error(int &error_code, std::string &message)
+{
+  ngs::Operations_factory operations_factory;
+  System_interface::Shared_ptr system_interface(operations_factory.create_system_interface());
+
+  system_interface->get_socket_error_and_message(error_code, message);
+}
+
 void Client::shutdown_connection()
 {
+  m_state = Client_closing;
+
   if (m_connection->shutdown(Connection_vio::Shutdown_recv) < 0)
   {
     int err;
     std::string strerr;
-    Connection_vio::get_error(err, strerr);
+
+    get_last_error(err, strerr);
     log_debug("%s: connection shutdown error %s (%i)", client_id(), strerr.c_str(), err);
   }
 }
 
-Request_unique_ptr Client::read_one_message(Error_code &ret_error)
+Request *Client::read_one_message(Error_code &ret_error)
 {
   union
   {
-    char buffer[5];                             // Must be properly aligned
+    char buffer[4];                             // Must be properly aligned
     longlong dummy;
   };
   uint32_t msg_size;
@@ -419,24 +433,28 @@ Request_unique_ptr Client::read_one_message(Error_code &ret_error)
   */
   dummy= 0;
 
+  // untill we get another message to process we mark the connection as idle (for PSF)
+  m_connection->mark_idle();
   // read the frame
-  ssize_t nread = m_connection->read(buffer, 5);
+  ssize_t nread = m_connection->read(buffer, 4);
+  m_connection->mark_active();
+
   if (nread == 0) // EOF
   {
     on_network_error(0);
-    return Request_unique_ptr();
+    return NULL;
   }
   if (nread < 0)
   {
     int err;
     std::string strerr;
-    Connection_vio::get_error(err, strerr);
+    get_last_error(err, strerr);
     if (!(err == EBADF && m_close_reason == Close_connect_timeout))
     {
       log_info("%s: ERROR reading from socket %s (%i) %i", client_id(), strerr.c_str(), err, m_close_reason);
       on_network_error(err);
     }
-    return Request_unique_ptr();
+    return NULL;
   }
 
   m_protocol_monitor.on_receive(static_cast<long>(nread));
@@ -447,7 +465,6 @@ Request_unique_ptr Client::read_one_message(Error_code &ret_error)
 #endif
   const uint32_t* pdata = (uint32_t*)(buffer);
   msg_size = *pdata;
-  int8_t type = (int8_t)buffer[4];
 
   if (msg_size > m_server.get_config()->max_message_size)
   {
@@ -455,47 +472,51 @@ Request_unique_ptr Client::read_one_message(Error_code &ret_error)
     // invalid message size
     // Don't send error, just abort connection
     //ret_error = Fatal(ER_X_BAD_MESSAGE, "Message too large");
-    return Request_unique_ptr();
+    return NULL;
   }
 
-  Request_unique_ptr request(new Request(type));
+  if (0 == msg_size)
+  {
+    ret_error = Error(ER_X_BAD_MESSAGE, "Messages without payload are not supported");
+    return NULL;
+  }
+
+  if (m_msg_buffer_size < msg_size)
+  {
+    m_msg_buffer_size = msg_size;
+    ngs::reallocate_array(m_msg_buffer, m_msg_buffer_size, KEY_memory_x_recv_buffer);
+  }
+
+  nread = m_connection->read(&m_msg_buffer[0], msg_size);
+  if (nread == 0) // EOF
+  {
+    log_info("%s: peer disconnected while reading message body", client_id());
+    on_network_error(0);
+    return NULL;
+  }
+
+  if (nread < 0)
+  {
+    int err;
+    std::string strerr;
+
+    get_last_error(err, strerr);
+    log_info("%s: ERROR reading from socket %s (%i)", client_id(), strerr.c_str(), err);
+    on_network_error(err);
+    return NULL;
+  }
+
+  m_protocol_monitor.on_receive(static_cast<long>(nread));
+
+  int8_t type = (int8_t)m_msg_buffer[0];
+  Request_unique_ptr request(ngs::allocate_object<Request>(type));
 
   if (msg_size > 1)
-  {
-    std::string &msgbuffer(request->buffer());
+    request->buffer(&m_msg_buffer[1], msg_size - 1);
 
-    msgbuffer.resize(msg_size-1);
-    nread = m_connection->read(&msgbuffer[0], msg_size-1);
-    if (nread == 0) // EOF
-    {
-      log_info("%s: peer disconnected while reading message body", client_id());
-      on_network_error(0);
-      return Request_unique_ptr();
-    }
-    if (nread < 0)
-    {
-      int err;
-      std::string strerr;
-      Connection_vio::get_error(err, strerr);
-      log_info("%s: ERROR reading from socket %s (%i)", client_id(), strerr.c_str(), err);
-      on_network_error(err);
-      return Request_unique_ptr();
-    }
-    m_protocol_monitor.on_receive(static_cast<long>(nread));
+  ret_error = m_decoder.parse(*request);
 
-    ret_error = m_decoder.parse(*request);
-    return boost::move(request);
-  }
-  else if (msg_size == 1)
-  {
-    ret_error = m_decoder.parse(*request);
-    return boost::move(request);
-  }
-  else
-  {
-    ret_error = Error_code(ER_X_BAD_MESSAGE, "Invalid message");
-    return Request_unique_ptr();
-  }
+  return request.release();
 }
 
 
@@ -523,7 +544,7 @@ void Client::run(const bool skip_name_resolve)
         disconnect_and_trigger_close();
         break;
       }
-      boost::shared_ptr<Session_interface> s(session());
+      ngs::shared_ptr<Session_interface> s(session());
       if (m_state != Client_accepted && s)
       {
         // pass the message to the session

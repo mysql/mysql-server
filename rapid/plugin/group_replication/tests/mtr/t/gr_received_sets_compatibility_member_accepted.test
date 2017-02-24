@@ -1,0 +1,165 @@
+################################################################################
+# Test that evaluates the safe guards that stop members from joining with
+# transactions not present in the group.
+#
+# Here we test that a joiner can enter the group when it has more executed GTIDs
+# than the group in its total, but the group has also some received transactions.
+# In total the group has more transactions than the joiner, so it can join.
+#
+# Test guide:
+#   0) The test requires three servers: M1, M2 and M3.
+#   1) With all the 3 members ONLINE, create a table on M1. Check 4 transactions
+#      belonging to the GROUP on M2 and M3. Stop the applier on M2 so it can't
+#      apply remote transactions.
+#   2) Execute more transaction on M1. Check 6 transactions belonging to the
+#      GROUP on M3 then make M3 leave.
+#   3) Execute some more transactions and check M2 has applied none.
+#   4) Remove M1.
+#   5) Try add M3 back to the group. Check that M3 has more executed
+#      transactions than M2. M3 can still join the group because M2 (the group)
+#      has more transactions when we take into account its received
+#      transactions. Start the applier on M2. Check M3 is ONLINE.
+#   6) Clean up.
+################################################################################
+
+--source include/big_test.inc
+--let $group_replication_group_name= 3d4bc080-ec58-11e5-a837-0800200c9a66
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--source ../inc/group_replication.inc
+
+--echo #
+--echo # Create a table for testing on server 1
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= Server 2 has 4 transaction belonging to the group
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-4";
+--source include/assert.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $assert_text= Server 3 has 4 transaction belonging to the group
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-4";
+--source include/assert.inc
+
+--echo #
+--echo # Step 1: Stop the applier on server 2.
+--echo #
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+--let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
+--source include/wait_condition.inc
+
+--echo #
+--echo # Step 2: Insert some transaction and remove server 3
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+
+--let $sync_slave_connection= server3
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_text= Server 3 has 6 transaction belonging to the group
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-6";
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+
+--echo #
+--echo # Step 3: Insert more transactions.
+--echo # Assert that server 2 applied none
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT received_transaction_set="$group_replication_group_name:1-8" FROM performance_schema.replication_connection_status WHERE channel_name='group_replication_applier';
+--source include/wait_condition.inc
+
+--let $assert_text= Server 2 has only 4 applied transactions.
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-4";
+--source include/assert.inc
+
+--echo #
+--echo # Step 4: Remove server 1
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+--echo #
+--echo # Step 5: Try add server 3 back to the group.
+--echo # Server 3 has more executed GTIDs, but server 2 has also retrieved GTIDs.
+--echo #
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= Server 2 has only 4 applied transactions.
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-4";
+--source include/assert.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $assert_text= Server 3 has 6 applied transactions.
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-6";
+--source include/assert.inc
+
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--source include/start_group_replication_command.inc
+
+--echo # Start server 2 applier
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+--let $wait_condition= SELECT service_state="ON" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state= ONLINE
+--source ../inc/gr_wait_for_member_state.inc
+
+--echo #
+--echo # Step 6: Cleanup
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+DROP TABLE t1;
+
+--source ../inc/group_replication_end.inc

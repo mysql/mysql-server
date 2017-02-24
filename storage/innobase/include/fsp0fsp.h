@@ -489,7 +489,7 @@ fseg_alloc_free_page_general(
 				in which the page should be initialized.
 				If init_mtr!=mtr, but the page is already
 				latched in mtr, do not initialize the page. */
-	MY_ATTRIBUTE((warn_unused_result, nonnull));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Reserves free pages from a tablespace. All mini-transactions which may
 use several pages from the tablespace should call this function beforehand
@@ -576,7 +576,7 @@ fseg_page_is_free(
 	fseg_header_t*	seg_header,	/*!< in: segment header */
 	ulint		space_id,	/*!< in: space id */
 	ulint		page)		/*!< in: page offset */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /**********************************************************************//**
 Frees part of a segment. This function can be used to free a segment
 by repeatedly calling this function in different mini-transactions.

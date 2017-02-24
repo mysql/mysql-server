@@ -428,7 +428,7 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
   bool transactional_table, joins_freed= FALSE;
   bool changed;
   bool is_locked= false;
-  ulong counter = 1;
+  ulong counter= 0;
   ulonglong id;
   /*
     We have three alternative syntax rules for the INSERT statement:
@@ -475,9 +475,6 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
   const uint value_count= values->elements;
   TABLE      *insert_table= NULL;
   if (mysql_prepare_insert(thd, table_list, values, false))
-    goto exit_without_my_ok;
-
-  if (select_lex->apply_local_transforms(thd, false))
     goto exit_without_my_ok;
 
   insert_table= lex->insert_table_leaf->table;
@@ -550,18 +547,10 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
     }
   }
 
+  its.rewind();
   while ((values= its++))
   {
     counter++;
-    if (values->elements != value_count)
-    {
-      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
-      goto exit_without_my_ok;
-    }
-    if (setup_fields(thd, Ref_ptr_array(), *values, SELECT_ACL, NULL,
-                     false, false))
-      goto exit_without_my_ok;
-
     /*
       To make it possible to increase concurrency on table level locking
       engines such as MyISAM, we check pruning for each row until we will use
@@ -1292,22 +1281,33 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     if (!res)
       map= lex->insert_table_leaf->map();
 
-    if (!res)
-      res= setup_fields(thd, Ref_ptr_array(),
-                        *values, SELECT_ACL, NULL, false, false);
-    if (!res)
-      res= check_valid_table_refs(table_list, *values, map);
+    // values is reset here to cover all the rows in the VALUES-list.
+    List_iterator_fast<List_item> its(insert_many_values);
 
-    thd->lex->in_update_value_clause= true;
-    if (!res)
-      res= setup_fields(thd, Ref_ptr_array(),
-                        insert_value_list, SELECT_ACL, NULL, false, false);
-    if (!res)
-      res= check_valid_table_refs(table_list, insert_value_list, map);
-    if (!res && lex->insert_table_leaf->table->has_gcol())
-      res= validate_gc_assignment(thd, &insert_field_list, values,
-                                  lex->insert_table_leaf->table);
-    thd->lex->in_update_value_clause= false;
+    // Check whether all rows have the same number of fields.
+    const uint value_count= values->elements;
+    ulong counter= 0;
+    while ((values= its++))
+    {
+      counter++;
+      if (values->elements != value_count)
+      {
+        my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
+        DBUG_RETURN(true);
+      }
+
+      if (!res)
+        res= setup_fields(thd, Ref_ptr_array(), *values, SELECT_ACL, NULL,
+                          false, false);
+      if (!res)
+        res= check_valid_table_refs(table_list, *values, map);
+
+      if (!res && lex->insert_table_leaf->table->has_gcol())
+        res= validate_gc_assignment(thd, &insert_field_list, values,
+                                    lex->insert_table_leaf->table);
+    }
+    its.rewind();
+    values= its++;
 
     if (!res && duplicates == DUP_UPDATE)
     {
@@ -1319,6 +1319,17 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                         insert_update_list, UPDATE_ACL, NULL, false, true);
       if (!res)
         res= check_valid_table_refs(table_list, insert_update_list, map);
+
+      // Setup the corresponding values
+      thd->lex->in_update_value_clause= true;
+      if (!res)
+        res= setup_fields(thd, Ref_ptr_array(), insert_value_list, SELECT_ACL,
+                          NULL, false, false);
+      thd->lex->in_update_value_clause= false;
+
+      if (!res)
+        res= check_valid_table_refs(table_list, insert_value_list, map);
+
       if (!res && lex->insert_table_leaf->table->has_gcol())
         res= validate_gc_assignment(thd, &insert_update_list,
                                     &insert_value_list,

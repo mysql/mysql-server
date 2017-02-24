@@ -33,6 +33,7 @@ SET(TESTS
   keyring-api
   keys_container
   buffered_file_io
+  file_io
 )
 
 IF (MERGE_UNITTESTS)
@@ -54,6 +55,7 @@ IF (MERGE_UNITTESTS)
        ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
+       ${CMAKE_SOURCE_DIR}/plugin/keyring/file_io.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/hash_to_buffer_serializer.cc
        )
@@ -75,13 +77,14 @@ IF (MERGE_UNITTESTS)
 
   ADD_TEST(merge_keyring_file_tests merge_keyring_file_tests-t)
 
-ELSE()
+ENDIF(MERGE_UNITTESTS)
 
   FOREACH(test ${TESTS})
     SET(SRC_FILES ${test}-t.cc
         ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
         ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
         ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
+        ${CMAKE_SOURCE_DIR}/plugin/keyring/file_io.cc
         ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc
         ${CMAKE_SOURCE_DIR}/plugin/keyring/hash_to_buffer_serializer.cc
         )
@@ -98,6 +101,13 @@ ELSE()
       TARGET_LINK_LIBRARIES(${test}-t perfschema pfs_server_stubs)
     ENDIF()
 
-    ADD_TEST(${test} ${test}-t)
+    IF(MERGE_UNITTESTS)
+      SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
+      IF(WIN32)
+        SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+      ENDIF()
+    ELSE()
+      ADD_TEST(${test} ${test}-t)
+    ENDIF()
   ENDFOREACH()
-ENDIF()
+

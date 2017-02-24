@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -117,7 +117,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
    long_find_row_note_printed(false),
    thd_tx_priority(0),
-   is_native_trx_detached(false)
+   is_engine_ha_data_detached(false)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
 
@@ -273,7 +273,8 @@ void Relay_log_info::reset_notified_relay_log_change()
    @param shift          number of bits to shift by Worker due to the
                          current checkpoint change.
    @param new_ts         new seconds_behind_master timestamp value
-                         unless zero. Zero could be due to FD event.
+                         unless zero. Zero could be due to FD event
+                         or fake rotate event.
    @param need_data_lock False if caller has locked @c data_lock
 */
 void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
@@ -703,7 +704,7 @@ void Relay_log_info::fill_coord_err_buf(loglevel level, int err_code,
   @param[in]  log_name        log name to wait for,
   @param[in]  log_pos         position to wait for,
   @param[in]  timeout         @c timeout in seconds before giving up waiting.
-                              @c timeout is longlong whereas it should be ulong; but this is
+                              @c timeout is double whereas it should be ulong; but this is
                               to catch if the user submitted a negative timeout.
 
   @retval  -2   improper arguments (log_pos<0)
@@ -717,7 +718,7 @@ void Relay_log_info::fill_coord_err_buf(loglevel level, int err_code,
 
 int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
                                     longlong log_pos,
-                                    longlong timeout)
+                                    double timeout)
 {
   int event_count = 0;
   ulong init_abort_pos_wait;
@@ -734,7 +735,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
 
   DEBUG_SYNC(thd, "begin_master_pos_wait");
 
-  set_timespec(&abstime, timeout);
+  set_timespec_nsec(&abstime, timeout * 1000000000ULL);
   mysql_mutex_lock(&data_lock);
   thd->ENTER_COND(&data_cond, &data_lock,
                   &stage_waiting_for_the_slave_thread_to_advance_position,
@@ -911,11 +912,11 @@ improper_arguments: %d  timed_out: %d",
 }
 
 int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
-                                      longlong timeout)
+                                      double timeout)
 {
   DBUG_ENTER("Relay_log_info::wait_for_gtid_set(thd, String, timeout)");
 
-  DBUG_PRINT("info", ("Waiting for %s timeout %lld", gtid->c_ptr_safe(),
+  DBUG_PRINT("info", ("Waiting for %s timeout %lf", gtid->c_ptr_safe(),
              timeout));
 
   Gtid_set wait_gtid_set(global_sid_map);
@@ -941,7 +942,7 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
   /Alfranio
 */
 int Relay_log_info::wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
-                                      longlong timeout)
+                                      double timeout)
 {
   int event_count = 0;
   ulong init_abort_pos_wait;
@@ -955,7 +956,8 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
 
   DEBUG_SYNC(thd, "begin_wait_for_gtid_set");
 
-  set_timespec(&abstime, timeout);
+  set_timespec_nsec(&abstime, timeout * 1000000000ULL);
+
   mysql_mutex_lock(&data_lock);
   thd->ENTER_COND(&data_cond, &data_lock,
                   &stage_waiting_for_the_slave_thread_to_advance_position,
@@ -1722,7 +1724,24 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   m_table_map.clear_tables();
   slave_close_thread_tables(thd);
   if (error)
+  {
+    /*
+      trans_rollback above does not rollback XA transactions.
+      It could be done only after necessarily closing tables which dictates
+      the following placement.
+    */
+    XID_STATE *xid_state= thd->get_transaction()->xid_state();
+    if (!xid_state->has_state(XID_STATE::XA_NOTR))
+    {
+      DBUG_ASSERT(DBUG_EVALUATE_IF("simulate_commit_failure",1,
+                                   xid_state->has_state(XID_STATE::XA_ACTIVE)));
+
+      xa_trans_force_rollback(thd);
+      xid_state->reset();
+      cleanup_trans_state(thd);
+    }
     thd->mdl_context.release_transactional_locks();
+  }
   clear_flag(IN_STMT);
   /*
     Cleanup for the flags that have been set at do_apply_event.
@@ -2891,4 +2910,16 @@ enum_return_status Relay_log_info::add_gtid_set(const Gtid_set *gtid_set)
   enum_return_status return_status= this->gtid_set.add_gtid_set(gtid_set);
 
   DBUG_RETURN(return_status);
+}
+
+void Relay_log_info::detach_engine_ha_data(THD *thd)
+{
+  is_engine_ha_data_detached= true;
+    /*
+      In case of slave thread applier or processing binlog by client,
+      detach the engine ha_data ("native" engine transaction)
+      in favor of dynamically created.
+    */
+  plugin_foreach(thd, detach_native_trx,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, NULL);
 }

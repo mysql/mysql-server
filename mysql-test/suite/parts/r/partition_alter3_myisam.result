@@ -78,6 +78,8 @@ ALTER TABLE t1 ADD PARTITION (PARTITION part2);
 ERROR HY000: Partition management on a not partitioned table is not possible
 #  1.1.2 Assign HASH partitioning
 ALTER TABLE t1 PARTITION BY HASH(YEAR(f_date));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -85,6 +87,8 @@ t1	CREATE TABLE `t1` (
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (YEAR(f_date)) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1.frm
@@ -94,6 +98,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
@@ -101,6 +106,8 @@ Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`
 #  1.1.3 Assign other HASH partitioning to already partitioned table
 #        + test and switch back + test
 ALTER TABLE t1 PARTITION BY HASH(DAYOFYEAR(f_date));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -108,6 +115,8 @@ t1	CREATE TABLE `t1` (
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (DAYOFYEAR(f_date)) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1.frm
@@ -117,11 +126,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
 ALTER TABLE t1 PARTITION BY HASH(YEAR(f_date));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -129,6 +141,8 @@ t1	CREATE TABLE `t1` (
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (YEAR(f_date)) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1.frm
@@ -138,6 +152,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
@@ -149,6 +164,8 @@ ALTER TABLE t1 ADD PARTITION (PARTITION part2 VALUES LESS THAN (0));
 ERROR HY000: Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition
 #  1.1.5 Add two named partitions + test
 ALTER TABLE t1 ADD PARTITION (PARTITION part1, PARTITION part7);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -159,6 +176,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 ENGINE = MyISAM,
  PARTITION part1 ENGINE = MyISAM,
  PARTITION part7 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#part1.MYD
@@ -172,6 +191,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	part1	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
@@ -181,6 +201,8 @@ ALTER TABLE t1 ADD PARTITION (PARTITION part1, PARTITION part7);
 ERROR HY000: Duplicate partition name part1
 #  1.1.7 Add one named partition + test
 ALTER TABLE t1 ADD PARTITION (PARTITION part2);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -192,6 +214,8 @@ t1	CREATE TABLE `t1` (
  PARTITION part1 ENGINE = MyISAM,
  PARTITION part7 ENGINE = MyISAM,
  PARTITION part2 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#part1.MYD
@@ -207,12 +231,15 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
 #  1.1.8 Add four not named partitions + test
 ALTER TABLE t1 ADD PARTITION PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -228,6 +255,8 @@ t1	CREATE TABLE `t1` (
  PARTITION p5 ENGINE = MyISAM,
  PARTITION p6 ENGINE = MyISAM,
  PARTITION p7 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p4.MYD
@@ -251,6 +280,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
@@ -269,6 +299,8 @@ ALTER TABLE t1 COALESCE PARTITION 0;
 ERROR HY000: At least one partition must be coalesced
 #  1.2.4 COALESCE one partition + test loop
 ALTER TABLE t1 COALESCE PARTITION 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -283,6 +315,8 @@ t1	CREATE TABLE `t1` (
  PARTITION p4 ENGINE = MyISAM,
  PARTITION p5 ENGINE = MyISAM,
  PARTITION p6 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p4.MYD
@@ -304,11 +338,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p6	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
 ALTER TABLE t1 COALESCE PARTITION 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -322,6 +359,8 @@ t1	CREATE TABLE `t1` (
  PARTITION part2 ENGINE = MyISAM,
  PARTITION p4 ENGINE = MyISAM,
  PARTITION p5 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p4.MYD
@@ -341,11 +380,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
 ALTER TABLE t1 COALESCE PARTITION 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -358,6 +400,8 @@ t1	CREATE TABLE `t1` (
  PARTITION part7 ENGINE = MyISAM,
  PARTITION part2 ENGINE = MyISAM,
  PARTITION p4 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p4.MYD
@@ -375,11 +419,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
 ALTER TABLE t1 COALESCE PARTITION 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -391,6 +438,8 @@ t1	CREATE TABLE `t1` (
  PARTITION part1 ENGINE = MyISAM,
  PARTITION part7 ENGINE = MyISAM,
  PARTITION part2 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#part1.MYD
@@ -406,11 +455,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
 ALTER TABLE t1 COALESCE PARTITION 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -421,6 +473,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 ENGINE = MyISAM,
  PARTITION part1 ENGINE = MyISAM,
  PARTITION part7 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#part1.MYD
@@ -434,11 +488,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	part1	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
 ALTER TABLE t1 COALESCE PARTITION 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -448,6 +505,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY HASH (YEAR(f_date))
 (PARTITION p0 ENGINE = MyISAM,
  PARTITION part1 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#part1.MYD
@@ -459,11 +518,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
 ALTER TABLE t1 COALESCE PARTITION 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -472,6 +534,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (YEAR(f_date))
 (PARTITION p0 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1.frm
@@ -481,6 +545,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
@@ -553,6 +618,8 @@ Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`
 #------------------------------------------------------------------------
 #  2.1.1 Assign KEY partitioning
 ALTER TABLE t1 PARTITION BY KEY(f_int1);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -563,6 +630,8 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (f_int1) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1.frm
@@ -572,6 +641,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
@@ -583,6 +653,8 @@ ALTER TABLE t1 ADD PARTITION (PARTITION part2 VALUES LESS THAN (0));
 ERROR HY000: Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition
 #  2.1.3 Add two named partitions + test
 ALTER TABLE t1 ADD PARTITION (PARTITION part1, PARTITION part7);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -596,6 +668,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 ENGINE = MyISAM,
  PARTITION part1 ENGINE = MyISAM,
  PARTITION part7 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#part1.MYD
@@ -609,12 +683,15 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
 #  2.1.4 Add one named partition + test
 ALTER TABLE t1 ADD PARTITION (PARTITION part2);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -629,6 +706,8 @@ t1	CREATE TABLE `t1` (
  PARTITION part1 ENGINE = MyISAM,
  PARTITION part7 ENGINE = MyISAM,
  PARTITION part2 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#part1.MYD
@@ -644,12 +723,15 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
 #  2.1.5 Add four not named partitions + test
 ALTER TABLE t1 ADD PARTITION PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -668,6 +750,8 @@ t1	CREATE TABLE `t1` (
  PARTITION p5 ENGINE = MyISAM,
  PARTITION p6 ENGINE = MyISAM,
  PARTITION p7 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p4.MYD
@@ -691,6 +775,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p6	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
@@ -704,6 +789,8 @@ ALTER TABLE t1 DROP PARTITION part1;
 ERROR HY000: DROP PARTITION can only be used on RANGE/LIST partitions
 #  2.2.4 COALESCE one partition + test loop
 ALTER TABLE t1 COALESCE PARTITION 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -721,6 +808,8 @@ t1	CREATE TABLE `t1` (
  PARTITION p4 ENGINE = MyISAM,
  PARTITION p5 ENGINE = MyISAM,
  PARTITION p6 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p4.MYD
@@ -742,11 +831,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
 ALTER TABLE t1 COALESCE PARTITION 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -763,6 +855,8 @@ t1	CREATE TABLE `t1` (
  PARTITION part2 ENGINE = MyISAM,
  PARTITION p4 ENGINE = MyISAM,
  PARTITION p5 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p4.MYD
@@ -782,11 +876,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
 ALTER TABLE t1 COALESCE PARTITION 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -802,6 +899,8 @@ t1	CREATE TABLE `t1` (
  PARTITION part7 ENGINE = MyISAM,
  PARTITION part2 ENGINE = MyISAM,
  PARTITION p4 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p4.MYD
@@ -819,11 +918,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
 ALTER TABLE t1 COALESCE PARTITION 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -838,6 +940,8 @@ t1	CREATE TABLE `t1` (
  PARTITION part1 ENGINE = MyISAM,
  PARTITION part7 ENGINE = MyISAM,
  PARTITION part2 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#part1.MYD
@@ -853,11 +957,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
 ALTER TABLE t1 COALESCE PARTITION 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -871,6 +978,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 ENGINE = MyISAM,
  PARTITION part1 ENGINE = MyISAM,
  PARTITION part7 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#part1.MYD
@@ -884,11 +993,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
 ALTER TABLE t1 COALESCE PARTITION 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -901,6 +1013,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY KEY (f_int1)
 (PARTITION p0 ENGINE = MyISAM,
  PARTITION part1 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#part1.MYD
@@ -912,11 +1026,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
 ALTER TABLE t1 COALESCE PARTITION 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -928,6 +1045,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (f_int1)
 (PARTITION p0 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1.frm
@@ -937,6 +1056,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1

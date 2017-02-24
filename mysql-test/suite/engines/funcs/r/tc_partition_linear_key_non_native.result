@@ -1,0 +1,913 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (c1 TINYINT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 4 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 4 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 4 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 4 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 4 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 4 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 4 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 4 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 4 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 4 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 4 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 4 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 5;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 5 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 5;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 5 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 5;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 5 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 5;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 5 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 5;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 5 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 5;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 5 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 5;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 5 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 5;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 5 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 5;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 5 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 5;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 5 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 5;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 5 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 5;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 5 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 99;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 99 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 99;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 99 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 99;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 99 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 99;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 99 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 99;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 99 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 99;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) DEFAULT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 99 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 TINYINT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 99;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 99 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 99;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 99 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 99;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 99 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 99;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 99 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 99;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 99 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NOT NULL, c2 CHAR(5)) PARTITION BY LINEAR KEY(c1) PARTITIONS 99;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LINEAR KEY (c1)
+PARTITIONS 99 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test

@@ -17,12 +17,8 @@
  * 02110-1301  USA
  */
 
-#if !defined(MYSQL_DYNAMIC_PLUGIN) && defined(WIN32) && !defined(XPLUGIN_UNIT_TESTS)
-// Needed for importing PERFORMANCE_SCHEMA plugin API.
-#define MYSQL_DYNAMIC_PLUGIN 1
-#endif // WIN32
-
 #include "ngs/thread.h"
+#include "ngs/memory.h"
 #include "my_thread.h"
 #include "my_sys.h"                             // my_thread_stack_size
 
@@ -135,3 +131,6 @@ void ngs::Cond::broadcast(Mutex& mutex)
 
   broadcast();
 }
+
+unsigned int ngs::x_psf_objects_key = 0;
+

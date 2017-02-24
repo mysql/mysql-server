@@ -12,6 +12,24 @@ before calling SSL_new();
 
 *** end Note ***
 
+yaSSL Release notes, version 2.4.2 (9/22/2016)
+    This release of yaSSL fixes a medium security vulnerability. A fix for
+    potential AES side channel leaks is included that a local user monitoring
+    the same CPU core cache could exploit.  VM users, hyper-threading users,
+    and users where potential attackers have access to the CPU cache will need
+    to update if they utilize AES.
+
+    DSA padding fixes for unusual sizes is included as well.  Users with DSA
+    certficiates should update.
+
+yaSSL Release notes, version 2.4.0 (5/20/2016)
+    This release of yaSSL fixes the OpenSSL compatibility function
+    SSL_CTX_load_verify_locations() when using the path directory to allow
+    unlimited path sizes.  Minor Windows build fixes are included.
+    No high level security fixes in this version but we always recommend
+    updating.
+
+
 yaSSL Release notes, version 2.3.9b (2/03/2016)
     This release of yaSSL fixes the OpenSSL compatibility function
     X509_NAME_get_index_by_NID() to use the actual index of the common name

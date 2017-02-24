@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -284,7 +284,7 @@ int channel_queue_packet(const char* channel, const char* buf, unsigned long len
     @retval REPLICATION_THREAD_WAIT_NO_INFO_ERROR     An error occurred
 */
 int channel_wait_until_apply_queue_applied(const char* channel,
-                                           long long timeout);
+                                           double timeout);
 
 /**
   Checks if the applier, and its workers when parallel applier is
@@ -360,4 +360,16 @@ int channel_get_retrieved_gtid_set(const char* channel,
     @retval false   No, no type was specified or the channel does not exist.
 */
 bool channel_is_stopping(const char* channel, enum_channel_thread_types type);
+
+/**
+  Checks if the given channel's relaylog contains a partial transaction.
+
+  @param channel  The channel name
+
+  @return
+    @retval true    If relaylog contains partial transcation.
+    @retval false   If relaylog does not contain partial transaction.
+*/
+bool is_partial_transaction_on_channel_relay_log(const char* channel);
+
 #endif //RPL_SERVICE_INTERFACE_INCLUDE

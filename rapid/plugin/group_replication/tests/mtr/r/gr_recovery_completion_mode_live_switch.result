@@ -1,0 +1,73 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Create t1 and t2 on server 1.
+# Replicate it to server 2 but stop the group replication again.
+#
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+include/stop_group_replication.inc
+#
+# Insert a row on table 1 in server 1.
+# Lock table t1 and t2 on server 2 and start group replication.
+# Server 2 recovery is stuck on state transfer as it cannot execute on t1.
+#
+[connection server1]
+INSERT INTO t1 VALUES (1);
+[connection server_2]
+LOCK TABLE t1 WRITE;
+[connection slave]
+LOCK TABLE t2 WRITE;
+[connection server2]
+SET GLOBAL debug= '+d,group_replication_skip_read_mode';
+include/start_group_replication.inc
+#
+# Insert a row on table t2 in server 1.
+# This row is a cached row to be executed when the state transfer ends.
+# On server 2, the queue contains a VCLevent and this transaction
+#
+[connection server1]
+SELECT WAIT_FOR_EXECUTED_GTID_SET('93150a70-b30b-11e5-a837-0800200c9a66:4');
+WAIT_FOR_EXECUTED_GTID_SET('93150a70-b30b-11e5-a837-0800200c9a66:4')
+0
+INSERT INTO t2 VALUES (1);
+[connection server2]
+#
+# Unlock table t1, state transfer will end on server 2.
+# Everything in the queue is certified
+# Recovery is still stuck on server 2 waiting for the transaction on t2.
+#
+[connection server_2]
+UNLOCK TABLES;
+[connection server2]
+include/gr_wait_for_member_state.inc
+#
+# Change the recovery policy.
+# As it only depends on certified transactions, recovery ends.
+#
+SET @configured_rec_policy= @@GLOBAL.group_replication_recovery_complete_at;
+SET GLOBAL group_replication_recovery_complete_at= "transactions_certified";
+include/gr_wait_for_member_state.inc
+#
+# Test all is fine
+#
+[connection slave]
+UNLOCK TABLES;
+INSERT INTO t2 VALUES (2);
+[connection server1]
+#
+# Clean up
+#
+[connection server2]
+SET GLOBAL debug= '-d,group_replication_skip_read_mode';
+SET GLOBAL group_replication_recovery_complete_at= @configured_rec_policy;
+DROP TABLE t1;
+DROP TABLE t2;
+include/group_replication_end.inc

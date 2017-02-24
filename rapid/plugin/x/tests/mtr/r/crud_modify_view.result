@@ -1,0 +1,126 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.xtable (first INT, second JSON);
+CREATE USER xuser@localhost;
+CREATE VIEW xtest.xview AS SELECT first FROM xtest.xtable;
+SHOW CREATE VIEW xtest.xview;
+View	Create View	character_set_client	collation_connection
+xview	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`first` AS `first` from `xtest`.`xtable`	latin1	latin1_swedish_ci
+
+Modify view (missing stmt)
+--------------------------
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5012
+  msg: "The field that defines the select statement is required"
+  sql_state: "HY000"
+}
+
+
+Modify view (stmt)
+------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+xview	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Modify view (algorithm=temptable)
+---------------------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+xview	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Modify view (algorithm=merge)
+-----------------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+xview	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Modify view (definer=xuser)
+---------------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Modify view (security=invoker)
+------------------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY INVOKER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Modify view (security=definer)
+------------------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Modify view (check=local)
+-------------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable` WITH LOCAL CHECK OPTION	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Modify view (check=cascaded)
+----------------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable` WITH CASCADED CHECK OPTION	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Modify view (column)
+--------------------
+Mysqlx.Ok {
+}
+
+View	Create View	character_set_client	collation_connection
+xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `third` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+0 rows affected
+
+Modify view (too many columns)
+------------------------------
+Mysqlx.Error {
+  severity: ERROR
+  code: 1353
+  msg: "View\'s SELECT and view\'s field list have different column counts"
+  sql_state: "HY000"
+}
+
+View	Create View	character_set_client	collation_connection
+xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `third` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+0 rows affected
+Variable_name	Value
+Mysqlx_crud_modify_view	11
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+include/assert.inc [Global status of 'Mysqlx_crud_modify_view']
+DROP SCHEMA IF EXISTS xtest;
+DROP USER xuser@localhost;
+UNINSTALL PLUGIN mysqlx;

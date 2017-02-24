@@ -333,6 +333,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     const char* db = table->db;
     bool fatal_error=0;
     bool open_error;
+    bool issue_deprecation_warning= false;
 
     DBUG_PRINT("admin", ("table: '%s'.'%s'", table->db, table->table_name));
     DBUG_PRINT("admin", ("extra_open_options: %u", extra_open_options));
@@ -404,6 +405,31 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       else
       {
         /*
+          Filter out deprecation warnings caused by deprecation of
+          the partition engine. The presence of these depend on TDC
+          cache behavior. Instead, push a warning later to get
+          deterministic and repeatable behavior.
+        */
+        class Silence_deprecation_warnings:
+          public Internal_error_handler
+        {
+        public:
+          bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+          {
+            if (sql_errno == ER_WARN_DEPRECATED_SYNTAX)
+              return true;
+
+            return false;
+          }
+        };
+        Silence_deprecation_warnings deprecation_silencer;
+        thd->push_internal_handler(&deprecation_silencer);
+
+        /*
           It's assumed that even if it is REPAIR TABLE USE_FRM, the table
           can be opened if we're under LOCK TABLES (otherwise LOCK TABLES
           would fail). Thus, the only errors we could have from
@@ -415,6 +441,12 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
         if (!open_error)
           open_error= open_and_lock_tables(thd, table, 0);
+
+        thd->pop_internal_handler();
+
+        issue_deprecation_warning= (!open_error && !table->is_view() &&
+                table->table->s->db_type() &&
+                is_ha_partition_handlerton(table->table->s->db_type()));
       }
 
       /*
@@ -955,6 +987,31 @@ send_result_message:
         break;
       }
     }
+
+    /*
+      We must delay issuing the deprecation warning until afte the table
+      status has been issued for correct behavior on the client side in the
+      event that the command is issued by the upgrade client.
+    */
+    if (issue_deprecation_warning)
+    {
+      char buf[MYSQL_ERRMSG_SIZE];
+      size_t length;
+
+      // End the previous row before starting a new one.
+      if (protocol->end_row())
+        goto err;
+      protocol->start_row();
+      protocol->store(table_name, system_charset_info);
+      protocol->store(operator_name, system_charset_info);
+      protocol->store(STRING_WITH_LEN("warning"), system_charset_info);
+      length= my_snprintf(buf, sizeof(buf),
+                          ER(ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE),
+                          table->db, table->table_name);
+      protocol->store(buf, length, system_charset_info);
+      // Row is ended below.
+    }
+
     if (table->table)
     {
       if (table->table->s->tmp_table)

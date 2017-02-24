@@ -161,7 +161,7 @@ int read_file(SSL_CTX* ctx, const char* file, int format, CertType type)
             TaoCrypt::DSA_PrivateKey dsaKey;
             dsaKey.Initialize(dsaSource);
 
-            if (rsaSource.GetError().What()) {
+            if (dsaSource.GetError().What()) {
                 // neither worked
                 ret = SSL_FAILURE;
             }
@@ -849,40 +849,67 @@ int SSL_CTX_load_verify_locations(SSL_CTX* ctx, const char* file,
         WIN32_FIND_DATA FindFileData;
         HANDLE hFind;
 
-        char name[MAX_PATH + 1];  // directory specification
-        strncpy(name, path, MAX_PATH - 3);
-        strncat(name, "\\*", 3);
+        const int DELIMITER_SZ      = 2;
+        const int DELIMITER_STAR_SZ = 3;
+        int pathSz = (int)strlen(path);
+        int nameSz = pathSz + DELIMITER_STAR_SZ + 1; // plus 1 for terminator
+        char* name = NEW_YS char[nameSz];  // directory specification
+        memset(name, 0, nameSz);
+        strncpy(name, path, nameSz - DELIMITER_STAR_SZ - 1);
+        strncat(name, "\\*", DELIMITER_STAR_SZ);
 
         hFind = FindFirstFile(name, &FindFileData);
-        if (hFind == INVALID_HANDLE_VALUE) return SSL_BAD_PATH;
+        if (hFind == INVALID_HANDLE_VALUE) {
+            ysArrayDelete(name);
+            return SSL_BAD_PATH;
+        }
 
         do {
-            if (FindFileData.dwFileAttributes != FILE_ATTRIBUTE_DIRECTORY) {
-                strncpy(name, path, MAX_PATH - 2 - HALF_PATH);
-                strncat(name, "\\", 2);
-                strncat(name, FindFileData.cFileName, HALF_PATH);
+            if (!(FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+                int curSz = (int)strlen(FindFileData.cFileName);
+                if (pathSz + curSz + DELIMITER_SZ + 1 > nameSz) {
+                    ysArrayDelete(name);
+                    // plus 1 for terminator
+                    nameSz = pathSz + curSz + DELIMITER_SZ + 1;
+                    name = NEW_YS char[nameSz];
+                }
+                memset(name, 0, nameSz);
+                strncpy(name, path, nameSz - curSz - DELIMITER_SZ - 1);
+                strncat(name, "\\", DELIMITER_SZ);
+                strncat(name, FindFileData.cFileName,
+                                            nameSz - pathSz - DELIMITER_SZ - 1);
                 ret = read_file(ctx, name, SSL_FILETYPE_PEM, CA);
             }
         } while (ret == SSL_SUCCESS && FindNextFile(hFind, &FindFileData));
 
+        ysArrayDelete(name);
         FindClose(hFind);
 
 #else   // _WIN32
-
-        const int MAX_PATH = 260;
-
         DIR* dir = opendir(path);
         if (!dir) return SSL_BAD_PATH;
 
         struct dirent* entry;
         struct stat    buf;
-        char           name[MAX_PATH + 1];
+        const int DELIMITER_SZ = 1;
+        int pathSz = (int)strlen(path);
+        int nameSz = pathSz + DELIMITER_SZ + 1; //plus 1 for null terminator
+        char* name = NEW_YS char[nameSz];  // directory specification
 
         while (ret == SSL_SUCCESS && (entry = readdir(dir))) {
-            strncpy(name, path, MAX_PATH - 1 - HALF_PATH);
-            strncat(name, "/", 1);
-            strncat(name, entry->d_name, HALF_PATH);
+            int curSz = (int)strlen(entry->d_name);
+            if (pathSz + curSz + DELIMITER_SZ + 1 > nameSz) {
+                ysArrayDelete(name);
+                nameSz = pathSz + DELIMITER_SZ + curSz + 1;
+                name = NEW_YS char[nameSz];
+            }
+            memset(name, 0, nameSz);
+            strncpy(name, path, nameSz - curSz - 1);
+            strncat(name, "/",  DELIMITER_SZ);
+            strncat(name, entry->d_name, nameSz - pathSz - DELIMITER_SZ - 1);
+
             if (stat(name, &buf) < 0) {
+                ysArrayDelete(name);
                 closedir(dir);
                 return SSL_BAD_STAT;
             }
@@ -891,6 +918,7 @@ int SSL_CTX_load_verify_locations(SSL_CTX* ctx, const char* file,
                 ret = read_file(ctx, name, SSL_FILETYPE_PEM, CA);
         }
 
+        ysArrayDelete(name);
         closedir(dir);
 
 #endif

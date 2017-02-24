@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -73,15 +73,14 @@ public:
   }
 
   MOCK_METHOD2(get_auth_handler2, Authentication_handler_ptr::element_type *(const std::string &, Session_interface *));
-  MOCK_CONST_METHOD0(get_config, boost::shared_ptr<Protocol_config> ());
+  MOCK_CONST_METHOD0(get_config, ngs::shared_ptr<Protocol_config> ());
   MOCK_METHOD0(is_running, bool ());
-  MOCK_CONST_METHOD0(get_worker_scheduler, boost::shared_ptr<Scheduler_dynamic> ());
+  MOCK_CONST_METHOD0(get_worker_scheduler, ngs::shared_ptr<Scheduler_dynamic> ());
   MOCK_CONST_METHOD0(ssl_context, Ssl_context *());
   MOCK_METHOD1(on_client_closed, void (const Client_interface &));
-  MOCK_METHOD0(restart_client_supervision_timer, void());
-  MOCK_METHOD3(create_session, boost::shared_ptr<Session_interface> (Client_interface &, Protocol_encoder &, int));
+  MOCK_METHOD3(create_session, ngs::shared_ptr<Session_interface> (Client_interface &, Protocol_encoder &, int));
   MOCK_METHOD0(get_client_exit_mutex, Mutex &());
-
+  MOCK_METHOD0(restart_client_supervision_timer, void ());
 
   // Workaround for GMOCK undefined behaviour with ResultHolder
   MOCK_METHOD2(get_authentication_mechanisms_void, bool (std::vector<std::string> &auth_mech, Client_interface &client));
@@ -116,12 +115,11 @@ public:
   MOCK_CONST_METHOD0(client_id_num, Client_id ());
   MOCK_CONST_METHOD0(client_port, int ());
 
-  MOCK_CONST_METHOD0(get_accept_time, ngs::ptime ());
+  MOCK_CONST_METHOD0(get_accept_time, ngs::chrono::time_point ());
   MOCK_CONST_METHOD0(get_state, Client_state ());
 
-  MOCK_METHOD0(session, boost::shared_ptr<ngs::Session_interface> ());
+  MOCK_METHOD0(session, ngs::shared_ptr<ngs::Session_interface> ());
   MOCK_METHOD0(supports_expired_passwords, bool ());
-
 public:
   MOCK_METHOD1(on_session_reset_void, bool (ngs::Session_interface &));
   MOCK_METHOD1(on_session_close_void, bool (ngs::Session_interface &));
@@ -132,6 +130,7 @@ public:
   MOCK_METHOD0(on_auth_timeout_void, bool ());
   MOCK_METHOD0(on_server_shutdown_void, bool ());
   MOCK_METHOD1(run_void, bool (bool));
+  MOCK_METHOD0(reset_accept_time_void, bool ());
 
   void on_session_reset(ngs::Session_interface &arg)
   {
@@ -172,6 +171,11 @@ public:
   {
     run_void(arg);
   }
+
+  void reset_accept_time()
+  {
+    reset_accept_time_void();
+  }
 };
 
 class Mock_session : public xpl::Session
@@ -194,7 +198,13 @@ public:
   {
   }
 
-  MOCK_METHOD8(authenticate, ngs::Error_code (const char *user, const char *host, const char *ip, const char *db, On_user_password_hash cb_password_hash, bool, ngs::IOptions_session_ptr &, const ngs::Connection_type));
+  MOCK_METHOD8(authenticate, ngs::Error_code (const char *, const char *, const char *, const char *, On_user_password_hash , bool, ngs::IOptions_session_ptr &, const ngs::Connection_type));
+  MOCK_METHOD5(execute_sql_and_collect_results, ngs::Error_code (
+      const char *,
+      std::size_t,
+      std::vector<Command_delegate::Field_type> &,
+      Buffering_command_delegate::Resultset &,
+      Result_info &));
 };
 
 

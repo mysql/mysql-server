@@ -1,0 +1,88 @@
+#######################################################################################
+# Test that Group Replication activity is properly shown on a GR member
+#
+# Test :
+# 0. This test requires 2 servers, M1 and M2
+# 1. Start GR on M1
+# 2. Stop sql thread for CHANNEL 'group_replication_applier' on M1
+# 3. Perform some DDL/DML operations on M1
+# 4. Start GR on another server M2
+# 5. Verify GR activity through 'SHOW PROCESSLIST' on M1 and M2
+# 6. Verify GR activity through select from INFORMATION_SCHEMA.PROCESSLIST on M1 and M2
+# 7. Clean-up
+#######################################################################################
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 2
+--source ../inc/group_replication.inc
+
+# Start GR on M1
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+# Stop slave sql_thread for group replication applier channel
+# This is to ensure M2 goes to RECOVERING state, so that GR activity corresponding to this state can be verified
+--echo
+STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
+
+# Do some DDL, DML operations
+--echo
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+--disable_query_log
+--let $i=10
+while($i)
+{
+    --EVAL INSERT INTO t1 VALUES ($i)
+    --dec $i
+}
+--enable_query_log
+
+# Start GR on M2
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--source include/start_group_replication_command.inc
+
+# Wait for the table to get synced to M2
+--let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.tables WHERE table_schema = 'test' AND table_name = 't1';
+--source include/wait_condition.inc
+
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+# Verify GR activity on M1 using SHOW PROCESSLIST;
+--let $show_statement= SHOW PROCESSLIST;
+let $field= State;
+let $condition= = 'Master has sent all binlog to slave; waiting for more updates';
+--source include/wait_show_condition.inc
+# Verify GR activity on M1 using select from INFORMATION_SCHEMA.PROCESSLIST
+--echo "Verifying GR activity on M1 by checking if master has sent all binlog to slave"
+--let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE='Master has sent all binlog to slave; waiting for more updates';
+--source include/wait_condition.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# Verify GR activity on M2 using SHOW PROCESSLIST;
+let $show_statement= SHOW PROCESSLIST;
+let $field= State;
+let $condition= = 'Slave has read all relay log; waiting for more updates';
+--source include/wait_show_condition.inc
+# Verify GR activity on M2 using select from INFORMATION_SCHEMA.PROCESSLIST
+--echo "Verifying GR activity on M2 by checking if slave has read all relay log"
+--let $wait_condition= SELECT COUNT(*)>=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State='Slave has read all relay log; waiting for more updates';
+--source include/wait_condition.inc
+
+# Restart slave sql_thread for group replication applier channel
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
+# Drop table
+DROP TABLE test.t1;
+
+--source ../inc/group_replication_end.inc

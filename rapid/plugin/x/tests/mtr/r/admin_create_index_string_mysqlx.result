@@ -30,7 +30,7 @@ Got expected error (code 0)
 
 command ok
 Got expected error (code 0)
-in main, line 58:in macro Create_index, line 3:ERROR: Got unexpected error: Invalid value for argument 'member', expected path to document member (code 5017); expected was 5016 
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
 Got expected error: Argument value '' for index name is invalid (code 5017)
 Got expected error: Invalid or unsupported type specification 'text(20);drop table' (code 5017)
 Got expected error: Invalid or unsupported type specification 'varchar(20)' (code 5017)

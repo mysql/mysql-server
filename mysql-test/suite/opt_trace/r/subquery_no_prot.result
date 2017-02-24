@@ -975,7 +975,7 @@ field4,field5,field6	{
           },
           {
             "derived": {
-              "table": "``.`*` `alias2`",
+              "table": "``.`` `alias2`",
               "select#": 5,
               "merged": true
             } /* derived */

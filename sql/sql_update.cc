@@ -810,11 +810,11 @@ bool mysql_update(THD *thd,
         if (table->file->was_semi_consistent_read())
           continue;  /* repeat the read of the same row if it still exists */
 
-      store_record(table,record[1]);
-      if (fill_record_n_invoke_before_triggers(thd, fields, values,
-                                               table,
-                                               TRG_EVENT_UPDATE, 0))
-        break; /* purecov: inspected */
+        store_record(table,record[1]);
+        if (fill_record_n_invoke_before_triggers(thd, fields, values,
+                                                 table,
+                                                 TRG_EVENT_UPDATE, 0))
+          break; /* purecov: inspected */
 
         found++;
 

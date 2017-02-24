@@ -26,30 +26,20 @@ namespace xpl
 namespace test
 {
 
-class Delete_statement_builder_impl: public Delete_statement_builder
-{
-public:
-  Delete_statement_builder_impl(const Delete_statement_builder::Delete& msg,
-                                Query_string_builder &qb)
-  : Delete_statement_builder(msg, qb)
-  { m_is_relational = true;}
-
-  void set_document_model() { m_is_relational = false; }
-  using Delete_statement_builder::add_statement;
-};
-
-
 class Delete_statement_builder_test : public ::testing::Test
 {
 public:
   Delete_statement_builder_test()
-  : builder(msg, query),
-    args(*msg.mutable_args())
+  : args(*msg.mutable_args()),
+    expr_gen(query, args, schema, true),
+    builder(expr_gen)
   {}
   Delete_statement_builder::Delete msg;
-  Query_string_builder query;
-  Delete_statement_builder_impl builder;
   Expression_generator::Args &args;
+  Query_string_builder query;
+  std::string schema;
+  Expression_generator expr_gen;
+  Delete_statement_builder builder;
 };
 
 
@@ -57,13 +47,13 @@ namespace
 {
 void operator<< (::google::protobuf::Message &msg, const std::string& txt)
 {
-  ::google::protobuf::TextFormat::ParseFromString(txt, &msg);
+  ASSERT_TRUE(::google::protobuf::TextFormat::ParseFromString(txt, &msg));
 }
 } // namespace
 
 
 
-TEST_F(Delete_statement_builder_test, add_statement_table)
+TEST_F(Delete_statement_builder_test, build_table)
 {
   msg <<
       "collection {name: 'xtable' schema: 'xschema'}"
@@ -77,7 +67,7 @@ TEST_F(Delete_statement_builder_test, add_statement_table)
       "order {expr {type: IDENT identifier {name: 'gamma'}}"
       "       direction: DESC} "
       "limit {row_count: 2}";
-  ASSERT_NO_THROW(builder.add_statement());
+  ASSERT_NO_THROW(builder.build(msg));
   EXPECT_EQ(
       "DELETE FROM `xschema`.`xtable` "
       "WHERE (`delta` > 1) "
@@ -86,7 +76,7 @@ TEST_F(Delete_statement_builder_test, add_statement_table)
 }
 
 
-TEST_F(Delete_statement_builder_test, add_statement_document)
+TEST_F(Delete_statement_builder_test, build_document)
 {
   msg <<
       "collection {name: 'xcoll' schema: 'xschema'}"
@@ -102,8 +92,7 @@ TEST_F(Delete_statement_builder_test, add_statement_document)
       "                                                     value: 'gamma'}}}"
       "       direction: DESC} "
       "limit {row_count: 2}";
-  builder.set_document_model();
-  ASSERT_NO_THROW(builder.add_statement());
+  ASSERT_NO_THROW(builder.build(msg));
   EXPECT_EQ(
       "DELETE FROM `xschema`.`xcoll` "
       "WHERE (JSON_EXTRACT(doc,'$.delta') > 1) "

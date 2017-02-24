@@ -18,41 +18,60 @@
 #include "ngs/error_code.h"
 #include "query_string_builder.h"
 
-#include <boost/assign/list_of.hpp>
 #include <stdexcept>
 #include <list>
 #include <gtest/gtest.h>
 
 
-namespace xpl
-{
+namespace xpl {
 
-namespace test
-{
+namespace test {
+
+namespace {
+
+class Assign_list {
+public:
+  typedef std::string Value_type;
+  typedef std::list<Value_type> Container_type;
+
+  Assign_list(const Value_type &value) {
+    (*this)(value);
+  }
+
+  Assign_list &operator() (const Value_type &value) {
+    m_values.push_back(value);
+    return *this;
+  }
+
+  operator Container_type() {
+    return m_values;
+  }
+
+private:
+  Container_type m_values;
+};
+
+} // namespace
 
 
-class Query_string_builder_testsuite : public ::testing::Test
-{
+class Query_string_builder_testsuite : public ::testing::Test {
 public:
   Query_string_builder query;
 };
 
-TEST_F(Query_string_builder_testsuite, format_doesNothing_whenEmptyStringAndNoArgsPushed)
-{
+TEST_F(Query_string_builder_testsuite, format_doesNothing_whenEmptyStringAndNoArgsPushed) {
   query.format();
 
   ASSERT_STREQ("", query.get().c_str());
 }
 
-TEST_F(Query_string_builder_testsuite, format_doesThrowsException_whenEmptyFormat)
-{
+TEST_F(Query_string_builder_testsuite, format_doesThrowsException_whenEmptyFormat) {
   ASSERT_THROW(query.format() % "Test", ngs::Error_code);
 
   ASSERT_STREQ("", query.get().c_str());
 }
 
-TEST_F(Query_string_builder_testsuite, format_doesThrowsException_whenNoTagFormat)
-{
+TEST_F(Query_string_builder_testsuite, format_doesThrowsException_whenNoTagFormat) {
   const char *format_query = "QUERY WITHOUT TAG";
 
   query.put(format_query);
@@ -61,8 +80,7 @@ TEST_F(Query_string_builder_testsuite, format_doesThrowsException_whenNoTagForma
   ASSERT_STREQ(format_query, query.get().c_str());
 }
 
-TEST_F(Query_string_builder_testsuite, format_doesThrowsException_whenAfterFillingFirstTag)
-{
+TEST_F(Query_string_builder_testsuite, format_doesThrowsException_whenAfterFillingFirstTag) {
   query.put("SELECT ? FROM table").format() % "test";
 
   ASSERT_THROW(query.format() % "test1", ngs::Error_code);
@@ -71,26 +89,22 @@ TEST_F(Query_string_builder_testsuite, format_doesThrowsException_whenAfterFilli
   ASSERT_STREQ("SELECT 'test' FROM table", query.get().c_str());
 }
 
-TEST_F(Query_string_builder_testsuite, format_fillsTwoTagsInQueryAndSkipsTagInValue_whenTwoTagValue)
-{
+TEST_F(Query_string_builder_testsuite, format_fillsTwoTagsInQueryAndSkipsTagInValue_whenTwoTagValue) {
   query.put("SELECT ? FROM ?");
   query.format() % "?" % "test";
 
   ASSERT_STREQ("SELECT '?' FROM 'test'", query.get().c_str());
 }
 
-TEST_F(Query_string_builder_testsuite, format_fillNumericValues)
-{
+TEST_F(Query_string_builder_testsuite, format_fillNumericValues) {
   query.put("SELECT *,? FROM t WHERE x=?").format() % 1 % 1.1;
 
   ASSERT_STREQ("SELECT *,1 FROM t WHERE x=1.1", query.get().c_str());
 }
 
-struct Query_and_expected
-{
+struct Query_and_expected {
   Query_and_expected(std::string query, std::string expected, std::string value)
-  : m_query(query), m_expected(expected), m_value(value)
-  {
+  : m_query(query), m_expected(expected), m_value(value) {
   }
 
   std::string m_query;
@@ -98,18 +112,17 @@ struct Query_and_expected
   std::string m_value;
 };
 
-::std::ostream& operator<<(::std::ostream& os, const Query_and_expected& query_and_expected)
-{
+::std::ostream& operator<<(::std::ostream& os, const Query_and_expected& query_and_expected) {
   return os << "Query:" << query_and_expected.m_query << " expected:" << query_and_expected.m_expected << " value:" << query_and_expected.m_value << std::endl;
 }
 
-class Query_string_builder_param_testsuite : public Query_string_builder_testsuite, public ::testing::WithParamInterface<Query_and_expected>
-{
+class Query_string_builder_param_testsuite :
+    public Query_string_builder_testsuite,
+    public ::testing::WithParamInterface<Query_and_expected> {
 public:
 };
 
-TEST_P(Query_string_builder_param_testsuite, format_putStringValueInsideQuery_whenOneTagInFormat)
-{
+TEST_P(Query_string_builder_param_testsuite, format_putStringValueInsideQuery_whenOneTagInFormat) {
   const char *value = GetParam().m_value.c_str();
   const char *format_query = GetParam().m_query.c_str();
   const char *expected_query = GetParam().m_expected.c_str();
@@ -130,11 +143,11 @@ INSTANTIATE_TEST_CASE_P(InstantiationPositiveTest,
                       Query_and_expected("? From",        "'\\'first-word\\' ; \\\"second-word\\\"' From" , "'first-word' ; \"second-word\"")
                       ));
 
-struct Query_and_expected_values
-{
+struct Query_and_expected_values {
   Query_and_expected_values(std::string query, std::string expected, std::list<std::string> values)
-  : m_query(query), m_expected(expected), m_values(values)
-  {
+  : m_query(query),
+    m_expected(expected),
+    m_values(values) {
   }
 
   std::string m_query;
@@ -142,8 +155,7 @@ struct Query_and_expected_values
   std::list<std::string> m_values;
 };
 
-::std::ostream& operator<<(::std::ostream& os, const Query_and_expected_values& query_and_expected)
-{
+::std::ostream& operator<<(::std::ostream& os, const Query_and_expected_values& query_and_expected) {
   os << "Query:" << query_and_expected.m_query << " expected:" << query_and_expected.m_expected << std::endl << " [";
 
   std::ostream_iterator<std::string> out_it (os,", ");
@@ -152,11 +164,11 @@ struct Query_and_expected_values
   return os << "]" << std::endl;
 }
 
-class Query_string_builder_multiple_tags_param_testsuite : public Query_string_builder_testsuite, public ::testing::WithParamInterface<Query_and_expected_values>
-{
+class Query_string_builder_multiple_tags_param_testsuite :
+    public Query_string_builder_testsuite,
+    public ::testing::WithParamInterface<Query_and_expected_values> {
 public:
-  void SetUp()
-  {
+  void SetUp() {
     values = GetParam().m_values;
     expected_query = &GetParam().m_expected[0];
 
@@ -167,8 +179,7 @@ public:
   std::string            expected_query;
 };
 
-TEST_P(Query_string_builder_multiple_tags_param_testsuite, format_putStringValueInsideQuery_whenMultipleTagsInFormat)
-{
+TEST_P(Query_string_builder_multiple_tags_param_testsuite, format_putStringValueInsideQuery_whenMultipleTagsInFormat) {
   std::list<std::string>::const_iterator i = values.begin();
 
   // In each iteration format creates new object without previous state
@@ -182,37 +193,36 @@ TEST_P(Query_string_builder_multiple_tags_param_testsuite, format_putStringValue
 INSTANTIATE_TEST_CASE_P(InstantiationPositiveTests,
     Query_string_builder_multiple_tags_param_testsuite,
     ::testing::Values(
-        Query_and_expected_values("SELECT ?,?,? FROM", "SELECT 'First','Second','Third' FROM", boost::assign::list_of("First")("Second")("Third")),
-        Query_and_expected_values("SELECT ?,? FROM",   "SELECT 'First','Second' FROM",         boost::assign::list_of("First")("Second")),
-        Query_and_expected_values("SELECT ? FROM ?",   "SELECT 'Second' FROM 'First'",         boost::assign::list_of("Second")("First")),
-        Query_and_expected_values("SELECT ?? FROM t",  "SELECT 'Second''First' FROM t",        boost::assign::list_of("Second")("First")),
-        Query_and_expected_values("SELECT ? FROM ?",               "SELECT '?' FROM 'First'",                  boost::assign::list_of("?")("First"))
+        Query_and_expected_values("SELECT ?,?,? FROM", "SELECT 'First','Second','Third' FROM", Assign_list("First")("Second")("Third")),
+        Query_and_expected_values("SELECT ?,? FROM",   "SELECT 'First','Second' FROM",         Assign_list("First")("Second")),
+        Query_and_expected_values("SELECT ? FROM ?",   "SELECT 'Second' FROM 'First'",         Assign_list("Second")("First")),
+        Query_and_expected_values("SELECT ?? FROM t",  "SELECT 'Second''First' FROM t",        Assign_list("Second")("First")),
+        Query_and_expected_values("SELECT ? FROM ?",               "SELECT '?' FROM 'First'",                  Assign_list("?")("First"))
         ));
 
 INSTANTIATE_TEST_CASE_P(InstantiationPositiveTestsQueryOrValuesWithEscapedChars,
     Query_string_builder_multiple_tags_param_testsuite,
     ::testing::Values(
-        Query_and_expected_values("SELECT ?/*,?*/ FROM t WHERE ?", "SELECT '\\\"'/*,?*/ FROM t WHERE 'First'", boost::assign::list_of("\"")("First")),
-        Query_and_expected_values("SELECT ?,? FROM t", "SELECT '\\'','First' FROM t",          boost::assign::list_of("'")("First")),
-        Query_and_expected_values("SELECT ?,? FROM t", "SELECT '\\\"','First' FROM t",         boost::assign::list_of("\"")("First")),
-        Query_and_expected_values("SELECT \"?\'?'?\",?,? FROM t",  "SELECT \"?\'?'?\",'','First' FROM t",      boost::assign::list_of("")("First"))
+        Query_and_expected_values("SELECT ?/*,?*/ FROM t WHERE ?", "SELECT '\\\"'/*,?*/ FROM t WHERE 'First'", Assign_list("\"")("First")),
+        Query_and_expected_values("SELECT ?,? FROM t", "SELECT '\\'','First' FROM t",          Assign_list("'")("First")),
+        Query_and_expected_values("SELECT ?,? FROM t", "SELECT '\\\"','First' FROM t",         Assign_list("\"")("First")),
+        Query_and_expected_values("SELECT \"?\'?'?\",?,? FROM t",  "SELECT \"?\'?'?\",'','First' FROM t",      Assign_list("")("First"))
         ));
 
 INSTANTIATE_TEST_CASE_P(InstantiationPositiveTestsQueryWithComment,
     Query_string_builder_multiple_tags_param_testsuite,
     ::testing::Values(
-        Query_and_expected_values("SELECT ?/*,?*/ FROM t WHERE ?", "SELECT '\\\"'/*,?*/ FROM t WHERE 'First'", boost::assign::list_of("\"")("First")),
-        Query_and_expected_values("SELECT ?#,?*\n FROM t WHERE ?", "SELECT '\\\"'#,?*\n FROM t WHERE 'First'", boost::assign::list_of("\"")("First")),
-        Query_and_expected_values("SELECT ?-- ,?*\n FROM t WHERE ?", "SELECT '\\\"'-- ,?*\n FROM t WHERE 'First'", boost::assign::list_of("\"")("First")),
-        Query_and_expected_values("SELECT ?-- ,?*\n FROM -- ?\nt WHERE ?", "SELECT '\\\"'-- ,?*\n FROM -- ?\nt WHERE 'First'", boost::assign::list_of("\"")("First")),
-        Query_and_expected_values("SELECT ?-- ,?*\n FROM # ?\nt WHERE ?", "SELECT '\\\"'-- ,?*\n FROM # ?\nt WHERE 'First'", boost::assign::list_of("\"")("First")),
-        Query_and_expected_values("SELECT ?-- ,?*\n FROM /* ?*/t WHERE ?", "SELECT '\\\"'-- ,?*\n FROM /* ?*/t WHERE 'First'", boost::assign::list_of("\"")("First"))
+        Query_and_expected_values("SELECT ?/*,?*/ FROM t WHERE ?", "SELECT '\\\"'/*,?*/ FROM t WHERE 'First'", Assign_list("\"")("First")),
+        Query_and_expected_values("SELECT ?#,?*\n FROM t WHERE ?", "SELECT '\\\"'#,?*\n FROM t WHERE 'First'", Assign_list("\"")("First")),
+        Query_and_expected_values("SELECT ?-- ,?*\n FROM t WHERE ?", "SELECT '\\\"'-- ,?*\n FROM t WHERE 'First'", Assign_list("\"")("First")),
+        Query_and_expected_values("SELECT ?-- ,?*\n FROM -- ?\nt WHERE ?", "SELECT '\\\"'-- ,?*\n FROM -- ?\nt WHERE 'First'", Assign_list("\"")("First")),
+        Query_and_expected_values("SELECT ?-- ,?*\n FROM # ?\nt WHERE ?", "SELECT '\\\"'-- ,?*\n FROM # ?\nt WHERE 'First'", Assign_list("\"")("First")),
+        Query_and_expected_values("SELECT ?-- ,?*\n FROM /* ?*/t WHERE ?", "SELECT '\\\"'-- ,?*\n FROM /* ?*/t WHERE 'First'", Assign_list("\"")("First"))
         ));
 
 class Query_string_builder_multiple_too_many_tags_param_testsuite : public Query_string_builder_multiple_tags_param_testsuite {};
 
-TEST_P(Query_string_builder_multiple_too_many_tags_param_testsuite, format_putStringValueInsideQuery_whenMultipleTagsInFormat)
-{
+TEST_P(Query_string_builder_multiple_too_many_tags_param_testsuite, format_putStringValueInsideQuery_whenMultipleTagsInFormat) {
   std::list<std::string>::const_iterator i = values.begin();
 
   ASSERT_LT(0u, values.size());
@@ -228,8 +238,8 @@ TEST_P(Query_string_builder_multiple_too_many_tags_param_testsuite, format_putSt
 INSTANTIATE_TEST_CASE_P(InstantiationNegativeTest,
     Query_string_builder_multiple_too_many_tags_param_testsuite,
     ::testing::Values(
-        Query_and_expected_values("SELECT ?,? FROM", "", boost::assign::list_of("First")("Second")("Third")),
-        Query_and_expected_values("SELECT ? FROM", "", boost::assign::list_of("First")("Second"))
+        Query_and_expected_values("SELECT ?,? FROM", "", Assign_list("First")("Second")("Third")),
+        Query_and_expected_values("SELECT ? FROM", "", Assign_list("First")("Second"))
         ));
 
 

@@ -3,7 +3,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-call mtr.add_suppression('Slave SQL: Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group');
+call mtr.add_suppression("Slave SQL for channel '': Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 include/sync_slave_sql_with_master.inc
 stop slave;
 create table t1 (a int) engine=innodb;

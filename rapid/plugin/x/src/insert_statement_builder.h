@@ -23,24 +23,25 @@
 namespace xpl
 {
 
-class Insert_statement_builder: public Statement_builder
+class Insert_statement_builder: public Crud_statement_builder
 {
 public:
   typedef ::Mysqlx::Crud::Insert Insert;
 
-  Insert_statement_builder(const Insert &msg, Query_string_builder &qb);
+  explicit Insert_statement_builder(const Expression_generator &gen)
+      : Crud_statement_builder(gen) {}
+
+  void build(const Insert &msg) const;
 
 protected:
   typedef ::google::protobuf::RepeatedPtrField< ::Mysqlx::Crud::Column > Projection_list;
   typedef ::google::protobuf::RepeatedPtrField< ::Mysqlx::Expr::Expr > Field_list;
   typedef ::google::protobuf::RepeatedPtrField< ::Mysqlx::Crud::Insert_TypedRow > Row_list;
 
-  virtual void add_statement() const;
-  void add_projection(const Projection_list &projection) const;
-  void add_values(const Row_list &values) const;
-  void add_row(const Field_list &row, int size) const;
-
-  const Insert &m_msg;
+  void add_projection(const Projection_list &projection, const bool is_relational) const;
+  void add_values(const Row_list &values, const int projection_size) const;
+  void add_row(const Field_list &row, const int projection_size) const;
+  const Field_list &get_row_fields(const Insert::TypedRow &row) const { return row.field(); }
 };
 
 } // namespace xpl

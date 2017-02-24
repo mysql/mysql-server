@@ -1,0 +1,93 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.table(field INT);
+
+Crud session first
+------------------
+connecting...
+active session is now 'first'
+Sending 23 bytes raw data...
+field
+command ok
+Sending 23 bytes raw data...
+Got expected error: Unexpected message received (code 1047)
+Variable_name	Value
+Mysqlx_crud_find	1
+Mysqlx_errors_unknown_message_type	1
+0 rows affected
+closing session first
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+
+Crud session second
+-------------------
+connecting...
+active session is now 'second'
+Sending 23 bytes raw data...
+field
+command ok
+Sending 23 bytes raw data...
+Got expected error: Unexpected message received (code 1047)
+Variable_name	Value
+Mysqlx_crud_find	1
+Mysqlx_errors_unknown_message_type	1
+0 rows affected
+closing session second
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+
+Crud session third
+------------------
+connecting...
+active session is now 'third'
+Sending 23 bytes raw data...
+field
+command ok
+Sending 23 bytes raw data...
+Got expected error: Unexpected message received (code 1047)
+Variable_name	Value
+Mysqlx_crud_find	1
+Mysqlx_errors_unknown_message_type	1
+0 rows affected
+closing session third
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Sending 5 bytes raw data...
+Sending 5 bytes raw data...
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Invalid message"
+  sql_state: "HY000"
+}
+
+ok
+Sending 14 bytes raw data...
+Mysqlx.Session.AuthenticateContinue {
+  auth_data: "XXX"
+}
+
+Sending 14 bytes raw data...
+Mysqlx.Error {
+  severity: FATAL
+  code: 5000
+  msg: "Invalid message"
+  sql_state: "HY000"
+}
+
+ok
+Global status
+DROP SCHEMA IF EXISTS xtest;
+UNINSTALL PLUGIN mysqlx;

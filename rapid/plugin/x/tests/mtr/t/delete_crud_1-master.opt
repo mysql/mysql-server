@@ -1,3 +1,0 @@
---plugin_dir=$MYSQLXPLUGIN_DIR
---lower_case_table_names=1
---performance_schema_events_waits_history_long_size=300000

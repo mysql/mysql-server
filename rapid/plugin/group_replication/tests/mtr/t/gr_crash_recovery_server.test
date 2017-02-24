@@ -1,0 +1,231 @@
+################################################################################
+# This test verifies whether the group_replication works fine if the
+# server is killed during its recovery phase.
+#
+# Test:
+# 0. The test requires three servers: M1,M2 and M3.
+# 1. Start GR on servers M1 and M2.
+# 2. Execute some operations on the group through server M1
+#    using procedure dml_operations.
+# 3. Join M3 to the group and wait until the server is in Recovery.
+# 4. start executing DML operations on the group through server1 to
+#    ensure that the cached transactions are present at the recovery
+#    server when it gets killed.
+# 5. Kill and restart the server M3 during phase-1 of recovery.
+# 6. Again Join the restarted member to the group
+# 7. Wait until the recovery phase-1 of the server M3 ends.
+# 8. Start executing the DML transactions on the group through server1
+#    so that the cached transaction will be added on the server M3.
+# 9. Kill and restart the server M3 during phase-2 of recovery.
+# 10.Wait until all the servers are online.
+# 11.Verify that all the members have same data.
+# 12.Cleanup
+################################################################################
+
+# This test does crashes servers, thence we skip it on asan and valgrind.
+--source include/not_asan.inc
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/force_restart.inc
+
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+# START GR on Two servers M1 and M2
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET sql_log_bin=0;
+CREATE TABLE t1(a int primary key);
+SET sql_log_bin=1;
+
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET sql_log_bin=0;
+CREATE TABLE t1(a int primary key);
+SET sql_log_bin=1;
+
+--source include/start_group_replication.inc
+
+# Execute the operations on the group through server1 so
+# that when M3 joins it will be in recovery for some time.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Create the procedure to perform dml operations
+delimiter $$;
+CREATE PROCEDURE dml_operations(IN p INT,IN q INT)
+     BEGIN
+     declare x INT;
+     set x=p;
+     while x<q do
+     insert into t1 values (x);
+     update t1 set a=x+400 where a=x;
+     delete from t1 where a<420;
+     set x=x+1;
+     end  while;
+     end$$
+delimiter ;$$
+--echo
+
+--echo ----call procedure----
+call dml_operations(1,100);
+--echo
+
+# JOIN M3 to the group
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+set sql_log_bin=0;
+call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Database page corruption or a failed file read of page");
+CREATE TABLE t1(a int primary key);
+SET sql_log_bin=1;
+LOCK TABLES t1 READ;
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--echo ----call procedure----
+send call dml_operations(100,200);
+--echo
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+# Wait to ensure that some cached transactions will be present at the time
+# of kill of the recovery server.
+--let $wait_timeout= 200
+--let $wait_condition= SELECT MAX(a) > 520 FROM t1
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+UNLOCK TABLES;
+
+# sleep for sometime so that some transactions executes on server3.
+sleep 2;
+
+# Kill server3
+--echo # killing
+--let $group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name
+--replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+
+--source ../inc/kill_and_restart_mysqld.inc
+--echo # restarting
+
+# Needed as we are not using rpl_restart_server.inc
+--let $rpl_server_number= 3
+--source include/rpl_reconnect.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# Wait until group has only 2 members, that is, server3's death is detected by
+# the group.
+--echo # check that there are 2 mebers in the group
+--let $group_replication_number_of_members= 2
+--source ../inc/gr_wait_for_number_of_members.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+reap;
+
+--echo ----call procedure----
+call dml_operations(200,300);
+--echo
+
+# Start GR on server M3
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+LOCK TABLES t1 READ;
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+start group_replication;
+
+--let $group_replication_member_state= RECOVERING
+--source ../inc/gr_wait_for_member_state.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--echo ----call procedure----
+send call dml_operations(300,400);
+--echo
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+UNLOCK TABLES;
+
+# Wait until Recovery phase1 ends.(until the service_state of group_replication_recovery goes to OFF state.)
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $wait_timeout=300
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHERE channel_name='group_replication_recovery' AND service_state='OFF'
+--source include/wait_condition.inc
+
+sleep 1;
+
+# Kill the recovery server
+# kill server M3
+--echo # killing
+--let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name
+--replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source ../inc/kill_and_restart_mysqld.inc
+--echo # restarting
+
+# Needed as we are not using rpl_restart_server.inc
+--let $rpl_server_number= 3
+--source include/rpl_reconnect.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# Wait until group has only 2 members, that is, recovery server's death is detected by
+# the group.
+--echo # check that there are 2 mebers in a group
+--let $group_replication_number_of_members= 2
+--source ../inc/gr_wait_for_number_of_members.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+reap;
+
+# Start GR on killed and restarted recovery server.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+# Setting recovery user to avoid sporadic failures due to empty user.
+--disable_warnings
+RESET SLAVE FOR CHANNEL 'group_replication_recovery';
+CHANGE MASTER TO MASTER_USER= 'root' FOR CHANNEL 'group_replication_recovery';
+--enable_warnings
+--let $wait_timeout= 300
+--source include/start_group_replication.inc
+
+--source include/rpl_sync.inc
+
+# Verify that table t1 has same data on all the servers.
+--let $diff_tables=server1:t1, server2:t1, server3:t1
+--source include/diff_tables.inc
+
+# Clean up.
+drop table t1;
+drop procedure dml_operations;
+--let $skip_restore_connection= 0
+--source ../inc/group_replication_end.inc

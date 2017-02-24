@@ -720,6 +720,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
 
   TranxNode* entry= NULL;
   mysql_cond_t* thd_cond= NULL;
+  bool is_semi_sync_trans= true;
   if (active_tranxs_ != NULL && trx_wait_binlog_name)
   {
     entry=
@@ -782,6 +783,25 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
                                   kWho, reply_file_name_, (unsigned long)reply_file_pos_);
           break;
         }
+      }
+      /*
+        When code reaches here an Entry object may not be present in the
+        following scenario.
+
+        Semi sync was not enabled when transaction entered into ordered_commit
+        process. During flush stage, semi sync was not enabled and there was no
+        'Entry' object created for the transaction being committed and at a
+        later stage it was enabled. In this case trx_wait_binlog_name and
+        trx_wait_binlog_pos are set but the 'Entry' object is not present. Hence
+        dump thread will not wait for reply from slave and it will not update
+        reply_file_name. In such case the committing transaction should not wait
+        for an ack from slave and it should be considered as an async
+        transaction.
+      */
+      if (!entry)
+      {
+        is_semi_sync_trans= false;
+        goto l_end;
       }
 
       /* Let us update the info about the minimum binlog position of waiting
@@ -885,7 +905,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
 
 l_end:
     /* Update the status counter. */
-    if (is_on())
+    if (is_on() && is_semi_sync_trans)
       rpl_semi_sync_master_yes_transactions++;
     else
       rpl_semi_sync_master_no_transactions++;

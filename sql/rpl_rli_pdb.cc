@@ -1713,14 +1713,16 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   {
     char coordinator_errmsg[MAX_SLAVE_ERRMSG];
 
-    sprintf(coordinator_errmsg,
-            "Coordinator stopped because there were error(s) in the worker(s). "
-            "The most recent failure being: Worker %lu failed executing "
-            "transaction '%s' at master log %s, end_log_pos %llu. "
-            "See error log and/or "
-            "performance_schema.replication_applier_status_by_worker table for "
-            "more details about this failure or others, if any.",
-            id, buff_gtid, log_name, log_pos);
+    my_snprintf(coordinator_errmsg, MAX_SLAVE_ERRMSG,
+                "Coordinator stopped because there were error(s) in the "
+                "worker(s). "
+                "The most recent failure being: Worker %u failed executing "
+                "transaction '%s' at master log %s, end_log_pos %llu. "
+                "See error log and/or "
+                "performance_schema.replication_applier_status_by_worker "
+                "table for "
+                "more details about this failure or others, if any.",
+                internal_id, buff_gtid, log_name, log_pos);
 
     /*
       We want to update the errors in coordinator as well as worker.
@@ -1734,9 +1736,9 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   }
 
   my_snprintf(buff_coord, sizeof(buff_coord),
-          "Worker %lu failed executing transaction '%s' at "
-          "master log %s, end_log_pos %llu",
-          id, buff_gtid, log_name, log_pos);
+              "Worker %u failed executing transaction '%s' at "
+              "master log %s, end_log_pos %llu",
+              internal_id, buff_gtid, log_name, log_pos);
 
   /*
     Error reporting by the worker. The worker updates its error fields as well
@@ -2536,6 +2538,66 @@ struct slave_job_item* pop_jobs_item(Slave_worker *worker,
 }
 
 /**
+  Report a not yet reported error to the coordinator if necessary.
+
+  All issues detected when applying binary log events are reported using
+  rli->report(), but when an issue is not reported by the log event being
+  applied, there is a workaround at handle_slave_sql() to report the issue
+  also using rli->report() for the STS applier (or the MTS coordinator).
+
+  This function implements the workaround for a MTS worker.
+
+  @param worker the worker to be evaluated.
+*/
+void report_error_to_coordinator(Slave_worker *worker)
+{
+  THD *thd= worker->info_thd;
+  /*
+    It is possible that the worker had failed to apply the event but
+    did not reported about the failure using rli->report(). An example
+    of such cases are failures caused by setting GTID_NEXT variable with
+    an unsupported GTID mode (GTID_SET when GTID_MODE = OFF, anonymous
+    GTID when GTID_MODE = ON).
+  */
+  if (thd->is_error())
+  {
+    char const *const errmsg= thd->get_stmt_da()->message_text();
+    DBUG_PRINT("info",
+               ("thd->get_stmt_da()->get_mysql_errno()=%d; "
+                "worker->last_error.number=%d",
+                thd->get_stmt_da()->mysql_errno(),
+                worker->last_error().number));
+
+    if (worker->last_error().number == 0 &&
+        /*
+          When another worker that should commit before the current worker
+          being evaluated has failed and the commit order should be preserved
+          the current worker was asked to roll back and would stop with the
+          ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR not yet reported to the
+          coordinator. Reporting this error to the coordinator would be a
+          mistake and would mask the real issue that lead to the MTS stop as
+          the coordinator reports only the last error reported to it as the
+          cause of the MTS failure.
+
+          So, we should skip reporting the error if it was reported because
+          the current transaction had to be rolled back by a failure in a
+          previous transaction in the commit order while the current
+          transaction was waiting to be committed.
+        */
+        thd->get_stmt_da()->mysql_errno() !=
+        ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR)
+    {
+      /*
+        This function is reporting an error which was not reported
+        while executing exec_relay_log_event().
+      */
+      worker->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
+                     "%s", errmsg);
+    }
+  }
+}
+
+/**
   apply one job group.
 
   @note the function maintains worker's CGEP and modifies APH, updates
@@ -2668,6 +2730,7 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
 err:
   if (error)
   {
+    report_error_to_coordinator(worker);
     DBUG_PRINT("info", ("Worker %lu is exiting: killed %i, error %i, "
                         "running_status %d",
                         worker->id, thd->killed, thd->is_error(),

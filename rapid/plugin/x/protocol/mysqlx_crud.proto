@@ -192,3 +192,85 @@ message Delete {
   repeated Order order = 5;
 };
 
+
+// ViewAlgorithm defines how MySQL Server processes the view
+enum ViewAlgorithm {
+  UNDEFINED =1;   // MySQL chooses which algorithm to use
+  MERGE = 2;      // the text of a statement that refers to the view and the view definition are merged
+  TEMPTABLE = 3;  // the view are retrieved into a temporary table
+}
+
+// ViewSqlSecurity defines the security context in which the view is going to be
+// executed, this means that VIEW can be executed with current user permissions or
+// with permissions of the uses who defined the VIEW
+enum ViewSqlSecurity {
+  INVOKER = 1;
+  DEFINER = 2;
+}
+
+
+// ViewCheckOption limits the write operations done on a `VIEW`
+// (`INSERT`, `UPDATE`, `DELETE`) to rows in which the `WHERE` clause is `TRUE`
+enum ViewCheckOption {
+  LOCAL = 1;     // the view WHERE clause is checked, but no underlying views are checked
+  CASCADED = 2;  // the view WHERE clause is checked, then checking recurses to underlying views
+}
+
+
+// CreateView create view based on indicated Mysqlx.Crud.Find message
+//
+// param collection: name of the VIEW object, which should be created
+// param definer: user name of the definer, if the value isn't set then the definer is current user
+// param algorithm: defines how MySQL Server processes the view
+// param security: defines the security context in which the view is going be executed
+// param check: limits the write operations done on a VIEW
+// param column: defines the list of aliases for column names specified in `stmt`
+// param stmt: Mysqlx.Crud.Find message from which the SELECT statement is going to be build
+// param replace_existing: if true then suppress error when created view already exists; just replace it
+
+message CreateView {
+  required Collection collection = 1;
+
+  optional string definer = 2;
+  optional ViewAlgorithm algorithm = 3 [default = UNDEFINED];
+  optional ViewSqlSecurity security = 4 [default = DEFINER];
+  optional ViewCheckOption check = 5;
+
+  repeated string column = 6;
+  required Find stmt = 7;
+  optional bool replace_existing = 8 [default = false];
+}
+
+
+// ModifyView modify existing view based on indicated Mysqlx.Crud.Find message
+//
+// param collection: name of the VIEW object, which should be modified
+// param definer: user name of the definer, if the value isn't set then the definer is current user
+// param algorithm: defined how MySQL Server processes the view
+// param security: defines the security context in which the view is going be executed
+// param check: limits the write operations done on a VIEW
+// param column: defines the list of aliases for column names specified in `stmt`
+// param stmt: Mysqlx.Crud.Find message from which the SELECT statement is going to be build
+
+message ModifyView {
+  required Collection collection = 1;
+
+  optional string definer = 2;
+  optional ViewAlgorithm algorithm = 3;
+  optional ViewSqlSecurity security = 4;
+  optional ViewCheckOption check = 5;
+
+  repeated string column = 6;
+  optional Find stmt = 7;
+}
+
+
+// DropView removing existing view
+//
+// param collection: name of the VIEW object, which should be deleted
+// param if_exists: if true then suppress error when deleted view does not exists
+
+message DropView {
+  required Collection collection = 1;
+  optional bool if_exists = 2 [ default = false ];
+}

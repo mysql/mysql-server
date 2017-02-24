@@ -1,0 +1,125 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Create a table on server1.
+[connection server1]
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (b INT PRIMARY KEY);
+CREATE TABLE t3 (c1 INT, c2 INT UNIQUE KEY, PRIMARY KEY(c1, c2), FOREIGN KEY(c1) REFERENCES t1(a), FOREIGN KEY(c2) REFERENCES t2(b));
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (5);
+include/rpl_sync.inc
+
+############################################################
+# 2. Set a debug sync before broadcast message to group on
+#    connection server_1.
+#    Commit a transaction that will be block before broadcast.
+[connection server_1]
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
+BEGIN;
+INSERT INTO t3 values(1,5);
+COMMIT;
+
+############################################################
+# 3. Wait until server_1 connection reaches the
+# group_replication_before_message_broadcast debug sync point.
+[connection server1]
+
+############################################################
+# 4. Execute a transaction on server2, that will reach first
+#    certification, since server_1 is blocked before broadcast.
+[connection server2]
+UPDATE t1 SET a=2 WHERE a=1;
+
+############################################################
+# 5. Signal the waiting thread on server_1 to resume.
+[connection server1]
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG= @debug_save;
+
+############################################################
+# 6. It will end up in an error stating that it was aborted,
+#    since transactions are conflicting and server2 was
+#    ordered first.
+[connection server2]
+include/sync_slave_sql_with_master.inc
+[connection server_1]
+ERROR HY000: Plugin instructed the server to rollback the current transaction.
+
+############################################################
+# 7. Assert that number of certified transactions are the
+#    expected ones.
+[connection server1]
+include/assert.inc [The value of Count_Transactions_Checked should be 7 after starting group replication]
+include/assert.inc [The value of Count_Conflicts_Detected should be 1 after starting group replication]
+
+############################################################
+# Checking the positive case in which there is no conflict.
+############################################################
+
+INSERT INTO t1 VALUES (6);
+INSERT INTO t1 VALUES (7);
+INSERT INTO t2 VALUES (8);
+include/rpl_sync.inc
+
+############################################################
+# 1. Set a debug sync before broadcast message to group on
+#    connection server_1.
+#    Commit a transaction that will be block before broadcast.
+[connection server_1]
+SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
+BEGIN;
+INSERT INTO t3 values(6,8);
+COMMIT;
+
+############################################################
+# 2. Wait until server_1 connection reaches the
+# group_replication_before_message_broadcast debug sync point.
+[connection server1]
+
+############################################################
+# 3. Execute a transaction on server2, that will reach first
+#    certification, since server_1 is blocked before broadcast.
+[connection server2]
+UPDATE t1 SET a=9 WHERE a=7;
+include/sync_slave_sql_with_master.inc
+
+############################################################
+# 4. Signal the waiting thread on server_1 to resume.
+[connection server1]
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG= @debug_save;
+
+########################################################################
+# 5. It will execute without error as the conflicting transactions have
+#    been removed.
+[connection server_1]
+include/rpl_sync.inc
+
+############################################################
+# 6. Assert that number of certified transactions are the
+#    expected ones.
+[connection server1]
+include/assert.inc [Table t1 will contain row after the above execution]
+include/assert.inc [Table t1 will contain row after the above execution]
+include/assert.inc [Table t1 will contain row after the above execution]
+include/assert.inc [Table t1 will contain row after the above execution]
+include/assert.inc [Table t1 will contain row after the above execution]
+include/assert.inc [Table t1 will contain row after the above execution]
+include/assert.inc [Table t3 will contain 1 rows after the above execution]
+include/assert.inc [Table t2 will contain 2 rows after the above execution]
+include/assert.inc [Table t1 will contain 3 rows after the above execution]
+include/assert.inc [The value of Count_Transactions_Checked should be 12 after starting group replication]
+include/assert.inc [The value of Count_Conflicts_Detected should be 1 after starting group replication]
+
+############################################################
+# Clean up.
+DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;
+include/group_replication_end.inc

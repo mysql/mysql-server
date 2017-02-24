@@ -35,7 +35,7 @@ Got expected error: Unknown column 'name' in selection criteria (code 5117)
 
  ycoll is not corect collection; missing `doc` column
 *****************************************************
-in main, line 43:in macro Find_value, line 28:ERROR: Got unexpected error: Unknown column 'doc' in collection (code 5117); expected was 1054 
+Got expected error: Unknown column 'doc' in collection (code 5117)
 Got expected error: Unknown column 'doc' in collection (code 5117)
 Got expected error: Unknown column 'doc' in collection (code 5117)
 Got expected error: Unknown column 'doc' in collection (code 5117)
@@ -44,7 +44,7 @@ Got expected error: Unknown column 'doc' in collection (code 5117)
 
  zcoll is not corect collection; missing `_id` column
 *****************************************************
-in main, line 51:in macro Find_value, line 28:ERROR: Got unexpected error: Unknown column '_id' in selection criteria (code 5117); expected was 1054 
+Got expected error: Unknown column '_id' in selection criteria (code 5117)
 Got expected error: Unknown column '_id' in selection criteria (code 5117)
 doc
 command ok
