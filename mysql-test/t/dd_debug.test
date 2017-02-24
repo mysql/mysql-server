@@ -284,6 +284,25 @@ DROP TABLE IF EXISTS t1;
 DROP TABLE t2;
 DROP VIEW v1;
 
+--echo #
+--echo # Bug#25587256 NEWDD: FK: NEED TO SET PROPER REFERENCED COLUMN CASE
+--echo #
+
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (fk INT, FOREIGN KEY (FK) REFERENCES t1 (PK));
+
+SHOW CREATE TABLE t2;
+SET SESSION debug= '+d,skip_dd_table_access_check';
+# Case should match SHOW CREATE TABLE output.
+SELECT foreign_key_column_usage.referenced_column_name
+FROM mysql.foreign_key_column_usage, mysql.foreign_keys, mysql.tables
+WHERE tables.name= 't2'
+AND tables.id = foreign_keys.table_id
+AND foreign_keys.id = foreign_key_column_usage.foreign_key_id;
+SET SESSION debug= '-d,skip_dd_table_access_check';
+
+DROP TABLE t2, t1;
+
 --echo ###################################################################
 
 --disable_connect_log

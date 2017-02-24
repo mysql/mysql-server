@@ -5919,7 +5919,12 @@ static bool prepare_foreign_key(THD *thd,
       DBUG_RETURN(true);
     }
 
-    fk_info->fk_key_part[column_nr]= fk_col->field_name;
+    // Always store column names in lower case.
+    char buff[NAME_LEN + 1];
+    my_stpncpy(buff, fk_col->field_name.str, NAME_LEN);
+    my_casedn_str(system_charset_info, buff);
+    fk_info->fk_key_part[column_nr].str= sql_strdup(buff);
+    fk_info->fk_key_part[column_nr].length= strlen(buff);
   }
   DBUG_RETURN(false);
 }
