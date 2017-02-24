@@ -1222,6 +1222,9 @@ ST_GEOMFROMTEXT(
                                   '(0 6,5 9,-.0 0,7 4,2 -3,2 7,9 2,0 6))'),
 ST_GEOMF
 0
+Warnings:
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 SELECT MBRCONTAINS(ST_UNION(
 ST_GEOMFROMTEXT(
 'GEOMETRYCOLLECTION('
@@ -1319,6 +1322,9 @@ ST_GEOMFROMTEXT(
 ST_INTERSECTION(
 ST_GEOMFROMTEXT('
 NULL
+Warnings:
+Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(
 'MULTIPOINT(189.7654 2)'),
 ST_GEOMFROMWKB(
@@ -2130,6 +2136,8 @@ ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                         'MULTIPOINT(1 1, 5 -3, 10.0002 1, -1032.34324 5, 9 1.1, 4.5 4, 5 0, -5.1 3),'
                         'MULTIPOINT(-1032.34324 5, 8 -1032.34324, -0.7654 3, -1032.34324 4, 1 1
 GEOMETRYCOLLECTION(MULTIPOLYGON(((1.9779459488216204 6,-0.7654 -0.5,6.9 0.6,7 2,7 3,3.55 6,7 6,7 9,0 6,1.9779459488216204 6))),POINT(-1032.34324 4),POINT(-1032.34324 5),POINT(-5.1 3),POINT(-0.7654 3),POINT(5 -3),POINT(5 0),POINT(8 -1032.34324),POINT(8 2),POINT(9 1.1),POINT(10.0002 1))
+Warnings:
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 SELECT
 ST_ASTEXT(ST_INTERSECTION(
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
@@ -2164,6 +2172,8 @@ ST_GEOMFROMTEXT('MULTILINESTRING((-.4 2, 2.232432 3, 6 9, 8 189.7654, -1032.3432
                                     '(-1032.34324 3, 8 -1.6),'
                                     '(0 -.2, 8 1, -.5 7, 6 +.2)
 MULTILINESTRING((-0.4 2,2.232432 3,6 9,8 189.7654,-1032.34324 5.4,2.232432 9),(-1032.34324 3,8 -1.6),(0 -0.2,4 0.4),(8 1,-0.5 7,6 0.2),(-8 1,4.8 6,2 0.5),(10.0002 2,9 -1032.34324,0.3 8,0 5,8 1),(4 0.4,2 8),(6 7,0.1 7,0 -0.5))
+Warnings:
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 SELECT ST_ASTEXT(ST_INTERSECTION(
 ST_GEOMFROMWKB(
 ST_ASWKB(
@@ -2287,6 +2297,8 @@ ST_GEOMFROMWKB(GEOMETRYCOLLECTION(
 MULTIPOINT(POINT(8,-6.0), POINT(9,2), POINT(9,1), POINT(-0,6), POINT(8,6), POINT(4,3), POINT(.7,6)),
 MULTIPOINT(POINT(8,-0.7654), POINT(2,7), POINT(8,-0.7654), POINT(-.0,7), POINT(.0,6), POINT(
 GEOMETRYCOLLECTION(MULTILINESTRING((-0.7654 2.232432,3.6737899158554317 2.099559283781633),(3.927301157948162 4.545468302232982,2.8 4)),POINT(3.927301157948163 4.545468302232982))
+Warnings:
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 ######################################################################################################
 # BUG#20408240 : ST_DIFFERENCE : ASSERTION `T1->RESULT_RANGE' FAILED
 ######################################################################################################
