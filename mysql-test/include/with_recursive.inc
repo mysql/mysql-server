@@ -699,6 +699,11 @@ insert into t1 values
 
 create table t2 select * from t1 order by rand();
 
+--echo # Tree-walking query. We turn off the Query Cache: indeed
+--echo # sometimes pb2 enables Query Cache and as we run twice the
+--echo # same query the 2nd may not actually be executed so the value
+--echo # of Created_tmp_tables displayed at end becomes "one less").
+
 let $query=
 with recursive tree_of_a as
 (
@@ -710,7 +715,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select * from tree_of_a;
+select sql_no_cache * from tree_of_a;
 
 --echo # Note that without ORDER BY, order of rows would be random as BNL
 --echo # implies that the randomized t2 is the driving table in the
