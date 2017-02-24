@@ -50,6 +50,7 @@ get_mysql_option() {
 
 # Check if server is running
 get_running () {
+	MYSQLDATA=$(get_mysql_option mysqld datadir "/var/lib/mysql")
 	PIDFILE=$(get_mysql_option mysqld_safe pid-file "")
 	if [ -z "$PIDFILE" ]; then
 		PIDFILE=$(get_mysql_option mysqld pid-file "$MYSQLDATA/$(hostname).pid")
@@ -74,10 +75,10 @@ run_init_sql() {
 # Verify that everything the server needs to run is set up
 verify_ready() {
 
-		MYSQLDATA=/var/lib/mysql
-		MYSQLFILES=/var/lib/mysql-files
-		MYSQLKEYRING=/var/lib/mysql-keyring
-		MYSQLLOG=/var/log/mysql
+		MYSQLDATA=$(get_mysql_option mysqld datadir "/var/lib/mysql")
+		MYSQLFILES=$(get_mysql_option mysqld secure-file-priv "/var/lib/mysql-files")
+		MYSQLKEYRING=$(dirname $(get_mysql_option mysqld keyring-file-data "/var/lib/mysql-keyring/keyring"))
+		MYSQLLOG=$(dirname $(get_mysql_option mysqld log-error "/var/log/mysql/error.log"))
 		MYSQLRUN=/var/run/mysqld
 
 		if ! getent group mysql >/dev/null; then
@@ -87,22 +88,46 @@ verify_ready() {
 		if ! getent passwd mysql >/dev/null; then
 			adduser --ingroup mysql --system --disabled-login --no-create-home --home ${MYSQLDATA} --shell /bin/false --gecos "MySQL Server" mysql >/dev/null
 		fi
-
+		ERROR_FLAG=0
 		if [ ! -d ${MYSQLDATA} -a ! -L ${MYSQLDATA} ]; then
-			install -d -m0750 -omysql -gmysql ${MYSQLDATA}
+			if [ "$(dirname "${MYSQLDATA}")" = "/var/lib" ]; then
+				install -d -m0750 -omysql -gmysql ${MYSQLDATA}
+			else
+				echo "Error: Datadir ${MYSQLDATA} does not exist. For security reasons the service will not automatically create directories outside /var/lib.."
+				ERROR_FLAG=1
+			fi
 		fi
 
 		if [ ! -d ${MYSQLFILES} -a ! -L ${MYSQLFILES} ]; then
-			install -d -m0770 -omysql -gmysql ${MYSQLFILES}
+			if [ "$(dirname "${MYSQLFILES}")" = "/var/lib" -o ${MYSQLFILES} = NULL ]; then
+				install -d -m0770 -omysql -gmysql ${MYSQLFILES}
+			else
+				echo "Error: Secure-file-priv dir ${MYSQLFILES} does not exist. For security reasons the service will not automatically create directories outside /var/lib."
+				ERROR_FLAG=1
+			fi
 		fi
 
 		if [ ! -d ${MYSQLKEYRING} -a ! -L ${MYSQLKEYRING} ]; then
-			install -d -m0750 -omysql -gmysql ${MYSQLKEYRING}
+			if [ "$(dirname "${MYSQLKEYRING}")" = "/var/lib" ]; then
+				install -d -m0750 -omysql -gmysql ${MYSQLKEYRING}
+			else
+				echo "Warning: Keyring dir ${MYSQLKEYRING} does not exist. For security reasons the service will not automatically create directories outside /var/lib. The server may not start correctly."
+			fi
 		fi
 
 		if [ ! -d ${MYSQLLOG} -a ! -L ${MYSQLLOG} ]; then
-			install -d -m0750 -omysql -gadm ${MYSQLLOG}
-			install /dev/null -m0640 -omysql -gadm ${MYSQLLOG}/error.log
+			if [ "$(dirname "${MYSQLLOG}")" = "/var/log" ]; then
+				install -d -m0750 -omysql -gadm ${MYSQLLOG}
+				install /dev/null -m0640 -omysql -gadm ${MYSQLLOG}/error.log
+			else
+				echo "Error: Log dir ${MYSQLLOG} does not exist. For security reasons the service will not automatically create directories outside /var/log."
+				ERROR_FLAG=1
+			fi
+		fi
+
+		if [ ${ERROR_FLAG} = 1 ]; then
+			echo "Errors found. Aborting."
+			exit 1
 		fi
 
 		if [ ! -d ${MYSQLRUN} -a ! -L ${MYSQLRUN} ]; then
@@ -112,8 +137,8 @@ verify_ready() {
 
 # Verify the database exists and is ssl ready
 verify_database() {
-	MYSQLDATA=/var/lib/mysql
-	MYSQLFILES=/var/lib/mysql-files
+	MYSQLDATA=$(get_mysql_option mysqld datadir "/var/lib/mysql")
+	MYSQLFILES=$(get_mysql_option mysqld secure-file-priv "/var/lib/mysql-files")
 
 	if [ ! -d "${MYSQLDATA}/mysql" ] && [ -d "${MYSQLFILES}" ]; then
 		su - mysql -s /bin/bash -c "mysqld --initialize-insecure > /dev/null"
