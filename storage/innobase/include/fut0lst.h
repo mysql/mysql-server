@@ -149,7 +149,7 @@ flst_read_addr(
 
 /********************************************************************//**
 Validates a file-based list.
-@return TRUE if ok */
+@return true if ok */
 ibool
 flst_validate(
 /*==========*/

@@ -227,7 +227,7 @@ rec_set_deleted_flag_new(
 
 /******************************************************//**
 The following function tells if a new-style record is a node pointer.
-@return TRUE if node pointer */
+@return true if node pointer */
 UNIV_INLINE
 ibool
 rec_get_node_ptr_flag(
@@ -278,7 +278,7 @@ rec_set_heap_no_new(
 /******************************************************//**
 The following function is used to test whether the data offsets
 in the record are stored in one-byte or two-byte format.
-@return TRUE if 1-byte form */
+@return true if 1-byte form */
 UNIV_INLINE
 ibool
 rec_get_1byte_offs_flag(
@@ -730,7 +730,7 @@ rec_copy_prefix_to_dtuple(
 #endif /* !UNIV_HOTBACKUP */
 /***************************************************************//**
 Validates the consistency of a physical record.
-@return TRUE if ok */
+@return true if ok */
 ibool
 rec_validate(
 /*=========*/

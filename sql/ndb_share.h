@@ -203,8 +203,8 @@ int ndbcluster_rename_share(THD *thd,
 void ndbcluster_mark_share_dropped(NDB_SHARE** share);
 inline NDB_SHARE *get_share(const char *key,
                             struct TABLE *table,
-                            bool create_if_not_exists= TRUE,
-                            bool have_lock= FALSE)
+                            bool create_if_not_exists= true,
+                            bool have_lock= false)
 {
   return ndbcluster_get_share(key, table, create_if_not_exists, have_lock);
 }
@@ -214,7 +214,7 @@ inline NDB_SHARE *get_share(NDB_SHARE *share)
   return ndbcluster_get_share(share);
 }
 
-inline void free_share(NDB_SHARE **share, bool have_lock= FALSE)
+inline void free_share(NDB_SHARE **share, bool have_lock= false)
 {
   ndbcluster_free_share(share, have_lock);
 }
@@ -234,7 +234,7 @@ class Ndb_share_temp_ref {
 public:
   Ndb_share_temp_ref(const char* key)
   {
-    m_share= get_share(key, NULL, FALSE);
+    m_share= get_share(key, NULL, false);
      // Should always exist
     assert(m_share);
      // already existed + this temp ref

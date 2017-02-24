@@ -1722,7 +1722,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap)
   for (TABLE_LIST *tl= tz_tables; tl; tl= tl->next_global)
   {
     /* Force close at the end of the function to free memory. */
-    tl->table->m_needs_reopen= TRUE;
+    tl->table->m_needs_reopen= true;
   }
 
   /*
@@ -1941,7 +1941,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   */
   table= tz_tables->table;
   tz_tables= tz_tables->next_local;
-  table->field[0]->store((longlong) tzid, TRUE);
+  table->field[0]->store((longlong) tzid, true);
   if (table->file->ha_index_init(0, 1))
     goto end;
 
@@ -1973,7 +1973,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   */
   table= tz_tables->table;
   tz_tables= tz_tables->next_local;
-  table->field[0]->store((longlong) tzid, TRUE);
+  table->field[0]->store((longlong) tzid, true);
   if (table->file->ha_index_init(0, 1))
     goto end;
 
@@ -2043,7 +2043,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     in ascending order by index scan also satisfies us.
   */
   table= tz_tables->table; 
-  table->field[0]->store((longlong) tzid, TRUE);
+  table->field[0]->store((longlong) tzid, true);
   if (table->file->ha_index_init(0, 1))
     goto end;
 

@@ -2548,7 +2548,7 @@ loop:
 
 /******************************************************//**
 Peeks the current lsn.
-@return TRUE if success, FALSE if could not get the log system mutex */
+@return true if success, false if could not get the log system mutex */
 ibool
 log_peek_lsn(
 /*=========*/

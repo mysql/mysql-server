@@ -224,7 +224,7 @@ public:
   virtual bool check_update_type(Item_result type) = 0;
   
   /**
-    Return TRUE for success if:
+    Return true for success if:
       Global query and variable scope is GLOBAL or SESSION, or
       Session query and variable scope is SESSION or ONLY_SESSION.
   */

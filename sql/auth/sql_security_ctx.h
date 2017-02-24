@@ -339,8 +339,8 @@ public:
     equal to empty string.
 
     @return Account assignment status
-      @retval TRUE account has been assigned to the security context
-      @retval FALSE account has not yet been assigned to the security context
+      @retval true account has been assigned to the security context
+      @retval false account has not yet been assigned to the security context
   */
 
   bool has_account_assigned() const

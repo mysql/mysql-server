@@ -233,7 +233,7 @@ row_log_tmpfile(
 
 /** Allocate the memory for the log buffer.
 @param[in,out]	log_buf	Buffer used for log operation
-@return TRUE if success, false if not */
+@return true if success, false if not */
 static MY_ATTRIBUTE((warn_unused_result))
 bool
 row_log_block_allocate(

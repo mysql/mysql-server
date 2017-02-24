@@ -175,7 +175,7 @@ row_merge_create_fts_sort_index(
 }
 /*********************************************************************//**
 Initialize FTS parallel sort structures.
-@return TRUE if all successful */
+@return true if all successful */
 ibool
 row_fts_psort_info_init(
 /*====================*/
@@ -443,7 +443,7 @@ row_merge_fts_doc_tokenize_by_parser(
 
 /*********************************************************************//**
 Tokenize incoming text data and add to the sort buffer.
-@return TRUE if the record passed, FALSE if out of space */
+@return true if the record passed, false if out of space */
 static
 ibool
 row_merge_fts_doc_tokenize(

@@ -677,8 +677,8 @@ private:
   const double upper_longitude;
 
   /**
-   If this is set to TRUE the algorithm will start decoding on the first bit,
-   which decodes a longitude value. If it is FALSE, it will start on the
+   If this is set to true the algorithm will start decoding on the first bit,
+   which decodes a longitude value. If it is false, it will start on the
    second bit which decodes a latitude value.
   */
   const bool start_on_even_bit;

@@ -172,8 +172,8 @@ void _mi_print_key(FILE *stream, HA_KEYSEG *keyseg,
   @param[in]    name    table path as in MYISAM_SHARE::unique_file_name
   @param[in]    where   verbal description of caller
 
-  @retval       TRUE    table is in open list
-  @retval       FALSE   table is not in open list
+  @retval       true    table is in open list
+  @retval       false   table is not in open list
 
   @note This function takes THR_LOCK_myisam. Do not call it when
   this mutex is locked by this thread already.

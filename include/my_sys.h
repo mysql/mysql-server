@@ -625,7 +625,7 @@ extern int check_if_legal_tablename(const char *path);
 extern bool is_filename_allowed(const char *name, size_t length,
                    bool allow_current_dir);
 #else /* _WIN32 */
-# define is_filename_allowed(name, length, allow_cwd) (TRUE)
+# define is_filename_allowed(name, length, allow_cwd) (true)
 #endif /* _WIN32 */ 
 
 #ifdef _WIN32

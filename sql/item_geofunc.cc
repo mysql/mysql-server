@@ -2655,7 +2655,7 @@ bool geometry_to_json(Json_wrapper *wr, Item *geometry_arg, const char *calling_
 */
 bool Item_func_as_geojson::val_json(Json_wrapper *wr)
 {
-  DBUG_ASSERT(fixed == TRUE);
+  DBUG_ASSERT(fixed == true);
 
   if ((arg_count > 1 && parse_maxdecimaldigits_argument()) ||
       (arg_count > 2 && parse_options_argument()))
@@ -2988,7 +2988,7 @@ bool Item_func_geohash::fill_and_check_fields()
 */
 String *Item_func_geohash::val_str_ascii(String *str)
 {
-  DBUG_ASSERT(fixed == TRUE);
+  DBUG_ASSERT(fixed == true);
 
   if (fill_and_check_fields())
   {
@@ -3493,7 +3493,7 @@ double Item_func_latlongfromgeohash::round_latlongitude(double latlongitude,
 */
 double Item_func_latlongfromgeohash::val_real()
 {
-  DBUG_ASSERT(fixed == TRUE);
+  DBUG_ASSERT(fixed == true);
 
   String buf;
   String *input_value= args[0]->val_str_ascii(&buf);
@@ -5072,7 +5072,7 @@ bool Item_func_pointfromgeohash::fix_fields(THD *thd, Item **ref)
 
 String *Item_func_pointfromgeohash::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == TRUE);
+  DBUG_ASSERT(fixed == true);
 
   String argument_value;
   String *geohash= args[0]->val_str_ascii(&argument_value);

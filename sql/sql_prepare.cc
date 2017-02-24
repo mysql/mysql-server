@@ -1067,9 +1067,9 @@ bool send_statement(THD *thd, const Prepared_statement *stmt,
   @param var_list           list of expressions
 
   @retval
-    FALSE             success
+    false             success
   @retval
-    TRUE              error, error message is set in THD
+    true              error, error message is set in THD
 */
 
 static bool mysql_test_set_fields(Prepared_statement *stmt,
@@ -1083,7 +1083,7 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
   DBUG_ASSERT(stmt->is_stmt_prepare());
 
   if (tables &&
-      check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE))
+      check_table_access(thd, SELECT_ACL, tables, false, UINT_MAX, false))
     DBUG_RETURN(true);                /* purecov: inspected */
 
   if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
@@ -1114,9 +1114,9 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
     "specific_prepare" call (like this happens in case of multi-update).
 
   @retval
-    FALSE                success
+    false                success
   @retval
-    TRUE                 error, error message is set in THD
+    true                 error, error message is set in THD
 */
 
 static bool select_like_stmt_test(THD *thd)
@@ -1140,9 +1140,9 @@ static bool select_like_stmt_test(THD *thd)
   @param thd          Thread handle.
 
   @retval
-    FALSE             success
+    false             success
   @retval
-    TRUE              error, error message is set in THD
+    true              error, error message is set in THD
 */
 
 bool Sql_cmd_create_table::prepare(THD *thd)
@@ -1184,7 +1184,7 @@ bool Sql_cmd_create_table::prepare(THD *thd)
     */
     if (open_tables_for_query(thd, lex->query_tables,
                               MYSQL_OPEN_FORCE_SHARED_MDL))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
   set_prepared();
@@ -1199,15 +1199,15 @@ bool Sql_cmd_create_table::prepare(THD *thd)
 
   @note This function handles create view commands.
 
-  @retval FALSE Operation was a success.
-  @retval TRUE An error occured.
+  @retval false Operation was a success.
+  @retval true An error occured.
 */
 
 static bool mysql_test_create_view(Prepared_statement *stmt)
 {
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
-  bool res= TRUE;
+  bool res= true;
   /* Skip first table, which is the view we are creating */
   bool link_to_local;
   TABLE_LIST *view= lex->unlink_first_table(&link_to_local);
@@ -1250,9 +1250,9 @@ err:
   @param stmt               prepared statement
 
   @retval
-    FALSE             success, statement metadata is sent to client
+    false             success, statement metadata is sent to client
   @retval
-    TRUE              error, error message is set in THD (but not sent)
+    true              error, error message is set in THD (but not sent)
 */
 
 static bool check_prepared_statement(Prepared_statement *stmt)
@@ -1461,7 +1461,7 @@ static bool init_param_array(Prepared_statement *stmt)
     {
       /* Error code to be defined in 5.0 */
       my_error(ER_PS_MANY_PARAM, MYF(0));
-      return TRUE;
+      return true;
     }
 
     Item_param **to;
@@ -1471,7 +1471,7 @@ static bool init_param_array(Prepared_statement *stmt)
                        alloc_root(stmt->thd->mem_root,
                                   sizeof(Item_param*) * stmt->param_count);
     if (!stmt->param_array)
-      return TRUE;
+      return true;
     for (to= stmt->param_array;
          to < stmt->param_array + stmt->param_count;
          ++to)
@@ -1479,7 +1479,7 @@ static bool init_param_array(Prepared_statement *stmt)
       *to= param_iterator++;
     }
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -1865,7 +1865,7 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex)
     if (!sl->first_execution)
     {
       /* see unique_table() */
-      sl->exclude_from_table_unique_test= FALSE;
+      sl->exclude_from_table_unique_test= false;
 
       /*
         These must be reset before every new preparation.
@@ -2347,7 +2347,7 @@ bool Query_fetch_protocol_binary::send_data(List<Item> &fields)
 /*******************************************************************
 * Reprepare_observer
 *******************************************************************/
-/** Push an error to the error stack and return TRUE for now. */
+/** Push an error to the error stack and return true for now. */
 
 bool
 Reprepare_observer::report_error(THD *thd)
@@ -2366,9 +2366,9 @@ Reprepare_observer::report_error(THD *thd)
   */
   thd->get_stmt_da()->reset_diagnostics_area();
   thd->get_stmt_da()->set_error_status(thd, ER_NEED_REPREPARE);
-  m_invalidated= TRUE;
+  m_invalidated= true;
 
-  return TRUE;
+  return true;
 }
 
 
@@ -2405,13 +2405,13 @@ Execute_sql_statement::execute_server_code(THD *thd)
   bool error;
 
   if (alloc_query(thd, m_sql_text.str, m_sql_text.length))
-    return TRUE;
+    return true;
 
   Parser_state parser_state;
   if (parser_state.init(thd, thd->query().str, thd->query().length))
-    return TRUE;
+    return true;
 
-  parser_state.m_lip.multi_statements= FALSE;
+  parser_state.m_lip.multi_statements= false;
   lex_start(thd);
 
   parent_digest= thd->m_digest;
@@ -2632,10 +2632,10 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
   thd->status_var.com_stmt_prepare++;
 
   if (! (lex= new (mem_root) st_lex_local))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   if (set_db(thd->db()))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   /*
     alloc_query() uses thd->memroot && thd->query, so we should call
@@ -2651,7 +2651,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
     stmt_backup.restore_thd(thd, this);
     stmt_backup.restore_rlb(thd);
     thd->restore_active_arena(this, &arena_backup);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   if (max_digest_length > 0)
@@ -2669,11 +2669,11 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
     stmt_backup.restore_rlb(thd);
     thd->restore_active_arena(this, &arena_backup);
     thd->stmt_arena= old_stmt_arena;
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
-  parser_state.m_lip.stmt_prepare_mode= TRUE;
-  parser_state.m_lip.multi_statements= FALSE;
+  parser_state.m_lip.stmt_prepare_mode= true;
+  parser_state.m_lip.multi_statements= false;
 
   lex_start(thd);
   lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_PREPARE;
@@ -2959,7 +2959,7 @@ Prepared_statement::execute_loop(String *expanded_query, bool open_cursor)
   if (state == Query_arena::STMT_ERROR)
   {
     my_message(last_errno, last_error, MYF(0));
-    return TRUE;
+    return true;
   }
 
   DBUG_ASSERT(!thd->get_stmt_da()->is_set());
@@ -3032,7 +3032,7 @@ Prepared_statement::execute_server_runnable(Server_runnable *server_runnable)
   state= STMT_CONVENTIONAL_EXECUTION;
 
   if (!(lex= new (mem_root) st_lex_local))
-    return TRUE;
+    return true;
 
   Statement_backup stmt_backup;
   stmt_backup.set_thd_to_ps(thd, this);
@@ -3064,10 +3064,10 @@ Prepared_statement::execute_server_runnable(Server_runnable *server_runnable)
   statement, preparing it with the original query and then
   swapping the new statement and the original one.
 
-  @retval  TRUE   an error occurred. Possible errors include
+  @retval  true   an error occurred. Possible errors include
                   incompatibility of new and old result set
                   metadata
-  @retval  FALSE  success, the statement has been reprepared
+  @retval  false  success, the statement has been reprepared
 */
 
 bool
@@ -3085,16 +3085,16 @@ Prepared_statement::reprepare()
 
   thd->status_var.com_stmt_reprepare++;
 
-  if (mysql_opt_change_db(thd, m_db, &saved_cur_db_name, TRUE,
+  if (mysql_opt_change_db(thd, m_db, &saved_cur_db_name, true,
                           &cur_db_changed))
-    return TRUE;
+    return true;
 
   error= ((m_name.str && copy.set_name(m_name)) ||
           copy.prepare(m_query_string.str, m_query_string.length) ||
           validate_metadata(&copy));
 
   if (cur_db_changed)
-    mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), TRUE);
+    mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), true);
 
   if (! error)
   {
@@ -3105,7 +3105,7 @@ Prepared_statement::reprepare()
     swap_prepared_statement(&copy);
     swap_parameter_array(param_array, copy.param_array, param_count);
 #ifndef DBUG_OFF
-    is_reprepared= TRUE;
+    is_reprepared= true;
 #endif
     /*
       Clear possible warnings during reprepare, it has to be completely
@@ -3131,8 +3131,8 @@ Prepared_statement::reprepare()
   @param[in]  copy  the re-prepared prepared statement to verify
                     the metadata of
 
-  @retval TRUE  error, ER_PS_REBIND is reported
-  @retval FALSE statement return no or compatible metadata
+  @retval true  error, ER_PS_REBIND is reported
+  @retval false statement return no or compatible metadata
 */
 
 
@@ -3140,11 +3140,11 @@ bool Prepared_statement::validate_metadata(Prepared_statement *copy)
 {
   /**
     If this is an SQL prepared statement or EXPLAIN,
-    return FALSE -- the metadata of the original SELECT,
+    return false -- the metadata of the original SELECT,
     if any, has not been sent to the client.
   */
   if (is_sql_prepare() || lex->is_explain())
-    return FALSE;
+    return false;
 
   if (lex->select_lex->item_list.elements !=
       copy->lex->select_lex->item_list.elements)
@@ -3153,7 +3153,7 @@ bool Prepared_statement::validate_metadata(Prepared_statement *copy)
     thd->server_status|= SERVER_STATUS_METADATA_CHANGED;
   }
 
-  return FALSE;
+  return false;
 }
 
 
@@ -3219,9 +3219,9 @@ Prepared_statement::swap_prepared_statement(Prepared_statement *copy)
     - See the comment for Prepared_statement::prepare().
 
   @retval
-    FALSE	    ok
+    false	    ok
   @retval
-    TRUE		Error
+    true		Error
 */
 
 bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
@@ -3253,7 +3253,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   if (flags & (uint) IS_IN_USE)
   {
     my_error(ER_PS_NO_RECURSION, MYF(0));
-    return TRUE;
+    return true;
   }
 
   /*
@@ -3262,14 +3262,14 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     open a cursor -- the client library will recognize this case and
     materialize the result set.
     For SELECT statements lex->result is created in
-    check_prepared_statement. lex->result->simple_select() is FALSE
+    check_prepared_statement. lex->result->simple_select() is false
     in INSERT ... SELECT and similar commands.
   */
 
   if (open_cursor && lex->result && lex->result->check_simple_select())
   {
     DBUG_PRINT("info",("Cursor asked for not SELECT stmt"));
-    return TRUE;
+    return true;
   }
 
   /* In case the command has a call to SP which re-uses this statement name */
@@ -3300,13 +3300,13 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     NULL (prepared statements can be created while no current database
     selected).
   */
-  if (mysql_opt_change_db(thd, m_db, &saved_cur_db_name, TRUE,
+  if (mysql_opt_change_db(thd, m_db, &saved_cur_db_name, true,
                           &cur_db_changed))
   {
     flags&= ~ (uint) IS_IN_USE;
     stmt_backup.restore_thd(thd, this);
     stmt_backup.restore_rlb(thd);
-    return TRUE;
+    return true;
   }
 
   /* Allocate query. */
@@ -3319,7 +3319,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     flags&= ~ (uint) IS_IN_USE;
     stmt_backup.restore_thd(thd, this);
     stmt_backup.restore_rlb(thd);
-    return TRUE;
+    return true;
   }
 
   /*
@@ -3669,11 +3669,11 @@ void Protocol_local::opt_add_row_to_rset()
 bool Protocol_local::store_null()
 {
   if (m_current_column == NULL)
-    return TRUE; /* start_row() failed to allocate memory. */
+    return true; /* start_row() failed to allocate memory. */
 
   memset(m_current_column, 0, sizeof(*m_current_column));
   ++m_current_column;
-  return FALSE;
+  return false;
 }
 
 
@@ -3687,7 +3687,7 @@ bool Protocol_local::store_null()
 bool Protocol_local::store_column(const void *data, size_t length)
 {
   if (m_current_column == NULL)
-    return TRUE; /* start_row() failed to allocate memory. */
+    return true; /* start_row() failed to allocate memory. */
   /*
     alloc_root() automatically aligns memory, so we don't need to
     do any extra alignment if we're pointing to, say, an integer.
@@ -3696,11 +3696,11 @@ bool Protocol_local::store_column(const void *data, size_t length)
                                              data,
                                              length + 1 /* Safety */);
   if (! m_current_column->str)
-    return TRUE;
+    return true;
   m_current_column->str[length]= '\0'; /* Safety */
   m_current_column->length= length;
   ++m_current_column;
-  return FALSE;
+  return false;
 }
 
 
@@ -3722,7 +3722,7 @@ Protocol_local::store_string(const char *str, size_t length,
       dst_cs != &my_charset_bin)
   {
     if (convert->copy(str, length, src_cs, dst_cs, &error_unused))
-      return TRUE;
+      return true;
     str= convert->ptr();
     length= convert->length();
   }
@@ -3778,7 +3778,7 @@ bool Protocol_local::store_decimal(const my_decimal *value, uint prec,
   rc= my_decimal2string(E_DEC_FATAL_ERROR, value, prec, dec, '0', &str);
 
   if (rc)
-    return TRUE;
+    return true;
 
   return store_column(str.ptr(), str.length());
 }
@@ -3865,7 +3865,7 @@ bool Protocol_local::send_ok(uint, uint, ulonglong, ulonglong, const char*)
     Just make sure nothing is sent to the client, we have grabbed
     the status information in the connection Diagnostics Area.
   */
-  return FALSE;
+  return false;
 }
 
 
@@ -3892,7 +3892,7 @@ bool Protocol_local::send_eof(uint, uint)
   m_rset= NULL;
 
   if (! ed_result_set)
-    return TRUE;
+    return true;
 
   /* In case of successful allocation memory ownership was transferred. */
   DBUG_ASSERT(!alloc_root_inited(&m_rset_root));
@@ -3902,7 +3902,7 @@ bool Protocol_local::send_eof(uint, uint)
     result sets. Never fails.
   */
   m_connection->add_result_set(ed_result_set);
-  return FALSE;
+  return false;
 }
 
 
@@ -3914,7 +3914,7 @@ bool Protocol_local::send_error(uint, const char*, const char*)
     Just make sure that nothing is sent to the client (default
     implementation).
   */
-  return FALSE;
+  return false;
 }
 
 
@@ -3981,7 +3981,7 @@ Unused in the local implementation.
 bool Protocol_local::end_row()
 {
   DBUG_ENTER("Protocol_local::end_row");
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 uint Protocol_local::get_rw_status()

@@ -543,7 +543,7 @@ public:
 
   virtual enum_join_cache_type cache_type() const= 0;
 
-  /* TRUE <=> cache reads rows by key */
+  /* true <=> cache reads rows by key */
   bool is_key_access() const
   { return cache_type() & (ALG_BKA | ALG_BKA_UNIQUE ); }
 

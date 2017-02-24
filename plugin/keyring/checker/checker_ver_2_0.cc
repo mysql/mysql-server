@@ -44,14 +44,14 @@ bool CheckerVer_2_0::is_dgst_correct(File file, Digest *digest)
                                MY_SEEK_END, MYF(0)) == MY_FILEPOS_ERROR) ||
                mysql_file_read(file, dgst_read_from_file.value, SHA256_DIGEST_LENGTH,
                                MYF(0)) != SHA256_DIGEST_LENGTH)
-    return FALSE;
-  dgst_read_from_file.is_empty= FALSE;
+    return false;
+  dgst_read_from_file.is_empty= false;
 
   if(strncmp(dummy_digest, reinterpret_cast<const char*>(digest->value),
              SHA256_DIGEST_LENGTH) == 0)
   {
     *digest= dgst_read_from_file;
-    return TRUE;
+    return true;
   }
   mysql_file_seek(file, 0, MY_SEEK_SET, MYF(0));
   return *digest == dgst_read_from_file;

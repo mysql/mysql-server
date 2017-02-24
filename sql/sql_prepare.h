@@ -81,7 +81,7 @@ public:
   */
   bool report_error(THD *thd);
   bool is_invalidated() const { return m_invalidated; }
-  void reset_reprepare_observer() { m_invalidated= FALSE; }
+  void reset_reprepare_observer() { m_invalidated= false; }
 private:
   bool m_invalidated;
 };
@@ -219,9 +219,9 @@ public:
     be used.
 
     @return execution status
-    @retval FALSE  success, use get_field_count()
+    @retval false  success, use get_field_count()
                    to determine what to do next.
-    @retval TRUE   error, use get_last_error()
+    @retval true   error, use get_last_error()
                    to see the error number.
   */
   bool execute_direct(LEX_STRING sql_text);
@@ -232,10 +232,10 @@ public:
 
     @return execution status
       
-    @retval  FALSE  success, use get_field_count() 
+    @retval  false  success, use get_field_count() 
                     if your code fragment is supposed to
                     return a result set
-    @retval  TRUE   failure
+    @retval  true   failure
   */
   bool execute_direct(Server_runnable *server_runnable);
 

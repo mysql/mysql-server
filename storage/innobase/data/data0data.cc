@@ -100,7 +100,7 @@ dtuple_set_n_fields(
 
 /**********************************************************//**
 Checks that a data field is typed.
-@return TRUE if ok */
+@return true if ok */
 static
 ibool
 dfield_check_typed_no_assert(
@@ -122,7 +122,7 @@ dfield_check_typed_no_assert(
 
 /**********************************************************//**
 Checks that a data tuple is typed.
-@return TRUE if ok */
+@return true if ok */
 static
 ibool
 dtuple_check_typed_no_assert(
@@ -159,7 +159,7 @@ dump:
 #ifdef UNIV_DEBUG
 /**********************************************************//**
 Checks that a data field is typed. Asserts an error if not.
-@return TRUE if ok */
+@return true if ok */
 ibool
 dfield_check_typed(
 /*===============*/
@@ -178,7 +178,7 @@ dfield_check_typed(
 
 /**********************************************************//**
 Checks that a data tuple is typed. Asserts an error if not.
-@return TRUE if ok */
+@return true if ok */
 ibool
 dtuple_check_typed(
 /*===============*/
@@ -200,7 +200,7 @@ dtuple_check_typed(
 /**********************************************************//**
 Validates the consistency of a tuple which must be complete, i.e,
 all fields must have been set.
-@return TRUE if ok */
+@return true if ok */
 ibool
 dtuple_validate(
 /*============*/

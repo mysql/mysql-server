@@ -1264,7 +1264,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
     case binary_log::DELETE_ROWS_EVENT_V1:
     case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
     {
-      bool stmt_end= FALSE;
+      bool stmt_end= false;
       Table_map_log_event *ignored_map= NULL;
       if (ev_type == binary_log::WRITE_ROWS_EVENT ||
           ev_type == binary_log::DELETE_ROWS_EVENT ||
@@ -1276,7 +1276,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
       {
         Rows_log_event *new_ev= (Rows_log_event*) ev;
         if (new_ev->get_flags(Rows_log_event::STMT_END_F))
-          stmt_end= TRUE;
+          stmt_end= true;
         ignored_map= print_event_info->m_table_map_ignored.get_table(new_ev->get_table_id());
       }
 
@@ -1310,7 +1310,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
         if (skip_event)
         {
           // set the unflushed_events flag to false
-          print_event_info->have_unflushed_events= FALSE;
+          print_event_info->have_unflushed_events= false;
 
           // append END-MARKER(') with delimiter
           IO_CACHE *const body_cache= &print_event_info->body_cache;
@@ -1362,11 +1362,11 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
       }
 
       ev->print(result_file, print_event_info);
-      print_event_info->have_unflushed_events= TRUE;
+      print_event_info->have_unflushed_events= true;
       /* Flush head,body and footer cache to result_file */
       if (stmt_end)
       {
-        print_event_info->have_unflushed_events= FALSE;
+        print_event_info->have_unflushed_events= false;
         if (copy_event_cache_to_file_and_reinit(&print_event_info->head_cache,
                                                 result_file, stop_never /* flush result file */) ||
             copy_event_cache_to_file_and_reinit(&print_event_info->body_cache,
@@ -1903,7 +1903,7 @@ get_one_option(int optid, const struct my_option *opt,
     exit(0);
   case 's':
     warning(CLIENT_WARN_DEPRECATED_NO_REPLACEMENT_MSG("--short-form"));
-    short_form= TRUE;
+    short_form= true;
     break;
   case OPT_WAIT_SERVER_ID:
     warning(CLIENT_WARN_DEPRECATED_MSG("--stop-never-slave-server-id", "--connection-server-id"));
@@ -2969,11 +2969,11 @@ int main(int argc, char** argv)
   */
   buff_ev= new Buff_ev(PSI_NOT_INSTRUMENTED);
 
-  my_getopt_use_args_separator= TRUE;
+  my_getopt_use_args_separator= true;
   MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   if (load_defaults("my", load_default_groups, &argc, &argv, &alloc))
     exit(1);
-  my_getopt_use_args_separator= FALSE;
+  my_getopt_use_args_separator= false;
 
   parse_args(&argc, &argv);
 

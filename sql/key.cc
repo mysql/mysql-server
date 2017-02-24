@@ -437,8 +437,8 @@ void key_unpack(String *to, TABLE *table, KEY *key)
     about saving/restoring its state if it also uses this bitmap.
 
   RETURN VALUE
-    TRUE   Key uses field from bitmap
-    FALSE  Otherwise
+    true   Key uses field from bitmap
+    false  Otherwise
 */
 
 bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields)

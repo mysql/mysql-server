@@ -277,7 +277,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst)
   TABLE *table= tablelst[0].table;
   table->use_all_columns();
   if (init_read_record(&read_record_info, thd, table,
-                       NULL, 1, 1, FALSE))
+                       NULL, 1, 1, false))
   {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
              table->s->table_name.str);
@@ -324,7 +324,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst)
   table= tablelst[1].table;
   table->use_all_columns();
   if (init_read_record(&read_record_info, thd, table,
-                       NULL, 1, 1, FALSE))
+                       NULL, 1, 1, false))
   {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
              table->s->table_name.str);

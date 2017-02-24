@@ -3298,7 +3298,7 @@ innobase_format_name(
 
 /**********************************************************************//**
 Determines if the currently running transaction has been interrupted.
-@return TRUE if interrupted */
+@return true if interrupted */
 ibool
 trx_is_interrupted(
 /*===============*/
@@ -3309,7 +3309,7 @@ trx_is_interrupted(
 
 /**********************************************************************//**
 Determines if the currently running transaction is in strict mode.
-@return TRUE if strict */
+@return true if strict */
 ibool
 trx_is_strict(
 /*==========*/
@@ -3793,7 +3793,7 @@ innobase_post_recover()
 }
 
 /** Check if InnoDB is in a mode where the data dictionary is read-only.
-@return true if srv_read_only_mode is TRUE or if srv_force_recovery > 0 */
+@return true if srv_read_only_mode is true or if srv_force_recovery > 0 */
 static
 bool
 innobase_is_dict_readonly()
@@ -11978,7 +11978,7 @@ ha_innobase::update_create_info(
 
 /*****************************************************************//**
 Initialize the table FTS stopword list
-@return TRUE if success */
+@return true if success */
 ibool
 innobase_fts_load_stopword(
 /*=======================*/
@@ -17458,7 +17458,7 @@ ha_innobase::get_cascade_foreign_key_table_list(
 Checks if ALTER TABLE may change the storage engine of the table.
 Changing storage engines is not allowed for tables for which there
 are foreign key constraints (parent or child tables).
-@return TRUE if can switch engines */
+@return true if can switch engines */
 
 bool
 ha_innobase::can_switch_engines(void)
@@ -20126,7 +20126,7 @@ innodb_monitor_id_by_name_get(
 /*************************************************************//**
 Validate that the passed in monitor name matches at least one
 monitor counter name with wildcard compare.
-@return TRUE if at least one monitor name matches */
+@return true if at least one monitor name matches */
 static
 ibool
 innodb_monitor_validate_wildcard_name(

@@ -1086,7 +1086,7 @@ PLUGIN_EXPORT char *version_tokens_show(UDF_INIT *initid, UDF_ARGS*,
 
 static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
-  initid->maybe_null= FALSE;
+  initid->maybe_null= false;
   initid->decimals= 0;
   initid->max_length= 1;
   initid->ptr= NULL;
@@ -1105,14 +1105,14 @@ static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
   {
     strcpy(message,
            "Requires at least two arguments: (lock(...),timeout).");
-    return TRUE;
+    return true;
   }
 
   // Timeout is the last argument, should be INT
   if (args->arg_type[args->arg_count - 1] != INT_RESULT)
   {
     strcpy(message, "Wrong argument type - expected integer.");
-    return TRUE;
+    return true;
   }
 
   // All other arguments should be strings
@@ -1121,11 +1121,11 @@ static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
     if (args->arg_type[i] != STRING_RESULT)
     {
       strcpy(message, "Wrong argument type - expected string.");
-      return TRUE;
+      return true;
     }
   }
 
-  return FALSE;
+  return false;
 }
 
 PLUGIN_EXPORT bool version_tokens_lock_shared_init(
@@ -1199,10 +1199,10 @@ PLUGIN_EXPORT bool version_tokens_unlock_init(UDF_INIT*, UDF_ARGS *args,
   if (args->arg_count != 0)
   {
     strcpy(message, "Requires no arguments.");
-    return TRUE;
+    return true;
   }
 
-  return FALSE;
+  return false;
 }
 
 long long version_tokens_unlock(UDF_INIT*, UDF_ARGS*,

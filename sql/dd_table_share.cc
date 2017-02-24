@@ -578,7 +578,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share, const dd::Table *table_d
     // OOM error message already reported
     return true; /* purecov: inspected */
   }
-  bitmap_init(&share->all_set, bitmaps, share->fields, FALSE);
+  bitmap_init(&share->all_set, bitmaps, share->fields, false);
   bitmap_set_all(&share->all_set);
 
   return false;
@@ -2075,7 +2075,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
   case dd::Table::PT_AUTO:
     part_info->key_algorithm= enum_key_algorithm::KEY_ALGORITHM_55;
     part_info->part_type= partition_type::HASH;
-    part_info->list_of_part_fields= TRUE;
+    part_info->list_of_part_fields= true;
     part_info->is_auto_partitioned= true;
     share->auto_partitioned= true;
     break;

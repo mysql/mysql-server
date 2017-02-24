@@ -866,7 +866,7 @@ public:
   /*
     Indication that the field is phycically stored in tables 
     rather than just generated on SQL queries.
-    As of now, FALSE can only be set for virtual generated columns.
+    As of now, false can only be set for virtual generated columns.
   */
   bool stored_in_db;
   bool is_gcol() const { return gcol_info; }
@@ -1028,10 +1028,10 @@ public:
   virtual String *val_str(String*,String *)=0;
   String *val_int_as_str(String *val_buffer, bool unsigned_flag);
   /*
-   str_needs_quotes() returns TRUE if the value returned by val_str() needs
+   str_needs_quotes() returns true if the value returned by val_str() needs
    to be quoted when used in constructing an SQL query.
   */
-  virtual bool str_needs_quotes() { return FALSE; }
+  virtual bool str_needs_quotes() { return false; }
   virtual Item_result result_type () const=0;
   /**
     Returns Item_result type of a field when it appears
@@ -1537,7 +1537,7 @@ public:
   virtual const CHARSET_INFO *charset_for_protocol(void) const
   { return binary() ? &my_charset_bin : charset(); }
   virtual const CHARSET_INFO *sort_charset(void) const { return charset(); }
-  virtual bool has_charset(void) const { return FALSE; }
+  virtual bool has_charset(void) const { return false; }
   /*
     match_collation_to_optimize_range() is to distinguish in
     range optimizer (see opt_range.cc) between real string types:
@@ -1692,11 +1692,11 @@ public:
   Checks whether a string field is part of write_set.
 
   @return
-    FALSE  - If field is not char/varchar/....
+    false  - If field is not char/varchar/....
            - If field is char/varchar/.. and is not part of write set.
-    TRUE   - If field is char/varchar/.. and is part of write set.
+    true   - If field is char/varchar/.. and is part of write set.
 */
-  virtual bool is_updatable() const { return FALSE; }
+  virtual bool is_updatable() const { return false; }
 
   /**
     Check whether field is part of the index taking the index extensions flag
@@ -1937,7 +1937,7 @@ public:
   bool binary() const { return field_charset == &my_charset_bin; }
   uint32 max_display_length() { return field_length; }
   friend class Create_field;
-  virtual bool str_needs_quotes() { return TRUE; }
+  virtual bool str_needs_quotes() { return true; }
   uint is_equal(const Create_field *new_field);
 };
 
@@ -2794,7 +2794,7 @@ public:
     { flags|= BINARY_FLAG; }
   virtual Item_result result_type() const { return STRING_RESULT; }
   virtual uint32 max_display_length() { return field_length; }
-  virtual bool str_needs_quotes() { return TRUE; }
+  virtual bool str_needs_quotes() { return true; }
   virtual uint is_equal(const Create_field *new_field);
   Item_result numeric_context_result_type() const
   {
@@ -3628,7 +3628,7 @@ public:
   uint max_packed_col_length();
   enum_field_types real_type() const { return MYSQL_TYPE_STRING; }
   bool has_charset(void) const
-  { return charset() == &my_charset_bin ? FALSE : TRUE; }
+  { return charset() == &my_charset_bin ? false : true; }
   Field *new_field(MEM_ROOT *root, TABLE *new_table, bool keep_type);
   Field_string *clone(MEM_ROOT *mem_root) const {
     DBUG_ASSERT(real_type() == MYSQL_TYPE_STRING);
@@ -3704,7 +3704,7 @@ public:
   uint32 data_length(uint row_offset= 0) override;
   enum_field_types real_type() const override { return MYSQL_TYPE_VARCHAR; }
   bool has_charset() const override
-  { return charset() == &my_charset_bin ? FALSE : TRUE; }
+  { return charset() == &my_charset_bin ? false : true; }
   Field *new_field(MEM_ROOT *root, TABLE *new_table, bool keep_type) override;
   Field *new_key_field(MEM_ROOT *root, TABLE *new_table,
                        uchar *new_ptr, uchar *new_null_ptr,
@@ -3943,7 +3943,7 @@ public:
   }
   friend type_conversion_status field_conv(Field *to,Field *from);
   bool has_charset(void) const
-  { return charset() == &my_charset_bin ? FALSE : TRUE; }
+  { return charset() == &my_charset_bin ? false : true; }
   uint32 max_display_length();
   uint32 char_length();
   bool copy_blob_value(MEM_ROOT *mem_root);
@@ -4303,7 +4303,7 @@ public:
                       uint part MY_ATTRIBUTE((unused)))
   { return 0; }
   bool eq_def(Field *field);
-  bool has_charset(void) const { return TRUE; }
+  bool has_charset(void) const { return true; }
   /* enum and set are sorted as integers */
   const CHARSET_INFO *sort_charset(void) const { return &my_charset_bin; }
   Field_enum *clone(MEM_ROOT *mem_root) const {
@@ -4344,14 +4344,14 @@ public:
                                const CHARSET_INFO *charset);
   type_conversion_status store(double nr)
   {
-    return Field_set::store((longlong) nr, FALSE);
+    return Field_set::store((longlong) nr, false);
   }
   type_conversion_status store(longlong nr, bool unsigned_val);
   virtual bool zero_pack() const { return 1; }
   String *val_str(String*,String *);
   void sql_type(String &str) const;
   enum_field_types real_type() const { return MYSQL_TYPE_SET; }
-  bool has_charset(void) const { return TRUE; }
+  bool has_charset(void) const { return true; }
   Field_set *clone(MEM_ROOT *mem_root) const { 
     DBUG_ASSERT(real_type() == MYSQL_TYPE_SET);
     return new (mem_root) Field_set(*this);
@@ -4409,7 +4409,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*, String *);
-  virtual bool str_needs_quotes() { return TRUE; }
+  virtual bool str_needs_quotes() { return true; }
   my_decimal *val_decimal(my_decimal *);
   int cmp(const uchar *a, const uchar *b)
   {
@@ -4607,7 +4607,7 @@ public:
   /*
     Indication that the field is phycically stored in tables 
     rather than just generated on SQL queries.
-    As of now, FALSE can only be set for virtual generated columns.
+    As of now, false can only be set for virtual generated columns.
   */
   bool stored_in_db;
 
@@ -4678,7 +4678,7 @@ class Send_field
   uint charsetnr, flags, decimals;
   enum_field_types type;
   /*
-    TRUE <=> source item is an Item_field. Needed to workaround lack of
+    true <=> source item is an Item_field. Needed to workaround lack of
     architecture in legacy Protocol_text implementation. Needed only for
     Protocol_classic and descendants.
   */

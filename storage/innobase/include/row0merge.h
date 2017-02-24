@@ -294,7 +294,7 @@ row_merge_buf_sort(
 					(NULL if non-unique index) */
 /********************************************************************//**
 Write a merge block to the file system.
-@return TRUE if request was successful, FALSE if fail */
+@return true if request was successful, false if fail */
 ibool
 row_merge_write(
 /*============*/
@@ -361,7 +361,7 @@ row_merge_file_destroy(
 	merge_file_t*	merge_file);	/*!< in/out: merge file structure */
 /********************************************************************//**
 Read a merge block from the file system.
-@return TRUE if request was successful, FALSE if fail */
+@return true if request was successful, false if fail */
 ibool
 row_merge_read(
 /*===========*/

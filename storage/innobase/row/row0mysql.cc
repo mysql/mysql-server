@@ -108,7 +108,7 @@ which the master thread drops in background. We need this on Unix because in
 ALTER TABLE MySQL may call drop table even if the table has running queries on
 it. Also, if there are running foreign key checks on the table, we drop the
 table lazily.
-@return TRUE if the table was not yet in the drop list, and was added there */
+@return true if the table was not yet in the drop list, and was added there */
 static
 ibool
 row_add_table_to_background_drop_list(
@@ -2841,7 +2841,7 @@ run_again:
 /*********************************************************************//**
 Checks if a table is such that we automatically created a clustered
 index on it (on row id).
-@return TRUE if the clustered index was generated automatically */
+@return true if the clustered index was generated automatically */
 ibool
 row_table_got_default_clust_index(
 /*==============================*/
@@ -3510,7 +3510,7 @@ which the master thread drops in background. We need this on Unix because in
 ALTER TABLE MySQL may call drop table even if the table has running queries on
 it. Also, if there are running foreign key checks on the table, we drop the
 table lazily.
-@return TRUE if the table was not yet in the drop list, and was added there */
+@return true if the table was not yet in the drop list, and was added there */
 static
 ibool
 row_add_table_to_background_drop_list(

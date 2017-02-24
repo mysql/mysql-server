@@ -140,7 +140,7 @@ static void init_servers_cache_psi_keys(void)
 
   SYNOPSIS
     servers_init()
-      dont_read_server_table  TRUE if we want to skip loading data from
+      dont_read_server_table  true if we want to skip loading data from
                             server table and disable privilege checking.
 
   NOTES
@@ -155,7 +155,7 @@ static void init_servers_cache_psi_keys(void)
 bool servers_init(bool dont_read_servers_table)
 {
   THD  *thd;
-  bool return_val= FALSE;
+  bool return_val= false;
   DBUG_ENTER("servers_init");
 
 #ifdef HAVE_PSI_INTERFACE
@@ -164,7 +164,7 @@ bool servers_init(bool dont_read_servers_table)
 
   /* init the mutex */
   if (mysql_rwlock_init(key_rwlock_THR_LOCK_servers, &THR_LOCK_servers))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   /* initialise our servers cache */
   servers_cache= new collation_unordered_map<std::string, FOREIGN_SERVER *>(
@@ -180,7 +180,7 @@ bool servers_init(bool dont_read_servers_table)
     To be able to run this from boot, we allocate a temporary THD
   */
   if (!(thd=new THD))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
   /*
@@ -204,8 +204,8 @@ end:
       tables  List containing open "mysql.servers"
 
   RETURN VALUES
-    FALSE  Success
-    TRUE   Error
+    false  Success
+    true   Error
 
   TODO
     Revert back to old list if we failed to load new one.
@@ -214,7 +214,7 @@ end:
 static bool servers_load(THD *thd, TABLE *table)
 {
   READ_RECORD read_record_info;
-  bool return_val= TRUE;
+  bool return_val= true;
   DBUG_ENTER("servers_load");
 
   if (servers_cache != nullptr)
@@ -225,17 +225,17 @@ static bool servers_load(THD *thd, TABLE *table)
   init_sql_alloc(key_memory_servers, &mem, ACL_ALLOC_BLOCK_SIZE, 0);
 
   if (init_read_record(&read_record_info, thd, table,
-                       NULL, 1, 1, FALSE))
-    DBUG_RETURN(TRUE);
+                       NULL, 1, 1, false))
+    DBUG_RETURN(true);
 
   while (!(read_record_info.read_record(&read_record_info)))
   {
-    /* return_val is already TRUE, so no need to set */
+    /* return_val is already true, so no need to set */
     if ((get_server_from_table_to_cache(table)))
       goto end;
   }
 
-  return_val= FALSE;
+  return_val= false;
 
 end:
   end_read_record(&read_record_info);
@@ -258,8 +258,8 @@ end:
     for user/db-level privilege checking.
 
   RETURN VALUE
-    FALSE  Success
-    TRUE   Failure
+    false  Success
+    true   Failure
 */
 
 bool servers_reload(THD *thd)
@@ -366,7 +366,7 @@ static bool get_server_from_table_to_cache(TABLE *table)
   DBUG_PRINT("info", ("server->password %s", server->password));
   DBUG_PRINT("info", ("server->socket %s", server->socket));
   servers_cache->emplace(server->server_name, server);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -380,7 +380,7 @@ static bool close_cached_connection_tables(THD *thd,
                                            size_t connection_length)
 {
   TABLE_LIST tmp, *tables= NULL;
-  bool result= FALSE;
+  bool result= false;
   DBUG_ENTER("close_cached_connection_tables");
   DBUG_ASSERT(thd);
 
@@ -447,7 +447,7 @@ static bool close_cached_connection_tables(THD *thd,
   mysql_mutex_unlock(&LOCK_open);
 
   if (tables)
-    result= close_cached_tables(thd, tables, FALSE, LONG_TIMEOUT);
+    result= close_cached_tables(thd, tables, false, LONG_TIMEOUT);
 
   DBUG_RETURN(result);
 }

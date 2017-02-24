@@ -856,9 +856,9 @@ static SHOW_COMP_OPTION plugin_status(const LEX_CSTRING &name, int type)
 
 bool plugin_is_ready(const LEX_CSTRING &name, int type)
 {
-  bool rc= FALSE;
+  bool rc= false;
   if (plugin_status(name, type) == SHOW_OPTION_YES)
-    rc= TRUE;
+    rc= true;
   return rc;
 }
 
@@ -976,10 +976,10 @@ static bool plugin_add(MEM_ROOT *tmp_root,
     mysql_mutex_unlock(&LOCK_plugin);
     report_error(report, ER_UDF_EXISTS, name->str);
     mysql_mutex_lock(&LOCK_plugin);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   if (! (tmp.plugin_dl= plugin_dl_add(dl, report)))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   /* Find plugin by name */
   for (plugin= tmp.plugin_dl->plugins; plugin->info; plugin++)
   {
@@ -1022,7 +1022,7 @@ static bool plugin_add(MEM_ROOT *tmp_root,
         {
           init_alloc_root(key_memory_plugin_int_mem_root,
                           &tmp_plugin_ptr->mem_root, 4096, 4096);
-          DBUG_RETURN(FALSE);
+          DBUG_RETURN(false);
         }
         tmp_plugin_ptr->state= PLUGIN_IS_FREED;
       }
@@ -1032,7 +1032,7 @@ static bool plugin_add(MEM_ROOT *tmp_root,
 
       /* plugin was disabled */
       plugin_dl_del(dl);
-      DBUG_RETURN(FALSE);
+      DBUG_RETURN(false);
     }
   }
   mysql_mutex_unlock(&LOCK_plugin);
@@ -1040,7 +1040,7 @@ static bool plugin_add(MEM_ROOT *tmp_root,
   mysql_mutex_lock(&LOCK_plugin);
 err:
   plugin_dl_del(dl);
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 
@@ -1448,7 +1448,7 @@ static bool plugin_init_initialize_and_reap()
     mysql_mutex_unlock(&LOCK_plugin);
     if (plugin_ptr->load_option == PLUGIN_FORCE ||
         plugin_ptr->load_option == PLUGIN_FORCE_PLUS_PERMANENT)
-      reaped_mandatory_plugin= TRUE;
+      reaped_mandatory_plugin= true;
     plugin_deinitialize(plugin_ptr, true);
     mysql_mutex_lock(&LOCK_plugin_delete);
     mysql_mutex_lock(&LOCK_plugin);
@@ -1736,7 +1736,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     DBUG_VOID_RETURN;
   }
   table= tables.table;
-  if (init_read_record(&read_record_info, new_thd, table, NULL, 1, 1, FALSE))
+  if (init_read_record(&read_record_info, new_thd, table, NULL, 1, 1, false))
   {
     close_trans_system_tables(new_thd);
     DBUG_VOID_RETURN;
@@ -1772,7 +1772,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
            my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
   }
   end_read_record(&read_record_info);
-  table->m_needs_reopen= TRUE;                  // Force close to free memory
+  table->m_needs_reopen= true;                  // Force close to free memory
 
   close_trans_system_tables(new_thd);
 
@@ -1798,7 +1798,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
     if (p == buffer + sizeof(buffer) - 1)
     {
       LogErr(ERROR_LEVEL, ER_PLUGIN_LOAD_PARAMETER_TOO_LONG);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
 
     switch ((*(p++)= *(list++))) {
@@ -1861,11 +1861,11 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
       continue;
     }
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 error:
   mysql_mutex_unlock(&LOCK_plugin);
   LogErr(ERROR_LEVEL, ER_PLUGIN_CANT_LOAD, name.str, dl.str);
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 /*
@@ -2142,7 +2142,7 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
      newly installed plugin to process those options which are specific
      to this plugin.
     */
-    if (pv && pv->append_read_only_variables(&argc, &argv, TRUE))
+    if (pv && pv->append_read_only_variables(&argc, &argv, true))
     {
       mysql_rwlock_unlock(&LOCK_system_variables_hash);
       report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
@@ -2518,7 +2518,7 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,
   DBUG_ENTER("plugin_foreach_with_mask");
 
   if (!initialized)
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
 
   state_mask= ~state_mask; // do it only once
 
@@ -2563,15 +2563,15 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,
         mysql_mutex_unlock(&LOCK_plugin);
       }
       plugin= plugins[idx];
-      /* It will stop iterating on first engine error when "func" returns TRUE */
+      /* It will stop iterating on first engine error when "func" returns true */
       if (plugin && (*funcs)(thd, plugin_int_to_ref(plugin), arg))
           goto err;
     }
   }
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 err:
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
@@ -3596,7 +3596,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   if (mysqld_server_started)
   {
     Persisted_variables_cache *pv= Persisted_variables_cache::get_instance();
-    if (pv && pv->set_persist_options(TRUE))
+    if (pv && pv->set_persist_options(true))
     {
       LogErr(ERROR_LEVEL, ER_PLUGIN_CANT_SET_PERSISTENT_OPTIONS,
              tmp->name.str);

@@ -198,7 +198,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 
   for (ren_table= table_list; ren_table; ren_table= ren_table->next_local)
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, ren_table->db,
-                     ren_table->table_name, FALSE);
+                     ren_table->table_name, false);
   bool error= false;
   bool int_commit_done= false;
   std::set<handlerton*> post_ddl_htons;

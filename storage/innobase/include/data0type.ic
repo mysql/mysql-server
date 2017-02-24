@@ -43,7 +43,7 @@ dtype_get_charset_coll(
 Determines if a MySQL string type is a subset of UTF-8.  This function
 may return false negatives, in case further character-set collation
 codes are introduced in MySQL later.
-@return TRUE if a subset of UTF-8 */
+@return true if a subset of UTF-8 */
 UNIV_INLINE
 ibool
 dtype_is_utf8(

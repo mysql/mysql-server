@@ -2698,7 +2698,7 @@ LRUItr::start()
 /** Determine if a block is a sentinel for a buffer pool watch.
 @param[in]	buf_pool	buffer pool instance
 @param[in]	bpage		block
-@return TRUE if a sentinel for a buffer pool watch, FALSE if not */
+@return true if a sentinel for a buffer pool watch, false if not */
 ibool
 buf_pool_watch_is_sentinel(
 	const buf_pool_t*	buf_pool,
@@ -2900,7 +2900,7 @@ buf_pool_watch_unset(
 This may only be called after buf_pool_watch_set(same_page_id)
 has returned NULL and before invoking buf_pool_watch_unset(same_page_id).
 @param[in]	page_id	page id
-@return FALSE if the given page was not read in, TRUE if it was */
+@return false if the given page was not read in, true if it was */
 ibool
 buf_pool_watch_occurred(
 	const page_id_t&	page_id)
@@ -3223,7 +3223,7 @@ buf_block_init_low(
 
 /********************************************************************//**
 Decompress a block.
-@return TRUE if successful */
+@return true if successful */
 ibool
 buf_zip_decompress(
 /*===============*/
@@ -3341,7 +3341,7 @@ buf_block_from_ahi(const byte* ptr)
 Find out if a pointer belongs to a buf_block_t. It can be a pointer to
 the buf_block_t itself or a member of it. This functions checks one of
 the buffer pool instances.
-@return TRUE if ptr belongs to a buf_block_t struct */
+@return true if ptr belongs to a buf_block_t struct */
 static
 ibool
 buf_pointer_is_block_field_instance(
@@ -3370,7 +3370,7 @@ buf_pointer_is_block_field_instance(
 
 /********************************************************************//**
 Find out if a buffer block was created by buf_chunk_init().
-@return TRUE if "block" has been added to buf_pool->free by buf_chunk_init() */
+@return true if "block" has been added to buf_pool->free by buf_chunk_init() */
 static
 ibool
 buf_block_is_uncompressed(
@@ -4065,7 +4065,7 @@ got_block:
 /********************************************************************//**
 This is the general function used to get optimistic access to a database
 page.
-@return TRUE if success */
+@return true if success */
 ibool
 buf_page_optimistic_get(
 /*====================*/
@@ -4185,7 +4185,7 @@ buf_page_optimistic_get(
 This is used to get access to a known database page, when no waiting can be
 done. For example, if a search in an adaptive hash index leads us to this
 frame.
-@return TRUE if success */
+@return true if success */
 ibool
 buf_page_get_known_nowait(
 /*======================*/
@@ -5319,7 +5319,7 @@ corrupt:
 
 /** Asserts that all file pages in the buffer are in a replaceable state.
 @param[in]	buf_pool	buffer pool instance
-@return TRUE */
+@return true */
 static
 ibool
 buf_all_freed_instance(
@@ -5435,7 +5435,7 @@ buf_pool_invalidate(void)
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Validates data in one buffer pool instance
 @param[in]	buf_pool	buffer pool instance
-@return TRUE */
+@return true */
 static
 ibool
 buf_pool_validate_instance(
@@ -5655,7 +5655,7 @@ buf_pool_validate_instance(
 
 /*********************************************************************//**
 Validates the buffer buf_pool data structure.
-@return TRUE */
+@return true */
 ibool
 buf_validate(void)
 /*==============*/
@@ -6293,7 +6293,7 @@ buf_refresh_io_stats_all(void)
 
 /**********************************************************************//**
 Check if all pages in all buffer pools are in a replacable state.
-@return FALSE if not */
+@return false if not */
 ibool
 buf_all_freed(void)
 /*===============*/

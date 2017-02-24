@@ -307,7 +307,7 @@ public:
 
   int mi_init_info();
   void end_info();
-  int flush_info(bool force= FALSE);
+  int flush_info(bool force= false);
   void set_relay_log_info(Relay_log_info *info);
 
   bool shall_ignore_server_id(ulong s_id);

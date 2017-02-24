@@ -192,12 +192,12 @@ my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
   {
     tmp_thd= create_thd(false, true, false, PSI_NOT_INSTRUMENTED);
     if (!tmp_thd)
-      return TRUE;
+      return true;
   }
 
   retval= acl_getroot(tmp_thd ? tmp_thd : current_thd, ctx, (char *) user,
                       (char *) host, (char *) ip, db) ?
-                      TRUE : FALSE;
+                      true : false;
 
   if (tmp_thd)
   {

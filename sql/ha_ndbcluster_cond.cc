@@ -384,11 +384,11 @@ Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL)
     // Allocate type checking bitmaps using fixed size buffers
     // since max size is known at compile time
     bitmap_init(&expect_mask, m_expect_buf,
-                MAX_EXPECT_ITEMS, FALSE);
+                MAX_EXPECT_ITEMS, false);
     bitmap_init(&expect_field_type_mask, m_expect_field_type_buf,
-                MAX_EXPECT_FIELD_TYPES, FALSE);
+                MAX_EXPECT_FIELD_TYPES, false);
     bitmap_init(&expect_field_result_mask, m_expect_field_result_buf,
-                MAX_EXPECT_FIELD_RESULTS, FALSE);
+                MAX_EXPECT_FIELD_RESULTS, false);
   }
   ~Ndb_expect_stack()
   {
@@ -585,7 +585,7 @@ class Ndb_cond_traverse_context
    Ndb_cond_traverse_context(TABLE *tab, const NdbDictionary::Table *ndb_tab,
                              Ndb_cond_stack* stack)
     : table(tab), ndb_table(ndb_tab),
-    supported(TRUE), cond_stack(stack), cond_ptr(NULL),
+    supported(true), cond_stack(stack), cond_ptr(NULL),
     skip(0), rewrite_stack(NULL)
   {
    if (stack)
@@ -744,7 +744,7 @@ ndb_serialize_cond(const Item *item, void *arg)
     case Item::DECIMAL_ITEM:
       break;
     default:
-      context->supported= FALSE;
+      context->supported= false;
       break;
     }
     
@@ -802,7 +802,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             else
             {
               DBUG_PRINT("info", ("Found unsupported functional expression in BETWEEN|IN"));
-              context->supported= FALSE;
+              context->supported= false;
               DBUG_VOID_RETURN;
               
             }
@@ -813,13 +813,13 @@ ndb_serialize_cond(const Item *item, void *arg)
           // Non-supported BETWEEN|IN expression
           DBUG_PRINT("info", ("Found unexpected item of type %u in BETWEEN|IN",
                               item->type()));
-          context->supported= FALSE;
+          context->supported= false;
           DBUG_VOID_RETURN;
         }
         break;
       }
       default:
-        context->supported= FALSE;
+        context->supported= false;
         break;
       }
       DBUG_VOID_RETURN;
@@ -866,7 +866,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           {
             // Illegal BETWEEN expression
             DBUG_PRINT("info", ("Illegal BETWEEN expression"));
-            context->supported= FALSE;
+            context->supported= false;
             DBUG_VOID_RETURN;
           }
           break;
@@ -889,7 +889,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           break;
         }
         default:
-          context->supported= FALSE;
+          context->supported= false;
         }
         // Handle left hand <field>|<const>
         context->rewrite_stack= NULL; // Disable rewrite mode
@@ -924,7 +924,7 @@ ndb_serialize_cond(const Item *item, void *arg)
       }
       else
       {
-        bool pop= TRUE;
+        bool pop= true;
 
         switch (item->type()) {
         case Item::FIELD_ITEM:
@@ -936,7 +936,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           /* Check whether field is computed at MySQL layer */
           if(field->is_virtual_gcol())
           {
-            context->supported= FALSE;
+            context->supported= false;
             DBUG_VOID_RETURN;
           }
           /*
@@ -969,7 +969,7 @@ ndb_serialize_cond(const Item *item, void *arg)
                    type == MYSQL_TYPE_DATETIME2)
                   ? (context->expecting_field_result(STRING_RESULT) ||
                      context->expecting_field_result(INT_RESULT))
-                  : TRUE)) &&
+                  : true)) &&
                 // Bit fields no yet supported in scan filter
                 type != MYSQL_TYPE_BIT &&
                 /* Char(0) field is treated as Bit fields inside NDB
@@ -1047,7 +1047,7 @@ ndb_serialize_cond(const Item *item, void *arg)
                 {
                   DBUG_PRINT("info", ("Found non-matching collation %s",  
                                       item->collation.collation->name)); 
-                  context->supported= FALSE;                
+                  context->supported= false;                
                 }
               }
               break;
@@ -1056,7 +1056,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             {
               DBUG_PRINT("info", ("Was not expecting field of type %u(%u)",
                                   field->result_type(), type));
-              context->supported= FALSE;
+              context->supported= false;
             }
           }
           else
@@ -1064,7 +1064,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             DBUG_PRINT("info", ("Was not expecting field from table %s (%s)",
                                 context->table->s->table_name.str, 
                                 field->table->s->table_name.str));
-            context->supported= FALSE;
+            context->supported= false;
           }
           break;
         }
@@ -1079,7 +1079,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           else
           {
             // Did not expect function here
-            context->supported= FALSE;
+            context->supported= false;
             break;
           }
           context->expect_no_length();
@@ -1194,7 +1194,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             if (((const Item_func_like *)func_item)->escape_was_used_in_parsing())
             {
               DBUG_PRINT("info", ("LIKE expressions with ESCAPE not supported"));
-              context->supported= FALSE;
+              context->supported= false;
             }
             curr_cond->ndb_item=
               new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);
@@ -1214,7 +1214,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             expect_next->expect(Item::STRING_ITEM);
             expect_next->expect(Item::FUNC_ITEM);
             context->expect_stack.push(expect_next);
-            pop= FALSE;
+            pop= false;
             break;
           }
           case Item_func::ISNULL_FUNC:
@@ -1331,7 +1331,7 @@ ndb_serialize_cond(const Item *item, void *arg)
                 != Item::FIELD_ITEM)
             {
               DBUG_PRINT("info", ("Function during rewrite not supported"));
-              context->supported= FALSE;
+              context->supported= false;
             }
             if (func_item->const_item())
             {
@@ -1358,7 +1358,7 @@ ndb_serialize_cond(const Item *item, void *arg)
                   {
                     DBUG_PRINT("info", ("Found non-matching collation %s",  
                                         item->collation.collation->name));
-                    context->supported= FALSE;
+                    context->supported= false;
                   }
                 }
                 // Skip any arguments since we will evaluate function instead
@@ -1440,14 +1440,14 @@ ndb_serialize_cond(const Item *item, void *arg)
             }
             else
               // Function does not return constant expression
-              context->supported= FALSE;
+              context->supported= false;
             break;
           }
           default:
           {
             DBUG_PRINT("info", ("Found func_item of type %d", 
                                 func_item->functype()));
-            context->supported= FALSE;
+            context->supported= false;
           }
           }
           break;
@@ -1486,12 +1486,12 @@ ndb_serialize_cond(const Item *item, void *arg)
               {
                 DBUG_PRINT("info", ("Found non-matching collation %s",  
                                     item->collation.collation->name));
-                context->supported= FALSE;
+                context->supported= false;
               }
             }
           }
           else
-            context->supported= FALSE;
+            context->supported= false;
           break;
         case Item::INT_ITEM:
           DBUG_PRINT("info", ("INT_ITEM"));
@@ -1518,7 +1518,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             }
           }
           else
-            context->supported= FALSE;
+            context->supported= false;
           break;
         case Item::REAL_ITEM:
           DBUG_PRINT("info", ("REAL_ITEM"));
@@ -1542,7 +1542,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             }
           }
           else
-            context->supported= FALSE;
+            context->supported= false;
           break;
         case Item::VARBIN_ITEM:
           DBUG_PRINT("info", ("VARBIN_ITEM"));
@@ -1565,7 +1565,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             }
           }
           else
-            context->supported= FALSE;
+            context->supported= false;
           break;
         case Item::DECIMAL_ITEM:
           DBUG_PRINT("info", ("DECIMAL_ITEM"));
@@ -1591,7 +1591,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             }
           }
           else
-            context->supported= FALSE;
+            context->supported= false;
           break;
         case Item::COND_ITEM:
         {
@@ -1612,14 +1612,14 @@ ndb_serialize_cond(const Item *item, void *arg)
               break;
             default:
               DBUG_PRINT("info", ("COND_ITEM %d", cond_item->functype()));
-              context->supported= FALSE;
+              context->supported= false;
               break;
             }
           }
           else
           {
             /* Did not expect condition */
-            context->supported= FALSE;          
+            context->supported= false;          
           }
           break;
         }
@@ -1658,7 +1658,7 @@ ndb_serialize_cond(const Item *item, void *arg)
               }
             }
             else
-              context->supported= FALSE;
+              context->supported= false;
             break;
 
           case REAL_RESULT:
@@ -1683,7 +1683,7 @@ ndb_serialize_cond(const Item *item, void *arg)
               }
             }
             else
-              context->supported= FALSE;
+              context->supported= false;
             break;
 
           case DECIMAL_RESULT:
@@ -1710,7 +1710,7 @@ ndb_serialize_cond(const Item *item, void *arg)
               }
             }
             else
-              context->supported= FALSE;
+              context->supported= false;
             break;
 
           case STRING_RESULT:
@@ -1747,16 +1747,16 @@ ndb_serialize_cond(const Item *item, void *arg)
                 {
                   DBUG_PRINT("info", ("Found non-matching collation %s",  
                                       item->collation.collation->name));
-                  context->supported= FALSE;
+                  context->supported= false;
                 }
               }
             }
             else
-              context->supported= FALSE;
+              context->supported= false;
             break;
 
           default:
-            context->supported= FALSE;
+            context->supported= false;
             break;
           }
           break;
@@ -1766,7 +1766,7 @@ ndb_serialize_cond(const Item *item, void *arg)
         {
           DBUG_PRINT("info", ("Found unsupported item of type %d",
                               item->type()));
-          context->supported= FALSE;
+          context->supported= false;
         }
         }
         if (pop)
@@ -2159,7 +2159,7 @@ ha_ndbcluster_cond::build_scan_filter_group(Ndb_cond* &cond,
                                             NdbScanFilter *filter) const
 {
   uint level=0;
-  bool negated= FALSE;
+  bool negated= false;
   DBUG_ENTER("build_scan_filter_group");
 
   do
@@ -2178,7 +2178,7 @@ ha_ndbcluster_cond::build_scan_filter_group(Ndb_cond* &cond,
         if ((negated) ? filter->begin(NdbScanFilter::NAND)
             : filter->begin(NdbScanFilter::AND) == -1)
           DBUG_RETURN(1);
-        negated= FALSE;
+        negated= false;
         cond= cond->next;
         break;
       }
@@ -2190,7 +2190,7 @@ ha_ndbcluster_cond::build_scan_filter_group(Ndb_cond* &cond,
         if ((negated) ? filter->begin(NdbScanFilter::NOR)
             : filter->begin(NdbScanFilter::OR) == -1)
           DBUG_RETURN(1);
-        negated= FALSE;
+        negated= false;
         cond= cond->next;
         break;
       }
@@ -2198,13 +2198,13 @@ ha_ndbcluster_cond::build_scan_filter_group(Ndb_cond* &cond,
       {
         DBUG_PRINT("info", ("Generating negated query"));
         cond= cond->next;
-        negated= TRUE;
+        negated= true;
         break;
       }
       default:
         if (build_scan_filter_predicate(cond, filter, negated))
           DBUG_RETURN(1);
-        negated= FALSE;
+        negated= false;
         break;
       }
       break;
@@ -2233,7 +2233,7 @@ int
 ha_ndbcluster_cond::build_scan_filter(Ndb_cond * &cond,
                                       NdbScanFilter *filter) const
 {
-  bool simple_cond= TRUE;
+  bool simple_cond= true;
   DBUG_ENTER("build_scan_filter");  
 
     switch (cond->ndb_item->type) {
@@ -2241,7 +2241,7 @@ ha_ndbcluster_cond::build_scan_filter(Ndb_cond * &cond,
       switch (cond->ndb_item->qualification.function_type) {
       case NDB_COND_AND_FUNC:
       case NDB_COND_OR_FUNC:
-        simple_cond= FALSE;
+        simple_cond= false;
         break;
       default:
         break;
@@ -2302,13 +2302,13 @@ ha_ndbcluster_cond::generate_scan_filter(NdbInterpretedCode* code,
 int
 ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter& filter) const
 {
-  bool multiple_cond= FALSE;
+  bool multiple_cond= false;
   DBUG_ENTER("generate_scan_filter_from_cond");
 
   // Wrap an AND group around multiple conditions
   if (m_cond_stack->next) 
   {
-    multiple_cond= TRUE;
+    multiple_cond= true;
     if (filter.begin() == -1)
       DBUG_RETURN(1); 
   }

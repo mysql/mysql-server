@@ -302,7 +302,7 @@ btr_pcur_move_to_last_on_page(
 /*********************************************************//**
 Moves the persistent cursor to the next user record in the tree. If no user
 records are left, the cursor ends up 'after last in tree'.
-@return TRUE if the cursor moved forward, ending on a user record */
+@return true if the cursor moved forward, ending on a user record */
 UNIV_INLINE
 ibool
 btr_pcur_move_to_next_user_rec(
@@ -338,7 +338,7 @@ loop:
 /*********************************************************//**
 Moves the persistent cursor to the next record in the tree. If no records are
 left, the cursor stays 'after last in tree'.
-@return TRUE if the cursor was not after last in tree */
+@return true if the cursor was not after last in tree */
 UNIV_INLINE
 ibool
 btr_pcur_move_to_next(

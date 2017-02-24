@@ -1038,7 +1038,7 @@ static bool migrate_view_to_dd(THD *thd,
   table_list.timestamp.str= table_list.timestamp_buffer;
 
   // Prepare default values for old format
-  table_list.view_suid= TRUE;
+  table_list.view_suid= true;
   table_list.definer.user.str= table_list.definer.host.str= 0;
   table_list.definer.user.length= table_list.definer.host.length= 0;
 
@@ -1344,7 +1344,7 @@ static bool fix_generated_columns_for_upgrade(THD *thd,
                                               List<Create_field> &create_fields)
 {
   Create_field *sql_field;
-  bool error_reported= FALSE;
+  bool error_reported= false;
   bool error= false;
 
   if (table->s->vfields)
@@ -1360,7 +1360,7 @@ static bool fix_generated_columns_for_upgrade(THD *thd,
       if (sql_field->gcol_info && (*field_ptr)->gcol_info)
       {
         if (unpack_gcol_info(thd, table, *field_ptr,
-                             FALSE, &error_reported))
+                             false, &error_reported))
         {
           error= true;
           break;

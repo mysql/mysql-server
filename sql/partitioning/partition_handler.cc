@@ -571,7 +571,7 @@ int Partition_helper::ph_write_row(uchar *buf)
     */
     if (m_table->next_number_field->val_int() == 0)
     {
-      m_table->auto_increment_field_not_null= TRUE;
+      m_table->auto_increment_field_not_null= true;
       thd->variables.sql_mode|= MODE_NO_AUTO_VALUE_ON_ZERO;
     }
   }
@@ -938,7 +938,7 @@ void Partition_helper::ph_release_auto_increment()
     /* Unlock the multi row statement lock taken in get_auto_increment */
     if (m_auto_increment_safe_stmt_log_lock)
     {
-      m_auto_increment_safe_stmt_log_lock= FALSE;
+      m_auto_increment_safe_stmt_log_lock= false;
       DBUG_PRINT("info", ("unlocking auto_increment_safe_stmt_log_lock"));
     }
 
@@ -1827,7 +1827,7 @@ int Partition_helper::ph_rnd_next(uchar *buf)
 
   DBUG_ASSERT(m_scan_value == 1);
 
-  while (TRUE)
+  while (true)
   {
     result= rnd_next_in_part(part_id, buf);
     if (!result)
@@ -2166,10 +2166,10 @@ int Partition_helper::ph_index_read_map(uchar *buf,
   Common routine for a number of index_read variants.
 
   @param[out] buf             Buffer where the record should be returned.
-  @param[in]  have_start_key  TRUE <=> the left endpoint is available, i.e.
+  @param[in]  have_start_key  true <=> the left endpoint is available, i.e.
                               we're in index_read call or in read_range_first
                               call and the range has left endpoint.
-                              FALSE <=> there is no left endpoint (we're in
+                              false <=> there is no left endpoint (we're in
                               read_range_first() call and the range has no left
                               endpoint).
 
@@ -2609,16 +2609,16 @@ int Partition_helper::ph_read_range_next()
   Find out which partitions we'll need to read when scanning the specified
   range.
 
-  If we need to scan only one partition, set m_ordered_scan_ongoing=FALSE
+  If we need to scan only one partition, set m_ordered_scan_ongoing=false
   as we will not need to do merge ordering.
 
   @param buf            Buffer to later return record in (this function
                         needs it to calculate partitioning function values)
 
-  @param idx_read_flag  TRUE <=> m_start_key has range start endpoint which
+  @param idx_read_flag  true <=> m_start_key has range start endpoint which
                         probably can be used to determine the set of
                         partitions to scan.
-                        FALSE <=> there is no start endpoint.
+                        false <=> there is no start endpoint.
 
   @return Operation status.
     @retval   0  Success
@@ -2659,7 +2659,7 @@ int Partition_helper::partition_scan_set_up(uchar * buf, bool idx_read_flag)
     */
     DBUG_PRINT("info", ("index scan using the single partition %d",
                         m_part_spec.start_part));
-    m_ordered_scan_ongoing= FALSE;
+    m_ordered_scan_ongoing= false;
   }
   else
   {
@@ -2864,7 +2864,7 @@ int Partition_helper::handle_unordered_scan_next_partition(uchar * buf)
   @details
     This part contains the logic to handle index scans that require ordered
     output. This includes all except those started by read_range_first with
-    the flag ordered set to FALSE. Thus most direct index_read and all
+    the flag ordered set to false. Thus most direct index_read and all
     index_first and index_last.
 
     We implement ordering by keeping one record plus a key buffer for each
@@ -2881,7 +2881,7 @@ int Partition_helper::handle_ordered_index_scan(uchar *buf)
 {
   uint i;
   std::vector<uchar*> parts;
-  bool found= FALSE;
+  bool found= false;
   uchar *part_rec_buf_ptr= m_ordered_rec_buffer;
   int saved_error= HA_ERR_END_OF_FILE;
   DBUG_ENTER("Partition_helper::handle_ordered_index_scan");

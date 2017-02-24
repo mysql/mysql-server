@@ -405,7 +405,7 @@ static inline bool is_ip_loopback(const struct sockaddr *ip)
     }
 
   default:
-    return FALSE;
+    return false;
   }
 }
 
@@ -417,7 +417,7 @@ static inline bool is_hostname_valid(const char *hostname)
   */
 
   if (!my_isdigit(&my_charset_latin1, hostname[0]))
-    return TRUE;
+    return true;
 
   const char *p= hostname + 1;
 

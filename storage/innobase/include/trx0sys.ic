@@ -264,7 +264,7 @@ trx_rw_min_trx_id_low(void)
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 /***********************************************************//**
 Assert that a transaction has been recovered.
-@return TRUE */
+@return true */
 UNIV_INLINE
 ibool
 trx_assert_recovered(

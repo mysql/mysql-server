@@ -230,7 +230,7 @@ bool json_value(Item **args, uint arg_idx, Json_wrapper *result);
   @param[out] wrapper       the JSON value wrapper
   @param[in]  handle_numbers_as_double
                             whether numbers should be handled as double. If set
-                            to TRUE, all numbers are parsed as DOUBLE
+                            to true, all numbers are parsed as DOUBLE
   @returns false if we found a value or NULL, true if not.
 */
 bool get_json_wrapper(Item **args, uint arg_idx, String *str,

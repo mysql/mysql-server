@@ -647,7 +647,7 @@ static int check_connection(THD *thd)
     /* Reset sin_addr */
     memset(&net->vio->remote, 0, sizeof(net->vio->remote));
   }
-  vio_keepalive(net->vio, TRUE);
+  vio_keepalive(net->vio, true);
 
   if (thd->get_protocol_classic()->get_output_packet()->
         alloc(thd->variables.net_buffer_length))
@@ -887,7 +887,7 @@ bool thd_prepare_connection(THD *thd)
     return rc;
 
   prepare_new_connection_state(thd);
-  return FALSE;
+  return false;
 }
 
 

@@ -801,7 +801,7 @@ my_parse_charset_xml(MY_CHARSET_LOADER *loader, const char *buf, size_t len)
   my_xml_set_leave_handler(&p,cs_leave);
   info.loader= loader;
   my_xml_set_user_data(&p, (void *) &info);
-  rc= (my_xml_parse(&p,buf,len) == MY_XML_OK) ? FALSE : TRUE;
+  rc= (my_xml_parse(&p,buf,len) == MY_XML_OK) ? false : true;
   my_xml_parser_free(&p);
   my_charset_file_free(&info);
   if (rc != MY_XML_OK)
@@ -863,7 +863,7 @@ uint my_charset_repertoire(const CHARSET_INFO *cs)
 /*
   Detect whether a character set is ASCII compatible.
 
-  Returns TRUE for:
+  Returns true for:
   
   - all 8bit character sets whose Unicode mapping of 0x7B is '{'
     (ignores swe7 which maps 0x7B to "LATIN LETTER A WITH DIAERESIS")
@@ -1074,7 +1074,7 @@ my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
     }
   }
 
-  DBUG_ASSERT(FALSE); // Should never get to here
+  DBUG_ASSERT(false); // Should never get to here
   return 0;           // Make compiler happy
 }
 

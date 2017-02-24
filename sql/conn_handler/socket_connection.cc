@@ -511,7 +511,7 @@ class Unix_socket
     Create a lockfile which contains the pid of the mysqld instance started
     and pathname as name of unix socket pathname appended with .lock
 
-    @retval   FALSE if lockfile creation is successful else TRUE if lockfile
+    @retval   false if lockfile creation is successful else true if lockfile
               file could not be created.
 
   */

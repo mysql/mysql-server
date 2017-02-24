@@ -119,10 +119,10 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
   uint profile_options = thd->lex->profile_options;
   uint fields_include_condition_truth_values[]= {
-    FALSE, /* Query_id */
-    FALSE, /* Seq */
-    TRUE, /* Status */
-    TRUE, /* Duration */
+    false, /* Query_id */
+    false, /* Seq */
+    true, /* Status */
+    true, /* Duration */
     profile_options & PROFILE_CPU, /* CPU_user */
     profile_options & PROFILE_CPU, /* CPU_system */
     profile_options & PROFILE_CONTEXT, /* Context_voluntary */
@@ -487,7 +487,7 @@ bool PROFILING::show_profiles()
 
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   SELECT_LEX *sel= thd->lex->select_lex;
   SELECT_LEX_UNIT *unit= thd->lex->unit;
@@ -523,10 +523,10 @@ bool PROFILING::show_profiles()
       protocol->store_null();
 
     if (protocol->end_row())
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
   my_eof(thd);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /**
@@ -622,8 +622,8 @@ int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables)
         The order of these fields is set by the  query_profile_statistics_info
         array.
       */
-      table->field[0]->store((ulonglong) query->profiling_query_id, TRUE);
-      table->field[1]->store((ulonglong) seq, TRUE); /* the step in the sequence */
+      table->field[0]->store((ulonglong) query->profiling_query_id, true);
+      table->field[1]->store((ulonglong) seq, true); /* the step in the sequence */
       /*
         This entry, n, has a point in time, T(n), and a status phrase, S(n).
         The status phrase S(n) describes the period of time that begins at

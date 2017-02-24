@@ -170,7 +170,7 @@ static bool write_db_cmd_to_binlog(THD *thd, const char *db, bool trx_cache)
 {
   if (mysql_bin_log.is_open())
   {
-    int errcode= query_error_code(thd, TRUE);
+    int errcode= query_error_code(thd, true);
     Query_log_event qinfo(thd, thd->query().str, thd->query().length,
                           trx_cache, false,
                           /* suppress_use */ true, errcode);
@@ -1189,7 +1189,7 @@ static void backup_current_db_name(THD *thd,
 
 
 /**
-  Return TRUE if db1_name is equal to db2_name, FALSE otherwise.
+  Return true if db1_name is equal to db2_name, false otherwise.
 
   The function allows to compare database names according to the MySQL
   rules. The database names db1 and db2 are equal if:
@@ -1218,7 +1218,7 @@ cmp_db_names(const char *db1_name,
 
   @param thd          thread handle
   @param new_db_name  database name
-  @param force_switch if force_switch is FALSE, then the operation will fail if
+  @param force_switch if force_switch is false, then the operation will fail if
 
                         - new_db_name is NULL or empty;
 
@@ -1229,7 +1229,7 @@ cmp_db_names(const char *db1_name,
 
                         - OR new database does not exist;
 
-                      if force_switch is TRUE, then
+                      if force_switch is true, then
 
                         - if new_db_name is NULL or empty, the current
                           database will be NULL, @@collation_database will
@@ -1497,7 +1497,7 @@ bool mysql_opt_change_db(THD *thd,
   *cur_db_changed= !cmp_db_names(thd->db().str, new_db_name.str);
 
   if (!*cur_db_changed)
-    return FALSE;
+    return false;
 
   backup_current_db_name(thd, saved_db_name);
 

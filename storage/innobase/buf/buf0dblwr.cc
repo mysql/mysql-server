@@ -44,7 +44,7 @@ ibool	buf_dblwr_being_created = FALSE;
 
 /****************************************************************//**
 Determines if a page number is located inside the doublewrite buffer.
-@return TRUE if the location is inside the two blocks of the
+@return true if the location is inside the two blocks of the
 doublewrite buffer */
 ibool
 buf_dblwr_page_inside(

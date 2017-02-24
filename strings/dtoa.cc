@@ -99,8 +99,8 @@ static void dtoa_free(char *, char *, size_t);
                       (including the terminating '\0').
    @param error       if not NULL, points to a location where the status of
                       conversion is stored upon return.
-                      FALSE  successful conversion
-                      TRUE   the input number is [-,+]infinity or nan.
+                      false  successful conversion
+                      true   the input number is [-,+]infinity or nan.
                              The output string in this case is always '0'.
    @return            number of written characters (excluding terminating '\0')
 */
@@ -120,7 +120,7 @@ size_t my_fcvt(double x, int precision, char *to, bool *error)
     *to++= '0';
     *to= '\0';
     if (error != NULL)
-      *error= TRUE;
+      *error= true;
     return 1;
   }
 
@@ -158,7 +158,7 @@ size_t my_fcvt(double x, int precision, char *to, bool *error)
   
   *dst= '\0';
   if (error != NULL)
-    *error= FALSE;
+    *error= false;
 
   dtoa_free(res, buf, sizeof(buf));
 
@@ -201,8 +201,8 @@ size_t my_fcvt(double x, int precision, char *to, bool *error)
                       'width + 1' bytes.
    @param error       if not NULL, points to a location where the status of
                       conversion is stored upon return.
-                      FALSE  successful conversion
-                      TRUE   the input number is [-,+]infinity or nan.
+                      false  successful conversion
+                      true   the input number is [-,+]infinity or nan.
                              The output string in this case is always '0'.
    @return            number of written characters (excluding terminating '\0')
 
@@ -249,12 +249,12 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
     *to++= '0';
     *to= '\0';
     if (error != NULL)
-      *error= TRUE;
+      *error= true;
     return 1;
   }
 
   if (error != NULL)
-    *error= FALSE;
+    *error= false;
 
   src= res;
   len= (int)(end - res);
@@ -337,7 +337,7 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
       if (width < decpt)
       {
         if (error != NULL)
-          *error= TRUE;
+          *error= true;
         width= decpt;
       }
       
@@ -404,7 +404,7 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
     {
       /* Overflow */
       if (error != NULL)
-        *error= TRUE;
+        *error= true;
       width= 0;
     }
       
@@ -1040,7 +1040,7 @@ static Bigint *pow5mult(Bigint *b, int k, Stack_alloc *alloc)
   Bigint *b1, *p5, *p51=NULL;
   int i;
   static int p05[3]= { 5, 25, 125 };
-  bool overflow= FALSE;
+  bool overflow= false;
 
   if ((i= k & 3))
     b= multadd(b, p05[i-1], 0, alloc);
@@ -1070,7 +1070,7 @@ static Bigint *pow5mult(Bigint *b, int k, Stack_alloc *alloc)
     else if (p5 == p5_a + P5A_MAX)
     {
       p5= mult(p5, p5, alloc);
-      overflow= TRUE;
+      overflow= true;
     }
   }
   if (p51)

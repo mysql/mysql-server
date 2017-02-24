@@ -146,11 +146,11 @@ int test_if_hard_path(const char *dir_name)
   if (dir_name[0] == FN_HOMELIB && dir_name[1] == FN_LIBCHAR)
     return (home_dir != NullS && test_if_hard_path(home_dir));
   if (dir_name[0] == FN_LIBCHAR)
-    return (TRUE);
+    return (true);
 #ifdef FN_DEVCHAR
   return (strchr(dir_name,FN_DEVCHAR) != 0);
 #else
-  return FALSE;
+  return false;
 #endif
 } /* test_if_hard_path */
 
@@ -163,8 +163,8 @@ int test_if_hard_path(const char *dir_name)
     name                The name to test.
 
   RETURN
-    TRUE        name contains a path.
-    FALSE       name does not contain a path.
+    true        name contains a path.
+    false       name does not contain a path.
 */
 
 bool has_path(const char *name)

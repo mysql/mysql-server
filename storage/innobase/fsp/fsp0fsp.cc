@@ -319,7 +319,7 @@ fsp_skip_sanity_check(space_id_t space_id)
 
 /**********************************************************************//**
 Gets a descriptor bit of a page.
-@return TRUE if free */
+@return true if free */
 UNIV_INLINE
 ibool
 xdes_mtr_get_bit(
@@ -455,7 +455,7 @@ xdes_state_is_valid(
 
 /**********************************************************************//**
 Returns true if extent contains no used pages.
-@return TRUE if totally free */
+@return true if totally free */
 UNIV_INLINE
 ibool
 xdes_is_free(
@@ -475,7 +475,7 @@ xdes_is_free(
 
 /**********************************************************************//**
 Returns true if extent contains no free pages.
-@return TRUE if full */
+@return true if full */
 UNIV_INLINE
 ibool
 xdes_is_full(
@@ -2110,7 +2110,7 @@ fsp_seg_inode_page_find_free(
 
 /**********************************************************************//**
 Allocates a new file segment inode page.
-@return TRUE if could be allocated */
+@return true if could be allocated */
 static
 ibool
 fsp_alloc_seg_inode_page(
@@ -3905,7 +3905,7 @@ Frees part of a segment. This function can be used to free a segment by
 repeatedly calling this function in different mini-transactions. Doing
 the freeing in a single mini-transaction might result in too big a
 mini-transaction.
-@return TRUE if freeing completed */
+@return true if freeing completed */
 ibool
 fseg_free_step(
 /*===========*/
@@ -3994,7 +3994,7 @@ fseg_free_step(
 /**********************************************************************//**
 Frees part of a segment. Differs from fseg_free_step because this function
 leaves the header page unfreed.
-@return TRUE if freeing completed, except the header page */
+@return true if freeing completed, except the header page */
 ibool
 fseg_free_step_not_header(
 /*======================*/

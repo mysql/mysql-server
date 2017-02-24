@@ -155,7 +155,7 @@ void Item_row::split_sum_func(THD *thd, Ref_item_array ref_item_array,
 {
   Item **arg, **arg_end;
   for (arg= items, arg_end= items+arg_count; arg != arg_end ; arg++)
-    (*arg)->split_sum_func2(thd, ref_item_array, fields, arg, TRUE);
+    (*arg)->split_sum_func2(thd, ref_item_array, fields, arg, true);
 }
 
 

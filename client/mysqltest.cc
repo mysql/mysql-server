@@ -175,9 +175,9 @@ static bool explain_protocol= 0, explain_protocol_enabled= 0;
 static bool json_explain_protocol= 0, json_explain_protocol_enabled= 0;
 static bool cursor_protocol= 0, cursor_protocol_enabled= 0;
 static bool parsing_disabled= 0;
-static bool display_result_vertically= FALSE, display_result_lower= FALSE,
-  display_metadata= FALSE, display_result_sorted= FALSE,
-  display_session_track_info= FALSE;
+static bool display_result_vertically= false, display_result_lower= false,
+  display_metadata= false, display_result_sorted= false,
+  display_session_track_info= false;
 static bool disable_query_log= 0, disable_result_log= 0;
 static bool disable_connect_log= 1;
 static bool disable_warnings= 0;
@@ -189,7 +189,7 @@ static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 static const char *load_default_groups[]= { "mysqltest", "client", 0 };
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
 static const char *opt_server_public_key= 0;
-static bool can_handle_expired_passwords= TRUE;
+static bool can_handle_expired_passwords= true;
 #include "caching_sha2_passwordopt-vars.h"
 
 /* Info on properties that can be set with --enable_X and --disable_X */
@@ -214,7 +214,7 @@ static struct property prop_list[] = {
   { &disable_warnings, 0, 0, 1, "$ENABLED_WARNINGS" }
 };
 
-static bool once_property= FALSE;
+static bool once_property= false;
 
 enum enum_prop {
   P_ABORT= 0,
@@ -1143,7 +1143,7 @@ static void check_command_args(struct st_command *command,
       if (ptr > start)
       {
         init_dynamic_string(arg->ds, 0, ptr-start, 32);
-        do_eval(arg->ds, start, ptr, FALSE);
+        do_eval(arg->ds, start, ptr, false);
       }
       else
       {
@@ -1167,7 +1167,7 @@ static void check_command_args(struct st_command *command,
     case ARG_REST:
       start= ptr;
       init_dynamic_string(arg->ds, 0, command->query_len, 256);
-      do_eval(arg->ds, start, command->end, FALSE);
+      do_eval(arg->ds, start, command->end, false);
       command->last_argument= command->end;
       DBUG_PRINT("info", ("val: %s", arg->ds->str));
       break;
@@ -2248,7 +2248,7 @@ static void set_once_property(enum_prop prop, bool val)
   pr.old= *pr.var;
   *pr.var= val;
   var_set_int(pr.env_name, (val != pr.reverse));
-  once_property= TRUE;
+  once_property= true;
 }
 
 static void set_property(st_command *command, enum_prop prop, bool val)
@@ -2280,7 +2280,7 @@ void revert_properties()
       var_set_int(pr.env_name, (pr.old != pr.reverse));
     }
   }
-  once_property=FALSE;
+  once_property=false;
 }
 
 
@@ -2331,7 +2331,7 @@ static void var_query_set(VAR *var, const char *query, const char** query_end)
 
   /* Eval the query, thus replacing all environment variables */
   init_dynamic_string(&ds_query, 0, (end - query) + 32, 256);
-  do_eval(&ds_query, query, end, FALSE);
+  do_eval(&ds_query, query, end, false);
 
   if (mysql_real_query(mysql, ds_query.str,
                        static_cast<ulong>(ds_query.length)))
@@ -2457,7 +2457,7 @@ do_result_format_version(struct st_command *command)
   long version;
   static DYNAMIC_STRING ds_version;
   const struct command_arg result_format_args[] = {
-    {"version", ARG_STRING, TRUE, &ds_version, "Version to use"}
+    {"version", ARG_STRING, true, &ds_version, "Version to use"}
   };
 
   DBUG_ENTER("do_result_format_version");
@@ -2599,9 +2599,9 @@ static void var_set_query_get_value(struct st_command *command, VAR *var)
   static DYNAMIC_STRING ds_col;
   static DYNAMIC_STRING ds_row;
   const struct command_arg query_get_value_args[] = {
-    {"query", ARG_STRING, TRUE, &ds_query, "Query to run"},
-    {"column name", ARG_STRING, TRUE, &ds_col, "Name of column"},
-    {"row number", ARG_STRING, TRUE, &ds_row, "Number for row"}
+    {"query", ARG_STRING, true, &ds_query, "Query to run"},
+    {"column name", ARG_STRING, true, &ds_col, "Name of column"},
+    {"row number", ARG_STRING, true, &ds_row, "Number for row"}
   };
 
   DBUG_ENTER("var_set_query_get_value");
@@ -2881,7 +2881,7 @@ static void do_source(struct st_command *command)
 {
   static DYNAMIC_STRING ds_filename;
   const struct command_arg source_args[] = {
-    { "filename", ARG_STRING, TRUE, &ds_filename, "File to source" }
+    { "filename", ARG_STRING, true, &ds_filename, "File to source" }
   };
   DBUG_ENTER("do_source");
 
@@ -3357,8 +3357,8 @@ static void do_remove_file(struct st_command *command)
   static DYNAMIC_STRING ds_retry;
 
   const struct command_arg rm_args[] = {
-    { "filename", ARG_STRING, TRUE, &ds_filename, "File to delete" },
-    { "retry", ARG_STRING, FALSE, &ds_retry, "Number of retries" }
+    { "filename", ARG_STRING, true, &ds_filename, "File to delete" },
+    { "retry", ARG_STRING, false, &ds_retry, "Number of retries" }
   };
   DBUG_ENTER("do_remove_file");
 
@@ -3421,10 +3421,10 @@ static void do_remove_files_wildcard(struct st_command *command)
   char dirname[FN_REFLEN];
   
   const struct command_arg rm_args[] = {
-    { "directory", ARG_STRING, TRUE, &ds_directory,
+    { "directory", ARG_STRING, true, &ds_directory,
       "Directory containing files to delete" },
-    { "pattern", ARG_STRING, TRUE, &ds_wild, "File pattern to delete" },
-    { "retry", ARG_STRING, FALSE, &ds_retry, "Number of retries" }
+    { "pattern", ARG_STRING, true, &ds_wild, "File pattern to delete" },
+    { "retry", ARG_STRING, false, &ds_retry, "Number of retries" }
   };
   DBUG_ENTER("do_remove_files_wildcard");
 
@@ -3519,9 +3519,9 @@ static void do_copy_file(struct st_command *command)
   static DYNAMIC_STRING ds_retry;
 
   const struct command_arg copy_file_args[] = {
-    { "from_file", ARG_STRING, TRUE, &ds_from_file, "Filename to copy from" },
-    { "to_file", ARG_STRING, TRUE, &ds_to_file, "Filename to copy to" },
-    { "retry", ARG_STRING, FALSE, &ds_retry, "Number of retries" }
+    { "from_file", ARG_STRING, true, &ds_from_file, "Filename to copy from" },
+    { "to_file", ARG_STRING, true, &ds_to_file, "Filename to copy to" },
+    { "retry", ARG_STRING, false, &ds_retry, "Number of retries" }
   };
   DBUG_ENTER("do_copy_file");
 
@@ -3727,9 +3727,9 @@ static void do_force_cpdir(struct st_command * command)
   static DYNAMIC_STRING ds_destination;
 
   const struct command_arg copy_file_args[] = {
-    { "from_directory", ARG_STRING, TRUE, &ds_source,
+    { "from_directory", ARG_STRING, true, &ds_source,
       "Directory to copy from" },
-    { "to_directory", ARG_STRING, TRUE, &ds_destination,
+    { "to_directory", ARG_STRING, true, &ds_destination,
       "Directory to copy to" }
   };
 
@@ -3784,12 +3784,12 @@ static void do_copy_files_wildcard(struct st_command * command)
   static DYNAMIC_STRING ds_retry;
 
   const struct command_arg copy_file_args[] = {
-    { "from_directory", ARG_STRING, TRUE, &ds_source,
+    { "from_directory", ARG_STRING, true, &ds_source,
       "Directory to copy from" },
-    { "to_directory", ARG_STRING, TRUE, &ds_destination,
+    { "to_directory", ARG_STRING, true, &ds_destination,
       "Directory to copy to" },
-    { "pattern", ARG_STRING, TRUE, &ds_wild, "File name pattern"},
-    { "retry", ARG_STRING, FALSE, &ds_retry, "Number of retries"}
+    { "pattern", ARG_STRING, true, &ds_wild, "File name pattern"},
+    { "retry", ARG_STRING, false, &ds_retry, "Number of retries"}
   };
   DBUG_ENTER("do_copy_files_wildcard");
 
@@ -3962,9 +3962,9 @@ static void do_move_file(struct st_command *command)
   static DYNAMIC_STRING ds_retry;
 
   const struct command_arg move_file_args[] = {
-    { "from_file", ARG_STRING, TRUE, &ds_from_file, "Filename to move from" },
-    { "to_file", ARG_STRING, TRUE, &ds_to_file, "Filename to move to" },
-    { "retry", ARG_STRING, FALSE, &ds_retry, "Number of retries" }
+    { "from_file", ARG_STRING, true, &ds_from_file, "Filename to move from" },
+    { "to_file", ARG_STRING, true, &ds_to_file, "Filename to move to" },
+    { "retry", ARG_STRING, false, &ds_retry, "Number of retries" }
   };
   DBUG_ENTER("do_move_file");
 
@@ -4041,8 +4041,8 @@ static void do_chmod_file(struct st_command *command)
   static DYNAMIC_STRING ds_mode;
   static DYNAMIC_STRING ds_file;
   const struct command_arg chmod_file_args[] = {
-    { "mode", ARG_STRING, TRUE, &ds_mode, "Mode of file(octal) ex. 0660"}, 
-    { "filename", ARG_STRING, TRUE, &ds_file, "Filename of file to modify" }
+    { "mode", ARG_STRING, true, &ds_mode, "Mode of file(octal) ex. 0660"}, 
+    { "filename", ARG_STRING, true, &ds_file, "Filename of file to modify" }
   };
   DBUG_ENTER("do_chmod_file");
 
@@ -4080,8 +4080,8 @@ static void do_file_exist(struct st_command *command)
   static DYNAMIC_STRING ds_retry;
 
   const struct command_arg file_exist_args[] = {
-    { "filename", ARG_STRING, TRUE, &ds_filename, "File to check if it exist" },
-    { "retry", ARG_STRING, FALSE, &ds_retry, "Number of retries" }
+    { "filename", ARG_STRING, true, &ds_filename, "File to check if it exist" },
+    { "retry", ARG_STRING, false, &ds_retry, "Number of retries" }
   };
   DBUG_ENTER("do_file_exist");
 
@@ -4140,7 +4140,7 @@ static void do_mkdir(struct st_command *command)
   int error;
   static DYNAMIC_STRING ds_dirname;
   const struct command_arg mkdir_args[] = {
-    {"dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to create"}
+    {"dirname", ARG_STRING, true, &ds_dirname, "Directory to create"}
   };
   DBUG_ENTER("do_mkdir");
 
@@ -4232,7 +4232,7 @@ static void do_rmdir(struct st_command *command, bool force)
   int error;
   static DYNAMIC_STRING ds_dirname;
   const struct command_arg rmdir_args[] = {
-    {"dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to remove"}
+    {"dirname", ARG_STRING, true, &ds_dirname, "Directory to remove"}
   };
   DBUG_ENTER("do_rmdir");
 
@@ -4312,8 +4312,8 @@ static void do_list_files(struct st_command *command)
   static DYNAMIC_STRING ds_dirname;
   static DYNAMIC_STRING ds_wild;
   const struct command_arg list_files_args[] = {
-    {"dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to list"},
-    {"file", ARG_STRING, FALSE, &ds_wild, "Filename (incl. wildcard)"}
+    {"dirname", ARG_STRING, true, &ds_dirname, "Directory to list"},
+    {"file", ARG_STRING, false, &ds_wild, "Filename (incl. wildcard)"}
   };
   DBUG_ENTER("do_list_files");
   command->used_replace= 1;
@@ -4353,9 +4353,9 @@ static void do_list_files_write_file_command(struct st_command *command,
   static DYNAMIC_STRING ds_dirname;
   static DYNAMIC_STRING ds_wild;
   const struct command_arg list_files_args[] = {
-    {"filename", ARG_STRING, TRUE, &ds_filename, "Filename for write"},
-    {"dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to list"},
-    {"file", ARG_STRING, FALSE, &ds_wild, "Filename (incl. wildcard)"}
+    {"filename", ARG_STRING, true, &ds_filename, "Filename for write"},
+    {"dirname", ARG_STRING, true, &ds_dirname, "Directory to list"},
+    {"file", ARG_STRING, false, &ds_wild, "Filename (incl. wildcard)"}
   };
   DBUG_ENTER("do_list_files_write_file");
   command->used_replace= 1;
@@ -4455,8 +4455,8 @@ static void do_write_file_command(struct st_command *command, bool append)
   static DYNAMIC_STRING ds_filename;
   static DYNAMIC_STRING ds_delimiter;
   const struct command_arg write_file_args[] = {
-    { "filename", ARG_STRING, TRUE, &ds_filename, "File to write to" },
-    { "delimiter", ARG_STRING, FALSE, &ds_delimiter, "Delimiter to read until" }
+    { "filename", ARG_STRING, true, &ds_filename, "File to write to" },
+    { "delimiter", ARG_STRING, false, &ds_delimiter, "Delimiter to read until" }
   };
   DBUG_ENTER("do_write_file");
 
@@ -4525,7 +4525,7 @@ static void do_write_file_command(struct st_command *command, bool append)
 
 static void do_write_file(struct st_command *command)
 {
-  do_write_file_command(command, FALSE);
+  do_write_file_command(command, false);
 }
 
 
@@ -4556,7 +4556,7 @@ static void do_write_file(struct st_command *command)
 
 static void do_append_file(struct st_command *command)
 {
-  do_write_file_command(command, TRUE);
+  do_write_file_command(command, true);
 }
 
 
@@ -4577,7 +4577,7 @@ static void do_cat_file(struct st_command *command)
   int error;
   static DYNAMIC_STRING ds_filename;
   const struct command_arg cat_file_args[] = {
-    { "filename", ARG_STRING, TRUE, &ds_filename, "File to read from" }
+    { "filename", ARG_STRING, true, &ds_filename, "File to read from" }
   };
   DBUG_ENTER("do_cat_file");
 
@@ -4614,8 +4614,8 @@ static void do_diff_files(struct st_command *command)
   static DYNAMIC_STRING ds_filename;
   static DYNAMIC_STRING ds_filename2;
   const struct command_arg diff_file_args[] = {
-    { "file1", ARG_STRING, TRUE, &ds_filename, "First file to diff" },
-    { "file2", ARG_STRING, TRUE, &ds_filename2, "Second file to diff" }
+    { "file1", ARG_STRING, true, &ds_filename, "First file to diff" },
+    { "file2", ARG_STRING, true, &ds_filename2, "Second file to diff" }
   };
   DBUG_ENTER("do_diff_files");
 
@@ -4725,9 +4725,9 @@ static void do_change_user(struct st_command *command)
   MYSQL *mysql = &cur_con->mysql;
   static DYNAMIC_STRING ds_user, ds_passwd, ds_db;
   const struct command_arg change_user_args[] = {
-    { "user", ARG_STRING, FALSE, &ds_user, "User to connect as" },
-    { "password", ARG_STRING, FALSE, &ds_passwd, "Password used when connecting" },
-    { "database", ARG_STRING, FALSE, &ds_db, "Database to select after connect" },
+    { "user", ARG_STRING, false, &ds_user, "User to connect as" },
+    { "password", ARG_STRING, false, &ds_passwd, "Password used when connecting" },
+    { "database", ARG_STRING, false, &ds_db, "Database to select after connect" },
   };
 
   DBUG_ENTER("do_change_user");
@@ -4802,7 +4802,7 @@ static void do_perl(struct st_command *command)
   static DYNAMIC_STRING ds_script;
   static DYNAMIC_STRING ds_delimiter;
   const struct command_arg perl_args[] = {
-    { "delimiter", ARG_STRING, FALSE, &ds_delimiter, "Delimiter to read until" }
+    { "delimiter", ARG_STRING, false, &ds_delimiter, "Delimiter to read until" }
   };
   DBUG_ENTER("do_perl");
 
@@ -4915,7 +4915,7 @@ static int do_echo(struct st_command *command)
   DBUG_ENTER("do_echo");
 
   init_dynamic_string(&ds_echo, "", command->query_len, 256);
-  do_eval(&ds_echo, command->first_argument, command->end, FALSE);
+  do_eval(&ds_echo, command->first_argument, command->end, false);
   dynstr_append_mem(&ds_res, ds_echo.str, ds_echo.length);
   dynstr_append_mem(&ds_res, "\n", 1);
   dynstr_free(&ds_echo);
@@ -5516,7 +5516,7 @@ static void do_let(struct st_command *command)
   while (*p && my_isspace(charset_info,*p))
     p++;
 
-  do_eval(&let_rhs_expr, p, command->end, FALSE);
+  do_eval(&let_rhs_expr, p, command->end, false);
 
   command->last_argument= command->end;
   /* Assign var_val to var_name */
@@ -5558,7 +5558,7 @@ static int do_sleep(struct st_command *command, bool real_sleep)
   char *p;
   static DYNAMIC_STRING ds_sleep;
   const struct command_arg sleep_args[] = {
-    { "sleep_delay", ARG_STRING, TRUE, &ds_sleep, "Number of seconds to sleep." }
+    { "sleep_delay", ARG_STRING, true, &ds_sleep, "Number of seconds to sleep." }
   };
   check_command_args(command, command->first_argument, sleep_args,
                      sizeof(sleep_args)/sizeof(struct command_arg),
@@ -5657,7 +5657,7 @@ static bool is_process_active(int pid)
 #ifdef _WIN32
   DWORD exit_code;
   HANDLE proc;
-  proc= OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
+  proc= OpenProcess(PROCESS_QUERY_INFORMATION, false, pid);
   if (proc == NULL)
     return false;  /* Process could not be found. */
 
@@ -5686,7 +5686,7 @@ static bool kill_process(int pid)
   bool killed= true;
 #ifdef _WIN32
   HANDLE proc;
-  proc= OpenProcess(PROCESS_TERMINATE, FALSE, pid);
+  proc= OpenProcess(PROCESS_TERMINATE, false, pid);
   if (proc == NULL)
     return true;  /* Process could not be found. */
 
@@ -5711,7 +5711,7 @@ static void abort_process(int pid, const char *path MY_ATTRIBUTE((unused)))
 {
 #ifdef _WIN32
   HANDLE proc;
-  proc= OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+  proc= OpenProcess(PROCESS_ALL_ACCESS, false, pid);
   verbose_msg("Aborting pid %d (handle: %p)\n", pid, proc);
   if (proc != NULL)
   {
@@ -5791,7 +5791,7 @@ static void do_shutdown_server(struct st_command *command)
   MYSQL* mysql = &cur_con->mysql;
   static DYNAMIC_STRING ds_timeout;
   const struct command_arg shutdown_args[] = {
-    {"timeout", ARG_STRING, FALSE, &ds_timeout, "Timeout before killing server"}
+    {"timeout", ARG_STRING, false, &ds_timeout, "Timeout before killing server"}
   };
   DBUG_ENTER("do_shutdown_server");
 
@@ -6213,7 +6213,7 @@ static void select_connection(struct st_command *command)
   DBUG_ENTER("select_connection");
   static DYNAMIC_STRING ds_connection;
   const struct command_arg connection_args[] = {
-    { "connection_name", ARG_STRING, TRUE, &ds_connection, "Name of the connection that we switch to." }
+    { "connection_name", ARG_STRING, true, &ds_connection, "Name of the connection that we switch to." }
   };
   check_command_args(command, command->first_argument, connection_args,
                      sizeof(connection_args)/sizeof(struct command_arg),
@@ -6233,7 +6233,7 @@ static void do_close_connection(struct st_command *command)
   struct st_connection *con;
   static DYNAMIC_STRING ds_connection;
   const struct command_arg close_connection_args[] = {
-    { "connection_name", ARG_STRING, TRUE, &ds_connection,
+    { "connection_name", ARG_STRING, true, &ds_connection,
       "Name of the connection to close." }
   };
   check_command_args(command, command->first_argument,
@@ -6265,7 +6265,7 @@ static void do_close_connection(struct st_command *command)
   if (con->util_mysql)
     mysql_close(con->util_mysql);
   con->util_mysql= 0;
-  con->pending= FALSE;
+  con->pending= false;
   
   my_free(con->name);
 
@@ -6545,15 +6545,15 @@ static void do_connect(struct st_command *command)
   static DYNAMIC_STRING ds_default_auth;
   static DYNAMIC_STRING ds_shm;
   const struct command_arg connect_args[] = {
-    { "connection name", ARG_STRING, TRUE, &ds_connection_name, "Name of the connection" },
-    { "host", ARG_STRING, TRUE, &ds_host, "Host to connect to" },
-    { "user", ARG_STRING, FALSE, &ds_user, "User to connect as" },
-    { "passsword", ARG_STRING, FALSE, &ds_password, "Password used when connecting" },
-    { "database", ARG_STRING, FALSE, &ds_database, "Database to select after connect" },
-    { "port", ARG_STRING, FALSE, &ds_port, "Port to connect to" },
-    { "socket", ARG_STRING, FALSE, &ds_sock, "Socket to connect with" },
-    { "options", ARG_STRING, FALSE, &ds_options, "Options to use while connecting" },
-    { "default_auth", ARG_STRING, FALSE, &ds_default_auth, "Default authentication to use" }
+    { "connection name", ARG_STRING, true, &ds_connection_name, "Name of the connection" },
+    { "host", ARG_STRING, true, &ds_host, "Host to connect to" },
+    { "user", ARG_STRING, false, &ds_user, "User to connect as" },
+    { "passsword", ARG_STRING, false, &ds_password, "Password used when connecting" },
+    { "database", ARG_STRING, false, &ds_database, "Database to select after connect" },
+    { "port", ARG_STRING, false, &ds_port, "Port to connect to" },
+    { "socket", ARG_STRING, false, &ds_sock, "Socket to connect with" },
+    { "options", ARG_STRING, false, &ds_options, "Options to use while connecting" },
+    { "default_auth", ARG_STRING, false, &ds_default_auth, "Default authentication to use" }
   };
 
   DBUG_ENTER("do_connect");
@@ -6680,7 +6680,7 @@ static void do_connect(struct st_command *command)
   }
 #else
   /* keep the compiler happy about con_ssl */
-  con_ssl = con_ssl ? TRUE : FALSE;
+  con_ssl = con_ssl ? true : false;
 #endif
   SSL_SET_OPTIONS(&con_slot->mysql);
 #if defined(HAVE_OPENSSL)
@@ -6892,7 +6892,7 @@ static void do_block(enum block_cmd cmd, struct st_command* command)
   const char *expr_start, *expr_end;
   VAR v;
   const char *cmd_name= (cmd == cmd_while ? "while" : "if");
-  bool not_expr= FALSE;
+  bool not_expr= false;
   DBUG_ENTER("do_block");
   DBUG_PRINT("enter", ("%s", cmd_name));
 
@@ -6909,7 +6909,7 @@ static void do_block(enum block_cmd cmd, struct st_command* command)
     /* Inner block should be ignored too */
     cur_block++;
     cur_block->cmd= cmd;
-    cur_block->ok= FALSE;
+    cur_block->ok= false;
     cur_block->delim[0]= '\0';
     DBUG_VOID_RETURN;
   }
@@ -6925,7 +6925,7 @@ static void do_block(enum block_cmd cmd, struct st_command* command)
   /* Check for !<expr> */
   if (*expr_start == '!')
   {
-    not_expr= TRUE;
+    not_expr= true;
     expr_start++; /* Step past the '!', then any whitespace */
     while (*expr_start && my_isspace(charset_info, *expr_start))
       expr_start++;
@@ -7030,7 +7030,7 @@ static void do_block(enum block_cmd cmd, struct st_command* command)
       die("Impossible operator, this cannot happen");
     }
 
-    v.is_int= TRUE;
+    v.is_int= true;
     var_free()(&v2);
   } else
   {
@@ -7047,14 +7047,14 @@ static void do_block(enum block_cmd cmd, struct st_command* command)
   {
     cur_block->ok= (v.int_val != 0);
   } else
-  /* Any non-empty string which does not begin with 0 is also TRUE */
+  /* Any non-empty string which does not begin with 0 is also true */
   {
     p= v.str_val;
     /* First skip any leading white space or unary -+ */
     while (*p && ((my_isspace(charset_info, *p) || *p == '-' || *p == '+')))
       p++;
 
-    cur_block->ok= (*p && *p != '0') ? TRUE : FALSE;
+    cur_block->ok= (*p && *p != '0') ? true : false;
   }
   
   if (not_expr)
@@ -7177,7 +7177,7 @@ static int read_line(char *buf, int size)
   char *p= buf, *buf_end= buf + size - 1;
   int skip_char= 0;
   int query_comment= 0, query_comment_start= 0, query_comment_end= 0;
-  bool have_slash= FALSE;
+  bool have_slash= false;
   
   enum {R_NORMAL, R_Q, R_SLASH_IN_Q,
         R_COMMENT, R_LINE_START} state= R_LINE_START;
@@ -8053,7 +8053,7 @@ void str_to_file2(const char *fname, char *str, size_t size, bool append)
 
 void str_to_file(const char *fname, char *str, size_t size)
 {
-  str_to_file2(fname, str, size, FALSE);
+  str_to_file2(fname, str, size, false);
 }
 
 
@@ -8569,7 +8569,7 @@ static void run_query_normal(struct st_connection *cn, struct st_command *comman
   }
   if (!(flags & QUERY_REAP_FLAG))
   {
-    cn->pending= TRUE;
+    cn->pending= true;
     DBUG_VOID_RETURN;
   }
   
@@ -8582,7 +8582,7 @@ static void run_query_normal(struct st_connection *cn, struct st_command *comman
     if ((counter==0) && mysql_read_query_result(&cn->mysql))
     {
       /* we've failed to collect the result set */
-      cn->pending= TRUE;
+      cn->pending= true;
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
 		   mysql_sqlstate(mysql), ds);
       goto end;
@@ -8662,7 +8662,7 @@ static void run_query_normal(struct st_connection *cn, struct st_command *comman
 
 end:
 
-  cn->pending= FALSE;
+  cn->pending= false;
   /*
     We save the return code (mysql_errno(mysql)) from the last call sent
     to the server into the mysqltest builtin variable $mysql_errno. This
@@ -9160,7 +9160,7 @@ static void run_query(struct st_connection *cn, struct st_command *command, int 
   if (command->type == Q_EVAL || command->type == Q_SEND_EVAL)
   {
     init_dynamic_string(&eval_query, "", command->query_len+256, 1024);
-    do_eval(&eval_query, command->query, command->end, FALSE);
+    do_eval(&eval_query, command->query, command->end, false);
     query = eval_query.str;
     query_len = eval_query.length;
   }
@@ -9367,8 +9367,8 @@ static void display_opt_trace(struct st_connection *cn,
 
     /* Sorted trace is not readable at all, don't bother to lower case */
     /* No need to keep old values, will be reset anyway */
-    display_result_sorted= FALSE;
-    display_result_lower= FALSE;
+    display_result_sorted= false;
+    display_result_lower= false;
     run_query(cn, command, flags);
 
     dynstr_free(&query_str);
@@ -9816,7 +9816,7 @@ int main(int argc, char **argv)
   block_stack_end=
     block_stack + (sizeof(block_stack)/sizeof(struct st_block)) - 1;
   cur_block= block_stack;
-  cur_block->ok= TRUE; /* Outer block should always be executed */
+  cur_block->ok= true; /* Outer block should always be executed */
   cur_block->cmd= cmd_none;
 
   q_lines= new Q_lines(PSI_NOT_INSTRUMENTED);
@@ -10136,10 +10136,10 @@ int main(int argc, char **argv)
       case Q_FORCE_CPDIR: do_force_cpdir(command); break;
       case Q_LIST_FILES: do_list_files(command); break;
       case Q_LIST_FILES_WRITE_FILE:
-        do_list_files_write_file_command(command, FALSE);
+        do_list_files_write_file_command(command, false);
         break;
       case Q_LIST_FILES_APPEND_FILE:
-        do_list_files_write_file_command(command, TRUE);
+        do_list_files_write_file_command(command, true);
         break;
       case Q_FILE_EXIST: do_file_exist(command); break;
       case Q_WRITE_FILE: do_write_file(command); break;
@@ -10159,24 +10159,24 @@ int main(int argc, char **argv)
         do_delimiter(command);
 	break;
       case Q_DISPLAY_VERTICAL_RESULTS:
-        display_result_vertically= TRUE;
+        display_result_vertically= true;
         break;
       case Q_DISPLAY_HORIZONTAL_RESULTS:
-	display_result_vertically= FALSE;
+	display_result_vertically= false;
         break;
       case Q_SORTED_RESULT:
         /*
           Turn on sorting of result set, will be reset after next
           command
         */
-	display_result_sorted= TRUE;
+	display_result_sorted= true;
         break;
       case Q_LOWERCASE:
         /*
           Turn on lowercasing of result, will be reset after next
           command
         */
-        display_result_lower= TRUE;
+        display_result_lower= true;
         break;
       case Q_LET: do_let(command); break;
       case Q_EXPR:
@@ -10400,7 +10400,7 @@ int main(int argc, char **argv)
           init_dynamic_string(&ds_skip_msg, 0, command->query_len, 256);
 
           // Evaluate the skip message
-          do_eval(&ds_skip_msg, command->first_argument, command->end, FALSE);
+          do_eval(&ds_skip_msg, command->first_argument, command->end, false);
 
           char skip_msg[FN_REFLEN];
           strmake(skip_msg, ds_skip_msg.str, FN_REFLEN - 1);
@@ -10435,7 +10435,7 @@ int main(int argc, char **argv)
         {
           static DYNAMIC_STRING ds_to_file;
           const struct command_arg output_file_args[] = 
-            {{ "to_file", ARG_STRING, TRUE, &ds_to_file, "Output filename" }};
+            {{ "to_file", ARG_STRING, true, &ds_to_file, "Output filename" }};
           check_command_args(command, command->first_argument,
                              output_file_args, 1, ' ');
           strmake(output_file, ds_to_file.str, FN_REFLEN);
@@ -10483,8 +10483,8 @@ int main(int argc, char **argv)
       free_all_replace();
 
       /* Also reset "sorted_result" and "lowercase"*/
-      display_result_sorted= FALSE;
-      display_result_lower= FALSE;
+      display_result_sorted= false;
+      display_result_lower= false;
     }
     last_command_executed= command_executed;
 
@@ -10515,7 +10515,7 @@ int main(int argc, char **argv)
   if (parsing_disabled)
     die("Test ended with parsing disabled");
 
-  bool empty_result= FALSE;
+  bool empty_result= false;
   
   /*
     The whole test has been executed _sucessfully_.
@@ -10555,7 +10555,7 @@ int main(int argc, char **argv)
     }
     else 
     {
-      empty_result= TRUE;  /* Meaning empty was expected */
+      empty_result= true;  /* Meaning empty was expected */
     }
   }
 
@@ -10693,7 +10693,7 @@ void do_get_replace_numeric_round(struct st_command *command)
 {
   DYNAMIC_STRING ds_round;
   const struct command_arg numeric_arg =
-    { "precision", ARG_STRING, TRUE, &ds_round,
+    { "precision", ARG_STRING, true, &ds_round,
       "Number of decimal precision"};
   DBUG_ENTER("get_replace_numeric_round");
 

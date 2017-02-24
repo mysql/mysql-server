@@ -415,7 +415,7 @@ public:
     part_field_buffers(NULL), subpart_field_buffers(NULL),
     restore_part_field_ptrs(NULL), restore_subpart_field_ptrs(NULL),
     part_expr(NULL), subpart_expr(NULL), item_free_list(NULL),
-    bitmaps_are_initialized(FALSE),
+    bitmaps_are_initialized(false),
     list_array(NULL), err_value(0),
     part_func_string(NULL), subpart_func_string(NULL),
     num_columns(0), table(NULL),
@@ -427,13 +427,13 @@ public:
     num_list_values(0), num_part_fields(0), num_subpart_fields(0),
     num_full_part_fields(0), has_null_part_id(0), linear_hash_mask(0),
     key_algorithm(enum_key_algorithm::KEY_ALGORITHM_NONE),
-    use_default_partitions(TRUE), use_default_num_partitions(TRUE),
-    use_default_subpartitions(TRUE), use_default_num_subpartitions(TRUE),
-    default_partitions_setup(FALSE), defined_max_value(FALSE),
-    list_of_part_fields(FALSE), list_of_subpart_fields(FALSE),
-    linear_hash_ind(FALSE), fixed(FALSE),
-    is_auto_partitioned(FALSE),
-    has_null_value(FALSE), column_list(FALSE), is_pruning_completed(false)
+    use_default_partitions(true), use_default_num_partitions(true),
+    use_default_subpartitions(true), use_default_num_subpartitions(true),
+    default_partitions_setup(false), defined_max_value(false),
+    list_of_part_fields(false), list_of_subpart_fields(false),
+    linear_hash_ind(false), fixed(false),
+    is_auto_partitioned(false),
+    has_null_value(false), column_list(false), is_pruning_completed(false)
   {
     partitions.empty();
     temp_partitions.empty();
@@ -563,7 +563,7 @@ static inline void init_single_partition_iterator(uint32 part_id,
 {
   part_iter->part_nums.start= part_iter->part_nums.cur= part_id;
   part_iter->part_nums.end= part_id+1;
-  part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
+  part_iter->ret_null_part= part_iter->ret_null_part_orig= false;
   part_iter->get_next= get_next_partition_id_range;
 }
 
@@ -574,7 +574,7 @@ void init_all_partitions_iterator(partition_info *part_info,
 {
   part_iter->part_nums.start= part_iter->part_nums.cur= 0;
   part_iter->part_nums.end= part_info->num_parts;
-  part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
+  part_iter->ret_null_part= part_iter->ret_null_part_orig= false;
   part_iter->get_next= get_next_partition_id_range;
 }
 

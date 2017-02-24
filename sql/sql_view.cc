@@ -108,7 +108,7 @@ static void make_unique_view_field_name(Item *target,
   for (attempt= 0;; attempt++)
   {
     Item *check;
-    bool ok= TRUE;
+    bool ok= true;
 
     if (attempt)
       name_len= snprintf(buff, NAME_LEN, "My_exp_%d_%s", attempt, name);
@@ -120,7 +120,7 @@ static void make_unique_view_field_name(Item *target,
       check= itc++;
       if (check != target && check->item_name.eq(buff))
       {
-        ok= FALSE;
+        ok= false;
         break;
       }
     } while (check != last_element);
@@ -205,11 +205,11 @@ bool check_duplicate_names(const Create_col_name_list *column_names,
       }
     }
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 
 err:
   my_error(ER_DUP_FIELDNAME, MYF(0), item->item_name.ptr());
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 
@@ -259,8 +259,8 @@ static void make_valid_column_names(LEX *lex)
     to preserve the original view instance.
 
   RETURN VALUE
-    TRUE                 can't open table
-    FALSE                success
+    true                 can't open table
+    false                success
 */
 static bool fill_defined_view_parts(THD *thd, TABLE_LIST *view)
 {
@@ -308,7 +308,7 @@ static bool fill_defined_view_parts(THD *thd, TABLE_LIST *view)
     lex->create_view_suid= decoy.view_suid ? 
       VIEW_SUID_DEFINER : VIEW_SUID_INVOKER;
 
-  return FALSE;
+  return false;
 }
 
 
@@ -320,8 +320,8 @@ static bool fill_defined_view_parts(THD *thd, TABLE_LIST *view)
   @param view views to create
   @param mode VIEW_CREATE_NEW, VIEW_ALTER, VIEW_CREATE_OR_REPLACE
 
-  @retval FALSE Operation was a success.
-  @retval TRUE An error occured.
+  @retval false Operation was a success.
+  @retval true An error occured.
 */
 
 bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
@@ -355,13 +355,13 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
                       &view->grant.privilege,
                       &view->grant.m_internal,
                       0, 0) ||
-         check_grant(thd, CREATE_VIEW_ACL, view, FALSE, 1, FALSE)) ||
+         check_grant(thd, CREATE_VIEW_ACL, view, false, 1, false)) ||
         (mode != enum_view_create_mode::VIEW_CREATE_NEW &&
          (check_access(thd, DROP_ACL, view->db,
                        &view->grant.privilege,
                        &view->grant.m_internal,
                        0, 0) ||
-          check_grant(thd, DROP_ACL, view, FALSE, 1, FALSE))))
+          check_grant(thd, DROP_ACL, view, false, 1, false))))
       goto err;
   }
 
@@ -1217,7 +1217,7 @@ bool open_and_read_view(THD *thd, TABLE_SHARE *share,
     view_ref->timestamp.str= view_ref->timestamp_buffer;
 
   // Prepare default values for old format
-  view_ref->view_suid= TRUE;
+  view_ref->view_suid= true;
   view_ref->definer.user.str= view_ref->definer.host.str= 0;
   view_ref->definer.user.length= view_ref->definer.host.length= 0;
 
@@ -2030,7 +2030,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
         if (k == end_of_trans)
           break;                                // Key is not possible
         if (++key_part == key_part_end)
-          DBUG_RETURN(FALSE);                   // Found usable key
+          DBUG_RETURN(false);                   // Found usable key
       }
     }
   }
@@ -2062,14 +2062,14 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
           push_warning(thd, Sql_condition::SL_NOTE,
                        ER_WARN_VIEW_WITHOUT_KEY,
                        ER_THD(thd, ER_WARN_VIEW_WITHOUT_KEY));
-          DBUG_RETURN(FALSE);
+          DBUG_RETURN(false);
         }
         /* prohibit update */
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
     }
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -2082,8 +2082,8 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
     view      view for processing
 
   RETURN
-    FALSE OK
-    TRUE  error (is not sent to cliet)
+    false OK
+    true  error (is not sent to cliet)
 */
 
 bool insert_view_fields(List<Item> *list, TABLE_LIST *view)
@@ -2102,7 +2102,7 @@ bool insert_view_fields(List<Item> *list, TABLE_LIST *view)
     if (fld == NULL)
     {
       my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), entry->name);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
 
     list->push_back(fld);

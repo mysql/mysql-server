@@ -1210,7 +1210,7 @@ create_fromuni(CHARSET_INFO *cs,
     in the character set specific XML file.
   */
   if (!cs->tab_to_uni)
-    return TRUE;
+    return true;
   
   /* Clear plane statistics */
   memset(idx, 0, sizeof(idx));
@@ -1252,7 +1252,7 @@ create_fromuni(CHARSET_INFO *cs,
     if (!(idx[i].uidx.tab= tab= (uchar *)
                                 (loader->once_alloc)
                                   (numchars * sizeof(*idx[i].uidx.tab))))
-      return TRUE;
+      return true;
 
     memset(tab, 0, numchars*sizeof(*idx[i].uidx.tab));
 
@@ -1279,14 +1279,14 @@ create_fromuni(CHARSET_INFO *cs,
   if (!(cs->tab_from_uni= tab_from_uni= (MY_UNI_IDX *)
                                         (loader->once_alloc)
                                           (sizeof(MY_UNI_IDX) * (n + 1))))
-    return TRUE;
+    return true;
 
   for (i=0; i< n; i++)
     tab_from_uni[i]= idx[i].uidx;
 
   /* Set end-of-list marker */
   memset(&tab_from_uni[i], 0, sizeof(MY_UNI_IDX));
-  return FALSE;
+  return false;
 }
 
 extern "C" {
@@ -1325,7 +1325,7 @@ my_coll_init_simple(CHARSET_INFO *cs,
                     MY_CHARSET_LOADER *loader MY_ATTRIBUTE((unused)))
 {
   set_max_sort_char(cs);
-  return FALSE;
+  return false;
 }
 } // extern "C"
 

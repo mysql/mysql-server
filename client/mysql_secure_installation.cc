@@ -46,9 +46,9 @@ static uint opt_protocol= 0;
 static char *opt_socket= 0;
 static MYSQL mysql;
 static char *password= 0;
-static bool password_provided= FALSE;
-static bool g_expire_password_on_exit= FALSE;
-static bool opt_use_default= FALSE;
+static bool password_provided= false;
+static bool g_expire_password_on_exit= false;
+static bool opt_use_default= false;
 
 #if defined (_WIN32)
 static const char *shared_memory_base_name= default_shared_memory_base_name;
@@ -154,7 +154,7 @@ my_arguments_get_one_option(int optid,
     }
     else
       password= get_tty_password(NullS);
-    password_provided= TRUE;
+    password_provided= true;
     break;
 
 #include "sslopt-case.h"
@@ -192,7 +192,7 @@ init_connection_options(MYSQL *mysql)
 
 /**
   Reads the response from stdin and returns the first character.
-  If global variable opt_use_default is TRUE then the default_answer is
+  If global variable opt_use_default is true then the default_answer is
   returned instead.
   @param    opt_message Optional message do be displayed.
   @param    default_answer Answer to be given if no interactivity is allowed.
@@ -207,7 +207,7 @@ static int get_response(const char *opt_message, int default_answer= -1)
   if (opt_message)
   {
     fprintf(stdout, "%s", opt_message);
-    if (opt_use_default == TRUE && default_answer != -1)
+    if (opt_use_default == true && default_answer != -1)
     {
       fprintf(stdout, " %c \n", (char)default_answer);
       return default_answer;
@@ -267,13 +267,13 @@ static void execute_query_with_message(const char *query, const char *opt_messag
   @param   query        The mysql query which is to be executed.
   @param   length       Length of the query in bytes.
 
-  @return    FALSE in case of success
-            TRUE  in case of failure
+  @return   false in case of success
+            true  in case of failure
 */
 static bool execute_query(const char **query, size_t length)
 {
   if (!mysql_real_query(&mysql, (const char *) *query, (ulong)length))
-    return FALSE;
+    return false;
   else if (mysql_errno(&mysql) == CR_SERVER_GONE_ERROR)
   {
     fprintf(stdout, " ... Failed! Error: %s\n", mysql_error(&mysql));
@@ -289,16 +289,16 @@ static bool execute_query(const char **query, size_t length)
     free_resources();
     exit(1);
   }
-  return TRUE;
+  return true;
 }
 
 /**
-  Checks if the validate_password plugin is installed and returns TRUE if it is.
+  Checks if the validate_password plugin is installed and returns true if it is.
 */
 static bool validate_password_exists()
 {
   MYSQL_ROW row;
-  bool res= TRUE;
+  bool res= true;
   const char *query= "SELECT NAME FROM mysql.plugin WHERE NAME "
                      "= \'validate_password\'";
   if (!execute_query(&query, strlen(query)))
@@ -306,7 +306,7 @@ static bool validate_password_exists()
   MYSQL_RES *result= mysql_store_result(&mysql);
   row= mysql_fetch_row(result);
   if (!row)
-    res= FALSE;
+    res= false;
 
   mysql_free_result(result);
   return res;
@@ -323,7 +323,7 @@ static int install_password_validation_plugin()
   int reply;
   int plugin_set= 0;
   char *strength= NULL;
-  bool option_read= FALSE;
+  bool option_read= false;
   reply= get_response((const char *) "\nVALIDATE PASSWORD PLUGIN can be used "
                                      "to test passwords\nand improve security. "
 				     "It checks the strength of password\nand "
@@ -359,15 +359,15 @@ static int install_password_validation_plugin()
 	switch (reply){
 	case (int ) '0':
 	  strength= (char *) "LOW";
-	  option_read= TRUE;
+	  option_read= true;
 	  break;
 	case (int) '1':
 	  strength= (char *) "MEDIUM";
-	  option_read= TRUE;
+	  option_read= true;
 	  break;
 	case (int) '2':
 	  strength= (char *) "STRONG";
-	  option_read= TRUE;
+	  option_read= true;
 	  break;
 	default:
 	  fprintf(stdout, "\nInvalid option provided.\n");
@@ -446,8 +446,8 @@ static void estimate_password_strength(char *password_string)
   mysql_error(mysql)
 
   @return Success or failure
-    @retval TRUE success
-    @retval FALSE failure
+    @retval true success
+    @retval false failure
 */
 
 static bool mysql_set_password(MYSQL *mysql, char *password)
@@ -463,11 +463,11 @@ static bool mysql_set_password(MYSQL *mysql, char *password)
   if (mysql_real_query(mysql, query, (ulong) (end - query)))
   {
     my_free(query);
-    return FALSE;
+    return false;
   }
 
   my_free(query);
-  return TRUE;
+  return true;
 }
 
 
@@ -482,8 +482,8 @@ static bool mysql_set_password(MYSQL *mysql, char *password)
   mysql_error(mysql)
 
   @return Success or failure
-    @retval TRUE success
-    @retval FALSE failure
+    @retval true success
+    @retval false failure
 */
 
 static bool mysql_expire_password(MYSQL *mysql)
@@ -491,9 +491,9 @@ static bool mysql_expire_password(MYSQL *mysql)
   char sql[]= "UPDATE mysql.user SET password_expired= 'Y'";
   size_t sql_len= strlen(sql);
   if (mysql_real_query(mysql, sql, (ulong)sql_len))
-    return FALSE;
+    return false;
 
-  return TRUE;
+  return true;
 }
 
 
@@ -591,7 +591,7 @@ static void set_opt_user_password(int plugin_set)
 */
 static int get_opt_user_password()
 {
-  bool using_temporary_password= FALSE;
+  bool using_temporary_password= false;
   int res;
 
   if (!password_provided)
@@ -617,11 +617,11 @@ static int get_opt_user_password()
         the temporary password file.
       */
       char *temp_pass;
-      if (find_temporary_password(&temp_pass) == TRUE)
+      if (find_temporary_password(&temp_pass) == true)
       {
         my_free(password);
         password= temp_pass;
-        using_temporary_password= TRUE;
+        using_temporary_password= true;
       }
       else
       {
@@ -643,7 +643,7 @@ static int get_opt_user_password()
   {
     if (mysql_errno(&mysql) == ER_MUST_CHANGE_PASSWORD_LOGIN)
     {
-      bool can= TRUE;
+      bool can= true;
       init_connection_options(&mysql);
       mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &can);
       if (!mysql_real_connect(&mysql, opt_host, opt_user,
@@ -669,7 +669,7 @@ static int get_opt_user_password()
           free_resources();
           exit(1);
         }
-        g_expire_password_on_exit= TRUE;
+        g_expire_password_on_exit= true;
       }
       else
       {
@@ -874,7 +874,7 @@ bool find_temporary_password(char **p)
   if (fp == NULL)
   {
     free(path);
-    return FALSE;
+    return false;
   }
 
   /*
@@ -902,13 +902,13 @@ bool find_temporary_password(char **p)
   fprintf(stdout, "Connecting to MySQL server using password in '%s'\n",path);
   
   free(path);
-  return TRUE;
+  return true;
 
   error:
     fprintf(stdout, "The password file '%s' is corrupt! Skipping.\n", path);
     if (path)
       free(path);
-    return FALSE;
+    return false;
 }
 
 
@@ -932,7 +932,7 @@ int main(int argc,char *argv[])
   my_win_translate_command_line_args(&my_charset_utf8mb4_bin, &argc, &argv);
 #endif
 
-  my_getopt_use_args_separator= TRUE;
+  my_getopt_use_args_separator= true;
   if (load_defaults("my", load_default_groups, &argc, &argv, &argv_alloc))
   {
     my_end(0);
@@ -940,10 +940,10 @@ int main(int argc,char *argv[])
     exit(1);
   }
 
-  my_getopt_use_args_separator= FALSE;
+  my_getopt_use_args_separator= false;
 
   if ((rc= my_handle_options(&argc, &argv, my_connection_options,
-                             my_arguments_get_one_option, NULL, TRUE)))
+                             my_arguments_get_one_option, NULL, true)))
   {
     DBUG_ASSERT(0);
   }
@@ -970,7 +970,7 @@ int main(int argc,char *argv[])
     fprintf(stdout, "Please set the password for %s here.\n", opt_user);
     set_opt_user_password(plugin_set);
   }
-  else if (opt_use_default == FALSE)
+  else if (opt_use_default == false)
   {
     char prompt[256];
     fprintf(stdout, "Using existing password for %s.\n", opt_user);
@@ -1005,9 +1005,9 @@ int main(int argc,char *argv[])
     to be marked for expiration upon exit so the DBA will remember to set a new
     one.
   */
-  if (g_expire_password_on_exit == TRUE)
+  if (g_expire_password_on_exit == true)
   {
-    if (mysql_expire_password(&mysql) == FALSE)
+    if (mysql_expire_password(&mysql) == false)
     {
       fprintf(stdout, "... Failed to expire password!\n"
                       "** Please consult the MySQL server documentation. **\n"

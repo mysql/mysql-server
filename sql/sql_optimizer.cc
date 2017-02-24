@@ -1592,7 +1592,7 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
   key_part_map const_key_parts=table->const_key_parts[idx];
   int reverse=0;
   uint key_parts;
-  bool on_pk_suffix= FALSE;
+  bool on_pk_suffix= false;
   // Whether [extented] key has key parts with mixed ASC/DESC order
   bool mixed_order= false;
   // Order direction of the first key part
@@ -1634,7 +1634,7 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
           table->s->primary_key != MAX_KEY &&
           table->s->primary_key != idx)
       {
-        on_pk_suffix= TRUE;
+        on_pk_suffix= true;
         key_part= table->key_info[table->s->primary_key].key_part;
         key_part_end=key_part +
           table->key_info[table->s->primary_key].user_defined_key_parts;
@@ -2523,7 +2523,7 @@ check_reverse_order:
         tab->ref().key= -1;
         tab->ref().key_parts=0;		// Don't use ref key.
         if (tab->quick()->is_loose_index_scan())
-          join->tmp_table_param.precomputed_group_by= TRUE;
+          join->tmp_table_param.precomputed_group_by= true;
         tab->position()->filter_effect= COND_FILTER_STALE;
       }
     } // best_key >= 0
@@ -3459,7 +3459,7 @@ no_join_cache:
   Remove all dummy tests 'item = item', 'const op const'.
   Remove all 'item is NULL', when item can never be null!
   item->marker should be 0 for all items on entry
-  Return in cond_value FALSE if condition is impossible (1 = 2)
+  Return in cond_value false if condition is impossible (1 = 2)
 *****************************************************************************/
 
 class COND_CMP :public ilink<COND_CMP> {
@@ -3484,11 +3484,11 @@ public:
   The function retrieves the multiple equalities accessed through
   the cond_equal structure from current level and up looking for
   an equality containing a field. It stops retrieval as soon as the equality
-  is found and set up inherited_fl to TRUE if it's found on upper levels.
+  is found and set up inherited_fl to true if it's found on upper levels.
 
   @param cond_equal          multiple equalities to search in
   @param item_field          field to look for
-  @param[out] inherited_fl   set up to TRUE if multiple equality is found
+  @param[out] inherited_fl   set up to true if multiple equality is found
                              on upper levels (not on current level of
                              cond_equal)
 
@@ -3502,7 +3502,7 @@ static Item_equal *find_item_equal(COND_EQUAL *cond_equal,
                                    bool *inherited_fl)
 {
   Item_equal *item= 0;
-  bool in_upper_level= FALSE;
+  bool in_upper_level= false;
   while (cond_equal)
   {
     List_iterator_fast<Item_equal> li(cond_equal->current_level);
@@ -3511,10 +3511,10 @@ static Item_equal *find_item_equal(COND_EQUAL *cond_equal,
       if (item->contains(item_field->field))
         goto finish;
     }
-    in_upper_level= TRUE;
+    in_upper_level= true;
     cond_equal= cond_equal->upper_levels;
   }
-  in_upper_level= FALSE;
+  in_upper_level= false;
 finish:
   *inherited_fl= in_upper_level;
   return item;
@@ -6035,9 +6035,9 @@ void JOIN::set_semijoin_embedding()
   @brief Check if semijoin's compared types allow materialization.
 
   @param[inout] sj_nest Semi-join nest containing information about correlated
-         expressions. Set nested_join->sjm.scan_allowed to TRUE if
+         expressions. Set nested_join->sjm.scan_allowed to true if
          MaterializeScan strategy allowed. Set nested_join->sjm.lookup_allowed
-         to TRUE if MaterializeLookup strategy allowed
+         to true if MaterializeLookup strategy allowed
 
   @details
     This is a temporary fix for BUG#36752.
@@ -6474,7 +6474,7 @@ static void add_not_null_conds(JOIN *join)
   @param  item           Expression to check
   @param  tbl            The table having the index
   @param  keyno          The index number
-  @param  other_tbls_ok  TRUE <=> Fields of other non-const tables are allowed
+  @param  other_tbls_ok  true <=> Fields of other non-const tables are allowed
 
   @return false if No, true if Yes
 */
@@ -6509,10 +6509,10 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
         for (Item **child= item_func->arguments(); child != item_end; child++)
         {
           if (!uses_index_fields_only(*child, tbl, keyno, other_tbls_ok))
-            return FALSE;
+            return false;
         }
       }
-      return TRUE;
+      return true;
     }
   case Item::COND_ITEM:
     {
@@ -6527,9 +6527,9 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
       while ((item=li++))
       {
         if (!uses_index_fields_only(item, tbl, keyno, other_tbls_ok))
-          return FALSE;
+          return false;
       }
-      return TRUE;
+      return true;
     }
   case Item::FIELD_ITEM:
     {
@@ -6548,7 +6548,7 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
     return uses_index_fields_only(item->real_item(), tbl, keyno,
                                   other_tbls_ok);
   default:
-    return FALSE; /* Play it safe, don't push unknown non-const items */
+    return false; /* Play it safe, don't push unknown non-const items */
   }
 }
 
@@ -6649,8 +6649,8 @@ static bool optimize_semijoin_nests_for_materialization(JOIN *join)
     search
 
   RETURN
-    TRUE  - There exists an eq_ref(outer-tables) candidate
-    FALSE - Otherwise
+    true  - There exists an eq_ref(outer-tables) candidate
+    false - Otherwise
 */
 
 static bool find_eq_ref_candidate(TABLE_LIST *tl, table_map sj_inner_tables)
@@ -6779,7 +6779,7 @@ static bool pull_out_semijoin_tables(JOIN *join)
     bool pulled_a_table;
     do 
     {
-      pulled_a_table= FALSE;
+      pulled_a_table= false;
       child_li.rewind();
       while ((tbl= child_li++))
       {
@@ -6791,7 +6791,7 @@ static bool pull_out_semijoin_tables(JOIN *join)
                                     sj_nest->nested_join->used_tables & 
                                     ~pulled_tables))
           {
-            pulled_a_table= TRUE;
+            pulled_a_table= true;
             pulled_tables |= tbl->map();
             Opt_trace_object(trace).add_utf8_table(tbl).
               add("functionally_dependent", true);
@@ -6837,7 +6837,7 @@ static bool pull_out_semijoin_tables(JOIN *join)
           child_li.remove();
 
           if (upper_join_list->push_back(tbl))
-            DBUG_RETURN(TRUE);
+            DBUG_RETURN(true);
 
           tbl->join_list= upper_join_list;
           tbl->embedding= sj_nest->embedding;
@@ -6857,7 +6857,7 @@ static bool pull_out_semijoin_tables(JOIN *join)
       }
     }
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -6985,12 +6985,12 @@ merge_key_fields(Key_field *start, Key_field *new_fields, Key_field *end,
       {
         /*
           NOTE: below const_item() call really works as "!used_tables()", i.e.
-          it can return FALSE where it is feasible to make it return TRUE.
+          it can return false where it is feasible to make it return true.
           
           The cause is as follows: Some of the tables are already known to be
           const tables (the detection code is in JOIN::make_join_plan(),
           above the update_ref_and_keys() call), but we didn't propagate 
-          information about this: TABLE::const_table is not set to TRUE, and
+          information about this: TABLE::const_table is not set to true, and
           Item::update_used_tables() hasn't been called for each item.
           The result of this is that we're missing some 'ref' accesses.
           TODO: OptimizerTeam: Fix this
@@ -7445,8 +7445,8 @@ add_key_equal_fields(Key_field **key_fields, uint and_level,
   @param   field  Item expression to check
 
   @return boolean
-     @retval TRUE   the expression is a local field
-     @retval FALSE  it's something else
+     @retval true   the expression is a local field
+     @retval false  it's something else
 */
 
 static bool
@@ -7619,13 +7619,13 @@ add_key_fields(JOIN *join, Key_field **key_fields, uint *and_level,
     if (cond_func->functype() == Item_func::BETWEEN)
     {
       Item_field *field_item;
-      bool equal_func= FALSE;
+      bool equal_func= false;
       uint num_values= 2;
       values= cond_func->arguments();
 
       bool binary_cmp= (values[0]->real_item()->type() == Item::FIELD_ITEM)
             ? ((Item_field*)values[0]->real_item())->field->binary()
-            : TRUE;
+            : true;
 
       /*
         Additional optimization: If 'low = high':
@@ -7634,7 +7634,7 @@ add_key_fields(JOIN *join, Key_field **key_fields, uint *and_level,
       if (!((Item_func_between*)cond_func)->negated &&
           values[1]->eq(values[2], binary_cmp))
       {
-        equal_func= TRUE;
+        equal_func= true;
         num_values= 1;
       }
 
@@ -7839,7 +7839,7 @@ add_key_fields(JOIN *join, Key_field **key_fields, uint *and_level,
       while ((item= it++))
       {
         add_key_field(key_fields, *and_level, cond_func, item,
-                      TRUE, &const_item, 1, usable_tables, sargables);
+                      true, &const_item, 1, usable_tables, sargables);
       }
     }
     else 
@@ -7956,7 +7956,7 @@ add_ft_keys(Key_use_array *keyuse_array,
   Item_func_match *cond_func=NULL;
 
   if (!cond)
-    return FALSE;
+    return false;
 
   if (cond->type() == Item::FUNC_ITEM)
   {
@@ -8015,14 +8015,14 @@ add_ft_keys(Key_use_array *keyuse_array,
       while ((item=li++))
       {
         if (add_ft_keys(keyuse_array, stat, item, usable_tables, false))
-          return TRUE;
+          return true;
       }
     }
   }
 
   if (!cond_func || cond_func->key == NO_SUCH_KEY ||
       !(usable_tables & cond_func->table_ref->map()))
-    return FALSE;
+    return false;
 
   cond_func->set_simple_expression(simple_match_expr);
 
@@ -8117,12 +8117,12 @@ static void add_key_fields_for_nj(JOIN *join, TABLE_LIST *nested_join_table,
 {
   List_iterator<TABLE_LIST> li(nested_join_table->nested_join->join_list);
   List_iterator<TABLE_LIST> li2(nested_join_table->nested_join->join_list);
-  bool have_another = FALSE;
+  bool have_another = false;
   table_map tables= 0;
   TABLE_LIST *table;
   DBUG_ASSERT(nested_join_table->nested_join);
 
-  while ((table= li++) || (have_another && (li=li2, have_another=FALSE,
+  while ((table= li++) || (have_another && (li=li2, have_another=false,
                                             (table= li++))))
   {
     if (table->nested_join)
@@ -8130,7 +8130,7 @@ static void add_key_fields_for_nj(JOIN *join, TABLE_LIST *nested_join_table,
       if (!table->join_cond_optim())
       {
         /* It's a semi-join nest. Walk into it as if it wasn't a nest */
-        have_another= TRUE;
+        have_another= true;
         li2= li;
         li= List_iterator<TABLE_LIST>(table->nested_join->join_list); 
       }
@@ -8452,7 +8452,7 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
     (((select_lex->cond_count + 1) * 2 +
       select_lex->between_count) * m + 1);
   if (!(key_fields=(Key_field*)	thd->alloc(sz)))
-    return TRUE; /* purecov: inspected */
+    return true; /* purecov: inspected */
   and_level= 0;
   field= end= key_fields;
   *sargables= (SARGABLE_PARAM *) key_fields + 
@@ -8545,7 +8545,7 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
 
     const Key_use key_end(NULL, NULL, 0, 0, 0, 0, 0, 0, false, NULL, 0);
     if (keyuse->push_back(key_end)) // added for easy testing
-      return TRUE;
+      return true;
 
     use= save_pos= keyuse->begin();
     const Key_use *prev= &key_end;
@@ -9094,8 +9094,8 @@ void JOIN::remove_subq_pushed_predicates()
   to which this join corresponds to with help of the TABLE_LIST:generate_keys
   function.
 
-  @return FALSE all keys were successfully added.
-  @return TRUE OOM error
+  @return false all keys were successfully added.
+  @return true OOM error
 */
 
 bool JOIN::generate_derived_keys()
@@ -9107,13 +9107,13 @@ bool JOIN::generate_derived_keys()
        table;
        table= table->next_leaf)
   {
-    table->derived_keys_ready= TRUE;
+    table->derived_keys_ready= true;
     /* Process tables that aren't materialized yet. */
     if (table->uses_materialization() && !table->table->is_created() &&
         table->generate_keys())
-      return TRUE;
+      return true;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -9526,7 +9526,7 @@ make_cond_for_table_from_pred(THD *thd, Item *root_cond, Item *cond,
 
   @param cond Pointer to condition which may contain an arbitrary number of
               predicates, combined using AND, OR and XOR items.
-              If NULL, equivalent to a predicate that returns TRUE for all
+              If NULL, equivalent to a predicate that returns true for all
               row combinations.
 
 
@@ -10476,7 +10476,7 @@ static bool internal_remove_eq_conds(THD *thd, Item *cond,
          *cond_value= tmp_cond_value;
       switch (tmp_cond_value)
       {
-      case Item::COND_OK:                       // Not TRUE or FALSE
+      case Item::COND_OK:                       // Not true or false
         if (and_level || *cond_value == Item::COND_FALSE)
           *cond_value= tmp_cond_value;
         break;
@@ -10695,7 +10695,7 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
           IS NULL should be mapped to LAST_INSERT_ID only for first row, so
           clear for next row
         */
-        thd->substitute_null_with_insert_id= FALSE;
+        thd->substitute_null_with_insert_id= false;
 
         *cond_value= Item::COND_OK;
         *retcond= cond;
@@ -11020,14 +11020,14 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
 {
   DBUG_ENTER("add_ref_to_table_cond");
   if (!join_tab->ref().key_parts)
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
 
   int error= 0;
 
   /* Create a condition representing the const reference. */
   Item_cond_and *cond= create_cond_for_const_ref(thd, join_tab);
   if (!cond)
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   /* Add this condition to the existing select condtion */
   if (join_tab->condition())
@@ -11038,7 +11038,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   join_tab->set_condition(cond);
   Opt_trace_object(&thd->opt_trace).add("added_back_ref_condition", cond);
 
-  DBUG_RETURN(error ? TRUE : FALSE);
+  DBUG_RETURN(error ? true : false);
 }
 
 
@@ -11150,8 +11150,8 @@ bool JOIN::optimize_fts_query()
 
   @param tab  pointer to JOIN_TAB structure.
 
-  @return  TRUE if index only access is possible,
-           FALSE otherwise.
+  @return  true if index only access is possible,
+           false otherwise.
 */
 
 bool JOIN::fts_index_access(JOIN_TAB *tab)

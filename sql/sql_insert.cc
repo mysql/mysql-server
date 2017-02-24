@@ -537,7 +537,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd)
     DBUG_ASSERT(c_rli != NULL);
     if(info.get_duplicate_handling() == DUP_UPDATE &&
        insert_table->next_number_field != NULL &&
-       rpl_master_has_bug(c_rli, 24432, TRUE, NULL, NULL))
+       rpl_master_has_bug(c_rli, 24432, true, NULL, NULL))
       DBUG_RETURN(true);
   }
 
@@ -749,7 +749,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd)
 	*/
         if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                               thd->query().str, thd->query().length,
-			           transactional_table, FALSE, FALSE,
+			           transactional_table, false, false,
                                    errcode))
 	  has_error= true;
       }
@@ -779,7 +779,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd)
   // Remember to restore warning handling before leaving
   thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
 
-  insert_table->auto_increment_field_not_null= FALSE;
+  insert_table->auto_increment_field_not_null= false;
 
   DBUG_ASSERT(has_error == thd->get_stmt_da()->is_error());
   if (has_error)
@@ -1914,7 +1914,7 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
         // Execute the 'AFTER, ON UPDATE' trigger
         trg_error= (table->triggers &&
                     table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                                      TRG_ACTION_AFTER, TRUE));
+                                                      TRG_ACTION_AFTER, true));
         goto ok_or_after_trg_err;
       }
       else /* DUP_REPLACE */
@@ -1992,7 +1992,7 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
         {
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                                TRG_ACTION_BEFORE, TRUE))
+                                                TRG_ACTION_BEFORE, true))
             goto before_trg_err;
           if ((error=table->file->ha_delete_row(table->record[1])))
             goto err;
@@ -2002,7 +2002,7 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
               Transaction_ctx::STMT);
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                                TRG_ACTION_AFTER, TRUE))
+                                                TRG_ACTION_AFTER, true))
           {
             trg_error= 1;
             goto ok_or_after_trg_err;
@@ -2054,7 +2054,7 @@ after_trg_n_copied_inc:
   thd->record_first_successful_insert_id_in_cur_stmt(table->file->insert_id_for_cur_row);
   trg_error= (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_INSERT,
-                                                TRG_ACTION_AFTER, TRUE));
+                                                TRG_ACTION_AFTER, true));
 
 ok_or_after_trg_err:
   if (key)
@@ -2173,7 +2173,7 @@ bool Query_result_insert::prepare(List<Item>&, SELECT_LEX_UNIT *u)
     DBUG_ASSERT(c_rli != NULL);
     if (duplicate_handling == DUP_UPDATE &&
         table->next_number_field != NULL &&
-        rpl_master_has_bug(c_rli, 24432, TRUE, NULL, NULL))
+        rpl_master_has_bug(c_rli, 24432, true, NULL, NULL))
       DBUG_RETURN(true);
   }
 
@@ -2229,7 +2229,7 @@ void Query_result_insert::cleanup()
   if (table)
   {
     table->next_number_field=0;
-    table->auto_increment_field_not_null= FALSE;
+    table->auto_increment_field_not_null= false;
     table->file->ha_reset();
   }
   thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
@@ -2253,7 +2253,7 @@ bool Query_result_insert::send_data(List<Item> &values)
   thd->check_for_truncated_fields= CHECK_FIELD_ERROR_FOR_NULL;
   if (thd->is_error())
   {
-    table->auto_increment_field_not_null= FALSE;
+    table->auto_increment_field_not_null= false;
     DBUG_RETURN(true);
   }
   if (table_list)                               // Not CREATE ... SELECT
@@ -2267,7 +2267,7 @@ bool Query_result_insert::send_data(List<Item> &values)
   }
 
   error= write_record(thd, table, &info, &update);
-  table->auto_increment_field_not_null= FALSE;
+  table->auto_increment_field_not_null= false;
 
   DEBUG_SYNC(thd, "create_select_after_write_rows_event");
 
@@ -2479,7 +2479,7 @@ void Query_result_insert::abort_result_set()
           /* error of writing binary log is ignored */
           (void) thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query().str,
                                    thd->query().length,
-                                   transactional_table, FALSE, FALSE, errcode);
+                                   transactional_table, false, false, errcode);
         }
     }
     DBUG_ASSERT(transactional_table || !changed ||
@@ -2963,7 +2963,7 @@ int Query_result_create::binlog_show_create_table()
   query.length(0);      // Have to zero it since constructor doesn't
 
   result= store_create_info(thd, &tmp_table_list, &query, create_info,
-                            /* show_database */ TRUE);
+                            /* show_database */ true);
   DBUG_ASSERT(result == 0); /* store_create_info() always return 0 */
 
   if (mysql_bin_log.is_open())
@@ -2980,7 +2980,7 @@ int Query_result_create::binlog_show_create_table()
                               query.ptr(), query.length(),
                               /* is_trans */ false,
                               /* direct */ true,
-                              /* suppress_use */ FALSE,
+                              /* suppress_use */ false,
                               errcode);
     DEBUG_SYNC(thd, "create_select_after_write_create_event");
   }
@@ -3261,7 +3261,7 @@ void Query_result_create::abort_result_set()
     thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
   }
   /* possible error of writing binary log is ignored deliberately */
-  (void) thd->binlog_flush_pending_rows_event(TRUE, TRUE);
+  (void) thd->binlog_flush_pending_rows_event(true, true);
 
   if (m_plock)
   {
@@ -3272,7 +3272,7 @@ void Query_result_create::abort_result_set()
 
   if (table)
   {
-    table->auto_increment_field_not_null= FALSE;
+    table->auto_increment_field_not_null= false;
     drop_open_table();
     table=0;                                    // Safety
   }

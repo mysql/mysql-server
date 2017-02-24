@@ -88,13 +88,13 @@ public:
 
   1. Statements
 
-  Statements that have is_update_query(stmt) == TRUE are written into the
+  Statements that have is_update_query(stmt) == true are written into the
   binary log verbatim.
   Examples:
     UPDATE tbl SET tbl.x = spfunc_w_side_effects()
     UPDATE tbl SET tbl.x=1 WHERE spfunc_w_side_effect_that_returns_false(tbl.y)
 
-  Statements that have is_update_query(stmt) == FALSE (e.g. SELECTs) are not
+  Statements that have is_update_query(stmt) == false (e.g. SELECTs) are not
   written into binary log. Instead we catch function calls the statement
   makes and write it into binary log separately (see #3).
 

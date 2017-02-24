@@ -69,7 +69,7 @@ trx_undo_rec_get_cmpl_info(
 	const trx_undo_rec_t*	undo_rec);	/*!< in: undo log record */
 /**********************************************************************//**
 Returns TRUE if an undo log record contains an extern storage field.
-@return TRUE if extern */
+@return true if extern */
 UNIV_INLINE
 ibool
 trx_undo_rec_get_extern_storage(

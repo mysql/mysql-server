@@ -232,7 +232,7 @@ dict_col_get_index_pos(
 /****************************************************************//**
 If the given column name is reserved for InnoDB system columns, return
 TRUE.
-@return TRUE if name is reserved */
+@return true if name is reserved */
 ibool
 dict_col_name_is_reserved(
 /*======================*/
@@ -357,7 +357,7 @@ dict_table_remove_from_cache_debug(
 
 /**********************************************************************//**
 Renames a table object.
-@return TRUE if success */
+@return true if success */
 dberr_t
 dict_table_rename_in_cache(
 /*=======================*/
@@ -416,7 +416,7 @@ dict_foreign_add_to_cache(
 	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Checks if a table is referenced by foreign keys.
-@return TRUE if table is referenced by a foreign key */
+@return true if table is referenced by a foreign key */
 ibool
 dict_table_is_referenced_by_foreign_key(
 /*====================================*/
@@ -769,7 +769,7 @@ dict_table_get_sys_col_no(
 	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Check whether the table uses the compact page format.
-@return TRUE if table uses the compact page format */
+@return true if table uses the compact page format */
 UNIV_INLINE
 ibool
 dict_table_is_comp(
@@ -884,7 +884,7 @@ dict_table_x_unlock_indexes(
 /********************************************************************//**
 Checks if a column is in the ordering columns of the clustered index of a
 table. Column prefixes are treated like whole columns.
-@return TRUE if the column, or its prefix, is in the clustered key */
+@return true if the column, or its prefix, is in the clustered key */
 ibool
 dict_table_col_in_clustered_key(
 /*============================*/
@@ -893,7 +893,7 @@ dict_table_col_in_clustered_key(
 	MY_ATTRIBUTE((warn_unused_result));
 /*******************************************************************//**
 Check if the table has an FTS index.
-@return TRUE if table has an FTS index */
+@return true if table has an FTS index */
 UNIV_INLINE
 ibool
 dict_table_has_fts_index(
@@ -1059,7 +1059,7 @@ dict_index_get_n_ordering_defined_by_user(
 	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Returns TRUE if the index contains a column or a prefix of that column.
-@return TRUE if contains the column or its prefix */
+@return true if contains the column or its prefix */
 ibool
 dict_index_contains_col_or_prefix(
 /*==============================*/
@@ -1115,7 +1115,7 @@ dict_index_copy_types(
 /**********************************************************************//**
 Checks that a tuple has n_fields_cmp value in a sensible range, so that
 no comparison can occur with the page number field in a node pointer.
-@return TRUE if ok */
+@return true if ok */
 ibool
 dict_index_check_search_tuple(
 /*==========================*/
@@ -1328,7 +1328,7 @@ dict_table_stats_unlock(
 
 /********************************************************************//**
 Checks if the database name in two table names is the same.
-@return TRUE if same db name */
+@return true if same db name */
 ibool
 dict_tables_have_same_db(
 /*=====================*/

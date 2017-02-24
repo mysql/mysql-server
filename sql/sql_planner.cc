@@ -496,7 +496,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
           create quick select over another index), so we can't compare
           them to (**). We'll make indirect judgements instead.
           The sufficient conditions for re-use are:
-          (C1) All e_i in (**) are constants, i.e. table_deps==FALSE. (if
+          (C1) All e_i in (**) are constants, i.e. table_deps==false. (if
           this is not satisfied we have no way to know which ranges
           will be actually scanned by 'ref' until we execute the
           join)
@@ -944,7 +944,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
   @param remaining_tables  set of tables not included in the partial plan yet.
   @param idx               the index in join->position[] where 'tab' is added
                            to the partial plan.
-  @param disable_jbuf      TRUE<=> Don't use join buffering
+  @param disable_jbuf      true<=> Don't use join buffering
   @param prefix_rowcount   estimate for the number of records returned by the
                            partial plan
   @param[out] pos          Table access plan
@@ -3254,7 +3254,7 @@ prev_record_reads(JOIN *join, uint idx, table_map found_ref)
 /**
   @brief Fix semi-join strategies for the picked join order
 
-  @return FALSE if success, TRUE if error
+  @return false if success, true if error
 
   @details
     Fix semi-join strategies for the picked join order. This is a step that
@@ -3436,7 +3436,7 @@ bool Optimize_table_order::fix_semijoin_strategies()
 
   DBUG_ASSERT(remaining_tables == (join->all_table_map&~join->const_table_map));
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -3525,10 +3525,10 @@ bool Optimize_table_order::fix_semijoin_strategies()
   @param tab   Table we're going to extend the current partial join with
 
   @retval
-    FALSE  Join order extended, nested joins info about current join
+    false  Join order extended, nested joins info about current join
     order (see NOTE section) updated.
   @retval
-    TRUE   Requested join order extension not allowed.
+    true   Requested join order extension not allowed.
 */
 
 bool Optimize_table_order::check_interleaving_with_nj(JOIN_TAB *tab)

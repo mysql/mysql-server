@@ -642,7 +642,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
   uint const cols_to_create= min<ulong>(target_table->s->fields, size());
 
   // Default value : treat all values signed
-  bool unsigned_flag= FALSE;
+  bool unsigned_flag= false;
 
   // Check if slave_type_conversions contains ALL_UNSIGNED
   unsigned_flag= slave_type_conversions_options &
@@ -689,7 +689,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
       precision= field_metadata(col) >> 8;
       decimals= field_metadata(col) & 0x00ff;
       max_length=
-        my_decimal_precision_to_length(precision, decimals, FALSE);
+        my_decimal_precision_to_length(precision, decimals, false);
       break;
 
     case MYSQL_TYPE_DECIMAL:
@@ -719,11 +719,11 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
     DBUG_PRINT("debug", ("sql_type: %d, target_field: '%s', max_length: %d, decimals: %d,"
                          " maybe_null: %d, unsigned_flag: %d",
                          binlog_type(col), target_table->field[col]->field_name,
-                         max_length, decimals, TRUE, unsigned_flag));
+                         max_length, decimals, true, unsigned_flag));
     field_def->init_for_tmp_table(field_type,
                                   max_length,
                                   decimals,
-                                  TRUE,          // maybe_null
+                                  true,          // maybe_null
                                   unsigned_flag, // unsigned_flag
                                   pack_length_override);
     field_def->charset= target_table->field[col]->charset();

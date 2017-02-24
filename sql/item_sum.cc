@@ -527,7 +527,7 @@ void Item_sum::fix_num_length_and_dec()
 bool Item_sum::resolve_type(THD *)
 {
   maybe_null= true;
-  null_value= TRUE;
+  null_value= true;
 
   const Sumfunctype t= sum_func();
 
@@ -708,7 +708,7 @@ Field *Item_sum::create_tmp_field(bool, TABLE *table)
   Field *field;
   switch (result_type()) {
   case REAL_RESULT:
-    field= new (*THR_MALLOC) Field_double(max_length, maybe_null, item_name.ptr(), decimals, TRUE);
+    field= new (*THR_MALLOC) Field_double(max_length, maybe_null, item_name.ptr(), decimals, true);
     break;
   case INT_RESULT:
     field= new (*THR_MALLOC) Field_longlong(max_length, maybe_null, item_name.ptr(), unsigned_flag);
@@ -791,7 +791,7 @@ int Item_sum::set_aggregator(Aggregator::Aggregator_type aggregator)
   if (aggr && aggregator == aggr->Aggrtype())
   {
     aggr->clear();
-    return FALSE;
+    return false;
   }
 
   destroy(aggr);
@@ -804,7 +804,7 @@ int Item_sum::set_aggregator(Aggregator::Aggregator_type aggregator)
     aggr= new (*THR_MALLOC) Aggregator_simple(this);
     break;
   };
-  return aggr ? FALSE : TRUE;
+  return aggr ? false : true;
 }
 
 
@@ -816,7 +816,7 @@ void Item_sum::cleanup()
     aggr= NULL;
   }
   Item_result_field::cleanup();
-  forced_const= FALSE; 
+  forced_const= false; 
 }
 
 
@@ -843,7 +843,7 @@ void Item_sum::split_sum_func(THD *thd, Ref_item_array ref_item_array,
   if (m_is_window_function)
   {
     for (auto &it : Bounds_checked_array<Item *>(args, arg_count))
-      it->split_sum_func2(thd, ref_item_array, fields, &it, TRUE);
+      it->split_sum_func2(thd, ref_item_array, fields, &it, true);
   }
 }
 
@@ -1000,8 +1000,8 @@ C_MODE_END
  
   @param thd Thread descriptor
   @return status
-    @retval FALSE success
-    @retval TRUE  faliure  
+    @retval false success
+    @retval true  faliure  
 
     Prepares Aggregator_distinct to process the incoming stream.
     Creates the temporary table and the Unique class if needed.
@@ -1010,18 +1010,18 @@ C_MODE_END
 
 bool Aggregator_distinct::setup(THD *thd)
 {
-  endup_done= FALSE;
+  endup_done= false;
   /*
     Setup can be called twice for ROLLUP items. This is a bug.
     Please add DBUG_ASSERT(tree == 0) here when it's fixed.
   */
   if (tree || table || tmp_table_param)
-    return FALSE;
+    return false;
 
   DBUG_ASSERT(thd->lex->current_select() == item_sum->aggr_select);
 
   if (item_sum->setup(thd))
-    return TRUE;
+    return true;
   if (item_sum->sum_func() == Item_sum::COUNT_FUNC || 
       item_sum->sum_func() == Item_sum::COUNT_DISTINCT_FUNC)
   {
@@ -1029,7 +1029,7 @@ bool Aggregator_distinct::setup(THD *thd)
     SELECT_LEX *select_lex= item_sum->aggr_select;
 
     if (!(tmp_table_param= new (thd->mem_root) Temp_table_param))
-      return TRUE;
+      return true;
 
     /**
       Create a table with an unique key over all parameters.
@@ -1086,7 +1086,7 @@ bool Aggregator_distinct::setup(THD *thd)
     if (!(table= create_tmp_table(thd, tmp_table_param, list, NULL, true, false,
                                   select_lex->active_options(),
                                   HA_POS_ERROR, "", TMP_WIN_NONE)))
-      return TRUE;
+      return true;
     table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
     table->no_rows=1;
     if (table->hash_field)
@@ -1102,7 +1102,7 @@ bool Aggregator_distinct::setup(THD *thd)
       void* cmp_arg;
       Field **field= table->field;
       Field **field_end= field + table->s->fields;
-      bool all_binary= TRUE;
+      bool all_binary= true;
 
       for (tree_key_length= 0; field < field_end; ++field)
       {
@@ -1113,7 +1113,7 @@ bool Aggregator_distinct::setup(THD *thd)
             (!f->binary() && (type == MYSQL_TYPE_STRING ||
                              type == MYSQL_TYPE_VAR_STRING)))
         {
-          all_binary= FALSE;
+          all_binary= false;
           break;
         }
       }
@@ -1160,9 +1160,9 @@ bool Aggregator_distinct::setup(THD *thd)
         the server with a DoS attack
       */
       if (! tree)
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
   }
   else
   {
@@ -1172,7 +1172,7 @@ bool Aggregator_distinct::setup(THD *thd)
     DBUG_ENTER("Aggregator_distinct::setup");
     /* It's legal to call setup() more than once when in a subquery */
     if (tree)
-      DBUG_RETURN(FALSE);
+      DBUG_RETURN(false);
 
     /*
       Virtual table and the tree are created anew on each re-execution of
@@ -1180,7 +1180,7 @@ bool Aggregator_distinct::setup(THD *thd)
       mem_root.
     */
     if (field_list.push_back(&field_def))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
 
     item_sum->null_value= item_sum->maybe_null= 1;
     item_sum->quick_group= 0;
@@ -1210,7 +1210,7 @@ bool Aggregator_distinct::setup(THD *thd)
                                  0);
 
     if (! (table= create_tmp_table_from_fields(thd, field_list)))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
 
     /* XXX: check that the case of CHAR(0) works OK */
     tree_key_length= table->s->reclength - table->s->null_bytes;
@@ -1239,7 +1239,7 @@ bool Aggregator_distinct::setup(THD *thd)
 
 void Aggregator_distinct::clear()
 {
-  endup_done= FALSE;
+  endup_done= false;
   item_sum->clear();
   if (tree)
     tree->reset();
@@ -1276,8 +1276,8 @@ void Aggregator_distinct::clear()
   Aggregator_distinct::endup() must be called.
 
   @return status
-    @retval FALSE     success
-    @retval TRUE      failure
+    @retval false     success
+    @retval true      failure
 */
 
 bool Aggregator_distinct::add()
@@ -1300,7 +1300,7 @@ bool Aggregator_distinct::add()
     if (copy_fields(tmp_table_param, table->in_use))
       return true;
     if (copy_funcs(tmp_table_param, table->in_use))
-      return TRUE;
+      return true;
 
     for (Field **field=table->field ; *field ; field++)
       if ((*field)->is_real_null())
@@ -1321,8 +1321,8 @@ bool Aggregator_distinct::add()
       return false;
     if ((error= table->file->ha_write_row(table->record[0])) &&
         !table->file->is_ignorable_error(error))
-      return TRUE;
-    return FALSE;
+      return true;
+    return false;
   }
   else
   {
@@ -1347,7 +1347,7 @@ bool Aggregator_distinct::add()
   we must go over the distinct rows and feed them to the aggregation
   function before returning its value.
   This is what endup () does. It also sets the result validity flag
-  endup_done to TRUE so it will not recalculate the aggregate value
+  endup_done to true so it will not recalculate the aggregate value
   again if the Item_sum hasn't been reset.
 */
 
@@ -1360,7 +1360,7 @@ void Aggregator_distinct::endup()
 
   if (const_distinct ==  CONST_NOT_NULL)
   {
-    endup_done= TRUE;
+    endup_done= true;
     DBUG_VOID_RETURN;
   }
 
@@ -1381,7 +1381,7 @@ void Aggregator_distinct::endup()
     {
       /* everything fits in memory */
       sum->count= (longlong) tree->elements_in_tree();
-      endup_done= TRUE;
+      endup_done= true;
     }
     if (!tree)
     {
@@ -1401,7 +1401,7 @@ void Aggregator_distinct::endup()
           table->file->ha_index_init(0, false);
         sum->count= static_cast<longlong>(num_rows);
       }
-      endup_done= TRUE;
+      endup_done= true;
     }
   }
 
@@ -1418,12 +1418,12 @@ void Aggregator_distinct::endup()
    */
    table->field[0]->set_notnull();
     /* go over the tree of distinct keys and calculate the aggregate value */
-    use_distinct_values= TRUE;
+    use_distinct_values= true;
     tree->walk(item_sum_distinct_walk, (void*) this);
-    use_distinct_values= FALSE;
+    use_distinct_values= false;
   }
   /* prevent consecutive recalculations */
-  endup_done= TRUE;
+  endup_done= true;
   DBUG_VOID_RETURN;
 }
 
@@ -1475,7 +1475,7 @@ bool Item_sum_num::fix_fields(THD *thd, Item **ref)
   }
 
   // Set this value before calling resolve_type()
-  null_value= TRUE;
+  null_value= true;
 
   if (resolve_type(thd))
     return true;
@@ -1683,7 +1683,7 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
   maybe_null= true;
   unsigned_flag=item->unsigned_flag;
   result_field= NULL;
-  null_value= TRUE;
+  null_value= true;
   if (resolve_type(thd))
     return true;
   item= item->real_item();
@@ -1825,7 +1825,7 @@ bool Item_sum_sum::resolve_type(THD *)
 {
   DBUG_ENTER("Item_sum_sum::resolve_type");
   maybe_null= true;
-  null_value= TRUE;
+  null_value= true;
   decimals= args[0]->decimals;
 
   switch (args[0]->numeric_context_result_type()) {
@@ -2030,7 +2030,7 @@ String *Item_sum_sum::val_str(String *str)
       return nullptr;
 
     my_decimal tmp2;
-    my_decimal_round(E_DEC_FATAL_ERROR, argd, decimals, FALSE, &tmp2);
+    my_decimal_round(E_DEC_FATAL_ERROR, argd, decimals, false, &tmp2);
     my_decimal2string(E_DEC_FATAL_ERROR, &tmp2, 0, 0, 0, str);
     return str;
   }
@@ -2130,8 +2130,8 @@ my_decimal *Item_sum_sum::val_decimal(my_decimal *val)
   @param element     pointer to the row data.
   
   @return status
-    @retval FALSE     success
-    @retval TRUE      failure
+    @retval false     success
+    @retval true      failure
 */
   
 bool Aggregator_distinct::unique_walk_function(void *element)
@@ -2313,7 +2313,7 @@ bool Item_sum_avg::resolve_type(THD *thd)
     return true;
 
   maybe_null= true;
-  null_value= TRUE;
+  null_value= true;
   prec_increment= thd->variables.div_precincrement;
   if (hybrid_type == DECIMAL_RESULT)
   {
@@ -2363,7 +2363,7 @@ Field *Item_sum_avg::create_tmp_field(bool group, TABLE *table)
   else if (hybrid_type == DECIMAL_RESULT)
     field= Field_new_decimal::create_from_item(this);
   else
-    field= new (*THR_MALLOC) Field_double(max_length, maybe_null, item_name.ptr(), decimals, TRUE);
+    field= new (*THR_MALLOC) Field_double(max_length, maybe_null, item_name.ptr(), decimals, true);
   if (field)
     field->init(table);
   DBUG_RETURN(field);
@@ -2379,10 +2379,10 @@ void Item_sum_avg::clear()
 bool Item_sum_avg::add()
 {
   if (Item_sum_sum::add())
-    return TRUE;
+    return true;
   if (!aggr->arg_is_null(true))
     m_count++;
-  return FALSE;
+  return false;
 }
 
 double Item_sum_avg::val_real()
@@ -2558,7 +2558,7 @@ String *Item_sum_avg::val_str(String *str)
       return nullptr;
 
     my_decimal tmp2;
-    my_decimal_round(E_DEC_FATAL_ERROR, argd, decimals, FALSE, &tmp2);
+    my_decimal_round(E_DEC_FATAL_ERROR, argd, decimals, false, &tmp2);
     my_decimal2string(E_DEC_FATAL_ERROR, &tmp2, 0, 0, 0, str);
     return str;
   }
@@ -2793,7 +2793,7 @@ bool Item_sum_variance::resolve_type(THD *)
 {
   DBUG_ENTER("Item_sum_variance::resolve_type");
   maybe_null= true;
-  null_value= TRUE;
+  null_value= true;
 
   /*
     According to the SQL2003 standard (Part 2, Foundations; sec 10.9,
@@ -2839,7 +2839,7 @@ Field *Item_sum_variance::create_tmp_field(bool group, TABLE *table)
     field= new (*THR_MALLOC) Field_string(sizeof(double)*2 + sizeof(longlong), 0, item_name.ptr(), &my_charset_bin);
   }
   else
-    field= new (*THR_MALLOC) Field_double(max_length, maybe_null, item_name.ptr(), decimals, TRUE);
+    field= new (*THR_MALLOC) Field_double(max_length, maybe_null, item_name.ptr(), decimals, true);
 
   if (field != NULL)
     field->init(table);
@@ -3305,23 +3305,23 @@ void Item_sum_hybrid::cleanup()
 {
   DBUG_ENTER("Item_sum_hybrid::cleanup");
   Item_sum::cleanup();
-  forced_const= FALSE;
+  forced_const= false;
   destroy(cmp);
   cmp= 0;
   /*
-    by default it is TRUE to avoid TRUE reporting by
+    by default it is true to avoid true reporting by
     Item_func_not_all/Item_func_nop_all if this item was never called.
 
-    no_rows_in_result() set it to FALSE if was not results found.
+    no_rows_in_result() set it to false if was not results found.
     If some results found it will be left unchanged.
   */
-  was_values= TRUE;
+  was_values= true;
   DBUG_VOID_RETURN;
 }
 
 void Item_sum_hybrid::no_rows_in_result()
 {
-  was_values= FALSE;
+  was_values= false;
   clear();
 }
 
@@ -4217,7 +4217,7 @@ my_decimal *Item_std_field::val_decimal(my_decimal *dec_buf)
   DBUG_ASSERT(nr >= 0.0);
   nr= sqrt(nr);
   double2my_decimal(E_DEC_FATAL_ERROR, nr, &tmp_dec);
-  my_decimal_round(E_DEC_FATAL_ERROR, &tmp_dec, decimals, FALSE, dec_buf);
+  my_decimal_round(E_DEC_FATAL_ERROR, &tmp_dec, decimals, false, dec_buf);
   return dec_buf;
 }
 
@@ -4628,7 +4628,7 @@ int dump_leaf_key(void* key_arg, element_count count MY_ATTRIBUTE((unused)),
                                           result->length(),
                                           &well_formed_error);
     result->length(old_length + add_length);
-    item->warning_for_row= TRUE;
+    item->warning_for_row= true;
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_CUT_VALUE_GROUP_CONCAT,
                         ER_THD(current_thd, ER_CUT_VALUE_GROUP_CONCAT),
@@ -4669,14 +4669,14 @@ Item_func_group_concat::Item_func_group_concat(const POS &pos,
    row_count(0),
    group_concat_max_len(0),
    distinct(distinct_arg),
-   warning_for_row(FALSE),
+   warning_for_row(false),
    always_null(false),
    force_copy_fields(0), original(0)
 {
   Item *item_select;
   Item **arg_ptr;
 
-  quick_group= FALSE;
+  quick_group= false;
   arg_count= arg_count_field + arg_count_order;
 
   if (!(args= (Item**) sql_alloc(sizeof(Item*) * arg_count)))
@@ -4863,8 +4863,8 @@ void Item_func_group_concat::clear()
 {
   result.length(0);
   result.copy();
-  null_value= TRUE;
-  warning_for_row= FALSE;
+  null_value= true;
+  warning_for_row= false;
   m_result_finalized= false;
   if (tree)
     reset_tree(tree);
@@ -4883,7 +4883,7 @@ bool Item_func_group_concat::add()
   if (copy_fields(tmp_table_param, table->in_use))
     return true;
   if (copy_funcs(tmp_table_param, table->in_use))
-    return TRUE;
+    return true;
 
   for (uint i= 0; i < arg_count_field; i++)
   {
@@ -4896,8 +4896,8 @@ bool Item_func_group_concat::add()
         return 0;                               // Skip row if it contains null
   }
 
-  null_value= FALSE;
-  bool row_eligible= TRUE;
+  null_value= false;
+  bool row_eligible= true;
 
   if (distinct) 
   {
@@ -4905,7 +4905,7 @@ bool Item_func_group_concat::add()
     uint count= unique_filter->elements_in_tree();
     unique_filter->unique_add(table->record[0] + table->s->null_bytes);
     if (count == unique_filter->elements_in_tree())
-      row_eligible= FALSE;
+      row_eligible= false;
   }
 
   TREE_ELEMENT *el= 0;                          // Only for safety
@@ -4939,7 +4939,7 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
     return true;
 
   if (init_sum_func_check(thd))
-    return TRUE;
+    return true;
 
   maybe_null= 1;
 
@@ -4954,7 +4954,7 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
     if ((!args[i]->fixed &&
          args[i]->fix_fields(thd, args + i)) ||
         args[i]->check_cols(1))
-      return TRUE;
+      return true;
   }
 
   /* skip charset aggregation for order columns */
@@ -4984,7 +4984,7 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
     if (!(buf= (char*) thd->stmt_arena->alloc(buflen)) ||
         !(new_separator= new(thd->stmt_arena->mem_root)
                            String(buf, buflen, collation.collation)))
-      return TRUE;
+      return true;
     
     conv_length= copy_and_convert(buf, buflen, collation.collation,
                                   separator->ptr(), separator->length(),
@@ -4994,10 +4994,10 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
   }
 
   if (check_sum_func(thd, ref))
-    return TRUE;
+    return true;
 
   fixed= 1;
-  return FALSE;
+  return false;
 }
 
 
@@ -5015,10 +5015,10 @@ bool Item_func_group_concat::setup(THD *thd)
     assertion here when this is fixed.
   */
   if (table || tree)
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
 
   if (!(tmp_table_param= new (thd->mem_root) Temp_table_param))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   /* Push all not constant fields to the list and create a temp table */
   always_null= 0;
@@ -5026,13 +5026,13 @@ bool Item_func_group_concat::setup(THD *thd)
   {
     Item *item= args[i];
     if (list.push_back(item))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     if (item->const_item())
     {
       if (item->is_null())
       {
         always_null= 1;
-        DBUG_RETURN(FALSE);
+        DBUG_RETURN(false);
       }
     }
   }
@@ -5047,7 +5047,7 @@ bool Item_func_group_concat::setup(THD *thd)
   if (arg_count_order &&
       setup_order(thd, Ref_item_array(args, arg_count),
                   context->table_list, list, all_fields, order_array.begin()))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   count_field_types(aggr_select, tmp_table_param, all_fields, false, true);
   tmp_table_param->force_copy_fields= force_copy_fields;
@@ -5083,7 +5083,7 @@ bool Item_func_group_concat::setup(THD *thd)
                                 aggr_select->active_options(),
                                 HA_POS_ERROR, (char*) "",
                                 TMP_WIN_NONE)))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   table->file->extra(HA_EXTRA_NO_ROWS);
   table->no_rows= 1;
 
@@ -5120,7 +5120,7 @@ bool Item_func_group_concat::setup(THD *thd)
                                             (void*)this, tree_key_length,
                                             ram_limitation(thd));
   
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -6760,9 +6760,9 @@ Item *Item_sum_json_object::copy_or_same(THD *thd)
   @param[in,out] ref        reference to place where item is
                             stored
   @retval
-    TRUE  if error
+    true  if error
   @retval
-    FALSE on success
+    false on success
 
 */
 bool Item_func_grouping::fix_fields(THD *thd, Item **ref)
@@ -6884,9 +6884,9 @@ longlong Item_func_grouping::val_int()
   "group-invariant".
 
   @retval
-    TRUE  if error
+    true  if error
   @retval
-    FALSE on success
+    false on success
 */
 bool Item_func_grouping::aggregate_check_group(uchar *arg)
 {

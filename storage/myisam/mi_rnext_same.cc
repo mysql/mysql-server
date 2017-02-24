@@ -66,7 +66,7 @@ int mi_rnext_same(MI_INFO *info, uchar *buf)
       {
         /* First rnext_same and lastkey is filled in mi_rkey */
         memcpy(info->rnext_same_key, info->lastkey, info->last_rkey_length);
-        info->set_rnext_same_key= FALSE;
+        info->set_rnext_same_key= false;
       }
       for (;;)
       {

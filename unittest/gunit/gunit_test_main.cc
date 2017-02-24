@@ -56,7 +56,7 @@ struct my_option unittest_options[] =
 
 extern "C" bool get_one_option(int, const struct my_option *, char *)
 {
-  return FALSE;
+  return false;
 }
 
 }  // namespace

@@ -1344,7 +1344,7 @@ int Item_func_spatial_rel::bg_geo_relation_check(Geometry *g1, Geometry *g2,
     result= crosses_check<Geom_types>(g1, g2, pnull_value);
     break;
   default:
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
     break;
   }
 

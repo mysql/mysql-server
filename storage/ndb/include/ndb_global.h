@@ -33,6 +33,12 @@
 #include <sys/time.h>
 #endif
 
+/* Legacy definitions. */
+#ifndef TRUE
+#define TRUE true
+#define FALSE false
+#endif
+
 /*
   Custom version of standard offsetof() macro which can be used to get
   offsets of members in class for non-POD types (according to the current

@@ -69,11 +69,11 @@ void Abstract_program::run(int argc, char **argv)
 
   this->aggregate_options();
 
-  my_getopt_use_args_separator= TRUE;
+  my_getopt_use_args_separator= true;
   if (load_defaults("my",load_default_groups,&argc,&argv, &m_argv_alloc))
     this->error(Message_data(
     1, "Error during loading default options", Message_type_error));
-  my_getopt_use_args_separator= FALSE;
+  my_getopt_use_args_separator= false;
 
   int ho_error= handle_options(&argc, &argv, this->get_options_array(),
     Abstract_program::callback_option_parsed);

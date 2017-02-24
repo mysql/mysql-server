@@ -401,7 +401,7 @@ page_get_supremum_offset(
 
 /************************************************************//**
 TRUE if the record is a user record on the page.
-@return TRUE if a user record */
+@return true if a user record */
 UNIV_INLINE
 ibool
 page_rec_is_user_rec_low(
@@ -437,7 +437,7 @@ page_rec_is_user_rec_low(
 
 /************************************************************//**
 TRUE if the record is the supremum record on a page.
-@return TRUE if the supremum record */
+@return true if the supremum record */
 UNIV_INLINE
 ibool
 page_rec_is_supremum_low(
@@ -453,7 +453,7 @@ page_rec_is_supremum_low(
 
 /************************************************************//**
 TRUE if the record is the infimum record on a page.
-@return TRUE if the infimum record */
+@return true if the infimum record */
 UNIV_INLINE
 ibool
 page_rec_is_infimum_low(
@@ -468,7 +468,7 @@ page_rec_is_infimum_low(
 
 /************************************************************//**
 TRUE if the record is a user record on the page.
-@return TRUE if a user record */
+@return true if a user record */
 UNIV_INLINE
 ibool
 page_rec_is_user_rec(
@@ -482,7 +482,7 @@ page_rec_is_user_rec(
 
 /************************************************************//**
 TRUE if the record is the supremum record on a page.
-@return TRUE if the supremum record */
+@return true if the supremum record */
 UNIV_INLINE
 ibool
 page_rec_is_supremum(
@@ -496,7 +496,7 @@ page_rec_is_supremum(
 
 /************************************************************//**
 TRUE if the record is the infimum record on a page.
-@return TRUE if the infimum record */
+@return true if the infimum record */
 UNIV_INLINE
 ibool
 page_rec_is_infimum(
@@ -711,7 +711,7 @@ page_dir_get_nth_slot(
 
 /**************************************************************//**
 Used to check the consistency of a record on a page.
-@return TRUE if succeed */
+@return true if succeed */
 UNIV_INLINE
 ibool
 page_rec_check(

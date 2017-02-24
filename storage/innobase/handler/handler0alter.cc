@@ -6070,7 +6070,7 @@ to rebuild the template.
 				by ALTER TABLE and holding data used
 				during in-place alter.
 @param[in]	table		table being altered
-@return TRUE if needs rebuild. */
+@return true if needs rebuild. */
 static
 bool
 alter_templ_needs_rebuild(

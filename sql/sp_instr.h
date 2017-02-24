@@ -281,7 +281,7 @@ private:
 
     @param thd           thread context
     @param [out] nextp   next instruction pointer
-    @param open_tables   if TRUE then check read access to tables in LEX's table
+    @param open_tables   if true then check read access to tables in LEX's table
                          list and open and lock them (used in instructions which
                          need to calculate some expression and don't execute
                          complete statement).

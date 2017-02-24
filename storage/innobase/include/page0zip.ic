@@ -133,7 +133,7 @@ page_zip_set_size(
 @param[in]	n_fields	number of fields in the record; ignored if
 tablespace is not compressed
 @param[in]	page_size	page size
-@return FALSE if the entire record can be stored locally on the page */
+@return false if the entire record can be stored locally on the page */
 UNIV_INLINE
 ibool
 page_zip_rec_needs_ext(
@@ -232,7 +232,7 @@ page_zip_max_ins_size(
 
 /**********************************************************************//**
 Determine if enough space is available in the modification log.
-@return TRUE if enough space is available */
+@return true if enough space is available */
 UNIV_INLINE
 ibool
 page_zip_available(

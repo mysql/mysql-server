@@ -58,8 +58,8 @@ public:
     @param[in]     is_write  If true, the access will be for modifying the table
 
     @return
-      @retval TRUE  failed
-      @retval FALSE success
+      @retval true  failed
+      @retval false success
   */
   bool init(THD **thd, TABLE **table, bool is_write);
   /**

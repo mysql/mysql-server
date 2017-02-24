@@ -134,7 +134,7 @@ bool find_sys_var_null_base(THD *thd, struct sys_var_with_base *tmp)
   @param var_type the scope of the variable
   @param val      the value being assigned to the variable
 
-  @return TRUE if error, FALSE otherwise.
+  @return true if error, false otherwise.
 */
 
 bool
@@ -160,19 +160,19 @@ set_system_variable(THD *thd, struct sys_var_with_base *var_with_base,
   {
     my_error(ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION, MYF(0),
              var_with_base->var->name.str);
-    return TRUE;
+    return true;
   }
 
   if (val && val->type() == Item::FIELD_ITEM &&
       ((Item_field*)val)->table_name)
   {
     my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), var_with_base->var->name.str);
-    return TRUE;
+    return true;
   }
 
   if (! (var= new (*THR_MALLOC) set_var(var_type, var_with_base->var,
                                         &var_with_base->base_name, val)))
-    return TRUE;
+    return true;
 
   return lex->var_list.push_back(var);
 }

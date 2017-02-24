@@ -1206,7 +1206,7 @@ longlong Item_func_to_days::val_int_endpoint(bool left_endp, bool *incl_endp)
       Even if the evaluation return NULL, the calc_daynr is useful for pruning
     */
     if (args[0]->data_type() != MYSQL_TYPE_DATE)
-      *incl_endp= TRUE;
+      *incl_endp= true;
     return res;
   }
   
@@ -1235,7 +1235,7 @@ longlong Item_func_to_days::val_int_endpoint(bool left_endp, bool *incl_endp)
     /* do nothing */
     ;
   else
-    *incl_endp= TRUE;
+    *incl_endp= true;
   return res;
 }
 
@@ -1514,7 +1514,7 @@ longlong Item_func_year::val_int_endpoint(bool left_endp, bool *incl_endp)
       !(ltime.hour || ltime.minute || ltime.second || ltime.second_part))
     ; /* do nothing */
   else
-    *incl_endp= TRUE;
+    *incl_endp= true;
   return ltime.year;
 }
 
@@ -1804,7 +1804,7 @@ bool Item_func_from_days::get_date(MYSQL_TIME *ltime,
 
   if ((null_value= (fuzzy_date & TIME_NO_ZERO_DATE) &&
        (ltime->year == 0 || ltime->month == 0 || ltime->day == 0)))
-    return TRUE;
+    return true;
 
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return 0;
@@ -2836,7 +2836,7 @@ bool Item_func_add_time::val_datetime(MYSQL_TIME *time,
   longlong seconds;
   int l_sign= sign;
 
-  null_value= FALSE;
+  null_value= false;
   if (data_type() == MYSQL_TYPE_DATETIME)  // TIMESTAMP function
   {
     if (get_arg0_date(&l_time1, fuzzy_date) || 

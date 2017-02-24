@@ -257,7 +257,7 @@ void udf_read_functions_table()
   }
 
   table= tables.table;
-  if (init_read_record(&read_record_info, new_thd, table, NULL, 1, 1, FALSE))
+  if (init_read_record(&read_record_info, new_thd, table, NULL, 1, 1, false))
     goto end;
   while (!(error= read_record_info.read_record(&read_record_info)))
   {
@@ -331,7 +331,7 @@ void udf_read_functions_table()
   if (error > 0)
     LogErr(ERROR_LEVEL, ER_UNKNOWN_ERROR_NUMBER, my_errno());
   end_read_record(&read_record_info);
-  table->m_needs_reopen= TRUE;                  // Force close to free memory
+  table->m_needs_reopen= true;                  // Force close to free memory
 
 end:
   close_trans_system_tables(new_thd);
@@ -745,10 +745,10 @@ bool mysql_create_function(THD *thd,udf_func *udf)
   table->use_all_columns();
   restore_record(table, s->default_values);	// Default values for fields
   table->field[0]->store(udf->name.str, udf->name.length, system_charset_info);
-  table->field[1]->store((longlong) udf->returns, TRUE);
+  table->field[1]->store((longlong) udf->returns, true);
   table->field[2]->store(udf->dl, strlen(udf->dl), system_charset_info);
   if (table->s->fields >= 4)			// If not old func format
-    table->field[3]->store((longlong) udf->type, TRUE);
+    table->field[3]->store((longlong) udf->type, true);
   error = (table->file->ha_write_row(table->record[0]) != 0);
 
   // Binlog the create function.
@@ -923,11 +923,11 @@ DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_register,
   udf_func *ufunc;
 
   if (!func && !init_func && !deinit_func)
-    return TRUE;
+    return true;
 
   ufunc= alloc_udf(name, return_type, func, init_func, deinit_func);
   if (!ufunc)
-    return TRUE;
+    return true;
   ufunc->type= Item_udftype::UDFTYPE_FUNCTION;
 
   return udf_register_inner(ufunc);
@@ -946,11 +946,11 @@ DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_register_aggregate,
   udf_func *ufunc;
 
   if (!func && !add_func && !clear_func && !init_func && !deinit_func)
-    return TRUE;
+    return true;
 
   ufunc= alloc_udf(name, return_type, func, init_func, deinit_func);
   if (!ufunc)
-    return TRUE;
+    return true;
   ufunc->type= Item_udftype::UDFTYPE_AGGREGATE;
   ufunc->func_add= add_func;
   ufunc->func_clear= clear_func;
@@ -985,7 +985,7 @@ DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_unregister,
       udf= NULL;
   }
   mysql_rwlock_unlock(&THR_LOCK_udf);
-  return udf != NULL ? FALSE : TRUE;
+  return udf != NULL ? false : true;
 }
 
 void udf_hash_rlock(void)

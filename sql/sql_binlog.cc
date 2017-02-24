@@ -162,7 +162,7 @@ void mysql_client_binlog_statement(THD* thd)
     */
 
     /* when trying to create an rli from a client, there is no channel*/
-    if ((rli= Rpl_info_factory::create_rli(INFO_REPOSITORY_DUMMY, FALSE,
+    if ((rli= Rpl_info_factory::create_rli(INFO_REPOSITORY_DUMMY, false,
                                            (const char*)"", true)))
     {
       thd->rli_fake= rli;

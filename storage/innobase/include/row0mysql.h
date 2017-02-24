@@ -254,7 +254,7 @@ row_get_prebuilt_update_vector(
 /*********************************************************************//**
 Checks if a table is such that we automatically created a clustered
 index on it (on row id).
-@return TRUE if the clustered index was generated automatically */
+@return true if the clustered index was generated automatically */
 ibool
 row_table_got_default_clust_index(
 /*==============================*/

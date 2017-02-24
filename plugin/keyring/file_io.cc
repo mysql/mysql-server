@@ -37,13 +37,13 @@ bool is_super_user()
 {
   THD *thd = current_thd;
   MYSQL_SECURITY_CONTEXT sec_ctx;
-  my_svc_bool has_super_privilege = FALSE;
+  my_svc_bool has_super_privilege = false;
 
   DBUG_ASSERT(thd != NULL);
 
   if (thd == NULL || thd_get_security_context(thd, &sec_ctx) ||
       security_context_get_option(sec_ctx, "privilege_super", &has_super_privilege))
-    return FALSE;
+    return false;
 
   return has_super_privilege;
 }
@@ -172,9 +172,9 @@ bool File_io::remove(const char *filename, myf myFlags)
     if (current_thd != NULL && is_super_user())
       push_warning(current_thd, Sql_condition::SL_WARNING, errno,
                    error_message.str().c_str());
-    return TRUE;
+    return true;
   }
-  return FALSE;
+  return false;
 }
 
 bool File_io::truncate(File file, myf myFlags)
@@ -193,7 +193,7 @@ bool File_io::truncate(File file, myf myFlags)
 //    char error_buffer[MYSYS_STRERROR_SIZE];
 //    my_warning(EE_CANT_SEEK, my_filename(file), my_errno(),
 //               my_strerror(error_buffer, sizeof(error_buffer), my_errno()));
-//    return TRUE;
+//    return true;
 //  }
 #elif defined(HAVE_FTRUNCATE)
   if (ftruncate(file, (off_t) 0) && (myFlags & MY_WME))
@@ -208,12 +208,12 @@ bool File_io::truncate(File file, myf myFlags)
     if (current_thd != NULL && is_super_user())
       push_warning(current_thd, Sql_condition::SL_WARNING, errno,
                    error_message.str().c_str());
-    return TRUE;
+    return true;
   }
 //#else
 //  DBUG_ASSERT(0);
 //#endif
-  return FALSE;
+  return false;
 }
 
 void File_io::my_warning(int nr, ...)

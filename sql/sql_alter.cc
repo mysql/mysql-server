@@ -215,7 +215,7 @@ bool Sql_cmd_alter_table::execute(THD *thd)
   DBUG_ENTER("Sql_cmd_alter_table::execute");
 
   if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   /*
     We also require DROP priv for ALTER TABLE ... DROP PARTITION, as well
     as for RENAME TO, as being done by SQLCOM_RENAME_TABLE
@@ -236,7 +236,7 @@ bool Sql_cmd_alter_table::execute(THD *thd)
                    &priv,
                    NULL, /* Don't use first_tab->grant with sel_lex->db */
                    0, 0))
-    DBUG_RETURN(TRUE);                  /* purecov: inspected */
+    DBUG_RETURN(true);                  /* purecov: inspected */
 
   /* If it is a merge table, check privileges for merge children. */
   if (create_info.merge_list.first)
@@ -277,12 +277,12 @@ bool Sql_cmd_alter_table::execute(THD *thd)
     */
 
     if (check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
-                           create_info.merge_list.first, FALSE, UINT_MAX, FALSE))
-      DBUG_RETURN(TRUE);
+                           create_info.merge_list.first, false, UINT_MAX, false))
+      DBUG_RETURN(true);
   }
 
-  if (check_grant(thd, priv_needed, first_table, FALSE, UINT_MAX, FALSE))
-    DBUG_RETURN(TRUE);                  /* purecov: inspected */
+  if (check_grant(thd, priv_needed, first_table, false, UINT_MAX, false))
+    DBUG_RETURN(true);                  /* purecov: inspected */
 
   if (alter_info.new_table_name.str &&
       !test_all_bits(priv, INSERT_ACL | CREATE_ACL))
@@ -293,9 +293,9 @@ bool Sql_cmd_alter_table::execute(THD *thd)
     tmp_table.table_name= alter_info.new_table_name.str;
     tmp_table.db= alter_info.new_db_name.str;
     tmp_table.grant.privilege= priv;
-    if (check_grant(thd, INSERT_ACL | CREATE_ACL, &tmp_table, FALSE,
-                    UINT_MAX, FALSE))
-      DBUG_RETURN(TRUE);                  /* purecov: inspected */
+    if (check_grant(thd, INSERT_ACL | CREATE_ACL, &tmp_table, false,
+                    UINT_MAX, false))
+      DBUG_RETURN(true);                  /* purecov: inspected */
   }
 
   /* Don't yet allow changing of symlinks with ALTER TABLE */

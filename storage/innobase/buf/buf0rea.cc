@@ -343,7 +343,7 @@ an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 released by the i/o-handler thread.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
-@return TRUE if page has been read in, FALSE in case of failure */
+@return true if page has been read in, false in case of failure */
 ibool
 buf_read_page(
 	const page_id_t&	page_id,
@@ -376,7 +376,7 @@ released by the i/o-handler thread.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @param[in]	sync		true if synchronous aio is desired
-@return TRUE if page has been read in, FALSE in case of failure */
+@return true if page has been read in, false in case of failure */
 ibool
 buf_read_page_background(
 	const page_id_t&	page_id,

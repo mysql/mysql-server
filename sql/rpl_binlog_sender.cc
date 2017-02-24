@@ -270,7 +270,7 @@ void Binlog_sender::run()
     if (!mysql_bin_log.is_open())
     {
       if (mysql_bin_log.open_index_file(mysql_bin_log.get_index_fname(),
-					log_file, FALSE))
+					log_file, false))
       {
         set_fatal_error("Binary log is not open and failed to open index file "
                         "to retrieve next file.");

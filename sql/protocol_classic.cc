@@ -344,8 +344,8 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length,
   @param err A pointer to the error message
 
   @return
-    @retval FALSE The message was sent to the client
-    @retval TRUE An error occurred and the message wasn't sent properly
+    @retval false The message was sent to the client
+    @retval true An error occurred and the message wasn't sent properly
 */
 
 bool net_send_error(THD *thd, uint sql_errno, const char *err)
@@ -386,8 +386,8 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err)
   @param err        A pointer to the error message
 
   @return
-    @retval FALSE The message was sent to the client
-    @retval TRUE  An error occurred and the message wasn't sent properly
+    @retval false The message was sent to the client
+    @retval true  An error occurred and the message wasn't sent properly
 */
 
 bool net_send_error(NET *net, uint sql_errno, const char *err)
@@ -596,8 +596,8 @@ bool net_send_error(NET *net, uint sql_errno, const char *err)
                                  else [00] will be used
 
   @return
-    @retval FALSE The message was successfully sent
-    @retval TRUE An error occurred and the messages wasn't sent properly
+    @retval false The message was successfully sent
+    @retval true An error occurred and the messages wasn't sent properly
 */
 
 bool
@@ -618,13 +618,13 @@ net_send_ok(THD *thd,
   String store;
   bool state_changed= false;
 
-  bool error= FALSE;
+  bool error= false;
   DBUG_ENTER("net_send_ok");
 
   if (! net->vio)	// hack for re-parsing queries
   {
     DBUG_PRINT("info", ("vio present: NO"));
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }
 
   start= buff;
@@ -801,17 +801,17 @@ static uchar eof_buff[1]= { (uchar) 254 };      /* Marker for end of fields */
   @param statement_warn_count   Total number of warnings
 
   @return
-    @retval FALSE The message was successfully sent
-    @retval TRUE An error occurred and the message wasn't sent properly
+    @retval false The message was successfully sent
+    @retval true An error occurred and the message wasn't sent properly
 */
 
 bool
 net_send_eof(THD *thd, uint server_status, uint statement_warn_count)
 {
   NET *net= thd->get_protocol_classic()->get_net();
-  bool error= FALSE;
+  bool error= false;
   DBUG_ENTER("net_send_eof");
-  /* Set to TRUE if no active vio, to work well in case of --init-file */
+  /* Set to true if no active vio, to work well in case of --init-file */
   if (net->vio != 0)
   {
     thd->get_stmt_da()->set_overwrite_status(true);
@@ -838,8 +838,8 @@ net_send_eof(THD *thd, uint server_status, uint statement_warn_count)
 
 
   @return
-    @retval FALSE The message was sent successfully
-    @retval TRUE An error occurred and the messages wasn't sent properly
+    @retval false The message was sent successfully
+    @retval true An error occurred and the messages wasn't sent properly
 */
 
 static bool write_eof_packet(THD *thd, NET *net,
@@ -931,8 +931,8 @@ static bool write_eof_packet(THD *thd, NET *net,
   @param sqlstate     SQL state
 
   @return
-   @retval FALSE The message was successfully sent
-   @retval TRUE  An error occurred and the messages wasn't sent properly
+   @retval false The message was successfully sent
+   @retval true  An error occurred and the messages wasn't sent properly
 
   See also @ref page_protocol_basic_err_packet
 */
@@ -958,8 +958,8 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
   @param character_set_results  Char set info
 
   @return
-   @retval FALSE The message was successfully sent
-   @retval TRUE  An error occurred and the messages wasn't sent properly
+   @retval false The message was successfully sent
+   @retval true  An error occurred and the messages wasn't sent properly
 
   See also @ref page_protocol_basic_err_packet
 */
@@ -986,7 +986,7 @@ static bool net_send_error_packet(NET* net, uint sql_errno, const char *err,
       /* In bootstrap it's ok to print on stderr */
       my_message_local(ERROR_LEVEL, "%d  %s", sql_errno, err);
     }
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }
 
   int2store(buff,sql_errno);

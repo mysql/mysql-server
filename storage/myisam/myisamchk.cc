@@ -1016,13 +1016,13 @@ static int myisamchk(MI_CHECK *param, char * filename)
             on how myisamchk is run, so we must copy file stats from old to new.
           */
           if (param->testflag & T_REP_BY_SORT)
-            error= mi_repair_by_sort(param, info, filename, rep_quick, FALSE);
+            error= mi_repair_by_sort(param, info, filename, rep_quick, false);
           else
-            error= mi_repair_parallel(param, info, filename, rep_quick, FALSE);
+            error= mi_repair_parallel(param, info, filename, rep_quick, false);
 	  state_updated=1;
 	}
 	else if (param->testflag & T_REP_ANY)
-	  error= mi_repair(param, info, filename, rep_quick, FALSE);
+	  error= mi_repair(param, info, filename, rep_quick, false);
       }
       if (!error && param->testflag & T_SORT_RECORDS)
       {
@@ -1063,12 +1063,12 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	  {
 	    if (param->verbose)
 	      puts("Table had a compressed index;  We must now recreate the index");
-	    error= mi_repair_by_sort(param, info, filename, 1, FALSE);
+	    error= mi_repair_by_sort(param, info, filename, 1, false);
 	  }
 	}
       }
       if (!error && param->testflag & T_SORT_INDEX)
-	error= mi_sort_index(param, info, filename, FALSE);
+	error= mi_sort_index(param, info, filename, false);
       if (!error)
 	share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
 				 STATE_CRASHED_ON_REPAIR);

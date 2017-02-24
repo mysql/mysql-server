@@ -262,7 +262,7 @@ void NDB_SHARE::set_binlog_flags_for_table(TABLE* table)
   }
 
   const int n_fields = table->s->fields;
-  bitmap_init(&stored_columns, 0, n_fields, FALSE);
+  bitmap_init(&stored_columns, 0, n_fields, false);
   if (table->s->primary_key == MAX_KEY)
     flags |= NSF_HIDDEN_PK;
 

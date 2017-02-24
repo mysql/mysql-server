@@ -207,7 +207,7 @@ private:
   uint first_running_range;
   uint first_range_in_batch;
   uint first_unstarted_range;
-  /* TRUE <=> need range association */
+  /* true <=> need range association */
   bool mrr_need_range_assoc;
 
   int multi_range_start_retrievals(uint first_range);
@@ -481,7 +481,7 @@ private:
                       const key_range *start_key,
                       const key_range *end_key,
                       uchar *buf);
-  int flush_bulk_insert(bool allow_batch= FALSE);
+  int flush_bulk_insert(bool allow_batch= false);
   int ndb_write_row(uchar *record, bool primary_key_update,
                     bool batched_update);
 

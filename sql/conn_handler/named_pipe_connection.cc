@@ -89,7 +89,7 @@ public:
 
 bool Named_pipe_listener::setup_listener()
 {
-  m_connect_overlapped.hEvent= CreateEvent(NULL, TRUE, FALSE, NULL);
+  m_connect_overlapped.hEvent= CreateEvent(NULL, true, false, NULL);
   if (!m_connect_overlapped.hEvent)
   {
     LogErr(ERROR_LEVEL, ER_CONN_PIP_CANT_CREATE_EVENT, GetLastError());
@@ -119,7 +119,7 @@ Channel_info* Named_pipe_listener::listen_for_connection_event()
     */
     DWORD bytes;
     fConnected= GetOverlappedResult(m_pipe_handle, &m_connect_overlapped,
-                                    &bytes, TRUE);
+                                    &bytes, true);
   }
   if (connection_events_loop_aborted())
     return NULL;

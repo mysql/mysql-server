@@ -168,7 +168,7 @@ TEST_join(JOIN *join)
       else
       {
 	fprintf(DBUG_FILE, "                  quick select used:\n");
-        tab->quick()->dbug_dump(18, FALSE);
+        tab->quick()->dbug_dump(18, false);
       }
     }
     if (tab->ref().key_parts)
@@ -405,13 +405,13 @@ static void display_table_locks(void)
     THR_LOCK *lock=(THR_LOCK*) list->data;
 
     mysql_mutex_lock(&lock->mutex);
-    push_locks_into_array(&saved_table_locks, lock->write.data, FALSE,
+    push_locks_into_array(&saved_table_locks, lock->write.data, false,
 			  "Locked - write");
-    push_locks_into_array(&saved_table_locks, lock->write_wait.data, TRUE,
+    push_locks_into_array(&saved_table_locks, lock->write_wait.data, true,
 			  "Waiting - write");
-    push_locks_into_array(&saved_table_locks, lock->read.data, FALSE,
+    push_locks_into_array(&saved_table_locks, lock->read.data, false,
 			  "Locked - read");
-    push_locks_into_array(&saved_table_locks, lock->read_wait.data, TRUE,
+    push_locks_into_array(&saved_table_locks, lock->read_wait.data, true,
 			  "Waiting - read");
     mysql_mutex_unlock(&lock->mutex);
   }
@@ -569,9 +569,9 @@ public:
     if (first < last)
     {
       *elem= elems[first++];
-      return TRUE;
+      return true;
     }
-    return FALSE;
+    return false;
   }
 
   void reset()

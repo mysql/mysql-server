@@ -181,7 +181,7 @@ static inline int my_mutex_lock(my_mutex_t *mp
                                 )
 {
 #ifdef SAFE_MUTEX
-  return safe_mutex_lock(mp->m_u.m_safe_ptr, FALSE, file, line);
+  return safe_mutex_lock(mp->m_u.m_safe_ptr, false, file, line);
 #else
   return native_mutex_lock(& mp->m_u.m_native);
 #endif
@@ -194,7 +194,7 @@ static inline int my_mutex_trylock(my_mutex_t *mp
                                    )
 {
 #ifdef SAFE_MUTEX
-  return safe_mutex_lock(mp->m_u.m_safe_ptr, TRUE, file, line);
+  return safe_mutex_lock(mp->m_u.m_safe_ptr, true, file, line);
 #else
   return native_mutex_trylock(& mp->m_u.m_native);
 #endif

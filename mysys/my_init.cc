@@ -76,7 +76,7 @@ static bool my_win_init();
 #define SCALE_SEC       100
 #define SCALE_USEC      10000
 
-bool my_init_done= FALSE;
+bool my_init_done= false;
 ulong  my_thread_stack_size= 65536;
 MYSQL_FILE *mysql_stdin= NULL;
 static MYSQL_FILE instrumented_stdin;
@@ -120,17 +120,17 @@ int set_crt_report_leaks()
   Initialize my_sys functions, resources and variables
 
   @return Initialization result
-    @retval FALSE Success
-    @retval TRUE  Error. Couldn't initialize environment
+    @retval false Success
+    @retval true  Error. Couldn't initialize environment
 */
 bool my_init()
 {
   char *str;
 
   if (my_init_done)
-    return FALSE;
+    return false;
 
-  my_init_done= TRUE;
+  my_init_done= true;
 
 #if defined(MY_MSCRT_DEBUG)
   set_crt_report_leaks();
@@ -151,10 +151,10 @@ bool my_init()
   mysql_stdin= & instrumented_stdin;
 
   if (my_thread_global_init())
-    return TRUE;
+    return true;
 
   if (my_thread_init())
-    return TRUE;
+    return true;
 
   /* $HOME is needed early to parse configuration files located in ~/ */
   if ((home_dir= getenv("HOME")) != 0)
@@ -168,7 +168,7 @@ bool my_init()
       DBUG_RETURN(TRUE);
 #endif
     DBUG_PRINT("exit", ("home: '%s'", home_dir));
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }
 } /* my_init */
 
@@ -249,7 +249,7 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
     WSACleanup();
 #endif /* _WIN32 */
 
-  my_init_done= FALSE;
+  my_init_done= false;
 } /* my_end */
 
 
@@ -421,11 +421,11 @@ static bool win32_have_tcpip()
       if (RegOpenKeyEx ( HKEY_LOCAL_MACHINE, WINSOCKKEY, 0, KEY_READ,
 			 &hTcpipRegKey) != ERROR_SUCCESS)
 	if (!getenv("HAVE_TCPIP") || have_tcpip)	/* Provide a workaround */
-	  return (FALSE);
+	  return (false);
     }
   }
   RegCloseKey ( hTcpipRegKey);
-  return (TRUE);
+  return (true);
 }
 
 

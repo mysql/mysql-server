@@ -153,7 +153,7 @@ static bool xacommit_handlerton(THD*, plugin_ref plugin, void *arg)
     return false;
   }
 
-  return FALSE;
+  return false;
 }
 
 
@@ -188,7 +188,7 @@ static bool xarollback_handlerton(THD*, plugin_ref plugin, void *arg)
     }
     return false;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -1553,7 +1553,7 @@ bool applier_reset_xa_trans(THD *thd)
   @param[in,out]     thd     Thread context
   @param             plugin  Reference to handlerton
 
-  @return    FALSE   on success, TRUE otherwise.
+  @return    false   on success, true otherwise.
 */
 
 bool detach_native_trx(THD *thd, plugin_ref plugin, void*)
@@ -1569,5 +1569,5 @@ bool detach_native_trx(THD *thd, plugin_ref plugin, void*)
                                             &thd->get_ha_data(hton->slot)->ha_ptr_backup);
   }
 
-  return FALSE;
+  return false;
 }

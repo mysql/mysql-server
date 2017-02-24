@@ -44,17 +44,17 @@ namespace keyring__keys_container_unittest
 
     file.open(file_name, std::fstream::in | std::fstream::binary);
     if (!file.is_open())
-      return FALSE;
+      return false;
     file.seekg(0, file.end);
     if (file.tellg() < (3+32)) //tag + sha256
-      return FALSE; // File do not contains tag
+      return false; // File do not contains tag
     file.seekg(-(3+32), file.end);
-    if (file.good() == FALSE)
-      return FALSE;
+    if (file.good() == false)
+      return false;
     file.read(tag, 3);
     size_t chars_read= file.gcount();
-    if (file.good() == FALSE || chars_read < 3)
-      return FALSE;
+    if (file.good() == false || chars_read < 3)
+      return false;
     tag[3]= '\0';
     file.close();
     return strcmp(tag, "EOF") == 0;
@@ -230,7 +230,7 @@ namespace keyring__keys_container_unittest
     IKeyring_io *keyring_io= new Buffered_file_io(logger);
     EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
     Key key_id("Roberts_key", "AES", "Robert",NULL,0);
-    ASSERT_TRUE(keys_container->remove_key(&key_id) == TRUE);
+    ASSERT_TRUE(keys_container->remove_key(&key_id) == true);
     delete sample_key; //unused in this test
   }
 
@@ -254,7 +254,7 @@ namespace keyring__keys_container_unittest
     ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
     Key key_id("NotRoberts_key", "AES", "NotRobert",NULL,0);
     // Failed to remove key
-    ASSERT_TRUE(keys_container->remove_key(&key_id) == TRUE);
+    ASSERT_TRUE(keys_container->remove_key(&key_id) == true);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
   }
 
@@ -410,7 +410,7 @@ namespace keyring__keys_container_unittest
     //it should not be possible to store_key if the keyring file was changed
     EXPECT_EQ(keys_container->store_key(key1), 1);
     delete key1;
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring"), TRUE);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring"), true);
   }
 
   class Buffered_file_io_dont_remove_backup : public Buffered_file_io
@@ -421,7 +421,7 @@ namespace keyring__keys_container_unittest
 
     bool remove_backup(myf)
     {
-      return FALSE;
+      return false;
     }
   };
 
@@ -476,7 +476,7 @@ namespace keyring__keys_container_unittest
     EXPECT_EQ(keys_container->store_key(sample_key), 0);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
 
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), TRUE);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), true);
 
     //Check if backup file is empty
     delete keys_container;
@@ -504,8 +504,8 @@ namespace keyring__keys_container_unittest
     EXPECT_EQ(keys_container->store_key(sample_key), 0);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
     //successfully stored the key - backup file does not exist
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), FALSE);
-    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == TRUE);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), false);
+    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == true);
     delete keys_container;
     delete logger;
 
@@ -517,8 +517,8 @@ namespace keyring__keys_container_unittest
     EXPECT_EQ(keys_container->store_key(sample_key2), 0);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 2);
 
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), TRUE);
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring"), TRUE);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), true);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring"), true);
 
     delete keys_container;
     delete logger;
@@ -553,12 +553,12 @@ namespace keyring__keys_container_unittest
     EXPECT_EQ(keys_container->store_key(sample_key), 0);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
     //successfully stored the key - backup file does not exist
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), FALSE);
-    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == TRUE);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), false);
+    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == true);
     EXPECT_EQ(keys_container->store_key(sample_key2), 0);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 2);
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), FALSE);
-    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == TRUE);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), false);
+    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == true);
 
     delete keys_container;
     delete logger;
@@ -571,8 +571,8 @@ namespace keyring__keys_container_unittest
     EXPECT_EQ(keys_container->remove_key(&sample_key_id), 0);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
 
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), TRUE);
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring"), TRUE);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), true);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring"), true);
 
     delete keys_container;
     delete logger;
@@ -606,12 +606,12 @@ namespace keyring__keys_container_unittest
     EXPECT_EQ(keys_container->store_key(sample_key), 0);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
     //successfully stored the key - backup file does not exist
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), FALSE);
-    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == TRUE);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), false);
+    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == true);
     EXPECT_EQ(keys_container->store_key(sample_key2), 0);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 2);
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), FALSE);
-    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == TRUE);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), false);
+    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == true);
 
     delete keys_container;
     delete logger;
@@ -625,8 +625,8 @@ namespace keyring__keys_container_unittest
     ASSERT_TRUE(fetchedKey != NULL);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 2);
     //check if the backup file was not created
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), FALSE);
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring"), TRUE);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), false);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring"), true);
 
     remove("./keyring.backup");
     remove(file_name.c_str());
@@ -645,13 +645,13 @@ namespace keyring__keys_container_unittest
     EXPECT_EQ(keys_container->store_key(sample_key), 0);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
     //successfully stored the key - backup file does not exist
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), FALSE);
-    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == TRUE);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), false);
+    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == true);
     EXPECT_EQ(keys_container->store_key(sample_key2), 0);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 2);
     //Now we have correct backup file
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), FALSE);
-    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == TRUE);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), false);
+    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == true);
 
     delete keys_container;
     delete logger;
@@ -666,8 +666,8 @@ namespace keyring__keys_container_unittest
     EXPECT_EQ(keys_container->store_key(sample_key3), 0);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 3);
     //Now we have correct backup file
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), TRUE);
-    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == TRUE);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), true);
+    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == true);
 
     delete keys_container;
     delete logger;
@@ -692,8 +692,8 @@ namespace keyring__keys_container_unittest
     ASSERT_TRUE(memcmp(fetchedKey2->get_key_data(), "Robi", fetchedKey2->get_key_data_size()) == 0);
 
     //check if the backup file was removed
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), FALSE);
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring"), TRUE);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), false);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring"), true);
 
     remove("./keyring.backup");
     remove(file_name.c_str());
@@ -713,12 +713,12 @@ namespace keyring__keys_container_unittest
     EXPECT_EQ(keys_container->store_key(sample_key), 0);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
     //successfully stored the key - backup file does not exist
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), FALSE);
-    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == TRUE);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), false);
+    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == true);
     EXPECT_EQ(keys_container->store_key(sample_key2), 0);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 2);
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), FALSE);
-    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == TRUE);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), false);
+    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == true);
 
     delete keys_container;
     delete logger;
@@ -745,8 +745,8 @@ namespace keyring__keys_container_unittest
     ASSERT_TRUE(memcmp(fetchedKey2->get_key_data(), "Robi", fetchedKey2->get_key_data_size()) == 0);
 
     //check if the backup file was removed
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), FALSE);
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring"), TRUE);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), false);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring"), true);
 
     delete keys_container;
     delete logger;
@@ -762,12 +762,12 @@ namespace keyring__keys_container_unittest
     EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
     EXPECT_EQ(keys_container->store_key(sample_key), 0);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), TRUE);
-    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == TRUE);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), true);
+    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == true);
 
     remove("./keyring.backup");
     rename("keyring", "keyring.backup");
-    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == FALSE);
+    ASSERT_TRUE(check_if_file_exists_and_TAG_is_correct("./keyring") == false);
     //Now keyring file should be recreated based on keyring.backup
     delete keys_container;
     keyring_io= new Buffered_file_io_dont_remove_backup(logger);
@@ -778,8 +778,8 @@ namespace keyring__keys_container_unittest
     EXPECT_EQ(keys_container->store_key(sample_key2), 0);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 2);
 
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), TRUE);
-    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring"), TRUE);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), true);
+    EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring"), true);
 
     Key sample_key_id("Roberts_key", NULL, "Robert", NULL, 0);
     IKey *fetchedKey= keys_container->fetch_key(&sample_key_id);
@@ -858,9 +858,9 @@ namespace keyring__keys_container_unittest
     EXPECT_CALL(*keyring_io, init(Pointee(StrEq(file_name))))
       .WillOnce(Return(0)); // init successfull
     EXPECT_CALL(*keyring_io, get_serialized_object(_))
-      .WillOnce(DoAll(SetArgPointee<0>(mock_serialized_object), Return(FALSE)));
-    EXPECT_CALL(*mock_serialized_object, has_next_key()).WillOnce(Return(FALSE)); // no keys to read
-    EXPECT_CALL(*keyring_io, has_next_serialized_object()).WillOnce(Return(FALSE));
+      .WillOnce(DoAll(SetArgPointee<0>(mock_serialized_object), Return(false)));
+    EXPECT_CALL(*mock_serialized_object, has_next_key()).WillOnce(Return(false)); // no keys to read
+    EXPECT_CALL(*keyring_io, has_next_serialized_object()).WillOnce(Return(false));
   }
 
   TEST_F(Keys_container_with_mocked_io_test, ErrorFromIODuringInitOnGettingSerializedObject)
@@ -871,7 +871,7 @@ namespace keyring__keys_container_unittest
 
     EXPECT_CALL(*keyring_io, init(Pointee(StrEq(file_name))))
       .WillOnce(Return(0)); // init successfull
-    EXPECT_CALL(*keyring_io, get_serialized_object(_)).WillOnce(Return(TRUE));
+    EXPECT_CALL(*keyring_io, get_serialized_object(_)).WillOnce(Return(true));
     EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Error while loading keyring content. The keyring might be malformed")));
 
     EXPECT_EQ(keys_container->init(keyring_io, file_name), 1);
@@ -896,11 +896,11 @@ namespace keyring__keys_container_unittest
       .WillOnce(Return(0)); // init successfull
     {
       InSequence dummy;
-      EXPECT_CALL(*keyring_io, get_serialized_object(_)).WillOnce(DoAll(SetArgPointee<0>(mock_serialized_object), Return(FALSE)));
-      EXPECT_CALL(*mock_serialized_object, has_next_key()).WillOnce(Return(TRUE));
-      EXPECT_CALL(*mock_serialized_object, get_next_key(_)).WillOnce(DoAll(SetArgPointee<0>(sample_key), Return(FALSE)));
-      EXPECT_CALL(*mock_serialized_object, has_next_key()).WillOnce(Return(TRUE));
-      EXPECT_CALL(*mock_serialized_object, get_next_key(_)).WillOnce(DoAll(SetArgPointee<0>(invalid_key), Return(FALSE)));
+      EXPECT_CALL(*keyring_io, get_serialized_object(_)).WillOnce(DoAll(SetArgPointee<0>(mock_serialized_object), Return(false)));
+      EXPECT_CALL(*mock_serialized_object, has_next_key()).WillOnce(Return(true));
+      EXPECT_CALL(*mock_serialized_object, get_next_key(_)).WillOnce(DoAll(SetArgPointee<0>(sample_key), Return(false)));
+      EXPECT_CALL(*mock_serialized_object, has_next_key()).WillOnce(Return(true));
+      EXPECT_CALL(*mock_serialized_object, get_next_key(_)).WillOnce(DoAll(SetArgPointee<0>(invalid_key), Return(false)));
 
       EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Error while loading keyring content. The keyring might be malformed")));
    }
@@ -929,7 +929,7 @@ namespace keyring__keys_container_unittest
       .WillOnce(Return(0)); // init successfull
     {
       InSequence dummy;
-      EXPECT_CALL(*keyring_io, get_serialized_object(_)).WillOnce(DoAll(SetArgPointee<0>(buffer), Return(FALSE)));
+      EXPECT_CALL(*keyring_io, get_serialized_object(_)).WillOnce(DoAll(SetArgPointee<0>(buffer), Return(false)));
       EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Error while loading keyring content. The keyring might be malformed")));
     }
     EXPECT_EQ(keys_container->init(keyring_io, file_name), 1);

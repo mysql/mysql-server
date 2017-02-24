@@ -98,7 +98,7 @@ page_cur_set_after_last(
 
 /*********************************************************//**
 Returns TRUE if the cursor is before first user record on page.
-@return TRUE if at start */
+@return true if at start */
 UNIV_INLINE
 ibool
 page_cur_is_before_first(
@@ -106,7 +106,7 @@ page_cur_is_before_first(
 	const page_cur_t*	cur);	/*!< in: cursor */
 /*********************************************************//**
 Returns TRUE if the cursor is after last user record.
-@return TRUE if at end */
+@return true if at end */
 UNIV_INLINE
 ibool
 page_cur_is_after_last(

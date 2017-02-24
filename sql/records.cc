@@ -375,7 +375,7 @@ void end_read_record(READ_RECORD *info)
   }
   if (info->table && info->table->key_read)
   {
-    info->table->set_keyread(FALSE);
+    info->table->set_keyread(false);
   }
   if (info->table && info->table->is_created())
   {

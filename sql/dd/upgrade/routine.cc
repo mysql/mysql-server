@@ -341,7 +341,7 @@ static bool set_st_sp_chistics(THD *thd, TABLE *proc_table,
                  proc_table->field[MYSQL_PROC_FIELD_DETERMINISTIC])) == NULL)
     return true;
 
-  chistics->detistic= (ptr[0] == 'N' ? FALSE : TRUE);
+  chistics->detistic= (ptr[0] != 'N');
 
   // Security type
   if ((ptr=

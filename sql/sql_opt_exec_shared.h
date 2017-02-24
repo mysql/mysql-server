@@ -98,13 +98,13 @@ struct TABLE_REF
   ha_rows       use_count;
 
   /*
-    TRUE <=> disable the "cache" as doing lookup with the same key value may
+    true <=> disable the "cache" as doing lookup with the same key value may
     produce different results (because of Index Condition Pushdown)
   */
   bool          disable_cache;
 
   TABLE_REF()
-    : key_err(TRUE),
+    : key_err(true),
       key_parts(0),
       key_length(0),
       key(-1),
@@ -117,7 +117,7 @@ struct TABLE_REF
       depend_map(0),
       null_ref_key(NULL),
       use_count(0),
-      disable_cache(FALSE)
+      disable_cache(false)
   {
   }
 
@@ -132,10 +132,10 @@ struct TABLE_REF
       for (uint i= 0 ; i < key_parts ; i++)
       {
         if ((null_rejecting & 1 << i) && items[i]->is_null())
-          return TRUE;
+          return true;
       }
     }
-    return FALSE;
+    return false;
   }
 
 

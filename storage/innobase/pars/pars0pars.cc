@@ -479,7 +479,7 @@ pars_order_by(
 /*********************************************************************//**
 Determine if a data type is a built-in string data type of the InnoDB
 SQL parser.
-@return TRUE if string data type */
+@return true if string data type */
 static
 ibool
 pars_is_string_type(

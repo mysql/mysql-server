@@ -130,8 +130,8 @@ bool check_reserved_words(LEX_STRING *name)
   if (!my_strcasecmp(system_charset_info, name->str, "GLOBAL") ||
       !my_strcasecmp(system_charset_info, name->str, "LOCAL") ||
       !my_strcasecmp(system_charset_info, name->str, "SESSION"))
-    return TRUE;
-  return FALSE;
+    return true;
+  return false;
 }
 
 
@@ -269,8 +269,8 @@ bool Item_func::itemize(Parse_context *pc, Item **res)
    by writing a specialized fix_fields() for the item.
 
   RETURN VALUES
-  FALSE	ok
-  TRUE	Got error.  Stored with my_error().
+  false	ok
+  true	Got error.  Stored with my_error().
 */
 
 bool
@@ -299,7 +299,7 @@ Item_func::fix_fields(THD *thd, Item**)
     call to Item_func::fix_fields())
   */
   if (check_stack_overrun(thd, STACK_MIN_SIZE * 2, buff))
-    return TRUE;				// Fatal error if flag is set!
+    return true;				// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
@@ -459,7 +459,7 @@ Item *Item_func::transform(Item_transformer transformer, uchar *argument)
   callback functions.
 
     First the function applies the analyzer to the root node of
-    the Item_func object. Then if the analyzer succeeeds (returns TRUE)
+    the Item_func object. Then if the analyzer succeeeds (returns true)
     the function recursively applies the compile method to each argument
     of the Item_func node.
     If the call of the method for an argument item returns a new item
@@ -502,7 +502,7 @@ void Item_func::split_sum_func(THD *thd, Ref_item_array ref_item_array,
 {
   Item **arg, **arg_end;
   for (arg= args, arg_end= args+arg_count; arg != arg_end ; arg++)
-    (*arg)->split_sum_func2(thd, ref_item_array, fields, arg, TRUE);
+    (*arg)->split_sum_func2(thd, ref_item_array, fields, arg, true);
 }
 
 
@@ -706,7 +706,7 @@ void Item_func::signal_invalid_argument_for_log()
   push_warning(thd, Sql_condition::SL_WARNING,
                ER_INVALID_ARGUMENT_FOR_LOGARITHM,
                ER_THD(thd, ER_INVALID_ARGUMENT_FOR_LOGARITHM));
-  null_value= TRUE;
+  null_value= true;
 }
 
 
@@ -1066,10 +1066,10 @@ bool Item_func_connection_id::resolve_type(THD *thd)
 bool Item_func_connection_id::fix_fields(THD *thd, Item **ref)
 {
   if (Item_int_func::fix_fields(thd, ref))
-    return TRUE;
-  thd->thread_specific_used= TRUE;
+    return true;
+  thd->thread_specific_used= true;
   value= thd->variables.pseudo_thread_id;
-  return FALSE;
+  return false;
 }
 
 
@@ -1243,7 +1243,7 @@ String *Item_func_numhybrid::val_str(String *str)
     my_decimal decimal_value, *val;
     if (!(val= decimal_op(&decimal_value)))
       return 0;                                 // null is set
-    my_decimal_round(E_DEC_FATAL_ERROR, val, decimals, FALSE, val);
+    my_decimal_round(E_DEC_FATAL_ERROR, val, decimals, false, val);
     str->set_charset(collation.collation);
     my_decimal2string(E_DEC_FATAL_ERROR, val, 0, 0, 0, str);
     break;
@@ -1620,7 +1620,7 @@ my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
 
   if ((null_value= args[0]->null_value))
     return NULL;
-  my_decimal_round(E_DEC_FATAL_ERROR, tmp, decimals, FALSE, dec);
+  my_decimal_round(E_DEC_FATAL_ERROR, tmp, decimals, false, dec);
   sign= dec->sign();
   if (unsigned_flag)
   {
@@ -1687,7 +1687,7 @@ longlong Item_func_plus::int_op()
   longlong val0= args[0]->val_int();
   longlong val1= args[1]->val_int();
   longlong res= val0 + val1;
-  bool     res_unsigned= FALSE;
+  bool     res_unsigned= false;
 
   if ((null_value= args[0]->null_value || args[1]->null_value))
     return 0;
@@ -1703,13 +1703,13 @@ longlong Item_func_plus::int_op()
     {
       if (test_if_sum_overflows_ull((ulonglong) val0, (ulonglong) val1))
         goto err;
-      res_unsigned= TRUE;
+      res_unsigned= true;
     }
     else
     {
       /* val1 is negative */
       if ((ulonglong) val0 > (ulonglong) LLONG_MAX)
-        res_unsigned= TRUE;
+        res_unsigned= true;
     }
   }
   else
@@ -1720,18 +1720,18 @@ longlong Item_func_plus::int_op()
       {
         if (test_if_sum_overflows_ull((ulonglong) val0, (ulonglong) val1))
           goto err;
-        res_unsigned= TRUE;
+        res_unsigned= true;
       }
       else
       {
         if ((ulonglong) val1 > (ulonglong) LLONG_MAX)
-          res_unsigned= TRUE;
+          res_unsigned= true;
       }
     }
     else
     {
       if (val0 >=0 && val1 >= 0)
-        res_unsigned= TRUE;
+        res_unsigned= true;
       else if (val0 < 0 && val1 < 0 && res >= 0)
         goto err;
     }
@@ -1819,7 +1819,7 @@ longlong Item_func_minus::int_op()
   longlong val0= args[0]->val_int();
   longlong val1= args[1]->val_int();
   longlong res= val0 - val1;
-  bool     res_unsigned= FALSE;
+  bool     res_unsigned= false;
 
   if ((null_value= args[0]->null_value || args[1]->null_value))
     return 0;
@@ -1839,20 +1839,20 @@ longlong Item_func_minus::int_op()
           goto err;
       }
       else
-        res_unsigned= TRUE;
+        res_unsigned= true;
     }
     else
     {
       if (val1 >= 0)
       {
         if ((ulonglong) val0 > (ulonglong) val1)
-          res_unsigned= TRUE;
+          res_unsigned= true;
       }
       else
       {
         if (test_if_sum_overflows_ull((ulonglong) val0, (ulonglong) -val1))
           goto err;
-        res_unsigned= TRUE;
+        res_unsigned= true;
       }
     }
   }
@@ -1866,7 +1866,7 @@ longlong Item_func_minus::int_op()
     else
     {
       if (val0 > 0 && val1 < 0)
-        res_unsigned= TRUE;
+        res_unsigned= true;
       else if (val0 < 0 && val1 > 0 && res >= 0)
         goto err;
     }
@@ -1944,8 +1944,8 @@ longlong Item_func_mul::int_op()
   longlong res;
   ulonglong res0, res1;
   ulong a0, a1, b0, b1;
-  bool     res_unsigned= FALSE;
-  bool     a_negative= FALSE, b_negative= FALSE;
+  bool     res_unsigned= false;
+  bool     a_negative= false, b_negative= false;
 
   if ((null_value= args[0]->null_value || args[1]->null_value))
     return 0;
@@ -1971,12 +1971,12 @@ longlong Item_func_mul::int_op()
   */
   if (!args[0]->unsigned_flag && a < 0)
   {
-    a_negative= TRUE;
+    a_negative= true;
     a= -a;
   }
   if (!args[1]->unsigned_flag && b < 0)
   {
-    b_negative= TRUE;
+    b_negative= true;
     b= -b;
   }
 
@@ -2006,7 +2006,7 @@ longlong Item_func_mul::int_op()
     res= -res;
   }
   else
-    res_unsigned= TRUE;
+    res_unsigned= true;
 
   return check_integer_overflow(res, res_unsigned);
 
@@ -3445,7 +3445,7 @@ bool Item_func_rand::resolve_type(THD *thd)
 bool Item_func_rand::fix_fields(THD *thd,Item **ref)
 {
   if (Item_real_func::fix_fields(thd, ref))
-    return TRUE;
+    return true;
 
   if (arg_count)
   {					// Only use argument once in query
@@ -3459,7 +3459,7 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
     */
     if (!rand && !(rand= (struct rand_struct*)
                    thd->stmt_arena->alloc(sizeof(*rand))))
-      return TRUE;
+      return true;
   }
   else
   {
@@ -3476,7 +3476,7 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
     }
     rand= &thd->rand;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -3494,7 +3494,7 @@ double Item_func_rand::val_real()
         is a field item of "constant" table. Thus, we have to evaluate
         seed_random() for constant arg there but not at the fix_fields method.
       */
-      first_eval= FALSE;
+      first_eval= false;
       seed_random(args[0]);
     }
   }
@@ -4258,7 +4258,7 @@ void udf_handler::cleanup()
       }
       DEBUG_SYNC(current_thd, "udf_handler_cleanup_sync");
       free_udf(u_d);
-      initialized= FALSE;
+      initialized= false;
     }
     if (buffers)				// Because of bug in ecc
       delete [] buffers;
@@ -4275,14 +4275,14 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
   DBUG_ENTER("Item_udf_func::fix_fields");
 
   if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
-    DBUG_RETURN(TRUE);				// Fatal error flag is set!
+    DBUG_RETURN(true);				// Fatal error flag is set!
 
   udf_func *tmp_udf=find_udf(u_d->name.str,(uint) u_d->name.length,1);
 
   if (!tmp_udf)
   {
     my_error(ER_CANT_FIND_UDF, MYF(0), u_d->name.str);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   u_d=tmp_udf;
   args=arguments;
@@ -4298,7 +4298,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
 
     {
       free_udf(u_d);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
     uint i;
     Item **arg,**arg_end;
@@ -4312,7 +4312,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
       // we can't assign 'item' before, because fix_fields() can change arg
       Item *item= *arg;
       if (item->check_cols(1))
-	DBUG_RETURN(TRUE);
+	DBUG_RETURN(true);
       /*
 	TODO: We should think about this. It is not always
 	right way just to set an UDF result to return my_charset_bin
@@ -4343,7 +4343,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
 						       sizeof(long))))
     {
       free_udf(u_d);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
   }
   if (func->resolve_type(thd))
@@ -4413,7 +4413,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
       my_error(ER_CANT_INITIALIZE_UDF, MYF(0),
                u_d->name.str, init_msg_buff);
       free_udf(u_d);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
     func->max_length= min<uint32>(initid.max_length, MAX_BLOB_WIDTH);
     func->maybe_null=initid.maybe_null;
@@ -4426,9 +4426,9 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
   {
     my_error(ER_CANT_INITIALIZE_UDF, MYF(0),
              u_d->name.str, ER_THD(thd, ER_UNKNOWN_ERROR));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -4670,7 +4670,7 @@ String *Item_func_udf_decimal::val_str(String *str)
     return 0;
   if (str->length() < DECIMAL_MAX_STR_LENGTH)
     str->length(DECIMAL_MAX_STR_LENGTH);
-  my_decimal_round(E_DEC_FATAL_ERROR, dec, decimals, FALSE, &dec_buf);
+  my_decimal_round(E_DEC_FATAL_ERROR, dec, decimals, false, &dec_buf);
   my_decimal2string(E_DEC_FATAL_ERROR, &dec_buf, 0, 0, '0', str);
   return str;
 }
@@ -5335,7 +5335,7 @@ bool Item_func_get_lock::itemize(Parse_context *pc, Item **res)
 /**
   Get a user level lock.
 
-  @note Sets null_value to TRUE on error.
+  @note Sets null_value to true on error.
 
   @note This means that SQL-function GET_LOCK() returns:
         1    - if lock was acquired.
@@ -5358,7 +5358,7 @@ longlong Item_func_get_lock::val_int()
   THD *thd= current_thd;
   DBUG_ENTER("Item_func_get_lock::val_int");
 
-  null_value= TRUE;
+  null_value= true;
   /*
     In slave thread no need to get locks, everything is serialized. Anyway
     there is no way to make GET_LOCK() work on slave like it did on master
@@ -5368,7 +5368,7 @@ longlong Item_func_get_lock::val_int()
   */
   if (thd->slave_thread)
   {
-    null_value= FALSE;
+    null_value= false;
     DBUG_RETURN(1);
   }
 
@@ -5395,7 +5395,7 @@ longlong Item_func_get_lock::val_int()
   {
     /* Recursive lock. */
     it->second->refs++;
-    null_value= FALSE;
+    null_value= false;
     DBUG_RETURN(1);
   }
 
@@ -5414,7 +5414,7 @@ longlong Item_func_get_lock::val_int()
       will be reported as well.
     */
     if (error_handler.got_timeout())
-      null_value= FALSE;
+      null_value= false;
     DBUG_RETURN(0);
   }
 
@@ -5433,7 +5433,7 @@ longlong Item_func_get_lock::val_int()
   ull->refs= 1;
 
   thd->ull_hash.emplace(ull_key, ull);
-  null_value= FALSE;
+  null_value= false;
 
   DBUG_RETURN(1);
 }
@@ -5454,7 +5454,7 @@ bool Item_func_release_lock::itemize(Parse_context *pc, Item **res)
 /**
   Release a user level lock.
 
-  @note Sets null_value to TRUE on error/if no connection holds such lock.
+  @note Sets null_value to true on error/if no connection holds such lock.
 
   @note This means that SQL-function RELEASE_LOCK() returns:
         1    - if lock was held by this connection and was released.
@@ -5475,7 +5475,7 @@ longlong Item_func_release_lock::val_int()
   THD *thd= current_thd;
   DBUG_ENTER("Item_func_release_lock::val_int");
 
-  null_value= TRUE;
+  null_value= true;
 
   if (check_and_convert_ull_name(name, res))
     DBUG_RETURN(0);
@@ -5505,7 +5505,7 @@ longlong Item_func_release_lock::val_int()
   }
   User_level_lock *ull= it->second;
 
-  null_value= FALSE;
+  null_value= false;
   if (--ull->refs == 0)
   {
     thd->ull_hash.erase(it);
@@ -5569,7 +5569,7 @@ bool Item_func_is_free_lock::itemize(Parse_context *pc, Item **res)
 /**
   Check if user level lock is free.
 
-  @note Sets null_value=TRUE on error.
+  @note Sets null_value=true on error.
 
   @note As result SQL-function IS_FREE_LOCK() returns:
         1    - if lock is free,
@@ -5589,7 +5589,7 @@ longlong Item_func_is_free_lock::val_int()
   char name[NAME_LEN + 1];
   THD *thd= current_thd;
 
-  null_value= TRUE;
+  null_value= true;
 
   if (check_and_convert_ull_name(name, res))
     return 0;
@@ -5602,7 +5602,7 @@ longlong Item_func_is_free_lock::val_int()
   if (thd->mdl_context.find_lock_owner(&ull_key, &get_owner_visitor))
     return 0;
 
-  null_value= FALSE;
+  null_value= false;
   return (get_owner_visitor.get_owner_id() == 0);
 }
 
@@ -5622,7 +5622,7 @@ bool Item_func_is_used_lock::itemize(Parse_context *pc, Item **res)
 /**
   Check if user level lock is used and return connection id of owner.
 
-  @note Sets null_value=TRUE if lock is free/on error.
+  @note Sets null_value=true if lock is free/on error.
 
   @note SQL-function IS_USED_LOCK() returns:
         #    - connection id of lock owner if lock is acquired.
@@ -5639,7 +5639,7 @@ longlong Item_func_is_used_lock::val_int()
   char name[NAME_LEN + 1];
   THD *thd= current_thd;
 
-  null_value= TRUE;
+  null_value= true;
 
   if (check_and_convert_ull_name(name, res))
     return 0;
@@ -5656,7 +5656,7 @@ longlong Item_func_is_used_lock::val_int()
   if (thread_id == 0)
     return 0;
 
-  null_value= FALSE;
+  null_value= false;
   return thread_id;
 }
 
@@ -5688,7 +5688,7 @@ longlong Item_func_last_insert_id::val_int()
       LAST_INSERT_ID(X) take precedence over an generated auto_increment
       value for this row.
     */
-    thd->arg_of_last_insert_id_function= TRUE;
+    thd->arg_of_last_insert_id_function= true;
     thd->first_successful_insert_id_in_prev_stmt= value;
     return value;
   }
@@ -5982,7 +5982,7 @@ bool Item_func_set_user_var::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   // fix_fields will call Item_func_set_user_var::resolve_type()
-  if (Item_func::fix_fields(thd, ref) || set_entry(thd, TRUE))
+  if (Item_func::fix_fields(thd, ref) || set_entry(thd, true))
     return true;
 
   null_item= (args[0]->type() == NULL_ITEM);
@@ -6373,7 +6373,7 @@ my_decimal *user_var_entry::val_decimal(bool *null_value, my_decimal *val) const
     will be caught by thd->is_error() check in sql_set_variables().
 
   @retval
-    FALSE OK.
+    false OK.
 */
 
 bool
@@ -6381,7 +6381,7 @@ Item_func_set_user_var::check(bool use_result_field)
 {
   DBUG_ENTER("Item_func_set_user_var::check");
   if (use_result_field && !result_field)
-    use_result_field= FALSE;
+    use_result_field= false;
 
   switch (cached_result_type) {
   case REAL_RESULT:
@@ -6417,7 +6417,7 @@ Item_func_set_user_var::check(bool use_result_field)
     DBUG_ASSERT(0);
     break;
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -6649,8 +6649,8 @@ void Item_func_set_user_var::make_field(Send_field *tmp_field)
     in the Item_func_set_user_var::send() function.
 
   RETURN VALUES
-    FALSE       Ok
-    TRUE        Error
+    TYPE_OK            Ok
+    Everything else    Error
 */
 
 type_conversion_status
@@ -6681,7 +6681,7 @@ Item_func_set_user_var::save_in_field(Field *field, bool no_conversions,
       return set_field_to_null_with_conversions(field, no_conversions);
     }
 
-    /* NOTE: If null_value == FALSE, "result" must be not NULL.  */
+    /* NOTE: If null_value == false, "result" must be not NULL.  */
 
     field->set_notnull();
     error=field->store(result->ptr(),result->length(),cs);
@@ -6967,7 +6967,7 @@ bool Item_func_get_user_var::resolve_type(THD *thd)
   else
   {
     collation.set(&my_charset_bin, DERIVATION_IMPLICIT);
-    null_value= TRUE;
+    null_value= true;
     m_cached_result_type= STRING_RESULT;
     set_data_type_string(uint32(MAX_BLOB_WIDTH));
     DBUG_ASSERT(data_type() != MYSQL_TYPE_VAR_STRING);
@@ -7387,7 +7387,7 @@ longlong Item_func_get_system_var::val_int()
                                                        str_val->length());
       else
       {
-        null_value= TRUE;
+        null_value= true;
         cached_llval= 0;
       }
 
@@ -7435,7 +7435,7 @@ String* Item_func_get_system_var::val_str(String* str)
   }
 
   str= &cached_strval;
-  null_value= FALSE;
+  null_value= false;
   switch (var->show_type())
   {
     case SHOW_CHAR:
@@ -7453,13 +7453,13 @@ String* Item_func_get_system_var::val_str(String* str)
           strlen(cptr);
         if (str->copy(cptr, len, collation.collation))
         {
-          null_value= TRUE;
+          null_value= true;
           str= NULL;
         }
       }
       else
       {
-        null_value= TRUE;
+        null_value= true;
         str= NULL;
       }
       mysql_mutex_unlock(&LOCK_global_system_variables);
@@ -7554,7 +7554,7 @@ double Item_func_get_system_var::val_real()
                                                 cptr, cptr + strlen (cptr));
         else
         {
-          null_value= TRUE;
+          null_value= true;
           cached_dval= 0;
         }
         mysql_mutex_unlock(&LOCK_global_system_variables);
@@ -7786,7 +7786,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
   {
     thd->mark_used_columns= save_mark_used_columns;
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"AGAINST");
-    return TRUE;
+    return true;
   }
   thd->mark_used_columns= save_mark_used_columns;
 
@@ -7799,7 +7799,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
         (item->used_tables() & OUTER_REF_TABLE_BIT))
     {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), "MATCH");
-      return TRUE;
+      return true;
     }
     allows_multi_table_search &= 
       allows_search_on_non_indexed_columns(((Item_field *)item)->field->table);
@@ -7816,7 +7816,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
   if (key == NO_SUCH_KEY && !allows_multi_table_search)
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
-    return TRUE;
+    return true;
   }
   table_ref= ((Item_field *)item)->table_ref;
 
@@ -8313,8 +8313,8 @@ static void my_missing_function_error(const LEX_STRING &token,
   @param thd A pointer to the session and thread context.
 
   @return Function return error status.
-  @retval TRUE is returned on an error
-  @retval FALSE is returned on success.
+  @retval true is returned on an error
+  @retval false is returned on success.
 */
 
 bool
@@ -8334,7 +8334,7 @@ Item_func_sp::init_result_field(THD *thd)
                                &thd->sp_func_cache)))
   {
     my_missing_function_error (m_name->m_name, m_name->m_qname.str);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   /*
@@ -8348,28 +8348,28 @@ Item_func_sp::init_result_field(THD *thd)
   if (maybe_null)
     dummy_table->set_nullable();
   dummy_table->in_use= thd;
-  dummy_table->copy_blobs= TRUE;
+  dummy_table->copy_blobs= true;
   share->table_cache_key = empty_name;
   share->table_name = empty_name;
 
   if (!(sp_result_field= m_sp->create_result_field(max_length, item_name.ptr(),
                                                    dummy_table)))
   {
-   DBUG_RETURN(TRUE);
+   DBUG_RETURN(true);
   }
   
   if (sp_result_field->pack_length() > sizeof(result_buf))
   {
     void *tmp;
     if (!(tmp= sql_alloc(sp_result_field->pack_length())))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     sp_result_field->move_field((uchar*) tmp);
   }
   else
     sp_result_field->move_field(result_buf);
   
   sp_result_field->set_null_ptr((uchar *) &null_value, 1);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -8428,8 +8428,8 @@ Item_func_sp::save_in_field_inner(Field *field, bool no_conversions)
   @brief Execute function & store value in field.
 
   @return Function returns error status.
-  @retval FALSE on success.
-  @retval TRUE if an error occurred.
+  @retval false on success.
+  @retval true if an error occurred.
 */
 
 bool
@@ -8447,7 +8447,7 @@ Item_func_sp::execute()
     null_value= 1;
     if (thd->killed)
       thd->send_kill_message();
-    return TRUE;
+    return true;
   }
 
   /* Check that the field (the value) is not NULL. */
@@ -8464,13 +8464,13 @@ Item_func_sp::execute()
     the interface function execute. This was never realized.
 
    @return The error state.
-   @retval FALSE on success
-   @retval TRUE if an error occurred.
+   @retval false on success
+   @retval true if an error occurred.
 */
 bool
 Item_func_sp::execute_impl(THD *thd)
 {
-  bool err_status= TRUE;
+  bool err_status= true;
   Sub_statement_state statement_state;
   Security_context *save_security_ctx= thd->security_context();
   enum enum_sp_data_access access=
@@ -8576,8 +8576,8 @@ Item_func_sp::tmp_table_field(TABLE*)
   @param thd thread handler
 
   @return Indication if the access was granted or not.
-  @retval FALSE Access is granted.
-  @retval TRUE Requested access can't be granted or function doesn't exists.
+  @retval false Access is granted.
+  @retval true Requested access can't be granted or function doesn't exists.
     
 */
 
@@ -8587,10 +8587,10 @@ Item_func_sp::sp_check_access(THD *thd)
   DBUG_ENTER("Item_func_sp::sp_check_access");
   DBUG_ASSERT(m_sp);
   if (check_routine_access(thd, EXECUTE_ACL,
-			   m_sp->m_db.str, m_sp->m_name.str, 0, FALSE))
-    DBUG_RETURN(TRUE);
+			   m_sp->m_db.str, m_sp->m_name.str, 0, false))
+    DBUG_RETURN(true);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -8625,7 +8625,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
                    context->view_error_handler_arg);
 
     res= check_routine_access(thd, EXECUTE_ACL, m_name->m_db.str,
-                              m_name->m_name.str, 0, FALSE);
+                              m_name->m_name.str, 0, false);
     thd->set_security_context(save_security_ctx);
 
     if (res)
@@ -8821,8 +8821,8 @@ longlong Item_func_can_access_database::val_int()
   String *schema_name_ptr= args[0]->val_str(&schema_name);
   if (schema_name_ptr == nullptr)
   {
-    null_value= TRUE;
-    DBUG_RETURN(FALSE);
+    null_value= true;
+    DBUG_RETURN(0);
   }
 
   // Make sure we have safe string to access.
@@ -8831,11 +8831,11 @@ longlong Item_func_can_access_database::val_int()
   // Check if schema is hidden.
   THD *thd= current_thd;
   if (is_hidden_by_ndb(thd, schema_name_ptr, nullptr))
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(0);
 
   // Skip INFORMATION_SCHEMA database
   if (is_infoschema_db(schema_name_ptr->ptr()))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(1);
 
   // Check access
   Security_context *sctx= thd->security_context();
@@ -8845,10 +8845,10 @@ longlong Item_func_can_access_database::val_int()
         !check_grant_db(thd, schema_name_ptr->ptr()))
      )
   {
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(0);
   }
 
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(1);
 }
 
 static
@@ -8901,7 +8901,7 @@ bool check_table_and_trigger_access(Item **args,
       DBUG_RETURN(true);
 
     // Check table access
-    if (check_grant(thd, TABLE_ACLS, &table_list, TRUE, 1, TRUE))
+    if (check_grant(thd, TABLE_ACLS, &table_list, true, 1, true))
       DBUG_RETURN(false);
   }
   else // Trigger check.
@@ -8933,9 +8933,9 @@ longlong Item_func_can_access_table::val_int()
   DBUG_ENTER("Item_func_can_access_table::val_int");
 
   if (check_table_and_trigger_access(args, false, &null_value))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(1);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(0);
 }
 
 /**
@@ -8956,9 +8956,9 @@ longlong Item_func_can_access_trigger::val_int()
   DBUG_ENTER("Item_func_can_access_trigger::val_int");
 
   if (check_table_and_trigger_access(args, true, &null_value))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(1);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(0);
 }
 
 /**
@@ -8992,8 +8992,8 @@ longlong Item_func_can_access_routine::val_int()
   if (schema_name_ptr == nullptr || routine_name_ptr == nullptr ||
       type_ptr == nullptr || definer_ptr == nullptr || args[4]->null_value)
   {
-    null_value= TRUE;
-    DBUG_RETURN(FALSE);
+    null_value= true;
+    DBUG_RETURN(0);
   }
 
   // Make strings safe.
@@ -9007,7 +9007,7 @@ longlong Item_func_can_access_routine::val_int()
   // Skip INFORMATION_SCHEMA database
   if (is_infoschema_db(schema_name_ptr->ptr()) ||
       !my_strcasecmp(system_charset_info, schema_name_ptr->ptr(), "sys"))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(1);
 
   /*
     Before WL#7897 changes, full access to routine information is provided to
@@ -9030,7 +9030,7 @@ longlong Item_func_can_access_routine::val_int()
 
   if (check_full_access)
   {
-    DBUG_RETURN(full_access ? TRUE : FALSE);
+    DBUG_RETURN(full_access ? 1 : 0);
   }
   else if (!full_access &&
            check_some_routine_access(thd,
@@ -9038,10 +9038,10 @@ longlong Item_func_can_access_routine::val_int()
                                      routine_name_ptr->ptr(),
                                      is_procedure))
   {
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(0);
   }
 
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(1);
 }
 
 
@@ -9068,8 +9068,8 @@ longlong Item_func_can_access_event::val_int()
   String *schema_name_ptr= args[0]->val_str(&schema_name);
   if (schema_name_ptr == nullptr)
   {
-    null_value= TRUE;
-    DBUG_RETURN(FALSE);
+    null_value= true;
+    DBUG_RETURN(0);
   }
 
   // Make sure we have safe string to access.
@@ -9078,19 +9078,19 @@ longlong Item_func_can_access_event::val_int()
   // Check if schema is hidden.
   THD *thd= current_thd;
   if (is_hidden_by_ndb(thd, schema_name_ptr, nullptr))
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(0);
 
   // Skip INFORMATION_SCHEMA database
   if (is_infoschema_db(schema_name_ptr->ptr()))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(1);
 
   // Check access
   if (check_access(thd, EVENT_ACL, schema_name_ptr->ptr(), NULL, NULL, 0, 1))
   {
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(0);
   }
 
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(1);
 }
 
 /**
@@ -9115,7 +9115,7 @@ longlong Item_func_can_access_resource_group::val_int()
   if (!mgr_ptr->resource_group_support())
   {
     null_value= true;
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }
 
   // Read resource group name.
@@ -9125,7 +9125,7 @@ longlong Item_func_can_access_resource_group::val_int()
   if (res_grp_name_ptr == nullptr)
   {
     null_value= true;
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }
 
   // Make sure we have safe string to access.
@@ -9136,10 +9136,10 @@ longlong Item_func_can_access_resource_group::val_int()
                                                      res_grp_name_ptr->c_ptr(),
                                                      MDL_EXPLICIT, &ticket,
                                                      false))
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
 
   auto res_grp_ptr= mgr_ptr->get_resource_group(res_grp_name_ptr->c_ptr());
-  longlong result= TRUE;
+  longlong result= true;
   if (res_grp_ptr != nullptr)
   {
     Security_context *sctx= current_thd->security_context();
@@ -9147,18 +9147,18 @@ longlong Item_func_can_access_resource_group::val_int()
     {
       if (!(sctx->check_access(SUPER_ACL) ||
           sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first))
-        result= FALSE;
+        result= false;
     }
     else
     {
       if (!(sctx->check_access(SUPER_ACL) ||
           sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first ||
           sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_USER")).first))
-        result= FALSE;
+        result= false;
     }
   }
   mgr_ptr->release_shared_mdl_for_resource_group(current_thd, ticket);
-  DBUG_RETURN(res_grp_ptr != nullptr ? result : FALSE);
+  DBUG_RETURN(res_grp_ptr != nullptr ? result : false);
 }
 
 
@@ -9188,8 +9188,8 @@ longlong Item_func_can_access_column::val_int()
   String *table_name_ptr= args[1]->val_str(&table_name);
   if (schema_name_ptr == nullptr || table_name_ptr == nullptr)
   {
-    null_value= TRUE;
-    DBUG_RETURN(FALSE);
+    null_value= true;
+    DBUG_RETURN(0);
   }
 
   // Make sure we have safe string to access.
@@ -9199,15 +9199,15 @@ longlong Item_func_can_access_column::val_int()
   // Check if table is hidden.
   THD *thd= current_thd;
   if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(0);
 
   // Read column_name.
   String column_name;
   String *column_name_ptr= args[2]->val_str(&column_name);
   if (column_name_ptr == nullptr)
   {
-    null_value= TRUE;
-    DBUG_RETURN(FALSE);
+    null_value= true;
+    DBUG_RETURN(0);
   }
 
   // Make sure we have safe string to access.
@@ -9215,14 +9215,14 @@ longlong Item_func_can_access_column::val_int()
 
   // Skip INFORMATION_SCHEMA database
   if (is_infoschema_db(schema_name_ptr->ptr()))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(1);
 
   // Check access
   GRANT_INFO grant_info;
 
   if (check_access(thd, SELECT_ACL, schema_name_ptr->ptr(),
                    &grant_info.privilege, nullptr, false, true))
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(0);
 
   uint col_access= get_column_grant(thd, &grant_info,
                                     schema_name_ptr->ptr(),
@@ -9231,10 +9231,10 @@ longlong Item_func_can_access_column::val_int()
                                    ) & COL_ACLS;
   if (!col_access)
   {
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(0);
   }
 
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(1);
 }
 
 /**
@@ -9266,8 +9266,8 @@ longlong Item_func_can_access_view::val_int()
   if (schema_name_ptr == nullptr || table_name_ptr == nullptr ||
       definer_ptr == nullptr || options_ptr == nullptr)
   {
-    null_value= TRUE;
-    DBUG_RETURN(FALSE);
+    null_value= true;
+    DBUG_RETURN(0);
   }
 
   // Make strings safe.
@@ -9279,7 +9279,7 @@ longlong Item_func_can_access_view::val_int()
   // Skip INFORMATION_SCHEMA database
   if (is_infoschema_db(schema_name_ptr->ptr()) ||
       !my_strcasecmp(system_charset_info, schema_name_ptr->ptr(), "sys"))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(1);
 
   // Check if view is valid. If view is invalid then push invalid view
   // warning.
@@ -9287,7 +9287,7 @@ longlong Item_func_can_access_view::val_int()
   std::unique_ptr<dd::Properties>
     view_options(dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
   if (view_options->get_bool("view_valid", &is_view_valid))
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(0);
 
   THD *thd= current_thd;
   if (!is_view_valid)
@@ -9320,7 +9320,7 @@ longlong Item_func_can_access_view::val_int()
                      sctx->priv_user().str) &&
       !my_strcasecmp(system_charset_info, definer_host.c_str(),
                      sctx->priv_host().str))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(1);
 
   //
   // Check for ACL's
@@ -9328,7 +9328,7 @@ longlong Item_func_can_access_view::val_int()
 
   if ((thd->col_access & (SHOW_VIEW_ACL|SELECT_ACL)) ==
       (SHOW_VIEW_ACL|SELECT_ACL))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(1);
 
   TABLE_LIST table_list;
   uint view_access;
@@ -9338,9 +9338,9 @@ longlong Item_func_can_access_view::val_int()
   view_access= get_table_grant(thd, &table_list);
   if ((view_access & (SHOW_VIEW_ACL|SELECT_ACL)) ==
       (SHOW_VIEW_ACL|SELECT_ACL))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(1);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(0);
 }
 
 
@@ -9366,7 +9366,7 @@ longlong Item_func_is_visible_dd_object::val_int()
       (arg_count == 2 && args[1]->null_value))
   {
     null_value= true;
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }
 
   null_value= false;
@@ -9424,7 +9424,7 @@ static ulonglong get_table_statistics(
                    bool *null_value)
 {
   DBUG_ENTER("get_table_statistics");
-  *null_value= FALSE;
+  *null_value= false;
 
   // Reads arguments
   String schema_name;
@@ -9462,7 +9462,7 @@ static ulonglong get_table_statistics(
   if (schema_name_ptr == nullptr || table_name_ptr == nullptr ||
       engine_name_ptr == nullptr || skip_hidden_table)
   {
-    *null_value= TRUE;
+    *null_value= true;
     DBUG_RETURN(0);
   }
 
@@ -9506,8 +9506,8 @@ longlong Item_func_internal_table_rows::val_int()
                       dd::info_schema::enum_table_stats_type::TABLE_ROWS,
                       &null_value);
 
-  if (null_value == FALSE && result == (ulonglong) -1)
-    null_value= TRUE;
+  if (null_value == false && result == (ulonglong) -1)
+    null_value= true;
 
   DBUG_RETURN(result);
 }
@@ -9571,8 +9571,8 @@ longlong Item_func_internal_data_free::val_int()
                       dd::info_schema::enum_table_stats_type::DATA_FREE,
                       &null_value);
 
-  if (null_value == FALSE && result == (ulonglong) -1)
-    null_value= TRUE;
+  if (null_value == false && result == (ulonglong) -1)
+    null_value= true;
 
   DBUG_RETURN(result);
 }
@@ -9587,8 +9587,8 @@ longlong Item_func_internal_auto_increment::val_int()
                       dd::info_schema::enum_table_stats_type::AUTO_INCREMENT,
                       &null_value);
 
-  if (null_value == FALSE && result < (ulonglong) 1)
-    null_value= TRUE;
+  if (null_value == false && result < (ulonglong) 1)
+    null_value= true;
 
   DBUG_RETURN(result);
 }
@@ -9603,8 +9603,8 @@ longlong Item_func_internal_checksum::val_int()
                       dd::info_schema::enum_table_stats_type::CHECKSUM,
                       &null_value);
 
-  if (null_value == FALSE && result == 0)
-    null_value= TRUE;
+  if (null_value == false && result == 0)
+    null_value= true;
 
   DBUG_RETURN(result);
 }
@@ -9632,7 +9632,7 @@ longlong Item_func_internal_keys_disabled::val_int()
   String options;
   String *options_ptr=args[0]->val_str(&options);
   if (options_ptr == nullptr)
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(0);
 
   // Read table option from properties
   std::unique_ptr<dd::Properties> p
@@ -9669,7 +9669,7 @@ longlong Item_func_internal_keys_disabled::val_int()
 longlong Item_func_internal_index_column_cardinality::val_int()
 {
   DBUG_ENTER("Item_func_internal_index_column_cardinality::val_int");
-  null_value= FALSE;
+  null_value= false;
 
   // Read arguments
   String schema_name;
@@ -9697,7 +9697,7 @@ longlong Item_func_internal_index_column_cardinality::val_int()
       args[4]->null_value || args[5]->null_value ||
       args[8]->null_value || hidden_index)
   {
-    null_value= TRUE;
+    null_value= true;
     DBUG_RETURN(0);
   }
 
@@ -9727,7 +9727,7 @@ longlong Item_func_internal_index_column_cardinality::val_int()
             dd::info_schema::enum_table_stats_type::INDEX_COLUMN_CARDINALITY);
 
   if (result == (ulonglong) -1)
-    null_value= TRUE;
+    null_value= true;
 
   DBUG_RETURN(result);
 }
@@ -9752,7 +9752,7 @@ longlong Item_func_internal_index_column_cardinality::val_int()
 void retrieve_tablespace_statistics(THD *thd, Item** args, bool *null_value)
 {
   DBUG_ENTER("retrieve_tablespace_statistics");
-  *null_value= FALSE;
+  *null_value= false;
 
   // Reads arguments
   String tablespace_name;
@@ -9770,7 +9770,7 @@ void retrieve_tablespace_statistics(THD *thd, Item** args, bool *null_value)
                     engine_name_ptr->c_ptr_safe(),
                     "InnoDB"))
   {
-    *null_value= TRUE;
+    *null_value= true;
     DBUG_VOID_RETURN;
   }
 
@@ -9784,7 +9784,7 @@ void retrieve_tablespace_statistics(THD *thd, Item** args, bool *null_value)
                 *file_name_ptr,
                 (ts_se_private_data_ptr ?
                  ts_se_private_data_ptr->c_ptr_safe() : nullptr)))
-    *null_value= TRUE;
+    *null_value= true;
 
   DBUG_VOID_RETURN;
 }
@@ -9898,7 +9898,7 @@ longlong Item_func_internal_tablespace_maximum_size::val_int()
                   dd::info_schema::enum_tablespace_stats_type::TS_MAXIMUM_SIZE,
                   &result);
      if (result == (ulonglong) -1)
-       null_value= TRUE;
+       null_value= true;
 
      DBUG_RETURN(result);
   }
@@ -9963,7 +9963,7 @@ Item_func_version::Item_func_version(const POS &pos)
 longlong Item_func_internal_dd_char_length::val_int()
 {
   DBUG_ENTER("Item_func_get_dd_char_length::val_real");
-  null_value= FALSE;
+  null_value= false;
 
   dd::enum_column_types col_type= (dd::enum_column_types) args[0]->val_int();
   uint field_length= args[1]->val_int();
@@ -9977,7 +9977,7 @@ longlong Item_func_internal_dd_char_length::val_int()
       cs_name_ptr == nullptr ||
       args[3]->null_value)
   {
-    null_value= TRUE;
+    null_value= true;
     DBUG_RETURN(0);
   }
 
@@ -9985,7 +9985,7 @@ longlong Item_func_internal_dd_char_length::val_int()
   CHARSET_INFO *cs= get_charset_by_name(cs_name_ptr->c_ptr_safe(), MYF(0));
   if (!cs)
   {
-    null_value= TRUE;
+    null_value= true;
     DBUG_RETURN(0);
   }
 
@@ -9998,7 +9998,7 @@ longlong Item_func_internal_dd_char_length::val_int()
       field_type != MYSQL_TYPE_VARCHAR &&  // For varbinary type
       field_type != MYSQL_TYPE_STRING)     // For binary type
   {
-    null_value= TRUE;
+    null_value= true;
     DBUG_RETURN(0);
   }
 
@@ -10058,7 +10058,7 @@ longlong Item_func_internal_get_view_warning_or_error::val_int()
   if (table_type_ptr == nullptr || schema_name_ptr == nullptr ||
       table_name_ptr == nullptr)
   {
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(0);
   }
 
   String options;
@@ -10072,18 +10072,18 @@ longlong Item_func_internal_get_view_warning_or_error::val_int()
 
     // Return 0 if get_bool() or push_view_warning_or_error() fails
     if (view_options->get_bool("view_valid", &is_view_valid))
-      DBUG_RETURN(FALSE);
+      DBUG_RETURN(0);
 
     if (is_view_valid == false)
     {
       push_view_warning_or_error(current_thd,
                                  schema_name_ptr->c_ptr_safe(),
                                  table_name_ptr->c_ptr_safe());
-      DBUG_RETURN(FALSE);
+      DBUG_RETURN(0);
     }
   }
 
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(1);
 }
 
 

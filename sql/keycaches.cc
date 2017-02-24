@@ -51,7 +51,7 @@ void NAMED_ILIST::delete_elements()
   DBUG_ENTER("NAMED_ILIST::delete_elements");
   while ((element= get()))
   {
-    end_key_cache(pointer_cast<KEY_CACHE*>(element->data), TRUE); // Can never fail
+    end_key_cache(pointer_cast<KEY_CACHE*>(element->data), true); // Can never fail
     my_free(element->data);
     delete element;
   }

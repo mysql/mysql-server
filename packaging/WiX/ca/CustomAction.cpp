@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -148,7 +148,7 @@ UINT RunProcess(TCHAR *AppName, TCHAR *CmdLine, TCHAR * WorkDir)
 	wcscat_s(tempCmdLine, MAX_PATH *2, CmdLine);
 	wcscat_s(tempCmdLine, MAX_PATH *2, TEXT("\""));
 
-	result = ::CreateProcess(AppName, tempCmdLine, NULL, NULL, FALSE, NORMAL_PRIORITY_CLASS, NULL, WorkDir, &startupInfo, &processInformation);
+	result = ::CreateProcess(AppName, tempCmdLine, NULL, NULL, false, NORMAL_PRIORITY_CLASS, NULL, WorkDir, &startupInfo, &processInformation);
 
     if (result == 0)
     {
@@ -269,5 +269,5 @@ extern "C" BOOL WINAPI DllMain(
 		break;
 	}
 
-	return TRUE;
+	return true;
 }

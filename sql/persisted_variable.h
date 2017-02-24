@@ -93,7 +93,7 @@ public:
   /**
     Set persisted options
   */
-  bool set_persist_options(bool plugin_options= FALSE);
+  bool set_persist_options(bool plugin_options= false);
   /**
     Reset persisted options
   */
@@ -111,7 +111,7 @@ public:
     separator.
   */
   bool append_read_only_variables(int *argc, char ***argv,
-    bool plugin_options= FALSE);
+    bool plugin_options= false);
   void cleanup();
 
 private:

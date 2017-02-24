@@ -236,7 +236,7 @@ trx_i_s_possibly_fetch_data_into_cache(
 /*******************************************************************//**
 Returns TRUE if the data in the cache is truncated due to the memory
 limit posed by TRX_I_S_MEM_LIMIT.
-@return TRUE if truncated */
+@return true if truncated */
 ibool
 trx_i_s_cache_is_truncated(
 /*=======================*/

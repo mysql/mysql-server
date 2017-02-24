@@ -178,8 +178,8 @@ void my_init_time(void);
     estimate.
 
   RETURN VALUES
-    TRUE    The value seems sane
-    FALSE   The MYSQL_TIME value is definitely out of range
+    true    The value seems sane
+    false   The MYSQL_TIME value is definitely out of range
 */
 
 static inline bool validate_timestamp_range(const MYSQL_TIME *t)
@@ -187,9 +187,9 @@ static inline bool validate_timestamp_range(const MYSQL_TIME *t)
   if ((t->year > TIMESTAMP_MAX_YEAR || t->year < TIMESTAMP_MIN_YEAR) ||
       (t->year == TIMESTAMP_MAX_YEAR && (t->month > 1 || t->day > 19)) ||
       (t->year == TIMESTAMP_MIN_YEAR && (t->month < 12 || t->day < 31)))
-    return FALSE;
+    return false;
 
-  return TRUE;
+  return true;
 }
 
 my_time_t 

@@ -783,9 +783,9 @@ ulonglong Table_statistics::read_stat_by_open_table(
 
   LEX_CSTRING db_name_lex_cstr, table_name_lex_cstr;
   if (!thd->make_lex_string(&db_name_lex_cstr, schema_name_ptr.ptr(),
-                            schema_name_ptr.length(), FALSE) ||
+                            schema_name_ptr.length(), false) ||
       !thd->make_lex_string(&table_name_lex_cstr, table_name_ptr.ptr(),
-                            table_name_ptr.length(), FALSE))
+                            table_name_ptr.length(), false))
   {
     error= -1;
     goto end;

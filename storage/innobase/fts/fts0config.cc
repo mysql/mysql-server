@@ -32,7 +32,7 @@ Created 2007/5/9 Sunny Bains
 
 /******************************************************************//**
 Callback function for fetching the config value.
-@return always returns TRUE */
+@return always returns true */
 static
 ibool
 fts_config_fetch_value(

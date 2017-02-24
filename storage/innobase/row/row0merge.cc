@@ -1108,7 +1108,7 @@ row_merge_heap_create(
 
 /********************************************************************//**
 Read a merge block from the file system.
-@return TRUE if request was successful, FALSE if fail */
+@return true if request was successful, false if fail */
 ibool
 row_merge_read(
 /*===========*/
@@ -1148,7 +1148,7 @@ row_merge_read(
 
 /********************************************************************//**
 Write a merge block to the file system.
-@return TRUE if request was successful, FALSE if fail */
+@return true if request was successful, false if fail */
 ibool
 row_merge_write(
 /*============*/
@@ -2867,7 +2867,7 @@ done1:
 @param[in,out]	stage	performance schema accounting object, used by
 ALTER TABLE. If not NULL stage->inc() will be called for each record
 processed.
-@return TRUE on success, FALSE on failure */
+@return true on success, false on failure */
 static MY_ATTRIBUTE((warn_unused_result))
 ibool
 row_merge_blocks_copy(

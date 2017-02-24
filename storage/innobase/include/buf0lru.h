@@ -42,7 +42,7 @@ struct trx_t;
 Returns TRUE if less than 25 % of the buffer pool is available. This can be
 used in heuristics to prevent huge transactions eating up the whole buffer
 pool for their locks.
-@return TRUE if less than 25 % of buffer pool left */
+@return true if less than 25 % of buffer pool left */
 ibool
 buf_LRU_buf_pool_running_out(void);
 /*==============================*/
@@ -145,7 +145,7 @@ buf_LRU_get_free_block(
 /** Determines if the unzip_LRU list should be used for evicting a victim
 instead of the general LRU list.
 @param[in,out]	buf_pool	buffer pool instance
-@return TRUE if should use unzip_LRU */
+@return true if should use unzip_LRU */
 ibool
 buf_LRU_evict_from_unzip_LRU(
 	buf_pool_t*	buf_pool);
@@ -229,7 +229,7 @@ buf_LRU_adjust_hp(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************//**
 Validates the LRU list.
-@return TRUE */
+@return true */
 ibool
 buf_LRU_validate(void);
 /*==================*/

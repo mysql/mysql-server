@@ -401,7 +401,7 @@ THD::THD(bool enable_plugins)
    time_zone_used(0),
    in_lock_tables(0),
    got_warning(false),
-   derived_tables_processing(FALSE),
+   derived_tables_processing(false),
    parsing_system_view(false),
    sp_runtime_ctx(NULL),
    m_parser_state(NULL),
@@ -445,7 +445,7 @@ THD::THD(bool enable_plugins)
   check_for_truncated_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
   col_access=0;
-  is_slave_error= thread_specific_used= FALSE;
+  is_slave_error= thread_specific_used= false;
   tmp_table=0;
   num_truncated_fields= 0L;
   m_sent_row_count= 0L;
@@ -469,7 +469,7 @@ THD::THD(bool enable_plugins)
   query_name_consts= 0;
   db_charset= global_system_variables.collation_database;
   is_killable= false;
-  binlog_evt_union.do_union= FALSE;
+  binlog_evt_union.do_union= false;
   enable_slow_log= 0;
   commit_error= CE_NONE;
   durability_property= HA_REGULAR_DURABILITY;
@@ -522,7 +522,7 @@ THD::THD(bool enable_plugins)
   protocol_binary.init(this);
   protocol_text.set_client_capabilities(0); // minimalistic client
 
-  substitute_null_with_insert_id = FALSE;
+  substitute_null_with_insert_id = false;
 
   /*
     Make sure thr_lock_info_init() is called for threads which do not get
@@ -531,7 +531,7 @@ THD::THD(bool enable_plugins)
   thr_lock_info_init(&lock_info, m_thread_id, &COND_thr_lock);
 
   m_internal_handler= NULL;
-  m_binlog_invoker= FALSE;
+  m_binlog_invoker= false;
   memset(&m_invoker_user, 0, sizeof(m_invoker_user));
   memset(&m_invoker_host, 0, sizeof(m_invoker_host));
 
@@ -930,8 +930,8 @@ void THD::cleanup_connection(void)
 
 #ifndef DBUG_OFF
     /* DEBUG code only (begin) */
-    bool check_cleanup= FALSE;
-    DBUG_EXECUTE_IF("debug_test_cleanup_connection", check_cleanup= TRUE;);
+    bool check_cleanup= false;
+    DBUG_EXECUTE_IF("debug_test_cleanup_connection", check_cleanup= true;);
     if(check_cleanup)
     {
       /* isolation level should be default */
@@ -1520,7 +1520,7 @@ void THD::cleanup_after_query()
     first_successful_insert_id_in_prev_stmt= 
       first_successful_insert_id_in_cur_stmt;
     first_successful_insert_id_in_cur_stmt= 0;
-    substitute_null_with_insert_id= TRUE;
+    substitute_null_with_insert_id= true;
   }
   arg_of_last_insert_id_function= 0;
   /* Hack for cleaning up view security contexts */
@@ -1536,7 +1536,7 @@ void THD::cleanup_after_query()
   where= THD::DEFAULT_WHERE;
   /* reset table map for multi-table update */
   table_map_for_update= 0;
-  m_binlog_invoker= FALSE;
+  m_binlog_invoker= false;
   /* reset replication info structure */
   if (lex)
   {
@@ -1595,7 +1595,7 @@ LEX_CSTRING *THD::make_lex_string(LEX_CSTRING *lex_str,
   @param lex_str  pointer to LEX_STRING object to be initialized
   @param str      initializer to be copied into lex_str
   @param length   length of str, in bytes
-  @param allocate_lex_string  if TRUE, allocate new LEX_STRING object,
+  @param allocate_lex_string  if true, allocate new LEX_STRING object,
                               instead of using lex_str value
   @return  NULL on failure, or pointer to the LEX_STRING object
 */
@@ -1674,7 +1674,7 @@ bool THD::convert_string(String *s, const CHARSET_INFO *from_cs,
 {
   uint dummy_errors;
   if (convert_buffer.copy(s->ptr(), s->length(), from_cs, to_cs, &dummy_errors))
-    return TRUE;
+    return true;
   /* If convert_buffer >> s copying is more efficient long term */
   if (convert_buffer.alloced_length() >= convert_buffer.length() * 2 ||
       !s->is_alloced())
@@ -1682,7 +1682,7 @@ bool THD::convert_string(String *s, const CHARSET_INFO *from_cs,
     return s->copy(convert_buffer);
   }
   s->swap(convert_buffer);
-  return FALSE;
+  return false;
 }
 
 
@@ -1885,12 +1885,12 @@ void THD::end_statement()
 void THD::set_n_backup_active_arena(Query_arena *set, Query_arena *backup)
 {
   DBUG_ENTER("THD::set_n_backup_active_arena");
-  DBUG_ASSERT(backup->is_backup_arena == FALSE);
+  DBUG_ASSERT(backup->is_backup_arena == false);
 
   backup->set_query_arena(this);
   set_query_arena(set);
 #ifndef DBUG_OFF
-  backup->is_backup_arena= TRUE;
+  backup->is_backup_arena= true;
 #endif
   DBUG_VOID_RETURN;
 }
@@ -1903,7 +1903,7 @@ void THD::restore_active_arena(Query_arena *set, Query_arena *backup)
   set->set_query_arena(this);
   set_query_arena(backup);
 #ifndef DBUG_OFF
-  backup->is_backup_arena= FALSE;
+  backup->is_backup_arena= false;
 #endif
   DBUG_VOID_RETURN;
 }
@@ -2497,7 +2497,7 @@ void THD::get_definer(LEX_USER *definer)
 /**
   Mark transaction to rollback and mark error as fatal to a sub-statement.
 
-  @param  all   TRUE <=> rollback main transaction.
+  @param  all   true <=> rollback main transaction.
 */
 
 void THD::mark_transaction_to_rollback(bool all)

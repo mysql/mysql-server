@@ -690,7 +690,7 @@ namespace sha2_password
         break;
       }
       default:
-        DBUG_ASSERT(FALSE);
+        DBUG_ASSERT(false);
         DBUG_RETURN(true);
     }
     DBUG_RETURN(false);

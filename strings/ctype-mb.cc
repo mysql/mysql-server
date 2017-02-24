@@ -949,8 +949,8 @@ fill_max_and_min:
    @param[out] max_length Length of max_str
 
    @return Optimization status.
-   @retval FALSE if LIKE pattern can be optimized
-   @retval TRUE if LIKE can't be optimized.
+   @retval false if LIKE pattern can be optimized
+   @retval true if LIKE can't be optimized.
 */
 bool
 my_like_range_generic(const CHARSET_INFO *cs,
@@ -975,7 +975,7 @@ my_like_range_generic(const CHARSET_INFO *cs,
     if ((res= cs->cset->mb_wc(cs, &wc, (uchar*) ptr, (uchar*) end)) <= 0)
     {
       if (res == MY_CS_ILSEQ) /* Bad sequence */
-        return TRUE; /* min_length and max_length are not important */
+        return true; /* min_length and max_length are not important */
       break; /* End of the string */
     }
     ptr+= res;
@@ -985,7 +985,7 @@ my_like_range_generic(const CHARSET_INFO *cs,
       if ((res= cs->cset->mb_wc(cs, &wc, (uchar*) ptr, (uchar*) end)) <= 0)
       {
         if (res == MY_CS_ILSEQ)
-          return TRUE; /* min_length and max_length are not important */
+          return true; /* min_length and max_length are not important */
         /*
            End of the string: Escape is the last character.
            Put escape as a normal character.
@@ -1114,7 +1114,7 @@ pad_min_max:
     memset(min_end - res_length_diff, 0, res_length_diff);
     memset(max_end - res_length_diff, 0, res_length_diff);
   }
-  return FALSE;
+  return false;
 }
 
 

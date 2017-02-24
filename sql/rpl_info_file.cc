@@ -161,14 +161,14 @@ int Rpl_info_file::do_init_info()
 int Rpl_info_file::do_prepare_info_for_read()
 {
   cursor= 0;
-  prv_error= FALSE;
+  prv_error= false;
   return (reinit_io_cache(&info_file, READ_CACHE, 0L, 0, 0));
 }
 
 int Rpl_info_file::do_prepare_info_for_write()
 {
   cursor= 0;
-  prv_error= FALSE;
+  prv_error= false;
   return (reinit_io_cache(&info_file, WRITE_CACHE, 0L, 0, 1));
 }
 
@@ -365,7 +365,7 @@ int Rpl_info_file::do_reset_info(const int nparam,
 bool Rpl_info_file::do_set_info(const int, const char *value)
 {
   return (my_b_printf(&info_file, "%s\n", value) > (size_t) 0 ?
-          FALSE : TRUE);
+          false : true);
 }
 
 bool Rpl_info_file::do_set_info(const int, const uchar *value,
@@ -377,13 +377,13 @@ bool Rpl_info_file::do_set_info(const int, const uchar *value,
 bool Rpl_info_file::do_set_info(const int, const ulong value)
 {
   return (my_b_printf(&info_file, "%lu\n", value) > (size_t) 0 ?
-          FALSE : TRUE);
+          false : true);
 }
 
 bool Rpl_info_file::do_set_info(const int, const int value)
 {
   return (my_b_printf(&info_file, "%d\n", value) > (size_t) 0 ?
-          FALSE : TRUE);
+          false : true);
 }
 
 bool Rpl_info_file::do_set_info(const int, const float value)
@@ -404,12 +404,12 @@ bool Rpl_info_file::do_set_info(const int, const float value)
   sprintf(buffer, "%.3f", value);
 
   return (my_b_printf(&info_file, "%s\n", buffer) > (size_t) 0 ?
-          FALSE : TRUE);
+          false : true);
 }
 
 bool Rpl_info_file::do_set_info(const int, const Server_ids *value)
 {
-  bool error= TRUE;
+  bool error= true;
   String buffer;
 
   /*
@@ -419,7 +419,7 @@ bool Rpl_info_file::do_set_info(const int, const Server_ids *value)
     goto err;
 
   error= (my_b_printf(&info_file, "%s\n", buffer.c_ptr_safe()) >
-          (size_t) 0 ? FALSE : TRUE);
+          (size_t) 0 ? false : true);
 err:
   return error;
 }
@@ -494,16 +494,16 @@ char* Rpl_info_file::do_get_description_info()
 
 bool Rpl_info_file::do_is_transactional()
 {
-  return FALSE;
+  return false;
 }
 
 bool Rpl_info_file::do_update_is_transactional()
 {
   DBUG_EXECUTE_IF("simulate_update_is_transactional_error",
                   {
-                  return TRUE;
+                  return true;
                   });
-  return FALSE;
+  return false;
 }
 
 uint Rpl_info_file::do_get_rpl_info_type()
@@ -653,7 +653,7 @@ bool init_dynarray_intvar_from_file(char *buffer, size_t size,
 
   if ((read_size= my_b_gets(f, buf_act, size)) == 0)
   {
-    DBUG_RETURN(FALSE); // no line in master.info
+    DBUG_RETURN(false); // no line in master.info
   }
   if (read_size + 1 == size && buf[size - 2] != '\n')
   {
@@ -672,7 +672,7 @@ bool init_dynarray_intvar_from_file(char *buffer, size_t size,
     size_t max_size= (1 + num_items) * (sizeof(long) * 3 + 1) + 1;
     if (! (buf_act= (char*) my_malloc(key_memory_Rpl_info_file_buffer,
                                       max_size, MYF(MY_WME))))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     *buffer_act= buf_act;
     memcpy(buf_act, buf, read_size);
     snd_size= my_b_gets(f, buf_act + read_size, max_size - read_size);
@@ -682,8 +682,8 @@ bool init_dynarray_intvar_from_file(char *buffer, size_t size,
       /*
         failure to make the 2nd read or short read again
       */
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }

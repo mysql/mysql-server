@@ -358,7 +358,7 @@ namespace AQP
            **/
 
           const KEY *key_info= qep_tab->table()->s->key_info;
-          DBUG_EXECUTE("info", quick->dbug_dump(0, TRUE););
+          DBUG_EXECUTE("info", quick->dbug_dump(0, true););
 
           // Temporary assert as we are still investigation the relation between 
           // 'quick->index == MAX_KEY' and the different quick_types

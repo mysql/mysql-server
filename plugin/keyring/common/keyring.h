@@ -78,7 +78,7 @@ bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id,
   catch (...)
   {
     log_operation_error("fetch a key", plugin_name);
-    return TRUE;
+    return true;
   }
 }
 
@@ -95,7 +95,7 @@ bool mysql_key_store(const char *key_id, const char *key_type,
   catch (...)
   {
     log_operation_error("store a key", plugin_name);
-    return TRUE;
+    return true;
   }
 }
 
@@ -111,7 +111,7 @@ bool mysql_key_remove(const char *key_id, const char *user_id,
   catch (...)
   {
     log_operation_error("remove a key", plugin_name);
-    return TRUE;
+    return true;
   }
 }
 

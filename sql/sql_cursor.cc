@@ -311,7 +311,7 @@ int Materialized_cursor::open(JOIN *join MY_ATTRIBUTE((unused)))
   /* Create a list of fields and start sequential scan. */
 
   rc= result->prepare(item_list, &fake_unit);
-  rc= !rc && table->file->ha_rnd_init(TRUE);
+  rc= !rc && table->file->ha_rnd_init(true);
   is_rnd_inited= !rc;
 
   thd->restore_active_arena(this, &backup_arena);
@@ -417,10 +417,10 @@ bool Query_result_materialize::send_result_set_metadata(List<Item> &list,
 {
   DBUG_ASSERT(table == 0);
   if (create_result_table(unit->thd, unit->get_field_list(),
-                          FALSE,
+                          false,
                           thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
-                          "", FALSE, TRUE))
-    return TRUE;
+                          "", false, true))
+    return true;
 
   materialized_cursor= new (&table->s->mem_root)
                        Materialized_cursor(result, table);
@@ -429,7 +429,7 @@ bool Query_result_materialize::send_result_set_metadata(List<Item> &list,
   {
     free_tmp_table(table->in_use, table);
     table= 0;
-    return TRUE;
+    return true;
   }
 
   if (materialized_cursor->send_result_set_metadata(unit->thd, list))
@@ -437,7 +437,7 @@ bool Query_result_materialize::send_result_set_metadata(List<Item> &list,
     delete materialized_cursor;
     table= 0;
     materialized_cursor= 0;
-    return TRUE;
+    return true;
   }
 
   /*
@@ -448,6 +448,6 @@ bool Query_result_materialize::send_result_set_metadata(List<Item> &list,
   for (Field **fld= this->table->field; *fld; fld++)
      (*fld)->orig_table= NULL;
 
-  return FALSE;
+  return false;
 }
 

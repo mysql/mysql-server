@@ -846,7 +846,7 @@ public:
      variable 'sync_binlog'. If file is synchronized, @c synced will
      be set to 1, otherwise 0.
 
-     @param[in] force if TRUE, ignores the 'sync_binlog' and synchronizes the file.
+     @param[in] force if true, ignores the 'sync_binlog' and synchronizes the file.
 
      @retval 0 Success
      @retval other Failure

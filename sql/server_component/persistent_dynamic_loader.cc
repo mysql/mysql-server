@@ -220,7 +220,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
     });
 
     if (init_read_record(
-      &read_record_info, thd, component_table, NULL, 1, 1, FALSE))
+      &read_record_info, thd, component_table, NULL, 1, 1, false))
     {
       push_warning(thd, Sql_condition::SL_WARNING,
         ER_COMPONENT_TABLE_INCORRECT,

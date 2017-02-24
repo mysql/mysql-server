@@ -111,7 +111,7 @@ bool ensure_utf8mb4(const String &val, String *buf,
                            else false
   @param[in]  handle_numbers_as_double
                            Whether numbers should be handled as double. If set
-                           to TRUE, all numbers are parsed as DOUBLE
+                           to true, all numbers are parsed as DOUBLE
 
   @returns false if the arg parsed as valid JSON, true otherwise
 */
@@ -253,7 +253,7 @@ bool get_json_string(Item *arg_item,
                             else false
   @param[in]     handle_numbers_as_double
                             whether numbers should be handled as double. If set
-                            to TRUE, all numbers are parsed as DOUBLE
+                            to true, all numbers are parsed as DOUBLE
 
   @returns true iff syntax error *and* dom != null, else false
 */

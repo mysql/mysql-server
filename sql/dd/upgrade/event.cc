@@ -413,7 +413,7 @@ static bool update_event_timing_fields(THD *thd, TABLE *table,
   {
     MYSQL_TIME time;
     my_time_t last_executed;
-    bool not_used= FALSE;
+    bool not_used= false;
     table->field[ET_FIELD_LAST_EXECUTED]->get_date(&time,
                                                    TIME_NO_ZERO_DATE);
     last_executed= my_tz_OFFSET0->TIME_to_gmt_sec(&time, &not_used);
@@ -472,7 +472,7 @@ static bool set_status_and_interval_for_event(THD *thd, TABLE *table,
                                               Event_parse_data *et_parse_data)
 {
   char *ptr;
-  bool not_used= FALSE;
+  bool not_used= false;
   MYSQL_TIME time;
 
   if (!table->field[ET_FIELD_INTERVAL_EXPR]->is_null())
@@ -576,7 +576,7 @@ static bool migrate_event_to_dd(THD *thd, TABLE *event_table)
   else
     et_parse_data.comment.length= strlen(et_parse_data.comment.str);
 
-  bool not_used= FALSE;
+  bool not_used= false;
   et_parse_data.starts_null= event_table->field[ET_FIELD_STARTS]->is_null();
   if (!et_parse_data.starts_null)
   {

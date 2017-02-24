@@ -214,7 +214,7 @@ operation, we only do it every INNOBASE_WAKE_INTERVAL'th step. */
 
 /*****************************************************************//**
 Check whether the InnoDB persistent cursor is positioned.
-@return IB_TRUE if positioned */
+@return IB_true if positioned */
 UNIV_INLINE
 ib_bool_t
 ib_btr_cursor_is_positioned(
@@ -2911,7 +2911,7 @@ ib_table_get_id(
 
 /*****************************************************************//**
 Check if cursor is positioned.
-@return IB_TRUE if positioned */
+@return IB_true if positioned */
 ib_bool_t
 ib_cursor_is_positioned(
 /*====================*/
@@ -2926,7 +2926,7 @@ ib_cursor_is_positioned(
 
 /*****************************************************************//**
 Checks if the data dictionary is latched in exclusive mode.
-@return TRUE if exclusive latch */
+@return true if exclusive latch */
 ib_bool_t
 ib_schema_lock_is_exclusive(
 /*========================*/

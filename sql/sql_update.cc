@@ -181,13 +181,13 @@ bool compare_records(const TABLE *table)
           
           if (((table->record[0][null_byte_index]) & field->null_bit) !=
               ((table->record[1][null_byte_index]) & field->null_bit))
-            return TRUE;
+            return true;
         }
         if (field->cmp_binary_offset(table->s->rec_buff_length))
-          return TRUE;
+          return true;
       }
     }
-    return FALSE;
+    return false;
   }
   
   /* 
@@ -202,15 +202,15 @@ bool compare_records(const TABLE *table)
   if (memcmp(table->null_flags,
 	     table->null_flags+table->s->rec_buff_length,
 	     table->s->null_bytes))
-    return TRUE;				// Diff in NULL value
+    return true;				// Diff in NULL value
   /* Compare updated fields */
   for (Field **ptr= table->field ; *ptr ; ptr++)
   {
     if (bitmap_is_set(table->write_set, (*ptr)->field_index) &&
 	(*ptr)->cmp_binary_offset(table->s->rec_buff_length))
-      return TRUE;
+      return true;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -911,7 +911,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
 
       if (!error && has_after_triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                            TRG_ACTION_AFTER, TRUE))
+                                            TRG_ACTION_AFTER, true))
       {
         error= 1;
         break;
@@ -1057,7 +1057,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
 
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query().str, thd->query().length,
-                            transactional_table, FALSE, FALSE, errcode))
+                            transactional_table, false, false, errcode))
       {
         error=1;				// Rollback update
       }
@@ -1600,7 +1600,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
   }
 
   /*
-    Set exclude_from_table_unique_test value back to FALSE. It is needed for
+    Set exclude_from_table_unique_test value back to false. It is needed for
     further check whether to use record cache.
   */
   select->exclude_from_table_unique_test= false;
@@ -1918,13 +1918,13 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab,
   case JT_SYSTEM:
   case JT_CONST:
   case JT_EQ_REF:
-    return TRUE;				// At most one matching row
+    return true;				// At most one matching row
   case JT_REF:
   case JT_REF_OR_NULL:
     return !is_key_used(table, join_tab->ref().key, table->write_set);
   case JT_ALL:
     if (bitmap_is_overlapping(&table->tmp_set, table->write_set))
-      return FALSE;
+      return false;
     /* If range search on index */
     if (join_tab->quick())
       return !join_tab->quick()->is_keys_used(table->write_set);
@@ -1932,11 +1932,11 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab,
     if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
 	table->s->primary_key < MAX_KEY)
       return !is_key_used(table, table->s->primary_key, table->write_set);
-    return TRUE;
+    return true;
   default:
     break;					// Avoid compler warning
   }
-  return FALSE;
+  return false;
 
 }
 
@@ -2312,7 +2312,7 @@ bool Query_result_update::send_data(List<Item>&)
       }
       if (!error && table->triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                            TRG_ACTION_AFTER, TRUE))
+                                            TRG_ACTION_AFTER, true))
         DBUG_RETURN(true);
     }
     else
@@ -2368,7 +2368,7 @@ bool Query_result_update::send_data(List<Item>&)
             create_ondisk_from_heap(thd, tmp_table,
                                          tmp_table_param[offset].start_recinfo,
                                          &tmp_table_param[offset].recinfo,
-                                         error, TRUE, NULL))
+                                         error, true, NULL))
         {
           update_completed= true;
           DBUG_RETURN(true);             // Not a table_is_full error
@@ -2642,7 +2642,7 @@ bool Query_result_update::do_updates()
 
       if (!local_error && table->triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                            TRG_ACTION_AFTER, TRUE))
+                                            TRG_ACTION_AFTER, true))
         goto err;
     }
 
@@ -2733,7 +2733,7 @@ bool Query_result_update::send_eof()
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query().str, thd->query().length,
-                            transactional_tables, FALSE, FALSE, errcode))
+                            transactional_tables, false, false, errcode))
       {
 	local_error= 1;				// Rollback update
       }

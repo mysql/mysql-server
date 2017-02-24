@@ -1,7 +1,7 @@
 #ifndef TZFILE_INCLUDED
 #define TZFILE_INCLUDED
 
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,13 +60,13 @@ struct tzhead {
   tzh_leapcnt repetitions of
     one (char [4])                      coded leap second transition times
     one (char [4])                      total correction after above
-  tzh_ttisstdcnt (char)s                indexed by type; if TRUE, transition
-                                        time is standard time, if FALSE,
+  tzh_ttisstdcnt (char)s                indexed by type; if true, transition
+                                        time is standard time, if false,
                                         transition time is wall clock time
                                         if absent, transition times are
                                         assumed to be wall clock time
-  tzh_ttisgmtcnt (char)s                indexed by type; if TRUE, transition
-                                        time is UTC, if FALSE,
+  tzh_ttisgmtcnt (char)s                indexed by type; if true, transition
+                                        time is UTC, if false,
                                         transition time is local time
                                         if absent, transition times are
                                         assumed to be local time

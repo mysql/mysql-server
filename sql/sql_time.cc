@@ -373,7 +373,7 @@ bool time_add_nanoseconds_with_truncate(MYSQL_TIME *ltime,
     ltime->second_part= nanoseconds/1000;
 
   adjust_time_range(ltime, warnings);
-  return FALSE;
+  return false;
 }
 
 /**
@@ -394,7 +394,7 @@ bool datetime_add_nanoseconds_with_truncate(MYSQL_TIME *ltime,
   */
   if (ltime->second_part == 0)
     ltime->second_part= nanoseconds/1000;
-  return FALSE;
+  return false;
 }
 
 /**

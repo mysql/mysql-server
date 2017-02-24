@@ -204,7 +204,7 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl)
                               the row just read by readers.
                             */
                             DELAYED_OPEN,
-                            0, t, FALSE, nullptr))
+                            0, t, false, nullptr))
     return nullptr;                             /* purecov: inspected */
   DBUG_ASSERT(t->s == first->s && t != first && t->file != first->file);
   t->s->ref_count++;
@@ -678,7 +678,7 @@ bool TABLE_LIST::setup_table_function(THD *thd)
   set_uses_materialization();
 
   if (table_function->init())
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   // Create the result table for the materialization
   if (internal_tmp_disk_storage_engine != TMP_TABLE_INNODB)

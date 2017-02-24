@@ -225,7 +225,7 @@ infimum;
 GREATER than the user record which was the predecessor of the supremum.
 (4) cursor was positioned before the first or after the last in an empty tree:
 restores to before first or after the last in the tree.
-@return TRUE if the cursor position was stored when it was on a user
+@return true if the cursor position was stored when it was on a user
 record and it can be restored on a user record whose ordering fields
 are identical to the ones of the original user record */
 ibool
@@ -549,7 +549,7 @@ btr_pcur_move_backward_from_page(
 /*********************************************************//**
 Moves the persistent cursor to the previous record in the tree. If no records
 are left, the cursor stays 'before first in tree'.
-@return TRUE if the cursor was not before first in tree */
+@return true if the cursor was not before first in tree */
 ibool
 btr_pcur_move_to_prev(
 /*==================*/

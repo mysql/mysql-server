@@ -126,7 +126,7 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
     if (org_field->maybe_null() || (item && item->maybe_null))
       new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
     if (org_field->type() == FIELD_TYPE_DOUBLE)
-      ((Field_double *) new_field)->not_fixed= TRUE;
+      ((Field_double *) new_field)->not_fixed= true;
     /*
       This field will belong to an internal temporary table, it cannot be
       generated.
@@ -169,7 +169,7 @@ static Field *create_tmp_field_from_item(Item *item, TABLE *table,
   case REAL_RESULT:
     new_field= new (*THR_MALLOC) Field_double(item->max_length, maybe_null,
                                               item->item_name.ptr(),
-                                              item->decimals, TRUE);
+                                              item->decimals, true);
     break;
   case INT_RESULT:
     /* 
@@ -233,7 +233,7 @@ static Field *create_tmp_field_from_item(Item *item, TABLE *table,
   if (modify_item)
     item->set_result_field(new_field);
   if (item->type() == Item::NULL_ITEM)
-    new_field->is_created_from_null_item= TRUE;
+    new_field->is_created_from_null_item= true;
   return new_field;
 }
 
@@ -297,7 +297,7 @@ static Field *create_tmp_field_for_schema(Item *item, TABLE *table)
                        the temporary table
   @param table_cant_handle_bit_fields
   @param make_copy_field
-  @param copy_result_field TRUE <=> save item's result_field in the from_field
+  @param copy_result_field true <=> save item's result_field in the from_field
                        arg, before changing it. This is used for a window's
                        OUT table when window uses frame buffer to copy a
                        function's result field from OUT table to frame buffer
@@ -500,13 +500,13 @@ static void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps)
 {
   uint field_count= table->s->fields;
   bitmap_init(&table->def_read_set, (my_bitmap_map*) bitmaps, field_count,
-              FALSE);
+              false);
   bitmap_init(&table->tmp_set,
               (my_bitmap_map*) (bitmaps + bitmap_buffer_size(field_count)),
-              field_count, FALSE);
+              field_count, false);
   bitmap_init(&table->cond_set,
               (my_bitmap_map*) (bitmaps + bitmap_buffer_size(field_count) * 2),
-              field_count, FALSE);
+              field_count, false);
   /* write_set and all_set are copies of read_set */
   table->def_write_set= table->def_read_set;
   table->s->all_set= table->def_read_set;
@@ -893,7 +893,7 @@ inline void relocate_field(Field *field, uchar *pos, uchar *null_flags,
   TABLE_SHARE.
   This function will replace Item_sum items in 'fields' list with
   corresponding Item_field items, pointing at the fields in the
-  temporary table, unless this was prohibited by TRUE
+  temporary table, unless this was prohibited by true
   value of argument save_sum_fields. The Item_field objects
   are created in THD memory root.
 
@@ -1898,7 +1898,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
       For the sake of uniformity, always use Field_varstring (altough we could
       use Field_string for shorter keys)
     */
-    field= new (*THR_MALLOC) Field_varstring(uniq_tuple_length_arg, FALSE,
+    field= new (*THR_MALLOC) Field_varstring(uniq_tuple_length_arg, false,
                                              "rowids", share, &my_charset_bin);
     if (!field)
       DBUG_RETURN(0);
@@ -2214,7 +2214,7 @@ error:
 
   @param table            table to allocate SE for
   @param select_options   current select's options
-  @param force_disk_table TRUE <=> Use MyISAM or InnoDB
+  @param force_disk_table true <=> Use MyISAM or InnoDB
   @param schema_table     whether the table is a schema table
 
   @returns
@@ -2400,8 +2400,8 @@ bool open_tmp_table(TABLE *table)
     constraint.
 
    RETURN
-     FALSE - OK
-     TRUE  - Error
+     false - OK
+     true  - Error
 */
 
 static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
@@ -2638,8 +2638,8 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table)
     Creates tmp table and opens it.
 
   @return
-     FALSE - OK
-     TRUE  - Error
+     false - OK
+     true  - Error
 */
 
 bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
@@ -2657,12 +2657,12 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
   if (share->db_type() == temptable_hton)
   {
     if (create_tmp_table_with_fallback(table))
-      return TRUE;
+      return true;
   }
   else if (share->db_type() == innodb_hton)
   {
     if (create_tmp_table_with_fallback(table))
-      return TRUE;
+      return true;
     // Make empty record so random data is not written to disk
     empty_record(table);
   }
@@ -2671,7 +2671,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
     DBUG_ASSERT(start_recinfo && recinfo);
     if (create_myisam_tmp_table(table, keyinfo, start_recinfo, recinfo,
                                 options, big_tables))
-      return TRUE;
+      return true;
     // Make empty record so random data is not written to disk
     empty_record(table);
   }
@@ -2684,7 +2684,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
       TABLE::is_created() also implies that table is open.
     */
     table->file->ha_delete_table(share->table_name.str, nullptr); /* purecov: inspected */
-    return TRUE;
+    return true;
   }
 
   if (share->first_unused_tmp_key < share->keys)
@@ -2706,7 +2706,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
     Opt_trace_object convert(trace, "creating_tmp_table");
     trace_tmp_table(trace, table);
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -2779,9 +2779,9 @@ void free_tmp_table(THD *thd, TABLE *entry)
   @param error           Reason why inserting into MEMORY table failed. 
   @param ignore_last_dup If true, ignore duplicate key error for last
                          inserted key (see detailed description below).
-  @param [out] is_duplicate if non-NULL and ignore_last_dup is TRUE,
-                         return TRUE if last key was a duplicate,
-                         and FALSE otherwise.
+  @param [out] is_duplicate if non-NULL and ignore_last_dup is true,
+                         return true if last key was a duplicate,
+                         and false otherwise.
 
   @details
     Function can be called with any error code, but only HA_ERR_RECORD_FILE_FULL
@@ -3039,12 +3039,12 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
               !ignore_last_dup)
             goto err_after_open;
           if (is_duplicate)
-            *is_duplicate= TRUE;
+            *is_duplicate= true;
         }
         else
         {
           if (is_duplicate)
-            *is_duplicate= FALSE;
+            *is_duplicate= false;
         }
 
         (void) table->file->ha_rnd_end();

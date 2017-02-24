@@ -124,7 +124,7 @@ static inline bool bitmap_cmp(const MY_BITMAP *map1, const MY_BITMAP *map2)
   DBUG_ASSERT(map2->n_bits > 0);
 
   if (memcmp(map1->bitmap, map2->bitmap, 4*(no_words_in_map(map1)-1)) != 0)
-    return FALSE;
+    return false;
   return ((*map1->last_word_ptr | map1->last_word_mask) ==
           (*map2->last_word_ptr | map2->last_word_mask));
 }

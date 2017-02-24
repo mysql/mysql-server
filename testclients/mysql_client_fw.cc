@@ -52,7 +52,7 @@ static unsigned int test_count= 0;
 static unsigned int opt_count= 0;
 static unsigned int opt_count_read= 0;
 static unsigned int iter_count= 0;
-static bool have_innodb= FALSE;
+static bool have_innodb= false;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static unsigned int opt_drop_db= 1;
 
@@ -188,8 +188,8 @@ static void die(const char *file, int line, const char *expr)
  DIE_UNLESS(stmt == 0);				\
 }
 
-#define mytest(x) if (!(x)) {myerror(NULL);DIE_UNLESS(FALSE);}
-#define mytest_r(x) if ((x)) {myerror(NULL);DIE_UNLESS(FALSE);}
+#define mytest(x) if (!(x)) {myerror(NULL);DIE_UNLESS(false);}
+#define mytest_r(x) if ((x)) {myerror(NULL);DIE_UNLESS(false);}
 
 /* Silence unused function warnings for some of the static functions. */
 static int cmp_double(double *a, double *b) MY_ATTRIBUTE((unused));
@@ -294,7 +294,7 @@ static bool check_have_innodb(MYSQL *conn)
  MYSQL_RES *res;
  MYSQL_ROW row;
  int rc;
- bool result= FALSE;
+ bool result= false;
 
  rc= mysql_query(conn, 
  "SELECT (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') "
@@ -384,7 +384,7 @@ static MYSQL* client_connect(ulong flag, uint protocol, bool auto_reconnect)
  fprintf(stdout, "OK");
 
  /* set AUTOCOMMIT to ON*/
- mysql_autocommit(mysql, TRUE);
+ mysql_autocommit(mysql, true);
 
  if (!opt_silent)
  {
@@ -758,7 +758,7 @@ const char *exp_data)
  {
    fprintf(stdout, "\n obtained: `%s` (expected: `%s`)",
    row[field], exp_data);
-   DIE_UNLESS(FALSE);
+   DIE_UNLESS(false);
  }
  mysql_free_result(result);
 }
@@ -1030,7 +1030,7 @@ const char *query_arg)
  mysql_stmt_bind_result(fetch->handle, fetch->bind_array);
 
  fetch->row_count= 0;
- fetch->is_open= TRUE;
+ fetch->is_open= true;
 
  /* Ready for reading rows */
  DBUG_VOID_RETURN;
@@ -1058,7 +1058,7 @@ static int stmt_fetch_fetch_row(Stmt_fetch *fetch)
    }
  }
  else
- fetch->is_open= FALSE;
+ fetch->is_open= false;
  DBUG_RETURN(rc);
 }
 

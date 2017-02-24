@@ -98,8 +98,8 @@ void Ndb_event_data::init_pk_bitmap()
  * the MINIMAL binlog format type. Expected arguments:
  *
  * @before: empty bitmap to be populated with PK columns
- * @after: bitmap with updated cols, if ndb_log_updated_only=TRUE
- *         bitmap with all cols, if ndb_log_updated_only=FALSE
+ * @after: bitmap with updated cols, if ndb_log_updated_only=true
+ *         bitmap with all cols, if ndb_log_updated_only=false
  *
  * If no PK is defined, bitmaps revert to default behaviour:
  *  - before and after bitmaps are identical

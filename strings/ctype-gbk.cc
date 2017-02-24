@@ -3540,7 +3540,7 @@ my_strnxfrm_gbk(const CHARSET_INFO *cs,
       /*
         Note, it is safe not to check (src < se)
         in the code below, because ismbchar() would
-        not return TRUE if src was too short
+        not return true if src was too short
       */
       uint16 e= gbksortorder((uint16) gbkcode(*src, *(src + 1)));
       *dst++= gbkhead(e);

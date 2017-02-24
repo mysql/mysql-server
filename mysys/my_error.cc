@@ -389,8 +389,8 @@ extern "C" int my_error_register(const char* (*get_errmsg) (int),
   @param   first     error number of first message
   @param   last      error number of last message
 
-  @retval  TRUE      Error, no such number range registered.
-  @retval  FALSE     OK
+  @retval  true      Error, no such number range registered.
+  @retval  false     OK
 */
 
 bool my_error_unregister(int first, int last)
@@ -408,7 +408,7 @@ bool my_error_unregister(int first, int last)
       break;
   }
   if (! *search_meh_pp)
-    return TRUE;
+    return true;
 
   /* Remove header from the chain. */
   meh_p= *search_meh_pp;
@@ -417,7 +417,7 @@ bool my_error_unregister(int first, int last)
   /* Free the header. */
   my_free(meh_p);
 
-  return FALSE;
+  return false;
 }
 
 

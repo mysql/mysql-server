@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ int rw_pr_init(rw_pr_lock_t *rwlock)
   native_cond_init(&rwlock->no_active_readers);
   rwlock->active_readers= 0;
   rwlock->writers_waiting_readers= 0;
-  rwlock->active_writer= FALSE;
+  rwlock->active_writer= false;
 #ifdef SAFE_MUTEX
   rwlock->writer_thread= 0;
 #endif
@@ -85,7 +85,7 @@ int rw_pr_wrlock(rw_pr_lock_t *rwlock)
     with a few simple checks make this rwlock implementation
     wr-lock optimized.
   */
-  rwlock->active_writer= TRUE;
+  rwlock->active_writer= true;
 #ifdef SAFE_MUTEX
   rwlock->writer_thread= my_thread_self();
 #endif
@@ -101,7 +101,7 @@ int rw_pr_unlock(rw_pr_lock_t *rwlock)
 #ifdef SAFE_MUTEX
     rwlock->writer_thread= 0;
 #endif
-    rwlock->active_writer= FALSE;
+    rwlock->active_writer= false;
     if (rwlock->writers_waiting_readers)
     {
       /*

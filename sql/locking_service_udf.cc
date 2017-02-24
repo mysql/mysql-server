@@ -35,7 +35,7 @@
 // Common initialization code for get_read_lock and get_write_lock
 static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
-  initid->maybe_null= FALSE;
+  initid->maybe_null= false;
   initid->decimals= 0;
   initid->max_length= 1;
   initid->ptr= NULL;
@@ -47,14 +47,14 @@ static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
   {
     strcpy(message,
            "Requires at least three arguments: (namespace,lock(...),timeout).");
-    return TRUE;
+    return true;
   }
 
   // Timeout is the last argument, should be INT
   if (args->arg_type[args->arg_count - 1] != INT_RESULT)
   {
     strcpy(message, "Wrong argument type - expected integer.");
-    return TRUE;
+    return true;
   }
 
   // All other arguments should be strings
@@ -63,11 +63,11 @@ static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
     if (args->arg_type[i] != STRING_RESULT)
     {
       strcpy(message, "Wrong argument type - expected string.");
-      return TRUE;
+      return true;
     }
   }
 
-  return FALSE;
+  return false;
 }
 
 
@@ -120,7 +120,7 @@ long long service_get_write_locks(UDF_INIT*, UDF_ARGS *args,
 bool service_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
                                 char *message)
 {
-  initid->maybe_null= FALSE;
+  initid->maybe_null= false;
   initid->decimals= 0;
   initid->max_length= 1;
   initid->ptr= NULL;
@@ -131,15 +131,15 @@ bool service_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
   if (args->arg_count != 1)
   {
     strcpy(message, "Requires one argument: (lock_namespace).");
-    return TRUE;
+    return true;
   }
   if (args->arg_type[0] != STRING_RESULT)
   {
     strcpy(message, "Wrong argument type - expected string.");
-    return TRUE;
+    return true;
   }
 
-  return FALSE;
+  return false;
 }
 
 

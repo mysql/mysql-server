@@ -223,7 +223,7 @@ typedef struct rpl_event_coordinates
 
 /* The following macro is to make init of Query_arena simpler */
 #ifndef DBUG_OFF
-#define INIT_ARENA_DBUG_INFO is_backup_arena= 0; is_reprepared= FALSE;
+#define INIT_ARENA_DBUG_INFO is_backup_arena= 0; is_reprepared= false;
 #else
 #define INIT_ARENA_DBUG_INFO
 #endif
@@ -802,9 +802,9 @@ public:
     if (m_state)
     {
       my_error(ER_CANT_UPDATE_WITH_READLOCK, MYF(0));
-      return TRUE;
+      return true;
     }
-    return FALSE;
+    return false;
   }
   bool make_global_read_lock_block_commit(THD *thd);
   bool is_acquired() const { return m_state != GRL_NONE; }
@@ -1443,8 +1443,8 @@ public:
   Rows_log_event* binlog_get_pending_rows_event(bool is_transactional) const;
   inline int binlog_flush_pending_rows_event(bool stmt_end)
   {
-    return (binlog_flush_pending_rows_event(stmt_end, FALSE) || 
-            binlog_flush_pending_rows_event(stmt_end, TRUE));
+    return (binlog_flush_pending_rows_event(stmt_end, false) || 
+            binlog_flush_pending_rows_event(stmt_end, true));
   }
   int binlog_flush_pending_rows_event(bool stmt_end, bool is_transactional);
 
@@ -1930,11 +1930,11 @@ public:
   }
   inline void reset_first_successful_insert_id()
   {
-    arg_of_last_insert_id_function= FALSE;
+    arg_of_last_insert_id_function= false;
     first_successful_insert_id_in_prev_stmt= 0;
     first_successful_insert_id_in_cur_stmt= 0;
     first_successful_insert_id_in_prev_stmt_for_binlog= 0;
-    stmt_depends_on_first_successful_insert_id_in_prev_stmt= FALSE;
+    stmt_depends_on_first_successful_insert_id_in_prev_stmt= false;
   }
 
   /*
@@ -2379,7 +2379,7 @@ public:
 
   uchar      password;
   /**
-    Set to TRUE if execution of the current compound statement
+    Set to true if execution of the current compound statement
     can not continue. In particular, disables activation of
     CONTINUE or EXIT handlers of stored routines.
     Reset in the end of processing of the current user request, in
@@ -2393,7 +2393,7 @@ public:
   */
   bool       transaction_rollback_request;
   /**
-    TRUE if we are in a sub-statement and the current error can
+    true if we are in a sub-statement and the current error can
     not be safely recovered until we left the sub-statement mode.
     In particular, disables activation of CONTINUE and EXIT
     handlers inside sub-statements. E.g. if it is a deadlock
@@ -2401,7 +2401,7 @@ public:
     raised (traditionally, MySQL first has to close all the reads
     via @see handler::ha_index_or_rnd_end() and only then perform
     the rollback).
-    Reset to FALSE when we leave the sub-statement mode.
+    Reset to false when we leave the sub-statement mode.
   */
   bool       is_fatal_sub_stmt_error;
   bool	     query_start_usec_used;
@@ -2464,13 +2464,13 @@ public:
     */
     bool do_union;
     /*
-      If TRUE, at least one mysql_bin_log::write(Log_event) call has been
+      If true, at least one mysql_bin_log::write(Log_event) call has been
       made after last mysql_bin_log.start_union_events() call.
     */
     bool unioned_events;
     /*
-      If TRUE, at least one mysql_bin_log::write(Log_event e), where 
-      e.cache_stmt == TRUE call has been made after last 
+      If true, at least one mysql_bin_log::write(Log_event e), where 
+      e.cache_stmt == true call has been made after last 
       mysql_bin_log.start_union_events() call.
     */
     bool unioned_events_trans;
@@ -2745,7 +2745,7 @@ public:
   }
 
   /**
-    Returns TRUE if session is in a multi-statement transaction mode.
+    Returns true if session is in a multi-statement transaction mode.
 
     OPTION_NOT_AUTOCOMMIT: When autocommit is off, a multi-statement
     transaction is implicitly started on the first statement after a
@@ -2763,7 +2763,7 @@ public:
     set transaction isolation level serializable;  <-- start an active
     flush tables;                                  <-- transaction
 
-    I.e. for the above scenario this function returns TRUE, even
+    I.e. for the above scenario this function returns true, even
     though no active transaction has begun.
     @sa in_active_multi_stmt_transaction()
   */
@@ -2772,7 +2772,7 @@ public:
     return variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN);
   }
   /**
-    TRUE if the session is in a multi-statement transaction mode
+    true if the session is in a multi-statement transaction mode
     (@sa in_multi_stmt_transaction_mode()) *and* there is an
     active transaction, i.e. there is an explicit start of a
     transaction with BEGIN statement, or implicit with a
@@ -2862,7 +2862,7 @@ public:
     DBUG_RETURN(false);
   }
 
-  /** Return FALSE if connection to client is broken. */
+  /** Return false if connection to client is broken. */
   virtual bool is_connected()
   {
     /*
@@ -2891,12 +2891,12 @@ public:
     DBUG_PRINT("error",("Fatal error set"));
   }
   /**
-    TRUE if there is an error in the error stack.
+    true if there is an error in the error stack.
 
     Please use this method instead of direct access to
     net.report_error.
 
-    If TRUE, the current (sub)-statement should be aborted.
+    If true, the current (sub)-statement should be aborted.
     The main difference between this member and is_fatal_error
     is that a fatal error can not be handled by a stored
     procedure continue handler, whereas a normal error can.
@@ -3513,7 +3513,7 @@ public:
 
     Initialize the current database from a NULL-terminated string with
     length. If we run out of memory, we free the current database and
-    return TRUE.  This way the user will notice the error as there will be
+    return true.  This way the user will notice the error as there will be
     no current database selected (in addition to the error message set by
     malloc).
 
@@ -3557,7 +3557,7 @@ public:
     if (m_db.str == NULL)
     {
       my_error(ER_NO_DB_ERROR, MYF(0));
-      return TRUE;
+      return true;
     }
     *p_db= strmake(m_db.str, m_db.length);
     *p_db_length= m_db.length;
@@ -3884,7 +3884,7 @@ public:
                          bool some_non_transactional_table,
                          bool non_transactional_tables_are_tmp);
   bool is_ddl_gtid_compatible();
-  void binlog_invoker() { m_binlog_invoker= TRUE; }
+  void binlog_invoker() { m_binlog_invoker= true; }
   bool need_binlog_invoker() { return m_binlog_invoker; }
   void get_definer(LEX_USER *definer);
   void set_invoker(const LEX_STRING *user, const LEX_STRING *host)
@@ -3927,7 +3927,7 @@ private:
     TRIGGER or VIEW statements.
 
     Current user will be binlogged into Query_log_event if current_user_used
-    is TRUE; It will be stored into m_invoker_host and m_invoker_user by SQL
+    is true; It will be stored into m_invoker_host and m_invoker_user by SQL
     thread.
    */
   bool m_binlog_invoker;
@@ -4078,7 +4078,7 @@ public:
     This is only used by master dump threads.
     When the master receives a new connection from a slave with a
     UUID (for slave versions >= 5.6)/server_id(for slave versions < 5.6)
-    that is already connected, it will set this flag TRUE
+    that is already connected, it will set this flag true
     before killing the old slave connection.
   */
   bool duplicate_slave_id;

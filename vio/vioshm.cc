@@ -41,7 +41,7 @@ size_t vio_read_shared_memory(Vio *vio, uchar *buf, size_t size)
       DWORD wait_status;
 
       wait_status= WaitForMultipleObjects(array_elements(events), events,
-                                          FALSE, timeout);
+                                          false, timeout);
 
       /*
          WaitForMultipleObjects can return next values:
@@ -118,7 +118,7 @@ size_t vio_write_shared_memory(Vio *vio, const uchar *buf, size_t size)
     DWORD wait_status;
 
     wait_status= WaitForMultipleObjects(array_elements(events), events,
-                                        FALSE, timeout);
+                                        false, timeout);
 
     if (wait_status != WAIT_OBJECT_0)
     {

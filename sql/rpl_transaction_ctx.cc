@@ -40,8 +40,8 @@ void Rpl_transaction_ctx::cleanup()
   DBUG_ENTER("Rpl_transaction_ctx::cleanup");
   m_transaction_ctx.m_thread_id= 0;
   m_transaction_ctx.m_flags= 0;
-  m_transaction_ctx.m_rollback_transaction= FALSE;
-  m_transaction_ctx.m_generated_gtid= FALSE;
+  m_transaction_ctx.m_rollback_transaction= false;
+  m_transaction_ctx.m_generated_gtid= false;
   m_transaction_ctx.m_sidno= 0;
   m_transaction_ctx.m_gno= 0;
   DBUG_VOID_RETURN;

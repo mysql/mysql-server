@@ -70,7 +70,7 @@ bool Table_function::write_row()
   {
     if (!table->file->is_ignorable_error(error) &&
         create_ondisk_from_heap(thd, table, nullptr,
-                                nullptr, error, TRUE, nullptr))
+                                nullptr, error, true, nullptr))
       return true;        // Not a table_is_full error
   }
   return false;
@@ -525,7 +525,7 @@ void Table_function_json::set_subtree_to_null(Json_table_column *root,
                matches and resets ordinality counter.
 
   @param[in]   fld   Column's field to save data to
-  @param[out]  skip  TRUE <=> it's a NESTED PATH node and its path
+  @param[out]  skip  true <=> it's a NESTED PATH node and its path
                      expression didn't return any matches or a
                      previous sibling NESTED PATH clause still producing
                      records, thus all columns of this NESTED PATH node

@@ -1290,7 +1290,7 @@ class Item_func_rand final : public Item_real_func
   typedef Item_real_func super;
 
   struct rand_struct *rand;
-  bool first_eval; // TRUE if val_real() is called 1st time
+  bool first_eval; // true if val_real() is called 1st time
 public:
   Item_func_rand(const POS &pos, Item *a)
     :Item_real_func(pos, a), rand(0), first_eval(true)

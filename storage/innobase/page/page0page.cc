@@ -151,7 +151,7 @@ page_dir_find_owner_slot(
 
 /**************************************************************//**
 Used to check the consistency of a directory slot.
-@return TRUE if succeed */
+@return true if succeed */
 static
 ibool
 page_dir_slot_check(
@@ -1277,7 +1277,7 @@ if new_block is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
-@return TRUE on success; FALSE on compression failure (new_block will
+@return true on success; false on compression failure (new_block will
 be decompressed) */
 ibool
 page_move_rec_list_end(
@@ -1339,7 +1339,7 @@ if new_block is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
-@return TRUE on success; FALSE on compression failure */
+@return true on success; false on compression failure */
 ibool
 page_move_rec_list_start(
 /*=====================*/
@@ -1874,7 +1874,7 @@ page_print(
 The following is used to validate a record on a page. This function
 differs from rec_validate as it can also check the n_owned field and
 the heap_no field.
-@return TRUE if ok */
+@return true if ok */
 ibool
 page_rec_validate(
 /*==============*/
@@ -1954,7 +1954,7 @@ page_check_dir(
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
 even if the page is total garbage.
-@return TRUE if ok */
+@return true if ok */
 ibool
 page_simple_validate_old(
 /*=====================*/
@@ -2144,7 +2144,7 @@ func_exit:
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
 even if the page is total garbage.
-@return TRUE if ok */
+@return true if ok */
 ibool
 page_simple_validate_new(
 /*=====================*/
@@ -2334,7 +2334,7 @@ func_exit:
 
 /***************************************************************//**
 This function checks the consistency of an index page.
-@return TRUE if ok */
+@return true if ok */
 ibool
 page_validate(
 /*==========*/

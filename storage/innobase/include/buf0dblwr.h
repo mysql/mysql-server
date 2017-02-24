@@ -76,7 +76,7 @@ buf_dblwr_update(
 	buf_flush_t		flush_type);/*!< in: flush type */
 /****************************************************************//**
 Determines if a page number is located inside the doublewrite buffer.
-@return TRUE if the location is inside the two blocks of the
+@return true if the location is inside the two blocks of the
 doublewrite buffer */
 ibool
 buf_dblwr_page_inside(

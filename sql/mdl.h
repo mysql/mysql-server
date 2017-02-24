@@ -1143,13 +1143,13 @@ private:
   Ticket_list m_tickets[MDL_DURATION_END];
   MDL_context_owner *m_owner;
   /**
-    TRUE -  if for this context we will break protocol and try to
+    true -  if for this context we will break protocol and try to
             acquire table-level locks while having only S lock on
             some table.
             To avoid deadlocks which might occur during concurrent
             upgrade of SNRW lock on such object to X lock we have to
             abort waits for table-level locks for such connections.
-    FALSE - Otherwise.
+    false - Otherwise.
   */
   bool m_needs_thr_lock_abort;
 

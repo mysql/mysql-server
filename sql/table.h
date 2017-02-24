@@ -1395,7 +1395,7 @@ public:
   query_id_t	query_id{0};
 
   /* 
-    For each key that has quick_keys.is_set(key) == TRUE: estimate of #records
+    For each key that has quick_keys.is_set(key) == true: estimate of #records
     and max #key parts that range access would use.
   */
   ha_rows	quick_rows[MAX_KEY]{0};
@@ -1497,7 +1497,7 @@ public:
   bool m_needs_reopen{false};
 private:
   /**
-    For tmp tables. TRUE <=> tmp table has been instantiated.
+    For tmp tables. true <=> tmp table has been instantiated.
     Also indicates that table was successfully opened since
     we immediately delete tmp tables which we fail to open.
   */
@@ -1513,7 +1513,7 @@ public:
     thr_locked_row_action locked_row_action{THR_DEFAULT};
     bool not_exists_optimize{false};
     /*
-      TRUE <=> range optimizer found that there is no rows satisfying
+      true <=> range optimizer found that there is no rows satisfying
       table conditions.
     */
     bool impossible_range{false};
@@ -1642,7 +1642,7 @@ public:
     created= materialized= false;
   }
   /// Set table as nullable, ie it is inner wrt some outer join
-  void set_nullable() { nullable= TRUE; }
+  void set_nullable() { nullable= true; }
 
   /// Return whether table is nullable
   bool is_nullable() const { return nullable; }
@@ -1673,7 +1673,7 @@ public:
   void set_not_started()
   {
     m_status= STATUS_NOT_STARTED | STATUS_NOT_FOUND;
-    null_row= FALSE;
+    null_row= false;
   }
 
   /// @return true if a row operation has been done
@@ -1683,7 +1683,7 @@ public:
   void set_found_row()
   {
     m_status= 0;
-    null_row= FALSE;
+    null_row= false;
   }
 
   /**
@@ -1695,7 +1695,7 @@ public:
   void set_no_row()
   {
     m_status= STATUS_NOT_FOUND;
-    null_row= FALSE;
+    null_row= false;
   }
 
   /**
@@ -1706,7 +1706,7 @@ public:
   void set_row_status_from_handler(int status)
   {
     m_status= status ? STATUS_NOT_FOUND : 0;
-    null_row= FALSE;
+    null_row= false;
   }
 
   /**
@@ -1721,7 +1721,7 @@ public:
   */
   void set_null_row()
   {
-    null_row= TRUE;
+    null_row= true;
     m_status|= STATUS_NULL_ROW;
     if (s->null_bytes > 0)
       memset(null_flags, 255, s->null_bytes);
@@ -1730,7 +1730,7 @@ public:
   /// Clear "null row" status for the current row
   void reset_null_row()
   {
-    null_row= FALSE;
+    null_row= false;
     m_status&= ~STATUS_NULL_ROW;
   }
 
@@ -2995,7 +2995,7 @@ public:
     an operand of such a join.
   */
   List<Natural_join_column> *join_columns{nullptr};
-  /* TRUE if join_columns contains all columns of this table reference. */
+  /* true if join_columns contains all columns of this table reference. */
   bool is_join_columns_complete{false};
 
   /*
@@ -3135,7 +3135,7 @@ public:
       @todo Replace with an enum 
   */
   ulonglong     algorithm{0};
-  ulonglong     view_suid{0};              ///< view is suid (TRUE by default)
+  ulonglong     view_suid{0};              ///< view is suid (true by default)
   ulonglong     with_check{0};             ///< WITH CHECK OPTION
 
 private:
@@ -3173,11 +3173,11 @@ public:
      of table list.
   */
   enum_open_type open_type{OT_TEMPORARY_OR_BASE};
-  /* TRUE if this merged view contain auto_increment field */
+  /* true if this merged view contain auto_increment field */
   bool          contain_auto_increment{false};
-  /// TRUE <=> VIEW CHECK OPTION condition is processed (also for prep. stmts)
+  /// true <=> VIEW CHECK OPTION condition is processed (also for prep. stmts)
   bool          check_option_processed{false};
-  /// TRUE <=> Filter condition is processed
+  /// true <=> Filter condition is processed
   bool          replace_filter_processed{false};
 
   dd::enum_table_type required_type;
@@ -3206,9 +3206,9 @@ public:
     OPEN_STUB
   } open_strategy{OPEN_NORMAL};
   bool          internal_tmp_table{false};
-  /** TRUE if an alias for this table was specified in the SQL. */
+  /** true if an alias for this table was specified in the SQL. */
   bool          is_alias{false};
-  /** TRUE if the table is referred to in the statement using a fully
+  /** true if the table is referred to in the statement using a fully
       qualified name (@<db_name@>.@<table_name@>).
   */
   bool          is_fqtn{false};
@@ -3618,8 +3618,8 @@ void init_mdl_requests(TABLE_LIST *table_list);
   @param error_reported       updated flag for the caller that no other error
                               messages are to be generated.
 
-  @retval TRUE Failure.
-  @retval FALSE Success.
+  @retval true Failure.
+  @retval false Success.
 */
 
 bool unpack_gcol_info(THD *thd,
@@ -3640,8 +3640,8 @@ bool unpack_gcol_info(THD *thd,
   @param[in] is_create_table    Indicates that table is opened as part of
                                 CREATE or ALTER and does not yet exist in SE
 
-  @retval TRUE Failure.
-  @retval FALSE Success.
+  @retval true Failure.
+  @retval false Success.
 */
 
 bool unpack_partition_info(THD *thd,
@@ -3761,10 +3761,10 @@ bool update_generated_read_fields(uchar *buf, TABLE *table,
 inline bool is_temporary_table(TABLE_LIST *tl)
 {
   if (tl->is_view() || tl->schema_table)
-    return FALSE;
+    return false;
 
   if (!tl->table)
-    return FALSE;
+    return false;
 
   /*
     NOTE: 'table->s' might be NULL for specially constructed TABLE
@@ -3772,7 +3772,7 @@ inline bool is_temporary_table(TABLE_LIST *tl)
   */
 
   if (!tl->table->s)
-    return FALSE;
+    return false;
 
   return tl->table->s->tmp_table != NO_TMP_TABLE;
 }

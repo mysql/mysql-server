@@ -686,7 +686,7 @@ static int ftb_check_phrase_internal(MYSQL_FTPARSER_PARAM *param,
     (MY_FTB_PHRASE_PARAM *)param->mysql_ftparam;
   const uchar *docend= (uchar*) document + len;
   while (ft_simple_get_word(phrase_param->cs, (uchar**) &document, docend,
-                            &word, FALSE))
+                            &word, false))
   {
     param->mysql_add_word(param, (char*) word.pos, word.len, 0);
     if (phrase_param->match)
@@ -978,7 +978,7 @@ static int ftb_find_relevance_parse(MYSQL_FTPARSER_PARAM *param,
   FTB *ftb= ftb_param->ftb;
   uchar *end= (uchar*) doc + len;
   FT_WORD w;
-  while (ft_simple_get_word(ftb->charset, (uchar**) &doc, end, &w, TRUE))
+  while (ft_simple_get_word(ftb->charset, (uchar**) &doc, end, &w, true))
     param->mysql_add_word(param, (char*) w.pos, w.len, 0);
   return(0);
 }

@@ -116,7 +116,7 @@ ulong tc_log_max_pages_used=0, tc_log_page_size=0, tc_log_cur_pages_used=0;
 int TC_LOG_MMAP::open(const char *opt_name)
 {
   uint i;
-  bool crashed=FALSE;
+  bool crashed=false;
   PAGE *pg;
 
   DBUG_ASSERT(total_ha_2pc > 1);
@@ -142,7 +142,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
   else
   {
     inited= 1;
-    crashed= TRUE;
+    crashed= true;
     LogErr(INFORMATION_LEVEL, ER_TC_RECOVERING_AFTER_CRASH_USING, opt_name);
     if (tc_heuristic_recover != TC_HEURISTIC_NOT_USED)
     {

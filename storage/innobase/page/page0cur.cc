@@ -254,7 +254,7 @@ exit_func:
 Checks if the nth field in a record is a character type field which extends
 the nth field in tuple, i.e., the field is longer or equal in length and has
 common first characters.
-@return TRUE if rec field extends tuple field */
+@return true if rec field extends tuple field */
 static
 ibool
 page_cur_rec_field_extends(

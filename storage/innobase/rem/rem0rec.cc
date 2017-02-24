@@ -150,7 +150,7 @@ the corresponding canonical strings have the same property. */
 
 /***************************************************************//**
 Validates the consistency of an old-style physical record.
-@return TRUE if ok */
+@return true if ok */
 static
 ibool
 rec_validate_old(
@@ -1278,7 +1278,7 @@ rec_copy_prefix_to_buf(
 
 /***************************************************************//**
 Validates the consistency of an old-style physical record.
-@return TRUE if ok */
+@return true if ok */
 static
 ibool
 rec_validate_old(
@@ -1324,7 +1324,7 @@ rec_validate_old(
 
 /***************************************************************//**
 Validates the consistency of a physical record.
-@return TRUE if ok */
+@return true if ok */
 ibool
 rec_validate(
 /*=========*/

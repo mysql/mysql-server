@@ -727,7 +727,7 @@ srv_reset_io_thread_op_info()
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
 Validates the type of a thread table slot.
-@return TRUE if ok */
+@return true if ok */
 static
 ibool
 srv_thread_type_validate(
@@ -1160,7 +1160,7 @@ srv_refresh_innodb_monitor_stats(void)
 
 /******************************************************************//**
 Outputs to a file the output of the InnoDB Monitor.
-@return FALSE if not all information printed
+@return false if not all information printed
 due to failure to obtain necessary mutex */
 ibool
 srv_printf_innodb_monitor(
@@ -1882,7 +1882,7 @@ srv_get_activity_count(void)
 
 /*******************************************************************//**
 Check if there has been any activity.
-@return FALSE if no change in activity counter. */
+@return false if no change in activity counter. */
 ibool
 srv_check_activity(
 /*===============*/
@@ -2202,7 +2202,7 @@ depend on srv_fast_shutdown:
 1 => normal shutdown => clear drop table queue and make checkpoint
 0 => slow shutdown => in addition to above do complete purge and ibuf
 merge
-@return TRUE if some work was done. FALSE otherwise */
+@return true if some work was done. false otherwise */
 static
 ibool
 srv_master_do_shutdown_tasks(

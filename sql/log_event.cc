@@ -528,9 +528,9 @@ inline bool concurrency_error_code(int error)
   case ER_LOCK_WAIT_TIMEOUT:
   case ER_LOCK_DEADLOCK:
   case ER_XA_RBDEADLOCK:
-    return TRUE;
+    return true;
   default: 
-    return (FALSE);
+    return (false);
   }
 }
 
@@ -543,9 +543,9 @@ inline bool unexpected_error_code(int unexpected_error)
   case ER_QUERY_INTERRUPTED:
   case ER_SERVER_SHUTDOWN:
   case ER_NEW_ABORTING_CONNECTION:
-    return(TRUE);
+    return(true);
   default:
-    return(FALSE);
+    return(false);
   }
 }
 
@@ -1096,7 +1096,7 @@ void Log_event::init_show_field_list(List<Item>* field_list)
 bool Log_event::need_checksum()
 {
   DBUG_ENTER("Log_event::need_checksum");
-  bool ret= FALSE;
+  bool ret= false;
   /* 
      few callers of Log_event::write 
      (incl FD::write, FD constructing code on the slave side, Rotate relay log
@@ -1109,13 +1109,13 @@ bool Log_event::need_checksum()
            event_cache_type == Log_event::EVENT_NO_CACHE)
     ret= (binlog_checksum_options != 0);
   else
-    ret= FALSE;
+    ret= false;
 
   /*
     FD calls the methods before data_written has been calculated.
     The following invariant claims if the current is not the first
     call (and therefore data_written is not zero) then `ret' must be
-    TRUE. It may not be null because FD is always checksummed.
+    true. It may not be null because FD is always checksummed.
   */
 
   DBUG_ASSERT(get_type_code() != binary_log::FORMAT_DESCRIPTION_EVENT || ret ||
@@ -3311,7 +3311,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     {
       rli->mts_groups_assigned++;
 
-      rli->curr_group_isolated= FALSE;
+      rli->curr_group_isolated= false;
       group.reset(common_header->log_pos, rli->mts_groups_assigned);
       // the last occupied GAQ's array index
       gaq->assigned_group_index= gaq->en_queue(&group);
@@ -3467,7 +3467,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       /*
         this marking is transferred further into T-event of the current group.
       */
-      rli->curr_group_isolated= TRUE;
+      rli->curr_group_isolated= true;
     }
 
     /* One run of the loop in the case of over-max-db:s */
@@ -3489,7 +3489,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
                                todo: optimize it. Although pure
                                rows- event load in insensetive to the flag value
                              */
-                             TRUE,
+                             true,
                              ret_worker)))
       {
         llstr(rli->get_event_relay_log_pos(), llbuff);
@@ -3672,7 +3672,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 
       DBUG_ASSERT(ptr_group->group_relay_log_name != NULL);
 
-      ret_worker->relay_log_change_notified= TRUE;
+      ret_worker->relay_log_change_notified= true;
     }
 
     if (!ret_worker->checkpoint_notified)
@@ -3687,7 +3687,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       ptr_group->checkpoint_relay_log_pos= rli->get_group_relay_log_pos();
       ptr_group->shifted= ret_worker->bitmap_shifted;
       ret_worker->bitmap_shifted= 0;
-      ret_worker->checkpoint_notified= TRUE;
+      ret_worker->checkpoint_notified= true;
     }
     ptr_group->checkpoint_seqno= rli->checkpoint_seqno;
     ptr_group->ts= common_header->when.tv_sec + (time_t) exec_time; // Seconds_behind_master related
@@ -3764,7 +3764,7 @@ int Log_event::apply_event(Relay_log_info *rli)
 {
   DBUG_ENTER("LOG_EVENT:apply_event");
   DBUG_PRINT("info", ("event_type=%s", get_type_str()));
-  bool parallel= FALSE;
+  bool parallel= false;
   enum enum_mts_event_exec_mode actual_exec_mode= EVENT_EXEC_PARALLEL;
   THD *rli_thd= rli->info_thd;
 
@@ -4637,13 +4637,13 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
     return;
 
   /*
-    TRUE defines that the trx-cache must be used.
+    true defines that the trx-cache must be used.
   */
-  bool cmd_can_generate_row_events= FALSE;
+  bool cmd_can_generate_row_events= false;
   /*
-    TRUE defines that the trx-cache must be used.
+    true defines that the trx-cache must be used.
   */
-  bool cmd_must_go_to_trx_cache= FALSE;
+  bool cmd_must_go_to_trx_cache= false;
    
   LEX *lex= thd->lex;
   if (!immediate)
@@ -4663,15 +4663,15 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
         break;
       case SQLCOM_SET_OPTION:
         if (lex->autocommit)
-          cmd_can_generate_row_events= cmd_must_go_to_trx_cache= FALSE;
+          cmd_can_generate_row_events= cmd_must_go_to_trx_cache= false;
         else
-          cmd_can_generate_row_events= TRUE;
+          cmd_can_generate_row_events= true;
         break;
       case SQLCOM_RELEASE_SAVEPOINT:
       case SQLCOM_ROLLBACK_TO_SAVEPOINT:
       case SQLCOM_SAVEPOINT:
       case SQLCOM_XA_PREPARE:
-        cmd_can_generate_row_events= cmd_must_go_to_trx_cache= TRUE;
+        cmd_can_generate_row_events= cmd_must_go_to_trx_cache= true;
         break;
       default:
         cmd_can_generate_row_events=
@@ -4853,7 +4853,7 @@ void Query_log_event::print_query_header(IO_CACHE* file,
       strcpy(xid_buf, xid_assign);
       longlong10_to_str(ddl_xid, xid_buf + strlen(xid_assign), 10);
     }
-    print_header(file, print_event_info, FALSE);
+    print_header(file, print_event_info, false);
     my_b_printf(file, "\t%s\tthread_id=%lu\texec_time=%lu\terror_code=%d%s\n",
                 get_type_str(), (ulong) thread_id, (ulong) exec_time,
                 error_code, xid_buf);
@@ -5829,7 +5829,7 @@ void Format_description_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_in
 
   if (!print_event_info->short_form)
   {
-    print_header(head, print_event_info, FALSE);
+    print_header(head, print_event_info, false);
     my_b_printf(head, "\tStart: binlog v %d, server v %s created ",
                 binlog_version, server_version);
     print_timestamp(head, NULL);
@@ -5868,8 +5868,8 @@ void Format_description_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_in
   {
     if (print_event_info->base64_output_mode != BASE64_OUTPUT_DECODE_ROWS)
       my_b_printf(head, "BINLOG '\n");
-    print_base64(head, print_event_info, FALSE);
-    print_event_info->printed_fd_event= TRUE;
+    print_base64(head, print_event_info, false);
+    print_event_info->printed_fd_event= true;
 
     /*
       If --skip-gtids is given, the server when it replays the output
@@ -6090,7 +6090,7 @@ void Rotate_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_info)
 
   if (print_event_info->short_form)
     return;
-  print_header(head, print_event_info, FALSE);
+  print_header(head, print_event_info, false);
   my_b_printf(head, "\tRotate to ");
   if (new_log_ident)
     my_b_write(head, (uchar*) new_log_ident, (uint)ident_len);
@@ -6413,7 +6413,7 @@ void Intvar_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_info)
 
   if (!print_event_info->short_form)
   {
-    print_header(head, print_event_info, FALSE);
+    print_header(head, print_event_info, false);
     my_b_printf(head, "\tIntvar\n");
   }
 
@@ -6456,7 +6456,7 @@ int Intvar_log_event::do_apply_event(Relay_log_info const *rli)
   switch (type) {
   case LAST_INSERT_ID_EVENT:
     thd->first_successful_insert_id_in_prev_stmt= val;
-    thd->substitute_null_with_insert_id= TRUE;
+    thd->substitute_null_with_insert_id= true;
     break;
   case INSERT_ID_EVENT:
     thd->force_one_auto_inc_interval(val);
@@ -6534,7 +6534,7 @@ void Rand_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_info)
   char llbuff[22],llbuff2[22];
   if (!print_event_info->short_form)
   {
-    print_header(head, print_event_info, FALSE);
+    print_header(head, print_event_info, false);
     my_b_printf(head, "\tRand\n");
   }
   my_b_printf(head, "SET @@RAND_SEED1=%s, @@RAND_SEED2=%s%s\n",
@@ -6651,7 +6651,7 @@ void Xid_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_info)
     char buf[64];
     longlong10_to_str(xid, buf, 10);
 
-    print_header(head, print_event_info, FALSE);
+    print_header(head, print_event_info, false);
     my_b_printf(head, "\tXid = %s\n", buf);
   }
   my_b_printf(head, "COMMIT%s\n", print_event_info->delimiter);
@@ -7024,7 +7024,7 @@ void XA_prepare_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_info)
   IO_CACHE *const head= &print_event_info->head_cache;
   char buf[ser_buf_size];
 
-  print_header(head, print_event_info, FALSE);
+  print_header(head, print_event_info, false);
   serialize_xid(buf, my_xid.formatID, my_xid.gtrid_length,
                         my_xid.bqual_length, my_xid.data);
   my_b_printf(head, "\tXA PREPARE %s\n", buf);
@@ -7282,7 +7282,7 @@ void User_var_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_info)
 
   if (!print_event_info->short_form)
   {
-    print_header(head, print_event_info, FALSE);
+    print_header(head, print_event_info, false);
     my_b_printf(head, "\tUser_var\n");
   }
   my_stpcpy(name_id, name);
@@ -7513,7 +7513,7 @@ void Unknown_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_info)
 {
   if (print_event_info->short_form)
     return;
-  print_header(&print_event_info->head_cache, print_event_info, FALSE);
+  print_header(&print_event_info->head_cache, print_event_info, false);
   my_b_printf(&print_event_info->head_cache, "\n# %s", "Unknown event\n");
 }
 
@@ -7531,7 +7531,7 @@ void Stop_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_info)
   if (print_event_info->short_form)
     return;
 
-  print_header(&print_event_info->head_cache, print_event_info, FALSE);
+  print_header(&print_event_info->head_cache, print_event_info, false);
   my_b_printf(&print_event_info->head_cache, "\tStop\n");
 }
 #endif /* !MYSQL_SERVER */
@@ -7570,7 +7570,7 @@ int Stop_log_event::do_update_pos(Relay_log_info *rli)
   else
   {
     error_inc= rli->inc_group_relay_log_pos(0, true/*need_data_lock=true*/);
-    error_flush= rli->flush_info(TRUE);
+    error_flush= rli->flush_info(true);
   }
   return (error_inc || error_flush);
 }
@@ -7649,7 +7649,7 @@ void Append_block_log_event::print(FILE*,
 {
   if (print_event_info->short_form)
     return;
-  print_header(&print_event_info->head_cache, print_event_info, FALSE);
+  print_header(&print_event_info->head_cache, print_event_info, false);
   my_b_printf(&print_event_info->head_cache,
               "\n#%s: file_id: %d  block_len: %d\n",
               get_type_str(), file_id, block_len);
@@ -7818,7 +7818,7 @@ void Delete_file_log_event::print(FILE*,
 {
   if (print_event_info->short_form)
     return;
-  print_header(&print_event_info->head_cache, print_event_info, FALSE);
+  print_header(&print_event_info->head_cache, print_event_info, false);
   my_b_printf(&print_event_info->head_cache,
               "\n#Delete_file: file_id=%u\n", file_id);
 }
@@ -8706,8 +8706,8 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
   @param cols the bitmap signaling columns available in
                  the BI.
 
-  @return TRUE if BI contains usable colums for searching,
-          FALSE otherwise.
+  @return true if BI contains usable colums for searching,
+          false otherwise.
 */
 static
 bool is_any_column_signaled_for_table(TABLE *table, MY_BITMAP *cols)
@@ -8719,10 +8719,10 @@ bool is_any_column_signaled_for_table(TABLE *table, MY_BITMAP *cols)
        ptr++)
   {
     if (bitmap_is_set(cols, (*ptr)->field_index))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
-  DBUG_RETURN (FALSE);
+  DBUG_RETURN (false);
 }
 
 /**
@@ -8753,8 +8753,8 @@ bool is_any_column_signaled_for_table(TABLE *table, MY_BITMAP *cols)
   @param cols     the bitmap signaling which columns
                   have available data.
 
-  @return TRUE if all fields are signaled in the bitmap
-          for the given key, FALSE otherwise.
+  @return true if all fields are signaled in the bitmap
+          for the given key, false otherwise.
 */
 static
 bool are_all_columns_signaled_for_key(KEY *keyinfo, MY_BITMAP *cols)
@@ -8766,10 +8766,10 @@ bool are_all_columns_signaled_for_key(KEY *keyinfo, MY_BITMAP *cols)
     uint fieldnr= keyinfo->key_part[i].fieldnr - 1;
     if (fieldnr >= cols->n_bits ||
         !bitmap_is_set(cols, fieldnr))
-      DBUG_RETURN(FALSE);
+      DBUG_RETURN(false);
   }
 
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 /**
@@ -9088,7 +9088,7 @@ err:
 /*
   Compares table->record[0] and table->record[1]
 
-  Returns TRUE if different.
+  Returns true if different.
 */
 static bool record_compare(TABLE *table, MY_BITMAP *cols)
 {
@@ -9251,9 +9251,9 @@ void Rows_log_event::do_post_row_operations(Relay_log_info const *rli, int error
   if (error == 0 && !m_table->file->has_transactions())
   {
     thd->get_transaction()->set_unsafe_rollback_flags(Transaction_ctx::SESSION,
-                                                      TRUE);
+                                                      true);
     thd->get_transaction()->set_unsafe_rollback_flags(Transaction_ctx::STMT,
-                                                      TRUE);
+                                                      true);
   }
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
@@ -9501,7 +9501,7 @@ Rows_log_event::open_record_scan()
     DBUG_PRINT("info",("locating record using a key (index_read)"));
 
     /* The m_key_index'th key is active and usable: search the table using the index */
-    if (!table->file->inited && (error= table->file->ha_index_init(m_key_index, FALSE)))
+    if (!table->file->inited && (error= table->file->ha_index_init(m_key_index, false)))
     {
       DBUG_PRINT("info",("ha_index_init returns error %d",error));
       goto end;
@@ -9568,7 +9568,7 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
     Todo: fix wl3228 hld that requires defaults for all types of events
   */
 
-  prepare_record(m_table, &m_cols, FALSE);
+  prepare_record(m_table, &m_cols, false);
   if ((error= unpack_current_row(rli, &m_cols, false/*is not AI*/)))
     goto end;
 
@@ -9696,7 +9696,7 @@ INDEX_SCAN:
         Unique has nullable part. We need to check if there is any field in the
         BI image that is null and part of UNNI.
       */
-      bool null_found= FALSE;
+      bool null_found= false;
       for (uint i=0; i < m_key_info->user_defined_key_parts && !null_found; i++)
       {
         uint fieldnr= m_key_info->key_part[i].fieldnr - 1;
@@ -10086,7 +10086,7 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
   saved_m_curr_row= m_curr_row;
 
   /** unpack the before image */
-  prepare_record(table, &m_cols, FALSE);
+  prepare_record(table, &m_cols, false);
   if (!(error= unpack_current_row(rli, &m_cols, false/*is not AI*/)))
   {
     /** save a copy so that we can compare against it later */
@@ -10811,7 +10811,7 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
       (assume the last master's transaction is ignored by the slave because of
       replicate-ignore rules).
     */
-    error= thd->binlog_flush_pending_rows_event(TRUE);
+    error= thd->binlog_flush_pending_rows_event(true);
 
     /*
       If this event is not in a transaction, the call below will, if some
@@ -11420,7 +11420,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
                   m_field_metadata, m_field_metadata_size,
                   m_null_bits, m_flags);
 
-    table_list->m_tabledef_valid= TRUE;
+    table_list->m_tabledef_valid= true;
     table_list->m_conv_table= NULL;
     table_list->open_type= OT_BASE_ONLY;
 
@@ -11996,7 +11996,7 @@ void Table_map_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info)
 {
   if (!print_event_info->short_form)
   {
-    print_header(&print_event_info->head_cache, print_event_info, TRUE);
+    print_header(&print_event_info->head_cache, print_event_info, true);
     my_b_printf(&print_event_info->head_cache,
                 "\tTable_map: `%s`.`%s` mapped to number %llu\n",
                 m_dbnam.c_str(), m_tblnam.c_str(), m_table_id.id());
@@ -12010,7 +12010,7 @@ void Table_map_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info)
       print_primary_key(&print_event_info->head_cache, fields);
     }
 
-    print_base64(&print_event_info->body_cache, print_event_info, TRUE);
+    print_base64(&print_event_info->body_cache, print_event_info, true);
   }
 }
 
@@ -12467,7 +12467,7 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
    * on the slave's table).
    */
   if (!is_auto_inc_in_extra_columns())
-    m_table->auto_increment_field_not_null= TRUE;
+    m_table->auto_increment_field_not_null= true;
   else
   {
     /*
@@ -12480,7 +12480,7 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
       (There can only be one AUTO_INC column, it is always
        indexed and it cannot have a DEFAULT value).
     */
-    m_table->auto_increment_field_not_null= FALSE;
+    m_table->auto_increment_field_not_null= false;
     m_table->mark_auto_increment_column();
   }
 
@@ -12512,7 +12512,7 @@ Write_rows_log_event::do_after_row_operations(const Slave_reporting_capability *
       m_table->file->ha_release_auto_increment();
   }
   m_table->next_number_field=0;
-  m_table->auto_increment_field_not_null= FALSE;
+  m_table->auto_increment_field_not_null= false;
   if ((local_error= m_table->file->ha_end_bulk_insert()))
   {
     m_table->file->print_error(local_error, MYF(0));
@@ -12678,7 +12678,7 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
         table->file->print_error(error, MYF(0));
         goto error;
       }
-      if ((error= table->file->ha_rnd_init(FALSE)))
+      if ((error= table->file->ha_rnd_init(false)))
       {
         table->file->print_error(error, MYF(0));
         goto error;
@@ -13181,7 +13181,7 @@ Incident_log_event::print(FILE*,
   if (print_event_info->short_form)
     return;
 
-  print_header(&print_event_info->head_cache, print_event_info, FALSE);
+  print_header(&print_event_info->head_cache, print_event_info, false);
   my_b_printf(&print_event_info->head_cache,
               "\n# Incident: %s\nRELOAD DATABASE; # Shall generate syntax error\n",
               description());
@@ -13305,7 +13305,7 @@ Ignorable_log_event::print(FILE*,
   if (print_event_info->short_form)
     return;
 
-  print_header(&print_event_info->head_cache, print_event_info, FALSE);
+  print_header(&print_event_info->head_cache, print_event_info, false);
   my_b_printf(&print_event_info->head_cache, "\tIgnorable\n");
   my_b_printf(&print_event_info->head_cache,
               "# Unrecognized ignorable event\n");
@@ -13353,7 +13353,7 @@ Rows_query_log_event::print(FILE*,
                                      m_rows_query, MYF(MY_WME))))
       return;
 
-    print_header(head, print_event_info, FALSE);
+    print_header(head, print_event_info, false);
     my_b_printf(head, "\tRows_query\n");
     /*
       Prefix every line of a multi-line query with '#' to prevent the
@@ -13556,7 +13556,7 @@ Gtid_log_event::print(FILE*, PRINT_EVENT_INFO *print_event_info)
   IO_CACHE *const head= &print_event_info->head_cache;
   if (!print_event_info->short_form)
   {
-    print_header(head, print_event_info, FALSE);
+    print_header(head, print_event_info, false);
     my_b_printf(head, "\t%s\tlast_committed=%llu\tsequence_number=%llu\t"
                 "rbr_only=%s\t"
                 "original_committed_timestamp=%llu\t"
@@ -13965,7 +13965,7 @@ void Previous_gtids_log_event::print(FILE*,
   {
     if (!print_event_info->short_form)
     {
-      print_header(head, print_event_info, FALSE);
+      print_header(head, print_event_info, false);
       my_b_printf(head, "\tPrevious-GTIDs\n");
     }
     my_b_printf(head, "%s\n", str);
@@ -14153,7 +14153,7 @@ void Transaction_context_log_event::print(FILE*,
   if (!print_event_info->short_form)
   {
     to_string(buf, 256);
-    print_header(head, print_event_info, FALSE);
+    print_header(head, print_event_info, false);
     my_b_printf(head, "Transaction_context: %s\n", buf);
   }
   DBUG_VOID_RETURN;
@@ -14406,7 +14406,7 @@ void View_change_log_event::print(FILE*,
   if (!print_event_info->short_form)
   {
     to_string(buf, 256);
-    print_header(head, print_event_info, FALSE);
+    print_header(head, print_event_info, false);
     my_b_printf(head, "View_change_log_event: %s\n", buf);
   }
   DBUG_VOID_RETURN;
@@ -14543,7 +14543,7 @@ PRINT_EVENT_INFO::PRINT_EVENT_INFO()
    lc_time_names_number(~0),
    charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
    thread_id(0), thread_id_printed(false),
-   base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE),
+   base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(false),
    have_unflushed_events(false), skipped_event_in_transaction(false)
 {
   /*

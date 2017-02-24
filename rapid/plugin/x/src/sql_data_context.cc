@@ -257,7 +257,7 @@ bool get_security_context_value(MYSQL_THD thd, const char *option,
 
   if (thd_get_security_context(thd, &scontext)) return false;
 
-  return FALSE == security_context_get_option(scontext, option, &result);
+  return false == security_context_get_option(scontext, option, &result);
 }
 
 bool Sql_data_context::is_acl_disabled() {

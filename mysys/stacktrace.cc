@@ -432,7 +432,7 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
   /*Initialize symbols.*/
   SymSetOptions(SYMOPT_LOAD_LINES|SYMOPT_NO_PROMPTS|SYMOPT_DEFERRED_LOADS|SYMOPT_DEBUG);
   get_symbol_path(symbol_path, sizeof(symbol_path));
-  SymInitialize(hProcess, symbol_path, TRUE);
+  SymInitialize(hProcess, symbol_path, true);
 
   /*Prepare stackframe for the first StackWalk64 call*/
   frame.AddrFrame.Mode= frame.AddrPC.Mode= frame.AddrStack.Mode= AddrModeFlat;
@@ -455,9 +455,9 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
     DWORD64 function_offset= 0;
     DWORD line_offset= 0;
     IMAGEHLP_LINE64 line= {sizeof(line)};
-    BOOL have_module= FALSE;
-    BOOL have_symbol= FALSE;
-    BOOL have_source= FALSE;
+    BOOL have_module= false;
+    BOOL have_symbol= false;
+    BOOL have_source= false;
 
     if(!StackWalk64(machine, hProcess, hThread, &frame, &context, 0, 0, 0 ,0))
       break;
@@ -549,7 +549,7 @@ void my_create_minidump(const char *name, HANDLE process, DWORD pid)
     process= GetCurrentProcess();
     pid= GetCurrentProcessId();
     info.ExceptionPointers= exception_ptrs;
-    info.ClientPointers= FALSE;
+    info.ClientPointers= false;
     info.ThreadId= GetCurrentThreadId();
     info_ptr= &info;
   }
@@ -683,7 +683,7 @@ char *my_safe_itoa(int base, longlong val, char *buf)
 
 static const char *check_longlong(const char *fmt, bool *have_longlong)
 {
-  *have_longlong= FALSE;
+  *have_longlong= false;
   if (*fmt == 'l')
   {
     fmt++;
@@ -692,7 +692,7 @@ static const char *check_longlong(const char *fmt, bool *have_longlong)
     else
     {
       fmt++;
-      *have_longlong= TRUE;
+      *have_longlong= true;
     }
   }
   return fmt;
@@ -705,7 +705,7 @@ static size_t my_safe_vsnprintf(char *to, size_t size,
   char *end= start + size - 1;
   for (; *format; ++format)
   {
-    bool have_longlong = FALSE;
+    bool have_longlong = false;
     if (*format != '%')
     {
       if (to == end)                            /* end of buffer */

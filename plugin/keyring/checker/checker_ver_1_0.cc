@@ -30,8 +30,8 @@ bool CheckerVer_1_0::file_seek_to_tag(File file)
 }
 bool CheckerVer_1_0::is_dgst_correct(File, Digest *digest)
 {
-  digest->is_empty= TRUE;
-  return TRUE;
+  digest->is_empty= true;
+  return true;
 }
 
 }//namespace keyring

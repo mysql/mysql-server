@@ -237,7 +237,7 @@ void thd_unlock_data(THD *thd)
 
   @param thd Current thread
 
-  @retval               TRUE if connection already started transaction
+  @retval               true if connection already started transaction
 */
 
 bool thd_is_transaction_active(THD *thd)

@@ -798,8 +798,8 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, size_t count,
   other metadata locks already taken by the current connection,
   and we must not wait for MDL locks while holding locks.
 
-  @retval FALSE  Success.
-  @retval TRUE   Failure: we're in LOCK TABLES mode, or out of memory,
+  @retval false  Success.
+  @retval true   Failure: we're in LOCK TABLES mode, or out of memory,
                  or this connection was killed.
 */
 
@@ -812,11 +812,11 @@ bool lock_schema_name(THD *thd, const char *db)
   if (thd->locked_tables_mode)
   {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
-    return TRUE;
+    return true;
   }
 
   if (thd->global_read_lock.can_acquire_protection())
-    return TRUE;
+    return true;
   MDL_REQUEST_INIT(&global_request,
                    MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
                    MDL_STATEMENT);
@@ -828,10 +828,10 @@ bool lock_schema_name(THD *thd, const char *db)
 
   if (thd->mdl_context.acquire_locks(&mdl_requests,
                                      thd->variables.lock_wait_timeout))
-    return TRUE;
+    return true;
 
   DEBUG_SYNC(thd, "after_wait_locked_schema_name");
-  return FALSE;
+  return false;
 }
 
 
@@ -949,8 +949,8 @@ bool lock_tablespace_names(
   @note name is converted to lowercase before the lock is acquired
   since stored routine and event names are case insensitive.
 
-  @retval FALSE  Success.
-  @retval TRUE   Failure: we're in LOCK TABLES mode, or out of memory,
+  @retval false  Success.
+  @retval true   Failure: we're in LOCK TABLES mode, or out of memory,
                  or this connection was killed.
 */
 
@@ -965,7 +965,7 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
   if (thd->locked_tables_mode)
   {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
-    return TRUE;
+    return true;
   }
 
   DBUG_ASSERT(name);
@@ -986,7 +986,7 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
   DEBUG_SYNC(thd, "before_wait_locked_pname");
 
   if (thd->global_read_lock.can_acquire_protection())
-    return TRUE;
+    return true;
   MDL_REQUEST_INIT(&global_request,
                    MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
                    MDL_STATEMENT);
@@ -1002,10 +1002,10 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
 
   if (thd->mdl_context.acquire_locks(&mdl_requests,
                                      thd->variables.lock_wait_timeout))
-    return TRUE;
+    return true;
 
   DEBUG_SYNC(thd, "after_wait_locked_pname");
-  return FALSE;
+  return false;
 }
 
 
@@ -1208,12 +1208,12 @@ bool Global_read_lock::make_global_read_lock_block_commit(THD *thd)
 
   if (thd->mdl_context.acquire_lock(&mdl_request,
                                     thd->variables.lock_wait_timeout))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   m_mdl_blocks_commits_lock= mdl_request.ticket;
   m_state= GRL_ACQUIRED_AND_BLOCKS_COMMIT;
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
