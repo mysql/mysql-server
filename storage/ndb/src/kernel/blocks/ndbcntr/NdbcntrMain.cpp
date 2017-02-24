@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3017,6 +3017,7 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
 {
   jamEntry();
 
+  CRASH_INSERTION(1006);
   if (ERROR_INSERTED(1001))
   {
     sendSignalWithDelay(reference(), GSN_NODE_FAILREP, signal, 100, 

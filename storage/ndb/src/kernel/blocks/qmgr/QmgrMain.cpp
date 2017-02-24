@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5252,12 +5252,6 @@ void Qmgr::sendPrepFailReq(Signal* signal, Uint16 aNode)
  */
 
 /**
- * Should < 1/2 nodes die unconditionally.  Affects only >= 3-way
- * replication.
- */
-static const bool g_ndb_arbit_one_half_rule = false;
-
-/**
  * Config signals are logically part of CM_INIT.
  */
 void
@@ -5463,24 +5457,42 @@ Qmgr::handleArbitNdbAdd(Signal* signal, Uint16 nodeId)
  * (if we have one).  Always starts a new thread because
  * 1) CHOOSE cannot wait 2) if we are new president we need
  * a thread 3) if we are old president it does no harm.
+ *
+ * The following logic governs if we will survive or not.
+ * 1) If at least one node group is fully dead then we will not survive.
+ * 2) If 1) is false AND at least one group is fully alive then we will
+ *    survive.
+ * 3) If 1) AND 2) is false AND a majority of the previously alive nodes are
+ *    dead then we will not survive.
+ * 4) If 1) AND 2) AND 3) is false AND a majority of the previously alive
+ *    nodes are still alive, then we will survive.
+ * 5) If 1) AND 2) AND 3) AND 4) is false then exactly half of the previously
+ *    alive nodes are dead and the other half is alive. In this case we will
+ *    ask the arbitrator whether we can continue or not. If no arbitrator is
+ *    currently selected then we will fail. If an arbitrator exists then it
+ *    will respond with either WIN in which case our part of the cluster will
+ *    remain alive and LOSE in which case our part of the cluster will not
+ *    survive.
+ *
+ * The number of previously alive nodes are the sum of the currently alive
+ * nodes plus the number of nodes currently forming a node set that will
+ * die. All other nodes was dead in a previous node fail transaction and are
+ * not counted in the number of previously alive nodes.
  */
 void
 Qmgr::handleArbitCheck(Signal* signal)
 {
   jam();
+  Uint32 prev_alive_nodes = count_previously_alive_nodes();
   ndbrequire(cpresident == getOwnNodeId());
-  NdbNodeBitmask ndbMask;
-  computeArbitNdbMask(ndbMask);
-  if (g_ndb_arbit_one_half_rule && !ERROR_INSERTED(943) &&
-      2 * ndbMask.count() < cnoOfNodes) {
-    jam();
-    arbitRec.code = ArbitCode::LoseNodes;
-  } else {
+  NdbNodeBitmask survivorNodes;
+  computeArbitNdbMask(survivorNodes);
+  {
     jam();
     CheckNodeGroups* sd = (CheckNodeGroups*)&signal->theData[0];
     sd->blockRef = reference();
     sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
-    sd->mask = ndbMask;
+    sd->mask = survivorNodes;
     EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
 		   CheckNodeGroups::SignalLength);
     jamEntry();
@@ -5503,10 +5515,35 @@ Qmgr::handleArbitCheck(Signal* signal)
     case CheckNodeGroups::Partitioning:
       jam();
       arbitRec.code = ArbitCode::Partitioning;
-      if (g_ndb_arbit_one_half_rule &&
-          2 * ndbMask.count() > cnoOfNodes) {
+      if (2 * survivorNodes.count() > prev_alive_nodes)
+      {
+        /**
+         * We have lost nodes in all node groups so we are in a
+         * potentially partitioned state. If we have the majority
+         * of the nodes in this partition we will definitely
+         * survive.
+         */
         jam();
         arbitRec.code = ArbitCode::WinNodes;
+      }
+      else if (2 * survivorNodes.count() < prev_alive_nodes)
+      {
+        jam();
+        /**
+         * More than half of the live nodes failed and nodes from
+         * all node groups failed, we are definitely in a losing
+         * streak and we will be part of the failing side. Time
+         * to crash.
+         */
+        arbitRec.code = ArbitCode::LoseNodes;
+      }
+      else
+      {
+        jam();
+        /**
+         * Half of the live nodes failed, we can be in a partitioned
+         * state, use the arbitrator to decide what to do next.
+         */
       }
       break;
     default:
@@ -5524,7 +5561,8 @@ Qmgr::handleArbitCheck(Signal* signal)
     jam();
   case ArbitCode::WinGroups:
     jam();
-    if (arbitRec.state == ARBIT_RUN) {
+    if (arbitRec.state == ARBIT_RUN)
+    {
       jam();
       break;
     }
@@ -5532,16 +5570,20 @@ Qmgr::handleArbitCheck(Signal* signal)
     arbitRec.newstate = true;
     break;
   case ArbitCode::Partitioning:
-    if (arbitRec.state == ARBIT_RUN) {
+    if (arbitRec.state == ARBIT_RUN)
+    {
       jam();
       arbitRec.state = ARBIT_CHOOSE;
       arbitRec.newstate = true;
       break;
     }
-    if (arbitRec.apiMask[0].count() != 0) {
+    if (arbitRec.apiMask[0].count() != 0)
+    {
       jam();
       arbitRec.code = ArbitCode::LoseNorun;
-    } else {
+    }
+    else
+    {
       jam();
       arbitRec.code = ArbitCode::LoseNocfg;
     }
@@ -5557,8 +5599,8 @@ Qmgr::handleArbitCheck(Signal* signal)
   switch (arbitRec.state) {
   default:
     jam();
-    arbitRec.newMask.bitAND(ndbMask);   // delete failed nodes
-    arbitRec.recvMask.bitAND(ndbMask);
+    arbitRec.newMask.bitAND(survivorNodes);   // delete failed nodes
+    arbitRec.recvMask.bitAND(survivorNodes);
     sendCommitFailReq(signal);          // start commit of failed nodes
     break;
   case ARBIT_CHOOSE:
@@ -6278,6 +6320,25 @@ Qmgr::execARBIT_STOPREP(Signal* signal)
   }
   arbitRec.code = ArbitCode::ApiExit;
   handleArbitApiFail(signal, arbitRec.node);
+}
+
+Uint32
+Qmgr::count_previously_alive_nodes()
+{
+  Uint32 count = 0;
+  NodeRecPtr aPtr;
+  for (aPtr.i = 1; aPtr.i < MAX_NDB_NODES; aPtr.i++)
+  {
+    jam();
+    ptrAss(aPtr, nodeRec);
+    if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB &&
+        (aPtr.p->phase == ZRUNNING || aPtr.p->phase == ZPREPARE_FAIL))
+    {
+      jam();
+      count++;
+    }
+  }
+  return count;
 }
 
 void
