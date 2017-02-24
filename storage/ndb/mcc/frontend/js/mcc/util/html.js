@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -63,6 +63,7 @@ dojo.require("dijit.form.TextBox");
 dojo.require("dijit.form.CheckBox");
 dojo.require("dijit.form.NumberSpinner");
 dojo.require("dijit.Tooltip");
+dojo.require("dijit.form.FilteringSelect");
 dojo.require("dojox.validate");
 
 dojo.require("mcc.util");
@@ -85,7 +86,7 @@ var backgroundColor = false;
 
 // Get root url to documentation
 function getDocUrlRoot() {
-    return "https://dev.mysql.com/doc/refman/5.6/en/"; 
+    return "https://dev.mysql.com/doc/refman/5.7/en/"; 
 }
 
 // Set property default
@@ -159,6 +160,24 @@ function setupWidgets(setAttribute, deleteAttribute, prefix, attribute, widget,
             }
         }
 
+        // Add constraints if FilteringSelect
+        if (widget == dijit.form.FilteringSelect) {
+            if (constraints) {
+				var re = /\s*,\s*/;
+				var splitConstraints = constraints.split(re);
+				var options=[];
+				for (var j = 0; j < splitConstraints.length; j++) {  
+					var val = splitConstraints[j];  
+					var lab = splitConstraints[j];  
+					options.push({label: lab, value: val, selected:false});
+				}  
+                editableField.set("labelAttr", "label")
+                editableField.set("searchAttr", "value");
+                editableField.set("idProperty", "value");
+                editableField.store.setData(options);
+            }
+        }
+
         // Setup an edit control button
         var controlButton = new dijit.form.ToggleButton({
             baseClass: "iconButton",
@@ -178,14 +197,19 @@ function setupWidgets(setAttribute, deleteAttribute, prefix, attribute, widget,
             // The edit control must be set to true
             if (controlButton.get("checked") && setAttribute) {
                 var value = this.get("value");
-                // For checkboxes, replace "on" by true
-                if (widget == dijit.form.CheckBox && value == "on") {
-                    value = true;
-                }
-                if (!editableField.get("constraints") || 
-                        editableField.validate()) {
-                    setAttribute(attribute, value);
-                }
+				if (widget == dijit.form.FilteringSelect) {
+					value = dijit.byId(prefix + attribute).getValue();
+					setAttribute(attribute, value);
+				} else {
+					// For checkboxes, replace "on" by true
+					if (widget == dijit.form.CheckBox && value == "on") {
+						value = true;
+					}
+					if (!editableField.get("constraints") || 
+						  editableField.validate()) {
+					  setAttribute(attribute, value);
+					}
+				}
             }
         });
 
@@ -200,8 +224,13 @@ function setupWidgets(setAttribute, deleteAttribute, prefix, attribute, widget,
                 // Disable the edit field
                 editableField.set("disabled", true);
                 // Revert value to predefined
-                editableField.set("value", 
-                        getPropertyDefault(prefix + attribute));
+				if (widget == dijit.form.FilteringSelect) {
+					var defv = getPropertyDefault(prefix + attribute);
+					dijit.byId(prefix + attribute).textbox.value=defv;
+				} else {
+					editableField.set("value", 
+                       getPropertyDefault(prefix + attribute));
+				}
                 // Unset the previously edited attribute and save
                 if (deleteAttribute) {
                     deleteAttribute(attribute);
@@ -215,8 +244,13 @@ function setupWidgets(setAttribute, deleteAttribute, prefix, attribute, widget,
                 // If field disabled, enable and set value to predefined
                 if (editableField.get("disabled")) {
                     editableField.set("disabled", false);
-                    editableField.set("value", 
+					if (widget == dijit.form.FilteringSelect) {
+						var defv = getPropertyDefault(prefix + attribute);
+						dijit.byId(prefix + attribute).textbox.value=defv;
+					} else {
+						editableField.set("value", 
                             getPropertyDefault(prefix + attribute));
+					}
                     // Must trigger onchange in case val already set
                     editableField.onChange();
                 }
@@ -236,11 +270,15 @@ function updateWidgets(getAttribute, prefix, attribute, defaultValue) {
 
     // Get the stored attribute value
     var storedVal = getAttribute(attribute); 
+	var fs_wid = dijit.byId(prefix + attribute);
 
     // The field is overridable if we have a ctrl id. If so, update widgets
     if (dijit.byId(prefix + attribute + "_ctrl")) {
         defaultValue = (defaultValue !== undefined ? defaultValue : "");
 
+		if (fs_wid.declaredClass == "dijit.form.FilteringSelect") {
+			dijit.byId(prefix + attribute).textbox.value=defaultValue;
+		}
         // Save default value
         setPropertyDefault(prefix + attribute, defaultValue);
 
@@ -248,19 +286,35 @@ function updateWidgets(getAttribute, prefix, attribute, defaultValue) {
         if (storedVal !== undefined) {
             dijit.byId(prefix + attribute + "_ctrl").set("checked", true);
             dijit.byId(prefix + attribute).set("disabled", false);
-            dijit.byId(prefix + attribute).set("value", storedVal);
+			if (fs_wid.declaredClass == "dijit.form.FilteringSelect") {
+				dijit.byId(prefix + attribute).textbox.value=storedVal;
+			} else {			
+				dijit.byId(prefix + attribute).set("value", storedVal);
+			}
         // If the item has no attr value, show default, disable, uncheck ctrl
         } else {
             dijit.byId(prefix + attribute + "_ctrl").set("checked", false);
             dijit.byId(prefix + attribute).set("disabled", true);
-            dijit.byId(prefix + attribute).set("value", defaultValue);
+			if (fs_wid.declaredClass == "dijit.form.FilteringSelect") {
+				dijit.byId(prefix + attribute).textbox.value=defaultValue;
+			} else {			
+				dijit.byId(prefix + attribute).set("value", defaultValue);
+			}
         }
     // Show attr value for a non-overridable field without default (e.g. nodeid)
     } else if (defaultValue === undefined) {
-        dijit.byId(prefix + attribute).set("value", storedVal);
+		if (fs_wid.declaredClass == "dijit.form.FilteringSelect") {
+			dijit.byId(prefix + attribute).textbox.value=storedVal;
+		} else {			
+			dijit.byId(prefix + attribute).set("value", storedVal);
+		}
     // Show default value for a non-overridable field
     } else {
-        dijit.byId(prefix + attribute).set("value", defaultValue);
+		if (fs_wid.declaredClass == "dijit.form.FilteringSelect") {
+			dijit.byId(prefix + attribute).textbox.value=defaultValue;
+		} else {
+			dijit.byId(prefix + attribute).set("value", defaultValue);
+		}
     }
 }
 
