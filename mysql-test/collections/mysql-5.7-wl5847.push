@@ -1,0 +1,1 @@
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=ldap --vardir=var-ldap --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --unit-tests-report --suite=authentication_ldap
