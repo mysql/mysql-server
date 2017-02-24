@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6478,12 +6478,18 @@ Suma::execSTOP_ME_REQ(Signal* signal)
        i != c_nodes_in_nodegroup_mask.NotFound ;
        i = c_nodes_in_nodegroup_mask.find(i + 1))
   {
+    jam();
+    jamLine(i);
     /**
      * Check that all SUMA nodes support graceful shutdown...
      *   and it's too late to stop it...
      * Shutdown instead...
+     *
+     * Only check live nodes, if version is 0 then the node is
+     * already dead.
      */
-    if (!ndbd_suma_stop_me(getNodeInfo(i).m_version))
+    if (!ndbd_suma_stop_me(getNodeInfo(i).m_version) &&
+        getNodeInfo(i).m_version != 0)
     {
       jam();
       char buf[255];
