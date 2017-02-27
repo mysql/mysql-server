@@ -45,6 +45,46 @@ while ($1)
   dec $1;
 }
 
+--echo Bug#25557263
+--echo
+--echo Another variant of the 'WAITING MAX 119 SEC FOR DISTRIBUTING' timeout
+--echo was sometimes provoked with this testcase. This time caused by
+--echo a race condition between the schema changing client and the
+--echo 'coordinator' on the same mysqld.
+
+--connection server1
+set global debug='+d,ndb_binlog_schema_object_race';
+--connection server2
+set global debug='+d,ndb_binlog_schema_object_race';
+--connection server3
+set global debug='+d,ndb_binlog_schema_object_race';
+--connection server4
+set global debug='+d,ndb_binlog_schema_object_race';
+
+let $1=10;
+while ($1)
+{
+  --connection server1
+  send CREATE DATABASE IF NOT EXISTS tmp_db;
+  --connection server2
+  send CREATE DATABASE IF NOT EXISTS tmp_db;
+  --connection server3
+  send CREATE DATABASE IF NOT EXISTS tmp_db;
+  --connection server4
+  send CREATE DATABASE IF NOT EXISTS tmp_db;
+
+  --connection server1
+  reap;
+  --connection server2
+  reap;
+  --connection server3
+  reap;
+  --connection server4
+  reap;
+
+  dec $1;
+}
+
 --connection server1
 set global debug= @save_debug;
 --connection server2
