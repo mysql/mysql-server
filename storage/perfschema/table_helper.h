@@ -90,35 +90,35 @@ struct PFS_setup_object;
 */
 
 /**
-  Helper, assign a value to a long field.
+  Helper, assign a value to a @c long field.
   @param f the field to set
   @param value the value to assign
 */
 void set_field_long(Field *f, long value);
 
 /**
-  Helper, assign a value to a ulong field.
+  Helper, assign a value to a @c ulong field.
   @param f the field to set
   @param value the value to assign
 */
 void set_field_ulong(Field *f, ulong value);
 
 /**
-  Helper, assign a value to a longlong field.
+  Helper, assign a value to a @c longlong field.
   @param f the field to set
   @param value the value to assign
 */
 void set_field_longlong(Field *f, longlong value);
 
 /**
-  Helper, assign a value to a ulonglong field.
+  Helper, assign a value to a @c ulonglong field.
   @param f the field to set
   @param value the value to assign
 */
 void set_field_ulonglong(Field *f, ulonglong value);
 
 /**
-  Helper, assign a value to a char utf8 field.
+  Helper, assign a value to a @code char utf8 @endcode field.
   @param f the field to set
   @param str the string to assign
   @param len the length of the string to assign
@@ -126,7 +126,7 @@ void set_field_ulonglong(Field *f, ulonglong value);
 void set_field_char_utf8(Field *f, const char *str, uint len);
 
 /**
-  Helper, assign a value to a varchar utf8 field.
+  Helper, assign a value to a @code varchar utf8 @endcode field.
   @param f the field to set
   @param cs the string character set
   @param str the string to assign
@@ -138,7 +138,7 @@ void set_field_varchar(Field *f,
                        uint len);
 
 /**
-  Helper, assign a value to a varchar utf8 field.
+  Helper, assign a value to a @code varchar utf8 @endcode field.
   @param f the field to set
   @param str the string to assign
   @param len the length of the string to assign
@@ -146,7 +146,7 @@ void set_field_varchar(Field *f,
 void set_field_varchar_utf8(Field *f, const char *str, uint len);
 
 /**
-  Helper, assign a value to a varchar utf8mb4 field.
+  Helper, assign a value to a @code varchar utf8mb4 @endcode field.
   @param f the field to set
   @param str the string to assign
   @param len the length of the string to assign
@@ -154,21 +154,21 @@ void set_field_varchar_utf8(Field *f, const char *str, uint len);
 void set_field_varchar_utf8mb4(Field *f, const char *str, uint len);
 
 /**
-  Helper, assign a value to a varchar utf8 field.
+  Helper, assign a value to a @code varchar utf8 @endcode field.
   @param f the field to set
   @param str the string to assign
 */
 void set_field_varchar_utf8(Field *f, const char *str);
 
 /**
-  Helper, assign a value to a varchar utf8mb4 field.
+  Helper, assign a value to a @code varchar utf8mb4 @endcode field.
   @param f the field to set
   @param str the string to assign
 */
 void set_field_varchar_utf8mb4(Field *f, const char *str);
 
 /**
-  Helper, assign a value to a longtext utf8 field.
+  Helper, assign a value to a @code longtext utf8 @endcode field.
   @param f the field to set
   @param str the string to assign
   @param len the length of the string to assign
@@ -184,42 +184,42 @@ void set_field_longtext_utf8(Field *f, const char *str, uint len);
 void set_field_blob(Field *f, const char *val, uint len);
 
 /**
-  Helper, assign a value to an enum field.
+  Helper, assign a value to an @c enum field.
   @param f the field to set
   @param value the value to assign
 */
 void set_field_enum(Field *f, ulonglong value);
 
 /**
-  Helper, assign a value to a timestamp field.
+  Helper, assign a value to a @c timestamp field.
   @param f the field to set
   @param value the value to assign
 */
 void set_field_timestamp(Field *f, ulonglong value);
 
 /**
-  Helper, assign a value to a double field.
+  Helper, assign a value to a @c double field.
   @param f the field to set
   @param value the value to assign
 */
 void set_field_double(Field *f, double value);
 
 /**
-  Helper, read a value from an ulonglong field.
+  Helper, read a value from an @c ulonglong field.
   @param f the field to read
   @return the field value
 */
 ulonglong get_field_ulonglong(Field *f);
 
 /**
-  Helper, read a value from an enum field.
+  Helper, read a value from an @c enum field.
   @param f the field to read
   @return the field value
 */
 ulonglong get_field_enum(Field *f);
 
 /**
-  Helper, read a value from a char utf8 field.
+  Helper, read a value from a @code char utf8 @endcode field.
   @param f the field to read
   @param[out] val the field value
   @return the field value
@@ -227,14 +227,14 @@ ulonglong get_field_enum(Field *f);
 String *get_field_char_utf8(Field *f, String *val);
 
 /**
-  Helper, read a value from a varchar utf8 field.
+  Helper, read a value from a @code varchar utf8 @endcode field.
   @param f the field to read
   @param[out] val the field value
   @return the field value
 */
 String *get_field_varchar_utf8(Field *f, String *val);
 
-/** Namespace, internal views used within table setup_instruments. */
+/** Name space, internal views used within table setup_instruments. */
 struct PFS_instrument_view_constants
 {
   static const uint FIRST_INSTRUMENT = 1;
@@ -261,7 +261,7 @@ struct PFS_instrument_view_constants
   static const uint LAST_INSTRUMENT = 15;
 };
 
-/** Namespace, internal views used within object summaries. */
+/** Name space, internal views used within object summaries. */
 struct PFS_object_view_constants
 {
   static const uint FIRST_VIEW = 1;
@@ -491,7 +491,7 @@ struct PFS_byte_stat_row
   }
 };
 
-/** Row fragment for table io statistics columns. */
+/** Row fragment for table I/O statistics columns. */
 struct PFS_table_io_stat_row
 {
   PFS_stat_row m_all;
@@ -793,7 +793,7 @@ void set_field_mdl_status(Field *f, opaque_mdl_status mdl_status);
 void set_field_isolation_level(Field *f, enum_isolation_level iso_level);
 void set_field_xa_state(Field *f, enum_xa_transaction_state xa_state);
 
-/** Row fragment for socket io statistics columns. */
+/** Row fragment for socket I/O statistics columns. */
 struct PFS_socket_io_stat_row
 {
   PFS_byte_stat_row m_read;
@@ -819,7 +819,7 @@ struct PFS_socket_io_stat_row
   }
 };
 
-/** Row fragment for file io statistics columns. */
+/** Row fragment for file I/O statistics columns. */
 struct PFS_file_io_stat_row
 {
   PFS_byte_stat_row m_read;

@@ -90,7 +90,7 @@ struct PFS_instr
 /** Instrumented mutex implementation. @see PSI_mutex. */
 struct PFS_ALIGNED PFS_mutex : public PFS_instr
 {
-  /** Mutex identity, typically a pthread_mutex_t. */
+  /** Mutex identity, typically a @c pthread_mutex_t. */
   const void *m_identity;
   /** Mutex class. */
   PFS_mutex_class *m_class;
@@ -99,7 +99,7 @@ struct PFS_ALIGNED PFS_mutex : public PFS_instr
   /** Current owner. */
   PFS_thread *m_owner;
   /**
-    Timestamp of the last lock.
+    Time stamp of the last lock.
     This statistic is not exposed in user visible tables yet.
   */
   ulonglong m_last_locked;
@@ -108,7 +108,7 @@ struct PFS_ALIGNED PFS_mutex : public PFS_instr
 /** Instrumented rwlock implementation. @see PSI_rwlock. */
 struct PFS_ALIGNED PFS_rwlock : public PFS_instr
 {
-  /** RWLock identity, typically a pthread_rwlock_t. */
+  /** RWLock identity, typically a @c pthread_rwlock_t. */
   const void *m_identity;
   /** RWLock class. */
   PFS_rwlock_class *m_class;
@@ -119,21 +119,21 @@ struct PFS_ALIGNED PFS_rwlock : public PFS_instr
   /** Current count of readers. */
   uint m_readers;
   /**
-    Timestamp of the last write.
+    Time stamp of the last write.
     This statistic is not exposed in user visible tables yet.
   */
   ulonglong m_last_written;
   /**
-    Timestamp of the last read.
+    Time stamp of the last read.
     This statistic is not exposed in user visible tables yet.
   */
   ulonglong m_last_read;
 };
 
-/** Instrumented cond implementation. @see PSI_cond. */
+/** Instrumented condition implementation. @see PSI_cond. */
 struct PFS_ALIGNED PFS_cond : public PFS_instr
 {
-  /** Condition identity, typically a pthread_cond_t. */
+  /** Condition identity, typically a @c pthread_cond_t. */
   const void *m_identity;
   /** Condition class. */
   PFS_cond_class *m_class;
@@ -168,7 +168,7 @@ struct PFS_ALIGNED PFS_file : public PFS_instr
 struct PFS_ALIGNED PFS_table
 {
   /**
-    True if table io instrumentation is enabled.
+    True if table I/O instrumentation is enabled.
     This flag is computed.
   */
   bool m_io_enabled;
@@ -178,7 +178,7 @@ struct PFS_ALIGNED PFS_table
   */
   bool m_lock_enabled;
   /**
-    True if table io instrumentation is timed.
+    True if table I/O instrumentation is timed.
     This flag is computed.
   */
   bool m_io_timed;
@@ -188,7 +188,7 @@ struct PFS_ALIGNED PFS_table
   */
   bool m_lock_timed;
 
-  /** True if table io statistics have been collected. */
+  /** True if table I/O statistics have been collected. */
   bool m_has_io_stats;
 
   /** True if table lock statistics have been collected. */
@@ -225,7 +225,7 @@ public:
   void sanitized_aggregate(void);
 
   /**
-    Aggregate this table handle io statistics to the parents.
+    Aggregate this table handle I/O statistics to the parents.
     This method is safe to call on handles not owned by the calling code.
   */
   void sanitized_aggregate_io(void);
@@ -318,9 +318,9 @@ struct PFS_ALIGNED PFS_metadata_lock : public PFS_instr
   - "wait/io/table/sql/handler"
   - "wait/lock/table/sql/handler"
   are implemented by calling code in a storage engine,
-  that can cause nested waits (file io, mutex, ...)
-  Because of partitioned tables, a table io event (on the whole table)
-  can contain a nested table io event (on a partition).
+  that can cause nested waits (file I/O, mutex, ...)
+  Because of partitioned tables, a table I/O event (on the whole table)
+  can contain a nested table I/O event (on a partition).
   Because of additional debug instrumentation,
   waiting on what looks like a "mutex" (safe_mutex, innodb sync0sync, ...)
   can cause nested waits to be recorded.
@@ -461,7 +461,7 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   ulonglong m_thread_internal_id;
   /** Parent internal thread identifier. */
   ulonglong m_parent_thread_internal_id;
-  /** External (SHOW PROCESSLIST) thread identifier, not unique. */
+  /** External (@code SHOW PROCESSLIST @endcode) thread identifier, not unique. */
   ulong m_processlist_id;
   /** External (Operating system) thread identifier, if any. */
   my_thread_os_id_t m_thread_os_id;

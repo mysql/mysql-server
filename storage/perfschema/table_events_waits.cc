@@ -745,7 +745,7 @@ static const LEX_STRING operation_names_map[] = {
   {C_STRING_WITH_LEN("rename")},
   {C_STRING_WITH_LEN("sync")},
 
-  /* Table io operations */
+  /* Table I/O operations */
   {C_STRING_WITH_LEN("fetch")},
   {C_STRING_WITH_LEN("insert")}, /* write row */
   {C_STRING_WITH_LEN("update")}, /* update row */
@@ -1000,7 +1000,7 @@ table_events_waits_current::get_wait(PFS_thread *pfs_thread,
 
 /*
   We do not show nested events for now,
-  this will be revised with TABLE io
+  this will be revised with TABLE I/O
 */
 // #define ONLY_SHOW_ONE_WAIT
 

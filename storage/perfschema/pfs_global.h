@@ -55,7 +55,7 @@ extern bool pfs_initialized;
 #endif
 
 /**
-  A uint32 variable, guaranteed to be alone in a CPU cache line.
+  A @c uint32 variable, guaranteed to be alone in a CPU cache line.
   This is for performance, for variables accessed very frequently.
 */
 struct PFS_cacheline_uint32
@@ -69,7 +69,7 @@ struct PFS_cacheline_uint32
 };
 
 /**
-  A uint64 variable, guaranteed to be alone in a CPU cache line.
+  A @c uint64 variable, guaranteed to be alone in a CPU cache line.
   This is for performance, for variables accessed very frequently.
 */
 struct PFS_cacheline_uint64

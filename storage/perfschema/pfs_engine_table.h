@@ -265,7 +265,7 @@ protected:
 
   /** Table share. */
   const PFS_engine_table_share *m_share_ptr;
-  /** Opaque pointer to the m_pos position of this cursor. */
+  /** Opaque pointer to the @c m_pos position of this cursor. */
   void *m_pos_ptr;
   /** Current normalizer */
   time_normalizer *m_normalizer;
@@ -454,7 +454,7 @@ struct PFS_engine_table_share
 
   /** Table name. */
   LEX_STRING m_name;
-  /** Table ACL. */
+  /** Table Access Control List. */
   const ACL_internal_table_access *m_acl;
   /** Open table function. */
   pfs_open_table_t m_open_table;
@@ -464,7 +464,7 @@ struct PFS_engine_table_share
   pfs_delete_all_rows_t m_delete_all_rows;
   /** Get rows count function. */
   pfs_get_row_count_t m_get_row_count;
-  /** Length of the m_pos position structure. */
+  /** Length of the @c m_pos position structure. */
   uint m_ref_length;
   /** The lock, stored on behalf of the SQL layer. */
   THR_LOCK *m_thr_lock_ptr;

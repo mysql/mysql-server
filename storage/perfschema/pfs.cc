@@ -447,7 +447,7 @@ report_memory_accounting_error(const char *api_name,
 @endcode
 
   The first helper is for mutexes,
-  the second for file io.
+  the second for file I/O.
 
   The API layer exposes C macros and typedefs which will expand:
   - either to non-instrumented code, when compiled without the performance
@@ -868,9 +868,9 @@ static inline int mysql_mutex_lock(...)
   - mutexes (mysql_mutex_t)
   - rwlocks (mysql_rwlock_t)
   - conditions (mysql_cond_t)
-  - file io (MYSQL_FILE)
-  - socket io (MYSQL_SOCKET)
-  - table io
+  - file I/O (MYSQL_FILE)
+  - socket I/O (MYSQL_SOCKET)
+  - table I/O
   - table lock
   - idle
 
@@ -1097,7 +1097,7 @@ static inline int mysql_mutex_lock(...)
   @subsection IMPL_WAIT_TABLE Table waits
 
 @verbatim
-  table_locker(Thread Th, Table Tb, Event = io or lock)
+  table_locker(Thread Th, Table Tb, Event = I/O or lock)
    |
    | [1]
    |

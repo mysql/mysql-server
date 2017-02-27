@@ -733,7 +733,7 @@ PFS_check_intact::report_error(uint, const char *fmt, ...)
 
 /**
   Check integrity of the actual table schema.
-  The actual table schema (.frm) is compared to the expected schema.
+  The actual table schema is compared to the expected schema.
   @param thd              current thread
 */
 void

@@ -196,7 +196,7 @@ struct PFS_global_param
   */
   long m_file_handle_sizing;
   /**
-    Maxium number of instrumented socket instances
+    Maximum number of instrumented socket instances
     @sa socket_lost
   */
   long m_socket_sizing;
