@@ -1,9 +1,13 @@
 # Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 INCLUDE(CheckIncludeFiles)
+INCLUDE(CheckLibraryExists)
 
 CHECK_INCLUDE_FILES(sasl/sasl.h HAVE_SASL_H)
 CHECK_INCLUDE_FILES(lber.h HAVE_LBER_H)
+CHECK_LIBRARY_EXISTS(sasl2 "" "" HAVE_SASL2_LIB)
+CHECK_LIBRARY_EXISTS(sasl "" "" HAVE_SASL_LIB)
 
+ AND HAVE_SASL_LIB
 # If cmake was invoked with -DWITH_AUTHENTICATION_LDAP=1
 # then fail if we are unable to build the LDAP plugin.
 MACRO(CROAK_AND_RETURN)
@@ -47,4 +51,7 @@ ENDIF ()
 SET(HEADERS_CLIENT auth_ldap_sasl_client.h log.h)
 SET(PLUGIN_CLIENT_SOURCES auth_ldap_sasl_client.cc log.cc)
 ADD_CONVENIENCE_LIBRARY(authentication_ldap_sasl_client ${PLUGIN_CLIENT_SOURCES} ${HEADERS_CLIENT})
-TARGET_LINK_LIBRARIES(authentication_ldap_sasl_client sasl2)
+IF (HAVE_SASL2_LIB)
+  TARGET_LINK_LIBRARIES(authentication_ldap_sasl_client sasl2)
+IF (HAVE_SASL_LIB)
+  TARGET_LINK_LIBRARIES(authentication_ldap_sasl_client sasl)
