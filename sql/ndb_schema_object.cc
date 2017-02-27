@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,16 +82,14 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
     if (my_hash_insert(&ndb_schema_objects.m_hash, (uchar*) ndb_schema_object))
     {
       my_free(ndb_schema_object);
+      ndb_schema_object= NULL;
       break;
     }
     pthread_mutex_init(&ndb_schema_object->mutex, MY_MUTEX_INIT_FAST);
     pthread_cond_init(&ndb_schema_object->cond, NULL);
     bitmap_init(&ndb_schema_object->slock_bitmap, ndb_schema_object->slock,
                 sizeof(ndb_schema_object->slock)*8, FALSE);
-    // Expect answer from all other nodes by default(those
-    // who are not subscribed will be filtered away by
-    // the Coordinator which keep track of that stuff)
-    bitmap_set_all(&ndb_schema_object->slock_bitmap);
+    //slock_bitmap is intially cleared due to 'ZEROFILL-malloc'
     break;
   }
   if (ndb_schema_object)
@@ -118,7 +116,7 @@ ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object)
     pthread_cond_destroy(&(*ndb_schema_object)->cond);
     pthread_mutex_destroy(&(*ndb_schema_object)->mutex);
     my_free(*ndb_schema_object);
-    *ndb_schema_object= 0;
+    *ndb_schema_object= NULL;
   }
   else
   {
