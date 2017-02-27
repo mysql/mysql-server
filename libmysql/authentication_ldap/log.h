@@ -108,11 +108,11 @@ WRITE_SERVER_LOG:
 }
 
 
-extern Logger g_logger;
+extern Logger *g_logger;
 
-#define log_dbg g_logger.log< log_type::LOG_DBG >
-#define log_info g_logger.log< log_type::LOG_INFO >
-#define log_warning g_logger.log< log_type::LOG_WARNING >
-#define log_error g_logger.log< log_type::LOG_ERROR >
+#define log_dbg g_logger->log< log_type::LOG_DBG >
+#define log_info g_logger->log< log_type::LOG_INFO >
+#define log_warning g_logger->log< log_type::LOG_WARNING >
+#define log_error g_logger->log< log_type::LOG_ERROR >
 
 #endif
