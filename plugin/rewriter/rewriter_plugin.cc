@@ -117,7 +117,7 @@ static void update_verbose(MYSQL_THD, struct st_mysql_sys_var *, void *,
 static void update_enabled(MYSQL_THD, struct st_mysql_sys_var *, void *,
                            const void *value)
 {
-  sys_var_enabled= *static_cast<const int*>(value);
+  sys_var_enabled= *static_cast<const bool*>(value);
 }
 
 
