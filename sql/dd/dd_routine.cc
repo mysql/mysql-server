@@ -384,7 +384,7 @@ static bool fill_dd_routine_info(THD *thd, sp_head *sp, Routine *routine,
   if (get_default_db_collation(thd, sp->m_db.str, &db_cs))
   {
     DBUG_ASSERT(thd->is_error());
-    DBUG_ASSERT(true);
+    DBUG_RETURN(true);
   }
   if (db_cs == NULL)
     db_cs= thd->collation();
