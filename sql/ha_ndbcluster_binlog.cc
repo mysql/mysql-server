@@ -3730,7 +3730,8 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
-    if (ndb_create_table_from_engine(m_thd, schema->db, schema->name))
+    if (ndb_create_table_from_engine(m_thd, schema->db, schema->name,
+                                     true /* force_overwrite */))
     {
       // NOTE! The below function has a rather misleading name of
       // actual functionality which failed
