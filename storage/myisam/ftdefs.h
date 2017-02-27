@@ -110,7 +110,7 @@ uint _ft_make_key(MI_INFO *, uint , uchar *, FT_WORD *, my_off_t);
 uchar ft_get_word(const CHARSET_INFO *, uchar **, uchar *, FT_WORD *,
                   MYSQL_FTPARSER_BOOLEAN_INFO *);
 uchar ft_simple_get_word(const CHARSET_INFO *, uchar **, const uchar *,
-                         FT_WORD *, my_bool);
+                         FT_WORD *, bool);
 
 typedef struct _st_ft_seg_iterator {
   uint        num, len;

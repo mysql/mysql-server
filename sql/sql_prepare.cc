@@ -125,7 +125,6 @@ When one supplies long data for a placeholder:
 #include "set_var.h"            // set_var_base
 #include "sp.h"                 // Sroutine_hash_entry
 #include "sp_cache.h"           // sp_cache_enforce_limit
-#include "sql_analyse.h"        // Query_result_analyse
 #include "sql_audit.h"          // mysql_global_audit_mask
 #include "sql_base.h"           // open_tables_for_query, open_temporary_table
 #include "sql_cache.h"          // query_cache
@@ -952,7 +951,6 @@ bool mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables)
 
   DBUG_ASSERT(lex->result == NULL);
   DBUG_ASSERT(lex->sql_command != SQLCOM_DO);
-  DBUG_ASSERT(!lex->proc_analyse);
   DBUG_ASSERT(!lex->describe);
 
   if (!lex->result)

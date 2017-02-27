@@ -65,7 +65,7 @@ static int _mi_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
     1  error.
 */
 
-my_bool mi_dynmap_file(MI_INFO *info, my_off_t size)
+bool mi_dynmap_file(MI_INFO *info, my_off_t size)
 {
   DBUG_ENTER("mi_dynmap_file");
   if (size == 0 || size > (my_off_t) (~((size_t) 0)))
@@ -450,7 +450,7 @@ static int _mi_find_writepos(MI_INFO *info,
   a big block.
 */
 
-static my_bool unlink_deleted_block(MI_INFO *info, MI_BLOCK_INFO *block_info)
+static bool unlink_deleted_block(MI_INFO *info, MI_BLOCK_INFO *block_info)
 {
   DBUG_ENTER("unlink_deleted_block");
   if (block_info->filepos == info->s->state.dellink)
@@ -549,7 +549,7 @@ static int delete_dynamic_record(MI_INFO *info, my_off_t filepos,
   uint length,b_type;
   MI_BLOCK_INFO block_info,del_block;
   int error;
-  my_bool remove_next_block;
+  bool remove_next_block;
   DBUG_ENTER("delete_dynamic_record");
 
   /* First add a link from the last block to the new one */
@@ -1097,8 +1097,8 @@ uint _mi_rec_pack(MI_INFO *info, uchar *to,
   Returns 0 if record is ok.
 */
 
-my_bool _mi_rec_check(MI_INFO *info,const uchar *record, uchar *rec_buff,
-                      ulong packed_length, my_bool with_checksum)
+bool _mi_rec_check(MI_INFO *info,const uchar *record, uchar *rec_buff,
+                   ulong packed_length, bool with_checksum)
 {
   uint		length,new_length,flag,bit,i;
   uchar		*pos,*end,*packpos,*to;
@@ -1720,7 +1720,7 @@ err:
 
 int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
 				my_off_t filepos,
-				my_bool skip_deleted_blocks)
+				bool skip_deleted_blocks)
 {
   int block_of_record, info_read, save_errno;
   uint left_len,b_type;

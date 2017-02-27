@@ -110,7 +110,7 @@ static void my_xml_norm_text(MY_XML_ATTR *a)
 }
 
 
-static inline my_bool
+static inline bool
 my_xml_parser_prefix_cmp(MY_XML_PARSER *p, const char *s, size_t slen)
 {
   return (p->cur + slen > p->end) || memcmp(p->cur, s, slen);

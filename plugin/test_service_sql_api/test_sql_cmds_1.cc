@@ -359,7 +359,7 @@ static void test_com_query(void *p)
   MYSQL_SESSION st_session;
   void *plugin_ctx=NULL;
   bool session_ret= false;
-  my_bool fail= false;
+  bool fail= false;
   COM_DATA cmd;
   Callback_data cbd;
 

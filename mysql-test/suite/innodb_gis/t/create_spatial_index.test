@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs92=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 
 # Temporarily skipping the test when log-bin is enabled due to Bug#22508362
 --source include/not_log_bin.inc
@@ -1162,3 +1173,11 @@ select 1 from t1 where st_intersects(
   geometrycollection(point(1,-1)),b
 );
 drop table t1;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs92;
+--enable_query_log
+########################################

@@ -264,7 +264,7 @@ int Streaming_command_delegate::get_null()
 
 int Streaming_command_delegate::get_integer(longlong value)
 {
-  my_bool unsigned_flag = (m_field_types[m_proto->row_builder().get_num_fields()].flags & UNSIGNED_FLAG) != 0;
+  bool unsigned_flag = (m_field_types[m_proto->row_builder().get_num_fields()].flags & UNSIGNED_FLAG) != 0;
 
   return get_longlong(value, unsigned_flag);
 }

@@ -944,8 +944,6 @@ ERROR HY000: View's SELECT contains a 'INTO' clause
 create view v1 as select 5 into outfile 'ttt';
 ERROR HY000: View's SELECT contains a 'INTO' clause
 create table t1 (a int);
-create view v1 as select a from t1 procedure analyse();
-ERROR HY000: View's SELECT contains a 'PROCEDURE' clause
 create view v1 as select 1 from (select 1) as d1;
 drop view v1;
 drop table t1;

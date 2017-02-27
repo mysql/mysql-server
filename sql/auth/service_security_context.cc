@@ -187,7 +187,7 @@ my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
                                     const char *ip, const char *db)
 {
   THD *tmp_thd= NULL;
-  my_bool retval;
+  bool retval;
   if (current_thd == NULL)
   {
     tmp_thd= create_thd(false, true, false, PSI_NOT_INSTRUMENTED);

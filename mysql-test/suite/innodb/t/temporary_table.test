@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs81=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 #
 # InnoDB temporary table test case, including
 # WL#6560: InnoDB: separate tablespace for innodb-temp-tables.
@@ -693,3 +704,11 @@ CREATE TEMPORARY TABLE t2 (
 SELECT count(*) AS `Expect 2` FROM information_schema.innodb_temp_table_info;
 
 DROP TABLE t1, t2;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs81;
+--enable_query_log
+########################################

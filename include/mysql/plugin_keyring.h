@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,8 +49,8 @@ struct st_mysql_keyring
       @retval 0 OK
       @retval 1 ERROR
   */
-  my_bool (*mysql_key_store)(const char *key_id, const char *key_type,
-                             const char* user_id, const void *key, size_t key_len);
+  bool (*mysql_key_store)(const char *key_id, const char *key_type,
+                          const char* user_id, const void *key, size_t key_len);
   /*!
     Fetches key from the keyring.
 
@@ -70,8 +70,8 @@ struct st_mysql_keyring
       @retval 0 OK
       @retval 1 ERROR
   */
-  my_bool (*mysql_key_fetch)(const char *key_id, char **key_type,
-                             const char *user_id, void **key, size_t *key_len);
+  bool (*mysql_key_fetch)(const char *key_id, char **key_type,
+                          const char *user_id, void **key, size_t *key_len);
 
   /*!
     Removes key from the keyring.
@@ -86,7 +86,7 @@ struct st_mysql_keyring
       @retval 0 OK
       @retval 1 ERROR
   */
-  my_bool (*mysql_key_remove)(const char *key_id, const char *user_id);
+  bool (*mysql_key_remove)(const char *key_id, const char *user_id);
 
   /*!
     Generates and stores the key.
@@ -103,7 +103,7 @@ struct st_mysql_keyring
       @retval 0 OK
       @retval 1 ERROR
   */
-  my_bool (*mysql_key_generate)(const char *key_id, const char *key_type,
-                                const char *user_id, size_t key_len);
+  bool (*mysql_key_generate)(const char *key_id, const char *key_type,
+                             const char *user_id, size_t key_len);
 };
 #endif

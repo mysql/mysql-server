@@ -89,7 +89,7 @@ struct PFS_events_transactions : public PFS_events
   /** Global Transaction ID specifier. */
   Gtid_specification m_gtid_spec;
   /** True if XA transaction. */
-  my_bool m_xa;
+  bool m_xa;
   /** XA transaction ID. */
   PSI_xid m_xid;
   /** XA status */
@@ -97,9 +97,9 @@ struct PFS_events_transactions : public PFS_events
   /** Transaction isolation level. */
   enum_isolation_level m_isolation_level;
   /** True if read-only transaction, otherwise read-write. */
-  my_bool m_read_only;
+  bool m_read_only;
   /** True if autocommit transaction. */
-  my_bool m_autocommit;
+  bool m_autocommit;
   /** Total number of savepoints. */
   ulonglong m_savepoint_count;
   /** Number of rollback_to_savepoint. */

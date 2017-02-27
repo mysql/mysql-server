@@ -25,7 +25,7 @@ namespace keyring {
 const my_off_t Checker::EOF_TAG_SIZE= 3;
 const std::string Checker::eofTAG= "EOF";
 
-my_bool Checker::check_file_structure(File file, size_t file_size, Digest *digest)
+bool Checker::check_file_structure(File file, size_t file_size, Digest *digest)
 {
   if (file_size == 0)
     return is_empty_file_correct(digest) == FALSE;
@@ -36,7 +36,7 @@ my_bool Checker::check_file_structure(File file, size_t file_size, Digest *diges
      is_dgst_correct(file, digest) == FALSE;
 }
 
-my_bool Checker::is_empty_file_correct(Digest *digest)
+bool Checker::is_empty_file_correct(Digest *digest)
 {
   return strlen(dummy_digest) == digest->length &&
          strncmp(dummy_digest, reinterpret_cast<const char*>(digest->value),
@@ -44,7 +44,7 @@ my_bool Checker::is_empty_file_correct(Digest *digest)
                           digest->length)) == 0;
 }
 
-my_bool Checker::is_file_tag_correct(File file)
+bool Checker::is_file_tag_correct(File file)
 {
   uchar tag[EOF_TAG_SIZE+1];
   mysql_file_seek(file, 0, MY_SEEK_END, MYF(0));
@@ -59,7 +59,7 @@ my_bool Checker::is_file_tag_correct(File file)
   return eofTAG == reinterpret_cast<char*>(tag);
 }
 
-my_bool Checker::is_file_version_correct(File file)
+bool Checker::is_file_version_correct(File file)
 {
   boost::movelib::unique_ptr<uchar[]> version(new uchar[file_version.length()+1]);
   version.get()[file_version.length()]= '\0';

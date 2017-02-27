@@ -238,8 +238,8 @@ bool mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
 
 bool mysql_checksum_table(THD* thd, TABLE_LIST* table_list,
                           HA_CHECK_OPT* check_opt);
-bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
-                    my_bool drop_temporary);
+bool mysql_rm_table(THD *thd,TABLE_LIST *tables, bool if_exists,
+                    bool drop_temporary);
 bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                              bool drop_temporary, bool drop_database,
                              bool *dropped_non_atomic_flag,
@@ -265,10 +265,10 @@ int write_bin_log(THD *thd, bool clear_error,
                   const char *query, size_t query_length,
                   bool is_trans= FALSE);
 bool write_ddl_log_entry(DDL_LOG_ENTRY *ddl_log_entry,
-                           DDL_LOG_MEMORY_ENTRY **active_entry);
+                         DDL_LOG_MEMORY_ENTRY **active_entry);
 bool write_execute_ddl_log_entry(uint first_entry,
-                                   bool complete,
-                                   DDL_LOG_MEMORY_ENTRY **active_entry);
+                                 bool complete,
+                                 DDL_LOG_MEMORY_ENTRY **active_entry);
 bool deactivate_ddl_log_entry(uint entry_no);
 void release_ddl_log_memory_entry(DDL_LOG_MEMORY_ENTRY *log_entry);
 void release_ddl_log();

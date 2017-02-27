@@ -76,7 +76,7 @@ public:
 class ha_myisammrg: public handler
 {
   MYRG_INFO *file;
-  my_bool is_cloned;                    /* This instance has been cloned */
+  bool is_cloned;                    /* This instance has been cloned */
 
 public:
   MEM_ROOT      children_mem_root;      /* mem root for children list */

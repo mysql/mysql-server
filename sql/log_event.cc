@@ -961,10 +961,10 @@ void Log_event::init_show_field_list(List<Item>* field_list)
 
    @return true (positive) or false (negative)
 */
-my_bool Log_event::need_checksum()
+bool Log_event::need_checksum()
 {
   DBUG_ENTER("Log_event::need_checksum");
-  my_bool ret= FALSE;
+  bool ret= FALSE;
   /* 
      few callers of Log_event::write 
      (incl FD::write, FD constructing code on the slave side, Rotate relay log
@@ -1368,16 +1368,16 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
                                      mysql_mutex_t* log_lock,
                                      const Format_description_log_event
                                      *description_event,
-                                     my_bool crc_check)
+                                     bool crc_check)
 #else
 Log_event* Log_event::read_log_event(IO_CACHE* file,
                                      const Format_description_log_event
                                      *description_event,
-                                     my_bool crc_check,
+                                     bool crc_check,
                                      read_log_event_filter_function f)
 #endif
 {
-  DBUG_ENTER("Log_event::read_log_event(IO_CACHE *[, mysql_mutex_t *], Format_description_log_event *, my_bool)");
+  DBUG_ENTER("Log_event::read_log_event(IO_CACHE *[, mysql_mutex_t *], Format_description_log_event *, bool)");
   DBUG_ASSERT(description_event != 0);
   char head[LOG_EVENT_MINIMAL_HEADER_LEN];
   /*
@@ -1491,11 +1491,11 @@ err:
 Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 				     const char **error,
                                      const Format_description_log_event *description_event,
-                                     my_bool crc_check)
+                                     bool crc_check)
 {
   Log_event* ev= NULL;
   enum_binlog_checksum_alg  alg;
-  DBUG_ENTER("Log_event::read_log_event(char *, uint, char **, Format_description_log_event *, my_bool)");
+  DBUG_ENTER("Log_event::read_log_event(char *, uint, char **, Format_description_log_event *, bool)");
   DBUG_ASSERT(description_event != 0);
   DBUG_PRINT("info", ("binlog_version: %d", description_event->binlog_version));
   DBUG_DUMP("data", (unsigned char*) buf, event_len);
@@ -8010,7 +8010,7 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
           FALSE otherwise.
 */
 static
-my_bool is_any_column_signaled_for_table(TABLE *table, MY_BITMAP *cols)
+bool is_any_column_signaled_for_table(TABLE *table, MY_BITMAP *cols)
 {
   DBUG_ENTER("is_any_column_signaled_for_table");
 
@@ -8057,7 +8057,7 @@ my_bool is_any_column_signaled_for_table(TABLE *table, MY_BITMAP *cols)
           for the given key, FALSE otherwise.
 */
 static
-my_bool are_all_columns_signaled_for_key(KEY *keyinfo, MY_BITMAP *cols)
+bool are_all_columns_signaled_for_key(KEY *keyinfo, MY_BITMAP *cols)
 {
   DBUG_ENTER("are_all_columns_signaled_for_key");
 

@@ -529,7 +529,7 @@ err:
 */
 
 bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
-		    timestamp_type type, String *str)
+                    timestamp_type type, String *str)
 {
   char intbuff[15];
   uint hours_i;
@@ -2269,7 +2269,7 @@ bool Item_func_from_unixtime::resolve_type(THD *thd)
 
 
 bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
-				       my_time_flags_t fuzzy_date
+                                       my_time_flags_t fuzzy_date
                                        MY_ATTRIBUTE((unused)))
 {
   THD *thd= current_thd;
@@ -2337,7 +2337,7 @@ bool Item_func_convert_tz::get_date(MYSQL_TIME *ltime,
   }
 
   {
-    my_bool not_used;
+    bool not_used;
     uint second_part= ltime->second_part;
     my_time_tmp= from_tz->TIME_to_gmt_sec(ltime, &not_used);
     /* my_time_tmp is guranteed to be in the allowed range */

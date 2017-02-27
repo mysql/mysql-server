@@ -8,7 +8,7 @@
 #include "cclass.h"
 #include "my_regex.h"
 
-static my_bool regex_inited=0;
+static bool regex_inited=0;
 extern my_regex_stack_check_t my_regex_enough_mem_in_stack;
 
 void my_regex_init(const CHARSET_INFO *cs, my_regex_stack_check_t func)

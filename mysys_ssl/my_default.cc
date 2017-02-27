@@ -141,8 +141,8 @@ inline static void set_args_separator(char** arg)
   in order to separate arguments received from config file
   and command line.
 */
-my_bool my_getopt_use_args_separator= FALSE;
-my_bool my_getopt_is_args_separator(const char* arg)
+bool my_getopt_use_args_separator= FALSE;
+bool my_getopt_is_args_separator(const char* arg)
 {
   return (arg == args_separator);
 }
@@ -156,10 +156,10 @@ static const char *my_login_path= 0;
 static char my_defaults_file_buffer[FN_REFLEN];
 static char my_defaults_extra_file_buffer[FN_REFLEN];
 
-static my_bool defaults_already_read= FALSE;
+static bool defaults_already_read= FALSE;
 
 /* Set to TRUE, if --no-defaults is found. */
-my_bool no_defaults= FALSE;
+bool no_defaults= FALSE;
 
 /* Which directories are searched for options (and in which order) */
 
@@ -195,15 +195,15 @@ struct handle_option_ctx
 
 static int search_default_file(Process_option_func func, void *func_ctx,
                                const char *dir, const char *config_file,
-                               my_bool is_login_file);
+                               bool is_login_file);
 static int search_default_file_with_ext(Process_option_func func,
                                         void *func_ctx,
 					const char *dir, const char *ext,
                                         const char *config_file,
                                         int recursion_level,
-                                        my_bool is_login_file);
-static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file,
-                                  my_bool is_login_file);
+                                        bool is_login_file);
+static bool mysql_file_getline(char *str, int size, MYSQL_FILE *file,
+                               bool is_login_file);
 
 /**
   Create the list of default directories.
@@ -305,7 +305,7 @@ fn_expand(const char *filename, char *result_buf)
 int my_search_option_files(const char *conf_file, int *argc, char ***argv,
                            uint *args_used, Process_option_func func,
                            void *func_ctx, const char **default_directories,
-                           my_bool is_login_file, my_bool found_no_defaults)
+                           bool is_login_file, bool found_no_defaults)
 {
   const char **dirs, *forced_default_file, *forced_extra_defaults;
   int error= 0;
@@ -560,7 +560,7 @@ int get_defaults_options(int argc, char **argv,
                          char **extra_defaults,
                          char **group_suffix,
                          char **login_path,
-                         my_bool found_no_defaults)
+                         bool found_no_defaults)
 {
   int org_argc= argc, prev_argc= 0, default_option_count= 0;
   *defaults= *extra_defaults= *group_suffix= *login_path= 0;
@@ -638,7 +638,7 @@ int load_defaults(const char *conf_file, const char **groups,
 }
 
 /** A global to turn off or on reading the mylogin file. On by default */
-my_bool my_defaults_read_login_file= TRUE;
+bool my_defaults_read_login_file= TRUE;
 /*
   Read options from configurations files
 
@@ -681,7 +681,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
 {
   My_args my_args(key_memory_defaults);
   TYPELIB group;
-  my_bool found_print_defaults= 0;
+  bool found_print_defaults= 0;
   uint args_used= 0;
   int error= 0;
   MEM_ROOT alloc;
@@ -689,7 +689,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
   struct handle_option_ctx ctx;
   const char **dirs;
   char my_login_file[FN_REFLEN];
-  my_bool found_no_defaults= false;
+  bool found_no_defaults= false;
   uint args_sep= my_getopt_use_args_separator ? 1 : 0;
   DBUG_ENTER("load_defaults");
 
@@ -824,11 +824,11 @@ static int search_default_file(Process_option_func opt_handler,
                                void *handler_ctx,
 			       const char *dir,
                                const char *config_file,
-                               my_bool is_login_file)
+                               bool is_login_file)
 {
   char **ext;
   const char *empty_list[]= { "", 0 };
-  my_bool have_ext= fn_ext(config_file)[0] != 0;
+  bool have_ext= fn_ext(config_file)[0] != 0;
   const char **exts_to_use= have_ext ? empty_list : f_extensions;
 
   for (ext= (char**) exts_to_use; *ext; ext++)
@@ -922,7 +922,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
                                         const char *ext,
                                         const char *config_file,
                                         int recursion_level,
-                                        my_bool is_login_file)
+                                        bool is_login_file)
 {
   char name[FN_REFLEN + 10], buff[4096], curr_gr[4096], *ptr, *end, **tmp_ext;
   char *value, option[4096+2], tmp[FN_REFLEN];
@@ -931,7 +931,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
   const int max_recursion_level= 10;
   MYSQL_FILE *fp;
   uint line=0;
-  my_bool found_group=0;
+  bool found_group=0;
   uint i, rc;
   MY_DIR *search_dir;
   FILEINFO *search_file;
@@ -1213,8 +1213,8 @@ static char *remove_end_comment(char *ptr)
           0               Error
 */
 
-static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file,
-                                  my_bool is_login_file)
+static bool mysql_file_getline(char *str, int size, MYSQL_FILE *file,
+                               bool is_login_file)
 {
   uchar cipher[4096], len_buf[MAX_CIPHER_STORE_LEN];
   static unsigned char my_key[LOGIN_KEY_LEN];
@@ -1264,7 +1264,7 @@ static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file,
 void my_print_default_files(const char *conf_file)
 {
   const char *empty_list[]= { "", 0 };
-  my_bool have_ext= fn_ext(conf_file)[0] != 0;
+  bool have_ext= fn_ext(conf_file)[0] != 0;
   const char **exts_to_use= have_ext ? empty_list : f_extensions;
   char name[FN_REFLEN], **ext;
 
@@ -1547,7 +1547,7 @@ void set_variable_source(const char *opt_name, void* value)
   {
     if ((get_opt_arg_source*)value)
     {
-      ((get_opt_arg_source*)value)->m_name=
+      ((get_opt_arg_source*)value)->m_path_name=
         it->second.m_config_file_name.c_str();
       ((get_opt_arg_source*)value)->m_source= it->second.m_source;
     }
@@ -1559,7 +1559,7 @@ static int add_directory(MEM_ROOT *alloc, const char *dir, const char **dirs)
   char buf[FN_REFLEN];
   size_t len;
   char *p;
-  my_bool err MY_ATTRIBUTE((unused));
+  bool err MY_ATTRIBUTE((unused));
 
   len= normalize_dirname(buf, dir);
   if (!(p= strmake_root(alloc, buf, len)))
@@ -1740,7 +1740,7 @@ int my_default_get_login_file(char *file_name, size_t file_name_size)
            1 - Failed to stat.
            2 - Success.
 */
-int check_file_permissions(const char *file_name, my_bool is_login_file)
+int check_file_permissions(const char *file_name, bool is_login_file)
 {
 #if !defined(_WIN32)
   MY_STAT stat_info;

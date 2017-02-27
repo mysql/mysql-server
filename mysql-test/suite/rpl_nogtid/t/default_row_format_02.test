@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs375=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # **************************************************************
 # wl8307 : Check default_row_format functionality by cross
 #          Replication Master (M) 5.7 and Slave (S) 5.6. But the
@@ -55,3 +66,11 @@ DROP TABLE tab;
 --source include/sync_slave_sql_with_master.inc
 
 --source include/rpl_end.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs375;
+--enable_query_log
+########################################

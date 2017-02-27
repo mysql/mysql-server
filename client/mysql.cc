@@ -147,31 +147,31 @@ enum enum_info_type { INFO_INFO,INFO_ERROR,INFO_RESULT};
 typedef enum enum_info_type INFO_TYPE;
 
 static MYSQL mysql;			/* The connection */
-static my_bool ignore_errors=0,wait_flag=0,quick=0,
-               connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
-	       opt_rehash=1,skip_updates=0,safe_updates=0,one_database=0,
-	       opt_compress=0, using_opt_local_infile=0,
-	       vertical=0, line_numbers=1, column_names=1,opt_html=0,
-               opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
-	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
-	       opt_secure_auth= TRUE,
-               default_pager_set= 0, opt_sigint_ignore= 0,
-               auto_vertical_output= 0,
-               show_warnings= 0, executing_query= 0, interrupted_query= 0,
-               ignore_spaces= 0, sigint_received= 0, opt_syslog= 0;
-static my_bool debug_info_flag, debug_check_flag;
-static my_bool column_types_flag;
-static my_bool preserve_comments= 0;
+static bool ignore_errors=0,wait_flag=0,quick=0,
+            connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
+            opt_rehash=1,skip_updates=0,safe_updates=0,one_database=0,
+            opt_compress=0, using_opt_local_infile=0,
+            vertical=0, line_numbers=1, column_names=1,opt_html=0,
+            opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
+            tty_password= 0, opt_nobeep=0, opt_reconnect=1,
+            opt_secure_auth= TRUE,
+            default_pager_set= 0, opt_sigint_ignore= 0,
+            auto_vertical_output= 0,
+            show_warnings= 0, executing_query= 0, interrupted_query= 0,
+            ignore_spaces= 0, sigint_received= 0, opt_syslog= 0;
+static bool debug_info_flag, debug_check_flag;
+static bool column_types_flag;
+static bool preserve_comments= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static uint opt_enable_cleartext_plugin= 0;
-static my_bool using_opt_enable_cleartext_plugin= 0;
+static bool using_opt_enable_cleartext_plugin= 0;
 static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
 static int connect_flag=CLIENT_INTERACTIVE;
-static my_bool opt_binary_mode= FALSE;
-static my_bool opt_connect_expired_password= FALSE;
+static bool opt_binary_mode= FALSE;
+static bool opt_connect_expired_password= FALSE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *current_prompt=0, *delimiter_str= 0,
             *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME,
@@ -239,7 +239,7 @@ const char *default_dbug_option="d:t:o,/tmp/mysql.trace";
   For using this feature in test case, we add the option in debug code.
 */
 #ifndef DBUG_OFF
-static my_bool opt_build_completion_hash = FALSE;
+static bool opt_build_completion_hash = FALSE;
 #endif
 
 #ifdef _WIN32
@@ -247,7 +247,7 @@ static my_bool opt_build_completion_hash = FALSE;
   A flag that indicates if --execute buffer has already been converted,
   to avoid double conversion on reconnect.
 */
-static my_bool execute_buffer_conversion_done= 0;
+static bool execute_buffer_conversion_done= 0;
 
 /*
   my_win_is_console(...) is quite slow.
@@ -264,7 +264,7 @@ static uint win_is_console_cache=
   (MY_TEST(my_win_is_console(stdout)) * (1 << _fileno(stdout))) |
   (MY_TEST(my_win_is_console(stderr)) * (1 << _fileno(stderr)));
 
-static inline my_bool
+static inline bool
 my_win_is_console_cached(FILE *file)
 {
   return win_is_console_cache & (1 << _fileno(file));
@@ -287,8 +287,8 @@ void tee_putc(int c, FILE *file);
 static void tee_print_sized_data(const char *, unsigned int, unsigned int, bool);
 /* The names of functions that actually do the manipulation. */
 static int get_options(int argc,char **argv);
-extern "C" my_bool get_one_option(int optid, const struct my_option *opt,
-                                  char *argument);
+extern "C" bool get_one_option(int optid, const struct my_option *opt,
+                               char *argument);
 static int com_quit(String *str,char*),
 	   com_go(String *str,char*), com_ego(String *str,char*),
 	   com_print(String *str,char*),
@@ -322,7 +322,7 @@ static void init_tee(const char *);
 static void end_tee();
 static const char* construct_prompt();
 static inline void reset_prompt(char *in_string, bool *ml_comment);
-static char *get_arg(char *line, my_bool get_next_arg);
+static char *get_arg(char *line, bool get_next_arg);
 static void init_username();
 static void add_int_to_prompt(int toadd);
 static int get_result_width(MYSQL_RES *res);
@@ -333,9 +333,9 @@ static int get_quote_count(const char *line);
 typedef Prealloced_array<LEX_STRING, 16> Histignore_patterns;
 Histignore_patterns *histignore_patterns;
 
-static my_bool check_histignore(const char *string);
-static my_bool parse_histignore();
-static my_bool init_hist_patterns();
+static bool check_histignore(const char *string);
+static bool parse_histignore();
+static bool init_hist_patterns();
 static void free_hist_patterns();
 
 static void add_filtered_history(const char *string);
@@ -1616,7 +1616,7 @@ void kill_query(const char *reason)
     goto err;
   }
 
-  interrupted_query ++;
+  interrupted_query= true;
 
   /* mysqld < 5 does not understand KILL QUERY, skip to KILL CONNECTION */
   sprintf(kill_buffer, "KILL %s%lu",
@@ -1939,7 +1939,7 @@ static void usage(int version)
 }
 
 
-my_bool
+bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
 {
@@ -3189,7 +3189,7 @@ static void add_filtered_history(const char *string)
 */
 
 static
-my_bool check_histignore(const char *string)
+bool check_histignore(const char *string)
 {
   int rc;
 
@@ -3220,7 +3220,7 @@ my_bool check_histignore(const char *string)
 */
 
 static
-my_bool parse_histignore()
+bool parse_histignore()
 {
   LEX_STRING pattern;
 
@@ -3245,7 +3245,7 @@ my_bool parse_histignore()
 }
 
 static
-my_bool init_hist_patterns()
+bool init_hist_patterns()
 {
   histignore_patterns=
     new (std::nothrow) Histignore_patterns(PSI_NOT_INSTRUMENTED);
@@ -4849,10 +4849,10 @@ com_nowarnings(String *buffer MY_ATTRIBUTE((unused)),
   items in the array to zero first.
 */
 
-char *get_arg(char *line, my_bool get_next_arg)
+char *get_arg(char *line, bool get_next_arg)
 {
   char *ptr, *start;
-  my_bool quoted= 0, valid_arg= 0;
+  bool quoted= 0, valid_arg= 0;
   char qtype= 0;
 
   ptr= line;
@@ -5019,7 +5019,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 static void
 init_connection_options(MYSQL *mysql)
 {
-  my_bool handle_expired= (opt_connect_expired_password || !status.batch) ?
+  bool handle_expired= (opt_connect_expired_password || !status.batch) ?
     TRUE : FALSE;
 
   if (opt_init_command)
@@ -5374,7 +5374,7 @@ static void remove_cntrl(String &buffer)
 void tee_write(FILE *file, const char *s, size_t slen, int flags)
 {
 #ifdef _WIN32
-  my_bool is_console= my_win_is_console_cached(file);
+  bool is_console= my_win_is_console_cached(file);
 #endif
   const char *se;
   for (se= s + slen; s < se; s++)

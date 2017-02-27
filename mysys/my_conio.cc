@@ -50,7 +50,7 @@ extern CHARSET_INFO my_charset_utf16le_bin;
   @retval  0 if file is not Windows console
   @retval  1 if file is Windows console
 */
-my_bool
+bool
 my_win_is_console(FILE *file)
 {
   DWORD mode;

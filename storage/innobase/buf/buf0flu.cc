@@ -192,7 +192,7 @@ struct page_cleaner_t {
 static page_cleaner_t*	page_cleaner = NULL;
 
 #ifdef UNIV_DEBUG
-my_bool innodb_page_cleaner_disabled_debug;
+bool innodb_page_cleaner_disabled_debug;
 #endif /* UNIV_DEBUG */
 
 /** If LRU list of a buf_pool is less than this size then LRU eviction
@@ -3084,7 +3084,7 @@ buf_flush_page_cleaner_disabled_debug_update(
 		return;
 	}
 
-	if (!*static_cast<const my_bool*>(save)) {
+	if (!*static_cast<const bool*>(save)) {
 		if (!innodb_page_cleaner_disabled_debug) {
 			return;
 		}

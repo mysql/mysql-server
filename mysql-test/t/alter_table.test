@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs108=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # InnoDB page size 16k is required
 
 #
@@ -2570,3 +2581,11 @@ ALTER TABLE t1 ADD COLUMN j INT, RENAME TO t4, ALGORITHM=INPLACE;
 SELECT trigger_name, event_object_schema, event_object_table, action_statement
   FROM information_schema.triggers WHERE event_object_schema = 'test';
 DROP TABLE t4;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs108;
+--enable_query_log
+########################################

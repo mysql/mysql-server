@@ -2528,8 +2528,8 @@ bool lock_trigger_names(THD *thd,
 
 */
 
-bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
-                    my_bool drop_temporary)
+bool mysql_rm_table(THD *thd,TABLE_LIST *tables, bool if_exists,
+                    bool drop_temporary)
 {
   bool error;
   Drop_table_error_handler err_handler;
@@ -5919,7 +5919,12 @@ static bool prepare_foreign_key(THD *thd,
       DBUG_RETURN(true);
     }
 
-    fk_info->fk_key_part[column_nr]= fk_col->field_name;
+    // Always store column names in lower case.
+    char buff[NAME_LEN + 1];
+    my_stpncpy(buff, fk_col->field_name.str, NAME_LEN);
+    my_casedn_str(system_charset_info, buff);
+    fk_info->fk_key_part[column_nr].str= sql_strdup(buff);
+    fk_info->fk_key_part[column_nr].length= strlen(buff);
   }
   DBUG_RETURN(false);
 }
@@ -6633,7 +6638,7 @@ bool validate_comment_length(THD *thd, const char *comment_str,
 */
 
 static bool set_table_default_charset(THD *thd,
-				      HA_CREATE_INFO *create_info,
+                                      HA_CREATE_INFO *create_info,
                                       const char *db)
 {
   /*
@@ -7620,7 +7625,7 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     Remove the old table share from the pfs table share array. The new table
     share will be created when the renamed table is first accessed.
   */
-  my_bool temp_table= (my_bool)is_prefix(old_name, tmp_file_prefix);
+  bool temp_table= (bool)is_prefix(old_name, tmp_file_prefix);
   PSI_TABLE_CALL(drop_table_share)
     (temp_table, old_db, static_cast<int>(strlen(old_db)),
      old_name, static_cast<int>(strlen(old_name)));

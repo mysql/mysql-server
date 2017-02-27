@@ -31,3 +31,4 @@ select * from t1;
 drop table if exists t1;
 --error ER_BAD_TABLE_ERROR
 drop table t1;
+--remove_file $MYSQLD_DATADIR/test/t1.MYD 

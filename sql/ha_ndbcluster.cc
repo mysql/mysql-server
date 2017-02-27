@@ -105,9 +105,9 @@ static char* opt_ndb_recv_thread_cpu_mask;
 static char* opt_ndb_index_stat_option;
 static char* opt_ndb_connectstring;
 static uint opt_ndb_nodeid;
-static my_bool opt_ndb_read_backup;
+static bool opt_ndb_read_backup;
 static ulong opt_ndb_data_node_neighbour;
-static my_bool opt_ndb_fully_replicated;
+static bool opt_ndb_fully_replicated;
 
 #define MYSQL_VERSION_NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC 50711
 enum ndb_default_colum_format_enum {
@@ -14942,7 +14942,7 @@ uint ndb_get_commitcount(THD *thd, const char *norm_name,
 
 */
 
-static my_bool
+static bool
 ndbcluster_cache_retrieval_allowed(THD *thd,
                                    const char *full_name, uint full_name_len,
                                    ulonglong *engine_data)
@@ -15029,7 +15029,7 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
     FALSE No, don't cach the query
 */
 
-my_bool
+bool
 ha_ndbcluster::register_query_cache_table(THD *thd,
                                           char *full_name,
                                           size_t full_name_len,
@@ -16013,7 +16013,7 @@ multi_range_max_ranges(int num_ranges, ulong bufsize)
 
 /* Return the size in HANDLER_BUFFER of a variable-sized entry. */
 static ulong
-multi_range_entry_size(my_bool use_keyop, ulong reclength)
+multi_range_entry_size(bool use_keyop, ulong reclength)
 {
   /* Space for type byte. */
   ulong len= 1;
@@ -16045,7 +16045,7 @@ multi_range_entry_type(uchar *p)
 static uchar *
 multi_range_next_entry(uchar *p, ulong reclength)
 {
-  my_bool use_keyop= multi_range_entry_type(p) < enum_ordered_range;
+  bool use_keyop= multi_range_entry_type(p) < enum_ordered_range;
   return p + multi_range_entry_size(use_keyop, reclength);
 }
 
@@ -16081,7 +16081,7 @@ multi_range_put_custom(HANDLER_BUFFER *buffer, int range_no, char *custom)
   If a scan is not needed, we use a faster primary/unique key operation
   instead.
 */
-static my_bool
+static bool
 read_multi_needs_scan(NDB_INDEX_TYPE cur_index_type, const KEY *key_info,
                       const KEY_MULTI_RANGE *r, bool is_pushed)
 {
@@ -16442,7 +16442,7 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
   {
     if (range_no >= max_range)
       break;
-    my_bool need_scan=
+    bool need_scan=
       read_multi_needs_scan(cur_index_type, key_info, &mrr_cur_range, is_pushed);
     if (row_buf + multi_range_entry_size(!need_scan, reclength) > end_of_buffer)
       break;
@@ -20500,7 +20500,7 @@ static MYSQL_SYSVAR_ULONG(
   0                                    /* block        */
 );
 
-my_bool opt_ndb_log_update_as_write;
+bool opt_ndb_log_update_as_write;
 static MYSQL_SYSVAR_BOOL(
   log_update_as_write,               /* name */
   opt_ndb_log_update_as_write,       /* var */
@@ -20514,7 +20514,7 @@ static MYSQL_SYSVAR_BOOL(
 );
 
 
-my_bool opt_ndb_log_updated_only;
+bool opt_ndb_log_updated_only;
 static MYSQL_SYSVAR_BOOL(
   log_updated_only,                  /* name */
   opt_ndb_log_updated_only,          /* var */
@@ -20528,7 +20528,7 @@ static MYSQL_SYSVAR_BOOL(
   1                                  /* default */
 );
 
-my_bool opt_ndb_log_empty_update;
+bool opt_ndb_log_empty_update;
 static MYSQL_SYSVAR_BOOL(
   log_empty_update,                  /* name */
   opt_ndb_log_empty_update,          /* var */
@@ -20544,7 +20544,7 @@ static MYSQL_SYSVAR_BOOL(
   0                                  /* default */
 );
 
-my_bool opt_ndb_log_orig;
+bool opt_ndb_log_orig;
 static MYSQL_SYSVAR_BOOL(
   log_orig,                          /* name */
   opt_ndb_log_orig,                  /* var */
@@ -20558,7 +20558,7 @@ static MYSQL_SYSVAR_BOOL(
 );
 
 
-my_bool opt_ndb_log_bin;
+bool opt_ndb_log_bin;
 static MYSQL_SYSVAR_BOOL(
   log_bin,                           /* name */
   opt_ndb_log_bin,                   /* var */
@@ -20571,7 +20571,7 @@ static MYSQL_SYSVAR_BOOL(
 );
 
 
-my_bool opt_ndb_log_binlog_index;
+bool opt_ndb_log_binlog_index;
 static MYSQL_SYSVAR_BOOL(
   log_binlog_index,                  /* name */
   opt_ndb_log_binlog_index,          /* var */
@@ -20584,7 +20584,7 @@ static MYSQL_SYSVAR_BOOL(
 );
 
 
-static my_bool opt_ndb_log_empty_epochs;
+static bool opt_ndb_log_empty_epochs;
 static MYSQL_SYSVAR_BOOL(
   log_empty_epochs,                  /* name */
   opt_ndb_log_empty_epochs,          /* var */
@@ -20600,7 +20600,7 @@ bool ndb_log_empty_epochs(void)
   return opt_ndb_log_empty_epochs;
 }
 
-my_bool opt_ndb_log_apply_status;
+bool opt_ndb_log_apply_status;
 static MYSQL_SYSVAR_BOOL(
   log_apply_status,                 /* name */
   opt_ndb_log_apply_status,         /* var */
@@ -20612,7 +20612,7 @@ static MYSQL_SYSVAR_BOOL(
 );
 
 
-my_bool opt_ndb_log_transaction_id;
+bool opt_ndb_log_transaction_id;
 static MYSQL_SYSVAR_BOOL(
   log_transaction_id,               /* name */
   opt_ndb_log_transaction_id,       /* var  */
@@ -20623,7 +20623,7 @@ static MYSQL_SYSVAR_BOOL(
   0                                 /* default */
 );
 
-my_bool opt_ndb_clear_apply_status;
+bool opt_ndb_clear_apply_status;
 static MYSQL_SYSVAR_BOOL(
   clear_apply_status,               /* name */
   opt_ndb_clear_apply_status,       /* var  */

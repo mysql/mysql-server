@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs105=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 #
 # These test make sure that tables are visible after rebooting
 #
@@ -463,3 +474,11 @@ DROP TABLE t77_restart;
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 -- enable_query_log
 
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs105;
+--enable_query_log
+########################################

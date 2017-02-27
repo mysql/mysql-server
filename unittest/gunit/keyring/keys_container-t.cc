@@ -37,7 +37,7 @@ namespace keyring__keys_container_unittest
   using ::testing::DoAll;
   using ::testing::SetArgPointee;
 
-  my_bool check_if_file_exists_and_TAG_is_correct(const char* file_name)
+  bool check_if_file_exists_and_TAG_is_correct(const char* file_name)
   {
     char tag[4];
     std::fstream file;
@@ -420,7 +420,7 @@ namespace keyring__keys_container_unittest
     Buffered_file_io_dont_remove_backup(ILogger *logger)
       : Buffered_file_io(logger) {}
 
-    my_bool remove_backup(myf myFlags)
+    bool remove_backup(myf myFlags)
     {
       return FALSE;
     }
@@ -799,19 +799,19 @@ namespace keyring__keys_container_unittest
   class Mock_keyring_io : public IKeyring_io
   {
   public:
-    MOCK_METHOD1(init, my_bool(std::string *keyring_filename));
-    MOCK_METHOD1(flush_to_backup, my_bool(ISerialized_object *serialized_object));
-    MOCK_METHOD1(flush_to_storage, my_bool(ISerialized_object *serialized_object));
+    MOCK_METHOD1(init, bool(std::string *keyring_filename));
+    MOCK_METHOD1(flush_to_backup, bool(ISerialized_object *serialized_object));
+    MOCK_METHOD1(flush_to_storage, bool(ISerialized_object *serialized_object));
     MOCK_METHOD0(get_serializer, ISerializer*());
-    MOCK_METHOD1(get_serialized_object, my_bool(ISerialized_object **serialized_object));
-    MOCK_METHOD0(has_next_serialized_object, my_bool());
+    MOCK_METHOD1(get_serialized_object, bool(ISerialized_object **serialized_object));
+    MOCK_METHOD0(has_next_serialized_object, bool());
   };
 
   class Mock_serialized_object : public ISerialized_object
   {
   public:
-    MOCK_METHOD1(get_next_key, my_bool(IKey **key));
-    MOCK_METHOD0(has_next_key, my_bool());
+    MOCK_METHOD1(get_next_key, bool(IKey **key));
+    MOCK_METHOD0(has_next_key, bool());
     MOCK_METHOD0(get_key_operation, Key_operation());
     MOCK_METHOD1(set_key_operation, void(Key_operation));
   };

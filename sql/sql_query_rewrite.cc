@@ -96,7 +96,7 @@ void enable_digest_if_any_plugin_needs_it(THD *thd, Parser_state *ps)
 }
 
 
-bool invoke_post_parse_rewrite_plugins(THD *thd, my_bool is_prepared)
+bool invoke_post_parse_rewrite_plugins(THD *thd, bool is_prepared)
 {
   Diagnostics_area *plugin_da= thd->get_query_rewrite_plugin_da();
   plugin_da->reset_diagnostics_area();

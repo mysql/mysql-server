@@ -173,7 +173,7 @@ int check_if_legal_tablename(const char *name)
  
   @return TRUE if the drive exists, FALSE otherwise.
 */
-static my_bool does_drive_exists(char drive_letter)
+static bool does_drive_exists(char drive_letter)
 {
   DWORD drive_mask= GetLogicalDrives();
   drive_letter= toupper(drive_letter);
@@ -195,9 +195,9 @@ static my_bool does_drive_exists(char drive_letter)
  
   @return TRUE if the file name is allowed, FALSE otherwise.
 */
-my_bool is_filename_allowed(const char *name MY_ATTRIBUTE((unused)),
-                            size_t length MY_ATTRIBUTE((unused)),
-                            my_bool allow_current_dir MY_ATTRIBUTE((unused)))
+bool is_filename_allowed(const char *name MY_ATTRIBUTE((unused)),
+                         size_t length MY_ATTRIBUTE((unused)),
+                         bool allow_current_dir MY_ATTRIBUTE((unused)))
 {
   /* 
     For Windows, check if the file name contains : character.

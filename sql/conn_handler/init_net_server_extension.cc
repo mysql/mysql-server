@@ -62,7 +62,7 @@ static void net_before_header_psi(struct st_net *net, void *user_data,
 }
 
 static void net_after_header_psi(struct st_net *net, void *user_data,
-                                 size_t /* unused: count */, my_bool rc)
+                                 size_t /* unused: count */, bool rc)
 {
   THD *thd;
   thd= static_cast<THD*> (user_data);

@@ -47,7 +47,7 @@ extern int h_errno;
 
 typedef uint32 in_addr_t;
 
-static my_bool silent;
+static bool silent;
 
 static struct my_option my_long_options[] =
 {
@@ -74,7 +74,7 @@ static void usage(void)
 }
 
 
-static my_bool
+static bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument MY_ATTRIBUTE((unused)))
 {

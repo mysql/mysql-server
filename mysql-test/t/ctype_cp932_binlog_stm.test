@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs132=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # This is a wrapper for binlog.test so that the same test case can be used 
 # For both statement and row based bin logs 11/07/2005 [jbm]
 
@@ -164,3 +175,11 @@ set collation_connection=cp932_bin;
 --echo # End of 5.6 tests
 --echo #
 --source include/restore_default_binlog_format.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs132;
+--enable_query_log
+########################################

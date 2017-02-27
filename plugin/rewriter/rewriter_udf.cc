@@ -29,7 +29,7 @@
 
 extern "C" {
 
-my_bool load_rewrite_rules_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+bool load_rewrite_rules_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   if (get_rewriter_plugin_info() != NULL)
     return 0;

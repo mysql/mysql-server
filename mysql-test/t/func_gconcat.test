@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs173=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
@@ -870,3 +881,11 @@ DROP TABLE t1;
 SET group_concat_max_len= DEFAULT;
 
 --echo End of 5.6 tests
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs173;
+--enable_query_log
+########################################

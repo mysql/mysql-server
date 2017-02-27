@@ -66,9 +66,9 @@ static const char *opt_user= NULL, *opt_password= NULL, *opt_host=NULL,
 static char my_login_file[FN_REFLEN];
 static char my_key[LOGIN_KEY_LEN];
 
-static my_bool opt_verbose, opt_all, tty_password= 0, opt_warn,
-               opt_remove_host, opt_remove_pass, opt_remove_user,
-               opt_remove_socket, opt_remove_port, login_path_specified= FALSE;
+static bool opt_verbose, opt_all, tty_password= 0, opt_warn,
+            opt_remove_host, opt_remove_pass, opt_remove_user,
+            opt_remove_socket, opt_remove_port, login_path_specified= FALSE;
 
 static int execute_commands(int command);
 static int set_command(void);
@@ -77,7 +77,7 @@ static int print_command(void);
 static void print_login_path(DYNAMIC_STRING *file_buf, const char *path_name);
 static void remove_login_path(DYNAMIC_STRING *file_buf, const char *path_name);
 static char* locate_login_path(DYNAMIC_STRING *file_buf, const char *path_name);
-static my_bool check_and_create_login_file(void);
+static bool check_and_create_login_file(void);
 static void mask_password_and_print(char *buf);
 static int reset_login_file(bool gen_key);
 
@@ -98,8 +98,8 @@ static void verbose_msg(const char *fmt, ...)
   MY_ATTRIBUTE((format(printf, 1, 2)));
 static void usage_program(void);
 static void usage_command(int command);
-extern "C" my_bool get_one_option(int optid, const struct my_option *opt,
-                                  char *argument);
+extern "C" bool get_one_option(int optid, const struct my_option *opt,
+                               char *argument);
 
 enum commands {
   MY_CONFIG_SET,
@@ -115,9 +115,9 @@ struct my_command_data {
   const char *name;
   const char *description;
   my_option *options;
-  my_bool (*get_one_option_func)(int optid,
-                                 const struct my_option *opt,
-                                 char *argument);
+  bool (*get_one_option_func)(int optid,
+                              const struct my_option *opt,
+                              char *argument);
 };
 }
 
@@ -224,7 +224,7 @@ static struct my_option my_help_command_options[]=
 };
 
 extern "C" {
-static my_bool
+static bool
 my_program_get_one_option(int optid,
                           const struct my_option *opt MY_ATTRIBUTE((unused)),
                           char *argument)
@@ -245,7 +245,7 @@ my_program_get_one_option(int optid,
   return 0;
 }
 
-static my_bool
+static bool
 my_set_command_get_one_option(int optid,
                               const struct my_option *opt MY_ATTRIBUTE((unused)),
                               char *argument)
@@ -272,7 +272,7 @@ my_set_command_get_one_option(int optid,
   return 0;
 }
 
-static my_bool
+static bool
 my_remove_command_get_one_option(int optid,
                                  const struct my_option *opt MY_ATTRIBUTE((unused)),
                                  char *argument)
@@ -296,7 +296,7 @@ my_remove_command_get_one_option(int optid,
   return 0;
 }
 
-static my_bool
+static bool
 my_print_command_get_one_option(int optid,
                                 const struct my_option *opt MY_ATTRIBUTE((unused)),
                                 char *argument)
@@ -320,7 +320,7 @@ my_print_command_get_one_option(int optid,
   return 0;
 }
 
-static my_bool
+static bool
 my_reset_command_get_one_option(int optid,
                                 const struct my_option *opt MY_ATTRIBUTE((unused)),
                                 char *argument)
@@ -719,7 +719,7 @@ error:
            FALSE          Success
 */
 
-static my_bool check_and_create_login_file(void)
+static bool check_and_create_login_file(void)
 {
   DBUG_ENTER("check_and_create_login_file");
 
@@ -1178,7 +1178,7 @@ static int encrypt_and_write_file(DYNAMIC_STRING *file_buf)
 {
   DBUG_ENTER("encrypt_and_write_file");
 
-  my_bool done= FALSE;
+  bool done= FALSE;
   char cipher[MY_LINE_MAX], *tmp= NULL;
   uint bytes_read=0, len= 0;
   int enc_len= 0;                               // Can be negative.

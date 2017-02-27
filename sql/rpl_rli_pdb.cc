@@ -1012,7 +1012,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
       map the database to a worker my inserting an entry into the
       hash map.
     */
-    my_bool ret;
+    bool ret;
     char *db= NULL;
 
     mysql_mutex_unlock(&rli->slave_worker_hash_lock);

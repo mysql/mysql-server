@@ -305,8 +305,8 @@ static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 #endif
 static const char *load_default_groups[]= { "mysqlbinlog","client",0 };
 
-static my_bool one_database=0, disable_log_bin= 0;
-static my_bool opt_hexdump= 0;
+static bool one_database=0, disable_log_bin= 0;
+static bool opt_hexdump= 0;
 const char *base64_output_mode_names[]=
 {"NEVER", "AUTO", "UNSPEC", "DECODE-ROWS", NullS};
 TYPELIB base64_output_mode_typelib=
@@ -314,7 +314,7 @@ TYPELIB base64_output_mode_typelib=
     base64_output_mode_names, NULL };
 static enum_base64_output_mode opt_base64_output_mode= BASE64_OUTPUT_UNSPEC;
 static char *opt_base64_output_mode_str= 0;
-static my_bool opt_remote_alias= 0;
+static bool opt_remote_alias= 0;
 const char *remote_proto_names[]=
 {"BINLOG-DUMP-NON-GTIDS", "BINLOG-DUMP-GTIDS", NullS};
 TYPELIB remote_proto_typelib=
@@ -329,11 +329,11 @@ static char *opt_remote_proto_str= 0;
 static char *database= 0;
 static char *output_file= 0;
 static char *rewrite= 0;
-my_bool force_opt= 0, short_form= 0, idempotent_mode= 0;
-static my_bool debug_info_flag, debug_check_flag;
-static my_bool force_if_open_opt= 1, raw_mode= 0;
-static my_bool to_last_remote_log= 0, stop_never= 0;
-static my_bool opt_verify_binlog_checksum= 1;
+bool force_opt= 0, short_form= 0, idempotent_mode= 0;
+static bool debug_info_flag, debug_check_flag;
+static bool force_if_open_opt= 1, raw_mode= 0;
+static bool to_last_remote_log= 0, stop_never= 0;
+static bool opt_verify_binlog_checksum= 1;
 static ulonglong offset = 0;
 static int64 stop_never_slave_server_id= -1;
 static int64 connection_server_id= -1;
@@ -342,7 +342,7 @@ static int port= 0;
 static uint my_end_arg;
 static const char* sock= 0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
-static my_bool opt_secure_auth= TRUE;
+static bool opt_secure_auth= TRUE;
 
 #if defined (_WIN32)
 static char *shared_memory_base_name= 0;
@@ -395,7 +395,7 @@ enum Exit_status {
 */
 static char *opt_include_gtids_str= NULL,
             *opt_exclude_gtids_str= NULL;
-static my_bool opt_skip_gtids= 0;
+static bool opt_skip_gtids= 0;
 static bool filter_based_on_gtids= false;
 
 /* It is set to true when BEGIN is found, and false when the transaction ends. */
@@ -1004,7 +1004,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
 {
   char ll_buff[21];
   Log_event_type ev_type= ev->get_type_code();
-  my_bool destroy_evt= TRUE;
+  bool destroy_evt= TRUE;
   DBUG_ENTER("process_event");
   Exit_status retval= OK_CONTINUE;
   IO_CACHE *const head= &print_event_info->head_cache;
@@ -1827,7 +1827,7 @@ static my_time_t convert_str_to_timestamp(const char* str)
   MYSQL_TIME_STATUS status;
   MYSQL_TIME l_time;
   long dummy_my_timezone;
-  my_bool dummy_in_dst_time_gap;
+  bool dummy_in_dst_time_gap;
   /* We require a total specification (date AND time) */
   if (str_to_datetime(str, strlen(str), &l_time, 0, &status) ||
       l_time.time_type != MYSQL_TIMESTAMP_DATETIME || status.warnings)
@@ -1845,7 +1845,7 @@ static my_time_t convert_str_to_timestamp(const char* str)
 }
 
 
-extern "C" my_bool
+extern "C" bool
 get_one_option(int optid, const struct my_option *opt,
 	       char *argument)
 {

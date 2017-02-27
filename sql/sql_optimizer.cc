@@ -1470,7 +1470,7 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
   key_part_map const_key_parts=table->const_key_parts[idx];
   int reverse=0;
   uint key_parts;
-  my_bool on_pk_suffix= FALSE;
+  bool on_pk_suffix= FALSE;
   // Whether [extented] key has key parts with mixed ASC/DESC order
   bool mixed_order= false;
   // Order direction of the first key part
@@ -7556,7 +7556,7 @@ add_key_fields(JOIN *join, Key_field **key_fields, uint *and_level,
   case Item_func::OPTIMIZE_OP:
   {
     bool equal_func=(cond_func->functype() == Item_func::EQ_FUNC ||
-		     cond_func->functype() == Item_func::EQUAL_FUNC);
+                     cond_func->functype() == Item_func::EQUAL_FUNC);
 
     if (is_local_field (cond_func->arguments()[0]))
     {

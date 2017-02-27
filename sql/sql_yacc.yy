@@ -487,7 +487,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  ALL                           /* SQL-2003-R */
 %token  ALTER                         /* SQL-2003-R */
 %token  ALWAYS_SYM
-%token  ANALYSE_SYM
+%token  OBSOLETE_TOKEN_271            /* was: ANALYSE_SYM */
 %token  ANALYZE_SYM
 %token  AND_AND_SYM                   /* OPERATOR */
 %token  AND_SYM                       /* SQL-2003-R */
@@ -1235,7 +1235,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <ulonglong_number>
         ulonglong_num real_ulonglong_num size_number
-        procedure_analyse_param
 
 %type <lock_type>
         replace_lock_option opt_low_priority insert_lock_option load_data_lock
@@ -1478,10 +1477,6 @@ END_OF_INPUT
 %type <group> opt_group_clause
 
 %type <order> order_clause opt_order_clause
-
-%type <procedure_analyse_params> opt_procedure_analyse_params
-
-%type <procedure_analyse> opt_procedure_analyse_clause
 
 %type <locking_clause> locking_clause
 
@@ -8566,12 +8561,6 @@ select_stmt_with_into:
             if ($1->has_into_clause())
               YYTHD->syntax_error_at(@2, ER_THD(YYTHD, ER_SYNTAX_ERROR));
 
-            if ($1->has_procedure())
-            {
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
-              MYSQL_YYABORT;
-            }
-
             $$= NEW_PTN PT_select_stmt($1, $2);
           }
         ;
@@ -8612,122 +8601,61 @@ query_expression:
           query_expression_body
           opt_order_clause
           opt_limit_clause
-          opt_procedure_analyse_clause
           opt_locking_clause_list
           {
-            if ($1 == NULL)
-              MYSQL_YYABORT; // OOM
-
-            if ($1->is_union() && $4 != NULL)
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
-
-            if ($1->has_into_clause() && $4 != NULL)
-            {
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
-              MYSQL_YYABORT;
-            }
-
-            $$= NEW_PTN PT_query_expression($1, $2, $3, $4, $5);
+            $$= NEW_PTN PT_query_expression($1, $2, $3, $4);
           }
         | with_clause
           query_expression_body
           opt_order_clause
           opt_limit_clause
-          opt_procedure_analyse_clause
           opt_locking_clause_list
           {
-            if ($2 == NULL)
-              MYSQL_YYABORT; // OOM
-
-            if ($2->is_union() && $5 != NULL)
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
-
-            if ($2->has_into_clause() && $5 != NULL)
-            {
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
-              MYSQL_YYABORT;
-            }
-
-            $$= NEW_PTN PT_query_expression($2, $3, $4, $5, $6);
-            if ($$ == NULL)
-              MYSQL_YYABORT; // OOM
-            $$->m_with_clause= $1;
+            $$= NEW_PTN PT_query_expression($1, $2, $3, $4, $5);
           }
         | query_expression_parens
           order_clause
           opt_limit_clause
-          opt_procedure_analyse_clause
           opt_locking_clause_list
           {
-            if ($1 == NULL)
-              MYSQL_YYABORT; // OOM
-            if ($1->is_union() && $4 != NULL)
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
-            PT_nested_query_expression *nested=
-              NEW_PTN PT_nested_query_expression($1);
-            PT_query_expression_body_primary *body=
-              NEW_PTN PT_query_expression_body_primary(nested);
-            $$= NEW_PTN PT_query_expression(body, $2, $3, $4, $5);
+            auto nested= NEW_PTN PT_nested_query_expression($1);
+            auto body= NEW_PTN PT_query_expression_body_primary(nested);
+            $$= NEW_PTN PT_query_expression(body, $2, $3, $4);
           }
         | with_clause
           query_expression_parens
           order_clause
           opt_limit_clause
-          opt_procedure_analyse_clause
           opt_locking_clause_list
           {
-            if ($2 == NULL)
-              MYSQL_YYABORT; // OOM
-            if ($2->is_union() && $5 != NULL)
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
-            PT_nested_query_expression *nested=
-              NEW_PTN PT_nested_query_expression($2);
-            PT_query_expression_body_primary *body=
-              NEW_PTN PT_query_expression_body_primary(nested);
-            $$= NEW_PTN PT_query_expression(body, $3, $4, $5, $6);
-            if ($$ == NULL)
-              MYSQL_YYABORT; // OOM
-            $$->m_with_clause= $1;
+            auto nested= NEW_PTN PT_nested_query_expression($2);
+            auto body= NEW_PTN PT_query_expression_body_primary(nested);
+            $$= NEW_PTN PT_query_expression($1, body, $3, $4, $5);
           }
         | query_expression_parens
           limit_clause
-          opt_procedure_analyse_clause
           opt_locking_clause_list
           {
             if ($1 == NULL)
               MYSQL_YYABORT; // OOM
-            if ($1->is_union() && $3 != NULL)
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
-            $$= NEW_PTN PT_query_expression($1->body(), NULL, $2, $3, $4);
+            $$= NEW_PTN PT_query_expression($1->body(), NULL, $2, $3);
           }
         | with_clause
           query_expression_parens
           limit_clause
-          opt_procedure_analyse_clause
           opt_locking_clause_list
           {
             if ($2 == NULL)
               MYSQL_YYABORT; // OOM
-            if ($2->is_union() && $4 != NULL)
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
-            $$= NEW_PTN PT_query_expression($2->body(), NULL, $3, $4, $5);
-            if ($$ == NULL)
-              MYSQL_YYABORT; // OOM
-            $$->m_with_clause= $1;
+            $$= NEW_PTN PT_query_expression($1, $2->body(), NULL, $3, $4);
           }
         | with_clause
           query_expression_parens
-          opt_procedure_analyse_clause
           opt_locking_clause_list
           {
             if ($2 == NULL)
               MYSQL_YYABORT; // OOM
-            if ($2->is_union() && $3 != NULL)
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
-            $$= NEW_PTN PT_query_expression($2->body(), NULL, NULL, $3, $4);
-            if ($$ == NULL)
-              MYSQL_YYABORT; // OOM
-            $$->m_with_clause= $1;
+            $$= NEW_PTN PT_query_expression($1, $2->body(), NULL, NULL, $3);
           }
         ;
 
@@ -10879,46 +10807,6 @@ dec_num_error:
 dec_num:
           DECIMAL_NUM
         | FLOAT_NUM
-        ;
-
-opt_procedure_analyse_clause:
-          /* empty */ { $$= NULL; }
-        | PROCEDURE_SYM ANALYSE_SYM
-          '(' opt_procedure_analyse_params ')'
-          {
-            $$= NEW_PTN PT_procedure_analyse($4);
-          }
-        ;
-
-opt_procedure_analyse_params:
-          /* empty */
-          {
-            $$.max_tree_elements= Proc_analyse_params::default_max_tree_elements;
-            $$.max_treemem= Proc_analyse_params::default_max_treemem;
-          }
-        | procedure_analyse_param
-          {
-            $$.max_tree_elements= static_cast<uint>($1);
-            $$.max_treemem= Proc_analyse_params::default_max_treemem;
-          }
-        | procedure_analyse_param ',' procedure_analyse_param
-          {
-            $$.max_tree_elements= static_cast<uint>($1);
-            $$.max_treemem= static_cast<uint>($3);
-          }
-        ;
-
-procedure_analyse_param:
-          NUM
-          {
-            int error;
-            $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error);
-            if (error != 0)
-            {
-              my_error(ER_WRONG_PARAMETERS_TO_PROCEDURE, MYF(0), "ANALYSE");
-              MYSQL_YYABORT;
-            }
-          }
         ;
 
 select_var_list:
@@ -13305,7 +13193,6 @@ role_or_label_keyword:
         | AGAINST                  {}
         | AGGREGATE_SYM            {}
         | ALGORITHM_SYM            {}
-        | ANALYSE_SYM              {}
         | ANY_SYM                  {}
         | AT_SYM                   {}
         | AUTO_INC                 {}
@@ -14927,7 +14814,6 @@ view_select:
             LEX *lex= Lex;
             lex->parsing_options.allows_variable= FALSE;
             lex->parsing_options.allows_select_into= FALSE;
-            lex->parsing_options.allows_select_procedure= FALSE;
 
             /*
               In CREATE VIEW v ... the table_list initially contains
@@ -14969,7 +14855,6 @@ view_select:
 
             lex->parsing_options.allows_variable= TRUE;
             lex->parsing_options.allows_select_into= TRUE;
-            lex->parsing_options.allows_select_procedure= TRUE;
           }
         ;
 

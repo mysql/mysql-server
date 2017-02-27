@@ -81,7 +81,7 @@ const char *empty_string= "";			/* For empty states */
 
 const char *default_language= "eng";
 int er_offset= 1000;
-my_bool info_flag= 0;
+bool info_flag= 0;
 
 bool isObsolete(const char* error_name)
 {
@@ -161,15 +161,15 @@ static struct errors *parse_error_string(char *ptr, int er_count);
 static struct message *parse_message_string(struct message *new_message,
 					    char *str);
 static struct message *find_message(struct errors *err, const char *lang,
-                                    my_bool no_default);
+                                    bool no_default);
 static int check_message_format(struct errors *err,
                                 const char* mess);
 static int parse_input_file(const char *file_name, struct errors **top_error,
 			    struct languages **top_language);
 static int get_options(int *argc, char ***argv);
 static void usage(void);
-static my_bool get_one_option(int optid, const struct my_option *opt,
-			      char *argument);
+static bool get_one_option(int optid, const struct my_option *opt,
+                           char *argument);
 static char *parse_text_line(char *pos);
 static int copy_rows(FILE * to, char *row, int row_nr, long start_pos);
 static char *parse_default_language(char *str);
@@ -724,7 +724,7 @@ static char *parse_default_language(char *str)
     Returns the message structure if one is found, or NULL if not.
 */
 static struct message *find_message(struct errors *err, const char *lang,
-                                    my_bool no_default)
+                                    bool no_default)
 {
   struct message *tmp, *return_val= 0;
   DBUG_ENTER("find_message");
@@ -1101,7 +1101,7 @@ static struct languages *parse_charset_string(char *str)
 
 /* Read options */
 
-static my_bool
+static bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE ((unused)),
 	       char *argument MY_ATTRIBUTE ((unused)))
 {

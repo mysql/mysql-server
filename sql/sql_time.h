@@ -65,7 +65,7 @@ ulong convert_period_to_month(ulong period);
 ulong convert_month_to_period(ulong month);
 void mix_date_and_time(MYSQL_TIME *ldate, const MYSQL_TIME *ltime);
 void get_date_from_daynr(long daynr,uint *year, uint *month, uint *day);
-my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *not_exist);
+my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, bool *not_exist);
 bool datetime_with_no_zero_in_date_to_timeval(THD *thd, const MYSQL_TIME *t,
                                               struct timeval *tm,
                                               int *warnings);

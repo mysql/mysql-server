@@ -220,7 +220,7 @@ int my_aes_get_size(uint32 source_length, my_aes_opmode opmode)
   @retval FALSE  IV not needed
 */
 
-my_bool my_aes_needs_iv(my_aes_opmode opmode)
+bool my_aes_needs_iv(my_aes_opmode opmode)
 {
   const EVP_CIPHER *cipher= aes_evp_type(opmode);
   int iv_length;

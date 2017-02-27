@@ -1,7 +1,7 @@
 #ifndef THR_RWLOCK_INCLUDED
 #define THR_RWLOCK_INCLUDED
 
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -188,7 +188,7 @@ typedef struct st_rw_pr_lock_t {
   /** Number of writers waiting for readers to go away. */
   uint writers_waiting_readers;
   /** Indicates whether there is an active writer. */
-  my_bool active_writer;
+  bool active_writer;
 #ifdef SAFE_MUTEX
   /** Thread holding wr-lock (for debug purposes only). */
   my_thread_t writer_thread;

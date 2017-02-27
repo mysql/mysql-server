@@ -61,7 +61,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list);
 bool create_ondisk_from_heap(THD *thd, TABLE *table,
                              MI_COLUMNDEF *start_recinfo,
                              MI_COLUMNDEF **recinfo, 
-			     int error, bool ignore_last_dup,
+                             int error, bool ignore_last_dup,
                              bool *is_duplicate);
 void free_tmp_table(THD *thd, TABLE *entry);
 TABLE *create_duplicate_weedout_tmp_table(THD *thd, 
@@ -70,7 +70,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
 bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
                            MI_COLUMNDEF *start_recinfo,
                            MI_COLUMNDEF **recinfo,
-                           ulonglong options, my_bool big_tables);
+                           ulonglong options, bool big_tables);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         Mem_root_array<Item *> *copy_func, Field **from_field,
                         Field **default_field,

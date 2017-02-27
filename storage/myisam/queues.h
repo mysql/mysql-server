@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,15 +65,15 @@ typedef int (*queue_compare)(void *,uchar *, uchar *);
 
 int init_queue(QUEUE *queue, PSI_memory_key psi_key,
                uint max_elements,uint offset_to_key,
-	       my_bool max_at_top, queue_compare compare,
+	       bool max_at_top, queue_compare compare,
 	       void *first_cmp_arg);
 int init_queue_ex(QUEUE *queue, PSI_memory_key psi_key,
                   uint max_elements,uint offset_to_key,
-	       my_bool max_at_top, queue_compare compare,
+	       bool max_at_top, queue_compare compare,
 	       void *first_cmp_arg, uint auto_extent);
 int reinit_queue(QUEUE *queue, PSI_memory_key psi_key,
                  uint max_elements,uint offset_to_key,
-                 my_bool max_at_top, queue_compare compare,
+                 bool max_at_top, queue_compare compare,
                  void *first_cmp_arg);
 void delete_queue(QUEUE *queue);
 void queue_insert(QUEUE *queue,uchar *element);
@@ -84,12 +84,12 @@ static inline void queue_remove_all(QUEUE *queue)
   queue->elements= 0;
 }
 
-static inline my_bool queue_is_full(QUEUE *queue)
+static inline bool queue_is_full(QUEUE *queue)
 {
   return queue->elements == queue->max_elements;
 }
 
-static inline my_bool is_queue_inited(QUEUE *queue)
+static inline bool is_queue_inited(QUEUE *queue)
 {
   return queue->root != NULL;
 }

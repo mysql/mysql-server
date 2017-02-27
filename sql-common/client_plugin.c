@@ -93,7 +93,7 @@ struct st_client_plugin_int {
   struct st_mysql_client_plugin *plugin;
 };
 
-static my_bool initialized= 0;
+static bool initialized= 0;
 static MEM_ROOT mem_root;
 
 static const char *plugin_declarations_sym= "_mysql_client_plugin_declaration_";

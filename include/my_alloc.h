@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,8 @@
 
 #ifndef _my_alloc_h
 #define _my_alloc_h
+
+#include <stdbool.h>
 
 /*
   How much overhead does malloc have. The code often allocates
@@ -100,7 +102,7 @@ struct st_mem_root
   size_t allocated_size;
 
   /* Enable this for error reporting if capacity is exceeded */
-  my_bool error_for_capacity_exceeded;
+  bool error_for_capacity_exceeded;
 
   void (*error_handler)(void);
 

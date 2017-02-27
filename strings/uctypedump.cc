@@ -94,7 +94,7 @@ typedef struct
   uint decimal_digit_value; /* 0-9 */
   uint digit_value;         /* 0-9 */
   char *numeric_value;      /* Examples: 0, 1, 10, 100, 1000, 1/2, 5/2 */
-  my_bool mirrored;         /* Y or N */
+  bool mirrored;            /* Y or N */
   char *unicode_1_0_name;
   char *iso10646_comment_field;
   uint uppercase_mapping;

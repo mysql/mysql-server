@@ -1394,7 +1394,7 @@ loop:
 
 		if (started_monitor) {
 			srv_print_innodb_monitor =
-				static_cast<my_bool>(mon_value_was);
+				static_cast<bool>(mon_value_was);
 		}
 
 		block->skip_flush_check = false;

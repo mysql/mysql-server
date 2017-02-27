@@ -36,13 +36,13 @@ InnoDB Native API
 #include "univ.i"
 
 /** Whether binlog is enabled for applications using InnoDB APIs */
-extern my_bool                  ib_binlog_enabled;
+extern bool                  ib_binlog_enabled;
 
 /** Whether MySQL MDL is enabled for applications using InnoDB APIs */
-extern my_bool                  ib_mdl_enabled;
+extern bool                  ib_mdl_enabled;
 
 /** Whether InnoDB row lock is disabled for applications using InnoDB APIs */
-extern my_bool                  ib_disable_row_lock;
+extern bool                  ib_disable_row_lock;
 
 /** configure value for transaction isolation level */
 extern ulong			ib_trx_level_setting;

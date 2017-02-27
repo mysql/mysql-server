@@ -325,7 +325,7 @@ size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
   uint minimum_width; /* as yet unimplemented */
   uint minimum_width_sign;
   uint precision; /* as yet unimplemented for anything but %b */
-  my_bool is_zero_padded;
+  bool is_zero_padded;
 
   /*
     Store the location of the beginning of a format directive, for the

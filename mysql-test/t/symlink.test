@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs284=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # windows does not support symlink
 --source include/not_windows.inc
 
@@ -301,3 +312,27 @@ show create table t1;
 create table t2 like t1;
 show create table t2;
 drop tables t1, t2;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs284;
+--enable_query_log
+########################################
+
+--echo #
+--echo # Test for bug #25514146 DB_NAME IS IGNORED WHEN CREATING TABLE
+--echo # WITH DATA DIRECTORY
+--echo #
+
+--echo # Make sure we have no current database
+CREATE DATABASE x;
+USE x;
+DROP DATABASE x;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval CREATE TABLE test.t1(id INT(11)) ENGINE MYISAM
+DATA DIRECTORY "$MYSQLTEST_VARDIR/tmp";
+
+DROP TABLE test.t1;

@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs313=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 --echo # In-memory tmp tables
 set big_tables=0;
 --source include/with_recursive.inc
@@ -5,3 +16,11 @@ set big_tables=0;
 --echo # On-disk tmp tables
 set big_tables=1;
 --source include/with_recursive.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs313;
+--enable_query_log
+########################################

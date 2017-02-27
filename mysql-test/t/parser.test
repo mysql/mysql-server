@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs230=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 #
 # This file contains tests covering the parser
 #
@@ -574,8 +585,10 @@ select master_pos_wait();
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select master_pos_wait(1);
 
---error ER_WRONG_ARGUMENTS
+--disable_result_log
+--error 0,ER_WRONG_ARGUMENTS
 select master_pos_wait('master-bin.999999', 4, -1);
+--enable_result_log
 
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select rand(1, 2, 3);
@@ -857,53 +870,23 @@ SELECT '' IN (SELECT '1' c FROM t1 ORDER BY '' ORDER BY '') FROM t1;
 SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
   FOR UPDATE;
 
-SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
-  PROCEDURE ANALYSE() FOR UPDATE;
-
 SELECT 1 FROM
   (SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
    FOR UPDATE) a;
 
---error ER_WRONG_USAGE
-SELECT 1 FROM
-  (SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
-   PROCEDURE ANALYSE() FOR UPDATE) a;
-
 SELECT 1 FROM t1
   WHERE EXISTS(SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
                FOR UPDATE);
-
---error ER_WRONG_USAGE
-SELECT 1 FROM t1
-  WHERE EXISTS(SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
-               PROCEDURE ANALYSE() FOR UPDATE);
 
 SELECT 1 FROM t1
 UNION
 SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
   FOR UPDATE;
 
---error ER_WRONG_USAGE
-SELECT 1 FROM t1
-UNION
-SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
-  PROCEDURE ANALYSE() FOR UPDATE;
-
---error ER_PARSE_ERROR
-SELECT 1 FROM DUAL PROCEDURE ANALYSE() 
-UNION
-SELECT 1 FROM t1;
-
 (SELECT 1 FROM t1)
 UNION 
 (SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
  FOR UPDATE);
-
---error ER_WRONG_USAGE
-(SELECT 1 FROM t1)
-UNION 
-(SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
- PROCEDURE ANALYSE() FOR UPDATE);
 
 --echo # "FOR UPDATE" tests
 
@@ -955,12 +938,6 @@ SELECT 1 FROM t1 INTO @var17727401 UNION SELECT 1 FROM t1 INTO t1;
 (SELECT 1 FROM t1 INTO @var17727401) UNION (SELECT 1 FROM t1 INTO t1);
 
 SELECT 1 FROM t1 UNION SELECT 1 FROM t1 INTO @var17727401;
-
---error ER_WRONG_USAGE 
-SELECT 1 INTO @var17727401 FROM t1 PROCEDURE ANALYSE();
-
---error ER_WRONG_USAGE
-SELECT 1 FROM t1 PROCEDURE ANALYSE() INTO @var17727401;
 
 --echo # ORDER and LIMIT clause combinations
 
@@ -1463,19 +1440,6 @@ CALL p1();
 
 DROP PROCEDURE p1;
 
---ERROR ER_PARSE_ERROR
-SELECT 1 PROCEDURE ANALYSE() UNION SELECT 1;
---ERROR ER_WRONG_USAGE
-SELECT 1 UNION SELECT 1 PROCEDURE ANALYSE() ;
---ERROR ER_WRONG_USAGE
-(SELECT 1 PROCEDURE ANALYSE()) UNION SELECT 1;
---ERROR ER_WRONG_USAGE
-(SELECT 1 PROCEDURE ANALYSE()) UNION (SELECT 1);
---ERROR ER_WRONG_USAGE
-SELECT 1 UNION (SELECT 1 PROCEDURE ANALYSE());
---ERROR ER_WRONG_USAGE
-(SELECT 1) UNION (SELECT 1 PROCEDURE ANALYSE());
-
 --echo #
 --echo # Part 2: Test of changed (fixed) behavior.
 --echo #
@@ -1757,17 +1721,6 @@ SELECT * FROM (SELECT a INTO @v FROM t1) t1a;
 --error ER_PARSE_ERROR
 SELECT * FROM (SELECT a INTO @v) t1a;
 
---error ER_WRONG_USAGE
-SELECT 1 PROCEDURE ANALYSE() INTO @v;
---error ER_WRONG_USAGE
-(SELECT 1 PROCEDURE ANALYSE() INTO @v);
---error ER_WRONG_USAGE
-(SELECT 1 UNION SELECT 1) ORDER BY 1 PROCEDURE ANALYSE();
---error ER_WRONG_USAGE
-(SELECT 1 UNION SELECT 1) LIMIT 1 PROCEDURE ANALYSE();
---error ER_WRONG_USAGE
-SELECT ( SELECT 1 PROCEDURE ANALYSE() ) a;
-
 DROP TABLE t1;
 
 --echo #
@@ -1967,3 +1920,11 @@ FROM ( SELECT 1 FROM t1 JOIN t2 ON @@q ) AS d
 JOIN t3 LEFT JOIN t4 ON 1;
 
 DROP TABLE t1, t2, t3, t4;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs230;
+--enable_query_log
+########################################

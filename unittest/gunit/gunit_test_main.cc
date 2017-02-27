@@ -30,8 +30,8 @@ CHARSET_INFO *system_charset_info= NULL;
 
 namespace {
 
-my_bool opt_use_tap= true;
-my_bool opt_unit_help= false;
+bool opt_use_tap= true;
+bool opt_unit_help= false;
 
 struct my_option unittest_options[] =
 {
@@ -51,7 +51,7 @@ struct my_option unittest_options[] =
 };
 
 
-extern "C" my_bool get_one_option(int, const struct my_option *, char *)
+extern "C" bool get_one_option(int, const struct my_option *, char *)
 {
   return FALSE;
 }

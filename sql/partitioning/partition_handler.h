@@ -82,7 +82,7 @@ typedef struct st_part_name_def
   uchar *partition_name;
   uint length;
   uint32 part_id;
-  my_bool is_subpart;
+  bool is_subpart;
 } PART_NAME_DEF;
 
 

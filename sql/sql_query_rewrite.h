@@ -49,6 +49,6 @@ void enable_digest_if_any_plugin_needs_it(THD *thd, Parser_state *ps);
   @param[in] thd The session with the query to be rewritten.
   @param is_prepared True if the query was a prepared statement.
 */
-bool invoke_post_parse_rewrite_plugins(THD *thd, my_bool is_prepared);
+bool invoke_post_parse_rewrite_plugins(THD *thd, bool is_prepared);
 
 #endif /* SQL_QUERY_REWRITE_INCLUDED */

@@ -874,7 +874,7 @@ my_uca_add_contraction_flag(MY_CONTRACTIONS *list, my_wc_t wc, int flag)
 
 static MY_CONTRACTION *
 my_uca_add_contraction(MY_CONTRACTIONS *list, my_wc_t *wc, size_t len,
-                       my_bool with_context)
+                       bool with_context)
 {
   /*
     Contraction is always at least two code points.
@@ -964,7 +964,7 @@ my_charset_get_contractions(const CHARSET_INFO *cs)
   @retval   1 - there are some contractions
 */
 
-static inline my_bool
+static inline bool
 my_uca_have_contractions(const MY_UCA_INFO *uca)
 {
   return uca->contractions.has_contractions;
@@ -982,7 +982,7 @@ my_uca_have_contractions(const MY_UCA_INFO *uca)
   @retval   1 - can be contraction head
 */
 
-my_bool
+bool
 my_uca_can_be_contraction_head(const MY_CONTRACTIONS *c, my_wc_t wc)
 {
   return c->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_CNT_HEAD;
@@ -999,7 +999,7 @@ my_uca_can_be_contraction_head(const MY_CONTRACTIONS *c, my_wc_t wc)
   @retval   1 - can be contraction tail
 */
 
-my_bool
+bool
 my_uca_can_be_contraction_tail(const MY_CONTRACTIONS *c, my_wc_t wc)
 {
   return c->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_CNT_TAIL;
@@ -1017,7 +1017,7 @@ my_uca_can_be_contraction_tail(const MY_CONTRACTIONS *c, my_wc_t wc)
   @retval   1 - can be contraction part
 */
 
-static inline my_bool
+static inline bool
 my_uca_can_be_contraction_part(const MY_CONTRACTIONS *c, my_wc_t wc, int flag)
 {
   return c->flags[wc & MY_UCA_CNT_FLAG_MASK] & flag;
@@ -1062,7 +1062,7 @@ my_uca_contraction2_weight(const MY_CONTRACTIONS *list, my_wc_t wc1, my_wc_t wc2
   @retval   TRUE  - can be previous context head
 */
 
-static inline my_bool
+static inline bool
 my_uca_can_be_previous_context_head(const MY_CONTRACTIONS *list, my_wc_t wc)
 {
   return list->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_PREVIOUS_CONTEXT_HEAD;
@@ -1080,7 +1080,7 @@ my_uca_can_be_previous_context_head(const MY_CONTRACTIONS *list, my_wc_t wc)
   @retval   TRUE - can be contraction tail
 */
 
-static inline my_bool
+static inline bool
 my_uca_can_be_previous_context_tail(const MY_CONTRACTIONS *list, my_wc_t wc)
 {
   return list->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_PREVIOUS_CONTEXT_TAIL;
@@ -1884,7 +1884,7 @@ static int my_strnncoll_uca(const CHARSET_INFO *cs,
                             const Mb_wc mb_wc,
 			    const uchar *s, size_t slen,
                             const uchar *t, size_t tlen,
-                            my_bool t_is_prefix)
+                            bool t_is_prefix)
 {
   Scanner sscanner(mb_wc, cs, s, slen);
   Scanner tscanner(mb_wc, cs, t, tlen);
@@ -3086,7 +3086,7 @@ typedef struct my_coll_rule_item_st
   my_wc_t curr[MY_UCA_MAX_CONTRACTION];  /* Current character               */
   int diff[4];      /* Primary, Secondary, Tertiary, Quaternary difference  */
   size_t before_level;                   /* "reset before" indicator        */
-  my_bool with_context;
+  bool with_context;
 } MY_COLL_RULE;
 
 
@@ -4253,7 +4253,7 @@ my_char_weight_put(MY_UCA_INFO *dst, uint16 *to,
   @retval         FALSE on success
   @retval         TRUE  on error
 */
-static my_bool
+static bool
 my_uca_copy_page(CHARSET_INFO *cs,
                  MY_CHARSET_LOADER *loader,
                  const MY_UCA_INFO *src,
@@ -4391,7 +4391,7 @@ apply_shift_900(MY_CHARSET_LOADER *loader,
   return false;
 }
 
-static my_bool
+static bool
 apply_shift(MY_CHARSET_LOADER *loader,
             MY_COLL_RULES *rules, MY_COLL_RULE *r, int level,
             uint16 *to, size_t to_stride, size_t nweights)
@@ -4449,7 +4449,7 @@ apply_shift(MY_CHARSET_LOADER *loader,
 }
 
 
-static my_bool
+static bool
 apply_one_rule(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
                MY_COLL_RULES *rules, MY_COLL_RULE *r, int level,
                MY_UCA_INFO *dst)
@@ -4581,7 +4581,7 @@ copy_ja_han_pages(const CHARSET_INFO *cs, MY_UCA_INFO *dst)
   }
 }
 
-static my_bool
+static bool
 init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
                   MY_COLL_RULES *rules, int level,
                   MY_UCA_INFO *dst, const MY_UCA_INFO *src,
@@ -4663,7 +4663,7 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
   /* Allocate pages that we'll overwrite and copy default weights */
   for (i= 0; i < npages; i++)
   {
-    my_bool rc;
+    bool rc;
     /*
       Don't touch pages with lengths[i]==0, they have implicit weights
       calculated algorithmically.
@@ -5161,7 +5161,7 @@ static bool my_prepare_coll_param(CHARSET_INFO *cs, MY_COLL_RULES *rules)
   default weights.
 */
 
-static my_bool
+static bool
 create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
 {
   MY_COLL_RULES rules;
@@ -5263,7 +5263,7 @@ ex:
 */
 
 extern "C" {
-static my_bool
+static bool
 my_coll_init_uca(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
 {
   cs->pad_char= ' ';
@@ -5276,7 +5276,7 @@ my_coll_init_uca(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
 static int my_strnncoll_any_uca(const CHARSET_INFO *cs,
                                 const uchar *s, size_t slen,
                                 const uchar *t, size_t tlen,
-                                my_bool t_is_prefix)
+                                bool t_is_prefix)
 {
   if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk)
   {
@@ -5332,7 +5332,7 @@ static size_t my_strnxfrm_any_uca(const CHARSET_INFO *cs,
 static int my_strnncoll_uca_900(const CHARSET_INFO *cs,
                                 const uchar *s, size_t slen,
                                 const uchar *t, size_t tlen,
-                                my_bool t_is_prefix)
+                                bool t_is_prefix)
 {
   if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk)
   {
@@ -5753,7 +5753,7 @@ extern "C" {
 static int my_strnncoll_ucs2_uca(const CHARSET_INFO *cs,
                                  const uchar *s, size_t slen,
                                  const uchar *t, size_t tlen,
-                                 my_bool t_is_prefix)
+                                 bool t_is_prefix)
 {
   Mb_wc_through_function_pointer mb_wc(cs);
   return my_strnncoll_uca<uca_scanner_any<decltype(mb_wc)>>(

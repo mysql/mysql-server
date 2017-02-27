@@ -33,8 +33,8 @@ namespace keyring
     ISerialized_object() : key_operation(NONE)
     {}
 
-    virtual my_bool get_next_key(IKey **key)= 0;
-    virtual my_bool has_next_key()= 0;
+    virtual bool get_next_key(IKey **key)= 0;
+    virtual bool has_next_key()= 0;
     virtual Key_operation get_key_operation()
     {
       return key_operation;

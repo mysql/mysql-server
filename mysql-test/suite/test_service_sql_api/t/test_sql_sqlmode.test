@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs386=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 --source include/not_embedded.inc
 
 SET @sql_mode_global = @@global.sql_mode;
@@ -58,3 +69,11 @@ DROP TABLE t2;
 
 SET @@global.sql_mode = @sql_mode_global;
 SET @@session.sql_mode = @sql_mode_session;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs386;
+--enable_query_log
+########################################

@@ -102,7 +102,7 @@ bool rsa_auth_status();
 void rebuild_check_host(void);
 ACL_USER * find_acl_user(const char *host,
                          const char *user,
-                         my_bool exact);
+                         bool exact);
 ACL_PROXY_USER * acl_find_proxy_user(const char *user,
                                      const char *host,
                                      const char *ip,

@@ -304,7 +304,6 @@ auto_increment_increment	DYNAMIC	user1	localhost
 innodb_checksum_algorithm	DYNAMIC	user1	localhost
 select @@global.max_connections into @saved_max_connections;
 select @@global.autocommit into @saved_autocommit;
-INSTALL PLUGIN test_plugin_server SONAME 'auth_test_plugin.so';
 CREATE USER 'internal_proxied'@'%' IDENTIFIED BY 'proxy_password';
 CREATE USER 'external_u1'@'%' IDENTIFIED WITH test_plugin_server AS 'internal_proxied';
 CREATE USER 'external_u2'@'%' IDENTIFIED WITH test_plugin_server AS 'internal_proxied';
@@ -312,14 +311,13 @@ GRANT PROXY ON 'internal_proxied'@'%' TO 'external_u1'@'%','external_u2'@'%';
 GRANT ALL ON *.* TO 'internal_proxied'@'%';
 SET @@global.max_connections=50;
 SET @@global.autocommit=1;
-SELECt VARIABLE_NAME, SET_USER, SET_HOST, SET_TIME from
+SELECT VARIABLE_NAME, SET_USER, SET_HOST, SET_TIME from
 performance_schema.variables_info where variable_name='max_connections' or
 variable_name='autocommit';
 VARIABLE_NAME	SET_USER	SET_HOST	SET_TIME
 autocommit	external_u2	localhost	#
 max_connections	external_u1	localhost	#
 # Cleanup
-UNINSTALL PLUGIN test_plugin_server;
 drop USER 'internal_proxied'@'%';
 drop USER 'external_u1'@'%';
 drop USER 'external_u2'@'%';

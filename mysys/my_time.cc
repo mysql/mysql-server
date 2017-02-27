@@ -94,7 +94,7 @@ void set_max_hhmmss(MYSQL_TIME *tm)
   @param tm    OUT  The variable to set.
   @param neg        Sign: 1 if negative, 0 if positive.
 */
-void set_max_time(MYSQL_TIME *tm, my_bool neg)
+void set_max_time(MYSQL_TIME *tm, bool neg)
 {
   set_zero_time(tm, MYSQL_TIMESTAMP_TIME);
   set_max_hhmmss(tm);
@@ -122,8 +122,8 @@ void set_max_time(MYSQL_TIME *tm, my_bool neg)
     1  error
 */
 
-my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
-                   my_time_flags_t flags, int *was_cut)
+bool check_date(const MYSQL_TIME *ltime, bool not_zero_date,
+                my_time_flags_t flags, int *was_cut)
 {
   if (not_zero_date)
   {
@@ -157,7 +157,7 @@ my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
   @retval  TRUE   if the value is fatally bad.
   @retval  FALSE  if the value is Ok.
 */
-my_bool check_time_mmssff_range(const MYSQL_TIME *ltime)
+bool check_time_mmssff_range(const MYSQL_TIME *ltime)
 {
   return ltime->minute >= 60 || ltime->second >= 60 ||
          ltime->second_part > 999999;
@@ -176,7 +176,7 @@ my_bool check_time_mmssff_range(const MYSQL_TIME *ltime)
   @retval        FALSE if value is Ok.
   @retval        TRUE if value is out of range. 
 */
-my_bool check_time_range_quick(const MYSQL_TIME *ltime)
+bool check_time_range_quick(const MYSQL_TIME *ltime)
 {
   longlong hour= (longlong) ltime->hour + 24LL * ltime->day;
   /* The input value should not be fatally bad */
@@ -196,7 +196,7 @@ my_bool check_time_range_quick(const MYSQL_TIME *ltime)
   @retval   FALSE on success
   @retval   TRUE  on error
 */
-my_bool check_datetime_range(const MYSQL_TIME *ltime)
+bool check_datetime_range(const MYSQL_TIME *ltime)
 {
   /*
     In case of MYSQL_TIMESTAMP_TIME hour value can be up to TIME_MAX_HOUR.
@@ -270,7 +270,7 @@ my_bool check_datetime_range(const MYSQL_TIME *ltime)
 
 #define MAX_DATE_PARTS 8
 
-my_bool
+bool
 str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
                 my_time_flags_t flags, MYSQL_TIME_STATUS *status)
 {
@@ -278,11 +278,11 @@ str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
   uint date[MAX_DATE_PARTS], date_len[MAX_DATE_PARTS];
   uint add_hours= 0, start_loop;
   ulong not_zero_date, allow_space;
-  my_bool is_internal_format;
+  bool is_internal_format;
   const char *pos, *last_field_pos= NULL;
   const char *end=str+length;
   const uchar *format_position;
-  my_bool found_delimitier= 0, found_space= 0;
+  bool found_delimitier= 0, found_space= 0;
   uint frac_pos, frac_len;
   DBUG_ENTER("str_to_datetime");
   DBUG_PRINT("ENTER", ("str: %.*s", (int)length, str));
@@ -384,8 +384,7 @@ str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
       zeroes are significant, and where we never process more than six
       digits.
     */
-    my_bool     scan_until_delim= !is_internal_format &&
-                                  ((i != format_position[6]));
+    bool scan_until_delim= !is_internal_format && (i != format_position[6]);
 
     while (str != end && my_isdigit(&my_charset_latin1,str[0]) &&
            (scan_until_delim || --field_length))
@@ -635,13 +634,13 @@ err:
      1  error
 */
 
-my_bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
-                    MYSQL_TIME_STATUS *status)
+bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
+                 MYSQL_TIME_STATUS *status)
 {
   ulong date[5];
   ulonglong value;
   const char *end=str+length, *end_of_days;
-  my_bool found_days,found_hours;
+  bool found_days,found_hours;
   uint state;
 
   my_time_status_init(status);
@@ -846,7 +845,7 @@ fractional:
   @retval false OK
   @retval true No. is out of range
 */
-my_bool
+bool
 number_to_time(longlong nr, MYSQL_TIME *ltime, int *warnings)
 {
   if (nr > TIME_MAX_VALUE)
@@ -917,7 +916,7 @@ void my_init_time(void)
   time_t seconds;
   struct tm *l_time,tm_tmp;
   MYSQL_TIME my_time;
-  my_bool not_used;
+  bool not_used;
 
   seconds= (time_t) time((time_t*) 0);
   localtime_r(&seconds,&tm_tmp);
@@ -1017,7 +1016,7 @@ long calc_daynr(uint year,uint month,uint day)
 */
 my_time_t
 my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
-                  my_bool *in_dst_time_gap)
+                  bool *in_dst_time_gap)
 {
   uint loop;
   time_t tmp= 0;

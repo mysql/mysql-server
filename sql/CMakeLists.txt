@@ -298,7 +298,6 @@ SET(SQL_SHARED_SOURCES
   sql_alloc_error_handler.cc
   sql_alter.cc
   sql_alter_instance.cc
-  sql_analyse.cc
   sql_base.cc 
   sql_bootstrap.cc
   sql_initialize.cc

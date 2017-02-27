@@ -933,7 +933,7 @@ public:
      This trickery is used to decrease a number of malloc calls.
   */
   virtual String *val_str(String*,String *)=0;
-  String *val_int_as_str(String *val_buffer, my_bool unsigned_flag);
+  String *val_int_as_str(String *val_buffer, bool unsigned_flag);
   /*
    str_needs_quotes() returns TRUE if the value returned by val_str() needs
    to be quoted when used in constructing an SQL query.
@@ -1944,7 +1944,7 @@ public:
 /* base class for float and double and decimal (old one) */
 class Field_real :public Field_num {
 public:
-  my_bool not_fixed;
+  bool not_fixed;
 
   Field_real(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
              uchar null_bit_arg, uchar auto_flags_arg,
@@ -2470,7 +2470,7 @@ public:
                 NONE, field_name_arg, dec_arg, 0, 0)
     {}
   Field_double(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
-	       uint8 dec_arg, my_bool not_fixed_arg)
+	       uint8 dec_arg, bool not_fixed_arg)
     :Field_real((uchar*) 0, len_arg, maybe_null_arg ? (uchar*) "" : 0, (uint) 0,
                 NONE, field_name_arg, dec_arg, 0, 0)
     {not_fixed= not_fixed_arg; }
@@ -4619,7 +4619,7 @@ class Copy_field :public Sql_alloc {
 public:
   uchar *from_ptr,*to_ptr;
   uchar *from_null_ptr,*to_null_ptr;
-  my_bool *null_row;
+  bool *null_row;
   uint	from_bit,to_bit;
   String tmp;					// For items
 

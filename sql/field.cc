@@ -1542,7 +1542,7 @@ bool Field::warn_if_overflow(int op_result)
   This is used for printing bit_fields as numbers while debugging.
 */
 
-String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_val)
+String *Field::val_int_as_str(String *val_buffer, bool unsigned_val)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   const CHARSET_INFO *cs= &my_charset_bin;
@@ -7099,7 +7099,7 @@ type_conversion_status Field_str::store(double nr)
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
   uint local_char_length= field_length / charset()->mbmaxlen;
   size_t length= 0;
-  my_bool error= (local_char_length == 0);
+  bool error= (local_char_length == 0);
 
   // my_gcvt() requires width > 0, and we may have a CHAR(0) column.
   if (!error)

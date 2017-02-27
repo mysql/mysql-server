@@ -98,7 +98,6 @@
 #include "sp_head.h"          // sp_head
 #include "sql_admin.h"        // mysql_assign_to_keycache
 #include "sql_alter.h"
-#include "sql_analyse.h"      // Query_result_analyse
 #include "sql_audit.h"        // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
 #include "sql_base.h"         // find_temporary_table
 #include "sql_binlog.h"       // mysql_client_binlog_statement
@@ -1145,8 +1144,8 @@ out:
     @retval TRUE The statement should be denied.
     @retval FALSE The statement isn't updating any relevant tables.
 */
-static my_bool deny_updates_if_read_only_option(THD *thd,
-                                                TABLE_LIST *all_tables)
+static bool deny_updates_if_read_only_option(THD *thd,
+                                             TABLE_LIST *all_tables)
 {
   DBUG_ENTER("deny_updates_if_read_only_option");
 
@@ -1161,24 +1160,24 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
   if (lex->sql_command == SQLCOM_UPDATE_MULTI)
     DBUG_RETURN(FALSE);
 
-  const my_bool create_temp_tables= 
+  const bool create_temp_tables= 
     (lex->sql_command == SQLCOM_CREATE_TABLE) &&
     (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE);
 
-   const my_bool create_real_tables=
+   const bool create_real_tables=
      (lex->sql_command == SQLCOM_CREATE_TABLE) &&
      !(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE);
 
-  const my_bool drop_temp_tables= 
+  const bool drop_temp_tables= 
     (lex->sql_command == SQLCOM_DROP_TABLE) &&
     lex->drop_temporary;
 
-  const my_bool update_real_tables=
+  const bool update_real_tables=
     ((create_real_tables ||
       some_non_temp_table_to_be_updated(thd, all_tables)) &&
      !(create_temp_tables || drop_temp_tables));
 
-  const my_bool create_or_drop_databases=
+  const bool create_or_drop_databases=
     (lex->sql_command == SQLCOM_CREATE_DB) ||
     (lex->sql_command == SQLCOM_DROP_DB);
 
@@ -4847,15 +4846,7 @@ bool execute_show(THD *thd, TABLE_LIST *all_tables)
       if (!result && !(result= new Query_result_send(thd)))
         DBUG_RETURN(true);                            /* purecov: inspected */
       Query_result *save_result= result;
-      Query_result *analyse_result= NULL;
-      if (lex->proc_analyse)
-      {
-        if ((result= analyse_result=
-             new Query_result_analyse(thd, result, lex->proc_analyse)) == NULL)
-          DBUG_RETURN(true);
-      }
       res= handle_query(thd, lex, result, 0, 0);
-      delete analyse_result;
       if (save_result != lex->result)
         delete save_result;
     }
@@ -5315,13 +5306,13 @@ bool mysql_test_parse_for_slave(THD *thd)
 bool Alter_info::add_field(THD *thd,
                            const LEX_STRING *field_name,
                            enum_field_types type,
-		           const char *length, const char *decimals,
-		           uint type_modifier,
-		           Item *default_value, Item *on_update_value,
+                           const char *length, const char *decimals,
+                           uint type_modifier,
+                           Item *default_value, Item *on_update_value,
                            LEX_STRING *comment,
-		           const char *change,
+                           const char *change,
                            List<String> *interval_list, const CHARSET_INFO *cs,
-		           uint uint_geom_type,
+                           uint uint_geom_type,
                            Generated_column *gcol_info,
                            const char *opt_after)
 {
@@ -5558,20 +5549,10 @@ SELECT_LEX::find_common_table_expr(THD *thd, Table_ident *table_name,
   if (cte == nullptr)
     return false;
   *found= true;
-  if (tl->is_recursive_reference)
-  {
-    if (recursive_reference != nullptr)
-    {
-      my_error(ER_CTE_RECURSIVE_REQUIRES_SINGLE_REFERENCE,
-               MYF(0), cte->name().str);
-      return true;
-    }
-    recursive_reference= tl;
-  }
 
   const auto save_reparse_cte= thd->lex->reparse_common_table_expr_at;
   PT_subquery *node;
-  if (tl->is_recursive_reference)
+  if (tl->is_recursive_reference())
   {
     LEX_STRING dummy_subq= {C_STRING_WITH_LEN("(select 0)")};
     if (reparse_common_table_expr(thd, dummy_subq, 0, &node))
@@ -5599,7 +5580,7 @@ SELECT_LEX::find_common_table_expr(THD *thd, Table_ident *table_name,
   tl->is_alias= true;
   SELECT_LEX_UNIT *node_unit= node->value()->master_unit();
   *table_name= Table_ident(node_unit);
-  if (tl->is_recursive_reference)
+  if (tl->is_recursive_reference())
     recursive_dummy_unit= node_unit;
   DBUG_ASSERT(table_name->is_derived_table());
   tl->db= const_cast<char*>(table_name->db.str);
@@ -5714,7 +5695,12 @@ bool PT_common_table_expr::match_table_ref(TABLE_LIST *tl, bool in_self,
     if (in_self)
     {
       m_postparse.recursive= true;
-      tl->is_recursive_reference= true;
+      if (tl->set_recursive_reference())
+      {
+        my_error(ER_CTE_RECURSIVE_REQUIRES_SINGLE_REFERENCE,
+                 MYF(0), name().str);
+        return true;
+      }
     }
     else
     {

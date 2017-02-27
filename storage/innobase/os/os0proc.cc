@@ -50,7 +50,7 @@ system with os_mem_alloc_large(). */
 ulint	os_total_large_mem_allocated = 0;
 
 /** Whether to use large pages in the buffer pool */
-my_bool	os_use_large_pages;
+bool	os_use_large_pages;
 
 /** Large page size. This may be a boot-time option on some platforms */
 uint	os_large_page_size;

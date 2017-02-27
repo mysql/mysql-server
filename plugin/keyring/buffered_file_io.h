@@ -40,32 +40,32 @@ public:
 
   ~Buffered_file_io();
 
-  my_bool init(std::string *keyring_filename);
+  bool init(std::string *keyring_filename);
 
-  my_bool flush_to_backup(ISerialized_object *serialized_object);
-  my_bool flush_to_storage(ISerialized_object *serialized_object);
+  bool flush_to_backup(ISerialized_object *serialized_object);
+  bool flush_to_storage(ISerialized_object *serialized_object);
 
   ISerializer* get_serializer();
-  my_bool get_serialized_object(ISerialized_object **serialized_object);
-  my_bool has_next_serialized_object();
+  bool get_serialized_object(ISerialized_object **serialized_object);
+  bool has_next_serialized_object();
 
 protected:
-  virtual my_bool remove_backup(myf myFlags);
+  virtual bool remove_backup(myf myFlags);
   Buffer buffer;
   Digest digest;
   size_t memory_needed_for_buffer;
 private:
-  my_bool recreate_keyring_from_backup_if_backup_exists();
+  bool recreate_keyring_from_backup_if_backup_exists();
 
   std::string* get_backup_filename();
-  my_bool open_backup_file(File *backup_file);
-  my_bool load_file_into_buffer(File file, Buffer *buffer);
-  my_bool flush_buffer_to_storage(Buffer *buffer, File file);
-  my_bool flush_buffer_to_file(Buffer *buffer, Digest *buffer_digest,
-                               File file);
-  my_bool check_keyring_file_structure(File keyring_file);
-  my_bool check_file_structure(File file, size_t file_size);
-  my_bool check_if_keyring_file_can_be_opened_or_created();
+  bool open_backup_file(File *backup_file);
+  bool load_file_into_buffer(File file, Buffer *buffer);
+  bool flush_buffer_to_storage(Buffer *buffer, File file);
+  bool flush_buffer_to_file(Buffer *buffer, Digest *buffer_digest,
+                            File file);
+  bool check_keyring_file_structure(File keyring_file);
+  bool check_file_structure(File file, size_t file_size);
+  bool check_if_keyring_file_can_be_opened_or_created();
 
   std::string keyring_filename;
   std::string backup_filename;

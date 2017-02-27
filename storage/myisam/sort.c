@@ -105,7 +105,7 @@ my_var_write(MI_SORT_PARAM *info, IO_CACHE *to_file, uchar *bufs);
    <> 0 Error
 */
 
-int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
+int _create_index_by_sort(MI_SORT_PARAM *info,bool no_messages,
 			  ulonglong sortbuff_size)
 {
   int error,maxbuffer,skr;

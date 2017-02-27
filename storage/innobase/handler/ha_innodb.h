@@ -221,7 +221,7 @@ public:
 	int optimize(THD* thd,HA_CHECK_OPT* check_opt);
 
 	int discard_or_import_tablespace(
-		my_bool		discard,
+		bool		discard,
 		dd::Table*	table_def);
 
 	int extra(ha_extra_function operation);
@@ -378,7 +378,7 @@ public:
 	/**
 	Ask handler about permission to cache table during query registration
 	*/
-	my_bool register_query_cache_table(
+	bool register_query_cache_table(
 		THD*			thd,
 		char*			table_key,
 		size_t			key_length,
@@ -1060,7 +1060,7 @@ void
 innobase_commit_low(
 	trx_t*	trx);
 
-extern my_bool	innobase_stats_on_metadata;
+extern bool	innobase_stats_on_metadata;
 
 /** Calculate Record Per Key value.
 Need to exclude the NULL value if innodb_stats_method is set to "nulls_ignored"

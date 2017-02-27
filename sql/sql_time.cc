@@ -332,7 +332,7 @@ bool datetime_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime, uint nanoseconds,
   @retval                      False on success. No real failure case here.
 */
 bool time_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime, uint nanoseconds,
-                                        int *warnings, bool truncate)
+                                      int *warnings, bool truncate)
 {
   if (truncate)
     return time_add_nanoseconds_with_truncate(ltime, nanoseconds, warnings);
@@ -758,7 +758,7 @@ bool my_longlong_to_time_with_warn(longlong nr, MYSQL_TIME *ltime)
   @retval  Number seconds in UTC since start of Unix Epoch corresponding to t.
   @retval  0 - t contains datetime value which is out of TIMESTAMP range.     
 */
-my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *in_dst_time_gap)
+my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, bool *in_dst_time_gap)
 {
   my_time_t timestamp;
 
@@ -824,7 +824,7 @@ bool datetime_with_no_zero_in_date_to_timeval(THD *thd,
     return false;
   }
 
-  my_bool in_dst_time_gap;
+  bool in_dst_time_gap;
   if (!(tm->tv_sec= TIME_to_timestamp(thd, ltime, &in_dst_time_gap)))
   {
     /*
@@ -981,7 +981,7 @@ void calc_time_from_sec(MYSQL_TIME *to, longlong seconds, long microseconds)
 */
 
 bool parse_date_time_format(timestamp_type format_type,
-			    Date_time_format *date_time_format)
+                            Date_time_format *date_time_format)
 {
   const char *format= date_time_format->format.str;
   size_t format_length= date_time_format->format.length;

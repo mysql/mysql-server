@@ -92,16 +92,16 @@ class File_parser: public Sql_alloc
 {
   const char *start, *end;
   LEX_STRING file_type;
-  my_bool content_ok;
+  bool content_ok;
 public:
   File_parser() :start(0), end(0), content_ok(0)
     { file_type.str= 0; file_type.length= 0; }
 
-  my_bool ok() { return content_ok; }
+  bool ok() { return content_ok; }
   const LEX_STRING *type() const { return &file_type; }
-  my_bool parse(uchar* base, MEM_ROOT *mem_root,
-		struct File_option *parameters, uint required,
-                Unknown_key_hook *hook) const;
+  bool parse(uchar* base, MEM_ROOT *mem_root,
+             struct File_option *parameters, uint required,
+             Unknown_key_hook *hook) const;
 
   friend File_parser *sql_parse_prepare(const LEX_STRING *file_name,
 					MEM_ROOT *mem_root,

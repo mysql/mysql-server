@@ -81,7 +81,7 @@ std::string* Buffered_file_io::get_backup_filename()
   return &backup_filename;
 }
 
-my_bool Buffered_file_io::open_backup_file(File *backup_file)
+bool Buffered_file_io::open_backup_file(File *backup_file)
 {
   *backup_file= file_io.open(keyring_backup_file_data_key, get_backup_filename()->c_str(),
                              O_RDONLY, MYF(0));
@@ -91,7 +91,7 @@ my_bool Buffered_file_io::open_backup_file(File *backup_file)
   return FALSE;
 }
 
-my_bool Buffered_file_io::check_file_structure(File file, size_t file_size)
+bool Buffered_file_io::check_file_structure(File file, size_t file_size)
 {
   if(std::find_if(checkers.begin(), checkers.end(), [&](Checker *checker) {
       return checker->check_file_structure(file, file_size, &digest) == FALSE;
@@ -104,7 +104,7 @@ my_bool Buffered_file_io::check_file_structure(File file, size_t file_size)
 }
 
 //Only called when keyring is initalizing
-my_bool Buffered_file_io::load_file_into_buffer(File file, Buffer *buffer)
+bool Buffered_file_io::load_file_into_buffer(File file, Buffer *buffer)
 {
   if (file_io.seek(file, 0, MY_SEEK_END, MYF(MY_WME)) == MY_FILEPOS_ERROR)
     return TRUE;
@@ -139,7 +139,7 @@ my_bool Buffered_file_io::load_file_into_buffer(File file, Buffer *buffer)
   if backup is malformed - remove it,
   else if backup is good restore keyring file from it.
 */
-my_bool Buffered_file_io::recreate_keyring_from_backup_if_backup_exists()
+bool Buffered_file_io::recreate_keyring_from_backup_if_backup_exists()
 {
   Buffer buffer;
   File backup_file;
@@ -175,7 +175,7 @@ my_bool Buffered_file_io::recreate_keyring_from_backup_if_backup_exists()
   if backup is malformed - remove it,
   else if backup is good restore keyring file from it.
 */
-my_bool Buffered_file_io::check_if_keyring_file_can_be_opened_or_created()
+bool Buffered_file_io::check_if_keyring_file_can_be_opened_or_created()
 {
   File file= file_io.open(keyring_file_data_key, this->keyring_filename.c_str(),
                           O_RDWR | O_CREAT, MYF(MY_WME));
@@ -190,7 +190,7 @@ my_bool Buffered_file_io::check_if_keyring_file_can_be_opened_or_created()
   return FALSE;
 }
 
-my_bool Buffered_file_io::init(std::string *keyring_filename)
+bool Buffered_file_io::init(std::string *keyring_filename)
 {
   DBUG_ASSERT(keyring_filename->empty() == FALSE);
 #ifdef HAVE_PSI_INTERFACE
@@ -201,9 +201,9 @@ my_bool Buffered_file_io::init(std::string *keyring_filename)
          check_if_keyring_file_can_be_opened_or_created();
 }
 
-my_bool Buffered_file_io::flush_buffer_to_file(Buffer *buffer,
-                                               Digest *buffer_digest,
-                                               File file)
+bool Buffered_file_io::flush_buffer_to_file(Buffer *buffer,
+                                            Digest *buffer_digest,
+                                            File file)
 {
   if (file_io.write(file, reinterpret_cast<const uchar*>(file_version.c_str()),
                     file_version.length(), MYF(MY_WME)) == file_version.length() &&
@@ -219,7 +219,7 @@ my_bool Buffered_file_io::flush_buffer_to_file(Buffer *buffer,
   return TRUE;
 }
 
-my_bool Buffered_file_io::check_keyring_file_structure(File keyring_file)
+bool Buffered_file_io::check_keyring_file_structure(File keyring_file)
 {
   if (keyring_file >= 0) //keyring file exists
   {
@@ -236,7 +236,7 @@ my_bool Buffered_file_io::check_keyring_file_structure(File keyring_file)
                  dummy_digest, SHA256_DIGEST_LENGTH) != 0;
 }
 
-my_bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object)
+bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object)
 {
   //First open backup file then check keyring file. This way we make sure that
   //media, where keyring file is written, is not replaced with some other media
@@ -274,12 +274,12 @@ my_bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object)
          file_io.close(backup_file, MYF(MY_WME)) < 0;
 }
 
-my_bool Buffered_file_io::remove_backup(myf myFlags)
+bool Buffered_file_io::remove_backup(myf myFlags)
 {
   return file_io.remove(get_backup_filename()->c_str(), myFlags);
 }
 
-my_bool Buffered_file_io::flush_buffer_to_storage(Buffer *buffer, File file)
+bool Buffered_file_io::flush_buffer_to_storage(Buffer *buffer, File file)
 {
   Digest buffer_digest;
   if (file_io.truncate(file, MYF(MY_WME)) ||
@@ -292,7 +292,7 @@ my_bool Buffered_file_io::flush_buffer_to_storage(Buffer *buffer, File file)
   return FALSE;
 }
 
-my_bool Buffered_file_io::flush_to_storage(ISerialized_object *serialized_object)
+bool Buffered_file_io::flush_to_storage(ISerialized_object *serialized_object)
 {
   Buffer *buffer= dynamic_cast<Buffer*>(serialized_object);
   DBUG_ASSERT(buffer != NULL);
@@ -321,7 +321,7 @@ ISerializer* Buffered_file_io::get_serializer()
   return &hash_to_buffer_serializer;
 }
 
-my_bool Buffered_file_io::get_serialized_object(ISerialized_object **serialized_object)
+bool Buffered_file_io::get_serialized_object(ISerialized_object **serialized_object)
 {
   File file= file_io.open(keyring_file_data_key, keyring_filename.c_str(),
                           O_CREAT | O_RDWR, MYF(MY_WME));
@@ -343,7 +343,7 @@ my_bool Buffered_file_io::get_serialized_object(ISerialized_object **serialized_
   return FALSE;
 }
 
-my_bool Buffered_file_io::has_next_serialized_object()
+bool Buffered_file_io::has_next_serialized_object()
 {
   return FALSE;
 }

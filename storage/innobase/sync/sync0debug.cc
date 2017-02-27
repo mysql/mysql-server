@@ -44,7 +44,7 @@ Created 2012-08-21 Sunny Bains
 
 #ifdef UNIV_DEBUG
 
-my_bool		srv_sync_debug;
+bool		srv_sync_debug;
 
 /** The global mutex which protects debug info lists of all rw-locks.
 To modify the debug info list of an rw-lock, this mutex has to be

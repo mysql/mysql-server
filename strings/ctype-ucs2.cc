@@ -1280,7 +1280,7 @@ static int
 my_strnncoll_utf16(const CHARSET_INFO *cs, 
                    const uchar *s, size_t slen, 
                    const uchar *t, size_t tlen,
-                   my_bool t_is_prefix)
+                   bool t_is_prefix)
 {
   int s_res, t_res;
   my_wc_t s_wc= 0, t_wc= 0;
@@ -1504,7 +1504,7 @@ static int
 my_strnncoll_utf16_bin(const CHARSET_INFO *cs, 
                        const uchar *s, size_t slen,
                        const uchar *t, size_t tlen,
-                       my_bool t_is_prefix)
+                       bool t_is_prefix)
 {
   int s_res,t_res;
   my_wc_t s_wc= 0, t_wc= 0;
@@ -2087,7 +2087,7 @@ static int
 my_strnncoll_utf32(const CHARSET_INFO *cs, 
                    const uchar *s, size_t slen, 
                    const uchar *t, size_t tlen,
-                   my_bool t_is_prefix)
+                   bool t_is_prefix)
 {
   my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se= s + slen;
@@ -2622,7 +2622,7 @@ static int
 my_strnncoll_utf32_bin(const CHARSET_INFO *cs, 
                        const uchar *s, size_t slen,
                        const uchar *t, size_t tlen,
-                       my_bool t_is_prefix)
+                       bool t_is_prefix)
 {
   my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se= s + slen;
@@ -3072,7 +3072,7 @@ my_fill_ucs2(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 static int my_strnncoll_ucs2(const CHARSET_INFO *cs, 
 			     const uchar *s, size_t slen, 
                              const uchar *t, size_t tlen,
-                             my_bool t_is_prefix)
+                             bool t_is_prefix)
 {
   int s_res,t_res;
   my_wc_t s_wc= 0, t_wc= 0;
@@ -3255,7 +3255,7 @@ static
 int my_strnncoll_ucs2_bin(const CHARSET_INFO *cs, 
                           const uchar *s, size_t slen,
                           const uchar *t, size_t tlen,
-                          my_bool t_is_prefix)
+                          bool t_is_prefix)
 {
   int s_res,t_res;
   my_wc_t s_wc= 0, t_wc= 0;

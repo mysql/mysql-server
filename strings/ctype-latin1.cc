@@ -558,7 +558,7 @@ static int my_strnncoll_latin1_de(const CHARSET_INFO *cs
                                   MY_ATTRIBUTE((unused)),
 				  const uchar *a, size_t a_length,
 				  const uchar *b, size_t b_length,
-                                  my_bool b_is_prefix)
+                                  bool b_is_prefix)
 {
   const uchar *a_end= a + a_length;
   const uchar *b_end= b + b_length;

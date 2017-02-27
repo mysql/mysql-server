@@ -39,7 +39,7 @@ typedef struct st_tina_share {
     Below flag is needed to make log tables work with concurrent insert.
     For more details see comment to ha_tina::update_status.
   */
-  my_bool is_log_table;
+  bool is_log_table;
   /*
     Here we save the length of the file for readers. This is updated by
     inserts, updates and deletes. The var is initialized along with the

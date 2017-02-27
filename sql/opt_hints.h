@@ -101,7 +101,7 @@ public:
 
      @return true if hint is specified
   */
-  my_bool is_specified(opt_hints_enum type_arg) const
+  bool is_specified(opt_hints_enum type_arg) const
   {
     return hints_specified.is_set(type_arg);
   }

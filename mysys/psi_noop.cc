@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -597,7 +597,7 @@ void set_psi_socket_service(PSI_socket_service_t *psi)
 // ===========================================================================
 
 static PSI_table_share*
-get_table_share_noop(my_bool temporary NNN, struct TABLE_SHARE *share NNN)
+get_table_share_noop(bool temporary NNN, struct TABLE_SHARE *share NNN)
 {
   return NULL;
 }
@@ -608,7 +608,7 @@ static void release_table_share_noop(PSI_table_share* share NNN)
 }
 
 static void
-drop_table_share_noop(my_bool temporary NNN, const char *schema_name NNN,
+drop_table_share_noop(bool temporary NNN, const char *schema_name NNN,
                       int schema_name_length NNN, const char *table_name NNN,
                       int table_name_length NNN)
 {
@@ -1092,8 +1092,8 @@ get_thread_transaction_locker_noop(PSI_transaction_locker_state *state NNN,
                                    const void *xid NNN,
                                    const ulonglong *trxid NNN,
                                    int isolation_level NNN,
-                                   my_bool read_only NNN,
-                                   my_bool autocommit NNN)
+                                   bool read_only NNN,
+                                   bool autocommit NNN)
 {
   return NULL;
 }
@@ -1149,7 +1149,7 @@ static void inc_transaction_release_savepoint_noop(PSI_transaction_locker *locke
 }
 
 static void end_transaction_noop(PSI_transaction_locker *locker NNN,
-                                 my_bool commit NNN)
+                                 bool commit NNN)
 {
   return;
 }

@@ -365,11 +365,11 @@ static int _ftb_no_dupes_cmp(const void* not_used MY_ATTRIBUTE((unused)),
 
   returns 1 if the search was finished (must-word wasn't found)
 */
-static int _ft2_search_no_lock(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
+static int _ft2_search_no_lock(FTB *ftb, FTB_WORD *ftbw, bool init_search)
 {
   int r;
   int subkeys=1;
-  my_bool can_go_down;
+  bool can_go_down;
   MI_INFO *info=ftb->info;
   uint off= 0, extra= HA_FT_WLEN + info->s->rec_reflength;
   uchar *lastkey_buf=ftbw->word+ftbw->off;
@@ -431,7 +431,7 @@ static int _ft2_search_no_lock(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
                        info->lastkey_length-extra-1,
               (uchar*) ftbw->word+1,
                        ftbw->len-1,
-             (my_bool) (ftbw->flags & FTB_FLAG_TRUNC));
+             (bool) (ftbw->flags & FTB_FLAG_TRUNC));
   }
 
   if (r || info->lastkey_length > max_word_length) /* not found */
@@ -495,7 +495,7 @@ static int _ft2_search_no_lock(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   return 0;
 }
 
-static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
+static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, bool init_search)
 {
   int r;
   MYISAM_SHARE *share= ftb->info->s;
@@ -930,7 +930,7 @@ static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,
     ftbw= ftb->list[c];
     if (ha_compare_text(ftb->charset, (uchar*)word, len,
                         (uchar*)ftbw->word+1, ftbw->len-1,
-                        (my_bool) (ftbw->flags & FTB_FLAG_TRUNC)) < 0)
+                        (bool) (ftbw->flags & FTB_FLAG_TRUNC)) < 0)
       b= c;
     else
       a= c;
@@ -957,7 +957,7 @@ static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,
     ftbw= ftb->list[c];
     if (ha_compare_text(ftb->charset, (uchar*)word, len,
                         (uchar*)ftbw->word + 1,ftbw->len - 1,
-                        (my_bool)(ftbw->flags & FTB_FLAG_TRUNC)))
+                        (bool)(ftbw->flags & FTB_FLAG_TRUNC)))
     {
       if (ftb->with_scan & FTB_FLAG_TRUNC)
         continue;

@@ -250,15 +250,15 @@ SELECT numeropost FROM t1 WHERE numreponse='1';
 numeropost
 1
 drop table t1;
-create table t1 (c varchar(30) character set utf8, t text character set utf8, unique (c(2)), unique (t(3))) engine=myisam;
+create table t1 (c varchar(30), t text, unique (c(2)), unique (t(3))) charset utf8 engine=myisam;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` varchar(30) CHARACTER SET utf8 DEFAULT NULL,
-  `t` text CHARACTER SET utf8,
+  `c` varchar(30) DEFAULT NULL,
+  `t` text,
   UNIQUE KEY `c` (`c`(2)),
   UNIQUE KEY `t` (`t`(3))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8
 insert t1 values ('cccc', 'tttt'),
 (0xD0B1212223D0B1D0B1D0B1D0B1D0B1, 0xD0B1D0B1212223D0B1D0B1D0B1D0B1),
 (0xD0B1222123D0B1D0B1D0B1D0B1D0B1, 0xD0B1D0B1222123D0B1D0B1D0B1D0B1);
@@ -345,7 +345,7 @@ create table t1 (
 i1 INT NOT NULL,
 i2 INT NOT NULL,
 UNIQUE i1idx (i1),
-UNIQUE i2idx (i2));
+UNIQUE i2idx (i2)) charset utf8mb4;
 desc t1;
 Field	Type	Null	Key	Default	Extra
 i1	int(11)	NO	PRI	NULL	
@@ -357,7 +357,7 @@ t1	CREATE TABLE `t1` (
   `i2` int(11) NOT NULL,
   UNIQUE KEY `i1idx` (`i1`),
   UNIQUE KEY `i2idx` (`i2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 (
 c1 int,
@@ -376,14 +376,14 @@ c1	c2
 3	 
 	Test String
 drop table t1;
-create table t1 (a varchar(10), b varchar(10), key(a(10),b(10)));
+create table t1 (a varchar(10), b varchar(10), key(a(10),b(10))) charset utf8mb4;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL,
   KEY `a` (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 alter table t1 modify b varchar(20);
 show create table t1;
 Table	Create Table
@@ -391,7 +391,7 @@ t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(20) DEFAULT NULL,
   KEY `a` (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 alter table t1 modify a varchar(20);
 show create table t1;
 Table	Create Table
@@ -399,7 +399,7 @@ t1	CREATE TABLE `t1` (
   `a` varchar(20) DEFAULT NULL,
   `b` varchar(20) DEFAULT NULL,
   KEY `a` (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 (a int not null primary key, b varchar(20) not null unique);
 desc t1;
@@ -438,7 +438,7 @@ index i3 (c3),
 unique i4 (c4),
 index i5 (c1, c2, c3, c4),
 primary key (c2, c3),
-index (c2, c4));
+index (c2, c4)) charset utf8mb4;
 Warnings:
 Warning	1831	Duplicate index 'i1' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 show create table t1;
@@ -456,7 +456,7 @@ t1	CREATE TABLE `t1` (
   KEY `i3` (`c3`),
   KEY `i5` (`c1`,`c2`,`c3`,`c4`),
   KEY `c2` (`c2`,`c4`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 alter table t1 drop index c1;
 alter table t1 add index (c1);
 Warnings:
@@ -495,7 +495,7 @@ t1	CREATE TABLE `t1` (
   KEY `i2` (`c2`),
   KEY `i4` (`c4`),
   KEY `c2` (`c2`(4),`c3`(7))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 insert into t1 values(1, 'a', 'a', NULL);
 insert into t1 values(1, 'b', 'b', NULL);
 alter table t1 drop index i3, drop index i2, drop index i1;
@@ -547,7 +547,7 @@ INSERT INTO t1 (b, c, d) VALUES
 DROP TABLE t1, t2;
 create table t1(a int not null, key aa(a), 
 b char(10) not null, unique key bb(b(1)), 
-c char(4) not null, unique key cc(c));
+c char(4) not null, unique key cc(c)) charset utf8mb4;
 desc t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	NO	MUL	NULL	
@@ -562,11 +562,11 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `cc` (`c`),
   UNIQUE KEY `bb` (`b`(1)),
   KEY `aa` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1(a int not null, key aa(a), 
 b char(10) not null, unique key bb(b(1)),
-c char(4) not null);
+c char(4) not null) charset utf8mb4;
 desc t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	NO	MUL	NULL	
@@ -587,7 +587,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `cc` (`c`),
   UNIQUE KEY `bb` (`b`(1)),
   KEY `aa` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 End of 5.0 tests
 DROP TABLE IF EXISTS t1;
@@ -663,9 +663,9 @@ DROP TABLE t1;
 #    this is normal key (not spatial or fulltext) storage engine
 #    default key algorithm is used.
 #    
-create table tm (k int, index (k)) engine=myisam;
-create table ti (k int, index (k)) engine=innodb;
-create table th (k int, index (k)) engine=heap;
+create table tm (k int, index (k)) charset utf8mb4 engine=myisam;
+create table ti (k int, index (k)) charset utf8mb4 engine=innodb;
+create table th (k int, index (k)) charset utf8mb4 engine=heap;
 #
 # Key algorithm is not shown in SHOW CREATE TABLE output in this case
 #
@@ -674,19 +674,19 @@ Table	Create Table
 tm	CREATE TABLE `tm` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 show create table th;
 Table	Create Table
 th	CREATE TABLE `th` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 #
 # But visible in I_S.STATISTICS
 #
@@ -709,7 +709,7 @@ tm	CREATE TABLE `tm` (
   `l` int(11) DEFAULT NULL,
   KEY `k` (`k`),
   KEY `l` (`l`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
@@ -717,7 +717,7 @@ ti	CREATE TABLE `ti` (
   `l` int(11) DEFAULT NULL,
   KEY `k` (`k`),
   KEY `l` (`l`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 show create table th;
 Table	Create Table
 th	CREATE TABLE `th` (
@@ -725,7 +725,7 @@ th	CREATE TABLE `th` (
   `l` int(11) DEFAULT NULL,
   KEY `k` (`k`),
   KEY `l` (`l`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'l'
   order by table_name;
@@ -738,9 +738,12 @@ drop tables tm, ti, th;
 # 2) For SPATIAL and FULLTEXT keys we always use special key
 #    algorithms and there is no way to specify it explicitly.
 #
-create table tm (pk int primary key, p point not null, spatial index (p)) engine=myisam;
-create table ti (pk int primary key, p point not null, spatial index (p)) engine=innodb;
-create table th (pk int primary key, p point not null, spatial index (p)) engine=heap;
+create table tm (pk int primary key, p point not null, spatial index (p))
+charset utf8mb4 engine=myisam;
+create table ti (pk int primary key, p point not null, spatial index (p))
+charset utf8mb4 engine=innodb;
+create table th (pk int primary key, p point not null, spatial index (p))
+charset utf8mb4 engine=heap;
 ERROR 42000: The storage engine for the table doesn't support GEOMETRY
 #
 # Key algorithm is not shown in SHOW CREATE TABLE output in this
@@ -753,7 +756,7 @@ tm	CREATE TABLE `tm` (
   `p` point NOT NULL,
   PRIMARY KEY (`pk`),
   SPATIAL KEY `p` (`p`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
@@ -761,7 +764,7 @@ ti	CREATE TABLE `ti` (
   `p` point NOT NULL,
   PRIMARY KEY (`pk`),
   SPATIAL KEY `p` (`p`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 #
 # But visible in I_S.STATISTICS
 #
@@ -785,7 +788,7 @@ tm	CREATE TABLE `tm` (
   PRIMARY KEY (`pk`),
   SPATIAL KEY `p` (`p`),
   SPATIAL KEY `q` (`q`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
@@ -795,7 +798,7 @@ ti	CREATE TABLE `ti` (
   PRIMARY KEY (`pk`),
   SPATIAL KEY `p` (`p`),
   SPATIAL KEY `q` (`q`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'q'
   order by table_name;
@@ -806,9 +809,12 @@ drop tables tm, ti;
 #
 # Same applies to FULLTEXT indexes.
 #
-create table tm (pk int primary key, v varchar(255), fulltext index (v)) engine=myisam;
-create table ti (pk int primary key, v varchar(255), fulltext index (v)) engine=innodb;
-create table th (pk int primary key, v varchar(255), fulltext index (v)) engine=heap;
+create table tm (pk int primary key, v varchar(255), fulltext index (v))
+charset utf8mb4 engine=myisam;
+create table ti (pk int primary key, v varchar(255), fulltext index (v))
+charset utf8mb4 engine=innodb;
+create table th (pk int primary key, v varchar(255), fulltext index (v))
+charset utf8mb4 engine=heap;
 ERROR HY000: The used table type doesn't support FULLTEXT indexes
 show create table tm;
 Table	Create Table
@@ -817,7 +823,7 @@ tm	CREATE TABLE `tm` (
   `v` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   FULLTEXT KEY `v` (`v`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
@@ -825,7 +831,7 @@ ti	CREATE TABLE `ti` (
   `v` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   FULLTEXT KEY `v` (`v`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'v'
   order by table_name;
@@ -846,7 +852,7 @@ tm	CREATE TABLE `tm` (
   PRIMARY KEY (`pk`),
   FULLTEXT KEY `v` (`v`),
   FULLTEXT KEY `w` (`w`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
@@ -856,7 +862,7 @@ ti	CREATE TABLE `ti` (
   PRIMARY KEY (`pk`),
   FULLTEXT KEY `v` (`v`),
   FULLTEXT KEY `w` (`w`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'w'
   order by table_name;
@@ -868,9 +874,9 @@ drop tables tm, ti;
 # 3) If key algorithm was specified explicitly and it is supported
 #    by the storage engine it will be used.
 #
-create table tm (k int, index using btree (k)) engine=myisam;
-create table ti (k int, index using btree (k)) engine=innodb;
-create table th (k int, index using btree (k)) engine=heap;
+create table tm (k int, index using btree (k)) charset utf8mb4 engine=myisam;
+create table ti (k int, index using btree (k)) charset utf8mb4 engine=innodb;
+create table th (k int, index using btree (k)) charset utf8mb4 engine=heap;
 #
 # In this case it is shown in SHOW CREATE TABLE output
 #
@@ -879,19 +885,19 @@ Table	Create Table
 tm	CREATE TABLE `tm` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 show create table th;
 Table	Create Table
 th	CREATE TABLE `th` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 #
 # Also visible in I_S.STATISTICS
 #
@@ -916,7 +922,7 @@ tm	CREATE TABLE `tm` (
   `l` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE,
   KEY `l` (`l`) USING BTREE
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
@@ -924,7 +930,7 @@ ti	CREATE TABLE `ti` (
   `l` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE,
   KEY `l` (`l`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 show create table th;
 Table	Create Table
 th	CREATE TABLE `th` (
@@ -932,7 +938,7 @@ th	CREATE TABLE `th` (
   `l` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE,
   KEY `l` (`l`) USING HASH
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'l'
   order by table_name;
@@ -948,10 +954,10 @@ drop tables tm, ti, th;
 #    also treat such situation as if algorithm is implicit. 
 #
 # The below statements should emit notes.
-create table tm (k int, index using hash (k)) engine=myisam;
+create table tm (k int, index using hash (k)) charset utf8mb4 engine=myisam;
 Warnings:
 Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
-create table ti (k int, index using hash (k)) engine=innodb;
+create table ti (k int, index using hash (k)) charset utf8mb4 engine=innodb;
 Warnings:
 Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 #
@@ -962,13 +968,13 @@ Table	Create Table
 tm	CREATE TABLE `tm` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 #
 # But visible in I_S.STATISTICS
 #
@@ -993,7 +999,7 @@ tm	CREATE TABLE `tm` (
   `l` int(11) DEFAULT NULL,
   KEY `k` (`k`),
   KEY `l` (`l`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
@@ -1001,7 +1007,7 @@ ti	CREATE TABLE `ti` (
   `l` int(11) DEFAULT NULL,
   KEY `k` (`k`),
   KEY `l` (`l`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'l'
   order by table_name;
@@ -1014,13 +1020,13 @@ drop tables tm, ti;
 #
 # If algorithm was not specified explicitly cross-engine ALTER TABLE
 # will silently change it to the new SE's default.
-create table t1 (k int, index (k)) engine=innodb;
+create table t1 (k int, index (k)) charset utf8mb4 engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'k'
   order by table_name;
@@ -1034,7 +1040,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 # But in I_S.STATISTICS we see that algorithm has changed.
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'k'
@@ -1046,13 +1052,13 @@ drop table t1;
 # If algorithm was specified explicitly and is supported by the new
 # SE we will keep it.
 #
-create table t1 (k int, index using btree (k)) engine=innodb;
+create table t1 (k int, index using btree (k)) charset utf8mb4 engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'k'
   order by table_name;
@@ -1066,7 +1072,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 # In I_S.STATISTICS we also see that algorithm is the same
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'k'
@@ -1079,13 +1085,13 @@ drop table t1;
 # new SE, we will used new SE's default instead, emit a note, and
 # treat new algorithm as implicitly specified after that.
 #
-create table t1 (k int, index using hash (k)) engine=heap;
+create table t1 (k int, index using hash (k)) charset utf8mb4 engine=heap;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING HASH
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'k'
   order by table_name;
@@ -1101,7 +1107,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # In I_S.STATISTICS we see that algorithm has changed.
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'k'
@@ -1135,40 +1141,40 @@ drop table t1;
 #
 # Changing key algorithm from one used by default to the same one
 # but specified explicitly should be inplace/fast operation.
-create table t1 (k int, index (k)) engine=myisam;
+create table t1 (k int, index (k)) charset utf8mb4 engine=myisam;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 alter table t1 drop key k, add index using btree (k), algorithm=inplace;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 alter table t1 drop key k, add index (k), algorithm=inplace;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 # Note that below statement doesn't really change algorithm.
 alter table t1 drop key k, add index using hash (k), algorithm=inplace;
 Warnings:
 Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
 drop table t1;
 # Changing key algorithm to another one can require COPY algorithm.
-create table t1 (k int, index (k)) engine=heap;
+create table t1 (k int, index (k)) charset utf8mb4 engine=heap;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 alter table t1 drop key k, add index using btree (k), algorithm=inplace;
 ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 show create table t1;
@@ -1176,12 +1182,12 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 alter table t1 drop key k, add index using btree (k), algorithm=copy;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 drop table t1;

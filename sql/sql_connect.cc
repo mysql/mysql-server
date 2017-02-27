@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -514,7 +514,7 @@ static int check_connection(THD *thd)
 
   if (!thd->m_main_security_ctx.host().length)     // If TCP/IP connection
   {
-    my_bool peer_rc;
+    bool peer_rc;
     char ip[NI_MAXHOST];
     LEX_CSTRING main_sctx_ip;
 

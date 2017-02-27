@@ -123,7 +123,7 @@ bool initialized=0;
 bool acl_cache_initialized= false;
 bool allow_all_hosts=1;
 uint grant_version=0; /* Version of priv tables */
-my_bool validate_user_plugins= TRUE;
+bool validate_user_plugins= TRUE;
 
 #define IP_ADDR_STRLEN (3 + 1 + 3 + 1 + 3 + 1 + 3)
 #define ACL_KEY_LENGTH (IP_ADDR_STRLEN + 1 + NAME_LEN + \
@@ -889,7 +889,7 @@ bool GRANT_TABLE::init(TABLE *col_privs)
 */
 
 ACL_USER *
-find_acl_user(const char *host, const char *user, my_bool exact)
+find_acl_user(const char *host, const char *user, bool exact)
 {
   DBUG_ENTER("find_acl_user");
   DBUG_PRINT("enter",("host: '%s'  user: '%s'",host,user));
@@ -1110,7 +1110,7 @@ insert_entry_in_db_cache(THD *thd, acl_entry *entry)
 */
 
 ulong acl_get(THD *thd, const char *host, const char *ip,
-              const char *user, const char *db, my_bool db_is_pattern)
+              const char *user, const char *db, bool db_is_pattern)
 {
   ulong host_access= ~(ulong)0, db_access= 0;
   size_t key_length, copy_length;
@@ -1569,10 +1569,10 @@ void roles_init(THD *thd)
     1   Could not initialize grant's
 */
 
-my_bool acl_init(bool dont_read_acl_tables)
+bool acl_init(bool dont_read_acl_tables)
 {
   THD  *thd;
-  my_bool return_val;
+  bool return_val;
   DBUG_ENTER("acl_init");
 
   init_acl_cache();
@@ -1651,11 +1651,11 @@ my_bool acl_init(bool dont_read_acl_tables)
     TRUE   Error
 */
 
-static my_bool acl_load(THD *thd, TABLE_LIST *tables)
+static bool acl_load(THD *thd, TABLE_LIST *tables)
 {
   TABLE *table;
   READ_RECORD read_record_info;
-  my_bool return_val= TRUE;
+  bool return_val= TRUE;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   char tmp_name[NAME_LEN+1];
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
@@ -2483,12 +2483,12 @@ static bool is_expected_or_transient_error(THD *thd)
     TRUE   Failure
 */
 
-my_bool acl_reload(THD *thd)
+bool acl_reload(THD *thd)
 {
   TABLE_LIST tables[3];
 
   MEM_ROOT old_mem;
-  my_bool return_val= TRUE;
+  bool return_val= TRUE;
   Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *old_acl_users= NULL;
   Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *old_acl_dbs= NULL;
   Prealloced_array<ACL_PROXY_USER,
@@ -2678,7 +2678,7 @@ void  grant_free(void)
 bool grant_init(bool skip_grant_tables)
 {
   THD  *thd;
-  my_bool return_val;
+  bool return_val;
   DBUG_ENTER("grant_init");
 
   if (skip_grant_tables)
@@ -2717,10 +2717,10 @@ bool grant_init(bool skip_grant_tables)
     @retval FALSE Success
 */
 
-static my_bool grant_load_procs_priv(TABLE *p_table)
+static bool grant_load_procs_priv(TABLE *p_table)
 {
   MEM_ROOT *memex_ptr;
-  my_bool return_val= 1;
+  bool return_val= 1;
   int error;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   MEM_ROOT **save_mem_root_ptr= my_thread_get_THR_MALLOC();
@@ -2848,10 +2848,10 @@ end_unlock:
     @retval TRUE Error
 */
 
-static my_bool grant_load(THD *thd, TABLE_LIST *tables)
+static bool grant_load(THD *thd, TABLE_LIST *tables)
 {
   MEM_ROOT *memex_ptr;
-  my_bool return_val= 1;
+  bool return_val= 1;
   int error;
   TABLE *t_table= 0, *c_table= 0;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
@@ -2979,10 +2979,10 @@ end_index_init:
     @retval TRUE An error has occurred.
 */
 
-static my_bool grant_reload_procs_priv(THD *thd, TABLE_LIST *table)
+static bool grant_reload_procs_priv(THD *thd, TABLE_LIST *table)
 {
   HASH old_proc_priv_hash, old_func_priv_hash;
-  my_bool return_val= FALSE;
+  bool return_val= FALSE;
   DBUG_ENTER("grant_reload_procs_priv");
 
   /* Save a copy of the current hash if we need to undo the grant load */
@@ -3023,12 +3023,12 @@ static my_bool grant_reload_procs_priv(THD *thd, TABLE_LIST *table)
     @retval TRUE  Error
 */
 
-my_bool grant_reload(THD *thd)
+bool grant_reload(THD *thd)
 {
   TABLE_LIST tables[3];
   HASH old_column_priv_hash;
   MEM_ROOT old_mem;
-  my_bool return_val= 1;
+  bool return_val= 1;
   Acl_cache_lock_guard acl_cache_lock(thd,
                                       Acl_cache_lock_mode::WRITE_MODE);
   

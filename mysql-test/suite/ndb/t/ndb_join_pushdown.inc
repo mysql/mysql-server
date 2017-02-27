@@ -145,10 +145,6 @@ left join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 left join t1 as t3 on t3.a = t2.a and t3.b = t2.b;
 
 set ndb_join_pushdown=true;
-explain
-select *
-from t1
-join t1 as t2 on t2.a = t1.c and t2.b = t1.d procedure analyse();
 
 --replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p0 pX p5 pX
 explain

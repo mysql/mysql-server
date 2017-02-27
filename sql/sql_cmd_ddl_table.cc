@@ -84,7 +84,7 @@ bool Sql_cmd_create_table::execute(THD *thd)
 
   if (((lex->create_info->used_fields & HA_CREATE_USED_DATADIR) != 0 ||
        (lex->create_info->used_fields & HA_CREATE_USED_INDEXDIR) != 0) &&
-      check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+      check_access(thd, FILE_ACL, any_db, NULL, NULL, FALSE, FALSE))
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "FILE");
     return true;
@@ -150,7 +150,7 @@ bool Sql_cmd_create_table::execute(THD *thd)
   {
     partition_info *part_info= thd->lex->part_info;
     if (part_info != NULL && has_external_data_or_index_dir(*part_info) &&
-        check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+        check_access(thd, FILE_ACL, any_db, NULL, NULL, FALSE, FALSE))
     {
       return true;
     }

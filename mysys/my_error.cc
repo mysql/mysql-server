@@ -371,7 +371,7 @@ extern "C" int my_error_register(const char* (*get_errmsg) (int),
   @retval  FALSE     OK
 */
 
-my_bool my_error_unregister(int first, int last)
+bool my_error_unregister(int first, int last)
 {
   struct my_err_head    *meh_p;
   struct my_err_head    **search_meh_pp;

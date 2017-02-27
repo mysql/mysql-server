@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs185=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # This tests GIS functionality with Myisam engine
 # These tests are also exists in Innodb
 # All tests are required to run with Myisam.
@@ -986,3 +997,11 @@ SET sql_mode = default;
 CREATE TABLE t1 (g GEOMETRY NOT NULL, SPATIAL KEY (g)) ENGINE=MyISAM;
 DELETE FROM t1 WHERE ST_DISJOINT(g, POINT(1,1));
 DROP TABLE t1;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs185;
+--enable_query_log
+########################################

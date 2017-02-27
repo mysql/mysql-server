@@ -72,7 +72,7 @@ extern uint	page_zip_level;
 
 /* Whether or not to log compressed page images to avoid possible
 compression algorithm changes in zlib. */
-extern my_bool	page_zip_log_pages;
+extern bool	page_zip_log_pages;
 
 /** Set the size of a compressed page in bytes.
 @param[in,out]	page_zip	compressed page

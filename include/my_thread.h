@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #define MY_THREAD_INCLUDED
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stddef.h>
 
 #include "my_compiler.h"
@@ -201,10 +202,10 @@ int my_thread_cancel(my_thread_handle *thread);
 void my_thread_exit(void *value_ptr) MY_ATTRIBUTE((noreturn));
 
 
-extern my_bool my_thread_global_init();
+extern bool my_thread_global_init();
 extern void my_thread_global_reinit();
 extern void my_thread_global_end();
-extern my_bool my_thread_init();
+extern bool my_thread_init();
 extern void my_thread_end();
 
 C_MODE_END

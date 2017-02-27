@@ -136,7 +136,7 @@ extern ulong		fts_num_word_optimize;
 
 /** Variable specifying whether we do additional FTS diagnostic printout
 in the log */
-extern my_bool		fts_enable_diag_print;
+extern bool		fts_enable_diag_print;
 
 /** FTS rank type, which will be between 0 .. 1 inclusive */
 typedef float 		fts_rank_t;

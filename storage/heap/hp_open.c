@@ -93,7 +93,7 @@ HP_INFO *heap_open_from_share_and_register(HP_SHARE *share, int mode)
   Dereference a HEAP share and free it if it's not referenced.
   We needn't check open_count for single instances.
 */
-void heap_release_share(HP_SHARE *share, my_bool single_instance)
+void heap_release_share(HP_SHARE *share, bool single_instance)
 {
   /* Couldn't open table; Remove the newly created table */
   if (single_instance)

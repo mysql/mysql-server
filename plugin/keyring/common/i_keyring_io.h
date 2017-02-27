@@ -25,13 +25,13 @@ namespace keyring {
 class IKeyring_io : public Keyring_alloc
 {
 public:
-  virtual my_bool init(std::string *keyring_storage_url)= 0;
-  virtual my_bool flush_to_backup(ISerialized_object *serialized_object)= 0;
-  virtual my_bool flush_to_storage(ISerialized_object *serialized_object)=0;
+  virtual bool init(std::string *keyring_storage_url)= 0;
+  virtual bool flush_to_backup(ISerialized_object *serialized_object)= 0;
+  virtual bool flush_to_storage(ISerialized_object *serialized_object)=0;
 
   virtual ISerializer *get_serializer()= 0;
-  virtual my_bool get_serialized_object(ISerialized_object **serialized_object)= 0;
-  virtual my_bool has_next_serialized_object()= 0;
+  virtual bool get_serialized_object(ISerialized_object **serialized_object)= 0;
+  virtual bool has_next_serialized_object()= 0;
 
   virtual ~IKeyring_io() {}
 };

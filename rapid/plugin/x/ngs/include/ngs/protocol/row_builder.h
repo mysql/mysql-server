@@ -48,7 +48,7 @@ namespace ngs
     void end_row();
 
     void add_null_field();
-    void add_longlong_field(longlong value, my_bool unsigned_flag);
+    void add_longlong_field(longlong value, bool unsigned_flag);
     void add_decimal_field(const decimal_t * value);
     void add_decimal_field(const char * const value, size_t length);
     void add_double_field(double value);

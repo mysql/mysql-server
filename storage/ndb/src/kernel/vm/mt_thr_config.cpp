@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1215,7 +1215,7 @@ THRConfigApplier::do_bind(NdbThread* thread,
       }
     }
     require(num_cpu_ids == num_bits_set);
-    my_bool is_exclusive;
+    bool is_exclusive;
     if (thr->m_bind_type == T_Thread::B_CPUSET_EXCLUSIVE_BIND)
     {
       /* Bind to a CPU set exclusively */

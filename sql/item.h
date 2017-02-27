@@ -4813,7 +4813,7 @@ protected:
   }
 public:
   Item_int_with_ref(enum_field_types field_type, longlong i, Item *ref_arg,
-                    my_bool unsigned_arg)
+                    bool unsigned_arg)
     : Item_int(i), ref(ref_arg)
   {
     set_data_type(field_type);

@@ -86,7 +86,7 @@ struct st_send_field_n
 
 struct st_decimal_n {
   int    intg, frac, len;
-  my_bool sign;
+  bool sign;
   decimal_digit_t buf[256];
 };
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -516,7 +516,7 @@ add_interval(MYSQL_TIME *ltime, const Time_zone *time_zone,
   if (date_add_interval(ltime, scale, interval))
     return 0;
 
-  my_bool not_used;
+  bool not_used;
   return time_zone->TIME_to_gmt_sec(ltime, &not_used);
 }
 

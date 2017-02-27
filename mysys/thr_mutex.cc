@@ -30,7 +30,7 @@
 #if defined(SAFE_MUTEX)
 /* This makes a wrapper for mutex handling to make it easier to debug mutex */
 
-static my_bool safe_mutex_inited= FALSE;
+static bool safe_mutex_inited= FALSE;
 
 /**
   While it looks like this function is pointless, it makes it possible to
@@ -58,7 +58,7 @@ int safe_mutex_init(my_mutex_t *mp, const native_mutexattr_t *attr,
 }
 
 
-int safe_mutex_lock(my_mutex_t *mp, my_bool try_lock,
+int safe_mutex_lock(my_mutex_t *mp, bool try_lock,
                     const char *file, uint line)
 {
   int error;

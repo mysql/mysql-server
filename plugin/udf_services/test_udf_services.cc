@@ -72,7 +72,7 @@ mysql_declare_plugin_end;
   @retval     FALSE     success
   @retval     TRUE      Failure. Error in the message argument
 */
-PLUGIN_EXPORT my_bool
+PLUGIN_EXPORT bool
 test_udf_services_udf_init(UDF_INIT *initid MY_ATTRIBUTE((unused)),
                            UDF_ARGS *args MY_ATTRIBUTE((unused)),
                            char *message MY_ATTRIBUTE((unused)))

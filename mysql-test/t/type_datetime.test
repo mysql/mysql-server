@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs296=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 #
 # testing different DATETIME ranges
 #
@@ -627,3 +638,11 @@ SET @@sql_mode= @org_mode;
 --echo #
 --echo # End of 5.6 tests
 --echo #
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs296;
+--enable_query_log
+########################################

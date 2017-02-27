@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs102=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # Tests for various combinations of ROW_FORMAT and KEY_BLOCK_SIZE
 # Related bugs; 
 # Bug#54679: ALTER TABLE causes compressed row_format to revert to compact
@@ -510,3 +521,11 @@ DROP TABLE t1;
 --disable_query_log
 EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
 --enable_query_log
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs102;
+--enable_query_log
+########################################

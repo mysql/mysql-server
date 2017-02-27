@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs208=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 #
 # test of left outer join for tests that depends on innodb
 #
@@ -8,7 +19,7 @@
 # 
 
 CREATE TABLE t1 (id int(11) NOT NULL PRIMARY KEY, name varchar(20),
-                 INDEX (name)) ENGINE=InnoDB;
+                 INDEX (name)) charset utf8mb4 ENGINE=InnoDB;
 CREATE TABLE t2 (id int(11) NOT NULL PRIMARY KEY, fkey int(11),
                  FOREIGN KEY (fkey) REFERENCES t2(id)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1,'A1'),(2,'A2'),(3,'B');
@@ -69,3 +80,11 @@ ORDER BY pk;
 DROP TABLE t1,t2;
 
 --echo # End BUG#58456
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs208;
+--enable_query_log
+########################################

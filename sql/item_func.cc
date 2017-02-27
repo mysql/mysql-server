@@ -7745,7 +7745,7 @@ longlong Item_func_get_system_var::val_int()
   case SHOW_BOOL:
     return get_sys_var_safe<bool>(thd);
   case SHOW_MY_BOOL:
-    return get_sys_var_safe<my_bool>(thd);
+    return get_sys_var_safe<bool>(thd);
   case SHOW_DOUBLE:
     {
       double dval= val_real();
@@ -9294,7 +9294,6 @@ bool check_table_and_trigger_access(Item **args,
   if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
     DBUG_RETURN(false);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   // Skip INFORMATION_SCHEMA database
   if (is_infoschema_db(schema_name_ptr->ptr()))
     DBUG_RETURN(true);
@@ -9329,7 +9328,6 @@ bool check_table_and_trigger_access(Item **args,
         check_table_access(thd, TRIGGER_ACL, &table_list, false, 1, true))
       DBUG_RETURN(false);
   }
-#endif
 
   DBUG_RETURN(true);
 }

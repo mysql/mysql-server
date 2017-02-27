@@ -87,8 +87,8 @@ uint	  my_once_extra=ONCE_ALLOC_INIT;	/* Memory to alloc / block */
 
 	/* from my_largepage.c */
 #ifdef HAVE_LINUX_LARGE_PAGES
-my_bool my_use_large_pages= 0;
-uint    my_large_page_size= 0;
+bool my_use_large_pages= 0;
+uint my_large_page_size= 0;
 #endif
 
 	/* from errors.c */
@@ -152,6 +152,6 @@ ulonglong query_performance_frequency, query_performance_offset,
 #endif
 
 	/* How to disable options */
-my_bool my_disable_locking=0;
-my_bool my_enable_symlinks= 1;
+bool my_disable_locking=0;
+bool my_enable_symlinks= 1;
 

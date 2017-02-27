@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -269,9 +269,9 @@ typedef enum {
 
 double my_strtod(const char *str, char **end, int *error);
 double my_atof(const char *nptr);
-size_t my_fcvt(double x, int precision, char *to, my_bool *error);
+size_t my_fcvt(double x, int precision, char *to, bool *error);
 size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
-               my_bool *error);
+               bool *error);
 
 #define NOT_FIXED_DEC 31
 

@@ -89,7 +89,6 @@
 #include "query_options.h"
 #include "session_tracker.h"
 #include "sql_alter.h"
-#include "sql_analyse.h"                // append_escaped
 #include "sql_base.h"                   // wait_while_table_is_used
 #include "sql_bitmap.h"
 #include "sql_cache.h"                  // query_cache

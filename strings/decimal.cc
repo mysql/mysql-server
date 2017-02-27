@@ -862,7 +862,7 @@ int decimal_shift(decimal_t *dec, int shift)
 */
 
 int
-internal_str2dec(const char *from, decimal_t *to, char **end, my_bool fixed)
+internal_str2dec(const char *from, decimal_t *to, char **end, bool fixed)
 {
   const char *s= from, *s1, *endp, *end_of_string= *end;
   int i, intg, frac, error, intg1, frac1;

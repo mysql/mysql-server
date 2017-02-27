@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs216=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # This tests the functionality of the Myisam engine
 # These testcases also exist in InnoDB engine
 # All tests are required to run with Myisam
@@ -11,3 +22,11 @@ set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,
 --source include/icp_tests.inc
 
 set optimizer_switch=default;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs216;
+--enable_query_log
+########################################

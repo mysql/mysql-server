@@ -111,7 +111,7 @@ typedef struct my_contraction_t
 {
   my_wc_t ch[MY_UCA_MAX_CONTRACTION];   /* Character sequence              */
   uint16 weight[MY_UCA_MAX_WEIGHT_SIZE];/* Its weight string, 0-terminated */
-  my_bool with_context;
+  bool with_context;
 } MY_CONTRACTION;
 
 
@@ -141,8 +141,8 @@ typedef struct my_contraction_list_t
 } MY_CONTRACTIONS;
 
 
-my_bool my_uca_can_be_contraction_head(const MY_CONTRACTIONS *c, my_wc_t wc);
-my_bool my_uca_can_be_contraction_tail(const MY_CONTRACTIONS *c, my_wc_t wc);
+bool my_uca_can_be_contraction_head(const MY_CONTRACTIONS *c, my_wc_t wc);
+bool my_uca_can_be_contraction_tail(const MY_CONTRACTIONS *c, my_wc_t wc);
 uint16 *my_uca_contraction2_weight(const MY_CONTRACTIONS *c,
                                    my_wc_t wc1, my_wc_t wc2);
 
@@ -265,10 +265,10 @@ extern int (*my_string_stack_guard)(int);
 /* See strings/CHARSET_INFO.txt for information about this structure  */
 typedef struct my_collation_handler_st
 {
-  my_bool (*init)(struct charset_info_st *, MY_CHARSET_LOADER *);
+  bool (*init)(struct charset_info_st *, MY_CHARSET_LOADER *);
   /* Collation routines */
   int     (*strnncoll)(const struct charset_info_st *,
-		       const uchar *, size_t, const uchar *, size_t, my_bool);
+		       const uchar *, size_t, const uchar *, size_t, bool);
   int     (*strnncollsp)(const struct charset_info_st *,
                          const uchar *, size_t, const uchar *, size_t);
   /**
@@ -297,12 +297,12 @@ typedef struct my_collation_handler_st
                       uchar *dst, size_t dstlen, uint num_codepoints,
                       const uchar *src, size_t srclen, uint flags);
   size_t    (*strnxfrmlen)(const struct charset_info_st *, size_t);
-  my_bool (*like_range)(const struct charset_info_st *,
-			const char *s, size_t s_length,
-			char w_prefix, char w_one, char w_many,
-			size_t res_length,
-			char *min_str, char *max_str,
-			size_t *min_len, size_t *max_len);
+  bool (*like_range)(const struct charset_info_st *,
+		     const char *s, size_t s_length,
+		     char w_prefix, char w_one, char w_many,
+		     size_t res_length,
+		     char *min_str, char *max_str,
+		     size_t *min_len, size_t *max_len);
   int     (*wildcmp)(const struct charset_info_st *,
   		     const char *str,const char *str_end,
                      const char *wildstr,const char *wildend,
@@ -329,8 +329,8 @@ typedef struct my_collation_handler_st
   */
   void (*hash_sort)(const struct charset_info_st *cs, const uchar *key,
                     size_t len, ulong *nr1, ulong *nr2);
-  my_bool (*propagate)(const struct charset_info_st *cs, const uchar *str,
-                       size_t len);
+  bool (*propagate)(const struct charset_info_st *cs, const uchar *str,
+                    size_t len);
 } MY_COLLATION_HANDLER;
 
 extern MY_COLLATION_HANDLER my_collation_mb_bin_handler;
@@ -350,7 +350,7 @@ typedef size_t (*my_charset_conv_case)(const struct charset_info_st *,
 /* See strings/CHARSET_INFO.txt about information on this structure  */
 typedef struct my_charset_handler_st
 {
-  my_bool (*init)(struct charset_info_st *, MY_CHARSET_LOADER *loader);
+  bool (*init)(struct charset_info_st *, MY_CHARSET_LOADER *loader);
   /* Multibyte routines */
   uint    (*ismbchar)(const struct charset_info_st *, const char *,
                       const char *);
@@ -457,7 +457,7 @@ typedef struct charset_info_st
   my_wc_t   min_sort_char;
   my_wc_t   max_sort_char; /* For LIKE optimization */
   uchar     pad_char;
-  my_bool   escape_with_backslash_is_dangerous;
+  bool      escape_with_backslash_is_dangerous;
   uchar     levels_for_compare;
   
   MY_CHARSET_HANDLER *cset;
@@ -497,7 +497,7 @@ extern size_t my_strnxfrm_simple(const CHARSET_INFO *,
                                  const uchar *src, size_t srclen, uint flags);
 size_t  my_strnxfrmlen_simple(const CHARSET_INFO *, size_t); 
 extern int  my_strnncoll_simple(const CHARSET_INFO *, const uchar *, size_t,
-				const uchar *, size_t, my_bool);
+				const uchar *, size_t, bool);
 
 extern int  my_strnncollsp_simple(const CHARSET_INFO *, const uchar *, size_t,
                                   const uchar *, size_t);
@@ -570,28 +570,28 @@ ulonglong my_strntoull10rnd_ucs2(const CHARSET_INFO *cs,
 void my_fill_8bit(const CHARSET_INFO *cs, char* to, size_t l, int fill);
 
 /* For 8-bit character set */
-my_bool  my_like_range_simple(const CHARSET_INFO *cs,
-			      const char *ptr, size_t ptr_length,
-			      my_bool escape, my_bool w_one, my_bool w_many,
-			      size_t res_length,
-			      char *min_str, char *max_str,
-			      size_t *min_length, size_t *max_length);
+bool  my_like_range_simple(const CHARSET_INFO *cs,
+                           const char *ptr, size_t ptr_length,
+                           char escape, char w_one, char w_many,
+                           size_t res_length,
+                           char *min_str, char *max_str,
+                           size_t *min_length, size_t *max_length);
 
 /* For ASCII-based multi-byte character sets with mbminlen=1 */
-my_bool  my_like_range_mb(const CHARSET_INFO *cs,
-			  const char *ptr, size_t ptr_length,
-			  my_bool escape, my_bool w_one, my_bool w_many,
-			  size_t res_length,
-			  char *min_str, char *max_str,
-			  size_t *min_length, size_t *max_length);
+bool  my_like_range_mb(const CHARSET_INFO *cs,
+                       const char *ptr, size_t ptr_length,
+                       char escape, char w_one, char w_many,
+                       size_t res_length,
+                       char *min_str, char *max_str,
+                       size_t *min_length, size_t *max_length);
 
 /* For other character sets, with arbitrary mbminlen and mbmaxlen numbers */
-my_bool  my_like_range_generic(const CHARSET_INFO *cs,
-                               const char *ptr, size_t ptr_length,
-                               my_bool escape, my_bool w_one, my_bool w_many,
-                               size_t res_length,
-                               char *min_str, char *max_str,
-                               size_t *min_length, size_t *max_length);
+bool  my_like_range_generic(const CHARSET_INFO *cs,
+                            const char *ptr, size_t ptr_length,
+                            char escape, char w_one, char w_many,
+                            size_t res_length,
+                            char *min_str, char *max_str,
+                            size_t *min_length, size_t *max_length);
 
 int my_wildcmp_8bit(const CHARSET_INFO *,
 		    const char *str,const char *str_end,
@@ -648,7 +648,7 @@ uint my_instr_mb(const struct charset_info_st *,
 int my_strnncoll_mb_bin(const CHARSET_INFO * cs,
                         const uchar *s, size_t slen,
                         const uchar *t, size_t tlen,
-                        my_bool t_is_prefix);
+                        bool t_is_prefix);
 
 int my_strnncollsp_mb_bin(const CHARSET_INFO *cs,
                           const uchar *a, size_t a_length,
@@ -684,23 +684,23 @@ int my_wildcmp_unicode(const CHARSET_INFO *cs,
                        int escape, int w_one, int w_many,
                        const MY_UNICASE_INFO *weights);
 
-extern my_bool my_parse_charset_xml(MY_CHARSET_LOADER *loader,
-                                    const char *buf, size_t buflen);
+extern bool my_parse_charset_xml(MY_CHARSET_LOADER *loader,
+                                 const char *buf, size_t buflen);
 extern char *my_strchr(const CHARSET_INFO *cs, const char *str,
                        const char *end, char c);
 extern size_t my_strcspn(const CHARSET_INFO *cs, const char *str,
                          const char *end, const char *reject,
                          size_t reject_length);
 
-my_bool my_propagate_simple(const CHARSET_INFO *cs, const uchar *str,
-                            size_t len);
-my_bool my_propagate_complex(const CHARSET_INFO *cs, const uchar *str,
-                             size_t len);
+bool my_propagate_simple(const CHARSET_INFO *cs, const uchar *str,
+                         size_t len);
+bool my_propagate_complex(const CHARSET_INFO *cs, const uchar *str,
+                          size_t len);
 
 
 uint my_string_repertoire(const CHARSET_INFO *cs, const char *str, size_t len);
-my_bool my_charset_is_ascii_based(const CHARSET_INFO *cs);
-my_bool my_charset_is_8bit_pure_ascii(const CHARSET_INFO *cs);
+bool my_charset_is_ascii_based(const CHARSET_INFO *cs);
+bool my_charset_is_8bit_pure_ascii(const CHARSET_INFO *cs);
 uint my_charset_repertoire(const CHARSET_INFO *cs);
 
 
@@ -709,7 +709,7 @@ size_t my_strxfrm_pad(const CHARSET_INFO *cs,
                       uchar *str, uchar *frmend, uchar *strend,
                       uint nweights, uint flags);
 
-my_bool my_charset_is_ascii_compatible(const CHARSET_INFO *cs);
+bool my_charset_is_ascii_compatible(const CHARSET_INFO *cs);
 
 const MY_CONTRACTIONS *my_charset_get_contractions(const CHARSET_INFO *cs);
 

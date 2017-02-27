@@ -110,7 +110,7 @@ static ulong validate_password_policy;
 static char *validate_password_dictionary_file;
 static char *validate_password_dictionary_file_last_parsed= NULL;
 static long long validate_password_dictionary_file_words_count= 0;
-static my_bool check_user_name;
+static bool check_user_name;
 
 /**
   Activate the new dictionary

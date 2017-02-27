@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -598,7 +598,7 @@ main(int argc, char ** argv)
 }
 
 extern "C"
-my_bool 
+bool 
 get_one_option(int arg, const struct my_option * opt, char * value)
 {
   if (arg == 1024)

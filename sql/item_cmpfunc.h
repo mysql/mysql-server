@@ -989,7 +989,7 @@ class Item_func_interval final : public Item_int_func
   typedef Item_int_func super;
 
   Item_row *row;
-  my_bool use_decimal_comparison;
+  bool use_decimal_comparison;
   interval_range *intervals;
 public:
   Item_func_interval(const POS &pos, MEM_ROOT *mem_root, Item *expr1,
@@ -1277,7 +1277,7 @@ public:
   void value_to_item(uint pos, Item *item) override
   {
     ((Item_int*) item)->value= base[pos].val;
-    ((Item_int*) item)->unsigned_flag= (my_bool)
+    ((Item_int*) item)->unsigned_flag= (bool)
       base[pos].unsigned_flag;
   }
   Item_result result_type() const override { return INT_RESULT; }

@@ -43,8 +43,8 @@ public:
   }
 
   void free();
-  my_bool get_next_key(IKey **key);
-  my_bool has_next_key();
+  bool get_next_key(IKey **key);
+  bool has_next_key();
   void reserve(size_t memory_size);
 
   uchar *data;

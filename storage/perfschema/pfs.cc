@@ -2032,7 +2032,7 @@ pfs_destroy_cond_v1(PSI_cond *cond)
   @sa PSI_v1::get_table_share.
 */
 PSI_table_share *
-pfs_get_table_share_v1(my_bool temporary, TABLE_SHARE *share)
+pfs_get_table_share_v1(bool temporary, TABLE_SHARE *share)
 {
   /* Ignore temporary tables and views. */
   if (temporary || share->is_view)
@@ -2072,7 +2072,7 @@ pfs_release_table_share_v1(PSI_table_share *share)
   @sa PSI_v1::drop_table_share.
 */
 void
-pfs_drop_table_share_v1(my_bool temporary,
+pfs_drop_table_share_v1(bool temporary,
                         const char *schema_name,
                         int schema_name_length,
                         const char *table_name,
@@ -6468,8 +6468,8 @@ pfs_get_thread_transaction_locker_v1(PSI_transaction_locker_state *state,
                                      const void *xid,
                                      const ulonglong *trxid,
                                      int isolation_level,
-                                     my_bool read_only,
-                                     my_bool autocommit)
+                                     bool read_only,
+                                     bool autocommit)
 {
   DBUG_ASSERT(state != NULL);
 
@@ -6729,7 +6729,7 @@ pfs_inc_transaction_release_savepoint_v1(PSI_transaction_locker *locker,
 }
 
 void
-pfs_end_transaction_v1(PSI_transaction_locker *locker, my_bool commit)
+pfs_end_transaction_v1(PSI_transaction_locker *locker, bool commit)
 {
   PSI_transaction_locker_state *state =
     reinterpret_cast<PSI_transaction_locker_state *>(locker);

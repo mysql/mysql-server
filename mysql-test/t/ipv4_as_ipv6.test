@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs204=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 
 # Test of ipv4 (127.0.0.1) in ipv6 format
 # Options: --skip-name-resolve, --bind-address=0.0.0.0 (see corresponding opt file).
@@ -71,3 +82,11 @@ connect (con1, $IPv6, root, , test, $MASTER_MYPORT,);
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs204;
+--enable_query_log
+########################################

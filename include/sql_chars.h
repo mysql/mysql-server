@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@ C_MODE_START
 typedef struct lex_state_maps_st lex_state_maps_st;
 typedef struct charset_info_st charset_info_st;
 
-my_bool init_state_maps(struct charset_info_st *cs);
+bool init_state_maps(struct charset_info_st *cs);
 C_MODE_END
 
 #endif /* SQL_LEX_CHARS_INCLUDED */

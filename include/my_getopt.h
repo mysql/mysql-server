@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,7 +96,7 @@ struct get_opt_arg_source
   /**
     config file path OR compiled default values
   */
-  const char* m_name;
+  const char* m_path_name;
   enum enum_variable_source m_source;
 };
 
@@ -142,7 +142,7 @@ struct my_option
 };
 
 
-typedef my_bool (*my_get_one_option)(int, const struct my_option *, char *);
+typedef bool (*my_get_one_option)(int, const struct my_option *, char *);
 /**
   Used to retrieve a reference to the object (variable) that holds the value
   for the given option. For example, if var_type is GET_UINT, the function
@@ -154,8 +154,8 @@ typedef void *(*my_getopt_value)(const char *, size_t, const struct my_option *,
 
 
 extern char *disabled_my_option;
-extern my_bool my_getopt_print_errors;
-extern my_bool my_getopt_skip_unknown;
+extern bool my_getopt_print_errors;
+extern bool my_getopt_skip_unknown;
 extern my_error_reporter my_getopt_error_reporter;
 
 extern int handle_options (int *argc, char ***argv, 
@@ -163,7 +163,7 @@ extern int handle_options (int *argc, char ***argv,
 extern int my_handle_options (int *argc, char ***argv,
                               const struct my_option *longopts,
                               my_get_one_option,
-                              const char **command_list, my_bool ignore_unknown_option);
+                              const char **command_list, bool ignore_unknown_option);
 extern void print_cmdline_password_warning();
 extern void my_cleanup_options(const struct my_option *options);
 extern void my_print_help(const struct my_option *options);
@@ -172,11 +172,11 @@ extern void my_print_variables_ex(const struct my_option *options, FILE* file);
 extern void my_getopt_register_get_addr(my_getopt_value);
 
 ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
-                                 my_bool *fix);
+                                 bool *fix);
 longlong getopt_ll_limit_value(longlong, const struct my_option *,
-                               my_bool *fix);
+                               bool *fix);
 double getopt_double_limit_value(double num, const struct my_option *optp,
-                                 my_bool *fix);
+                                 bool *fix);
 ulonglong max_of_int_range(int var_type);
 
 ulonglong getopt_double2ulonglong(double);

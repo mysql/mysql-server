@@ -447,8 +447,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   Disable_gtid_state_update_guard disabler(thd);
 
   /* This is ensured in the parser. */
-  DBUG_ASSERT(!lex->proc_analyse && !lex->result &&
-              !lex->param_list.elements);
+  DBUG_ASSERT(!lex->result && !lex->param_list.elements);
 
   /*
     We can't allow taking exclusive meta-data locks of unlocked view under

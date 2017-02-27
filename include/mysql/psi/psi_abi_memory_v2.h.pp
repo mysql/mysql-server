@@ -5,7 +5,7 @@ typedef unsigned int PSI_memory_key;
 struct PSI_thread;
 struct PSI_memory_bootstrap
 {
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_memory_bootstrap PSI_memory_bootstrap;
 typedef struct PSI_placeholder PSI_memory_service_t;

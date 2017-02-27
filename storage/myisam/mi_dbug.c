@@ -179,7 +179,7 @@ void _mi_print_key(FILE *stream, HA_KEYSEG *keyseg,
   this mutex is locked by this thread already.
 */
 
-my_bool check_table_is_closed(const char *name, const char *where)
+bool check_table_is_closed(const char *name, const char *where)
 {
   char filename[FN_REFLEN];
   LIST *pos;

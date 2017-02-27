@@ -16,7 +16,6 @@ typedef unsigned long long my_ulonglong;
 typedef intptr_t intptr;
 typedef ulonglong my_off_t;
 typedef ptrdiff_t my_ptrdiff_t;
-typedef char my_bool;
 typedef int myf;
 #include "my_macros.h"
 #include "my_psi_config.h"
@@ -50,8 +49,8 @@ struct PSI_transaction_locker_state_v1
   ulonglong m_timer_start;
   ulonglong (*m_timer)(void);
   void *m_transaction;
-  my_bool m_read_only;
-  my_bool m_autocommit;
+  bool m_read_only;
+  bool m_autocommit;
   ulong m_statement_count;
   ulong m_savepoint_count;
   ulong m_rollback_to_savepoint_count;
@@ -63,8 +62,8 @@ typedef struct PSI_transaction_locker *(*get_thread_transaction_locker_v1_t)(
   const void *xid,
   const ulonglong *trxid,
   int isolation_level,
-  my_bool read_only,
-  my_bool autocommit);
+  bool read_only,
+  bool autocommit);
 typedef void (*start_transaction_v1_t)(struct PSI_transaction_locker *locker,
                                        const char *src_file,
                                        uint src_line);
@@ -85,7 +84,7 @@ typedef void (*inc_transaction_rollback_to_savepoint_v1_t)(
 typedef void (*inc_transaction_release_savepoint_v1_t)(
   struct PSI_transaction_locker *locker, ulong count);
 typedef void (*end_transaction_v1_t)(struct PSI_transaction_locker *locker,
-                                     my_bool commit);
+                                     bool commit);
 struct PSI_transaction_service_v1
 {
   get_thread_transaction_locker_v1_t get_thread_transaction_locker;

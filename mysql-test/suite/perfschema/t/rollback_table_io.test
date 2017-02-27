@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs372=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # Tests for PERFORMANCE_SCHEMA table io
 #       Show the impact of a rollback in case of the transactional engine InnoDB
 
@@ -43,3 +54,11 @@ rollback;
 drop table test.t1;
 --source ../include/table_io_cleanup_helper.inc
 
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs372;
+--enable_query_log
+########################################

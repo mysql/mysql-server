@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs54=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 --echo #
 --echo # This is a copy of innodb-alter.test except using remote tablespaces
 --echo # and showing those files.
@@ -597,3 +608,11 @@ DROP TABLE tt, t1o, sys_tables, sys_indexes, sys_foreign;
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 call mtr.add_suppression("deleting orphaned .ibd file");
 -- enable_query_log
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs54;
+--enable_query_log
+########################################

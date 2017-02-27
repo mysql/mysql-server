@@ -77,8 +77,7 @@ static const SYMBOL symbols[] = {
   { SYM("ALGORITHM",                ALGORITHM_SYM)},
   { SYM("ALTER",                    ALTER)},
   { SYM("ALWAYS",                   ALWAYS_SYM)},
-  { SYM("ANALYSE",                  ANALYSE_SYM)}, // this one is for PROCEDURE ANALYSE
-  { SYM("ANALYZE",                  ANALYZE_SYM)}, // this one is for ANALYZE TABLE etc
+  { SYM("ANALYZE",                  ANALYZE_SYM)},
   { SYM("AND",                      AND_SYM)},
   { SYM("ANY",                      ANY_SYM)},
   { SYM("AS",                       AS)},

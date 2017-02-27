@@ -240,7 +240,7 @@ extern CHARSET_INFO my_charset_utf8mb4_ja_0900_as_cs;
 extern CHARSET_INFO my_charset_gb18030_unicode_520_ci;
 
 
-my_bool init_compiled_charsets(myf flags MY_ATTRIBUTE((unused)))
+bool init_compiled_charsets(myf flags MY_ATTRIBUTE((unused)))
 {
   CHARSET_INFO *cs;
 

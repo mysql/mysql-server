@@ -55,7 +55,7 @@ main(int argc, char**	argv)
   char*	ca_file = 0,	*ca_path = 0;
   char*	cipher=0;
   int	child_pid,sv[2];
-  my_bool unused;
+  bool unused;
   struct st_VioSSLFd* ssl_acceptor= 0;
   struct st_VioSSLFd* ssl_connector= 0;
   Vio* client_vio=0, *server_vio=0;

@@ -35,7 +35,7 @@ static void endprog(int sig_number) MY_ATTRIBUTE((noreturn));
 static uint flag=0,verbose=0,testflag=0,recant=10000,silent=0;
 static uint keys=MAX_KEYS;
 static uint16 key1[1001];
-static my_bool key3[MAX_RECORDS];
+static bool key3[MAX_RECORDS];
 static int reclength=39;
 
 
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
   HEAP_PTR position= 0;
   HP_CREATE_INFO hp_create_info;
   CHARSET_INFO *cs= &my_charset_latin1;
-  my_bool unused;
+  bool unused;
   MY_INIT(argv[0]);		/* init my_sys library & pthreads */
 
   filename= "test2";

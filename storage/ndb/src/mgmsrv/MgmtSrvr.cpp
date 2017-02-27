@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@ int g_errorInsert = 0;
     }\
   }
 
-extern "C" my_bool opt_core;
+extern "C" bool opt_core;
 
 void *
 MgmtSrvr::logLevelThread_C(void* m)

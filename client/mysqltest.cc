@@ -135,8 +135,8 @@ extern CHARSET_INFO my_charset_utf16le_bin;
 
 C_MODE_START
 static void signal_handler(int sig);
-static my_bool get_one_option(int optid, const struct my_option *,
-                              char *argument);
+static bool get_one_option(int optid, const struct my_option *,
+                           char *argument);
 C_MODE_END
 
 enum {
@@ -158,44 +158,44 @@ static int opt_port= 0;
 static int opt_max_connect_retries;
 static int opt_result_format_version;
 static int opt_max_connections= DEFAULT_MAX_CONN;
-static my_bool opt_compress= 0, silent= 0, verbose= 0, trace_exec= 0;
-static my_bool debug_info_flag= 0, debug_check_flag= 0;
-static my_bool tty_password= 0;
-static my_bool opt_mark_progress= 0;
-static my_bool ps_protocol= 0, ps_protocol_enabled= 0;
-static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
-static my_bool no_skip=0;
-static my_bool view_protocol= 0, view_protocol_enabled= 0;
-static my_bool opt_trace_protocol= 0, opt_trace_protocol_enabled= 0;
-static my_bool explain_protocol= 0, explain_protocol_enabled= 0;
-static my_bool json_explain_protocol= 0, json_explain_protocol_enabled= 0;
-static my_bool cursor_protocol= 0, cursor_protocol_enabled= 0;
-static my_bool parsing_disabled= 0;
-static my_bool display_result_vertically= FALSE, display_result_lower= FALSE,
+static bool opt_compress= 0, silent= 0, verbose= 0, trace_exec= 0;
+static bool debug_info_flag= 0, debug_check_flag= 0;
+static bool tty_password= 0;
+static bool opt_mark_progress= 0;
+static bool ps_protocol= 0, ps_protocol_enabled= 0;
+static bool sp_protocol= 0, sp_protocol_enabled= 0;
+static bool no_skip=0;
+static bool view_protocol= 0, view_protocol_enabled= 0;
+static bool opt_trace_protocol= 0, opt_trace_protocol_enabled= 0;
+static bool explain_protocol= 0, explain_protocol_enabled= 0;
+static bool json_explain_protocol= 0, json_explain_protocol_enabled= 0;
+static bool cursor_protocol= 0, cursor_protocol_enabled= 0;
+static bool parsing_disabled= 0;
+static bool display_result_vertically= FALSE, display_result_lower= FALSE,
   display_metadata= FALSE, display_result_sorted= FALSE,
   display_session_track_info= FALSE;
-static my_bool disable_query_log= 0, disable_result_log= 0;
-static my_bool disable_connect_log= 1;
-static my_bool disable_warnings= 0;
-static my_bool disable_info= 1;
-static my_bool abort_on_error= 1;
-static my_bool server_initialized= 0;
-static my_bool is_windows= 0;
+static bool disable_query_log= 0, disable_result_log= 0;
+static bool disable_connect_log= 1;
+static bool disable_warnings= 0;
+static bool disable_info= 1;
+static bool abort_on_error= 1;
+static bool server_initialized= 0;
+static bool is_windows= 0;
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest", "client", 0 };
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
 #if !defined(HAVE_YASSL)
 static const char *opt_server_public_key= 0;
 #endif
-static my_bool can_handle_expired_passwords= TRUE;
+static bool can_handle_expired_passwords= TRUE;
 
 /* Info on properties that can be set with --enable_X and --disable_X */
 
 struct property {
-  my_bool *var;			/* Actual variable */
-  my_bool set;			/* Has been set for ONE command */
-  my_bool old;			/* If set, thus is the old value */
-  my_bool reverse;		/* Varible is true if disabled */
+  bool *var;			/* Actual variable */
+  bool set;			/* Has been set for ONE command */
+  bool old;			/* If set, thus is the old value */
+  bool reverse;			/* Variable is true if disabled */
   const char *env_name;		/* Env. variable name */
 };
 
@@ -211,7 +211,7 @@ static struct property prop_list[] = {
   { &disable_warnings, 0, 0, 1, "$ENABLED_WARNINGS" }
 };
 
-static my_bool once_property= FALSE;
+static bool once_property= FALSE;
 
 enum enum_prop {
   P_ABORT= 0,
@@ -249,7 +249,7 @@ enum block_cmd {
 struct st_block
 {
   int             line; /* Start line of block */
-  my_bool         ok;   /* Should block be executed */
+  bool            ok;   /* Should block be executed */
   enum block_cmd  cmd;  /* Command owning the block */
   char            delim[MAX_DELIMITER_LENGTH];  /* Delimiter before block */
 };
@@ -365,7 +365,7 @@ struct st_connection
   size_t name_len;
   MYSQL_STMT* stmt;
   /* Set after send to disallow other queries before reap */
-  my_bool pending;
+  bool pending;
 };
 
 struct st_connection *connections= NULL;
@@ -571,7 +571,7 @@ struct st_command
   char *query, *query_buf,*first_argument,*last_argument,*end;
   DYNAMIC_STRING content;
   size_t first_word_len, query_len;
-  my_bool abort_on_error, used_replace;
+  bool abort_on_error, used_replace;
   struct st_expected_errors expected_errors;
   char output_file[FN_REFLEN];
   enum enum_commands type;
@@ -646,15 +646,15 @@ VAR* var_from_env(const char *, const char *);
 VAR* var_init(VAR* v, const char *name, size_t name_len, const char *val,
               size_t val_len);
 VAR* var_get(const char *var_name, const char** var_name_end,
-             my_bool raw, my_bool ignore_not_existing);
+             bool raw, bool ignore_not_existing);
 void eval_expr(VAR* v, const char *p, const char** p_end,
                bool open_end=false, bool do_eval=true);
-my_bool match_delimiter(int c, const char *delim, size_t length);
+bool match_delimiter(int c, const char *delim, size_t length);
 
 void do_eval(DYNAMIC_STRING *query_eval, const char *query,
-             const char *query_end, my_bool pass_through_escape_chars);
+             const char *query_end, bool pass_through_escape_chars);
 void str_to_file(const char *fname, char *str, size_t size);
-void str_to_file2(const char *fname, char *str, size_t size, my_bool append);
+void str_to_file2(const char *fname, char *str, size_t size, bool append);
 
 void fix_win_paths(const char *val, size_t len);
 const char *get_errname_from_code (uint error_code);
@@ -878,7 +878,7 @@ void handle_no_error(struct st_command*);
 void revert_properties();
 
 void do_eval(DYNAMIC_STRING *query_eval, const char *query,
-             const char *query_end, my_bool pass_through_escape_chars)
+             const char *query_end, bool pass_through_escape_chars)
 {
   const char *p;
   char c, next_c;
@@ -1085,7 +1085,7 @@ enum arg_type
 struct command_arg {
   const char *argname;       /* Name of argument   */
   enum arg_type type;        /* Type of argument   */
-  my_bool required;          /* Argument required  */
+  bool required;             /* Argument required  */
   DYNAMIC_STRING *ds;        /* Storage for argument */
   const char *description;   /* Description of the argument */
 };
@@ -2093,8 +2093,8 @@ VAR* var_from_env(const char *name, const char *def_val)
 }
 
 
-VAR* var_get(const char *var_name, const char **var_name_end, my_bool raw,
-	     my_bool ignore_not_existing)
+VAR* var_get(const char *var_name, const char **var_name_end, bool raw,
+	     bool ignore_not_existing)
 {
   int digit;
   VAR *v;
@@ -2236,7 +2236,7 @@ static void var_set_errno(int sql_errno)
 
 /* Functions to handle --disable and --enable properties */
 
-static void set_once_property(enum_prop prop, my_bool val)
+static void set_once_property(enum_prop prop, bool val)
 {
   property &pr= prop_list[prop];
   pr.set= 1;
@@ -2246,7 +2246,7 @@ static void set_once_property(enum_prop prop, my_bool val)
   once_property= TRUE;
 }
 
-static void set_property(st_command *command, enum_prop prop, my_bool val)
+static void set_property(st_command *command, enum_prop prop, bool val)
 {
   char* p= command->first_argument;
   if (p && !strcmp (p, "ONCE")) 
@@ -2788,7 +2788,7 @@ static int open_file(const char *name)
   DBUG_ENTER("open_file");
   DBUG_PRINT("enter", ("name: %s", name));
 
-  my_bool file_exists= false;
+  bool file_exists= false;
   /* Extract path from current file and try it as base first */
   if (dirname_part(buff, cur_file->file_name, &length))
   {
@@ -4008,7 +4008,7 @@ void do_force_rmdir(struct st_command *command, DYNAMIC_STRING *ds_dirname)
   Remove the empty directory <dir_name>
 */
 
-static void do_rmdir(struct st_command *command, my_bool force)
+static void do_rmdir(struct st_command *command, bool force)
 {
   int error;
   static DYNAMIC_STRING ds_dirname;
@@ -4126,7 +4126,7 @@ static void do_list_files(struct st_command *command)
 */
 
 static void do_list_files_write_file_command(struct st_command *command,
-                                             my_bool append)
+                                             bool append)
 {
   int error;
   static DYNAMIC_STRING ds_content;
@@ -4230,7 +4230,7 @@ static void read_until_delimiter(DYNAMIC_STRING *ds,
 }
 
 
-static void do_write_file_command(struct st_command *command, my_bool append)
+static void do_write_file_command(struct st_command *command, bool append)
 {
   static DYNAMIC_STRING ds_content;
   static DYNAMIC_STRING ds_filename;
@@ -5331,7 +5331,7 @@ static void do_let(struct st_command *command)
   used for cpu-independent delays.
 */
 
-static int do_sleep(struct st_command *command, my_bool real_sleep)
+static int do_sleep(struct st_command *command, bool real_sleep)
 {
   int error= 0;
   char *sleep_start, *sleep_end;
@@ -5941,7 +5941,7 @@ static char *get_string(char **to_ptr, char **from_ptr,
 
 static void set_reconnect(MYSQL* mysql, int val)
 {
-  my_bool reconnect= val;
+  bool reconnect= val;
   DBUG_ENTER("set_reconnect");
   DBUG_PRINT("info", ("val: %d", val));
   mysql_options(mysql, MYSQL_OPT_RECONNECT, (char *)&reconnect);
@@ -6308,8 +6308,8 @@ static void do_connect(struct st_command *command)
 {
   int con_port= opt_port;
   char *con_options;
-  my_bool con_ssl= 0, con_compress= 0;
-  my_bool con_pipe= 0, con_shm= 0, con_cleartext_enable= 0;
+  bool con_ssl= 0, con_compress= 0;
+  bool con_pipe= 0, con_shm= 0, con_cleartext_enable= 0;
   struct st_connection* con_slot;
 #if defined(HAVE_OPENSSL)
   uint save_opt_ssl_mode= opt_ssl_mode;
@@ -6380,7 +6380,7 @@ static void do_connect(struct st_command *command)
 
   /* Options */
   con_options= ds_options.str;
-  my_bool con_socket=0, con_tcp= 0;
+  bool con_socket=0, con_tcp= 0;
   while (*con_options)
   {
     /* Step past any spaces in beginning of option */
@@ -6673,7 +6673,7 @@ static void do_block(enum block_cmd cmd, struct st_command* command)
   const char *expr_start, *expr_end;
   VAR v;
   const char *cmd_name= (cmd == cmd_while ? "while" : "if");
-  my_bool not_expr= FALSE;
+  bool not_expr= FALSE;
   DBUG_ENTER("do_block");
   DBUG_PRINT("enter", ("%s", cmd_name));
 
@@ -6898,7 +6898,7 @@ static void do_reset_connection()
   DBUG_VOID_RETURN;
 }
 
-my_bool match_delimiter(int c, const char *delim, size_t length)
+bool match_delimiter(int c, const char *delim, size_t length)
 {
   uint i;
   char tmp[MAX_DELIMITER_LENGTH];
@@ -6922,7 +6922,7 @@ my_bool match_delimiter(int c, const char *delim, size_t length)
 }
 
 
-static my_bool end_of_query(int c)
+static bool end_of_query(int c)
 {
   return match_delimiter(c, delimiter, delimiter_length);
 }
@@ -6958,7 +6958,7 @@ static int read_line(char *buf, int size)
   char *p= buf, *buf_end= buf + size - 1;
   int skip_char= 0;
   int query_comment= 0, query_comment_start= 0, query_comment_end= 0;
-  my_bool have_slash= FALSE;
+  bool have_slash= FALSE;
   
   enum {R_NORMAL, R_Q, R_SLASH_IN_Q,
         R_COMMENT, R_LINE_START} state= R_LINE_START;
@@ -7590,7 +7590,7 @@ static void usage()
 }
 
 
-static my_bool
+static bool
 get_one_option(int optid, const struct my_option *opt, char *argument)
 {
   switch(optid) {
@@ -7722,7 +7722,7 @@ static int parse_args(int argc, char **argv)
   append - append to file instead of overwriting old file
 */
 
-void str_to_file2(const char *fname, char *str, size_t size, my_bool append)
+void str_to_file2(const char *fname, char *str, size_t size, bool append)
 {
   int fd;
   char buff[FN_REFLEN];
@@ -7913,7 +7913,7 @@ void fix_win_paths(const char *val, size_t len)
 */
 
 static void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD* field,
-                         char* val, size_t len, my_bool is_null)
+                         char* val, size_t len, bool is_null)
 {
   char null[]= "NULL";
 
@@ -8008,7 +8008,7 @@ static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
                                MYSQL_FIELD *fields, uint num_fields)
 {
   MYSQL_BIND *my_bind;
-  my_bool *is_null;
+  bool *is_null;
   ulong *length;
   uint i;
 
@@ -8019,9 +8019,9 @@ static void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
   length= (ulong*) my_malloc(PSI_NOT_INSTRUMENTED,
                              num_fields * sizeof(ulong),
 			     MYF(MY_WME | MY_FAE));
-  is_null= (my_bool*) my_malloc(PSI_NOT_INSTRUMENTED,
-                                num_fields * sizeof(my_bool),
-				MYF(MY_WME | MY_FAE));
+  is_null= (bool*) my_malloc(PSI_NOT_INSTRUMENTED,
+                             num_fields * sizeof(bool),
+			     MYF(MY_WME | MY_FAE));
 
   /* Allocate data for the result of each field */
   for (i= 0; i < num_fields; i++)
@@ -8646,7 +8646,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
     buffer to allocate for result data
   */
   {
-    my_bool one= 1;
+    bool one= 1;
     if (mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void*) &one))
       die("mysql_stmt_attr_set(STMT_ATTR_UPDATE_MAX_LENGTH) failed': %d %s",
           mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
@@ -8845,9 +8845,8 @@ static void run_query(struct st_connection *cn, struct st_command *command, int 
   DYNAMIC_STRING eval_query;
   char *query;
   size_t query_len;
-  my_bool view_created= 0, sp_created= 0;
-  my_bool complete_query= ((flags & QUERY_SEND_FLAG) &&
-                           (flags & QUERY_REAP_FLAG));
+  bool view_created= 0, sp_created= 0;
+  bool complete_query= ((flags & QUERY_SEND_FLAG) && (flags & QUERY_REAP_FLAG));
   DBUG_ENTER("run_query");
   dynstr_set(&ds_result, "");
 
@@ -9498,7 +9497,7 @@ static void init_signal_handling(void)
 int main(int argc, char **argv)
 {
   struct st_command *command;
-  my_bool q_send_flag= 0, abort_flag= 0;
+  bool q_send_flag= 0, abort_flag= 0;
   uint command_executed= 0, last_command_executed= 0;
   char output_file[FN_REFLEN];
   MY_INIT(argv[0]);
@@ -9729,7 +9728,7 @@ int main(int argc, char **argv)
                               abort_on_error);
     
     /* delimiter needs to be executed so we can continue to parse */
-    my_bool ok_to_do= cur_block->ok || command->type == Q_DELIMITER;
+    bool ok_to_do= cur_block->ok || command->type == Q_DELIMITER;
     /*
       Some commands need to be "done" the first time if they may get
       re-iterated over in a true context. This can only happen if there's 
@@ -9897,7 +9896,7 @@ int main(int argc, char **argv)
       case Q_QUERY:
       case Q_REAP:
       {
-	my_bool old_display_result_vertically= display_result_vertically;
+	bool old_display_result_vertically= display_result_vertically;
         /* Default is full query, both reap and send  */
         int flags= QUERY_REAP_FLAG | QUERY_SEND_FLAG;
 
@@ -10198,7 +10197,7 @@ int main(int argc, char **argv)
   if (parsing_disabled)
     die("Test ended with parsing disabled");
 
-  my_bool empty_result= FALSE;
+  bool empty_result= FALSE;
   
   /*
     The whole test has been executed _sucessfully_.

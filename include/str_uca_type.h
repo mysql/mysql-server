@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ enum enum_case_first
 struct Coll_param
 {
   struct Reorder_param *reorder_param;
-  my_bool               norm_enabled; // false = normalization off, default;
+  bool                  norm_enabled; // false = normalization off, default;
                                       // true = on
   enum enum_case_first  case_first;
 };

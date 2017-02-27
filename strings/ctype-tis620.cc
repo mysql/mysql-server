@@ -532,7 +532,7 @@ static
 int my_strnncoll_tis620(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                         const uchar *s1, size_t len1, 
                         const uchar *s2, size_t len2,
-                        my_bool s2_is_prefix)
+                        bool s2_is_prefix)
 {
   uchar	buf[80] ;
   uchar *tc1, *tc2;

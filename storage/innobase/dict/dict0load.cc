@@ -105,7 +105,7 @@ dict_load_table_low(
 
 /* If this flag is TRUE, then we will load the cluster index's (and tables')
 metadata even if it is marked as "corrupted". */
-my_bool     srv_load_corrupted = FALSE;
+bool     srv_load_corrupted = FALSE;
 
 #ifdef UNIV_DEBUG
 /****************************************************************//**

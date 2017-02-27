@@ -1,3 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs232=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+drop schema test;
+create schema test character set latin1;
+use test;
+--enable_query_log
+########################################
+
 #--disable_abort_on_error
 #
 # Simple test for the partition storage engine
@@ -2680,3 +2691,11 @@ DROP TABLE example;
 --rmdir $MYSQLTEST_VARDIR/p3Data/test
 --rmdir $MYSQLTEST_VARDIR/p3Data
 
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+drop schema test;
+--eval create schema test character set $testdbcs232;
+--enable_query_log
+########################################

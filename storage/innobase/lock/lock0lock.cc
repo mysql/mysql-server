@@ -52,7 +52,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "ut0vec.h"
 
 /* Flag to enable/disable deadlock detector. */
-my_bool	innobase_deadlock_detect = TRUE;
+bool	innobase_deadlock_detect = TRUE;
 
 /** Total number of cached record locks */
 static const ulint	REC_LOCK_CACHE = 8;

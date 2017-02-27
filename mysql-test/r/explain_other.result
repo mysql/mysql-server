@@ -1427,8 +1427,16 @@ connection: cq
 1
 # Connection default
 DROP TABLE t1, t2;
-SET DEBUG_SYNC= 'RESET';
 # End of test Bug#19822146
+#
+# Bug#25422034 CRASH IN TABLE_LIST::QUERY_BLOCK_ID_FOR_EXPLAIN DURING EXPLAIN FOR CONNECTION
+#
+create table t1(a int);
+insert into t1 values(1),(2);
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'select * from (select * from t1) dt'
+ERROR HY000: EXPLAIN FOR CONNECTION command is supported only for SELECT/UPDATE/INSERT/DELETE/REPLACE
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
 USE test;
 DROP DATABASE mysqltest1;
 # End of test

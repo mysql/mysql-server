@@ -248,7 +248,7 @@ public:
     return HA_CACHE_TBL_NOCACHE;
   }
 
-  virtual my_bool
+  virtual bool
   register_query_cache_table(
     THD *, char *, size_t, qc_engine_callback *engine_callback, ulonglong *)
   {

@@ -2206,3 +2206,12 @@ DROP TABLE t1;
 set information_schema_stats=latest;
 SELECT INDEX_NAME FROM INFORMATION_SCHEMA.`STATISTICS` WHERE `TABLE_NAME` = 'innodb_table_stats' AND Cardinality ;
 
+--echo #
+--echo # Bug#25188540 FIELD_TINY::VAL_INT(): ASSERTION `!TABLE || (!TABLE->READ_SET |......)' FAILED
+--echo #
+
+CREATE TABLE t1 (a INT);
+SET SESSION optimizer_switch='derived_merge=off';
+SHOW FIELDS FROM t1;
+SET SESSION optimizer_switch=DEFAULT;
+DROP TABLE t1;

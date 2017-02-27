@@ -945,9 +945,6 @@ do
   if test -f "$pid_file.shutdown"	# created to signal that it must stop
   then
     log_notice "$pid_file.shutdown present. The server will not restart."
-    if [ ! -h "$pid_file.shutdown" ]; then
-      rm -f "$pid_file.shutdown"
-    fi
     break
   fi
 
@@ -1018,4 +1015,12 @@ do
   log_notice "mysqld restarted"
 done
 
+if [ ! -h "$pid_file.shutdown" ]; then
+  rm -f "$pid_file.shutdown"
+fi
+
 log_notice "mysqld from pid file $pid_file ended"
+
+if [ ! -h "$safe_pid" ]; then
+  rm -f "$safe_pid"                       # Some Extra Safety. File is deleted
+fi                                        # once the mysqld process ends.

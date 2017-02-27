@@ -88,7 +88,7 @@ FT_WORD * ft_linearize(TREE *wtree, MEM_ROOT *mem_root)
   DBUG_RETURN(wlist);
 }
 
-my_bool ft_boolean_check_syntax_string(const uchar *str)
+bool ft_boolean_check_syntax_string(const uchar *str)
 {
   uint i, j;
 
@@ -211,7 +211,7 @@ ret:
 
 uchar ft_simple_get_word(const CHARSET_INFO *cs, uchar **start,
                          const uchar *end,
-                         FT_WORD *word, my_bool skip_stopwords)
+                         FT_WORD *word, bool skip_stopwords)
 {
   uchar *doc= *start;
   uint mwc, length;

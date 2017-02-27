@@ -24,8 +24,8 @@ namespace keyring
     Buffered_file_io_10(ILogger *logger) : Buffered_file_io(logger),
       file_version("Keyring file version:1.0")
     {}
-    my_bool flush_to_file(PSI_file_key *file_key, const std::string* filename,
-                          const Digest *digest);
+    bool flush_to_file(PSI_file_key *file_key, const std::string* filename,
+                       const Digest *digest);
     size_t get_memory_needed_for_buffer();
   private:
     std::string file_version;

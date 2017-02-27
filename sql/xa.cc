@@ -104,8 +104,8 @@ void xid_t::set(my_xid xid)
 }
 
 
-static my_bool xacommit_handlerton(THD *unused1, plugin_ref plugin,
-                                   void *arg)
+static bool xacommit_handlerton(THD *unused1, plugin_ref plugin,
+                                void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->recover)
@@ -115,8 +115,8 @@ static my_bool xacommit_handlerton(THD *unused1, plugin_ref plugin,
 }
 
 
-static my_bool xarollback_handlerton(THD *unused1, plugin_ref plugin,
-                                     void *arg)
+static bool xarollback_handlerton(THD *unused1, plugin_ref plugin,
+                                  void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->recover)
@@ -142,8 +142,8 @@ struct xarecover_st
 };
 
 
-static my_bool xarecover_handlerton(THD *unused, plugin_ref plugin,
-                                    void *arg)
+static bool xarecover_handlerton(THD *unused, plugin_ref plugin,
+                                 void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   struct xarecover_st *info= (struct xarecover_st *) arg;
@@ -1324,7 +1324,7 @@ bool applier_reset_xa_trans(THD *thd)
   @return    FALSE   on success, TRUE otherwise.
 */
 
-my_bool detach_native_trx(THD *thd, plugin_ref plugin, void *unused)
+bool detach_native_trx(THD *thd, plugin_ref plugin, void *unused)
 {
   handlerton *hton= plugin_data<handlerton *>(plugin);
 

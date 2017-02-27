@@ -16,7 +16,6 @@ typedef unsigned long long my_ulonglong;
 typedef intptr_t intptr;
 typedef ulonglong my_off_t;
 typedef ptrdiff_t my_ptrdiff_t;
-typedef char my_bool;
 typedef int myf;
 #include "my_macros.h"
 #include "my_psi_config.h"

@@ -1012,7 +1012,7 @@ int mysql_audit_notify(THD *thd,
 
   @return FALSE is always returned.
 */
-static my_bool acquire_lookup_mask(THD *thd, plugin_ref plugin, void *arg)
+static bool acquire_lookup_mask(THD *thd, plugin_ref plugin, void *arg)
 {
   st_mysql_subscribe_event *evt= static_cast<st_mysql_subscribe_event *>(arg);
   st_mysql_audit *audit= plugin_data<st_mysql_audit *>(plugin);
@@ -1035,7 +1035,7 @@ static my_bool acquire_lookup_mask(THD *thd, plugin_ref plugin, void *arg)
 
   @return This function always returns FALSE.
 */
-static my_bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
+static bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
 {
   st_mysql_subscribe_event *evt= static_cast<st_mysql_subscribe_event *>(arg);
   st_mysql_audit *data= plugin_data<st_mysql_audit*>(plugin);
@@ -1288,7 +1288,7 @@ int initialize_audit_plugin(st_plugin_int *plugin)
 
   @retval FALSE  always
 */
-static my_bool calc_class_mask(THD *thd, plugin_ref plugin, void *arg)
+static bool calc_class_mask(THD *thd, plugin_ref plugin, void *arg)
 {
   st_mysql_audit *data= plugin_data<st_mysql_audit*>(plugin);
   if (data)
@@ -1363,7 +1363,7 @@ static int plugins_dispatch(THD *thd, plugin_ref plugin, void *arg)
                             event_generic->event);
 }
 
-static my_bool plugins_dispatch_bool(THD *thd, plugin_ref plugin, void *arg)
+static bool plugins_dispatch_bool(THD *thd, plugin_ref plugin, void *arg)
 {
   return plugins_dispatch(thd, plugin, arg) ? TRUE : FALSE;
 }
