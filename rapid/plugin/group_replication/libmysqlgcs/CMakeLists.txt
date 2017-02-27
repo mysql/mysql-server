@@ -1,4 +1,4 @@
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -138,6 +138,13 @@ ELSEIF(WITH_GCS_LOG_DEBUG)
 ENDIF()
 
 ### Configuration ###
+
+# Used to inhibit false posives on CLang 3.8/8.0
+IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+  ADD_COMPILE_FLAGS(${XCOM_SOURCES}
+                    COMPILE_FLAGS
+                    "-Wno-conditional-uninitialized")
+ENDIF()
 
 # disabling warnings for generated code
 IF(MSVC)
