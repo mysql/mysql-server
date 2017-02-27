@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1820,6 +1820,23 @@ int ndbcluster_log_schema_op(THD *thd,
     char key[FN_REFLEN + 1];
     build_table_filename(key, sizeof(key) - 1, db, table_name, "", 0);
     ndb_schema_object= ndb_get_schema_object(key, true);
+
+    /**
+     * We will either get a newly created schema_object, or a 
+     * 'all-clear' schema_object completed but still referred
+     * by my binlog-injector-thread. In both cases there should
+     * be no outstanding SLOCK's.
+     * See also the 'ndb_binlog_schema_object_race' error injection.
+     */ 
+    DBUG_ASSERT(bitmap_is_clear_all(&ndb_schema_object->slock_bitmap));
+
+    /**
+     * Expect answer from all other nodes by default(those
+     * who are not subscribed will be filtered away by
+     * the Coordinator which keep track of such stuff)
+     */
+    bitmap_set_all(&ndb_schema_object->slock_bitmap);
+
     ndb_schema_object->table_id= ndb_table_id;
     ndb_schema_object->table_version= ndb_table_version;
 
@@ -2045,7 +2062,13 @@ end:
   /*
     Wait for other mysqld's to acknowledge the table operation
   */
-  if (ndb_error == 0 && !bitmap_is_clear_all(&ndb_schema_object->slock_bitmap))
+  if (unlikely(ndb_error))
+  {
+    sql_print_error("NDB %s: distributing %s err: %u",
+                    type_str, ndb_schema_object->key,
+                    ndb_error->code);
+  }
+  else if (!bitmap_is_clear_all(&ndb_schema_object->slock_bitmap))
   {
     int max_timeout= DEFAULT_SYNC_TIMEOUT;
     pthread_mutex_lock(&ndb_schema_object->mutex);
@@ -2095,12 +2118,6 @@ end:
       }
     }
     pthread_mutex_unlock(&ndb_schema_object->mutex);
-  }
-  else if (ndb_error)
-  {
-    sql_print_error("NDB %s: distributing %s err: %u",
-                    type_str, ndb_schema_object->key,
-                    ndb_error->code);
   }
   else if (opt_ndb_extra_logging > 19)
   {
@@ -3089,6 +3106,22 @@ class Ndb_schema_event_handler {
     pthread_mutex_unlock(&ndb_schema_object->mutex);
     pthread_cond_signal(&ndb_schema_object->cond);
 
+    /**
+     * There is a possible race condition between this binlog-thread,
+     * which has not yet released its schema_object, and the
+     * coordinator which possibly release its reference
+     * to the same schema_object when signaled above.
+     *
+     * If the coordinator then starts yet another schema operation
+     * on the same schema / table, it will need a schema_object with
+     * the same key as the one already completed, and which this 
+     * thread still referrs. Thus, it will get this schema_object,
+     * instead of creating a new one as normally expected.
+     */
+    DBUG_EXECUTE_IF("ndb_binlog_schema_object_race",
+    {
+      NdbSleep_MilliSleep(10);
+    });
     ndb_free_schema_object(&ndb_schema_object);
     DBUG_VOID_RETURN;
   }
