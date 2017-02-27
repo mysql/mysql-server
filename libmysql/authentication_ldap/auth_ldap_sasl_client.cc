@@ -12,7 +12,7 @@
 #include <mysql.h>
 
 MYSQL_PLUGIN g_ldap_plugin_info = NULL;
-Logger<Log_writer_error> g_logger("");
+Logger g_logger;
 
 void Sasl_client::interact(sasl_interact_t *ilist) {
   while (ilist->id != SASL_CB_LIST_END) {

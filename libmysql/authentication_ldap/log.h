@@ -12,7 +12,6 @@
 #include <my_dbug.h>
 
 extern MYSQL_PLUGIN g_ldap_plugin_info;
-//#define LDAP_SERVER_PLUGIN
 
 struct log_type {
   typedef enum {
@@ -24,78 +23,30 @@ enum log_level {
   LOG_LEVEL_NONE = 1, LOG_LEVEL_ERROR, LOG_LEVEL_ERROR_WARNING, LOG_LEVEL_ERROR_WARNING_INFO, LOG_LEVEL_ALL
 };
 
-class Log_writer {
-public:
-  virtual ~Log_writer() {};
-  virtual int open(std::string file_name) = 0;
-  virtual int close() = 0;
-  virtual void write(std::string data) = 0;
-};
-
-class Log_writer_error: Log_writer {
+class Log_writer_error {
 public:
   Log_writer_error();
   ~Log_writer_error();
-  int open(std::string file_name);
+  int open();
   int close();
   void write(std::string data);
 };
 
-class Log_writer_file: Log_writer {
-public:
-  Log_writer_file();
-  ~Log_writer_file();
-  int open(std::string file_name);
-  int close();
-  void write(std::string data);
-
-private:
-  std::string m_file_name;
-  std::ofstream *m_file_stream;
-};
-
-template<class LOGGER_TYPE>
 class Logger {
 public:
-  Logger(std::string file_name);
   Logger();
   ~Logger();
   template<log_type::type type>
   void log(std::string msg);
   void set_log_level(log_level level);
 private:
-  Log_writer *m_log_writer;
+  Log_writer_error *m_log_writer;
   log_level m_log_level;
   int m_logger_initilzed;
 };
 
-template<class LOGGER_TYPE>
-Logger<LOGGER_TYPE>::Logger(std::string file_name) {
-  m_logger_initilzed = -1;
-  m_log_level = LOG_LEVEL_NONE;
-  m_log_writer = NULL;
-  m_log_writer = (Log_writer*) (new LOGGER_TYPE());
-  m_logger_initilzed = m_log_writer->open(file_name);
-}
-
-template<class LOGGER_TYPE>
-Logger<LOGGER_TYPE>::Logger() {
-  m_logger_initilzed = -1;
-  m_log_level = LOG_LEVEL_NONE;
-  m_log_writer = NULL;
-}
-
-template<class LOGGER_TYPE>
-Logger<LOGGER_TYPE>::~Logger() {
-  if (m_log_writer) {
-    m_log_writer->close();
-    delete (LOGGER_TYPE*) m_log_writer;
-  }
-}
-
-template<class LOGGER_TYPE>
 template<log_type::type type>
-void Logger<LOGGER_TYPE>::log(std::string msg) {
+void Logger::log(std::string msg) {
   std::stringstream header;
 #ifdef LDAP_SERVER_PLUGIN
   int plugin_error_level = MY_INFORMATION_LEVEL;
@@ -156,12 +107,8 @@ WRITE_SERVER_LOG:
   DBUG_PRINT("ldap plugin: ", (": %s", msg.c_str()));
 }
 
-template<class LOGGER_TYPE>
-void Logger<LOGGER_TYPE>::set_log_level(log_level level) {
-  m_log_level = level;
-}
 
-extern Logger<Log_writer_error> g_logger;
+extern Logger g_logger;
 
 #define log_dbg g_logger.log< log_type::LOG_DBG >
 #define log_info g_logger.log< log_type::LOG_INFO >
