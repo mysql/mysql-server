@@ -12,7 +12,7 @@
 #include <mysql.h>
 
 MYSQL_PLUGIN g_ldap_plugin_info = NULL;
-Logger<Log_writer_error> g_logger("");
+Logger *g_logger;
 
 void Sasl_client::interact(sasl_interact_t *ilist) {
   while (ilist->id != SASL_CB_LIST_END) {
@@ -208,7 +208,7 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   char *sasl_client_output = NULL;
   int sasl_client_output_len = 0;
   std::stringstream log_stream;
-
+  g_logger = new Logger();
   Sasl_client sasl_client;
   sasl_client.set_user_info(mysql->user, mysql->passwd);
   sasl_client.set_plugin_info(vio, mysql);
@@ -264,6 +264,10 @@ EXIT:
     log_error(log_stream.str());
   }
   rc_sasl = sasl_client.de_initilize();
+  if (g_logger) {
+    delete g_logger;
+    g_logger = NULL;
+  }
   return rc_auth;
 }
 
