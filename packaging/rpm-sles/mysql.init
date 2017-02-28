@@ -38,23 +38,23 @@ PROG=/usr/bin/mysqld_safe
 lockfile=/var/lock/subsys/mysql
 
 get_option () {
-    local section=$1
-    local option=$2
-    local default=$3
-    ret=$(/usr/bin/my_print_defaults $section | grep '^--'${option}'=' | cut -d= -f2-)
-    [ -z $ret ] && ret=$default
+    local option=$1
+    local default=$2
+    shift 2
+    ret=$(/usr/bin/my_print_defaults "$@" | sed -n "s/^--${option}=//p" | tail -n 1)
+    [ -z $ret ] && ret=${default}
     echo $ret
 }
 
-datadir=$(get_option mysqld datadir "/var/lib/mysql")
-socket=$(get_option  mysqld socket "$datadir/mysql.sock")
-pidfile=$(get_option mysqld_safe pid-file "/var/run/mysql/mysqld.pid")
+datadir=$(get_option datadir "/var/lib/mysql" mysqld)
+socket=$(get_option  socket "$datadir/mysql.sock" mysqld)
+pidfile=$(get_option pid-file "/var/run/mysql/mysqld.pid" mysqld mysqld_safe)
 
 install_db () {
     # Note: something different than datadir=/var/lib/mysql requires 
     # SELinux policy changes (in enforcing mode)
-    datadir=$(get_option mysqld datadir "/var/lib/mysql")
-    logfile=$(get_option mysqld_safe log-error "/var/log/mysql/mysqld.log")
+    datadir=$(get_option datadir "/var/lib/mysql" mysqld)
+    logfile=$(get_option log-error "/var/log/mysql/mysqld.log" mysqld mysqld_safe)
 
     # Restore log, dir, perms and SELinux contexts
     if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
