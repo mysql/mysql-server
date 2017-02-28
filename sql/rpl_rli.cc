@@ -1346,7 +1346,9 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
                               group_relay_log_pos,
                               false/*need_data_lock=false*/, errmsg, 0);
   if (!inited && error_on_rli_init_info)
-    relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
+    relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT,
+                    true/*need_lock_log=true*/,
+                    true/*need_lock_index=true*/);
 err:
 #ifndef DBUG_OFF
   char buf[22];
@@ -2355,7 +2357,9 @@ err:
   error_on_rli_init_info= true;
   if (msg)
     sql_print_error("%s.", msg);
-  relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
+  relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT,
+                  true/*need_lock_log=true*/,
+                  true/*need_lock_index=true*/);
   DBUG_RETURN(error);
 }
 
@@ -2376,7 +2380,9 @@ void Relay_log_info::end_info()
     cur_log_fd= -1;
   }
   inited = 0;
-  relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
+  relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT,
+                  true/*need_lock_log=true*/,
+                  true/*need_lock_index=true*/);
   relay_log.harvest_bytes_written(&log_space_total);
   /*
     Delete the slave's temporary tables from memory.
