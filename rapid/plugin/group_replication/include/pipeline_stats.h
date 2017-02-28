@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,7 +97,7 @@ public:
     @param[in] buf raw data
     @param[in] len raw length
   */
-  Pipeline_stats_member_message(const unsigned char *buf, size_t len);
+  Pipeline_stats_member_message(const unsigned char *buf, uint64 len);
 
   /**
     Message destructor
@@ -151,9 +151,9 @@ protected:
     Message decoding method
 
     @param[in] buffer the received data
-    @param[in] length the received data size
+    @param[in] end    the end of the buffer
   */
-  void decode_payload(const unsigned char *buffer, size_t length);
+  void decode_payload(const unsigned char *buffer, const unsigned char* end);
 
 private:
   int32 m_transactions_waiting_certification;
@@ -356,7 +356,7 @@ public:
       @retval 0      OK
       @retval !=0    Error on queue
   */
-  int handle_stats_data(const uchar *data, size_t len,
+  int handle_stats_data(const uchar *data, uint64 len,
                         const std::string& member_id);
 
   /**

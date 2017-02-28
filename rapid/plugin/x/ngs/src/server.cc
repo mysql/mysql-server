@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,11 +17,6 @@
  * 02110-1301  USA
  */
 
-#if !defined(MYSQL_DYNAMIC_PLUGIN) && defined(WIN32) && !defined(XPLUGIN_UNIT_TESTS)
-// Needed for importing PERFORMANCE_SCHEMA plugin API.
-#define MYSQL_DYNAMIC_PLUGIN 1
-#endif // WIN32
-
 #include "ngs/server.h"
 #include "ngs/interface/client_interface.h"
 #include "ngs/interface/connection_acceptor_interface.h"
@@ -30,6 +25,7 @@
 #include "ngs/scheduler.h"
 #include "ngs/protocol_monitor.h"
 #include "ngs/protocol/protocol_config.h"
+#include "ngs/server_client_timeout.h"
 #include "ngs_common/connection_vio.h"
 #include "xpl_log.h"
 #include "mysqlx_version.h"
@@ -202,30 +198,6 @@ void Server::wait_for_clients_closure()
   }
 }
 
-void Server::validate_client_state(chrono::time_point &oldest_client_time, const chrono::time_point& time_of_release, Client_ptr client)
-{
-  const chrono::time_point client_time = client->get_accept_time();
-  const Client_interface::Client_state state = client->get_state();
-
-  if (Client_interface::Client_accepted_with_session != state &&
-      Client_interface::Client_running != state &&
-      Client_interface::Client_closing != state)
-  {
-    if (client_time <= time_of_release)
-    {
-      log_info("%s: release triggered by timeout in state:%i", client->client_id(), static_cast<int>(client->get_state()));
-      client->on_auth_timeout();
-      return;
-    }
-
-    if (!chrono::is_valid(oldest_client_time) ||
-        oldest_client_time > client_time)
-    {
-      oldest_client_time = client_time;
-    }
-  }
-}
-
 void Server::start_client_supervision_timer(const chrono::duration &oldest_object_time_ms)
 {
   log_debug("Supervision timer started %i ms", (int)chrono::to_milliseconds(oldest_object_time_ms));
@@ -248,18 +220,20 @@ bool Server::timeout_for_clients_validation()
 {
   m_timer_running = false;
 
-  chrono::time_point oldest_object_time;
+  log_debug("Supervision timeout - started client state verification");
 
-  log_info("Supervision timeout - started client state verification");
+  const chrono::time_point time_oldest =
+      chrono::now() - get_config()->connect_timeout;
+  const chrono::time_point time_to_release =
+      time_oldest + get_config()->connect_timeout_hysteresis;
 
-  chrono::time_point time_oldest = chrono::now() - get_config()->connect_timeout;
-  chrono::time_point time_to_release = time_oldest + get_config()->connect_timeout_hysteresis;
+  Server_client_timeout client_validator(time_to_release);
 
-  go_through_all_clients(ngs::bind(&Server::validate_client_state, this, ngs::ref(oldest_object_time), time_to_release, ngs::placeholders::_1));
+  go_through_all_clients(ngs::bind(&Server_client_timeout::validate_client_state, &client_validator, ngs::placeholders::_1));
 
-  if (chrono::is_valid(oldest_object_time))
+  if (chrono::is_valid(client_validator.get_oldest_client_accept_time()))
   {
-    start_client_supervision_timer(oldest_object_time - time_oldest);
+    start_client_supervision_timer(client_validator.get_oldest_client_accept_time() - time_oldest);
   }
   return false;
 }
@@ -297,6 +271,7 @@ void Server::on_accept(Connection_acceptor_interface &connection_acceptor)
     m_delegate->did_accept_client(*client);
 
     // connection accepted, add to client list and start handshake etc
+    client->reset_accept_time();
     m_client_list.add(client);
 
     Scheduler_dynamic::Task *task = ngs::allocate_object<Scheduler_dynamic::Task>(ngs::bind(&ngs::Client_interface::run, client,

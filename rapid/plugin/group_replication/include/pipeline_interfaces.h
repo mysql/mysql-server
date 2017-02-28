@@ -71,7 +71,7 @@ public:
     @param[in]  data             the packet data
     @param[in]  len              the packet length
   */
-  Data_packet(const uchar *data, uint len)
+  Data_packet(const uchar *data, ulong len)
     : Packet(DATA_PACKET_TYPE), payload(NULL), len(len)
   {
     payload= (uchar*)my_malloc(
@@ -86,7 +86,7 @@ public:
   }
 
   uchar *payload;
-  uint  len;
+  ulong len;
 };
 
 //Define the data packet type
@@ -419,7 +419,7 @@ private:
                   " Error: %d\n", error); /* purecov: inspected */
       return error; /* purecov: inspected */
     }
-    packet= new Data_packet((uchar*)packet_data.ptr(), packet_data.length());
+    packet= new Data_packet((uchar*)packet_data.ptr(), static_cast<ulong>(packet_data.length()));
 
     delete log_event;
     log_event= NULL;

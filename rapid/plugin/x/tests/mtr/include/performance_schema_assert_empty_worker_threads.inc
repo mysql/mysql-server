@@ -12,7 +12,7 @@
 --echo # Get actual number of worker threads
 --echo #
 
-let $wait_condition= SELECT COUNT(*)>=@@mysqlx_min_worker_threads FROM performance_schema.threads
+let $wait_condition= SELECT COUNT(*)=@@mysqlx_min_worker_threads FROM performance_schema.threads
                        WHERE name LIKE "thread/mysqlx/worker";
 source include/wait_condition_or_abort.inc;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -284,7 +284,7 @@ int channel_queue_packet(const char* channel, const char* buf, unsigned long len
     @retval REPLICATION_THREAD_WAIT_NO_INFO_ERROR     An error occurred
 */
 int channel_wait_until_apply_queue_applied(const char* channel,
-                                           long long timeout);
+                                           double timeout);
 
 /**
   Checks if the applier, and its workers when parallel applier is

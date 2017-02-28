@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -159,8 +159,8 @@ TrxUndoRsegsIterator::set_next()
 	/* We assume in purge of externally stored fields that
 	space id is in the range of UNDO tablespace space ids
 	unless space is system tablespace */
-	ut_a(m_purge_sys->rseg->space <= srv_undo_tablespaces_open
-		|| is_system_tablespace(
+	ut_a(srv_is_undo_tablespace(m_purge_sys->rseg->space)
+	     || is_system_tablespace(
 			m_purge_sys->rseg->space));
 
 	const page_size_t	page_size(m_purge_sys->rseg->page_size);
@@ -684,7 +684,7 @@ namespace undo {
 		/* Step-2: Create the log file, open it and write 0 to
 		indicate init phase. */
 		bool            ret;
-		os_file_t	handle = os_file_create(
+		pfs_os_file_t	handle = os_file_create(
 			innodb_log_file_key, log_file_name, OS_FILE_CREATE,
 			OS_FILE_NORMAL, OS_LOG_FILE, srv_read_only_mode, &ret);
 		if (!ret) {
@@ -742,7 +742,7 @@ namespace undo {
 		/* Step-2: Open log file and write magic number to
 		indicate done phase. */
 		bool    ret;
-		os_file_t	handle =
+		pfs_os_file_t	handle =
 			os_file_create_simple_no_error_handling(
 				innodb_log_file_key, log_file_name,
 				OS_FILE_OPEN, OS_FILE_READ_WRITE,
@@ -812,7 +812,7 @@ namespace undo {
 
 		if (exist) {
 			bool    ret;
-			os_file_t	handle =
+			pfs_os_file_t	handle =
 				os_file_create_simple_no_error_handling(
 					innodb_log_file_key, log_file_name,
 					OS_FILE_OPEN, OS_FILE_READ_WRITE,
@@ -915,6 +915,8 @@ trx_purge_mark_undo_for_truncate(
 
 	for (ulint i = 1; i <= srv_undo_tablespaces_active; i++) {
 
+		ut_ad(srv_undo_space_id_start != 0);
+
 		if (fil_space_get_size(space_id)
 		    > (srv_max_undo_log_size / srv_page_size)) {
 			/* Tablespace qualifies for truncate. */
@@ -923,12 +925,20 @@ trx_purge_mark_undo_for_truncate(
 			break;
 		}
 
-		space_id = ((space_id + 1) % (srv_undo_tablespaces_active + 1));
-		if (space_id == 0) {
+		space_id++;
+
+		if (space_id >= (srv_undo_space_id_start
+				 + srv_undo_tablespaces_active)) {
 			/* Note: UNDO tablespace ids starts from 1. */
-			++space_id;
+			space_id = srv_undo_space_id_start;
+		}
+
+		if (undo_trunc->is_marked()) {
+			break;
 		}
 	}
+
+	undo_trunc->set_scan_start(space_id);
 
 	/* Couldn't make any selection. */
 	if (!undo_trunc->is_marked()) {

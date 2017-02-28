@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -53,7 +53,6 @@ SET(xplugin_HDRS
   "${MYSQLX_PROJECT_DIR}/src/xpl_common_status_variables.h"
   "${MYSQLX_PROJECT_DIR}/src/xpl_global_status_variables.h"
   "${MYSQLX_PROJECT_DIR}/src/xpl_session_status_variables.h"
-  "${MYSQLX_PROJECT_DIR}/src/xpl_replication_observer.h"
   "${MYSQLX_PROJECT_DIR}/src/xpl_log.h"
   "${MYSQLX_PROJECT_DIR}/src/xpl_regex.h"
   "${MYSQLX_PROJECT_DIR}/src/auth_plain.h"
@@ -92,7 +91,6 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/xpl_client.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_dispatcher.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_system_variables.cc"
-  "${MYSQLX_PROJECT_DIR}/src/xpl_replication_observer.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_regex.cc"
   "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_factory.cc"
   "${MYSQLX_PROJECT_DIR}/src/mysql_variables.cc"
@@ -121,4 +119,3 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/notices.cc"
   ${ngs_SRC}
 )
-

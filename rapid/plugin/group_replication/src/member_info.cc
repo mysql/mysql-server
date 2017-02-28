@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ Group_member_info(char* hostname_arg,
     gtid_assignment_block_size(gtid_assignment_block_size_arg),
     unreachable(false),
     role(role_arg),
-    configuration_flags(0)
+    configuration_flags(0), conflict_detection_enable(false)
 {
   gcs_member_id= new Gcs_member_identifier(gcs_member_id_arg);
   member_version= new Member_version(member_version_arg.get_version());
@@ -65,7 +65,8 @@ Group_member_info::Group_member_info(Group_member_info& other)
     gtid_assignment_block_size(other.get_gtid_assignment_block_size()),
     unreachable(other.is_unreachable()),
     role(other.get_role()),
-    configuration_flags(other.get_configuration_flags())
+    configuration_flags(other.get_configuration_flags()),
+    conflict_detection_enable(other.is_conflict_detection_enabled())
 {
   gcs_member_id= new Gcs_member_identifier(other.get_gcs_member_id()
                                                .get_member_id());
@@ -73,7 +74,7 @@ Group_member_info::Group_member_info(Group_member_info& other)
                                          .get_version());
 }
 
-Group_member_info::Group_member_info(const uchar* data, size_t len)
+Group_member_info::Group_member_info(const uchar* data, uint64 len)
   : Plugin_gcs_message(CT_MEMBER_INFO_MESSAGE),
     gcs_member_id(NULL), member_version(NULL),
     unreachable(false)
@@ -139,12 +140,19 @@ Group_member_info::encode_payload(std::vector<unsigned char>* buffer) const
   encode_payload_item_int4(buffer, PIT_CONFIGURATION_FLAGS,
                            configuration_flags_aux);
 
+  /*
+    MySQL 5.7.18+ payloads
+  */
+  char conflict_detection_enable_aux= conflict_detection_enable ? '1' : '0';
+  encode_payload_item_char(buffer, PIT_CONFLICT_DETECTION_ENABLE,
+                           conflict_detection_enable_aux);
+
   DBUG_VOID_RETURN;
 }
 
 void
 Group_member_info::decode_payload(const unsigned char* buffer,
-                                  size_t length)
+                                  const unsigned char* end)
 {
   DBUG_ENTER("Group_member_info::decode_payload");
   const unsigned char *slider= buffer;
@@ -219,6 +227,32 @@ Group_member_info::decode_payload(const unsigned char* buffer,
                            &payload_item_type,
                            &configuration_flags_aux);
   configuration_flags= configuration_flags_aux;
+
+  /*
+    MySQL 5.7.18+ payloads
+    We need to check if there are more payload items to read, if the member
+    info message was send by a lower version member, there will not.
+  */
+  while (slider + Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE <= end)
+  {
+    // Read payload item header to find payload item length.
+    decode_payload_item_type_and_length(&slider,
+                                        &payload_item_type,
+                                        &payload_item_length);
+
+    switch (payload_item_type)
+    {
+      case PIT_CONFLICT_DETECTION_ENABLE:
+        if (slider + payload_item_length <= end)
+        {
+          unsigned char conflict_detection_enable_aux= *slider;
+          slider += payload_item_length;
+          conflict_detection_enable=
+              (conflict_detection_enable_aux == '1') ? true : false;
+        }
+        break;
+    }
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -343,6 +377,21 @@ Group_member_info::set_reachable()
   unreachable= false;
 }
 
+void Group_member_info::enable_conflict_detection()
+{
+  conflict_detection_enable= true;
+}
+
+void Group_member_info::disable_conflict_detection()
+{
+  conflict_detection_enable= false;
+}
+
+bool Group_member_info::is_conflict_detection_enabled()
+{
+  return conflict_detection_enable;
+}
+
 bool
 Group_member_info::operator <(Group_member_info& other)
 {
@@ -442,7 +491,7 @@ Group_member_info_manager::~Group_member_info_manager()
   delete members;
 }
 
-int
+size_t
 Group_member_info_manager::get_number_of_members()
 {
   return members->size();
@@ -655,6 +704,26 @@ Group_member_info_manager::clear_members()
   }
 }
 
+bool Group_member_info_manager::is_conflict_detection_enabled()
+{
+  bool conflict_detection= false;
+
+  mysql_mutex_lock(&update_lock);
+  map<string, Group_member_info*>::iterator it= members->begin();
+  while (it != members->end())
+  {
+    if ((*it).second != local_member_info)
+    {
+      conflict_detection|= (*it).second->is_conflict_detection_enabled();
+    }
+    ++it;
+  }
+  mysql_mutex_unlock(&update_lock);
+
+  return conflict_detection;
+}
+
+
 void
 Group_member_info_manager::encode(vector<uchar>* to_encode)
 {
@@ -665,7 +734,7 @@ Group_member_info_manager::encode(vector<uchar>* to_encode)
 }
 
 vector<Group_member_info*>*
-Group_member_info_manager::decode(const uchar* to_decode, size_t length)
+Group_member_info_manager::decode(const uchar* to_decode, uint64 length)
 {
   vector<Group_member_info*>* decoded_members= NULL;
 
@@ -768,7 +837,7 @@ Group_member_info_manager_message::encode_payload(std::vector<unsigned char>* bu
 
 void
 Group_member_info_manager_message::decode_payload(const unsigned char* buffer,
-                                                  size_t length)
+                                                  const unsigned char* end)
 {
   DBUG_ENTER("Group_member_info_manager_message::decode_payload");
   const unsigned char *slider= buffer;

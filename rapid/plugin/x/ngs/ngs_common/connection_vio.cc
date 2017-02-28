@@ -17,11 +17,6 @@
  * 02110-1301  USA
  */
 
-#if !defined(MYSQL_DYNAMIC_PLUGIN) && defined(WIN32) && !defined(XPLUGIN_UNIT_TESTS)
-// Needed for importing PERFORMANCE_SCHEMA plugin API.
-#define MYSQL_DYNAMIC_PLUGIN 1
-#endif // WIN32
-
 #include "ngs_common/connection_vio.h"
 #include "ngs_common/connection_type.h"
 #include "ngs_common/options_ssl.h"
@@ -64,6 +59,7 @@ my_socket Connection_vio::get_socket_id()
 ssize_t Connection_vio::write(const Const_buffer_sequence &data)
 {
   ssize_t c = 0;
+
   for (Const_buffer_sequence::const_iterator it = data.begin(); it != data.end(); ++it)
   {
     ssize_t n = write(it->first, it->second);
@@ -79,6 +75,10 @@ ssize_t Connection_vio::write(const Const_buffer_sequence &data)
 ssize_t Connection_vio::write(const char *buffer, const std::size_t buffer_size)
 {
   ssize_t bytes_to_send = buffer_size;
+
+  // vio_shutdown sets the vio->fd to INVALID_SOCKET thus it is not
+  // possible to use following assert without major changes in vio
+  // DBUG_ASSERT(INVALID_SOCKET != vio_fd(m_vio));
 
   do
   {
@@ -129,6 +129,11 @@ Connection_type Connection_vio::connection_type()
 ssize_t Connection_vio::read(char *buffer, const std::size_t buffer_size)
 {
   ssize_t bytes_to_send = buffer_size;
+
+  // vio_shutdown sets the vio->fd to INVALID_SOCKET thus it is not
+  // possible to use following assert without major changes in vio
+  // DBUG_ASSERT(INVALID_SOCKET != vio_fd(m_vio));
+
   do
   {
     const ssize_t result = vio_read(m_vio, (uchar*)buffer, bytes_to_send);

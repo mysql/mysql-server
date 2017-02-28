@@ -50,6 +50,8 @@ DELIMITER ;|
 
 eval CALL p1($min20087571, $max20087571, 100000);
 SELECT LENGTH(@terms);
+# Double stack size for sparc/developer studio.
+--replace_result 524288 262144 393216 196608
 SELECT @@global.thread_stack, @@global.max_allowed_packet;
 
 DROP FUNCTION f1;

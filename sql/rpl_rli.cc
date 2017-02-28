@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -273,7 +273,8 @@ void Relay_log_info::reset_notified_relay_log_change()
    @param shift          number of bits to shift by Worker due to the
                          current checkpoint change.
    @param new_ts         new seconds_behind_master timestamp value
-                         unless zero. Zero could be due to FD event.
+                         unless zero. Zero could be due to FD event
+                         or fake rotate event.
    @param need_data_lock False if caller has locked @c data_lock
 */
 void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
@@ -703,7 +704,7 @@ void Relay_log_info::fill_coord_err_buf(loglevel level, int err_code,
   @param[in]  log_name        log name to wait for,
   @param[in]  log_pos         position to wait for,
   @param[in]  timeout         @c timeout in seconds before giving up waiting.
-                              @c timeout is longlong whereas it should be ulong; but this is
+                              @c timeout is double whereas it should be ulong; but this is
                               to catch if the user submitted a negative timeout.
 
   @retval  -2   improper arguments (log_pos<0)
@@ -717,7 +718,7 @@ void Relay_log_info::fill_coord_err_buf(loglevel level, int err_code,
 
 int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
                                     longlong log_pos,
-                                    longlong timeout)
+                                    double timeout)
 {
   int event_count = 0;
   ulong init_abort_pos_wait;
@@ -734,7 +735,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
 
   DEBUG_SYNC(thd, "begin_master_pos_wait");
 
-  set_timespec(&abstime, timeout);
+  set_timespec_nsec(&abstime, (ulonglong)timeout * 1000000000ULL);
   mysql_mutex_lock(&data_lock);
   thd->ENTER_COND(&data_cond, &data_lock,
                   &stage_waiting_for_the_slave_thread_to_advance_position,
@@ -911,11 +912,11 @@ improper_arguments: %d  timed_out: %d",
 }
 
 int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
-                                      longlong timeout)
+                                      double timeout)
 {
   DBUG_ENTER("Relay_log_info::wait_for_gtid_set(thd, String, timeout)");
 
-  DBUG_PRINT("info", ("Waiting for %s timeout %lld", gtid->c_ptr_safe(),
+  DBUG_PRINT("info", ("Waiting for %s timeout %lf", gtid->c_ptr_safe(),
              timeout));
 
   Gtid_set wait_gtid_set(global_sid_map);
@@ -941,7 +942,7 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
   /Alfranio
 */
 int Relay_log_info::wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
-                                      longlong timeout)
+                                      double timeout)
 {
   int event_count = 0;
   ulong init_abort_pos_wait;
@@ -955,7 +956,8 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
 
   DEBUG_SYNC(thd, "begin_wait_for_gtid_set");
 
-  set_timespec(&abstime, timeout);
+  set_timespec_nsec(&abstime, (ulonglong) timeout * 1000000000ULL);
+
   mysql_mutex_lock(&data_lock);
   thd->ENTER_COND(&data_cond, &data_lock,
                   &stage_waiting_for_the_slave_thread_to_advance_position,

@@ -554,6 +554,7 @@ xdr_proto_sizeof (xcom_proto x_proto, xdrproc_t func, void *data)
   typedef bool_t (*dummyfunc2) (XDR *, caddr_t, u_int);
 #endif
 
+  memset(&ops, 0, sizeof(struct xdr_ops));
   ops.x_putlong = x_putlong;
   ops.x_putbytes = x_putbytes;
   ops.x_inline = x_inline;

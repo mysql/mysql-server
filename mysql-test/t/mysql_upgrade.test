@@ -286,6 +286,11 @@ DROP TABLE backup_user;
 --echo # Upgrading of sys schema tests
 --echo #
 
+# Save a copy of the user/tables_priv tables, to restore later
+# Otherwise the final mysql_upgrade will REPLACE and update timestamps etc.
+--let $backup= 1
+--source include/backup_tables_priv_and_users.inc
+
 --echo # Remove the sys schema, and check the --skip-sys-schema option
 DROP DATABASE sys;
 --exec $MYSQL_UPGRADE --skip-verbose --skip-sys-schema --force
@@ -323,6 +328,10 @@ SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA = 'sys
 DROP TABLE sys.sys_config;
 --exec $MYSQL_UPGRADE --skip-verbose --force
 SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TABLE_TYPE = 'BASE TABLE';
+
+# Restore the saved contents of mysql.user and mysql.tables_priv
+--let $restore= 1
+--source include/backup_tables_priv_and_users.inc
 
 --echo #
 --echo # BUG#18985579: "CHECK TABLE .. FOR UPGRADE" FAILS TO REPORT
@@ -366,6 +375,10 @@ DROP TABLE t1;
 --echo #
 --echo # WL #8350 ENSURE 5.7 SUPPORTS SMOOTH LIVE UPGRADE FROM 5.6
 --echo #
+
+call mtr.add_suppression("Column count of mysql.* is wrong. "
+                         "Expected .*, found .*. "
+                         "The table is probably corrupted");
 
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 # Backup mysql.user table
@@ -437,34 +450,35 @@ connection con3;
 SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
 
 --echo #Try granting all privileges on mysql db to user_nat_pass_pn using root
---echo #account - this should succeed as we are accessing mysql.db table which
---echo #has the same layout in 5.6 and 5.7
+--echo #account - this should fail since mysql.user table has 5.6 layout.
 connection con0;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 GRANT ALL PRIVILEGES ON mysql.* TO 'user_nat_pass_pn'@'%' WITH GRANT OPTION;
 
 connection con3;
---echo #Select on mysql.user should be possible - we have select privileges on
---echo #mysql database
+--echo #Select on mysql.user should not be possible since user_nat_pass_pn has
+--echo #no select privileges on mysql database
+--error ER_TABLEACCESS_DENIED_ERROR
 SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
 
---echo #Revoke all privileges from 'user_nat_pass_pn'@'%'
+--echo #Revoke all privileges from 'user_nat_pass_pn'@'%' - this should fail
+--echo #since mysql.user table has 5.6 layout.
 connection con0;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user_nat_pass_pn'@'%';
 
 connection con3;
---echo #Trying to do select on mysql.user table - should fail as
---echo #user_nat_pass_pn's prvileleges on mysql db were revoked
+--echo #Trying to do select on mysql.user table - this should fail since
+--echo #user_nat_pass_pn has no select prvileleges on mysql db.
 --error ER_TABLEACCESS_DENIED_ERROR
 SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
 
 connection con0;
---echo #All alter user commands are now dangerous to use. Alter user command
---echo #uses mapping from 5.7 while working on 5.6 database. For instance
---echo #setting password expire will cause 'Y' to get assigned to
---echo #authentication_string column instead of password_expired column!!
+--echo #All alter user commands should fail since mysql.user has 5.6 layout.
 SELECT authentication_string FROM mysql.user where user='user_nat_pass_pn';
 SELECT password_expired FROM mysql.user where user='user_nat_pass_pn';
 
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 ALTER USER 'user_nat_pass_pn'@'%' PASSWORD EXPIRE;
 
 SELECT authentication_string FROM mysql.user WHERE user='user_nat_pass_pn';

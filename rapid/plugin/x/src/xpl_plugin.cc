@@ -15,9 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#if !defined(MYSQL_DYNAMIC_PLUGIN) && defined(WIN32) && !defined(XPLUGIN_UNIT_TESTS)
-#define MYSQL_DYNAMIC_PLUGIN 1
-#endif
 #include <my_config.h>
 
 #include <mysql/plugin.h>
@@ -28,7 +25,6 @@
 #include "xpl_server.h"
 #include "xpl_performance_schema.h"
 #include "mysqlx_version.h"
-#include "xpl_replication_observer.h"
 #include "xpl_log.h"
 
 #include <stdio.h>                            // Solaris header file bug.
@@ -89,13 +85,6 @@ int xpl_plugin_init(MYSQL_PLUGIN p)
 
   xpl_init_performance_schema();
 
-  if (xpl::xpl_register_server_observers(p) != 0)
-  {
-    xpl::plugin_log_message(&p, MY_WARNING_LEVEL, "Error registering server observers");
-
-    return 1;
-  }
-
   return xpl::Server::main(p);
 }
 
@@ -112,9 +101,6 @@ int xpl_plugin_init(MYSQL_PLUGIN p)
  */
 int xpl_plugin_deinit(MYSQL_PLUGIN p)
 {
-  if (xpl::xpl_unregister_server_observers(p) != 0)
-    xpl::plugin_log_message(&p, MY_WARNING_LEVEL, "Error unregistering server observers");
-
   return xpl::Server::exit(p);
 }
 
@@ -188,7 +174,7 @@ static MYSQL_SYSVAR_STR(socket, xpl::Plugin_system_variables::socket,
 
 static MYSQL_SYSVAR_STR(bind_address, xpl::Plugin_system_variables::bind_address,
       PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
-      "Address to which X Plugin should bind the TCP socket.", NULL, NULL, "0.0.0.0");
+      "Address to which X Plugin should bind the TCP socket.", NULL, NULL, "*");
 
 static MYSQL_SYSVAR_UINT(port_open_timeout, xpl::Plugin_system_variables::port_open_timeout,
       PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG ,

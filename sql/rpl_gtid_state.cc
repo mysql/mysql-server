@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -312,20 +312,20 @@ bool Gtid_state::wait_for_gtid(THD *thd, const Gtid &gtid,
 
 
 bool Gtid_state::wait_for_gtid_set(THD *thd, Gtid_set* wait_for,
-                                   longlong timeout)
+                                   double timeout)
 {
   struct timespec abstime;
   DBUG_ENTER("Gtid_state::wait_for_gtid_set");
   DEBUG_SYNC(thd, "begin_wait_for_executed_gtid_set");
   wait_for->dbug_print("Waiting for");
-  DBUG_PRINT("info", ("Timeout %lld", timeout));
+  DBUG_PRINT("info", ("Timeout %f", timeout));
 
   global_sid_lock->assert_some_rdlock();
 
   DBUG_ASSERT(wait_for->get_sid_map() == global_sid_map);
 
   if (timeout > 0)
-    set_timespec(&abstime, timeout);
+    set_timespec_nsec(&abstime, (ulonglong) timeout * 1000000000ULL);
 
   /*
     Algorithm:

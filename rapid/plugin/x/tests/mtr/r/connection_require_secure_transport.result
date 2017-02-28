@@ -60,7 +60,7 @@ Mysqlx.Error {
 }
 
 not ok
-in main, line 0:ERROR: Secure transport required. To log in you must use TCP+SSL or UNIX socket connection. (code 1045)
+Application terminated with expected error: Secure transport required. To log in you must use TCP+SSL or UNIX socket connection. (code 1045)
 not ok
 SET GLOBAL require_secure_transport=OFF;
 send Mysqlx.Session.AuthenticateStart {

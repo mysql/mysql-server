@@ -41,6 +41,15 @@ Matching lines are:
 DATE_TIME [Warning] Plugin group_replication reported: 'The group replication user is not present in the server. The user will be recreated, please do not remove it'
 Occurrences of 'The group replication user is not present in the server. The user will be recreated' in the input file: 1
 #
+# Without start install and uninstall plugin and verify that user don't exist
+#
+UNINSTALL PLUGIN group_replication;
+INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
+include/assert.inc [The group replication user should exist after install]
+UNINSTALL PLUGIN group_replication;
+include/assert.inc [The group replication user shouldn't exist after uninstall]
+#
 # Cleaning
 #
+INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
 include/group_replication_end.inc

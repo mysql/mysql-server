@@ -288,6 +288,8 @@ void Sql_formatter::format_dump_start(
     "FOREIGN_KEY_CHECKS=0;\n" << "SET @OLD_SQL_MODE=@@SQL_MODE;\n"
     "SET SQL_MODE=\"NO_AUTO_VALUE_ON_ZERO\";\n";
 
+  /* disable binlog */
+  out << "SET @@SESSION.SQL_LOG_BIN= 0;\n";
 
   if (m_options->m_timezone_consistent)
     out << "SET @OLD_TIME_ZONE=@@TIME_ZONE;\n"
@@ -299,6 +301,38 @@ void Sql_formatter::format_dump_start(
     "SET NAMES "
     << this->get_charset()->csname
     << ";\n";
+  if (dump_start_dump_task->m_gtid_mode == "OFF" &&
+      *((ulong*)&m_options->m_gtid_purged) == ((ulong)GTID_PURGED_ON))
+  {
+    m_options->m_mysql_chain_element_options->get_program()->error(
+      Mysql::Tools::Base::Message_data(1, "Server has GTIDs disabled.\n",
+      Mysql::Tools::Base::Message_type_error));
+    return;
+  }
+  if (dump_start_dump_task->m_gtid_mode != "OFF")
+  {
+    /*
+     value for m_gtid_purged is set by typecasting its address to ulong*
+     however below conditions fails if we do direct comparison without
+     typecasting on solaris sparc. Guessing that this is due to differnt
+     endianess.
+    */
+    if (*((ulong*)&m_options->m_gtid_purged) == ((ulong)GTID_PURGED_ON) ||
+        *((ulong*)&m_options->m_gtid_purged) == ((ulong)GTID_PURGED_AUTO))
+    {
+      if (!m_mysqldump_tool_options->m_dump_all_databases)
+      {
+        m_options->m_mysql_chain_element_options->get_program()->error(
+          Mysql::Tools::Base::Message_data(1,
+          "A partial dump from a server that has GTIDs is not allowed.\n",
+          Mysql::Tools::Base::Message_type_error));
+        return;
+      }
+      std::string gtid_output("SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '");
+      gtid_output+= (dump_start_dump_task->m_gtid_executed + "';\n");
+      out << gtid_output;
+    }
+  }
 
   this->append_output(out.str());
 }
@@ -416,11 +450,13 @@ void Sql_formatter::format_object(Item_processing_data* item_to_process)
 Sql_formatter::Sql_formatter(I_connection_provider* connection_provider,
   Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
     message_handler, Simple_id_generator* object_id_generator,
+  const Mysqldump_tool_chain_maker_options* mysqldump_tool_options,
   const Sql_formatter_options* options)
   : Abstract_output_writer_wrapper(message_handler, object_id_generator),
   Abstract_mysql_chain_element_extension(
   connection_provider, message_handler,
   options->m_mysql_chain_element_options),
+  m_mysqldump_tool_options(mysqldump_tool_options),
   m_options(options)
 {
   m_escaping_runner= this->get_runner();

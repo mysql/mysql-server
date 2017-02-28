@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -877,9 +877,12 @@ void Gcs_xcom_interface::initialize_peer_nodes(const std::string *peer_nodes)
 {
 
   MYSQL_GCS_LOG_DEBUG("Initializing peers")
-  std::vector<std::string> processed_peers;
+  std::vector<std::string> processed_peers, invalid_processed_peers;
   Gcs_xcom_utils::process_peer_nodes(peer_nodes,
                                      processed_peers);
+  Gcs_xcom_utils::validate_peer_nodes(processed_peers,
+                                      invalid_processed_peers);
+
   std::vector<std::string>::iterator processed_peers_it;
   for(processed_peers_it= processed_peers.begin();
       processed_peers_it != processed_peers.end();
@@ -1024,7 +1027,16 @@ void cb_xcom_receive_data(synode_no message_id, node_set nodes, u_int size,
                           char *data)
 {
   const site_def *site= find_site_def(message_id);
+
+  if (site->nodeno == VOID_NODE_NO)
+  {
+    free_node_set(&nodes);
+    free(data);
+    return;
+  }
+
   Gcs_xcom_nodes *xcom_nodes= new Gcs_xcom_nodes(site, nodes);
+  assert(xcom_nodes->is_valid());
   free_node_set(&nodes);
 
   Gcs_xcom_notification *notification=
@@ -1205,7 +1217,15 @@ void do_cb_xcom_receive_data(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
 void cb_xcom_receive_global_view(synode_no config_id, synode_no message_id, node_set nodes)
 {
   const site_def *site= find_site_def(message_id);
+
+  if (site->nodeno == VOID_NODE_NO)
+  {
+    free_node_set(&nodes);
+    return;
+  }
+
   Gcs_xcom_nodes *xcom_nodes= new Gcs_xcom_nodes(site, nodes);
+  assert(xcom_nodes->is_valid());
   free_node_set(&nodes);
 
   Gcs_xcom_notification *notification=
@@ -1329,7 +1349,14 @@ int cb_xcom_match_port(xcom_port if_port)
 void cb_xcom_receive_local_view(synode_no message_id, node_set nodes)
 {
   const site_def *site= find_site_def(message_id);
+  if (site->nodeno == VOID_NODE_NO)
+  {
+    free_node_set(&nodes);
+    return;
+  }
+
   Gcs_xcom_nodes *xcom_nodes= new Gcs_xcom_nodes(site, nodes);
+  assert(xcom_nodes->is_valid());
   free_node_set(&nodes);
 
   Gcs_xcom_notification *notification=

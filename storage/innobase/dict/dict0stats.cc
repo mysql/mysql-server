@@ -681,6 +681,9 @@ dict_stats_copy(
 	      && (src_idx = dict_table_get_next_index(src_idx)))) {
 
 		if (dict_stats_should_ignore_index(dst_idx)) {
+			if (!(dst_idx->type & DICT_FTS)) {
+				dict_stats_empty_index(dst_idx);
+			}
 			continue;
 		}
 
@@ -1086,10 +1089,10 @@ dict_stats_analyze_index_level(
 		leaf-level delete marks because delete marks on
 		non-leaf level do not make sense. */
 
-		if (level == 0 && srv_stats_include_delete_marked ? 0:
+		if (level == 0 && (srv_stats_include_delete_marked ? 0:
 		    rec_get_deleted_flag(
 			    rec,
-			    page_is_comp(btr_pcur_get_page(&pcur)))) {
+			    page_is_comp(btr_pcur_get_page(&pcur))))) {
 
 			if (rec_is_last_on_page
 			    && !prev_rec_is_copied
@@ -3189,12 +3192,6 @@ dict_stats_update(
 		case DB_SUCCESS:
 
 			dict_table_stats_lock(table, RW_X_LATCH);
-
-			/* Initialize all stats to dummy values before
-			copying because dict_stats_table_clone_create() does
-			skip corrupted indexes so our dummy object 't' may
-			have less indexes than the real object 'table'. */
-			dict_stats_empty_table(table);
 
 			dict_stats_copy(table, t);
 

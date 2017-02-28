@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1396,6 +1396,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
     case MY_LEX_ESCAPE:
       if (lip->yyGet() == 'N')
       {					// Allow \N as shortcut for NULL
+        push_deprecated_warn(thd, "\\N", "NULL");
 	yylval->lex_str.str=(char*) "\\N";
 	yylval->lex_str.length=2;
 	return NULL_SYM;
@@ -2334,16 +2335,16 @@ void st_select_lex_unit::exclude_level()
         removed, we must also exclude the Name_resolution_context
         belonging to this level. Do this by looping through inner
         subqueries and changing their contexts' outer context pointers
-        to point to the outer context of the removed SELECT_LEX.
+        to point to the outer select's context.
       */
       for (SELECT_LEX *s= u->first_select(); s; s= s->next_select())
       {
         if (s->context.outer_context == &sl->context)
-          s->context.outer_context= sl->context.outer_context;
+          s->context.outer_context= &sl->outer_select()->context;
       }
       if (u->fake_select_lex &&
           u->fake_select_lex->context.outer_context == &sl->context)
-        u->fake_select_lex->context.outer_context= sl->context.outer_context;
+        u->fake_select_lex->context.outer_context= &sl->outer_select()->context;
       u->master= master;
       last= &(u->next);
     }
