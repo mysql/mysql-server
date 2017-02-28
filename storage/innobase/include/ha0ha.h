@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -107,7 +107,7 @@ chosen to be a slightly bigger prime number.
 @param level	in: level of the mutexes in the latching order
 @param n_m	in: number of mutexes to protect the hash table;
 		must be a power of 2, or 0 */
-# define ha_create(n_c,n_m,type,level) ha_create_func(n_c,level,n_m,type)
+# define ib_create(n_c,n_m,type,level) ha_create_func(n_c,level,n_m,type)
 #else /* UNIV_SYNC_DEBUG */
 /** Creates a hash table.
 @return		own: created table
@@ -116,7 +116,7 @@ chosen to be a slightly bigger prime number.
 @param level	in: level of the mutexes in the latching order
 @param n_m	in: number of mutexes to protect the hash table;
 		must be a power of 2, or 0 */
-# define ha_create(n_c,n_m,type,level) ha_create_func(n_c,n_m,type)
+# define ib_create(n_c,n_m,type,level) ha_create_func(n_c,n_m,type)
 #endif /* UNIV_SYNC_DEBUG */
 
 /*************************************************************//**

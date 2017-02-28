@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,7 +34,7 @@ os_file_create_simple() which opens or creates a file.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INLINE
-os_file_t
+pfs_os_file_t
 pfs_os_file_create_simple_func(
 /*===========================*/
 	mysql_pfs_key_t key,	/*!< in: Performance Schema Key */
@@ -47,7 +47,7 @@ pfs_os_file_create_simple_func(
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
-	os_file_t	file;
+	pfs_os_file_t	file;
 	struct PSI_file_locker* locker = NULL;
 	PSI_file_locker_state	state;
 
@@ -58,11 +58,13 @@ pfs_os_file_create_simple_func(
 					: PSI_FILE_OPEN),
 				     name, src_file, src_line);
 
-	file = os_file_create_simple_func(name, create_mode,
+	file.m_file = os_file_create_simple_func(name, create_mode,
 					  access_type, success);
+	file.m_psi = NULL;
 
-	/* Regsiter the returning "file" value with the system */
-	register_pfs_file_open_end(locker, file);
+	/* Regsiter psi value for the file */
+	register_pfs_file_open_end(locker, file,
+				(*success == TRUE ? success : 0));
 
 	return(file);
 }
@@ -76,7 +78,7 @@ monitor file creation/open.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INLINE
-os_file_t
+pfs_os_file_t
 pfs_os_file_create_simple_no_error_handling_func(
 /*=============================================*/
 	mysql_pfs_key_t key,	/*!< in: Performance Schema Key */
@@ -91,7 +93,7 @@ pfs_os_file_create_simple_no_error_handling_func(
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
-	os_file_t	file;
+	pfs_os_file_t	file;
 	struct PSI_file_locker* locker = NULL;
 	PSI_file_locker_state	state;
 
@@ -104,8 +106,10 @@ pfs_os_file_create_simple_no_error_handling_func(
 
 	file = os_file_create_simple_no_error_handling_func(
 		name, create_mode, access_type, success);
+	file.m_psi = NULL;
 
-	register_pfs_file_open_end(locker, file);
+	register_pfs_file_open_end(locker, file,
+				 (*success == TRUE ? success : 0));
 
 	return(file);
 }
@@ -118,7 +122,7 @@ Add instrumentation to monitor file creation/open.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INLINE
-os_file_t
+pfs_os_file_t
 pfs_os_file_create_func(
 /*====================*/
 	mysql_pfs_key_t key,	/*!< in: Performance Schema Key */
@@ -137,7 +141,7 @@ pfs_os_file_create_func(
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
-	os_file_t	file;
+	pfs_os_file_t	file;
 	struct PSI_file_locker* locker = NULL;
 	PSI_file_locker_state	state;
 
@@ -149,8 +153,10 @@ pfs_os_file_create_func(
 				     name, src_file, src_line);
 
 	file = os_file_create_func(name, create_mode, purpose, type, success);
+	file.m_psi = NULL;
 
-	register_pfs_file_open_end(locker, file);
+	register_pfs_file_open_end(locker, file,
+				(*success == TRUE ? success : 0));
 
 	return(file);
 }
@@ -164,7 +170,7 @@ UNIV_INLINE
 ibool
 pfs_os_file_close_func(
 /*===================*/
-        os_file_t	file,	/*!< in, own: handle to a file */
+        pfs_os_file_t	file,	/*!< in, own: handle to a file */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
@@ -176,7 +182,7 @@ pfs_os_file_close_func(
 	register_pfs_file_io_begin(&state, locker, file, 0, PSI_FILE_CLOSE,
 				   src_file, src_line);
 
-	result = os_file_close_func(file);
+	result = os_file_close_func(file.m_file);
 
 	register_pfs_file_io_end(locker, 0);
 
@@ -197,7 +203,7 @@ pfs_os_aio_func(
 	ulint		mode,	/*!< in: OS_AIO_NORMAL etc. I/O mode */
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_file_t	file,	/*!< in: handle to a file */
+	pfs_os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read or from which
 				to write */
 	os_offset_t	offset,	/*!< in: file offset where to read or write */
@@ -242,7 +248,7 @@ UNIV_INLINE
 ibool
 pfs_os_file_read_func(
 /*==================*/
-	os_file_t	file,	/*!< in: handle to a file */
+	pfs_os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
 	os_offset_t	offset,	/*!< in: file offset where to read */
 	ulint		n,	/*!< in: number of bytes to read */
@@ -256,7 +262,7 @@ pfs_os_file_read_func(
 	register_pfs_file_io_begin(&state, locker, file, n, PSI_FILE_READ,
 				   src_file, src_line);
 
-	result = os_file_read_func(file, buf, offset, n);
+	result = os_file_read_func(file.m_file, buf, offset, n);
 
 	register_pfs_file_io_end(locker, n);
 
@@ -275,7 +281,7 @@ UNIV_INLINE
 ibool
 pfs_os_file_read_no_error_handling_func(
 /*====================================*/
-	os_file_t	file,	/*!< in: handle to a file */
+	pfs_os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
 	os_offset_t	offset,	/*!< in: file offset where to read */
 	ulint		n,	/*!< in: number of bytes to read */
@@ -289,11 +295,48 @@ pfs_os_file_read_no_error_handling_func(
 	register_pfs_file_io_begin(&state, locker, file, n, PSI_FILE_READ,
 				   src_file, src_line);
 
-	result = os_file_read_no_error_handling_func(file, buf, offset, n);
+	result = os_file_read_no_error_handling_func(file.m_file, buf, offset, n);
 
 	register_pfs_file_io_end(locker, n);
 
 	return(result);
+}
+
+/** NOTE! Please use the corresponding macro
+os_file_read_no_error_handling_int_fd(), not directly this function!
+This is the performance schema instrumented wrapper function for
+os_file_read_no_error_handling_int_fd_func() which requests a
+synchronous  read operation.
+@return TRUE if request was successful, FALSE if fail */
+UNIV_INLINE
+ibool
+pfs_os_file_read_no_error_handling_int_fd_func(
+        int             file,	/*!< in: handle to a file */
+        void*           buf,	/*!< in: buffer where to read */
+        os_offset_t     offset,	/*!< in: file offset where to read */
+        ulint           n,	/*!< in: number of bytes to read */
+        const char*     src_file,/*!< in: file name where func invoked */
+        ulint           src_line)/*!< in: line where the func invoked */
+{
+		
+       	PSI_file_locker_state   state;
+       	struct PSI_file_locker* locker = NULL;
+
+       	locker = PSI_FILE_CALL(get_thread_file_descriptor_locker)(
+                                &state, file, PSI_FILE_READ);
+       	if (locker != NULL) {
+      		PSI_FILE_CALL(start_file_wait)(
+                               locker, n,
+                               __FILE__, __LINE__);
+               	}
+      	ibool result = os_file_read_no_error_handling_func(
+                                OS_FILE_FROM_FD(file), buf, offset, n);
+
+       	if (locker != NULL) {
+                PSI_FILE_CALL(end_file_wait)(locker, n);
+        }
+
+       return(result);
 }
 
 /*******************************************************************//**
@@ -308,7 +351,7 @@ pfs_os_file_write_func(
 /*===================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	os_file_t	file,	/*!< in: handle to a file */
+	pfs_os_file_t	file,	/*!< in: handle to a file */
 	const void*	buf,	/*!< in: buffer from which to write */
 	os_offset_t	offset,	/*!< in: file offset where to write */
 	ulint		n,	/*!< in: number of bytes to write */
@@ -322,11 +365,48 @@ pfs_os_file_write_func(
 	register_pfs_file_io_begin(&state, locker, file, n, PSI_FILE_WRITE,
 				   src_file, src_line);
 
-	result = os_file_write_func(name, file, buf, offset, n);
+	result = os_file_write_func(name, file.m_file, buf, offset, n);
 
 	register_pfs_file_io_end(locker, n);
 
 	return(result);
+}
+
+/** NOTE! Please use the corresponding macro os_file_write(), not
+directly this function!
+This is the performance schema instrumented wrapper function for
+os_file_write() which requests a synchronous write operation.
+@return TRUE if request was successful, FALSE if fail */
+UNIV_INLINE
+ibool
+pfs_os_file_write_int_fd_func(
+        const char*     name,	/*!< in: name of the file or path as a
+                                null-terminated string */
+        int             file,	/*!< in: handle to a file */
+        const void*     buf,	/*!< in: buffer from which to write */
+        os_offset_t     offset,	/*!< in: file offset where to write */
+        ulint           n,	/*!< in: number of bytes to write */
+        const char*     src_file,/*!< in: file name where func invoked */
+        ulint           src_line)/*!< in: line where the func invoked */
+{
+       PSI_file_locker_state   state;
+       struct PSI_file_locker* locker = NULL;
+
+       locker = PSI_FILE_CALL(get_thread_file_descriptor_locker)(
+                       &state, file, PSI_FILE_WRITE);
+       if (locker != NULL) {
+                PSI_FILE_CALL(start_file_wait)(
+                                locker, n,
+                                __FILE__, __LINE__);
+                }
+        ibool result = os_file_write_func(
+                                name, OS_FILE_FROM_FD(file), buf, offset, n);
+
+        if (locker != NULL) {
+                PSI_FILE_CALL(end_file_wait)(locker, n);
+        }
+
+        return(result);
 }
 
 /***********************************************************************//**
@@ -339,7 +419,7 @@ UNIV_INLINE
 ibool
 pfs_os_file_flush_func(
 /*===================*/
-	os_file_t	file,	/*!< in, own: handle to a file */
+	pfs_os_file_t	file,	/*!< in, own: handle to a file */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
@@ -349,7 +429,7 @@ pfs_os_file_flush_func(
 
 	register_pfs_file_io_begin(&state, locker, file, 0, PSI_FILE_SYNC,
 				   src_file, src_line);
-	result = os_file_flush_func(file);
+	result = os_file_flush_func(file.m_file);
 
 	register_pfs_file_io_end(locker, 0);
 
@@ -377,12 +457,12 @@ pfs_os_file_rename_func(
 	struct PSI_file_locker*	locker = NULL;
 	PSI_file_locker_state	state;
 
-	register_pfs_file_open_begin(&state, locker, key, PSI_FILE_RENAME, newpath,
+	register_pfs_file_rename_begin(&state, locker, key, PSI_FILE_RENAME, newpath,
 				     src_file, src_line);
 
 	result = os_file_rename_func(oldpath, newpath);
 
-	register_pfs_file_open_end(locker, 0);
+	register_pfs_file_rename_end(locker, 0);
 
 	return(result);
 }

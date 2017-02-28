@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -81,7 +81,11 @@
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
+#else
+#include "lf.h"
+int dummy_variable_to_pull_in_lf_hash_functions= LF_HASH_OVERHEAD;
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
 #include <mysql/psi/mysql_idle.h>
 #include <mysql/psi/mysql_socket.h>
 #include <mysql/psi/mysql_statement.h>

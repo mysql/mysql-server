@@ -1,0 +1,102 @@
+--source include/have_innodb.inc
+# innodb_change_buffering_debug option is debug only
+--source include/have_debug.inc
+# Embedded server does not support crashing
+--source include/not_embedded.inc
+
+
+call mtr.add_suppression('InnoDB: Failed to find tablespace for table \'".*".".*"\' in the cache');
+call mtr.add_suppression('InnoDB: Allocated tablespace [0-9]+, old maximum was [0-9]+');
+
+CREATE TABLE t1(
+        a INT AUTO_INCREMENT PRIMARY KEY,
+        b CHAR(1),
+        c INT,
+        INDEX(b))
+ENGINE=InnoDB STATS_PERSISTENT=0;
+
+# The flag innodb_change_buffering_debug is only available in debug builds.
+# It instructs InnoDB to try to evict pages from the buffer pool when
+# change buffering is possible, so that the change buffer will be used
+# whenever possible.
+SET GLOBAL innodb_change_buffering_debug = 1;
+
+# Create enough rows for the table, so that the change buffer will be
+# used for modifying the secondary index page. There must be multiple
+# index pages, because changes to the root page are never buffered.
+INSERT INTO t1 VALUES(0,'x',1);
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+
+# Restart the server in force recovery mode
+--echo # Stop server
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Request shutdown
+-- send_shutdown
+
+# Call script that will poll the server waiting for it to disapear
+-- source include/wait_until_disconnected.inc
+
+--echo # Restart server.
+
+# Write file to make mysql-test-run.pl start up the server again, ensure
+# that no background threads are started, so that we can check that it
+# shuts down properly.
+--exec echo "restart:--innodb-force-recovery=6" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Turn on reconnect
+--enable_reconnect
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+# Turn off reconnect again
+--disable_reconnect
+
+--error ER_CANT_LOCK
+insert into t1 values(0,'y',1);
+
+# Restart the server in force recovery mode
+--echo # Stop server
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Request shutdown
+-- send_shutdown
+
+# Call script that will poll the server waiting for it to disapear
+-- source include/wait_until_disconnected.inc
+
+--echo # Restart server.
+
+# Write file to make mysql-test-run.pl start up the server again, ensure
+# that no background threads are started, so that we can check that it
+# shuts down properly.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Turn on reconnect
+--enable_reconnect
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+# Turn off reconnect again
+--disable_reconnect
+
+# Cleanup
+DROP TABLE t1;

@@ -316,7 +316,7 @@ FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
   ENCLOSED BY '"'
   LINES TERMINATED BY '\n' (c0, c2);
-ERROR HY000: Invalid column reference (v2.c0) in LOAD DATA
+ERROR HY000: Column 'c0' is not updatable
 
 LOAD DATA INFILE '../../std_data/bug35469.dat' INTO TABLE v3
 FIELDS ESCAPED BY '\\'

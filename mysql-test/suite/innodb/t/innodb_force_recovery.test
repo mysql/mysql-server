@@ -8,7 +8,9 @@ call mtr.add_suppression('InnoDB: Failed to find tablespace for table \'".*".".*
 call mtr.add_suppression('InnoDB: Allocated tablespace [0-9]+, old maximum was [0-9]+');
 
 create table t1(f1 int not null, f2 int not null, index idx(f2))engine=innodb;
+create table t2(f1 int not null, f2 int not null, index idx(f2))engine=innodb;
 insert into t1 values(1, 2);
+insert into t2 values(1, 2);
 
 SET GLOBAL innodb_fast_shutdown = 0;
 
@@ -70,4 +72,157 @@ rename table t1 to t3;
 truncate table t1;
 
 drop table t1;
+show tables;
+
+# Restart the server in force recovery mode
+--echo # Stop server
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Request shutdown
+-- send_shutdown
+
+# Call script that will poll the server waiting for it to disapear
+-- source include/wait_until_disconnected.inc
+
+--echo # Restart server.
+
+# Write file to make mysql-test-run.pl start up the server again, ensure
+# that no background threads are started, so that we can check that it
+# shuts down properly.
+--exec echo "restart:--innodb-force-recovery=5" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Turn on reconnect
+--enable_reconnect
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+# Turn off reconnect again
+--disable_reconnect
+
+select * from t2;
+
+--error ER_OPEN_AS_READONLY
+insert into t2 values(2, 3);
+
+--error ER_INNODB_READ_ONLY
+alter table t2 add f3 int not null, algorithm=copy;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+alter table t2 add f3 int not null, algorithm=inplace;
+
+--error ER_INNODB_READ_ONLY
+drop index idx on t2;
+
+--error ER_OPEN_AS_READONLY
+update t2 set f1=3 where f2=2;
+
+--error ER_INNODB_READ_ONLY
+create table t4(f1 int not null)engine=innodb;
+
+--error ER_BAD_TABLE_ERROR
+drop table t4;
+
+--error ER_ERROR_ON_RENAME
+rename table t2 to t3;
+
+--error ER_OPEN_AS_READONLY
+truncate table t2;
+
+--error ER_BAD_TABLE_ERROR
+drop table t2;
+show tables;
+
+# Restart the server in force recovery mode
+--echo # Stop server
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Request shutdown
+-- send_shutdown
+
+# Call script that will poll the server waiting for it to disapear
+-- source include/wait_until_disconnected.inc
+
+--echo # Restart server.
+
+# Write file to make mysql-test-run.pl start up the server again, ensure
+# that no background threads are started, so that we can check that it
+# shuts down properly.
+--exec echo "restart:--innodb-force-recovery=6" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Turn on reconnect
+--enable_reconnect
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+# Turn off reconnect again
+--disable_reconnect
+
+select * from t2;
+
+--error ER_CANT_LOCK
+insert into t2 values(2, 3);
+
+--error ER_CANT_LOCK
+alter table t2 add f3 int not null, algorithm=copy;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+alter table t2 add f3 int not null, algorithm=inplace;
+
+--error ER_CANT_LOCK
+drop index idx on t2;
+
+--error ER_CANT_LOCK
+update t2 set f1=3 where f2=2;
+
+--error ER_INNODB_READ_ONLY
+create table t4(f1 int not null)engine=innodb;
+
+--error ER_BAD_TABLE_ERROR
+drop table t4;
+
+--error ER_ERROR_ON_RENAME
+rename table t2 to t3;
+
+--error ER_OPEN_AS_READONLY
+truncate table t2;
+
+--error ER_BAD_TABLE_ERROR
+drop table t2;
+show tables;
+
+# Restart the server without force recovery mode
+--echo # Stop server
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Request shutdown
+-- send_shutdown
+
+# Call script that will poll the server waiting for it to disapear
+-- source include/wait_until_disconnected.inc
+
+--echo # Restart server.
+
+# Write file to make mysql-test-run.pl start up the server again, ensure
+# that no background threads are started, so that we can check that it
+# shuts down properly.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Turn on reconnect
+--enable_reconnect
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+# Turn off reconnect again
+--disable_reconnect
+
+drop table t2;
 show tables;

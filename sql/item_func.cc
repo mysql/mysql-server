@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4072,7 +4072,24 @@ longlong Item_master_pos_wait::val_int()
   }
 #ifdef HAVE_REPLICATION
   longlong pos = (ulong)args[1]->val_int();
-  longlong timeout = (arg_count==3) ? args[2]->val_int() : 0 ;
+  double timeout = (arg_count == 3) ? args[2]->val_real() : 0;
+  if (timeout < 0)
+  {
+    if (thd->is_strict_mode())
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "MASTER_POS_WAIT.");
+    }
+    else
+    {
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                          ER_WRONG_ARGUMENTS,
+                          ER(ER_WRONG_ARGUMENTS),
+                          "MASTER_POS_WAIT.");
+      null_value= 1;
+    }
+    return 0;
+  }
+
   if (active_mi == NULL ||
       (event_count = active_mi->rli->wait_for_pos(thd, log_name, pos, timeout)) == -2)
   {
@@ -4098,7 +4115,24 @@ longlong Item_master_gtid_set_wait::val_int()
   }
 
 #if defined(HAVE_REPLICATION)
-  longlong timeout = (arg_count== 2) ? args[1]->val_int() : 0;
+  double timeout = (arg_count == 2) ? args[1]->val_real() : 0;
+  if (timeout < 0)
+  {
+    if (thd->is_strict_mode())
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.");
+    }
+    else
+    {
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                          ER_WRONG_ARGUMENTS,
+                          ER(ER_WRONG_ARGUMENTS),
+                          "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.");
+      null_value= 1;
+    }
+    return 0;
+  }
+
   if (active_mi && active_mi->rli)
   {
     if ((event_count = active_mi->rli->wait_for_gtid_set(thd, gtid, timeout))
