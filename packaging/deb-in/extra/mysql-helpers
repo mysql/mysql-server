@@ -142,16 +142,6 @@ verify_database() {
 
 	if [ ! -d "${MYSQLDATA}/mysql" ] && [ -d "${MYSQLFILES}" ]; then
 		su - mysql -s /bin/bash -c "mysql_install_db --user=mysql > /dev/null"
-		SQL=$(mktemp -u ${MYSQLFILES}/XXXXXXXXXX)
-		install /dev/null -m0600 -omysql -gmysql "${SQL}"
-		cat << EOF > ${SQL}
-USE mysql;
-INSTALL PLUGIN auth_socket SONAME 'auth_socket.so';
-UPDATE user SET plugin='auth_socket' WHERE user='root';
-FLUSH PRIVILEGES;
-EOF
-		run_init_sql "$SQL"
-		rm -f "$SQL"
 	fi
 
 	if [ -x /usr/bin/mysql_ssl_rsa_setup -a ! -e "${MYSQLDATA}/server-key.pem" ]; then
