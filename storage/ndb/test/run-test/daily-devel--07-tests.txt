@@ -113,3 +113,11 @@ cmd: testRedo
 args: -n CheckLCPStartsAfterNR T1
 max-time: 1440
 
+cmd: testScan
+args: -n ScanReadError8095 T1
+max-time : 60
+
+cmd: testScan
+args: -n ScanDihError7240 T1
+max-time : 60
+
