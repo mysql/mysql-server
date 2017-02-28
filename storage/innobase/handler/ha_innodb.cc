@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -5051,6 +5051,8 @@ table_opened:
 
 	prebuilt->default_rec = table->s->default_values;
 	ut_ad(prebuilt->default_rec);
+
+	prebuilt->mysql_handler = this;
 
 	/* Looks like MySQL-3.23 sometimes has primary key number != 0 */
 	primary_key = table->s->primary_key;
@@ -10168,7 +10170,8 @@ ha_innobase::delete_table(
 	extension, in contrast to ::create */
 	normalize_table_name(norm_name, name);
 
-	if (srv_read_only_mode) {
+	if (srv_read_only_mode
+	    || srv_force_recovery >= SRV_FORCE_NO_UNDO_LOG_SCAN) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	} else if (row_is_magic_monitor_table(norm_name)
 		   && check_global_access(thd, PROCESS_ACL)) {

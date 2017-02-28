@@ -57,11 +57,14 @@ namespace connection_control
 
   /** variables used by connection_delay.cc */
   static mysql_rwlock_t connection_event_delay_lock;
+
+#ifdef HAVE_PSI_INTERFACE
   static PSI_rwlock_key key_connection_event_delay_lock;
   static PSI_rwlock_info all_rwlocks[]=
   {
     {&key_connection_event_delay_lock, "connection_event_delay_lock", 0}
   };
+#endif /* HAVE_PSI_INTERFACE */
 
   static opt_connection_control opt_enums[]=
   {
@@ -85,7 +88,7 @@ namespace connection_control
   /**
     Helper function for Connection_delay_event::reset_all
 
-    @param ptr [in]        Pointer to an entry in hash
+    @param [in] ptr        Pointer to an entry in hash
 
     @returns 1 to indicate that entry is a match
   */
@@ -104,8 +107,8 @@ namespace connection_control
     fed to an internal calc_hash() which use the defined charset to
     calculate a hash from the key buffer (in most cases a murmur)
 
-    @param el [in]        Pointer to an element in the hash
-    @param length [out]   The length of the key belonging to the element
+    @param [in] el        Pointer to an element in the hash
+    @param [out] length   The length of the key belonging to the element
 
     @returns Pointer to key buffer
   */
@@ -141,7 +144,7 @@ namespace connection_control
   /**
     Creates or updates an entry in hash
 
-    @param s [in]    User information in '<user'@'<host>' format
+    @param [in] s    User information in '<user'@'<host>' format
 
     @returns status of insertion/update
       @retval false  Insertion/Update successful
@@ -205,7 +208,7 @@ namespace connection_control
   /**
     Resets count stored against given user entry
 
-    @param s [in]    User information in '<user'@'<host>' format
+    @param [in] s    User information in '<user'@'<host>' format
 
     @returns status of reset operation
       @retval false Reset successful
@@ -251,7 +254,7 @@ namespace connection_control
   /**
     Retrieve stored value for given user entry
 
-    @param s [in]        User information in '<user'@'<host>' format
+    @param [in] s        User information in '<user'@'<host>' format
     @param value [out]   Buffer to hold value stored against given user
 
     @returns whether given entry is present in hash or not
@@ -341,7 +344,7 @@ namespace connection_control
   /**
     Function to populate information_schema view.
 
-    @param ptr [in]  Entry from LF hash
+    @param [in] ptr  Entry from LF hash
 
     @returns status of row insertion
       @retval 0 Success
@@ -370,8 +373,8 @@ namespace connection_control
   /**
     Function to dump LF hash data to IS table.
 
-    @param thd [in]    THD handle
-    @param tables [in] Handle to
+    @param [in] thd    THD handle
+    @param [in] tables Handle to
                        information_schema.connection_control_failed_attempts
   */
 
@@ -448,8 +451,8 @@ namespace connection_control
     2. Use priv_user/priv_host if either of them is not empty. Else,
     3. Use user/host
 
-    @param thd [in]        THD pointer for getting security context
-    @param s [out]         Hash key is stored here
+    @param [in] thd        THD pointer for getting security context
+    @param [out] s         Hash key is stored here
   */
 
   void
@@ -509,8 +512,8 @@ namespace connection_control
   /**
     Wait till the wait_time expires or thread is killed
 
-    @param thd [in]        Handle to MYSQL_THD object
-    @param wait_time [in]  Maximum time to wait
+    @param [in] thd        Handle to MYSQL_THD object
+    @param [in] wait_time  Maximum time to wait
   */
 
   void
@@ -518,7 +521,6 @@ namespace connection_control
                                             ulonglong wait_time)
   {
     DBUG_ENTER("Connection_delay_action::conditional_wait");
-    const char * category= "connection_delay";
 
     /** mysql_cond_timedwait requires wait time in timespec format */
     struct timespec abstime;
@@ -532,6 +534,8 @@ namespace connection_control
 
     /** Initialize mutex required for mysql_cond_timedwait */
     mysql_mutex_t connection_delay_mutex;
+#ifdef HAVE_PSI_INTERFACE
+    const char * category= "conn_delay";
     PSI_mutex_key key_connection_delay_mutex;
     PSI_mutex_info connection_delay_mutex_info[]=
     {
@@ -539,11 +543,13 @@ namespace connection_control
     };
     int count_mutex= array_elements(connection_delay_mutex_info);
     PSI_server->register_mutex(category, connection_delay_mutex_info, count_mutex);
+#endif /* HAVE_PSI_INTERFACE */
     mysql_mutex_init(key_connection_delay_mutex, &connection_delay_mutex,
                      MY_MUTEX_INIT_FAST);
 
     /* Initialize condition to wait for */
     mysql_cond_t connection_delay_wait_condition;
+#ifdef HAVE_PSI_INTERFACE
     PSI_cond_key key_connection_delay_wait;
     PSI_cond_info connection_delay_wait_info[]=
     {
@@ -551,6 +557,7 @@ namespace connection_control
     };
     int count_cond= array_elements(connection_delay_wait_info);
     PSI_server->register_cond(category, connection_delay_wait_info, count_cond);
+#endif /* HAVE_PSI_INTERFACE */
     mysql_cond_init(key_connection_delay_wait, &connection_delay_wait_condition, NULL);
 
     /** Register wait condition with THD */
@@ -586,10 +593,10 @@ namespace connection_control
 
     We only care about CONNECT and CHANGE_USER sub events.
 
-    @param thd [in]                THD pointer
-    @param coordinator [in]        Connection_event_coordinator
-    @param connection_event [in]   Connection event to be handled
-    @param error_handler [in]      Error handler object
+    @param [in] thd                THD pointer
+    @param [in] coordinator        Connection_event_coordinator
+    @param [in] connection_event   Connection event to be handled
+    @param [in] error_handler      Error handler object
 
     @returns status of connection event handling
       @retval false  Successfully handled an event.
@@ -702,11 +709,11 @@ namespace connection_control
   /**
     Notification of a change in system variable value
 
-    @param coordinator [in]        Handle to coordinator
-    @param variable [in]           Enum of variable
-    @param new_value [in]          New value for variable
-    @param error_buffer [out]      Buffer to log error message if any
-    @param error_buffer_size [in]  Size of error buffer
+    @param [in] coordinator        Handle to coordinator
+    @param [in] variable           Enum of variable
+    @param [in] new_value          New value for variable
+    @param [out] error_buffer      Buffer to log error message if any
+    @param [in] error_buffer_size  Size of error buffer
 
     @returns processing status
       @retval false  Change in variable value processed successfully
@@ -770,7 +777,7 @@ namespace connection_control
   /**
     Subscribe with coordinator for connection events
 
-    @param coordinator [in]  Handle to Connection_event_coordinator_services
+    @param [in] coordinator  Handle to Connection_event_coordinator_services
                              for registration
   */
   void
@@ -812,9 +819,9 @@ namespace connection_control
   /**
     Get user information from "where userhost = <value>"
 
-    @param cond [in]        Equality condition structure
-    @param eq_arg [out]     Sql_string handle to store user information
-    @param field_name [in]  userhost field
+    @param [in] cond        Equality condition structure
+    @param [out] eq_arg     Sql_string handle to store user information
+    @param [in] field_name  userhost field
 
     @returns whether a value was found or not
       @retval false Found a value. Check eq_arg
@@ -860,10 +867,10 @@ namespace connection_control
 
     Permission : SUPER_ACL is required.
 
-    @param thd [in]     THD handle.
-    @param tables [in]  Handle to
+    @param [in] thd     THD handle.
+    @param [in] tables  Handle to
                         information_schema.connection_control_failed_attempts.
-    @param cond [in]    Condition if any.
+    @param [in] cond    Condition if any.
   */
 
   void
@@ -908,7 +915,7 @@ namespace connection_control
   /**
     Initializes required objects for handling connection events.
 
-    @param coordinator [in]    Connection_event_coordinator_services handle.
+    @param [in] coordinator    Connection_event_coordinator_services handle.
   */
 
   bool init_connection_delay_event(Connection_event_coordinator_services *coordinator,
@@ -917,9 +924,11 @@ namespace connection_control
     /*
       1. Initialize lock(s)
     */
+#ifdef HAVE_PSI_INTERFACE
     const char *category= "conn_control";
     int count= array_elements(all_rwlocks);
     mysql_rwlock_register(category, all_rwlocks, count);
+#endif /* HAVE_PSI_INTERFACE */
     mysql_rwlock_init(key_connection_event_delay_lock,
                       &connection_event_delay_lock);
     g_max_failed_connection_handler= new Connection_delay_action(g_variables.failed_connections_threshold,
@@ -957,10 +966,10 @@ namespace connection_control
 /**
   Function to fill information_schema.connection_control_failed_attempts.
 
-  @param thd [in]     THD handle.
-  @param tables [in]  Handle to
+  @param [in] thd     THD handle.
+  @param [in] tables  Handle to
                       information_schema.connection_control_failed_attempts.
-  @param cond [in]    Condition if any.
+  @param [in] cond    Condition if any.
 
   @returns Always returns FALSE.
 */
@@ -978,7 +987,7 @@ int fill_failed_attempts_view(THD *thd,
 /**
   View init function
 
-  @param ptr [in]    Handle to
+  @param [in] ptr    Handle to
                      information_schema.connection_control_failed_attempts.
 
   @returns Always returns 0.

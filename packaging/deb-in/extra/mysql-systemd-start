@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+# Scripts to run by MySQL systemd service
+#
+# Needed argument: pre
+#
+# pre mode  :  try to perform sanity check for configuration, log, data
+# post mode :  ping server until answer is received
+
+# Include helper functions
+. /usr/share/mysql/mysql-helpers
+
+sanity () {
+# Make sure database and required directories exist
+	verify_ready
+	verify_database
+
+
+	@DEB_INIT_APPARMOR@
+
+	if [ ! -r /etc/mysql/my.cnf ]; then
+		echo "MySQL configuration not found at /etc/mysql/my.cnf. Please install one using update-alternatives."
+		exit 1
+	fi
+}
+
+case $1 in
+	"pre")  sanity ;;
+	"post") pinger ;;
+esac

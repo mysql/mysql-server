@@ -1,0 +1,103 @@
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+# binaries
+usr/bin/innochecksum
+usr/bin/msql2mysql
+usr/bin/myisamchk
+usr/bin/myisamlog
+usr/bin/myisampack
+usr/bin/my_print_defaults
+usr/bin/mysql_convert_table_format
+usr/bin/mysql_install_db
+usr/bin/mysql_secure_installation
+@DEB_PLUGIN_SETPERMISSION@
+usr/bin/mysql_tzinfo_to_sql
+usr/bin/mysql_upgrade
+usr/bin/mysql_zap
+usr/bin/mysqld_multi
+usr/bin/mysqld_safe
+usr/bin/mysqlbinlog
+usr/bin/mysqlhotcopy
+usr/bin/perror
+usr/bin/replace
+usr/bin/resolveip
+usr/bin/resolve_stack_dump
+usr/sbin/mysqld
+# debug binary
+usr/sbin/mysqld-debug
+# man pages
+usr/share/man/man1/innochecksum.1
+usr/share/man/man1/comp_err.1
+usr/share/man/man1/myisamchk.1
+usr/share/man/man1/myisamlog.1
+usr/share/man/man1/myisampack.1
+usr/share/man/man1/my_print_defaults.1
+usr/share/man/man1/mysql.server.1
+usr/share/man/man1/mysql-stress-test.pl.1
+usr/share/man/man1/mysql_secure_installation.1
+usr/share/man/man1/mysql_tzinfo_to_sql.1
+usr/share/man/man1/mysql_upgrade.1
+usr/share/man/man1/mysqlbinlog.1
+usr/share/man/man1/mysqld_multi.1
+usr/share/man/man1/mysqld_safe.1
+usr/share/man/man1/perror.1
+usr/share/man/man1/replace.1
+usr/share/man/man1/resolveip.1
+usr/share/man/man1/resolve_stack_dump.1
+usr/share/man/man8/mysqld.8
+# confguration files
+usr/share/mysql/my-default.cnf
+debian/extra/mysql.cnf  etc/mysql/
+debian/extra/mysqld.cnf /etc/mysql/mysql.conf.d/
+# app armor profile
+@DEB_INSTALL_SERVER_APPARMOR@
+# SQL files
+usr/share/mysql/*.sql
+# plugins
+usr/lib/mysql/plugin/adt_null.so
+usr/lib/mysql/plugin/auth_socket.so
+usr/lib/mysql/plugin/connection_control.so
+usr/lib/mysql/plugin/innodb_engine.so
+usr/lib/mysql/plugin/libmemcached.so
+usr/lib/mysql/plugin/mypluglib.so
+usr/lib/mysql/plugin/mysql_no_login.so
+usr/lib/mysql/plugin/semisync_master.so
+usr/lib/mysql/plugin/semisync_slave.so
+usr/lib/mysql/plugin/validate_password.so
+usr/lib/mysql/plugin/debug/adt_null.so
+usr/lib/mysql/plugin/debug/auth_socket.so
+usr/lib/mysql/plugin/debug/connection_control.so
+usr/lib/mysql/plugin/debug/innodb_engine.so
+usr/lib/mysql/plugin/debug/libmemcached.so
+usr/lib/mysql/plugin/debug/mypluglib.so
+usr/lib/mysql/plugin/debug/mysql_no_login.so
+usr/lib/mysql/plugin/debug/semisync_master.so
+usr/lib/mysql/plugin/debug/semisync_slave.so
+usr/lib/mysql/plugin/debug/validate_password.so
+@DEB_INSTALL_SERVER_PLUGINS@
+# support files
+usr/share/mysql/dictionary.txt
+usr/share/mysql/magic
+usr/share/mysql/mysql-log-rotate
+usr/share/mysql/mysql-helpers
+# localized error msgs
+usr/share/mysql/*/errmsg.sys
+usr/share/mysql/errmsg-utf8.txt
+@DEB_INSTALL_SERVER_SYSTEMD@
+usr/share/mysql/mysqld_multi.server
+# legal
+usr/share/doc/mysql-@DEB_PRODUCTNAME@-server/@DEB_INSTALL_LICENSEFILE@
+usr/share/doc/mysql-@DEB_PRODUCTNAME@-server/README

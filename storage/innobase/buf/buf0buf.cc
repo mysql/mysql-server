@@ -1366,7 +1366,7 @@ buf_pool_init_instance(
 		ut_a(srv_n_page_hash_locks != 0);
 		ut_a(srv_n_page_hash_locks <= MAX_PAGE_HASH_LOCKS);
 
-		buf_pool->page_hash = ha_create(2 * buf_pool->curr_size,
+		buf_pool->page_hash = ib_create(2 * buf_pool->curr_size,
 						srv_n_page_hash_locks,
 						MEM_HEAP_FOR_PAGE_HASH,
 						SYNC_BUF_PAGE_HASH);

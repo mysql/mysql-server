@@ -1,0 +1,30 @@
+call mtr.add_suppression('InnoDB: Failed to find tablespace for table \'".*".".*"\' in the cache');
+call mtr.add_suppression('InnoDB: Allocated tablespace [0-9]+, old maximum was [0-9]+');
+CREATE TABLE t1(
+a INT AUTO_INCREMENT PRIMARY KEY,
+b CHAR(1),
+c INT,
+INDEX(b))
+ENGINE=InnoDB STATS_PERSISTENT=0;
+SET GLOBAL innodb_change_buffering_debug = 1;
+INSERT INTO t1 VALUES(0,'x',1);
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+INSERT INTO t1 SELECT 0,b,c FROM t1;
+# Stop server
+# Restart server.
+insert into t1 values(0,'y',1);
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+# Stop server
+# Restart server.
+DROP TABLE t1;

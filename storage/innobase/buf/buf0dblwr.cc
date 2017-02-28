@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -355,7 +355,7 @@ recovery, this function loads the pages from double write buffer into memory. */
 void
 buf_dblwr_init_or_load_pages(
 /*=========================*/
-	os_file_t	file,
+	pfs_os_file_t	file,
 	char*		path,
 	bool		load_corrupt_pages)
 {

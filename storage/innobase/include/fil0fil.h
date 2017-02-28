@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -181,7 +181,7 @@ struct fsp_open_info {
 	ibool		success;	/*!< Has the tablespace been opened? */
 	const char*	check_msg;	/*!< fil_check_first_page() message */
 	ibool		valid;		/*!< Is the tablespace valid? */
-	os_file_t	file;		/*!< File handle */
+	pfs_os_file_t	file;		/*!< File handle */
 	char*		filepath;	/*!< File path to open */
 	lsn_t		lsn;		/*!< Flushed LSN from header page */
 	ulint		id;		/*!< Space ID */
@@ -384,7 +384,7 @@ UNIV_INTERN
 const char*
 fil_read_first_page(
 /*================*/
-	os_file_t	data_file,		/*!< in: open data file */
+	pfs_os_file_t	data_file,		/*!< in: open data file */
 	ibool		one_read_already,	/*!< in: TRUE if min and max
 						parameters below already
 						contain sensible data */
@@ -902,12 +902,12 @@ struct PageCallback {
 	Called for every page in the tablespace. If the page was not
 	updated then its state must be set to BUF_PAGE_NOT_USED. For
 	compressed tables the page descriptor memory will be at offset:
-       		block->frame + UNIV_PAGE_SIZE;
+		block->frame + UNIV_PAGE_SIZE;
 	@param offset - physical offset within the file
 	@param block - block read from file, note it is not from the buffer pool
 	@retval DB_SUCCESS or error code. */
 	virtual dberr_t operator()(
-		os_offset_t 	offset,
+		os_offset_t	offset,
 		buf_block_t*	block) UNIV_NOTHROW = 0;
 
 	/**
@@ -915,7 +915,7 @@ struct PageCallback {
 	to open it for the file that is being iterated over.
 	@param filename - then physical name of the tablespace file.
 	@param file - OS file handle */
-	void set_file(const char* filename, os_file_t file) UNIV_NOTHROW
+	void set_file(const char* filename, pfs_os_file_t file) UNIV_NOTHROW
 	{
 		m_file = file;
 		m_filepath = filename;
@@ -951,7 +951,7 @@ struct PageCallback {
 	ulint			m_page_size;
 
 	/** File handle to the tablespace */
-	os_file_t		m_file;
+	pfs_os_file_t		m_file;
 
 	/** Physical file path. */
 	const char*		m_filepath;

@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -65,6 +65,7 @@ IF(MINGW AND CMAKE_SIZEOF_VOID_P EQUAL 4)
 ENDIF()
 
 IF(MSVC)
+  OPTION(LINK_STATIC_RUNTIME_LIBRARIES "Link with /MT" OFF)
   # Enable debug info also in Release build,
   # and create PDB to be able to analyze crashes.
   FOREACH(type EXE SHARED MODULE)
@@ -94,7 +95,9 @@ IF(MSVC)
    CMAKE_C_FLAGS_DEBUG      CMAKE_C_FLAGS_DEBUG_INIT 
    CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
    CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT)
-   STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
+   IF(LINK_STATIC_RUNTIME_LIBRARIES)
+     STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
+   ENDIF()
    STRING(REPLACE "/Zi"  "/Z7" "${flag}" "${${flag}}")
    SET("${flag}" "${${flag}} /EHsc")
   ENDFOREACH()

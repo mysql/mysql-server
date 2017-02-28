@@ -443,6 +443,10 @@ select master_pos_wait(1);
 ERROR 42000: Incorrect parameter count in the call to native function 'master_pos_wait'
 select master_pos_wait(1, 2, 3, 4);
 ERROR 42000: Incorrect parameter count in the call to native function 'master_pos_wait'
+SET @save_sql_mode_before_master_pos_wait=@@SESSION.SQL_MODE;
+SET @@SESSION.SQL_MODE="STRICT_ALL_TABLES";
+select master_pos_wait('master-bin.999999', 4, -1);
+SET @@SESSION.SQL_MODE=@save_sql_mode_before_master_pos_wait;
 select rand(1, 2, 3);
 ERROR 42000: Incorrect parameter count in the call to native function 'rand'
 select round(1, 2, 3);

@@ -1,0 +1,11 @@
+# Start mysqld to create tablespaces according to my.cnf
+ib_logfile0
+ib_logfile1
+ib_logfile2
+ibdata1
+ibdata2
+my.cnf
+my_restart.err
+undo003
+undo004
+undo005
