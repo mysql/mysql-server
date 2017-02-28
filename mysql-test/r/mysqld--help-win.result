@@ -139,6 +139,11 @@ The following options may be given as the first argument:
  the table) is logged in the before image, and only
  changed columns are logged in the after image. (Default:
  FULL).
+ --binlog-row-metadata=name 
+ Controls whether metadata is logged using FULL or MINIMAL
+ format. FULL causes all metadata to be logged; MINIMAL
+ means that only metadata actually required by slave is
+ logged. Default: MINIMAL.
  --binlog-rows-query-log-events 
  Allow writing of Rows_query_log events into binary log.
  --binlog-stmt-cache-size=# 
@@ -1275,6 +1280,7 @@ binlog-max-flush-queue-time 0
 binlog-order-commits TRUE
 binlog-row-event-max-size 8192
 binlog-row-image FULL
+binlog-row-metadata MINIMAL
 binlog-rows-query-log-events FALSE
 binlog-stmt-cache-size 32768
 binlog-transaction-dependency-history-size 25000

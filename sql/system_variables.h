@@ -57,6 +57,12 @@ enum enum_binlog_row_image {
   BINLOG_ROW_IMAGE_FULL= 2
 };
 
+// Values for binlog_row_metadata sysvar
+enum enum_binlog_row_metadata {
+  BINLOG_ROW_METADATA_MINIMAL= 0,
+  BINLOG_ROW_METADATA_FULL= 1
+};
+
 // Values for transaction_write_set_extraction sysvar
 enum enum_transaction_write_set_hashing_algorithm { HASH_ALGORITHM_OFF= 0,
                                                     HASH_ALGORITHM_MURMUR32= 1,

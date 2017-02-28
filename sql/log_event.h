@@ -475,6 +475,7 @@ typedef struct st_print_event_info
    */
   bool skipped_event_in_transaction;
 
+  bool print_table_metadata;
 } PRINT_EVENT_INFO;
 #endif
 
@@ -2531,6 +2532,29 @@ public:
 
 #ifndef MYSQL_SERVER
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+
+  /**
+    Print column metadata. Its format looks like:
+    # Columns(colume_name type, colume_name type, ...)
+    if colume_name field is not logged into table_map_log_event, then
+    only type is printed.
+
+    @@param[out] file the place where colume metadata is printed
+    @@param[in]  The metadata extracted from optional metadata fields
+ */
+  void print_columns(IO_CACHE *file,
+                     const Optional_metadata_fields &fields);
+  /**
+    Print primary information. Its format looks like:
+    # Primary Key(colume_name, column_name(prifix), ...)
+    if colume_name field is not logged into table_map_log_event, then
+    colume index is printed.
+
+    @@param[out] file the place where primary key is printed
+    @@param[in]  The metadata extracted from optional metadata fields
+ */
+  void print_primary_key(IO_CACHE *file,
+                         const Optional_metadata_fields &fields);
 #endif
 
 
@@ -2543,6 +2567,22 @@ private:
 
 #ifdef MYSQL_SERVER
   TABLE         *m_table;
+
+  // Metadata fields buffer
+  StringBuffer<1024> m_metadata_buf;
+
+  /**
+    Initialize the optional metadata fields should be logged into
+    table_map_log_event and write them into m_metadata_buf.
+  */
+  void init_metadata_fields();
+  bool init_signedness_field();
+  bool init_charset_field();
+  bool init_column_name_field();
+  bool init_set_str_value_field();
+  bool init_enum_str_value_field();
+  bool init_geometry_type_field();
+  bool init_primary_key_field();
 #endif
 };
 

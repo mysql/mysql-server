@@ -370,6 +370,8 @@ Checkable_rwlock *global_sid_lock= NULL;
 Gtid_set *gtid_set_included= NULL;
 Gtid_set *gtid_set_excluded= NULL;
 
+static bool opt_print_table_metadata;
+
 /**
   Pointer to the Format_description_log_event of the currently active binlog.
 
@@ -1706,6 +1708,10 @@ static struct my_option my_long_options[] =
    "Identifiers were provided.",
    &opt_exclude_gtids_str, &opt_exclude_gtids_str, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"print-table-metadata", OPT_PRINT_TABLE_METADATA,
+   "Print metadata stored in Table_map_log_event",
+   &opt_print_table_metadata, &opt_print_table_metadata, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -2092,6 +2098,7 @@ static Exit_status dump_multiple_logs(int argc, char **argv)
   print_event_info.short_form= short_form;
   print_event_info.base64_output_mode= opt_base64_output_mode;
   print_event_info.skip_gtids= opt_skip_gtids;
+  print_event_info.print_table_metadata= opt_print_table_metadata;
 
   // Dump all logs.
   my_off_t save_stop_position= stop_position;
