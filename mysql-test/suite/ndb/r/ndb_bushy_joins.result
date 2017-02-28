@@ -30,7 +30,6 @@ test.parent	analyze	status	OK
 test.eq_child	analyze	status	OK
 test.ref_child	analyze	status	OK
 set ndb_join_pushdown = on;
-call mtr.add_suppression("starting connect thread");
 ===============================
 Run single instance of 'query1' 
 ===============================
