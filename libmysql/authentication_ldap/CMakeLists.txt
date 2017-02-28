@@ -26,17 +26,7 @@ ELSE()
   CROAK_AND_RETURN("Required LBER library is missing.")
 ENDIF()
 
-FIND_PATH(
-  CYRUS_SASL_INCLUDE_DIR NAMES sasl/sasl.h
-  PATHS /include /usr/include /usr/local/include /usr/share/include /opt/include
-  DOC "Searching for sasl/sasl.h")
-
-CHECK_SYMBOL_EXISTS(
-  sasl_client_done
-  ${CYRUS_SASL_INCLUDE_DIR}/sasl/sasl.h
-  HAVE_SASL_CLIENT_DONE)
-
-IF (HAVE_SASL_CLIENT_DONE)
+IF (NOT CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   SET(HAVE_SASL_CLIENT_DONE 1)
 ELSE ()
   SET(HAVE_SASL_CLIENT_DONE 0)
