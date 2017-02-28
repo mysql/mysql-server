@@ -105,3 +105,11 @@ cmd: testNodeRestart
 args: -n StartDuringNodeRestart T1
 max-time : 300
 
+cmd: testScan
+args: -n ScanReadError8095 T1
+max-time : 60
+
+cmd: testScan
+args: -n ScanDihError7240 T1
+max-time : 60
+
