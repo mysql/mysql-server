@@ -1387,6 +1387,7 @@ AND named_places.name = 'Ashton';
 #AND named_places.name = 'Ashton';
 
 --echo # Conformance Item T46
+--error ER_SRS_NOT_FOUND
 SELECT ST_Distance(position, boundary)
 FROM bridges, named_places
 WHERE bridges.name = 'Cam Bridge'

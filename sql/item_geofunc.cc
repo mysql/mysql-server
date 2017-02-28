@@ -49,7 +49,10 @@
 #include "dd/types/spatial_reference_system.h"
 #include "derror.h"       // ER_THD
 #include "gis_bg_traits.h"
+#include "gis/distance.h"
+#include "gis/geometries.h"
 #include "gis/srid.h"
+#include "gis/wkb_parser.h"
 #include "gstream.h"      // Gis_read_stream
 #include "item_geofunc_internal.h"
 #include "json_dom.h"     // Json_wrapper
@@ -6197,52 +6200,6 @@ String *Item_func_set_srid::val_str(String *str)
 }
 
 
-/**
-  Compact a geometry collection, making all its points/multipoints into a
-  single multipoint object, and all its linestrings/multilinestrings into a
-  single multilinestring object; leave polygons and multipolygons as they were.
-
-  @param g the input geometry collection.
-  @param gbuf the place to create the new result geometry collection.
-  @param str the String buffer to hold data of the result geometry collection.
- */
-static const Geometry *
-compact_collection(const Geometry *g, Geometry_buffer *gbuf, String *str)
-{
-  if (g->get_geotype() != Geometry::wkb_geometrycollection)
-    return g;
-
-  uint32 wkb_len, wkb_len0;
-  char *wkb_start= g->get_cptr();
-
-  wkb_len= wkb_len0= g->get_data_size();
-  BG_models<bgcs::cartesian>::Multilinestring mls;
-  Geometry_grouper<BG_models<bgcs::cartesian>::Linestring>
-    ls_grouper(&mls);
-  wkb_scanner(wkb_start, &wkb_len,
-              Geometry::wkb_geometrycollection, false, &ls_grouper);
-
-  BG_models<bgcs::cartesian>::Multipoint mpts;
-  wkb_len= wkb_len0;
-  Geometry_grouper<BG_models<bgcs::cartesian>::Point>
-    pt_grouper(&mpts);
-  wkb_scanner(wkb_start, &wkb_len,
-              Geometry::wkb_geometrycollection, false, &pt_grouper);
-
-  Gis_geometry_collection *ret= new (gbuf) Gis_geometry_collection();
-  wkb_len= wkb_len0;
-  Geometry_grouper<BG_models<bgcs::cartesian>::Polygon>
-    mplgn_grouper(ret, str);
-  wkb_scanner(wkb_start, &wkb_len,
-              Geometry::wkb_geometrycollection, false, &mplgn_grouper);
-
-  ret->append_geometry(&mls, str);
-  ret->append_geometry(&mpts, str);
-
-  return ret;
-}
-
-
 template<typename Num_type>
 class Numeric_interval
 {
@@ -6382,297 +6339,53 @@ double Item_func_distance::val_real()
   String tmp_value2;
   String *res1= args[0]->val_str(&tmp_value1);
   String *res2= args[1]->val_str(&tmp_value2);
-  Geometry_buffer buffer1, buffer2;
-  Geometry *g1, *g2;
 
   if ((null_value= (!res1 || args[0]->null_value ||
                     !res2 || args[1]->null_value)))
+  {
+    DBUG_ASSERT(maybe_null);
     DBUG_RETURN(0.0);
+  }
 
-  if (!(g1= Geometry::construct(&buffer1, res1)) ||
-      !(g2= Geometry::construct(&buffer2, res2)))
+  if (res1 == nullptr || res2 == nullptr)
   {
-    // If construction fails, we assume invalid input data.
+    DBUG_ASSERT(false);
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     DBUG_RETURN(error_real());
   }
 
-  // The two geometry operand must be in the same coordinate system.
-  if (g1->get_srid() != g2->get_srid())
+  const dd::Spatial_reference_system *srs1= nullptr;
+  const dd::Spatial_reference_system *srs2= nullptr;
+  std::unique_ptr<gis::Geometry> g1;
+  std::unique_ptr<gis::Geometry> g2;
+  dd::cache::Dictionary_client::Auto_releaser m_releaser(current_thd->dd_client());
+  if (gis::parse_geometry(current_thd, func_name(), res1, &srs1, &g1) ||
+      gis::parse_geometry(current_thd, func_name(), res2, &srs2, &g2))
   {
-    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(),
-             g1->get_srid(), g2->get_srid());
     DBUG_RETURN(error_real());
   }
 
-  if ((g1->get_geotype() != Geometry::wkb_geometrycollection &&
-       g1->normalize_ring_order() == NULL) ||
-      (g2->get_geotype() != Geometry::wkb_geometrycollection &&
-       g2->normalize_ring_order() == NULL))
+  gis::srid_t srid1= srs1 == nullptr ? 0 : srs1->id();
+  gis::srid_t srid2= srs2 == nullptr ? 0 : srs2->id();
+  if (srid1 != srid2)
   {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(), srid1, srid2);
     DBUG_RETURN(error_real());
-  }
-
-  if (g1->get_srid() != 0)
-  {
-    bool srs_exists= false;
-    if (Srs_fetcher::srs_exists(current_thd, g1->get_srid(), &srs_exists))
-      DBUG_RETURN(error_real()); // Error has already been flagged.
-
-    if (!srs_exists)
-    {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          g1->get_srid(),
-                          func_name());
-    }
   }
 
   double distance;
-  if (g1->get_type() != Geometry::wkb_geometrycollection &&
-      g2->get_type() != Geometry::wkb_geometrycollection)
-  {
-    distance= bg_distance<bgcs::cartesian>(g1, g2);
-  }
-  else
-    distance= geometry_collection_distance(g1, g2);
-
-  if (null_value)
+  bool null;
+  if (gis::distance(srs1, g1.get(), g2.get(), &distance, &null))
     DBUG_RETURN(error_real());
 
-  if (!std::isfinite(distance) || distance < 0)
+  if (null)
   {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    DBUG_RETURN(error_real());
+    DBUG_ASSERT(maybe_null);
+    null_value= true;
+    DBUG_RETURN(0.0);
   }
+
   DBUG_RETURN(distance);
-}
-
-
-/*
-  Calculate the distance of two geometry collections. BG has optimized
-  algorithm to calculate distance among multipoints, multilinestrings
-  and polygons, so we compact the collection to make a single multipoint,
-  a single multilinestring, and the rest are all polygons and multipolygons,
-  and do a nested loop to calculate the minimum distances among such
-  compacted components as the final result.
- */
-double Item_func_distance::
-geometry_collection_distance(const Geometry *g1, const Geometry *g2)
-{
-  BG_geometry_collection bggc1, bggc2;
-  bool initialized= false, all_normalized= false;
-  double min_distance= DBL_MAX, dist= DBL_MAX;
-  String gcstr1, gcstr2;
-  Geometry_buffer buf1, buf2;
-  const Geometry *g11, *g22;
-
-  g11= compact_collection(g1, &buf1, &gcstr1);
-  g22= compact_collection(g2, &buf2, &gcstr2);
-
-  bggc1.fill(g11);
-  bggc2.fill(g22);
-  for (BG_geometry_collection::Geometry_list::iterator
-       i= bggc1.get_geometries().begin();
-       i != bggc1.get_geometries().end(); ++i)
-  {
-    /* Normalize polygon rings, do only once for each component. */
-    if ((*i)->get_geotype() != Geometry::wkb_geometrycollection &&
-        (*i)->normalize_ring_order() == NULL)
-    {
-      my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-      return error_real();
-    }
-
-    for (BG_geometry_collection::Geometry_list::iterator
-         j= bggc2.get_geometries().begin();
-         j != bggc2.get_geometries().end(); ++j)
-    {
-      /* Normalize polygon rings, do only once for each component. */
-      if (!all_normalized &&
-          (*j)->get_geotype() != Geometry::wkb_geometrycollection &&
-          (*j)->normalize_ring_order() == NULL)
-      {
-        my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-        return error_real();
-      }
-
-      dist= bg_distance<bgcs::cartesian>(*i, *j);
-      if (null_value)
-        return error_real();
-      if (dist < 0 || std::isnan(dist))
-        return dist;
-
-      if (!initialized)
-      {
-        min_distance= dist;
-        initialized= true;
-      }
-      else if (min_distance > dist)
-        min_distance= dist;
-
-    }
-
-    all_normalized= true;
-    if (!initialized)
-      break;                                  // bggc2 is empty.
-  }
-
-  /*
-    If at least one of the collections is empty, we have NULL result.
-  */
-  if (!initialized)
-    return error_real();
-
-  return min_distance;
-}
-
-
-template <typename Coordsys, typename BG_geometry>
-double Item_func_distance::
-distance_dispatch_second_geometry(const BG_geometry& bg1, const Geometry* g2)
-{
-  double res= 0;
-  switch (g2->get_type())
-  {
-  case Geometry::wkb_point:
-    {
-      typename BG_models<Coordsys>::Point
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2);
-    }
-    break;
-  case Geometry::wkb_multipoint:
-    {
-      typename BG_models<Coordsys>::Multipoint
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2);
-    }
-    break;
-  case Geometry::wkb_linestring:
-    {
-      typename BG_models<Coordsys>::Linestring
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2);
-    }
-    break;
-  case Geometry::wkb_multilinestring:
-    {
-      typename BG_models<Coordsys>::Multilinestring
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2);
-    }
-    break;
-  case Geometry::wkb_polygon:
-    {
-      typename BG_models<Coordsys>::Polygon
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2);
-    }
-    break;
-  case Geometry::wkb_multipolygon:
-    {
-      typename BG_models<Coordsys>::Multipolygon
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2);
-    }
-    break;
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-  return res;
-}
-
-
-/*
-  Calculate distance of g1 and g2 using Boost.Geometry. We split the
-  implementation into 6 smaller functions according to the type of g1, to
-  make all functions smaller in size. Because distance is symmetric, we swap
-  parameters if the swapped type combination is already implemented.
- */
-template <typename Coordsys>
-double Item_func_distance::bg_distance(const Geometry *g1, const Geometry *g2)
-{
-  double res= 0;
-  bool had_except= false;
-
-  try
-  {
-    switch (g1->get_type())
-    {
-    case Geometry::wkb_point:
-      {
-        typename BG_models<Coordsys>::Point
-          bg1(g1->get_data_ptr(), g1->get_data_size(),
-              g1->get_flags(), g1->get_srid());
-        res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
-      }
-      break;
-    case Geometry::wkb_multipoint:
-      {
-        typename BG_models<Coordsys>::Multipoint
-          bg1(g1->get_data_ptr(), g1->get_data_size(),
-              g1->get_flags(), g1->get_srid());
-        res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
-      }
-      break;
-    case Geometry::wkb_linestring:
-      {
-        typename BG_models<Coordsys>::Linestring
-          bg1(g1->get_data_ptr(), g1->get_data_size(),
-              g1->get_flags(), g1->get_srid());
-        res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
-      }
-      break;
-    case Geometry::wkb_multilinestring:
-      {
-        typename BG_models<Coordsys>::Multilinestring
-          bg1(g1->get_data_ptr(), g1->get_data_size(),
-              g1->get_flags(), g1->get_srid());
-        res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
-      }
-      break;
-    case Geometry::wkb_polygon:
-      {
-        typename BG_models<Coordsys>::Polygon
-          bg1(g1->get_data_ptr(), g1->get_data_size(),
-              g1->get_flags(), g1->get_srid());
-        res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
-      }
-      break;
-    case Geometry::wkb_multipolygon:
-      {
-        typename BG_models<Coordsys>::Multipolygon
-          bg1(g1->get_data_ptr(), g1->get_data_size(),
-              g1->get_flags(), g1->get_srid());
-        res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
-      }
-      break;
-    default:
-      DBUG_ASSERT(false);
-      break;
-    }
-  }
-  catch (...)
-  {
-    had_except= true;
-    handle_gis_exception("st_distance");
-  }
-
-  if (had_except)
-    return error_real();
-
-  return res;
 }
 
 

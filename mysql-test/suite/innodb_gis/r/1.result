@@ -1569,10 +1569,7 @@ SELECT ST_Distance(position, boundary)
 FROM bridges, named_places 
 WHERE bridges.name = 'Cam Bridge' 
 AND named_places.name = 'Ashton';
-ST_Distance(position, boundary)
-12
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_distance will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 101.
 # Conformance Item T48 
 SELECT ST_AsText(ST_Difference(named_places.boundary, forests.boundary)) 
 FROM named_places, forests 

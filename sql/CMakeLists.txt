@@ -166,6 +166,7 @@ SET(DD_SOURCES
 
 SET(SQL_GIS_SOURCES
   geometry_rtree.cc
+  gis/distance.cc
   gis/geometries.cc
   gis/ring_direction.cc
   gis/srs/srs.cc

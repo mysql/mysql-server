@@ -28,6 +28,8 @@
 #include "my_sys.h"       // my_error
 #include "mysqld_error.h" // Error codes
 
+#include "gis/functor.h" // gis::not_implemented_exception
+
 #include <new> // std::bad_alloc
 #include <stdexcept> // Other std exceptions
 
@@ -49,7 +51,6 @@
 
 // boost::geometry::inconsistent_turns_exception
 #include <boost/geometry/algorithms/detail/overlay/inconsistent_turns_exception.hpp>
-
 
 void handle_std_exception(const char *funcname)
 {
@@ -113,6 +114,11 @@ void handle_gis_exception(const char *funcname)
   try
   {
     throw;
+  }
+  catch (const gis::not_implemented_exception &e)
+  {
+    my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), funcname,
+             e.type_name(1), e.type_name(2));
   }
   catch (const boost::geometry::centroid_exception &)
   {
