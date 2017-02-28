@@ -3184,7 +3184,8 @@ buf_flush_page_coordinator_thread(size_t n_page_cleaners)
 
 	while (!srv_read_only_mode
 	       && srv_shutdown_state == SRV_SHUTDOWN_NONE
-	       && recv_sys->heap != NULL) {
+	       && recv_sys->spaces != NULL) {
+
 		/* treat flushing requests during recovery. */
 		ulint	n_flushed_lru = 0;
 		ulint	n_flushed_list = 0;
@@ -3192,7 +3193,8 @@ buf_flush_page_coordinator_thread(size_t n_page_cleaners)
 		os_event_wait(recv_sys->flush_start);
 
 		if (srv_shutdown_state != SRV_SHUTDOWN_NONE
-		    || recv_sys->heap == NULL) {
+		    || recv_sys->spaces == NULL) {
+
 			break;
 		}
 

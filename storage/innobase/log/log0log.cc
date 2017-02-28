@@ -93,6 +93,11 @@ log_t*	log_sys	= NULL;
 /** Whether to generate and require checksums on the redo log pages */
 bool	innodb_log_checksums;
 
+#ifdef UNIV_DEBUG
+/** If true then disable checkpointing. */
+bool	srv_checkpoint_disabled;
+#endif /* UNIV_DEBUG */
+
 /** Pointer to the log checksum calculation function */
 log_checksum_func_t log_checksum_algorithm_ptr;
 
@@ -334,6 +339,11 @@ log_margin_checkpoint_age(
 		if (!flushed_enough) {
 			os_thread_sleep(100000);
 		}
+#ifdef UNIV_DEBUG
+		/* Checkpoints are disabled. We cannot recover if we don't
+		checkpoint here. */
+		ut_ad(!srv_checkpoint_disabled);
+#endif /* UNIV_DEBUG */
 		log_checkpoint(true, false);
 
 		log_mutex_enter();
@@ -356,7 +366,6 @@ log_reserve_and_open(
 
 loop:
 	ut_ad(log_mutex_own());
-	ut_ad(!recv_no_log_write);
 
 	if (log_sys->is_extending) {
 		log_mutex_exit();
@@ -414,7 +423,6 @@ log_write_low(
 
 	ut_ad(log_mutex_own());
 part_loop:
-	ut_ad(!recv_no_log_write);
 	/* Calculate a part length */
 
 	data_len = (log->buf_free % OS_FILE_LOG_BLOCK_SIZE) + str_len;
@@ -484,7 +492,6 @@ log_close(void)
 	lsn_t		checkpoint_age;
 
 	ut_ad(log_mutex_own());
-	ut_ad(!recv_no_log_write);
 
 	lsn = log->lsn;
 
@@ -883,12 +890,10 @@ log_group_init(
 	return(log_calc_max_ages());
 }
 
-/******************************************************//**
-Completes an i/o to a log file. */
+/** Completes an i/o to a log file.
+@param[in,out]	group		log group or a dummy pointer */
 void
-log_io_complete(
-/*============*/
-	log_group_t*	group)	/*!< in: log group or a dummy pointer */
+log_io_complete(log_group_t* group)
 {
 	if ((ulint) group & 0x1UL) {
 		/* It was a checkpoint write */
@@ -935,7 +940,6 @@ log_group_file_header_flush(
 	lsn_t	dest_offset;
 
 	ut_ad(log_write_mutex_own());
-	ut_ad(!recv_no_log_write);
 	ut_ad(group->id == 0);
 	ut_a(nth_file < group->n_files);
 
@@ -967,6 +971,8 @@ log_group_file_header_flush(
 	const page_no_t	page_no
 		= static_cast<page_no_t>(
 			dest_offset / univ_page_size.physical());
+
+	ut_ad(!log_sys->disable_redo_writes);
 
 	fil_io(IORequestLogWrite, true,
 	       page_id_t(group->space_id, page_no),
@@ -1265,7 +1271,6 @@ log_group_write_buf(
 	ulint		i;
 
 	ut_ad(log_write_mutex_own());
-	ut_ad(!recv_no_log_write);
 	ut_a(len % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_a(start_lsn % OS_FILE_LOG_BLOCK_SIZE == 0);
 
@@ -1338,6 +1343,8 @@ loop:
 
 	const page_no_t	page_no = static_cast<page_no_t>(
 		next_offset / univ_page_size.physical());
+
+	ut_ad(!log_sys->disable_redo_writes);
 
 	fil_io(IORequestLogWrite, true,
 	       page_id_t(group->space_id, page_no),
@@ -1463,7 +1470,6 @@ loop:
 #endif
 
 	log_write_mutex_enter();
-	ut_ad(!recv_no_log_write);
 
 	lsn_t	limit_lsn = flush_to_disk
 		? log_sys->flushed_to_disk_lsn
@@ -1698,8 +1704,7 @@ this lsn
 which means that we could not start this flush batch */
 static
 bool
-log_preflush_pool_modified_pages(
-	lsn_t			new_oldest)
+log_preflush_pool_modified_pages(lsn_t new_oldest)
 {
 	bool	success;
 
@@ -1713,7 +1718,7 @@ log_preflush_pool_modified_pages(
 		and we could not make a new checkpoint on the basis of the
 		info on the buffer pool only. */
 
-		recv_apply_hashed_log_recs(TRUE);
+		recv_apply_hashed_log_recs(true);
 	}
 
 	if (new_oldest == LSN_MAX
@@ -1751,12 +1756,11 @@ log_preflush_pool_modified_pages(
 	return(success);
 }
 
-/******************************************************//**
-Completes a checkpoint. */
+/** Completes a checkpoint.
+@return the low water mark */
 static
 void
-log_complete_checkpoint(void)
-/*=========================*/
+log_complete_checkpoint()
 {
 	ut_ad(log_mutex_own());
 	ut_ad(log_sys->n_pending_checkpoint_writes == 0);
@@ -1775,12 +1779,10 @@ log_complete_checkpoint(void)
 	rw_lock_x_unlock_gen(&(log_sys->checkpoint_lock), LOG_CHECKPOINT);
 }
 
-/******************************************************//**
-Completes an asynchronous checkpoint info write i/o to a log file. */
+/** Completes an asynchronous checkpoint info write i/o to a log file. */
 static
 void
-log_io_complete_checkpoint(void)
-/*============================*/
+log_io_complete_checkpoint()
 {
 	MONITOR_DEC(MONITOR_PENDING_CHECKPOINT_WRITE);
 
@@ -1788,7 +1790,9 @@ log_io_complete_checkpoint(void)
 
 	ut_ad(log_sys->n_pending_checkpoint_writes > 0);
 
-	if (--log_sys->n_pending_checkpoint_writes == 0) {
+	--log_sys->n_pending_checkpoint_writes;
+
+	if (log_sys->n_pending_checkpoint_writes == 0) {
 		log_complete_checkpoint();
 	}
 
@@ -1961,20 +1965,6 @@ log_write_checkpoint_info(
 	}
 }
 
-/** Set extra data to be written to the redo log during checkpoint.
-@param[in]	buf	data to be appended on checkpoint, or NULL
-@return pointer to previous data to be appended on checkpoint */
-mtr_buf_t*
-log_append_on_checkpoint(
-	mtr_buf_t*	buf)
-{
-	log_mutex_enter();
-	mtr_buf_t*	old = log_sys->append_on_checkpoint;
-	log_sys->append_on_checkpoint = buf;
-	log_mutex_exit();
-	return(old);
-}
-
 /** Make a checkpoint. Note that this function does not flush dirty
 blocks from the buffer pool: it only checks what is lsn of the oldest
 modification in the pool, and writes information about the lsn in
@@ -1993,8 +1983,18 @@ log_checkpoint(
 	ut_ad(!srv_read_only_mode);
 
 	if (recv_recovery_is_on()) {
-		recv_apply_hashed_log_recs(TRUE);
+		recv_apply_hashed_log_recs(true);
+	} else {
+		fil_tablespace_open_sync_to_disk();
 	}
+
+#ifdef UNIV_DEBUG
+	if (srv_checkpoint_disabled) {
+		/* Checkpoints are disabled. Pretend it succeeded. */
+		ib::info() << "Checkpoint explicitly disabled!";
+		return(true);
+	}
+#endif /* UNIV_DEBUG */
 
 	if (!srv_missing_dd_table_buffer) {
 
@@ -2012,7 +2012,7 @@ log_checkpoint(
 	case SRV_UNIX_LITTLESYNC:
 	case SRV_UNIX_O_DIRECT:
 	case SRV_UNIX_O_DIRECT_NO_FSYNC:
-		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
+		fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
 	}
 #endif /* !_WIN32 */
 
@@ -2023,7 +2023,6 @@ log_checkpoint(
 		rw_lock_x_unlock(&dict_persist->lock);
 	}
 
-	ut_ad(!recv_no_log_write);
 	oldest_lsn = log_buf_pool_get_oldest_modification();
 
 	/* Because log also contains headers and dummy log records,
@@ -2035,40 +2034,10 @@ log_checkpoint(
 	flushed up to oldest_lsn. */
 
 	ut_ad(oldest_lsn >= log_sys->last_checkpoint_lsn);
-	if (!write_always
-	    && oldest_lsn
-	    <= log_sys->last_checkpoint_lsn + SIZE_OF_MLOG_CHECKPOINT) {
-		/* Do nothing, because nothing was logged (other than
-		a MLOG_CHECKPOINT marker) since the previous checkpoint. */
-		log_mutex_exit();
-		return(true);
-	}
-
-	/* Repeat the MLOG_FILE_NAME records after the checkpoint, in
-	case some log records between the checkpoint and log_sys->lsn
-	need them. Finally, write a MLOG_CHECKPOINT marker. Redo log
-	apply expects to see a MLOG_CHECKPOINT after the checkpoint,
-	except on clean shutdown, where the log will be empty after
-	the checkpoint.
-
-	It is important that we write out the redo log before any
-	further dirty pages are flushed to the tablespace files.  At
-	this point, because log_mutex_own(), mtr_commit() in other
-	threads will be blocked, and no pages can be added to the
-	flush lists. */
-	lsn_t		flush_lsn	= oldest_lsn;
-	const bool	do_write
-		= srv_shutdown_state == SRV_SHUTDOWN_NONE
-		|| flush_lsn != log_sys->lsn;
-
-	if (fil_names_clear(flush_lsn, do_write)) {
-		ut_ad(log_sys->lsn >= flush_lsn + SIZE_OF_MLOG_CHECKPOINT);
-		flush_lsn = log_sys->lsn;
-	}
 
 	log_mutex_exit();
 
-	log_write_up_to(flush_lsn, true);
+	log_write_up_to(oldest_lsn, true);
 
 	DBUG_EXECUTE_IF(
 		"using_wa_checkpoint_middle",
@@ -2078,16 +2047,17 @@ log_checkpoint(
 			const bool b = TRUE;
 			buf_flush_page_cleaner_disabled_debug_update(
 				NULL, NULL, NULL, &b);
+
 			dict_stats_disabled_debug_update(
 				NULL, NULL, NULL, &b);
+
 			srv_master_thread_disabled_debug_update(
 				NULL, NULL, NULL, &b);
-		});
+	});
 
 	log_mutex_enter();
 
-	ut_ad(log_sys->flushed_to_disk_lsn >= flush_lsn);
-	ut_ad(flush_lsn >= oldest_lsn);
+	ut_ad(log_sys->flushed_to_disk_lsn >= oldest_lsn);
 
 	if (log_sys->last_checkpoint_lsn >= oldest_lsn) {
 		log_mutex_exit();
@@ -2155,7 +2125,6 @@ loop:
 	advance = 0;
 
 	log_mutex_enter();
-	ut_ad(!recv_no_log_write);
 
 	if (!log->check_flush_or_checkpoint) {
 		log_mutex_exit();
@@ -2213,67 +2182,16 @@ loop:
 	}
 
 	if (do_checkpoint) {
+#ifdef UNIV_DEBUG
+		/* We cannot survive a redo log wrap around. */
+		ut_ad(!srv_checkpoint_disabled);
+#endif /* UNIV_DEBUG */
 		log_checkpoint(checkpoint_sync, FALSE);
 
 		if (checkpoint_sync) {
 
 			goto loop;
 		}
-	}
-}
-
-/******************************************************//**
-Reads a specified log segment to a buffer. */
-void
-log_group_read_log_seg(
-/*===================*/
-	byte*		buf,		/*!< in: buffer where to read */
-	log_group_t*	group,		/*!< in: log group */
-	lsn_t		start_lsn,	/*!< in: read area start */
-	lsn_t		end_lsn)	/*!< in: read area end */
-{
-	ulint	len;
-	lsn_t	source_offset;
-
-	ut_ad(log_mutex_own());
-
-loop:
-	source_offset = log_group_calc_lsn_offset(start_lsn, group);
-
-	ut_a(end_lsn - start_lsn <= ULINT_MAX);
-	len = (ulint) (end_lsn - start_lsn);
-
-	ut_ad(len != 0);
-
-	if ((source_offset % group->file_size) + len > group->file_size) {
-
-		/* If the above condition is true then len (which is ulint)
-		is > the expression below, so the typecast is ok */
-		len = (ulint) (group->file_size -
-			(source_offset % group->file_size));
-	}
-
-	log_sys->n_log_ios++;
-
-	MONITOR_INC(MONITOR_LOG_IO);
-
-	ut_a(source_offset / UNIV_PAGE_SIZE <= PAGE_NO_MAX);
-
-	const page_no_t	page_no = static_cast<page_no_t>(
-		source_offset / univ_page_size.physical());
-
-	fil_io(IORequestLogRead, true,
-	       page_id_t(group->space_id, page_no),
-	       univ_page_size,
-	       (ulint) (source_offset % univ_page_size.physical()),
-	       len, buf, NULL);
-
-	start_lsn += len;
-	buf += len;
-
-	if (start_lsn != end_lsn) {
-
-		goto loop;
 	}
 }
 
@@ -2291,7 +2209,6 @@ log_check_margins(void)
 		log_flush_margin();
 		log_checkpoint_margin();
 		log_mutex_enter();
-		ut_ad(!recv_no_log_write);
 		check = log_sys->check_flush_or_checkpoint;
 		log_mutex_exit();
 	} while (check);
@@ -2494,8 +2411,8 @@ loop:
 	}
 
 	if (!srv_read_only_mode) {
-		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
-		fil_flush_file_spaces(FIL_TYPE_LOG);
+		fil_flush_file_spaces(
+			to_int(FIL_TYPE_TABLESPACE) | to_int(FIL_TYPE_LOG));
 	}
 
 	/* The call fil_write_flushed_lsn() will bypass the buffer
@@ -2537,6 +2454,9 @@ loop:
 	}
 
 	fil_close_all_files();
+
+	/* Safe to truncate the tablespace.open.* files now. */
+	fil_tablespace_open_clear();
 
 	/* Make some checks that the server really is quiet */
 	ut_a(!srv_master_thread_active());
@@ -2665,11 +2585,9 @@ log_group_close_all(void)
 	}
 }
 
-/********************************************************//**
-Shutdown the log system but do not release all the memory. */
+/** Shutdown the log system but do not release all the memory. */
 void
-log_shutdown(void)
-/*==============*/
+log_shutdown()
 {
 	log_group_close_all();
 
@@ -2689,19 +2607,10 @@ log_shutdown(void)
 	mutex_free(&log_sys->log_flush_order_mutex);
 
 	recv_sys_close();
+
+	ut_free(log_sys);
+
+	log_sys = NULL;
 }
 
-/********************************************************//**
-Free the log system data structures. */
-void
-log_mem_free(void)
-/*==============*/
-{
-	if (log_sys != NULL) {
-		recv_sys_mem_free();
-		ut_free(log_sys);
-
-		log_sys = NULL;
-	}
-}
 #endif /* !UNIV_HOTBACKUP */

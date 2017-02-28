@@ -122,6 +122,13 @@ buf_dblwr_write_single_page(
 	buf_page_t*	bpage,	/*!< in: buffer block to write */
 	bool		sync);	/*!< in: true if sync IO requested */
 
+/** Recover pages from the double write buffer for a specific tablespace.
+The pages that were read from the doublewrite buffer are written to the
+tablespace they belong to.
+@param[in]	space		Tablespace instance */
+void
+buf_dblwr_recover_pages(fil_space_t* space);
+
 /** Doublewrite control struct */
 struct buf_dblwr_t{
 	ib_mutex_t	mutex;	/*!< mutex protecting the first_free

@@ -448,7 +448,7 @@ create_log_files(
 
 	/* Create a log checkpoint. */
 	log_mutex_enter();
-	ut_d(recv_no_log_write = false);
+	ut_d(log_sys->disable_redo_writes = false);
 	recv_reset_logs(lsn);
 	log_mutex_exit();
 
@@ -1023,7 +1023,7 @@ srv_undo_tablespaces_create()
 				<<" enabled.";
 
 			mtr_start(&mtr);
-			mtr.set_undo_space(space_id);
+
 			fsp_header_init(
 				space_id,
 				SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr,
@@ -1060,9 +1060,7 @@ srv_undo_tablespaces_construct(bool create_new_db)
 		space_id = *it;
 
 		mtr_start(&mtr);
-		mtr.set_undo_space(space_id);
 		/* trx_rseg_header_create() will write to the TRX_SYS page. */
-		mtr.set_sys_modified();
 		mtr_x_lock(fil_space_get_latch(space_id, NULL), &mtr);
 
 		fsp_header_init(
@@ -1510,8 +1508,6 @@ srv_prepare_to_delete_redo_log_files(
 
 		log_mutex_enter();
 
-		fil_names_clear(log_sys->lsn, false);
-
 		flushed_lsn = log_sys->lsn;
 
 		{
@@ -1562,10 +1558,12 @@ srv_prepare_to_delete_redo_log_files(
 }
 
 /** Start InnoDB.
-@param[in]	create_new_db	whether to create a new database
+@param[in]	create_new_db		Whether to create a new database
+@param[in]	scan_directories	Scan directories for .ibd files for
+					recovery "dir1;dir2; ... dirN"
 @return DB_SUCCESS or error code */
 dberr_t
-srv_start(bool create_new_db)
+srv_start(bool create_new_db, const char* scan_directories)
 {
 	lsn_t		flushed_lsn;
 	page_no_t	sum_of_data_file_sizes;
@@ -1623,6 +1621,13 @@ srv_start(bool create_new_db)
 	ib::info() << MUTEX_TYPE;
 	ib::info() << IB_MEMORY_BARRIER_STARTUP_MSG;
 
+	if (srv_force_recovery > 0) {
+
+		ib::info()
+			<< "!!! innodb_force_recovery is set to "
+			<< srv_force_recovery << " !!!";
+	}
+
 #ifndef HAVE_MEMORY_BARRIER
 #if defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64 || defined _WIN32
 #else
@@ -1667,6 +1672,19 @@ srv_start(bool create_new_db)
 
 	ib::info() << (ut_crc32_cpu_enabled ? "Using" : "Not using")
 		<< " CPU crc32 instructions";
+
+	if (!create_new_db
+	    && scan_directories != nullptr
+	    && strlen(scan_directories) > 0) {
+
+		dberr_t	err;
+
+		err = fil_scan_for_tablespaces(scan_directories);
+
+		if (err != DB_SUCCESS) {
+			return(srv_init_abort(err));
+		}
+	}
 
 	if (!srv_read_only_mode) {
 
@@ -1854,7 +1872,7 @@ srv_start(bool create_new_db)
 	srv_startup_is_before_trx_rollback_phase = !create_new_db;
 
 	if (create_new_db) {
-		recv_sys_debug_free();
+		recv_sys_free();
 	}
 
 	/* Open or create the data files. */
@@ -2074,7 +2092,6 @@ files_checked:
 		}
 
 		mtr_start(&mtr);
-		mtr.set_sys_modified();
 
 		bool ret = fsp_header_init(0, sum_of_new_sizes, &mtr, false);
 
@@ -2153,12 +2170,47 @@ files_checked:
 			respective file pages, for the last batch of
 			recv_group_scan_log_recs(). */
 
-			recv_apply_hashed_log_recs(TRUE);
+			recv_apply_hashed_log_recs(true);
 			DBUG_PRINT("ib_log", ("apply completed"));
 
-			if (recv_needed_recovery) {
-				trx_sys_print_mysql_binlog_offset();
-			}
+			/* Check and print if there were any tablespaces
+			which had redo log records but we couldn't apply
+			them because the filenames were missing. */
+		}
+
+		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
+			/* Recovery complete, start verifying the
+			page LSN on read. */
+			recv_lsn_checks_on = true;
+		}
+
+		/* We have gone through the redo log, now check if all the
+		tablespaces were found and recovered. */
+
+		if (srv_force_recovery == 0
+		    && fil_check_missing_tablespaces()) {
+
+			ib::error()
+				<< "Use --innodb-scan-directories to find the"
+				<< " the tablespace files. If that fails then use"
+				<< " --innodb-force-recvovery=1 to ignore"
+				<< " this and to permanently lose all changes"
+				<< " to the missing tablespace(s)";
+
+			/* Set the abort flag to true. */
+			void*	ptr = recv_recovery_from_checkpoint_finish(true);
+			ut_a(ptr == nullptr);
+
+			return(srv_init_abort(DB_ERROR));
+		}
+
+		/* We have successfully recovered from the redo log. The
+		data dictionary should now be readable. */
+
+		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
+		    && recv_needed_recovery) {
+
+			trx_sys_print_mysql_binlog_offset();
 		}
 
 		if (recv_sys->found_corrupt_log) {
@@ -2176,7 +2228,7 @@ files_checked:
 			buf_flush_sync_all_buf_pools();
 		}
 
-		srv_dict_metadata = recv_recovery_from_checkpoint_finish();
+		srv_dict_metadata = recv_recovery_from_checkpoint_finish(false);
 
 		err = srv_undo_tablespaces_init(false);
 
@@ -2221,7 +2273,8 @@ files_checked:
 			/* Prohibit redo log writes from any other
 			threads until creating a log checkpoint at the
 			end of create_log_files(). */
-			ut_d(recv_no_log_write = true);
+			ut_d(log_sys->disable_redo_writes = true);
+
 			ut_ad(!buf_pool_check_no_pending_io());
 
 			RECOVERY_CRASH(3);
@@ -2259,9 +2312,9 @@ files_checked:
 		}
 
 		if (sum_of_new_sizes > 0) {
+
 			/* New data file(s) were added */
 			mtr_start(&mtr);
-			mtr.set_sys_modified();
 
 			fsp_header_inc_size(0, sum_of_new_sizes, &mtr);
 
@@ -2466,11 +2519,6 @@ files_checked:
 			<< srv_start_lsn;
 	}
 
-	if (srv_force_recovery > 0) {
-		ib::info() << "!!! innodb_force_recovery is set to "
-			<< srv_force_recovery << " !!!";
-	}
-
 	return(DB_SUCCESS);
 }
 
@@ -2501,7 +2549,7 @@ srv_dict_recover_on_restart()
 		found. */
 		srv_sys_tablespaces_open = true;
 		dberr_t	err = dict_create_or_check_sys_tablespace();
-		ut_a(err == DB_SUCCESS); // FIXME: remove in WL#7141
+		ut_a(err == DB_SUCCESS);
 
 		/* The following call is necessary for the insert
 		buffer to work with multiple tablespaces. We must
@@ -2812,7 +2860,6 @@ srv_shutdown()
 	/* 4. Free all allocated memory */
 
 	pars_lexer_close();
-	log_mem_free();
 	buf_pool_free(srv_buf_pool_instances);
 
 	/* 6. Free the thread management resoruces. */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -404,7 +404,7 @@ Datafile::validate_to_dd(
 	/* Validate this single-table-tablespace with the data dictionary,
 	but do not compare the DATA_DIR flag, in case the tablespace was
 	remotely located. */
-	err = validate_first_page(0, for_import);
+	err = validate_first_page(space_id, 0, for_import);
 	if (err != DB_SUCCESS) {
 		return(err);
 	}
@@ -442,21 +442,23 @@ exist and be successfully opened. We initially open it in read-only mode
 because we just want to read the SpaceID.  However, if the first page is
 corrupt and needs to be restored from the doublewrite buffer, we will
 reopen it in write mode and ry to restore that page.
-@retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
+@param[in]	space_id	Expected space ID
+@retval DB_SUCCESS  on success
 m_is_valid is also set true on success, else false. */
 dberr_t
-Datafile::validate_for_recovery()
+Datafile::validate_for_recovery(space_id_t space_id)
 {
 	dberr_t err;
 
 	ut_ad(is_open());
 	ut_ad(!srv_read_only_mode);
 
-	err = validate_first_page(0, false);
+	err = validate_first_page(space_id, 0, false);
 
 	switch (err) {
 	case DB_SUCCESS:
 	case DB_TABLESPACE_EXISTS:
+	case DB_TABLESPACE_NOT_FOUND:
 		break;
 
 	default:
@@ -471,7 +473,8 @@ Datafile::validate_for_recovery()
 		close();
 		err = open_read_write(srv_read_only_mode);
 		if (err != DB_SUCCESS) {
-			ib::error() << "Datafile '" << m_filepath << "' could not"
+			ib::error()
+				<< "Datafile '" << m_filepath << "' could not"
 				" be opened in read-write mode so that the"
 				" doublewrite pages could be restored.";
 			return(err);
@@ -492,7 +495,7 @@ Datafile::validate_for_recovery()
 
 		/* Free the previously read first page and then re-validate. */
 		free_first_page();
-		err = validate_first_page(0, false);
+		err = validate_first_page(space_id, 0, false);
 	}
 
 	if (err == DB_SUCCESS) {
@@ -506,15 +509,20 @@ Datafile::validate_for_recovery()
 tablespace is opened.  This occurs before the fil_space_t is created
 so the Space ID found here must not already be open.
 m_is_valid is set true on success, else false.
+@param[in]	space_id	Expected space ID
 @param[out]	flush_lsn	contents of FIL_PAGE_FILE_FLUSH_LSN
 @param[in]	for_import	if it is for importing
 (only valid for the first file of the system tablespace)
+@retval DB_TABLESPACE_NOT_FOUND tablespace in file header doesn't match
+	expected value
 @retval DB_SUCCESS on if the datafile is valid
 @retval DB_CORRUPTION if the datafile is not readable
 @retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
 dberr_t
-Datafile::validate_first_page(lsn_t*	flush_lsn,
-			      bool	for_import)
+Datafile::validate_first_page(
+	space_id_t	space_id,
+	lsn_t*		flush_lsn,
+	bool		for_import)
 {
 	char*		prev_name;
 	char*		prev_filepath;
@@ -537,10 +545,10 @@ Datafile::validate_first_page(lsn_t*	flush_lsn,
 		}
 	}
 
-	/* Check if the whole page is blank. */
-	if (error_txt == NULL
-	    && m_space_id == TRX_SYS_SPACE
-	    && !m_flags) {
+	if (error_txt == NULL && m_space_id == TRX_SYS_SPACE && !m_flags) {
+
+		/* Check if the whole page is blank. */
+
 		const byte*	b		= m_first_page;
 		ulint		nonzero_bytes	= UNIV_PAGE_SIZE;
 
@@ -585,10 +593,24 @@ Datafile::validate_first_page(lsn_t*	flush_lsn,
 
 		/* The space_id can be most anything, except -1. */
 		error_txt = "A bad Space ID was found";
+
+	} else if (m_space_id != 0 && space_id != m_space_id) {
+
+		/* Tablespace ID mismatch. The file could be in use
+		by another tablespace. */
+
+		ut_d(ib::info()
+		     << "Tablespace file '" << filepath() << "' ID mismatch"
+		     << ", expected " << space_id << " but found "
+		     << m_space_id);
+
+		return(DB_TABLESPACE_NOT_FOUND);
+
 	} else {
 		BlockReporter	reporter(
 			false, m_first_page, page_size,
 			fsp_is_checksum_disabled(m_space_id));
+
 		if (reporter.is_corrupted()) {
 			/* Look for checksum and other corruptions. */
 			error_txt = "Checksum mismatch";

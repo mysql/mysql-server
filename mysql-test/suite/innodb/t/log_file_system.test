@@ -1,4 +1,3 @@
-# WL#7806 InnoDB: Log-based discovery of built-in tablespaces
 # Test the detection of innodb_data_file_path mismatch.
 
 # Temporarily skipping the test when log-bin is enabled due to Bug#22269500
@@ -73,21 +72,20 @@ let $new_mysqld=$NEW_CMD --console > $SEARCH_FILE 2>&1;
 
 --echo # Fault 1: Extra file in innodb_data_file_path
 
---error 1
---exec $new_mysqld
-let SEARCH_PATTERN= \[ERROR\] InnoDB: Some file names in innodb_data_file_path do not occur in the redo log;
---source include/search_pattern_in_file.inc
---remove_file $SEARCH_FILE
-# Work around Bug#18605064 INNODB CREATES NEW DATA FILE BEFORE APPLYING REDO LOG
---remove_file $MYSQLD_DATADIR/foo
+--source include/start_mysqld.inc
+SHOW TABLES;
+--source include/shutdown_mysqld.inc
 
 --echo # Recovery and clean shutdown with old data file path
---error 1
+
 # Empty the undo logs and the change buffer with innodb_fast_shutdown=0.
 # Otherwise, log_write_requests=0 could be violated after the last restart.
+--error 1
 --exec $old_mysqld --innodb-fast-shutdown=0 --innodb-nonexistent-option
+
 let SEARCH_PATTERN= \[ERROR\] unknown option '--innodb-nonexistent-option';
 --source include/search_pattern_in_file.inc
+
 --remove_file $SEARCH_FILE
 
 # Create empty data file
@@ -106,22 +104,25 @@ EOF
 --disable_reconnect
 
 INSERT INTO t1 VALUES (1);
+
 # Kill the server to inject faults.
 --source include/kill_mysqld.inc
 
 --echo # Fault 2: Missing file in innodb_data_file_path
 
---error 1
---exec $old_mysqld
-let SEARCH_PATTERN= \[ERROR\] InnoDB: Redo log refers to system tablespace file '.*foo' starting at page \d+, which disagrees with innodb_data_file_path;
---source include/search_pattern_in_file.inc
---remove_file $SEARCH_FILE
+--source include/start_mysqld.inc
+SHOW TABLES;
+--source include/shutdown_mysqld.inc
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
 
 --echo # Recovery and shutdown with innodb-force-recovery (ignore unknown file)
 --error 1
 --exec $old_mysqld --innodb-force-recovery=1 --innodb-fast-shutdown=0 --innodb-nonexistent-option
+
 let SEARCH_PATTERN= \[ERROR\] unknown option '--innodb-nonexistent-option';
 --source include/search_pattern_in_file.inc
+
 --remove_file $SEARCH_FILE
 
 --echo # Cleanup
@@ -134,18 +135,9 @@ let SEARCH_PATTERN= \[ERROR\] unknown option '--innodb-nonexistent-option';
 --echo # No log should be generated while persistent tablespaces are idle
 --echo # FIXME: Something occasionally violates this (log_write_requests=1)
 
-#SELECT count FROM information_schema.innodb_metrics
-#WHERE name='log_write_requests';
-
 CREATE TEMPORARY TABLE t (a SERIAL) ENGINE=InnoDB;
 
-#SELECT count FROM information_schema.innodb_metrics
-#WHERE name='log_write_requests';
-
 SELECT * FROM t1;
-
-#SELECT count FROM information_schema.innodb_metrics
-#WHERE name='log_write_requests';
 
 DROP TABLE t1;
 

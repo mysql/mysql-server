@@ -632,7 +632,8 @@ SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 	first datafile. */
 	for (int retry = 0; retry < 2; ++retry) {
 
-		err = it->validate_first_page(flushed_lsn, false);
+		err = it->validate_first_page(
+			it->m_space_id, flushed_lsn, false);
 
 		if (err != DB_SUCCESS
 		    && (retry == 1

@@ -2,29 +2,44 @@ SET GLOBAL innodb_file_per_table=ON;
 SET GLOBAL innodb_master_thread_disabled_debug=1;
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t3(a INT PRIMARY KEY) ENGINE=InnoDB;
+SET GLOBAL innodb_checkpoint_disabled=1;
 BEGIN;
-INSERT INTO t3 VALUES (33101),(347);
-INSERT INTO t1 VALUES (42),(9),(101);
+INSERT INTO t3 VALUES (2008),(08),(25);
+INSERT INTO t1 VALUES (1964),(12),(25);
 RENAME TABLE t1 TO t2;
-UPDATE t2 SET a=347 where a=42;
+UPDATE t2 SET a=2000 where a=1964;
 COMMIT;
 # Kill the server
 # Fault 0 (no real fault): Orphan file with duplicate space_id.
 # Fault 1: Two dirty files with the same space_id.
+# restart
+DROP TABLE t2;
+DROP TABLE t3;
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t3(a INT PRIMARY KEY) ENGINE=InnoDB;
+SET GLOBAL innodb_checkpoint_disabled=1;
+BEGIN;
+INSERT INTO t3 VALUES (2008),(08),(25);
+INSERT INTO t1 VALUES (1964),(12),(25);
+RENAME TABLE t1 TO t2;
+UPDATE t2 SET a=2000 where a=1964;
+COMMIT;
+# Kill the server
 # Fault 2: Wrong space_id in a dirty file, and a missing file.
-# Fault 3: Wrong space_id in a dirty file, and no missing file.
+# Fault 3: Wrong space_id in dirty file(s)
 # Fault 4: Missing data file
-# Fault 5: Wrong type of data file
+# Fault 5: Empty data file
 # restart
 SELECT * FROM t2;
 a
-9
-101
-347
+12
+25
+2000
 SELECT * FROM t3;
 a
-347
-33101
+8
+25
+2008
 SHOW TABLES;
 Tables_in_test
 t2
@@ -35,6 +50,7 @@ ERROR HY000: Tablespace '`test`.`t0`' exists.
 CREATE TABLE t0(a INT PRIMARY KEY) ENGINE=InnoDB;
 DROP TABLE t0;
 SET GLOBAL innodb_master_thread_disabled_debug=1;
+SET GLOBAL innodb_checkpoint_disabled=1;
 CREATE TABLE u1(a INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE u2(a INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE u3(a INT PRIMARY KEY) ENGINE=InnoDB;
@@ -44,8 +60,9 @@ RENAME TABLE u4 TO u5;
 RENAME TABLE u5 TO u6;
 INSERT INTO u6 VALUES(2);
 # Kill the server
-# Fault 6: All-zero data file and innodb_force_recovery
-# Fault 7: Missing or wrong data file and innodb_force_recovery
+# Fault 6: Check file exists use case during RENAME
+# Fault 7: Check all zero data file
+# Fault 8: Missing or wrong data file
 # restart
 DROP TABLE u1,u2,u3,u6;
 # List of files:

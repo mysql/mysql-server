@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -394,17 +394,6 @@ fsp_header_get_flags(const page_t* page)
 page_size_t
 fsp_header_get_page_size(
 	const page_t*	page);
-
-/** Decoding the encryption info from the first page of a tablespace.
-@param[in,out]	key		key
-@param[in,out]	iv		iv
-@param[in]	encryption_info	encrytion info.
-@return true if success */
-bool
-fsp_header_decode_encryption_info(
-	byte*		key,
-	byte*		iv,
-	byte*		encryption_info);
 
 /** Reads the encryption key from the first page of a tablespace.
 @param[in]	fsp_flags	tablespace flags

@@ -46,18 +46,20 @@ struct trx_t;
 class page_id_t;
 struct fil_node_t;
 
+using Filenames = std::vector<std::string>;
+
 typedef std::list<char*, ut_allocator<char*> >	space_name_list_t;
 
 /** File types */
-enum fil_type_t {
+enum fil_type_t : uint8_t {
 	/** temporary tablespace (temporary undo log or tables) */
-	FIL_TYPE_TEMPORARY,
+	FIL_TYPE_TEMPORARY = 1,
 	/** a tablespace that is being imported (no logging until finished) */
-	FIL_TYPE_IMPORT,
+	FIL_TYPE_IMPORT = 2,
 	/** persistent tablespace (for system, undo log or tables) */
-	FIL_TYPE_TABLESPACE,
+	FIL_TYPE_TABLESPACE = 4,
 	/** redo log covering changes to files of FIL_TYPE_TABLESPACE */
-	FIL_TYPE_LOG
+	FIL_TYPE_LOG = 8
 };
 
 /** Check if fil_type is any of FIL_TYPE_TEMPORARY, FIL_TYPE_IMPORT
@@ -67,8 +69,7 @@ or FIL_TYPE_TABLESPACE.
 or FIL_TYPE_TABLESPACE */
 inline
 bool
-fil_type_is_data(
-	fil_type_t	type)
+fil_type_is_data(fil_type_t type)
 {
 	return(type == FIL_TYPE_TEMPORARY
 	       || type == FIL_TYPE_IMPORT
@@ -79,84 +80,98 @@ struct fil_node_t;
 
 /** Tablespace or log data space */
 struct fil_space_t {
-	char*		name;	/*!< Tablespace name */
-	space_id_t	id;	/*!< space id */
+
+	/** Tablespace name */
+	char*		name;
+
+	/** space id */
+	space_id_t	id;
+
+	/** LSN of the most recent fil_names_write_if_was_clean().
+	Reset to 0 by fil_names_clear().  Protected by log_sys->mutex.
+	If and only if this is nonzero, the tablespace will be in
+	named_spaces. */
 	lsn_t		max_lsn;
-				/*!< LSN of the most recent
-				fil_names_write_if_was_clean().
-				Reset to 0 by fil_names_clear().
-				Protected by log_sys->mutex.
-				If and only if this is nonzero, the
-				tablespace will be in named_spaces. */
-	bool		stop_ios;/*!< true if we want to rename the
-				.ibd file of tablespace and want to
-				stop temporarily posting of new i/o
-				requests on the file */
+
+	/** true if we want to rename the .ibd file of tablespace and
+	want to stop temporarily posting of new i/o requests on the file */
+	bool		stop_ios;
+
+	/** we set this true when we start deleting a single-table
+	tablespace.  When this is set following new ops are not allowed:
+	* read IO request
+	* ibuf merge
+	* file flush
+	Note that we can still possibly have new write operations because we
+	don't check this flag when doing flush batches. */
 	bool		stop_new_ops;
-				/*!< we set this true when we start
-				deleting a single-table tablespace.
-				When this is set following new ops
-				are not allowed:
-				* read IO request
-				* ibuf merge
-				* file flush
-				Note that we can still possibly have
-				new write operations because we don't
-				check this flag when doing flush
-				batches. */
+
 #ifdef UNIV_DEBUG
+	/** reference count for operations who want to skip redo log in
+	the file space in order to make fsp_space_modify_check pass. */
 	ulint		redo_skipped_count;
-				/*!< reference count for operations who want
-				to skip redo log in the file space in order
-				to make fsp_space_modify_check pass. */
 #endif
-	fil_type_t	purpose;/*!< purpose */
+
+	/** purpose */
+	fil_type_t	purpose;
+
+	/** base node for the file chain */
 	UT_LIST_BASE_NODE_T(fil_node_t) chain;
-				/*!< base node for the file chain */
-	page_no_t	size;	/*!< tablespace file size in pages;
-				0 if not known yet */
+
+	/** tablespace file size in pages; 0 if not known yet */
+	page_no_t	size;
+
+	/** FSP_SIZE in the tablespace header; 0 if not known yet */
 	page_no_t	size_in_header;
-				/* FSP_SIZE in the tablespace header;
-				0 if not known yet */
+
+	/** length of the FSP_FREE list */
 	ulint		free_len;
-				/*!< length of the FSP_FREE list */
+
+	/** contents of FSP_FREE_LIMIT */
 	page_no_t	free_limit;
-				/*!< contents of FSP_FREE_LIMIT */
-	ulint		flags;	/*!< tablespace flags; see
-				fsp_flags_is_valid(),
-				page_size_t(ulint) (constructor). This is
-				protected by space->latch and tablespace MDL */
+
+	/** tablespace flags;
+	see fsp_flags_is_valid(), page_size_t(ulint) (constructor).
+	This is protected by space->latch and tablespace MDL */
+	ulint		flags;
+
+	/** number of reserved free extents for ongoing operations like
+	B-tree page split */
 	ulint		n_reserved_extents;
-				/*!< number of reserved free extents for
-				ongoing operations like B-tree page split */
-	ulint		n_pending_flushes; /*!< this is positive when flushing
-				the tablespace to disk; dropping of the
-				tablespace is forbidden if this is positive */
-	ulint		n_pending_ops;/*!< this is positive when we
-				have pending operations against this
-				tablespace. The pending operations can
-				be ibuf merges or lock validation code
-				trying to read a block.
-				Dropping of the tablespace is forbidden
-				if this is positive.
-				Protected by fil_system->mutex. */
-	hash_node_t	hash;	/*!< hash chain node */
-	hash_node_t	name_hash;/*!< hash chain the name_hash table */
+
+	/** this is positive when flushing the tablespace to disk;
+	dropping of the tablespace is forbidden if this is positive */
+	ulint		n_pending_flushes;
+
+	/** this is positive when we have pending operations against this
+	tablespace. The pending operations can be ibuf merges or lock
+	validation code trying to read a block.  Dropping of the tablespace
+	is forbidden if this is positive.  Protected by fil_system->mutex. */
+	ulint		n_pending_ops;
+
+	/** hash chain node */
+	hash_node_t	hash;
+
+	/** hash chain the name_hash table */
+	hash_node_t	name_hash;
+
 #ifndef UNIV_HOTBACKUP
-	rw_lock_t	latch;	/*!< latch protecting the file space storage
-				allocation */
+	/** latch protecting the file space storage allocation */
+	rw_lock_t	latch;
 #endif /* !UNIV_HOTBACKUP */
+
+	/** list of spaces with at least one unflushed file we have
+	written to */
 	UT_LIST_NODE_T(fil_space_t) unflushed_spaces;
-				/*!< list of spaces with at least one unflushed
-				file we have written to */
+
+	/** list of spaces for which MLOG_FILE_OPEN records have been issued */
 	UT_LIST_NODE_T(fil_space_t) named_spaces;
-				/*!< list of spaces for which MLOG_FILE_NAME
-				records have been issued */
+
+	/** true if this space is currently in unflushed_spaces */
 	bool		is_in_unflushed_spaces;
-				/*!< true if this space is currently in
-				unflushed_spaces */
+
+	/** list of all spaces */
 	UT_LIST_NODE_T(fil_space_t) space_list;
-				/*!< list of all spaces */
 
 	/** Compression algorithm */
 	Compression::Type	compression_type;
@@ -177,7 +192,11 @@ struct fil_space_t {
 	@param[in]	n_reserved	number of reserved extents */
 	void release_free_extents(ulint n_reserved);
 
-	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
+	/** FIL_SPACE_MAGIC_N */
+	ulint			magic_n;
+
+	/** System tablespace */
+	static fil_space_t*	s_sys_space;
 
 #ifdef UNIV_DEBUG
 	/** Print the extent descriptor pages of this tablespace into
@@ -202,7 +221,9 @@ struct fil_node_t {
 	fil_space_t*	space;
 	/** file name; protected by fil_system->mutex and log_sys->mutex. */
 	char*		name;
-	/** whether this file is open */
+	/** whether this file is open. Note: We set the is_open flag after
+	we increase the write the MLOG_FILE_OPEN record to redo log. Therefore
+	we increment the in_use reference count before setting the OPEN flag. */
 	bool		is_open;
 	/** file handle (valid if is_open) */
 	pfs_os_file_t	handle;
@@ -223,8 +244,8 @@ struct fil_node_t {
 	ulint		n_pending;
 	/** count of pending flushes; is_open must be true if nonzero */
 	ulint		n_pending_flushes;
-	/** whether the file is currently being extended */
-	bool		being_extended;
+	/** e.g., when a file is being extended or just opened. */
+	size_t		in_use;
 	/** number of writes to the file since the system was started */
 	int64_t		modification_counter;
 	/** the modification_counter of the latest flush to disk */
@@ -270,11 +291,10 @@ See https://msdn.microsoft.com/en-us/library/1ywe7hcy.aspx */
 #endif /* _WIN32 */
 
 /** Wrapper for a path to a directory that may or may not exist. */
-class Folder
-{
+class Folder {
 public:
 	/** Default constructor */
-	Folder() : m_folder(NULL), m_folder_len(0), m_abs_path(), m_abs_len(0)
+	Folder() : m_folder(), m_folder_len(), m_abs_path(), m_abs_len()
 	{}
 
 	/** Constructor
@@ -284,7 +304,7 @@ public:
 
 	/** Assignment operator
 	@param[in]	path	folder string provided */
-	class Folder& operator=(const char* path);
+	Folder& operator=(const char* path);
 
 	/** Destructor */
 	~Folder()
@@ -308,7 +328,7 @@ public:
 
 	/** return the length of m_folder
 	@return the length of m_folder */
-	size_t len()
+	size_t len() const
 	{
 		return(m_folder_len);
 	}
@@ -336,6 +356,11 @@ public:
 	@return whether the directory exists */
 	bool exists();
 
+	/** Return the absolute path */
+	std::string abs_path() const
+	{
+		return(std::string(m_abs_path, m_abs_len));
+	}
 private:
 	/** Build the basic folder name from the path and length provided
 	@param[in]	path	pathname (not necessarily NUL-terminated)
@@ -344,7 +369,7 @@ private:
 
 	/** Resolve a relative path in m_folder to an absolute path
 	in m_abs_path setting m_abs_len. */
-	inline void make_abs_path();
+	void make_abs_path();
 
 	/** The wrapped folder string */
 	char*	m_folder;
@@ -563,17 +588,6 @@ fil_assign_new_space_id(
 /*====================*/
 	space_id_t*	space_id);	/*!< in/out: space id */
 
-/** Frees a space object from the tablespace memory cache.
-Closes the files in the chain but does not delete them.
-There must not be any pending i/o's or flushes on the files.
-@param[in]	id		tablespace identifier
-@param[in]	x_latched	whether the caller holds X-mode space->latch
-@return true if success */
-bool
-fil_space_free(
-	space_id_t	id,
-	bool		x_latched);
-
 /** Returns the path from the first fil_node_t found with this space ID.
 The caller is responsible for freeing the memory allocated here for the
 value returned.
@@ -591,14 +605,13 @@ page_no_t
 fil_space_get_size(
 /*===============*/
 	space_id_t	id);	/*!< in: space id */
-/*******************************************************************//**
-Returns the flags of the space. The tablespace must be cached
+
+/** Returns the flags of the space. The tablespace must be cached
 in the memory cache.
+@param[in]	space_id	Tablespace ID for which to get the flags
 @return flags, ULINT_UNDEFINED if space not found */
 ulint
-fil_space_get_flags(
-/*================*/
-	space_id_t	id);	/*!< in: space id */
+fil_space_get_flags(space_id_t space_id);
 
 /** Sets the flags of the tablespace. The tablespace must be locked
 in MDL_EXCLUSIVE MODE.
@@ -763,21 +776,6 @@ private:
 };
 
 #endif /* !UNIV_HOTBACKUP */
-/** Replay a file rename operation if possible.
-@param[in]	space_id	tablespace identifier
-@param[in]	first_page_no	first page number in the file
-@param[in]	name		old file name
-@param[in]	new_name	new file name
-@return	whether the operation was successfully applied
-(the name did not exist, or new_name did not exist and
-name was successfully renamed to new_name)  */
-bool
-fil_op_replay_rename(
-	space_id_t	space_id,
-	page_no_t	first_page_no,
-	const char*	name,
-	const char*	new_name)
-	MY_ATTRIBUTE((warn_unused_result));
 
 /** Deletes an IBD tablespace, either general or single-table.
 The tablespace must be cached in the memory cache. This will delete the
@@ -792,33 +790,6 @@ fil_delete_tablespace(
 	buf_remove_t	buf_remove);
 
 #ifndef UNIV_HOTBACKUP
-/** Return values of fil_space_system_check() */
-enum fil_space_system_t {
-	/** One file name matched */
-	FIL_SPACE_SYSTEM_OK,
-	/** All file names matched */
-	FIL_SPACE_SYSTEM_ALL,
-	/** File name or size mismatch */
-	FIL_SPACE_SYSTEM_MISMATCH
-};
-
-/** Check if a file name exists in the system tablespace.
-@param[in]	first_page_no	first page number (0=first file)
-@param[in]	file_name	tablespace file name
-@return whether the name matches the system tablespace
-@retval	FIL_SPACE_SYSTEM_OK		if file_name starts at first_page_no
-in the system tablespace
-@retval	FIL_SPACE_SYSTEM_ALL		if file_name starts at first_page_no
-in the system tablespace
-and this function has been invoked for every file in the system tablespace
-@retval	FIL_SPACE_SYSTEM_MISMATCH	in case of mismatch */
-
-enum fil_space_system_t
-fil_space_system_check(
-	page_no_t		first_page_no,
-	const char*	file_name)
-	MY_ATTRIBUTE((warn_unused_result));
-
 /** Check if an undo tablespace was opened during crash recovery.
 Change name to undo_name if already opened during recovery.
 @param[in]	file_name	undo tablespace file name
@@ -965,29 +936,6 @@ fil_ibd_open(
 	const char*	path_in)
 	MY_ATTRIBUTE((warn_unused_result));
 
-enum fil_load_status {
-	/** The tablespace file(s) were found and valid. */
-	FIL_LOAD_OK,
-	/** The name no longer matches space_id */
-	FIL_LOAD_ID_CHANGED,
-	/** The file(s) were not found */
-	FIL_LOAD_NOT_FOUND,
-	/** The file(s) were not valid */
-	FIL_LOAD_INVALID
-};
-
-/** Open a single-file tablespace and add it to the InnoDB data structures.
-@param[in]	space_id	tablespace ID
-@param[in]	filename	path/to/databasename/tablename.ibd
-@param[out]	space		the tablespace, or NULL on error
-@return status of the operation */
-enum fil_load_status
-fil_ibd_load(
-	space_id_t	space_id,
-	const char*	filename,
-	fil_space_t*&	space)
-	MY_ATTRIBUTE((warn_unused_result));
-
 /** Returns true if a matching tablespace exists in the InnoDB tablespace
 memory cache. Note that if we have not done a crash recovery at the database
 startup, there may be many tablespaces which are not yet in the memory cache.
@@ -1098,10 +1046,10 @@ fil_flush(
 					of the database) */
 /** Flush to disk the writes in file spaces of the given type
 possibly cached by the OS.
-@param[in]	purpose	FIL_TYPE_TABLESPACE or FIL_TYPE_LOG */
+@param[in]	purpose		FIL_TYPE_TABLESPACE or FIL_TYPE_LOG, can
+				be ORred. */
 void
-fil_flush_file_spaces(
-	fil_type_t	purpose);
+fil_flush_file_spaces(uint8_t purpose);
 /******************************************************************//**
 Checks the consistency of the tablespace cache.
 @return true if ok */
@@ -1381,21 +1329,6 @@ fil_mtr_rename_log(
 	mtr_t*			mtr)
 	MY_ATTRIBUTE((warn_unused_result));
 
-/** Note that a persistent tablespace has been modified by redo log.
-@param[in,out]	space	tablespace */
-void
-fil_names_dirty(
-	fil_space_t*	space);
-
-/** Write MLOG_FILE_NAME records when a persistent tablespace
-was modified for the first time since the latest fil_names_clear().
-@param[in,out]	space	tablespace
-@param[in,out]	mtr	mini-transaction */
-void
-fil_names_dirty_and_write(
-	fil_space_t*	space,
-	mtr_t*		mtr);
-
 /** Set the compression type for the tablespace of a table
 @param[in]	table		Table that should be compressesed
 @param[in]	algorithm	Text representation of the algorithm
@@ -1432,34 +1365,6 @@ fil_set_encryption(
 bool
 fil_encryption_rotate();
 
-/** Write MLOG_FILE_NAME records if a persistent tablespace was modified
-for the first time since the latest fil_names_clear().
-@param[in,out]	space	tablespace
-@param[in,out]	mtr	mini-transaction
-@return whether any MLOG_FILE_NAME record was written */
-inline MY_ATTRIBUTE((warn_unused_result))
-bool
-fil_names_write_if_was_clean(
-	fil_space_t*	space,
-	mtr_t*		mtr)
-{
-	ut_ad(log_mutex_own());
-
-	if (space == NULL) {
-		return(false);
-	}
-
-	const bool	was_clean = space->max_lsn == 0;
-	ut_ad(space->max_lsn <= log_sys->lsn);
-	space->max_lsn = log_sys->lsn;
-
-	if (was_clean) {
-		fil_names_dirty_and_write(space, mtr);
-	}
-
-	return(was_clean);
-}
-
 extern volatile bool	recv_recovery_on;
 
 /** During crash recovery, open a tablespace if it had not been opened
@@ -1485,25 +1390,14 @@ fil_space_open_if_needed(
 	}
 }
 
-/** On a log checkpoint, reset fil_names_dirty_and_write() flags
-and write out MLOG_FILE_NAME and MLOG_CHECKPOINT if needed.
-@param[in]	lsn		checkpoint LSN
-@param[in]	do_write	whether to always write MLOG_CHECKPOINT
-@return whether anything was written to the redo log
-@retval false	if no flags were set and nothing written
-@retval true	if anything was written to the redo log */
-bool
-fil_names_clear(
-	lsn_t	lsn,
-	bool	do_write);
-
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
 /**
 Try and enable FusionIO atomic writes.
 @param[in] file		OS file handle
 @return true if successful */
 bool
-fil_fusionio_enable_atomic_write(pfs_os_file_t file);
+fil_fusionio_enable_atomic_write(pfs_os_file_t file)
+	MY_ATTRIBUTE((warn_unused_result));
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
 /** Note that the file system where the file resides doesn't support PUNCH HOLE
@@ -1513,5 +1407,66 @@ void fil_no_punch_hole(fil_node_t* node);
 #ifdef UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH
 void test_make_filepath();
 #endif /* UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH */
+
+/** @return the system tablespace instance */
+#define fil_space_get_sys_space() (fil_space_t::s_sys_space)
+
+/** Write the open table (space_id -> name) mapping to disk */
+void
+fil_tablespace_open_sync_to_disk();
+
+/** Parse or process a MLOG_FILE_* record.
+@param[in]	ptr		redo log record
+@param[in]	end		end of the redo log buffer
+@param[in]	page_id		Tablespace Id and first page in file
+@param[in]	type		MLOG_FILE_OPEN or MLOG_FILE_DELETE
+				or MLOG_FILE_CREATE2 or MLOG_FILE_RENAME2
+@param[in]	parsed_bytes	Number of bytes parsed so far
+@return pointer to next redo log record
+@retval NULL if this log record was truncated */
+byte*
+fil_tablespace_name_recover(
+	byte*		ptr,
+	const byte*	end,
+	const page_id_t&page_id,
+	mlog_id_t	type,
+	ulint		parsed_bytes)
+	MY_ATTRIBUTE((warn_unused_result));
+
+/** Read the tablespace id to path mapping from the file */
+void
+fil_tablespace_open_init_for_recovery();
+
+/** Lookup the space ID.
+@param[in]	space_id	Tablespace ID to lookup
+@return true if space ID is known and open */
+bool
+fil_tablespace_lookup_for_recovery(space_id_t space_id)
+	MY_ATTRIBUTE((warn_unused_result));
+
+/** This function should be called after recovery has completed.
+Check for tablespace files for which we did not see any MLOG_FILE_DELETE
+or MLOG_FILE_RENAME record. These could not be recovered
+@return true if there were some filenames missing for which we had to
+ignore redo log records during the apply phase */
+bool
+fil_check_missing_tablespaces()
+	MY_ATTRIBUTE((warn_unused_result));
+
+/** Discover tablespaces by reading the header from .ibd files.
+@param[in]	directories	Directories to scan
+@return DB_SUCCESS if all goes well */
+dberr_t
+fil_scan_for_tablespaces(const std::string& directories);
+
+/** Open the tabelspace and also get the tablespace filenames, space_id must
+already be known.
+@param[in]	space_id	Tablespace ID to lookup */
+void
+fil_tablespace_open_for_recovery(space_id_t space_id);
+
+/** Clear the tablspace ID to filename mapping. */
+void
+fil_tablespace_open_clear();
 
 #endif /* fil0fil_h */
