@@ -551,6 +551,8 @@ int starordinary;		/* is a leading * an ordinary character? */
 			assert(OP(p->strip[p->pbegin[i]]) == OLPAREN);
 			assert(OP(p->strip[p->pend[i]]) == ORPAREN);
 			(void) dupl(p, p->pbegin[i]+1, p->pend[i]);
+                        if (p->error != 0)
+                          break;        /* purecov: inspected */
 			EMIT(O_BACK, i);
 		} else
 			SETERROR(MY_REG_ESUBREG);
@@ -1031,6 +1033,8 @@ int to;				/* to this number of times (maybe RE_INFINITY) */
 		AHEAD(THERE());			/* ...so fix it */
 		ASTERN(O_CH, THERETHERE());
 		copy = dupl(p, start+1, finish+1);
+                if (p->error != 0)
+                  return;        /* purecov: inspected */
 		assert(copy == finish+4);
 		repeat(p, copy, 1, to-1);
 		break;
@@ -1040,10 +1044,14 @@ int to;				/* to this number of times (maybe RE_INFINITY) */
 		break;
 	case REP(N, N):			/* as xx{m-1,n-1} */
 		copy = dupl(p, start, finish);
+                if (p->error != 0)
+                  return;
 		repeat(p, copy, from-1, to-1);
 		break;
 	case REP(N, INF):		/* as xx{n-1,INF} */
 		copy = dupl(p, start, finish);
+                if (p->error != 0)
+                  return;        /* purecov: inspected */
 		repeat(p, copy, from-1, to);
 		break;
 	default:			/* "can't happen" */
@@ -1366,6 +1374,9 @@ sopno finish;			/* to this less one */
 	if (len == 0)
 		return(ret);
 	enlarge(p, p->ssize + len);	/* this many unexpected additions */
+        if (p->error != 0)
+          return(p->error);
+
 	assert(p->ssize >= p->slen + len);
 	(void) memcpy((char *)(p->strip + p->slen),
 		(char *)(p->strip + start), (size_t)len*sizeof(sop));
@@ -1438,7 +1449,7 @@ sopno pos;
 		}
 	}
 	{
-          int length=(HERE()-pos-1)*sizeof(sop);
+          size_t length=(HERE()-pos-1)*sizeof(sop);
           bmove_upp((uchar *) &p->strip[pos+1]+length,
                     (uchar *) &p->strip[pos]+length,
                     length);
@@ -1481,6 +1492,15 @@ register sopno size;
 
 	if (p->ssize >= size)
 		return;
+
+        DBUG_EXECUTE_IF("bug24449090_simulate_oom",
+                        {
+                          free(p->strip);
+                          p->strip= NULL;
+                          p->ssize= 0;
+                          SETERROR(MY_REG_ESPACE);
+                          return;
+                        });
 
 	sp = (sop *)realloc(p->strip, size*sizeof(sop));
 	if (sp == NULL) {

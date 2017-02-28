@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,10 +23,11 @@
 
 #include <memory.h>
 
+PFS_global_param param;
+
 void test_no_instruments()
 {
   int rc;
-  PFS_global_param param;
 
   memset(& param, 0xFF, sizeof(param));
   param.m_enabled= true;
@@ -86,7 +87,6 @@ void test_no_instances()
   PFS_file *file;
   PFS_socket *socket;
   PFS_table *table;
-  PFS_global_param param;
 
   memset(& param, 0xFF, sizeof(param));
   param.m_enabled= true;
@@ -227,7 +227,6 @@ void test_with_instances()
   PFS_socket *socket_2;
   PFS_table *table_1;
   PFS_table *table_2;
-  PFS_global_param param;
 
   memset(& param, 0xFF, sizeof(param));
   param.m_enabled= true;
@@ -417,6 +416,6 @@ int main(int, char **)
   plan(103);
   MY_INIT("pfs_instr-t");
   do_all_tests();
-  return 0;
+  return (exit_status());
 }
 

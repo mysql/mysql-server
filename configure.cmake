@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -153,6 +153,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
   GET_FILENAME_COMPONENT(CXX_REALPATH ${CMAKE_CXX_COMPILER} REALPATH)
 
   # CC -V yields
+  # CC: Studio 12.6 Sun C++ 5.15 SunOS_sparc Beta 2016/12/19
   # CC: Studio 12.5 Sun C++ 5.14 SunOS_sparc Dodona 2016/04/04
   # CC: Sun C++ 5.13 SunOS_sparc Beta 2014/03/11
   # CC: Sun C++ 5.11 SunOS_sparc 2010/08/13
@@ -169,7 +170,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
 
   STRING(REGEX MATCH "CC: Sun C\\+\\+ 5\\.([0-9]+)" VERSION_STRING ${stderr})
   IF (NOT CMAKE_MATCH_1 OR CMAKE_MATCH_1 STREQUAL "")
-    STRING(REGEX MATCH "CC: Studio 12\\.5 Sun C\\+\\+ 5\\.([0-9]+)"
+    STRING(REGEX MATCH "CC: Studio 12\\.[56] Sun C\\+\\+ 5\\.([0-9]+)"
       VERSION_STRING ${stderr})
   ENDIF()
   SET(CC_MINOR_VERSION ${CMAKE_MATCH_1})

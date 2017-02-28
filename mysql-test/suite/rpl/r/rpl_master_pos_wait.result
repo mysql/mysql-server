@@ -22,4 +22,26 @@ show slave status;
 select master_pos_wait('foo', 98);
 master_pos_wait('foo', 98)
 NULL
+include/start_slave_sql.inc
+Test MASTER_POS_WAIT function with negative timeout value.
+When SQL_MODE is strict, then it will throw WRONG_ARGUMENTS
+error.
+SET @save_sql_mode=@@SESSION.SQL_MODE;
+SET @@SESSION.SQL_MODE="STRICT_ALL_TABLES";
+SELECT MASTER_POS_WAIT('master-bin.999999', 4, -1);
+ERROR HY000: Incorrect arguments to MASTER_POS_WAIT.
+SET @@SESSION.SQL_MODE="";
+SELECT MASTER_POS_WAIT('master-bin.999999', 4, -1);
+MASTER_POS_WAIT('master-bin.999999', 4, -1)
+NULL
+Warnings:
+Warning	1210	Incorrect arguments to MASTER_POS_WAIT.
+SET @@SESSION.SQL_MODE=@save_sql_mode;
+Test WAIT_FOR_EXECUTED_GTID_SET function with fractional timeout value.
+Earlier(before fix), 0.4 is read as integer value '0' and the function
+hanged forever (or till all the specified gtids are executed).
+Now(after fix) 0.4 will be read as doube 0.4 and will waitfor
+atleast 0.4 seconds (or till all the specified  gtids are executed).
+Also check that in case of timeout, function returns -1.
+include/assert.inc [MASTER_POS_WAIT returns -1 if the timeout has been exceeded.]
 include/rpl_end.inc

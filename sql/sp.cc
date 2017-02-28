@@ -373,7 +373,7 @@ void Proc_table_intact::report_error(uint code, const char *fmt, ...)
   my_vsnprintf(buf, sizeof(buf), fmt, args);
   va_end(args);
 
-  if (code)
+  if (code == ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2)
     my_message(code, buf, MYF(0));
   else
     my_error(ER_CANNOT_LOAD_FROM_TABLE_V2, MYF(0), "mysql", "proc");

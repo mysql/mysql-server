@@ -133,14 +133,8 @@ HAVE_PSI_INTERFACE is defined. */
 #if defined HAVE_PSI_INTERFACE && !defined UNIV_HOTBACKUP
 # define UNIV_PFS_MUTEX
 # define UNIV_PFS_RWLOCK
-/* For I/O instrumentation, performance schema rely
-on a native descriptor to identify the file, this
-descriptor could conflict with our OS level descriptor.
-Disable IO instrumentation on Windows until this is
-resolved */
-# ifndef __WIN__
-#  define UNIV_PFS_IO
-# endif
+
+# define UNIV_PFS_IO
 # define UNIV_PFS_THREAD
 
 /* There are mutexes/rwlocks that we want to exclude from

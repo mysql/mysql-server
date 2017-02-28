@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -3565,6 +3565,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     free_tmp_table(thd, tmp_table);
     delete result;
     result= NULL;
+    thd->raise_error_printf(ER_INTERNAL_ERROR, "Failed to create MyISAM temporary table for query processing, key too large");
     DBUG_RETURN(TRUE);
   }
   result= tmp_result_sink;
@@ -3723,12 +3724,15 @@ void subselect_hash_sj_engine::cleanup()
 {
   DBUG_ENTER("subselect_hash_sj_engine::cleanup");
   is_materialized= false;
-  result->cleanup(); /* Resets the temp table as well. */
+
+  if (result)
+    result->cleanup(); /* Resets the temp table as well. */
   THD * const thd= item->unit->thd;
   DEBUG_SYNC(thd, "before_index_end_in_subselect");
-  if (tab->table->file->inited)
+  if (tab && tab->table->file->inited)
     tab->table->file->ha_index_end();  // Close the scan over the index
-  free_tmp_table(thd, tab->table);
+  if (tab)
+    free_tmp_table(thd, tab->table);
   tab= NULL;
   materialize_engine->cleanup();
   DBUG_VOID_RETURN;
