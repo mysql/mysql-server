@@ -3353,7 +3353,8 @@ public:
   */
   table_map get_initial_pseudo_tables() const override;
   void update_used_tables() override;
-
+  void fix_after_pullout(SELECT_LEX *parent_select, SELECT_LEX *removed_select)
+  override;
   void cleanup() override;
 
   const char *func_name() const override;

@@ -9104,6 +9104,23 @@ void Item_func_sp::update_used_tables()
   with_stored_program= true;
 }
 
+void Item_func_sp::fix_after_pullout(SELECT_LEX *parent_select,
+                                     SELECT_LEX *removed_select)
+{
+  Item_func::fix_after_pullout(parent_select, removed_select);
+
+  /*
+    Prevents function from being evaluated before it is locked.
+    @todo - make this dependent on READS SQL or MODIFIES SQL.
+            Due to a limitation in how functions are evaluated, we need to
+            ensure that we are in a prelocked mode even though the function
+            doesn't reference any tables.
+  */
+  used_tables_cache|= PARAM_TABLE_BIT;
+
+  const_item_cache= used_tables_cache == 0;
+}
+
 
 /*
   uuid_short handling.
