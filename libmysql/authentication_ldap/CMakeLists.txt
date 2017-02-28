@@ -28,9 +28,7 @@ ENDIF()
 
 IF (NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
   MESSAGE("HAVE_SASL_CLIENT_DONE 1")
-  SET(HAVE_SASL_CLIENT_DONE 1)
-ELSE ()
-  SET(HAVE_SASL_CLIENT_DONE 0)
+  ADD_DEFINITIONS(-DHAVE_SASL_CLIENT_DONE)
 ENDIF ()
 
 # LDAP authentication SASL client will not build on windows, as windows don't have cyrus sasl.

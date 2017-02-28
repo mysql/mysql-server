@@ -106,7 +106,7 @@ int Sasl_client::de_initilize() {
 
 int Sasl_client::sasl_client_done_wrapper() {
   int rc_sasl = SASL_FAIL;
-#if HAVE_SASL_CLIENT_DONE == 1
+#ifdef HAVE_SASL_CLIENT_DONE
   rc_sasl = sasl_client_done();
 #else
   sasl_done();
