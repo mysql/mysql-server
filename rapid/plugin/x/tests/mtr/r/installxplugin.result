@@ -36,7 +36,7 @@ mysqlx_min_worker_threads	2
 0 rows affected
 RUN uninstall plugin mysqlx
 While executing uninstall plugin mysqlx:
-in main, line 12:ERROR: Command not supported by pluggable protocols (code 3130)
+Got expected error: Command not supported by pluggable protocols (code 3130)
 RUN show variables like 'mysqlx_idle_worker_thread_timeout%'
 Variable_name	Value
 mysqlx_idle_worker_thread_timeout	60
@@ -104,7 +104,7 @@ GRANT ALL PRIVILEGES ON *.* TO 'session'@'localhost'
 0 rows affected
 RUN install plugin mysqlx soname '$MYSQLXPLUGIN'
 While executing install plugin mysqlx soname '$MYSQLXPLUGIN':
-in main, line 5:ERROR: Command not supported by pluggable protocols (code 3130)
+Got expected error: Command not supported by pluggable protocols (code 3130)
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -119,7 +119,7 @@ GRANT USAGE ON *.* TO 'xplugin'@'localhost'
 0 rows affected
 RUN install plugin mysqlx soname '$MYSQLXPLUGIN'
 While executing install plugin mysqlx soname '$MYSQLXPLUGIN':
-in main, line 5:ERROR: Command not supported by pluggable protocols (code 3130)
+Got expected error: Command not supported by pluggable protocols (code 3130)
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -242,7 +242,7 @@ mysqlx_min_worker_threads	50
 0 rows affected
 RUN uninstall plugin mysqlx
 While executing uninstall plugin mysqlx:
-in main, line 12:ERROR: Command not supported by pluggable protocols (code 3130)
+Got expected error: Command not supported by pluggable protocols (code 3130)
 RUN show variables like 'mysqlx_idle_worker_thread_timeout%'
 Variable_name	Value
 mysqlx_idle_worker_thread_timeout	70
@@ -313,10 +313,10 @@ mysqlx_min_worker_threads	50
 0 rows affected
 RUN uninstall plugin mysqlx
 While executing uninstall plugin mysqlx:
-in main, line 16:ERROR: Command not supported by pluggable protocols (code 3130)
+Got expected error: Command not supported by pluggable protocols (code 3130)
 RUN install plugin mysqlx soname '$MYSQLXPLUGIN'
 While executing install plugin mysqlx soname '$MYSQLXPLUGIN':
-in main, line 16:ERROR: Command not supported by pluggable protocols (code 3130)
+Got expected error: Command not supported by pluggable protocols (code 3130)
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -339,7 +339,7 @@ mysqlx_min_worker_threads	50
 0 rows affected
 RUN uninstall plugin mysqlx
 While executing uninstall plugin mysqlx:
-in main, line 12:ERROR: Command not supported by pluggable protocols (code 3130)
+Got expected error: Command not supported by pluggable protocols (code 3130)
 RUN show variables like 'mysqlx_idle_worker_thread_timeout%'
 Variable_name	Value
 mysqlx_idle_worker_thread_timeout	70

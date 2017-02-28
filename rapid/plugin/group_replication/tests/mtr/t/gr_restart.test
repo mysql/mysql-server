@@ -58,10 +58,6 @@ INSERT INTO t1 VALUES (1);
 --let $wait_condition= SELECT (Count_transactions_checked - Count_conflicts_detected) = 2 from performance_schema.replication_group_member_stats
 --source include/wait_condition.inc
 
-if (!$success)
-{
-  --die Timeout in wait_condition.inc
-}
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
 --let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds

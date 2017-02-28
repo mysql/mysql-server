@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -341,5 +341,5 @@ int main(int, char **)
     diag("skipping the cp1251 tests : missing character set");
   plan(59 + (cs_cp1251 ? 10 : 0));
   do_all_tests();
-  return 0;
+  return (exit_status());
 }

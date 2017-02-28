@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,7 +37,6 @@ bool wait_on_engine_initialization= false;
 bool delay_gr_user_creation= false;
 bool server_shutdown_status= false;
 bool plugin_is_auto_starting= false;
-bool plugin_is_being_unistalled= false;
 
 /* Plugin modules */
 //The plugin applier
@@ -702,9 +701,6 @@ int plugin_group_replication_stop()
   /* first leave all joined groups (currently one) */
   leave_group();
 
-  group_member_mgr->update_member_status(local_member_info->get_uuid(),
-                                         Group_member_info::MEMBER_OFFLINE);
-
   int error= terminate_plugin_modules();
 
   group_replication_running= false;
@@ -754,22 +750,6 @@ int terminate_plugin_modules()
                   "On plugin shutdown it was not possible to reset the server"
                   " read mode settings. Try to reset it manually."); /* purecov: inspected */
     }
-
-    DBUG_EXECUTE_IF("group_replication_bypass_user_removal",
-                    { plugin_is_being_unistalled= false; };);
-
-    if (plugin_is_being_unistalled)
-    {
-      if (remove_group_replication_user(false,
-                                        sql_command_interface->get_sql_service_interface()))
-      {
-        //Do not throw an error as the user can remove the user
-        log_message(MY_WARNING_LEVEL,
-                    "On plugin shutdown it was not possible to remove the user"
-                    " associate to the plugin: " GROUPREPL_USER "."
-                    " You can remove it manually if desired."); /* purecov: inspected */
-      }
-    }
     delete sql_command_interface;
   }
 
@@ -788,6 +768,12 @@ int terminate_plugin_modules()
     Clear server sessions opened caches on transactions observer.
   */
   observer_trans_clear_io_cache_unused_list();
+
+  if (group_member_mgr != NULL && local_member_info != NULL)
+  {
+    group_member_mgr->update_member_status(local_member_info->get_uuid(),
+                                           Group_member_info::MEMBER_OFFLINE);
+  }
 
   return error;
 }
@@ -914,11 +900,26 @@ int plugin_group_replication_deinit(void *p)
     return 0;
 
   int observer_unregister_error= 0;
-  plugin_is_being_unistalled= true;
 
+  //plugin_group_replication_stop will be called from this method stack
   if (group_replication_cleanup())
     log_message(MY_ERROR_LEVEL,
                 "Failure when cleaning Group Replication server state");
+
+  DBUG_EXECUTE_IF("group_replication_bypass_user_removal",
+          { server_shutdown_status= true; };);
+
+  if(!server_shutdown_status && server_engine_initialized())
+  {
+    if(remove_group_replication_user(false))
+    {
+      //Do not throw an error as the user can remove the user
+      log_message(MY_WARNING_LEVEL,
+                  "On plugin shutdown there was an error when removing the"
+                  " user associate to the plugin: " GROUPREPL_USER "."
+                  " You can remove it manually if desired.");
+    }
+  }
 
   if(group_member_mgr != NULL)
   {

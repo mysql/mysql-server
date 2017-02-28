@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -581,7 +581,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   */
 
   {
-#if defined(__sparcv9) && defined(__sun)
+#if defined(__sparc) && defined(__SUNPRO_CC)
     const int sp_stack_size= 10 * STACK_MIN_SIZE;
 #else
     const int sp_stack_size=  8 * STACK_MIN_SIZE;

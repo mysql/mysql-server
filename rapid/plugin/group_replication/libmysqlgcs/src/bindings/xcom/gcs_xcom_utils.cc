@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -91,6 +91,27 @@ process_peer_nodes(const std::string *peer_nodes,
 
     // Find next "non-delimiter"
     pos= peer_init.find_first_of(delimiter, lastPos);
+  }
+}
+
+void
+Gcs_xcom_utils::
+validate_peer_nodes(std::vector<std::string> &peers,
+                    std::vector<std::string> &invalid_peers)
+{
+  std::vector<std::string>::iterator it;
+  for(it= peers.begin(); it != peers.end();)
+  {
+    std::string server_and_port= *it;
+    if (!is_valid_hostname(server_and_port))
+    {
+      invalid_peers.push_back(server_and_port);
+      it= peers.erase(it);
+    }
+    else
+    {
+      ++it;
+    }
   }
 }
 
@@ -1075,18 +1096,33 @@ is_parameters_syntax_correct(const Gcs_interface_parameters &interface_params)
      Parse and validate hostname and ports.
      */
     std::vector<std::string> hostnames_and_ports;
+    std::vector<std::string> invalid_hostnames_and_ports;
     Gcs_xcom_utils::process_peer_nodes(peer_nodes_str, hostnames_and_ports);
-    std::vector<std::string>::iterator it;
-    for(it= hostnames_and_ports.begin(); it != hostnames_and_ports.end(); ++it)
+    Gcs_xcom_utils::validate_peer_nodes(hostnames_and_ports,
+                                        invalid_hostnames_and_ports);
+
+    if(!invalid_hostnames_and_ports.empty())
     {
-      std::string server_and_port= *it;
-      if (!is_valid_hostname(server_and_port))
+      std::vector<std::string>::iterator invalid_hostnames_and_ports_it;
+      for(invalid_hostnames_and_ports_it= invalid_hostnames_and_ports.begin();
+          invalid_hostnames_and_ports_it != invalid_hostnames_and_ports.end();
+          ++invalid_hostnames_and_ports_it)
       {
-        MYSQL_GCS_LOG_ERROR("Peer address \"" << server_and_port << "\" is" <<
-                            " not valid.")
-        error= GCS_NOK;
-        goto end;
+        MYSQL_GCS_LOG_WARN("Peer address \"" <<
+                           (*invalid_hostnames_and_ports_it).c_str()
+                           << "\" is not valid.");
       }
+    }
+
+    /*
+     This means that none of the provided hosts is valid and that
+     hostnames_and_ports had some sort of value
+     */
+    if(!invalid_hostnames_and_ports.empty() && hostnames_and_ports.empty())
+    {
+      MYSQL_GCS_LOG_ERROR("None of the provided peer address is valid.");
+      error= GCS_NOK;
+      goto end;
     }
   }
 

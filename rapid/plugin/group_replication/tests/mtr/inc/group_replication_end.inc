@@ -39,9 +39,6 @@ if ($rpl_group_replication_single_primary_mode)
   --source ../inc/gr_single_primary_mode.inc
 }
 
-# Revert rpl debug to its previous value.
---let $show_rpl_debug_info= $_show_rpl_debug_info_previous
-
 --connection default
 # Do not restore connection, because we have disconnected it.
 --let $skip_restore_connection= 1

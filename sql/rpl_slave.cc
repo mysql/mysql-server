@@ -5233,6 +5233,16 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                         DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
                       }
                     };);
+      DBUG_EXECUTE_IF("dbug.calculate_sbm_after_fake_rotate_log_event",
+                    {
+                      if (ev->get_type_code() == binary_log::ROTATE_EVENT && ev->is_artificial_event())
+                      {
+                      const char act[]= "now signal signal.reached wait_for signal.done_sbm_calculation";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(thd,
+                                                         STRING_WITH_LEN(act)));
+                      }
+                    };);
       /*
         Format_description_log_event should not be deleted because it will be
         used to read info about the relay log's format; it will be deleted when
@@ -5588,9 +5598,14 @@ connected:
                     };);
     DBUG_EXECUTE_IF("dbug.calculate_sbm_after_previous_gtid_log_event",
                     {
-                      /* Fake that thread started 3 mints ago */
+                      /* Fake that thread started 3 minutes ago */
                       thd->start_time.tv_sec-=180;
                     };);
+  DBUG_EXECUTE_IF("dbug.calculate_sbm_after_fake_rotate_log_event",
+                  {
+                    /* Fake that thread started 3 minutes ago */
+                    thd->start_time.tv_sec-=180;
+                  };);
   mysql_mutex_lock(&mi->run_lock);
   mi->slave_running= MYSQL_SLAVE_RUN_CONNECT;
   mysql_mutex_unlock(&mi->run_lock);

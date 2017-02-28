@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,13 +27,14 @@ Recovery_message::~Recovery_message()
 {
 }
 
-Recovery_message::Recovery_message(const uchar* buf, size_t len)
+Recovery_message::Recovery_message(const uchar* buf, uint64 len)
     : Plugin_gcs_message(CT_RECOVERY_MESSAGE)
 {
   decode(buf, len);
 }
 
-void Recovery_message::decode_payload(const unsigned char* buffer, size_t length)
+void Recovery_message::decode_payload(const unsigned char* buffer,
+                                      const unsigned char* end)
 {
   DBUG_ENTER("Recovery_message::decode_payload");
   const unsigned char *slider= buffer;

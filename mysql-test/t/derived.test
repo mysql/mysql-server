@@ -2731,3 +2731,41 @@ HAVING g_t3.g_f3 = (select varchar1
                     );
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #25343335: DERIVED TABLE SELECT LIST'S REFERENCE TO ALIAS CAUSES
+--echo #                INCORRECT BEHAVIOR
+--echo #
+
+CREATE TABLE t1 (c11 int);
+INSERT INTO t1 VALUES (1);
+
+#issue 1
+let query1=
+SELECT *
+FROM (SELECT (1) alias1,
+             (SELECT alias1) alias2
+      FROM t1) X ;
+
+eval EXPLAIN $query1;
+eval $query1;
+eval PREPARE xx FROM '$query1';
+EXECUTE xx;
+EXECUTE xx;
+EXECUTE xx;
+
+#issue 2
+let query2=
+SELECT alias2
+FROM (SELECT (1) alias1,
+             (SELECT alias1) alias2
+      FROM t1) X ;
+
+eval EXPLAIN $query2;
+eval $query2;
+eval PREPARE yy FROM '$query2';
+EXECUTE yy;
+EXECUTE yy;
+EXECUTE yy;
+
+DROP TABLE t1;

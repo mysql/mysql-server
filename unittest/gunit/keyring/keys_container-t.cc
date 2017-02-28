@@ -22,6 +22,7 @@
 #include "mock_logger.h"
 #include <fstream>
 #include "i_serialized_object.h"
+#include "buffered_file_io.h"
 
 #if !defined(MERGE_UNITTESTS)
 #ifdef HAVE_PSI_INTERFACE

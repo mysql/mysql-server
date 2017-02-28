@@ -1,0 +1,117 @@
+#
+# Bug #23070734	CONCURRENT TRUNCATE TABLES CAUSE STALLS
+#
+Test_1 :- Check if DDL operations are possible on
+table being truncated. Also check if
+DDL operations on other tables succeed.
+create table t1 (f1 int,f2 int,key(f2),f3 int) engine=innodb;
+create index idx1 on t1(f3);
+create table t2 (f1 int,f2 int,key(f2),f3 int) engine=innodb;
+create table t3 (f1 int,f2 int,key(f2)) engine=innodb;
+insert into t1 values (10,20,30),(30,40,50),(50,60,70);
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t2 values (10,20,30),(30,40,50),(50,60,70);
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t3 values (10,20),(30,40),(50,50);
+insert into t3 select * from t3;
+insert into t3 select * from t3;
+SET session lock_wait_timeout = 1;
+show variables like 'lock_wait_timeout%';
+Variable_name	Value
+lock_wait_timeout	1
+connection 1
+SET DEBUG_SYNC= 'simulate_buffer_pool_scan SIGNAL opened WAIT_FOR finish_scan';
+truncate table t1;;
+connection default
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+Check Analyze table. Gives lock time out error.
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	Error	Lock wait timeout exceeded; try restarting transaction
+test.t1	analyze	status	Operation failed
+Check if we can turn off auto recalculation.
+alter table t1 STATS_AUTO_RECALC=0;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+Check if we can turn off persistent stats on the table
+alter table t1 STATS_PERSISTENT=0;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+Check if DML is possible on table being truncated
+insert into t1 values (10,89,99);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+Check if DDL is possible on table being truncated
+alter table t1 add column f4 int;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+check if table can be created with the same name
+create table t1 (bd int) engine=innodb;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+check if index can be created on table being truncated
+create index idx1 on t1(f1);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+Check if DROP of table is possible during truncate
+drop table t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+Check if select is possible during truncate
+select * from t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+select * from t2 where t2.f1=t1.f1;
+ERROR 42S22: Unknown column 't1.f1' in 'where clause'
+Check concurrent truncate operation on table;
+truncate table t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+Check concurrent selects  and inserts on the other table
+insert into t3 values (10,20),(30,40),(50,50);
+select * from t3 where f1=40;
+f1	f2
+Concurrent truncate on other tables
+truncate table t2;
+Concurrent alters on the other tables
+alter table t2 add column f4 int;
+check if index can be created on the other table
+create index idx1 on t2(f3);
+Check if we can turn off persistent stats off entire instance
+SET GLOBAL innodb_stats_persistent=off;
+connection con2
+set global innodb_adaptive_hash_index=off;;
+connection default
+SET DEBUG_SYNC= 'now SIGNAL finish_scan';
+connection con1
+connection con2
+connection default
+SET session lock_wait_timeout=default;
+set global innodb_adaptive_hash_index=default;
+drop table t1,t2,t3;
+SET @@global.innodb_stats_persistent=default;
+Test_2 :- Check if purge thread ignores the undo  
+log records of the table being truncated.
+create table t1 (f1 int ,f2 int,key(f2)) engine=innodb;
+insert into t1 values (10,45),(20,78),(30,88),(40,23),(50,78),(60,11),(70,56),(80,90);
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+select count(*) from t1;
+count(*)
+1024
+Stop the purge thread
+set global innodb_purge_stop_now = 1;
+delete from t1;
+connection con1
+SET DEBUG_SYNC= 'simulate_buffer_pool_scan SIGNAL opened WAIT_FOR finish_scan';
+truncate table t1;;
+Connection default
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+set global innodb_purge_run_now=1;
+SET DEBUG_SYNC= 'now SIGNAL finish_scan';
+connection con1
+connection default
+drop table t1;
+Pattern "InnoDB: Record with space id \d+ belongs to table which is being truncated therefore skipping this undo record." found
+# restart server
+# restart:

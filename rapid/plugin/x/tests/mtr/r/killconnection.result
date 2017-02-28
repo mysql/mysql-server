@@ -58,7 +58,7 @@ root	Query	executing
 root	Sleep	
 root	Sleep	
 0 rows affected
-RUN kill $CONNECTION_ID
+RUN kill CONNECTION_ID
 
 0 rows affected
 RUN select sleep(1)
@@ -73,7 +73,7 @@ root	Sleep
 RUN kill @current
 While executing kill @current:
 Got expected error: Query execution was interrupted (code 1317)
-in main, line 13:ERROR: MySQL server has gone away (code 2006)
+Application terminated with expected error: MySQL server has gone away (code 2006)
 not ok
 RUN set @current := connection_id()
 
@@ -86,7 +86,7 @@ root	Sleep
 RUN kill @current
 While executing kill @current:
 Got expected error: Query execution was interrupted (code 1317)
-in main, line 10:ERROR: MySQL server has gone away (code 2006)
+Application terminated with expected error: MySQL server has gone away (code 2006)
 not ok
 show status like 'Mysqlx_sessions%';
 Variable_name	Value

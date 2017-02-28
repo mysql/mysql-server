@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,8 +97,11 @@ public:
     // length of the configuration flags: 4 bytes
     PIT_CONFIGURATION_FLAGS= 12,
 
+    // length of the conflict detection enabled: 1 byte
+    PIT_CONFLICT_DETECTION_ENABLE= 13,
+
     // No valid type codes can appear after this one.
-    PIT_MAX= 13
+    PIT_MAX= 14
   };
 
   /*
@@ -170,7 +173,7 @@ public:
    * @param[in] data raw data
    * @param[in] len raw data length
    */
-  Group_member_info(const uchar* data, size_t len);
+  Group_member_info(const uchar* data, uint64 len);
 
   /**
     Destructor
@@ -314,9 +317,24 @@ public:
    */
   bool is_unreachable();
 
+  /**
+    Update this member conflict detection to true
+   */
+  void enable_conflict_detection();
+
+  /**
+    Update this member conflict detection to false
+   */
+  void disable_conflict_detection();
+
+  /**
+    Return true if conflict detection is enable on this member
+   */
+  bool is_conflict_detection_enabled();
+
 protected:
   void encode_payload(std::vector<unsigned char>* buffer) const;
-  void decode_payload(const unsigned char* buffer, size_t length);
+  void decode_payload(const unsigned char* buffer, const unsigned char* end);
 
 private:
   std::string hostname;
@@ -332,6 +350,7 @@ private:
   bool unreachable;
   Group_member_role role;
   uint32 configuration_flags;
+  bool conflict_detection_enable;
 };
 
 
@@ -347,7 +366,7 @@ class Group_member_info_manager_interface
 public:
   virtual ~Group_member_info_manager_interface(){};
 
-  virtual int get_number_of_members()= 0;
+  virtual size_t get_number_of_members()= 0;
 
   /**
     Retrieves a registered Group member by its uuid
@@ -445,7 +464,14 @@ public:
     @return a vector of Group_member_info references
    */
   virtual std::vector<Group_member_info*>* decode(const uchar* to_decode,
-                                                  size_t length)= 0;
+                                                  uint64 length)= 0;
+
+  /**¬
+  Check if some member of the group has the conflict detection enable
+
+  @return true if at least one member has  conflict detection enabled
+  */
+  virtual bool is_conflict_detection_enabled()= 0;
 };
 
 
@@ -461,7 +487,7 @@ public:
 
   virtual ~Group_member_info_manager();
 
-  int get_number_of_members();
+  size_t get_number_of_members();
 
   Group_member_info* get_group_member_info(const std::string& uuid);
 
@@ -490,7 +516,9 @@ public:
   void encode(std::vector<uchar>* to_encode);
 
   std::vector<Group_member_info*>* decode(const uchar* to_decode,
-                                          size_t length);
+                                          uint64 length);
+
+  bool is_conflict_detection_enabled();
 
 private:
   void clear_members();
@@ -580,7 +608,7 @@ public:
 
 protected:
   void encode_payload(std::vector<unsigned char>* buffer) const;
-  void decode_payload(const unsigned char* buffer, size_t length);
+  void decode_payload(const unsigned char* buffer, const unsigned char* end);
 
 private:
   /**

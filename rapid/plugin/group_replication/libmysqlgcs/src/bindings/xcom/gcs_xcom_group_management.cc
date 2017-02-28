@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,11 +50,33 @@ modify_configuration(const Gcs_interface_parameters& reconfigured_group)
     return GCS_NOK;
   }
 
-  std::vector<std::string> processed_peers;
+  std::vector<std::string> processed_peers, invalid_processed_peers;
   Gcs_xcom_utils::process_peer_nodes(peer_nodes_str,
                                      processed_peers);
+  Gcs_xcom_utils::validate_peer_nodes(processed_peers,
+                                      invalid_processed_peers);
 
-  if(processed_peers.size() == 0)
+  if(!invalid_processed_peers.empty())
+  {
+    std::vector<std::string>::iterator invalid_processed_peers_it;
+    for(invalid_processed_peers_it= invalid_processed_peers.begin();
+        invalid_processed_peers_it != invalid_processed_peers.end();
+        ++invalid_processed_peers_it)
+    {
+      MYSQL_GCS_LOG_WARN("Peer address \"" <<
+                         (*invalid_processed_peers_it).c_str()
+                         << "\" is not valid.");
+    }
+
+    MYSQL_GCS_LOG_ERROR(
+      "The peers list contains invalid addresses.Please provide a list with " <<
+      "only valid addresses."
+    )
+
+    return GCS_NOK;
+  }
+
+  if(processed_peers.empty() && invalid_processed_peers.empty())
   {
     MYSQL_GCS_LOG_ERROR(
       "The peers list to reconfigure the group was empty."

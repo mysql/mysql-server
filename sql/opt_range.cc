@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12163,7 +12163,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
           part of 'cur_index'
         */
         if (bitmap_is_set(table->read_set, cur_field->field_index) &&
-            !cur_field->part_of_key_not_clustered.is_set(cur_index))
+            !cur_field->is_part_of_actual_key(thd, cur_index))
         {
           cause= "not_covering";
           goto next_index;                  // Field was not part of key
@@ -12362,7 +12362,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
 
         /* Check if cur_part is referenced in the WHERE clause. */
         if (join->where_cond->walk(&Item::find_item_in_field_list_processor,
-                                   Item::WALK_POSTFIX,
+                                   Item::WALK_SUBQUERY_POSTFIX,
                                    (uchar*) key_part_range))
         {
           cause= "keypart_reference_from_where_clause";

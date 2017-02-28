@@ -3,6 +3,13 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 
+# Thread stack overrun on solaris
+let $have_solaris = `select convert(@@version_compile_os using latin1) LIKE ("solaris%")`;
+if ($have_solaris)
+{
+   skip Test requires: 'not_solaris';
+}
+
 #
 # Basic stored PROCEDURE tests
 #

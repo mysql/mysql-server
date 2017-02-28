@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -100,6 +100,8 @@ use mtr_unique;
 use mtr_results;
 use IO::Socket::INET;
 use IO::Select;
+
+push @INC, ".";
 
 require "lib/mtr_process.pl";
 require "lib/mtr_io.pl";
@@ -357,6 +359,7 @@ my $opt_max_test_fail= env_or_val(MTR_MAX_TEST_FAIL => 10);
 
 my $opt_parallel= $ENV{MTR_PARALLEL} || 1;
 
+our $opt_summary_report;
 our $opt_xml_report;
 
 select(STDOUT);
@@ -461,6 +464,9 @@ sub main {
     print_global_resfile();
   }
 
+  if ($opt_summary_report) {
+    mtr_summary_file_init($opt_summary_report);
+  }
   if ($opt_xml_report) {
     mtr_xml_init($opt_xml_report);
   }
@@ -1076,6 +1082,7 @@ sub print_global_resfile {
 #  resfile_global("default-myisam", $opt_default_myisam ? 1 : 0);
   resfile_global("product", "MySQL");
   resfile_global("xml-report", $opt_xml_report);
+  resfile_global("summary-report", $opt_summary_report);
   # Somewhat hacky code to convert numeric version back to dot notation
   my $v1= int($mysql_version_id / 10000);
   my $v2= int(($mysql_version_id % 10000)/100);
@@ -1255,7 +1262,8 @@ sub command_line_setup {
 	     'list-options'             => \$opt_list_options,
              'skip-test-list=s'         => \@opt_skip_test_list,
              'do-test-list=s'           => \$opt_do_test_list,
-            'xml-report=s'          => \$opt_xml_report
+             'xml-report=s'             => \$opt_xml_report,
+             'summary-report=s'         => \$opt_summary_report
            );
 
   GetOptions(%options) or usage("Can't read options");
@@ -2769,6 +2777,17 @@ sub environment_setup {
   if ($mysqld_safe)
   {
     $ENV{'MYSQLD_SAFE'}= $mysqld_safe;
+  }
+
+  # ----------------------------------------------------
+  # mysqldumpslow
+  # ----------------------------------------------------
+  my $mysqldumpslow=
+    mtr_pl_maybe_exists("$bindir/scripts/mysqldumpslow") ||
+    mtr_pl_maybe_exists("$path_client_bindir/mysqldumpslow");
+  if ($mysqldumpslow)
+  {
+    $ENV{'MYSQLDUMPSLOW'}= $mysqldumpslow;
   }
 
 
@@ -6322,16 +6341,14 @@ sub start_servers($) {
     my $mysqld_basedir= $mysqld->value('basedir');
     if ( $basedir eq $mysqld_basedir )
     {
-      if (! $opt_start_dirty)	# If dirty, keep possibly grown system db
+      if (!$opt_start_dirty)	# If dirty, keep possibly grown system db
       {
-	# Copy datadir from installed system db
-	for my $path ( "$opt_vardir", "$opt_vardir/..") {
-	  my $install_db= "$path/install.db";
-	  copytree($install_db, $datadir)
-	    if -d $install_db;
-	}
-	mtr_error("Failed to copy system db to '$datadir'")
-	  unless -d $datadir;
+        # Copy datadir from installed system db
+        my $path= ($opt_parallel == 1) ? "$opt_vardir" : "$opt_vardir/..";
+        my $install_db= "$path/install.db";
+        copytree($install_db, $datadir) if -d $install_db;
+        mtr_error("Failed to copy system db to '$datadir'")
+          unless -d $datadir;
       }
     }
     else
@@ -7408,6 +7425,8 @@ Misc options
                         mysql-stress-test.pl. Options are separated by comma.
   suite-opt             Run the particular file in the suite as the suite.opt.
   xml-report=FILE       Generate a XML report file compatible with JUnit.
+  summary-report=FILE   Generate a plain text file of the test summary only,
+                        suitable for sending by email.
 
 Some options that control enabling a feature for normal test runs,
 can be turned off by prepending 'no' to the option, e.g. --notimer.

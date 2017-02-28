@@ -576,6 +576,11 @@ select master_pos_wait();
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select master_pos_wait(1);
 
+--disable_result_log
+--error 0,ER_WRONG_ARGUMENTS
+select master_pos_wait('master-bin.999999', 4, -1);
+--enable_result_log
+
 -- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select rand(1, 2, 3);
 

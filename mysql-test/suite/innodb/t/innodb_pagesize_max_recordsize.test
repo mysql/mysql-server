@@ -226,7 +226,7 @@ SELECT @@innodb_page_size;
 
 # Remove residue files and data folder of page size 32K
 let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/data;
---source ../include/cleanup_folder.inc
+--source include/cleanup_folder.inc
 
 # Set the bootstrap parameters for datadir1 and page size 64k
 let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL --innodb_undo_tablespaces=0 </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
@@ -285,5 +285,5 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot add field.*");
 --remove_file $BOOTSTRAP_SQL
 # Remove residue files and data folder of page size 32K
 let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/data;
---source ../include/cleanup_folder.inc
+--source include/cleanup_folder.inc
 --rmdir $MYSQL_TMP_DIR/datadir1
