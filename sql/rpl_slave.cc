@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -403,11 +403,7 @@ int init_slave()
                                                           opt_rli_repository_id,
                                                           thread_mask,
                                                           &channel_map)))
-  {
     sql_print_error("Failed to create or recover replication info repositories.");
-    error = 1;
-    goto err;
-  }
 
 #ifndef DBUG_OFF
   /* @todo: Print it for all the channels */
@@ -477,15 +473,8 @@ int init_slave()
                                 mi,
                                 thread_mask))
         {
-          /*
-            Creation of slave threads for subsequent channels are stopped
-            if a failure occurs in this iteration.
-            @todo:have an option if the user wants to continue
-            the replication for other channels.
-          */
-          sql_print_error("Failed to create slave threads");
-          error= 1;
-          goto err;
+          sql_print_error("Failed to start slave threads for channel '%s'",
+                          mi->get_channel());
         }
       }
     }
@@ -495,9 +484,11 @@ err:
 
   channel_map.unlock();
   if (error)
-    sql_print_information("Check error log for additional messages. "
-                          "You will not be able to start replication until "
-                          "the issue is resolved and the server restarted.");
+    sql_print_information("Some of the channels are not created/initialized "
+                          "properly. Check for additional messages above. "
+                          "You will not be able to start replication on those "
+                          "channels until the issue is resolved and "
+                          "the server restarted.");
   DBUG_RETURN(error);
 }
 
@@ -529,7 +520,7 @@ bool start_slave(THD *thd)
 
   DBUG_ENTER("start_slave(THD)");
   Master_info *mi;
-  bool channel_configured;
+  bool channel_configured, error= false;
 
   if (channel_map.get_num_instances() == 1)
   {
@@ -569,15 +560,17 @@ bool start_slave(THD *thd)
         {
           sql_print_error("Slave: Could not start slave for channel '%s'."
                           " operation discontinued", mi->get_channel());
-          DBUG_RETURN(true);
+          error= true;
         }
       }
     }
   }
-  /* no error */
-  my_ok(thd);
-
-  DBUG_RETURN(false);
+  if (!error)
+  {
+    /* no error */
+    my_ok(thd);
+  }
+  DBUG_RETURN(error);
 }
 
 
@@ -610,9 +603,6 @@ int stop_slave(THD *thd)
 
     error= stop_slave(thd, mi, 1,
                       false /*for_one_channel*/, &push_temp_table_warning);
-
-    if (error)
-      goto err;
   }
   else
   {
@@ -624,22 +614,23 @@ int stop_slave(THD *thd)
 
       if (channel_configured)
       {
-        error= stop_slave(thd, mi, 1,
-                          false /*for_one_channel*/, &push_temp_table_warning);
-
-        if (error)
+        if (stop_slave(thd, mi, 1,
+                       false /*for_one_channel*/, &push_temp_table_warning))
         {
           sql_print_error("Slave: Could not stop slave for channel '%s'"
                           " operation discontinued", mi->get_channel());
-          goto err;
+          error= 1;
         }
       }
     }
   }
-  /* no error */
-  my_ok(thd);
 
-err:
+  if (!error)
+  {
+    /* no error */
+    my_ok(thd);
+  }
+
   DBUG_RETURN(error);
 }
 
@@ -1251,7 +1242,9 @@ err:
 
 
 
-int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
+int load_mi_and_rli_from_repositories(Master_info* mi,
+                                      bool ignore_if_no_info,
+                                      int thread_mask)
 {
   DBUG_ENTER("init_info");
   DBUG_ASSERT(mi != NULL && mi->rli != NULL);
@@ -5300,16 +5293,17 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
         if (rli->trans_retries < slave_trans_retries)
         {
           /*
-            The transactions has to be rolled back before global_init_info is
-            called. Because global_init_info will starts a new transaction if
-            master_info_repository is TABLE.
+            The transactions has to be rolled back before
+            load_mi_and_rli_from_repositories is called. Because
+            load_mi_and_rli_from_repositories will starts a new
+            transaction if master_info_repository is TABLE.
           */
           rli->cleanup_context(thd, 1);
           /*
              We need to figure out if there is a test case that covers
              this part. \Alfranio.
           */
-          if (global_init_info(rli->mi, false, SLAVE_SQL))
+          if (load_mi_and_rli_from_repositories(rli->mi, false, SLAVE_SQL))
             sql_print_error("Failed to initialize the master info structure%s",
                             rli->get_for_channel_str());
           else if (rli->init_relay_log_pos(rli->get_group_relay_log_name(),
@@ -9818,7 +9812,7 @@ bool start_slave(THD* thd,
   }
   if (thread_mask) //some threads are stopped, start them
   {
-    if (global_init_info(mi, false, thread_mask))
+    if (load_mi_and_rli_from_repositories(mi, false, thread_mask))
     {
       is_error= true;
       my_error(ER_MASTER_INFO, MYF(0));
@@ -10312,11 +10306,11 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all)
 
     if (is_default)
     {
-      if (Rpl_info_factory::
-          create_slave_per_channel(opt_mi_repository_id, opt_rli_repository_id,
-                                   channel_map.get_default_channel(),
-                                   true, &channel_map, SLAVE_REPLICATION_CHANNEL)
-          == NULL)
+      if (!Rpl_info_factory::create_mi_and_rli_objects(opt_mi_repository_id,
+                                                       opt_rli_repository_id,
+                                                       channel_map.get_default_channel(),
+                                                       true,
+                                                       &channel_map))
       {
         error= ER_MASTER_INFO;
         my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
@@ -10965,14 +10959,14 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
   int thread_mask_stopped_threads;
 
   /*
-    Before global_init_info() call, get a bit mask to indicate stopped threads
-    in thread_mask_stopped_threads. Since the third argguement is 1,
-    thread_mask when the function returns stands for stopped threads.
+    Before load_mi_and_rli_from_repositories() call, get a bit mask to indicate
+    stopped threads in thread_mask_stopped_threads. Since the third argguement
+    is 1, thread_mask when the function returns stands for stopped threads.
   */
 
   init_thread_mask(&thread_mask_stopped_threads, mi, 1);
 
-  if (global_init_info(mi, false, thread_mask_stopped_threads))
+  if (load_mi_and_rli_from_repositories(mi, false, thread_mask_stopped_threads))
   {
     error= ER_MASTER_INFO;
     my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
@@ -11217,10 +11211,8 @@ err:
                                      the reference is stored in *mi
    @param[in]      channel           The channel on which the change
                                      master was introduced.
-   @param[in]      channel_type      The channel type to be added.
 */
-int add_new_channel(Master_info** mi, const char* channel,
-                    enum_channel_type channel_type)
+int add_new_channel(Master_info** mi, const char* channel)
 {
   DBUG_ENTER("add_new_channel");
 
@@ -11272,11 +11264,11 @@ int add_new_channel(Master_info** mi, const char* channel,
     goto err;
   }
 
-  if (!((*mi)=Rpl_info_factory::create_slave_per_channel(
-                                             opt_mi_repository_id,
-                                             opt_rli_repository_id,
-                                             channel, false, &channel_map,
-                                             channel_type)))
+  if (!((*mi)=Rpl_info_factory::create_mi_and_rli_objects(opt_mi_repository_id,
+                                                          opt_rli_repository_id,
+                                                          channel,
+                                                          false,
+                                                          &channel_map)))
   {
     error= ER_MASTER_INFO;
     my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
@@ -11409,12 +11401,8 @@ bool change_master_cmd(THD *thd)
   /* create a new channel if doesn't exist */
   if (!mi && strcmp(lex->mi.channel, channel_map.get_default_channel()))
   {
-    enum_channel_type channel_type= SLAVE_REPLICATION_CHANNEL;
-    if (channel_map.is_group_replication_channel_name(lex->mi.channel))
-      channel_type= GROUP_REPLICATION_CHANNEL;
-
     /* The mi will be returned holding mi->channel_lock for writing */
-    if (add_new_channel(&mi, lex->mi.channel, channel_type))
+    if (add_new_channel(&mi, lex->mi.channel))
       goto err;
   }
 

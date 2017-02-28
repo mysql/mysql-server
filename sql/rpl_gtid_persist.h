@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -183,10 +183,11 @@ public:
     @param thd Thread requesting to access the table
     @param table The table is being accessed.
 
-    @retval true Push a warning or an error to client.
-    @retval false No warning or error was pushed to the client.
+    @retval 0 No warning or error was pushed to the client.
+    @retval 1 Push a warning to client.
+    @retval 2 Push an error to client.
   */
-  bool warn_or_err_on_explicit_modification(THD *thd, TABLE_LIST *table)
+  int warn_or_err_on_explicit_modification(THD *thd, TABLE_LIST *table)
   {
     DBUG_ENTER("Gtid_table_persistor::warn_or_err_on_explicit_modification");
 
@@ -202,7 +203,7 @@ public:
         */
         thd->raise_error_printf(ER_ERROR_ON_MODIFYING_GTID_EXECUTED_TABLE,
                                 table->table_name);
-        DBUG_RETURN(true);
+        DBUG_RETURN(2);
       }
       else
       {
@@ -212,11 +213,11 @@ public:
         */
         thd->raise_warning_printf(ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE,
                                   table->table_name);
-        DBUG_RETURN(true);
+        DBUG_RETURN(1);
       }
     }
 
-    DBUG_RETURN(false);
+    DBUG_RETURN(0);
   }
 
 private:

@@ -10100,7 +10100,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       Indicate whether we alreadly reported a warning
       on modifying gtid_executed table.
     */
-    bool warned_gtid_executed_table= false;
+    int warned_gtid_executed_table= 0;
 #ifndef DBUG_OFF
     {
       DBUG_PRINT("debug", ("prelocked_mode: %s",
@@ -10157,7 +10157,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
             Do not allow users to modify the gtid_executed table
             explicitly by a XA transaction.
           */
-          if (this->is_error())
+          if (warned_gtid_executed_table == 2)
             DBUG_RETURN(-1);
         }
         /*

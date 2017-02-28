@@ -2345,7 +2345,8 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
   }
 
   /*
-    In case of MTS the recovery is deferred until the end of global_init_info.
+    In case of MTS the recovery is deferred until the end of
+    load_mi_and_rli_from_repositories.
   */
   if (!mi->rli->mts_recovery_group_cnt)
     is_relay_log_recovery= FALSE;
