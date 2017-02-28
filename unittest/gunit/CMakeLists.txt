@@ -366,6 +366,7 @@ SET(SERVER_TESTS
   get_diagnostics
   gis_algos
   gis_geometries
+  gis_wkb_parser
   handler
   histograms
   initialize_password

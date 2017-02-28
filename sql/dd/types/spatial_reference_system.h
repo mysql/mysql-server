@@ -115,6 +115,14 @@ public:
   */
   virtual bool is_lat_long() const = 0;
 
+  virtual double semi_major_axis() const = 0;
+  virtual double semi_minor_axis() const = 0;
+  virtual double angular_unit() const = 0;
+  virtual double prime_meridian() const = 0;
+  virtual bool positive_east() const = 0;
+  virtual bool positive_north() const = 0;
+  virtual double from_radians(double d) const = 0;
+
   /////////////////////////////////////////////////////////////////////////
   // description
   /////////////////////////////////////////////////////////////////////////

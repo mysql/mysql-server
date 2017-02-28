@@ -115,6 +115,25 @@ public:
     @return Axis direction
   */
   virtual Axis_direction axis_direction(const int axis) const= 0;
+
+  /**
+    Retrieve the angular unit relative to radians.
+
+    @return Conversion factor.
+   */
+  virtual double angular_unit() const = 0;
+
+  /**
+    Retrieve the prime meridian relative to Greenwich.
+
+    The prime meridian is returned in the angular unit of the
+    SRS. Positive numbers are East of Greenwich.
+
+    @see angular_unit
+
+    @return Prime meridian.
+   */
+  virtual double prime_meridian() const = 0;
 };
 
 
@@ -134,7 +153,8 @@ private:
   /// Bursa Wolf transformation parameters used to transform to WGS84.
   double m_towgs84[7];
   /// Longitude of the prime meridian relative to the Greenwich
-  /// Meridian.
+  /// Meridian (measured in m_angular_unit). Positive values are East
+  /// of Greenwich.
   double m_prime_meridian;
   /// Conversion factor for the angular unit relative to radians.
   double m_angular_unit;
@@ -204,6 +224,26 @@ public:
     DBUG_ASSERT(axis >= 0 && axis <= 1);
     return m_axes[axis];
   }
+
+  double semi_major_axis() const
+  {
+    return m_semi_major_axis;
+  }
+
+  double inverse_flattening() const
+  {
+    return m_inverse_flattening;
+  }
+
+  double angular_unit() const override
+  {
+    return m_angular_unit;
+  }
+
+  double prime_meridian() const override
+  {
+    return m_prime_meridian;
+  }
 };
 
 
@@ -254,6 +294,16 @@ public:
   {
     DBUG_ASSERT(axis >= 0 && axis <= 1);
     return m_axes[axis];
+  }
+
+  double angular_unit() const override
+  {
+    return m_geographic_srs.angular_unit();
+  }
+
+  double prime_meridian() const override
+  {
+    return m_geographic_srs.prime_meridian();
   }
 };
 
@@ -1832,6 +1882,6 @@ public:
 bool parse_wkt(srid_t srid, const char *begin, const char *end,
                Spatial_reference_system **result);
 
-}}
+}} // gis::srs
 
 #endif // GIS__SRS__SRS_H_INCLUDED

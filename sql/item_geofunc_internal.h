@@ -38,6 +38,7 @@
 #include "my_inttypes.h"
 #include "spatial.h"
 #include "sql_exception_handler.h" // handle_gis_exception
+#include "srs_fetcher.h"
 
 class String;
 class THD;
@@ -58,41 +59,6 @@ class Spatial_reference_system;
 #define GIS_ZERO 0.00000000001
 
 extern bool simplify_multi_geometry(String *str, String *result_buffer);
-
-
-class Srs_fetcher
-{
-private:
-  THD *m_thd;
-
-  /**
-    Take an MDL lock on an SRID.
-
-    @param[in] srid Spatial reference system ID
-
-    @retval false Success.
-    @retval true Locking failed. An error has already been flagged.
-  */
-  bool lock(gis::srid_t srid);
-
-public:
-  Srs_fetcher(THD *thd)
-    :m_thd(thd)
-  {}
-
-  /**
-    Acquire an SRS from the data dictionary.
-
-    @param[in] srid Spatial reference system ID
-    @param[out] srs The spatial reference system
-
-    @retval false Success.
-    @retval true Locking failed. An error has already been flagged.
-  */
-  bool acquire(gis::srid_t srid, const dd::Spatial_reference_system **srs);
-
-  static bool srs_exists(THD *thd, gis::srid_t srid, bool *exists);
-};
 
 
 /// A wrapper and interface for all geometry types used here. Make these

@@ -280,6 +280,11 @@ TYPED_TEST(GeometriesTest, Geometrycollection)
 
   gis::Nop_visitor visitor;
   EXPECT_FALSE(gc.accept(&visitor));
+
+  typename TypeParam::Geometrycollection gc_copy = gc;
+  EXPECT_EQ(13U, gc_copy.size());
+  EXPECT_FALSE(gc.empty());
+  EXPECT_FALSE(gc.is_empty());
 }
 
 TYPED_TEST(GeometriesTest, Multipoint)
@@ -294,6 +299,9 @@ TYPED_TEST(GeometriesTest, Multipoint)
   EXPECT_EQ(1U, mpt.size());
   EXPECT_FALSE(mpt.empty());
   EXPECT_FALSE(mpt.is_empty());
+
+  mpt.push_back(typename TypeParam::Point(1.0, 1.0));
+  EXPECT_EQ(2U, mpt.size());
 
   gis::Nop_visitor visitor;
   EXPECT_FALSE(mpt.accept(&visitor));
@@ -329,6 +337,12 @@ TYPED_TEST(GeometriesTest, Multilinestring)
   EXPECT_EQ(1U, mls.size());
   EXPECT_FALSE(mls.empty());
   EXPECT_FALSE(mls.is_empty());
+
+  typename TypeParam::Linestring ls2;
+  ls.push_back(typename TypeParam::Point(0.0, 0.0));
+  ls.push_back(typename TypeParam::Point(20.0, 20.0));
+  mls.push_back(std::move(ls));
+  EXPECT_EQ(2U, mls.size());
 
   gis::Nop_visitor visitor;
   EXPECT_FALSE(mls.accept(&visitor));
@@ -375,6 +389,9 @@ TYPED_TEST(GeometriesTest, Multipolygon)
   EXPECT_EQ(1U, mpy.size());
   EXPECT_FALSE(mpy.empty());
   EXPECT_FALSE(mpy.is_empty());
+
+  mpy.push_back(typename TypeParam::Polygon());
+  EXPECT_EQ(2U, mpy.size());
 
   gis::Nop_visitor visitor;
   EXPECT_FALSE(mpy.accept(&visitor));
