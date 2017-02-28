@@ -938,7 +938,7 @@ public:
   int purge_index_entry(THD *thd, ulonglong *decrease_log_space,
                         bool need_lock_index);
   bool reset_logs(THD* thd, bool delete_only= false);
-  void close(uint exiting);
+  void close(uint exiting, bool need_lock_log, bool need_lock_index);
 
   // iterating through the log index file
   int find_log_pos(LOG_INFO* linfo, const char* log_name,
