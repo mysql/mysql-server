@@ -166,6 +166,7 @@ SET(DD_SOURCES
 
 SET(SQL_GIS_SOURCES
   geometry_rtree.cc
+  gis/geometries.cc
   gis/srs/srs.cc
   gis/srs/wkt_parser.cc
   gis/srs/rtree_support.cc

@@ -365,6 +365,7 @@ SET(SERVER_TESTS
   field
   get_diagnostics
   gis_algos
+  gis_geometries
   handler
   histograms
   initialize_password
