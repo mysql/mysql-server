@@ -15534,7 +15534,8 @@ static inline void dbug_print_tree(const char *tree_name,
                                    const RANGE_OPT_PARAM *param)
 {
 #ifndef DBUG_OFF
-  print_tree(NULL, tree_name, tree, param, true);
+  if (_db_enabled_())
+    print_tree(NULL, tree_name, tree, param, true);
 #endif
 }
 
