@@ -5166,9 +5166,11 @@ size_number:
                 case 'g':
                 case 'G':
                   text_shift_number+=10;
+                  // Fall through.
                 case 'm':
                 case 'M':
                   text_shift_number+=10;
+                  // Fall through.
                 case 'k':
                 case 'K':
                   text_shift_number+=10;

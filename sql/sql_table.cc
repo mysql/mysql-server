@@ -1436,12 +1436,12 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
         }
       }
       DBUG_ASSERT(ddl_log_entry->action_type == DDL_LOG_REPLACE_ACTION);
-      /*
-        Fall through and perform the rename action of the replace
-        action. We have already indicated the success of the delete
-        action in the log entry by stepping up the phase.
-      */
     }
+    /*
+      Fall through and perform the rename action of the replace
+      action. We have already indicated the success of the delete
+      action in the log entry by stepping up the phase.
+    */
     case DDL_LOG_RENAME_ACTION:
     {
       if (frm_action)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -152,7 +152,7 @@ Log_event_header(const char* buf, uint16_t binlog_version)
       log_pos+= data_written; /* purecov: inspected */
     }
 
-  /* 4.0 or newer */
+  /* 4.0 or newer; fall through. */
   /**
     @verbatim
     Additional header fields include:

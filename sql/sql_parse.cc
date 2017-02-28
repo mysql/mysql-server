@@ -3810,6 +3810,7 @@ mysql_execute_command(THD *thd, bool first_level)
       my_ok(thd);
       break;
     }
+    // Fall through.
   case SQLCOM_FLUSH:
   {
     int write_to_binlog;

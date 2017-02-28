@@ -1384,7 +1384,7 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
 	 key < share->state.header.uniques; key++, uniqueinfo++)
     {
       bool new_row=0;
-      char null_bit[8],null_pos[8];
+      char null_bit[8],null_pos[16];
       printf("%-8d%-5d",key+1,uniqueinfo->key+1);
       for (keyseg=uniqueinfo->seg ; keyseg->type != HA_KEYTYPE_END ; keyseg++)
       {
@@ -1393,8 +1393,8 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
 	null_bit[0]=null_pos[0]=0;
 	if (keyseg->null_bit)
 	{
-	  sprintf(null_bit,"%d",keyseg->null_bit);
-	  sprintf(null_pos,"%ld",(long) keyseg->null_pos+1);
+	  snprintf(null_bit, sizeof(null_bit), "%d", keyseg->null_bit);
+	  snprintf(null_pos, sizeof(null_pos), "%ld", (long) keyseg->null_pos+1);
 	}
 	printf("%-7ld%-5d%-9s%-10s%-30s\n",
 	       (long) keyseg->start+1,keyseg->length,

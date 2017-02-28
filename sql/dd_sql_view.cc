@@ -144,6 +144,7 @@ public:
     case ER_LOCK_WAIT_TIMEOUT:
     case ER_LOCK_DEADLOCK:
       retval= false;
+      // Fall through.
     case ER_NO_SUCH_USER:
       m_sql_errno= sql_errno;
       break;

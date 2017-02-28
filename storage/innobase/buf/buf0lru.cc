@@ -2319,8 +2319,8 @@ buf_LRU_block_remove_hashed(
 			}
 		}
 
-		/* fall through */
 	}
+	/* fall through */
 	case BUF_BLOCK_ZIP_PAGE:
 		ut_a(bpage->oldest_modification == 0);
 		if (bpage->size.is_compressed()) {

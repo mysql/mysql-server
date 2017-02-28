@@ -114,7 +114,7 @@ public:
       localtime_r(&tt_tmp, &tm_tmp);
       start=&tm_tmp;
 
-      sprintf(timestamp, "%02d%02d%02d %02d:%02d:%02d",
+      snprintf(timestamp, sizeof(timestamp), "%02d%02d%02d %02d:%02d:%02d",
               start->tm_year % 100,
               start->tm_mon+1,
               start->tm_mday,
@@ -129,7 +129,7 @@ public:
     /** Error message */
     char message[MAX_SLAVE_ERRMSG];
     /** Error timestamp as string */
-    char timestamp[16];
+    char timestamp[64];
     /** Error timestamp in microseconds. Used in performance_schema */
     ulonglong skr;
 

@@ -1778,6 +1778,7 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref)
         return true;
       }
     }
+    // Fall through.
   case 2:
     {
       // Validate options argument
@@ -1787,6 +1788,7 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref)
         return true;
       }
     }
+    // Fall through.
   case 1:
     {
       /*
@@ -2237,7 +2239,7 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
             result= append_polygon(parser, points, mbr, calling_function,
                                    max_decimal_digits,
                                    add_bounding_box);
-          else if (Geometry::wkb_multilinestring)
+          else if (header.wkb_type == Geometry::wkb_multilinestring)
             result= append_linestring(parser, points, mbr, calling_function,
                                       max_decimal_digits,
                                       add_bounding_box);

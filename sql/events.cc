@@ -275,6 +275,8 @@ common_1_lev_code:
     break;
   case INTERVAL_WEEK:
     expr/= 7;
+    close_quote= false;
+    break;
   default:
     close_quote= false;
     break;

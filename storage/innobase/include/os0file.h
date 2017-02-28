@@ -48,6 +48,7 @@ Created 10/21/1995 Heikki Tuuri
 #include <Strsafe.h>
 #endif /* !_WIN32 */
 
+#include <functional>
 #include <stack>
 
 /** File node of a tablespace or the log data space */
