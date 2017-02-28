@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2481,7 +2481,8 @@ void MYSQL_BIN_LOG::cleanup()
   if (inited)
   {
     inited= 0;
-    close(LOG_CLOSE_INDEX|LOG_CLOSE_STOP_EVENT);
+    close(LOG_CLOSE_INDEX|LOG_CLOSE_STOP_EVENT, true /*need_lock_log=true*/,
+          true /*need_lock_index=true*/);
     mysql_mutex_destroy(&LOCK_log);
     mysql_mutex_destroy(&LOCK_index);
     mysql_mutex_destroy(&LOCK_commit);
@@ -2519,8 +2520,13 @@ void MYSQL_BIN_LOG::init_pthread_objects()
 bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
                                     const char *log_name, bool need_lock_index)
 {
+  bool error= false;
   File index_file_nr= -1;
-  DBUG_ASSERT(!my_b_inited(&index_file));
+
+  if (need_lock_index)
+    mysql_mutex_lock(&LOCK_index);
+  else
+    mysql_mutex_assert_owner(&LOCK_index);
 
   /*
     First open of this class instance
@@ -2528,6 +2534,10 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
     Add new entries to the end of it.
   */
   myf opt= MY_UNPACK_FILENAME;
+
+  if (my_b_inited(&index_file))
+    goto end;
+
   if (!index_file_name_arg)
   {
     index_file_name_arg= log_name;    // Use same basename for index file
@@ -2539,7 +2549,8 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   if (set_crash_safe_index_file_name(index_file_name_arg))
   {
     sql_print_error("MYSQL_BIN_LOG::set_crash_safe_index_file_name failed.");
-    return TRUE;
+    error= true;
+    goto end;
   }
 
   /*
@@ -2553,7 +2564,8 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   {
     sql_print_error("MYSQL_BIN_LOG::open_index_file failed to "
                     "move crash_safe_index_file to index file.");
-    return TRUE;
+    error= true;
+    goto end;
   }
 
   if ((index_file_nr= mysql_file_open(m_key_file_log_index,
@@ -2575,7 +2587,8 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
     */
     if (index_file_nr >= 0)
       mysql_file_close(index_file_nr, MYF(0));
-    return TRUE;
+    error= true;
+    goto end;
   }
 
 #ifdef HAVE_REPLICATION
@@ -2589,17 +2602,20 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
 
   if (set_purge_index_file_name(index_file_name_arg) ||
       open_purge_index_file(FALSE) ||
-      purge_index_entry(NULL, NULL, need_lock_index) ||
+      purge_index_entry(NULL, NULL, false) ||
       close_purge_index_file() ||
       DBUG_EVALUATE_IF("fault_injection_recovering_index", 1, 0))
   {
     sql_print_error("MYSQL_BIN_LOG::open_index_file failed to sync the index "
                     "file.");
-    return TRUE;
+    error= TRUE;
+    goto end;
   }
 #endif
-
-  return FALSE;
+end:
+  if (need_lock_index)
+    mysql_mutex_unlock(&LOCK_index);
+  return error;
 }
 
 
@@ -3161,11 +3177,11 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
                                 enum cache_type io_cache_type_arg,
                                 ulong max_size_arg,
                                 bool null_created_arg,
+                                bool need_lock_log,
                                 bool need_lock_index,
                                 bool need_sid_lock,
                                 Format_description_log_event *extra_description_event)
 {
-  File file= -1;
 
   // lock_index must be acquired *before* sid_lock.
   DBUG_ASSERT(need_sid_lock || !need_lock_index);
@@ -3377,13 +3393,7 @@ err:
     purge_index_entry(NULL, NULL, need_lock_index);
   close_purge_index_file();
 #endif
-  if (file >= 0)
-    mysql_file_close(file, MYF(0));
-  end_io_cache(&log_file);
-  end_io_cache(&index_file);
-  my_free(name);
-  name= NULL;
-  log_state= LOG_CLOSED;
+
   if (binlog_error_action == ABORT_SERVER)
   {
     exec_binlog_error_action_abort("Either disk is full or file system is read "
@@ -3391,10 +3401,14 @@ err:
                                    " server.");
   }
   else
+  {
     sql_print_error("Could not use %s for logging (error %d). "
                     "Turning logging off for the whole duration of the MySQL "
                     "server process. To turn it on again: fix the cause, "
-                    "shutdown the MySQL server and restart it.", name, errno);
+                    "shutdown the MySQL server and restart it.",
+                    (new_name) ? new_name : name, errno);
+    close(LOG_CLOSE_INDEX, need_lock_log, need_lock_index);
+  }
   DBUG_RETURN(1);
 }
 
@@ -3678,6 +3692,12 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
   else
     mysql_mutex_assert_owner(&LOCK_index);
 
+  if (!my_b_inited(&index_file))
+  {
+      error= LOG_INFO_IO;
+      goto end;
+  }
+
   // extend relative paths for log_name to be searched
   if (log_name)
   {
@@ -3770,6 +3790,11 @@ int MYSQL_BIN_LOG::find_next_log(LOG_INFO* linfo, bool need_lock_index)
   else
     mysql_mutex_assert_owner(&LOCK_index);
 
+  if (!my_b_inited(&index_file))
+  {
+      error= LOG_INFO_IO;
+      goto err;
+  }
   /* As the file is flushed, we can't get an error here */
   my_b_seek(&index_file, linfo->index_file_offset);
 
@@ -3854,7 +3879,8 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   /* Save variables so that we can reopen the log */
   save_name=name;
   name=0;					// Protect against free
-  close(LOG_CLOSE_TO_BE_OPENED);
+  close(LOG_CLOSE_TO_BE_OPENED, false/*need_lock_log=false*/,
+        false/*need_lock_index=false*/);
 
   /*
     First delete all old log files and then update the index file.
@@ -3907,7 +3933,9 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   }
 
   /* Start logging with a new file */
-  close(LOG_CLOSE_INDEX | LOG_CLOSE_TO_BE_OPENED);
+  close(LOG_CLOSE_INDEX | LOG_CLOSE_TO_BE_OPENED,
+        false/*need_lock_log=false*/,
+        false/*need_lock_index=false*/);
   if ((error= my_delete_allow_opened(index_file_name, MYF(0))))	// Reset (open will update)
   {
     if (my_errno == ENOENT) 
@@ -3953,6 +3981,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   if (!open_index_file(index_file_name, 0, false/*need_lock_index=false*/))
     if ((error= open_binlog(save_name, 0, io_cache_type,
                             max_size, false,
+                            false/*need_lock_log=false*/,
                             false/*need_lock_index=false*/,
                             false/*need_sid_lock=false*/,
                             NULL)))
@@ -5010,7 +5039,9 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
 
   old_name=name;
   name=0;				// Don't free name
-  close(LOG_CLOSE_TO_BE_OPENED | LOG_CLOSE_INDEX);
+  close(LOG_CLOSE_TO_BE_OPENED | LOG_CLOSE_INDEX,
+        false/*need_lock_log=false*/,
+        false/*need_lock_index=false*/);
 
   if (checksum_alg_reset != BINLOG_CHECKSUM_ALG_UNDEF)
   {
@@ -5041,6 +5072,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     file_to_open= new_name_ptr;
     error= open_binlog(old_name, new_name_ptr, io_cache_type,
                        max_size, true/*null_created_arg=true*/,
+                       false/*need_lock_log=false*/,
                        false/*need_lock_index=false*/,
                        true/*need_sid_lock=true*/,
                        extra_description_event);
@@ -5073,7 +5105,6 @@ end:
        - switch server to protected/readonly mode
        - ...
     */
-    close(LOG_CLOSE_INDEX);
     if (binlog_error_action == ABORT_SERVER)
     {
       exec_binlog_error_action_abort("Either disk is full or file system is"
@@ -5087,12 +5118,15 @@ end:
                       "again: fix the cause, shutdown the MySQL "
                       "server and restart it.",
                       new_name_ptr, errno);
+    close(LOG_CLOSE_INDEX, false /*need_lock_log=false*/,
+          false/*need_lock_index=false*/);
   }
 
   mysql_mutex_unlock(&LOCK_index);
   if (need_lock_log)
     mysql_mutex_unlock(&LOCK_log);
 
+  DEBUG_SYNC(current_thd, "after_disable_binlog");
   DBUG_RETURN(error);
 }
 
@@ -6113,10 +6147,17 @@ int MYSQL_BIN_LOG::wait_for_update_bin_log(THD* thd,
     The internal structures are not freed until cleanup() is called
 */
 
-void MYSQL_BIN_LOG::close(uint exiting)
+void MYSQL_BIN_LOG::close(uint exiting, bool need_lock_log,
+                          bool need_lock_index)
 {					// One can't set log_type here!
   DBUG_ENTER("MYSQL_BIN_LOG::close");
   DBUG_PRINT("enter",("exiting: %d", (int) exiting));
+
+  if (need_lock_log)
+    mysql_mutex_lock(&LOCK_log);
+  else
+    mysql_mutex_assert_owner(&LOCK_log);
+
   if (log_state == LOG_OPENED)
   {
 #ifdef HAVE_REPLICATION
@@ -6159,6 +6200,11 @@ void MYSQL_BIN_LOG::close(uint exiting)
     called a not complete close earlier and the index file is still open.
   */
 
+  if (need_lock_index)
+    mysql_mutex_lock(&LOCK_index);
+  else
+    mysql_mutex_assert_owner(&LOCK_index);
+
   if ((exiting & LOG_CLOSE_INDEX) && my_b_inited(&index_file))
   {
     end_io_cache(&index_file);
@@ -6170,9 +6216,17 @@ void MYSQL_BIN_LOG::close(uint exiting)
                       errno, my_strerror(errbuf, sizeof(errbuf), errno));
     }
   }
+
+  if (need_lock_index)
+    mysql_mutex_unlock(&LOCK_index);
+
   log_state= (exiting & LOG_CLOSE_TO_BE_OPENED) ? LOG_TO_BE_OPENED : LOG_CLOSED;
   my_free(name);
   name= NULL;
+
+  if (need_lock_log)
+    mysql_mutex_unlock(&LOCK_log);
+
   DBUG_VOID_RETURN;
 }
 
@@ -6237,6 +6291,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
   {
     /* generate a new binlog to mask a corrupted one */
     open_binlog(opt_name, 0, WRITE_CACHE, max_binlog_size, false,
+                true/*need_lock_log=true*/,
                 true/*need_lock_index=true*/,
                 true/*need_sid_lock=true*/,
                 NULL);
@@ -7036,7 +7091,8 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
                       "the cause, shutdown the MySQL server and restart it.",
                       errmsg);
     }
-    close(LOG_CLOSE_INDEX|LOG_CLOSE_STOP_EVENT);
+    close(LOG_CLOSE_INDEX|LOG_CLOSE_STOP_EVENT, false/*need_lock_log=false*/,
+          true/*need_lock_index=true*/);
     if (need_lock_log)
       mysql_mutex_unlock(&LOCK_log);
     DEBUG_SYNC(thd, "after_binlog_closed_due_to_error");
