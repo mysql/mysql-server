@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,6 +31,20 @@ set_echo_compat() {
 	*c*,*)   echo_n=-n echo_c=     ;;
 	*)       echo_n=   echo_c='\c' ;;
     esac
+}
+
+validate_reply () {
+    ret=0
+    if [ -z "$1" ]; then
+	reply=y
+	return $ret
+    fi
+    case $1 in
+        y|Y|yes|Yes|YES) reply=y ;;
+        n|N|no|No|NO)    reply=n ;;
+        *) ret=1 ;;
+    esac
+    return $ret
 }
 
 prepare() {
@@ -258,15 +272,18 @@ echo "Setting the root password ensures that nobody can log into the MySQL"
 echo "root user without the proper authorisation."
 echo
 
-if [ $hadpass -eq 0 ]; then
-    echo $echo_n "Set root password? [Y/n] $echo_c"
-else
-    echo "You already have a root password set, so you can safely answer 'n'."
-    echo
-    echo $echo_n "Change the root password? [Y/n] $echo_c"
-fi
+while true ; do
+    if [ $hadpass -eq 0 ]; then
+	echo $echo_n "Set root password? [Y/n] $echo_c"
+    else
+	echo "You already have a root password set, so you can safely answer 'n'."
+	echo
+	echo $echo_n "Change the root password? [Y/n] $echo_c"
+    fi
+    read reply
+    validate_reply $reply && break
+done
 
-read reply
 if [ "$reply" = "n" ]; then
     echo " ... skipping."
 else
@@ -290,9 +307,11 @@ echo "go a bit smoother.  You should remove them before moving into a"
 echo "production environment."
 echo
 
-echo $echo_n "Remove anonymous users? [Y/n] $echo_c"
-
-read reply
+while true ; do
+    echo $echo_n "Remove anonymous users? [Y/n] $echo_c"
+    read reply
+    validate_reply $reply && break
+done
 if [ "$reply" = "n" ]; then
     echo " ... skipping."
 else
@@ -308,9 +327,11 @@ echo
 echo "Normally, root should only be allowed to connect from 'localhost'.  This"
 echo "ensures that someone cannot guess at the root password from the network."
 echo
-
-echo $echo_n "Disallow root login remotely? [Y/n] $echo_c"
-read reply
+while true ; do
+    echo $echo_n "Disallow root login remotely? [Y/n] $echo_c"
+    read reply
+    validate_reply $reply && break
+done
 if [ "$reply" = "n" ]; then
     echo " ... skipping."
 else
@@ -328,8 +349,12 @@ echo "access.  This is also intended only for testing, and should be removed"
 echo "before moving into a production environment."
 echo
 
-echo $echo_n "Remove test database and access to it? [Y/n] $echo_c"
-read reply
+while true ; do
+    echo $echo_n "Remove test database and access to it? [Y/n] $echo_c"
+    read reply
+    validate_reply $reply && break
+done
+
 if [ "$reply" = "n" ]; then
     echo " ... skipping."
 else
@@ -346,8 +371,12 @@ echo "Reloading the privilege tables will ensure that all changes made so far"
 echo "will take effect immediately."
 echo
 
-echo $echo_n "Reload privilege tables now? [Y/n] $echo_c"
-read reply
+while true ; do
+    echo $echo_n "Reload privilege tables now? [Y/n] $echo_c"
+    read reply
+    validate_reply $reply && break
+done
+
 if [ "$reply" = "n" ]; then
     echo " ... skipping."
 else
