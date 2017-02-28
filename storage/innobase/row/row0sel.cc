@@ -4238,8 +4238,14 @@ row_search_no_mvcc(
 	ut_ad(index && pcur && search_tuple);
 
 	/* Step-0: Re-use the cached mtr. */
-	mtr_t*		mtr = &index->last_sel_cur->mtr;
+	mtr_t*		mtr;
 	dict_index_t*	clust_index = index->table->first_index();
+
+	if(!index->last_sel_cur) {
+		dict_allocate_mem_intrinsic_cache(index);
+	}
+
+	mtr = &index->last_sel_cur->mtr;
 
 	/* Step-1: Build the select graph. */
 	if (direction == 0 && prebuilt->sel_graph == NULL) {

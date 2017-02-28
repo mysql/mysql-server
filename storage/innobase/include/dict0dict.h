@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1966,6 +1966,12 @@ uint32_t
 dict_sdi_get_copy_num(
 	table_id_t	table_id);
 
+/** Allocate memory for intrinsic cache elements in the index
+ * @param[in]      index   index object */
+UNIV_INLINE
+void
+dict_allocate_mem_intrinsic_cache(
+                dict_index_t*           index);
 #endif /* !UNIV_HOTBACKUP */
 
 #include "dict0dict.ic"

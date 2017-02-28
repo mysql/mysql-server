@@ -2749,7 +2749,9 @@ err_exit:
 		doesn't fit the provided slot then existing record is added
 		to free list and new record is inserted. This also means
 		cursor that we have cached for SELECT is now invalid. */
-		index->last_sel_cur->invalid = true;
+		if(index->last_sel_cur) {
+			index->last_sel_cur->invalid = true;
+		}
 
 		ut_ad(thr != NULL);
 		err = row_ins_clust_index_entry_by_modify(
@@ -3315,7 +3317,9 @@ row_ins_sec_index_entry_low(
 		is doesn't fit the provided slot then existing record is added
 		to free list and new record is inserted. This also means
 		cursor that we have cached for SELECT is now invalid. */
-		index->last_sel_cur->invalid = true;
+		if(index->last_sel_cur) {
+			index->last_sel_cur->invalid = true;
+		}
 
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
@@ -3448,6 +3452,10 @@ row_ins_clust_index_entry(
 
 	if (index->table->is_intrinsic()
 	    && dict_index_is_auto_gen_clust(index)) {
+		/* Check if the memory allocated for intrinsic cache*/
+		if(!index->last_ins_cur) {
+			dict_allocate_mem_intrinsic_cache(index);
+		}
 		err = row_ins_sorted_clust_index_entry(
 			BTR_MODIFY_LEAF, index, entry, n_ext, thr);
 	} else {
@@ -3468,6 +3476,9 @@ row_ins_clust_index_entry(
 	/* Try then pessimistic descent to the B-tree */
 	if (!index->table->is_intrinsic()) {
 		log_free_check();
+	} else if(!index->last_sel_cur) {
+		dict_allocate_mem_intrinsic_cache(index);
+		index->last_sel_cur->invalid = true;
 	} else {
 		index->last_sel_cur->invalid = true;
 	}
@@ -3555,6 +3566,9 @@ row_ins_sec_index_entry(
 
 		if (!index->table->is_intrinsic()) {
 			log_free_check();
+		} else if(!index->last_sel_cur) {
+			dict_allocate_mem_intrinsic_cache(index);
+			index->last_sel_cur->invalid = true;
 		} else {
 			index->last_sel_cur->invalid = true;
 		}
