@@ -5059,6 +5059,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
       const_cast<Gtid_set*>(gtid_state->get_logged_gtids()));
     if (mysql_bin_log.open_binlog(opt_bin_logname, 0,
                                   WRITE_CACHE, max_binlog_size, false,
+                                  true/*need_lock_log=true*/,
                                   true/*need_lock_index=true*/,
                                   true/*need_sid_lock=true*/,
                                   NULL))
