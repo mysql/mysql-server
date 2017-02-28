@@ -14,5 +14,4 @@ innodb.log_file_size_1                       : Bug#19442959 2015-11-05 jhauglid
 innodb.log_file_system                       : Bug#19442959 2015-11-05 jhauglid
 innodb.temporary_table                       : Bug#19442959 2015-11-05 jhauglid
 innodb.table_encrypt_2                       : Bug#21237667 2016-02-05 hvadodar
-binlog.binlog_index                          : Bug#23531998 2016-06-06 edahl
 main.dd_bootstrap                            : Bug#24421481 2016-08-08 edahl
