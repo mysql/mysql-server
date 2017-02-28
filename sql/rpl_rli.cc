@@ -1085,6 +1085,8 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
                                      const char** errmsg)
 {
   int error=0;
+  const char *ln;
+  char name_buf[FN_REFLEN];
   DBUG_ENTER("Relay_log_info::purge_relay_logs");
 
   /*
@@ -1109,11 +1111,40 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   if (!inited)
   {
     DBUG_PRINT("info", ("inited == 0"));
-    DBUG_RETURN(0);
-  }
+    if (error_on_rli_init_info)
+    {
+      ln= relay_log.generate_name(opt_relay_logname, "-relay-bin",
+				  1, name_buf);
+      if (relay_log.open_index_file(opt_relaylog_index_name, ln, TRUE))
+      {
+	sql_print_error("Unable to purge relay log files. Failed to open relay "
+			"log index file:%s.", relay_log.get_index_fname());
 
-  DBUG_ASSERT(slave_running == 0);
-  DBUG_ASSERT(mi->slave_running == 0);
+	DBUG_RETURN(1);
+      }
+      mysql_mutex_lock(&mi->data_lock);
+      if (relay_log.open_binlog(ln, 0, SEQ_READ_APPEND,
+				(max_relay_log_size ? max_relay_log_size :
+				 max_binlog_size), true,
+				true/*need_lock_index=true*/,
+				true/*need_sid_lock=true*/,
+				mi->get_mi_description_event()))
+      {
+	sql_print_error("Unable to purge relay log files. Failed to open relay "
+			"log file:%s.", relay_log.get_log_fname());
+        mysql_mutex_unlock(&mi->data_lock);
+	DBUG_RETURN(1);
+      }
+      mysql_mutex_unlock(&mi->data_lock);
+    }
+    else
+      DBUG_RETURN(0);
+  }
+  else
+  {
+    DBUG_ASSERT(slave_running == 0);
+    DBUG_ASSERT(mi->slave_running == 0);
+  }
 
   slave_skip_counter= 0;
   mysql_mutex_lock(&data_lock);
@@ -1153,6 +1184,9 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
     error= init_relay_log_pos(group_relay_log_name,
                               group_relay_log_pos,
                               false/*need_data_lock=false*/, errmsg, 0);
+
+  if (!inited && error_on_rli_init_info)
+    relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
 
 err:
 #ifndef DBUG_OFF
