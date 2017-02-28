@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -355,6 +355,11 @@ void test_oom()
   rc= init_instruments(& param);
   ok(rc == 1, "oom (per thread wait)");
 
+  cleanup_sync_class();
+  cleanup_thread_class();
+  cleanup_file_class();
+  cleanup_instruments();
+
   param.m_enabled= true;
   param.m_mutex_class_sizing= 0;
   param.m_rwlock_class_sizing= 0;
@@ -432,6 +437,8 @@ void test_oom()
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 1, "oom (thread stages history sizing)");
+
+  cleanup_thread_class();
   cleanup_instruments();
 
   param.m_enabled= true;
@@ -467,6 +474,9 @@ void test_oom()
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 1, "oom (per thread stages)");
+  
+  cleanup_stage_class();
+  cleanup_thread_class();
   cleanup_instruments();
 
   param.m_enabled= true;
@@ -502,6 +512,8 @@ void test_oom()
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 1, "oom (thread statements history sizing)");
+
+  cleanup_thread_class();
   cleanup_instruments();
 
   param.m_enabled= true;
@@ -537,6 +549,9 @@ void test_oom()
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 1, "oom (per thread statements)");
+
+  cleanup_statement_class();
+  cleanup_thread_class();
   cleanup_instruments();
 
   param.m_enabled= true;
@@ -572,6 +587,8 @@ void test_oom()
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 1, "oom (global waits)");
+
+  cleanup_sync_class();
   cleanup_instruments();
 
   param.m_enabled= true;
@@ -609,8 +626,10 @@ void test_oom()
   ok(rc == 0, "init stage class");
   rc= init_instruments(& param);
   ok(rc == 1, "oom (global stages)");
-  cleanup_instruments();
+
+  cleanup_sync_class();
   cleanup_stage_class();
+  cleanup_instruments();
 
   param.m_enabled= true;
   param.m_mutex_class_sizing= 10;
@@ -647,8 +666,10 @@ void test_oom()
   ok(rc == 0, "init statement class");
   rc= init_instruments(& param);
   ok(rc == 1, "oom (global statements)");
-  cleanup_instruments();
+
+  cleanup_sync_class();
   cleanup_statement_class();
+  cleanup_instruments();
 }
 
 void do_all_tests()
@@ -665,6 +686,6 @@ int main(int, char **)
   plan(20);
   MY_INIT("pfs_instr-oom-t");
   do_all_tests();
-  return 0;
+  return (exit_status());
 }
 

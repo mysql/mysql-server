@@ -1,0 +1,30 @@
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+let bugdir= $MYSQLTEST_VARDIR/tmp/datadir1;
+--mkdir $bugdir
+
+let SEARCH_FILE = $bugdir/my_restart.err;
+let $args=--defaults-file=$bugdir/my.cnf --datadir=$bugdir --secure-file-priv="" --loose-console > $SEARCH_FILE 2>&1 ;
+
+--write_file $bugdir/my.cnf
+[mysqld]
+EOF
+
+--exec echo "innodb_data_home_dir = $bugdir" >> $bugdir/my.cnf
+
+--append_file $bugdir/my.cnf
+innodb_data_file_path = ibdata1:10M;ibdata2:10M:autoextend
+innodb_undo_tablespaces = 3
+innodb_log_files_in_group = 3
+EOF
+
+# Innodb creates system tablespaces according to my.cnf and aborts
+# after creating undo tablespace.
+--echo # Start mysqld to create tablespaces according to my.cnf
+--error 2
+--exec $MYSQLD $args --skip-grant-tables --debug=d,innodb_undo_upgrade --innodb-unknown-parameter
+
+--list_files $bugdir
+--remove_files_wildcard $bugdir
+--rmdir $bugdir

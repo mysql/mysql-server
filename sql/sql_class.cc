@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -374,15 +374,13 @@ void thd_binlog_pos(const THD *thd,
 
   thd_new_connection_setup
 
-  @note Must be called with LOCK_thread_count locked.
-
   @param              thd            THD object
   @param              stack_start    Start of stack for connection
 */
 void thd_new_connection_setup(THD *thd, char *stack_start)
 {
   DBUG_ENTER("thd_new_connection_setup");
-  mysql_mutex_assert_owner(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
 #ifdef HAVE_PSI_INTERFACE
   thd_set_psi(thd,
               PSI_THREAD_CALL(new_thread)

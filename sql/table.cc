@@ -839,18 +839,22 @@ void KEY_PART_INFO::init_from_field(Field *fld)
 /**
   Setup key-related fields of Field object for given key and key part.
 
-  @param[in]     share         Pointer to TABLE_SHARE
-  @param[in]     handler       Pointer to handler
-  @param[in]     primary_key_n Primary key number
-  @param[in]     keyinfo       Pointer to processed key
-  @param[in]     key_n         Processed key number
-  @param[in]     key_part_n    Processed key part number
-  @param[in,out] usable_parts  Pointer to usable_parts variable
+  @param[in]     share                    Pointer to TABLE_SHARE
+  @param[in]     handler_file             Pointer to handler
+  @param[in]     primary_key_n            Primary key number
+  @param[in]     keyinfo                  Pointer to processed key
+  @param[in]     key_n                    Processed key number
+  @param[in]     key_part_n               Processed key part number
+  @param[in,out] usable_parts             Pointer to usable_parts variable
+  @param[in]     part_of_key_not_extended Set when column is part of the Key
+                                          and not appended by the storage
+                                          engine from primary key columns.
 */
 
 static void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
                                  uint primary_key_n, KEY *keyinfo, uint key_n,
-                                 uint key_part_n, uint *usable_parts)
+                                 uint key_part_n, uint *usable_parts,
+                                 bool part_of_key_not_extended)
 {
   KEY_PART_INFO *key_part= &keyinfo->key_part[key_part_n];
   Field *field= key_part->field;
@@ -869,7 +873,8 @@ static void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
     {
       share->keys_for_keyread.set_bit(key_n);
       field->part_of_key.set_bit(key_n);
-      field->part_of_key_not_clustered.set_bit(key_n);
+      if (part_of_key_not_extended)
+        field->part_of_key_not_extended.set_bit(key_n);
     }
     if (handler_file->index_flags(key_n, key_part_n, 1) & HA_READ_ORDER)
       field->part_of_sortkey.set_bit(key_n);
@@ -949,7 +954,7 @@ static uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
 
       *current_key_part= *pk_key_part;
       setup_key_part_field(share, handler_file, pk_n, sk, sk_n,
-                           sk->actual_key_parts, usable_parts);
+                           sk->actual_key_parts, usable_parts, false);
       *current_rec_per_key++= 0;
       sk->actual_key_parts++;
       sk->unused_key_parts--;
@@ -1882,7 +1887,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         key_part->init_flags();
 
         setup_key_part_field(share, handler_file, primary_key,
-                             keyinfo, key, i, &usable_parts);
+                             keyinfo, key, i, &usable_parts, true);
 
         field->flags|= PART_KEY_FLAG;
         if (key == primary_key)
@@ -3319,11 +3324,7 @@ bool check_column_name(const char *name)
                                and type)
 
   @retval  FALSE  OK
-  @retval  TRUE   There was an error. An error message is output
-                  to the error log.  We do not push an error
-                  message into the error stack because this
-                  function is currently only called at start up,
-                  and such errors never reach the user.
+  @retval  TRUE   There was an error.
 */
 
 bool
@@ -3413,28 +3414,28 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
       if (strncmp(sql_type.c_ptr_safe(), field_def->type.str,
                   field_def->type.length - 1))
       {
-        report_error(0, "Incorrect definition of table %s.%s: "
-                     "expected column '%s' at position %d to have type "
-                     "%s, found type %s.", table->s->db.str, table->alias,
-                     field_def->name.str, i, field_def->type.str,
+        report_error(ER_CANNOT_LOAD_FROM_TABLE_V2, "Incorrect definition of "
+                     "table %s.%s: expected column '%s' at position %d to "
+                     "have type %s, found type %s.", table->s->db.str,
+                     table->alias, field_def->name.str, i, field_def->type.str,
                      sql_type.c_ptr_safe());
         error= TRUE;
       }
       else if (field_def->cset.str && !field->has_charset())
       {
-        report_error(0, "Incorrect definition of table %s.%s: "
-                     "expected the type of column '%s' at position %d "
-                     "to have character set '%s' but the type has no "
-                     "character set.", table->s->db.str, table->alias,
+        report_error(ER_CANNOT_LOAD_FROM_TABLE_V2, "Incorrect definition of "
+                     "table %s.%s: expected the type of column '%s' at "
+                     "position %d to have character set '%s' but the type "
+                     "has no character set.", table->s->db.str, table->alias,
                      field_def->name.str, i, field_def->cset.str);
         error= TRUE;
       }
       else if (field_def->cset.str &&
                strcmp(field->charset()->csname, field_def->cset.str))
       {
-        report_error(0, "Incorrect definition of table %s.%s: "
-                     "expected the type of column '%s' at position %d "
-                     "to have character set '%s' but found "
+        report_error(ER_CANNOT_LOAD_FROM_TABLE_V2, "Incorrect definition of "
+                     "table %s.%s: expected the type of column '%s' at "
+                     "position %d to have character set '%s' but found "
                      "character set '%s'.", table->s->db.str, table->alias,
                      field_def->name.str, i, field_def->cset.str,
                      field->charset()->csname);
@@ -3443,11 +3444,11 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     }
     else
     {
-      report_error(0, "Incorrect definition of table %s.%s: "
-                   "expected column '%s' at position %d to have type %s "
-                   " but the column is not found.",
-                   table->s->db.str, table->alias,
-                   field_def->name.str, i, field_def->type.str);
+      report_error(ER_CANNOT_LOAD_FROM_TABLE_V2, "Incorrect definition of "
+                   "table %s.%s: expected column '%s' at position %d to "
+                   "have type %s but the column is not found.",
+                   table->s->db.str, table->alias, field_def->name.str, i,
+                   field_def->type.str);
       error= TRUE;
     }
   }

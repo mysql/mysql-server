@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -109,6 +109,9 @@ UNIV_INTERN ibool	srv_have_fullfsync = FALSE;
 /** TRUE if a raw partition is in use */
 UNIV_INTERN ibool	srv_start_raw_disk_in_use = FALSE;
 
+/** UNDO tablespaces starts with space id. */
+ulint	srv_undo_space_id_start;
+
 /** TRUE if the server is being started, before rolling back any
 incomplete transactions */
 UNIV_INTERN ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
@@ -124,7 +127,7 @@ SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
 UNIV_INTERN enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 
 /** Files comprising the system tablespace */
-static os_file_t	files[1000];
+static pfs_os_file_t	files[1000];
 
 /** io_handler_thread parameters for thread identification */
 static ulint		n[SRV_MAX_N_IO_THREADS + 6];
@@ -530,7 +533,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 create_log_file(
 /*============*/
-	os_file_t*	file,	/*!< out: file handle */
+	pfs_os_file_t*	file,	/*!< out: file handle */
 	const char*	name)	/*!< in: log file name */
 {
 	ibool		ret;
@@ -737,7 +740,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 open_log_file(
 /*==========*/
-	os_file_t*	file,	/*!< out: file handle */
+	pfs_os_file_t*	file,	/*!< out: file handle */
 	const char*	name,	/*!< in: log file name */
 	os_offset_t*	size)	/*!< out: file size */
 {
@@ -853,7 +856,7 @@ open_or_create_data_files(
 				   && os_file_get_last_error(false)
 				   != OS_FILE_ALREADY_EXISTS
 #ifdef UNIV_AIX
-			    	   /* AIX 5.1 after security patch ML7 may have
+				   /* AIX 5.1 after security patch ML7 may have
 			           errno set to 0 here, which causes our
 				   function to return 100; work around that
 				   AIX problem */
@@ -1156,7 +1159,7 @@ srv_undo_tablespace_create(
 	const char*	name,		/*!< in: tablespace name */
 	ulint		size)		/*!< in: tablespace size in pages */
 {
-	os_file_t	fh;
+	pfs_os_file_t	fh;
 	ibool		ret;
 	dberr_t		err = DB_SUCCESS;
 
@@ -1233,7 +1236,7 @@ srv_undo_tablespace_open(
 	const char*	name,		/*!< in: tablespace name */
 	ulint		space)		/*!< in: tablespace id */
 {
-	os_file_t	fh;
+	pfs_os_file_t	fh;
 	dberr_t		err	= DB_ERROR;
 	ibool		ret;
 	ulint		flags;
@@ -1332,13 +1335,23 @@ srv_undo_tablespaces_init(
 
 	for (i = 0; create_new_db && i < n_conf_tablespaces; ++i) {
 		char	name[OS_FILE_MAX_PATH];
+		ulint	space_id  = i + 1;
+
+		DBUG_EXECUTE_IF("innodb_undo_upgrade",
+				space_id = i + 3;);
 
 		ut_snprintf(
 			name, sizeof(name),
 			"%s%cundo%03lu",
-			srv_undo_dir, SRV_PATH_SEPARATOR, i + 1);
+			srv_undo_dir, SRV_PATH_SEPARATOR, space_id);
 
-		/* Undo space ids start from 1. */
+		if (i == 0) {
+			srv_undo_space_id_start = space_id;
+			prev_space_id = srv_undo_space_id_start - 1;
+		}
+
+		undo_tablespace_ids[i] = space_id;
+
 		err = srv_undo_tablespace_create(
 			name, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES);
 
@@ -1360,14 +1373,16 @@ srv_undo_tablespaces_init(
 	if (!create_new_db) {
 		n_undo_tablespaces = trx_rseg_get_n_undo_tablespaces(
 			undo_tablespace_ids);
+
+		if (n_undo_tablespaces != 0) {
+			srv_undo_space_id_start = undo_tablespace_ids[0];
+			prev_space_id = srv_undo_space_id_start - 1;
+		}
+
 	} else {
 		n_undo_tablespaces = n_conf_tablespaces;
 
-		for (i = 1; i <= n_undo_tablespaces; ++i) {
-			undo_tablespace_ids[i - 1] = i;
-		}
-
-		undo_tablespace_ids[i] = ULINT_UNDEFINED;
+		undo_tablespace_ids[n_conf_tablespaces] = ULINT_UNDEFINED;
 	}
 
 	/* Open all the undo tablespaces that are currently in use. If we
@@ -1390,8 +1405,6 @@ srv_undo_tablespaces_init(
 		/* The system space id should not be in this array. */
 		ut_a(undo_tablespace_ids[i] != 0);
 		ut_a(undo_tablespace_ids[i] != ULINT_UNDEFINED);
-
-		/* Undo space ids start from 1. */
 
 		err = srv_undo_tablespace_open(name, undo_tablespace_ids[i]);
 
@@ -1427,9 +1440,21 @@ srv_undo_tablespaces_init(
 			break;
 		}
 
+		/** Note the first undo tablespace id in case of
+		no active undo tablespace. */
+		if (n_undo_tablespaces == 0) {
+			srv_undo_space_id_start = i;
+		}
+
 		++n_undo_tablespaces;
 
 		++*n_opened;
+	}
+
+	/** Explictly specify the srv_undo_space_id_start
+	as zero when there are no undo tablespaces. */
+	if (n_undo_tablespaces == 0) {
+		srv_undo_space_id_start = 0;
 	}
 
 	/* If the user says that there are fewer than what we find we
@@ -1476,10 +1501,11 @@ srv_undo_tablespaces_init(
 		mtr_start(&mtr);
 
 		/* The undo log tablespace */
-		for (i = 1; i <= n_undo_tablespaces; ++i) {
+		for (i = 0; i < n_undo_tablespaces; ++i) {
 
 			fsp_header_init(
-				i, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
+				undo_tablespace_ids[i],
+				SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
 		}
 
 		mtr_commit(&mtr);
@@ -1553,6 +1579,10 @@ innobase_start_or_create_for_mysql(void)
 	char		logfilename[10000];
 	char*		logfile0	= NULL;
 	size_t		dirnamelen;
+
+	if (srv_force_recovery == SRV_FORCE_NO_LOG_REDO) {
+		srv_read_only_mode = 1;
+	}
 
 	high_level_read_only = srv_read_only_mode
 		|| srv_force_recovery > SRV_FORCE_NO_TRX_UNDO;

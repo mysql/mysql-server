@@ -6943,6 +6943,60 @@ int handler::compare_key_icp(const key_range *range) const
   return cmp;
 }
 
+/**
+   Change the offsets of all the fields in a key range.
+
+   @param range   the key range
+   @param key_part the first key part
+   @param diff    how much to change the offsets with
+*/
+static inline void
+move_key_field_offsets(const key_range *range, const KEY_PART_INFO *key_part,
+                       my_ptrdiff_t diff)
+{
+  for (size_t len= 0; len < range->length;
+       len+= key_part->store_length, ++key_part)
+    key_part->field->move_field_offset(diff);
+}
+
+/**
+  Check if the key in the given buffer (which is not necessarily
+  TABLE::record[0]) is within range. Called by the storage engine to
+  avoid reading too many rows.
+
+  @param buf  the buffer that holds the key
+  @retval -1 if the key is within the range
+  @retval  0 if the key is equal to the end_range key, and
+             key_compare_result_on_equal is 0
+  @retval  1 if the key is outside the range
+*/
+int handler::compare_key_in_buffer(const uchar *buf) const
+{
+  DBUG_ASSERT(end_range != NULL);
+
+  /*
+    End range on descending scans is only checked with ICP for now, and then we
+    check it with compare_key_icp() instead of this function.
+  */
+  DBUG_ASSERT(range_scan_direction == RANGE_SCAN_ASC);
+
+  // Make the fields in the key point into the buffer instead of record[0].
+  const my_ptrdiff_t diff= buf - table->record[0];
+  if (diff != 0)
+    move_key_field_offsets(end_range, range_key_part, diff);
+
+   // Compare the key in buf against end_range.
+   int cmp= key_cmp(range_key_part, end_range->key, end_range->length);
+   if (cmp == 0)
+     cmp= key_compare_result_on_equal;
+
+   // Reset the field offsets.
+   if (diff != 0)
+     move_key_field_offsets(end_range, range_key_part, -diff);
+
+   return cmp;
+}
+
 int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                 key_part_map keypart_map,
                                 enum ha_rkey_function find_flag)
