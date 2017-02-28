@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -4257,8 +4257,14 @@ row_search_no_mvcc(
 	ut_ad(index && pcur && search_tuple);
 
 	/* Step-0: Re-use the cached mtr. */
-	mtr_t*		mtr = &index->last_sel_cur->mtr;
+	mtr_t*		mtr;
 	dict_index_t*	clust_index = dict_table_get_first_index(index->table);
+
+	if(!index->last_sel_cur) {
+		dict_allocate_mem_intrinsic_cache(index);
+	}
+
+	mtr = &index->last_sel_cur->mtr;
 
 	/* Step-1: Build the select graph. */
 	if (direction == 0 && prebuilt->sel_graph == NULL) {
