@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -104,7 +104,6 @@ private:
   void wait_for_clients_closure();
   void go_through_all_clients(ngs::function<void (Client_ptr)> callback);
   bool timeout_for_clients_validation();
-  void validate_client_state(chrono::time_point &oldest_object_time_of_life, const chrono::time_point& time_of_release, Client_ptr);
   void wait_for_next_client();
 
   // accept one connection, create a connection object for the client and tell it to

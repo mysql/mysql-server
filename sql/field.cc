@@ -11599,3 +11599,10 @@ Field_temporal::set_datetime_warning(Sql_condition::enum_severity_level level,
       set_warning(level, code, cut_increment))
     make_truncated_value_warning(thd, level, val, ts_type, field_name);
 }
+
+bool Field::is_part_of_actual_key(THD *thd, uint cur_index)
+{
+  return thd->optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) ?
+    part_of_key.is_set(cur_index) :
+    part_of_key_not_extended.is_set(cur_index);
+}

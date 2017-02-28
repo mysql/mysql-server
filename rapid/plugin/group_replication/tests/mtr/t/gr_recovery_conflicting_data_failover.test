@@ -97,7 +97,7 @@ CREATE TABLE lost_test_table (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO lost_test_table VALUES (1);
 
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
-START GROUP_REPLICATION;
+--source include/start_group_replication_command.inc
 
 #give it time to fail several times
 --sleep 5

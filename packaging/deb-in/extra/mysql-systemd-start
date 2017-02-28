@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,80 +21,18 @@
 #
 # pre mode  :  try to perform sanity check for configuration, log, data
 
-get_path () {
-	my_print_defaults mysqld | grep "$1" | cut -d= -f2 | tail -n 1
-}
-
-# Runs an arbitrary init sql file supplied in $1. Does not require login access
-run_init_sql() {
-	tmpdir=$(mktemp -d)
-	chown mysql:mysql "$tmpdir"
-	mysqld --user=mysql --init-file="$1" --socket="$tmpdir/mysqld.sock" --pid-file="$tmpdir/mysqld.pid" > /dev/null 2>&1
-	result=$?
-	rm -rf "$tmpdir"
-	return $result
-}
+# Include helper functions
+. /usr/share/mysql/mysql-helpers
 
 sanity () {
-	MYSQLRUN=/var/run/mysqld
-	MYSQLDATA=/var/lib/mysql
-	MYSQLFILES=/var/lib/mysql-files
-	MYSQLKEYRING=/var/lib/mysql-keyring
-	MYSQLLOG=/var/log/mysql
-
-	if [ ! -d ${MYSQLDATA} -a ! -L ${MYSQLDATA} ];
-	then
-		mkdir ${MYSQLDATA}
-		chown mysql:mysql ${MYSQLDATA}
-		chmod 750 ${MYSQLDATA}
-	fi
-
-	if [ ! -d ${MYSQLFILES} -a ! -L ${MYSQLFILES} ];
-	then
-		mkdir ${MYSQLFILES}
-		chown mysql:mysql ${MYSQLFILES}
-		chmod 770 ${MYSQLFILES}
-	fi
-
-	if [ ! -d ${MYSQLKEYRING} -a ! -L ${MYSQLKEYRING} ];
-	then
-		mkdir ${MYSQLKEYRING}
-		chown mysql:mysql ${MYSQLKEYRING}
-		chmod 750 ${MYSQLKEYRING}
-	fi
-
-	if [ ! "$(ls -A ${MYSQLDATA}/mysql)" ];
-	then
-		SQL=$(mktemp -u ${MYSQLFILES}/XXXXXXXXXX)
-		install /dev/null -m0600 -omysql -gmysql "${SQL}"
-		cat << EOF > ${SQL}
-USE mysql;
-INSTALL PLUGIN auth_socket SONAME 'auth_socket.so';
-ALTER USER 'root'@'localhost' IDENTIFIED WITH 'auth_socket';
-SHUTDOWN;
-EOF
-		mysqld --initialize-insecure --user=mysql > /dev/null
-		run_init_sql "$SQL"
-		rm -f "$SQL"
-	fi
-
-	if [ -x /usr/bin/mysql_ssl_rsa_setup -a ! -e "${MYSQLDATA}/server-key.pem" ];
-	then
-		/usr/bin/mysql_ssl_rsa_setup --datadir="${MYSQLDATA}" --uid=mysql >/dev/null 2>&1
-	fi
-
-	if [ ! -d ${MYSQLLOG} -a ! -L ${MYSQLLOG} ];
-	then
-		mkdir ${MYSQLLOG}
-		chown mysql:adm ${MYSQLLOG}
-		chmod 750 ${MYSQLLOG}
-		install /dev/null -m0640 -omysql -gadm ${MYSQLLOG}/error.log
-	fi
+# Make sure database and required directories exist
+	verify_ready
+	verify_database
 
 	@DEB_INIT_APPARMOR@
 
 	if [ ! -r /etc/mysql/my.cnf ]; then
-		echo "MySQL configuration not found at /etc/mysql/my.cnf. Please install one using update-alternatives."
+		echo "MySQL configuration not found at /etc/mysql/my.cnf. Please install one."
 		exit 1
 	fi
 }

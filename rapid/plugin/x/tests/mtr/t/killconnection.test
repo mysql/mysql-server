@@ -34,7 +34,7 @@ kill %MYSQLTEST_CONNECTION_ID%;
 select sleep(1);
 select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
 -->endsql
--->expecterror 1317
+-->expecterror ER_QUERY_INTERRUPTED
 -->sql
 kill @current;
 -->endsql
@@ -44,7 +44,7 @@ EOF
 -->sql
 select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
 -->endsql
--->expecterror 1095
+-->expecterror ER_KILL_DENIED_ERROR
 -->sql
 kill %MYSQLTEST_CONNECTION_ID%;
 select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
@@ -57,7 +57,7 @@ EOF
 set @current := connection_id();
 select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
 -->endsql
--->expecterror 1317
+-->expecterror ER_QUERY_INTERRUPTED
 -->sql
 kill @current;
 -->endsql
@@ -68,7 +68,7 @@ EOF
 -->sql
 select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
 -->endsql
--->expecterror 1094
+-->expecterror ER_NO_SUCH_THREAD
 -->sql
 kill 5126;
 select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
@@ -93,13 +93,17 @@ let $MYSQLTEST_CONNID_1=`select connection_id()`;
 --connect(con1,localhost,root,,)
 let $MYSQLTEST_CONNID_2=`select connection_id()`;
 ###try killing both mysqlx and mysql session ids using mysqlx protocol (expect error from getting killed)
---replace_regex /localhost:[0-9]*/localhost/ /kill [0-9]+/kill $CONNECTION_ID/ /Execute/Query/
---error 1
+--let $expected_error_line= 13
+--let $expected_error_msg= MySQL server has gone away \(code 2006\)
+--let $expected_error_extra= /localhost:[0-9]*/localhost/ /kill [0-9]+/kill CONNECTION_ID/ /Execute/Query/
+--source ../include/mysqlxtest_expected_error.inc
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection.processlist.tmp -v%MYSQLTEST_CONNECTION_ID%=$MYSQLTEST_CONNID_2 2>&1
 
 ###kill mysqlx protocol session using mysqlx protocol when mysqlxplugin installed (expect error again)
---replace_regex /localhost:[0-9]*/localhost/ /Execute/Query/
---error 1
+--let $expected_error_line= 10
+--let $expected_error_msg= MySQL server has gone away \(code 2006\)
+--let $expected_error_extra= /localhost:[0-9]*/localhost/ /Execute/Query/
+--source ../include/mysqlxtest_expected_error.inc
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_killmysqlxsession.tmp 2>&1
 
 ##todo: ensure that after client disconnection last session was destroyed

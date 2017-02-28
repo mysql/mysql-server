@@ -230,7 +230,7 @@ int Recovery_state_transfer::update_recovery_process(bool did_members_left)
   bool donor_left= false;
   string current_donor_uuid;
   string current_donor_hostname;
-  uint current_donor_port;
+  uint current_donor_port= 0;
   /*
     The selected donor can be NULL if:
     * The donor was not yet chosen

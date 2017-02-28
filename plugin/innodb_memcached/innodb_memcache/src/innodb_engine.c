@@ -375,7 +375,7 @@ innodb_bk_thread(
 				/* binlog is running, make the thread
 				attach to conn_data->thd for binlog
 				committing */
-				if (thd) {
+				if (thd && conn_data->thd) {
 					handler_thd_attach(
 						conn_data->thd, NULL);
 				}

@@ -483,8 +483,8 @@ CREATE TABLE t1 (
   PRIMARY KEY (a(32),b),
   KEY b_idx(b)
 ) ENGINE=INNODB;
-INSERT INTO t1 VALUES ('a',1),('a',2),('a',3),('b',1),('b',4),('c',1),('d',1),
-                      ('c',4),('d',3),('e',2),('f',2);
+INSERT INTO t1 VALUES ('a',1),('a',2),('a',3),('b',1),('c',1),('c',4),('e',2);
+ANALYZE TABLE t1;
 
 SET @optimizer_switch_saved=@@session.optimizer_switch;
 SET @@session.optimizer_switch=default;
@@ -493,8 +493,8 @@ SELECT COUNT(*) FROM t1;
 # Uses "access_type_changed" to use range over ref despite b_idx not being the
 # cheapest in range.
 EXPLAIN SELECT * FROM t1 WHERE a IN ('a', 'b') AND b = 2;
---replace_regex /"rows": 12/"rows": 11/ /"cost": 5.5/"cost": 5.3/
-SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT TRACE into @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "rerunning_range_optimizer_for_single_index";
 
 SET @@session.optimizer_switch=@optimizer_switch_saved;
 
@@ -515,6 +515,7 @@ while ($1)
 }
 enable_query_log;
 
+ANALYZE TABLE t1;
 EXPLAIN SELECT c1, c2 FROM t1 ORDER BY c1 DESC LIMIT 1;
 --replace_regex /"cost": 3/"cost": 1/ /"cost": 4/"cost": 1/ /"cost": 203/"cost": 201/ /"cost": 204/"cost": 201/ /"cost_for_plan": 203/"cost_for_plan": 201/ /"cost_for_plan": 204/"cost_for_plan": 201/
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;

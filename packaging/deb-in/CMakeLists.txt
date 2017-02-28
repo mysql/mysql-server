@@ -1,4 +1,4 @@
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
 IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
   RETURN()
 ENDIF()
-
 IF (NOT DEFINED DEB_CODENAME)
   execute_process(
     COMMAND lsb_release -cs
@@ -25,15 +24,28 @@ IF (NOT DEFINED DEB_CODENAME)
   )
   SET (DEB_CODENAME ${DEB_CODENAME} CACHE STRING "")
 ENDIF()
+IF (DEFINED WITH_NDBCLUSTER_STORAGE_ENGINE)
+  SET (DEB_BASE_PRODUCT "cluster-")
+  SET (DEB_BASE_PRODUCTC "Cluster ")
+  SET (DEB_BASE_VERSION ${NDBVERSION})
+  SET (DEB_CONTROL_SERVER_CONFLICT_NDB "mysql-community-server, mysql-commercial-server")
+  SET (DEB_CONTROL_CLIENT_CONFLICT_NDB "mysql-community-client, mysql-commercial-client")
+ELSE()
+  SET (DEB_BASE_PRODUCT "")
+  SET (DEB_BASE_PRODUCTC "")
+  SET (DEB_BASE_VERSION ${VERSION})
+  SET (DEB_CONTROL_SERVER_CONFLICT_NDB "mysql-cluster-community-server, mysql-cluster-commercial-server")
+  SET (DEB_CONTROL_CLIENT_CONFLICT_NDB "mysql-cluster-community-client, mysql-cluster-commercial-client")
+ENDIF()
 # Commercial or community
 IF (DEB_PRODUCT STREQUAL "commercial")
   SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Commercial Server ${MYSQL_BASE_VERSION}")
-  SET (DEB_PRODUCTNAME "commercial")
-  SET (DEB_PRODUCTNAMEC "Commercial")
-  SET (DEB_NOTPRODUCTNAME "community")
+  SET (DEB_PRODUCTNAME "${DEB_BASE_PRODUCT}commercial")
+  SET (DEB_PRODUCTNAMEC "${DEB_BASE_PRODUCTC}Commercial")
+  SET (DEB_NOTPRODUCTNAME "${DEB_BASE_PRODUCT}community")
   SET (DEB_LICENSENAME "Advanced")
   SET (DEB_INSTALL_LICENSEFILE "LICENSE.mysql")
-  SET (DEB_SERVERVERSION "${VERSION}+commercial-1")
+  SET (DEB_SERVERVERSION "${DEB_BASE_VERSION}+commercial-1")
   # List of plugins that are only in commercial packages
   # Plugins that are in both community and commercial should NOT be added here
   SET (DEB_INCLUDE_BINARIES_EXTRA
@@ -62,14 +74,14 @@ usr/lib/mysql/plugin/debug/firewall.so
 ")
   SET (DEB_REMOVEPATTERN "gpl.in")
 ELSE()
-  SET (DEB_PRODUCT "community")
+  SET (DEB_PRODUCT "${DEB_BASE_PRODUCT}community")
   SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Server ${MYSQL_BASE_VERSION}")
-  SET (DEB_PRODUCTNAME "community")
-  SET (DEB_PRODUCTNAMEC "Community")
-  SET (DEB_NOTPRODUCTNAME "commercial")
+  SET (DEB_PRODUCTNAME "${DEB_BASE_PRODUCT}community")
+  SET (DEB_PRODUCTNAMEC "${DEB_BASE_PRODUCTC}Community")
+  SET (DEB_NOTPRODUCTNAME "${DEB_BASE_PRODUCT}commercial")
   SET (DEB_LICENSENAME "GPL")
   SET (DEB_INSTALL_LICENSEFILE "COPYING")
-  SET (DEB_SERVERVERSION "${VERSION}-1")
+  SET (DEB_SERVERVERSION "${DEB_BASE_VERSION}-1")
   SET (DEB_REMOVEPATTERN "com.in")
 ENDIF()
 
@@ -90,6 +102,21 @@ IF (DEB_CODENAME STREQUAL "wheezy")
   SET (DEB_INIT_APPARMOR "")
 ELSEIF(DEB_CODENAME STREQUAL "jessie")
   SET (DEB_PLATFORMRELEASE "debian8")
+  SET (DEB_CONTROL_BDEPS "dh-systemd")
+  SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
+  SET (DEB_RULES_INSTALL_SYSTEMD
+    "install -m 0755 debian/extra/mysql-systemd-start debian/tmp/usr/share/mysql/")
+  SET (DEB_RULES_INSTALL_APPARMOR "")
+  SET (DEB_RULES_APPARMOR_LOAD "")
+  SET (DEB_RULES_SYSTEMD_ENABLE "dh_systemd_enable --name=mysql")
+  SET (DEB_RULES_SYSTEMD_START "dh_systemd_start --restart-after-upgrade")
+  SET (DEB_INSTALL_SERVER_SYSTEMD "usr/share/mysql/mysql-systemd-start")
+  SET (DEB_INSTALL_SERVER_APPARMOR "")
+  SET (DEB_SERVICE_SERVER_EXECPRE
+    "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
+  SET (DEB_INIT_APPARMOR "")
+ELSEIF(DEB_CODENAME STREQUAL "stretch")
+  SET (DEB_PLATFORMRELEASE "debian9")
   SET (DEB_CONTROL_BDEPS "dh-systemd")
   SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
   SET (DEB_RULES_INSTALL_SYSTEMD
@@ -184,12 +211,32 @@ ELSEIF(DEB_CODENAME STREQUAL "yakkety")
   SET (DEB_SERVICE_SERVER_EXECPRE
     "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
   SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
+ELSEIF(DEB_CODENAME STREQUAL "zesty")
+  SET (DEB_PLATFORMRELEASE "ubuntu17.04")
+  SET (DEB_CONTROL_BDEPS "dh-apparmor, dh-systemd (>=1.5)")
+  SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
+  SET (DEB_RULES_INSTALL_SYSTEMD
+    "install -m 0755 debian/extra/mysql-systemd-start debian/tmp/usr/share/mysql/")
+  SET (DEB_RULES_INSTALL_APPARMOR
+    "install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
+  SET (DEB_RULES_APPARMOR_LOAD
+    "dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld")
+  SET (DEB_RULES_SYSTEMD_ENABLE "dh_systemd_enable --name=mysql")
+  SET (DEB_RULES_SYSTEMD_START "dh_systemd_start --restart-after-upgrade")
+  SET (DEB_INSTALL_SERVER_SYSTEMD "usr/share/mysql/mysql-systemd-start")
+  SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
+  SET (DEB_SERVICE_SERVER_EXECPRE
+    "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
+  SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
 ELSE()
   MESSAGE(STATUS
     "Skipping deb packaging on unsupported platform ${DEB_CODENAME}.")
   RETURN()
 ENDIF()
 
+IF (DEFINED WITH_NDBCLUSTER_STORAGE_ENGINE)
+  INCLUDE(deb_ndb.cmake)
+ENDIF()
 # All files are configured and copied to the debian/ directory, which is used 
 # by debuild to make the packages
 SET (DEB_ROOT ${CMAKE_SOURCE_DIR}/packaging/deb-in)
@@ -198,6 +245,10 @@ FILE(GLOB_RECURSE SOURCEFILES RELATIVE "${DEB_ROOT}" "${DEB_ROOT}/*")
 # Skip the copyright file from the "other" product type
 LIST(REMOVE_ITEM SOURCEFILES "copyright.${DEB_REMOVEPATTERN}")
 LIST(REMOVE_ITEM SOURCEFILES "CMakeLists.txt")
+# Don't install systemd file on systems without systemd
+IF(DEB_INSTALL_SERVER_SYSTEMD STREQUAL "")
+	LIST(REMOVE_ITEM SOURCEFILES "mysql-packagesource-server.mysql.service.in")
+ENDIF()
 FOREACH (SOURCEFILE ${SOURCEFILES})
   STRING(REGEX REPLACE "-packagesource-" "-${DEB_PRODUCTNAME}-"
     TMPFILE ${SOURCEFILE})

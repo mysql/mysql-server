@@ -386,6 +386,8 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
       else
         res= MY_TEST(ha_commit_low(thd, /* all */ true));
 
+      DBUG_EXECUTE_IF("simulate_xa_commit_log_failure", { res= true; });
+
       if (res)
         my_error(ER_XAER_RMERR, MYF(0)); // todo/fixme: consider to rollback it
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
@@ -396,8 +398,9 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
           we need to explicitly mark the transaction as committed.
         */
         MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
-        thd->m_transaction_psi= NULL;
       }
+
+      thd->m_transaction_psi= NULL;
 #endif
     }
   }

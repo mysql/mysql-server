@@ -48,7 +48,7 @@ call mtr.add_suppression("You need to use --log-bin to make --binlog-format work
 call mtr.add_suppression("Slave SQL for channel '': Error in Xid_log_event: Commit could not "
                          "be completed, 'Got error -1 from storage engine', "
                          "Error_code: 1030");
-call mtr.add_suppression("Slave: Got error -1 from storage engine Error_code: 1030");
+call mtr.add_suppression("Slave.*Got error -1 from storage engine.*Error_code: 1030");
 call mtr.add_suppression("Slave: An error occured at storing the GTID value");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped");
 include/assert.inc [committed gtids MASTER_UUID:1-6:16-17]
@@ -160,7 +160,7 @@ include/sync_slave_sql_with_master.inc
 #
 SET @@GLOBAL.DEBUG= '+d,simulate_err_on_write_gtid_into_table';
 INSERT INTO t3 VALUES(1);
-include/wait_for_slave_sql_error.inc [errno=1030,1756]
+include/wait_for_slave_sql_error.inc [errno=1030]
 SET GLOBAL DEBUG= @debug_save;
 include/stop_slave_io.inc
 #

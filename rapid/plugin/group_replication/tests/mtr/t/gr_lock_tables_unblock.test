@@ -17,6 +17,7 @@
 # 5. Clean up.
 ################################################################################
 
+--source include/not_windows.inc
 --source ../inc/have_group_replication_plugin.inc
 --source ../inc/group_replication.inc
 

@@ -34,7 +34,7 @@ int Applier_channel_state_observer::thread_stop(Binlog_relay_IO_param *param)
 int Applier_channel_state_observer::
 applier_stop(Binlog_relay_IO_param *param, bool aborted)
 {
-  applier_module->inform_of_applier_stop(param->thread_id, aborted);
+  applier_module->inform_of_applier_stop(param->channel_name, aborted);
   return 0;
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -122,7 +122,7 @@ int add_write_set(Transaction_context_log_event *tcle,
     int8store(buff, set->write_set[i]);
     uint64 const tmp_str_sz= base64_needed_encoded_length((uint64) BUFFER_READ_PKE);
     char *write_set_value= (char *) my_malloc(PSI_NOT_INSTRUMENTED,
-                                              tmp_str_sz, MYF(MY_WME));
+                                              static_cast<size_t>(tmp_str_sz), MYF(MY_WME));
     if (!write_set_value)
     {
       /* purecov: begin inspected */
@@ -710,7 +710,7 @@ IO_CACHE* observer_trans_get_io_cache(my_thread_id thread_id,
     if (!cache || (!my_b_inited(cache) &&
                    open_cached_file(cache, mysql_tmpdir,
                                     "group_replication_trans_before_commit",
-                                    cache_size, MYF(MY_WME))))
+                                    static_cast<size_t>(cache_size), MYF(MY_WME))))
     {
       /* purecov: begin inspected */
       my_free(cache);
@@ -814,7 +814,8 @@ Transaction_Message::encode_payload(std::vector<unsigned char>* buffer) const
 }
 
 void
-Transaction_Message::decode_payload(const unsigned char* buffer, size_t length)
+Transaction_Message::decode_payload(const unsigned char* buffer,
+                                    const unsigned char* end)
 {
   DBUG_ENTER("Transaction_Message::decode_payload");
   const unsigned char *slider= buffer;

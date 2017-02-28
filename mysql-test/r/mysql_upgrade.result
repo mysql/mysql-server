@@ -1103,6 +1103,8 @@ DROP TABLE backup_user;
 #
 # Upgrading of sys schema tests
 #
+CREATE TEMPORARY TABLE tmp_backup_tables_priv AS SELECT * FROM mysql.tables_priv;
+CREATE TEMPORARY TABLE tmp_backup_user AS SELECT * FROM mysql.user;
 # Remove the sys schema, and check the --skip-sys-schema option
 DROP DATABASE sys;
 mysql.columns_priv                                 OK
@@ -1533,6 +1535,12 @@ sys.sys_config                                     OK
 SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TABLE_TYPE = 'BASE TABLE';
 TABLE_NAME
 sys_config
+TRUNCATE TABLE mysql.tables_priv;
+INSERT INTO mysql.tables_priv (SELECT * FROM tmp_backup_tables_priv);
+DROP TEMPORARY TABLE tmp_backup_tables_priv;
+TRUNCATE TABLE mysql.user;
+INSERT INTO mysql.user (SELECT * FROM tmp_backup_user);
+DROP TEMPORARY TABLE tmp_backup_user;
 #
 # BUG#18985579: "CHECK TABLE .. FOR UPGRADE" FAILS TO REPORT
 #                OLD DATETIME FORMAT. 
@@ -1662,6 +1670,9 @@ DROP TABLE t1;
 #
 # WL #8350 ENSURE 5.7 SUPPORTS SMOOTH LIVE UPGRADE FROM 5.6
 #
+call mtr.add_suppression("Column count of mysql.* is wrong. "
+                         "Expected .*, found .*. "
+                         "The table is probably corrupted");
 CREATE TABLE backup_user AS SELECT * FROM mysql.user;
 ALTER TABLE mysql.user ADD COLUMN Password
 char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL
@@ -1705,24 +1716,22 @@ ERROR HY000: Plugin 'mysql_old_password' is not loaded
 SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
 ERROR 42000: SELECT command denied to user 'user_nat_pass_pn'@'localhost' for table 'user'
 #Try granting all privileges on mysql db to user_nat_pass_pn using root
-#account - this should succeed as we are accessing mysql.db table which
-#has the same layout in 5.6 and 5.7
+#account - this should fail since mysql.user table has 5.6 layout.
 GRANT ALL PRIVILEGES ON mysql.* TO 'user_nat_pass_pn'@'%' WITH GRANT OPTION;
-#Select on mysql.user should be possible - we have select privileges on
-#mysql database
-SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections	plugin	authentication_string	password_expired
-%	user_nat_pass_pn	*46ABF58B20022A84DF7B2E8B1AC8219C8DA71553	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					0	0	0	0	NULL		N
-#Revoke all privileges from 'user_nat_pass_pn'@'%'
-REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user_nat_pass_pn'@'%';
-#Trying to do select on mysql.user table - should fail as
-#user_nat_pass_pn's prvileleges on mysql db were revoked
+ERROR HY000: Column count of mysql.user is wrong. Expected 45, found 43. The table is probably corrupted
+#Select on mysql.user should not be possible since user_nat_pass_pn has
+#no select privileges on mysql database
 SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
 ERROR 42000: SELECT command denied to user 'user_nat_pass_pn'@'localhost' for table 'user'
-#All alter user commands are now dangerous to use. Alter user command
-#uses mapping from 5.7 while working on 5.6 database. For instance
-#setting password expire will cause 'Y' to get assigned to
-#authentication_string column instead of password_expired column!!
+#Revoke all privileges from 'user_nat_pass_pn'@'%' - this should fail
+#since mysql.user table has 5.6 layout.
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user_nat_pass_pn'@'%';
+ERROR HY000: Column count of mysql.user is wrong. Expected 45, found 43. The table is probably corrupted
+#Trying to do select on mysql.user table - this should fail since
+#user_nat_pass_pn has no select prvileleges on mysql db.
+SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
+ERROR 42000: SELECT command denied to user 'user_nat_pass_pn'@'localhost' for table 'user'
+#All alter user commands should fail since mysql.user has 5.6 layout.
 SELECT authentication_string FROM mysql.user where user='user_nat_pass_pn';
 authentication_string
 
@@ -1730,9 +1739,10 @@ SELECT password_expired FROM mysql.user where user='user_nat_pass_pn';
 password_expired
 N
 ALTER USER 'user_nat_pass_pn'@'%' PASSWORD EXPIRE;
+ERROR HY000: Column count of mysql.user is wrong. Expected 45, found 43. The table is probably corrupted
 SELECT authentication_string FROM mysql.user WHERE user='user_nat_pass_pn';
 authentication_string
-Y
+
 SELECT password_expired FROM mysql.user WHERE user='user_nat_pass_pn';
 password_expired
 N

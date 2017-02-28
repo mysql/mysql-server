@@ -13,6 +13,8 @@
 --echo # WL#9262: All system tables should support 32 character length user names
 --echo #
 
+call mtr.add_suppression("Cannot load from mysql.*. The table is probably corrupted");
+
 CREATE USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
 GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char WITH GRANT OPTION;
 
@@ -70,13 +72,19 @@ SET sql_mode= @orig_sql_mode;
 CREATE DATABASE db_1;
 CREATE TABLE db_1.test_table(ID INT);
 
+--error ER_CANNOT_LOAD_FROM_TABLE_V2
 CREATE USER user_name_robert_golebiowski@localhost;
+--error ER_PASSWORD_NO_MATCH
 GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski@localhost WITH GRANT OPTION;
 
 --echo #Create user with length > 77 (username length + hostname length)
+--error ER_CANNOT_LOAD_FROM_TABLE_V2
 CREATE USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+--error ER_PASSWORD_NO_MATCH
 GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char WITH GRANT OPTION;
 
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
 connect (con_grant,localhost,user_name_robert_golebiowski,,);
 
 --echo # This will change CURRENT_USER from user_name_robert_golebiowski@localhost to
@@ -88,30 +96,37 @@ FLUSH PRIVILEGES;
 SET DEBUG='-d,wl_9262_set_max_length_hostname';
 SELECT CURRENT_USER();
 
+--error ER_CANNOT_LOAD_FROM_TABLE_V2
 CREATE USER lucky_user@localhost;
 
 --echo # Now we should get error as the length of the Grantor (user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char - 93 chars)
 --echo # is longer then mysql.tables_priv.Grantor column length - 77 chars)
---error ER_USER_COLUMN_OLD_LENGTH
+--error ER_PASSWORD_NO_MATCH
 GRANT SELECT ON db_1.test_table TO lucky_user@localhost;
 
 CREATE PROCEDURE db_1.p_def() SQL SECURITY DEFINER SELECT 1;
 
 --echo # We should get error as the length of the Grantor (user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char - 93 chars)
 --echo # is longer then mysql.procs_priv.Grantor column length - 77 chars)
---error ER_USER_COLUMN_OLD_LENGTH
+--error ER_PASSWORD_NO_MATCH
 GRANT EXECUTE ON PROCEDURE db_1.p_def TO lucky_user@localhost;
 
 --echo #Now we make sure if usernames with length of 77 or less work with
 --echo #this old db schema
 
 --echo #First create user of length 77 chars.
+--error ER_CANNOT_LOAD_FROM_TABLE_V2
 CREATE USER robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+--error ER_PASSWORD_NO_MATCH
 GRANT ALL PRIVILEGES ON *.* TO robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char WITH GRANT OPTION;
 --echo #Create user for connecting
+--error ER_CANNOT_LOAD_FROM_TABLE_V2
 CREATE USER robert_golebiows@localhost;
+--error ER_PASSWORD_NO_MATCH
 GRANT ALL PRIVILEGES ON *.* TO robert_golebiows@localhost WITH GRANT OPTION;
 
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
 connect (con_grant_2,localhost,robert_golebiows,,);
 
 --echo # Again we change localhost to oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
@@ -124,11 +139,13 @@ SELECT CURRENT_USER();
 --echo # Now the CURRENT_USER is robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
 
 --echo #Now it should pass as mysql.tables_priv.Grantor is 77 chars
+--error ER_PASSWORD_NO_MATCH
 GRANT SELECT ON db_1.test_table TO lucky_user@localhost;
 SELECT Grantor FROM mysql.tables_priv WHERE User = 'lucky_user';
 SELECT LENGTH(Grantor) FROM mysql.tables_priv WHERE User = 'lucky_user';
 
 --echo #Now it should pass as mysql.procs_priv.Grantor is 77 chars
+--error ER_PASSWORD_NO_MATCH
 GRANT EXECUTE ON PROCEDURE db_1.p_def TO lucky_user@localhost;
 SELECT Grantor FROM mysql.procs_priv WHERE User = 'lucky_user';
 SELECT LENGTH(Grantor) FROM mysql.procs_priv WHERE User = 'lucky_user';
@@ -150,14 +167,7 @@ ALTER TABLE mysql.tables_priv
 SET sql_mode= @orig_sql_mode;
 
 --connection default
---disconnect con_grant
---disconnect con_grant_2
 
-DROP USER user_name_robert_golebiowski@localhost;
-DROP USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
-DROP USER robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
-DROP USER robert_golebiows@localhost;
-DROP USER lucky_user@localhost;
 DROP PROCEDURE db_1.p_def;
 DROP DATABASE db_1;
 

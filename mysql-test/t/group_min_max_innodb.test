@@ -257,3 +257,159 @@ SET optimizer_trace=DEFAULT;
 SET end_markers_in_json=DEFAULT;
 
 DROP TABLE t0,t1,t2;
+
+--echo #
+--echo # Bug #21749123: SELECT DISTINCT, WRONG RESULTS COMBINED WITH
+--echo #                USE_INDEX_EXTENSIONS=OFF
+--echo #
+
+CREATE TABLE t1 (
+  pk_col INT AUTO_INCREMENT PRIMARY KEY,
+  a1 CHAR(64),
+  KEY a1_idx (a1)
+) ENGINE=INNODB;
+INSERT INTO t1 (a1) VALUES ('a'),('a'),('a'),('a'), ('a');
+
+CREATE TABLE t2 (
+  pk_col1 INT NOT NULL,
+  pk_col2 INT NOT NULL,
+  a1 CHAR(64),
+  a2 CHAR(64),
+  PRIMARY KEY(pk_col1, pk_col2),
+  KEY a1_idx (a1),
+  KEY a1_a2_idx (a1, a2)
+) ENGINE=INNODB;
+INSERT INTO t2 (pk_col1, pk_col2, a1, a2) VALUES (1,1,'a','b'),(1,2,'a','b'),
+                                                 (1,3,'a','c'),(1,4,'a','c'),
+                                                 (2,1,'a','d');
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+
+#Doesn't use loose index scan irrespective of index extensions.
+let query1=
+SELECT DISTINCT a1
+FROM t1
+WHERE (pk_col = 2 OR pk_col = 22) AND a1 = 'a';
+
+#Doesn't use loose index scan when index extensions is off.
+let query2=
+SELECT COUNT(DISTINCT a1)
+FROM t1
+GROUP BY a1,pk_col;
+
+#Doesn't use loose index scan when index extensions is off.
+let query3=
+SELECT COUNT(DISTINCT a1)
+FROM t2
+GROUP BY a1,pk_col1;
+
+#Uses loose index scan irrespective of index extensions.
+let query4=
+SELECT COUNT(DISTINCT a1)
+FROM t2
+GROUP BY a1,a2;
+
+eval EXPLAIN $query1;
+eval $query1;
+eval EXPLAIN $query2;
+eval $query2;
+eval EXPLAIN $query3;
+eval $query3;
+eval EXPLAIN $query4;
+eval $query4;
+
+SET @optimizer_switch_save=@@optimizer_switch;
+SET @@optimizer_switch= "use_index_extensions=off";
+
+eval EXPLAIN $query1;
+eval $query1;
+eval EXPLAIN $query2;
+eval $query2;
+eval EXPLAIN $query3;
+eval $query3;
+eval EXPLAIN $query4;
+eval $query4;
+
+SET @@optimizer_switch= @optimizer_switch_save;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #24671968: WHEN THE OPTIMISER IS USING INDEX FOR GROUP-BY IT OFTEN
+--echo #                OFTEN GIVES WRONG RESULTS
+--echo #
+
+CREATE TABLE t1 (
+id int NOT NULL,
+c1 int NOT NULL,
+c2 int,
+PRIMARY KEY(id),
+INDEX c1_c2_idx(c1, c2));
+
+INSERT INTO t1 (id, c1, c2) VALUES (1,1,1), (2,2,2), (10,10,1), (11,10,8),
+                                   (12,10,1), (13,10,2);
+ANALYZE TABLE t1;
+
+# Query similar to the one mentioned in the bug page. Incorrectly chooses
+# loose index scan.
+let query1=
+SELECT DISTINCT c1
+FROM t1
+WHERE EXISTS (SELECT *
+              FROM DUAL
+              WHERE (c2 = 2));
+
+# IN subquery. Incorrectly chooses loose index scan.
+let query2=
+SELECT DISTINCT c1
+FROM t1
+WHERE 1 IN (2,
+            (SELECT 1
+            FROM DUAL
+            WHERE (c2 = 2)),
+            3);
+
+# Similar to above queries but without subquery.
+let query3=
+SELECT DISTINCT c1
+FROM t1
+WHERE c2 = 2;
+
+# Same as query1 with IGNORE INDEX. So this will not choose loose index scan.
+let query4=
+SELECT DISTINCT c1
+FROM t1 IGNORE INDEX (c1_c2_idx)
+WHERE EXISTS (SELECT *
+              FROM DUAL
+              WHERE (c2 = 2));
+
+# Same as query2 with IGNORE INDEX. So this will not choose loose index scan.
+let query5=
+SELECT DISTINCT c1
+FROM t1 IGNORE INDEX (c1_c2_idx)
+WHERE 1 IN (2,
+            (SELECT 1
+            FROM DUAL
+            WHERE (c2 = 2)),
+            3);
+
+eval EXPLAIN $query1;
+eval EXPLAIN $query2;
+eval EXPLAIN $query3;
+eval EXPLAIN $query4;
+eval EXPLAIN $query5;
+
+# Looking for the tag in optimizer trace: "dependent_subquery_in_where".
+SET optimizer_trace="enabled=on";
+
+eval $query1;
+SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "keypart_reference_from_where_clause";
+
+SET optimizer_trace="enabled=off";
+
+eval $query2;
+eval $query3;
+eval $query4;
+eval $query5;
+
+DROP TABLE t1;

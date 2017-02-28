@@ -30,7 +30,8 @@ Conflicts: mysql,
  mysql-server-5.5, mysql-server-core-5.5,
  mysql-server-5.6, mysql-server-core-5.6,
  mysql-server-5.7, mysql-server-core-5.7,
- mysql-@DEB_NOTPRODUCTNAME@-server
+ mysql-@DEB_NOTPRODUCTNAME@-server,
+ @DEB_CONTROL_SERVER_CONFLICT_NDB@
 Replaces: mysql,
  mysql-server-5.0, mysql-server-core-5.0,
  mysql-server-5.1, mysql-server-core-5.1,
@@ -38,6 +39,7 @@ Replaces: mysql,
  mysql-server-5.6, mysql-server-core-5.6,
  mysql-server-5.7, mysql-server-core-5.7,
  mysql-@DEB_NOTPRODUCTNAME@-server,
+ @DEB_CONTROL_SERVER_CONFLICT_NDB@,
  mysql-common (<< 5.7.14)
 Provides: virtual-mysql-server, virtual-mysql-server-core
 Description: MySQL Server
@@ -70,7 +72,8 @@ Conflicts: mysql,
  mysql-client-5.5, mysql-client-core-5.5,
  mysql-client-5.6, mysql-client-core-5.6,
  mysql-client-5.7, mysql-client-core-5.7,
- mysql-@DEB_NOTPRODUCTNAME@-client
+ mysql-@DEB_NOTPRODUCTNAME@-client,
+ @DEB_CONTROL_CLIENT_CONFLICT_NDB@
 Replaces: mysql,
  mysql-client-5.0, mysql-client-core-5.0,
  mysql-client-5.1, mysql-client-core-5.1,
@@ -78,6 +81,7 @@ Replaces: mysql,
  mysql-client-5.6, mysql-client-core-5.6,
  mysql-client-5.7, mysql-client-core-5.7,
  mysql-@DEB_NOTPRODUCTNAME@-client,
+ @DEB_CONTROL_CLIENT_CONFLICT_NDB@,
  mysql-common (<< 5.7.17),
  libmysqlclient-dev (<< 5.7.14)
 Provides: virtual-mysql-client, virtual-mysql-client-core
@@ -194,3 +198,5 @@ Description: MySQL source
  is intended for mission-critical, heavy-load production systems as well
  as for embedding into mass-deployed software. MySQL is a trademark of
  Oracle.
+
+@DEB_NDB_CONTROL_EXTRAS@

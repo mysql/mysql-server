@@ -14,7 +14,7 @@
 ### END INIT INFO
 #
 
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 . /lib/lsb/init-functions
-
+. /usr/share/mysql/mysql-helpers
 cd /
 umask 077
 
@@ -38,88 +38,12 @@ umask 077
 STARTTIMEOUT=180
 STOPTIMEOUT=60
 
-# To avoid having hardcoded paths in the script, we do a search on the path, as suggested at:
-# https://www.debian.org/doc/manuals/developers-reference/ch06.en.html#bpp-debian-maint-scripts
-pathfind() {
-	OLDIFS="$IFS"
-	IFS=:
-	for p in $PATH; do
-		if [ -x "$p/$*" ]; then
-			IFS="$OLDIFS"
-			return 0
-		fi
-	done
-	IFS="$OLDIFS"
-	return 1
-}
-
 # We need to check that the binaries exist; When upgrading from community to commercial this
 # script will be run after community is removed but before commercial is installed
 VERSION="unknown"
 if pathfind mysqld; then
 	VERSION=$(mysqld --version | grep mysqld | cut -d' ' -f4)
 fi
-
-get_mysql_option() {
-	if pathfind my_print_defaults; then
-		RESULT=$(my_print_defaults "$1" | sed -n "s/^--$2=//p" | tail -n 1)
-	fi
-	if [ -z "$RESULT" ];
-	then
-		RESULT="$3"
-	fi
-	echo $RESULT
-}
-
-get_running () {
-	PIDFILE=$(get_mysql_option mysqld_safe pid-file "")
-	if [ -z "$PIDFILE" ];
-	then
-		PIDFILE=$(get_mysql_option mysqld pid-file "$MYSQLDATA/$(hostname).pid")
-	fi
-	if [ -e "$PIDFILE" ] && [ -d "/proc/$(cat "$PIDFILE")" ];
-	then
-		echo 1
-	else
-		echo 0
-	fi
-}
-
-verify_server () {
-	TIMEOUT=0
-	if [ "${1}" = "start" ];
-	then
-		TIMEOUT=${STARTTIMEOUT}
-	elif [ "${1}" = "stop" ];
-	then
-		TIMEOUT=${STOPTIMEOUT}
-	fi
-
-	COUNT=0
-	while [ ${COUNT} -lt ${TIMEOUT} ];
-	do
-		COUNT=$(( COUNT+1 ))
-		echo -n .
-		if [ "${1}" = "start" ] && [ "$(get_running)" = 1 ];
-		then
-			if [ -z ${2} ];
-			then
-				echo
-			fi
-			return 0
-		fi
-		if [ "${1}" = "stop" ] && [ "$(get_running)" = 0 ];
-		then
-			if [ -z ${2} ];
-			then
-				echo
-			fi
-			return 0
-		fi
-		sleep 1
-	done
-	return 1
-}
 
 MYSQLRUN=/var/run/mysqld
 MYSQLDATA=$(get_mysql_option mysqld datadir "/var/lib/mysql")
@@ -133,56 +57,8 @@ case "$1" in
 	then
 		log_action_msg "A MySQL Server is already started"
 	else
-		if [ ! -d ${MYSQLDATA} -a ! -L ${MYSQLDATA} ];
-		then
-			mkdir ${MYSQLDATA}
-			chown mysql:mysql ${MYSQLDATA}
-			chmod 750 ${MYSQLDATA}
-		fi
-
-		if [ ! -d ${MYSQLFILES} -a ! -L ${MYSQLFILES} ];
-		then
-			mkdir ${MYSQLFILES}
-			chown mysql:mysql ${MYSQLFILES}
-			chmod 770 ${MYSQLFILES}
-		fi
-
-		if [ ! -d ${MYSQLKEYRING} -a ! -L ${MYSQLKEYRING} ];
-		then
-			mkdir ${MYSQLKEYRING}
-			chown mysql:mysql ${MYSQLKEYRING}
-			chmod 750 ${MYSQLKEYRING}
-		fi
-
-		if [ ! "$(ls -A ${MYSQLDATA})" ] && [ -d ${MYSQLFILES} ] && [ -d ${MYSQLKEYRING} ];
-		then
-			su - mysql -s /bin/bash -c "/usr/sbin/mysqld --initialize-insecure=on 2>&1 > /dev/null"
-			su - mysql -s /bin/bash -c "/usr/sbin/mysqld --log_error_verbosity=2 2>&1 > /dev/null &"
-			verify_server start no-newline
-			mysql -e "INSTALL PLUGIN auth_socket SONAME 'auth_socket.so'"
-			mysql -e "USE mysql; UPDATE user SET plugin='auth_socket' WHERE user='root'"
-			mysqladmin shutdown
-		fi
-
-		if [ -x /usr/bin/mysql_ssl_rsa_setup -a ! -e "${MYSQLDATA}/server-key.pem" ];
-		then
-			/usr/bin/mysql_ssl_rsa_setup --datadir="${MYSQLDATA}" --uid=mysql >/dev/null 2>&1
-		fi
-
-		if [ ! -d ${MYSQLLOG} -a ! -L ${MYSQLLOG} ];
-		then
-			mkdir ${MYSQLLOG}
-			chown mysql:adm ${MYSQLLOG}
-			chmod 750 ${MYSQLLOG}
-			install /dev/null -m0640 -omysql -gadm ${MYSQLLOG}/error.log
-		fi
-
-		if [ ! -d "${MYSQLRUN}" -a ! -L "${MYSQLRUN}" ];
-		then
-			mkdir ${MYSQLRUN}
-			chown mysql:mysql ${MYSQLRUN}
-			chmod 755 ${MYSQLRUN}
-		fi
+		verify_ready
+		verify_database
 
 		@DEB_INIT_APPARMOR@
 

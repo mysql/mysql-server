@@ -30,4 +30,4 @@ let SEARCH_PATTERN= innodb-buffer-pool-size                                     
 
 --echo # Cleanup
 let CLEANUP_FOLDER=$bugdir;
---source ../include/cleanup_folder.inc
+--source include/cleanup_folder.inc
