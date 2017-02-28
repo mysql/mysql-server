@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -551,7 +551,6 @@ void end_master_info(Master_info* mi)
 
   if (!mi->inited)
     DBUG_VOID_RETURN;
-  end_relay_log_info(&mi->rli);
   if (mi->fd >= 0)
   {
     end_io_cache(&mi->file);
