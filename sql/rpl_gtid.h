@@ -3013,10 +3013,11 @@ public:
     @param thd Thread requesting to access the table
     @param table The table is being accessed.
 
-    @retval true Push a warning or an error to client.
-    @retval false No warning or error was pushed to the client.
+    @retval 0 No warning or error was pushed to the client.
+    @retval 1 Push a warning to client.
+    @retval 2 Push an error to client.
   */
-  bool warn_or_err_on_modify_gtid_table(THD *thd, TABLE_LIST *table);
+  int warn_or_err_on_modify_gtid_table(THD *thd, TABLE_LIST *table);
 #endif
 
 private:

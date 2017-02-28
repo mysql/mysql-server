@@ -316,14 +316,15 @@ int init_recovery(Master_info* mi);
   @retval 0 Success
   @retval nonzero Error
 */
-int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask);
+int load_mi_and_rli_from_repositories(Master_info* mi,
+                                      bool ignore_if_no_info,
+                                      int thread_mask);
 void end_info(Master_info* mi);
 int remove_info(Master_info* mi);
 int flush_master_info(Master_info* mi, bool force);
 void add_slave_skip_errors(const char* arg);
 void set_slave_skip_errors(char** slave_skip_errors_ptr);
-int add_new_channel(Master_info** mi, const char* channel,
-                    enum_channel_type channel_type= SLAVE_REPLICATION_CHANNEL);
+int add_new_channel(Master_info** mi, const char* channel);
 /**
   Terminates the slave threads according to the given mask.
 

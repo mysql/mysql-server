@@ -268,8 +268,7 @@ int channel_create(const char* channel,
   /* create a new channel if doesn't exist */
   if (!mi)
   {
-    if ((error= add_new_channel(&mi, channel,
-                                channel_info->type)))
+    if ((error= add_new_channel(&mi, channel)))
         goto err;
   }
 
