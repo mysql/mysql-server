@@ -19,7 +19,6 @@
 #include <algorithm>
 #include <memory>                             // unique_ptr
 
-#include "current_thd.h"
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/dd.h"                            // dd::get_dictionary
 #include "dd/dd_schema.h"                     // dd::Schema_MDL_locker
@@ -2660,9 +2659,6 @@ bool rename_table(THD *thd, dd::Table *to_table_def,
   // Mark the hidden flag.
   to_table_def->set_hidden(mark_as_hidden);
 
-  DBUG_EXECUTE_IF("alter_table_after_rename_1",
-                  DEBUG_SYNC(thd, "before_rename_in_dd"););
-
   // Do the update. Errors will be reported by the dictionary subsystem.
   if (thd->dd_client()->update(to_table_def))
   {
@@ -2674,10 +2670,6 @@ bool rename_table(THD *thd, dd::Table *to_table_def,
     }
     return true;
   }
-
-  DBUG_EXECUTE_IF("alter_table_after_rename_1",
-                   DBUG_SET("-d,alter_table_after_rename_1");
-                   DEBUG_SYNC(thd, "after_rename_in_dd"););
 
   if (commit_dd_changes)
   {
@@ -2713,8 +2705,6 @@ bool abstract_table_type(dd::cache::Dictionary_client *client,
   // Assign the table type out parameter.
   DBUG_ASSERT(table_type);
   *table_type= table->type();
-
-  DEBUG_SYNC(current_thd, "after_acquire_abstract_table");
 
   DBUG_RETURN(false);
 }

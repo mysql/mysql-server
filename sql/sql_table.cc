@@ -12722,10 +12722,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     goto err_with_mdl;
   }
 
-  DBUG_EXECUTE_IF("alter_table_after_rename",
-                  DBUG_SET("-d,alter_table_after_rename");
-                  DBUG_SET("+d,alter_table_after_rename_1"););
-
   // Rename the new table to the correct name.
   if (mysql_rename_table(thd, new_db_type, alter_ctx.new_db, alter_ctx.tmp_name,
                          alter_ctx.new_db, alter_ctx.new_alias,
