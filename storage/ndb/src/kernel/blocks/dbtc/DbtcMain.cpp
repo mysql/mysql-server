@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13027,11 +13027,18 @@ bool Dbtc::startFragScanLab(Signal* signal,
   EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
                  DiGetNodesReq::SignalLength, 0);
 
-  DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
-  Uint32 TerrorIndicator = signal->theData[0];
-  if (TerrorIndicator || ERROR_INSERTED_CLEAR(8095))
+  jamEntry();
+  /**
+   * theData[0] is always '0' in a DiGetNodesCONF,
+   * else it is a REF, with errorCode in theData[1]
+   */
+  const Uint32 errorCode =
+    (signal->theData[0] != 0)    ? signal->theData[1] : //DIH error
+    (ERROR_INSERTED_CLEAR(8095)) ? ZGET_DATAREC_ERROR : //Fake error
+    0;
+
+  if (errorCode != 0)
   {
-    jamEntry();
     ndbrequire(scanFragP.p->scanFragState == ScanFragRec::WAIT_GET_PRIMCONF);
     scanFragP.p->scanFragState = ScanFragRec::COMPLETED;
     scanFragP.p->stopFragTimer();
@@ -13039,15 +13046,16 @@ bool Dbtc::startFragScanLab(Signal* signal,
       ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
       run.release(scanFragP);
     }
-    scanError(signal, scanptr, ZGET_DATAREC_ERROR);
+    scanError(signal, scanptr, errorCode);
     return false;
   }
-  jamEntry();
+
   /**
-   * Get instance key from upper bits except most significant bit which is used
-   * reorg moving flag.
+   * Get instance key from upper bits except most significant bit which
+   * is used for reorg moving flag.
    */
-  Uint32 instanceKey = (conf->reqinfo >> 24) & 127;
+  const DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0]; 
+  const Uint32 instanceKey = (conf->reqinfo >> 24) & 127;
   NodeId nodeId = conf->nodes[0];
   const NodeId ownNodeId = getOwnNodeId();
   scanFragP.p->lqhScanFragId = conf->fragId;
