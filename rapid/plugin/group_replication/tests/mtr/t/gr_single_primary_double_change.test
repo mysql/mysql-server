@@ -140,6 +140,10 @@ INSERT INTO t1 VALUES(1,2);
 
 --source ../inc/gr_start_applier_sql_thread.inc
 
+#Waiting for the data to be applied
+--let $wait_condition= SELECT COUNT(*)=1 FROM t1
+--source include/wait_condition.inc
+
 --let $negatively_certified= query_get_value(SELECT Count_conflicts_detected FROM performance_schema.replication_group_member_stats, Count_conflicts_detected, 1)
 --let $assert_text= 'The value of Count_conflicts_detected should be 1 on server 2'
 --let $assert_cond= $negatively_certified = 1
