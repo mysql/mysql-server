@@ -32,6 +32,7 @@
 #include <utility>
 #include <vector>
 
+#include "gis/srid.h"
 #include "gis_bg_traits.h"
 #include "item_geofunc.h"
 #include "my_inttypes.h"
@@ -72,7 +73,7 @@ private:
     @retval false Success.
     @retval true Locking failed. An error has already been flagged.
   */
-  bool lock(Geometry::srid_t srid);
+  bool lock(gis::srid_t srid);
 
 public:
   Srs_fetcher(THD *thd)
@@ -88,9 +89,9 @@ public:
     @retval false Success.
     @retval true Locking failed. An error has already been flagged.
   */
-  bool acquire(Geometry::srid_t srid, const dd::Spatial_reference_system **srs);
+  bool acquire(gis::srid_t srid, const dd::Spatial_reference_system **srs);
 
-  static bool srs_exists(THD *thd, Geometry::srid_t srid, bool *exists);
+  static bool srs_exists(THD *thd, gis::srid_t srid, bool *exists);
 };
 
 
@@ -196,7 +197,7 @@ make_rtree_bggeom(const MultiGeometry &mg,
 
 
 inline Gis_geometry_collection *
-empty_collection(String *str, uint32 srid)
+empty_collection(String *str, gis::srid_t srid)
 {
   return new Gis_geometry_collection(srid, Geometry::wkb_invalid_type,
                                      NULL, str);

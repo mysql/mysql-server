@@ -2,7 +2,7 @@
 #define GIS__SRS__SRS_H_INCLUDED
 
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,9 +21,8 @@
 #include <cmath>
 #include <cstdint>
 
+#include "gis/srid.h"
 #include "my_dbug.h"
-
-typedef std::uint32_t srid_t;
 
 namespace gis { namespace srs {
 

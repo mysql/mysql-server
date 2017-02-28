@@ -49,6 +49,7 @@
 #include "dd/types/spatial_reference_system.h"
 #include "derror.h"       // ER_THD
 #include "gis_bg_traits.h"
+#include "gis/srid.h"
 #include "gstream.h"      // Gis_read_stream
 #include "item_geofunc_internal.h"
 #include "json_dom.h"     // Json_wrapper
@@ -186,7 +187,7 @@ bool is_colinear(const Point_range &ls)
   @retval true An error has occurred
   @retval false Success
 */
-static bool validate_srid_arg(Item *arg, Geometry::srid_t *srid,
+static bool validate_srid_arg(Item *arg, gis::srid_t *srid,
                               bool *null_value, const char *func_name)
 {
   longlong arg_srid= arg->val_int();
@@ -202,7 +203,7 @@ static bool validate_srid_arg(Item *arg, Geometry::srid_t *srid,
     return true;
   }
 
-  *srid= static_cast<Geometry::srid_t>(arg_srid);
+  *srid= static_cast<gis::srid_t>(arg_srid);
   return false;
 }
 
@@ -381,7 +382,7 @@ String *Item_func_geometry_from_text::val_str(String *str)
   }
 
   Gis_read_stream trs(wkt->charset(), wkt->ptr(), wkt->length());
-  Geometry::srid_t srid= 0;
+  gis::srid_t srid= 0;
 
   if (arg_count >= 2)
   {
@@ -631,7 +632,7 @@ Item_func_geometry_from_wkb::is_allowed_wkb_type(Geometry::wkbType type) const
 String *Item_func_geometry_from_wkb::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  Geometry::srid_t srid= 0;
+  gis::srid_t srid= 0;
 
   if (arg_count == 2)
   {
@@ -3641,7 +3642,7 @@ String *Item_func_make_envelope::val_str(String *str)
   String *pt2= args[1]->val_str(&arg_val2);
   Geometry_buffer buffer1, buffer2;
   Geometry *geom1= NULL, *geom2= NULL;
-  uint32 srid;
+  gis::srid_t srid;
 
   if ((null_value= (!pt1 || !pt2 ||
                     args[0]->null_value || args[1]->null_value)))
@@ -3803,7 +3804,7 @@ String *Item_func_envelope::val_str(String *str)
   String *swkb= args[0]->val_str(&arg_val);
   Geometry_buffer buffer;
   Geometry *geom= NULL;
-  uint32 srid;
+  gis::srid_t srid;
 
   if ((null_value= (!swkb || args[0]->null_value)))
   {
@@ -4621,7 +4622,7 @@ String *Item_func_spatial_decomp::val_str(String *str)
   String *swkb= args[0]->val_str(&arg_val);
   Geometry_buffer buffer;
   Geometry *geom= NULL;
-  uint32 srid;
+  gis::srid_t srid;
 
   if ((null_value= (!swkb || args[0]->null_value)))
     return NULL;
@@ -4672,7 +4673,7 @@ String *Item_func_spatial_decomp_n::val_str(String *str)
   long n= (long) args[1]->val_int();
   Geometry_buffer buffer;
   Geometry *geom= NULL;
-  uint32 srid;
+  gis::srid_t srid;
 
   if ((null_value= (!swkb || args[0]->null_value || args[1]->null_value)))
     return NULL;
@@ -4749,7 +4750,7 @@ String *Item_func_point::val_str(String *str)
 
   double x= args[0]->val_real();
   double y= args[1]->val_real();
-  uint32 srid= 0;
+  gis::srid_t srid= 0;
 
   if ((null_value= (args[0]->null_value ||
                     args[1]->null_value ||
@@ -4826,7 +4827,7 @@ String *Item_func_pointfromgeohash::val_str(String *str)
 
   String argument_value;
   String *geohash= args[0]->val_str_ascii(&argument_value);
-  Geometry::srid_t srid= 0;
+  gis::srid_t srid= 0;
 
   if (validate_srid_arg(args[1], &srid, &null_value, func_name()))
     return error_str();
@@ -4915,7 +4916,7 @@ String *Item_func_spatial_collection::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   String arg_value;
   uint i;
-  uint32 srid= 0;
+  gis::srid_t srid= 0;
 
   str->set_charset(&my_charset_bin);
   str->length(0);
@@ -5430,10 +5431,10 @@ longlong Item_func_isclosed::val_int()
 class Geomcoll_validity_checker: public WKB_scanner_event_handler
 {
   bool m_isvalid;
-  Geometry::srid_t m_srid;
+  gis::srid_t m_srid;
   std::stack<Geometry::wkbType> types;
 public:
-  explicit Geomcoll_validity_checker(Geometry::srid_t srid)
+  explicit Geomcoll_validity_checker(gis::srid_t srid)
     :m_isvalid(true), m_srid(srid)
   {
   }
@@ -6147,7 +6148,7 @@ String *Item_func_set_srid::val_str(String *str)
 {
   String *geometry_str= args[0]->val_str(str);
 
-  Geometry::srid_t srid= 0;
+  gis::srid_t srid= 0;
   // Check that the SRID-argument is within range.
   if (validate_srid_arg(args[1], &srid, &null_value, func_name()))
   {

@@ -22,6 +22,7 @@
 #include <new>
 #include <utility>
 
+#include "gis/srid.h"
 #include "gis_bg_traits.h"
 #include "gstream.h"                            // Gis_read_stream
 #include "m_ctype.h"
@@ -408,7 +409,7 @@ Geometry *Geometry::construct(Geometry_buffer *buffer,
       !(result= create_by_typeid(buffer, (int) geom_type)))
     return NULL;
 
-  uint32 srid= 0;
+  gis::srid_t srid= 0;
   if (has_srid)
   {
     srid= uint4korr(data);
@@ -1930,7 +1931,7 @@ Gis_polygon::Gis_polygon(const self &r) :Geometry(r), m_inn_rings(NULL)
 
 
 Gis_polygon::Gis_polygon(const void *wkb, size_t nbytes,
-                         const Flags_t &flags, srid_t srid)
+                         const Flags_t &flags, gis::srid_t srid)
   :Geometry(NULL, nbytes, flags, srid)
 {
   set_geotype(wkb_polygon);
@@ -3498,7 +3499,7 @@ bool Gis_geometry_collection::append_geometry(const Geometry *geo,
 /**
   Append geometry into geometry collection, which can be empty. This object
   must be created from default constructor or below one:
-  Gis_geometry_collection(srid_t srid, wkbType gtype,
+  Gis_geometry_collection(gis::srid_t srid, wkbType gtype,
                           const String *gbuf,
                           String *gcbuf);
 
@@ -3511,7 +3512,7 @@ bool Gis_geometry_collection::append_geometry(const Geometry *geo,
   @return false if no error, otherwise true.
 
  */
-bool Gis_geometry_collection::append_geometry(srid_t srid, wkbType gtype,
+bool Gis_geometry_collection::append_geometry(gis::srid_t srid, wkbType gtype,
                                               const String *gbuf, String *gcbuf)
 {
   DBUG_ASSERT(gbuf != NULL && gbuf->ptr() != NULL && gbuf->length() > 0);
@@ -3562,7 +3563,8 @@ bool Gis_geometry_collection::append_geometry(srid_t srid, wkbType gtype,
               NULL, the created geometry collection is empty.
   @param gcbuf this geometry collection's data buffer in GEOMETRY format.
  */
-Gis_geometry_collection::Gis_geometry_collection(srid_t srid, wkbType gtype,
+Gis_geometry_collection::Gis_geometry_collection(gis::srid_t srid,
+                                                 wkbType gtype,
                                                  const String *gbuf,
                                                  String *gcbuf)
   : Geometry(0, 0, Flags_t(wkb_geometrycollection, 0), srid)
@@ -4893,7 +4895,7 @@ exit:
 template <typename T>
 Gis_wkb_vector<T>::
 Gis_wkb_vector(const void *ptr, size_t nbytes, const Flags_t &flags,
-               srid_t srid, bool is_bg_adapter)
+               gis::srid_t srid, bool is_bg_adapter)
   :Geometry(ptr, nbytes, flags, srid)
 {
   DBUG_ASSERT((ptr != NULL && nbytes > 0) || (ptr == NULL && nbytes == 0));
@@ -5518,19 +5520,19 @@ template void Gis_wkb_vector<Gis_point_spherical>::shallow_push(Geometry const*)
 template
 Gis_wkb_vector<Gis_line_string>::
 Gis_wkb_vector(const void*, size_t,
-               const Geometry::Flags_t&, srid_t, bool);
+               const Geometry::Flags_t&, gis::srid_t, bool);
 template
 Gis_wkb_vector<Gis_point_spherical>::
 Gis_wkb_vector(const void*, size_t,
-               const Geometry::Flags_t&, srid_t, bool);
+               const Geometry::Flags_t&, gis::srid_t, bool);
 template
 Gis_wkb_vector<Gis_polygon>::
 Gis_wkb_vector(const void*, size_t,
-               const Geometry::Flags_t&, srid_t, bool);
+               const Geometry::Flags_t&, gis::srid_t, bool);
 template
 Gis_wkb_vector<Gis_point>::
 Gis_wkb_vector(const void*, size_t,
-               const Geometry::Flags_t&, srid_t, bool);
+               const Geometry::Flags_t&, gis::srid_t, bool);
 
 template
 Gis_wkb_vector<Gis_point>&

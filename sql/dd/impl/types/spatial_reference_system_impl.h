@@ -29,6 +29,7 @@
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/spatial_reference_system.h"// dd:Spatial_reference_system
 #include "dd/types/weak_object.h"
+#include "gis/srid.h"
 #include "gis/srs/srs.h"                      // gis::srs::Spatial_reference_...
 #include "my_inttypes.h"
 
@@ -124,11 +125,11 @@ public:
   // organization_coordsys_id
   /////////////////////////////////////////////////////////////////////////
 
-  virtual srid_t organization_coordsys_id() const override
+  virtual gis::srid_t organization_coordsys_id() const override
   { return m_organization_coordsys_id; }
 
   virtual void set_organization_coordsys_id(
-     srid_t organization_coordsys_id) override
+     gis::srid_t organization_coordsys_id) override
   { m_organization_coordsys_id= organization_coordsys_id; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -191,7 +192,7 @@ private:
   ulonglong m_created;
   ulonglong m_last_altered;
   String_type m_organization;
-  srid_t m_organization_coordsys_id;
+  gis::srid_t m_organization_coordsys_id;
   String_type m_definition;
   std::unique_ptr<gis::srs::Spatial_reference_system> m_parsed_definition;
   String_type m_description;

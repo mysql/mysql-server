@@ -24,6 +24,7 @@
 #include "binary_log_types.h"
 #include "enum_query_type.h"
 #include "field.h"
+#include "gis/srid.h"
 /* This file defines all spatial functions */
 #include "inplace_vector.h"
 #include "item.h"
@@ -136,7 +137,7 @@ class Item_func_st_union;
 class BG_geometry_collection
 {
   bool comp_no_overlapped;
-  Geometry::srid_t m_srid;
+  gis::srid_t m_srid;
   size_t m_num_isolated;
   std::vector<Geometry*> m_geos;
   Inplace_vector<Geometry_buffer> m_geobufs;
@@ -156,12 +157,12 @@ public:
     comp_no_overlapped= b;
   }
 
-  Geometry::srid_t get_srid() const
+  gis::srid_t get_srid() const
   {
     return m_srid;
   }
 
-  void set_srid(Geometry::srid_t srid)
+  void set_srid(gis::srid_t srid)
   {
     m_srid= srid;
   }
@@ -477,7 +478,7 @@ private:
   /// Is set to true if user provided a SRID as an argument.
   bool m_user_provided_srid;
   /// The SRID user provided as an argument.
-  Geometry::srid_t m_user_srid;
+  gis::srid_t m_user_srid;
   /**
     The SRID value of the document CRS, if one is found. Otherwise, this value
     defaults to -1.
@@ -1265,7 +1266,7 @@ private:
   Geometry *geometry_collection_set_operation(Geometry *g1, Geometry *g2,
                                               String *result);
 
-  Geometry *empty_result(String *str, uint32 srid);
+  Geometry *empty_result(String *str, gis::srid_t srid);
 
   bool assign_result(Geometry *geo, String *result);
 

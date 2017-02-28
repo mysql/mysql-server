@@ -47,7 +47,7 @@ class Spatial_reference_system;
 }  // namespace dd
 
 
-bool Srs_fetcher::lock(Geometry::srid_t srid)
+bool Srs_fetcher::lock(gis::srid_t srid)
 {
   DBUG_ENTER("lock_srs");
 
@@ -75,7 +75,7 @@ bool Srs_fetcher::lock(Geometry::srid_t srid)
 }
 
 
-bool Srs_fetcher::acquire(Geometry::srid_t srid,
+bool Srs_fetcher::acquire(gis::srid_t srid,
                           const dd::Spatial_reference_system **srs)
 {
   if (lock(srid))
@@ -87,7 +87,7 @@ bool Srs_fetcher::acquire(Geometry::srid_t srid,
 }
 
 
-bool Srs_fetcher::srs_exists(THD *thd, Geometry::srid_t srid, bool *exists)
+bool Srs_fetcher::srs_exists(THD *thd, gis::srid_t srid, bool *exists)
 {
   DBUG_ASSERT(exists);
   dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
