@@ -52,6 +52,7 @@
 #include "sql_array.h"
 #include "sql_class.h"                     // THD
 #include "sql_error.h"
+#include "sql_exception_handler.h"         // handle_std_exception
 #include "sql_executor.h"                  // copy_fields
 #include "sql_lex.h"
 #include "sql_list.h"

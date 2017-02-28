@@ -316,6 +316,7 @@ SET(SQL_SHARED_SOURCES
   sql_digest.cc
   sql_do.cc 
   sql_error.cc
+  sql_exception_handler.cc
   sql_executor.cc
   sql_get_diagnostics.cc
   sql_handler.cc
@@ -444,6 +445,7 @@ SET(SQL_BOOST_SOURCES
   handler.cc
   ${SQL_GIS_SOURCES}
   spatial.cc
+  sql_exception_handler.cc
 )
 SET(SQL_EXPORTED_BOOST_SOURCES ${SQL_BOOST_SOURCES} PARENT_SCOPE)
 

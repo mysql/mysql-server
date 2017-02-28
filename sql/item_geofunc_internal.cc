@@ -100,53 +100,6 @@ bool Srs_fetcher::srs_exists(THD *thd, Geometry::srid_t srid, bool *exists)
 }
 
 
-void handle_gis_exception(const char *funcname)
-{
-  try
-  {
-    throw;
-  }
-  catch (const boost::geometry::centroid_exception &)
-  {
-    my_error(ER_BOOST_GEOMETRY_CENTROID_EXCEPTION, MYF(0), funcname);
-  }
-  catch (const boost::geometry::overlay_invalid_input_exception &)
-  {
-    my_error(ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION, MYF(0),
-             funcname);
-  }
-  catch (const boost::geometry::turn_info_exception &)
-  {
-    my_error(ER_BOOST_GEOMETRY_TURN_INFO_EXCEPTION, MYF(0), funcname);
-  }
-  catch (const boost::geometry::detail::self_get_turn_points::self_ip_exception &)
-  {
-    my_error(ER_BOOST_GEOMETRY_SELF_INTERSECTION_POINT_EXCEPTION, MYF(0),
-             funcname);
-  }
-  catch (const boost::geometry::empty_input_exception &)
-  {
-    my_error(ER_BOOST_GEOMETRY_EMPTY_INPUT_EXCEPTION, MYF(0), funcname);
-  }
-  catch (const boost::geometry::inconsistent_turns_exception &)
-  {
-    my_error(ER_BOOST_GEOMETRY_INCONSISTENT_TURNS_EXCEPTION, MYF(0));
-  }
-  catch (const boost::geometry::exception &)
-  {
-    my_error(ER_BOOST_GEOMETRY_UNKNOWN_EXCEPTION, MYF(0), funcname);
-  }
-  catch (const std::exception &)
-  {
-    handle_std_exception(funcname);
-  }
-  catch (...)
-  {
-    my_error(ER_GIS_UNKNOWN_EXCEPTION, MYF(0), funcname);
-  }
-}
-
-
 /**
   Merge all components as appropriate so that the object contains only
   components that don't overlap.

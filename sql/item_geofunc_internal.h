@@ -36,6 +36,7 @@
 #include "item_geofunc.h"
 #include "my_inttypes.h"
 #include "spatial.h"
+#include "sql_exception_handler.h" // handle_gis_exception
 
 class String;
 class THD;
@@ -91,36 +92,6 @@ public:
 
   static bool srs_exists(THD *thd, Geometry::srid_t srid, bool *exists);
 };
-
-
-/**
-  Handle a GIS exception of any type.
-
-  This function constitutes the exception handling barrier between
-  Boost.Geometry and MySQL code. It handles all exceptions thrown in
-  GIS code and raises the corresponding error in MySQL.
-
-  Pattern for use in other functions:
-
-  @code
-  try
-  {
-    something_that_throws();
-  }
-  catch (...)
-  {
-    handle_gis_exception("st_foo");
-  }
-  @endcode
-
-  Other exception handling code put into the catch block, before or
-  after the call to handle_gis_exception(), must not throw exceptions.
-
-  @param funcname Function name for use in error message
-
-  @see handle_std_exception
- */
-void handle_gis_exception(const char *funcname);
 
 
 /// A wrapper and interface for all geometry types used here. Make these

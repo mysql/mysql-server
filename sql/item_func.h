@@ -3504,20 +3504,4 @@ Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type);
 
 extern bool volatile  mqh_used;
 
-/**
-  Handle an exception of any type.
-
-  Code that could throw exceptions should be wrapped in try/catch, and
-  the catch block should raise a corresponding MySQL error. If this
-  function is called from the catch block, it will raise a specialized
-  error message for many of the std::exception subclasses, or a more
-  generic error message if it is not a std::exception.
-
-  @param funcname the name of the function that caught an exception
-
-  @see handle_gis_exception
-*/
-void handle_std_exception(const char *funcname);
-
-
 #endif /* ITEM_FUNC_INCLUDED */

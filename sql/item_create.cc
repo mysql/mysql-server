@@ -59,6 +59,7 @@
 #include "sql_class.h"           // THD
 #include "sql_const.h"
 #include "sql_error.h"
+#include "sql_exception_handler.h"  // handle_std_exception
 #include "sql_lex.h"
 #include "sql_security_ctx.h"
 #include "sql_string.h"
