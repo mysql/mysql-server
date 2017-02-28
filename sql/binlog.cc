@@ -7919,6 +7919,12 @@ int MYSQL_BIN_LOG::wait_for_update_bin_log(const struct timespec *timeout)
                                      at once after close.
           - LOG_CLOSE_STOP_EVENT : write a 'stop' event to the log
 
+  @param need_lock_log If true, this function acquires LOCK_log;
+  otherwise the caller should already have acquired it.
+
+  @param need_lock_index If true, this function acquires LOCK_index;
+  otherwise the caller should already have acquired it.
+
   @note
     One can do an open on the object at once after doing a close.
     The internal structures are not freed until cleanup() is called
