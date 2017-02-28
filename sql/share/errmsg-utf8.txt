@@ -7665,15 +7665,6 @@ ER_CANNOT_ADD_FOREIGN_BASE_COL_STORED
 ER_TABLE_REFERENCED
   eng "Cannot complete the operation because table is referenced by another connection."
 
-ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE
-  eng "The partition engine, used by table '%-.192s.%-.192s', is deprecated and will be removed in a future release. Please use native partitioning instead."
-
-ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID_ZERO 01000
-  eng "%.192s(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use %.192s(st_aswkb(geometry), 0) instead."
-
-ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID 01000
-  eng "%.192s(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use %.192s(st_aswkb(geometry), srid) instead."
-
 #
 #  End of 5.7 error messages.
 #

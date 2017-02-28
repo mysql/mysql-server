@@ -662,23 +662,6 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
   */
   if (args[0]->data_type() == MYSQL_TYPE_GEOMETRY)
   {
-    if (arg_count == 1)
-    {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID_ZERO,
-                          ER_THD(current_thd, ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID_ZERO),
-                          func_name(), func_name());
-    }
-    else if (arg_count == 2)
-    {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID,
-                          ER_THD(current_thd, ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID),
-                          func_name(), func_name());
-    }
-
     Geometry_buffer buff;
     Geometry *g= Geometry::construct(&buff, wkb->ptr(), wkb->length());
     if (g == nullptr)
@@ -692,7 +675,6 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
                g->get_class_info()->m_name.str, func_name());
       return error_str();
     }
-
 
     /*
       Check if SRID embedded into the Geometry value differs
