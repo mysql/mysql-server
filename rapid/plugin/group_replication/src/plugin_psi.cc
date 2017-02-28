@@ -132,40 +132,40 @@ static PSI_rwlock_info all_group_replication_psi_rwlock_keys[]=
 };
 
 void register_group_replication_mutex_psi_keys(PSI_mutex_info mutexes[],
-                                               int mutex_count)
+                                               size_t mutex_count)
 {
   const char* category= "group_rpl";
   if (mutexes != NULL)
   {
-    mysql_mutex_register(category, mutexes, mutex_count);
+    mysql_mutex_register(category, mutexes, static_cast<int>(mutex_count));
   }
 }
 
 void register_group_replication_cond_psi_keys(PSI_cond_info conds[],
-                                               int cond_count)
+                                               size_t cond_count)
 {
   const char* category= "group_rpl";
   if (conds != NULL)
   {
-    mysql_cond_register(category, conds, cond_count);
+    mysql_cond_register(category, conds, static_cast<int>(cond_count));
   }
 }
 
 void register_group_replication_thread_psi_keys(PSI_thread_info threads[],
-                                                int thread_count)
+                                                size_t thread_count)
 {
   const char* category= "group_rpl";
   if (threads != NULL)
   {
-    mysql_thread_register(category, threads, thread_count);
+    mysql_thread_register(category, threads, static_cast<int>(thread_count));
   }
 }
 
 void register_group_replication_rwlock_psi_keys(PSI_rwlock_info *keys,
-                                                int count)
+                                                size_t count)
 {
   const char *category= "group_rpl";
-  mysql_rwlock_register(category, keys, count);
+  mysql_rwlock_register(category, keys, static_cast<int>(count));
 }
 
 void register_all_group_replication_psi_keys()

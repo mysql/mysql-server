@@ -15,6 +15,6 @@ include/assert.inc [Mysqlx_ssl_cert must be empty, the default value]
 include/assert.inc [Mysqlx_ssl_cipher must be empty, the default value]
 include/assert.inc [Mysqlx_ssl_crl must be empty, the default value]
 include/assert.inc [Mysqlx_ssl_crlpath must be empty, the default value]
-include/assert.inc [Mysqlx_bind_address must be "0.0.0.0", the default value]
+include/assert.inc [Mysqlx_bind_address must be "*", the default value]
 include/assert.inc [Mysqlx_port_open_timeout must be 0 seconds, the default value]
 uninstall plugin mysqlx;

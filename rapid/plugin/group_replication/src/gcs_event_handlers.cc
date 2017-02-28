@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -84,7 +84,7 @@ Plugin_gcs_events_handler::on_message_received(const Gcs_message& message) const
     break;
 
   default:
-    DBUG_ASSERT(0); /* purecov: inspected */
+    break; /* purecov: inspected */
   }
 }
 
@@ -96,12 +96,12 @@ Plugin_gcs_events_handler::handle_transactional_message(const Gcs_message& messa
         this->applier_module)
   {
     const unsigned char* payload_data= NULL;
-    size_t payload_size= 0;
+    uint64 payload_size= 0;
     Plugin_gcs_message::get_first_payload_item_raw_data(
         message.get_message_data().get_payload(),
         &payload_data, &payload_size);
 
-    this->applier_module->handle(payload_data, payload_size);
+    this->applier_module->handle(payload_data, static_cast<ulong>(payload_size));
   }
   else
   {
@@ -125,13 +125,13 @@ Plugin_gcs_events_handler::handle_certifier_message(const Gcs_message& message) 
       this->applier_module->get_certification_handler()->get_certifier();
 
   const unsigned char* payload_data= NULL;
-  size_t payload_size= 0;
+  uint64 payload_size= 0;
   Plugin_gcs_message::get_first_payload_item_raw_data(
       message.get_message_data().get_payload(),
       &payload_data, &payload_size);
 
   if (certifier->handle_certifier_data(payload_data,
-                                       payload_size,
+                                       static_cast<ulong>(payload_size),
                                        message.get_origin()))
   {
     log_message(MY_ERROR_LEVEL, "Error processing message in Certifier"); /* purecov: inspected */
@@ -331,6 +331,15 @@ Plugin_gcs_events_handler::on_view_changed(const Gcs_view& new_view,
 
   //update the Group Manager with all the received states
   this->update_group_info_manager(new_view, exchanged_data, is_leaving);
+
+  //enable conflict detection if someone on group have it enabled
+  if (local_member_info->in_primary_mode() &&
+      group_member_mgr->is_conflict_detection_enabled())
+  {
+    Certifier_interface *certifier=
+        this->applier_module->get_certification_handler()->get_certifier();
+    certifier->enable_conflict_detection();
+  }
 
   //Inform any interested handler that the view changed
   View_change_pipeline_action *vc_action=
@@ -610,13 +619,13 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
                                                        const
 {
   //nothing to do here
-  int number_of_members= new_view.get_members().size();
+  size_t number_of_members= new_view.get_members().size();
   if (number_of_members == 0 || is_leaving)
   {
     return;
   }
-  int number_of_joining_members= new_view.get_joined_members().size();
-  int number_of_leaving_members= new_view.get_leaving_members().size();
+  size_t number_of_joining_members= new_view.get_joined_members().size();
+  size_t number_of_leaving_members= new_view.get_leaving_members().size();
 
   /*
    If we are joining, 3 scenarios exist:
@@ -838,7 +847,7 @@ process_local_exchanged_data(const Exchanged_data &exchanged_data)
        exchanged_data_it++)
   {
     const uchar* data= exchanged_data_it->second->get_payload();
-    size_t length= exchanged_data_it->second->get_payload_length();
+    uint64 length= exchanged_data_it->second->get_payload_length();
     Gcs_member_identifier* member_id= exchanged_data_it->first;
     if (data == NULL)
     {
@@ -989,7 +998,7 @@ update_member_status(const vector<Gcs_member_identifier>& members,
   6) If the member has the same configuration flags that the group has
 */
 int
-Plugin_gcs_events_handler::check_group_compatibility(int number_of_members) const
+Plugin_gcs_events_handler::check_group_compatibility(size_t number_of_members) const
 {
   /*
     Check if group size did reach the maximum number of members.

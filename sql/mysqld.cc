@@ -5885,6 +5885,7 @@ struct my_option my_long_options[]=
    0, GET_UINT, OPT_ARG, 0, 0, UINT_MAX, 0, 0, 0},
 #endif /* defined(ENABLED_DEBUG_SYNC) */
   {"temp-pool", 0,
+   "This option is deprecated and will be removed in a future version. "
 #if defined(__linux__)
    "Using this option will cause most temporary files created to use a small "
    "set of names, rather than a unique name for each new file.",

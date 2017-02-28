@@ -646,8 +646,12 @@ public:
   key_map key_start;                /* Keys that starts with this field */
   /// Indexes which contain this field entirely (not only a prefix)
   key_map part_of_key;
-  key_map part_of_key_not_clustered;/* ^ but only for non-clustered keys */
   key_map part_of_sortkey;          /* ^ but only keys usable for sorting */
+  /**
+    All keys that include this field, but not extended by the storage engine to
+    include primary key columns.
+  */
+  key_map part_of_key_not_extended;
 
   /* 
     We use three additional unireg types for TIMESTAMP to overcome limitation 
@@ -1572,6 +1576,19 @@ public:
     TRUE   - If field is char/varchar/.. and is part of write set.
 */
   virtual bool is_updatable() const { return FALSE; }
+
+  /**
+    Check whether field is part of the index taking the index extensions flag
+    into account.
+
+    @param[in]     thd             THD object
+    @param[in]     cur_index       Index of the key
+
+    @retval true  Field is part of the key
+    @retval false otherwise
+
+  */
+  bool is_part_of_actual_key(THD *thd, uint cur_index);
 
   friend int cre_myisam(char * name, TABLE *form, uint options,
 			ulonglong auto_increment_value);

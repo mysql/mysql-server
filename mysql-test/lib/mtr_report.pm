@@ -27,9 +27,10 @@ our @EXPORT= qw(report_option mtr_print_line mtr_print_thick_line
 		mtr_warning mtr_error mtr_debug mtr_verbose
 		mtr_verbose_restart mtr_report_test_passed
 		mtr_report_test_skipped mtr_print
-		mtr_report_test isotime mtr_xml_init);
+		mtr_report_test isotime mtr_summary_file_init mtr_xml_init);
 
 use mtr_match;
+use File::Spec;
 use My::Platform;
 use POSIX qw[ _exit ];
 use IO::Handle qw[ flush ];
@@ -46,6 +47,7 @@ our $verbose_restart= 0;
 our $timer= 1;
 
 our $xml_report_file;
+our $summary_report_file;
 
 sub report_option {
   my ($opt, $value)= @_;
@@ -444,7 +446,7 @@ sub mtr_report_stats ($$;$) {
   }
 
   # Print summary line prefix
-  print "$prefix: ";
+  summary_print("$prefix: ");
 
   # Print a list of testcases that failed
   if ( $tot_failed != 0 )
@@ -458,13 +460,11 @@ sub mtr_report_stats ($$;$) {
     #}
 
     my $ratio=  $tot_passed * 100 / $tot_tests;
-    print "Failed $tot_failed/$tot_tests tests, ";
-    printf("%.2f", $ratio);
-    print "\% were successful.\n\n";
+    summary_print(sprintf("Failed $tot_failed/$tot_tests tests, %.2f%% were successful.\n\n", $ratio));
 
     # Print the list of test that failed in a format
     # that can be copy pasted to rerun only failing tests
-    print "Failing test(s):";
+    summary_print("Failing test(s):");
 
     my %seen= ();
     foreach my $tinfo (@$tests)
@@ -472,11 +472,12 @@ sub mtr_report_stats ($$;$) {
       my $tname= $tinfo->{'name'};
       if ( ($tinfo->{failures} || $tinfo->{rep_failures}) and ! $seen{$tname})
       {
-        print " $tname";
+        summary_print(" $tname");
 	$seen{$tname}= 1;
       }
     }
-    print "\n\n";
+    summary_print("\n");
+    print "\n";
 
     # Print info about reporting the error
     print
@@ -488,8 +489,9 @@ sub mtr_report_stats ($$;$) {
    }
   else
   {
-    print "All $tot_tests tests were successful.\n\n";
+    summary_print("All $tot_tests tests were successful.\n\n");
   }
+  close($summary_report_file) if defined($summary_report_file);
 
   print "$tot_skipped tests were skipped, ".
     "$tot_skipdetect by the test itself.\n\n" if $tot_skipped;
@@ -542,13 +544,39 @@ sub mtr_print_header ($) {
 
 sub mtr_xml_init($) {
   my ($fn) = @_;
-  unless(open $xml_report_file, '>'.$fn) {
+  unless(open $xml_report_file, '>', $fn) {
     mtr_error("could not create xml_report file $fn");
   }
   print "Writing XML report to $fn...\n";
   print $xml_report_file "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 }
 
+##############################################################################
+#
+#  Summary file output
+#
+##############################################################################
+
+sub mtr_summary_file_init($) {
+  my ($fn) = @_;
+
+  # For out-of-tree builds, the MTR wrapper script will cd to the source
+  # directory. Thus, let's make $summary_report_file local to the vardir
+  # instead, if it's not already absolute.
+  my $full_path = File::Spec->rel2abs($fn, $::opt_vardir);
+  unless(open $summary_report_file, '>', $full_path) {
+    mtr_error("could not create summary_report file $fn");
+  }
+  print "Writing summary report to $fn...\n";
+}
+
+sub summary_print($) {
+  my ($text) = @_;
+  print $text;
+  if (defined($summary_report_file)) {
+    print $summary_report_file $text;
+  }
+}
 
 ##############################################################################
 #

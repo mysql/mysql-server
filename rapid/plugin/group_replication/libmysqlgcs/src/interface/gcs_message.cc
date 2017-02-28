@@ -20,6 +20,8 @@
 #include <xplatform/byteorder.h>
 #include "xplatform/my_xp_util.h"
 
+#include "my_compiler.h"
+
 /**
   Gcs_message_data implementation
 */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -908,30 +908,28 @@ trx_sys_create_rsegs(
 		ulint	new_rsegs = n_rsegs - n_used;
 
 		for (i = 0; i < new_rsegs; ++i) {
-			ulint	space;
+			ulint	space_id;
+			space_id = (n_spaces == 0) ? 0
+				: (srv_undo_space_id_start + i % n_spaces);
 
-			/* Tablespace 0 is the system tablespace. All UNDO
-			log tablespaces start from 1. */
+			ut_ad(n_spaces == 0
+			      || srv_is_undo_tablespace(space_id));
 
-			if (n_spaces > 0) {
-				space = (i % n_spaces) + 1;
-			} else {
-				space = 0; /* System tablespace */
-			}
-
-			if (trx_rseg_create(space, 0) != NULL) {
+			if (trx_rseg_create(space_id, 0) != NULL) {
 				++n_used;
 				++n_redo_active;
+
+				ulint	last_undo_space =
+					srv_undo_space_id_start
+					+ (srv_undo_tablespaces_active - 1);
 
 				/* Increase the number of active undo
 				tablespace in case new rollback segment
 				assigned to new undo tablespace. */
-				if (space > srv_undo_tablespaces_active) {
+				if (space_id > last_undo_space) {
 					srv_undo_tablespaces_active++;
 
-					ut_ad(srv_undo_tablespaces_active
-					      == space);
-
+					ut_ad(space_id == last_undo_space + 1);
 				}
 			} else {
 				break;

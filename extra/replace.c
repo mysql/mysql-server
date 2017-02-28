@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -107,6 +107,10 @@ int main(int argc, char *argv[])
   char word_end_chars[256],*pos;
   POINTER_ARRAY from,to;
   REPLACE *replace;
+
+  fprintf(stderr, "Warning: replace is deprecated and will be removed in a "
+          "future version.\n");
+
   MY_INIT(argv[0]);
 
   if (static_get_options(&argc,&argv))

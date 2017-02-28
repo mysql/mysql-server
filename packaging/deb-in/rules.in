@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@ override_dh_auto_configure:
 		-DWITH_SSL=bundled \
 		-DWITH_INNODB_MEMCACHED=1 \
 		-DWITH_MECAB=system \
+		-DWITH_NUMA=ON \
 		-DCOMPILATION_COMMENT="MySQL @DEB_PRODUCTNAMEC@ Server (@DEB_LICENSENAME@)" \
 		-DINSTALL_LAYOUT=DEB \
 		-DDEB_PRODUCT=@DEB_PRODUCT@ \
@@ -77,6 +78,8 @@ override_dh_auto_install:
 	for file in debian/extra/*-plugin; do NEW=`echo $$file | cut -d- -f1`; mv $$file $$NEW.so; done
 	install -g root -o root -m 0755 debian/extra/*.so debian/tmp/usr/lib/mysql/plugin/debug
 	install -g root -o root -m 0755 debian/extra/daemon_example.ini debian/tmp/usr/lib/mysql/plugin/debug
+	# Add helper functions for maintainer scripts
+	install -m 0644 debian/extra/mysql-helpers debian/tmp/usr/share/mysql/
 	# add apparmor profile
 	@DEB_RULES_INSTALL_APPARMOR@
 	# add systemd script
@@ -93,6 +96,7 @@ override_dh_auto_install:
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-testsuite
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-test
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-source
+	@DEB_NDB_RULES_DOCDIRS@
 	# add @DEB_INSTALL_LICENSEFILE@ file to each package
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ debian/tmp/usr/share/doc/mysql-server/@DEB_INSTALL_LICENSEFILE@
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-server/@DEB_INSTALL_LICENSEFILE@
@@ -105,6 +109,7 @@ override_dh_auto_install:
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ debian/tmp/usr/share/doc/mysql-testsuite/@DEB_INSTALL_LICENSEFILE@
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-test/@DEB_INSTALL_LICENSEFILE@
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-source/@DEB_INSTALL_LICENSEFILE@
+	@DEB_NDB_RULES_LICENSE@
 	# add README file to each package
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-server/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-server/README
@@ -117,6 +122,7 @@ override_dh_auto_install:
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-testsuite/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-test/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-source/README
+	@DEB_NDB_RULES_README@
 	touch $@
 
 override_dh_installinit:

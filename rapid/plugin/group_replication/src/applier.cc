@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -640,12 +640,13 @@ delete_pipeline:
   DBUG_RETURN(0);
 }
 
-void Applier_module::inform_of_applier_stop(my_thread_id thread_id,
+void Applier_module::inform_of_applier_stop(char* channel_name,
                                             bool aborted)
 {
   DBUG_ENTER("Applier_module::inform_of_applier_stop");
 
-  if (is_own_event_channel(thread_id) && aborted && applier_running )
+  if (!strcmp(channel_name, applier_module_channel_name) &&
+      aborted && applier_running )
   {
     log_message(MY_ERROR_LEVEL,
                 "The applier thread execution was aborted."
@@ -799,7 +800,7 @@ Applier_module::is_applier_thread_waiting()
 }
 
 int
-Applier_module::wait_for_applier_event_execution(ulonglong timeout)
+Applier_module::wait_for_applier_event_execution(double timeout)
 {
   DBUG_ENTER("Applier_module::wait_for_applier_event_execution");
   int error= 0;
@@ -825,19 +826,6 @@ Applier_module::wait_for_applier_event_execution(ulonglong timeout)
   DBUG_RETURN(error);
 }
 
-bool
-Applier_module::is_own_event_channel(my_thread_id id){
-
-  Event_handler* event_applier= NULL;
-  Event_handler::get_handler_by_role(pipeline, APPLIER, &event_applier);
-
-  //No applier exists so return false
-  if (event_applier == NULL)
-    return false; /* purecov: inspected */
-
-  //The only event applying handler by now
-  return ((Applier_handler*)event_applier)->is_own_event_applier(id);
-}
 
 Certification_handler* Applier_module::get_certification_handler(){
 

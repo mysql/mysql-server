@@ -26,7 +26,7 @@ namespace connection_control
   /**
     Security_context_wrapper constructor.
 
-    @param thd [in]    Handle to THD
+    @param [in] thd    Handle to THD
 
     Get security context from thd.
   */
@@ -39,8 +39,8 @@ namespace connection_control
   /**
     Get value for given property from security context
 
-    @param property [in]    Property to be checked
-    @param value    [out]   Value of the property
+    @param [in] property    Property to be checked
+    @param [out] value      Value of the property
 
     @returns status of property check
       @retval true Error fetching property value

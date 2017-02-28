@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,37 +16,12 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 . /usr/share/debconf/confmodule
-
+. /usr/share/mysql/mysql-helpers
 take_upstart_job_backup () {
 	if [ -e "/etc/init/mysql.conf" ] && [ -d "/var/lib/mysql" ];
 	then
 		mv /etc/init/mysql.conf /var/lib/mysql/.mysql.conf.backup
 	fi
-}
-
-# Runs an arbitrary init sql file supplied in $1. Does not require login access
-run_init_sql() {
-	tmpdir=$(mktemp -d)
-	chown mysql:mysql "$tmpdir"
-	mysqld --user=mysql --init-file="$1" --socket="$tmpdir/mysqld.sock" --pid-file="$tmpdir/mysqld.pid" > /dev/null 2>&1
-	result=$?
-	rm -rf "$tmpdir"
-	return $result
-}
-
-# To avoid having hardcoded paths in the script, we do a search on the path, as suggested at:
-# https://www.debian.org/doc/manuals/developers-reference/ch06.en.html#bpp-debian-maint-scripts
-pathfind() {
-	OLDIFS="$IFS"
-	IFS=:
-	for p in $PATH; do
-		if [ -x "$p/$*" ]; then
-			IFS="$OLDIFS"
-			return 0
-		fi
-	done
-	IFS="$OLDIFS"
-	return 1
 }
 
 invoke() {
@@ -69,6 +44,7 @@ case "$1" in
 		fi
 		update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 200
 
+		verify_ready
 		MYSQLDATA=/var/lib/mysql
 		MYSQLFILES=/var/lib/mysql-files
 		if aa-status --enabled 2>/dev/null; then

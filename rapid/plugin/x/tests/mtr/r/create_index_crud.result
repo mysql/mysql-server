@@ -224,11 +224,14 @@ doc	_id	$ix_t13_r_5E11219941D8F091BF6F252A48E0EEAA9D734FF9	$ix_i_1C70785A292B9A2
 {"_id": 4, "col1": "val4", "col2": 102}	4	val4	102
 {"_id": 5, "col1": "val5"}	5	val5	null
 0 rows affected
-RUN SELECT _id,doc, CONCAT("Prefix",$ix_t13_r_33deb2207b7c2b8b450ab0ff24572ce0e3fe9f) , $ix_i_247da1f22e963b276de7199b552bc8d79c94de1*-1 
+RUN SELECT _id,doc, CONCAT("Prefix",$ix_t13_r_5E11219941D8F091BF6F252A48E0EEAA9D734FF9) , $ix_i_1C70785A292B9A2762EFA186DFCFB4F03C660E7F
    FROM xplugintest.table2
-While executing SELECT _id,doc, CONCAT("Prefix",$ix_t13_r_33deb2207b7c2b8b450ab0ff24572ce0e3fe9f) , $ix_i_247da1f22e963b276de7199b552bc8d79c94de1*-1 
-   FROM xplugintest.table2:
-in main, line 198:ERROR: Unknown column '$ix_t13_r_33deb2207b7c2b8b450ab0ff24572ce0e3fe9f' in 'field list' (code 1054)
+_id	doc	CONCAT("Prefix",$ix_t13_r_5E11219941D8F091BF6F252A48E0EEAA9D734FF9)	$ix_i_1C70785A292B9A2762EFA186DFCFB4F03C660E7F
+0	{"_id": 0, "col1": "01234567890123456789"}	Prefix01234567890123456789	null
+1	{"_id": 1, "col1": "val1", "col2": 101}	Prefixval1	101
+4	{"_id": 4, "col1": "val4", "col2": 102}	Prefixval4	102
+5	{"_id": 5, "col1": "val5"}	Prefixval5	null
+0 rows affected
 RUN INSERT INTO xplugintest.table2(doc) VALUES('{"col1":"val6","col2":"non_int_val","_id":6}')
 While executing INSERT INTO xplugintest.table2(doc) VALUES('{"col1":"val6","col2":"non_int_val","_id":6}'):
 Got expected error: Invalid JSON value for CAST to INTEGER from column json_extract at row 1 (code 3156)
@@ -533,15 +536,15 @@ RUN ALTER TABLE xplugintest.table2 DROP INDEX `col1_index`
 
 0 rows affected
 Records: 0  Duplicates: 0  Warnings: 0
-RUN ALTER TABLE xplugintest.table2 DROP COLUMN `$ix_t13_r_33deb2207b7c2b8b450ab0ff24572ce0e3fe9f`
-While executing ALTER TABLE xplugintest.table2 DROP COLUMN `$ix_t13_r_33deb2207b7c2b8b450ab0ff24572ce0e3fe9f`:
-in main, line 483:ERROR: Can't DROP '$ix_t13_r_33deb2207b7c2b8b450ab0ff24572ce0e3fe9f'; check that column/key exists (code 1091)
+RUN ALTER TABLE xplugintest.table2 DROP COLUMN `$ix_t13_r_5E11219941D8F091BF6F252A48E0EEAA9D734FF9`
+
+0 rows affected
+Records: 0  Duplicates: 0  Warnings: 0
 RUN SHOW CREATE TABLE xplugintest.table2
 Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
   `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$._id'))) STORED NOT NULL,
-  `$ix_t13_r_5E11219941D8F091BF6F252A48E0EEAA9D734FF9` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$.col1'))) VIRTUAL NOT NULL,
   `$ix_i_1C70785A292B9A2762EFA186DFCFB4F03C660E7F` int(11) GENERATED ALWAYS AS (json_extract(`doc`,'$.col2')) VIRTUAL,
   `$ix_t13_bf29f74d5ecec695774cb5b3f1ff979e7643bf36` text,
   `$ix_t13_8B49C928244561F5DACBE63B030ADA2983C76BFF` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$.col3'))) VIRTUAL,
@@ -553,11 +556,11 @@ table2	CREATE TABLE `table2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 0 rows affected
 RUN SELECT * FROM xplugintest.table2
-doc	_id	$ix_t13_r_5E11219941D8F091BF6F252A48E0EEAA9D734FF9	$ix_i_1C70785A292B9A2762EFA186DFCFB4F03C660E7F	$ix_t13_bf29f74d5ecec695774cb5b3f1ff979e7643bf36	$ix_t13_8B49C928244561F5DACBE63B030ADA2983C76BFF	$ix_i_ED8EA5BF0D44065A674B92033FC24920B41C5F42
-{"_id": 0, "col1": "01234567890123456789"}	0	01234567890123456789	null	null	null	0
-{"_id": 1, "col1": "val1", "col2": 101}	1	val1	101	null	null	1
-{"_id": 4, "col1": "val4", "col2": 102}	4	val4	102	null	null	4
-{"_id": 5, "col1": "val5"}	5	val5	null	null	null	5
+doc	_id	$ix_i_1C70785A292B9A2762EFA186DFCFB4F03C660E7F	$ix_t13_bf29f74d5ecec695774cb5b3f1ff979e7643bf36	$ix_t13_8B49C928244561F5DACBE63B030ADA2983C76BFF	$ix_i_ED8EA5BF0D44065A674B92033FC24920B41C5F42
+{"_id": 0, "col1": "01234567890123456789"}	0	null	null	null	0
+{"_id": 1, "col1": "val1", "col2": 101}	1	101	null	null	1
+{"_id": 4, "col1": "val4", "col2": 102}	4	102	null	null	4
+{"_id": 5, "col1": "val5"}	5	null	null	null	5
 0 rows affected
 RUN ALTER TABLE xplugintest.table2 ADD COLUMN `$col1_ix_t13` text
             GENERATED ALWAYS AS (LEFT(JSON_UNQUOTE(JSON_EXTRACT(doc, '$.col1')), 13)) STORED 
@@ -569,7 +572,6 @@ Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
   `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$._id'))) STORED NOT NULL,
-  `$ix_t13_r_5E11219941D8F091BF6F252A48E0EEAA9D734FF9` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$.col1'))) VIRTUAL NOT NULL,
   `$ix_i_1C70785A292B9A2762EFA186DFCFB4F03C660E7F` int(11) GENERATED ALWAYS AS (json_extract(`doc`,'$.col2')) VIRTUAL,
   `$ix_t13_bf29f74d5ecec695774cb5b3f1ff979e7643bf36` text,
   `$ix_t13_8B49C928244561F5DACBE63B030ADA2983C76BFF` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$.col3'))) VIRTUAL,
@@ -582,11 +584,11 @@ table2	CREATE TABLE `table2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 0 rows affected
 RUN SELECT * FROM xplugintest.table2
-doc	_id	$ix_t13_r_5E11219941D8F091BF6F252A48E0EEAA9D734FF9	$ix_i_1C70785A292B9A2762EFA186DFCFB4F03C660E7F	$ix_t13_bf29f74d5ecec695774cb5b3f1ff979e7643bf36	$ix_t13_8B49C928244561F5DACBE63B030ADA2983C76BFF	$ix_i_ED8EA5BF0D44065A674B92033FC24920B41C5F42	$col1_ix_t13
-{"_id": 0, "col1": "01234567890123456789"}	0	01234567890123456789	null	null	null	0	0123456789012
-{"_id": 1, "col1": "val1", "col2": 101}	1	val1	101	null	null	1	val1
-{"_id": 4, "col1": "val4", "col2": 102}	4	val4	102	null	null	4	val4
-{"_id": 5, "col1": "val5"}	5	val5	null	null	null	5	val5
+doc	_id	$ix_i_1C70785A292B9A2762EFA186DFCFB4F03C660E7F	$ix_t13_bf29f74d5ecec695774cb5b3f1ff979e7643bf36	$ix_t13_8B49C928244561F5DACBE63B030ADA2983C76BFF	$ix_i_ED8EA5BF0D44065A674B92033FC24920B41C5F42	$col1_ix_t13
+{"_id": 0, "col1": "01234567890123456789"}	0	null	null	null	0	0123456789012
+{"_id": 1, "col1": "val1", "col2": 101}	1	101	null	null	1	val1
+{"_id": 4, "col1": "val4", "col2": 102}	4	102	null	null	4	val4
+{"_id": 5, "col1": "val5"}	5	null	null	null	5	val5
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
@@ -660,7 +662,6 @@ Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
   `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$._id'))) STORED NOT NULL,
-  `$ix_t13_r_5E11219941D8F091BF6F252A48E0EEAA9D734FF9` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$.col1'))) VIRTUAL NOT NULL,
   `$ix_i_1C70785A292B9A2762EFA186DFCFB4F03C660E7F` int(11) GENERATED ALWAYS AS (json_extract(`doc`,'$.col2')) VIRTUAL,
   `$ix_t13_bf29f74d5ecec695774cb5b3f1ff979e7643bf36` text,
   `$ix_t13_8B49C928244561F5DACBE63B030ADA2983C76BFF` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$.col3'))) VIRTUAL,
@@ -740,8 +741,8 @@ RUN TRUNCATE xplugintest.table2
 
 0 rows affected
 RUN INSERT INTO xplugintest.table2(doc) VALUES('{"F1":1, "F2":"abcd", "F3":1000, "_id":0}')
-While executing INSERT INTO xplugintest.table2(doc) VALUES('{"F1":1, "F2":"abcd", "F3":1000, "_id":0}'):
-in main, line 617:ERROR: Column '$ix_t13_r_5E11219941D8F091BF6F252A48E0EEAA9D734FF9' cannot be null (code 1048)
+
+1 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
   args {
@@ -906,8 +907,8 @@ RUN TRUNCATE xplugintest.table2
 
 0 rows affected
 RUN INSERT INTO xplugintest.table2(doc) VALUES('{"F2":"REQUIRED", "F3":"1", "KeyName_VeryLongKeyNameWithKeyNameLength_FiFtyFourAndEvenABitLonger": "abcdefgh", "_id":1}')
-While executing INSERT INTO xplugintest.table2(doc) VALUES('{"F2":"REQUIRED", "F3":"1", "KeyName_VeryLongKeyNameWithKeyNameLength_FiFtyFourAndEvenABitLonger": "abcdefgh", "_id":1}'):
-in main, line 781:ERROR: Column '$ix_t13_r_5E11219941D8F091BF6F252A48E0EEAA9D734FF9' cannot be null (code 1048)
+
+1 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
   args {
@@ -980,7 +981,6 @@ Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
   `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$._id'))) STORED NOT NULL,
-  `$ix_t13_r_5E11219941D8F091BF6F252A48E0EEAA9D734FF9` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$.col1'))) VIRTUAL NOT NULL,
   `$ix_i_1C70785A292B9A2762EFA186DFCFB4F03C660E7F` int(11) GENERATED ALWAYS AS (json_extract(`doc`,'$.col2')) VIRTUAL,
   `$ix_t13_bf29f74d5ecec695774cb5b3f1ff979e7643bf36` text,
   `$ix_t13_8B49C928244561F5DACBE63B030ADA2983C76BFF` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$.col3'))) VIRTUAL,
@@ -1002,7 +1002,8 @@ table2	CREATE TABLE `table2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 0 rows affected
 RUN SELECT * FROM xplugintest.table2
-doc	_id	$ix_t13_r_5E11219941D8F091BF6F252A48E0EEAA9D734FF9	$ix_i_1C70785A292B9A2762EFA186DFCFB4F03C660E7F	$ix_t13_bf29f74d5ecec695774cb5b3f1ff979e7643bf36	$ix_t13_8B49C928244561F5DACBE63B030ADA2983C76BFF	$ix_i_ED8EA5BF0D44065A674B92033FC24920B41C5F42	$col1_ix_t13	$ix_i_19A716031E8396A7049831D1FFB53409FB4689A6	$ix_bt767_8870EF04DBC5C827B87C34BF582F39442A78BBD9	$ix_ib_r_755774C7760C6184F154B25E88F81712F65BC712	$ix_bt767_r_8870EF04DBC5C827B87C34BF582F39442A78BBD9	$ix_bt3000_EED9F4FDE93464D65631C14643D3B9F9E401EA43
+doc	_id	$ix_i_1C70785A292B9A2762EFA186DFCFB4F03C660E7F	$ix_t13_bf29f74d5ecec695774cb5b3f1ff979e7643bf36	$ix_t13_8B49C928244561F5DACBE63B030ADA2983C76BFF	$ix_i_ED8EA5BF0D44065A674B92033FC24920B41C5F42	$col1_ix_t13	$ix_i_19A716031E8396A7049831D1FFB53409FB4689A6	$ix_bt767_8870EF04DBC5C827B87C34BF582F39442A78BBD9	$ix_ib_r_755774C7760C6184F154B25E88F81712F65BC712	$ix_bt767_r_8870EF04DBC5C827B87C34BF582F39442A78BBD9	$ix_bt3000_EED9F4FDE93464D65631C14643D3B9F9E401EA43
+{"F2": "REQUIRED", "F3": "1", "_id": 1, "KeyName_VeryLongKeyNameWithKeyNameLength_FiFtyFourAndEvenABitLonger": "abcdefgh"}	1	null	null	null	1	null	null	REQUIRED	1	REQUIRED	abcdefgh
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection"

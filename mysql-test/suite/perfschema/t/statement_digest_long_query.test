@@ -4,7 +4,14 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
+# Thread stack overrun on solaris
+let $have_solaris = `select convert(@@version_compile_os using latin1) LIKE ("solaris%")`;
+if ($have_solaris)
+{
+   skip Test requires: 'not_solaris';
+}
 
 USE performance_schema;
 truncate table events_statements_summary_by_digest;

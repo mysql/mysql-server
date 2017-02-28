@@ -1,0 +1,111 @@
+################################################################################
+# Verify that a member can properly handle view changes, and the consequent SQL
+# service calls, during server shutdown.
+#
+# Test:
+#   0) The test requires five servers: M1, M2, M3, M4 and M5.
+# 1. Create a group with 5 members.
+# 2. Crash member 5.
+# 3. Restart member 4.
+# 4. Validate that member is back ONLINE and group has 4
+#    members.
+# 5. Wait for client reconnection to server 5.
+# 6. Clean up.
+################################################################################
+# This test does crash servers, thence we skip it on asan and valgrind.
+--source include/not_asan.inc
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/force_restart.inc
+--source ../inc/have_group_replication_plugin.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Create a group with 5 members.
+--let $rpl_server_count= 5
+--source ../inc/group_replication.inc
+
+# Ensure that member 4 was already notified that all 5 members are
+# online.
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=5 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Crash member 5.
+# We do kill the server, using shutdown_server 0, and then MTR will
+# follow the expect file and restart the server, but we do not wait
+# for the server restart.
+# Since the server loose its GCS configuration it will not rejoin
+# the group.
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.5.expect
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Restart member 4.
+--echo #    Member 4 will receive the view on which member 5 is
+--echo #    expelled during server shutdown, this was triggering
+--echo #    assert failures on SQL service
+--echo #    Srv_session::deinit_thread().
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+
+--let $allow_rpl_inited= 1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_group_name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_bootstrap_group=0 --group_replication_start_on_boot=1
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--source include/restart_mysqld.inc
+
+# Wait for client reconnection.
+--let $rpl_server_number= 4
+--source include/rpl_reconnect.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Validate that member is back ONLINE and group has 4
+--echo #    members.
+--let $group_replication_member_state= ONLINE
+--source ../inc/gr_wait_for_member_state.inc
+
+--let $wait_condition=SELECT COUNT(*)=4 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
+--source include/wait_condition.inc
+
+# Expected errors since SQL service will not be able to establish
+# a session on server, since it is shutting down.
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Plugin group_replication reported: 'Error, maximum number of retries exceeded when waiting for the internal server session state to be operating'");
+call mtr.add_suppression("Plugin group_replication reported: 'Can't establish a internal server connection to execute plugin operations'");
+call mtr.add_suppression("Plugin group_replication reported: 'Error when extracting information for group change. Operations and checks made to group joiners may be incomplete'");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped.*");
+call mtr.add_suppression("Plugin group_replication reported: 'The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.'");
+call mtr.add_suppression("Plugin group_replication reported: 'Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.'");
+call mtr.add_suppression("Plugin group_replication reported: 'The server was automatically set into read only mode after an error was detected.'");
+call mtr.add_suppression("Plugin group_replication reported: 'Skipping leave operation: concurrent attempt to leave the group is on-going.'");
+SET SESSION sql_log_bin= 1;
+
+
+--echo
+--echo ############################################################
+--echo # 5. Wait for client reconnection to server 5.
+--let $rpl_connection_name= server_5
+--source include/rpl_connection.inc
+--let $rpl_server_number= 5
+--source include/rpl_reconnect.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Clean up.
+--source ../inc/group_replication_end.inc

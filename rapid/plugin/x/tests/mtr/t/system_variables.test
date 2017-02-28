@@ -72,12 +72,12 @@ let $wait_condition=
 --let $assert_cond= [select VARIABLE_VALUE like "" as Value from performance_schema.global_variables WHERE VARIABLE_NAME like "Mysqlx_ssl_crlpath", Value, 1] = 1
 --source include/assert.inc
 
---let $assert_text= Mysqlx_bind_address must be "0.0.0.0", the default value
---let $assert_cond= [select VARIABLE_VALUE like "0.0.0.0" as Value from performance_schema.global_variables WHERE VARIABLE_NAME like "Mysqlx_bind_address", Value, 1] = 1
+--let $assert_text= Mysqlx_bind_address must be "*", the default value
+--let $assert_cond= [select VARIABLE_VALUE like "*" as Value from performance_schema.global_variables WHERE VARIABLE_NAME like "Mysqlx_bind_address", Value, 1] = 1
 --source include/assert.inc
 
 --let $assert_text= Mysqlx_port_open_timeout must be 0 seconds, the default value
---let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_port_open_timeout", Value, 1] = 0 
+--let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_port_open_timeout", Value, 1] = 0
 --source include/assert.inc
 
 ## Postamble

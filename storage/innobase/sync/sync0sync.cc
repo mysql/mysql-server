@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -34,10 +34,15 @@ Created 9/5/1995 Heikki Tuuri
 #include "sync0rw.h"
 #include "sync0sync.h"
 
+/** Keeps count of number of Performance Schema keys defined. */
+unsigned int mysql_pfs_key_t::s_count;
+
 #ifdef UNIV_PFS_MUTEX
 /* Key to register autoinc_mutex with performance schema */
 mysql_pfs_key_t	autoinc_mutex_key;
+#  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 mysql_pfs_key_t	buffer_block_mutex_key;
+#  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 mysql_pfs_key_t	buf_pool_mutex_key;
 mysql_pfs_key_t	buf_pool_zip_mutex_key;
 mysql_pfs_key_t	cache_last_read_mutex_key;
@@ -94,8 +99,10 @@ mysql_pfs_key_t	lock_wait_mutex_key;
 mysql_pfs_key_t	trx_sys_mutex_key;
 mysql_pfs_key_t	srv_sys_mutex_key;
 mysql_pfs_key_t	srv_threads_mutex_key;
+#  ifndef PFS_SKIP_EVENT_MUTEX
 mysql_pfs_key_t	event_mutex_key;
 mysql_pfs_key_t	event_manager_mutex_key;
+#  endif /* !PFS_SKIP_EVENT_MUTEX */
 mysql_pfs_key_t	sync_array_mutex_key;
 mysql_pfs_key_t	thread_mutex_key;
 mysql_pfs_key_t zip_pad_mutex_key;
@@ -106,7 +113,9 @@ mysql_pfs_key_t	master_key_id_mutex_key;
 
 #ifdef UNIV_PFS_RWLOCK
 mysql_pfs_key_t	btr_search_latch_key;
+#  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 mysql_pfs_key_t	buf_block_lock_key;
+#  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 # ifdef UNIV_DEBUG
 mysql_pfs_key_t	buf_block_debug_latch_key;
 # endif /* UNIV_DEBUG */
@@ -122,6 +131,12 @@ mysql_pfs_key_t	fts_cache_init_rw_lock_key;
 mysql_pfs_key_t trx_i_s_cache_lock_key;
 mysql_pfs_key_t	trx_purge_latch_key;
 #endif /* UNIV_PFS_RWLOCK */
+
+/* There are mutexes/rwlocks that we want to exclude from instrumentation
+even if their corresponding performance schema define is set. And this
+PFS_NOT_INSTRUMENTED is used as the key value to identify those objects that
+would be excluded from instrumentation.*/
+mysql_pfs_key_t	PFS_NOT_INSTRUMENTED(ULINT32_UNDEFINED);
 
 /** For monitoring active mutexes */
 MutexMonitor*	mutex_monitor;

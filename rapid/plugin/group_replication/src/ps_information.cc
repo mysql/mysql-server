@@ -45,7 +45,7 @@ bool get_group_members_info(uint index,
     return false;
   }
 
-  uint number_of_members= group_member_manager->get_number_of_members();
+  size_t number_of_members= group_member_manager->get_number_of_members();
   if (index >= number_of_members) {
     /* purecov: begin inspected */
     if (index != 0) {

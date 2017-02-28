@@ -865,10 +865,8 @@ sub collect_one_test_case {
   # ----------------------------------------------------------------------
   # Check for replicaton tests
   # ----------------------------------------------------------------------
-  if ( $suitedir =~ 'rpl' )
-  {
-    $tinfo->{'rpl_test'}= 1;
-  }
+  $tinfo->{'rpl_test'}= 1 if ($suitename =~ 'rpl');
+  $tinfo->{'grp_rpl_test'}= 1 if ($suitename =~ 'group_replication');
 
   # ----------------------------------------------------------------------
   # Check for disabled tests
@@ -1056,7 +1054,7 @@ sub collect_one_test_case {
     push(@{$tinfo->{'slave_opt'}}, "--loose-skip-log-bin");
   }
 
-  if ( $tinfo->{'rpl_test'} )
+  if ( $tinfo->{'rpl_test'} or $tinfo->{'grp_rpl_test'} )
   {
     if ( $skip_rpl )
     {

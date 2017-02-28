@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -162,5 +162,5 @@ int main(int, char **)
   plan(12);
   MY_INIT("pfs_account-oom-t");
   do_all_tests();
-  return 0;
+  return (exit_status());
 }

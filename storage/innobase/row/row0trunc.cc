@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -337,7 +337,7 @@ public:
 		}
 
 		bool		ret;
-		os_file_t	handle = os_file_create(
+		pfs_os_file_t	handle = os_file_create(
 			innodb_log_file_key, m_log_file_name,
 			OS_FILE_CREATE, OS_FILE_NORMAL,
 			OS_LOG_FILE, srv_read_only_mode, &ret);
@@ -464,7 +464,7 @@ public:
 		}
 
 		bool	ret;
-		os_file_t handle = os_file_create_simple_no_error_handling(
+		pfs_os_file_t handle = os_file_create_simple_no_error_handling(
 			innodb_log_file_key, m_log_file_name,
 			OS_FILE_OPEN, OS_FILE_READ_WRITE,
 			srv_read_only_mode, &ret);
@@ -653,7 +653,7 @@ TruncateLogParser::parse(
 	/* Open the file and read magic-number to findout if truncate action
 	was completed. */
 	bool		ret;
-	os_file_t	handle = os_file_create_simple(
+	pfs_os_file_t	handle = os_file_create_simple(
 		innodb_log_file_key, log_file_name,
 		OS_FILE_OPEN, OS_FILE_READ_ONLY, srv_read_only_mode, &ret);
 	if (!ret) {
@@ -2044,9 +2044,22 @@ row_truncate_table_for_mysql(
 	    && !dict_table_is_temporary(table)
 	    && fsp_flags != ULINT_UNDEFINED) {
 
-		fil_reinit_space_header(
-			table->space,
-			table->indexes.count + FIL_IBD_FILE_INITIAL_SIZE + 1);
+		/* A single-table tablespace has initially
+		FIL_IBD_FILE_INITIAL_SIZE number of pages allocated and an
+		extra page is allocated for each of the indexes present. But in
+		the case of clust index 2 pages are allocated and as one is
+		covered in the calculation as part of table->indexes.count we
+		take care of the other page by adding 1. */
+		ulint	space_size = table->indexes.count +
+				FIL_IBD_FILE_INITIAL_SIZE + 1;
+
+		if (has_internal_doc_id) {
+			/* Since aux tables are created for fts indexes and
+			they use seperate tablespaces. */
+			space_size -= ib_vector_size(table->fts->indexes);
+		}
+
+		fil_reinit_space_header(table->space, space_size, trx);
 	}
 
 	DBUG_EXECUTE_IF("ib_trunc_crash_with_intermediate_log_checkpoint",

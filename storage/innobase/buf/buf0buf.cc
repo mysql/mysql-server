@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1386,15 +1386,16 @@ pfs_register_buffer_block(
 		rwlock = &block->lock;
 		ut_a(!rwlock->pfs_psi);
 		rwlock->pfs_psi = (PSI_server)
-			? PSI_server->init_rwlock(buf_block_lock_key, rwlock)
+			? PSI_server->init_rwlock(
+				buf_block_lock_key.m_value, rwlock)
 			: NULL;
 
 #   ifdef UNIV_DEBUG
 		rwlock = &block->debug_latch;
 		ut_a(!rwlock->pfs_psi);
 		rwlock->pfs_psi = (PSI_server)
-			? PSI_server->init_rwlock(buf_block_debug_latch_key,
-						  rwlock)
+			? PSI_server->init_rwlock(
+				buf_block_debug_latch_key.m_value, rwlock)
 			: NULL;
 #   endif /* UNIV_DEBUG */
 
