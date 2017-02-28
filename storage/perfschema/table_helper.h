@@ -934,28 +934,52 @@ private:
   size_t m_value_length;
 };
 
-class PFS_key_long_int : public PFS_engine_key
+class PFS_key_long : public PFS_engine_key
 {
 public:
-  PFS_key_long_int(const char *name) : PFS_engine_key(name), m_key_value(0)
+  PFS_key_long(const char *name) : PFS_engine_key(name), m_key_value(0)
   {
   }
 
-  virtual ~PFS_key_long_int()
+  virtual ~PFS_key_long()
   {
   }
 
   virtual void
   read(PFS_key_reader &reader, enum ha_rkey_function find_flag)
   {
-    m_find_flag = reader.read_long_int(find_flag, m_is_null, &m_key_value);
+    m_find_flag = reader.read_long(find_flag, m_is_null, &m_key_value);
   }
 
 protected:
-  bool do_match(bool record_null, int32 record_value);
+  bool do_match(bool record_null, long record_value);
 
 private:
-  int32 m_key_value;
+  long m_key_value;
+};
+
+class PFS_key_ulong : public PFS_engine_key
+{
+public:
+  PFS_key_ulong(const char *name) : PFS_engine_key(name), m_key_value(0)
+  {
+  }
+
+  virtual ~PFS_key_ulong()
+  {
+  }
+
+  virtual void
+  read(PFS_key_reader &reader, enum ha_rkey_function find_flag)
+  {
+    m_find_flag = reader.read_ulong(find_flag, m_is_null, &m_key_value);
+  }
+
+protected:
+  bool do_match(bool record_null, ulong record_value);
+
+private:
+  ulong m_key_value;
 };
 
 class PFS_key_ulonglong : public PFS_engine_key
@@ -1050,10 +1074,10 @@ public:
   bool match(ulonglong engine_transaction_id);
 };
 
-class PFS_key_processlist_id_int : public PFS_key_long_int
+class PFS_key_processlist_id_int : public PFS_key_long
 {
 public:
-  PFS_key_processlist_id_int(const char *name) : PFS_key_long_int(name)
+  PFS_key_processlist_id_int(const char *name) : PFS_key_long(name)
   {
   }
 
@@ -1092,10 +1116,10 @@ public:
   bool match(const PFS_prepared_stmt *pfs);
 };
 
-class PFS_key_socket_id : public PFS_key_long_int
+class PFS_key_socket_id : public PFS_key_long
 {
 public:
-  PFS_key_socket_id(const char *name) : PFS_key_long_int(name)
+  PFS_key_socket_id(const char *name) : PFS_key_long(name)
   {
   }
 
@@ -1106,10 +1130,10 @@ public:
   bool match(const PFS_socket *pfs);
 };
 
-class PFS_key_port : public PFS_key_long_int
+class PFS_key_port : public PFS_key_long
 {
 public:
-  PFS_key_port(const char *name) : PFS_key_long_int(name)
+  PFS_key_port(const char *name) : PFS_key_long(name)
   {
   }
 
@@ -1120,10 +1144,10 @@ public:
   bool match(const PFS_socket *pfs);
 };
 
-class PFS_key_error_number : public PFS_key_long_int
+class PFS_key_error_number : public PFS_key_long
 {
 public:
-  PFS_key_error_number(const char *name) : PFS_key_long_int(name)
+  PFS_key_error_number(const char *name) : PFS_key_long(name)
   {
   }
 
@@ -1292,6 +1316,20 @@ public:
   }
 
   bool match(PFS_statements_digest_stat *pfs);
+};
+
+class PFS_key_bucket_number : public PFS_key_ulong
+{
+public:
+  PFS_key_bucket_number(const char *name) : PFS_key_ulong(name)
+  {
+  }
+
+  ~PFS_key_bucket_number()
+  {
+  }
+
+  bool match(ulong value);
 };
 
 /* Generic NAME key */

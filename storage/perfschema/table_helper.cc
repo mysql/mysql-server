@@ -1208,7 +1208,54 @@ PFS_user_variable_value_row::make_row(const char *val, size_t length)
 }
 
 bool
-PFS_key_long_int::do_match(bool record_null, int32 record_value)
+PFS_key_long::do_match(bool record_null, long record_value)
+{
+  int cmp = 0;
+
+  if (m_is_null)
+  {
+    cmp = (record_null ? 0 : 1);
+  }
+  else
+  {
+    if (record_null)
+    {
+      cmp = -1;
+    }
+    else if (record_value < m_key_value)
+    {
+      cmp = -1;
+    }
+    else if (record_value > m_key_value)
+    {
+      cmp = +1;
+    }
+    else
+    {
+      cmp = 0;
+    }
+  }
+
+  switch (m_find_flag)
+  {
+  case HA_READ_KEY_EXACT:
+    return (cmp == 0);
+  case HA_READ_KEY_OR_NEXT:
+    return (cmp >= 0);
+  case HA_READ_KEY_OR_PREV:
+    return (cmp <= 0);
+  case HA_READ_BEFORE_KEY:
+    return (cmp < 0);
+  case HA_READ_AFTER_KEY:
+    return (cmp > 0);
+  default:
+    DBUG_ASSERT(false);
+    return false;
+  }
+}
+
+bool
+PFS_key_ulong::do_match(bool record_null, ulong record_value)
 {
   int cmp = 0;
 
@@ -1822,6 +1869,12 @@ PFS_key_digest::match(PFS_statements_digest_stat *pfs)
   MD5_HASH_TO_STRING(pfs->m_digest_storage.m_md5, md5_string);
 
   return do_match(record_null, md5_string, MD5_HASH_TO_STRING_LENGTH);
+}
+
+bool
+PFS_key_bucket_number::match(ulong value)
+{
+  return do_match(false, value);
 }
 
 bool

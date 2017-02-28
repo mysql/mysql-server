@@ -3,6 +3,7 @@ Field	Type	Null	Key	Default	Extra
 wait_started	datetime	YES		NULL	
 wait_age	time	YES		NULL	
 wait_age_secs	bigint(21)	YES		NULL	
+locked_table	mediumtext	YES		NULL	
 locked_table_schema	varchar(64)	YES		NULL	
 locked_table_name	varchar(64)	YES		NULL	
 locked_table_partition	varchar(64)	YES		NULL	
@@ -35,6 +36,7 @@ Field	Type	Null	Key	Default	Extra
 wait_started	datetime	YES		NULL	
 wait_age	time	YES		NULL	
 wait_age_secs	bigint(21)	YES		NULL	
+locked_table	mediumtext	YES		NULL	
 locked_table_schema	varchar(64)	YES		NULL	
 locked_table_name	varchar(64)	YES		NULL	
 locked_table_partition	varchar(64)	YES		NULL	

@@ -215,6 +215,7 @@ table_esms_global_by_event_name::delete_all_rows(void)
   reset_events_statements_by_user();
   reset_events_statements_by_host();
   reset_events_statements_global();
+  reset_histogram_global();
   return 0;
 }
 

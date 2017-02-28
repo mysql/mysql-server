@@ -185,6 +185,20 @@ def	performance_schema	events_statements_current	NO_GOOD_INDEX_USED	38	NULL	NO	b
 def	performance_schema	events_statements_current	NESTING_EVENT_ID	39	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	events_statements_current	NESTING_EVENT_TYPE	40	NULL	YES	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references		
 def	performance_schema	events_statements_current	NESTING_EVENT_LEVEL	41	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	performance_schema	events_statements_histogram_by_digest	SCHEMA_NAME	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	MUL		select,insert,update,references		
+def	performance_schema	events_statements_histogram_by_digest	DIGEST	2	NULL	YES	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references		
+def	performance_schema	events_statements_histogram_by_digest	BUCKET_NUMBER	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_histogram_by_digest	BUCKET_TIMER_LOW	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_histogram_by_digest	BUCKET_TIMER_HIGH	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_histogram_by_digest	COUNT_BUCKET	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_histogram_by_digest	COUNT_BUCKET_AND_LOWER	7	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_histogram_by_digest	BUCKET_QUANTILE	8	NULL	NO	double	NULL	NULL	7	6	NULL	NULL	NULL	double(7,6)			select,insert,update,references		
+def	performance_schema	events_statements_histogram_global	BUCKET_NUMBER	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned	PRI		select,insert,update,references		
+def	performance_schema	events_statements_histogram_global	BUCKET_TIMER_LOW	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_histogram_global	BUCKET_TIMER_HIGH	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_histogram_global	COUNT_BUCKET	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_histogram_global	COUNT_BUCKET_AND_LOWER	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_histogram_global	BUCKET_QUANTILE	6	NULL	NO	double	NULL	NULL	7	6	NULL	NULL	NULL	double(7,6)			select,insert,update,references		
 def	performance_schema	events_statements_history	THREAD_ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references		
 def	performance_schema	events_statements_history	EVENT_ID	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references		
 def	performance_schema	events_statements_history	END_EVENT_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
@@ -323,6 +337,9 @@ def	performance_schema	events_statements_summary_by_digest	SUM_NO_INDEX_USED	26	
 def	performance_schema	events_statements_summary_by_digest	SUM_NO_GOOD_INDEX_USED	27	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	events_statements_summary_by_digest	FIRST_SEEN	28	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references		
 def	performance_schema	events_statements_summary_by_digest	LAST_SEEN	29	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references		
+def	performance_schema	events_statements_summary_by_digest	QUANTILE_95	30	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_summary_by_digest	QUANTILE_99	31	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_statements_summary_by_digest	QUANTILE_999	32	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	events_statements_summary_by_host_by_event_name	HOST	1	NULL	YES	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	MUL		select,insert,update,references		
 def	performance_schema	events_statements_summary_by_host_by_event_name	EVENT_NAME	2	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references		
 def	performance_schema	events_statements_summary_by_host_by_event_name	COUNT_STAR	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		

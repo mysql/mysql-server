@@ -5961,7 +5961,7 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
    Capture statement stats by digest.
   */
   const sql_digest_storage *digest_storage = NULL;
-  PFS_statement_stat *digest_stat = NULL;
+  PFS_statements_digest_stat *digest_stat = NULL;
   PFS_program *pfs_program = NULL;
   PFS_prepared_stmt *pfs_prepared_stmt = NULL;
 
@@ -6104,33 +6104,55 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
   if (digest_stat != NULL)
   {
-    digest_stat->mark_used();
+    digest_stat->m_stat.mark_used();
 
     if (flags & STATE_FLAG_TIMED)
     {
-      digest_stat->aggregate_value(wait_time);
+      digest_stat->m_stat.aggregate_value(wait_time);
+
+      time_normalizer *normalizer = time_normalizer::get(wait_timer);
+      ulong bucket_index = normalizer->bucket_index(wait_time);
+
+      /* Update digest histogram. */
+      digest_stat->m_histogram.increment_bucket(bucket_index);
+
+      /* Update global histogram. */
+      global_statements_histogram.increment_bucket(bucket_index);
     }
     else
     {
-      digest_stat->aggregate_counted();
+      digest_stat->m_stat.aggregate_counted();
     }
 
-    digest_stat->m_lock_time += state->m_lock_time;
-    digest_stat->m_rows_sent += state->m_rows_sent;
-    digest_stat->m_rows_examined += state->m_rows_examined;
-    digest_stat->m_created_tmp_disk_tables += state->m_created_tmp_disk_tables;
-    digest_stat->m_created_tmp_tables += state->m_created_tmp_tables;
-    digest_stat->m_select_full_join += state->m_select_full_join;
-    digest_stat->m_select_full_range_join += state->m_select_full_range_join;
-    digest_stat->m_select_range += state->m_select_range;
-    digest_stat->m_select_range_check += state->m_select_range_check;
-    digest_stat->m_select_scan += state->m_select_scan;
-    digest_stat->m_sort_merge_passes += state->m_sort_merge_passes;
-    digest_stat->m_sort_range += state->m_sort_range;
-    digest_stat->m_sort_rows += state->m_sort_rows;
-    digest_stat->m_sort_scan += state->m_sort_scan;
-    digest_stat->m_no_index_used += state->m_no_index_used;
-    digest_stat->m_no_good_index_used += state->m_no_good_index_used;
+    digest_stat->m_stat.m_lock_time += state->m_lock_time;
+    digest_stat->m_stat.m_rows_sent += state->m_rows_sent;
+    digest_stat->m_stat.m_rows_examined += state->m_rows_examined;
+    digest_stat->m_stat.m_created_tmp_disk_tables +=
+      state->m_created_tmp_disk_tables;
+    digest_stat->m_stat.m_created_tmp_tables += state->m_created_tmp_tables;
+    digest_stat->m_stat.m_select_full_join += state->m_select_full_join;
+    digest_stat->m_stat.m_select_full_range_join +=
+      state->m_select_full_range_join;
+    digest_stat->m_stat.m_select_range += state->m_select_range;
+    digest_stat->m_stat.m_select_range_check += state->m_select_range_check;
+    digest_stat->m_stat.m_select_scan += state->m_select_scan;
+    digest_stat->m_stat.m_sort_merge_passes += state->m_sort_merge_passes;
+    digest_stat->m_stat.m_sort_range += state->m_sort_range;
+    digest_stat->m_stat.m_sort_rows += state->m_sort_rows;
+    digest_stat->m_stat.m_sort_scan += state->m_sort_scan;
+    digest_stat->m_stat.m_no_index_used += state->m_no_index_used;
+    digest_stat->m_stat.m_no_good_index_used += state->m_no_good_index_used;
+  }
+  else
+  {
+    if (flags & STATE_FLAG_TIMED)
+    {
+      time_normalizer *normalizer = time_normalizer::get(wait_timer);
+      ulong bucket_index = normalizer->bucket_index(wait_time);
+
+      /* Update global histogram. */
+      global_statements_histogram.increment_bucket(bucket_index);
+    }
   }
 
   if (pfs_program != NULL)
@@ -6247,8 +6269,8 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     stat->m_warning_count += da->last_statement_cond_count();
     if (digest_stat != NULL)
     {
-      digest_stat->m_rows_affected += da->affected_rows();
-      digest_stat->m_warning_count += da->last_statement_cond_count();
+      digest_stat->m_stat.m_rows_affected += da->affected_rows();
+      digest_stat->m_stat.m_warning_count += da->last_statement_cond_count();
     }
     if (sub_stmt_stat != NULL)
     {
@@ -6265,7 +6287,7 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     stat->m_warning_count += da->last_statement_cond_count();
     if (digest_stat != NULL)
     {
-      digest_stat->m_warning_count += da->last_statement_cond_count();
+      digest_stat->m_stat.m_warning_count += da->last_statement_cond_count();
     }
     if (sub_stmt_stat != NULL)
     {
@@ -6280,7 +6302,7 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     stat->m_error_count++;
     if (digest_stat != NULL)
     {
-      digest_stat->m_error_count++;
+      digest_stat->m_stat.m_error_count++;
     }
     if (sub_stmt_stat != NULL)
     {

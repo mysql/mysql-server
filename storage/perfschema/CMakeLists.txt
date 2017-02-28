@@ -52,6 +52,7 @@ pfs_events_statements.h
 pfs_events_transactions.h
 pfs_events_waits.h
 pfs_global.h
+pfs_histogram.h
 pfs_host.h
 pfs_instr.h
 pfs_instr_class.h
@@ -75,6 +76,8 @@ table_esgs_by_host_by_event_name.h
 table_esgs_by_thread_by_event_name.h
 table_esgs_by_user_by_event_name.h
 table_esgs_global_by_event_name.h
+table_esmh_global.h
+table_esmh_by_digest.h
 table_esms_by_account_by_event_name.h
 table_esms_by_host_by_event_name.h
 table_esms_by_digest.h
@@ -182,6 +185,7 @@ pfs_events_statements.cc
 pfs_events_transactions.cc
 pfs_events_waits.cc
 pfs_global.cc
+pfs_histogram.cc
 pfs_host.cc
 pfs_instr.cc
 pfs_instr_class.cc
@@ -203,6 +207,8 @@ table_esgs_by_host_by_event_name.cc
 table_esgs_by_thread_by_event_name.cc
 table_esgs_by_user_by_event_name.cc
 table_esgs_global_by_event_name.cc
+table_esmh_global.cc
+table_esmh_by_digest.cc
 table_esms_by_account_by_event_name.cc
 table_esms_by_host_by_event_name.cc
 table_esms_by_digest.cc

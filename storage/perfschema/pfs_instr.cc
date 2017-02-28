@@ -85,6 +85,7 @@ PFS_file **file_handle_array = NULL;
 
 PFS_stage_stat *global_instr_class_stages_array = NULL;
 PFS_statement_stat *global_instr_class_statements_array = NULL;
+PFS_histogram global_statements_histogram;
 PFS_memory_stat *global_instr_class_memory_array = NULL;
 
 static PFS_ALIGNED PFS_cacheline_uint64 thread_internal_id_counter;
@@ -1473,6 +1474,12 @@ void
 reset_socket_instance_io(void)
 {
   global_socket_container.apply_all(fct_reset_socket_io);
+}
+
+void
+reset_histogram_global()
+{
+  global_statements_histogram.reset();
 }
 
 void

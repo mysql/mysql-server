@@ -307,13 +307,18 @@ struct PFS_key_reader
                                    bool &isnull,
                                    uchar *value);
 
-  enum ha_rkey_function read_long_int(enum ha_rkey_function find_flag,
-                                      bool &isnull,
-                                      int32 *value);
+  enum ha_rkey_function read_long(enum ha_rkey_function find_flag,
+                                  bool &isnull,
+                                  long *value);
+
+  enum ha_rkey_function read_ulong(enum ha_rkey_function find_flag,
+                                   bool &isnull,
+                                   ulong *value);
 
   enum ha_rkey_function read_ulonglong(enum ha_rkey_function find_flag,
                                        bool &isnull,
                                        ulonglong *value);
+
   enum ha_rkey_function read_varchar_utf8(enum ha_rkey_function find_flag,
                                           bool &isnull,
                                           char *buffer,

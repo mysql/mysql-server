@@ -184,12 +184,27 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("LAST_SEEN") },
     { C_STRING_WITH_LEN("timestamp") },
     { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("QUANTILE_95") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("QUANTILE_99") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("QUANTILE_999") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
   }
 };
 /* clang-format on */
 
 TABLE_FIELD_DEF
-table_esms_by_digest::m_field_def = {29, field_types};
+table_esms_by_digest::m_field_def = {32, field_types};
 
 PFS_engine_table_share table_esms_by_digest::m_share = {
   {C_STRING_WITH_LEN("events_statements_summary_by_digest")},
@@ -357,6 +372,71 @@ table_esms_by_digest::make_row(PFS_statements_digest_stat *digest_stat)
   time_normalizer *normalizer = time_normalizer::get(statement_timer);
   m_row.m_stat.set(normalizer, &digest_stat->m_stat);
 
+  PFS_histogram *histogram = &digest_stat->m_histogram;
+
+  ulong index;
+  ulonglong count_star = 0;
+
+  for (index = 0; index < NUMBER_OF_BUCKETS; index++)
+  {
+    count_star += histogram->read_bucket(index);
+  }
+
+  if (count_star == 0)
+  {
+    m_row.m_p95 = 0;
+    m_row.m_p99 = 0;
+    m_row.m_p999 = 0;
+  }
+  else
+  {
+    ulonglong count_95 = ((count_star * 95) + 99) / 100;
+    ulonglong count_99 = ((count_star * 99) + 99) / 100;
+    ulonglong count_999 = ((count_star * 999) + 999) / 1000;
+
+    DBUG_ASSERT(count_95 != 0);
+    DBUG_ASSERT(count_95 <= count_star);
+    DBUG_ASSERT(count_99 != 0);
+    DBUG_ASSERT(count_99 <= count_star);
+    DBUG_ASSERT(count_999 != 0);
+    DBUG_ASSERT(count_999 <= count_star);
+
+    ulong index_95 = 0;
+    ulong index_99 = 0;
+    ulong index_999 = 0;
+    bool index_95_set = false;
+    bool index_99_set = false;
+    bool index_999_set = false;
+    ulonglong count = 0;
+
+    for (index = 0; index < NUMBER_OF_BUCKETS; index++)
+    {
+      count += histogram->read_bucket(index);
+
+      if ((count >= count_95) && !index_95_set)
+      {
+        index_95 = index;
+        index_95_set = true;
+      }
+
+      if ((count >= count_99) && !index_99_set)
+      {
+        index_99 = index;
+        index_99_set = true;
+      }
+
+      if ((count >= count_999) && !index_999_set)
+      {
+        index_999 = index;
+        index_999_set = true;
+      }
+    }
+
+    m_row.m_p95 = g_histogram_pico_timers.m_bucket_timer[index_95 + 1];
+    m_row.m_p99 = g_histogram_pico_timers.m_bucket_timer[index_99 + 1];
+    m_row.m_p999 = g_histogram_pico_timers.m_bucket_timer[index_999 + 1];
+  }
+
   return 0;
 }
 
@@ -391,6 +471,15 @@ table_esms_by_digest::read_row_values(TABLE *table,
         break;
       case 28: /* LAST_SEEN */
         set_field_timestamp(f, m_row.m_last_seen);
+        break;
+      case 29: /* QUANTILE_95 */
+        set_field_ulonglong(f, m_row.m_p95);
+        break;
+      case 30: /* QUANTILE_99 */
+        set_field_ulonglong(f, m_row.m_p99);
+        break;
+      case 31: /* QUANTILE_999 */
+        set_field_ulonglong(f, m_row.m_p999);
         break;
       default: /* 3, ... COUNT/SUM/MIN/AVG/MAX */
         m_row.m_stat.set_field(f->field_index - 3, f);

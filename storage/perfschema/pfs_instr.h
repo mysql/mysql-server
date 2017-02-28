@@ -661,6 +661,7 @@ void carry_global_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
 
 extern PFS_stage_stat *global_instr_class_stages_array;
 extern PFS_statement_stat *global_instr_class_statements_array;
+extern PFS_histogram global_statements_histogram;
 extern PFS_memory_stat *global_instr_class_memory_array;
 
 PFS_mutex *sanitize_mutex(PFS_mutex *unsafe);
@@ -737,6 +738,7 @@ extern PFS_file **file_handle_array;
 void reset_events_waits_by_instance();
 void reset_file_instance_io();
 void reset_socket_instance_io();
+void reset_histogram_global();
 
 void aggregate_all_event_names(PFS_single_stat *from_array,
                                PFS_single_stat *to_array);

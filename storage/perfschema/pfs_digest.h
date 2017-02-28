@@ -28,6 +28,7 @@
 #include "pfs_column_types.h"
 #include "pfs_lock.h"
 #include "pfs_stat.h"
+#include "pfs_histogram.h"
 #include "sql_digest.h"
 
 extern bool flag_statements_digest;
@@ -64,6 +65,9 @@ struct PFS_ALIGNED PFS_statements_digest_stat
   ulonglong m_first_seen;
   ulonglong m_last_seen;
 
+  // FIXME : allocate in separate buffer
+  PFS_histogram m_histogram;
+
   /** Reset data for this record. */
   void reset_data(unsigned char *token_array, size_t length);
   /** Reset data and remove index for this record. */
@@ -75,13 +79,14 @@ void cleanup_digest();
 
 int init_digest_hash(const PFS_global_param *param);
 void cleanup_digest_hash(void);
-PFS_statement_stat *find_or_create_digest(
+PFS_statements_digest_stat *find_or_create_digest(
   PFS_thread *thread,
   const sql_digest_storage *digest_storage,
   const char *schema_name,
   uint schema_name_length);
 
 void reset_esms_by_digest();
+void reset_histogram_by_digest();
 
 /* Exposing the data directly, for iterators. */
 extern PFS_statements_digest_stat *statements_digest_stat_array;

@@ -29,6 +29,8 @@ events_stages_summary_by_thread_by_event_name	0	performance_schema	PRIMARY	HASH
 events_stages_summary_by_user_by_event_name	0	performance_schema	USER	HASH	
 events_stages_summary_global_by_event_name	0	performance_schema	PRIMARY	HASH	
 events_statements_current	0	performance_schema	PRIMARY	HASH	
+events_statements_histogram_by_digest	0	performance_schema	SCHEMA_NAME	HASH	
+events_statements_histogram_global	0	performance_schema	PRIMARY	HASH	
 events_statements_history	0	performance_schema	PRIMARY	HASH	
 events_statements_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	HASH	
 events_statements_summary_by_digest	0	performance_schema	SCHEMA_NAME	HASH	
@@ -187,6 +189,10 @@ events_stages_summary_by_user_by_event_name	0	performance_schema	USER	2	EVENT_NA
 events_stages_summary_global_by_event_name	0	performance_schema	PRIMARY	1	EVENT_NAME	NULL	
 events_statements_current	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
 events_statements_current	0	performance_schema	PRIMARY	2	EVENT_ID	NULL	
+events_statements_histogram_by_digest	0	performance_schema	SCHEMA_NAME	1	SCHEMA_NAME	NULL	YES
+events_statements_histogram_by_digest	0	performance_schema	SCHEMA_NAME	2	DIGEST	NULL	YES
+events_statements_histogram_by_digest	0	performance_schema	SCHEMA_NAME	3	BUCKET_NUMBER	NULL	
+events_statements_histogram_global	0	performance_schema	PRIMARY	1	BUCKET_NUMBER	NULL	
 events_statements_history	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
 events_statements_history	0	performance_schema	PRIMARY	2	EVENT_ID	NULL	
 events_statements_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	1	USER	NULL	YES

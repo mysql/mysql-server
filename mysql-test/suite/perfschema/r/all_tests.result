@@ -11,6 +11,7 @@ insert into t2 select concat('idx_', table_name, '.test') from information_schem
 where table_schema='performance_schema';
 update t2 set test_name= replace(test_name, "events_waits_summary_", "ews_");
 update t2 set test_name= replace(test_name, "events_stages_summary_", "esgs_");
+update t2 set test_name= replace(test_name, "events_statements_histogram_", "esmh_");
 update t2 set test_name= replace(test_name, "events_statements_summary_", "esms_");
 update t2 set test_name= replace(test_name, "events_transactions_summary_", "ets_");
 update t2 set test_name= replace(test_name, "events_errors_summary_", "ees_");

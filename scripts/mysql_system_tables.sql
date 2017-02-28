@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2017 Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -3108,9 +3108,52 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_digest("
   "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "FIRST_SEEN TIMESTAMP(0) NOT NULL default 0,"
   "LAST_SEEN TIMESTAMP(0) NOT NULL default 0,"
+  "QUANTILE_95 BIGINT unsigned not null,"
+  "QUANTILE_99 BIGINT unsigned not null,"
+  "QUANTILE_999 BIGINT unsigned not null,"
   "UNIQUE KEY (SCHEMA_NAME, DIGEST) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_STATEMENTS_HISTOGRAM_GLOBAL
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_statements_histogram_global("
+  "BUCKET_NUMBER INTEGER unsigned not null,"
+  "BUCKET_TIMER_LOW BIGINT unsigned not null,"
+  "BUCKET_TIMER_HIGH BIGINT unsigned not null,"
+  "COUNT_BUCKET BIGINT unsigned not null,"
+  "COUNT_BUCKET_AND_LOWER BIGINT unsigned not null,"
+  "BUCKET_QUANTILE DOUBLE(7,6) not null,"
+  "PRIMARY KEY (BUCKET_NUMBER) USING HASH"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_STATEMENTS_HISTOGRAM_BY_DIGEST
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_statements_histogram_by_digest("
+  "SCHEMA_NAME VARCHAR(64),"
+  "DIGEST VARCHAR(32),"
+  "BUCKET_NUMBER INTEGER unsigned not null,"
+  "BUCKET_TIMER_LOW BIGINT unsigned not null,"
+  "BUCKET_TIMER_HIGH BIGINT unsigned not null,"
+  "COUNT_BUCKET BIGINT unsigned not null,"
+  "COUNT_BUCKET_AND_LOWER BIGINT unsigned not null,"
+  "BUCKET_QUANTILE DOUBLE(7,6) not null,"
+  "UNIQUE KEY (SCHEMA_NAME, DIGEST, BUCKET_NUMBER) USING HASH"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
