@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -149,7 +149,7 @@ ndbcluster_connect(int (*connect_callback)(void),
         g_pool[i]->connect(0,0,0);
         if (g_pool[i]->node_id() == 0)
         {
-          sql_print_warning("NDB[%u]: starting connect thread", i);
+          sql_print_information("NDB[%u]: starting connect thread", i);
           g_pool[i]->start_connect_thread();
           continue;
         }

@@ -163,8 +163,6 @@ let $query4 =
 connection j1;
 set ndb_join_pushdown = on;
 
-call mtr.add_suppression("starting connect thread");
-
 -- echo ===============================
 -- echo Run single instance of 'query1' 
 -- echo ===============================
