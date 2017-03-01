@@ -293,6 +293,9 @@ struct recv_addr_t {
 
 struct recv_dblwr_t {
 
+	// Default constructor
+	recv_dblwr_t() : deferred(), pages() { }
+
 	/** Add a page frame to the doublewrite recovery buffer. */
 	void add(const byte* page)
 	{
@@ -309,6 +312,9 @@ struct recv_dblwr_t {
 	using List = std::list<const byte*>;
 
 	struct Page {
+
+		/** Default constructor */
+		Page() : m_no(), m_ptr(), m_page() { };
 
 		/** Constructor
 		@param[in]	no	Doublewrite page number
@@ -342,6 +348,10 @@ struct recv_dblwr_t {
 
 	/** Recovered doublewrite buffer page frames */
 	List			pages;
+
+	// Disable copying
+	recv_dblwr_t(const recv_dblwr_t&) = delete;
+	recv_dblwr_t& operator=(const recv_dblwr_t&) = delete;
 };
 
 /** Class to parse persistent dynamic metadata redo log, store and

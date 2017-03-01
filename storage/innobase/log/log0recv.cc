@@ -413,6 +413,19 @@ recv_sys_finish()
 		UT_DELETE(recv_sys->spaces);
 	}
 
+	ut_a(recv_sys->dblwr.pages.empty());
+
+	if (!recv_sys->dblwr.deferred.empty()) {
+
+		/* Free the pages that were not required for recovery. */
+		for (auto& page : recv_sys->dblwr.deferred) {
+			page.close();
+			ut_error;
+		}
+	}
+
+	recv_sys->dblwr.deferred.clear();
+
 	ut_free(recv_sys->buf);
 	ut_free(recv_sys->last_block_buf_start);
 	UT_DELETE(recv_sys->metadata_recover);
@@ -447,6 +460,7 @@ recv_sys_close()
 	mutex_free(&recv_sys->writer_mutex);
 #endif /* !UNIV_HOTBACKUP */
 
+	call_destructor(&recv_sys->dblwr);
 	call_destructor(&recv_sys->deleted);
 	call_destructor(&recv_sys->missing_ids);
 
@@ -694,7 +708,7 @@ recv_sys_empty_hash()
 	for (auto& space : *recv_sys->spaces) {
 
 		if (space.second.m_heap != nullptr) {
-			mem_heap_empty(space.second.m_heap);
+			mem_heap_free(space.second.m_heap);
 			space.second.m_heap = nullptr;
 		}
 	}
@@ -4115,7 +4129,6 @@ recv_dblwr_t::find_page(space_id_t space_id, page_no_t page_no)
 			matches.push_back(i->m_page);
 		}
 	}
-
 
 	if (matches.size() == 1) {
 		result = matches[0];

@@ -8663,7 +8663,7 @@ bool
 fil_check_missing_tablespaces()
 {
 	bool		missing = false;
-	const auto	dblwr	= recv_sys->dblwr;
+	auto&		dblwr	= recv_sys->dblwr;
 	const auto	end = recv_sys->deleted.end();
 
 	/* Called in single threaded mode, no need to acquire the mutex. */
@@ -8671,7 +8671,7 @@ fil_check_missing_tablespaces()
 	/* First check if we were able to restore all the doublewrite
 	buffer pages. If not then print a warning. */
 
-	for (auto page : dblwr.deferred) {
+	for (auto& page : dblwr.deferred) {
 
 		space_id_t	space_id;
 
@@ -8698,11 +8698,13 @@ fil_check_missing_tablespaces()
 				<< page_no << "} could not be restored."
 				<< " File name unknown for tablespace ID "
 				<< space_id;
-
-			/* Free the memory. */
-			page.close();
 		}
+
+		/* Free the memory. */
+		page.close();
 	}
+
+	dblwr.deferred.clear();
 
 	for (auto space_id : recv_sys->missing_ids) {
 

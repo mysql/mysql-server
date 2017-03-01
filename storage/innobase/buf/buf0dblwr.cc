@@ -735,7 +735,7 @@ buf_dblwr_recover_pages(fil_space_t* space)
 
 			buf_dblwr_recover_page(0, space, page_no, page.m_page);
 
-			ut_free(page.m_ptr);
+			page.close();
 
 			it = dblwr.deferred.erase(it);
 		} else {
@@ -753,7 +753,6 @@ buf_dblwr_free(void)
 /*================*/
 {
 	/* Free the double write data structures. */
-	ut_a(buf_dblwr != NULL);
 	ut_ad(buf_dblwr->s_reserved == 0);
 	ut_ad(buf_dblwr->b_reserved == 0);
 
