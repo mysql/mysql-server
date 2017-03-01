@@ -83,6 +83,7 @@ SET SESSION sql_log_bin= 1;
 ############################################################
 # 11. Cleanup (restore the connection back to original)
 [connection server1]
+include/assert.inc ['Table t1 has values 1 and 2']
 #
 # Don't cause conflict due the rollback and the release don't interfere
 #
@@ -161,6 +162,7 @@ SET SESSION sql_log_bin= 1;
 ############################################################
 # 11. Cleanup (restore the connection back to original)
 [connection server1]
+include/assert.inc ['Table t1 has values 3 and 4']
 #
 # Using SAVEPOINT don't modify the conflict detection
 #
@@ -240,5 +242,8 @@ SET SESSION sql_log_bin= 1;
 ############################################################
 # 11. Cleanup (restore the connection back to original)
 [connection server1]
+include/assert.inc ['There are six values in table t1']
+include/assert.inc ['Table t1 has values 6 and 7']
+include/assert.inc ['Table t1 do not have value 5']
 DROP TABLE t1;
 include/group_replication_end.inc

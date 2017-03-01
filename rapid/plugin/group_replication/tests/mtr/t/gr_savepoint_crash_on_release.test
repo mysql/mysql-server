@@ -95,6 +95,7 @@ let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_group
 --echo #3. check that incomplete transaction t1 is rolled back, table1 should have only 2 tuples.
 --let $assert_text= 'There should be two values in table1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM table1, count, 1] = 2
+--source include/assert.inc
 
 --echo #4. Clean-up
 DROP TABLE table1;
