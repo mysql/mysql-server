@@ -1229,8 +1229,6 @@ end:
    @param[in]    to_decide_repo   For this channel, check if repositories
                                   are allowed to convert from one type to other.
    @param[in]    pchannel_map     a pointer to channel_map
-   @param[in]    channel_type     If the given channel is a slave channel.
-                                  Default is true.
 
    @return      Pointer         pointer to the created Master_info
    @return      NULL            when creation fails
