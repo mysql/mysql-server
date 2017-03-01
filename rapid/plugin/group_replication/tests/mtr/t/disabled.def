@@ -10,7 +10,6 @@
 #
 ##############################################################################
 
-group_replication.gr_nullable_unique_key_conflict               : BUG#24666169  2016-09-14 Nuno Carvalho Disabled until bug is fixed
 group_replication.gr_majority_loss_5_to_2   : WL#9157 2017-01-27 dlenev Atomic CREATE TABLE should be correctly recovered by binlog after restart
 group_replication.gr_majority_loss_2_to_1   : WL#9175 2017-02-07 dlenev Atomic CREATE TABLE should be correctly recovered by binlog after restart
 group_replication.gr_stop_when_unreachable  : WL#9157 2017-01-27 dlenev Atomic CREATE TABLE should be correctly recovered by binlog after restart
