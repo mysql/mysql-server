@@ -309,7 +309,6 @@ bool rename_table(THD *thd,
   @param  thd                  The dictionary client.
   @param  from_table_name      The table name we are renaming from.
   @param  to_table_def         dd::Table for table after rename.
-  @param  mark_as_hidden       Mark the new table as hidden, if true.
   @param  commit_dd_changes    Indicates whether change to the data
                                dictionary needs to be committed.
 
@@ -326,7 +325,7 @@ bool rename_table(THD *thd,
 */
 bool rename_table(THD *thd, const char *from_table_name,
                   dd::Table *to_table_def,
-                  bool mark_as_hidden, bool commit_dd_changes);
+                  bool commit_dd_changes);
 
 /**
   Rename a view in the data-dictionary.

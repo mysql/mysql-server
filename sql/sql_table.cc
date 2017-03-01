@@ -7700,9 +7700,10 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
                           old_name, &to_table_def))
     DBUG_RETURN(true);
 
-  // Set schema id and table name.
+  // Set schema id, table name and hidden attribute.
   to_table_def->set_schema_id(to_sch->id());
   to_table_def->set_name(new_name);
+  to_table_def->set_hidden(flags & FN_TO_IS_TMP);
 
   // Get the handler for the table, and issue an error if we cannot load it.
   handler *file= (base == NULL ? 0 :
@@ -7784,8 +7785,7 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     supporting atomic DDL. And for engines which can't do atomic DDL in
     either case there are scenarios in which DD and SE get out of sync.
   */
-  if (dd::rename_table(thd, old_name, to_table_def, (flags & FN_TO_IS_TMP),
-                       !(flags & NO_DD_COMMIT)))
+  if (dd::rename_table(thd, old_name, to_table_def, !(flags & NO_DD_COMMIT)))
   {
     /*
       In cases when we are executing atomic DDL it is responsibility of the

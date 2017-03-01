@@ -2653,12 +2653,9 @@ bool rename_table(THD *thd,
 
 bool rename_table(THD *thd, const char *from_table_name,
                   dd::Table *to_table_def,
-                  bool mark_as_hidden, bool commit_dd_changes)
+                  bool commit_dd_changes)
 {
   Disable_gtid_state_update_guard disabler(thd);
-
-  // Mark the hidden flag.
-  to_table_def->set_hidden(mark_as_hidden);
 
   if (rename_foreign_keys(from_table_name, to_table_def))
     return true;
