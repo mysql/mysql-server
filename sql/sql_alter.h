@@ -477,16 +477,18 @@ public:
   char         tmp_name[80];
 
   /*
-    Used to temporarily store pre-existing foreign keys during ALTER TABLE
-    These FKs can't be part of the temporary table as they will then cause
-    the unique name constraint to be violated. The FKs will be added back
-    to the table at the end of ALTER TABLE.
+    Used to remember which foreign keys already existed in the table.
+    These foreign keys must be temporary renamed in order to not
+    have conficting name with the foreign keys in the old table.
   */
   FOREIGN_KEY  *fk_info;
   uint         fk_count;
 
   /*
-    Used for the same purpose as fk_info above.
+    Used to temporarily store pre-existing triggeres during ALTER TABLE
+    These triggers can't be part of the temporary table as they will then cause
+    the unique name constraint to be violated. The triggers will be added back
+    to the table at the end of ALTER TABLE.
   */
   Prealloced_array<dd::Trigger*, 1>  trg_info;
 

@@ -415,9 +415,9 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
       }
 
       /* Rename view in the data-dictionary. */
-      if (dd::rename_table<dd::View>(thd,
-                                     ren_table->db, ren_table->table_name,
-                                     new_db, new_alias, false, *int_commit_done))
+      if (dd::rename_view(thd,
+                          ren_table->db, ren_table->table_name,
+                          new_db, new_alias, *int_commit_done))
       {
         DBUG_RETURN(!skip_error);
       }

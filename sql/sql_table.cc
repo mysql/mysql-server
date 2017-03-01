@@ -41,6 +41,7 @@
 #include "dd/types/column.h"
 #include "dd/types/foreign_key.h"         // dd::Foreign_key
 #include "dd/types/foreign_key_element.h" // dd::Foreign_key_element
+#include "dd/types/index.h"               // dd::Index
 #include "dd/types/table.h"               // dd::Table
 #include "dd_sql_view.h"              // update_referencing_views_metadata
 #include "dd_table_share.h"           // open_table_def
@@ -158,6 +159,7 @@ static bool prepare_set_field(THD *thd, Create_field *sql_field);
 static bool prepare_enum_field(THD *thd, Create_field *sql_field);
 
 static uint blob_length_by_type(enum_field_types type);
+static const Create_field *get_field_by_index(Alter_info *alter_info, uint idx);
 
 
 /**
@@ -1466,13 +1468,13 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
           if (table_exists)
           {
             // Rename table from DD
-            if (dd::rename_table<dd::Table>(thd,
-                                            from_db,
-                                            from_table_name,
-                                            db,
-                                            table_name,
-                                            false,
-                                            true))
+            if (dd::rename_table(thd,
+                                 from_db,
+                                 from_table_name,
+                                 db,
+                                 table_name,
+                                 false,
+                                 true))
               break;
           }
         }
@@ -5751,6 +5753,132 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
 }
 
 
+const char* find_fk_supporting_index(Alter_info *alter_info,
+                                     const KEY *key_info_buffer,
+                                     const uint key_count,
+                                     const FOREIGN_KEY *fk)
+{
+  for (const KEY *key= key_info_buffer;
+       key < key_info_buffer + key_count; key++)
+  {
+    // The index may have more elements, but must start with the same
+    // elements as the FK.
+    if (fk->key_parts > key->actual_key_parts)
+      continue;
+
+    if ((key->flags & HA_FULLTEXT) ||
+        (key->flags & HA_SPATIAL))
+      continue;
+
+    if (key->flags & HA_KEY_HAS_PART_KEY_SEG)
+      continue;  // Prefix indexes cannot be supporting indexes.
+
+    bool match= true;
+    for (uint i= 0; i < fk->key_parts && match; i++)
+    {
+      const Create_field *col= get_field_by_index(alter_info,
+                                                  key->key_part[i].fieldnr);
+      if (col->is_virtual_gcol())
+        match= false;
+      else if (my_strcasecmp(system_charset_info,
+                             col->field_name,
+                             fk->key_part[i].str) != 0)
+        match= false;
+    }
+    if (match)
+      return key->name;
+  }
+  return nullptr;
+}
+
+
+/**
+  Restore the foreign key name for foreign keys which have been
+  temporarily renamed during ALTER TABLE. This is needed to avoid
+  problems with duplicate foreign key names while we have two
+  definitions of the same table.
+
+  @param thd            Thread handle.
+  @param schema_name    Database name.
+  @param table_name     Table name.
+  @param fk_keyinfo     FK keyinfo containing orignal FK names.
+  @param fk_keys        Number of FKs.
+  @param commit_dd_changes  Indicates whether change should be committed.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
+  @retval false on success
+  @retval true on failure
+ */
+
+static bool restore_foreign_key_names(THD *thd,
+                                      const dd::String_type &schema_name,
+                                      const dd::String_type &table_name,
+                                      const FOREIGN_KEY *fk_keyinfo,
+                                      uint fk_keys,
+                                      bool commit_dd_changes)
+{
+  DBUG_ENTER("restore_foreign_key_names");
+
+  dd::Table *table_def= nullptr;
+  if (thd->dd_client()->acquire_for_modification(schema_name, table_name,
+                                                 &table_def))
+    DBUG_RETURN(true);
+
+  // Restore the original name for pre-existing foreign keys
+  // that had their name temporarily altered during ALTER TABLE
+  // to avoid violating the unique constraint on FK name.
+  bool updated= false;
+  for (dd::Foreign_key *fk : *table_def->foreign_keys())
+  {
+    for (const FOREIGN_KEY *fk_key= fk_keyinfo;
+         fk_key != fk_keyinfo + fk_keys;
+         ++fk_key)
+    {
+      if (fk_key->orig_name != nullptr &&
+          fk->name().length() == strlen(fk_key->name) &&
+          (strncmp(fk_key->name, fk->name().c_str(), fk->name().length()) == 0))
+      {
+        fk->set_name(fk_key->orig_name);
+        updated= true;
+        break;
+      }
+    }
+  }
+
+  if (!updated)
+    DBUG_RETURN(false);
+
+  Disable_gtid_state_update_guard disabler(thd);
+
+  if (thd->dd_client()->update(table_def))
+  {
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
+    }
+    DBUG_RETURN(true);
+  }
+
+  if (commit_dd_changes)
+
+  {
+    if (trans_commit_stmt(thd) || trans_commit(thd))
+      DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
+}
+
+
 /**
   Generate a foreign key name. Foreign key names have to be unique
   for a given schema. This function is used when the user has not
@@ -5764,38 +5892,38 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
   and per table. The number chosen for the counter is 1 higher than
   the highest number currently in use.
 
+  @todo Implement new naming scheme (or move responsibility of
+        naming to the SE layer).
+
   @param table_name          Table name.
-  @param existing_fks        Array of already existing FKs for the table.
-  @param existing_fks_count  Number of pre-existing FKs.
-  @param fk_info_buffer      Array of FKs to be added.
-  @param fk_number           Number of FKs to be added.
+  @param fk_info_buffer      Array of FKs.
+  @param fk_number           Index to FK to be added.
 
   @retval  Generated name
 */
 
 static const char* generate_fk_name(const char *table_name,
-                                    FOREIGN_KEY *existing_fks,
-                                    uint existing_fks_count,
                                     FOREIGN_KEY **fk_info_buffer,
                                     uint fk_number)
 {
   // InnoDB name generation (for now).
   // Find the highest used key number.
   uint key_number= 0;
-  for (uint i= 0; i < existing_fks_count; i++)
-  {
-    const char *s= strstr(existing_fks[i].name, "_ibfk_");
-    if (s && strlen(s) > 6)
-    {
-      char *e= NULL;
-      uint nr= my_strtoull(s + 6, &e, 10);
-      if (!*e && nr > key_number)
-        key_number= nr;
-    }
-  }
   for (uint i= 0; i < fk_number; i++)
   {
-    const char *s= strstr((*fk_info_buffer)[i].name, "_ibfk_");
+    const char *s;
+    if ((*fk_info_buffer)[i].orig_name != nullptr)
+    {
+      // The FK already existed, check the orignal name
+      s= strstr((*fk_info_buffer)[i].orig_name,
+                dd::FOREIGN_KEY_NAME_SUBSTR);
+    }
+    else
+    {
+      // New FK, check the newly generated name
+      s= strstr((*fk_info_buffer)[i].name,
+                dd::FOREIGN_KEY_NAME_SUBSTR);
+    }
     if (s && strlen(s) > 6)
     {
       char *e= NULL;
@@ -5804,11 +5932,10 @@ static const char* generate_fk_name(const char *table_name,
         key_number= nr;
     }
   }
-  char number_buff[4];
-  int10_to_str(key_number + 1, number_buff, 10);
-  char buff[NAME_CHAR_LEN + 10]; // Reserve 10 chars for _ibfk_nnnn
-  strxnmov(buff, sizeof(buff) - 1, table_name, "_ibfk_", number_buff, NullS);
-  return sql_strdup(buff);
+  std::string name(table_name);
+  name.append(dd::FOREIGN_KEY_NAME_SUBSTR);
+  name.append(std::to_string(key_number + 1));
+  return sql_strdup(name.c_str());
 }
 
 
@@ -5817,12 +5944,12 @@ static const char* generate_fk_name(const char *table_name,
 
   @param thd                 Thread handle.
   @param create_info         Create info from parser.
+  @param alter_info          Alter_info structure describing ALTER TABLE.
   @param table_name          Table name.
-  @param create_list         New columns.
-  @param existing_fks        Array of pre-existing FKs.
-  @param existing_fks_count  Number of pre-existing FKs.
-  @param fk_info_buffer      Array of new FKs.
-  @param fk_number           Number of new FKs.
+  @param key_info_buffer     Array of indexes.
+  @param key_count           Number of indexes.
+  @param fk_info_buffer      Array of FKs (pre-existing and new).
+  @param fk_number           Index to the FK to be prepared.
   @param fk_key              Parser info about new FK to prepare.
   @param[out] fk_info        Struct to populate.
 
@@ -5831,10 +5958,10 @@ static const char* generate_fk_name(const char *table_name,
 
 static bool prepare_foreign_key(THD *thd,
                                 HA_CREATE_INFO *create_info,
+                                Alter_info *alter_info,
                                 const char *table_name,
-                                List<Create_field> *create_list,
-                                FOREIGN_KEY *existing_fks,
-                                uint existing_fks_count,
+                                KEY *key_info_buffer,
+                                uint key_count,
                                 FOREIGN_KEY **fk_info_buffer,
                                 uint fk_number,
                                 const Foreign_key_spec *fk_key,
@@ -5849,7 +5976,11 @@ static bool prepare_foreign_key(THD *thd,
     DBUG_RETURN(true);
   }
 
-  if (fk_key->validate(thd, table_name, *create_list))
+  // Validate checks (among other things) that index prefixes are
+  // not used and that generated columns are not used with
+  // SET NULL and ON UPDATE CASCASE. Since this cannot change once
+  // the FK has been made, it is enough to check it for new FKs.
+  if (fk_key->validate(thd, table_name, alter_info->create_list))
     DBUG_RETURN(true);
 
   if (fk_key->name.str)
@@ -5857,9 +5988,10 @@ static bool prepare_foreign_key(THD *thd,
   else
   {
     fk_info->name= generate_fk_name(table_name,
-                                    existing_fks, existing_fks_count,
                                     fk_info_buffer, fk_number);
   }
+  // New FKs doesn't have an original FK name.
+  fk_info->orig_name= nullptr;
 
   if (check_string_char_length(to_lex_cstring(fk_info->name),
                                "", NAME_CHAR_LEN,
@@ -5927,6 +6059,17 @@ static bool prepare_foreign_key(THD *thd,
     fk_info->fk_key_part[column_nr].str= sql_strdup(buff);
     fk_info->fk_key_part[column_nr].length= strlen(buff);
   }
+
+  const char* supporting_index=
+    find_fk_supporting_index(alter_info, key_info_buffer, key_count, fk_info);
+  if (supporting_index == nullptr)
+  {
+    my_error(ER_CANNOT_ADD_FOREIGN, MYF(0));
+    DBUG_RETURN(true);
+  }
+  // TODO: For now we use the index in the child table rather than the parent.
+  fk_info->unique_index_name= supporting_index;
+
   DBUG_RETURN(false);
 }
 
@@ -6423,11 +6566,7 @@ bool mysql_prepare_create_table(THD *thd,
   KEY_PART_INFO *key_part_info=
     (KEY_PART_INFO*) sql_calloc(sizeof(KEY_PART_INFO) * key_parts);
 
-  FOREIGN_KEY *fk_key_info;
-  (*fk_key_info_buffer)= fk_key_info=
-    (FOREIGN_KEY*) sql_calloc(sizeof(FOREIGN_KEY) * (*fk_key_count));
-
-  if (!*key_info_buffer || !key_part_info || !fk_key_info)
+  if (!*key_info_buffer || !key_part_info)
     DBUG_RETURN(true);				// Out of memory
 
   Mem_root_array<const KEY *> keys_to_check(thd->mem_root);
@@ -6435,8 +6574,10 @@ bool mysql_prepare_create_table(THD *thd,
     DBUG_RETURN(true);				// Out of memory
 
   uint key_number= 0;
-  uint fk_number= 0;
   bool primary_key= false;
+
+  // First prepare non-foreign keys so that they are ready when
+  // we prepare foreign keys.
   for (size_t i= 0; i < alter_info->key_list.size(); i++)
   {
     if (redundant_keys[i])
@@ -6454,19 +6595,7 @@ bool mysql_prepare_create_table(THD *thd,
       primary_key= true;
     }
 
-    if (key->type == KEYTYPE_FOREIGN)
-    {
-      if (prepare_foreign_key(thd, create_info, error_table_name,
-                              &alter_info->create_list,
-                              existing_fks, existing_fks_count,
-                              fk_key_info_buffer, fk_number,
-                              down_cast<const Foreign_key_spec*>(key),
-                              fk_key_info))
-        DBUG_RETURN(true);
-      fk_key_info++;
-      fk_number++;
-    }
-    else
+    if (key->type != KEYTYPE_FOREIGN)
     {
       if (prepare_key(thd, create_info, &alter_info->create_list,
                       key, key_info_buffer,
@@ -6475,6 +6604,63 @@ bool mysql_prepare_create_table(THD *thd,
         DBUG_RETURN(true);
       key_info++;
       key_number++;
+    }
+  }
+
+  // Normal keys are done, now prepare foreign keys.
+  (*fk_key_count)+= existing_fks_count;
+  FOREIGN_KEY *fk_key_info;
+  (*fk_key_info_buffer)= fk_key_info=
+    (FOREIGN_KEY*) sql_calloc(sizeof(FOREIGN_KEY) * (*fk_key_count));
+
+  if (!fk_key_info)
+    DBUG_RETURN(true);				// Out of memory
+
+  // Copy pre-existing foreign leys.
+  if (existing_fks_count > 0)
+    memcpy(*fk_key_info_buffer, existing_fks,
+           existing_fks_count * sizeof(FOREIGN_KEY));
+  uint fk_number= existing_fks_count;
+  fk_key_info+= existing_fks_count;
+
+  // Check that pre-existing foreign keys still have valid supporting indexes.
+  // This is done here after any index changes have been reflected in
+  // key_info_buffer.
+  for (FOREIGN_KEY *fk= *fk_key_info_buffer;
+       fk < (*fk_key_info_buffer) + existing_fks_count; fk++)
+  {
+    const char *new_supporting_index=
+      find_fk_supporting_index(alter_info, *key_info_buffer, *key_count, fk);
+    if (new_supporting_index == nullptr)
+    {
+      // No supporting index anymore, report the index used
+      // before as the reason.
+      my_error(ER_DROP_INDEX_FK, MYF(0), fk->unique_index_name);
+      DBUG_RETURN(true);
+    }
+    // TODO: For now we use the index in the child table rather than the parent.
+    fk->unique_index_name= new_supporting_index;
+  }
+
+  // Prepare new foreign keys.
+  for (size_t i= 0; i < alter_info->key_list.size(); i++)
+  {
+    if (redundant_keys[i])
+      continue; // Skip redundant keys
+
+    const Key_spec *key= alter_info->key_list[i];
+
+    if (key->type == KEYTYPE_FOREIGN)
+    {
+      if (prepare_foreign_key(thd, create_info, alter_info,
+                              error_table_name,
+                              *key_info_buffer, *key_count,
+                              fk_key_info_buffer, fk_number,
+                              down_cast<const Foreign_key_spec*>(key),
+                              fk_key_info))
+        DBUG_RETURN(true);
+      fk_key_info++;
+      fk_number++;
     }
   }
 
@@ -7598,7 +7784,7 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     supporting atomic DDL. And for engines which can't do atomic DDL in
     either case there are scenarios in which DD and SE get out of sync.
   */
-  if (dd::rename_table(thd, to_table_def, (flags & FN_TO_IS_TMP),
+  if (dd::rename_table(thd, old_name, to_table_def, (flags & FN_TO_IS_TMP),
                        !(flags & NO_DD_COMMIT)))
   {
     /*
@@ -9706,21 +9892,34 @@ static bool mysql_inplace_alter_table(THD *thd,
 
 
     /*
-      Transfer pre-existing foreign keys and triggers to the new table
-      definition. Since fk and trigger names have to be unique per schema,
+      Transfer pre-existing triggers to the new table
+      definition. Since trigger names have to be unique per schema,
       we cannot create them while both the old and the temp version of the
       table definition exist.
 
       Do this atomically with deletion of old table definition and replacing
       it with a new one.
     */
-    if ((alter_ctx->fk_count > 0 || !alter_ctx->trg_info.empty()) &&
-        dd::add_foreign_keys_and_triggers(thd, alter_ctx->db,
-                                          alter_ctx->table_name,
-                                          alter_ctx->fk_info,
-                                          alter_ctx->fk_count,
-                                          &alter_ctx->trg_info,
-                                          false))
+    if (!alter_ctx->trg_info.empty() &&
+        dd::add_triggers(thd, alter_ctx->db,
+                         alter_ctx->table_name,
+                         &alter_ctx->trg_info,
+                         false))
+      goto cleanup2;
+
+    /*
+      Rename pre-existing foreign keys back to their original names.
+      Since foreign key names have to be unique per schema, they cannot
+      have the same name in both the old and the temp version of the
+      table definition. Since we now have only one defintion, the names
+      can be restored.
+    */
+    if (alter_ctx->fk_count > 0 &&
+        restore_foreign_key_names(thd, alter_ctx->db,
+                                  alter_ctx->table_name,
+                                  alter_ctx->fk_info,
+                                  alter_ctx->fk_count,
+                                  false))
       goto cleanup2;
 
     if (!(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
@@ -10141,47 +10340,28 @@ static void to_lex_cstring(MEM_ROOT *mem_root,
 
 
 /**
-  Remember information about pre-existing foreign keys and triggers so
+  Remember information about pre-existing foreign keys so
   that they can be added to the new version of the table later.
+  Also check that the foreign keys are still valid.
 
-  @param[in]      thd              Thread handle.
-  @param[in]      table            The source table.
-  @param[in]      alter_info       Info about ALTER TABLE statement.
-  @param[in,out]  alter_ctx        Runtime context for ALTER TABLE.
-  @param[in]      new_create_list  List of new columns, used for rename check.
-  @param[in]      upgrade_flag  if upgrading the data directory
+  @param      thd              Thread handle.
+  @param      src_table        The source table.
+  @param      alter_info       Info about ALTER TABLE statement.
+  @param      alter_ctx        Runtime context for ALTER TABLE.
+  @param      new_create_list  List of new columns, used for rename check.
 */
 
-static
-void remember_preexisting_foreign_keys_and_triggers(
-        THD *thd,
-        TABLE *table,
-        Alter_info *alter_info,
-        Alter_table_ctx *alter_ctx,
-        List<Create_field> *new_create_list,
-        bool upgrade_flag)
+static bool transfer_preexisting_foreign_keys(
+              THD *thd,
+              const dd::Table *src_table,
+              Alter_info *alter_info,
+              Alter_table_ctx *alter_ctx,
+              List<Create_field> *new_create_list)
 {
-  // FKs and triggers are not supported for temporary tables.
-  if (table->s->tmp_table)
-    return;
+  if (src_table == nullptr)
+    return false; // Could be temporary table or during upgrade.
 
   List_iterator<Create_field> find_it(*new_create_list);
-
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Table *src_table= nullptr;
-  if (thd->dd_client()->acquire(table->s->db.str, table->s->table_name.str,
-                                &src_table))
-  {
-    // Should not happen, we know the table exists and can be opened.
-    DBUG_ASSERT(false);
-  }
-
-  // Table will not exist if we are upgrading the data directory.
-  if (upgrade_flag && (src_table == nullptr))
-    return;
-
-  if (src_table->has_trigger())
-    src_table->clone_triggers(&alter_ctx->trg_info);
 
   alter_ctx->fk_info=
     (FOREIGN_KEY*)sql_calloc(sizeof(FOREIGN_KEY) *
@@ -10194,9 +10374,9 @@ void remember_preexisting_foreign_keys_and_triggers(
     bool is_dropped= false;
     for (const Alter_drop *drop : alter_info->drop_list)
     {
-      DBUG_ASSERT(drop->type == Alter_drop::FOREIGN_KEY);
       // Index names are always case insensitive
-      if (my_strcasecmp(system_charset_info,
+      if (drop->type == Alter_drop::FOREIGN_KEY &&
+          my_strcasecmp(system_charset_info,
                         drop->name,
                         dd_fk->name().c_str()) == 0)
       {
@@ -10209,9 +10389,28 @@ void remember_preexisting_foreign_keys_and_triggers(
 
     FOREIGN_KEY *sql_fk= &alter_ctx->fk_info[alter_ctx->fk_count++];
 
+    // Remember the orignal name so we can set a temporary name to
+    // avoid name conflicts between FKs in the old table and the new table.
+    sql_fk->orig_name= strmake_root(thd->mem_root,
+                                    dd_fk->name().c_str(),
+                                    dd_fk->name().length() + 1);
+    // Make a temporary, unique name from the FK id.
+    std::string name("#fk_");
+    name.append(std::to_string(dd_fk->id()));
     sql_fk->name= strmake_root(thd->mem_root,
-                               dd_fk->name().c_str(),
-                               dd_fk->name().length() + 1);
+                               name.c_str(),
+                               name.length() + 1);
+
+    // Note that we do not check if this FK still has a valid supporting
+    // index here. This is done later in mysql_prepare_create_table()
+    // after the updated index information has been prepared.
+    // But we remember the name so we can use it for error reporting
+    // in case the index has been dropped.
+    sql_fk->unique_index_name=
+      strmake_root(thd->mem_root,
+                   dd_fk->unique_constraint().name().c_str(),
+                   dd_fk->unique_constraint().name().length() + 1);
+
     sql_fk->key_parts= dd_fk->elements().size();
 
     to_lex_cstring(thd->mem_root, &sql_fk->ref_db,
@@ -10260,6 +10459,63 @@ void remember_preexisting_foreign_keys_and_triggers(
                      dd_fk_ele->referenced_column_name());
     }
   }
+  return false;
+}
+
+
+/**
+  Check if any foreign keys are defined using the given column
+  which is about to be dropped. Report ER_FK_COLUMN_CANNOT_DROP
+  if any such foreign key exists.
+
+  @param src_table    Table with FKs to be checked.
+  @param alter_info   Info about ALTER TABLE statement.
+  @param field        Column to check.
+
+  @retval true   A foreign key is using the column, error reported.
+  @retval false  No foreign keys are using the column.
+*/
+
+static bool column_used_by_foreign_key(const dd::Table *src_table,
+                                       Alter_info *alter_info,
+                                       Field *field)
+{
+  if (src_table == nullptr)
+    return false; // Could be temporary table or during upgrade.
+
+  for (const dd::Foreign_key *dd_fk : src_table->foreign_keys())
+  {
+    // Skip foreign keys that are to be dropped
+    bool is_dropped= false;
+    for (const Alter_drop *drop : alter_info->drop_list)
+    {
+      // Index names are always case insensitive
+      if (drop->type == Alter_drop::FOREIGN_KEY &&
+          my_strcasecmp(system_charset_info,
+                        drop->name,
+                        dd_fk->name().c_str()) == 0)
+      {
+        is_dropped= true;
+        break;
+      }
+    }
+    if (is_dropped)
+      continue;
+
+    for (const dd::Foreign_key_element *dd_fk_ele : dd_fk->elements())
+    {
+      if (my_strcasecmp(system_charset_info,
+                        dd_fk_ele->column().name().c_str(),
+                        field->field_name) == 0)
+      {
+        my_error(ER_FK_COLUMN_CANNOT_DROP, MYF(0), field->field_name,
+                 dd_fk->name().c_str());
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 
@@ -10306,6 +10562,19 @@ bool prepare_fields_and_keys(THD *thd, TABLE *table,
   restore_record(table, s->default_values);     // Empty record for DEFAULT
   Create_field *def;
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Table *src_table= nullptr;
+  if (!table->s->tmp_table && !upgrade_flag)
+  {
+    if (thd->dd_client()->acquire(table->s->db.str, table->s->table_name.str,
+                                  &src_table))
+    {
+      DBUG_RETURN(true);
+    }
+    // Should not happen, we know the table exists and can be opened.
+    DBUG_ASSERT(src_table != nullptr);
+  }
+
   /*
     First collect all fields from table which isn't in drop_list
   */
@@ -10337,6 +10606,9 @@ bool prepare_fields_and_keys(THD *thd, TABLE *table,
           my_error(ER_DEPENDENT_BY_GENERATED_COLUMN, MYF(0), field->field_name);
           DBUG_RETURN(true);
         }
+
+        if (column_used_by_foreign_key(src_table, alter_info, field))
+          DBUG_RETURN(true);
 
         /*
           Mark the drop_column operation is on virtual GC so that a non-rebuild
@@ -10799,9 +11071,21 @@ bool prepare_fields_and_keys(THD *thd, TABLE *table,
       new_drop_list.push_back(drop);
   }
 
-  remember_preexisting_foreign_keys_and_triggers(thd, table, alter_info,
-                                                 alter_ctx, &new_create_list,
-                                                 upgrade_flag);
+  /*
+    Remember information about pre-existing triggers so
+    that they can be added to the new version of the table later.
+  */
+  if (src_table != nullptr && src_table->has_trigger())
+    src_table->clone_triggers(&alter_ctx->trg_info);
+
+  /*
+    Copy existing foreign keys from the source table into
+    Alter_table_ctx so that they can be added to the new table
+    later. Also checks that these foreign keys are still valid.
+  */
+  if (transfer_preexisting_foreign_keys(thd, src_table, alter_info,
+                                        alter_ctx, &new_create_list))
+    DBUG_RETURN(true);
 
   if (rename_key_list.size() > 0)
   {
@@ -11213,9 +11497,8 @@ static bool fk_check_copy_alter_table(THD *thd, TABLE *table,
                "ALGORITHM=INPLACE");
       DBUG_RETURN(true);
     case FK_COLUMN_DROPPED:
-      my_error(ER_FK_COLUMN_CANNOT_DROP, MYF(0), bad_column_name,
-               f_key->foreign_id->str);
-      DBUG_RETURN(true);
+      // Should already have been checked in column_used_by_foreign_key().
+      DBUG_ASSERT(false);
     default:
       DBUG_ASSERT(0);
     }
@@ -12790,21 +13073,31 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   /*
-    Transfer pre-existing foreign keys and triggers to the new table.
-    Since fk and trigger names have to be unique per schema, we cannot
+    Transfer pre-existing triggers to the new table.
+    Since trigger names have to be unique per schema, we cannot
     create them while both the old and the tmp version of the
     table exist.
   */
-  if ((alter_ctx.fk_count > 0 || !alter_ctx.trg_info.empty()) &&
-      dd::add_foreign_keys_and_triggers(thd, alter_ctx.new_db,
-                                        alter_ctx.new_alias,
-                                        alter_ctx.fk_info,
-                                        alter_ctx.fk_count,
-                                        &alter_ctx.trg_info,
-                                        !atomic_replace))
-  {
+  if (!alter_ctx.trg_info.empty() &&
+      dd::add_triggers(thd, alter_ctx.new_db, alter_ctx.new_alias,
+                       &alter_ctx.trg_info, !atomic_replace))
     goto err_with_mdl;
-  }
+
+  /*
+    Rename pre-existing foreign keys back to their original names.
+    Since foreign key names have to be unique per schema, they cannot
+    have the same name in both the old and the temp version of the
+    table definition. Since we now have only one defintion, the names
+    can be restored.
+  */
+  if (alter_ctx.fk_count > 0 &&
+      restore_foreign_key_names(thd,
+                                alter_ctx.new_db,
+                                alter_ctx.new_alias,
+                                alter_ctx.fk_info,
+                                alter_ctx.fk_count,
+                                !atomic_replace))
+    goto err_with_mdl;
 
 end_inplace_noop:
 

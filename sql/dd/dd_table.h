@@ -48,6 +48,7 @@ namespace dd {
   }
 
 static const char FIELD_NAME_SEPARATOR_CHAR = ';';
+static const char FOREIGN_KEY_NAME_SUBSTR[]= "_ibfk_";
 
 /**
   Prepares a dd::Table object from mysql_prepare_create_table() output
@@ -160,17 +161,15 @@ std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
                              handler *file);
 
 /**
-  Add foreign keys and triggers to a given table. This is used by
-  ALTER TABLE to restore existing foreign keys and triggers towards
+  Add triggers to a given table. This is used by
+  ALTER TABLE to restore existing triggers towards
   the end of the statement. This is needed to avoid problems with
-  duplicate foreign key and trigger names while we have two definitions
+  duplicate trigger names while we have two definitions
   of the same table.
 
   @param thd            Thread handle.
   @param schema_name    Database name.
   @param table_name     Table name.
-  @param fk_keyinfo     Array of foreign key information.
-  @param fk_keys        Number of foreign keys to add.
   @param trg_info       Array of triggers to be added to the table.
   @param commit_dd_changes  Indicates whether change should be committed.
 
@@ -185,12 +184,11 @@ std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
   @retval false on success
   @retval true on failure
 */
-bool add_foreign_keys_and_triggers(THD *thd,
-                                   const dd::String_type &schema_name,
-                                   const dd::String_type &table_name,
-                                   const FOREIGN_KEY *fk_keyinfo, uint fk_keys,
-                                   Prealloced_array<dd::Trigger*, 1> *trg_info,
-                                   bool commit_dd_changes);
+bool add_triggers(THD *thd,
+                  const dd::String_type &schema_name,
+                  const dd::String_type &table_name,
+                  Prealloced_array<dd::Trigger*, 1> *trg_info,
+                  bool commit_dd_changes);
 
 //////////////////////////////////////////////////////////////////////////
 // Function common to 'table' and 'view' objects
@@ -275,13 +273,13 @@ bool table_exists(dd::cache::Dictionary_client *client,
                   bool *exists);
 
 /**
-  Rename a table or view in the data-dictionary.
+  Rename a table in the data-dictionary.
 
   @param  thd                  The dictionary client.
-  @param  from_schema_name     Schema of table/view to rename.
-  @param  from_name            Table/view name to rename.
+  @param  from_schema_name     Schema of table to rename.
+  @param  from_name            Table name to rename.
   @param  to_schema_name       New schema name.
-  @param  to_name              New table/view name.
+  @param  to_name              New table name.
   @param  mark_as_hidden       Mark the new table as hidden, if true.
   @param  commit_dd_changes    Indicates whether change to the data
                                dictionary needs to be committed.
@@ -297,7 +295,6 @@ bool table_exists(dd::cache::Dictionary_client *client,
   @retval      true         Failure (error has been reported).
   @retval      false        Success.
 */
-template <typename T>
 bool rename_table(THD *thd,
                   const char *from_schema_name,
                   const char *from_name,
@@ -310,6 +307,7 @@ bool rename_table(THD *thd,
   Rename a table in the data-dictionary.
 
   @param  thd                  The dictionary client.
+  @param  from_table_name      The table name we are renaming from.
   @param  to_table_def         dd::Table for table after rename.
   @param  mark_as_hidden       Mark the new table as hidden, if true.
   @param  commit_dd_changes    Indicates whether change to the data
@@ -326,8 +324,38 @@ bool rename_table(THD *thd,
   @retval      true         Failure (error has been reported).
   @retval      false        Success.
 */
-bool rename_table(THD *thd, dd::Table *to_table_def,
+bool rename_table(THD *thd, const char *from_table_name,
+                  dd::Table *to_table_def,
                   bool mark_as_hidden, bool commit_dd_changes);
+
+/**
+  Rename a view in the data-dictionary.
+
+  @param  thd                  The dictionary client.
+  @param  from_schema_name     Schema of view to rename.
+  @param  from_name            View name to rename.
+  @param  to_schema_name       New schema name.
+  @param  to_name              New view name.
+  @param  commit_dd_changes    Indicates whether change to the data
+                               dictionary needs to be committed.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
+  @retval      true         Failure (error has been reported).
+  @retval      false        Success.
+*/
+bool rename_view(THD *thd,
+                 const char *from_schema_name,
+                 const char *from_name,
+                 const char *to_schema_name,
+                 const char *to_name,
+                 bool commit_dd_changes);
 
 
 //////////////////////////////////////////////////////////////////////////

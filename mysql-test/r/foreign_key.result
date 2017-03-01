@@ -160,3 +160,362 @@ CREATE TABLE t1(a INT PRIMARY KEY, b INT,
 FOREIGN KEY(b) REFERENCES t2(name5678901234567890123456789012345678901234567890123456789012345));
 ERROR 42000: Incorrect column name 'name5678901234567890123456789012345678901234567890123456789012345'
 SET @@foreign_key_checks= DEFAULT;
+#
+# Bug#24666169: I_S.TABLE_CONSTRAINTS.CONSTRAINT_NAME IS NOT UPDATED
+#               AFTER RENAME TABLE
+#
+SET @@foreign_key_checks= 1;
+#
+# Tests for FK name behavior.
+CREATE TABLE t1(c1 INT PRIMARY KEY);
+CREATE TABLE t2(c1 INT, FOREIGN KEY (c1) REFERENCES t1(c1));
+ALTER TABLE t2 RENAME TO t3;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `c1` int(11) DEFAULT NULL,
+  KEY `c1` (`c1`),
+  CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t3 VALUES(1);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`))
+ALTER TABLE t3 RENAME TO t4, ALGORITHM= INPLACE;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `c1` int(11) DEFAULT NULL,
+  KEY `c1` (`c1`),
+  CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t4 VALUES(1);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`))
+ALTER TABLE t4 RENAME TO t5;
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `c1` int(11) DEFAULT NULL,
+  KEY `c1` (`c1`),
+  CONSTRAINT `t5_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t5 VALUES(1);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t5`, CONSTRAINT `t5_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`))
+RENAME TABLE t5 to t6;
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `c1` int(11) DEFAULT NULL,
+  KEY `c1` (`c1`),
+  CONSTRAINT `t6_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t6 VALUES(1);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t6`, CONSTRAINT `t6_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`))
+DROP TABLE t6, t1;
+#
+# Tests of FK name generation
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(a INT, b INT, FOREIGN KEY(a) REFERENCES t1(a));
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_1
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_1
+# Add FK
+ALTER TABLE t2 ADD FOREIGN KEY(b) REFERENCES t1(a);
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_1
+t2_ibfk_2
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_1
+t2_ibfk_2
+# Remove first FK and add a new FK.
+ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_1;
+ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(a);
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_2
+t2_ibfk_3
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_2
+t2_ibfk_3
+# Rename table in different ways.
+ALTER TABLE t2 RENAME TO t3;
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't3' ORDER BY constraint_name;
+constraint_name
+t3_ibfk_2
+t3_ibfk_3
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't3' ORDER BY constraint_name;
+constraint_name
+t3_ibfk_2
+t3_ibfk_3
+ALTER TABLE t3 RENAME TO t4, ALGORITHM= INPLACE;
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't4' ORDER BY constraint_name;
+constraint_name
+t4_ibfk_2
+t4_ibfk_3
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't4' ORDER BY constraint_name;
+constraint_name
+t4_ibfk_2
+t4_ibfk_3
+ALTER TABLE t4 RENAME TO t5;
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't5' ORDER BY constraint_name;
+constraint_name
+t5_ibfk_2
+t5_ibfk_3
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't5' ORDER BY constraint_name;
+constraint_name
+t5_ibfk_2
+t5_ibfk_3
+RENAME TABLE t5 TO t6;
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't6' ORDER BY constraint_name;
+constraint_name
+t6_ibfk_2
+t6_ibfk_3
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't6' ORDER BY constraint_name;
+constraint_name
+t6_ibfk_2
+t6_ibfk_3
+# Simulate dump+restore and test rename
+DROP TABLE t6;
+CREATE TABLE `t6` (
+`a` int(11) DEFAULT NULL,
+`b` int(11) DEFAULT NULL,
+KEY `b` (`b`),
+KEY `a` (`a`),
+CONSTRAINT `t6_ibfk_2` FOREIGN KEY (`b`) REFERENCES `t1` (`a`),
+CONSTRAINT `t6_ibfk_3` FOREIGN KEY (`a`) REFERENCES `t1` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't6' ORDER BY constraint_name;
+constraint_name
+t6_ibfk_2
+t6_ibfk_3
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't6' ORDER BY constraint_name;
+constraint_name
+t6_ibfk_2
+t6_ibfk_3
+RENAME TABLE t6 TO t2;
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_2
+t2_ibfk_3
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_2
+t2_ibfk_3
+# Remove all FKs and add one back
+ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_2, DROP FOREIGN KEY t2_ibfk_3;
+ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(a);
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_1
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_1
+# Add a foreign key with close to generated name
+ALTER TABLE t2 ADD CONSTRAINT t3_ibfk_2 FOREIGN KEY(b) REFERENCES t1(a);
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_1
+t3_ibfk_2
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_1
+t3_ibfk_2
+# Then rename so that the given name now matches a generated name
+RENAME TABLE t2 TO t3;
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't3' ORDER BY constraint_name;
+constraint_name
+t3_ibfk_1
+t3_ibfk_2
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't3' ORDER BY constraint_name;
+constraint_name
+t3_ibfk_1
+t3_ibfk_2
+# Finally rename it again. The given name is now seen as generated and renamed.
+RENAME TABLE t3 TO t4;
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't4' ORDER BY constraint_name;
+constraint_name
+t4_ibfk_1
+t4_ibfk_2
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't4' ORDER BY constraint_name;
+constraint_name
+t4_ibfk_1
+t4_ibfk_2
+DROP TABLE t4;
+# Make a foreign key with given name matching a generated name
+CREATE TABLE t2(a INT, b INT);
+ALTER TABLE t2 ADD CONSTRAINT t2_ibfk_1 FOREIGN KEY(a) REFERENCES t1(a);
+ALTER TABLE t2 ADD FOREIGN KEY(b) REFERENCES t1(a);
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_1
+t2_ibfk_2
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+t2_ibfk_1
+t2_ibfk_2
+DROP TABLE t2;
+# Test FK name case sensitivity
+CREATE TABLE t2(a INT, b INT);
+ALTER TABLE t2 ADD CONSTRAINT FK FOREIGN KEY(a) REFERENCES t1(a);
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+FK
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't2' ORDER BY constraint_name;
+constraint_name
+FK
+ALTER TABLE t2 ADD CONSTRAINT fk FOREIGN KEY(b) REFERENCES t1(a);
+ERROR 42000: Duplicate key name 'fk'
+ALTER TABLE t2 DROP FOREIGN KEY FK;
+# Name matching generated name, but different case.
+ALTER TABLE t2 ADD CONSTRAINT T2_IBFK_1 FOREIGN KEY(a) REFERENCES t1(a);
+ALTER TABLE t2 ADD FOREIGN KEY(b) REFERENCES t1(a);
+ERROR HY000: Duplicate foreign key constraint name 't2_ibfk_1'
+ALTER TABLE t2 DROP FOREIGN KEY T2_IBFK_1;
+DROP TABLE t2;
+# Check long FK generated names due to long table names.
+CREATE TABLE t2 (a INT, FOREIGN KEY (a) REFERENCES t1(a));
+RENAME TABLE t2 TO t123456789012345678901234567890123456789012345678901234567;
+ERROR 42000: Identifier name 't123456789012345678901234567890123456789012345678901234567_ibfk_1' is too long
+RENAME TABLE t2 TO t12345678901234567890123456789012345678901234567890123456;
+SELECT constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't12345678901234567890123456789012345678901234567890123456'
+  ORDER BY constraint_name;
+constraint_name
+t12345678901234567890123456789012345678901234567890123456_ibfk_1
+SELECT constraint_name FROM information_schema.table_constraints
+WHERE table_name = 't12345678901234567890123456789012345678901234567890123456'
+  ORDER BY constraint_name;
+constraint_name
+t12345678901234567890123456789012345678901234567890123456_ibfk_1
+DROP TABLE t12345678901234567890123456789012345678901234567890123456;
+CREATE TABLE t123456789012345678901234567890123456789012345678901234567(
+a INT, FOREIGN KEY (a) REFERENCES t1(a));
+ERROR 42000: Identifier name 't123456789012345678901234567890123456789012345678901234567_ibfk_1' is too long
+CREATE TABLE t123456789012345678901234567890123456789012345678901234567890123(
+a INT, CONSTRAINT fk FOREIGN KEY (a) REFERENCES t1(a));
+DROP TABLE t123456789012345678901234567890123456789012345678901234567890123;
+DROP TABLE t1;
+# FK Referencing virtual column
+CREATE TABLE t1(a INT PRIMARY KEY,
+b INT GENERATED ALWAYS AS (a+1) VIRTUAL UNIQUE);
+CREATE TABLE t2(a INT, FOREIGN KEY (a) REFERENCES t1(b));
+ERROR HY000: Cannot add foreign key constraint
+CREATE TABLE t2(a INT);
+ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(b);
+ERROR HY000: Cannot add foreign key constraint
+DROP TABLE t1, t2;
+# FK on generated stored column
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE);
+CREATE TABLE t3(a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE,
+FOREIGN KEY (b) REFERENCES t1(a));
+ALTER TABLE t2 ADD FOREIGN KEY(b) REFERENCES t1(a);
+ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_1;
+DROP TABLE t3;
+CREATE TABLE t3(a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE,
+FOREIGN KEY (b) REFERENCES t1(a) ON UPDATE CASCADE);
+ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a generated column.
+ALTER TABLE t2 ADD FOREIGN KEY(b) REFERENCES t1(a) ON UPDATE CASCADE;
+ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a generated column.
+CREATE TABLE t3(a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE,
+FOREIGN KEY (b) REFERENCES t1(a) ON DELETE SET NULL);
+ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a generated column.
+ALTER TABLE t2 ADD FOREIGN KEY(b) REFERENCES t1(a) ON DELETE SET NULL;
+ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a generated column.
+CREATE TABLE t3(a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE,
+FOREIGN KEY (b) REFERENCES t1(a) ON UPDATE SET NULL);
+ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a generated column.
+ALTER TABLE t2 ADD FOREIGN KEY(b) REFERENCES t1(a) ON UPDATE SET NULL;
+ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a generated column.
+# FK on Base column of generated stored column.
+CREATE TABLE t3(a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE,
+FOREIGN KEY (a) REFERENCES t1(a));
+ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(a);
+ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_1;
+DROP TABLE t3;
+CREATE TABLE t3(a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE,
+FOREIGN KEY (a) REFERENCES t1(a) ON UPDATE CASCADE);
+ERROR HY000: Cannot add foreign key constraint
+ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(a) ON UPDATE CASCADE;
+ERROR HY000: Cannot add foreign key constraint
+CREATE TABLE t3(a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE,
+FOREIGN KEY (a) REFERENCES t1(a) ON DELETE SET NULL);
+ERROR HY000: Cannot add foreign key constraint
+ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(a) ON DELETE SET NULL;
+ERROR HY000: Cannot add foreign key constraint
+CREATE TABLE t3(a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE,
+FOREIGN KEY (a) REFERENCES t1(a) ON UPDATE SET NULL);
+ERROR HY000: Cannot add foreign key constraint
+ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(a) ON UPDATE SET NULL;
+ERROR HY000: Cannot add foreign key constraint
+DROP TABLE t2, t1;
+# FK on virtual column not supported.
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(a INT, b INT GENERATED ALWAYS AS (a+1) VIRTUAL UNIQUE,
+FOREIGN KEY(b) REFERENCES t1(a));
+ERROR HY000: Cannot add foreign key constraint
+CREATE TABLE t2(a INT, b INT GENERATED ALWAYS AS (a+1) VIRTUAL UNIQUE);
+ALTER TABLE t2 ADD FOREIGN KEY (b) REFERENCES t1(a);
+ERROR HY000: Cannot add foreign key constraint
+DROP TABLE t2;
+CREATE TABLE t2(a INT, b INT, FOREIGN KEY(b) REFERENCES t1(a));
+ALTER TABLE t2 MODIFY COLUMN b INT GENERATED ALWAYS AS (a+1) VIRTUAL;
+ERROR HY000: 'Changing the STORED status' is not supported for generated columns.
+DROP TABLE t2, t1;
+# Trying to drop columns used in multi-column FKs.
+CREATE TABLE t1(a INT PRIMARY KEY, b INT, INDEX(a, b));
+CREATE TABLE t2(a INT, b INT, FOREIGN KEY(a, b) REFERENCES t1(a, b));
+ALTER TABLE t2 DROP COLUMN a;
+ERROR HY000: Cannot drop column 'a': needed in a foreign key constraint 't2_ibfk_1'
+ALTER TABLE t2 DROP COLUMN b;
+ERROR HY000: Cannot drop column 'b': needed in a foreign key constraint 't2_ibfk_1'
+DROP TABLE t2;
+# Use explicitly named index to check where index name is != column name.
+CREATE TABLE t2(a INT, b INT, INDEX idx(a, b),
+FOREIGN KEY(a, b) REFERENCES t1(a, b));
+ALTER TABLE t2 DROP COLUMN a;
+ERROR HY000: Cannot drop column 'a': needed in a foreign key constraint 't2_ibfk_1'
+ALTER TABLE t2 DROP COLUMN b;
+ERROR HY000: Cannot drop column 'b': needed in a foreign key constraint 't2_ibfk_1'
+DROP TABLE t2, t1;
+# Index with prefix cannot be used for supporting FK.
+CREATE TABLE t1 (PK VARCHAR(100) PRIMARY KEY);
+CREATE TABLE t2 (FK VARCHAR(100), FOREIGN KEY(FK) REFERENCES t1 (PK), KEY(FK));
+ALTER TABLE t2 DROP INDEX FK, ADD INDEX FK2(FK(10));
+ERROR HY000: Cannot drop index 'FK': needed in a foreign key constraint
+DROP TABLE t2, t1;
+SET @@foreign_key_checks= DEFAULT;

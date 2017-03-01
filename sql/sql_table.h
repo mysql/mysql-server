@@ -183,6 +183,31 @@ bool mysql_discard_or_import_tablespace(THD *thd,
                                         TABLE_LIST *table_list);
 
 /**
+  Find the index which supports the given foreign key.
+
+  @param alter_info        Alter_info structure describing ALTER TABLE.
+  @param key_info_buffer   Indexes to check
+  @param key_count         Number of indexes.
+  @param fk                FK which we want to find a supporting index for.
+
+  @retval Index supporing the FK or nullptr if no such index was found.
+
+  @note This function is meant to be used both for finding the supporting
+  index in the child table and the parent index in the parent table.
+
+  @note For backward compatibility, we try to find the same index that InnoDB
+  does (@see dict_foreign_find_index). One consequence is that the index
+  might not be an unique index as this is not required by InnoDB.
+  Note that it is difficult to guarantee that we iterate through the
+  indexes in the same order as InnoDB - this means that if several indexes
+  fit, we might select a different one.
+*/
+const char* find_fk_supporting_index(Alter_info *alter_info,
+                                     const KEY *key_info_buffer,
+                                     const uint key_count,
+                                     const FOREIGN_KEY *fk);
+
+/**
   Prepare Create_field and Key_spec objects for ALTER and upgrade.
   @param[in,out]  thd          thread handle. Used as a memory pool
                                and source of environment information.

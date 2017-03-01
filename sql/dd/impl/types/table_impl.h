@@ -270,6 +270,9 @@ public:
   virtual const Foreign_key_collection &foreign_keys() const
   { return m_foreign_keys; }
 
+  virtual Foreign_key_collection *foreign_keys()
+  { return &m_foreign_keys; }
+
   /////////////////////////////////////////////////////////////////////////
   // Partition collection.
   /////////////////////////////////////////////////////////////////////////

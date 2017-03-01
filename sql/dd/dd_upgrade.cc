@@ -1505,11 +1505,16 @@ static fk_option get_ref_opt(const char *str)
   Prepare Foreign key data to store in DD.
 */
 
-static bool prepare_foreign_key_upgrade(FOREIGN_KEY_INFO *fk_key_info,
+static bool prepare_foreign_key_upgrade(Alter_info *alter_info,
+                                        KEY *key_info_buffer,
+                                        uint key_count,
+                                        FOREIGN_KEY_INFO *fk_key_info,
                                         FOREIGN_KEY *fk_key,
                                         MEM_ROOT *mem_root)
 {
   fk_key->name= fk_key_info->foreign_id->str;
+  fk_key->orig_name= nullptr;
+
   LEX_CSTRING name{ fk_key_info->foreign_id->str,
                     fk_key_info->foreign_id->length };
 
@@ -1564,6 +1569,11 @@ static bool prepare_foreign_key_upgrade(FOREIGN_KEY_INFO *fk_key_info,
     fk_key->key_part[column_nr]= { f_info->str, f_info->length };
     fk_key->fk_key_part[column_nr]= { r_info->str, r_info->length };
   }
+
+  // TODO: For now we use the index in the child table rather than the parent.
+  fk_key->unique_index_name=
+    find_fk_supporting_index(alter_info, key_info_buffer,
+                             key_count, fk_key);
 
   return false;
 }
@@ -2212,7 +2222,8 @@ static bool migrate_table_to_dd(THD *thd,
   // Create Foreign key List
   while ((f_key_info= it++))
   {
-    if (prepare_foreign_key_upgrade(f_key_info, fk_key_info, &table->mem_root))
+    if (prepare_foreign_key_upgrade(&alter_info, key_info_buffer, key_count,
+                                    f_key_info, fk_key_info, &table->mem_root))
       return true;
     fk_key_info++;
     fk_number++;

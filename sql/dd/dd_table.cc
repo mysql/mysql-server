@@ -71,6 +71,7 @@
 #include "sql_const.h"
 #include "sql_error.h"
 #include "sql_list.h"
+#include "sql_parse.h"
 #include "sql_partition.h"                    // expr_to_string
 #include "sql_plugin_ref.h"
 #include "sql_security_ctx.h"
@@ -97,21 +98,6 @@ template bool dd::table_exists<dd::View>(
                                       const char *schema_name,
                                       const char *name,
                                       bool *exists);
-
-template bool dd::rename_table<dd::Table>(THD *thd,
-                                      const char *from_schema_name,
-                                      const char *from_name,
-                                      const char *to_schema_name,
-                                      const char *to_name,
-                                      bool mark_as_hidden,
-                                      bool commit_dd_changes);
-template bool dd::rename_table<dd::View>(THD *thd,
-                                      const char *from_schema_name,
-                                      const char *from_name,
-                                      const char *to_schema_name,
-                                      const char *to_name,
-                                      bool mark_as_hidden,
-                                      bool commit_dd_changes);
 
 namespace dd {
 
@@ -1218,58 +1204,6 @@ static dd::Foreign_key::enum_rule get_fk_rule(fk_option opt)
 
 
 /**
-  Find the index to be used for unique_constraint_id.
-
-  @param tab_obj  Table where to look for an suitable index.
-  @param key      FK which we want to find a matching index for.
-
-  @retval Index corresponing to the FK or nullptr if no such index
-          was found (error reported).
-
-  @note For backward compatibility, we try to find the same index that InnoDB
-  does (@see dict_foreign_find_index). One consequence is that the index
-  might not be an unique index as this is not required by InnoDB.
-  Note that it is difficult to guarantee that we iterate through the
-  indexes in the same order as InnoDB - this means that if several indexes
-  fit, we might select a different one.
-*/
-
-static const dd::Index* find_fk_unique_constraint(const dd::Table *tab_obj,
-                                                  const FOREIGN_KEY *key)
-{
-  for (const dd::Index *idx : tab_obj->indexes())
-  {
-    // The index may have more elements, but must start with the same
-    // elements as the FK.
-    if (key->key_parts > idx->elements().size())
-      continue;
-
-    if (idx->type() == Index::IT_FULLTEXT ||
-        idx->type() == Index::IT_SPATIAL)
-      continue;
-
-    bool match= true;
-    for (uint i= 0; i < key->key_parts && match; i++)
-    {
-      const dd::Index_element *idx_ele= idx->elements()[i];
-      const dd::Column &col= idx_ele->column();
-
-      if (col.is_virtual())
-        match= false;
-      else if (my_strcasecmp(system_charset_info,
-                             col.name().c_str(),
-                             key->key_part[i].str) != 0)
-        match= false;
-    }
-    if (match)
-      return idx;
-  }
-  my_error(ER_CANNOT_ADD_FOREIGN, MYF(0));
-  return nullptr;
-}
-
-
-/**
   Add foreign keys to dd::Table according to Foreign_key_spec structs.
 
   @param tab_obj      table to add foreign keys to
@@ -1290,10 +1224,30 @@ static bool fill_dd_foreign_keys_from_create_fields(dd::Table *tab_obj,
 
     fk_obj->set_name(key->name);
 
-    const dd::Index *matching_idx= find_fk_unique_constraint(tab_obj, keyinfo);
-    if (matching_idx == nullptr)
-      DBUG_RETURN(true);
-    fk_obj->set_unique_constraint(matching_idx);
+    /*
+      TODO: The 'unique_constraint_id' field for Foreign_key is
+      supposed to contain the ID of the index in parent table.
+      However, until WL#6049 we don't have a safe way to keep this
+      field updated. For now, it contains the ID of the index
+      in the child table in order to make it a valid Foreign_key
+      object (unique_constraint_id is NOT NULL).
+      We also plan to make this field nullable or replace it with
+      'unique_constraint_name'.
+    */
+    DBUG_ASSERT(key->unique_index_name);
+    const dd::Index *matching_index= nullptr;
+    for (const dd::Index *index : *tab_obj->indexes())
+    {
+      if (my_strcasecmp(system_charset_info,
+                        index->name().c_str(),
+                        key->unique_index_name) == 0)
+      {
+        matching_index= index;
+        break;
+      }
+    }
+    DBUG_ASSERT(matching_index != nullptr);
+    fk_obj->set_unique_constraint(matching_index);
 
     switch (key->match_opt)
     {
@@ -2395,27 +2349,18 @@ std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
 }
 
 
-bool add_foreign_keys_and_triggers(THD *thd,
-                                   const dd::String_type &schema_name,
-                                   const dd::String_type &table_name,
-                                   const FOREIGN_KEY *fk_keyinfo, uint fk_keys,
-                                   Prealloced_array<dd::Trigger*, 1> *trg_info,
-                                   bool commit_dd_changes)
+bool add_triggers(THD *thd,
+                  const dd::String_type &schema_name,
+                  const dd::String_type &table_name,
+                  Prealloced_array<dd::Trigger*, 1> *trg_info,
+                  bool commit_dd_changes)
 {
-  std::unique_ptr<dd::Table> table;
-
-  DBUG_ENTER("dd::add_foreign_keys_and_triggers");
-  DBUG_ASSERT((fk_keys > 0 && fk_keyinfo != nullptr) ||
-              (trg_info != nullptr && !trg_info->empty()));
-
+  DBUG_ENTER("dd::add_triggers");
+  DBUG_ASSERT(trg_info != nullptr && !trg_info->empty());
 
   dd::Table *table_def= nullptr;
   if (thd->dd_client()->acquire_for_modification(schema_name, table_name,
                                                  &table_def))
-    DBUG_RETURN(true);
-
-  if (fk_keys > 0 &&
-      fill_dd_foreign_keys_from_create_fields(table_def, fk_keys, fk_keyinfo))
     DBUG_RETURN(true);
 
   if (trg_info != nullptr && !trg_info->empty())
@@ -2555,7 +2500,59 @@ bool table_exists(dd::cache::Dictionary_client *client,
   DBUG_RETURN(false);
 }
 
-template <typename T>
+
+/**
+  Rename foreign keys which have generated names to
+  match the new name of the table.
+
+  @param old_table_name  Table name before rename.
+  @param new_tab         New version of the table with new name set.
+
+  @todo Implement new naming scheme (or move responsibility of
+        naming to the SE layer).
+
+  @returns true if error, false otherwise.
+*/
+
+static bool rename_foreign_keys(const char *old_table_name,
+                                dd::Table *new_tab)
+{
+  char fk_name_prefix[NAME_LEN + 7]; // Reserve 7 chars for _ibfk_ + NullS
+  strxnmov(fk_name_prefix, sizeof(fk_name_prefix) - 1,
+           old_table_name, dd::FOREIGN_KEY_NAME_SUBSTR, NullS);
+  // With LCTN = 2, we are using lower-case tablename for FK name.
+  if (lower_case_table_names == 2)
+    my_casedn_str(system_charset_info, fk_name_prefix);
+  size_t fk_prefix_length= strlen(fk_name_prefix);
+
+  for (dd::Foreign_key *fk : *new_tab->foreign_keys())
+  {
+    // We assume the name is generated if it starts with
+    // (table_name)_ibfk_
+    if (fk->name().length() > fk_prefix_length &&
+        (memcmp(fk->name().c_str(), fk_name_prefix, fk_prefix_length) == 0))
+    {
+      char table_name[NAME_LEN + 1];
+      my_stpncpy(table_name, new_tab->name().c_str(), sizeof(table_name));
+      if (lower_case_table_names == 2)
+        my_casedn_str(system_charset_info, table_name);
+      dd::String_type new_name(table_name);
+      // Copy _ibfk_nnnn from the old name.
+      new_name.append(fk->name().substr(strlen(old_table_name)));
+      if (check_string_char_length(to_lex_cstring(new_name.c_str()),
+                                   "", NAME_CHAR_LEN,
+                                   system_charset_info, 1))
+      {
+        my_error(ER_TOO_LONG_IDENT, MYF(0), new_name.c_str());
+        return true;
+      }
+      fk->set_name(new_name);
+    }
+  }
+  return false;
+}
+
+
 bool rename_table(THD *thd,
                   const char *from_schema_name,
                   const char *from_table_name,
@@ -2572,8 +2569,8 @@ bool rename_table(THD *thd,
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *from_sch= NULL;
   const dd::Schema *to_sch= NULL;
-  const T *to_tab= NULL;
-  T *new_tab = nullptr;
+  const dd::Table *to_tab= NULL;
+  dd::Table *new_tab = nullptr;
 
   /*
     Acquire all objects. Uncommitted read for 'from' object allows us
@@ -2630,6 +2627,9 @@ bool rename_table(THD *thd,
   // Mark the hidden flag.
   new_tab->set_hidden(mark_as_hidden);
 
+  if (rename_foreign_keys(from_table_name, new_tab))
+    return true;
+
   // Do the update. Errors will be reported by the dictionary subsystem.
   if (thd->dd_client()->update(new_tab))
   {
@@ -2651,13 +2651,17 @@ bool rename_table(THD *thd,
 }
 
 
-bool rename_table(THD *thd, dd::Table *to_table_def,
+bool rename_table(THD *thd, const char *from_table_name,
+                  dd::Table *to_table_def,
                   bool mark_as_hidden, bool commit_dd_changes)
 {
   Disable_gtid_state_update_guard disabler(thd);
 
   // Mark the hidden flag.
   to_table_def->set_hidden(mark_as_hidden);
+
+  if (rename_foreign_keys(from_table_name, to_table_def))
+    return true;
 
   // Do the update. Errors will be reported by the dictionary subsystem.
   if (thd->dd_client()->update(to_table_def))
@@ -2669,6 +2673,101 @@ bool rename_table(THD *thd, dd::Table *to_table_def,
       trans_rollback(thd);
     }
     return true;
+  }
+
+  if (commit_dd_changes)
+  {
+    if (trans_commit_stmt(thd) || trans_commit(thd))
+      return true;
+  }
+  return false;
+}
+
+
+bool rename_view(THD *thd,
+                 const char *from_schema_name,
+                 const char *from_name,
+                 const char *to_schema_name,
+                 const char *to_name,
+                 bool commit_dd_changes)
+{
+  // TODO: This function can be simplified - see Bug#24930129.
+
+  // We must make sure the schema is released and unlocked in the right order.
+  dd::Schema_MDL_locker from_mdl_locker(thd);
+  dd::Schema_MDL_locker to_mdl_locker(thd);
+
+  // Check if source and destination schemas exist.
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *from_sch= NULL;
+  const dd::Schema *to_sch= NULL;
+  const dd::View *to_view= NULL;
+  dd::View *new_view = nullptr;
+
+  // Acquire all objects.
+  if (from_mdl_locker.ensure_locked(from_schema_name) ||
+      to_mdl_locker.ensure_locked(to_schema_name) ||
+      thd->dd_client()->acquire(from_schema_name, &from_sch) ||
+      thd->dd_client()->acquire(to_schema_name, &to_sch) ||
+      thd->dd_client()->acquire(to_schema_name, to_name, &to_view) ||
+      thd->dd_client()->acquire_for_modification(from_schema_name, from_name,
+                                                 &new_view))
+  {
+    // Error is reported by the dictionary subsystem.
+    return true;
+  }
+
+  // Report error if missing objects. Missing 'to_view' is not an error.
+  if (!from_sch)
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), from_schema_name);
+    return true;
+  }
+
+  if (!to_sch)
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), to_schema_name);
+    return true;
+  }
+
+  if (!new_view)
+  {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), from_schema_name, from_name);
+    return true;
+  }
+
+  Disable_gtid_state_update_guard disabler(thd);
+
+  // If 'to_view' exists (which it may not), drop it.
+  if (to_view)
+  {
+    if (thd->dd_client()->drop(to_view))
+    {
+      if (commit_dd_changes)
+      {
+        // Error is reported by the dictionary subsystem.
+        trans_rollback_stmt(thd);
+        // Full rollback in case we have THD::transaction_rollback_request.
+        trans_rollback(thd);
+        return true;
+      }
+    }
+  }
+
+  // Set schema id and view name.
+  new_view->set_schema_id(to_sch->id());
+  new_view->set_name(to_name);
+
+  // Do the update. Errors will be reported by the dictionary subsystem.
+  if (thd->dd_client()->update(new_view))
+  {
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
+      return true;
+    }
   }
 
   if (commit_dd_changes)
