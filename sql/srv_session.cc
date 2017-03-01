@@ -610,7 +610,7 @@ static int err_get_string(void*, const char*, size_t,const CHARSET_INFO*)
 
 static void err_handle_ok(void * ctx, uint server_status, uint warn_count,
                           ulonglong affected_rows, ulonglong last_insert_id,
-                          const char * const message)
+                          const char * const)
 {
   Srv_session::st_err_protocol_ctx *pctx=
              static_cast<Srv_session::st_err_protocol_ctx*>(ctx);
@@ -625,7 +625,7 @@ static void err_handle_ok(void * ctx, uint server_status, uint warn_count,
 }
 
 static void err_handle_error(void * ctx, uint err_errno, const char * err_msg,
-                             const char * sqlstate)
+                             const char*)
 {
   Srv_session::st_err_protocol_ctx *pctx=
              static_cast<Srv_session::st_err_protocol_ctx*>(ctx);
@@ -633,7 +633,7 @@ static void err_handle_error(void * ctx, uint err_errno, const char * err_msg,
     pctx->handler(pctx->handler_context, err_errno, err_msg);
 }
 
-static void err_shutdown(void*, int server_shutdown){}
+static void err_shutdown(void*, int) {}
 
 
 const struct st_command_service_cbs error_protocol_callbacks=

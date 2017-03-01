@@ -3495,7 +3495,7 @@ bool find_files_with_metadata(THD *thd, const char *dbname,
   Scans datadir for databases and lists all the database names.
 */
 
-bool find_schema_from_datadir(THD *thd, std::vector<String_type> *db_name)
+bool find_schema_from_datadir(std::vector<String_type> *db_name)
 {
   MY_DIR *a;
   uint i;

@@ -117,7 +117,6 @@ get_dd_action_timing(const ::Trigger *new_trigger)
 /**
   Fill in a dd::Trigger object based on a Trigger object supplied by sql-layer.
 
-  @param [in]   thd               thread handle
   @param [in]   new_trigger       Trigger object supplied by sql-layer
   @param [out]  dd_trig_obj       dd::Trigger object to fill in
 
@@ -126,7 +125,7 @@ get_dd_action_timing(const ::Trigger *new_trigger)
     @retval false  Success
 */
 
-static bool fill_in_dd_trigger_object(THD *thd, const ::Trigger *new_trigger,
+static bool fill_in_dd_trigger_object(const ::Trigger *new_trigger,
                                       Trigger *dd_trig_obj)
 {
   dd_trig_obj->set_name(String_type(new_trigger->get_trigger_name().str,
@@ -258,7 +257,7 @@ bool create_trigger(THD *thd, const ::Trigger *new_trigger,
     // by the dd::cache::Dictionary_client::add_trigger.
     DBUG_RETURN(true);
 
-  if (fill_in_dd_trigger_object(thd, new_trigger, dd_trig_obj))
+  if (fill_in_dd_trigger_object(new_trigger, dd_trig_obj))
     DBUG_RETURN(true);
 
   /*

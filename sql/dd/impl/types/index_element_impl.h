@@ -127,7 +127,7 @@ public:
   virtual void set_length(uint length)
   { m_length= length; }
 
-  virtual void set_length_null(bool is_null)
+  virtual void set_length_null(bool)
   { m_length= (uint) -1; }
 
   virtual bool is_length_null() const

@@ -58,7 +58,7 @@ int Protocol_callback::read_packet()
   @return
     -1
 */
-int Protocol_callback::get_command(COM_DATA *com_data, enum_server_command *cmd)
+int Protocol_callback::get_command(COM_DATA*, enum_server_command*)
 {
   return read_packet();
 }
@@ -115,14 +115,12 @@ bool Protocol_callback::store_longlong(longlong from, bool is_unsigned)
   Sends DECIMAL value
 
   @param d    value
-  @param prec field's precision, unused
-  @param dec  field's decimals, unused
 
   @return
     false  success
     true   failure
 */
-bool Protocol_callback::store_decimal(const my_decimal * d, uint prec, uint dec)
+bool Protocol_callback::store_decimal(const my_decimal * d, uint, uint)
 {
   if (callbacks.get_decimal)
     return callbacks.get_decimal(callbacks_ctx, d);
@@ -137,14 +135,14 @@ bool Protocol_callback::store(const char *from, size_t length,
   return false;
 }
 
-bool Protocol_callback::store(float from, uint32 decimals, String *buffer)
+bool Protocol_callback::store(float from, uint32 decimals, String*)
 {
   if (callbacks.get_double)
     return callbacks.get_double(callbacks_ctx, from, decimals);
   return false;
 }
 
-bool Protocol_callback::store(double from, uint32 decimals, String *buffer)
+bool Protocol_callback::store(double from, uint32 decimals, String*)
 {
   if (callbacks.get_double)
     return callbacks.get_double(callbacks_ctx, from, decimals);
@@ -477,8 +475,7 @@ bool Protocol_callback::store_ps_status(ulong stmt_id, uint column_count,
 }
 
 bool
-Protocol_callback::send_parameters(List<Item_param> *parameters,
-                                   bool is_sql_prepare)
+Protocol_callback::send_parameters(List<Item_param> *parameters, bool)
 {
   List_iterator_fast<Item_param> item_param_it(*parameters);
 

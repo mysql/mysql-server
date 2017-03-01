@@ -82,13 +82,13 @@ public:
   //        is fetched and then Index_element collections per
   //        index is restored using restore_children().
   //
-  virtual bool restore_children(Open_dictionary_tables_ctx *otx)
+  virtual bool restore_children(Open_dictionary_tables_ctx*)
   { return false; }
 
-  virtual bool store_children(Open_dictionary_tables_ctx *otx)
+  virtual bool store_children(Open_dictionary_tables_ctx*)
   { return false; }
 
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const
+  virtual bool drop_children(Open_dictionary_tables_ctx*) const
   { return false; }
 
 
@@ -107,7 +107,7 @@ protected:
   // set_primary_key_value() is called after new object has been inserted into
   // the table, giving the chance to get inserted values of AUTO_INCREMENT
   // columns. It gives a chance for Entity_object to override it.
-  virtual void set_primary_key_value(const Raw_new_record &r)
+  virtual void set_primary_key_value(const Raw_new_record&)
   { }
 
   /*

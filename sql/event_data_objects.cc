@@ -122,9 +122,7 @@ class Event_creation_ctx :public Stored_program_creation_ctx,
                           public Sql_alloc
 {
 public:
-  static bool create_event_creation_ctx(THD *thd,
-                                        const char *schema_name,
-                                        const dd::Event &event_obj,
+  static bool create_event_creation_ctx(const dd::Event &event_obj,
                                         Stored_program_creation_ctx **ctx);
 
 public:
@@ -135,7 +133,7 @@ public:
   }
 
 protected:
-  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const
+  virtual Object_creation_ctx *create_backup_ctx(THD*) const
   {
     /*
       We can avoid usual backup/restore employed in stored programs since we
@@ -158,9 +156,7 @@ private:
 
 // Prepare a event creation context object.
 bool
-Event_creation_ctx::create_event_creation_ctx(THD *thd,
-                                              const char *schema_name,
-                                              const dd::Event &event_obj,
+Event_creation_ctx::create_event_creation_ctx(const dd::Event &event_obj,
                                               Stored_program_creation_ctx **ctx)
 {
   const CHARSET_INFO *client_cs= nullptr;
@@ -382,26 +378,25 @@ Event_job_data::fill_event_info(THD *thd, const dd::Event &event_obj,
 
   String str(event_obj.time_zone().c_str(), &my_charset_latin1);
   m_time_zone= my_tz_find(thd, &str);
-  
+
   m_definition= make_lex_string(&mem_root,event_obj.definition());
-  
+
   if (m_time_zone == NULL)
     DBUG_RETURN(true);
-  
-  Event_creation_ctx::create_event_creation_ctx(thd, m_schema_name.str,
-                                                event_obj, &m_creation_ctx);
+
+  Event_creation_ctx::create_event_creation_ctx(event_obj, &m_creation_ctx);
   if (m_creation_ctx == nullptr)
       DBUG_RETURN(true);
-  
+
   m_definer_user= make_lex_cstring(&mem_root, event_obj.definer_user());
   m_definer_host= make_lex_cstring(&mem_root, event_obj.definer_host());
-    
+
   m_sql_mode= event_obj.sql_mode();
-  
+
   DBUG_RETURN(false);
 }
-  
-  
+
+
 // Fill the Event_queue_element members from the Data Dictionary Event Object.
 bool
 Event_queue_element::fill_event_info(THD *thd, const dd::Event &event_obj,
@@ -477,8 +472,7 @@ Event_timed::fill_event_info(THD *thd, const dd::Event &event_obj,
   m_definition=make_lex_string(&mem_root, event_obj.definition());
   m_definition_utf8=make_lex_string(&mem_root, event_obj.definition_utf8());
 
-  if (Event_creation_ctx::create_event_creation_ctx(thd, m_schema_name.str,
-                                                    event_obj, &m_creation_ctx))
+  if (Event_creation_ctx::create_event_creation_ctx(event_obj, &m_creation_ctx))
     {
       push_warning_printf(thd,
                           Sql_condition::SL_WARNING,

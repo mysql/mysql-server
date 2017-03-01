@@ -45,7 +45,7 @@
 mysql_mutex_t g_public_key_mutex;
 #endif
 
-int sha256_password_init(char *a, size_t b, int c, va_list d)
+int sha256_password_init(char *, size_t, int, va_list)
 {
 #if !defined(HAVE_YASSL)
   mysql_mutex_init(0,&g_public_key_mutex, MY_MUTEX_INIT_SLOW);

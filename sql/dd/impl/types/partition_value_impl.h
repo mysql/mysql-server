@@ -82,7 +82,7 @@ public:
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
-  void set_ordinal_position(uint ordinal_position)
+  void set_ordinal_position(uint)
   { }
 
   virtual uint ordinal_position() const

@@ -394,7 +394,7 @@ private:
 
 public:
   // Releasing arbitrary dictionary objects is not checked.
-  static bool is_release_locked(THD *thd, const dd::Dictionary_object *object)
+  static bool is_release_locked(THD*, const dd::Dictionary_object*)
   { return true; }
 
   // Reading a table object should be governed by MDL_SHARED.
@@ -506,7 +506,7 @@ public:
 
 // Check if the component is hidden.
 template <typename T>
-bool is_component_hidden(dd::Raw_record *r)
+bool is_component_hidden(dd::Raw_record*)
 { return false; }
 
 template <>

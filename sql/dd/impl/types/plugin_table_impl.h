@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,7 +61,7 @@ public:
     return Dictionary_impl::instance()->get_actual_dd_version(thd);
   }
 
-  virtual bool populate(THD *thd) const
+  virtual bool populate(THD*) const
   { return false; }
 
   virtual bool hidden() const

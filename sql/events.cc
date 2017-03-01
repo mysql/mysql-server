@@ -661,7 +661,7 @@ Events::drop_schema_events(THD *thd, const dd::Schema &schema)
   DBUG_ENTER("Events::drop_schema_events");
 
   if (event_queue)
-    event_queue->drop_schema_events(thd, db_lex);
+    event_queue->drop_schema_events(db_lex);
 
   DBUG_RETURN(db_repository->drop_schema_events(thd, schema));
 }
@@ -880,7 +880,7 @@ Events::init(bool opt_noacl_or_bootstrap)
     goto end;
   }
 
-  if (event_queue->init_queue(thd) || load_events_from_db(thd, event_queue) ||
+  if (event_queue->init_queue() || load_events_from_db(thd, event_queue) ||
       (opt_event_scheduler == EVENTS_ON && scheduler->start(&err_no)))
   {
     sql_print_error("Event Scheduler: Error while loading from disk.");

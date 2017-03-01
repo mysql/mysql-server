@@ -242,7 +242,6 @@ private:
     @param index_name_ptr          - Index name of which we need stats.
     @param index_ordinal_position  - Ordinal position of index in table.
     @param column_ordinal_position - Ordinal position of column in table.
-    @param engine_name_ptr         - Engine of the table.
     @param se_private_id           - se_private_id of the table.
     @param stype                   - Enum specifying the stat we are
                                      interested to read.
@@ -255,7 +254,6 @@ private:
                               const String &index_name_ptr,
                               uint index_ordinal_position,
                               uint column_ordinal_position,
-                              const String &engine_name_ptr,
                               dd::Object_id se_private_id,
                               enum_statistics_type stype);
 

@@ -98,7 +98,7 @@ Event_queue::~Event_queue()
 */
 
 bool
-Event_queue::init_queue(THD *thd)
+Event_queue::init_queue()
 {
   DBUG_ENTER("Event_queue::init_queue");
   DBUG_PRINT("enter", ("this: %p", this));
@@ -277,7 +277,6 @@ Event_queue::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 
   SYNOPSIS
     Event_queue::drop_matching_events()
-      thd            THD
       pattern        A pattern string
       comparator     The function to use for comparing
 
@@ -289,8 +288,8 @@ Event_queue::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 */
 
 void
-Event_queue::drop_matching_events(THD *thd, LEX_STRING pattern,
-                           bool (*comparator)(LEX_STRING, Event_basic *))
+Event_queue::drop_matching_events(LEX_STRING pattern,
+                                  bool (*comparator)(LEX_STRING, Event_basic *))
 {
   size_t i= 0;
   DBUG_ENTER("Event_queue::drop_matching_events");
@@ -343,16 +342,15 @@ Event_queue::drop_matching_events(THD *thd, LEX_STRING pattern,
 
   SYNOPSIS
     Event_queue::drop_schema_events()
-      thd        HD
       schema    The schema name
 */
 
 void
-Event_queue::drop_schema_events(THD *thd, LEX_STRING schema)
+Event_queue::drop_schema_events(LEX_STRING schema)
 {
   DBUG_ENTER("Event_queue::drop_schema_events");
   LOCK_QUEUE_DATA();
-  drop_matching_events(thd, schema, event_basic_db_equal);
+  drop_matching_events(schema, event_basic_db_equal);
   UNLOCK_QUEUE_DATA();
   DBUG_VOID_RETURN;
 }

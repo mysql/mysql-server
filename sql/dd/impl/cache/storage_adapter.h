@@ -96,13 +96,12 @@ private:
 
     @tparam      K         Key type.
     @tparam      T         Dictionary object type.
-    @param       thd       Thread context.
     @param       key       Key for which to get the object.
     @param [out] object    Object retrieved, possibly nullptr if not present.
   */
 
   template <typename K, typename T>
-  void core_get(THD *thd, const K &key, const T **object);
+  void core_get(const K &key, const T **object);
 
 
   Object_registry m_core_registry;   // Object registry storing core DD objects.
@@ -142,13 +141,12 @@ public:
     Get a dictionary object id from core storage.
 
     @tparam      T         Dictionary object type.
-    @param       thd       Thread context.
     @param       key       Name key for which to get the object id.
     @return      Object id, INVALID_OBJECT_ID if the object is not present.
   */
 
   template <typename T>
-  Object_id core_get_id(THD *thd, const typename T::name_key_type &key);
+  Object_id core_get_id(const typename T::name_key_type &key);
 
 
   /**

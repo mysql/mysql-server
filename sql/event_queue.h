@@ -101,7 +101,7 @@ public:
   ~Event_queue();
 
   bool
-  init_queue(THD *thd);
+  init_queue();
 
   /* Methods for queue management follow */
 
@@ -117,7 +117,7 @@ public:
   drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name);
 
   void
-  drop_schema_events(THD *thd, LEX_STRING schema);
+  drop_schema_events(LEX_STRING schema);
 
   void
   recalculate_activation_times(THD *thd);
@@ -152,7 +152,7 @@ private:
 
 
   void
-  drop_matching_events(THD *thd, LEX_STRING pattern,
+  drop_matching_events(LEX_STRING pattern,
                        bool (*)(LEX_STRING, Event_basic *));
 
 

@@ -78,7 +78,7 @@ public:
     return Dictionary_impl::instance()->get_actual_dd_version(thd);
   }
 
-  virtual bool populate(THD *thd) const
+  virtual bool populate(THD*) const
   { return false; }
 
   virtual bool hidden() const

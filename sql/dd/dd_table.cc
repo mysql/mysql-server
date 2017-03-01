@@ -263,7 +263,6 @@ dd::String_type get_sql_type_by_create_field(TABLE *table,
   used by the I_S queries only.
   For others, default value can be obtained from the columns.default_values.
 
-  @param[in]      thd        Thread handle.
   @param[in]      buf        Default value buffer.
   @param[in]      table      Table object.
   @param[in]      field      Field information.
@@ -276,8 +275,7 @@ dd::String_type get_sql_type_by_create_field(TABLE *table,
                              column is nullptr.
 */
 
-static void prepare_default_value_string(THD *thd,
-                                         uchar *buf,
+static void prepare_default_value_string(uchar *buf,
                                          TABLE *table,
                                          const Create_field &field,
                                          dd::Column *col_obj,
@@ -758,7 +756,7 @@ fill_dd_columns_from_create_fields(THD *thd,
       prepared in prepare_default_value() is used.
     */
     String def_val;
-    prepare_default_value_string(thd, buf, &table, *field, col_obj, &def_val);
+    prepare_default_value_string(buf, &table, *field, col_obj, &def_val);
     if (def_val.ptr() != nullptr)
       col_obj->set_default_value_utf8(dd::String_type(def_val.ptr(),
                                                   def_val.length()));
