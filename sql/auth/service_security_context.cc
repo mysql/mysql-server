@@ -352,18 +352,18 @@ my_svc_bool security_context_set_option(MYSQL_SECURITY_CONTEXT ctx,
     {
       my_svc_bool value= *(my_svc_bool *) pvalue;
       if (value)
-        ctx->set_master_access(ctx->master_access() | SUPER_ACL);
+        ctx->set_master_access(ctx->master_access() | (SUPER_ACL));
       else
-        ctx->set_master_access(ctx->master_access() & !(SUPER_ACL));
+        ctx->set_master_access(ctx->master_access() & ~(SUPER_ACL));
 
     }
     else if (!strcmp(name, "privilege_execute"))
     {
       my_svc_bool value= *(my_svc_bool *) pvalue;
       if (value)
-        ctx->set_master_access(ctx->master_access() | EXECUTE_ACL);
+        ctx->set_master_access(ctx->master_access() | (EXECUTE_ACL));
       else
-        ctx->set_master_access(ctx->master_access() & !(EXECUTE_ACL));
+        ctx->set_master_access(ctx->master_access() & ~(EXECUTE_ACL));
     }
     else
       return MY_SVC_TRUE; /* invalid option */
