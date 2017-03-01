@@ -1,7 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
-
 #setup
 let $select_column = READ_LOCKED_BY_COUNT;
 let $table = performance_schema.rwlock_instances;

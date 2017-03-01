@@ -1,7 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
-
 #setup
 let $select_column = COUNT_STAR;
 let $table = performance_schema.objects_summary_global_by_type;

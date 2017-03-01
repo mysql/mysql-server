@@ -3,8 +3,6 @@
 # This test verifies the correct behaviour in case of invalid
 # usage of DDLs on the table replication_applier_configuration
 
---source include/not_embedded.inc
-
 -- error ER_DBACCESS_DENIED_ERROR
 ALTER TABLE performance_schema.replication_applier_configuration
   ADD COLUMN foo integer;

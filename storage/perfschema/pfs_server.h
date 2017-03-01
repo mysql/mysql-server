@@ -286,12 +286,6 @@ extern PFS_global_param pfs_param;
 void pre_initialize_performance_schema();
 
 /**
-  Initialize performance schema sizing values for the embedded build.
-  All instrumentations are sized to 0, disabled.
-*/
-void set_embedded_performance_schema_param(PFS_global_param *param);
-
-/**
   Initialize the performance schema.
   The performance schema implement several instrumentation services.
   Each instrumentation service is versioned, and accessible through

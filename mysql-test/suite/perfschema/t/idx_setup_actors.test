@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
-
-
 insert into performance_schema.setup_actors values ("host1","user1","%",'YES','YES');
 insert into performance_schema.setup_actors values ("host2","user1","%",'YES','YES');
 insert into performance_schema.setup_actors values ("host3","user1","%",'YES','YES');

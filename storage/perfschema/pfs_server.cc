@@ -116,12 +116,6 @@ pre_initialize_performance_schema()
   THR_PFS_initialized = true;
 }
 
-void
-set_embedded_performance_schema_param(PFS_global_param* param)
-{
-  memset(param, 0, sizeof(PFS_global_param));
-}
-
 int
 initialize_performance_schema(PFS_global_param* param,
                               PSI_thread_bootstrap** thread_bootstrap,

@@ -1,5 +1,3 @@
---source include/not_embedded.inc
-
 #
 # Test based on mysql-test/suite/sys_vars/t/all_vars.test
 # and adapted for the performance schema tables.

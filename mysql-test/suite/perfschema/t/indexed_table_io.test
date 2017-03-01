@@ -14,8 +14,6 @@ use test;
 
 # Setup
 
---source include/not_embedded.inc
-
 let $engine_type= MyISAM;
 
 --disable_warnings

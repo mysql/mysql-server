@@ -18,7 +18,6 @@ use test;
 #performance schema output.
 -- source include/have_QC_Disabled.inc
 
---source include/not_embedded.inc
 --source ../include/table_io_setup_helper.inc
 
 let $engine_type= MyISAM;
