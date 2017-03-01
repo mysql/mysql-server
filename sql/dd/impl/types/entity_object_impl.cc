@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -93,14 +93,14 @@ bool Entity_object_impl::store_name(Raw_record *r, int field_idx)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Entity_object_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
+void Entity_object_impl::serialize(Sdi_wcontext*, Sdi_writer *w) const
 {
   write(w, m_name, STRING_WITH_LEN("name"));
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Entity_object_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
+bool Entity_object_impl::deserialize(Sdi_rcontext*, const RJ_Value &val)
 {
   return read(&m_name, val, "name");
 }

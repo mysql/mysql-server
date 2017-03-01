@@ -27,7 +27,7 @@ bool CheckerVer_1_0::file_seek_to_tag(File file)
   return mysql_file_seek(file, -static_cast<int>(EOF_TAG_SIZE), MY_SEEK_END,
                          MYF(0)) == MY_FILEPOS_ERROR;
 }
-bool CheckerVer_1_0::is_dgst_correct(File file, Digest *digest)
+bool CheckerVer_1_0::is_dgst_correct(File, Digest *digest)
 {
   digest->is_empty= TRUE;
   return TRUE;

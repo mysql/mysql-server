@@ -145,7 +145,7 @@ static int test_services_plugin_init(void *p)
 }
 
 /* There is nothing to clean up when UNINSTALL PLUGIN. */
-static int test_services_plugin_deinit(void *p)
+static int test_services_plugin_deinit(void*)
 {
   DBUG_ENTER("test_services_plugin_deinit");
   DBUG_RETURN(0);

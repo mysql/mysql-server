@@ -42,11 +42,11 @@ namespace keyring {
       {
         return keyring_malloc<void*>(size);
       }
-      static void operator delete(void* ptr, std::size_t sz)
+      static void operator delete(void* ptr, std::size_t)
       {
           my_free(ptr);
       }
-      static void operator delete[](void* ptr, std::size_t sz)
+      static void operator delete[](void* ptr, std::size_t)
       {
           my_free(ptr);
       }

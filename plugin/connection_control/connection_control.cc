@@ -223,7 +223,8 @@ check_failed_connections_threshold(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 static void
 update_failed_connections_threshold(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                                     struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
-                                    void *var_ptr, const void *save)
+                                    void *var_ptr MY_ATTRIBUTE((unused)),
+                                    const void *save)
 {
   /*
     This won't result in overflow because we have already checked that this is
@@ -306,7 +307,8 @@ check_min_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 static void
 update_min_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                             struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
-                            void *var_ptr, const void *save)
+                            void *var_ptr MY_ATTRIBUTE((unused)),
+                            const void *save)
 {
   longlong new_value= *(reinterpret_cast<const longlong *>(save));
   g_variables.min_connection_delay= (int64)new_value;
@@ -385,7 +387,8 @@ check_max_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 static void
 update_max_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                             struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
-                            void *var_ptr, const void *save)
+                            void *var_ptr MY_ATTRIBUTE((unused)),
+                            const void *save)
 {
   longlong new_value= *(reinterpret_cast<const longlong *>(save));
   my_atomic_store64(&g_variables.max_connection_delay, (int64)new_value);

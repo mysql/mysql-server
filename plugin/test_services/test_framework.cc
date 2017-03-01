@@ -37,7 +37,7 @@
     1                    failure (cannot happen)
 */
 
-static int test_services_plugin_init(void *p)
+static int test_services_plugin_init(void*)
 {
   DBUG_ENTER("test_services_plugin_init");
   DBUG_RETURN(0);
@@ -57,7 +57,7 @@ static int test_services_plugin_init(void *p)
 
 */
 
-static int test_services_plugin_deinit(void *p)
+static int test_services_plugin_deinit(void*)
 {
   DBUG_ENTER("test_services_plugin_deinit");
   DBUG_RETURN(0);

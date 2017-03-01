@@ -799,13 +799,12 @@ public:
    * 
    * Input:
    *  net          - (IN)  the connection to master
-   *  server_id    - (IN)  master server id number
    *  event_buf    - (IN)  pointer to the event packet
    *
    * Return:
    *  0: success;  non-zero: error
    */
-  int readSlaveReply(NET *net, uint32 server_id, const char *event_buf);
+  int readSlaveReply(NET *net, const char *event_buf);
 
   /* In semi-sync replication, this method simulates the reception of
    * an reply and executes reportReplyBinlog directly when a transaction

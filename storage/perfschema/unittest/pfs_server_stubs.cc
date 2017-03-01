@@ -42,12 +42,12 @@ void reset_status_vars()
 {
 }
 
-struct System_status_var* get_thd_status_var(THD *thd)
+struct System_status_var* get_thd_status_var(THD*)
 {
   return NULL;
 }
 
-unsigned int mysql_errno_to_sqlstate_index(unsigned int err)
+unsigned int mysql_errno_to_sqlstate_index(unsigned int)
 {
   return 0;
 }

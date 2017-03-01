@@ -3593,7 +3593,7 @@ static Sys_var_enum Mts_parallel_type(
        NOT_IN_BINLOG, ON_CHECK(check_slave_stopped),
        ON_UPDATE(NULL));
 
-static bool check_binlog_transaction_dependency_tracking(sys_var *self, THD *thd, set_var *var)
+static bool check_binlog_transaction_dependency_tracking(sys_var*, THD*, set_var *var)
 {
   if (global_system_variables.transaction_write_set_extraction == HASH_ALGORITHM_OFF
       && var->save_result.ulonglong_value != DEPENDENCY_TRACKING_COMMIT_ORDER)
@@ -3607,7 +3607,7 @@ static bool check_binlog_transaction_dependency_tracking(sys_var *self, THD *thd
   return false;
 }
 
-static bool update_binlog_transaction_dependency_tracking(sys_var* var, THD* thd, enum_var_type v)
+static bool update_binlog_transaction_dependency_tracking(sys_var*, THD*, enum_var_type)
 {
   /*
     the writeset_history_start needs to be set to 0 whenever there is a

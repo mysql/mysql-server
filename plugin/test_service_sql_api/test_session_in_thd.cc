@@ -186,7 +186,7 @@ static int test_sql_service_plugin_init(void *p)
 }
 
 
-static int test_sql_service_plugin_deinit(void *p)
+static int test_sql_service_plugin_deinit(void*)
 {
   DBUG_ENTER("test_sql_service_plugin_deinit");
   DBUG_RETURN(0);

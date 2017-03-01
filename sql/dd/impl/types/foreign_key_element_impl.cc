@@ -152,7 +152,7 @@ bool Foreign_key_element_impl::store_attributes(Raw_record *r)
 static_assert(Foreign_key_column_usage::FIELD_REFERENCED_COLUMN_NAME==3,
               "Foreign_key_column_usage definition has changed, review (de)ser memfuns!");
 void
-Foreign_key_element_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
+Foreign_key_element_impl::serialize(Sdi_wcontext*, Sdi_writer *w) const
 {
   w->StartObject();
   write_opx_reference(w, m_column, STRING_WITH_LEN("column_opx"));
