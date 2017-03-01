@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -226,23 +226,10 @@ CREATE TABLE IF NOT EXISTS server_cost (
   PRIMARY KEY (cost_name)
 ) ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci STATS_PERSISTENT=0;
 
-INSERT IGNORE INTO server_cost VALUES
-  ("row_evaluate_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
-
-INSERT IGNORE INTO server_cost VALUES
-  ("key_compare_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
-
-INSERT IGNORE INTO server_cost VALUES
-  ("memory_temptable_create_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
-
-INSERT IGNORE INTO server_cost VALUES
-  ("memory_temptable_row_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
-
-INSERT IGNORE INTO server_cost VALUES
-  ("disk_temptable_create_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
-
-INSERT IGNORE INTO server_cost VALUES
-  ("disk_temptable_row_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
+INSERT IGNORE INTO server_cost(cost_name) VALUES
+  ("row_evaluate_cost"), ("key_compare_cost"),
+  ("memory_temptable_create_cost"), ("memory_temptable_row_cost"),
+  ("disk_temptable_create_cost"), ("disk_temptable_row_cost");
 
 -- Engine cost constants
 
@@ -256,10 +243,9 @@ CREATE TABLE IF NOT EXISTS engine_cost (
   PRIMARY KEY (cost_name, engine_name, device_type)
 ) ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci STATS_PERSISTENT=0;
 
-INSERT IGNORE INTO engine_cost VALUES
-  ("default", 0, "memory_block_read_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
-INSERT IGNORE INTO engine_cost VALUES
-  ("default", 0, "io_block_read_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
+INSERT IGNORE INTO engine_cost(engine_name, device_type, cost_name) VALUES
+  ("default", 0, "memory_block_read_cost"),
+  ("default", 0, "io_block_read_cost");
 
 --
 -- PERFORMANCE SCHEMA INSTALLATION
