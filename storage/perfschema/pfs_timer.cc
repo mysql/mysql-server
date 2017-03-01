@@ -48,12 +48,12 @@ static ulonglong tick_to_pico; /* 1e10 at 100 Hz, 1.666e10 at 60 Hz */
 /* Indexed by enum enum_timer_name */
 static struct time_normalizer
   to_pico_data[FIRST_TIMER_NAME + COUNT_TIMER_NAME] = {
-    {0, 0}, /* pico (identity) */
-    {0, 0}, /* cycle */
-    {0, 0}, /* nanosec */
-    {0, 0}, /* microsec */
-    {0, 0}, /* millisec */
-    {0, 0}  /* tick */
+    {0, 0, {0}}, /* pico (identity) */
+    {0, 0, {0}}, /* cycle */
+    {0, 0, {0}}, /* nanosec */
+    {0, 0, {0}}, /* microsec */
+    {0, 0, {0}}, /* millisec */
+    {0, 0, {0}}  /* tick */
 };
 
 static inline ulong
