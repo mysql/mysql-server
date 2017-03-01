@@ -23,6 +23,7 @@
 #include "rpl_info_handler.h"              // enum_return_check
 
 #include <vector>
+#include <string>
 
 class Master_info;
 class Multisource_info;
