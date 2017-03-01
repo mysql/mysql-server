@@ -30,7 +30,6 @@ Created 9/5/1995 Heikki Tuuri
 #include <iostream>
 
 #include "ut0new.h"
-#include "ut0counter.h"
 
 #if defined(UNIV_DEBUG) && !defined(UNIV_INNOCHECKSUM)
 /** Set when InnoDB has invoked exit(). */
