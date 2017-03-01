@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -936,6 +936,33 @@ DROP PREPARE stmt;
 
 SET @cmd="ALTER TABLE mysql.proxies_priv ENGINE=NDB";
 SET @str = IF(@had_distributed_proxies_priv > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- MySQL 8.0 adds default_value column to cost tables
+-- In case of downgrade to 5.7, remove these columns
+--
+
+-- Drop column default_value from mysql.server_cost if it exists
+SET @have_server_cost_default =
+  (SELECT COUNT(column_name) FROM information_schema.columns
+     WHERE table_schema = 'mysql' AND table_name = 'server_cost' AND
+           column_name = 'default_value');
+SET @cmd="ALTER TABLE mysql.server_cost DROP COLUMN default_value";
+SET @str = IF(@have_server_cost_default > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+-- Drop column default_value from mysql.engine_cost if it exists
+SET @have_engine_cost_default =
+  (SELECT COUNT(column_name) FROM information_schema.columns
+     WHERE table_schema = 'mysql' AND table_name = 'engine_cost' AND
+           column_name = 'default_value');
+SET @cmd="ALTER TABLE mysql.engine_cost DROP COLUMN default_value";
+SET @str = IF(@have_engine_cost_default > 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
