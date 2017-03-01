@@ -39,6 +39,8 @@
 #include "sql_string.h"
 #include "tc_log.h"                    // TC_LOG
 #include "thr_mutex.h"
+#include "rpl_gtid.h"                  // Gtid_set, Sid_map
+#include "rpl_trx_tracking.h"
 
 class Format_description_log_event;
 class Gtid_set;
@@ -72,46 +74,6 @@ struct Binlog_user_var_event
   Item_result type;
   uint charset_number;
   bool unsigned_flag;
-};
-
-/**
-  Logical timestamp generator for logical timestamping binlog transactions.
-  A transaction is associated with two sequence numbers see
-  @c Transaction_ctx::last_committed and @c Transaction_ctx::sequence_number.
-  The class provides necessary interfaces including that of
-  generating a next consecutive value for the latter.
-*/
-class  Logical_clock
-{
-private:
-  int64 state;
-  /*
-    Offset is subtracted from the actual "absolute time" value at
-    logging a replication event. That is the event holds logical
-    timestamps in the "relative" format. They are meaningful only in
-    the context of the current binlog.
-    The member is updated (incremented) per binary log rotation.
-  */
-  int64 offset;
-public:
-  Logical_clock();
-  int64 step();
-  int64 set_if_greater(int64 new_val);
-  int64 get_timestamp();
-  int64 get_offset() { return offset; }
-  /*
-    Updates the offset.
-    This operation is invoked when binlog rotates and at that time
-    there can't any concurrent step() callers so no need to guard
-    the assignement.
-  */
-  void update_offset(int64 new_offset)
-  {
-    DBUG_ASSERT(offset <= new_offset);
-
-    offset= new_offset;
-  }
-  ~Logical_clock() { }
 };
 
 /**
@@ -382,6 +344,7 @@ typedef struct st_log_info
     }
 } LOG_INFO;
 
+
 /*
   TODO use mmap instead of IO_CACHE for binlog
   (mmap+fsync is two times faster than write+fsync)
@@ -624,11 +587,8 @@ public:
 #endif
 
 public:
-  /* Committed transactions timestamp */
-   Logical_clock max_committed_transaction;
-  /* "Prepared" transactions timestamp */
-   Logical_clock transaction_counter;
-  void update_max_committed(THD *thd);
+  /** Manage the MTS dependency tracking */
+  Transaction_dependency_tracker m_dependency_tracker;
 
   /**
     Find the oldest binary log that contains any GTID that

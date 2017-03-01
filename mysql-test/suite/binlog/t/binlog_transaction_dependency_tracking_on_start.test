@@ -1,0 +1,164 @@
+################################################################################
+# The testcase aims to test possible correct and incorrect settings of the
+# following variables together during the start of the server:
+#  transaction_write_set_extraction (TWSE)
+#  binlog_transaction_dependency_tracking (BTDT)
+#
+# Test:
+# 0. This test requires one server.
+# 1. Try starting server with:
+#  a. TWSE=OFF      and BTDT=COMMIT_ORDER.     Expect SUCCESS.
+#  b. TWSE=OFF      and BTDT=WRITESET.         Expect FAILURE.
+#  c. TWSE=OFF      and BTDT=WRITESET_SESSION. Expect FAILURE.
+#  d. TWSE=MURMUR32 and BTDT=COMMIT_ORDER.     Expect SUCCESS.
+#  e. TWSE=MURMUR32 and BTDT=WRITESET.         Expect SUCCESS.
+#  f. TWSE=MURMUR32 and BTDT=WRITESET_SESSION. Expect SUCCESS.
+#  g. TWSE=XXHASH64 and BTDT=COMMIT_ORDER.     Expect SUCCESS.
+#  h. TWSE=XXHASH64 and BTDT=WRITESET.         Expect SUCCESS
+#  i. TWSE=XXHASH64 and BTDT=WRITESET_SESSION. Expect SUCCESS.
+#
+# ==== References ====
+# WL#9556: Writeset-based MTS dependency tracking on master
+################################################################################
+--source include/not_embedded.inc
+--source include/big_test.inc
+--source include/have_binlog_format_row.inc
+
+--let $saved_binlog_transaction_dependency_tracking= `SELECT @@GLOBAL.binlog_transaction_dependency_tracking`
+--let $saved_transaction_write_set_extraction= `SELECT @@GLOBAL.transaction_write_set_extraction`
+
+--echo #
+--echo # Test 1.a: Try starting server with TWSE=OFF and BTDT=COMMIT_ORDER. Expect SUCCESS.
+--echo #
+--let $restart_parameters="restart: --transaction_write_set_extraction=OFF --binlog_transaction_dependency_tracking=COMMIT_ORDER"
+--source include/restart_mysqld.inc
+--source include/wait_until_connected_again.inc
+--let $assert_text= transaction_write_set_extraction should be OFF
+--let $assert_cond= "[SELECT @@GLOBAL.transaction_write_set_extraction]" = "OFF"
+--source include/assert.inc
+--let $assert_text= binlog_transaction_dependency_tracking should be COMMIT_ORDER
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_transaction_dependency_tracking]" = "COMMIT_ORDER"
+--source include/assert.inc
+
+--echo #
+--echo # Test 1.b: Try starting server with TWSE=OFF and BTDT=WRITESET. Expect FAILURE.
+--echo #
+# Let server restart attempts write to the file $error_log.
+--let $error_log= $MYSQLTEST_VARDIR/tmp/binlog_transaction_dependency_tracking.err
+--source include/shutdown_mysqld.inc
+
+let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 --transaction_write_set_extraction=OFF --binlog_transaction_dependency_tracking=WRITESET;
+
+--error 1
+--exec $mysqld
+--let $grep_file=$error_log
+--let $grep_pattern=The transaction_write_set_extraction must be set to XXHASH64 or MURMUR32 when binlog_transaction_dependency_tracking is WRITESET or WRITESET_SESSION.
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+# The server restart aborts
+--let $grep_pattern= \[ERROR\] Aborting
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--echo #
+--echo # Test 1.c: Try starting server with TWSE=OFF and BTDT=WRITESET_SESSION. Expect FAILURE.
+--echo #
+let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 --transaction_write_set_extraction=OFF --binlog_transaction_dependency_tracking=WRITESET_SESSION;
+
+--error 1
+--exec $mysqld
+--let $grep_file=$error_log
+--let $grep_pattern=The transaction_write_set_extraction must be set to XXHASH64 or MURMUR32 when binlog_transaction_dependency_tracking is WRITESET or WRITESET_SESSION.
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+# The server restart aborts
+--let $grep_pattern= \[ERROR\] Aborting
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--echo #
+--echo # Test 1.d: Try starting server with TWSE=MURMUR32 and BTDT=COMMIT_ORDER. Expect SUCCESS.
+--echo #
+--let $restart_parameters="restart: --transaction_write_set_extraction=MURMUR32 --binlog_transaction_dependency_tracking=COMMIT_ORDER"
+--source include/start_mysqld.inc
+--source include/wait_until_connected_again.inc
+--let $assert_text= transaction_write_set_extraction should be MURMUR32
+--let $assert_cond= "[SELECT @@GLOBAL.transaction_write_set_extraction]" = "MURMUR32"
+--source include/assert.inc
+--let $assert_text= binlog_transaction_dependency_tracking should be COMMIT_ORDER
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_transaction_dependency_tracking]" = "COMMIT_ORDER"
+--source include/assert.inc
+
+--echo #
+--echo # Test 1.e: Try starting server with TWSE=MURMUR32 and BTDT=WRITESET. Expect SUCCESS.
+--echo #
+--let $restart_parameters="restart: --transaction_write_set_extraction=MURMUR32 --binlog_transaction_dependency_tracking=WRITESET"
+--source include/restart_mysqld.inc
+--source include/wait_until_connected_again.inc
+--let $assert_text= transaction_write_set_extraction should be MURMUR32
+--let $assert_cond= "[SELECT @@GLOBAL.transaction_write_set_extraction]" = "MURMUR32"
+--source include/assert.inc
+--let $assert_text= binlog_transaction_dependency_tracking should be WRITESET
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_transaction_dependency_tracking]" = "WRITESET"
+--source include/assert.inc
+
+--echo #
+--echo # Test 1.f: Try starting server with TWSE=MURMUR32 and BTDT=WRITESET_SESSION. Expect SUCCESS.
+--echo #
+--let $restart_parameters="restart: --transaction_write_set_extraction=MURMUR32 --binlog_transaction_dependency_tracking=WRITESET_SESSION"
+--source include/restart_mysqld.inc
+--source include/wait_until_connected_again.inc
+--let $assert_text= transaction_write_set_extraction should be MURMUR32
+--let $assert_cond= "[SELECT @@GLOBAL.transaction_write_set_extraction]" = "MURMUR32"
+--source include/assert.inc
+--let $assert_text= binlog_transaction_dependency_tracking should be WRITESET_SESSION
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_transaction_dependency_tracking]" = "WRITESET_SESSION"
+--source include/assert.inc
+
+--echo #
+--echo # Test 1.g: Try starting server with TWSE=XXHASH64 and BTDT=COMMIT_ORDER. Expect SUCCESS.
+--echo #
+--let $restart_parameters="restart: --transaction_write_set_extraction=XXHASH64 --binlog_transaction_dependency_tracking=COMMIT_ORDER"
+--source include/restart_mysqld.inc
+--source include/wait_until_connected_again.inc
+--let $assert_text= transaction_write_set_extraction should be XXHASH64
+--let $assert_cond= "[SELECT @@GLOBAL.transaction_write_set_extraction]" = "XXHASH64"
+--source include/assert.inc
+--let $assert_text= binlog_transaction_dependency_tracking should be COMMIT_ORDER
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_transaction_dependency_tracking]" = "COMMIT_ORDER"
+--source include/assert.inc
+
+--echo #
+--echo # Test 1.h: Try starting server with TWSE=XXHASH64 and BTDT=WRITESET. Expect SUCCESS
+--echo #
+--let $restart_parameters="restart: --transaction_write_set_extraction=XXHASH64 --binlog_transaction_dependency_tracking=WRITESET"
+--source include/restart_mysqld.inc
+--source include/wait_until_connected_again.inc
+--let $assert_text= transaction_write_set_extraction should be XXHASH64
+--let $assert_cond= "[SELECT @@GLOBAL.transaction_write_set_extraction]" = "XXHASH64"
+--source include/assert.inc
+--let $assert_text= binlog_transaction_dependency_tracking should be WRITESET
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_transaction_dependency_tracking]" = "WRITESET"
+--source include/assert.inc
+
+--echo #
+--echo # Test 1.i: Try starting server with TWSE=XXHASH64 and BTDT=WRITESET_SESSION. Expect SUCCESS.
+--echo #
+--let $restart_parameters="restart: --transaction_write_set_extraction=XXHASH64 --binlog_transaction_dependency_tracking=WRITESET_SESSION"
+--source include/restart_mysqld.inc
+--source include/wait_until_connected_again.inc
+--let $assert_text= transaction_write_set_extraction should be XXHASH64
+--let $assert_cond= "[SELECT @@GLOBAL.transaction_write_set_extraction]" = "XXHASH64"
+--source include/assert.inc
+--let $assert_text= binlog_transaction_dependency_tracking should be WRITESET_SESSION
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_transaction_dependency_tracking]" = "WRITESET_SESSION"
+--source include/assert.inc
+
+# Clean up
+--let $restart_parameters=
+--let $error_log=
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog_transaction_dependency_tracking.err
+--eval SET GLOBAL binlog_transaction_dependency_tracking= $saved_binlog_transaction_dependency_tracking
+--eval SET GLOBAL transaction_write_set_extraction= $saved_transaction_write_set_extraction

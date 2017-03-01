@@ -46,6 +46,7 @@
 #include "system_variables.h"
 #include "table.h"
 #include "transaction_info.h"
+#include "rpl_write_set_handler.h"
 
 Trans_delegate *transaction_delegate;
 Binlog_storage_delegate *binlog_storage_delegate;
