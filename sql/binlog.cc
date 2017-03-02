@@ -6598,7 +6598,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time, bool auto_purge)
     }
     else
     {
-      if (stat_area.st_mtime < purge_time) 
+      if (stat_area.st_mtime < purge_time)
         strmake(to_log, 
                 log_info.log_file_name, 
                 sizeof(log_info.log_file_name) - 1);
@@ -7415,10 +7415,11 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
 */
 void MYSQL_BIN_LOG::purge()
 {
-  if (expire_logs_days)
+  if (expire_logs_days || binlog_expire_logs_seconds)
   {
     DEBUG_SYNC(current_thd, "at_purge_logs_before_date");
-    time_t purge_time= my_time(0) - expire_logs_days*24*60*60;
+    time_t purge_time= my_time(0) - expire_logs_days * 24 * 60 * 60 -
+                       binlog_expire_logs_seconds;
     DBUG_EXECUTE_IF("expire_logs_always",
                     { purge_time= my_time(0);});
     if (purge_time >= 0)
