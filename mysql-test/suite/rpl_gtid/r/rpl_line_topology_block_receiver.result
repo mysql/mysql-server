@@ -10,6 +10,8 @@ CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 [connection server_2]
 include/start_slave.inc
+[connection server_1]
+include/sync_slave_sql_with_master.inc
 # Adding debug point 'updating_received_transaction_set' to @@GLOBAL.debug
 [connection server_1]
 INSERT INTO t1 VALUES(2);
