@@ -13,6 +13,7 @@
 # WL#8599: Reduce contention in IO and SQL threads
 #
 
+--source include/have_debug.inc
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave=1
