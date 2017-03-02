@@ -444,9 +444,10 @@ trx_purge_free_segment(
 		page_t*	undo_page;
 
 		mtr_start(&mtr);
-
 		if (noredo) {
 			mtr.set_log_mode(MTR_LOG_NO_REDO);
+		} else {
+			mtr.set_undo_space(rseg->space_id);
 		}
 
 		mutex_enter(&rseg->mutex);
@@ -473,6 +474,8 @@ trx_purge_free_segment(
 				log_hdr + TRX_UNDO_DEL_MARKS, FALSE,
 				MLOG_2BYTES, &mtr);
 		}
+
+		ut_ad(mtr.is_undo_space(rseg->space_id));
 
 		if (fseg_free_step_not_header(
 			    seg_hdr + TRX_UNDO_FSEG_HEADER, false, &mtr)) {
@@ -544,9 +547,10 @@ trx_purge_truncate_rseg_history(
 		= fsp_is_system_temporary(rseg->space_id);
 
 	mtr_start(&mtr);
-
 	if (noredo) {
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
+	} else {
+		mtr.set_undo_space(rseg->space_id);
 	}
 
 	mutex_enter(&(rseg->mutex));
@@ -620,11 +624,11 @@ loop:
 	}
 
 	mtr_start(&mtr);
-
 	if (noredo) {
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
+	} else {
+		mtr.set_undo_space(rseg->space_id);
 	}
-
 	mutex_enter(&(rseg->mutex));
 
 	rseg_hdr = trx_rsegf_get(rseg->space_id, rseg->page_no,

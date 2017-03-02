@@ -2202,7 +2202,6 @@ srv_master_do_shutdown_tasks(
 func_exit:
 	/* Make a new checkpoint about once in 10 seconds */
 	srv_main_thread_op_info = "making checkpoint";
-
 	log_checkpoint(TRUE, FALSE);
 
 	/* Print progress message every 60 seconds during shutdown */
@@ -2279,9 +2278,10 @@ srv_enable_undo_encryption_if_set()
 				Encryption::random_value(iv);
 
 				mtr_start(&mtr);
+				mtr.set_named_space(space->id);
 
-				mtr_x_lock_space(space, &mtr);
-
+				space = mtr_x_lock_space(space->id,
+							 &mtr);
 				memset(encrypt_info, 0,
 				       ENCRYPTION_INFO_SIZE_V2);
 
@@ -2359,8 +2359,10 @@ srv_enable_undo_encryption_if_set()
 				ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
 
 				mtr_start(&mtr);
+				mtr.set_named_space(space->id);
 
-				mtr_x_lock_space(space, &mtr);
+				space = mtr_x_lock_space(space->id,
+							 &mtr);
 
 				memset(encrypt_info, 0,
 				       ENCRYPTION_INFO_SIZE_V2);

@@ -63,6 +63,7 @@ PageBulk::init()
 		the allocation order, and we will always generate redo log
 		for page allocation, even when creating a new tablespace. */
 		mtr_start(&alloc_mtr);
+		alloc_mtr.set_named_space(dict_index_get_space(m_index));
 
 		ulint	n_reserved;
 		bool	success;
@@ -955,6 +956,7 @@ BtrBulk::finish(dberr_t	err)
 					       m_flush_observer);
 
 		mtr_start(&mtr);
+		mtr.set_named_space(dict_index_get_space(m_index));
 		mtr_x_lock(dict_index_get_lock(m_index), &mtr);
 
 		ut_ad(last_page_no != FIL_NULL);

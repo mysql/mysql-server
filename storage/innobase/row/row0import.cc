@@ -1703,7 +1703,7 @@ PageConverter::PageConverter(
 {
 	m_index = m_cfg->m_indexes;
 
-	m_current_lsn = log_sys->flushed_to_disk_lsn;
+	m_current_lsn = log_get_lsn();
 	ut_a(m_current_lsn > 0);
 
 	m_offsets = m_offsets_;
@@ -4104,14 +4104,14 @@ row_import_for_mysql(
 	fil_space_set_imported(prebuilt->table->space);
 
 	if (dict_table_is_encrypted(table)) {
+		fil_space_t*	space;
 		mtr_t		mtr;
 		byte		encrypt_info[ENCRYPTION_INFO_SIZE_V2];
 
-		fil_space_t*	space = fil_space_get(table->space);
-
 		mtr_start(&mtr);
 
-		mtr_x_lock_space(space, &mtr);
+		mtr.set_named_space(table->space);
+		space = mtr_x_lock_space(table->space, &mtr);
 
 		memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
 

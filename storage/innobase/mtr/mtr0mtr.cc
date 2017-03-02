@@ -400,6 +400,23 @@ struct mtr_write_log_t {
 	}
 };
 
+/** Append records to the system-wide redo log buffer.
+@param[in]	log	redo log records */
+void
+mtr_write_log(
+	const mtr_buf_t*	log)
+{
+	mtr_write_log_t	write_log;
+
+	DBUG_PRINT("ib_log",
+		   (ULINTPF " extra bytes written at " LSN_PF,
+		    log->size(), log_sys->lsn));
+
+	log_reserve_and_open(log->size());
+	log->for_each_block(write_log);
+	log_close();
+}
+
 /** Start a mini-transaction.
 @param sync		true if it is a synchronous mini-transaction
 @param read_only	true if read only mini-transaction */
@@ -424,6 +441,12 @@ mtr_t::start(bool sync, bool read_only)
 	m_impl.m_made_dirty = false;
 	m_impl.m_n_log_recs = 0;
 	m_impl.m_state = MTR_STATE_ACTIVE;
+	ut_d(m_impl.m_user_space_id = TRX_SYS_SPACE);
+	ut_d(m_impl.m_undo_space_id = TRX_SYS_SPACE);
+	m_impl.m_modifies_sys_space = false;
+	m_impl.m_user_space = NULL;
+	m_impl.m_undo_space = NULL;
+	m_impl.m_sys_space = NULL;
 	m_impl.m_flush_observer = NULL;
 
 	ut_d(m_impl.m_magic_n = MTR_MAGIC_N);
@@ -464,6 +487,9 @@ mtr_t::commit()
 	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
 	m_impl.m_state = MTR_STATE_COMMITTING;
 
+	/* This is a dirty read, for debugging. */
+	ut_ad(!recv_no_log_write);
+
 	Command	cmd(this);
 
 	if (m_impl.m_n_log_recs > 0
@@ -480,21 +506,228 @@ mtr_t::commit()
 	}
 }
 
-/** Acquire a tablespace X-latch.
-@param[in]	space		tablespace instance
-@param[in]	file		file name from where called
-@param[in]	line		line number in file */
+/** Commit a mini-transaction that did not modify any pages,
+but generated some redo log on a higher level, such as
+MLOG_FILE_NAME records and a MLOG_CHECKPOINT marker.
+The caller must invoke log_mutex_enter() and log_mutex_exit().
+This is to be used at log_checkpoint().
+@param[in]	checkpoint_lsn		the LSN of the log checkpoint
+@param[in]	write_mlog_checkpoint	Write MLOG_CHECKPOINT marker
+					if it is enabled. */
 void
-mtr_t::x_lock_space(fil_space_t* space, const char* file, ulint line)
+mtr_t::commit_checkpoint(
+	lsn_t	checkpoint_lsn,
+	bool	write_mlog_checkpoint)
 {
+	ut_ad(log_mutex_own());
+	ut_ad(is_active());
+	ut_ad(!is_inside_ibuf());
+	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
+	ut_ad(get_log_mode() == MTR_LOG_ALL);
+	ut_ad(!m_impl.m_made_dirty);
+	ut_ad(m_impl.m_memo.size() == 0);
+	ut_ad(!srv_read_only_mode);
+	ut_d(m_impl.m_state = MTR_STATE_COMMITTING);
+	ut_ad(write_mlog_checkpoint || m_impl.m_n_log_recs > 1);
+
+	/* This is a dirty read, for debugging. */
+	ut_ad(!recv_no_log_write);
+
+	switch (m_impl.m_n_log_recs) {
+	case 0:
+		break;
+	case 1:
+		*m_impl.m_log.front()->begin() |= MLOG_SINGLE_REC_FLAG;
+		break;
+	default:
+		mlog_catenate_ulint(
+			&m_impl.m_log, MLOG_MULTI_REC_END, MLOG_1BYTE);
+	}
+
+	if (write_mlog_checkpoint) {
+		byte*	ptr = m_impl.m_log.push<byte*>(SIZE_OF_MLOG_CHECKPOINT);
+#if SIZE_OF_MLOG_CHECKPOINT != 9
+# error SIZE_OF_MLOG_CHECKPOINT != 9
+#endif
+		*ptr = MLOG_CHECKPOINT;
+		mach_write_to_8(ptr + 1, checkpoint_lsn);
+	}
+
+	Command	cmd(this);
+	cmd.finish_write(m_impl.m_log.size());
+	cmd.release_resources();
+
+	if (write_mlog_checkpoint) {
+		DBUG_PRINT("ib_log",
+			   ("MLOG_CHECKPOINT(" LSN_PF ") written at " LSN_PF,
+			    checkpoint_lsn, log_sys->lsn));
+	}
+}
+
+#ifdef UNIV_DEBUG
+/** Check if a tablespace is associated with the mini-transaction
+(needed for generating a MLOG_FILE_NAME record)
+@param[in]	space	tablespace
+@return whether the mini-transaction is associated with the space */
+bool
+mtr_t::is_named_space(space_id_t space) const
+{
+	ut_ad(!m_impl.m_sys_space
+	      || m_impl.m_sys_space->id == TRX_SYS_SPACE);
+	ut_ad(!m_impl.m_undo_space
+	      || m_impl.m_undo_space->id != TRX_SYS_SPACE);
+	ut_ad(!m_impl.m_undo_space
+	      || m_impl.m_undo_space->id == m_impl.m_undo_space_id);
+	ut_ad(!m_impl.m_user_space
+	      || m_impl.m_user_space->id != TRX_SYS_SPACE);
+	ut_ad(!m_impl.m_user_space
+	      || m_impl.m_user_space->id == m_impl.m_user_space_id);
+	ut_ad(!m_impl.m_sys_space
+	      || m_impl.m_sys_space != m_impl.m_user_space);
+	ut_ad(!m_impl.m_sys_space
+	      || m_impl.m_sys_space != m_impl.m_undo_space);
+	ut_ad(!m_impl.m_user_space
+	      || m_impl.m_user_space != m_impl.m_undo_space);
+
+	switch (get_log_mode()) {
+	case MTR_LOG_NONE:
+	case MTR_LOG_NO_REDO:
+		return(true);
+	case MTR_LOG_ALL:
+	case MTR_LOG_SHORT_INSERTS:
+		if (space == TRX_SYS_SPACE) {
+			return(m_impl.m_modifies_sys_space);
+		} else {
+			return(m_impl.m_undo_space_id == space
+			       || m_impl.m_user_space_id == space);
+		}
+	}
+
+	ut_error;
+	return(false);
+}
+
+/** Check if an undo tablespace is associated with the mini-transaction
+(needed for generating a MLOG_FILE_NAME record)
+@param[in]	space	undo tablespace
+@return whether the mini-transaction is associated with the undo */
+bool
+mtr_t::is_undo_space(space_id_t space) const
+{
+	switch (get_log_mode()) {
+	case MTR_LOG_NONE:
+	case MTR_LOG_NO_REDO:
+		return(true);
+	case MTR_LOG_SHORT_INSERTS:
+		/* There should be no undo logging in this mode. */
+		break;
+	case MTR_LOG_ALL:
+		return(space == TRX_SYS_SPACE
+		       ? m_impl.m_modifies_sys_space
+		       : m_impl.m_undo_space_id == space);
+	}
+
+	ut_error;
+	return(false);
+}
+#endif /* UNIV_DEBUG */
+
+/** Acquire a tablespace X-latch.
+NOTE: use mtr_x_lock_space().
+@param[in]	space_id	tablespace ID
+@param[in]	file		file name from where called
+@param[in]	line		line number in file
+@return the tablespace object (never NULL) */
+fil_space_t*
+mtr_t::x_lock_space(space_id_t space_id, const char* file, ulint line)
+{
+	fil_space_t*	space;
+
 	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
 	ut_ad(is_active());
 
+	if (space_id == TRX_SYS_SPACE) {
+		space = m_impl.m_sys_space;
+
+		if (!space) {
+			space = m_impl.m_sys_space = fil_space_get(space_id);
+		}
+	} else if ((space = m_impl.m_user_space) && space_id == space->id) {
+	} else if ((space = m_impl.m_undo_space) && space_id == space->id) {
+	} else if (get_log_mode() == MTR_LOG_NO_REDO) {
+		space = fil_space_get(space_id);
+		ut_ad(space->purpose == FIL_TYPE_TEMPORARY
+		      || space->purpose == FIL_TYPE_IMPORT
+		      || space->redo_skipped_count > 0
+		      || undo::is_under_construction(space->id));
+	} else {
+		/* called from trx_rseg_create() */
+		space = m_impl.m_undo_space = fil_space_get(space_id);
+	}
+
+	ut_ad(space);
+	ut_ad(space->id == space_id);
 	x_lock(&space->latch, file, line);
+	ut_ad(space->purpose == FIL_TYPE_TEMPORARY
+	      || space->purpose == FIL_TYPE_IMPORT
+	      || space->purpose == FIL_TYPE_TABLESPACE);
+	return(space);
 }
 
-/** Release an object in the memo stack. */
+/** Look up the system tablespace. */
 void
+mtr_t::lookup_sys_space()
+{
+	ut_ad(!m_impl.m_sys_space);
+	m_impl.m_sys_space = fil_space_get(TRX_SYS_SPACE);
+	ut_ad(m_impl.m_sys_space);
+}
+
+/** Look up an undo tablespace.
+@param[in]	space_id	tablespace ID */
+void
+mtr_t::lookup_undo_space(space_id_t space_id)
+{
+	ut_ad(space_id != TRX_SYS_SPACE);
+	ut_ad(m_impl.m_undo_space_id == space_id);
+	ut_ad(!m_impl.m_undo_space);
+	m_impl.m_undo_space = fil_space_get(space_id);
+	ut_ad(m_impl.m_undo_space);
+}
+
+/** Look up a user tablespace.
+@param[in]	space_id	tablespace ID */
+void
+mtr_t::lookup_user_space(space_id_t space_id)
+{
+	ut_ad(space_id != TRX_SYS_SPACE);
+	ut_ad(m_impl.m_user_space_id == space_id);
+	ut_ad(!m_impl.m_user_space);
+	m_impl.m_user_space = fil_space_get(space_id);
+	ut_ad(m_impl.m_user_space);
+}
+
+/** Set the tablespace associated with the mini-transaction
+(needed for generating a MLOG_FILE_NAME record)
+@param[in]	space	user or system tablespace */
+void
+mtr_t::set_named_space(fil_space_t* space)
+{
+	ut_ad(m_impl.m_user_space_id == TRX_SYS_SPACE);
+	ut_d(m_impl.m_user_space_id = space->id);
+	if (space->id == TRX_SYS_SPACE) {
+		ut_ad(m_impl.m_sys_space == NULL
+		      || m_impl.m_sys_space == space);
+		m_impl.m_sys_space = space;
+		m_impl.m_modifies_sys_space = true;
+	} else {
+		m_impl.m_user_space = space;
+	}
+}
+
+/** Release an object in the memo stack.
+@return true if released */
+bool
 mtr_t::memo_release(const void* object, ulint type)
 {
 	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
@@ -509,7 +742,10 @@ mtr_t::memo_release(const void* object, ulint type)
 
 	if (!m_impl.m_memo.for_each_block_in_reverse(iterator)) {
 		memo_slot_release(find.m_slot);
+		return(true);
 	}
+
+	return(false);
 }
 
 /** Release a page latch.
@@ -557,9 +793,8 @@ mtr_t::Command::prepare_write()
 	}
 
 	ulint	len	= m_impl->m_log.size();
-	ut_ad(len > 0);
-
 	ulint	n_recs	= m_impl->m_n_log_recs;
+	ut_ad(len > 0);
 	ut_ad(n_recs > 0);
 
 	if (len > log_sys->buf_size / 2) {
@@ -570,29 +805,44 @@ mtr_t::Command::prepare_write()
 
 	log_mutex_enter();
 
-	/* This was not the first time of dirtying a
-	tablespace since the latest checkpoint. */
-
-	ut_ad(n_recs == m_impl->m_n_log_recs);
-
-	if (n_recs <= 1) {
-		ut_ad(n_recs == 1);
-
-		/* Flag the single log record as the
-		only record in this mini-transaction. */
-
-		*m_impl->m_log.front()->begin() |= MLOG_SINGLE_REC_FLAG;
-
-	} else {
-
-		/* Because this mini-transaction comprises
-		multiple log records, append MLOG_MULTI_REC_END
-		at the end. */
-
+	/* Note: we must invoke fil_names_write_if_was_clean()
+	on each tablespace. We are using the + operator instead of ||
+	because it avoids the short-circuit evaluation. */
+	if (fil_names_write_if_was_clean(m_impl->m_sys_space, m_impl->m_mtr)
+	    + fil_names_write_if_was_clean(m_impl->m_undo_space,
+					   m_impl->m_mtr)
+	    + fil_names_write_if_was_clean(m_impl->m_user_space,
+					   m_impl->m_mtr)) {
+		/* This mini-transaction was the first one to modify
+		some tablespace since the latest checkpoint, so
+		some MLOG_FILE_NAME records were appended to m_log. */
+		ut_ad(m_impl->m_n_log_recs > n_recs);
 		mlog_catenate_ulint(
-			&m_impl->m_log, MLOG_MULTI_REC_END,
-			MLOG_1BYTE);
-		++len;
+			&m_impl->m_log, MLOG_MULTI_REC_END, MLOG_1BYTE);
+		len = m_impl->m_log.size();
+	} else {
+		/* This was not the first time of dirtying a
+		tablespace since the latest checkpoint. */
+
+		ut_ad(n_recs == m_impl->m_n_log_recs);
+
+		if (n_recs <= 1) {
+			ut_ad(n_recs == 1);
+
+			/* Flag the single log record as the
+			only record in this mini-transaction. */
+			*m_impl->m_log.front()->begin()
+				|= MLOG_SINGLE_REC_FLAG;
+		} else {
+			/* Because this mini-transaction comprises
+			multiple log records, append MLOG_MULTI_REC_END
+			at the end. */
+
+			mlog_catenate_ulint(
+				&m_impl->m_log, MLOG_MULTI_REC_END,
+				MLOG_1BYTE);
+			len++;
+		}
 	}
 
 	/* check and attempt a checkpoint if exceeding capacity */
@@ -687,6 +937,53 @@ mtr_t::Command::execute()
 
 	release_all();
 	release_resources();
+}
+
+/** Release the free extents that was reserved using
+fsp_reserve_free_extents().  This is equivalent to calling
+fil_space_release_free_extents().  This is intended for use
+with index pages.
+@param[in]	n_reserved	number of reserved extents */
+void
+mtr_t::release_free_extents(ulint n_reserved)
+{
+	fil_space_t*	space;
+
+	ut_ad(m_impl.m_undo_space == NULL);
+
+	if (m_impl.m_user_space != NULL) {
+
+		ut_ad(m_impl.m_user_space->id
+		      == m_impl.m_user_space_id);
+		ut_ad(memo_contains(get_memo(), &m_impl.m_user_space->latch,
+				    MTR_MEMO_X_LOCK));
+
+		space = m_impl.m_user_space;
+	} else {
+
+		ut_ad(m_impl.m_sys_space->id == TRX_SYS_SPACE);
+		ut_ad(memo_contains(get_memo(), &m_impl.m_sys_space->latch,
+				    MTR_MEMO_X_LOCK));
+
+		space = m_impl.m_sys_space;
+	}
+
+	space->release_free_extents(n_reserved);
+}
+
+/** Look up the tablespace for the given space_id, that
+is being modified by the mini-transaction.
+@param[in]	space_id	tablespace identifier.
+@return tablespace, or NULL if not found */
+fil_space_t*
+mtr_t::space(space_id_t space_id) const
+{
+	fil_space_t*	space = m_impl.space(space_id);
+	if (space == NULL) {
+		ut_ad(fsp_is_system_temporary(space_id));
+		space = fil_space_get(space_id);
+	}
+	return(space);
 }
 
 #ifdef UNIV_DEBUG

@@ -219,13 +219,11 @@ trx_rollback_low(
 			so that if the system gets killed,
 			recovery will perform the rollback. */
 			trx_undo_ptr_t*	undo_ptr = &trx->rsegs.m_redo;
-
 			mtr_t		mtr;
-
 			mtr.start();
+			mtr.set_undo_space(trx->rsegs.m_redo.rseg->space_id);
 
 			mutex_enter(&trx->rsegs.m_redo.rseg->mutex);
-
 			if (undo_ptr->insert_undo != NULL) {
 				trx_undo_set_state_at_prepare(
 					trx, undo_ptr->insert_undo,

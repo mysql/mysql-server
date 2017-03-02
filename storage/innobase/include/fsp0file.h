@@ -254,29 +254,23 @@ public:
 	However, if the first page is corrupt and needs to be restored
 	from the doublewrite buffer, we will reopen it in write mode and
 	ry to restore that page.
-	@param[in]	space_id	Expected space ID
-	@retval DB_SUCCESS on success
+	@retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
 	m_is_valid is also set true on success, else false. */
-	dberr_t validate_for_recovery(space_id_t space_id)
+	dberr_t validate_for_recovery()
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Checks the consistency of the first page of a datafile when the
 	tablespace is opened.  This occurs before the fil_space_t is created
 	so the Space ID found here must not already be open.
 	m_is_valid is set true on success, else false.
-	@param[in]	space_id	Expected space ID
 	@param[out]	flush_lsn	contents of FIL_PAGE_FILE_FLUSH_LSN
 	@param[in]	for_import	if it is for importing
 	(only valid for the first file of the system tablespace)
-	@retval DB_TABLESPACE_NOT_FOUND tablespace in file header doesn't match
-		expected value
 	@retval DB_SUCCESS on if the datafile is valid
 	@retval DB_CORRUPTION if the datafile is not readable
 	@retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
-	dberr_t validate_first_page(
-		space_id_t	space_id,
-		lsn_t*		flush_lsn,
-		bool		for_import)
+	dberr_t validate_first_page(lsn_t*	flush_lsn,
+				    bool	for_import)
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Get Datafile::m_name.

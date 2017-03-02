@@ -307,20 +307,20 @@ trx_rseg_create(
 	ulint		rseg_id)
 {
 	mtr_t		mtr;
-
-	/* To obey the latching order, acquire the file space
-	x-latch before the trx_sys->mutex. */
-	fil_space_t*	space = fil_space_get(space_id);
+	trx_rseg_t*	rseg = nullptr;
 
 	mtr_start(&mtr);
 
+	/* To obey the latching order, acquire the file space
+	x-latch before the trx_sys->mutex. */
+	fil_space_t*	space = mtr.set_undo_space(space_id);
 	mtr_x_lock(&space->latch, &mtr);
 
 	ut_ad(!fsp_is_system_temporary(space_id)
 		|| rseg_id < srv_tmp_rollback_segments);
 	ut_ad(fsp_is_system_temporary(space_id)
 		|| rseg_id < srv_rollback_segments);
-	ut_ad(to_int(space->purpose) == fsp_is_system_temporary(space_id)
+	ut_ad(space->purpose == fsp_is_system_temporary(space_id)
 				? FIL_TYPE_TEMPORARY
 				: FIL_TYPE_TABLESPACE);
 	ut_ad(univ_page_size.equals_to(page_size_t(space->flags)));
@@ -329,6 +329,7 @@ trx_rseg_create(
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 	} else {
 		/* We will modify TRX_SYS_RSEGS in TRX_SYS page. */
+		mtr.set_sys_modified();
 	}
 
 	page_no_t	page_no = trx_rseg_header_create(
@@ -337,14 +338,14 @@ trx_rseg_create(
 	if (page_no == FIL_NULL) {
 		mtr_commit(&mtr);
 
-		return(nullptr);
+		return(rseg);
 	}
 
 	ut_ad(fsp_is_system_temporary(space_id)
 	      || space_id == trx_sysf_rseg_get_space(
 		      trx_sysf_get(&mtr), rseg_id, &mtr));
 
-	trx_rseg_t*	rseg = trx_rseg_mem_create(
+	rseg = trx_rseg_mem_create(
 		rseg_id, space_id,
 		page_no, univ_page_size,
 		purge_sys->purge_queue, &mtr);

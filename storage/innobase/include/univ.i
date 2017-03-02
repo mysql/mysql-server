@@ -649,18 +649,4 @@ static const size_t UNIV_SECTOR_SIZE = 512;
 myisam/sp_defs.h. We only support 2 dimension data */
 #define SPDIMS          2
 
-/** Explicitly call the destructor, this is to get around Clang bug#12350.
-@param[in,out]	p		Instance on which to call the destructor */
-template<typename T>
-void
-call_destructor(T* p)
-{
-	p->~T();
-}
-
-template<typename T>
-constexpr auto to_int(T v) -> typename std::underlying_type<T>::type
-{
-        return(static_cast<typename std::underlying_type<T>::type>(v));
-}
 #endif

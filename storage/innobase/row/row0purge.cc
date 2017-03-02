@@ -159,6 +159,7 @@ row_purge_remove_clust_if_poss_low(
 
 	log_free_check();
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 
 	if (!row_purge_reposition_pcur(mode, node, &mtr)) {
 		/* The record was already removed. */
@@ -308,6 +309,7 @@ row_purge_remove_sec_if_poss_tree(
 
 	log_free_check();
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 
 	if (!index->is_committed()) {
 		/* The index->online_status may change if the index is
@@ -427,6 +429,7 @@ row_purge_remove_sec_if_poss_leaf(
 	log_free_check();
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 
 	if (!index->is_committed()) {
 		/* For uncommitted spatial index, we also skip the purge. */
@@ -778,8 +781,10 @@ skip_secondaries:
 			index tree (exclude other tree changes) */
 
 			index = node->table->first_index();
-
 			mtr_sx_lock(dict_index_get_lock(index), &mtr);
+
+			mtr.set_undo_space(rseg->space_id);
+			mtr.set_named_space(index->space);
 
 			/* NOTE: we must also acquire an X-latch to the
 			root page of the tree. We will need it when we
@@ -1070,6 +1075,15 @@ row_purge(
 		/* Retry the purge in a second. */
 		os_thread_sleep(1000000);
 	}
+}
+
+/** Explicitly call the destructor, this is to get around Clang bug#12350.
+@param[in,out]	p		Instance on which to call the destructor */
+template<typename T>
+void
+call_destructor(T* p)
+{
+	p->~T();
 }
 
 /** Reset the purge query thread.

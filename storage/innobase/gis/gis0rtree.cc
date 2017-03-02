@@ -1901,7 +1901,7 @@ rtr_estimate_n_rows_in_range(
 	ulint		n_recs;
 
 	mtr_start(&mtr);
-
+	mtr.set_named_space(dict_index_get_space(index));
 	mtr_s_lock(dict_index_get_lock(index), &mtr);
 
 	block = btr_block_get(page_id, page_size, RW_S_LATCH, index, &mtr);
