@@ -40,6 +40,6 @@ Buffering_command_delegate::begin_row_cb() {
   return &m_resultset.back();
 }
 
-bool Buffering_command_delegate::end_row_cb(Row_data *row) { return true; }
+bool Buffering_command_delegate::end_row_cb(Row_data*) { return true; }
 
 }  // namespace xpl

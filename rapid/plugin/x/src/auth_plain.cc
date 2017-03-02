@@ -38,15 +38,15 @@ ngs::Authentication_interface_ptr Sasl_plain_auth::create(
 }
 
 Sasl_plain_auth::Response Sasl_plain_auth::handle_start(
-    const std::string &mechanism, const std::string &data,
-    const std::string &initial_response) {
+    const std::string&, const std::string &data,
+    const std::string&) {
   if (ngs::Error_code error = m_verification_handler->authenticate(*this, data))
     return {Failed, error.error, error.message};
   return {Succeeded};
 }
 
 Sasl_plain_auth::Response Sasl_plain_auth::handle_continue(
-    const std::string &data) {
+    const std::string&) {
   // never supposed to get called
   return {Error, ER_NET_PACKETS_OUT_OF_ORDER};
 }

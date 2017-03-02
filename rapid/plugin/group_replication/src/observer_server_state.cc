@@ -24,7 +24,7 @@ using std::string;
 /*
   DBMS lifecycle events observers.
 */
-int group_replication_before_handle_connection(Server_state_param *param)
+int group_replication_before_handle_connection(Server_state_param*)
 {
   if (wait_on_engine_initialization || delay_gr_user_creation)
   {
@@ -36,27 +36,27 @@ int group_replication_before_handle_connection(Server_state_param *param)
   return 0;
 }
 
-int group_replication_before_recovery(Server_state_param *param)
+int group_replication_before_recovery(Server_state_param*)
 {
   return 0;
 }
 
-int group_replication_after_engine_recovery(Server_state_param *param)
+int group_replication_after_engine_recovery(Server_state_param*)
 {
   return 0;
 }
 
-int group_replication_after_recovery(Server_state_param *param)
+int group_replication_after_recovery(Server_state_param*)
 {
   return 0;
 }
 
-int group_replication_before_server_shutdown(Server_state_param *param)
+int group_replication_before_server_shutdown(Server_state_param*)
 {
   return 0;
 }
 
-int group_replication_after_server_shutdown(Server_state_param *param)
+int group_replication_after_server_shutdown(Server_state_param*)
 {
   server_shutdown_status= true;
   if (plugin_is_group_replication_running())

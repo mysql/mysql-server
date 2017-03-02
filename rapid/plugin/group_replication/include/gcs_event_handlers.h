@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -190,12 +190,10 @@ private:
     This method takes all the group executed sets and adds those belonging to
     non recovering member to the view change packet
 
-    @param[in]  joining_members     the joining members for this view
     @param[in]  view_packet         the view change packet
   */
   void
-  collect_members_executed_sets(const std::vector<Gcs_member_identifier> &joining_members,
-                                View_change_packet *view_packet) const;
+  collect_members_executed_sets(View_change_packet *view_packet) const;
 
   /**
     Method that compares the member options with

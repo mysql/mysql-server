@@ -386,7 +386,7 @@ void Row_builder::append_time_values(const MYSQL_TIME * value, CodedOutputStream
   }
 }
 
-void Row_builder::add_time_field(const MYSQL_TIME * value, uint decimals)
+void Row_builder::add_time_field(const MYSQL_TIME * value, uint)
 {
   ADD_FIELD_HEADER();
 
@@ -399,7 +399,7 @@ void Row_builder::add_time_field(const MYSQL_TIME * value, uint decimals)
   append_time_values(value, m_out_stream.get());
 }
 
-void Row_builder::add_datetime_field(const MYSQL_TIME * value, uint decimals)
+void Row_builder::add_datetime_field(const MYSQL_TIME * value, uint)
 {
   ADD_FIELD_HEADER();
 
@@ -418,7 +418,7 @@ void Row_builder::add_datetime_field(const MYSQL_TIME * value, uint decimals)
 }
 
 void Row_builder::add_string_field(const char * const value, size_t length,
-  const CHARSET_INFO * const valuecs)
+                                   const CHARSET_INFO * const)
 {
   ADD_FIELD_HEADER();
 
@@ -430,7 +430,7 @@ void Row_builder::add_string_field(const char * const value, size_t length,
 }
 
 void Row_builder::add_set_field(const char * const value, size_t length,
-  const CHARSET_INFO * const valuecs)
+                                const CHARSET_INFO * const)
 {
   ADD_FIELD_HEADER();
 
@@ -484,7 +484,7 @@ void Row_builder::add_set_field(const char * const value, size_t length,
 }
 
 void Row_builder::add_bit_field(const char * const value, size_t length,
-  const CHARSET_INFO * const valuecs)
+                                const CHARSET_INFO * const)
 {
   ADD_FIELD_HEADER();
   DBUG_ASSERT(length <= 8);

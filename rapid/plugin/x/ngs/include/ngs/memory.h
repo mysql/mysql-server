@@ -22,6 +22,7 @@
 
 #include "ngs_common/smart_ptr.h"
 #include "ngs_common/bind.h"
+#include "my_compiler.h"
 
 #include <mysql/plugin.h>
 
@@ -49,7 +50,7 @@ public:
     typedef PFS_allocator<U> other;
   };
 
-  T *allocate(size_t n, const void *hint = 0)
+  T *allocate(size_t n, const void *hint MY_ATTRIBUTE((unused)) = 0)
   {
     return reinterpret_cast<T*>
           (my_malloc(x_psf_objects_key, sizeof(T) * n, MYF(MY_WME) ));

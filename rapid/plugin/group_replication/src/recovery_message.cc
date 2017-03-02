@@ -36,7 +36,7 @@ Recovery_message::Recovery_message(const uchar* buf, size_t len)
 }
 
 void Recovery_message::decode_payload(const unsigned char* buffer,
-                                      const unsigned char* end)
+                                      const unsigned char*)
 {
   DBUG_ENTER("Recovery_message::decode_payload");
   const unsigned char *slider= buffer;

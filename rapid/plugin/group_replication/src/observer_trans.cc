@@ -641,19 +641,19 @@ err:
   DBUG_RETURN(error);
 }
 
-int group_replication_trans_before_rollback(Trans_param *param)
+int group_replication_trans_before_rollback(Trans_param*)
 {
   DBUG_ENTER("group_replication_trans_before_rollback");
   DBUG_RETURN(0);
 }
 
-int group_replication_trans_after_commit(Trans_param *param)
+int group_replication_trans_after_commit(Trans_param*)
 {
   DBUG_ENTER("group_replication_trans_after_commit");
   DBUG_RETURN(0);
 }
 
-int group_replication_trans_after_rollback(Trans_param *param)
+int group_replication_trans_after_rollback(Trans_param*)
 {
   DBUG_ENTER("group_replication_trans_after_rollback");
   DBUG_RETURN(0);
@@ -832,7 +832,7 @@ Transaction_Message::encode_payload(std::vector<unsigned char>* buffer) const
 
 void
 Transaction_Message::decode_payload(const unsigned char* buffer,
-                                    const unsigned char* end)
+                                    const unsigned char*)
 {
   DBUG_ENTER("Transaction_Message::decode_payload");
   const unsigned char *slider= buffer;

@@ -39,8 +39,8 @@ ngs::Authentication_interface_ptr Sasl_mysql41_auth::create(
 }
 
 ngs::Authentication_interface::Response Sasl_mysql41_auth::handle_start(
-    const std::string &mechanism, const std::string &data,
-    const std::string &initial_response) {
+    const std::string&, const std::string&,
+    const std::string&) {
   if (m_state != S_starting) {
     m_state = S_error;
     return {Error, ER_NET_PACKETS_OUT_OF_ORDER};

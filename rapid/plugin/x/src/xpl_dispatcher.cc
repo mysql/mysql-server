@@ -152,7 +152,7 @@ ngs::Error_code on_expect_open(xpl::Session &session,
 
 ngs::Error_code on_expect_close(xpl::Session &session,
                                 xpl::Expectation_stack &expect,
-                                const Mysqlx::Expect::Close &msg) {
+                                const Mysqlx::Expect::Close&) {
   session.update_status<&xpl::Common_status_variables::m_expect_close>();
 
   ngs::Error_code error = expect.close();

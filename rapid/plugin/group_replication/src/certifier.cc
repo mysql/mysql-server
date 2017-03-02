@@ -1740,7 +1740,7 @@ Gtid_Executed_Message::encode_payload(std::vector<unsigned char>* buffer) const
 
 void
 Gtid_Executed_Message::decode_payload(const unsigned char* buffer,
-                                      const unsigned char* length)
+                                      const unsigned char*)
 {
   DBUG_ENTER("Gtid_Executed_Message::decode_payload");
   const unsigned char *slider= buffer;

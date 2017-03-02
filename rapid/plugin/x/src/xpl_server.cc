@@ -208,7 +208,7 @@ ngs::shared_ptr<ngs::Session_interface> xpl::Server::create_session(ngs::Client_
 }
 
 
-void xpl::Server::on_client_closed(const ngs::Client_interface &client)
+void xpl::Server::on_client_closed(const ngs::Client_interface&)
 {
   ++Global_status_variables::instance().m_closed_connections_count;
 
@@ -217,7 +217,7 @@ void xpl::Server::on_client_closed(const ngs::Client_interface &client)
 }
 
 
-bool xpl::Server::will_accept_client(const ngs::Client_interface &client)
+bool xpl::Server::will_accept_client(const ngs::Client_interface&)
 {
   Mutex_lock lock(m_accepting_mutex);
 
@@ -236,7 +236,7 @@ bool xpl::Server::will_accept_client(const ngs::Client_interface &client)
 }
 
 
-void xpl::Server::did_accept_client(const ngs::Client_interface &client)
+void xpl::Server::did_accept_client(const ngs::Client_interface&)
 {
   ++Global_status_variables::instance().m_accepted_connections_count;
 }
@@ -346,7 +346,7 @@ int xpl::Server::main(MYSQL_PLUGIN p)
 }
 
 
-int xpl::Server::exit(MYSQL_PLUGIN p)
+int xpl::Server::exit(MYSQL_PLUGIN)
 {
   // this flag will trigger the on_verify_server_state() timer to trigger an acceptor thread exit
   exiting = true;

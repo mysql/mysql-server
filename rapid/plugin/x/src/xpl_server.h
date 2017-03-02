@@ -179,7 +179,7 @@ void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buf
 
 
 template <void (Server::*method)(st_mysql_show_var *)>
-void Server::global_status_variable(THD *thd, st_mysql_show_var *var, char *buff)
+void Server::global_status_variable(THD*, st_mysql_show_var *var, char *buff)
 {
   var->type= SHOW_UNDEF;
   var->value= buff;
@@ -193,7 +193,7 @@ void Server::global_status_variable(THD *thd, st_mysql_show_var *var, char *buff
 }
 
 template <typename ReturnType, ReturnType (Server::*method)()>
-void Server::global_status_variable_server_with_return(THD *thd, st_mysql_show_var *var, char *buff)
+void Server::global_status_variable_server_with_return(THD*, st_mysql_show_var *var, char *buff)
 {
   var->type= SHOW_UNDEF;
   var->value= buff;
@@ -210,7 +210,7 @@ void Server::global_status_variable_server_with_return(THD *thd, st_mysql_show_v
 
 
 template <typename ReturnType, xpl::Global_status_variables::Variable xpl::Global_status_variables::*variable>
-void Server::global_status_variable_server(THD *thd, st_mysql_show_var *var, char *buff)
+void Server::global_status_variable_server(THD*, st_mysql_show_var *var, char *buff)
 {
   var->type= SHOW_UNDEF;
   var->value= buff;
@@ -252,7 +252,7 @@ void Server::common_status_variable(THD *thd, st_mysql_show_var *var, char *buff
 
 
 template <typename ReturnType, ReturnType (ngs::IOptions_context::*method)()>
-void Server::global_status_variable(THD *thd, st_mysql_show_var *var, char *buff)
+void Server::global_status_variable(THD*, st_mysql_show_var *var, char *buff)
 {
   var->type= SHOW_UNDEF;
   var->value= buff;

@@ -267,8 +267,7 @@ plugin_get_group_members(
 {
   char* channel_name= applier_module_channel_name;
 
-  return get_group_members_info(index, callbacks, group_member_mgr,
-                                group_name_var, channel_name);
+  return get_group_members_info(index, callbacks, group_member_mgr, channel_name);
 }
 
 uint plugin_get_group_members_number()
@@ -285,7 +284,7 @@ plugin_get_group_member_stats(
   char* channel_name= applier_module_channel_name;
 
   return get_group_member_stats(callbacks, group_member_mgr, applier_module,
-                                gcs_module, group_name_var, channel_name);
+                                gcs_module, channel_name);
 }
 
 int plugin_group_replication_start()
@@ -1530,7 +1529,7 @@ static int check_group_name_string(const char *str, bool is_var_update)
   DBUG_RETURN(0);
 }
 
-static int check_group_name(MYSQL_THD thd, SYS_VAR *var, void* save,
+static int check_group_name(MYSQL_THD thd, SYS_VAR*, void* save,
                             struct st_mysql_value *value)
 {
   DBUG_ENTER("check_group_name");
@@ -1564,7 +1563,7 @@ static int check_group_name(MYSQL_THD thd, SYS_VAR *var, void* save,
 
 //Recovery module's module variable update/validate methods
 
-static void update_recovery_retry_count(MYSQL_THD thd, SYS_VAR *var,
+static void update_recovery_retry_count(MYSQL_THD, SYS_VAR*,
                                         void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_recovery_retry_count");
@@ -1580,7 +1579,7 @@ static void update_recovery_retry_count(MYSQL_THD thd, SYS_VAR *var,
   DBUG_VOID_RETURN;
 }
 
-static void update_recovery_reconnect_interval(MYSQL_THD thd, SYS_VAR *var,
+static void update_recovery_reconnect_interval(MYSQL_THD, SYS_VAR*,
                                                void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_recovery_reconnect_interval");
@@ -1599,9 +1598,8 @@ static void update_recovery_reconnect_interval(MYSQL_THD thd, SYS_VAR *var,
 
 //Recovery SSL options
 
-static void
-update_ssl_use(MYSQL_THD thd, SYS_VAR *var,
-               void *var_ptr, const void *save)
+static void update_ssl_use(MYSQL_THD, SYS_VAR*,
+                           void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_ssl_use");
 
@@ -1664,7 +1662,7 @@ static int check_recovery_ssl_option(MYSQL_THD thd, SYS_VAR *var, void* save,
   DBUG_RETURN(0);
 }
 
-static void update_recovery_ssl_option(MYSQL_THD thd, SYS_VAR *var,
+static void update_recovery_ssl_option(MYSQL_THD, SYS_VAR *var,
                                        void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_recovery_ssl_option");
@@ -1712,7 +1710,7 @@ static void update_recovery_ssl_option(MYSQL_THD thd, SYS_VAR *var,
 }
 
 static void
-update_ssl_server_cert_verification(MYSQL_THD thd, SYS_VAR *var,
+update_ssl_server_cert_verification(MYSQL_THD, SYS_VAR*,
                                     void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_ssl_server_cert_verification");
@@ -1732,7 +1730,7 @@ update_ssl_server_cert_verification(MYSQL_THD thd, SYS_VAR *var,
 // Recovery threshold update method
 
 static void
-update_recovery_completion_policy(MYSQL_THD thd, SYS_VAR *var,
+update_recovery_completion_policy(MYSQL_THD, SYS_VAR*,
                                   void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_recovery_completion_policy");
@@ -1752,7 +1750,7 @@ update_recovery_completion_policy(MYSQL_THD thd, SYS_VAR *var,
 
 //Component timeout update method
 
-static void update_component_timeout(MYSQL_THD thd, SYS_VAR *var,
+static void update_component_timeout(MYSQL_THD, SYS_VAR*,
                                      void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_component_timeout");
@@ -1772,7 +1770,7 @@ static void update_component_timeout(MYSQL_THD thd, SYS_VAR *var,
   DBUG_VOID_RETURN;
 }
 
-static int check_auto_increment_increment(MYSQL_THD thd, SYS_VAR *var,
+static int check_auto_increment_increment(MYSQL_THD, SYS_VAR*,
                                           void* save,
                                           struct st_mysql_value *value)
 {
@@ -1809,7 +1807,7 @@ static int check_auto_increment_increment(MYSQL_THD thd, SYS_VAR *var,
 
 //Communication layer options.
 
-static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR *var,
+static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR*,
                                             void *save,
                                             struct st_mysql_value *value)
 {
@@ -1852,7 +1850,7 @@ static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR *var,
   DBUG_RETURN(0);
 }
 
-static int check_compression_threshold(MYSQL_THD thd, SYS_VAR *var,
+static int check_compression_threshold(MYSQL_THD, SYS_VAR*,
                                        void* save,
                                        struct st_mysql_value *value)
 {
@@ -1884,7 +1882,7 @@ static int check_compression_threshold(MYSQL_THD thd, SYS_VAR *var,
   DBUG_RETURN(0);
 }
 
-static int check_force_members(MYSQL_THD thd, SYS_VAR *var,
+static int check_force_members(MYSQL_THD thd, SYS_VAR*,
                                void* save,
                                struct st_mysql_value *value)
 {
@@ -1944,7 +1942,7 @@ end:
   DBUG_RETURN(error);
 }
 
-static int check_gtid_assignment_block_size(MYSQL_THD thd, SYS_VAR *var,
+static int check_gtid_assignment_block_size(MYSQL_THD, SYS_VAR*,
                                             void* save,
                                             struct st_mysql_value *value)
 {
@@ -2020,7 +2018,7 @@ get_bool_value_using_type_lib(struct st_mysql_value *value,
 }
 
 static int
-check_single_primary_mode(MYSQL_THD thd, SYS_VAR *var,
+check_single_primary_mode(MYSQL_THD, SYS_VAR*,
                           void* save,
                           struct st_mysql_value *value)
 {
@@ -2053,7 +2051,7 @@ check_single_primary_mode(MYSQL_THD thd, SYS_VAR *var,
 }
 
 static int
-check_enforce_update_everywhere_checks(MYSQL_THD thd, SYS_VAR *var,
+check_enforce_update_everywhere_checks(MYSQL_THD, SYS_VAR*,
                                        void* save,
                                        struct st_mysql_value *value)
 {
@@ -2547,8 +2545,7 @@ static SYS_VAR* group_replication_system_vars[]= {
 };
 
 
-static int
-show_primary_member(MYSQL_THD thd, SHOW_VAR *var, char *buff)
+static int show_primary_member(MYSQL_THD, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
   var->value= NULL;

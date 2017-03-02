@@ -129,7 +129,7 @@ Capabilities_configurator *Client::capabilities_configurator()
 }
 
 
-void Client::get_capabilities(const Mysqlx::Connection::CapabilitiesGet &msg)
+void Client::get_capabilities(const Mysqlx::Connection::CapabilitiesGet&)
 {
   ngs::Memory_instrumented<Capabilities_configurator>::Unique_ptr configurator(capabilities_configurator());
   ngs::Memory_instrumented<Mysqlx::Connection::Capabilities>::Unique_ptr caps(configurator->get());
@@ -241,7 +241,7 @@ void Client::on_network_error(int error)
 }
 
 
-void Client::on_kill(Session_interface &session)
+void Client::on_kill(Session_interface&)
 {
   m_session->on_kill();
 }
@@ -332,7 +332,7 @@ void Client::on_accept()
   }
 }
 
-void Client::on_session_auth_success(Session_interface &s)
+void Client::on_session_auth_success(Session_interface&)
 {
   // this is called from worker thread
   Client_state expected = Client_authenticating_first;

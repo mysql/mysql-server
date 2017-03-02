@@ -777,7 +777,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
 
     std::string view_id= new_view.get_view_id().get_representation();
     View_change_packet * view_change_packet= new View_change_packet(view_id);
-    collect_members_executed_sets(new_view.get_joined_members(), view_change_packet);
+    collect_members_executed_sets(view_change_packet);
     applier_module->add_view_change_packet(view_change_packet);
   }
 }
@@ -1269,8 +1269,7 @@ cleaning:
 }
 
 void Plugin_gcs_events_handler::
-collect_members_executed_sets(const vector<Gcs_member_identifier> &joining_members,
-                              View_change_packet *view_packet) const
+collect_members_executed_sets(View_change_packet *view_packet) const
 {
   std::vector<Group_member_info*> *all_members= group_member_mgr->get_all_members();
   std::vector<Group_member_info*>::iterator all_members_it;

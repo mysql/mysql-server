@@ -213,7 +213,7 @@ int Callback_command_delegate::get_decimal(const decimal_t *value) {
   return false;
 }
 
-int Callback_command_delegate::get_double(double value, uint32 decimals) {
+int Callback_command_delegate::get_double(double value, uint32) {
   try {
     if (m_current_row)
       m_current_row->fields.push_back(ngs::allocate_object<Field_value>(value));
@@ -239,7 +239,7 @@ int Callback_command_delegate::get_date(const MYSQL_TIME *value) {
 }
 
 int Callback_command_delegate::get_time(const MYSQL_TIME *value,
-                                        uint decimals) {
+                                        uint) {
   try {
     if (m_current_row)
       m_current_row->fields.push_back(
@@ -253,7 +253,7 @@ int Callback_command_delegate::get_time(const MYSQL_TIME *value,
 }
 
 int Callback_command_delegate::get_datetime(const MYSQL_TIME *value,
-                                            uint decimals) {
+                                            uint) {
   try {
     if (m_current_row)
       m_current_row->fields.push_back(
@@ -268,7 +268,7 @@ int Callback_command_delegate::get_datetime(const MYSQL_TIME *value,
 
 int Callback_command_delegate::get_string(const char *const value,
                                           size_t length,
-                                          const CHARSET_INFO *const valuecs) {
+                                          const CHARSET_INFO *const) {
   try {
     if (m_current_row)
       m_current_row->fields.push_back(

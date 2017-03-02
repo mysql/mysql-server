@@ -22,6 +22,7 @@
 
 #include "ngs/protocol_encoder.h"
 
+#include "my_compiler.h"
 #include "m_ctype.h"
 #include "decimal.h"
 #include "mysql/service_command.h"
@@ -123,8 +124,10 @@ class Command_delegate {
     true  an error occured, server will abort the command
     false ok
   */
-  virtual int start_result_metadata(uint num_cols, uint flags,
-                                    const CHARSET_INFO *resultcs) {
+  virtual int
+    start_result_metadata(uint num_cols MY_ATTRIBUTE((unused)),
+                          uint flags MY_ATTRIBUTE((unused)),
+                          const CHARSET_INFO *resultcs MY_ATTRIBUTE((unused))) {
     m_field_types.clear();
     return false;
   }
@@ -139,8 +142,9 @@ class Command_delegate {
     true  an error occured, server will abort the command
     false ok
   */
-  virtual int field_metadata(struct st_send_field *field,
-                             const CHARSET_INFO *charset) {
+  virtual int
+    field_metadata(struct st_send_field *field,
+                   const CHARSET_INFO *charset MY_ATTRIBUTE((unused))) {
     Field_type type = {field->type, field->flags};
     m_field_types.push_back(type);
 
@@ -154,9 +158,9 @@ class Command_delegate {
     true  an error occured, server will abort the command
     false ok
   */
-  virtual int end_result_metadata(uint server_status, uint warn_count) {
-    return false;
-  }
+  virtual int end_result_metadata(uint server_status MY_ATTRIBUTE((unused)),
+                                  uint warn_count MY_ATTRIBUTE((unused)))
+  { return false; }
 
   /*
     Indicates the beginning of a new row in the result set/metadata
@@ -218,7 +222,8 @@ class Command_delegate {
     true  an error occured, server will abort the command
     false ok
   */
-  virtual int get_integer(longlong value) { return false; }
+  virtual int get_integer(longlong value MY_ATTRIBUTE((unused)))
+  { return false; }
 
   /*
     Get LONGLONG value from server
@@ -230,7 +235,9 @@ class Command_delegate {
     true  an error occured, server will abort the command
     false ok
   */
-  virtual int get_longlong(longlong value, uint unsigned_flag) { return false; }
+  virtual int get_longlong(longlong value MY_ATTRIBUTE((unused)),
+                           uint unsigned_flag MY_ATTRIBUTE((unused)))
+  { return false; }
 
   /*
     Receive DECIMAL value from server
@@ -241,7 +248,8 @@ class Command_delegate {
     true  an error occured, server will abort the command
     false ok
   */
-  virtual int get_decimal(const decimal_t *value) { return false; }
+  virtual int get_decimal(const decimal_t *value MY_ATTRIBUTE((unused)))
+  { return false; }
 
   /*
     Get FLOAT/DOUBLE from server
@@ -256,7 +264,9 @@ class Command_delegate {
     true  an error occured, server will abort the command
     false ok
   */
-  virtual int get_double(double value, uint32 decimals) { return false; }
+  virtual int get_double(double value MY_ATTRIBUTE((unused)),
+                         uint32 decimals MY_ATTRIBUTE((unused)))
+  { return false; }
 
   /*
     Get DATE value from server
@@ -267,7 +277,8 @@ class Command_delegate {
     true  an error occured during storing, server will abort the command
     false ok
   */
-  virtual int get_date(const MYSQL_TIME *value) { return false; }
+  virtual int get_date(const MYSQL_TIME *value MY_ATTRIBUTE((unused)))
+  { return false; }
 
   /*
     Get TIME value from server
@@ -279,7 +290,9 @@ class Command_delegate {
     true  an error occured during storing, server will abort the command
     false ok
   */
-  virtual int get_time(const MYSQL_TIME *value, uint decimals) { return false; }
+  virtual int get_time(const MYSQL_TIME *value MY_ATTRIBUTE((unused)),
+                       uint decimals MY_ATTRIBUTE((unused)))
+  { return false; }
 
   /*
     Get DATETIME value from server
@@ -291,9 +304,9 @@ class Command_delegate {
     true  an error occured during storing, server will abort the command
     false ok
   */
-  virtual int get_datetime(const MYSQL_TIME *value, uint decimals) {
-    return false;
-  }
+  virtual int get_datetime(const MYSQL_TIME *value MY_ATTRIBUTE((unused)),
+                           uint decimals MY_ATTRIBUTE((unused)))
+  { return false; }
 
   /*
     Get STRING value from server
@@ -306,10 +319,11 @@ class Command_delegate {
     true  an error occured, server will abort the command
     false ok
   */
-  virtual int get_string(const char *const value, size_t length,
-                         const CHARSET_INFO *const valuecs) {
-    return false;
-  }
+  virtual int
+    get_string(const char *const value MY_ATTRIBUTE((unused)),
+               size_t length MY_ATTRIBUTE((unused)),
+               const CHARSET_INFO *const valuecs MY_ATTRIBUTE((unused)))
+  { return false; }
 
   /****** Getting execution status ******/
   /*
@@ -350,7 +364,7 @@ class Command_delegate {
    Session was shutdown while command was running
 
   */
-  virtual void shutdown(int flag) { m_killed = true; }
+  virtual void shutdown(int flag MY_ATTRIBUTE((unused))) { m_killed = true; }
 
  private:
   static int call_start_result_metadata(void *ctx, uint num_cols, uint flags,

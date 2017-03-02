@@ -150,7 +150,7 @@ ngs::Error_code Crud_command_handler::error_handling(
 template <>
 void Crud_command_handler::notice_handling(
     Session &session, const ngs::Resultset_interface::Info &info,
-    const Mysqlx::Crud::Update &msg) const {
+    const Mysqlx::Crud::Update&) const {
   notice_handling_common(session, info);
   notices::send_rows_affected(session.proto(), info.affected_rows);
 }
@@ -169,7 +169,7 @@ ngs::Error_code Crud_command_handler::execute_crud_delete(
 template <>
 void Crud_command_handler::notice_handling(
     Session &session, const ngs::Resultset_interface::Info &info,
-    const Mysqlx::Crud::Delete &msg) const {
+    const Mysqlx::Crud::Delete&) const {
   notice_handling_common(session, info);
   notices::send_rows_affected(session.proto(), info.affected_rows);
 }

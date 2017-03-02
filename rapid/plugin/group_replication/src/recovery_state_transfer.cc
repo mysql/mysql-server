@@ -102,7 +102,7 @@ void Recovery_state_transfer::initialize(const string& rec_view_id)
 }
 
 void Recovery_state_transfer::inform_of_applier_stop(my_thread_id thread_id,
-                                                     bool aborted)
+                                                     bool)
 {
   DBUG_ENTER("Recovery_state_transfer::inform_of_applier_stop");
 

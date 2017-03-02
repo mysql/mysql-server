@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -41,7 +41,7 @@ void Capability_auth_mech::get(::Mysqlx::Datatypes::Any &any)
   Setter_any::set_array(any, auth_mechs);
 }
 
-bool Capability_auth_mech::set(const ::Mysqlx::Datatypes::Any &any)
+bool Capability_auth_mech::set(const ::Mysqlx::Datatypes::Any&)
 {
   return false;
 }

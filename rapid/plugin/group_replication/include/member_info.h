@@ -334,7 +334,7 @@ public:
 
 protected:
   void encode_payload(std::vector<unsigned char>* buffer) const;
-  void decode_payload(const unsigned char* buffer, const unsigned char* end);
+  void decode_payload(const unsigned char* buffer, const unsigned char*);
 
 private:
   std::string hostname;

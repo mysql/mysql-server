@@ -81,7 +81,7 @@ void Sql_data_context::deinit() {
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 }
 
-static void kill_completion_handler(void *ctx, unsigned int sql_errno,
+static void kill_completion_handler(void*, unsigned int sql_errno,
                                     const char *err_msg) {
   log_warning("Kill client: %i %s", sql_errno, err_msg);
 }

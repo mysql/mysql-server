@@ -1340,7 +1340,7 @@ xpl::Admin_command_arguments_list &xpl::Admin_command_arguments_list::bool_arg(c
 }
 
 
-xpl::Admin_command_arguments_list &xpl::Admin_command_arguments_list::docpath_arg(const char *name, std::string &ret_value, bool optional)
+xpl::Admin_command_arguments_list &xpl::Admin_command_arguments_list::docpath_arg(const char *name, std::string &ret_value, bool)
 {
   m_args_consumed++;
   if (!m_error)
@@ -1370,7 +1370,7 @@ xpl::Admin_command_arguments_list &xpl::Admin_command_arguments_list::docpath_ar
 
 
 xpl::Admin_command_arguments_list &xpl::Admin_command_arguments_list::object_list(const char *name, std::vector<Command_arguments*> &ret_value,
-                                                                                  bool optional, unsigned expected_members_count)
+                                                                                  bool, unsigned expected_members_count)
 {
   List::difference_type left = m_args.end() - m_current;
   if (left % expected_members_count > 0)
@@ -1496,7 +1496,7 @@ public:
   void operator() (const T &value) { m_validator(value, *m_value); }
   void operator() () { m_error = ngs::Error(ER_X_CMD_ARGUMENT_TYPE,
                                             "Invalid type of value for argument '%s'", m_name); }
-  template<typename O> void operator()(const O &value) { this->operator()(); }
+  template<typename O> void operator()(const O&) { this->operator()(); }
 
 private:
   V m_validator;
