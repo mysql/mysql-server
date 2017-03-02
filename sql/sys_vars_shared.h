@@ -67,6 +67,14 @@ public:
   void unlock() { mysql_rwlock_unlock(rwlock); }
 };
 
+class PolyLock_lock_log: public PolyLock
+{
+public:
+  void rdlock();
+  void wrlock();
+  void unlock();
+};
+
 class AutoWLock
 {
   PolyLock *lock;

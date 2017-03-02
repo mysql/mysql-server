@@ -3618,7 +3618,22 @@ static bool update_binlog_transaction_dependency_tracking(sys_var*, THD*, enum_v
   return false;
 }
 
-static PolyLock_mutex PLock_log(mysql_bin_log.get_log_lock());
+void PolyLock_lock_log::rdlock()
+{
+  mysql_mutex_lock(mysql_bin_log.get_log_lock());
+}
+
+void PolyLock_lock_log::wrlock()
+{
+  mysql_mutex_lock(mysql_bin_log.get_log_lock());
+}
+
+void PolyLock_lock_log::unlock()
+{
+  mysql_mutex_unlock(mysql_bin_log.get_log_lock());
+}
+
+static PolyLock_lock_log PLock_log;
 static const char *opt_binlog_transaction_dependency_tracking_names[]=
        {"COMMIT_ORDER", "WRITESET", "WRITESET_SESSION", NullS};
 static Sys_var_enum Binlog_transaction_dependency_tracking(
