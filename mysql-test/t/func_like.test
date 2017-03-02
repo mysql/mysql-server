@@ -1,14 +1,3 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs175=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
-use test;
---enable_query_log
-########################################
-
 #
 # Test of like
 #
@@ -17,7 +6,7 @@ use test;
 drop table if exists t1;
 --enable_warnings
 
-create table t1 (a varchar(10), key(a));
+create table t1 (a varchar(10), key(a)) charset utf8mb4;
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 analyze table t1;
 explain extended select * from t1 where a like 'abc%';
@@ -233,11 +222,3 @@ INSERT INTO t1 VALUES('abc', 'abc', 1), ('AbC', 'aBc', 1), ('_bc', 'abc', 1),
 SELECT wildstr, str, like_result FROM t1 WHERE (str LIKE wildstr) <>
 like_result;
 DROP TABLE t1;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs175;
---enable_query_log
-########################################

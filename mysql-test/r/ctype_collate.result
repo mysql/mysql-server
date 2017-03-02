@@ -1,8 +1,8 @@
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
 CREATE TABLE t1 (
-latin1_f CHAR(32) CHARACTER SET latin1 NOT NULL
-);
+latin1_f CHAR(32) NOT NULL
+) charset latin1;
 CREATE TABLE t2 (
 latin1_f CHAR(32) CHARACTER SET latin1 COLLATE koi8r_general_ci NOT NULL
 );
@@ -512,8 +512,8 @@ SET CHARACTER SET 'latin1';
 SHOW VARIABLES LIKE 'character_set_client';
 Variable_name	Value
 character_set_client	latin1
-SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
-charset('a')	collation('a')	coercibility('a')	'a'='A'
+SELECT charset(_latin1 'a'),collation(_latin1 'a'),coercibility('a'),'a'='A';
+charset(_latin1 'a')	collation(_latin1 'a')	coercibility('a')	'a'='A'
 latin1	latin1_swedish_ci	4	1
 explain extended SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -524,8 +524,8 @@ Note	1003	/* select#1 */ select charset('a') AS `charset('a')`,collation('a') AS
 SET CHARACTER SET koi8r;
 SHOW VARIABLES LIKE 'collation_client';
 Variable_name	Value
-SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
-charset('a')	collation('a')	coercibility('a')	'a'='A'
+SELECT charset(_latin1 'a'),collation(_latin1 'a'),coercibility('a'),'a'='A';
+charset(_latin1 'a')	collation(_latin1 'a')	coercibility('a')	'a'='A'
 latin1	latin1_swedish_ci	4	1
 SET CHARACTER SET 'DEFAULT';
 ERROR 42000: Unknown character set: 'DEFAULT'
@@ -551,13 +551,13 @@ a	A	A
 DROP TABLE t1;
 create table t1 (a varchar(1) character set latin1 collate latin1_general_ci);
 insert into t1 values ('A'),('a'),('B'),('b'),('C'),('c');
-select * from t1 where a > 'B' collate latin1_bin;
+select * from t1 where a > _latin1 'B' collate latin1_bin;
 a
 a
 b
 C
 c
-select * from t1 where a <> 'B' collate latin1_bin;
+select * from t1 where a <> _latin1 'B' collate latin1_bin;
 a
 A
 a
@@ -565,13 +565,13 @@ b
 C
 c
 create index i on t1 (a);
-select * from t1 where a > 'B' collate latin1_bin;
+select * from t1 where a > _latin1 'B' collate latin1_bin;
 a
 a
 b
 C
 c
-select * from t1 where a <> 'B' collate latin1_bin;
+select * from t1 where a <> _latin1 'B' collate latin1_bin;
 a
 A
 a
@@ -676,7 +676,7 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 select least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci);
 least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci)
 a
-create table t1
+create table t1 charset latin1
 select least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci) as f1;
 show create table t1;
 Table	Create Table

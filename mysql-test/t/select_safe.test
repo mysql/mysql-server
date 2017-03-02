@@ -1,14 +1,3 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs267=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
-use test;
---enable_query_log
-########################################
-
 # The include statement below is a temp one for tests that are yet to
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
@@ -23,7 +12,7 @@ drop table if exists t1;
 --enable_warnings
 
 SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=4, MAX_JOIN_SIZE=8;
-create table t1 (a int auto_increment primary key, b char(20));
+create table t1 (a int auto_increment primary key, b char(20)) charset utf8mb4;
 insert into t1 values(1,"test");
 SELECT SQL_BUFFER_RESULT * from t1;
 update t1 set b="a" where a=1;
@@ -104,11 +93,3 @@ drop table t1;
 SET SQL_SAFE_UPDATES=0,SQL_SELECT_LIMIT=DEFAULT, MAX_JOIN_SIZE=DEFAULT;
 
 # End of 4.1 tests
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs267;
---enable_query_log
-########################################
