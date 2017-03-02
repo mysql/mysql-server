@@ -36,7 +36,8 @@ class Process_resultset : public ngs::Resultset_interface {
   ngs::Command_delegate &get_callbacks() override {
     return m_callback_delegate;
   }
-  const Info &get_info() const { return m_callback_delegate.get_info(); }
+  const Info &get_info() const override
+  { return m_callback_delegate.get_info(); }
 
  private:
   Callback_command_delegate m_callback_delegate;
@@ -59,7 +60,8 @@ class Collect_resultset : public ngs::Resultset_interface {
     return m_buffering_delegate;
   }
 
-  const Info &get_info() const { return m_buffering_delegate.get_info(); }
+  const Info &get_info() const override
+  { return m_buffering_delegate.get_info(); }
 
   void reset() { m_buffering_delegate.reset(); }
 
@@ -91,7 +93,8 @@ class Streaming_resultset : public ngs::Resultset_interface {
   ngs::Command_delegate &get_callbacks() override {
     return m_streaming_delegate;
   }
-  const Info &get_info() const { return m_streaming_delegate.get_info(); }
+  const Info &get_info() const override
+  { return m_streaming_delegate.get_info(); }
 
  private:
   Streaming_command_delegate m_streaming_delegate;

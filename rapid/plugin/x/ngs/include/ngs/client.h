@@ -49,8 +49,8 @@ namespace ngs
            Protocol_monitor_interface &pmon);
     virtual ~Client();
 
-    Mutex &get_session_exit_mutex() { return m_session_exit_mutex; }
-    ngs::shared_ptr<Session_interface> session() { return m_session; }
+    Mutex &get_session_exit_mutex() override { return m_session_exit_mutex; }
+    ngs::shared_ptr<Session_interface> session() override { return m_session; }
 
   public: // impl ngs::Client_interface
     void run(const bool skip_resolve_name) override;

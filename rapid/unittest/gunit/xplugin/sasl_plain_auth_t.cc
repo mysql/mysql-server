@@ -31,7 +31,6 @@ namespace {
 const char *const EMPTY = "";
 const char *const AUTH_DATA = "ALA_MA_KOTA";
 const char *const MECHANISM = "MYSQL41";
-const char *const SALT = "SALT";
 
 AssertionResult assert_responce(
     const char *e1_expr, const char *e2_expr,
