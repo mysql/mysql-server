@@ -334,6 +334,13 @@
 
 
 /**
+  @page PAGE_TESTING_TOOLS Testing Tools
+
+  - @subpage PAGE_MYSQL_TEST_RUN
+*/
+
+
+/**
   @page PAGE_SQL_Optimizer SQL Optimizer
 
   The task of query optimizer is to determine the most efficient means for
