@@ -3971,7 +3971,7 @@ recv_init_crash_recovery_spaces(void)
 				recv_spaces_t::iterator i
 					= recv_spaces.find(space);
 				
-				if (i != recv_spaces.end()) {
+				if (i == recv_spaces.end()) {
 					recv_init_missing_mlog(recv_addr);
 					recv_addr->state = RECV_DISCARDED;
 					continue;
