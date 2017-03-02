@@ -22,6 +22,7 @@
 
 --source include/master-slave.inc
 --source include/have_binlog_format_row.inc
+--source include/not_mts_slave_parallel_workers.inc
 
 --source include/rpl_connection_master.inc
 # Take backup of variables.
