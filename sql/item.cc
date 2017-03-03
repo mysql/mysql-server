@@ -2175,7 +2175,13 @@ left_is_superset(DTCollation *left, DTCollation *right)
           !(right->collation->state & MY_CS_UNICODE_SUPPLEMENT) &&
           left->collation->mbmaxlen > right->collation->mbmaxlen &&
           left->collation->mbminlen == right->collation->mbminlen)))))
-    return TRUE;
+    return true;
+  /* Allow convert from any Unicode to utf32 or utf8mb4 */
+  if (test_all_bits(left->collation->state,
+                    MY_CS_UNICODE | MY_CS_UNICODE_SUPPLEMENT) &&
+      right->collation->state & MY_CS_UNICODE &&
+      left->derivation == right->derivation)
+    return true;
   /* Allow convert from ASCII */
   if (right->repertoire == MY_REPERTOIRE_ASCII &&
       (left->derivation < right->derivation ||

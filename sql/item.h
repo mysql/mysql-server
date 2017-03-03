@@ -150,7 +150,7 @@ char_to_byte_length_safe(uint32 char_length_arg, uint32 mbmaxlen_arg)
 class DTCollation {
 public:
   const CHARSET_INFO *collation;
-  enum Derivation derivation;
+  Derivation derivation{DERIVATION_NONE};
   uint repertoire;
   
   void set_repertoire_from_charset(const CHARSET_INFO *cs)
