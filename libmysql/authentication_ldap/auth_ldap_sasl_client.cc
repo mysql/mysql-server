@@ -104,14 +104,15 @@ int Sasl_client::de_initilize() {
   return rc_sasl;
 }
 
-int Sasl_client::sasl_client_done_wrapper() {
-  int rc_sasl = SASL_FAIL;
-#ifdef HAVE_SASL_CLIENT_DONE
-  rc_sasl = sasl_client_done();
+void Sasl_client::sasl_client_done_wrapper() {
+#if (SASL_VERSION_MAJOR >= 2) && \
+    (SASL_VERSION_MINOR >= 1) && \
+    (SASL_VERSION_STEP >= 24) && \
+    (!defined __APPLE__) && (!defined __sun)
+   sasl_client_done ();
 #else
   sasl_done();
 #endif
-  return rc_sasl;
 }
 
 int Sasl_client::send_sasl_request_to_server(const unsigned char *request,

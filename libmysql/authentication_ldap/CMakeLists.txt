@@ -26,11 +26,6 @@ ELSE()
   CROAK_AND_RETURN("Required LBER library is missing.")
 ENDIF()
 
-IF (NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
-  MESSAGE("HAVE_SASL_CLIENT_DONE 1")
-  ADD_DEFINITIONS(-DHAVE_SASL_CLIENT_DONE)
-ENDIF ()
-
 # LDAP authentication SASL client will not build on windows, as windows don't have cyrus sasl.
 # IF someone like can build the cyrus sasl library on windows and build LDAP authentication sasl client as well.
 SET(HEADERS_CLIENT auth_ldap_sasl_client.h log.h)
