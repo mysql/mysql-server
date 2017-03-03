@@ -27,7 +27,7 @@ Depends: mysql-common (>= ${binary:Version}),
  perl,
  psmisc,
  ${shlibs:Depends}, ${misc:Depends}
-Breaks: mysql-common (<< 5.7.14)
+Breaks: mysql-common (<< 5.7.14), mysql-@DEB_PRODUCTNAME@-client (<< 5.7)
 Conflicts: mysql,
  mysql-server-5.0, mysql-server-core-5.0,
  mysql-server-5.1, mysql-server-core-5.1,
@@ -46,6 +46,7 @@ Replaces: mysql,
  mysql-server-5.5, mysql-server-core-5.5,
  mysql-server-5.6, mysql-server-core-5.6,
  mysql-server-5.7, mysql-server-core-5.7,
+ mysql-@DEB_PRODUCTNAME@-client (<< 5.7),
  mysql-@DEB_NOTPRODUCTNAME@-server,
  @DEB_CONTROL_SERVER_CONFLICT_NDB@,
  mysql-common (<< 5.7.14)
