@@ -1,5 +1,8 @@
 # Testcase for worklog #5743: Lift the limit of index key prefixes
 
+# WL#7554: Added setting --bootstrap --character-set-server=latin1
+# in the opt file. This test should be migrated to utf8mb4.
+
 SET default_storage_engine=InnoDB;
 
 --disable_query_log

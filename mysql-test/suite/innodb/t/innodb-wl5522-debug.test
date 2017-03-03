@@ -16,7 +16,7 @@
 
 ########################################
 ##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
+##### This test should be migrated to utf8mb4. opt file added too.
 --disable_query_log
 let $testdbcs43=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
 alter schema test default character set latin1;

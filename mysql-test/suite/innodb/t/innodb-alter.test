@@ -1,3 +1,5 @@
+# WL#7554: Added setting --bootstrap --character-set-server=latin1
+# in the opt file. This test should be migrated to utf8mb4.
 
 SET NAMES utf8;
 
