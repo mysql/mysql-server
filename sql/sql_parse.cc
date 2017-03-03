@@ -205,6 +205,8 @@ const LEX_STRING command_name[]={
 */
 bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
 {
+  Rpl_filter *rpl_filter= thd->rli_slave->rpl_filter;
+
   return rpl_filter->is_on() && tables && !thd->sp_runtime_ctx &&
          !rpl_filter->tables_ok(thd->db().str, tables);
 }
@@ -232,6 +234,8 @@ inline bool db_stmt_db_ok(THD *thd, char* db)
   if (!thd->slave_thread)
     DBUG_RETURN(TRUE);
 
+  Rpl_filter* rpl_filter= thd->rli_slave->rpl_filter;
+
   /*
     No filters exist in ignore/do_db ? Then, just check
     wild_do_table filtering. Otherwise, check the do_db
@@ -240,7 +244,14 @@ inline bool db_stmt_db_ok(THD *thd, char* db)
   bool db_ok= (rpl_filter->get_do_db()->is_empty() &&
                rpl_filter->get_ignore_db()->is_empty()) ?
               rpl_filter->db_ok_with_wild_table(db) :
-              rpl_filter->db_ok(db);
+              /*
+                We already increased do_db/ignore_db counter by calling
+                db_ok(...) in mysql_execute_command(...) when applying
+                relay log event for CREATE DATABASE ..., DROP DATABASE
+                ... and ALTER DATABASE .... So we do not increase
+                do_db/ignore_db counter when calling the db_ok(...) again.
+              */
+              rpl_filter->db_ok(db, false);
 
   DBUG_RETURN(db_ok);
 }
@@ -2458,7 +2469,7 @@ mysql_execute_command(THD *thd, bool first_level)
         lex->sql_command != SQLCOM_SAVEPOINT &&
         lex->sql_command != SQLCOM_ROLLBACK &&
         lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
-        !rpl_filter->db_ok(thd->db().str))
+        !thd->rli_slave->rpl_filter->db_ok(thd->db().str))
     {
       binlog_gtid_end_transaction(thd);
       DBUG_RETURN(0);
@@ -5285,7 +5296,7 @@ bool mysql_test_parse_for_slave(THD *thd)
                lex->sql_command != SQLCOM_SAVEPOINT &&
                lex->sql_command != SQLCOM_ROLLBACK &&
                lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
-               !rpl_filter->db_ok(thd->db().str))
+               !thd->rli_slave->rpl_filter->db_ok(thd->db().str))
         ignorable= true;
     }
     thd->m_digest= parent_digest;

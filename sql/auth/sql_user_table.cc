@@ -76,6 +76,7 @@
 #include "typelib.h"
 #include "tztime.h"
 #include "violite.h"
+#include "rpl_rli.h"                    /* class Relay_log_info */
 
 static const
 TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
@@ -2713,7 +2714,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables)
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
     some kind of updates to the mysql.% tables.
   */
-  if (thd->slave_thread && rpl_filter->is_on())
+  if (thd->slave_thread && thd->rli_slave->rpl_filter->is_on())
   {
     /*
       The tables must be marked "updating" so that tables_ok() takes them into
@@ -2728,7 +2729,8 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables)
       tables[ACL_TABLES::TABLE_ROLE_EDGES].updating=
       tables[ACL_TABLES::TABLE_DEFAULT_ROLES].updating= 1;
     
-    if (!(thd->sp_runtime_ctx || rpl_filter->tables_ok(0, tables)))
+    if (!(thd->sp_runtime_ctx ||
+          thd->rli_slave->rpl_filter->tables_ok(0, tables)))
       DBUG_RETURN(1);
 
     tables[ACL_TABLES::TABLE_USER].updating=

@@ -3,6 +3,8 @@
 [mysqld.1]
 
 [mysqld.2]
+replicate-ignore-db=global_db
+replicate-ignore-table=group_replication_applier:db1.tab1
 
 [mysqld.3]
 

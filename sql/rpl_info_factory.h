@@ -40,6 +40,20 @@ public:
   static bool create_slave_info_objects(uint mi_option, uint rli_option, int
                                         thread_mask, Multisource_info *pchannel_map);
 
+  /**
+    Establish the relation between the channel's replication filters and
+    the channel's Relay_log_info, and copy global replication filters to
+    the channel's replication filters if needed.
+
+    @param rli Pointer to Relay_log_info.
+    @param channel_name The channel name.
+
+    @retval false No error
+    @retval true  Failure
+  */
+  static bool configure_channel_replication_filters(Relay_log_info *rli,
+                                                    const char* channel_name);
+
   static Master_info* create_mi_and_rli_objects(uint mi_option,
                                                 uint rli_option,
                                                 const char* channel,

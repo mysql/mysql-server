@@ -85,6 +85,19 @@ public:
   */
   char host[HOSTNAME_LENGTH + 1];
 
+  /*
+    Check if the channel is configured.
+
+    @param mi Pointer to Master_info.
+
+    @retval true  The channel is configured.
+    @retval false The channel is not configured.
+  */
+  static bool is_configured(Master_info *mi)
+  {
+    return mi && mi->host[0];
+  }
+
 private:
   /**
     If true, USER/PASSWORD was specified when running START SLAVE.

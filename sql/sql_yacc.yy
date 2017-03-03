@@ -2010,7 +2010,7 @@ change:
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
-          filter_defs
+          filter_defs opt_channel
           {}
         ;
 

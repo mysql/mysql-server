@@ -92,7 +92,7 @@ public:
   int schedule_next_event(Relay_log_info* rli, Log_event *ev);
   void attach_temp_tables(THD *thd, const Relay_log_info* rli,
                                                       Query_log_event *ev);
-  void detach_temp_tables(THD *thd, const Relay_log_info*,
+  void detach_temp_tables(THD *thd, const Relay_log_info* rli,
                           Query_log_event *ev);
   Slave_worker* get_least_occupied_worker(Relay_log_info*,
                                           Slave_worker_array *ws,

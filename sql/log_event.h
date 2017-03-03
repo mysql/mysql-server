@@ -1121,11 +1121,12 @@ public:
      @param[out] arg pointer to a struct containing char* array
                      pointers to be filled in and the number
                      of filled instances.
+     @param rpl_filter pointer to a replication filter.
 
      @return     number of the filled intances indicating how many
                  databases the event accesses.
   */
-  virtual uint8 get_mts_dbs(Mts_db_names *arg)
+  virtual uint8 get_mts_dbs(Mts_db_names *arg, Rpl_filter *rpl_filter)
   {
     arg->name[0]= get_db();
 
@@ -1386,10 +1387,11 @@ public:
                      In case the number exceeds MAX_DBS_IN_EVENT_MTS,
                      the overfill is indicated with assigning the number to
                      OVER_MAX_DBS_IN_EVENT_MTS.
+     @param rpl_filter pointer to a replication filter.
 
      @return     number of databases in the array or OVER_MAX_DBS_IN_EVENT_MTS.
   */
-  virtual uint8 get_mts_dbs(Mts_db_names* arg)
+  virtual uint8 get_mts_dbs(Mts_db_names* arg, Rpl_filter *rpl_filter)
   {
     if (mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS)
     {
@@ -1406,7 +1408,8 @@ public:
         if (!rpl_filter->is_rewrite_empty() && !strcmp(get_db(), db_name))
         {
           size_t dummy_len;
-          const char *db_filtered= rpl_filter->get_rewrite_db(db_name, &dummy_len);
+          const char *db_filtered=
+            rpl_filter->get_rewrite_db(db_name, &dummy_len);
           // db_name != db_filtered means that db_name is rewritten.
           if (strcmp(db_name, db_filtered))
             db_name= (char*)db_filtered;
@@ -2500,19 +2503,21 @@ public:
   /**
      @param[out] arg pointer to a struct containing char* array
                      pointers be filled in and the number of filled instances.
+     @param rpl_filter pointer to a replication filter.
 
      @return    number of databases in the array: either one or
                 OVER_MAX_DBS_IN_EVENT_MTS, when the Table map event reports
                 foreign keys constraint.
   */
-  virtual uint8 get_mts_dbs(Mts_db_names *arg)
+  virtual uint8 get_mts_dbs(Mts_db_names *arg, Rpl_filter *rpl_filter)
   {
     const char *db_name= get_db();
 
     if (!rpl_filter->is_rewrite_empty() && !get_flags(TM_REFERRED_FK_DB_F))
     {
       size_t dummy_len;
-      const char *db_filtered= rpl_filter->get_rewrite_db(db_name, &dummy_len);
+      const char *db_filtered=
+        rpl_filter->get_rewrite_db(db_name, &dummy_len);
       // db_name != db_filtered means that db_name is rewritten.
       if (strcmp(db_name, db_filtered))
         db_name= db_filtered;

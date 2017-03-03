@@ -195,10 +195,11 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
  Logic to detach the temporary tables from the worker threads upon
  event execution.
  @param thd THD instance
+ @param rli Relay_log_info pointer
  @param ev  Query_log_event that is being applied
 */
 void
-Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info*,
+Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info* rli,
                                          Query_log_event *ev)
 {
   int i, parts;
@@ -223,6 +224,8 @@ Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info*,
   {
     ev->mts_assigned_partitions[i]->temporary_tables= NULL;
   }
+
+  Rpl_filter *rpl_filter= rli->rpl_filter;
   for (TABLE *table= thd->temporary_tables; table;)
   {
     int i;
@@ -238,7 +241,8 @@ Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info*,
       if (!rpl_filter->is_rewrite_empty() && !strcmp(ev->get_db(), db_name))
       {
         size_t dummy_len;
-        const char *db_filtered= rpl_filter->get_rewrite_db(db_name, &dummy_len);
+        const char *db_filtered=
+          rpl_filter->get_rewrite_db(db_name, &dummy_len);
         // db_name != db_filtered means that db_name is rewritten.
         if (strcmp(db_name, db_filtered))
           db_name= (char*)db_filtered;

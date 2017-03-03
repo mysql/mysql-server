@@ -3379,6 +3379,40 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- TABLE replication_applier_filters
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_applier_filters("
+  "CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,"
+  "FILTER_NAME CHAR(64) collate utf8_general_ci not null,"
+  "FILTER_RULE LONGTEXT not null,"
+  "CONFIGURED_BY ENUM('STARTUP_OPTIONS','CHANGE_REPLICATION_FILTER','STARTUP_OPTIONS_FOR_CHANNEL','CHANGE_REPLICATION_FILTER_FOR_CHANNEL') not null,"
+  "ACTIVE_SINCE TIMESTAMP(6) NOT NULL default 0,"
+  "COUNTER bigint(20) unsigned NOT NULL default 0"
+  ") ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE replication_applier_global_filters
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_applier_global_filters("
+  "FILTER_NAME CHAR(64) collate utf8_general_ci not null,"
+  "FILTER_RULE LONGTEXT not null,"
+  "CONFIGURED_BY ENUM('STARTUP_OPTIONS','CHANGE_REPLICATION_FILTER') not null,"
+  "ACTIVE_SINCE TIMESTAMP(6) NOT NULL default 0"
+  ") ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
 -- TABLE replication_applier_status
 --
 

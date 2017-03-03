@@ -209,6 +209,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   }
   do_server_version_split(::server_version, slave_version_split);
   until_option= NULL;
+  rpl_filter= NULL;
 
   DBUG_VOID_RETURN;
 }
@@ -249,6 +250,13 @@ Relay_log_info::~Relay_log_info()
     if (recovery_groups_inited)
       bitmap_free(&recovery_groups);
     delete current_mts_submode;
+
+    if (rpl_filter != NULL)
+    {
+      /* Remove the channel's replication filter from rpl_filter_map. */
+      rpl_filter_map.delete_filter(rpl_filter);
+      rpl_filter= NULL;
+    }
 
     if(workers_copy_pfs.size())
     {

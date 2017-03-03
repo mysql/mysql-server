@@ -995,6 +995,50 @@ err:
 }
 
 
+bool Rpl_info_factory::configure_channel_replication_filters(
+       Relay_log_info *rli, const char* channel_name)
+{
+  DBUG_ENTER("configure_channel_replication_filters");
+  /*
+    GROUP REPLICATION channels should not be configurable using
+    --replicate* nor CHANGE REPLICATION FILTER, and should not
+    inherit from global filters.
+  */
+  if (!channel_map.is_group_replication_channel_name(channel_name))
+  {
+    /*
+      By this time, mi's and rli's are created including for msr.
+      Now, create/get and set per-channel replication filters.
+    */
+    Rpl_filter *rpl_filter= NULL;
+    if ((rpl_filter= rpl_filter_map.get_channel_filter(channel_name)) == NULL)
+    {
+      sql_print_error("Slave: failed in creating filter for channel '%s'",
+                      channel_name);
+      DBUG_RETURN(true);
+    }
+
+    rli->set_filter(rpl_filter);
+    rpl_filter->set_attached();
+    /*
+      A slave replication channel would copy global replication filters
+      to its per-channel replication filters if there are no per-channel
+      replication filters and there are global filters on the filter type
+      when it is being configured.
+    */
+    if (rpl_filter->copy_global_replication_filters())
+    {
+      sql_print_error("Slave: failed in copying the global filters to "
+                      "its own per-channel filters on configuration "
+                      "for channel '%s'", channel_name);
+      DBUG_RETURN(true);
+    }
+  }
+
+  DBUG_RETURN(false);
+}
+
+
 /**
   This function should be called from init_slave() only.
 
@@ -1198,6 +1242,8 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
       channel_error= load_mi_and_rli_from_repositories(mi,
                                                        ignore_if_no_info,
                                                        thread_mask);
+      if (Master_info::is_configured(mi))
+        error= configure_channel_replication_filters(mi->rli, cname);
     }
 
     if (channel_error)

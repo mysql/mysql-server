@@ -1,11 +1,11 @@
 # ==== Purpose ====
 #
-# Show selected columns of output from SHOW SLAVE STATUS.
+# Show selected columns of output from SHOW SLAVE STATUS FOR CHANNEL channel.
 #
-# Note: test cases should never call SHOW SLAVE STATUS directly,
-# because that outputs more information to the query log than what is
-# needed for the property that is being tested.  That would cause
-# maintenance problems, because (1) it is hard for a human to
+# Note: test cases should never call SHOW SLAVE STATUS FOR CHANNEL channel,
+# directly, because that outputs more information to the query log than
+# what is needed for the property that is being tested.  That would
+# cause maintenance problems, because (1) it is hard for a human to
 # understand what property is being tested; (2) the output of many of
 # the fields is non-deterministic (e.g., Slave_IO_State) or changes
 # frequently (e.g., binlog positions).
@@ -78,6 +78,11 @@ if (!$status_items)
   --die Bug in test case: The mysqltest variable $status_items is not set.
 }
 
+--let $_show_slave_status_channel= $rpl_channel_name
+if (!$rpl_channel_name)
+{
+  --let $_show_slave_status_channel= ''
+}
 
 --let $_slave_sql_mode= NO_BACKSLASH_ESCAPES
 if ($slave_sql_mode)

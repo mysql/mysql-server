@@ -2230,7 +2230,7 @@ void Slave_worker::assign_partition_db(Log_event *ev)
   Mts_db_names mts_dbs;
   int i;
 
-  ev->get_mts_dbs(&mts_dbs);
+  ev->get_mts_dbs(&mts_dbs, c_rli->rpl_filter);
 
   if (mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS)
     ev->mts_assigned_partitions[0]= find_entry_from_db_map("", c_rli);

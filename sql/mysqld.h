@@ -52,6 +52,7 @@
 #include "sql_bitmap.h"
 #include "sql_const.h"                     // UUID_LENGTH
 #include "system_variables.h"
+#include "rpl_filter.h"                    // Rpl_filter
 
 class THD;
 class Time_zone;
@@ -145,6 +146,7 @@ extern bool opt_safe_user_create;
 extern bool opt_local_infile, opt_myisam_use_mmap;
 extern bool opt_slave_compressed_protocol;
 extern ulong slave_exec_mode_options;
+extern Rpl_filter* global_rpl_filter;
 
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
@@ -400,6 +402,8 @@ extern PSI_rwlock_key key_rwlock_query_cache_query_lock;
 extern PSI_rwlock_key key_rwlock_channel_map_lock;
 extern PSI_rwlock_key key_rwlock_channel_lock;
 extern PSI_rwlock_key key_rwlock_receiver_sid_lock;
+extern PSI_rwlock_key key_rwlock_rpl_filter_lock;
+extern PSI_rwlock_key key_rwlock_channel_to_filter_lock;
 
 extern PSI_cond_key key_PAGE_cond;
 extern PSI_cond_key key_COND_active;

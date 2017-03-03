@@ -297,8 +297,21 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                 buff, log_name, pos);
 }
 
-static void set_thd_db(THD *thd, const char *db, size_t db_len)
+
+/**
+  Set the rewritten database, or current database if it should not be
+  rewritten, into THD.
+
+  @param thd THD handle
+  @param db database name
+  @param db_len the length of database name
+
+  @retval true if the passed db is rewritten.
+  @retval false if the passed db is not rewritten.
+*/
+static bool set_thd_db(THD *thd, const char *db, size_t db_len)
 {
+  bool need_increase_counter= false;
   char lcase_db_buf[NAME_LEN +1]; 
   LEX_CSTRING new_db;
   new_db.length= db_len;
@@ -311,9 +324,28 @@ static void set_thd_db(THD *thd, const char *db, size_t db_len)
   else 
     new_db.str= (char*) db;
 
-  new_db.str= (char*) rpl_filter->get_rewrite_db(new_db.str,
-                                                 &new_db.length);
+  /* This function is called by a slave thread. */
+  DBUG_ASSERT(thd->rli_slave);
+
+  Rpl_filter *rpl_filter= thd->rli_slave->rpl_filter;
+  new_db.str= (char*) rpl_filter->get_rewrite_db(new_db.str, &new_db.length);
+
+  if (lower_case_table_names)
+  {
+    /* lcase_db_buf != new_db.str means that lcase_db_buf is rewritten. */
+    if (strcmp(lcase_db_buf, new_db.str))
+      need_increase_counter= true;
+  }
+  else
+  {
+    /* db != new_db.str means that db is rewritten. */
+    if (strcmp(db, new_db.str))
+      need_increase_counter= true;
+  }
+
   thd->set_db(new_db);
+
+  return need_increase_counter;
 }
 
 #endif
@@ -3003,7 +3035,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     int i= 0;
     Mts_db_names mts_dbs;
 
-    get_mts_dbs(&mts_dbs);
+    get_mts_dbs(&mts_dbs, rli->rpl_filter);
     /*
       Bug 12982188 - MTS: SBR ABORTS WITH ERROR 1742 ON LOAD DATA
       Logging on master can create a group with no events holding
@@ -4511,7 +4543,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   else
     thd->set_catalog(EMPTY_CSTR);
 
-  set_thd_db(thd, db, db_len);
+  bool need_inc_rewrite_db_filter_counter= set_thd_db(thd, db, db_len);
 
   /*
     Setting the character set and collation of the current database thd->db.
@@ -4727,6 +4759,21 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
         mysql_parse(thd, &parser_state);
+
+        enum_sql_command command= thd->lex->sql_command;
+        /*
+          Do not need to increase rewrite_db_filter counter for
+          SQLCOM_CREATE_DB, SQLCOM_DROP_DB, SQLCOM_BEGIN and
+          SQLCOM_COMMIT.
+        */
+        if (need_inc_rewrite_db_filter_counter && command != SQLCOM_CREATE_DB
+            && command != SQLCOM_DROP_DB && command != SQLCOM_BEGIN
+            && command != SQLCOM_COMMIT)
+        {
+          Rpl_filter *rpl_filter= thd->rli_slave->rpl_filter;
+          if (rpl_filter)
+            rpl_filter->get_rewrite_db_statistics()->increase_counter();
+        }
         /* Finalize server status flags after executing a statement. */
         thd->update_slow_query_status();
         log_slow_statement(thd);
@@ -4814,7 +4861,7 @@ compare_errors:
       statement is not filtered on the slave, only then compare the expected
       error with the actual error that happened on slave.
     */
-    if ((expected_error && rpl_filter->db_ok(thd->db().str) &&
+    if ((expected_error && rli->rpl_filter->db_ok(thd->db().str) &&
          expected_error != actual_error &&
          !concurrency_error_code(expected_error)) &&
         !ignored_error_code(actual_error) &&
@@ -10604,8 +10651,9 @@ check_table_map(Relay_log_info const *rli, RPL_TABLE_LIST *table_list)
   enum_tbl_map_status res= OK_TO_PROCESS;
 
   if (rli->info_thd->slave_thread /* filtering is for slave only */ &&
-      (!rpl_filter->db_ok(table_list->db) ||
-       (rpl_filter->is_on() && !rpl_filter->tables_ok("", table_list))))
+      (!rli->rpl_filter->db_ok(table_list->db) ||
+       (rli->rpl_filter->is_on() &&
+        !rli->rpl_filter->tables_ok("", table_list))))
     res= FILTERED_OUT;
   else
   {
@@ -10663,8 +10711,13 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
   }
 
   /* rewrite rules changed the database */
-  if (((ptr= (char*) rpl_filter->get_rewrite_db(db_mem, &dummy_len)) != db_mem))
+  if (rli->rpl_filter != NULL &&
+      ((ptr= (char*) rli->rpl_filter->get_rewrite_db(db_mem, &dummy_len)) !=
+       db_mem))
+  {
+    rli->rpl_filter->get_rewrite_db_statistics()->increase_counter();
     my_stpcpy(db_mem, ptr);
+  }
 
   table_list->init_one_table(db_mem, strlen(db_mem),
                              tname_mem, strlen(tname_mem),

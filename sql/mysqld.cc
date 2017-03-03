@@ -449,7 +449,6 @@
 #include "psi_memory_key.h"             // key_memory_MYSQL_RELAY_LOG_index
 #include "query_options.h"
 #include "replication.h"                // thd_enter_cond
-#include "rpl_filter.h"                 // Rpl_filter
 #include "rpl_gtid.h"
 #include "rpl_gtid_persist.h"           // Gtid_table_persistor
 #include "rpl_handler.h"                // RUN_HOOK
@@ -1047,7 +1046,7 @@ Lt_creator lt_creator;
 Ge_creator ge_creator;
 Le_creator le_creator;
 
-Rpl_filter* rpl_filter;
+Rpl_filter* global_rpl_filter;
 Rpl_filter* binlog_filter;
 
 struct System_variables global_system_variables;
@@ -1856,7 +1855,8 @@ static void clean_up(bool print_message)
   free_max_user_conn();
   end_slave_list();
   delete binlog_filter;
-  delete rpl_filter;
+  delete global_rpl_filter;
+  rpl_filter_map.clean_up();
   end_ssl();
   vio_end();
   my_regex_end();
@@ -3151,9 +3151,9 @@ int init_common_variables()
   max_system_variables.pseudo_thread_id= (my_thread_id) ~0;
   server_start_time= flush_status_time= my_time(0);
 
-  rpl_filter= new Rpl_filter;
+  global_rpl_filter= new Rpl_filter;
   binlog_filter= new Rpl_filter;
-  if (!rpl_filter || !binlog_filter)
+  if (!global_rpl_filter || !binlog_filter)
   {
     sql_print_error("Could not allocate replication and binlog filters: %s",
                     strerror(errno));
@@ -3175,7 +3175,7 @@ int init_common_variables()
             sizeof(system_time_zone)-1);
 #endif
 
- }
+  }
 
   /*
     We set SYSTEM time zone as reasonable default and
@@ -3631,16 +3631,19 @@ int init_common_variables()
       &my_charset_bin);
 
   /*
-    Build do_table and ignore_table rules to hush
-    after the resetting of table_alias_charset
+    Build do_table and ignore_table rules to hashes
+    after the resetting of table_alias_charset.
   */
-  if (rpl_filter->build_do_table_hash() ||
-      rpl_filter->build_ignore_table_hash())
+  if (global_rpl_filter->build_do_table_hash() ||
+      global_rpl_filter->build_ignore_table_hash())
   {
-    sql_print_error("An error occurred while building do_table"
-                    "and ignore_table rules to hush.");
+    sql_print_error("An error occurred while building do_table "
+                    "and ignore_table rules to hashes for "
+                    "global replication filter.");
     return 1;
   }
+  if (rpl_filter_map.build_do_and_ignore_table_hashes())
+    return 1;
   /* Once all options are handled we load persisted config file */
   if (persisted_variables_cache.load_persist_file())
     return 1;
@@ -5646,6 +5649,20 @@ int mysqld_main(int argc, char **argv)
     */
     if (server_id != 0)
       init_slave(); /* Ignoring errors while configuring replication. */
+
+    /*
+      If the user specifies a per-channel replication filter through a
+      command-line option (or in a configuration file) for a slave
+      replication channel which does not exist as of now (i.e not
+      present in slave info tables yet), then the per-channel
+      replication filter is discarded with a warning.
+      If the user specifies a per-channel replication filter through
+      a command-line option (or in a configuration file) for group
+      replication channels 'group_replication_recovery' and
+      'group_replication_applier' which is disallowed, then the
+      per-channel replication filter is discarded with a warning.
+    */
+    rpl_filter_map.discard_all_unattached_filters();
   }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -7784,11 +7801,113 @@ static int mysql_init_variables(void)
   return 0;
 }
 
+
+/**
+  Check if it is a global replication filter setting.
+
+  @param argument The setting of startup option --replicate-*.
+
+  @retval
+    0    OK
+  @retval
+    1    Error
+*/
+static bool is_global_rpl_filter_setting(char* argument)
+{
+  DBUG_ENTER("is_global_rpl_filter_setting");
+
+  bool res= false;
+  char *p= strchr(argument, ':');
+  if (p == NULL)
+    res= true;
+
+  DBUG_RETURN(res);
+}
+
+
+/**
+  Extract channel name and filter value from argument.
+
+  @param [out] channel_name The name of the channel.
+  @param [out] filter_val The value of filter.
+  @param argument The setting of startup option --replicate-*.
+*/
+void parse_filter_arg(char** channel_name, char** filter_val, char* argument)
+{
+  DBUG_ENTER("parse_filter_arg");
+
+  char *p= strchr(argument, ':');
+
+  DBUG_ASSERT(p != NULL);
+
+  /*
+    If argument='channel_1:db1', then channel_name='channel_1'
+    and filter_val='db1'; If argument=':db1', then channel_name=''
+    and filter_val='db1'.
+  */
+  *channel_name= argument;
+  *filter_val= p +1;
+  *p=0;
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Extract channel name and filter value from argument.
+
+  @param [out] key The db is rewritten from.
+  @param [out] val The db is rewritten to.
+  @param argument The value of filter.
+
+  @retval
+    0    OK
+  @retval
+    1    Error
+*/
+static int parse_replicate_rewrite_db(char **key, char **val, char *argument)
+{
+  DBUG_ENTER("parse_replicate_rewrite_db");
+  char *p;
+  *key= argument;
+
+  if (!(p= strstr(argument, "->")))
+  {
+    sql_print_error("Bad syntax in replicate-rewrite-db - missing '->'!\n");
+    DBUG_RETURN(1);
+  }
+  *val= p + 2;
+
+  while(p > argument && my_isspace(mysqld_charset, p[-1]))
+    p--;
+  *p= 0;
+
+  if (!**key)
+  {
+    sql_print_error("Bad syntax in replicate-rewrite-db - empty FROM db!\n");
+    DBUG_RETURN(1);
+  }
+  while (**val && my_isspace(mysqld_charset, **val))
+    (*val)++;
+  if (!**val)
+  {
+    sql_print_error("Bad syntax in replicate-rewrite-db - empty TO db!\n");
+    DBUG_RETURN(1);
+  }
+
+  DBUG_RETURN(0);
+}
+
+
 bool
 mysqld_get_one_option(int optid,
                       const struct my_option *opt MY_ATTRIBUTE((unused)),
                       char *argument)
 {
+  Rpl_filter* rpl_filter= NULL;
+  char* filter_val;
+  char* channel_name;
+
   switch(optid) {
   case '#':
 #ifndef DBUG_OFF
@@ -7878,41 +7997,61 @@ mysqld_get_one_option(int optid,
     break;
   case (int)OPT_REPLICATE_IGNORE_DB:
   {
-    rpl_filter->add_ignore_db(argument);
+    if (is_global_rpl_filter_setting(argument))
+    {
+      global_rpl_filter->add_ignore_db(argument);
+      global_rpl_filter->ignore_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+    }
+    else
+    {
+      parse_filter_arg(&channel_name, &filter_val, argument);
+      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter->add_ignore_db(filter_val);
+      rpl_filter->ignore_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+    }
     break;
   }
   case (int)OPT_REPLICATE_DO_DB:
   {
-    rpl_filter->add_do_db(argument);
+    if (is_global_rpl_filter_setting(argument))
+    {
+      global_rpl_filter->add_do_db(argument);
+      global_rpl_filter->do_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+    }
+    else
+    {
+      parse_filter_arg(&channel_name, &filter_val, argument);
+      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter->add_do_db(filter_val);
+      rpl_filter->do_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+    }
     break;
   }
   case (int)OPT_REPLICATE_REWRITE_DB:
   {
-    char* key = argument,*p, *val;
-
-    if (!(p= strstr(argument, "->")))
+    char* key,*val;
+    if (is_global_rpl_filter_setting(argument))
     {
-      sql_print_error("Bad syntax in replicate-rewrite-db - missing '->'!\n");
-      return 1;
+      if (parse_replicate_rewrite_db(&key, &val, argument))
+        return 1;
+      global_rpl_filter->add_db_rewrite(key, val);
+      global_rpl_filter->rewrite_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS, 0);
     }
-    val= p + 2;
-    while(p > argument && my_isspace(mysqld_charset, p[-1]))
-      p--;
-    *p= 0;
-    if (!*key)
+    else
     {
-      sql_print_error("Bad syntax in replicate-rewrite-db - empty FROM db!\n");
-      return 1;
+      parse_filter_arg(&channel_name, &filter_val, argument);
+      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      if (parse_replicate_rewrite_db(&key, &val, filter_val))
+        return 1;
+      rpl_filter->add_db_rewrite(key, val);
+      rpl_filter->rewrite_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
     }
-    while (*val && my_isspace(mysqld_charset, *val))
-      val++;
-    if (!*val)
-    {
-      sql_print_error("Bad syntax in replicate-rewrite-db - empty TO db!\n");
-      return 1;
-    }
-
-    rpl_filter->add_db_rewrite(key, val);
     break;
   }
 
@@ -7928,37 +8067,107 @@ mysqld_get_one_option(int optid,
   }
   case (int)OPT_REPLICATE_DO_TABLE:
   {
-    if (rpl_filter->add_do_table_array(argument))
+    if (is_global_rpl_filter_setting(argument))
     {
-      sql_print_error("Could not add do table rule '%s'!\n", argument);
-      return 1;
+      if (global_rpl_filter->add_do_table_array(argument))
+      {
+        sql_print_error("Could not add do table rule '%s'!\n", argument);
+        return 1;
+      }
+      global_rpl_filter->do_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+    }
+    else
+    {
+      parse_filter_arg(&channel_name, &filter_val, argument);
+      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      if (rpl_filter->add_do_table_array(filter_val))
+      {
+        sql_print_error("Could not add do table rule '%s'!\n", argument);
+        return 1;
+      }
+      rpl_filter->do_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
     }
     break;
   }
   case (int)OPT_REPLICATE_WILD_DO_TABLE:
   {
-    if (rpl_filter->add_wild_do_table(argument))
+    if (is_global_rpl_filter_setting(argument))
     {
-      sql_print_error("Could not add do table rule '%s'!\n", argument);
-      return 1;
+      if (global_rpl_filter->add_wild_do_table(argument))
+      {
+        sql_print_error("Could not add wild do table rule '%s'!\n", argument);
+        return 1;
+      }
+      global_rpl_filter->wild_do_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+    }
+    else
+    {
+      parse_filter_arg(&channel_name, &filter_val, argument);
+      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      if (rpl_filter->add_wild_do_table(filter_val))
+      {
+        sql_print_error("Could not add wild do table rule '%s'!\n", argument);
+        return 1;
+      }
+      rpl_filter->wild_do_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
     }
     break;
   }
   case (int)OPT_REPLICATE_WILD_IGNORE_TABLE:
   {
-    if (rpl_filter->add_wild_ignore_table(argument))
+    if (is_global_rpl_filter_setting(argument))
     {
-      sql_print_error("Could not add ignore table rule '%s'!\n", argument);
-      return 1;
+      if (global_rpl_filter->add_wild_ignore_table(argument))
+      {
+        sql_print_error("Could not add wild ignore table rule '%s'!\n",
+                        argument);
+        return 1;
+      }
+      global_rpl_filter->wild_ignore_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+    }
+    else
+    {
+      parse_filter_arg(&channel_name, &filter_val, argument);
+      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      if (rpl_filter->add_wild_ignore_table(filter_val))
+      {
+        sql_print_error("Could not add wild ignore table rule '%s'!\n",
+                        argument);
+        return 1;
+      }
+      rpl_filter->wild_ignore_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
     }
     break;
   }
   case (int)OPT_REPLICATE_IGNORE_TABLE:
   {
-    if (rpl_filter->add_ignore_table_array(argument))
+    if (is_global_rpl_filter_setting(argument))
     {
-      sql_print_error("Could not add ignore table rule '%s'!\n", argument);
-      return 1;
+      if (global_rpl_filter->add_ignore_table_array(argument))
+      {
+        sql_print_error("Could not add ignore table rule '%s'!\n", argument);
+        return 1;
+      }
+      global_rpl_filter->ignore_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+    }
+    else
+    {
+      parse_filter_arg(&channel_name, &filter_val, argument);
+      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      if (rpl_filter->add_ignore_table_array(filter_val))
+      {
+        sql_print_error("Could not add ignore table rule '%s'!\n", argument);
+        return 1;
+      }
+      rpl_filter->ignore_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
     }
     break;
   }
@@ -9167,6 +9376,8 @@ PSI_rwlock_key key_rwlock_query_cache_query_lock;
 PSI_rwlock_key key_rwlock_channel_map_lock;
 PSI_rwlock_key key_rwlock_channel_lock;
 PSI_rwlock_key key_rwlock_receiver_sid_lock;
+PSI_rwlock_key key_rwlock_rpl_filter_lock;
+PSI_rwlock_key key_rwlock_channel_to_filter_lock;
 
 PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
@@ -9191,6 +9402,8 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_Server_state_delegate_lock, "Server_state_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_receiver_sid_lock, "gtid_retrieved", PSI_FLAG_GLOBAL},
+  { &key_rwlock_rpl_filter_lock, "rpl_filter_lock", 0},
+  { &key_rwlock_channel_to_filter_lock, "channel_to_filter_lock", 0}
 };
 
 PSI_cond_key key_PAGE_cond;

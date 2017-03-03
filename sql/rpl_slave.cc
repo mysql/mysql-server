@@ -530,7 +530,7 @@ int init_slave()
       mi= it->second;
 
       /* If server id is not set, start_slave_thread() will say it */
-      if (mi && mi->host[0])
+      if (Master_info::is_configured(mi))
       {
         /* same as in start_slave() cache the global var values into rli's members */
         mi->rli->opt_slave_parallel_workers= opt_mts_slave_parallel_workers;
@@ -663,7 +663,6 @@ int stop_slave(THD *thd)
   bool push_temp_table_warning= true;
   Master_info *mi=0;
   int error= 0;
-  bool channel_configured;
 
   if (channel_map.get_num_instances() == 1)
   {
@@ -681,9 +680,7 @@ int stop_slave(THD *thd)
     {
       mi= it->second;
 
-      channel_configured= mi && mi->host[0];
-
-      if (channel_configured)
+      if (Master_info::is_configured(mi))
       {
         if (stop_slave(thd, mi, 1,
                        false /*for_one_channel*/, &push_temp_table_warning))
@@ -3719,6 +3716,7 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
 
   Protocol *protocol = thd->get_protocol();
   char* slave_sql_running_state= NULL;
+  Rpl_filter *rpl_filter= mi->rli->rpl_filter;
 
   DBUG_PRINT("info",("host is set: '%s'", mi->host));
 
@@ -3759,6 +3757,12 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
                   "Yes" : (mi->slave_running == MYSQL_SLAVE_RUN_NOT_CONNECT ?
                            "Connecting" : "No"), &my_charset_bin);
   protocol->store(mi->rli->slave_running ? "Yes":"No", &my_charset_bin);
+
+  /*
+    Acquire the read lock, because the filter may be modified by
+    CHANGE REPLICATION FILTER when slave is not running.
+  */
+  rpl_filter->rdlock();
   store(protocol, rpl_filter->get_do_db());
   store(protocol, rpl_filter->get_ignore_db());
 
@@ -3969,6 +3973,7 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
   // Master_TLS_Version
   protocol->store(mi->tls_version, &my_charset_bin);
 
+  rpl_filter->unlock();
   mysql_mutex_unlock(&mi->rli->err_lock);
   mysql_mutex_unlock(&mi->err_lock);
   mysql_mutex_unlock(&mi->rli->data_lock);
@@ -4040,7 +4045,7 @@ bool show_slave_status(THD *thd)
     */
     io_gtid_set_buffer_array[idx]= NULL;
 
-    if (mi != NULL && mi->host[0])
+    if (Master_info::is_configured(mi))
     {
       const Gtid_set*  io_gtid_set= mi->rli->get_gtid_set();
       mi->rli->get_sid_lock()->wrlock();
@@ -4091,7 +4096,7 @@ bool show_slave_status(THD *thd)
   {
     mi= it->second;
 
-    if (mi != NULL && mi->host[0])
+    if (Master_info::is_configured(mi))
     {
       if (show_slave_status_send_data(thd, mi, io_gtid_set_buffer_array[idx],
                                  sql_gtid_set_buffer))
@@ -4174,7 +4179,7 @@ bool show_slave_status(THD* thd, Master_info* mi)
     DBUG_RETURN(true);
   }
 
-  if (mi != NULL && mi->host[0])
+  if (Master_info::is_configured(mi))
   {
 
     if (show_slave_status_send_data(thd, mi,
@@ -4220,15 +4225,25 @@ bool show_slave_status_cmd(THD *thd)
     res= show_slave_status(thd);
   else
   {
-    /* when mi is 0, i.e mi doesn't exist, SSS will return an empty set */
     mi= channel_map.get_mi(lex->mi.channel);
+
+    /*
+      When mi is NULL, that means the channel doesn't exist, SSS
+      will throw an error.
+    */
+    if (mi == NULL)
+    {
+      my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
+      channel_map.unlock();
+      DBUG_RETURN(true);
+    }
 
     /*
       If the channel being used is a group replication applier channel we
       need to disable the SHOW SLAVE STATUS commannd as its output is not
       compatible with this command.
     */
-    if (mi && channel_map.is_group_replication_channel_name(mi->get_channel(),
+    if (channel_map.is_group_replication_channel_name(mi->get_channel(),
                                                             true))
     {
       my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
@@ -6230,6 +6245,7 @@ static void *handle_slave_worker(void *arg)
   #ifdef HAVE_PSI_INTERFACE
   struct PSI_thread *psi;
   #endif
+  Rpl_filter* rpl_filter;
 
   my_thread_init();
   DBUG_ENTER("handle_slave_worker");
@@ -6261,7 +6277,16 @@ static void *handle_slave_worker(void *arg)
   }
   thd->rli_slave= w;
   thd->init_query_mem_roots();
-  if ((w->deferred_events_collecting= rpl_filter->is_on()))
+
+  /*
+    Get and set replication filter from filter map by channel name
+    for the slave worker when starting slave threads to make sure
+    they can get the newest filter of the channel.
+  */
+  rpl_filter= rpl_filter_map.get_channel_filter(w->get_channel());
+  w->set_filter(rpl_filter);
+
+  if ((w->deferred_events_collecting= w->rpl_filter->is_on()))
     w->deferred_events= new Deferred_log_events();
   DBUG_ASSERT(thd->rli_slave->info_thd == thd);
 
@@ -7247,6 +7272,7 @@ extern "C" void *handle_slave_sql(void *arg)
   bool mts_inited= false;
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   Commit_order_manager *commit_order_mngr= NULL;
+  Rpl_filter *rpl_filter;
 
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
@@ -7304,7 +7330,16 @@ extern "C" void *handle_slave_sql(void *arg)
     goto err;
   }
   thd->init_query_mem_roots();
-  if ((rli->deferred_events_collecting= rpl_filter->is_on()))
+
+  /*
+    Get and set replication filter from filter map by channel name
+    for the slave coordinator or applier when starting slave threads
+    to make sure they can get the newest filter of the channel.
+  */
+  rpl_filter= rpl_filter_map.get_channel_filter(rli->get_channel());
+  rli->set_filter(rpl_filter);
+
+  if ((rli->deferred_events_collecting= rli->rpl_filter->is_on()))
     rli->deferred_events= new Deferred_log_events();
   thd->rli_slave= rli;
   DBUG_ASSERT(thd->rli_slave->info_thd == thd);
@@ -11243,6 +11278,18 @@ bool change_master_cmd(THD *thd)
   {
     if (!(res= change_master(thd, mi, &thd->lex->mi)))
     {
+      /*
+        If the channel was not properly configured before this "CHANGE MASTER"
+        (it had no rpl_filter object yet), and it was properly configured now
+        (MASTER_HOST was set), we can create the channel rpl_filter object.
+      */
+      if (mi->rli->rpl_filter == NULL && Master_info::is_configured(mi))
+      {
+        if ((res= Rpl_info_factory::configure_channel_replication_filters(
+                    mi->rli, lex->mi.channel)))
+          goto err;
+      }
+
       my_ok(thd);
     }
   }

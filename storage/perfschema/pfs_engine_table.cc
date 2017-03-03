@@ -101,6 +101,8 @@
 #include "table_replication_connection_status.h"
 #include "table_replication_group_member_stats.h"
 #include "table_replication_group_members.h"
+#include "table_replication_applier_filters.h"
+#include "table_replication_applier_global_filters.h"
 #include "table_session_account_connect_attrs.h"
 #include "table_session_connect_attrs.h"
 #include "table_session_status.h"
@@ -662,6 +664,8 @@ static PFS_engine_table_share *all_shares[] = {
   &table_replication_applier_status_by_coordinator::m_share,
   &table_replication_applier_status_by_worker::m_share,
   &table_replication_group_member_stats::m_share,
+  &table_replication_applier_filters::m_share,
+  &table_replication_applier_global_filters::m_share,
 
   &table_prepared_stmt_instances::m_share,
 

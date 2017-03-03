@@ -143,6 +143,7 @@ RESET SLAVE ALL FOR CHANNEL 'channel_3';
 
 #End MSR setup
 --let $rpl_only_running_threads= 1
+--let $rpl_group_replication= 1
 --source include/rpl_end.inc
 
 

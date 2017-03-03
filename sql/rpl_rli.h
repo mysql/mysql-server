@@ -53,6 +53,7 @@
 #include "system_variables.h"
 #include "table.h"
 #include "log_event.h"        //Gtid_log_event
+#include "rpl_filter.h"
 
 struct RPL_TABLE_LIST;
 class Commit_order_manager;
@@ -153,6 +154,11 @@ class Relay_log_info : public Rpl_info
   friend class Rpl_info_factory;
 
 public:
+
+  /*
+    The per-channel filter associated with this RLI
+  */
+  Rpl_filter* rpl_filter;
   /**
      Flags for the state of the replication.
    */
@@ -1322,6 +1328,14 @@ public:
   }
 
   virtual const char* get_for_channel_str(bool upper_case= false) const;
+
+  /**
+    Set replication filter for the channel.
+  */
+  inline void set_filter(Rpl_filter *channel_filter)
+  {
+    rpl_filter= channel_filter;
+  }
 
 protected:
   Format_description_log_event *rli_description_event;
