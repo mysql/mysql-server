@@ -3634,7 +3634,6 @@ ib_sdi_drop_copies(space_id_t tablespace_id)
 	/* Remove SDI Flag presence from Page 0 */
 	mtr_t	mtr;
 	mtr.start();
-	mtr.set_named_space(tablespace_id);
 
 	ulint flags = space->flags & ~FSP_FLAGS_MASK_SDI;
 

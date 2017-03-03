@@ -13,12 +13,13 @@ call mtr.add_suppression("InnoDB: innodb_force_recovery is on.");
 call mtr.add_suppression("InnoDB: Tablespace open failed for.*bug16720368");
 call mtr.add_suppression("InnoDB: Failed to find tablespace.*bug16720368");
 call mtr.add_suppression("InnoDB: Header page contains inconsistent data in .*bug16720368.ibd");
+call mtr.add_suppression("InnoDB: Corrupted page.*could not be found in the doublewrite buffer");
 call mtr.add_suppression("InnoDB: Could not find.*test/bug16720368");
-call mtr.add_suppression("Found 1 prepared XA transactions");
 call mtr.add_suppression("InnoDB: .*test.*bug16720368.*missing");
+call mtr.add_suppression("InnoDB: Ignoring tablespace `test/bug16720368` because it could not be opened");
+call mtr.add_suppression("Found 1 prepared XA transactions");
 call mtr.add_suppression("InnoDB: Operating system error.*in a file operation");
 call mtr.add_suppression("InnoDB: \(The error means\|If you are\)");
-call mtr.add_suppression("InnoDB: Ignoring tablespace `test/bug16720368` because it could not be opened");
 call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
 call mtr.add_suppression("InnoDB: Error number [0-9]* means 'Resource temporarily unavailable'");
 -- enable_query_log
@@ -107,8 +108,7 @@ EOF
 
 INSERT INTO bug16720368 VALUES(9,1);
 SELECT COUNT(*) FROM bug16720368;
-# A debug assertion would fail in buf_block_align_instance()
-# if we did not uncorrupt the page number first.
+
 DROP TABLE bug16720368, bug16720368_1;
 
 -- echo #
@@ -143,7 +143,7 @@ let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
 -- error 1
 -- exec $MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
 
-let SEARCH_PATTERN= \[ERROR\] InnoDB: Tablespace [0-9]+ was not found at .*test.bug16735660.ibd;
+let SEARCH_PATTERN= \[ERROR\] InnoDB:.*tablespace \d+ .*not found:.*test.bug16735660.ibd.*;
 -- source include/search_pattern_in_file.inc
 
 -- move_file $MYSQLD_DATADIR/bug16735660.omg $MYSQLD_DATADIR/test/bug16735660.ibd

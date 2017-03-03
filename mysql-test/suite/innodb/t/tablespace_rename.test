@@ -1,0 +1,78 @@
+#
+# This testcase is to check if tablespace rename is handled correctly
+# during recovery. Assumption is file per table.
+# 
+# Crash between each of the points listed below :
+# - RENAME TABLE t to t1; -- gets translated into the following steps
+# 
+# 1. LSN = WRITE LOG "MLOG_FILE_OPEN t1.ibd;"
+# 
+# 2. ADD_ENTRY_TO_TABLESPACE_ID_MAPPING (SPACE_ID, t1.ibd, LSN);
+# 
+# 3. WRITE MAPPING DATA TO FILE 'tablespaces.open.X' IN COMPRESSED FORMAT;
+# 
+# 4. FSYNC 'tablespaces.open.X';
+# 
+# 5. WRITE_LOG "MLOG_FILE_RENAME2 t, t1";
+# 
+# 6. RENAME FILE t.ibd TO t1.ibd;
+# 
+# 7. COMPLETED
+#
+
+# Not supported in embedded
+--source include/not_embedded.inc
+
+# the DBUG_EXECUTE_IF() macro needs a debug server.
+--source include/have_debug.inc
+
+--disable_query_log
+# These values can change during the test
+LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+
+# Set up some variables
+LET $MYSQL_DATA_DIR = `select @@datadir`;
+LET $DATA_DIRECTORY_CLAUSE = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
+--enable_query_log
+
+SET GLOBAL innodb_file_per_table=ON;
+
+--echo #
+--echo # Tablespace rename
+--echo #
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+CREATE TABLE t1 (c1 int KEY) ENGINE=Innodb;
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1;
+SHOW TABLES;
+
+--echo #
+--echo # Test crash before writing MLOG_FILE_OPEN t2.
+--echo # On recovery the rename never happened.
+--echo #
+
+--source include/expect_crash.inc
+
+SET SESSION debug="+d,ib_crash_rename_log_1";
+
+--error CR_SERVER_LOST
+RENAME TABLE t1 TO t2;
+
+--source include/start_mysqld.inc
+
+SET SESSION debug="-d,ib_crash_rename_log_1";
+SHOW TABLES;
+INSERT INTO t1 VALUES (2);
+SELECT * FROM t1;
+
+--echo #
+--echo # Cleanup
+--echo #
+
+DROP TABLE t1;
+
+-- disable_query_log
+eval set global innodb_file_per_table=$innodb_file_per_table_orig;
+-- enable_query_log
+

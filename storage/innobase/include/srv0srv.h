@@ -245,6 +245,10 @@ extern const page_no_t	SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
 
 extern char*	srv_log_group_home_dir;
 
+#ifdef UNIV_DEBUG
+extern bool	srv_checkpoint_disabled;
+#endif /* UNIV_DEBUG */
+
 /** Enable or Disable Encrypt of REDO tablespace. */
 extern bool	srv_redo_log_encrypt;
 

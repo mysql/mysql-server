@@ -110,7 +110,7 @@ buf_dblwr_sync_datafiles()
 	os_aio_wait_until_no_pending_writes();
 
 	/* Now we flush the data to disk (for example, with fsync) */
-	fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
+	fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
 }
 
 /****************************************************************//**
@@ -189,7 +189,6 @@ buf_dblwr_create(void)
 
 start_again:
 	mtr_start(&mtr);
-	mtr.set_sys_modified();
 	buf_dblwr_being_created = TRUE;
 
 	doublewrite = buf_dblwr_get(&mtr);
@@ -305,7 +304,6 @@ start_again:
 			are active, restart the MTR occasionally. */
 			mtr_commit(&mtr);
 			mtr_start(&mtr);
-			mtr.set_sys_modified();
 			doublewrite = buf_dblwr_get(&mtr);
 			fseg_header = doublewrite
 				      + TRX_SYS_DOUBLEWRITE_FSEG;
@@ -524,23 +522,166 @@ buf_dblwr_init_or_load_pages(
 	return(DB_SUCCESS);
 }
 
+/** Recover a single page
+@param[in]	page_no_dblwr	Page number in the doublewrite buffer
+@param[in,out]	space		Tablespace instance to write to
+@param[in]	page_no		Page number in the tablespace
+@param[in]	page		Page data to write */
+static
+void
+buf_dblwr_recover_page(
+	page_no_t	page_no_dblwr,
+	fil_space_t*	space,
+	page_no_t	page_no,
+	const page_t*	page)
+{
+	byte*		ptr;
+	byte*		read_buf;
+
+	ptr = static_cast<byte*>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
+
+	read_buf = static_cast<byte*>(ut_align(ptr, UNIV_PAGE_SIZE));
+
+	fil_space_open_if_needed(space);
+
+	if (page_no >= space->size) {
+
+		/* Do not report the warning if the tablespace is
+		going to be truncated. */
+		if (!undo::is_under_construction(space->id)) {
+			ib::warn()
+				<< "Page " << page_no_dblwr
+				<< " in the doublewrite buffer is"
+				" not within space bounds: page "
+				<< page_id_t(space->id, page_no);
+		}
+
+	} else {
+		const page_size_t	page_size(space->flags);
+		const page_id_t		page_id(space->id, page_no);
+
+		/* We want to ensure that for partial reads the
+		unread portion of the page is NUL. */
+		memset(read_buf, 0x0, page_size.physical());
+
+		IORequest	request;
+
+		request.dblwr_recover();
+
+		/* Read in the actual page from the file */
+		dberr_t	err = fil_io(
+			request, true,
+			page_id, page_size,
+			0, page_size.physical(), read_buf, NULL);
+
+		if (err != DB_SUCCESS) {
+
+			ib::warn()
+				<< "Double write buffer recovery: "
+				<< page_id << " read failed with "
+				<< "error: " << ut_strerr(err);
+		}
+
+		/* Check if the page is corrupt */
+		BlockReporter	block(
+			true, read_buf, page_size,
+			fsp_is_checksum_disabled(space->id));
+
+		if (block.is_corrupted()) {
+
+			ib::info()
+				<< "Database page corruption or"
+				<< " a failed file read of page "
+				<< page_id
+				<< ". Trying to recover it from the"
+				<< " doublewrite buffer.";
+
+			BlockReporter	dblwr_buf_page(
+				true, page, page_size,
+				fsp_is_checksum_disabled(space->id));
+
+			if (dblwr_buf_page.is_corrupted()) {
+
+				ib::error() << "Dump of the page:";
+				buf_page_print(
+					read_buf, page_size,
+					BUF_PAGE_PRINT_NO_CRASH);
+
+				ib::error()
+					<< "Dump of corresponding"
+					" page in doublewrite buffer:";
+
+				buf_page_print(
+					page, page_size,
+					BUF_PAGE_PRINT_NO_CRASH);
+
+				ib::fatal()
+					<< "The page in the"
+					" doublewrite buffer is"
+					" corrupt. Cannot continue"
+					" operation. You can try to"
+					" recover the database with"
+					" innodb_force_recovery=6";
+			}
+		} else {
+
+			bool	t1 = buf_page_is_zeroes(
+				read_buf, page_size);
+
+			bool	t2 = buf_page_is_zeroes(
+				page, page_size);
+
+			BlockReporter	reporter = BlockReporter(
+				true, page, page_size,
+				fsp_is_checksum_disabled(space->id));
+
+			bool	t3 = reporter.is_corrupted();
+
+			if (t1 && !(t2 || t3)) {
+
+				/* Database page contained only
+				zeroes, while a valid copy is
+				available in dblwr buffer. */
+
+			} else {
+				ut_free(ptr);
+				return;
+			}
+		}
+
+		/* Recovered data file pages are written out
+		as uncompressed. */
+
+		IORequest	write_request(IORequest::WRITE);
+
+		write_request.disable_compression();
+
+		/* Write the good page from the doublewrite
+		buffer to the intended position. */
+
+		fil_io(write_request, true,
+			page_id, page_size,
+			0, page_size.physical(),
+			const_cast<byte*>(page), NULL);
+
+		ib::info()
+			<< "Recovered page "
+			<< page_id
+			<< " from the doublewrite buffer.";
+	}
+
+	ut_free(ptr);
+}
+
 /** Process and remove the double write buffer pages for all tablespaces. */
 void
-buf_dblwr_process(void)
+buf_dblwr_process()
 {
-	page_no_t	page_no_dblwr	= 0;
-	byte*		read_buf;
-	byte*		unaligned_read_buf;
-	recv_dblwr_t&	recv_dblwr	= recv_sys->dblwr;
+	page_no_t		page_no_dblwr	= 0;
+	recv_dblwr_t&		dblwr	= recv_sys->dblwr;
 
-	unaligned_read_buf = static_cast<byte*>(
-		ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
-
-	read_buf = static_cast<byte*>(
-		ut_align(unaligned_read_buf, UNIV_PAGE_SIZE));
-
-	for (recv_dblwr_t::list::iterator i = recv_dblwr.pages.begin();
-	     i != recv_dblwr.pages.end();
+	for (auto i = dblwr.pages.begin();
+	     i != dblwr.pages.end();
 	     ++i, ++page_no_dblwr) {
 
 		const byte*	page		= *i;
@@ -549,138 +690,60 @@ buf_dblwr_process(void)
 
 		fil_space_t*	space = fil_space_get(space_id);
 
-		if (space == NULL) {
-			/* Maybe we have dropped the tablespace
-			and this page once belonged to it: do nothing */
-			continue;
-		}
+		if (space == nullptr) {
 
-		fil_space_open_if_needed(space);
+			/* We will have to lazily apply this page
+			when we see a MLOG_FILE_OPEN redo record
+			during recovery. */
 
-		if (page_no >= space->size) {
+			using Page = recv_dblwr_t::Page;
 
-			/* Do not report the warning if the tablespace is
-			going to be truncated. */
-			if (!undo::is_under_construction(space_id)) {
-				ib::warn() << "Page " << page_no_dblwr
-					<< " in the doublewrite buffer is"
-					" not within space bounds: page "
-					<< page_id_t(space_id, page_no);
-			}
+			dblwr.deferred.push_back(Page(page_no_dblwr, page));
 		} else {
-			const page_size_t	page_size(space->flags);
-			const page_id_t		page_id(space_id, page_no);
-
-			/* We want to ensure that for partial reads the
-			unread portion of the page is NUL. */
-			memset(read_buf, 0x0, page_size.physical());
-
-			IORequest	request;
-
-			request.dblwr_recover();
-
-			/* Read in the actual page from the file */
-			dberr_t	err = fil_io(
-				request, true,
-				page_id, page_size,
-				0, page_size.physical(), read_buf, NULL);
-
-			if (err != DB_SUCCESS) {
-
-				ib::warn()
-					<< "Double write buffer recovery: "
-					<< page_id << " read failed with "
-					<< "error: " << ut_strerr(err);
-			}
-
-			/* Check if the page is corrupt */
-			BlockReporter	block(
-				true, read_buf, page_size,
-				fsp_is_checksum_disabled(space_id));
-
-			if (block.is_corrupted()) {
-
-				ib::info() << "Database page corruption or"
-					<< " a failed file read of page "
-					<< page_id
-					<< ". Trying to recover it from the"
-					<< " doublewrite buffer.";
-
-				BlockReporter	dblwr_buf_page(
-					true, page, page_size,
-					fsp_is_checksum_disabled(space_id));
-
-				if (dblwr_buf_page.is_corrupted()) {
-
-					ib::error() << "Dump of the page:";
-					buf_page_print(
-						read_buf, page_size,
-						BUF_PAGE_PRINT_NO_CRASH);
-					ib::error() << "Dump of corresponding"
-						" page in doublewrite buffer:";
-
-					buf_page_print(
-						page, page_size,
-						BUF_PAGE_PRINT_NO_CRASH);
-
-					ib::fatal() << "The page in the"
-						" doublewrite buffer is"
-						" corrupt. Cannot continue"
-						" operation. You can try to"
-						" recover the database with"
-						" innodb_force_recovery=6";
-				}
-			} else {
-
-				bool	t1 = buf_page_is_zeroes(
-                                        read_buf, page_size);
-
-				bool	t2 = buf_page_is_zeroes(
-					page, page_size);
-
-				BlockReporter	reporter = BlockReporter(
-					true, page, page_size,
-					fsp_is_checksum_disabled(space_id));
-
-				bool	t3 = reporter.is_corrupted();
-
-				if (t1 && !(t2 || t3)) {
-
-					/* Database page contained only
-					zeroes, while a valid copy is
-					available in dblwr buffer. */
-
-				} else {
-					continue;
-				}
-			}
-
-			/* Recovered data file pages are written out
-			as uncompressed. */
-
-			IORequest	write_request(IORequest::WRITE);
-
-			write_request.disable_compression();
-
-			/* Write the good page from the doublewrite
-			buffer to the intended position. */
-
-			fil_io(write_request, true,
-			       page_id, page_size,
-			       0, page_size.physical(),
-			       const_cast<byte*>(page), NULL);
-
-			ib::info()
-				<< "Recovered page "
-				<< page_id
-				<< " from the doublewrite buffer.";
+			buf_dblwr_recover_page(
+				page_no_dblwr, space, page_no, page);
 		}
 	}
 
-	recv_dblwr.pages.clear();
+	dblwr.pages.clear();
 
-	fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
-	ut_free(unaligned_read_buf);
+	fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
+}
+
+/** Recover pages from the double write buffer for a specific tablespace.
+The pages that were read from the doublewrite buffer are written to the
+tablespace they belong to.
+@param[in]	space		Tablespace instance */
+void
+buf_dblwr_recover_pages(fil_space_t* space)
+{
+	recv_dblwr_t&	dblwr	= recv_sys->dblwr;
+
+	for (auto it = dblwr.deferred.begin();
+	     it != dblwr.deferred.end();
+	     /* No op */) {
+
+		using Page = recv_dblwr_t::Page;
+
+		Page&		page = *it;
+		space_id_t	space_id = page_get_space_id(page.m_page);
+
+		if (space_id == space->id) {
+			page_no_t	page_no;
+
+			page_no = page_get_page_no(page.m_page);
+
+			buf_dblwr_recover_page(0, space, page_no, page.m_page);
+
+			page.close();
+
+			it = dblwr.deferred.erase(it);
+		} else {
+			++it;
+		}
+	}
+
+	fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
 }
 
 /****************************************************************//**
@@ -690,7 +753,6 @@ buf_dblwr_free(void)
 /*================*/
 {
 	/* Free the double write data structures. */
-	ut_a(buf_dblwr != NULL);
 	ut_ad(buf_dblwr->s_reserved == 0);
 	ut_ad(buf_dblwr->b_reserved == 0);
 
@@ -741,7 +803,7 @@ buf_dblwr_update(
 			mutex_exit(&buf_dblwr->mutex);
 			/* This will finish the batch. Sync data files
 			to the disk. */
-			fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
+			fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
 			mutex_enter(&buf_dblwr->mutex);
 
 			/* We can now reuse the doublewrite memory buffer: */
@@ -1283,5 +1345,21 @@ retry:
 	and during recovery we will find it in the doublewrite buffer
 	blocks. Next do the write to the intended position. */
 	buf_dblwr_write_block_to_datafile(bpage, sync);
+}
+
+/** Constructor
+@param[in]	no	Doublewrite page number
+@param[in]	page	Page read from no */
+recv_dblwr_t::Page::Page(page_no_t no, const byte* page)
+	:
+	m_no(no)
+{
+	m_ptr = static_cast<byte*>(ut_malloc_nokey(UNIV_PAGE_SIZE * 2));
+	m_page = static_cast<byte*>(ut_align(m_ptr, UNIV_PAGE_SIZE));
+
+	ut_a(m_ptr != nullptr);
+	ut_a(m_page != nullptr);
+
+	memcpy(m_page, page, UNIV_PAGE_SIZE);
 }
 #endif /* !UNIV_HOTBACKUP */

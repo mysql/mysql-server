@@ -27,7 +27,7 @@ let $args=--no-defaults --datadir=$newdir --secure-file-priv="" --loose-console 
 --exec $MYSQLD $args
 
 --echo # Matching the server logs for corrupted redo logs
-let SEARCH_PATTERN=InnoDB: ############### CORRUPT LOG RECORD FOUND ##################;
+let SEARCH_PATTERN=InnoDB: ############### CORRUPT LOG RECORD FOUND ###############;
 --source include/search_pattern_in_file.inc
 let SEARCH_PATTERN=InnoDB: Hex dump starting .* bytes before and ending .* bytes after the corrupted record;
 --source include/search_pattern_in_file.inc

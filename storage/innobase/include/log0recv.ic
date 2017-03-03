@@ -25,13 +25,11 @@ Created 9/20/1997 Heikki Tuuri
 
 #include "univ.i"
 
-/*******************************************************************//**
-Returns TRUE if recovery is currently running.
+/** Returns true if recovery is currently running.
 @return recv_recovery_on */
 UNIV_INLINE
 bool
 recv_recovery_is_on()
-/*=================*/
 {
 	return(recv_recovery_on);
 }

@@ -76,11 +76,12 @@ srv_add_path_separator_if_needed(
 	char*	str);	/*!< in: null-terminated character string */
 #ifndef UNIV_HOTBACKUP
 /** Start InnoDB.
-@param[in]	create_new_db	whether to create a new database
+@param[in]	create_new_db		Whether to create a new database
+@param[in]	scan_directories	Scan directories for .ibd files for
+					recovery "dir1;dir2; ... dirN"
 @return DB_SUCCESS or error code */
 dberr_t
-srv_start(
-	bool	create_new_db);
+srv_start(bool create_new_db, const char* scan_directories);
 
 /** On a restart, initialize the remaining InnoDB subsystems so that
 any tables (including data dictionary tables) can be accessed. */
