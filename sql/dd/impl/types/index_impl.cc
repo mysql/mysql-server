@@ -391,7 +391,6 @@ Index_element *Index_impl::add_element(Column *c)
   @note This function is in sync with how we evaluate TABLE_SHARE::primary_key.
 */
 
-/* purecov: begin deadcode */
 bool Index_impl::is_candidate_key() const
 {
   if (type() != Index::IT_PRIMARY && type() != Index::IT_UNIQUE)
@@ -439,7 +438,6 @@ bool Index_impl::is_candidate_key() const
   }
   return true;
 }
-/* purecov: end */
 
 ///////////////////////////////////////////////////////////////////////////
 

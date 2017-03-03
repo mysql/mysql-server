@@ -10403,7 +10403,6 @@ void Create_field::create_length_to_internal_length(void)
         Field::key_length() is probably overkill.
 */
 
-/* purecov: begin deadcode */
 uint32 calc_key_length(enum_field_types sql_type, uint32 length,
                        uint32 decimals, bool is_unsigned, uint32 elements)
 {
@@ -10413,8 +10412,8 @@ uint32 calc_key_length(enum_field_types sql_type, uint32 length,
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_GEOMETRY:
-  case MYSQL_TYPE_VAR_STRING:
-  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_JSON:
+    return 0;
   case MYSQL_TYPE_VARCHAR:
     return length;
   case MYSQL_TYPE_ENUM:
@@ -10432,7 +10431,6 @@ uint32 calc_key_length(enum_field_types sql_type, uint32 length,
     return calc_pack_length(sql_type, length);
   }
 }
-/* purecov: end */
 
 
 /**

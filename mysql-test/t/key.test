@@ -858,6 +858,12 @@ alter table t1 drop key k, add index using btree (k), algorithm=copy;
 show create table t1;
 drop table t1;
 
+--echo #
+--echo # Bug 25647413 "ASSERTION FAILURE: HA_INNODB.CC:NNN:(TABLE->INDEXES).
+--echo #               COUNT == DD_TABLE.INDEXES()".
+--echo #
+create table t1 (b text not null, unique key(b(8)));
+drop table t1;
 
 ########################################
 ##### WL#7554 set schema `test` back to what it was

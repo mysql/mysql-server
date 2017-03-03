@@ -254,14 +254,14 @@ bool is_suitable_for_primary_key(KEY_PART_INFO *key_part,
 }
 
 /**
-  Prepare TABLE_SHARE from dd::Table object or by reading metadata
-  from dd.tables.
+  Finalize preparation of TABLE_SHARE from dd::Table object by filling
+  in remaining info about columns and keys.
 
   This code similar to code in open_binary_frm(). Can be re-written
   independent to other efforts later.
 */
 
-static bool prepare_share(THD *thd, TABLE_SHARE *share)
+static bool prepare_share(THD *thd, TABLE_SHARE *share, const dd::Table *table_def)
 {
   my_bitmap_map *bitmaps;
   bool use_hash;
@@ -324,8 +324,21 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
       keyinfo= share->key_info;
       key_part= keyinfo->key_part;
 
+      dd::Table::Index_collection::const_iterator idx_it(table_def->indexes().
+                                                         begin());
+
       for (uint key=0 ; key < share->keys ; key++,keyinfo++)
       {
+          /*
+            Skip hidden dd::Index objects so idx_it is in sync with key index
+            and keyinfo pointer.
+          */
+          while ((*idx_it)->is_hidden())
+          {
+            ++idx_it;
+            continue;
+          }
+
           uint usable_parts= 0;
           keyinfo->name=(char*) share->keynames.type_names[key];
 
@@ -353,10 +366,29 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
                 break;
               }
             }
+
+            /*
+              Check that dd::Index::is_candidate_key() used by SEs works in
+              the same way as above call to is_suitable_for_primary_key().
+            */
+            DBUG_ASSERT((primary_key == key) == (*idx_it)->is_candidate_key());
           }
+
+          dd::Index::Index_elements::const_iterator idx_el_it((*idx_it)->
+                                                      elements().begin());
 
           for (uint i=0 ; i < keyinfo->user_defined_key_parts ; key_part++,i++)
           {
+              /*
+                Skip hidden Index_element objects so idx_el_it is in sync with
+                i and key_part pointer.
+              */
+              while ((*idx_el_it)->is_hidden())
+              {
+                ++idx_el_it;
+                continue;
+              }
+
               Field *field= key_part->field;
 
               key_part->type= field->key_type();
@@ -434,6 +466,14 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
 #endif
                   key_part->key_part_flag|= HA_PART_KEY_SEG;
               }
+
+              /*
+                Check that dd::Index_element::is_prefix() used by SEs works in
+                the same way as code which sets HA_PART_KEY_SEG flag.
+              */
+              DBUG_ASSERT((*idx_el_it)->is_prefix() ==
+                          static_cast<bool>(key_part->key_part_flag & HA_PART_KEY_SEG));
+              ++idx_el_it;
           }
 
           /*
@@ -462,6 +502,8 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
           if ((keyinfo->flags & HA_NOSAME) ||
                   (ha_option & HA_ANY_INDEX_MAY_BE_UNIQUE))
               set_if_bigger(share->max_unique_length,keyinfo->key_length);
+
+          ++idx_it;
       }
       if (primary_key < MAX_KEY &&
               (share->keys_in_use.is_set(primary_key)))
@@ -2296,7 +2338,7 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
   thd->mem_root= old_root;
 
   if (!error)
-    error= prepare_share(thd, share);
+    error= prepare_share(thd, share, table_def);
 
   if (!error)
   {
