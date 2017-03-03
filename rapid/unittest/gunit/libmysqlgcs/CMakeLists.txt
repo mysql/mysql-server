@@ -1,4 +1,4 @@
-# Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,7 +49,6 @@ SET(GCS_INTERFACE_TESTS
 SET(GCS_XCOM_TESTS
     xcom/gcs_logging
     xcom/gcs_parameters
-    xcom/gcs_xcom_control_interface
     xcom/gcs_xcom_notification
     xcom/gcs_xcom_utils
     xcom/gcs_msg_stages
