@@ -31,7 +31,11 @@ Conflicts: mysql,
  mysql-server-5.6, mysql-server-core-5.6,
  mysql-server-5.7, mysql-server-core-5.7,
  mysql-@DEB_NOTPRODUCTNAME@-server,
- @DEB_CONTROL_SERVER_CONFLICT_NDB@
+ @DEB_CONTROL_SERVER_CONFLICT_NDB@,
+ mariadb-server-5.5, mariadb-server-core-5.5,
+ mariadb-server-10.0, mariadb-server-core-10.0,
+ mariadb-server-10.1, mariadb-server-core-10.1,
+ mariadb-server-10.2, mariadb-server-core-10.2
 Replaces: mysql,
  mysql-server-5.0, mysql-server-core-5.0,
  mysql-server-5.1, mysql-server-core-5.1,
@@ -74,7 +78,11 @@ Conflicts: mysql,
  mysql-client-5.6, mysql-client-core-5.6,
  mysql-client-5.7, mysql-client-core-5.7,
  mysql-@DEB_NOTPRODUCTNAME@-client,
- @DEB_CONTROL_CLIENT_CONFLICT_NDB@
+ @DEB_CONTROL_CLIENT_CONFLICT_NDB@,
+ mariadb-client-5.5, mariadb-client-core-5.5,
+ mariadb-client-10.0, mariadb-client-core-10.0,
+ mariadb-client-10.1, mariadb-client-core-10.1,
+ mariadb-client-10.2, mariadb-client-core-10.2
 Replaces: mysql,
  mysql-client-5.0, mysql-client-core-5.0,
  mysql-client-5.1, mysql-client-core-5.1,
@@ -181,7 +189,8 @@ Breaks: mysql-@DEB_PRODUCTNAME@-server (<< 5.7.14),
  mysql-@DEB_PRODUCTNAME@-client (<< 5.7.14)
 Conflicts: mysql,
  mysql-testsuite-5.0, mysql-testsuite-5.1, mysql-testsuite-5.5,
- mysql-testsuite-5.6, mysql-testsuite-5.7, mysql-@DEB_NOTPRODUCTNAME@-test
+ mysql-testsuite-5.6, mysql-testsuite-5.7, mysql-@DEB_NOTPRODUCTNAME@-test,
+ mariadb-test, mariadb-test-data
 Description: MySQL Test Run MTR - The MySQL testsuite
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
  and robust SQL (Structured Query Language) database server. MySQL Server
