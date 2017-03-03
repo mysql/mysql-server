@@ -1,5 +1,14 @@
 --source include/have_debug.inc
 
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs32=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 create table t1 (f1 int primary key) engine=innodb;
 create table t2 (f1 int primary key,
     constraint c1 foreign key (f1) references t1(f1)
@@ -40,3 +49,10 @@ select f1 from t3;
 drop table t2;
 drop table t3;
 drop table t1;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs32;
+--enable_query_log
+########################################

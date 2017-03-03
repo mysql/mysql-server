@@ -12,7 +12,7 @@ ORDER BY schema_name;
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
 def	db_datadict	latin1	latin1_swedish_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
-def	mysql	latin1	latin1_swedish_ci	NULL
+def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 SHOW DATABASES LIKE 'information_schema';
 Database (information_schema)
 information_schema

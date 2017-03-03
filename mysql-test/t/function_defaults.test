@@ -1,15 +1,15 @@
+# Test needs myisam for some myisam specific testcases
+
 ########################################
 ##### WL#7554 Force schema `test` to character set latin1
 ##### This test should be migrated to utf8mb4
 --disable_query_log
 let $testdbcs182=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
+alter schema default character set latin1;
 use test;
 --enable_query_log
 ########################################
 
-# Test needs myisam for some myisam specific testcases
 --source include/have_myisam.inc
 --echo #
 --echo # Test of function defaults for any server, including embedded.
@@ -40,7 +40,6 @@ source 'include/function_defaults.inc';
 ########################################
 ##### WL#7554 set schema `test` back to what it was
 --disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs182;
+--eval alter schema test default character set $testdbcs182;
 --enable_query_log
 ########################################

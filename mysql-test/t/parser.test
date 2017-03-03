@@ -3,8 +3,7 @@
 ##### This test should be migrated to utf8mb4
 --disable_query_log
 let $testdbcs230=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
+alter schema default character set latin1;
 use test;
 --enable_query_log
 ########################################
@@ -1924,7 +1923,6 @@ DROP TABLE t1, t2, t3, t4;
 ########################################
 ##### WL#7554 set schema `test` back to what it was
 --disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs230;
+--eval alter schema test default character set $testdbcs230;
 --enable_query_log
 ########################################

@@ -10,10 +10,10 @@ source include/master-slave.inc;
 #
 connection master;
 create table t1 (a varchar(10) character set utf8);
-load data infile '../../std_data/loaddata6.dat' into table t1;
+load data infile '../../std_data/loaddata6.dat' into table t1 CHARACTER SET latin1;
 set @@character_set_database=koi8r;
 load data infile '../../std_data/loaddata6.dat' into table t1;
-set @@character_set_database=DEFAULT;
+set @@character_set_database=latin1;
 load data infile '../../std_data/loaddata6.dat' into table t1;
 load data infile '../../std_data/loaddata6.dat' into table t1;
 load data infile '../../std_data/loaddata6.dat' into table t1;

@@ -401,7 +401,7 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.uniq
 SET @@session.sql_mode=1436549152/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=255/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 CREATE TABLE t1 (c01 BIT)
@@ -722,7 +722,7 @@ BEGIN
 ### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'00010010010010001001' /* BIT(20) meta=516 nullable=1 is_null=0 */
-###   @2='ab' /* STRING(2) meta=65026 nullable=1 is_null=0 */
+###   @2='ab' /* STRING(8) meta=65032 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -2267,7 +2267,7 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO `test`.`t1`
 ### SET
-###   @1='a' /* STRING(1) meta=65025 nullable=1 is_null=0 */
+###   @1='a' /* STRING(4) meta=65028 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -2288,7 +2288,7 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM `test`.`t1`
 ### WHERE
-###   @1='a' /* STRING(1) meta=65025 nullable=1 is_null=0 */
+###   @1='a' /* STRING(4) meta=65028 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -2395,7 +2395,7 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO `test`.`t1`
 ### SET
-###   @1='b' /* STRING(1) meta=65025 nullable=1 is_null=0 */
+###   @1='b' /* STRING(4) meta=65028 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -2416,7 +2416,7 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM `test`.`t1`
 ### WHERE
-###   @1='b' /* STRING(1) meta=65025 nullable=1 is_null=0 */
+###   @1='b' /* STRING(4) meta=65028 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -2459,7 +2459,7 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO `test`.`t1`
 ### SET
-###   @1='ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' /* STRING(255) meta=65279 nullable=1 is_null=0 */
+###   @1='ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' /* STRING(1020) meta=52988 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -2480,7 +2480,7 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM `test`.`t1`
 ### WHERE
-###   @1='ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' /* STRING(255) meta=65279 nullable=1 is_null=0 */
+###   @1='ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' /* STRING(1020) meta=52988 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -3147,7 +3147,7 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO `test`.`t1`
 ### SET
-###   @1='a' /* VARSTRING(1) meta=1 nullable=1 is_null=0 */
+###   @1='a' /* VARSTRING(4) meta=4 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -3168,7 +3168,7 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM `test`.`t1`
 ### WHERE
-###   @1='a' /* VARSTRING(1) meta=1 nullable=1 is_null=0 */
+###   @1='a' /* VARSTRING(4) meta=4 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -3211,7 +3211,7 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO `test`.`t1`
 ### SET
-###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
+###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(1020) meta=1020 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -3232,7 +3232,7 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM `test`.`t1`
 ### WHERE
-###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
+###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(1020) meta=1020 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -3275,7 +3275,7 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO `test`.`t1`
 ### SET
-###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(261) meta=261 nullable=1 is_null=0 */
+###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(1044) meta=1044 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -3296,7 +3296,7 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM `test`.`t1`
 ### WHERE
-###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(261) meta=261 nullable=1 is_null=0 */
+###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(1044) meta=1044 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -6155,8 +6155,8 @@ BEGIN
 ### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='a\x27b' /* STRING(16) meta=65040 nullable=1 is_null=0 */
-###   @3='a\x27b' /* VARSTRING(32) meta=32 nullable=1 is_null=0 */
+###   @2='a\x27b' /* STRING(64) meta=65088 nullable=1 is_null=0 */
+###   @3='a\x27b' /* VARSTRING(128) meta=128 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -6178,8 +6178,8 @@ BEGIN
 ### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='a\x5cb' /* STRING(16) meta=65040 nullable=1 is_null=0 */
-###   @3='a\x5cb' /* VARSTRING(32) meta=32 nullable=1 is_null=0 */
+###   @2='a\x5cb' /* STRING(64) meta=65088 nullable=1 is_null=0 */
+###   @3='a\x5cb' /* VARSTRING(128) meta=128 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -6201,12 +6201,12 @@ BEGIN
 ### UPDATE `test`.`t1`
 ### WHERE
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='a\x27b' /* STRING(16) meta=65040 nullable=1 is_null=0 */
-###   @3='a\x27b' /* VARSTRING(32) meta=32 nullable=1 is_null=0 */
+###   @2='a\x27b' /* STRING(64) meta=65088 nullable=1 is_null=0 */
+###   @3='a\x27b' /* VARSTRING(128) meta=128 nullable=1 is_null=0 */
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='a\x5cb' /* STRING(16) meta=65040 nullable=1 is_null=0 */
-###   @3='a\x5cb' /* VARSTRING(32) meta=32 nullable=1 is_null=0 */
+###   @2='a\x5cb' /* STRING(64) meta=65088 nullable=1 is_null=0 */
+###   @3='a\x5cb' /* VARSTRING(128) meta=128 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -6228,12 +6228,12 @@ BEGIN
 ### UPDATE `test`.`t1`
 ### WHERE
 ###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='a\x5cb' /* STRING(16) meta=65040 nullable=1 is_null=0 */
-###   @3='a\x5cb' /* VARSTRING(32) meta=32 nullable=1 is_null=0 */
+###   @2='a\x5cb' /* STRING(64) meta=65088 nullable=1 is_null=0 */
+###   @3='a\x5cb' /* VARSTRING(128) meta=128 nullable=1 is_null=0 */
 ### SET
 ###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='a\x27b' /* STRING(16) meta=65040 nullable=1 is_null=0 */
-###   @3='a\x27b' /* VARSTRING(32) meta=32 nullable=1 is_null=0 */
+###   @2='a\x27b' /* STRING(64) meta=65088 nullable=1 is_null=0 */
+###   @3='a\x27b' /* VARSTRING(128) meta=128 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -6255,8 +6255,8 @@ BEGIN
 ### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='a\x27b' /* STRING(16) meta=65040 nullable=1 is_null=0 */
-###   @3='a\x27b' /* VARSTRING(32) meta=32 nullable=1 is_null=0 */
+###   @2='a\x27b' /* STRING(64) meta=65088 nullable=1 is_null=0 */
+###   @3='a\x27b' /* VARSTRING(128) meta=128 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -6278,8 +6278,8 @@ BEGIN
 ### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
-###   @2='a\x5cb' /* STRING(16) meta=65040 nullable=1 is_null=0 */
-###   @3='a\x5cb' /* VARSTRING(32) meta=32 nullable=1 is_null=0 */
+###   @2='a\x5cb' /* STRING(64) meta=65088 nullable=1 is_null=0 */
+###   @3='a\x5cb' /* VARSTRING(128) meta=128 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;

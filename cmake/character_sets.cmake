@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,11 +15,11 @@
 
 # Charsets and collations
 IF(NOT DEFAULT_CHARSET)
-  SET(DEFAULT_CHARSET "latin1")
+  SET(DEFAULT_CHARSET "utf8mb4")
 ENDIF()
 
 IF(NOT DEFAULT_COLLATION)
-  SET(DEFAULT_COLLATION "latin1_swedish_ci")
+  SET(DEFAULT_COLLATION "utf8mb4_0900_ai_ci")
 ENDIF()
 
 IF(WITH_EXTRA_CHARSETS AND NOT WITH_EXTRA_CHARSETS STREQUAL "all")

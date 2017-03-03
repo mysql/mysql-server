@@ -17,6 +17,7 @@
 --source include/rpl_connection.inc
 --echo ## Create table with Range Column Partition ##
 CREATE TABLE t1 ( c1 int, c2 int, PRIMARY KEY (c1, c2))
+                 CHARSET=utf8mb4
                  PARTITION BY RANGE COLUMNS(c1, c2)
                  (
                     PARTITION t1p1 VALUES LESS THAN (5, 10),
@@ -25,6 +26,7 @@ CREATE TABLE t1 ( c1 int, c2 int, PRIMARY KEY (c1, c2))
 
 --echo ## Create table with list Column Partition ##
 CREATE TABLE t2 ( c1 int, c2 char(5), PRIMARY KEY (c1, c2))
+                 CHARSET=utf8mb4
                  PARTITION BY LIST COLUMNS(c1, c2)
                  (
                     PARTITION t2p1 VALUES in ( (1, 'aa'), (2, 'ab') ),

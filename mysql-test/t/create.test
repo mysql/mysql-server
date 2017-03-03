@@ -1770,7 +1770,7 @@ drop function f;
 --echo #
 
 --error ER_TOO_BIG_ROWSIZE
-CREATE TABLE t1 (v varchar(65535));
+CREATE TABLE t1 (v varchar(65535) CHARACTER SET latin1);
 
 --echo #
 --echo # Bug#11746295 - 25168: "INCORRECT TABLE NAME" INSTEAD OF "IDENTIFIER TOO

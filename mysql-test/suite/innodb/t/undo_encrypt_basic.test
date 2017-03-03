@@ -6,6 +6,15 @@
 --source include/have_innodb_max_16k.inc
 #--source include/have_debug.inc
 
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs49=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 --disable_query_log
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
@@ -40,7 +49,7 @@ let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
 
 --echo # create bootstrap file
 write_file $BOOTSTRAP_SQL;
-CREATE DATABASE test;
+CREATE DATABASE test DEFAULT CHARACTER SET latin1;
 EOF
 
 --echo # Stop the MTR default DB server
@@ -207,3 +216,10 @@ DROP TABLE t1;
 --force-rmdir $MYSQL_TMP_DIR/datadir
 --force-rmdir $MYSQL_TMP_DIR/innodb_data_home_dir
 --force-rmdir $MYSQL_TMP_DIR/innodb_undo_data_dir
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs49;
+--enable_query_log
+########################################

@@ -223,8 +223,8 @@ EXECUTING:[43][SELECT * FROM test1.test_inserts ORDER BY a]
 			[meta][field] org table name: test_inserts
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 100
-			[meta][field] charsetnr: 8
+			[meta][field] length: 400
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -539,8 +539,8 @@ EXECUTING:[43][SELECT * FROM test1.test_inserts ORDER BY a]
 			[meta][field] org table name: test_inserts
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 100
-			[meta][field] charsetnr: 8
+			[meta][field] length: 400
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -878,8 +878,8 @@ EXECUTING:[37][SELECT * FROM test_inserts ORDER BY a]
 			[meta][field] org table name: test_inserts
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 100
-			[meta][field] charsetnr: 8
+			[meta][field] length: 400
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -1172,8 +1172,8 @@ EXECUTING:[37][SELECT * FROM test_inserts ORDER BY a]
 			[meta][field] org table name: test_inserts
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 100
-			[meta][field] charsetnr: 8
+			[meta][field] length: 400
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -1489,8 +1489,8 @@ EXECUTING:[37][SELECT * FROM test_inserts ORDER BY a]
 			[meta][field] org table name: test_inserts
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 100
-			[meta][field] charsetnr: 8
+			[meta][field] length: 400
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -1741,8 +1741,8 @@ EXECUTING:[37][SELECT * FROM test_inserts ORDER BY a]
 			[meta][field] org table name: test_inserts
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 100
-			[meta][field] charsetnr: 8
+			[meta][field] length: 400
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -3432,8 +3432,8 @@ EXECUTING:[43][SELECT * FROM test1.test_inserts ORDER BY a]
 			[meta][field] org table name: test_inserts
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 100
-			[meta][field] charsetnr: 8
+			[meta][field] length: 400
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -3748,8 +3748,8 @@ EXECUTING:[43][SELECT * FROM test1.test_inserts ORDER BY a]
 			[meta][field] org table name: test_inserts
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 100
-			[meta][field] charsetnr: 8
+			[meta][field] length: 400
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -4087,8 +4087,8 @@ EXECUTING:[37][SELECT * FROM test_inserts ORDER BY a]
 			[meta][field] org table name: test_inserts
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 100
-			[meta][field] charsetnr: 8
+			[meta][field] length: 400
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -4381,8 +4381,8 @@ EXECUTING:[37][SELECT * FROM test_inserts ORDER BY a]
 			[meta][field] org table name: test_inserts
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 100
-			[meta][field] charsetnr: 8
+			[meta][field] length: 400
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -4698,8 +4698,8 @@ EXECUTING:[37][SELECT * FROM test_inserts ORDER BY a]
 			[meta][field] org table name: test_inserts
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 100
-			[meta][field] charsetnr: 8
+			[meta][field] length: 400
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -4950,8 +4950,8 @@ EXECUTING:[37][SELECT * FROM test_inserts ORDER BY a]
 			[meta][field] org table name: test_inserts
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 100
-			[meta][field] charsetnr: 8
+			[meta][field] length: 400
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)

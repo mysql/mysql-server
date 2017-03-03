@@ -48,7 +48,7 @@ SHOW CREATE TABLE db_test_a.t_aux_10;
 Table	Create Table
 t_aux_10	CREATE TABLE `t_aux_10` (
   `col1` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 CALL mtr.add_suppression("InnoDB: File './tablespaces.open..*' size is .* Must be at least");
 CALL mtr.add_suppression("InnoDB: File './tablespaces.open..*' size is .* should be at least");
 CALL mtr.add_suppression("InnoDB: No space ID to filename mapping file found");
@@ -60,7 +60,7 @@ SHOW CREATE TABLE db_test_a.t_aux_10;
 Table	Create Table
 t_aux_10	CREATE TABLE `t_aux_10` (
   `col1` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ### Build infrastructure required for the current test -------------- END
 # ========================================================
 # Restart after previous smooth shutdown.
@@ -102,7 +102,7 @@ SHOW CREATE TABLE db_test_a.t_aux_10;
 Table	Create Table
 t_aux_10	CREATE TABLE `t_aux_10` (
   `col1` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # ========================================================
 # Restart with crash recovery
 #    There is no tablespaces.open.* file but a restart with
@@ -121,7 +121,7 @@ SHOW CREATE TABLE db_test_a.t_aux_10;
 Table	Create Table
 t_aux_10	CREATE TABLE `t_aux_10` (
   `col1` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # ========================================================
 # Restart with crash recovery
 #    One of the tablespaces.open.* with complete rotten entry.
@@ -149,7 +149,7 @@ SHOW CREATE TABLE db_test_a.t_aux_10;
 Table	Create Table
 t_aux_10	CREATE TABLE `t_aux_10` (
   `col1` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # ========================================================
 # Restart with crash recovery
 #    One of the tablespaces.open.* with incomplete header
@@ -166,13 +166,13 @@ SHOW CREATE TABLE db_test_a . t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) NOT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE db_test_a . t1;
 SHOW CREATE TABLE db_test_a.t_aux_10;
 Table	Create Table
 t_aux_10	CREATE TABLE `t_aux_10` (
   `col1` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # ========================================================
 # Restart with crash recovery
 #   One of the tablespaces.open.* with incomplete data part
@@ -189,13 +189,13 @@ SHOW CREATE TABLE db_test_a . t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) NOT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE db_test_a . t1;
 SHOW CREATE TABLE db_test_a.t_aux_10;
 Table	Create Table
 t_aux_10	CREATE TABLE `t_aux_10` (
   `col1` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # ========================================================
 # Restart with crash recovery
 #   Both tablespaces.open.* files are outdated.
@@ -209,13 +209,13 @@ SHOW CREATE TABLE db_test_a . t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) NOT NULL
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE db_test_a . t1;
 SHOW CREATE TABLE db_test_a.t_aux_10;
 Table	Create Table
 t_aux_10	CREATE TABLE `t_aux_10` (
   `col1` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # ========================================================
 #    Shutdown smooth
 #    Delete all tablespaces.open.* files.
@@ -226,7 +226,7 @@ SHOW CREATE TABLE db_test_a.t_aux_10;
 Table	Create Table
 t_aux_10	CREATE TABLE `t_aux_10` (
   `col1` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # We should have now one tablespaces.open.* file without defects.
 # Let's try the server crash just before tablespaces.open.* write.
 CREATE TABLE db_test_a . t1 (col1 INT NOT NULL)
@@ -239,20 +239,20 @@ SHOW CREATE TABLE db_test_a . t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) NOT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE db_test_a . t1 TABLESPACE = ts1;
 SHOW CREATE TABLE db_test_a . t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) NOT NULL
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # We should have now two tablespaces.open.* files without defects.
 DROP TABLE db_test_a . t1;
 SHOW CREATE TABLE db_test_a.t_aux_10;
 Table	Create Table
 t_aux_10	CREATE TABLE `t_aux_10` (
   `col1` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT COUNT(*) = 9 AS 'expect_1' FROM db_test_a.t_aux
 WHERE col2 = CONCAT('8-', REPEAT('z', 90));
 expect_1
@@ -263,7 +263,7 @@ expect_1
 1
 SELECT 't_aux_10	CREATE TABLE `t_aux_10` (
   `col1` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1' LIKE '%ts1%' AS "expect_1";
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4' LIKE '%ts1%' AS "expect_1";
 expect_1
 1
 DROP SCHEMA db_test_a;

@@ -26,6 +26,9 @@ CREATE TABLE t1 (i INTEGER) COLLATE utf8_phone_ci;
 --replace_result $MYSQL_CHARSETSDIR MYSQL_CHARSETSDIR
 --source include/restart_mysqld.inc
 
+--let $old_log_error_verbosity = `select @@global.log_error_verbosity`
+SET @@global.log_error_verbosity = 1;
+
 --echo #
 --echo # Reverted to old character sets dir:
 --replace_result $MYSQL_CHARSETSDIR MYSQL_CHARSETSDIR
@@ -67,3 +70,5 @@ SHOW CREATE TABLE t1;
 --echo #
 --echo # Check behavior of DROP TABLE (succeed):
 DROP TABLE t1;
+
+--eval SET @@global.log_error_verbosity = $old_log_error_verbosity

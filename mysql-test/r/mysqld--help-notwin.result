@@ -1284,11 +1284,11 @@ block-encryption-mode aes-128-ecb
 bulk-insert-buffer-size 8388608
 character-set-client-handshake TRUE
 character-set-filesystem binary
-character-set-server latin1
+character-set-server utf8mb4
 character-sets-dir MYSQL_CHARSETSDIR/
 check-proxy-users FALSE
 chroot (No default value)
-collation-server latin1_swedish_ci
+collation-server utf8mb4_0900_ai_ci
 completion-type NO_CHAIN
 concurrent-insert AUTO
 connect-timeout 10

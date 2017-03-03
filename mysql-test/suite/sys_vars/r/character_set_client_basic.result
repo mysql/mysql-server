@@ -1,7 +1,7 @@
 SET @global_start_value = @@global.character_set_client;
 SELECT @global_start_value;
 @global_start_value
-latin1
+utf8mb4
 SET @session_start_value = @@character_set_client;
 SELECT @session_start_value;
 @session_start_value
@@ -39,7 +39,7 @@ SET @@global.character_set_client = latin5;
 SET @@global.character_set_client = DEFAULT;
 SELECT @@global.character_set_client;
 @@global.character_set_client
-latin1
+utf8mb4
 '#--------------------FN_DYNVARS_010_03-------------------------#'
 SET @@session.character_set_client = utf8;
 SELECT @@session.character_set_client;
@@ -512,7 +512,7 @@ res
 SET @@global.character_set_client = @global_start_value;
 SELECT @@global.character_set_client;
 @@global.character_set_client
-latin1
+utf8mb4
 SET @@session.character_set_client = @session_start_value;
 SELECT @@session.character_set_client;
 @@session.character_set_client

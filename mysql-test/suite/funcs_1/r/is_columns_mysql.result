@@ -63,7 +63,7 @@ def	mysql	general_log	thread_id	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	b
 def	mysql	general_log	server_id	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references		
 def	mysql	general_log	command_type	5	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
 def	mysql	general_log	argument	6	NULL	NO	mediumblob	16777215	16777215	NULL	NULL	NULL	NULL	NULL	mediumblob			select,insert,update,references		
-def	mysql	gtid_executed	source_uuid	1	NULL	NO	char	36	36	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(36)	PRI		select,insert,update,references	uuid of the source where the transaction was originally executed.	
+def	mysql	gtid_executed	source_uuid	1	NULL	NO	char	36	144	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(36)	PRI		select,insert,update,references	uuid of the source where the transaction was originally executed.	
 def	mysql	gtid_executed	interval_start	2	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)	PRI		select,insert,update,references	First number of interval.	
 def	mysql	gtid_executed	interval_end	3	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	Last number of interval.	
 def	mysql	help_category	help_category_id	1	NULL	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned	PRI		select,insert,update,references		
@@ -272,7 +272,6 @@ ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML, DATA_TYPE;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 1.0000	blob	NULL	NULL
 1.0000	mediumblob	NULL	NULL
-1.0000	char	latin1	latin1_swedish_ci
 1.0000	text	utf8	utf8_bin
 1.0000	mediumtext	utf8	utf8_general_ci
 1.0000	text	utf8	utf8_general_ci
@@ -293,6 +292,7 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 3.0000	enum	utf8	utf8_general_ci
 3.0000	set	utf8	utf8_general_ci
 3.0000	varchar	utf8	utf8_general_ci
+4.0000	char	utf8mb4	utf8mb4_0900_ai_ci
 SELECT DISTINCT
 CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
 DATA_TYPE,
@@ -383,7 +383,7 @@ NULL	mysql	general_log	thread_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	mysql	general_log	server_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 3.0000	mysql	general_log	command_type	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 1.0000	mysql	general_log	argument	mediumblob	16777215	16777215	NULL	NULL	mediumblob
-1.0000	mysql	gtid_executed	source_uuid	char	36	36	latin1	latin1_swedish_ci	char(36)
+4.0000	mysql	gtid_executed	source_uuid	char	36	144	utf8mb4	utf8mb4_0900_ai_ci	char(36)
 NULL	mysql	gtid_executed	interval_start	bigint	NULL	NULL	NULL	NULL	bigint(20)
 NULL	mysql	gtid_executed	interval_end	bigint	NULL	NULL	NULL	NULL	bigint(20)
 NULL	mysql	help_category	help_category_id	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned

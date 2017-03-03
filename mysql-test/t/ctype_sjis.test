@@ -1,18 +1,18 @@
+#
+# Tests with the sjis character set
+#
+--source include/no_valgrind_without_big.inc
+
 ########################################
 ##### WL#7554 Force schema `test` to character set latin1
 ##### This test should be migrated to utf8mb4
 --disable_query_log
 let $testdbcs142=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
+alter schema default character set latin1;
 use test;
 --enable_query_log
 ########################################
 
-#
-# Tests with the sjis character set
-#
---source include/no_valgrind_without_big.inc
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -234,7 +234,6 @@ SET NAMES sjis;
 ########################################
 ##### WL#7554 set schema `test` back to what it was
 --disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs142;
+--eval alter schema test default character set $testdbcs142;
 --enable_query_log
 ########################################

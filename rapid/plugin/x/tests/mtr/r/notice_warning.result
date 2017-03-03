@@ -261,9 +261,9 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "chartab"
   schema: "test"
   catalog: "def"
-  collation: 8
+  collation: 255
   fractional_digits: 0
-  length: 1
+  length: 4
   flags: 0
 }
 

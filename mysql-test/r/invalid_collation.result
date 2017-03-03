@@ -20,6 +20,7 @@ CREATE TABLE t1 (i INTEGER) COLLATE utf8_phone_ci;
 #
 # Restart server with original character sets dir:
 # restart:--character-sets-dir=MYSQL_CHARSETSDIR
+SET @@global.log_error_verbosity = 1;
 #
 # Reverted to old character sets dir:
 SHOW VARIABLES LIKE 'character_sets_dir%';
@@ -58,3 +59,4 @@ ERROR HY000: invalid collation id 352 for table t1, column i
 #
 # Check behavior of DROP TABLE (succeed):
 DROP TABLE t1;
+SET @@global.log_error_verbosity = 3;

@@ -9,6 +9,15 @@
 # binary log.
 --source include/not_log_bin.inc
 
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs33=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
 
 # Set these up for show_i_s_tablespaces.inc 
@@ -117,3 +126,10 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: File .*s_def.ibd: 'delete' returne
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Attempted to open a previously opened tablespace. Previous tablespace innodb_general_[0-9]* at filepath: .*s1.ibd uses space ID: [0-9]*. Cannot open filepath: .*s1.ibd which uses the same space ID.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 --enable_query_log
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs33;
+--enable_query_log
+########################################

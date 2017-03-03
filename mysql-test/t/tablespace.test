@@ -1,4 +1,14 @@
 --source include/have_debug.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs70=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 #
 # BUG#60111 storage type for table not saved in .frm
 #
@@ -346,3 +356,10 @@ ALTER TABLE t_subpart REORGANIZE PARTITION s11 INTO
 
 DROP TABLE t_part;
 DROP TABLE t_subpart;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs70;
+--enable_query_log
+########################################

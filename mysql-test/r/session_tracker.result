@@ -27,9 +27,9 @@ SELECT @@session.character_set_client, @@session.character_set_results, @@sessio
 latin1	latin1	latin1
 SET NAMES 'utf8';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- character_set_client
--- utf8
 -- character_set_connection
+-- utf8
+-- character_set_client
 -- utf8
 -- character_set_results
 -- utf8
@@ -39,9 +39,9 @@ SELECT @@session.character_set_client, @@session.character_set_results, @@sessio
 utf8	utf8	utf8
 SET NAMES 'big5';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- character_set_client
--- big5
 -- character_set_connection
+-- big5
+-- character_set_client
 -- big5
 -- character_set_results
 -- big5
@@ -509,9 +509,9 @@ SET @@session.session_track_state_change=ON;
 expect 1
 SET NAMES 'utf8';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- character_set_client
--- utf8
 -- character_set_connection
+-- utf8
+-- character_set_client
 -- utf8
 -- character_set_results
 -- utf8
@@ -523,9 +523,9 @@ SET @@session.session_track_state_change=OFF;
 # Change system variable
 SET NAMES 'utf8';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- character_set_client
--- utf8
 -- character_set_connection
+-- utf8
+-- character_set_client
 -- utf8
 -- character_set_results
 -- utf8

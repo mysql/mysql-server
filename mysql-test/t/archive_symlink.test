@@ -1,16 +1,16 @@
+# Test archive engine when symbolic links are available.
+--source include/not_windows.inc
+
 ########################################
 ##### WL#7554 Force schema `test` to character set latin1
 ##### This test should be migrated to utf8mb4
 --disable_query_log
 let $testdbcs114=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
+alter schema default character set latin1;
 use test;
 --enable_query_log
 ########################################
 
-# Test archive engine when symbolic links are available.
---source include/not_windows.inc
 --source include/have_archive.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
@@ -82,7 +82,6 @@ ENGINE archive INDEX DIRECTORY '$MYSQLD_DATADIR/test';
 ########################################
 ##### WL#7554 set schema `test` back to what it was
 --disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs114;
+--eval alter schema test default character set $testdbcs114;
 --enable_query_log
 ########################################

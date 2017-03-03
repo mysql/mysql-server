@@ -17,6 +17,7 @@
 --source include/rpl_connection.inc
 --echo ## List Partitioning ##
 CREATE TABLE t1 (id int PRIMARY KEY, c2 int)
+                 CHARSET=utf8mb4
                  PARTITION BY LIST (id)
                 (PARTITION p1 VALUES in (5, 10, 15),
                  PARTITION p2 VALUES in (2, 3),

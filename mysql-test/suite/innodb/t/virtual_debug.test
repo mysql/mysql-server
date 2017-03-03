@@ -3,6 +3,15 @@
 --source include/count_sessions.inc
 --source include/have_innodb_max_16k.inc
 
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs51=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 CREATE TABLE `t` (
   `a` VARCHAR(100),
   `b` VARCHAR(100),
@@ -318,3 +327,10 @@ DROP TABLE t1;
 --connection default
 --disconnect con1
 --disconnect con2
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs51;
+--enable_query_log
+########################################

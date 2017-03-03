@@ -18,6 +18,7 @@
 --echo ## Range Partitioning ##
 CREATE TABLE t1 (id int PRIMARY KEY, vc VARCHAR(255),
                  t DATE)
+                 CHARSET=utf8mb4
                  PARTITION BY RANGE (id)
                 (PARTITION p1 VALUES LESS THAN (5),
                  PARTITION p2 VALUES LESS THAN (10),

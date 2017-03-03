@@ -5,6 +5,15 @@
 
 --source include/have_debug.inc
 
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs61=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 --echo #
 --echo # Bug#25495714: FOREIGN KEY INFORMATION IN NEW DD NOT FOLLOW
 --echo #               THE LOWER CASE TABLE NAME SETTING
@@ -23,3 +32,10 @@ SELECT referenced_table_schema, referenced_table_name
 SET SESSION debug= '-d,skip_dd_table_access_check';
 
 DROP TABLE t2, t1;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs61;
+--enable_query_log
+########################################

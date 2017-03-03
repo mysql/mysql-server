@@ -10,11 +10,21 @@
 # There's some format specifics through show_binlog_events,
 # but MIXED is chosen rather to optimize.
 --source include/have_binlog_format_mixed.inc
+--source include/linux.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs81=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 #
 # Crash-safe testing is difficult on other than Linux.
 # TODO: Open it back at XA-commit/rollback crash-safe bug/FR fixing.
 #
---source include/linux.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
@@ -98,3 +108,10 @@ DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
 
 --source include/rpl_end.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs81;
+--enable_query_log
+########################################

@@ -1,19 +1,19 @@
 SET @global_start_value = @@global.collation_server;
 SELECT @global_start_value;
 @global_start_value
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SET @session_start_value = @@collation_server;
 SELECT @session_start_value;
 @session_start_value
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SET @session_start_value = @@local.collation_server;
 SELECT @session_start_value;
 @session_start_value
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SET @session_start_value = @@session.collation_server;
 SELECT @session_start_value;
 @session_start_value
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 '#--------------------FN_DYNVARS_014_01------------------#'
 SELECT collation_server;
 ERROR 42S22: Unknown column 'collation_server' in 'field list'
@@ -39,7 +39,7 @@ SET @@global.collation_server = latin1_bin;
 SET @@global.collation_server = DEFAULT;
 SELECT @@global.collation_server;
 @@global.collation_server
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 '#--------------------FN_DYNVARS_014_03-------------------------#'
 SET @@session.collation_server = utf8_polish_ci;
 SELECT @@session.collation_server;
@@ -1257,8 +1257,8 @@ res
 SET @@global.collation_server = @global_start_value;
 SELECT @@global.collation_server;
 @@global.collation_server
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SET @@session.collation_server = @session_start_value;
 SELECT @@session.collation_server;
 @@session.collation_server
-latin1_swedish_ci
+utf8mb4_0900_ai_ci

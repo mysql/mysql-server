@@ -603,8 +603,8 @@ select @a;
 10
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-t1_bi	INSERT	t1	set new."t1 column" = 5	BEFORE	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-t1_af	INSERT	t1	set @a=10	AFTER	#		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+t1_bi	INSERT	t1	set new."t1 column" = 5	BEFORE	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+t1_af	INSERT	t1	set @a=10	AFTER	#		root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 drop table t1;
 set sql_mode="traditional";
 Warnings:
@@ -628,10 +628,10 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` date DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-t1_bi	INSERT	t1	set new.a = '2004-01-00'	BEFORE	#		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+t1_bi	INSERT	t1	set new.a = '2004-01-00'	BEFORE	#		root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (id int);
 create trigger t1_ai after insert on t1 for each row reset query cache;
@@ -942,7 +942,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 drop trigger test.t1_bi;
 ERROR HY000: Trigger does not exist
 drop trigger t1_bi;
@@ -2102,7 +2102,7 @@ CREATE TABLE t2 (a INT);
 CREATE TRIGGER trg1 BEFORE INSERT ON t2 FOR EACH ROW INSERT/*!INTO*/t1 VALUES (1);
 SHOW TRIGGERS IN db1;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-trg1	INSERT	t2	INSERTINTO t1 VALUES (1)	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1	INSERT	t2	INSERTINTO t1 VALUES (1)	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 INSERT INTO t2 VALUES (1);
 ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1 VALUES (1)' at line 1'
 SELECT * FROM t1;
@@ -2613,7 +2613,7 @@ CREATE TABLE test.silly_one (ID INT);
 CREATE DEFINER=user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char TRIGGER test.silly_trigger BEFORE INSERT ON test.silly_one FOR EACH ROW SET @x=1;
 SHOW TRIGGERS FROM test LIKE 'silly_one';
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-silly_trigger	INSERT	silly_one	SET @x=1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	latin1	latin1_swedish_ci	latin1_swedish_ci
+silly_trigger	INSERT	silly_one	SET @x=1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SELECT DEFINER FROM information_schema.triggers WHERE TRIGGER_NAME='silly_trigger';
 DEFINER
 user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
@@ -2649,11 +2649,11 @@ PARTITION p2 VALUES IN (4,5)
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
 SHOW CREATE TRIGGER t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 ALTER TABLE t1 DROP PARTITION p1;
 SHOW CREATE TRIGGER t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 DROP TABLE t1;
 #
 # Bug#24482919 -- SHOW TRIGGER OUTPUT INCONSISTENCY ON WINDOWS / LINUX ON 8.0.0
@@ -2697,21 +2697,21 @@ trg1f
 trg1f2
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-trg1a0	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-trg1a	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-trg1a2	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-trg1a3	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-trg1b0	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-trg1b	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-trg1b2	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-trg1b3	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-trg1c0	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-trg1c	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-trg1c2	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-trg1c3	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-trg1d	UPDATE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-trg1d2	UPDATE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-trg1e	DELETE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-trg1f	DELETE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-trg1f2	DELETE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1a0	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1a	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1a2	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1a3	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1b0	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1b	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1b2	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1b3	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1c0	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1c	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1c2	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1c3	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1d	UPDATE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1d2	UPDATE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1e	DELETE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1f	DELETE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1f2	DELETE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP TABLE t1;

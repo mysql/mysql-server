@@ -16,6 +16,15 @@
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs59=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 # Create auxilliary connections
 connect (addconroot1, localhost, root,,);
 connect (addconroot2, localhost, root,,);
@@ -720,3 +729,10 @@ DROP TABLE t1;
 --source include/wait_until_count_sessions.inc
 
 --source include/restore_default_binlog_format.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs59;
+--enable_query_log
+########################################

@@ -13,7 +13,7 @@ SELECT @@global.character_set_database;
 utf8
 SELECT @@session.character_set_database;
 @@session.character_set_database
-latin1
+utf8mb4
 '#--------------------FN_DYNVARS_008_02-------------------------#'
 'connection default'
 DROP TABLE IF EXISTS t1;
@@ -21,7 +21,7 @@ DROP TABLE IF EXISTS t1;
 SET @@session.character_set_server = utf8;
 SELECT @@session.character_set_database;
 @@session.character_set_database
-latin1
+utf8mb4
 SET @@session.character_set_database = latin5;
 Warnings:
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.

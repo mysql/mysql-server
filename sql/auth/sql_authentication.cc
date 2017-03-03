@@ -1150,6 +1150,12 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   if (protocol->has_client_capability(CLIENT_PLUGIN_AUTH))
   {
     client_plugin= ptr + 2;
+    /*
+      ptr needs to be updated to point to correct position so that
+      connection attributes are read properly.
+    */
+    ptr= ptr + 2 + strlen(client_plugin) + 1;
+
     if (client_plugin >= end)
     {
       my_error(ER_UNKNOWN_COM_ERROR, MYF(0));

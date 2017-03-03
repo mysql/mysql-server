@@ -385,7 +385,7 @@ SHOW CREATE TABLE test.jemp;
 Table	Create Table
 jemp	CREATE TABLE `jemp` (
   `c` json DEFAULT NULL,
-  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_latin1'$.id')) VIRTUAL,
+  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_utf8mb4'$.id')) VIRTUAL,
   KEY `i` (`g`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE test.t_gen_stored_myisam;
@@ -405,7 +405,7 @@ SHOW CREATE TABLE test.jemp_myisam;
 Table	Create Table
 jemp_myisam	CREATE TABLE `jemp_myisam` (
   `c` json DEFAULT NULL,
-  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_latin1'$.id')) VIRTUAL
+  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_utf8mb4'$.id')) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, VERSION, ROW_FORMAT
 FROM INFORMATION_SCHEMA.tables WHERE table_schema='test';
@@ -484,25 +484,25 @@ Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Da
 simpleproc	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `simpleproc`(OUT param1 INT)
 BEGIN
   SELECT COUNT(*) INTO param1 FROM t;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE sp.proc_123;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 proc_123	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_123`(OUT param1 INT)
     READS SQL DATA
     SQL SECURITY INVOKER
     COMMENT 'Procedure to test Upgrade'
-BEGIN   SELECT COUNT(*) INTO param1 FROM t; END	latin1	latin1_swedish_ci	latin1_swedish_ci
+BEGIN   SELECT COUNT(*) INTO param1 FROM t; END	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE sp.proc_456;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 proc_456	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_456`(OUT param1 INT)
     MODIFIES SQL DATA
     DETERMINISTIC
     COMMENT 'Procedure to test Upgrade 2'
-BEGIN   SELECT COUNT(*) INTO param1 FROM t; END	latin1	latin1_swedish_ci	latin1_swedish_ci
+BEGIN   SELECT COUNT(*) INTO param1 FROM t; END	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE sp.bug24805140;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug24805140	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bug24805140`(out a int)
-begin select requesting_trx_id from information_schema.INNODB_LOCK_WAITS limit 1 into a; end	latin1	latin1_swedish_ci	latin1_swedish_ci
+begin select requesting_trx_id from information_schema.INNODB_LOCK_WAITS limit 1 into a; end	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
 call sp.bug24805140();
 ERROR HY000: Failed to load routine 'sp.bug24805140'.
 SHOW WARNINGS;
@@ -513,7 +513,7 @@ SHOW CREATE FUNCTION sp.hello;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 hello	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `hello`(s CHAR(20)) RETURNS char(50) CHARSET latin1
     DETERMINISTIC
-RETURN CONCAT('Hello, ',s,'!')	latin1	latin1_swedish_ci	latin1_swedish_ci
+RETURN CONCAT('Hello, ',s,'!')	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
 SHOW CREATE EVENT events.e_totals;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
 e_totals	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e_totals` ON SCHEDULE AT '2017-02-10 21:29:00' ON COMPLETION NOT PRESERVE ENABLE DO INSERT INTO events.event_table_2 VALUES (NOW())	utf8	utf8_general_ci	latin1_swedish_ci
@@ -608,7 +608,7 @@ Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connectio
 trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg1` AFTER DELETE ON `t1` FOR EACH ROW begin set@a=1; end	utf8	utf8_general_ci	latin1_swedish_ci	#
 SHOW CREATE TRIGGER triggers.t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=_koi8r'¬Ã¡¬Ã¡¬Ã¡'	utf8	utf8_general_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=_koi8r'√Ç√å√Å√Ç√å√Å√Ç√å√Å'	utf8	utf8_general_ci	latin1_swedish_ci	#
 SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE
 CONSTRAINT_SCHEMA='foreign_keys' ORDER BY CONSTRAINT_SCHEMA,CONSTRAINT_NAME;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME

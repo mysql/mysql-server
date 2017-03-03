@@ -7,6 +7,16 @@
 --source include/big_test.inc
 # We are using some debug-only features in this test
 --source include/have_debug.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs58=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 # Also we are using SBR to check that statements are executed
 # in proper order.
 --source include/force_binlog_format_statement.inc
@@ -199,3 +209,10 @@ connection default;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs58;
+--enable_query_log
+########################################
