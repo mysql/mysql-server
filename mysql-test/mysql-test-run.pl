@@ -268,6 +268,8 @@ my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
 my $opt_port_base= $ENV{'MTR_PORT_BASE'} || "auto";
 my $build_thread= 0;
 
+my $previous_test_had_bootstrap_opts = 0;
+
 my $ports_per_thread= 10;
 our $group_replication= 0;
 our $xplugin= 0;
@@ -6569,7 +6571,19 @@ sub start_servers($) {
                         $tinfo->{bootstrap_slave_opt} :
                         $tinfo->{bootstrap_master_opt});
 
-    if ($bootstrap_opts)
+    my $clean_datadir = 0;
+    if ($bootstrap_opts) 
+      {
+	$clean_datadir = 1;
+	$previous_test_had_bootstrap_opts=1;
+      }
+    elsif ($previous_test_had_bootstrap_opts)
+      {
+	$clean_datadir = 1;
+	$previous_test_had_bootstrap_opts = 0;
+      }
+
+    if ($clean_datadir)
     {
       clean_dir($datadir);
       mysql_install_db($mysqld, $datadir, $bootstrap_opts);
