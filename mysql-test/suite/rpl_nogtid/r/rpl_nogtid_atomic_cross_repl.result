@@ -16,4 +16,6 @@ include/wait_for_slave_sql_error.inc [errno=3002]
 DROP TABLE t1;
 SET @@global.debug="-d,simulate_error_in_ddl";
 include/start_slave_sql.inc
+[connection master]
+DROP TABLE t1;
 include/rpl_end.inc

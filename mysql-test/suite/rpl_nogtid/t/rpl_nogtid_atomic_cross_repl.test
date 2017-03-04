@@ -48,4 +48,8 @@ DROP TABLE t1;
 SET @@global.debug="-d,simulate_error_in_ddl";
 --source include/start_slave_sql.inc
 
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
 --source include/rpl_end.inc
