@@ -84,6 +84,7 @@ typedef enum ACL_TABLES
   TABLE_PROXIES_PRIV,
   TABLE_ROLE_EDGES,
   TABLE_DEFAULT_ROLES,
+  TABLE_DYNAMIC_PRIV,
   LAST_ENTRY  /* Must always be at the end */
 } ACL_TABLES;
 

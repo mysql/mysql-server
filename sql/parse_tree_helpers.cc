@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "sql_plugin_ref.h"
 #include "system_variables.h"
 #include "trigger_def.h"
+#include "parse_tree_nodes.h"
 
 
 /**
@@ -432,5 +433,85 @@ bool resolve_engine(THD *thd,
                       ER_THD(thd, ER_UNKNOWN_STORAGE_ENGINE),
                       name.str);
   *ret= NULL;
+  return false;
+}
+
+
+/**
+  This helper function is responsible for aggregating grants from parser tokens
+  to containers and masks which can be used during semantic analysis.
+ 
+  @param thd The thread handler
+  @param privs A list of parser tokens representing roles or privileges.
+  @return Error state
+    @retval true An error occurred
+    @retval false Success
+*/
+
+bool apply_privileges(THD *thd,
+                      const Trivial_array<class PT_role_or_privilege *> &privs)
+{
+  LEX * const lex= thd->lex;
+
+  for (PT_role_or_privilege *p : privs)
+  {
+    Privilege *privilege= p->get_privilege(thd);
+    if (p == NULL)
+      return true;
+
+    if (privilege->type == Privilege::DYNAMIC)
+    {
+      // We can push a reference to the PT object since it will have the same
+      // life time as our dynamic_privileges list.
+      LEX_CSTRING *grant= static_cast<LEX_CSTRING *>(thd->alloc(sizeof(LEX_CSTRING)));
+      grant->str= static_cast<Dynamic_privilege *>(privilege)->ident.str;
+      grant->length= static_cast<Dynamic_privilege *>(privilege)->ident.length;
+      char *s= static_cast<Dynamic_privilege *>(privilege)->ident.str;
+      char *s_end=
+        s + static_cast<Dynamic_privilege *>(privilege)->ident.length;
+      while (s != s_end)
+      {
+        *s= my_toupper(system_charset_info, *s);
+        ++s;
+      }
+      lex->dynamic_privileges.push_back(grant);
+    }
+    else
+    {
+      auto grant= static_cast<Static_privilege *>(privilege)->grant;
+      auto columns= static_cast<Static_privilege *>(privilege)->columns;
+
+      if (columns == NULL)
+        lex->grant|= grant;
+      else
+      {
+        for (auto &c : *columns)
+        {
+          auto new_str = new (thd->mem_root) String(c.str, c.length,
+                                                    system_charset_info);
+          if (new_str == NULL)
+            return true;
+          List_iterator <LEX_COLUMN> iter(lex->columns);
+          class LEX_COLUMN *point;
+          while ((point=iter++))
+          {
+            if (!my_strcasecmp(system_charset_info,
+                               point->column.ptr(), new_str->ptr()))
+              break;
+          }
+          lex->grant_tot_col|= grant;
+          if (point)
+            point->rights |= grant;
+          else
+          {
+            LEX_COLUMN *col= new LEX_COLUMN (*new_str, grant);
+            if (col == NULL)
+              return true;
+            lex->columns.push_back(col);
+          }
+        }
+      }
+    }
+  } // end for
   return false;
 }

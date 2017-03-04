@@ -150,9 +150,13 @@ class Abstract_table;
 #include <memory>
 #include <new>
 #include <string>
+#include <functional>
 
 #include "srv_session.h"
 
+/* @see dynamic_privileges_table.cc */
+bool iterate_all_dynamic_privileges(THD *thd,
+                                    std::function<bool (const char*)> action);
 using std::max;
 using std::min;
 
@@ -351,7 +355,7 @@ static int fill_plugins(THD *thd, TABLE_LIST *tables, Item*)
 /***************************************************************************
  List all privileges supported
 ***************************************************************************/
-
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 struct show_privileges_st {
   const char *privilege;
   const char *context;
@@ -420,10 +424,27 @@ bool mysqld_show_privileges(THD *thd)
     if (protocol->end_row())
       DBUG_RETURN(TRUE);
   }
+  if (iterate_all_dynamic_privileges(thd,
+                      /*
+                        For each registered dynamic privilege send a strz to
+                        this lambda function.
+                      */
+                      [&](const char *c) -> bool {
+                        protocol->start_row();
+                        protocol->store(c, system_charset_info);
+                        protocol->store("Server Admin", system_charset_info);
+                        protocol->store("", system_charset_info);
+                        if (protocol->end_row())
+                          return true;
+                        return false;  
+                      }))
+  {
+    DBUG_RETURN(TRUE);
+  }
   my_eof(thd);
   DBUG_RETURN(FALSE);
 }
-
+#endif
 
 /*
   find_files() - find files in a given directory.

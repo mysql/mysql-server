@@ -184,6 +184,8 @@ SET(SQL_GIS_SOURCES
 SET(SQL_SHARED_SOURCES
   abstract_query_plan.cc
   auth/auth_common.cc
+  auth/dynamic_privileges_impl.cc
+  auth/dynamic_privilege_table.cc
   auth/sql_authentication.cc
   auth/sql_auth_cache.cc
   auth/sql_authorization.cc
@@ -447,6 +449,8 @@ SET(SQL_BOOST_SOURCES
   auth/sql_user.cc
   auth/sql_security_ctx.cc
   auth/role_tables.cc
+  auth/dynamic_privilege_table.cc
+  auth/dynamic_privileges_impl.cc
   handler.cc
   ${SQL_GIS_SOURCES}
   spatial.cc

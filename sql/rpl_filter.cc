@@ -1673,8 +1673,15 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
   LEX *lex= thd->lex;
   Rpl_filter *rpl_filter;
 
-  if (check_global_access(thd, SUPER_ACL))
+  Security_context *sctx= thd->security_context();
+  if (!sctx->check_access(SUPER_ACL) &&
+      !sctx->
+        has_global_grant(STRING_WITH_LEN("REPLICATION_SLAVE_ADMIN")).first)
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "SUPER or REPLICATION_SLAVE_ADMIN");
     DBUG_RETURN(ret= true);
+  }
 
   channel_map.rdlock();
 

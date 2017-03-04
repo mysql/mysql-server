@@ -1501,9 +1501,10 @@ static bool log_command(THD *thd, enum_server_command command)
 {
   if (what_to_log & (1L << (uint) command))
   {
-    if ((thd->variables.option_bits & OPTION_LOG_OFF)
-         && (thd->security_context()->check_access(SUPER_ACL))
-       )
+    Security_context *sctx= thd->security_context();
+    if ((thd->variables.option_bits & OPTION_LOG_OFF) &&
+        (sctx->check_access(SUPER_ACL) ||
+         sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first))
     {
       /* No logging */
       return false;

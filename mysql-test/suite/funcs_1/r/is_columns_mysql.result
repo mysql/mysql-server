@@ -64,6 +64,10 @@ def	mysql	general_log	thread_id	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	b
 def	mysql	general_log	server_id	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references		
 def	mysql	general_log	command_type	5	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
 def	mysql	general_log	argument	6	NULL	NO	mediumblob	16777215	16777215	NULL	NULL	NULL	NULL	NULL	mediumblob			select,insert,update,references		
+def	mysql	global_grants	USER	1		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references		
+def	mysql	global_grants	HOST	2		NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references		
+def	mysql	global_grants	PRIV	3		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	char(32)	PRI		select,insert,update,references		
+def	mysql	global_grants	WITH_GRANT_OPTION	4	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references		
 def	mysql	gtid_executed	source_uuid	1	NULL	NO	char	36	144	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(36)	PRI		select,insert,update,references	uuid of the source where the transaction was originally executed.	
 def	mysql	gtid_executed	interval_start	2	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)	PRI		select,insert,update,references	First number of interval.	
 def	mysql	gtid_executed	interval_end	3	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	Last number of interval.	
@@ -386,6 +390,10 @@ NULL	mysql	general_log	thread_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	mysql	general_log	server_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 3.0000	mysql	general_log	command_type	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 1.0000	mysql	general_log	argument	mediumblob	16777215	16777215	NULL	NULL	mediumblob
+3.0000	mysql	global_grants	USER	char	32	96	utf8	utf8_bin	char(32)
+3.0000	mysql	global_grants	HOST	char	60	180	utf8	utf8_bin	char(60)
+3.0000	mysql	global_grants	PRIV	char	32	96	utf8	utf8_general_ci	char(32)
+3.0000	mysql	global_grants	WITH_GRANT_OPTION	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 4.0000	mysql	gtid_executed	source_uuid	char	36	144	utf8mb4	utf8mb4_0900_ai_ci	char(36)
 NULL	mysql	gtid_executed	interval_start	bigint	NULL	NULL	NULL	NULL	bigint(20)
 NULL	mysql	gtid_executed	interval_end	bigint	NULL	NULL	NULL	NULL	bigint(20)

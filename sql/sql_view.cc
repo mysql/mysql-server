@@ -548,9 +548,11 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
                      lex->definer->host.str,
                      thd->security_context()->priv_host().str) != 0))
   {
-    if (!(thd->security_context()->check_access(SUPER_ACL)))
+    Security_context *sctx= thd->security_context();
+    if (!(sctx->check_access(SUPER_ACL) ||
+          sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first))
     {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or SET_USER_ID");
       res= true;
       goto err;
     }

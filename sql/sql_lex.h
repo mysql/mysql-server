@@ -277,6 +277,14 @@ inline uint to_uint(enum_sp_type val)
 #define TYPE_ENUM_TRIGGER   3
 #define TYPE_ENUM_PROXY     4
 
+enum class Acl_type
+{
+  TABLE= 0,
+  FUNCTION= TYPE_ENUM_FUNCTION,
+  PROCEDURE= TYPE_ENUM_PROCEDURE,
+};
+
+
 const LEX_STRING sp_data_access_name[]=
 {
   { C_STRING_WITH_LEN("") },
@@ -2053,6 +2061,10 @@ union YYSTYPE {
     LEX_STRING wild;
     Item *where;
   } wild_or_where;
+  Acl_type acl_type;
+  Trivial_array<LEX_CSTRING> *lex_cstring_list;
+  class PT_role_or_privilege *role_or_privilege;
+  Trivial_array<PT_role_or_privilege *> *role_or_privilege_list;
 };
 
 
@@ -3372,6 +3384,7 @@ public:
 
   List<LEX_USER>      users_list;
   List<LEX_COLUMN>    columns;
+  List<LEX_CSTRING>   dynamic_privileges;
 
   ulonglong           bulk_insert_row_cnt;
 
@@ -3508,7 +3521,7 @@ public:
   /// QUERY ID for SHOW PROFILE and EXPLAIN CONNECTION
   my_thread_id query_id;
   uint profile_options;
-  uint grant, grant_tot_col, which_columns;
+  uint grant, grant_tot_col;
   uint slave_thd_opt, start_transaction_opt;
   int select_number;                     ///< Number of query block (by EXPLAIN)
   uint8 describe;
@@ -3817,6 +3830,7 @@ public:
   bool accept(Select_lex_visitor *visitor);
 
   bool set_wild(LEX_STRING);
+  void clear_privileges();
 };
 
 

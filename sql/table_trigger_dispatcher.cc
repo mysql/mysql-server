@@ -265,9 +265,12 @@ bool Table_trigger_dispatcher::create_trigger(
                      lex->definer->host.str,
                      thd->security_context()->priv_host().str)))
   {
-    if (check_global_access(thd, SUPER_ACL))
+    Security_context *sctx= thd->security_context();
+    if (!sctx->check_access(SUPER_ACL) &&
+        !sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first)
     {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "SUPER or SET_USER_ID");
       return true;
     }
   }

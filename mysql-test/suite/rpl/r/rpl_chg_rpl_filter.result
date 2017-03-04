@@ -62,7 +62,7 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 include/assert.inc [REPLICATE_REWRITE_DB ACTIVE_SINCE changed after cleanup]
 CREATE USER 'user7057' IDENTIFIED BY 'pass7057';
 mysql: [Warning] Using a password on the command line interface can be insecure.
-ERROR 1227 (42000) at line 1: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 1227 (42000) at line 1: Access denied; you need (at least one of) the SUPER or REPLICATION_SLAVE_ADMIN privilege(s) for this operation
 DROP USER 'user7057';
 include/start_slave_sql.inc
 include/rpl_end.inc

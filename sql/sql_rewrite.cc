@@ -324,6 +324,17 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
           rlb->append(cols);
       }
     }
+    /* List extended global privilege IDs */
+    if (!first_table && !lex->current_select()->db)
+    {
+      List_iterator<LEX_CSTRING> it(lex->dynamic_privileges);
+      LEX_CSTRING *priv;
+      while ((priv= it++))
+      {
+        comma_maybe(rlb, &comma);
+        rlb->append(priv->str, priv->length);
+      }
+    }
     if (!comma)                                // no privs, default to USAGE
       rlb->append(STRING_WITH_LEN("USAGE"));
   }

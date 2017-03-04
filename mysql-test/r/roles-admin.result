@@ -60,7 +60,7 @@ ERROR 42000: INSERT command denied to user 'app-middleware-db1'@'localhost' for 
 SELECT * FROM db2.t2;
 ERROR 42000: SELECT command denied to user 'app-middleware-db1'@'localhost' for table 't2'
 GRANT `admin-db2t1` TO `app`@`localhost`;
-ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, ROLE_ADMIN, SUPER privilege(s) for this operation
 ++ Connected as root
 ++ Granting WITH ADMIN OPTION role WITH ADMIN OPTION privileges
 ++ app@localhost has admin-db1t1 granted.
@@ -77,7 +77,7 @@ app@localhost	`admin-db1t1`@`%`
 ++ Negative tests ; Attempt to grant the granted role to 3rd party
 ++ app@localhost did not inherit the ability to grant WITH ADMIN OPTION
 GRANT `admin-db1t1` TO `app-middleware-db2`@`localhost`;
-ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, ROLE_ADMIN, SUPER privilege(s) for this operation
 select roles_graphml();
 roles_graphml()
 <?xml version="1.0" encoding="UTF-8"?>
@@ -162,7 +162,7 @@ GRANT `admin-db1t1` TO `app`@`localhost`;
 ++ Connected as app@localhost
 ++ Negative tests
 REVOKE `admin-db1t1` FROM `app-middleware-db2`@`localhost`;
-ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, ROLE_ADMIN, SUPER privilege(s) for this operation
 ++ Connected as app-middleware-db1@localhost
 ++ Positive test
 SELECT CURRENT_USER(), CURRENT_ROLE();
@@ -232,7 +232,27 @@ GRANT `r2`@`%` TO `u1`@`localhost`
 GRANT `r1`@`%` TO `u1`@`localhost` WITH ADMIN OPTION
 GRANT r1 TO u2@localhost WITH ADMIN OPTION;
 GRANT r2 TO u2@localhost WITH ADMIN OPTION;
-ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, ROLE_ADMIN, SUPER privilege(s) for this operation
 ++ Connected as root
-DROP USER u1@localhost, u2@localhost;
-DROP ROLE r1,r2;
+#############################################################
+++ Dynamic privilege ROLE_ADMIN grants the ability
+++ to grant any role to anyone (but not grant any privileges)
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+CREATE USER u3@localhost IDENTIFIED BY 'foo';
+CREATE ROLE role_admin, arbitrary_role;
+GRANT ROLE_ADMIN ON *.* TO role_admin;
+GRANT role_admin TO u3@localhost;
+++ Connected as u3@localhost
+SET ROLE role_admin;
+GRANT arbitrary_role TO u1@localhost;
+Granting a role not granted will also work.
+GRANT r1 TO u1@localhost;
+GRANT r1 TO u3@localhost;
+But you can't grant any privileges
+GRANT SELECT ON *.* TO r1;
+ERROR 28000: Access denied for user 'u3'@'localhost' (using password: YES)
+GRANT SELECT ON *.* TO u3@localhost;
+ERROR 28000: Access denied for user 'u3'@'localhost' (using password: YES)
+++ Connected as root
+DROP USER u1@localhost, u2@localhost, u3@localhost;
+DROP ROLE r1,r2,role_admin,arbitrary_role;

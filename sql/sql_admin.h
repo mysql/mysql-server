@@ -229,8 +229,6 @@ public:
 */
 class Sql_cmd_grant_roles : public Sql_cmd
 {
-  friend class PT_grant_roles;
-
   const List<LEX_USER> *roles;
   const List<LEX_USER> *users;
   const bool with_admin_option;
@@ -253,8 +251,6 @@ public:
 */
 class Sql_cmd_revoke_roles : public Sql_cmd
 {
-  friend class PT_revoke_roles;
-
   const List<LEX_USER> *roles;
   const List<LEX_USER> *users;
 

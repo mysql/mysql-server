@@ -902,9 +902,9 @@ DROP PROCEDURE sp1;
 CREATE PROCEDURE !_sp1( f1 char(20) )
 SELECT * from t1 where f2 = f1;
 
-CREATE PROCEDURE function()
+CREATE PROCEDURE `function`()
    SELECT * from t1 where f2=f1;
-DROP PROCEDURE function;
+DROP PROCEDURE `function`;
 
 --error ER_PARSE_ERROR
 CREATE PROCEDURE accessible()

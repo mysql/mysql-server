@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql_plugin_ref.h"
 #include "sql_security_ctx.h"
 #include "sql_table.h"                  /* write_to_binlog */
+#include "mysql/components/services/dynamic_privilege.h"
 
 /*
   @brief
@@ -71,9 +72,11 @@ Rotate_innodb_master_key::execute()
   plugin_ref se_plugin;
   handlerton *hton;
 
-  if (!m_thd->security_context()->check_access(SUPER_ACL))
+  Security_context *sctx= m_thd->security_context();
+  if (!sctx->check_access(SUPER_ACL) &&
+      !sctx->has_global_grant(STRING_WITH_LEN("ENCRYPTION_KEY_ADMIN")).first)
   {
-    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or ENCRYPTION_KEY_ADMIN");
     return true;
   }
 

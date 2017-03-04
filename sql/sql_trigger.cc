@@ -456,6 +456,7 @@ bool Sql_cmd_create_trigger::execute(THD *thd)
   String stmt_query;
   MDL_ticket *mdl_ticket= nullptr;
   Query_tables_list backup;
+  Security_context *sctx= thd->security_context();
 
   DBUG_ENTER("mysql_create_trigger");
 
@@ -496,7 +497,8 @@ bool Sql_cmd_create_trigger::execute(THD *thd)
     applies to them too.
   */
   if (!trust_function_creators && mysql_bin_log.is_open() &&
-      !(thd->security_context()->check_access(SUPER_ACL)))
+      !(sctx->check_access(SUPER_ACL) ||
+        sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first))
   {
     my_error(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER, MYF(0));
     DBUG_RETURN(true);

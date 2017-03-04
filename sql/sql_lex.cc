@@ -513,6 +513,8 @@ void LEX::reset()
   reparse_common_table_expr_at= 0;
   opt_hints_global= NULL;
   binlog_need_explicit_defaults_ts= false;
+
+  clear_privileges();
 }
 
 
@@ -3427,6 +3429,20 @@ bool SELECT_LEX::accept(Select_lex_visitor *visitor)
       return true;
 
   return visitor->visit(this);
+}
+
+
+void LEX::clear_privileges()
+{
+  users_list.empty();
+  columns.empty();
+  grant= grant_tot_col= 0;
+  all_privileges= false;
+  ssl_type= SSL_TYPE_NOT_SPECIFIED;
+  ssl_cipher= x509_subject= x509_issuer= nullptr;
+  alter_password.cleanup();
+  memset(&mqh, 0, sizeof(mqh));
+  dynamic_privileges.empty();
 }
 
 

@@ -860,9 +860,18 @@ int set_var::resolve(THD *thd)
     my_error(err, MYF(0), var->name.str);
     DBUG_RETURN(-1);
   }
-  if ((type == OPT_GLOBAL || type == OPT_PERSIST)
-       && check_global_access(thd, SUPER_ACL))
-    DBUG_RETURN(1);
+  if ((type == OPT_GLOBAL || type == OPT_PERSIST))
+  {
+    /* Either the user has SUPER_ACL or she has SYSTEM_VARIABLES_ADMIN */
+    Security_context *sctx= thd->security_context();
+    if (!sctx->check_access(SUPER_ACL) &&
+        !sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN")).first)
+    {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "SUPER or SYSTEM_VARIABLES_ADMIN");
+      DBUG_RETURN(1);
+    }
+  }
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
   if (!value)
     DBUG_RETURN(0);
@@ -933,8 +942,10 @@ int set_var::light_check(THD *thd)
     my_error(err, MYF(0), var->name.str);
     return -1;
   }
-  if ((type == OPT_GLOBAL || type == OPT_PERSIST)
-       && check_global_access(thd, SUPER_ACL))
+  Security_context *sctx= thd->security_context();
+  if ((type == OPT_GLOBAL || type == OPT_PERSIST) &&
+      !(sctx->check_access(SUPER_ACL) ||
+        sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN")).first))
     return 1;
 
   if (value && ((!value->fixed && value->fix_fields(thd, &value)) ||

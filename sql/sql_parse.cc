@@ -2221,17 +2221,20 @@ bool sp_process_definer(THD *thd)
   {
     /*
       If the specified definer differs from the current user, we
-      should check that the current user has SUPER privilege (in order
-      to create a stored routine under another user one must have
-      SUPER privilege).
+      should check that the current user has a set_user_id privilege
+      (in order to create a stored routine under another user one must
+       have a set_user_id privilege).
     */
+    Security_context *sctx= thd->security_context();
     if ((strcmp(lex->definer->user.str,
                 thd->security_context()->priv_user().str) ||
          my_strcasecmp(system_charset_info, lex->definer->host.str,
                        thd->security_context()->priv_host().str)) &&
-        check_global_access(thd, SUPER_ACL))
+        !(sctx->check_access(SUPER_ACL) ||
+          sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first))
     {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "SUPER or SET_USER_ID");
       DBUG_RETURN(TRUE);
     }
   }
@@ -2850,8 +2853,14 @@ mysql_execute_command(THD *thd, bool first_level)
 
   case SQLCOM_PURGE:
   {
-    if (check_global_access(thd, SUPER_ACL))
+    Security_context *sctx= thd->security_context();
+    if (!sctx->check_access(SUPER_ACL) &&
+        !sctx->has_global_grant(STRING_WITH_LEN("BINLOG_ADMIN")).first)
+    {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "SUPER or BINLOG_ADMIN");
       goto error;
+    }
     /* PURGE MASTER LOGS TO 'file' */
     res = purge_master_logs(thd, lex->to_log);
     break;
@@ -2859,9 +2868,14 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_PURGE_BEFORE:
   {
     Item *it;
-
-    if (check_global_access(thd, SUPER_ACL))
+    Security_context *sctx= thd->security_context();
+    if (!sctx->check_access(SUPER_ACL) &&
+        !sctx->has_global_grant(STRING_WITH_LEN("BINLOG_ADMIN")).first)
+    {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "SUPER or BINLOG_ADMIN");
       goto error;
+    }
     /* PURGE MASTER LOGS BEFORE 'data' */
     it= lex->purge_value_list.head();
     if ((!it->fixed && it->fix_fields(lex->thd, &it)) ||
@@ -2955,9 +2969,13 @@ mysql_execute_command(THD *thd, bool first_level)
   }
   case SQLCOM_CHANGE_MASTER:
   {
-
-    if (check_global_access(thd, SUPER_ACL))
+    Security_context *sctx= thd->security_context();
+    if (!sctx->check_access(SUPER_ACL) &&
+        !sctx->has_global_grant(STRING_WITH_LEN("REPLICATION_SLAVE_ADMIN")).first)
+    {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or REPLICATION_SLAVE_ADMIN");
       goto error;
+    }
     res= change_master_cmd(thd);
     break;
   }
@@ -3038,8 +3056,13 @@ mysql_execute_command(THD *thd, bool first_level)
   }
   case SQLCOM_START_GROUP_REPLICATION:
   {
-    if (check_global_access(thd, SUPER_ACL))
+    Security_context *sctx= thd->security_context();
+    if (!sctx->check_access(SUPER_ACL) &&
+        !sctx->has_global_grant(STRING_WITH_LEN("GROUP_REPLICATION_ADMIN")).first)
+    {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or GROUP_REPLICATION_ADMIN");
       goto error;
+    }
 
     /*
       If the client thread has locked tables, a deadlock is possible.
@@ -3090,8 +3113,13 @@ mysql_execute_command(THD *thd, bool first_level)
 
   case SQLCOM_STOP_GROUP_REPLICATION:
   {
-    if (check_global_access(thd, SUPER_ACL))
+    Security_context *sctx= thd->security_context();
+    if (!sctx->check_access(SUPER_ACL) &&
+        !sctx->has_global_grant(STRING_WITH_LEN("GROUP_REPLICATION_ADMIN")).first)
+    {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or GROUP_REPLICATION_ADMIN");
       goto error;
+    }
 
     /*
       Please see explanation @SQLCOM_SLAVE_STOP case
@@ -3744,13 +3772,50 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_REVOKE:
   case SQLCOM_GRANT:
   {
-    if (lex->type != TYPE_ENUM_PROXY &&
+    /*
+      Skip access check if we're granting a proxy 
+    */
+    if (lex->type != TYPE_ENUM_PROXY)
+    {
+      /*
+        If there are static grants in the GRANT statement or there are no
+        dynamic privileges we perform check_access on GRANT_OPTION based on 
+        static global privilege level and set the DA accordingly.
+      */
+      if (lex->grant > 0 || lex->dynamic_privileges.elements == 0)
+      {
+        /*
+          check_access sets DA error message based on GRANT arguments.
+        */
+        if (check_access(thd, lex->grant | lex->grant_tot_col | GRANT_ACL,
+                         first_table ?  first_table->db : select_lex->db,
+                         first_table ? &first_table->grant.privilege : NULL,
+                         first_table ? &first_table->grant.m_internal : NULL,
+                         first_table ? 0 : 1, 0))
+        {      
+          goto error;
+        }
+      }
+      /*
+        ..else we still call check_access to load internal structures, but defer
+        checking of global dynamic GRANT_OPTION to mysql_grant.
+        We still ignore checks if this was a grant of a proxy.
+      */
+      else
+      {
+        /*
+          check_access will load grant.privilege and grant.m_internal with values
+          which are used later during column privilege checking.
+          The return value isn't interesting as we'll check for dynamic global
+          privileges later.
+        */
         check_access(thd, lex->grant | lex->grant_tot_col | GRANT_ACL,
                      first_table ?  first_table->db : select_lex->db,
                      first_table ? &first_table->grant.privilege : NULL,
                      first_table ? &first_table->grant.m_internal : NULL,
-                     first_table ? 0 : 1, 0))
-      goto error;
+                     first_table ? 0 : 1, 1);
+      }
+    }
 
     /* Replicate current user as grantor */
     thd->binlog_invoker();
@@ -3815,6 +3880,11 @@ mysql_execute_command(THD *thd, bool first_level)
 	if (check_grant(thd,(lex->grant | lex->grant_tot_col | GRANT_ACL),
                         all_tables, FALSE, UINT_MAX, FALSE))
 	  goto error;
+        if (lex->dynamic_privileges.elements > 0)
+        {
+          my_error(ER_ILLEGAL_PRIVILEGE_LEVEL, MYF(0), all_tables->table_name);
+          goto error;
+        }
         /* Conditionally writes to binlog */
         res= mysql_table_grant(thd, all_tables, lex->users_list,
 			       lex->columns, lex->grant,
@@ -3833,7 +3903,9 @@ mysql_execute_command(THD *thd, bool first_level)
         /* Conditionally writes to binlog */
         res = mysql_grant(thd, select_lex->db, lex->users_list, lex->grant,
                           lex->sql_command == SQLCOM_REVOKE,
-                          lex->type == TYPE_ENUM_PROXY);
+                          lex->type == TYPE_ENUM_PROXY,
+                          lex->dynamic_privileges,
+                          lex->all_privileges);
       }
       if (!res)
       {
@@ -6449,6 +6521,7 @@ static uint kill_one_thread(THD *thd, my_thread_id id, bool only_kill_query)
   DBUG_ENTER("kill_one_thread");
   DBUG_PRINT("enter", ("id=%u only_kill=%d", id, only_kill_query));
   tmp= Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+  Security_context *sctx= thd->security_context();
   if (tmp)
   {
     /*
@@ -6468,7 +6541,8 @@ static uint kill_one_thread(THD *thd, my_thread_id id, bool only_kill_query)
       slayage if both are string-equal.
     */
 
-    if ((thd->security_context()->check_access(SUPER_ACL)) ||
+    if (sctx->check_access(SUPER_ACL) ||
+        sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first ||
         thd->security_context()->user_matches(tmp->security_context()))
     {
       /* process the kill only if thread is not already undergoing any kill
@@ -6528,25 +6602,29 @@ public:
   Kill_non_super_conn(THD *thd) :
 	    m_client_thd(thd)
   {
-    DBUG_ASSERT(m_client_thd->security_context()->check_access(SUPER_ACL));
+    DBUG_ASSERT(m_client_thd->security_context()->check_access(SUPER_ACL) ||
+      m_client_thd->security_context()->
+        has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first);
   }
 
   virtual void operator()(THD *thd_to_kill)
   {
     mysql_mutex_lock(&thd_to_kill->LOCK_thd_data);
 
-    /* Kill only if non super thread and non slave thread.
+    Security_context *sctx= thd_to_kill->security_context();
+    /* Kill only if non-privileged thread and non slave thread.
        If an account has not yet been assigned to the security context of the
        thread we cannot tell if the account is super user or not. In this case
        we cannot kill that thread. In offline mode, after the account is
-       assigned to this thread and it turns out it is not super user thread,
-       the authentication for this thread will fail and the thread will be
-       terminated.
+       assigned to this thread and it turns out it is not privileged user
+       thread, the authentication for this thread will fail and the thread will
+       be terminated.
     */
-    if (thd_to_kill->security_context()->has_account_assigned()
-  && !(thd_to_kill->security_context()->check_access(SUPER_ACL))
-	&& thd_to_kill->killed != THD::KILL_CONNECTION
-	&& !thd_to_kill->slave_thread)
+    if (sctx->has_account_assigned() &&
+        !(sctx->check_access(SUPER_ACL) ||
+          sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first) &&
+	thd_to_kill->killed != THD::KILL_CONNECTION &&
+	!thd_to_kill->slave_thread)
       thd_to_kill->awake(THD::KILL_CONNECTION);
 
     mysql_mutex_unlock(&thd_to_kill->LOCK_thd_data);

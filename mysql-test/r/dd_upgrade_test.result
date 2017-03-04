@@ -16,6 +16,7 @@ call mtr.add_suppression("information_schema");
 call mtr.add_suppression("doesn't exist");
 call mtr.add_suppression("references invalid");
 call mtr.add_suppression("Creating routine without parsing routine body");
+call mtr.add_suppression(".*The privilege system failed to initialize correctly.*");
 call mtr.add_suppression("Resolving dependency for the view");
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 call mtr.add_suppression("Unknown system variable 'show_compatibility_56'");
@@ -143,6 +144,7 @@ mysql.engine_cost                                  OK
 mysql.event_backup_57                              OK
 mysql.func                                         OK
 mysql.general_log                                  OK
+mysql.global_grants                                OK
 mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK

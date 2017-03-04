@@ -1772,7 +1772,9 @@ void Item_func_roles_graphml::print(String *str, enum_query_type)
 bool Item_func_roles_graphml::fix_fields(THD *thd, Item **ref)
 {
   Item_str_func::fix_fields(thd, ref);
-  if (thd->security_context()->check_access(SUPER_ACL, false))
+  Security_context *sctx= thd->security_context();
+  if (sctx && (sctx->has_global_grant(STRING_WITH_LEN("ROLE_ADMIN")).first ||
+      sctx->check_access(SUPER_ACL, false)))
     roles_graphml(thd, &m_str);
   else
     m_str.set(STRING_WITH_LEN("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"

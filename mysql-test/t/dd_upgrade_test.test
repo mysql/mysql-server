@@ -23,6 +23,7 @@ call mtr.add_suppression("information_schema");
 call mtr.add_suppression("doesn't exist");
 call mtr.add_suppression("references invalid");
 call mtr.add_suppression("Creating routine without parsing routine body");
+call mtr.add_suppression(".*The privilege system failed to initialize correctly.*");
 call mtr.add_suppression("Resolving dependency for the view");
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 call mtr.add_suppression("Unknown system variable 'show_compatibility_56'");

@@ -1447,7 +1447,8 @@ bool Sql_cmd_grant_roles::execute(THD *thd)
   {
     if (!has_grant_role_privilege(thd, role->user,role->host))
     {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "WITH ADMIN, SUPER");
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "WITH ADMIN, ROLE_ADMIN, SUPER");
       DBUG_RETURN(true);
     }
   }
@@ -1463,7 +1464,8 @@ bool Sql_cmd_revoke_roles::execute(THD *thd)
   {
     if (!has_grant_role_privilege(thd, role->user,role->host))
     {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "WITH ADMIN, SUPER");
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "WITH ADMIN, ROLE_ADMIN, SUPER");
       DBUG_RETURN(true);
     }
   }

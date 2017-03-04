@@ -1889,6 +1889,16 @@ typedef struct st_lex_alter {
   uint16 expire_after_days;
   bool update_account_locked_column;
   bool account_locked;
+
+  void cleanup()
+  {
+    update_password_expired_fields= false;
+    update_password_expired_column= false;
+    use_default_password_lifetime= true;
+    expire_after_days= 0;
+    update_account_locked_column= false;
+    account_locked= false;
+  }
 } LEX_ALTER;
 
 typedef struct	st_lex_user {

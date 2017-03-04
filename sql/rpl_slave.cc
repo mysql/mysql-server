@@ -9788,8 +9788,14 @@ bool start_slave(THD* thd,
 
   DBUG_ENTER("start_slave(THD, lex, lex, int, Master_info, bool");
 
-  if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
+  Security_context *sctx= thd->security_context();
+  if (!sctx->check_access(SUPER_ACL) &&
+      !sctx->has_global_grant(STRING_WITH_LEN("REPLICATION_SLAVE_ADMIN")).first)
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "SUPER or REPLICATION_SLAVE_ADMIN");
     DBUG_RETURN(1);
+  }
 
   mi->channel_wrlock();
 
@@ -9971,8 +9977,14 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel,
   if (!thd)
     thd = current_thd;
 
-  if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
+  Security_context *sctx= thd->security_context();
+  if (!sctx->check_access(SUPER_ACL) &&
+      !sctx->has_global_grant(STRING_WITH_LEN("REPLICATION_SLAVE_ADMIN")).first)
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "SUPER or REPLICATION_SLAVE_ADMIN");
     DBUG_RETURN(1);
+  }
 
   mi->channel_wrlock();
 

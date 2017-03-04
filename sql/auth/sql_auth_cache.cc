@@ -68,6 +68,7 @@
 #include "thr_mutex.h"
 #include "xa.h"
 #include "mysqld_error.h"
+#include "dynamic_privilege_table.h"
 #include "role_tables.h"        // close_all_role_tables
 
 #define INVALID_DATE "0000-00-00 00:00:00"
@@ -1644,7 +1645,8 @@ bool acl_init(bool dont_read_acl_tables)
     acl_load()
       thd     Current thread
       tables  List containing open "mysql.host", "mysql.user",
-              "mysql.db" and "mysql.proxies_priv" tables in that order.
+              "mysql.db" and "mysql.proxies_priv", "mysql.global_grants"
+              tables in that order.
 
   RETURN VALUES
     FALSE  Success
@@ -2206,6 +2208,13 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
   validate_user_plugin_records();
   init_check_host();
 
+  /* Load dynamic privileges */
+  if (populate_dynamic_privilege_caches(thd, &tables[3]))
+  {
+    return_val= TRUE;
+    goto end;
+  }
+
   initialized=1;
   return_val= FALSE;
 
@@ -2485,7 +2494,7 @@ static bool is_expected_or_transient_error(THD *thd)
 
 bool acl_reload(THD *thd)
 {
-  TABLE_LIST tables[3];
+  TABLE_LIST tables[4];
 
   MEM_ROOT old_mem;
   bool return_val= TRUE;
@@ -2495,7 +2504,7 @@ bool acl_reload(THD *thd)
     ACL_PREALLOC_SIZE> *old_acl_proxy_users = NULL;
   Acl_cache_lock_guard acl_cache_lock(thd,
                                       Acl_cache_lock_mode::WRITE_MODE);
- 
+  User_to_dynamic_privileges_map *old_dyn_priv_map;
   DBUG_ENTER("acl_reload");
 
   /*
@@ -2519,10 +2528,16 @@ bool acl_reload(THD *thd)
                            C_STRING_WITH_LEN("proxies_priv"),
                            "proxies_priv", TL_READ, MDL_SHARED_READ_ONLY);
 
+  tables[3].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("global_grants"),
+                           "global_grants", TL_READ, MDL_SHARED_READ_ONLY);
+
   tables[0].next_local= tables[0].next_global= tables + 1;
   tables[1].next_local= tables[1].next_global= tables + 2;
+  tables[2].next_local= tables[2].next_global= tables + 3;
 
-  tables[0].open_type= tables[1].open_type= tables[2].open_type= OT_BASE_ONLY;
+  tables[0].open_type= tables[1].open_type= tables[2].open_type= 
+    tables[3].open_type= OT_BASE_ONLY;
 
   if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
@@ -2563,7 +2578,8 @@ bool acl_reload(THD *thd)
   delete acl_wild_hosts;
   acl_wild_hosts= NULL;
   my_hash_free(&acl_check_hosts);
-
+  old_dyn_priv_map=
+    swap_dynamic_privileges_map(new User_to_dynamic_privileges_map());
   if ((return_val= acl_load(thd, tables)))
   {                                     // Error. Revert to old list
     DBUG_PRINT("error",("Reverting to old privileges"));
@@ -2573,6 +2589,7 @@ bool acl_reload(THD *thd)
     acl_proxy_users= old_acl_proxy_users;
     global_acl_memory= std::move(old_mem);
     init_check_host();
+    delete swap_dynamic_privileges_map(old_dyn_priv_map);
   }
   else
   {
@@ -2580,6 +2597,7 @@ bool acl_reload(THD *thd)
     delete old_acl_users;
     delete old_acl_dbs;
     delete old_acl_proxy_users;
+    delete old_dyn_priv_map;
   }
 
 end:
@@ -3579,7 +3597,8 @@ Acl_map::Acl_map(Security_context *sctx, uint64 ver)  :
                             &m_sp_acls,
                             &m_func_acls,
                             &granted_roles,
-                            &m_with_admin_acls);
+                            &m_with_admin_acls,
+                            &m_dynamic_privileges);
   DBUG_VOID_RETURN;
 }
 
@@ -3658,6 +3677,12 @@ SP_access_map *
 Acl_map::func_acls()
 {
   return &m_func_acls;
+}
+
+Dynamic_privileges *
+Acl_map::dynamic_privileges()
+{
+  return &m_dynamic_privileges;  
 }
 
 void
@@ -3838,6 +3863,7 @@ void init_acl_cache()
 {
   g_default_roles= new Default_roles;
   roles_init_graph();
+  dynamic_privileges_init();
   g_acl_cache= new Acl_cache();
 }
 
@@ -3861,6 +3887,7 @@ void shutdown_acl_cache()
   g_acl_cache= NULL;
   g_default_roles= NULL;
   roles_delete_graph();
+  dynamic_privileges_delete();
 }
 
 

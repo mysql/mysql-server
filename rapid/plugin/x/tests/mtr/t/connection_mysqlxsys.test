@@ -76,6 +76,7 @@ drop user mysqlxsys@localhost;
 create user mysqlxsys@localhost;
 grant ALL on *.* to mysqlxsys@localhost;
 grant SUPER on *.* to mysqlxsys@localhost;
+SHOW GRANTS FOR mysqlxsys@localhost;
 --let $wait_for_tcpsocket_status = no_wait
 --let $wait_for_unixsocket_status = no_wait
 --source include/xplugin_install_and_wait.inc

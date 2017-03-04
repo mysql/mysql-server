@@ -23,6 +23,8 @@
 #include <mysql/psi/mysql_memory.h>
 #include <mysql/psi/mysql_rwlock.h>
 #include <mysql/service_locking.h>
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/dynamic_privilege.h>
 #include <sql_class.h>
 #include <sys/types.h>
 #include <sstream>
@@ -191,6 +193,37 @@ static bool is_blank_string(char *input)
     return false;
 }
 
+/**
+  Check if user either has SUPER or VERSION_TOKEN_ADMIN privileges
+  @param thd Thread handle
+  
+  @return succcess state
+    @retval true User has the required privileges
+    @retval false User has not the required privileges
+*/
+
+bool has_required_privileges(THD *thd)
+{
+  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  {
+    SERVICE_TYPE(registry) *r= mysql_plugin_registry_acquire();
+    bool has_admin_privilege= false;
+    {
+      my_service<SERVICE_TYPE(global_grants_check)>
+        service("global_grants_check.mysql_server", r);
+      if (service.is_valid())
+      {
+        has_admin_privilege=
+          service->
+            has_global_grant(reinterpret_cast<Security_context_handle>(thd->security_context()),
+                             STRING_WITH_LEN("VERSION_TOKEN_ADMIN"));
+      }
+    } // end scope
+    mysql_plugin_registry_release(r);
+    return (has_admin_privilege);
+  } // end if
+  return true;
+}
 
 static const uchar *
 version_token_get_key(const uchar *entry, size_t *length);
@@ -624,12 +657,34 @@ static int version_tokens_init(void *arg MY_ATTRIBUTE((unused)))
     // Lock for version number.
     cleanup_lock.activate();
   }
-  return 0;
+  bool ret= false;
+  SERVICE_TYPE(registry) *r= mysql_plugin_registry_acquire();
+  {
+    my_service<SERVICE_TYPE(dynamic_privilege_register)>
+      service("dynamic_privilege_register.mysql_server", r);
+    if (service.is_valid())
+    {
+      ret |=
+        service->register_privilege(STRING_WITH_LEN("VERSION_TOKEN_ADMIN"));
+    }
+  } // end scope
+  mysql_plugin_registry_release(r);
+  return (ret?1:0);
 }
 
 /** Plugin deinit. */
 static int version_tokens_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
+  SERVICE_TYPE(registry) *r= mysql_plugin_registry_acquire();
+  {
+    my_service<SERVICE_TYPE(dynamic_privilege_register)>
+      service("dynamic_privilege_register.mysql_server", r);
+    if (service.is_valid())
+    {
+      service->unregister_privilege(STRING_WITH_LEN("VERSION_TOKEN_ADMIN"));
+    }
+  }
+  mysql_plugin_registry_release(r);
   mysql_rwlock_wrlock(&LOCK_vtoken_hash);
   if (version_tokens_hash.records)
     my_hash_reset(&version_tokens_hash);
@@ -708,7 +763,7 @@ PLUGIN_EXPORT bool version_tokens_set_init(UDF_INIT*, UDF_ARGS* args,
 {
   THD *thd= current_thd;
 
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  if (!has_required_privileges(thd))
   {
     my_stpcpy(message, "The user is not privileged to use this function.");
     return true;
@@ -808,7 +863,7 @@ PLUGIN_EXPORT bool version_tokens_edit_init(UDF_INIT*, UDF_ARGS *args,
     return true;
   }
 
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  if (!has_required_privileges(thd))
   {
     my_stpcpy(message, "The user is not privileged to use this function.");
     return true;
@@ -892,7 +947,7 @@ PLUGIN_EXPORT bool version_tokens_delete_init(UDF_INIT*,
     return true;
   }
 
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  if (!has_required_privileges(thd))
   {
     my_stpcpy(message, "The user is not privileged to use this function.");
     return true;
@@ -993,11 +1048,16 @@ PLUGIN_EXPORT bool version_tokens_show_init(UDF_INIT *initid, UDF_ARGS *args,
   size_t str_size= 0;
   char *result_str;
   version_token_st *token_obj;
-  THD *thd= current_thd;
 
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  THD *thd= current_thd;
+  if (!has_required_privileges(thd))
   {
-    my_stpcpy(message, "The user is not privileged to use this function.");
+        my_stpcpy(message, "The user is not privileged to use this function.");
+        return true;
+  }
+  if (!(my_hash_inited(&version_tokens_hash)))
+  {
+    my_stpcpy(message, "version_token plugin is not installed.");
     return true;
   }
 
@@ -1095,8 +1155,7 @@ static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
   initid->extension= NULL;
 
   THD *thd= current_thd;
-
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  if (!has_required_privileges(thd))
   {
     my_stpcpy(message, "The user is not privileged to use this function.");
     return true;
@@ -1192,7 +1251,7 @@ PLUGIN_EXPORT bool version_tokens_unlock_init(UDF_INIT*, UDF_ARGS *args,
 {
   THD *thd= current_thd;
 
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  if (!has_required_privileges(thd))
   {
     my_stpcpy(message, "The user is not privileged to use this function.");
     return true;
@@ -1206,7 +1265,6 @@ PLUGIN_EXPORT bool version_tokens_unlock_init(UDF_INIT*, UDF_ARGS *args,
 
   return FALSE;
 }
-
 
 long long version_tokens_unlock(UDF_INIT*, UDF_ARGS*,
                                 char*, char*)

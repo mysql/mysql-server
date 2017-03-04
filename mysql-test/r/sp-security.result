@@ -368,6 +368,8 @@ CREATE USER mysqltest_1@localhost;
 GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_1@localhost;
 CREATE USER mysqltest_2@localhost;
 GRANT SUPER ON *.* TO mysqltest_2@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 GRANT ALL PRIVILEGES ON mysqltest.* TO mysqltest_2@localhost;
 
 ---> connection: mysqltest_2_con
@@ -378,9 +380,9 @@ CREATE FUNCTION wl2897_f1() RETURNS INT RETURN 1;
 ---> connection: mysqltest_1_con
 USE mysqltest;
 CREATE DEFINER=root@localhost PROCEDURE wl2897_p2() SELECT 2;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_USER_ID privilege(s) for this operation
 CREATE DEFINER=root@localhost FUNCTION wl2897_f2() RETURNS INT RETURN 2;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_USER_ID privilege(s) for this operation
 
 ---> connection: mysqltest_2_con
 use mysqltest;
@@ -712,6 +714,26 @@ SELECT specific_schema, specific_name, parameter_name
 FROM INFORMATION_SCHEMA.PARAMETERS WHERE specific_schema = 'mysqltest_db';
 SPECIFIC_SCHEMA	SPECIFIC_NAME	PARAMETER_NAME
 mysqltest_db	p1	f1
+#
+# Wl8131 DYNAMIC PRIVILEGS
+# SET_USER_ID is a replacement for SUPER which enable a user to 
+# create a definer routine executing as some other user.
+# This privielge can be used for privilege escalation.
+connection default;
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT SET_USER_ID, EXECUTE ON *.* TO u1@localhost;
+connect  con1,localhost,u1,foo,;
+CREATE DEFINER=root@localhost PROCEDURE p1() SELECT current_user();
+CALL p1();
+current_user()
+root@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+u1@localhost
+connection default;
+disconnect con1;
+DROP PROCEDURE p1;
+DROP USER u1@localhost;
 connection default;
 disconnect conn1;
 disconnect conn2;

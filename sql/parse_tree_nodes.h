@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3475,17 +3475,148 @@ public:
   }
 };
 
+/**
+  This class is used for representing both static and dynamic privileges on
+  global as well as table and column level.
+*/
+struct Privilege : public Sql_alloc
+{
+  enum privilege_type { STATIC, DYNAMIC };
+
+  privilege_type type;
+  const Trivial_array<LEX_CSTRING> *columns;
+
+  explicit Privilege(privilege_type type,
+                     const Trivial_array<LEX_CSTRING> *columns)
+  : type(type), columns(columns)
+  {}
+};
+
+
+struct Static_privilege : public Privilege
+{
+  const uint grant;
+
+  Static_privilege(uint grant, const Trivial_array<LEX_CSTRING> *columns)
+  : Privilege(STATIC, columns), grant(grant)
+  {}
+};
+
+
+struct Dynamic_privilege : public Privilege
+{
+  const LEX_STRING ident;
+
+  Dynamic_privilege(const LEX_STRING &ident,
+                    const Trivial_array<LEX_CSTRING> *columns)
+  : Privilege(DYNAMIC, columns), ident(ident)
+  {}
+};
+
+
+class PT_role_or_privilege : public Parse_tree_node
+{
+protected:
+  POS pos;
+
+public:
+  explicit PT_role_or_privilege(const POS &pos) : pos(pos) {}
+
+  virtual st_lex_user *get_user(THD *thd)
+  {
+    syntax_error_at(thd, pos, "role or user name with the ON clause");
+    return NULL;
+  }
+  virtual Privilege *get_privilege(THD *thd)
+  {
+    syntax_error_at(thd, pos, "privilege name without the ON clause");
+    return NULL;
+  }
+};
+
+
+class PT_role_at_host final : public PT_role_or_privilege
+{
+  LEX_STRING role;
+  LEX_STRING host;
+
+public:
+  PT_role_at_host(const POS &pos,
+                  const LEX_STRING &role, const LEX_STRING &host)
+  : PT_role_or_privilege(pos), role(role), host(host)
+  {}
+
+  st_lex_user *get_user(THD *thd) override
+  { return st_lex_user::alloc(thd, &role, &host); }
+};
+
+
+class PT_role_or_dynamic_privilege final : public PT_role_or_privilege
+{
+  LEX_STRING ident;
+
+public:
+  PT_role_or_dynamic_privilege(const POS &pos, const LEX_STRING &ident)
+  : PT_role_or_privilege(pos), ident(ident)
+  {}
+
+  st_lex_user *get_user(THD *thd) override
+  { return st_lex_user::alloc(thd, &ident, NULL); }
+
+  Privilege *get_privilege(THD *thd) override
+  { return new(thd->mem_root) Dynamic_privilege(ident, NULL); }
+};
+
+
+class PT_static_privilege final : public PT_role_or_privilege
+{
+  const uint grant;
+  const Trivial_array<LEX_CSTRING> *columns;
+
+public:
+  PT_static_privilege(const POS &pos,
+                      uint grant,
+                      const Trivial_array<LEX_CSTRING> *columns= NULL)
+  : PT_role_or_privilege(pos), grant(grant), columns(columns)
+  {}
+
+  Privilege *get_privilege(THD *thd) override
+  { return new(thd->mem_root) Static_privilege(grant, columns); }
+};
+
+
+class PT_dynamic_privilege final : public PT_role_or_privilege
+{
+  LEX_STRING ident;
+  const Trivial_array<LEX_CSTRING> *columns;
+
+public:
+  PT_dynamic_privilege(const POS &pos,
+                       const LEX_STRING &ident,
+                       const Trivial_array<LEX_CSTRING> *columns)
+  : PT_role_or_privilege(pos), ident(ident)
+  {}
+
+  Privilege *get_privilege(THD *thd) override
+  { return new(thd->mem_root) Dynamic_privilege(ident, columns); }
+};
+
 
 class PT_grant_roles : public PT_statement
 {
   typedef PT_statement super;
 
-  Sql_cmd_grant_roles sql_cmd;
+  const Trivial_array<PT_role_or_privilege *> *roles;
+  const List<LEX_USER> *users;
+  const bool with_admin_option;
+
+  List<LEX_USER> *role_objects;
 
 public:
-  PT_grant_roles(const List<LEX_USER> *roles, const List<LEX_USER> *users,
+  PT_grant_roles(const Trivial_array<PT_role_or_privilege *> *roles,
+                 const List<LEX_USER> *users,
                  bool with_admin_option)
-  : sql_cmd(roles, users, with_admin_option)
+  : roles(roles), users(users), with_admin_option(with_admin_option)
   {}
 
   virtual Sql_cmd *make_cmd(THD *thd)
@@ -3493,13 +3624,24 @@ public:
     Parse_context pc(thd, thd->lex->current_select());
     if (contextualize(&pc))
       return NULL;
-    return &sql_cmd;
+
+    return new (thd->mem_root) Sql_cmd_grant_roles(role_objects, users,
+                                                   with_admin_option);
   }
   virtual bool contextualize(Parse_context *pc)
   {
     if (super::contextualize(pc))
       return true;
-    // TODO: parse-time processing of GRANT roles TO users (if needed)
+
+    role_objects= new(pc->thd->mem_root) List<LEX_USER>;
+    if (role_objects == NULL)
+      return NULL; // OOM
+    for (PT_role_or_privilege *r : *roles)
+    {
+      st_lex_user *user= r->get_user(pc->thd);
+      if (r == NULL || role_objects->push_back(user))
+        return NULL;
+    }
     return false;
   }
 };
@@ -3509,11 +3651,15 @@ class PT_revoke_roles : public PT_statement
 {
   typedef PT_statement super;
 
-  Sql_cmd_revoke_roles sql_cmd;
+  const Trivial_array<PT_role_or_privilege *> *roles;
+  const List<LEX_USER> *users;
+
+  List<LEX_USER> *role_objects;
 
 public:
-  PT_revoke_roles(const List<LEX_USER> *roles, const List<LEX_USER> *users)
-  : sql_cmd(roles, users)
+  PT_revoke_roles(Trivial_array<PT_role_or_privilege *> *roles,
+                  const List<LEX_USER> *users)
+  : roles(roles), users(users), role_objects(NULL)
   {}
 
   virtual Sql_cmd *make_cmd(THD *thd)
@@ -3521,13 +3667,24 @@ public:
     Parse_context pc(thd, thd->lex->current_select());
     if (contextualize(&pc))
       return NULL;
-    return &sql_cmd;
+
+    return new (thd->mem_root) Sql_cmd_revoke_roles(role_objects, users);
   }
+
   virtual bool contextualize(Parse_context *pc)
   {
     if (super::contextualize(pc))
       return true;
-    // TODO: parse-time processing of REVOKE roles TO users (if needed)
+
+    role_objects= new(pc->thd->mem_root) List<LEX_USER>;
+    if (role_objects == NULL)
+      return NULL; // OOM
+    for (PT_role_or_privilege *r : *roles)
+    {
+      st_lex_user *user= r->get_user(pc->thd);
+      if (r == NULL || role_objects->push_back(user))
+        return NULL;
+    }
     return false;
   }
 };

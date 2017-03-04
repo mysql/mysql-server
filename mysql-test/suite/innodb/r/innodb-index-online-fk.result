@@ -409,6 +409,7 @@ mysql/events
 mysql/foreign_key_column_usage
 mysql/foreign_keys
 mysql/func
+mysql/global_grants
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword
@@ -1106,6 +1107,7 @@ mysql/events
 mysql/foreign_key_column_usage
 mysql/foreign_keys
 mysql/func
+mysql/global_grants
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword
@@ -1277,6 +1279,7 @@ mysql/events
 mysql/foreign_key_column_usage
 mysql/foreign_keys
 mysql/func
+mysql/global_grants
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword
@@ -1459,6 +1462,7 @@ mysql/events
 mysql/foreign_key_column_usage
 mysql/foreign_keys
 mysql/func
+mysql/global_grants
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword
@@ -1641,6 +1645,7 @@ mysql/events
 mysql/foreign_key_column_usage
 mysql/foreign_keys
 mysql/func
+mysql/global_grants
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword

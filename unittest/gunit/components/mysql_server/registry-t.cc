@@ -23,6 +23,7 @@
 
 typedef int mysql_mutex_t; // mock to load persistent_dynamic_loader imp header
 #include <mysql/components/services/persistent_dynamic_loader.h>
+#include <auth/dynamic_privileges_impl.h>
 #include <persistent_dynamic_loader.h>
 #include <scope_guard.h>
 #include <server_component.h>
@@ -47,6 +48,37 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
 
 DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
   (void* thd_ptr, const char *urns[], int component_count))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(register_privilege,
+  (const char *, size_t))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(unregister_privilege,
+  (const char *, size_t))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::register_privilege,
+  (const char *privilege_str, size_t privilege_str_len))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::unregister_privilege,
+  (const char *privilege_str, size_t privilege_str_len))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::has_global_grant,
+  (Security_context_handle handle, const char *privilege_str,
+   size_t privilege_str_len))
 {
   return true;
 }

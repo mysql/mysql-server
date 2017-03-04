@@ -24,8 +24,9 @@
 #include "auth_common.h"
 #include "mysql_time.h"                 /* MYSQL_TIME */
 #include "partitioned_rwlock.h"
-#include "table.h"                      /* LEX_ALTER */
+#include "table.h"
 #include "violite.h"                    /* SSL_type */
+#include "dynamic_privilege_table.h"
 
 
 
@@ -186,7 +187,6 @@ bool is_privileged_user_for_credential_change(THD *thd);
 void rebuild_vertex_index(THD *thd);
 void roles_init_graph(void);
 void roles_delete_graph(void);
-
 /**
   Storage container for default role ids. Default roles are only weakly
   depending on ACL_USERs. You can retain a default role even if the
@@ -263,12 +263,32 @@ private:
   String m_auth_str;
 };
 
+void dynamic_privileges_init(void);
+void dynamic_privileges_delete(void);
+bool grant_dynamic_privilege(const LEX_CSTRING &str_priv,
+                             const LEX_CSTRING &str_user,
+                             const LEX_CSTRING &str_host,
+                             bool with_grant_option,
+                             Update_dynamic_privilege_table &func);
+bool revoke_dynamic_privilege(const LEX_CSTRING &str_priv,
+                              const LEX_CSTRING &str_user,
+                              const LEX_CSTRING &str_host,
+                              Update_dynamic_privilege_table &update_table);
+bool revoke_all_dynamic_privileges(const LEX_CSTRING &user,
+                                   const LEX_CSTRING &host,
+                                   Update_dynamic_privilege_table &func);
+bool rename_dynamic_grant(const LEX_CSTRING &old_user,
+                          const LEX_CSTRING &old_host,
+                          const LEX_CSTRING &new_user,
+                          const LEX_CSTRING &new_host,
+                          Update_dynamic_privilege_table &update_table);
 bool operator==(const Role_id &a, const Auth_id_ref &b);
 bool operator==(const Auth_id_ref &a, const Role_id &b);
 bool operator==(const std::pair<const Role_id, const Role_id> &a,
                 const Auth_id_ref &b);
 bool operator==(const Role_id &a, const Role_id &b);
-
+bool operator==(std::pair<const Role_id, std::pair<std::string, bool> > &a,
+                const std::string &b);
 typedef std::vector<std::pair<Role_id, bool> > List_of_granted_roles;
 
 struct role_id_hash
@@ -284,6 +304,7 @@ struct role_id_hash
 
 typedef std::unordered_multimap<const Role_id, const Role_id, role_id_hash>
   Default_roles;
+typedef std::map<std::string, bool> Dynamic_privileges;
 
 void get_privilege_access_maps(ACL_USER *acl_user,
                                const List_of_auth_id_refs *using_roles,
@@ -294,7 +315,8 @@ void get_privilege_access_maps(ACL_USER *acl_user,
                                SP_access_map *sp_map,
                                SP_access_map *func_map,
                                List_of_granted_roles *granted_roles,
-                               Grant_acl_set *with_admin_acl);
+                               Grant_acl_set *with_admin_acl,
+                               Dynamic_privileges *dynamic_acl);
 bool clear_default_roles(THD *thd, TABLE *table,
                          const Auth_id_ref &user_auth_id,
                          std::vector<Role_id > *default_roles);
@@ -318,5 +340,12 @@ bool set_and_validate_user_attributes(THD *thd,
                                       ulong &what_to_set,
                                       bool is_privileged_user,
                                       bool is_role);
+typedef std::pair<std::string, bool> Grant_privilege;
+typedef std::unordered_multimap<const Role_id, Grant_privilege,
+                                role_id_hash >
+  User_to_dynamic_privileges_map;
+User_to_dynamic_privileges_map *get_dynamic_privileges_map();
+User_to_dynamic_privileges_map *
+swap_dynamic_privileges_map(User_to_dynamic_privileges_map *map);
 bool populate_roles_caches(THD *thd, TABLE_LIST * tablelst);
 #endif /* AUTH_INTERNAL_INCLUDED */

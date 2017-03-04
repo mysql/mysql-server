@@ -59,6 +59,7 @@ def	mysql	PRIMARY	mysql	db
 def	mysql	PRIMARY	mysql	default_roles
 def	mysql	PRIMARY	mysql	engine_cost
 def	mysql	PRIMARY	mysql	func
+def	mysql	PRIMARY	mysql	global_grants
 def	mysql	PRIMARY	mysql	gtid_executed
 def	mysql	name	mysql	help_category
 def	mysql	PRIMARY	mysql	help_category

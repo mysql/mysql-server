@@ -2432,7 +2432,9 @@ acl_authenticate(THD *thd, enum_server_command command)
     }
     sctx->checkout_access_maps();
 
-    if (!(sctx->check_access(SUPER_ACL)) && !thd->is_error())
+    if (!thd->is_error() &&
+        !(sctx->check_access(SUPER_ACL) ||
+          sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first))
     {
       mysql_mutex_lock(&LOCK_offline_mode);
       bool tmp_offline_mode= MY_TEST(offline_mode);
@@ -2552,7 +2554,8 @@ acl_authenticate(THD *thd, enum_server_command command)
               sctx->master_access(), mpvio.db.str));
 
   if (command == COM_CONNECT &&
-      !(thd->m_main_security_ctx.check_access(SUPER_ACL)))
+      !(thd->m_main_security_ctx.check_access(SUPER_ACL) ||
+        thd->m_main_security_ctx.has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first))
   {
     if (!Connection_handler_manager::get_instance()->valid_connection_count())
     {                                         // too many connections

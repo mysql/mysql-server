@@ -455,7 +455,8 @@ void xpl::Server::verify_mysqlx_user_grants(Sql_data_context &context)
     if (grants.find(" SELECT ") != std::string::npos ||
         grants.find(" SELECT,") != std::string::npos)
       has_select_on_mysql_user = true;
-    if (grants.find(" SUPER ") != std::string::npos)
+    if (grants.find(" SUPER ") != std::string::npos ||
+        grants.find(" SUPER,") != std::string::npos)
       has_super = true;
   } while (sql_result.next_row());
 

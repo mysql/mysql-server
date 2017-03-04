@@ -2,30 +2,21 @@
 call mtr.add_suppression(".* Failed to activate default role .*");
 --echo # test CREATE ROLE and variations of authorizationID:
 --echo # WL988.I-1
---error ER_PARSE_ERROR
+--echo # Role is not a reserved keyword
 CREATE ROLE role;
-CREATE ROLE 'role';
+DROP ROLE role;
 CREATE ROLE `ident with space`;
 CREATE ROLE 'text string';
---error ER_PARSE_ERROR
 CREATE ROLE role@host;
-CREATE ROLE 'role'@host;
---error ER_CANNOT_USER
+DROP ROLE role@host;
 CREATE ROLE 'role'@`host`;
 CREATE ROLE IF NOT EXISTS 'role'@'host';
---error ER_CANNOT_USER
+DROP ROLE 'role'@`host`;
 CREATE ROLE `role`@host;
---error ER_CANNOT_USER
+DROP ROLE `role`@host;
 CREATE ROLE `role`@`host`;
---error ER_CANNOT_USER
-CREATE ROLE `role`@'host';
---error ER_CANNOT_USER
-CREATE ROLE 'role'@host;
---error ER_CANNOT_USER
-CREATE ROLE 'role'@`host`;
---error ER_CANNOT_USER
-CREATE ROLE 'role'@'host';
-CREATE ROLE role1, role2;
+DROP ROLE `role`@`host`;
+CREATE ROLE role, role1, role2;
 --error ER_PARSE_ERROR
 CREATE ROLE r1 IDENTIFIED BY 'test';
 
@@ -96,9 +87,9 @@ GRANT SELECT ON test.* TO wp_administrators;
 --error ER_PARSE_ERROR
 GRANT engineering ON *.*, SUPER ON *.* TO joan, sally;
 --echo # Mixing ACLs and roles in a grant must fail.
---error ER_PARSE_ERROR
+--error ER_SYNTAX_ERROR
 GRANT SUPER, engineering ON *.* TO joan, sally;
---error ER_PARSE_ERROR
+--error ER_SYNTAX_ERROR
 GRANT engineering,SELECT ON *.* TO joan;
 
 --echo # Make sure current_user() works correctly!
@@ -606,6 +597,7 @@ DROP ROLE r10;
 #
 # SHOW PRIVILEGES should list all available system privileges
 #
+-- sorted_result
 SHOW PRIVILEGES;
 
 #
@@ -644,6 +636,8 @@ SHOW GRANTS FOR u1@localhost;
 connect(con1, localhost, u1, foo, test);
 --echo ++ Shows default r1.
 SELECT CURRENT_ROLE();
+--echo ++ charset should be utf8
+SELECT CHARSET(CURRENT_ROLE());
 SET ROLE DEFAULT;
 SELECT CURRENT_ROLE();
 SET ROLE DEFAULT;

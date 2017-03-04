@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include <mysql/components/services/dynamic_loader.h>
 #include <mysql/components/services/persistent_dynamic_loader.h>
 #include <mysql/mysql_lex_string.h>
+#include <auth/dynamic_privileges_impl.h>
 #include <persistent_dynamic_loader.h>
 #include <scope_guard.h>
 #include <server_component.h>
@@ -53,6 +54,26 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
   return true;
 }
 
+DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::register_privilege,
+  (const char *privilege_str, size_t privilege_str_len))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::unregister_privilege,
+  (const char *privilege_str, size_t privilege_str_len))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::has_global_grant,
+  (Security_context_handle handle, const char *privilege_str,
+   size_t privilege_str_len))
+{
+  return true;
+}
+
+  
 /* TODO following code resembles symbols used in sql library, these should be
   some day extracted to be reused both in sql library and server component unit
   tests. */

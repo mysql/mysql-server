@@ -1098,6 +1098,8 @@ set sql_mode= @orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 GRANT SUPER ON *.* TO 'privtest'@'localhost';
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 GRANT SELECT ON mysqltest1.t2 TO 'privtest'@'localhost';
 CREATE VIEW v2 AS SELECT * FROM t2;
 GRANT SELECT,INSERT,UPDATE ON mysqltest1.v2 TO 'privtest'@'localhost';

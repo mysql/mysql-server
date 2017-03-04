@@ -3604,6 +3604,7 @@ static bool innobase_is_supported_system_table(const char *db,
 							"user",
 							"role_edges",
 							"default_roles",
+							"global_grants",
 							(const char *)NULL };
 
 	if (!is_sql_layer_system_table)

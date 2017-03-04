@@ -19,6 +19,8 @@ GRANT INSERT, DROP ON mysqltest_db1.t2 TO mysqltest_dfn@localhost;
 
 ---> connection: default
 GRANT SUPER ON *.* TO mysqltest_dfn@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 
 ---> connection: wl2818_definer_con
 CREATE TRIGGER trg1 AFTER INSERT ON t1
@@ -56,6 +58,8 @@ TRUNCATE TABLE t2;
 
 ---> connection: default
 REVOKE SUPER ON *.* FROM mysqltest_dfn@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 
 ---> connection: wl2818_definer_con
 CREATE TRIGGER trg1 AFTER INSERT ON t1
@@ -116,11 +120,13 @@ CREATE DEFINER='mysqltest_inv'@'localhost'
   TRIGGER trg1 BEFORE INSERT ON t1
 FOR EACH ROW
 SET @new_sum = 0;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_USER_ID privilege(s) for this operation
 
 ---> connection: default
 use mysqltest_db1;
 GRANT SUPER ON *.* TO mysqltest_dfn@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 
 ---> connection: wl2818_definer_con
 CREATE DEFINER='mysqltest_inv'@'localhost'

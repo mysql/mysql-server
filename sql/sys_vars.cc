@@ -829,9 +829,12 @@ static Sys_var_ulong Sys_binlog_group_commit_sync_no_delay_count(
 static bool check_has_super(sys_var *self, THD *thd, set_var*)
 {
   DBUG_ASSERT(self->scope() != sys_var::GLOBAL);// don't abuse check_has_super()
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  Security_context *sctx= thd->security_context();
+  if (!sctx->check_access(SUPER_ACL) &&
+      !sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN")).first)
   {
-    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "SUPER or SYSTEM_VARIABLES_ADMIN");
     return true;
   }
   return false;

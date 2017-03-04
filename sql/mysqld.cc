@@ -563,10 +563,12 @@
 #include <vector>
 
 #include "../components/mysql_server/server_component.h"
+#include <mysql/components/my_service.h>
 #include "dd/dd.h"                      // dd::shutdown
 #include "dd/dd_kill_immunizer.h"       // dd::DD_kill_immunizer
 #include "dd/dictionary.h"              // dd::get_dictionary
 #include "srv_session.h"
+#include "dynamic_privileges_impl.h" 
 
 using std::min;
 using std::max;
@@ -1342,7 +1344,6 @@ static bool component_infrastructure_init()
     sql_print_error("Failed to bootstrap components infrastructure.\n");
     return true;
   }
-
   return false;
 }
 /**
@@ -1353,15 +1354,19 @@ static bool component_infrastructure_init()
   @retval false success
   @retval true failure
 */
+
 static bool mysql_component_infrastructure_init()
 {
   /* We need a temporary THD during boot */
   Auto_THD thd;
-
   if (persistent_dynamic_loader_init(thd.thd))
   {
     sql_print_error("Failed to bootstrap persistent components loader.\n");
     return true;
+  }
+  if (dynamic_privilege_init())
+  {
+    sql_print_error("Failed to bootstrap persistent privileges.\n");
   }
   return false;
 }
@@ -1399,7 +1404,6 @@ static void server_components_init_wait()
     mysql_cond_wait(&COND_server_started, &LOCK_server_started);
   mysql_mutex_unlock(&LOCK_server_started);
 }
-
 
 /****************************************************************************
 ** Code to end mysqld
@@ -5601,6 +5605,7 @@ int mysqld_main(int argc, char **argv)
   if (!opt_initialize)
     reload_optimizer_cost_constants();
 
+  bool abort= false;
   if (
     /*
       Read components table to restore previously installed components. This
@@ -5609,9 +5614,25 @@ int mysqld_main(int argc, char **argv)
       document requirements and by what means they are provided.
     */
     (!opt_initialize && mysql_component_infrastructure_init())
-    || mysql_rm_tmp_tables() || acl_init(opt_noacl)
-    || my_tz_init((THD *)0, default_tz_name, opt_initialize)
-    || grant_init(opt_noacl))
+     || mysql_rm_tmp_tables())
+  {
+    abort= true;
+  }
+  if (abort || acl_init(opt_noacl))
+  {
+    /*
+      During upgrade we might be missing the mysql.global_grants table
+      which is opened during acl_reload along with all the other core privilege
+      tables. If this operation fails we simply disable the privilege system
+      and issue a warning.
+    */
+    opt_noacl= true;
+    sql_print_warning("The privilege system failed to initialize correctly. "
+      "If you have upgraded your server, make sure you're executing "
+      "mysql_upgrade to correct the issue.");
+  }
+  if (abort || my_tz_init((THD *)0, default_tz_name, opt_initialize)
+      || grant_init(opt_noacl))
   {
     set_connection_events_loop_aborted(true);
 

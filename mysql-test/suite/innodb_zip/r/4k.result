@@ -54,6 +54,7 @@ mysql/foreign_key_column_usage	7	33	PRIMARY	5	3	2	50
 mysql/foreign_key_column_usage	7	33	foreign_key_id	6	2	3	50
 mysql/foreign_key_column_usage	7	33	column_id	8	0	1	50
 mysql/func	7	33	PRIMARY	5	3	1	50
+mysql/global_grants	7	33	PRIMARY	5	3	3	50
 mysql/gtid_executed	6	33	PRIMARY	5	3	2	50
 mysql/help_category	7	33	PRIMARY	5	3	1	50
 mysql/help_category	7	33	name	6	2	1	50
