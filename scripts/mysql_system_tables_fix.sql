@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -868,3 +868,49 @@ SET @str = IF(@had_audit_log_user > 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
+
+
+--
+-- Update default_value column for cost tables to new defaults
+-- Note: Column definition must be updated if a default value is changed
+-- (Must check if column exists to determine whether to add or modify column)
+--
+
+-- Update column definition for mysql.server_cost.default_value
+SET @have_server_cost_default =
+  (SELECT COUNT(column_name) FROM information_schema.columns
+     WHERE table_schema = 'mysql' AND table_name = 'server_cost' AND
+           column_name = 'default_value');
+SET @op = IF(@have_server_cost_default > 0, "MODIFY COLUMN ", "ADD COLUMN ");
+SET @str = CONCAT("ALTER TABLE mysql.server_cost ", @op,
+   "default_value FLOAT GENERATED ALWAYS AS
+    (CASE cost_name
+       WHEN 'disk_temptable_create_cost' THEN 20.0
+       WHEN 'disk_temptable_row_cost' THEN 0.5
+       WHEN 'key_compare_cost' THEN 0.05
+       WHEN 'memory_temptable_create_cost' THEN 1.0
+       WHEN 'memory_temptable_row_cost' THEN 0.1
+       WHEN 'row_evaluate_cost' THEN 0.1
+       ELSE NULL
+     END) VIRTUAL");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+-- Update column definition for mysql.engine_cost.default_value
+SET @have_engine_cost_default =
+  (SELECT COUNT(column_name) FROM information_schema.columns
+     WHERE table_schema = 'mysql' AND table_name = 'engine_cost' AND
+           column_name = 'default_value');
+SET @op = IF(@have_engine_cost_default > 0, "MODIFY COLUMN ", "ADD COLUMN ");
+SET @str = CONCAT("ALTER TABLE mysql.engine_cost ", @op,
+   "default_value FLOAT GENERATED ALWAYS AS
+    (CASE cost_name
+       WHEN 'io_block_read_cost' THEN 1.0
+       WHEN 'memory_block_read_cost' THEN 0.25
+       ELSE NULL
+     END) VIRTUAL");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+

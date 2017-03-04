@@ -478,12 +478,14 @@ table_id	pos	mtype	prtype	len	name
 69	1	9	1028	4	cost_value
 69	2	3	525575	4	last_update
 69	3	12	2166799	3072	comment
+69	65540	9	9220	4	default_value
 70	0	12	2162959	192	engine_name
 70	1	6	1283	4	device_type
 70	2	12	2162959	192	cost_name
 70	3	9	1028	4	cost_value
 70	4	3	525575	4	last_update
 70	5	12	2166799	3072	comment
+70	65542	9	9220	4	default_value
 71	0	12	5439759	192	database_name
 71	1	12	5439759	192	table_name
 71	2	12	5439759	192	column_name

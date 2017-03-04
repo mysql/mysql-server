@@ -28,6 +28,7 @@
 #include "sql_base.h"                     // open_and_lock_tables
 #include "sql_class.h"                    // THD
 #include "sql_const.h"
+#include "sql_lex.h"                      // lex_start/lex_end
 #include "sql_plugin.h"
 #include "sql_string.h"
 #include "sql_tmp_table.h"                // init_cache_tmp_engine_properties
@@ -438,6 +439,7 @@ static void read_cost_constants(Cost_model_constants* cost_constants)
   DBUG_ASSERT(thd);
   thd->thread_stack= pointer_cast<char*>(&thd);
   thd->store_globals();
+  lex_start(thd);
 
   TABLE_LIST tables[2];
   tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
@@ -466,6 +468,7 @@ static void read_cost_constants(Cost_model_constants* cost_constants)
 
   trans_commit_stmt(thd);
   close_thread_tables(thd);
+  lex_end(thd->lex);
 
   // Delete the locally created THD
   delete thd;

@@ -53,6 +53,7 @@ def	mysql	engine_cost	cost_name	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf
 def	mysql	engine_cost	cost_value	4	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references		
 def	mysql	engine_cost	last_update	5	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references		
 def	mysql	engine_cost	comment	6	NULL	YES	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references		
+def	mysql	engine_cost	default_value	7	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float		VIRTUAL GENERATED	select,insert,update,references		(case `cost_name` when _utf8mb4\'io_block_read_cost\' then 1.0 when _utf8mb4\'memory_block_read_cost\' then 0.25 else NULL end)
 def	mysql	func	name	1		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references		
 def	mysql	func	ret	2	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references		
 def	mysql	func	dl	3		NO	char	128	384	NULL	NULL	NULL	utf8	utf8_bin	char(128)			select,insert,update,references		
@@ -129,6 +130,7 @@ def	mysql	server_cost	cost_name	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf
 def	mysql	server_cost	cost_value	2	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float			select,insert,update,references		
 def	mysql	server_cost	last_update	3	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references		
 def	mysql	server_cost	comment	4	NULL	YES	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references		
+def	mysql	server_cost	default_value	5	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float		VIRTUAL GENERATED	select,insert,update,references		(case `cost_name` when _utf8mb4\'disk_temptable_create_cost\' then 20.0 when _utf8mb4\'disk_temptable_row_cost\' then 0.5 when _utf8mb4\'key_compare_cost\' then 0.05 when _utf8mb4\'memory_temptable_create_cost\' then 1.0 when _utf8mb4\'memory_temptable_row_cost\' then 0.1 when _utf8mb4\'row_evaluate_cost\' then 0.1 else NULL end)
 def	mysql	slave_master_info	Number_of_lines	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	Number of lines in the file.	
 def	mysql	slave_master_info	Master_log_name	2	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	The name of the master binary log currently being read from the master.	
 def	mysql	slave_master_info	Master_log_pos	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	The master log position of the last read event.	
@@ -373,6 +375,7 @@ NULL	mysql	engine_cost	device_type	int	NULL	NULL	NULL	NULL	int(11)
 NULL	mysql	engine_cost	cost_value	float	NULL	NULL	NULL	NULL	float
 NULL	mysql	engine_cost	last_update	timestamp	NULL	NULL	NULL	NULL	timestamp
 3.0000	mysql	engine_cost	comment	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
+NULL	mysql	engine_cost	default_value	float	NULL	NULL	NULL	NULL	float
 3.0000	mysql	func	name	char	64	192	utf8	utf8_bin	char(64)
 NULL	mysql	func	ret	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
 3.0000	mysql	func	dl	char	128	384	utf8	utf8_bin	char(128)
@@ -449,6 +452,7 @@ NULL	mysql	servers	Port	int	NULL	NULL	NULL	NULL	int(4)
 NULL	mysql	server_cost	cost_value	float	NULL	NULL	NULL	NULL	float
 NULL	mysql	server_cost	last_update	timestamp	NULL	NULL	NULL	NULL	timestamp
 3.0000	mysql	server_cost	comment	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
+NULL	mysql	server_cost	default_value	float	NULL	NULL	NULL	NULL	float
 NULL	mysql	slave_master_info	Number_of_lines	int	NULL	NULL	NULL	NULL	int(10) unsigned
 1.0000	mysql	slave_master_info	Master_log_name	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_master_info	Master_log_pos	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned

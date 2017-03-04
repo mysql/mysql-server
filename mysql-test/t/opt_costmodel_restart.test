@@ -120,9 +120,9 @@ SET cost_value=DEFAULT;
 # other engines.
 #
 INSERT INTO mysql.engine_cost VALUES
-  ("InnoDB", 0, "memory_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT);
+  ("InnoDB", 0, "memory_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT, DEFAULT);
 INSERT INTO mysql.engine_cost VALUES
-  ("InnoDB", 0, "io_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT);
+  ("InnoDB", 0, "io_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT, DEFAULT);
 
 --echo "Restarting MySQL server"
 --source include/restart_mysqld.inc

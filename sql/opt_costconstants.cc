@@ -37,6 +37,11 @@ const unsigned int DEFAULT_STORAGE_CLASS= 0;
   These are the default cost constant values that will be use if
   the server administrator has not added new values in the server_cost
   table.
+
+  Note: The default cost constants are displayed in the default_value
+        column of the cost tables.  If any default value is changed,
+        make sure to update the column definitions in
+        mysql_system_tables.sql and mysql_system_tables_fix.sql
 */
 
 // Default cost for evaluation of the query condition for a row.
