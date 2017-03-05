@@ -2270,6 +2270,8 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     mysql_mutex_lock(&mi->data_lock);
     mi->clock_diff_with_master=
       (long) (time((time_t*) 0) - strtoul(master_row[0], 0, 10));
+    DBUG_EXECUTE_IF("dbug.mts.force_clock_diff_eq_0",
+      mi->clock_diff_with_master= 0;);
     mysql_mutex_unlock(&mi->data_lock);
   }
   else if (check_io_slave_killed(mi->info_thd, mi, NULL))
@@ -4352,11 +4354,17 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       If it is an artificial event, or a relay log event (IO thread generated
       event) or ev->when is set to 0, or a FD from master, or a heartbeat
       event with server_id '0' then  we don't update the last_master_timestamp.
+
+      In case of parallel execution last_master_timestamp is only updated when
+      an event is taken out of GAQ. Thus when last_master_timestamp is 0 we need
+      to initialize it with a timestamp from the first event to be executed in
+      parallel.
     */
-    if (!(rli->is_parallel_exec() ||
-          ev->is_artificial_event() || ev->is_relay_log_event() ||
-          ev->when.tv_sec == 0 || ev->get_type_code() == FORMAT_DESCRIPTION_EVENT ||
-          ev->server_id == 0))
+    if ((!rli->is_parallel_exec() || rli->last_master_timestamp == 0) &&
+         !(ev->is_artificial_event() || ev->is_relay_log_event() ||
+           ev->when.tv_sec == 0 ||
+           ev->get_type_code() == FORMAT_DESCRIPTION_EVENT ||
+           ev->server_id == 0))
     {
       rli->last_master_timestamp= ev->when.tv_sec + (time_t) ev->exec_time;
       DBUG_ASSERT(rli->last_master_timestamp >= 0);
@@ -5659,6 +5667,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   ulong cnt;
   bool error= FALSE;
   struct timespec curr_clock;
+  time_t ts=0;
 
   DBUG_ENTER("checkpoint_routine");
 
@@ -5668,6 +5677,13 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     if (!rli->gaq->count_done(rli))
       DBUG_RETURN(FALSE);
   }
+  DBUG_EXECUTE_IF("mts_checkpoint",
+                  {
+                    const char act[]=
+                      "now signal mts_checkpoint_start";
+                    DBUG_ASSERT(!debug_sync_set_action(rli->info_thd,
+                                                       STRING_WITH_LEN(act)));
+                 };);
 #endif
 
   /*
@@ -5772,14 +5788,23 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     cnt is zero. This value means that the checkpoint information
     will be completely reset.
   */
-  rli->reset_notified_checkpoint(cnt, rli->gaq->lwm.ts, need_data_lock);
-
+  ts= rli->gaq->empty()
+    ? 0
+    : reinterpret_cast<Slave_job_group*>(rli->gaq->head_queue())->ts;
+  rli->reset_notified_checkpoint(cnt, &ts, need_data_lock);
   /* end-of "Coordinator::"commit_positions" */
 
 end:
 #ifndef DBUG_OFF
   if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
     DBUG_SUICIDE();
+  DBUG_EXECUTE_IF("mts_checkpoint",
+                  {
+                    const char act[]=
+                      "now signal mts_checkpoint_end";
+                    DBUG_ASSERT(!debug_sync_set_action(rli->info_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
 #endif
   set_timespec_nsec(rli->last_clock, 0);
   
@@ -7981,9 +8006,6 @@ static Log_event* next_event(Relay_log_info* rli)
             */
             (void) mts_checkpoint_routine(rli, period, false, true/*need_data_lock=true*/); // TODO: ALFRANIO ERROR
             mysql_mutex_lock(log_lock);
-            // More to the empty relay-log all assigned events done so reset it.
-            if (rli->gaq->empty())
-              rli->last_master_timestamp= 0;
 
             if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
               period= 10000000ULL;

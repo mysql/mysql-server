@@ -1394,16 +1394,12 @@ ulong circular_buffer_queue::en_queue(void *item)
 
 void* circular_buffer_queue::head_queue()
 {
-  uchar *ret= NULL;
   if (entry == size)
   {
     DBUG_ASSERT(len == 0);
+    return NULL;
   }
-  else
-  {
-    get_dynamic(&Q, (uchar*) ret, entry);
-  }
-  return (void*) ret;
+  return dynamic_array_ptr(&Q, entry);
 }
 
 /**
