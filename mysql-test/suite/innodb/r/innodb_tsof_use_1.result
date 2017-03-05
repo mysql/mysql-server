@@ -49,8 +49,8 @@ Table	Create Table
 t_aux_10	CREATE TABLE `t_aux_10` (
   `col1` int(11) DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-CALL mtr.add_suppression("InnoDB: File './tablespaces.open..*' size is .* Must be at least");
-CALL mtr.add_suppression("InnoDB: File './tablespaces.open..*' size is .* should be at least");
+CALL mtr.add_suppression("InnoDB: File '.*tablespaces.open..*' size is .* Must be at least");
+CALL mtr.add_suppression("InnoDB: File '.*tablespaces.open..*' size is .* should be at least");
 CALL mtr.add_suppression("InnoDB: No space ID to filename mapping file found");
 # Make backups of the existing tablespaces.open.* files.
 # We will use these files later.
@@ -69,7 +69,7 @@ t_aux_10	CREATE TABLE `t_aux_10` (
 #    No crash -> no look for tablespaces.open.* files
 # restart
 Pattern ".* \[Note\] InnoDB: Starting crash recovery." not found
-Pattern ".* \[Note\] InnoDB: Unable to read from './tablespaces.open.*', the space ID to filename mapping file" not found
+Pattern ".* \[Note\] InnoDB: Unable to read from '.*tablespaces.open.*', the space ID to filename mapping file" not found
 Pattern ".* \[ERROR\] InnoDB: No space ID to filename mapping file found" not found
 # ========================================================
 # Restart after previous
@@ -84,7 +84,7 @@ SET GLOBAL innodb_log_checkpoint_now = ON;
 # Kill the server
 # restart
 Pattern ".* \[Note\] InnoDB: Starting crash recovery." not found
-Pattern ".* \[Note\] InnoDB: Unable to read from './tablespaces.open.*', the space ID to filename mapping file" not found
+Pattern ".* \[Note\] InnoDB: Unable to read from '.*tablespaces.open.*', the space ID to filename mapping file" not found
 Pattern ".* \[ERROR\] InnoDB: No space ID to filename mapping file found" not found
 # ========================================================
 # Restart with crash recovery
@@ -95,7 +95,7 @@ SET GLOBAL innodb_checkpoint_disabled = 1;
 # Kill the server
 # The restart attempt has failed like expected.
 Pattern ".* \[Note\] InnoDB: Starting crash recovery." found
-Pattern ".* \[Note\] InnoDB: Unable to read from './tablespaces.open.*', the space ID to filename mapping file" found
+Pattern ".* \[Note\] InnoDB: Unable to read from '.*tablespaces.open.*', the space ID to filename mapping file" found
 Pattern ".* \[ERROR\] InnoDB: No space ID to filename mapping file found" found
 # restart:--innodb-scan-directories=<MYSQLD_DATADIR>
 SHOW CREATE TABLE db_test_a.t_aux_10;
@@ -115,7 +115,7 @@ SET GLOBAL innodb_checkpoint_disabled = 1;
 # Kill the server
 # restart:--innodb-scan-directories=<MYSQLD_DATADIR>
 Pattern ".* \[Note\] InnoDB: Starting crash recovery." found
-Pattern ".* \[Note\] InnoDB: Unable to read from './tablespaces.open.*', the space ID to filename mapping file" found
+Pattern ".* \[Note\] InnoDB: Unable to read from '.*tablespaces.open.*', the space ID to filename mapping file" found
 Pattern ".* \[ERROR\] InnoDB: No space ID to filename mapping file found" found
 SHOW CREATE TABLE db_test_a.t_aux_10;
 Table	Create Table
@@ -134,9 +134,9 @@ SET SESSION DEBUG = "+d,ib_tablespace_open_write_corrupt_0";
 ALTER TABLE db_test_a . t1 TABLESPACE = ts1;
 ERROR HY000: Lost connection to MySQL server during query
 # The restart attempt has failed like expected.
-# So even one valid './tablespaces.open.*' is not sufficient for success.
+# So even one valid '.*tablespaces.open.*' is not sufficient for success.
 Pattern ".* \[Note\] InnoDB: Starting crash recovery." found
-Pattern ".* \[ERROR\] InnoDB: Unsupported file format .* found in tablespace ID to filename mapping file: './tablespaces.open.*'. You can use --innodb-scan-directories to recover .*" found
+Pattern ".* \[ERROR\] InnoDB: Unsupported file format .* found in tablespace ID to filename mapping file: '.*tablespaces.open.*'. You can use --innodb-scan-directories to recover .*" found
 Pattern ".* \[ERROR\] \[FATAL\] InnoDB: Unable to read the space ID to filename mapping file\(s\)." found
 Pattern ".* \[ERROR\] InnoDB: Assertion failure: ut0ut.cc:" found
 # The crash recovery fails even if

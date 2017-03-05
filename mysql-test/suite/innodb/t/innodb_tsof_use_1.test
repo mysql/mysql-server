@@ -120,10 +120,10 @@ while($num)
 SHOW CREATE TABLE db_test_a.t_aux_10;
 
 # There will be messages within the server error log which MTR needs to ignore
-let $p= InnoDB: File './tablespaces.open..*' size is .*;
+let $p= InnoDB: File '.*tablespaces.open..*' size is .*;
 let $suppress_pattern= $p Must be at least;
 eval CALL mtr.add_suppression("$suppress_pattern");
-let $p= InnoDB: File './tablespaces.open..*' size is .*;
+let $p= InnoDB: File '.*tablespaces.open..*' size is .*;
 let $suppress_pattern= $p should be at least;
 eval CALL mtr.add_suppression("$suppress_pattern");
 # [ERROR] InnoDB: No space ID to filename mapping file found
@@ -176,7 +176,7 @@ SHOW CREATE TABLE db_test_a.t_aux_10;
 --let SEARCH_PATTERN= .* \[Note\] InnoDB: Starting crash recovery.
 --source include/search_pattern.inc
 # The note which follows must be not found.
---let $p= .* \[Note\] InnoDB: Unable to read from './tablespaces.open.*',
+--let $p= .* \[Note\] InnoDB: Unable to read from '.*tablespaces.open.*',
 --let SEARCH_PATTERN= $p the space ID to filename mapping file
 --source include/search_pattern.inc
 # The error message which follows must be not found.
@@ -204,7 +204,7 @@ SET GLOBAL innodb_log_checkpoint_now = ON;
 --let SEARCH_PATTERN= .* \[Note\] InnoDB: Starting crash recovery.
 --source include/search_pattern.inc
 # The note which follows must be not found.
---let $p= .* \[Note\] InnoDB: Unable to read from './tablespaces.open.*',
+--let $p= .* \[Note\] InnoDB: Unable to read from '.*tablespaces.open.*',
 --let SEARCH_PATTERN= $p the space ID to filename mapping file
 --source include/search_pattern.inc
 # The error message which follows must be not found.
@@ -238,7 +238,7 @@ if($script_debug)
 --let SEARCH_PATTERN= .* \[Note\] InnoDB: Starting crash recovery.
 --source include/search_pattern.inc
 # The note which follows must be found.
---let $p= .* \[Note\] InnoDB: Unable to read from './tablespaces.open.*',
+--let $p= .* \[Note\] InnoDB: Unable to read from '.*tablespaces.open.*',
 --let SEARCH_PATTERN= $p the space ID to filename mapping file
 --source include/search_pattern.inc
 # The error message which follows must be found.
@@ -300,7 +300,7 @@ if($script_debug)
 --let SEARCH_PATTERN= .* \[Note\] InnoDB: Starting crash recovery.
 --source include/search_pattern.inc
 # The note which follows must be found.
---let $p= .* \[Note\] InnoDB: Unable to read from './tablespaces.open.*',
+--let $p= .* \[Note\] InnoDB: Unable to read from '.*tablespaces.open.*',
 --let SEARCH_PATTERN= $p the space ID to filename mapping file
 --source include/search_pattern.inc
 # The error message which follows must be found.
@@ -331,7 +331,7 @@ SET SESSION DEBUG = "+d,ib_tablespace_open_write_corrupt_0";
 --error CR_SERVER_LOST
 eval $ddl_cmd;
 --remove_file $SEARCH_FILE
-# So even one valid './tablespaces.open.*' is not sufficient.
+# So even one valid '.*tablespaces.open.*' is not sufficient.
 --error 2
 --exec $MYSQLD_CMD --restart > $error_log 2>&1
 if($script_debug)
@@ -340,20 +340,20 @@ if($script_debug)
    --exec ls -ld $MYSQLD_DATADIR/tablespaces.open.*
 }
 --echo # The restart attempt has failed like expected.
---echo # So even one valid './tablespaces.open.*' is not sufficient for success.
+--echo # So even one valid '.*tablespaces.open.*' is not sufficient for success.
 --let SEARCH_PATTERN= .* \[Note\] InnoDB: Starting crash recovery.
 --source include/search_pattern.inc
 # [ERROR] InnoDB: Unsupported file format 808530483 found in tablespace ID to
-#                 filename mapping file: './tablespaces.open.2'. You can use
+#                 filename mapping file: '.*tablespaces.open.2'. You can use
 #                 --innodb-scan-directories to recover if the tablespaces.open.*
 #                 files are unreadable or corrupt.
 --let $p= .* \[ERROR\] InnoDB: Unsupported file format .* found in tablespace ID
---let $p= $p to filename mapping file: './tablespaces.open.*'.
+--let $p= $p to filename mapping file: '.*tablespaces.open.*'.
 --let $p= $p You can use --innodb-scan-directories to recover .*
 --let SEARCH_PATTERN= $p
 --source include/search_pattern.inc
 # The next message is too rigorous.
-# At least one './tablespaces.open.*' file is valid.
+# At least one '.*tablespaces.open.*' file is valid.
 --let $p= .* \[ERROR\] \[FATAL\] InnoDB: Unable to read the space ID to
 --let SEARCH_PATTERN= $p filename mapping file\(s\).
 --source include/search_pattern.inc
@@ -398,9 +398,9 @@ if($script_debug)
    --error 0, 2
    --exec ls -ld $MYSQLD_DATADIR/tablespaces.open.*
 }
-# [Warning] InnoDB: File './tablespaces.open.2' size is 11 bytes.
+# [Warning] InnoDB: File '.*tablespaces.open.2' size is 11 bytes.
 #                   Must be at least 12 bytes
---let $p= .* \[Warning\] InnoDB: File './tablespaces.open.*' size is .* bytes.
+--let $p= .* \[Warning\] InnoDB: File '.*tablespaces.open.*' size is .* bytes.
 --let $p= $p Must be at least .* bytes
 --let SEARCH_PATTERN= $p
 --echo # InnoDB warning about too small tablespaces.open.* file found in
@@ -429,9 +429,9 @@ if($script_debug)
    --error 0, 2
    --exec ls -ld $MYSQLD_DATADIR/tablespaces.open.*
 }
-#  [Warning] InnoDB: File './tablespaces.open.1' size is 1342 bytes,
+#  [Warning] InnoDB: File '.*tablespaces.open.1' size is 1342 bytes,
 #                    should be at least 1343 bytes
---let $p= .* \[Warning\] InnoDB: File './tablespaces.open.*' size is .* bytes,
+--let $p= .* \[Warning\] InnoDB: File '.*tablespaces.open.*' size is .* bytes,
 --let $p= $p should be at least .* bytes
 --let SEARCH_PATTERN= $p
 --source include/search_pattern_in_file.inc

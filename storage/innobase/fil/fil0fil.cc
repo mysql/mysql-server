@@ -7914,19 +7914,18 @@ Fil_Open::from_file()
 		char	abspath[OS_FILE_MAX_PATH];
 		size_t	dirnamelen = strlen(srv_log_group_home_dir);
 
-		ut_a(dirnamelen < (sizeof abspath) - 10 - filename.length());
+		Folder	f(srv_log_group_home_dir, dirnamelen);
 
-		memcpy(abspath, srv_log_group_home_dir, dirnamelen);
+		std::string	abs_path = f.abs_path();
 
-		/* Add a path separator if needed. */
-		if (dirnamelen
-		    && abspath[dirnamelen - 1] != OS_PATH_SEPARATOR) {
+		ut_a(abs_path.back() == OS_PATH_SEPARATOR);
+		ut_a(abs_path.length()
+		     < sizeof(abspath) - 10 - filename.length());
 
-			abspath[dirnamelen] = OS_PATH_SEPARATOR;
-			++dirnamelen;
-		}
-
-		strcpy(abspath + dirnamelen, filename.c_str());
+		snprintf(abspath, sizeof(abspath),
+			"%.*s%.*s",
+			(int) abs_path.length(), abs_path.c_str(),
+			(int) filename.length(), filename.c_str());
 
 		std::ifstream		ifs;
 
