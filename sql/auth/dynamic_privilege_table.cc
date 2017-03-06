@@ -97,7 +97,6 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst)
   }
   int read_rec_errcode;
   MEM_ROOT tmp_mem;
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_mem, 128, 0);
   char percentile_character[2]= { '%', '\0' };
   /*
     We need the the dynamic privilege register in order to register any unknown
@@ -111,6 +110,7 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst)
     {
       DBUG_RETURN(true);
     }
+    init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_mem, 256, 0);
     while (!error &&
            !(read_rec_errcode= read_record_info.read_record(&read_record_info)))
     {
@@ -165,6 +165,7 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst)
     get_global_acl_cache()->increase_version();
   } // exit scope
   mysql_plugin_registry_release(r);
+  free_root(&tmp_mem, MYF(0));
   DBUG_RETURN(error);
 }
 
