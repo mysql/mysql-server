@@ -647,4 +647,4 @@ hex(weight_string('xﬂ' as char(2)))
 #
 # End of 5.6 tests
 #
-ALTER SCHEMA test COLLATE latin1_swedish_ci;
+ALTER SCHEMA test COLLATE utf8mb4_0900_ai_ci;

@@ -770,7 +770,7 @@ col_varchar varchar(20) DEFAULT NULL,
 PRIMARY KEY (pk DESC),
 KEY col_int_key (col_int_key DESC),
 KEY col_varchar_key (col_varchar_key DESC)
-);
+) charset latin1;
 
 INSERT INTO t1 VALUES (20,8,'eiw','eiw'),(19,8,'oeiws','oeiws'),
 (18,NULL,'koeiw','koeiw'),(17,3,'kkoei','kkoei'),

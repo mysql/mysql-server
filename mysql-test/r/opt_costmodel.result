@@ -279,7 +279,7 @@ EXPLAIN
               "read_cost": "1.75",
               "eval_cost": "25.60",
               "prefix_cost": "27.35",
-              "data_read_per_join": "68K"
+              "data_read_per_join": "260K"
             },
             "used_columns": [
               "pk",
@@ -396,7 +396,7 @@ EXPLAIN
               "read_cost": "0.88",
               "eval_cost": "12.80",
               "prefix_cost": "13.68",
-              "data_read_per_join": "68K"
+              "data_read_per_join": "260K"
             },
             "used_columns": [
               "pk",
@@ -505,7 +505,7 @@ EXPLAIN
         "read_cost": "0.72",
         "eval_cost": "0.20",
         "prefix_cost": "0.92",
-        "data_read_per_join": "416"
+        "data_read_per_join": "1K"
       },
       "used_columns": [
         "i1"

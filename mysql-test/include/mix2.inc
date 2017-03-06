@@ -1472,7 +1472,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 # Clean up filename -- embedded server reports whole path without .frm,
 # regular server reports relative path with .frm (argh!)
 --replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ / t1.frm t1
-create table t1 (v varchar(65530), key(v));
+create table t1 (v varchar(65530), key(v)) charset latin1;
 drop table t1;
 create table t1 (v varchar(65536));
 show create table t1;
@@ -1484,7 +1484,7 @@ SET sql_mode = default;
 eval set default_storage_engine=$default;
 
 # InnoDB specific varchar tests
-eval create table t1 (v varchar(16384)) engine=$engine_type;
+eval create table t1 (v varchar(16384)) charset latin1 engine=$engine_type;
 drop table t1;
 
 #
