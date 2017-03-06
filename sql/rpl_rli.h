@@ -849,13 +849,14 @@ public:
   /* end of MTS statistics */
 
   /**
-    Storage for holding the last executed event group coordinates while
-    the current group of events is processed, see @c pre_commit, post_commit.
+    Storage for holding newly computed values for the last executed
+    event group coordinates while the current group of events is
+    being committed, see @c pre_commit, post_commit.
   */
-  char saved_group_master_log_name[FN_REFLEN];
-  my_off_t saved_group_master_log_pos;
-  char saved_group_relay_log_name [FN_REFLEN];
-  my_off_t saved_group_relay_log_pos;
+  char new_group_master_log_name[FN_REFLEN];
+  my_off_t new_group_master_log_pos;
+  char new_group_relay_log_name [FN_REFLEN];
+  my_off_t new_group_relay_log_pos;
 
   /* Returns the number of elements in workers array/vector. */
   inline size_t get_worker_count()

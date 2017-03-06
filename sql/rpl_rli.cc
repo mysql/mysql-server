@@ -2869,6 +2869,10 @@ void Relay_log_info::detach_engine_ha_data(THD *thd)
 bool Relay_log_info::commit_positions()
 {
   int error= 0;
+  char saved_group_master_log_name[FN_REFLEN];
+  my_off_t saved_group_master_log_pos;
+  char saved_group_relay_log_name [FN_REFLEN];
+  my_off_t saved_group_relay_log_pos;
 
    /*
      In FILE case Query_log_event::update_pos(), called after commit,
@@ -2879,7 +2883,7 @@ bool Relay_log_info::commit_positions()
 
   mysql_mutex_lock(&data_lock);
 
-  /* Save the rli positions to be restored in case rollback will be decided */
+  /* save the rli positions to restore after flush_info() */
   strmake(saved_group_master_log_name, get_group_master_log_name(),
           FN_REFLEN - 1);
   saved_group_master_log_pos= get_group_master_log_pos();
@@ -2887,13 +2891,29 @@ bool Relay_log_info::commit_positions()
           FN_REFLEN - 1);
   saved_group_relay_log_pos= get_group_relay_log_pos();
 
-  /* Update to new values */
+  /* Update to new values just for the sake of flush_info */
   inc_event_relay_log_pos();
   set_group_relay_log_pos(get_event_relay_log_pos());
   set_group_relay_log_name(get_event_relay_log_name());
   set_group_master_log_pos(current_event->common_header->log_pos);
+  /* save them too, but now for post_commit() time */
+  strmake(new_group_master_log_name, get_group_master_log_name(),
+          FN_REFLEN - 1);
+  new_group_master_log_pos= get_group_master_log_pos();
+  strmake(new_group_relay_log_name, get_group_relay_log_name(),
+          FN_REFLEN - 1);
+  new_group_relay_log_pos= get_group_relay_log_pos();
 
   error= flush_info(true);
+
+  /*
+    Restore the saved ones so they remain actual until the replicated
+    statement commits.
+  */
+  set_group_master_log_name(saved_group_master_log_name);
+  set_group_master_log_pos(saved_group_master_log_pos);
+  set_group_relay_log_name(saved_group_relay_log_name);
+  set_group_relay_log_pos(saved_group_relay_log_pos);
 
   mysql_mutex_unlock(&data_lock);
 
@@ -2907,18 +2927,22 @@ void Relay_log_info::post_commit(bool on_rollback)
 
   if (on_rollback)
   {
-    mysql_mutex_lock(&data_lock);
-    set_group_master_log_name(saved_group_master_log_name);
-    set_group_master_log_pos(saved_group_master_log_pos);
-    set_group_relay_log_name(saved_group_relay_log_name);
-    set_group_relay_log_pos(saved_group_relay_log_pos);
-    mysql_mutex_unlock(&data_lock);
-
     if (thd->owned_gtid.is_empty())
       gtid_state->update_on_rollback(thd);
   }
   else
   {
+    /*
+      New executed coordinates prepared in pre_commit() are
+      finally installed.
+    */
+    mysql_mutex_lock(&data_lock);
+    set_group_master_log_name(new_group_master_log_name);
+    set_group_master_log_pos(new_group_master_log_pos);
+    set_group_relay_log_name(new_group_relay_log_name);
+    set_group_relay_log_pos(new_group_relay_log_pos);
+    mysql_mutex_unlock(&data_lock);
+
     if (is_transactional())
     {
       /* DDL's commit has been completed */
