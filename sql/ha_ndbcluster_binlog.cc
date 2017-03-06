@@ -3048,26 +3048,6 @@ class Ndb_schema_event_handler {
   }
 
 
-  void
-  mysqld_close_cached_table(const char* db_name, const char* table_name) const
-  {
-    DBUG_ENTER("mysqld_close_cached_table");
-     // Just mark table as "need reopen"
-    const bool wait_for_refresh = false;
-    // Not waiting -> no timeout needed
-    const ulong timeout = 0;
-
-    TABLE_LIST table_list;
-    memset(&table_list, 0, sizeof(table_list));
-    table_list.db= (char*)db_name;
-    table_list.alias= table_list.table_name= (char*)table_name;
-
-    close_cached_tables(m_thd, &table_list,
-                        wait_for_refresh, timeout);
-    DBUG_VOID_RETURN;
-  }
-
-
   NDB_SHARE* get_share(const Ndb_schema_op* schema) const
   {
     DBUG_ENTER("get_share(Ndb_schema_op*)");
@@ -3243,7 +3223,7 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
     ndbapi_invalidate_table(schema->db, schema->name);
-    mysqld_close_cached_table(schema->db, schema->name);
+    ndb_tdc_close_cached_table(m_thd, schema->db, schema->name);
 
     /**
      * Note about get_share() / free_share() referrences:
@@ -3323,7 +3303,7 @@ class Ndb_schema_event_handler {
     assert(is_post_epoch()); // Always after epoch
 
     ndbapi_invalidate_table(schema->db, schema->name);
-    mysqld_close_cached_table(schema->db, schema->name);
+    ndb_tdc_close_cached_table(m_thd, schema->db, schema->name);
 
     if (schema->node_id != own_nodeid())
     {
@@ -3530,7 +3510,7 @@ class Ndb_schema_event_handler {
     if (!share || !share->op)
     {
       ndbapi_invalidate_table(schema->db, schema->name);
-      mysqld_close_cached_table(schema->db, schema->name);
+      ndb_tdc_close_cached_table(m_thd, schema->db, schema->name);
     }
     if (share)
     {
@@ -3542,7 +3522,7 @@ class Ndb_schema_event_handler {
     }
 
     ndbapi_invalidate_table(schema->db, schema->name);
-    mysqld_close_cached_table(schema->db, schema->name);
+    ndb_tdc_close_cached_table(m_thd, schema->db, schema->name);
 
     DBUG_VOID_RETURN;
   }
@@ -3616,7 +3596,7 @@ class Ndb_schema_event_handler {
     if (!share || !share->op)
     {
       ndbapi_invalidate_table(schema->db, schema->name);
-      mysqld_close_cached_table(schema->db, schema->name);
+      ndb_tdc_close_cached_table(m_thd, schema->db, schema->name);
     }
     if (share)
       free_share(&share);      // temporary ref.
@@ -3657,7 +3637,7 @@ class Ndb_schema_event_handler {
     free_share(&share);  // temporary ref.
 
     ndbapi_invalidate_table(schema->db, schema->name);
-    mysqld_close_cached_table(schema->db, schema->name);
+    ndb_tdc_close_cached_table(m_thd, schema->db, schema->name);
 
     DBUG_VOID_RETURN;
   }
@@ -3715,7 +3695,7 @@ class Ndb_schema_event_handler {
     if (!share || !share->op)
     {
       ndbapi_invalidate_table(schema->db, schema->name);
-      mysqld_close_cached_table(schema->db, schema->name);
+      ndb_tdc_close_cached_table(m_thd, schema->db, schema->name);
     }
     if (share)
       free_share(&share); // temporary ref.
