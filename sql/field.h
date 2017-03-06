@@ -272,6 +272,33 @@ inline bool is_integer_type(enum_field_types type)
     return false;
   }
 }
+
+
+/**
+  Tests if field type is a numeric type
+
+  @param type Field type, as returned by field->type()
+
+  @returns true if numeric type, false otherwise
+*/
+inline bool is_numeric_type(enum_field_types type)
+{
+  switch (type)
+  {
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_NEWDECIMAL:
+    return true;
+  default:
+    return false;
+  }
+}
 /**
   Tests if field type is temporal, i.e. represents
   DATE, TIME, DATETIME or TIMESTAMP types in SQL.

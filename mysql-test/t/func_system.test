@@ -82,3 +82,8 @@ drop table t1;
 --eval alter schema test default character set $testdbcs178;
 --enable_query_log
 ########################################
+
+--echo # Bug#25669590: regression: assertion failed: collation.collation == ...
+
+prepare s from "DO SHA1(DATABASE());";
+execute s;

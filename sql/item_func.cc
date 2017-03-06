@@ -3355,9 +3355,17 @@ bool Item_func_round::resolve_type(THD *)
   if ((null_value= args[1]->is_null()))
   {
     // Set a data type - we do not provide excessive is_null() checks
-    set_data_type(args[0]->data_type());
-    hybrid_type= args[0]->result_type();
-    return false;
+    if (is_numeric_type(args[0]->data_type()))
+    {
+      set_data_type(args[0]->data_type());
+      hybrid_type= args[0]->result_type();
+    }
+    else
+    {
+      set_data_type(MYSQL_TYPE_DOUBLE);
+      hybrid_type= REAL_RESULT;
+    }
+  return false;
   }
 
   val1_unsigned= args[1]->unsigned_flag;

@@ -100,3 +100,6 @@ select left(concat(a,version()),1) from t1;
 left(concat(a,version()),1)
 a
 drop table t1;
+# Bug#25669590: regression: assertion failed: collation.collation == ...
+prepare s from "DO SHA1(DATABASE());";
+execute s;

@@ -3639,6 +3639,10 @@ bool Item_func_nullif::resolve_type(THD *thd)
       agg_arg_charsets_for_comparison(collation, args, arg_count))
     return true;
 
+  // This class does not implement temporal data types
+  if (is_temporal())
+    set_data_type_string(args[0]->max_length);
+
   return false;
 }
 

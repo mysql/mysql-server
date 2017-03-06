@@ -741,7 +741,6 @@ public:
   String *val_str(String *) override;
   bool resolve_type(THD *) override
   {
-    DBUG_ASSERT(collation.collation == system_charset_info);
     set_data_type_string(uint32(MAX_FIELD_NAME));
     maybe_null= true;
     return false;
