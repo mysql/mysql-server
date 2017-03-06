@@ -794,8 +794,6 @@ ndbinfo_find_files(handlerton *hton, THD *thd,
 }
 
 
-handlerton* ndbinfo_hton;
-
 static
 int
 ndbinfo_init(void *plugin)
@@ -808,8 +806,6 @@ ndbinfo_init(void *plugin)
     HTON_TEMPORARY_NOT_SUPPORTED |
     HTON_ALTER_NOT_SUPPORTED;
   hton->find_files = ndbinfo_find_files;
-
-  ndbinfo_hton = hton;
 
   if (ndbcluster_is_disabled())
   {
