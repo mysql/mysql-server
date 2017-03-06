@@ -795,7 +795,7 @@ const char *file, int line)
  }
  cs= get_charset(field->charsetnr, 0);
  DIE_UNLESS(cs);
- if ((expected_field_length= length * cs->mbmaxlen) > UINT_MAX32)
+ if ((expected_field_length= (ulonglong)length * cs->mbmaxlen) > UINT_MAX32)
  expected_field_length= UINT_MAX32;
  if (!opt_silent)
  {
