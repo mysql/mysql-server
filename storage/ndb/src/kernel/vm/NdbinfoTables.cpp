@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -887,6 +887,17 @@ DECLARE_NDBINFO_TABLE(PROCESSES, 10) =
     { "application_port",          Ndbinfo::Number,    "Node\\\'s declared application port number"}
   }
 };
+
+DECLARE_NDBINFO_TABLE(CONFIG_NODES, 4) =
+{ { "config_nodes", 4, 0, "All nodes of current cluster configuration" },
+  {
+    { "reporting_node_id",         Ndbinfo::Number,    "Reporting data node ID"},
+    { "node_id",                   Ndbinfo::Number,    "Configured node ID"},
+    { "node_type",                 Ndbinfo::Number,    "Configured node type"},
+    { "node_hostname",             Ndbinfo::String,    "Configured hostname"}
+  }
+};
+
 #define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x }
 
 static
@@ -934,7 +945,8 @@ struct ndbinfo_table_list_entry {
   DBINFOTBL(TABLE_FRAGMENTS_ALL),
   DBINFOTBL(TABLE_REPLICAS_ALL),
   DBINFOTBL(STORED_TABLES),
-  DBINFOTBL(PROCESSES)
+  DBINFOTBL(PROCESSES),
+  DBINFOTBL(CONFIG_NODES)
 };
 
 static int no_ndbinfo_tables =

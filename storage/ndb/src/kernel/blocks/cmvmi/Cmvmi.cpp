@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2223,6 +2223,30 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
         return;
       }
     }
+    break;
+  }
+
+  case Ndbinfo::CONFIG_NODES_TABLEID:
+  {
+    jam();
+    Ndbinfo::Ratelimit rl;
+    ndb_mgm_configuration_iterator * iter = m_ctx.m_config.getClusterConfigIterator();
+
+    for(ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter))
+    {
+      Uint32 row_node_id, row_node_type;
+      const char * hostname;
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      ndb_mgm_get_int_parameter(iter, CFG_NODE_ID, & row_node_id);
+      row.write_uint32(row_node_id);
+      ndb_mgm_get_int_parameter(iter, CFG_TYPE_OF_SECTION, & row_node_type);
+      row.write_uint32(row_node_type);
+      ndb_mgm_get_string_parameter(iter, CFG_NODE_HOST, & hostname);
+      row.write_string(hostname);
+      ndbinfo_send_row(signal, req, row, rl);
+    }
+
     break;
   }
 
