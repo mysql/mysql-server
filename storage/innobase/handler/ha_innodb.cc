@@ -3628,6 +3628,11 @@ innobase_encryption_key_rotation()
 	byte*	master_key = NULL;
 	bool	ret = FALSE;
 
+	if (srv_read_only_mode) {
+		my_error(ER_INNODB_READ_ONLY, MYF(0));
+		return(true);
+	}
+
 	/* Require the mutex to block other rotate request. */
 	mutex_enter(&master_key_id_mutex);
 
