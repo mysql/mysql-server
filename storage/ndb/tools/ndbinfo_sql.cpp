@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -171,6 +171,18 @@ struct view {
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>transactions` t"
     " LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dbtc_apiconnect_state` s"
     "        ON s.state_int_value = t.state"
+  },
+  { "config_nodes",
+    "SELECT distinct node_id, "
+    "CASE node_type"
+    "  WHEN 0 THEN \"NDB\""
+    "  WHEN 1 THEN \"API\""
+    "  WHEN 2 THEN \"MGM\""
+    "  ELSE NULL "
+    " END AS node_type, "
+    "node_hostname "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>config_nodes` "
+    "ORDER BY node_id"
   },
   { "config_params",
     "SELECT param_number, param_name, param_description, param_type, param_default, "

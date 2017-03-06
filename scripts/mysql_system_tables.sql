@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -2663,6 +2663,11 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`config_nodes`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`config_params`','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
@@ -2888,6 +2893,17 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$columns` (`table_id` INT UNSIGNED,`column_id` INT UNSIGNED,`column_name` VARCHAR(512),`column_type` INT UNSIGNED,`comment` VARCHAR(512)) COMMENT="metadata for columns available through ndbinfo " ENGINE=NDBINFO','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.ndb$config_nodes
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$config_nodes`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$config_nodes` (`reporting_node_id` INT UNSIGNED COMMENT "Reporting data node ID",`node_id` INT UNSIGNED COMMENT "Configured node ID",`node_type` INT UNSIGNED COMMENT "Configured node type",`node_hostname` VARCHAR(512) COMMENT "Configured hostname") COMMENT="All nodes of current cluster configuration" ENGINE=NDBINFO','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -3388,6 +3404,12 @@ DROP PREPARE stmt;
 
 # ndbinfo.cluster_transactions
 SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`cluster_transactions` AS SELECT t.node_id, t.block_instance, t.transid0 + (t.transid1 << 32) as transid, s.state_friendly_name as state,  t.c_ops as count_operations,  t.outstanding as outstanding_operations,  t.timer as inactive_seconds,  (t.apiref & 65535) as client_node_id,  (t.apiref >> 16) as client_block_ref FROM `ndbinfo`.`ndb$transactions` t LEFT JOIN `ndbinfo`.`ndb$dbtc_apiconnect_state` s        ON s.state_int_value = t.state','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.config_nodes
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`config_nodes` AS SELECT distinct node_id, CASE node_type  WHEN 0 THEN "NDB"  WHEN 1 THEN "API"  WHEN 2 THEN "MGM"  ELSE NULL  END AS node_type, node_hostname FROM `ndbinfo`.`ndb$config_nodes` ORDER BY node_id','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
