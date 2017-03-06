@@ -804,15 +804,19 @@ Warnings:
 Note	1276	Field or reference 'test.ta2.f3' of SELECT #2 was resolved in SELECT #1
 DROP TABLE t1, t2, t3;
 CREATE TABLE t2(f1 VARCHAR(255) DEFAULT NULL, f2 INT(11) DEFAULT NULL,
-KEY (f1), KEY (f2)) ENGINE=MyISAM;
-CREATE TABLE t4(f1 INT(11) DEFAULT NULL, f2 INT(11) DEFAULT NULL, KEY (f1)) ENGINE=MyISAM;
-CREATE TABLE t5(f1 INT(11) NOT NULL AUTO_INCREMENT, f2 INT(11) DEFAULT NULL, PRIMARY KEY (f1)) ENGINE=InnoDB;
-CREATE TABLE t6(f1 INT(11) NOT NULL AUTO_INCREMENT, PRIMARY KEY (f1)) ENGINE=InnoDB;
-CREATE TABLE t7 (f1 VARCHAR(255) DEFAULT NULL) ENGINE=InnoDB;
+KEY (f1), KEY (f2)) charset latin1 ENGINE=MyISAM;
+CREATE TABLE t4(f1 INT(11) DEFAULT NULL, f2 INT(11) DEFAULT NULL, KEY (f1))
+charset latin1 ENGINE=MyISAM;
+CREATE TABLE t5(f1 INT(11) NOT NULL AUTO_INCREMENT, f2 INT(11) DEFAULT NULL, PRIMARY KEY (f1))
+charset latin1 ENGINE=InnoDB;
+CREATE TABLE t6(f1 INT(11) NOT NULL AUTO_INCREMENT, PRIMARY KEY (f1))
+charset latin1 ENGINE=InnoDB;
+CREATE TABLE t7 (f1 VARCHAR(255) DEFAULT NULL)
+charset latin1 ENGINE=InnoDB;
 CREATE TABLE t10(f1 INT(11) NOT NULL AUTO_INCREMENT,f2 INT(11) DEFAULT NULL,f3 VARCHAR(10) DEFAULT NULL,
-PRIMARY KEY (f1),KEY (f2),KEY (f3)) ENGINE=MyISAM;
+PRIMARY KEY (f1),KEY (f2),KEY (f3)) charset latin1 ENGINE=MyISAM;
 CREATE TABLE t11(f1 INT(11) DEFAULT NULL,f2 VARCHAR(10) DEFAULT NULL,
-KEY (f1),KEY (f2)) ENGINE=InnoDB;
+KEY (f1),KEY (f2)) charset latin1 ENGINE=InnoDB;
 EXPLAIN
 SELECT /*+ JOIN_ORDER(alias11, alias8) */ 1
 FROM t4 AS alias4
@@ -865,12 +869,12 @@ ON alias6.f1 =  alias5.f1
 ON alias5.f3 = alias7.f1
 ON alias1.f2 = alias7.f1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	alias1	NULL	index	NULL	f2	258	NULL	1	100.00	Using index
+1	SIMPLE	alias1	NULL	index	NULL	f2	1023	NULL	1	100.00	Using index
 1	SIMPLE	alias7	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	alias2	NULL	ref	f2	f2	5	test.alias7.f1	1	100.00	Using where
 1	SIMPLE	alias4	NULL	ref	f1	f1	5	test.alias2.f1	1	100.00	Using where
 1	SIMPLE	alias3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.alias4.f2	1	100.00	Using index
-1	SIMPLE	alias5	NULL	ref	f3	f3	13	test.alias7.f1	1	100.00	Using where; Using index
+1	SIMPLE	alias5	NULL	ref	f3	f3	43	test.alias7.f1	1	100.00	Using where; Using index
 1	SIMPLE	alias8	NULL	ref	f2	f2	5	test.alias5.f1	1	100.00	Using index
 1	SIMPLE	alias6	NULL	eq_ref	PRIMARY	PRIMARY	4	test.alias5.f1	1	100.00	Using index
 Warnings:
