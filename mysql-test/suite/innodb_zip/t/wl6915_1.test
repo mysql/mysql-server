@@ -6,6 +6,10 @@
 --source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
+# run for page size >= 8k
+--disable_warnings
+--source include/have_innodb_min_8k.inc
+--enable_warnings
 
 ########################################
 ##### WL#7554 Force schema `test` to character set latin1
@@ -38,11 +42,6 @@ use test;
 #    innodb_log_files_in_group                                     #
 # - Verify rseg message from server log                            # 
 ####################################################################
-
-# run for page size >= 8k
---disable_warnings
---source include/have_innodb_min_8k.inc
---enable_warnings
 
 call mtr.ADD_suppression(".*Resizing redo log.*");
 call mtr.ADD_suppression(".*Starting to delete and rewrite log files.*");
