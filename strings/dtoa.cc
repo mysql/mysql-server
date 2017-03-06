@@ -36,6 +36,8 @@
 
  ***************************************************************/
 
+#include <limits>
+
 #include "my_config.h"
 
 #include "my_inttypes.h"
@@ -1500,8 +1502,12 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
       if (s < end && c > '0' && c <= '9') {
         L= c - '0';
         s1= s;
-        while (++s < end && (c= *s) >= '0' && c <= '9')
+        // Avoid overflow in loop body below.
+        while (++s < end && (c= *s) >= '0' && c <= '9'
+               && L < (std::numeric_limits<Long>::max() - 255) / 10)
+        {
           L= 10*L + c - '0';
+        }
         if (s - s1 > 8 || L > 19999)
           /* Avoid confusion from exponents
            * so large that e might overflow.
