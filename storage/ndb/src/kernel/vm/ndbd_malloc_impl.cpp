@@ -382,8 +382,11 @@ Ndbd_mem_manager::set_resource_limit(const Resource_limit& rl)
 bool
 Ndbd_mem_manager::get_resource_limit(Uint32 id, Resource_limit& rl) const
 {
-  assert(id > 0);
-  if (id <= MM_RG_COUNT)
+  /**
+   * DUMP DumpPageMemory(1000) is agnostic about what resource groups exists.
+   * Allowing use of any id.
+   */
+  if (1 <= id && id <= MM_RG_COUNT)
   {
     mt_mem_manager_lock();
     m_resource_limits.get_resource_limit(id, rl);
