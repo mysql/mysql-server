@@ -1606,7 +1606,9 @@ public:
       Thd_ndb::Options_guard thd_ndb_options(m_thd_ndb);
       thd_ndb_options.set(Thd_ndb::ALLOW_BINLOG_SETUP);
 
-      if (ndb_create_table_from_engine(m_thd, NDB_REP_DB, NDB_SCHEMA_TABLE))
+      if (ndb_create_table_from_engine(m_thd,
+                                       NDB_REP_DB, NDB_SCHEMA_TABLE,
+                                       true))
       {
         if (ndb_schema_table__create(m_thd))
           break;
@@ -1639,7 +1641,9 @@ public:
          break;
        });
 
-       if (ndb_create_table_from_engine(m_thd, NDB_REP_DB, NDB_APPLY_TABLE))
+       if (ndb_create_table_from_engine(m_thd,
+                                        NDB_REP_DB, NDB_APPLY_TABLE,
+                                        true))
        {
          if (ndb_apply_table__create(m_thd))
            break;
@@ -1670,7 +1674,6 @@ public:
       Failed to complete ndb_binlog_setup.
       Remove all existing event operations from a possible partial setup
     */
-    ndb_log_error("Schema distribution setup failed");
     if (ndb_schema_dist_is_ready()) // Can't leave failed setup with 'dist_is_ready'
     {
       ndb_log_info("Clean up leftovers");
