@@ -11070,7 +11070,7 @@ bool write_tlv_field(String &str_buf,
                      type, uint length, const uchar *value)
 {
   /* type is stored in one byte, so it should never bigger than 255. */
-  DBUG_ASSERT(type <= 255);
+  DBUG_ASSERT(static_cast<int>(type) <= 255);
   str_buf.append((char) type);
   store_compressed_length(str_buf, length);
   return str_buf.append(reinterpret_cast<const char *>(value), length);
