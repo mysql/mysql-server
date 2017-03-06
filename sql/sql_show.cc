@@ -3776,13 +3776,6 @@ fill_schema_table_by_open(THD *thd, MEM_ROOT *mem_root,
     table_list->i_s_requested_object= schema_table->i_s_requested_object;
   }
 
-  /*
-    Let us set fake sql_command so views won't try to merge
-    themselves into main statement. If we don't do this,
-    SELECT * from information_schema.xxxx will cause problems.
-  */
-  lex->sql_command= SQLCOM_SHOW_FIELDS;
-
   result= open_temporary_tables(thd, table_list);
 
   if (!result)
