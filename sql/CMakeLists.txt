@@ -617,7 +617,7 @@ CHECK_INCLUDE_FILES(lber.h HAVE_LBER_H)
 IF (HAVE_SASL_H AND HAVE_LBER_H)
   MESSAGE(STATUS "Adding LDAP authentication SASL client. link.")
   ADD_DEFINITIONS(-DAUTHENTICATION_LDAP_SASL_CLIENT)
-  TARGET_LINK_LIBRARIES(sql authentication_ldap_sasl_client)
+  TARGET_LINK_LIBRARIES(sql_main authentication_ldap_sasl_client)
 ENDIF()
 
 SET (BINLOG_SOURCE rpl_gtid_misc.cc
