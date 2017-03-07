@@ -1,7 +1,9 @@
 ################################################################################
 # ==== Purpose ====
-# Verify that global replication filters' counter is increasing properly and
-# upon unsetting through CRF it resets to 0.
+# Verify that CHANGE REPLICATION FILTER with no 'FOR CHANNEL' clause can set
+# both global replication filters and per channel relication filters, and
+# the counter of per channel relication filter is increasing properly and
+# upon unsetting through CRF it is reset to 0.
 #
 # ==== Implementation ====
 # 1. Setup filters on the Slave.
@@ -35,9 +37,16 @@ CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=     ('test.t%');
 CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE= ('test.i%');
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB=         (nodb);
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=             (test, db1, db2);
+
+# WINT system can re-order the rules of REPLICATE_DO_TABLE and REPLICATE_IGNORE_TABLE.
+# Thus, using replace_result for that case.
+--let $rpl_do_tab_rule = `SELECT FILTER_RULE FROM performance_schema.replication_applier_global_filters WHERE FILTER_NAME="REPLICATE_DO_TABLE"`
+
 --echo
-SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_RULE;
-SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters ORDER BY FILTER_RULE;
+--replace_result $rpl_do_tab_rule test.t1,db2.t1
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
+--replace_result $rpl_do_tab_rule test.t1,db2.t1
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters ORDER BY FILTER_NAME;
 --source include/start_slave.inc
 
 --echo #
@@ -79,8 +88,11 @@ DROP DATABASE nodb; # Counter: Should not increase based on existing implementat
 --echo # REPLICATE_IGNORE_TABLE=2, REPLICATE_WILD_DO_TABLE=2,
 --echo # REPLICATE_WILD_IGNORE_TABLE=2, REPLICATE_REWRITE_DB=4.
 --echo #
-SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_RULE;
-SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters ORDER BY FILTER_RULE;
+--replace_result $rpl_do_tab_rule test.t1,db2.t1
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
+--replace_result $rpl_do_tab_rule test.t1,db2.t1
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters ORDER BY FILTER_NAME;
+--let $rpl_do_tab_rule=
 
 --echo #
 --echo # Clean up and Verify filter couter after unsetting the rules. Expect 0 count.
@@ -95,7 +107,7 @@ CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE= ();
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB=         ();
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=             ();
 --echo
-SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_RULE;
-SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters ORDER BY FILTER_RULE;
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters ORDER BY FILTER_NAME;
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters ORDER BY FILTER_NAME;
 --source include/start_slave.inc
 --source include/rpl_end.inc

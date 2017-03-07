@@ -34,7 +34,7 @@
 --source include/stop_slave.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=        ((db1, db2));
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=      (test.itable);
-CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=          (test.t1, db2.t1);
+CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=          (test.t1);
 CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=     ('test.t%');
 CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE= ('test.i%');
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB=         (nodb);
@@ -101,8 +101,10 @@ SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters WHERE CHANNEL_NAME='' ORDER BY FILTER_NAME;
 
 # Setup slave
+--disable_query_log
 --eval SET GLOBAL master_info_repository= "$saved_master_repo"
 --eval SET GLOBAL relay_log_info_repository= "$saved_relay_log_repo"
+--enable_query_log
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 --eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT
