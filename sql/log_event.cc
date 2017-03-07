@@ -11093,6 +11093,8 @@ bool write_tlv_field(String &str_buf,
 }
 #endif // MYSQL_SERVER
 
+#ifndef MYSQL_SERVER
+// For MYSQL_SERVER, the version in field.h is used.
 static inline bool is_numeric_type(uint type)
 {
   switch (type)
@@ -11111,6 +11113,7 @@ static inline bool is_numeric_type(uint type)
   }
   return false;
 }
+#endif // !MYSQL_SERVER
 
 static inline bool is_character_type(uint type)
 {
