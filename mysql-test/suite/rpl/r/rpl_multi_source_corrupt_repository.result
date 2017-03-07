@@ -59,8 +59,8 @@ include/rpl_start_server.inc [server_number=4 parameters: --skip-slave-start=0]
 ===== Assert that all channels IO and SQL threads are in expected state.
 include/assert.inc [Corrupted channel's IO thread should be in OFF state.]
 include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
-include/assert.inc [ONLY one channel is corrupted. Good channels count should be 2.]
-include/assert.inc [ONLY one channel is corrupted. Good channels count should be 2.]
+===== ONLY one channel is corrupted. Waiting until started channels be 2.
+===== ONLY one channel is corrupted. Waiting until started channels be 2.
 ===== Executing few basic commands without 'FOR CHANNEL' clause.
 ===== STOP SLAVE without 'FOR CHANNEL' clause.
 include/stop_slave.inc
@@ -75,8 +75,8 @@ ERROR HY000: Slave failed to initialize relay log info structure from the reposi
 === Assert that all channels IO and SQL threads are in expected state ===
 include/assert.inc [Corrupted channel's IO thread should be in OFF state.]
 include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
-include/assert.inc [ONLY one channel is corrupted. Good channels count should be 2.]
-include/assert.inc [ONLY one channel is corrupted. Good channels count should be 2.]
+===== ONLY one channel is corrupted. Waiting until started channels be 2.
+===== ONLY one channel is corrupted. Waiting until started channels be 2.
 ===== SHOW RELAYLOG EVENTS without 'FOR CHANNEL' clause should throw error.
 SHOW RELAYLOG EVENTS;
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
@@ -286,8 +286,8 @@ include/rpl_start_server.inc [server_number=4 parameters: --skip-slave-start=0]
 ===== Assert that all channels IO and SQL threads are in expected state.
 include/assert.inc [Corrupted channel's IO thread should be in OFF state.]
 include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
-include/assert.inc [ONLY one channel is corrupted. Good channels count should be 2.]
-include/assert.inc [ONLY one channel is corrupted. Good channels count should be 2.]
+===== ONLY one channel is corrupted. Waiting until started channels be 2.
+===== ONLY one channel is corrupted. Waiting until started channels be 2.
 ===== Executing few basic commands without 'FOR CHANNEL' clause.
 ===== STOP SLAVE without 'FOR CHANNEL' clause.
 include/stop_slave.inc
@@ -302,8 +302,8 @@ ERROR HY000: Slave failed to initialize relay log info structure from the reposi
 === Assert that all channels IO and SQL threads are in expected state ===
 include/assert.inc [Corrupted channel's IO thread should be in OFF state.]
 include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
-include/assert.inc [ONLY one channel is corrupted. Good channels count should be 2.]
-include/assert.inc [ONLY one channel is corrupted. Good channels count should be 2.]
+===== ONLY one channel is corrupted. Waiting until started channels be 2.
+===== ONLY one channel is corrupted. Waiting until started channels be 2.
 ===== SHOW RELAYLOG EVENTS without 'FOR CHANNEL' clause should throw error.
 SHOW RELAYLOG EVENTS;
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
@@ -513,8 +513,8 @@ include/rpl_start_server.inc [server_number=4 parameters: --skip-slave-start=0]
 ===== Assert that all channels IO and SQL threads are in expected state.
 include/assert.inc [Corrupted channel's IO thread should be in OFF state.]
 include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
-include/assert.inc [ONLY one channel is corrupted. Good channels count should be 2.]
-include/assert.inc [ONLY one channel is corrupted. Good channels count should be 2.]
+===== ONLY one channel is corrupted. Waiting until started channels be 2.
+===== ONLY one channel is corrupted. Waiting until started channels be 2.
 ===== Executing few basic commands without 'FOR CHANNEL' clause.
 ===== STOP SLAVE without 'FOR CHANNEL' clause.
 include/stop_slave.inc
@@ -529,8 +529,8 @@ ERROR HY000: Slave failed to initialize relay log info structure from the reposi
 === Assert that all channels IO and SQL threads are in expected state ===
 include/assert.inc [Corrupted channel's IO thread should be in OFF state.]
 include/assert.inc [Corrupted channel's SQL thread should be in OFF state.]
-include/assert.inc [ONLY one channel is corrupted. Good channels count should be 2.]
-include/assert.inc [ONLY one channel is corrupted. Good channels count should be 2.]
+===== ONLY one channel is corrupted. Waiting until started channels be 2.
+===== ONLY one channel is corrupted. Waiting until started channels be 2.
 ===== SHOW RELAYLOG EVENTS without 'FOR CHANNEL' clause should throw error.
 SHOW RELAYLOG EVENTS;
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
