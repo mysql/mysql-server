@@ -8469,13 +8469,11 @@ size_t Field_blob::make_sort_key(uchar *to, size_t length)
   {
     if (field_charset == &my_charset_bin)
     {
-      uchar *pos;
-
       /*
         Store length of blob last in blob to shorter blobs before longer blobs
       */
       length-= packlength;
-      pos= to+length;
+      uchar *pos= to+length;
 
       switch (packlength) {
       case 1:
@@ -8490,6 +8488,12 @@ size_t Field_blob::make_sort_key(uchar *to, size_t length)
       case 4:
         mi_int4store(pos, blob_length);
         break;
+      }
+
+      // Heed the contract that strnxfrm needs an even number of bytes.
+      if ((length % 2) == 1)
+      {
+        to[--length] = 0;
       }
     }
     memcpy(&blob, ptr+packlength, sizeof(char*));
