@@ -10811,7 +10811,6 @@ int ha_ndbcluster::create(const char *name,
   NDBTAB tab;
   NDBCOL col;
   uint i, pk_length= 0;
-  bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
   bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
   bool use_disk= FALSE;
   NdbDictionary::Table::SingleUserMode single_user_mode= NdbDictionary::Table::SingleUserModeLocked;
@@ -10874,25 +10873,27 @@ int ha_ndbcluster::create(const char *name,
   NDBDICT *dict= ndb->getDictionary();
 
   table= form;
-  if (create_from_engine)
+
+  if (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE)
   {
-    /*
-      Table already exists in NDB and frm file has been created by 
-      caller.
-    */
-    ndbcluster_create_binlog_setup(thd, ndb, name,
-                                   m_dbname, m_tabname, form);
-    if (my_errno() == HA_ERR_TABLE_EXIST)
+    // This is the final step of table discovery, the table already exists
+    // in NDB and it should already have been added to local DD by
+    // calling ha_discover() and thus ndbcluster_discover()
+    // Just finish this process by setting up the binlog for this table
+    const int setup_result =
+        ndbcluster_create_binlog_setup(thd, ndb, name,
+                                       m_dbname, m_tabname, form);
+    DBUG_ASSERT(setup_result == 0); // Catch in debug
+    if (setup_result == HA_ERR_TABLE_EXIST)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_TABLE_EXISTS_ERROR,
                           "Failed to setup replication of table %s.%s",
                           m_dbname, m_tabname);
-      set_my_errno(0);
+
     }
 
-
-    DBUG_RETURN(my_errno());
+    DBUG_RETURN(setup_result);
   }
 
   /*
@@ -11345,7 +11346,7 @@ int ha_ndbcluster::create(const char *name,
                       m_tabname,
                       (use_disk) ? "disk" : "memory",
                       (use_disk) ? tab.getTablespaceName() : "N/A"));
- 
+
   KEY* key_info;
   for (i= 0, key_info= form->key_info; i < form->s->keys; i++, key_info++)
   {
@@ -13473,8 +13474,8 @@ static int ndbcluster_close_connection(handlerton *hton, THD *thd)
   Try to discover one table from NDB. Return the "serialized
   table definition".
 
-  NOTE The caller does not check the error code itself,
-       just checking if it's zero or not.
+  NOTE! The caller does not check the error code itself,
+        just checking if it's zero or not.
 */
 static
 int ndbcluster_discover(handlerton*, THD* thd,
@@ -13484,21 +13485,6 @@ int ndbcluster_discover(handlerton*, THD* thd,
 {
   DBUG_ENTER("ndbcluster_discover");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name)); 
-
-  // Check if the database directory for the table to discover exists
-  // as otherwise there is no place to put the discovered .frm file.
-  {
-    char key[FN_REFLEN + 1];
-    build_table_filename(key, sizeof(key) - 1, db, "", "", 0);
-    const int database_exists= !my_access(key, F_OK);
-    if (!database_exists)
-    {
-      ndb_log_info("Could not find database directory '%s' "
-                   "while trying to discover table '%s'", db, name);
-      // Can't discover table when database directory does not exist
-      DBUG_RETURN(1);
-    }
-  }
 
   Ndb* ndb;
   if (!(ndb= check_ndb_in_thd(thd)))
@@ -13564,17 +13550,6 @@ int ndbcluster_discover(handlerton*, THD* thd,
     len = unpacked_len;
   }
 
-  if (ndbcluster_check_if_local_table(db, name) &&
-      !Ndb_dist_priv_util::is_distributed_priv_table(db, name))
-  {
-    DBUG_PRINT("info", ("Skipped discover of NDB table '%s.%s'",
-                        db, name));
-    ndb_log_error("Could not discover NDB table '%s.%s' since it already "
-                  "exists in other engine", db, name);
-    my_free(data);
-    DBUG_RETURN(1);
-  }
-
   *frmlen= len;
   *frmblob= data;
   
@@ -13586,7 +13561,7 @@ int ndbcluster_discover(handlerton*, THD* thd,
   Check if a table exists in NDB.
 */
 static
-int ndbcluster_table_exists_in_engine(handlerton *hton, THD* thd, 
+int ndbcluster_table_exists_in_engine(handlerton*, THD* thd,
                                       const char *db,
                                       const char *name)
 {
