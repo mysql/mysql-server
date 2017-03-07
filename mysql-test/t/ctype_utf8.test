@@ -1,13 +1,3 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs153=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 #
 # Tests with the utf8 character set
 #
@@ -1688,10 +1678,3 @@ INSERT INTO t1 VALUES(1),(2),(3);
 SELECT hex(convert( substr(_utf8 0xE5A4A7E4B88DE58897E9A2A0E58F8AE58C97E788B1E5B094E585B0E88194E59088E78E8BE59BBD, 1, 15), BINARY)) FROM t1;
 SELECT hex(convert( substr('大不列颠及北爱尔兰联合王国', 1, 15), BINARY)) FROM t1;
 DROP TABLE t1;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs153;
---enable_query_log
-########################################

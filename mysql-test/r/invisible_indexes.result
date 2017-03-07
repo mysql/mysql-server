@@ -108,7 +108,7 @@ t1	CREATE TABLE `t1` (
   KEY `a` (`a`),
   KEY `b` (`b`) /*!80000 INVISIBLE */,
   KEY `c` (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 # Test that primary key indexes can't be made invisible.
 CREATE TABLE t1 ( a INT, PRIMARY KEY (a) INVISIBLE );
@@ -363,7 +363,7 @@ ALTER TABLE t1 ALTER INDEX a INVISIBLE;
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	NULL	1	NULL	NULL	YES	FULLTEXT			NO
-t1	1	a	2	b	NULL	1	1	NULL	YES	FULLTEXT			NO
+t1	1	a	2	b	NULL	1	0	NULL	YES	FULLTEXT			NO
 EXPLAIN SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ("collections");
 ERROR HY000: Can't find FULLTEXT index matching the column list
 EXPLAIN SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ("collections" IN BOOLEAN MODE);
@@ -467,23 +467,23 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN SELECT b FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19	index	NULL	b	2	NULL	14	100.00	Using index
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19	index	NULL	b	8	NULL	14	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1`
 EXPLAIN SELECT * FROM t1 WHERE a = '04';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p9	ALL	NULL	NULL	NULL	NULL	8	33.33	Using where
+1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where (`test`.`t1`.`a` = '04')
 ALTER TABLE t1 ALTER INDEX a VISIBLE;
 EXPLAIN SELECT a FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19	index	NULL	a	2	NULL	14	100.00	Using index
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19	index	NULL	a	8	NULL	14	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN SELECT * FROM t1 WHERE a = '04';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p9	ref	a	a	2	const	2	100.00	NULL
+1	SIMPLE	t1	p2	ref	a	a	8	const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where (`test`.`t1`.`a` = '04')
 ALTER TABLE t1 ALTER INDEX b INVISIBLE;
