@@ -3793,6 +3793,10 @@ bool MYSQL_BIN_LOG::open(
   DBUG_ENTER("MYSQL_BIN_LOG::open");
 
   write_error= 0;
+  myf flags= MY_WME | MY_NABP | MY_WAIT_IF_FULL;
+  if (is_relay_log)
+    flags= flags | MY_REPORT_WAITING_IF_FULL;
+
 
   if (!(name= my_strdup(key_memory_MYSQL_LOG_name,
                         log_name, MYF(MY_WME))))
@@ -3825,8 +3829,7 @@ bool MYSQL_BIN_LOG::open(
       goto err;
   }
 
-  if (init_io_cache(&log_file, file, IO_SIZE, io_cache_type, pos, 0,
-                    MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)))
+  if (init_io_cache(&log_file, file, IO_SIZE, io_cache_type, pos, 0, flags))
     goto err;
 
   atomic_log_state = LOG_OPENED;
@@ -5998,10 +6001,14 @@ int MYSQL_BIN_LOG::open_crash_safe_index_file()
 
   if (!my_b_inited(&crash_safe_index_file))
   {
+    myf flags= MY_WME | MY_NABP | MY_WAIT_IF_FULL;
+    if (is_relay_log)
+      flags= flags | MY_REPORT_WAITING_IF_FULL;
+
     if ((file= my_open(crash_safe_index_file_name, O_RDWR | O_CREAT,
                        MYF(MY_WME))) < 0  ||
         init_io_cache(&crash_safe_index_file, file, IO_SIZE, WRITE_CACHE,
-                      0, 0, MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)))
+                      0, 0, flags))
     {
       error= 1;
       LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_OPEN_TEMPORARY_INDEX_FILE);
@@ -6435,11 +6442,15 @@ int MYSQL_BIN_LOG::open_purge_index_file(bool destroy)
 
   if (!my_b_inited(&purge_index_file))
   {
+    myf flags= MY_WME | MY_NABP | MY_WAIT_IF_FULL;
+    if (is_relay_log)
+      flags= flags | MY_REPORT_WAITING_IF_FULL;
+
     if ((file= my_open(purge_index_file_name, O_RDWR | O_CREAT,
                        MYF(MY_WME))) < 0  ||
         init_io_cache(&purge_index_file, file, IO_SIZE,
                       (destroy ? WRITE_CACHE : READ_CACHE),
-                      0, 0, MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)))
+                      0, 0, flags))
     {
       error= 1;
       LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_OPEN_REGISTER_FILE);
@@ -7151,7 +7162,6 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi)
 
   // Check pre-conditions
   mysql_mutex_assert_owner(&LOCK_log);
-  mysql_mutex_assert_owner(&mi->data_lock);
   DBUG_ASSERT(is_relay_log);
   DBUG_ASSERT(current_thd->system_thread == SYSTEM_THREAD_SLAVE_IO);
 
@@ -7172,43 +7182,56 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi)
 #endif
 
   // Flush and sync
-  bool error= false;
-  if (flush_and_sync(0) == 0 && can_rotate)
+  bool error= flush_and_sync(0);
+  if (error)
   {
-    /*
-      If the last event of the transaction has been flushed, we can add
-      the GTID (if it is not empty) to the logged set, or else it will
-      not be available in the Previous GTIDs of the next relay log file
-      if we are going to rotate the relay log.
-    */
-    if (!mi->get_queueing_trx_gtid()->is_empty())
+    mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
+               ER_THD(current_thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
+               "failed to flush event to relay log file");
+    truncate_relaylog_file(mi, atomic_binlog_end_pos);
+  }
+  else
+  {
+    if (can_rotate)
     {
-      mi->rli->get_sid_lock()->rdlock();
-      DBUG_SIGNAL_WAIT_FOR("updating_received_transaction_set",
-                           "reached_updating_received_transaction_set",
-                           "continue_updating_received_transaction_set");
-      mi->rli->add_logged_gtid(mi->get_queueing_trx_gtid()->sidno,
-                               mi->get_queueing_trx_gtid()->gno);
-      mi->rli->get_sid_lock()->unlock();
-    }
+      mysql_mutex_lock(&mi->data_lock);
+      /*
+        If the last event of the transaction has been flushed, we can add
+        the GTID (if it is not empty) to the logged set, or else it will
+        not be available in the Previous GTIDs of the next relay log file
+        if we are going to rotate the relay log.
+      */
+      const Gtid *last_gtid_queued= mi->get_queueing_trx_gtid();
+      if (!last_gtid_queued->is_empty())
+      {
+        mi->rli->get_sid_lock()->rdlock();
+        DBUG_SIGNAL_WAIT_FOR("updating_received_transaction_set",
+                             "reached_updating_received_transaction_set",
+                             "continue_updating_received_transaction_set");
+        mi->rli->add_logged_gtid(last_gtid_queued->sidno,
+                                 last_gtid_queued->gno);
+        mi->rli->get_sid_lock()->unlock();
+      }
 
-    if (mi->is_queueing_trx())
-    {
-      mi->finished_queueing();
-    }
+      if (mi->is_queueing_trx())
+      {
+        mi->finished_queueing();
+      }
+      mysql_mutex_unlock(&mi->data_lock);
 
-    /*
-      If relay log is too big, rotate. But only if not in the middle of a
-      transaction when GTIDs are enabled.
-      We now try to mimic the following master binlog behavior: "A transaction
-      is written in one chunk to the binary log, so it is never split between
-      several binary logs. Therefore, if you have big transactions, you might
-      see binary log files larger than max_binlog_size."
-    */
-    if ((uint) my_b_tell(&log_file) >
-        DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size))
-    {
-      error= new_file_without_locking(mi->get_mi_description_event());
+      /*
+        If relay log is too big, rotate. But only if not in the middle of a
+        transaction when GTIDs are enabled.
+        We now try to mimic the following master binlog behavior: "A transaction
+        is written in one chunk to the binary log, so it is never split between
+        several binary logs. Therefore, if you have big transactions, you might
+        see binary log files larger than max_binlog_size."
+      */
+      if ((uint) my_b_tell(&log_file) >
+          DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size))
+      {
+        error= new_file_without_locking(mi->get_mi_description_event());
+      }
     }
   }
 
@@ -7234,8 +7257,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event* ev, Master_info *mi)
   DBUG_ASSERT(log_file.type == WRITE_CACHE);
   DBUG_ASSERT(is_relay_log);
 
-  // acquire locks
-  mysql_mutex_lock(&LOCK_log);
+  mysql_mutex_assert_owner(&LOCK_log);
 
   // write data
   bool error = false;
@@ -7245,9 +7267,14 @@ bool MYSQL_BIN_LOG::write_event(Log_event* ev, Master_info *mi)
     error= after_write_to_relay_log(mi);
   }
   else
+  {
+    mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
+               ER_THD(current_thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
+               "failed to write event to the relay log file");
+    truncate_relaylog_file(mi, atomic_binlog_end_pos);
     error= true;
+  }
 
-  mysql_mutex_unlock(&LOCK_log);
   DBUG_RETURN(error);
 }
 
@@ -7269,7 +7296,13 @@ bool MYSQL_BIN_LOG::write_buffer(const char* buf, uint len, Master_info *mi)
     error= after_write_to_relay_log(mi);
   }
   else
+  {
+    mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
+               ER_THD(current_thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
+               "failed to write event to the relay log file");
+    truncate_relaylog_file(mi, atomic_binlog_end_pos);
     error= true;
+  }
 
   DBUG_RETURN(error);
 }
@@ -8399,6 +8432,67 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
 err:
   return error;
 }
+
+/**
+ Truncate the active relay log file in the specified position.
+
+  @param mi Master_info of the channel going to truncate the relay log file.
+  @param truncate_pos The position to truncate the active relay log file.
+  @return False on success and true on failure.
+*/
+bool MYSQL_BIN_LOG::truncate_relaylog_file(Master_info *mi,
+                                           my_off_t truncate_pos)
+{
+  DBUG_ENTER("truncate_relaylog_file");
+  DBUG_ASSERT(is_relay_log);
+  mysql_mutex_assert_owner(&LOCK_log);
+  Relay_log_info *rli= mi->rli;
+  bool error= false;
+
+  /*
+    If the relay log was closed by an error (binlog_error_action=IGNORE_ERROR)
+    this truncate function should produce no result as the relay log is already
+    in really bad shape.
+  */
+  if (!is_open())
+  {
+    DBUG_RETURN(false);
+  }
+
+  my_off_t relaylog_file_size= my_b_tell(&log_file);
+
+  if (truncate_pos > 0 && truncate_pos < relaylog_file_size)
+  {
+    if (my_chsize(log_file.file, truncate_pos, 0, MYF(MY_WME)))
+    {
+      mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
+                 ER_THD(current_thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
+                 "failed to truncate relay log file");
+      error= true;
+    }
+    else
+    {
+      sql_print_information("Relaylog file %s size was %llu, "
+                            "but was truncated at %llu.",
+                            log_file_name, relaylog_file_size, truncate_pos);
+
+      // Re-init the I/O thread IO_CACHE
+      reinit_io_cache(&log_file, WRITE_CACHE, truncate_pos, 0, true);
+
+      // Re-init the SQL thread IO_CACHE
+      DBUG_ASSERT(strcmp(rli->get_event_relay_log_name(), log_file_name) ||
+                  rli->get_event_relay_log_pos() <= truncate_pos);
+      if (rli->reinit_sql_thread_io_cache(log_file_name, true))
+      {
+        mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
+                   ER_THD(current_thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
+                   "unable to re-initialize SQL thread I/O cache");
+      }
+    }
+  }
+  DBUG_RETURN(error);
+}
+
 
 /** This is called on shutdown, after ha_panic. */
 void MYSQL_BIN_LOG::close()

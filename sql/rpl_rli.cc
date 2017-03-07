@@ -487,6 +487,86 @@ int Relay_log_info::count_relay_log_space()
 }
 
 /**
+  Re-init the SQL thread IO_CACHE for a given file.
+
+  If the file specified as parameter is not the one the SQL thread is
+  reading from, this function does nothing.
+
+  @param [in] log Name of relay log file to re-init the IO_CACHE.
+  @param [in] need_data_lock If true, this function will acquire the
+                             rli->data_lock; otherwise the caller should already
+                             have acquired it.
+
+  @retval false On successful operation.
+  @retval true  On error.
+*/
+
+bool Relay_log_info::reinit_sql_thread_io_cache(const char* log,
+                                                bool need_data_lock)
+{
+  DBUG_ENTER("Relay_log_info::reinit_sql_thread_io_cache");
+  bool error= false;
+  my_off_t current_relay_log_pos;
+
+  if (need_data_lock)
+    mysql_mutex_lock(&data_lock);
+  else
+    mysql_mutex_assert_owner(&data_lock);
+
+  // The SQL thread was not reading from the requested file
+  if (strcmp(log, get_event_relay_log_name()))
+    goto end;
+
+  // Save current relay log pos
+  current_relay_log_pos= my_b_tell(&cache_buf);
+
+  /*
+    The SQL thread was reading from the "hot" relay log file but that file
+    was truncated by the I/O thread. We will re-init the IO_CACHE of the
+    SQL thread in order to avoid reading content that was in the IO_CACHE
+    but no longer exists on the relay log file because of the truncation.
+
+    Suppose:
+    a) the relay log file have a full transaction (many events) with a
+       total of finishing at position 8190;
+    b) the I/O thread is receiving and queuing a 32K event;
+    c) the disk had only space to write 30K of the event;
+
+    In this situation, the I/O thread will be waiting for disk space, and the
+    SQL thread would be allowed to read up to the end of the last fully queued
+    event (that would be the 8190 position of the file).
+
+    Starting the SQL thread, it would read until the relay_log.binlog_end_pos
+    (the 8190), but, because of some optimizations, the IO_CACHE will read a
+    full "buffer" (8192 bytes) from the file. The additional 2 bytes belong
+    to the not yet completely queued event, and should not be read by the
+    SQL thread.
+
+    If the I/O thread is killed, it will truncate the relay log file at position
+    8190. This means that the SQL thread IO_CACHE have 2 bytes that doesn't
+    belong to the relay log file anymore and should re-initialize its IO_CACHE
+    to remove such data from it.
+  */
+  DBUG_ASSERT(cur_log_fd >= 0);
+  error= reinit_io_cache(&cache_buf, READ_CACHE,
+                         current_relay_log_pos, 0, true);
+#ifndef DBUG_OFF
+  {
+    char llbuf1[22], llbuf2[22];
+    DBUG_PRINT("info",("my_b_tell(cur_log)=%s, event_relay_log_pos=%s",
+                       llstr(my_b_tell(&cache_buf),llbuf1),
+                       llstr(get_event_relay_log_pos(),llbuf2)));
+  }
+#endif
+
+end:
+  if (need_data_lock)
+    mysql_mutex_unlock(&data_lock);
+
+  DBUG_RETURN(error);
+}
+
+/**
   Opens and initialize the given relay log. Specifically, it does what follows:
 
   - Closes old open relay log files.

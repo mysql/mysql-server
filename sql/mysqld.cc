@@ -4408,6 +4408,8 @@ static int init_server_components()
 
   enter_cond_hook= thd_enter_cond;
   exit_cond_hook= thd_exit_cond;
+  enter_stage_hook= thd_enter_stage;
+  set_waiting_for_disk_space_hook= thd_set_waiting_for_disk_space;
   is_killed_hook= (int(*)(const void*))thd_killed;
 
   if (transaction_cache_init())
@@ -9828,6 +9830,8 @@ PSI_stage_info stage_suspending= { 0, "Suspending", 0};
 PSI_stage_info stage_starting= { 0, "starting", 0};
 PSI_stage_info stage_waiting_for_no_channel_reference= { 0, "Waiting for no channel reference.", 0};
 
+extern PSI_stage_info stage_waiting_for_disk_space;
+
 #ifdef HAVE_PSI_INTERFACE
 
 PSI_stage_info *all_server_stages[]=
@@ -9940,7 +9944,8 @@ PSI_stage_info *all_server_stages[]=
   & stage_worker_waiting_for_commit_parent,
   & stage_suspending,
   & stage_starting,
-  & stage_waiting_for_no_channel_reference
+  & stage_waiting_for_no_channel_reference,
+  & stage_waiting_for_disk_space
 };
 
 PSI_socket_key key_socket_tcpip;

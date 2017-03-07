@@ -72,6 +72,7 @@ int initialize_channel_service_interface()
 
 static void set_mi_settings(Master_info *mi, Channel_creation_info* channel_info)
 {
+  mysql_mutex_lock(mi->rli->relay_log.get_log_lock());
   mysql_mutex_lock(&mi->data_lock);
 
   mi->rli->set_thd_tx_priority(channel_info->thd_tx_priority);
@@ -106,6 +107,7 @@ static void set_mi_settings(Master_info *mi, Channel_creation_info* channel_info
   mi->set_mi_description_event(new Format_description_log_event());
 
   mysql_mutex_unlock(&mi->data_lock);
+  mysql_mutex_unlock(mi->rli->relay_log.get_log_lock());
 }
 
 static bool init_thread_context()

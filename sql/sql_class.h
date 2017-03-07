@@ -150,6 +150,15 @@ void thd_exit_cond(void *opaque_thd, const PSI_stage_info *stage,
                    const char *src_function, const char *src_file,
                    int src_line);
 
+extern "C"
+void thd_enter_stage(void *opaque_thd, const PSI_stage_info *new_stage,
+                     PSI_stage_info *old_stage,
+                     const char *src_function, const char *src_file,
+                     int src_line);
+
+extern "C"
+void thd_set_waiting_for_disk_space(void *opaque_thd, const bool waiting);
+
 #define THD_STAGE_INFO(thd, stage) \
   (thd)->enter_stage(& stage, NULL, __func__, __FILE__, __LINE__)
 
@@ -1220,7 +1229,6 @@ public:
                    const char *calling_func,
                    const char *calling_file,
                    const unsigned int calling_line);
-
   const char *get_proc_info() const
   { return proc_info; }
 
@@ -4066,6 +4074,35 @@ public:
   */
   XID debug_binlog_xid_last;
 #endif
+private:
+  /*
+    Flag set by my_write before waiting for disk space.
+
+    This is used by replication to decide if the I/O thread should be
+    killed or not when stopping the replication threads.
+
+    In ordinary STOP SLAVE case, the I/O thread will wait for disk space
+    or to be killed regardless of this flag value.
+
+    In server shutdown case, if this flag is true, the I/O thread will be
+    signaled with KILL_CONNECTION to abort the waiting, letting the server
+    to shutdown promptly.
+  */
+  bool waiting_for_disk_space= false;
+public:
+  /**
+    Set the waiting_for_disk_space flag.
+
+    @param waiting The value to set in the flag.
+  */
+  void set_waiting_for_disk_space(bool waiting)
+  {
+    waiting_for_disk_space= waiting;
+  }
+  /**
+    Returns the current waiting_for_disk_space flag value.
+  */
+  bool is_waiting_for_disk_space() const { return waiting_for_disk_space; }
 };
 
 

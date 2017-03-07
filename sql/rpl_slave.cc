@@ -287,7 +287,8 @@ static int terminate_slave_thread(THD *thd,
                                   mysql_cond_t *term_cond,
                                   volatile uint *slave_running,
                                   ulong *stop_wait_timeout,
-                                  bool need_lock_term);
+                                  bool need_lock_term,
+                                  bool force= false);
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info);
 static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
 
@@ -1731,7 +1732,6 @@ int terminate_slave_threads(Master_info* mi, int thread_mask,
       }
       DBUG_RETURN(error);
     }
-    mysql_mutex_lock(log_lock);
 
     DBUG_PRINT("info",("Flushing relay-log info file."));
     if (current_thd)
@@ -1742,11 +1742,9 @@ int terminate_slave_threads(Master_info* mi, int thread_mask,
     */
     if (mi->rli->flush_info(TRUE))
     {
-      mysql_mutex_unlock(log_lock);
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
     }
 
-    mysql_mutex_unlock(log_lock);
   }
   if (thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL))
   {
@@ -1759,11 +1757,43 @@ int terminate_slave_threads(Master_info* mi, int thread_mask,
                       DBUG_ASSERT(!debug_sync_set_action(current_thd,
                                                          STRING_WITH_LEN(act)));
                     };);
+    /*
+      If the I/O thread is running and waiting for disk space,
+      the signal above will not make it to stop.
+    */
+    bool io_waiting_disk_space= mi->slave_running &&
+                                mi->info_thd->is_waiting_for_disk_space();
+
+    /*
+      If we are shutting down the server and the I/O thread is waiting for
+      disk space, tell the terminate_slave_thread to forcefully kill the I/O
+      thread by sending a KILL_CONNECTION signal that will be listened by
+      my_write function.
+    */
+    bool force_io_stop= io_waiting_disk_space &&
+                        (thread_mask & SLAVE_FORCE_ALL);
+
+    // If not shutting down, let the user to decide to abort I/O thread or wait
+    if (io_waiting_disk_space && !force_io_stop)
+    {
+      LogErr(WARNING_LEVEL,
+             ER_STOP_SLAVE_IO_THREAD_DISK_SPACE,
+             mi->get_channel());
+      DBUG_EXECUTE_IF("simulate_io_thd_wait_for_disk_space",
+                      {
+                        const char act[]=
+                          "now SIGNAL reached_stopping_io_thread";
+                        DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                           STRING_WITH_LEN(act)));
+                      };);
+    }
+
     if ((error=terminate_slave_thread(mi->info_thd,io_lock,
                                       &mi->stop_cond,
                                       &mi->slave_running,
                                       &total_stop_wait_timeout,
-                                      need_lock_term)) &&
+                                      need_lock_term,
+                                      force_io_stop)) &&
         !force_all)
     {
       if (error == 1)
@@ -1772,6 +1802,17 @@ int terminate_slave_threads(Master_info* mi, int thread_mask,
       }
       DBUG_RETURN(error);
     }
+
+#ifndef DBUG_OFF
+    if (force_io_stop)
+    {
+      if (DBUG_EVALUATE_IF("simulate_io_thd_wait_for_disk_space", 1, 0))
+      {
+        DBUG_SET("-d,simulate_io_thd_wait_for_disk_space");
+      }
+    }
+#endif
+
     mysql_mutex_lock(log_lock);
 
     DBUG_PRINT("info",("Flushing relay log and master info repository."));
@@ -1836,6 +1877,12 @@ int terminate_slave_threads(Master_info* mi, int thread_mask,
           the condition. In this case, it is assumed that the calling
           function acquires the lock before calling this function.
 
+   @param force
+          Force the slave thread to stop by sending a KILL_CONNECTION
+          signal to it. This is used to forcefully stop the I/O thread
+          when it is waiting for disk space and the server is shutting
+          down.
+
    @retval 0 All OK, 1 on "STOP SLAVE" command timeout, ER_SLAVE_CHANNEL_NOT_RUNNING otherwise.
 
    @note  If the executing thread has to acquire term_lock
@@ -1849,7 +1896,8 @@ terminate_slave_thread(THD *thd,
                        mysql_cond_t *term_cond,
                        volatile uint *slave_running,
                        ulong *stop_wait_timeout,
-                       bool need_lock_term)
+                       bool need_lock_term,
+                       bool force)
 {
   DBUG_ENTER("terminate_slave_thread");
   if (need_lock_term)
@@ -1898,7 +1946,10 @@ terminate_slave_thread(THD *thd,
     int err MY_ATTRIBUTE((unused))= pthread_kill(thd->real_id, SIGUSR1);
     DBUG_ASSERT(err != EINVAL);
 #endif
-    thd->awake(THD::NOT_KILLED);
+    if (force)
+      thd->awake(THD::KILL_CONNECTION);
+    else
+      thd->awake(THD::NOT_KILLED);
     mysql_mutex_unlock(&thd->LOCK_thd_data);
 
     /*
@@ -2672,6 +2723,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
                  {
                    version_number= 1;
                  };);
+
   if (!my_isdigit(&my_charset_bin,*mysql->server_version) ||
       version_number < 5)
   {
@@ -2681,12 +2733,14 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     goto err;
   }
 
+  mysql_mutex_lock(mi->rli->relay_log.get_log_lock());
   mysql_mutex_lock(&mi->data_lock);
   mi->set_mi_description_event(new Format_description_log_event());
   /* as we are here, we tried to allocate the event */
   if (mi->get_mi_description_event() == NULL)
   {
     mysql_mutex_unlock(&mi->data_lock);
+    mysql_mutex_unlock(mi->rli->relay_log.get_log_lock());
     errmsg= "default Format_description_log_event";
     err_code= ER_SLAVE_CREATE_EVENT_FAILURE;
     sprintf(err_buff, ER_THD(current_thd, err_code), errmsg);
@@ -2737,6 +2791,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
               binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
 
   mysql_mutex_unlock(&mi->data_lock);
+  mysql_mutex_unlock(mi->rli->relay_log.get_log_lock());
 
   /*
     Compare the master and slave's clock. Do not die if master's clock is
@@ -3184,9 +3239,7 @@ static bool wait_for_relay_log_space(Relay_log_info* rli)
 #endif
     if (rli->sql_force_rotate_relay)
     {
-      mysql_mutex_lock(&mi->data_lock);
       rotate_relay_log(mi);
-      mysql_mutex_unlock(&mi->data_lock);
       rli->sql_force_rotate_relay= false;
     }
 
@@ -3217,7 +3270,7 @@ static int write_rotate_to_master_pos_into_relay_log(THD *thd,
   DBUG_ENTER("write_rotate_to_master_pos_into_relay_log");
 
   DBUG_ASSERT(thd == mi->info_thd);
-  mysql_mutex_assert_owner(&mi->data_lock);
+  mysql_mutex_assert_owner(rli->relay_log.get_log_lock());
 
   DBUG_PRINT("info",("writing a Rotate event to the relay log"));
   Rotate_log_event *ev= new Rotate_log_event(mi->get_master_log_name(),
@@ -3247,7 +3300,7 @@ static int write_rotate_to_master_pos_into_relay_log(THD *thd,
                  " to the relay log, SHOW SLAVE STATUS may be"
                  " inaccurate");
     rli->relay_log.harvest_bytes_written(&rli->log_space_total);
-    if (flush_master_info(mi, TRUE))
+    if (flush_master_info(mi, true, false, false))
     {
       error= 1;
       LogErr(ERROR_LEVEL, ER_RPL_SLAVE_CANT_FLUSH_MASTER_INFO_FILE);
@@ -3270,8 +3323,6 @@ static int write_rotate_to_master_pos_into_relay_log(THD *thd,
 /*
   Builds a Rotate from the ignored events' info and writes it to relay log.
 
-  The caller must hold mi->data_lock.
-
   @param thd pointer to I/O Thread's Thd.
   @param mi  point to I/O Thread metadata class.
 
@@ -3285,7 +3336,7 @@ static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
   DBUG_ENTER("write_ignored_events_info_to_relay_log");
 
   DBUG_ASSERT(thd == mi->info_thd);
-  mysql_mutex_assert_owner(&mi->data_lock);
+  mysql_mutex_lock(rli->relay_log.get_log_lock());
   mysql_mutex_lock(end_pos_lock);
 
   if (rli->ign_master_log_name_end[0])
@@ -3310,6 +3361,7 @@ static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
   else
     mysql_mutex_unlock(end_pos_lock);
 
+  mysql_mutex_unlock(rli->relay_log.get_log_lock());
   DBUG_RETURN(error);
 }
 
@@ -5915,9 +5967,7 @@ err:
     mysql_close(mysql);
     mi->mysql=0;
   }
-  mysql_mutex_lock(&mi->data_lock);
   write_ignored_events_info_to_relay_log(thd, mi);
-  mysql_mutex_unlock(&mi->data_lock);
   THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
   mysql_mutex_lock(&mi->run_lock);
   /*
@@ -5926,9 +5976,9 @@ err:
   */
   mi->reset_start_info();
   /* Forget the relay log's format */
-  mysql_mutex_lock(&mi->data_lock);
+  mysql_mutex_lock(rli->relay_log.get_log_lock());
   mi->set_mi_description_event(NULL);
-  mysql_mutex_unlock(&mi->data_lock);
+  mysql_mutex_unlock(rli->relay_log.get_log_lock());
 
   // destructor will not free it, because net.vio is 0
   thd->get_protocol_classic()->end_net();
@@ -7541,17 +7591,11 @@ extern "C" void *handle_slave_sql(void *arg)
 static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
 {
   DBUG_ENTER("process_io_rotate");
-  mysql_mutex_assert_owner(&mi->data_lock);
+  mysql_mutex_assert_owner(mi->rli->relay_log.get_log_lock());
 
   if (unlikely(!rev->is_valid()))
     DBUG_RETURN(1);
 
-  /* Safe copy as 'rev' has been "sanitized" in Rotate_log_event's ctor */
-  memcpy(const_cast<char *>(mi->get_master_log_name()),
-         rev->new_log_ident, rev->ident_len + 1);
-  mi->set_master_log_pos(rev->pos);
-  DBUG_PRINT("info", ("new (master_log_name, master_log_pos): ('%s', %lu)",
-                      mi->get_master_log_name(), (ulong) mi->get_master_log_pos()));
 #ifndef DBUG_OFF
   /*
     If we do not do this, we will be getting the first
@@ -7565,7 +7609,17 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
     Master will send a FD event immediately after the Roate event, so don't log
     the current FD event.
   */
-  int ret= rotate_relay_log(mi, false);
+  int ret= rotate_relay_log(mi, false, false);
+
+  mysql_mutex_lock(&mi->data_lock);
+  /* Safe copy as 'rev' has been "sanitized" in Rotate_log_event's ctor */
+  memcpy(const_cast<char *>(mi->get_master_log_name()),
+         rev->new_log_ident, rev->ident_len + 1);
+  mi->set_master_log_pos(rev->pos);
+  DBUG_PRINT("info", ("new (master_log_name, master_log_pos): ('%s', %lu)",
+                      mi->get_master_log_name(), (ulong) mi->get_master_log_pos()));
+  mysql_mutex_unlock(&mi->data_lock);
+
   DBUG_RETURN(ret);
 }
 
@@ -7674,7 +7728,11 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
     goto err;
   }
 
-  mysql_mutex_lock(&mi->data_lock);
+  /*
+    From now, and up to finishing queuing the event, no other thread is allowed
+    to write to the relay log, or to rotate it.
+  */
+  mysql_mutex_lock(log_lock);
   DBUG_ASSERT(lock_count == 0);
   lock_count= 1;
 
@@ -7711,7 +7769,9 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
         "stop_io_after_reading_unknown_event" debug point to work after
         "queuing" this event.
       */
+      mysql_mutex_lock(&mi->data_lock);
       mi->set_master_log_pos(mi->get_master_log_pos() + event_len);
+      lock_count= 2;
       goto end;
     }
   );
@@ -7770,9 +7830,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
 
     if (unlikely(process_io_rotate(mi, &rev)))
     {
-      mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
-                 ER_THD(current_thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
-                 "could not queue event from master");
+      // This error will be reported later at handle_slave_io().
       goto err;
     }
     /* 
@@ -7863,9 +7921,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
     /// @todo: don't ignore 'errmsg_unused'; instead report correct error here
     if (new_fdle == NULL)
     {
-      mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
-                 ER_THD(current_thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
-                 "could not queue event from master");
+      // This error will be reported later at handle_slave_io().
       goto err;
     }
     if (new_fdle->common_footer->checksum_alg ==
@@ -7913,6 +7969,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
                  ER_THD(current_thd, ER_SLAVE_HEARTBEAT_FAILURE), errbuf);
       goto err;
     }
+    mysql_mutex_lock(&mi->data_lock);
     mi->received_heartbeats++;
     mi->last_heartbeat= my_getsystime()/10;
 
@@ -7944,9 +8001,13 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
          Put this heartbeat event in the relay log as a Rotate Event.
       */
       inc_pos= 0;
+      mysql_mutex_unlock(&mi->data_lock);
       if (write_rotate_to_master_pos_into_relay_log(mi->info_thd, mi))
         goto end;
     }
+    else
+      mysql_mutex_unlock(&mi->data_lock);
+
 
     /* 
        compare local and event's versions of log_file, log_pos.
@@ -7989,7 +8050,9 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
       about the master's coordinates.
     */
     inc_pos= 0;
+    mysql_mutex_lock(&mi->data_lock);
     mi->set_master_log_pos(mi->get_master_log_pos() + event_len);
+    mysql_mutex_unlock(&mi->data_lock);
 
     if (write_rotate_to_master_pos_into_relay_log(mi->info_thd, mi))
       goto err;
@@ -8117,10 +8180,6 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
      direct master (an unsupported, useless setup!).
   */
 
-  mysql_mutex_lock(log_lock);
-  DBUG_ASSERT(lock_count == 1);
-  lock_count= 2;
-
   s_id= uint4korr(buf + SERVER_ID_OFFSET);
 
   /*
@@ -8187,6 +8246,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
       DBUG_SIGNAL_WAIT_FOR("pause_on_queue_event_after_write_buffer",
                            "receiver_reached_pause_on_queue_event",
                            "receiver_continue_queuing_event");
+      mysql_mutex_lock(&mi->data_lock);
+      lock_count= 2;
       mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
       DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
@@ -8228,15 +8289,23 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
       }
     }
     else
+    {
+      /*
+        We failed to write the event and didn't updated slave positions.
+
+        We have to "rollback" the transaction parser state, or else, when
+        restarting the I/O thread without GTID auto positing the parser
+        would assume the failed event as queued.
+      */
+      mi->transaction_parser.rollback();
       is_error= true;
-    rli->ign_master_log_name_end[0]= 0; // last event is not ignored //JAG: TODO: is this really needed?
+    }
+
     if (save_buf != NULL)
       buf= save_buf;
     if (is_error)
     {
-      mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
-                 ER_THD(current_thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
-                 "could not queue event from master");
+      // This error will be reported later at handle_slave_io().
       goto err;
     }
   }
@@ -8257,14 +8326,14 @@ end:
     */
     if (flush_master_info(mi,
                           false/*force*/,
-                          lock_count == 1/*need_lock*/,
+                          lock_count == 0/*need_lock*/,
                           false/*flush_relay_log*/))
       res= QUEUE_EVENT_ERROR_FLUSHING_INFO;
   }
   if (lock_count >= 2)
-    mysql_mutex_unlock(log_lock);
-  if (lock_count >= 1)
     mysql_mutex_unlock(&mi->data_lock);
+  if (lock_count >= 1)
+    mysql_mutex_unlock(log_lock);
   DBUG_PRINT("info", ("queue result: %d", res));
   DBUG_RETURN(res);
 }
@@ -8923,10 +8992,12 @@ static Log_event* next_event(Relay_log_info* rli)
           - I see no better detection method
           - purge_first_log is not called that often
         */
-        if (rli->relay_log.purge_first_log
-            (rli,
-             rli->get_group_relay_log_pos() == rli->get_event_relay_log_pos()
-             && !strcmp(rli->get_group_relay_log_name(),rli->get_event_relay_log_name())))
+        if (!rli->relay_log.is_open() ||
+            (rli->relay_log.purge_first_log
+             (rli,
+              rli->get_group_relay_log_pos() == rli->get_event_relay_log_pos()
+              && !strcmp(rli->get_group_relay_log_name(),
+                         rli->get_event_relay_log_name()))))
         {
           errmsg = "Error purging processed logs";
           goto err;
@@ -9017,14 +9088,18 @@ err:
   is void).
 */
 
-int rotate_relay_log(Master_info* mi, bool log_master_fd)
+int rotate_relay_log(Master_info* mi, bool log_master_fd, bool need_lock)
 {
   DBUG_ENTER("rotate_relay_log");
 
-  mysql_mutex_assert_owner(&mi->data_lock);
+  Relay_log_info* rli= mi->rli;
+
+  if (need_lock)
+    mysql_mutex_lock(rli->relay_log.get_log_lock());
+  else
+    mysql_mutex_assert_owner(rli->relay_log.get_log_lock());
   DBUG_EXECUTE_IF("crash_before_rotate_relaylog", DBUG_SUICIDE(););
 
-  Relay_log_info* rli= mi->rli;
   int error= 0;
 
   /*
@@ -9039,9 +9114,9 @@ int rotate_relay_log(Master_info* mi, bool log_master_fd)
 
   /* If the relay log is closed, new_file() will do nothing. */
   if (log_master_fd)
-    error= rli->relay_log.new_file(mi->get_mi_description_event());
+    error= rli->relay_log.new_file_without_locking(mi->get_mi_description_event());
   else
-    error= rli->relay_log.new_file(NULL);
+    error= rli->relay_log.new_file_without_locking(NULL);
   if (error != 0)
     goto end;
 
@@ -9060,6 +9135,8 @@ int rotate_relay_log(Master_info* mi, bool log_master_fd)
   */
   rli->relay_log.harvest_bytes_written(&rli->log_space_total);
 end:
+  if (need_lock)
+    mysql_mutex_unlock(rli->relay_log.get_log_lock());
   DBUG_RETURN(error);
 }
 
@@ -9080,10 +9157,8 @@ bool flush_relay_logs(Master_info *mi)
 
   if (mi)
   {
-    mysql_mutex_lock(&mi->data_lock);
     if (rotate_relay_log(mi))
       error= true;
-    mysql_mutex_unlock(&mi->data_lock);
   }
   DBUG_RETURN(error);
 }

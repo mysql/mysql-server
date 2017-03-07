@@ -90,6 +90,7 @@ LEX_CSTRING EMPTY_CSTR= { "", 0 };
 LEX_CSTRING NULL_CSTR=  { NULL, 0 };
 
 const char * const THD::DEFAULT_WHERE= "field list";
+extern PSI_stage_info stage_waiting_for_disk_space;
 
 
 void THD::Transaction_state::backup(THD *thd)

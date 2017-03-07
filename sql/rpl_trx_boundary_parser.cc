@@ -56,6 +56,7 @@ void Transaction_boundary_parser::reset()
                       event_parser_state_names[current_parser_state],
                       event_parser_state_names[EVENT_PARSER_NONE]));
   current_parser_state= EVENT_PARSER_NONE;
+  last_parser_state= EVENT_PARSER_NONE;
   DBUG_VOID_RETURN;
 }
 
@@ -451,6 +452,8 @@ bool Transaction_boundary_parser::update_state(
                       "from '%s' to '%s'",
                       event_parser_state_names[current_parser_state],
                       event_parser_state_names[new_parser_state]));
+
+  last_parser_state= current_parser_state;
   current_parser_state= new_parser_state;
 
   DBUG_RETURN(error);

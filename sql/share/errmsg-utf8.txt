@@ -10718,6 +10718,9 @@ ER_UNABLE_TO_DROP_COLUMN_STATISTICS
 ER_UNABLE_TO_BUILD_HISTOGRAM
   eng "Unable to build histogram statistics for column '%.64s' in table '%.64s'.'%.64s'"
 
+ER_STOP_SLAVE_IO_THREAD_DISK_SPACE
+  eng "Waiting until I/O thread for channel '%s' finish writing to disk before stopping. Free some disk space or use 'KILL' to abort I/O thread operation. Notice that aborting the I/O thread while rotating the relay log might corrupt the relay logs, requiring a server restart to fix it."
+
 #
 #  End of 8.0 error messages.
 #

@@ -117,6 +117,18 @@ static void exit_cond_dummy(void *a MY_ATTRIBUTE((unused)),
                             int e MY_ATTRIBUTE((unused)))
 { }
 
+static void enter_stage_dummy(void *a MY_ATTRIBUTE((unused)),
+                              const PSI_stage_info *b MY_ATTRIBUTE((unused)),
+                              PSI_stage_info *c MY_ATTRIBUTE((unused)),
+                              const char *d MY_ATTRIBUTE((unused)),
+                              const char *e MY_ATTRIBUTE((unused)),
+                              int f MY_ATTRIBUTE((unused)))
+{ }
+
+static void set_waiting_for_disk_space_dummy(void *a MY_ATTRIBUTE((unused)),
+                                             bool b MY_ATTRIBUTE((unused)))
+{ }
+
 static int is_killed_dummy(const void *a MY_ATTRIBUTE((unused)))
 {
   return 0;
@@ -133,6 +145,13 @@ void (*enter_cond_hook)(void *, mysql_cond_t *, mysql_mutex_t *,
 
 void (*exit_cond_hook)(void *, const PSI_stage_info *,
                        const char *, const char *, int)= exit_cond_dummy;
+
+void (*enter_stage_hook)(void *, const PSI_stage_info *,
+                         PSI_stage_info *,
+                         const char *, const char *, int)= enter_stage_dummy;
+
+void (*set_waiting_for_disk_space_hook)(void *,
+                                        bool)= set_waiting_for_disk_space_dummy;
 
 int (*is_killed_hook)(const void *)= is_killed_dummy;
 
