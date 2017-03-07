@@ -7789,9 +7789,8 @@ int ha_ndbcluster::info(uint flag)
 
     if (!m_table_info)
     {
-      set_my_errno(check_ndb_connection(thd));
-      if (my_errno())
-        DBUG_RETURN(my_errno());
+      if (check_ndb_connection(thd))
+        DBUG_RETURN(HA_ERR_NO_CONNECTION);
     }
 
     /*
@@ -7852,9 +7851,8 @@ int ha_ndbcluster::info(uint flag)
     {
       if (!thd)
         thd= current_thd;
-      set_my_errno(check_ndb_connection(thd));
-      if (my_errno())
-        DBUG_RETURN(my_errno());
+      if (check_ndb_connection(thd))
+        DBUG_RETURN(HA_ERR_NO_CONNECTION);
       Ndb *ndb= get_ndb(thd);
       Ndb_tuple_id_range_guard g(m_share);
       
@@ -10865,9 +10863,8 @@ int ha_ndbcluster::create(const char *name,
     DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
-  set_my_errno(check_ndb_connection(thd));
-  if (my_errno())
-    DBUG_RETURN(my_errno());
+  if (check_ndb_connection(thd))
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
   
   Ndb *ndb= get_ndb(thd);
   NDBDICT *dict= ndb->getDictionary();
