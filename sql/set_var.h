@@ -171,7 +171,7 @@ public:
     We dont need this as this is not about elapsed time for query, we only
     need current  timestamp, thus using this function.
   */
-  void set_timestamp() { timestamp= my_getsystime() / 10.0; }
+  void set_timestamp() { timestamp= my_getsystime() / 10ULL; }
 
   /**
      Update the system variable with the default value from either

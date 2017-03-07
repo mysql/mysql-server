@@ -648,7 +648,7 @@ static bool opt_autocommit; ///< for --autocommit command-line option
 /*
   Used with --help for detailed option
 */
-bool opt_help= 0, opt_verbose= 0;
+bool opt_help= false, opt_verbose= false;
 
 arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
 {{&Arg_comparator::compare_string,     &Arg_comparator::compare_e_string},
@@ -1812,7 +1812,7 @@ static void clean_up(bool print_message)
     make sure that handlers finish up
     what they have that is dependent on the binlog
   */
-  if ((opt_help == 0) || (opt_verbose > 0))
+  if ((!opt_help) || (opt_verbose))
     sql_print_information("Binlog end");
   ha_binlog_end(current_thd);
 
