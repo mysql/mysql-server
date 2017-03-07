@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@ extern "C" {
 typedef double	detector_state[NSERVERS];
 struct site_def;
 
-void note_detected(struct site_def const *site, node_no node);
 int	may_be_dead(detector_state const ds, node_no i, double seconds);
 void init_detector(detector_state ds);
 void invalidate_detector_sites(struct site_def *site);
