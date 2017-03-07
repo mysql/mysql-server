@@ -109,13 +109,13 @@ if ($rpl_corrupt_channel_name != "''")
 --let $assert_cond= "[SELECT CHANNEL_NAME FROM performance_schema.replication_applier_status WHERE SERVICE_STATE= "OFF"]" = "$rpl_channel_name_without_single_quotes"
 --source include/assert.inc
 
---let $assert_text= ONLY one channel is corrupted. Good channels count should be $number_of_good_channels.
---let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.replication_connection_status WHERE SERVICE_STATE="ON"]" = $number_of_good_channels
---source include/assert.inc
+--echo ===== ONLY one channel is corrupted. Waiting until started channels be $number_of_good_channels.
+--let $wait_condition= SELECT COUNT(*) = $number_of_good_channels FROM performance_schema.replication_connection_status WHERE SERVICE_STATE="ON"
+--source include/wait_condition_or_abort.inc
 
---let $assert_text= ONLY one channel is corrupted. Good channels count should be $number_of_good_channels.
---let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.replication_applier_status WHERE SERVICE_STATE="ON"]" = $number_of_good_channels
---source include/assert.inc
+--echo ===== ONLY one channel is corrupted. Waiting until started channels be $number_of_good_channels.
+--let $wait_condition= SELECT COUNT(*) = $number_of_good_channels FROM performance_schema.replication_applier_status WHERE SERVICE_STATE="ON"
+--source include/wait_condition_or_abort.inc
 
 
 ###############################################################################
@@ -162,14 +162,13 @@ START SLAVE;
 --let $assert_cond= "[SELECT CHANNEL_NAME FROM performance_schema.replication_applier_status WHERE SERVICE_STATE= "OFF"]" = "$rpl_channel_name_without_single_quotes"
 --source include/assert.inc
 
---let $assert_text= ONLY one channel is corrupted. Good channels count should be $number_of_good_channels.
---let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.replication_connection_status WHERE SERVICE_STATE="ON"]" = $number_of_good_channels
---source include/assert.inc
+--echo ===== ONLY one channel is corrupted. Waiting until started channels be $number_of_good_channels.
+--let $wait_condition= SELECT COUNT(*) = $number_of_good_channels FROM performance_schema.replication_connection_status WHERE SERVICE_STATE="ON"
+--source include/wait_condition_or_abort.inc
 
---let $assert_text= ONLY one channel is corrupted. Good channels count should be $number_of_good_channels.
---let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.replication_applier_status WHERE SERVICE_STATE="ON"]" = $number_of_good_channels
---source include/assert.inc
-
+--echo ===== ONLY one channel is corrupted. Waiting until started channels be $number_of_good_channels.
+--let $wait_condition= SELECT COUNT(*) = $number_of_good_channels FROM performance_schema.replication_applier_status WHERE SERVICE_STATE="ON"
+--source include/wait_condition_or_abort.inc
 
 ###############################################################################
 # Step-3.3: SHOW RELAYLOG EVENTS without 'FOR CHANNEL' clause when we have
