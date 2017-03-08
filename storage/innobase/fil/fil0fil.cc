@@ -497,6 +497,11 @@ struct Fil_Open {
 		size_t		compressed_len,
 		const byte*	data);
 
+	/** Absolute path of file.
+	@param[in]	filename	Filename to read/write
+	@return absolute path name */
+	static std::string get_path(const std::string& filename);
+
 	/** Open the tablespace for recovery. Get the tablespace filenames,
 	space_id must already be known.
 	@param[in]	space_id	Tablespace ID to open */
@@ -7622,6 +7627,33 @@ Fil_Open::write(
 	}
 }
 
+/** Absolute path of file.
+@param[in]	filename	Filename to read/write
+@return absolute path name */
+std::string
+Fil_Open::get_path(const std::string& filename)
+{
+	char    abspath[FN_REFLEN+ 2];
+
+	memset(abspath, 0x0, sizeof(abspath));
+
+	my_realpath(abspath, srv_log_group_home_dir, MYF(0));
+
+	size_t	len = strlen(abspath);
+
+	ut_a(len < sizeof(abspath) - 10 - filename.length());
+
+	if (abspath[len - 1] != OS_PATH_SEPARATOR) {
+
+		abspath[len] = OS_PATH_SEPARATOR;
+		++len;
+	}
+
+	strncat(abspath, filename.c_str(), filename.length());
+
+	return(std::string(abspath));
+}
+
 /** Write the state to disk. */
 void
 Fil_Open::to_file()
@@ -7637,20 +7669,6 @@ Fil_Open::to_file()
 
 	++m_next;
 
-	char	abspath[OS_FILE_MAX_PATH];
-	size_t	dirnamelen = strlen(srv_log_group_home_dir);
-
-	Folder	f(srv_log_group_home_dir, dirnamelen);
-
-	std::string	abs_path = f.abs_path();
-
-	ut_a(abs_path.back() == OS_PATH_SEPARATOR);
-	ut_a(abs_path.length() < sizeof(abspath) - 10 - filename.length());
-
-	snprintf(abspath, sizeof(abspath),
-		 "%.*s%.*s",
-		 (int) abs_path.length(), abs_path.c_str(),
-		 (int) filename.length(), filename.c_str());
 
 	std::ostringstream	os;
 
@@ -7757,7 +7775,9 @@ Fil_Open::to_file()
 		break;
 	}
 
-	write(abspath, VERSION_1, data.length(), zlen, dst);
+	std::string abs_path = get_path(filename);
+
+	write(abs_path.c_str(), VERSION_1, data.length(), zlen, dst);
 
 	ut_free(dst);
 
@@ -7911,25 +7931,10 @@ Fil_Open::from_file()
 
 	for (const auto& filename : PATHS) {
 
-		char	abspath[OS_FILE_MAX_PATH];
-		size_t	dirnamelen = strlen(srv_log_group_home_dir);
+		std::ifstream	ifs;
+		std::string	abspath = get_path(filename);
 
-		Folder	f(srv_log_group_home_dir, dirnamelen);
-
-		std::string	abs_path = f.abs_path();
-
-		ut_a(abs_path.back() == OS_PATH_SEPARATOR);
-		ut_a(abs_path.length()
-		     < sizeof(abspath) - 10 - filename.length());
-
-		snprintf(abspath, sizeof(abspath),
-			"%.*s%.*s",
-			(int) abs_path.length(), abs_path.c_str(),
-			(int) filename.length(), filename.c_str());
-
-		std::ifstream		ifs;
-
-		ifs.open(abspath, std::ios::in | std::ios::binary);
+		ifs.open(abspath.c_str(), std::ios::in | std::ios::binary);
 
 		if (!ifs) {
 
