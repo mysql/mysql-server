@@ -753,3 +753,20 @@ DROP TABLE t1;
 --eval alter schema test default character set $testdbcs7;
 --enable_query_log
 ########################################
+
+--echo #
+--echo # Bug#25615803: ASSERT IN SQL/FIELD.CC:...
+--echo #               VIRTUAL STRING* FIELD_VARSTRING::VAL_STR
+--echo #
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  c INT,
+  d INT GENERATED ALWAYS AS ( b + 1 ) STORED
+)
+PARTITION BY RANGE( a ) ( PARTITION p0 VALUES LESS THAN (1) );
+
+INSERT INTO t1 ( b ) VALUES ( 1 );
+UPDATE t1 SET c = d;
+
+DROP TABLE t1;

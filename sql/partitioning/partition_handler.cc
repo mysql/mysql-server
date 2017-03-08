@@ -1951,10 +1951,12 @@ void Partition_helper::set_partition_read_set()
           m_table->mark_gcol_in_maps(*ptr);
       }
     }
-    // Mark virtual generated columns writable
+    // Mark virtual generated columns writable. This test should be consistent
+    // with the one in update_generated_read_fields().
     for (Field **vf= m_table->vfield; vf && *vf; vf++)
     {
-      if (bitmap_is_set(m_table->read_set, (*vf)->field_index))
+      if ((*vf)->is_virtual_gcol() &&
+          bitmap_is_set(m_table->read_set, (*vf)->field_index))
         bitmap_set_bit(m_table->write_set, (*vf)->field_index);
     }
   }

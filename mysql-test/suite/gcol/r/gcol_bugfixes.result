@@ -780,3 +780,17 @@ FROM t1;
 length( convert( b USING latin1 ) )	char_length ( convert( b USING latin1 ) )
 12	12
 DROP TABLE t1;
+#
+# Bug#25615803: ASSERT IN SQL/FIELD.CC:...
+#               VIRTUAL STRING* FIELD_VARSTRING::VAL_STR
+#
+CREATE TABLE t1 (
+a INT,
+b INT,
+c INT,
+d INT GENERATED ALWAYS AS ( b + 1 ) STORED
+)
+PARTITION BY RANGE( a ) ( PARTITION p0 VALUES LESS THAN (1) );
+INSERT INTO t1 ( b ) VALUES ( 1 );
+UPDATE t1 SET c = d;
+DROP TABLE t1;

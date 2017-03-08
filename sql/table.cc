@@ -7511,7 +7511,7 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
       Only calculate those virtual generated fields that are marked in the
       read_set bitmap.
     */
-    if (!vfield->stored_in_db &&
+    if (vfield->is_virtual_gcol() &&
         bitmap_is_set(table->read_set, vfield->field_index))
     {
       if (vfield->type() == MYSQL_TYPE_BLOB)
