@@ -4678,7 +4678,7 @@ Item_copy_string::save_in_field_inner(Field *field, bool)
 bool Item_copy_string::copy(const THD *thd)
 {
   String *res=item->val_str(&str_value);
-  if (res && res != &str_value)
+  if (res != nullptr)
     str_value.copy(*res);
   null_value=item->null_value;
   return thd->is_error();
@@ -10090,7 +10090,7 @@ bool Item_cache_str::cache_value()
   value= example->str_result(&value_buff);
   if ((null_value= example->null_value))
     value= 0;
-  else if (value != &value_buff)
+  else if (value != nullptr && value->ptr() != buffer)
   {
     /*
       We copy string value to avoid changing value if 'item' is table field

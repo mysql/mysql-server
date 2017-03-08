@@ -4322,3 +4322,11 @@ DROP TABLE t1;
 SET sql_mode=@save_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+# Bug #23023817 ST_SIMPLIFY: INVALID READS IN
+# PROTOCOL_CLASSIC::NET_STORE_DATA
+#
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES(1),(2),(3),(4);
+DO (SELECT DISTINCT SQL_BIG_RESULT ST_SIMPLIFY(POINT(a,1),1) FROM t);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t;
