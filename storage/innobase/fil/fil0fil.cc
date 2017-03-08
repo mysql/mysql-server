@@ -498,9 +498,18 @@ struct Fil_Open {
 		const byte*	data);
 
 	/** Absolute path of file.
+	@param[in]	dir		Parent directory (can be '.')
 	@param[in]	filename	Filename to read/write
 	@return absolute path name */
-	static std::string get_path(const std::string& filename);
+	static std::string get_path(
+		const char*		dir,
+		const std::string&	filename);
+
+	/** Check if the name is an undo tablespace name.
+	@param[in]	name	Tablespace name
+	@param[in]	len	Tablespace name length in bytes
+	@return true if it is an undo tablespace name */
+	static bool is_undo_tablespace_name(const char* name, ulint len);
 
 	/** Open the tablespace for recovery. Get the tablespace filenames,
 	space_id must already be known.
@@ -3054,9 +3063,14 @@ fil_space_undo_check_if_opened(
 		return(DB_TABLESPACE_NOT_FOUND);
 	}
 
+	ut_a(Fil_Open::is_undo_tablespace_name(file_name, strlen(file_name)));
+
+	std::string	abs_path = Fil_Open::get_path(
+		srv_undo_dir, file_name);
+
 	/* The file_name that we opened before must be the same as what we
-	need to open now.  If not, maybe the srv_undo_directory has changed. */
-	if (strcmp(space->name, file_name)) {
+	need to open now.  If not, maybe the srv_undo_dir has changed. */
+	if (!abs_path.compare(space->name)) {
 		ib::error() << "Cannot load UNDO tablespace. '"
 			<< space->name
 			<< "' was discovered during REDO recovery, but '"
@@ -5216,8 +5230,21 @@ fil_node_prepare_for_io(
 	ut_ad(mutex_own(&(system->mutex)));
 
 	if (system->n_open > system->max_n_open + 5) {
-		ib::warn() << "Open files " << system->n_open
-			<< " exceeds the limit " << system->max_n_open;
+
+		static ulint	prev_time;
+		auto		curr_time = ut_time();
+
+		/* Spam the log after every minute. Ignore any race here. */
+
+		if ((curr_time - prev_time) > 60) {
+
+			ib::warn()
+				<< "Open files " << system->n_open
+				<< " exceeds the limit "
+				<< system->max_n_open;
+
+			prev_time = curr_time;
+		}
 	}
 
 	if (!node->is_open) {
@@ -7631,13 +7658,13 @@ Fil_Open::write(
 @param[in]	filename	Filename to read/write
 @return absolute path name */
 std::string
-Fil_Open::get_path(const std::string& filename)
+Fil_Open::get_path(const char* dir, const std::string& filename)
 {
-	char    abspath[FN_REFLEN+ 2];
+	char    abspath[FN_REFLEN + 2];
 
 	memset(abspath, 0x0, sizeof(abspath));
 
-	my_realpath(abspath, srv_log_group_home_dir, MYF(0));
+	my_realpath(abspath, dir, MYF(0));
 
 	size_t	len = strlen(abspath);
 
@@ -7775,7 +7802,7 @@ Fil_Open::to_file()
 		break;
 	}
 
-	std::string abs_path = get_path(filename);
+	std::string abs_path = get_path(srv_log_group_home_dir, filename);
 
 	write(abs_path.c_str(), VERSION_1, data.length(), zlen, dst);
 
@@ -7932,7 +7959,9 @@ Fil_Open::from_file()
 	for (const auto& filename : PATHS) {
 
 		std::ifstream	ifs;
-		std::string	abspath = get_path(filename);
+
+		std::string	abspath = get_path(
+			srv_log_group_home_dir, filename);
 
 		ifs.open(abspath.c_str(), std::ios::in | std::ios::binary);
 
@@ -8387,9 +8416,8 @@ fil_tablespace_open_sync_to_disk()
 @param[in]	name	Tablespace name
 @param[in]	len	Tablespace name length in bytes
 @return true if it is an undo tablespace name */
-static
 bool
-fil_is_undo_tablespace_name(const char* name, ulint len)
+Fil_Open::is_undo_tablespace_name(const char* name, ulint len)
 {
 	if (len >= 8) {
 
@@ -8528,7 +8556,7 @@ fil_tablespace_name_recover(
 
 	} else if (type != MLOG_FILE_OPEN) {
 
-	} else if (fil_is_undo_tablespace_name(name, len - 1)) {
+	} else if (Fil_Open::is_undo_tablespace_name(name, len - 1)) {
 
 		/* Undo tablespace */
 		if (page_id.page_no() != 0) {
@@ -8825,34 +8853,48 @@ fil_tokenize_paths(
 
 		std::copy(path.begin(), path.end(), dir.data());
 
-		os_normalize_path(dir.data());
-
-		os_file_type_t	type;
-		bool		exists;
+		/* Filter out paths that contain '*'. */
+		auto	pos = path.find('*');
 
 		/* Filter out invalid path components. */
-		if (os_file_status(dir.data(), &exists, &type) && exists) {
+		if (pos == std::string::npos) {
 
-			if (type == OS_FILE_TYPE_DIR) {
+			os_normalize_path(dir.data());
 
-				/* Convert to the absolute path of the
-				directory. Required to filter out the
-				duplicate entries. */
+			/* Convert to the absolute path of the
+			directory. Required to filter out the
+			duplicate entries. */
 
-				Folder	folder(dir.data(), dir.size());
+			std::string	abs_path;
 
-				dirs.push_back(folder.abs_path());
+			abs_path = Fil_Open::get_path(dir.data(), "");
+
+			os_file_type_t	type;
+			bool		exists;
+
+			if (os_file_status(
+				abs_path.c_str(), &exists, &type) && exists) {
+
+				if (type == OS_FILE_TYPE_DIR) {
+
+
+					dirs.push_back(abs_path);
+
+				} else {
+					ib::warn()
+						<< "'" << path << "' ignored, "
+						<< " not a directory";
+				}
 
 			} else {
 				ib::warn()
-					<< "'" << path << "' ignored, "
-					<< " not a directory";
+				<< "'" << path << "' ignored"
+				<< " os_file_status() failed.";
 			}
-
 		} else {
 			ib::warn()
-				<< "'" << path << "' ignored,"
-				<< " os_file_status() failed.";
+				<< "Scan path '" << path << "' ignored"
+				<< " contains '*'";
 		}
 
 		start = str.find_first_not_of(delimiters, end);
@@ -8900,7 +8942,7 @@ fil_scan_for_tablespaces(const std::string& directories)
 				    && path.size() >= 4
 				    && (path.compare(path.length() - 4, 4,
 						     ".ibd") == 0
-					|| fil_is_undo_tablespace_name(
+					|| Fil_Open::is_undo_tablespace_name(
 						path.c_str(),
 						path.length()))) {
 
