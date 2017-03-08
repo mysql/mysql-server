@@ -20,7 +20,7 @@ args: -n TupCheckSumError T1
 max-time: 180
 
 cmd: testNodeRestart
-args: -n CrashTest T1
+args: -n MultiCrashTest T1
 max-time: 1800
 
 cmd: test_event
