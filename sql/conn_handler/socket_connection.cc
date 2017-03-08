@@ -80,7 +80,7 @@ ulong Mysqld_socket_listener::connection_errors_accept= 0;
 ulong Mysqld_socket_listener::connection_errors_tcpwrap= 0;
 
 ///////////////////////////////////////////////////////////////////////////
-// Channel_info_local_socket implementation
+//Channel_info_local_socket implementation
 ///////////////////////////////////////////////////////////////////////////
 
 /**

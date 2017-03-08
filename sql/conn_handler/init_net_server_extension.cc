@@ -40,7 +40,6 @@
 PSI_statement_info stmt_info_new_packet;
 #endif
 
-#ifdef HAVE_PSI_INTERFACE
 static void net_before_header_psi(struct st_net *net, void *user_data,
                                   size_t /* unused: count */)
 {
@@ -93,6 +92,10 @@ static void net_after_header_psi(struct st_net *net, void *user_data,
                                                   thd->db().length,
                                                   thd->charset(), NULL);
 
+      /*
+        Starts a new stage in performance schema, if compiled in and enabled.
+        Also sets THD::proc_info (used by SHOW PROCESSLIST, column STATE)
+      */
       THD_STAGE_INFO(thd, stage_starting);
     }
 
@@ -112,6 +115,7 @@ void init_net_server_extension(THD *thd)
   thd->m_idle_psi= NULL;
   thd->m_statement_psi= NULL;
   thd->m_server_idle= false;
+
   /* Hook up the NET_SERVER callback in the net layer. */
   thd->m_net_server_extension.m_user_data= thd;
   thd->m_net_server_extension.m_before_header= net_before_header_psi;
@@ -121,4 +125,3 @@ void init_net_server_extension(THD *thd)
   thd->get_protocol_classic()->get_net()->extension=
     &thd->m_net_server_extension;
 }
-#endif // HAVE_PSI_INTERFACE
