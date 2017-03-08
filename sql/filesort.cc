@@ -368,7 +368,6 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   IO_CACHE chunk_file; // For saving Merge_chunk structs.
   IO_CACHE *outfile;   // Contains the final, sorted result.
   Sort_param param;
-  bool multi_byte_charset;
   Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key>
     pq((Malloc_allocator<uchar*>
         (key_memory_Filesort_info_record_pointers)));
@@ -414,8 +413,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 
   param.init_for_filesort(filesort,
                           make_array(filesort->sortorder, s_length),
-                          sortlength(thd, filesort->sortorder, s_length,
-                                     &multi_byte_charset),
+                          sortlength(thd, filesort->sortorder, s_length),
                           table,
                           thd->variables.max_length_for_sort_data,
                           max_rows, sort_positions);
@@ -430,8 +428,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   // If number of rows is not known, use as much of sort buffer as possible. 
   num_rows_estimate= table->file->estimate_rows_upper_bound();
 
-  if (multi_byte_charset &&
-      !(param.tmp_buffer= (char*)
+  if (!(param.tmp_buffer= (char*)
         my_malloc(key_memory_Sort_param_tmp_buffer,
                   param.max_compare_length(), MYF(MY_WME))))
     goto err;
@@ -1508,7 +1505,6 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
         }
 
         const CHARSET_INFO *cs=item->collation.collation;
-        char fill_char= ((cs->state & MY_CS_BINSORT) ? (char) 0 : ' ');
 
         /* All item->str() to use some extra byte for end null.. */
         String tmp((char*) to,sort_field->length+4,cs);
@@ -1539,46 +1535,29 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
           break;
         }
         uint length= static_cast<uint>(res->length());
-        if (sort_field->need_strnxfrm)
+        const char *from= res->ptr();
+        if (pointer_cast<const uchar *>(from) == to)
         {
-          char *from=(char*) res->ptr();
-          size_t tmp_length MY_ATTRIBUTE((unused));
-          if ((uchar*) from == to)
-          {
-            DBUG_ASSERT(sort_field->length >= length);
-            set_if_smaller(length,sort_field->length);
-            memcpy(tmp_buffer, from, length);
-            from= tmp_buffer;
-          }
-          tmp_length=
-            cs->coll->strnxfrm(cs, to, sort_field->length,
-                               item->max_char_length(),
-                               (uchar*) from, length,
-                               MY_STRXFRM_PAD_TO_MAXLEN);
-          DBUG_ASSERT(tmp_length == sort_field->length);
+          DBUG_ASSERT(sort_field->length >= length);
+          set_if_smaller(length,sort_field->length);
+          memcpy(tmp_buffer, from, length);
+          from= tmp_buffer;
         }
-        else
+        uint sort_field_length= sort_field->length;
+        if (sort_field->suffix_length)
         {
-          size_t diff;
-          uint sort_field_length= sort_field->length -
-            sort_field->suffix_length;
-          if (sort_field_length < length)
-          {
-            diff= 0;
-            length= sort_field_length;
-          }
-          else
-            diff= sort_field_length - length;
-          if (sort_field->suffix_length)
-          {
-            /* Store length last in result_string */
-            store_length(to + sort_field_length, length,
-                         sort_field->suffix_length);
-          }
+          /* Store length last in result_string */
+          sort_field_length-= sort_field->suffix_length;
+          store_length(to + sort_field_length, length, sort_field->suffix_length);
+        }
 
-          my_strnxfrm(cs, to,length,(const uchar*)res->ptr(),length);
-          cs->cset->fill(cs, (char *)to+length,diff,fill_char);
-        }
+        size_t tmp_length MY_ATTRIBUTE((unused));
+        tmp_length=
+          cs->coll->strnxfrm(cs, to, sort_field_length,
+                             item->max_char_length(),
+                             pointer_cast<const uchar*>(from), length,
+                             MY_STRXFRM_PAD_TO_MAXLEN);
+        DBUG_ASSERT(tmp_length == sort_field_length);
         break;
       }
       case INT_RESULT:
@@ -2394,24 +2373,18 @@ static uint suffix_length(ulong string_length)
   @param thd			  Thread handler
   @param sortorder		  Order of items to sort
   @param s_length	          Number of items to sort
-  @param[out] multi_byte_charset Set to 1 if we are using multi-byte charset
-                                 (In which case we have to use strnxfrm())
 
   @note
     sortorder->length is updated for each sort item.
-  @n
-    sortorder->need_strnxfrm is set 1 if we have to use strnxfrm
 
   @return
     Total length of sort buffer in bytes
 */
 
 uint
-sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
-           bool *multi_byte_charset)
+sortlength(THD *thd, st_sort_field *sortorder, uint s_length)
 {
   uint total_length= 0;
-  *multi_byte_charset= false;
 
   // Heed the contract that strnxfrm() needs an even number of bytes.
   const uint max_sort_length_even=
@@ -2419,7 +2392,6 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
 
   for (; s_length-- ; sortorder++)
   {
-    DBUG_ASSERT(!sortorder->need_strnxfrm);
     DBUG_ASSERT(sortorder->suffix_length == 0);
     if (sortorder->field)
     {
@@ -2428,16 +2400,12 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
       sortorder->length= field->sort_length();
       sortorder->is_varlen= field->sort_key_is_varlen();
 
-      if (use_strnxfrm(cs))
-      {
-        // How many bytes do we need (including sort weights) for strnxfrm()?
-        sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);
-        sortorder->need_strnxfrm= true;
-        *multi_byte_charset= 1;
-      }
+      // How many bytes do we need (including sort weights) for strnxfrm()?
+      sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);
+
       /*
         NOTE: The corresponding test below also has a check for
-        cs == &my_charset_bin to sort truncated blobs deterministically;
+        NO PAD collations to sort truncated blobs deterministically;
         however, that part is dealt by in Field_blob/Field_varstring,
         so we don't need it here.
       */
@@ -2468,16 +2436,20 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
         const CHARSET_INFO *cs= item->collation.collation;
 	sortorder->length= item->max_length;
         set_if_smaller(sortorder->length, max_sort_length_even);
-	if (use_strnxfrm(cs))
-	{ 
-          // How many bytes do we need (including sort weights) for strnxfrm()?
-          sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);
-	  sortorder->need_strnxfrm= true;
-	  *multi_byte_charset= 1;
-	}
-        else if (cs->pad_attribute == NO_PAD)
+
+        // How many bytes do we need (including sort weights) for strnxfrm()?
+        sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);
+
+        if (cs->pad_attribute == NO_PAD)
         {
-          /* Store length last to be able to sort blob/varbinary */
+          /*
+            Store length last, which makes it into a tie-breaker. This is
+            so that e.g. 'a' < 'a\0' for the binary collation, even though
+            the field is fixed-width and pads with '\0'. The utf8mb4_0900_*
+            collations technically don't need this, since they pad with 0
+            (which does not match any real weight), but we'd like not to
+            rely on such implementation details in filesort.
+          */
           sortorder->suffix_length= suffix_length(sortorder->length);
           sortorder->length+= sortorder->suffix_length;
         }

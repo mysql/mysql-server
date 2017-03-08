@@ -76,7 +76,6 @@ struct st_sort_field {
   Item_result result_type;       ///< Type of item (not used for fields)
   enum_field_types field_type;   ///< Field type of the field or item
   bool reverse;                  ///< if descending sort
-  bool need_strnxfrm;            ///< If we have to use strnxfrm()
   bool is_varlen;                ///< If key part has variable length
   bool maybe_null;               ///< If key part is nullable
 };

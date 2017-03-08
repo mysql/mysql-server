@@ -6290,8 +6290,6 @@ longlong Item_func_like::val_int()
     return 0;
   }
   null_value=0;
-  if (can_do_bm)
-    return bm_matches(res->ptr(), res->length()) ? 1 : 0;
   return my_wildcmp(cmp.cmp_collation.collation,
 		    res->ptr(),res->ptr()+res->length(),
 		    res2->ptr(),res2->ptr()+res2->length(),
@@ -6338,71 +6336,25 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"ESCAPE");
     return true;
   }
-  
+
+  /*
+    If the escape item is const, evaluate it now, so that the range optimizer
+    can try to optimize LIKE 'foo%' into a range query.
+
+    TODO: If we move this into escape_is_evaluated(), which is called later,
+    it could be that we could optimize more cases.
+  */
   if (escape_item->const_item())
   {
-    /*
-      We need to know the escape character in order to apply Boyer-Moore. Since
-      it is const, it is safe to evaluate it now at the resolution stage.
-    */
     if (eval_escape_clause(thd))
       return true;
-
-    /*
-      We could also do boyer-more for non-const items, but as we would have to
-      recompute the tables for each row it's not worth it.
-    */
-    if (args[1]->const_item() && !use_strnxfrm(collation.collation) &&
-       !(specialflag & SPECIAL_NO_NEW_FUNC))
-    {
-      String* res2 = args[1]->val_str(&cmp.value2);
-      if (thd->is_error())
-        return true;
-      if (!res2)
-        return false;				// Null argument
-
-      const size_t len   = res2->length();
-      const char*  first = res2->ptr();
-      const char*  last  = first + len - 1;
-
-      /*
-        Minimum length pattern before Boyer-Moore is used
-        for SELECT "text" LIKE "%pattern%" including the two
-        wildcards in class Item_func_like.
-      */
-
-      const size_t min_bm_pattern_len= 5;
-
-      if (len > min_bm_pattern_len &&
-          *first == wild_many &&
-          *last  == wild_many)
-      {
-        const char* tmp = first + 1;
-        for (; *tmp != wild_many && *tmp != wild_one && *tmp != escape; tmp++) ;
-        can_do_bm= (tmp == last) && !use_mb(args[0]->collation.collation);
-      }
-      if (can_do_bm)
-      {
-        pattern_len = (int) len - 2;
-        pattern     = thd->strmake(first + 1, pattern_len);
-        DBUG_PRINT("info", ("Initializing pattern: '%s'", first));
-        int *suff = (int*) thd->alloc((int) (sizeof(int)*
-                                      ((pattern_len + 1)*2+
-                                      alphabet_size)));
-        bmGs      = suff + pattern_len + 1;
-        bmBc      = bmGs + pattern_len + 1;
-        bm_compute_good_suffix_shifts(suff);
-        bm_compute_bad_character_shifts();
-        DBUG_PRINT("info",("done"));
-      }
-    }
   }
+  
   return false;
 }
 
 void Item_func_like::cleanup()
 {
-  can_do_bm= false;
   escape_evaluated= false;
   Item_bool_func2::cleanup();
 }
@@ -6627,197 +6579,6 @@ void Item_func_regex::cleanup()
   DBUG_VOID_RETURN;
 }
 
-
-#define likeconv(cs,A) (uchar) (cs)->sort_order[(uchar) (A)]
-
-
-/**
-  Precomputation dependent only on pattern_len.
-*/
-
-void Item_func_like::bm_compute_suffixes(int *suff)
-{
-  const int   plm1 = pattern_len - 1;
-  int            f = 0;
-  int            g = plm1;
-  int *const splm1 = suff + plm1;
-  const CHARSET_INFO	*cs= cmp.cmp_collation.collation;
-
-  *splm1 = pattern_len;
-
-  if (!cs->sort_order)
-  {
-    int i;
-    for (i = pattern_len - 2; i >= 0; i--)
-    {
-      int tmp = *(splm1 + i - f);
-      if (g < i && tmp < i - g)
-	suff[i] = tmp;
-      else
-      {
-	if (i < g)
-	  g = i; // g = min(i, g)
-	f = i;
-	while (g >= 0 && pattern[g] == pattern[g + plm1 - f])
-	  g--;
-	suff[i] = f - g;
-      }
-    }
-  }
-  else
-  {
-    int i;
-    for (i = pattern_len - 2; 0 <= i; --i)
-    {
-      int tmp = *(splm1 + i - f);
-      if (g < i && tmp < i - g)
-	suff[i] = tmp;
-      else
-      {
-	if (i < g)
-	  g = i; // g = min(i, g)
-	f = i;
-	while (g >= 0 &&
-	       likeconv(cs, pattern[g]) == likeconv(cs, pattern[g + plm1 - f]))
-	  g--;
-	suff[i] = f - g;
-      }
-    }
-  }
-}
-
-
-/**
-  Precomputation dependent only on pattern_len.
-*/
-
-void Item_func_like::bm_compute_good_suffix_shifts(int *suff)
-{
-  bm_compute_suffixes(suff);
-
-  int *end = bmGs + pattern_len;
-  int *k;
-  for (k = bmGs; k < end; k++)
-    *k = pattern_len;
-
-  int tmp;
-  int i;
-  int j          = 0;
-  const int plm1 = pattern_len - 1;
-  for (i = plm1; i > -1; i--)
-  {
-    if (suff[i] == i + 1)
-    {
-      for (tmp = plm1 - i; j < tmp; j++)
-      {
-	int *tmp2 = bmGs + j;
-	if (*tmp2 == pattern_len)
-	  *tmp2 = tmp;
-      }
-    }
-  }
-
-  int *tmp2;
-  for (tmp = plm1 - i; j < tmp; j++)
-  {
-    tmp2 = bmGs + j;
-    if (*tmp2 == pattern_len)
-      *tmp2 = tmp;
-  }
-
-  tmp2 = bmGs + plm1;
-  for (i = 0; i <= pattern_len - 2; i++)
-    *(tmp2 - suff[i]) = plm1 - i;
-}
-
-
-/**
-   Precomputation dependent on pattern_len.
-*/
-
-void Item_func_like::bm_compute_bad_character_shifts()
-{
-  int *i;
-  int *end = bmBc + alphabet_size;
-  int j;
-  const int plm1 = pattern_len - 1;
-  const CHARSET_INFO	*cs= cmp.cmp_collation.collation;
-
-  for (i = bmBc; i < end; i++)
-    *i = pattern_len;
-
-  if (!cs->sort_order)
-  {
-    for (j = 0; j < plm1; j++)
-      bmBc[(uchar) pattern[j]] = plm1 - j;
-  }
-  else
-  {
-    for (j = 0; j < plm1; j++)
-      bmBc[likeconv(cs,pattern[j])] = plm1 - j;
-  }
-}
-
-
-/**
-  Search for pattern in text.
-
-  @return
-    returns true/false for match/no match
-*/
-
-bool Item_func_like::bm_matches(const char* text, size_t text_len) const
-{
-  int bcShift;
-  int shift = pattern_len;
-  int j     = 0;
-  const CHARSET_INFO	*cs= cmp.cmp_collation.collation;
-
-  const int plm1=  pattern_len - 1;
-  const int tlmpl= text_len - pattern_len;
-
-  /* Searching */
-  if (!cs->sort_order)
-  {
-    while (j <= tlmpl)
-    {
-      int i;
-
-      for (i= plm1; (i >= 0) && (pattern[i] == text[i + j]) ;--i) {}
-
-      if (i < 0)
-	return true;
-      else
-      {
-        bcShift= bmBc[(uchar) text[i + j]] - plm1 + i;
-        shift= max(bcShift, bmGs[i]);
-      }
-      j+= shift;
-    }
-    return false;
-  }
-  else
-  {
-    while (j <= tlmpl)
-    {
-      int i;
-
-      for (i= plm1;
-           (i >= 0) && likeconv(cs,pattern[i]) == likeconv(cs,text[i + j]);
-           --i) {}
-
-      if (i < 0)
-	return true;
-      else
-      {
-        bcShift= bmBc[likeconv(cs, text[i + j])] - plm1 + i;
-        shift= max(bcShift, bmGs[i]);
-      }
-      j+= shift;
-    }
-    return false;
-  }
-}
 
 float Item_func_xor::get_filtering_effect(table_map filter_for_table,
                                           table_map read_tables,

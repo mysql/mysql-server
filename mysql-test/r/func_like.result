@@ -272,7 +272,7 @@ DROP TABLE t1, t2;
 # Bug#20035071: Out of range error in subselect lead to assertion failed
 CREATE TABLE t1(a INTEGER) engine=innodb;
 SELECT 1 FROM t1 HAVING (SELECT 1 FROM t1) LIKE EXP(NOW());
-ERROR 22003: DOUBLE value is out of range in 'exp(now())'
+1
 DROP TABLE t1;
 #
 # Bug #25140629: WRONG RESULT WHEN USING LIKE FUNCTION WITH UCA

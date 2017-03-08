@@ -82,7 +82,6 @@ void filesort_free_buffers(TABLE *table, bool full);
 void change_double_for_sort(double nr,uchar *to);
 
 /// Declared here so we can unit test it.
-uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
-                bool *multi_byte_charset);
+uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length);
 
 #endif /* FILESORT_INCLUDED */

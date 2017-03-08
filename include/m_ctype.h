@@ -209,7 +209,12 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 #define MY_CS_LOADED    8      /* sets that are currently loaded */
 #define MY_CS_BINSORT	16     /* if binary sort order           */
 #define MY_CS_PRIMARY	32     /* if primary collation           */
-#define MY_CS_STRNXFRM	64     /* if strnxfrm is used for sort   */
+#define MY_CS_STRNXFRM	64     /*
+                                 if _not_ set, sort_order will
+                                 give same result as strnxfrm --
+                                 all new collations should have this
+                                 flag set, do not check it in new code
+                               */
 #define MY_CS_UNICODE	128    /* is a charset is BMP Unicode    */
 #define MY_CS_READY	256    /* if a charset is initialized    */
 #define MY_CS_AVAILABLE	512    /* If either compiled-in or loaded*/
