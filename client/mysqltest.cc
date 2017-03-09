@@ -384,7 +384,7 @@ enum enum_commands {
   Q_LET,		    Q_ECHO,
   Q_EXPR,
   Q_WHILE,	    Q_END_BLOCK,
-  Q_SYSTEM,	    Q_RESULT,
+  Q_SYSTEM,
   Q_SAVE_MASTER_POS,
   Q_SYNC_WITH_MASTER,
   Q_SYNC_SLAVE_WITH_MASTER,
@@ -446,7 +446,6 @@ const char *command_names[]=
   "while",
   "end",
   "system",
-  "result",
   "save_master_pos",
   "sync_with_master",
   "sync_slave_with_master",
@@ -10108,11 +10107,6 @@ int main(int argc, char **argv)
           command->last_argument= command->end;
         }
         break;
-
-      case Q_RESULT:
-        die("result, deprecated command");
-        break;
-
       case Q_OUTPUT:
         {
           static DYNAMIC_STRING ds_to_file;

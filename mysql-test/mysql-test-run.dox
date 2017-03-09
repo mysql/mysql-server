@@ -6629,19 +6629,6 @@
     </li>
 
     <li>
-      <tt>result <b>file_name</b></tt>
-
-      This command specifies a file to be used for comparison when the
-      test case completes. If the content does not match or there is
-      some other error, write the result to
-      <b>r/<em>file_name</em>.reject</b>.
-
-      If the <b>`--record`</b> command-line option is given, the
-      <b>result</b> command changes the file by writing the new test
-      result to it.
-    </li>
-
-    <li>
       <tt>result_format <b>version</b></tt>
 
       Set the format to the specified version, which is either 1 for
