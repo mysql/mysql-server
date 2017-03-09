@@ -4,7 +4,7 @@
 # Crash the datadir1 DB server Swap the undo file path of the datadir1
 # to datadir2. Try to restrat the datadir1 server ,expect an error
 
---source include/not_embedded.inc
+--source include/not_valgrind.inc
 --source include/have_debug.inc
 
 let $MYSQLD_BASEDIR= `select @@basedir`;
