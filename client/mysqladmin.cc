@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -519,8 +519,8 @@ static my_bool sql_connect(MYSQL *mysql, uint wait)
   for (;;)
   {
     if (mysql_connect_ssl_check(mysql, host, user, opt_password, NullS,
-                                tcp_port, unix_port,
-                                CLIENT_REMEMBER_OPTIONS, opt_ssl_required))
+                                tcp_port, unix_port, CLIENT_REMEMBER_OPTIONS,
+                                opt_ssl_mode == SSL_MODE_REQUIRED))
     {
       mysql->reconnect= 1;
       if (info)

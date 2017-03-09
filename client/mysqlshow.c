@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -142,7 +142,7 @@ int main(int argc, char **argv)
   if (!(mysql_connect_ssl_check(&mysql, host, user, opt_password,
 			        (first_argument_uses_wildcards) ? "" :
                                 argv[0], opt_mysql_port, opt_mysql_unix_port,
-			        0, opt_ssl_required)))
+			        0, opt_ssl_mode == SSL_MODE_REQUIRED)))
   {
     fprintf(stderr,"%s: %s\n",my_progname,mysql_error(&mysql));
     exit(1);

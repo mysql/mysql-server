@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5283,7 +5283,7 @@ void safe_connect(MYSQL* mysql, const char *name, const char *host,
               host, port, sock, user, name, failed_attempts);
   while(!mysql_connect_ssl_check(mysql, host,user, pass, db, port, sock,
                                  CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS,
-                                 opt_ssl_required))
+                                 opt_ssl_mode == SSL_MODE_REQUIRED))
   {
     /*
       Connect failed
@@ -5385,7 +5385,7 @@ int connect_n_handle_errors(struct st_command *command,
   
   while (!mysql_connect_ssl_check(con, host, user, pass, db, port,
                                   sock ? sock: 0, CLIENT_MULTI_STATEMENTS,
-                                  opt_ssl_required))
+                                  opt_ssl_mode == SSL_MODE_REQUIRED))
   {
     /*
       If we have used up all our connections check whether this
