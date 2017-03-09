@@ -414,6 +414,11 @@ struct Fil_Open {
 	@param[in]	path		Physical path of the file opened */
 	void log(space_id_t space_id, const std::string& path);
 
+	/** Get the first name a tablespace ID maps to.
+	@param[in]	space_id	Tablespace ID to lookup
+	@return first name in the mapping or empty string if not found */
+	std::string fetch(space_id_t space_id) const;
+
 	/** Check if a space ID is known.
 	@param[in]	space_id	Tablespace ID to lookup
 	@return true if the space ID is known*/
@@ -472,8 +477,9 @@ struct Fil_Open {
 	/** Write the state to disk */
 	void to_file();
 
-	/** Read the state from disk */
-	void from_file();
+	/** Read the state from disk
+	@param[in]	recovery	true if called from crash recovery */
+	void from_file(bool recovery);
 
 	/** Convert to a string */
 	std::string to_string() const;
@@ -481,8 +487,9 @@ struct Fil_Open {
 	/** Parse the input stream and populate the data structure.
 	@param[in,out]	is		Input stream to read
 	@param[out]	max_lsn		Maximum LSN read from the file
+	@param[in]	true		if called from recovery
 	@return true on success */
-	bool parse(std::istream& is, lsn_t& max_lsn);
+	bool parse(std::istream& is, lsn_t& max_lsn, bool recovery);
 
 	/** Write the data to the file.
 	@param[in]	path		Filename - where to write
@@ -3039,61 +3046,142 @@ fil_check_pending_operations(
 
 #ifndef UNIV_HOTBACKUP
 
+/* Convert the paths into absolute paths and compare them.
+@param[in]	lhs		Filename to compare
+@param[in]	rhs		Filename to compare
+@return true if they are the same */
+static
+bool
+fil_paths_equal(const char* lhs, const char* rhs)
+{
+	std::string	abs_path1(lhs);
+
+	/* Convert to an absolute path */
+	if (*lhs == '.') {
+		const char*	ptr = lhs;
+
+		while (*ptr == '.' || *ptr == OS_PATH_SEPARATOR) {
+			++ptr;
+		}
+
+		abs_path1 = Fil_Open::get_path(".", ptr);
+	}
+
+	/* Remove adjacent duplicate characters, comparison should not be
+	affected if the strings are identical. It will remove '//' */
+
+	abs_path1.erase(
+		std::unique(
+			abs_path1.begin(), abs_path1.end()), abs_path1.end());
+
+	std::string	abs_path2(rhs);
+
+	if (*abs_path2.begin() == '.') {
+		const char*	ptr = rhs;
+
+		while (*ptr == '.' || *ptr == OS_PATH_SEPARATOR) {
+			++ptr;
+		}
+
+		abs_path2 = Fil_Open::get_path(".", ptr);
+	}
+
+	/* Remove adjacent duplicate characters, comparison should not be
+	affected if the strings are identical. It will remove '//' */
+
+	abs_path2.erase(
+		std::unique(
+			abs_path2.begin(), abs_path2.end()), abs_path2.end());
+
+	return(abs_path1.compare(abs_path2) == 0);
+}
+
 /** Check if an undo tablespace was opened during crash recovery.
-Change name to undo_name if already opened during recovery.
 @param[in]	file_name	undo tablespace file name
 @param[in]	undo_name	undo tablespace name
 @param[in]	space_id	undo tablespace id
 @retval DB_SUCCESS		if it was already opened
 @retval DB_TABLESPACE_NOT_FOUND	if not yet opened
 @retval DB_ERROR		if the data is inconsistent */
-
 dberr_t
 fil_space_undo_check_if_opened(
 	const char*	file_name,
 	const char*	undo_name,
 	space_id_t	space_id)
 {
-	mutex_enter(&fil_system->mutex);
-
-	fil_space_t*	space	= fil_space_get_by_id(space_id);
-
-	if (space == nullptr) {
-		mutex_exit(&fil_system->mutex);
-		return(DB_TABLESPACE_NOT_FOUND);
-	}
+	/* At this stage we are still in single threaded mode. */
 
 	ut_a(Fil_Open::is_undo_tablespace_name(file_name, strlen(file_name)));
 
-	std::string	abs_path = Fil_Open::get_path(
-		srv_undo_dir, file_name);
+	std::string	name = fil_system->m_open.fetch(space_id);
+
+	/* If we don't find the space ID to filename mapping in the
+	tablespaces.open.* files then we suppress the path checks. */
+
+	if (name.length() == 0) {
+#ifdef UNIV_DEBUG
+		/* If Fil_Open doesn't know about it then it can't be open. */
+		mutex_enter(&fil_system->mutex);
+
+		fil_space_t*    space   = fil_space_get_by_id(space_id);
+		ut_ad(space == nullptr);
+
+		mutex_exit(&fil_system->mutex);
+#endif /* UNIV_DEBUG */
+
+		return(DB_TABLESPACE_NOT_FOUND);
+	}
+
+	/* NOTE: This check should be eliminated. It prevents the user from
+	moving tablespaces around. It doesn't really help, instead gets in
+	the way. */
 
 	/* The file_name that we opened before must be the same as what we
 	need to open now.  If not, maybe the srv_undo_dir has changed. */
-	if (!abs_path.compare(space->name)) {
-		ib::error() << "Cannot load UNDO tablespace. '"
-			<< space->name
-			<< "' was discovered during REDO recovery, but '"
-			<< file_name
-			<< "' should be opened instead.";
-		mutex_exit(&fil_system->mutex);
+
+	if (!fil_paths_equal(file_name, name.c_str())) {
+
+		ib::error()
+			<< "The undo tablespace '" << file_name << "' cannot"
+			<< " be opened. Have you changed the setting of"
+			<< " --innodb-undo-directory? Last known path for"
+			<< " this undo tablespace was '" << name << "'";
+
 		return(DB_ERROR);
+	}
+
+	/* Check if the undo tablespace has been opened. */
+	mutex_enter(&fil_system->mutex);
+
+	fil_space_t*    space   = fil_space_get_by_id(space_id);
+
+	if (space == nullptr) {
+
+		mutex_exit(&fil_system->mutex);
+
+		return(DB_TABLESPACE_NOT_FOUND);
 	}
 
 	if (space->flags != fsp_flags_set_page_size(0, univ_page_size)
 	    && !FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-		ib::error() << "Cannot load UNDO tablespace '"
+
+		ib::error()
+			<< "Cannot load UNDO tablespace '"
 			<< file_name << "' with flags=" << space->flags;
+
 		mutex_exit(&fil_system->mutex);
+
 		return(DB_ERROR);
 	}
+
 	ut_ad(space->purpose == FIL_TYPE_TABLESPACE);
 	ut_ad(UT_LIST_GET_LEN(space->chain) == 1);
 
 	mutex_exit(&fil_system->mutex);
 
-	/* Flush and close the REDO recovery handle. Also, free up the
+	/* Flush and close the redo recovery handle. Also, free up the
 	memory object because it was not created as an undo tablespace. */
+
 	fil_flush(space_id);
 	fil_space_close(space_id);
 	fil_space_free(space_id, false);
@@ -4001,7 +4089,9 @@ fil_ibd_create(
 	if (punch_hole) {
 
 		dberr_t	punch_err;
-		punch_err = os_file_punch_hole(file.m_file, 0, size * UNIV_PAGE_SIZE);
+
+		punch_err = os_file_punch_hole(
+			file.m_file, 0, size * UNIV_PAGE_SIZE);
 
 		if (punch_err != DB_SUCCESS) {
 			punch_hole = false;
@@ -7272,6 +7362,23 @@ Fil_Open::log(space_id_t space_id, const std::string& path)
 	}
 }
 
+/** Get the first name a tablespace ID maps to.
+@param[in]	space_id	Tablespace ID to lookup
+@return first name in the mapping or empty string if not found */
+std::string
+Fil_Open::fetch(space_id_t space_id) const
+{
+	const auto	it = m_spaces.find(space_id);
+
+	if (it == m_spaces.end()
+	    || it->second.m_files.empty()) {
+
+		return("");
+	}
+
+	return(it->second.m_files.front().m_name);
+}
+
 /** Check if a space ID is known.
 @param[in]	space_id	Tablespace ID to lookup
 @return true if the space ID is known */
@@ -7655,6 +7762,7 @@ Fil_Open::write(
 }
 
 /** Absolute path of file.
+@param[in]	dir		Parent directory (can be '.')
 @param[in]	filename	Filename to read/write
 @return absolute path name */
 std::string
@@ -7814,9 +7922,10 @@ Fil_Open::to_file()
 /** Parse the input stream and populate the data structure.
 @param[in,out]	is		Input stream to read
 @param[out]	max_lsn		Maximum LSN read from the file
+@param[in]	true		if called from recovery
 @return true on success */
 bool
-Fil_Open::parse(std::istream& is, lsn_t& max_lsn)
+Fil_Open::parse(std::istream& is, lsn_t& max_lsn, bool recovery)
 {
 	max_lsn = 0;
 
@@ -7920,7 +8029,15 @@ Fil_Open::parse(std::istream& is, lsn_t& max_lsn)
 				max_lsn = lsn;
 			}
 
-			nodes.load(name, state, lsn);
+			/* We always load the UNDO tablespace locations, even
+			if we are not in recovery mode. This is only done to
+			make some legacy tests pass WL#7806 related. See
+			fil_space_undo_check_if_opened() name check. */
+			if (!recovery && !is_undo_tablespace_name(name, len)) {
+				continue;
+			}
+
+		nodes.load(name, state, lsn);
 		}
 
 		const auto	it = m_spaces.find(space_id);
@@ -7942,9 +8059,10 @@ Fil_Open::parse(std::istream& is, lsn_t& max_lsn)
 	return(true);
 }
 
-/** Read the state from disk */
+/** Read the state from disk
+@param[in]	recovery	true if called from crash recovery */
 void
-Fil_Open::from_file()
+Fil_Open::from_file(bool recovery)
 {
 	ut_a(!srv_read_only_mode);
 
@@ -8114,7 +8232,7 @@ Fil_Open::from_file()
 
 		max_lsn.push_back(0);
 
-		if (!file.parse(iss, max_lsn.back())) {
+		if (!file.parse(iss, max_lsn.back(), recovery)) {
 
 			ib::error() << "Failed to parse : '" << abspath << "'";
 
@@ -8663,12 +8781,13 @@ fil_tablespace_name_recover(
 	return(end_ptr);
 }
 
-/** Read the tablespace id to path mapping from the file */
+/** Read the tablespace id to path mapping from the file
+@param[in]	recovery	true if called from crash recovery */
 void
-fil_tablespace_open_init_for_recovery()
+fil_tablespace_open_init_for_recovery(bool recovery)
 {
 	/* Single threaded mode, no need to acquire mutex. */
-	fil_system->m_open.from_file();
+	fil_system->m_open.from_file(recovery);
 }
 
 /** Lookup the space ID.

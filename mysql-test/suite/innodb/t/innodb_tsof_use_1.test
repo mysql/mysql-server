@@ -165,7 +165,10 @@ SHOW CREATE TABLE db_test_a.t_aux_10;
 
 --echo $comment_line0
 --echo # Restart after previous smooth shutdown.
---echo #    There is no valid tablespaces.open.* file but we need none.
+--echo #    There is no valid tablespaces.open.*
+--echo #    If we find one we use that to verify the location of the UNDO
+--echo #    tablespaces. If we don't find one we don't verify the location
+--echo #    of the undo tablespaces.
 --echo # The server just comes up without error messages mentioning that state.
 --echo #    No crash -> no look for tablespaces.open.* files
 --source ./include/shutdown_mysqld.inc
@@ -175,11 +178,11 @@ SHOW CREATE TABLE db_test_a.t_aux_10;
 # The note which follows must be not found.
 --let SEARCH_PATTERN= .* \[Note\] InnoDB: Starting crash recovery.
 --source include/search_pattern.inc
-# The note which follows must be not found.
+# The note which follows must be found.
 --let $p= .* \[Note\] InnoDB: Unable to read from '.*tablespaces.open.*',
 --let SEARCH_PATTERN= $p the space ID to filename mapping file
 --source include/search_pattern.inc
-# The error message which follows must be not found.
+# The error message which follows must be found.
 --let $p= .* \[ERROR\] InnoDB: No space ID to filename mapping file found
 --let SEARCH_PATTERN= $p
 --source include/search_pattern.inc

@@ -791,7 +791,6 @@ fil_delete_tablespace(
 
 #ifndef UNIV_HOTBACKUP
 /** Check if an undo tablespace was opened during crash recovery.
-Change name to undo_name if already opened during recovery.
 @param[in]	file_name	undo tablespace file name
 @param[in]	undo_name	undo tablespace name
 @param[in]	space_id	undo tablespace id
@@ -1433,9 +1432,10 @@ fil_tablespace_name_recover(
 	ulint		parsed_bytes)
 	MY_ATTRIBUTE((warn_unused_result));
 
-/** Read the tablespace id to path mapping from the file */
+/** Read the tablespace id to path mapping from the file
+@param[in]	recovery	true if called from crash recovery */
 void
-fil_tablespace_open_init_for_recovery();
+fil_tablespace_open_init_for_recovery(bool recovery);
 
 /** Lookup the space ID.
 @param[in]	space_id	Tablespace ID to lookup

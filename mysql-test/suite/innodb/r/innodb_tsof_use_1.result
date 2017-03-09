@@ -64,13 +64,16 @@ t_aux_10	CREATE TABLE `t_aux_10` (
 ### Build infrastructure required for the current test -------------- END
 # ========================================================
 # Restart after previous smooth shutdown.
-#    There is no valid tablespaces.open.* file but we need none.
+#    There is no valid tablespaces.open.*
+#    If we find one we use that to verify the location of the UNDO
+#    tablespaces. If we don't find one we don't verify the location
+#    of the undo tablespaces.
 # The server just comes up without error messages mentioning that state.
 #    No crash -> no look for tablespaces.open.* files
 # restart
 Pattern ".* \[Note\] InnoDB: Starting crash recovery." not found
-Pattern ".* \[Note\] InnoDB: Unable to read from '.*tablespaces.open.*', the space ID to filename mapping file" not found
-Pattern ".* \[ERROR\] InnoDB: No space ID to filename mapping file found" not found
+Pattern ".* \[Note\] InnoDB: Unable to read from '.*tablespaces.open.*', the space ID to filename mapping file" found
+Pattern ".* \[ERROR\] InnoDB: No space ID to filename mapping file found" found
 # ========================================================
 # Restart after previous
 #    1. Have no open transaction
@@ -84,8 +87,8 @@ SET GLOBAL innodb_log_checkpoint_now = ON;
 # Kill the server
 # restart
 Pattern ".* \[Note\] InnoDB: Starting crash recovery." not found
-Pattern ".* \[Note\] InnoDB: Unable to read from '.*tablespaces.open.*', the space ID to filename mapping file" not found
-Pattern ".* \[ERROR\] InnoDB: No space ID to filename mapping file found" not found
+Pattern ".* \[Note\] InnoDB: Unable to read from '.*tablespaces.open.*', the space ID to filename mapping file" found
+Pattern ".* \[ERROR\] InnoDB: No space ID to filename mapping file found" found
 # ========================================================
 # Restart with crash recovery
 #    There is no tablespaces.open.* file but we need at least one valid.
@@ -135,7 +138,7 @@ ALTER TABLE db_test_a . t1 TABLESPACE = ts1;
 ERROR HY000: Lost connection to MySQL server during query
 # The restart attempt has failed like expected.
 # So even one valid '.*tablespaces.open.*' is not sufficient for success.
-Pattern ".* \[Note\] InnoDB: Starting crash recovery." found
+Pattern ".* \[Note\] InnoDB: Starting crash recovery." not found
 Pattern ".* \[ERROR\] InnoDB: Unsupported file format .* found in tablespace ID to filename mapping file: '.*tablespaces.open.*'. You can use --innodb-scan-directories to recover .*" found
 Pattern ".* \[ERROR\] \[FATAL\] InnoDB: Unable to read the space ID to filename mapping file\(s\)." found
 Pattern ".* \[ERROR\] InnoDB: Assertion failure: ut0ut.cc:" found

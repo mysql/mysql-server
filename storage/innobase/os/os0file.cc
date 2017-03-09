@@ -5232,7 +5232,12 @@ Dir_Walker::walk_win32(const Path& basedir, Function&& f)
 	}
 
 	StringCchCopy(directory, MAX_PATH, basedir.c_str());
-	StringCchCat(directory, MAX_PATH, TEXT("\\*"));
+
+	if (directory[_tcslen(directory) - 1] != TEXT('\\')) {
+		StringCchCat(directory, MAX_PATH, TEXT("\\*"));
+	} else {
+		StringCchCat(directory, MAX_PATH, TEXT("*"));
+	}
 
 	directories.push(Entry(directory, 0));
 
@@ -5261,8 +5266,6 @@ Dir_Walker::walk_win32(const Path& basedir, Function&& f)
 			continue;
 		}
 
-		f(current.m_path, current.m_depth);
-
 		do {
 			/* dirent.cFileName is a TCHAR. */
 			if (_tcscmp(dirent.cFileName, _T(".")) == 0
@@ -5273,11 +5276,16 @@ Dir_Walker::walk_win32(const Path& basedir, Function&& f)
 
 			Path	path(current.m_path);
 
-			path.append("\\");
+			/* Shorten the path to remove the trailing '*'. */
+			ut_ad(path.substr(path.size() - 2).compare("\\*") == 0);
+
+			path.resize(path.size() - 1);
 			path.append(dirent.cFileName);
 
 			if (dirent.dwFileAttributes
 			    & FILE_ATTRIBUTE_DIRECTORY) {
+
+				path.append("\\*");
 
 				using value_type = Stack::value_type;
 
@@ -9683,7 +9691,6 @@ Dir_Walker::is_directory(const Path& path)
 
 	if (os_file_status(path.c_str(), &exists, &type)) {
 
-		ut_ad(exists);
 		ut_ad(type != OS_FILE_TYPE_MISSING);
 
 		return(type == OS_FILE_TYPE_DIR);

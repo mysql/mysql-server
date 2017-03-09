@@ -3586,7 +3586,7 @@ recv_init_crash_recovery()
 	/* Open the tablespace ID to file name mapping file. Required for
 	redo log apply and dblwr buffer page restore. */
 
-	fil_tablespace_open_init_for_recovery();
+	fil_tablespace_open_init_for_recovery(true);
 
 	buf_dblwr_process();
 
@@ -3777,6 +3777,10 @@ recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
 
 			recv_init_crash_recovery();
 		}
+
+	} else if (!srv_read_only_mode) {
+		/* Read the UNDO tablespace locations only. */
+		fil_tablespace_open_init_for_recovery(false);
 	}
 
 	contiguous_lsn = checkpoint_lsn;

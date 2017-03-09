@@ -3820,13 +3820,13 @@ innodb_init_params()
 	srv_data_home = innobase_data_home_dir
 		? innobase_data_home_dir : default_path;
 
-	if (!srv_undo_dir) {
+	if (srv_undo_dir == nullptr) {
 		srv_undo_dir = default_path;
 	}
 
 	/* The default dir for log files is the datadir of MySQL */
 
-	if (!srv_log_group_home_dir) {
+	if (srv_log_group_home_dir == nullptr) {
 		srv_log_group_home_dir = default_path;
 	}
 

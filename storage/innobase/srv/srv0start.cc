@@ -762,8 +762,7 @@ srv_undo_tablespace_fixup(
 @return DB_SUCCESS or error code */
 static
 dberr_t
-srv_undo_tablespace_open(
-	space_id_t	space_id)
+srv_undo_tablespace_open(space_id_t space_id)
 {
 	pfs_os_file_t		fh;
 	bool			ret;
@@ -1002,7 +1001,6 @@ srv_undo_tablespaces_create()
 			break;
 		}
 
-
 		/* Enable undo log encryption if it's ON. */
 		if (srv_undo_log_encrypt) {
 			mtr_t	mtr;
@@ -1131,12 +1129,11 @@ srv_undo_tablespaces_construction_list_clear()
 }
 
 /** Open the configured number of undo tablespaces.
-@param[in]	create_new_db	TRUE if new db being created
+@param[in]	create_new_db	true if new db being created
 @return DB_SUCCESS or error code */
 static
 dberr_t
-srv_undo_tablespaces_init(
-	bool		create_new_db)
+srv_undo_tablespaces_init(bool create_new_db)
 {
 	dberr_t		err = DB_SUCCESS;
 
@@ -1152,7 +1149,8 @@ srv_undo_tablespaces_init(
 	}
 
 	/* If this is opening an existing database, create and open any
-	undo tablespaces that are still needed. For a new DB, create them all. */
+	undo tablespaces that are still needed. For a new DB, create
+	them all. */
 	err = srv_undo_tablespaces_create();
 	if (err != DB_SUCCESS) {
 		return(err);
