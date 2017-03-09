@@ -3123,7 +3123,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$processes` (`reporting_node_id` INT UNSIGNED COMMENT "Reporting data node ID",`node_id` INT UNSIGNED COMMENT "Connected node ID",`node_type` INT UNSIGNED COMMENT "Type of node",`host_addr` VARCHAR(512) COMMENT "IPv4 address of connected node",`node_version` VARCHAR(512) COMMENT "Node MySQL Cluster version string",`process_id` INT UNSIGNED COMMENT "PID of node process on host",`angel_process_id` INT UNSIGNED COMMENT "PID of node\'s angel process, if any",`process_name` VARCHAR(512) COMMENT "Node\'s executable process name",`connection_name` VARCHAR(512) COMMENT "Connection name of API node",`application_port` INT UNSIGNED COMMENT "Node\'s declared application port number") COMMENT="Process ID and Name information for connected nodes" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$processes` (`reporting_node_id` INT UNSIGNED COMMENT "Reporting data node ID",`node_id` INT UNSIGNED COMMENT "Connected node ID",`node_type` INT UNSIGNED COMMENT "Type of node",`node_version` VARCHAR(512) COMMENT "Node MySQL Cluster version string",`process_id` INT UNSIGNED COMMENT "PID of node process on host",`angel_process_id` INT UNSIGNED COMMENT "PID of node\'s angel process",`process_name` VARCHAR(512) COMMENT "Node\'s executable process name",`service_URI` VARCHAR(512) COMMENT "URI for service provided by node") COMMENT="Process ID and Name information for connected nodes" ENGINE=NDBINFO','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -3541,7 +3541,7 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 # ndbinfo.processes
-SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`processes` AS SELECT DISTINCT node_id, CASE node_type  WHEN 0 THEN "NDB"  WHEN 1 THEN "API"  WHEN 2 THEN "MGM"  ELSE NULL  END AS node_type,  host_addr, node_version,  NULLIF(process_id, 0) AS process_id,  NULLIF(angel_process_id, 0) AS angel_process_id,  process_name, connection_name,  NULLIF(application_port, 0) AS application_port FROM `ndbinfo`.`ndb$processes`','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`processes` AS SELECT DISTINCT node_id, CASE node_type  WHEN 0 THEN "NDB"  WHEN 1 THEN "API"  WHEN 2 THEN "MGM"  ELSE NULL  END AS node_type,  node_version,  NULLIF(process_id, 0) AS process_id,  NULLIF(angel_process_id, 0) AS angel_process_id,  process_name, service_URI FROM `ndbinfo`.`ndb$processes` ORDER BY node_id','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
