@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,8 +45,8 @@ struct GlobalData {
   Uint32     m_hb_count[MAX_NODES];   // hb counters
   NodeInfo   m_nodeInfo[MAX_NODES];   // At top to ensure cache alignment
   Signal     VMSignals[1];            // Owned by FastScheduler::
-  Uint32     m_restart_seq;           //
   NodeVersionInfo m_versionInfo;
+  Uint32     m_restart_seq;           //
   
   NDB_TICKS  internalTicksCounter;    // Owned by ThreadConfig::
   Uint32     highestAvailablePrio;    // Owned by FastScheduler::
