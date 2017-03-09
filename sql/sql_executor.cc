@@ -440,7 +440,9 @@ bool JOIN::rollup_write_data(uint idx, TABLE *table_arg)
       List_iterator_fast<Item> it(rollup.fields[i]);
       while ((item= it++))
       {
-        if (item->type() == Item::NULL_ITEM && item->is_result_field())
+        if ((item->type() == Item::NULL_ITEM ||
+             item->type() == Item::NULL_RESULT_ITEM)
+            && item->is_result_field())
           item->save_in_result_field(1);
       }
       copy_sum_funcs(sum_funcs_end[i+1], sum_funcs_end[i]);
