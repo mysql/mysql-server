@@ -5806,6 +5806,9 @@ bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
 int commit_owned_gtids(THD *thd, bool all, bool *need_clear_ptr);
 int commit_owned_gtid_by_partial_command(THD *thd);
 int check_table_for_old_types(const TABLE *table);
+bool set_tx_isolation(THD *thd,
+                      enum_tx_isolation tx_isolation,
+                      bool one_shot);
 
 /** Generate a string representation of an `ha_rkey_function` enum value.
  * @param[in] r value to turn into string

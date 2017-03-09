@@ -594,16 +594,17 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
                        const Format_description_event *description_event)
  : Binary_log_event(&buffer, description_event->binlog_version),
     last_committed(SEQ_UNINIT), sequence_number(SEQ_UNINIT),
+    may_have_sbr_stmts(true),
     original_commit_timestamp(0), immediate_commit_timestamp(0)
 {
   /*
     The layout of the buffer is as follows:
     +------+--------+-------+-------+--------------+---------------+------------+
-    |unused|SID     |GNO    |lt_type|last_committed|sequence_number| timestamps*|
+    |flags |SID     |GNO    |lt_type|last_committed|sequence_number| timestamps*|
     |1 byte|16 bytes|8 bytes|1 byte |8 bytes       |8 bytes        | 7/14 bytes |
     +------+--------+-------+-------+--------------+---------------+------------+
 
-    The 'unused' field is not used.
+    The 'flags' field contains gtid flags.
 
     lt_type (for logical timestamp typecode) is always equal to the
     constant LOGICAL_TIMESTAMP_TYPECODE.
@@ -635,6 +636,10 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
   char const *ptr_buffer= buffer;
   char const *ptr_buffer_end= buffer + event_len -
                             description_event->common_header_len;
+
+  unsigned char gtid_flags= *ptr_buffer;
+
+  may_have_sbr_stmts= gtid_flags & FLAG_MAY_HAVE_SBR;
 
   ptr_buffer+= ENCODED_FLAG_LENGTH;
 

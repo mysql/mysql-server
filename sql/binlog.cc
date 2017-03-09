@@ -504,6 +504,40 @@ public:
     return my_b_tell(&cache_log);
   }
 
+  void cache_state_checkpoint(my_off_t pos_to_checkpoint)
+  {
+    // We only need to store the cache state for pos > 0
+    if (pos_to_checkpoint)
+    {
+      cache_state state;
+      state.with_rbr= flags.with_rbr;
+      state.with_sbr= flags.with_sbr;
+      cache_state_map[pos_to_checkpoint]= state;
+    }
+  }
+
+  void cache_state_rollback(my_off_t pos_to_rollback)
+  {
+    if (pos_to_rollback)
+    {
+      std::map<my_off_t,cache_state>::iterator it;
+      it = cache_state_map.find(pos_to_rollback);
+      if (it != cache_state_map.end())
+      {
+        flags.with_rbr= it->second.with_rbr;
+        flags.with_sbr= it->second.with_sbr;
+      }
+      else
+        DBUG_ASSERT(it == cache_state_map.end());
+    }
+    // Rolling back to pos == 0 means cleaning up the cache.
+    else
+    {
+      flags.with_rbr= false;
+      flags.with_sbr= false;
+    }
+  }
+
   virtual void reset()
   {
     compute_statistics();
@@ -533,6 +567,8 @@ public:
     flags.with_xid= false;
     flags.immediate= false;
     flags.finalized= false;
+    flags.with_sbr= false;
+    flags.with_rbr= false;
     /*
       The truncate function calls reinit_io_cache that calls my_b_flush_io_cache
       which may increase disk_writes. This breaks the disk_writes use by the
@@ -541,6 +577,7 @@ public:
       variable after truncating the cache.
     */
     cache_log.disk_writes= 0;
+    cache_state_map.clear();
     DBUG_ASSERT(is_binlog_empty());
   }
 
@@ -580,7 +617,47 @@ public:
   */
   IO_CACHE cache_log;
 
+  /**
+    Returns information about the cache content with respect to
+    the binlog_format of the events.
+
+    This will be used to set a flag on GTID_LOG_EVENT stating that the
+    transaction may have SBR statements or not, but the binlog dump
+    will show this flag as "rbr_only" when it is not set. That's why
+    an empty transaction should return true below, or else an empty
+    transaction would be assumed as "rbr_only" even not having RBR
+    events.
+
+    When dumping a binary log content using mysqlbinlog client program,
+    for any transaction assumed as "rbr_only" it will be printed a
+    statement changing the transaction isolation level to READ COMMITTED.
+    It doesn't make sense to have an empty transaction "requiring" this
+    isolation level change.
+
+    @return true  The cache have SBR events or is empty.
+    @return false The cache contains a transaction with no SBR events.
+   */
+  bool may_have_sbr_stmts()
+  {
+    return flags.with_sbr || !flags.with_rbr;
+  }
+
 protected:
+  /*
+    This structure should have all cache variables/flags that should be restored
+    when a ROLLBACK TO SAVEPOINT statement be executed.
+  */
+  struct cache_state
+  {
+    bool with_sbr;
+    bool with_rbr;
+  };
+  /*
+    For every SAVEPOINT used, we will store a cache_state for the current
+    binlog cache position. So, if a ROLLBACK TO SAVEPOINT is used, we can
+    restore the cache_state values after truncating the binlog cache.
+  */
+  std::map<my_off_t, cache_state> cache_state_map;
   /*
     It truncates the cache to a certain position. This includes deleting the
     pending event.
@@ -651,6 +728,16 @@ protected:
       reset policy when the statement is rolled back.
     */
     bool with_xid:1;
+
+    /*
+      This indicates that the cache contain statements changing content.
+    */
+    bool with_sbr:1;
+
+    /*
+      This indicates that the cache contain RBR event changing content.
+    */
+    bool with_rbr:1;
   } flags;
 
 private:
@@ -784,6 +871,7 @@ public:
     DBUG_ENTER("set_prev_position");
     DBUG_PRINT("enter", ("before_stmt_pos: %llu", (ulonglong) before_stmt_pos));
     before_stmt_pos= pos;
+    cache_state_checkpoint(before_stmt_pos);
     DBUG_PRINT("return", ("before_stmt_pos: %llu", (ulonglong) before_stmt_pos));
     DBUG_VOID_RETURN;
   }
@@ -793,6 +881,7 @@ public:
     DBUG_ENTER("restore_prev_position");
     DBUG_PRINT("enter", ("before_stmt_pos: %llu", (ulonglong) before_stmt_pos));
     binlog_cache_data::truncate(before_stmt_pos);
+    cache_state_rollback(before_stmt_pos);
     before_stmt_pos= MY_OFF_T_UNDEF;
     /*
       Binlog statement rollback clears with_xid now as the atomic DDL statement
@@ -810,6 +899,7 @@ public:
     binlog_cache_data::truncate(pos);
     if (pos <= before_stmt_pos)
       before_stmt_pos= MY_OFF_T_UNDEF;
+    cache_state_rollback(pos);
     DBUG_PRINT("return", ("before_stmt_pos: %llu", (ulonglong) before_stmt_pos));
     DBUG_VOID_RETURN;
   }
@@ -1024,6 +1114,7 @@ binlog_trans_log_savepos(THD *thd, my_off_t *pos)
   DBUG_ASSERT(mysql_bin_log.is_open());
   *pos= cache_mngr->trx_cache.get_byte_position();
   DBUG_PRINT("return", ("position: %lu", (ulong) *pos));
+  cache_mngr->trx_cache.cache_state_checkpoint(*pos);
   DBUG_VOID_RETURN;
 }
 
@@ -1274,6 +1365,11 @@ int binlog_cache_data::write_event(THD*, Log_event *ev)
     /* DDL gets marked as xid-requiring at its caching. */
     if (is_atomic_ddl_event(ev))
       flags.with_xid= true;
+    /* With respect to the event type being written */
+    if (ev->is_sbr_logging_format())
+      flags.with_sbr= true;
+    if (ev->is_rbr_logging_format())
+      flags.with_rbr= true;
   }
   DBUG_RETURN(0);
 }
@@ -1451,6 +1547,7 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
   */
   Gtid_log_event gtid_event(thd, cache_data->is_trx_cache(),
                             last_committed, sequence_number,
+                            cache_data->may_have_sbr_stmts(),
                             original_commit_timestamp,
                             immediate_commit_timestamp);
   uchar buf[Gtid_log_event::MAX_EVENT_LENGTH];

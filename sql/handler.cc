@@ -9336,3 +9336,56 @@ std::string indexed_cells_to_string(const uchar *indexed_cells,
   return r;
 }
 #endif /* DBUG_OFF */
+
+/**
+  Set the transaction isolation level for the next transaction and update
+  session tracker information about the transaction isolation level.
+
+  @param thd           THD session setting the tx_isolation.
+  @param tx_isolation  The isolation level to be set.
+  @param one_shot      True if the isolation level should be restored to
+                       session default after finishing the transaction.
+*/
+bool set_tx_isolation(THD *thd,
+                      enum_tx_isolation tx_isolation,
+                      bool one_shot)
+{
+  Transaction_state_tracker *tst= NULL;
+
+  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+    tst= (Transaction_state_tracker *)
+           thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER);
+
+  thd->tx_isolation= tx_isolation;
+
+  if (one_shot)
+  {
+    DBUG_ASSERT(!thd->in_active_multi_stmt_transaction());
+    DBUG_ASSERT(!thd->in_sub_stmt);
+    enum enum_tx_isol_level l;
+    switch (thd->tx_isolation) {
+    case ISO_READ_UNCOMMITTED:
+      l=  TX_ISOL_UNCOMMITTED;
+      break;
+    case ISO_READ_COMMITTED:
+      l=  TX_ISOL_COMMITTED;
+      break;
+    case ISO_REPEATABLE_READ:
+      l= TX_ISOL_REPEATABLE;
+      break;
+    case ISO_SERIALIZABLE:
+      l= TX_ISOL_SERIALIZABLE;
+      break;
+    default:
+      DBUG_ASSERT(0);
+      return true;
+    }
+    if (tst)
+      tst->set_isol_level(thd, l);
+  }
+  else if (tst)
+  {
+    tst->set_isol_level(thd, TX_ISOL_INHERIT);
+  }
+  return false;
+}

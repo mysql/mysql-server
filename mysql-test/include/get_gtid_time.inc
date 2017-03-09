@@ -41,6 +41,10 @@ perl;
     {
       last;
     }
+    if ($gtid_next_stmt =~ /ISOLATION/ )
+    {
+      next;
+    }
     $prev4=$prev3;
     $prev3=$prev2;
     $prev2=$prev1;

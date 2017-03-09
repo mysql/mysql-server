@@ -1394,6 +1394,19 @@ bool applier_reset_xa_trans(THD *thd)
   thd->m_transaction_psi= NULL;
 #endif
   thd->mdl_context.release_transactional_locks();
+  /*
+    On client sessions a XA PREPARE will always be followed by a XA COMMIT
+    or a XA ROLLBACK, and both statements will reset the tx isolation level
+    and access mode when the statement is finishing a transaction.
+
+    For replicated workload it is possible to have other transactions between
+    the XA PREPARE and the XA [COMMIT|ROLLBACK].
+
+    So, if the slave applier changed the current transaction isolation level,
+    it needs to be restored to the session default value after having the
+    XA transaction prepared.
+  */
+  trans_reset_one_shot_chistics(thd);
 
   return thd->is_error();
 }

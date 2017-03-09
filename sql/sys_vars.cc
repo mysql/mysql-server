@@ -4582,12 +4582,6 @@ bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
   if (var->type == OPT_DEFAULT || !(thd->in_active_multi_stmt_transaction() ||
                                     thd->in_sub_stmt))
   {
-    Transaction_state_tracker *tst= NULL;
-
-    if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
-      tst= (Transaction_state_tracker *)
-             thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER);
-
     /*
       Update the isolation level of the next transaction.
       I.e. if one did:
@@ -4607,35 +4601,10 @@ bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
       TRANSACTION would always succeed making the characteristics
       effective for the next transaction that starts.
      */
-    thd->tx_isolation= (enum_tx_isolation) var->save_result.ulonglong_value;
-
-    if (var->type == OPT_DEFAULT)
-    {
-      enum enum_tx_isol_level l;
-      switch (thd->tx_isolation) {
-      case ISO_READ_UNCOMMITTED:
-        l=  TX_ISOL_UNCOMMITTED;
-        break;
-      case ISO_READ_COMMITTED:
-        l=  TX_ISOL_COMMITTED;
-        break;
-      case ISO_REPEATABLE_READ:
-        l= TX_ISOL_REPEATABLE;
-        break;
-      case ISO_SERIALIZABLE:
-        l= TX_ISOL_SERIALIZABLE;
-        break;
-      default:
-        DBUG_ASSERT(0);
-        return TRUE;
-      }
-      if (tst)
-        tst->set_isol_level(thd, l);
-    }
-    else if (tst)
-    {
-      tst->set_isol_level(thd, TX_ISOL_INHERIT);
-    }
+    enum_tx_isolation tx_isol;
+    tx_isol= (enum_tx_isolation) var->save_result.ulonglong_value;
+    bool one_shot= (var->type == OPT_DEFAULT);
+    return set_tx_isolation(thd, tx_isol, one_shot);
   }
   return FALSE;
 }
