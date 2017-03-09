@@ -320,7 +320,7 @@ DROP TABLE t2, t1;
 --echo #
 
 --enable_connect_log
-CREATE TABLE t1 (a INT) ; #engine= myisam;
+CREATE TABLE t1 (a INT) engine= myisam;
 CREATE VIEW v1 AS SELECT * FROM t1;
 --connect(con1, localhost, root)
 SET debug_sync= 'view_metadata_updater_context_dtor SIGNAL blocked WAIT_FOR next';
