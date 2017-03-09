@@ -1,22 +1,22 @@
 # negative client tests
 # mysql
-ERROR 2026 (HY000): --ssl-mode=REQUIRED option forbids non SSL connections
-ERROR 2026 (HY000): --ssl-mode=REQUIRED option forbids non SSL connections
-ERROR 2026 (HY000): --ssl-mode=REQUIRED option forbids non SSL connections
-ERROR 2026 (HY000): --ssl-mode=REQUIRED option forbids non SSL connections
+ERROR 2026 (HY000): SSL connection error: Server doesn't support SSL
+ERROR 2026 (HY000): SSL connection error: Server doesn't support SSL
+ERROR 2026 (HY000): SSL connection error: Server doesn't support SSL
+ERROR 2026 (HY000): SSL connection error: Server doesn't support SSL
 # mysqldump
-mysqldump: Got error: 2026: --ssl-mode=REQUIRED option forbids non SSL connections when trying to connect
+mysqldump: Got error: 2026: SSL connection error: Server doesn't support SSL when trying to connect
 # mysqladmin
-mysqladmin: error: '--ssl-mode=REQUIRED option forbids non SSL connections'
+mysqladmin: error: 'SSL connection error: Server doesn't support SSL'
 # mysqlcheck
-mysqlcheck: Got error: 2026: --ssl-mode=REQUIRED option forbids non SSL connections when trying to connect
+mysqlcheck: Got error: 2026: SSL connection error: Server doesn't support SSL when trying to connect
 # mysqlimport
-mysqlimport: Error: 2026 --ssl-mode=REQUIRED option forbids non SSL connections
+mysqlimport: Error: 2026 SSL connection error: Server doesn't support SSL
 # mysqlshow
-mysqlshow: --ssl-mode=REQUIRED option forbids non SSL connections
+mysqlshow: SSL connection error: Server doesn't support SSL
 # mysqlslap
-mysqlslap: Error when connecting to server: --ssl-mode=REQUIRED option forbids non SSL connections
+mysqlslap: Error when connecting to server: SSL connection error: Server doesn't support SSL
 # mysqltest
-mysqltest: Could not open connection 'default': 2026 --ssl-mode=REQUIRED option forbids non SSL connections
+mysqltest: Could not open connection 'default': 2026 SSL connection error: Server doesn't support SSL
 
 End of tests
