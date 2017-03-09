@@ -450,12 +450,12 @@ struct view {
     "  WHEN 2 THEN \"MGM\""
     "  ELSE NULL "
     " END AS node_type, "
-    " host_addr, node_version, "
+    " node_version, "
     " NULLIF(process_id, 0) AS process_id, "
     " NULLIF(angel_process_id, 0) AS angel_process_id, "
-    " process_name, connection_name, "
-    " NULLIF(application_port, 0) AS application_port "
-    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>processes`"
+    " process_name, service_URI "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>processes` "
+    "ORDER BY node_id"
   },
   { "resources",
     "SELECT node_id, "
