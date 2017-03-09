@@ -34,6 +34,7 @@
 #include "sql_lex.h"
 #include "thr_mutex.h"
 #include "tztime.h"               // my_tz_OFFSET0
+#include "sql_table.h"            // write_bin_log
 
 /**
   @addtogroup Event_Scheduler
@@ -431,6 +432,9 @@ Event_queue::recalculate_activation_times(THD *thd)
     Event_queue_element *element = queue[i - 1];
     if (element->m_status != Event_parse_data::DISABLED)
       break;
+    if (lock_object_name(thd, MDL_key::EVENT,
+                         element->m_schema_name.str, element->m_event_name.str))
+      break;
     /*
       This won't cause queue re-order, because we remove
       always the last element.
@@ -441,12 +445,26 @@ Event_queue::recalculate_activation_times(THD *thd)
     */
     if (element->m_dropped)
     {
-      // Acquire exclusive MDL lock.
-      if (lock_object_name(thd, MDL_key::EVENT, element->m_schema_name.str,
-                           element->m_event_name.str))
-        break;
       db_repository->drop_event(thd, element->m_schema_name,
                                 element->m_event_name, false);
+      String sp_sql;
+      if (construct_drop_event_sql(thd, &sp_sql,
+                                   element->m_schema_name,
+                                   element->m_event_name))
+      {
+        sql_print_warning("Unable to construct DROP EVENT SQL query string");
+      }
+      else
+      {
+        // Write drop event to bin log.
+        thd->add_to_binlog_accessed_dbs(element->m_schema_name.str);
+        if (write_bin_log(thd, true, sp_sql.c_ptr_safe(), sp_sql.length()))
+        {
+          sql_print_warning("Unable to binlog drop event %s.%s.",
+                            element->m_schema_name.str,
+                            element->m_event_name.str);
+        }
+      }
     }
     delete element;
   }

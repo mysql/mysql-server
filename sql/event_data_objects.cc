@@ -1133,36 +1133,6 @@ Event_job_data::construct_sp_sql(THD *thd, String *sp_sql)
 
 
 /**
-  Get DROP EVENT statement to binlog the drop of ON COMPLETION NOT
-  PRESERVE event.
-*/
-
-bool
-Event_job_data::construct_drop_event_sql(THD *thd, String *sp_sql)
-{
-  LEX_STRING buffer;
-  const uint STATIC_SQL_LENGTH= 14;
-
-  DBUG_ENTER("Event_job_data::construct_drop_event_sql");
-
-  buffer.length= STATIC_SQL_LENGTH + m_event_name.length*2 + 
-                 m_schema_name.length*2;
-  if (! (buffer.str= (char*) thd->alloc(buffer.length)))
-    DBUG_RETURN(true);
-
-  sp_sql->set(buffer.str, buffer.length, system_charset_info);
-  sp_sql->length(0);
-
-  sp_sql->append(C_STRING_WITH_LEN("DROP EVENT "));
-  append_identifier(thd, sp_sql, m_schema_name.str, m_schema_name.length);
-  sp_sql->append('.');
-  append_identifier(thd, sp_sql, m_event_name.str, 
-                    m_event_name.length);
-
-  DBUG_RETURN(thd->is_fatal_error);
-}
-
-/**
   Compiles and executes the event (the underlying sp_head object)
 
   @retval true  error (reported to the error log)
@@ -1312,7 +1282,7 @@ end:
       Construct a query for the binary log, to ensure the event is dropped
       on the slave
     */
-    if (construct_drop_event_sql(thd, &sp_sql))
+    if (construct_drop_event_sql(thd, &sp_sql, m_schema_name, m_event_name))
       ret= 1;
     else
     {
@@ -1351,6 +1321,37 @@ end:
 
   DBUG_PRINT("info", ("EXECUTED %s.%s  ret: %d", m_schema_name.str, 
                      m_event_name.str, ret));
+
+  DBUG_RETURN(ret);
+}
+
+/**
+  Get DROP EVENT statement to binlog the drop of ON COMPLETION NOT
+  PRESERVE event.
+*/
+bool construct_drop_event_sql(THD *thd, String *sp_sql,
+                              const LEX_STRING &schema_name,
+                              const LEX_STRING &event_name)
+{
+  LEX_STRING buffer;
+  const uint STATIC_SQL_LENGTH= 14;
+  int ret= 0;
+
+  DBUG_ENTER("construct_drop_event_sql");
+
+  buffer.length= STATIC_SQL_LENGTH + event_name.length*2 +
+                 schema_name.length * 2;
+  if (! (buffer.str= (char*) thd->alloc(buffer.length)))
+    DBUG_RETURN(true);
+
+  sp_sql->set(buffer.str, buffer.length, system_charset_info);
+  sp_sql->length(0);
+
+  ret|= sp_sql->append(C_STRING_WITH_LEN("DROP EVENT IF EXISTS"));
+  append_identifier(thd, sp_sql, schema_name.str, schema_name.length);
+  ret|= sp_sql->append('.');
+  append_identifier(thd, sp_sql, event_name.str,
+                    event_name.length);
 
   DBUG_RETURN(ret);
 }
