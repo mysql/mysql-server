@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -463,7 +463,7 @@ static MYSQL *db_connect(char *host, char *database,
   mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset);
   if (!(mysql_connect_ssl_check(mysql, host, user, passwd, database,
                                 opt_mysql_port, opt_mysql_unix_port,
-                                0, opt_ssl_required)))
+                                0, opt_ssl_mode == SSL_MODE_REQUIRED)))
   {
     ignore_errors=0;	  /* NO RETURN FROM db_error */
     db_error(mysql);
