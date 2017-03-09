@@ -3133,8 +3133,14 @@ mysql_set_character_set_with_default_collation(MYSQL *mysql)
 {
   const char *save= charsets_dir;
   if (mysql->options.charset_dir)
+  {
+#ifdef MYSQL_SERVER
+    // Do not change charsets_dir, it is not thread safe.
+    DBUG_ASSERT(false);
+#else
     charsets_dir=mysql->options.charset_dir;
-
+#endif
+  }
   if ((mysql->charset= get_charset_by_csname(mysql->options.charset_name,
                                              MY_CS_PRIMARY, MYF(MY_WME))))
   {
@@ -6496,8 +6502,14 @@ int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
   const char *save_csdir= charsets_dir;
 
   if (mysql->options.charset_dir)
+  {
+#ifdef MYSQL_SERVER
+    // Do not change charsets_dir, it is not thread safe.
+    DBUG_ASSERT(false);
+#else
     charsets_dir= mysql->options.charset_dir;
-
+#endif
+  }
   if (!mysql->net.vio)
   {
     /* Initialize with automatic OS character set detection. */

@@ -8839,10 +8839,6 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                   default_client_charset_info->csname);
   }
 
-
-  /* This one is not strictly needed but we have it here for completeness */
-  mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
-
   if (mi->is_start_plugin_auth_configured())
   {
     DBUG_PRINT("info", ("Slaving is using MYSQL_DEFAULT_AUTH %s",
