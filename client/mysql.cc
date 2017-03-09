@@ -1488,7 +1488,8 @@ sig_handler handle_kill_signal(int sig)
                  "program_name", "mysql");
   if (!mysql_connect_ssl_check(kill_mysql, current_host, current_user,
                                opt_password, "", opt_mysql_port,
-                               opt_mysql_unix_port, 0, opt_ssl_required))
+                               opt_mysql_unix_port, 0,
+                               opt_ssl_mode == SSL_MODE_REQUIRED))
   {
     tee_fprintf(stdout, "%s -- sorry, cannot connect to server to kill query, giving up ...\n", reason);
     goto err;
@@ -4819,7 +4820,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   if (!mysql_connect_ssl_check(&mysql, host, user, password,
                                database, opt_mysql_port, opt_mysql_unix_port,
                                connect_flag | CLIENT_MULTI_STATEMENTS,
-                               opt_ssl_required))
+                               opt_ssl_mode == SSL_MODE_REQUIRED))
   {
     if (!silent ||
 	(mysql_errno(&mysql) != CR_CONN_HOST_ERROR &&
