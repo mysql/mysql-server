@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1038,6 +1038,7 @@ static const char *default_options[]=
   "multi-results", "multi-statements", "multi-queries", "secure-auth",
   "report-data-truncation", "plugin-dir", "default-auth",
   "bind-address", "ssl-crl", "ssl-crlpath", "enable-cleartext-plugin",
+  "ssl-mode",
   NullS
 };
 enum option_id {
@@ -1050,6 +1051,7 @@ enum option_id {
   OPT_multi_results, OPT_multi_statements, OPT_multi_queries, OPT_secure_auth, 
   OPT_report_data_truncation, OPT_plugin_dir, OPT_default_auth,
   OPT_bind_address, OPT_ssl_crl, OPT_ssl_crlpath, OPT_enable_cleartext_plugin,
+  OPT_ssl_mode,
   OPT_keep_this_one_last
 };
 
@@ -1269,6 +1271,19 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	case OPT_ssl_crlpath:
           EXTENSION_SET_SSL_STRING(options, ssl_crlpath, opt_arg);
           break;
+        case OPT_ssl_mode:
+          if (opt_arg &&
+              !my_strcasecmp(&my_charset_latin1, opt_arg, "required"))
+          {
+            ENSURE_EXTENSIONS_PRESENT(options);
+            options->extension->ssl_mode= SSL_MODE_REQUIRED;
+          }
+          else
+          {
+            fprintf(stderr, "Unknown option to ssl-mode: %s\n", opt_arg);
+            exit(1);
+          }
+          break;
 #else
 	case OPT_ssl_key:
 	case OPT_ssl_cert:
@@ -1277,6 +1292,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
         case OPT_ssl_cipher:
         case OPT_ssl_crl:
         case OPT_ssl_crlpath:
+        case OPT_ssl_mode:
 	  break;
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
 	case OPT_character_sets_dir:
@@ -1798,6 +1814,7 @@ mysql_ssl_free(MYSQL *mysql MY_ATTRIBUTE((unused)))
   {
     mysql->options.extension->ssl_crl = 0;
     mysql->options.extension->ssl_crlpath = 0;
+    mysql->options.extension->ssl_mode= 0;
   }
   mysql->options.use_ssl = FALSE;
   mysql->connector_fd = 0;
@@ -2693,6 +2710,31 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
     end= buff+5;
   }
 #ifdef HAVE_OPENSSL
+  /*
+    If SSL connection is required we'll:
+      1. check if the server supports SSL;
+      2. check if the client is properly configured;
+      3. try to use SSL no matter the other options given.
+  */
+  if (mysql->options.extension &&
+      mysql->options.extension->ssl_mode == SSL_MODE_REQUIRED)
+  {
+    if (!(mysql->server_capabilities & CLIENT_SSL))
+    {
+      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                               ER(CR_SSL_CONNECTION_ERROR),
+                               "Server doesn't support SSL");
+      goto error;
+    }
+    if (!mysql->options.use_ssl)
+    {
+      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                               ER(CR_SSL_CONNECTION_ERROR),
+                               "Client is not configured to use SSL");
+      goto error;
+    }
+    mysql->client_flag|= CLIENT_SSL;
+  }
   if (mysql->client_flag & CLIENT_SSL)
   {
     /* Do the SSL layering. */
@@ -4584,6 +4626,13 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
       mysql->options.client_flag|= CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS;
     else
       mysql->options.client_flag&= ~CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS;
+    break;
+  case MYSQL_OPT_SSL_MODE:
+    if (*(uint *) arg == SSL_MODE_REQUIRED)
+    {
+      ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+      mysql->options.extension->ssl_mode= SSL_MODE_REQUIRED;
+    }
     break;
 
   default:
