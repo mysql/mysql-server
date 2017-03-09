@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1318,7 +1318,7 @@ sig_handler handle_sigint(int sig)
   kill_mysql= mysql_init(kill_mysql);
   if (!mysql_connect_ssl_check(kill_mysql, current_host, current_user, opt_password,
                                "", opt_mysql_port, opt_mysql_unix_port, 0,
-                               opt_ssl_required))
+                               opt_ssl_mode == SSL_MODE_REQUIRED))
   {
     tee_fprintf(stdout, "Ctrl-C -- sorry, cannot connect to server to kill query, giving up ...\n");
     goto err;
@@ -4461,7 +4461,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   if (!mysql_connect_ssl_check(&mysql, host, user, password,
                                database, opt_mysql_port, opt_mysql_unix_port,
                                connect_flag | CLIENT_MULTI_STATEMENTS,
-                               opt_ssl_required))
+                               opt_ssl_mode == SSL_MODE_REQUIRED))
   {
     if (!silent ||
 	(mysql_errno(&mysql) != CR_CONN_HOST_ERROR &&

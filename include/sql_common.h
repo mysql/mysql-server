@@ -1,7 +1,7 @@
 #ifndef SQL_COMMON_INCLUDED
 #define SQL_COMMON_INCLUDED
 
-/* Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ struct st_mysql_options_extention {
   char *plugin_dir;
   char *default_auth;
   my_bool enable_cleartext_plugin;
+  unsigned int ssl_mode;
 };
 
 typedef struct st_mysql_methods
