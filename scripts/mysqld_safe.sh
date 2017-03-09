@@ -24,7 +24,9 @@ want_syslog=0
 syslog_tag=
 user='@MYSQLD_USER@'
 pid_file=
+pid_file_append=
 err_log=
+err_log_append=
 timestamp_format=UTC
 
 syslog_tag_mysqld=mysqld
@@ -604,15 +606,17 @@ then
       err_log="$err_log".err
     fi
 
+    err_log_append="$err_log"
     case "$err_log" in
       /* ) ;;
       * ) err_log="$DATADIR/$err_log" ;;
     esac
   else
     err_log=$DATADIR/`@HOSTNAME@`.err
+    err_log_append=`@HOSTNAME@`.err
   fi
 
-  append_arg_to_args "--log-error=$err_log"
+  append_arg_to_args "--log-error=$err_log_append"
 
   if [ $want_syslog -eq 1 ]
   then
@@ -710,13 +714,15 @@ fi
 if test -z "$pid_file"
 then
   pid_file="$DATADIR/`@HOSTNAME@`.pid"
+  pid_file_append="`@HOSTNAME@`.pid"
 else
+  pid_file_append="$pid_file"
   case "$pid_file" in
     /* ) ;;
     * )  pid_file="$DATADIR/$pid_file" ;;
   esac
 fi
-append_arg_to_args "--pid-file=$pid_file"
+append_arg_to_args "--pid-file=$pid_file_append"
 
 if test -n "$mysql_unix_port"
 then
