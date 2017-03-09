@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -267,7 +267,7 @@ if(APPLE)
 elseif(${CMAKE_COMPILER_IS_GNUCC}) 
   set(FINAL_LINK_FLAGS "-shared")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "SunOS") 
-  set(FINAL_LINK_FLAGS "-G -lCrun")
+  set(FINAL_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS}")
 else()
   set(FINAL_LINK_FLAGS "")
 endif()
