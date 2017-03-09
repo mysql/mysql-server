@@ -408,6 +408,24 @@ public:
            is_locked(thd, table, MDL_EXCLUSIVE);
   }
 
+#ifdef EXTRA_DD_DEBUG // Too intrusive/expensive to have enabled by default.
+  // Releasing a table object should be covered in the same way as for reading.
+  static bool is_release_locked(THD *thd, const dd::Abstract_table *table)
+  {
+    if (thd->is_dd_system_thread())
+      return true;
+    dd::Schema *schema= nullptr;
+    if (thd->dd_client()->acquire_uncached(table->schema_id(), &schema))
+      return false;
+    if (schema == nullptr)
+      return false;
+    dd::Schema_MDL_locker mdl_locker(thd);
+    if (mdl_locker.ensure_locked(schema->name().c_str()))
+      return false;
+    return is_read_locked(thd, table);
+  }
+#endif // EXTRA_DD_DEBUG
+
   // Reading a spatial reference system object should be governed by MDL_SHARED.
   static bool is_read_locked(THD *thd, const dd::Spatial_reference_system *srs)
   { return thd->is_dd_system_thread() || is_locked(thd, srs, MDL_SHARED); }
@@ -416,6 +434,11 @@ public:
   // MDL_EXCLUSIVE.
   static bool is_write_locked(THD *thd, const dd::Spatial_reference_system *srs)
   { return !mysqld_server_started || is_locked(thd, srs, MDL_EXCLUSIVE); }
+
+  // Releasing a spatial reference system object should be covered
+  // in the same way as for reading.
+  static bool is_release_locked(THD *thd, const dd::Spatial_reference_system *srs)
+  { return is_read_locked(thd, srs); }
 
   // No MDL namespace for character sets.
   static bool is_read_locked(THD*, const dd::Charset*)
@@ -475,6 +498,10 @@ public:
            is_locked(thd, tablespace, MDL_EXCLUSIVE);
   }
 
+  // Releasing a tablespace object should be covered in the same way as for reading.
+  static bool is_release_locked(THD *thd, const dd::Tablespace *tablespace)
+  { return is_read_locked(thd, tablespace); }
+
   // Reading a Event object should be governed at least MDL_SHARED.
   static bool is_read_locked(THD *thd, const dd::Event *event)
   {
@@ -489,6 +516,24 @@ public:
             is_locked(thd, event, MDL_EXCLUSIVE));
   }
 
+#ifdef EXTRA_DD_DEBUG // Too intrusive/expensive to have enabled by default.
+  // Releasing an Event object should be covered in the same way as for reading.
+  static bool is_release_locked(THD *thd, const dd::Event *event)
+  {
+    if (thd->is_dd_system_thread())
+      return true;
+    dd::Schema *schema= nullptr;
+    if (thd->dd_client()->acquire_uncached(event->schema_id(), &schema))
+      return false;
+    if (schema == nullptr)
+      return false;
+    dd::Schema_MDL_locker mdl_locker(thd);
+    if (mdl_locker.ensure_locked(schema->name().c_str()))
+      return false;
+    return is_read_locked(thd, event);
+  }
+#endif // EXTRA_DD_DEBUG
+
   // Reading a Routine object should be governed at least MDL_SHARED.
   static bool is_read_locked(THD *thd, const dd::Routine *routine)
   {
@@ -502,6 +547,24 @@ public:
     return (thd->is_dd_system_thread() ||
             is_locked(thd, routine, MDL_EXCLUSIVE));
   }
+
+#ifdef EXTRA_DD_DEBUG // Too intrusive/expensive to have enabled by default.
+  // Releasing a Routine object should be covered in the same way as for reading.
+  static bool is_release_locked(THD *thd, const dd::Routine *routine)
+  {
+    if (thd->is_dd_system_thread())
+      return true;
+    dd::Schema *schema= nullptr;
+    if (thd->dd_client()->acquire_uncached(routine->schema_id(), &schema))
+      return false;
+    if (schema == nullptr)
+      return false;
+    dd::Schema_MDL_locker mdl_locker(thd);
+    if (mdl_locker.ensure_locked(schema->name().c_str()))
+      return false;
+    return is_read_locked(thd, routine);
+  }
+#endif // EXTRA_DD_DEBUG
 };
 
 // Check if the component is hidden.

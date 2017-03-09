@@ -2659,18 +2659,23 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, bool if_exists,
     }
   }
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  {
+    // This Auto_releaser needs to go out of scope before we start releasing
+    // metadata locks below. Otherwise we end up having acquired objects for
+    // which we no longer have any locks held.
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  std::set<handlerton*> post_ddl_htons;
-  Prealloced_array<TABLE_LIST*, 1> dropped_atomic(PSI_INSTRUMENT_ME);
-  bool not_used;
+    std::set<handlerton*> post_ddl_htons;
+    Prealloced_array<TABLE_LIST*, 1> dropped_atomic(PSI_INSTRUMENT_ME);
+    bool not_used;
 
-  /* mark for close and remove all cached entries */
-  thd->push_internal_handler(&err_handler);
-  error= mysql_rm_table_no_locks(thd, tables, if_exists, drop_temporary,
-                                 false, &not_used, &post_ddl_htons,
-                                 &dropped_atomic);
-  thd->pop_internal_handler();
+    /* mark for close and remove all cached entries */
+    thd->push_internal_handler(&err_handler);
+    error= mysql_rm_table_no_locks(thd, tables, if_exists, drop_temporary,
+                                   false, &not_used, &post_ddl_htons,
+                                   &dropped_atomic);
+    thd->pop_internal_handler();
+  }
 
   if (!drop_temporary)
   {
