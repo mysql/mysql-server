@@ -4594,6 +4594,29 @@
     </li>
 
     <li>
+      <tt>`--test-progress`</tt>
+
+      Print the percentage of tests completed. This option is disabled
+      by default.
+
+      For example, consider a test suite <b>sample_test_suite</b>
+      containing  3 tests.
+
+      @verbatim
+  ./mysql-test-run.pl --suite=sample_test_suite --test-progress
+      @endverbatim
+
+      Running the suite with <b>`--test-progress`</b> option enabled
+      will print the percentage of tests completed.
+
+      @verbatim
+  [ 34%] test_suite.1st                           [ pass ]      1
+  [ 67%] test_suite.2nd                           [ pass ]      1
+  [100%] test_suite.3rd                           [ pass ]      1
+      @endverbatim
+    </li>
+
+    <li>
       <tt>`--testcase-timeout`=<b>minutes</b></tt>
 
       Specify the maximum test case runtime in minutes.
