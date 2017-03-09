@@ -152,6 +152,7 @@ ndb_dd_install_table(class THD *thd,
   DBUG_ENTER("ndb_dd_install_table");
 
   // First aquire MDL locks
+  // NOTE! Consider using the dd::Schema_MDL_locker here
   {
     MDL_request_list mdl_requests;
     MDL_request schema_request;

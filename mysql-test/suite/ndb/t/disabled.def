@@ -18,3 +18,17 @@ ndb_disconnect_ddl        : Bug#31853 flaky testcase...
 ndb_dbug_lock : SEAGULL gsl locking order
 ndb_insert : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb_row_count : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
+
+ndb_alter_table_backup: Need WL#10167 On the fly frm translation
+ndb_restore_compat_endianness: Need WL#10167 On the fly frm translation
+ndb_wl946_pre: Need WL#10167 On the fly frm translation
+ndb_restore_conv_more: Need WL#10167 On the fly frm translation
+ndb_restore_undolog: Need WL#10167 On the fly frm translation
+ndb_restore_compat_downward: Need WL#10167 On the fly frm translation
+ndb_native_default_support: Need WL#10167 On the fly frm translation
+ndb_restore_misc: Need WL#10167 On the fly frm translation
+ndb_dd_restore_compat: Need WL#10167 On the fly frm translation
+ndb_alter_table_backup: Need WL#10167 On the fly frm translation
+ndb_wl946_post: Need WL#10167 On the fly frm translation
+ndb_column_properties_compat: Need WL#10167 On the fly frm translation
+ndb_dd_restore_check_tablespace_mdl: Need WL#10167 On the fly frm translation

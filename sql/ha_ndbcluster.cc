@@ -13471,9 +13471,23 @@ static int ndbcluster_close_connection(handlerton *hton, THD *thd)
   Try to discover one table from NDB. Return the "serialized
   table definition".
 
-  NOTE! The caller does not check the error code itself,
-        just checking if it's zero or not.
+  @note The ha_discover/ndbcluster_discover function is called in
+        two different contexts:
+        1) ha_check_if_table_exists() which want to determine
+           if the table exists in the engine. Any returned
+           frmblob is simply discarded, it's the existence which is
+           interesting. This check is intended to prevent table with
+           same name to be created in other engine.
+        2) ha_discover() which is intended to take the returned frmblob
+           and install it into the DD. The install path is however not
+           implemented and it's actuall much better if the install code
+           is kept inside ndbcluster to allow full control over how a
+           table and any related objects are installed.
+
+  @note The caller does not check the error code itself,
+         just checking if it's zero or not.
 */
+
 static
 int ndbcluster_discover(handlerton*, THD* thd,
                         const char *db, const char *name,
@@ -13508,14 +13522,31 @@ int ndbcluster_discover(handlerton*, THD* thd,
     // Got an unexpected error
     DBUG_PRINT("error", ("Got unexpected error when trying to open table "
                          "from NDB, error %u", err.code));
-    DBUG_ASSERT(false); // Catch in debug
+    DBUG_ASSERT( false);
     DBUG_RETURN(1);
   }
 
   DBUG_PRINT("info", ("Found table '%s'", tab->getName()));
 
-  size_t len;
-  uchar* data;
+  // Magically detect which context this function is called in by
+  // checking which kind of metadata locks are held on the table name.
+  if (!thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                    db,
+                                                    name,
+                                                    MDL_EXCLUSIVE))
+  {
+    // No exclusive MDL lock, this is ha_check_if_table_exists, just
+    // return a dummy frmblob to indicate that table exists
+    DBUG_PRINT("info", ("return dummy exists for ha_check_if_table_exists()"));
+    *frmlen= 37;
+    *frmblob= (uchar*)my_malloc(PSI_NOT_INSTRUMENTED,
+                                *frmlen,
+                                MYF(0));
+    DBUG_RETURN(0); // Table exists
+  }
+
+  DBUG_PRINT("info", ("table exists, check if it can also be discovered"));
+
   {
     Uint32 version;
     void* unpacked_data;
@@ -13530,26 +13561,48 @@ int ndbcluster_discover(handlerton*, THD* thd,
       DBUG_RETURN(1);
     }
 
-    // Reallocate the memory using my_malloc.
-    // NOTE! This is since the calling code is convoluted and
-    // expect my_malloc'ed memory, but the NdbApi should never
-    // return my_malloc allocated memory
-    data = (uchar*)my_memdup(PSI_INSTRUMENT_ME,
-                             unpacked_data, unpacked_len,
-                             MYF(MY_WME));
-    free(unpacked_data);
-    if (!data)
+    if (version != 2)
     {
-      DBUG_PRINT("error", ("Failed to my_memdup unpacked data, error: %d",
-                           my_errno()));
+      // Only version 2 extra metadata supported until
+      // WL#10167 has been implemented, tests hitting this
+      // path need to be disabled
+      my_printf_error(ER_NO,
+                      "Table '%s' contains unsupported extra "
+                      "metadata version: %d", MYF(0), name, version);
+
+      // The error returned from here is effectively ignored in
+      // Open_table_context::recover_from_failed_open(), abort to
+      // avoid infinite hang
+      ndb_log_error("INTERNAL ERROR: return code is ignored by caller, "
+                    "aborting to avoid infinite hang");
+      abort();
+
+      DBUG_RETURN(1); // Could not discover table
+    }
+
+    // Assign the unpacked data to sdi_t(which is string data type)
+    // then release the unpacked data
+    dd::sdi_t sdi;
+    sdi.assign(static_cast<const char*>(unpacked_data), unpacked_len);
+    free(unpacked_data);
+
+    // Install the table into DD, don't use force_overwrite since
+    // this funcion would never have been called unless
+    // the table didn't exist
+    if (!ndb_dd_install_table(thd, db, name, sdi, false))
+    {
+      // Table existed in NDB but it could not be inserted into DD
+      DBUG_ASSERT(false);
       DBUG_RETURN(1);
     }
-    len = unpacked_len;
   }
 
-  *frmlen= len;
-  *frmblob= data;
-  
+  // return a dummy frmblob to indicate that table exists
+  // and has been inserted into DD
+  *frmlen= 137;
+  *frmblob= (uchar*)my_malloc(PSI_NOT_INSTRUMENTED,
+                              *frmlen,
+                              MYF(0));
   DBUG_RETURN(0);
 }
 
