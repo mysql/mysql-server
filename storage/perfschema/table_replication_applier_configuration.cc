@@ -69,7 +69,7 @@ PFS_engine_table_share table_replication_applier_configuration::m_share = {
   &m_table_lock,
   &m_field_def,
   false, /* checked */
-  false  /* perpetual */
+  true  /* perpetual */
 };
 
 bool

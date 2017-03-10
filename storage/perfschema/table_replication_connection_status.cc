@@ -200,7 +200,7 @@ PFS_engine_table_share table_replication_connection_status::m_share = {
   &m_table_lock,
   &m_field_def,
   false, /* checked */
-  false  /* perpetual */
+  true  /* perpetual */
 };
 
 bool
@@ -398,6 +398,8 @@ table_replication_connection_status::make_row(Master_info *mi)
 {
   DBUG_ENTER("table_replication_connection_status::make_row");
   bool error = false;
+  Trx_monitoring_info queueing_trx;
+  Trx_monitoring_info last_queued_trx;
 
   /* Default values */
   m_row.group_name_is_null = true;
@@ -409,7 +411,6 @@ table_replication_connection_status::make_row(Master_info *mi)
   DBUG_ASSERT(mi->rli != NULL);
 
   mysql_mutex_lock(&mi->data_lock);
-  mysql_mutex_lock(&mi->rli->data_lock);
 
   m_row.channel_name_length = mi->get_channel() ? strlen(mi->get_channel()) : 0;
   memcpy(m_row.channel_name, mi->get_channel(), m_row.channel_name_length);
@@ -488,15 +489,15 @@ table_replication_connection_status::make_row(Master_info *mi)
     if (m_row.received_transaction_set_length < 0)
     {
       my_free(m_row.received_transaction_set);
-      m_row.received_transaction_set_length = 0;
-      error = true;
+      m_row.received_transaction_set_length= 0;
+      mysql_mutex_unlock(&mi->data_lock);
+      error= true;
       goto end;
     }
   }
 
   /* Errors */
   mysql_mutex_lock(&mi->err_lock);
-  mysql_mutex_lock(&mi->rli->err_lock);
   m_row.last_error_number = (unsigned int)mi->last_error().number;
   m_row.last_error_message_length = 0;
   m_row.last_error_timestamp = 0;
@@ -512,30 +513,29 @@ table_replication_connection_status::make_row(Master_info *mi)
     // Time in microsecond since epoch
     m_row.last_error_timestamp = (ulonglong)mi->last_error().skr;
   }
-  mysql_mutex_unlock(&mi->rli->err_lock);
   mysql_mutex_unlock(&mi->err_lock);
 
-  mi->get_last_queued_trx()->copy_to_ps_table(
-    m_row.last_queued_trx,
-    m_row.last_queued_trx_length,
-    m_row.last_queued_trx_original_commit_timestamp,
-    m_row.last_queued_trx_immediate_commit_timestamp,
-    m_row.last_queued_trx_start_queue_timestamp,
-    m_row.last_queued_trx_end_queue_timestamp,
-    mi->rli->get_sid_map());
+  mi->get_gtid_monitoring_info()->copy_info_to(&queueing_trx,
+                                               &last_queued_trx);
 
-  mi->get_queueing_trx()->copy_to_ps_table(
-    m_row.queueing_trx,
-    m_row.queueing_trx_length,
-    m_row.queueing_trx_original_commit_timestamp,
-    m_row.queueing_trx_immediate_commit_timestamp,
-    m_row.queueing_trx_start_queue_timestamp,
-    mi->rli->get_sid_map());
-
-end:
-  mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
 
+  queueing_trx.copy_to_ps_table(mi->rli->get_sid_map(),
+                                m_row.queueing_trx,
+                                &m_row.queueing_trx_length,
+                                &m_row.queueing_trx_original_commit_timestamp,
+                                &m_row.queueing_trx_immediate_commit_timestamp,
+                                &m_row.queueing_trx_start_queue_timestamp);
+
+  last_queued_trx.copy_to_ps_table(mi->rli->get_sid_map(),
+                                   m_row.last_queued_trx,
+                                   &m_row.last_queued_trx_length,
+                                   &m_row.last_queued_trx_original_commit_timestamp,
+                                   &m_row.last_queued_trx_immediate_commit_timestamp,
+                                   &m_row.last_queued_trx_start_queue_timestamp,
+                                   &m_row.last_queued_trx_end_queue_timestamp);
+
+end:
   if (error)
   {
     DBUG_RETURN(HA_ERR_RECORD_DELETED);

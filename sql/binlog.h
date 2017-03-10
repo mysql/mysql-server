@@ -55,6 +55,7 @@ class THD;
 class Transaction_boundary_parser;
 class binlog_cache_data;
 class user_var_entry;
+class Gtid_monitoring_info;
 struct Gtid;
 
 typedef int64 query_id_t;
@@ -636,7 +637,7 @@ public:
                       bool verify_checksum,
                       bool need_lock,
                       Transaction_boundary_parser *trx_parser,
-                      trx_monitoring_info *partial_trx,
+                      Gtid_monitoring_info *partial_trx,
                       bool is_server_starting= false);
 
   void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param)

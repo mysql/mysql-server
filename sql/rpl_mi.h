@@ -129,10 +129,8 @@ private:
   */
   char start_plugin_dir[FN_REFLEN + 1];
 
-  /// Information on the last queued transaction
-  trx_monitoring_info *last_queued_trx;
-  /// Information on the currently queueing transaction
-  trx_monitoring_info *queueing_trx;
+  /// Information on the current and last queued transactions
+  Gtid_monitoring_info *gtid_monitoring_info;
 
 public:
   /**
@@ -322,24 +320,16 @@ public:
   char for_channel_uppercase_str[CHANNEL_NAME_LENGTH+15];
 
   /**
-   @return the queueing transaction information
-   */
-  trx_monitoring_info* get_queueing_trx()
-  {
-    return queueing_trx;
-  }
-
-  /**
-   @return the last queued transaction information
+    @return The pointer to the Gtid_monitoring_info
   */
-  trx_monitoring_info* get_last_queued_trx()
+  Gtid_monitoring_info* get_gtid_monitoring_info()
   {
-    return last_queued_trx;
+    return gtid_monitoring_info;
   }
 
   /**
     Stores the details of the transaction the receiver thread has just started
-    queueing in queueing_trx.
+    queueing.
 
     @param  gtid_arg         the gtid of the trx
     @param  original_ts_arg  the original commit timestamp of the transaction
@@ -348,8 +338,7 @@ public:
   void started_queueing(Gtid gtid_arg, ulonglong original_ts_arg,
                         ulonglong immediate_ts_arg)
   {
-    queueing_trx->set(gtid_arg, original_ts_arg, immediate_ts_arg,
-                      my_getsystime() /*start_time*/);
+    gtid_monitoring_info->start(gtid_arg, original_ts_arg, immediate_ts_arg);
   }
 
   /**
@@ -359,45 +348,50 @@ public:
   */
   void finished_queueing()
   {
-    queueing_trx->end_time= my_getsystime();
-    last_queued_trx->copy(queueing_trx);
-    queueing_trx->clear();
+    gtid_monitoring_info->finish();
   }
 
   /**
-   @return True if there is a transaction currently being queued
+    @return True if there is a transaction currently being queued
   */
   bool is_queueing_trx()
   {
-    return queueing_trx->is_set();
+    return gtid_monitoring_info->is_processing_trx_set();
   }
 
   /**
-   Clears the queueing_trx structure fields. Normally called when there is an
-   error while queueing the transaction.
-   @param need_lock if false then the lock has already been acquired before the
-                    method was called; if true then the lock must be acquired
-                    before modifying queueing_trx.
+    @return The pointer to the GTID of the processing_trx of
+            Gtid_monitoring_info.
   */
-  void clear_queueing_trx(bool need_lock)
+  const Gtid* get_queueing_trx_gtid()
+  {
+    return gtid_monitoring_info->get_processing_trx_gtid();
+  }
+
+  /**
+    Clears the processing_trx monitoring info.
+
+    Normally called when there is an error while queueing the transaction.
+  */
+  void clear_queueing_trx(bool need_lock=false)
   {
     if (need_lock)
-    {
       mysql_mutex_lock(&data_lock);
-    }
-    queueing_trx->clear();
+    gtid_monitoring_info->clear_processing_trx();
     if (need_lock)
-    {
       mysql_mutex_unlock(&data_lock);
-    }
   }
 
   /**
-   Clears the last_queued_trx structure fields.
+    Clears all GTID monitoring info.
   */
-  void clear_last_queued_trx()
+  void clear_gtid_monitoring_info(bool need_lock=false)
   {
-    last_queued_trx->clear();
+    if (need_lock)
+      mysql_mutex_lock(&data_lock);
+    gtid_monitoring_info->clear();
+    if (need_lock)
+      mysql_mutex_unlock(&data_lock);
   }
 
 

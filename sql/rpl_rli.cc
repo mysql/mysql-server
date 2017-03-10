@@ -176,10 +176,6 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   cached_charset_invalidate();
   inited_hash_workers= FALSE;
   commit_timestamps_status= COMMIT_TS_UNKNOWN;
-  last_processed_trx= new trx_monitoring_info;
-  processing_trx= new trx_monitoring_info;
-  processing_trx->clear();
-  last_processed_trx->clear();
 
   if (!rli_fake)
   {
@@ -208,6 +204,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
     Sid_map *sid_map= new Sid_map(sid_lock);
     gtid_set= new Gtid_set(sid_map, sid_lock);
   }
+  gtid_monitoring_info= new Gtid_monitoring_info();
   do_server_version_split(::server_version, slave_version_split);
   until_option= NULL;
   rpl_filter= NULL;
@@ -290,8 +287,7 @@ Relay_log_info::~Relay_log_info()
 
   set_rli_description_event(NULL);
   delete until_option;
-  delete last_processed_trx;
-  delete processing_trx;
+  delete gtid_monitoring_info;
   DBUG_VOID_RETURN;
 }
 
@@ -1325,8 +1321,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   /* Reset the transaction boundary parser and clear the last GTID queued */
   mi->transaction_parser.reset();
   mysql_mutex_lock(&mi->data_lock);
-  mi->clear_queueing_trx(false /*need_lock*/);
-  mi->clear_last_queued_trx();
+  mi->clear_gtid_monitoring_info();
   mysql_mutex_unlock(&mi->data_lock);
 
   slave_skip_counter= 0;
@@ -1765,12 +1760,7 @@ int Relay_log_info::rli_init_info()
   int error= 0;
   enum_return_check check_return= ERROR_CHECKING_REPOSITORY;
   const char *msg= NULL;
-  /* Store the GTID of a transaction spanned in multiple relay log files */
-  trx_monitoring_info partial_trx;
-
   DBUG_ENTER("Relay_log_info::rli_init_info");
-
-  partial_trx.clear();
 
   mysql_mutex_assert_owner(&data_lock);
 
@@ -1926,57 +1916,51 @@ int Relay_log_info::rli_init_info()
       LogErr(ERROR_LEVEL, ER_RPL_OPEN_INDEX_FILE_FAILED);
       DBUG_RETURN(1);
     }
-#ifndef DBUG_OFF
-    get_sid_lock()->wrlock();
-    gtid_set->dbug_print("set of GTIDs in relay log before initialization");
-    get_sid_lock()->unlock();
-#endif
-    /*
-      In the init_gtid_set below we pass the mi->transaction_parser.
-      This will be useful to ensure that we only add a GTID to
-      the Retrieved_Gtid_Set for fully retrieved transactions. Also, it will
-      be useful to ensure the Retrieved_Gtid_Set behavior when auto
-      positioning is disabled (we could have transactions spanning multiple
-      relay log files in this case).
-      We will skip this initialization if relay_log_recovery is set in order
-      to save time, as neither the GTIDs nor the transaction_parser state
-      would be useful when the relay log will be cleaned up later when calling
-      init_recovery.
-    */
-    if (!is_relay_log_recovery &&
-        !gtid_retrieved_initialized &&
-        relay_log.init_gtid_sets(gtid_set, NULL,
-                                 opt_slave_sql_verify_checksum,
-                                 true/*true=need lock*/,
-                                 &mi->transaction_parser, &partial_trx))
+
+    if (!gtid_retrieved_initialized)
     {
-      LogErr(ERROR_LEVEL, ER_RPL_CANT_INITIALIZE_GTID_SETS_IN_RLI_INIT_INFO);
-      DBUG_RETURN(1);
-    }
-    gtid_retrieved_initialized= true;
+      /* Store the GTID of a transaction spanned in multiple relay log files */
+      Gtid_monitoring_info *partial_trx= mi->get_gtid_monitoring_info();
+      partial_trx->clear();
 #ifndef DBUG_OFF
-    get_sid_lock()->wrlock();
-    gtid_set->dbug_print("set of GTIDs in relay log after initialization");
-    get_sid_lock()->unlock();
+      get_sid_lock()->wrlock();
+      gtid_set->dbug_print("set of GTIDs in relay log before initialization");
+      get_sid_lock()->unlock();
 #endif
-    if (partial_trx.is_set())
-    {
       /*
-        The init_gtid_set has found an incomplete transaction in the relay log.
-        We add this transaction's GTID information to the queueing_trx structure
-        so the IO thread knows which GTID to add to the Retrieved_Gtid_Set when
-        reaching the end of the incomplete transaction.
+        In the init_gtid_set below we pass the mi->transaction_parser.
+        This will be useful to ensure that we only add a GTID to
+        the Retrieved_Gtid_Set for fully retrieved transactions. Also, it will
+        be useful to ensure the Retrieved_Gtid_Set behavior when auto
+        positioning is disabled (we could have transactions spanning multiple
+        relay log files in this case).
+        We will skip this initialization if relay_log_recovery is set in order
+        to save time, as neither the GTIDs nor the transaction_parser state
+        would be useful when the relay log will be cleaned up later when calling
+        init_recovery.
       */
-      mi->get_queueing_trx()->copy(&partial_trx);
-    }
-    else
-    {
-      mi->clear_queueing_trx(false /* need_lock */);
+      if (!is_relay_log_recovery &&
+          !gtid_retrieved_initialized &&
+          relay_log.init_gtid_sets(gtid_set, NULL,
+                                   opt_slave_sql_verify_checksum,
+                                   true/*true=need lock*/,
+                                   &mi->transaction_parser,
+                                   partial_trx))
+      {
+        LogErr(ERROR_LEVEL, ER_RPL_CANT_INITIALIZE_GTID_SETS_IN_RLI_INIT_INFO);
+        DBUG_RETURN(1);
+      }
+      gtid_retrieved_initialized= true;
+#ifndef DBUG_OFF
+      get_sid_lock()->wrlock();
+      gtid_set->dbug_print("set of GTIDs in relay log after initialization");
+      get_sid_lock()->unlock();
+#endif
     }
     /*
       Configures what object is used by the current log to store processed
       gtid(s). This is necessary in the MYSQL_BIN_LOG::MYSQL_BIN_LOG to
-      corretly compute the set of previous gtids.
+      correctly compute the set of previous gtids.
     */
     relay_log.set_previous_gtid_set_relaylog(gtid_set);
     /*

@@ -260,40 +260,36 @@ public:
   } commit_timestamps_status;
 
   /**
-   @return the last processed transation information
+    @return the pointer to the Gtid_monitoring_info.
   */
-  trx_monitoring_info* get_last_processed_trx()
+  Gtid_monitoring_info* get_gtid_monitoring_info()
   {
-    return last_processed_trx;
+    return gtid_monitoring_info;
   }
 
   /**
-   @return the currently processing transaction information
-  */
-  trx_monitoring_info* get_processing_trx()
-  {
-    return processing_trx;
-  }
+    Stores the details of the transaction which has just started processing.
 
-  /**
-    Stores the details of the transaction which has just started processing
+    This function is called by the STS applier or MTS worker when applying a
+    Gtid.
 
     @param  gtid_arg         the gtid of the trx
     @param  original_ts_arg  the original commit timestamp of the transaction
     @param  immediate_ts_arg the immediate commit timestamp of the transaction
-    @param  skipped          true if the transanction was gtid skipped
+    @param  skipped          true if the transaction was gtid skipped
   */
   void started_processing(Gtid gtid_arg, ulonglong original_ts_arg,
                           ulonglong immediate_ts_arg, bool skipped= false)
   {
-    mysql_mutex_lock(&data_lock);
-    processing_trx->set(gtid_arg, original_ts_arg, immediate_ts_arg,
-                        my_getsystime() /*start_time*/, skipped);
-    mysql_mutex_unlock(&data_lock);
+    gtid_monitoring_info->start(gtid_arg, original_ts_arg, immediate_ts_arg,
+                                skipped);
   }
 
   /**
-    Stores the details of the transaction which has just started processing
+    Stores the details of the transaction which has just started processing.
+
+    This function is called by the MTS coordinator when queuing a Gtid to
+    a worker.
 
     @param  gtid_log_ev_arg the gtid log event of the trx
   */
@@ -315,51 +311,37 @@ public:
     recorded, the information is copied to last_processed_trx and the
     information in processing_trx is cleared.
 
-    If the transaction was being applied but GTID-skipped, the copy will not
+    If the transaction was "applied" but GTID-skipped, the copy will not
     happen and the last_processed_trx will keep its current value.
   */
   void finished_processing()
   {
-    mysql_mutex_lock(&data_lock);
-    processing_trx->end_time= my_getsystime();
-    last_processed_trx->copy_if_not_skipped(processing_trx);
-    processing_trx->clear();
-    mysql_mutex_unlock(&data_lock);
+    gtid_monitoring_info->finish();
   }
 
   /**
-   @return True if there is a transaction being currently processed
+    @return True if there is a transaction being currently processed
   */
   bool is_processing_trx()
   {
-    return processing_trx->is_set();
+    return gtid_monitoring_info->is_processing_trx_set();
   }
 
   /**
    Clears the processing_trx structure fields. Normally called when there is an
    error while processing the transaction.
-   @param need_lock true by default. if false then the lock has already been
-                    acquired before the method was called.
   */
-  void clear_processing_trx(bool need_lock)
+  void clear_processing_trx()
   {
-    if (need_lock)
-    {
-      mysql_mutex_lock(&data_lock);
-    }
-    processing_trx->clear();
-    if (need_lock)
-    {
-      mysql_mutex_unlock(&data_lock);
-    }
+    gtid_monitoring_info->clear_processing_trx();
   }
 
   /**
-   Clears the last_processed_trx structure fields.
+    Clears the Gtid_monitoring_info fields.
   */
-  void clear_last_processed_trx()
+  void clear_gtid_monitoring_info()
   {
-    last_processed_trx->clear();
+    gtid_monitoring_info->clear();
   }
 
   /*
@@ -434,18 +416,19 @@ private:
   bool gtid_retrieved_initialized;
 
   /**
-   Stores information on the last processed transaction or the transaction
-   that is currently being processed.
-   STS:
-     - timestamps of the currently applying/last applied transaction
-   MTS:
-     - coordinator thread: timestamps of the currently scheduling/last scheduled
-     transaction in a worker's queue
-     - worker thread: timestamps of the currently applying/last applied
-   transaction
+    Stores information on the last processed transaction or the transaction
+    that is currently being processed.
+
+    STS:
+    - timestamps of the currently applying/last applied transaction
+
+    MTS:
+    - coordinator thread: timestamps of the currently scheduling/last scheduled
+      transaction in a worker's queue
+    - worker thread: timestamps of the currently applying/last applied
+      transaction
   */
-  trx_monitoring_info *last_processed_trx;
-  trx_monitoring_info *processing_trx;
+  Gtid_monitoring_info *gtid_monitoring_info;
 
 public:
   Sid_map* get_sid_map()

@@ -32,6 +32,7 @@
 #include "rpl_msr.h"
 #include "sql_class.h"        // THD
 #include "sql_error.h"
+#include <storage/perfschema/pfs_instr_class.h> // gtid_monitoring_getsystime
 #endif // ifdef MYSQL_SERVER
 
 #ifndef MYSQL_SERVER
@@ -298,5 +299,234 @@ rpl_gno get_last_executed_gno(rpl_sidno sidno)
   global_sid_lock->unlock();
 
   DBUG_RETURN(gno);
+}
+
+Trx_monitoring_info::Trx_monitoring_info()
+{
+  is_info_set= false;
+}
+
+Trx_monitoring_info::Trx_monitoring_info(const Trx_monitoring_info& info)
+{
+  if ((is_info_set= info.is_info_set))
+  {
+    gtid= info.gtid;
+    original_commit_timestamp= info.original_commit_timestamp;
+    immediate_commit_timestamp= info.immediate_commit_timestamp;
+    start_time= info.start_time;
+    end_time= info.end_time;
+    skipped= info.skipped;
+  }
+}
+
+void Trx_monitoring_info::clear()
+{
+  gtid= {0, 0};
+  original_commit_timestamp= 0;
+  immediate_commit_timestamp= 0;
+  start_time= 0;
+  end_time= 0;
+  skipped= false;
+  is_info_set= false;
+}
+
+void Trx_monitoring_info::copy_to_ps_table(Sid_map* sid_map,
+                                           char *gtid_arg,
+                                           uint *gtid_length_arg,
+                                           ulonglong *original_commit_ts_arg,
+                                           ulonglong *immediate_commit_ts_arg,
+                                           ulonglong *start_time_arg)
+{
+  if (is_info_set)
+  {
+    // The trx_monitoring_info is populated
+    if (gtid.is_empty())
+    {
+      // The transaction is anonymous
+      memcpy(gtid_arg, "ANONYMOUS", 10);
+      *gtid_length_arg= 9;
+    }
+    else
+    {
+      // The GTID is set
+      Checkable_rwlock *sid_lock= sid_map->get_sid_lock();
+      sid_lock->rdlock();
+      *gtid_length_arg= gtid.to_string(sid_map, gtid_arg);
+      sid_lock->unlock();
+    }
+    *original_commit_ts_arg= original_commit_timestamp;
+    *immediate_commit_ts_arg= immediate_commit_timestamp;
+    *start_time_arg= start_time/10;
+  }
+  else
+  {
+    // This monitoring info is not populated, so let's zero the input
+    memcpy(gtid_arg, "", 1);
+    *gtid_length_arg= 0;
+    *original_commit_ts_arg= 0;
+    *immediate_commit_ts_arg= 0;
+    *start_time_arg= 0;
+  }
+}
+
+void Trx_monitoring_info::copy_to_ps_table(Sid_map* sid_map,
+                                           char *gtid_arg,
+                                           uint *gtid_length_arg,
+                                           ulonglong *original_commit_ts_arg,
+                                           ulonglong *immediate_commit_ts_arg,
+                                           ulonglong *start_time_arg,
+                                           ulonglong *end_time_arg)
+{
+  *end_time_arg= is_info_set ? end_time/10 : 0;
+  copy_to_ps_table(sid_map, gtid_arg, gtid_length_arg,
+                   original_commit_ts_arg,
+                   immediate_commit_ts_arg,
+                   start_time_arg);
+}
+
+Gtid_monitoring_info::Gtid_monitoring_info(mysql_mutex_t *atomic_mutex_arg)
+  : atomic_mutex(atomic_mutex_arg)
+{
+  processing_trx= new Trx_monitoring_info;
+  last_processed_trx= new Trx_monitoring_info;
+}
+
+Gtid_monitoring_info::~Gtid_monitoring_info()
+{
+  delete last_processed_trx;
+  delete processing_trx;
+}
+
+void Gtid_monitoring_info::atomic_lock()
+{
+  if (atomic_mutex == NULL)
+  {
+    DBUG_ASSERT(!is_locked);
+    bool expected= false;
+    while (!atomic_locked.compare_exchange_weak(expected, true))
+    {
+      /*
+        All "atomic" operations on this object are based on copying
+        variable contents and setting values. They should not take long.
+      */
+      my_thread_yield();
+    }
+#ifndef DBUG_OFF
+    is_locked= true;
+#endif
+  }
+  else
+  {
+    // If this object is relying on a mutex, just ensure it was acquired.
+    mysql_mutex_assert_owner(atomic_mutex)
+  }
+}
+
+void Gtid_monitoring_info::atomic_unlock()
+{
+  if (atomic_mutex == NULL)
+  {
+#ifndef DBUG_OFF
+    DBUG_ASSERT(is_locked);
+    is_locked= false;
+#endif
+    atomic_locked= false;
+  }
+  else
+    mysql_mutex_assert_owner(atomic_mutex)
+}
+
+void Gtid_monitoring_info::clear()
+{
+  atomic_lock();
+  processing_trx->clear();
+  last_processed_trx->clear();
+  atomic_unlock();
+}
+
+void Gtid_monitoring_info::clear_processing_trx()
+{
+  atomic_lock();
+  processing_trx->clear();
+  atomic_unlock();
+}
+
+void Gtid_monitoring_info::clear_last_processed_trx()
+{
+  atomic_lock();
+  last_processed_trx->clear();
+  atomic_unlock();
+}
+
+void Gtid_monitoring_info::start(Gtid gtid_arg,
+                                 ulonglong original_ts_arg,
+                                 ulonglong immediate_ts_arg,
+                                 bool skipped_arg)
+{
+  /* Collect current timestamp before the atomic operation */
+  ulonglong start_time= gtid_monitoring_getsystime();
+
+  atomic_lock();
+  processing_trx->gtid= gtid_arg;
+  processing_trx->original_commit_timestamp= original_ts_arg;
+  processing_trx->immediate_commit_timestamp= immediate_ts_arg;
+  processing_trx->start_time= start_time;
+  processing_trx->end_time= 0;
+  processing_trx->skipped= skipped_arg;
+  processing_trx->is_info_set= true;
+  atomic_unlock();
+}
+
+void Gtid_monitoring_info::finish()
+{
+  /* Collect current timestamp before the atomic operation */
+  ulonglong end_time= gtid_monitoring_getsystime();
+
+  atomic_lock();
+  processing_trx->end_time= end_time;
+  /*
+    We only swap if the transaction was not skipped.
+
+    Notice that only applier thread set the skipped variable to true.
+  */
+  if (!processing_trx->skipped)
+    std::swap(processing_trx,last_processed_trx);
+
+  processing_trx->clear();
+  atomic_unlock();
+}
+
+void Gtid_monitoring_info::copy_info_to(Trx_monitoring_info *processing_dest,
+                                        Trx_monitoring_info *last_processed_dest)
+{
+  atomic_lock();
+  *processing_dest= *processing_trx;
+  *last_processed_dest= *last_processed_trx;
+  atomic_unlock();
+}
+
+void Gtid_monitoring_info::copy_info_to(Gtid_monitoring_info *dest)
+{
+  copy_info_to(dest->processing_trx, dest->last_processed_trx);
+}
+
+bool Gtid_monitoring_info::is_processing_trx_set()
+{
+  /*
+    This function is only called by threads about to update the monitoring
+    information. It should be safe to collect this information without
+    acquiring locks.
+  */
+  return processing_trx->is_info_set;
+}
+
+const Gtid *Gtid_monitoring_info::get_processing_trx_gtid()
+{
+  /*
+    This function is only called by relay log recovery/queuing.
+  */
+  DBUG_ASSERT(atomic_mutex != NULL);
+  mysql_mutex_assert_owner(atomic_mutex);
+  return &processing_trx->gtid;
 }
 #endif // ifdef MYSQL_SERVER

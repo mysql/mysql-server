@@ -487,8 +487,7 @@ public:
   */
   void copy_values_for_PFS(ulong worker_id, en_running_state running_status,
                            THD *worker_thd, const Error &last_error,
-                           trx_monitoring_info *processing_trx_arg,
-                           trx_monitoring_info *last_processed_trx_arg);
+                           Gtid_monitoring_info *monitoring_info_arg);
 
   /*
     The running status is guarded by jobs_lock mutex that a writer

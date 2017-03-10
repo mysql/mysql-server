@@ -3965,7 +3965,7 @@ read_gtids_and_update_trx_parser_from_relaylog(
   Gtid_set *retrieved_gtids,
   bool verify_checksum,
   Transaction_boundary_parser *trx_parser,
-  trx_monitoring_info *partial_trx)
+  Gtid_monitoring_info *partial_trx)
 {
   DBUG_ENTER("read_gtids_and_update_trx_parser_from_relaylog");
   DBUG_PRINT("info", ("Opening file %s", filename));
@@ -4085,14 +4085,14 @@ read_gtids_and_update_trx_parser_from_relaylog(
         In the example above the GTID(1) will also be discarded as the
         GTID(1) transaction is not complete.
       */
-      if (!partial_trx->gtid.is_empty())
+      if (partial_trx->is_processing_trx_set())
       {
         DBUG_PRINT("info", ("Discarding Gtid(%d, %lld) as the transaction "
                             "wasn't complete and we found an error in the"
                             "transaction boundary parser.",
-                            partial_trx->gtid.sidno,
-                            partial_trx->gtid.gno));
-        partial_trx->gtid.clear();
+                            partial_trx->get_processing_trx_gtid()->sidno,
+                            partial_trx->get_processing_trx_gtid()->gno));
+        partial_trx->clear_processing_trx();
       }
     }
 
@@ -4163,10 +4163,9 @@ read_gtids_and_update_trx_parser_from_relaylog(
             should not add the GTID here as we don't know if the transaction
             is complete on the relay log yet.
           */
-          partial_trx->set(gtid,
-                           original_commit_timestamp,
-                           immediate_commit_timestamp,
-                           my_getsystime() /*start_time*/);
+          partial_trx->start(gtid,
+                             original_commit_timestamp,
+                             immediate_commit_timestamp);
         }
         DBUG_PRINT("info", ("Found Gtid in relaylog file '%s': Gtid(%d, %lld).",
                             filename, sidno, gtid_ev->get_gno()));
@@ -4183,15 +4182,17 @@ read_gtids_and_update_trx_parser_from_relaylog(
       */
       if (trx_parser->is_not_inside_transaction())
       {
-        if (!partial_trx->gtid.is_empty())
+        if (partial_trx->is_processing_trx_set())
         {
+          const Gtid *fully_retrieved_gtid;
+          fully_retrieved_gtid= partial_trx->get_processing_trx_gtid();
           DBUG_PRINT("info", ("Adding Gtid to Retrieved_Gtid_Set as the "
                               "transaction was completed at "
                               "relaylog file '%s': Gtid(%d, %lld).",
-                              filename, partial_trx->gtid.sidno,
-                              partial_trx->gtid.gno));
-          retrieved_gtids->_add_gtid(partial_trx->gtid.sidno,
-                                     partial_trx->gtid.gno);
+                              filename,
+                              fully_retrieved_gtid->sidno,
+                              fully_retrieved_gtid->gno));
+          retrieved_gtids->_add_gtid(*fully_retrieved_gtid);
           /*
            We don't need to update the last queued structure here. We just
            want to have the information about the partial transaction left in
@@ -4645,7 +4646,7 @@ end:
 bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
                                    bool verify_checksum, bool need_lock,
                                    Transaction_boundary_parser *trx_parser,
-                                   trx_monitoring_info *partial_trx,
+                                   Gtid_monitoring_info *partial_trx,
                                    bool is_server_starting)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::init_gtid_sets");
@@ -7169,15 +7170,14 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi)
       not be available in the Previous GTIDs of the next relay log file
       if we are going to rotate the relay log.
     */
-    Gtid *last_gtid_queued= &mi->get_queueing_trx()->gtid;
-    if (!last_gtid_queued->is_empty())
+    if (!mi->get_queueing_trx_gtid()->is_empty())
     {
       mi->rli->get_sid_lock()->rdlock();
       DBUG_SIGNAL_WAIT_FOR("updating_received_transaction_set",
                            "reached_updating_received_transaction_set",
                            "continue_updating_received_transaction_set");
-      mi->rli->add_logged_gtid(last_gtid_queued->sidno,
-                               last_gtid_queued->gno);
+      mi->rli->add_logged_gtid(mi->get_queueing_trx_gtid()->sidno,
+                               mi->get_queueing_trx_gtid()->gno);
       mi->rli->get_sid_lock()->unlock();
     }
 

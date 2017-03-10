@@ -692,5 +692,13 @@ void update_program_share_derived_flags(PFS_thread *thread);
 
 extern LF_HASH table_share_hash;
 
+/**
+  Get current time for GTID monitoring.
+
+  @return my_getsystime() when PFS monitoring is enabled.
+  @return 0 when PFS monitoring is disabled.
+*/
+ulonglong gtid_monitoring_getsystime();
+
 /** @} */
 #endif

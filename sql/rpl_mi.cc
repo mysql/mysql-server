@@ -159,10 +159,7 @@ Master_info::Master_info(
   start_user[0]= 0;
   ignore_server_ids= new Server_ids;
 
-  last_queued_trx= new trx_monitoring_info;
-  last_queued_trx->clear();
-  queueing_trx= new trx_monitoring_info;
-  queueing_trx->clear();
+  gtid_monitoring_info= new Gtid_monitoring_info(&data_lock);
 
   /*channel is set in base class, rpl_info.cc*/
   my_snprintf(for_channel_str, sizeof(for_channel_str)-1,
@@ -187,8 +184,7 @@ Master_info::~Master_info()
   delete m_channel_lock;
   delete ignore_server_ids;
   delete mi_description_event;
-  delete last_queued_trx;
-  delete queueing_trx;
+  delete gtid_monitoring_info;
 }
 
 /**

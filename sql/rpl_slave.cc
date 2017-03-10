@@ -7036,8 +7036,7 @@ static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   rli->mts_last_online_stat= my_time(0);
   rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
   //clear monitoring information
-  rli->clear_processing_trx(false /*needs_lock*/ );
-  rli->clear_last_processed_trx();
+  rli->clear_gtid_monitoring_info();
 
   if (init_hash_workers(rli))  // MTS: mapping_db_to_worker
   {
@@ -7154,8 +7153,7 @@ static void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
                                                ,w->id, rli->get_channel());
     worker_copy->copy_values_for_PFS(w->id, w->running_status, w->info_thd,
                                      w->last_error(),
-                                     w->get_processing_trx(),
-                                     w->get_last_processed_trx());
+                                     w->get_gtid_monitoring_info());
     rli->workers_copy_pfs.push_back(worker_copy);
   }
 
@@ -8599,34 +8597,36 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
 
       /*
-        If this event is GTID_LOG_EVENT we store its GTID to add to the
-        Retrieved_Gtid_Set later, when the last event of the transaction be
-        queued.
-      */
-      if (event_type == binary_log::GTID_LOG_EVENT)
-      {
-        // set the timestamp for the start time of queueing this transaction
-        mi->started_queueing(gtid, original_commit_timestamp,
-                             immediate_commit_timestamp);
-      }
-
-      /*
-        If we are starting an anonymous transaction, we have to discard
+        If we are starting an anonymous transaction, we will discard
         the GTID of the partial transaction that was not finished (if
-        there is one).
-        */
+        there is one) when calling mi->started_queueing().
+      */
+#ifndef DBUG_OFF
       if (event_type == binary_log::ANONYMOUS_GTID_LOG_EVENT)
       {
-#ifndef DBUG_OFF
-        if (!mi->get_queueing_trx()->gtid.is_empty())
+        if (!mi->get_queueing_trx_gtid()->is_empty())
         {
           DBUG_PRINT("info", ("Discarding Gtid(%d, %lld) as the transaction "
                               "wasn't complete and we found an "
                               "ANONYMOUS_GTID_LOG_EVENT.",
-                              mi->get_queueing_trx()->gtid.sidno,
-                              mi->get_queueing_trx()->gtid.gno));
+                              mi->get_queueing_trx_gtid()->sidno,
+                              mi->get_queueing_trx_gtid()->gno));
         }
+      }
 #endif
+
+      /*
+        We have to mark this GTID (either anonymous or not) as started
+        to be queued.
+
+        Also, if this event is a GTID_LOG_EVENT, we have to store its GTID to
+        add to the Retrieved_Gtid_Set later, when the last event of the
+        transaction be queued. The call to mi->started_queueing() will save
+        the GTID to be used later.
+      */
+      if (event_type == binary_log::GTID_LOG_EVENT ||
+          event_type == binary_log::ANONYMOUS_GTID_LOG_EVENT)
+      {
         // set the timestamp for the start time of queueing this transaction
         mi->started_queueing(gtid, original_commit_timestamp,
                              immediate_commit_timestamp);

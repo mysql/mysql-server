@@ -134,7 +134,7 @@ PFS_engine_table_share
     &m_table_lock,
     &m_field_def,
     false, /* checked */
-    false  /* perpetual */
+    true  /* perpetual */
 };
 
 bool
@@ -404,24 +404,29 @@ table_replication_applier_status_by_coordinator::make_row(Master_info *mi)
 
   mysql_mutex_unlock(&mi->rli->err_lock);
 
-  mi->rli->get_last_processed_trx()->copy_to_ps_table(
-    m_row.last_processed_trx,
-    m_row.last_processed_trx_length,
-    m_row.last_processed_trx_original_commit_timestamp,
-    m_row.last_processed_trx_immediate_commit_timestamp,
-    m_row.last_processed_trx_start_buffer_timestamp,
-    m_row.last_processed_trx_end_buffer_timestamp,
-    global_sid_map);
+  Trx_monitoring_info last_processed_trx;
+  Trx_monitoring_info processing_trx;
 
-  mi->rli->get_processing_trx()->copy_to_ps_table(
-    m_row.processing_trx,
-    m_row.processing_trx_length,
-    m_row.processing_trx_original_commit_timestamp,
-    m_row.processing_trx_immediate_commit_timestamp,
-    m_row.processing_trx_start_buffer_timestamp,
-    global_sid_map);
+  mi->rli->get_gtid_monitoring_info()->copy_info_to(&processing_trx,
+                                                    &last_processed_trx);
 
   mysql_mutex_unlock(&mi->rli->data_lock);
+
+  last_processed_trx.copy_to_ps_table(global_sid_map,
+                                      m_row.last_processed_trx,
+                                      &m_row.last_processed_trx_length,
+                                      &m_row.last_processed_trx_original_commit_timestamp,
+                                      &m_row.last_processed_trx_immediate_commit_timestamp,
+                                      &m_row.last_processed_trx_start_buffer_timestamp,
+                                      &m_row.last_processed_trx_end_buffer_timestamp);
+
+  processing_trx.copy_to_ps_table(global_sid_map,
+                                  m_row.processing_trx,
+                                  &m_row.processing_trx_length,
+                                  &m_row.processing_trx_original_commit_timestamp,
+                                  &m_row.processing_trx_immediate_commit_timestamp,
+                                  &m_row.processing_trx_start_buffer_timestamp);
+
   return 0;
 }
 

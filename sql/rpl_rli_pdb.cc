@@ -556,15 +556,13 @@ void Slave_worker::copy_values_for_PFS(ulong worker_id,
                                        en_running_state thd_running_status,
                                        THD *worker_thd,
                                        const Error &last_error,
-                                       trx_monitoring_info *processing_trx_arg,
-                                       trx_monitoring_info *last_processed_trx_arg)
+                                       Gtid_monitoring_info *monitoring_info)
 {
   id= worker_id;
   running_status= thd_running_status;
   info_thd= worker_thd;
   m_last_error= last_error;
-  get_processing_trx()->copy(processing_trx_arg);
-  get_last_processed_trx()->copy(last_processed_trx_arg);
+  monitoring_info->copy_info_to(get_gtid_monitoring_info());
 }
 
 bool Slave_worker::set_info_search_keys(Rpl_info_handler *to)
@@ -2781,8 +2779,8 @@ int slave_worker_exec_job_group( Slave_worker *worker, Relay_log_info *rli)
   worker->slave_worker_ends_group(ev, 0);
 
   /*
-   check if the finished group started with a gtid_log_event to update the
-   monitoring information
+    Check if the finished group started with a Gtid_log_event to update the
+    monitoring information
   */
   if (current_thd->rli_slave->is_processing_trx())
   {
@@ -2798,11 +2796,11 @@ int slave_worker_exec_job_group( Slave_worker *worker, Relay_log_info *rli)
         ((Query_log_event*)ev)->rollback_injected_by_coord)
     {
       /*
-       If this was a rollback event injected by the coordinator because of a
-       partial transaction in the relay log, we must not consider this
-       transaction completed and, instead, clear the monitoring info.
+        If this was a rollback event injected by the coordinator because of a
+        partial transaction in the relay log, we must not consider this
+        transaction completed and, instead, clear the monitoring info.
       */
-      current_thd->rli_slave->clear_processing_trx(true /*need_lock*/);
+      current_thd->rli_slave->clear_processing_trx();
     }
     else
     {

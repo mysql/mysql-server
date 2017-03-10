@@ -23,6 +23,8 @@
 #         $is_first_stmt              1 is this is the first statement of the
 #                                     test
 
+--let $gtid_ts_pfs_enabled=`SELECT @@GLOBAL.performance_schema`
+
 eval SET debug_sync= $debug_sync_1;
 if ($is_first_check)
 {
@@ -84,8 +86,16 @@ eval SET debug_sync= $debug_sync_4;
 --let $assert_cond= "$now_handling_before_ICT" != "0000-00-00 00:00:00.000000"
 --source include/assert.inc
 
---let $assert_text= Assert that currently $now_handling_action start_time exists
---let $assert_cond= "$now_handling_before_start" != "0000-00-00 00:00:00.000000"
+if ($gtid_ts_pfs_enabled)
+{
+  --let $assert_text= Assert that currently $now_handling_action start_time exists
+  --let $assert_cond= "$now_handling_before_start" != "0000-00-00 00:00:00.000000"
+}
+if (!$gtid_ts_pfs_enabled)
+{
+  --let $assert_text= Assert that currently $now_handling_action start_time was cleared
+  --let $assert_cond= "$now_handling_before_start" = "0000-00-00 00:00:00.000000"
+}
 --source include/assert.inc
 
 --let $assert_text= Assert that the OCT of the last $last_handled_action and currently $now_handling_action is the same
@@ -100,9 +110,17 @@ eval SET debug_sync= $debug_sync_4;
 --let $assert_cond= "$now_handling_before_start" = "$last_handled_after_start"
 --source include/assert.inc
 
---let $unix_ts_end= `SELECT UNIX_TIMESTAMP('$last_handled_after_end')`
---let $unix_ts_start= `SELECT UNIX_TIMESTAMP('$last_handled_after_start')`
---let $assert_text= Assert that the end time of the last $last_handled_action is greater than the start time
---let $assert_cond= $unix_ts_end - $unix_ts_start  > 0
---source include/assert.inc
-
+if ($gtid_ts_pfs_enabled)
+{
+  --let $unix_ts_end= `SELECT UNIX_TIMESTAMP('$last_handled_after_end')`
+  --let $unix_ts_start= `SELECT UNIX_TIMESTAMP('$last_handled_after_start')`
+  --let $assert_text= Assert that the end time of the last $last_handled_action is greater than the start time
+  --let $assert_cond= $unix_ts_end - $unix_ts_start  > 0
+  --source include/assert.inc
+}
+if (!$gtid_ts_pfs_enabled)
+{
+  --let $assert_text= Assert that the end time of the last $last_handled_action was cleared
+  --let $assert_cond= "$last_handled_after_end" = "0000-00-00 00:00:00.000000"
+  --source include/assert.inc
+}

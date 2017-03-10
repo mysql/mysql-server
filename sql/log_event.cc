@@ -2984,7 +2984,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
           rli->abort_slave= 1;
           if (is_gtid_event(this))
           {
-            rli->clear_processing_trx(true /*need_lock*/);
+            rli->clear_processing_trx();
           }
           DBUG_RETURN(NULL);
         }

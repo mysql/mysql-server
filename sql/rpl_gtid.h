@@ -1064,163 +1064,184 @@ struct Gtid
 };
 
 
-/**
- Stores information to monitor a transaction during the different replication
- stages.
-*/
-struct trx_monitoring_info
+/// Structure to store the GTID and timing information.
+struct Trx_monitoring_info
 {
+  /// GTID being monitored.
   Gtid gtid;
+  /// OCT of the GTID being monitored.
   ulonglong original_commit_timestamp;
+  /// ICT of the GTID being monitored.
   ulonglong immediate_commit_timestamp;
+  /// When the GTID transaction started to be processed.
   ulonglong start_time;
+  /// When the GTID transaction finished to be processed.
   ulonglong end_time;
+  /// True if the GTID is being applied but will be skipped.
   bool skipped;
+  /// True when this information contains useful data.
+  bool is_info_set;
+
+  /// Constructor
+  Trx_monitoring_info();
+  /// Copy constructor
+  Trx_monitoring_info(const Trx_monitoring_info& info);
+
+  /// Clear all fields of the structure.
+  void clear();
+
 
   /**
-    Sets the initial information
+    Copies the info to the corresponding fields in p_s tables.
 
-    @param gtid_arg The Gtid to be stored
-    @param original_ts_arg The original commit timestamp of the Gtid
-    @param immediate_ts_arg The immediate commit timestamp of the Gtid
-    @param start_ts The start timestamp for the monitoring stage of the Gtid
-    @param skipped_arg True if the GTID was already applied
+    @param[in]  sid_map                  The SID map for the GTID.
+    @param[out] gtid_arg                 GTID field in the PS table.
+    @param[out] gtid_length_arg          Length of the GTID as string.
+    @param[out] original_commit_ts_arg   The original commit timestamp.
+    @param[out] immediate_commit_ts_arg  The immediate commit timestamp.
+    @param[out] start_time_arg           The start time field.
   */
-  void set(Gtid gtid_arg, ulonglong original_ts_arg, ulonglong immediate_ts_arg,
-           ulonglong start_ts, bool skipped_arg= false)
-  {
-    gtid= gtid_arg;
-    original_commit_timestamp= original_ts_arg;
-    immediate_commit_timestamp= immediate_ts_arg;
-    start_time= start_ts;
-    skipped= skipped_arg;
-  }
-
-  /// Resets this trx_monitoring_info
-  void clear()
-  {
-    gtid= { 0, 0};
-    original_commit_timestamp= 0;
-    immediate_commit_timestamp= 0;
-    start_time= 0;
-    end_time= 0;
-    skipped= false;
-  }
+  void copy_to_ps_table(Sid_map* sid_map,
+                        char *gtid_arg,
+                        uint *gtid_length_arg,
+                        ulonglong *original_commit_ts_arg,
+                        ulonglong *immediate_commit_ts_arg,
+                        ulonglong *start_time_arg);
 
   /**
-    Copies the information from another trx_monitoring_info
+    Copies the info to the corresponding fields in p_s tables.
 
-    @param other The other trx_monitoring_info to be copied
+    @param[in]  sid_map                  The SID map for the GTID.
+    @param[out] gtid_arg                 GTID field in the PS table.
+    @param[out] gtid_length_arg          Length of the GTID as string.
+    @param[out] original_commit_ts_arg   The original commit timestamp.
+    @param[out] immediate_commit_ts_arg  The immediate commit timestamp.
+    @param[out] start_time_arg           The start time field.
+    @param[out] end_time_arg             The end time field. This can be null
+                                         when the PS table fields are for the
+                                         "still processing" information.
   */
-  void copy(trx_monitoring_info *other)
-  {
-    gtid= other->gtid;
-    original_commit_timestamp= other->original_commit_timestamp;
-    immediate_commit_timestamp= other->immediate_commit_timestamp;
-    start_time= other->start_time;
-    end_time= other->end_time;
-  }
+  void copy_to_ps_table(Sid_map* sid_map,
+                        char *gtid_arg,
+                        uint *gtid_length_arg,
+                        ulonglong *original_commit_ts_arg,
+                        ulonglong *immediate_commit_ts_arg,
+                        ulonglong *start_time_arg,
+                        ulonglong *end_time_arg);
+};
+
+
+/**
+  Stores information to monitor a transaction during the different replication
+  stages.
+*/
+class Gtid_monitoring_info
+{
+public:
+  /**
+    Create this GTID monitoring info object.
+
+    @param atomic_mutex_arg When specified, this object will rely on the mutex
+                            to arbitrate the read/update access to object data.
+                            This will be used by the receiver thread, relying
+                            on mi->data_lock. When no mutex is specified, the
+                            object will rely on its own atomic mechanism.
+  */
+  Gtid_monitoring_info(mysql_mutex_t *atomic_mutex_arg=NULL);
+
+  /// Destroy this GTID monitoring info object.
+  ~Gtid_monitoring_info();
+
+protected:
+  /// Holds information about transaction being processed.
+  Trx_monitoring_info *processing_trx;
+  /// Holds information about the last processed transaction.
+  Trx_monitoring_info *last_processed_trx;
+
+private:
+  /**
+    Mutex arbitrating the atomic access to the object.
+
+    Some Gtid_monitoring_info will rely on replication thread locks
+    (i.e.: the Master_info's one rely on mi->data_lock, that is already
+    acquired every time the Gtid_monitoring_info needs to be updated).
+
+    Other Gtid_monitoring_info will rely on an atomic lock implemented
+    in this class to avoid overlapped reads and writes over the information.
+    (i.e.: the Relay_log_info's one sometimes is updated without rli locks).
+
+    When atomic_mutex is NULL, the object will rely on its own atomic
+    mechanism.
+  */
+  mysql_mutex_t *atomic_mutex;
+
+  /// The atomic locked flag.
+  std::atomic<bool> atomic_locked{false};
+#ifndef DBUG_OFF
+  /// Flag to assert the atomic lock behavior.
+  bool is_locked= false;
+#endif
+
+public:
+  /**
+    Lock this object when no thread mutex is used to arbitrate the access.
+  */
+  void atomic_lock();
+  /**
+    Unlock this object when no thread mutex is used to arbitrate the access.
+  */
+  void atomic_unlock();
+  /**
+    Clear all monitoring information.
+  */
+  void clear();
+  /**
+    Clear only the processing_trx monitoring info.
+  */
+  void clear_processing_trx();
+  /**
+    Clear only the last_processed_trx monitoring info.
+  */
+  void clear_last_processed_trx();
+  /**
+    Sets the initial monitoring information.
+
+    @param gtid_arg         The Gtid to be stored.
+    @param original_ts_arg  The original commit timestamp of the GTID.
+    @param immediate_ts_arg The immediate commit timestamp of the GTID.
+    @param skipped_arg      True if the GTID was already applied.
+                            This only make sense for applier threads.
+                            That's why it is false by default.
+  */
+  void start(Gtid gtid_arg,
+             ulonglong original_ts_arg,
+             ulonglong immediate_ts_arg,
+             bool skipped_arg= false);
 
   /**
-   Copies the information from another trx_monitoring_info
-   just if the transaction was not skipped.
-
-   @param other The other trx_monitoring_info to be copied
- */
-  void copy_if_not_skipped(trx_monitoring_info *other)
-  {
-    if (!other->skipped)
-    {
-      copy(other);
-    }
-  }
-
+    Sets the final information, copy processing info to last_processed
+    and clears processing info.
+  */
+  void finish();
   /**
-  Copies the info to the corresponding fields in p_s tables.
+    Copies both processing_trx and last_processed_trx info to other
+    Trx_monitoring_info structures.
 
-  @param[out] gtid_arg                       GTID field in the table
-  @param[out] gtid_length_arg                length of the GTID
-  @param[out] original_commit_ts_arg         the original commit timestamp
-  @param[out] immediate_commit_ts_arg        the immediate commit timestamp
-  @param[out] start_time_arg                 the start time field
-  @param[in]  sid_map                        the SID map for the GTID
- */
-  void copy_to_ps_table(char *gtid_arg,
-                        uint &gtid_length_arg,
-                        ulonglong &original_commit_ts_arg,
-                        ulonglong &immediate_commit_ts_arg,
-                        ulonglong &start_time_arg,
-                        Sid_map* sid_map)
-  {
-    if (is_set())
-    {
-      // the trx_monitoring_info is populated
-      if (!gtid.is_empty())
-      {
-        // the GTID is set
-        Checkable_rwlock *sid_lock= sid_map->get_sid_lock();
-        sid_lock->rdlock();
-        gtid_length_arg= gtid.to_string(sid_map, gtid_arg);
-        sid_lock->unlock();
-      }
-      else
-      {
-        // the transaction is anonymous
-        memcpy(gtid_arg, "ANONYMOUS", 10);
-        gtid_length_arg= 9;
-      }
-      original_commit_ts_arg= original_commit_timestamp;
-      immediate_commit_ts_arg= immediate_commit_timestamp;
-      start_time_arg= start_time/10;
-    }
-    else
-    {
-      // this trx_monitoring_info is not populated, so let's zero the input
-      memcpy(gtid_arg, "", 1);
-      gtid_length_arg= 0;
-      original_commit_ts_arg= 0;
-      immediate_commit_ts_arg= 0;
-      start_time_arg= 0;
-    }
-  }
-
+    @param[out] processing_dest     The destination of processing_trx.
+    @param[out] last_processed_dest The destination of last_processed_trx.
+  */
+  void copy_info_to(Trx_monitoring_info *processing_dest,
+                    Trx_monitoring_info *last_processed_dest);
   /**
-  Copies the info to the corresponding fields in p_s tables.
+    Copies all monitoring info to other Gtid_monitoring_info object.
 
-  @param[out] gtid_arg                       GTID field in the table
-  @param[out] gtid_length_arg                length of the GTID
-  @param[out] original_commit_ts_arg         the original commit timestamp
-  @param[out] immediate_commit_ts_arg        the immediate commit timestamp
-  @param[out] start_time_arg                 the start time field
-  @param[out] end_time_arg                   the end time field
-  @param[in]  sid_map                        the SID map for the GTID
- */
-  void copy_to_ps_table(char *gtid_arg,
-                        uint &gtid_length_arg,
-                        ulonglong &original_commit_ts_arg,
-                        ulonglong &immediate_commit_ts_arg,
-                        ulonglong &start_time_arg,
-                        ulonglong &end_time_arg,
-                        Sid_map* sid_map)
-  {
-    copy_to_ps_table(gtid_arg, gtid_length_arg, original_commit_ts_arg,
-                     immediate_commit_ts_arg, start_time_arg, sid_map);
-    if (is_set())
-    {
-      end_time_arg= end_time/10;
-    }
-    else
-    {
-      // this trx_monitoring_info is not populated, so zero the remaining input
-      end_time_arg= 0;
-    }
-  }
-
-  /// Returns true if the trx_monitoring_info structure is set, false otherwise
-  bool is_set()
-  {
-    return start_time != 0;
-  }
+    @param[out] dest     The destination Gtid_monitoring_info.
+  */
+  void copy_info_to(Gtid_monitoring_info *dest);
+  /// Returns true if the processing_trx is set, false otherwise.
+  bool is_processing_trx_set();
+  /// Returns the GTID of the processing_trx.
+  const Gtid *get_processing_trx_gtid();
 };
 
 /**
