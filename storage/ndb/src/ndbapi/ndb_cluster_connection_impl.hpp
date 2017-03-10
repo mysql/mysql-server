@@ -117,7 +117,7 @@ private:
   int configure(Uint32 nodeid, const ndb_mgm_configuration &config);
   void connect_thread();
   void set_name(const char *name);
-  void set_application_address(const char *, int);
+  int set_service_uri(const char *, const char *, int, const char *);
   void set_data_node_neighbour(Uint32 neighbour_node);
   void adjust_node_proximity(Uint32 node_id, Int32 adjustment);
   Uint32 get_db_nodes(Uint8 nodesarray[MAX_NDB_NODES]) const;
@@ -170,9 +170,12 @@ private:
 
   NdbWaitGroup *m_multi_wait_group;
 
-  // Data for ndbinfo.processes
-  const char * m_application_addr;
-  int m_application_port;
+  // Service URI in ndbinfo.processes
+  BaseString m_uri_scheme, m_uri_host, m_uri_path;
+  int m_uri_port;
+
+  // system.name copied from configuration
+  BaseString m_system_name;
 };
 
 #endif
