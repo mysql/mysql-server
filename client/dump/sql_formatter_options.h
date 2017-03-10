@@ -28,7 +28,7 @@ namespace Mysql{
 namespace Tools{
 namespace Dump{
 
-enum enum_gtid_purged_mode {
+enum class enum_gtid_purged_mode : unsigned long {
   GTID_PURGED_OFF = 0,
   GTID_PURGED_AUTO = 1,
   GTID_PURGED_ON = 2
@@ -58,7 +58,7 @@ public:
   bool m_timezone_consistent;
   bool m_skip_definer;
   bool m_innodb_stats_tables_included;
-  enum enum_gtid_purged_mode m_gtid_purged;
+  enum_gtid_purged_mode m_gtid_purged;
   const Mysql_chain_element_options* m_mysql_chain_element_options;
 
   const TYPELIB* get_gtid_purged_mode_typelib()

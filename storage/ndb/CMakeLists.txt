@@ -123,6 +123,12 @@ IF (NOT WITH_NDBCLUSTER)
   RETURN()
 ENDIF()
 
+# Disable strict-aliasing for storage/ndb
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-strict-aliasing")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-strict-aliasing")
+ENDIF()
+
 # Disable specific types of warnings for storage/ndb
 # if the compiler supports the flag
 IF(CMAKE_COMPILER_IS_GNUCXX)

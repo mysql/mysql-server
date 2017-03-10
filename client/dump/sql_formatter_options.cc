@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -67,11 +67,12 @@ void Sql_formatter_options::create_options()
     "on the server, 'SET @@GLOBAL.GTID_PURGED' is added to the output. "
     "If GTIDs are disabled, AUTO does nothing. If no value is supplied "
     "then the default (AUTO) value will be considered.")
-    ->set_value(GTID_PURGED_AUTO);
+    ->set_value(enum_gtid_purged_mode::GTID_PURGED_AUTO);
 }
 
 Sql_formatter_options::Sql_formatter_options(
   const Mysql_chain_element_options* mysql_chain_element_options)
   : m_innodb_stats_tables_included(false),
+    m_gtid_purged(enum_gtid_purged_mode::GTID_PURGED_AUTO),
     m_mysql_chain_element_options(mysql_chain_element_options)
 {}
