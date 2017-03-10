@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,11 +34,14 @@ public:
   static ProcessInfo * forNodeId(Uint16);
   static void release(ProcessInfo *);
 
+  static bool isValidUri(const char *scheme, const char *path);
+
   bool isValid() const;
   void invalidate();
 
-  void setConnectionName(const char *);
-  void setConnectionName(Uint32 *signal_data);
+  void setUriPath(const char *);
+  void setUriPath(Uint32 *signal_data);
+  void setUriScheme(const char *);
   void setProcessName(const char *);
   void setHostAddress(const struct sockaddr *, socklen_t);
   void setHostAddress(const struct in_addr *);
@@ -48,7 +51,11 @@ public:
   void setAngelPid(Uint32 pid);
   void setPort(Uint16);
   void setNodeId(Uint16);
-  const char * getConnectionName() const { return connection_name;   };
+
+  int getServiceUri(char * buffer, size_t length) const;
+
+  const char * getUriPath() const        { return uri_path;          };
+  const char * getUriScheme() const      { return uri_scheme;        };
   const char * getProcessName() const    { return process_name;      };
   const char * getHostAddress() const    { return host_address;      };
   int getPid() const;
@@ -56,13 +63,9 @@ public:
   int getPort() const                    { return application_port;  };
   int getNodeId() const                  { return node_id;           };
 
-
-  /* Interface for Qmgr to build ProcessInfo for remote node
-     from received signal */
-  void initializeFromProcessInfoRep(ProcessInfoRep *);
-
-  STATIC_CONST( ConnectionNameLength = 128 );
-  STATIC_CONST( ConnectionNameLengthInWords = 32);
+  STATIC_CONST( UriPathLength = 128 );
+  STATIC_CONST( UriPathLengthInWords = 32 );
+  STATIC_CONST( UriSchemeLength = 16);
   STATIC_CONST( ProcessNameLength = 48 );
   STATIC_CONST( AddressStringLength = 48 );  // Long enough for IPv6
   STATIC_CONST( AddressStringLengthInWords = 12);
@@ -70,16 +73,21 @@ public:
   /* Interface for ClusterManager to create signal */
   void buildProcessInfoReport(ProcessInfoRep *);
 
+  /* Interface for Qmgr to build ProcessInfo for remote node
+     from received signal */
+  void initializeFromProcessInfoRep(ProcessInfoRep *);
+
 
 private:              /* Data Members */
-  char connection_name[ConnectionNameLength];
+  char uri_path[UriPathLength];
   char host_address[AddressStringLength];
   char process_name[ProcessNameLength];
+  char uri_scheme[UriSchemeLength];
   Uint32 node_id;
   Uint32 process_id;
   Uint32 angel_process_id;
   Uint32 application_port;
-};   // 240 bytes per node
+};   // 256 bytes per node
 
 
 inline bool ProcessInfo::isValid() const {

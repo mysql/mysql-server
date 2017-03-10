@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,9 +20,8 @@
 
 class ProcessInfo;
 
-void setOwnProcessInfoName(const char * pathname);
 void setOwnProcessInfoAngelPid(Uint32);
-void setOwnProcessInfoServerAddress(const struct sockaddr_in *);
+void setOwnProcessInfoServerAddress(struct in_addr *);
 void setOwnProcessInfoPort(Uint16);
 
 ProcessInfo * getOwnProcessInfo(Uint16 nodeId);

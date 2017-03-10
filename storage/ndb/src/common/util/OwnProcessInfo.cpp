@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,10 +18,8 @@
 #include "ndb_global.h"
 #include "ProcessInfo.hpp"
 #include "OwnProcessInfo.hpp"
-#include <EventLogger.hpp>
 #include <NdbMutex.h>
 
-extern EventLogger * g_eventLogger;
 const char * ndb_basename(const char *path);
 
 extern "C" {
@@ -35,13 +33,6 @@ NdbLockable theApiMutex;
 /* Public API
  *
  */
-void setOwnProcessInfoName(const char *pathname)
-{
-  theApiMutex.lock();
-  singletonInfo.setProcessName(ndb_basename(pathname));
-  theApiMutex.unlock();
-}
-
 void setOwnProcessInfoAngelPid(Uint32 pid)
 {
   theApiMutex.lock();
@@ -49,10 +40,10 @@ void setOwnProcessInfoAngelPid(Uint32 pid)
   theApiMutex.unlock();
 }
 
-void setOwnProcessInfoServerAddress(const struct sockaddr_in * addr)
+void setOwnProcessInfoServerAddress(struct in_addr * addr)
 {
   theApiMutex.lock();
-  singletonInfo.setHostAddress((const struct sockaddr *) addr, sizeof(addr));
+  singletonInfo.setHostAddress(addr);
   theApiMutex.unlock();
 }
 
@@ -124,10 +115,6 @@ ProcessInfo * getOwnProcessInfo(Uint16 nodeId) {
       else
         getNameFromEnvironment();
     }
-
-    g_eventLogger->info("getOwnProcessInfo: pid %d, name %s, addr %s, node %d",
-      singletonInfo.getPid(), singletonInfo.getProcessName(),
-      singletonInfo.getHostAddress(), singletonInfo.getNodeId());
   }
 
   return & singletonInfo;
