@@ -3353,7 +3353,7 @@ bool Item_func_round::resolve_type(THD *)
     // Set a data type - we do not provide excessive is_null() checks
     if (is_numeric_type(args[0]->data_type()))
     {
-      set_data_type(args[0]->data_type());
+      set_data_type_from_item(args[0]);
       hybrid_type= args[0]->result_type();
     }
     else
