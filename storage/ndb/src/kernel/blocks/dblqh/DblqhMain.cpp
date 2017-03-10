@@ -95,6 +95,13 @@
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
+//#define DEBUG_EXTRA_LCP
+#ifdef DEBUG_EXTRA_LCP
+#define DEB_EXTRA_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_EXTRA_LCP(arglist) do { } while (0)
+#endif
+
 #define DEBUG_LCP
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -9161,7 +9168,7 @@ Dblqh::tupcommit_conf(Signal* signal,
 /* ------------------------------------------------------------------------- */
     ndbassert(tcPtrP->operation != ZUNLOCK);
     regFragptr->newestGci = tcPtrP->gci_hi;
-    DEB_LCP(("(%u)op_type: %u, newestGci: %u, tableId: %u, fragId: %u",
+    DEB_EXTRA_LCP(("(%u)op_type: %u, newestGci: %u, tableId: %u, fragId: %u",
              instance(),
              tcPtrP->operation,
              regFragptr->newestGci,

@@ -107,7 +107,6 @@ Restore::execSTTOR(Signal* signal)
   c_backup = (Backup*)globalData.getBlock(BACKUP, instance());
   ndbrequire(c_lqh != 0 && c_tup != 0 && c_backup != 0);
   sendSTTORRY(signal);
-  
   return;
 }//Restore::execNDB_STTOR()
 
@@ -523,8 +522,9 @@ Restore::lcp_create_ctl_done_open(Signal *signal, FilePtr file_ptr)
   {
     jam();
     /**
-     * We have the upgrade case where DIH knows about a data file that there is no
-     * CTL file defined for. We create a correct data file before proceeding.
+     * We have the upgrade case where DIH knows about a data file that there
+     * is no CTL file defined for. We create a correct data file before
+     * proceeding.
      * This is Case 4) above
      */
     ndbrequire(file_ptr.p->m_upgrade_case);
