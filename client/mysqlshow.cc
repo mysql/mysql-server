@@ -544,7 +544,7 @@ list_tables(MYSQL *mysql,const char *db,const char *table)
   uint counter = 0;
   char query[NAME_LEN + 100], rows[NAME_LEN], fields[16];
   MYSQL_FIELD *field;
-  MYSQL_RES *result;
+  MYSQL_RES *result= nullptr;
   MYSQL_ROW row, rrow;
 
   if (mysql_select_db(mysql,db))

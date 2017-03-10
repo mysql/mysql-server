@@ -439,8 +439,8 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
 
   while (likely(log_pos < end_pos))
   {
-    uchar* event_ptr;
-    uint32 event_len;
+    uchar* event_ptr= nullptr;
+    uint32 event_len= 0;
 
     if (unlikely(thd->killed))
         DBUG_RETURN(1);
@@ -991,8 +991,8 @@ int Binlog_sender::send_format_description_event(IO_CACHE *log_cache,
                                                  my_off_t start_pos)
 {
   DBUG_ENTER("Binlog_sender::send_format_description_event");
-  uchar* event_ptr;
-  uint32 event_len;
+  uchar* event_ptr= nullptr;
+  uint32 event_len= 0;
 
   if (read_event(log_cache, binary_log::BINLOG_CHECKSUM_ALG_OFF, &event_ptr,
                  &event_len))

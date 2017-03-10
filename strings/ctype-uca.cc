@@ -1470,7 +1470,7 @@ ALWAYS_INLINE int uca_scanner_any<Mb_wc>::next()
 
   do
   {
-    my_wc_t wc;
+    my_wc_t wc= 0;
 
     /* Get next code point */
     int mblen= mb_wc(&wc, sbeg, send);
@@ -1573,7 +1573,7 @@ ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
 
   do
   {
-    my_wc_t wc;
+    my_wc_t wc= 0;
 
     /* Get next code point */
     int mblen= mb_wc(&wc, sbeg, send);

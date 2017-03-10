@@ -3845,7 +3845,7 @@ bool Item_func_weight_string::eq(const Item *item, bool binary_cmp) const
 /* Return a weight_string according to collation */
 String *Item_func_weight_string::val_str(String *str)
 {
-  String *input;
+  String *input= nullptr;
   const CHARSET_INFO *cs= args[0]->collation.collation;
   size_t output_buf_size, output_length;
   bool rounded_up= false;
@@ -5030,9 +5030,9 @@ String *Item_func_get_dd_column_privileges::val_str(String *str)
   String schema_name;
   String *schema_name_ptr;
   String table_name;
-  String *table_name_ptr;
+  String *table_name_ptr= nullptr;
   String field_name;
-  String *field_name_ptr;
+  String *field_name_ptr= nullptr;
   if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
       (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
       (field_name_ptr=args[2]->val_str(&field_name)) != nullptr)

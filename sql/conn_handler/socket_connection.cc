@@ -398,7 +398,7 @@ public:
       returned by getaddrinfo();
     */
 
-    struct addrinfo *a;
+    struct addrinfo *a= nullptr;
     MYSQL_SOCKET listener_socket= create_socket(ai, AF_INET, &a);
 
     if (mysql_socket_getfd(listener_socket) == INVALID_SOCKET)

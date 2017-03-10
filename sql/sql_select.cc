@@ -4773,7 +4773,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
 
   for (nr=0; nr < table->s->keys ; nr++)
   {
-    int direction;
+    int direction= 0;
     uint used_key_parts;
     bool  skip_quick;
 

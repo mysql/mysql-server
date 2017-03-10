@@ -2530,7 +2530,7 @@ dict_sdi_create_idx_in_mem(
 		rec_format = REC_FORMAT_COMPACT;
 	}
 
-	ulint	table_flags;
+	ulint	table_flags = 0;
 	dict_tf_set(&table_flags, rec_format, zip_ssize, has_data_dir,
 		    has_shared_space);
 
