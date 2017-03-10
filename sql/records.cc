@@ -596,7 +596,7 @@ static int init_rr_cache(THD *thd, READ_RECORD *info)
     DBUG_RETURN(1);
 #ifdef HAVE_purify
   // Avoid warnings in qsort
-  bzero(info->cache,rec_cache_size+info->cache_records* info->struct_length+1);
+  bzero(info->cache,rec_cache_size+info->cache_records* info->struct_length);
 #endif
   DBUG_PRINT("info",("Allocated buffert for %d records",info->cache_records));
   info->read_positions=info->cache+rec_cache_size;
