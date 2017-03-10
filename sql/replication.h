@@ -35,6 +35,22 @@ extern "C" {
 #endif
 
 /**
+  Struct to share server ssl variables
+*/
+struct st_server_ssl_variables
+{
+  bool have_ssl_opt;
+  char *ssl_ca;
+  char *ssl_capath;
+  char *tls_version;
+  char *ssl_cert;
+  char *ssl_cipher;
+  char *ssl_key;
+  char *ssl_crl;
+  char *ssl_crlpath;
+};
+
+/**
    Transaction observer flags.
 */
 enum Trans_flags {

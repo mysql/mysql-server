@@ -29,6 +29,8 @@ wait/synch/mutex/group_rpl/LOCK_read_mode	YES	YES
 wait/synch/mutex/group_rpl/LOCK_recovery_module_run	YES	YES
 wait/synch/mutex/group_rpl/LOCK_recovery	YES	YES
 wait/synch/mutex/group_rpl/LOCK_recovery_donor_selection	YES	YES
+wait/synch/mutex/group_rpl/LOCK_session_thread_method_exec	YES	YES
+wait/synch/mutex/group_rpl/LOCK_session_thread_run	YES	YES
 wait/synch/mutex/group_rpl/LOCK_plugin_running	YES	YES
 wait/synch/mutex/group_rpl/LOCK_force_members_running	YES	YES
 wait/synch/mutex/group_rpl/LOCK_write_lock_protection	YES	YES
@@ -52,6 +54,8 @@ wait/synch/cond/group_rpl/COND_count_down_latch	YES	YES
 wait/synch/cond/group_rpl/COND_wait_ticket	YES	YES
 wait/synch/cond/group_rpl/COND_recovery_module_run	YES	YES
 wait/synch/cond/group_rpl/COND_recovery	YES	YES
+wait/synch/cond/group_rpl/COND_session_thread_method_exec	YES	YES
+wait/synch/cond/group_rpl/COND_session_thread_run	YES	YES
 wait/synch/cond/group_rpl/COND_pipeline_stats_flow_control	YES	YES
 
 ############################################################

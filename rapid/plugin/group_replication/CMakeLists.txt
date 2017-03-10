@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -59,7 +59,6 @@ SET(GROUP_REPLICATION_SOURCES
   src/sql_service/sql_resultset.cc
   src/sql_service/sql_service_context.cc
   src/sql_service/sql_service_context_base.cc
-  src/sql_service/sql_service_gr_user.cc
   src/sql_service/sql_service_interface.cc
   src/sql_service/sql_command_test.cc
   src/sql_service/sql_service_command.cc

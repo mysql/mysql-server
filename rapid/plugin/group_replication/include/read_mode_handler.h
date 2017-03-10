@@ -19,6 +19,35 @@
 #include "my_inttypes.h"
 #include "sql_service_command.h"
 
+
+/**
+  This method creates a server session and connects to the server
+  to enable the read mode
+
+  @param session_isolation session creation requirements: use current thread,
+                           use thread but initialize it or create it in a
+                           dedicated thread
+
+  @return the operation status
+    @retval 0      OK
+    @retval !=0    Error
+*/
+int set_server_read_mode(enum_plugin_con_isolation session_isolation);
+
+/**
+  This method creates a server session and connects to the server
+  to reset the read mode
+
+   @param session_isolation session creation requirements: use current thread,
+                           use thread but initialize it or create it in a
+                           dedicated thread
+
+  @return the operation status
+    @retval 0      OK
+    @retval !=0    Error
+*/
+int reset_server_read_mode(enum_plugin_con_isolation session_isolation);
+
 class Read_mode_handler
 {
 public:
@@ -39,7 +68,7 @@ public:
       @retval 0      OK
       @retval !=0    Error
   */
-  long set_super_read_only_mode(Sql_service_command *sql_service_command);
+  long set_super_read_only_mode(Sql_service_command_interface *sql_service_command);
 
   /**
     Reset the read only mode in the server.
@@ -54,7 +83,7 @@ public:
       @retval 0      OK
       @retval !=0    Error
   */
-  long reset_super_read_only_mode(Sql_service_command *sql_service_command,
+  long reset_super_read_only_mode(Sql_service_command_interface *sql_service_command,
                                   bool force_reset= false);
 
   /**
