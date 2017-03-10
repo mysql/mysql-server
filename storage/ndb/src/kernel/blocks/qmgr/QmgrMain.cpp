@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -7612,38 +7612,37 @@ Qmgr::execDBINFO_SCANREQ(Signal *signal)
         ProcessInfo *processInfo = getProcessInfo(i);
         if(processInfo && processInfo->isValid())
         {
+          char uri_buffer[512];
+          processInfo->getServiceUri(uri_buffer, sizeof(uri_buffer));
           Ndbinfo::Row row(signal, req);
           row.write_uint32(getOwnNodeId());                 // reporting_node_id
           row.write_uint32(i);                              // node_id
           row.write_uint32(nodeInfo.getType());             // node_type
-          row.write_string(processInfo->getHostAddress());  // host_addr
           row.write_string(version_buffer);                 // node_version
           row.write_uint32(processInfo->getPid());          // process_id
           row.write_uint32(processInfo->getAngelPid());     // angel_process_id
           row.write_string(processInfo->getProcessName());  // process_name
-          row.write_string(processInfo->getConnectionName());  // conn_name
-          row.write_uint32(processInfo->getPort());         // application_port
+          row.write_string(uri_buffer);                     // service_URI
           ndbinfo_send_row(signal, req, row, rl);
         }
         else if(nodeInfo.m_type != NodeInfo::DB)
         {
-          /* MGM/API node is < version 7.5.5 or has not sent ProcessInfoRep */
+          /* MGM/API node is an older version or has not sent ProcessInfoRep */
 
           struct in_addr addr= globalTransporterRegistry.get_connect_address(i);
-          char address_buffer[16];
-          Ndb_inet_ntop(AF_INET, & addr, address_buffer, 16);
+          char service_uri[32];
+          strcpy(service_uri, "ndb://");
+          Ndb_inet_ntop(AF_INET, & addr, service_uri + 6, 24);
 
           Ndbinfo::Row row(signal, req);
           row.write_uint32(getOwnNodeId());                 // reporting_node_id
           row.write_uint32(i);                              // node_id
           row.write_uint32(nodeInfo.getType());             // node_type
-          row.write_string(address_buffer);                 // host_addr
           row.write_string(version_buffer);                 // node_version
           row.write_uint32(0);                              // process_id
           row.write_uint32(0);                              // angel_process_id
           row.write_string("");                             // process_name
-          row.write_string("");                             // conn_name
-          row.write_uint32(0);                              // application_port
+          row.write_string(service_uri);                    // service_URI
           ndbinfo_send_row(signal, req, row, rl);
         }
       }
@@ -7663,7 +7662,7 @@ Qmgr::execPROCESSINFO_REP(Signal *signal)
   jamEntry();
   ProcessInfoRep * report = (ProcessInfoRep *) signal->theData;
   SectionHandle handle(this, signal);
-  SegmentedSectionPtr connNamePtr, hostAddrPtr;
+  SegmentedSectionPtr pathSectionPtr, hostSectionPtr;
 
   ProcessInfo * processInfo = getProcessInfo(report->node_id);
   if(processInfo)
@@ -7671,14 +7670,16 @@ Qmgr::execPROCESSINFO_REP(Signal *signal)
     /* Set everything except the connection name and host address */
     processInfo->initializeFromProcessInfoRep(report);
 
-    /* Set the connection name */
-    handle.getSection(connNamePtr, ProcessInfoRep::ConnNameSectionNum);
-    processInfo->setConnectionName(connNamePtr.p->theData);
+    /* Set the URI path */
+    if(handle.getSection(pathSectionPtr, ProcessInfoRep::PathSectionNum))
+    {
+      processInfo->setUriPath(pathSectionPtr.p->theData);
+    }
 
     /* Set the host address */
-    if(handle.getSection(hostAddrPtr, ProcessInfoRep::HostAddrSectionNum))
+    if(handle.getSection(hostSectionPtr, ProcessInfoRep::HostSectionNum))
     {
-      processInfo->setHostAddress(hostAddrPtr.p->theData);
+      processInfo->setHostAddress(hostSectionPtr.p->theData);
     }
     else
     {
