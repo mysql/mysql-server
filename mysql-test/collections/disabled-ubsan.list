@@ -1,2 +1,4 @@
 # Tests in this file are disabled for UBSAN runs in pushbuild.
 # This is in addition to tests disabled by normal disabled.def files
+rpl.rpl_multi_source_filter         : Bug#25702297 2017-03-10 edahl
+rpl.rpl_filters_check_counter       : Bug#25702297 2017-03-10 edahl
