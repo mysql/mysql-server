@@ -637,10 +637,6 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *ta
     DBUG_ASSERT(hton && ha_storage_engine_is_enabled(hton));
     DBUG_ASSERT(!ha_check_storage_engine_flag(hton, HTON_NOT_USER_SELECTABLE));
 
-    // For a partitioned table, the SE must support partitioning natively.
-    DBUG_ASSERT(tab_obj->partition_type() == dd::Table::PT_NONE ||
-                hton->partition_flags);
-
     plugin_unlock(NULL, share->db_plugin);
     share->db_plugin= my_plugin_lock(NULL, &tmp_plugin);
   }
@@ -2253,9 +2249,6 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  // Assume base table, we find it is a view a bit later.
-  dd::enum_table_type dd_table_type= dd::enum_table_type::BASE_TABLE;
-
   if (!table_def)
   {
     // Make sure the schema exists.
@@ -2269,16 +2262,19 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
       DBUG_RETURN(true);
     }
 
-    if (dd::abstract_table_type(thd->dd_client(), share->db.str,
-                                share->table_name.str,
-                                &dd_table_type))
+    const dd::Abstract_table *abstract_table= nullptr;
+    if (thd->dd_client()->acquire(share->db.str, share->table_name.str,
+                                  &abstract_table))
+      DBUG_RETURN(true);
+
+    if (abstract_table == nullptr)
     {
-      // Error is reported in dd_abstract_table_type().
+      my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
       DBUG_RETURN(true);
     }
 
-    if (dd_table_type == dd::enum_table_type::USER_VIEW ||
-        dd_table_type == dd::enum_table_type::SYSTEM_VIEW)
+    if (abstract_table->type() == dd::enum_table_type::USER_VIEW ||
+        abstract_table->type() == dd::enum_table_type::SYSTEM_VIEW)
     {
       if (!open_view)
       {
@@ -2287,42 +2283,20 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
         DBUG_RETURN(true);
       }
       /*
-        Create view reference object and hold it in TABLE_SHARE member view_object.
-        Read it from DD
+        Clone the view reference object and hold it in TABLE_SHARE member view_object.
       */
       share->is_view= true;
-      const dd::View *tmp_view= nullptr;
-      if (thd->dd_client()->acquire(share->db.str,
-                                    share->table_name.str,
-                                    &tmp_view))
-      {
-        DBUG_ASSERT(thd->is_error() || thd->killed);
-        DBUG_RETURN(true);
-      }
-
-      if (!tmp_view)
-      {
-        my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
-        DBUG_RETURN(true);
-      }
+      const dd::View *tmp_view= dynamic_cast<const dd::View*>(abstract_table);
       share->view_object= tmp_view->clone();
 
       share->table_category= get_table_category(share->db, share->table_name);
       thd->status_var.opened_shares++;
       DBUG_RETURN(false);
     }
-    else // BASE_TABLE
-    {
-      (void) thd->dd_client()->acquire(share->db.str,
-                                       share->table_name.str,
-                                       &table_def);
-    }
-  }
 
-  if (!table_def)
-  {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
-    DBUG_RETURN(true);
+    DBUG_ASSERT(abstract_table->type() == dd::enum_table_type::BASE_TABLE);
+    table_def= dynamic_cast<const dd::Table*>(abstract_table);
+    DBUG_ASSERT(table_def != nullptr);
   }
 
   MEM_ROOT *old_root= thd->mem_root;

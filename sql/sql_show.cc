@@ -875,20 +875,23 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   }
   else
   {
-    bool exists= false;
-    if (dd::schema_exists(thd, dbname, &exists))
-      DBUG_RETURN(TRUE);
-    else if (!exists)
+    dd::Schema_MDL_locker mdl_handler(thd);
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Schema *schema= nullptr;
+    if (mdl_handler.ensure_locked(dbname) ||
+        thd->dd_client()->acquire(dbname, &schema))
+      DBUG_RETURN(true);
+
+    if (schema == nullptr)
     {
       my_error(ER_BAD_DB_ERROR, MYF(0), dbname);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
 
-    if (get_default_db_collation(thd, dbname,
-                                 &create.default_table_charset))
+    if (get_default_db_collation(*schema, &create.default_table_charset))
     {
       DBUG_ASSERT(thd->is_error() || thd->killed);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
 
     if (create.default_table_charset == NULL)

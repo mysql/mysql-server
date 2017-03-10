@@ -2070,7 +2070,9 @@ void release_ddl_log()
 
   @param thd           Thread handler
   @param path          Name of file (including database)
-  @param db            Data base name
+  @param sch_obj       Schema.
+  @param db            Schema name.
+                       Cannot use dd::Schema::name() directly due to LCTN.
   @param table_name    Table name
   @param create_info   create info parameters
   @param create_fields Fields to create
@@ -2093,7 +2095,9 @@ void release_ddl_log()
 */
 
 static bool rea_create_tmp_table(THD *thd, const char *path,
-                                 const char *db, const char *table_name,
+                                 const dd::Schema &sch_obj,
+                                 const char *db,
+                                 const char *table_name,
                                  HA_CREATE_INFO *create_info,
                                  List<Create_field> &create_fields,
                                  uint keys, KEY *key_info,
@@ -2107,7 +2111,7 @@ static bool rea_create_tmp_table(THD *thd, const char *path,
   *tmp_table_def= NULL;
 
   std::unique_ptr<dd::Table> tmp_table_ptr=
-    dd::create_tmp_table(thd, db, table_name, create_info, create_fields,
+    dd::create_tmp_table(thd, sch_obj, table_name, create_info, create_fields,
                          key_info, keys, keys_onoff, file);
   if (!tmp_table_ptr)
     DBUG_RETURN(true);
@@ -2156,7 +2160,9 @@ static bool rea_create_tmp_table(THD *thd, const char *path,
 
   @param thd           Thread handler
   @param path          Name of file (including database)
-  @param db            Data base name
+  @param sch_obj       Schema.
+  @param db            Schema name.
+                       Cannot use dd::Schema::name() directly due to LCTN.
   @param table_name    Table name
   @param create_info   create info parameters
   @param create_fields Fields to create
@@ -2186,7 +2192,9 @@ static bool rea_create_tmp_table(THD *thd, const char *path,
 */
 
 static bool rea_create_base_table(THD *thd, const char *path,
-                                  const char *db, const char *table_name,
+                                  const dd::Schema &sch_obj,
+                                  const char *db,
+                                  const char *table_name,
                                   HA_CREATE_INFO *create_info,
                                   List<Create_field> &create_fields,
                                   uint keys, KEY *key_info,
@@ -2199,7 +2207,9 @@ static bool rea_create_base_table(THD *thd, const char *path,
 {
   DBUG_ENTER("rea_create_base_table");
 
-  if (dd::create_table(thd, db, table_name,
+  Disable_gtid_state_update_guard disabler(thd);
+
+  if (dd::create_table(thd, sch_obj, table_name,
                        create_info,
                        create_fields,
                        key_info,
@@ -2207,10 +2217,21 @@ static bool rea_create_base_table(THD *thd, const char *path,
                        keys_onoff,
                        fk_key_info,
                        fk_keys,
-                       file,
-                       !(create_info->db_type->flags &
-                         HTON_SUPPORTS_ATOMIC_DDL)))
+                       file))
+  {
+    if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
+    {
+      trans_rollback_stmt(thd);
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
+    }
     DBUG_RETURN(true);
+  }
+  if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
+  {
+    if (trans_commit_stmt(thd) || trans_commit(thd))
+      DBUG_RETURN(true);
+  }
 
   if (no_ha_table)
   {
@@ -2264,7 +2285,6 @@ static bool rea_create_base_table(THD *thd, const char *path,
   }
 
   // Create the table in the storage engine.
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   dd::Table *table_def= nullptr;
 
   if (thd->dd_client()->acquire_for_modification(db, table_name,
@@ -2447,8 +2467,29 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
           lpt->table->file->indexes_are_disabled()) ? Alter_info::DISABLE :
          lpt->alter_info->keys_onoff);
 
+      // Check if the schema exists. We must make sure the schema is released
+      // and unlocked in the right order.
+      dd::Schema_MDL_locker mdl_locker(lpt->thd);
+      dd::cache::Dictionary_client::Auto_releaser releaser(lpt->thd->dd_client());
+      const dd::Schema *sch_obj= NULL;
+
+      if (mdl_locker.ensure_locked(lpt->db) ||
+          lpt->thd->dd_client()->acquire(lpt->db, &sch_obj))
+      {
+        // Error is reported by the dictionary subsystem.
+        DBUG_RETURN(true);
+      }
+
+      if (!sch_obj)
+      {
+        my_error(ER_BAD_DB_ERROR, MYF(0), lpt->db);
+        DBUG_RETURN(true);
+      }
+
+      Disable_gtid_state_update_guard disabler(lpt->thd);
+
       if (dd::create_table(lpt->thd,
-                           lpt->db,
+                           *sch_obj,
                            shadow_name,
                            lpt->create_info,
                            lpt->alter_info->create_list,
@@ -2457,11 +2498,15 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                            keys_onoff,
                            not_used1,
                            not_used2,
-                           lpt->table->file,
-                           true))
+                           lpt->table->file))
       {
+        trans_rollback_stmt(lpt->thd);
+        // Full rollback in case we have THD::transaction_rollback_request.
+        trans_rollback(lpt->thd);
         DBUG_RETURN(true);
       }
+      if (trans_commit_stmt(lpt->thd) || trans_commit(lpt->thd))
+        DBUG_RETURN(true);
     }
   }
 
@@ -3190,8 +3235,7 @@ rm_table_sort_into_groups(THD *thd, Drop_tables_ctx *drop_ctx,
         dynamic_cast<const dd::Table*>(abstract_table_def);
 
       handlerton *hton;
-      if (dd::table_storage_engine(thd, table->db, table->table_name,
-                                   table_def, &hton))
+      if (dd::table_storage_engine(thd, table_def, &hton))
         return true;
 
       if (hton->flags & HTON_SUPPORTS_ATOMIC_DDL)
@@ -3585,8 +3629,7 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
   }
 
   handlerton *hton;
-  if (dd::table_storage_engine(thd, table->db, table->table_name,
-                               table_def, &hton))
+  if (dd::table_storage_engine(thd, table_def, &hton))
   {
     DBUG_ASSERT(0);
     return true;
@@ -7038,7 +7081,7 @@ bool validate_comment_length(THD *thd, const char *comment_str,
 
 static bool set_table_default_charset(THD *thd,
                                       HA_CREATE_INFO *create_info,
-                                      const char *db)
+                                      const dd::Schema &schema)
 {
   /*
     If the table character set was not given explicitly,
@@ -7046,7 +7089,7 @@ static bool set_table_default_charset(THD *thd,
     apply it to the table.
   */
   if (!create_info->default_table_charset &&
-      get_default_db_collation(thd, db, &create_info->default_table_charset))
+      get_default_db_collation(schema, &create_info->default_table_charset))
       return true;
 
   if (create_info->default_table_charset == NULL)
@@ -7188,19 +7231,34 @@ bool create_table_impl(THD *thd,
                        dd::Table **tmp_table_def,
                        handlerton **post_ddl_ht)
 {
-  const char	*alias;
-  handler	*file;
-  bool		error= TRUE;
   DBUG_ENTER("create_table_impl");
   DBUG_PRINT("enter", ("db: '%s'  table: '%s'  tmp: %d",
                        db, table_name, internal_tmp_table));
   *tmp_table_def= NULL;
 
+  // Check if the schema exists. We must make sure the schema is released
+  // and unlocked in the right order.
+  dd::Schema_MDL_locker mdl_locker(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *sch_obj= NULL;
+  if (mdl_locker.ensure_locked(db) ||
+      thd->dd_client()->acquire(db, &sch_obj))
+  {
+    // Error is reported by the dictionary subsystem.
+    DBUG_RETURN(true);
+  }
+
+  if (!sch_obj)
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), db);
+    DBUG_RETURN(true);
+  }
+
   /* Check for duplicate fields and check type of table to create */
   if (!alter_info->create_list.elements)
   {
     my_error(ER_TABLE_MUST_HAVE_COLUMNS, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   // Check if new table creation is disallowed by the storage engine.
@@ -7213,24 +7271,26 @@ bool create_table_impl(THD *thd,
   }
 
   if (check_engine(thd, db, table_name, create_info))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
-  if (set_table_default_charset(thd, create_info, db))
-    DBUG_RETURN(TRUE);
+  if (set_table_default_charset(thd, create_info, *sch_obj))
+    DBUG_RETURN(true);
 
-  alias= table_case_name(create_info, table_name);
+  const char *alias= table_case_name(create_info, table_name);
 
   partition_info *part_info= thd->work_part_info;
 
-  if (!(file= get_new_handler((TABLE_SHARE*) 0,
-                              (part_info ||
-                               (create_info->db_type->partition_flags &&
-                                (create_info->db_type->partition_flags() &
-                                 HA_USE_AUTO_PARTITION))),
-                              thd->mem_root, create_info->db_type)))
+  std::unique_ptr<handler>
+    file(get_new_handler((TABLE_SHARE*) 0,
+                         (part_info ||
+                          (create_info->db_type->partition_flags &&
+                           (create_info->db_type->partition_flags() &
+                            HA_USE_AUTO_PARTITION))),
+                         thd->mem_root, create_info->db_type));
+  if (file.get() == nullptr)
   {
     mem_alloc_error(sizeof(handler));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   if (!part_info && create_info->db_type->partition_flags &&
@@ -7248,7 +7308,7 @@ bool create_table_impl(THD *thd,
     if (!part_info)
     {
       mem_alloc_error(sizeof(partition_info));
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
     part_handler->set_auto_partitions(part_info);
     part_info->default_engine_type= create_info->db_type;
@@ -7306,7 +7366,7 @@ bool create_table_impl(THD *thd,
     if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     {
       my_error(ER_PARTITION_NO_TEMPORARY, MYF(0));
-      goto err;
+      DBUG_RETURN(true);
     }
     if (create_info->used_fields & HA_CREATE_USED_ENGINE)
     {
@@ -7323,9 +7383,9 @@ bool create_table_impl(THD *thd,
     DBUG_PRINT("info", ("db_type = %s create_info->db_type = %s",
              ha_resolve_storage_engine_name(part_info->default_engine_type),
              ha_resolve_storage_engine_name(create_info->db_type)));
-    if (part_info->check_partition_info(thd, &engine_type, file,
+    if (part_info->check_partition_info(thd, &engine_type, file.get(),
                                         create_info, FALSE))
-      goto err;
+      DBUG_RETURN(true);
     part_info->default_engine_type= engine_type;
 
     {
@@ -7344,7 +7404,7 @@ bool create_table_impl(THD *thd,
       thd->variables.sql_mode= sql_mode_backup;
       if (part_syntax_buf == NULL)
       {
-        goto err;
+        DBUG_RETURN(true);
       }
     }
     part_info->part_info_string= part_syntax_buf;
@@ -7355,7 +7415,7 @@ bool create_table_impl(THD *thd,
         The handler assigned to the table cannot handle partitioning.
       */
       my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "native partitioning");
-      goto err;
+      DBUG_RETURN(true);
     }
     else if (create_info->db_type != engine_type)
     {
@@ -7365,9 +7425,9 @@ bool create_table_impl(THD *thd,
         We have switched engine from defaults, most likely only specified
         engines in partition clauses.
       */
-      delete file;
-      if (!(file= get_new_handler((TABLE_SHARE*) 0, true, thd->mem_root,
-                                  engine_type)))
+      file.reset(get_new_handler((TABLE_SHARE*) 0, true, thd->mem_root,
+                                 engine_type));
+      if (file.get() == nullptr)
       {
         mem_alloc_error(sizeof(handler));
         DBUG_RETURN(TRUE);
@@ -7378,12 +7438,12 @@ bool create_table_impl(THD *thd,
 
   if (mysql_prepare_create_table(thd, db, error_table_name,
                                  create_info, alter_info,
-                                 file,
+                                 file.get(),
                                  key_info, key_count,
                                  fk_key_info, fk_key_count,
                                  existing_fk_info, existing_fk_count,
                                  select_field_count))
-    goto err;
+    DBUG_RETURN(true);
 
   /* Check if table already exists */
   if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
@@ -7395,11 +7455,10 @@ bool create_table_impl(THD *thd,
                           ER_TABLE_EXISTS_ERROR,
                           ER_THD(thd, ER_TABLE_EXISTS_ERROR),
                           alias);
-      error= 0;
-      goto err;
+      DBUG_RETURN(false);
     }
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
-    goto err;
+    DBUG_RETURN(true);
   }
 
   if (!internal_tmp_table &&
@@ -7410,17 +7469,20 @@ bool create_table_impl(THD *thd,
     bool exists;
     if (dd::table_exists<dd::Abstract_table>(thd->dd_client(), db, table_name,
                                              &exists))
-    {
-      error= 1;
-      goto err;
-    }
+      DBUG_RETURN(true);
 
     if (exists)
     {
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
-        goto warn;
+      {
+        push_warning_printf(thd, Sql_condition::SL_NOTE,
+                            ER_TABLE_EXISTS_ERROR,
+                            ER_THD(thd, ER_TABLE_EXISTS_ERROR),
+                            alias);
+        DBUG_RETURN(false);
+      }
       my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
-      goto err;
+      DBUG_RETURN(true);
     }
   }
 
@@ -7449,14 +7511,20 @@ bool create_table_impl(THD *thd,
         DBUG_PRINT("info", ("Table existed in handler"));
 
         if (create_if_not_exists)
-          goto warn;
+        {
+          push_warning_printf(thd, Sql_condition::SL_NOTE,
+                              ER_TABLE_EXISTS_ERROR,
+                              ER_THD(thd, ER_TABLE_EXISTS_ERROR),
+                              alias);
+          DBUG_RETURN(false);
+        }
         my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
-        goto err;
+        DBUG_RETURN(true);
         break;
       default:
         DBUG_PRINT("info", ("error: %u from storage engine", retcode));
         my_error(retcode, MYF(0),table_name);
-        goto err;
+        DBUG_RETURN(true);
     }
   }
 
@@ -7487,7 +7555,7 @@ bool create_table_impl(THD *thd,
       if (test_if_data_home_dir(dirpath))
       {
         my_error(ER_WRONG_ARGUMENTS, MYF(0), "DATA DIRECTORY");
-        goto err;
+        DBUG_RETURN(true);
       }
     }
     if (create_info->index_file_name)
@@ -7496,15 +7564,13 @@ bool create_table_impl(THD *thd,
       if (test_if_data_home_dir(dirpath))
       {
         my_error(ER_WRONG_ARGUMENTS, MYF(0), "INDEX DIRECTORY");
-        goto err;
+        DBUG_RETURN(true);
       }
     }
   }
 
   if (check_partition_dirs(thd->lex->part_info))
-  {
-    goto err;
-  }
+    DBUG_RETURN(true);
 
   if (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)
   {
@@ -7530,29 +7596,26 @@ bool create_table_impl(THD *thd,
   */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
-    if (rea_create_tmp_table(thd, path, db, table_name,
+    if (rea_create_tmp_table(thd, path, *sch_obj, db, table_name,
                              create_info, alter_info->create_list,
                              *key_count, *key_info, keys_onoff,
-                             file, no_ha_table, is_trans,
+                             file.get(), no_ha_table, is_trans,
                              tmp_table_def))
-      goto err;
+      DBUG_RETURN(true);
   }
   else
   {
-    if (rea_create_base_table(thd, path, db, table_name,
+    if (rea_create_base_table(thd, path, *sch_obj, db, table_name,
                               create_info, alter_info->create_list,
                               *key_count, *key_info, keys_onoff, *fk_key_count,
-                              *fk_key_info, file, no_ha_table, part_info,
+                              *fk_key_info, file.get(), no_ha_table, part_info,
                               is_trans, post_ddl_ht))
-      goto err;
+      DBUG_RETURN(true);
   }
 
-  error= FALSE;
-err:
   THD_STAGE_INFO(thd, stage_after_create);
-  delete file;
   if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      thd->in_multi_stmt_transaction_mode() && !error)
+      thd->in_multi_stmt_transaction_mode())
   {
     /*
       When autocommit is disabled, creating temporary table sets this
@@ -7562,15 +7625,7 @@ err:
     */
     thd->server_status|= SERVER_STATUS_IN_TRANS;
   }
-  DBUG_RETURN(error);
-
-warn:
-  error= FALSE;
-  push_warning_printf(thd, Sql_condition::SL_NOTE,
-                      ER_TABLE_EXISTS_ERROR,
-                      ER_THD(thd, ER_TABLE_EXISTS_ERROR),
-                      alias);
-  goto err;
+  DBUG_RETURN(false);
 }
 
 
@@ -12381,7 +12436,12 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     DBUG_RETURN(true);
   }
 
-  if (set_table_default_charset(thd, create_info, alter_ctx.db))
+  const dd::Schema *schema= nullptr;
+  if (thd->dd_client()->acquire(alter_ctx.db, &schema))
+    DBUG_RETURN(true);
+  DBUG_ASSERT(schema != nullptr); // Already tested table exists.
+
+  if (set_table_default_charset(thd, create_info, *schema))
     DBUG_RETURN(true);
 
   if (fast_alter_part_table)

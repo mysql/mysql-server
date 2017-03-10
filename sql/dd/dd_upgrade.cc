@@ -2235,8 +2235,25 @@ static bool migrate_table_to_dd(THD *thd,
   // Disable autocommit option in thd variable
   Disable_autocommit_guard autocommit_guard(thd);
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *sch_obj= nullptr;
+
+  if (thd->dd_client()->acquire(schema_name, &sch_obj))
+  {
+    // Error is reported by the dictionary subsystem.
+    return true;
+  }
+
+  if (!sch_obj)
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), schema_name.c_str());
+    return true;
+  }
+
+  Disable_gtid_state_update_guard disabler(thd);
+
   if (dd::create_dd_user_table(thd,
-                               schema_name,
+                               *sch_obj,
                                table_name,
                                &create_info,
                                alter_info.create_list,
@@ -2245,8 +2262,17 @@ static bool migrate_table_to_dd(THD *thd,
                                Alter_info::ENABLE,
                                fk_key_info_buffer,
                                fk_number,
-                               table->file,
-                               true))
+                               table->file))
+  {
+    sql_print_error("Error in Creating DD entry for %s.%s",
+                    schema_name.c_str(), table_name.c_str());
+    trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+    return true;
+  }
+
+  if (trans_commit_stmt(thd) || trans_commit(thd))
   {
     sql_print_error("Error in Creating DD entry for %s.%s",
                     schema_name.c_str(), table_name.c_str());

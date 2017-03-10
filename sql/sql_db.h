@@ -19,6 +19,9 @@
 #include "lex_string.h"
 
 class THD;
+namespace dd {
+  class Schema;
+}
 
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_ha_create_information HA_CREATE_INFO;
@@ -34,6 +37,8 @@ bool mysql_opt_change_db(THD *thd,
                          LEX_STRING *saved_db_name,
                          bool force_switch,
                          bool *cur_db_changed);
+bool get_default_db_collation(const dd::Schema &schema,
+                              const CHARSET_INFO **collation);
 bool get_default_db_collation(THD *thd,
                               const char *db_name,
                               const CHARSET_INFO **collation);

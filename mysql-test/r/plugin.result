@@ -35,7 +35,7 @@ ERROR HY000: Table storage engine for 't1' doesn't have this option
 FLUSH TABLE t1;
 UNINSTALL PLUGIN example;
 DROP TABLE t1;
-ERROR HY000: Storage engine for table 'test'.'t1' is not loaded.
+ERROR 42000: Unknown storage engine 'EXAMPLE'
 INSTALL PLUGIN example SONAME 'ha_example.so';
 DROP TABLE t1;
 set global example_ulong_var=500;

@@ -58,7 +58,7 @@ HANDLER t1 OPEN;
 FLUSH TABLE t1;
 UNINSTALL PLUGIN example;
 
---error ER_STORAGE_ENGINE_NOT_LOADED 
+--error ER_UNKNOWN_STORAGE_ENGINE
 DROP TABLE t1;
 
 --replace_regex /\.dll/.so/

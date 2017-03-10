@@ -102,7 +102,8 @@ static TYPELIB deletable_extentions=
 static bool find_unknown_and_remove_deletable_files(THD *thd, MY_DIR *dirp,
                                                     const char *path);
 
-static bool find_db_tables(THD *thd, const char *db, TABLE_LIST **tables);
+static bool find_db_tables(THD *thd, const dd::Schema &schema,
+                           const char *db, TABLE_LIST **tables);
 
 static long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
 static bool rm_dir_w_symlink(const char *org_path, bool send_error);
@@ -129,6 +130,21 @@ static inline int write_to_binlog(THD *thd, char *query, size_t q_len,
 } 
 
 
+bool get_default_db_collation(const dd::Schema &schema,
+                              const CHARSET_INFO **collation)
+{
+  *collation= get_charset(schema.default_collation_id(), MYF(0));
+  if (*collation == nullptr)
+  {
+    char buff[STRING_BUFFER_USUAL_SIZE];
+    my_error(ER_UNKNOWN_COLLATION, MYF(0),
+             llstr(schema.default_collation_id(), buff));
+    return true;
+  }
+  return false;
+}
+
+
 /**
   Return default database collation.
 
@@ -153,19 +169,8 @@ bool get_default_db_collation(THD *thd,
       thd->dd_client()->acquire(db_name, &sch_obj))
     return true;
 
-  DEBUG_SYNC(thd, "acquired_schema_while_getting_collation");
-
   if (sch_obj)
-  {
-    *collation= get_charset(sch_obj->default_collation_id(), MYF(0));
-    if (*collation == NULL)
-    {
-      char buff[STRING_BUFFER_USUAL_SIZE];
-      my_error(ER_UNKNOWN_COLLATION, MYF(0),
-               llstr(sch_obj->default_collation_id(), buff));
-      return true;
-    }
-  }
+    return get_default_db_collation(*sch_obj, collation);
   return false;
 }
 
@@ -606,7 +611,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     }
     my_dirend(dirp);
 
-    if (find_db_tables(thd, db.str, &tables))
+    if (find_db_tables(thd, *schema, db.str, &tables))
     {
       DBUG_RETURN(true);
     }
@@ -941,22 +946,16 @@ found_other_files:
   from the data-dictionary.
 */
 
-static bool find_db_tables(THD *thd, const char *db, TABLE_LIST **tables)
+static bool find_db_tables(THD *thd, const dd::Schema &schema,
+                           const char *db, TABLE_LIST **tables)
 {
   TABLE_LIST *tot_list=0, **tot_list_next_local, **tot_list_next_global;
   DBUG_ENTER("find_db_tables");
 
   tot_list_next_local= tot_list_next_global= &tot_list;
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Schema *sch_obj= NULL;
-  if (thd->dd_client()->acquire(db, &sch_obj))
-    DBUG_RETURN(true);
-
-  DBUG_ASSERT(sch_obj);
-
   std::vector<const dd::Abstract_table*> sch_tables;
-  if (thd->dd_client()->fetch_schema_components(sch_obj, &sch_tables))
+  if (thd->dd_client()->fetch_schema_components(&schema, &sch_tables))
     DBUG_RETURN(true);
 
   for (const dd::Abstract_table *table : sch_tables)
@@ -1327,7 +1326,11 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   Security_context *sctx= thd->security_context();
   ulong db_access= sctx->current_db_access();
   const CHARSET_INFO *db_default_cl= NULL;
-  bool schema_exists= false;
+
+  // We must make sure the schema is released and unlocked in the right order.
+  dd::Schema_MDL_locker mdl_handler(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *schema= nullptr;
 
   DBUG_ENTER("mysql_change_db");
   DBUG_PRINT("enter",("name: '%s'", new_db_name.str));
@@ -1437,13 +1440,16 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
     DBUG_RETURN(true);
   }
 
-  if (dd::schema_exists(thd, new_db_file_name.str, &schema_exists))
+  if (mdl_handler.ensure_locked(new_db_file_name.str) ||
+      thd->dd_client()->acquire(new_db_file_name.str, &schema))
   {
     my_free(new_db_file_name.str);
     DBUG_RETURN(true);
   }
 
-  if (!schema_exists)
+  DEBUG_SYNC(thd, "acquired_schema_while_getting_collation");
+
+  if (schema == nullptr)
   {
     if (force_switch)
     {
@@ -1474,14 +1480,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
     }
   }
 
-  /*
-    Note that checking for meta data existence is done implicitly
-    in get_default_db_collation(): If the meta data does not exist,
-    the collation is set to NULL.
-  */
-
-  if (get_default_db_collation(thd, new_db_file_name.str,
-                               &db_default_cl))
+  if (get_default_db_collation(*schema, &db_default_cl))
   {
     my_free(new_db_file_name.str);
     DBUG_ASSERT(thd->is_error() || thd->killed);

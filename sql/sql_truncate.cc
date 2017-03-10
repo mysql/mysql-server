@@ -433,7 +433,24 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
                          thd->variables.lock_wait_timeout, 0))
       DBUG_RETURN(TRUE);
 
-    if (dd::table_storage_engine(thd, table_ref, hton))
+    const char *schema_name= table_ref->db;
+    const char *table_name= table_ref->table_name;
+
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Table *table= NULL;
+    if (thd->dd_client()->acquire(schema_name, table_name, &table))
+    {
+      // Error is reported by the dictionary subsystem.
+      DBUG_RETURN(true);
+    }
+
+    if (table == NULL)
+    {
+      my_error(ER_NO_SUCH_TABLE, MYF(0), schema_name, table_name);
+      DBUG_RETURN(true);
+    }
+
+    if (dd::table_storage_engine(thd, table, hton))
       DBUG_RETURN(TRUE);
   }
 

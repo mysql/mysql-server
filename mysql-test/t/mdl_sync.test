@@ -5729,7 +5729,7 @@ connection default;
 --echo # Connection con2
 connection con2;
 --echo # Reaping: RENAME TABLE db1.t1 TO test.t1
---error ER_NO_SUCH_TABLE
+--error ER_BAD_DB_ERROR
 --reap
 
 --echo # Connection default
