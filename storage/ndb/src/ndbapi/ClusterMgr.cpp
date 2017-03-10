@@ -669,11 +669,11 @@ void
 ClusterMgr::sendProcessInfoReport(NodeId nodeId)
 {
   LinearSectionPtr ptr[3];
-  LinearSectionPtr & nameSection = ptr[ProcessInfoRep::ConnNameSectionNum];
-  LinearSectionPtr & addrSection = ptr[ProcessInfoRep::HostAddrSectionNum];
+  LinearSectionPtr & pathSection = ptr[ProcessInfoRep::PathSectionNum];
+  LinearSectionPtr & hostSection = ptr[ProcessInfoRep::HostSectionNum];
   BlockReference ownRef = numberToRef(API_CLUSTERMGR, theFacade.ownId());
   NdbApiSignal signal(ownRef);
-  int nsections = 1;
+  int nsections = 0;
   signal.theVerId_signalNumber = GSN_PROCESSINFO_REP;
   signal.theReceiversBlockNumber = QMGR;
   signal.theTrace  = 0;
@@ -681,15 +681,21 @@ ClusterMgr::sendProcessInfoReport(NodeId nodeId)
 
   ProcessInfoRep * report = CAST_PTR(ProcessInfoRep, signal.getDataPtrSend());
   m_process_info->buildProcessInfoReport(report);
-  nameSection.p = (Uint32 *) m_process_info->getConnectionName();
-  nameSection.sz = ProcessInfo::ConnectionNameLengthInWords;
+
+  const char * uri_path = m_process_info->getUriPath();
+  pathSection.p = (Uint32 *) uri_path;
+  pathSection.sz = ProcessInfo::UriPathLengthInWords;
+  if(uri_path[0])
+  {
+    nsections = 1;
+  }
+
   const char * hostAddress = m_process_info->getHostAddress();
   if(hostAddress[0])
   {
-    // report->flags = ProcessInfoRep::HostAddressFlag;
     nsections = 2;
-    addrSection.p = (Uint32 *) hostAddress;
-    addrSection.sz = ProcessInfo::AddressStringLengthInWords;
+    hostSection.p = (Uint32 *) hostAddress;
+    hostSection.sz = ProcessInfo::AddressStringLengthInWords;
   }
   raw_sendSignal(&signal, nodeId, ptr, nsections);
 }
@@ -1295,12 +1301,22 @@ ClusterMgr::print_nodes(const char* where, NdbOut& out)
 }
 
 void
-ClusterMgr::setProcessInfo(const char * connection_name,
-                           const char * address_string, int port)
+ClusterMgr::setProcessInfoUri(const char * scheme, const char * address_string,
+                              int port, const char * path)
 {
-  m_process_info->setConnectionName(connection_name);
+  Guard g(clusterMgrThreadMutex);
+
+  m_process_info->setUriScheme(scheme);
   m_process_info->setHostAddress(address_string);
   m_process_info->setPort(port);
+  m_process_info->setUriPath(path);
+
+  /* Set flag to resend ProcessInfo Report */
+  for(int i = 1; i < MAX_NODES ; i++)
+  {
+    Node & node = theNodes[i];
+    if(node.is_connected()) node.processInfoSent = false;
+  }
 }
 
 /******************************************************************************

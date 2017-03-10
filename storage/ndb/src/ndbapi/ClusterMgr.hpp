@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,10 +57,8 @@ public:
   
   void reportConnected(NodeId nodeId);
   void reportDisconnected(NodeId nodeId);
-  void setProcessInfo(const char * connection_name,
-                      const char * application_address,
-                      int application_port);
-  void sendProcessInfoReport(NodeId nodeId);
+  void setProcessInfoUri(const char * scheme, const char * host,
+                         int port, const char * path);
   void doStop();
   void startThread();
 
@@ -219,6 +217,7 @@ private:
 
   void print_nodes(const char* where, NdbOut& out = ndbout);
   void recalcMinDbVersion();
+  void sendProcessInfoReport(NodeId nodeId);
 
 public:
   /**
