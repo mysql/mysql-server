@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,18 +27,19 @@ class ProcessInfoRep {
   friend bool printPROCESSINFO_REP(FILE *, const Uint32 *, Uint32, Uint16);
 
 public:
-  STATIC_CONST( SignalLength = 16);
-  STATIC_CONST( ConnNameSectionNum = 0);
-  STATIC_CONST( HostAddrSectionNum = 1);
+  STATIC_CONST( SignalLength = 20);
+  STATIC_CONST( PathSectionNum = 0);
+  STATIC_CONST( HostSectionNum = 1);
 
 private:
   Uint8 process_name[48];
+  Uint8 uri_scheme[16];
   Uint32 node_id;
   Uint32 process_id;
   Uint32 angel_process_id;
   Uint32 application_port;
 };
 
-// connection_name and host_address, if set, are sent as separate sections
+// path and host sections of service URI are sent as separate sections
 
 #endif
