@@ -4332,10 +4332,8 @@ String* Item_func_export_set::val_str(String* str)
 
   /* Check if some argument is a NULL value */
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value)
-  {
-    null_value= true;
-    return NULL;
-  }
+    return error_str();
+
   /*
     Arg count can only be 3, 4 or 5 here. This is guaranteed from the
     grammar for EXPORT_SET()
@@ -4346,17 +4344,13 @@ String* Item_func_export_set::val_str(String* str)
     if (num_set_values > 64)
       num_set_values=64;
     if (args[4]->null_value)
-    {
-      null_value= true;
-      return NULL;
-    }
+      return error_str();
+
     /* Fall through */
   case 4:
     if (!(sep = args[3]->val_str(&sep_buf)))	// Only true if NULL
-    {
-      null_value= true;
-      return NULL;
-    }
+      return error_str();
+
     break;
   case 3:
     {
@@ -4384,8 +4378,7 @@ String* Item_func_export_set::val_str(String* str)
                         ER_WARN_ALLOWED_PACKET_OVERFLOWED,
                         ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
                         func_name(), static_cast<long>(max_allowed_packet));
-    null_value= true;
-    return NULL;
+    return error_str();
   }
 
   uint ix;

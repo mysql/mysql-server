@@ -2079,3 +2079,22 @@ SET SQL_MODE='';
 SELECT REPEAT(0x1111, 2100000) >> 1;
 SELECT (~(REPEAT(0xb822, 0x6fc221)));
 SET SQL_MODE=@orig_sql_mode;
+
+--echo #
+--echo # Bug#25688192 ASSERTION FAILED: MAYBE_NULL IN ITEM_FUNC_CONCAT::VAL_STR
+--echo #
+
+set @max_allowed_packet=@@global.max_allowed_packet;
+set global max_allowed_packet=2048;
+
+--enable_connect_log
+connect (con1,localhost,root,,);
+
+set sql_mode="";
+do concat(export_set(1,1,repeat('a',31),' $',213));
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+set global max_allowed_packet=@max_allowed_packet;
+--disable_connect_log
