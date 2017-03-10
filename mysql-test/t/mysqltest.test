@@ -1240,13 +1240,6 @@ echo $d;
 
 
 # ----------------------------------------------------------------------------
-# Test system (which is now deprecated)
-# ----------------------------------------------------------------------------
-
---error 1
---exec echo "system something;" | $MYSQL_TEST 2>&1
-
-# ----------------------------------------------------------------------------
 # Test delimiter
 # ----------------------------------------------------------------------------
 
@@ -3723,12 +3716,3 @@ EOF
 --echo expr \$res= \$a ++ \$b
 --error 1
 --exec echo "let \$a= 1; let \$b= 1; expr \$res= \$a ++ \$b; echo \$res;" | $MYSQL_TEST 2>&1
-
---echo #
---echo # BUG#25685780 : REMOVE 'RESULT' MYSQLTEST COMMAND
---echo #
-
-# Using result mysqltest command should throw an error
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---error 1
---exec echo "--result $MYSQLTEST_VARDIR/tmp/bug25685780.result" | $MYSQL_TEST 2>&1

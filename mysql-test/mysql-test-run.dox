@@ -6959,29 +6959,6 @@
     </li>
 
     <li>
-      <tt>system <b>command</b> [<b>arg</b>] ...</tt>
-
-      Execute the shell command using the <tt>system()</tt> library
-      call. References to variables within the command are replaced
-      with the corresponding values. Use “<tt>\$</tt>” to specify a
-      literal “<tt>$</tt>” character.
-
-      @verbatim
-  --system echo '[mysqltest1]' > $MYSQLTEST_VARDIR/tmp/tmp.cnf
-  --system echo 'port=1234' >> $MYSQLTEST_VARDIR/tmp/tmp.cnf
-  system rm $MYSQLTEST_VARDIR/master-data/test/t1.MYI;
-      @endverbatim
-
-      @note
-      <b>exec</b> or <b>system</b> are sometimes used to perform file
-      system operations, but the command for doing so tend to be
-      operating system specific, which reduces test portability. @ref
-      PAGE_MYSQLTEST "mysqltest" now has several commands to perform
-      these operations portably, so they should be used instead:
-      <b>remove_file</b>, <b>chmod</b>, <b>mkdir</b>, and so forth.
-    </li>
-
-    <li>
       <tt>vertical_results</tt>
 
       Set the default query result display format to vertical.

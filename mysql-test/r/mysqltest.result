@@ -477,8 +477,6 @@ mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
 mysqltest: At line 1: End of line junk detected: "1000"
 mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
 mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
-mysqltest: At line 1: 'system' command  is deprecated, use exec or
-  see the manual for portable commands to use
 test
 test2
 test3
@@ -1462,7 +1460,3 @@ expr $res= $a + b
 mysqltest: At line 1: Variable name 'b' should start with '$'
 expr $res= $a ++ $b
 mysqltest: At line 1: Invalid operator '++' in expr command
-#
-# BUG#25685780 : REMOVE 'RESULT' MYSQLTEST COMMAND
-#
-mysqltest: At line 1: Found line 'result MYSQLTEST_VARDIR/tmp/bug25685780.result' beginning with -- that didn't contain a valid mysqltest command, check your syntax or use # if you intended to write a comment

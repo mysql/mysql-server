@@ -384,7 +384,6 @@ enum enum_commands {
   Q_LET,		    Q_ECHO,
   Q_EXPR,
   Q_WHILE,	    Q_END_BLOCK,
-  Q_SYSTEM,
   Q_SAVE_MASTER_POS,
   Q_SYNC_WITH_MASTER,
   Q_SYNC_SLAVE_WITH_MASTER,
@@ -392,7 +391,6 @@ enum enum_commands {
   Q_SEND,		    Q_REAP,
   Q_DIRTY_CLOSE,	    Q_REPLACE, Q_REPLACE_COLUMN,
   Q_PING,		    Q_EVAL,
-  Q_EVAL_RESULT,
   Q_ENABLE_QUERY_LOG, Q_DISABLE_QUERY_LOG,
   Q_ENABLE_RESULT_LOG, Q_DISABLE_RESULT_LOG,
   Q_ENABLE_CONNECT_LOG, Q_DISABLE_CONNECT_LOG,
@@ -445,7 +443,6 @@ const char *command_names[]=
   "expr",
   "while",
   "end",
-  "system",
   "save_master_pos",
   "sync_with_master",
   "sync_slave_with_master",
@@ -457,7 +454,6 @@ const char *command_names[]=
   "replace_column",
   "ping",
   "eval",
-  "eval_result",
   /* Enable/disable that the _query_ is logged to result file */
   "enable_query_log",
   "disable_query_log",
@@ -9824,10 +9820,6 @@ int main(int argc, char **argv)
       case Q_INC: do_modify_var(command, DO_INC); break;
       case Q_DEC: do_modify_var(command, DO_DEC); break;
       case Q_ECHO: do_echo(command); command_executed++; break;
-      case Q_SYSTEM:
-        die("'system' command  is deprecated, use exec or\n"\
-            "  see the manual for portable commands to use");
-	break;
       case Q_REMOVE_FILE: do_remove_file(command); break;
       case Q_REMOVE_FILES_WILDCARD: do_remove_files_wildcard(command); break;
       case Q_COPY_FILES_WILDCARD: do_copy_files_wildcard(command); break;
@@ -9880,8 +9872,6 @@ int main(int argc, char **argv)
       case Q_EXPR:
         do_expr(command);
         break;
-      case Q_EVAL_RESULT:
-        die("'eval_result' command  is deprecated");
       case Q_EVAL:
       case Q_QUERY_VERTICAL:
       case Q_QUERY_HORIZONTAL:
