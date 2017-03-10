@@ -22,7 +22,7 @@ CREATE ROLE r1 IDENTIFIED BY 'test';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED BY 'test'' at line 1
 # Created roles should not allow login per default
 # WL988.R-1.4
-SELECT user,host, plugin,IF(account_locked = 'Y',"Account is locked","ERROR") FROM mysql.user u WHERE u.user <> 'root' AND u.user <> 'mysql.sys';
+SELECT user,host, plugin,IF(account_locked = 'Y',"Account is locked","ERROR") FROM mysql.user u WHERE u.user NOT IN ('root', 'mysql.sys', 'mysql.session_user');
 user	host	plugin	IF(account_locked = 'Y',"Account is locked","ERROR")
 ident with space	%	mysql_native_password	Account is locked
 role	%	mysql_native_password	Account is locked
@@ -797,7 +797,7 @@ HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
 localhost	joe_schema_designer	%	schema_designer
 DROP DATABASE db1;
 DROP PROCEDURE test.sp1;
-SELECT user,host FROM mysql.user WHERE user <> 'root' AND user <> 'mysql.sys';
+SELECT user,host FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session_user');
 user	host
 backup_admin	%
 db_admin	%

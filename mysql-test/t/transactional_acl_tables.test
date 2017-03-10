@@ -2051,6 +2051,16 @@ RENAME TABLE mysql.tables_priv_bak TO mysql.tables_priv;
 CREATE USER u1@h;
 
 --echo
+--echo # Remove the session user
+
+#This user is not compatible with 5.6 tables
+let $date_to_restore=`SELECT password_last_changed from mysql.user where user='mysql.session_user'`;
+let $sess_user_account_priv=`SELECT timestamp from mysql.tables_priv where user='mysql.session_user'`;
+DELETE FROM mysql.tables_priv WHERE user='mysql.session_user';
+DELETE FROM mysql.user WHERE user='mysql.session_user';
+DELETE FROM mysql.db WHERE user='mysql.session_user';
+
+--echo
 --echo # Backup privilege tables and drop original ones
 
 RENAME TABLE mysql.user TO mysql.user_bak;
@@ -2315,6 +2325,23 @@ RENAME TABLE mysql.columns_priv_bak TO mysql.columns_priv;
 RENAME TABLE mysql.procs_priv_bak TO mysql.procs_priv;
 RENAME TABLE mysql.proxies_priv_bak TO mysql.proxies_priv;
 RENAME TABLE mysql.tables_priv_bak TO mysql.tables_priv;
+
+#restore the state of the session user
+INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session_user',
+  'N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N',
+  'N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,
+  'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE',
+  'N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N');
+INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql',
+ 'mysql.session_user', 'user', 'root\@localhost',
+  CURRENT_TIMESTAMP, 'Select', '');
+INSERT IGNORE INTO mysql.db VALUES ('localhost', 'performance_schema',
+ 'mysql.session_user','Y','N','N','N','N','N','N','N','N','N','N','N',
+ 'N','N','N','N','N','N','N');
+--disable_query_log ONCE
+--eval UPDATE mysql.tables_priv SET timestamp ='$sess_user_account_priv' WHERE USER= 'mysql.session_user'
+--disable_query_log ONCE
+--eval UPDATE mysql.user SET password_last_changed= '$date_to_restore' WHERE USER= 'mysql.session_user'
 
 FLUSH PRIVILEGES;
 

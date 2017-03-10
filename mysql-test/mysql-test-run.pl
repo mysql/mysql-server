@@ -4022,6 +4022,13 @@ sub mysql_install_db {
     mtr_tofile($bootstrap_sql_file, "DROP DATABASE sys;\n");
   }
 
+  #Update table with better values making it easier to restore when changed
+  mtr_tofile($bootstrap_sql_file,
+             "UPDATE mysql.tables_priv SET
+               timestamp = CURRENT_TIMESTAMP,
+               Grantor= 'root\@localhost'
+               WHERE USER= 'mysql.session_user';\n");
+
   # Make sure no anonymous accounts exists as a safety precaution
   mtr_tofile($bootstrap_sql_file,
 	     "DELETE FROM mysql.user where user= '';\n");
