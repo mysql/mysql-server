@@ -191,7 +191,6 @@ static char*	innobase_enable_monitor_counter		= NULL;
 static char*	innobase_disable_monitor_counter	= NULL;
 static char*	innobase_reset_monitor_counter		= NULL;
 static char*	innobase_reset_all_monitor_counter	= NULL;
-static char*	innobase_scan_directories		= NULL;
 
 static ulong	innodb_change_buffering;
 static ulong	innodb_flush_method;
@@ -510,7 +509,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_MUTEX_KEY(dict_sys_mutex, 0, 0),
 	PSI_MUTEX_KEY(recalc_pool_mutex, 0, 0),
 	PSI_MUTEX_KEY(fil_system_mutex, 0, 0),
-	PSI_MUTEX_KEY(file_open_mutex, 0, 0),
 	PSI_MUTEX_KEY(flush_list_mutex, 0, 0),
 	PSI_MUTEX_KEY(fts_bg_threads_mutex, 0, 0),
 	PSI_MUTEX_KEY(fts_delete_mutex, 0, 0),
@@ -632,7 +630,6 @@ static PSI_thread_info	all_innodb_threads[] = {
 /* all_innodb_files array contains the type of files that are
 performance schema instrumented if "UNIV_PFS_IO" is defined */
 static PSI_file_info	all_innodb_files[] = {
-	PSI_KEY(innodb_tablespace_open_file),
 	PSI_KEY(innodb_data_file),
 	PSI_KEY(innodb_log_file),
 	PSI_KEY(innodb_temp_file)
@@ -4374,7 +4371,7 @@ innobase_init_files(
 {
 	DBUG_ENTER("innobase_init_files");
 
-	bool	create_new_db = false;
+	bool create_new_db = false;
 
 	switch (dict_init_mode) {
 	case DICT_INIT_CREATE_FILES:
@@ -4397,7 +4394,7 @@ innobase_init_files(
 		DBUG_RETURN(innodb_init_abort());
 	}
 
-	err = srv_start(create_new_db, innobase_scan_directories);
+	err = srv_start(create_new_db);
 
 	if (err != DB_SUCCESS) {
 		DBUG_RETURN(innodb_init_abort());
@@ -18800,6 +18797,7 @@ innodb_make_page_dirty(
 	}
 
 	mtr.start();
+	mtr.set_named_space(space);
 
 	buf_block_t*	block = buf_page_get(
 		page_id_t(space_id, srv_saved_page_number_debug),
@@ -19693,15 +19691,15 @@ checkpoint_now_set(
 	const void*			save)	/*!< in: immediate result from
 						check function */
 {
-	if (*(bool*) save && !srv_checkpoint_disabled) {
-
-		while (log_sys->last_checkpoint_lsn < log_sys->lsn) {
-
+	if (*(bool*) save) {
+		while (log_sys->last_checkpoint_lsn
+		       + SIZE_OF_MLOG_CHECKPOINT
+		       + (log_sys->append_on_checkpoint != NULL
+			  ? log_sys->append_on_checkpoint->size() : 0)
+		       < log_sys->lsn) {
 			log_make_checkpoint_at(LSN_MAX, TRUE);
-
-			fil_flush_file_spaces(to_int(FIL_TYPE_LOG));
+			fil_flush_file_spaces(FIL_TYPE_LOG);
 		}
-
 		fil_write_flushed_lsn(log_sys->lsn);
 	}
 }
@@ -20036,11 +20034,6 @@ static MYSQL_SYSVAR_BOOL(log_checkpoint_now, innodb_log_checkpoint_now,
   PLUGIN_VAR_OPCMDARG,
   "Force checkpoint now",
   NULL, checkpoint_now_set, FALSE);
-
-static MYSQL_SYSVAR_BOOL(checkpoint_disabled, srv_checkpoint_disabled,
-  PLUGIN_VAR_OPCMDARG,
-  "Disable checkpoints",
-  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_BOOL(buf_flush_list_now, innodb_buf_flush_list_now,
   PLUGIN_VAR_OPCMDARG,
@@ -20869,11 +20862,6 @@ static MYSQL_SYSVAR_BOOL(buffer_pool_debug, srv_buf_pool_debug,
   NULL, NULL, FALSE);
 #endif /* UNIV_DEBUG */
 
-static MYSQL_SYSVAR_STR(scan_directories, innobase_scan_directories,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "List of directories to scan for missing tablespace files.",
-  NULL, NULL, "");
-
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(api_trx_level),
   MYSQL_SYSVAR(api_bk_commit_interval),
@@ -20967,7 +20955,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(strict_mode),
   MYSQL_SYSVAR(sort_buffer_size),
   MYSQL_SYSVAR(online_alter_log_max_size),
-  MYSQL_SYSVAR(scan_directories),
   MYSQL_SYSVAR(sync_spin_loops),
   MYSQL_SYSVAR(spin_wait_delay),
   MYSQL_SYSVAR(table_locks),
@@ -21004,7 +20991,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(purge_run_now),
   MYSQL_SYSVAR(purge_stop_now),
   MYSQL_SYSVAR(log_checkpoint_now),
-  MYSQL_SYSVAR(checkpoint_disabled),
   MYSQL_SYSVAR(buf_flush_list_now),
   MYSQL_SYSVAR(merge_threshold_set_all_debug),
 #endif /* UNIV_DEBUG */

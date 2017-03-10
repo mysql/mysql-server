@@ -41,4 +41,10 @@ typedef	ib_uint64_t		lsn_t;
 
 #define LSN_PF			UINT64PF
 
+/** The redo log manager */
+struct RedoLog;
+
+/** The recovery implementation */
+struct redo_recover_t;
+
 #endif /* log0types_h */

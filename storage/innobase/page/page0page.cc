@@ -425,6 +425,7 @@ page_create(
 	ulint		comp,
 	page_type_t	page_type)
 {
+	ut_ad(mtr->is_named_space(block->page.id.space()));
 	page_create_write_log(buf_block_get_frame(block), mtr, comp, page_type);
 	return(page_create_low(block, comp, page_type));
 }

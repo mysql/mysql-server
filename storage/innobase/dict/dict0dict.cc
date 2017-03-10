@@ -6064,6 +6064,7 @@ dict_index_set_merge_threshold(
 			       + sizeof(upd_t) + 12));
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	sys_index = UT_LIST_GET_FIRST(dict_sys->sys_indexes->indexes);
 
@@ -7271,6 +7272,7 @@ DDTableBuffer::replace(
 
 	/* Start to search for the to-be-replaced tuple */
 	mtr.start();
+	mtr.set_named_space(m_index->space);
 
 	btr_pcur_open(m_index, m_search_tuple, PAGE_CUR_LE,
 		      BTR_MODIFY_TREE, &pcur, &mtr);
@@ -7363,6 +7365,8 @@ DDTableBuffer::remove(
 
 		return(DB_SUCCESS);
 	}
+
+	mtr.set_named_space(m_index->space);
 
 	DEBUG_SYNC_C("delete_metadata_before");
 

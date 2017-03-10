@@ -170,7 +170,7 @@ DROP TABLE t2;
 --echo # -------------------------
 
 --echo #
---echo # Bug#19330255 CRASH DURING ALTER TABLE LEADS TO
+--echo # Bug#19330255 WL#7142 - CRASH DURING ALTER TABLE LEADS TO
 --echo # DATA DICTIONARY INCONSISTENCY
 --echo #
 

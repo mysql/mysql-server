@@ -157,6 +157,7 @@ public:
 			}
 
 			mtr.start();
+			mtr.set_named_space(m_index->space);
 
 			ins_cur.index = m_index;
 			rtr_init_rtr_info(&rtr_info, false, &ins_cur, m_index,
@@ -177,9 +178,8 @@ public:
 				rtr_init_rtr_info(&rtr_info, false, &ins_cur,
 						  m_index, false);
 				rtr_info_update_btr(&ins_cur, &rtr_info);
-
 				mtr_start(&mtr);
-
+				mtr.set_named_space(m_index->space);
 				btr_cur_search_to_nth_level(
 					m_index, 0, dtuple,
 					PAGE_CUR_RTREE_INSERT,
@@ -193,13 +193,11 @@ public:
 
 			if (error == DB_FAIL) {
 				ut_ad(!big_rec);
-
 				mtr.commit();
-
 				mtr.start();
+				mtr.set_named_space(m_index->space);
 
 				rtr_clean_rtr_info(&rtr_info, true);
-
 				rtr_init_rtr_info(&rtr_info, false,
 						  &ins_cur, m_index, false);
 

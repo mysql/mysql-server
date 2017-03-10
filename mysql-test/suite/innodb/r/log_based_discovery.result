@@ -19,7 +19,8 @@ SELECT * FROM tab2;
 c1	c2
 1	Test consistency undo*
 # Stop the DB server with datadir2
-# Start the DB1 server with wrong path of undo tablespaces, expect errors during recovery
+# Start the DB1 server with wrong path of undo tablespaces, expect an recovery errors
+# Start the DB1 server with wrong path of ibdata* tablespaces, expect an recovery errors
 # Start the DB server with right path, expect no recovery errors
 # restart: --innodb_page_size=PAGE_SIZE --innodb_log_file_size=LOG_FILE_SIZE --innodb_undo_tablespaces=5 --innodb_data_home_dir=MYSQLD_HOME_DATA_DIR1 --innodb_undo_directory=MYSQLD_UNDO_DATADIR1 --datadir=MYSQLD_DATADIR1
 SELECT @@innodb_undo_tablespaces;

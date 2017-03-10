@@ -79,27 +79,39 @@ ut_rnd_gen_next_ulint(
 	return(rnd);
 }
 
-/** The following function generates 'random' ulint integers which
+/********************************************************//**
+The following function generates 'random' ulint integers which
 enumerate the value space of ulint integers in a pseudo random
 fashion. Note that the same integer is repeated always after
 2 to power 32 calls to the generator (if ulint is 32-bit).
-@return pseudo random number */
+This function is now based on thread local variables.
+@return the 'random' number */
+UNIV_INLINE
 ulint
-ut_rnd_gen_ulint()
+ut_rnd_gen_ulint(void)
+/*==================*/
 {
 	ulint	rnd;
 
-	void*   ptr;
+	void*   rnd_count_value;
 
-	ptr = my_get_thread_local(ut_rnd_ulint_counter_key);
-
-	rnd = (ptr == nullptr) ? 65654363 : (ulint) ptr;
+	rnd_count_value = my_get_thread_local(ut_rnd_ulint_counter_key);
+	if(!rnd_count_value) {
+		/* Reset the value if we recieve NULL rnd value i.e.
+		coming from new thread */
+		rnd = 65654363;
+	 } else {
+		/* Set otherwise rnd to non null recieved from the
+		existing thread */
+		rnd = (ulint) rnd_count_value;
+	}
 
 	rnd = UT_RND1 * rnd + UT_RND2;
+	/* Setting the rnd value as thread local */
+	my_set_thread_local(ut_rnd_ulint_counter_key,(void *)rnd);
+	rnd = ut_rnd_gen_next_ulint(rnd);
 
-	my_set_thread_local(ut_rnd_ulint_counter_key, (void *) rnd);
-
-	return(ut_rnd_gen_next_ulint(rnd));
+	return(rnd);
 }
 
 /********************************************************//**

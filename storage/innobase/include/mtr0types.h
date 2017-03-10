@@ -106,6 +106,9 @@ enum mlog_id_t {
 	/** initialize a page in an undo log */
 	MLOG_UNDO_INIT = 22,
 
+	/* discard an update undo log header (unused already in 3.23.53) */
+	//MLOG_UNDO_HDR_DISCARD = 23,
+
 	/** reuse an insert undo log header */
 	MLOG_UNDO_HDR_REUSE = 24,
 
@@ -140,6 +143,12 @@ enum mlog_id_t {
 
 	/** dummy log record used to pad a log block full */
 	MLOG_DUMMY_RECORD = 32,
+
+	/** log record about an .ibd file creation */
+	//MLOG_FILE_CREATE = 33,
+
+	/** rename databasename/tablename (no .ibd file name suffix) */
+	//MLOG_FILE_RENAME = 34,
 
 	/** delete a tablespace file that starts with (space_id,page_no) */
 	MLOG_FILE_DELETE = 35,
@@ -205,9 +214,11 @@ enum mlog_id_t {
 	/** rename a tablespace file that starts with (space_id,page_no) */
 	MLOG_FILE_RENAME2 = 54,
 
-	/** Track the open files. For mapping space IDs to physical filenames
-	during recovery. */
-	MLOG_FILE_OPEN = 55,
+	/** note the first use of a tablespace file since checkpoint */
+	MLOG_FILE_NAME = 55,
+
+	/** note that all buffered log was written since a checkpoint */
+	MLOG_CHECKPOINT = 56,
 
 	/** Create a R-Tree index page */
 	MLOG_PAGE_CREATE_RTREE = 57,
@@ -240,6 +251,11 @@ enum mlog_id_t {
 };
 
 /* @} */
+
+/** Size of a MLOG_CHECKPOINT record in bytes.
+The record consists of a MLOG_CHECKPOINT byte followed by
+mach_write_to_8(checkpoint_lsn). */
+#define SIZE_OF_MLOG_CHECKPOINT	9
 
 /** Types for the mlock objects to store in the mtr memo; NOTE that the
 first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */

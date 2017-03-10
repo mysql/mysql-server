@@ -27,7 +27,6 @@ alter schema test default character set latin1;
 
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption algorithm support missing:");
 call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded");
 call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
 call mtr.add_suppression("does not exist in the InnoDB internal data dictionary though MySQL is trying to drop it");
@@ -114,6 +113,8 @@ INSERT INTO tde_db.t1 VALUES(13, "nnnnn");
 SELECT * FROM tde_db.t1 ORDER BY c1 ;
 --error 1146
 SELECT * FROM tde_db.t2;
+
+
 
 let $MYSQLD_DATADIR = `SELECT @@datadir`;
 # Write file to make mysql-test-run.pl start up the server again
