@@ -1891,8 +1891,8 @@ static int my_strnncoll_uca(const CHARSET_INFO *cs,
 {
   Scanner sscanner(mb_wc, cs, s, slen);
   Scanner tscanner(mb_wc, cs, t, tlen);
-  int s_res;
-  int t_res;
+  int s_res= 0;
+  int t_res= 0;
 
   /*
     We compare 2 strings in same level first. If only string A's scanner
