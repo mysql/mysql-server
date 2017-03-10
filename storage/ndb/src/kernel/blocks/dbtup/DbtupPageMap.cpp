@@ -34,7 +34,7 @@
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-#define DBUG_PAGE_MAP 1
+#define DBUG_PAGE_MAP 0
 
 //
 // PageMap is a service used by Dbtup to map logical page id's to physical

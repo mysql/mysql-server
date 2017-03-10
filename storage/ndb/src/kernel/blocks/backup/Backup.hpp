@@ -613,6 +613,7 @@ public:
     bool wait_data_file_close;
     bool wait_sync_log_lcp_lsn;
     bool wait_sync_page_cache;
+    bool wait_sync_extent;
 
     /* Data for delete LCP file process */
     Uint32 deleteFilePtr;

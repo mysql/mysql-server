@@ -40,7 +40,7 @@ static bool g_use_old_format = false;
 #define UNCOMMITTED_MASK ((1 << 2) | (1 << 3))
 #define UNCOMMITTED_SHIFT 2
 
-#define DEBUG_TSMAN 1
+//#define DEBUG_TSMAN 1
 #ifdef DEBUG_TSMAN
 #define DEB_TSMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else

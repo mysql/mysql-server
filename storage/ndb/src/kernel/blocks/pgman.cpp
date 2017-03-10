@@ -47,7 +47,7 @@ extern EventLogger *g_eventLogger;
 
 static bool g_dbg_lcp = false;
 
-#define DEBUG_PGMAN 1
+//#define DEBUG_PGMAN 1
 #ifdef DEBUG_PGMAN
 #define DEB_PGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -1674,24 +1674,16 @@ Pgman::handle_lcp(Signal *signal, FragmentRecord *fragPtrP)
       ndbrequire(false);
     }
 
-    if (state & Page_entry::BUSY)
+    if (state & Page_entry::PAGEOUT)
     {
       jam();
 
-      DEB_PGMAN(("BUSY state in LCP, page(%u,%u,%u,%u):%x",
-                instance(),
-                ptr.i,
-                ptr.p->m_file_no,
-                ptr.p->m_page_no,
-                (unsigned int)state));
-
-      set_page_state(jamBuffer(), ptr, state | Page_entry::WAIT_LCP);
-      return; // wait for it
-    } 
-    else if (state & Page_entry::PAGEOUT)
-    {
-      jam();
-
+      /**
+       * We could be in BUSY state here if PAGEOUT was started before
+       * setting the BUSY state. In this case we need not wait for
+       * BUSY state to be completed. We simply wait for PAGEOUT to
+       * be completed.
+       */
       DEB_PGMAN(("PAGEOUT state in LCP, page(%u,%u,%u,%u):%x",
                  instance(),
                  ptr.i,
@@ -1705,6 +1697,20 @@ Pgman::handle_lcp(Signal *signal, FragmentRecord *fragPtrP)
       m_dirty_list_lcp_out.addLast(ptr);
       ptr.p->m_dirty_state = Pgman::IN_LCP_OUT_LIST;
       set_page_state(jamBuffer(), ptr, state | Page_entry::LCP);
+    }
+    else if (state & Page_entry::BUSY)
+    {
+      jam();
+
+      DEB_PGMAN(("BUSY state in LCP, page(%u,%u,%u,%u):%x",
+                instance(),
+                ptr.i,
+                ptr.p->m_file_no,
+                ptr.p->m_page_no,
+                (unsigned int)state));
+
+      set_page_state(jamBuffer(), ptr, state | Page_entry::WAIT_LCP);
+      return; // wait for it
     }
     else
     {
@@ -2364,6 +2370,22 @@ Pgman::get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal* signal,
        * If the page is paged out again then the page is again moved to the
        * SL_CALLBACK_IO sublist and thus there is no risk for it to be
        * reported until it is done with the new pageout.
+       *
+       * There is some special implication for BUSY pages (pages that are
+       * locked into the page cache to ensure that we can commit a row
+       * or drop a page or delete a row during node restart). These pages
+       * are not allowed to pageout when they are in the state BUSY. However
+       * we can come here when the page is already in PAGEOUT state. In
+       * this case we don't treat the page in any special manner for LCPs.
+       *
+       * This means that when we call handle_lcp we first check the PAGEOUT
+       * state and only after that we check the BUSY state. So in this manner
+       * we ensure that the BUSY page isn't first put into a wait state where
+       * we wait for the page to be released from the BUSY state (through a
+       * call to update_lsn) and then released from the dirty list when the
+       * pageout completes. This could cause trouble in knowing when we have
+       * completed a fragment LCP and could lead to sending of
+       * 2 SYNC_PAGE_CACHE_CONF leading to problems in BACKUP. 
        */
       thrjam(jamBuf);
       if (req_flags & DIRTY_FLAGS)
@@ -3000,7 +3022,8 @@ Page_cache_client::init_page_entry(Request& req)
  * operation. This happens through a get_page using COMMIT_REQ. This means
  * that the page is locked in the page cache until we have called
  * update_lsn on the page (or we have called drop_page when it is part of
- * drop fragment handling). This temporary locking happens using the BUSY
+ * drop fragment handling or a delete row during node restart).
+ * This temporary locking happens using the BUSY
  * state. In this state the page cannot be paged out. Obviously during the
  * pagein the page will not become dirty, so the only period it stays in
  * the BUSY state for a DIRTY page is from the time it is paged in until
@@ -3009,6 +3032,8 @@ Page_cache_client::init_page_entry(Request& req)
  * no reason to stop all pageout activity because of one page being in the
  * BUSY state, one can simply move on to the next page in the queue for
  * pageout and ensure that we don't stop the loop.
+ * When setting BUSY state we can be in PAGEOUT already, this is treated
+ * such that PAGEOUT state is checked first.
  *
  * The following flags are used in get_page:
  * 1) LOCK_PAGE
