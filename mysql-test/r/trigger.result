@@ -2715,3 +2715,17 @@ trg1e	DELETE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf
 trg1f	DELETE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 trg1f2	DELETE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP TABLE t1;
+#
+# Bug#25581925: 'MDL_CHECKER::IS_READ_LOCKED(M_THD, *OBJECT)' AT
+#               DD::CACHE::DICTIONARY_CLIENT:
+#
+CREATE TABLE t1(a INT);
+CREATE SCHEMA s1;
+CREATE VIEW s1.v1 AS SELECT * FROM t1;
+CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+LOCK TABLE s1.v1 WRITE;
+DROP TRIGGER trg1;
+UNLOCK TABLES;
+DROP VIEW s1.v1;
+DROP TABLE t1;
+DROP SCHEMA s1;

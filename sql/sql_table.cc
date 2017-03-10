@@ -34,7 +34,6 @@
 #include "dd/dd.h"                        // dd::get_dictionary
 #include "dd/dd_schema.h"                 // dd::schema_exists
 #include "dd/dd_table.h"                  // dd::drop_table, dd::update_keys...
-#include "dd/dd_trigger.h"                // dd::table_has_triggers
 #include "dd/dictionary.h"                // dd::Dictionary
 #include "dd/string_type.h"
 #include "dd/types/abstract_table.h"
@@ -2518,27 +2517,26 @@ bool lock_trigger_names(THD *thd,
   for (TABLE_LIST *table= tables; table;
       table= table->next_global)
   {
-    List<LEX_CSTRING> trigger_names;
-
     if (table->open_type == OT_TEMPORARY_ONLY ||
         (table->open_type == OT_TEMPORARY_OR_BASE &&
          is_temporary_table(table)))
       continue;
 
-    if (dd::load_trigger_names(thd,
-                               thd->mem_root,
-                               table->db,
-                               table->table_name,
-                               &trigger_names))
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+    const dd::Table *table_obj= nullptr;
+    if (thd->dd_client()->acquire(table->db, table->table_name, &table_obj))
+    {
+      // Error is reported by the dictionary subsystem.
       return true;
+    }
+    if (table_obj == nullptr)
+      continue;
 
-    List_iterator_fast<LEX_CSTRING> it(trigger_names);
-    LEX_CSTRING *trigger_name;
-
-    while ((trigger_name= it++))
+    for (const dd::Trigger *trigger: table_obj->triggers())
     {
       if (acquire_exclusive_mdl_for_trigger(thd, table->db,
-                                            trigger_name->str))
+                                            trigger->name().c_str()))
         return true;
     }
   }
@@ -3672,8 +3670,7 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
   query_cache.invalidate_single(thd, table, false);
 
 #ifdef HAVE_PSI_SP_INTERFACE
-  if (remove_all_triggers_from_perfschema(thd, table))
-    return true;
+  remove_all_triggers_from_perfschema(table->db, *table_def);
 #endif
   /*
     Don't delete entry from DD in case we are dropping
@@ -12211,15 +12208,17 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     thd->add_to_binlog_accessed_dbs(alter_ctx.new_db);
 
   // Ensure that triggers are in the same schema as their subject table.
-  if (alter_ctx.is_database_changed())
+  if (alter_ctx.is_database_changed() && table->s->tmp_table == NO_TMP_TABLE)
   {
-    bool table_has_trigger= false;
-    if (table->s->tmp_table == NO_TMP_TABLE &&
-        dd::table_has_triggers(thd, alter_ctx.db, alter_ctx.table_name,
-                               &table_has_trigger))
+    const dd::Table *table_obj= nullptr;
+    if (thd->dd_client()->acquire(alter_ctx.db,
+                                  alter_ctx.table_name, &table_obj))
+    {
+      // Error is reported by the dictionary subsystem.
       DBUG_RETURN(true);
+    }
 
-    if (table_has_trigger)
+    if (table_obj != nullptr && table_obj->has_trigger())
     {
       my_error(ER_TRG_IN_WRONG_SCHEMA, MYF(0));
       DBUG_RETURN(true);

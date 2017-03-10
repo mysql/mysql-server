@@ -2526,10 +2526,15 @@ mysql_execute_command(THD *thd, bool first_level)
         When dropping a trigger, we need to load its table name
         before checking slave filter rules.
       */
-      add_table_for_trigger(thd, lex->spname->m_db,
-                            lex->spname->m_name, true, &all_tables);
-      
-      if (!all_tables)
+      TABLE_LIST *trigger_table= nullptr;
+      (void)get_table_for_trigger(thd, lex->spname->m_db,
+                                  lex->spname->m_name, true, &trigger_table);
+      if (trigger_table != nullptr)
+      {
+        lex->add_to_query_tables(trigger_table);
+        all_tables= trigger_table;
+      }
+      else
       {
         /*
           If table name cannot be loaded,
@@ -2541,8 +2546,8 @@ mysql_execute_command(THD *thd, bool first_level)
         binlog_gtid_end_transaction(thd);
         DBUG_RETURN(0);
       }
-      
-      // force searching in slave.cc:tables_ok() 
+
+      // force searching in slave.cc:tables_ok()
       all_tables->updating= 1;
     }
 

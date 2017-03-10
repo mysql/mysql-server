@@ -37,13 +37,13 @@
 #include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
 #include "dd/dd.h"                          // dd::get_dictionary()
 #include "dd/dd_schema.h"                   // dd::Schema_MDL_locker
-#include "dd/dd_trigger.h"                  // dd::table_has_triggers
 #include "dd/dictionary.h"                  // dd::Dictionary
 #include "dd/string_type.h"
 #include "dd/types/event.h"
 #include "dd/types/object_table.h"          // dd:Object_table
 #include "dd/types/routine.h"
 #include "dd/types/schema.h"
+#include "dd/types/table.h"
 #include "dd/types/view.h"
 #include "dd_sp.h"                          // is_dd_routine_type_function
 #include "dd_table_share.h"                 // dd_get_mysql_charset
@@ -4059,11 +4059,16 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
   if (schema_table->i_s_requested_object & OPEN_TRIGGER_ONLY)
   {
-    bool table_has_trigger;
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-    if ((res= dd::table_has_triggers(thd, db_name->str, table_name->str,
-                                     &table_has_trigger)) ||
-        !table_has_trigger)
+    const dd::Table *table_obj= nullptr;
+    if (thd->dd_client()->acquire(db_name->str, table_name->str, &table_obj))
+    {
+      // Error is reported by the dictionary subsystem.
+      goto end;
+    }
+
+    if (table_obj == nullptr || !table_obj->has_trigger())
       goto end;
 
     Table_trigger_dispatcher tbl_trg_dsp(db_name->str, table_name->str);
@@ -6652,7 +6657,7 @@ TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
   }
 
   dd::String_type table_name;
-  if (dd_client->get_table_name_by_trigger_name(sch_obj->id(),
+  if (dd_client->get_table_name_by_trigger_name(*sch_obj,
                                                 trg_name->m_name.str,
                                                 &table_name))
     return nullptr;

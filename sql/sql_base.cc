@@ -27,9 +27,9 @@
 #include "auth_common.h"              // check_table_access
 #include "binlog.h"                   // mysql_bin_log
 #include "check_stack.h"
+#include "dd/cache/dictionary_client.h"
 #include "dd/dd_table.h"              // dd::table_exists
 #include "dd/dd_tablespace.h"         // dd::fill_table_and_parts_tablespace_name
-#include "dd/dd_trigger.h"            // dd::table_has_triggers
 #include "dd/types/abstract_table.h"
 #include "dd/types/table.h"           // dd::Table
 #include "dd_table_share.h"           // open_table_def
@@ -4251,12 +4251,16 @@ err:
 
 static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
 {
-  bool table_has_trigger;
-  if (dd::table_has_triggers(thd, share->db.str, share->table_name.str,
-                             &table_has_trigger))
-    return true;
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  if (table_has_trigger)
+  const dd::Table *table= nullptr;
+  if (thd->dd_client()->acquire(share->db.str, share->table_name.str, &table))
+  {
+    // Error is reported by the dictionary subsystem.
+    return true;
+  }
+
+  if (table != nullptr && table->has_trigger())
   {
     Table_trigger_dispatcher *d= Table_trigger_dispatcher::create(entry);
 

@@ -388,12 +388,25 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
           (hton->post_ddl))
         post_ddl_htons->insert(hton);
 
-      if (check_table_triggers_are_not_in_the_same_schema(
-            thd,
-            ren_table->db,
-            ren_table->table_name,
-            new_db))
-        DBUG_RETURN(!skip_error);
+      {
+        // TODO: Move this earlier.
+        dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+        const dd::Table *table= nullptr;
+
+        if (thd->dd_client()->acquire(ren_table->db, ren_table->table_name, &table))
+        {
+          // Error is reported by the dictionary subsystem.
+          DBUG_RETURN(!skip_error);
+        }
+
+        DBUG_ASSERT(table != nullptr); // Existence checked above.
+        if (check_table_triggers_are_not_in_the_same_schema(thd,
+                                                            ren_table->db,
+                                                            *table,
+                                                            new_db))
+          DBUG_RETURN(!skip_error);
+      }
 
       // If renaming fails, my_error() has already been called
       if (mysql_rename_table(thd, hton, ren_table->db, old_alias, new_db,

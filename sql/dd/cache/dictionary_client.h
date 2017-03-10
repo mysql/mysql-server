@@ -763,9 +763,9 @@ public:
 
 
   /**
-    Retrieve a table name of a given trigger name and schema id.
+    Retrieve a table name of a given trigger name and schema.
 
-    @param        schema_id        schema id of the trigger.
+    @param        schema           Schema containing the trigger.
     @param        trigger_name     Name of the trigger.
     @param  [out] table_name       Name of the table for which
                                    trigger belongs to. Empty string if
@@ -775,7 +775,7 @@ public:
     @retval      true     Error.
   */
 
-  bool get_table_name_by_trigger_name(Object_id schema_id,
+  bool get_table_name_by_trigger_name(const Schema &schema,
                                       const String_type &trigger_name,
                                       String_type *table_name);
 

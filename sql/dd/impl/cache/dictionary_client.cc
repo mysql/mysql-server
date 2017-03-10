@@ -1761,7 +1761,7 @@ bool Dictionary_client::get_table_name_by_partition_se_private_id(
 /* purecov: end */
 
 bool Dictionary_client::get_table_name_by_trigger_name(
-                          Object_id schema_id,
+                          const Schema &schema,
                           const String_type &trigger_name,
                           String_type *table_name)
 {
@@ -1771,7 +1771,7 @@ bool Dictionary_client::get_table_name_by_trigger_name(
   // Read record directly from the tables.
   Object_id table_id;
   if (tables::Triggers::get_trigger_table_id(m_thd,
-                                             schema_id,
+                                             schema.id(),
                                              trigger_name,
                                              &table_id))
   {
