@@ -105,17 +105,38 @@ public:
   void set_name(const char *name);
 
   /**
-   * Set an application host network address and port number on the connection,
-   * which will be reported in ndbinfo.processes.
-   * This must be called prior to connect() for the information to be visible.
-   * If address_string is null, the network address used by the NDBAPI
-   * connection will be reported.
+   * For each Ndb_cluster_connection, NDB publishes a URI in the ndbinfo
+   * processes table. A user may customize this URI using set_service_uri().
    *
-   * @param address_string
-   * @param port
+   * By default the published URI takes the form ndb://x.x.x.x/, where x.x.x.x
+   * is the IPv4 address of the node. This default URI has scheme "ndb",
+   * port 0, host set to null, and empty path, as described below.
    *
+   * If set_service_uri() is called prior to connect(), the URI will be
+   * published immediately upon connection. If called after the cluster
+   * connection is established, the URI will be published after a delay
+   * of up to HeartbeatIntervalDbApi msec.
+   *
+   * @param scheme The URI scheme. The scheme may contain only lowercase
+   *   letters, numbers, and the characters ".", "+", and "-".
+   *   It will be truncated to 16 characters.
+   * @param host The URI network address or hostname.
+   *   Host will be truncated to 48 characters, which is sufficient space for
+   *   an IPv6 network address, but not necessarily for a domain name.
+   *   If host is null, each data node will report the network address from
+   *   its own connection to this node. An Ndb_cluster_connection that uses
+   *   a variety of transporters or network addresses to connect to different
+   *   data nodes will appear in multiple rows of the ndbinfo.processes
+   *   table.
+   * @param port The URI port. If 0, no port component will not be published.
+   * @param path The URI path, possibly followed by a query component beginning
+   *    with the character "?". The combined path and query will be truncated
+   *    to 128 characters. It may not begin with a double slash.
+   *
+   * @return 0 on success, 1 on syntax error in scheme or path component
    */
-  void set_application_address(const char * address_string, int port);
+  int set_service_uri(const char * scheme, const char * host, int port,
+                      const char * path);
 
   /**
    * Set timeout
