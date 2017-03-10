@@ -2827,16 +2827,24 @@ static bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
   error= rli->current_mts_submode->schedule_next_event(rli, ev);
   switch (error)
   {
-  case ER_MTS_CANT_PARALLEL:
     char llbuff[22];
+  case ER_MTS_CANT_PARALLEL:
     llstr(rli->get_event_relay_log_pos(), llbuff);
     my_error(ER_MTS_CANT_PARALLEL, MYF(0),
     ev->get_type_str(), rli->get_event_relay_log_name(), llbuff,
              "The master event is logically timestamped incorrectly.");
     return true;
   case ER_MTS_INCONSISTENT_DATA:
-    /* Don't have to do anything. */
-    return true;
+    llstr(rli->get_event_relay_log_pos(), llbuff);
+    {
+      char errfmt[]=
+        "Coordinator experienced an error or was killed while scheduling "
+        "an event at relay-log name %s position %s.";
+      char errbuf[sizeof(errfmt) + FN_REFLEN + sizeof(llbuff)];
+      sprintf(errbuf, errfmt, rli->get_event_relay_log_name(), llbuff);
+      my_error(ER_MTS_INCONSISTENT_DATA, MYF(0), errbuf);
+      return true;
+    }
   default:
     return false;
   }
