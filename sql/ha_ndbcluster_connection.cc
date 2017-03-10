@@ -138,25 +138,30 @@ bool parse_pool_nodeids(const char* opt_str,
 /* Get the port number for processinfo.
    NDB is being initialized before server networking, so mysqld_port
    may not yet have been set, and we are forced to duplicate some
-   code from mysqld.cc here to calculate the port number.
+   code from set_ports() in mysqld.cc here to calculate the port number.
 */
 static int
 get_processinfo_port()
 {
-  int port = mysqld_port;
-  if(port == 0)
+  int port = 0;
+
+  if(! opt_disable_networking)
   {
-    const char * env = getenv("MYSQL_TCP_PORT");
-    if(MYSQL_PORT_DEFAULT == 0)
+    port = mysqld_port;
+    if(port == 0)
     {
-      struct servent *serv_ptr = getservbyname("mysql", "tcp");
-      if (serv_ptr)
-        port = ntohs((u_short) serv_ptr->s_port); /* purecov: inspected */
+      const char * env = getenv("MYSQL_TCP_PORT");
+      if(MYSQL_PORT_DEFAULT == 0)
+      {
+        struct servent *serv_ptr = getservbyname("mysql", "tcp");
+        if (serv_ptr)
+          port = ntohs((u_short) serv_ptr->s_port); /* purecov: inspected */
+      }
+      else if(env)
+        port = atoi(env);
+      else
+        port = MYSQL_PORT;
     }
-    else if(env)
-      port = atoi(env);
-    else
-      port = MYSQL_PORT;
   }
   return port;
 }
@@ -172,6 +177,30 @@ get_processinfo_host()
     host = 0;
   }
   return host;
+}
+
+/* Like get_processinfo_port(), this code must be duplicated from
+   set_ports() in mysqld.cc.
+*/
+#ifdef _WIN32
+#define URI_PATH_SOCKET MYSQL_NAMEDPIPE;
+#else
+#define URI_PATH_SOCKET MYSQL_UNIX_ADDR;
+#endif
+
+static const char *
+get_processinfo_path()
+{
+  const char * uri_path = mysqld_unix_port;
+  char * env;
+  if (!uri_path)
+  {
+    if ((env = getenv("MYSQL_UNIX_PORT")))
+      uri_path= env;      /* purecov: inspected */
+    else
+      uri_path= (char*) URI_PATH_SOCKET;
+  }
+  return uri_path;
 }
 
 /*
@@ -199,12 +228,21 @@ ndbcluster_connect(int (*connect_callback)(void),
 #else
   const char mysqld_name[]= "libmysqld";
 #endif
-  const int processinfo_port = get_processinfo_port();
-  const char * processinfo_host = get_processinfo_host();
   int res;
   DBUG_ENTER("ndbcluster_connect");
   DBUG_PRINT("enter", ("connect_string: %s, force_nodeid: %d",
                        connect_string, force_nodeid));
+
+  /* For Service URI in ndbinfo */
+  const int processinfo_port = get_processinfo_port();
+  const char * processinfo_host = get_processinfo_host();
+  const char * processinfo_path = processinfo_port ? "" : get_processinfo_path();
+  char server_id_string[64];
+  if(server_id > 0)
+    my_snprintf(server_id_string, sizeof(server_id_string), "?server-id=%lu",
+                server_id);
+  else
+    server_id_string[0] = '\0';
 
   // Parse the --ndb-cluster-connection-pool-nodeids=nodeid[,nodeidN]
   // comma separated list of nodeids to use for the pool
@@ -241,9 +279,10 @@ ndbcluster_connect(int (*connect_callback)(void),
     my_snprintf(buf, sizeof(buf), "%s --server-id=%lu",
                 mysqld_name, server_id);
     g_ndb_cluster_connection->set_name(buf);
-    g_ndb_cluster_connection->set_application_address(processinfo_host, processinfo_port);
+    my_snprintf(buf, sizeof(buf), "%s%s", processinfo_path, server_id_string);
+    g_ndb_cluster_connection->set_service_uri("mysql", processinfo_host,
+                                              processinfo_port, buf);
   }
-
   g_ndb_cluster_connection->set_optimized_node_selection(optimized_node_select);
   g_ndb_cluster_connection->set_recv_thread_activation_threshold(
                                       recv_thread_activation_threshold);
@@ -315,7 +354,10 @@ ndbcluster_connect(int (*connect_callback)(void),
         my_snprintf(buf, sizeof(buf), "%s --server-id=%lu (connection %u)",
                     mysqld_name, server_id, i+1);
         g_pool[i]->set_name(buf);
-        g_pool[i]->set_application_address(processinfo_host, processinfo_port);
+        const char * uri_sep = server_id ? ";" : "?";
+        my_snprintf(buf, sizeof(buf), "%s%s%sconnection=%u",
+                    processinfo_path, server_id_string, uri_sep, i+1);
+        g_pool[i]->set_service_uri("mysql", processinfo_host, processinfo_port, buf);
       }
       g_pool[i]->set_optimized_node_selection(optimized_node_select);
       g_pool[i]->set_recv_thread_activation_threshold(recv_thread_activation_threshold);
