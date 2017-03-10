@@ -1,5 +1,7 @@
 --source include/have_myisam.inc
 --source include/force_myisam_default.inc
+--source include/not_embedded.inc
+--source include/have_binlog_format_statement.inc
 
 ########################################
 ##### WL#7554 Force schema `test` to character set latin1
@@ -16,8 +18,6 @@ use test;
 # This is a wrapper for binlog.test so that the same test case can be used 
 # For both statement and row based bin logs 9/19/2005 [jbm]
 
--- source include/not_embedded.inc
--- source include/have_binlog_format_statement.inc
 -- source extra/binlog_tests/blackhole.test
 
 ########################################
