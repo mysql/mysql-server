@@ -490,10 +490,11 @@ IF(HAVE_NO_BUILTIN_MEMCMP)
 ENDIF()
 
 ## BOOST_HEAP_ASSERT generates if () ; else ;
+## Also Boost has unused parameter warnings.
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   ADD_COMPILE_FLAGS(
     bounded_queue-t.cc
-    COMPILE_FLAGS "-Wno-empty-body"
+    COMPILE_FLAGS "-Wno-empty-body -Wno-unused-parameter"
     )
 ENDIF()
 ADD_COMPILE_FLAGS(

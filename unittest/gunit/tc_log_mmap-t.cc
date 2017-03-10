@@ -40,7 +40,7 @@ using my_testing::Server_initializer;
 class TC_LOG_MMAP_no_msync : public TC_LOG_MMAP
 {
 protected:
-  virtual int do_msync_and_fsync(int fd, void *addr, size_t len, int flags)
+  virtual int do_msync_and_fsync(int, void*, size_t, int)
   {
     return 0;
   }

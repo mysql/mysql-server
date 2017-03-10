@@ -74,7 +74,7 @@ private:
   MYSQL_TIME t;
   uint p;
 public:
-  Mock_protocol(THD *thd) {}
+  Mock_protocol(THD*) {}
 
   virtual bool store_time(MYSQL_TIME *time, uint precision)
   {
@@ -92,9 +92,9 @@ public:
   // Lots of functions that require implementation
   int read_packet() { return 0; }
   ulong get_client_capabilities() { return 0; }
-  bool has_client_capability(unsigned long client_capability) {return false;}
+  bool has_client_capability(unsigned long) {return false;}
   void end_partial_result_set() {}
-  int shutdown(bool server_shutdown= false) { return 0; }
+  int shutdown(bool server_shutdown MY_ATTRIBUTE((unused)) = false) { return 0; }
   void *get_ssl() { return 0; }
   void start_row() {}
   bool end_row() { return false; }
@@ -102,51 +102,41 @@ public:
   void abort_row() {}
   uint get_rw_status() { return 0; }
   bool get_compression() { return false; }
-  bool start_result_metadata(uint num_cols, uint flags,
-                             const CHARSET_INFO *resultcs)
+  bool start_result_metadata(uint, uint, const CHARSET_INFO *)
   { return false; }
 
-  bool store_ps_status(ulong stmt_id, uint column_count,
-                       uint param_count, ulong cond_count)
+  bool store_ps_status(ulong, uint, uint, ulong)
   { return false; }
-  virtual bool send_parameters(List<Item_param> *parameters,
-                               bool is_sql_prepare)
+  virtual bool send_parameters(List<Item_param> *, bool)
   { return false; }
 
   void send_num_fields(uint) {}
   void send_num_rows(uint) {}
-  bool send_field_metadata(Send_field *field,
-                           const CHARSET_INFO *charset) { return false; }
-  virtual bool send_ok(uint server_status, uint statement_warn_count,
-                       ulonglong affected_rows, ulonglong last_insert_id,
-                       const char *message)
+  bool send_field_metadata(Send_field*,
+                           const CHARSET_INFO*) { return false; }
+  virtual bool send_ok(uint, uint, ulonglong, ulonglong, const char*)
   { return false; }
 
-  virtual bool send_eof(uint server_status,
-                        uint statement_warn_count) { return false; }
-  virtual bool send_error(uint sql_errno, const char *err_msg,
-                          const char *sql_state) { return false; }
+  virtual bool send_eof(uint, uint) { return false; }
+  virtual bool send_error(uint, const char*, const char*) { return false; }
   bool end_result_metadata() { return false; }
 
   virtual bool store_null() { return false; }
-  virtual bool store_tiny(longlong from) { return false; }
-  virtual bool store_short(longlong from) { return false; }
-  virtual bool store_long(longlong from) { return false; }
-  virtual bool store_longlong(longlong from, bool unsigned_flag)
+  virtual bool store_tiny(longlong) { return false; }
+  virtual bool store_short(longlong) { return false; }
+  virtual bool store_long(longlong) { return false; }
+  virtual bool store_longlong(longlong, bool)
   { return false; }
   virtual bool store_decimal(const my_decimal *, uint, uint) { return false; }
-  virtual bool store(const char *from, size_t length,
-                     const CHARSET_INFO *fromcs) { return false; }
-  virtual bool store(float from, uint32 decimals, String *buffer)
-  { return false; }
-  virtual bool store(double from, uint32 decimals, String *buffer)
-  { return false; }
-  virtual bool store(MYSQL_TIME *time, uint precision) { return false; }
-  virtual bool store_date(MYSQL_TIME *time) { return false; }
-  virtual bool store(Proto_field *field) { return false; }
+  virtual bool store(const char*, size_t, const CHARSET_INFO*) { return false; }
+  virtual bool store(float, uint32, String*) { return false; }
+  virtual bool store(double, uint32, String*) { return false; }
+  virtual bool store(MYSQL_TIME*, uint) { return false; }
+  virtual bool store_date(MYSQL_TIME*) { return false; }
+  virtual bool store(Proto_field*) { return false; }
   virtual enum enum_protocol_type type() { return PROTOCOL_LOCAL; };
   virtual enum enum_vio_type connection_type() { return NO_VIO_TYPE; }
-  virtual int get_command(COM_DATA *com_data, enum_server_command *cmd)
+  virtual int get_command(COM_DATA*, enum_server_command*)
   { return -1; }
   virtual bool flush() { return true; }
 };

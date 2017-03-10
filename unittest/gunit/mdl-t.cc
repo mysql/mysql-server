@@ -39,11 +39,11 @@
   Mock thd_wait_begin/end functions
 */
 
-extern "C" void thd_wait_begin(THD *thd, int wait_type)
+extern "C" void thd_wait_begin(THD*, int)
 {
 }
 
-extern "C" void thd_wait_end(THD *thd)
+extern "C" void thd_wait_end(THD*)
 {
 }
 
@@ -51,7 +51,7 @@ extern "C" void thd_wait_end(THD *thd)
   A mock error handler.
 */
 static uint expected_error= 0;
-extern "C" void test_error_handler_hook(uint err, const char *str, myf MyFlags)
+extern "C" void test_error_handler_hook(uint err, const char *str, myf)
 {
   EXPECT_EQ(expected_error, err) << str;
 }
@@ -60,7 +60,7 @@ extern "C" void test_error_handler_hook(uint err, const char *str, myf MyFlags)
   Mock away this global function.
   We don't need DEBUG_SYNC functionality in a unit test.
  */
-void debug_sync(THD *thd, const char *sync_point_name, size_t name_len)
+void debug_sync(THD*, const char *sync_point_name, size_t)
 {
   DBUG_PRINT("debug_sync_point", ("hit: '%s'", sync_point_name));
   FAIL() << "Not yet implemented.";
@@ -3795,8 +3795,7 @@ public:
 
   virtual void run();
 
-  virtual void notify_shared_lock(MDL_context_owner *in_use,
-                                  bool needs_thr_lock_abort)
+  virtual void notify_shared_lock(MDL_context_owner*, bool)
   { }
 
 private:
@@ -3881,8 +3880,7 @@ public:
 
   virtual void run();
 
-  virtual void notify_shared_lock(MDL_context_owner *in_use,
-                                  bool needs_thr_lock_abort)
+  virtual void notify_shared_lock(MDL_context_owner*, bool)
   { }
 
   virtual void enter_cond(mysql_cond_t *cond,

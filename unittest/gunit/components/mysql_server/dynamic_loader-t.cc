@@ -43,32 +43,31 @@ struct mysql_component_t *mysql_builtin_components[]=
 };
 
 DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
-  (void* thd_ptr, const char *urns[], int component_count))
+  (void*, const char *[], int))
 {
   return true;
 }
 
 DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
-  (void* thd_ptr, const char *urns[], int component_count))
+  (void*, const char *[], int))
 {
   return true;
 }
 
 DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::register_privilege,
-  (const char *privilege_str, size_t privilege_str_len))
+  (const char *, size_t))
 {
   return true;
 }
 
 DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::unregister_privilege,
-  (const char *privilege_str, size_t privilege_str_len))
+  (const char *, size_t))
 {
   return true;
 }
 
 DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::has_global_grant,
-  (Security_context_handle handle, const char *privilege_str,
-   size_t privilege_str_len))
+  (Security_context_handle, const char *, size_t))
 {
   return true;
 }
@@ -85,9 +84,9 @@ extern "C"
 }
 char opt_plugin_dir[FN_REFLEN];
 
-bool check_string_char_length(const LEX_CSTRING &str, const char *err_msg,
-  size_t max_char_length, const CHARSET_INFO *cs,
-  bool no_error)
+bool check_string_char_length(const LEX_CSTRING &, const char *,
+                              size_t, const CHARSET_INFO *,
+                              bool)
 {
   return false;
 }

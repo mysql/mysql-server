@@ -1126,7 +1126,8 @@ public:
      @return     number of the filled intances indicating how many
                  databases the event accesses.
   */
-  virtual uint8 get_mts_dbs(Mts_db_names *arg, Rpl_filter *rpl_filter)
+  virtual uint8 get_mts_dbs(Mts_db_names *arg,
+                            Rpl_filter *rpl_filter MY_ATTRIBUTE((unused)))
   {
     arg->name[0]= get_db();
 

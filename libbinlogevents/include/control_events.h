@@ -148,8 +148,8 @@ public:
                const Format_description_event *description_event);
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info);
-  void print_long_info(std::ostream& info);
+  void print_event_info(std::ostream&);
+  void print_long_info(std::ostream&);
 #endif
 
   ~Rotate_event()
@@ -283,8 +283,8 @@ public:
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info for
   //            all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream& info) { }
-  void print_long_info(std::ostream& info) { }
+  void print_event_info(std::ostream&) { }
+  void print_long_info(std::ostream&) { }
 #endif
 };
 
@@ -472,7 +472,7 @@ public:
   {}
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info) {};
+  void print_event_info(std::ostream&) {};
   void print_long_info(std::ostream& info);
 #endif
 };
@@ -746,8 +746,8 @@ public:
     todo: we need to find way how to exploit server's code of
     serialize_xid()
   */
-  void print_event_info(std::ostream& info) {};
-  void print_long_info(std::ostream& info)  {};
+  void print_event_info(std::ostream&) {};
+  void print_long_info(std::ostream&)  {};
 #endif
 };
 
@@ -800,8 +800,8 @@ public:
   */
   Ignorable_event(const char *buf, const Format_description_event *descr_event);
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info) { }
-  void print_long_info(std::ostream& info) { }
+  void print_event_info(std::ostream&) { }
+  void print_long_info(std::ostream&) { }
 #endif
 };
 
@@ -1092,8 +1092,8 @@ public:
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info
   //               for all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream& info) { }
-  void print_long_info(std::ostream& info) { }
+  void print_event_info(std::ostream&) { }
+  void print_long_info(std::ostream&) { }
 #endif
 protected:
   static const int ENCODED_FLAG_LENGTH= 1;
@@ -1214,8 +1214,8 @@ public:
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info
   //               for all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream& info) { }
-  void print_long_info(std::ostream& info) { }
+  void print_event_info(std::ostream&) { }
+  void print_long_info(std::ostream&) { }
 #endif
 protected:
   size_t buf_size;
@@ -1314,8 +1314,8 @@ public:
   static void clear_set(std::list<const char*> *set);
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info) { }
-  void print_long_info(std::ostream& info) { }
+  void print_event_info(std::ostream&) { }
+  void print_long_info(std::ostream&) { }
 #endif
 
 protected:
@@ -1416,8 +1416,8 @@ public:
                              std::map<std::string, std::string> *map);
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info) { }
-  void print_long_info(std::ostream& info) { }
+  void print_event_info(std::ostream&) { }
+  void print_long_info(std::ostream&) { }
 #endif
 
 protected:

@@ -76,7 +76,7 @@ Mock_global_error_handler *Mock_global_error_handler::current= NULL;
 /*
   Error handler function.
 */
-extern "C" void mock_error_handler_hook(uint err, const char *str, myf MyFlags)
+extern "C" void mock_error_handler_hook(uint err, const char*, myf)
 {
   if (Mock_global_error_handler::current)
     Mock_global_error_handler::current->error_handler(err);

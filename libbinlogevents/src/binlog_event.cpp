@@ -320,8 +320,8 @@ Unknown_event::Unknown_event(const char* buf,
   {
   }
 #ifndef HAVE_MYSYS
-void Binary_log_event::print_event_info(std::ostream& info) {}
-void Binary_log_event::print_long_info(std::ostream& info) {}
+void Binary_log_event::print_event_info(std::ostream&) {}
+void Binary_log_event::print_long_info(std::ostream&) {}
 /**
   This method is used by the binlog_browser to print short and long
   information about the event. Since the body of Stop_event is empty

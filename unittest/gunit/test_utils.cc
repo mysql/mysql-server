@@ -50,7 +50,7 @@ int chars_2_decimal(const char *chars, my_decimal *to)
   A mock error handler for error_handler_hook.
 */
 uint expected_error= 0;
-extern "C" void test_error_handler_hook(uint err, const char *str, myf MyFlags)
+extern "C" void test_error_handler_hook(uint err, const char *str, myf)
 {
   EXPECT_EQ(expected_error, err) << str;
 }
@@ -141,11 +141,11 @@ Mock_error_handler::~Mock_error_handler()
   }
 }
 
-bool Mock_error_handler::handle_condition(THD *thd,
+bool Mock_error_handler::handle_condition(THD*,
                                           uint sql_errno,
-                                          const char* sqlstate,
-                                          Sql_condition::enum_severity_level *level,
-                                          const char* msg)
+                                          const char*,
+                                          Sql_condition::enum_severity_level*,
+                                          const char*)
 {
   EXPECT_EQ(m_expected_error, sql_errno);
   ++m_handle_called;
