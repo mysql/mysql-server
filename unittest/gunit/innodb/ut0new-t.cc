@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -195,8 +195,11 @@ TEST(ut0new, edgecases)
 #ifdef UNIV_PFS_MEMORY
 	ret = alloc2.allocate(16);
 	ASSERT_TRUE(ret != NULL);
-	ret = alloc2.reallocate(ret, too_many_elements, __FILE__);
-	EXPECT_EQ(null_ptr, ret);
+	void *ret2 = alloc2.reallocate(ret, too_many_elements, __FILE__);
+	EXPECT_EQ(null_ptr, ret2);
+	/* If reallocate fails due to too many elements,
+	memory is still allocated. Do explicit deallocate do avoid mem leak. */
+	alloc2.deallocate(static_cast<big_t*>(ret));
 #endif /* UNIV_PFS_MEMORY */
 
 	bool	threw = false;
