@@ -74,7 +74,7 @@ mysql_pfs_key_t  innodb_tablespace_open_file_key;
 fil_space_t*	fil_space_t::s_sys_space;
 
 /** Tries to close a file in the LRU list. The caller must hold the fil_sys
-mutex. This function will release the fil sys mutex temporarily.
+mutex.
 @return true if success, false if should retry later; since i/o's
 generally complete in < 100 ms, and as InnoDB writes at most 128 pages
 from the buffer pool in a batch, and then immediately flushes the
@@ -487,7 +487,7 @@ struct Fil_Open {
 	/** Parse the input stream and populate the data structure.
 	@param[in,out]	is		Input stream to read
 	@param[out]	max_lsn		Maximum LSN read from the file
-	@param[in]	recovery	if called from recovery
+	@param[in]	true		if called from recovery
 	@return true on success */
 	bool parse(std::istream& is, lsn_t& max_lsn, bool recovery);
 
@@ -1307,8 +1307,6 @@ fil_node_open_file(fil_node_t* node, bool extend)
 		from a file opened for async I/O! */
 
 retry:
-		ut_a(node->is_open);
-
 		node->handle = os_file_create_simple_no_error_handling(
 			innodb_data_file_key, node->name, OS_FILE_OPEN,
 			OS_FILE_READ_ONLY, read_only_mode, &success);
@@ -1316,19 +1314,11 @@ retry:
 		if (!success) {
 			/* The following call prints an error message */
 			ulint err = os_file_get_last_error(true);
-
 			if (err == EMFILE + 100) {
-
-				/* Note: This call will release the
-				file system mutex temporarily. */
-
-				if (fil_try_to_close_file_in_LRU(true)) {
+				if (fil_try_to_close_file_in_LRU(true))
 					goto retry;
-				}
 			}
-
-			ib::warn()
-				<< "Cannot open '" << node->name << "'."
+			ib::warn() << "Cannot open '" << node->name << "'."
 				" Have you deleted .ibd files under a"
 				" running mysqld server?";
 
@@ -1509,6 +1499,7 @@ add_size:
 
 		ut_a(node->in_use > 0);
 		--node->in_use;
+
 	}
 
 	if (fil_space_belongs_in_lru(space)) {
@@ -1527,11 +1518,10 @@ add_size:
 }
 
 /** Close a file node.
-@param[in]	lru_close	true if called from LRU close
-@param[in,out]	node		File node */
+@param[in,out]	node	File node */
 static
 void
-fil_node_close_file(fil_node_t* node, bool lru_close)
+fil_node_close_file(fil_node_t* node)
 {
 	ut_ad(mutex_own(&(fil_system->mutex)));
 
@@ -1570,33 +1560,9 @@ fil_node_close_file(fil_node_t* node, bool lru_close)
 	if (node->space->purpose == FIL_TYPE_TABLESPACE
 	    && !srv_read_only_mode) {
 
-		if (lru_close) {
-
-			/* To obey the latching order. Note that we have
-			set the node->is_open above, another thread will
-			not attempt to open it again after we release the
-			mutex. */
-
-			++node->in_use;
-
-			/* At this point it is safe to release
-			fil_system mutex. No other thread can rename, delete
-			or close the file because we have set the
-			node->in_use flag. */
-
-			mutex_exit(&fil_system->mutex);
-		}
-
 		fil_system->m_open.enter();
 		fil_system->m_open.close(node->space->id, node->name);
 		fil_system->m_open.exit();
-
-		if (lru_close) {
-			mutex_enter(&fil_system->mutex);
-
-			ut_a(node->in_use > 0);
-			--node->in_use;
-		}
 	}
 }
 
@@ -1607,7 +1573,6 @@ generally complete in < 100 ms, and as InnoDB writes at most 128 pages
 from the buffer pool in a batch, and then immediately flushes the
 files, there is a good chance that the next time we find a suitable
 node from the LRU list.
-Will release the fil_system->mutex if the file was closed
 @param[in] print_info   if true, prints information why it
 			cannot close a file */
 static
@@ -1630,8 +1595,7 @@ fil_try_to_close_file_in_LRU(bool print_info)
 		    && node->n_pending_flushes == 0
 		    && node->in_use == 0) {
 
-			/* Will release the fil_system->mutex. */
-			fil_node_close_file(node, true);
+			fil_node_close_file(node);
 
 			return(true);
 		}
@@ -1656,7 +1620,7 @@ fil_try_to_close_file_in_LRU(bool print_info)
 
 		if (node->in_use > 0) {
 			ib::info() << "Cannot close file " << node->name
-				<< ", because it is in use";
+				<< ", because it is being extended";
 		}
 	}
 
@@ -1752,9 +1716,6 @@ fil_mutex_enter_and_prepare_for_io(
 
 		/* Too many files are open, try to close some */
 		do {
-			/* Note: This function will release the
-			fil_system->mutex when it closes the file. */
-
 			success = fil_try_to_close_file_in_LRU(print_info);
 
 		} while (success
@@ -1828,7 +1789,7 @@ fil_node_close_to_free(
 			UT_LIST_REMOVE(fil_system->unflushed_spaces, space);
 		}
 
-		fil_node_close_file(node, false);
+		fil_node_close_file(node);
 	}
 }
 
@@ -2289,7 +2250,7 @@ fil_space_close(space_id_t space_id)
 	     node = UT_LIST_GET_NEXT(chain, node)) {
 
 		if (node->is_open) {
-			fil_node_close_file(node, false);
+			fil_node_close_file(node);
 		}
 	}
 
@@ -2451,7 +2412,7 @@ fil_close_all_files(void)
 		     node = UT_LIST_GET_NEXT(chain, node)) {
 
 			if (node->is_open) {
-				fil_node_close_file(node, false);
+				fil_node_close_file(node);
 			}
 		}
 
@@ -2493,7 +2454,7 @@ fil_close_log_files(
 		     node = UT_LIST_GET_NEXT(chain, node)) {
 
 			if (node->is_open) {
-				fil_node_close_file(node, false);
+				fil_node_close_file(node);
 			}
 		}
 
@@ -3891,7 +3852,7 @@ retry:
 	} else if (node->is_open) {
 		/* Close the file */
 
-		fil_node_close_file(node, false);
+		fil_node_close_file(node);
 	}
 
 	mutex_exit(&fil_system->mutex);
@@ -7961,7 +7922,7 @@ Fil_Open::to_file()
 /** Parse the input stream and populate the data structure.
 @param[in,out]	is		Input stream to read
 @param[out]	max_lsn		Maximum LSN read from the file
-@param[in]	recovery	if called from recovery
+@param[in]	true		if called from recovery
 @return true on success */
 bool
 Fil_Open::parse(std::istream& is, lsn_t& max_lsn, bool recovery)
