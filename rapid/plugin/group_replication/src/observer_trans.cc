@@ -25,6 +25,7 @@
 #include "my_inttypes.h"
 #include "observer_trans.h"
 #include "plugin_log.h"
+#include "plugin.h"
 #include "sql_command_test.h"
 #include "sql_service_command.h"
 #include "sql_service_interface.h"
@@ -341,6 +342,9 @@ int group_replication_trans_before_commit(Trans_param *param)
   }
 
   // Transaction information.
+  const ulong transaction_size_limit= get_transaction_size_limit();
+  my_off_t transaction_size= 0;
+
   const bool is_gtid_specified= param->gtid_info.type == GTID_GROUP;
   Gtid gtid= { param->gtid_info.sidno, param->gtid_info.gno };
   if (!is_gtid_specified)
@@ -508,6 +512,19 @@ int group_replication_trans_before_commit(Trans_param *param)
                           0,
                           gtid_specification);
   gle->write(cache);
+
+  transaction_size= cache_log_position + my_b_tell(cache);
+  if (is_dml && transaction_size_limit &&
+     transaction_size > transaction_size_limit)
+  {
+    log_message(MY_ERROR_LEVEL, "Error on session %u. "
+                "Transaction of size %llu exceeds specified limit %lu. "
+                "To increase the limit please adjust group_replication_transaction_size_limit option.",
+                param->thread_id, transaction_size,
+                transaction_size_limit);
+    error= pre_wait_error;
+    goto err;
+  }
 
   // Reinit group replication cache to read.
   if (reinit_cache(cache, READ_CACHE, 0))

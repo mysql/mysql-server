@@ -182,6 +182,12 @@ ulong flow_control_mode_var= FCM_QUOTA;
 int flow_control_certifier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 int flow_control_applier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 
+/* Transaction size limits */
+#define DEFAULT_TRANSACTION_SIZE_LIMIT 150000000
+#define MAX_TRANSACTION_SIZE_LIMIT 2147483647
+#define MIN_TRANSACTION_SIZE_LIMIT 0
+ulong transaction_size_limit_var= DEFAULT_TRANSACTION_SIZE_LIMIT;
+
 /* Downgrade options */
 bool allow_local_lower_version_join_var= 0;
 
@@ -1375,6 +1381,12 @@ bool get_allow_local_disjoint_gtids_join()
   DBUG_RETURN(allow_local_disjoint_gtids_join_var);
 }
 
+ulong get_transaction_size_limit()
+{
+  DBUG_ENTER("get_transaction_size_limit");
+  DBUG_RETURN(transaction_size_limit_var);
+}
+
 /*
   This method is used to accomplish the startup validations of the plugin
   regarding system configuration.
@@ -2508,6 +2520,19 @@ static MYSQL_SYSVAR_INT(
   0                                    /* block */
 );
 
+static MYSQL_SYSVAR_ULONG(
+  transaction_size_limit,              /* name */
+  transaction_size_limit_var,          /* var */
+  PLUGIN_VAR_OPCMDARG,                 /* optional var */
+  "Specifies the limit of transaction size that can be transferred over network.",
+  NULL,                                /* check func. */
+  NULL,                                /* update func. */
+  DEFAULT_TRANSACTION_SIZE_LIMIT,      /* default */
+  MIN_TRANSACTION_SIZE_LIMIT,          /* min */
+  MAX_TRANSACTION_SIZE_LIMIT,          /* max */
+  0                                    /* block */
+);
+
 static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(group_name),
   MYSQL_SYSVAR(start_on_boot),
@@ -2541,6 +2566,7 @@ static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(flow_control_mode),
   MYSQL_SYSVAR(flow_control_certifier_threshold),
   MYSQL_SYSVAR(flow_control_applier_threshold),
+  MYSQL_SYSVAR(transaction_size_limit),
   NULL,
 };
 
