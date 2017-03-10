@@ -497,8 +497,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
     bool reprepare_error=
       error && thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE;
     bool is_create_table_select=
-      thd->lex && thd->lex->m_sql_cmd &&
-      thd->lex->m_sql_cmd->sql_command_code() == SQLCOM_CREATE_TABLE &&
+      thd->lex && thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
       thd->lex->select_lex && thd->lex->select_lex->item_list.elements > 0;
 
     if (reprepare_error || is_create_table_select)
