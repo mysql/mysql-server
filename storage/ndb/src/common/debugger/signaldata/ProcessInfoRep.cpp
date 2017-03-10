@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (C) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
     All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -25,8 +25,6 @@ printPROCESSINFO_REP(FILE * out, const Uint32 * data, Uint32 len, Uint16 bno) {
   fprintf(out, " process_name: %s", (char *) sig->process_name);
   fprintf(out, " process_id: %d  angel_process_id: %d  application_port: %d",
           sig->process_id, sig->angel_process_id, sig->application_port);
-
-  // TODO: connection name
 
   return true;
 }
