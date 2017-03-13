@@ -289,7 +289,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
       Note that we must not mark the Item of calculation context itself
       because with_sum_func on the aggregation query block is already set above.
 
-      with_sum_func being set for an Item means that this Item refers 
+      has_aggregation() being set for an Item means that this Item refers
       (somewhere in it, e.g. one of its arguments if it's a function) directly
       or indirectly to a set function that is calculated in a
       context "outside" of the Item (e.g. in the current or outer query block).
@@ -300,7 +300,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     for (SELECT_LEX *sl= base_select;
          sl && sl != aggr_select && sl->master_unit()->item;
          sl= sl->outer_select())
-      sl->master_unit()->item->with_sum_func= true;
+      sl->master_unit()->item->set_aggregation();
 
     base_select->mark_as_dependent(aggr_select);
   }
@@ -394,8 +394,8 @@ void Item_sum::mark_as_sum_func()
 void Item_sum::mark_as_sum_func(SELECT_LEX *cur_select)
 {
   cur_select->n_sum_items++;
-  cur_select->with_sum_func= 1;
-  with_sum_func= 1;
+  cur_select->with_sum_func= true;
+  set_aggregation();
 }
 
 
@@ -456,9 +456,9 @@ bool Item_sum::walk(Item_processor processor, enum_walk walk, uchar *argument)
   that the item may be removed from the query.
 
   @note This doesn't completely undo Item_sum::check_sum_func(), as
-  with_sum_func information is left untouched. This means that if this
+  aggregation information is left untouched. This means that if this
   item is removed, aggr_select and all subquery items between aggr_select
-  and this item may be left with with_sum_func set to true, even if
+  and this item may be left with has_aggregation() set to true, even if
   there are no aggregation functions. To our knowledge, this has no
   impact on the query result.
 
@@ -616,14 +616,14 @@ void Item_sum::update_used_tables ()
   if (!forced_const)
   {
     used_tables_cache= 0;
-    with_subselect= false;
-    with_stored_program= false;
+    // Re-accumulate all properties except "aggregation"
+    m_accum_properties&= PROP_AGGREGATION;
+
     for (uint i=0 ; i < arg_count ; i++)
     {
       args[i]->update_used_tables();
       used_tables_cache|= args[i]->used_tables();
-      with_subselect|= args[i]->has_subquery();
-      with_stored_program|= args[i]->has_stored_program();
+      add_accum_properties(args[i]);
     }
 
     used_tables_cache&= PSEUDO_TABLE_BITS;
@@ -4657,12 +4657,12 @@ bool Item_func_grouping::aggregate_check_group(uchar *arg)
 
 
 /**
-  Resets 'with_sum_func' which was set during creation
+  Resets the aggregation property which was set during creation
   of references to GROUP BY fields in SELECT_LEX::change_group_ref.
   Calls Item_int_func::cleanup() to do the rest of the cleanup.
 */
 void Item_func_grouping::cleanup()
 {
-  with_sum_func= 0;
+  reset_aggregation();
   Item_int_func::cleanup();
 }

@@ -9125,9 +9125,10 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
       Mark_field mf(MARK_COLUMNS_WRITE);
       item->walk(&Item::mark_field_in_map, Item::WALK_POSTFIX,
                  pointer_cast<uchar *>(&mf));
-   }
-    if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
-	sum_func_list)
+    }
+    if (item->has_aggregation() &&
+        item->type() != Item::SUM_FUNC_ITEM &&
+        sum_func_list)
       item->split_sum_func(thd, ref_item_array, *sum_func_list);
     select->select_list_tables|= item->used_tables();
     thd->lex->used_tables|= item->used_tables();

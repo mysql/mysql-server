@@ -2150,7 +2150,7 @@ bool Item_in_optimizer::fix_left(THD *thd, Item**)
     }
   }
   not_null_tables_cache= args[0]->not_null_tables();
-  with_sum_func= args[0]->with_sum_func;
+  add_accum_properties(args[0]);
   if ((const_item_cache= args[0]->const_item()))
     cache->store(args[0]);
   return 0;
@@ -2175,7 +2175,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
   }
   if (args[1]->maybe_null)
     maybe_null=1;
-  with_sum_func= with_sum_func || args[1]->with_sum_func;
+  add_accum_properties(args[1]);
   used_tables_cache|= args[1]->used_tables();
   not_null_tables_cache|= args[1]->not_null_tables();
 
@@ -2752,7 +2752,7 @@ bool Item_func_interval::resolve_type(THD *)
   max_length= 2;
   used_tables_cache|= row->used_tables();
   not_null_tables_cache= row->not_null_tables();
-  with_sum_func= with_sum_func || row->with_sum_func;
+  add_accum_properties(row);
   const_item_cache&= row->const_item();
   return false;
 }
@@ -5738,9 +5738,7 @@ Item_cond::fix_fields(THD *thd, Item**)
       not_null_tables_cache|= item->not_null_tables();
     else
       not_null_tables_cache&= item->not_null_tables();
-    with_sum_func|=  item->with_sum_func;
-    with_subselect|= item->has_subquery();
-    with_stored_program|= item->has_stored_program();
+    add_accum_properties(item);
     maybe_null|= item->maybe_null;
   }
   thd->lex->current_select()->cond_count+= list.elements;
@@ -5949,16 +5947,15 @@ void Item_cond::update_used_tables()
   Item *item;
 
   used_tables_cache=0;
-  const_item_cache=1;
-  with_subselect= false;
-  with_stored_program= false;
+  const_item_cache= true;
+  m_accum_properties= 0;
+
   while ((item=li++))
   {
     item->update_used_tables();
     used_tables_cache|= item->used_tables();
     const_item_cache&= item->const_item();
-    with_subselect|= item->has_subquery();
-    with_stored_program|= item->has_stored_program();
+    add_accum_properties(item);
   }
 }
 
@@ -6150,7 +6147,7 @@ longlong Item_is_not_null_test::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_is_not_null_test::val_int");
-  if (!used_tables_cache && !with_subselect && !with_stored_program)
+  if (!used_tables_cache && !has_subquery() && !has_stored_program())
   {
     /*
      TODO: Currently this branch never executes, since used_tables_cache
@@ -6184,11 +6181,11 @@ void Item_is_not_null_test::update_used_tables()
     return;
   }
   args[0]->update_used_tables();
-  with_subselect= args[0]->has_subquery();
-  with_stored_program= args[0]->has_stored_program();
+  set_accum_properties(args[0]);
   used_tables_cache|= args[0]->used_tables();
-  if (used_tables_cache == initial_pseudo_tables && !with_subselect &&
-      !with_stored_program)
+  if (used_tables_cache == initial_pseudo_tables &&
+      !has_subquery() &&
+      !has_stored_program())
     /* Remember if the value is always NULL or never NULL */
     cached_value= !args[0]->is_null();
 }
@@ -6544,10 +6541,9 @@ Item_func_regex::fix_fields(THD *thd, Item**)
       (!args[1]->fixed &&
        args[1]->fix_fields(thd, args + 1)) || args[1]->check_cols(1))
     return TRUE;				/* purecov: inspected */
-  with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
-  with_subselect= args[0]->has_subquery() || args[1]->has_subquery();
-  with_stored_program= args[0]->has_stored_program() ||
-                       args[1]->has_stored_program();
+  m_accum_properties= 0;
+  add_accum_properties(args[0]);
+  add_accum_properties(args[1]);
   max_length= 1;
   decimals= 0;
 
@@ -7407,8 +7403,7 @@ void Item_equal::update_used_tables()
   not_null_tables_cache= used_tables_cache= 0;
   if ((const_item_cache= cond_false))
     return;
-  with_subselect= false;
-  with_stored_program= false;
+  m_accum_properties= 0;
   while ((item=li++))
   {
     item->update_used_tables();
@@ -7416,8 +7411,8 @@ void Item_equal::update_used_tables()
     not_null_tables_cache|= item->not_null_tables();
     /* see commentary at Item_equal::update_const() */
     const_item_cache&= item->const_item() && !item->is_outer_field();
-    with_subselect|= item->has_subquery();
-    with_stored_program|= item->has_stored_program();
+    add_accum_properties(item);
+
   }
 }
 

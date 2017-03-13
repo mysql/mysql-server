@@ -4500,7 +4500,7 @@ setup_copy_fields(THD *thd, Temp_table_param *param,
 	      real_pos->type() == Item::SUBSELECT_ITEM ||
 	      real_pos->type() == Item::CACHE_ITEM ||
 	      real_pos->type() == Item::COND_ITEM) &&
-	     !real_pos->with_sum_func)
+	     !real_pos->has_aggregation())
     {						// Save for send fields
       pos= real_pos;
       /* TODO:
@@ -4604,7 +4604,7 @@ change_to_use_tmp_fields(THD *thd, Ref_item_array ref_item_array,
   for (uint i= 0; (item= it++); i++)
   {
     Field *field;
-    if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
+    if (item->has_aggregation() && item->type() != Item::SUM_FUNC_ITEM)
       item_field= item;
     else if (item->type() == Item::FIELD_ITEM)
       item_field= item->get_tmp_table_item(thd);

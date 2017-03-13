@@ -1765,6 +1765,13 @@ public:
   longlong val_int() override;
   bool aggregate_check_group(uchar *arg) override;
   bool fix_fields(THD *thd, Item **ref) override;
+  void update_used_tables() override
+  {
+    const bool aggregated= has_aggregation();
+    Item_int_func::update_used_tables();
+    if (aggregated)
+      set_aggregation();
+  }
   void cleanup() override;
 };
 

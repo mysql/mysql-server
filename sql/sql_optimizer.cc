@@ -562,7 +562,7 @@ JOIN::optimize()
     elements may be lost during further having
     condition transformation in JOIN::exec.
   */
-  if (having_cond && const_table_map && !having_cond->with_sum_func)
+  if (having_cond && const_table_map && !having_cond->has_aggregation())
   {
     having_cond->update_used_tables();
     if (remove_eq_conds(thd, having_cond, &having_cond,
@@ -4838,7 +4838,7 @@ void JOIN::update_depend_map(ORDER *order)
     order->used= 0;
     // Not item_sum(), RAND() and no reference to table outside of sub select
     if (!(order->depend_map & (OUTER_REF_TABLE_BIT | RAND_TABLE_BIT))
-        && !order->item[0]->with_sum_func)
+        && !order->item[0]->has_aggregation())
     {
       for (JOIN_TAB **tab= map2table; depend_map; tab++, depend_map >>= 1)
       {
@@ -10018,7 +10018,7 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
     Opt_trace_object trace_one_item(trace);
     trace_one_item.add("item", order->item[0]);
     table_map order_tables=order->item[0]->used_tables();
-    if (order->item[0]->with_sum_func ||
+    if (order->item[0]->has_aggregation() ||
         /*
           If the outer table of an outer join is const (either by itself or
           after applying WHERE condition), grouping on a field from such a
@@ -10680,7 +10680,7 @@ create_distinct_group(THD *thd,
   li.rewind();
   while ((item=li++))
   {
-    if (!item->const_item() && !item->with_sum_func && !item->marker)
+    if (!item->const_item() && !item->has_aggregation() && !item->marker)
     {
       /* 
         Don't put duplicate columns from the SELECT list into the 

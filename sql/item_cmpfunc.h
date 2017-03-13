@@ -335,7 +335,9 @@ public:
   Item_in_optimizer(Item *a, Item_in_subselect *b):
     Item_bool_func(a, reinterpret_cast<Item *>(b)), cache(0),
     save_cache(0), result_for_null_param(UNKNOWN)
-  { with_subselect= TRUE; }
+  {
+    set_subquery();
+  }
   bool fix_fields(THD *, Item **) override;
   bool fix_left(THD *thd, Item **ref);
   void fix_after_pullout(SELECT_LEX *parent_select,
@@ -1815,11 +1817,10 @@ public:
     else
     {
       args[0]->update_used_tables();
-      with_subselect= args[0]->has_subquery();
-      with_stored_program= args[0]->has_stored_program();
+      set_accum_properties(args[0]);
 
       if ((const_item_cache= !(used_tables_cache= args[0]->used_tables()) &&
-           !with_subselect && !with_stored_program))
+           !has_subquery() && !has_stored_program()))
       {
 	/* Remember if the value is always NULL or never NULL */
 	cached_value= (longlong) args[0]->is_null();

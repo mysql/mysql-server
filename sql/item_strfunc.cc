@@ -2847,7 +2847,8 @@ bool Item_func_make_set::resolve_type(THD *)
   used_tables_cache|=	  item->used_tables();
   not_null_tables_cache&= item->not_null_tables();
   const_item_cache&=	  item->const_item();
-  with_sum_func|=         item->with_sum_func;
+  add_accum_properties(item);
+
   return false;
 }
 
@@ -2858,8 +2859,7 @@ void Item_func_make_set::update_used_tables()
   item->update_used_tables();
   used_tables_cache|=item->used_tables();
   const_item_cache&=item->const_item();
-  with_subselect|= item->has_subquery();
-  with_stored_program|= item->has_stored_program();
+  add_accum_properties(item);
 }
 
 
