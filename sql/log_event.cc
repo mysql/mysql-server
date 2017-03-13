@@ -13022,7 +13022,7 @@ Gtid_log_event::print(FILE *file, PRINT_EVENT_INFO *print_event_info)
   my_b_printf(head, "# immediate_commit_timestamp=%s (%s)\n",
               llstr(immediate_commit_timestamp, llbuf),
               immediate_commit_timestamp_str);
-  my_b_printf(head, "/*!80000 SET @@session.original_commit_timestamp=%s*/%s\n",
+  my_b_printf(head, "/*!80001 SET @@session.original_commit_timestamp=%s*/%s\n",
               llstr(original_commit_timestamp, llbuf),
               print_event_info->delimiter);
 

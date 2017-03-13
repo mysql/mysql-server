@@ -2259,7 +2259,7 @@ ROLLBACK/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	Xid = #
@@ -2368,7 +2368,7 @@ crn INT -- row number
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -2468,7 +2468,7 @@ COMMIT/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -2567,7 +2567,7 @@ COMMIT/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -2747,7 +2747,7 @@ COMMIT/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -2926,7 +2926,7 @@ COMMIT/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -3105,7 +3105,7 @@ COMMIT/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -3284,7 +3284,7 @@ COMMIT/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -3463,7 +3463,7 @@ COMMIT/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -3562,7 +3562,7 @@ COMMIT/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -3661,7 +3661,7 @@ COMMIT/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -3760,7 +3760,7 @@ COMMIT/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -3958,7 +3958,7 @@ ROLLBACK/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	Xid = #
@@ -3982,7 +3982,7 @@ crn INT -- row number
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4045,7 +4045,7 @@ COMMIT/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4126,7 +4126,7 @@ COMMIT/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4366,7 +4366,7 @@ ROLLBACK/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	Xid = #
@@ -4390,7 +4390,7 @@ c_1_n INT -- row number
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	Xid = #
@@ -4405,7 +4405,7 @@ c_2_n INT -- row number
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	Xid = #
@@ -4420,7 +4420,7 @@ c_3_n INT -- row number
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4483,7 +4483,7 @@ COMMIT/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4546,7 +4546,7 @@ COMMIT/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4609,7 +4609,7 @@ COMMIT/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4620,7 +4620,7 @@ ANALYZE TABLE t1
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4631,7 +4631,7 @@ ANALYZE TABLE t2
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4642,7 +4642,7 @@ ANALYZE TABLE t3
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4830,7 +4830,7 @@ COMMIT/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -5013,7 +5013,7 @@ ROLLBACK/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	Xid = #
@@ -5037,7 +5037,7 @@ c3 VARCHAR(60)
 # # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	original_committed_timestamp=#   immediate_commit_timestamp=#
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
-/*!80000 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
