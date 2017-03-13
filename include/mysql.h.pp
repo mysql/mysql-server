@@ -265,7 +265,7 @@ enum mysql_option
   MYSQL_OPT_SSL_VERIFY_SERVER_CERT, MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH,
   MYSQL_ENABLE_CLEARTEXT_PLUGIN,
   MYSQL_OPT_BIND,
-  MYSQL_OPT_SSL_MODE
+  MYSQL_OPT_SSL_MODE= 38
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {
