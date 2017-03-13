@@ -5876,7 +5876,34 @@ void Dbtc::diverify010Lab(Signal* signal)
       * (EmulatedJamBuffer**)(signal->theData+2) = jamBuffer();
       EXECUTE_DIRECT(DBDIH, GSN_DIVERIFYREQ, signal,
                      2 + sizeof(void*)/sizeof(Uint32), 0);
-      if (signal->theData[3] == 0) {
+      if (clastApiConnectPREPARE_TO_COMMIT != RNIL ||
+          signal->theData[3] != 0)
+      {
+        /* Put transaction last in verification queue */
+        ndbrequire(regApiPtr->nextApiConnect == RNIL);
+        if (clastApiConnectPREPARE_TO_COMMIT != RNIL)
+        {
+          ApiConnectRecord* apiPtr;
+          apiPtr = &apiConnectRecord[clastApiConnectPREPARE_TO_COMMIT];
+          ndbrequire(apiPtr->nextApiConnect == RNIL);
+          apiPtr->nextApiConnect = apiConnectptr.i;
+        }
+        else
+        {
+          ndbassert(cfirstApiConnectPREPARE_TO_COMMIT == RNIL);
+          cfirstApiConnectPREPARE_TO_COMMIT = apiConnectptr.i;
+        }
+        clastApiConnectPREPARE_TO_COMMIT = apiConnectptr.i;
+        /**
+         * If execDIVERIFYCONF is called below, make it pop a transaction
+         * from verifiction queue.
+         * Note, that even if DBDIH says ok without queue, DBTC can still
+         * have a queue since there can be DIVERIFYCONF still in flight.
+         */
+        signal->theData[0] = RNIL;
+      }
+      if (signal->theData[3] == 0)
+      {
         execDIVERIFYCONF(signal);
       }
       return;
@@ -5938,6 +5965,27 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
   ApiConnectRecord *localApiConnectRecord = apiConnectRecord;
 
   jamEntry();
+  if (TapiConnectptrIndex == RNIL)
+  {
+    /**
+     * DIVERIFYCONF from DBDIH
+     * There should be transactions queue for verification.
+     */
+    if (cfirstApiConnectPREPARE_TO_COMMIT == RNIL)
+    {
+      ndbassert(cfirstApiConnectPREPARE_TO_COMMIT != RNIL);
+      return;
+    }
+    TapiConnectptrIndex = cfirstApiConnectPREPARE_TO_COMMIT;
+  }
+  else
+  {
+    /**
+     * DIVERIFYCONF from DBTC
+     * There should be no transactions queue for verification.
+     */
+    ndbrequire(cfirstApiConnectPREPARE_TO_COMMIT == RNIL);
+  }
   if (ERROR_INSERTED(8017)) {
     CLEAR_ERROR_INSERT_VALUE;
     return;
@@ -5948,6 +5996,16 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
   }//if
   ApiConnectRecord * const regApiPtr = 
                             &localApiConnectRecord[TapiConnectptrIndex];
+  if (cfirstApiConnectPREPARE_TO_COMMIT == TapiConnectptrIndex)
+  {
+    /* Pop first transaction in verification queue */
+    cfirstApiConnectPREPARE_TO_COMMIT = regApiPtr->nextApiConnect;
+    if (cfirstApiConnectPREPARE_TO_COMMIT == RNIL)
+    {
+      clastApiConnectPREPARE_TO_COMMIT = RNIL;
+    }
+    regApiPtr->nextApiConnect = RNIL;
+  }
   ConnectionState TapiConnectstate = regApiPtr->apiConnectstate;
   UintR TApifailureNr = regApiPtr->failureNr;
   UintR Tfailure_nr = cfailure_nr;
@@ -14776,6 +14834,8 @@ void Dbtc::initApiConnect(Signal* signal)
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
   apiConnectptr.p->nextApiConnect = RNIL;
   cfirstfreeApiConnectFail = 2 * tiacTmp;
+  cfirstApiConnectPREPARE_TO_COMMIT = RNIL;
+  clastApiConnectPREPARE_TO_COMMIT = RNIL;
 }//Dbtc::initApiConnect()
 
 void Dbtc::initgcp(Signal* signal) 

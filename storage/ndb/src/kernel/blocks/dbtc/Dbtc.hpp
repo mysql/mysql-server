@@ -765,6 +765,7 @@ public:
   struct ApiConnectRecord {
     ApiConnectRecord(TcFiredTriggerData_pool & firedTriggerPool,
                      TcIndexOperation_pool & seizedIndexOpPool):
+      nextApiConnect(RNIL),
       m_special_op_flags(0),
       theFiredTriggers(firedTriggerPool),
       theSeizedIndexOperations(seizedIndexOpPool) 
@@ -2224,8 +2225,10 @@ private:
   Uint16 terrorCode;
 
   UintR cfirstfreeTcConnect;
-  UintR cfirstfreeApiConnectCopy;
+  UintR cfirstfreeApiConnectCopy; /* CS_RESTART */
   UintR cfirstfreeCacheRec;
+  Uint32 cfirstApiConnectPREPARE_TO_COMMIT;
+  Uint32 clastApiConnectPREPARE_TO_COMMIT;
 
   UintR cfirstgcp;
   UintR clastgcp;

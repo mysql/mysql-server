@@ -1314,11 +1314,6 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
 
   cconnectFileSize = 256; // Only used for DDL
 
-  ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_API_CONNECT, 
-					   &capiConnectFileSize),
-		NDBD_EXIT_INVALID_CONFIG);
-  capiConnectFileSize++; // Increase by 1...so that srsw queue never gets full
-
   ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_FRAG_CONNECT, 
 					   &cfragstoreFileSize),
 		NDBD_EXIT_INVALID_CONFIG);
@@ -16277,12 +16272,14 @@ inline
 bool
 Dbdih::isEmpty(const DIVERIFY_queue & q)
 {
+  /* read barrier, not for ordering but to try force fresh read */
+  rmb();
   return q.cfirstVerifyQueue == q.clastVerifyQueue;
 }
 
 inline
 void
-Dbdih::enqueue(DIVERIFY_queue & q, Uint32 senderData, Uint64 gci)
+Dbdih::enqueue(DIVERIFY_queue & q)
 {
 #ifndef NDEBUG
   /**
@@ -16295,41 +16292,24 @@ Dbdih::enqueue(DIVERIFY_queue & q, Uint32 senderData, Uint64 gci)
 #endif
 
   Uint32 last = q.clastVerifyQueue;
-  ApiConnectRecord * apiConnectRecord = q.apiConnectRecord;
 
-  apiConnectRecord[last].senderData = senderData;
-  apiConnectRecord[last].apiGci = gci;
+  q.clastVerifyQueue = last + 1;
+
+  /* barrier to flush writes */
   wmb();
-  if (last + 1 == capiConnectFileSize)
-  {
-    q.clastVerifyQueue = 0;
-  }
-  else
-  {
-    q.clastVerifyQueue = last + 1;
-  }
   assert(q.clastVerifyQueue != first);
 }
 
 inline
 void
-Dbdih::dequeue(DIVERIFY_queue & q, ApiConnectRecord & conRecord)
+Dbdih::dequeue(DIVERIFY_queue & q)
 {
   Uint32 first = q.cfirstVerifyQueue;
-  ApiConnectRecord * apiConnectRecord = q.apiConnectRecord;
 
-  rmb();
-  conRecord.senderData = apiConnectRecord[first].senderData;
-  conRecord.apiGci = apiConnectRecord[first].apiGci;
+  q.cfirstVerifyQueue = first + 1;
 
-  if (first + 1 == capiConnectFileSize)
-  {
-    q.cfirstVerifyQueue = 0;
-  }
-  else
-  {
-    q.cfirstVerifyQueue = first + 1;
-  }
+  /* barrier to flush writes */
+  wmb();
 }
 
 /*
@@ -16374,7 +16354,7 @@ loop:
   // Since we are blocked we need to put this operation last in the verify
   // queue to ensure that operation starts up in the correct order.
   /*-------------------------------------------------------------------------*/
-  enqueue(q, signal->theData[0], m_micro_gcp.m_new_gci);
+  enqueue(q);
   if (blocked == 0 && jambuf == jamBuffer())
   {
     emptyverificbuffer(signal, 0, false);
@@ -23065,10 +23045,8 @@ Dbdih::emptyverificbuffer(Signal* signal, Uint32 q, bool aContinueB)
   {
     jam();
 
-    ApiConnectRecord localApiConnect;
-    dequeue(c_diverify_queue[q], localApiConnect);
-    ndbrequire(localApiConnect.apiGci <= m_micro_gcp.m_current_gci);
-    signal->theData[0] = localApiConnect.senderData;
+    dequeue(c_diverify_queue[q]);
+    signal->theData[0] = RNIL;
     signal->theData[1] = (Uint32)(m_micro_gcp.m_current_gci >> 32);
     signal->theData[2] = (Uint32)(m_micro_gcp.m_current_gci & 0xFFFFFFFF);
     signal->theData[3] = 0;
@@ -23972,7 +23950,6 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
     initCommonData();
     break;
   case 1:{
-    ApiConnectRecordPtr apiConnectptr;
     jam();
     c_diverify_queue[0].m_ref = calcTcBlockRef(getOwnNodeId());
     for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
@@ -23981,15 +23958,6 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
       {
         c_diverify_queue[i].m_ref = numberToRef(DBTC, i + 1, 0);
       }
-      /******** INTIALIZING API CONNECT RECORDS ********/
-      for (apiConnectptr.i = 0;
-           apiConnectptr.i < capiConnectFileSize; apiConnectptr.i++)
-      {
-        refresh_watch_dog();
-        ptrAss(apiConnectptr, c_diverify_queue[i].apiConnectRecord);
-        apiConnectptr.p->senderData = RNIL;
-        apiConnectptr.p->apiGci = ~(Uint64)0;
-      }//for
     }
     jam();
     break;
@@ -26001,11 +25969,12 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	      c_nodeStartMaster.blockGcp, c_nodeStartMaster.wait);
     for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
     {
-      infoEvent("[ %u : cfirstVerifyQueue = %u clastVerifyQueue = %u sz: %u]",
+      /* read barrier to try force fresh reads of c_diverify_queue */
+      rmb();
+      infoEvent("[ %u : cfirstVerifyQueue = %u clastVerifyQueue = %u]",
                 i,
                 c_diverify_queue[i].cfirstVerifyQueue,
-                c_diverify_queue[i].clastVerifyQueue,
-                capiConnectFileSize);
+                c_diverify_queue[i].clastVerifyQueue);
     }
     infoEvent("cgcpOrderBlocked = %d",
               cgcpOrderBlocked);
