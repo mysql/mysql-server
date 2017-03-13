@@ -3002,7 +3002,10 @@ row_sel_field_store_in_mysql_format_func(
 		containing UTF-8 ENUM columns due to Bug #9526. */
 		ut_ad(!templ->mbmaxlen
 		      || !(templ->mysql_col_len % templ->mbmaxlen));
-		ut_ad(len * templ->mbmaxlen >= templ->mysql_col_len
+		/* Length of the record will be less in case of
+		clust_templ_for_sec is true. */
+		ut_ad(clust_templ_for_sec
+		      || len * templ->mbmaxlen >= templ->mysql_col_len
 		      || (field_no == templ->icp_rec_field_no
 			  && field->prefix_len > 0));
 		ut_ad(templ->is_virtual
@@ -3394,7 +3397,8 @@ row_sel_store_mysql_rec(
 	if secondary index is used then FTS_DOC_ID column should be part
 	of this index. */
 	if (dict_table_has_fts_index(prebuilt->table)) {
-		if (dict_index_is_clust(index)
+		if ((dict_index_is_clust(index)
+		     && !clust_templ_for_sec)
 		    || prebuilt->fts_doc_id_in_read_set) {
 			prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
 				prebuilt->table, rec, index, NULL);
