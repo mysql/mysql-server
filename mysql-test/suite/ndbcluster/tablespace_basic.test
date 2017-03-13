@@ -35,6 +35,12 @@ DELETE FROM t1 ORDER BY b DESC;
 
 DROP TABLE t1;
 
+# NOTE! There is a problem with dropping the tablespace
+# here, it seems like NDB does not allow dropping a
+# tablespace with datafiles(thus the ALTER ... DROP)
+# and trying to workaround by dropping the datafile first does not
+# work either since MySQL Server refuses to drop tablesapce without
+# datafiles
 ALTER TABLESPACE ts1
   DROP DATAFILE 'ts1_datafile.dat'
   ENGINE=NDB;
