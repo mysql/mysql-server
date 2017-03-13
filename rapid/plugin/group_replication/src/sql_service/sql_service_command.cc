@@ -482,11 +482,22 @@ Session_plugin_thread(Sql_service_commands* command_interface)
 
 Session_plugin_thread::~Session_plugin_thread()
 {
+
+ if (this->incoming_methods)
+  {
+    while (!this->incoming_methods->empty())
+    {
+      st_session_method *method= NULL;
+      this->incoming_methods->pop(&method);
+      my_free(method);
+    }
+    delete incoming_methods;
+  }
+
   mysql_mutex_destroy(&m_run_lock);
   mysql_cond_destroy(&m_run_cond);
   mysql_mutex_destroy(&m_method_lock);
   mysql_cond_destroy(&m_method_cond);
-  delete incoming_methods;
 }
 
 void Session_plugin_thread::
