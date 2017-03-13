@@ -171,7 +171,8 @@ enum mysql_option
 #ifndef MCP_WL3126
   MYSQL_OPT_BIND,
 #endif
-  MYSQL_OPT_SSL_MODE
+  /* Set MYSQL_OPT_SSL_MODE to be the same as in 5.6 (ABI compatibility). */
+  MYSQL_OPT_SSL_MODE= 38
 };
 
 /**
