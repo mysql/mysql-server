@@ -69,7 +69,7 @@
       <RegistryKey
         Id='MySQLKey'
         Root='HKLM'
-        Key='SOFTWARE\MySQL AB\@PRODUCT_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@'
+        Key='SOFTWARE\MySQL AB\[ProductName]'
         Action='createAndRemoveOnUninstall'>
         <RegistryValue
           Type='string'
