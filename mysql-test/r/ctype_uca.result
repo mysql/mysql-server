@@ -7081,3 +7081,17 @@ call mtr.add_suppression("Shift expected at '' for COLLATION : utf8_test");
 #
 # End of 5.6 tests
 #
+SET NAMES utf8mb4;
+CREATE TABLE t1 (
+f1 CHAR(4) NOT NULL
+);
+INSERT INTO t1 VALUES ('é');
+INSERT INTO t1 VALUES (_utf16 0x00650301);
+SELECT DISTINCT f1 FROM t1;
+f1
+é
+SELECT SQL_BIG_RESULT DISTINCT f1 FROM t1;
+f1
+é
+DROP TABLE t1;
+SET NAMES DEFAULT;
