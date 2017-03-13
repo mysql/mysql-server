@@ -4595,9 +4595,13 @@ sub run_testcase ($) {
   $ENV{'TZ'}= $timezone;
   mtr_verbose("Setting timezone: $timezone");
 
-  # If there are bootstrap options in the opt file, add them
-  $tinfo->{bootstrap_master_opt}= find_bootstrap_opts($tinfo->{master_opt});
-  $tinfo->{bootstrap_slave_opt}= find_bootstrap_opts($tinfo->{slave_opt});
+  # If there are bootstrap options in the opt file, add them. On retry,
+  # bootstrap_master_opt will already be set, so do not call
+  # find_bootstrap_opts again.
+  $tinfo->{bootstrap_master_opt}= find_bootstrap_opts($tinfo->{master_opt})
+    if (!$tinfo->{bootstrap_master_opt});
+  $tinfo->{bootstrap_slave_opt}= find_bootstrap_opts($tinfo->{slave_opt})
+    if (!$tinfo->{bootstrap_slave_opt});
 
   # The keyword "--bootstrap" is passed in the opt file to identify
   # the bootstrap variables. Remove this keyword before sending
