@@ -1,5 +1,6 @@
 # This is a testcase copied from mysql-test/t/gis.test
 
+--source include/not_have_innodb_4k.inc
 
 SET default_storage_engine=InnoDB;
 
