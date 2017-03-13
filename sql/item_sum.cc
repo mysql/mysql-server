@@ -2297,7 +2297,7 @@ my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val)
     return 0;
   my_decimal *retval= value->val_decimal(val);
   if ((null_value= value->null_value))
-    DBUG_ASSERT(retval == NULL);
+    DBUG_ASSERT(retval == NULL || my_decimal_is_zero(retval));
   return retval;
 }
 

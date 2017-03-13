@@ -1867,6 +1867,11 @@ SELECT CAST(0.996 AS DECIMAL(14,3)) *
 SELECT CAST(0.996 AS DECIMAL(14,3)) *
 1.0564487456013822942048177086781996473271257234030050483003995531 AS RESULT;
 
+--echo # Bug#25685958 ASSERTION FAILED:
+--echo #              RETVAL == 0 IN ITEM_SUM_HYBRID::VAL_DECIMAL()
+--echo #
+do 1 div nullif(min(from_days(1)),_utf8'1');
+
 ########################################
 ##### WL#7554 set schema `test` back to what it was
 --disable_query_log
