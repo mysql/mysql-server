@@ -15,3 +15,4 @@ innodb.temporary_table                       : Bug#19442959 2015-11-05 jhauglid
 innodb.table_encrypt_2                       : Bug#21237667 2016-02-05 hvadodar
 main.dd_bootstrap                            : Bug#24421481 2016-08-08 edahl
 binlog.binlog_check_flush_log_assertion      : Bug#22732184 2017-03-10 edahl
+innodb.innodb_tsof_use_1                     : Bug#19442959 2017-03-13 edahl
