@@ -1,16 +1,6 @@
 # windows does not support symlink
 --source include/not_windows.inc
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs284=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 --disable_warnings
 drop table if exists t1,t2,t7,t8,t9;
 drop database if exists mysqltest;
@@ -311,13 +301,6 @@ show create table t1;
 create table t2 like t1;
 show create table t2;
 drop tables t1, t2;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs284;
---enable_query_log
-########################################
 
 --echo #
 --echo # Test for bug #25514146 DB_NAME IS IGNORED WHEN CREATING TABLE

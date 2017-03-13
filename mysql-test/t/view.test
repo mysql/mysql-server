@@ -1,15 +1,5 @@
 --source include/no_valgrind_without_big.inc
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs312=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t9,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop view if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
@@ -1033,7 +1023,7 @@ drop table t1, t2;
 #
 # Collation with view update
 #
-create table t1 (s1 char);
+create table t1 (s1 char) charset latin1;
 create view v1 as select s1 collate latin1_german1_ci as s1 from t1;
 insert into v1 values ('a');
 select * from v1;
@@ -1275,7 +1265,7 @@ drop table t1;
 # fixed length fields
 # Following scenario is to test the functionality of MyISAM
 
-create table t1 (a int, b char(10)) engine=Myisam;
+create table t1 (a int, b char(10)) charset latin1 engine=Myisam;
 create view v1 as select * from t1 where a != 0 with check option;
 -- error ER_VIEW_CHECK_FAILED
 load data infile '../../std_data/loaddata3.dat' into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
@@ -1303,7 +1293,7 @@ drop table t1;
 
 # Following scenario is to test the functionality of InnoDB
 
-create table t1 (a int, b char(10)) ;
+create table t1 (a int, b char(10)) charset latin1;
 create view v1 as select * from t1 where a != 0 with check option;
 -- error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 load data infile '../../std_data/loaddata3.dat' into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
@@ -2898,7 +2888,7 @@ DROP TABLE t1;
 # Bug#21086 server crashes when VIEW defined with a SELECT with COLLATE
 #           clause is called
 #
-CREATE TABLE t1 (s1 char);
+CREATE TABLE t1 (s1 char) charset latin1;
 INSERT INTO t1 VALUES ('Z');
 
 CREATE VIEW v1 AS SELECT s1 collate latin1_german1_ci AS col FROM t1;
@@ -6028,7 +6018,7 @@ EXECUTE X;
 DROP VIEW bug22108567_v1;
 
 # Check that all connections opened by test cases in this file are really
-# gone so execution of other tests won't be affected by their presence.
+# gone so execution of other tests will not be affected by their presence.
 --source include/wait_until_count_sessions.inc
 
 --echo #
@@ -6096,10 +6086,3 @@ RENAME TABLE t3 TO t1, t4 TO t2;
 
 DROP VIEW v1;
 DROP TABLE t1, t2;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs312;
---enable_query_log
-########################################

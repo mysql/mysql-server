@@ -6,16 +6,6 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs256=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 #
 # Test of repair table
 #
@@ -80,7 +70,7 @@ DROP TABLE t1;
 #
 # BUG#23175 - MYISAM crash/repair failed during repair
 #
-CREATE TABLE t1(a CHAR(255), KEY(a));
+CREATE TABLE t1(a CHAR(255), KEY(a)) charset latin1;
 SET myisam_sort_buffer_size=4096;
 INSERT INTO t1 VALUES
 ('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
@@ -109,7 +99,7 @@ DROP TABLE t1;
 # BUG#31174 - "Repair" command on MyISAM crashes with small 
 #              myisam_sort_buffer_size
 #
-CREATE TABLE t1(a CHAR(255), KEY(a));
+CREATE TABLE t1(a CHAR(255), KEY(a)) charset latin1;
 SET myisam_sort_buffer_size=4496;
 INSERT INTO t1 VALUES
 ('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
@@ -178,10 +168,3 @@ set @@autocommit= 0;
 repair table t1, t2;
 set @@autocommit= default;
 drop tables t1, t2;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs256;
---enable_query_log
-########################################

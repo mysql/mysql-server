@@ -1013,10 +1013,10 @@ SELECT CHARSET(arg);
 END|
 CALL p1('t');
 CHARSET(arg)
-latin1
+utf8mb4
 CALL p1(_UTF8 't');
 CHARSET(arg)
-latin1
+utf8mb4
 CALL p2('t');
 CHARSET(arg)
 utf8
@@ -1095,7 +1095,7 @@ BUG#13665
 ---------------------------------------------------------------
 
 DROP FUNCTION IF EXISTS f1;
-CREATE FUNCTION f1() RETURNS VARCHAR(20000)
+CREATE FUNCTION f1() RETURNS VARCHAR(2000)
 BEGIN
 DECLARE var VARCHAR(2000);
 SET var = '';

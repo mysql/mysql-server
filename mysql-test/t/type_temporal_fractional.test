@@ -1,15 +1,5 @@
 --source include/no_valgrind_without_big.inc
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs304=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 #SET @@default_storage_engine=InnoDB;
 
 --disable_warnings
@@ -7887,10 +7877,3 @@ SELECT ADDTIME(a, 100000) FROM t1;
 SET @@session.sql_buffer_result=default;
 
 DROP TABLE t1;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs304;
---enable_query_log
-########################################
