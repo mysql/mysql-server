@@ -30,9 +30,9 @@
 #include "binlog_event.h"
 #include "control_events.h"
 #include "current_thd.h"
+#include "dd/cache/dictionary_client.h"
 #include "dd/dd.h"            // dd::get_dictionary
-#include "dd/dd_schema.h"     // dd::schema_exists
-#include "dd/dd_table.h"      // dd::table_exists
+#include "dd/dd_schema.h"     // Schema_MDL_locker
 #include "dd/dictionary.h"    // dd::Dictionary::is_system_view_name
 #include "dd/info_schema/stats.h"
 #include "debug_sync.h"       // DEBUG_SYNC
@@ -4905,24 +4905,26 @@ bool show_precheck(THD *thd, LEX *lex, bool lock)
         }
 
         // Stop if given database does not exist.
-        bool exists= false;
-        if (dd::schema_exists(thd, dst_table->db, &exists))
+        dd::Schema_MDL_locker mdl_handler(thd);
+        dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+        const dd::Schema *schema= nullptr;
+        if (mdl_handler.ensure_locked(dst_table->db) ||
+            thd->dd_client()->acquire(dst_table->db, &schema))
           return true;
 
-        if (!exists)
+        if (schema == nullptr)
         {
           my_error(ER_BAD_DB_ERROR, MYF(0), dst_table->db);
           return true;
         }
 
-        exists= false;
-        if (dd::table_exists<dd::Abstract_table>(thd->dd_client(),
-                                                 dst_table->db,
-                                                 dst_table->table_name,
-                                                 &exists))
+        const dd::Abstract_table *at= nullptr;
+        if (thd->dd_client()->acquire(dst_table->db,
+                                      dst_table->table_name,
+                                      &at))
           return true;
 
-        if (!exists)
+        if (at == nullptr)
         {
           my_error(ER_NO_SUCH_TABLE, MYF(0),
                    dst_table->db,

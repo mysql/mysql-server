@@ -19,7 +19,6 @@
 #include "dd/sdi_fwd.h"                // Sdi_wcontext
 #include "dd/types/abstract_table.h"   // dd::Abstract_table
 #include "dd/types/trigger.h"          // dd::Trigger::enum_*
-#include "prealloced_array.h"
 
 namespace dd {
 
@@ -259,24 +258,6 @@ public:
   */
 
   virtual Trigger_collection *triggers() = 0;
-
-
-  /**
-    Clone all the triggers from a dd::Table object into an array.
-
-    @param [out] triggers - Pointer to trigger array to clone into.
-  */
-
-  virtual void clone_triggers(Prealloced_array<Trigger*, 1> *triggers) const= 0;
-
-
-  /**
-    Move all the triggers from an array into the table object.
-
-    @param triggers       Pointer to trigger array to move triggers from.
-  */
-
-  virtual void move_triggers(Prealloced_array<Trigger*, 1> *triggers)= 0;
 
 
   /**

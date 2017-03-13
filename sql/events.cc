@@ -1149,7 +1149,6 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue)
     }
   }
 
-  Disable_gtid_state_update_guard disabler(thd);
   bool error= false;
   for (auto event_info : drop_events_vector)
   {
@@ -1181,6 +1180,9 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue)
   else
     error= trans_commit_stmt(thd) || trans_commit(thd);
 
+  // Note that locks are released here before the Auto_releaser
+  // goes out of scope. This is safe since no cached objects were
+  // acquired.
   thd->mdl_context.release_transactional_locks();
   DBUG_RETURN(error);
 }

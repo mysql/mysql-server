@@ -365,8 +365,6 @@ public:
   virtual Trigger_collection *triggers()
   { return &m_triggers; }
 
-  virtual void clone_triggers(Prealloced_array<Trigger*, 1> *triggers) const;
-  virtual void move_triggers(Prealloced_array<Trigger*, 1> *triggers);
   virtual void copy_triggers(const Table *tab_obj);
 
   virtual Trigger *add_trigger(Trigger::enum_action_timing at,

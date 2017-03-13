@@ -65,8 +65,6 @@ bool create_schema(THD *thd, const char *schema_name,
   DBUG_ASSERT(charset_info);
   schema->set_default_collation_id(charset_info->number);
 
-  Disable_gtid_state_update_guard disabler(thd);
-
   // Store the schema. Error will be reported by the dictionary subsystem.
   return thd->dd_client()->store(schema.get());
 }

@@ -680,10 +680,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     thd->pop_internal_handler();
 
     if (!error)
-    {
-      Disable_gtid_state_update_guard disabler(thd);
       error= thd->dd_client()->drop(schema);
-    }
 
     /*
       If database exists and there was no error we should

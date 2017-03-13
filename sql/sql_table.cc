@@ -35,6 +35,7 @@
 #include "dd/dd_schema.h"                 // dd::schema_exists
 #include "dd/dd_table.h"                  // dd::drop_table, dd::update_keys...
 #include "dd/dictionary.h"                // dd::Dictionary
+#include "dd/properties.h"                // dd::Properties
 #include "dd/string_type.h"
 #include "dd/types/abstract_table.h"
 #include "dd/types/column.h"
@@ -198,6 +199,22 @@ public:
     }
   }
 };
+
+
+static bool trans_intermediate_ddl_commit(THD *thd, bool error)
+{
+  // Must be used for intermediate (but not final) DDL commits.
+  Disable_gtid_state_update_guard disabler(thd);
+  if (error)
+  {
+    trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+    return true;
+  }
+  return trans_commit_stmt(thd) || trans_commit(thd);
+}
+
 
 /**
   @brief Helper function for explain_filename
@@ -936,31 +953,26 @@ static bool rea_create_base_table(THD *thd, const char *path,
 {
   DBUG_ENTER("rea_create_base_table");
 
-  Disable_gtid_state_update_guard disabler(thd);
+  bool result= dd::create_table(thd, sch_obj, table_name,
+                                create_info,
+                                create_fields,
+                                key_info,
+                                keys,
+                                keys_onoff,
+                                fk_key_info,
+                                fk_keys,
+                                file);
 
-  if (dd::create_table(thd, sch_obj, table_name,
-                       create_info,
-                       create_fields,
-                       key_info,
-                       keys,
-                       keys_onoff,
-                       fk_key_info,
-                       fk_keys,
-                       file))
-  {
-    if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
-    {
-      trans_rollback_stmt(thd);
-      // Full rollback in case we have THD::transaction_rollback_request.
-      trans_rollback(thd);
-    }
-    DBUG_RETURN(true);
-  }
   if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
-  {
-    if (trans_commit_stmt(thd) || trans_commit(thd))
-      DBUG_RETURN(true);
-  }
+    result= trans_intermediate_ddl_commit(thd, result);
+
+  if (result)
+    DBUG_RETURN(true);
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  dd::Table *table_def= nullptr;
+  if (thd->dd_client()->acquire_for_modification(db, table_name, &table_def))
+    DBUG_RETURN(true);
 
   if (no_ha_table)
   {
@@ -1004,7 +1016,10 @@ static bool rea_create_base_table(THD *thd, const char *path,
           as we anyway report error.
         */
         if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
-          (void) dd::drop_table(thd, db, table_name, true);
+        {
+          bool result= dd::drop_table(thd, db, table_name, *table_def);
+          (void)trans_intermediate_ddl_commit(thd, result);
+        }
 
         DBUG_RETURN(true);
       }
@@ -1013,16 +1028,6 @@ static bool rea_create_base_table(THD *thd, const char *path,
     DBUG_RETURN(false);
   }
 
-  // Create the table in the storage engine.
-  dd::Table *table_def= nullptr;
-
-  if (thd->dd_client()->acquire_for_modification(db, table_name,
-                                                 &table_def))
-    goto err;
-
-  // Table just has been created in DD.
-  DBUG_ASSERT(table_def);
-
   if ((create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       create_info->db_type->post_ddl)
     *post_ddl_ht= create_info->db_type;
@@ -1030,7 +1035,20 @@ static bool rea_create_base_table(THD *thd, const char *path,
   if (ha_create_table(thd, path, db, table_name, create_info,
                       false, false, table_def))
   {
-    goto err;
+    /*
+      Remove table from data-dictionary if it was added and rollback
+      won't do this automatically.
+    */
+    if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
+    {
+      /*
+        We ignore error from dd_drop_table() as we anyway
+        return 'true' failure below.
+      */
+      bool result= dd::drop_table(thd, db, table_name, *table_def);
+      (void)trans_intermediate_ddl_commit(thd, result);
+    }
+    DBUG_RETURN(true);
   }
 
   /*
@@ -1042,22 +1060,6 @@ static bool rea_create_base_table(THD *thd, const char *path,
       (create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL);
 
   DBUG_RETURN(false);
-
-err:
-  /*
-    Remove table from data-dictionary if it was added and rollback
-    won't do this automatically.
-  */
-  if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
-  {
-    /*
-      We ignore error from dd_drop_table() as we anyway
-      return 'true' failure below.
-    */
-    (void) dd::drop_table(thd, db, table_name, true);
-  }
-
-  DBUG_RETURN(true);
 }
 
 
@@ -2157,23 +2159,14 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Table *table_def= nullptr;
-  if (thd->dd_client()->acquire<dd::Table>(table->db, table->table_name,
-                                           &table_def))
+  if (thd->dd_client()->acquire(table->db, table->table_name, &table_def))
     return true;
-
-  if (!table_def)
-  {
-    DBUG_ASSERT(0);
-    String tbl_name;
-    append_table_name(&tbl_name, table);
-    my_error(ER_BAD_TABLE_ERROR, MYF(0), tbl_name.c_ptr());
-    return true;
-  }
+  DBUG_ASSERT(table_def != nullptr);
 
   handlerton *hton;
   if (dd::table_storage_engine(thd, table_def, &hton))
   {
-    DBUG_ASSERT(0);
+    DBUG_ASSERT(false);
     return true;
   }
 
@@ -2270,20 +2263,22 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
 
       Don't commit the changes if table belongs to SE supporting atomic DDL.
   */
-  error= dd::drop_table(thd, table->db, table->table_name,
+  dd::Schema_MDL_locker mdl_locker(thd);
+  if (mdl_locker.ensure_locked(table->db))
+    return true;
+  bool result= dd::drop_table(thd, table->db, table->table_name, *table_def);
+
 #ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-                        table_def, (!atomic || drop_ctx.drop_database)) ||
-         ((!atomic || drop_ctx.drop_database) &&
-          update_referencing_views_metadata(thd, table, true, nullptr));
+  if (!atomic || drop_ctx.drop_database)
+    result= trans_intermediate_ddl_commit(thd, result) ||
+            update_referencing_views_metadata(thd, table, true, nullptr);
 #else
-                        table_def, !atomic) ||
-         update_referencing_views_metadata(thd, table, !atomic, nullptr);
+  if (!atomic)
+    result= trans_intermediate_ddl_commit(thd, result);
+  result|= update_referencing_views_metadata(thd, table, !atomic, nullptr);
 #endif
 
-  if (error)
-    return true;
-
-  return false;
+  return result;
 }
 
 
@@ -3182,7 +3177,7 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
 
 
   const dd::Table *table_def= nullptr;
-  if (thd->dd_client()->acquire<dd::Table>(db, table_name, &table_def))
+  if (thd->dd_client()->acquire(db, table_name, &table_def))
     DBUG_RETURN(true);
 
   /* We try to remove non-existing tables in some scenarios. */
@@ -3197,12 +3192,16 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
   // Note that the DD operation is done after invoking the SE. This is
   // because the DDL code will handle situations where a table is present
   // in the DD while missing from the SE, but not the opposite.
-  if (!dd::get_dictionary()->is_dd_table_name(db, table_name) &&
-      dd::drop_table(thd, db, table_name, table_def,
-                     !(flags & NO_DD_COMMIT)))
+  if (!dd::get_dictionary()->is_dd_table_name(db, table_name))
   {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
-    DBUG_RETURN(true);
+    bool result= dd::drop_table(thd, db, table_name, *table_def);
+    if (!(flags & NO_DD_COMMIT))
+      result= trans_intermediate_ddl_commit(thd, result);
+    if (result)
+    {
+      DBUG_ASSERT(thd->is_error() || thd->killed);
+      DBUG_RETURN(true);
+    }
   }
 
   DBUG_RETURN(false);
@@ -4631,46 +4630,21 @@ const char* find_fk_supporting_index(Alter_info *alter_info,
   definitions of the same table.
 
   @param thd            Thread handle.
-  @param schema_name    Database name.
-  @param table_name     Table name.
-  @param fk_keyinfo     FK keyinfo containing orignal FK names.
-  @param fk_keys        Number of FKs.
-  @param commit_dd_changes  Indicates whether change should be committed.
-
-  @note In case when commit_dd_changes is false, the caller must rollback
-        both statement and transaction on failure, before any further
-        accesses to DD. This is because such a failure might be caused by
-        a deadlock, which requires rollback before any other operations on
-        SE (including reads using attachable transactions) can be done.
-        If case when commit_dd_changes is true this function will handle
-        transaction rollback itself.
-
-  @retval false on success
-  @retval true on failure
+  @param table_def      Table object.
+  @param alter_ctx      ALTER TABLE runtime context.
  */
 
-static bool restore_foreign_key_names(THD *thd,
-                                      const dd::String_type &schema_name,
-                                      const dd::String_type &table_name,
-                                      const FOREIGN_KEY *fk_keyinfo,
-                                      uint fk_keys,
-                                      bool commit_dd_changes)
+static void restore_foreign_key_names(THD *thd,
+                                      dd::Table *table_def,
+                                      const Alter_table_ctx &alter_ctx)
 {
-  DBUG_ENTER("restore_foreign_key_names");
-
-  dd::Table *table_def= nullptr;
-  if (thd->dd_client()->acquire_for_modification(schema_name, table_name,
-                                                 &table_def))
-    DBUG_RETURN(true);
-
   // Restore the original name for pre-existing foreign keys
   // that had their name temporarily altered during ALTER TABLE
   // to avoid violating the unique constraint on FK name.
-  bool updated= false;
   for (dd::Foreign_key *fk : *table_def->foreign_keys())
   {
-    for (const FOREIGN_KEY *fk_key= fk_keyinfo;
-         fk_key != fk_keyinfo + fk_keys;
+    for (const FOREIGN_KEY *fk_key= alter_ctx.fk_info;
+         fk_key != alter_ctx.fk_info + alter_ctx.fk_count;
          ++fk_key)
     {
       if (fk_key->orig_name != nullptr &&
@@ -4678,36 +4652,10 @@ static bool restore_foreign_key_names(THD *thd,
           (strncmp(fk_key->name, fk->name().c_str(), fk->name().length()) == 0))
       {
         fk->set_name(fk_key->orig_name);
-        updated= true;
         break;
       }
     }
   }
-
-  if (!updated)
-    DBUG_RETURN(false);
-
-  Disable_gtid_state_update_guard disabler(thd);
-
-  if (thd->dd_client()->update(table_def))
-  {
-    if (commit_dd_changes)
-    {
-      trans_rollback_stmt(thd);
-      // Full rollback in case we have THD::transaction_rollback_request.
-      trans_rollback(thd);
-    }
-    DBUG_RETURN(true);
-  }
-
-  if (commit_dd_changes)
-
-  {
-    if (trans_commit_stmt(thd) || trans_commit(thd))
-      DBUG_RETURN(true);
-  }
-
-  DBUG_RETURN(false);
 }
 
 
@@ -6043,12 +5991,11 @@ bool create_table_impl(THD *thd,
       !dd::get_dictionary()->is_dd_table_name(db, table_name))
   {
     // TODO: Check if it safe to remove this block of code
-    bool exists;
-    if (dd::table_exists<dd::Abstract_table>(thd->dd_client(), db, table_name,
-                                             &exists))
+    const dd::Abstract_table *at= nullptr;
+    if (thd->dd_client()->acquire(db, table_name, &at))
       DBUG_RETURN(true);
 
-    if (exists)
+    if (at != nullptr)
     {
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
       {
@@ -6516,8 +6463,8 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
 
   if (from_mdl_locker.ensure_locked(old_db) ||
       to_mdl_locker.ensure_locked(new_db) ||
-      thd->dd_client()->acquire<dd::Schema>(old_db, &from_sch) ||
-      thd->dd_client()->acquire<dd::Schema>(new_db, &to_sch))
+      thd->dd_client()->acquire(old_db, &from_sch) ||
+      thd->dd_client()->acquire(new_db, &to_sch))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -6560,10 +6507,9 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   }
 
   // Get original dd::Table object (also emits error if it doesn't exist).
-  if (thd->dd_client()->acquire<dd::Table>(old_db, old_name,
-                                          &from_table_def) ||
-      thd->dd_client()->acquire_for_modification<dd::Table>(old_db,
-                          old_name, &to_table_def))
+  if (thd->dd_client()->acquire(old_db, old_name, &from_table_def) ||
+      thd->dd_client()->acquire_for_modification(old_db, old_name,
+                                                 &to_table_def))
     DBUG_RETURN(true);
 
   // Set schema id, table name and hidden attribute.
@@ -6658,7 +6604,12 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     supporting atomic DDL. And for engines which can't do atomic DDL in
     either case there are scenarios in which DD and SE get out of sync.
   */
-  if (dd::rename_table(thd, old_name, to_table_def, !(flags & NO_DD_COMMIT)))
+  bool result= dd::rename_foreign_keys(old_name, to_table_def) ||
+               thd->dd_client()->update(to_table_def);
+  if (!(flags & NO_DD_COMMIT))
+    result= trans_intermediate_ddl_commit(thd, result);
+
+  if (result)
   {
     /*
       In cases when we are executing atomic DDL it is responsibility of the
@@ -7111,8 +7062,9 @@ bool mysql_discard_or_import_tablespace(THD *thd,
 
   if (is_non_tmp_table)
   {
-    if (thd->dd_client()->acquire_for_modification<dd::Table>(table_list->db,
-                            table_list->table_name, &non_tmp_table_def))
+    if (thd->dd_client()->acquire_for_modification(table_list->db,
+                                                   table_list->table_name,
+                                                   &non_tmp_table_def))
       DBUG_RETURN(true);
 
     /* Table was successfully opened above. */
@@ -7186,7 +7138,7 @@ bool mysql_discard_or_import_tablespace(THD *thd,
     */
     if (is_non_tmp_table &&
         (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
-        thd->dd_client()->update<dd::Table>(non_tmp_table_def))
+        thd->dd_client()->update(non_tmp_table_def))
       error= 1;
 
     if (!error)
@@ -8633,9 +8585,8 @@ static bool mysql_inplace_alter_table(THD *thd,
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
     const dd::Table *old_table_def= nullptr;
-    if (thd->dd_client()->acquire<dd::Table>(table->s->db.str,
-                                             table->s->table_name.str,
-                                             &old_table_def))
+    if (thd->dd_client()->acquire(table->s->db.str, table->s->table_name.str,
+                                  &old_table_def))
       goto cleanup;
 
     dd::Table *altered_table_def= nullptr;
@@ -8769,27 +8720,16 @@ static bool mysql_inplace_alter_table(THD *thd,
     altered_table_def->set_name(alter_ctx->alias);
     altered_table_def->set_hidden(dd::Abstract_table::HT_VISIBLE);
 
-    if (thd->dd_client()->drop(old_table_def))
-      goto cleanup2;
-
-    if (thd->dd_client()->update(altered_table_def))
-      goto cleanup2;
-
-
     /*
-      Transfer pre-existing triggers to the new table
-      definition. Since trigger names have to be unique per schema,
-      we cannot create them while both the old and the temp version of the
-      table definition exist.
-
-      Do this atomically with deletion of old table definition and replacing
-      it with a new one.
+      Copy pre-existing triggers to the new table definition.
+      Since trigger names have to be unique per schema, we cannot
+      create them while both the old and the new version of the
+      table definition exist. Note that we drop the old table before
+      we call update on the new table definition.
     */
-    if (!alter_ctx->trg_info.empty() &&
-        dd::add_triggers(thd, alter_ctx->db,
-                         alter_ctx->table_name,
-                         &alter_ctx->trg_info,
-                         false))
+    altered_table_def->copy_triggers(old_table_def);
+
+    if (thd->dd_client()->drop(old_table_def))
       goto cleanup2;
 
     /*
@@ -8799,12 +8739,9 @@ static bool mysql_inplace_alter_table(THD *thd,
       table definition. Since we now have only one defintion, the names
       can be restored.
     */
-    if (alter_ctx->fk_count > 0 &&
-        restore_foreign_key_names(thd, alter_ctx->db,
-                                  alter_ctx->table_name,
-                                  alter_ctx->fk_info,
-                                  alter_ctx->fk_count,
-                                  false))
+    restore_foreign_key_names(thd, altered_table_def, *alter_ctx);
+
+    if (thd->dd_client()->update(altered_table_def))
       goto cleanup2;
 
     if (!(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
@@ -9046,8 +8983,16 @@ cleanup2:
 #endif
      )
   {
-    (void) dd::drop_table(thd, alter_ctx->new_db,
-                          alter_ctx->tmp_name, true);
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Table *table_def= nullptr;
+    if (!thd->dd_client()->acquire(alter_ctx->new_db,
+                                   alter_ctx->tmp_name, &table_def) &&
+        (table_def != nullptr))
+    {
+      bool result= dd::drop_table(thd, alter_ctx->new_db,
+                                  alter_ctx->tmp_name, *table_def);
+      (void)trans_intermediate_ddl_commit(thd, result);
+    }
   }
 
   DBUG_RETURN(true);
@@ -9976,13 +9921,6 @@ bool prepare_fields_and_keys(THD *thd, TABLE *table,
   }
 
   /*
-    Remember information about pre-existing triggers so
-    that they can be added to the new version of the table later.
-  */
-  if (src_table != nullptr && src_table->has_trigger())
-    src_table->clone_triggers(&alter_ctx->trg_info);
-
-  /*
     Copy existing foreign keys from the source table into
     Alter_table_ctx so that they can be added to the new table
     later. Also checks that these foreign keys are still valid.
@@ -10436,9 +10374,15 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
   handlerton *old_db_type= table->s->db_type();
   bool atomic_ddl= (old_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL);
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
   DBUG_ENTER("simple_rename_or_index_change");
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  dd::Table *tab_obj= nullptr;
+  if (thd->dd_client()->acquire_for_modification(table_list->db,
+                                                 table_list->table_name,
+                                                 &tab_obj))
+    DBUG_RETURN(true);
+  DBUG_ASSERT(tab_obj != nullptr); // Should be checked by caller.
 
   if (keys_onoff != Alter_info::LEAVE_AS_IS)
   {
@@ -10477,12 +10421,16 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
         This will used by INFORMATION_SCHEMA.STATISTICS system view to display
         keys were disabled.
        */
-      if (dd::update_keys_disabled(thd, table_list->db, table_list->table_name,
-                                   keys_onoff, !atomic_ddl))
-      {
-        // Error should have been reported by DD layer already.
+
+      tab_obj->options().set_uint32("keys_disabled",
+                                    (keys_onoff==Alter_info::DISABLE ? 1 : 0));
+
+      // Update the changes
+      bool result= thd->dd_client()->update(tab_obj);
+      if (!atomic_ddl)
+        result= trans_intermediate_ddl_commit(thd, result);
+      if (result)
         error= -1;
-      }
     }
   }
 
@@ -10947,14 +10895,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         Table maybe does not exist, but we got an exclusive lock
         on the name, now we can safely try to find out for sure.
       */
-      bool exists;
-      if (dd::table_exists<dd::Abstract_table>(thd->dd_client(),
-                                               alter_ctx.new_db,
-                                               alter_ctx.new_name,
-                                               &exists))
+      const dd::Abstract_table *at= nullptr;
+      if (thd->dd_client()->acquire(alter_ctx.new_db, alter_ctx.new_name, &at))
         DBUG_RETURN(true);
 
-      if (exists)
+      if (at != nullptr)
       {
         /* Table will be closed in do_command() */
         my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alter_ctx.new_alias);
@@ -11391,21 +11336,22 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       */
       close_temporary_table(thd, altered_table, true, false);
 
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+      const dd::Table *tab_obj= nullptr;
+      if (thd->dd_client()->acquire(alter_ctx.new_db, alter_ctx.tmp_name,
+                                    &tab_obj))
+        goto err_new_table_cleanup;
+      DBUG_ASSERT(tab_obj);
+
       if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
+      {
         // Delete temporary table object from data dictionary.
-        (void) dd::drop_table(thd, alter_ctx.new_db,
-                              alter_ctx.tmp_name, true);
+        bool result= dd::drop_table(thd, alter_ctx.new_db,
+                                    alter_ctx.tmp_name, *tab_obj);
+        (void)trans_intermediate_ddl_commit(thd, result);
+      }
       else
       {
-        dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-        const dd::Table *tab_obj= nullptr;
-        if (thd->dd_client()->acquire<dd::Table>(alter_ctx.new_db,
-                                                 alter_ctx.tmp_name,
-                                                 &tab_obj))
-          goto err_new_table_cleanup;
-
-        DBUG_ASSERT(tab_obj);
-
         /*
           We need to revert changes to data-dictionary but
           still commit statement in this case.
@@ -11544,9 +11490,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     dd::Table *table_def= tmp_table_def;
     if (!table_def)
     {
-      if (thd->dd_client()->acquire_for_modification<dd::Table>(
-                              alter_ctx.new_db, alter_ctx.tmp_name,
-                              &table_def))
+      if (thd->dd_client()->acquire_for_modification(alter_ctx.new_db,
+                                                     alter_ctx.tmp_name,
+                                                     &table_def))
         goto err_new_table_cleanup;
 
       DBUG_ASSERT(table_def);
@@ -11789,14 +11735,12 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                      MDL_key::TABLE,
                      alter_ctx.db, backup_name,
                      MDL_EXCLUSIVE, MDL_STATEMENT);
-    bool backup_exists;
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Table *backup_table= nullptr;
 
     if (thd->mdl_context.acquire_lock(&backup_name_mdl_request,
                                     thd->variables.lock_wait_timeout) ||
-        dd::table_exists<dd::Abstract_table>(thd->dd_client(),
-                                             alter_ctx.db, backup_name,
-                                             &backup_exists))
-
+        thd->dd_client()->acquire(alter_ctx.db, backup_name, &backup_table))
     {
       /* purecov: begin tested */
       /*
@@ -11826,7 +11770,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       /* purecov: end */
     }
 
-    if (backup_exists)
+    if (backup_table != nullptr)
     {
       /* purecov: begin tested */
       my_error(ER_TABLE_EXISTS_ERROR, MYF(0), backup_name);
@@ -11937,6 +11881,38 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     goto err_with_mdl;
   }
 
+  /*
+    Transfer pre-existing triggers to the new table.
+    Since trigger names have to be unique per schema, we cannot
+    create them while both the old and the tmp version of the
+    table exist.
+  */
+  {
+    dd::Table *backup_table= nullptr;
+    dd::Table *new_table= nullptr;
+    if (thd->dd_client()->acquire_for_modification(alter_ctx.db, backup_name,
+                                                   &backup_table) ||
+        thd->dd_client()->acquire_for_modification(alter_ctx.new_db,
+                                                   alter_ctx.new_alias,
+                                                   &new_table))
+      goto err_with_mdl;
+    DBUG_ASSERT(backup_table != nullptr && new_table != nullptr);
+
+    if (backup_table->has_trigger())
+    {
+      new_table->copy_triggers(backup_table);
+      backup_table->drop_all_triggers();
+      if (thd->dd_client()->update(backup_table) ||
+          thd->dd_client()->update(new_table))
+        goto err_with_mdl;
+
+      Disable_gtid_state_update_guard disabler(thd);
+      if (!atomic_replace &&
+          (trans_commit_stmt(thd) || trans_commit(thd)))
+        goto err_with_mdl;
+    }
+  }
+
   // ALTER TABLE succeeded, delete the backup of the old table.
   if (quick_rm_table(thd, old_db_type, alter_ctx.db, backup_name,
                      FN_IS_TMP | (atomic_replace ? NO_DD_COMMIT : 0)))
@@ -11950,31 +11926,30 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   /*
-    Transfer pre-existing triggers to the new table.
-    Since trigger names have to be unique per schema, we cannot
-    create them while both the old and the tmp version of the
-    table exist.
-  */
-  if (!alter_ctx.trg_info.empty() &&
-      dd::add_triggers(thd, alter_ctx.new_db, alter_ctx.new_alias,
-                       &alter_ctx.trg_info, !atomic_replace))
-    goto err_with_mdl;
-
-  /*
     Rename pre-existing foreign keys back to their original names.
     Since foreign key names have to be unique per schema, they cannot
     have the same name in both the old and the temp version of the
     table definition. Since we now have only one defintion, the names
     can be restored.
   */
-  if (alter_ctx.fk_count > 0 &&
-      restore_foreign_key_names(thd,
-                                alter_ctx.new_db,
-                                alter_ctx.new_alias,
-                                alter_ctx.fk_info,
-                                alter_ctx.fk_count,
-                                !atomic_replace))
-    goto err_with_mdl;
+  if (alter_ctx.fk_count > 0)
+  {
+    dd::Table *new_table= nullptr;
+    if (thd->dd_client()->acquire_for_modification(alter_ctx.new_db,
+                                                   alter_ctx.new_alias,
+                                                   &new_table))
+      goto err_with_mdl;
+    DBUG_ASSERT(new_table != nullptr);
+
+    restore_foreign_key_names(thd, new_table, alter_ctx);
+    if (thd->dd_client()->update(new_table))
+      goto err_with_mdl;
+
+    Disable_gtid_state_update_guard disabler(thd);
+    if (!atomic_replace &&
+        (trans_commit_stmt(thd) || trans_commit(thd)))
+      goto err_with_mdl;
+  }
 
 end_inplace_noop:
 
@@ -12100,8 +12075,18 @@ err_new_table_cleanup:
     if (!(new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
     {
       if (no_ha_table) // Only remove from DD.
-        (void) dd::drop_table(thd, alter_ctx.new_db,
-                              alter_ctx.tmp_name, true);
+      {
+        dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+        const dd::Table *table_def= nullptr;
+        if (!thd->dd_client()->acquire(alter_ctx.new_db,
+                                      alter_ctx.tmp_name, &table_def))
+        {
+          DBUG_ASSERT(table_def != nullptr);
+          bool result= dd::drop_table(thd, alter_ctx.new_db,
+                                      alter_ctx.tmp_name, *table_def);
+          (void)trans_intermediate_ddl_commit(thd, result);
+        }
+      }
       else // Remove from both DD and SE.
         (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
                               alter_ctx.tmp_name, FN_IS_TMP);

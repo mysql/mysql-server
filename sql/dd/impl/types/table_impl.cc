@@ -751,39 +751,6 @@ Trigger *Table_impl::add_trigger_preceding(const Trigger *trigger,
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Table_impl::clone_triggers(Prealloced_array<Trigger*, 1> *triggers) const
-{
-  DBUG_ASSERT(triggers != nullptr);
-
-  for (const auto &trg: m_triggers)
-  {
-    Trigger_impl *trg_impl= Trigger_impl::clone(
-            *dynamic_cast<const Trigger_impl*>(trg), nullptr);
-    trg_impl->set_id(INVALID_OBJECT_ID);
-    triggers->push_back(trg_impl);
-  }
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-void Table_impl::move_triggers(Prealloced_array<Trigger*, 1> *triggers)
-{
-  DBUG_ASSERT(triggers != nullptr);
-
-  for (auto &trg: *triggers)
-  {
-    Trigger_impl *trg_impl= dynamic_cast<Trigger_impl*>(trg);
-    DBUG_ASSERT(trg_impl->id() == INVALID_OBJECT_ID);
-    trg_impl->set_table(this);
-    m_triggers.push_back(trg_impl);
-  }
-  // All triggers are now owned by this table. Clear the array to make sure
-  // the triggers are not deleted by the owner of the array.
-  triggers->clear();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
 void Table_impl::copy_triggers(const Table *tab_obj)
 {
   DBUG_ASSERT(tab_obj != nullptr);

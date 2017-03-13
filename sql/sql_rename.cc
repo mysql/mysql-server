@@ -23,7 +23,7 @@
 #include <string.h>
 
 #include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
-#include "dd/dd_table.h"      // dd::table_exists
+#include "dd/dd_table.h"      // dd::table_storage_engine
 #include "dd/types/abstract_table.h" // dd::Abstract_table
 #include "dd/types/table.h"   // dd::Table
 #include "dd_sql_view.h"      // View_metadata_updater
@@ -365,18 +365,16 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
   DBUG_ASSERT(new_alias);
 
   // Fail if the target table already exists
-  bool exists;
-  if (dd::table_exists<dd::Abstract_table>(thd->dd_client(), new_db,
-                                           new_alias, &exists))
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Abstract_table *target_table= nullptr;
+  if (thd->dd_client()->acquire(new_db, new_alias, &target_table))
     DBUG_RETURN(true);                         // This error cannot be skipped
 
-  if (exists)
+  if (target_table != nullptr)
   {
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
     DBUG_RETURN(true);                         // This error cannot be skipped
   }
-
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   dd::Abstract_table *abstract_table= nullptr;
   const dd::Schema *from_schema= nullptr;

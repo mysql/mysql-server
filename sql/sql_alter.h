@@ -42,10 +42,6 @@ class String;
 class THD;
 struct TABLE_LIST;
 
-namespace dd {
-  class Trigger;
-}
-
 /**
   Class representing DROP COLUMN, DROP KEY and DROP FOREIGN KEY
   clauses in ALTER TABLE statement.
@@ -483,14 +479,6 @@ public:
   */
   FOREIGN_KEY  *fk_info;
   uint         fk_count;
-
-  /*
-    Used to temporarily store pre-existing triggeres during ALTER TABLE
-    These triggers can't be part of the temporary table as they will then cause
-    the unique name constraint to be violated. The triggers will be added back
-    to the table at the end of ALTER TABLE.
-  */
-  Prealloced_array<dd::Trigger*, 1>  trg_info;
 
 private:
   char new_filename[FN_REFLEN + 1];

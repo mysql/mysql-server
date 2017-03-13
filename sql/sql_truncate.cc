@@ -204,12 +204,20 @@ fk_truncate_illegal_if_parent(THD *thd, TABLE *table)
 }
 
 
-/*
-  Open and truncate a locked table.
+enum truncate_result
+{
+  TRUNCATE_OK=0,
+  TRUNCATE_FAILED_BUT_BINLOG,
+  TRUNCATE_FAILED_SKIP_BINLOG
+};
+
+
+/**
+  Open and truncate a locked base table.
 
   @param  thd           Thread context.
   @param  table_ref     Table list element for the table to be truncated.
-  @param  is_tmp_table  True if element refers to a temp table.
+  @param  table_def     Dictionary table object.
 
   @retval TRUNCATE_OK   Truncate was successful and statement can be safely
                         binlogged.
@@ -221,45 +229,40 @@ fk_truncate_illegal_if_parent(THD *thd, TABLE *table)
                         binlong the statement.
 */
 
-enum Sql_cmd_truncate_table::truncate_result
-Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
-                                             bool is_tmp_table)
+static truncate_result handler_truncate_base(THD *thd,
+                                             TABLE_LIST *table_ref,
+                                             dd::Table *table_def)
 {
-  int error= 0;
-  uint flags= 0;
-  DBUG_ENTER("Sql_cmd_truncate_table::handler_truncate");
+  DBUG_ENTER("handler_truncate_base");
+  DBUG_ASSERT(table_def != nullptr);
 
   /*
     Can't recreate, the engine must mechanically delete all rows
     in the table. Use open_and_lock_tables() to open a write cursor.
   */
 
-  /* If it is a temporary table, no need to take locks. */
-  if (!is_tmp_table)
-  {
-    /* We don't need to load triggers. */
-    DBUG_ASSERT(table_ref->trg_event_map == 0);
-    /*
-      Our metadata lock guarantees that no transaction is reading
-      or writing into the table. Yet, to open a write cursor we need
-      a thr_lock lock. Allow to open base tables only.
-    */
-    table_ref->required_type= dd::enum_table_type::BASE_TABLE;
-    /*
-      Ignore pending FLUSH TABLES since we don't want to release
-      the MDL lock taken above and otherwise there is no way to
-      wait for FLUSH TABLES in deadlock-free fashion.
-    */
-    flags= MYSQL_OPEN_IGNORE_FLUSH;
-    /*
-      Even though we have an MDL lock on the table here, we don't
-      pass MYSQL_OPEN_HAS_MDL_LOCK to open_and_lock_tables
-      since to truncate a MERGE table, we must open and lock
-      merge children, and on those we don't have an MDL lock.
-      Thus clear the ticket to satisfy MDL asserts.
-    */
-    table_ref->mdl_request.ticket= NULL;
-  }
+  /* We don't need to load triggers. */
+  DBUG_ASSERT(table_ref->trg_event_map == 0);
+  /*
+    Our metadata lock guarantees that no transaction is reading
+    or writing into the table. Yet, to open a write cursor we need
+    a thr_lock lock. Allow to open base tables only.
+  */
+  table_ref->required_type= dd::enum_table_type::BASE_TABLE;
+  /*
+    Ignore pending FLUSH TABLES since we don't want to release
+    the MDL lock taken above and otherwise there is no way to
+    wait for FLUSH TABLES in deadlock-free fashion.
+  */
+  uint flags= MYSQL_OPEN_IGNORE_FLUSH;
+  /*
+    Even though we have an MDL lock on the table here, we don't
+    pass MYSQL_OPEN_HAS_MDL_LOCK to open_and_lock_tables
+    since to truncate a MERGE table, we must open and lock
+    merge children, and on those we don't have an MDL lock.
+    Thus clear the ticket to satisfy MDL asserts.
+  */
+  table_ref->mdl_request.ticket= NULL;
 
   /* Open the table as it will handle some required preparations. */
   if (open_and_lock_tables(thd, table_ref, flags))
@@ -270,24 +273,7 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
     if (fk_truncate_illegal_if_parent(thd, table_ref->table))
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-  dd::Table *non_tmp_table_def= nullptr;
-
-  if (!is_tmp_table)
-  {
-    if (thd->dd_client()->acquire_for_modification<dd::Table>(table_ref->db,
-                            table_ref->table_name, &non_tmp_table_def))
-      DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
-
-    /* Table should be present as it was successfully opened above. */
-    DBUG_ASSERT(non_tmp_table_def != nullptr);
-  }
-
-  error= table_ref->table->file->ha_truncate(is_tmp_table ?
-                                   table_ref->table->s->tmp_table_def :
-                                   non_tmp_table_def);
-
+  int error= table_ref->table->file->ha_truncate(table_def);
 
   if (error)
   {
@@ -304,14 +290,65 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
     else
       DBUG_RETURN(TRUNCATE_FAILED_BUT_BINLOG);
   }
-  else if (!is_tmp_table &&
-           (table_ref->table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL))
+  else if ((table_ref->table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL))
   {
-    if (thd->dd_client()->update<dd::Table>(non_tmp_table_def))
+    if (thd->dd_client()->update(table_def))
     {
       /* Statement rollback will revert effect of handler::truncate() as well. */
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
     }
+  }
+  DBUG_RETURN(TRUNCATE_OK);
+}
+
+
+/**
+  Open and truncate a locked temporary table.
+
+  @param  thd           Thread context.
+  @param  table_ref     Table list element for the table to be truncated.
+
+  @retval TRUNCATE_OK   Truncate was successful and statement can be safely
+                        binlogged.
+  @retval TRUNCATE_FAILED_BUT_BINLOG Truncate failed but still go ahead with
+                        binlogging as in case of non transactional tables
+                        partial truncation is possible.
+
+  @retval TRUNCATE_FAILED_SKIP_BINLOG Truncate was not successful hence donot
+                        binlong the statement.
+*/
+
+static truncate_result handler_truncate_temporary(THD *thd,
+                                                  TABLE_LIST *table_ref)
+{
+  DBUG_ENTER("handler_truncate_temporary");
+
+  /*
+    Can't recreate, the engine must mechanically delete all rows
+    in the table. Use open_and_lock_tables() to open a write cursor.
+  */
+
+  /* Open the table as it will handle some required preparations. */
+  if (open_and_lock_tables(thd, table_ref, 0))
+    DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+
+  int error=
+    table_ref->table->file->ha_truncate(table_ref->table->s->tmp_table_def);
+
+  if (error)
+  {
+    table_ref->table->file->print_error(error, MYF(0));
+    /*
+      If truncate method is not implemented then we don't binlog the
+      statement. If truncation has failed in a transactional engine then also we
+      donot binlog the statment. Only in non transactional engine we binlog
+      inspite of errors.
+     */
+    if (error == HA_ERR_WRONG_COMMAND ||
+        table_ref->table->file->has_transactions())
+      DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+    else
+      DBUG_RETURN(TRUNCATE_FAILED_BUT_BINLOG);
   }
   DBUG_RETURN(TRUNCATE_OK);
 }
@@ -547,7 +584,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
         can in fact open several tables if it's a temporary MyISAMMRG
         table.
       */
-      error= handler_truncate(thd, table_ref, TRUE);
+      error= handler_truncate_temporary(thd, table_ref);
 
       binlog_is_trans= table_ref->table->file->has_transactions();
     }
@@ -567,6 +604,14 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
     if (lock_table(thd, table_ref, &hton))
       DBUG_RETURN(TRUE);
 
+    dd::Table *table_def= nullptr;
+    if (thd->dd_client()->acquire_for_modification(table_ref->db,
+                                                   table_ref->table_name,
+                                                   &table_def))
+      DBUG_RETURN(true);
+
+    DBUG_ASSERT(table_def != nullptr);
+
     if (hton->flags & HTON_CAN_RECREATE)
     {
       error= mysql_audit_table_access_notify(thd, table_ref);
@@ -582,7 +627,18 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
       DBUG_ASSERT(!(hton->flags & HTON_SUPPORTS_ATOMIC_DDL));
 
       if (!error)
-        error= dd::recreate_table(thd, table_ref->db, table_ref->table_name);
+      {
+        HA_CREATE_INFO create_info;
+
+        // Create a path to the table, but without a extension
+        char path[FN_REFLEN + 1];
+        build_table_filename(path, sizeof(path) - 1, table_ref->db,
+                             table_ref->table_name, "", 0);
+
+        // Attempt to reconstruct the table
+        error= ha_create_table(thd, path, table_ref->db, table_ref->table_name,
+                               &create_info, true, false, table_def);
+      }
 
       /* No need to binlog a failed truncate-by-recreate. */
       binlog_stmt= !error;
@@ -596,7 +652,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
         MYSQL_AUDIT_TABLE_ACCESS_READ audit event is generated when opening
         tables using open_tables function.
       */
-      error= handler_truncate(thd, table_ref, FALSE);
+      error= handler_truncate_base(thd, table_ref, table_def);
 
       /*
         All effects of a TRUNCATE TABLE operation are committed even if

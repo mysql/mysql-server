@@ -23,7 +23,7 @@
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/collection.h"
 #include "dd/dd_schema.h"                     // dd::schema_exists
-#include "dd/dd_table.h"                      // dd::abstract_table_type
+#include "dd/dd_table.h"                      // dd::FIELD_NAME_SEPARATOR_CHAR
 #include "dd/dd_tablespace.h"                 // dd::get_tablespace_name
 // TODO: Avoid exposing dd/impl headers in public files.
 #include "dd/impl/utils.h"                    // dd::eat_str

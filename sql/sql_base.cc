@@ -2514,7 +2514,7 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
     @retval  FALSE  No error. 'exists' out parameter set accordingly.
 */
 
-bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
+static bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
 {
   DBUG_ENTER("check_if_table_exists");
 
@@ -2524,10 +2524,8 @@ bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
               owns_equal_or_stronger_lock(MDL_key::TABLE, table->db,
                                           table->table_name, MDL_SHARED));
 
-  if (dd::table_exists<dd::Abstract_table>(thd->dd_client(),
-                                           table->db,
-                                           table->table_name,
-                                           exists))
+  if (dd::table_exists(thd->dd_client(), table->db,
+                       table->table_name, exists))
     DBUG_RETURN(true); // Error is already reported.
 
   if (*exists)
@@ -3012,11 +3010,11 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
         during prelocking process (in this case in theory we still
         should hold shared metadata lock on it).
       */
-      dd::enum_table_type table_type;
-      if (!dd::abstract_table_type(thd->dd_client(), table_list->db,
-                                   table_list->table_name, &table_type) &&
-          (table_type == dd::enum_table_type::USER_VIEW ||
-           table_type == dd::enum_table_type::SYSTEM_VIEW))
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+      const dd::View *view= nullptr;
+      if (!thd->dd_client()->acquire(table_list->db,
+                                     table_list->table_name, &view) &&
+          view != nullptr)
       {
         /*
           If parent_l of the table_list is non null then a merge table
@@ -4493,7 +4491,16 @@ static bool fix_row_type(THD *thd, TABLE_LIST *table_list)
   bool result;
   if (error == 8)
   {
+    Disable_autocommit_guard autocommit_guard(thd);
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     result= dd::fix_row_type(thd, share);
+    if (result)
+    {
+      trans_rollback_stmt(thd);
+      trans_rollback(thd);
+    }
+    else
+      result= trans_commit_stmt(thd) || trans_commit(thd);
   }
   else if (!error)
   {

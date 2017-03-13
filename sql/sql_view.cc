@@ -26,7 +26,6 @@
 #include "dd/cache/dictionary_client.h"
 #include "dd/dd.h"          // dd::get_dictionary
 #include "dd/dd_schema.h"   // dd::schema_exists
-#include "dd/dd_table.h"    // dd::abstract_table_type
 #include "dd/dd_view.h"     // dd::create_view
 #include "dd/dictionary.h"  // dd::Dictionary
 #include "dd/types/abstract_table.h"
@@ -445,7 +444,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   bool exists= false;
   DBUG_ENTER("mysql_create_view");
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  Disable_gtid_state_update_guard disabler(thd);
 
   /* This is ensured in the parser. */
   DBUG_ASSERT(!lex->result && !lex->param_list.elements);

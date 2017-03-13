@@ -2426,10 +2426,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
           DBUG_RETURN(true);
 
         bool exists;
-        if (dd::table_exists<dd::Abstract_table>(thd->dd_client(),
-                                                 table_list->db,
-                                                 table_list->table_name,
-                                                 &exists))
+        if (dd::table_exists(thd->dd_client(), table_list->db,
+                             table_list->table_name, &exists))
           DBUG_RETURN(TRUE);
 
         if (!exists)

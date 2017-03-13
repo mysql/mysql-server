@@ -454,13 +454,12 @@ static bool open_views_and_update_metadata(
     if (!commit_dd_changes)
       uncommitted_tables->add_table(view);
 
-    Disable_gtid_state_update_guard disabler(thd);
-
     // Update view metadata. mysql_register_view with VIEW_ALTER mode, drops
     // old view object and recreates the new one with the new definition.
     bool res= mysql_register_view(thd, view, enum_view_create_mode::VIEW_ALTER);
     if (commit_dd_changes)
     {
+      Disable_gtid_state_update_guard disabler(thd);
       if (res)
       {
         trans_rollback_stmt(thd);

@@ -270,8 +270,6 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
     DBUG_RETURN(false);
   }
 
-  Disable_gtid_state_update_guard disabler(thd);
-
   if (thd->dd_client()->drop(event_ptr))
   {
     trans_rollback_stmt(thd);

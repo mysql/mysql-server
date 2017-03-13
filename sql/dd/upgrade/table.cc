@@ -798,10 +798,9 @@ static bool create_unlinked_view(THD *thd,
   // Disable autocommit option in thd variable
   Disable_autocommit_guard autocommit_guard(thd);
 
-  Disable_gtid_state_update_guard disabler(thd);
-
   bool result= dd::create_view(thd, *schema, view_ref);
 
+  Disable_gtid_state_update_guard disabler(thd);
   if (result)
   {
     trans_rollback_stmt(thd);
