@@ -144,19 +144,6 @@ public:
 
   // Records
 
-  /**
-   * THE API CONNECT RECORD IS THE SAME RECORD POINTER AS USED IN THE TC BLOCK
-   *
-   * IT KEEPS TRACK OF ALL THE OPERATIONS CONNECTED TO THIS TRANSACTION.
-   * IT IS LINKED INTO A QUEUE IN CASE THE GLOBAL CHECKPOINT IS CURRENTLY
-   * ONGOING
-   */
-  struct ApiConnectRecord {
-    Uint64 apiGci;
-    Uint32 senderData;
-  };
-  typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;
-
   /*############## CONNECT_RECORD ##############*/
   /**
    * THE CONNECT RECORD IS CREATED WHEN A TRANSACTION HAS TO START. IT KEEPS
@@ -1789,8 +1776,6 @@ private:
 
   // Variables to support record structures and their free lists
 
-  Uint32 capiConnectFileSize;
-
   ConnectRecord *connectRecord;
   Uint32 cfirstconnect;
   Uint32 cconnectFileSize;
@@ -2109,10 +2094,8 @@ private:
     DIVERIFY_queue() {
       m_ref = 0;
       cfirstVerifyQueue = clastVerifyQueue = 0;
-      apiConnectRecord = 0;
       m_empty_done = 1;
     }
-    ApiConnectRecord *apiConnectRecord;
     Uint32 cfirstVerifyQueue;
     Uint32 clastVerifyQueue;
     Uint32 m_empty_done;
@@ -2121,8 +2104,8 @@ private:
   };
 
   bool isEmpty(const DIVERIFY_queue&);
-  void enqueue(DIVERIFY_queue&, Uint32 senderData, Uint64 gci);
-  void dequeue(DIVERIFY_queue&, ApiConnectRecord &);
+  void enqueue(DIVERIFY_queue&);
+  void dequeue(DIVERIFY_queue&);
   void emptyverificbuffer(Signal *, Uint32 q, bool aContintueB);
   void emptyverificbuffer_check(Signal*, Uint32, Uint32);
 

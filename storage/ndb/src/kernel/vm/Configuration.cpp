@@ -929,9 +929,6 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     /**
      * Dih Size Alt values
      */
-    cfg.put(CFG_DIH_API_CONNECT, 
-	    2 * noOfTransactions);
-    
     Uint32 noFragPerTable= (((noOfDBNodes * lqhInstances) + 
                              NO_OF_FRAGS_PER_CHUNK - 1) >>
                             LOG_NO_OF_FRAGS_PER_CHUNK) <<

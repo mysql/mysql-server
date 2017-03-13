@@ -86,13 +86,6 @@ void Dbdih::initData()
 void Dbdih::initRecords()
 {
   // Records with dynamic sizes
-  for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
-  {
-    c_diverify_queue[i].apiConnectRecord = (ApiConnectRecord*)
-      allocRecord("ApiConnectRecord",
-                  sizeof(ApiConnectRecord),
-                  capiConnectFileSize);
-  }
 
   connectRecord = (ConnectRecord*)allocRecord("ConnectRecord",
                                               sizeof(ConnectRecord), 
@@ -382,14 +375,6 @@ Dbdih::Dbdih(Block_context& ctx):
 
 Dbdih::~Dbdih()
 {
-  for (Uint32 i = 0; i<c_diverify_queue_cnt; i++)
-  {
-    deallocRecord((void **)&c_diverify_queue[i].apiConnectRecord,
-                  "ApiConnectRecord",
-                  sizeof(ApiConnectRecord),
-                  capiConnectFileSize);
-  }
-
   deallocRecord((void **)&connectRecord, "ConnectRecord",
                 sizeof(ConnectRecord), 
                 cconnectFileSize);
