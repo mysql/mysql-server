@@ -35,14 +35,6 @@ DELETE FROM t1 ORDER BY b DESC;
 
 DROP TABLE t1;
 
-# BUG#NNN
-# Can't drop tablespace here, it seems like NDB does not allow
-# dropping a tablespace with datafiles.
-#
-# Trying to workaround by dropping the datafile first does not
-# work either since MySQL Server refuses to drop tablesapce without
-# datafiles
-#
 ALTER TABLESPACE ts1
   DROP DATAFILE 'ts1_datafile.dat'
   ENGINE=NDB;
@@ -50,10 +42,6 @@ ALTER TABLESPACE ts1
 DROP TABLESPACE ts1
   ENGINE=NDB;
 
-# Finally dropping the logfile group does not work since
-# it still contains tablespaces, this is expected
 DROP LOGFILE GROUP lg1
   ENGINE=NDB;
 
-# Improper cleanup from testcase, need full restart
---source include/force_restart.inc
