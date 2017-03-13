@@ -852,8 +852,9 @@ size_t Dictionary_client::release(Object_registry *registry)
       (void) m_current_releaser->remove(element);
 
     // Clone the object before releasing it. The object is needed for checking
-    // the meta data lock afterwards.
-#ifndef DBUG_OFF
+    // the meta data lock afterwards. This is an expensive check, so only
+    // do it if EXTRA_DD_DEBUG is set.
+#ifdef EXTRA_DD_DEBUG
     std::unique_ptr<const T> object_clone(element->object()->clone());
 #endif
 
@@ -873,7 +874,9 @@ size_t Dictionary_client::release(Object_registry *registry)
     // counter of the corresponding cache element is already > 0, which may
     // again trigger asserts in the shared cache and allow for improper object
     // usage.
+#ifdef EXTRA_DD_DEBUG
     DBUG_ASSERT(MDL_checker::is_release_locked(m_thd, object_clone.get()));
+#endif
   }
   return num_released;
 }
