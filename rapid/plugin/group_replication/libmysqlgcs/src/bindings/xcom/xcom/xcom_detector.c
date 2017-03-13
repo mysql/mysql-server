@@ -56,18 +56,6 @@ void init_detector(detector_state ds)
   }
 }
 
-void note_detected(site_def const *site, node_no node)
-{
-/*   DBGOUT(FN; NDBG(node,d);); */
-
-  /* site->servers's size is NSERVERS. */
-  assert(site->nodes.node_list_len <= NSERVERS);
-
-  if (site && node < site->nodes.node_list_len) {
-    site->servers[node]->detected = task_now();
-  }
-}
-
 static void reset_detected(site_def const *site, u_int node)
 {
 /*   DBGOUT(FN; NDBG(node,d);); */
