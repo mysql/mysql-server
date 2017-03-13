@@ -3525,6 +3525,7 @@ static void activate_sweeper()
 pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue)
 {
 	pax_machine * pm = NULL;
+	site_def * dsite = find_site_def_rw(p->synode);
 	int	in_front = too_far(p->synode);
 
 	if(p->force_delivery){
