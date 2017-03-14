@@ -1168,7 +1168,7 @@ struct My_median_data
 };
 
 
-bool  my_median_init  (UDF_INIT *initid, UDF_ARGS *args, char *message)
+bool my_median_init(UDF_INIT *initid, UDF_ARGS*, char *message)
 {
   My_median_data *data= new (std::nothrow) My_median_data;
   if (!data)
@@ -1201,18 +1201,15 @@ void my_median_add(UDF_INIT* initid, UDF_ARGS* args,
   }
 }
 
-void my_median_clear(UDF_INIT* initid, UDF_ARGS* args,
-                     char* is_null MY_ATTRIBUTE((unused)),
-                     char* message MY_ATTRIBUTE((unused)))
+void my_median_clear(UDF_INIT* initid, UDF_ARGS*, char*, char *)
 {
   My_median_data *data=
     static_cast<My_median_data*>(static_cast<void*>(initid->ptr));
   data->vec.clear();
 }
 
-longlong my_median(UDF_INIT* initid, UDF_ARGS* args,
-                   char* is_null,
-                   char* message MY_ATTRIBUTE((unused)))
+longlong my_median(UDF_INIT* initid, UDF_ARGS*,
+                   char* is_null, char*)
 {
   My_median_data *data=
     static_cast<My_median_data*>(static_cast<void*>(initid->ptr));
@@ -1235,8 +1232,7 @@ long long my_cpp11_re_match      (UDF_INIT* initid, UDF_ARGS* args,
 C_MODE_END
 
 
-bool my_cpp11_re_match_init (UDF_INIT *initid, UDF_ARGS *args,
-                             char *message)
+bool my_cpp11_re_match_init (UDF_INIT *initid, UDF_ARGS *args, char*)
 {
   initid->maybe_null= TRUE;
 
@@ -1246,12 +1242,11 @@ bool my_cpp11_re_match_init (UDF_INIT *initid, UDF_ARGS *args,
   return false;
 }
 
-void my_cpp11_re_match_deinit(UDF_INIT* initid)
+void my_cpp11_re_match_deinit(UDF_INIT*)
 {
 }
 
-long long my_cpp11_re_match(UDF_INIT* initid, UDF_ARGS* args,
-                            char* is_null, char *error)
+long long my_cpp11_re_match(UDF_INIT*, UDF_ARGS* args, char*, char*)
 {
   char **av= args->args;
   const unsigned long *lv= args->lengths;

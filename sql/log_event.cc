@@ -4581,7 +4581,7 @@ void Query_log_event::print_query_header(IO_CACHE* file,
 }
 
 
-void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
+void Query_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_info)
 {
   IO_CACHE *const head= &print_event_info->head_cache;
 
@@ -5319,7 +5319,7 @@ int Start_log_event_v3::pack_info(Protocol *protocol)
 */
 
 #ifndef MYSQL_SERVER
-void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
+void Start_log_event_v3::print(FILE*, PRINT_EVENT_INFO* print_event_info)
 {
   DBUG_ENTER("Start_log_event_v3::print");
 
@@ -5787,7 +5787,7 @@ int Rotate_log_event::pack_info(Protocol *protocol)
 */
 
 #ifndef MYSQL_SERVER
-void Rotate_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
+void Rotate_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_info)
 {
   char buf[22];
   IO_CACHE *const head= &print_event_info->head_cache;
@@ -6074,7 +6074,7 @@ bool Intvar_log_event::write(IO_CACHE* file)
 */
 
 #ifndef MYSQL_SERVER
-void Intvar_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
+void Intvar_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_info)
 {
   char llbuff[22];
   const char *msg= NULL;
@@ -6196,7 +6196,7 @@ bool Rand_log_event::write(IO_CACHE* file)
 
 
 #ifndef MYSQL_SERVER
-void Rand_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
+void Rand_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_info)
 {
   IO_CACHE *const head= &print_event_info->head_cache;
 
@@ -6311,7 +6311,7 @@ bool Xid_log_event::write(IO_CACHE* file)
 
 
 #ifndef MYSQL_SERVER
-void Xid_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
+void Xid_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_info)
 {
   IO_CACHE *const head= &print_event_info->head_cache;
 
@@ -6673,7 +6673,7 @@ bool XA_prepare_log_event::write(IO_CACHE* file)
 
 
 #ifndef MYSQL_SERVER
-void XA_prepare_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
+void XA_prepare_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_info)
 {
   IO_CACHE *const head= &print_event_info->head_cache;
   char buf[ser_buf_size];
@@ -6927,7 +6927,7 @@ bool User_var_log_event::write(IO_CACHE* file)
 */
 
 #ifndef MYSQL_SERVER
-void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
+void User_var_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_info)
 {
   IO_CACHE *const head= &print_event_info->head_cache;
   char quoted_id[1 + NAME_LEN * 2 + 2];// quoted length of the identifier
@@ -7163,7 +7163,7 @@ User_var_log_event::do_shall_skip(Relay_log_info *rli)
 **************************************************************************/
 
 #ifndef MYSQL_SERVER
-void Unknown_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info)
+void Unknown_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_info)
 {
   if (print_event_info->short_form)
     return;
@@ -7180,7 +7180,7 @@ void Unknown_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info
   Stop_log_event::print()
 */
 
-void Stop_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
+void Stop_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_info)
 {
   if (print_event_info->short_form)
     return;
@@ -7297,8 +7297,8 @@ bool Append_block_log_event::write(IO_CACHE* file)
   Append_block_log_event::print()
 */
 
-#ifndef MYSQL_SERVER  
-void Append_block_log_event::print(FILE* file,
+#ifndef MYSQL_SERVER
+void Append_block_log_event::print(FILE*,
 				   PRINT_EVENT_INFO* print_event_info)
 {
   if (print_event_info->short_form)
@@ -7467,7 +7467,7 @@ bool Delete_file_log_event::write(IO_CACHE* file)
 */
 
 #ifndef MYSQL_SERVER
-void Delete_file_log_event::print(FILE* file,
+void Delete_file_log_event::print(FILE*,
 				  PRINT_EVENT_INFO* print_event_info)
 {
   if (print_event_info->short_form)
@@ -7638,7 +7638,7 @@ void Execute_load_query_log_event::print(FILE* file,
 /**
   Prints the query as LOAD DATA LOCAL and with rewritten filename.
 */
-void Execute_load_query_log_event::print(FILE* file,
+void Execute_load_query_log_event::print(FILE*,
                                          PRINT_EVENT_INFO* print_event_info,
                                          const char *local_fname)
 {
@@ -10501,7 +10501,7 @@ int Rows_log_event::pack_info(Protocol *protocol)
 #endif // MYSQL_SERVER
 
 #ifndef MYSQL_SERVER
-void Rows_log_event::print_helper(FILE *file,
+void Rows_log_event::print_helper(FILE*,
                                   PRINT_EVENT_INFO *print_event_info,
                                   char const *const name)
 {
@@ -12656,7 +12656,7 @@ int Incident_log_event::pack_info(Protocol *protocol)
 
 #ifndef MYSQL_SERVER
 void
-Incident_log_event::print(FILE *file,
+Incident_log_event::print(FILE*,
                           PRINT_EVENT_INFO *print_event_info)
 {
   if (print_event_info->short_form)
@@ -12749,7 +12749,7 @@ int Ignorable_log_event::pack_info(Protocol *protocol)
 #ifndef MYSQL_SERVER
 /* Print for its unrecognized ignorable event */
 void
-Ignorable_log_event::print(FILE *file,
+Ignorable_log_event::print(FILE*,
                            PRINT_EVENT_INFO *print_event_info)
 {
   if (print_event_info->short_form)
@@ -12790,7 +12790,7 @@ int Rows_query_log_event::pack_info(Protocol *protocol)
 
 #ifndef MYSQL_SERVER
 void
-Rows_query_log_event::print(FILE *file,
+Rows_query_log_event::print(FILE*,
                             PRINT_EVENT_INFO *print_event_info)
 {
   if (!print_event_info->short_form && print_event_info->verbose > 1)
@@ -12996,7 +12996,7 @@ size_t Gtid_log_event::to_string(char *buf) const
 
 #ifndef MYSQL_SERVER
 void
-Gtid_log_event::print(FILE *file, PRINT_EVENT_INFO *print_event_info)
+Gtid_log_event::print(FILE*, PRINT_EVENT_INFO *print_event_info)
 {
   char buffer[MAX_SET_STRING_LENGTH + 1];
   IO_CACHE *const head= &print_event_info->head_cache;
@@ -13281,7 +13281,7 @@ int Previous_gtids_log_event::pack_info(Protocol *protocol)
 #endif // MYSQL_SERVER
 
 #ifndef MYSQL_SERVER
-void Previous_gtids_log_event::print(FILE *file,
+void Previous_gtids_log_event::print(FILE*,
                                      PRINT_EVENT_INFO *print_event_info)
 {
   IO_CACHE *const head= &print_event_info->head_cache;
@@ -13468,7 +13468,7 @@ int Transaction_context_log_event::pack_info(Protocol *protocol)
 #endif
 
 #ifndef MYSQL_SERVER
-void Transaction_context_log_event::print(FILE *file,
+void Transaction_context_log_event::print(FILE*,
                                           PRINT_EVENT_INFO *print_event_info)
 {
   DBUG_ENTER("Transaction_context_log_event::print");
@@ -13721,7 +13721,7 @@ int View_change_log_event::pack_info(Protocol *protocol)
 #endif
 
 #ifndef MYSQL_SERVER
-void View_change_log_event::print(FILE *file,
+void View_change_log_event::print(FILE*,
                                   PRINT_EVENT_INFO *print_event_info)
 {
   DBUG_ENTER("View_change_log_event::print");

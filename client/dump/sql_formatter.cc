@@ -264,7 +264,7 @@ void Sql_formatter::format_database_start(
     this->append_output(database->get_sql_formatted_definition() + ";\n");
 }
 
-void Sql_formatter::format_dump_end(Dump_end_dump_task* dump_start_dump_task)
+void Sql_formatter::format_dump_end(Dump_end_dump_task*)
 {
   std::ostringstream out;
   std::time_t sys_time = std::chrono::system_clock::to_time_t(

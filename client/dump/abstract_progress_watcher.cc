@@ -71,7 +71,7 @@ Abstract_progress_watcher::Abstract_progress_watcher(
   m_last_step_countdown(1)
 {}
 
-void Abstract_progress_watcher::crawler_completed(I_crawler* crawler)
+void Abstract_progress_watcher::crawler_completed(I_crawler*)
 {}
 
 void Abstract_progress_watcher::object_processing_ended(
@@ -107,7 +107,7 @@ void Abstract_progress_watcher::object_processing_ended(
 }
 
 void Abstract_progress_watcher::object_processing_started(
-  Item_processing_data* process_data)
+  Item_processing_data*)
 {}
 
 void Abstract_progress_watcher::new_chain_created(

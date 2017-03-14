@@ -59,7 +59,7 @@ const int SYS_PROCEDURE_COUNT = 26;
 /**
   Error callback to be called from mysql_check functionality.
  */
-static void mysql_check_error_callback(MYSQL *mysql, string when)
+static void mysql_check_error_callback(MYSQL*, string)
 {
   mysql_check_errors= 1;
 }
@@ -203,7 +203,7 @@ public:
     EXIT_MYSQL_CHECK_ERROR - Error during calling mysql_check functionality.
     EXIT_UPGRADING_QUERIES_ERROR - Error during execution of upgrading queries.
    */
-  int execute(vector<string> positional_options)
+  int execute(vector<string>)
   {
     /*
       Disables output buffering to make printing to stdout and stderr order

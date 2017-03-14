@@ -360,9 +360,7 @@ void usage(void)
 
 extern "C" {
 static bool
-my_arguments_get_one_option(int optid,
-                            const struct my_option *opt MY_ATTRIBUTE((unused)),
-                            char *argument)
+my_arguments_get_one_option(int optid, const struct my_option*, char*)
 {
   switch(optid){
     case '?':

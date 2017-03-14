@@ -189,8 +189,7 @@ void remove_all_triggers_from_perfschema(const char *schema_name,
 }
 
 
-bool check_table_triggers_are_not_in_the_same_schema(THD *thd,
-                                                     const char *db_name,
+bool check_table_triggers_are_not_in_the_same_schema(const char *db_name,
                                                      const dd::Table &table,
                                                      const char *new_db_name)
 {

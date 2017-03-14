@@ -2862,7 +2862,7 @@ static void do_source(struct st_command *command)
 
 
 static FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
-                      struct st_command *command)
+                      struct st_command *command MY_ATTRIBUTE((unused)))
 {
 #ifdef _WIN32
   /*
@@ -5483,7 +5483,7 @@ static bool kill_process(int pid)
   @param pid  Process id.
   @param path Path to create minidump file in.
 */
-static void abort_process(int pid, const char *path)
+static void abort_process(int pid, const char *path MY_ATTRIBUTE((unused)))
 {
 #ifdef _WIN32
   HANDLE proc;

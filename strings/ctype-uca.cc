@@ -5301,7 +5301,7 @@ static void my_hash_sort_uca_900_tmpl(const CHARSET_INFO *cs,
   uint64 h= *n1;
   h^= 14695981039346656037ULL;
 
-  scanner.for_each_weight([&](int s_res, bool is_level_separator) {
+  scanner.for_each_weight([&](int s_res, bool) {
     h^= s_res;
     h*= 1099511628211ULL;
     return true;

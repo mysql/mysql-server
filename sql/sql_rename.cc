@@ -401,8 +401,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
         }
 
         DBUG_ASSERT(table != nullptr); // Existence checked above.
-        if (check_table_triggers_are_not_in_the_same_schema(thd,
-                                                            ren_table->db,
+        if (check_table_triggers_are_not_in_the_same_schema(ren_table->db,
                                                             *table,
                                                             new_db))
           DBUG_RETURN(!skip_error);

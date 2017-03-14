@@ -92,7 +92,6 @@ bool drop_all_triggers(THD *thd,
   are the same. This functions is called while handling the statement
   RENAME TABLE to ensure that table moved within the same database.
 
-  @param[in] thd         Thread context.
   @param[in] db_name     Schema name.
   @param[in] table       Table.
   @param[in] new_db_name New schema name
@@ -107,8 +106,7 @@ bool drop_all_triggers(THD *thd,
     @retval true  Old and new schema name aren't the same.
 */
 
-bool check_table_triggers_are_not_in_the_same_schema(THD *thd,
-                                                     const char *db_name,
+bool check_table_triggers_are_not_in_the_same_schema(const char *db_name,
                                                      const dd::Table &table,
                                                      const char *new_db_name);
 
