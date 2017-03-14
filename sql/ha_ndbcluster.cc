@@ -14079,7 +14079,8 @@ int ndbcluster_init(void* p)
     h->panic=            ndbcluster_end;            /* Panic call */
     h->show_status=      ndbcluster_show_status;    /* Show status */
     h->get_tablespace=   ndbcluster_get_tablespace; /* Get ts for old ver */
-    h->alter_tablespace= ndbcluster_alter_tablespace;    /* Show status */
+    h->alter_tablespace=
+        ndbcluster_alter_tablespace; /* Tablespace and logfile group */
     h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
     h->fill_is_table=    ndbcluster_fill_is_table;
     ndbcluster_binlog_init(h);
