@@ -13539,6 +13539,8 @@ bool mysql_trans_prepare_alter_copy_data(THD *thd)
     
     This needs to be done before external_lock.
   */
+  Disable_gtid_state_update_guard disabler(thd);
+
   if (ha_enable_transaction(thd, FALSE))
     DBUG_RETURN(TRUE);
   DBUG_RETURN(FALSE);
@@ -13553,7 +13555,11 @@ bool mysql_trans_commit_alter_copy_data(THD *thd)
 {
   bool error= FALSE;
   DBUG_ENTER("mysql_commit_alter_copy_data");
-
+  /*
+    Ensure that ha_commit_trans() which is implicitly called by
+    ha_enable_transaction() doesn't update GTID and slave info states.
+  */
+  Disable_gtid_state_update_guard disabler(thd);
   if (ha_enable_transaction(thd, TRUE))
     DBUG_RETURN(TRUE);
 
