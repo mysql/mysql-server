@@ -215,8 +215,6 @@ bool store(THD *thd, handlerton *hton, const MYSQL_LEX_CSTRING &sdi,
 bool store(handlerton *hton, const MYSQL_LEX_CSTRING &sdi,
            const Tablespace *tablespace)
 {
-  DBUG_ASSERT(hton->db_type == DB_TYPE_INNODB);
-  DBUG_ASSERT(hton->sdi_set != nullptr);
   if (!tablespace->se_private_data().exists("id"))
   {
     return false; // FIXME - needs wl#7141

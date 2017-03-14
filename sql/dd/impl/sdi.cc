@@ -679,12 +679,16 @@ bool store(THD *thd, const Table *t)
 
 bool store(THD *thd, const Tablespace *ts)
 {
+  handlerton *hton= resolve_hton(thd, *ts);
+  if (hton->sdi_set)
+  {
+    return false; // SDI api not supported
+  }
   sdi_t sdi= serialize(*ts);
   if (sdi.empty())
   {
     return checked_return(true);
   }
-  handlerton *hton= resolve_hton(thd, *ts);
   return checked_return(sdi_tablespace::store(hton, lex_cstring_handle(sdi),
                                               ts));
 }
@@ -706,7 +710,12 @@ bool drop(THD *thd, const Table *t)
 
 bool drop(THD *thd, const Tablespace *ts)
 {
-  return checked_return(sdi_tablespace::remove(resolve_hton(thd, *ts), ts));
+  handlerton *hton= resolve_hton(thd, *ts);
+  if (!hton->sdi_delete)
+  {
+    return false;
+  }
+  return checked_return(sdi_tablespace::remove(hton, ts));
 }
 
 bool drop_after_update(THD *thd, const Schema *old_s,
