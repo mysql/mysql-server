@@ -17,7 +17,6 @@
 #define SITE_DEF_H
 
 #include "site_struct.h"
-#include "node_no.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -66,22 +65,6 @@ static inline bool_t is_local_node(node_no n, site_def const *site)
 {
   return node_no_exists(n, site) && n == get_nodeno(site);
 }
-
-/**
-  Finds pointer to server given site and node number.
-  @param[in]     s    Pointer to site definition
-  @param[in]     i    Node number
-
-  @return        Pointer to server if success
-                 0 if failure
-*/
-static inline server *get_server(site_def const *s, node_no i) {
-  if (s && i != VOID_NODE_NO && i < s->nodes.node_list_len)
-    return s->servers[i];
-  else
-    return 0;
-}
-
 
 #ifdef __cplusplus
 }
