@@ -16333,13 +16333,13 @@ void Dbdih::execDIVERIFYREQ(Signal* signal)
 loop:
   Uint32 val = m_micro_gcp.m_lock.read_lock();
   Uint32 blocked = getBlockCommit() == true ? 1 : 0;
-  if (blocked == 0 && isEmpty(q))
+  if (blocked == 0)
   {
     thrjam(jambuf);
     /*-----------------------------------------------------------------------*/
-    // We are not blocked and the verify queue was empty currently so we can
-    // simply reply back to TC immediately. The method was called with 
-    // EXECUTE_DIRECT so we reply back by setting signal data and returning. 
+    // We are not blocked so we can simply reply back to TC immediately. The
+    // method was called with EXECUTE_DIRECT so we reply back by setting signal
+    // data and returning.
     // theData[0] already contains the correct information so 
     // we need not touch it.
     /*-----------------------------------------------------------------------*/
@@ -16355,10 +16355,6 @@ loop:
   // queue to ensure that operation starts up in the correct order.
   /*-------------------------------------------------------------------------*/
   enqueue(q);
-  if (blocked == 0 && jambuf == jamBuffer())
-  {
-    emptyverificbuffer(signal, 0, false);
-  }
   signal->theData[3] = blocked + 1; // Indicate no immediate return
   return;
 }//Dbdih::execDIVERIFYREQ()
