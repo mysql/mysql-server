@@ -13484,8 +13484,11 @@ static int ndbcluster_close_connection(handlerton *hton, THD *thd)
            is kept inside ndbcluster to allow full control over how a
            table and any related objects are installed.
 
-  @note The caller does not check the error code itself,
-         just checking if it's zero or not.
+  @note The caller does not check the return code other
+        than zero or not, thus there is no way to return any
+        error which for example can occur when communication
+        with NDB fails. It should be possible to return -1
+        to indicate such error
 */
 
 static
@@ -13519,10 +13522,12 @@ int ndbcluster_discover(handlerton*, THD* thd,
       DBUG_RETURN(1);
     }
 
-    // Got an unexpected error
+    // Got an unexpected error, it's unknown if the table exists or
+    // not but unfortunately there is no way to return such information
+    // to the caller.
     DBUG_PRINT("error", ("Got unexpected error when trying to open table "
                          "from NDB, error %u", err.code));
-    DBUG_ASSERT( false);
+    DBUG_ASSERT(false);
     DBUG_RETURN(1);
   }
 
