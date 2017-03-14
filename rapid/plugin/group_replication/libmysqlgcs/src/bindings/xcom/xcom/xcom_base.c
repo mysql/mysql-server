@@ -3425,12 +3425,16 @@ static void activate_sweeper()
 pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue)
 {
 	pax_machine * pm = NULL;
+	site_def * dsite = find_site_def_rw(p->synode);
 	int	in_front = too_far(p->synode);
 
 	if(p->force_delivery){
 		/* Ensure that forced message can be processed */
 		in_front = 0;
 	}
+
+	if (dsite && p->op != client_msg)
+		note_detected(dsite, p->from);
 
 	MAY_DBG(FN; STRLIT("incoming message ");
 			COPY_AND_FREE_GOUT(dbg_pax_msg(p));
@@ -3706,7 +3710,6 @@ int	acceptor_learner_task(task_arg arg)
 	char	*buf;
 	linkage reply_queue;
 	int	errors;
-	server *srv;
 	END_ENV;
 
 	TASK_BEGIN
@@ -3721,7 +3724,6 @@ int	acceptor_learner_task(task_arg arg)
 	ep->buflen = 0;
 	ep->buf = NULL;
 	ep->errors = 0;
-	ep->srv = 0;
 
 	/* We have a connection, make socket non-blocking and wait for request */
 	unblock_fd(ep->rfd.fd);
@@ -3777,9 +3779,9 @@ int	acceptor_learner_task(task_arg arg)
 		unchecked_replace_pax_msg(&ep->p, pax_msg_new_0(null_synode));
 
 		if(use_buffered_read){
-			TASK_CALL(buffered_read_msg(&ep->rfd, ep->in_buf, ep->p, ep->srv, &n));
+			TASK_CALL(buffered_read_msg(&ep->rfd, ep->in_buf, ep->p, &n));
 		}else{
-			TASK_CALL(read_msg(&ep->rfd, ep->p, ep->srv, &n));
+			TASK_CALL(read_msg(&ep->rfd, ep->p, &n));
 		}
 		if (((int)ep->p->op < (int)client_msg || ep->p->op > LAST_OP)) {
 			/* invalid operation, ignore message */
@@ -3792,19 +3794,6 @@ int	acceptor_learner_task(task_arg arg)
 			break;
 		}
 		site = find_site_def(ep->p->synode);
-		/*
-			Getting a pointer to the server needs to be done after we have
-			received a message, since without having received a message, we
-			cannot know who it is from. We could peek at the message and de‐
-			serialize the message number and from field, but since the server
-			does not change, it should be sufficient to cache the server in
-			the acceptor_learner task. A cleaner solution would have been to
-			move the timestamps out of the server object, and have a map in‐
-			dexed by IP/port or UUID to track the timestamps, since this is
-			common to both the sender_task, reply_handler_task,  and the ac‐
-			ceptor_learner_task.
-		*/
-		ep->srv = get_server(site, ep->p->from);
 		ep->p->refcnt = 1; /* Refcnt from other end is void here */
 		MAY_DBG(FN;
 				NDBG(ep->rfd.fd, d); NDBG(task_now(), f);
@@ -3926,7 +3915,7 @@ int	reply_handler_task(task_arg arg)
 				add_event(string_arg("ep->s->con.fd"));
 				add_event(int_arg(ep->s->con.fd));
 			);
-			TASK_CALL(read_msg(&ep->s->con, ep->reply, ep->s, &n));
+			TASK_CALL(read_msg(&ep->s->con, ep->reply, &n));
 			ADD_EVENTS(
 				add_event(string_arg("ep->s->con.fd"));
 				add_event(int_arg(ep->s->con.fd));
