@@ -137,6 +137,30 @@ INSERT INTO test.proc VALUES ('sp','bug24805140','PROCEDURE','bug24805140','SQL'
                               'utf8','utf8_general_ci','latin1_swedish_ci',
                               'begin select   @@show_compatibility_56 into b; end');
 
+
+# Data for Bug#25633041 : SHOW CREATE PROC/FUNCTION RESULT
+#                         AFTER LIVEUPGR IS DIFFERENT TO DUMPUPGR
+INSERT INTO `proc` VALUES ('test','downgrade_alter_proc','PROCEDURE',
+                           'downgrade_alter_proc',
+                           'SQL','CONTAINS_SQL','NO','INVOKER','','',
+                           'BEGIN\n      SELECT c1, English, French FROM t1 '
+                           'JOIN t2 ON t1.c3 = t2.col2;\n     END',
+                           'root@localhost','1988-04-25 20:45:00',
+                           '1988-04-25 20:45:00','NO_ZERO_DATE','','latin1',
+                           'latin1_swedish_ci','latin1_swedish_ci',
+                           'BEGIN\n      SELECT c1, English, French FROM t1 '
+                           'JOIN t2 ON t1.c3 = t2.col2;\n     END'),
+                          ('test','my_test_func','FUNCTION','myfunc','SQL',
+                           'CONTAINS_SQL','NO','DEFINER', '',
+                           'varchar(20) CHARSET latin1',
+                           'BEGIN\n  RETURN \'å\';\nEND',
+                           'root@localhost','2017-03-08 09:07:36',
+                           '2017-03-08 09:07:36', 'ONLY_FULL_GROUP_BY,'
+                           'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,'
+                           'ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,'
+                           'NO_ENGINE_SUBSTITUTION','','latin1','latin1_swedish_ci',
+                           'latin1_swedish_ci','BEGIN\n  RETURN \'Ã¥\';\nEND');
+
 # Remove  the original zipped data and index files.
 --remove_file $MYSQL_TMP_DIR/data57/mysql/proc.MYD
 --remove_file $MYSQL_TMP_DIR/data57/mysql/proc.MYI
@@ -273,6 +297,14 @@ SHOW CREATE FUNCTION sp.hello;
 SHOW CREATE EVENT events.e_totals;
 #Check for fulltext index
 SHOW CREATE TABLE test.opening_lines;
+
+#Check data for Bug#25633041
+SHOW CREATE PROCEDURE test.downgrade_alter_proc;
+SHOW CREATE FUNCTION test.my_test_func;
+SELECT ROUTINE_NAME, CHARACTER_SET_NAME, CHARACTER_SET_CLIENT,  COLLATION_CONNECTION,
+  DATABASE_COLLATION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='test'
+  ORDER BY ROUTINE_NAME;
+
 
 # Check for General tablespace
 SHOW CREATE TABLE tablespace.t2;

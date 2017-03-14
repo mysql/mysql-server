@@ -922,6 +922,7 @@ public:
     m_thd->variables.character_set_client= m_client_cs;
     m_thd->variables.collation_connection= m_connection_cl;
     m_thd->variables.time_zone= m_saved_time_zone;
+    m_thd->update_charset();
   }
 };
 
@@ -3247,6 +3248,14 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table)
   // Create SP creation context to be used in db_load_routine()
   Stored_program_creation_ctx *creation_ctx=
   Stored_routine_creation_ctx::load_from_db(thd, &sp_name_obj, proc_table);
+
+  /*
+    Update character set info in thread variable.
+    Restore will be taken care by Routine_event_context_guard
+  */
+  thd->variables.character_set_client= creation_ctx->get_client_cs();
+  thd->variables.collation_connection= creation_ctx->get_connection_cl();
+  thd->update_charset();
 
   // Holders for user name and host name used in parse user.
   char definer_user_name_holder[USERNAME_LENGTH + 1];
