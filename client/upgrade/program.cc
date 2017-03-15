@@ -203,7 +203,7 @@ public:
     EXIT_MYSQL_CHECK_ERROR - Error during calling mysql_check functionality.
     EXIT_UPGRADING_QUERIES_ERROR - Error during execution of upgrading queries.
    */
-  int execute(vector<string>)
+  int execute(vector<string> positional_options MY_ATTRIBUTE((unused)))
   {
     /*
       Disables output buffering to make printing to stdout and stderr order
