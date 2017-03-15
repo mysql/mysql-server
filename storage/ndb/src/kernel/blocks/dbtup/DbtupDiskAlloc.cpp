@@ -2364,8 +2364,6 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
   }
 
   Local_key key = undo->m_key;
-//  key.m_page_no = pagePtr.p->m_page_no;
-//  key.m_file_no = pagePtr.p->m_file_no;
   
   Uint64 lsn = 0;
   Uint32 applied = 0;
@@ -2437,6 +2435,13 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
       /**
        * See Lemma 1 and Lemma 2 in analysis of extent page
        * synchronisation at restart.
+       *
+       * We don't need to call this function when immediate
+       * flag since we already applied the first UNDO log
+       * record on the page, there is no need to update
+       * the page bits and the first log record have ensured
+       * that the extent information is already allocated
+       * properly.
        */
       disk_restart_undo_page_bits(signal, undo);
     }
