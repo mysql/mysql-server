@@ -183,7 +183,7 @@ t3	CREATE TABLE `t3` (
   `a` int(11) NOT NULL,
   `b` char(20) DEFAULT NULL,
   KEY `a` (`a`)
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 UNION=(`t1`,`t2`)
 create table t4 (a int not null, b char(10), key(a)) engine=MERGE UNION=(t1,t2);
 select * from t4;
 ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
@@ -201,7 +201,7 @@ t5	CREATE TABLE `t5` (
   `a` int(11) NOT NULL,
   `b` char(20) DEFAULT NULL,
   KEY `a` (`a`)
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`mysqltest`.`t6`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 UNION=(`t1`,`mysqltest`.`t6`)
 alter table t5 engine=myisam;
 drop table t5, mysqltest.t6;
 drop database mysqltest;
@@ -274,14 +274,14 @@ t3	CREATE TABLE `t3` (
   `incr` int(11) NOT NULL,
   `othr` int(11) NOT NULL,
   PRIMARY KEY (`incr`)
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 UNION=(`t1`,`t2`)
 alter table t3 drop primary key;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `incr` int(11) NOT NULL,
   `othr` int(11) NOT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 UNION=(`t1`,`t2`)
 drop table t3,t2,t1;
 create table t1 (a int not null, key(a)) engine=merge;
 select * from t1;
@@ -310,28 +310,28 @@ t3	CREATE TABLE `t3` (
   `a` int(11) NOT NULL,
   `b` int(11) NOT NULL,
   KEY `a` (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 show create table t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` int(11) NOT NULL,
   `b` int(11) NOT NULL,
   KEY `a` (`a`,`b`)
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 UNION=(`t1`,`t2`)
 show create table t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `a` int(11) NOT NULL,
   `b` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=FIRST UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=FIRST UNION=(`t1`,`t2`)
 show create table t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
   `a` int(11) NOT NULL,
   `b` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
 insert into t1 values (1,NULL),(1,NULL),(1,NULL),(1,NULL);
 insert into t2 values (2,NULL),(2,NULL),(2,NULL),(2,NULL);
 select * from t3 order by b,a limit 3;
@@ -396,7 +396,7 @@ t4	CREATE TABLE `t4` (
   `a` int(11) NOT NULL,
   `b` int(11) NOT NULL,
   KEY `a` (`a`,`b`)
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`t2`,`t3`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 UNION=(`t1`,`t2`,`t3`)
 select * from t4 order by a,b;
 a	b
 1	1
@@ -422,7 +422,7 @@ t4	CREATE TABLE `t4` (
   `a` int(11) NOT NULL,
   `b` int(11) NOT NULL,
   KEY `a` (`a`,`b`)
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=FIRST UNION=(`t1`,`t2`,`t3`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=FIRST UNION=(`t1`,`t2`,`t3`)
 insert into t4 values (4,1),(4,2);
 select * from t1 order by a,b;
 a	b
@@ -675,27 +675,27 @@ KEY files (fileset_id,fileset_root_id)
 EXPLAIN SELECT * FROM t2 IGNORE INDEX (files) WHERE fileset_id = 2
 AND file_code BETWEEN '0000000115' AND '0000000120' LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	35	NULL	5	100.00	Using where
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	131	NULL	5	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fileset_id` AS `fileset_id`,`test`.`t2`.`file_code` AS `file_code`,`test`.`t2`.`fileset_root_id` AS `fileset_root_id` from `test`.`t2` IGNORE INDEX (`files`) where ((`test`.`t2`.`fileset_id` = 2) and (`test`.`t2`.`file_code` between '0000000115' and '0000000120')) limit 1
 EXPLAIN SELECT * FROM t2 WHERE fileset_id = 2
 AND file_code BETWEEN '0000000115' AND '0000000120' LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	PRIMARY,files	PRIMARY	35	NULL	5	100.00	Using where
+1	SIMPLE	t2	NULL	range	PRIMARY,files	PRIMARY	131	NULL	5	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fileset_id` AS `fileset_id`,`test`.`t2`.`file_code` AS `file_code`,`test`.`t2`.`fileset_root_id` AS `fileset_root_id` from `test`.`t2` where ((`test`.`t2`.`fileset_id` = 2) and (`test`.`t2`.`file_code` between '0000000115' and '0000000120')) limit 1
 EXPLAIN SELECT * FROM t1 WHERE fileset_id = 2
 AND file_code BETWEEN '0000000115' AND '0000000120' LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY,files	PRIMARY	35	NULL	5	100.00	Using index condition
+1	SIMPLE	t1	NULL	range	PRIMARY,files	PRIMARY	131	NULL	5	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`fileset_id` AS `fileset_id`,`test`.`t1`.`file_code` AS `file_code`,`test`.`t1`.`fileset_root_id` AS `fileset_root_id` from `test`.`t1` where ((`test`.`t1`.`fileset_id` = 2) and (`test`.`t1`.`file_code` between '0000000115' and '0000000120')) limit 1
 EXPLAIN SELECT * FROM t2 WHERE fileset_id = 2
 AND file_code = '0000000115' LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	const	PRIMARY,files	PRIMARY	35	const,const	1	100.00	NULL
+1	SIMPLE	t2	NULL	const	PRIMARY,files	PRIMARY	131	const,const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `fileset_id`,'0000000115' AS `file_code`,'1' AS `fileset_root_id` from `test`.`t2` where 1 limit 1
+Note	1003	/* select#1 */ select '2' AS `fileset_id`,'0000000115' AS `file_code`,'1' AS `fileset_root_id` from `test`.`t2` where (('0000000115' = '0000000115')) limit 1
 DROP TABLE t2, t1;
 create table t1 (x int, y int, index xy(x, y));
 create table t2 (x int, y int, index xy(x, y));
@@ -998,21 +998,21 @@ SHOW CREATE TABLE m1;
 Table	Create Table
 m1	CREATE TABLE `m1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4
 DROP TABLE m1;
 CREATE TABLE m1(a INT) ENGINE=MERGE UNION=();
 SHOW CREATE TABLE m1;
 Table	Create Table
 m1	CREATE TABLE `m1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4
 ALTER TABLE m1 UNION=(t1);
 ALTER TABLE m1 UNION=();
 SHOW CREATE TABLE m1;
 Table	Create Table
 m1	CREATE TABLE `m1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4
 DROP TABLE t1, m1;
 CREATE TABLE t1(a INT, KEY(a)) ENGINE=merge;
 SELECT MAX(a) FROM t1;
@@ -1205,7 +1205,7 @@ SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
 INSERT INTO t4 VALUES (4);
 DROP TABLE t4;
 #
@@ -1225,7 +1225,7 @@ SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TEMPORARY TABLE `t4` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
 INSERT INTO t4 VALUES (4);
 UNLOCK TABLES;
 INSERT INTO t4 VALUES (4);
@@ -1431,7 +1431,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` int(11) DEFAULT NULL,
   KEY `c1` (`c1`)
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t3`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=LAST UNION=(`t3`)
 SELECT * FROM t4 ORDER BY c1;
 c1
 3
@@ -1442,7 +1442,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` int(11) DEFAULT NULL,
   KEY `c1` (`c1`)
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t3`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=LAST UNION=(`t3`,`t2`)
 SELECT * FROM t4 ORDER BY c1;
 c1
 2
@@ -1465,7 +1465,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` int(11) DEFAULT NULL,
   KEY `c1` (`c1`)
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t3`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=LAST UNION=(`t3`,`t2`)
 SELECT * FROM t4 ORDER BY c1;
 c1
 2
@@ -2075,7 +2075,7 @@ CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=FIRST;
 SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE
 TABLE_SCHEMA = 'test' and TABLE_NAME='tm1';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
-def	test	tm1	BASE TABLE	MRG_MYISAM	10	Fixed	#	#	#	#	#	#	#	#	#	#	latin1_swedish_ci	#	#	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+def	test	tm1	BASE TABLE	MRG_MYISAM	10	Fixed	#	#	#	#	#	#	#	#	#	#	utf8mb4_0900_ai_ci	#	#	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 Warnings:
 Warning	1168	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 DROP TABLE tm1;
@@ -2278,7 +2278,7 @@ CREATE TABLE t3(a int) ENGINE = MERGE UNION(t1, t2);
 CREATE TRIGGER tr1 AFTER INSERT ON t3 FOR EACH ROW CALL foo();
 SHOW CREATE TRIGGER tr1;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-tr1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `tr1` AFTER INSERT ON `t3` FOR EACH ROW CALL foo()	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+tr1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `tr1` AFTER INSERT ON `t3` FOR EACH ROW CALL foo()	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 DROP TRIGGER tr1;
 DROP TABLE t1, t2, t3;
 #
@@ -2293,7 +2293,7 @@ SHOW CREATE TABLE m1;
 Table	Create Table
 m1	CREATE TABLE `m1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`test/1`.`t/1`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 UNION=(`test/1`.`t/1`)
 DROP TABLE m1;
 CREATE TABLE `test/1`.m1(a INT) ENGINE=MERGE UNION=(`test/1`.`t/1`);
 SELECT * FROM `test/1`.m1;
@@ -2302,7 +2302,7 @@ SHOW CREATE TABLE `test/1`.m1;
 Table	Create Table
 m1	CREATE TABLE `m1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t/1`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 UNION=(`t/1`)
 DROP TABLE `test/1`.m1;
 DROP TABLE `test/1`.`t/1`;
 CREATE TEMPORARY TABLE `test/1`.`t/1`(a INT) ENGINE=MyISAM;
@@ -2313,7 +2313,7 @@ SHOW CREATE TABLE m1;
 Table	Create Table
 m1	CREATE TEMPORARY TABLE `m1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`test/1`.`t/1`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 UNION=(`test/1`.`t/1`)
 DROP TABLE m1;
 CREATE TEMPORARY TABLE `test/1`.m1(a INT) ENGINE=MERGE UNION=(`test/1`.`t/1`);
 SELECT * FROM `test/1`.m1;
@@ -2322,7 +2322,7 @@ SHOW CREATE TABLE `test/1`.m1;
 Table	Create Table
 m1	CREATE TEMPORARY TABLE `m1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t/1`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 UNION=(`t/1`)
 DROP TABLE `test/1`.m1;
 DROP TABLE `test/1`.`t/1`;
 DROP DATABASE `test/1`;
@@ -2723,13 +2723,13 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE m1;
 Table	Create Table
 m1	CREATE TEMPORARY TABLE `m1` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
 SELECT * FROM m1;
 c1	c2
 INSERT INTO t1 VALUES (111, 121);
@@ -2751,7 +2751,7 @@ Table	Create Table
 m2	CREATE TEMPORARY TABLE `m2` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
 SELECT * FROM m2;
 c1	c2
 111	121
@@ -2768,7 +2768,7 @@ Table	Create Table
 m1	CREATE TEMPORARY TABLE `m1` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
 SELECT * FROM m1;
 c1	c2
 111	121
@@ -2857,7 +2857,7 @@ Table	Create Table
 m1	CREATE TEMPORARY TABLE `m1` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 INSERT INTO m1 VALUES (511, 521);
 SELECT * FROM m1;
 c1	c2
@@ -2908,7 +2908,7 @@ Table	Create Table
 m1	CREATE TEMPORARY TABLE `m1` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
 #
 CREATE TABLE m2 SELECT * FROM m1;
 SHOW CREATE TABLE m2;
@@ -2916,7 +2916,7 @@ Table	Create Table
 m2	CREATE TABLE `m2` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT * FROM m2;
 c1	c2
 111	121
@@ -2931,7 +2931,7 @@ Table	Create Table
 m2	CREATE TEMPORARY TABLE `m2` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT * FROM m2;
 c1	c2
 111	121
@@ -2960,7 +2960,7 @@ Table	Create Table
 m2	CREATE TABLE `m2` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
 SELECT * FROM m2;
 c1	c2
 111	121
@@ -2986,7 +2986,7 @@ Table	Create Table
 m2	CREATE TEMPORARY TABLE `m2` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
 SELECT * FROM m2;
 c1	c2
 111	121
@@ -3126,13 +3126,13 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE m1;
 Table	Create Table
 m1	CREATE TEMPORARY TABLE `m1` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
 SELECT * FROM m1;
 c1	c2
 INSERT INTO t1 VALUES (111, 121);
@@ -3156,7 +3156,7 @@ Table	Create Table
 m2	CREATE TEMPORARY TABLE `m2` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
 SELECT * FROM m2;
 c1	c2
 111	121
@@ -3173,7 +3173,7 @@ Table	Create Table
 m1	CREATE TEMPORARY TABLE `m1` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
 SELECT * FROM m1;
 c1	c2
 111	121
@@ -3264,7 +3264,7 @@ Table	Create Table
 m1	CREATE TEMPORARY TABLE `m1` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 INSERT INTO m1 VALUES (511, 521);
 SELECT * FROM m1;
 c1	c2
@@ -3315,7 +3315,7 @@ Table	Create Table
 m1	CREATE TEMPORARY TABLE `m1` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
 CREATE TABLE m2 SELECT * FROM m1;
 ERROR HY000: Table 'm2' was not locked with LOCK TABLES
 #
@@ -3325,7 +3325,7 @@ Table	Create Table
 m2	CREATE TEMPORARY TABLE `m2` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT * FROM m2;
 c1	c2
 111	121
@@ -3360,14 +3360,14 @@ Table	Create Table
 m2	CREATE TEMPORARY TABLE `m2` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
 LOCK TABLE m1 WRITE, m2 WRITE;
 SHOW CREATE TABLE m2;
 Table	Create Table
 m2	CREATE TEMPORARY TABLE `m2` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
 SELECT * FROM m2;
 c1	c2
 111	121
@@ -3495,12 +3495,12 @@ show create table m1;
 Table	Create Table
 m1	CREATE TABLE `m1` (
   `i` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=FIRST UNION=(`t1`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=FIRST UNION=(`t1`)
 show create table m2;
 Table	Create Table
 m2	CREATE TABLE `m2` (
   `i` int(11) DEFAULT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=FIRST UNION=(`t1`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=FIRST UNION=(`t1`)
 drop tables m1, m2, t1;
 #
 # Test case for Bug#54811 "Assert in mysql_lock_have_duplicate()"

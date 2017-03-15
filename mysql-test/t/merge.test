@@ -8,9 +8,6 @@
 # Skip the test when log-bin is enabled due to presence of many unsafe statements
 --source include/not_log_bin.inc
 
-# WL#7554: Added setting --bootstrap --character-set-server=latin1
-# in the opt file. This test should be migrated to utf8mb4.
-
 # Set session binlog_format to STATEMENT to avoid BUG#20574550
 --disable_query_log
 SET binlog_format=STATEMENT;

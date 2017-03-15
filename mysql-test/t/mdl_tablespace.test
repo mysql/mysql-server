@@ -1,18 +1,6 @@
 #
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
-# test uses performance_schema.metadata_locks
---source include/not_embedded.inc
-
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs65=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema test default character set latin1;
---enable_query_log
-########################################
-
 --enable_connect_log
 
 --echo ###########################################################
@@ -1350,10 +1338,3 @@ DROP TABLE t3;
 DROP TABLE t4;
 DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs65;
---enable_query_log
-########################################

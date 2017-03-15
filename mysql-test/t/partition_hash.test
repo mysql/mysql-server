@@ -7,16 +7,6 @@
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs239=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -480,10 +470,3 @@ SHOW TABLES;
 CREATE TABLE t1 (c1 BIGINT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 50;
 SHOW TABLES; 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs239;
---enable_query_log
-########################################

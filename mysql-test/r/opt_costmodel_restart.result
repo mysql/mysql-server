@@ -61,7 +61,7 @@ EXPLAIN
         "read_cost": "2.25",
         "eval_cost": "10.00",
         "prefix_cost": "12.25",
-        "data_read_per_join": "99K"
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",
@@ -83,7 +83,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "16.66"
+      "query_cost": "34.97"
     },
     "table": {
       "table_name": "t1_myisam",
@@ -92,10 +92,10 @@ EXPLAIN
       "rows_produced_per_join": 100,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "6.66",
+        "read_cost": "24.97",
         "eval_cost": "10.00",
-        "prefix_cost": "16.66",
-        "data_read_per_join": "99K"
+        "prefix_cost": "34.97",
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",
@@ -153,7 +153,7 @@ EXPLAIN
         "read_cost": "18.00",
         "eval_cost": "40.00",
         "prefix_cost": "58.00",
-        "data_read_per_join": "99K"
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",
@@ -175,7 +175,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "93.27"
+      "query_cost": "239.75"
     },
     "table": {
       "table_name": "t1_myisam",
@@ -184,10 +184,10 @@ EXPLAIN
       "rows_produced_per_join": 100,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "53.27",
+        "read_cost": "199.75",
         "eval_cost": "40.00",
-        "prefix_cost": "93.27",
-        "data_read_per_join": "99K"
+        "prefix_cost": "239.75",
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",
@@ -246,7 +246,7 @@ EXPLAIN
         "read_cost": "36.00",
         "eval_cost": "10.00",
         "prefix_cost": "46.00",
-        "data_read_per_join": "99K"
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",
@@ -268,7 +268,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "16.66"
+      "query_cost": "34.97"
     },
     "table": {
       "table_name": "t1_myisam",
@@ -277,10 +277,10 @@ EXPLAIN
       "rows_produced_per_join": 100,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "6.66",
+        "read_cost": "24.97",
         "eval_cost": "10.00",
-        "prefix_cost": "16.66",
-        "data_read_per_join": "99K"
+        "prefix_cost": "34.97",
+        "data_read_per_join": "392K"
       },
       "used_columns": [
         "pk",

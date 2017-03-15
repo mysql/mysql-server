@@ -6,16 +6,6 @@
 # Test uses performance_schema.status_by_thread, not available in embedded
 --source include/not_embedded.inc
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs244=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 # Different page sizes gives different query plans
 # results based on default 16k.
 
@@ -288,6 +278,7 @@ CREATE TABLE t3
  d int unsigned DEFAULT 9,
  e varchar(255) DEFAULT "Default-filler.filler.filler.",
  PRIMARY KEY (a,b,c,d))
+charset latin1
 PARTITION BY RANGE COLUMNS (a, b)
 SUBPARTITION BY LINEAR KEY (d, c)
 SUBPARTITIONS 4
@@ -3053,10 +3044,3 @@ DROP TABLE tq, tsq, t1, t2;
 DROP TABLE test.thread_to_monitor;
 
 SET @@global.innodb_stats_persistent= @old_innodb_stats_persistent;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs244;
---enable_query_log
-########################################
