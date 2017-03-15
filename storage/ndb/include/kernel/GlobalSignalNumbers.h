@@ -24,7 +24,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 797;
+const GlobalSignalNumber MAX_GSN = 793;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -1110,24 +1110,19 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_LOCAL_RECOVERY_COMP_REP     782
 
 #define GSN_PROCESSINFO_REP             783
-
 #define GSN_SYNC_PAGE_CACHE_REQ         784
 #define GSN_SYNC_PAGE_CACHE_CONF        785
-#define GSN_SYNC_PAGE_CACHE_REF         786 /* Unused at the moment */
 
-#define GSN_SYNC_EXTENT_PAGES_REQ       787
-#define GSN_SYNC_EXTENT_PAGES_CONF      788
-#define GSN_SYNC_EXTENT_PAGES_REF       789 /* Unused at the moment */
+#define GSN_SYNC_EXTENT_PAGES_REQ       786
+#define GSN_SYNC_EXTENT_PAGES_CONF      787
 
-#define GSN_RESTORABLE_GCI_REP          790
+#define GSN_RESTORABLE_GCI_REP          788
 
-#define GSN_LCP_START_REP               791
+#define GSN_LCP_START_REP               789
 
-#define GSN_WAIT_ALL_COMPLETE_LCP_REQ   792
-#define GSN_WAIT_ALL_COMPLETE_LCP_CONF  793
-#define GSN_WAIT_ALL_COMPLETE_LCP_REF   794 /* Unused at the moment */
+#define GSN_WAIT_ALL_COMPLETE_LCP_REQ   790
+#define GSN_WAIT_ALL_COMPLETE_LCP_CONF  791
 
-#define GSN_WAIT_COMPLETE_LCP_REQ       795
-#define GSN_WAIT_COMPLETE_LCP_CONF      796
-#define GSN_WAIT_COMPLETE_LCP_REF       797 /* Unused */
+#define GSN_WAIT_COMPLETE_LCP_REQ       792
+#define GSN_WAIT_COMPLETE_LCP_CONF      793
 #endif

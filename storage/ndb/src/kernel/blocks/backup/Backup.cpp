@@ -6243,7 +6243,12 @@ Backup::execTRANSID_AI(Signal* signal)
   }
 
   op.attrSzTotal += dataLen;
-  ndbrequire(dataLen < op.maxRecordSize);
+  if (unlikely(dataLen >= op.maxRecordSize))
+  {
+    g_eventLogger->info("dataLen: %u, op.maxRecordSize = %u, header: %u",
+                        dataLen, op.maxRecordSize, header);
+    ndbrequire(false);
+  }
 
   filePtr.p->m_sent_words_in_scan_batch += dataLen;
 

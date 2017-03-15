@@ -9058,6 +9058,8 @@ void Dbdih::readingGcpLab(Signal* signal, FileRecordPtr filePtr)
   /*     START BY CLOSING THIS FILE.                                         */
   /* ----------------------------------------------------------------------- */
   globalData.m_restart_seq = ++SYSFILE->m_restart_seq;
+  g_eventLogger->info("Starting with m_restart_seq set to %u",
+                      globalData.m_restart_seq);
   closeFile(signal, filePtr);
   filePtr.p->reqStatus = FileRecord::CLOSING_GCP;
 }//Dbdih::readingGcpLab()
@@ -23541,6 +23543,8 @@ void Dbdih::initRestartInfo(Signal* signal)
   Sysfile::setInitialStartOngoing(SYSFILE->systemRestartBits);
   srand((unsigned int)time(0));
   globalData.m_restart_seq = SYSFILE->m_restart_seq = 0;
+  g_eventLogger->info("Starting with m_restart_seq set to %u",
+                      globalData.m_restart_seq);
 
   if (m_micro_gcp.m_enabled == false && 
       m_micro_gcp.m_master.m_time_between_gcp)

@@ -54,6 +54,13 @@ static bool g_dbg_lcp = false;
 #define DEB_PGMAN(arglist) do { } while (0)
 #endif
 
+#define DEBUG_PGMAN_IO 1
+#ifdef DEBUG_PGMAN_IO
+#define DEB_PGMAN_IO(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_PGMAN_IO(arglist) do { } while (0)
+#endif
+
 Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
   SimulatedBlock(PGMAN, ctx, instanceNumber),
   m_fragmentRecordList(m_fragmentRecordPool),
@@ -1303,11 +1310,11 @@ Pgman::process_cleanup(Signal* signal)
         c_tup->disk_page_unmap_callback(0, 
                                         ptr.p->m_real_page_i, 
                                         ptr.p->m_dirty_count);
-      DEB_PGMAN(("pageout():cleanup, page(%u,%u,%u,%u):%x",
+      DEB_PGMAN(("(%u)pageout():cleanup, page(%u,%u):%u:%x",
                  instance(),
-                 ptr.i,
                  ptr.p->m_file_no,
                  ptr.p->m_page_no,
+                 ptr.i,
                  (unsigned int)state));
 
       pageout(signal, ptr);
@@ -1684,11 +1691,11 @@ Pgman::handle_lcp(Signal *signal, FragmentRecord *fragPtrP)
        * BUSY state to be completed. We simply wait for PAGEOUT to
        * be completed.
        */
-      DEB_PGMAN(("PAGEOUT state in LCP, page(%u,%u,%u,%u):%x",
+      DEB_PGMAN(("(%u)PAGEOUT state in LCP, page(%u,%u):%u:%x",
                  instance(),
-                 ptr.i,
                  ptr.p->m_file_no,
                  ptr.p->m_page_no,
+                 ptr.i,
                  (unsigned int)state));
 
       ndbrequire(ptr.p->m_dirty_state != fragPtrP->m_current_lcp_dirty_state);
@@ -1702,11 +1709,11 @@ Pgman::handle_lcp(Signal *signal, FragmentRecord *fragPtrP)
     {
       jam();
 
-      DEB_PGMAN(("BUSY state in LCP, page(%u,%u,%u,%u):%x",
+      DEB_PGMAN(("(%u)BUSY state in LCP, page(%u,%u):%u:%x",
                 instance(),
-                ptr.i,
                 ptr.p->m_file_no,
                 ptr.p->m_page_no,
+                ptr.i,
                 (unsigned int)state));
 
       set_page_state(jamBuffer(), ptr, state | Page_entry::WAIT_LCP);
@@ -1716,11 +1723,11 @@ Pgman::handle_lcp(Signal *signal, FragmentRecord *fragPtrP)
     {
       jam();
 
-      DEB_PGMAN(("pageout():LCP, page(%u,%u,%u,%u):%x",
+      DEB_PGMAN(("(%u)pageout():LCP, page(%u,%u):%u:%x",
                  instance(),
-                 ptr.i,
                  ptr.p->m_file_no,
                  ptr.p->m_page_no,
+                 ptr.i,
                  (unsigned int)state));
 
       ndbrequire(ptr.p->m_dirty_state != fragPtrP->m_current_lcp_dirty_state);
@@ -1826,11 +1833,11 @@ Pgman::process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr)
       m_lcp_outstanding++;
       ptr.p->m_state |= Page_entry::LCP;
 
-      DEB_PGMAN(("pageout():extent, page(%u,%u,%u,%u):%x",
+      DEB_PGMAN(("(%u)pageout():extent, page(%u,%u):%u:%x",
                  instance(),
-                 ptr.i,
                  ptr.p->m_file_no,
                  ptr.p->m_page_no,
+                 ptr.i,
                  (unsigned int)ptr.p->m_state));
 
       pageout(signal, ptr);
@@ -1905,11 +1912,11 @@ Pgman::pagein(Signal* signal, Ptr<Page_entry> ptr, EmulatedJamBuffer *jamBuf)
   D("pagein");
   D(ptr);
 
-  DEB_PGMAN(("pagein() start: page(%u,%u,%u,%u):%x",
+  DEB_PGMAN(("(%u)pagein() start: page(%u,%u):%u:%x",
             instance(),
-            ptr.i,
             ptr.p->m_file_no,
             ptr.p->m_page_no,
+            ptr.i,
             (unsigned int)ptr.p->m_state));
 
   ndbrequire(! (ptr.p->m_state & Page_entry::PAGEIN));
@@ -1927,11 +1934,11 @@ Pgman::fsreadconf(Signal* signal, Ptr<Page_entry> ptr)
 
   Page_state state = ptr.p->m_state;
 
-  DEB_PGMAN(("pagein completed: page(%u,%u,%u):%x",
-             instance(),
-             ptr.p->m_file_no,
-             ptr.p->m_page_no,
-             (unsigned int)state));
+  DEB_PGMAN_IO(("(%u)pagein completed: page(%u,%u):%x",
+               instance(),
+               ptr.p->m_file_no,
+               ptr.p->m_page_no,
+               (unsigned int)state));
 
   ndbrequire(ptr.p->m_state & Page_entry::PAGEIN);
 
@@ -2039,11 +2046,11 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
 
   Page_state state = ptr.p->m_state;
 
-  DEB_PGMAN(("pageout completed, page(%u,%u,%u), state: %x",
-             instance(),
-             ptr.p->m_file_no,
-             ptr.p->m_page_no,
-             state));
+  DEB_PGMAN_IO(("(%u)pageout completed, page(%u,%u):%x",
+               instance(),
+               ptr.p->m_file_no,
+               ptr.p->m_page_no,
+               state));
 
   ndbrequire(state & Page_entry::PAGEOUT);
 
@@ -3794,12 +3801,12 @@ Pgman::insert_fragment_dirty_list(Ptr<Page_entry> ptr,
     return;
   }
 
-  DEB_PGMAN(("Insert page(%u,%u,%u,%u):%x into dirty list of tab(%u,%u)"
+  DEB_PGMAN(("(%u)Insert page(%u,%u):%u:%x into dirty list of tab(%u,%u)"
              ", dirty_state: %u",
               instance(),
-              ptr.i,
               ptr.p->m_file_no,
               ptr.p->m_page_no,
+              ptr.i,
               (unsigned int)state,
               ptr.p->m_table_id,
               ptr.p->m_fragment_id,
@@ -3838,12 +3845,12 @@ Pgman::remove_fragment_dirty_list(Ptr<Page_entry> ptr, Page_state state)
      * Not in any dirty list, so we need not remove it.
      */
     jam();
-    DEB_PGMAN(("remove_fragment_dirty_list not in any list: "
-               "page:(%u,%u,%u,%u):%x, tab(%u,%u)",
+    DEB_PGMAN(("(%u)remove_fragment_dirty_list not in any list: "
+               "page:(%u,%u):%u:%x, tab(%u,%u)",
                instance(),
-               ptr.i,
                ptr.p->m_file_no,
                ptr.p->m_page_no,
+               ptr.i,
                (unsigned int)state,
                ptr.p->m_table_id,
                ptr.p->m_fragment_id));
@@ -3869,12 +3876,12 @@ Pgman::remove_fragment_dirty_list(Ptr<Page_entry> ptr, Page_state state)
     {
       jam();
 
-      DEB_PGMAN(("Remove page page(%u,%u,%u,%u):%x from dirty list"
+      DEB_PGMAN(("(%u)Remove page page(%u,%u):%u:%x from dirty list"
                  " of tab(%u,%u)",
                  instance(),
-                 ptr.i,
                  ptr.p->m_file_no,
                  ptr.p->m_page_no,
+                 ptr.i,
                  (unsigned int)state,
                  ptr.p->m_table_id,
                  ptr.p->m_fragment_id));
@@ -3886,12 +3893,12 @@ Pgman::remove_fragment_dirty_list(Ptr<Page_entry> ptr, Page_state state)
     {
       jam();
 
-      DEB_PGMAN(("Remove page(%u,%u,%u,%u):%x from dirty lcp"
+      DEB_PGMAN(("(%u)Remove page(%u,%u):%u:%x from dirty lcp"
                  " list of tab(%u,%u)",
                  instance(),
-                 ptr.i,
                  ptr.p->m_file_no,
                  ptr.p->m_page_no,
+                 ptr.i,
                  (unsigned int)state,
                  ptr.p->m_table_id,
                  ptr.p->m_fragment_id));
@@ -3902,12 +3909,12 @@ Pgman::remove_fragment_dirty_list(Ptr<Page_entry> ptr, Page_state state)
   else if (ptr.p->m_dirty_state == Pgman::IN_LCP_OUT_LIST)
   {
     jam();
-    DEB_PGMAN(("Remove page(%u,%u,%u,%u):%x from dirty out"
+    DEB_PGMAN(("(%u)Remove page(%u,%u):%u:%x from dirty out"
                " list of tab(%u,%u)",
                instance(),
-               ptr.i,
                ptr.p->m_file_no,
                ptr.p->m_page_no,
+               ptr.i,
                (unsigned int)state,
                ptr.p->m_table_id,
                ptr.p->m_fragment_id));
