@@ -98,12 +98,6 @@ include_directories(${CMAKE_BINARY_DIR}/storage/ndb/memcache/include/)
 include_directories(AFTER ${MEMCACHED_INCLUDE_DIR})
 include_directories(AFTER ${BUNDLED_MEMCACHED})
 
-# Paths to libraries
-link_directories(${NDB_SOURCE_DIR}/src 
-                 ${NDB_SOURCE_DIR}/src/common/util
-                 ${CMAKE_CURRENT_SOURCE_DIR}/extra/memcached
-                )
-
 # Source files for this module 
 set(NDB_MEMCACHE_SOURCE_FILES
     src/ClusterConnectionPool.cc
