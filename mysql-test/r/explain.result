@@ -768,3 +768,23 @@ Warnings:
 Note	1003	/* select#1 */ select '1' AS `c1` from `test`.`t1` where 1
 DROP TABLE t1;
 # End of test for Bug#18899860
+# 
+# Bug #23209903: ASSERTION: SELECT_LEX->LEAF_TABLE_COUNT == 0 ||
+# THD->LEX->IS_QUERY_TABLES_LOCKED
+#
+CREATE TABLE t1 (a INT, b INT) ENGINE=INNODB PARTITION BY KEY (b) PARTITIONS 2;
+CREATE TABLE t2 (c INT) ENGINE=INNODB;
+
+# Test single-table update with subquery and empty outer query block
+UPDATE t1 SET a=(SELECT c from t2) WHERE 0;
+EXPLAIN UPDATE t1 SET a=(SELECT c from t2) WHERE 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+
+# Test delete from single-table with subquery and empty outer query block
+DELETE FROM t1 WHERE 0 AND a IN (SELECT c from t2);
+EXPLAIN DELETE FROM t1 WHERE 0 AND a IN (SELECT c from t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
+DROP TABLE t1, t2;
+# End of test for Bug#23209903

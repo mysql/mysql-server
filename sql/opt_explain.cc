@@ -598,6 +598,13 @@ Explain_no_table::get_subquery_context(SELECT_LEX_UNIT *unit) const
 */
 bool Explain::explain_subqueries()
 {
+  /*
+    Subqueries in empty queries are neither optimized nor executed. They are
+    therefore not to be included in the explain output.
+  */
+  if (select_lex->is_empty_query())
+    return false;
+
   for (SELECT_LEX_UNIT *unit= select_lex->first_inner_unit();
        unit;
        unit= unit->next_unit())
@@ -2050,7 +2057,13 @@ bool explain_single_table_modification(THD *ethd,
 
   ethd->lex->explain_format->send_headers(&result);
 
-  if (!other)
+  /*
+    Optimize currently non-optimized subqueries when needed, but
+    - do not optimize subqueries for other connections, and
+    - there is no need to optimize subqueries that will not be explained
+      because they are attached to a query block that do not return any rows.
+  */
+  if (!other && !select->is_empty_query())
   {
     for (SELECT_LEX_UNIT *unit= select->first_inner_unit();
          unit;
