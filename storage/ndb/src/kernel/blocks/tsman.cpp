@@ -2508,33 +2508,70 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
                                      val.m_extent_size,
                                      v2);
 
-    if ((*ext_table_id) == RNIL)
-    {
-      thrjam(jamBuf);
-      if (DBG_UNDO)
-        ndbout_c("tsman: apply undo - skip table == RNIL");
-      return 0;
-    }
-
-    Uint32 page_no_in_extent = calc_page_no_in_extent(key->m_page_no, &val);
-    Uint32 src = ext_data->get_free_bits(page_no_in_extent);
-
     if ((*ext_table_id) != tableId ||
         (*ext_fragment_id) != fragId ||
         (ext_create_table_version != NULL &&
         (*ext_create_table_version) != create_table_version))
     {
       thrjam(jamBuf);
-      return 0;
+      /**
+       * This is a special situation. We want to UNDO log a page that
+       * belongs to an extent that hasn't yet been written to disk.
+       * This is a possible situation. The following must have happened.
+       * 1) A new extent was allocated to the table
+       * 2) A page was allocated to the extent and a record written to it
+       * 3) The page was flushed to disk.
+       * 4) The extent page was obviously written as part of this, but it
+       *    the node was stopped before the extent page was flushed to disk.
+       *
+       * Extent pages are flushed to disk at start of an LCP to ensure that
+       * we start the LCP with all extents written to disk. Next we ensure
+       * that the extent pages are written as part of the last fragment LCP
+       * in the LCP. This means that we could have written pages during LCP
+       * that never got its extent page flushed to disk. The WAL principle
+       * does however guarantee that we for each such write there is also a
+       * corresponding UNDO log written before the write. So we can trust
+       * that UNDO log execution will pass all those pages that are missing
+       * their extent definition on disk. This is the place in the code
+       * where we discover such a missing extent definition. We will create
+       * the extent here and now. Later in the restart process TUP will
+       * build the memory structures for this and all the other extents
+       * based on this information written here after completing the
+       * UNDO log execution.
+       *
+       * Also no need to update free lists of extent in TSMAN since these
+       * lists are also built while scanning extent headers.
+       */
+      Uint32 size = val.m_extent_size;
+      File_formats::Datafile::Extent_header *header =
+        page->get_header(val.m_extent_no, size, v2);
+      Uint32 eh_words = File_formats::Datafile::extent_header_words(size, v2);
+      memset(header, 0, 4*eh_words);
+      *ext_table_id = tableId;
+      *ext_fragment_id = fragId;
+      if (v2)
+      {
+        thrjam(jamBuf);
+        *ext_create_table_version = create_table_version;
+      }
+      g_eventLogger->info("Wrote extent that wasn't written before node stop"
+                          " for tab(%u,%u):%u, extent: %u",
+                          tableId,
+                          fragId,
+                          create_table_version,
+                          val.m_extent_no);
     }
 
-    /* Toggle word */
+    Uint32 page_no_in_extent = calc_page_no_in_extent(key->m_page_no, &val);
+    Uint32 src = ext_data->get_free_bits(page_no_in_extent);
+
     if (DBG_UNDO)
     {
       ndbout << "tsman: apply " 
              << *key << " " << (src & COMMITTED_MASK) 
              << " -> " << bits << endl;
     }
+    /* Toggle word */
     ext_data->update_free_bits(page_no_in_extent, 
 			       bits | (bits << UNCOMMITTED_SHIFT));
     return 0;
