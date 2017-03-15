@@ -375,6 +375,8 @@ private:
 
     DirtyState m_dirty_state;
 
+    bool m_dirty_during_pageout;
+
     Page_state m_state;         // flags (0 for new entry)
  
     Uint32 m_page_no;

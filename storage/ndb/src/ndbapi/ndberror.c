@@ -318,6 +318,9 @@ ErrorBundle ErrorCodes[] = {
   { 1602, DMEC, IS,"No datafile in tablespace" },
   { 1603, HA_ERR_RECORD_FILE_FULL, IS,
     "Table fragment fixed data reference has reached maximum possible value (specify MAXROWS or increase no of partitions)"},
+  { 1604, DMEC, IS, "Error -1 from get_page" },
+  { 1605, HA_ERR_RECORD_FILE_FULL, IS, "Out of page request records when allocating disk record" },
+  { 1606, HA_ERR_RECORD_FILE_FULL, IS, "Out of extent records when allocating disk record" },
 
   /**
    * TimeoutExpired 

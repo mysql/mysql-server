@@ -116,26 +116,6 @@ operator<<(NdbOut& out, const Ptr<Dbtup::Extent_info> & ptr)
   return out;
 }
 
-#ifdef NOT_YET_FREE_EXTENT
-static
-inline
-bool
-check_free(const Dbtup::Extent_info* extP)
-{
-  Uint32 res = 0;
-  for (Uint32 i = 1; i<MAX_FREE_LIST; i++)
-    res += extP->m_free_page_count[i];
-  return res;
-}
-#error "Code for deallocting extents when they get empty"
-#error "This code is not yet complete"
-#endif
-
-#ifdef NOT_YET_UNDO_ALLOC_EXTENT
-#error "This is needed for deallocting extents when they get empty"
-#error "This code is not complete yet"
-#endif
-
 void 
 Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
 {
@@ -387,11 +367,13 @@ Dbtup::restart_setup_page(Ptr<Fragrecord> fragPtr,
   Ptr<Extent_info> extentPtr;
   if (!c_extent_hash.find(extentPtr, key))
   {
-    DEB_EXTENT_BITS(("(%u)Crash on page(%u,%u), extent page: %u"
-                     "restart_seq(%u,%u)",
+    DEB_EXTENT_BITS(("(%u)Crash on page(%u,%u) in tab(%u,%u), extent page: %u"
+                     " restart_seq(%u,%u)",
                      instance(),
                      pagePtr.p->m_file_no,
                      pagePtr.p->m_page_no,
+                     fragPtr.p->fragTableId,
+                     fragPtr.p->fragmentId,
                      pagePtr.p->m_extent_no,
                      pagePtr.p->m_restart_seq,
                      globalData.m_restart_seq));
@@ -465,19 +447,19 @@ Dbtup::restart_setup_page(Ptr<Fragrecord> fragPtr,
 #ifdef VM_TRACE
     if (alloc.calc_page_free_bits(real_free) != committed)
     {
-      g_eventLogger->info("page:(%u,%u,%u,%u), calc_free_bits: %u,"
+      g_eventLogger->info("(%u)page(%u,%u):%u, calc_free_bits: %u,"
                           " committed: %u, uncommitted: %u, free_space: %u",
                           instance(),
-                          pagePtr.i,
                           page.m_file_no,
                           page.m_page_no,
+                          pagePtr.i,
                           alloc.calc_page_free_bits(real_free),
                           committed,
                           uncommitted,
                           real_free);
     }
-#endif
     ddassert(alloc.calc_page_free_bits(real_free) == committed);
+#endif
     if (prealloc)
     {
       /**
@@ -591,9 +573,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
   if (!c_page_request_pool.seize(req))
   {
     jam();
-    err= 1;
-    //XXX set error code
-    ndbout_c("no free request");
+    err= 1605;
     return -err;
   }
 
@@ -603,7 +583,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
   
   int pageBits; // received
   Ptr<Extent_info> ext;
-  const Uint32 bits= alloc.calc_page_free_bits(sz); // required
+  const Uint32 bits = alloc.calc_page_free_bits(sz); // required
   bool found= false;
 
   /**
@@ -651,84 +631,23 @@ Dbtup::disk_page_prealloc(Signal* signal,
       /**
        * We need to alloc an extent
        */
-#ifdef NOT_YET_UNDO_ALLOC_EXTENT
-      /**
-       * This code won't work, so if it is ever activated, it will need
-       * some work to make it concurrent.
-       */
-      Uint32 logfile_group_id = fragPtr.p->m_logfile_group_id;
-
-      err = c_lgman->alloc_log_space(logfile_group_id,
-				     sizeof(Disk_undo::AllocExtent)>>2,
-                                     jamBuffer());
-      jamEntry();
-      if(unlikely(err))
-      {
-	return -err;
-      }
-#endif
-
       if (!c_extent_pool.seize(ext))
       {
 	jam();
-	//XXX
-	err= 2;
-#ifdef NOT_YET_UNDO_ALLOC_EXTENT
-	c_lgman->free_log_space(logfile_group_id, 
-				sizeof(Disk_undo::AllocExtent)>>2,
-                                jamBuffer());
-#endif
+	err= 1606;
 	c_page_request_pool.release(req);
-	ndbout_c("no free extent info");
 	return -err;
       }
       
       if ((err= tsman.alloc_extent(&ext.p->m_key)) < 0)
       {
 	jamEntry();
-#ifdef NOT_YET_UNDO_ALLOC_EXTENT
-	c_lgman->free_log_space(logfile_group_id, 
-				sizeof(Disk_undo::AllocExtent)>>2,
-                                jamBuffer());
-#endif
 	c_extent_pool.release(ext);
 	c_page_request_pool.release(req);
 	return err;
       }
 
       int pages= err;
-#ifdef NOT_YET_UNDO_ALLOC_EXTENT
-      {
-	/**
-	 * Do something here
-	 */
-	{
-	  Callback cb;
-	  cb.m_callbackData= ext.i;
-	  cb.m_callbackFunction = 
-	    safe_cast(&Dbtup::disk_page_alloc_extent_log_buffer_callback);
-	  Uint32 sz= sizeof(Disk_undo::AllocExtent)>>2;
-          int res;
-          {
-	    Logfile_client lgman(this, c_lgman, logfile_group_id);
-	    res= lgman.get_log_buffer(signal, sz, &cb);
-          }
-          jamEntry();
-	  switch(res){
-	  case 0:
-	    break;
-	  case -1:
-            g_eventLogger->warning("Out of space in RG_TRANSACTION_MEMORY"
-                                   " resource, increase config parameter"
-                                   " GlobalSharedMemory");
-	    ndbrequire("NOT YET IMPLEMENTED" == 0);
-	    break;
-	  default:
-	    execute(signal, cb, res);	    
-	  }
-	}
-      }
-#endif
       
 #ifdef VM_TRACE
       ndbout << "allocated " << pages << " pages: " << ext.p->m_key 
@@ -748,8 +667,8 @@ Dbtup::disk_page_prealloc(Signal* signal,
                 ext.i,
                 fragPtr.p->fragTableId,
                 fragPtr.p->fragmentId,
-                ext.p->m_first_page_no,
                 ext.p->m_key.m_file_no,
+                ext.p->m_first_page_no,
                 ext.p->m_first_page_no + (pages - 1),
                 ext.p->m_empty_page_no));
 
@@ -831,13 +750,25 @@ Dbtup::disk_page_prealloc(Signal* signal,
     {
       jam();
       ext.p->m_empty_page_no++;
-      DEB_EXTENT_BITS(("extent(%u,%u) in tab(%u,%u), first_page: %u, empty_page: %u",
+      DEB_EXTENT_BITS(("extent(%u,%u) new page in tab(%u,%u), first_page(%u,%u)"
+                       " empty_page: %u",
                 instance(),
                 ext.i,
                 fragPtr.p->fragTableId,
                 fragPtr.p->fragmentId,
-                ext.p->m_first_page_no,
+                key->m_file_no,
+                key->m_page_no,
                 ext.p->m_empty_page_no));
+    }
+    else
+    {
+      DEB_EXTENT_BITS(("extent(%u,%u) new page in tab(%u,%u), page(%u,%u)",
+                instance(),
+                ext.i,
+                fragPtr.p->fragTableId,
+                fragPtr.p->fragmentId,
+                key->m_file_no,
+                key->m_page_no));
     }
     preq.m_callback.m_callbackFunction = 
       safe_cast(&Dbtup::disk_page_prealloc_initial_callback);
@@ -853,7 +784,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
     break;
   case -1:
     ndbassert(false);
-    break;
+    return -1604;
   default:
     jam();
     execute(signal, preq.m_callback, res); // run callback
@@ -2279,13 +2210,11 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
    * also synchronize the extent bits with the page information.
    */
 
-  bool update = false;
   if (! (pagePtr.p->list_index & 0x8000) ||
       pagePtr.p->nextList != RNIL ||
       pagePtr.p->prevList != RNIL)
   {
     jam();
-    update = true;
     pagePtr.p->list_index |= 0x8000;
     pagePtr.p->nextList = pagePtr.p->prevList = RNIL;
     DEB_EXTENT_BITS(("(%u)Set list_index bit 0x8000 on page(%u,%u)"
@@ -2378,7 +2307,6 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
   {
     jam();
     
-    update = true;
     applied = 1;
     /**
      * Apply undo record
@@ -2556,6 +2484,236 @@ Dbtup::disk_restart_undo_page_bits(Signal* signal, Apply_undo* undo)
   jamEntry();
 }
 
+/**
+ * disk_restart_alloc_extent is called during scan of extent
+ * headers in TSMAN. It ensures that we build the extent data
+ * structures that ensures that we select the proper extent for
+ * new records.
+ *
+ * The data to build is to start with the Extent_info struct.
+ * m_free_space
+ * ------------
+ * This variable contains the number free records available
+ * in the extent. It is initialised to
+ * number of pages in extent times the number of records per
+ * page when creating a new extent. Each prealloc will
+ * decrease the number by one and each free will increase it
+ * by one (also abort of prealloc).
+ * At restarts we don't know the number so it is first set to
+ * 0. Next it is set according to the page bits in the extent
+ * information stored on disk by TSMAN.
+ * The page bits on disk have the following meaning:
+ * 0: The page is free, no records stored there
+ * 1: The page is not free and not full, at least one record
+ *    is stored in the page.
+ * 2: The page is full
+ * 3: The page is full
+ *
+ * For free pages we add number of records per page, for "half full"
+ * pages we add to number of free pages in extent.
+ * This means that this number is a minimum of the actual number of
+ * free records in the extent.
+ * Each time we use a page we will check the m_restart_seq variable on
+ * the page (not checked during UNDO log execution since the variables
+ * are not initialised at that time). If it isn't set to the
+ * current m_restart_seq it means that the page is not yet fully
+ * known. In this case we will call restart_setup_page that will
+ * update the m_free_pages variable correctly for the page and will
+ * also update the extent position (explained below).
+ *
+ * m_free_page_count
+ * -----------------
+ * For each state above we have a count of how many pages of each type
+ * that we have. When initialised we set all pages to be in free bucket.
+ * At restart we set all counters to 0, next we check each page in the
+ * call to disk_restart_page_bits, this is called immediately after
+ * the call to disk_restart_alloc_extent for each page in the extent.
+ *
+ * m_empty_page_no
+ * ---------------
+ * This is only used the first time we create the extent. It is never
+ * used after a node restart. It makes sure that we allocate free
+ * pages from the beginning of the extent to the end of the extent.
+ * The variable isn't really necessary since it will work fairly good
+ * also after a restart.
+ *
+ * m_first_page_no
+ * ---------------
+ * This is the page number of the first page in the extent. This is the
+ * page id in the data file, so page id 3 is the 3rd 32kByte page in the
+ * data file.
+ *
+ * m_key
+ * -----
+ * This represents the information about the extent page and extent number.
+ * m_key.m_file_no is the file number of the extent
+ * m_key.m_page_no is the page number where the extent info is stored
+ * m_key.m_page_idx is the extent number, can be used to find the exact place
+ *   of the extent information on the page
+ *
+ * nextHash, prevHash
+ * ------------------
+ * Each extent is placed in a hash table c_extent_hash. The key to this
+ * hash table is m_key above, the m_page_no is not part of the key. So
+ * a key with m_file_no set to file number and m_page_idx set to
+ * extent number will find the appropriate extent.
+ *
+ * nextPool
+ * --------
+ * Used for linking free extent records in the c_extent_pool.
+ * When allocated it is used to keep things in the m_extent_list.
+ *
+ * nextList, prevList
+ * ------------------
+ * Used to store the extent information in one of the 20 lists
+ * in m_free_extents in the Disk_alloc_info struct as part of
+ * the fragment.
+ * The general idea about this matrix is explained in the
+ * paper "Recovery in MySQL Cluster 5.1" presented at
+ * VLDB 2005.
+ *
+ * m_free_matrix_pos
+ * -----------------
+ * This specifies which of the 20 lists the extent is currently
+ * stored in. If set to RNIL then it is the extent referred to
+ * from the m_curr_extent_info_ptr_i in the Disk_alloc_info
+ * struct of the fragment. This indicates the current extent
+ * used to insert data into.
+ *
+ * The data structures in Disk_alloc_info is referring to extent
+ * information.
+ *
+ * Disk_alloc_info data variables (part of fragment)
+ * -------------------------------------------------
+ *
+ * m_extent_size
+ * -------------
+ * Size of the extents used by this fragment
+ *
+ * m_curr_extent_info_ptr_i
+ * ------------------------
+ * Pointing to the current extent used for inserts, RNIL if
+ * no current one.
+ *
+ * m_free_extents
+ * --------------
+ * List of extents as arranged in a matrix, there are 20
+ * entries in a 5,4 matrix.
+ *
+ * The row information is the free level.
+ * Row 0 is at least 80% free
+ * Row 1 is at least 60% free
+ * Row 2 is at least 40% free
+ * Row 3 is at least 20% free
+ * Row 4 is at least 0% free
+ *
+ * Col is based on the states described above. So if any page
+ * in extent is fully free it will be in column 0.
+ * If at least one page in extent is in "half full" state it
+ * will be in column 1, if any page is in full state 2 it will
+ * be in column 2 and otherwise it will be in column 3.
+ * Search starts in Row 0 and goes through the columns, next
+ * to Row 1 and so forth.
+ *
+ * m_total_extent_free_space_thresholds
+ * ------------------------------------
+ * This variable is static after creating the fragment. It
+ * provides the levels on number of records for 80% level,
+ * 60% level and so forth.
+ *
+ * m_page_free_bits_map
+ * --------------------
+ * This is also static information after creation of fragment.
+ * It describes the number of free records in a page when in
+ * states 0 through.
+ * In state 0 it is set to records per page.
+ * State 1 is set to 1
+ * State 2 and 3 is set to 0.
+ *
+ * m_extent_list
+ * -------------
+ * This list is used for disk scans. In this case we need to know all
+ * disk pages and these are found by scanning all extents one by one.
+ * New extents are added first, so new pages added during scan are not
+ * seen by the scan. Disk scans are currently only used for backups.
+ *
+ * m_dirty_pages
+ * -------------
+ * This is one list per state. When allocating a new page for insert we
+ * search for a page in the free (state 0) and "half full" (state 1)
+ * lists. If any page is in these lists we're done with our search of
+ * page to insert into. This happens in disk_page_prealloc.
+ * If a page is found in dirty pages we immediately update the
+ * extent position of the page, we also move the page to another
+ * list in m_dirty_pages if state changed due to insert, finally
+ * we also update m_free_page_count above on the extent if state
+ * changed.
+ *
+ * If the prealloc is aborted we remove the record from the page
+ * and update the same structures again if necessary.
+ *
+ * When the page arrives from disk we also check whether there is a
+ * need to change the m_free_page_count and extent position. A page
+ * only arrives from disk after disk_page_prealloc if we were unable
+ * to find a page among the ones already in memory that could fit the
+ * new row. Here it is also placed in the proper m_dirty_pages list.
+ * It is a new page at this point not currently in any list since it
+ * comes from disk. It could actually come from the page cache still.
+ * This could happen when a page have been read and is used for writing.
+ * We don't use any knowledge of what pages have been read when
+ * selecting which page to write.
+ *
+ * There are also some important variables on each page that is used
+ * for page allocation.
+ *
+ * m_unmap_pages
+ * -------------
+ * Whenever a data page (not extent page) is to be flushed to disk PGMAN
+ * will inform DBTUP about this. It will inform it before the flush and
+ * also when the flush is completed.
+ *
+ * Before flush we will move the page away from the m_dirty_pages list
+ * and into the m_unmap_pages list. If the dirty count is down to 0
+ * we will also set list_index bit 0x8000 to indicate page is not in
+ * dirty page list. We also set the uncommitted bits in the extent
+ * information before we flush it to disk.
+ *
+ * After flush we will remove it from the unmap pages list.
+ * We will also update the extent information if necessary and if it
+ * has changed we will set the page to be dirty in PGMAN.
+ *
+ * m_page_requests
+ * ---------------
+ * This is a set of lists, one list for each state as described above.
+ * Pages in these lists are in transit from disk to the memory to be
+ * made dirty. Thus they are suitable to be used if no dirty pages are
+ * available in memory. When we use those pages we will also move them
+ * to the proper list to ensure that they are no longer used when already
+ * full.
+ *
+ * list_index
+ * ----------
+ * This represents the state of the page from above (0 free, 1 "half full",
+ * 2 and 3 full). Also if 0x8000 is set the page isn't in the m_dirty_pages
+ * list.
+ *
+ * free_space
+ * ----------
+ * This is the count of the number of records stored on the page. It is
+ * update by calls to free_record and alloc_record in tuppage.cpp.
+ *
+ * disk_page_prealloc
+ * ------------------
+ * This function is called to allocate a record for use in insert of disk
+ * record. It returns the page id and page index of the row to be used.
+ * The page isn't necessarily available in memory when returned from
+ * this function. It is however guaranteed to at least be in transit
+ * from disk. So the caller can safely call get_page on this page and
+ * know that when it arrives it will be ready for consumption. The
+ * callbacks are executed in order, so this means that
+ * disk_page_prealloc_callback is called before the callback used by
+ * the caller to actually perform the insert action.
+ */
 int
 Dbtup::disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf, 
                                  Uint32 tableId,
@@ -2569,6 +2727,14 @@ Dbtup::disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf,
   tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
   Uint32 current_create_table_version = c_lqh->getCreateSchemaVersion(tableId);
+  DEB_EXTENT_BITS(("(%u)disk_restart_alloc_extent: tab(%u,%u):%u,"
+                   " current version: %u",
+                   instance(),
+                   tableId,
+                   fragId,
+                   create_table_version,
+                   current_create_table_version));
+
   if (tabPtr.p->tableStatus == DEFINED &&
       tabPtr.p->m_no_of_disk_attributes &&
       (current_create_table_version == create_table_version ||
@@ -2579,12 +2745,6 @@ Dbtup::disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf,
     if (!fragPtr.isNull())
     {
       thrjam(jamBuf);
-
-      if (fragPtr.p->m_undo_complete & Fragrecord::UC_CREATE)
-      {
-        thrjam(jamBuf);
-        return -1;
-      }
 
       Disk_alloc_info& alloc= fragPtr.p->m_disk_alloc_info;
       
@@ -2598,15 +2758,14 @@ Dbtup::disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf,
       ext.p->m_first_page_no = ext.p->m_key.m_page_no;
       ext.p->m_free_space= 0;
       ext.p->m_empty_page_no = (1 << 16); // We don't know, so assume none
-      DEB_EXTENT_BITS(("restart:extent(%u,%u) in tab(%u,%u), first_page(%u,%u)"
-                 " empty_page: %u",
+      DEB_EXTENT_BITS(("(%u)restart:extent(%u) in tab(%u,%u),"
+                       " first_page(%u,%u)",
                 instance(),
-                ext.i,
+                ext.p->m_key.m_page_idx,
                 fragPtr.p->fragTableId,
                 fragPtr.p->fragmentId,
-                ext.p->m_first_page_no,
                 ext.p->m_key.m_file_no,
-                ext.p->m_empty_page_no));
+                ext.p->m_first_page_no));
       memset(ext.p->m_free_page_count, 0, sizeof(ext.p->m_free_page_count));
       
       if (alloc.m_curr_extent_info_ptr_i != RNIL)
