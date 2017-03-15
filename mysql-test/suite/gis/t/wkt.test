@@ -309,8 +309,9 @@ CALL gis_wkt_funcs(2000);
 --echo # Geographic SRS (should pass)
 CALL gis_wkt_funcs(4326);
 
---echo # Undefined SRS (should pass)
+--echo # Undefined SRS (should fail)
 # Assume SRID 19000000 is undefined
+--error ER_SRS_NOT_FOUND
 CALL gis_wkt_funcs(19000000);
 
 --echo # Unparseable SRS definition (should fail)

@@ -812,8 +812,6 @@ public:
   It returns a point containing the decoded geohash value, where X is the
   longitude in the range of [-180, 180] and Y is the latitude in the range
   of [-90, 90].
-
-  At the moment, SRID can be any 32 bit unsigned integer.
 */
 class Item_func_pointfromgeohash : public Item_geometry_func
 {

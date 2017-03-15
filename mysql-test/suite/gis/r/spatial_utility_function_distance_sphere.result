@@ -487,13 +487,6 @@ ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 2000), ST_GEOMFROMTEXT('POINT(1
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 4326), ST_GEOMFROMTEXT('POINT(1 1)', 4326));
 ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 4326), ST_GEOMFROMTEXT('POINT(1 1)', 4326))
 157249.03572
-# Undefined SRS (should pass)
-SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 19000000), ST_GEOMFROMTEXT('POINT(1 1)', 19000000));
-ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 19000000), ST_GEOMFROMTEXT('POINT(1 1)', 19000000))
-157249.03572
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 19000000. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 19000000. The axis order is unknown.
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)

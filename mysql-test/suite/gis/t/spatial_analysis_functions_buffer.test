@@ -1374,10 +1374,6 @@ DO ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)', 2000), 1));
 --echo # Geographic SRS (should pass)
 DO ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)', 4326), 1));
 
---echo # Undefined SRS (should pass with warning)
-# Assume SRID 6000000 is undefined
-DO ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)', 6000000), 1));
-
 --echo # Unparseable SRS definition (should fail)
 # Assume SRID 6000001 is undefined
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
