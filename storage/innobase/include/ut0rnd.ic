@@ -39,6 +39,7 @@ Created 5/30/1994 Heikki Tuuri
 #define UT_XOR_RND2		143537923
 
 #include <my_thread_local.h>
+#include <my_thread_os_id.h>
 
 extern thread_local_key_t ut_rnd_ulint_counter_key;
 /********************************************************//**
@@ -95,10 +96,15 @@ ut_rnd_gen_ulint(void)
 
 	rnd_count_value = my_get_thread_local(ut_rnd_ulint_counter_key);
 
-	if(!rnd_count_value) {
+	if(UNIV_UNLIKELY(!rnd_count_value)) {
 		/* Reset the value if we recieve NULL rnd value i.e.
 		coming from new thread */
-		rnd = 65654363;
+		rnd = static_cast<ulint>(my_thread_os_id());
+
+		if (UNIV_UNLIKELY(!rnd)) {
+
+			rnd = 65654363;
+		}
 	} else {
 		/* Set otherwise rnd to non null recieved from the
 		existing thread */
