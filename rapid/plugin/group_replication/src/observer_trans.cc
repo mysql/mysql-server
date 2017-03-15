@@ -503,7 +503,7 @@ int group_replication_trans_before_commit(Trans_param *param)
      variable so that it won't be re-defined when this GTID is written to the
      binlog
     */
-    *(param->original_commit_timestamp)= my_micro_time_ntp();
+    *(param->original_commit_timestamp)= my_micro_time();
   } // otherwise the transaction did not originate in this server
 
   // Notice the GTID of atomic DDL is written to the trans cache as well.

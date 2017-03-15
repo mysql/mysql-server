@@ -4359,7 +4359,8 @@ innodb_init(
 	}
 
 #ifdef _WIN32
-	ut_win_init_time();
+	if (ut_win_init_time())
+    DBUG_RETURN(innodb_init_abort());
 #endif /* _WIN32 */
 	DBUG_RETURN(0);
 }

@@ -2390,7 +2390,7 @@ public:
     /* MYSQL_TIME */
     if (inspect_thd->query_start_in_secs())
       table->field[5]->
-        store((longlong) (my_time(0) - inspect_thd->query_start_in_secs()),
+        store((longlong) (my_micro_time()/1000000 - inspect_thd->query_start_in_secs()),
               false);
     else
       table->field[5]->store(0, false);

@@ -1371,7 +1371,7 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
     executing this code (the time of writing the Gtid_log_event to the binary
     log).
   */
-  ulonglong immediate_commit_timestamp= my_micro_time_ntp();
+  ulonglong immediate_commit_timestamp= my_micro_time();
 
   /*
     When the original_commit_timestamp session variable is set to a value
