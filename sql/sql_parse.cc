@@ -2508,13 +2508,18 @@ mysql_execute_command(THD *thd, bool first_level)
 
   if (unlikely(thd->slave_thread))
   {
+    bool need_increase_counter= !(lex->sql_command == SQLCOM_XA_START ||
+                                  lex->sql_command == SQLCOM_XA_END ||
+                                  lex->sql_command == SQLCOM_XA_COMMIT ||
+                                  lex->sql_command == SQLCOM_XA_ROLLBACK);
     // Database filters.
     if (lex->sql_command != SQLCOM_BEGIN &&
         lex->sql_command != SQLCOM_COMMIT &&
         lex->sql_command != SQLCOM_SAVEPOINT &&
         lex->sql_command != SQLCOM_ROLLBACK &&
         lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
-        !thd->rli_slave->rpl_filter->db_ok(thd->db().str))
+        !thd->rli_slave->rpl_filter->db_ok(thd->db().str,
+                                           need_increase_counter))
     {
       binlog_gtid_end_transaction(thd);
       DBUG_RETURN(0);

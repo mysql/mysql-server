@@ -76,15 +76,28 @@ USE test; INSERT INTO test.itable VALUES (1);             # Counter: REPLICATE_D
 USE test; INSERT INTO test.itable2 SELECT * FROM nodb.t1; # Counter: REPLICATE_DO_DB=16, REPLICATE_WILD_IGNORE_TABLE=2.
 COMMIT;
 
-DROP TABLE IF EXISTS test.t1, test.t2, test.itable, test.itable2; # Counter: REPLICATE_DO_DB=17, REPLICATE_DO_TABLE=9.
-DROP DATABASE db1;  # Counter: REPLICATE_DO_DB=18.
-DROP DATABASE db2;  # Counter: REPLICATE_DO_DB=19.
+XA START 'xa1';                             # COUNTER: No change
+ INSERT INTO t1 VALUES (2);                 # COUNTER: REPLICATE_DO_DB=17, REPLICATE_DO_TABLE=9
+ INSERT INTO t1 VALUES (3);                 # COUNTER: REPLICATE_DO_DB=18, REPLICATE_DO_TABLE=10
+XA END 'xa1';                               # COUNTER: No change
+XA PREPARE 'xa1';                           # COUNTER: No change
+XA COMMIT 'xa1';                            # COUNTER: No change
+
+XA START 'xa2';                             # COUNTER: No change
+ INSERT INTO t1 VALUES (4);                 # COUNTER: REPLICATE_DO_DB=19, REPLICATE_DO_TABLE=11
+XA END 'xa2';                               # COUNTER: No change
+XA PREPARE 'xa2';                           # COUNTER: No change
+XA ROLLBACK 'xa2';                          # COUNTER: No change
+
+DROP TABLE IF EXISTS test.t1, test.t2, test.itable, test.itable2; # Counter: REPLICATE_DO_DB=20, REPLICATE_DO_TABLE=12.
+DROP DATABASE db1;  # Counter: REPLICATE_DO_DB=21.
+DROP DATABASE db2;  # Counter: REPLICATE_DO_DB=22.
 DROP DATABASE nodb; # Counter: Should not increase based on existing implementation.
 
 --source include/sync_slave_sql_with_master.inc
 --echo #
 --echo # Verify the filter couter on the Slave.
---echo # REPLICATE_DO_DB=19,       REPLICATE_IGNORE_DB=0,     REPLICATE_DO_TABLE=9,
+--echo # REPLICATE_DO_DB=22,       REPLICATE_IGNORE_DB=0,     REPLICATE_DO_TABLE=12,
 --echo # REPLICATE_IGNORE_TABLE=2, REPLICATE_WILD_DO_TABLE=2,
 --echo # REPLICATE_WILD_IGNORE_TABLE=2, REPLICATE_REWRITE_DB=4.
 --echo #
