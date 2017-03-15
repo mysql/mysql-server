@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
 #include "ftdefs.h"
+#include "ctype.h"
 
 typedef struct st_ft_docstat {
   FT_WORD *list;
@@ -89,7 +90,7 @@ my_bool ft_boolean_check_syntax_string(const uchar *str)
   for (i=0; i<sizeof(DEFAULT_FTB_SYNTAX); i++)
   {
     /* limiting to 7-bit ascii only */
-    if ((unsigned char)(str[i]) > 127 || my_isalnum(default_charset_info, str[i]))
+    if ((unsigned char)(str[i]) > 127 || isalnum(str[i]))
       return 1;
     for (j=0; j<i; j++)
       if (str[i] == str[j] && (i != 11 || j != 10))
