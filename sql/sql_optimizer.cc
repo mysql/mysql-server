@@ -6250,7 +6250,7 @@ static void add_not_null_conds(JOIN *join)
 
 
 /**
-  Check if given expression only uses fields covered by index #keyno in the
+  Check if given expression only uses fields covered by index @a keyno in the
   table tbl. The expression can use any fields in any other tables.
 
   The expression is guaranteed not to be AND or OR - those constructs are
