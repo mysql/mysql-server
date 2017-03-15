@@ -61,6 +61,13 @@ static bool g_dbg_lcp = false;
 #define DEB_PGMAN_IO(arglist) do { } while (0)
 #endif
 
+//#define DEBUG_PGMAN_LCP 1
+#ifdef DEBUG_PGMAN_LCP
+#define DEB_PGMAN_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_PGMAN_LCP(arglist) do { } while (0)
+#endif
+
 Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
   SimulatedBlock(PGMAN, ctx, instanceNumber),
   m_fragmentRecordList(m_fragmentRecordPool),
@@ -345,6 +352,7 @@ Pgman::Page_entry::Page_entry(Uint32 file_no,
                               Uint32 fragmentId) :
   m_file_no(file_no),
   m_dirty_state(Pgman::IN_NO_DIRTY_LIST),
+  m_dirty_during_pageout(false),
   m_state(0),
   m_page_no(page_no),
   m_real_page_i(RNIL),
@@ -611,12 +619,14 @@ Pgman::get_page_entry(EmulatedJamBuffer* jamBuf,
                (flags & Page_request::EMPTY_PAGE)) ||
               (flags & Page_request::DISK_SCAN)))
         {
-          g_eventLogger->info("tab(%u,%u) page(%u,%u,%u)",
+          g_eventLogger->info("(%u)tab(%u,%u) page(%u,%u) on page:tab(%u,%u)",
+                              instance(),
                               tableId,
                               fragmentId,
-                              instance(),
                               file_no,
-                              page_no);
+                              page_no,
+                              ptr.p->m_table_id,
+                              ptr.p->m_fragment_id);
 
         }
         ndbrequire((flags & Page_request::ALLOC_REQ &&
@@ -1434,7 +1444,7 @@ Pgman::execSYNC_PAGE_CACHE_CONF(Signal *signal)
     if (isNdbMtLqh())
     {
       jam();
-      DEB_PGMAN(("sendEND_LCPCONF: instance(): %u", instance()));
+      DEB_PGMAN_LCP(("sendEND_LCPCONF: instance(): %u", instance()));
       sendEND_LCPCONF(signal);
       return;
     }
@@ -1451,7 +1461,7 @@ Pgman::execSYNC_PAGE_CACHE_CONF(Signal *signal)
 void
 Pgman::execSYNC_EXTENT_PAGES_CONF(Signal *signal)
 {
-  DEB_PGMAN(("sendEND_LCPCONF: instance(): %u", instance()));
+  DEB_PGMAN_LCP(("sendEND_LCPCONF: instance(): %u", instance()));
   sendEND_LCPCONF(signal);
 }
 
@@ -1493,7 +1503,7 @@ void Pgman::execSYNC_PAGE_CACHE_REQ(Signal *signal)
   ndbrequire(!m_lcp_outstanding);
   ndbrequire(!m_extra_pgman);
 
-  DEB_PGMAN(("execSYNC_PAGE_CACHE_REQ: instance(): %u", instance()));
+  DEB_PGMAN_LCP(("execSYNC_PAGE_CACHE_REQ: instance(): %u", instance()));
   /**
    * Switch over active list to the other list. This means that we are
    * ready to send all the dirty pages of the previously active list to
@@ -1770,7 +1780,7 @@ Pgman::execSYNC_EXTENT_PAGES_REQ(Signal *signal)
                         1, SyncExtentPagesReq::SignalLength);
     return;
   }
-  DEB_PGMAN(("SYNC_EXTENT_PAGES_REQ: instance(): %u", instance()));
+  DEB_PGMAN_LCP(("SYNC_EXTENT_PAGES_REQ: instance(): %u", instance()));
   m_sync_extent_order = req->lcpOrder;
   m_sync_extent_pages_ongoing = true;
   m_sync_extent_continueb_ongoing = true;
@@ -1789,6 +1799,7 @@ Pgman::execSYNC_EXTENT_PAGES_REQ(Signal *signal)
 void
 Pgman::finish_sync_extent_pages(Signal *signal)
 {
+  DEB_PGMAN_LCP(("SYNC_EXTENT_PAGES_CONF: instance(): %u", instance()));
   SyncExtentPagesConf *conf = (SyncExtentPagesConf*)signal->getDataPtr();
   m_sync_extent_pages_ongoing = false;
   m_sync_extent_continueb_ongoing = false;
@@ -2090,6 +2101,12 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
       jam();
       Tablespace_client tsman(signal, this, c_tsman, 0, 0, 0, 0);
       process_lcp_locked_fswriteconf(signal, ptr);
+      if (ptr.p->m_dirty_during_pageout)
+      {
+        jam();
+        ptr.p->m_dirty_during_pageout = false;
+        state |= Page_entry::DIRTY;
+      }
       set_page_state(jamBuffer(), ptr, state);
       do_busy_loop(signal, true, jamBuffer());
       return;
@@ -2278,7 +2295,7 @@ Pgman::get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal* signal,
 
   Page_state state = ptr.p->m_state;
   bool is_new = (state == 0);
-  bool busy_count = false;
+  Uint32 busy_count = 0;
 
   if (req_flags & Page_request::LOCK_PAGE)
   {
@@ -2293,7 +2310,7 @@ Pgman::get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal* signal,
   else if (req_flags & Page_request::COMMIT_REQ)
   {
     thrjam(jamBuf);
-    busy_count = true;
+    busy_count = 1;
     state |= Page_entry::BUSY;
   }
   else if ((req_flags & Page_request::OP_MASK) != ZREAD)
@@ -2328,6 +2345,7 @@ Pgman::get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal* signal,
        */
       thrjam(jamBuf);
       D("<get_page: immediate copy_page");
+      ptr.p->m_dirty_during_pageout = true;
       return ptr.p->m_copy_page_i;
     }
     

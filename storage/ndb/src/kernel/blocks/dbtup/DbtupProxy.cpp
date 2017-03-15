@@ -27,6 +27,13 @@
 
 extern EventLogger * g_eventLogger;
 
+#define DEBUG_TUP_RESTART_ 1
+#ifdef DEBUG_TUP_RESTART
+#define DEB_TUP_RESTART(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_TUP_RESTART(arglist) do { } while (0)
+#endif
+
 DbtupProxy::DbtupProxy(Block_context& ctx) :
   LocalProxy(DBTUP, ctx),
   c_pgman(0),
@@ -98,6 +105,7 @@ DbtupProxy::execCREATE_TAB_REQ(Signal* signal)
   ndbrequire(tableId < c_tableRecSize);
   ndbrequire(c_tableRec[tableId] == 0);
   c_tableRec[tableId] = 1;
+  DEB_TUP_RESTART(("Create table: %u", tableId));
   D("proxy: created table" << V(tableId));
 }
 
@@ -108,6 +116,7 @@ DbtupProxy::execDROP_TAB_REQ(Signal* signal)
   const Uint32 tableId = req->tableId;
   ndbrequire(tableId < c_tableRecSize);
   c_tableRec[tableId] = 0;
+  DEB_TUP_RESTART(("Dropped table: %u", tableId));
   D("proxy: dropped table" << V(tableId));
 }
 
@@ -287,13 +296,6 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
   case File_formats::Undofile::UNDO_TUP_CREATE:
   {
     jam();
-    Dbtup::Disk_undo::Create* rec= (Dbtup::Disk_undo::Create*)ptr;
-    Uint32 tableId = rec->m_table;
-    if (tableId < c_tableRecSize)
-    {
-      jam();
-      c_tableRec[tableId] = 0;
-    }
     /**
      * A table was created, if this happens before the start of the
      * LCP, then not much should happen since the table was still
@@ -318,13 +320,6 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
   case File_formats::Undofile::UNDO_TUP_DROP:
   {
     jam();
-    Dbtup::Disk_undo::Drop* rec= (Dbtup::Disk_undo::Drop*)ptr;
-    Uint32 tableId = rec->m_table;
-    if (tableId < c_tableRecSize)
-    {
-      jam();
-      c_tableRec[tableId] = 0;
-    }
     /**
      * A table was dropped during UNDO log writing. This means that the
      * table is no longer present, if no LCP record or CREATE record have
@@ -542,6 +537,9 @@ DbtupProxy::disk_restart_alloc_extent(Uint32 tableId,
   if (tableId >= c_tableRecSize || c_tableRec[tableId] == 0) {
     jam();
     D("proxy: table dropped" << V(tableId));
+#ifdef VM_TRACE
+    DEB_TUP_RESTART(("disk_restart_alloc_extent failed, tableId missing"));
+#endif
     return -1;
   }
 
@@ -550,6 +548,7 @@ DbtupProxy::disk_restart_alloc_extent(Uint32 tableId,
   if (instanceKey == RNIL)
   {
     jam();
+    DEB_TUP_RESTART(("disk_restart_alloc_extent failed, instanceKey = RNIL"));
     D("proxy: table either dropped, non-existent or fragment not existing"
       << V(tableId));
     return -1;
@@ -585,5 +584,4 @@ DbtupProxy::disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
   Dbtup* dbtup = (Dbtup*)workerBlock(i);
   dbtup->disk_restart_page_bits(jamBuffer(), tableId, fragId, key, bits);
 }
-
 BLOCK_FUNCTIONS(DbtupProxy)

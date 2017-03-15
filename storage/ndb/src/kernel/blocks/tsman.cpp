@@ -47,6 +47,20 @@ static bool g_use_old_format = false;
 #define DEB_TSMAN(arglist) do { } while (0)
 #endif
 
+#define DEBUG_TSMAN_RESTART 1
+#ifdef DEBUG_TSMAN_RESTART
+#define DEB_TSMAN_RESTART(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_TSMAN_RESTART(arglist) do { } while (0)
+#endif
+
+//#define DEBUG_TSMAN_IO 1
+#ifdef DEBUG_TSMAN_IO
+#define DEB_TSMAN_IO(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_TSMAN_IO(arglist) do { } while (0)
+#endif
+
 #define DBG_UNDO 0
 
 Tsman::Tsman(Block_context& ctx) :
@@ -1671,6 +1685,8 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
         jam();
         /* This extent was free still, so no need to do anything. */
         D("extent free" << V(j));
+        DEB_TSMAN_RESTART(("extent(%u,%u) free", ptr.p->m_file_no,
+                            ((page_no * per_page) + extent_no)));
         (*ext_table_id) = RNIL;
         (*ext_next_free_extent) = firstFree;
         firstFree = page_no * per_page + extent_no;
@@ -1705,13 +1721,14 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
         key.m_page_no = 
           pages + 1 + size * (page_no * per_page + extent_no - per_page);
         key.m_page_idx = page_no * per_page + extent_no;
-        if (!tup.disk_restart_alloc_extent((*ext_table_id),
-                                           (*ext_fragment_id),
-                                           v2 ?
-                                             (*ext_create_table_version) :
-                                             0,
-                                           &key,
-                                           size))
+        int res = tup.disk_restart_alloc_extent((*ext_table_id),
+                                                (*ext_fragment_id),
+                                                v2 ?
+                                                  (*ext_create_table_version) :
+                                                  0,
+                                                &key,
+                                                size);
+        if (res == 0)
         {
           jamEntry();
           ptr.p->m_online.m_used_extent_cnt++;
@@ -1742,6 +1759,10 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
            * be correct and we can use the extent for this fragment.
            */
           jam();
+          DEB_TSMAN_RESTART(("tab(%u,%u):%u not used, deleted",
+                             (*ext_table_id),
+                             (*ext_fragment_id),
+                             (*ext_create_table_version)));
           (*ext_table_id) = RNIL;
           (*ext_next_free_extent) = firstFree;
           firstFree = page_no * per_page + extent_no;
@@ -2301,6 +2322,18 @@ Tsman::update_page_free_bits(Signal* signal,
       }
       else
       {
+        DEB_TSMAN_IO(("(%u), page:(%u,%u), extent_page: (%u,%u) "
+                      "page_no_in_extent: %u,"
+                      " old_committed_bits: %u,"
+                      " new_committed_bits: %u",
+                      instance(),
+                      key->m_file_no,
+                      key->m_page_no,
+                      key->m_file_no,
+                      preq.m_page.m_page_no,
+                      page_no_in_extent,
+                      old_committed_bits,
+                      new_committed_bits));
         thrjam(jamBuf);
         flags = Page_cache_client::COMMIT_REQ;
         ndbrequire((real_page_id = pgman.get_page(signal, preq, flags)) > 0);
@@ -2430,8 +2463,8 @@ Tsman::unmap_page(Signal* signal, Local_key *key, Uint32 uncommitted_bits)
              << " fragment: " << *ext_fragment_id << " "
              << "trying to unmap page: " << *key 
              << " " << *ext_data << endl;
+      ndbrequire(false);
     }
-    ndbrequire((*ext_table_id) != RNIL);
     Uint32 page_no_in_extent = calc_page_no_in_extent(key->m_page_no, &val);
     /**
      * Toggle word
@@ -2571,6 +2604,14 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
              << *key << " " << (src & COMMITTED_MASK) 
              << " -> " << bits << endl;
     }
+    DEB_TSMAN_RESTART(("page(%u,%u) in tab(%u,%u):%u, bits = %u, extent: %u",
+                       key->m_file_no,
+                       key->m_page_no,
+                       tableId,
+                       fragId,
+                       create_table_version,
+                       bits,
+                       val.m_extent_no));
     /* Toggle word */
     ext_data->update_free_bits(page_no_in_extent, 
 			       bits | (bits << UNCOMMITTED_SHIFT));
