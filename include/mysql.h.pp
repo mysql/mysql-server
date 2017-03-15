@@ -245,6 +245,7 @@ ulong net_field_length(uchar **packet);
 my_ulonglong net_field_length_ll(uchar **packet);
 uchar *net_store_length(uchar *pkg, ulonglong length);
 unsigned int net_length_size(ulonglong num);
+unsigned int net_field_length_size(uchar *pos);
 #include "mysql/client_plugin.h"
 struct st_mysql_client_plugin
 {
