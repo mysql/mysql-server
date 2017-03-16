@@ -3027,8 +3027,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
           DBUG_RETURN(true);
         }
 
-        if (!tdc_open_view(thd, table_list, key, key_length,
-                           CHECK_METADATA_VERSION))
+        // Check metadata version and don't skip view defintion parsing.
+        if (!tdc_open_view(thd, table_list, key, key_length, true, false))
         {
           DBUG_ASSERT(table_list->is_view());
           DBUG_RETURN(FALSE); // VIEW
@@ -4178,7 +4178,8 @@ check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
    @param table_list        TABLE_LIST with db, table_name & belong_to_view
    @param cache_key         Key for table definition cache
    @param cache_key_length  Length of cache_key
-   @param flags             Flags which modify how we open the view
+   @param check_metadata_version  Check the TABLE_SHARE-version.
+   @param no_parse          Don't parse the view definition.
 
    @todo This function is needed for special handling of views under
          LOCK TABLES. We probably should get rid of it in long term.
@@ -4187,7 +4188,8 @@ check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
 */
 
 bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
-                   const char *cache_key, size_t cache_key_length, uint flags)
+                   const char *cache_key, size_t cache_key_length,
+                   bool check_metadata_version, bool no_parse)
 {
   my_hash_value_type hash_value;
   TABLE_SHARE *share;
@@ -4199,9 +4201,12 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
   if (!(share= get_table_share(thd, table_list, cache_key,
                                cache_key_length,
                                true, hash_value)))
-    goto err;
+  {
+    mysql_mutex_unlock(&LOCK_open);
+    return true;
+  }
 
-  if ((flags & CHECK_METADATA_VERSION))
+  if (check_metadata_version)
   {
     /*
       Check TABLE_SHARE-version of view only if we have been instructed to do
@@ -4215,7 +4220,8 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
     if (check_and_update_table_version(thd, table_list, share))
     {
       release_table_share(share);
-      goto err;
+      mysql_mutex_unlock(&LOCK_open);
+      return true;
     }
   }
 
@@ -4229,18 +4235,15 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
     if (view_open_result)
       return true;
 
-    bool view_parse_result= false;
-    if (!(flags & OPEN_VIEW_NO_PARSE))
-      view_parse_result= parse_view_definition(thd, table_list);
-
-    return view_parse_result;
+    if (no_parse)
+      return false;
+    return parse_view_definition(thd, table_list);
   }
 
   my_error(ER_WRONG_OBJECT, MYF(0), share->db.str, share->table_name.str, "VIEW");
   release_table_share(share);
-err:
   mysql_mutex_unlock(&LOCK_open);
-  return TRUE;
+  return true;
 }
 
 

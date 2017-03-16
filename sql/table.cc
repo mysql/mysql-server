@@ -72,7 +72,6 @@
 #include "query_result.h"                // Query_result
 #include "session_tracker.h"
 #include "set_var.h"
-#include "sql_base.h"                    // OPEN_VIEW_ONLY
 #include "sql_class.h"                   // THD
 #include "sql_error.h"
 #include "sql_lex.h"

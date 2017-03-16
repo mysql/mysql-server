@@ -66,9 +66,6 @@ class Table;
 #define READ_ALL		1	/* openfrm: Read all parameters */
 #define EXTRA_RECORD		8	/* Reservera plats f|r extra record */
 #define DELAYED_OPEN	        4096    /* Open table later */
-#define OPEN_VIEW		8196    /* Allow open on view */
-#define OPEN_VIEW_NO_PARSE     16384    /* Open frm only if it's a view,
-                                           but do not parse view itself */
 /**
   This flag is used in function get_all_tables() which fills
   I_S tables with data which are retrieved from frm files and storage engine
@@ -84,42 +81,16 @@ class Table;
 #define OPEN_TABLE_ONLY        OPEN_FRM_FILE_ONLY*2
 /**
   This flag is used in function get_all_tables() which fills
-  I_S tables with data which are retrieved from frm files and storage engine
-  The flag means that we need to process views only to get necessary data.
-  Tables are not processed.
-*/
-#define OPEN_VIEW_ONLY         OPEN_TABLE_ONLY*2
-/**
-  This flag is used in function get_all_tables() which fills
-  I_S tables with data which are retrieved from frm files and storage engine.
-  The flag means that we need to open a view.
-*/
-#define OPEN_VIEW_FULL         OPEN_VIEW_ONLY*2
-/**
-  This flag is used in function get_all_tables() which fills
   I_S tables with data which are retrieved from frm files and storage engine.
   The flag means that I_S table uses optimization algorithm.
 */
-#define OPTIMIZE_I_S_TABLE     OPEN_VIEW_FULL*2
-/**
-  The flag means that we need to process trigger files only.
-*/
-#define OPEN_TRIGGER_ONLY      OPTIMIZE_I_S_TABLE*2
-/**
-  This flag is used to instruct tdc_open_view() to check metadata version.
-*/
-#define CHECK_METADATA_VERSION OPEN_TRIGGER_ONLY*2
-/**
-  This flag is used to instruct open_table() to open
-  TMP_TABLE_COLUMNS/KEYS I_S table only for the SHOW commands.
-*/
-#define OPEN_FOR_SHOW_ONLY     CHECK_METADATA_VERSION*2
+#define OPTIMIZE_I_S_TABLE     OPEN_TABLE_ONLY*2
 /**
   Avoid dd::Table lookup in open_table_from_share() call.
   Temporary workaround used by upgrade code until we start
   reading info from InnoDB SYS tables directly.
 */
-#define OPEN_NO_DD_TABLE       OPEN_FOR_SHOW_ONLY*2
+#define OPEN_NO_DD_TABLE       OPTIMIZE_I_S_TABLE*2
 
 
 /*
@@ -354,7 +325,8 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
                       const char *db, const char *table_name,
                       bool has_lock);
 bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
-                   const char *cache_key, size_t cache_key_length, uint flags);
+                   const char *cache_key, size_t cache_key_length,
+                   bool check_metadata_version, bool no_parse);
 void tdc_flush_unused_tables();
 TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
                                   const char *table_name,

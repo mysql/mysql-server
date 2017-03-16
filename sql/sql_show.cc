@@ -35,25 +35,12 @@
 #include "binary_log_types.h"
 #include "binlog_event.h"
 #include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
-#include "dd/dd.h"                          // dd::get_dictionary()
 #include "dd/dd_schema.h"                   // dd::Schema_MDL_locker
-#include "dd/dictionary.h"                  // dd::Dictionary
 #include "dd/string_type.h"
-#include "dd/types/event.h"
-#include "dd/types/object_table.h"          // dd:Object_table
-#include "dd/types/routine.h"
-#include "dd/types/schema.h"
-#include "dd/types/table.h"
-#include "dd/types/view.h"
-#include "dd_sp.h"                          // is_dd_routine_type_function
-#include "dd_table_share.h"                 // dd_get_mysql_charset
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "derror.h"                         // ER_THD
 #include "enum_query_type.h"
 #include "error_handler.h"                  // Internal_error_handler
-#include "event_data_objects.h"             // Event_timed
-#include "event_parse_data.h"               // Event_parse_data
-#include "events.h"                         // Events
 #include "field.h"                          // Field
 #include "filesort.h"                       // filesort_free_buffers
 #include "hash.h"
@@ -126,10 +113,8 @@
 #include "sql_profile.h"
 #include "sql_security_ctx.h"
 #include "sql_table.h"                      // filename_to_tablename
-#include "sql_time.h"                       // interval_type_to_name
 #include "sql_tmp_table.h"                  // create_tmp_table
-#include "sql_trigger.h"                    // acquire_mdl_for_trigger
-#include "sql_view.h"                       // open_and_read_view
+#include "sql_trigger.h"                    // acquire_shared_mdl_for_trigger
 #include "stateless_allocator.h"
 #include "system_variables.h"
 #include "table_trigger_dispatcher.h"       // Table_trigger_dispatcher
@@ -138,13 +123,9 @@
 #include "thr_lock.h"
 #include "thr_malloc.h"
 #include "trigger.h"                        // Trigger
-#include "trigger_chain.h"                  // Trigger_chain
 #include "trigger_def.h"
 #include "tztime.h"                         // Time_zone
 
-namespace dd {
-class Abstract_table;
-}  // namespace dd
 #include <algorithm>
 #include <functional>
 #include <memory>
@@ -3847,7 +3828,20 @@ end:
   close_thread_tables(thd);
   /*
     Release metadata lock we might have acquired.
-    See comment in fill_schema_table_from_frm() for details.
+
+    Without this step metadata locks acquired for each table processed
+    will be accumulated. In situation when a lot of tables are processed
+    by I_S query this will result in transaction with too many metadata
+    locks. As result performance of acquisition of new lock will suffer.
+
+    Of course, the fact that we don't hold metadata lock on tables which
+    were processed till the end of I_S query makes execution less isolated
+    from concurrent DDL. Consequently one might get 'dirty' results from
+    such a query. But we have never promised serializability of I_S queries
+    anyway.
+
+    We don't have any tables open since we took backup, so rolling back to
+    savepoint is safe.
   */
   thd->mdl_context.rollback_to_savepoint(open_tables_state_backup->mdl_system_tables_svp);
 
@@ -3960,287 +3954,6 @@ try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
 
   return error;
 }
-
-
-/**
-  @brief          Fill I_S table with data from FRM file only
-
-  @param[in]      thd                      thread handler
-  @param[in]      tables                   TABLE struct for I_S table
-  @param[in]      schema_table             I_S table struct
-  @param[in]      db_name                  database name
-  @param[in]      table_name               table name
-  @param[in]      open_tables_state_backup Open_tables_state object which is used
-                                           to save/restore original state of metadata
-                                           locks.
-  @param[in]      can_deadlock             Indicates that deadlocks are possible
-                                           due to metadata locks, so to avoid
-                                           them we should not wait in case if
-                                           conflicting lock is present.
-
-  @return         Operation status
-    @retval       0           Table is processed and we can continue
-                              with new table
-    @retval       1           It's view and we have to use
-                              open_tables function for this table
-*/
-
-static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
-                                      ST_SCHEMA_TABLE *schema_table,
-                                      LEX_STRING *db_name,
-                                      LEX_STRING *table_name,
-                                      Open_tables_backup *open_tables_state_backup,
-                                      bool can_deadlock)
-{
-  TABLE *table= tables->table;
-  TABLE_SHARE *share;
-  TABLE_LIST table_list;
-  uint res= 0;
-  my_hash_value_type hash_value;
-  const char *key;
-  size_t key_length;
-  char db_name_buff[NAME_LEN + 1], table_name_buff[NAME_LEN + 1];
-
-  memset(&table_list, 0, sizeof(TABLE_LIST));
-
-  DBUG_ASSERT(db_name->length <= NAME_LEN);
-  DBUG_ASSERT(table_name->length <= NAME_LEN);
-
-  if (lower_case_table_names)
-  {
-    /*
-      In lower_case_table_names > 0 metadata locking and table definition
-      cache subsystems require normalized (lowercased) database and table
-      names as input.
-    */
-    my_stpcpy(db_name_buff, db_name->str);
-    my_stpcpy(table_name_buff, table_name->str);
-    my_casedn_str(files_charset_info, db_name_buff);
-    my_casedn_str(files_charset_info, table_name_buff);
-    table_list.db= db_name_buff;
-    table_list.table_name= table_name_buff;
-  }
-  else
-  {
-    table_list.table_name= table_name->str;
-    table_list.db= db_name->str;
-  }
-
-  /*
-    TODO: investigate if in this particular situation we can get by
-          simply obtaining internal lock of the data-dictionary
-          instead of obtaining full-blown metadata lock.
-  */
-  if (try_acquire_high_prio_shared_mdl_lock(thd, &table_list, can_deadlock))
-  {
-    /*
-      Some error occured (most probably we have been killed while
-      waiting for conflicting locks to go away), let the caller to
-      handle the situation.
-    */
-    return 1;
-  }
-
-  if (! table_list.mdl_request.ticket)
-  {
-    /*
-      We are in situation when we have encountered conflicting metadata
-      lock and deadlocks can occur due to waiting for it to go away.
-      So instead of waiting skip this table with an appropriate warning.
-    */
-    DBUG_ASSERT(can_deadlock);
-
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_WARN_I_S_SKIPPED_TABLE,
-                        ER_THD(thd, ER_WARN_I_S_SKIPPED_TABLE),
-                        table_list.db, table_list.table_name);
-    return 0;
-  }
-
-  if (schema_table->i_s_requested_object & OPEN_TRIGGER_ONLY)
-  {
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-    const dd::Table *table_obj= nullptr;
-    if (thd->dd_client()->acquire(db_name->str, table_name->str, &table_obj))
-    {
-      // Error is reported by the dictionary subsystem.
-      goto end;
-    }
-
-    if (table_obj == nullptr || !table_obj->has_trigger())
-      goto end;
-
-    Table_trigger_dispatcher tbl_trg_dsp(db_name->str, table_name->str);
-
-    if (!tbl_trg_dsp.check_n_load(thd, true))
-    {
-      TABLE tbl;
-
-      memset(&tbl, 0, sizeof(TABLE));
-      init_sql_alloc(key_memory_table_triggers_list,
-                     &tbl.mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-
-      tbl.triggers= &tbl_trg_dsp;
-      table_list.table= &tbl;
-
-      res= schema_table->process_table(thd, &table_list, table,
-                                       res, db_name, table_name);
-
-      table_list.table= NULL;
-      tbl.triggers= NULL;
-    }
-
-    goto end;
-  }
-
-  key_length= get_table_def_key(&table_list, &key);
-  hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
-  mysql_mutex_lock(&LOCK_open);
-  share= get_table_share(thd, &table_list, key,
-                         key_length, true, hash_value);
-  if (!share)
-  {
-    res= 0;
-    goto end_unlock;
-  }
-
-  if (share->is_view)
-  {
-    if (schema_table->i_s_requested_object & OPEN_TABLE_ONLY)
-    {
-      /* skip view processing */
-      res= 0;
-      goto end_share;
-    }
-    else if (schema_table->i_s_requested_object & OPEN_VIEW_FULL)
-    {
-      /*
-        tell get_all_tables() to fall back to open_tables_for_query()
-      */
-      res= 1;
-      goto end_share;
-    }
-  }
-
-  if (share->is_view)
-  {
-    bool view_open_result= open_and_read_view(thd, share, &table_list);
-
-    release_table_share(share);
-    mysql_mutex_unlock(&LOCK_open);
-
-    if (!view_open_result)
-    {
-      // Actual view query is not needed, just indicate that this is a view:
-      table_list.set_view_query((LEX *) 1);
-      res= schema_table->process_table(thd, &table_list, table,
-                                       res, db_name, table_name);
-    }
-    goto end;
-  }
-
-  {
-    mysql_mutex_unlock(&LOCK_open);
-    TABLE tbl;
-    memset(&tbl, 0, sizeof(TABLE));
-    init_sql_alloc(key_memory_table_triggers_list,
-                   &tbl.mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-
-    if (!open_table_from_share(thd, share, table_name->str, 0,
-                               (EXTRA_RECORD | OPEN_FRM_FILE_ONLY),
-                               thd->open_options, &tbl, false, NULL))
-    {
-      tbl.s= share;
-      table_list.table= &tbl;
-      table_list.set_view_query((LEX*) share->is_view);
-      res= schema_table->process_table(thd, &table_list, table,
-                                       res, db_name, table_name);
-      closefrm(&tbl, 0);
-      free_root(&tbl.mem_root, MYF(0));
-      my_free((void *) tbl.alias);
-    }
-    mysql_mutex_lock(&LOCK_open);
-  }
-
-end_share:
-  release_table_share(share);
-
-end_unlock:
-  mysql_mutex_unlock(&LOCK_open);
-
-end:
-  /*
-    Release metadata lock we might have acquired.
-
-    Without this step metadata locks acquired for each table processed
-    will be accumulated. In situation when a lot of tables are processed
-    by I_S query this will result in transaction with too many metadata
-    locks. As result performance of acquisition of new lock will suffer.
-
-    Of course, the fact that we don't hold metadata lock on tables which
-    were processed till the end of I_S query makes execution less isolated
-    from concurrent DDL. Consequently one might get 'dirty' results from
-    such a query. But we have never promised serializability of I_S queries
-    anyway.
-
-    We don't have any tables open since we took backup, so rolling back to
-    savepoint is safe.
-  */
-  DBUG_ASSERT(thd->open_tables == NULL);
-  thd->mdl_context.rollback_to_savepoint(open_tables_state_backup->mdl_system_tables_svp);
-  thd->clear_error();
-  return res;
-}
-
-
-/**
-  Trigger_error_handler is intended to intercept and silence SQL conditions
-  that might happen during trigger loading for SHOW statements.
-  The potential SQL conditions are:
-
-    - ER_PARSE_ERROR -- this error is thrown if a trigger definition file
-      is damaged or contains invalid CREATE TRIGGER statement. That should
-      not happen in normal life.
-
-    - ER_TRG_NO_CREATION_CTX -- this warning is thrown when we're loading a
-      trigger created/imported in/from the version of MySQL, which does not
-      support trigger creation contexts.
-*/
-
-class Trigger_error_handler : public Internal_error_handler
-{
-public:
-  virtual bool handle_condition(THD*,
-                                uint sql_errno,
-                                const char*,
-                                Sql_condition::enum_severity_level*,
-                                const char*)
-  {
-    if (sql_errno == ER_PARSE_ERROR ||
-        sql_errno == ER_TRG_NO_CREATION_CTX)
-      return true;
-
-    return false;
-  }
-};
-
-class Silence_deprecation_warnings : public Internal_error_handler
-{
-public:
-  virtual bool handle_condition(THD*,
-                                uint sql_errno,
-                                const char*,
-                                Sql_condition::enum_severity_level*,
-                                const char*)
-  {
-    if (sql_errno == ER_WARN_DEPRECATED_SYNTAX)
-      return true;
-
-    return false;
-  }
-};
-
 
 
 /**
@@ -4426,40 +4139,23 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 
         if (!partial_cond || partial_cond->val_int())
         {
-          if (!(table_open_method & ~OPEN_FRM_ONLY) &&
-              !with_i_schema)
-          {
-            /*
-              Here we need to filter out warnings, which can happen
-              during loading of triggers in fill_schema_table_from_frm(),
-              because we don't need those warnings to pollute output of
-              SELECT from I_S / SHOW-statements.
-            */
-
-            Trigger_error_handler err_handler;
-            thd->push_internal_handler(&err_handler);
-
-            int res= fill_schema_table_from_frm(thd, tables, schema_table,
-                                                db_name, table_name,
-                                                &open_tables_state_backup,
-                                                can_deadlock);
-
-            thd->pop_internal_handler();
-
-            if (!res)
-              continue;
-            else
-              goto err;
-          }
+          /*
+            OPEN_FRM_ONLY is only set for columns in tables which
+            does not have OPTIMIZE_I_S_TABLE set.
+            get_table_open_method() always returns OPEN_FULL_TABLE
+            if OPTIMIZE_I_S_TABLE is not set, so OPEN_FRM_ONLY will
+            never be the table_open_method.
+          */
+          DBUG_ASSERT(table_open_method != OPEN_FRM_ONLY);
 
           DEBUG_SYNC(thd, "before_open_in_get_all_tables");
 
-            if (fill_schema_table_by_open(thd, &tmp_mem_root, FALSE,
-                                          table, schema_table,
-                                          db_name, table_name,
-                                          &open_tables_state_backup,
-                                          can_deadlock))
-              goto err;
+          if (fill_schema_table_by_open(thd, &tmp_mem_root, FALSE,
+                                        table, schema_table,
+                                        db_name, table_name,
+                                        &open_tables_state_backup,
+                                        can_deadlock))
+            goto err;
         }
       }
       /*
@@ -6436,7 +6132,7 @@ ST_SCHEMA_TABLE schema_tables[]=
     get_schema_tmp_table_columns_record, -1, -1, 1, 0},
   {"TMP_TABLE_KEYS", tmp_table_keys_fields_info, create_schema_table,
    get_all_tables, make_old_format, get_schema_tmp_table_keys_record,
-   -1, -1, 1, OPEN_FOR_SHOW_ONLY},
+   -1, -1, 1, 0},
   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 
