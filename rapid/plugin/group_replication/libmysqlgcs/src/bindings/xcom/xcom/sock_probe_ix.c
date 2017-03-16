@@ -124,7 +124,7 @@ static int init_sock_probe(sock_probe *s)
    interfaces. We are doing this, since the size of sockaddr differs on
    some platforms.
    */
-  for (i= 0, ptr= s->ifc.ifc_buf, end= s->ifc.ifc_buf + s->ifc.ifc_len;
+  for (i= 0, ptr= (char *)s->ifc.ifc_buf, end= (char *)s->ifc.ifc_buf + s->ifc.ifc_len;
        ptr<end;
        i++)
   {
