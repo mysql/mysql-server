@@ -953,7 +953,7 @@ static my_time_t
 TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
                 bool *in_dst_time_gap)
 {
-  my_time_t local_t;
+  longlong local_t;
   uint saved_seconds;
   uint i;
   int shift= 0;
@@ -1036,16 +1036,16 @@ TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
       beginning of the gap.
     */
     *in_dst_time_gap= 1;
-    local_t= sp->revts[i] - sp->revtis[i].rt_offset + saved_seconds;
+    local_t= sp->revts[i] + saved_seconds - sp->revtis[i].rt_offset;
   }
   else
-    local_t= local_t - sp->revtis[i].rt_offset + saved_seconds;
+    local_t= local_t + saved_seconds - sp->revtis[i].rt_offset;
 
   /* check for TIMESTAMP_MAX_VALUE was already done above */
   if (local_t < TIMESTAMP_MIN_VALUE)
     local_t= 0;
 
-  DBUG_RETURN(local_t);
+  DBUG_RETURN(static_cast<my_time_t>(local_t));
 }
 
 
@@ -1418,7 +1418,7 @@ Time_zone_offset::TIME_to_gmt_sec(
   const MYSQL_TIME *t,
   bool *in_dst_time_gap MY_ATTRIBUTE((unused))) const
 {
-  my_time_t local_t;
+  longlong local_t;
   int shift= 0;
 
   /*
@@ -1447,7 +1447,7 @@ Time_zone_offset::TIME_to_gmt_sec(
   }
 
   if (local_t >= TIMESTAMP_MIN_VALUE && local_t <= TIMESTAMP_MAX_VALUE)
-    return local_t;
+    return static_cast<my_time_t>(local_t);
 
   /* range error*/
   return 0;

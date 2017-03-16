@@ -1476,7 +1476,7 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
        *current_handler ;)
   {
     error|= (*current_handler++)->log_slow(thd, current_utime,
-                                           (thd->start_time.tv_sec * 1000000) +
+                                           (thd->start_time.tv_sec * 1000000ULL) +
                                            thd->start_time.tv_usec,
                                            user_host_buff, user_host_len,
                                            query_utime, lock_utime, is_command,

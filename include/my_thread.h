@@ -51,6 +51,8 @@
 */
 #if defined(__sparc) && (defined(__SUNPRO_CC) || defined(__SUNPRO_C))
 #define STACK_MULTIPLIER 2UL
+#elif defined HAVE_UBSAN && SIZEOF_CHARP == 4
+#define STACK_MULTIPLIER 3UL
 #else
 #define STACK_MULTIPLIER 1UL
 #endif
