@@ -1400,7 +1400,7 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
       original commit timestamp is not known (the transaction wasn't
       originated on the current server).
     */
-    if (thd->slave_thread)
+    if (thd->slave_thread || thd->is_binlog_applier())
     {
       original_commit_timestamp= 0;
     }
