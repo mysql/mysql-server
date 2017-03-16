@@ -2229,24 +2229,35 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
   case Ndbinfo::CONFIG_NODES_TABLEID:
   {
     jam();
-    Ndbinfo::Ratelimit rl;
     ndb_mgm_configuration_iterator * iter = m_ctx.m_config.getClusterConfigIterator();
+    Uint32 row_num, sent_row_num = cursor->data[0];
 
-    for(ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter))
+    for(row_num = 1, ndb_mgm_first(iter);
+        ndb_mgm_valid(iter);
+        row_num++, ndb_mgm_next(iter))
     {
-      Uint32 row_node_id, row_node_type;
-      const char * hostname;
-      Ndbinfo::Row row(signal, req);
-      row.write_uint32(getOwnNodeId());
-      ndb_mgm_get_int_parameter(iter, CFG_NODE_ID, & row_node_id);
-      row.write_uint32(row_node_id);
-      ndb_mgm_get_int_parameter(iter, CFG_TYPE_OF_SECTION, & row_node_type);
-      row.write_uint32(row_node_type);
-      ndb_mgm_get_string_parameter(iter, CFG_NODE_HOST, & hostname);
-      row.write_string(hostname);
-      ndbinfo_send_row(signal, req, row, rl);
-    }
+      if(row_num > sent_row_num)
+      {
+        Uint32 row_node_id, row_node_type;
+        const char * hostname;
+        Ndbinfo::Row row(signal, req);
+        row.write_uint32(getOwnNodeId());
+        ndb_mgm_get_int_parameter(iter, CFG_NODE_ID, & row_node_id);
+        row.write_uint32(row_node_id);
+        ndb_mgm_get_int_parameter(iter, CFG_TYPE_OF_SECTION, & row_node_type);
+        row.write_uint32(row_node_type);
+        ndb_mgm_get_string_parameter(iter, CFG_NODE_HOST, & hostname);
+        row.write_string(hostname);
+        ndbinfo_send_row(signal, req, row, rl);
 
+        if (rl.need_break(req))
+        {
+          jam();
+          ndbinfo_send_scan_break(signal, req, rl, row_num);
+          return;
+        }
+      }
+    }
     break;
   }
 
