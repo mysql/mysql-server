@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -97,12 +97,6 @@ include_directories(${NDB_SOURCE_DIR}/src/ndbapi/)
 include_directories(${CMAKE_BINARY_DIR}/storage/ndb/memcache/include/)
 include_directories(AFTER ${MEMCACHED_INCLUDE_DIR})
 include_directories(AFTER ${BUNDLED_MEMCACHED})
-
-# Paths to libraries
-link_directories(${NDB_SOURCE_DIR}/src 
-                 ${NDB_SOURCE_DIR}/src/common/util
-                 ${CMAKE_CURRENT_SOURCE_DIR}/extra/memcached
-                )
 
 # Source files for this module 
 set(NDB_MEMCACHE_SOURCE_FILES
@@ -267,7 +261,7 @@ if(APPLE)
 elseif(${CMAKE_COMPILER_IS_GNUCC}) 
   set(FINAL_LINK_FLAGS "-shared")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "SunOS") 
-  set(FINAL_LINK_FLAGS "-G -lCrun")
+  set(FINAL_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS}")
 else()
   set(FINAL_LINK_FLAGS "")
 endif()
