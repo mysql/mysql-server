@@ -143,7 +143,8 @@ Partition_share::~Partition_share()
     @retval false Success.
 */
 
-bool Partition_share::init_auto_inc_mutex(TABLE_SHARE *table_share)
+bool Partition_share::
+init_auto_inc_mutex(TABLE_SHARE *table_share MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("Partition_share::init_auto_inc_mutex");
   DBUG_ASSERT(!auto_inc_mutex);
@@ -175,10 +176,11 @@ bool Partition_share::init_auto_inc_mutex(TABLE_SHARE *table_share)
   @param next_insert_id  Next insert id (first non used auto inc value).
   @param max_reserved    End of reserved auto inc range.
 */
-void
-Partition_share::release_auto_inc_if_possible(THD *thd, TABLE_SHARE *table_share,
-                                              const ulonglong next_insert_id,
-                                              const ulonglong max_reserved)
+void Partition_share::
+release_auto_inc_if_possible(THD *thd,
+                             TABLE_SHARE *table_share MY_ATTRIBUTE((unused)),
+                             const ulonglong next_insert_id,
+                             const ulonglong max_reserved)
 {
   DBUG_ASSERT(auto_inc_mutex);
 
@@ -2832,7 +2834,8 @@ int Partition_helper::ph_index_next(uchar *buf)
     @retval != 0  Error code
 */
 
-int Partition_helper::ph_index_next_same(uchar *buf, uint keylen)
+int Partition_helper::ph_index_next_same(uchar *buf,
+                                         uint keylen MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("Partition_helper::ph_index_next_same");
 

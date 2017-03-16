@@ -160,7 +160,7 @@ table_esmh_global::rnd_pos(const void *pos)
 }
 
 int
-table_esmh_global::index_init(uint idx, bool)
+table_esmh_global::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_esmh_global *result = NULL;
   DBUG_ASSERT(idx == 0);

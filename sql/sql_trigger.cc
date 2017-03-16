@@ -213,8 +213,8 @@ bool check_table_triggers_are_not_in_the_same_schema(const char *db_name,
 // Only used by NDB
 bool reload_triggers_for_table(THD *thd,
                                const char *db_name,
-                               const char *table_alias,
-                               const char *table_name,
+                               const char *table_alias MY_ATTRIBUTE((unused)),
+                               const char *table_name MY_ATTRIBUTE((unused)),
                                const char *new_db_name,
                                const char *new_table_name)
 {

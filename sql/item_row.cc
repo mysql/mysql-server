@@ -90,7 +90,8 @@ bool Item_row::itemize(Parse_context *pc, Item **res)
 }
 
 
-void Item_row::illegal_method_call(const char *method) const
+void Item_row::
+illegal_method_call(const char *method MY_ATTRIBUTE((unused))) const
 {
   DBUG_ENTER("Item_row::illegal_method_call");
   DBUG_PRINT("error", ("!!! %s method was called for row item", method));

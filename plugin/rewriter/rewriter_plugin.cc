@@ -340,8 +340,10 @@ static void log_nonrewritten_query(MYSQL_THD thd, const uchar *digest_buf,
   query when the plugin is active. The function extracts the digest of the
   query. If the digest matches an existing rewrite rule, it is executed.
 */
-static int rewrite_query_notify(MYSQL_THD thd, mysql_event_class_t event_class,
-                                 const void *event)
+static
+int rewrite_query_notify(MYSQL_THD thd,
+                         mysql_event_class_t event_class MY_ATTRIBUTE((unused)),
+                         const void *event)
 {
   DBUG_ASSERT(event_class == MYSQL_AUDIT_PARSE_CLASS);
 

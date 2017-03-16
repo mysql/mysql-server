@@ -5028,7 +5028,7 @@ TABLE_LIST *TABLE_LIST::last_leaf_for_name_resolution()
   @param want_privilege  Required privileges
 */
 
-void TABLE_LIST::set_want_privilege(ulong want_privilege)
+void TABLE_LIST::set_want_privilege(ulong want_privilege MY_ATTRIBUTE((unused)))
 {
 #ifndef DBUG_OFF
   // Remove SHOW_VIEW_ACL, because it will be checked during making view

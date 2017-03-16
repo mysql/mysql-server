@@ -835,8 +835,8 @@ Mts_submode_logical_clock::detach_temp_tables(THD *thd, const Relay_log_info* rl
 
 Slave_worker *
 Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
-                                                     Slave_worker_array *ws,
-                                                     Log_event * ev)
+                                  Slave_worker_array *ws MY_ATTRIBUTE((unused)),
+                                  Log_event * ev)
 {
   Slave_worker *worker= NULL;
   PSI_stage_info *old_stage= 0;

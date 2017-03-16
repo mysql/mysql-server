@@ -548,7 +548,8 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length)
 */
 int key_cmp2(KEY_PART_INFO *key_part,
              const uchar *key1, uint key1_length,
-             const uchar *key2, uint key2_length)
+             const uchar *key2,
+             uint key2_length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(key_part && key1 && key2);
   DBUG_ASSERT((key1_length == key2_length) && key1_length != 0 );

@@ -283,7 +283,7 @@ table_uvar_by_thread::rnd_pos(const void *pos)
 }
 
 int
-table_uvar_by_thread::index_init(uint idx, bool)
+table_uvar_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_uvar_by_thread *result = NULL;
   DBUG_ASSERT(idx == 0);

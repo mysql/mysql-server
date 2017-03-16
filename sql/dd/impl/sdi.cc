@@ -398,10 +398,11 @@ sdi_t serialize(const Tablespace &tablespace)
 }
 
 
-template <class Dd_type>
-bool generic_deserialize(THD *thd, const sdi_t &sdi,
-                         const String_type &object_type_name, Dd_type *dst,
-                         String_type *schema_name_from_sdi= nullptr)
+template <class Dd_type> bool
+generic_deserialize(THD *thd, const sdi_t &sdi,
+                    const String_type &object_type_name MY_ATTRIBUTE((unused)),
+                    Dd_type *dst,
+                    String_type *schema_name_from_sdi= nullptr)
 {
   RJ_Document doc;
   doc.Parse<0>(sdi.c_str());

@@ -1818,7 +1818,7 @@ bool sp_instr_cfetch::execute(THD *thd, uint *nextp)
 
   sp_cursor *c= thd->sp_runtime_ctx->get_cursor(m_cursor_idx);
 
-  return c ? c->fetch(thd, &m_varlist) : true;
+  return c ? c->fetch(&m_varlist) : true;
 }
 
 

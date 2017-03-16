@@ -5374,7 +5374,8 @@ static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
   if (dst != dst_end)
   {
     scanner.for_each_weight([&dst, d0, dst_end, flags]
-                              (int s_res, bool is_level_separator) {
+                            (int s_res,
+                              bool is_level_separator MY_ATTRIBUTE((unused))) {
       DBUG_ASSERT(is_level_separator == (s_res == 0));
       if (LEVELS_FOR_COMPARE == 1)
         DBUG_ASSERT(!is_level_separator);

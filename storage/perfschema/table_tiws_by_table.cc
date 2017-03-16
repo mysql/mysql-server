@@ -361,7 +361,7 @@ table_tiws_by_table::rnd_pos(const void *pos)
 }
 
 int
-table_tiws_by_table::index_init(uint idx, bool)
+table_tiws_by_table::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   m_normalizer = time_normalizer::get(wait_timer);
 

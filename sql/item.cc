@@ -10240,7 +10240,8 @@ bool Item_cache_row::cache_value()
 }
 
 
-void Item_cache_row::illegal_method_call(const char *method) const
+void Item_cache_row::
+illegal_method_call(const char *method MY_ATTRIBUTE((unused))) const
 {
   DBUG_ENTER("Item_cache_row::illegal_method_call");
   DBUG_PRINT("error", ("!!! %s method was called for row item", method));

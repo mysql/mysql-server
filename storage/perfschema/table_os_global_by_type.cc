@@ -278,7 +278,7 @@ table_os_global_by_type::rnd_pos(const void *pos)
 }
 
 int
-table_os_global_by_type::index_init(uint idx, bool)
+table_os_global_by_type::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_os_global_by_type *result;
   DBUG_ASSERT(idx == 0);

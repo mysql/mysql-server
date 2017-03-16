@@ -515,9 +515,10 @@ static int parse_vtokens(char *input, enum command type)
   @param event_class  audit API event class
   @param event        pointer to the audit API event data
 */
-static int version_token_check(MYSQL_THD thd,
-                               mysql_event_class_t event_class,
-                               const void *event)
+static
+int version_token_check(MYSQL_THD thd,
+                        mysql_event_class_t event_class MY_ATTRIBUTE((unused)),
+                        const void *event)
 {
   char *sess_var;
 

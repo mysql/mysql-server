@@ -2782,7 +2782,9 @@ public:
   static void *operator new(size_t size, MEM_ROOT *mem_root,
         const std::nothrow_t &arg MY_ATTRIBUTE((unused))= std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
-  static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
+  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
+                              size_t size MY_ATTRIBUTE((unused)))
+  { TRASH(ptr, size); }
   static void operator delete(void*, MEM_ROOT*,
                               const std::nothrow_t &) throw ()
   { /* Never called */ }
@@ -15529,9 +15531,10 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
   @param tree        The SEL_TREE that will be printed to debug log
   @param param       PARAM from test_quick_select
 */
-static inline void dbug_print_tree(const char *tree_name,
-                                   SEL_TREE *tree,
-                                   const RANGE_OPT_PARAM *param)
+static inline
+void dbug_print_tree(const char *tree_name MY_ATTRIBUTE((unused)),
+                     SEL_TREE *tree MY_ATTRIBUTE((unused)),
+                     const RANGE_OPT_PARAM *param MY_ATTRIBUTE((unused)))
 {
 #ifndef DBUG_OFF
   if (_db_enabled_())

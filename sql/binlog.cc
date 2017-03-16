@@ -8796,7 +8796,7 @@ static const char* g_stage_name[] = {
 */
 
 bool
-MYSQL_BIN_LOG::change_stage(THD *thd,
+MYSQL_BIN_LOG::change_stage(THD *thd MY_ATTRIBUTE((unused)),
                             Stage_manager::StageID stage, THD *queue,
                             mysql_mutex_t *leave_mutex,
                             mysql_mutex_t *enter_mutex)

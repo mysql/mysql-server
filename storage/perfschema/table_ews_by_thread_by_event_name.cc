@@ -266,7 +266,8 @@ table_ews_by_thread_by_event_name::rnd_pos(const void *pos)
 }
 
 int
-table_ews_by_thread_by_event_name::index_init(uint idx, bool)
+table_ews_by_thread_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
+                                              bool)
 {
   PFS_index_ews_by_thread_by_event_name *result = NULL;
   DBUG_ASSERT(idx == 0);

@@ -3737,7 +3737,8 @@ LEX::copy_db_to(char **p_db, size_t *p_db_length) const
 
   @returns false if success, true if error
 */
-bool SELECT_LEX_UNIT::prepare_limit(THD *thd_arg, SELECT_LEX *provider)
+bool SELECT_LEX_UNIT::prepare_limit(THD *thd_arg MY_ATTRIBUTE((unused)),
+                                    SELECT_LEX *provider)
 {
   /// @todo Remove THD from class SELECT_LEX_UNIT
   DBUG_ASSERT(this->thd == thd_arg);
@@ -3758,7 +3759,8 @@ bool SELECT_LEX_UNIT::prepare_limit(THD *thd_arg, SELECT_LEX *provider)
 
   @returns false if success, true if error
 */
-bool SELECT_LEX_UNIT::set_limit(THD *thd_arg, SELECT_LEX *provider)
+bool SELECT_LEX_UNIT::set_limit(THD *thd_arg MY_ATTRIBUTE((unused)),
+                                SELECT_LEX *provider)
 {
   /// @todo Remove THD from class SELECT_LEX_UNIT
   DBUG_ASSERT(this->thd == thd_arg);

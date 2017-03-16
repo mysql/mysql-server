@@ -3548,7 +3548,8 @@ int Field_tiny::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-size_t Field_tiny::make_sort_key(uchar *to, size_t length)
+size_t Field_tiny::make_sort_key(uchar *to,
+                                 size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 1);
   if (unsigned_flag)
@@ -3786,7 +3787,8 @@ int Field_short::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-size_t Field_short::make_sort_key(uchar *to, size_t length)
+size_t Field_short::make_sort_key(uchar *to,
+                                  size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 2);
 #ifdef WORDS_BIGENDIAN
@@ -3994,7 +3996,8 @@ int Field_medium::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-size_t Field_medium::make_sort_key(uchar *to, size_t length)
+size_t Field_medium::make_sort_key(uchar *to,
+                                   size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 3);
   if (unsigned_flag)
@@ -4243,7 +4246,8 @@ int Field_long::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-size_t Field_long::make_sort_key(uchar *to, size_t length)
+size_t Field_long::make_sort_key(uchar *to,
+                                 size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 4);
 #ifdef WORDS_BIGENDIAN
@@ -5828,7 +5832,8 @@ int Field_timestamp::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-size_t Field_timestamp::make_sort_key(uchar *to, size_t length)
+size_t Field_timestamp::make_sort_key(uchar *to,
+                                      size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 4);
 #ifdef WORDS_BIGENDIAN
@@ -6220,7 +6225,8 @@ int Field_time::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-size_t Field_time::make_sort_key(uchar *to, size_t length)
+size_t Field_time::make_sort_key(uchar *to,
+                                 size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 3);
   to[0] = (uchar) (ptr[2] ^ 128);
@@ -6630,7 +6636,8 @@ int Field_newdate::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-size_t Field_newdate::make_sort_key(uchar *to, size_t length)
+size_t Field_newdate::make_sort_key(uchar *to,
+                                    size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 3);
   to[0] = ptr[2];
@@ -8591,7 +8598,6 @@ uchar *Field_blob::pack(uchar *to, const uchar *from,
    simply is used as a pass-through to the original unpack() method for
    blob fields.
 
-   @param   to         Destination of the data
    @param   from       Source of the data
    @param   param_data @c TRUE if base types should be stored in little-
                        endian format, @c FALSE if native format should
@@ -8601,15 +8607,15 @@ uchar *Field_blob::pack(uchar *to, const uchar *from,
 
    @return  New pointer into memory based on from + length of the data
 */
-const uchar *Field_blob::unpack(uchar *to, 
+const uchar *Field_blob::unpack(uchar*,
                                 const uchar *from,
                                 uint param_data,
                                 bool low_byte_first)
 {
   DBUG_ENTER("Field_blob::unpack");
-  DBUG_PRINT("enter", ("to: %p; from: %p;"
+  DBUG_PRINT("enter", ("from: %p;"
                        " param_data: %u; low_byte_first: %d",
-                       to, from, param_data, low_byte_first));
+                       from, param_data, low_byte_first));
   uint const master_packlength=
     param_data > 0 ? param_data & 0xFF : packlength;
   uint32 const length= get_length(from, master_packlength, low_byte_first);

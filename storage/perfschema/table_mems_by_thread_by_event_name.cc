@@ -231,7 +231,8 @@ table_mems_by_thread_by_event_name::rnd_pos(const void *pos)
 }
 
 int
-table_mems_by_thread_by_event_name::index_init(uint idx, bool)
+table_mems_by_thread_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
+                                               bool)
 {
   DBUG_ASSERT(idx == 0);
   m_opened_index = PFS_NEW(PFS_index_mems_by_thread_by_event_name);

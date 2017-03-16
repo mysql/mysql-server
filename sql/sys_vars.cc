@@ -121,7 +121,8 @@
 TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
 
 static bool update_buffer_size(THD*, KEY_CACHE *key_cache,
-                               ptrdiff_t offset, ulonglong new_value)
+                               ptrdiff_t offset MY_ATTRIBUTE((unused)),
+                               ulonglong new_value)
 {
   bool error= false;
   DBUG_ASSERT(offset == offsetof(KEY_CACHE, param_buff_size));
@@ -826,7 +827,8 @@ static Sys_var_ulong Sys_binlog_group_commit_sync_no_delay_count(
        DEFAULT(0), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
-static bool check_has_super(sys_var *self, THD *thd, set_var*)
+static bool check_has_super(sys_var *self MY_ATTRIBUTE((unused)),
+                            THD *thd, set_var*)
 {
   DBUG_ASSERT(self->scope() != sys_var::GLOBAL);// don't abuse check_has_super()
   Security_context *sctx= thd->security_context();
@@ -4815,7 +4817,9 @@ static Sys_var_bit Sys_log_off(
 
   @return @c FALSE.
 */
-static bool fix_sql_log_bin_after_update(sys_var*, THD *thd, enum_var_type type)
+static bool
+fix_sql_log_bin_after_update(sys_var*, THD *thd,
+                             enum_var_type type MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(type == OPT_SESSION);
 

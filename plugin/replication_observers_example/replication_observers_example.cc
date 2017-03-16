@@ -201,7 +201,7 @@ static void dump_transaction_calls()
 /*
   Transaction lifecycle events observers.
 */
-static int trans_before_dml(Trans_param*, int& out_val)
+static int trans_before_dml(Trans_param*, int& out_val MY_ATTRIBUTE((unused)))
 {
   trans_before_dml_call++;
 
@@ -293,7 +293,7 @@ static int before_commit_tests(Trans_param *param,
 }
 #endif
 
-static int trans_before_commit(Trans_param *param)
+static int trans_before_commit(Trans_param *param MY_ATTRIBUTE((unused)))
 {
   trans_before_commit_call++;
 
@@ -329,7 +329,7 @@ static int trans_after_commit(Trans_param*)
   return 0;
 }
 
-static int trans_after_rollback(Trans_param *param)
+static int trans_after_rollback(Trans_param *param MY_ATTRIBUTE((unused)))
 {
   trans_after_rollback_call++;
 

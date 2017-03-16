@@ -1036,7 +1036,7 @@ void Gtid_state::update_gtids_impl_own_anonymous(THD* thd,
   }
 }
 
-void Gtid_state::update_gtids_impl_own_nothing(THD *thd)
+void Gtid_state::update_gtids_impl_own_nothing(THD *thd MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(thd->commit_error != THD::CE_COMMIT_ERROR ||
               thd->has_gtid_consistency_violation);

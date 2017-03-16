@@ -472,7 +472,7 @@ struct Query_cache_memory_bin
 #endif
   uint number;
 
-  void init(ulong size_arg)
+  void init(ulong size_arg MY_ATTRIBUTE((unused)))
   {
 #ifndef DBUG_OFF
     size = size_arg;
@@ -736,7 +736,7 @@ void Query_cache::lock(THD *thd)
   Set the query cache to UNLOCKED and signal waiting threads.
 */
 
-void Query_cache::unlock(THD *thd)
+void Query_cache::unlock(THD *thd MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("Query_cache::unlock");
   mysql_mutex_lock(&structure_guard_mutex);
@@ -2545,7 +2545,7 @@ void Query_cache::free_cache()
   state could have been changed, and should not be relied on.
 */
 
-void Query_cache::flush_cache(THD *thd)
+void Query_cache::flush_cache(THD *thd MY_ATTRIBUTE((unused)))
 {
   DEBUG_SYNC(thd, "wait_in_query_cache_flush2");
 

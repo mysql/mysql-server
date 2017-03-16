@@ -313,7 +313,7 @@ table_esms_by_program::rnd_pos(const void *pos)
 }
 
 int
-table_esms_by_program::index_init(uint idx, bool)
+table_esms_by_program::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_esms_by_program *result = NULL;
   DBUG_ASSERT(idx == 0);

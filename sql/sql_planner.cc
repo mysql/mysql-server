@@ -4594,8 +4594,9 @@ void Optimize_table_order::advance_sj_state(
                           current partial join order.
 */
 
-void Optimize_table_order::backout_nj_state(const table_map remaining_tables,
-                                            const JOIN_TAB *tab)
+void Optimize_table_order::
+backout_nj_state(const table_map remaining_tables MY_ATTRIBUTE((unused)),
+                 const JOIN_TAB *tab)
 {
   DBUG_ASSERT(remaining_tables & tab->table_ref->map());
 

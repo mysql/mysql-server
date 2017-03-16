@@ -300,7 +300,7 @@ table_setup_objects::rnd_pos(const void *pos)
 }
 
 int
-table_setup_objects::index_init(uint idx, bool)
+table_setup_objects::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_setup_objects *result = NULL;
   DBUG_ASSERT(idx == 0);

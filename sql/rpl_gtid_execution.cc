@@ -361,7 +361,7 @@ static inline bool is_already_logged_transaction(const THD *thd)
 
   @param  thd     The calling thread.
 */
-static inline void skip_statement(const THD *thd)
+static inline void skip_statement(const THD *thd MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("skip_statement");
 

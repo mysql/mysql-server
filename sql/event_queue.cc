@@ -518,7 +518,7 @@ Event_queue::empty_queue()
 */
 
 void
-Event_queue::dbug_dump_queue(time_t now)
+Event_queue::dbug_dump_queue(time_t now MY_ATTRIBUTE((unused)))
 {
 #ifndef DBUG_OFF
   DBUG_ENTER("Event_queue::dbug_dump_queue");

@@ -298,7 +298,7 @@ table_setup_instruments::rnd_pos(const void *pos)
 }
 
 int
-table_setup_instruments::index_init(uint idx, bool)
+table_setup_instruments::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_setup_instruments *result;
 

@@ -1851,7 +1851,7 @@ private:
   uint index;                     ///< copy of tab->index
 #else // in non-debug build, empty class
 public:
-  Plan_change_watchdog(const JOIN_TAB *tab_arg, const bool no_changes_arg) {}
+  Plan_change_watchdog(const JOIN_TAB*, const bool) {}
 #endif
 };
 

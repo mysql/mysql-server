@@ -187,7 +187,8 @@ bool Storage_adapter::get(THD *thd,
 
 // Drop a dictionary object from core storage.
 template <typename T>
-void Storage_adapter::core_drop(THD *thd, const T *object)
+void Storage_adapter::core_drop(THD *thd MY_ATTRIBUTE((unused)),
+                                const T *object)
 {
   DBUG_ASSERT(s_use_fake_storage || thd->is_dd_system_thread());
   DBUG_ASSERT(bootstrap::stage() <= bootstrap::BOOTSTRAP_CREATED);

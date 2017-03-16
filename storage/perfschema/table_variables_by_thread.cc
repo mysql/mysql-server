@@ -213,7 +213,7 @@ table_variables_by_thread::rnd_pos(const void *pos)
 }
 
 int
-table_variables_by_thread::index_init(uint idx, bool)
+table_variables_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   /* Build array of SHOW_VARs from the system variable hash. */
   m_sysvar_cache.initialize_session();

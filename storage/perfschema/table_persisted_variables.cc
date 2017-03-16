@@ -177,7 +177,7 @@ table_persisted_variables::rnd_pos(const void *pos)
 }
 
 int
-table_persisted_variables::index_init(uint idx, bool)
+table_persisted_variables::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   /*
     Build a cache of system variables for this thread.

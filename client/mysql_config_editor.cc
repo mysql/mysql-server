@@ -227,7 +227,7 @@ extern "C" {
 static bool
 my_program_get_one_option(int optid,
                           const struct my_option *opt MY_ATTRIBUTE((unused)),
-                          char *argument)
+                          char *argument MY_ATTRIBUTE((unused)))
 {
   switch(optid) {
   case '#':

@@ -206,7 +206,8 @@ Server_side_cursor::~Server_side_cursor()
 }
 
 
-void Server_side_cursor::operator delete(void *ptr, size_t size)
+void Server_side_cursor::operator delete(void *ptr,
+                                         size_t size MY_ATTRIBUTE((unused)))
 {
   Server_side_cursor *cursor= (Server_side_cursor*) ptr;
   MEM_ROOT own_root= std::move(*cursor->mem_root);

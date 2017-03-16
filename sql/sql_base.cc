@@ -7297,7 +7297,6 @@ bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list)
     thd				thread handler
     table_list			view to search for 'name'
     name			name of field
-    item_name                   name of item if it will be created (VIEW)
     ref				expression substituted in VIEW should be passed
                                 using this reference (return view_ref_found)
     register_tree_change        TRUE if ref is not stack variable and we
@@ -7312,13 +7311,13 @@ bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list)
 static Field *
 find_field_in_view(THD *thd, TABLE_LIST *table_list,
                    const char *name,
-                   const char *item_name, Item **ref,
+                   Item **ref,
                    bool register_tree_change)
 {
   DBUG_ENTER("find_field_in_view");
   DBUG_PRINT("enter",
-             ("view: '%s', field name: '%s', item name: '%s', ref %p",
-              table_list->alias, name, item_name, ref));
+             ("view: '%s', field name: '%s', ref %p",
+              table_list->alias, name, ref));
   Field_iterator_view field_it;
   field_it.set(table_list);
 
@@ -7683,7 +7682,7 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
   if (table_list->field_translation)
   {
     /* 'table_list' is a view or an information schema table. */
-    if ((fld= find_field_in_view(thd, table_list, name, item_name, ref,
+    if ((fld= find_field_in_view(thd, table_list, name, ref,
                                  register_tree_change)))
       *actual_table= table_list;
   }

@@ -473,7 +473,7 @@ public:
   Type type() const override { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func() const= 0;
   virtual void fix_after_pullout(SELECT_LEX*,
-                                 SELECT_LEX *removed_select) override
+                     SELECT_LEX *removed_select MY_ATTRIBUTE((unused))) override
   {
     // Just make sure we are not aggregating into a context that is merged up.
     DBUG_ASSERT(base_select != removed_select &&

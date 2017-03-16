@@ -208,7 +208,7 @@ table_esmh_by_digest::rnd_pos(const void *pos)
 }
 
 int
-table_esmh_by_digest::index_init(uint idx, bool)
+table_esmh_by_digest::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_esmh_by_digest *result = NULL;
   DBUG_ASSERT(idx == 0);

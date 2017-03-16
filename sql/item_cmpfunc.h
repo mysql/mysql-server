@@ -398,7 +398,7 @@ protected:
 class Equal_creator :public Linear_comp_creator
 {
 public:
-  virtual const char* symbol(bool invert) const
+  virtual const char* symbol(bool invert MY_ATTRIBUTE((unused))) const
   {
     // This will never be called with true.
     DBUG_ASSERT(!invert);

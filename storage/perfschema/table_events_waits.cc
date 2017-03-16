@@ -1095,7 +1095,7 @@ table_events_waits_current::rnd_pos(const void *pos)
 }
 
 int
-table_events_waits_current::index_init(uint idx, bool)
+table_events_waits_current::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_events_waits *result;
   DBUG_ASSERT(idx == 0);
@@ -1277,7 +1277,7 @@ table_events_waits_history::rnd_pos(const void *pos)
 }
 
 int
-table_events_waits_history::index_init(uint idx, bool)
+table_events_waits_history::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_events_waits *result;
   DBUG_ASSERT(idx == 0);

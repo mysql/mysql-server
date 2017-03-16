@@ -444,7 +444,7 @@ public:
   bool is_open() const
   { return MY_TEST(m_server_side_cursor); }
 
-  bool fetch(THD *thd, List<sp_variable> *vars);
+  bool fetch(List<sp_variable> *vars);
 
   sp_instr_cpush *get_push_instr()
   { return m_push_instr; }

@@ -491,7 +491,8 @@ public:
                             std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
 
-  static void operator delete(void *ptr_arg,size_t size)
+  static void operator delete(void *ptr_arg MY_ATTRIBUTE((unused)),
+                              size_t size MY_ATTRIBUTE((unused)))
   { TRASH(ptr_arg, size); }
 
   static void operator delete(void*, MEM_ROOT*,
@@ -3916,7 +3917,8 @@ ulonglong sys_var_pluginvar::get_max_value()
   @retval true not valid
   @retval false valid
 */
-bool sys_var_pluginvar::on_check_pluginvar(sys_var *self, THD*, set_var *var)
+bool sys_var_pluginvar::on_check_pluginvar(sys_var *self MY_ATTRIBUTE((unused)),
+                                           THD*, set_var *var)
 {
   /* This handler is installed only if NO_DEFAULT is specified */
   DBUG_ASSERT(((sys_var_pluginvar *) self)->plugin_var->flags &

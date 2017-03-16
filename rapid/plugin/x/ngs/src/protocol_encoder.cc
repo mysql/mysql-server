@@ -258,7 +258,7 @@ void Protocol_encoder::log_protobuf(const char *direction_name, Request &request
 
 void
 Protocol_encoder::log_protobuf(const char *direction_name MY_ATTRIBUTE((unused)),
-                               const Message *message)
+                               const Message *message MY_ATTRIBUTE((unused)))
 {
 #ifdef USE_MYSQLX_FULL_PROTO
   std::string text_message;

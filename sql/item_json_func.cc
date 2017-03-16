@@ -2060,7 +2060,9 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr)
   @param[in] v    the JSON item matched
   @return true if v is a top level item
 */
-static inline bool wrapped_top_level_item(Json_path *path, Json_dom *v)
+static inline
+bool wrapped_top_level_item(Json_path *path MY_ATTRIBUTE((unused)),
+                            Json_dom *v)
 {
   if (v->parent())
     return false;
