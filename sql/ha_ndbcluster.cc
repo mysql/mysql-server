@@ -381,11 +381,10 @@ static int ndbcluster_get_tablespace(THD* thd,
                                      LEX_CSTRING db_name,
                                      LEX_CSTRING table_name,
                                      LEX_CSTRING *tablespace_name);
-static int ndbcluster_alter_tablespace(handlerton *hton,
-                                       THD* thd, 
-                                       st_alter_tablespace *info,
-                                       const dd::Tablespace *old_ts_def,
-                                       dd::Tablespace *new_ts_def);
+static int ndbcluster_alter_tablespace(handlerton*, THD* thd,
+                                       st_alter_tablespace* info,
+                                       const dd::Tablespace*,
+                                       dd::Tablespace*);
 static int ndbcluster_fill_files_table(handlerton *hton,
                                        THD *thd, 
                                        TABLE_LIST *tables, 
@@ -19365,11 +19364,37 @@ int ndbcluster_get_tablespace(THD* thd,
   DBUG_RETURN(0);
 }
 
+
+/**
+  Create/drop or alter tablespace or logfile group
+
+  @param          hton        Hadlerton of the SE.
+  @param          thd         Thread context.
+  @param          ts_info     Description of tablespace and specific
+                              operation on it.
+  @param          old_ts_def  dd::Tablespace object describing old version
+                              of tablespace.
+  @param [in,out] new_ts_def  dd::Tablespace object describing new version
+                              of tablespace. Engines which support atomic DDL
+                              can adjust this object. The updated information
+                              will be saved to the data-dictionary.
+
+  @return Operation status.
+    @retval == 0  Success.
+    @retval != 0  Error, only a subset of handler error codes (i.e those
+                  that start with HA_) can be returned. Special case seems
+                  to be 1 which is to be used when my_error() already has
+                  been called to set the MySQL error code.
+
+  @note There are many places in this function which return 1 without
+        calling my_error() first.
+*/
+
 static
-int ndbcluster_alter_tablespace(handlerton *hton,
+int ndbcluster_alter_tablespace(handlerton*,
                                 THD* thd, st_alter_tablespace *alter_info,
-                                const dd::Tablespace *old_ts_def,
-                                dd::Tablespace *new_ts_def)
+                                const dd::Tablespace*,
+                                dd::Tablespace*)
 {
   int is_tablespace= 0;
   NdbError err;
@@ -19670,7 +19695,7 @@ int ndbcluster_alter_tablespace(handlerton *hton,
                              "", alter_info->logfile_group_name,
                              table_id, table_version,
                              SOT_LOGFILE_GROUP, NULL, NULL);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(0);
 
 ndberror:
   err= dict->getNdbError();
@@ -19678,7 +19703,7 @@ ndberror2:
   ndb_to_mysql_error(&err);
   
   my_error(error, MYF(0), errmsg);
-  DBUG_RETURN(1);
+  DBUG_RETURN(1); // Error, my_error called
 }
 
 
