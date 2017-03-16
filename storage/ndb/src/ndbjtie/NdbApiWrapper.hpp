@@ -3569,6 +3569,13 @@ struct NdbApiWrapper {
         return obj.get_next_ndb_object(p0);
     }
 
+    static const char *
+    Ndb_cluster_connection__get_system_name
+    ( const Ndb_cluster_connection & obj )
+    {
+        return obj.get_system_name();
+    }
+
 // ---------------------------------------------------------------------------
 
 };

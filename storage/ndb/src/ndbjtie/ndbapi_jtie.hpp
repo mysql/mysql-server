@@ -10314,6 +10314,22 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_get_1next_1ndb_1object(JN
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
+ * Method:    get_system_name
+ * Signature: ()Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_get_1system_1name(JNIEnv * env, jobject obj)
+{
+    TRACE("jstring Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_get_1system_1name(JNIEnv *, jobject)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_n_Ndb_cluster_connection_ct, ttrait_char_cp_jutf8null, &Ndb_cluster_connection::get_system_name >(env, obj);
+#else
+    return gcall_fr< ttrait_char_cp_jutf8null, ttrait_c_m_n_n_Ndb_cluster_connection_cr, &NdbApiWrapper::Ndb_cluster_connection__get_system_name >(env, NULL, obj);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
 } // extern "C"
 
 #endif // ndbapi_jtie_hpp
