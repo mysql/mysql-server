@@ -1710,17 +1710,21 @@ reporting_node_id	int(10) unsigned	YES		NULL
 node_id	int(10) unsigned	YES		NULL	
 node_type	int(10) unsigned	YES		NULL	
 node_hostname	varchar(512)	YES		NULL	
-show create table config_nodes;
-View	Create View	character_set_client	collation_connection
-config_nodes	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `config_nodes` AS select distinct `ndb$config_nodes`.`node_id` AS `node_id`,(case `ndb$config_nodes`.`node_type` when 0 then 'NDB' when 1 then 'API' when 2 then 'MGM' else NULL end) AS `node_type`,`ndb$config_nodes`.`node_hostname` AS `node_hostname` from `ndb$config_nodes` order by `ndb$config_nodes`.`node_id`	latin1	latin1_swedish_ci
+select view_definition, is_updatable, security_type
+  FROM information_schema.views
+  WHERE table_schema = 'ndbinfo' AND table_name = 'config_nodes';
+view_definition	is_updatable	security_type
+select distinct `ndbinfo`.`ndb$config_nodes`.`node_id` AS `node_id`,(case `ndbinfo`.`ndb$config_nodes`.`node_type` when 0 then 'NDB' when 1 then 'API' when 2 then 'MGM' else NULL end) AS `node_type`,`ndbinfo`.`ndb$config_nodes`.`node_hostname` AS `node_hostname` from `ndbinfo`.`ndb$config_nodes` order by `ndbinfo`.`ndb$config_nodes`.`node_id`	NO	INVOKER
 
-SELECT * from ndb$config_nodes;
+SELECT * from ndb$config_nodes order by reporting_node_id, node_id;
 reporting_node_id	node_id	node_type	node_hostname
+1	1	0	localhost
+1	2	0	localhost
 1	3	2	localhost
-1	49	1	localhost
 1	16	1	localhost
 1	32	1	localhost
 1	48	1	localhost
+1	49	1	localhost
 1	63	1	localhost
 1	127	1	localhost
 1	192	1	localhost
@@ -1731,13 +1735,13 @@ reporting_node_id	node_id	node_type	node_hostname
 1	232	1	localhost
 1	233	1	localhost
 1	255	1	localhost
-1	1	0	localhost
-1	2	0	localhost
+2	1	0	localhost
+2	2	0	localhost
 2	3	2	localhost
-2	49	1	localhost
 2	16	1	localhost
 2	32	1	localhost
 2	48	1	localhost
+2	49	1	localhost
 2	63	1	localhost
 2	127	1	localhost
 2	192	1	localhost
@@ -1748,26 +1752,12 @@ reporting_node_id	node_id	node_type	node_hostname
 2	232	1	localhost
 2	233	1	localhost
 2	255	1	localhost
-2	1	0	localhost
-2	2	0	localhost
 
-SELECT * from config_nodes;
-node_id	node_type	node_hostname
-1	NDB	localhost
-2	NDB	localhost
-3	MGM	localhost
-16	API	localhost
-32	API	localhost
-48	API	localhost
-49	API	localhost
-63	API	localhost
-127	API	localhost
-192	API	localhost
-228	API	localhost
-229	API	localhost
-230	API	localhost
-231	API	localhost
-232	API	localhost
-233	API	localhost
-255	API	localhost
+SELECT node_type, count(*),
+ GROUP_CONCAT(node_id order by 1 asc separator " ") ids
+ FROM config_nodes group by node_type order by node_type;
+node_type	count(*)	ids
+API	14	16 32 48 49 63 127 192 228 229 230 231 232 233 255
+MGM	1	3
+NDB	2	1 2
 

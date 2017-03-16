@@ -884,13 +884,17 @@ ORDER BY node_id;
 #
 # (A) Normative tests of table and view definition
 desc ndb$config_nodes;
-show create table config_nodes;
+select view_definition, is_updatable, security_type
+  FROM information_schema.views
+  WHERE table_schema = 'ndbinfo' AND table_name = 'config_nodes';
 
 # (B) Tests of table content.
 # These results will change if the cluster config used when running
 # this test case changes.
-SELECT * from ndb$config_nodes;
+SELECT * from ndb$config_nodes order by reporting_node_id, node_id;
 
 # (C) Tests of view: SELECT DISTINCT, removing reporting_node_id
-SELECT * from config_nodes;
+SELECT node_type, count(*),
+ GROUP_CONCAT(node_id order by 1 asc separator " ") ids
+ FROM config_nodes group by node_type order by node_type;
 
