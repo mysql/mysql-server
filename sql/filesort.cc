@@ -361,7 +361,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 {
   int error;
   ulong memory_available= thd->variables.sortbuff_size;
-  size_t num_chunks;
+  size_t num_chunks, num_initial_chunks;
   ha_rows num_rows_found= HA_POS_ERROR;
   ha_rows num_rows_estimate= HA_POS_ERROR;
   IO_CACHE tempfile;   // Temporary file for storing intermediate results.
@@ -540,6 +540,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 
   num_chunks= static_cast<size_t>(my_b_tell(&chunk_file)) /
     sizeof(Merge_chunk);
+  num_initial_chunks= num_chunks;
 
   if (num_chunks == 0)                   // The whole set is in memory
   {
@@ -623,7 +624,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
       .add("num_rows_estimate", num_rows_estimate)
       .add("num_rows_found", num_rows_found)
       .add("num_examined_rows", param.num_examined_rows)
-      .add("num_tmp_files", num_chunks)
+      .add("num_initial_chunks_spilled_to_disk", num_initial_chunks)
       .add("sort_buffer_size", table_sort.sort_buffer_size())
       .add_alnum("sort_algorithm", algo_text[param.m_sort_algorithm]);
     if (!param.using_packed_addons())
