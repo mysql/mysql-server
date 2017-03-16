@@ -2440,15 +2440,17 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length)
         // How many bytes do we need (including sort weights) for strnxfrm()?
         sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);
 
-        if (cs->pad_attribute == NO_PAD)
+        if (cs == &my_charset_bin)
         {
           /*
             Store length last, which makes it into a tie-breaker. This is
             so that e.g. 'a' < 'a\0' for the binary collation, even though
-            the field is fixed-width and pads with '\0'. The utf8mb4_0900_*
-            collations technically don't need this, since they pad with 0
-            (which does not match any real weight), but we'd like not to
-            rely on such implementation details in filesort.
+            the field is fixed-width and pads with '\0'. Other NO PAD collations
+            should not have this, since this is _input_ length, and if anything,
+            we should tie-break on _output_ length. The only other ones we have
+            at this point are the utf8mb4_0900_* collations, which don't have
+            this problem (they pad with 0000, which doesn't match any weight),
+            and we'll go to variable-length sorting before we get others.
           */
           sortorder->suffix_length= suffix_length(sortorder->length);
           sortorder->length+= sortorder->suffix_length;
