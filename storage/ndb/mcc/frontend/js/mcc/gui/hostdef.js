@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -209,14 +209,14 @@ function saveSelectedHosts(event) {
             }
             if (dijit.byId("ram").getValue()) {
                 var val = dijit.byId("ram").getValue();
-                if (val > 0 && val < 1000000) {
+                if (val > 0 && val < 90000000) {
                     mcc.storage.hostStorage().store().setValue(selection[i], 
                         "ram", val);
                 }
             }
             if (dijit.byId("cores").getValue()) {
                 var val = dijit.byId("cores").getValue();
-                if (val > 0 && val < 100) {
+                if (val > 0 && val < 5000) {
                     mcc.storage.hostStorage().store().setValue(selection[i], 
                         "cores", val);
                 }
@@ -235,6 +235,10 @@ function saveSelectedHosts(event) {
                     mcc.util.terminatePath(dijit.byId("datadir").getValue()));
                 mcc.storage.hostStorage().store().setValue(selection[i], 
                     "datadir_predef", false);
+            }
+            if (dijit.byId("diskfree").getValue()) {
+                mcc.storage.hostStorage().store().setValue(selection[i], 
+                        "diskfree", dijit.byId("diskfree").getValue());
             }
         }
         mcc.storage.hostStorage().save();
@@ -267,7 +271,10 @@ function getFieldTT(field) {
                 "for individual processes are defined automatically by " +
                 "appending process ids to this root path. If you want to " +
                 "have different data directories for different processes, " +
-                "this can be overridden for each process later in this wizard."
+                "this can be overridden for each process later in this wizard.",
+        diskfree: "<i>DiskFree</i> Amount of free space (in GB) available on " +
+                  "chosen Data directory disk. In case of failure to fetch," +
+                  "unknown is displayed."
     }
     return fieldTT[field];
 }
@@ -316,6 +323,11 @@ function editHostsDialogSetup() {
                                     id=\"datadir_qm\">[?]\
                                 </span>\
                             </td>\
+                            <td>DiskFree \
+                                <span class=\"helpIcon\"\
+                                    id=\"diskfree_qm\">[?]\
+                                </span>\
+                            </td>\
                         </tr>\
                         <tr>\
                             <td><span id='uname'></span></td>\
@@ -323,6 +335,7 @@ function editHostsDialogSetup() {
                             <td><span id='cores'></span></td>\
                             <td><span id='installdir'></span></td>\
                             <td><span id='datadir'></span></td>\
+                            <td><span id='diskfree'></span></td>\
                         </tr>\
                     </table>\
                     </p>\
@@ -345,16 +358,18 @@ function editHostsDialogSetup() {
         var uname = new dijit.form.TextBox({style: "width: 60px"}, "uname");
         var ram = new dijit.form.NumberSpinner({
             style: "width: 80px",
-            constraints: {min: 1, max: 1000000, places: 0}
+            constraints: {min: 1, max: 90000000, places: 0}
         }, "ram");
         var cores = new dijit.form.NumberSpinner({
             style: "width: 80px",
-            constraints: {min: 1, max: 100, places: 0, format:"####"}
+            constraints: {min: 1, max: 5000, places: 0, format:"####"}
         }, "cores");
         var installdir = new dijit.form.TextBox({style: "width: 170px"}, 
                 "installdir");
         var datadir = new dijit.form.TextBox({style: "width: 170px"}, 
                 "datadir");
+        var diskfree = new dijit.form.TextBox({style: "width: 100px"}, 
+                "diskfree");
 
         // Define tooltips
         var uname_tt = new dijit.Tooltip({
@@ -376,6 +391,10 @@ function editHostsDialogSetup() {
         var datadir1_tt = new dijit.Tooltip({
             connectId: ["datadir_qm"],
             label: getFieldTT("datadir")
+        });
+        var diskfree_tt = new dijit.Tooltip({
+            connectId: ["diskfree_qm"],
+            label: getFieldTT("diskfree")
         });
    }
 }
@@ -433,6 +452,7 @@ function hostGridSetup() {
         dijit.byId("cores").setValue(null);
         dijit.byId("installdir").setValue(null);
         dijit.byId("datadir").setValue(null);
+        dijit.byId("diskfree").setValue(null);
         dijit.byId("editHostsDlg").show();
     });
 
@@ -462,7 +482,7 @@ function hostGridSetup() {
             editable: true,
             type: dojox.grid.cells._Widget,
             widgetClass: "dijit.form.NumberSpinner", 
-            constraint: {min: 1, max: 1000000, places: 0}
+            constraint: {min: 1, max: 90000000, places: 0}
         },
         {
             width: '9%',
@@ -471,7 +491,7 @@ function hostGridSetup() {
             editable: true,
             type: dojox.grid.cells._Widget,
             widgetClass: "dijit.form.NumberSpinner", 
-            constraint: {min: 1, max: 100, places: 0}
+            constraint: {min: 1, max: 5000, places: 0}
         },
         {
             width: '26%',
@@ -483,6 +503,12 @@ function hostGridSetup() {
             width: '26%',
             field: "datadir",
             name: "MySQL Cluster data directory",
+            editable: true
+        },
+        {
+            width: '9%',
+            field: "diskfree",
+            name: "DiskFree",
             editable: true
     }];
 

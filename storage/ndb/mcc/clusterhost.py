@@ -28,13 +28,13 @@ import logging
 import platform
 import json
 import stat
+import sys
 
 import util
 
 import request_handler
 
 _logger = logging.getLogger(__name__)
-
 
 class ExecException(Exception):
     """Exception type thrown when process-spawning fails on 
@@ -93,6 +93,33 @@ class HostInfo(object):
         """Returns the python path module to use when manipulating path names on this host."""
         return self.pm
 
+    @property
+    def disk_free(self):
+        """Returns the free space for homedir on host."""
+        hd = self.ch.env['HOME']
+        #Localhost code, due to shellex escaping in subprocess, mimics AWK functionality.
+        #Remotehost sends full bash line to console.
+        if isinstance(self.ch, LocalClusterHost):
+            dtest=self.ch.exec_blocking(['df', '-h', hd])
+        else:
+            dtest=self.ch.exec_blocking(['df', '-h', hd, '|', 'awk', '''{ print \$4 }'''])
+        #There is a chance there will be an error output from opening the console so skip over it:
+        #o  grab df output, skip to last line, go one back and grab Avail (4th value).
+        lc = dtest.count('\n')
+        if lc > 1: #There has to be 2 lines of df output + errors from console (if any).
+            if isinstance(self.ch, LocalClusterHost):
+                ds = str(str(((dtest).split('\n')[lc-1]).split()[3:4]).strip('[]')).strip("''")
+            else:
+                ds = (self.ch.exec_blocking(['df', '-h', hd, '|', 'awk', '''{ print \$4 }'''])).split('\n')[lc-1]
+            #ds should be at least 2 characters wide (2T, 1G...) otherwise return "unknown".
+            if len(ds) >= 2:
+                return ds
+            else:
+                _logger.warning('Length of parsed df output was less than 2 characters wide.')
+                return 'unknown'
+        else:
+            _logger.warning('df output had less than 2 lines.')
+            return 'unknown'
      
 class  SolarisHostInfo(HostInfo):
     """Specialization for Solaris which uses prtconf and psrinfo to retrieve host information."""
@@ -119,7 +146,7 @@ class MacHostInfo(HostInfo):
         sysinfo = self.ch.exec_blocking(['/usr/sbin/sysctl', 'hw.'])
         return [int(filter(str.isdigit, ln.split()[1])) for ln in sysinfo.split('\n') if 'hw.ncpu:' in ln][0]
 
-
+        
 class CygwinHostInfo(HostInfo):
     """Specialization for Windows Cygwin which uses systeminfo and wmic to retrieve host information, but retains posixpath as the path module."""
 
@@ -150,16 +177,37 @@ class WindowsHostInfo(CygwinHostInfo):
 
     @property
     def homedir(self):
-        env = self.ch.env
-        if env.has_key('USERPROFILE'):
-            return env['USERPROFILE']
+        envr = self.ch.env
+        if envr.has_key('USERPROFILE'):
+            return envr['USERPROFILE']
         
-        return env['HOMEDRIVE']+env['HOMEPATH']
+        return envr['HOMEDRIVE']+envr['HOMEPATH']
 
     @property
     def path_module(self):
         return ntpath
 
+    @property
+    def disk_free(self):
+        envr = self.ch.env
+        if envr.has_key('USERPROFILE'):
+            hd = envr['USERPROFILE']
+        else:
+            hd = envr['HOMEDRIVE']+envr['HOMEPATH']
+
+        mt = (self.ch.exec_blocking(['C:/Windows/System32/Wbem/wmic', 'logicaldisk', hd[:2], 'GET', 'freespace'])).split('\n')[1]
+        s = ""
+        for i in range(0, len(mt)):
+            if ord(mt[i]) >= 48:
+                s+=str(mt[i])
+                
+        if len(s) < 2:
+            return 'unknown'
+        
+        try:
+            return str(int(s) / 1024 / 1024 / 1024) + 'G'
+        except:
+            return 'unknown'
 
 # Map from uname string to HostInfo type    
 hostInfo_map = { 'SunOS' : SolarisHostInfo,
@@ -248,6 +296,9 @@ class ABClusterHost(object):
     def homedir(self):
         return self.hostInfo.homedir
  
+    @property
+    def disk_free(self):
+        return self.hostInfo.disk_free
    
     @abc.abstractmethod    
     def drop(self, paths=[]):

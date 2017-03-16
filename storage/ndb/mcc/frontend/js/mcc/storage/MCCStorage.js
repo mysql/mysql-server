@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -384,7 +384,8 @@ function getHostResourceInfo(hostName, hostId, showAlert) {
                                 ", cores = " + reply.body.hostRes.cores +
                                 ", uname = " + reply.body.hostRes.uname +
                                 ", installdir = " + reply.body.hostRes.installdir +
-                                ", datadir = " + reply.body.hostRes.datadir);
+                                ", datadir = " + reply.body.hostRes.datadir +
+                                ", diskfree = " + reply.body.hostRes.diskfree);
 
                         // Bail out if new request sent
                         if (reply.head.rSeq != host.getValue("hwResFetchSeq")) {
@@ -428,6 +429,9 @@ function getHostResourceInfo(hostName, hostId, showAlert) {
                             }
                             host.setValue("datadir", path);
                             host.setValue("datadir_predef", true);
+                        }
+                        if (!host.getValue("diskfree")) {
+                            host.setValue("diskfree", reply.body.hostRes.diskfree);
                         }
                         hostStorage.save();
 
