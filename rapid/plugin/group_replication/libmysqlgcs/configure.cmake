@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -66,13 +66,6 @@ CHECK_STRUCT_HAS_MEMBER("struct xdr_ops" x_putint32 rpc/xdr.h
                         HAVE_XDR_OPS_X_PUTINT32)
 CHECK_STRUCT_HAS_MEMBER("struct xdr_ops" x_getint32 rpc/xdr.h
                         HAVE_XDR_OPS_X_GETINT32)
-
-CHECK_C_SOURCE_COMPILES(
-  "
-  #include <rpc/rpc.h>
-  int main(__const int *i){return *i;}
-  "
-  HAVE___CONST)
 
 CHECK_C_SOURCE_COMPILES(
   "
