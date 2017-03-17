@@ -1294,9 +1294,6 @@ int Dbtup::handleReadReq(Signal* signal,
 // We have read all data into coutBuffer. Now send it to the API.
 /* ------------------------------------------------------------------------- */
       jamDebug();
-      Uint32 TnoOfDataRead= (Uint32) ret;
-      req_struct->read_length += TnoOfDataRead;
-      jamDebug();
       const Uint32 TnoOfDataRead= (Uint32) ret;
       sendReadAttrinfo(signal, req_struct, TnoOfDataRead);
       return 0;
