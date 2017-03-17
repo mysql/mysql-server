@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1098,7 +1098,8 @@ runCreateMaxTables(NDBT_Context* ctx, NDBT_Step* step)
       if (pDic->getNdbError().code == 707 ||
           pDic->getNdbError().code == 708 ||
           pDic->getNdbError().code == 826 ||
-          pDic->getNdbError().code == 827)
+          pDic->getNdbError().code == 827 ||
+          pDic->getNdbError().code == 921)
         break;
       return NDBT_FAILED;
     }
