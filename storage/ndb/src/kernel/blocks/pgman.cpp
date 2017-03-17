@@ -246,8 +246,7 @@ Pgman::Param::Param() :
   m_max_loop_count(256),
   m_max_io_waits(256),
   m_stats_loop_delay(1000),
-  m_cleanup_loop_delay(200),
-  m_lcp_loop_delay(0)
+  m_cleanup_loop_delay(200)
 {
 }
 
@@ -314,8 +313,6 @@ void
 Pgman::execCONTINUEB(Signal* signal)
 {
   jamEntry();
-  Uint32 data1 = signal->theData[1];
-
   switch (signal->theData[0]) {
   case PgmanContinueB::STATS_LOOP:
     jam();
@@ -329,13 +326,12 @@ Pgman::execCONTINUEB(Signal* signal)
     jam();
     do_cleanup_loop(signal);
     break;
-  case PgmanContinueB::LCP_LOCKED:
+  case PgmanContinueB::LCP_LOOP:
   {
     jam();
-    Ptr<Page_entry> ptr;
-    Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
-    pl.getPtr(ptr, data1);
-    process_lcp_locked(signal, ptr);
+    ndbrequire(m_lcp_loop_ongoing);
+    m_lcp_loop_ongoing = false;
+    check_restart_lcp(signal);
     return;
   }
   default:
@@ -963,7 +959,6 @@ Pgman::do_busy_loop(Signal* signal, bool direct, EmulatedJamBuffer *jamBuf)
 {
   D(">do_busy_loop on=" << m_busy_loop_on << " direct=" << direct);
   Uint32 restart = false;
-  check_restart_lcp(signal);
   if (direct)
   {
     thrjam(jamBuf);
@@ -1500,8 +1495,11 @@ void Pgman::execSYNC_PAGE_CACHE_REQ(Signal *signal)
     return;
   }
   ndbrequire(fragPtr.i != RNIL);
+  ndbrequire(!m_sync_extent_pages_ongoing);
+  ndbrequire(!m_lcp_loop_ongoing);
   ndbrequire(!m_lcp_outstanding);
   ndbrequire(!m_extra_pgman);
+  ndbrequire(m_lcp_table_id == RNIL);
 
   DEB_PGMAN_LCP(("execSYNC_PAGE_CACHE_REQ: instance(): %u", instance()));
   /**
@@ -1541,7 +1539,7 @@ void Pgman::execSYNC_PAGE_CACHE_REQ(Signal *signal)
                "empty" : "not empty"));
   ndbrequire(m_dirty_list_lcp.isEmpty());
   m_dirty_list_lcp.swapList(fragPtr.p->m_dirty_list);
-  handle_lcp(signal, fragPtr.p);
+  check_restart_lcp(signal);
 }
 
 void
@@ -1554,6 +1552,7 @@ Pgman::finish_lcp(Signal *signal,
   conf->fragmentId = m_sync_page_cache_req.fragmentId;
   conf->diskDataExistFlag = fragPtrP == NULL ? 0 : 1;
   ndbrequire(m_lcp_outstanding == 0);
+  ndbrequire(!m_lcp_loop_ongoing);
   m_lcp_table_id = RNIL;
   m_lcp_fragment_id = 0;
   sendSignal(m_sync_page_cache_req.senderRef,
@@ -1563,13 +1562,50 @@ Pgman::finish_lcp(Signal *signal,
              JBA);
 }
 
+/**
+ * For extent pages we write one page at a time and then send a CONTINUEB
+ * signal. The CONTINUEB signal will take us here.
+ *
+ * LCP writes can be blocked by too many outstanding IOs. In this
+ * case we are restarted by calling this function from fsreadconf
+ * and fswriteconf.
+ *
+ * LCP writes can be blocked by too many outstanding writes.
+ * In this case we will be restarted by calling this function from
+ * fswriteconf.
+ *
+ * LCP writes can be blocked by a BUSY page. In this case we are
+ * restarted by sending a LCP_LOOP CONTINUEB signal to execute
+ * this function after unblocking the page.
+ */
+void
+Pgman::start_lcp_loop(Signal *signal)
+{
+  if (m_lcp_loop_ongoing)
+  {
+    jam();
+    return;
+  }
+  m_lcp_loop_ongoing = true;
+  signal->theData[0] = PgmanContinueB::LCP_LOOP;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
+}
+
 void
 Pgman::check_restart_lcp(Signal *signal)
 {
-  jam();
+  if (m_lcp_loop_ongoing)
+  {
+    jam();
+    /**
+     * CONTINUEB(LCP_LOOP) signal is outstanding, no need to
+     * do anything more here. We don't want to complete the
+     * LCPs with outstanding CONTINUEB signals.
+     */
+    return;
+  }
   if (m_sync_extent_pages_ongoing &&
-      !m_sync_extent_continueb_ongoing &&
-      m_lcp_outstanding == 0)
+      m_sync_extent_next_page_entry != RNIL)
   {
     jam();
     /**
@@ -1580,8 +1616,7 @@ Pgman::check_restart_lcp(Signal *signal)
      */
     Ptr<Page_entry> ptr;
     Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
-    ndbrequire(pl.first(ptr));
-    ndbrequire(m_sync_extent_next_page_entry == ptr.i);
+    pl.getPtr(ptr, m_sync_extent_next_page_entry);
     process_lcp_locked(signal, ptr);
     return;
   }
@@ -1640,15 +1675,10 @@ Pgman::handle_lcp(Signal *signal, Uint32 tableId, Uint32 fragmentId)
 {
   FragmentRecord key(*this, tableId, fragmentId);
   FragmentRecordPtr fragPtr;
-  ndbrequire(m_fragmentRecordHash.find(fragPtr, key));
-  handle_lcp(signal, fragPtr.p);
-}
-
-void
-Pgman::handle_lcp(Signal *signal, FragmentRecord *fragPtrP)
-{
   Ptr<Page_entry> ptr;
   Uint32 max_count = 0;
+  ndbrequire(m_fragmentRecordHash.find(fragPtr, key));
+  FragmentRecord *fragPtrP = fragPtr.p;
 
   if ((max_count = get_num_lcp_pages_to_write()) == 0)
   {
@@ -1664,6 +1694,7 @@ Pgman::handle_lcp(Signal *signal, FragmentRecord *fragPtrP)
     finish_lcp(signal, fragPtrP);
     return;
   }
+  bool break_flag = false;
   for (Uint32 i = 0; i < max_count; i++)
   {
     m_dirty_list_lcp.first(ptr);
@@ -1727,6 +1758,26 @@ Pgman::handle_lcp(Signal *signal, FragmentRecord *fragPtrP)
                 (unsigned int)state));
 
       set_page_state(jamBuffer(), ptr, state | Page_entry::WAIT_LCP);
+      /**
+       * If there are other pages available to process while we are
+       * waiting for the BUSY page then it is ok to do so. However to
+       * avoid complex logic around this we simply move the BUSY page
+       * to last in the list to have a look at it later. We will restart
+       * the search for pages to write out as part of LCP when either of
+       * three conditions occur.
+       *
+       * 1) A BUSY condition on a page is removed
+       * 2) A write of a page is completed (fswriteconf)
+       * 3) A read of a page is completed (fsreadconf)
+       *
+       * This move of the page to last will hopefully improve things
+       * at least for large fragments. The wait for BUSY to be removed
+       * is normally a short wait, but there might be a disk read
+       * involved as part of the wait and in the future it might
+       * potentially be multiple disk reads that is waited for.
+       */
+      m_dirty_list_lcp.removeFirst(ptr);
+      m_dirty_list_lcp.addLast(ptr);
       return; // wait for it
     }
     else
@@ -1752,9 +1803,16 @@ Pgman::handle_lcp(Signal *signal, FragmentRecord *fragPtrP)
                                         ptr.p->m_dirty_count);
       }
       pageout(signal, ptr);
+      break_flag = true;
     }
     m_lcp_outstanding++;
+    if (break_flag)
+    {
+      jam();
+      break;
+    }
   }
+  start_lcp_loop(signal);
 }
 
 void
@@ -1765,6 +1823,7 @@ Pgman::execSYNC_EXTENT_PAGES_REQ(Signal *signal)
   Ptr<Page_entry> ptr;
 
   ndbrequire(m_extra_pgman || !isNdbMtLqh());
+  ndbrequire(m_lcp_table_id == RNIL);
   if (m_sync_extent_pages_ongoing)
   {
     /**
@@ -1781,16 +1840,16 @@ Pgman::execSYNC_EXTENT_PAGES_REQ(Signal *signal)
     return;
   }
   DEB_PGMAN_LCP(("SYNC_EXTENT_PAGES_REQ: instance(): %u", instance()));
+  ndbrequire(!m_lcp_loop_ongoing);
   m_sync_extent_order = req->lcpOrder;
   m_sync_extent_pages_ongoing = true;
-  m_sync_extent_continueb_ongoing = true;
-  m_sync_extent_next_page_entry = Uint32(~0); //Garbage value
   m_sync_extent_pages_req = *req;
   Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
   if (pl.first(ptr))
   {
     jam();
-    process_lcp_locked(signal, ptr);
+    m_sync_extent_next_page_entry = ptr.i;
+    check_restart_lcp(signal);
     return;
   }
   finish_sync_extent_pages(signal);
@@ -1802,7 +1861,7 @@ Pgman::finish_sync_extent_pages(Signal *signal)
   DEB_PGMAN_LCP(("SYNC_EXTENT_PAGES_CONF: instance(): %u", instance()));
   SyncExtentPagesConf *conf = (SyncExtentPagesConf*)signal->getDataPtr();
   m_sync_extent_pages_ongoing = false;
-  m_sync_extent_continueb_ongoing = false;
+  ndbrequire(!m_lcp_loop_ongoing);
   m_sync_extent_next_page_entry = RNIL;
   BlockReference ref = m_sync_extent_pages_req.senderRef;
   conf->senderRef = reference();
@@ -1822,11 +1881,16 @@ Pgman::process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr)
   if ((max_count = get_num_lcp_pages_to_write()) == 0)
   {
     jam();
-    m_sync_extent_continueb_ongoing = false;
     m_sync_extent_next_page_entry = ptr.i;
     return;
   }
-  // protect from tsman parallel access
+  /**
+   * Protect from tsman parallel access.
+   * These pages are often updated from any of the LDM
+   * threads using the tsman lock as protection mechanism.
+   * So by locking tsman we ensure that those accesses
+   * doesn't conflict with our write of extent pages.
+   */
   Tablespace_client tsman(signal, this, c_tsman, 0, 0, 0, 0);
   do
   {
@@ -1866,7 +1930,6 @@ Pgman::process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr)
         return;
       }
       jam();
-      m_sync_extent_continueb_ongoing = false;
       m_sync_extent_next_page_entry = RNIL;
       return;
     }
@@ -1877,10 +1940,7 @@ Pgman::process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr)
     }
   } while (loopCount++ < 32);
   m_sync_extent_next_page_entry = ptr.i;
-  ndbrequire(m_sync_extent_continueb_ongoing == true);
-  signal->theData[0] = PgmanContinueB::LCP_LOCKED;
-  signal->theData[1] = ptr.i;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  start_lcp_loop(signal);
 }
 
 void
@@ -1893,7 +1953,7 @@ Pgman::process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
   m_global_page_pool.release(copy);
   ptr.p->m_copy_page_i = RNIL;
 
-  if (!m_sync_extent_continueb_ongoing)
+  if (!m_lcp_loop_ongoing)
   {
     if (m_sync_extent_next_page_entry == RNIL)
     {
@@ -1907,10 +1967,9 @@ Pgman::process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
       return;
     }
     jam();
-    signal->theData[0] = PgmanContinueB::LCP_LOCKED;
-    signal->theData[1] = m_sync_extent_next_page_entry;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+    check_restart_lcp(signal);
   }
+  jam();
   return;
 }
 /* END LCP Module */
@@ -1980,6 +2039,12 @@ Pgman::fsreadconf(Signal* signal, Ptr<Page_entry> ptr)
   m_stats.m_current_io_waits--;
   m_stats.m_pages_read++;
 
+  /**
+   * Calling check_restart_lcp before do_busy_loop ensures that
+   * we make progress on LCP even in systems with very high IO
+   * read rates.
+   */
+  check_restart_lcp(signal);
   do_busy_loop(signal, true, jamBuffer());
 }
 
@@ -2119,6 +2184,12 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
   }
   
   set_page_state(jamBuffer(), ptr, state);
+  /**
+   * Calling check_restart_lcp before do_busy_loop ensures that
+   * we make progress on LCP even in systems with very high IO
+   * read rates.
+   */
+  check_restart_lcp(signal);
   do_busy_loop(signal, true, jamBuffer());
 }
 
@@ -2342,6 +2413,11 @@ Pgman::get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal* signal,
        * is updated and the real page is sent to disk. As soon as the
        * write is done the copy page is copied over to the real page and
        * the copy page is released.
+       *
+       * In this case we have made the copy page dirty, since the
+       * return from the write will clear the DIRTY flag we need to
+       * set this flag to ensure that we set the DIRTY flag
+       * immediately again after returning from the pageout.
        */
       thrjam(jamBuf);
       D("<get_page: immediate copy_page");
@@ -2594,7 +2670,7 @@ Pgman::update_lsn(Signal *signal,
      ndbassert(signal != NULL);
      ndbrequire(ptr.p->m_table_id != RNIL);
      ndbassert((state & Page_entry::LOCKED) == 0);
-     handle_lcp(signal, ptr.p->m_table_id, ptr.p->m_fragment_id);
+     start_lcp_loop(signal);
   }
   D(ptr);
   D("<update_lsn");
