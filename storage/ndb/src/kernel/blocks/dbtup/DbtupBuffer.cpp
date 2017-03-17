@@ -205,6 +205,23 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
               */
              (nodeId == getOwnNodeId() && connectedToNode));
 
+  /**
+   * If a previous read_pseudo executed a 'FLUSH_AI', we may
+   * already have sent a TRANSID_AI signal with the result row
+   * to the API node. The result size was then already recorded
+   * in 'read_length' and we should not add the size of this 
+   * row as it is not part of the 'result' . 
+   */
+  if (req_struct->read_length != 0)
+  {
+    ndbassert(!is_api);  // API result already FLUSH_AI'ed
+  }
+  else
+  {
+    // No API-result produced yet, record this
+    req_struct->read_length = ToutBufIndex;
+  }
+
   if (connectedToNode){
     /**
      * Own node -> execute direct
