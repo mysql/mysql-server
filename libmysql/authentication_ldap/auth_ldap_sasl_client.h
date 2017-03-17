@@ -11,7 +11,7 @@
 #include <mysql/plugin.h>
 #include <mysql/plugin_auth_common.h>
 #include <mysql.h>
-#include "log.h"
+#include "log_client.h"
 
 #define SASL_MAX_STR_SIZE 1024
 #define SASL_BUFFER_SIZE 9000

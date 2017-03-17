@@ -1,17 +1,13 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved. */
 
 #include <my_global.h>
-#include "log.h"
-#include "mysql/psi/psi_memory.h"
-
-bool external_logging = false;
+#include "log_client.h"
 
 Logger::Logger() {
-  m_logger_initilzed = -1;
   m_log_level = LOG_LEVEL_NONE;
   m_log_writer = NULL;
   m_log_writer = new Log_writer_error();
-  m_logger_initilzed = m_log_writer->open();
+  m_log_writer->open();
 }
 
 Logger::~Logger() {
