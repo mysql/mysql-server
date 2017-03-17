@@ -856,3 +856,20 @@ DROP TABLE t1;
 
 --echo # End of test for Bug#22686994
 
+--echo #
+--echo # Bug #25740550: DISTINCT OPERATIONS ON TEMP TABLES ALLOCATE TOO LITTLE
+--echo #                MEMORY FOR SORT KEYS
+--echo #
+--echo # A test for remove_dup_with_hash_index() where sort keys are significantly
+--echo # longer than the row itself.
+--echo #
+
+--source include/turn_off_only_full_group_by.inc
+
+CREATE TABLE t1(c1 int, c2 VARCHAR(1) COLLATE utf8mb4_0900_as_cs);
+INSERT INTO t1 VALUES (1, 'a');
+INSERT INTO t1 VALUES (2, 'A');
+SELECT DISTINCT c2 FROM t1 GROUP BY c1;
+DROP TABLE t1;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
