@@ -210,6 +210,11 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   int sasl_client_output_len = 0;
   std::stringstream log_stream;
   g_logger = new Logger();
+  const char *opt = getenv("AUTHENTICATION_LDAP_CLIENT_LOG");
+  int opt_val = opt ? atoi(opt) : 0;
+  if (opt && opt_val > 0 && opt_val < 6) {
+    g_logger->set_log_level((log_level)opt_val);
+  }
   Sasl_client sasl_client;
   sasl_client.set_user_info(mysql->user, mysql->passwd);
   sasl_client.set_plugin_info(vio, mysql);
