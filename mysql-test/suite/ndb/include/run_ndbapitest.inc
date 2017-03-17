@@ -18,7 +18,7 @@ my $test_bin = my_find_bin($bindir,
                            $name, NOT_REQUIRED);
 
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
-my $F = IO::File->new("$vardir/tmp/run_ndbapitest.result", "w") or die;
+my $F = IO::File->new("$vardir/tmp/run_ndbapitest_result.inc", "w") or die;
 unless($test_bin)
 {
   print $F "skip Could not find $name;\n";
@@ -52,4 +52,4 @@ if ($NDBAPITEST_CLEANUP_QUERY != '')
   eval $NDBAPITEST_CLEANUP_QUERY;
 }
 
---source $MYSQLTEST_VARDIR/tmp/run_ndbapitest.result
+--source $MYSQLTEST_VARDIR/tmp/run_ndbapitest_result.inc
