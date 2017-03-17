@@ -1353,7 +1353,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
   ChangeMask * change_mask_ptr;
   if ((dst= alloc_copy_tuple(regTabPtr, &operPtrP->m_copy_tuple_location))== 0)
   {
-    terrorCode= ZMEM_NOMEM_ERROR;
+    terrorCode= ZNO_COPY_TUPLE_MEMORY_ERROR;
     goto error;
   }
 
@@ -2254,7 +2254,7 @@ size_change_error:
   
 undo_buffer_error:
   jam();
-  terrorCode= ZMEM_NOMEM_ERROR;
+  terrorCode= ZNO_COPY_TUPLE_MEMORY_ERROR;
   regOperPtr.p->m_undo_buffer_space = 0;
   if (mem_insert)
     regOperPtr.p->m_tuple_location.setNull();
@@ -2318,7 +2318,7 @@ int Dbtup::handleDeleteReq(Signal* signal,
   Tuple_header* dst = alloc_copy_tuple(regTabPtr,
                                        &regOperPtr->m_copy_tuple_location);
   if (dst == 0) {
-    terrorCode = ZMEM_NOMEM_ERROR;
+    terrorCode = ZNO_COPY_TUPLE_MEMORY_ERROR;
     goto error;
   }
 

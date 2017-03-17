@@ -277,6 +277,8 @@ ErrorBundle ErrorCodes[] = {
   { 830,  DMEC, TR, "Out of add fragment operation records" },
   { 873,  DMEC, TR, "Out of attrinfo records for scan in tuple manager" },
   { 899,  DMEC, TR, "Rowid already allocated" },
+  { 921,  DMEC, TR, "Out of transaction memory in local data manager, copy tuples (increase SharedGlobalMemory)" },
+  { 922,  DMEC, TR, "Out of transaction memory in local data manager, ordered index data (increase SharedGlobalMemory)" },
   { 1217, DMEC, TR, "Out of operation records in local data manager (increase MaxNoOfLocalOperations)" },
   { 1218, DMEC, TR, "Send Buffers overloaded in NDB kernel" },
   { 1220, DMEC, TR, "REDO log files overloaded (increase FragmentLogFileSize)" },

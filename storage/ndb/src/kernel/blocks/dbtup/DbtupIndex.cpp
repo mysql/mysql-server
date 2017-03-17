@@ -739,6 +739,7 @@ next_tuple:
     if (req->errorCode != 0) {
       switch (req->errorCode) {
       case TuxMaintReq::NoMemError:
+      case TuxMaintReq::NoTransMemError:
         jam();
         buildPtr.p->m_errorCode= BuildIndxImplRef::AllocationFailure;
         break;

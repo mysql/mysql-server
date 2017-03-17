@@ -50,6 +50,9 @@ Dbtux::allocNode(TuxCtx& ctx, NodeHandle& node)
     case 827:
       errorCode = TuxMaintReq::NoMemError;
       break;
+    case 921:
+      errorCode = TuxMaintReq::NoTransMemError;
+      break;
     }
   }
   return errorCode;
