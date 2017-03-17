@@ -295,6 +295,71 @@ amount of increment. */
 # define os_atomic_increment_uint64(ptr, amount) \
 	os_atomic_increment(ptr, amount)
 
+/**********************************************************//**
+Same functions with no return value. These may have optimized implementations on
+some architectures. */
+
+#if defined(__aarch64__) && defined(HAVE_ARM64_LSE_ATOMICS)
+
+# define ARM64_LSE_ATOMIC_STADD(ptr, amount, w, r)	\
+	do {						\
+		__asm__ __volatile__(			\
+		"stadd" w " %" r "1, %0\n"		\
+		: "+Q" (*ptr)				\
+		: "r" (amount)				\
+		: "memory");				\
+	} while(0)
+
+# define os_atomic_increment_nr(ptr, amount)					\
+	do {									\
+		switch (sizeof(*ptr)) {						\
+		case 1: ARM64_LSE_ATOMIC_STADD(ptr, amount, "b", "w"); break;	\
+		case 2: ARM64_LSE_ATOMIC_STADD(ptr, amount, "h", "w"); break;	\
+		case 4: ARM64_LSE_ATOMIC_STADD(ptr, amount, "", "w"); break;	\
+		case 8: ARM64_LSE_ATOMIC_STADD(ptr, amount, "", ""); break;	\
+		default: ut_ad(0); /* wrong operand size */			\
+		}								\
+	} while (0)
+#else
+# define os_atomic_increment_nr(ptr, amount) \
+	os_atomic_increment(ptr, amount)
+#endif
+
+# define os_atomic_increment_lint_nr(ptr, amount) \
+	os_atomic_increment_nr(ptr, amount)
+
+# define os_atomic_increment_ulint_nr(ptr, amount) \
+	os_atomic_increment_nr(ptr, amount)
+
+# define os_atomic_increment_uint32_nr(ptr, amount ) \
+	os_atomic_increment_nr(ptr, amount)
+
+# define os_atomic_increment_uint64_nr(ptr, amount) \
+	os_atomic_increment_nr(ptr, amount)
+
+/* Non-atomic version of the functions with no return value. */
+
+#if defined(__aarch64__) && defined(HAVE_ARM64_LSE_ATOMICS)
+/* Atomic increment w/o fetching is faster than nonatomic one with it
+on ThunderX. */
+# define os_nonatomic_increment_nr(ptr, amount) \
+	os_atomic_increment_nr(ptr, amount)
+#else
+# define os_nonatomic_increment_nr(ptr, amount) (*(ptr) += (amount))
+#endif
+
+# define os_nonatomic_increment_lint_nr(ptr, amount) \
+	os_nonatomic_increment_nr(ptr, amount)
+
+# define os_nonatomic_increment_ulint_nr(ptr, amount) \
+	os_nonatomic_increment_nr(ptr, amount)
+
+# define os_nonatomic_increment_uint32_nr(ptr, amount ) \
+	os_nonatomic_increment_nr(ptr, amount)
+
+# define os_nonatomic_increment_uint64_nr(ptr, amount) \
+	os_nonatomic_increment_nr(ptr, amount)
+
 /* Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. */
 
@@ -317,6 +382,53 @@ amount to decrement. */
 
 # define os_atomic_decrement_uint64(ptr, amount) \
 	os_atomic_decrement(ptr, amount)
+
+/**********************************************************//**
+Same functions with no return value. These may have optimized implementations on
+some architectures. */
+
+#if defined(__aarch64__) && defined(HAVE_ARM64_LSE_ATOMICS)
+# define os_atomic_decrement_nr(ptr, amount) \
+	os_atomic_increment_nr(ptr, -amount)
+#else
+# define os_atomic_decrement_nr(ptr, amount) \
+	os_atomic_decrement(ptr, amount)
+#endif
+
+# define os_atomic_decrement_lint_nr(ptr, amount) \
+	os_atomic_decrement_nr(ptr, amount)
+
+# define os_atomic_decrement_ulint_nr(ptr, amount) \
+	os_atomic_decrement_nr(ptr, amount)
+
+# define os_atomic_decrement_uint32_nr(ptr, amount ) \
+	os_atomic_decrement_nr(ptr, amount)
+
+# define os_atomic_decrement_uint64_nr(ptr, amount) \
+	os_atomic_decrement_nr(ptr, amount)
+
+/* Non-atomic version of the functions with no return value. */
+
+#if defined(__aarch64__) && defined(HAVE_ARM64_LSE_ATOMICS)
+/* Atomic decrement without fetching is faster than nonatomic one with it
+on AArch64. */
+# define os_nonatomic_decrement_nr(ptr, amount) \
+	os_atomic_decrement_nr(ptr, amount)
+#else
+# define os_nonatomic_decrement_nr(ptr, amount) (*(ptr) -= (amount))
+#endif
+
+# define os_nonatomic_decrement_lint_nr(ptr, amount) \
+	os_nonatomic_decrement_nr(ptr, amount)
+
+# define os_nonatomic_decrement_ulint_nr(ptr, amount) \
+	os_nonatomic_decrement_nr(ptr, amount)
+
+# define os_nonatomic_decrement_uint32_nr(ptr, amount ) \
+	os_nonatomic_decrement_nr(ptr, amount)
+
+# define os_nonatomic_decrement_uint64_nr(ptr, amount) \
+	os_nonatomic_decrement_nr(ptr, amount)
 
 #endif
 

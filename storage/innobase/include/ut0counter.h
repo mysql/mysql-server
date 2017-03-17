@@ -30,6 +30,7 @@ Created 2012/04/12 by Sunny Bains
 #include <my_rdtsc.h>
 #include "univ.i"
 #include "os0thread.h"
+#include "os0atomic.h"
 
 /** CPU cache line size */
 #ifdef __powerpc__
@@ -108,6 +109,38 @@ struct single_indexer_t {
 
 #define	default_indexer_t	counter_indexer_t
 
+
+template <typename T>
+UNIV_INLINE void add_noreturn(T &val, T n) {
+	val += n;
+}
+
+template <typename T>
+UNIV_INLINE void sub_noreturn(T &val, T n) {
+	val -= n;
+}
+
+/* Template specializations for native word size */
+template <>
+inline void add_noreturn<ulint>(ulint &val, ulint n) {
+	os_nonatomic_increment_ulint_nr(&val, n);
+}
+
+template <>
+inline void sub_noreturn<ulint>(ulint &val, ulint n) {
+	os_nonatomic_decrement_lint_nr(&val, n);
+}
+
+template <>
+inline void add_noreturn<lint>(lint &val, lint n) {
+	os_nonatomic_increment_lint_nr(&val, n);
+}
+
+template <>
+inline void sub_noreturn<lint>(lint &val, lint n) {
+	os_nonatomic_decrement_lint_nr(&val, n);
+}
+
 /** Class for using fuzzy counters. The counter is not protected by any
 mutex and the results are not guaranteed to be 100% accurate but close
 enough. Creates an array of counters and separates each element by the
@@ -151,7 +184,7 @@ public:
 
 		ut_ad(i < UT_ARR_SIZE(m_counter));
 
-		m_counter[i] += n;
+		add_noreturn(m_counter[i], n);
 	}
 
 	/** Use this if you can use a unique identifier, saves a
@@ -163,7 +196,7 @@ public:
 
 		ut_ad(i < UT_ARR_SIZE(m_counter));
 
-		m_counter[i] += n;
+		add_noreturn(m_counter[i], n);
 	}
 
 	/** If you can't use a good index id. Decrement by 1. */
@@ -176,7 +209,7 @@ public:
 
 		ut_ad(i < UT_ARR_SIZE(m_counter));
 
-		m_counter[i] -= n;
+		sub_noreturn(m_counter[i], n);
 	}
 
 	/** Use this if you can use a unique identifier, saves a
@@ -188,7 +221,7 @@ public:
 
 		ut_ad(i < UT_ARR_SIZE(m_counter));
 
-		m_counter[i] -= n;
+		sub_noreturn(m_counter[i], n);
 	}
 
 	/* @return total value - not 100% accurate, since it is not atomic. */

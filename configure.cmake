@@ -924,6 +924,11 @@ IF(HAVE_LIBNUMA AND NOT WITH_NUMA)
    MESSAGE(STATUS "Disabling NUMA on user's request")
 ENDIF()
 
+OPTION(WITH_LSE "Enable Large System Extensions for AArch64" OFF)
+IF(WITH_LSE)
+  ADD_DEFINITIONS(-DHAVE_ARM64_LSE_ATOMICS)
+ENDIF()
+
 # needed for libevent
 CHECK_TYPE_SIZE("socklen_t" SIZEOF_SOCKLEN_T)
 IF(SIZEOF_SOCKLEN_T)
