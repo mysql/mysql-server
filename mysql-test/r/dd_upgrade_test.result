@@ -170,7 +170,6 @@ a
 1
 DROP SCHEMA test123;
 # Execute mysql_upgrade
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK

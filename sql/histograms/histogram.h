@@ -33,88 +33,71 @@
   name conflicts etc.
 */
 
-#include <cstddef>               // size_t
-#include <map>                   // std::map
-#include <string>                // std::string
-#include <utility>               // std::pair
+#include <cstddef>                     // size_t
+#include <map>                         // std::map
+#include <set>                         // std::set
+#include <string>                      // std::string
+#include <utility>                     // std::pair
 
-#include "lex_string.h"
-#include "m_string.h"            // LEX_CSTRING
-#include "memroot_allocator.h"   // Memroot_allocator
-#include "my_base.h"             // ha_rows
-#include "mysql_time.h"          // MYSQL_TIME
-#include "sql_alloc.h"           // Sql_alloc
-#include "thr_malloc.h"
+#include "lex_string.h"                // LEX_CSTRING
+#include "memroot_allocator.h"         // Memroot_allocator
+#include "my_base.h"                   // ha_rows
+#include "sql_alloc.h"                 // Sql_alloc
+#include "sql/histograms/value_map.h"  // Histogram_comparator
+#include "stateless_allocator.h"       // Stateless_allocator
+#include "table.h"                     // TABLE_LIST
 
+class Json_dom;
 class Json_object;
-class String;
-class my_decimal;
+class THD;
+
+struct st_mem_root;
+typedef struct st_mem_root MEM_ROOT;
 
 namespace histograms {
-
-/**
-  The maximum number of characters to evaluate when building histograms. For
-  binary/blob values, this is the number of bytes to consider.
-*/
-static const size_t HISTOGRAM_MAX_COMPARE_LENGTH= 42;
 
 /// The default (and invalid) value for "m_null_values_fraction".
 static const double INVALID_NULL_VALUES_FRACTION= -1.0;
 
-/**
-  Histogram comparator.
-
-  Typical usage is in a "value map", where we for instance need to sort based
-  on string collation and similar.
-*/
-struct Histogram_comparator
+enum class Message
 {
-public:
-  /**
-    Compare two values for equality.
-
-    @param lhs first value to compare
-    @param rhs second value to compare
-
-    @retval 0 the two values are considered equal
-    @retval <0 lhs is considered to be smaller than rhs
-    @retval >0 lhs is considered to be bigger than rhs
-  */
-  template <class T>
-  static int compare(const T &lhs, const T &rhs)
-  {
-    if (lhs < rhs)
-      return -1;
-    else if (lhs > rhs)
-      return 1;
-
-    return 0;
-  }
-
-  /**
-    Overload operator(), so that we can use this struct as a custom comparator
-    in std::map.
-
-    @param lhs first value to compare
-    @param rhs second value to compare
-
-    @return true if lhs is considered to be smaller/less than rhs.
-  */
-  template <class T>
-  bool operator()(const T &lhs, const T &rhs) const
-  {
-    return compare(lhs, rhs) < 0;
-  }
+  FIELD_NOT_FOUND,
+  UNSUPPORTED_DATA_TYPE,
+  TEMPORARY_TABLE,
+  ENCRYPTED_TABLE,
+  VIEW,
+  HISTOGRAM_CREATED,
+  UNABLE_TO_OPEN_TABLE,
+  MULTIPLE_TABLES_SPECIFIED,
+  COVERED_BY_SINGLE_PART_UNIQUE_INDEX,
+  NO_HISTOGRAM_FOUND,
+  HISTOGRAM_DELETED,
+  NO_SUCH_TABLE,
+  READ_ONLY
 };
 
 
-// Typedefs.
-template<typename T>
-using value_map_allocator = Memroot_allocator<std::pair<const T, ha_rows>>;
+struct Histogram_psi_key_alloc
+{
+  void* operator()(size_t s) const;
+};
+
+template <class T>
+using Histogram_key_allocator= Stateless_allocator<T, Histogram_psi_key_alloc>;
+
+template <class T>
+using value_map_allocator= Memroot_allocator<std::pair<const T, ha_rows>>;
 
 template<typename T>
-using value_map_type = std::map<T, ha_rows, Histogram_comparator,
-                                value_map_allocator<T> >;
+using value_map_type= std::map<T, ha_rows, Histogram_comparator,
+                               value_map_allocator<T> >;
+
+using columns_set= std::set<std::string, std::less<std::string>,
+                            Histogram_key_allocator<std::string>>;
+
+using results_map=
+  std::map<std::string, Message, std::less<std::string>,
+           Histogram_key_allocator<std::pair<const std::string, Message>>>;
 
 /**
   Histogram base class.
@@ -138,9 +121,31 @@ public:
     FIELD_HISTOGRAM = 3
   };
 
+  /// String representation of the JSON field "histogram-type".
+  static constexpr const char *histogram_type_str() { return "histogram-type"; }
+
+  /// String representation of the JSON field "data-type".
+  static constexpr const char *data_type_str() {return "data-type"; }
+
+  /// String representation of the JSON field "charset-id".
+  static constexpr const char *charset_id_str() {return "charset-id"; }
+
+  /// String representation of the histogram type SINGLETON.
+  static constexpr const char *singleton_str() { return "singleton"; }
+
+  /// String representation of the histogram type EQUI-HEIGHT.
+  static constexpr const char *equi_height_str() { return "equi-height"; }
 protected:
+  double m_sampling_rate;
+
   /// The fraction of NULL values in the histogram (between 0.0 and 1.0).
   double m_null_values_fraction;
+
+  /// The character set for the data stored
+  const CHARSET_INFO *m_charset;
+
+  /// The number of buckets originally specified
+  size_t m_num_buckets_specified;
 
   /// String representation of the JSON field "buckets".
   static constexpr const char *buckets_str() { return "buckets"; }
@@ -148,14 +153,56 @@ protected:
   /// String representation of the JSON field "last-updated".
   static constexpr const char *last_updated_str() { return "last-updated"; }
 
-  /// String representation of the JSON field "histogram-type".
-  static constexpr const char *histogram_type_str() { return "histogram-type"; }
-
   /// String representation of the JSON field "null-values".
   static constexpr const char *null_values_str() {return "null-values"; }
+
+  static constexpr const char *sampling_rate_str() {return "sampling-rate"; }
+
+  /// String representation of the JSON field "number-of-buckets-specified".
+  static constexpr const char *numer_of_buckets_specified_str()
+  { return "number-of-buckets-specified"; }
+
+  /**
+    Write the data type of this histogram into a JSON object.
+
+    @param json_object the JSON object where we will write the histogram
+                       data type
+
+    @return true on error, false otherwise
+  */
+  template <class T>
+  bool histogram_data_type_to_json(Json_object *json_object) const;
+
+  /**
+    Return the value that is contained in the JSON DOM object.
+
+    For most types, this function simply returns the contained value. For String
+    values, the value is allocated on this histograms MEM_ROOT before it is
+    returned. This allows the String value to survive the entire lifetime of the
+    histogram object.
+
+    @param json_dom the JSON DOM object to extract the value from
+    @param out the value from the JSON DOM object
+
+    @return true on error, false otherwise
+  */
+  template <class T>
+  bool extract_json_dom_value(const Json_dom *json_dom, T *out);
+
+  /**
+    Populate the histogram with data from the provided JSON object. The base
+    class also provides an implementation that subclasses must call in order
+    to populate fields that are shared among all histogram types (character set,
+    null values fraction).
+
+    @param json_object the JSON object to read the histogram data from
+
+    @return true on error, false otherwise
+  */
+  virtual bool json_to_histogram(const Json_object &json_object) = 0;
 private:
   /// The MEM_ROOT where the histogram contents will be allocated.
-  MEM_ROOT * const m_mem_root;
+  MEM_ROOT *m_mem_root;
 
   /// The type of this histogram.
   const enum_histogram_type m_hist_type;
@@ -178,11 +225,24 @@ public:
     @param col_name name of the column this histogram represents
     @param type     the histogram type
   */
-  Histogram(MEM_ROOT *mem_root, std::string db_name, std::string tbl_name,
-            std::string col_name, enum_histogram_type type);
+  Histogram(MEM_ROOT *mem_root, const std::string &db_name,
+            const std::string &tbl_name, const std::string &col_name,
+            enum_histogram_type type);
+
+  /**
+    Copy constructor
+
+    This will make a copy of the provided histogram onto the provided MEM_ROOT.
+  */
+  Histogram(MEM_ROOT *mem_root, const Histogram &other);
+
+  Histogram(const Histogram &other) = delete;
 
   /// Destructor.
   virtual ~Histogram() {}
+
+  /// @return the MEM_ROOT that this histogram uses for allocations
+  MEM_ROOT *get_mem_root() const { return m_mem_root; }
 
   /**
     @return name of the database this histogram represents
@@ -209,6 +269,12 @@ public:
   */
   double get_null_values_fraction() const;
 
+  /// @return the character set for the data this histogram contains
+  const CHARSET_INFO *get_character_set() const { return m_charset; }
+
+  /// @return the sampling rate used to generate this histogram
+  double get_sampling_rate() const { return m_sampling_rate; };
+
   /**
     Returns the histogram type as a readable string.
 
@@ -222,6 +288,12 @@ public:
   virtual size_t get_num_buckets() const = 0;
 
   /**
+    @return number of buckets originally specified by the user. This may be
+            higher than the actual number of buckets in the histogram.
+  */
+  size_t get_num_buckets_specified() const { return m_num_buckets_specified; }
+
+  /**
     Converts the histogram to a JSON object.
 
     @param[in,out] json_object output where the histogram is to be stored. The
@@ -231,6 +303,43 @@ public:
     @return     true on error, false otherwise
   */
   virtual bool histogram_to_json(Json_object *json_object) const = 0;
+
+  /**
+    Converts JSON object to a histogram.
+
+    @param  mem_root    MEM_ROOT where the histogram will be allocated
+    @param  schema_name the schema name
+    @param  table_name  the table name
+    @param  column_name the column name
+    @param  json_object output where the histogram is stored
+
+    @return nullptr on error. Otherwise a histogram allocated on the provided
+            MEM_ROOT.
+  */
+  static Histogram *json_to_histogram(MEM_ROOT *mem_root,
+                                      const std::string &schema_name,
+                                      const std::string &table_name,
+                                      const std::string &column_name,
+                                      const Json_object &json_object);
+
+  /**
+    Make a clone of the current histogram
+
+    @param mem_root the MEM_ROOT on which the new histogram will be allocated.
+
+    @return a histogram allocated on the provided MEM_ROOT. Returns nullptr
+            on error.
+  */
+  virtual Histogram *clone(MEM_ROOT *mem_root) const = 0;
+
+  /**
+    Store this histogram to persistent storage (data dictionary).
+
+    @param thd Thread handler.
+
+    @return false on success, true on error.
+  */
+  bool store_histogram(THD *thd) const;
 };
 
 /**
@@ -249,7 +358,6 @@ public:
   @param   mem_root        the MEM_ROOT where the histogram contents will be
                            allocated
   @param   value_map       a value map containing [value, frequency]
-  @param   num_null_values the number of NULL values in the data set
   @param   num_buckets     the maximum number of buckets to create
   @param   db_name         name of the database this histogram represents
   @param   tbl_name        name of the table this histogram represents
@@ -260,22 +368,76 @@ public:
            buckets
 */
 template <class T>
-Histogram *build_histogram(MEM_ROOT *mem_root,
-                           const value_map_type<T> &value_map,
-                           ha_rows num_null_values, size_t num_buckets,
-                           std::string db_name, std::string tbl_name,
-                           std::string col_name);
+Histogram *build_histogram(MEM_ROOT *mem_root, const Value_map<T> &value_map,
+                           size_t num_buckets, const std::string &db_name,
+                           const std::string &tbl_name,
+                           const std::string &col_name);
 
-// Explicit template instantiations.
-template <>
-int Histogram_comparator::compare(const String &, const String &);
+/**
+  Create or update histograms for a set of columns of a given table.
 
-template <>
-int Histogram_comparator::compare(const MYSQL_TIME &, const MYSQL_TIME &);
+  This function will try to create histogram statistics for all the columns
+  specified. If one of the columns fail, it will continue to the next one and
+  try.
 
-template <>
-int Histogram_comparator::compare(const my_decimal &, const my_decimal &);
+  @param thd Thread handler.
+  @param table The table where we should look for the columns/data.
+  @param columns Columns specified by the user.
+  @param num_buckets The maximum number of buckets to create in each
+         histogram.
+  @param results A map where the result of each operation is stored.
 
+  @return false on success, true on error.
+*/
+bool update_histogram(THD *thd, TABLE_LIST *table,
+                      const columns_set &columns, int num_buckets,
+                      results_map &results);
+
+/**
+  Drop histograms for all columns in a given table.
+
+  @param thd Thread handler.
+  @param table The table where we should look for the columns.
+  @param results A map where the result of each operation is stored.
+
+  @return false on success, true on error.
+*/
+bool drop_all_histograms(THD *thd, const TABLE_LIST &table,
+                         results_map &results);
+
+/**
+  Drop histograms for a set of columns in a given table.
+
+  This function will try to drop the histogram statistics for all specified
+  columns. If one of the columns fail, it will continue to the next one and try.
+
+  @param thd Thread handler.
+  @param table The table where we should look for the columns.
+  @param columns Columns specified by the user.
+  @param results A map where the result of each operation is stored.
+
+  @return false on success, true on error.
+*/
+bool drop_histograms(THD *thd, const TABLE_LIST &table,
+                     const columns_set &columns, results_map &results);
+
+
+/**
+  Rename histograms for all columns in a given table.
+
+  @param thd             Thread handler.
+  @param old_schema_name The old schema name
+  @param old_table_name  The old table name
+  @param new_schema_name The new schema name
+  @param new_table_name  The new table name
+  @param results         A map where the result of each operation is stored.
+
+  @return false on success, true on error.
+*/
+bool rename_histograms(THD *thd, const char *old_schema_name,
+                       const char *old_table_name, const char *new_schema_name,
+                       const char *new_table_name, results_map &results);
 } // namespace histograms
+
 
 #endif

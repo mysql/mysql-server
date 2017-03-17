@@ -2066,6 +2066,11 @@ union YYSTYPE {
     Item *where;
   } wild_or_where;
   Show_fields_type show_fields_type;
+  struct {
+    Sql_cmd_analyze_table::Histogram_command command;
+    List<String> *columns;
+    int num_buckets;
+  } histogram;
   Acl_type acl_type;
   Trivial_array<LEX_CSTRING> *lex_cstring_list;
   class PT_role_or_privilege *role_or_privilege;

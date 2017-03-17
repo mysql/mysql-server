@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,8 +57,8 @@ public:
   /**
     Constructor, used to represent a ALTER TABLE ANALYZE PARTITION statement.
   */
-  Sql_cmd_alter_table_analyze_partition()
-    : Sql_cmd_analyze_table()
+  Sql_cmd_alter_table_analyze_partition(THD *thd)
+    : Sql_cmd_analyze_table(thd, Histogram_command::NONE, 0)
   {}
 
   ~Sql_cmd_alter_table_analyze_partition()

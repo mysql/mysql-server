@@ -8962,7 +8962,7 @@ type_conversion_status Field_json::store_time(MYSQL_TIME*, uint8)
   @param json  the JSON value to store
   @return zero on success, non-zero otherwise
 */
-type_conversion_status Field_json::store_json(Json_wrapper *json)
+type_conversion_status Field_json::store_json(const Json_wrapper *json)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
 

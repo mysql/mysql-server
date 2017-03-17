@@ -102,6 +102,7 @@ SET(DD_SOURCES
   dd/impl/system_views/collations.cc
   dd/impl/system_views/collation_charset_applicability.cc
   dd/impl/system_views/columns.cc
+  dd/impl/system_views/column_statistics.cc
   dd/impl/system_views/events.cc
   dd/impl/system_views/key_column_usage.cc
   dd/impl/system_views/parameters.cc
@@ -120,6 +121,7 @@ SET(DD_SOURCES
   dd/impl/tables/character_sets.cc
   dd/impl/tables/collations.cc
   dd/impl/tables/columns.cc
+  dd/impl/tables/column_statistics.cc
   dd/impl/tables/column_type_elements.cc
   dd/impl/tables/dd_properties.cc
   dd/impl/tables/events.cc
@@ -148,6 +150,7 @@ SET(DD_SOURCES
   dd/impl/types/charset_impl.cc
   dd/impl/types/collation_impl.cc
   dd/impl/types/column_impl.cc
+  dd/impl/types/column_statistics_impl.cc
   dd/impl/types/column_type_element_impl.cc
   dd/impl/types/entity_object_table_impl.cc
   dd/impl/types/entity_object_impl.cc
@@ -252,6 +255,7 @@ SET(SQL_SHARED_SOURCES
   histograms/equi_height_bucket.cc
   histograms/histogram.cc
   histograms/singleton.cc
+  histograms/value_map.cc
   hostname.cc
   init.cc
   item.cc

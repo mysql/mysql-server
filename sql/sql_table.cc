@@ -42,6 +42,7 @@
 #include "dd/types/foreign_key.h"         // dd::Foreign_key
 #include "dd/types/foreign_key_element.h" // dd::Foreign_key_element
 #include "dd/types/index.h"               // dd::Index
+#include "dd/types/index_element.h"       // dd::Index_element
 #include "dd/types/table.h"               // dd::Table
 #include "dd_sql_view.h"              // update_referencing_views_metadata
 #include "dd_table_share.h"           // open_table_def
@@ -116,6 +117,7 @@
 #include "sql_tablespace.h"           // validate_tablespace_name
 #include "sql_time.h"                 // make_truncated_value_warning
 #include "sql_trigger.h"              // change_trigger_table_name
+#include "sql/histograms/histogram.h"
 #include "strfunc.h"                  // find_type2
 #include "system_variables.h"
 #include "table.h"
@@ -2158,6 +2160,26 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
   if (dd::table_storage_engine(thd, table_def, &hton))
   {
     DBUG_ASSERT(false);
+    return true;
+  }
+
+  histograms::results_map results;
+  bool histogram_error= histograms::drop_all_histograms(thd, *table, results);
+
+  DBUG_EXECUTE_IF("fail_after_drop_histograms",
+                  {
+                    my_error(ER_UNABLE_TO_DROP_COLUMN_STATISTICS, MYF(0),
+                             "dummy_column", table->db, table->table_name);
+                    histogram_error= true;
+                  });
+
+  if (histogram_error)
+  {
+    /*
+      Do a rollback request, so that we avoid commit from being called at a
+      later stage.
+    */
+    thd->transaction_rollback_request= true;
     return true;
   }
 
@@ -6370,6 +6392,155 @@ public:
 
 
 /**
+  Rename histograms from an old table name to a new table name.
+
+  @param thd             Thread handle
+  @param old_schema_name The old schema name
+  @param old_table_name  The old table name
+  @param new_schema_name The new schema name
+  @param new_table_name  The new table name
+
+  @return false on success, true on error
+*/
+static bool
+rename_histograms(THD *thd, const char *old_schema_name,
+                  const char *old_table_name, const char *new_schema_name,
+                  const char *new_table_name)
+{
+  histograms::results_map results;
+  bool res= histograms::rename_histograms(thd, old_schema_name, old_table_name,
+                                          new_schema_name, new_table_name,
+                                          results);
+
+  DBUG_EXECUTE_IF("fail_after_rename_histograms",
+                  {
+                    my_error(ER_UNABLE_TO_UPDATE_COLUMN_STATISTICS, MYF(0),
+                             "dummy_column", old_schema_name, old_table_name);
+                    res= true;
+                  });
+  return res;
+}
+
+
+/**
+  Drop histograms from a given table.
+
+  This function will check if an ALTER TABLE statement will make a histogram
+  invalid:
+  - Removing columns
+  - Changing columns (data type, collation and such)
+  - Adding UNIQUE index
+
+  If such change is found, remove any existing histogram for these columns.
+
+  @param thd thread handler
+  @param table the table given in ALTER TABLE
+  @param alter_info the alter changes to be carried out by ALTER TABLE
+  @param create_info the alter changes to be carried out by ALTER TABLE
+  @param columns a list of columns to be changed or dropped
+  @param table_def the altered table (the new table definition, post altering)
+
+  @return false on success, true on error
+*/
+static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
+                                        Alter_info *alter_info,
+                                        HA_CREATE_INFO *create_info,
+                                        histograms::columns_set &columns,
+                                        const dd::Table *table_def)
+{
+  bool alter_drop_column=
+    (alter_info->flags & (Alter_info::ALTER_DROP_COLUMN |
+                         Alter_info::ALTER_CHANGE_COLUMN));
+  bool convert_character_set=
+    (alter_info->flags & Alter_info::ALTER_OPTIONS) &&
+    (create_info->used_fields & HA_CREATE_USED_CHARSET);
+
+  bool encryption_enabled=
+    (alter_info->flags & Alter_info::ALTER_OPTIONS) &&
+    (create_info->encrypt_type.length > 0 &&
+     my_strcasecmp(system_charset_info, "n",
+                   create_info->encrypt_type.str) != 0);
+
+  bool single_part_unique_index= false;
+  /*
+    Check if we are adding a single-part unique index for a column. If we are,
+    remove any existing histogram for that column.
+  */
+  if (alter_info->flags & Alter_info::ALTER_ADD_INDEX)
+  {
+    for (const auto key : table_def->indexes())
+    {
+      /*
+        A key may have multiple elements, such as (DB_ROW_ID, column). So, check
+        if we only have a single visible element in the unique/primary key.
+      */
+      auto not_hidden= [] (const dd::Index_element *element)
+                       { return !element->is_hidden(); };
+      if ((key->type() == dd::Index::IT_PRIMARY ||
+           key->type() == dd::Index::IT_UNIQUE) &&
+          std::count_if(key->elements().begin(), key->elements().end(),
+                        not_hidden) == 1)
+      {
+        single_part_unique_index= true;
+        const dd::Index_element *element= *std::find_if(key->elements().begin(),
+                                                        key->elements().end(),
+                                                        not_hidden);
+        columns.emplace(element->column().name().c_str());
+      }
+    }
+  }
+
+  /*
+    If we are changing the character set, find all character columns. TEXT and
+    similary types will be reportet as a BLOB/LONG_BLOB etc. but with a
+    non-binary character set.
+  */
+  if (convert_character_set)
+  {
+    for (const auto column : table_def->columns())
+    {
+      switch (column->type())
+      {
+        case dd::enum_column_types::STRING:
+        case dd::enum_column_types::VAR_STRING:
+        case dd::enum_column_types::VARCHAR:
+        case dd::enum_column_types::TINY_BLOB:
+        case dd::enum_column_types::MEDIUM_BLOB:
+        case dd::enum_column_types::LONG_BLOB:
+        case dd::enum_column_types::BLOB:
+          if (column->collation_id() != my_charset_bin.number)
+            columns.emplace(column->name().c_str());
+          break;
+        default:
+         continue;
+      }
+    }
+  }
+
+  if (alter_drop_column || convert_character_set || encryption_enabled ||
+      single_part_unique_index)
+  {
+    histograms::results_map results;
+    bool res;
+    if (encryption_enabled)
+      res= histograms::drop_all_histograms(thd, *table, results);
+    else
+      res= histograms::drop_histograms(thd, *table, columns, results);
+
+    DBUG_EXECUTE_IF("fail_after_drop_histograms",
+                    {
+                      my_error(ER_UNABLE_TO_DROP_COLUMN_STATISTICS, MYF(0),
+                               "dummy_column", table->db, table->table_name);
+                      res= true;
+                    });
+    return res;
+  }
+
+  return false;
+}
+
+
+/**
   Rename a table.
 
   @param thd       Thread handle
@@ -6532,6 +6703,20 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   */
   bool result= dd::rename_foreign_keys(old_name, to_table_def) ||
                thd->dd_client()->update(to_table_def);
+
+  /*
+    Only rename histograms when this isn't a rename for temporary names
+    (we will never have a histogram for a temporary name).
+
+    Note that this won't catch "ALTER TABLE ... ALGORITHM=COPY" since the COPY
+    algorithm will first rename to a temporary name, and then to the final name.
+    That case is handled in the function mysql_alter_table.
+  */
+  if (!result && !((flags & FN_TO_IS_TMP) || (flags & FN_FROM_IS_TMP)))
+  {
+    result= rename_histograms(thd, old_db, old_name, new_db, new_name);
+  }
+
   if (!(flags & NO_DD_COMMIT))
     result= trans_intermediate_ddl_commit(thd, result);
 
@@ -8333,6 +8518,8 @@ static bool is_inplace_alter_impossible(TABLE *table,
   @param inplace_supported  Enum describing the locking requirements.
   @param target_mdl_request Metadata request/lock on the target table name.
   @param alter_ctx          ALTER TABLE runtime context.
+  @param columns            A list of columns to be modified. This is needed
+                            for removal/renaming of histogram statistics.
 
   @retval   true              Error
   @retval   false             Success
@@ -8360,7 +8547,8 @@ static bool mysql_inplace_alter_table(THD *thd,
                                       Alter_inplace_info *ha_alter_info,
                                       enum_alter_inplace_result inplace_supported,
                                       MDL_request *target_mdl_request,
-                                      Alter_table_ctx *alter_ctx)
+                                      Alter_table_ctx *alter_ctx,
+                                      histograms::columns_set &columns)
 {
   handlerton *db_type= table->s->db_type();
   MDL_ticket *mdl_ticket= table->mdl_ticket;
@@ -8557,6 +8745,17 @@ static bool mysql_inplace_alter_table(THD *thd,
     {
       goto rollback;
     }
+
+    /*
+      Check if this is an ALTER command that will cause histogram statistics to
+      become invalid. If that is the case; remove the histogram statistics.
+
+      This will take care of scenarios when INPLACE alter is used, but not COPY.
+    */
+    if (alter_table_drop_histograms(thd, table_list, ha_alter_info->alter_info,
+                                    ha_alter_info->create_info, columns,
+                                    altered_table_def))
+      goto rollback;
 
     // Upgrade to EXCLUSIVE before commit.
     if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
@@ -10940,6 +11139,27 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     }
   }
 
+  /*
+    Store all columns that are going to be dropped, since we need this list
+    when removing column statistics later. The reason we need to store it here,
+    is that 'mysql_prepare_alter_table' may remove some of the columns from
+    the drop_list.
+  */
+  histograms::columns_set columns;
+  for (const auto column : alter_info->drop_list)
+  {
+    if (column->type == Alter_drop::COLUMN)
+      columns.emplace(column->name);
+  }
+
+  Create_field *create_field;
+  List_iterator<Create_field> list_it(alter_info->create_list);
+  while ((create_field= list_it++))
+  {
+    if (create_field->change != nullptr)
+      columns.emplace(create_field->change);
+  }
+
   if (mysql_prepare_alter_table(thd, table_obj, table, create_info, alter_info,
                                 &alter_ctx))
   {
@@ -11347,7 +11567,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                     table_def, table_list, table,
                                     altered_table, &ha_alter_info,
                                     inplace_supported, &target_mdl_request,
-                                    &alter_ctx))
+                                    &alter_ctx, columns))
       {
         DBUG_RETURN(true);
       }
@@ -11796,6 +12016,18 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       goto err_with_mdl;
     DBUG_ASSERT(backup_table != nullptr && new_table != nullptr);
 
+    /*
+      Check if this is an ALTER command that will cause histogram statistics to
+      become invalid. If that is the case; remove the histogram statistics.
+
+      This will take care of scenarios when COPY alter is used, but not INPLACE.
+      Do this before the commit for non-transactional tables, because the
+      new_table is invalidated on commit.
+    */
+    if (alter_table_drop_histograms(thd, table_list, alter_info, create_info,
+                                    columns, new_table))
+      goto err_with_mdl; /* purecov: deadcode */
+
     if (backup_table->has_trigger())
     {
       new_table->copy_triggers(backup_table);
@@ -11810,6 +12042,16 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         goto err_with_mdl;
     }
   }
+
+
+  // If the ALTER command was a rename, rename any existing histograms.
+  if (alter_ctx.is_table_renamed() &&
+      rename_histograms(thd, table_list->db, table_list->table_name, new_db,
+                        new_name))
+  {
+    goto err_with_mdl; /* purecov: deadcode */
+  }
+
 
   // ALTER TABLE succeeded, delete the backup of the old table.
   if (quick_rm_table(thd, old_db_type, alter_ctx.db, backup_name,

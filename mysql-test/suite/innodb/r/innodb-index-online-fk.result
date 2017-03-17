@@ -18,6 +18,7 @@ mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
 mysql/collations_ibfk_1	mysql/collations	mysql/character_sets	1	0
 mysql/columns_ibfk_1	mysql/columns	mysql/tables	1	0
 mysql/columns_ibfk_2	mysql/columns	mysql/collations	1	0
+mysql/column_statistics_ibfk_1	mysql/column_statistics	mysql/catalogs	1	0
 mysql/column_type_elements_ibfk_1	mysql/column_type_elements	mysql/columns	1	0
 mysql/events_ibfk_1	mysql/events	mysql/schemata	1	0
 mysql/events_ibfk_2	mysql/events	mysql/collations	1	0
@@ -66,6 +67,7 @@ mysql/character_sets_ibfk_1	default_collation_id	id	0
 mysql/collations_ibfk_1	character_set_id	id	0
 mysql/columns_ibfk_1	table_id	id	0
 mysql/columns_ibfk_2	collation_id	id	0
+mysql/column_statistics_ibfk_1	catalog_id	id	0
 mysql/column_type_elements_ibfk_1	column_id	id	0
 mysql/events_ibfk_1	schema_id	id	0
 mysql/events_ibfk_2	client_collation_id	id	0
@@ -148,6 +150,7 @@ mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
 mysql/collations_ibfk_1	mysql/collations	mysql/character_sets	1	0
 mysql/columns_ibfk_1	mysql/columns	mysql/tables	1	0
 mysql/columns_ibfk_2	mysql/columns	mysql/collations	1	0
+mysql/column_statistics_ibfk_1	mysql/column_statistics	mysql/catalogs	1	0
 mysql/column_type_elements_ibfk_1	mysql/column_type_elements	mysql/columns	1	0
 mysql/events_ibfk_1	mysql/events	mysql/schemata	1	0
 mysql/events_ibfk_2	mysql/events	mysql/collations	1	0
@@ -199,6 +202,7 @@ mysql/character_sets_ibfk_1	default_collation_id	id	0
 mysql/collations_ibfk_1	character_set_id	id	0
 mysql/columns_ibfk_1	table_id	id	0
 mysql/columns_ibfk_2	collation_id	id	0
+mysql/column_statistics_ibfk_1	catalog_id	id	0
 mysql/column_type_elements_ibfk_1	column_id	id	0
 mysql/events_ibfk_1	schema_id	id	0
 mysql/events_ibfk_2	client_collation_id	id	0
@@ -280,6 +284,7 @@ mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
 mysql/collations_ibfk_1	mysql/collations	mysql/character_sets	1	0
 mysql/columns_ibfk_1	mysql/columns	mysql/tables	1	0
 mysql/columns_ibfk_2	mysql/columns	mysql/collations	1	0
+mysql/column_statistics_ibfk_1	mysql/column_statistics	mysql/catalogs	1	0
 mysql/column_type_elements_ibfk_1	mysql/column_type_elements	mysql/columns	1	0
 mysql/events_ibfk_1	mysql/events	mysql/schemata	1	0
 mysql/events_ibfk_2	mysql/events	mysql/collations	1	0
@@ -332,6 +337,7 @@ mysql/character_sets_ibfk_1	default_collation_id	id	0
 mysql/collations_ibfk_1	character_set_id	id	0
 mysql/columns_ibfk_1	table_id	id	0
 mysql/columns_ibfk_2	collation_id	id	0
+mysql/column_statistics_ibfk_1	catalog_id	id	0
 mysql/column_type_elements_ibfk_1	column_id	id	0
 mysql/events_ibfk_1	schema_id	id	0
 mysql/events_ibfk_2	client_collation_id	id	0
@@ -420,6 +426,7 @@ mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
 mysql/collations_ibfk_1	mysql/collations	mysql/character_sets	1	0
 mysql/columns_ibfk_1	mysql/columns	mysql/tables	1	0
 mysql/columns_ibfk_2	mysql/columns	mysql/collations	1	0
+mysql/column_statistics_ibfk_1	mysql/column_statistics	mysql/catalogs	1	0
 mysql/column_type_elements_ibfk_1	mysql/column_type_elements	mysql/columns	1	0
 mysql/events_ibfk_1	mysql/events	mysql/schemata	1	0
 mysql/events_ibfk_2	mysql/events	mysql/collations	1	0
@@ -472,6 +479,7 @@ mysql/character_sets_ibfk_1	default_collation_id	id	0
 mysql/collations_ibfk_1	character_set_id	id	0
 mysql/columns_ibfk_1	table_id	id	0
 mysql/columns_ibfk_2	collation_id	id	0
+mysql/column_statistics_ibfk_1	catalog_id	id	0
 mysql/column_type_elements_ibfk_1	column_id	id	0
 mysql/events_ibfk_1	schema_id	id	0
 mysql/events_ibfk_2	client_collation_id	id	0
@@ -543,6 +551,7 @@ mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
 mysql/collations_ibfk_1	mysql/collations	mysql/character_sets	1	0
 mysql/columns_ibfk_1	mysql/columns	mysql/tables	1	0
 mysql/columns_ibfk_2	mysql/columns	mysql/collations	1	0
+mysql/column_statistics_ibfk_1	mysql/column_statistics	mysql/catalogs	1	0
 mysql/column_type_elements_ibfk_1	mysql/column_type_elements	mysql/columns	1	0
 mysql/events_ibfk_1	mysql/events	mysql/schemata	1	0
 mysql/events_ibfk_2	mysql/events	mysql/collations	1	0
@@ -595,6 +604,7 @@ mysql/character_sets_ibfk_1	default_collation_id	id	0
 mysql/collations_ibfk_1	character_set_id	id	0
 mysql/columns_ibfk_1	table_id	id	0
 mysql/columns_ibfk_2	collation_id	id	0
+mysql/column_statistics_ibfk_1	catalog_id	id	0
 mysql/column_type_elements_ibfk_1	column_id	id	0
 mysql/events_ibfk_1	schema_id	id	0
 mysql/events_ibfk_2	client_collation_id	id	0
@@ -668,6 +678,7 @@ mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
 mysql/collations_ibfk_1	mysql/collations	mysql/character_sets	1	0
 mysql/columns_ibfk_1	mysql/columns	mysql/tables	1	0
 mysql/columns_ibfk_2	mysql/columns	mysql/collations	1	0
+mysql/column_statistics_ibfk_1	mysql/column_statistics	mysql/catalogs	1	0
 mysql/column_type_elements_ibfk_1	mysql/column_type_elements	mysql/columns	1	0
 mysql/events_ibfk_1	mysql/events	mysql/schemata	1	0
 mysql/events_ibfk_2	mysql/events	mysql/collations	1	0
@@ -722,6 +733,7 @@ mysql/character_sets_ibfk_1	default_collation_id	id	0
 mysql/collations_ibfk_1	character_set_id	id	0
 mysql/columns_ibfk_1	table_id	id	0
 mysql/columns_ibfk_2	collation_id	id	0
+mysql/column_statistics_ibfk_1	catalog_id	id	0
 mysql/column_type_elements_ibfk_1	column_id	id	0
 mysql/events_ibfk_1	schema_id	id	0
 mysql/events_ibfk_2	client_collation_id	id	0
@@ -803,6 +815,7 @@ mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
 mysql/collations_ibfk_1	mysql/collations	mysql/character_sets	1	0
 mysql/columns_ibfk_1	mysql/columns	mysql/tables	1	0
 mysql/columns_ibfk_2	mysql/columns	mysql/collations	1	0
+mysql/column_statistics_ibfk_1	mysql/column_statistics	mysql/catalogs	1	0
 mysql/column_type_elements_ibfk_1	mysql/column_type_elements	mysql/columns	1	0
 mysql/events_ibfk_1	mysql/events	mysql/schemata	1	0
 mysql/events_ibfk_2	mysql/events	mysql/collations	1	0
@@ -851,6 +864,7 @@ mysql/character_sets_ibfk_1	default_collation_id	id	0
 mysql/collations_ibfk_1	character_set_id	id	0
 mysql/columns_ibfk_1	table_id	id	0
 mysql/columns_ibfk_2	collation_id	id	0
+mysql/column_statistics_ibfk_1	catalog_id	id	0
 mysql/column_type_elements_ibfk_1	column_id	id	0
 mysql/events_ibfk_1	schema_id	id	0
 mysql/events_ibfk_2	client_collation_id	id	0
@@ -934,6 +948,7 @@ mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
 mysql/collations_ibfk_1	mysql/collations	mysql/character_sets	1	0
 mysql/columns_ibfk_1	mysql/columns	mysql/tables	1	0
 mysql/columns_ibfk_2	mysql/columns	mysql/collations	1	0
+mysql/column_statistics_ibfk_1	mysql/column_statistics	mysql/catalogs	1	0
 mysql/column_type_elements_ibfk_1	mysql/column_type_elements	mysql/columns	1	0
 mysql/events_ibfk_1	mysql/events	mysql/schemata	1	0
 mysql/events_ibfk_2	mysql/events	mysql/collations	1	0
@@ -981,6 +996,7 @@ mysql/character_sets_ibfk_1	default_collation_id	id	0
 mysql/collations_ibfk_1	character_set_id	id	0
 mysql/columns_ibfk_1	table_id	id	0
 mysql/columns_ibfk_2	collation_id	id	0
+mysql/column_statistics_ibfk_1	catalog_id	id	0
 mysql/column_type_elements_ibfk_1	column_id	id	0
 mysql/events_ibfk_1	schema_id	id	0
 mysql/events_ibfk_2	client_collation_id	id	0
@@ -1046,6 +1062,7 @@ mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
 mysql/collations_ibfk_1	mysql/collations	mysql/character_sets	1	0
 mysql/columns_ibfk_1	mysql/columns	mysql/tables	1	0
 mysql/columns_ibfk_2	mysql/columns	mysql/collations	1	0
+mysql/column_statistics_ibfk_1	mysql/column_statistics	mysql/catalogs	1	0
 mysql/column_type_elements_ibfk_1	mysql/column_type_elements	mysql/columns	1	0
 mysql/events_ibfk_1	mysql/events	mysql/schemata	1	0
 mysql/events_ibfk_2	mysql/events	mysql/collations	1	0
@@ -1094,6 +1111,7 @@ mysql/character_sets_ibfk_1	default_collation_id	id	0
 mysql/collations_ibfk_1	character_set_id	id	0
 mysql/columns_ibfk_1	table_id	id	0
 mysql/columns_ibfk_2	collation_id	id	0
+mysql/column_statistics_ibfk_1	catalog_id	id	0
 mysql/column_type_elements_ibfk_1	column_id	id	0
 mysql/events_ibfk_1	schema_id	id	0
 mysql/events_ibfk_2	client_collation_id	id	0
@@ -1171,6 +1189,7 @@ mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
 mysql/collations_ibfk_1	mysql/collations	mysql/character_sets	1	0
 mysql/columns_ibfk_1	mysql/columns	mysql/tables	1	0
 mysql/columns_ibfk_2	mysql/columns	mysql/collations	1	0
+mysql/column_statistics_ibfk_1	mysql/column_statistics	mysql/catalogs	1	0
 mysql/column_type_elements_ibfk_1	mysql/column_type_elements	mysql/columns	1	0
 mysql/events_ibfk_1	mysql/events	mysql/schemata	1	0
 mysql/events_ibfk_2	mysql/events	mysql/collations	1	0
@@ -1219,6 +1238,7 @@ mysql/character_sets_ibfk_1	default_collation_id	id	0
 mysql/collations_ibfk_1	character_set_id	id	0
 mysql/columns_ibfk_1	table_id	id	0
 mysql/columns_ibfk_2	collation_id	id	0
+mysql/column_statistics_ibfk_1	catalog_id	id	0
 mysql/column_type_elements_ibfk_1	column_id	id	0
 mysql/events_ibfk_1	schema_id	id	0
 mysql/events_ibfk_2	client_collation_id	id	0
@@ -1296,6 +1316,7 @@ mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
 mysql/collations_ibfk_1	mysql/collations	mysql/character_sets	1	0
 mysql/columns_ibfk_1	mysql/columns	mysql/tables	1	0
 mysql/columns_ibfk_2	mysql/columns	mysql/collations	1	0
+mysql/column_statistics_ibfk_1	mysql/column_statistics	mysql/catalogs	1	0
 mysql/column_type_elements_ibfk_1	mysql/column_type_elements	mysql/columns	1	0
 mysql/events_ibfk_1	mysql/events	mysql/schemata	1	0
 mysql/events_ibfk_2	mysql/events	mysql/collations	1	0
@@ -1344,6 +1365,7 @@ mysql/character_sets_ibfk_1	default_collation_id	id	0
 mysql/collations_ibfk_1	character_set_id	id	0
 mysql/columns_ibfk_1	table_id	id	0
 mysql/columns_ibfk_2	collation_id	id	0
+mysql/column_statistics_ibfk_1	catalog_id	id	0
 mysql/column_type_elements_ibfk_1	column_id	id	0
 mysql/events_ibfk_1	schema_id	id	0
 mysql/events_ibfk_2	client_collation_id	id	0
@@ -1447,6 +1469,7 @@ mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
 mysql/collations_ibfk_1	mysql/collations	mysql/character_sets	1	0
 mysql/columns_ibfk_1	mysql/columns	mysql/tables	1	0
 mysql/columns_ibfk_2	mysql/columns	mysql/collations	1	0
+mysql/column_statistics_ibfk_1	mysql/column_statistics	mysql/catalogs	1	0
 mysql/column_type_elements_ibfk_1	mysql/column_type_elements	mysql/columns	1	0
 mysql/events_ibfk_1	mysql/events	mysql/schemata	1	0
 mysql/events_ibfk_2	mysql/events	mysql/collations	1	0
@@ -1496,6 +1519,7 @@ mysql/character_sets_ibfk_1	default_collation_id	id	0
 mysql/collations_ibfk_1	character_set_id	id	0
 mysql/columns_ibfk_1	table_id	id	0
 mysql/columns_ibfk_2	collation_id	id	0
+mysql/column_statistics_ibfk_1	catalog_id	id	0
 mysql/column_type_elements_ibfk_1	column_id	id	0
 mysql/events_ibfk_1	schema_id	id	0
 mysql/events_ibfk_2	client_collation_id	id	0
@@ -1562,6 +1586,7 @@ mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
 mysql/collations_ibfk_1	mysql/collations	mysql/character_sets	1	0
 mysql/columns_ibfk_1	mysql/columns	mysql/tables	1	0
 mysql/columns_ibfk_2	mysql/columns	mysql/collations	1	0
+mysql/column_statistics_ibfk_1	mysql/column_statistics	mysql/catalogs	1	0
 mysql/column_type_elements_ibfk_1	mysql/column_type_elements	mysql/columns	1	0
 mysql/events_ibfk_1	mysql/events	mysql/schemata	1	0
 mysql/events_ibfk_2	mysql/events	mysql/collations	1	0
@@ -1611,6 +1636,7 @@ mysql/character_sets_ibfk_1	default_collation_id	id	0
 mysql/collations_ibfk_1	character_set_id	id	0
 mysql/columns_ibfk_1	table_id	id	0
 mysql/columns_ibfk_2	collation_id	id	0
+mysql/column_statistics_ibfk_1	catalog_id	id	0
 mysql/column_type_elements_ibfk_1	column_id	id	0
 mysql/events_ibfk_1	schema_id	id	0
 mysql/events_ibfk_2	client_collation_id	id	0
@@ -1680,6 +1706,7 @@ mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
 mysql/collations_ibfk_1	mysql/collations	mysql/character_sets	1	0
 mysql/columns_ibfk_1	mysql/columns	mysql/tables	1	0
 mysql/columns_ibfk_2	mysql/columns	mysql/collations	1	0
+mysql/column_statistics_ibfk_1	mysql/column_statistics	mysql/catalogs	1	0
 mysql/column_type_elements_ibfk_1	mysql/column_type_elements	mysql/columns	1	0
 mysql/events_ibfk_1	mysql/events	mysql/schemata	1	0
 mysql/events_ibfk_2	mysql/events	mysql/collations	1	0
@@ -1732,6 +1759,7 @@ mysql/character_sets_ibfk_1	default_collation_id	id	0
 mysql/collations_ibfk_1	character_set_id	id	0
 mysql/columns_ibfk_1	table_id	id	0
 mysql/columns_ibfk_2	collation_id	id	0
+mysql/column_statistics_ibfk_1	catalog_id	id	0
 mysql/column_type_elements_ibfk_1	column_id	id	0
 mysql/events_ibfk_1	schema_id	id	0
 mysql/events_ibfk_2	client_collation_id	id	0
@@ -1801,6 +1829,7 @@ mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
 mysql/collations_ibfk_1	mysql/collations	mysql/character_sets	1	0
 mysql/columns_ibfk_1	mysql/columns	mysql/tables	1	0
 mysql/columns_ibfk_2	mysql/columns	mysql/collations	1	0
+mysql/column_statistics_ibfk_1	mysql/column_statistics	mysql/catalogs	1	0
 mysql/column_type_elements_ibfk_1	mysql/column_type_elements	mysql/columns	1	0
 mysql/events_ibfk_1	mysql/events	mysql/schemata	1	0
 mysql/events_ibfk_2	mysql/events	mysql/collations	1	0
@@ -1848,6 +1877,7 @@ mysql/character_sets_ibfk_1	default_collation_id	id	0
 mysql/collations_ibfk_1	character_set_id	id	0
 mysql/columns_ibfk_1	table_id	id	0
 mysql/columns_ibfk_2	collation_id	id	0
+mysql/column_statistics_ibfk_1	catalog_id	id	0
 mysql/column_type_elements_ibfk_1	column_id	id	0
 mysql/events_ibfk_1	schema_id	id	0
 mysql/events_ibfk_2	client_collation_id	id	0
@@ -1913,6 +1943,7 @@ mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
 mysql/collations_ibfk_1	mysql/collations	mysql/character_sets	1	0
 mysql/columns_ibfk_1	mysql/columns	mysql/tables	1	0
 mysql/columns_ibfk_2	mysql/columns	mysql/collations	1	0
+mysql/column_statistics_ibfk_1	mysql/column_statistics	mysql/catalogs	1	0
 mysql/column_type_elements_ibfk_1	mysql/column_type_elements	mysql/columns	1	0
 mysql/events_ibfk_1	mysql/events	mysql/schemata	1	0
 mysql/events_ibfk_2	mysql/events	mysql/collations	1	0
@@ -1963,6 +1994,7 @@ mysql/character_sets_ibfk_1	default_collation_id	id	0
 mysql/collations_ibfk_1	character_set_id	id	0
 mysql/columns_ibfk_1	table_id	id	0
 mysql/columns_ibfk_2	collation_id	id	0
+mysql/column_statistics_ibfk_1	catalog_id	id	0
 mysql/column_type_elements_ibfk_1	column_id	id	0
 mysql/events_ibfk_1	schema_id	id	0
 mysql/events_ibfk_2	client_collation_id	id	0
@@ -2036,6 +2068,7 @@ mysql/character_sets_ibfk_1	mysql/character_sets	mysql/collations	1	0
 mysql/collations_ibfk_1	mysql/collations	mysql/character_sets	1	0
 mysql/columns_ibfk_1	mysql/columns	mysql/tables	1	0
 mysql/columns_ibfk_2	mysql/columns	mysql/collations	1	0
+mysql/column_statistics_ibfk_1	mysql/column_statistics	mysql/catalogs	1	0
 mysql/column_type_elements_ibfk_1	mysql/column_type_elements	mysql/columns	1	0
 mysql/events_ibfk_1	mysql/events	mysql/schemata	1	0
 mysql/events_ibfk_2	mysql/events	mysql/collations	1	0
@@ -2085,6 +2118,7 @@ mysql/character_sets_ibfk_1	default_collation_id	id	0
 mysql/collations_ibfk_1	character_set_id	id	0
 mysql/columns_ibfk_1	table_id	id	0
 mysql/columns_ibfk_2	collation_id	id	0
+mysql/column_statistics_ibfk_1	catalog_id	id	0
 mysql/column_type_elements_ibfk_1	column_id	id	0
 mysql/events_ibfk_1	schema_id	id	0
 mysql/events_ibfk_2	client_collation_id	id	0

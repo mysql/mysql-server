@@ -671,14 +671,14 @@ create temporary table t2 (a int);
 let $have_debug = `SELECT VERSION() LIKE '%debug%'`;
 if (!$have_debug)
 {
-  --replace_regex /7/X/
-  call p_verify_status_increment(7, 0, 0, 0);
+  --replace_regex /8/X/
+  call p_verify_status_increment(8, 0, 0, 0);
 }
 
 if ($have_debug)
 {
-  --replace_regex /8/X/
-  call p_verify_status_increment(8, 0, 0, 0);
+  --replace_regex /9/X/
+  call p_verify_status_increment(9, 0, 0, 0);
 }
 --enable_warnings
 set sql_mode=default;
@@ -901,9 +901,9 @@ if ($have_debug)
 }
 
 alter table t3 rename t4;
-call p_verify_status_increment(9, 4, 3, 0);
+call p_verify_status_increment(14, 4, 3, 0);
 rename table t4 to t3;
-call p_verify_status_increment(11, 4, 5, 0);
+call p_verify_status_increment(16, 4, 5, 0);
 truncate table t3;
 
 if (!$have_debug)

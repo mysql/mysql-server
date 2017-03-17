@@ -28,7 +28,6 @@ ERROR HY000: The server is not configured properly to be an active member of the
 # Recreate the user with an upgrade and see that GR works
 #
 Run mysql_upgrade
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK

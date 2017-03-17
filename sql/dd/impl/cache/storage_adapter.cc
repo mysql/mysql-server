@@ -28,6 +28,7 @@
 #include "dd/types/abstract_table.h"          // Abstract_table
 #include "dd/types/charset.h"                 // Charset
 #include "dd/types/collation.h"               // Collation
+#include "dd/types/column_statistics.h"       // Column_statistics
 #include "dd/types/entity_object_table.h"     // Entity_object_table
 #include "dd/types/event.h"                   // Event
 #include "dd/types/function.h"                // Routine, Function
@@ -441,6 +442,7 @@ template Object_id Storage_adapter::next_oid<Table>();
 template Object_id Storage_adapter::next_oid<View>();
 template Object_id Storage_adapter::next_oid<Charset>();
 template Object_id Storage_adapter::next_oid<Collation>();
+template Object_id Storage_adapter::next_oid<Column_statistics>();
 template Object_id Storage_adapter::next_oid<Event>();
 template Object_id Storage_adapter::next_oid<Routine>();
 template Object_id Storage_adapter::next_oid<Function>();
@@ -496,6 +498,21 @@ template bool Storage_adapter::get<Collation::aux_key_type, Collation>
         enum_tx_isolation, const Collation **);
 template bool Storage_adapter::drop(THD *, const Collation*);
 template bool Storage_adapter::store(THD *, Collation*);
+
+template bool
+Storage_adapter::get<Column_statistics::id_key_type, Column_statistics>
+  (THD *, const Column_statistics::id_key_type &, enum_tx_isolation,
+   const Column_statistics **);
+template bool
+Storage_adapter::get<Column_statistics::name_key_type, Column_statistics>
+  (THD *, const Column_statistics::name_key_type &, enum_tx_isolation,
+   const Column_statistics **);
+template bool
+Storage_adapter::get<Column_statistics::aux_key_type, Column_statistics>
+  (THD *, const Column_statistics::aux_key_type &, enum_tx_isolation,
+   const Column_statistics **);
+template bool Storage_adapter::drop(THD *, const Column_statistics*);
+template bool Storage_adapter::store(THD *, Column_statistics*);
 
 template bool Storage_adapter::get<Event::id_key_type, Event>
 (THD *, const Event::id_key_type &, enum_tx_isolation, const Event **);

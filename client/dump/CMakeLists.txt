@@ -39,6 +39,7 @@ SET(MYSQLPUMP_LIB_SOURCES
   abstract_simple_dump_task.cc
   abstract_table_dump_task.cc
   chain_data.cc
+  column_statistic.cc
   composite_message_handler.cc
   compression_lz4_writer.cc
   compression_zlib_writer.cc

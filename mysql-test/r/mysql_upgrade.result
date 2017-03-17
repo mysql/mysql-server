@@ -1,5 +1,4 @@
 Run mysql_upgrade once
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -39,7 +38,6 @@ sys.sys_config                                     OK
 Run it again - should say already completed
 This installation of MySQL is already upgraded to VERSION, use --force if you still need to run mysql_upgrade
 Force should run it regardless of wether it's been run before
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -79,7 +77,6 @@ sys.sys_config                                     OK
 Run mysql_upgrade with a non existing server socket
 mysql_upgrade: Got error: 2005: Unknown MySQL server host 'not_existing_host' (errno) while connecting to the MySQL server
 Upgrade process encountered error and will not continue.
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK

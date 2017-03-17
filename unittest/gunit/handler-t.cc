@@ -242,7 +242,7 @@ TEST_F(HandlerTest, SamplingInterfaceAllRows)
   uchar buffer[8];
 
   // rnd_init should be called exactly one time by ha_sample_init.
-  EXPECT_CALL(mock_handler, rnd_init(false)).Times(1);
+  EXPECT_CALL(mock_handler, rnd_init(true)).Times(1);
   EXPECT_EQ(mock_handler.ha_sample_init(100.0, 0, enum_sampling_method::SYSTEM),
             0);
   EXPECT_EQ(mock_handler.inited, handler::SAMPLING);
@@ -274,7 +274,7 @@ TEST_F(HandlerTest, SamplingInterfaceNoRows)
   uchar buffer[8];
 
   // rnd_init should be called exactly one time by ha_sample_init.
-  EXPECT_CALL(mock_handler, rnd_init(false)).Times(1);
+  EXPECT_CALL(mock_handler, rnd_init(true)).Times(1);
   EXPECT_EQ(mock_handler.ha_sample_init(0.0, 0, enum_sampling_method::SYSTEM),
             0);
   EXPECT_EQ(mock_handler.inited, handler::SAMPLING);

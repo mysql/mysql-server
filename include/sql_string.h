@@ -541,7 +541,7 @@ public:
    * Returns substring of given characters lenght, starting at given character offset.
    * Note that parameter indexes are character indexes and not byte indexes.
    */
-  String substr(int offset, int count);
+  String substr(int offset, int count) const;
 
   bool replace(size_t offset, size_t arg_length,const char *to, size_t length);
   bool replace(size_t offset, size_t arg_length,const String &to);

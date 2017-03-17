@@ -2,7 +2,6 @@ CREATE USER mysqltest1@'%' IDENTIFIED by 'sakila';
 GRANT ALL ON *.* TO mysqltest1@'%';
 Run mysql_upgrade with password protected account
 mysql_upgrade: [Warning] Using a password on the command line interface can be insecure.
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -56,7 +55,6 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%';
 Run mysql_upgrade with all privileges on a user
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -129,7 +127,6 @@ Warning	1805	Column count of mysql.user is wrong. Expected 47, found 43. The tab
 # end of check for the presense of the warning
 # repair the user's plugin
 mysql_upgrade: (non fatal) [WARNING] 1642: Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -287,7 +284,6 @@ Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	D
 #dropped columns from the begining of the test
 mysql_upgrade: [Warning] Using a password on the command line interface can be insecure.
 mysql_upgrade: (non fatal) [WARNING] 1642: Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -396,7 +392,6 @@ Warning	1805	Column count of mysql.user is wrong. Expected 47, found 43. The tab
 # check the presents of the warnings in the log file
 # end of check for the presense of the warning
 mysql_upgrade: (non fatal) [WARNING] 1642: Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -483,7 +478,6 @@ SHOW GRANTS FOR u1;
 Grants for u1@%
 GRANT SUPER ON *.* TO `u1`@`%`
 # Start upgrade
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -544,7 +538,6 @@ GRANT XA_RECOVER_ADMIN ON *.* TO `u1`@`%` WITH GRANT OPTION
 REVOKE XA_RECOVER_ADMIN ON *.* FROM u1;
 REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
 # Start upgrade
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK

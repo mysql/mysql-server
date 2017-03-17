@@ -16,20 +16,30 @@
 #ifndef SQL_TABLE_MAINTENANCE_H
 #define SQL_TABLE_MAINTENANCE_H
 
+#include <set>
 #include <stddef.h>
 
 #include "lex_string.h"
+#include "memroot_allocator.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "mysql/mysql_lex_string.h"
 #include "sql_cmd.h"       // Sql_cmd
+#include "sql/histograms/histogram.h"
 
+class String;
 class THD;
+
 struct TABLE_LIST;
 template <class T> class List;
 
 typedef struct st_key_cache KEY_CACHE;
 typedef struct st_lex_user LEX_USER;
+
+struct Column_name_comparator
+{
+  bool operator()(const String *lhs, const String *rhs) const;
+};
 
 /* Must be able to hold ALTER TABLE t PARTITION BY ... KEY ALGORITHM = 1 ... */
 #define SQL_ADMIN_MSG_TEXT_SIZE 128 * 1024
@@ -45,10 +55,21 @@ class Sql_cmd_analyze_table : public Sql_cmd
 {
 public:
   /**
+    Specifies which (if any) of the commands UPDATE HISTOGRAM or DROP HISTOGRAM
+    that is specified after ANALYZE TABLE tbl.
+  */
+  enum class Histogram_command
+  {
+    NONE,              ///< Neither UPDATE or DROP histogram is specified
+    UPDATE_HISTOGRAM,  ///< UPDATE HISTOGRAM ... is specified after ANALYZE TABLE
+    DROP_HISTOGRAM     ///< DROP HISTOGRAM ... is specified after ANALYZE TABLE
+  };
+
+  /**
     Constructor, used to represent a ANALYZE TABLE statement.
   */
-  Sql_cmd_analyze_table()
-  {}
+  Sql_cmd_analyze_table(THD *thd, Histogram_command histogram_command,
+                        int histogram_buckets);
 
   ~Sql_cmd_analyze_table()
   {}
@@ -59,6 +80,82 @@ public:
   {
     return SQLCOM_ANALYZE;
   }
+
+  /**
+    Set which fields to (try and) create/update or delete histogram statistics
+    for.
+  */
+  bool set_histogram_fields(List<String> *fields);
+private:
+  using columns_set= std::set<String*, Column_name_comparator,
+                            Memroot_allocator<String*>>;
+
+  /// Which histogram command (if any) is specified
+  Histogram_command m_histogram_command= Histogram_command::NONE;
+
+  /// The fields specified by the user in UPDATE/DROP HISTOGRAM
+  columns_set m_histogram_fields;
+
+  /// The number of buckets specified by the user in UPDATE HISTOGRAM
+  int m_histogram_buckets;
+
+  /// @return The histogram command specified, if any.
+  Histogram_command get_histogram_command() const
+  { return m_histogram_command; }
+
+  /// @return The number of buckets specified in UPDATE HISTOGRAM.
+  int get_histogram_buckets() const { return m_histogram_buckets; }
+
+  /// @return The fields specified in UPDATE/DROP HISTOGRAM
+  const columns_set &get_histogram_fields() const
+  { return m_histogram_fields; }
+
+  /**
+    Send the result of histogram operations back to the client as a result set.
+
+    @param thd      Thread handle.
+    @param results  The messages to send back to the client.
+    @param table    The table the operations was performed on.
+
+    @return false on success, true otherwise.
+  */
+  bool
+  send_histogram_results(THD *thd, const histograms::results_map &results,
+                         const TABLE_LIST *table);
+
+  /**
+    Update one or more histograms
+
+    This is invoked by running the command "ANALYZE TABLE tbl UPDATE HISTOGRAM
+    ON col1, col2 WITH n BUCKETS". Note that the function expects exactly one
+    table to be specified, but multiple columns can be specified.
+
+    @param thd Thread handler.
+    @param table The table specified in ANALYZE TABLE
+    @param results A map where the results of the operations will be stored.
+
+    @return false on success, true on error.
+  */
+  bool update_histogram(THD *thd, TABLE_LIST *table,
+                        histograms::results_map &results);
+
+  /**
+    Drops one or more histograms
+
+    This is invoked by running the command "ANALYZE TABLE tbl DROP HISTOGRAM ON
+    col1, col2;". Note that the function expects exactly one table to be
+    specified, but multiple columns can be specified.
+
+    @param thd Thread handler.
+    @param table The table specified in ANALYZE TABLE
+    @param results A map where the results of the operations will be stored.
+
+    @return false on success, true on error.
+  */
+  bool drop_histogram(THD *thd, TABLE_LIST *table,
+                      histograms::results_map &results);
+
+  bool handle_histogram_command(THD *thd, TABLE_LIST *table);
 };
 
 

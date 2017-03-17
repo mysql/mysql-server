@@ -335,20 +335,6 @@ INSERT IGNORE INTO engine_cost(engine_name, device_type, cost_name) VALUES
   ("default", 0, "io_block_read_cost");
 
 
---
--- Column statistics
---
-
-CREATE TABLE IF NOT EXISTS column_stats (
-  database_name VARCHAR(64) NOT NULL,
-  table_name VARCHAR(64) NOT NULL,
-  column_name VARCHAR(64) NOT NULL,
-  histogram JSON NOT NULL,
-  PRIMARY KEY (database_name, table_name, column_name)
-) ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_bin
-COMMENT="Column statistics" TABLESPACE=mysql;
-
-
 CREATE TABLE IF NOT EXISTS proxies_priv (Host char(60) binary DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Proxied_host char(60) binary DEFAULT '' NOT NULL, Proxied_user char(32) binary DEFAULT '' NOT NULL, With_grant BOOL DEFAULT 0 NOT NULL, Grantor char(93) DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY Host (Host,User,Proxied_host,Proxied_user), KEY Grantor (Grantor) ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='User proxy privileges' TABLESPACE=mysql;
 
 -- Remember for later if proxies_priv table already existed

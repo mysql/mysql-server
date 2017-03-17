@@ -7,9 +7,6 @@ SELECT * FROM information_schema.statistics
 WHERE table_schema = 'mysql' AND table_name != 'ndb_binlog_index'
 ORDER BY table_schema, table_name, index_name, seq_in_index, column_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE
-def	mysql	column_stats	0	mysql	PRIMARY	1	database_name	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	column_stats	0	mysql	PRIMARY	2	table_name	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	column_stats	0	mysql	PRIMARY	3	column_name	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	columns_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	columns_priv	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	columns_priv	0	mysql	PRIMARY	3	User	A	#CARD#	NULL	NULL		BTREE			YES

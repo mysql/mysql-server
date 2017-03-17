@@ -10706,6 +10706,18 @@ ER_PART_EXPR_TOO_LONG
 ER_UDF_DROP_DYNAMICALLY_REGISTERED
   eng "DROP FUNCTION can't drop a dynamically registered user defined function"
 
+ER_UNABLE_TO_STORE_COLUMN_STATISTICS
+  eng "Unable to store column statistics for column '%.64s' in table '%.64s'.'%.64s'"
+
+ER_UNABLE_TO_UPDATE_COLUMN_STATISTICS
+  eng "Unable to update column statistics for column '%.64s' in table '%.64s'.'%.64s'"
+
+ER_UNABLE_TO_DROP_COLUMN_STATISTICS
+  eng "Unable to remove column statistics for column '%.64s' in table '%.64s'.'%.64s'"
+
+ER_UNABLE_TO_BUILD_HISTOGRAM
+  eng "Unable to build histogram statistics for column '%.64s' in table '%.64s'.'%.64s'"
+
 #
 #  End of 8.0 error messages.
 #

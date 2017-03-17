@@ -22,7 +22,7 @@
 #include <gmock/gmock.h>
 
 #include "field.h"
-
+#include "json_dom.h"
 
 /**
   Base mocks for Field_*. Create subclasses mocking additional virtual

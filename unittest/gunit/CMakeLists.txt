@@ -362,6 +362,7 @@ ENDFOREACH()
 SET(SERVER_TESTS
   copy_info
   create_field
+  dd_column_statistics
   dd_info_schema_native_func
   dd_properties
   dd_sdi
@@ -417,6 +418,7 @@ SET(SERVER_TESTS
   thd_manager
   union_syntax
   unique
+  value_map
   wild_case_compare
 )
 

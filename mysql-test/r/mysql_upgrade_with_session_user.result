@@ -4,7 +4,6 @@
 #
 DELETE FROM mysql.user WHERE user='mysql.session';
 Run mysql_upgrade
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK

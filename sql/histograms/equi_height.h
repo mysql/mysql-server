@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_EQUI_HEIGHT_INCLUDED
 #define HISTOGRAMS_EQUI_HEIGHT_INCLUDED
 
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,13 +67,14 @@
   }
 */
 
-#include <cstddef>              // size_t
-#include <string>               // std::string
-#include <vector>               // std::vector
+#include <cstddef>                     // size_t
+#include <string>                      // std::string
+#include <vector>                      // std::vector
 
-#include "equi_height_bucket.h" // equi_height::Bucket, IWYU pragma: keep
-#include "histogram.h"          // Histogram, value_map_type
-#include "my_base.h"            // ha_rows
+#include "equi_height_bucket.h"        // equi_height::Bucket, IWYU pragma: keep
+#include "histogram.h"                 // Histogram, value_map_type
+#include "my_base.h"                   // ha_rows
+#include "sql/histograms/value_map.h"  // Value_map
 #include "thr_malloc.h"
 
 class Json_object;
@@ -95,6 +96,30 @@ private:
   /// The buckets for this histogram.
   std::vector<equi_height::Bucket<T>,
               Memroot_allocator<equi_height::Bucket<T>> > m_buckets;
+
+
+  /**
+    Create Equi-height buckets from a JSON array.
+
+    This function will add new buckets to the current histogram by going through
+    the provided JSON array. Contents are allocated as needed on the current
+    histograms MEM_ROOT.
+
+    @param json_bucket a JSON array containing the histogram buckets
+    @return true on error, false otherwise
+  */
+  bool add_bucket_from_json(const Json_array *json_bucket);
+
+protected:
+  /**
+    Populate this histogram with contents from a JSON object.
+
+    @param json_object a JSON object that represents an Equi-height histogram
+
+    @return true on error, false otherwise.
+  */
+  bool json_to_histogram(const Json_object &json_object) override;
+
 public:
   /**
     Equi-height constructor.
@@ -106,8 +131,21 @@ public:
     @param tbl_name name of the table this histogram represents
     @param col_name name of the column this histogram represents
   */
-  Equi_height(MEM_ROOT *mem_root, std::string db_name, std::string tbl_name,
-              std::string col_name);
+  Equi_height(MEM_ROOT *mem_root, const std::string &db_name,
+              const std::string &tbl_name, const std::string &col_name);
+
+  /**
+    Equi-height copy-constructor
+
+    This will take a copy of the histogram and all of its contents on the
+    provided MEM_ROOT.
+
+    @param mem_root the MEM_ROOT to allocate the new histogram on.
+    @param other    the histogram to take a copy of
+  */
+  Equi_height(MEM_ROOT *mem_root, const Equi_height<T> &other);
+
+  Equi_height(const Equi_height<T> &other) = delete;
 
   /**
     Build the histogram.
@@ -117,13 +155,11 @@ public:
 
     @param  value_map       a value map, where the map key is a value and the
                             map value is the absolute frequency for that value
-    @param  num_null_values the number of NULL values in the data set
     @param  num_buckets     maximum number of buckets to create
 
     @return true on error, false otherwise
   */
-  bool build_histogram(const value_map_type<T> &value_map,
-                       ha_rows num_null_values, size_t num_buckets);
+  bool build_histogram(const Value_map<T> &value_map, size_t num_buckets);
 
   /**
     @return number of buckets in this histogram
@@ -150,6 +186,15 @@ public:
     @return a readable string representation of the histogram type
   */
   std::string histogram_type_to_str() const override;
+
+  /**
+    Make a clone of this histogram on a MEM_ROOT.
+
+    @param mem_root the MEM_ROOT to allocate the new histogram contents on.
+
+    @return a copy of the histogram allocated on the provided MEM_ROOT.
+  */
+  Histogram *clone(MEM_ROOT *mem_root) const override;
 };
 
 } // namespace histograms

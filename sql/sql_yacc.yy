@@ -101,6 +101,9 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 using std::min;
 using std::max;
 
+/// The maximum number of histogram buckets.
+static const int MAX_NUMBER_OF_HISTOGRAM_BUCKETS= 1024;
+
 int yylex(void *yylval, void *yythd);
 
 #define yyoverflow(A,B,C,D,E,F,G,H)           \
@@ -1148,6 +1151,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  NOWAIT_SYM                    /* MYSQL */
 %token  GROUPING_SYM                  /* SQL-2011-R */
 %token  PERSIST_ONLY_SYM              /* MYSQL */
+%token  HISTOGRAM_SYM                 /* MYSQL */
+%token  BUCKETS_SYM                   /* MYSQL */
+
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
   simple "UNIQUE" and "KEY" attributes:
@@ -1703,6 +1709,7 @@ END_OF_INPUT
 
 %type <wild_or_where> opt_wild_or_where_for_show
 %type <acl_type> opt_acl_type
+%type <histogram> opt_histogram
 
 %type <lex_cstring_list> column_list opt_column_list
 
@@ -7339,7 +7346,7 @@ standalone_alter_commands:
             lex->no_write_to_binlog= $3;
             lex->check_opt.init();
             DBUG_ASSERT(!lex->m_sql_cmd);
-            lex->m_sql_cmd= NEW_PTN Sql_cmd_alter_table_analyze_partition();
+            lex->m_sql_cmd= NEW_PTN Sql_cmd_alter_table_analyze_partition(thd);
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
@@ -8216,6 +8223,7 @@ mi_repair_type:
 
 analyze:
           ANALYZE_SYM opt_no_write_to_binlog table_or_tables table_list
+          opt_histogram
           {
             THD *thd= YYTHD;
             LEX *lex=Lex;
@@ -8229,9 +8237,54 @@ analyze:
                                    YYPS->m_lock_type, YYPS->m_mdl_type))
               MYSQL_YYABORT;
             DBUG_ASSERT(!lex->m_sql_cmd);
-            lex->m_sql_cmd= NEW_PTN Sql_cmd_analyze_table();
+            lex->m_sql_cmd= NEW_PTN Sql_cmd_analyze_table(thd, $5.command,
+                                                          $5.num_buckets);
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
+
+            if ($5.command != Sql_cmd_analyze_table::Histogram_command::NONE)
+            {
+              Sql_cmd_analyze_table *analyze_cmd=
+                down_cast<Sql_cmd_analyze_table*>(lex->m_sql_cmd);
+
+              if (analyze_cmd->set_histogram_fields($5.columns))
+                MYSQL_YYABORT;
+            }
+          }
+        ;
+
+opt_histogram:
+          /* empty */
+          {
+            $$.command= Sql_cmd_analyze_table::Histogram_command::NONE;
+            $$.columns= nullptr;
+            $$.num_buckets= 0;
+          }
+        | UPDATE_SYM HISTOGRAM_SYM ON_SYM ident_string_list WITH NUM BUCKETS_SYM
+          {
+            $$.command=
+              Sql_cmd_analyze_table::Histogram_command::UPDATE_HISTOGRAM;
+            $$.columns= $4;
+
+            int error;
+            longlong num= my_strtoll10($6.str, nullptr, &error);
+            MYSQL_YYABORT_UNLESS(error <= 0);
+
+            if (num < 1 || num > MAX_NUMBER_OF_HISTOGRAM_BUCKETS)
+            {
+              my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "Number of buckets",
+                       "ANALYZE TABLE");
+              MYSQL_YYABORT;
+            }
+
+            $$.num_buckets= static_cast<int>(num);
+          }
+        | DROP HISTOGRAM_SYM ON_SYM ident_string_list
+          {
+            $$.command=
+              Sql_cmd_analyze_table::Histogram_command::DROP_HISTOGRAM;
+            $$.columns= $4;
+            $$.num_buckets= 0;
           }
         ;
 
@@ -13203,6 +13256,7 @@ role_or_label_keyword:
         | BOOL_SYM                 {}
         | BOOLEAN_SYM              {}
         | BTREE_SYM                {}
+        | BUCKETS_SYM              {}
         | CASCADED                 {}
         | CATALOG_NAME_SYM         {}
         | CHAIN_SYM                {}
@@ -13286,6 +13340,7 @@ role_or_label_keyword:
         | GRANTS                   {}
         | GLOBAL_SYM               {}
         | HASH_SYM                 {}
+        | HISTOGRAM_SYM            {}
         | HOSTS_SYM                {}
         | HOUR_SYM                 {}
         | IDENTIFIED_SYM           {}

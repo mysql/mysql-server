@@ -16,6 +16,7 @@
 #include "sql/sql_admin.h"
 
 #include <limits.h>
+#include <string>
 #include <string.h>
 #include <sys/types.h>
 #include <utility>
@@ -71,12 +72,19 @@
 #include "sql_security_ctx.h"
 #include "sql_string.h"
 #include "sql_table.h"                       // mysql_recreate_table
+#include "sql/histograms/histogram.h"
 #include "system_variables.h"
 #include "table.h"
 #include "table_trigger_dispatcher.h"        // Table_trigger_dispatcher
 #include "thr_lock.h"
 #include "transaction.h"                     // trans_rollback_stmt
 #include "violite.h"
+
+bool Column_name_comparator::operator()(const String *lhs, const String *rhs) const
+{
+  DBUG_ASSERT(lhs->charset()->number == rhs->charset()->number);
+  return sortcmp(lhs, rhs, lhs->charset()) < 0;
+}
 
 static int send_check_errmsg(THD *thd, TABLE_LIST* table,
 			     const char* operator_name, const char* errmsg)
@@ -291,6 +299,166 @@ static inline bool table_not_corrupt_error(uint sql_errno)
           sql_errno == ER_CANT_LOCK_LOG_TABLE ||
           sql_errno == ER_OPEN_AS_READONLY ||
           sql_errno == ER_WRONG_OBJECT);
+}
+
+
+Sql_cmd_analyze_table::
+Sql_cmd_analyze_table(THD *thd, Histogram_command histogram_command,
+                      int histogram_buckets)
+: m_histogram_command(histogram_command),
+  m_histogram_fields(Column_name_comparator(),
+                     Memroot_allocator<String>(thd->mem_root)),
+  m_histogram_buckets(histogram_buckets)
+{}
+
+
+bool
+Sql_cmd_analyze_table::
+drop_histogram(THD *thd, TABLE_LIST *table, histograms::results_map &results)
+{
+  histograms::columns_set fields;
+
+  for (const auto column : get_histogram_fields())
+    fields.emplace(column->ptr(), column->length());
+  return histograms::drop_histograms(thd, *table, fields, results);
+}
+
+
+bool
+Sql_cmd_analyze_table::
+send_histogram_results(THD *thd, const histograms::results_map &results,
+                       const TABLE_LIST *table)
+{
+  Item *item;
+  List<Item> field_list;
+
+  field_list.push_back(item = new Item_empty_string("Table", NAME_CHAR_LEN*2));
+  item->maybe_null= true;
+  field_list.push_back(item = new Item_empty_string("Op", 10));
+  item->maybe_null= true;
+  field_list.push_back(item = new Item_empty_string("Msg_type", 10));
+  item->maybe_null= true;
+  field_list.push_back(item = new Item_empty_string("Msg_text",
+                                                    SQL_ADMIN_MSG_TEXT_SIZE));
+  item->maybe_null= true;
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  {
+    return true; /* purecov: deadcode */
+  }
+
+  Protocol *protocol= thd->get_protocol();
+  for (const auto &pair : results)
+  {
+    std::string combined_name(table->db, table->db_length);
+    combined_name.append(".");
+    combined_name.append(table->table_name, table->table_name_length);
+
+    std::string message;
+    std::string message_type;
+    switch (pair.second)
+    {
+      // Status messages
+      case histograms::Message::HISTOGRAM_CREATED:
+        message_type.assign("status");
+        message.assign("Histogram statistics created for column '");
+        message.append(pair.first);
+        message.append("'.");
+        break;
+      case histograms::Message::HISTOGRAM_DELETED:
+        message_type.assign("status");
+        message.assign("Histogram statistics removed for column '");
+        message.append(pair.first);
+        message.append("'.");
+        break;
+      // Errror messages
+      case histograms::Message::FIELD_NOT_FOUND:
+        message_type.assign("Error");
+        message.assign("The column '");
+        message.append(pair.first);
+        message.append("' does not exist.");
+        break;
+      case histograms::Message::UNSUPPORTED_DATA_TYPE:
+        message_type.assign("Error");
+        message.assign("The column '");
+        message.append(pair.first);
+        message.append("' has an unsupported data type.");
+        break;
+      case histograms::Message::TEMPORARY_TABLE:
+        message_type.assign("Error");
+        message.assign("Cannot create histogram statistics for a temporary table.");
+        break;
+      case histograms::Message::ENCRYPTED_TABLE:
+        message_type.assign("Error");
+        message.assign("Cannot create histogram statistics for an encrypted table.");
+        break;
+      case histograms::Message::VIEW:
+        message_type.assign("Error");
+        message.assign("Cannot create histogram statistics for a view.");
+        break;
+      case histograms::Message::UNABLE_TO_OPEN_TABLE:
+        /* purecov: begin inspected */
+        message_type.assign("Error");
+        message.assign("Unable to open and/or lock table.");
+        break;
+        /* purecov: end */
+      case histograms::Message::MULTIPLE_TABLES_SPECIFIED:
+        message_type.assign("Error");
+        message.assign("Only one table can be specified while modifying histogram statistics.");
+        combined_name.clear();
+        break;
+      case histograms::Message::COVERED_BY_SINGLE_PART_UNIQUE_INDEX:
+        message_type.assign("Error");
+        message.assign("The column '");
+        message.append(pair.first);
+        message.append("' is covered by a single-part unique index.");
+        break;
+      case histograms::Message::NO_HISTOGRAM_FOUND:
+        message_type.assign("Error");
+        message.assign("No histogram statistics found for column '");
+        message.append(pair.first);
+        message.append("'.");
+        break;
+      case histograms::Message::NO_SUCH_TABLE:
+        message_type.assign("Error");
+        message.assign("Table '");
+        message.append(combined_name);
+        message.append("' doesn't exist.");
+        break;
+      case histograms::Message::READ_ONLY:
+        message_type.assign("Error");
+        message.assign("The server is in read-only mode.");
+        combined_name.clear();
+        break;
+    }
+
+    protocol->start_row();
+    if (protocol->store(combined_name.c_str(), combined_name.size(),
+                        system_charset_info) ||
+        protocol->store(STRING_WITH_LEN("histogram"), system_charset_info) ||
+        protocol->store(message_type.c_str(), message_type.length(),
+                        system_charset_info) ||
+        protocol->store(message.c_str(), message.size(), system_charset_info) ||
+        protocol->end_row())
+    {
+      return true; /* purecov: deadcode */
+    }
+  }
+
+  return false;
+}
+
+bool
+Sql_cmd_analyze_table::
+update_histogram(THD *thd, TABLE_LIST *table, histograms::results_map &results)
+{
+  histograms::columns_set fields;
+
+  for (const auto column : get_histogram_fields())
+    fields.emplace(column->ptr(), column->length());
+
+  return histograms::update_histogram(thd, table, fields,
+                                      get_histogram_buckets(), results);
 }
 
 
@@ -1174,10 +1342,94 @@ bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
 }
 
 
+bool Sql_cmd_analyze_table::set_histogram_fields(List<String> *fields)
+{
+  DBUG_ASSERT(m_histogram_fields.empty());
+
+  List_iterator<String> it(*fields);
+  String *field;
+  while ((field= it++))
+  {
+    if (!m_histogram_fields.emplace(field).second)
+    {
+      my_error(ER_DUP_FIELDNAME, MYF(0), field->ptr());
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
+                                                     TABLE_LIST *table)
+{
+  // This should not be empty here.
+  DBUG_ASSERT(!get_histogram_fields().empty());
+
+  histograms::results_map results;
+  bool res= false;
+  if (table->next_local != nullptr)
+  {
+    /*
+      Only one table can be specified for
+      ANALYZE TABLE ... UPDATE/DROP HISTOGRAM
+    */
+    results.emplace("", histograms::Message::MULTIPLE_TABLES_SPECIFIED);
+    res= true;
+  }
+  else
+  {
+    if (read_only)
+    {
+      // Do not try to update histograms when in read_only mode.
+      results.emplace("", histograms::Message::READ_ONLY);
+      res= false;
+    }
+    else
+    {
+      Disable_autocommit_guard autocommit_guard(thd);
+      switch (get_histogram_command())
+      {
+        case Histogram_command::UPDATE_HISTOGRAM:
+          res= update_histogram(thd, table, results);
+          break;
+        case Histogram_command::DROP_HISTOGRAM:
+          res= drop_histogram(thd, table, results);
+
+          if (res)
+          {
+            /*
+              Do a rollback. We can end up here if query was interrupted
+              during drop_histogram.
+            */
+            trans_rollback_stmt(thd);
+            trans_rollback(thd);
+          }
+          else
+          {
+            res= trans_commit_stmt(thd) || trans_commit(thd);
+          }
+          break;
+        case Histogram_command::NONE:
+          DBUG_ASSERT(false); /* purecov: deadcode */
+          break;
+      }
+    }
+  }
+
+  thd->clear_error();
+  send_histogram_results(thd, results, table);
+  thd->get_stmt_da()->reset_condition_info(thd);
+  my_eof(thd);
+  return res;
+}
+
+
 bool Sql_cmd_analyze_table::execute(THD *thd)
 {
   TABLE_LIST *first_table= thd->lex->select_lex->get_table_list();
-  bool res= TRUE;
+  bool res= true;
   thr_lock_type lock_type = TL_READ_NO_INSERT;
   DBUG_ENTER("Sql_cmd_analyze_table::execute");
 
@@ -1192,9 +1444,18 @@ bool Sql_cmd_analyze_table::execute(THD *thd)
                   });
 
   thd->enable_slow_log= opt_log_slow_admin_statements;
-  res= mysql_admin_table(thd, first_table, &thd->lex->check_opt,
-                         "analyze", lock_type, 1, 0, 0, 0,
-                         &handler::ha_analyze, 0);
+
+  if (get_histogram_command() != Histogram_command::NONE)
+  {
+    res= handle_histogram_command(thd, first_table);
+  }
+  else
+  {
+    res= mysql_admin_table(thd, first_table, &thd->lex->check_opt,
+                           "analyze", lock_type, 1, 0, 0, 0,
+                           &handler::ha_analyze, 0);
+  }
+
   /* ! we write after unlocking the table */
   if (!res && !thd->lex->no_write_to_binlog)
   {

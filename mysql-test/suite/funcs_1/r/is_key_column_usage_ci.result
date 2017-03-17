@@ -124,9 +124,6 @@ def	performance_schema	OBJECT	def	performance_schema	table_lock_waits_summary_by
 def	performance_schema	OBJECT	def	performance_schema	table_lock_waits_summary_by_table	OBJECT_TYPE
 def	performance_schema	OWNER_THREAD_ID	def	performance_schema	prepared_statements_instances	OWNER_EVENT_ID
 def	performance_schema	OWNER_THREAD_ID	def	performance_schema	prepared_statements_instances	OWNER_THREAD_ID
-def	mysql	PRIMARY	def	mysql	column_stats	column_name
-def	mysql	PRIMARY	def	mysql	column_stats	database_name
-def	mysql	PRIMARY	def	mysql	column_stats	table_name
 def	mysql	PRIMARY	def	mysql	columns_priv	Column_name
 def	mysql	PRIMARY	def	mysql	columns_priv	Db
 def	mysql	PRIMARY	def	mysql	columns_priv	Host

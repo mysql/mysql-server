@@ -4161,7 +4161,7 @@ public:
   type_conversion_status store(double nr) override;
   type_conversion_status store(longlong nr, bool unsigned_val) override;
   type_conversion_status store_decimal(const my_decimal *) override;
-  type_conversion_status store_json(Json_wrapper *json);
+  type_conversion_status store_json(const Json_wrapper *json);
   type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec_arg) override;
   type_conversion_status store(Field_json *field);
 

@@ -28,6 +28,7 @@
 #include "dd/types/charset.h"
 #include "dd/types/collation.h"
 #include "dd/types/column.h"
+#include "dd/types/column_statistics.h"
 #include "dd/types/column_type_element.h"
 #include "dd/types/foreign_key.h"
 #include "dd/types/foreign_key_element.h"
@@ -48,6 +49,9 @@
 #include "dd/types/parameter.h"
 #include "dd/types/trigger.h"
 
+#include "histograms/histogram.h"
+
+class Json_wrapper;
 
 namespace dd_unittest {
 
@@ -423,6 +427,33 @@ inline void set_attributes(dd::Collation *obj, const dd::String_type &name)
 {
   obj->set_name(name);
   obj->set_charset_id(42);
+}
+
+inline void set_attributes(dd::Column_statistics *obj,
+                           const dd::String_type &name)
+{
+  obj->set_name(name);
+  obj->set_schema_name("schema");
+  obj->set_table_name("table");
+  obj->set_column_name("column");
+
+  histograms::Value_map<longlong> value_map(&my_charset_numeric);
+  value_map.add_values(100, 10);
+  value_map.add_values(-1, 10);
+  value_map.add_values(1, 10);
+
+  MEM_ROOT mem_root;
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &mem_root, 256, 0);
+
+  /*
+    The Column_statistics object will take over the histogram data and free the
+    MEM_ROOT contents.
+  */
+  histograms::Histogram *histogram=
+    histograms::build_histogram(&mem_root, value_map, 10, "schema", "table",
+                                "column");
+
+  obj->set_histogram(histogram);
 }
 
 template <typename T>

@@ -2926,6 +2926,19 @@ static bool limit_parser_max_mem_size(sys_var*, THD *thd, set_var *var)
 
 constexpr size_t max_mem_sz= std::numeric_limits<size_t>::max();
 
+static Sys_var_ulonglong Sys_histogram_generation_max_mem_size(
+      "histogram_generation_max_mem_size",
+      "Maximum amount of memory available for generating histograms",
+      SESSION_VAR(histogram_generation_max_mem_size),
+      CMD_LINE(REQUIRED_ARG),
+      VALID_RANGE(1000000, max_mem_sz),
+      DEFAULT(20000000),
+      BLOCK_SIZE(1),
+      NO_MUTEX_GUARD, NOT_IN_BINLOG,
+      ON_CHECK(check_has_super),
+      ON_UPDATE(NULL));
+
+
 /*
   Need at least 400Kb to get through bootstrap.
   Need at least 8Mb to get through mtr check testcase, which does

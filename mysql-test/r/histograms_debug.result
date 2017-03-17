@@ -1,0 +1,168 @@
+# Testing of histogram statistics that uses DEBUG functionality.
+#
+# Simulate a failure due to dropping histograms during DROP TABLE
+#
+CREATE TABLE t1 (col1 INT, col2 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+test.t1	histogram	status	Histogram statistics created for column 'col2'.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+test	t1	col2
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+test	t1	col2
+SELECT COUNT(*) FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+COUNT(*)
+1
+SET DEBUG='+d,fail_after_drop_histograms';
+DROP TABLE t1;
+ERROR HY000: Unable to remove column statistics for column 'dummy_column' in table 'test'.'t1'
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+test	t1	col2
+SELECT COUNT(*) FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+COUNT(*)
+1
+SET DEBUG='-d,fail_after_drop_histograms';
+#
+# Simulate a failure due to dropping histograms during ALTER TABLE
+#
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+test	t1	col2
+SELECT COUNT(*) FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1' AND COLUMN_NAME = 'col2';
+COUNT(*)
+1
+SET DEBUG='+d,fail_after_drop_histograms';
+ALTER TABLE t1 DROP COLUMN col2;
+ERROR HY000: Unable to remove column statistics for column 'dummy_column' in table 'test'.'t1'
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+test	t1	col2
+SELECT COUNT(*) FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1' AND COLUMN_NAME = 'col2';
+COUNT(*)
+1
+SET DEBUG='-d,fail_after_drop_histograms';
+#
+# Simulate a failure due to renaming histograms during ALTER TABLE RENAME
+#
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+test	t1	col2
+SELECT COUNT(*) FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+COUNT(*)
+1
+SET DEBUG='+d,fail_after_rename_histograms';
+ALTER TABLE t1 RENAME TO t2;
+ERROR HY000: Unable to update column statistics for column 'dummy_column' in table 'test'.'t1'
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+test	t1	col2
+SELECT COUNT(*) FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+COUNT(*)
+1
+SET DEBUG='-d,fail_after_rename_histograms';
+DROP TABLE t1;
+#
+# Check that histogram with sampling works as expected
+#
+SET DEBUG='+d,histogram_deterministic_sampling';
+CREATE TABLE t1 (col1 VARCHAR(255));
+INSERT INTO t1 SELECT SHA2(RAND(1), 512);
+INSERT INTO t1 SELECT SHA2(RAND(2), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(RAND(3), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(RAND(4), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(RAND(5), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(RAND(6), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(RAND(7), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(RAND(8), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(RAND(9), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(RAND(10), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(RAND(11), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(RAND(12), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(RAND(13), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(RAND(14), 512) FROM t1;
+SET histogram_generation_max_mem_size = 1000000;
+# Ensure that row estimate statistics are stable/correct.
+UPDATE mysql.innodb_table_stats SET n_rows = 8192
+WHERE database_name = "test" AND table_name = "t1";
+FLUSH TABLES;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 4 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+SELECT schema_name, table_name, column_name,
+JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t1	col1	{"buckets": [["base64:type254:MDAwMGMzODYwZmY5MzQ4NTM4ZDM1ZjBhYTJhNWFjZTEyZGQzNDgwNDJh", "base64:type254:M2YyM2YyN2JhMzI4NDJkZTU2ZDc2Mzg1YmU0YTBlYzBiYmZkMDNjNTk5", 0.25, 2060], ["base64:type254:M2YyZThlMmJlYjNjZThmYzBlNjVlYmY1ODc4NDFmYTgwZTEwN2VhNWI3", "base64:type254:N2UxNmNkY2ZlMDRhYzkxM2YyMWExYWFjODY4ODhmYTNiYmYwYzQ4ZDZk", 0.5, 2060], ["base64:type254:N2UxOTNhMGY3ZGY5MGIxMWI1MGUyYjBkODhmNzU5YWYzNzY1NTE5NGQ1", "base64:type254:YzAzNjg2OWI5NDllZTA3M2UzNGEwMGRlNWEyY2RkMDVmYWIxNmFlODI5", 0.75, 2060], ["base64:type254:YzA0NTIwNGQ4ZmYzZjEyZTEwMDIxYzViMGU3NjdkMjA3NzY2NDBlYWRm", "base64:type254:ZmZmYTljZmQzNjJlYWIyYzg4OWZhYzQwNjExZTc4ODEyNzA2MjRhZTE4", 1, 2060]], "data-type": "string", "charset-id": 255, "null-values": 0, "sampling-rate": 0.5868765024038461, "histogram-type": "equi-height", "number-of-buckets-specified": 4}
+SET DEBUG='-d,histogram_deterministic_sampling';
+DROP TABLE t1;
+#
+# Bug#26020352 WL8943:ASSERTION `M_THD->GET_TRANSACTION()->IS_EMPTY(
+#              TRANSACTION_CTX::STMT) && M
+#
+CREATE TABLE t1 (col1 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+SET DEBUG='+d,histogram_fail_after_open_table';
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+SET DEBUG='-d,histogram_fail_after_open_table';
+DROP TABLE t1;
+#
+# Bug#26027240 WL8943:VIRTUAL BOOL SQL_CMD_ANALYZE_TABLE::EXECUTE(THD*):
+#              ASSERTION `FALSE' FAIL
+#
+CREATE TABLE t1 (col1 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+SET DEBUG='+d,histogram_fail_during_lock_for_write';
+ANALYZE TABLE t1 DROP HISTOGRAM ON col1;
+Table	Op	Msg_type	Msg_text
+# Since we have simulated a fail, the histogram should still be present.
+# However, since this is a simulation of failure no error is reported.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	col1
+SET DEBUG='-d,histogram_fail_during_lock_for_write';
+ANALYZE TABLE t1 DROP HISTOGRAM ON col1;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics removed for column 'col1'.
+# The histogram should now be gone.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+DROP TABLE t1;
