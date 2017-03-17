@@ -139,8 +139,8 @@
       to the expected result found in the <b>mysql-test/r</b> directory
       (in a file with a <b>.result</b> suffix). If the expected and
       actual results differ, the test case fails. The actual test result
-      is written to a file in the <b>mysql-test/r</b> directory with a
-      <b>.reject</b> suffix, and the difference between the
+      is written to a file in the <b>mysql-test/var/log</b> directory
+      with a <b>.reject</b> suffix, and the difference between the
       <b>.result</b> and <b>.reject</b> files is presented for
       evaluation.
     </li>
@@ -524,9 +524,9 @@
       PAGE_MYSQLTEST "mysqltest" reads the expected results from the
       given file and compares them with the actual results. If the
       results do not match, @ref PAGE_MYSQLTEST "mysqltest" writes a
-      <b>.reject</b> file in the same directory as the result file and
-      exits with an error. It will also print out a diff of the
-      expected and actual result, provided it can find an appropriate
+      <b>.reject</b> file in the log directory and exits with an
+      error. It will also print out a diff of the expected and actual
+      result, provided it can find an appropriate
       <b>diff</b> tool to use.
     </li>
 
@@ -641,8 +641,8 @@
     <li>
       Make sure to include the output of @ref PAGE_MYSQL_TEST_RUN_PL
       "mysql-test-run.pl", as well as contents of all <b>.reject</b>
-      files in the <b>mysql-test/r</b> directory, or the (often much
-      shorter) diff that @ref PAGE_MYSQL_TEST_RUN_PL
+      files in the <b>mysql-test/var/log</b> directory, or the (often
+      much shorter) diff that @ref PAGE_MYSQL_TEST_RUN_PL
       "mysql-test-run.pl" reported.
     </li>
 
@@ -970,13 +970,14 @@
       Assuming that the test case produces output, it should fail
       because the output does not match the result file (which is
       empty at this point). The failure results in creation of a
-      reject file named <b>r/<em>test_name</em>.reject</b>.
+      reject file named
+      <b>mysql-test/var/log/<em>test_name</em>.reject</b>.
       Examine this file. If the reject file appears to contain the
       output that you expect the test case to produce, copy its
       content to the result file:
 
       @verbatim
-  shell> cp r/test_name.reject r/test_name.result
+  shell> cp mysql-test/var/log/test_name.reject r/test_name.result
       @endverbatim
 
       Another way to create the result file is by invoking @ref
@@ -1302,39 +1303,46 @@
   @verbatim
   --disable_warnings
   DROP TABLE IF EXISTS t1;
+  SET @@sql_mode='NO_ENGINE_SUBSTITUTION';
   --enable_warnings
+
   SET SQL_WARNINGS=1;
 
   CREATE TABLE t1 (a INT);
   INSERT INTO t1 VALUES (1);
   INSERT INTO t1 VALUES ("hej");
+
+  DROP TABLE t1;
   @endverbatim
 
   The first few lines try to clean up from possible earlier runs of
   the test case by dropping the <b>t1</b> table. The test case uses
   <b>disable_warnings</b> to prevent warnings from being written to
   the output because it is not of any interest at this point during
-  the test to know whether the table <b>t1</b> was there. After
-  dropping the table, the test case uses <b>enable_warnings</b> so
-  that subsequent warnings will be written to the output. The test
-  case also enables verbose warnings in MySQL using the <b>SET
-  SQL_WARNINGS=1;</b> statement.
+  the test to know whether the table <b>t1</b> was there. The value of
+  <b>sql_mode</b> is changed to <b>NO_ENGINE_SUBSTITUTION</b> to avoid
+  the error thrown by the second insert statement. After this, the
+  test case uses <b>enable_warnings</b> so that subsequent warnings
+  will be written to the output. The test case also enables verbose
+  warnings in MySQL using the <b>SET SQL_WARNINGS=1;</b> statement.
 
   Next, the test case creates the table <b>t1</b> and tries some
   operations. Creating the table and inserting the first row are
   operations that should not generate any warnings. The second insert
   should generate a warning because it inserts a nonnumeric string
-  into a numeric column. The output that results from running the test
-  looks like this:
+  into a numeric column. At the end, it drops the table <b>t1</b>. The
+  output that results from running the test looks like this:
 
   @verbatim
   DROP TABLE IF EXISTS t1;
+  SET @@sql_mode='NO_ENGINE_SUBSTITUTION';
   SET SQL_WARNINGS=1;
   CREATE TABLE t1 (a INT);
   INSERT INTO t1 VALUES (1);
   INSERT INTO t1 VALUES ("hej");
   Warnings:
-  Warning 1265    Data truncated for column 'a' at row 1
+  Warning	1366	Incorrect integer value: 'hej' for column 'a' at row 1
+  DROP TABLE t1;
   @endverbatim
 
   Note that the result includes not only the output from SQL
@@ -1345,7 +1353,8 @@
 
   If there was a test failure, it will be reported to the screen. You
   can see the actual output from the last unsuccessful run of the test
-  case in the reject file <b>r/<em>test_name</em>.reject</b>.
+  case in the reject file
+  <b>mysql-test/var/log/<em>test_name</em>.reject</b>.
 */
 
 ###############################################################################
@@ -1762,7 +1771,7 @@
   @verbatim
   CURRENT_TEST: main.foo
   --- r/foo.result        2009-11-17 16:22:38
-  +++ r/foo.reject        2009-11-17 16:22:47
+  +++ var/log/foo.reject        2009-11-17 16:22:47
   @@ -10,15 +10,15 @@
    SELECT period FROM t1;
    period
@@ -3040,9 +3049,9 @@
           @ref PAGE_MYSQLTEST "mysqltest" reads the expected results
           from the given file and compares them with the actual
           results. If the results do not match, @ref PAGE_MYSQLTEST
-          "mysqltest" writes a <b>.reject</b> file in the same
-          directory as the result file, outputs a diff of the two
-          files, and exits with an error.
+          "mysqltest" writes a <b>.reject</b> file in the log
+          directory, outputs a diff of the two files, and exits with
+          an error.
         </li>
 
         <li>
