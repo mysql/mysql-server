@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -2555,42 +2555,45 @@ row_sel_store_row_id_to_prebuilt(
 
 #ifdef UNIV_DEBUG
 /** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-# define row_sel_field_store_in_mysql_format(dest,templ,idx,field,src,len) \
-	row_sel_field_store_in_mysql_format_func(dest,templ,idx,field,src,len)
+# define row_sel_field_store_in_mysql_format(dest,templ,idx,field,src,len,sec) \
+	row_sel_field_store_in_mysql_format_func(dest,templ,idx,field,src,len,sec)
 #else /* UNIV_DEBUG */
 /** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-# define row_sel_field_store_in_mysql_format(dest,templ,idx,field,src,len) \
-	row_sel_field_store_in_mysql_format_func(dest,templ,src,len)
+# define row_sel_field_store_in_mysql_format(dest,templ,idx,field,src,len,sec) \
+	row_sel_field_store_in_mysql_format_func(dest,templ,src,len,sec)
 #endif /* UNIV_DEBUG */
 
-/**************************************************************//**
-Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
-function is row_mysql_store_col_in_innobase_format() in row0mysql.cc. */
+/** Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
+function is row_mysql_store_col_in_innobase_format() in row0mysql.cc.
+@param[in,out]	dest		buffer where to store; NOTE
+				that BLOBs are not in themselves stored
+				here: the caller must allocate and copy
+				the BLOB into buffer before, and pass
+				the pointer to the BLOB in 'data'
+@param[in]	templ		MySQL column template. Its following fields
+				are referenced: type, is_unsigned, mysql_col_len,
+				mbminlen, mbmaxlen
+@param[in]	index		InnoDB index
+@param[in]	field_no	templ->rec_field_no or templ->clust_rec_field_no
+				or templ->icp_rec_field_no
+@param[in]	data		data to store
+@param[in]	len		length of the data
+@param[in]	sec_field	secondary index field no if the secondary index
+				record but the prebuilt template is in
+				clustered index format and used only for end
+				range comparison. */
 static MY_ATTRIBUTE((nonnull))
 void
 row_sel_field_store_in_mysql_format_func(
-/*=====================================*/
-	byte*		dest,	/*!< in/out: buffer where to store; NOTE
-				that BLOBs are not in themselves
-				stored here: the caller must allocate
-				and copy the BLOB into buffer before,
-				and pass the pointer to the BLOB in
-				'data' */
+	byte*		dest,
 	const mysql_row_templ_t* templ,
-				/*!< in: MySQL column template.
-				Its following fields are referenced:
-				type, is_unsigned, mysql_col_len,
-				mbminlen, mbmaxlen */
 #ifdef UNIV_DEBUG
 	const dict_index_t* index,
-				/*!< in: InnoDB index */
 	ulint		field_no,
-				/*!< in: templ->rec_field_no or
-				templ->clust_rec_field_no or
-				templ->icp_rec_field_no */
 #endif /* UNIV_DEBUG */
-	const byte*	data,	/*!< in: data to store */
-	ulint		len)	/*!< in: length of the data */
+	const byte*	data,
+	ulint		len,
+	ulint		sec_field)
 {
 	byte*			ptr;
 #ifdef UNIV_DEBUG
@@ -2602,6 +2605,7 @@ row_sel_field_store_in_mysql_format_func(
 	UNIV_MEM_ASSERT_RW(data, len);
 	UNIV_MEM_ASSERT_W(dest, templ->mysql_col_len);
 	UNIV_MEM_INVALID(dest, templ->mysql_col_len);
+	bool	clust_templ_for_sec = (sec_field != ULINT_UNDEFINED);
 
 	switch (templ->type) {
 		const byte*	field_end;
@@ -2709,7 +2713,8 @@ row_sel_field_store_in_mysql_format_func(
 		containing UTF-8 ENUM columns due to Bug #9526. */
 		ut_ad(!templ->mbmaxlen
 		      || !(templ->mysql_col_len % templ->mbmaxlen));
-		ut_ad(len * templ->mbmaxlen >= templ->mysql_col_len
+		ut_ad(clust_templ_for_sec
+		      || len * templ->mbmaxlen >= templ->mysql_col_len
 		      || (field_no == templ->icp_rec_field_no
 			  && field->prefix_len > 0));
 		ut_ad(!(field->prefix_len % templ->mbmaxlen));
@@ -2737,21 +2742,26 @@ row_sel_field_store_in_mysql_format_func(
 	case DATA_DECIMAL:
 		/* Above are the valid column types for MySQL data. */
 #endif /* UNIV_DEBUG */
+		/* If sec_field value is present then mapping of
+		secondary index records to clustered index template
+		happens for end range comparison. So length can
+		vary according to secondary index record length. */
 		ut_ad(field->prefix_len
 		      ? field->prefix_len == len
-		      : templ->mysql_col_len == len);
+		      : (clust_templ_for_sec ?
+				1 : (templ->mysql_col_len == len)));
 		memcpy(dest, data, len);
 	}
 }
 
 #ifdef UNIV_DEBUG
 /** Convert a field from Innobase format to MySQL format. */
-# define row_sel_store_mysql_field(m,p,r,i,o,f,t,c) \
-	row_sel_store_mysql_field_func(m,p,r,i,o,f,t,c)
+# define row_sel_store_mysql_field(m,p,r,i,o,f,t,s) \
+	row_sel_store_mysql_field_func(m,p,r,i,o,f,t,s)
 #else /* UNIV_DEBUG */
 /** Convert a field from Innobase format to MySQL format. */
-# define row_sel_store_mysql_field(m,p,r,i,o,f,t,c) \
-	row_sel_store_mysql_field_func(m,p,r,o,f,t,c)
+# define row_sel_store_mysql_field(m,p,r,i,o,f,t,s) \
+	row_sel_store_mysql_field_func(m,p,r,o,f,t,s)
 #endif /* UNIV_DEBUG */
 /** Convert a field in the Innobase format to a field in the MySQL format.
 @param[out]	mysql_rec		record in the MySQL format
@@ -2766,7 +2776,7 @@ row_sel_field_store_in_mysql_format_func(
 					or sec field no if clust_templ_for_sec
 					is TRUE
 @param[in]	templ			row template
-@param[in]	clust_templ_for_sec     TRUE if rec belongs to secondary index
+@param[in]	sec_field_no		field_no if rec belongs to secondary index
 					but prebuilt template is in clustered
 					index format and used only for end
 					range comparison. */
@@ -2782,10 +2792,12 @@ row_sel_store_mysql_field_func(
 	const ulint*		offsets,
 	ulint			field_no,
 	const mysql_row_templ_t*templ,
-	bool			clust_templ_for_sec)
+	ulint			sec_field_no)
 {
 	const byte*	data;
 	ulint		len;
+	ulint		clust_field_no;
+	bool		clust_templ_for_sec = (sec_field_no != ULINT_UNDEFINED);
 
 	ut_ad(prebuilt->default_rec);
 	ut_ad(templ);
@@ -2796,7 +2808,14 @@ row_sel_store_mysql_field_func(
 	      || field_no == templ->rec_field_no
 	      || field_no == templ->icp_rec_field_no);
 	ut_ad(rec_offs_validate(rec,
-		clust_templ_for_sec == true ? prebuilt->index : index, offsets));
+		clust_templ_for_sec ? prebuilt->index : index, offsets));
+
+	/* If sec_field_no is present then extract the data from record
+	using secondary field no. */
+	if (clust_templ_for_sec) {
+		clust_field_no = field_no;
+		field_no = sec_field_no;
+	}
 
 	if (UNIV_UNLIKELY(rec_offs_nth_extern(offsets, field_no))) {
 
@@ -2845,7 +2864,8 @@ row_sel_store_mysql_field_func(
 
 		row_sel_field_store_in_mysql_format(
 			mysql_rec + templ->mysql_col_offset,
-			templ, index, field_no, data, len);
+			templ, index, field_no, data, len,
+			ULINT_UNDEFINED);
 
 		if (heap != prebuilt->blob_heap) {
 			mem_heap_free(heap);
@@ -2893,9 +2913,14 @@ row_sel_store_mysql_field_func(
 				mem_heap_dup(prebuilt->blob_heap, data, len));
 		}
 
+		/* Reassign the clustered index field no. */
+		if (clust_templ_for_sec) {
+			field_no = clust_field_no;
+		}
+
 		row_sel_field_store_in_mysql_format(
 			mysql_rec + templ->mysql_col_offset,
-			templ, index, field_no, data, len);
+			templ, index, field_no, data, len, sec_field_no);
 	}
 
 	ut_ad(len != UNIV_SQL_NULL);
@@ -2967,6 +2992,8 @@ row_sel_store_mysql_rec(
 			= rec_clust
 			? templ->clust_rec_field_no
 			: templ->rec_field_no;
+		ulint		sec_field_no = ULINT_UNDEFINED;
+
 		/* We should never deliver column prefixes to MySQL,
 		except for evaluating innobase_index_cond(). */
 		ut_ad(dict_index_get_nth_field(index, field_no)->prefix_len
@@ -2983,13 +3010,13 @@ row_sel_store_mysql_rec(
 
 			ut_ad(templ->rec_field_no == templ->clust_rec_field_no);
 
-			field_no = it - template_col.begin();
+			sec_field_no = it - template_col.begin();
 		}
 
 		if (!row_sel_store_mysql_field(mysql_rec, prebuilt,
 					       rec, index, offsets,
 					       field_no, templ,
-					       clust_templ_for_sec)) {
+					       sec_field_no)) {
 			return(FALSE);
 		}
 	}
@@ -2999,7 +3026,8 @@ row_sel_store_mysql_rec(
 	NOTE, the record must be cluster index record. Secondary index
 	might not have the Doc ID */
 	if (dict_table_has_fts_index(prebuilt->table)
-	    && dict_index_is_clust(index)) {
+	    && dict_index_is_clust(index)
+	    && !clust_templ_for_sec) {
 
 		prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
 			prebuilt->table, rec, NULL);
@@ -3629,7 +3657,7 @@ row_search_idx_cond_check(
 		if (!row_sel_store_mysql_field(mysql_rec, prebuilt,
 					       rec, prebuilt->index, offsets,
 					       templ->icp_rec_field_no,
-					       templ, false)) {
+					       templ, ULINT_UNDEFINED)) {
 			return(ICP_NO_MATCH);
 		}
 	}
