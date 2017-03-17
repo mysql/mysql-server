@@ -5462,11 +5462,11 @@ SHOW TRIGGERS FROM bug25717383;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 trig
 one	INSERT	tab
-one	SET NEW.a = 1	BEFORE	NULL		root@localhost	utf8	utf8_general_ci	latin1_swedish_ci
+one	SET NEW.a = 1	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW EVENTS FROM bug25717383;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 bug25717383	event
-one	root@localhost	SYSTEM	ONE TIME	#	NULL	NULL	NULL	NULL	ENABLED	1	utf8	utf8_general_ci	latin1_swedish_ci
+one	root@localhost	SYSTEM	ONE TIME	#	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA='bug25717383' AND ROUTINE_TYPE= 'PROCEDURE'
        ORDER BY ROUTINE_NAME;
@@ -5483,11 +5483,11 @@ SHOW TRIGGERS FROM bug25717383;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 trig
 one	INSERT	tab
-one	SET NEW.a = 1	BEFORE	NULL		root@localhost	utf8	utf8_general_ci	latin1_swedish_ci
+one	SET NEW.a = 1	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW EVENTS FROM bug25717383;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 bug25717383	event
-one	root@localhost	SYSTEM	ONE TIME	#	NULL	NULL	NULL	NULL	ENABLED	1	utf8	utf8_general_ci	latin1_swedish_ci
+one	root@localhost	SYSTEM	ONE TIME	#	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA='bug25717383' AND ROUTINE_TYPE= 'PROCEDURE'
        ORDER BY ROUTINE_NAME;
