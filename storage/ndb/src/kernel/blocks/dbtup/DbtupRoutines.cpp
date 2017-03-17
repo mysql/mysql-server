@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2987,7 +2987,23 @@ Dbtup::flush_read_buffer(KeyReqStruct *req_struct,
 
   req_struct->out_buf_index = 0; // Reset buffer
   req_struct->out_buf_bits = 0;
-  req_struct->read_length += len;
+
+  const Uint32 type = getNodeInfo(destNode).m_type;
+  const bool is_api = (type >= NodeInfo::API && type <= NodeInfo::MGM);
+
+  /**
+   * flush_read_buffer() is used as part of a read_pseudo-FLUSH_AI.
+   * In these cases we are sending two TRANSID_AI results pr row:
+   * One goes to the API, the other to the SPJ node which (currently)
+   * is the only user of FLUSH_AI.
+   * 'read_length' is reported to LQH, which use it to control the 
+   * 'batch_bytes_size' sent to the API. Thus, read_length should be 
+   * counted when not 'is_api.
+   */
+  if (is_api)
+  {
+    req_struct->read_length = len;
+  }
 }
 
 Uint32
