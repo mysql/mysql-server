@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -205,6 +205,23 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
               * never need to send TRANSID_AI_R in this case.
               */
              (nodeId == getOwnNodeId() && connectedToNode));
+
+  /**
+   * If a previous read_pseudo executed a 'FLUSH_AI', we may
+   * already have sent a TRANSID_AI signal with the result row
+   * to the API node. The result size was then already recorded
+   * in 'read_length' and we should not add the size of this 
+   * row as it is not part of the 'result' . 
+   */
+  if (req_struct->read_length != 0)
+  {
+    ndbassert(!is_api);  // API result already FLUSH_AI'ed
+  }
+  else
+  {
+    // No API-result produced yet, record this
+    req_struct->read_length = ToutBufIndex;
+  }
 
   if (connectedToNode){
     /**
