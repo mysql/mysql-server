@@ -1287,8 +1287,7 @@ int Dbtup::handleReadReq(Signal* signal,
 // We have read all data into coutBuffer. Now send it to the API.
 /* ------------------------------------------------------------------------- */
       jam();
-      Uint32 TnoOfDataRead= (Uint32) ret;
-      req_struct->read_length += TnoOfDataRead;
+      const Uint32 TnoOfDataRead= (Uint32) ret;
       sendReadAttrinfo(signal, req_struct, TnoOfDataRead);
       return 0;
     }
@@ -2861,7 +2860,6 @@ int Dbtup::interpreterStartLab(Signal* signal,
      *    This is used for ANYVALUE and interpreted delete.
      */
     req_struct->log_size+= RlogSize;
-    req_struct->read_length += RattroutCounter;
     sendReadAttrinfo(signal, req_struct, RattroutCounter);
     if (RlogSize > 0) {
       return sendLogAttrinfo(signal, req_struct, RlogSize, regOperPtr);
