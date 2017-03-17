@@ -479,6 +479,7 @@ private:
   Uint32 m_lcp_table_id;
   Uint32 m_lcp_fragment_id;
 
+  bool m_lcp_loop_ongoing;
   Uint32 m_lcp_outstanding;     // remaining i/o waits
   SyncExtentPagesReq::LcpOrder m_sync_extent_order;
   bool m_sync_extent_pages_ongoing;
@@ -493,11 +494,16 @@ private:
   void sendSYNC_EXTENT_PAGES_REQ(Signal*);
   void sendEND_LCPCONF(Signal*);
 
+  void check_restart_lcp(Signal*);
+  void start_lcp_loop(Signal*);
   void handle_lcp(Signal*, Uint32 tableId, Uint32 fragmentId);
   void handle_lcp(Signal*, FragmentRecord*);
   void finish_lcp(Signal*, FragmentRecord*);
+  void finish_sync_extent_pages(Signal*);
   Uint32 get_num_lcp_pages_to_write(void);
-  void check_restart_lcp(Signal*);
+
+  void process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr);
+  void process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr);
 
   bool m_extra_pgman;
 
@@ -536,7 +542,6 @@ private:
     Uint32 m_max_io_waits;
     Uint32 m_stats_loop_delay;
     Uint32 m_cleanup_loop_delay;
-    Uint32 m_lcp_loop_delay;
   } m_param;
 
   // runtime sizes and statistics
@@ -634,8 +639,6 @@ private:
   void do_stats_loop(Signal*);
   void do_busy_loop(Signal*, bool direct, EmulatedJamBuffer *jamBuf);
   void do_cleanup_loop(Signal*);
-  void finish_sync_extent_pages(Signal*);
-  void do_lcp_loop(Signal*);
 
   bool process_bind(Signal*, EmulatedJamBuffer*);
   bool process_bind(Signal*, Ptr<Page_entry> ptr, EmulatedJamBuffer*);
@@ -646,9 +649,6 @@ private:
 
   bool process_cleanup(Signal*);
   void move_cleanup_ptr(Ptr<Page_entry> ptr, EmulatedJamBuffer*);
-
-  void process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr);
-  void process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr);
 
   void pagein(Signal*, Ptr<Page_entry>, EmulatedJamBuffer *jamBuf);
   void fsreadreq(Signal*, Ptr<Page_entry>);
