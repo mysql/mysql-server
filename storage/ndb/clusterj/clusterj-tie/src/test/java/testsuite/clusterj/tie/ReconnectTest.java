@@ -15,22 +15,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-package com.mysql.clusterj.core.store;
+package testsuite.clusterj.tie;
 
-import com.mysql.clusterj.ClusterJDatastoreException;
+public class ReconnectTest extends testsuite.clusterj.ReconnectTest {
 
-/**
- *
- */
-public interface Db {
-
-    public void close();
-
-    public Dictionary getDictionary();
-
-    public ClusterTransaction startTransaction(String joinTransactionId);
-
-    public boolean isRetriable(ClusterJDatastoreException ex);
-
-    public void assertNotClosed(String where);
 }

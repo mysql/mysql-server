@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -226,15 +226,20 @@ public class ClusterConnectionImpl
     public void close() {
         if (clusterConnection != null) {
             logger.info(local.message("INFO_Close_Cluster_Connection", connectString, nodeId));
-            for (DbImpl db: dbs.keySet()) {
-                // mark all dbs as closing so no more transactions will start
-                db.closing();
-            }
-            dbForNdbRecord.closing();
-            if (dbs.size() != 0) {
-                Map<Db, Object> dbsToClose = new IdentityHashMap<Db, Object>(dbs);
-                for (Db db: dbsToClose.keySet()) {
-                    db.close();
+            if (dbs.size() > 0) {
+                for (DbImpl db: dbs.keySet()) {
+                    // mark all dbs as closing so no more operations will start
+                    db.closing();
+                }
+                dbForNdbRecord.closing();
+
+                if (dbs.size() != 0) {
+                    // sleep for 1000 milliseconds to allow operations in other threads to terminate
+                    sleep(1000);
+                    Map<Db, Object> dbsToClose = new IdentityHashMap<Db, Object>(dbs);
+                    for (Db db: dbsToClose.keySet()) {
+                        db.close();
+                    }
                 }
             }
             for (NdbRecordImpl ndbRecord: ndbRecordImplMap.values()) {
@@ -247,6 +252,14 @@ public class ClusterConnectionImpl
             ndbRecordImplMap.clear();
             Ndb_cluster_connection.delete(clusterConnection);
             clusterConnection = null;
+        }
+    }
+
+    private void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 
@@ -273,7 +286,7 @@ public class ClusterConnectionImpl
      * @return the NdbRecordImpl for the table
      */
     protected NdbRecordImpl getCachedNdbRecordImpl(Table storeTable) {
-        dbForNdbRecord.assertOpen("ClusterConnectionImpl.getCachedNdbRecordImpl for table");
+        dbForNdbRecord.assertNotClosed("ClusterConnectionImpl.getCachedNdbRecordImpl for table");
         // tableKey is table name plus projection indicator
         String tableName = storeTable.getKey();
         // find the NdbRecordImpl in the global cache
@@ -323,7 +336,7 @@ public class ClusterConnectionImpl
      * @return the NdbRecordImpl for the index
      */
     protected NdbRecordImpl getCachedNdbRecordImpl(Index storeIndex, Table storeTable) {
-        dbForNdbRecord.assertOpen("ClusterConnectionImpl.getCachedNdbRecordImpl for index");
+        dbForNdbRecord.assertNotClosed("ClusterConnectionImpl.getCachedNdbRecordImpl for index");
         String recordName = storeTable.getName() + "+" + storeIndex.getInternalName();
         // find the NdbRecordImpl in the global cache
         NdbRecordImpl result = ndbRecordImplMap.get(recordName);
