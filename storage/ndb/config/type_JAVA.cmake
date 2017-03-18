@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 INCLUDE(libutils)
 INCLUDE(cmake_parse_arguments)
 
-SET(JAVAC_TARGET "1.6")
+SET(JAVAC_TARGET "1.7")
 
 # Build (if not already done) NDB version string used for generating jars etc.
 MACRO(SET_JAVA_NDB_VERSION)
