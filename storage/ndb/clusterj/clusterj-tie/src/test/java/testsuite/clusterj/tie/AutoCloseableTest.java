@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,22 +15,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-package com.mysql.clusterj.core.store;
+package testsuite.clusterj.tie;
 
-import com.mysql.clusterj.ClusterJDatastoreException;
+public class AutoCloseableTest extends testsuite.clusterj.AutoCloseableTest {
 
-/**
- *
- */
-public interface Db {
-
-    public void close();
-
-    public Dictionary getDictionary();
-
-    public ClusterTransaction startTransaction(String joinTransactionId);
-
-    public boolean isRetriable(ClusterJDatastoreException ex);
-
-    public void assertNotClosed(String where);
 }
