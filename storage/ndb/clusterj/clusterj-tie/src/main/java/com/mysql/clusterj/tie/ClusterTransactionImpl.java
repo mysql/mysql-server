@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -153,7 +153,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
      * Otherwise, use the partition key to enlist the transaction.
      */
     private void enlist() {
-        db.assertOpen("ClusterTransactionImpl.enlist");
+        db.assertNotClosed("ClusterTransactionImpl.enlist");
         if (logger.isTraceEnabled()) logger.trace("ndbTransaction: " + ndbTransaction
                 + " with joinTransactionId: " + joinTransactionId);
         if (ndbTransaction == null) {
@@ -167,7 +167,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
     }
 
     public void executeCommit(boolean abort, boolean force) {
-        db.assertOpen("ClusterTransactionImpl.executeCommit");
+        db.assertNotClosed("ClusterTransactionImpl.executeCommit");
         if (logger.isTraceEnabled()) logger.trace("");
         // nothing to do if no ndbTransaction was ever enlisted or already autocommitted
         if (isEnlisted() && !autocommitted) {
@@ -187,7 +187,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
     }
 
     public void executeNoCommit(boolean abort, boolean force) {
-        db.assertOpen("ClusterTransactionImpl.executeNoCommit");
+        db.assertNotClosed("ClusterTransactionImpl.executeNoCommit");
         if (logger.isTraceEnabled()) logger.trace("");
         if (!isEnlisted()) {
             // nothing to do if no ndbTransaction was ever enlisted
@@ -208,7 +208,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
     }
 
     public void executeRollback() {
-        db.assertOpen("ClusterTransactionImpl.executeRollback");
+        db.assertNotClosed("ClusterTransactionImpl.executeRollback");
         if (!isEnlisted()) {
             // nothing to do if no ndbTransaction was ever enlisted
             return;
