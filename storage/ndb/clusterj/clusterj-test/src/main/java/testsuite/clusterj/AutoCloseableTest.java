@@ -62,19 +62,19 @@ public class AutoCloseableTest extends AbstractClusterJTest {
             @Override
             public void run(Session s) {
                 s.currentTransaction().begin();
-                Employee instance = s.newInstance(Employee.class, 10);
-                instance.setMagic(10);
+                Employee instance = s.newInstance(Employee.class, 170);
+                instance.setMagic(170);
                 s.persist(instance);
                 s.currentTransaction().commit();
                 // should persist instance
             }
             @Override
             public void check(Session s) {
-                Employee e = s.find(Employee.class, 10);
+                Employee e = s.find(Employee.class, 170);
                 if (e == null) {
-                    errorMessage = "failed to find Employee 10";
+                    errorMessage = "failed to find Employee 170";
                 }
-                s.deletePersistent(Employee.class, 10);
+                s.deletePersistent(Employee.class, 170);
             }
         });
     }
@@ -84,15 +84,15 @@ public class AutoCloseableTest extends AbstractClusterJTest {
             @Override
             public void run(Session s) {
                 s.currentTransaction().begin();
-                Employee instance = s.newInstance(Employee.class, 0);
+                Employee instance = s.newInstance(Employee.class, 171);
                 s.persist(instance);
                 s.flush();
                 // error should not persist instance because magic is null
             }
             public void check(Session s) {
-                Employee e = s.find(Employee.class, 0);
+                Employee e = s.find(Employee.class, 171);
                 if (e != null) {
-                    errorMessage = "unexpected found Employee 0";
+                    errorMessage = "unexpected found Employee 171";
                 }
             }
         });
@@ -103,16 +103,16 @@ public class AutoCloseableTest extends AbstractClusterJTest {
             @Override
             public void run(Session s) {
                 s.currentTransaction().begin();
-                Employee instance = s.newInstance(Employee.class, 0);
-                instance.setMagic(0);
+                Employee instance = s.newInstance(Employee.class, 172);
+                instance.setMagic(172);
                 s.persist(instance);
                 s.flush();
                 // error should not persist instance because no commit
             }
             public void check(Session s) {
-                Employee e = s.find(Employee.class, 0);
+                Employee e = s.find(Employee.class, 172);
                 if (e != null) {
-                    errorMessage = "unexpected found Employee 0";
+                    errorMessage = "unexpected found Employee 172";
                 }
             }
         });
@@ -123,19 +123,19 @@ public class AutoCloseableTest extends AbstractClusterJTest {
             @Override
             public void run(Session s) {
                 s.currentTransaction().begin();
-                Employee instance1 = s.newInstance(Employee.class, 100);
-                instance1.setMagic(100);
-                Employee instance2 = s.newInstance(Employee.class, 100);
-                instance2.setMagic(100);
+                Employee instance1 = s.newInstance(Employee.class, 173);
+                instance1.setMagic(173);
+                Employee instance2 = s.newInstance(Employee.class, 173);
+                instance2.setMagic(173);
                 s.persist(instance1);
                 s.persist(instance2);
                 s.currentTransaction().commit();
                 // error should not persist instance because duplicate key
             }
             public void check(Session s) {
-                Employee e = s.find(Employee.class, 100);
+                Employee e = s.find(Employee.class, 173);
                 if (e != null) {
-                    errorMessage = "unexpected found Employee 100";
+                    errorMessage = "unexpected found Employee 173";
                 }
             }
         });
@@ -146,19 +146,19 @@ public class AutoCloseableTest extends AbstractClusterJTest {
             @Override
             public void run(Session s) {
                 s.currentTransaction().begin();
-                Employee instance1 = s.newInstance(Employee.class, 100);
-                instance1.setMagic(100);
-                Employee instance2 = s.newInstance(Employee.class, 100);
-                instance2.setMagic(100);
+                Employee instance1 = s.newInstance(Employee.class, 174);
+                instance1.setMagic(174);
+                Employee instance2 = s.newInstance(Employee.class, 174);
+                instance2.setMagic(174);
                 s.persist(instance1);
                 s.persist(instance2);
                 s.flush();
                 // error should not persist instance because duplicate key
             }
             public void check(Session s) {
-                Employee e = s.find(Employee.class, 100);
+                Employee e = s.find(Employee.class, 174);
                 if (e != null) {
-                    errorMessage = "unexpected found Employee 100";
+                    errorMessage = "unexpected found Employee 174";
                 }
             }
         });
@@ -169,16 +169,16 @@ public class AutoCloseableTest extends AbstractClusterJTest {
             @Override
             public void run(Session s) {
                 s.currentTransaction().begin();
-                Employee instance = s.newInstance(Employee.class, 0);
+                Employee instance = s.newInstance(Employee.class, 175);
                 s.persist(instance);
                 s.currentTransaction().commit();
                 // error should not persist instance because magic is null
             }
             @Override
             public void check(Session s) {
-                Employee e = s.find(Employee.class, 0);
+                Employee e = s.find(Employee.class, 175);
                 if (e != null) {
-                    errorMessage = "unexpected found Employee 0";
+                    errorMessage = "unexpected found Employee 175";
                 }
             }
         });
@@ -188,15 +188,15 @@ public class AutoCloseableTest extends AbstractClusterJTest {
         runTest(new RunWithSession("testBadPersistAutoCommit", "ClusterJDatastoreException") {
             @Override
             public void run(Session s) {
-                Employee instance = s.newInstance(Employee.class, 0);
+                Employee instance = s.newInstance(Employee.class, 176);
                 s.persist(instance);
                 // error should not persist instance because magic is null
             }
             @Override
             public void check(Session s) {
-                Employee e = s.find(Employee.class, 0);
+                Employee e = s.find(Employee.class, 176);
                 if (e != null) {
-                    errorMessage = "unexpected found Employee 0";
+                    errorMessage = "unexpected found Employee 176";
                 }
             }
         });
@@ -208,7 +208,7 @@ public class AutoCloseableTest extends AbstractClusterJTest {
             @Override
             public void run(Session s) {
                 s.currentTransaction().begin();
-                s.deletePersistent(Employee.class, 10000);
+                s.deletePersistent(Employee.class, 177);
                 s.flush();
                 // error should not delete instance
             }
@@ -220,7 +220,7 @@ public class AutoCloseableTest extends AbstractClusterJTest {
             @Override
             public void run(Session s) {
                 s.currentTransaction().begin();
-                s.deletePersistent(Employee.class, 10000);
+                s.deletePersistent(Employee.class, 178);
                 s.currentTransaction().commit();
                 // error should not delete instance
             }
@@ -231,7 +231,7 @@ public class AutoCloseableTest extends AbstractClusterJTest {
         runTest(new RunWithSession("testBadDeleteAutoCommit", "ClusterJDatastoreException") {
             @Override
             public void run(Session s) {
-                s.deletePersistent(Employee.class, 10000);
+                s.deletePersistent(Employee.class, 179);
                 // error should not delete instance
             }
         });
