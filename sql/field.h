@@ -3937,7 +3937,7 @@ public:
   }
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
-  virtual const uchar *unpack(uchar *to, const uchar *from,
+  virtual const uchar *unpack(uchar *, const uchar *from,
                               uint param_data, bool low_byte_first);
   uint max_packed_col_length();
   void mem_free()

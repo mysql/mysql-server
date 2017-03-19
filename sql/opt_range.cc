@@ -1531,9 +1531,9 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
                                       SEL_ROOT *keypart,
                                       const KEY_PART_INFO *key_parts,
                                       const bool print_full);
-static inline void dbug_print_tree(const char *tree_name,
-                                   SEL_TREE *tree,
-                                   const RANGE_OPT_PARAM *param);
+static inline void dbug_print_tree(const char *tree_name MY_ATTRIBUTE((unused)),
+                                   SEL_TREE *tree MY_ATTRIBUTE((unused)),
+                                   const RANGE_OPT_PARAM *param MY_ATTRIBUTE((unused)));
 
 static inline void print_tree(String *out,
                               const char *tree_name,
@@ -15532,9 +15532,9 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
   @param param       PARAM from test_quick_select
 */
 static inline
-void dbug_print_tree(const char *tree_name MY_ATTRIBUTE((unused)),
-                     SEL_TREE *tree MY_ATTRIBUTE((unused)),
-                     const RANGE_OPT_PARAM *param MY_ATTRIBUTE((unused)))
+void dbug_print_tree(const char *tree_name,
+                     SEL_TREE *tree,
+                     const RANGE_OPT_PARAM *param)
 {
 #ifndef DBUG_OFF
   if (_db_enabled_())

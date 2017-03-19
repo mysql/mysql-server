@@ -10395,8 +10395,6 @@ static bool have_change_master_execute_option(const LEX_MASTER_INFO* lex_mi,
   @param mi     Pointer to Master_info object belonging to the slave's IO
                 thread.
 
-  @param need_relay_log_purge If the slave need to purge the current relay log
-
   @retval 0    no error i.e., success.
   @retval !=0  error.
 */
