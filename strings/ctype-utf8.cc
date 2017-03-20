@@ -5835,7 +5835,8 @@ static
 size_t my_strnxfrmlen_utf8(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                            size_t len)
 {
-  return (len * 2 + 2) / 3;
+  // We really ought to have len % 3 == 0, but not all calling code conforms.
+  return ((len + 2) / 3) * 2;
 }
 } // extern "C"
 
@@ -8065,8 +8066,8 @@ static size_t
 my_strnxfrmlen_utf8mb4(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                        size_t len)
 {
-  /* TODO: fix when working on WL "Unicode new version" */
-  return (len * 2 + 2) / 4;
+  // We really ought to have len % 4 == 0, but not all calling code conforms.
+  return ((len + 3) / 4) * 2;
 }
 } // extern "C"
 

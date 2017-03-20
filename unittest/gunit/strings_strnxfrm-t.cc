@@ -40,6 +40,9 @@
 
 #include <gtest/gtest.h>
 #include <sys/types.h>
+#include <algorithm>
+#include <memory>
+#include <utility>
 #include <vector>
 
 #include "benchmark.h"
@@ -48,6 +51,9 @@
 #include "strnxfrm.h"
 #include "template_utils.h"
 
+using std::make_pair;
+using std::max;
+using std::pair;
 using std::to_string;
 
 namespace strnxfrm_unittest {
@@ -1654,6 +1660,56 @@ TEST(HashTest, NullPointer)
   cs->coll->hash_sort(
     cs, pointer_cast<const uchar *>("        "), 8, &nr1, &nr2);
   // Don't care what the values are, just that we don't crash.
+}
+
+namespace {
+
+// Test that strnxfrmlen() holds for all single characters.
+void test_strnxfrmlen(CHARSET_INFO *cs) {
+  pair<size_t, my_wc_t> longest{0, 0};
+
+  uchar inbuf[16], outbuf[256];  // Ought to be enough for anyone.
+  const size_t max_len= cs->coll->strnxfrmlen(cs, cs->mbmaxlen);
+
+  for (my_wc_t ch= 0; ch <= 0x10ffff; ++ch) {
+    size_t in_len= cs->cset->wc_mb(cs, ch, inbuf, inbuf + sizeof(inbuf));
+    if (in_len <= 0) {
+      continue;  // Not representable in this character set.
+    }
+    size_t out_len= cs->coll->strnxfrm(
+      cs, outbuf, sizeof(outbuf), 1, inbuf, in_len, 0);
+    EXPECT_LE(out_len, max_len);
+    if (out_len > max_len) {
+      fprintf(
+        stderr, "U+%04lX needed more room than strnxfrmlen() claimed\n", ch);
+      fprintf(stderr, "Weight string:");
+      for (size_t i= 0; i < out_len; ++i) {
+        fprintf(stderr, " %02x", outbuf[i]);
+      }
+      fprintf(stderr, "\n\n");
+    }
+
+    longest= max(longest, make_pair(out_len, ch));
+  }
+
+  fprintf(stderr,
+    "Longest character in '%s': U+%04lX, %ld bytes (strnxfrm_len=%ld)\n",
+    cs->name, longest.second, longest.first, max_len);
+}
+
+}  // namespace
+
+TEST(StrxfrmLenTest, StrnxfrmLenIsLongEnoughForAllCharacters)
+{
+  // Load one collation to get everything going.
+  init_collation("utf8mb4_0900_ai_ci");
+
+  for (CHARSET_INFO *cs : all_charsets) {
+    if (cs && (cs->state & MY_CS_AVAILABLE)) {
+      SCOPED_TRACE(cs->name);
+      test_strnxfrmlen(init_collation(cs->name));
+    }
+  }
 }
 
 }  // namespace strnxfrm_unittest

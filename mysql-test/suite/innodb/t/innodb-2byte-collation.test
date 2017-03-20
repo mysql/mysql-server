@@ -9,7 +9,7 @@ show variables like 'character_sets_dir%';
 set names utf8;
 
 # Test that the "ID" column in I_S and SHOW queries can handle two bytes
-select * from information_schema.collations where id>256 order by id;
+select collation_name, character_set_name, id from information_schema.collations where id>256 order by id;
 show collation like '%test%';
 
 # Test that two-byte collation ID is correctly transfered to the client side.

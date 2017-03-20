@@ -313,7 +313,18 @@ typedef struct my_collation_handler_st
   size_t  (*strnxfrm)(const struct charset_info_st *,
                       uchar *dst, size_t dstlen, uint num_codepoints,
                       const uchar *src, size_t srclen, uint flags);
-  size_t    (*strnxfrmlen)(const struct charset_info_st *, size_t);
+
+  /**
+    Return the maximum number of output bytes needed for strnxfrm()
+    to output all weights for any string of the given input length.
+    You can use this to e.g. size buffers for sort keys.
+
+    @param num_bytes Number of bytes in the input string. Note that for
+      multibyte character sets, this _must_ be a pessimistic estimate,
+      ie., one that's cs->mbmaxlen * max_num_codepoints. So for e.g.
+      the utf8mb4 string "foo", you will need to give in 12, not 3.
+  */
+  size_t    (*strnxfrmlen)(const struct charset_info_st *, size_t num_bytes);
   bool (*like_range)(const struct charset_info_st *,
 		     const char *s, size_t s_length,
 		     char w_prefix, char w_one, char w_many,
