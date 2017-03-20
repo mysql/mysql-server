@@ -2665,6 +2665,7 @@ Restore::restore_lcp_conf(Signal *signal, FilePtr file_ptr)
                               file_ptr.p->m_restored_lcp_id,
                               file_ptr.p->m_restored_local_lcp_id,
                               file_ptr.p->m_max_gci_completed,
+                              file_ptr.p->m_max_gci_written,
                               file_ptr.p->m_table_id,
                               file_ptr.p->m_fragment_id);
   jamEntry();

@@ -1810,6 +1810,7 @@ public:
                             Uint32 restoredLcpId,
                             Uint32 restoredLocalLcpId,
                             Uint32 maxGciCompleted,
+                            Uint32 maxGciWritten,
                             Uint32 tableId,
                             Uint32 fragmentId);
   Uint32 get_max_lcp_record_size(Uint32 tableId);
