@@ -2209,18 +2209,10 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
   init_check_host();
 
   /* Load dynamic privileges */
-  if (tables[3].table)
+  if (populate_dynamic_privilege_caches(thd, &tables[3]))
   {
-    if (populate_dynamic_privilege_caches(thd, &tables[3]))
-    {
-      return_val= TRUE;
-      goto end;
-    }
-  }
-  else
-  {
-    sql_print_error("Missing system table mysql.global_privs; "
-                    "please run mysql_upgrade to create it");
+    return_val= TRUE;
+    goto end;
   }
 
   initialized=1;
@@ -2546,7 +2538,6 @@ bool acl_reload(THD *thd)
 
   tables[0].open_type= tables[1].open_type= tables[2].open_type= 
     tables[3].open_type= OT_BASE_ONLY;
-  tables[3].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
 
   if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
