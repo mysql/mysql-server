@@ -304,7 +304,7 @@ void THD::set_psi(PSI_thread *psi)
 
 void THD::enter_stage(const PSI_stage_info *new_stage,
                       PSI_stage_info *old_stage,
-                      const char *calling_func,
+                      const char *calling_func MY_ATTRIBUTE((unused)),
                       const char *calling_file,
                       const unsigned int calling_line)
 {

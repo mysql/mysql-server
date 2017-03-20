@@ -27,7 +27,8 @@
 #include "ngs/memory.h"
 
 
-void ngs::thread_create(PSI_thread_key key, Thread_t *thread,
+void ngs::thread_create(PSI_thread_key key MY_ATTRIBUTE((unused)),
+                        Thread_t *thread,
                         Start_routine_t func, void *arg)
 {
   my_thread_attr_t connection_attrib;
@@ -50,7 +51,7 @@ int ngs::thread_join(Thread_t *thread, void **ret)
 }
 
 
-ngs::Mutex::Mutex(PSI_mutex_key key)
+ngs::Mutex::Mutex(PSI_mutex_key key MY_ATTRIBUTE((unused)))
 {
   mysql_mutex_init(key, &m_mutex, NULL);
 }
@@ -69,7 +70,7 @@ ngs::Mutex::operator mysql_mutex_t*()
 
 
 
-ngs::RWLock::RWLock(PSI_rwlock_key key)
+ngs::RWLock::RWLock(PSI_rwlock_key key MY_ATTRIBUTE((unused)))
 {
   mysql_rwlock_init(key, &m_rwlock);
 }
@@ -81,7 +82,7 @@ ngs::RWLock::~RWLock()
 }
 
 
-ngs::Cond::Cond(PSI_cond_key key)
+ngs::Cond::Cond(PSI_cond_key key MY_ATTRIBUTE((unused)))
 {
   mysql_cond_init(key, &m_cond);
 }

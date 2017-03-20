@@ -40,7 +40,8 @@
 PSI_statement_info stmt_info_new_packet;
 #endif
 
-static void net_before_header_psi(struct st_net *net, void *user_data,
+static void net_before_header_psi(struct st_net *net MY_ATTRIBUTE((unused)),
+                                  void *user_data,
                                   size_t /* unused: count */)
 {
   THD *thd;
@@ -61,7 +62,8 @@ static void net_before_header_psi(struct st_net *net, void *user_data,
   }
 }
 
-static void net_after_header_psi(struct st_net *net, void *user_data,
+static void net_after_header_psi(struct st_net *net MY_ATTRIBUTE((unused)),
+                                 void *user_data,
                                  size_t /* unused: count */, bool rc)
 {
   THD *thd;

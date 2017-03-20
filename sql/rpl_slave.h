@@ -388,7 +388,7 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report,
   mysql_cond_wait() on start_cond, start_lock
 */
 bool start_slave_thread(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_THREAD_INTERFACE
                         PSI_thread_key thread_key,
 #endif
                         my_start_routine h_func,

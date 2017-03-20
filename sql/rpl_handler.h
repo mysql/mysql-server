@@ -135,7 +135,7 @@ public:
   }
 
   explicit Delegate(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
            PSI_rwlock_key key
 #endif
                     );
@@ -154,7 +154,7 @@ private:
   bool inited;
 };
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
 extern PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 #endif
 
@@ -164,7 +164,7 @@ public:
 
   Trans_delegate()
   : Delegate(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
              key_rwlock_Trans_delegate_lock
 #endif
              )
@@ -186,7 +186,7 @@ private:
                           uint& number_of_tables);
 };
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
 extern PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
 #endif
 
@@ -196,7 +196,7 @@ public:
 
   Server_state_delegate()
   : Delegate(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
              key_rwlock_Server_state_delegate_lock
 #endif
              )
@@ -211,7 +211,7 @@ public:
   int after_server_shutdown(THD *thd);
 };
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
 extern PSI_rwlock_key key_rwlock_Binlog_storage_delegate_lock;
 #endif
 
@@ -221,7 +221,7 @@ public:
 
   Binlog_storage_delegate()
   : Delegate(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
              key_rwlock_Binlog_storage_delegate_lock
 #endif
              )
@@ -234,7 +234,7 @@ public:
                  my_off_t log_pos);
 };
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
 extern PSI_rwlock_key key_rwlock_Binlog_transmit_delegate_lock;
 #endif
 
@@ -244,7 +244,7 @@ public:
 
   Binlog_transmit_delegate()
   : Delegate(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
              key_rwlock_Binlog_transmit_delegate_lock
 #endif
              )
@@ -265,7 +265,7 @@ public:
   int after_reset_master(THD *thd, ushort flags);
 };
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
 extern PSI_rwlock_key key_rwlock_Binlog_relay_IO_delegate_lock;
 #endif
 
@@ -275,7 +275,7 @@ public:
 
   Binlog_relay_IO_delegate()
   : Delegate(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
              key_rwlock_Binlog_relay_IO_delegate_lock
 #endif
              )

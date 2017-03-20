@@ -3588,17 +3588,15 @@ public:
 class PT_dynamic_privilege final : public PT_role_or_privilege
 {
   LEX_STRING ident;
-  const Trivial_array<LEX_CSTRING> *columns;
 
 public:
   PT_dynamic_privilege(const POS &pos,
-                       const LEX_STRING &ident,
-                       const Trivial_array<LEX_CSTRING> *columns)
+                       const LEX_STRING &ident)
   : PT_role_or_privilege(pos), ident(ident)
   {}
 
   Privilege *get_privilege(THD *thd) override
-  { return new(thd->mem_root) Dynamic_privilege(ident, columns); }
+  { return new(thd->mem_root) Dynamic_privilege(ident, nullptr); }
 };
 
 

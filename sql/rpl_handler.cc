@@ -63,13 +63,13 @@ Observer_info::Observer_info(void *ob, st_plugin_int *p)
 
 
 Delegate::Delegate(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
          PSI_rwlock_key key
 #endif
          )
 {
   inited= FALSE;
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
   if (mysql_rwlock_init(key, &lock))
     return;
 #else

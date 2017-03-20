@@ -2629,7 +2629,8 @@ public:
     @retval true   if this expression cannot be used for partial update
                    of @a field
   */
-  virtual bool mark_for_partial_update(Field *field) { return true; }
+  virtual bool mark_for_partial_update(Field *field MY_ATTRIBUTE((unused)))
+  { return true; }
 };
 
 

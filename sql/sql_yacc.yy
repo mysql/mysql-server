@@ -14184,7 +14184,7 @@ role_or_privilege:
             if ($2 == NULL)
               $$= NEW_PTN PT_role_or_dynamic_privilege(@1, $1);
             else
-              $$= NEW_PTN PT_dynamic_privilege(@1, $1, $2);
+              $$= NEW_PTN PT_dynamic_privilege(@1, $1);
           }
         | role_ident_or_text '@' ident_or_text
           { $$= NEW_PTN PT_role_at_host(@1, $1, $3); }

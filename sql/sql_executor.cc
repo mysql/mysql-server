@@ -116,7 +116,7 @@ static int create_sort_index(THD *thd, JOIN *join, QEP_TAB *tab);
 static bool remove_dup_with_compare(THD *thd, TABLE *entry, Field **field,
                                     ulong offset,Item *having);
 static bool remove_dup_with_hash_index(THD *thd,TABLE *table,
-                                       uint field_count, Field **first_field,
+                                       Field **first_field,
                                        const size_t *field_lengths,
                                        size_t key_length,Item *having);
 static int join_read_linked_first(QEP_TAB *tab);
@@ -4077,7 +4077,7 @@ QEP_TAB::remove_duplicates()
        ((ALIGN_SIZE(key_length) + HASH_OVERHEAD) * tbl->file->stats.records <
 	join()->thd->variables.sortbuff_size)))
     error=remove_dup_with_hash_index(join()->thd, tbl,
-				     field_count, first_field, field_lengths,
+				     first_field, field_lengths,
 				     key_length, having);
   else
   {
@@ -4192,7 +4192,6 @@ err:
 */
 
 static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
-                                       uint field_count,
                                        Field **first_field,
                                        const size_t *field_lengths,
                                        size_t key_length,

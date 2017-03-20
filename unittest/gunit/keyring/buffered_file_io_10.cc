@@ -22,9 +22,10 @@
 
 namespace keyring
 {
-  bool Buffered_file_io_10::flush_to_file(PSI_file_key *file_key,
-                                          const std::string* filename,
-                                          const Digest*)
+bool
+Buffered_file_io_10::flush_to_file(PSI_file_key *file_key MY_ATTRIBUTE((unused)),
+                                   const std::string* filename,
+                                   const Digest*)
   {
     File file;
     bool was_error= TRUE;

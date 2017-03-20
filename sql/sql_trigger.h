@@ -206,8 +206,10 @@ inline bool acquire_shared_mdl_for_trigger(THD *thd, const char *db,
                      triggers statistics has to be deleted.
 */
 
+#ifdef HAVE_PSI_SP_INTERFACE
 void remove_all_triggers_from_perfschema(const char *schema_name,
                                          const dd::Table &table);
+#endif
 ///////////////////////////////////////////////////////////////////////////
 
 

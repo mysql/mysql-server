@@ -605,7 +605,7 @@ bool gtid_pre_statement_post_implicit_commit_checks(THD *thd)
 }
 
 
-void gtid_set_performance_schema_values(const THD *thd)
+void gtid_set_performance_schema_values(const THD *thd MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("gtid_set_performance_schema_values");
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE

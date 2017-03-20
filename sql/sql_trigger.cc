@@ -157,9 +157,11 @@ bool drop_all_triggers(THD *thd, const char *db_name, const char *table_name)
   if (table == nullptr || !table->has_trigger())
     return false;
 
+#ifdef HAVE_PSI_SP_INTERFACE
   // Not very "transactional", but this is the same order it happens
   // during drop table.
   remove_all_triggers_from_perfschema(db_name, *table);
+#endif
 
   for (const dd::Trigger *trigger : *table->triggers())
     table->drop_trigger(trigger);
@@ -175,18 +177,18 @@ bool drop_all_triggers(THD *thd, const char *db_name, const char *table_name)
 }
 
 
+#ifdef HAVE_PSI_SP_INTERFACE
 void remove_all_triggers_from_perfschema(const char *schema_name,
                                          const dd::Table &table)
 {
-#ifdef HAVE_PSI_SP_INTERFACE
   for (const dd::Trigger *trigger: table.triggers())
   {
     MYSQL_DROP_SP(to_uint(enum_sp_type::TRIGGER),
                   schema_name, strlen(schema_name),
                   trigger->name().c_str(), trigger->name().length());
   }
-#endif
 }
+#endif
 
 
 bool check_table_triggers_are_not_in_the_same_schema(const char *db_name,

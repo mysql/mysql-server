@@ -13609,7 +13609,7 @@ bool mysql_trans_commit_alter_copy_data(THD *thd)
 
 static int
 copy_data_between_tables(THD * thd,
-                         PSI_stage_progress *psi,
+                         PSI_stage_progress *psi MY_ATTRIBUTE((unused)),
                          TABLE *from,TABLE *to,
 			 List<Create_field> &create,
 			 ha_rows *copied,

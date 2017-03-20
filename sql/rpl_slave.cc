@@ -1231,7 +1231,7 @@ static inline int fill_mts_gaps_and_recover(Master_info* mi)
   sql_print_information("MTS recovery: starting coordinator thread to fill MTS "
                         "gaps.");
   recovery_error= start_slave_thread(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_THREAD_INTERFACE
                                      key_thread_slave_sql,
 #endif
                                      handle_slave_sql, &rli->run_lock,
@@ -1934,7 +1934,7 @@ terminate_slave_thread(THD *thd,
 
 
 bool start_slave_thread(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_THREAD_INTERFACE
                         PSI_thread_key thread_key,
 #endif
                         my_start_routine h_func, mysql_mutex_t *start_lock,
@@ -2071,7 +2071,7 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
 
   if (thread_mask & SLAVE_IO)
     is_error= start_slave_thread(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_THREAD_INTERFACE
                                  key_thread_slave_io,
 #endif
                                  handle_slave_io, lock_io, lock_cond_io,
@@ -2094,7 +2094,7 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
     }
     if (!is_error)
       is_error= start_slave_thread(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_THREAD_INTERFACE
                                    key_thread_slave_sql,
 #endif
                                    handle_slave_sql, lock_sql, lock_cond_sql,
@@ -4360,13 +4360,13 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   */
   thd->set_new_thread_id();
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_THREAD_INTERFACE
   /*
     Populate the PROCESSLIST_ID in the instrumentation.
   */
   struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
   PSI_THREAD_CALL(set_thread_id)(psi, thd->thread_id());
-#endif /* HAVE_PSI_INTERFACE */
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   DBUG_EXECUTE_IF("simulate_io_slave_error_on_init",
                   simulate_error|= (1 << SLAVE_THD_IO););
@@ -5669,7 +5669,7 @@ extern "C" void *handle_slave_io(void *arg)
   THD_CHECK_SENTRY(thd);
   mi->info_thd = thd;
 
-  #ifdef HAVE_PSI_INTERFACE
+  #ifdef HAVE_PSI_THREAD_INTERFACE
   // save the instrumentation for IO thread in mi->info_thd
   struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
   thd_set_psi(mi->info_thd, psi);
@@ -6263,7 +6263,7 @@ static void *handle_slave_worker(void *arg)
   ulonglong purge_size= 0;
   struct slave_job_item _item, *job_item= &_item;
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
-  #ifdef HAVE_PSI_INTERFACE
+  #ifdef HAVE_PSI_THREAD_INTERFACE
   struct PSI_thread *psi;
   #endif
   Rpl_filter* rpl_filter;
@@ -6283,7 +6283,7 @@ static void *handle_slave_worker(void *arg)
   mysql_mutex_unlock(&w->info_thd_lock);
   thd->thread_stack = (char*)&thd;
 
-  #ifdef HAVE_PSI_INTERFACE
+  #ifdef HAVE_PSI_THREAD_INTERFACE
   // save the instrumentation for worker thread in w->info_thd
   psi= PSI_THREAD_CALL(get_thread)();
   thd_set_psi(w->info_thd, psi);
@@ -7313,7 +7313,7 @@ extern "C" void *handle_slave_sql(void *arg)
   mysql_mutex_lock(&rli->info_thd_lock);
   rli->info_thd= thd;
 
-  #ifdef HAVE_PSI_INTERFACE
+  #ifdef HAVE_PSI_THREAD_INTERFACE
   // save the instrumentation for SQL thread in rli->info_thd
   struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
   thd_set_psi(rli->info_thd, psi);

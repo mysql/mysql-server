@@ -136,6 +136,7 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
   FOREACH(warning
           "unused-but-set-variable"
           "strict-aliasing"
+          "unused-parameter"
           # Downgrade -Werror to warning for "may be used uninitialized"
           # and "is used uninitialized in this function"
           "error=maybe-uninitialized"
