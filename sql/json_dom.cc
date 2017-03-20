@@ -2984,9 +2984,9 @@ int Json_wrapper::compare(const Json_wrapper &other) const
           return 1;                           /* purecov: inspected */
         return -compare_json_decimal_int(b_dec, get_int());
       }
-    default:
-      break;
+    default:;
     }
+    break;
   case enum_json_type::J_UINT:
     // Unsigned integers can be compared to all other numbers.
     switch (other_type)
@@ -3004,31 +3004,29 @@ int Json_wrapper::compare(const Json_wrapper &other) const
           return 1;                           /* purecov: inspected */
         return -compare_json_decimal_uint(b_dec, get_uint());
       }
-    default:
-      break;
+    default:;
     }
+    break;
   case enum_json_type::J_DOUBLE:
     // Doubles can be compared to all other numbers.
+    switch (other_type)
     {
-      switch (other_type)
+    case enum_json_type::J_DOUBLE:
+      return compare_numbers(get_double(), other.get_double());
+    case enum_json_type::J_INT:
+      return compare_json_double_int(get_double(), other.get_int());
+    case enum_json_type::J_UINT:
+      return compare_json_double_uint(get_double(), other.get_uint());
+    case enum_json_type::J_DECIMAL:
       {
-      case enum_json_type::J_DOUBLE:
-        return compare_numbers(get_double(), other.get_double());
-      case enum_json_type::J_INT:
-        return compare_json_double_int(get_double(), other.get_int());
-      case enum_json_type::J_UINT:
-        return compare_json_double_uint(get_double(), other.get_uint());
-      case enum_json_type::J_DECIMAL:
-        {
-          my_decimal other_dec;
-          if (other.get_decimal_data(&other_dec))
-            return 1;                         /* purecov: inspected */
-          return -compare_json_decimal_double(other_dec, get_double());
-        }
-      default:
-        break;
+        my_decimal other_dec;
+        if (other.get_decimal_data(&other_dec))
+          return 1;                         /* purecov: inspected */
+        return -compare_json_decimal_double(other_dec, get_double());
       }
+    default:;
     }
+    break;
   case enum_json_type::J_DECIMAL:
     // Decimals can be compared to all other numbers.
     {
@@ -3054,9 +3052,9 @@ int Json_wrapper::compare(const Json_wrapper &other) const
         return compare_json_decimal_uint(a_dec, other.get_uint());
       case enum_json_type::J_DOUBLE:
         return compare_json_decimal_double(a_dec, other.get_double());
-      default:
-        break;
+      default:;
       }
+      break;
     }
   case enum_json_type::J_BOOLEAN:
     // Booleans are only equal to other booleans. false is less than true.
