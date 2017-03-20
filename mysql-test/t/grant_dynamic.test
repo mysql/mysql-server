@@ -1,5 +1,5 @@
 # Tests for WL#8131
-call mtr.add_suppression(".*Missing system table mysql.global_privs.*");
+call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
 
 --source include/not_embedded.inc
 --echo #
