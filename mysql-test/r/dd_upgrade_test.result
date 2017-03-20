@@ -22,6 +22,7 @@ call mtr.add_suppression("You need to use --log-bin to make --binlog-format work
 call mtr.add_suppression("Unknown system variable 'show_compatibility_56'");
 call mtr.add_suppression("Column count of mysql.* is wrong");
 call mtr.add_suppression("Column count of performance_schema.events_statements_summary_by_digest is wrong.*");
+call mtr.add_suppression(".*Missing system table mysql.global_privs.*");
 call mtr.add_suppression("InnoDB: Unable to delete statistics for table mysql.");
 call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_worker is wrong. Expected 16, found 8.");
 call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_coordinator is wrong. Expected 15, found 6.");

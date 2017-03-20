@@ -1,3 +1,4 @@
+call mtr.add_suppression(".*Missing system table mysql.global_privs.*");
 #
 # Bug25303916 WL8131:FLUSH DOES NOT UPDATE THE GRANT STATUS IN
 # mysql.global_grants
@@ -569,3 +570,25 @@ ERROR HY000: The server is not configured as slave; fix in config file or with C
 # Cleanup
 DROP USER u1@localhost, u1, r2;
 DROP TABLE test.t1;
+# SKIP-GRANT-TABLES IS ENABLED BY DEFAULT DURING LIVE UPGRADE
+CREATE USER u1@localhost IDENTIFIED BY 'pwd';
+CREATE DATABASE db1_protected;
+CREATE DATABASE db1;
+GRANT ALL ON db1.* TO u1@localhost;
+DROP TABLE mysql.global_grants;
+# restart
+DROP DATABASE db1_protected;
+ERROR 42000: Access denied for user 'u1'@'localhost' to database 'db1_protected'
+DROP DATABASE db1;
+DROP DATABASE db1_protected;
+# Restore missing system table and restart the erver.
+CREATE TABLE IF NOT EXISTS mysql.global_grants
+(
+USER CHAR(32) BINARY DEFAULT '' NOT NULL,
+HOST CHAR(60) BINARY DEFAULT '' NOT NULL,
+PRIV CHAR(32) COLLATE UTF8_GENERAL_CI DEFAULT '' NOT NULL, 
+WITH_GRANT_OPTION ENUM('N','Y') COLLATE UTF8_GENERAL_CI DEFAULT 'N' NOT NULL,
+PRIMARY KEY (USER,HOST,PRIV)
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin;
+# restart
+DROP USER u1@localhost;
