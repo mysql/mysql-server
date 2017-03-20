@@ -120,6 +120,7 @@ Description: memcached
 /usr/share/man/man1/ndb_mgm.1*
 /usr/share/man/man1/ndb_print_backup_file.1*
 /usr/share/man/man1/ndb_print_file.1*
+/usr/share/man/man1/ndb_print_frag_file.1*
 /usr/share/man/man1/ndb_print_schema_file.1*
 /usr/share/man/man1/ndb_print_sys_file.1*
 /usr/share/man/man1/ndb_restore.1*
