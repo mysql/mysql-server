@@ -3148,6 +3148,7 @@ Dbtup::complete_restore_lcp(Signal* signal,
                             Uint32 restoredLcpId,
                             Uint32 restoredLocalLcpId,
                             Uint32 maxGciCompleted,
+                            Uint32 maxGciWritten,
                             Uint32 tableId,
                             Uint32 fragId)
 {
@@ -3203,10 +3204,31 @@ Dbtup::complete_restore_lcp(Signal* signal,
    * maxGciCompleted == 0 indicates that no LCP was found to use
    * in restore so setting to ~0 to ensure that we will run next
    * LCP for this fragment and not use the idle LCP optimisation.
+   *
+   * We might have records written that have old_gci set up to
+   * maxGciWritten. When these records are changed the first
+   * time we also need to record it as a row change. So we need to
+   * cater for that in the minimum old_gci to trigger an update of
+   * the row change count.
    */
+  Uint32 lcp_start_gci;
+  if (maxGciCompleted == 0)
+  {
+    jam();
+    lcp_start_gci = Uint32(~0);
+  }
+  else if (maxGciCompleted > maxGciWritten)
+  {
+    jam();
+    lcp_start_gci = maxGciCompleted;
+  }
+  else
+  {
+    jam();
+    lcp_start_gci = maxGciWritten;
+  }
   fragPtr.p->m_lcp_changed_rows = 0;
-  set_lcp_start_gci(fragPtr.i,
-                    maxGciCompleted != 0 ? maxGciCompleted : Uint32(~0));
+  set_lcp_start_gci(fragPtr.i, lcp_start_gci);
 
   fragOpPtr.p->fragPointer = fragPtr.i;
 
