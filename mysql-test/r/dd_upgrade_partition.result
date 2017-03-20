@@ -21,7 +21,7 @@ call mtr.add_suppression(".* Native table .* has the wrong structure");
 call mtr.add_suppression("Column count of mysql.* is wrong");
 call mtr.add_suppression("Column count of performance_schema.events_statements_summary_by_digest is wrong.*");
 call mtr.add_suppression("The privilege system failed to initialize correctly.*");
-call mtr.add_suppression(".*Missing system table mysql.global_privs.*");
+call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
 call mtr.add_suppression("InnoDB: Unable to delete statistics for table mysql.");
 call mtr.add_suppression("Column count of performance_schema.replication_connection_status is wrong. Expected 20, found 11*");
 call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_coordinator is wrong. Expected 15, found 6.*");

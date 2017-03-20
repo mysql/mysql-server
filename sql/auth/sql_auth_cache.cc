@@ -2219,7 +2219,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
   }
   else
   {
-    sql_print_error("Missing system table mysql.global_privs; "
+    sql_print_error("Missing system table mysql.global_grants; "
                     "please run mysql_upgrade to create it");
   }
 
