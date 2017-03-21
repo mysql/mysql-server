@@ -914,7 +914,7 @@ sub collect_one_test_case {
 
   # Test file name should consist of only alpha-numeric characters, dash (-)
   # or underscore (_), but should not start with dash or underscore.
-  if ($tname !~ /^[^_\W][\w-]+$/)
+  if ($tname !~ /^[^_\W][\w-]*$/)
   {
     die("Invalid test file name '$suitename.$tname'. Test file ".
         "name should consist of only alpha-numeric characters, ".
