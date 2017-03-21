@@ -3716,3 +3716,61 @@ EOF
 --echo expr \$res= \$a ++ \$b
 --error 1
 --exec echo "let \$a= 1; let \$b= 1; expr \$res= \$a ++ \$b; echo \$res;" | $MYSQL_TEST 2>&1
+
+--echo #
+--echo # BUG#25487471 : MYSQLTEST FAILS TO ESCAPE FILENAMES
+--echo #
+
+--echo # Test file name 'a_b.test'
+--write_file $MYSQLTEST_VARDIR/tmp/a_b.test
+SELECT 100 AS res;
+EOF
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/a_b.test
+--remove_file $MYSQLTEST_VARDIR/tmp/a_b.test
+
+--echo # Test file name 'a-b.test'
+--write_file $MYSQLTEST_VARDIR/tmp/a-b.test
+SELECT 100 AS res;
+EOF
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/a-b.test
+--remove_file $MYSQLTEST_VARDIR/tmp/a-b.test
+
+--echo # Test file name '-ab.test'
+--write_file $MYSQLTEST_VARDIR/tmp/-ab.test
+SELECT 100;
+EOF
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/-ab.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/-ab.test
+
+--echo # Test file name '_ab.test'
+--write_file $MYSQLTEST_VARDIR/tmp/_ab.test
+SELECT 100;
+EOF
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/_ab.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/_ab.test
+
+--echo # Test file name 'a=bc.test'
+--write_file $MYSQLTEST_VARDIR/tmp/a=bc.test
+SELECT 100;
+EOF
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/a=bc.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/a=bc.test
+
+--echo # Test file name 'abc@.test'
+--write_file $MYSQLTEST_VARDIR/tmp/abc@.test
+SELECT 100;
+EOF
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/abc@.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/abc@.test
+
+--echo # Result file name 'ab#c.result'
+--write_file $MYSQLTEST_VARDIR/tmp/ab#c.result
+SELECT 100;
+EOF
+--error 1
+--exec $MYSQL_TEST -R $MYSQLTEST_VARDIR/tmp/ab#c.result 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/ab#c.result

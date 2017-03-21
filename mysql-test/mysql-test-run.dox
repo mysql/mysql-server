@@ -1039,9 +1039,9 @@
 
   Test case file names may use alphanumeric characters (<b>A-Z</b>,
   <b>a-z</b>, <b>0-9</b>), underscore (<b>'_'</b>) or dash
-  (<b>'-'</b>), but should not start with underscore or dash. Other
-  special characters may work but this is not guaranteed so they
-  should be avoided.
+  (<b>'-'</b>), but should not start with underscore or dash. No other
+  special characters are allowed, if used, then an error is thrown and
+  the test run is aborted.
 
   Test names have traditionally used lowercase only, and we recommend
   continuing this for tests added to the common repository, though

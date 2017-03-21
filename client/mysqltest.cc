@@ -7673,6 +7673,69 @@ get_one_option(int optid, const struct my_option *opt, char *argument)
 }
 
 
+/**
+  Test case or the result file names may use alphanumeric characters
+  (A-Z, a-z, 0-9), dash ('-') or underscore ('_'), but should not
+  start with dash or underscore.
+
+  Check if a file name conatins any other special characters. If yes,
+  throw an error and abort the test run.
+
+  @param[in] file_name File name
+*/
+
+static void validate_filename(const char *file_name)
+{
+  const char *fname= strrchr(file_name, '/');
+
+  if (fname == NULL)
+  {
+    if(is_windows)
+    {
+      fname= strrchr(file_name, '\\');
+
+      if (fname == NULL)
+        fname= file_name;
+      else
+        fname++;
+    }
+    else
+      fname= file_name;
+  }
+  else
+    fname++;
+
+  file_name= fname;
+
+  // Check if first character in the file name is a alphanumeric character
+  if (!my_isalnum(charset_info, file_name[0]))
+  {
+    die("Invalid file name '%s', first character must be alpha-numeric.",
+        file_name);
+  }
+  else
+    file_name++;
+
+  // Skip extension('.test' or '.result' or '.inc' etc) in the file name
+  const char* file_name_end= strrchr(file_name, '.');
+
+  while (*file_name && (file_name != file_name_end) &&
+         (file_name[0] == '-' || file_name[0] == '_' ||
+          my_isalnum(charset_info, file_name[0])))
+  {
+    file_name++;
+  }
+
+  if (file_name != file_name_end)
+  {
+    die("Invalid file name '%s'. Test or result file name should "\
+        "consist of only alpha-numeric characters, dash (-) or "\
+        "underscore (_), but should not start with dash or "\
+        "underscore.", fname);
+  }
+}
+
+
 static int parse_args(int argc, char **argv)
 {
   if (load_defaults("my",load_default_groups,&argc,&argv))
@@ -7683,11 +7746,20 @@ static int parse_args(int argc, char **argv)
   if ((handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(1);
 
+  // Check for special characters in test case file name
+  if (cur_file->file_name)
+    validate_filename(cur_file->file_name);
+
+  // Check for special characters in result file name
+  if (result_file_name)
+    validate_filename(result_file_name);
+
   if (argc > 1)
   {
     usage();
     exit(1);
   }
+
   if (argc == 1)
     opt_db= *argv;
   if (tty_password)

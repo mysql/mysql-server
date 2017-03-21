@@ -1460,3 +1460,24 @@ expr $res= $a + b
 mysqltest: At line 1: Variable name 'b' should start with '$'
 expr $res= $a ++ $b
 mysqltest: At line 1: Invalid operator '++' in expr command
+#
+# BUG#25487471 : MYSQLTEST FAILS TO ESCAPE FILENAMES
+#
+# Test file name 'a_b.test'
+SELECT 100 AS res;
+res
+100
+# Test file name 'a-b.test'
+SELECT 100 AS res;
+res
+100
+# Test file name '-ab.test'
+mysqltest: Invalid file name '-ab.test', first character must be alpha-numeric.
+# Test file name '_ab.test'
+mysqltest: Invalid file name '_ab.test', first character must be alpha-numeric.
+# Test file name 'a=bc.test'
+mysqltest: Invalid file name 'a=bc.test'. Test or result file name should consist of only alpha-numeric characters, dash (-) or underscore (_), but should not start with dash or underscore.
+# Test file name 'abc@.test'
+mysqltest: Invalid file name 'abc@.test'. Test or result file name should consist of only alpha-numeric characters, dash (-) or underscore (_), but should not start with dash or underscore.
+# Result file name 'ab#c.result'
+mysqltest: Invalid file name 'ab#c.result'. Test or result file name should consist of only alpha-numeric characters, dash (-) or underscore (_), but should not start with dash or underscore.
