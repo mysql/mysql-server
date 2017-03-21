@@ -1855,7 +1855,7 @@ CREATE TABLE t1 AS SELECT IF(0, coalesce(NULL), now(0)) + 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `IF(0, coalesce(NULL), now(0)) + 0` decimal(21,6) DEFAULT NULL
+  `IF(0, coalesce(NULL), now(0)) + 0` bigint(16) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 #

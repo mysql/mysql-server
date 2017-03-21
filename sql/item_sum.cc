@@ -6192,12 +6192,11 @@ bool Item_lead_lag::resolve_type(THD *thd)
 
   if (m_hybrid_type == STRING_RESULT)
   {
-    if (aggregate_string_properties(data_type(), func_name(), args, arg_count))
+    if (aggregate_string_properties(func_name(), args, arg_count))
       return true;
   }
   else
   {
-    collation.set_numeric(); // Number
     aggregate_num_type(m_hybrid_type, args, arg_count);
   }
 

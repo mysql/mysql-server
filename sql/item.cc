@@ -7818,9 +7818,18 @@ bool Item::cache_const_expr_analyzer(uchar **arg)
 void Item::aggregate_char_length(Item **args, uint nitems)
 {
   uint32 char_length= 0;
+  /*
+    To account for character sets with different number of bytes per character,
+    set char_length equal to max_length if the aggregated character set is
+    binary to prevent truncation of data as some characters require more than
+    one byte.
+  */
+  bool bin_charset= collation.collation == &my_charset_bin;
   for (uint i= 0; i < nitems; i++)
-    set_if_bigger(char_length, args[i]->max_char_length());
-  fix_char_length(char_length);
+    set_if_bigger(char_length, bin_charset ? args[i]->max_length :
+                                             args[i]->max_char_length());
+  if (char_length * collation.collation->mbmaxlen > max_length)
+    fix_char_length(char_length);
 }
 
 
@@ -7935,29 +7944,46 @@ void Item::aggregate_temporal_properties(Item **item, uint nitems)
 
 /**
   Aggregate string properties (character set, collation and maximum length) for
-  string function.q
+  string function.
 
-  @param field_type  Field type.
   @param name        Name of function
   @param items       Argument array.
   @param nitems      Number of arguments.
 
   @retval            False on success, true on error.
 */
-bool Item::aggregate_string_properties(enum_field_types field_type,
-                                       const char *name,
+bool Item::aggregate_string_properties(const char *name,
                                        Item **items, uint nitems)
 {
   DBUG_ASSERT(result_type() == STRING_RESULT);
   if (agg_item_charsets_for_string_result(collation, name, items, nitems, 1))
     return true;
-  if (is_temporal_type(field_type))
-    aggregate_temporal_properties(items, nitems);
-  else
+  if (is_temporal_type(data_type()))
   {
-    decimals= NOT_FIXED_DEC;
-    aggregate_char_length(items, nitems);
+    /*
+      aggregate_temporal_properties() will set collation to numeric, causing
+      the character set to be explicitly set to latin1, which may not match the
+      aggregated character set. The collation must therefore be restored after
+      the temporal properties have been computed.
+    */
+    auto aggregated_collation= collation;
+    aggregate_temporal_properties(items, nitems);
+    collation.set(aggregated_collation);
+    /*
+      Set max_length again as the aggregated character set may have different
+      number of bytes per character than latin1.
+    */
+    fix_char_length(max_length);
   }
+  else
+    set_if_smaller(decimals, NOT_FIXED_DEC);
+  aggregate_char_length(items, nitems);
+
+  if (collation.collation != &my_charset_bin &&
+      max_length > char_to_byte_length_safe(MAX_FIELD_CHARLENGTH,
+                                            collation.collation->mbmaxlen))
+    set_data_type(MYSQL_TYPE_VARCHAR);
+
   return false;
 }
 
@@ -7975,6 +8001,7 @@ void Item::aggregate_num_type(Item_result result_type,
                               Item **item,
                               uint nitems)
 {
+  collation.set_numeric();
   switch (result_type)
   {
     case DECIMAL_RESULT:
@@ -10662,13 +10689,8 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
 {
   DBUG_ASSERT(item->fixed);
   maybe_null= item->maybe_null;
-  collation.set(item->collation);
   set_data_type(real_data_type(item));
   get_full_info(item);
-  /* fix variable decimals which always is NOT_FIXED_DEC */
-  if (Field::result_merge_type(data_type()) == INT_RESULT)
-    decimals= 0;
-  prev_decimal_int_part= item->decimal_int_part();
   if (item->data_type() == MYSQL_TYPE_GEOMETRY)
     geometry_type= item->get_geometry_type();
   else
@@ -10773,8 +10795,6 @@ enum_field_types Item_type_holder::real_data_type(Item *item)
 
 bool Item_type_holder::join_types(THD*, Item *item)
 {
-  uint max_length_orig= max_length;
-  uint decimals_orig= decimals;
   DBUG_ENTER("Item_type_holder::join_types");
   DBUG_PRINT("info:", ("was type %d len %d, dec %d name %s",
                        data_type(), max_length, decimals,
@@ -10782,112 +10802,35 @@ bool Item_type_holder::join_types(THD*, Item *item)
   DBUG_PRINT("info:", ("in type %d len %d, dec %d",
                        real_data_type(item),
                        item->max_length, item->decimals));
-  set_data_type(Field::field_type_merge(data_type(), real_data_type(item)));
-  {
-    int item_decimals= item->decimals;
-    /* fix variable decimals which always is NOT_FIXED_DEC */
-    if (Field::result_merge_type(data_type()) == INT_RESULT)
-      item_decimals= 0;
-    decimals= max<int>(decimals, item_decimals);
-  }
-  if (Field::result_merge_type(data_type()) == DECIMAL_RESULT)
-  {
-    decimals= min<int>(max(decimals, item->decimals), DECIMAL_MAX_SCALE);
-    int item_int_part= item->decimal_int_part();
-    int item_prec = max(prev_decimal_int_part, item_int_part) + decimals;
-    int precision= min<uint>(item_prec, DECIMAL_MAX_PRECISION);
-    unsigned_flag&= item->unsigned_flag;
-    max_length= my_decimal_precision_to_length_no_truncation(precision,
-                                                             decimals,
-                                                             unsigned_flag);
-  }
+  /*
+    aggregate_type() will modify the data type of this item. Create a copy of
+    this item containing the original data type and other properties to ensure
+    correct conversion from existing item types to aggregated type.
+  */
+  Item *item_copy= Item_copy::create(this);
+  Item* args[]= {item_copy, item};
+  aggregate_type(make_array(&args[0], 2));
+  // UNION with ENUM/SET fields requires type information from real_data_type()
+  set_data_type(real_type_to_type(Field::field_type_merge(
+                                  real_data_type(item_copy),
+                                  real_data_type(item))));
 
-  switch (Field::result_merge_type(data_type()))
+  Item_result merge_type= Field::result_merge_type(data_type());
+  if (merge_type == STRING_RESULT)
   {
-  case STRING_RESULT:
-  {
-    const char *old_cs, *old_derivation;
-    uint32 old_max_chars= max_length / collation.collation->mbmaxlen;
-    old_cs= collation.collation->name;
-    old_derivation= collation.derivation_name();
-    if (collation.aggregate(item->collation, MY_COLL_ALLOW_CONV))
-    {
-      my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0),
-	       old_cs, old_derivation,
-	       item->collation.collation->name,
-	       item->collation.derivation_name(),
-	       "UNION");
-      DBUG_RETURN(TRUE);
-    }
-    /*
-      To figure out max_length, we have to take into account possible
-      expansion of the size of the values because of character set
-      conversions.
-     */
-    if (collation.collation != &my_charset_bin)
-    {
-      max_length= max(old_max_chars * collation.collation->mbmaxlen,
-                      display_length(item) /
-                      item->collation.collation->mbmaxlen *
-                      collation.collation->mbmaxlen);
-
-      if (max_length > char_to_byte_length_safe(MAX_FIELD_CHARLENGTH,
-                                                collation.collation->mbmaxlen))
-        set_data_type(MYSQL_TYPE_VARCHAR);
-    }
-    else
-      set_if_bigger(max_length, display_length(item));
-
+    aggregate_string_properties("UNION", args, 2);
     /*
       For geometry columns, we must also merge subtypes. If the
       subtypes are different, use GEOMETRY.
     */
     if (data_type() == MYSQL_TYPE_GEOMETRY &&
         geometry_type != item->get_geometry_type())
-    {
       geometry_type= Field::GEOM_GEOMETRY;
-    }
-
-    break;
   }
-  case REAL_RESULT:
-  {
-    if (decimals != NOT_FIXED_DEC)
-    {
-      /*
-        For FLOAT(M,D)/DOUBLE(M,D) do not change precision
-         if both fields have the same M and D
-      */
-      if (item->max_length != max_length_orig ||
-          item->decimals != decimals_orig)
-      {
-        int delta1= max_length_orig - decimals_orig;
-        int delta2= item->max_length - item->decimals;
-        max_length= max(delta1, delta2) + decimals;
-        if (data_type() == MYSQL_TYPE_FLOAT && max_length > FLT_DIG + 2)
-        {
-          max_length= MAX_FLOAT_STR_LENGTH;
-          decimals= NOT_FIXED_DEC;
-        } 
-        else if (data_type() == MYSQL_TYPE_DOUBLE && max_length > DBL_DIG + 2)
-        {
-          max_length= MAX_DOUBLE_STR_LENGTH;
-          decimals= NOT_FIXED_DEC;
-        }
-      }
-    }
-    else
-      max_length= (data_type() == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7;
-    break;
-  }
-  default:
-    max_length= max(max_length, display_length(item));
-  };
+  else
+    aggregate_num_type(merge_type, args, 2);
   maybe_null|= item->maybe_null;
   get_full_info(item);
-
-  /* Remember decimal integer part to be used in DECIMAL_RESULT handleng */
-  prev_decimal_int_part= decimal_int_part();
   DBUG_PRINT("info", ("become type: %d  len: %u  dec: %u",
                       (int) data_type(), max_length, (uint) decimals));
   DBUG_RETURN(FALSE);

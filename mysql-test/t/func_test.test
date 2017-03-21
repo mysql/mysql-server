@@ -189,6 +189,7 @@ DROP TABLE t1, t2;
 --echo # Bug#22839888 UNINITIALIZED VALUE WHEN CONVERTING
 --echo #              MULTIBYTE STRINGS TO NUMBERS
 --echo #
+--error ER_CANT_AGGREGATE_3COLLATIONS
 select greatest(1,_utf16'.',_utf8'');
 
 -- echo #
@@ -218,6 +219,8 @@ SELECT -5, 5.5, 5.5e5, '5', date '2005-05-05', time '05:05:05.555555',
        time '05:05:05.555555', timestamp '2005-05-05 05:05:05.555555',
        timestamp '2005-05-05 05:05:05.555555', '1', _binary '1', '1',
        _binary '1';
+
+SET sql_mode=default;
 
 CREATE TABLE t2 AS
 SELECT COALESCE(5, -5) AS c1,
@@ -332,7 +335,5 @@ SELECT GREATEST(time '00:00:00', 120000) + 0.00;
 SELECT GREATEST(time '20:00:00', 120000) + 0.00;
 SELECT GREATEST('95-05-05', date '10-10-10') + 0.00;
 SELECT GREATEST(date '1995-05-05', '10-10-10') + 0.00;
-
-SET sql_mode=default;
 
 -- echo # End of test for Bug#25123839

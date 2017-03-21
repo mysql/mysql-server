@@ -1323,54 +1323,75 @@ public:
 };
 
 
-class Item_func_min_max :public Item_func
+class Item_func_min_max : public Item_func_numhybrid
 {
-  Item_result cmp_type;
-  String tmp_value;
+  // Comparison sign: -1 = GREATEST, 1 = LEAST
   const int cmp_sign;
-  /* TRUE <=> arguments should be compared in the DATETIME context. */
-  bool compare_as_dates;
-  /* An item used for issuing warnings while string to DATETIME conversion. */
-  Item *datetime_item;
+  /*
+    Used for determining whether one of the arguments is of temporal type and
+    for converting arguments to a common output format if arguments are
+    compared as dates and result type is character string. For example,
+    LEAST('95-05-05', date '10-10-10') should return '1995-05-05', not
+    '95-05-05'.
+  */
+  Item *temporal_item;
 protected:
-  uint cmp_datetimes(longlong *value);
-  uint cmp_times(longlong *value);
+  /**
+    Compare arguments as datetime values.
+
+    @param value Pointer to which the datetime value of the winning argument
+    is written.
+
+    @return true if error, false otherwise.
+  */
+  bool cmp_datetimes(longlong *value);
+
+  /**
+    Compare arguments as time values.
+
+    @param value Pointer to which the time value of the winning argument is
+    written.
+
+    @return true if error, false otherwise.
+  */
+  bool cmp_times(longlong *value);
 public:
-  Item_func_min_max(List<Item> &list,int cmp_sign_arg) :Item_func(list), // TODO: remove
-    cmp_type(INT_RESULT), cmp_sign(cmp_sign_arg), compare_as_dates(FALSE),
-    datetime_item(0) {}
   Item_func_min_max(const POS &pos, PT_item_list *opt_list, int cmp_sign_arg)
-    :Item_func(pos, opt_list),
-    cmp_type(INT_RESULT), cmp_sign(cmp_sign_arg), compare_as_dates(FALSE),
-    datetime_item(0)
+    :Item_func_numhybrid(pos, opt_list),
+    cmp_sign(cmp_sign_arg), temporal_item(nullptr)
   {}
-  double val_real() override;
+
   longlong val_int() override;
-  String *val_str(String *) override;
+  double val_real() override;
   my_decimal *val_decimal(my_decimal *) override;
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
-  bool get_time(MYSQL_TIME *ltime) override;
-  bool resolve_type(THD *thd) override;
-  enum Item_result result_type() const override
-  {
-    /*
-      If we compare as dates, then:
-      - data type is MYSQL_TYPE_VARSTRING, MYSQL_TYPE_DATETIME
-        or MYSQL_TYPE_DATE.
-      - cmp_type is INT_RESULT or DECIMAL_RESULT,
-        depending on the amount of fractional digits.
-      We need to return STRING_RESULT in this case instead of cmp_type.
-    */
-    return compare_as_dates ? STRING_RESULT : cmp_type;
-  }
+  longlong int_op() override;
+  double real_op() override;
+  my_decimal *decimal_op(my_decimal *) override;
+  String *str_op(String *) override;
+  bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  bool time_op(MYSQL_TIME *ltime) override;
+  bool resolve_type(THD *) override;
+  void set_numeric_type() override {}
+  enum Item_result result_type() const override { return hybrid_type; }
+
+  /**
+    Make CAST(LEAST_OR_GREATEST(datetime_expr, varchar_expr))
+    return a number in format YYMMDDhhmmss.
+  */
   enum Item_result cast_to_int_type() const override
   {
-    /*
-      make CAST(LEAST_OR_GREATEST(datetime_expr, varchar_expr))
-      return a number in format "YYYMMDDhhmmss".
-    */
-    return compare_as_dates ? INT_RESULT : result_type();
+    return compare_as_dates() ? INT_RESULT : result_type();
   }
+
+  /// Returns true if arguments to this function should be compared as dates.
+  bool compare_as_dates() const
+  {
+    return temporal_item != nullptr &&
+           is_temporal_type_with_date(temporal_item->data_type());
+  }
+
+  /// Returns true if at least one of the arguments was of temporal type.
+  bool has_temporal_arg() const { return temporal_item; }
 };
 
 class Item_func_min final : public Item_func_min_max

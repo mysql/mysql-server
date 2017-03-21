@@ -329,7 +329,7 @@ CREATE TABLE t2 AS SELECT greatest(9223372036854775808, 9223372036854775808);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `greatest(-1, 9223372036854775808)` bigint(19) unsigned NOT NULL DEFAULT '0'
+  `greatest(-1, 9223372036854775808)` decimal(19,0) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE t2;
 Table	Create Table
@@ -342,10 +342,7 @@ DROP TABLE t1, t2;
 #              MULTIBYTE STRINGS TO NUMBERS
 #
 select greatest(1,_utf16'.',_utf8'');
-greatest(1,_utf16'.',_utf8'')
-1
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: '.'
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,NUMERIC), (utf16_general_ci,COERCIBLE), (utf8_general_ci,COERCIBLE) for operation 'greatest'
 #
 # Bug#25123839: LEAST AND GREATEST MAKES INCONSISTENT DATA TYPES,
 # COMPARED TO UNION AND COALESCE
@@ -374,6 +371,7 @@ timestamp '2005-05-05 05:05:05.555555',
 time '05:05:05.555555', timestamp '2005-05-05 05:05:05.555555',
 timestamp '2005-05-05 05:05:05.555555', '1', _binary '1', '1',
 _binary '1';
+SET sql_mode=default;
 CREATE TABLE t2 AS
 SELECT COALESCE(5, -5) AS c1,
 COALESCE(5, 5.5) AS c2,
@@ -405,9 +403,6 @@ COALESCE(x'c3a5', '1') AS c61,
 COALESCE(x'c3a5', _binary '1') AS c62,
 COALESCE(_utf8mb4 x'c3a5', '1') AS c63,
 COALESCE(_utf8mb4 x'c3a5', _binary '1') AS c64;
-Warnings:
-Warning	1265	Data truncated for column 'c21' at row 1
-Warning	1265	Data truncated for column 'c64' at row 1
 CREATE TABLE t3 AS
 SELECT GREATEST(5, -5) AS c1,
 GREATEST(5, 5.5) AS c2,
@@ -442,24 +437,24 @@ GREATEST(_utf8mb4 x'c3a5', _binary '1') AS c64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL DEFAULT '0',
+  `c1` bigint(2) NOT NULL DEFAULT '0',
   `c2` decimal(2,1) NOT NULL DEFAULT '0.0',
   `c3` double NOT NULL DEFAULT '0',
   `c4` varchar(1) NOT NULL DEFAULT '',
-  `c5` varchar(10) CHARACTER SET latin1 NOT NULL DEFAULT '',
-  `c6` varchar(17) CHARACTER SET latin1 NOT NULL DEFAULT '',
-  `c7` varchar(26) CHARACTER SET latin1 NOT NULL DEFAULT '',
-  `c8` varchar(19) CHARACTER SET latin1 NOT NULL DEFAULT '',
+  `c5` varchar(10) NOT NULL DEFAULT '',
+  `c6` varchar(17) NOT NULL DEFAULT '',
+  `c7` varchar(26) NOT NULL DEFAULT '',
+  `c8` varchar(19) NOT NULL DEFAULT '',
   `c11` decimal(4,2) NOT NULL DEFAULT '0.00',
   `c12` double NOT NULL DEFAULT '0',
   `c13` varchar(4) NOT NULL DEFAULT '',
-  `c14` varchar(10) CHARACTER SET latin1 NOT NULL DEFAULT '',
-  `c15` varchar(17) CHARACTER SET latin1 NOT NULL DEFAULT '',
-  `c16` varchar(26) CHARACTER SET latin1 NOT NULL DEFAULT '',
-  `c21` varchar(5) NOT NULL DEFAULT '',
-  `c22` varchar(10) CHARACTER SET latin1 NOT NULL DEFAULT '',
-  `c23` varchar(17) CHARACTER SET latin1 NOT NULL DEFAULT '',
-  `c24` varchar(26) CHARACTER SET latin1 NOT NULL DEFAULT '',
+  `c14` varchar(10) NOT NULL DEFAULT '',
+  `c15` varchar(17) NOT NULL DEFAULT '',
+  `c16` varchar(26) NOT NULL DEFAULT '',
+  `c21` varchar(22) NOT NULL DEFAULT '',
+  `c22` varchar(22) NOT NULL DEFAULT '',
+  `c23` varchar(22) NOT NULL DEFAULT '',
+  `c24` varchar(26) NOT NULL DEFAULT '',
   `c31` varchar(10) NOT NULL DEFAULT '',
   `c32` varchar(17) NOT NULL DEFAULT '',
   `c33` varchar(26) NOT NULL DEFAULT '',
@@ -488,9 +483,9 @@ t2	CREATE TABLE `t2` (
   `c14` varchar(10) NOT NULL DEFAULT '',
   `c15` varchar(17) NOT NULL DEFAULT '',
   `c16` varchar(26) NOT NULL DEFAULT '',
-  `c21` varchar(5) NOT NULL DEFAULT '',
-  `c22` varchar(10) NOT NULL DEFAULT '',
-  `c23` varchar(17) NOT NULL DEFAULT '',
+  `c21` varchar(22) NOT NULL DEFAULT '',
+  `c22` varchar(22) NOT NULL DEFAULT '',
+  `c23` varchar(22) NOT NULL DEFAULT '',
   `c24` varchar(26) NOT NULL DEFAULT '',
   `c31` varchar(10) NOT NULL DEFAULT '',
   `c32` varchar(17) NOT NULL DEFAULT '',
@@ -498,10 +493,10 @@ t2	CREATE TABLE `t2` (
   `c41` datetime(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000',
   `c42` datetime(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000',
   `c51` datetime(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000',
-  `c61` varbinary(2) NOT NULL DEFAULT '',
+  `c61` varbinary(4) NOT NULL DEFAULT '',
   `c62` varbinary(2) NOT NULL DEFAULT '',
   `c63` varchar(1) NOT NULL DEFAULT '',
-  `c64` varbinary(1) NOT NULL DEFAULT ''
+  `c64` varbinary(4) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE t3;
 Table	Create Table
@@ -509,24 +504,24 @@ t3	CREATE TABLE `t3` (
   `c1` int(2) NOT NULL DEFAULT '0',
   `c2` decimal(2,1) NOT NULL DEFAULT '0.0',
   `c3` double NOT NULL DEFAULT '0',
-  `c4` double NOT NULL DEFAULT '0',
-  `c5` int(9) NOT NULL DEFAULT '0',
-  `c6` double(23,6) NOT NULL DEFAULT '0.000000',
-  `c7` decimal(20,6) NOT NULL DEFAULT '0.000000',
-  `c8` bigint(15) NOT NULL DEFAULT '0',
+  `c4` varchar(1) NOT NULL DEFAULT '',
+  `c5` varchar(10) NOT NULL DEFAULT '',
+  `c6` varchar(17) NOT NULL DEFAULT '',
+  `c7` varchar(26) NOT NULL DEFAULT '',
+  `c8` varchar(19) NOT NULL DEFAULT '',
   `c11` decimal(4,2) NOT NULL DEFAULT '0.00',
   `c12` double NOT NULL DEFAULT '0',
-  `c13` double NOT NULL DEFAULT '0',
-  `c14` decimal(9,1) NOT NULL DEFAULT '0.0',
-  `c15` double(23,6) NOT NULL DEFAULT '0.000000',
-  `c16` decimal(20,6) NOT NULL DEFAULT '0.000000',
-  `c21` double NOT NULL DEFAULT '0',
-  `c22` double NOT NULL DEFAULT '0',
-  `c23` double NOT NULL DEFAULT '0',
-  `c24` double NOT NULL DEFAULT '0',
-  `c31` varchar(10) CHARACTER SET latin1 NOT NULL DEFAULT '',
-  `c32` varchar(5) NOT NULL DEFAULT '',
-  `c33` varchar(26) CHARACTER SET latin1 NOT NULL DEFAULT '',
+  `c13` varchar(4) NOT NULL DEFAULT '',
+  `c14` varchar(10) NOT NULL DEFAULT '',
+  `c15` varchar(17) NOT NULL DEFAULT '',
+  `c16` varchar(26) NOT NULL DEFAULT '',
+  `c21` varchar(22) NOT NULL DEFAULT '',
+  `c22` varchar(22) NOT NULL DEFAULT '',
+  `c23` varchar(22) NOT NULL DEFAULT '',
+  `c24` varchar(26) NOT NULL DEFAULT '',
+  `c31` varchar(10) NOT NULL DEFAULT '',
+  `c32` varchar(17) NOT NULL DEFAULT '',
+  `c33` varchar(26) NOT NULL DEFAULT '',
   `c41` datetime(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000',
   `c42` datetime(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000',
   `c51` datetime(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000',
@@ -541,7 +536,7 @@ GREATEST('11', '5', '2')
 5
 SELECT GREATEST('11', 5, 2);
 GREATEST('11', 5, 2)
-11
+5
 SELECT GREATEST(11, 5, 2);
 GREATEST(11, 5, 2)
 11
@@ -550,31 +545,31 @@ LEAST('11', '5', '2')
 11
 SELECT LEAST('11', 5, 2);
 LEAST('11', 5, 2)
-2
+11
 SELECT LEAST(11, 5, 2);
 LEAST(11, 5, 2)
 2
 SELECT GREATEST(date '2005-05-05', 20010101, 20040404, 20030303);
 GREATEST(date '2005-05-05', 20010101, 20040404, 20030303)
-20050505
+2005-05-05
 SELECT LEAST(date '2005-05-05', 20030303, 20010101, 20040404);
 LEAST(date '2005-05-05', 20030303, 20010101, 20040404)
-20010101
+2001-01-01
 SELECT GREATEST(date '2005-05-05', '20010101', '20040404', '20030303');
 GREATEST(date '2005-05-05', '20010101', '20040404', '20030303')
 2005-05-05
 SELECT LEAST(date '2005-05-05', '20030303', '20010101', '20040404');
 LEAST(date '2005-05-05', '20030303', '20010101', '20040404')
-20010101
+2001-01-01
 SELECT GREATEST(time '00:00:00', 120000);
 GREATEST(time '00:00:00', 120000)
 120000
 SELECT LEAST(time '00:00:00', 120000);
 LEAST(time '00:00:00', 120000)
-0
+00:00:00
 SELECT GREATEST(time '20:00:00', 120000);
 GREATEST(time '20:00:00', 120000)
-200000
+20:00:00
 SELECT LEAST(time '20:00:00', 120000);
 LEAST(time '20:00:00', 120000)
 120000
@@ -583,19 +578,19 @@ GREATEST('95-05-05', date '10-10-10')
 2010-10-10
 SELECT GREATEST(date '1995-05-05', '10-10-10');
 GREATEST(date '1995-05-05', '10-10-10')
-10-10-10
+2010-10-10
 SELECT LEAST(date '1995-05-05', '10-10-10');
 LEAST(date '1995-05-05', '10-10-10')
 1995-05-05
 SELECT LEAST('95-05-05', date '10-10-10');
 LEAST('95-05-05', date '10-10-10')
-95-05-05
+1995-05-05
 SELECT GREATEST('11', '5', '2') + 0;
 GREATEST('11', '5', '2') + 0
-11
+5
 SELECT GREATEST('11', 5, 2) + 0;
 GREATEST('11', 5, 2) + 0
-11
+5
 SELECT GREATEST(11, 5, 2) + 0;
 GREATEST(11, 5, 2) + 0
 11
@@ -616,10 +611,10 @@ GREATEST(date '1995-05-05', '10-10-10') + 0
 20101010
 SELECT GREATEST('11', '5', '2') + 0.00;
 GREATEST('11', '5', '2') + 0.00
-11
+5
 SELECT GREATEST('11', 5, 2) + 0.00;
 GREATEST('11', 5, 2) + 0.00
-11
+5
 SELECT GREATEST(11, 5, 2) + 0.00;
 GREATEST(11, 5, 2) + 0.00
 11.00
@@ -638,5 +633,4 @@ GREATEST('95-05-05', date '10-10-10') + 0.00
 SELECT GREATEST(date '1995-05-05', '10-10-10') + 0.00;
 GREATEST(date '1995-05-05', '10-10-10') + 0.00
 20101010.00
-SET sql_mode=default;
 # End of test for Bug#25123839
