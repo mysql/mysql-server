@@ -10367,9 +10367,15 @@ void Create_field::create_length_to_internal_length(void)
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VARCHAR:
-    length*= charset->mbmaxlen;
-    key_length= length;
-    pack_length= calc_pack_length(sql_type, length);
+    {
+      const ulonglong ull_length=
+        static_cast<ulonglong>(length) *
+        static_cast<ulonglong>(charset->mbmaxlen);
+      length= static_cast<size_t>(std::min<ulonglong>(ull_length, 
+                                                      MAX_FIELD_BLOBLENGTH));
+      key_length= length;
+      pack_length= calc_pack_length(sql_type, length);
+    }
     break;
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
@@ -10679,12 +10685,13 @@ bool Create_field::init(THD *thd, const char *fld_name,
   if (fld_length != NULL)
   {
     errno= 0;
-    length= strtoul(fld_length, NULL, 10);
-    if ((errno != 0) || (length > MAX_FIELD_BLOBLENGTH))
+    const ulonglong ull_length= my_strtoull(fld_length, NULL, 10);
+    if ((errno != 0) || (ull_length > MAX_FIELD_BLOBLENGTH))
     {
       my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name, MAX_FIELD_BLOBLENGTH);
       DBUG_RETURN(TRUE);
     }
+    length= static_cast<size_t>(ull_length);
 
     if (length == 0)
       fld_length= NULL; /* purecov: inspected */
@@ -11292,6 +11299,13 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
 {
 
   switch (sql_type) {
+  case MYSQL_TYPE_JSON:
+    /*
+      Divide by four here, so we can multiply by four in
+      create_length_to_internal_length()
+     */
+    length/= charset->mbmaxlen;
+    break;
   case MYSQL_TYPE_BLOB:
     sql_type= blob_type_from_pack_length(pack_length - portable_sizeof_char_ptr);
     length/= charset->mbmaxlen;
