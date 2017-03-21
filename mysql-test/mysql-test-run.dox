@@ -4019,6 +4019,14 @@
       the same test case. This may be useful e.g. when looking for the
       source of a memory leak, as there will only have been one test
       run before the server exits.
+
+      Enabling this option will cause @ref PAGE_MYSQL_TEST_RUN_PL
+      "mysql-test-run.pl" to restart the server(s) on a newly
+      intialized data directory.
+
+      This option can also be mentioned in
+      <b><em>test-name</em>-master.opt</b> file for a test case to
+      restart the server(s) before it runs.
     </li>
 
     <li>
