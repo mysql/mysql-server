@@ -25,7 +25,6 @@
 #cmakedefine HAVE_XDR_OPS_X_PUTINT32 1
 #cmakedefine HAVE_XDR_OPS_X_GETINT32 1
 #cmakedefine OLD_XDR 1
-#cmakedefine X_GETPOSTN_NOT_USE_CONST 1
 #cmakedefine X_PUTLONG_NOT_USE_CONST 1
 
 #endif

@@ -95,20 +95,6 @@ IF(NOT APPLE
     "
     OLD_XDR)
 
-  CHECK_C_SOURCE_COMPILES(
-    "
-    #include <rpc/xdr.h>
-    u_int getpostn(XDR* xdr) { return (u_int)xdr->x_handy; }
-    int main() {
-      XDR xdr;
-      struct xdr_ops ops;
-
-      ops.x_getpostn = getpostn;
-      return (int)ops.x_getpostn(&xdr);
-    }
-    "
-    X_GETPOSTN_NOT_USE_CONST)
-
   CHECK_C_COMPILER_FLAG("-Wincompatible-pointer-types"
                         HAS_INCOMPATIBLE_POINTER_TYPES)
   IF (HAS_INCOMPATIBLE_POINTER_TYPES)
