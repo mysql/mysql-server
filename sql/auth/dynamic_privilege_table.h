@@ -25,7 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
 typedef std::unordered_set<std::string >
   Dynamic_privilege_register;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
 bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst);
 bool modify_dynamic_privileges_in_table(THD *thd, TABLE *table,
                                         const Auth_id_ref &auth_id,
@@ -55,7 +55,7 @@ private:
   TABLE *m_table;
   bool m_no_update;
 };
-#endif
+
 Dynamic_privilege_register *get_dynamic_privilege_register(void);
 void register_dynamic_privilege_impl(const std::string &priv);
 bool iterate_all_dynamic_privileges(THD *thd,

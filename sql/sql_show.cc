@@ -336,7 +336,6 @@ static int fill_plugins(THD *thd, TABLE_LIST *tables, Item*)
 /***************************************************************************
  List all privileges supported
 ***************************************************************************/
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 struct show_privileges_st {
   const char *privilege;
   const char *context;
@@ -425,7 +424,6 @@ bool mysqld_show_privileges(THD *thd)
   my_eof(thd);
   DBUG_RETURN(FALSE);
 }
-#endif
 
 /*
   find_files() - find files in a given directory.

@@ -285,7 +285,6 @@ enum SSL_type
 };
 
 #ifdef __cplusplus
-/* HFTODO - hide this if we don't want client in embedded server */
 /* This structure is for every connection on both sides */
 struct st_vio
 {

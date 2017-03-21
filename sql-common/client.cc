@@ -2878,7 +2878,6 @@ static MYSQL_METHODS client_methods=
   cli_stmt_execute,                            /* stmt_execute */
   cli_read_binary_rows,                        /* read_binary_rows */
   cli_unbuffered_fetch,                        /* unbuffered_fetch */
-  NULL,                                        /* free_embedded_thd */
   cli_read_statistics,                         /* read_statistics */
   cli_read_query_result,                       /* next_result */
   cli_read_binary_rows,                        /* read_rows_from_cursor */
@@ -5481,10 +5480,6 @@ void STDCALL mysql_close(MYSQL *mysql)
     mysql_close_free_options(mysql);
     mysql_close_free(mysql);
     mysql_detach_stmt_list(&mysql->stmts, "mysql_close");
-#ifndef MYSQL_SERVER
-    if (mysql->thd)
-      (*mysql->methods->free_embedded_thd)(mysql);
-#endif
     if (mysql->free_me)
     {
       my_free(mysql);
