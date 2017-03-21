@@ -1,7 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA table io
 
---source include/not_embedded.inc
-
 ########################################
 ##### WL#7554 Force schema `test` to character set latin1
 ##### This test should be migrated to utf8mb4

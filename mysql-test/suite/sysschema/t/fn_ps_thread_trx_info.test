@@ -1,7 +1,6 @@
 # Tests for sys schema
 # Verify the sys.ps_thread_trx_info() function perfoms as expected
 
--- source include/not_embedded.inc
 # Performance schema tracks prepared statements separately, and does not
 # yet have a summary view that we can use for this view.
 # Until then, we disable this test with --ps-protocol

@@ -1,7 +1,6 @@
 #
 # Verify that query results are the same with and without indexes.
 #
---source include/not_windows_embedded.inc
 --source include/have_debug_sync.inc
 
 let $table = "prepared_statements_instances";

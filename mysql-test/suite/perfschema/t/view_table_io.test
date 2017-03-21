@@ -17,7 +17,6 @@ use test;
 --enable_query_log
 ########################################
 
---source include/not_embedded.inc
 --source ../include/table_io_setup_helper.inc
 
 let $engine_type= MyISAM;

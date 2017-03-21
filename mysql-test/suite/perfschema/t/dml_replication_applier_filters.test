@@ -10,8 +10,6 @@
 # WL#7361 MSR: per-channel replication filters
 #
 
---source include/not_embedded.inc
-
 --disable_result_log
 SELECT * FROM performance_schema.replication_applier_filters
   LIMIT 1;

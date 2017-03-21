@@ -1,4 +1,3 @@
--- source include/not_embedded.inc
 
 # Disable the history_long consumers:
 UPDATE performance_schema.setup_consumers
