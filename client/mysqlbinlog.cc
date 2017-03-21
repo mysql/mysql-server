@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2490,6 +2490,8 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           ev->temp_buf=0;
           delete ev;
         }
+        /* Flush result_file after every event */
+        fflush(result_file);
       }
       else
       {
