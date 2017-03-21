@@ -5245,6 +5245,15 @@ row_rename_table_for_mysql(
 	    && !table->ibd_file_missing) {
 		/* Make a new pathname to update SYS_DATAFILES. */
 		char*	new_path = row_make_new_pathname(table, new_name);
+		char*	old_path = fil_space_get_first_path(table->space);
+
+		/* If old path and new path are the same means tablename
+		has not changed and only the database name holding the table
+		has changed so we need to make the complete filepath again. */
+		if (!dict_tables_have_same_db(old_name, new_name)) {
+			ut_free(new_path);
+			new_path = fil_make_filepath(NULL, new_name, IBD, false);
+		}
 
 		info = pars_info_create();
 
@@ -5264,6 +5273,7 @@ row_rename_table_for_mysql(
 				   "END;\n"
 				   , FALSE, trx);
 
+		ut_free(old_path);
 		ut_free(new_path);
 	}
 	if (err != DB_SUCCESS) {
