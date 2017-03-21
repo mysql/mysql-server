@@ -2,9 +2,6 @@
 --echo # re-populating character sets and collations. Also verify the
 --echo # same for --innodb-read-only.
 
-# Cannot run with embedded server since it requires server restarts.
---source include/not_embedded.inc
-
 --echo # 1. Server restart with --read-only:
 
 --echo # 1.1 Request shutdown and wait for disconnect.

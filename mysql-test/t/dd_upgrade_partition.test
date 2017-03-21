@@ -3,7 +3,6 @@
 --echo # Bug#25153261 : SEG FAULT IN UPGRADING PARTITIONED TABLE
 --echo #
 
---source include/not_embedded.inc
 --source include/not_valgrind.inc
 #Zipped data directory was created with default 16K page size
 #Innodb does not recognizes partition table created in linux from windows

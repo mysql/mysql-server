@@ -135,9 +135,6 @@ let $fixed_bug41925= 0;
 #                   might occur (concurrent_inserts=on).
 #
 
-# Can't test with embedded server that doesn't support grants
--- source include/not_embedded.inc
-
 --disable_warnings
 drop database if exists events_test;
 drop database if exists mysqltest_db1;

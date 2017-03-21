@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 --source include/have_ssl.inc
 
 set @orig_sql_mode_session= @@SESSION.sql_mode;

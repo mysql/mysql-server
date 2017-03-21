@@ -1,8 +1,6 @@
 # Test of SKIP LOCKED and NOWAIT on partitioned tables.
 # Must have same results as not partitioned tables.
 --source include/count_sessions.inc
-# should work with embedded server after mysqltest is fixed
---source include/not_embedded.inc
 
 set @start_read_only= @@global.read_only;
 set @start_autocommit= @@global.autocommit;

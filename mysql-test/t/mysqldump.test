@@ -1,9 +1,6 @@
 
 --source include/no_valgrind_without_big.inc
 
-# Embedded server doesn't support external clients
---source include/not_embedded.inc
-
 # Binlog is required
 --source include/have_log_bin.inc
 

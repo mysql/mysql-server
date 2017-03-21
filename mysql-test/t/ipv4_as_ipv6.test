@@ -4,8 +4,6 @@
 #
 
 --source include/have_ipv4_mapped.inc
-# Can't be tested with embedded server
---source include/not_embedded.inc
 
 ########################################
 ##### WL#7554 Force schema `test` to character set latin1

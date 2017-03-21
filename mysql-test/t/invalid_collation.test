@@ -5,7 +5,6 @@
 --echo # the collation is not supported. Verify that we
 --echo # can do  DROP TABLE, but not CHECK or RENAME.
 
---source include/not_embedded.inc
 
 --echo #
 --echo # New character sets dir:

@@ -1,7 +1,6 @@
 # This test scripts covers upgrade of tables, views, tablespaces,
 # events, stored routines and triggers from 5.7 to 8.0.
 
---source include/not_embedded.inc
 --source include/not_valgrind.inc
 #Zipped data directory was created with default 16K page size
 

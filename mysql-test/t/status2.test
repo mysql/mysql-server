@@ -1,6 +1,4 @@
 
---source include/not_embedded.inc
-
 --echo #
 --echo # Bug#24289 Status Variable "Questions" gets wrong values with Stored Routines
 --echo #

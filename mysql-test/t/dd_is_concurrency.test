@@ -1,5 +1,4 @@
 --source include/have_debug_sync.inc
---source include/not_embedded.inc
 
 # Allow system table access.
 SET GLOBAL debug= '+d,skip_dd_table_access_check';

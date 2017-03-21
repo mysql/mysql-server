@@ -1,7 +1,6 @@
 # Tests for WL#8131
 call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
 
---source include/not_embedded.inc
 --echo #
 --echo # Bug25303916 WL8131:FLUSH DOES NOT UPDATE THE GRANT STATUS IN
 --echo # mysql.global_grants

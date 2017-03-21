@@ -1,5 +1,3 @@
-# doesn't work with embedded server
---source include/not_embedded.inc
 # Non-windows specific ps tests.
 --source include/not_windows.inc
 # requires dynamic loading

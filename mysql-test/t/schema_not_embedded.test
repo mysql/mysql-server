@@ -6,10 +6,6 @@
 # slightly different in some situations. Below,
 # six test cases check the behavior.
 
-# Server restart requires pid file which is
-# not created by embedded server.
---source include/not_embedded.inc
-
 --disable_query_log
 CALL mtr.add_suppression("InnoDB: Failed to find tablespace");
 CALL mtr.add_suppression("InnoDB: Ignoring tablespace");

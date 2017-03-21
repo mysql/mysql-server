@@ -2,8 +2,6 @@
 # Destructive stored procedure tests
 #
 
--- source include/not_embedded.inc
-
 --echo #
 --echo # Bug#51376 Assert `! is_set()' failed in 
 --echo #           Diagnostics_area::set_ok_status on DROP FUNCTION

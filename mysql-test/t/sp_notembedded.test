@@ -1,5 +1,3 @@
-# Cannot test with embedded server
--- source include/not_embedded.inc
 # Disable concurrent inserts to avoid test failures
 set @old_concurrent_insert= @@global.concurrent_insert;
 set @@global.concurrent_insert= 0;

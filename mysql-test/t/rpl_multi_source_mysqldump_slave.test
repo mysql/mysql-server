@@ -13,7 +13,6 @@
 # BUG#21855705 MYSQLDUMP --DUMP-SLAVE DOES NOT WORK WITH MULTI-SOURCE
 #
 
---source include/not_embedded.inc
 call mtr.add_suppression("Invalid .* username when attempting to connect to the master server");
 
 # Multi source replication needs those repositories on TABLE

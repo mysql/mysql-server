@@ -3,9 +3,6 @@
 # increase when binary logging is enabled.
 --source include/not_log_bin.inc
 
-# Test uses performance_schema.status_by_thread, not available in embedded
---source include/not_embedded.inc
-
 # Helper statement
 
 create table thread_to_monitor(thread_id int);

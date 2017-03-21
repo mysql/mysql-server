@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 call mtr.add_suppression(".* Failed to activate default role .*");
 --echo # test CREATE ROLE and variations of authorizationID:
 --echo # WL988.I-1

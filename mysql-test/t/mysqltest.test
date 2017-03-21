@@ -12,9 +12,6 @@ echo $mysql_errname before test;
 
 -- source include/have_log_bin.inc
 
-# This test should work in embedded server after mysqltest is fixed
--- source include/not_embedded.inc
-
 # This test uses chmod, can't be run with root permissions
 -- source include/not_as_root.inc
 

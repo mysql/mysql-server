@@ -1,5 +1,3 @@
-# mysqltest should be fixed
--- source include/not_embedded.inc
 #
 # Test of temporary tables
 #

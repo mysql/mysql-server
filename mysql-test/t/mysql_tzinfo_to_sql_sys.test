@@ -16,7 +16,6 @@
 # database.
 #------------------------------------------------------------------------------
 --source include/not_windows.inc
---source include/not_embedded.inc
 
 # Escape to perl to locate zoneinfo on this system
 perl;

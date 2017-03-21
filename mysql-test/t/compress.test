@@ -3,9 +3,6 @@
 # Turn on compression between the client and server
 # and run a number of tests
 
-# Can't test with embedded server
--- source include/not_embedded.inc
-
 ########################################
 ##### WL#7554 Force schema `test` to character set latin1
 ##### This test should be migrated to utf8mb4

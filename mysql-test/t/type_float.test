@@ -1,6 +1,3 @@
-# Not supported in embedded.row count in explain varing much. Innodb default
-# not tried with embedded mode
---source include/not_embedded.inc
 
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`

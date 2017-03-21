@@ -4,7 +4,6 @@
 # Test of the authentification interface. The plugin checks the expected values set
 # by this application and the application checks the values set the the plugin.
 --source include/have_plugin_server.inc
---source include/not_embedded.inc
 
 # Official builds include separate debug enabled plugins to be used by
 # the debug enabled server. But the non-debug *client* should not use them.

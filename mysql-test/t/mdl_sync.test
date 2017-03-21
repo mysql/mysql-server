@@ -3,9 +3,6 @@
 #
 --source include/have_debug_sync.inc
 
-# XA not available in embedded
---source include/not_embedded.inc
-
 # We need InnoDB tables for some of the tests.
 
 # Save the initial number of concurrent sessions.

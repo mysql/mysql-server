@@ -1,7 +1,6 @@
 # This test scripts covers upgrade of tables, views, tablespaces,
 # events, stored routines and triggers from 5.7 to 8.0.
 
---source include/not_embedded.inc
 
 call mtr.add_suppression("Plugin * after shutdown");
 call mtr.add_suppression(".* Native table .* has the wrong structure");

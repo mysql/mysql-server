@@ -6,9 +6,6 @@ if (!$require_case_insensitive_file_system)
 
 --source include/no_valgrind_without_big.inc
 
-# This test  uses grants, which can't get tested for embedded server
--- source include/not_embedded.inc
-
 #Don't run this test when thread_pool active
 --source include/not_threadpool.inc
 

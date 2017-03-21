@@ -6,7 +6,6 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/count_sessions.inc
---source include/not_embedded.inc
 
 let GREP_START=`SELECT DATE_FORMAT(CONVERT_TZ(SYSDATE(6),'SYSTEM','UTC'),'%Y%m%d%H%i%s%f');`;
 

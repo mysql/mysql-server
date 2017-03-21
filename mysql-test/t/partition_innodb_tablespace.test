@@ -2,7 +2,6 @@
 # A series of tests to show the correct tablespace behavior when the
 # partition engine uses InnoDB.
 #
---source include/not_embedded.inc
 --let $old_default_storage_engine = @@default_storage_engine;
 SET default_storage_engine=InnoDB;
 

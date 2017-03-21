@@ -1,7 +1,4 @@
 
-# Embedded server doesn't support external clients
---source include/not_embedded.inc
-
 #
 # Bug #30126: semicolon before closing */ in /*!... CREATE DATABASE ;*/
 #

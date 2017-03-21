@@ -7,8 +7,6 @@
 #
 # Bug#20954452  GTID IS NOT RELEASED PROPERLY WHEN PS_PROTOCOL + GTID + BINLOG OFF COMBINATION
 
-# Test is not required to run against embedded server
---source include/not_embedded.inc
 # Should be tested against "binlog disabled" server
 --source include/not_log_bin.inc
 

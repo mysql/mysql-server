@@ -4,9 +4,6 @@ let $date_to_restore_root=`SELECT password_last_changed from mysql.user where us
 let $date_to_restore_sys=`SELECT password_last_changed from mysql.user where user='mysql.sys'`;
 let $date_to_restore_session_user=`SELECT password_last_changed from mysql.user where user='mysql.session_user'`;
 
-# Grant tests not performed with embedded server
--- source include/not_embedded.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 

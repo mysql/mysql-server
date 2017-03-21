@@ -2,9 +2,6 @@
 # Test of the cost constants when restarting the server
 #
 
-# Can not run with embedded server since it requires server restarts
--- source include/not_embedded.inc
-
 # To get stable cost estimates, the test should only be run with 
 # 16K InnoDB page size.
 
