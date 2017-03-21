@@ -87,11 +87,11 @@ void _myisam_log(enum myisam_log_commands command, MI_INFO *info,
   mi_int2store(buff+9,length);
 
   mysql_mutex_lock(&THR_LOCK_myisam);
-  error=my_lock(myisam_log_file,F_WRLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
+  error=my_lock(myisam_log_file,F_WRLCK,MYF(MY_SEEK_NOT_DONE));
   (void) mysql_file_write(myisam_log_file, buff, sizeof(buff), MYF(0));
   (void) mysql_file_write(myisam_log_file, buffert, length, MYF(0));
   if (!error)
-    error=my_lock(myisam_log_file,F_UNLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
+    error=my_lock(myisam_log_file,F_UNLCK,MYF(MY_SEEK_NOT_DONE));
   mysql_mutex_unlock(&THR_LOCK_myisam);
   set_my_errno(old_errno);
 }
@@ -110,12 +110,12 @@ void _myisam_log_command(enum myisam_log_commands command, MI_INFO *info,
   mi_int4store(buff+3,pid);
   mi_int2store(buff+7,result);
   mysql_mutex_lock(&THR_LOCK_myisam);
-  error=my_lock(myisam_log_file,F_WRLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
+  error=my_lock(myisam_log_file,F_WRLCK,MYF(MY_SEEK_NOT_DONE));
   (void) mysql_file_write(myisam_log_file, buff, sizeof(buff), MYF(0));
   if (buffert)
     (void) mysql_file_write(myisam_log_file, buffert, length, MYF(0));
   if (!error)
-    error=my_lock(myisam_log_file,F_UNLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
+    error=my_lock(myisam_log_file,F_UNLCK,MYF(MY_SEEK_NOT_DONE));
   mysql_mutex_unlock(&THR_LOCK_myisam);
   set_my_errno(old_errno);
 }
@@ -141,7 +141,7 @@ void _myisam_log_record(enum myisam_log_commands command, MI_INFO *info,
   mi_sizestore(buff+9,filepos);
   mi_int4store(buff+17,length);
   mysql_mutex_lock(&THR_LOCK_myisam);
-  error=my_lock(myisam_log_file,F_WRLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
+  error=my_lock(myisam_log_file,F_WRLCK,MYF(MY_SEEK_NOT_DONE));
   (void) mysql_file_write(myisam_log_file, buff, sizeof(buff), MYF(0));
   (void) mysql_file_write(myisam_log_file, record, info->s->base.reclength, MYF(0));
   if (info->s->base.blobs)
@@ -158,7 +158,7 @@ void _myisam_log_record(enum myisam_log_commands command, MI_INFO *info,
     }
   }
   if (!error)
-    error=my_lock(myisam_log_file,F_UNLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
+    error=my_lock(myisam_log_file,F_UNLCK,MYF(MY_SEEK_NOT_DONE));
   mysql_mutex_unlock(&THR_LOCK_myisam);
   set_my_errno(old_errno);
 }

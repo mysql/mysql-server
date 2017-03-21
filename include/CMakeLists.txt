@@ -13,78 +13,23 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-SET(HEADERS_GEN_CONFIGURE 
-${CMAKE_CURRENT_BINARY_DIR}/mysql_version.h
-${CMAKE_CURRENT_BINARY_DIR}/my_config.h
-${CMAKE_CURRENT_BINARY_DIR}/mysqld_ername.h
-${CMAKE_CURRENT_BINARY_DIR}/mysqld_error.h
-)
-SET(HEADERS_ABI 
-  mysql.h 
-  mysql_com.h
-  my_command.h
-  mysql_time.h 
-  my_list.h
-  mysql/plugin.h
-  mysql/plugin_audit.h
-  mysql/plugin_ftparser.h
-  mysql/plugin_validate_password.h
-  mysql/plugin_keyring.h
-  mysql/plugin_group_replication.h
-)
-
-SET(HEADERS 
-  ${HEADERS_ABI} 
-  my_dbug.h 
-  m_string.h
-  my_sys.h 
-  my_xml.h
-  my_thread.h
-  my_thread_local.h
-  decimal.h
-  errmsg.h
-  my_double2ulonglong.h
-  my_getopt.h
-  my_inttypes.h
-  my_io.h
-  my_loglevel.h
-  my_macros.h
-  my_pointer_arithmetic.h
-  my_psi_config.h
-  my_rapidjson_size_t.h
-  my_sharedlib.h
-  my_shm_defaults.h
-  my_systime.h
-  my_table_map.h
-  sslopt-longopts.h
-  my_dir.h 
-  sslopt-vars.h
-  sslopt-case.h
-  sql_common.h
-  keycache.h
-  m_ctype.h
-  my_compiler.h
-  mysql_com_server.h
-  my_byteorder.h
-  byte_order_generic.h
-  byte_order_generic_x86.h
-  little_endian.h
-  big_endian.h
-  thr_cond.h
-  thr_mutex.h
-  thr_rwlock.h
+# These are the headers required to #include <mysql.h>, which we ship
+# to the client as part of our API.
+SET(HEADERS
   mem_root_fwd.h
-  ${HEADERS_GEN_CONFIGURE}
-)
-
-INSTALL(FILES
+  my_command.h
+  my_io.h
+  my_list.h
+  mysql.h
+  mysql_com.h
+  mysql_time.h
+  ${CMAKE_CURRENT_BINARY_DIR}/mysql_version.h
   ../libbinlogevents/export/binary_log_types.h
-  DESTINATION ${INSTALL_INCLUDEDIR}
-  COMPONENT Development)
-INSTALL(FILES ${HEADERS} DESTINATION ${INSTALL_INCLUDEDIR} COMPONENT Development)
-INSTALL(DIRECTORY mysql/ DESTINATION ${INSTALL_INCLUDEDIR}/mysql COMPONENT Development 
- PATTERN "*.h"
- PATTERN "psi_abi*" EXCLUDE
+)
+SET(HEADERS_MYSQL_DIR
+  mysql/client_plugin.h
+  mysql/plugin_auth_common.h
 )
 
-
+INSTALL(FILES ${HEADERS} DESTINATION ${INSTALL_INCLUDEDIR} COMPONENT Development)
+INSTALL(FILES ${HEADERS_MYSQL_DIR} DESTINATION ${INSTALL_INCLUDEDIR}/mysql COMPONENT Development)

@@ -81,7 +81,6 @@ enum enum_server_command
   COM_END
 };
 #include "my_io.h"
-#include "my_config.h"
 static inline int is_directory_separator(char c)
 {
   return c == '/';

@@ -2160,10 +2160,10 @@ int change_to_newfile(const char * filename, const char * old_ext,
 	/* Locks a whole file */
 	/* Gives an error-message if file can't be locked */
 
-int lock_file(MI_CHECK *param, File file, my_off_t start, int lock_type,
+int lock_file(MI_CHECK *param, File file, int lock_type,
 	      const char *filetype, const char *filename)
 {
-  if (my_lock(file,lock_type,start,F_TO_EOF,
+  if (my_lock(file,lock_type,
 	      param->testflag & T_WAIT_FOREVER ? MYF(MY_SEEK_NOT_DONE) :
 	      MYF(MY_SEEK_NOT_DONE |  MY_DONT_WAIT)))
   {
