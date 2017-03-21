@@ -455,6 +455,11 @@ enum enum_alter_inplace_result {
 */
 #define HA_DESCENDING_INDEX (1LL << 48)
 
+/**
+  Supports partial update of BLOB columns.
+*/
+#define HA_BLOB_PARTIAL_UPDATE (1LL << 49)
+
 /*
   Bits in index_flags(index_number) for what you can do with index.
   If you do not implement indexes, just return zero here.
@@ -3466,6 +3471,13 @@ public:
   */
   int ha_external_lock(THD *thd, int lock_type);
   int ha_write_row(uchar * buf);
+  /**
+    Update the current row.
+
+    @param old_data  the old contents of the row
+    @param new_data  the new contents of the row
+    @return error status (zero on success, HA_ERR_* error code on error)
+  */
   int ha_update_row(const uchar * old_data, uchar * new_data);
   int ha_delete_row(const uchar * buf);
   void ha_release_auto_increment();

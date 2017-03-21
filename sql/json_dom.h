@@ -35,6 +35,7 @@
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql_alloc.h"          // Sql_alloc
 
+class Field_json;
 class Json_dom;
 class Json_path;
 class Json_path_leg;
@@ -921,13 +922,16 @@ public:
     An opaque MySQL value.
 
     @param[in] mytype  the MySQL type of the value
-    @param[in] v       the binary value to be stored in the DOM.
-                       A copy is taken.
-    @param[in] size    the size of the binary value in bytes
+    @param[in] args    arguments to construct the binary value to be stored
+                       in the DOM (anything accepted by the std::string
+                       constructors)
     @see #enum_field_types
     @see Class documentation
   */
-  Json_opaque(enum_field_types mytype, const char *v, size_t size);
+  template <typename... Args>
+  explicit Json_opaque(enum_field_types mytype, Args&&... args)
+    : Json_scalar(), m_mytype(mytype), m_val(std::forward<Args>(args)...)
+  {}
   ~Json_opaque() {}
 
   // See base class documentation
@@ -1098,6 +1102,7 @@ private:
   };
   bool m_is_dom;      //!< Wraps a DOM iff true
 
+public:
   /**
     Get the wrapped datetime value in the packed format.
 
@@ -1108,7 +1113,6 @@ private:
   */
   const char *get_datetime_packed(char *buffer) const;
 
-public:
   /**
     Create an empty wrapper. Cf #empty().
   */
@@ -1201,6 +1205,14 @@ public:
     @return true if the wrapper is empty.
   */
   bool empty() const { return m_is_dom && !m_dom_value; }
+
+  /**
+    Does this wrapper contain a DOM?
+
+    @retval true   if the wrapper contains a DOM representation
+    @retval false  if the wrapper contains a binary representation
+  */
+  bool is_dom() const { return m_is_dom; }
 
   /**
     Get the wrapped contents in DOM form. The DOM is (still) owned by the
@@ -1458,7 +1470,16 @@ public:
 
     @param[in] path   the (possibly wildcarded) address of the sub-documents
     @param[out] hits  the result of the search
-    @param[in] leg_number  the 0-based index of the current path leg
+    @param[in] current_leg the 0-based index of the first path leg to look at.
+               Should be the same as the depth at which the document in this
+               wrapper is located. Usually called on the root document with the
+               value 0, and then increased by one in recursive calls within the
+               function itself.
+    @param[in] last_leg the 0-based index of the leg just behind the last leg to
+               look at. If equal to the length of the path, the entire path is
+               used. If shorter than the length of the path, the search stops
+               at one of the ancestors of the value pointed to by the full
+               path.
     @param[in] auto_wrap true of we match a final scalar with search for [0]
     @param[in]  only_need_one True if we can stop after finding one match
 
@@ -1466,7 +1487,8 @@ public:
   */
   bool seek_no_ellipsis(const Json_seekable_path &path,
                         Json_wrapper_vector *hits,
-                        const size_t leg_number,
+                        size_t current_leg,
+                        size_t last_leg,
                         bool auto_wrap,
                         bool only_need_one)
     const;
@@ -1586,6 +1608,44 @@ public:
     @param[in]  hash_val  An initial hash value.
   */
   ulonglong make_hash_key(ulonglong *hash_val);
+
+  /**
+    Calculate the amount of unused space inside a JSON binary value.
+
+    @param[out] space  the amount of unused space, or zero if this is a DOM
+    @return false on success
+    @return true if the JSON binary value was invalid
+  */
+  bool get_free_space(size_t *space) const;
+
+  /**
+    Attempt a partial update by replacing the value at @a path with @a
+    new_value. On successful completion, the updated document will be available
+    in @a result, and this Json_wrapper will point to @a result instead of the
+    original binary representation. The modifications that have been applied,
+    will also be collected in a vector in the TABLE object and can be retrieved
+    via TABLE::get_binary_diffs().
+
+    @param thd             the current session
+    @param field           the column being updated
+    @param path            the path of the value to update
+    @param new_value       the new value
+    @param replace         true if we use JSON_REPLACE semantics
+    @param[in,out] result  buffer that holds the updated JSON document (is
+                           empty if no partial update has been performed on
+                           this Json_wrapper so far, or contains the binary
+                           representation of the document in this wrapper
+                           otherwise)
+
+    @retval false     if the value was updated in place
+    @retval true      if the value could not be updated in place
+  */
+  bool attempt_partial_update(const THD *thd,
+                              Field_json *field,
+                              const Json_seekable_path &path,
+                              Json_wrapper *new_value,
+                              bool replace,
+                              String *result);
 };
 
 /**

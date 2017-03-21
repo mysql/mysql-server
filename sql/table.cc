@@ -5696,6 +5696,9 @@ void TABLE::clear_column_bitmaps()
   fields_set_during_insert= &def_fields_set_during_insert;
 
   bitmap_clear_all(&tmp_set);
+
+  if (m_partial_update_columns != nullptr)
+    bitmap_clear_all(m_partial_update_columns);
 }
 
 
@@ -7713,6 +7716,262 @@ st_lex_user::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
     ret->host.str= host_arg->str;
   }
   return ret;
+}
+
+
+/**
+  A struct that contains execution time state used for partial update of JSON
+  columns.
+*/
+struct Partial_update_info : public Sql_alloc
+{
+  Partial_update_info(const TABLE *table, const MY_BITMAP *columns)
+    : m_diff_vectors(table->in_use->mem_root, table->s->fields, nullptr)
+  {
+    auto buffer= static_cast<my_bitmap_map*>(
+                   table->in_use->alloc(table->s->column_bitmap_size));
+    if (buffer != nullptr)
+      bitmap_init(&m_disabled_columns, buffer, table->s->fields, false);
+
+    for (uint i= bitmap_get_first_set(columns);
+         i != MY_BIT_NONE;
+         i= bitmap_get_next_set(columns, i))
+    {
+      void *mem= table->in_use->alloc(sizeof(Binary_diff_vector));
+      if (mem == nullptr)
+        return;
+      m_diff_vectors[i]= new (mem) Binary_diff_vector(table->in_use->mem_root);
+    }
+  }
+
+  /**
+    The columns for which partial update has been disabled in the current row.
+  */
+  MY_BITMAP m_disabled_columns;
+
+  /**
+    The binary diffs that have been collected for the current row.
+  */
+  Mem_root_array<Binary_diff_vector*> m_diff_vectors;
+
+  /**
+    A buffer that can be used to hold the partially updated column value while
+    performing the update in memory.
+  */
+  String m_buffer;
+};
+
+
+bool TABLE::mark_column_for_partial_update(const Field *field)
+{
+  DBUG_ASSERT(field->table == this);
+  if (m_partial_update_columns == nullptr)
+  {
+    auto map= static_cast<MY_BITMAP*>(alloc_root(&mem_root, sizeof(MY_BITMAP)));
+    auto buf=
+      static_cast<my_bitmap_map*>(alloc_root(&mem_root, s->column_bitmap_size));
+    if (map == nullptr ||
+        buf == nullptr ||
+        bitmap_init(map, buf, s->fields, false))
+      return true;                              /* purecov: inspected */
+    m_partial_update_columns= map;
+  }
+
+  bitmap_set_bit(m_partial_update_columns, field->field_index);
+  return false;
+}
+
+
+void TABLE::disable_partial_update_for_current_row(const Field *field)
+{
+  DBUG_ASSERT(field->table == this &&
+              m_partial_update_columns != nullptr &&
+              m_partial_update_info != nullptr &&
+              bitmap_is_set(m_partial_update_columns, field->field_index));
+
+  // Remove the diffs collected for the column.
+  m_partial_update_info->m_diff_vectors[field->field_index]->clear();
+
+  // Mark the column as disabled.
+  bitmap_set_bit(&m_partial_update_info->m_disabled_columns,
+                 field->field_index);
+}
+
+
+bool TABLE::is_partial_update_column(const Field *field) const
+{
+  DBUG_ASSERT(field->table == this);
+  return
+    m_partial_update_info != nullptr &&
+    bitmap_is_set(m_partial_update_columns, field->field_index) &&
+    !bitmap_is_set(&m_partial_update_info->m_disabled_columns,
+                   field->field_index);
+}
+
+
+bool TABLE::has_partial_update_columns() const
+{
+  return
+    m_partial_update_info != nullptr &&
+    bitmap_bits_set(&m_partial_update_info->m_disabled_columns)
+    < bitmap_bits_set(m_partial_update_columns);
+}
+
+
+bool TABLE::setup_partial_update()
+{
+  DBUG_ASSERT(m_partial_update_info == nullptr);
+
+  if (!has_columns_marked_for_partial_update())
+    return false;
+
+  Opt_trace_context *trace= &in_use->opt_trace;
+  if (trace->is_started())
+  {
+    Opt_trace_object trace_wrapper(trace);
+    Opt_trace_object trace_partial_update(trace, "json_partial_update");
+    trace_partial_update.add_utf8_table(pos_in_table_list);
+    Opt_trace_array columns(trace, "eligible_columns");
+    for (uint i= bitmap_get_first_set(m_partial_update_columns);
+         i != MY_BIT_NONE;
+         i= bitmap_get_next_set(m_partial_update_columns, i))
+    {
+      columns.add_utf8(s->field[i]->field_name);
+    }
+  }
+
+  m_partial_update_info=
+    new Partial_update_info(this, m_partial_update_columns);
+  return in_use->is_error();
+}
+
+
+bool TABLE::has_columns_marked_for_partial_update() const
+{
+  /*
+    If m_partial_update_columns is not nullptr, it means that the function is
+    called during execution. During execution, it makes more sense to call
+    has_partial_update_columns(), which additionally checks if partial update
+    has been disabled for this table or all its columns.
+  */
+  DBUG_ASSERT(m_partial_update_info == nullptr);
+
+  /*
+    Do we have any columns that satisfy the syntactical requirements for
+    partial update?
+  */
+  return
+    m_partial_update_columns != nullptr &&
+    !bitmap_is_clear_all(m_partial_update_columns);
+}
+
+
+void TABLE::cleanup_partial_update()
+{
+  delete m_partial_update_info;
+  m_partial_update_info= nullptr;
+}
+
+
+String *TABLE::get_partial_update_buffer()
+{
+  DBUG_ASSERT(m_partial_update_info != nullptr);
+  return &m_partial_update_info->m_buffer;
+}
+
+
+void TABLE::clear_binary_diffs()
+{
+  if (m_partial_update_info != nullptr)
+  {
+    for (auto v : m_partial_update_info->m_diff_vectors)
+      if (v != nullptr)
+        v->clear();
+
+    bitmap_clear_all(&m_partial_update_info->m_disabled_columns);
+  }
+}
+
+
+const Binary_diff_vector *TABLE::get_binary_diffs(const Field *field) const
+{
+  if (!is_partial_update_column(field))
+    return nullptr;
+  return m_partial_update_info->m_diff_vectors[field->field_index];
+}
+
+
+bool TABLE::add_binary_diff(const Field *field, size_t offset, size_t length)
+{
+  DBUG_ASSERT(is_partial_update_column(field));
+
+  Binary_diff_vector *diffs=
+    m_partial_update_info->m_diff_vectors[field->field_index];
+
+  /*
+    Find the first diff that does not end before the diff we want to insert.
+    That is, we find the first diff that is either overlapping with the diff we
+    want to insert, adjacent to the diff we want to insert, or comes after the
+    diff that we want to insert.
+
+    In the case of overlapping or adjacent diffs, we want to merge the diffs
+    rather than insert a new one.
+  */
+  Binary_diff_vector::iterator first_it=
+    std::lower_bound(diffs->begin(), diffs->end(), offset,
+                     [](const Binary_diff &diff, size_t start_offset) {
+                       return diff.offset() + diff.length() < start_offset;
+                     });
+
+  if (first_it != diffs->end() && first_it->offset() <= offset + length)
+  {
+    /*
+      The diff we found was overlapping or adjacent, so we want to merge the
+      new diff with it. Find out if the new diff overlaps with or borders to
+      some of the diffs behind it. The call below finds the first diff after
+      first_it that is not overlapping with or adjacent to the new diff.
+    */
+    Binary_diff_vector::const_iterator last_it=
+      std::upper_bound(first_it, diffs->end(), offset + length,
+                       [](size_t end_offset, const Binary_diff &diff) {
+                         return end_offset < diff.offset();
+                       });
+
+    // First and last adjacent or overlapping diff. They can be the same one.
+    const Binary_diff &first_diff= *first_it;
+    const Binary_diff &last_diff= *(last_it - 1);
+
+    // Calculate the boundaries of the merged diff.
+    size_t beg= std::min(offset, first_diff.offset());
+    size_t end= std::max(offset + length,
+                         last_diff.offset() + last_diff.length());
+
+    /*
+      Replace the first overlapping/adjacent diff with the merged diff, and
+      erase any subsequent diffs that are covered by the merged diff.
+    */
+    *first_it= Binary_diff(beg, end - beg);
+    diffs->erase(first_it + 1, last_it);
+    return false;
+  }
+
+  /*
+    The new diff isn't overlapping with or adjacent to any of the existing
+    diffs. Just insert it.
+  */
+  diffs->insert(first_it, Binary_diff(offset, length));
+  return false;
+}
+
+
+const char *Binary_diff::new_data(Field *field) const
+{
+  /*
+    Currently, partial update is only supported for JSON columns, so it's
+    safe to assume that the Field is in fact a Field_json.
+  */
+  auto fld= down_cast<Field_json*>(field);
+  return fld->get_binary() + m_offset;
 }
 
 

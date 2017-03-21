@@ -9145,6 +9145,14 @@ ulonglong Field_json::make_hash_key(ulonglong *hash_val)
 }
 
 
+const char *Field_json::get_binary()
+{
+  String tmp;
+  String *s= Field_blob::val_str(&tmp, &tmp);
+  return s->ptr();
+}
+
+
 /****************************************************************************
 ** enum type.
 ** This is a string which only can have a selection of different values.

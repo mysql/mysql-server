@@ -1296,6 +1296,8 @@ select json_set(NULL);
 select json_set(NULL, NULL);
 --error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 select json_set(NULL, NULL, NULL, NULL);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_SET('[', '$[0]', 0);
 
 # Detect errors in nested function calls.
 --error ER_INVALID_JSON_TEXT_IN_PARAM

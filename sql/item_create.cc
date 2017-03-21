@@ -1620,6 +1620,8 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "JSON_REMOVE", SQL_FN_V_LIST_THD(Item_func_json_remove, 2, MAX_ARGLIST_SIZE) },
   { "JSON_MERGE", SQL_FN_V_LIST_THD(Item_func_json_merge, 2, MAX_ARGLIST_SIZE) },
   { "JSON_QUOTE", SQL_FN_LIST(Item_func_json_quote, 1) },
+  { "JSON_STORAGE_FREE", SQL_FN(Item_func_json_storage_free, 1) },
+  { "JSON_STORAGE_SIZE", SQL_FN(Item_func_json_storage_size, 1) },
   { "JSON_UNQUOTE", SQL_FN_LIST(Item_func_json_unquote, 1) },
   { "IS_FREE_LOCK", SQL_FN(Item_func_is_free_lock, 1) },
   { "IS_USED_LOCK", SQL_FN(Item_func_is_used_lock, 1) },

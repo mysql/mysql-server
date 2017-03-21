@@ -2617,6 +2617,19 @@ protected:
     It is used when checking const_item()/can_be_evaluated_now().
   */
   bool tables_locked_cache;
+
+public:
+  /**
+    Mark this expression as used in partial update, if it is on the right
+    form. For example, the expression `JSON_REPLACE(col, '$.foo', 'bar')`
+    can be used to partially update the column `foo`.
+
+    @param field   the target column of the update
+    @retval false  if successfully marked for partial update
+    @retval true   if this expression cannot be used for partial update
+                   of @a field
+  */
+  virtual bool mark_for_partial_update(Field *field) { return true; }
 };
 
 

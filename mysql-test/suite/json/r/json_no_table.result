@@ -1829,6 +1829,8 @@ select json_set(NULL, NULL);
 ERROR 42000: Incorrect parameter count in the call to native function 'json_set'
 select json_set(NULL, NULL, NULL, NULL);
 ERROR 42000: Incorrect parameter count in the call to native function 'json_set'
+SELECT JSON_SET('[', '$[0]', 0);
+ERROR 22032: Invalid JSON text in argument 1 to function json_set: "Invalid value." at position 1.
 SELECT JSON_SET('{}', '$.name', JSON_EXTRACT('', '$'));
 ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document is empty." at position 0.
 select json_set('[1,2,3]', '$[2]', 4);

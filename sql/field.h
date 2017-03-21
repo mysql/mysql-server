@@ -4205,6 +4205,12 @@ public:
     @param[in]  hash_val  An initial hash value.
   */
   ulonglong make_hash_key(ulonglong *hash_val);
+
+  /**
+    Get a read-only pointer to the binary representation of the JSON document
+    in this field.
+  */
+  const char *get_binary();
 };
 
 

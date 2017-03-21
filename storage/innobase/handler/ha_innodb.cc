@@ -2989,6 +2989,10 @@ ha_innobase::ha_innobase(
 			  | HA_ATTACHABLE_TRX_COMPATIBLE
 			  | HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN
 			  | HA_DESCENDING_INDEX
+			  /* This won't be true until WL#8960 is completed.
+			  Still, claim support for partial update so that the
+			  optimizer parts get tested. */
+			  | HA_BLOB_PARTIAL_UPDATE
 		  ),
 	m_start_of_scan(),
 	m_stored_select_lock_type(LOCK_NONE_UNSET),

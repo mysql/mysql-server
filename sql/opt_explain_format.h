@@ -323,6 +323,9 @@ public:
   /// List of used columns
   List<const char> col_used_columns;
 
+  /// List of columns that can be updated using partial update.
+  List<const char> col_partial_update_columns;
+
   /* For structured EXPLAIN in CTX_QEP_TAB context: */
   uint query_block_id; ///< query block id for materialized subqueries
 

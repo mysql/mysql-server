@@ -50,7 +50,13 @@ class Query_result_update final : public Query_result_interceptor
   Temp_table_param *tmp_table_param;
   /// The first table in the join operation
   TABLE *main_table;
-  /// ???
+  /**
+    In a multi-table update, this is equal to the first table in the join
+    operation (#main_table) if that table can be updated on the fly while
+    scanning it. It is `nullptr` otherwise.
+
+    @see safe_update_on_fly
+  */
   TABLE *table_to_update;
   /// Number of rows found that matches join and WHERE conditions
   ha_rows found_rows;

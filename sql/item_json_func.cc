@@ -37,6 +37,7 @@
 #include "mysqld_error.h"
 #include "prealloced_array.h"      // Prealloced_array
 #include "psi_memory_key.h"        // key_memory_JSON
+#include "scope_guard.h"           // Scope_guard
 #include "sql_class.h"             // THD
 #include "sql_const.h"
 #include "sql_exception_handler.h" // handle_std_exception
@@ -2495,9 +2496,9 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
 */
 static bool clone_without_autowrapping(Json_path *source_path,
                                        Json_path_clone *target_path,
-                                       Json_dom *doc)
+                                       Json_wrapper *doc)
 {
-  Json_dom_vector hits(key_memory_JSON);
+  Json_wrapper_vector hits(key_memory_JSON);
 
   target_path->clear();
   size_t leg_count= source_path->leg_count();
@@ -2507,7 +2508,7 @@ static bool clone_without_autowrapping(Json_path *source_path,
     if ((path_leg->get_type() == jpl_array_cell) &&
         (path_leg->get_array_cell_index() == 0))
     {
-      /**
+      /*
          We have a partial path of the form
 
          pathExpression[0]
@@ -2518,26 +2519,56 @@ static bool clone_without_autowrapping(Json_path *source_path,
       if (doc->seek(*target_path, &hits, false, true))
         return true;  /* purecov: inspected */
 
-      if (!hits.empty())
+      if (!hits.empty() && hits[0].type() != enum_json_type::J_ARRAY)
       {
-        Json_dom *candidate= hits.at(0);
-        if (candidate->json_type() != enum_json_type::J_ARRAY)
-        {
-          /**
-            pathExpression identifies a non-array value.
-            We satisfy the conditions of the rule above.
-            So we can throw away the [0] leg.
-          */
-          continue;
-        }
+        /*
+          pathExpression identifies a non-array value.
+          We satisfy the conditions of the rule above.
+          So we can throw away the [0] leg.
+        */
+        continue;
       }
     }
     // The rule above is NOT satisified. So add the leg.
-    target_path->append(path_leg);
+    if (target_path->append(path_leg))
+      return true;                              /* purecov: inspected */
   }
-  hits.clear();
 
   return false;
+}
+
+
+bool Item_func_json_set_replace::mark_for_partial_update(Field *field)
+{
+  /*
+    This JSON_SET or JSON_REPLACE expression might be used for partial
+    update if the first argument is a JSON column which is the same as
+    the target column of the update operation, or if the first
+    argument is another JSON_SET or JSON_REPLACE expression which has
+    the target column as its first argument.
+  */
+  Item *item= args[0];
+  if ((item->type() == FIELD_ITEM &&
+       field->type() == MYSQL_TYPE_JSON &&
+       down_cast<Item_field*>(item)->field == field) ||
+      !item->mark_for_partial_update(field))
+  {
+    m_partial_update_column= down_cast<Field_json*>(field);
+    return false;
+  }
+
+  return true;
+}
+
+
+Field_json *Item_func_json_set_replace::get_partial_update_column() const
+{
+  if (m_partial_update_column != nullptr &&
+      m_partial_update_column->table->
+      is_partial_update_column(m_partial_update_column))
+    return m_partial_update_column;
+
+  return nullptr;
 }
 
 
@@ -2546,6 +2577,31 @@ static bool clone_without_autowrapping(Json_path *source_path,
 */
 bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
 {
+  const THD *thd= current_thd;
+
+  /*
+    Check if this function is called from an UPDATE statement in a way that
+    could make partial update possible. For example:
+    UPDATE t SET json_col = JSON_REPLACE(json_col, '$.pet', 'rabbit')
+  */
+  Field_json *json_field= get_partial_update_column();
+  bool partial_update= json_field != nullptr;
+
+  /*
+    Disable partial update of this column if we return without having been able
+    to perform a partial update.
+
+    If we have successfully performed partial update, we should call
+    partial_update_guard.commit() to make sure partial update stays enabled. In
+    all other cases, where we return without performing partial update, the
+    guard will disable partial update of this column for the current row.
+  */
+  auto partial_update_guard=
+    create_scope_guard([&json_field]() {
+        if (json_field != nullptr)
+          json_field->table->disable_partial_update_for_current_row(json_field);
+      });
+
   try
   {
     Json_wrapper docw;
@@ -2553,20 +2609,30 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
     if (get_json_wrapper(args, 0, &m_doc_value, func_name(), &docw))
       return error_json();
 
-    if(args[0]->null_value)
+    if (args[0]->null_value)
     {
       null_value= true;
       return false;
     }
 
-    const THD *thd= current_thd;
+    /*
+      If partial update was disabled for this column while evaluating the first
+      argument, don't attempt to perform partial update here.
+    */
+    partial_update=
+      partial_update && json_field->table->is_partial_update_column(json_field);
+
+    String *partial_update_buffer= nullptr;
+    if (partial_update)
+    {
+      partial_update_buffer= json_field->table->get_partial_update_buffer();
+
+      if (args[0]->type() == FIELD_ITEM)
+        partial_update_buffer->length(0);
+    }
+
     for (uint32 i= 1; i < arg_count; i += 2)
     {
-      // Need a DOM to be able to manipulate arrays and objects
-      Json_dom *doc= docw.to_dom(thd);
-      if (!doc)
-        return error_json();                    /* purecov: inspected */
-
       if (m_path_cache.parse_and_cache_path(args, i, true))
         return error_json();
       Json_path *current_path= m_path_cache.get_path(i);
@@ -2576,17 +2642,11 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
         return false;
       }
 
-      /**
-        Clone the path, stripping off redundant auto-wrapping.
-      */
-      if (clone_without_autowrapping(current_path, &m_path, doc))
+      // Clone the path, stripping off redundant auto-wrapping.
+      if (clone_without_autowrapping(current_path, &m_path, &docw))
       {
         return error_json();
       }
-
-      Json_dom_vector hits(key_memory_JSON);
-      if (doc->seek(m_path, &hits, false, true))
-        return error_json();                  /* purecov: inspected */
 
       Json_wrapper valuew;
       if (get_atom_null_as_null(args, i + 1, func_name(), &m_value,
@@ -2594,8 +2654,37 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
                                 &valuew))
         return error_json();
 
-      if (hits.size() == 0)
+      if (partial_update)
       {
+        if (!docw.attempt_partial_update(thd, json_field, m_path, &valuew,
+                                         !m_json_set, partial_update_buffer))
+        {
+          /*
+            Partial update of the binary value was successful, and docw has
+            been updated accordingly. Go on to updating the next path.
+          */
+          continue;
+        }
+        if (thd->is_error())
+          return error_json();                  /* purecov: inspected */
+        partial_update= false;
+      }
+
+      // Need a DOM to be able to manipulate arrays and objects
+      Json_dom *doc= docw.to_dom(thd);
+      if (!doc)
+        return error_json();                    /* purecov: inspected */
+
+      Json_dom_vector hits(key_memory_JSON);
+      if (doc->seek(m_path, &hits, false, true))
+        return error_json();                    /* purecov: inspected */
+
+      if (hits.empty())
+      {
+        // Replace semantics, so skip if the path is not present.
+        if (!m_json_set)
+            continue;
+
         /*
           Need to look one step up the path: if we are specifying an array slot
           we need to find the array. If we are specifying an object element, we
@@ -2607,125 +2696,94 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
         if (doc->seek(m_path, &hits, false, true))
           return error_json();                /* purecov: inspected */
 
-        if (hits.size() < 1)
+        if (hits.empty())
         {
           // no unique object found at parent position, so bail out
           continue;
         }
 
-        /*
-          Iterate backwards lest we get into trouble with replacing outer
-          parts of the doc before we get to paths to inner parts when we have
-          ellipses in the path. Make sure we do the most nested replacements
-          first. Json_dom::seek returns outermost hits first.
-        */
-        for (Json_dom_vector::iterator it= hits.end(); it != hits.begin();)
+        // We don't allow wildcards in the path, so there can only be one hit.
+        DBUG_ASSERT(hits.size() == 1);
+        Json_dom *hit= hits[0];
+
+        // We now have either an array or an object in the parent's path
+        if (leg->get_type() == jpl_array_cell)
         {
-          --it;
-          // We now have either an array or an object in the parent's path
-          if (leg->get_type() == jpl_array_cell)
+          if (hit->json_type() == enum_json_type::J_ARRAY)
           {
-            if ((*it)->json_type() == enum_json_type::J_ARRAY)
-            {
-              if (!m_json_set) // replace semantics, so skip if path not present
-                continue;
-
-              Json_array *arr= down_cast<Json_array *>(*it);
-              DBUG_ASSERT(leg->get_type() == jpl_array_cell);
-              if (arr->insert_clone(leg->get_array_cell_index(),
-                                    valuew.to_dom(thd)))
-                return error_json();            /* purecov: inspected */
-            }
-            else
-            {
-              /*
-                Found a scalar or object, auto-wrap it and make it the first
-                element in a new array, unless the new value specifies position
-                0, in which case the old gets replaced.
-              */
-              Json_dom *a= *it;
-              Json_dom *res;
-
-              if (leg->get_array_cell_index() == 0)
-              {
-                res= valuew.clone_dom(thd);
-                if (!res)
-                  return error_json();          /* purecov: inspected */
-              }
-              else
-              {
-                // replace semantics, so we don't get larger array
-                if (!m_json_set)
-                  continue;
-
-                Json_array *newarr= new (std::nothrow) Json_array();
-                if (!newarr ||
-                    newarr->append_clone(a) ||
-                    newarr->insert_clone(leg->get_array_cell_index(),
-                                         valuew.to_dom(thd)))
-                {
-                  delete newarr;                /* purecov: inspected */
-                  return error_json();          /* purecov: inspected */
-                }
-                res= newarr;
-              }
-
-              /*
-                Now we need this value to replace the old document we found
-                using path. If this is root, this is trivial, but if it's
-                inside an array or object, we need to find the parent DOM to be
-                able to replace it in situ.
-              */
-              if (m_path.leg_count() == 0) // root
-              {
-                docw= Json_wrapper(res);
-              }
-              else
-              {
-                Json_dom *parent= a->parent();
-                DBUG_ASSERT(parent);
-
-                parent->replace_dom_in_container(a, res);
-              }
-            }
-          }
-          else if (leg->get_type() == jpl_member &&
-                   (*it)->json_type() == enum_json_type::J_OBJECT)
-          {
-            if (!m_json_set) // replace semantics, so skip if path not present
-              continue;
-
-            Json_object *o= down_cast<Json_object *>(*it);
-            const char *ename= leg->get_member_name();
-            size_t enames= leg->get_member_name_length();
-            if (o->add_clone(std::string(ename, enames), valuew.to_dom(thd)))
-              return error_json();              /* purecov: inspected */
-          }
-        } // end of loop through hits
-
-      }
-      else
-      {
-        // we found one or more value, so replace semantics.
-        for (Json_dom_vector::iterator it= hits.begin(); it != hits.end(); ++it)
-        {
-          Json_dom *child= *it;
-
-          Json_dom *parent= child->parent();
-          if (!parent)
-          {
-            Json_dom *dom= valuew.clone_dom(thd);
-            if (!dom)
-              return error_json();              /* purecov: inspected */
-            docw= Json_wrapper(dom);
+            Json_array *arr= down_cast<Json_array *>(hit);
+            DBUG_ASSERT(leg->get_type() == jpl_array_cell);
+            if (arr->insert_clone(leg->get_array_cell_index(),
+                                  valuew.to_dom(thd)))
+              return error_json();            /* purecov: inspected */
           }
           else
           {
-            Json_dom *dom= valuew.clone_dom(thd);
-            if (!dom)
+            /*
+              Found a scalar or object, auto-wrap it and make it the first
+              element in a new array, unless the new value specifies position
+              0, in which case the old value should get replaced. Don't expect
+              array position to be 0 here, though, as such legs should have
+              been removed by the call to clone_without_autowrapping() above.
+            */
+            DBUG_ASSERT(leg->get_array_cell_index() != 0);
+            Json_array *newarr= new (std::nothrow) Json_array();
+            if (!newarr ||
+                newarr->append_clone(hit) ||
+                newarr->insert_clone(leg->get_array_cell_index(),
+                                     valuew.to_dom(thd)))
+            {
+              delete newarr;                    /* purecov: inspected */
               return error_json();              /* purecov: inspected */
-            parent->replace_dom_in_container(child, dom);
+            }
+
+            /*
+              Now we need this value to replace the old document we found
+              using path. If this is root, this is trivial, but if it's
+              inside an array or object, we need to find the parent DOM to be
+              able to replace it in situ.
+            */
+            if (m_path.leg_count() == 0) // root
+            {
+              docw= Json_wrapper(newarr);
+            }
+            else
+            {
+              Json_dom *parent= hit->parent();
+              DBUG_ASSERT(parent);
+              parent->replace_dom_in_container(hit, newarr);
+            }
           }
+        }
+        else if (leg->get_type() == jpl_member &&
+                 hit->json_type() == enum_json_type::J_OBJECT)
+        {
+          Json_object *o= down_cast<Json_object *>(hit);
+          const char *ename= leg->get_member_name();
+          size_t enames= leg->get_member_name_length();
+          if (o->add_clone(std::string(ename, enames), valuew.to_dom(thd)))
+            return error_json();              /* purecov: inspected */
+        }
+      }
+      else
+      {
+        // We found one value, so replace semantics.
+        DBUG_ASSERT(hits.size() == 1);
+        Json_dom *child= hits[0];
+        Json_dom *parent= child->parent();
+        if (!parent)
+        {
+          Json_dom *dom= valuew.clone_dom(thd);
+          if (!dom)
+            return error_json();              /* purecov: inspected */
+          docw= Json_wrapper(dom);
+        }
+        else
+        {
+          Json_dom *dom= valuew.clone_dom(thd);
+          if (!dom)
+            return error_json();              /* purecov: inspected */
+          parent->replace_dom_in_container(child, dom);
         }
       } // if: found 1 else more values
     } // do: functions argument list run-though
@@ -2740,6 +2798,9 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
     return error_json();
     /* purecov: end */
   }
+
+  if (partial_update)
+    partial_update_guard.commit();
 
   null_value= false;
   return false;
@@ -3590,4 +3651,80 @@ String *Item_func_json_pretty::val_str(String *str)
     return error_str();
   }
   /* purecov: end */
+}
+
+
+longlong Item_func_json_storage_size::val_int()
+{
+  DBUG_ASSERT(fixed);
+
+  /*
+    If the input is a reference to a JSON column, return the actual storage
+    size of the value in the table.
+  */
+  if (args[0]->type() == FIELD_ITEM && args[0]->data_type() == MYSQL_TYPE_JSON)
+  {
+    null_value= args[0]->is_null();
+    if (null_value)
+      return 0;
+    return down_cast<Item_field*>(args[0])->field->data_length();
+  }
+
+  /*
+    Otherwise, return the size required to store the argument if it were
+    serialized to the binary JSON format.
+  */
+  Json_wrapper wrapper;
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer;
+  try
+  {
+    if (get_json_wrapper(args, 0, &buffer, func_name(), &wrapper))
+      return error_int();
+  }
+  /* purecov: begin inspected */
+  catch (...)
+  {
+    handle_std_exception(func_name());
+    return error_int();
+  }
+  /* purecov: end */
+
+  null_value= args[0]->null_value;
+  if (null_value)
+    return 0;
+
+  if (wrapper.to_binary(current_thd, &buffer))
+    return error_int();                         /* purecov: inspected */
+  return buffer.length();
+}
+
+
+longlong Item_func_json_storage_free::val_int()
+{
+  DBUG_ASSERT(fixed);
+
+  Json_wrapper wrapper;
+  try
+  {
+    StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer;
+    if (get_json_wrapper(args, 0, &buffer, func_name(), &wrapper))
+      return error_int();
+  }
+  /* purecov: begin inspected */
+  catch (...)
+  {
+    handle_std_exception(func_name());
+    return error_int();
+  }
+  /* purecov: end */
+
+  null_value= args[0]->null_value;
+  if (null_value)
+    return 0;
+
+  size_t space;
+  if (wrapper.get_free_space(&space))
+    return error_int();                         /* purecov: inspected */
+
+  return space;
 }

@@ -697,6 +697,9 @@ bool table_base_ctx::format_body(Opt_trace_context *json, Opt_trace_object *obj)
   if (!col_used_columns.is_empty())
     add_string_array(json, K_USED_COLUMNS, col_used_columns);
 
+  if (!col_partial_update_columns.is_empty())
+    add_string_array(json, "partial_update_columns", col_partial_update_columns);
+
   if (!col_message.is_empty() && type != CTX_MESSAGE)
   {
     DBUG_ASSERT(col_extra.is_empty());

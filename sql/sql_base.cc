@@ -1526,6 +1526,7 @@ void close_thread_tables(THD *thd)
       if (table->db_stat)
         table->file->extra(HA_EXTRA_DETACH_CHILDREN);
       table->cleanup_gc_items();
+      table->cleanup_partial_update();
     }
   }
 
