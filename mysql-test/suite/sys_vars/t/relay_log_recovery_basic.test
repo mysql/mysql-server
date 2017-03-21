@@ -4,7 +4,6 @@
 # 2010-01-10 - Added check for I_S values aver variable value change
 #
 
---source include/not_embedded.inc
 
 #
 # exists as global only

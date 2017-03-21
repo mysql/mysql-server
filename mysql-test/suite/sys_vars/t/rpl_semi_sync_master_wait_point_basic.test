@@ -6,7 +6,6 @@
 #
 # This test verifies the variable can be set, selected and showed correctly.
 ################################################################################
-source include/not_embedded.inc;
 source include/have_semisync_plugin.inc;
 
 --echo #

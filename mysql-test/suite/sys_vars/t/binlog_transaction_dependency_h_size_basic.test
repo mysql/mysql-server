@@ -16,7 +16,6 @@
 # Reference: WL#9556
 ###############################################################################
 
---source include/not_embedded.inc
 --source include/have_binlog_format_row.inc
 
 # Save initial value

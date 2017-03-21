@@ -4,7 +4,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/not_embedded.inc
 
 --echo #
 --echo # Variable name : offline_mode
