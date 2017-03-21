@@ -1883,7 +1883,7 @@ static int compare_files(const char* filename1, const char* filename2)
     on GCOV platform.
   */
 #ifdef HAVE_GCOV
-  char cmd[256];
+  char cmd[FN_REFLEN+FN_REFLEN];
   strcpy(cmd, "sed -i '/gcda:Merge mismatch for function/d' ");
   strcat(cmd, filename1);
   strcat(cmd, " ");
