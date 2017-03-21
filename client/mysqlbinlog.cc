@@ -2503,6 +2503,9 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         }
         if (ev)
           reset_temp_buf_and_delete(ev);
+
+        /* Flush result_file after every event */
+        fflush(result_file);
       }
       else
       {
