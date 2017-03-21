@@ -10289,6 +10289,8 @@ static bool mysql_inplace_alter_table(THD *thd,
       goto cleanup2;
   }
 
+  DEBUG_SYNC(thd, "action_after_write_bin_log");
+
   if (db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)
   {
     /*

@@ -633,8 +633,16 @@ protected:
     bool finalized:1;
 
     /*
-      This indicates that the cache contain an XID event.
-     */
+      This indicates that either the cache contain an XID event, or it's
+      an atomic DDL Query-log-event. In the latter case the flag is set up
+      on the statement level, namely when the Query-log-event is cached
+      at time the DDL transaction is not committing.
+      The flag therefore gets reset when the cache is cleaned due to
+      the statement rollback, e.g in case of a DDL post-caching execution
+      error.
+      Any statement scope flag among other things must consider its
+      reset policy when the statement is rolled back.
+    */
     bool with_xid:1;
   } flags;
 
@@ -779,6 +787,11 @@ public:
     DBUG_PRINT("enter", ("before_stmt_pos: %llu", (ulonglong) before_stmt_pos));
     binlog_cache_data::truncate(before_stmt_pos);
     before_stmt_pos= MY_OFF_T_UNDEF;
+    /*
+      Binlog statement rollback clears with_xid now as the atomic DDL statement
+      marker which can be set as early as at event creation and caching.
+    */
+    flags.with_xid= false;
     DBUG_PRINT("return", ("before_stmt_pos: %llu", (ulonglong) before_stmt_pos));
     DBUG_VOID_RETURN;
   }
@@ -1707,6 +1720,9 @@ binlog_trx_cache_data::truncate(THD *thd, bool all)
   /*
     If rolling back an entire transaction or a single statement not
     inside a transaction, we reset the transaction cache.
+    Even though formally the atomic DDL statement may not end multi-statement
+    transaction the cache needs full resetting as there must
+    be no other data in it but belonging to the DDL.
   */
   if (ending_trans(thd, all))
   {
