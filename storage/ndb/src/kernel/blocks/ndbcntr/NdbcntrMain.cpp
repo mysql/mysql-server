@@ -1880,6 +1880,7 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal){
     case NodeState::ST_SYSTEM_RESTART:
     {
       g_eventLogger->info("We are performing a restart of the cluster");
+      send_restorable_gci_rep_to_backup(signal);
       break;
     }
     default:
@@ -5140,4 +5141,37 @@ Ndbcntr::execDROP_NODEGROUP_IMPL_REQ(Signal* signal)
   }
 }
 
+void
+Ndbcntr::send_restorable_gci_rep_to_backup(Signal *signal)
+{
+  /**
+   * During system restart we don't perform any GCP operations.
+   * So in order to ensure that LCP files can be deleted up to
+   * the restorable GCI we need to initialise the BACKUP blocks
+   * the restorable GCI.
+   *
+   * Without this signal we are not able to perform deletes and
+   * worse the entire system restart could hang due to a deletion
+   * of a table during system restart.
+   */
+  Uint32 gci = c_start.m_lastGci;
+  Uint32 ldm_workers = globalData.ndbMtLqhWorkers == 0 ?
+                       1 : globalData.ndbMtLqhWorkers;
+  signal->theData[0] = gci;
+  if (isNdbMtLqh())
+  {
+    jam();
+    for (Uint32 i = 1; i <= ldm_workers; i++)
+    {
+      jam();
+      BlockReference ref = numberToRef(BACKUP, i, getOwnNodeId());
+      sendSignal(ref, GSN_RESTORABLE_GCI_REP, signal, 1, JBB);
+    }
+  }
+  else
+  {
+    jam();
+    sendSignal(BACKUP_REF, GSN_RESTORABLE_GCI_REP, signal, 1, JBB);
+  }
+}
 template class Vector<ddentry>;

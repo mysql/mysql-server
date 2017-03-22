@@ -447,11 +447,14 @@ Tablespace_client::alloc_page_from_extent(Local_key* key, Uint32 bits)
   req->request.tablespace_id = m_tablespace_id;
   m_tsman->execALLOC_PAGE_REQ(m_signal);
 
-  if(req->reply.errorCode == 0){
+  if(req->reply.errorCode == 0)
+  {
     *key = req->key;
     D("alloc_page_from_extent" << V(*key) << V(bits) << V(req->bits));
     return req->bits;
-  } else {
+  }
+  else
+  {
     return -(int)req->reply.errorCode;
   }
 }

@@ -589,7 +589,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
   /**
    * Do we have a current extent
    */
-  if ((ext.i= alloc.m_curr_extent_info_ptr_i) != RNIL)
+  if ((ext.i = alloc.m_curr_extent_info_ptr_i) != RNIL)
   {
     jam();
     c_extent_pool.getPtr(ext);
@@ -605,7 +605,9 @@ Dbtup::disk_page_prealloc(Signal* signal,
       /**
        * The current extent is not in a free list
        *   and since it couldn't accomodate the request
-       *   we put it on the free list
+       *   we put it on the free list per state (so also
+       *   a full page is in one of the m_free_extents
+       *   lists).
        */
       alloc.m_curr_extent_info_ptr_i = RNIL;
       Uint32 pos= alloc.calc_extent_pos(ext.p);
@@ -753,7 +755,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
       DEB_EXTENT_BITS(("extent(%u,%u) new page in tab(%u,%u), first_page(%u,%u)"
                        " empty_page: %u",
                 instance(),
-                ext.i,
+                ext.p->m_key.m_page_idx,
                 fragPtr.p->fragTableId,
                 fragPtr.p->fragmentId,
                 key->m_file_no,
@@ -764,7 +766,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
     {
       DEB_EXTENT_BITS(("extent(%u,%u) new page in tab(%u,%u), page(%u,%u)",
                 instance(),
-                ext.i,
+                ext.p->m_key.m_page_idx,
                 fragPtr.p->fragTableId,
                 fragPtr.p->fragmentId,
                 key->m_file_no,
@@ -878,6 +880,34 @@ Dbtup::disk_page_prealloc_callback(Signal* signal,
   pagePtr.p = reinterpret_cast<Page*>(gpage.p);
 
   Disk_alloc_info& alloc= fragPtr.p->m_disk_alloc_info;
+
+  Local_key key = req.p->m_key;
+  if (key.m_file_no != pagePtr.p->m_file_no ||
+      key.m_page_no != pagePtr.p->m_page_no ||
+      fragPtr.p->fragTableId != pagePtr.p->m_table_id ||
+      fragPtr.p->fragmentId != pagePtr.p->m_fragment_id)
+  {
+    jam();
+    /**
+     * At this point we are reading what should be an initialised page
+     * and thus file_no, page_no, table and fragment id should be correct.
+     * If not crash and provide details.
+     */
+    g_eventLogger->info("(%u)key(%u,%u), page(%u,%u), restart_seq(%u,%u)"
+                        "key_tab(%u,%u), page_tab(%u,%u)",
+                        instance(),
+                        key.m_file_no,
+                        key.m_page_no,
+                        pagePtr.p->m_file_no,
+                        pagePtr.p->m_page_no,
+                        globalData.m_restart_seq,
+                        pagePtr.p->m_restart_seq,
+                        fragPtr.p->fragTableId,
+                        fragPtr.p->fragmentId,
+                        pagePtr.p->m_table_id,
+                        pagePtr.p->m_fragment_id);
+    ndbrequire(false);
+  }
   if (unlikely(pagePtr.p->m_restart_seq != globalData.m_restart_seq))
   {
     jam();
@@ -2547,7 +2577,7 @@ Dbtup::disk_restart_undo_page_bits(Signal* signal, Apply_undo* undo)
  * -----
  * This represents the information about the extent page and extent number.
  * m_key.m_file_no is the file number of the extent
- * m_key.m_page_no is the page number where the extent info is stored
+ * m_key.m_page_no is the page number of the first page in the extent
  * m_key.m_page_idx is the extent number, can be used to find the exact place
  *   of the extent information on the page
  *

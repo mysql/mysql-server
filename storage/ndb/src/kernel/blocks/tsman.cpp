@@ -2633,14 +2633,18 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
     err= AllocPageReq::UnmappedExtentPageIsNotImplemented;
   
   /**
-   * 1) Compute which extent_no key belongs to
-   * 2) Find out which page extent_no belongs to
-   * 3) Undo log m_page_bitmask
-   * 4) Update m_page_bitmask
+   * 1) Get file the extent belongs to
+   * 2) Compute which extent_no key belongs to
+   *    key.m_page_no is the page number of a page in the extent
+   * 3) Find out which page extent_no belongs to
+   * 4) Undo log m_page_bitmask
+   * 5) Update m_page_bitmask
    */   
   Ptr<Datafile> file_ptr;
   Datafile file_key;
   file_key.m_file_no = req.key.m_file_no;
+  thrjamLine(jamBuf, Uint16(req.key.m_file_no));
+  thrjamLine(jamBuf, Uint16(req.key.m_page_no));
   ndbrequire(m_file_hash.find(file_ptr, file_key));
 
   struct req val = lookup_extent(req.key.m_page_no, file_ptr.p);
@@ -2703,7 +2707,7 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
       if((src_bits & UNCOMMITTED_MASK) <= reqbits)
       {
         thrjam(jamBuf);
-	goto found;
+        goto found;
       }
       shift += SZ;
       src = src + (shift >> 5);
@@ -2719,7 +2723,7 @@ Tsman::execALLOC_PAGE_REQ(Signal* signal)
       if((src_bits & UNCOMMITTED_MASK) <= reqbits)
       {
         thrjam(jamBuf);
-	goto found;
+        goto found;
       }
       shift += SZ;
       src = src + (shift >> 5);
@@ -2736,6 +2740,7 @@ found:
 
   rep->bits= (src_bits & UNCOMMITTED_MASK) >> UNCOMMITTED_SHIFT;
   rep->key.m_page_no = req.key.m_page_no + page_no - page_no_in_extent;
+  thrjamLine(jamBuf, Uint16(rep->key.m_page_no));
   rep->reply.errorCode= 0;
   return;
 }
