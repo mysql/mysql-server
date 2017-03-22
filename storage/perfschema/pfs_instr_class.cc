@@ -273,8 +273,6 @@ register_global_classes()
                    0,
                    PFS_CLASS_METADATA);
   global_metadata_class.m_event_name_index = GLOBAL_METADATA_EVENT_INDEX;
-  global_metadata_class.m_enabled = false; /* Disabled by default */
-  global_metadata_class.m_timed = false;
   configure_instr_class(&global_metadata_class);
 
   /* Error class */
@@ -297,8 +295,6 @@ register_global_classes()
                    0,
                    PFS_CLASS_TRANSACTION);
   global_transaction_class.m_event_name_index = GLOBAL_TRANSACTION_INDEX;
-  global_transaction_class.m_enabled = false; /* Disabled by default */
-  global_transaction_class.m_timed = false;
   configure_instr_class(&global_transaction_class);
   transaction_class_max = 1; /* used for sizing by other event classes */
 }
@@ -1801,7 +1797,6 @@ register_memory_class(const char *name, uint name_length, PSI_memory_info *info)
     entry = &memory_class_array[index];
     init_instr_class(entry, name, name_length, info->m_flags, PFS_CLASS_MEMORY);
     entry->m_event_name_index = index;
-    entry->m_enabled = false; /* disabled by default */
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
     entry->m_timed = false; /* Immutable */

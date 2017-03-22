@@ -267,14 +267,14 @@ static Sys_var_bool Sys_pfs_consumer_events_transactions_current(
        "performance_schema_consumer_events_transactions_current",
        "Default startup value for the events_transactions_current consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_transactions_current_enabled),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_bool Sys_pfs_consumer_events_transactions_history(
        "performance_schema_consumer_events_transactions_history",
        "Default startup value for the events_transactions_history consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_transactions_history_enabled),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_bool Sys_pfs_consumer_events_transactions_history_long(

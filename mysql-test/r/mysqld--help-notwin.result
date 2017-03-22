@@ -709,9 +709,11 @@ The following options may be given as the first argument:
  --performance-schema-consumer-events-transactions-current 
  Default startup value for the events_transactions_current
  consumer.
+ (Defaults to on; use --skip-performance-schema-consumer-events-transactions-current to disable.)
  --performance-schema-consumer-events-transactions-history 
  Default startup value for the events_transactions_history
  consumer.
+ (Defaults to on; use --skip-performance-schema-consumer-events-transactions-history to disable.)
  --performance-schema-consumer-events-transactions-history-long 
  Default startup value for the
  events_transactions_history_long consumer.
@@ -1456,8 +1458,8 @@ performance-schema-consumer-events-stages-history-long FALSE
 performance-schema-consumer-events-statements-current TRUE
 performance-schema-consumer-events-statements-history TRUE
 performance-schema-consumer-events-statements-history-long FALSE
-performance-schema-consumer-events-transactions-current FALSE
-performance-schema-consumer-events-transactions-history FALSE
+performance-schema-consumer-events-transactions-current TRUE
+performance-schema-consumer-events-transactions-history TRUE
 performance-schema-consumer-events-transactions-history-long FALSE
 performance-schema-consumer-events-waits-current FALSE
 performance-schema-consumer-events-waits-history FALSE
