@@ -6765,6 +6765,7 @@ restart_cluster_failure:
       if (is_stop_requested())
         goto err;
 
+      my_thread_yield();
       mysql_mutex_lock(&injector_event_mutex);
       schema_res= s_ndb->pollEvents(100, &schema_gci);
       mysql_mutex_unlock(&injector_event_mutex);
@@ -6778,6 +6779,7 @@ restart_cluster_failure:
         if (is_stop_requested())
           goto err;
 
+        my_thread_yield();
         mysql_mutex_lock(&injector_event_mutex);
         res= i_ndb->pollEvents(10, &gci);
         mysql_mutex_unlock(&injector_event_mutex);
@@ -6883,6 +6885,20 @@ restart_cluster_failure:
     thd->proc_info= "Waiting for event from ndbcluster";
     thd->set_time();
 
+    /**
+     * The binlog-thread holds the injector_mutex when waiting for
+     * pollEvents() - which is >99% of the elapsed time. As the
+     * native mutex guarantees no 'fairness', there is no guarantee
+     * that another thread waiting for the mutex will immeditately
+     * get the lock when unlocked by this thread. Thus this thread
+     * may lock it again rather soon and starve the waiting thread.
+     * To avoid this, my_thread_yield() is used to give any waiting
+     * threads a chance to run and grab the injector_mutex when
+     * it is available. The same pattern is used multiple places
+     * in the BI-thread where there are wait-loops holding this mutex.
+     */
+    my_thread_yield();
+
     /* Can't hold mutex too long, so wait for events in 10ms steps */
     int tot_poll_wait= 10;
 
@@ -6948,6 +6964,7 @@ restart_cluster_failure:
                     (uint)(ndb_latest_received_binlog_epoch));
         thd->proc_info= buf;
 
+        my_thread_yield();
         mysql_mutex_lock(&injector_event_mutex);
         schema_res= s_ndb->pollEvents(10, &schema_epoch);
         mysql_mutex_unlock(&injector_event_mutex);
