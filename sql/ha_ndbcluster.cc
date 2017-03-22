@@ -6063,9 +6063,35 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
   DBUG_ENTER("ha_ndbcluster::exec_bulk_update");
   *dup_key_found= 0;
 
+  /* If a fatal error is encountered during an update op, the error
+   * is saved and exec continues. So exec_bulk_update may be called
+   * even when init functions fail. Check for error conditions like
+   * an uninit'ed transaction.
+   */
+  if(unlikely(!m_thd_ndb->trans))
+  {
+    DBUG_PRINT("exit", ("Transaction was not started"));
+    int error = 0;
+    ERR_SET(m_thd_ndb->ndb->getNdbError(), error);
+    DBUG_RETURN(error);
+  }
+
   // m_handler must be NULL or point to _this_ handler instance
   assert(m_thd_ndb->m_handler == NULL || m_thd_ndb->m_handler == this);
 
+  /*
+   * Normal bulk update execution, driven by mysql_update() in sql_update.cc
+   * - read_record calls start_transaction and inits m_thd_ndb->trans.
+   * - ha_bulk_update calls ha_ndbcluster::bulk_update_row().
+   * - ha_ndbcluster::bulk_update_row calls ha_ndbcluster::ndb_update_row().
+   *   with flag is_bulk_update = 1.
+   * - ndb_update_row sets up update, sets various flags and options,
+   *   but does not execute_nocommit() because of batched exec.
+   * - after read_record processes all rows, exec_bulk_update checks for
+   *   rbwr and does an execute_commit() if rbwr enabled. If rbwr is
+   *   enabled, exec_bulk_update does an execute_nocommit().
+   * - if rbwr not enabled, execute_commit() done in ndbcluster_commit().
+   */
   if (m_thd_ndb->m_handler &&
       m_read_before_write_removal_possible)
   {
