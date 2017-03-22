@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1023,6 +1023,15 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId, Uint32 instance)
 
   DBUG_ENTER("Ndb::startTransactionLocal");
   DBUG_PRINT("enter", ("nodeid: %d", nodeId));
+
+#ifdef VM_TRACE
+  DBUG_EXECUTE_IF("ndb_start_transaction_fail",
+                  {
+                    /* Cluster failure */
+                    theError.code = 4009;
+                    DBUG_RETURN(0);
+                  };);
+#endif
 
   if(unlikely(theRemainingStartTransactions == 0))
   {
