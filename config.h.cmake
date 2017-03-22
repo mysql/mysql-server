@@ -85,7 +85,6 @@
 #cmakedefine HAVE_FEDISABLEEXCEPT 1
 #cmakedefine HAVE_FSEEKO 1
 #cmakedefine HAVE_FSYNC 1
-#cmakedefine HAVE_GETHOSTBYADDR_R 1
 #cmakedefine HAVE_GETHRTIME 1
 #cmakedefine HAVE_GETNAMEINFO 1
 #cmakedefine HAVE_GETPASS 1
@@ -216,7 +215,6 @@
 #cmakedefine HAVE_LINUX_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_ATOMIC 1
-#cmakedefine HAVE_SOLARIS_STYLE_GETHOST 1
 #define SYSTEM_TYPE "@SYSTEM_TYPE@"
 /* This should mean case insensitive file system */
 #cmakedefine FN_NO_CASE_SENSE 1
