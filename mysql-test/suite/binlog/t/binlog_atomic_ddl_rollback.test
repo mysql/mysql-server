@@ -22,6 +22,7 @@ CREATE VIEW v_12 AS SELECT t1.a AS a, t2.a AS b FROM t1,t2;
 CREATE TEMPORARY TABLE tmp (a INT) ENGINE=innodb;
 
 --connection default
+SET DEBUG_SYNC= 'action_after_write_bin_log WAIT_FOR continue';
 --send ALTER TABLE t2 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1
 
 # Deadlock's 2nd participant
