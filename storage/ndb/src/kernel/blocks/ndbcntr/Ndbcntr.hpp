@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -422,6 +422,8 @@ private:
   void execSTTORRY(Signal* signal);
   void execSTART_ORD(Signal* signal);
   void execREAD_CONFIG_CONF(Signal*);
+
+  void send_restorable_gci_rep_to_backup(Signal*);
 };
 
 

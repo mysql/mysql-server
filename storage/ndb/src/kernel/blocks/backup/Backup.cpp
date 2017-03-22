@@ -9768,6 +9768,7 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
        * The processing is already ongoing through CONTINUEB signals, so
        * no need to start it.
        */
+      DEB_LCP(("Wait delete LCP file processing before starting LCP"));
       m_wait_delete_lcp_file_processing = true;
       return;
     }
@@ -12237,7 +12238,7 @@ Backup::lcp_close_ctl_file_drop_case(Signal *signal, BackupRecordPtr ptr)
     sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
   }
   DEB_LCP(("(%u)TAGT Insert delete files in queue (drop case):"
-    " tab(%u,%u), createGci: %u",
+    " tab(%u,%u), createGci: %u, waitCompletedGCI: 0",
     instance(),
     fragPtr.p->tableId,
     fragPtr.p->fragmentId,
