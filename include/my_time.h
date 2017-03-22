@@ -31,13 +31,13 @@ extern const char my_zero_datetime6[]; /* "0000-00-00 00:00:00.000000" */
 
 /*
   Portable time_t replacement.
-  Should be signed and hold seconds for 1902 -- 2038-01-19 range
-  i.e at least a 32bit variable
+  Should be signed and hold seconds for 1902 -- 9999 range
+  i.e at least a 64bit variable
 
   Using the system built in time_t is not an option as
   we rely on the above requirements in the time functions
 */
-typedef long my_time_t;
+typedef long long my_time_t;
 
 typedef enum enum_mysql_timestamp_type timestamp_type;
 
@@ -45,9 +45,11 @@ typedef enum enum_mysql_timestamp_type timestamp_type;
 #define MY_TIME_T_MIN LONG_MIN
 
 /* Time handling defaults */
-#define TIMESTAMP_MAX_YEAR 2038
+#define TIMESTAMP_MAX_YEAR 9999
 #define TIMESTAMP_MIN_YEAR (1900 + YY_PART_YEAR - 1)
-#define TIMESTAMP_MAX_VALUE INT_MAX32
+
+/* 253370764800 = 9999-01-01 */
+#define TIMESTAMP_MAX_VALUE 253370764800
 #define TIMESTAMP_MIN_VALUE 1
 
 /* two-digit years < this are 20..; >= this are 19.. */

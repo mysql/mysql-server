@@ -2422,7 +2422,7 @@ print_tz_as_sql(const char* tz_name, const TIME_ZONE_INFO *sp)
     printf("INSERT INTO time_zone_transition \
 (Time_zone_id, Transition_time, Transition_type_id) VALUES\n");
     for (i= 0; i < sp->timecnt; i++)
-      printf("%s(@time_zone_id, %ld, %u)\n", (i == 0 ? " " : ","), sp->ats[i],
+      printf("%s(@time_zone_id, %lld, %u)\n", (i == 0 ? " " : ","), sp->ats[i],
              (uint)sp->types[i]);
     printf(";\n");
   }
@@ -2467,7 +2467,7 @@ print_tz_leaps_as_sql(const TIME_ZONE_INFO *sp)
     printf("INSERT INTO time_zone_leap_second \
 (Transition_time, Correction) VALUES\n");
     for (i= 0; i < sp->leapcnt; i++)
-      printf("%s(%ld, %ld)\n", (i == 0 ? " " : ","),
+      printf("%s(%lld, %ld)\n", (i == 0 ? " " : ","),
              sp->lsis[i].ls_trans, sp->lsis[i].ls_corr);
     printf(";\n");
   }
