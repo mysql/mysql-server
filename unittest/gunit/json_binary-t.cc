@@ -173,7 +173,7 @@ TEST_F(JsonBinaryTest, BasicTest)
   EXPECT_EQ(Value::ERROR, val8.key(1).type());
   EXPECT_EQ(Value::ERROR, val8.element(1).type());
 
-  Value v8_v1= val8.lookup("key", 3);
+  Value v8_v1= val8.lookup("key");
   EXPECT_EQ(Value::STRING, v8_v1.type());
   EXPECT_TRUE(v8_v1.is_valid());
   EXPECT_EQ("val", get_string(v8_v1));
@@ -201,8 +201,8 @@ TEST_F(JsonBinaryTest, BasicTest)
   EXPECT_EQ(Value::STRING, v9_v2_1.type());
   EXPECT_EQ("d", get_string(v9_v2_1));
 
-  EXPECT_EQ("b", get_string(val9.lookup("a", 1)));
-  Value v9_c= val9.lookup("c", 1);
+  EXPECT_EQ("b", get_string(val9.lookup("a")));
+  Value v9_c= val9.lookup("c");
   EXPECT_EQ(Value::ARRAY, v9_c.type());
   EXPECT_EQ(1U, v9_c.element_count());
   Value v9_c1= v9_c.element(0);
@@ -248,9 +248,9 @@ TEST_F(JsonBinaryTest, BasicTest)
   EXPECT_TRUE(val12.is_valid());
   EXPECT_EQ(Value::OBJECT, val12.type());
   EXPECT_EQ(0U, val12.element_count());
-  EXPECT_EQ(Value::ERROR, val12.lookup("", 0).type());
-  EXPECT_EQ(Value::ERROR, val12.lookup("key", 3).type());
-  EXPECT_FALSE(val12.lookup("no such key", 11).is_valid());
+  EXPECT_EQ(Value::ERROR, val12.lookup("").type());
+  EXPECT_EQ(Value::ERROR, val12.lookup("key").type());
+  EXPECT_FALSE(val12.lookup("no such key").is_valid());
 
   doc= "[]";
   dom.reset(Json_dom::parse(doc, strlen(doc), &msg, &msg_offset));
@@ -282,8 +282,7 @@ TEST_F(JsonBinaryTest, BasicTest)
     EXPECT_EQ(Value::INT, val.type());
     EXPECT_EQ(expected_values[i], val.get_int64());
 
-    Value val_lookup= val14.lookup(expected_keys[i].data(),
-                                   expected_keys[i].length());
+    Value val_lookup= val14.lookup(expected_keys[i]);
     EXPECT_EQ(Value::INT, val_lookup.type());
     EXPECT_EQ(expected_values[i], val_lookup.get_int64());
   }
@@ -528,9 +527,9 @@ TEST_F(JsonBinaryTest, LargeDocumentTest)
 
   {
     SCOPED_TRACE("");
-    validate_array_contents(val3.lookup("a", 1), array.size());
+    validate_array_contents(val3.lookup("a"), array.size());
   }
-  EXPECT_EQ("c", get_string(val3.lookup("b", 1)));
+  EXPECT_EQ("c", get_string(val3.lookup("b")));
 
   /*
     Extract the raw binary representation of the large object, and verify
@@ -539,7 +538,7 @@ TEST_F(JsonBinaryTest, LargeDocumentTest)
   EXPECT_FALSE(val3.raw_binary(thd(), &raw));
   {
     SCOPED_TRACE("");
-    Value val_a= parse_binary(raw.ptr(), raw.length()).lookup("a", 1);
+    Value val_a= parse_binary(raw.ptr(), raw.length()).lookup("a");
     validate_array_contents(val_a, array.size());
   }
 
@@ -681,7 +680,7 @@ TEST_F(JsonBinaryTest, RawBinaryTest)
   Value v1_8= parse_binary(raw.ptr(), raw.length());
   EXPECT_EQ(Value::OBJECT, v1_8.type());
   EXPECT_EQ(object.cardinality(), v1_8.element_count());
-  EXPECT_EQ(Value::LITERAL_TRUE, v1_8.lookup("key", 3).type());
+  EXPECT_EQ(Value::LITERAL_TRUE, v1_8.lookup("key").type());
 
   EXPECT_FALSE(v1.element(8).key(0).raw_binary(thd(), &raw));
   Value v1_8_key= parse_binary(raw.ptr(), raw.length());

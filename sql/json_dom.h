@@ -1333,12 +1333,11 @@ public:
     not J_OBJECT will give undefined results.
 
     @param[in]     key name for identifying member
-    @param[in]     len length of that member name
 
     @return The member value. If there is no member with the specified
     name, a value with type Json_dom::J_ERROR is returned.
   */
-  Json_wrapper lookup(const char *key, size_t len) const;
+  Json_wrapper lookup(const std::string &key) const;
 
   /**
     Get a pointer to the data of a JSON string or JSON opaque value.

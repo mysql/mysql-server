@@ -645,7 +645,7 @@ static bool contains_wr(const THD *thd,
     for (auto c_oi= containee_wr.object_iterator(); !c_oi.empty(); c_oi.next())
     {
       auto c_elt= c_oi.elt();
-      auto d_wr= doc_wrapper.lookup(c_elt.first.data(), c_elt.first.length());
+      auto d_wr= doc_wrapper.lookup(c_elt.first);
 
       if (d_wr.type() == enum_json_type::J_ERROR)
       {
@@ -2340,9 +2340,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
                  (*it)->json_type() == enum_json_type::J_OBJECT)
         {
           Json_object *o= down_cast<Json_object *>(*it);
-          const char *ename= leg->get_member_name();
-          size_t enames= leg->get_member_name_length();
-          if (o->add_clone(std::string(ename, enames), valuew.to_dom(thd)))
+          if (o->add_clone(leg->get_member_name(), valuew.to_dom(thd)))
             return error_json();          /* purecov: inspected */
         }
       }
@@ -2762,9 +2760,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
                  hit->json_type() == enum_json_type::J_OBJECT)
         {
           Json_object *o= down_cast<Json_object *>(hit);
-          const char *ename= leg->get_member_name();
-          size_t enames= leg->get_member_name_length();
-          if (o->add_clone(std::string(ename, enames), valuew.to_dom(thd)))
+          if (o->add_clone(leg->get_member_name(), valuew.to_dom(thd)))
             return error_json();              /* purecov: inspected */
         }
       }

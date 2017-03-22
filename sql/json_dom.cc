@@ -356,9 +356,7 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
       if (dom_type == enum_json_type::J_OBJECT)
       {
         const Json_object * object= down_cast<const Json_object *>(this);
-        std::string member_name(path_leg->get_member_name(),
-                                path_leg->get_member_name_length());
-        Json_dom * child= object->get(member_name);
+        Json_dom *child= object->get(path_leg->get_member_name());
 
         if (child != NULL && add_if_missing(child, duplicates, result))
           return true;                        /* purecov: inspected */
@@ -2109,19 +2107,18 @@ Json_wrapper_object_iterator Json_wrapper::object_iterator() const
 }
 
 
-Json_wrapper Json_wrapper::lookup(const char *key, size_t len) const
+Json_wrapper Json_wrapper::lookup(const std::string &key) const
 {
   DBUG_ASSERT(type() == enum_json_type::J_OBJECT);
   if (m_is_dom)
   {
     const Json_object *object= down_cast<const Json_object *>(m_dom_value);
-    std::string member_name(key, len);
-    Json_wrapper wr(object->get(member_name));
+    Json_wrapper wr(object->get(key));
     wr.set_alias(); // wr doesn't own the supplied DOM: part of array DOM
     return wr;
   }
 
-  return Json_wrapper(m_value.lookup(key, len));
+  return Json_wrapper(m_value.lookup(key));
 }
 
 Json_wrapper Json_wrapper::operator[](size_t index) const
@@ -2372,9 +2369,7 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
       {
       case enum_json_type::J_OBJECT:
         {
-          const char *key= path_leg->get_member_name();
-          size_t key_length= path_leg->get_member_name_length();
-          Json_wrapper member= lookup(key, key_length);
+          Json_wrapper member= lookup(path_leg->get_member_name());
 
           if (member.type() != enum_json_type::J_ERROR)
           {
@@ -3959,8 +3954,7 @@ bool Json_wrapper::attempt_partial_update(const THD *thd,
   case Value::OBJECT:
     if (last_leg->get_type() != enum_json_path_leg_type::jpl_member)
       return true;
-    element_pos= parent.lookup_index(last_leg->get_member_name(),
-                                     last_leg->get_member_name_length());
+    element_pos= parent.lookup_index(last_leg->get_member_name());
     break;
   case Value::ARRAY:
     if (last_leg->get_type() != enum_json_path_leg_type::jpl_array_cell)

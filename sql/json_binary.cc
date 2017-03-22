@@ -1399,14 +1399,13 @@ Value Value::key(size_t pos) const
 /**
   Get the value associated with the specified key in a JSON object.
 
-  @param[in] key  pointer to the key
-  @param[in] len  length of the key
+  @param[in] key  the key to look up
   @return the value associated with the key, if there is one. otherwise,
   returns ERROR
 */
-Value Value::lookup(const char *key, size_t len) const
+Value Value::lookup(const std::string &key) const
 {
-  size_t index= lookup_index(key, len);
+  size_t index= lookup_index(key);
   if (index == element_count())
     return err();
   return element(index);
@@ -1416,12 +1415,11 @@ Value Value::lookup(const char *key, size_t len) const
 /**
   Get the index of the element with the specified key in a JSON object.
 
-  @param[in] key  pointer to the key
-  @param[in] len  length of the key
+  @param[in] key  the key to look up
   @return the index if the key is found, or `element_count()` if the
   key is not found
 */
-size_t Value::lookup_index(const char *key, size_t len) const
+size_t Value::lookup_index(const std::string &key) const
 {
   DBUG_ASSERT(m_type == OBJECT);
 
@@ -1442,16 +1440,16 @@ size_t Value::lookup_index(const char *key, size_t len) const
 
     // Keys are ordered on length, so check length first.
     size_t key_len= uint2korr(m_data + entry_offset + offset_size);
-    if (len > key_len)
+    if (key.length() > key_len)
       lo= idx + 1;
-    else if (len < key_len)
+    else if (key.length() < key_len)
       hi= idx;
     else
     {
       // The keys had the same length, so compare their contents.
       size_t key_offset= read_offset_or_size(m_data + entry_offset, m_large);
 
-      int cmp= memcmp(key, m_data + key_offset, len);
+      int cmp= memcmp(key.data(), m_data + key_offset, key_len);
       if (cmp > 0)
         lo= idx + 1;
       else if (cmp < 0)

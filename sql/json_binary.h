@@ -135,6 +135,7 @@
 
 #include <stddef.h>
 #include <new>
+#include <string>
 
 #include "binary_log_types.h"                   // enum_field_types
 #include "my_inttypes.h"
@@ -198,8 +199,8 @@ public:
   Value element(size_t pos) const;
   Value key(size_t pos) const;
   enum_field_types field_type() const;
-  Value lookup(const char *key, size_t len) const;
-  size_t lookup_index(const char *key, size_t len) const;
+  Value lookup(const std::string &key) const;
+  size_t lookup_index(const std::string &key) const;
   bool is_backed_by(const String *str) const;
   bool raw_binary(const THD *thd, String *buf) const;
   bool get_free_space(const THD *thd, size_t *space) const;
