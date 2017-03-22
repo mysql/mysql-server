@@ -21,6 +21,10 @@
 #          9) Cleanup the server.
 ###############################################################################
 
+# Running MYSQL_BINLOG in a separate shell does not work properly in windows
+# due to MTR limitation.
+--source include/not_windows.inc
+
 # Test is not specific to any binlog format. Hence Running only for 'row'.
 --source include/have_binlog_format_row.inc
 
