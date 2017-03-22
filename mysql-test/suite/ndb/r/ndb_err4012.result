@@ -303,3 +303,18 @@ Warning	1297	Got temporary error 4013 'Request timed out in waiting for node fai
 Error	1297	Got temporary error 4013 'Request timed out in waiting for node failure' from NDBCLUSTER
 SET SESSION debug=@save_debug;
 drop table t1;
+# mysqld gets timeout error 4009 while creating transaction for bulk update
+create table t1(id int primary key, val int) engine=ndb;
+insert into t1 values(1,1), (2,2), (3,3), (4,4), (5,5);
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_start_transaction_fail";
+update t1 set val = 11111 where id > 0;
+ERROR HY000: Got error 4009 'Cluster Failure' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4009 'Cluster Failure' from NDB
+Error	1296	Got error 4009 'Cluster Failure' from NDBCLUSTER
+Warning	1296	Got error 4009 'Cluster Failure' from NDB
+Error	1296	Got error 4009 'Cluster Failure' from NDBCLUSTER
+SET SESSION debug=@save_debug;
+drop table t1;
