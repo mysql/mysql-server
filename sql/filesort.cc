@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,6 +66,7 @@ static bool save_index(Sort_param *param, uint count,
                        Filesort_info *table_sort);
 static uint suffix_length(ulong string_length);
 static SORT_ADDON_FIELD *get_addon_fields(ulong max_length_for_sort_data,
+                                          TABLE *const table,
                                           Field **ptabfield,
                                           uint sortlength, uint *plength);
 static void unpack_addon_fields(struct st_sort_addon_field *addon_field,
@@ -90,6 +91,7 @@ void Sort_param::init_for_filesort(uint sortlen, TABLE *table,
       to sorted fields and get its total length in addon_length.
     */
     addon_field= get_addon_fields(max_length_for_sort_data,
+                                  table,
                                   table->field, sort_length, &addon_length);
   }
   if (addon_field)
@@ -1948,6 +1950,7 @@ sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
 
 static SORT_ADDON_FIELD *
 get_addon_fields(ulong max_length_for_sort_data,
+                 TABLE *const table,
                  Field **ptabfield, uint sortlength, uint *plength)
 {
   Field **pfield;
@@ -1956,7 +1959,7 @@ get_addon_fields(ulong max_length_for_sort_data,
   uint length= 0;
   uint fields= 0;
   uint null_fields= 0;
-  MY_BITMAP *read_set= (*ptabfield)->table->read_set;
+  MY_BITMAP *read_set= table->read_set;
 
   /*
     If there is a reference to a field in the query add it
