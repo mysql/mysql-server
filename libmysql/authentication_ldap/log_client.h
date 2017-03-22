@@ -6,12 +6,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include "mysql/psi/psi_memory.h"
-#include <mysql/plugin.h>
-#include <mysql/service_my_plugin_log.h>
 #include <my_dbug.h>
-
-extern MYSQL_PLUGIN g_ldap_plugin_info;
+#include "my_systime.h"
 
 struct log_type {
   typedef enum {
@@ -42,71 +38,50 @@ public:
 private:
   Log_writer_error *m_log_writer;
   log_level m_log_level;
-  int m_logger_initilzed;
 };
 
 template<log_type::type type>
 void Logger::log(std::string msg) {
   std::stringstream header;
-#ifdef LDAP_SERVER_PLUGIN
-  int plugin_error_level = MY_INFORMATION_LEVEL;
-#endif
   switch (type) {
   case log_type::LOG_DBG:
     if (LOG_LEVEL_ALL > m_log_level) {
-      goto  WRITE_SERVER_LOG;
+      goto WRITE_DBG;
     }
     header << "[DBG] ";
     break;
   case log_type::LOG_INFO:
-#ifdef LDAP_SERVER_PLUGIN
-    plugin_error_level = MY_INFORMATION_LEVEL;
-#endif
     if (LOG_LEVEL_ERROR_WARNING_INFO > m_log_level) {
-      goto  WRITE_SERVER_LOG;
+      goto WRITE_DBG;
     }
     header << "[Note] ";
     break;
   case log_type::LOG_WARNING:
-#ifdef LDAP_SERVER_PLUGIN
-    plugin_error_level = MY_WARNING_LEVEL;
-#endif
     if (LOG_LEVEL_ERROR_WARNING > m_log_level) {
-      goto  WRITE_SERVER_LOG;
+      goto WRITE_DBG;
     }
     header << "[Warning] ";
     break;
   case log_type::LOG_ERROR:
-#ifdef LDAP_SERVER_PLUGIN
-    plugin_error_level = MY_ERROR_LEVEL;
-#endif
     if (LOG_LEVEL_NONE >= m_log_level) {
-      goto  WRITE_SERVER_LOG;
+      goto WRITE_DBG;
     }
     header << "[Error] ";
     break;
   };
 
-  /** We can write debug messages also in error log file if logging level is set to debug. */
-  /** For MySQL server this will be set using option. */
-  /** For MySQL client this will come from environment variable */
+  /** We can write debug messages also in error log file if logging level is set to debug.
+      For MySQL server this will be set using option.
+      For MySQL client this will come from environment variable */
   if (m_log_writer){
     header << my_getsystime() << ": ";
     m_log_writer->write(header.str());
     m_log_writer->write(msg);
   }
-
-WRITE_SERVER_LOG:
-#ifdef LDAP_SERVER_PLUGIN
-  if (g_ldap_plugin_info && (type != log_type::LOG_DBG)) {
-    my_plugin_log_message(&g_ldap_plugin_info,
-                          (plugin_log_level) plugin_error_level, msg.c_str());
-  }
-#endif
+WRITE_DBG:
   /** Log all the messages as debug messages as well. */
-  DBUG_PRINT("ldap plugin: ", (": %s", msg.c_str()));
+  DBUG_PRINT("ldap/sasl auth plugin: ", (": %s", msg.c_str()));
 }
-
 
 extern Logger *g_logger;
 
