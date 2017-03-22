@@ -258,10 +258,11 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
       }
       
       /**
-       * Send long signal to DBUTIL.
+       * Send long signal if 'long' TRANSID_AI data.
+       * Note that SPJ can *only* handle long signals.
        */
       const Uint32 block= refToMain(recBlockref);
-      if ((block == DBUTIL || block == DBSPJ) && !old_dest) {
+      if (block == DBSPJ || (ToutBufIndex > 22 && !old_dest)) {
 	jam();
 	LinearSectionPtr ptr[3];
 	ptr[0].p= &signal->theData[25];
