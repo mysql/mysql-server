@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -790,6 +790,24 @@ ndbd_fixed_lookup_query_abort(Uint32 x)
     return 1;
   }
   return x >= NDBD_FIXED_LOOKUP_QUERY_ABORT_72;
+}
+
+/**
+ * Including vers. 'NDBD_SPJ_API_ONLY_LONG_TRANSID_AI',
+ * TRANSID_AI received from a SPJ query execution
+ * was required to always be a 'long signal'.
+ * (As it was always sent with the FLUSH_AI pseudo-read)
+ * From Cluster 7.6.2 and up, TRANSID_AI results rows from
+ * SPJ execution can be sent as (packed) 'short' signals.
+ */
+#define NDBD_SPJ_API_ONLY_LONG_TRANSID_AI NDB_MAKE_VERSION(7,6,1)
+
+static
+inline
+int
+ndbd_spj_api_support_short_TRANSID_AI(Uint32 x)
+{
+  return x > NDBD_SPJ_API_ONLY_LONG_TRANSID_AI;
 }
 
 /**

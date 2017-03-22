@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -498,7 +498,6 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
         }
         else
         {
-          assert(type != NdbReceiver::NDB_QUERY_OPERATION);
           DBUG_EXECUTE_IF("ndb_delay_transid_ai",
             {
               fprintf(stderr,
@@ -509,8 +508,24 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
               fprintf(stderr, "NdbImpl::trp_deliver_signal() resuming\n");
             });
 
-          com = tRec->execTRANSID_AI(tDataPtr + TransIdAI::HeaderLength, 
+          /**
+           * Note that prior to V7.6.2 we assumed that all 'QUERY'
+           * results were returned as 'long' signals. The version
+           * check ndbd_spj_api_support_short_TRANSID_AI() function
+           * has been added to allow the sender to check if the 
+           * QUERY-receiver support short (and 'packed') TRANSID_AI.
+           */
+          if (type == NdbReceiver::NDB_QUERY_OPERATION)
+          {
+            NdbQueryOperationImpl* impl_owner = (NdbQueryOperationImpl*)owner;
+            com = impl_owner->execTRANSID_AI(tDataPtr + TransIdAI::HeaderLength, 
+                                             tLen - TransIdAI::HeaderLength);
+          }
+          else
+          {
+            com = tRec->execTRANSID_AI(tDataPtr + TransIdAI::HeaderLength, 
                                        tLen - TransIdAI::HeaderLength);
+          }
         }
         {
           BlockReference ref = aSignal->theSendersBlockRef;
