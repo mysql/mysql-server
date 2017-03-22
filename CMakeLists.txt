@@ -651,8 +651,10 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
-# Add bundled yassl/taocrypt or system openssl.
+# Add bundled yassl/taocrypt or system openssl or custom openssl
 MYSQL_CHECK_SSL()
+MYSQL_CHECK_SSL_DLLS()
+
 # Add system/bundled editline.
 MYSQL_CHECK_EDITLINE()
 # Add libevent

@@ -451,7 +451,8 @@ SET_TARGET_PROPERTIES(sqlgunitlib
 ## link time and disk space ...
 OPTION(MERGE_UNITTESTS "Merge tests into one executable" ON)
 IF (MERGE_UNITTESTS)
-  ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS})
+  MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
+    ADD_TEST merge_small_tests)
   TARGET_LINK_LIBRARIES(merge_small_tests-t
     mysys mysys_ssl regex sqlgunitlib gunit_small)
   
@@ -460,7 +461,8 @@ IF (MERGE_UNITTESTS)
   ENDIF()
   LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
 
-  ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS})
+  MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
+    ADD_TEST merge_large_tests)
   TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main binlog rpl master slave)
   TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main sql_gis)
   TARGET_LINK_LIBRARIES(merge_large_tests-t
@@ -473,21 +475,18 @@ IF (MERGE_UNITTESTS)
     TARGET_LINK_LIBRARIES(merge_small_tests-t perfschema)
   ENDIF()
 
-  ADD_TEST(merge_large_tests merge_large_tests-t)
-  ADD_TEST(merge_small_tests merge_small_tests-t)
-
 ENDIF(MERGE_UNITTESTS)
 
+SET(EXCLUDE_FROM_ALL "EXCLUDE_FROM_ALL")
+IF (NOT MERGE_UNITTESTS)
+  UNSET(EXCLUDE_FROM_ALL)
+ENDIF()
+
 FOREACH(test ${TESTS})
-  ADD_EXECUTABLE(${test}-t ${test}-t.cc)
+  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc SKIP_INSTALL ${EXCLUDE_FROM_ALL})
   ADD_COMPILE_FLAGS(${test}-t.cc COMPILE_FLAGS ${DISABLE_PSI_OPTIONS})
   TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug regex)
-  IF(MERGE_UNITTESTS)
-    SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
-    IF(WIN32)
-      SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
-    ENDIF()
-  ELSE()
+  IF(NOT MERGE_UNITTESTS)
     ADD_TEST(${test} ${test}-t)
   ENDIF()
 ENDFOREACH()
@@ -525,7 +524,7 @@ FOREACH(test ${SERVER_TESTS})
   IF(test MATCHES "table_cache")
     LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
   ENDIF()
-  ADD_EXECUTABLE(${test}-t ${SRC_FILES})
+  MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES} SKIP_INSTALL ${EXCLUDE_FROM_ALL})
   TARGET_LINK_LIBRARIES(${test}-t sql_main binlog rpl master slave sql_main)
   TARGET_LINK_LIBRARIES(${test}-t sql_main sql_gis)
   TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
@@ -536,18 +535,10 @@ FOREACH(test ${SERVER_TESTS})
     TARGET_LINK_LIBRARIES(${test}-t perfschema)
   ENDIF()
 
-  IF(MERGE_UNITTESTS)
-    SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
-    IF(WIN32)
-      SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
-    ENDIF()
-  ELSE()
+  IF(NOT MERGE_UNITTESTS)
     ADD_TEST(${test} ${test}-t)
   ENDIF()
 ENDFOREACH()
-
-## Most executables depend on libeay32.dll (through mysys_ssl).
-COPY_OPENSSL_DLLS(copy_openssl_gunit)
 
 ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(keyring)

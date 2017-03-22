@@ -1398,11 +1398,10 @@ sub command_line_setup {
   }
   else
   {
-    $path_client_bindir= mtr_path_exists("$bindir/client_release",
-					 "$bindir/client_debug",
-					 vs_config_dirs('client', ''),
-					 "$bindir/client",
-					 "$bindir/bin");
+    $path_client_bindir=
+      mtr_path_exists(vs_config_dirs('runtime_output_directory', ''),
+		      "$bindir/client",
+		      "$bindir/bin");
   }
 
   # Look for language files and charsetsdir, use same share
@@ -2412,6 +2411,7 @@ sub mysql_client_test_arguments(){
   my $exe;
   # mysql_client_test executable may _not_ exist
   $exe= mtr_exe_maybe_exists(vs_config_dirs('testclients', 'mysql_client_test'),
+			     "$path_client_bindir/mysql_client_test",
 			     "$basedir/testclients/mysql_client_test",
 			     "$basedir/bin/mysql_client_test");
   return "" unless $exe;
@@ -2430,12 +2430,9 @@ sub mysql_client_test_arguments(){
 
 sub mysqlxtest_arguments(){
   my $exe;
-  # mysql_client_test executable may _not_ exist
+  # mysqlxtest executable may _not_ exist
   $exe= mtr_exe_maybe_exists(vs_config_dirs('plugin', 'mysqlxtest'),
-                             "$bindir/rapid/plugin/x/mysqlxtest",
-                             "$bindir/rapid/plugin/x/Debug/mysqlxtest",
-                             "$bindir/rapid/plugin/x/Release/mysqlxtest",
-                             "$bindir/rapid/plugin/x/RelWithDebInfo/mysqlxtest",
+			     "$path_client_bindir/mysqlxtest",
                              "$bindir/bin/mysqlxtest");
   return "" unless $exe;
 
@@ -2726,6 +2723,7 @@ sub environment_setup {
   # ----------------------------------------------------
   my $exe_bug25714=
       mtr_exe_maybe_exists(vs_config_dirs('testclients', 'bug25714'),
+			   "$path_client_bindir/bug25714",
                            "$basedir/testclients/bug25714");
   $ENV{'MYSQL_BUG25714'}=  native_path($exe_bug25714);
 
@@ -2841,6 +2839,7 @@ sub environment_setup {
   # is needed when building with Xcode on OSX
   my $exe_mysql_tzinfo_to_sql= 
     mtr_exe_exists(vs_config_dirs('sql', 'mysql_tzinfo_to_sql'),
+		   "$path_client_bindir/mysql_tzinfo_to_sql",
                    "$basedir/bin/mysql_tzinfo_to_sql");
   $ENV{'MYSQL_TZINFO_TO_SQL'}= native_path($exe_mysql_tzinfo_to_sql);
 

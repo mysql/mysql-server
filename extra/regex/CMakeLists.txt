@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,10 +19,6 @@ SET(REGEX_SOURCES regcomp.c regerror.c regexec.c regfree.c reginit.c)
 ADD_CONVENIENCE_LIBRARY(regex ${REGEX_SOURCES})
 
 IF(WITH_UNIT_TESTS)
-  ADD_EXECUTABLE(re main.c split.c debug.c)
-  TARGET_LINK_LIBRARIES(re regex strings mysys)
-
-  ADD_TEST(regex1 re     -I)
-  ADD_TEST(regex2 re -el -I)
-  ADD_TEST(regex3 re -er -I)
+  MYSQL_ADD_EXECUTABLE(regex_main main.c split.c debug.c ADD_TEST regex_main)
+  TARGET_LINK_LIBRARIES(regex_main regex strings mysys)
 ENDIF()

@@ -49,7 +49,7 @@ SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES}
 
 # Gen_lex_token
 # Make sure sql_yacc.h is generated before compiling gen_lex_token
-ADD_EXECUTABLE(gen_lex_token gen_lex_token.cc)
+MYSQL_ADD_EXECUTABLE(gen_lex_token gen_lex_token.cc SKIP_INSTALL)
 ADD_DEPENDENCIES(gen_lex_token GenServerSource)
 
 ADD_CUSTOM_COMMAND(
@@ -657,10 +657,7 @@ IF(HAVE_NO_BUILTIN_MEMCMP)
 ENDIF()
 
 IF (WIN32 AND OPENSSL_APPLINK_C)
-  ADD_COMPILE_FLAGS(
-    ../sql-common/client_authentication.cc
-    COMPILE_FLAGS "-DHAVE_OPENSSL_APPLINK_C"
-  )
+  LIST(APPEND SQL_SOURCE "${OPENSSL_APPLINK_C}")
 ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(sql_rtree gis/rtree_support.cc)
@@ -843,7 +840,7 @@ SET_SOURCE_FILES_PROPERTIES(
 )
 
 # Gen_lex_hash
-ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc)
+MYSQL_ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc SKIP_INSTALL)
 
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h
