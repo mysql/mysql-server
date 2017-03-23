@@ -7981,7 +7981,7 @@ Backup::execFSCLOSECONF(Signal* signal)
              ptr.p->prepareCtlFilePtr[1] == filePtrI)
     {
       jam();
-      if (ptr.p->prepareState == PREPARE_DROP)
+      if (ptr.p->prepareState == PREPARE_DROP_CLOSE)
       {
         jam();
         lcp_close_ctl_file_drop_case(signal, ptr);
@@ -10112,7 +10112,7 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
              maxGciWritten,
              fragPtr.p->createGci));
 
-     ptr.p->prepareState = PREPARE_DROP;
+     ptr.p->prepareState = PREPARE_DROP_CLOSE;
      closeFile(signal, ptr, filePtr[closeLcpNumber]);
      closeFile(signal,
                ptr,
@@ -11886,7 +11886,8 @@ Backup::delete_lcp_file_processing(Signal *signal, Uint32 ptrI)
   {
     jam();
     m_delete_lcp_files_ongoing = false;
-    if (m_wait_delete_lcp_file_processing ||
+    if ((m_wait_delete_lcp_file_processing &&
+         ptr.p->prepareState != PREPARE_DROP_CLOSE) ||
         ptr.p->prepareState == PREPARE_DROP)
     {
       /**
@@ -12254,6 +12255,12 @@ Backup::lcp_close_ctl_file_drop_case(Signal *signal, BackupRecordPtr ptr)
     signal->theData[1] = ptr.i;
     sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
   }
+  /**
+   * We have now closed the files and as soon as the queue of
+   * deleted files are empty we can proceed with starting of
+   * the LCP.
+   */
+  ptr.p->prepareState = PREPARE_DROP;
   DEB_LCP(("(%u)TAGT Insert delete files in queue (drop case):"
     " tab(%u,%u), createGci: %u, waitCompletedGCI: 0",
     instance(),
@@ -12343,7 +12350,8 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
             jam();
             state = LcpStatusConf::LCP_PREPARE_ABORTING;
           }
-          else if (ptr.p->prepareState == PREPARE_DROP)
+          else if (ptr.p->prepareState == PREPARE_DROP ||
+                   ptr.p->prepareState == PREPARE_DROP_CLOSE)
           {
             jam();
             state = LcpStatusConf::LCP_PREPARE_WAIT_DROP_CASE;
