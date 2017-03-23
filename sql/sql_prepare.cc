@@ -2933,7 +2933,8 @@ Prepared_statement::execute_loop(String *expanded_query, bool open_cursor)
 
   DBUG_ASSERT(!thd->get_stmt_da()->is_set());
 
-  if (unlikely(thd->security_context()->password_expired() &&
+  if (unlikely(!thd->security_context()->account_is_locked() &&
+               thd->security_context()->password_expired() &&
                lex->sql_command != SQLCOM_SET_PASSWORD &&
                lex->sql_command != SQLCOM_ALTER_USER))
   {
