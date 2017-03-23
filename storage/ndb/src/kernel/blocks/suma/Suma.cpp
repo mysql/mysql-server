@@ -4540,6 +4540,10 @@ Suma::execKEYINFO20(Signal* signal)
   ndbrequire(syncPtr.p->m_headersSection != RNIL);
   ndbrequire(syncPtr.p->m_dataSection != RNIL);
 
+  /* SUMA requests a special 'scanInfo only' KeyInfo */
+  ndbassert(data->keyLen == 0);
+  ndbrequire(signal->getNoOfSections() == 0);
+
   sendScanSubTableData(signal, syncPtr, takeOver);
 }
 
