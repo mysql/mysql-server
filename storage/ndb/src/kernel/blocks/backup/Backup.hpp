@@ -468,7 +468,8 @@ public:
     PREPARE_READ_TABLE_DESC = 3,
     PREPARED = 4,
     PREPARE_ABORTING = 5,
-    PREPARE_DROP = 6
+    PREPARE_DROP = 6,
+    PREPARE_DROP_CLOSE = 7
   };
 
   static const Uint32 validSlaveTransitionsCount;
