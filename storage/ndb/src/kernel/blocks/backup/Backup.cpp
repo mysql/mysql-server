@@ -11838,22 +11838,35 @@ void
 Backup::execRESTORABLE_GCI_REP(Signal *signal)
 {
   m_newestRestorableGci = signal->theData[0];
+#ifdef DEBUG_LCP
+  DeleteLcpFilePtr deleteLcpFilePtr;
+  LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                m_delete_lcp_file_head);
+  queue.first(deleteLcpFilePtr);
+  Uint32 waitGCI = (deleteLcpFilePtr.i != RNIL) ? 
+           deleteLcpFilePtr.p->waitCompletedGci : 0;
+#endif
   if (m_delete_lcp_files_ongoing)
   {
     jam();
-    DEB_LCP(("(%u)TAGX Completed GCI: %u (delete files ongoing)",
+    DEB_LCP(("(%u)TAGX Completed GCI: %u (delete files ongoing)"
+             ", waitGCI: %u",
              instance(),
-             m_newestRestorableGci));
+             m_newestRestorableGci,
+             waitGCI));
     return;
   }
   jam();
-  DEB_LCP(("(%u)TAGX Completed GCI: %u (delete files not ongoing)",
+  DEB_LCP(("(%u)TAGX Completed GCI: %u (delete files not ongoing)"
+           ", waitGCI: %u, m_lcp_ptr_i = %u",
            instance(),
-           m_newestRestorableGci));
-  m_delete_lcp_files_ongoing = true;
+           m_newestRestorableGci,
+           m_lcp_ptr_i,
+           waitGCI));
   if (m_lcp_ptr_i != RNIL)
   {
     jam();
+    m_delete_lcp_files_ongoing = true;
     delete_lcp_file_processing(signal, m_lcp_ptr_i);
   }
   return;
