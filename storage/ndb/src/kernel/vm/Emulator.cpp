@@ -152,7 +152,7 @@ static const char* const jamFileNames[] =
    "TcContinueB.hpp",                    // 16
    "MasterGCP.hpp",                      // 17
    "UtilPrepare.hpp",                    // 18
-   "DictSizeAltReq.hpp",                 // 19
+   "DictSizeAltReq.hpp",                 // 19 DELETED FILE
    "TabCommit.hpp",                      // 20
    "LqhTransConf.hpp",                   // 21
    "CallbackSignal.hpp",                 // 22
@@ -199,7 +199,7 @@ static const char* const jamFileNames[] =
    "DropIndxImpl.hpp",                   // 63
    "CreateHashMap.hpp",                  // 64
    "CmRegSignalData.hpp",                // 65
-   "LqhSizeAltReq.hpp",                  // 66
+   "LqhSizeAltReq.hpp",                  // 66 DELETED FILE
    "StartFragReq.hpp",                   // 67
    "DictTakeover.hpp",                   // 68
    "FireTrigOrd.hpp",                    // 69
@@ -235,20 +235,20 @@ static const char* const jamFileNames[] =
    "ReleasePages.hpp",                   // 99
    "CreateTrig.hpp",                     // 100
    "BackupSignalData.hpp",               // 101
-   "TuxSizeAltReq.hpp",                  // 102
+   "TuxSizeAltReq.hpp",                  // 102 DELETED FILE
    "CreateEvnt.hpp",                     // 103
    "CreateTrigImpl.hpp",                 // 104
    "StartRec.hpp",                       // 105
    "ContinueFragmented.hpp",             // 106
    "CreateObj.hpp",                      // 107
    "DihScanTab.hpp",                     // 108
-   "AccSizeAltReq.hpp",                  // 109
+   "AccSizeAltReq.hpp",                  // 109 DELETED FILE
    "DropFK.hpp",                         // 110
    "HotSpareRep.hpp",                    // 111
    "AlterTable.hpp",                     // 112
    "DisconnectRep.hpp",                  // 113
    "DihContinueB.hpp",                   // 114
-   "TupSizeAltReq.hpp",                  // 115
+   "TupSizeAltReq.hpp",                  // 115 DELETED FILE
    "AllocMem.hpp",                       // 116
    "TamperOrd.hpp",                      // 117
    "ResumeReq.hpp",                      // 118
@@ -258,7 +258,7 @@ static const char* const jamFileNames[] =
    "DbinfoScan.hpp",                     // 122
    "SchemaTrans.hpp",                    // 123
    "UtilDelete.hpp",                     // 124
-   "TcSizeAltReq.hpp",                   // 125
+   "TcSizeAltReq.hpp",                   // 125 DELETED FILE
    "DictStart.hpp",                      // 126
    "TcKeyReq.hpp",                       // 127
    "SrFragidConf.hpp",                   // 128
@@ -314,7 +314,7 @@ static const char* const jamFileNames[] =
    "TuxContinueB.hpp",                   // 178
    "PgmanContinueB.hpp",                 // 179
    "SystemError.hpp",                    // 180
-   "DihSizeAltReq.hpp",                  // 181
+   "DihSizeAltReq.hpp",                  // 181 DELETED FILE
    "TsmanContinueB.hpp",                 // 182
    "SetVarReq.hpp",                      // 183
    "StartOrd.hpp",                       // 184
@@ -389,7 +389,7 @@ static const char* const jamFileNames[] =
    "WatchDog.hpp",                       // 253
    "SimplePropertiesSection_mt.cpp",     // 254
    "Pool.cpp",                           // 255
-   "ClusterConfiguration.cpp",           // 256
+   "ClusterConfiguration.cpp",           // 256 DELETED FILE
    "DLCHashTable.hpp",                   // 257
    "KeyTable2.hpp",                      // 258
    "KeyDescriptor.hpp",                  // 259
