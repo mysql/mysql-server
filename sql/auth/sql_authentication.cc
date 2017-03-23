@@ -2054,6 +2054,7 @@ server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio)
   thd->security_context()->assign_user(
     mpvio->auth_info.user_name,
     (mpvio->auth_info.user_name ? strlen(mpvio->auth_info.user_name) : 0));
+  thd->security_context()->lock_account(mpvio->acl_user->account_locked);
   if (mpvio->auth_info.user_name)
     my_free(mpvio->auth_info.user_name);
   LEX_CSTRING sctx_user= thd->security_context()->user();
