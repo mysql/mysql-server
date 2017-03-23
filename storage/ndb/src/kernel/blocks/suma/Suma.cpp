@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4539,6 +4539,17 @@ Suma::execKEYINFO20(Signal* signal)
              refToInstance(signal->getSendersBlockRef()));
   ndbrequire(syncPtr.p->m_headersSection != RNIL);
   ndbrequire(syncPtr.p->m_dataSection != RNIL);
+
+  /* SUMA requests a special 'scanInfo only' KeyInfo */
+  ndbassert(data->keyLen == 0);
+  ndbassert(signal->getNoOfSections() == 0);
+
+  /* If there are sections, ignore them.  This should never happen. */
+  if (signal->getNoOfSections() > 0)
+  {
+    SectionHandle handle(this, signal);
+    releaseSections(handle);
+  }
 
   sendScanSubTableData(signal, syncPtr, takeOver);
 }

@@ -13255,8 +13255,9 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
    *  messing with if's below...
    */
   Uint32 keyLen ;
-  if (refToMain(ref) == SUMA && nodeId == getOwnNodeId())
+  if (refToMain(ref) == SUMA)
   {
+    ndbassert(refToNode(ref) == getOwnNodeId());
     keyLen = 0;
   }
   else
