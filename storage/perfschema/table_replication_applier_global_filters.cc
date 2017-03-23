@@ -179,7 +179,8 @@ void table_replication_applier_global_filters::make_row(
   memcpy(m_row.filter_name, rpl_pfs_filter->get_filter_name(),
          m_row.filter_name_length);
 
-  m_row.filter_rule.copy(rpl_pfs_filter->get_filter_rule());
+  if (!rpl_pfs_filter->get_filter_rule().is_empty())
+    m_row.filter_rule.copy(rpl_pfs_filter->get_filter_rule());
 
   m_row.configured_by=
     rpl_pfs_filter->m_rpl_filter_statistics.get_configured_by();
@@ -213,8 +214,9 @@ int table_replication_applier_global_filters::read_row_values(
         set_field_char_utf8(f, m_row.filter_name, m_row.filter_name_length);
         break;
       case 1: /* filter_rule */
-        set_field_longtext_utf8(f, m_row.filter_rule.ptr(),
-                                m_row.filter_rule.length());
+        if (!m_row.filter_rule.is_empty())
+          set_field_longtext_utf8(f, m_row.filter_rule.ptr(),
+                                  m_row.filter_rule.length());
         break;
       case 2: /* configured_by */
         set_field_enum(f, m_row.configured_by);
