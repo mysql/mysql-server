@@ -4090,6 +4090,15 @@ Dbspj::lookup_send(Signal* signal,
     ndbassert(checkTableError(treeNodePtr) == 0);
   }
 
+  /**
+   * Expected reply signal counts:
+   *  2: A non-Leaf will get both a TRANSID_AI reply and a CONF
+   *     (In case of a non-LEAF 'REF', it is counted twice)
+   *  1: A Leaf expect a CONF or REF if a scan request.
+   *     (TRANSID_AI sent directly to API-client)
+   *  0: A Leaf in a lookup request expect no replies to SPJ.
+   *     (All replies goes directly to API-client)
+   */
   Uint32 cnt = 2;
   if (treeNodePtr.p->isLeaf())
   {
@@ -4113,20 +4122,12 @@ Dbspj::lookup_send(Signal* signal,
   req->variableData[2] = treeNodePtr.p->m_send.m_correlation;
   req->variableData[3] = requestPtr.p->m_rootResultData;
 
-  if (!treeNodePtr.p->isLeaf())
+  if (!treeNodePtr.p->isLeaf() || requestPtr.p->isScan())
   {
-    /**
-     * Non-Leaf want TRANSID_AI-results to SPJ. 
-     * (Api-Client get its result from the FLUSH_AI)
-     */
+    // Non-LEAF want reply to SPJ instead of ApiClient.
+    LqhKeyReq::setNormalProtocolFlag(req->requestInfo, 1);
     req->variableData[0] = reference();
     req->variableData[1] = treeNodePtr.i;
-  }
-
-  if (requestPtr.p->isScan() || !treeNodePtr.p->isLeaf())
-  {
-    // Non-Leaf want CONF/REF-reply to SPJ instead of ApiClient.
-    LqhKeyReq::setNormalProtocolFlag(req->requestInfo, 1);
   }
   else
   {
@@ -5894,7 +5895,6 @@ Dbspj::scanIndex_build(Build_context& ctx,
       jam();
       break;
     }
-    ctx.m_resultData = param->resultData;
 
     err = createNode(ctx, requestPtr, treeNodePtr);
     if (unlikely(err != 0))
@@ -5923,8 +5923,8 @@ Dbspj::scanIndex_build(Build_context& ctx,
 
     ScanFragReq*dst=(ScanFragReq*)treeNodePtr.p->m_scanindex_data.m_scanFragReq;
     dst->senderData = treeNodePtr.i;
-    dst->resultRef = ctx.m_resultRef; // Assume Leaf, possibly modified in 'send'
-    dst->resultData = ctx.m_resultData;
+    dst->resultRef = reference();
+    dst->resultData = treeNodePtr.i;
     dst->savePointId = ctx.m_savepointId;
     dst->batch_size_rows  = 
       batchSize & ~(0xFFFFFFFF << QN_ScanIndexParameters::BatchRowBits);
@@ -5948,6 +5948,8 @@ Dbspj::scanIndex_build(Build_context& ctx,
     dst->requestInfo = requestInfo;
     dst->tableId = node->tableId;
     dst->schemaVersion = node->tableVersion;
+
+    ctx.m_resultData = param->resultData;
 
     /**
      * Parse stuff
@@ -7005,17 +7007,6 @@ Dbspj::scanIndex_send(Signal* signal,
   req->variableData[1] = requestPtr.p->m_rootResultData;
   req->batch_size_bytes = bs_bytes;
   req->batch_size_rows = bs_rows;
-
-  if (!treeNodePtr.p->isLeaf())
-  {
-    /**
-     * Non-Leaf want TRANSID_AI-results to SPJ. 
-     * (Api-Client get its result from the FLUSH_AI)
-     */
-    jam();
-    req->resultRef  = reference();
-    req->resultData = treeNodePtr.i;
-  }
 
   Uint32 requestsSent = 0;
   Uint32 err = checkTableError(treeNodePtr);
@@ -9320,11 +9311,19 @@ Dbspj::parseDA(Build_context& ctx,
          * FLUSH is skipped as we produced a single result
          * projection only. (to API client)
          *
-         * Need to have this under API-version control, as older
-         * API versions assumed that all SPJ results were 
+         * However, for scan requests we will always need to FLUSH:
+         * LqhKeyReq::tcBlockref need to refer this SPJ block as
+         * it is used to send the required REF/CONF to SPJ. However,
+         * tcBlockref is also used as the 'route' dest for TRANSID_AI_R,
+         * which should be routed to the requesting TC block. Thus
+         * we need the FLUSH which specifies its own RouteRef.
+         *
+         * Also need to have this under API-version control, as
+         * older API versions assumed that all SPJ results were 
          * returned as 'long' signals.
          */
         if (treeBits & DABits::NI_LINKED_ATTR ||
+            requestPtr.p->isScan() ||
             !ndbd_spj_api_support_short_TRANSID_AI(API_version))
         {
           /**
