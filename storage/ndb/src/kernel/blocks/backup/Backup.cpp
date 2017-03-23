@@ -11851,7 +11851,11 @@ Backup::execRESTORABLE_GCI_REP(Signal *signal)
            instance(),
            m_newestRestorableGci));
   m_delete_lcp_files_ongoing = true;
-  delete_lcp_file_processing(signal, m_lcp_ptr_i);
+  if (m_lcp_ptr_i != RNIL)
+  {
+    jam();
+    delete_lcp_file_processing(signal, m_lcp_ptr_i);
+  }
   return;
 }
 
