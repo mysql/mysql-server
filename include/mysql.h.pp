@@ -80,15 +80,6 @@ enum enum_server_command
   COM_RESET_CONNECTION,
   COM_END
 };
-#include "my_io.h"
-static inline int is_directory_separator(char c)
-{
-  return c == '/';
-}
-typedef int File;
-typedef mode_t MY_MODE;
-typedef socklen_t socket_len_t;
-typedef int my_socket;
 enum SERVER_STATUS_flags_enum
 {
   SERVER_STATUS_IN_TRANS= 1,

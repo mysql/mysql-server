@@ -18,7 +18,6 @@
 SET(HEADERS
   mem_root_fwd.h
   my_command.h
-  my_io.h
   my_list.h
   mysql.h
   mysql_com.h

@@ -26,7 +26,14 @@
 #endif
 
 #include "my_command.h"
+
+/*
+  We need a definition for my_socket. On the client, <mysql.h> already provides
+  it, but on the server side, we need to get it from a header.
+*/
+#ifndef my_socket_defined
 #include "my_io.h"
+#endif
 
 #ifndef MYSQL_ABI_CHECK
 #include <stdbool.h>
