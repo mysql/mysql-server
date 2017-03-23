@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@ ndb_basename(const char * path)
   if (path == NULL)
     return NULL;
 
-  const char separator = '/';
+  const char separator = DIR_SEPARATOR[0];
   const char * p = path + strlen(path);
   while (p > path && p[0] != separator)
     p--;
