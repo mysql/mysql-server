@@ -679,6 +679,19 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
             reconnectThread.start();
         }
     }
+
+    protected static int countSessions(SessionFactoryImpl factory) {
+        return countSessions(factory.getConnectionPoolSessionCounts());
+    }
+
+    protected static int countSessions(List<Integer> sessionCounts) {
+        int result = 0;
+        for (int i: sessionCounts) {
+            result += i;
+        }
+        return result;
+    }
+
     protected static class ReconnectThread implements Runnable {
         SessionFactoryImpl factory;
         ReconnectThread(SessionFactoryImpl factory) {
@@ -689,16 +702,11 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
             boolean done = false;
             int iterations = factory.CLUSTER_RECONNECT_TIMEOUT;
             while (!done && iterations-- > 0) {
-                done = true;
-                sessionCounts = factory.getConnectionPoolSessionCounts();
-                for (int i: sessionCounts) {
-                    if (i != 0) {
-                        done = false;
-                    }
-                }
+                done = countSessions(sessionCounts) == 0;
                 if (!done) {
                     logger.info(local.message("INFO_Reconnect_wait", sessionCounts.toString()));
                     sleep(1000);
+                    sessionCounts = factory.getConnectionPoolSessionCounts();
                 }
             }
             if (!done) {
@@ -706,6 +714,13 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
                 logger.warn(local.message("WARN_Reconnect_timeout", sessionCounts.toString()));
             }
             logger.warn(local.message("WARN_Reconnect_closing"));
+            // mark all cluster connections as closing
+            for (ClusterConnection clusterConnection: factory.pooledConnections) {
+                clusterConnection.closing();
+            }
+            // wait for connections to close on their own
+            sleep(1000);
+            // hard close connections that didn't close on their own
             for (ClusterConnection clusterConnection: factory.pooledConnections) {
                 clusterConnection.close();
             }
