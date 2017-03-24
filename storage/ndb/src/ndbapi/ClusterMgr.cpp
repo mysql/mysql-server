@@ -697,7 +697,7 @@ ClusterMgr::sendProcessInfoReport(NodeId nodeId)
     hostSection.p = (Uint32 *) hostAddress;
     hostSection.sz = ProcessInfo::AddressStringLengthInWords;
   }
-  raw_sendSignal(&signal, nodeId, ptr, nsections);
+  safe_noflush_sendSignal(&signal, nodeId, ptr, nsections);
 }
 
 
