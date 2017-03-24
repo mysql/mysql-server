@@ -103,6 +103,8 @@ public class ClusterConnectionImpl
     /** The dictionary used to create NdbRecords */
     Dictionary dictionaryForNdbRecord = null;
 
+    private boolean isClosing = false;
+
     private long[] autoIncrement;
 
     private static final String USE_SMART_VALUE_HANDLER_NAME = "com.mysql.clusterj.UseSmartValueHandler";
@@ -223,7 +225,8 @@ public class ClusterConnectionImpl
         throw new ClusterJDatastoreException(msg);
     }
 
-    public void close() {
+    public void closing() {
+        this.isClosing = true;
         if (clusterConnection != null) {
             logger.info(local.message("INFO_Close_Cluster_Connection", connectString, nodeId));
             if (dbs.size() > 0) {
@@ -231,15 +234,22 @@ public class ClusterConnectionImpl
                     // mark all dbs as closing so no more operations will start
                     db.closing();
                 }
-                dbForNdbRecord.closing();
+            }
+            dbForNdbRecord.closing();
+        }
+    }
 
-                if (dbs.size() != 0) {
-                    // sleep for 1000 milliseconds to allow operations in other threads to terminate
-                    sleep(1000);
-                    Map<Db, Object> dbsToClose = new IdentityHashMap<Db, Object>(dbs);
-                    for (Db db: dbsToClose.keySet()) {
-                        db.close();
-                    }
+    public void close() {
+        if (clusterConnection != null) {
+            if (!this.isClosing) {
+                this.closing();
+                // sleep for 1000 milliseconds to allow operations in other threads to terminate
+                sleep(1000);
+            }
+            if (dbs.size() != 0) {
+                Map<Db, Object> dbsToClose = new IdentityHashMap<Db, Object>(dbs);
+                for (Db db: dbsToClose.keySet()) {
+                    db.close();
                 }
             }
             for (NdbRecordImpl ndbRecord: ndbRecordImplMap.values()) {
