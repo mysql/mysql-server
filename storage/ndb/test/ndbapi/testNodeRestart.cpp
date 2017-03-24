@@ -8232,10 +8232,12 @@ int runRestartandCheckLCPRestored(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 lcp_restored= event.LCPRestored.restored_lcp_id;
   ndbout << "LCP Restored: " << lcp_restored << endl;
   Uint32 first_lcp= ctx->getProperty("LCP", (Uint32)0);
-  if(lcp_restored != first_lcp)
+  if(lcp_restored != first_lcp &&
+     lcp_restored != (first_lcp + 1))
   {
     g_err << "ERROR: LCP " << lcp_restored << " restored, "
-          << "expected restore of LCP " << first_lcp << endl;
+          << "expected restore of LCP " << first_lcp
+          << " or " << (first_lcp + 1) << endl;
     if(restarter.insertErrorInNode(node, 0) != 0)
     {
       g_err << "ERROR: Error insert clear failed" << endl;
