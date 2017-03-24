@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import com.mysql.clusterj.ClusterJDatastoreException;
+import com.mysql.clusterj.ClusterJException;
 import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.Query;
 import com.mysql.clusterj.Session;
@@ -35,7 +36,6 @@ import testsuite.clusterj.model.Customer;
 import testsuite.clusterj.model.Order;
 import testsuite.clusterj.model.OrderLine;
 
-@org.junit.Ignore("disable test until diagnosis of failure")
 public class ReconnectTest extends AbstractClusterJModelTest {
 
     @Override
@@ -240,11 +240,10 @@ public class ReconnectTest extends AbstractClusterJModelTest {
                 Query<OrderLine> queryOrder = session.createQuery(queryOrderType);
                 queryOrder.setParameter("orderId", 0);
                 queryOrder.getResultList();
-                } catch (ClusterJUserException cjue) {
+                sleep(100);
+                } catch (ClusterJException cje) {
+                    // the exception might be any of several exceptions when disconnecting/reconnecting
                     done = true;
-                    if (!cjue.getMessage().contains("this Db is closing")) {
-                        if (getDebug()) { System.out.print(" Misbehaving caught exception: " + cjue.getMessage()); }
-                    }
                 }
             }
         }
