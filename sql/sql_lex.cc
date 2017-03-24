@@ -513,6 +513,8 @@ void LEX::reset()
   reparse_common_table_expr_at= 0;
   opt_hints_global= NULL;
   binlog_need_explicit_defaults_ts= false;
+
+  clear_privileges();
 }
 
 
@@ -1519,12 +1521,14 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 	state= MY_LEX_HEX_NUMBER;
 	break;
       }
+      // Fall through.
     case MY_LEX_IDENT_OR_BIN:
       if (lip->yyPeek() == '\'')
       {                                 // Found b'bin-number'
         state= MY_LEX_BIN_NUMBER;
         break;
       }
+      // Fall through.
     case MY_LEX_IDENT:
       const char *start;
       if (use_mb(cs))
@@ -1883,6 +1887,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 	break;
       }
       /* " used for strings */
+      // Fall through.
     case MY_LEX_STRING:			// Incomplete text string
       if (!(yylval->lex_str.str = get_text(lip, 1, 1)))
       {
@@ -3427,6 +3432,20 @@ bool SELECT_LEX::accept(Select_lex_visitor *visitor)
 }
 
 
+void LEX::clear_privileges()
+{
+  users_list.empty();
+  columns.empty();
+  grant= grant_tot_col= 0;
+  all_privileges= false;
+  ssl_type= SSL_TYPE_NOT_SPECIFIED;
+  ssl_cipher= x509_subject= x509_issuer= nullptr;
+  alter_password.cleanup();
+  memset(&mqh, 0, sizeof(mqh));
+  dynamic_privileges.empty();
+}
+
+
 /**
   @brief Restore the LEX and THD in case of a parse error.
 
@@ -3550,6 +3569,7 @@ LEX::LEX()
    plugins(PSI_NOT_INSTRUMENTED),
    insert_update_values_map(NULL),
    option_type(OPT_DEFAULT),
+   drop_temporary(false),
    sphead(NULL),
    // Initialize here to avoid uninitialized variable warnings.
    contains_plaintext_password(false),
@@ -3717,7 +3737,8 @@ LEX::copy_db_to(char **p_db, size_t *p_db_length) const
 
   @returns false if success, true if error
 */
-bool SELECT_LEX_UNIT::prepare_limit(THD *thd_arg, SELECT_LEX *provider)
+bool SELECT_LEX_UNIT::prepare_limit(THD *thd_arg MY_ATTRIBUTE((unused)),
+                                    SELECT_LEX *provider)
 {
   /// @todo Remove THD from class SELECT_LEX_UNIT
   DBUG_ASSERT(this->thd == thd_arg);
@@ -3738,7 +3759,8 @@ bool SELECT_LEX_UNIT::prepare_limit(THD *thd_arg, SELECT_LEX *provider)
 
   @returns false if success, true if error
 */
-bool SELECT_LEX_UNIT::set_limit(THD *thd_arg, SELECT_LEX *provider)
+bool SELECT_LEX_UNIT::set_limit(THD *thd_arg MY_ATTRIBUTE((unused)),
+                                SELECT_LEX *provider)
 {
   /// @todo Remove THD from class SELECT_LEX_UNIT
   DBUG_ASSERT(this->thd == thd_arg);

@@ -569,13 +569,6 @@ install -D -m 0755 packaging/rpm-sles/mysql.init %{buildroot}%{_sysconfdir}/init
 install -d -m 0755 %{buildroot}%{_sysconfdir}/ld.so.conf.d
 echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 
-# multiarch support
-%ifarch %{multiarchs}
-mv %{buildroot}/%{_includedir}/mysql/my_config.h \
-   %{buildroot}/%{_includedir}/mysql/my_config_%{_arch}.h
-install -p -m 0644 packaging/rpm-common/my_config.h %{buildroot}/%{_includedir}/mysql/my_config.h
-%endif
-
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_infodir}/mysql.info*
 rm -rf %{buildroot}%{_datadir}/mysql/mysql.server

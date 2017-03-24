@@ -492,7 +492,7 @@ SET FOREIGN_KEY_CHECKS=0;
 alter table t2 DROP COLUMN b, ALGORITHM=COPY;
 ERROR HY000: Cannot drop column 'b': needed in a foreign key constraint 't2_ibfk_1'
 alter table t2 DROP COLUMN b;
-ERROR HY000: Cannot drop index 'b': needed in a foreign key constraint
+ERROR HY000: Cannot drop column 'b': needed in a foreign key constraint 't2_ibfk_1'
 alter table t1 DROP COLUMN b, ALGORITHM=COPY;
 ERROR HY000: Cannot drop column 'b': needed in a foreign key constraint 't2_ibfk_1' of table 'test.t2'
 alter table t1 DROP COLUMN b;

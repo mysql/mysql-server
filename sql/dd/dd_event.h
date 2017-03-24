@@ -92,6 +92,7 @@ bool create_event(THD *thd, const Schema &schema,
 
   @param thd                 Thread handle
   @param event               Event to update.
+  @param schema              Schema currently containing the event.
   @param new_schema          New Schema or nullptr if the schema does not change.
   @param new_event_name      Updated Event name.
   @param new_event_body      Updated Event body.
@@ -103,6 +104,7 @@ bool create_event(THD *thd, const Schema &schema,
   @retval false Event updation succeeded.
 */
 bool update_event(THD *thd, Event *event,
+                  const dd::Schema &schema,
                   const dd::Schema *new_schema,
                   const String_type &new_event_name,
                   const String_type &new_event_body,

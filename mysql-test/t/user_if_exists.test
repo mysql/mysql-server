@@ -3,9 +3,6 @@
 # in CREATE / ALTER / DROP USER commands.
 #
 
-# Requires privileges to be enabled
---source include/not_embedded.inc
-
 CALL mtr.add_suppression('Following users were specified in CREATE USER IF NOT EXISTS but they already exist');
 CALL mtr.add_suppression('Following users were specified in ALTER USER IF EXISTS but they do not exist');
 

@@ -21,12 +21,17 @@
   the XCom Group communication library.
 */
 
-#include "xplatform/my_xp_thread.h"
-#include "xplatform/my_xp_mutex.h"
-#include "xplatform/my_xp_cond.h"
+#include <map>
+#include <string>
+#include <cstdlib>
+#include <ctime>
 
-#include "gcs_logging.h"
-#include "gcs_interface.h"
+#include "mysql/gcs/xplatform/my_xp_thread.h"
+#include "mysql/gcs/xplatform/my_xp_mutex.h"
+#include "mysql/gcs/xplatform/my_xp_cond.h"
+#include "mysql/gcs/gcs_logging.h"
+#include "mysql/gcs/gcs_interface.h"
+
 #include "gcs_xcom_communication_interface.h"
 #include "gcs_xcom_control_interface.h"
 #include "gcs_xcom_statistics_interface.h"
@@ -34,11 +39,6 @@
 #include "gcs_xcom_group_management.h"
 #include "gcs_xcom_utils.h"
 #include "gcs_xcom_networking.h"
-
-#include <map>
-#include <string>
-#include <cstdlib>
-#include <ctime>
 
 /**
   Struct that holds instances of this binding interface implementations.
@@ -300,10 +300,5 @@ int cb_xcom_match_port(xcom_port if_port);
 }
 #endif
 
-
-#ifdef WITH_UNIT_TESTS
-void do_cb_xcom_receive_data(synode_no message_id, Gcs_xcom_nodes *xcom_nodes, u_int size,
-                          char *data);
-#endif
 
 #endif  /* GCS_XCOM_INTERFACE_INCLUDED */

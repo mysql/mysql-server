@@ -24,6 +24,7 @@
 #include "item.h"
 #include "item_cmpfunc.h"       // Item_bool_func
 #include "item_func.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"

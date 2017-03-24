@@ -18,14 +18,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "lex_string.h"
 #include "my_inttypes.h"
-#include "mysql/mysql_lex_string.h"             // LEX_STRING
+#include "mysql/mysql_lex_string.h"
 
 class Event_basic;
 class Event_parse_data;
 class THD;
 struct TABLE_LIST;
-typedef struct st_mysql_lex_string LEX_STRING;
 typedef long my_time_t;
 
 namespace dd {

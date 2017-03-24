@@ -617,7 +617,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  collation: 8
+  collation: 255
   fractional_digits: 0
   length: 4
   flags: 0
@@ -6450,9 +6450,9 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "t1"
   schema: "test"
   catalog: "def"
-  collation: 8
+  collation: 255
   fractional_digits: 0
-  length: 3
+  length: 12
   flags: 1
 }
 
@@ -6490,9 +6490,9 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "t1"
   schema: "test"
   catalog: "def"
-  collation: 8
+  collation: 255
   fractional_digits: 0
-  length: 3
+  length: 12
   flags: 1
 }
 
@@ -6624,9 +6624,9 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "t1"
   schema: "test"
   catalog: "def"
-  collation: 8
+  collation: 255
   fractional_digits: 0
-  length: 3
+  length: 12
   flags: 1
 }
 

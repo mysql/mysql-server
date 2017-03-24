@@ -23,7 +23,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 13 */
 SHOW CREATE TABLE t2;
@@ -32,7 +32,7 @@ t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 13 */
 #
@@ -118,7 +118,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` int(11) DEFAULT NULL,
   `b` char(10) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 2 */
 FLUSH STATUS;
@@ -271,6 +271,7 @@ c varchar(64) DEFAULT "Default",
 d int unsigned DEFAULT 9,
 e varchar(255) DEFAULT "Default-filler.filler.filler.",
 PRIMARY KEY (a,b,c,d))
+charset latin1
 PARTITION BY RANGE COLUMNS (a, b)
 SUBPARTITION BY LINEAR KEY (d, c)
 SUBPARTITIONS 4
@@ -607,7 +608,7 @@ t3	CREATE TABLE `t3` (
   `a` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `b` char(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (UNIX_TIMESTAMP(a))
 PARTITIONS 3 */
 FLUSH STATUS;
@@ -737,7 +738,7 @@ t3	CREATE TABLE `t3` (
   `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `b` char(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (UNIX_TIMESTAMP(a))
 PARTITIONS 3 */
 FLUSH STATUS;
@@ -874,7 +875,7 @@ t3	CREATE TABLE `t3` (
   `a` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP,
   `b` char(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (UNIX_TIMESTAMP(a))
 PARTITIONS 3 */
 FLUSH STATUS;
@@ -1010,7 +1011,7 @@ t3	CREATE TABLE `t3` (
   `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `b` char(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (UNIX_TIMESTAMP(a))
 PARTITIONS 3 */
 FLUSH STATUS;
@@ -1141,7 +1142,7 @@ t3	CREATE TABLE `t3` (
   `a` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   `b` char(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 3 */
 FLUSH STATUS;
@@ -1263,7 +1264,7 @@ t3	CREATE TABLE `t3` (
   `a` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `b` char(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 3 */
 FLUSH STATUS;
@@ -1391,7 +1392,7 @@ t3	CREATE TABLE `t3` (
   `a` datetime NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP,
   `b` char(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 3 */
 FLUSH STATUS;
@@ -1518,7 +1519,7 @@ t3	CREATE TABLE `t3` (
   `a` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `b` char(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 3 */
 FLUSH STATUS;
@@ -1646,7 +1647,7 @@ t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 13 */
 FLUSH STATUS;
@@ -1925,7 +1926,7 @@ Handler_read_next	5
 FLUSH STATUS;
 EXPLAIN PARTITIONS SELECT * FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	index	NULL	b	131	NULL	#	100.00	Using index
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	index	NULL	b	515	NULL	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1`
@@ -1944,7 +1945,7 @@ Handler_external_lock	2
 FLUSH STATUS;
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a IN (13, 26, 39, 52);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0	index	PRIMARY	b	131	NULL	#	44.44	Using where; Using index
+1	SIMPLE	t1	p0	index	PRIMARY	b	515	NULL	#	44.44	Using where; Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (13,26,39,52))
@@ -1965,7 +1966,7 @@ Handler_read_key	1
 FLUSH STATUS;
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b LIKE 'First%' ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	range	b	b	131	NULL	#	100.00	Using where; Using index; Using filesort
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	range	b	b	515	NULL	#	100.00	Using where; Using index; Using filesort
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` like 'First%') order by `test`.`t1`.`a`
@@ -2058,7 +2059,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` int(11) NOT NULL,
   `b` varchar(128) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 5 */
 FLUSH STATUS;
@@ -2157,7 +2158,7 @@ FLUSH STATUS;
 EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM t1 WHERE a IN (0,2,3,13,26)) t3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-2	DERIVED	t1	p0,p2,p3	index	PRIMARY	b	131	NULL	#	45.45	Using where; Using index
+2	DERIVED	t1	p0,p2,p3	index	PRIMARY	b	515	NULL	#	45.45	Using where; Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,2,3,13,26))) `t3`
@@ -2169,7 +2170,7 @@ EXPLAIN PARTITIONS SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0,
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-3	DERIVED	t1	p0,p2,p3	index	PRIMARY	b	131	NULL	#	45.45	Using where; Using index
+3	DERIVED	t1	p0,p2,p3	index	PRIMARY	b	515	NULL	#	45.45	Using where; Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `t4`.`a` AS `a`,`t4`.`b` AS `b` from (/* select#2 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from (/* select#3 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (0,2,3,13,26))) `t3`) `t4`
@@ -2307,7 +2308,7 @@ Handler_write	16
 FLUSH STATUS;
 EXPLAIN PARTITIONS SELECT * FROM t1 UNION SELECT * FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	index	NULL	b	131	NULL	#	100.00	Using index
+1	PRIMARY	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	index	NULL	b	515	NULL	#	100.00	Using index
 2	UNION	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
@@ -2319,7 +2320,7 @@ Handler_external_lock	4
 FLUSH STATUS;
 EXPLAIN SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26) UNION SELECT * FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	p0,p1,p4	index	PRIMARY	b	131	NULL	#	41.67	Using where; Using index
+1	PRIMARY	t1	p0,p1,p4	index	PRIMARY	b	515	NULL	#	41.67	Using where; Using index
 2	UNION	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
@@ -2331,7 +2332,7 @@ FLUSH STATUS;
 EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 26)) t3 UNION SELECT * FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-2	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	131	NULL	#	41.67	Using where; Using index
+2	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	515	NULL	#	41.67	Using where; Using index
 3	UNION	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 NULL	UNION RESULT	<union1,3>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
@@ -2344,7 +2345,7 @@ EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	131	NULL	#	41.67	Using where; Using index
+3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	515	NULL	#	41.67	Using where; Using index
 4	UNION	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 NULL	UNION RESULT	<union3,4>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
@@ -2357,7 +2358,7 @@ EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	131	NULL	#	41.67	Using where; Using index
+3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	515	NULL	#	41.67	Using where; Using index
 4	UNION	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 NULL	UNION RESULT	<union2,4>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
@@ -2370,7 +2371,7 @@ EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	131	NULL	#	41.67	Using where; Using index
+3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	515	NULL	#	41.67	Using where; Using index
 4	UNION	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 NULL	UNION RESULT	<union1,4>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
@@ -2383,7 +2384,7 @@ EXPLAIN SELECT * FROM (SELECT * FROM (SELECT * FROM t1 WHERE a IN (0, 1, 13, 4, 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	131	NULL	#	41.67	Using where; Using index
+3	DERIVED	t1	p0,p1,p4	index	PRIMARY	b	515	NULL	#	41.67	Using where; Using index
 4	UNION	t2	p1	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
 NULL	UNION RESULT	<union2,4>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
@@ -2521,7 +2522,7 @@ t2.b = CONCAT(t2.b, ", t1.b:", t1.b)
 WHERE t2.b = t1.b and t2.a = 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p4	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
-1	UPDATE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ref	b	b	131	const	#	100.00	NULL
+1	UPDATE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ref	b	b	515	const	#	100.00	NULL
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 VARIABLE_NAME	VARIABLE_VALUE
@@ -2535,7 +2536,7 @@ t2.b = CONCAT(t2.b, ", t1.b:", t1.b)
 WHERE t2.b = t1.b and t2.a = 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p4	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
-1	UPDATE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ref	b	b	131	const	#	100.00	NULL
+1	UPDATE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ref	b	b	515	const	#	100.00	NULL
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 VARIABLE_NAME	VARIABLE_VALUE
@@ -2996,7 +2997,7 @@ Handler_external_lock	2
 FLUSH STATUS;
 EXPLAIN PARTITIONS DELETE FROM t1 WHERE b = "No duplicate";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	range	b	b	131	const	#	100.00	Using where
+1	DELETE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	range	b	b	515	const	#	100.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 VARIABLE_NAME	VARIABLE_VALUE
@@ -3014,7 +3015,7 @@ Handler_external_lock	2
 FLUSH STATUS;
 EXPLAIN PARTITIONS DELETE FROM t1 WHERE b = "No duplicate";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	range	b	b	131	const	#	100.00	Using where
+1	DELETE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	range	b	b	515	const	#	100.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 VARIABLE_NAME	VARIABLE_VALUE
@@ -3108,7 +3109,7 @@ FLUSH STATUS;
 EXPLAIN PARTITIONS DELETE t1, t2 FROM t1, t2
 WHERE t1.a = t2.a AND t1.b = 'First row, p1';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ref	PRIMARY,b	b	131	const	#	100.00	NULL
+1	DELETE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ref	PRIMARY,b	b	515	const	#	100.00	NULL
 1	DELETE	t2	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	#	100.00	NULL
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
@@ -3120,7 +3121,7 @@ EXPLAIN PARTITIONS DELETE FROM t2, t1 USING t2, t1
 WHERE t1.b = t2.b AND t2.a = 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	p4	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
-1	DELETE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ref	b	b	131	const	#	100.00	NULL
+1	DELETE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ref	b	b	515	const	#	100.00	NULL
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 VARIABLE_NAME	VARIABLE_VALUE
@@ -3177,7 +3178,7 @@ FLUSH STATUS;
 EXPLAIN PARTITIONS SELECT count(*) FROM t1 p
 WHERE a IN (1, 2, 9);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	p	p1,p2,p9	index	PRIMARY	b	131	NULL	4	75.00	Using where; Using index
+1	SIMPLE	p	p1,p2,p9	index	PRIMARY	b	515	NULL	4	75.00	Using where; Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` `p` where (`test`.`p`.`a` in (1,2,9))
@@ -3225,7 +3226,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 13 */
 SHOW CREATE TABLE t2;
@@ -3234,7 +3235,7 @@ t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 13 */
 SHOW CREATE TABLE t3;
@@ -3246,7 +3247,7 @@ t3	CREATE TABLE `t3` (
   `new_b` varchar(255) DEFAULT NULL,
   KEY `new_a` (`new_a`,`new_b`),
   KEY `new_b` (`new_b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (new_a)
 PARTITIONS 5 */
 FLUSH STATUS;
@@ -3296,7 +3297,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 13 */
 FLUSH STATUS;
@@ -3322,7 +3323,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 13 */
 FLUSH STATUS;
@@ -3348,7 +3349,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 13 */
 FLUSH STATUS;
@@ -3426,7 +3427,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 13 */
 FLUSH STATUS;
@@ -3546,7 +3547,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 13 */
 FLUSH STATUS;
@@ -3595,7 +3596,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 13 */
 FLUSH STATUS;
@@ -3644,7 +3645,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 13 */
 FLUSH STATUS;
@@ -3695,7 +3696,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 13 */
 FLUSH STATUS;
@@ -3745,7 +3746,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 13 */
 FLUSH STATUS;
@@ -3803,7 +3804,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(128) DEFAULT NULL,
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 13 */
 SHOW CREATE TABLE t2;
@@ -3812,7 +3813,7 @@ t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 13 */
 INSERT INTO t1 VALUES (1, "MultiUpdate1");
@@ -3831,7 +3832,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(128) DEFAULT NULL,
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 13 */
 SHOW CREATE TABLE t2;
@@ -3840,7 +3841,7 @@ t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 13 */
 FLUSH STATUS;
@@ -3894,7 +3895,7 @@ t2.b = CONCAT(t2.b, ",(2) t1.b:", t1.b)
 WHERE t1.b = t2.b and t2.a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p2	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
-1	UPDATE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ref	b	b	131	const	#	100.00	NULL
+1	UPDATE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ref	b	b	515	const	#	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 VARIABLE_NAME	VARIABLE_VALUE
@@ -3909,7 +3910,7 @@ t2.b = CONCAT(t2.b, ",(2) t1.b:", t1.b)
 WHERE t1.b = t2.b and t2.a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p2	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
-1	UPDATE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ref	b	b	131	const	#	100.00	NULL
+1	UPDATE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12	ref	b	b	515	const	#	100.00	NULL
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 VARIABLE_NAME	VARIABLE_VALUE
@@ -3973,7 +3974,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(128) DEFAULT NULL,
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION pNeg VALUES LESS THAN (0) ENGINE = InnoDB,
  PARTITION p0 VALUES LESS THAN (1) ENGINE = InnoDB,
@@ -3987,7 +3988,7 @@ t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION pNeg VALUES LESS THAN (0) ENGINE = InnoDB,
  PARTITION p0 VALUES LESS THAN (1) ENGINE = InnoDB,
@@ -4494,7 +4495,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 3 */
 FLUSH STATUS;
@@ -4532,7 +4533,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (a)
 PARTITIONS 3 */
 FLUSH STATUS;
@@ -4702,7 +4703,7 @@ set @old_autocommit= @@autocommit;
 EXPLAIN PARTITIONS SELECT * FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	p1	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t2` where 1
@@ -4731,7 +4732,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT * FROM t2 WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	p2	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '8' AS `a`,'8' AS `b` from `test`.`t2` where ('8' = (7 + (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`b` = '1'))))
@@ -4759,7 +4760,7 @@ Handler_read_next	1
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT * FROM t2 WHERE a = sf_a_from_t1b('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2	index	NULL	b	258	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t2	p0,p1,p2	index	NULL	b	1023	NULL	#	33.33	Using where; Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`a` = `sf_a_from_t1b`('1'))
@@ -4817,7 +4818,7 @@ Handler_read_next	3
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT * FROM t2 WHERE a = 7 + sf_a_from_t1b('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2	index	NULL	b	258	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t2	p0,p1,p2	index	NULL	b	1023	NULL	#	33.33	Using where; Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`a` = (7 + `sf_a_from_t1b`('1')))
@@ -4928,7 +4929,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT * FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Impossible WHERE
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where 0
@@ -4954,8 +4955,8 @@ Handler_read_next	1
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT * FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	p1,p2	index	PRIMARY	b	258	NULL	#	66.67	Using where; Using index
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+1	PRIMARY	t2	p1,p2	index	PRIMARY	b	1023	NULL	#	66.67	Using where; Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`a` = (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`b` = '1'))) or (`test`.`t2`.`a` = 2))
@@ -4988,7 +4989,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT * FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2 OR a = 8 AND sf_a_from_t1b('2');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	p2	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '8' AS `a`,'8' AS `b` from `test`.`t2` where (`sf_a_from_t1b`('2'))
@@ -5005,7 +5006,7 @@ Handler_read_next	2
 EXPLAIN PARTITIONS SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	p1	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (`sf_add_1`('1') - 1) AS `sf_add_1(a) - 1`,`sf_add_hello`('1') AS `sf_add_hello(b)` from `test`.`t2` where 1
@@ -5034,7 +5035,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	p2	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (`sf_add_1`('8') - 1) AS `sf_add_1(a) - 1`,`sf_add_hello`('8') AS `sf_add_hello(b)` from `test`.`t2` where ('8' = (7 + (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`b` = '1'))))
@@ -5062,7 +5063,7 @@ Handler_read_next	1
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = sf_a_from_t1b('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2	index	NULL	b	258	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t2	p0,p1,p2	index	NULL	b	1023	NULL	#	33.33	Using where; Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (`sf_add_1`(`test`.`t2`.`a`) - 1) AS `sf_add_1(a) - 1`,`sf_add_hello`(`test`.`t2`.`b`) AS `sf_add_hello(b)` from `test`.`t2` where (`test`.`t2`.`a` = `sf_a_from_t1b`('1'))
@@ -5120,7 +5121,7 @@ Handler_read_next	3
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = 7 + sf_a_from_t1b('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2	index	NULL	b	258	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t2	p0,p1,p2	index	NULL	b	1023	NULL	#	33.33	Using where; Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (`sf_add_1`(`test`.`t2`.`a`) - 1) AS `sf_add_1(a) - 1`,`sf_add_hello`(`test`.`t2`.`b`) AS `sf_add_hello(b)` from `test`.`t2` where (`test`.`t2`.`a` = (7 + `sf_a_from_t1b`('1')))
@@ -5231,7 +5232,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Impossible WHERE
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (`sf_add_1`(`test`.`t2`.`a`) - 1) AS `sf_add_1(a) - 1`,`sf_add_hello`(`test`.`t2`.`b`) AS `sf_add_hello(b)` from `test`.`t2` where 0
@@ -5257,8 +5258,8 @@ Handler_read_next	1
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	p1,p2	index	PRIMARY	b	258	NULL	#	66.67	Using where; Using index
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+1	PRIMARY	t2	p1,p2	index	PRIMARY	b	1023	NULL	#	66.67	Using where; Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (`sf_add_1`(`test`.`t2`.`a`) - 1) AS `sf_add_1(a) - 1`,`sf_add_hello`(`test`.`t2`.`b`) AS `sf_add_hello(b)` from `test`.`t2` where ((`test`.`t2`.`a` = (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`b` = '1'))) or (`test`.`t2`.`a` = 2))
@@ -5291,7 +5292,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2 OR a = 8 AND sf_a_from_t1b('2');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	p2	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (`sf_add_1`('8') - 1) AS `sf_add_1(a) - 1`,`sf_add_hello`('8') AS `sf_add_hello(b)` from `test`.`t2` where (`sf_a_from_t1b`('2'))
@@ -5308,7 +5309,7 @@ Handler_read_next	2
 EXPLAIN PARTITIONS UPDATE t2 SET b = CONCAT('+', b) WHERE a = (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p1	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -5346,7 +5347,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = CONCAT('+', b) WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -5610,7 +5611,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = CONCAT('+', b) WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Impossible WHERE
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -5646,7 +5647,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = CONCAT('+', b) WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p1,p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -5684,7 +5685,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = CONCAT('+', b) WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2 OR a = 8 AND sf_a_from_t1b('2');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -5705,7 +5706,7 @@ ROLLBACK;
 EXPLAIN PARTITIONS UPDATE t2 SET b = sf_add_hello(b) WHERE a = (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p1	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -5743,7 +5744,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = sf_add_hello(b) WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -6007,7 +6008,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = sf_add_hello(b) WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Impossible WHERE
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -6043,7 +6044,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = sf_add_hello(b) WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p1,p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -6081,7 +6082,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = sf_add_hello(b) WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2 OR a = 8 AND sf_a_from_t1b('2');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -6102,7 +6103,7 @@ ROLLBACK;
 EXPLAIN PARTITIONS UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p1	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where; Using temporary
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -6144,7 +6145,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where; Using temporary
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -6424,7 +6425,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Impossible WHERE
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -6460,7 +6461,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p1,p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where; Using temporary
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -6502,7 +6503,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2 OR a = 8 AND sf_a_from_t1b('2');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where; Using temporary
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -6525,7 +6526,7 @@ ROLLBACK;
 EXPLAIN PARTITIONS DELETE FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	p1	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -6561,7 +6562,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS DELETE FROM t2 WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -6815,7 +6816,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS DELETE FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Impossible WHERE
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -6851,7 +6852,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS DELETE FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	p1,p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -6885,7 +6886,7 @@ UNLOCK TABLES;
 EXPLAIN PARTITIONS DELETE FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2 OR a = 8 AND sf_a_from_t1b('2');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
-2	SUBQUERY	t1	p0,p1,p2	ref	b	b	258	const	#	100.00	Using index
+2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;

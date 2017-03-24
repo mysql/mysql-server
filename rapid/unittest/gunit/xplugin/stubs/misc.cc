@@ -59,88 +59,88 @@ PSI_socket_key KEY_socket_x_client_connection = PSI_NOT_INSTRUMENTED;
 const char  *my_localhost;
 int32 volatile connection_events_loop_aborted_flag;;
 
-int ip_to_hostname(struct sockaddr_storage *ip_storage,
-                const char *ip_string,
-                char **hostname,
-                uint *connect_errors)
+int ip_to_hostname(struct sockaddr_storage*,
+                   const char*,
+                   char**,
+                   uint*)
 {
   DBUG_ASSERT(0);
   return 1;
 }
 
-int register_server_state_observer(Server_state_observer *observer, void *p)
+int register_server_state_observer(Server_state_observer*, void*)
 {
   return 0;
 }
 
-int unregister_server_state_observer(Server_state_observer *observer, void *p)
-{
-  return 0;
-}
-
-extern "C"
-void ssl_wrapper_version(Vio *vio, char *version, const size_t version_size)
-{
-}
-
-extern "C"
-void ssl_wrapper_cipher(Vio *vio, char *cipher, const size_t cipher_size)
-{
-}
-
-extern "C"
-long ssl_wrapper_cipher_list(Vio *vio, const char **clipher_list, const size_t maximun_num_of_elements)
+int unregister_server_state_observer(Server_state_observer*, void*)
 {
   return 0;
 }
 
 extern "C"
-long ssl_wrapper_verify_depth(Vio *vio)
+void ssl_wrapper_version(Vio*, char*, const size_t)
+{
+}
+
+extern "C"
+void ssl_wrapper_cipher(Vio*, char*, const size_t)
+{
+}
+
+extern "C"
+long ssl_wrapper_cipher_list(Vio*, const char**, const size_t)
 {
   return 0;
 }
 
 extern "C"
-long ssl_wrapper_verify_mode(Vio *vio)
+long ssl_wrapper_verify_depth(Vio*)
 {
   return 0;
 }
 
 extern "C"
-void ssl_wrapper_get_peer_certificate_issuer(Vio *vio, char *issuer, const size_t issuer_size)
-{
-}
-
-extern "C"
-void ssl_wrapper_get_peer_certificate_subject(Vio *vio, char *subject, const size_t subject_size)
-{
-}
-
-extern "C"
-long ssl_wrapper_get_verify_result_and_cert(Vio *vio)
+long ssl_wrapper_verify_mode(Vio*)
 {
   return 0;
 }
 
 extern "C"
-long ssl_wrapper_ctx_verify_depth(struct st_VioSSLFd *vio_ssl)
+void ssl_wrapper_get_peer_certificate_issuer(Vio*, char*, const size_t)
+{
+}
+
+extern "C"
+void ssl_wrapper_get_peer_certificate_subject(Vio*, char*, const size_t)
+{
+}
+
+extern "C"
+long ssl_wrapper_get_verify_result_and_cert(Vio*)
 {
   return 0;
 }
 
 extern "C"
-long ssl_wrapper_ctx_verify_mode(struct st_VioSSLFd *vio_ssl)
+long ssl_wrapper_ctx_verify_depth(struct st_VioSSLFd*)
 {
   return 0;
 }
 
 extern "C"
-void  ssl_wrapper_ctx_server_not_after(struct st_VioSSLFd *vio_ssl, char *no_after, const size_t no_after_size)
+long ssl_wrapper_ctx_verify_mode(struct st_VioSSLFd*)
+{
+  return 0;
+}
+
+extern "C"
+void  ssl_wrapper_ctx_server_not_after(struct st_VioSSLFd*, char*, const size_t)
 {
 }
 
 extern "C"
-void ssl_wrapper_ctx_server_not_before(struct st_VioSSLFd *vio_ssl, char *no_before, const size_t no_before_size)
+void ssl_wrapper_ctx_server_not_before(struct st_VioSSLFd*, char*, const size_t)
 {
 }
 
@@ -150,13 +150,13 @@ void ssl_wrapper_thread_cleanup()
 }
 
 extern "C"
-long ssl_wrapper_sess_accept(struct st_VioSSLFd *vio_ssl)
+long ssl_wrapper_sess_accept(struct st_VioSSLFd*)
 {
   return 0;
 }
 
 extern "C"
-long ssl_wrapper_sess_accept_good(struct st_VioSSLFd *vio_ssl)
+long ssl_wrapper_sess_accept_good(struct st_VioSSLFd*)
 {
   return 0;
 }

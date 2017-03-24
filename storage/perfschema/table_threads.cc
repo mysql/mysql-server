@@ -21,6 +21,7 @@
 #include "storage/perfschema/table_threads.h"
 
 #include "field.h"
+#include "lex_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_thread.h"

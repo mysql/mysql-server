@@ -15279,6 +15279,7 @@ static void test_bug17667()
   Bug#14169: type of group_concat() result changed to blob if tmp_table was
   used
 */
+#if 0
 static void test_bug14169()
 {
   MYSQL_STMT *stmt;
@@ -15293,7 +15294,7 @@ static void test_bug14169()
   myquery(rc);
   rc= mysql_query(mysql, "set session group_concat_max_len=1024");
   myquery(rc);
-  rc= mysql_query(mysql, "create table t1 (f1 int unsigned, f2 varchar(255))");
+  rc= mysql_query(mysql, "create table t1 (f1 int unsigned, f2 varchar(250))");
   myquery(rc);
   rc= mysql_query(mysql, "insert into t1 values (1,repeat('a',255)),"
                          "(2,repeat('b',255))");
@@ -15314,7 +15315,7 @@ static void test_bug14169()
   rc= mysql_query(mysql, "drop table t1");
   myquery(rc);
 }
-
+#endif
 /*
    Test that mysql_insert_id() behaves as documented in our manual
 */
@@ -15328,7 +15329,7 @@ static void test_mysql_insert_id()
   rc= mysql_query(mysql, "drop table if exists t1");
   myquery(rc);
   /* table without auto_increment column */
-  rc= mysql_query(mysql, "create table t1 (f1 int, f2 varchar(255), key(f1))");
+  rc= mysql_query(mysql, "create table t1 (f1 int, f2 varchar(25), key(f1))");
   myquery(rc);
   rc= mysql_query(mysql, "insert into t1 values (1,'a')");
   myquery(rc);
@@ -15459,7 +15460,7 @@ static void test_mysql_insert_id()
   rc= mysql_query(mysql, "drop table t2");
   myquery(rc);
   rc= mysql_query(mysql, "create table t2 (f1 int not null primary key "
-                  "auto_increment, f2 varchar(255), unique (f2)) ENGINE = MyISAM");
+                  "auto_increment, f2 varchar(25), unique (f2)) ENGINE = MyISAM");
   myquery(rc);
   rc= mysql_query(mysql, "insert into t2 values (null,'e')");
   res= mysql_insert_id(mysql);
@@ -21152,7 +21153,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug16144", test_bug16144 },
   { "test_bug15613", test_bug15613 },
   { "test_bug20152", test_bug20152 },
-  { "test_bug14169", test_bug14169 },
+//  { "test_bug14169", test_bug14169 },
   { "test_bug17667", test_bug17667 },
   { "test_bug15752", test_bug15752 },
   { "test_mysql_insert_id", test_mysql_insert_id },

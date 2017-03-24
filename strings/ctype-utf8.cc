@@ -5177,7 +5177,7 @@ my_strnxfrm_unicode_tmpl(const CHARSET_INFO *cs, Mb_wc mb_wc,
   }
 
 pad:
-  if (dst < de && nweights && (flags & MY_STRXFRM_PAD_WITH_SPACE))
+  if (dst < de && nweights)  // PAD SPACE behavior.
     dst+= my_strxfrm_pad_nweights_unicode(dst, de, nweights);
 
   if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && dst < de)
@@ -5245,9 +5245,10 @@ my_strnxfrm_unicode_full_bin(const CHARSET_INFO *cs,
     }
   }
 
-  if (flags & MY_STRXFRM_PAD_WITH_SPACE)
+  if (flags & MY_STRXFRM_PAD_TO_MAXLEN)
   {
-    for ( ; dst < de && nweights; nweights--)
+    // Pad with an infinite amount of spaces.
+    while (dst < de)
     {
       *dst++= 0x00;
       if (dst < de)
@@ -5258,10 +5259,10 @@ my_strnxfrm_unicode_full_bin(const CHARSET_INFO *cs,
       }
     }
   }
-  
-  if (flags & MY_STRXFRM_PAD_TO_MAXLEN)
+  else
   {
-    while (dst < de)
+    // Regular PAD SPACE behavior.
+    for ( ; dst < de && nweights; nweights--)
     {
       *dst++= 0x00;
       if (dst < de)
@@ -5395,9 +5396,8 @@ static int my_uni_utf8 (const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     return MY_CS_TOOSMALLN(count);
 
   switch (count) {
-    /* Fall through all cases!!! */
-    case 3: r[2] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x800;
-    case 2: r[1] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0xc0;
+    case 3: r[2] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x800;  // Fall through.
+    case 2: r[1] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0xc0;  // Fall through.
     case 1: r[0] = (uchar) wc;
   }
   return count;
@@ -5424,9 +5424,8 @@ static int my_uni_utf8_no_range(const CHARSET_INFO *cs
 
   switch (count)
   {
-    /* Fall through all cases!!! */
-    case 3: r[2]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0x800;
-    case 2: r[1]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0xc0;
+    case 3: r[2]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0x800;  // Fall through.
+    case 2: r[1]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0xc0;  // Fall through.
     case 1: r[0]= (uchar) wc;
   }
   return count;
@@ -5981,7 +5980,8 @@ CHARSET_INFO my_charset_utf8_general_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_utf8_general_ci_handler
+    &my_collation_utf8_general_ci_handler,
+    PAD_SPACE
 };
 
 
@@ -6016,7 +6016,8 @@ CHARSET_INFO my_charset_utf8_tolower_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_utf8_general_ci_handler
+    &my_collation_utf8_general_ci_handler,
+    PAD_SPACE
 };
 
 
@@ -6051,7 +6052,8 @@ CHARSET_INFO my_charset_utf8_general_mysql500_ci=
   0,                          /* escape_with_backslash_is_dangerous */
   1,                                            /* levels_for_compare */
   &my_charset_utf8_handler,
-  &my_collation_utf8_general_ci_handler
+  &my_collation_utf8_general_ci_handler,
+  PAD_SPACE
 };
 
 
@@ -6087,7 +6089,8 @@ CHARSET_INFO my_charset_utf8_bin=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_utf8_bin_handler
+    &my_collation_utf8_bin_handler,
+    PAD_SPACE
 };
 
 
@@ -7392,7 +7395,8 @@ CHARSET_INFO my_charset_filename=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_filename_handler,
-    &my_collation_filename_handler
+    &my_collation_filename_handler,
+    PAD_SPACE
 };
 
 
@@ -7609,10 +7613,9 @@ my_wc_mb_utf8mb4(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     return MY_CS_TOOSMALLN(count);
 
   switch (count) {
-    /* Fall through all cases!!! */
-    case 4: r[3] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x10000;
-    case 3: r[2] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x800;
-    case 2: r[1] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0xc0;
+    case 4: r[3] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x10000;  // Fall through.
+    case 3: r[2] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x800;  // Fall through.
+    case 2: r[1] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0xc0;  // Fall through.
     case 1: r[0] = (uchar) wc;
   }
   return count;
@@ -7642,10 +7645,9 @@ my_wc_mb_utf8mb4_no_range(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
   switch (count)
   {
-    /* Fall through all cases!!! */
-    case 4: r[3]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0x10000;
-    case 3: r[2]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0x800;
-    case 2: r[1]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0xc0;
+    case 4: r[3]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0x10000;  // Fall through.
+    case 3: r[2]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0x800;  // Fall through.
+    case 2: r[1]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0xc0;  // Fall through.
     case 1: r[0]= (uchar) wc;
   }
   return count;
@@ -8240,7 +8242,8 @@ CHARSET_INFO my_charset_utf8mb4_general_ci=
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_utf8mb4_general_ci_handler
+  &my_collation_utf8mb4_general_ci_handler,
+  PAD_SPACE
 };
 
 
@@ -8276,5 +8279,6 @@ CHARSET_INFO my_charset_utf8mb4_bin=
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_utf8mb4_bin_handler
+  &my_collation_utf8mb4_bin_handler,
+  PAD_SPACE
 };

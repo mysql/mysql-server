@@ -23,6 +23,7 @@
 #include "debug_sync.h"
 #include "handler.h"
 #include "hash.h"                           // HASH
+#include "lex_string.h"
 #include "log.h"                            // sql_print_information
 #include "log_event.h"                      // Query_log_event
 #include "m_string.h"
@@ -194,10 +195,11 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
  Logic to detach the temporary tables from the worker threads upon
  event execution.
  @param thd THD instance
+ @param rli Relay_log_info pointer
  @param ev  Query_log_event that is being applied
 */
 void
-Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info*,
+Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info* rli,
                                          Query_log_event *ev)
 {
   int i, parts;
@@ -222,6 +224,8 @@ Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info*,
   {
     ev->mts_assigned_partitions[i]->temporary_tables= NULL;
   }
+
+  Rpl_filter *rpl_filter= rli->rpl_filter;
   for (TABLE *table= thd->temporary_tables; table;)
   {
     int i;
@@ -237,7 +241,8 @@ Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info*,
       if (!rpl_filter->is_rewrite_empty() && !strcmp(ev->get_db(), db_name))
       {
         size_t dummy_len;
-        const char *db_filtered= rpl_filter->get_rewrite_db(db_name, &dummy_len);
+        const char *db_filtered=
+          rpl_filter->get_rewrite_db(db_name, &dummy_len);
         // db_name != db_filtered means that db_name is rewritten.
         if (strcmp(db_name, db_filtered))
           db_name= (char*)db_filtered;
@@ -830,8 +835,8 @@ Mts_submode_logical_clock::detach_temp_tables(THD *thd, const Relay_log_info* rl
 
 Slave_worker *
 Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
-                                                     Slave_worker_array *ws,
-                                                     Log_event * ev)
+                                  Slave_worker_array *ws MY_ATTRIBUTE((unused)),
+                                  Log_event * ev)
 {
   Slave_worker *worker= NULL;
   PSI_stage_info *old_stage= 0;
@@ -997,7 +1002,7 @@ Mts_submode_logical_clock::
   DBUG_PRINT("info",("delegated %d, jobs_done %d, Workers have finished their"
                      " jobs", delegated_jobs, jobs_done));
   rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
-  DBUG_RETURN(0);
+  DBUG_RETURN(!thd->killed && !is_error ? 0 : -1);
 }
 
 /**

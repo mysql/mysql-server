@@ -96,7 +96,8 @@ if ($show_binlog_events_mask_columns == '')
   --let $mask_columns = 2,4,5
 }
 let $script=
-  s{/\* xid=.* \*/}{/\* XID \*/};
+  s{/\* xid=.* \*/}{/\* XID # \*/};
+  s{COMMIT /\* XID # \*/}{COMMIT /\* XID \*/};
   s{table_id: [0-9]+}{table_id: #};
   s{file_id=[0-9]+}{file_id=#};
   s{block_len=[0-9]+}{block_len=#};
@@ -137,6 +138,10 @@ if ($mask_anonymous_gtid_events)
 {
   --let $script= $script s{Anonymous_Gtid}{Gtid};
   --let $script= $script s{ANONYMOUS}{Gtid_set};
+}
+if (!$keep_ddl_xid)
+{
+  --let $script= $script s{ /\* XID # \*/}{};
 }
 --delimiter ;
 

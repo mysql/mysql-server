@@ -21,6 +21,7 @@
 
 #include "field.h"
 #include "handler.h"
+#include "lex_string.h"
 #include "mem_root_array.h"    // Mem_root_array
 #include "my_dbug.h"
 #include "my_inttypes.h"

@@ -661,7 +661,8 @@ table_events_transactions_current::rnd_pos(const void *pos)
 }
 
 int
-table_events_transactions_current::index_init(uint idx, bool)
+table_events_transactions_current::index_init(uint idx MY_ATTRIBUTE((unused)),
+                                              bool)
 {
   m_normalizer = time_normalizer::get(transaction_timer);
 
@@ -815,7 +816,8 @@ table_events_transactions_history::rnd_pos(const void *pos)
 }
 
 int
-table_events_transactions_history::index_init(uint idx, bool)
+table_events_transactions_history::index_init(uint idx MY_ATTRIBUTE((unused)),
+                                              bool)
 {
   m_normalizer = time_normalizer::get(transaction_timer);
 

@@ -448,3 +448,22 @@ DROP TABLE t1;
 
 --echo # End of test for Bug#18899860
 
+--echo # 
+--echo # Bug #23209903: ASSERTION: SELECT_LEX->LEAF_TABLE_COUNT == 0 ||
+--echo # THD->LEX->IS_QUERY_TABLES_LOCKED
+--echo #
+
+CREATE TABLE t1 (a INT, b INT) ENGINE=INNODB PARTITION BY KEY (b) PARTITIONS 2;
+CREATE TABLE t2 (c INT) ENGINE=INNODB;
+--echo
+--echo # Test single-table update with subquery and empty outer query block
+UPDATE t1 SET a=(SELECT c from t2) WHERE 0;
+EXPLAIN UPDATE t1 SET a=(SELECT c from t2) WHERE 0;
+--echo
+--echo # Test delete from single-table with subquery and empty outer query block
+DELETE FROM t1 WHERE 0 AND a IN (SELECT c from t2);
+EXPLAIN DELETE FROM t1 WHERE 0 AND a IN (SELECT c from t2);
+DROP TABLE t1, t2;
+
+--echo # End of test for Bug#23209903
+

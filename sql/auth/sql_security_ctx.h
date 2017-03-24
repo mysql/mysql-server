@@ -1,6 +1,3 @@
-#ifndef SQL_SECURITY_CTX_INCLUDED
-#define SQL_SECURITY_CTX_INCLUDED
-
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -15,12 +12,14 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-
+#ifndef SQL_SECURITY_CTX_INCLUDED
+#define SQL_SECURITY_CTX_INCLUDED
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
 
 #include "auth/auth_common.h"
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_sharedlib.h"
@@ -88,6 +87,7 @@ public:
 
   inline void assign_user(const char *user_arg, const size_t user_arg_length);
 
+  std::pair<bool, bool> has_global_grant(const char *priv, size_t priv_len);
   int activate_role(LEX_CSTRING user, LEX_CSTRING host,
                     bool validate_access= false);
   void clear_active_roles(void);

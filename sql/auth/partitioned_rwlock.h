@@ -1,7 +1,7 @@
 #ifndef PARTITIONED_RWLOCK_INCLUDED
 #define PARTITIONED_RWLOCK_INCLUDED
 
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 #include <new>
 
+#include "my_compiler.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_rwlock.h"
 
@@ -50,7 +51,7 @@ public:
   */
   bool init(uint parts
 #ifdef HAVE_PSI_INTERFACE
-            , PSI_rwlock_key psi_key
+            , PSI_rwlock_key psi_key MY_ATTRIBUTE((unused))
 #endif
             )
   {

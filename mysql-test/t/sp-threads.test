@@ -1,5 +1,3 @@
-# This test should work in embedded server after mysqltest is fixed
--- source include/not_embedded.inc
 #
 # Testing stored procedures with multiple connections,
 # except security/privilege tests, they go to sp-security.test

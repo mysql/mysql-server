@@ -487,5 +487,55 @@ TEST_F(MemRootTest, ResizeShrink)
   EXPECT_EQ(5U, counter);
 }
 
+TEST_F(MemRootTest, Erase)
+{
+  using A= Mem_root_array<DestroyCounter>;
+  size_t counter= 0;
+  DestroyCounter foo(&counter);
+  A array(m_mem_root_p);
+  array.resize(10, foo);
+  EXPECT_EQ(10U, array.size());
+  EXPECT_EQ(0U, counter);
+
+  A::iterator it= array.erase(array.cbegin() + 2, array.cbegin() + 4);
+  EXPECT_EQ(8U, array.size());
+  EXPECT_EQ(array.begin() + 2, it);
+  EXPECT_EQ(2U, counter);
+
+  it= array.erase(array.cend(), array.cend());
+  EXPECT_EQ(8U, array.size());
+  EXPECT_EQ(array.cend(), it);
+  EXPECT_EQ(2U, counter);
+
+  it= array.erase(array.cbegin(), array.cbegin());
+  EXPECT_EQ(8U, array.size());
+  EXPECT_EQ(array.cbegin(), it);
+  EXPECT_EQ(2U, counter);
+
+  it= array.erase(array.cbegin(), array.cend());
+  EXPECT_EQ(0U, array.size());
+  EXPECT_EQ(array.cbegin(), it);
+  EXPECT_EQ(array.cend(), it);
+  EXPECT_EQ(10U, counter);
+}
+
+TEST_F(MemRootTest, Insert)
+{
+  using A= Mem_root_array<int>;
+  A array(m_mem_root_p);
+  A::iterator it= array.insert(array.cbegin(), 1);
+  EXPECT_EQ(array.cbegin(), it);
+  it= array.insert(array.cbegin(), 2);
+  EXPECT_EQ(array.cbegin(), it);
+  it= array.insert(array.cbegin() + 1, 3);
+  EXPECT_EQ(array.cbegin() + 1, it);
+  it= array.insert(array.cend(), 4);
+  EXPECT_EQ(array.cend() - 1, it);
+  EXPECT_EQ(4U, array.size());
+  EXPECT_EQ(2, array[0]);
+  EXPECT_EQ(3, array[1]);
+  EXPECT_EQ(1, array[2]);
+  EXPECT_EQ(4, array[3]);
+}
 
 }

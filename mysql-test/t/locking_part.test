@@ -1,19 +1,6 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs212=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
-use test;
---enable_query_log
-########################################
-
 # Test of SKIP LOCKED and NOWAIT on partitioned tables.
 # Must have same results as not partitioned tables.
 --source include/count_sessions.inc
-# should work with embedded server after mysqltest is fixed
---source include/not_embedded.inc
 
 set @start_read_only= @@global.read_only;
 set @start_autocommit= @@global.autocommit;
@@ -35,9 +22,7 @@ e varchar(1000) DEFAULT NULL,
 PRIMARY KEY (a, b, c),
 KEY (a),
 KEY (a, b)
-)
-/*!50100 PARTITION BY KEY (a)
-PARTITIONS 20 */;
+) charset latin1 PARTITION BY KEY (a) PARTITIONS 20;
 
 INSERT INTO t1 (a, b, c, d, e) VALUES
 ('07', '03', 343, '1', '07_03_343'),
@@ -215,12 +200,3 @@ DROP USER test2@localhost;
 set @@global.read_only= @start_read_only;
 set @@global.autocommit= @start_autocommit;
 --source include/wait_until_count_sessions.inc
-
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs212;
---enable_query_log
-########################################

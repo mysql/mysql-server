@@ -1,15 +1,3 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs283=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
-use test;
---enable_query_log
-########################################
-
-
 --disable_warnings
 drop table if exists t1,t2,t3;
 --enable_warnings
@@ -187,7 +175,7 @@ DOCID VARCHAR(32)BINARY NOT NULL
 , ORIGINATOR INTEGER
 
 , PRIMARY KEY ( DOCID )
-) ENGINE=InnoDB
+) charset utf8mb4 ENGINE=InnoDB
 ;
 
 INSERT INTO t1 (DOCID) VALUES ("1"), ("2");
@@ -215,7 +203,7 @@ DOCID VARCHAR(32)BINARY NOT NULL
 , ORIGINATOR INTEGER
 
 , PRIMARY KEY ( DOCID )
-) ENGINE=InnoDB
+) charset utf8mb4 ENGINE=InnoDB
 ;
 CREATE INDEX DDOCTYPEID_IDX ON t2 (DOCTYPEID);
 CREATE INDEX DFOLDERID_IDX ON t2 (FOLDERID);
@@ -235,7 +223,7 @@ FOLDERID VARCHAR(32)BINARY NOT NULL
 , ORIGINATOR INTEGER
 
 , PRIMARY KEY ( FOLDERID )
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 CREATE INDEX FFOLDERID_IDX ON t3 (FOLDERID);
 CREATE INDEX CMFLDRPARNT_IDX ON t3 (PARENTID);
@@ -251,7 +239,7 @@ DOCTYPEID VARCHAR(32)BINARY NOT NULL
 , ORIGINATOR INTEGER
 
 , PRIMARY KEY ( DOCTYPEID )
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t2 VALUES("c373e9f59cf15a6c3e57444553544200", "c373e9f59cf15a6c3e57444553544200", "340d243d45f111d497b00010a4ef934d", "2f6161e879db43c1a5b82c21ddc49089", NULL, "2003-06-06 07:48:42", NULL, NULL, NULL, "2003-06-06 07:48:42", "2003-06-06 07:48:42", NULL, NULL, NULL, "03eea05112b845949f3fd03278b5fe43", "2003-06-06 07:48:42", "admin", "0", NULL);
 
@@ -499,11 +487,3 @@ WHERE a != (SELECT 1 FROM t2 WHERE a <=> b OR a > '' AND 6 = 7 ORDER BY b, c);
 
 DROP TABLE t1, t2;
 SET sql_mode = default;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs283;
---enable_query_log
-########################################

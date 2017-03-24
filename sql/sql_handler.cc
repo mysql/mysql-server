@@ -66,6 +66,7 @@
 #include "hash.h"
 #include "item.h"
 #include "key.h"                                // key_copy
+#include "lex_string.h"
 #include "lock.h"                               // mysql_unlock_tables
 #include "log.h"
 #include "m_ctype.h"

@@ -1,0 +1,42 @@
+# ==== Purpose ====
+#
+# This test will ensure that the I/O thread is writing the ROTATE event
+# of ignored events when stopping without the SQL thread consuming the
+# ignored events information.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# WL#8599: Reduce contention in IO and SQL threads
+#
+
+# This test case is binary log format agnostic
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave=1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+CHANGE MASTER TO IGNORE_SERVER_IDS = (1);
+--source include/start_slave_io.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT);
+DROP TABLE t1;
+
+--source include/sync_slave_io_with_master.inc
+
+# The last event of the relay log should be a rotate with
+# the latest master position received by the I/O thread.
+--let $binlog_file= slave-relay-bin.000002
+--let $binlog_limit= 3
+--source include/show_relaylog_events.inc
+
+--source include/stop_slave_io.inc
+CHANGE MASTER TO IGNORE_SERVER_IDS = ();
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 (c1) VALUES (1);
+DROP TABLE t1;
+
+--source include/rpl_end.inc

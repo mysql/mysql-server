@@ -2,9 +2,6 @@
 # Testing SQL SECURITY of stored procedures
 #
 
-# Can't test with embedded server that doesn't support grants
--- source include/not_embedded.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -1067,6 +1064,23 @@ GRANT SELECT ON *.* TO user@localhost;
 --connect (conn2, localhost, user,,)
 eval $select_routines;
 eval $select_parameters;
+
+--echo #
+--echo # Wl8131 DYNAMIC PRIVILEGS
+--echo # SET_USER_ID is a replacement for SUPER which enable a user to 
+--echo # create a definer routine executing as some other user.
+--echo # This privielge can be used for privilege escalation.
+connection default;
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT SET_USER_ID, EXECUTE ON *.* TO u1@localhost;
+--connect (con1,localhost,u1,foo,)
+CREATE DEFINER=root@localhost PROCEDURE p1() SELECT current_user();
+CALL p1();
+SELECT CURRENT_USER();
+connection default;
+disconnect con1;
+DROP PROCEDURE p1;
+DROP USER u1@localhost;
 
 # Cleanup
 --connection default

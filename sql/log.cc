@@ -26,6 +26,8 @@
 
 #include "log.h"
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -33,8 +35,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-
-#include "my_config.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -56,6 +56,7 @@
 #include "field.h"
 #include "handler.h"
 #include "key.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
@@ -622,7 +623,7 @@ bool is_valid_log_name(const char *name, size_t len)
 */
 
 static File mysql_file_real_name_reopen(File file,
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_FILE_INTERFACE
                                         PSI_file_key log_file_key,
 #endif
                                         int open_flags,
@@ -725,7 +726,7 @@ bool File_query_log::open()
 
   /* Reopen and get real path. */
   if ((file= mysql_file_real_name_reopen(file,
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_FILE_INTERFACE
                                          m_log_file_key,
 #endif
                                          O_CREAT | O_WRONLY | O_APPEND,
@@ -1475,7 +1476,7 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
        *current_handler ;)
   {
     error|= (*current_handler++)->log_slow(thd, current_utime,
-                                           (thd->start_time.tv_sec * 1000000) +
+                                           (thd->start_time.tv_sec * 1000000ULL) +
                                            thd->start_time.tv_usec,
                                            user_host_buff, user_host_len,
                                            query_utime, lock_utime, is_command,
@@ -1500,9 +1501,10 @@ static bool log_command(THD *thd, enum_server_command command)
 {
   if (what_to_log & (1L << (uint) command))
   {
-    if ((thd->variables.option_bits & OPTION_LOG_OFF)
-         && (thd->security_context()->check_access(SUPER_ACL))
-       )
+    Security_context *sctx= thd->security_context();
+    if ((thd->variables.option_bits & OPTION_LOG_OFF) &&
+        (sctx->check_access(SUPER_ACL) ||
+         sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first))
     {
       /* No logging */
       return false;

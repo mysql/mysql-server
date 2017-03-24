@@ -37,6 +37,7 @@
 #include "event_scheduler.h"       // Event_scheduler
 #include "item.h"
 #include "item_create.h"
+#include "lex_string.h"
 #include "lock.h"                  // lock_object_name
 #include "log.h"                   // sql_print_error
 #include "m_ctype.h"               // CHARSET_INFO
@@ -274,6 +275,8 @@ common_1_lev_code:
     break;
   case INTERVAL_WEEK:
     expr/= 7;
+    close_quote= false;
+    break;
   default:
     close_quote= false;
     break;
@@ -660,7 +663,7 @@ Events::drop_schema_events(THD *thd, const dd::Schema &schema)
   DBUG_ENTER("Events::drop_schema_events");
 
   if (event_queue)
-    event_queue->drop_schema_events(thd, db_lex);
+    event_queue->drop_schema_events(db_lex);
 
   DBUG_RETURN(db_repository->drop_schema_events(thd, schema));
 }
@@ -879,7 +882,7 @@ Events::init(bool opt_noacl_or_bootstrap)
     goto end;
   }
 
-  if (event_queue->init_queue(thd) || load_events_from_db(thd, event_queue) ||
+  if (event_queue->init_queue() || load_events_from_db(thd, event_queue) ||
       (opt_event_scheduler == EVENTS_ON && scheduler->start(&err_no)))
   {
     sql_print_error("Event Scheduler: Error while loading from disk.");

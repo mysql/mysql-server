@@ -166,9 +166,13 @@ SET(DD_SOURCES
 
 SET(SQL_GIS_SOURCES
   geometry_rtree.cc
+  gis/distance.cc
+  gis/geometries.cc
+  gis/ring_direction.cc
   gis/srs/srs.cc
   gis/srs/wkt_parser.cc
   gis/srs/rtree_support.cc
+  gis/wkb_parser.cc
   item_geofunc.cc
   item_geofunc_buffer.cc
   item_geofunc_internal.cc
@@ -180,6 +184,8 @@ SET(SQL_GIS_SOURCES
 SET(SQL_SHARED_SOURCES
   abstract_query_plan.cc
   auth/auth_common.cc
+  auth/dynamic_privileges_impl.cc
+  auth/dynamic_privilege_table.cc
   auth/sql_authentication.cc
   auth/sql_auth_cache.cc
   auth/sql_authorization.cc
@@ -280,6 +286,7 @@ SET(SQL_SHARED_SOURCES
   rpl_handler.cc
   rpl_transaction_ctx.cc
   rpl_transaction_write_set_ctx.cc
+  rpl_trx_tracking.cc
   rpl_write_set_handler.cc
   rules_table_service.cc
   rwlock_scoped_lock.cc
@@ -316,6 +323,7 @@ SET(SQL_SHARED_SOURCES
   sql_digest.cc
   sql_do.cc 
   sql_error.cc
+  sql_exception_handler.cc
   sql_executor.cc
   sql_get_diagnostics.cc
   sql_handler.cc
@@ -441,9 +449,12 @@ SET(SQL_BOOST_SOURCES
   auth/sql_user.cc
   auth/sql_security_ctx.cc
   auth/role_tables.cc
+  auth/dynamic_privilege_table.cc
+  auth/dynamic_privileges_impl.cc
   handler.cc
   ${SQL_GIS_SOURCES}
   spatial.cc
+  sql_exception_handler.cc
 )
 SET(SQL_EXPORTED_BOOST_SOURCES ${SQL_BOOST_SOURCES} PARENT_SCOPE)
 
@@ -625,7 +636,7 @@ SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_execution.cc
                    rpl_gtid_mutex_cond_array.cc rpl_gtid_persist.cc
                    log_event.cc binlog.cc sql_binlog.cc
-                   rpl_filter.cc rpl_record.cc
+                   rpl_filter.cc rpl_record.cc rpl_trx_tracking.cc
                    rpl_utility.cc rpl_injector.cc rpl_table_access.cc)
 ADD_CONVENIENCE_LIBRARY(binlog ${BINLOG_SOURCE})
 TARGET_LINK_LIBRARIES(binlog binlogevents_static)

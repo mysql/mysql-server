@@ -1191,3 +1191,9 @@ t1	CREATE TABLE `t1` (
   KEY `k` (`k`) USING BTREE
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 drop table t1;
+#
+# Bug 25647413 "ASSERTION FAILURE: HA_INNODB.CC:NNN:(TABLE->INDEXES).
+#               COUNT == DD_TABLE.INDEXES()".
+#
+create table t1 (b text not null, unique key(b(8)));
+drop table t1;

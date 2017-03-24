@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 --source include/have_ssl.inc
 
 connect (ssl_con,localhost,root,,,,,SSL);

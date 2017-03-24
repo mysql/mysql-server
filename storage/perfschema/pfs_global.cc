@@ -209,7 +209,7 @@ pfs_print_error(const char *format, ...)
   /*
     Printing to anything else, like the error log, would generate even more
     recursive calls to the performance schema implementation
-    (file io is instrumented), so that could lead to catastrophic results.
+    (file I/O is instrumented), so that could lead to catastrophic results.
     Printing to something safe, and low level: stderr only.
   */
   vfprintf(stderr, format, args);

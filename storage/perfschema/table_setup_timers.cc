@@ -146,7 +146,7 @@ table_setup_timers::rnd_pos(const void *pos)
 }
 
 int
-table_setup_timers::index_init(uint idx, bool)
+table_setup_timers::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_setup_timers *result = NULL;
   DBUG_ASSERT(idx == 0);

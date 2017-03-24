@@ -166,11 +166,7 @@ struct PSI_statement_locker;
 
   - #Table_trigger_dispatcher::create_trigger()
 
-  - #Table_trigger_dispatcher::drop_trigger()
-
   - #Table_trigger_dispatcher::check_n_load()
-
-  - #Trigger_loader::drop_all_triggers()
 
   See the C++ class #Table_trigger_dispatcher in general.
 

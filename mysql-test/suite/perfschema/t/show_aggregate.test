@@ -7,7 +7,6 @@
 # 3. Status totals for user, host and account are retained after related       #
 #    threads disconnect.                                                       #
 ################################################################################
---source include/not_embedded.inc
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 

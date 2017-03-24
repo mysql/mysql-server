@@ -21,14 +21,16 @@
 #include <vector>
 #include <string>
 #include <stdio.h>
+#include <sys/types.h>
+
+#include "mysql/gcs/gcs_message.h"
+#include "mysql/gcs/gcs_communication_interface.h"
+#include "mysql/gcs/gcs_view.h"
 
 #include "gcs_xcom_utils.h"
-#include "gcs_message.h"
-#include "gcs_communication_interface.h"
 #include "gcs_xcom_view_identifier.h"
-#include "gcs_view.h"
-#include <sys/types.h>
 #include "gcs_internal_message.h"
+
 #include "xcom_vp.h"
 
 #define WIRE_XCOM_VARIABLE_VIEW_ID_SIZE 8

@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "binary_log_funcs.h"
+#include "lex_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
@@ -119,8 +120,7 @@ static int compare_lengths(Field *field, enum_field_types source_type,
   DBUG_RETURN(result);
 }
 
-static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
-                          const CHARSET_INFO *field_cs)
+static void show_sql_type(enum_field_types type, uint16 metadata, String *str)
 {
   DBUG_ENTER("show_sql_type");
   DBUG_PRINT("enter", ("type: %d, metadata: 0x%x", type, metadata));
@@ -714,7 +714,7 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
       enum loglevel report_level= INFORMATION_LEVEL;
       String source_type(source_buf, sizeof(source_buf), &my_charset_latin1);
       String target_type(target_buf, sizeof(target_buf), &my_charset_latin1);
-      show_sql_type(type(col), field_metadata(col), &source_type, field->charset());
+      show_sql_type(type(col), field_metadata(col), &source_type);
       field->sql_type(target_type);
       if (!ignored_error_code(ER_SLAVE_CONVERSION_FAILED))
       {

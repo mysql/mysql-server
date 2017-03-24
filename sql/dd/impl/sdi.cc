@@ -398,10 +398,11 @@ sdi_t serialize(const Tablespace &tablespace)
 }
 
 
-template <class Dd_type>
-bool generic_deserialize(THD *thd, const sdi_t &sdi,
-                         const String_type &object_type_name, Dd_type *dst,
-                         String_type *schema_name_from_sdi= nullptr)
+template <class Dd_type> bool
+generic_deserialize(THD *thd, const sdi_t &sdi,
+                    const String_type &object_type_name MY_ATTRIBUTE((unused)),
+                    Dd_type *dst,
+                    String_type *schema_name_from_sdi= nullptr)
 {
   RJ_Document doc;
   doc.Parse<0>(sdi.c_str());
@@ -676,12 +677,16 @@ bool store(THD *thd, const Table *t)
 
 bool store(THD *thd, const Tablespace *ts)
 {
+  handlerton *hton= resolve_hton(thd, *ts);
+  if (hton->sdi_set)
+  {
+    return false; // SDI api not supported
+  }
   sdi_t sdi= serialize(*ts);
   if (sdi.empty())
   {
     return checked_return(true);
   }
-  handlerton *hton= resolve_hton(thd, *ts);
   return checked_return(sdi_tablespace::store(hton, lex_cstring_handle(sdi),
                                               ts));
 }
@@ -703,7 +708,12 @@ bool drop(THD *thd, const Table *t)
 
 bool drop(THD *thd, const Tablespace *ts)
 {
-  return checked_return(sdi_tablespace::remove(resolve_hton(thd, *ts), ts));
+  handlerton *hton= resolve_hton(thd, *ts);
+  if (!hton->sdi_delete)
+  {
+    return false;
+  }
+  return checked_return(sdi_tablespace::remove(hton, ts));
 }
 
 bool drop_after_update(THD *thd, const Schema *old_s,

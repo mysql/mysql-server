@@ -41,8 +41,9 @@ ERROR HY000: Slave channel 'group_replication_recovery' does not exist.
 START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_recovery';
 ERROR HY000: Slave channel 'group_replication_recovery' does not exist.
 
-# 'Empty set' when executing SHOW SLAVE STATUS on GR recovery channel
+# ERROR when executing SHOW SLAVE STATUS on GR recovery channel
 SHOW SLAVE STATUS FOR CHANNEL 'group_replication_recovery';
+ERROR HY000: Slave channel 'group_replication_recovery' does not exist.
 
 # ERROR when executing SHOW RELAYLOG EVENTS on GR recovery channel
 SHOW RELAYLOG EVENTS  FOR CHANNEL 'group_replication_recovery';

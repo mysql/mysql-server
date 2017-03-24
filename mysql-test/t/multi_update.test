@@ -7,8 +7,6 @@
 # Test of update statement that uses many tables.
 #
 
-# Requires grants, so won't work with embedded server test
-source include/not_embedded.inc;
 source include/have_log_bin.inc;
 
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");

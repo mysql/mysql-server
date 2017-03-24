@@ -91,6 +91,7 @@
 #include "rpl_filter.h"
 #include "rpl_gtid.h"
 #include "rpl_handler.h"              // RUN_HOOK
+#include "rpl_rli.h"                  // is_atomic_ddl_commit_on_slave
 #include "rpl_write_set_handler.h"    // add_pke
 #include "sdi_utils.h"                // import_serialized_meta_data
 #include "session_tracker.h"
@@ -1680,6 +1681,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 {
   int error= 0;
   bool need_clear_owned_gtid= false;
+  bool run_slave_post_commit= false;
   /*
     Save transaction owned gtid into table before transaction prepare
     if binlog is disabled, or binlog is enabled and log_slave_updates
@@ -1721,6 +1723,36 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
   DBUG_ASSERT(!trn_ctx->is_active(Transaction_ctx::STMT) ||
               !all);
 
+  /*
+    When atomic DDL is executed on the slave, we would like to
+    to update slave applier state as part of DDL's transaction.
+    Call Relay_log_info::pre_commit() hook to do this before DDL
+    gets committed in the following block.
+  */
+  if (is_real_trans && is_atomic_ddl_commit_on_slave(thd))
+  {
+    DBUG_ASSERT(thd->in_multi_stmt_transaction_mode());
+    /*
+      Failed atomic DDL statements should've been marked as
+      executed/committed during statement rollback.
+    */
+    DBUG_ASSERT(!thd->is_error());
+
+    run_slave_post_commit= true;
+    error= error || thd->rli_slave->pre_commit();
+
+    DBUG_EXECUTE_IF("rli_pre_commit_error",
+                    {
+                      error= true;
+                      my_error(ER_UNKNOWN_ERROR, MYF(0));
+                    });
+    DBUG_EXECUTE_IF("slave_crash_before_commit",
+                    {
+                      /* This pre-commit crash aims solely at atomic DDL */
+                      DBUG_SUICIDE();
+                    });
+  }
+
   if (thd->in_sub_stmt)
   {
     DBUG_ASSERT(0);
@@ -1744,7 +1776,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 
   MDL_request mdl_request;
   bool release_mdl= false;
-  if (ha_info)
+  if (ha_info && !error)
   {
     uint rw_ha_count;
     bool rw_trans;
@@ -1862,6 +1894,34 @@ end:
       gtid_state->update_on_rollback(thd);
     else
       gtid_state->update_on_commit(thd);
+  }
+  if (run_slave_post_commit)
+  {
+    DBUG_EXECUTE_IF("slave_crash_after_commit", DBUG_SUICIDE(););
+
+    thd->rli_slave->post_commit(error != 0);
+    /*
+      SERVER_STATUS_IN_TRANS may've been gained by pre_commit alone
+      when the main DDL transaction is filtered out of execution.
+      In such case the status has to be reset now.
+
+      TODO: move/refactor this handling onto trans_commit/commit_implicit()
+            the caller level.
+    */
+    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  }
+  else
+  {
+    DBUG_EXECUTE_IF("slave_crash_after_commit",
+                    {
+                      if (thd->slave_thread && thd->rli_slave &&
+                          thd->rli_slave->current_event &&
+                          thd->rli_slave->current_event->get_type_code() ==
+                          binary_log::XID_EVENT &&
+                          !thd->is_operating_substatement_implicitly &&
+                          !thd->is_operating_gtid_table_implicitly)
+                        DBUG_SUICIDE();
+                    });
   }
 
   DBUG_RETURN(error);

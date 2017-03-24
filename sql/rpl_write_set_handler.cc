@@ -25,6 +25,7 @@
 #include "field.h"         // Field
 #include "handler.h"
 #include "key.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
@@ -44,6 +45,7 @@
 #include "system_variables.h"
 #include "table.h"         // TABLE
 #include "transaction_info.h"
+#include "rpl_handler.h"
 
 #define NAME_READ_BUFFER_SIZE 1024
 #define HASH_STRING_SEPARATOR "½"
@@ -174,6 +176,7 @@ static void check_foreign_key(TABLE *table, THD *thd,
 
 }
 
+#ifndef DBUG_OFF
 static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_hash)
 {
   DBUG_EXECUTE_IF("PKE_assert_single_primary_key_generated_insert",
@@ -277,6 +280,7 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
                                key_list_to_hash[3] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t2"
                                                        HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1")););
 }
+#endif
 
 
 /**
@@ -384,8 +388,12 @@ void add_pke(TABLE *table, THD *thd)
     Finally these value are hashed using the murmur hash function to prevent sending more
     for certification algorithm.
   */
+  Rpl_transaction_write_set_ctx* ws_ctx=
+    thd->get_transaction()->get_transaction_write_set_ctx();
   std::vector<std::string> key_list_to_hash;
   bitmap_set_all(table->read_set);
+  int writeset_hashes_added= 0;
+
   if(table->key_info && (table->s->primary_key < MAX_KEY))
   {
     for (uint key_number=0; key_number < table->s->keys; key_number++)
@@ -481,14 +489,24 @@ void add_pke(TABLE *table, THD *thd)
       }
     }
 
+    if (table->file->referenced_by_foreign_key())
+      ws_ctx->set_has_related_foreign_keys();
+
+#ifndef DBUG_OFF
     debug_check_for_write_sets(key_list_to_hash);
+#endif
 
     while(key_list_to_hash.size())
     {
       std::string prepared_string= key_list_to_hash.back();
       key_list_to_hash.pop_back();
       generate_hash_pke(prepared_string, thd);
+      writeset_hashes_added++;
     }
   }
+
+  if (writeset_hashes_added == 0)
+    ws_ctx->set_has_missing_keys();
+
   DBUG_VOID_RETURN;
 }

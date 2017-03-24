@@ -161,6 +161,7 @@ b varchar (64),
 INDEX (b,a),
 PRIMARY KEY (a))
 ENGINE = InnoDB
+charset latin1
 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH (a) SUBPARTITIONS 2
 (PARTITION pNeg VALUES LESS THAN (0)
@@ -678,7 +679,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	1
 Handler_external_lock	1
 # 18 read key (ALTER forces table to be closed, see above for open)
-LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg, `p10-99`);
+LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg, `p10-99`) CHARACTER SET latin1;
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	2
 Handler_external_lock	1
@@ -1089,8 +1090,8 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` int(11) NOT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `b` varchar(64) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT * FROM t3;
 a	b
 -4	(pNeg-)subp0, Updated, Updated2, Updated from a = -2
@@ -1568,7 +1569,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`,`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH (a)
 (PARTITION pNeg VALUES LESS THAN (0)

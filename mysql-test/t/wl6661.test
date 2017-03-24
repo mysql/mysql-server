@@ -2,8 +2,6 @@
 --echo # WL#6661: Error logging: Allow control of verbosity
 --echo #
 
---source include/not_embedded.inc
-
 # Unfortunately while the order of the requirements was sensible for
 # human consumption, it's relatively impractical to test in that order. :(
 

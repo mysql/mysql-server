@@ -48,7 +48,6 @@ public:
   ngs::shared_ptr<addrinfo> resolve_bind_address(
       const std::string &bind_address,
       const unsigned short port,
-      int &error_code,
       std::string &error_message
       ) {
     struct addrinfo *result = NULL;
@@ -334,7 +333,6 @@ ngs::Socket_interface::Shared_ptr Listener_tcp::create_socket() {
   ngs::shared_ptr<addrinfo> ai = creator.resolve_bind_address(
       m_bind_address,
       m_port,
-      error_code,
       m_last_error);
 
   if (NULL == ai.get())

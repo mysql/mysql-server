@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,13 +25,13 @@ class Sql_service_interface
 {
 private:
 
-  /* Pointer to Srv_session class */
+  /** Pointer to Srv_session class */
   MYSQL_SESSION m_session;
 
-  /* Pointer to the group_replication plugin structure */
+  /** Pointer to the group_replication plugin structure */
   void *m_plugin;
 
-  /* send result in string or native types */
+  /** send result in string or native types */
   enum cs_text_or_binary m_txt_or_bin;
 
   /* The charset for the input string data */

@@ -20,6 +20,7 @@
 #include <sys/types.h>
 
 #include "handler.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_bitmap.h"
@@ -46,7 +47,6 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 class KEY;
 
 typedef struct st_key_range key_range;
-typedef struct st_mysql_lex_string LEX_STRING;
 template <class T> class List;
 
 /* Flags for partition handlers */

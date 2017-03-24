@@ -27,9 +27,9 @@
 #include "auth_common.h"              // check_table_access
 #include "binlog.h"                   // mysql_bin_log
 #include "check_stack.h"
+#include "dd/cache/dictionary_client.h"
 #include "dd/dd_table.h"              // dd::table_exists
 #include "dd/dd_tablespace.h"         // dd::fill_table_and_parts_tablespace_name
-#include "dd/dd_trigger.h"            // dd::table_has_triggers
 #include "dd/types/abstract_table.h"
 #include "dd/types/table.h"           // dd::Table
 #include "dd_table_share.h"           // open_table_def
@@ -1526,6 +1526,7 @@ void close_thread_tables(THD *thd)
       if (table->db_stat)
         table->file->extra(HA_EXTRA_DETACH_CHILDREN);
       table->cleanup_gc_items();
+      table->cleanup_partial_update();
     }
   }
 
@@ -1861,6 +1862,16 @@ bool close_temporary_tables(THD *thd)
     thd->variables.option_bits |= OPTION_QUOTE_SHOW_CREATE;
   }
 
+  /*
+    Make LEX consistent with DROP TEMPORARY TABLES statement which we
+    are going to log. This is important for the binary logging code.
+  */
+  LEX *lex=thd->lex;
+  enum_sql_command sav_sql_command= lex->sql_command;
+  bool sav_drop_temp= lex->drop_temporary;
+  lex->sql_command= SQLCOM_DROP_TABLE;
+  lex->drop_temporary= true;
+
   /* scan sorted tmps to generate sequence of DROP */
   for (table= thd->temporary_tables; table; table= next)
   {
@@ -1992,6 +2003,9 @@ bool close_temporary_tables(THD *thd)
       slave_closed_temp_tables++;
     }
   }
+  lex->drop_temporary= sav_drop_temp;
+  lex->sql_command= sav_sql_command;
+
   if (!was_quote_show)
     thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
 
@@ -3014,8 +3028,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
           DBUG_RETURN(true);
         }
 
-        if (!tdc_open_view(thd, table_list, key, key_length,
-                           CHECK_METADATA_VERSION))
+        // Check metadata version and don't skip view defintion parsing.
+        if (!tdc_open_view(thd, table_list, key, key_length, true, false))
         {
           DBUG_ASSERT(table_list->is_view());
           DBUG_RETURN(FALSE); // VIEW
@@ -4165,7 +4179,8 @@ check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
    @param table_list        TABLE_LIST with db, table_name & belong_to_view
    @param cache_key         Key for table definition cache
    @param cache_key_length  Length of cache_key
-   @param flags             Flags which modify how we open the view
+   @param check_metadata_version  Check the TABLE_SHARE-version.
+   @param no_parse          Don't parse the view definition.
 
    @todo This function is needed for special handling of views under
          LOCK TABLES. We probably should get rid of it in long term.
@@ -4174,7 +4189,8 @@ check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
 */
 
 bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
-                   const char *cache_key, size_t cache_key_length, uint flags)
+                   const char *cache_key, size_t cache_key_length,
+                   bool check_metadata_version, bool no_parse)
 {
   my_hash_value_type hash_value;
   TABLE_SHARE *share;
@@ -4186,9 +4202,12 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
   if (!(share= get_table_share(thd, table_list, cache_key,
                                cache_key_length,
                                true, hash_value)))
-    goto err;
+  {
+    mysql_mutex_unlock(&LOCK_open);
+    return true;
+  }
 
-  if ((flags & CHECK_METADATA_VERSION))
+  if (check_metadata_version)
   {
     /*
       Check TABLE_SHARE-version of view only if we have been instructed to do
@@ -4202,7 +4221,8 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
     if (check_and_update_table_version(thd, table_list, share))
     {
       release_table_share(share);
-      goto err;
+      mysql_mutex_unlock(&LOCK_open);
+      return true;
     }
   }
 
@@ -4216,18 +4236,15 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
     if (view_open_result)
       return true;
 
-    bool view_parse_result= false;
-    if (!(flags & OPEN_VIEW_NO_PARSE))
-      view_parse_result= parse_view_definition(thd, table_list);
-
-    return view_parse_result;
+    if (no_parse)
+      return false;
+    return parse_view_definition(thd, table_list);
   }
 
   my_error(ER_WRONG_OBJECT, MYF(0), share->db.str, share->table_name.str, "VIEW");
   release_table_share(share);
-err:
   mysql_mutex_unlock(&LOCK_open);
-  return TRUE;
+  return true;
 }
 
 
@@ -4238,12 +4255,16 @@ err:
 
 static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
 {
-  bool table_has_trigger;
-  if (dd::table_has_triggers(thd, share->db.str, share->table_name.str,
-                             &table_has_trigger))
-    return true;
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  if (table_has_trigger)
+  const dd::Table *table= nullptr;
+  if (thd->dd_client()->acquire(share->db.str, share->table_name.str, &table))
+  {
+    // Error is reported by the dictionary subsystem.
+    return true;
+  }
+
+  if (table != nullptr && table->has_trigger())
   {
     Table_trigger_dispatcher *d= Table_trigger_dispatcher::create(entry);
 
@@ -7277,7 +7298,6 @@ bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list)
     thd				thread handler
     table_list			view to search for 'name'
     name			name of field
-    item_name                   name of item if it will be created (VIEW)
     ref				expression substituted in VIEW should be passed
                                 using this reference (return view_ref_found)
     register_tree_change        TRUE if ref is not stack variable and we
@@ -7292,13 +7312,13 @@ bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list)
 static Field *
 find_field_in_view(THD *thd, TABLE_LIST *table_list,
                    const char *name,
-                   const char *item_name, Item **ref,
+                   Item **ref,
                    bool register_tree_change)
 {
   DBUG_ENTER("find_field_in_view");
   DBUG_PRINT("enter",
-             ("view: '%s', field name: '%s', item name: '%s', ref %p",
-              table_list->alias, name, item_name, ref));
+             ("view: '%s', field name: '%s', ref %p",
+              table_list->alias, name, ref));
   Field_iterator_view field_it;
   field_it.set(table_list);
 
@@ -7663,7 +7683,7 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
   if (table_list->field_translation)
   {
     /* 'table_list' is a view or an information schema table. */
-    if ((fld= find_field_in_view(thd, table_list, name, item_name, ref,
+    if ((fld= find_field_in_view(thd, table_list, name, ref,
                                  register_tree_change)))
       *actual_table= table_list;
   }
@@ -9108,9 +9128,10 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
       Mark_field mf(MARK_COLUMNS_WRITE);
       item->walk(&Item::mark_field_in_map, Item::WALK_POSTFIX,
                  pointer_cast<uchar *>(&mf));
-   }
-    if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
-	sum_func_list)
+    }
+    if (item->has_aggregation() &&
+        item->type() != Item::SUM_FUNC_ITEM &&
+        sum_func_list)
       item->split_sum_func(thd, ref_item_array, *sum_func_list);
     select->select_list_tables|= item->used_tables();
     thd->lex->used_tables|= item->used_tables();

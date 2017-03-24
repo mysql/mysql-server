@@ -75,6 +75,7 @@
 #include "auth_common.h"    // GRANT_ACL
 #include "handler.h"
 #include "key.h"
+#include "lex_string.h"
 #include "log_event.h"      // append_query_string
 #include "m_ctype.h"
 #include "m_string.h"
@@ -321,6 +322,17 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
         rlb->append(command_array[c],command_lengths[c]);
         if (!(lex->grant & priv))              // general outranks specific
           rlb->append(cols);
+      }
+    }
+    /* List extended global privilege IDs */
+    if (!first_table && !lex->current_select()->db)
+    {
+      List_iterator<LEX_CSTRING> it(lex->dynamic_privileges);
+      LEX_CSTRING *priv;
+      while ((priv= it++))
+      {
+        comma_maybe(rlb, &comma);
+        rlb->append(priv->str, priv->length);
       }
     }
     if (!comma)                                // no privs, default to USAGE

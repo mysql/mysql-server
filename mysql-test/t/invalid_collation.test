@@ -5,7 +5,6 @@
 --echo # the collation is not supported. Verify that we
 --echo # can do  DROP TABLE, but not CHECK or RENAME.
 
---source include/not_embedded.inc
 
 --echo #
 --echo # New character sets dir:
@@ -25,6 +24,9 @@ CREATE TABLE t1 (i INTEGER) COLLATE utf8_phone_ci;
 --let $restart_parameters=restart:--character-sets-dir=$MYSQL_CHARSETSDIR
 --replace_result $MYSQL_CHARSETSDIR MYSQL_CHARSETSDIR
 --source include/restart_mysqld.inc
+
+--let $old_log_error_verbosity = `select @@global.log_error_verbosity`
+SET @@global.log_error_verbosity = 1;
 
 --echo #
 --echo # Reverted to old character sets dir:
@@ -67,3 +69,5 @@ SHOW CREATE TABLE t1;
 --echo #
 --echo # Check behavior of DROP TABLE (succeed):
 DROP TABLE t1;
+
+--eval SET @@global.log_error_verbosity = $old_log_error_verbosity

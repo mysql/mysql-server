@@ -6337,7 +6337,7 @@ table2	CREATE TABLE `table2` (
   `LastName` varchar(255) NOT NULL,
   PRIMARY KEY (`ID`),
   UNIQUE KEY `idx2` (`LastName`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 0 rows affected
 drop index using namespace=sql
 send Mysqlx.Sql.StmtExecute {

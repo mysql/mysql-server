@@ -54,7 +54,7 @@ struct PFS_events_statements : public PFS_events
   char m_message_text[MYSQL_ERRMSG_SIZE + 1];
   /** Diagnostics area, error number. */
   uint m_sql_errno;
-  /** Diagnostics area, SQLSTATE. */
+  /** Diagnostics area, @c SQLSTATE. */
   char m_sqlstate[SQLSTATE_LENGTH];
   /** Diagnostics area, error count. */
   uint m_error_count;
@@ -94,7 +94,7 @@ struct PFS_events_statements : public PFS_events
   /** Optimizer metric, number of 'no good index used'. */
   ulonglong m_no_good_index_used;
 
-  /** True if sqltext was truncated. */
+  /** True if @c SQL_TEXT was truncated. */
   bool m_sqltext_truncated;
   /** Statement character set number. */
   uint m_sqltext_cs_number;
@@ -105,7 +105,7 @@ struct PFS_events_statements : public PFS_events
     and always point to pre allocated memory.
   */
   char *m_sqltext;
-  /** Length of @ m_info. */
+  /** Length of @c m_sqltext. */
   uint m_sqltext_length;
   /**
     Statement digest.

@@ -233,7 +233,7 @@ table_status_by_account::rnd_pos(const void *pos)
 }
 
 int
-table_status_by_account::index_init(uint idx, bool)
+table_status_by_account::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   /* Build array of SHOW_VARs from the global status array prior to
    * materializing. */

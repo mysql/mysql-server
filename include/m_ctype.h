@@ -209,7 +209,12 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 #define MY_CS_LOADED    8      /* sets that are currently loaded */
 #define MY_CS_BINSORT	16     /* if binary sort order           */
 #define MY_CS_PRIMARY	32     /* if primary collation           */
-#define MY_CS_STRNXFRM	64     /* if strnxfrm is used for sort   */
+#define MY_CS_STRNXFRM	64     /*
+                                 if _not_ set, sort_order will
+                                 give same result as strnxfrm --
+                                 all new collations should have this
+                                 flag set, do not check it in new code
+                               */
 #define MY_CS_UNICODE	128    /* is a charset is BMP Unicode    */
 #define MY_CS_READY	256    /* if a charset is initialized    */
 #define MY_CS_AVAILABLE	512    /* If either compiled-in or loaded*/
@@ -227,7 +232,6 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 #define MY_REPERTOIRE_UNICODE30  3 /* ASCII | EXTENDED:     U+0000..U+FFFF */
 
 /* Flags for strxfrm */
-#define MY_STRXFRM_PAD_WITH_SPACE  0x00000040 /* if pad result with spaces */
 #define MY_STRXFRM_PAD_TO_MAXLEN   0x00000080 /* if pad tail(for filesort) */
 
 
@@ -262,6 +266,8 @@ typedef struct my_charset_loader_st
 
 extern int (*my_string_stack_guard)(int);
 
+enum Pad_attribute { PAD_SPACE, NO_PAD };
+
 /* See strings/CHARSET_INFO.txt for information about this structure  */
 typedef struct my_collation_handler_st
 {
@@ -269,6 +275,15 @@ typedef struct my_collation_handler_st
   /* Collation routines */
   int     (*strnncoll)(const struct charset_info_st *,
 		       const uchar *, size_t, const uchar *, size_t, bool);
+  /**
+    Compare the two strings under the pad rules given by the collation.
+
+    Thus, for NO PAD collations, this is identical to strnncoll with is_prefix
+    set to false. For PAD SPACE collations, the two strings are conceptually
+    extended infinitely at the end using space characters (0x20) and then
+    compared under the collation's normal comparison rules, so that e.g 'a' is
+    equal to 'a '.
+  */
   int     (*strnncollsp)(const struct charset_info_st *,
                          const uchar *, size_t, const uchar *, size_t);
   /**
@@ -279,13 +294,15 @@ typedef struct my_collation_handler_st
     @param [out] dstlen Number of bytes available in dstlen.
       Must be even.
     @param num_codepoints Treat the string as if it were of type
-      CHAR(num_codepoints). In particular, this means that if padding
-      is requested (flags contain MY_STRXFRM_PAD_WITH_SPACE) and the
+      CHAR(num_codepoints). In particular, this means that if the
+      collation is a pad collation (pad_attribute is PAD_SPACE) and
       string has fewer than "num_codepoints" codepoints, the string
       will be transformed as if it ended in (num_codepoints-n) extra spaces.
       If the string has more than "num_codepoints" codepoints,
       behavior is undefined; may truncate, may crash, or do something
-      else entirely.
+      else entirely. Note that MY_STRXFRM_PAD_TO_MAXLEN overrides this;
+      if it is given for a PAD SPACE collation, this value is taken to be
+      effectively infinity.
     @param src The source string, in the required character set
       for the collation.
     @param srclen Number of bytes in src.
@@ -369,6 +386,21 @@ typedef struct my_charset_handler_st
   size_t  (*well_formed_len)(const struct charset_info_st *,
                              const char *b,const char *e,
                              size_t nchars, int *error);
+  /**
+    Given a pointer and a length in bytes, returns a new length in bytes where
+    all trailing space characters are stripped. This holds even for NO PAD
+    collations.
+
+    Exception: The "binary" collation, which is used behind-the-scenes to implement
+    the BINARY type (by mapping it to CHAR(n) COLLATE "binary"), returns just the
+    length back with no stripping. It's done that way so that Field_string
+    (implementing CHAR(n)) returns the full padded width on read (as opposed to
+    a normal CHAR, where we usually strip the spaces on read), but it's
+    suboptimal, since lengthsp() is also used in a number of other places,
+    e.g. stripping trailing spaces from enum values given in by the user.
+    If you call this function, be aware of this special exception and consider
+    the implications.
+  */
   size_t  (*lengthsp)(const struct charset_info_st *, const char *ptr,
                       size_t length);
   size_t  (*numcells)(const struct charset_info_st *, const char *b,
@@ -463,6 +495,14 @@ typedef struct charset_info_st
   MY_CHARSET_HANDLER *cset;
   MY_COLLATION_HANDLER *coll;
   
+  /**
+    If this collation is PAD_SPACE, it collates as if all inputs were
+    padded with a given number of spaces at the end (see the "num_codepoints"
+    flag to strnxfrm). NO_PAD simply compares unextended strings.
+
+    Note that this is fundamentally about the behavior of coll->strnxfrm.
+  */
+  enum Pad_attribute pad_attribute;
 } CHARSET_INFO;
 #define ILLEGAL_CHARSET_INFO_NUMBER (~0U)
 
@@ -757,7 +797,7 @@ uint my_mbcharlen_ptr(const CHARSET_INFO *cs, const char *s, const char *e);
 #define my_binary_compare(s)	      ((s)->state  & MY_CS_BINSORT)
 #define use_strnxfrm(s)               ((s)->state  & MY_CS_STRNXFRM)
 #define my_strnxfrm(cs, d, dl, s, sl) \
-   ((cs)->coll->strnxfrm((cs), (d), (dl), (dl), (s), (sl), MY_STRXFRM_PAD_WITH_SPACE))
+   ((cs)->coll->strnxfrm((cs), (d), (dl), (dl), (s), (sl), 0))
 #define my_strnncoll(s, a, b, c, d) ((s)->coll->strnncoll((s), (a), (b), (c), (d), 0))
 #define my_like_range(s, a, b, c, d, e, f, g, h, i, j) \
    ((s)->coll->like_range((s), (a), (b), (c), (d), (e), (f), (g), (h), (i), (j)))

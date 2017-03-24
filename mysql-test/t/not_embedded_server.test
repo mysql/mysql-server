@@ -1,10 +1,4 @@
 
-#
-# Here we collect tests that doesn't work with the embedded server
-#
-
--- source include/not_embedded.inc
-
 # End of 4.1 tests
 
 call mtr.add_suppression("Can't open and lock privilege tables: Table 'user' was not locked with LOCK TABLES");

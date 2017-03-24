@@ -1281,19 +1281,19 @@ DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1 (
 i1 INTEGER NOT NULL,
 c1 VARCHAR(1) NOT NULL
-) ENGINE=InnoDB;
+) charset latin1 ENGINE=InnoDB;
 INSERT INTO t1 VALUES (2,'w');
 CREATE TABLE t2 (
 i1 INTEGER NOT NULL,
 c1 VARCHAR(1) NOT NULL,
 c2 VARCHAR(1) NOT NULL,
 KEY (c1, i1)
-) ENGINE=InnoDB;
+) charset latin1 ENGINE=InnoDB;
 INSERT INTO t2 VALUES (8,'d','d');
 INSERT INTO t2 VALUES (4,'v','v');
 CREATE TABLE t3 (
 c1 VARCHAR(1) NOT NULL
-) ENGINE=InnoDB;
+) charset latin1 ENGINE=InnoDB;
 INSERT INTO t3 VALUES ('v');
 EXPLAIN FORMAT=json
 SELECT i1
@@ -2407,9 +2407,9 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,min(`test`.`t1`.`b`) AS `b` from `test`.`t1` group by `test`.`t1`.`a` order by `b`
 DROP TABLE t1;
 #
-CREATE TABLE t1 (a INT NOT NULL, b CHAR(3) NOT NULL, PRIMARY KEY (a));
+CREATE TABLE t1 (a INT NOT NULL, b CHAR(3) NOT NULL, PRIMARY KEY (a)) charset utf8mb4;
 INSERT INTO t1 VALUES (1,'ABC'), (2,'EFG'), (3,'HIJ');
-CREATE TABLE t2 (a INT NOT NULL,b CHAR(3) NOT NULL,PRIMARY KEY (a, b));
+CREATE TABLE t2 (a INT NOT NULL,b CHAR(3) NOT NULL,PRIMARY KEY (a, b)) charset utf8mb4;
 INSERT INTO t2 VALUES (1,'a'),(1,'b'),(3,'F');
 EXPLAIN FORMAT=JSON SELECT t1.a, GROUP_CONCAT(t2.b) AS b FROM t1 LEFT JOIN t2 ON t1.a=t2.a GROUP BY t1.a ORDER BY t1.b;
 EXPLAIN
@@ -2439,7 +2439,7 @@ EXPLAIN
                 "read_cost": "0.50",
                 "eval_cost": "0.30",
                 "prefix_cost": "0.80",
-                "data_read_per_join": "48"
+                "data_read_per_join": "72"
               } /* cost_info */,
               "used_columns": [
                 "a",
@@ -2470,7 +2470,7 @@ EXPLAIN
                 "read_cost": "0.75",
                 "eval_cost": "0.30",
                 "prefix_cost": "1.85",
-                "data_read_per_join": "48"
+                "data_read_per_join": "72"
               } /* cost_info */,
               "used_columns": [
                 "a",

@@ -44,8 +44,8 @@ struct PFS_user_key
 {
   /**
     Hash search key.
-    This has to be a string for LF_HASH,
-    the format is "<username><0x00>"
+    This has to be a string for @c LF_HASH,
+    the format is @c "<username><0x00>"
   */
   char m_hash_key[USERNAME_LENGTH + 1];
   uint m_key_length;

@@ -6,6 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 ## Create table with Range Column Partition ##
 CREATE TABLE t1 ( c1 int, c2 int, PRIMARY KEY (c1, c2))
+CHARSET=utf8mb4
 PARTITION BY RANGE COLUMNS(c1, c2)
 (
 PARTITION t1p1 VALUES LESS THAN (5, 10),
@@ -13,6 +14,7 @@ PARTITION t1p2 VALUES LESS THAN (MAXVALUE, MAXVALUE)
 );
 ## Create table with list Column Partition ##
 CREATE TABLE t2 ( c1 int, c2 char(5), PRIMARY KEY (c1, c2))
+CHARSET=utf8mb4
 PARTITION BY LIST COLUMNS(c1, c2)
 (
 PARTITION t2p1 VALUES in ( (1, 'aa'), (2, 'ab') ),
@@ -26,7 +28,7 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` int(11) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50500 PARTITION BY RANGE  COLUMNS(c1,c2)
 (PARTITION t1p1 VALUES LESS THAN (5,10) ENGINE = InnoDB,
  PARTITION t1p2 VALUES LESS THAN (MAXVALUE,MAXVALUE) ENGINE = InnoDB) */
@@ -40,7 +42,7 @@ t2	CREATE TABLE `t2` (
   `c1` int(11) NOT NULL,
   `c2` char(5) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50500 PARTITION BY LIST  COLUMNS(c1,c2)
 (PARTITION t2p1 VALUES IN ((1,'aa'),(2,'ab')) ENGINE = InnoDB,
  PARTITION t2p2 VALUES IN ((1,'cc'),(2,'cd')) ENGINE = InnoDB) */

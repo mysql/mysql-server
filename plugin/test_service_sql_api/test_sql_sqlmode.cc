@@ -203,7 +203,7 @@ struct st_plugin_ctx
 };
 
 
-static int sql_start_result_metadata(void *ctx, uint num_cols, uint flags,
+static int sql_start_result_metadata(void *ctx, uint num_cols, uint,
                                      const CHARSET_INFO *resultcs)
 {
   struct st_plugin_ctx *pctx= (struct st_plugin_ctx*) ctx;
@@ -221,7 +221,7 @@ static int sql_start_result_metadata(void *ctx, uint num_cols, uint flags,
 
 
 static int sql_field_metadata(void *ctx, struct st_send_field *field,
-                              const CHARSET_INFO *charset)
+                              const CHARSET_INFO*)
 {
   struct st_plugin_ctx *pctx= (struct st_plugin_ctx*) ctx;
   st_send_field_n *cfield= &pctx->sql_field[pctx->current_col];
@@ -287,14 +287,14 @@ static int sql_end_row(void *ctx)
 }
 
 
-static void sql_abort_row(void *ctx)
+static void sql_abort_row(void*)
 {
   DBUG_ENTER("sql_abort_row");
   DBUG_VOID_RETURN;
 }
 
 
-static ulong sql_get_client_capabilities(void *ctx)
+static ulong sql_get_client_capabilities(void*)
 {
   DBUG_ENTER("sql_get_client_capabilities");
   DBUG_RETURN(0);
@@ -382,7 +382,7 @@ static int sql_get_decimal(void * ctx, const decimal_t * value)
 }
 
 
-static int sql_get_double(void * ctx, double value, uint32 decimals)
+static int sql_get_double(void * ctx, double value, uint32)
 {
   char buffer[1024];
   struct st_plugin_ctx *pctx= (struct st_plugin_ctx*) ctx;
@@ -423,7 +423,7 @@ static int sql_get_date(void * ctx, const MYSQL_TIME * value)
 }
 
 
-static int sql_get_time(void * ctx, const MYSQL_TIME * value, uint decimals)
+static int sql_get_time(void * ctx, const MYSQL_TIME * value, uint)
 {
   char buffer[1024];
   struct st_plugin_ctx *pctx= (struct st_plugin_ctx*) ctx;
@@ -445,7 +445,7 @@ static int sql_get_time(void * ctx, const MYSQL_TIME * value, uint decimals)
 }
 
 
-static int sql_get_datetime(void * ctx, const MYSQL_TIME * value, uint decimals)
+static int sql_get_datetime(void * ctx, const MYSQL_TIME * value, uint)
 {
   char buffer[1024];
   struct st_plugin_ctx *pctx= (struct st_plugin_ctx*) ctx;
@@ -470,7 +470,7 @@ static int sql_get_datetime(void * ctx, const MYSQL_TIME * value, uint decimals)
 
 
 static int sql_get_string(void * ctx, const char * const value, size_t length,
-                          const CHARSET_INFO * const valuecs)
+                          const CHARSET_INFO * const)
 {
   struct st_plugin_ctx *pctx= (struct st_plugin_ctx*) ctx;
 //  WRITE_STR("sql_get_string\n");
@@ -523,7 +523,7 @@ static void sql_handle_error(void * ctx, uint sql_errno,
 }
 
 
-static void sql_shutdown(void *ctx, int shutdown_server)
+static void sql_shutdown(void*, int)
 {
   DBUG_ENTER("sql_shutdown");
   DBUG_VOID_RETURN;

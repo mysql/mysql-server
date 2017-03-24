@@ -27,6 +27,7 @@
 #include "current_thd.h"
 #include "decimal.h"
 #include "derror.h"             // ER_DEFAULT
+#include "lex_string.h"
 #include "log.h"                 // Query log
 #include "m_ctype.h"
 #include "mutex_lock.h"
@@ -609,7 +610,7 @@ static int err_get_string(void*, const char*, size_t,const CHARSET_INFO*)
 
 static void err_handle_ok(void * ctx, uint server_status, uint warn_count,
                           ulonglong affected_rows, ulonglong last_insert_id,
-                          const char * const message)
+                          const char * const)
 {
   Srv_session::st_err_protocol_ctx *pctx=
              static_cast<Srv_session::st_err_protocol_ctx*>(ctx);
@@ -624,7 +625,7 @@ static void err_handle_ok(void * ctx, uint server_status, uint warn_count,
 }
 
 static void err_handle_error(void * ctx, uint err_errno, const char * err_msg,
-                             const char * sqlstate)
+                             const char*)
 {
   Srv_session::st_err_protocol_ctx *pctx=
              static_cast<Srv_session::st_err_protocol_ctx*>(ctx);
@@ -632,7 +633,7 @@ static void err_handle_error(void * ctx, uint err_errno, const char * err_msg,
     pctx->handler(pctx->handler_context, err_errno, err_msg);
 }
 
-static void err_shutdown(void*, int server_shutdown){}
+static void err_shutdown(void*, int) {}
 
 
 const struct st_command_service_cbs error_protocol_callbacks=
@@ -664,14 +665,14 @@ const struct st_command_service_cbs error_protocol_callbacks=
 
   @param thd THD
 */
+#ifdef HAVE_PSI_THREAD_INTERFACE
 static void set_psi(THD *thd)
 {
-#ifdef HAVE_PSI_THREAD_INTERFACE
   struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
   PSI_THREAD_CALL(set_thread_id)(psi, thd? thd->thread_id() : 0);
   PSI_THREAD_CALL(set_thread_THD)(psi, thd);
-#endif
 }
+#endif
 
 
 /**
@@ -1014,7 +1015,9 @@ bool Srv_session::attach()
     if (old_thd)
       old_thd->store_globals();
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
     set_psi(old_thd);
+#endif
 
     set_detached();
     DBUG_RETURN(true);
@@ -1027,9 +1030,9 @@ bool Srv_session::attach()
 
   thd_clear_errors(&thd);
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
   set_psi(&thd);
 
-#ifdef HAVE_PSI_THREAD_INTERFACE
    PSI_THREAD_CALL(set_connection_type)(vio_type != NO_VIO_TYPE?
                                         vio_type : thd.get_vio_type());
 #endif /* HAVE_PSI_THREAD_INTERFACE */
@@ -1075,7 +1078,9 @@ bool Srv_session::detach()
   DBUG_ASSERT(&thd == current_thd);
   thd.restore_globals();
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
   set_psi(NULL);
+#endif
   /*
     We can't call PSI_THREAD_CALL(set_connection_type)(NO_VIO_TYPE) here because
     it will assert. Thus, it will be possible to have a physical thread, which
@@ -1145,7 +1150,9 @@ bool Srv_session::close()
 
   thd.disconnect();
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
   set_psi(NULL);
+#endif
 
   thd.release_resources();
 

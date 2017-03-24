@@ -1,7 +1,6 @@
 # This test scripts covers upgrade of tables, views, tablespaces,
 # events, stored routines and triggers from 5.7 to 8.0.
 
---source include/not_embedded.inc
 --source include/not_valgrind.inc
 #Zipped data directory was created with default 16K page size
 
@@ -23,15 +22,22 @@ call mtr.add_suppression("information_schema");
 call mtr.add_suppression("doesn't exist");
 call mtr.add_suppression("references invalid");
 call mtr.add_suppression("Creating routine without parsing routine body");
+call mtr.add_suppression(".*The privilege system failed to initialize correctly.*");
 call mtr.add_suppression("Resolving dependency for the view");
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 call mtr.add_suppression("Unknown system variable 'show_compatibility_56'");
 call mtr.add_suppression("Column count of mysql.* is wrong");
+call mtr.add_suppression("Column count of performance_schema.events_statements_summary_by_digest is wrong.*");
+call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
 # InnoDB reports "Lock wait timeout" warnings when it tries to drop persistent
 # statistics while persistent statistics table is altered during upgrade.
 # This issue doesn't seem to cause any further trouble (as there is no persistent
 # stats for persistent stats table anyway), so we ignore these warnings here.
 call mtr.add_suppression("InnoDB: Unable to delete statistics for table mysql.");
+# new columns were added to these tables
+call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_worker is wrong. Expected 16, found 8.");
+call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_coordinator is wrong. Expected 15, found 6.");
+call mtr.add_suppression("Column count of performance_schema.replication_connection_status is wrong. Expected 20, found 11.");
 # Set different paths for --datadir
 let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 
@@ -130,6 +136,30 @@ INSERT INTO test.proc VALUES ('sp','bug24805140','PROCEDURE','bug24805140','SQL'
                               'NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION','',
                               'utf8','utf8_general_ci','latin1_swedish_ci',
                               'begin select   @@show_compatibility_56 into b; end');
+
+
+# Data for Bug#25633041 : SHOW CREATE PROC/FUNCTION RESULT
+#                         AFTER LIVEUPGR IS DIFFERENT TO DUMPUPGR
+INSERT INTO `proc` VALUES ('test','downgrade_alter_proc','PROCEDURE',
+                           'downgrade_alter_proc',
+                           'SQL','CONTAINS_SQL','NO','INVOKER','','',
+                           'BEGIN\n      SELECT c1, English, French FROM t1 '
+                           'JOIN t2 ON t1.c3 = t2.col2;\n     END',
+                           'root@localhost','1988-04-25 20:45:00',
+                           '1988-04-25 20:45:00','NO_ZERO_DATE','','latin1',
+                           'latin1_swedish_ci','latin1_swedish_ci',
+                           'BEGIN\n      SELECT c1, English, French FROM t1 '
+                           'JOIN t2 ON t1.c3 = t2.col2;\n     END'),
+                          ('test','my_test_func','FUNCTION','myfunc','SQL',
+                           'CONTAINS_SQL','NO','DEFINER', '',
+                           'varchar(20) CHARSET latin1',
+                           'BEGIN\n  RETURN \'å\';\nEND',
+                           'root@localhost','2017-03-08 09:07:36',
+                           '2017-03-08 09:07:36', 'ONLY_FULL_GROUP_BY,'
+                           'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,'
+                           'ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,'
+                           'NO_ENGINE_SUBSTITUTION','','latin1','latin1_swedish_ci',
+                           'latin1_swedish_ci','BEGIN\n  RETURN \'Ã¥\';\nEND');
 
 # Remove  the original zipped data and index files.
 --remove_file $MYSQL_TMP_DIR/data57/mysql/proc.MYD
@@ -267,6 +297,14 @@ SHOW CREATE FUNCTION sp.hello;
 SHOW CREATE EVENT events.e_totals;
 #Check for fulltext index
 SHOW CREATE TABLE test.opening_lines;
+
+#Check data for Bug#25633041
+SHOW CREATE PROCEDURE test.downgrade_alter_proc;
+SHOW CREATE FUNCTION test.my_test_func;
+SELECT ROUTINE_NAME, CHARACTER_SET_NAME, CHARACTER_SET_CLIENT,  COLLATION_CONNECTION,
+  DATABASE_COLLATION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='test'
+  ORDER BY ROUTINE_NAME;
+
 
 # Check for General tablespace
 SHOW CREATE TABLE tablespace.t2;

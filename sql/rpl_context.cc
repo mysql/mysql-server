@@ -176,7 +176,7 @@ Session_consistency_gtids_ctx::register_ctx_change_listener(
 }
 
 void Session_consistency_gtids_ctx::unregister_ctx_change_listener(
-             Session_consistency_gtids_ctx::Ctx_change_listener* listener)
+Session_consistency_gtids_ctx::Ctx_change_listener* listener MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(m_listener == listener || m_listener == NULL);
 

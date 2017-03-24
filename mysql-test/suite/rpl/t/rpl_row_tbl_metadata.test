@@ -188,7 +188,7 @@ CREATE TABLE `t1` (
   `c145` varchar(30) DEFAULT NULL,
   `c146` varchar(30) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB CHARACTER SET latin1;
 
 -- enable_warnings
 
@@ -285,7 +285,7 @@ for my $i (1..$ntables)
     }
   }
 
-  print FILE ") Engine=InnoDB;\n";
+  print FILE ") Engine=InnoDB CHARACTER SET latin1;\n";
 
   $tables.= " t$i WRITE";
   if ($i < $ntables)

@@ -172,7 +172,7 @@ v5	VIEW
 v6	VIEW
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Dynamic	#	#	#	#	0	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+t1	InnoDB	10	Dynamic	#	#	#	#	0	0	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
 v1	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
 v2	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
 v3	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
@@ -878,7 +878,7 @@ select * from v1;
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Dynamic	#	#	#	#	NULL	NULL	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+t1	InnoDB	10	Dynamic	#	#	#	#	NULL	NULL	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
 v1	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 Warnings:
 Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
@@ -1106,7 +1106,7 @@ a	a	a
 3	3	3
 drop view v1;
 drop table t1, t2;
-create table t1 (s1 char);
+create table t1 (s1 char) charset latin1;
 create view v1 as select s1 collate latin1_german1_ci as s1 from t1;
 insert into v1 values ('a');
 select * from v1;
@@ -1358,7 +1358,7 @@ select * from t1;
 s1
 drop view v2, v1;
 drop table t1;
-create table t1 (a int, b char(10)) engine=Myisam;
+create table t1 (a int, b char(10)) charset latin1 engine=Myisam;
 create view v1 as select * from t1 where a != 0 with check option;
 load data infile '../../std_data/loaddata3.dat' into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
 ERROR HY000: CHECK OPTION failed 'test.v1'
@@ -1416,7 +1416,7 @@ Field 3,'Field 4|
 |Field 6|	| 'Field 7'|
 drop view v1;
 drop table t1;
-create table t1 (a int, b char(10)) ;
+create table t1 (a int, b char(10)) charset latin1;
 create view v1 as select * from t1 where a != 0 with check option;
 load data infile '../../std_data/loaddata3.dat' into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
 ERROR HY000: Incorrect integer value: 'error      ' for column 'a' at row 3
@@ -3039,7 +3039,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select `t1`.`x` AS `x`,`t1`.`y` AS `y` from `t1`	latin1	latin1_swedish_ci
 DROP VIEW v1;
 DROP TABLE t1;
-CREATE TABLE t1 (s1 char);
+CREATE TABLE t1 (s1 char) charset latin1;
 INSERT INTO t1 VALUES ('Z');
 CREATE VIEW v1 AS SELECT s1 collate latin1_german1_ci AS col FROM t1;
 CREATE VIEW v2 (col) AS SELECT s1 collate latin1_german1_ci FROM t1;
@@ -3782,7 +3782,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	userrole	NULL	ref	idx_person_id,idx_role_id	idx_person_id	4	const	#	#	NULL
 1	SIMPLE	role	NULL	eq_ref	PRIMARY	PRIMARY	4	test.userrole.role_id	#	#	NULL
 Warnings:
-Note	1003	/* select#1 */ select '6' AS `a`,'6' AS `b` from `test`.`t1` `profile` join `test`.`t2` `userrole` join `test`.`t3` `role` where ((`test`.`role`.`role_id` = `test`.`userrole`.`role_id`) and (`test`.`userrole`.`person_id` = 6)) order by '6',`test`.`role`.`app_name`,`test`.`role`.`role_name`
+Note	1003	/* select#1 */ select '6' AS `a`,'6' AS `b` from `test`.`t1` `profile` join `test`.`t2` `userrole` join `test`.`t3` `role` where ((`test`.`role`.`role_id` = `test`.`userrole`.`role_id`) and (`test`.`userrole`.`person_id` = 6) and ('A' = 'A')) order by '6',`test`.`role`.`app_name`,`test`.`role`.`role_name`
 SELECT t.person_id AS a, t.person_id AS b FROM v1 t WHERE t.person_id=6;
 a	b
 6	6

@@ -25,6 +25,7 @@
 #include <sys/types.h>
 
 #include "binary_log_types.h"
+#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_time.h"

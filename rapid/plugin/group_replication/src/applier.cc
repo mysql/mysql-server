@@ -289,6 +289,7 @@ Applier_module::apply_view_change_packet(View_change_packet *view_change_packet,
       = new View_change_log_event((char*)view_change_packet->view_id.c_str());
 
   Pipeline_event* pevent= new Pipeline_event(view_change_event, fde_evt, cache);
+  pevent->mark_event(SINGLE_VIEW_EVENT);
   error= inject_event_into_pipeline(pevent, cont);
   delete pevent;
 
@@ -728,7 +729,12 @@ void Applier_module::kill_pending_transactions(bool set_read_mode,
     shared_stop_write_lock->release_write_lock();
 
   if (set_read_mode)
-    set_server_read_mode(threaded_sql_session);
+  {
+    if (threaded_sql_session)
+      set_server_read_mode(PSESSION_INIT_THREAD);
+    else
+      set_server_read_mode(PSESSION_USE_THREAD);
+  }
 
   DBUG_VOID_RETURN;
 }

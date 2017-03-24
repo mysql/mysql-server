@@ -688,3 +688,12 @@ SELECT floor(ceil(12345678901234567890));
 SELECT floor(18446744073709551616);
 SELECT floor(floor(18446744073709551616));
 SELECT floor(floor(floor(18446744073709551616)));
+
+--echo # Bug#25669580: regression: assertion failed: 0 in Item_num_func1::str_op
+
+DO ROUND(0xe9b1, NULL);
+
+--echo # Bug#25688504: regression: scale >= 0 && precision >= 0 && ...
+
+DO COUNT(DISTINCT ROUND(CAST(SLEEP(0) AS DECIMAL), NULL));
+

@@ -18,6 +18,7 @@
 #include <mysqld_error.h>
 #include <sys/types.h>
 
+#include "my_inttypes.h"  // IWYU pragma: keep
 #include "mysql_com.h"  // IWYU pragma: keep
 
 static const int NUM_SECTIONS=
@@ -26,12 +27,12 @@ static const int NUM_SECTIONS=
 struct st_map_errno_to_sqlstate
 {
   const char *name;
-  uint        code;
+  unsigned    code;
   const char *text;
   /* SQLSTATE */
   const char *odbc_state;
   const char *jdbc_state;
-  uint error_index;
+  unsigned error_index;
 };
 
 struct st_map_errno_to_sqlstate sqlstate_map[]=
@@ -41,7 +42,7 @@ struct st_map_errno_to_sqlstate sqlstate_map[]=
 #endif /* IN_DOXYGEN */
 };
 
-const char *mysql_errno_to_sqlstate(uint mysql_errno)
+const char *mysql_errno_to_sqlstate(unsigned mysql_errno)
 {
   int offset= 0; // Position where the current section starts in the array.
   int i;

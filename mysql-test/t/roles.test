@@ -1,37 +1,27 @@
---source include/not_embedded.inc
 call mtr.add_suppression(".* Failed to activate default role .*");
 --echo # test CREATE ROLE and variations of authorizationID:
 --echo # WL988.I-1
---error ER_PARSE_ERROR
+--echo # Role is not a reserved keyword
 CREATE ROLE role;
-CREATE ROLE 'role';
+DROP ROLE role;
 CREATE ROLE `ident with space`;
 CREATE ROLE 'text string';
---error ER_PARSE_ERROR
 CREATE ROLE role@host;
-CREATE ROLE 'role'@host;
---error ER_CANNOT_USER
+DROP ROLE role@host;
 CREATE ROLE 'role'@`host`;
 CREATE ROLE IF NOT EXISTS 'role'@'host';
---error ER_CANNOT_USER
+DROP ROLE 'role'@`host`;
 CREATE ROLE `role`@host;
---error ER_CANNOT_USER
+DROP ROLE `role`@host;
 CREATE ROLE `role`@`host`;
---error ER_CANNOT_USER
-CREATE ROLE `role`@'host';
---error ER_CANNOT_USER
-CREATE ROLE 'role'@host;
---error ER_CANNOT_USER
-CREATE ROLE 'role'@`host`;
---error ER_CANNOT_USER
-CREATE ROLE 'role'@'host';
-CREATE ROLE role1, role2;
+DROP ROLE `role`@`host`;
+CREATE ROLE role, role1, role2;
 --error ER_PARSE_ERROR
 CREATE ROLE r1 IDENTIFIED BY 'test';
 
 --echo # Created roles should not allow login per default
 --echo # WL988.R-1.4
-SELECT user,host, plugin,IF(account_locked = 'Y',"Account is locked","ERROR") FROM mysql.user u WHERE u.user <> 'root' AND u.user <> 'mysql.sys';
+SELECT user,host, plugin,IF(account_locked = 'Y',"Account is locked","ERROR") FROM mysql.user u WHERE u.user NOT IN ('root', 'mysql.sys', 'mysql.session_user');
 
 --echo # Creating roles which already exist should not cause an error to be raised
 --echo # WL988.I-1
@@ -96,9 +86,9 @@ GRANT SELECT ON test.* TO wp_administrators;
 --error ER_PARSE_ERROR
 GRANT engineering ON *.*, SUPER ON *.* TO joan, sally;
 --echo # Mixing ACLs and roles in a grant must fail.
---error ER_PARSE_ERROR
+--error ER_SYNTAX_ERROR
 GRANT SUPER, engineering ON *.* TO joan, sally;
---error ER_PARSE_ERROR
+--error ER_SYNTAX_ERROR
 GRANT engineering,SELECT ON *.* TO joan;
 
 --echo # Make sure current_user() works correctly!
@@ -449,7 +439,7 @@ SELECT * FROM mysql.default_roles;
 
 DROP DATABASE db1;
 DROP PROCEDURE test.sp1;
-SELECT user,host FROM mysql.user WHERE user <> 'root' AND user <> 'mysql.sys';
+SELECT user,host FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session_user');
 DROP ROLE maintenance_admin;
 DROP ROLE user_admin;
 DROP ROLE security_admin;
@@ -606,6 +596,7 @@ DROP ROLE r10;
 #
 # SHOW PRIVILEGES should list all available system privileges
 #
+-- sorted_result
 SHOW PRIVILEGES;
 
 #
@@ -644,6 +635,8 @@ SHOW GRANTS FOR u1@localhost;
 connect(con1, localhost, u1, foo, test);
 --echo ++ Shows default r1.
 SELECT CURRENT_ROLE();
+--echo ++ charset should be utf8
+SELECT CHARSET(CURRENT_ROLE());
 SET ROLE DEFAULT;
 SELECT CURRENT_ROLE();
 SET ROLE DEFAULT;

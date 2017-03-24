@@ -1,9 +1,6 @@
 # This test requires that --log-output includes 'table', and the general
 # log is on
 
-# embedded server causes different stat
--- source include/not_embedded.inc
-
 # When running with valgrind, we switch off --check-testcases, and get
 # different connection_id below, and a content mismatch error.
 -- source include/not_valgrind.inc

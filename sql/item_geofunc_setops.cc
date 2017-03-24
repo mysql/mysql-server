@@ -102,7 +102,7 @@ do                                                                      \
   Write an empty geometry collection's wkb encoding into str, and create a
   geometry object for this empty geometry colletion.
  */
-Geometry *Item_func_spatial_operation::empty_result(String *str, uint32 srid)
+Geometry *Item_func_spatial_operation::empty_result(String *str, gis::srid_t srid)
 {
   if ((null_value= str->reserve(GEOM_HEADER_SIZE + 4 + 16, 256)))
     return 0;

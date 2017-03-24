@@ -47,6 +47,7 @@
 
 #include "errmsg.h"
 #include "hash.h"
+#include "lex_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -1875,6 +1876,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	  break;
         case OPT_pipe:
           options->protocol = MYSQL_PROTOCOL_PIPE;
+          break;
 	case OPT_connect_timeout:
 	case OPT_timeout:
 	  if (opt_arg)
@@ -3131,8 +3133,14 @@ mysql_set_character_set_with_default_collation(MYSQL *mysql)
 {
   const char *save= charsets_dir;
   if (mysql->options.charset_dir)
+  {
+#ifdef MYSQL_SERVER
+    // Do not change charsets_dir, it is not thread safe.
+    DBUG_ASSERT(false);
+#else
     charsets_dir=mysql->options.charset_dir;
-
+#endif
+  }
   if ((mysql->charset= get_charset_by_csname(mysql->options.charset_name,
                                              MY_CS_PRIMARY, MYF(MY_WME))))
   {
@@ -6499,8 +6507,14 @@ int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
   const char *save_csdir= charsets_dir;
 
   if (mysql->options.charset_dir)
+  {
+#ifdef MYSQL_SERVER
+    // Do not change charsets_dir, it is not thread safe.
+    DBUG_ASSERT(false);
+#else
     charsets_dir= mysql->options.charset_dir;
-
+#endif
+  }
   if (!mysql->net.vio)
   {
     /* Initialize with automatic OS character set detection. */

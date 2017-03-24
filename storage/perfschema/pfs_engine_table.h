@@ -21,6 +21,7 @@
 
 #include "auth_common.h" /* struct ACL_* */
 #include "key.h"
+#include "lex_string.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -264,7 +265,7 @@ protected:
 
   /** Table share. */
   const PFS_engine_table_share *m_share_ptr;
-  /** Opaque pointer to the m_pos position of this cursor. */
+  /** Opaque pointer to the @c m_pos position of this cursor. */
   void *m_pos_ptr;
   /** Current normalizer */
   time_normalizer *m_normalizer;
@@ -306,13 +307,18 @@ struct PFS_key_reader
                                    bool &isnull,
                                    uchar *value);
 
-  enum ha_rkey_function read_long_int(enum ha_rkey_function find_flag,
-                                      bool &isnull,
-                                      int32 *value);
+  enum ha_rkey_function read_long(enum ha_rkey_function find_flag,
+                                  bool &isnull,
+                                  long *value);
+
+  enum ha_rkey_function read_ulong(enum ha_rkey_function find_flag,
+                                   bool &isnull,
+                                   ulong *value);
 
   enum ha_rkey_function read_ulonglong(enum ha_rkey_function find_flag,
                                        bool &isnull,
                                        ulonglong *value);
+
   enum ha_rkey_function read_varchar_utf8(enum ha_rkey_function find_flag,
                                           bool &isnull,
                                           char *buffer,
@@ -453,7 +459,7 @@ struct PFS_engine_table_share
 
   /** Table name. */
   LEX_STRING m_name;
-  /** Table ACL. */
+  /** Table Access Control List. */
   const ACL_internal_table_access *m_acl;
   /** Open table function. */
   pfs_open_table_t m_open_table;
@@ -463,7 +469,7 @@ struct PFS_engine_table_share
   pfs_delete_all_rows_t m_delete_all_rows;
   /** Get rows count function. */
   pfs_get_row_count_t m_get_row_count;
-  /** Length of the m_pos position structure. */
+  /** Length of the @c m_pos position structure. */
   uint m_ref_length;
   /** The lock, stored on behalf of the SQL layer. */
   THR_LOCK *m_thr_lock_ptr;

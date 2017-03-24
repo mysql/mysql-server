@@ -21,7 +21,6 @@
 # For crash recovery test on default change please run the ibtest             #
 ###############################################################################
 
--- source include/not_embedded.inc
 
 echo '#________________________VAR_03_query_cache_type__________________#'
 echo '##'

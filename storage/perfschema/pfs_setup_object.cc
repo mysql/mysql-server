@@ -316,7 +316,7 @@ lookup_setup_object(PFS_thread *thread,
   int i;
 
   /*
-    The table io instrumentation uses "TABLE" and "TEMPORARY TABLE".
+    The table I/O instrumentation uses "TABLE" and "TEMPORARY TABLE".
     SETUP_OBJECT uses "TABLE" for both concepts.
     There is no way to provide a different setup for:
     - TABLE foo.bar

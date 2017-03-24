@@ -1,10 +1,9 @@
---source include/xplugin_preamble.inc
 
 ## Test starts here
 --let $mysqlxscript_success= $MYSQL_TMP_DIR/connection_mysqlxsys_success.tmp
 --let $mysqlxscript_failure= $MYSQL_TMP_DIR/connection_mysqlxsys_failure.tmp
---let $MYSQLXTEST_LOGIN_SUCCESS= $MYSQLXTEST -uuser1 -f $mysqlxscript_success --schema xtest --fatal-errors=1
---let $MYSQLXTEST_LOGIN_FAILURE= $MYSQLXTEST -uuser1 -f $mysqlxscript_failure --schema xtest --fatal-errors=1 --no-auth
+--let $MYSQLXTEST_LOGIN_SUCCESS= $MYSQLXTEST -uuser1 $USER_CIPHER -f $mysqlxscript_success --schema xtest --fatal-errors=1
+--let $MYSQLXTEST_LOGIN_FAILURE= $MYSQLXTEST -uuser1 $USER_CIPHER -f $mysqlxscript_failure --schema xtest --fatal-errors=1 --no-auth
 
 --write_file $mysqlxscript_success
 -->stmtsql select current_user();
@@ -33,9 +32,9 @@ call mtr.add_suppression("Plugin mysqlx reported: .*Unsuccessful login attempt: 
 
 CREATE DATABASE xtest;
 USE xtest;
-CREATE USER user1@'%'         IDENTIFIED BY 'pass_all_hosts';
-CREATE USER user1@'127.0.0.1' IDENTIFIED BY 'pass_127.0.0.1';
-CREATE USER user1@'localhost' IDENTIFIED BY 'pass_localhost';
+eval CREATE USER user1@'%'         IDENTIFIED WITH $USER_AUTH_PLUGIN BY 'pass_all_hosts';
+eval CREATE USER user1@'127.0.0.1' IDENTIFIED WITH $USER_AUTH_PLUGIN BY 'pass_127.0.0.1';
+eval CREATE USER user1@'localhost' IDENTIFIED WITH $USER_AUTH_PLUGIN BY 'pass_localhost';
 
 CREATE TABLE `table_all_hosts`(id integer);
 CREATE TABLE `table_127.0.0.1`(id integer);
@@ -59,7 +58,7 @@ exec $MYSQLXTEST_LOGIN_SUCCESS -p"pass_127.0.0.1"
 exec $MYSQLXTEST_LOGIN_FAILURE -p"pass_localhost" -v%EXPECTED_ERROR%=ER_ACCESS_DENIED_ERROR 2>&1;
 exec $MYSQLXTEST_LOGIN_FAILURE -p"pass_all_hosts" -v%EXPECTED_ERROR%=ER_ACCESS_DENIED_ERROR 2>&1;
 
-if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") = 0`)
+if ($UNIX_SOCKET_TESTING)
 {
 --echo ##
 --echo ## X Plugin should only authenticate 'user1'@'localhost' account on UNIX socket
@@ -104,4 +103,3 @@ DROP USER user1@'%';
 --remove_file $mysqlxscript_success
 --remove_file $mysqlxscript_failure
 
-UNINSTALL PLUGIN `mysqlx`;

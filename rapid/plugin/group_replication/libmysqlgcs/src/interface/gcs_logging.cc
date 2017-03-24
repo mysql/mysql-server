@@ -17,7 +17,7 @@
 #include <time.h>
 #include <vector>
 
-#include "gcs_log_system.h"
+#include "mysql/gcs/gcs_log_system.h"
 
 Ext_logger_interface *Gcs_logger::log= NULL;
 

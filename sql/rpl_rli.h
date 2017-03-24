@@ -24,6 +24,7 @@
 
 #include "binlog.h"            // MYSQL_BIN_LOG
 #include "handler.h"
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -51,6 +52,8 @@
 #include "sql_string.h"
 #include "system_variables.h"
 #include "table.h"
+#include "log_event.h"        //Gtid_log_event
+#include "rpl_filter.h"
 
 struct RPL_TABLE_LIST;
 class Commit_order_manager;
@@ -151,6 +154,11 @@ class Relay_log_info : public Rpl_info
   friend class Rpl_info_factory;
 
 public:
+
+  /*
+    The per-channel filter associated with this RLI
+  */
+  Rpl_filter* rpl_filter;
   /**
      Flags for the state of the replication.
    */
@@ -198,16 +206,6 @@ public:
    */
   bool replicate_same_server_id;
 
-  /*
-    The gtid (or anonymous) of the currently executing transaction, or
-    of the last executing transaction if no transaction is currently
-    executing.  This is used to fill the last_seen_transaction
-    column
-    of the table
-    performance_schema.replication_applier_status_by_worker.
-  */
-  Gtid_specification currently_executing_gtid;
-
   /*** The following variables can only be read when protect by data lock ****/
   /*
     cur_log_fd - file descriptor of the current read  relay log
@@ -221,15 +219,10 @@ public:
   LOG_INFO linfo;
 
   /*
-   cur_log
-     Pointer that either points at relay_log.get_log_file() or
-     &rli->cache_buf, depending on whether the log is hot or there was
-     the need to open a cold relay_log.
-
-   cache_buf 
-     IO_CACHE used when opening cold relay logs.
+   cache_buf
+     IO_CACHE used when opening relay logs.
    */
-  IO_CACHE cache_buf,*cur_log;
+  IO_CACHE cache_buf;
 
   /*
     Identifies when the recovery process is going on.
@@ -266,11 +259,108 @@ public:
     COMMIT_TS_FOUND
   } commit_timestamps_status;
 
-  /*
-    Needed to deal properly with cur_log getting closed and re-opened with
-    a different log under our feet
+  /**
+   @return the last processed transation information
   */
-  uint32 cur_log_old_open_count;
+  trx_monitoring_info* get_last_processed_trx()
+  {
+    return last_processed_trx;
+  }
+
+  /**
+   @return the currently processing transaction information
+  */
+  trx_monitoring_info* get_processing_trx()
+  {
+    return processing_trx;
+  }
+
+  /**
+    Stores the details of the transaction which has just started processing
+
+    @param  gtid_arg         the gtid of the trx
+    @param  original_ts_arg  the original commit timestamp of the transaction
+    @param  immediate_ts_arg the immediate commit timestamp of the transaction
+    @param  skipped          true if the transanction was gtid skipped
+  */
+  void started_processing(Gtid gtid_arg, ulonglong original_ts_arg,
+                          ulonglong immediate_ts_arg, bool skipped= false)
+  {
+    mysql_mutex_lock(&data_lock);
+    processing_trx->set(gtid_arg, original_ts_arg, immediate_ts_arg,
+                        my_getsystime() /*start_time*/, skipped);
+    mysql_mutex_unlock(&data_lock);
+  }
+
+  /**
+    Stores the details of the transaction which has just started processing
+
+    @param  gtid_log_ev_arg the gtid log event of the trx
+  */
+  void started_processing(Gtid_log_event *gtid_log_ev_arg)
+  {
+    Gtid gtid= {0, 0};
+    if (gtid_log_ev_arg->get_type() == GTID_GROUP)
+    {
+      gtid= {gtid_log_ev_arg->get_sidno(true), gtid_log_ev_arg->get_gno()};
+    }
+    started_processing(gtid,
+                       gtid_log_ev_arg->original_commit_timestamp,
+                       gtid_log_ev_arg->immediate_commit_timestamp);
+  }
+
+
+  /**
+    When the processing of a transaction is completed, that timestamp is
+    recorded, the information is copied to last_processed_trx and the
+    information in processing_trx is cleared.
+
+    If the transaction was being applied but GTID-skipped, the copy will not
+    happen and the last_processed_trx will keep its current value.
+  */
+  void finished_processing()
+  {
+    mysql_mutex_lock(&data_lock);
+    processing_trx->end_time= my_getsystime();
+    last_processed_trx->copy_if_not_skipped(processing_trx);
+    processing_trx->clear();
+    mysql_mutex_unlock(&data_lock);
+  }
+
+  /**
+   @return True if there is a transaction being currently processed
+  */
+  bool is_processing_trx()
+  {
+    return processing_trx->is_set();
+  }
+
+  /**
+   Clears the processing_trx structure fields. Normally called when there is an
+   error while processing the transaction.
+   @param need_lock true by default. if false then the lock has already been
+                    acquired before the method was called.
+  */
+  void clear_processing_trx(bool need_lock)
+  {
+    if (need_lock)
+    {
+      mysql_mutex_lock(&data_lock);
+    }
+    processing_trx->clear();
+    if (need_lock)
+    {
+      mysql_mutex_unlock(&data_lock);
+    }
+  }
+
+  /**
+   Clears the last_processed_trx structure fields.
+  */
+  void clear_last_processed_trx()
+  {
+    last_processed_trx->clear();
+  }
 
   /*
     If on init_info() call error_on_rli_init_info is true that means
@@ -331,7 +421,7 @@ protected:
   volatile my_off_t group_master_log_pos;
 
 private:
-  Gtid_set gtid_set;
+  Gtid_set *gtid_set;
   /*
     Identifies when this object belongs to the SQL thread and was not
     created for a client thread or some other purpose including
@@ -343,13 +433,33 @@ private:
   /* Flag that ensures the retrieved GTID set is initialized only once. */
   bool gtid_retrieved_initialized;
 
+  /**
+   Stores information on the last processed transaction or the transaction
+   that is currently being processed.
+   STS:
+     - timestamps of the currently applying/last applied transaction
+   MTS:
+     - coordinator thread: timestamps of the currently scheduling/last scheduled
+     transaction in a worker's queue
+     - worker thread: timestamps of the currently applying/last applied
+   transaction
+  */
+  trx_monitoring_info *last_processed_trx;
+  trx_monitoring_info *processing_trx;
+
 public:
+  Sid_map* get_sid_map()
+  { return gtid_set->get_sid_map(); }
+
+  Checkable_rwlock* get_sid_lock()
+  { return get_sid_map()->get_sid_lock(); }
+
   void add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
   {
-    global_sid_lock->assert_some_lock();
-    DBUG_ASSERT(sidno <= global_sid_map->get_max_sidno());
-    gtid_set.ensure_sidno(sidno);
-    gtid_set._add_gtid(sidno, gno);
+    get_sid_lock()->assert_some_lock();
+    DBUG_ASSERT(sidno <= get_sid_map()->get_max_sidno());
+    gtid_set->ensure_sidno(sidno);
+    gtid_set->_add_gtid(sidno, gno);
   }
 
   /**
@@ -361,7 +471,7 @@ public:
   */
   enum_return_status add_gtid_set(const Gtid_set *gtid_set);
 
-  const Gtid_set *get_gtid_set() const { return &gtid_set; }
+  const Gtid_set *get_gtid_set() const { return gtid_set; }
 
   int init_relay_log_pos(const char* log,
                          ulonglong pos, bool need_data_lock,
@@ -461,7 +571,7 @@ public:
     binlog) of the last of these events seen by the slave I/O thread. If not,
     ign_master_log_name_end[0] == 0.
     As they are like a Rotate event read/written from/to the relay log, they
-    are both protected by rli->relay_log.LOCK_log.
+    are both protected by rli->relay_log.LOCK_binlog_end_pos.
   */
   char ign_master_log_name_end[FN_REFLEN];
   ulonglong ign_master_log_pos_end;
@@ -509,6 +619,7 @@ public:
 
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos,
                    double timeout);
+  int wait_for_gtid_set(THD* thd, char* gtid, double timeout);
   int wait_for_gtid_set(THD* thd, String* gtid, double timeout);
   int wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
                         double timeout);
@@ -737,6 +848,16 @@ public:
   time_t mts_last_online_stat;
   /* end of MTS statistics */
 
+  /**
+    Storage for holding newly computed values for the last executed
+    event group coordinates while the current group of events is
+    being committed, see @c pre_commit, post_commit.
+  */
+  char new_group_master_log_name[FN_REFLEN];
+  my_off_t new_group_master_log_pos;
+  char new_group_relay_log_name [FN_REFLEN];
+  my_off_t new_group_relay_log_pos;
+
   /* Returns the number of elements in workers array/vector. */
   inline size_t get_worker_count()
   {
@@ -769,6 +890,12 @@ public:
     else
       return NULL;
   }
+
+  /**
+    The method implements updating a slave info table. It's
+    specialized differently for STS and MTS.
+  */
+  virtual bool commit_positions();
 
   /*Channel defined mts submode*/
   enum_mts_parallel_type channel_mts_submode;
@@ -1218,6 +1345,14 @@ public:
 
   virtual const char* get_for_channel_str(bool upper_case= false) const;
 
+  /**
+    Set replication filter for the channel.
+  */
+  inline void set_filter(Rpl_filter *channel_filter)
+  {
+    rpl_filter= channel_filter;
+  }
+
 protected:
   Format_description_log_event *rli_description_event;
 
@@ -1327,6 +1462,23 @@ public:
     the engine ha_data re-attachment.
   */
   bool is_engine_ha_data_detached;
+  /**
+    Reference to being applied event. The member is set at event reading
+    and gets reset at the end of the event lifetime.
+    See more in @c RLI_current_event_raii that provides the main
+    interface to the member.
+  */
+  Log_event *current_event;
+
+  /**
+    Raised when slave applies and writes to its binary log statement
+    which is not atomic DDL and has no XID assigned. Checked at commit
+    time to decide whether it is safe to update slave info table
+    within the same transaction as the write to binary log or this
+    should be deffered. The deffered scenario applies for not XIDed events
+    in which case such update might be lost on recovery.
+  */
+  bool ddl_not_atomic;
 
   void set_thd_tx_priority(int priority)
   {
@@ -1392,6 +1544,48 @@ public:
 
     return rc;
   }
+
+  /**
+    Execute actions at replicated atomic DLL post rollback time.
+    This include marking the current atomic DDL query-log-event
+    as having processed.
+    This measure is necessary to avoid slave info table update execution
+    when @c pre_commit() hook is called as part of DDL's eventual
+    implicit commit.
+  */
+  void post_rollback()
+  {
+    static_cast<Query_log_event*>(current_event)->has_ddl_committed= true;
+  }
+
+  /**
+    The method implements a pre-commit hook to add up a new statement
+    typically to a DDL transaction to update the slave info table.
+    Note, in the non-transactional repository case the slave info
+    is updated after successful commit of the main transaction.
+
+    @return false as success, otherwise true
+  */
+  bool pre_commit()
+  {
+    bool rc= false;
+
+    if (is_transactional())
+    {
+      static_cast<Query_log_event*>(current_event)->has_ddl_committed= true;
+      rc= commit_positions();
+    }
+    return rc;
+  }
+  /**
+    Cleanup of any side effect that pre_commit() inflicts, including
+    restore of the last executed group coordinates in case the current group
+    has been destined to rollback, and signaling to possible waiters
+    in the positive case.
+
+    @param on_rollback  when true the method carries out rollback action
+  */
+  virtual void post_commit(bool on_rollback);
 };
 
 bool mysql_show_relaylog_events(THD* thd);
@@ -1411,4 +1605,99 @@ inline bool is_mts_worker(const THD *thd)
  Auxiliary function to check if we have a db partitioned MTS
  */
 bool is_mts_db_partitioned(Relay_log_info * rli);
+
+/**
+  Checks whether the supplied event encodes a (2pc-aware) DDL
+  that has been already committed.
+
+  @param  ev    A reference to Query-log-event
+  @return true  when the event is already committed transactional DDL
+*/
+inline bool is_committed_ddl(Log_event *ev)
+{
+  return
+    ev->get_type_code() == binary_log::QUERY_EVENT &&
+    /* has been already committed */
+    static_cast<Query_log_event*>(ev)->has_ddl_committed;
+}
+
+/**
+  Checks whether the transaction identified by the argument
+  is executed by a slave applier thread is an atomic DDL
+  not yet committed (see @c Query_log_event::has_ddl_committed).
+  THD::is_operating_substatement_implicitly filters out intermediate
+  commits done by non-atomic DDLs.
+  The error-tagged atomic statements are regarded as non-atomic
+  therefore this predicate returns negative in such case.
+
+  Note that call to is_atomic_ddl() returns "approximate" outcome in
+  this case as it misses information about type of tables used by the DDL.
+
+  This can be a problem for binlogging slave, as updates to slave info
+  which happen in the same transaction as write of binary log event
+  without XID might be lost on recovery. To avoid this problem
+  RLI::ddl_not_atomic flag is employed which is set to true when
+  non-atomic DDL without XID is written to the binary log.
+
+  "Approximate" outcome is always fine for non-binlogging slave as in
+  this case commit happens using one-phase routine for which recovery
+  is always correct.
+
+  @param  thd   a pointer to THD describing the transaction context
+  @return true  when a slave applier thread is set to commmit being processed
+                DDL query-log-event, otherwise returns false.
+*/
+inline bool is_atomic_ddl_commit_on_slave(THD *thd)
+{
+  DBUG_ASSERT(thd);
+
+  Relay_log_info *rli= thd->rli_slave;
+
+  /* Early return is about an error in the SQL thread initialization */
+  if (!rli)
+    return false;
+
+  return ((thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+           thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER) &&
+          rli->current_event) ?
+    (rli->is_transactional() &&
+     /* has not yet committed */
+     (rli->current_event->get_type_code() == binary_log::QUERY_EVENT &&
+      !static_cast<Query_log_event*>(rli->current_event)->has_ddl_committed) &&
+     /* unless slave binlogger identified non-atomic */
+     !rli->ddl_not_atomic &&
+     /* slave info is not updated when a part of multi-DROP-TABLE commits */
+     !thd->is_commit_in_middle_of_statement &&
+     (is_atomic_ddl(thd, true) && !thd->is_operating_substatement_implicitly) &&
+     /* error-tagged atomic DDL do not update yet slave info */
+     static_cast<Query_log_event*>(rli->current_event)->error_code == 0) :
+    false;
+}
+
+
+/**
+  RAII class to control the slave applier execution context binding
+  with a being handled event. The main object of control is Query-log-event
+  containing DDL statement.
+  The member RLI::current_event is set to refer to an event once it is
+  read, e.g by next_event() and is reset to NULL at exiting a
+  read-exec loop. Once the event is destroyed RLI::current_event must be reset
+  or guaranteed not be accessed anymore.
+  In the MTS execution the worker is reliably associated with an event
+  only with the latter is not deferred. This includes Query-log-event.
+*/
+class RLI_current_event_raii
+{
+  Relay_log_info *m_rli;
+
+public:
+  RLI_current_event_raii(Relay_log_info* rli_arg, Log_event *ev) : m_rli(rli_arg)
+  {
+    m_rli->current_event= ev;
+  }
+  void set_current_event(Log_event *ev) { m_rli->current_event= ev; }
+  ~RLI_current_event_raii() { m_rli->current_event= NULL; }
+};
+
+
 #endif /* RPL_RLI_H */

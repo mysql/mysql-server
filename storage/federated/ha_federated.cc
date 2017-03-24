@@ -380,6 +380,7 @@
 
 #include "current_thd.h"
 #include "key.h"                                // key_copy
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 using namespace Mysql::Tools::Dump;
 
 void Standard_progress_watcher::process_progress_step(
-  Abstract_progress_watcher::Progress_data& change)
+  Abstract_progress_watcher::Progress_data&)
 {
   std::cerr << "Dump progress: " << m_last_progress.m_table_count << "/"
     << m_total.m_table_count << " tables, " << m_last_progress.m_row_count

@@ -256,3 +256,9 @@ ORDER BY 1
 ;
 
 DROP TABLE test_grids_1, test_grid_dtl_1;
+
+--echo # Bug#25669606: regression: assertion failed: !is_temporal()
+
+DO NULLIF(CAST(DATABASE() AS TIME), 1);
+DO NULLIF(CAST(DATABASE() AS DATE), 1);
+DO NULLIF(CAST(DATABASE() AS DATETIME), 1);

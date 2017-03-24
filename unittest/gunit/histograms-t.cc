@@ -21,6 +21,7 @@
 #include "equi_height.h"     // Equi_height
 #include "histogram.h"       // Histogram, Histogram_comparator
 #include "json_dom.h"        // Json_object
+#include "lex_string.h"
 #include "m_ctype.h"         // my_charset_latin1, my_charset_bin
 #include "my_decimal.h"      // my_decimal
 #include "my_inttypes.h"

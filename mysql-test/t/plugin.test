@@ -1,4 +1,3 @@
-
 # The test contains queries which are impossible to write to binary log if binlog-format is row (which
 # is the default) and has tables which use a storage engine limited to statement-based logging. Hence,
 # it is skipped when log-bin is enabled.
@@ -59,7 +58,7 @@ HANDLER t1 OPEN;
 FLUSH TABLE t1;
 UNINSTALL PLUGIN example;
 
---error ER_STORAGE_ENGINE_NOT_LOADED 
+--error ER_UNKNOWN_STORAGE_ENGINE
 DROP TABLE t1;
 
 --replace_regex /\.dll/.so/

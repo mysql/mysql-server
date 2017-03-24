@@ -69,6 +69,8 @@ pre_initialize_performance_schema()
   global_idle_stat.reset();
   global_table_io_stat.reset();
   global_table_lock_stat.reset();
+  g_histogram_pico_timers.init();
+  global_statements_histogram.reset();
 
   if (my_create_thread_local_key(&THR_PFS, destroy_pfs_thread))
   {
@@ -112,12 +114,6 @@ pre_initialize_performance_schema()
   }
 
   THR_PFS_initialized = true;
-}
-
-void
-set_embedded_performance_schema_param(PFS_global_param* param)
-{
-  memset(param, 0, sizeof(PFS_global_param));
 }
 
 int

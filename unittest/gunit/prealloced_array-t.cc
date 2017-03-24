@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -562,8 +562,8 @@ public:
   explicit IntWrapMove(int i) : m_i(new int(i)) {}
   IntWrapMove(const IntWrapMove &) = delete;
   IntWrapMove &operator=(const IntWrapMove &) = delete;
-  IntWrapMove(IntWrapMove &&other) = default;
-  IntWrapMove &operator=(IntWrapMove &&other) = default;
+  IntWrapMove(IntWrapMove &&) = default;
+  IntWrapMove &operator=(IntWrapMove &&) = default;
   int getval() const { return *m_i; }
 };
 

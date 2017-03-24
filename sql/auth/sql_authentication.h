@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,12 @@
 #ifndef SQL_AUTHENTICATION_INCLUDED
 #define SQL_AUTHENTICATION_INCLUDED
 
+#include "my_config.h"
+
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "m_ctype.h"
-#include "my_config.h"
 #include "my_thread_local.h"            // my_thread_id
 #include "mysql/plugin.h"
 #include "mysql/plugin_auth.h"          // MYSQL_SERVER_AUTH_INFO

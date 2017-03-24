@@ -1,14 +1,3 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs274=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
-use test;
---enable_query_log
-########################################
-
 #
 # tests that require InnoDB...
 #
@@ -127,7 +116,7 @@ select @error_in_func|
 select * from t1|
 select * from t2|
 drop function bug10015_6|
-# Let us test that we don't allow any statements causing transaction
+# Let us test that we do not allow any statements causing transaction
 # commit in stored functions (we test only most interesting cases here).
 # Cases which can be caught at creation time:
 --error 1422
@@ -713,11 +702,3 @@ DROP TABLE t1|
 #create procedure bugNNNN...
 
 delimiter ;|
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs274;
---enable_query_log
-########################################

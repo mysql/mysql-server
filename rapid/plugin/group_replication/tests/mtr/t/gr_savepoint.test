@@ -38,6 +38,7 @@ CREATE TABLE t1(a int primary key);
 
 --let $assert_text= 'Table t1 has values 1 and 2'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.a = 1 OR t1.a = 2 , count, 1] = 2
+--source include/assert.inc
 
 --echo #
 --echo # Don't cause conflict due the rollback and the release don't interfere
@@ -54,6 +55,7 @@ CREATE TABLE t1(a int primary key);
 
 --let $assert_text= 'Table t1 has values 3 and 4'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.a = 3 OR t1.a = 4 , count, 1] = 2
+--source include/assert.inc
 
 --echo #
 --echo # Using SAVEPOINT don't modify the conflict detection
@@ -69,12 +71,15 @@ CREATE TABLE t1(a int primary key);
 
 --let $assert_text= 'There are six values in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 6
+--source include/assert.inc
 
 --let $assert_text= 'Table t1 has values 6 and 7'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.a = 6 OR t1.a = 7 , count, 1] = 2
+--source include/assert.inc
 
 --let $assert_text= 'Table t1 do not have value 5'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.a = 5, count, 1] = 0
+--source include/assert.inc
 
 DROP TABLE t1;
 --source ../inc/group_replication_end.inc

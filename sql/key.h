@@ -38,6 +38,8 @@ class FOREIGN_KEY
 {
 public:
   const char *name;
+  const char *orig_name; // Holds the original name during ALTER TABLE
+  const char *unique_index_name;
   uint key_parts;
   LEX_CSTRING *key_part;
   LEX_CSTRING *fk_key_part;

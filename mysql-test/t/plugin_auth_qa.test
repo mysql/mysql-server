@@ -1,7 +1,6 @@
 # The numbers represent test cases of the test plan.
 
 --source include/have_plugin_auth.inc
---source include/not_embedded.inc
 
 CREATE DATABASE test_user_db;
 

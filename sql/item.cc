@@ -115,10 +115,8 @@ Item::Item():
   maybe_null(false),
   null_value(FALSE),
   unsigned_flag(false),
-  with_sum_func(false),
   derived_used(false),
-  with_subselect(false),
-  with_stored_program(false),
+  m_accum_properties(0),
   tables_locked_cache(false)
 {
 #ifndef DBUG_OFF
@@ -150,10 +148,8 @@ Item::Item(THD *thd, Item *item):
   maybe_null(item->maybe_null),
   null_value(item->null_value),
   unsigned_flag(item->unsigned_flag),
-  with_sum_func(item->with_sum_func),
   derived_used(item->derived_used),
-  with_subselect(item->has_subquery()),
-  with_stored_program(item->with_stored_program),
+  m_accum_properties(item->m_accum_properties),
   tables_locked_cache(item->tables_locked_cache)
 {
 #ifndef DBUG_OFF
@@ -183,10 +179,8 @@ Item::Item(const POS &):
   maybe_null(false),
   null_value(FALSE),
   unsigned_flag(false),
-  with_sum_func(false),
   derived_used(false),
-  with_subselect(false),
-  with_stored_program(false),
+  m_accum_properties(0),
   tables_locked_cache(false)
 {
 }
@@ -2109,7 +2103,7 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
   if (type() == SUM_FUNC_ITEM && skip_registered && 
       ((Item_sum *) this)->ref_by)
     return;                                                 
-  if ((type() != SUM_FUNC_ITEM && with_sum_func) ||
+  if ((type() != SUM_FUNC_ITEM && has_aggregation()) ||
       (type() == FUNC_ITEM &&
        (((Item_func *) this)->functype() == Item_func::ISNOTNULLTEST_FUNC ||
         ((Item_func *) this)->functype() == Item_func::TRIG_COND_FUNC)) ||
@@ -2175,7 +2169,13 @@ left_is_superset(DTCollation *left, DTCollation *right)
           !(right->collation->state & MY_CS_UNICODE_SUPPLEMENT) &&
           left->collation->mbmaxlen > right->collation->mbmaxlen &&
           left->collation->mbminlen == right->collation->mbminlen)))))
-    return TRUE;
+    return true;
+  /* Allow convert from any Unicode to utf32 or utf8mb4 */
+  if (test_all_bits(left->collation->state,
+                    MY_CS_UNICODE | MY_CS_UNICODE_SUPPLEMENT) &&
+      right->collation->state & MY_CS_UNICODE &&
+      left->derivation == right->derivation)
+    return true;
   /* Allow convert from ASCII */
   if (right->repertoire == MY_REPERTOIRE_ASCII &&
       (left->derivation < right->derivation ||
@@ -5404,7 +5404,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
     ref->set_alias_of_expr();
 
   /* If this is a non-aggregated field inside HAVING, search in GROUP BY. */
-  if (select->having_fix_field && !ref->with_sum_func && group_list)
+  if (select->having_fix_field && !ref->has_aggregation() && group_list)
   {
     group_by_ref= find_field_in_group_list(ref, group_list);
     
@@ -7368,13 +7368,11 @@ class Item_json final : public Item_basic_constant
 {
   Json_wrapper m_value;
 public:
-  Item_json(Json_wrapper &&value, const Item_name_string &name,
-            const DTCollation &coll)
+  Item_json(Json_wrapper &&value, const Item_name_string &name)
     : m_value(std::move(value))
   {
-    set_data_type(MYSQL_TYPE_JSON);
+    set_data_type_json();
     item_name= name;
-    collation.set(coll);
   }
   enum Type type() const override { return STRING_ITEM; }
 
@@ -7426,7 +7424,7 @@ public:
   Item *clone_item() const override
   {
     Json_wrapper wr(m_value.clone_dom(current_thd));
-    return new Item_json(std::move(wr), item_name, collation);
+    return new Item_json(std::move(wr), item_name);
   }
   /* purecov: end */
 };
@@ -8153,13 +8151,13 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
   */
   if (!((*ref)->type() == REF_ITEM &&
        ((Item_ref *)(*ref))->ref_type() == OUTER_REF) &&
-      (((*ref)->with_sum_func && item_name.ptr() &&
+      (((*ref)->has_aggregation() && item_name.ptr() &&
         !(current_sel->linkage != GLOBAL_OPTIONS_TYPE &&
           current_sel->having_fix_field)) ||
        !(*ref)->fixed))
   {
     my_error(ER_ILLEGAL_REFERENCE, MYF(0),
-             item_name.ptr(), ((*ref)->with_sum_func?
+             item_name.ptr(), ((*ref)->has_aggregation() ?
                     "reference to group function":
                     "forward reference in item list"));
     goto error;
@@ -8187,7 +8185,7 @@ void Item_ref::set_properties()
     We have to remember if we refer to a sum function, to ensure that
     split_sum_func() doesn't try to change the reference.
   */
-  with_sum_func= (*ref)->with_sum_func;
+  set_accum_properties(*ref);
   unsigned_flag= (*ref)->unsigned_flag;
   fixed= 1;
   if ((*ref)->type() == FIELD_ITEM &&
@@ -9271,8 +9269,7 @@ bool resolve_const_item(THD *thd, Item **ref, Item *comp_item)
       if (item->null_value)
         new_item= new Item_null(item->item_name);
       else
-        new_item= new Item_json(std::move(wr), item->item_name,
-                                item->collation);
+        new_item= new Item_json(std::move(wr), item->item_name);
       break;
     }
     char buff[MAX_FIELD_WIDTH];
@@ -10193,8 +10190,7 @@ bool Item_cache_row::setup(Item * item)
     if (!(tmp= values[i]= Item_cache::get_cache(el)))
       return 1;
     tmp->setup(el);
-    with_subselect|= tmp->has_subquery();
-    with_stored_program|= tmp->has_stored_program();
+    add_accum_properties(tmp);
   }
   return 0;
 }
@@ -10244,7 +10240,8 @@ bool Item_cache_row::cache_value()
 }
 
 
-void Item_cache_row::illegal_method_call(const char *method) const
+void Item_cache_row::
+illegal_method_call(const char *method MY_ATTRIBUTE((unused))) const
 {
   DBUG_ENTER("Item_cache_row::illegal_method_call");
   DBUG_PRINT("error", ("!!! %s method was called for row item", method));

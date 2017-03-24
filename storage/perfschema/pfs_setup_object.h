@@ -43,8 +43,8 @@ struct PFS_setup_object_key
 {
   /**
     Hash search key.
-    This has to be a string for LF_HASH,
-    the format is "<enum_object_type><schema_name><0x00><object_name><0x00>"
+    This has to be a string for @c LF_HASH,
+    the format is @c "<enum_object_type><schema_name><0x00><object_name><0x00>"
   */
   char m_hash_key[1 + NAME_LEN + 1 + NAME_LEN + 1];
   uint m_key_length;
@@ -63,11 +63,11 @@ struct PFS_ALIGNED PFS_setup_object
   pfs_lock m_lock;
   /** Hash key. */
   PFS_setup_object_key m_key;
-  /** Schema name. Points inside m_key. */
+  /** Schema name. Points inside @c m_key. */
   const char *m_schema_name;
   /** Length of @c m_schema_name. */
   uint m_schema_name_length;
-  /** Object name. Points inside m_key. */
+  /** Object name. Points inside @c m_key. */
   const char *m_object_name;
   /** Length of @c m_object_name. */
   uint m_object_name_length;

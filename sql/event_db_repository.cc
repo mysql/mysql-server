@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "derror.h"
 #include "event_data_objects.h"
 #include "event_parse_data.h"
+#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
@@ -184,8 +185,10 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
     }
   }
 
+  const dd::Schema *schema= nullptr;
   dd::Event *event= nullptr;
-  if (thd->dd_client()->acquire_for_modification(parse_data->dbname.str,
+  if (thd->dd_client()->acquire(parse_data->dbname.str, &schema) ||
+      thd->dd_client()->acquire_for_modification(parse_data->dbname.str,
                                                  parse_data->name.str, &event))
     DBUG_RETURN(true);
 
@@ -194,9 +197,10 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
     my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), parse_data->name.str);
     DBUG_RETURN(true);
   }
+  DBUG_ASSERT(schema != nullptr); // Must exist if event exists.
 
   // Update Event in the data dictionary with altered event object attributes.
-  if (dd::update_event(thd, event, new_schema,
+  if (dd::update_event(thd, event, *schema, new_schema,
                        new_name != nullptr ? new_name->str : "",
                        (parse_data->body_changed) ? sp->m_body.str : event->definition(),
                        (parse_data->body_changed) ? sp->m_body_utf8.str :

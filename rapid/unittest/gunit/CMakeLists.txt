@@ -15,3 +15,5 @@
 
 ADD_SUBDIRECTORY(group_replication)
 ADD_SUBDIRECTORY(xplugin)
+ADD_SUBDIRECTORY(libmysqlgcs)
+

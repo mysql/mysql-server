@@ -159,8 +159,7 @@ TEST_F(DecimalTest, Multiply)
 
     thus, there's no requirement for M or N to be integers
  */
-static int decimal_modulo(uint mask,
-                          my_decimal *res,
+static int decimal_modulo(my_decimal *res,
                           const my_decimal *m,
                           const my_decimal *n)
 {
@@ -246,7 +245,7 @@ TEST_F(DecimalTest, Modulo)
       << " got mod:" << buff_m
       ;
 
-    EXPECT_EQ(0, decimal_modulo(E_DEC_FATAL_ERROR, &xxx_result, &d1, &d2));
+    EXPECT_EQ(0, decimal_modulo(&xxx_result, &d1, &d2));
     EXPECT_EQ(0, decimal2string(&xxx_result, buff_x, &bufsz_x, 0, 0, 0));
     EXPECT_EQ(0, my_decimal_cmp(&expected_result, &xxx_result))
       << " a:" << pd->a

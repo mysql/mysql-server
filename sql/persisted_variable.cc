@@ -17,6 +17,7 @@
 #include "current_thd.h"
 #include "derror.h"           // ER_THD
 #include "json_dom.h"
+#include "lex_string.h"
 #include "log.h"                        // sql_print_error
 #include "my_default.h"                 // check_file_permissions
 #include "mysqld.h"

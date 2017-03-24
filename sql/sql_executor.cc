@@ -41,6 +41,7 @@
 #include "item_sum.h"         // Item_sum
 #include "json_dom.h"         // Json_wrapper
 #include "key.h"              // key_cmp
+#include "lex_string.h"
 #include "log.h"              // sql_print_error
 #include "m_ctype.h"
 #include "my_bitmap.h"
@@ -115,8 +116,9 @@ static int create_sort_index(THD *thd, JOIN *join, QEP_TAB *tab);
 static bool remove_dup_with_compare(THD *thd, TABLE *entry, Field **field,
                                     ulong offset,Item *having);
 static bool remove_dup_with_hash_index(THD *thd,TABLE *table,
-                                       uint field_count, Field **first_field,
-                                       ulong key_length,Item *having);
+                                       Field **first_field,
+                                       const size_t *field_lengths,
+                                       size_t key_length,Item *having);
 static int join_read_linked_first(QEP_TAB *tab);
 static int join_read_linked_next(READ_RECORD *info);
 static int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
@@ -439,7 +441,9 @@ bool JOIN::rollup_write_data(uint idx, TABLE *table_arg)
       List_iterator_fast<Item> it(rollup.fields[i]);
       while ((item= it++))
       {
-        if (item->type() == Item::NULL_ITEM && item->is_result_field())
+        if ((item->type() == Item::NULL_ITEM ||
+             item->type() == Item::NULL_RESULT_ITEM)
+            && item->is_result_field())
           item->save_in_result_field(1);
       }
       copy_sum_funcs(sum_funcs_end[i+1], sum_funcs_end[i]);
@@ -3994,12 +3998,40 @@ static void free_blobs(Field **ptr)
   }
 }
 
+/**
+  For a set of fields, compute how many bytes their respective sort keys need.
+
+  @param first_field         Array of fields, terminated by nullptr.
+  @param[out] field_lengths  The computed sort buffer length for each field.
+    Must be allocated by the caller.
+
+  @retval The total number of bytes needed, sans extra alignment.
+
+  @note
+    This assumes that Field::sort_length() is constant for each field.
+*/
+
+static size_t compute_field_lengths(Field **first_field, size_t *field_lengths)
+{
+  Field **field;
+  size_t *field_length;
+  size_t total_length= 0;
+  for (field= first_field, field_length= field_lengths; *field;
+       ++field, ++field_length)
+  {
+    size_t length= (*field)->sort_length();
+    const CHARSET_INFO *cs= (*field)->sort_charset();
+    length= cs->coll->strnxfrmlen(cs, length);
+    *field_length= length;
+    total_length+= length;
+  }
+  return total_length;
+}
 
 bool
 QEP_TAB::remove_duplicates()
 {
   bool error;
-  ulong reclength,offset;
   uint field_count;
   List<Item> *field_list= (this-1)->fields;
   DBUG_ENTER("remove_duplicates");
@@ -4029,23 +4061,33 @@ QEP_TAB::remove_duplicates()
     DBUG_RETURN(false);
   }
   Field **first_field= tbl->field+ tbl->s->fields - field_count;
-  offset= (field_count ? 
-           tbl->field[tbl->s->fields - field_count]->
-           offset(tbl->record[0]) : 0);
-  reclength= tbl->s->reclength-offset;
+
+  size_t *field_lengths= (size_t *) my_malloc(key_memory_hash_index_key_buffer,
+                                              field_count * sizeof(*field_lengths),
+                                              MYF(MY_WME));
+  if (field_lengths == nullptr)
+    DBUG_RETURN(true);
+
+  size_t key_length= compute_field_lengths(first_field, field_lengths);
 
   free_io_cache(tbl);				// Safety
   tbl->file->info(HA_STATUS_VARIABLE);
   if (tbl->s->db_type() == heap_hton ||
       (!tbl->s->blob_fields &&
-       ((ALIGN_SIZE(reclength) + HASH_OVERHEAD) * tbl->file->stats.records <
+       ((ALIGN_SIZE(key_length) + HASH_OVERHEAD) * tbl->file->stats.records <
 	join()->thd->variables.sortbuff_size)))
     error=remove_dup_with_hash_index(join()->thd, tbl,
-				     field_count, first_field,
-				     reclength, having);
+				     first_field, field_lengths,
+				     key_length, having);
   else
+  {
+    ulong offset= field_count ?
+      tbl->field[tbl->s->fields - field_count]->offset(tbl->record[0]) : 0;
     error=remove_dup_with_compare(join()->thd, tbl, first_field, offset,
 				  having);
+  }
+
+  my_free(field_lengths);
 
   free_blobs(first_field);
   DBUG_RETURN(error);
@@ -4150,44 +4192,25 @@ err:
 */
 
 static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
-                                       uint field_count,
                                        Field **first_field,
-                                       ulong key_length,
+                                       const size_t *field_lengths,
+                                       size_t key_length,
                                        Item *having)
 {
-  uchar *key_buffer, *key_pos, *record=table->record[0];
+  uchar *key_pos, *record= table->record[0];
   int error;
   handler *file= table->file;
-  ulong extra_length= ALIGN_SIZE(key_length)-key_length;
-  uint *field_lengths,*field_length;
   HASH hash;
   DBUG_ENTER("remove_dup_with_hash_index");
 
-  if (!my_multi_malloc(key_memory_hash_index_key_buffer,
-                       MYF(MY_WME),
-		       &key_buffer,
-		       (uint) ((key_length + extra_length) *
-			       (long) file->stats.records),
-		       &field_lengths,
-		       (uint) (field_count*sizeof(*field_lengths)),
-		       NullS))
-    DBUG_RETURN(true);
+  size_t extra_length= ALIGN_SIZE(key_length) - key_length;
 
-  {
-    Field **ptr;
-    ulong total_length= 0;
-    for (ptr= first_field, field_length=field_lengths ; *ptr ; ptr++)
-    {
-      uint length= (*ptr)->sort_length();
-      (*field_length++)= length;
-      total_length+= length;
-    }
-    DBUG_PRINT("info",("field_count: %u  key_length: %lu  total_length: %lu",
-                       field_count, key_length, total_length));
-    DBUG_ASSERT(total_length <= key_length);
-    key_length= total_length;
-    extra_length= ALIGN_SIZE(key_length)-key_length;
-  }
+  uchar *key_buffer= (uchar *)my_malloc(key_memory_hash_index_key_buffer,
+		                        (key_length + extra_length) *
+			                    (size_t) file->stats.records,
+                                        MYF(MY_WME));
+  if (key_buffer == nullptr)
+    DBUG_RETURN(true);
 
   if (my_hash_init(&hash, &my_charset_bin, (uint) file->stats.records,
                    key_length, nullptr, nullptr, 0,
@@ -4226,7 +4249,7 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
 
     /* copy fields to key buffer */
     org_key_pos= key_pos;
-    field_length=field_lengths;
+    const size_t *field_length= field_lengths;
     for (Field **ptr= first_field ; *ptr ; ptr++)
     {
       (*ptr)->make_sort_key(key_pos,*field_length);
@@ -4497,7 +4520,7 @@ setup_copy_fields(THD *thd, Temp_table_param *param,
 	      real_pos->type() == Item::SUBSELECT_ITEM ||
 	      real_pos->type() == Item::CACHE_ITEM ||
 	      real_pos->type() == Item::COND_ITEM) &&
-	     !real_pos->with_sum_func)
+	     !real_pos->has_aggregation())
     {						// Save for send fields
       pos= real_pos;
       /* TODO:
@@ -4601,7 +4624,7 @@ change_to_use_tmp_fields(THD *thd, Ref_item_array ref_item_array,
   for (uint i= 0; (item= it++); i++)
   {
     Field *field;
-    if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
+    if (item->has_aggregation() && item->type() != Item::SUM_FUNC_ITEM)
       item_field= item;
     else if (item->type() == Item::FIELD_ITEM)
       item_field= item->get_tmp_table_item(thd);

@@ -29,6 +29,7 @@
 #include "ft_global.h"
 #include "handler.h"
 #include "item.h"       // Item_result_field
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_byteorder.h"
@@ -115,7 +116,6 @@ public:
     allowed_arg_cols(1), arg_count(0)
   {
     args= tmp_arg;
-    with_sum_func= 0;
   }
 
   explicit Item_func(const POS &pos)
@@ -129,7 +129,7 @@ public:
   {
     args= tmp_arg;
     args[0]= a;
-    with_sum_func= a->with_sum_func;
+    set_accum_properties(a);
   }
   Item_func(const POS &pos, Item *a): super(pos),
     allowed_arg_cols(1), arg_count(1)
@@ -143,7 +143,9 @@ public:
   {
     args= tmp_arg;
     args[0]= a; args[1]= b;
-    with_sum_func= a->with_sum_func || b->with_sum_func;
+    m_accum_properties= 0;
+    add_accum_properties(a);
+    add_accum_properties(b);
   }
   Item_func(const POS &pos, Item *a,Item *b): super(pos),
     allowed_arg_cols(1), arg_count(2)
@@ -158,7 +160,10 @@ public:
     if ((args= (Item**) sql_alloc(sizeof(Item*)*3)))
     {
       args[0]= a; args[1]= b; args[2]= c;
-      with_sum_func= a->with_sum_func || b->with_sum_func || c->with_sum_func;
+      m_accum_properties= 0;
+      add_accum_properties(a);
+      add_accum_properties(b);
+      add_accum_properties(c);
     }
     else
       arg_count= 0; // OOM
@@ -181,8 +186,11 @@ public:
     if ((args= (Item**) sql_alloc(sizeof(Item*)*4)))
     {
       args[0]= a; args[1]= b; args[2]= c; args[3]= d;
-      with_sum_func= a->with_sum_func || b->with_sum_func ||
-	c->with_sum_func || d->with_sum_func;
+      m_accum_properties= 0;
+      add_accum_properties(a);
+      add_accum_properties(b);
+      add_accum_properties(c);
+      add_accum_properties(d);
     }
     else
       arg_count= 0; // OOM
@@ -204,8 +212,12 @@ public:
     if ((args= (Item**) sql_alloc(sizeof(Item*)*5)))
     {
       args[0]= a; args[1]= b; args[2]= c; args[3]= d; args[4]= e;
-      with_sum_func= a->with_sum_func || b->with_sum_func ||
-	c->with_sum_func || d->with_sum_func || e->with_sum_func ;
+      m_accum_properties= 0;
+      add_accum_properties(a);
+      add_accum_properties(b);
+      add_accum_properties(c);
+      add_accum_properties(d);
+      add_accum_properties(e);
     }
     else
       arg_count= 0; // OOM
@@ -3352,7 +3364,8 @@ public:
   */
   table_map get_initial_pseudo_tables() const override;
   void update_used_tables() override;
-
+  void fix_after_pullout(SELECT_LEX *parent_select, SELECT_LEX *removed_select)
+  override;
   void cleanup() override;
 
   const char *func_name() const override;
@@ -3501,21 +3514,5 @@ bool eval_const_cond(THD *thd, Item *cond, bool *value);
 Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type);
 
 extern bool volatile  mqh_used;
-
-/**
-  Handle an exception of any type.
-
-  Code that could throw exceptions should be wrapped in try/catch, and
-  the catch block should raise a corresponding MySQL error. If this
-  function is called from the catch block, it will raise a specialized
-  error message for many of the std::exception subclasses, or a more
-  generic error message if it is not a std::exception.
-
-  @param funcname the name of the function that caught an exception
-
-  @see handle_gis_exception
-*/
-void handle_std_exception(const char *funcname);
-
 
 #endif /* ITEM_FUNC_INCLUDED */

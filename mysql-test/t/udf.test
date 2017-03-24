@@ -1,9 +1,9 @@
 --source include/have_udf.inc
---source include/not_embedded.inc
 #
-# To run this tests the "sql/udf_example.c" need to be compiled into
+# To run this test, "sql/udf_example.cc" need to be compiled into
 # udf_example.so and LD_LIBRARY_PATH should be setup to point out where
-# the library are.
+# the library are. The regular CMake build system takes care of this
+# automatically.
 #
 
 

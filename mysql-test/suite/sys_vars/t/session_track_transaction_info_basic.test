@@ -18,11 +18,6 @@
 #                                                                             #
 ###############################################################################
 
-# This test actually passes with --embedded-server at the time of this writing,
-# but the results aren't particularly meaningful (cf. WL#7766), so let's save
-# some time.
---source include/not_embedded.inc
-
 SELECT @@session.session_track_transaction_info INTO @old_track_tx;
 SELECT @@global.session_track_transaction_info  INTO @old_track_tx_gbl;
 

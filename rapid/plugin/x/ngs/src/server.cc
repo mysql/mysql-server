@@ -331,7 +331,7 @@ void Server::on_client_closed(const Client_interface &client)
 
 
 void Server::add_authentication_mechanism(const std::string &name,
-                                          Authentication_handler::create initiator,
+                                          Authentication_interface::Create initiator,
                                           const bool allowed_only_with_secure_connection)
 {
   Authentication_key key(name, allowed_only_with_secure_connection);
@@ -339,15 +339,16 @@ void Server::add_authentication_mechanism(const std::string &name,
   m_auth_handlers[key] = initiator;
 }
 
-Authentication_handler_ptr Server::get_auth_handler(const std::string &name, Session_interface *session)
+Authentication_interface_ptr Server::get_auth_handler(const std::string &name, Session_interface *session)
 {
   Connection_type type = session->client().connection().connection_type();
+
   Authentication_key key(name, Connection_type_helper::is_secure_type(type));
 
   Auth_handler_map::const_iterator auth_handler = m_auth_handlers.find(key);
 
   if (auth_handler == m_auth_handlers.end())
-    return Authentication_handler_ptr();
+    return Authentication_interface_ptr();
 
   return auth_handler->second(session);
 }

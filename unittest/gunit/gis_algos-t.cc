@@ -17,6 +17,7 @@
 #include <stddef.h>
 #include <cmath>
 
+#include "gis/srid.h"
 #include "gstream.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -40,7 +41,7 @@ public:
                              bool want_ccw= true);
 
 
-  const static uint32 srid= 0;
+  const static gis::srid_t srid= 0;
   CHARSET_INFO *latincc;
   String str, str2, wkt, wkt2;
   Geometry_buffer buffer, buffer2;

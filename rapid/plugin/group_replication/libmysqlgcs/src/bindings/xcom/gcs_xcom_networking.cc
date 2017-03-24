@@ -13,6 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <algorithm>
+#include <bitset>
+#include <set>
+
 #include "gcs_xcom_networking.h"
 
 #ifndef _WIN32
@@ -20,8 +24,8 @@
 #endif
 #include <algorithm>
 
-#include "gcs_group_identifier.h"
-#include "gcs_logging.h"
+#include "mysql/gcs/gcs_group_identifier.h"
+#include "mysql/gcs/gcs_logging.h"
 #include "gcs_xcom_utils.h"
 #include "sock_probe.h"
 

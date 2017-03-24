@@ -93,6 +93,9 @@ def	mysql	engine_cost	mysql	PRIMARY
 def	mysql	engine_cost	mysql	PRIMARY
 def	mysql	engine_cost	mysql	PRIMARY
 def	mysql	func	mysql	PRIMARY
+def	mysql	global_grants	mysql	PRIMARY
+def	mysql	global_grants	mysql	PRIMARY
+def	mysql	global_grants	mysql	PRIMARY
 def	mysql	gtid_executed	mysql	PRIMARY
 def	mysql	gtid_executed	mysql	PRIMARY
 def	mysql	help_category	mysql	PRIMARY
@@ -197,6 +200,10 @@ def	performance_schema	events_stages_summary_by_user_by_event_name	performance_s
 def	performance_schema	events_stages_summary_global_by_event_name	performance_schema	PRIMARY
 def	performance_schema	events_statements_current	performance_schema	PRIMARY
 def	performance_schema	events_statements_current	performance_schema	PRIMARY
+def	performance_schema	events_statements_histogram_by_digest	performance_schema	SCHEMA_NAME
+def	performance_schema	events_statements_histogram_by_digest	performance_schema	SCHEMA_NAME
+def	performance_schema	events_statements_histogram_by_digest	performance_schema	SCHEMA_NAME
+def	performance_schema	events_statements_histogram_global	performance_schema	PRIMARY
 def	performance_schema	events_statements_history	performance_schema	PRIMARY
 def	performance_schema	events_statements_history	performance_schema	PRIMARY
 def	performance_schema	events_statements_summary_by_account_by_event_name	performance_schema	ACCOUNT

@@ -31,6 +31,7 @@
 #include "debug_sync.h"
 #include "handler.h"
 #include "hash.h"
+#include "lex_string.h"
 #include "log.h"                            // sql_print_error
 #include "m_ctype.h"
 #include "m_string.h"
@@ -555,13 +556,15 @@ void Slave_worker::copy_values_for_PFS(ulong worker_id,
                                        en_running_state thd_running_status,
                                        THD *worker_thd,
                                        const Error &last_error,
-                                       const Gtid_specification &gtid)
+                                       trx_monitoring_info *processing_trx_arg,
+                                       trx_monitoring_info *last_processed_trx_arg)
 {
   id= worker_id;
   running_status= thd_running_status;
   info_thd= worker_thd;
   m_last_error= last_error;
-  currently_executing_gtid= gtid;
+  get_processing_trx()->copy(processing_trx_arg);
+  get_last_processed_trx()->copy(last_processed_trx_arg);
 }
 
 bool Slave_worker::set_info_search_keys(Rpl_info_handler *to)
@@ -1244,7 +1247,10 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
                 ptr_g->group_relay_log_name != NULL);
     DBUG_ASSERT(ptr_g->worker_id == id);
 
-    if (ev->get_type_code() != binary_log::XID_EVENT)
+    /*
+      DDL that has not yet updated the slave info repository does it now.
+    */
+    if (ev->get_type_code() != binary_log::XID_EVENT && !is_committed_ddl(ev))
     {
       commit_positions(ev, ptr_g, false);
       DBUG_EXECUTE_IF("crash_after_commit_and_update_pos",
@@ -2227,7 +2233,7 @@ void Slave_worker::assign_partition_db(Log_event *ev)
   Mts_db_names mts_dbs;
   int i;
 
-  ev->get_mts_dbs(&mts_dbs);
+  ev->get_mts_dbs(&mts_dbs, c_rli->rpl_filter);
 
   if (mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS)
     ev->mts_assigned_partitions[0]= find_entry_from_db_map("", c_rli);
@@ -2666,7 +2672,7 @@ void report_error_to_coordinator(Slave_worker *worker)
   return returns 0 if the group of jobs are applied successfully, otherwise
          returns an error code.
  */
-int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
+int slave_worker_exec_job_group( Slave_worker *worker, Relay_log_info *rli)
 {
   struct slave_job_item item= {NULL, 0, 0};
   struct slave_job_item *job_item= &item;
@@ -2687,6 +2693,9 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
   start_relay_number= job_item->relay_number;
   start_relay_pos= job_item->relay_pos;
 
+  /* Current event with Worker associator. */
+  RLI_current_event_raii worker_curr_ev(worker, ev);
+
   while (1)
   {
     Slave_job_group *ptr_g;
@@ -2703,6 +2712,15 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
     DBUG_ASSERT(ev != NULL);
     DBUG_PRINT("info", ("W_%lu <- job item: %p data: %p thd: %p",
                         worker->id, job_item, ev, thd));
+    /*
+      Associate the freshly read event with worker.
+      The binding also remains when the loop breaks at the group end event
+      so a DDL Query_log_event as such a breaker would remain pinned to
+      the Worker by the slave info table update and commit time,
+      see slave_worker_ends_group().
+    */
+    worker_curr_ev.set_current_event(ev);
+
     if (is_gtid_event(ev))
       seen_gtid= true;
     if (!seen_begin && ev->starts_group())
@@ -2765,6 +2783,44 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
                       ev->mts_group_idx, worker->last_group_done_index));
   /* The group is applied successfully, so error should be 0 */
   worker->slave_worker_ends_group(ev, 0);
+
+  /*
+   check if the finished group started with a gtid_log_event to update the
+   monitoring information
+  */
+  if (current_thd->rli_slave->is_processing_trx())
+  {
+    DBUG_EXECUTE_IF("rpl_ps_tables",
+                    {
+                      const char act[]= "now SIGNAL signal.rpl_ps_tables_apply_before "
+                                        "WAIT_FOR signal.rpl_ps_tables_apply_finish";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
+    if (ev->get_type_code() == binary_log::QUERY_EVENT &&
+        ((Query_log_event*)ev)->rollback_injected_by_coord)
+    {
+      /*
+       If this was a rollback event injected by the coordinator because of a
+       partial transaction in the relay log, we must not consider this
+       transaction completed and, instead, clear the monitoring info.
+      */
+      current_thd->rli_slave->clear_processing_trx(true /*need_lock*/);
+    }
+    else
+    {
+      current_thd->rli_slave->finished_processing();
+    }
+    DBUG_EXECUTE_IF("rpl_ps_tables",
+                    {
+                      const char act[]= "now SIGNAL signal.rpl_ps_tables_apply_after_finish "
+                                        "WAIT_FOR signal.rpl_ps_tables_apply_continue";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
+  }
 
 #ifndef DBUG_OFF
   DBUG_PRINT("mts", ("Check_slave_debug_group worker %lu mts_checkpoint_group"

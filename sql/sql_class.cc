@@ -304,7 +304,7 @@ void THD::set_psi(PSI_thread *psi)
 
 void THD::enter_stage(const PSI_stage_info *new_stage,
                       PSI_stage_info *old_stage,
-                      const char *calling_func,
+                      const char *calling_func MY_ATTRIBUTE((unused)),
                       const char *calling_file,
                       const unsigned int calling_line)
 {
@@ -565,6 +565,9 @@ THD::THD(bool enable_plugins)
                                               max_digest_length,
                                               MYF(MY_WME));
   }
+#ifndef DBUG_OFF
+  debug_binlog_xid_last.reset();
+#endif
 }
 
 
@@ -1343,22 +1346,38 @@ void THD::disconnect(bool server_shutdown)
 
   mysql_mutex_lock(&LOCK_thd_data);
 
-  killed= THD::KILL_CONNECTION;
-
   /*
-    Since a active vio might might have not been set yet, in
-    any case save a reference to avoid closing a inexistent
-    one or closing the vio twice if there is a active one.
-  */
-  vio= active_vio;
-  shutdown_active_vio();
+    If thread is in kill immune mode (i.e. operation on new DD tables
+    is in progress) then just save state_to_set with THD::kill_immunizer
+    object.
 
-  /* Disconnect even if a active vio is not associated. */
-  if (is_classic_protocol() &&
-      get_protocol_classic()->get_vio() != vio &&
-      get_protocol_classic()->connection_alive())
+    While exiting kill immune mode, awake() is called again with the killed
+    state saved in THD::kill_immunizer object.
+
+    active_vio is aleady associated to the thread when it is in the kill
+    immune mode. THD::awake() closes the active_vio.
+ */
+  if (kill_immunizer != nullptr)
+    kill_immunizer->save_killed_state(THD::KILL_CONNECTION);
+  else
   {
-    m_protocol->shutdown(server_shutdown);
+    killed= THD::KILL_CONNECTION;
+
+    /*
+      Since a active vio might might have not been set yet, in
+      any case save a reference to avoid closing a inexistent
+      one or closing the vio twice if there is a active one.
+    */
+    vio= active_vio;
+    shutdown_active_vio();
+
+    /* Disconnect even if a active vio is not associated. */
+    if (is_classic_protocol() &&
+        get_protocol_classic()->get_vio() != vio &&
+        get_protocol_classic()->connection_alive())
+    {
+      m_protocol->shutdown(server_shutdown);
+    }
   }
 
   mysql_mutex_unlock(&LOCK_thd_data);
@@ -2565,7 +2584,7 @@ void THD::clear_next_event_pos()
   binlog_next_event_pos.pos= 0;
 }
 
-void THD::set_currently_executing_gtid_for_slave_thread()
+void THD::set_original_commit_timestamp_for_slave_thread()
 {
   /*
     This function may be called in four cases:
@@ -2585,12 +2604,11 @@ void THD::set_currently_executing_gtid_for_slave_thread()
       originating from the master.
 
     Because of the last case, we need to add the following conditions to set
-    currently_executing_gtid.
+    original_commit_timestamp.
   */
   if (system_thread == SYSTEM_THREAD_SLAVE_SQL ||
       system_thread == SYSTEM_THREAD_SLAVE_WORKER)
   {
-    rli_slave->currently_executing_gtid= variables.gtid_next;
     rli_slave->original_commit_timestamp= variables.original_commit_timestamp;
   }
 }

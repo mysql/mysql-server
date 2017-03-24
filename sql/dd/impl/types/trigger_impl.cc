@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,10 +24,11 @@
 #include "dd/string_type.h"                      // dd::String_type
 #include "dd/types/object_table.h"
 #include "dd/types/weak_object.h"
-#include "mysql_com.h"
-#include "mysqld_error.h"                        // ER_*
+#include "lex_string.h"
 #include "my_sys.h"
 #include "my_user.h"                             // parse_user
+#include "mysql_com.h"
+#include "mysqld_error.h"                        // ER_*
 #include "sql_class.h"
 
 using dd::tables::Triggers;

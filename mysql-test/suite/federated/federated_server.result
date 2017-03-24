@@ -187,6 +187,8 @@ create user guest_select@localhost;
 grant select on federated.* to guest_select@localhost;
 create user guest_super@localhost;
 grant select,SUPER,RELOAD on *.* to guest_super@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 create user guest_usage@localhost;
 grant usage on *.* to guest_usage@localhost;
 CREATE TABLE federated.t1 (

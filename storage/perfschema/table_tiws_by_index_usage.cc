@@ -415,7 +415,7 @@ table_tiws_by_index_usage::rnd_pos(const void *pos)
 }
 
 int
-table_tiws_by_index_usage::index_init(uint idx, bool)
+table_tiws_by_index_usage::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   m_normalizer = time_normalizer::get(wait_timer);
 

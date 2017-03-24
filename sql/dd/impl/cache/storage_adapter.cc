@@ -83,8 +83,7 @@ size_t Storage_adapter::core_size()
 
 // Get a dictionary object id from core storage.
 template <typename T>
-Object_id Storage_adapter::core_get_id(THD *thd,
-                                       const typename T::name_key_type &key)
+Object_id Storage_adapter::core_get_id(const typename T::name_key_type &key)
 {
   Cache_element<typename T::cache_partition_type> *element= nullptr;
   Mutex_lock lock(&m_lock);
@@ -100,7 +99,7 @@ Object_id Storage_adapter::core_get_id(THD *thd,
 
 // Get a dictionary object from core storage.
 template <typename K, typename T>
-void Storage_adapter::core_get(THD *thd, const K &key, const T **object)
+void Storage_adapter::core_get(const K &key, const T **object)
 {
   DBUG_ASSERT(object);
   *object= nullptr;
@@ -126,7 +125,7 @@ bool Storage_adapter::get(THD *thd,
   DBUG_ASSERT(object);
   *object= nullptr;
 
-  instance()->core_get(thd, key, object);
+  instance()->core_get(key, object);
   if (*object || s_use_fake_storage)
     return false;
 
@@ -188,7 +187,8 @@ bool Storage_adapter::get(THD *thd,
 
 // Drop a dictionary object from core storage.
 template <typename T>
-void Storage_adapter::core_drop(THD *thd, const T *object)
+void Storage_adapter::core_drop(THD *thd MY_ATTRIBUTE((unused)),
+                                const T *object)
 {
   DBUG_ASSERT(s_use_fake_storage || thd->is_dd_system_thread());
   DBUG_ASSERT(bootstrap::stage() <= bootstrap::BOOTSTRAP_CREATED);
@@ -419,23 +419,20 @@ template bool Storage_adapter::core_sync(THD *,
                                          const Schema*);
 
 template Object_id Storage_adapter::core_get_id<Table>(
-      THD *,
       const Table::name_key_type &);
 template Object_id Storage_adapter::core_get_id<Schema>(
-      THD *,
       const Schema::name_key_type &);
 template Object_id Storage_adapter::core_get_id<Tablespace>(
-      THD *,
       const Tablespace::name_key_type &);
 
 template
-void Storage_adapter::core_get(THD*,
+void Storage_adapter::core_get(
        dd::Item_name_key const&, const dd::Schema**);
 template
-void Storage_adapter::core_get<dd::Item_name_key, dd::Abstract_table>(THD*,
+void Storage_adapter::core_get<dd::Item_name_key, dd::Abstract_table>(
        dd::Item_name_key const&, const dd::Abstract_table**);
 template
-void Storage_adapter::core_get<dd::Global_name_key, dd::Tablespace>(THD*,
+void Storage_adapter::core_get<dd::Global_name_key, dd::Tablespace>(
        dd::Global_name_key const&, const dd::Tablespace**);
 
 template Object_id Storage_adapter::next_oid<Abstract_table>();
@@ -572,12 +569,12 @@ template bool Storage_adapter::store(THD *, Tablespace*);
 */
 
 template <>
-void Storage_adapter::core_get(THD*, const Table_stat::name_key_type&,
+void Storage_adapter::core_get(const Table_stat::name_key_type&,
                                const Table_stat**)
 { }
 
 template <>
-void Storage_adapter::core_get(THD*, const Index_stat::name_key_type&,
+void Storage_adapter::core_get(const Index_stat::name_key_type&,
                                const Index_stat**)
 { }
 

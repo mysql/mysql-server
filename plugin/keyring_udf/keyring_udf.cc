@@ -36,14 +36,14 @@
 
 static bool is_keyring_udf_initialized= FALSE;
 
-static int keyring_udf_init(void *p)
+static int keyring_udf_init(void*)
 {
   DBUG_ENTER("keyring_udf_init");
   is_keyring_udf_initialized= TRUE;
   DBUG_RETURN(0);
 }
 
-static int keyring_udf_deinit(void *p)
+static int keyring_udf_deinit(void*)
 {
   DBUG_ENTER("keyring_udf_deinit");
   is_keyring_udf_initialized= FALSE;
@@ -225,7 +225,7 @@ bool keyring_key_store_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 }
 
 PLUGIN_EXPORT
-void keyring_key_store_deinit(UDF_INIT *initid)
+void keyring_key_store_deinit(UDF_INIT*)
 {}
 
 /**
@@ -234,8 +234,7 @@ void keyring_key_store_deinit(UDF_INIT *initid)
   @return 1 on success, NULL and error on failure
 */
 PLUGIN_EXPORT
-long long keyring_key_store(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
-                            char *error)
+long long keyring_key_store(UDF_INIT*, UDF_ARGS *args, char*, char *error)
 {
   std::string current_user;
 
@@ -321,7 +320,7 @@ void keyring_key_fetch_deinit(UDF_INIT *initid)
   @return key on success, NULL if key does not exist, NULL and error on failure
 */
 PLUGIN_EXPORT
-char *keyring_key_fetch(UDF_INIT *initid, UDF_ARGS *args, char *result,
+char *keyring_key_fetch(UDF_INIT *initid, UDF_ARGS *args, char*,
                         unsigned long *length, char *is_null, char *error)
 {
   char *key= NULL;
@@ -372,7 +371,7 @@ void keyring_key_type_fetch_deinit(UDF_INIT *initid)
   @return key's type on success, NULL if key does not exist, NULL and error on failure
 */
 PLUGIN_EXPORT
-char *keyring_key_type_fetch(UDF_INIT *initid, UDF_ARGS *args, char *result,
+char *keyring_key_type_fetch(UDF_INIT *initid, UDF_ARGS *args, char*,
                              unsigned long *length, char *is_null, char *error)
 {
   char *key_type= NULL;
@@ -424,7 +423,7 @@ void keyring_key_length_fetch_deinit(UDF_INIT *initid)
   @return key's length on success, NULL if key does not exist, NULL and error on failure
 */
 PLUGIN_EXPORT
-long long keyring_key_length_fetch(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
+long long keyring_key_length_fetch(UDF_INIT*, UDF_ARGS *args, char *is_null,
                                    char *error)
 {
   size_t key_len= 0;
@@ -450,7 +449,7 @@ bool keyring_key_remove_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 }
 
 PLUGIN_EXPORT
-void keyring_key_remove_deinit(UDF_INIT *initid)
+void keyring_key_remove_deinit(UDF_INIT*)
 {}
 
 /**
@@ -459,8 +458,7 @@ void keyring_key_remove_deinit(UDF_INIT *initid)
   @return 1 on success, NULL on failure
 */
 PLUGIN_EXPORT
-long long keyring_key_remove(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
-                             char *error)
+long long keyring_key_remove(UDF_INIT*, UDF_ARGS *args, char*, char *error)
 {
   std::string current_user;
   if (get_current_user(&current_user))
@@ -487,7 +485,7 @@ bool keyring_key_generate_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 }
 
 PLUGIN_EXPORT
-void keyring_key_generate_deinit(UDF_INIT *initid)
+void keyring_key_generate_deinit(UDF_INIT*)
 {}
 
 /**
@@ -496,8 +494,7 @@ void keyring_key_generate_deinit(UDF_INIT *initid)
   @return 1 on success, NULL and error on failure
 */
 PLUGIN_EXPORT
-long long keyring_key_generate(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
-                               char *error)
+long long keyring_key_generate(UDF_INIT*, UDF_ARGS *args, char*, char *error)
 {
   std::string current_user;
   if (get_current_user(&current_user))

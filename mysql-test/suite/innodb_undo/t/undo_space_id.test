@@ -3,6 +3,8 @@
 --source include/big_test.inc
 --source include/have_debug.inc
 
+--let $MYSQLD_BASEDIR = `SELECT @@BASEDIR`
+
 # Create custom datadir path
 --mkdir $MYSQL_TMP_DIR/datadir1
 

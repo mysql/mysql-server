@@ -1,7 +1,6 @@
 # This test scripts covers upgrade of tables, views, tablespaces,
 # events, stored routines and triggers from 5.7 to 8.0.
 
---source include/not_embedded.inc
 
 call mtr.add_suppression("Plugin * after shutdown");
 call mtr.add_suppression(".* Native table .* has the wrong structure");
@@ -55,6 +54,45 @@ let SEARCH_FILE= $MYSQLD_LOG;
 --remove_file $MYSQLD_LOG
 --remove_file $MYSQL_TMP_DIR/data57.zip
 --force-rmdir $MYSQL_TMP_DIR/data57
+
+--echo # ------------------------------------------------------------------
+--echo # Check upgrade of tables and stored programs using long enum elements.
+--echo # ------------------------------------------------------------------
+
+# Set different path for --datadir
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_enum;
+
+--echo # DB server which was started above is not running, no need for shutdown
+
+--echo # Copy the remote tablespace & DB zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/data57_enum.zip $MYSQL_TMP_DIR/data57_enum.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data57_enum.zip
+
+--echo # Unzip the zip file.
+--exec unzip -qo $MYSQL_TMP_DIR/data57_enum.zip -d $MYSQL_TMP_DIR
+
+--echo # Remove innodb log files due to an existing bug
+--remove_file $MYSQLD_DATADIR1/ib_logfile0
+--remove_file $MYSQLD_DATADIR1/ib_logfile1
+
+--echo # Starting the DB server will fail since the data dir contains
+--echo # a table and a stored program with a too long enum literals.
+let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
+--error 1
+--exec $MYSQLD $extra_args  --secure-file-priv="" --innodb_undo_tablespaces=0 --log-error=$MYSQLD_LOG --show_compatibility_56=1 --datadir=$MYSQLD_DATADIR1
+
+--let SEARCH_PATTERN= Error in Creating DD entry for test.t_long_enum
+--source include/search_pattern_in_file.inc
+
+--let SEARCH_PATTERN= Error in creating stored program 'test.p_long_enum'
+--source include/search_pattern_in_file.inc
+
+#Remove copied files
+--remove_file $MYSQLD_LOG
+--remove_file $MYSQL_TMP_DIR/data57_enum.zip
+--force-rmdir $MYSQL_TMP_DIR/data57_enum
 
 --echo # Restart the server with default options.
 --source include/start_mysqld.inc

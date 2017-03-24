@@ -123,6 +123,12 @@ IF (NOT WITH_NDBCLUSTER)
   RETURN()
 ENDIF()
 
+# Disable strict-aliasing for storage/ndb
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-strict-aliasing")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-strict-aliasing")
+ENDIF()
+
 # Disable specific types of warnings for storage/ndb
 # if the compiler supports the flag
 IF(CMAKE_COMPILER_IS_GNUCXX)
@@ -130,6 +136,7 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
   FOREACH(warning
           "unused-but-set-variable"
           "strict-aliasing"
+          "unused-parameter"
           # Downgrade -Werror to warning for "may be used uninitialized"
           # and "is used uninitialized in this function"
           "error=maybe-uninitialized"

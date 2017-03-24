@@ -25,6 +25,7 @@
 #include "current_thd.h"                // current_thd
 #include "handler.h"
 #include "key.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_io.h"
@@ -148,6 +149,15 @@ void thd_set_psi(THD *thd, PSI_thread *psi)
 
 void thd_set_killed(THD *thd)
 {
+  /*
+    TODO: This method just sets the state of the THD::killed member. Now used
+          for the idle threads. To awake and set killed status for active
+          threads, THD::awake() should be used as part of this method or in a
+          new API.
+          Setting KILL state for a thread in a kill immune mode is handled
+          as part of THD::awake(). Direct KILL state set for active thread
+          breaks it.
+  */
   thd->killed= THD::KILL_CONNECTION;
 }
 

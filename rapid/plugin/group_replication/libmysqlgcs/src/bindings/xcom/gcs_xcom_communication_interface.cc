@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "gcs_xcom_communication_interface.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -23,8 +22,9 @@
 #include <sys/types.h>
 #include <iostream>
 
+#include "gcs_xcom_communication_interface.h"
 #include "app_data.h"
-#include "gcs_logging.h"
+#include "mysql/gcs/gcs_logging.h"
 #include "gcs_message_stages.h"
 #include "node_list.h"
 #include "node_no.h"

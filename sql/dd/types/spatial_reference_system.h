@@ -17,6 +17,7 @@
 #define DD__SPATIAL_REFERENCE_SYSTEM_INCLUDED
 
 #include "dd/types/dictionary_object.h"   // dd::Dictionary_object
+#include "gis/srid.h"
 #include "gis/srs/srs.h"                  // srid_t
 #include "my_inttypes.h"
 
@@ -92,9 +93,9 @@ public:
   // organization_coordsys_id
   /////////////////////////////////////////////////////////////////////////
 
-  virtual srid_t organization_coordsys_id() const = 0;
+  virtual gis::srid_t organization_coordsys_id() const = 0;
   virtual void
-    set_organization_coordsys_id(srid_t organization_coordsys_id) = 0;
+    set_organization_coordsys_id(gis::srid_t organization_coordsys_id) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // definition
@@ -113,6 +114,14 @@ public:
     @retval false the SRS is not geographic, or is geographic longitude-latitude
   */
   virtual bool is_lat_long() const = 0;
+
+  virtual double semi_major_axis() const = 0;
+  virtual double semi_minor_axis() const = 0;
+  virtual double angular_unit() const = 0;
+  virtual double prime_meridian() const = 0;
+  virtual bool positive_east() const = 0;
+  virtual bool positive_north() const = 0;
+  virtual double from_radians(double d) const = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // description

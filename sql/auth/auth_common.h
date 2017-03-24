@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "auth_acls.h"                          /* ACL information */
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_command.h"
 #include "my_dbug.h"
@@ -32,6 +33,12 @@
 #include "sql_string.h"                         /* String */
 #include "template_utils.h"
 #include "thr_malloc.h"
+#include <mysql/components/service.h>
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/dynamic_privilege.h>
+#include "dynamic_privileges_impl.h"
+
+#include <functional>
 
 /* Forward Declarations */
 class Alter_info;
@@ -697,8 +704,10 @@ int mysql_set_active_role_none(THD *thd);
 int mysql_set_role_default(THD *thd);
 int mysql_set_active_role_all(THD *thd, const List <LEX_USER> *except_users);
 int mysql_set_active_role(THD *thd, const List<LEX_USER > *role_list);
-bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &user_list,
-                 ulong rights, bool revoke, bool is_proxy);
+bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
+                 ulong rights, bool revoke_grant, bool is_proxy,
+                 const List<LEX_CSTRING > &dynamic_privilege,
+                 bool grant_all_current_privileges);
 bool mysql_routine_grant(THD *thd, TABLE_LIST *table, bool is_proc,
                          List <LEX_USER> &user_list, ulong rights,
                          bool revoke, bool write_to_binlog);

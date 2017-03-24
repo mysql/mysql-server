@@ -31,12 +31,11 @@
 using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;
 
-void Mysqldump_tool_chain_maker::delete_chain(
-  uint64 chain_id, I_object_reader* chain)
+void Mysqldump_tool_chain_maker::delete_chain(uint64, I_object_reader*)
 {}
 
 I_object_reader* Mysqldump_tool_chain_maker::create_chain(
-  Chain_data* chain_data, I_dump_task* dump_task)
+  Chain_data*, I_dump_task* dump_task)
 {
   Table_rows_dump_task* rows_task= dynamic_cast<Table_rows_dump_task*>(
     dump_task);

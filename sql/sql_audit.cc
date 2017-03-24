@@ -22,6 +22,7 @@
 #include "current_thd.h"
 #include "error_handler.h"                      // Internal_error_handler
 #include "key.h"
+#include "lex_string.h"
 #include "log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -119,10 +120,10 @@ public:
 
     @returns True on error rejection, otherwise false.
   */
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
+                                Sql_condition::enum_severity_level*,
                                 const char* msg)
   {
     if (m_active && handle())
@@ -374,7 +375,7 @@ public:
     @param sqlstate  The SQL state of the underlying error. NULL if none
     @param msg       The text of the underlying error. NULL if none
   */
-  virtual void print_warning(const char *warn_msg,
+  virtual void print_warning(const char *warn_msg MY_ATTRIBUTE((unused)),
                              uint sql_errno,
                              const char* sqlstate,
                              const char* msg)
@@ -868,7 +869,7 @@ public:
     @param sqlstate  The SQL state of the underlying error. NULL if none
     @param msg       The text of the underlying error. NULL if none
   */
-  virtual void print_warning(const char *warn_msg,
+  virtual void print_warning(const char *warn_msg MY_ATTRIBUTE((unused)),
                              uint sql_errno,
                              const char* sqlstate,
                              const char* msg)
@@ -1006,13 +1007,12 @@ int mysql_audit_notify(THD *thd,
   class, passed by arg parameter. lookup_mask of the st_mysql_subscribe_event
   structure is filled, when the plugin is interested in receiving the event.
 
-  @param         thd    Current session THD.
   @param         plugin Plugin reference.
   @param[in,out] arg    Opaque st_mysql_subscribe_event pointer.
 
   @return FALSE is always returned.
 */
-static bool acquire_lookup_mask(THD *thd, plugin_ref plugin, void *arg)
+static bool acquire_lookup_mask(THD*, plugin_ref plugin, void *arg)
 {
   st_mysql_subscribe_event *evt= static_cast<st_mysql_subscribe_event *>(arg);
   st_mysql_audit *audit= plugin_data<st_mysql_audit *>(plugin);
@@ -1282,13 +1282,12 @@ int initialize_audit_plugin(st_plugin_int *plugin)
 /**
   Performs a bitwise OR of the installed plugins event class masks
 
-  @param[in] thd
   @param[in] plugin
   @param[in] arg
 
   @retval FALSE  always
 */
-static bool calc_class_mask(THD *thd, plugin_ref plugin, void *arg)
+static bool calc_class_mask(THD*, plugin_ref plugin, void *arg)
 {
   st_mysql_audit *data= plugin_data<st_mysql_audit*>(plugin);
   if (data)

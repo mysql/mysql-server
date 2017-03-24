@@ -23,6 +23,7 @@
 #include "dd/cache/dictionary_client.h"
 #include "debug_sync.h"       // DEBUG_SYNC
 #include "handler.h"
+#include "lex_string.h"
 #include "log.h"              // sql_print_warning
 #include "m_ctype.h"
 #include "mdl.h"
@@ -39,6 +40,7 @@
 #include "query_options.h"
 #include "rpl_context.h"
 #include "rpl_gtid.h"
+#include "rpl_rli.h"
 #include "session_tracker.h"
 #include "sql_class.h"        // THD
 #include "sql_lex.h"
@@ -576,6 +578,19 @@ bool trans_rollback_stmt(THD *thd)
     else
       gtid_state->update_on_rollback(thd);
   }
+  /*
+    Statement rollback for replicated atomic DDL should call
+    post-rollback hook. This ensures the slave info won't be updated
+    for failed atomic DDL statements during the eventual implicit
+    commit which is done even even in case of DDL failure.
+
+    Unlike the post_commit it has to be invoked even when there's
+    no active statement transaction.
+    TODO: consider to align the commit case to invoke pre- and post-
+    hooks on the same level with the rollback one.
+  */
+  if (is_atomic_ddl_commit_on_slave(thd))
+    thd->rli_slave->post_rollback();
 
   /* In autocommit=1 mode the transaction should be marked as complete in P_S */
   DBUG_ASSERT(thd->in_active_multi_stmt_transaction() ||

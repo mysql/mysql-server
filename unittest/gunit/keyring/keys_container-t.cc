@@ -420,7 +420,7 @@ namespace keyring__keys_container_unittest
     Buffered_file_io_dont_remove_backup(ILogger *logger)
       : Buffered_file_io(logger) {}
 
-    bool remove_backup(myf myFlags)
+    bool remove_backup(myf)
     {
       return FALSE;
     }

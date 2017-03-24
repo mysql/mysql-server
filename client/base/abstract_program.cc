@@ -29,9 +29,7 @@ using std::vector;
 extern const char *load_default_groups[];
 
 bool Abstract_program::callback_option_parsed(
-  int optid,
-  const struct my_option *opt MY_ATTRIBUTE((unused)),
-  char *argument)
+  int, const struct my_option *opt, char *argument)
 {
   // Check if option uses My::Tools::Base::Options, and it should.
   Options::I_option* app_type = (Options::I_option*)opt->app_type;

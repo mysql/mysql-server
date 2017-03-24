@@ -319,7 +319,7 @@ public:
     buffer= new char[20];
   }
 
-  Container_object(const Container_object &other)
+  Container_object(const Container_object&)
   {
     buffer= new char[20]; // Don't care about contents
   }

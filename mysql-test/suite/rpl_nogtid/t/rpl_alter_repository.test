@@ -40,6 +40,7 @@ call mtr.add_suppression("Error creating.*: Error checking repositories");
 call mtr.add_suppression("Failed to create or recover replication info repositories.");
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
 call mtr.add_suppression("GTID_LOG_EVENT .* is not expected in an event stream");
+call mtr.add_suppression("Failed to initialize the master info structure for channel ''");
 
 ###############################################################################
 #           Checking if replication can fail safely (SQL Thread)

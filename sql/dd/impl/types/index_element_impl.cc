@@ -126,7 +126,7 @@ bool Index_element_impl::store_attributes(Raw_record *r)
 static_assert(Index_column_usage::FIELD_HIDDEN==5,
               "Index_column_usage definition has changed, review (de)ser memfuns!");
 void
-Index_element_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
+Index_element_impl::serialize(Sdi_wcontext*, Sdi_writer *w) const
 {
   w->StartObject();
   write(w, m_ordinal_position, STRING_WITH_LEN("ordinal_position"));
@@ -189,7 +189,6 @@ bool Index_element_impl::has_new_primary_key() const
         As result it returns funny results for BLOB/GIS types.
 */
 
-/* purecov: begin deadcode */
 bool Index_element_impl::is_prefix() const
 {
   uint interval_parts;
@@ -207,7 +206,6 @@ bool Index_element_impl::is_prefix() const
                          col.is_unsigned(),
                          interval_parts) != length();
 }
-/* purecov: end */
 
 ///////////////////////////////////////////////////////////////////////////
 

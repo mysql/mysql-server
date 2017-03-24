@@ -1,5 +1,3 @@
---source include/not_embedded.inc
-
 --echo # Test persisted variables
 
 # return 0 rows

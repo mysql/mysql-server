@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -212,7 +212,7 @@ const char *const other_mysql_functions[] = {
     "insert",            "interval",      "left",
     "linestring",        "microsecond",   "minute",
     "mod",               "month",         "multilinestring",
-    "multipoint",        "multipolygon",  "my_strxfrm_pad_with_space",
+    "multipoint",        "multipolygon",
     "password",          "point",         "polygon",
     "position",          "quarter",       "repeat",
     "replace",           "reverse",       "right",

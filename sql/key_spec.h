@@ -18,6 +18,7 @@
 
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "m_string.h"
 #include "mem_root_array.h"
 #include "my_base.h"

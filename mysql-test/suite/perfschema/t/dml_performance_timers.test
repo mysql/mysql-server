@@ -1,7 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
-
 --replace_column 2 <frequency> 3 <resolution> 4 <overhead>
 select * from performance_schema.performance_timers;
 

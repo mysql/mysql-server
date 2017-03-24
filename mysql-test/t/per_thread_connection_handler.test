@@ -1,6 +1,5 @@
 # Include file to decrease test code duplication
 
---source include/not_embedded.inc
 --source include/have_debug.inc
 
 call mtr.add_suppression("Can't create thread to");

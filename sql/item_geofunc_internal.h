@@ -32,10 +32,13 @@
 #include <utility>
 #include <vector>
 
+#include "gis/srid.h"
 #include "gis_bg_traits.h"
 #include "item_geofunc.h"
 #include "my_inttypes.h"
 #include "spatial.h"
+#include "sql_exception_handler.h" // handle_gis_exception
+#include "srs_fetcher.h"
 
 class String;
 class THD;
@@ -56,71 +59,6 @@ class Spatial_reference_system;
 #define GIS_ZERO 0.00000000001
 
 extern bool simplify_multi_geometry(String *str, String *result_buffer);
-
-
-class Srs_fetcher
-{
-private:
-  THD *m_thd;
-
-  /**
-    Take an MDL lock on an SRID.
-
-    @param[in] srid Spatial reference system ID
-
-    @retval false Success.
-    @retval true Locking failed. An error has already been flagged.
-  */
-  bool lock(Geometry::srid_t srid);
-
-public:
-  Srs_fetcher(THD *thd)
-    :m_thd(thd)
-  {}
-
-  /**
-    Acquire an SRS from the data dictionary.
-
-    @param[in] srid Spatial reference system ID
-    @param[out] srs The spatial reference system
-
-    @retval false Success.
-    @retval true Locking failed. An error has already been flagged.
-  */
-  bool acquire(Geometry::srid_t srid, const dd::Spatial_reference_system **srs);
-
-  static bool srs_exists(THD *thd, Geometry::srid_t srid, bool *exists);
-};
-
-
-/**
-  Handle a GIS exception of any type.
-
-  This function constitutes the exception handling barrier between
-  Boost.Geometry and MySQL code. It handles all exceptions thrown in
-  GIS code and raises the corresponding error in MySQL.
-
-  Pattern for use in other functions:
-
-  @code
-  try
-  {
-    something_that_throws();
-  }
-  catch (...)
-  {
-    handle_gis_exception("st_foo");
-  }
-  @endcode
-
-  Other exception handling code put into the catch block, before or
-  after the call to handle_gis_exception(), must not throw exceptions.
-
-  @param funcname Function name for use in error message
-
-  @see handle_std_exception
- */
-void handle_gis_exception(const char *funcname);
 
 
 /// A wrapper and interface for all geometry types used here. Make these
@@ -225,7 +163,7 @@ make_rtree_bggeom(const MultiGeometry &mg,
 
 
 inline Gis_geometry_collection *
-empty_collection(String *str, uint32 srid)
+empty_collection(String *str, gis::srid_t srid)
 {
   return new Gis_geometry_collection(srid, Geometry::wkb_invalid_type,
                                      NULL, str);

@@ -21,3 +21,5 @@ innodb.bootstrap        @windows  : Bug#22680868 2016-02-08 Erlend Failing too o
 innodb.log_corruption   @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
 innodb.log_corruption_1 @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
 analyze_table           @solaris  : Bug#22607584 2016-03-01 Shaohua Failing too often on PB2 due to timeout
+innodb.innodb_tsof_use_1  @windows : Bug#25716069 2017-03-14 Anitha Fails consistently on windows
+innodb.innodb_tsof_use_2  @windows : Bug#25716110 2017-03-14 Anitha Fails consistently on windows

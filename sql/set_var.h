@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <vector>
 
+#include "lex_string.h"
 #include "my_getopt.h"        // get_opt_arg_type
 #include "my_inttypes.h"
 #include "mysql/plugin.h"     // enum_mysql_show_type
@@ -170,7 +171,7 @@ public:
     We dont need this as this is not about elapsed time for query, we only
     need current  timestamp, thus using this function.
   */
-  void set_timestamp() { timestamp= my_getsystime() / 10.0; }
+  void set_timestamp() { timestamp= my_getsystime() / 10ULL; }
 
   /**
      Update the system variable with the default value from either

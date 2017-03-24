@@ -25,6 +25,7 @@
 #include "dd/dictionary.h"           // dd::Dictionary
 #include "dd/object_id.h"            // dd::Object_id
 #include "dd/string_type.h"          // dd::String_type
+#include "lex_string.h"
 #include "m_string.h"
 #include "table.h"                   // MYSQL_SCHEMA_NAME
 

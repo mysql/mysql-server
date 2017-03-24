@@ -76,7 +76,7 @@ public:
 
   void debug_print(String_type &outb) const;
 
-  void set_ordinal_position(uint ordinal_position)
+  void set_ordinal_position(uint)
   { }
 
   virtual uint ordinal_position() const

@@ -185,7 +185,7 @@ public:
   }
 
   // Error reporting in server code only.
-  int check_result(uint mask, int result) const
+  int check_result(uint, int result) const
 #ifndef MYSQL_SERVER
   {
     return result;

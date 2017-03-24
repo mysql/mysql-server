@@ -24,7 +24,9 @@
 #include <cstdlib>
 #include <iterator>
 
+#include "gis/srid.h"
 #include "inplace_vector.h"
+#include "lex_string.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -326,8 +328,7 @@ public:
   // Check user's transmitted data against these limits.
   const static uint32 MAX_GEOM_WKB_LENGTH= 0x3fffffff;
 
-  typedef uint32 srid_t;
-  const static srid_t default_srid= 0;
+  const static gis::srid_t default_srid= 0;
 
   virtual ~Geometry();
 
@@ -773,12 +774,12 @@ public:
 
   uint16 get_props() const { return (uint16)m_flags.props; }
 
-  void set_srid(srid_t id)
+  void set_srid(gis::srid_t id)
   {
     m_srid= id;
   }
 
-  srid_t get_srid() const { return m_srid; }
+  gis::srid_t get_srid() const { return m_srid; }
 
   const void *normalize_ring_order();
 protected:
@@ -891,7 +892,7 @@ public:
     @param flags the flags to set, no field is used for now except geotype.
     @param srid srid of the geometry.
   */
-  Geometry(const void *ptr, size_t len, const Flags_t &flags, srid_t srid)
+  Geometry(const void *ptr, size_t len, const Flags_t &flags, gis::srid_t srid)
   {
     m_ptr= const_cast<void *>(ptr);
     m_flags.nbytes= len;
@@ -1218,7 +1219,7 @@ private:
   mutable Flags_t m_flags;
 
   /// Srid of this object.
-  srid_t m_srid;
+  gis::srid_t m_srid;
 public:
 
   Flags_t get_flags() const {return m_flags;}
@@ -1284,7 +1285,7 @@ inline char *write_wkb_header(void *p0, Geometry::wkbType geotype,
 }
 
 
-inline char *write_geometry_header(void *p0, uint32 srid,
+inline char *write_geometry_header(void *p0, gis::srid_t srid,
                                    Geometry::wkbType geotype)
 {
   char *p= static_cast<char *>(p0);
@@ -1293,7 +1294,7 @@ inline char *write_geometry_header(void *p0, uint32 srid,
 }
 
 
-inline char *write_geometry_header(void *p0, uint32 srid,
+inline char *write_geometry_header(void *p0, gis::srid_t srid,
                                    Geometry::wkbType geotype, uint32 obj_count)
 {
   char *p= static_cast<char *>(p0);
@@ -1317,7 +1318,7 @@ inline void write_wkb_header(String *str, Geometry::wkbType geotype,
 }
 
 
-inline void write_geometry_header(String *str, uint32 srid,
+inline void write_geometry_header(String *str, gis::srid_t srid,
                                   Geometry::wkbType geotype)
 {
   str->q_append(srid);
@@ -1325,7 +1326,7 @@ inline void write_geometry_header(String *str, uint32 srid,
 }
 
 
-inline void write_geometry_header(String *str, uint32 srid,
+inline void write_geometry_header(String *str, gis::srid_t srid,
                                   Geometry::wkbType geotype, uint32 obj_count)
 {
   write_geometry_header(str, srid, geotype);
@@ -1392,7 +1393,8 @@ public:
   }
 
   /// @brief Default constructor, no initialization.
-  Gis_point(const void *ptr, size_t nbytes, const Flags_t &flags, srid_t srid)
+  Gis_point(const void *ptr, size_t nbytes, const Flags_t &flags,
+            gis::srid_t srid)
     :Geometry(ptr, nbytes, flags, srid)
   {
     set_geotype(wkb_point);
@@ -2349,7 +2351,7 @@ public:
 
 
   Gis_wkb_vector(const void *ptr, size_t nbytes, const Geometry::Flags_t &flags,
-                 srid_t srid, bool is_bg_adapter= true);
+                 gis::srid_t srid, bool is_bg_adapter= true);
   Gis_wkb_vector(const self &v);
 
   Gis_wkb_vector() :Geometry()
@@ -2487,7 +2489,7 @@ public:
   {}
 
   Gis_line_string(const void *wkb, size_t len,
-                  const Flags_t &flags, srid_t srid)
+                  const Flags_t &flags, gis::srid_t srid)
     :base_type(wkb, len, flags, srid, true)
   {
     set_geotype(wkb_linestring);
@@ -2512,7 +2514,7 @@ public:
   virtual ~Gis_polygon_ring()
   {}
   Gis_polygon_ring(const void *wkb, size_t nbytes,
-                   const Flags_t &flags, srid_t srid)
+                   const Flags_t &flags, gis::srid_t srid)
     :base(wkb, nbytes, flags, srid, true)
   {
     set_geotype(wkb_linestring);
@@ -2598,7 +2600,7 @@ public:
   }
 
   Gis_polygon(const void *wkb, size_t nbytes,
-              const Flags_t &flags, srid_t srid);
+              const Flags_t &flags, gis::srid_t srid);
 
 
   /*
@@ -2686,7 +2688,7 @@ public:
   {}
 
   Gis_multi_point(const void *ptr, size_t nbytes,
-                  const Flags_t &flags, srid_t srid)
+                  const Flags_t &flags, gis::srid_t srid)
     :base_type(ptr, nbytes, flags, srid, true)
   {
     set_geotype(wkb_multipoint);
@@ -2728,7 +2730,7 @@ public:
   {}
 
   Gis_multi_line_string(const void *ptr, size_t nbytes,
-                        const Flags_t&, srid_t srid)
+                        const Flags_t&, gis::srid_t srid)
     :base(ptr, nbytes, Flags_t(wkb_multilinestring, nbytes), srid, true)
   {
     set_geotype(wkb_multilinestring);
@@ -2766,7 +2768,7 @@ public:
   {}
 
   Gis_multi_polygon(const void *ptr, size_t nbytes,
-                    const Flags_t &flags, srid_t srid)
+                    const Flags_t &flags, gis::srid_t srid)
     :base(ptr, nbytes, flags, srid, true)
   {
     set_geotype(wkb_multipolygon);
@@ -2790,11 +2792,11 @@ public:
     set_bg_adapter(false);
   }
   Gis_geometry_collection(Geometry *geo, String *gcbuf);
-  Gis_geometry_collection(srid_t srid, wkbType gtype, const String *gbuf,
+  Gis_geometry_collection(gis::srid_t srid, wkbType gtype, const String *gbuf,
                           String *gcbuf);
   virtual ~Gis_geometry_collection() {}       /* Remove gcc warning */
   bool append_geometry(const Geometry *geo, String *gcbuf);
-  bool append_geometry(srid_t srid, wkbType gtype,
+  bool append_geometry(gis::srid_t srid, wkbType gtype,
                        const String *gbuf, String *gcbuf);
   uint32 get_data_size() const override;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb) override;

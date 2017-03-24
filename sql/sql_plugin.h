@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <vector>
 
+#include "lex_string.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sqlcommand.h"          // enum_sql_command
@@ -35,9 +36,7 @@ struct my_option;
 struct st_mysql_sys_var;
 template <class T> class I_List;
 
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
 typedef struct st_mysql_show_var SHOW_VAR;
-typedef struct st_mysql_lex_string LEX_STRING;
 
 
 extern const char *global_plugin_typelib_names[];

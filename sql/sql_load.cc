@@ -37,6 +37,7 @@
 #include "item.h"
 #include "item_func.h"
 #include "item_timefunc.h"  // Item_func_now_local
+#include "lex_string.h"
 #include "load_data_events.h"
 #include "log.h"
 #include "log_event.h"  // Delete_file_log_event,

@@ -1,16 +1,6 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs93=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
-use test;
---enable_query_log
-########################################
-
 # This is a testcase copied from mysql-test/t/gis.test
 
+--source include/not_have_innodb_4k.inc
 
 SET default_storage_engine=InnoDB;
 
@@ -302,7 +292,7 @@ INSERT INTO t1 VALUES(ST_GeomFromText('POINT(580848489 219587743)'));
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(11247614 782797569)'));
 drop table t1;
 
-create table t1 select ST_GeomFromWKB(POINT(1,3));
+create table t1 select ST_GeomFromWKB(ST_AsWKB(POINT(1,3)));
 show create table t1;
 drop table t1;
 
@@ -423,7 +413,7 @@ select * from t1;
 
 --error ER_ILLEGAL_VALUE_FOR_TYPE
 select
-  ST_geometryfromtext(b) IS NULL, ST_geometryfromwkb(b) IS NULL, ST_astext(b) IS NULL,
+  ST_geometryfromtext(b) IS NULL, ST_geometryfromwkb(ST_AsWKB(b)) IS NULL, ST_astext(b) IS NULL,
   ST_aswkb(b) IS NULL, ST_geometrytype(b) IS NULL, ST_centroid(b) IS NULL,
   ST_envelope(b) IS NULL, ST_startpoint(b) IS NULL, ST_endpoint(b) IS NULL,
   ST_exteriorring(b) IS NULL, ST_pointn(b, 1) IS NULL, ST_geometryn(b, 1) IS NULL,
@@ -698,7 +688,7 @@ INSERT INTO t1 VALUES
     'multipolygon(((1 2,3 4,5 6,7 8,9 8,1 2,1 2),(7 6,5 4,3 2,1 2,3 4,7 6)))'));
 
 --echo # must not crash
-SELECT 1 FROM t1 WHERE a <> (SELECT ST_GEOMETRYCOLLECTIONFROMWKB(b) FROM t1);
+SELECT 1 FROM t1 WHERE a <> (SELECT ST_GEOMETRYCOLLECTIONFROMWKB(ST_AsWKB(b)) FROM t1);
 
 DROP TABLE t1;
 
@@ -1387,6 +1377,7 @@ AND named_places.name = 'Ashton';
 #AND named_places.name = 'Ashton';
 
 --echo # Conformance Item T46
+--error ER_SRS_NOT_FOUND
 SELECT ST_Distance(position, boundary)
 FROM bridges, named_places
 WHERE bridges.name = 'Cam Bridge'
@@ -1436,11 +1427,3 @@ DROP DATABASE gis_ogs;
 
 --error ER_GIS_INVALID_DATA
 SELECT ST_Union('', ''), md5(1);
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs93;
---enable_query_log
-########################################

@@ -18,7 +18,7 @@
 
 bool pfs_initialized= false;
 
-void *pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags)
+void *pfs_malloc(PFS_builtin_memory_class*, size_t size, myf flags)
 {
   void *ptr= malloc(size);
   if (ptr && (flags & MY_ZEROFILL))
@@ -57,7 +57,7 @@ bool is_overflow(size_t product, size_t n1, size_t n2)
     return false;
 }
 
-void pfs_print_error(const char *format, ...)
+void pfs_print_error(const char*, ...)
 {
   /* Do not pollute the unit test output with annoying messages. */
 }

@@ -222,7 +222,7 @@ table_status_by_user::rnd_pos(const void *pos)
 }
 
 int
-table_status_by_user::index_init(uint idx, bool)
+table_status_by_user::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   /* Build array of SHOW_VARs from the global status array. */
   m_status_cache.initialize_client_session();

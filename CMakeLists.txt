@@ -277,6 +277,7 @@ INCLUDE(component)
 INCLUDE(install_macros)
 INCLUDE(install_layout)
 INCLUDE(mysql_add_executable)
+INCLUDE(mysqlgcs)
 
 # Handle options
 IF(EXISTS ${CMAKE_SOURCE_DIR}/rapid)

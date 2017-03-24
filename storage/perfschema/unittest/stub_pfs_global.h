@@ -26,7 +26,7 @@ size_t pfs_allocated_memory_count= 0;
 bool stub_alloc_always_fails= true;
 int stub_alloc_fails_after_count= 0;
 
-void *pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf)
+void *pfs_malloc(PFS_builtin_memory_class*, size_t size, myf)
 {
   /*
     Catch non initialized sizing parameter in the unit tests.
@@ -76,7 +76,7 @@ bool is_overflow(size_t product, size_t n1, size_t n2)
     return false;
 }
 
-void pfs_print_error(const char *format, ...)
+void pfs_print_error(const char*, ...)
 {
 }
 

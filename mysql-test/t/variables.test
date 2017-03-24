@@ -1,14 +1,3 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs311=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
-use test;
---enable_query_log
-########################################
-
 #
 # test variables
 #
@@ -19,7 +8,7 @@ drop table if exists t1,t2;
 SET @default_table_open_cache = @@table_open_cache;
 
 #
-# Bug#19263: variables.test doesn't clean up after itself (I/II -- save)
+# Bug#19263: variables.test does not clean up after itself (I/II -- save)
 #
 set @my_log_error_verbosity       =@@global.log_error_verbosity;
 set @my_connect_timeout           =@@global.connect_timeout;
@@ -1371,7 +1360,7 @@ SET SQL_MODE=DEFAULT;
 
 SET @@global.max_binlog_cache_size=-1;
 SET @@global.max_join_size=0;
-# this is an exception. since this is a new error/warning, let's stay
+# this is an exception. since this is a new error/warning, let us stay
 # compatible with the upcoming 5.6.
 --error ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
 SET @@global.key_buffer_size=0;
@@ -1667,11 +1656,3 @@ set global log_slow_slave_statements = default;
 --echo # WL#7764 - Make STRICT mode for transactional SEs default in 5.7
 --echo #
 SHOW VARIABLES LIKE 'sql_mode';
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs311;
---enable_query_log
-########################################

@@ -23,6 +23,7 @@
 #include "enum_query_type.h"
 #include "error_handler.h"
 #include "item.h"
+#include "lex_string.h"
 #include "m_string.h"
 #include "mdl.h"
 #include "my_dbug.h"

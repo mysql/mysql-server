@@ -36,6 +36,7 @@ int heap_extra(HP_INFO *info, enum ha_extra_function function)
   switch (function) {
   case HA_EXTRA_RESET_STATE:
     heap_reset(info);
+    break;
   case HA_EXTRA_NO_READCHECK:
     info->opt_flag&= ~READ_CHECK_USED;	/* No readcheck */
     break;

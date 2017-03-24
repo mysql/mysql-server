@@ -1,17 +1,17 @@
+
+# Tests for setting innodb-page-size=16k; default value
+--source include/big_test.inc
+
 ########################################
 ##### WL#7554 Force schema `test` to character set latin1
 ##### This test should be migrated to utf8mb4
 --disable_query_log
 let $testdbcs100=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
+alter schema default character set latin1;
 use test;
 --enable_query_log
 ########################################
 
-
-# Tests for setting innodb-page-size=16k; default value
---source include/big_test.inc
 SET default_storage_engine=InnoDB;
 
 --disable_query_log
@@ -724,7 +724,6 @@ DROP TABLE t12963823;
 ########################################
 ##### WL#7554 set schema `test` back to what it was
 --disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs100;
+--eval alter schema test default character set $testdbcs100;
 --enable_query_log
 ########################################

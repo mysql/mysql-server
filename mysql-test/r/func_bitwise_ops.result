@@ -74,7 +74,8 @@ ERROR HY000: Binary operands of bitwise operators must be of equal length
 # show output type
 #
 CREATE TABLE t0(vbin VARBINARY(6), bin BINARY(6));
-CREATE TABLE t1 AS SELECT vbin & vbin, vbin & bin, bin & vbin, bin & bin FROM t0;
+CREATE TABLE t1  charset utf8mb4
+AS SELECT vbin & vbin, vbin & bin, bin & vbin, bin & bin FROM t0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -82,7 +83,7 @@ t1	CREATE TABLE `t1` (
   `vbin & bin` varbinary(6) DEFAULT NULL,
   `bin & vbin` varbinary(6) DEFAULT NULL,
   `bin & bin` varbinary(6) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t0;
 DROP TABLE t1;
 #

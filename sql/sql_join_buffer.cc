@@ -2527,7 +2527,8 @@ bool bka_range_seq_skip_record(range_seq_t rseq, char *range_info, uchar*)
     return one of enum_nested_loop_state
 */
 
-enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
+enum_nested_loop_state JOIN_CACHE_BKA::
+join_matching_records(bool skip_last MY_ATTRIBUTE((unused)))
 {
   /* The value of skip_last must be always FALSE when this function is called */
   DBUG_ASSERT(!skip_last);
@@ -3400,8 +3401,8 @@ bool bka_unique_skip_index_tuple(range_seq_t rseq, char *range_info)
     return one of enum_nested_loop_state 
 */
 
-enum_nested_loop_state 
-JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
+enum_nested_loop_state JOIN_CACHE_BKA_UNIQUE::
+join_matching_records(bool skip_last MY_ATTRIBUTE((unused)))
 {
   /* The value of skip_last must be always FALSE when this function is called */
   DBUG_ASSERT(!skip_last);

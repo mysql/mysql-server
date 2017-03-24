@@ -1,14 +1,3 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs185=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
-use test;
---enable_query_log
-########################################
-
 # This tests GIS functionality with Myisam engine
 # These tests are also exists in Innodb
 # All tests are required to run with Myisam.
@@ -16,7 +5,6 @@ use test;
 
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
-
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
@@ -81,7 +69,7 @@ while ($1)
   let $2=10;
   while ($2)
   {
-    eval DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point($1 * 10 - 9, $2 * 10 - 9), Point($1 * 10, $2 * 10))));
+    eval DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point($1 * 10 - 9, $2 * 10 - 9)), ST_AsWKB(Point($1 * 10, $2 * 10)))));
     SELECT count(*) FROM t2;
     dec $2;
   }
@@ -997,11 +985,3 @@ SET sql_mode = default;
 CREATE TABLE t1 (g GEOMETRY NOT NULL, SPATIAL KEY (g)) ENGINE=MyISAM;
 DELETE FROM t1 WHERE ST_DISJOINT(g, POINT(1,1));
 DROP TABLE t1;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs185;
---enable_query_log
-########################################

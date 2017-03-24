@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "event_db_repository.h"
 #include "event_queue.h"
 #include "events.h"
+#include "lex_string.h"
 #include "log.h"
 #include "m_string.h"
 #include "mdl.h"

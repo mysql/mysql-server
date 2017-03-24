@@ -16,12 +16,13 @@
 #ifndef GCS_XCOM_COMMUNICATION_INTERFACE_INCLUDED
 #define GCS_XCOM_COMMUNICATION_INTERFACE_INCLUDED
 
-#include "gcs_communication_interface.h"
+#include "mysql/gcs/gcs_communication_interface.h"
+
+#include "gcs_message_stages.h"
 #include "gcs_xcom_statistics_interface.h"
 #include "gcs_xcom_utils.h"
 #include "gcs_xcom_group_member_information.h"
 #include "gcs_xcom_interface.h"
-#include "gcs_message_stages.h"
 #include "gcs_internal_message.h"
 #include "gcs_xcom_state_exchange.h"
 

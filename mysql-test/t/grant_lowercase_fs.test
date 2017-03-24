@@ -4,7 +4,6 @@
 --source include/force_myisam_default.inc
 
 -- source include/have_case_insensitive_file_system.inc
--- source include/not_embedded.inc
 
 
 #

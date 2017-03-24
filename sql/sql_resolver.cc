@@ -44,6 +44,7 @@
 #include "item_row.h"
 #include "item_subselect.h"
 #include "item_sum.h"            // Item_sum
+#include "lex_string.h"
 #include "mem_root_array.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
@@ -350,7 +351,7 @@ bool SELECT_LEX::prepare(THD *thd)
       DBUG_RETURN(true);
   }
 
-  if (m_having_cond && m_having_cond->with_sum_func)
+  if (m_having_cond && m_having_cond->has_aggregation())
     m_having_cond->split_sum_func2(thd, base_ref_items, all_fields,
                                    &m_having_cond, true);
   if (inner_sum_func_list)
@@ -3423,7 +3424,7 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
     if (find_order_in_list(thd, ref_item_array, tables, order, fields,
 			   all_fields, false))
       return true;
-    if ((*order->item)->with_sum_func)
+    if ((*order->item)->has_aggregation())
     {
       /*
         Aggregated expressions in ORDER BY are not supported by SQL standard,
@@ -3529,7 +3530,7 @@ bool SELECT_LEX::setup_order_final(THD *thd, int hidden_order_field_count)
   {
     Item *const item= *ord->item;
 
-    if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
+    if (item->has_aggregation() && item->type() != Item::SUM_FUNC_ITEM)
     {
       item->split_sum_func(thd, base_ref_items, all_fields);
       if (thd->is_error())
@@ -3564,7 +3565,8 @@ bool SELECT_LEX::setup_group(THD *thd)
       return true;
 
     Item *item= *group->item;
-    if (item->with_sum_func || (item->type() == Item::FUNC_ITEM &&
+    if (item->has_aggregation() ||
+        (item->type() == Item::FUNC_ITEM &&
          (down_cast<Item_func*>(item)->functype() == Item_func::GROUPING_FUNC)))
     {
       my_error(ER_WRONG_GROUP_FIELD, MYF(0), (*group->item)->full_name());
@@ -3712,10 +3714,10 @@ bool SELECT_LEX::resolve_rollup(THD *thd)
       /*
         We have to prevent creation of a field in a temporary table for
         an expression that contains GROUP BY attributes.
-        Marking the expression item as 'with_sum_func' will ensure this.
+        Marking the expression item as 'aggregated' will ensure this.
       */ 
       if (changed)
-        item->with_sum_func= true;
+        item->set_aggregation();
     }
   }
   return false;

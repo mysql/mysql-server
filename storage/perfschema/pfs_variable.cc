@@ -69,10 +69,6 @@ PFS_variable_cache<Var_type>::PFS_variable_cache(bool external_init)
 {
 }
 
-/**
-  CLASS PFS_system_variable_cache
-*/
-
 PFS_system_variable_cache::PFS_system_variable_cache(bool external_init)
   : PFS_variable_cache<System_variable>(external_init),
     m_mem_thd(NULL),
@@ -966,7 +962,7 @@ PFS_status_variable_cache::filter_by_name(const SHOW_VAR *show_var)
 
   if (show_var->type == SHOW_ARRAY)
   {
-    /* The SHOW_ARRAY name is the prefix for the variables in the subarray. */
+    /* The SHOW_ARRAY name is the prefix for the variables in the sub array. */
     const char *prefix = show_var->name;
     /* Exclude COM counters if not a SHOW STATUS command. */
     if (!my_strcasecmp(system_charset_info, prefix, "Com") && !m_show_command)
@@ -1080,7 +1076,7 @@ PFS_status_variable_cache::filter_show_var(const SHOW_VAR *show_var,
 
 /**
   Build an array of SHOW_VARs from the global status array. Expand nested
-  subarrays, filter unwanted variables.
+  sub arrays, filter unwanted variables.
   NOTE: Must be done inside of LOCK_status to guard against plugin load/unload.
 */
 bool
@@ -1107,7 +1103,7 @@ PFS_status_variable_cache::init_show_var_array(enum_var_type scope, bool strict)
 
     if (show_var.type == SHOW_ARRAY)
     {
-      /* Expand nested subarray. The name is used as a prefix. */
+      /* Expand nested sub array. The name is used as a prefix. */
       expand_show_var_array((SHOW_VAR *)show_var.value, show_var.name, strict);
     }
     else
@@ -1131,7 +1127,7 @@ PFS_status_variable_cache::init_show_var_array(enum_var_type scope, bool strict)
 }
 
 /**
-  Expand a nested subarray of status variables, indicated by a type of
+  Expand a nested sub array of status variables, indicated by a type of
   SHOW_ARRAY.
 */
 void
@@ -1155,7 +1151,7 @@ PFS_status_variable_cache::expand_show_var_array(const SHOW_VAR *show_var_array,
       char name_buf[SHOW_VAR_MAX_NAME_LEN];
       show_var.name =
         make_show_var_name(prefix, show_var.name, name_buf, sizeof(name_buf));
-      /* Expand nested subarray. The name is used as a prefix. */
+      /* Expand nested sub array. The name is used as a prefix. */
       expand_show_var_array((SHOW_VAR *)show_var.value, show_var.name, strict);
     }
     else
@@ -1198,7 +1194,7 @@ PFS_status_variable_cache::make_show_var_name(const char *prefix,
 }
 
 /**
-  Make a copy of the name string prefixed with the subarray name if necessary.
+  Make a copy of the name string prefixed with the sub array name if necessary.
 */
 char *
 PFS_status_variable_cache::make_show_var_name(const char *prefix,
@@ -1570,7 +1566,7 @@ PFS_status_variable_cache::manifest(THD *thd,
       /*
         Status variables of type SHOW_ARRAY were expanded and filtered by
         init_show_var_array(), except where a SHOW_FUNC resolves into a
-        SHOW_ARRAY, such as with InnoDB. Recurse to expand the subarray.
+        SHOW_ARRAY, such as with InnoDB. Recurse to expand the sub array.
       */
       manifest(thd,
                (SHOW_VAR *)show_var_ptr->value,

@@ -37,6 +37,7 @@
 #include "item_func.h"            // Item_func
 #include "item_sum.h"             // Item_sum
 #include "key.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mem_root_array.h"       // Mem_root_array
@@ -917,7 +918,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     }
     if (not_all_columns)
     {
-      if (item->with_sum_func && type != Item::SUM_FUNC_ITEM)
+      if (item->has_aggregation() && type != Item::SUM_FUNC_ITEM)
       {
         if (item->used_tables() & OUTER_REF_TABLE_BIT)
           item->update_used_tables();

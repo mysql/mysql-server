@@ -1,7 +1,4 @@
 
-# Embedded server testing does not support grants
--- source include/not_embedded.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 

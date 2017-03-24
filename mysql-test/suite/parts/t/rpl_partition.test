@@ -7,6 +7,9 @@
 
 let $engine_type= 'innodb';
 
+# WL#7554: Added setting --bootstrap --character-set-server=latin1
+# in the opt file. This test should be migrated to utf8mb4.
+
 set @old_global_binlog_format=  @@global.binlog_format;
 set @old_session_binlog_format=  @@session.binlog_format;
 SET GLOBAL binlog_format = 'ROW';

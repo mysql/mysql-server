@@ -1,14 +1,3 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs309=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
-use test;
---enable_query_log
-########################################
-
 # Initialise
 --disable_warnings
 drop table if exists t1,t2;
@@ -89,7 +78,7 @@ select @a,@a:="hello",@a,@a:=3,@a,@a:="hello again" from t1 group by i;
 drop table t1;
 
 #
-# Bug #2244: User variables didn't copy collation and derivation
+# Bug #2244: User variables did not copy collation and derivation
 # attributes from values they were initialized to.
 #
 
@@ -527,12 +516,3 @@ SELECT 1 NOT IN (SELECT 1 FROM t1 as t1 ORDER BY 1 LIKE (SELECT 1 FROM t1 as t2)
 SET @c =(SELECT 1 NOT IN (SELECT 1 FROM t1 as t1 GROUP BY 1 LIKE (SELECT 1 FROM t1 as t2)) AS col);
 SET @d =(SELECT 1 NOT IN (SELECT 1 FROM t1 as t1 ORDER BY 1 LIKE (SELECT 1 FROM t1 as t2)) AS col);
 DROP TABLE t1; 
-
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs309;
---enable_query_log
-########################################

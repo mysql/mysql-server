@@ -183,7 +183,7 @@ table_global_status::rnd_pos(const void *pos)
 }
 
 int
-table_global_status::index_init(uint idx, bool)
+table_global_status::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   /* Build a cache of all global status variables. Sum across threads. */
   m_status_cache.materialize_global();

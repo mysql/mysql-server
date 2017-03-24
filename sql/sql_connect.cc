@@ -47,11 +47,11 @@
 #include "hostname.h"                   // Host_errors
 #include "item_func.h"                  // mqh_used
 #include "key.h"
+#include "lex_string.h"
 #include "log.h"                        // sql_print_information
 #include "m_ctype.h"
 #include "m_string.h"                   // my_stpcpy
 #include "my_command.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -824,7 +824,9 @@ static void prepare_new_connection_state(THD* thd)
   thd->set_command(COM_SLEEP);
   thd->init_query_mem_roots();
 
-  if (opt_init_connect.length && !(sctx->check_access(SUPER_ACL)))
+  if (opt_init_connect.length &&
+      !(sctx->check_access(SUPER_ACL) ||
+        sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first))
   {
     execute_init_command(thd, &opt_init_connect, &LOCK_sys_init_connect);
     if (thd->is_error())

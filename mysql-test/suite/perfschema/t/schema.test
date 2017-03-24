@@ -1,6 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 #    Show existing objects and information about their structure
 
---source include/not_embedded.inc
 --source ../include/schema.inc
 

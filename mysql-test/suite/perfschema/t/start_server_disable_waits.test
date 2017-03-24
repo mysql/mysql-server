@@ -1,7 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
-
 --source ../include/start_server_common.inc
 
 # Expect no enabled waits instruments

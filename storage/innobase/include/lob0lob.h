@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -717,7 +717,6 @@ public:
 		mtr_log_t log_mode = m_mtr->get_log_mode();
 		m_mtr->start();
 		m_mtr->set_log_mode(log_mode);
-		m_mtr->set_named_space(space());
 	}
 
 	/** Increment the buffer fix count of the clustered index record
@@ -850,17 +849,6 @@ public:
 		return(true);
 	}
 
-	/** Check if a tablespace is associated with the mini-transaction
-	(needed for generating a MLOG_FILE_NAME record)
-	@param[in]	lobref	the LOB reference object.
-	@return whether the mini-transaction is associated with the space */
-	bool is_named_space(const ref_t& lobref) const
-	{
-		ut_ad(m_mtr->is_named_space(
-			page_get_space_id(lobref.page_align())));
-		return(true);
-	}
-
 	/** Get the associated mini-transaction.
 	@return the mini transaction. */
 	mtr_t* get_mtr()
@@ -894,9 +882,9 @@ public:
 	void recalc()
 	{
 		m_block	= btr_pcur_get_block(m_pcur);
-		m_rec		= btr_pcur_get_rec(m_pcur);
-		m_btr_page_no	= page_get_page_no(buf_block_get_frame(m_block));
-		m_rec_offset	= page_offset(m_rec);
+		m_rec = btr_pcur_get_rec(m_pcur);
+		m_btr_page_no = page_get_page_no(buf_block_get_frame(m_block));
+		m_rec_offset = page_offset(m_rec);
 
 		rec_offs_make_valid(rec(), index(), m_offsets);
 	}
@@ -1094,7 +1082,6 @@ struct BaseInserter
 	mtr_t* start_blob_mtr()
 	{
 		mtr_start(&m_blob_mtr);
-		m_blob_mtr.set_named_space(m_ctx->space());
 		m_blob_mtr.set_log_mode(m_ctx->get_log_mode());
 		m_blob_mtr.set_flush_observer(m_ctx->get_flush_observer());
 		return(&m_blob_mtr);
@@ -1495,13 +1482,6 @@ struct DeleteContext : public BtrContext
 		return(true);
 	}
 
-	/** Check if a tablespace is associated with the mini-transaction
-	(needed for generating a MLOG_FILE_NAME record)
-	@return whether the mini-transaction is associated with the space */
-	bool is_named_space() const
-	{
-		return(BtrContext::is_named_space(m_blobref));
-	}
 
 #endif /* UNIV_DEBUG */
 
@@ -1548,7 +1528,6 @@ public:
 				      MTR_MEMO_PAGE_X_FIX, ctx.table()));
 		ut_ad(ctx.rec_offs_validate());
 		ut_ad(ctx.validate_blobref());
-		ut_ad(ctx.is_named_space());
 	}
 
 	/** Free the LOB object.

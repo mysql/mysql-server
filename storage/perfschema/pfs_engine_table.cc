@@ -56,6 +56,8 @@
 #include "table_esms_by_digest.h"
 #include "table_esms_by_host_by_event_name.h"
 #include "table_esms_by_program.h"
+#include "table_esmh_global.h"
+#include "table_esmh_by_digest.h"
 #include "table_esms_by_thread_by_event_name.h"
 #include "table_esms_by_user_by_event_name.h"
 #include "table_esms_global_by_event_name.h"
@@ -99,6 +101,8 @@
 #include "table_replication_connection_status.h"
 #include "table_replication_group_member_stats.h"
 #include "table_replication_group_members.h"
+#include "table_replication_applier_filters.h"
+#include "table_replication_applier_global_filters.h"
 #include "table_session_account_connect_attrs.h"
 #include "table_session_connect_attrs.h"
 #include "table_session_status.h"
@@ -613,6 +617,8 @@ static PFS_engine_table_share *all_shares[] = {
   &table_esms_global_by_event_name::m_share,
   &table_esms_by_digest::m_share,
   &table_esms_by_program::m_share,
+  &table_esmh_global::m_share,
+  &table_esmh_by_digest::m_share,
 
   &table_events_transactions_current::m_share,
   &table_events_transactions_history::m_share,
@@ -658,6 +664,8 @@ static PFS_engine_table_share *all_shares[] = {
   &table_replication_applier_status_by_coordinator::m_share,
   &table_replication_applier_status_by_worker::m_share,
   &table_replication_group_member_stats::m_share,
+  &table_replication_applier_filters::m_share,
+  &table_replication_applier_global_filters::m_share,
 
   &table_prepared_stmt_instances::m_share,
 
@@ -733,7 +741,7 @@ PFS_check_intact::report_error(uint, const char *fmt, ...)
 
 /**
   Check integrity of the actual table schema.
-  The actual table schema (.frm) is compared to the expected schema.
+  The actual table schema is compared to the expected schema.
   @param thd              current thread
 */
 void
@@ -1313,9 +1321,9 @@ PFS_key_reader::read_uchar(enum ha_rkey_function find_flag,
 }
 
 enum ha_rkey_function
-PFS_key_reader::read_long_int(enum ha_rkey_function find_flag,
-                              bool &isnull,
-                              int32 *value)
+PFS_key_reader::read_long(enum ha_rkey_function find_flag,
+                          bool &isnull,
+                          long *value)
 {
   if (m_remaining_key_part_info->store_length <= m_remaining_key_len)
   {
@@ -1336,6 +1344,43 @@ PFS_key_reader::read_long_int(enum ha_rkey_function find_flag,
     }
 
     int32 data = sint4korr(m_remaining_key);
+    m_remaining_key += data_size;
+    m_remaining_key_len -= (uint)data_size;
+    m_parts_found++;
+    m_remaining_key_part_info++;
+
+    *value = data;
+    return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT);
+  }
+
+  DBUG_ASSERT(m_remaining_key_len == 0);
+  return HA_READ_INVALID;
+}
+
+enum ha_rkey_function
+PFS_key_reader::read_ulong(enum ha_rkey_function find_flag,
+                           bool &isnull,
+                           ulong *value)
+{
+  if (m_remaining_key_part_info->store_length <= m_remaining_key_len)
+  {
+    size_t data_size = sizeof(int32);
+    DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_ULONG_INT);
+    DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);
+
+    isnull = false;
+    if (m_remaining_key_part_info->field->real_maybe_null())
+    {
+      if (m_remaining_key[0])
+      {
+        isnull = true;
+      }
+
+      m_remaining_key += HA_KEY_NULL_LENGTH;
+      m_remaining_key_len -= HA_KEY_NULL_LENGTH;
+    }
+
+    uint32 data = uint4korr(m_remaining_key);
     m_remaining_key += data_size;
     m_remaining_key_len -= (uint)data_size;
     m_parts_found++;

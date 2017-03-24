@@ -2508,7 +2508,7 @@ row_ins_index_entry_big_rec_func(
 	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern_latch");
 
 	mtr_start(&mtr);
-	mtr.set_named_space(index->space);
+
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	btr_pcur_open(index, entry, PAGE_CUR_LE, BTR_MODIFY_TREE,
@@ -2630,8 +2630,6 @@ row_ins_clust_index_entry_low(
 		autoinc_mtr.get_mtr()->set_log_mode(MTR_LOG_NO_REDO);
 	} else {
 
-		autoinc_mtr.get_mtr()->set_named_space(index->space);
-
 		/* We do logging first to prevent further potential deadlock.
 		Temporary tables don't require persistent counters.
 		For 'ALTER TABLE ... ALGORITHM = COPY', intermediate tables
@@ -2749,7 +2747,9 @@ err_exit:
 		doesn't fit the provided slot then existing record is added
 		to free list and new record is inserted. This also means
 		cursor that we have cached for SELECT is now invalid. */
-		index->last_sel_cur->invalid = true;
+		if(index->last_sel_cur) {
+			index->last_sel_cur->invalid = true;
+		}
 
 		ut_ad(thr != NULL);
 		err = row_ins_clust_index_entry_by_modify(
@@ -3000,12 +3000,11 @@ row_ins_sec_mtr_start_and_check_if_aborted(
 	ulint		search_mode)
 {
 	ut_ad(!index->is_clustered());
-	ut_ad(mtr->is_named_space(index->space));
 
 	const mtr_log_t	log_mode = mtr->get_log_mode();
 
 	mtr_start(mtr);
-	mtr->set_named_space(index->space);
+
 	mtr->set_log_mode(log_mode);
 
 	if (!check) {
@@ -3086,7 +3085,6 @@ row_ins_sec_index_entry_low(
 	ut_ad(thr_get_trx(thr)->id != 0 || index->table->is_intrinsic());
 
 	mtr_start(&mtr);
-	mtr.set_named_space(index->space);
 
 	if (index->table->is_temporary()) {
 		/* Disable REDO logging as the lifetime of temp-tables is
@@ -3150,10 +3148,13 @@ row_ins_sec_index_entry_low(
 			rtr_init_rtr_info(&rtr_info, false, &cursor,
 					  index, false);
 			rtr_info_update_btr(&cursor, &rtr_info);
+
 			mtr_start(&mtr);
-			mtr.set_named_space(index->space);
+
 			search_mode &= ~BTR_MODIFY_LEAF;
+
 			search_mode |= BTR_MODIFY_TREE;
+
 			btr_cur_search_to_nth_level(
 				index, 0, entry, PAGE_CUR_RTREE_INSERT,
 				search_mode,
@@ -3315,7 +3316,9 @@ row_ins_sec_index_entry_low(
 		is doesn't fit the provided slot then existing record is added
 		to free list and new record is inserted. This also means
 		cursor that we have cached for SELECT is now invalid. */
-		index->last_sel_cur->invalid = true;
+		if(index->last_sel_cur) {
+			index->last_sel_cur->invalid = true;
+		}
 
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
@@ -3448,6 +3451,10 @@ row_ins_clust_index_entry(
 
 	if (index->table->is_intrinsic()
 	    && dict_index_is_auto_gen_clust(index)) {
+		/* Check if the memory allocated for intrinsic cache*/
+		if(!index->last_ins_cur) {
+			dict_allocate_mem_intrinsic_cache(index);
+		}
 		err = row_ins_sorted_clust_index_entry(
 			BTR_MODIFY_LEAF, index, entry, n_ext, thr);
 	} else {
@@ -3468,6 +3475,9 @@ row_ins_clust_index_entry(
 	/* Try then pessimistic descent to the B-tree */
 	if (!index->table->is_intrinsic()) {
 		log_free_check();
+	} else if(!index->last_sel_cur) {
+		dict_allocate_mem_intrinsic_cache(index);
+		index->last_sel_cur->invalid = true;
 	} else {
 		index->last_sel_cur->invalid = true;
 	}
@@ -3555,6 +3565,9 @@ row_ins_sec_index_entry(
 
 		if (!index->table->is_intrinsic()) {
 			log_free_check();
+		} else if(!index->last_sel_cur) {
+			dict_allocate_mem_intrinsic_cache(index);
+			index->last_sel_cur->invalid = true;
 		} else {
 			index->last_sel_cur->invalid = true;
 		}

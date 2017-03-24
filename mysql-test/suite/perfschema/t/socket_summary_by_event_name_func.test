@@ -13,10 +13,6 @@
 # are consistent with those in socket_summary_by_instance.
 #
 #==============================================================================
-# Embedded server does not support the performance_schema.
---source include/not_embedded.inc
-
-# Not much can happen without the performance schema
 
 # Wait for any clients from previous tests to disconnect
 --source ../include/wait_for_pfs_thread_count.inc

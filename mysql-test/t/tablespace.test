@@ -1,7 +1,4 @@
 --source include/have_debug.inc
-#
-# BUG#60111 storage type for table not saved in .frm
-#
 
 #
 # Check that the table options for TABLESPACE and STORAGE

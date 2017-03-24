@@ -427,7 +427,6 @@ dict_build_tablespace(
 	}
 
 	mtr_start(&mtr);
-	mtr.set_named_space(space);
 
 	/* Once we allow temporary general tablespaces, we must do this;
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO); */
@@ -436,6 +435,11 @@ dict_build_tablespace(
 	bool ret = fsp_header_init(
 		space, FIL_IBD_FILE_INITIAL_SIZE, &mtr, false);
 	mtr_commit(&mtr);
+
+	DBUG_EXECUTE_IF(
+		"fil_ibd_create_log",
+		log_write_up_to(mtr.commit_lsn(), true);
+		DBUG_SUICIDE(););
 
 	if (!ret) {
 		return(DB_ERROR);
@@ -530,11 +534,15 @@ dict_build_tablespace_for_table(
 		}
 
 		mtr_start(&mtr);
-		mtr.set_named_space(table->space);
 
 		bool ret = fsp_header_init(
 			table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr, false);
 		mtr_commit(&mtr);
+
+		DBUG_EXECUTE_IF(
+			"fil_ibd_create_log",
+			log_write_up_to(mtr.commit_lsn(), true);
+			DBUG_SUICIDE(););
 
 		if (!ret) {
 			return(DB_ERROR);
@@ -995,14 +1003,9 @@ dict_create_index_tree_step(
 	sys_indexes */
 
 	mtr_start(&mtr);
-	mtr.set_sys_modified();
 
 	const bool	missing = index->table->ibd_file_missing
 		|| dict_table_is_discarded(index->table);
-
-	if (!missing) {
-		mtr.set_named_space(index->space);
-	}
 
 	search_tuple = dict_create_search_tuple(node->ind_row, node->heap);
 
@@ -2527,7 +2530,7 @@ dict_sdi_create_idx_in_mem(
 		rec_format = REC_FORMAT_COMPACT;
 	}
 
-	ulint	table_flags;
+	ulint	table_flags = 0;
 	dict_tf_set(&table_flags, rec_format, zip_ssize, has_data_dir,
 		    has_shared_space);
 

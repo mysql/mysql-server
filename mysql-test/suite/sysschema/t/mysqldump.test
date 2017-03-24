@@ -1,5 +1,4 @@
 -- source include/no_valgrind_without_big.inc
--- source include/not_embedded.inc
 
 # Dump all databases
 --exec $MYSQL_DUMP -uroot --all-databases > $MYSQLTEST_VARDIR/tmp/bug20902791.sql

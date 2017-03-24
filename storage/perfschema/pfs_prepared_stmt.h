@@ -63,13 +63,13 @@ struct PFS_ALIGNED PFS_prepared_stmt : public PFS_instr
   char m_owner_object_name[COL_OBJECT_NAME_SIZE];
   uint m_owner_object_name_length;
 
-  /** COLUMN TIMER_PREPARE. Prepared stmt prepare stat. */
+  /** COLUMN TIMER_PREPARE. Prepared statement prepare stat. */
   PFS_single_stat m_prepare_stat;
 
-  /** COLUMN COUNT_REPREPARE. Prepared stmt reprepare stat. */
+  /** COLUMN COUNT_REPREPARE. Prepared statement re-prepare stat. */
   PFS_single_stat m_reprepare_stat;
 
-  /** Prepared stmt execution stat. */
+  /** Prepared statement execution stat. */
   PFS_statement_stat m_execute_stat;
 
   /** Reset data for this record. */

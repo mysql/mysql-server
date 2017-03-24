@@ -52,6 +52,7 @@
 #include "dd/types/view.h"                    // dd::View
 #include "error_handler.h"                    // No_such_table_error_handler
 #include "handler.h"                          // dict_init_mode_t
+#include "lex_string.h"
 #include "log.h"                              // sql_print_warning()
 #include "m_ctype.h"
 #include "m_string.h"                         // STRING_WITH_LEN
@@ -260,7 +261,7 @@ bool store_single_schema_table_meta_data(THD *thd,
     false on success
     true when fails to store the metadata.
 */
-bool store_schema_table_meta_data(THD *thd, plugin_ref plugin, void *unused)
+bool store_schema_table_meta_data(THD *thd, plugin_ref plugin, void*)
 {
   // Fetch schema ID of IS schema.
   const dd::Schema *IS_schema_obj= nullptr;
@@ -862,7 +863,7 @@ bool sync_meta_data(THD *thd)
 
     // Get the synced DD schema object id. Needed for the DD table name keys.
     Object_id dd_schema_id= cache::Storage_adapter::instance()->
-      core_get_id<Schema>(thd, schema_key);
+      core_get_id<Schema>(schema_key);
 
     // Sync the DD tables.
     for (System_tables::Const_iterator it= System_tables::instance()->begin();
@@ -1037,7 +1038,7 @@ bool verify_core_objects_present(THD *thd)
   Schema::name_key_type schema_key;
   Schema::update_name_key(&schema_key, MYSQL_SCHEMA_NAME.str);
   Object_id dd_schema_id= cache::Storage_adapter::instance()->
-    core_get_id<Schema>(thd, schema_key);
+    core_get_id<Schema>(schema_key);
 
   DBUG_ASSERT(dd_schema_id != INVALID_OBJECT_ID);
   if (dd_schema_id == INVALID_OBJECT_ID)
@@ -1066,7 +1067,7 @@ bool verify_core_objects_present(THD *thd)
     Table::update_name_key(&table_key, dd_schema_id,
                            (*it)->entity()->name());
     Object_id dd_table_id= cache::Storage_adapter::instance()->
-      core_get_id<Table>(thd, table_key);
+      core_get_id<Table>(table_key);
 
     DBUG_ASSERT(dd_table_id != INVALID_OBJECT_ID);
     if (dd_table_id == INVALID_OBJECT_ID)
@@ -1084,7 +1085,7 @@ bool verify_core_objects_present(THD *thd)
   Tablespace::name_key_type tspace_key;
   Tablespace::update_name_key(&tspace_key, MYSQL_TABLESPACE_NAME.str);
   Object_id dd_tspace_id= cache::Storage_adapter::instance()->
-    core_get_id<Tablespace>(thd, tspace_key);
+    core_get_id<Tablespace>(tspace_key);
 #endif
 
   /*
@@ -1492,7 +1493,7 @@ bool upgrade_fill_dd_and_finalize(THD *thd)
   std::vector<dd::String_type> db_name;
   std::vector<dd::String_type>::iterator it;
 
-  if (find_schema_from_datadir(thd, &db_name))
+  if (find_schema_from_datadir(&db_name))
   {
     delete_dictionary_and_cleanup(thd);
     return true;

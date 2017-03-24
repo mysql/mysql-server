@@ -44,8 +44,8 @@ struct PFS_host_key
 {
   /**
     Hash search key.
-    This has to be a string for LF_HASH,
-    the format is "<hostname><0x00>"
+    This has to be a string for @c LF_HASH,
+    the format is @c "<hostname><0x00>"
   */
   char m_hash_key[HOSTNAME_LENGTH + 1];
   uint m_key_length;

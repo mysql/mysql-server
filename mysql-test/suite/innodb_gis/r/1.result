@@ -588,11 +588,11 @@ INSERT INTO t1 VALUES(ST_GeomFromText('POINT(367894677 368542487)'));
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(580848489 219587743)'));
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(11247614 782797569)'));
 drop table t1;
-create table t1 select ST_GeomFromWKB(POINT(1,3));
+create table t1 select ST_GeomFromWKB(ST_AsWKB(POINT(1,3)));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `ST_GeomFromWKB(POINT(1,3))` geometry DEFAULT NULL
+  `ST_GeomFromWKB(ST_AsWKB(POINT(1,3)))` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
@@ -719,7 +719,7 @@ a	b
 2	NULL
 3	1
 select
-ST_geometryfromtext(b) IS NULL, ST_geometryfromwkb(b) IS NULL, ST_astext(b) IS NULL, 
+ST_geometryfromtext(b) IS NULL, ST_geometryfromwkb(ST_AsWKB(b)) IS NULL, ST_astext(b) IS NULL, 
 ST_aswkb(b) IS NULL, ST_geometrytype(b) IS NULL, ST_centroid(b) IS NULL,
 ST_envelope(b) IS NULL, ST_startpoint(b) IS NULL, ST_endpoint(b) IS NULL,
 ST_exteriorring(b) IS NULL, ST_pointn(b, 1) IS NULL, ST_geometryn(b, 1) IS NULL,
@@ -1025,7 +1025,7 @@ INSERT INTO t1 VALUES
 ST_GEOMFROMTEXT(
 'multipolygon(((1 2,3 4,5 6,7 8,9 8,1 2,1 2),(7 6,5 4,3 2,1 2,3 4,7 6)))'));
 # must not crash
-SELECT 1 FROM t1 WHERE a <> (SELECT ST_GEOMETRYCOLLECTIONFROMWKB(b) FROM t1);
+SELECT 1 FROM t1 WHERE a <> (SELECT ST_GEOMETRYCOLLECTIONFROMWKB(ST_AsWKB(b)) FROM t1);
 1
 DROP TABLE t1;
 #
@@ -1345,6 +1345,7 @@ POLYGON((67 13,67 18,59 18,59 13,67 13))
 Warnings:
 Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Conformance Item T10 
 SELECT ST_SRID(boundary) 
 FROM named_places 
@@ -1569,10 +1570,7 @@ SELECT ST_Distance(position, boundary)
 FROM bridges, named_places 
 WHERE bridges.name = 'Cam Bridge' 
 AND named_places.name = 'Ashton';
-ST_Distance(position, boundary)
-12
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_distance will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 101.
 # Conformance Item T48 
 SELECT ST_AsText(ST_Difference(named_places.boundary, forests.boundary)) 
 FROM named_places, forests 

@@ -21,7 +21,7 @@
 
 --connection master
 
-CREATE TABLE uuid_table ( pkey INT NOT NULL PRIMARY KEY AUTO_INCREMENT, bin BINARY(16), vbn VARBINARY(16), tbl TINYBLOB, ttx TINYTEXT, blb BLOB );
+CREATE TABLE uuid_table ( pkey INT NOT NULL PRIMARY KEY AUTO_INCREMENT, bin BINARY(16), vbn VARBINARY(16), tbl TINYBLOB, ttx TINYTEXT CHARACTER SET binary, blb BLOB );
 
 # Valid values of uuid
 

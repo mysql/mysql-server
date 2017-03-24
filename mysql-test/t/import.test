@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 --echo #
 --echo # Testing WL#7524 - Import from SDI files

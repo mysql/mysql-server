@@ -20,7 +20,6 @@
 #include "my_inttypes.h"
 #include "plugin.h"
 #include "plugin_log.h"
-#include "sql_service_gr_user.h"
 
 using std::string;
 const int GTID_WAIT_TIMEOUT= 30; //30 seconds
@@ -472,6 +471,27 @@ Certification_handler::extract_certification_info(Pipeline_event *pevent,
   int error= 0;
   Log_event *event= NULL;
 
+  if (pevent->get_event_context() != SINGLE_VIEW_EVENT)
+  {
+    /*
+      If the current view event is embraced on a transaction:
+      GTID, BEGIN, VIEW, COMMIT; it means that we are handling
+      a view that was delivered by a asynchronous channel from
+      outside of the group.
+      On that case we just have to queue it on the group applier
+      channel, without any special handling.
+    */
+    next(pevent, cont);
+    DBUG_RETURN(error);
+  }
+
+  /*
+    If the current view event is a standalone event (not inside a
+    transaction), it means that it was injected from GCS on a
+    membership change.
+    On that case we need to queue it on the group applier wrapped
+    on a transaction with a group generated GTID.
+  */
   error= pevent->get_LogEvent(&event);
   if (error || (event == NULL))
   {
@@ -516,10 +536,11 @@ int Certification_handler::wait_for_local_transaction_execution()
     DBUG_RETURN(0); //empty
   }
 
-  Sql_service_command *sql_command_interface= new Sql_service_command();
+  Sql_service_command_interface *sql_command_interface=
+      new Sql_service_command_interface();
 
-  if(sql_command_interface->establish_session_connection(false) ||
-     sql_command_interface->set_interface_user(GROUPREPL_USER)
+  if (sql_command_interface->establish_session_connection(PSESSION_USE_THREAD) ||
+      sql_command_interface->set_interface_user(GROUPREPL_USER)
     )
   {
     /* purecov: begin inspected */

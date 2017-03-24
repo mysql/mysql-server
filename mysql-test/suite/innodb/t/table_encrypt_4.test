@@ -1,6 +1,9 @@
 # InnoDB transparent tablespace data encryption
 # This test case will test export/import encrypted tablespace.
 
+# WL#7554: Added setting --bootstrap --character-set-server=latin1
+# in the opt file. This test should be migrated to utf8mb4.
+
 --source include/no_valgrind_without_big.inc
 --source include/not_embedded.inc
 

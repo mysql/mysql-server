@@ -1772,7 +1772,9 @@ void Item_func_roles_graphml::print(String *str, enum_query_type)
 bool Item_func_roles_graphml::fix_fields(THD *thd, Item **ref)
 {
   Item_str_func::fix_fields(thd, ref);
-  if (thd->security_context()->check_access(SUPER_ACL, false))
+  Security_context *sctx= thd->security_context();
+  if (sctx && (sctx->has_global_grant(STRING_WITH_LEN("ROLE_ADMIN")).first ||
+      sctx->check_access(SUPER_ACL, false)))
     roles_graphml(thd, &m_str);
   else
     m_str.set(STRING_WITH_LEN("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
@@ -2845,7 +2847,8 @@ bool Item_func_make_set::resolve_type(THD *)
   used_tables_cache|=	  item->used_tables();
   not_null_tables_cache&= item->not_null_tables();
   const_item_cache&=	  item->const_item();
-  with_sum_func|=         item->with_sum_func;
+  add_accum_properties(item);
+
   return false;
 }
 
@@ -2856,8 +2859,7 @@ void Item_func_make_set::update_used_tables()
   item->update_used_tables();
   used_tables_cache|=item->used_tables();
   const_item_cache&=item->const_item();
-  with_subselect|= item->has_subquery();
-  with_stored_program|= item->has_stored_program();
+  add_accum_properties(item);
 }
 
 
@@ -3843,7 +3845,7 @@ bool Item_func_weight_string::eq(const Item *item, bool binary_cmp) const
 /* Return a weight_string according to collation */
 String *Item_func_weight_string::val_str(String *str)
 {
-  String *input;
+  String *input= nullptr;
   const CHARSET_INFO *cs= args[0]->collation.collation;
   size_t output_buf_size, output_length;
   bool rounded_up= false;
@@ -3894,6 +3896,7 @@ String *Item_func_weight_string::val_str(String *str)
   else
   {
     size_t input_length= input->length();
+    size_t used_num_codepoints= num_codepoints;
     if (num_codepoints)
     {
       // Truncate the string to the requested number of code points.
@@ -3901,10 +3904,19 @@ String *Item_func_weight_string::val_str(String *str)
         cs->cset->charpos(cs, input->ptr(), input->ptr() + input_length,
                           num_codepoints));
     }
+    else
+    {
+      /*
+        Give in exactly the right number of code points, so that we
+        do not get any excess trailing space from PAD SPACE collations.
+      */
+      used_num_codepoints= cs->cset->numchars(
+        cs, input->ptr(), input->ptr() + input_length);
+    }
     output_length= cs->coll->strnxfrm(
       cs,
       (uchar *) tmp_value.ptr(), output_buf_size,
-      num_codepoints ? num_codepoints : output_buf_size,
+      used_num_codepoints,
       (const uchar *) input->ptr(), input_length,
       flags);
   }
@@ -4320,10 +4332,8 @@ String* Item_func_export_set::val_str(String* str)
 
   /* Check if some argument is a NULL value */
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value)
-  {
-    null_value= true;
-    return NULL;
-  }
+    return error_str();
+
   /*
     Arg count can only be 3, 4 or 5 here. This is guaranteed from the
     grammar for EXPORT_SET()
@@ -4334,17 +4344,13 @@ String* Item_func_export_set::val_str(String* str)
     if (num_set_values > 64)
       num_set_values=64;
     if (args[4]->null_value)
-    {
-      null_value= true;
-      return NULL;
-    }
+      return error_str();
+
     /* Fall through */
   case 4:
     if (!(sep = args[3]->val_str(&sep_buf)))	// Only true if NULL
-    {
-      null_value= true;
-      return NULL;
-    }
+      return error_str();
+
     break;
   case 3:
     {
@@ -4372,8 +4378,7 @@ String* Item_func_export_set::val_str(String* str)
                         ER_WARN_ALLOWED_PACKET_OVERFLOWED,
                         ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
                         func_name(), static_cast<long>(max_allowed_packet));
-    null_value= true;
-    return NULL;
+    return error_str();
   }
 
   uint ix;
@@ -5025,9 +5030,9 @@ String *Item_func_get_dd_column_privileges::val_str(String *str)
   String schema_name;
   String *schema_name_ptr;
   String table_name;
-  String *table_name_ptr;
+  String *table_name_ptr= nullptr;
   String field_name;
-  String *field_name_ptr;
+  String *field_name_ptr= nullptr;
   if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
       (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
       (field_name_ptr=args[2]->val_str(&field_name)) != nullptr)

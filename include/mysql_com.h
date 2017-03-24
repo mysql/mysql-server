@@ -26,8 +26,18 @@
 #endif
 
 #include "my_command.h"
-#include "my_inttypes.h"
+
+/*
+  We need a definition for my_socket. On the client, <mysql.h> already provides
+  it, but on the server side, we need to get it from a header.
+*/
+#ifndef my_socket_defined
 #include "my_io.h"
+#endif
+
+#ifndef MYSQL_ABI_CHECK
+#include <stdbool.h>
+#endif
 
 #define HOSTNAME_LENGTH 60
 #define SYSTEM_CHARSET_MBMAXLEN 3
@@ -732,8 +742,8 @@ enum SERVER_STATUS_flags_enum
   Server status flags that must be cleared when starting
   execution of a new SQL statement.
   Flags from this set are only added to the
-  current server status by the execution engine, but 
-  never removed -- the execution engine expects them 
+  current server status by the execution engine, but
+  never removed -- the execution engine expects them
   to disappear automagically by the next command.
 */
 #define SERVER_STATUS_CLEAR_SET (SERVER_QUERY_NO_GOOD_INDEX_USED| \
@@ -960,9 +970,9 @@ bool	net_write_command(NET *net,unsigned char command,
 bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
 unsigned long my_net_read(NET *net);
 
-void my_net_set_write_timeout(NET *net, uint timeout);
-void my_net_set_read_timeout(NET *net, uint timeout);
-void my_net_set_retry_count(NET *net, uint retry_count);
+void my_net_set_write_timeout(NET *net, unsigned int timeout);
+void my_net_set_read_timeout(NET *net, unsigned int timeout);
+void my_net_set_retry_count(NET *net, unsigned int retry_count);
 
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
@@ -1059,11 +1069,12 @@ bool my_thread_init(void);
 void my_thread_end(void);
 
 #ifdef STDCALL
-ulong STDCALL net_field_length(uchar **packet);
+unsigned long STDCALL net_field_length(unsigned char **packet);
 #endif
-my_ulonglong net_field_length_ll(uchar **packet);
-uchar *net_store_length(uchar *pkg, ulonglong length);
-unsigned int net_length_size(ulonglong num);
+unsigned long long net_field_length_ll(unsigned char **packet);
+unsigned char *net_store_length(unsigned char *pkg, unsigned long long length);
+unsigned int net_length_size(unsigned long long num);
+unsigned int net_field_length_size(unsigned char *pos);
 
 #ifdef __cplusplus
 }

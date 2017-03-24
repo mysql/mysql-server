@@ -16,6 +16,7 @@
 #ifndef PFS_COLUMN_VALUES_H
 #define PFS_COLUMN_VALUES_H
 
+#include "lex_string.h"
 #include "m_string.h" /* LEX_STRING */
 
 /**
@@ -37,7 +38,7 @@ extern LEX_STRING sxlock_instrument_prefix;
 extern LEX_STRING cond_instrument_prefix;
 /** String prefix for all file instruments. */
 extern LEX_STRING file_instrument_prefix;
-/** Name of the global table io class. */
+/** Name of the global table I/O class. */
 extern LEX_STRING table_io_class_name;
 /** Name of the global table lock class. */
 extern LEX_STRING table_lock_class_name;
@@ -55,7 +56,7 @@ extern LEX_STRING stage_instrument_prefix;
 extern LEX_STRING statement_instrument_prefix;
 /** String prefix for all transaction instruments. */
 extern LEX_STRING transaction_instrument_prefix;
-/** String prefix for builtin memory instruments. */
+/** String prefix for built-in memory instruments. */
 extern LEX_STRING builtin_memory_instrument_prefix;
 /** String prefix for all memory instruments. */
 extern LEX_STRING memory_instrument_prefix;

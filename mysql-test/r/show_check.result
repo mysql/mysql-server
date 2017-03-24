@@ -204,13 +204,13 @@ show create table t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `a` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 alter table t1 rename t2;
 show create table t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
   `a` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t2;
 create table t1 (
 test_set set( 'val1', 'val2', 'val3' ) not null default '',
@@ -227,7 +227,7 @@ t1	CREATE TABLE `t1` (
   `c` int(11) NOT NULL COMMENT 'int column',
   `c-b` int(11) DEFAULT NULL COMMENT 'name with a minus',
   `space 2` int(11) DEFAULT NULL COMMENT 'name with a space'
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='it''s a table'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='it''s a table'
 set sql_quote_show_create=0;
 show create table t1;
 Table	Create Table
@@ -237,12 +237,12 @@ t1	CREATE TABLE t1 (
   c int(11) NOT NULL COMMENT 'int column',
   `c-b` int(11) DEFAULT NULL COMMENT 'name with a minus',
   `space 2` int(11) DEFAULT NULL COMMENT 'name with a space'
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='it''s a table'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='it''s a table'
 set sql_quote_show_create=1;
 show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-test_set	set('val1','val2','val3')	latin1_swedish_ci	NO				select,insert,update,references	
-name	char(20)	latin1_swedish_ci	YES		O'Brien		select,insert,update,references	O'Brien as default
+test_set	set('val1','val2','val3')	utf8mb4_0900_ai_ci	NO				select,insert,update,references	
+name	char(20)	utf8mb4_0900_ai_ci	YES		O'Brien		select,insert,update,references	O'Brien as default
 c	int(11)	NULL	NO		NULL		select,insert,update,references	int column
 c-b	int(11)	NULL	YES		NULL		select,insert,update,references	name with a minus
 space 2	int(11)	NULL	YES		NULL		select,insert,update,references	name with a space
@@ -253,7 +253,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   UNIQUE KEY `aa` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 (a int not null, primary key (a));
 show create table t1;
@@ -261,7 +261,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 flush tables;
 show open tables;
@@ -294,7 +294,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` varchar(10) DEFAULT NULL,
   KEY `b` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 MIN_ROWS=10 MAX_ROWS=100 AVG_ROW_LENGTH=10 PACK_KEYS=1 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED COMMENT='test'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 MIN_ROWS=10 MAX_ROWS=100 AVG_ROW_LENGTH=10 PACK_KEYS=1 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED COMMENT='test'
 alter table t1 MAX_ROWS=200 ROW_FORMAT=dynamic PACK_KEYS=0;
 show create table t1;
 Table	Create Table
@@ -302,7 +302,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` varchar(10) DEFAULT NULL,
   KEY `b` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 MIN_ROWS=10 MAX_ROWS=200 AVG_ROW_LENGTH=10 PACK_KEYS=0 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=DYNAMIC COMMENT='test'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 MIN_ROWS=10 MAX_ROWS=200 AVG_ROW_LENGTH=10 PACK_KEYS=0 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=DYNAMIC COMMENT='test'
 ALTER TABLE t1 AVG_ROW_LENGTH=0 CHECKSUM=0 COMMENT="" MIN_ROWS=0 MAX_ROWS=0 PACK_KEYS=DEFAULT DELAY_KEY_WRITE=0 ROW_FORMAT=default;
 show create table t1;
 Table	Create Table
@@ -310,7 +310,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` varchar(10) DEFAULT NULL,
   KEY `b` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 (a decimal(9,2), b decimal (9,0), e double(9,2), f double(5,0), h float(3,2), i float(3,0));
 show columns from t1;
@@ -420,28 +420,28 @@ SHOW CREATE TABLE ```ab``cd```;
 Table	Create Table
 `ab`cd`	CREATE TABLE ```ab``cd``` (
   i int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE ```ab``cd```;
 CREATE TABLE ```ab````cd``` (i INT);
 SHOW CREATE TABLE ```ab````cd```;
 Table	Create Table
 `ab``cd`	CREATE TABLE ```ab````cd``` (
   i int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE ```ab````cd```;
 CREATE TABLE ```a` (i INT);
 SHOW CREATE TABLE ```a`;
 Table	Create Table
 `a	CREATE TABLE ```a` (
   i int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE ```a`;
 CREATE TABLE `a.1` (i INT);
 SHOW CREATE TABLE `a.1`;
 Table	Create Table
 a.1	CREATE TABLE `a.1` (
   i int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE `a.1`;
 SET sql_mode= 'ANSI_QUOTES';
 CREATE TABLE """a" (i INT);
@@ -449,7 +449,7 @@ SHOW CREATE TABLE """a";
 Table	Create Table
 "a	CREATE TABLE """a" (
   i int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE """a";
 SET sql_mode= '';
 SET sql_quote_show_create= OFF;
@@ -458,14 +458,14 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE t1 (
   i int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE `table` (i INT);
 SHOW CREATE TABLE `table`;
 Table	Create Table
 table	CREATE TABLE `table` (
   i int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE `table`;
 SET sql_quote_show_create= @old_sql_quote_show_create;
 SET sql_mode= @old_sql_mode;
@@ -498,9 +498,9 @@ test.t2	analyze	note	The storage engine for the table doesn't support analyze
 test.t3	analyze	note	The storage engine for the table doesn't support analyze
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	10	Fixed	2	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	10	Fixed	2	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	10	Fixed	2	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	2	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	MEMORY	10	Fixed	2	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t3	MEMORY	10	Fixed	2	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
 insert into t1 values (3),(4);
 insert into t2 values (3),(4);
 insert into t3 values (3,3),(4,4);
@@ -511,9 +511,9 @@ test.t2	analyze	note	The storage engine for the table doesn't support analyze
 test.t3	analyze	note	The storage engine for the table doesn't support analyze
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	10	Fixed	4	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	10	Fixed	4	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	10	Fixed	4	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	4	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	MEMORY	10	Fixed	4	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t3	MEMORY	10	Fixed	4	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
 insert into t1 values (5);
 insert into t2 values (5);
 insert into t3 values (5,5);
@@ -524,9 +524,9 @@ test.t2	analyze	note	The storage engine for the table doesn't support analyze
 test.t3	analyze	note	The storage engine for the table doesn't support analyze
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	10	Fixed	5	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	10	Fixed	5	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	10	Fixed	5	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	5	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	MEMORY	10	Fixed	5	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t3	MEMORY	10	Fixed	5	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
 delete from t1 where a=3;
 delete from t2 where b=3;
 delete from t3 where a=3;
@@ -537,9 +537,9 @@ test.t2	analyze	note	The storage engine for the table doesn't support analyze
 test.t3	analyze	note	The storage engine for the table doesn't support analyze
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t3	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
 truncate table t1;
 truncate table t2;
 truncate table t3;
@@ -550,9 +550,9 @@ test.t2	analyze	note	The storage engine for the table doesn't support analyze
 test.t3	analyze	note	The storage engine for the table doesn't support analyze
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t3	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
 insert into t1 values (5);
 insert into t2 values (5);
 insert into t3 values (5,5);
@@ -563,9 +563,9 @@ test.t2	analyze	note	The storage engine for the table doesn't support analyze
 test.t3	analyze	note	The storage engine for the table doesn't support analyze
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	10	Fixed	1	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	10	Fixed	1	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	10	Fixed	1	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	1	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	MEMORY	10	Fixed	1	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t3	MEMORY	10	Fixed	1	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
 delete from t1 where a=5;
 delete from t2 where b=5;
 delete from t3 where a=5;
@@ -576,14 +576,14 @@ test.t2	analyze	note	The storage engine for the table doesn't support analyze
 test.t3	analyze	note	The storage engine for the table doesn't support analyze
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MEMORY	10	Fixed	0	#	#	#	#	#	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
-t2	MEMORY	10	Fixed	0	#	#	#	#	#	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
-t3	MEMORY	10	Fixed	0	#	#	#	#	#	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+t1	MEMORY	10	Fixed	0	#	#	#	#	#	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	MEMORY	10	Fixed	0	#	#	#	#	#	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+t3	MEMORY	10	Fixed	0	#	#	#	#	#	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
 drop table t1, t2, t3;
 create database mysqltest;
 show create database mysqltest;
 Database	Create Database
-mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET latin1 */
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
 create table mysqltest.t1(a int);
 insert into mysqltest.t1 values(1);
 set @orig_sql_mode = @@sql_mode;
@@ -607,7 +607,7 @@ a
 1
 show create database mysqltest;
 Database	Create Database
-mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET latin1 */
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
 drop table t1;
 ERROR 42000: DROP command denied to user 'mysqltest_1'@'localhost' for table 't1'
 drop database mysqltest;
@@ -624,7 +624,7 @@ select * from mysqltest.t1;
 ERROR 42000: SELECT command denied to user 'mysqltest_3'@'localhost' for table 't1'
 show create database mysqltest;
 Database	Create Database
-mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET latin1 */
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
 drop table mysqltest.t1;
 drop database mysqltest;
 set names binary;
@@ -639,7 +639,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `i` (`i`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 (i int, KEY USING HASH (i)) ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
@@ -647,7 +647,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `i` (`i`) USING HASH
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
@@ -655,7 +655,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `i` (`i`) USING BTREE
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 (i int, KEY (i)) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
@@ -663,7 +663,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `i` (`i`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
@@ -671,7 +671,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `i` (`i`) USING BTREE
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 (i int, KEY (i)) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
@@ -679,14 +679,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `i` (`i`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 ALTER TABLE t1 ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `i` (`i`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
@@ -694,14 +694,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `i` (`i`) USING BTREE
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 ALTER TABLE t1 ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `i` (`i`) USING BTREE
-) ENGINE=MEMORY DEFAULT CHARSET=latin1
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1(
 field1 text NOT NULL,
@@ -741,7 +741,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) NOT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 
 # Bug#12183 SHOW OPEN TABLES behavior doesn't match grammar.
@@ -945,15 +945,16 @@ def		COLLATIONS	COLLATIONS	Id	Id	8	20	2	N	32801	0	63
 def		COLLATIONS	COLLATIONS	Default	Default	253	9	0	N	1	0	33
 def		COLLATIONS	COLLATIONS	Compiled	Compiled	253	9	3	N	1	0	33
 def		COLLATIONS	COLLATIONS	Sortlen	Sortlen	3	10	1	N	36897	0	63
-Collation	Charset	Id	Default	Compiled	Sortlen
-latin1_bin	latin1	47		Yes	1
+def		COLLATIONS	COLLATIONS	Pad_attribute	Pad_attribute	253	27	9	N	4225	0	33
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+latin1_bin	latin1	47		Yes	1	PAD SPACE
 ----------------------------------------------------------------
 SHOW CREATE DATABASE mysqltest1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					Database	253	192	10	N	1	31	33
-def					Create Database	253	3072	69	N	1	31	33
+def					Create Database	253	3072	70	N	1	31	33
 Database	Create Database
-mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET latin1 */
+mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
 ----------------------------------------------------------------
 SHOW DATABASES LIKE 'mysqltest1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
@@ -964,12 +965,12 @@ mysqltest1
 SHOW CREATE TABLE t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					Table	253	192	2	N	1	31	33
-def					Create Table	253	3072	102	N	1	31	33
+def					Create Table	253	3072	103	N	1	31	33
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` int(11) NOT NULL,
   PRIMARY KEY (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ----------------------------------------------------------------
 SHOW INDEX FROM t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
@@ -1009,11 +1010,11 @@ def	mysql	TABLES	TABLES	TABLE_NAME	TABLE_NAME	253	192	2	N	#	0	33
 def	mysql	TABLES	TABLES	TABLE_TYPE	TABLE_TYPE	254	33	10	N	4481	0	33
 def		TABLES	TABLES	ENGINE	ENGINE	253	192	6	Y	0	31	33
 def	mysql	TABLES	TABLES	ROW_FORMAT	ROW_FORMAT	254	30	7	Y	384	0	33
-def	mysql	TABLES	TABLES	TABLE_COLLATION	TABLE_COLLATION	253	192	17	Y	20484	0	33
+def	mysql	TABLES	TABLES	TABLE_COLLATION	TABLE_COLLATION	253	192	18	Y	20484	0	33
 def		TABLES	TABLES	CREATE_OPTIONS	CREATE_OPTIONS	253	256	0	Y	128	31	63
 def		TABLES	TABLES	TABLE_COMMENT	TABLE_COMMENT	253	256	0	Y	128	31	63
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	ROW_FORMAT	TABLE_COLLATION	CREATE_OPTIONS	TABLE_COMMENT
-def	test	t1	BASE TABLE	InnoDB	Dynamic	latin1_swedish_ci		
+def	test	t1	BASE TABLE	InnoDB	Dynamic	utf8mb4_0900_ai_ci		
 ----------------------------------------------------------------
 SELECT
 TABLE_CATALOG,
@@ -1079,9 +1080,9 @@ def	mysql	triggers	TRIGGERS	sql_mode	sql_mode	254	1434	137	N	6273	0	33
 def	mysql	triggers	TRIGGERS	Definer	Definer	253	279	14	N	4225	0	33
 def	mysql	character_sets	TRIGGERS	character_set_client	character_set_client	253	192	6	N	4097	0	33
 def	mysql	collations	TRIGGERS	collation_connection	collation_connection	253	192	6	N	4097	0	33
-def	mysql	collations	TRIGGERS	Database Collation	Database Collation	253	192	17	N	4097	0	33
+def	mysql	collations	TRIGGERS	Database Collation	Database Collation	253	192	18	N	4097	0	33
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-t1_bi	INSERT	t1	SET @a = 1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	binary	binary	latin1_swedish_ci
+t1_bi	INSERT	t1	SET @a = 1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	binary	binary	utf8mb4_0900_ai_ci
 ----------------------------------------------------------------
 SELECT
 TRIGGER_CATALOG,
@@ -1157,10 +1158,10 @@ def					sql_mode	253	411	137	N	1	31	33
 def					Create Procedure	253	3072	59	Y	0	31	33
 def					character_set_client	253	96	6	N	1	31	33
 def					collation_connection	253	96	6	N	1	31	33
-def					Database Collation	253	96	17	N	1	31	33
+def					Database Collation	253	96	18	N	1	31	33
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
-SELECT 1	binary	binary	latin1_swedish_ci
+SELECT 1	binary	binary	utf8mb4_0900_ai_ci
 ----------------------------------------------------------------
 SELECT
 SPECIFIC_NAME,
@@ -1212,10 +1213,10 @@ def					sql_mode	253	411	137	N	1	31	33
 def					Create Function	253	3072	74	Y	0	31	33
 def					character_set_client	253	96	6	N	1	31	33
 def					collation_connection	253	96	6	N	1	31	33
-def					Database Collation	253	96	17	N	1	31	33
+def					Database Collation	253	96	18	N	1	31	33
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
-RETURN 1	binary	binary	latin1_swedish_ci
+RETURN 1	binary	binary	utf8mb4_0900_ai_ci
 ----------------------------------------------------------------
 SELECT
 SPECIFIC_NAME,
@@ -1282,7 +1283,7 @@ SHOW CREATE TABLE mysqltest1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `�������1` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP DATABASE mysqltest1;
 use test;
 flush status;
@@ -1368,7 +1369,7 @@ End of 5.0 tests
 create database mysqltest;
 show create database mysqltest;
 Database	Create Database
-mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET latin1 */
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
 create table mysqltest.t1(a int);
 insert into mysqltest.t1 values(1);
 set @orig_sql_mode = @@sql_mode;
@@ -1383,7 +1384,7 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 show create database mysqltest;
 Database	Create Database
-mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET latin1 */
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 delete from mysql.tables_priv where user='mysqltest_4';
@@ -1439,7 +1440,7 @@ Table	Op	Msg_type	Msg_text
 �.�	analyze	note	The storage engine for the table doesn't support analyze
 SHOW TABLE STATUS FROM `�` LIKE '�';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-�	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	#	NULL	NULL	latin1_swedish_ci	NULL		
+�	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	#	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
 DROP DATABASE `�`;
 show columns from `#mysql50#????????`;
 Got one of the listed errors
@@ -1450,69 +1451,69 @@ CREATE TABLE t1(c1 INT);
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1;
 SHOW CREATE TRIGGER t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 CREATE PROCEDURE p1() SHOW CREATE TRIGGER t1_bi;
 CALL p1();
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 CALL p1();
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 CALL p1();
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 CALL p1();
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 CALL p1();
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 CALL p1();
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 CALL p1();
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 CALL p1();
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 CALL p1();
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 CALL p1();
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 PREPARE stmt1 FROM 'SHOW CREATE TRIGGER t1_bi';
 EXECUTE stmt1;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 EXECUTE stmt1;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 EXECUTE stmt1;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 EXECUTE stmt1;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 EXECUTE stmt1;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 EXECUTE stmt1;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 EXECUTE stmt1;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 EXECUTE stmt1;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 EXECUTE stmt1;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 EXECUTE stmt1;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a = 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 DROP TABLE t1;
 DROP PROCEDURE p1;
 DEALLOCATE PREPARE stmt1;
@@ -1537,17 +1538,17 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 SHOW CREATE PROCEDURE p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
-SELECT 'тест' AS test	koi8r	koi8r_general_ci	latin1_swedish_ci
+SELECT 'тест' AS test	koi8r	koi8r_general_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS char(10) CHARSET latin1
-RETURN 'тест'	koi8r	koi8r_general_ci	latin1_swedish_ci
+f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS char(10) CHARSET utf8mb4
+RETURN 'тест'	koi8r	koi8r_general_ci	utf8mb4_0900_ai_ci
 SHOW CREATE TRIGGER t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET NEW.c1 = 'тест'	koi8r	koi8r_general_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET NEW.c1 = 'тест'	koi8r	koi8r_general_ci	utf8mb4_0900_ai_ci	#
 SHOW CREATE EVENT ev1;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-ev1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev1` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 'тест' AS test	koi8r	koi8r_general_ci	latin1_swedish_ci
+ev1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev1` ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 'тест' AS test	koi8r	koi8r_general_ci	utf8mb4_0900_ai_ci
 DROP VIEW v1;
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
@@ -1579,7 +1580,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # Switching to connection 'default'.
 UNLOCK TABLES;
 DROP TABLE t1;
@@ -1597,7 +1598,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # Connection con1
 ALTER TABLE t1 CHARACTER SET = utf8;
 UNLOCK TABLES;
@@ -1616,7 +1617,7 @@ LOCK TABLE t1 WRITE;
 # Connection default
 SHOW CREATE TRIGGER t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET new.a = 1	utf8	utf8_general_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET new.a = 1	utf8	utf8_general_ci	utf8mb4_0900_ai_ci	#
 # Connection con1
 UNLOCK TABLES;
 # Test 2: ALTER TABLE with SHOW CREATE TRIGGER in transaction
@@ -1624,7 +1625,7 @@ UNLOCK TABLES;
 START TRANSACTION;
 SHOW CREATE TRIGGER t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET new.a = 1	utf8	utf8_general_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET new.a = 1	utf8	utf8_general_ci	utf8mb4_0900_ai_ci	#
 # Connection con1
 ALTER TABLE t1 CHARACTER SET = utf8;
 # Connection default
@@ -1664,11 +1665,11 @@ CREATE TABLE t1 (a INT);
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
 SHOW CREATE TRIGGER t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 CREATE TEMPORARY TABLE t1 (b INT);
 SHOW CREATE TRIGGER t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 DROP TEMPORARY TABLE t1;
 DROP TABLE t1;
 #
@@ -1692,7 +1693,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` char(3) DEFAULT NULL,
   `n` char(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(`i`)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE `t1` (
 `i` char(3) DEFAULT NULL,

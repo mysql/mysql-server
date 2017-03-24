@@ -22,6 +22,7 @@
 #include "field.h"
 #include "handler.h"
 #include "key.h"
+#include "lex_string.h"
 #include "m_string.h"
 #include "mdl.h"
 #include "my_base.h"

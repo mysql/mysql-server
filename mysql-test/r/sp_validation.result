@@ -1784,7 +1784,7 @@ a
 20
 SELECT @x;
 @x
-latin1
+utf8mb4
 
 DROP TABLE t1;
 DROP TABLE t2;

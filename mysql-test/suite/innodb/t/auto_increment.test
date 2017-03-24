@@ -34,6 +34,15 @@
 --source include/not_crashrep.inc
 --source include/have_debug.inc
 
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs28=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 ##########################################################################################
 # Consecutive lock mode is the default lock mode                                         #
 ##########################################################################################
@@ -2286,3 +2295,10 @@ SELECT MAX(pkey) FROM loads;
 --disconnect conn2
 
 DROP TABLE loads;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs28;
+--enable_query_log
+########################################

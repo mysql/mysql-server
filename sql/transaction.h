@@ -18,13 +18,11 @@
 
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"   // LEX_STRING
 
 class THD;
-
-typedef struct st_mysql_lex_string LEX_STRING;
-
 
 bool trans_check_state(THD *thd);
 void trans_reset_one_shot_chistics(THD *thd);

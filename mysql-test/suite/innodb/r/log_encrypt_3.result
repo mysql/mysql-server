@@ -205,22 +205,22 @@ SELECT @@global.innodb_redo_log_encrypt ;
 @@global.innodb_redo_log_encrypt
 1
 SET GLOBAL innodb_redo_log_encrypt = 0;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SELECT @@global.innodb_redo_log_encrypt ;
 @@global.innodb_redo_log_encrypt
 1
 SET GLOBAL innodb_undo_log_encrypt = 0;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SELECT @@global.innodb_undo_log_encrypt ;
 @@global.innodb_undo_log_encrypt
 0
 SET GLOBAL innodb_redo_log_encrypt = 1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SELECT @@global.innodb_redo_log_encrypt ;
 @@global.innodb_redo_log_encrypt
 1
 SET GLOBAL innodb_undo_log_encrypt = 1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SELECT @@global.innodb_undo_log_encrypt ;
 @@global.innodb_undo_log_encrypt
 0

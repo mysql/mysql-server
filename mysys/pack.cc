@@ -142,3 +142,24 @@ uint net_length_size(ulonglong num)
   return 9;
 }
 
+
+/**
+  length of buffer required to represent a length-encoded string
+  give the length part of length encoded string. This function can
+  be used before calling net_field_lenth/net_field_length_ll.
+
+  @param [in] pos  Length information of length-encoded string
+
+  @return length of buffer needed to store this number [1, 3, 4, 9].
+*/
+
+uint net_field_length_size(uchar *pos)
+{
+  if (*pos <= 251)
+    return 1;
+  if (*pos == 252)
+    return 3;
+  if (*pos == 253)
+    return 4;
+  return 9;
+}

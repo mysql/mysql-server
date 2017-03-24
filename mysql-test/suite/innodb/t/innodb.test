@@ -1,19 +1,10 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs45=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
-use test;
---enable_query_log
-########################################
-
 # Performance Schema is partially supported by embedded server. Hence skip when test runs with embedded mode.
 -- source include/not_embedded.inc
 
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
+
+-- source include/have_innodb_max_16k.inc
 
 #######################################################################
 #                                                                     #
@@ -29,8 +20,6 @@ use test;
 # (otherwise your changes may be erased).                             #
 #                                                                     #
 #######################################################################
-
--- source include/have_innodb_max_16k.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 # Save the original values of some variables in order to be able to
@@ -1481,7 +1470,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 # Embedded server doesn't chdir to data directory
 --replace_result $MYSQLTEST_VARDIR . master-data/ ''
 --error ER_TOO_LONG_KEY,ER_INDEX_COLUMN_TOO_LONG
-create table t1 (v varchar(65530), key(v)) ROW_FORMAT=COMPACT;
+create table t1 (v varchar(65530), key(v)) charset latin1 ROW_FORMAT=COMPACT;
 create table t1 (v varchar(65536));
 show create table t1;
 drop table t1;
@@ -1492,7 +1481,7 @@ SET sql_mode = default;
 eval set default_storage_engine=$default;
 
 # InnoDB specific varchar tests
-create table t1 (v varchar(16384)) engine=innodb;
+create table t1 (v varchar(16384)) charset latin1 engine=innodb;
 drop table t1;
 
 #
@@ -2442,7 +2431,7 @@ CREATE TABLE t1 (
 	c21 CHAR(255), c22 CHAR(255), c23 CHAR(255), c24 CHAR(255),
 	c25 CHAR(255), c26 CHAR(255), c27 CHAR(255), c28 CHAR(255),
 	c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
-	) ENGINE = InnoDB;
+	) charset latin1 ENGINE = InnoDB;
 SET innodb_strict_mode=OFF;
 
 #
@@ -2715,11 +2704,3 @@ DROP TABLE t2;
 # (otherwise your changes may be erased).                             #
 #                                                                     #
 #######################################################################
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs45;
---enable_query_log
-########################################

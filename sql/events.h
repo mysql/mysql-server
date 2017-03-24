@@ -28,6 +28,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_time.h"                            /* interval_type */
@@ -50,7 +51,6 @@ namespace dd {
 }
 
 typedef struct charset_info_st CHARSET_INFO;
-typedef struct st_mysql_lex_string LEX_STRING;
 
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_mutex_key key_event_scheduler_LOCK_scheduler_state;

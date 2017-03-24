@@ -1,2 +1,3 @@
 $KEYRING_PLUGIN_OPT
 $KEYRING_PLUGIN_LOAD
+--bootstrap --character-set-server=latin1

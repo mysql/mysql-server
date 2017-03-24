@@ -1,21 +1,7 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs238=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
-use test;
---enable_query_log
-########################################
-
 
 # Test is skipped with log-bin enabled as the count of commit and prepare handlers
 # increase when binary logging is enabled.
 --source include/not_log_bin.inc
-
-# Test uses performance_schema.status_by_thread, not available in embedded
---source include/not_embedded.inc
 
 # Helper statement
 
@@ -179,6 +165,7 @@ CREATE TABLE t1
  INDEX (b,a),
  PRIMARY KEY (a))
 ENGINE = InnoDB
+charset latin1
 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH (a) SUBPARTITIONS 2
 (PARTITION pNeg VALUES LESS THAN (0)
@@ -557,7 +544,7 @@ connection monitor;
 connection default;
 
 --echo # 18 read key (ALTER forces table to be closed, see above for open)
-LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg, `p10-99`);
+LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg, `p10-99`) CHARACTER SET latin1;
 
 connection monitor;
 --source include/get_handler_status_counts.inc
@@ -1156,11 +1143,3 @@ DROP TABLE t1;
 DROP TABLE test.thread_to_monitor;
 
 SET @@default_storage_engine = @old_default_storage_engine;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs238;
---enable_query_log
-########################################

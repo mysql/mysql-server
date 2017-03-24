@@ -39,7 +39,7 @@ CREATE TABLE t2 (
   UNIQUE fld1 (fld1),
   KEY fld3 (fld3),
   PRIMARY KEY (auto)
-);  
+) charset utf8mb4;  
 
 #
 # Populate table
@@ -1937,7 +1937,7 @@ create table t2(s varchar(10) not null primary key);
 create table t3(s varchar(10) not null primary key);
 insert into t1 values ('one\t'), ('two\t');
 insert into t2 values ('one\r'), ('two\t');
-insert into t3 values ('one '), ('two\t');
+insert into t3 values ('one\b'), ('two\t');
 select * from t1 where s = 'one';
 select * from t2 where s = 'one';
 select * from t3 where s = 'one';
@@ -1997,7 +1997,7 @@ DROP TABLE t1, t2;
 # Test case for bug 7098: substitution of a constant for a string field 
 #
 
-CREATE TABLE t1 ( city char(30) );
+CREATE TABLE t1 ( city char(30) ) charset utf8mb4;
 INSERT INTO t1 VALUES ('London');
 INSERT INTO t1 VALUES ('Paris');
 
@@ -2241,7 +2241,7 @@ create table t1 (f1 int not null auto_increment primary key, f2 varchar(10));
 create table t11 like t1;
 insert into t1 values(1,""),(2,"");
 analyze table t1, t11;
---replace_column 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
+--replace_column 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X 15 X
 show table status like 't1%';
 select 123 as a from t1 where f1 is null;
 drop table t1,t11;
@@ -2613,7 +2613,7 @@ SELECT IFNULL(NULL, NULL);
 SET @OLD_SQL_MODE12595=@@SQL_MODE, @@SQL_MODE='';
 SHOW LOCAL VARIABLES LIKE 'SQL_MODE';
 
-CREATE TABLE BUG_12595(a varchar(100));
+CREATE TABLE BUG_12595(a varchar(100)) charset latin1;
 INSERT INTO BUG_12595 VALUES ('hakan%'), ('hakank'), ("ha%an");
 SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\%';
 SELECT * FROM BUG_12595 WHERE a LIKE 'hakan*%' ESCAPE '*';
@@ -3088,8 +3088,8 @@ drop table t1;
 # Bug #22735: no equality propagation for BETWEEN and IN with STRING arguments
 #
 
-CREATE TABLE t1 (pk varchar(10) PRIMARY KEY, fk varchar(16));
-CREATE TABLE t2 (pk varchar(16) PRIMARY KEY, fk varchar(10));
+CREATE TABLE t1 (pk varchar(10) PRIMARY KEY, fk varchar(16)) charset utf8mb4;
+CREATE TABLE t2 (pk varchar(16) PRIMARY KEY, fk varchar(10)) charset utf8mb4;
 
 INSERT INTO t1 VALUES
   ('d','dddd'), ('i','iii'), ('a','aa'), ('b','bb'), ('g','gg'), 
@@ -3116,9 +3116,9 @@ DROP TABLE t1,t2;
 # Bug #22367: Optimizer uses ref join type instead of eq_ref for simple 
 #               join on strings
 #
-CREATE TABLE t1 (a int, b varchar(20) NOT NULL, PRIMARY KEY(a));
+CREATE TABLE t1 (a int, b varchar(20) NOT NULL, PRIMARY KEY(a)) charset utf8mb4;
 CREATE TABLE t2 (a int, b varchar(20) NOT NULL,
-                 PRIMARY KEY (a), UNIQUE KEY (b));
+                 PRIMARY KEY (a), UNIQUE KEY (b)) charset utf8mb4;
 INSERT INTO t1 VALUES (1,'a'),(2,'b'),(3,'c');
 INSERT INTO t2 VALUES (1,'a'),(2,'b'),(3,'c');
 
@@ -3309,7 +3309,7 @@ insert into t1 values
   (coalesce(9223372036854775808, 1));
 select * from t1;
 drop table t1;
-create table t1 select
+create table t1 charset utf8mb4 select
   if(1, 9223372036854775808, 1) i,
   case when 1 then 9223372036854775808 else 1 end c,
   coalesce(9223372036854775808, 1) co;
@@ -3325,8 +3325,8 @@ select
 # Bug #22971: indexes on text columns are ignored for ref accesses 
 #
 
-CREATE TABLE t1 (name varchar(255));
-CREATE TABLE t2 (name varchar(255), n int, KEY (name(3)));
+CREATE TABLE t1 (name varchar(255)) charset latin1;
+CREATE TABLE t2 (name varchar(255), n int, KEY (name(3))) charset latin1;
 INSERT INTO t1 VALUES ('ccc'), ('bb'), ('cc '), ('aa  '), ('aa');
 INSERT INTO t2 VALUES ('bb',1), ('aa',2), ('cc   ',3);
 INSERT INTO t2 VALUES (concat('cc ', 0x06), 4);
@@ -3347,8 +3347,8 @@ SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 
 DROP TABLE t1,t2;
 
-CREATE TABLE t1 (name text);
-CREATE TABLE t2 (name text, n int, KEY (name(3)));
+CREATE TABLE t1 (name text) charset latin1;
+CREATE TABLE t2 (name text, n int, KEY (name(3))) charset latin1;
 INSERT INTO t1 VALUES ('ccc'), ('bb'), ('cc '), ('aa  '), ('aa');
 INSERT INTO t2 VALUES ('bb',1), ('aa',2), ('cc   ',3);
 INSERT INTO t2 VALUES (concat('cc ', 0x06), 4);
@@ -3473,7 +3473,7 @@ CREATE TABLE t1 (
   c3 bigint(20) DEFAULT NULL,
   c4 bigint(20) DEFAULT NULL,
   PRIMARY KEY (c1)
-);
+) charset utf8mb4;
 
 EXPLAIN EXTENDED 
 SELECT  join_2.c1  
@@ -3751,15 +3751,15 @@ CREATE TABLE t1 (f1 bigint(20) NOT NULL default '0',
                  f4 varchar(255) NOT NULL default '',
                  PRIMARY KEY (f1),
                  KEY key1 (f4),
-                 KEY key2 (f2));
+                 KEY key2 (f2)) charset latin1;
 CREATE TABLE t2 (f1 int(11) NOT NULL default '0',
                  f2 enum('A1','A2','A3') NOT NULL default 'A1',
                  f3 int(11) NOT NULL default '0',
                  PRIMARY KEY (f1),
-                 KEY key1 (f3));
+                 KEY key1 (f3)) charset latin1;
 CREATE TABLE t3 (f1 bigint(20) NOT NULL default '0',
                  f2 datetime NOT NULL default '1980-01-01 00:00:00',
-                 PRIMARY KEY (f1));
+                 PRIMARY KEY (f1)) charset latin1;
 
 insert into t1 values (1, 1, 1, 'abc');
 insert into t1 values (2, 1, 2, 'def');
@@ -3866,7 +3866,7 @@ SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
 DROP TABLE t1;
 
-CREATE TABLE t1(a DATETIME NOT NULL, b VARCHAR(20) NOT NULL);
+CREATE TABLE t1(a DATETIME NOT NULL, b VARCHAR(20) NOT NULL) charset utf8mb4;
 INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
 SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
@@ -4169,7 +4169,7 @@ DROP TABLE t1;
 --echo # Bug #54459: Assertion failed: param.sort_length, 
 --echo # file .\filesort.cc, line 149 (part II)
 --echo #
-CREATE TABLE t1(a ENUM('') NOT NULL);
+CREATE TABLE t1(a ENUM('') NOT NULL) charset latin1;
 INSERT INTO t1 VALUES (), (), ();
 EXPLAIN SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;

@@ -23,10 +23,12 @@
 
 typedef int mysql_mutex_t; // mock to load persistent_dynamic_loader imp header
 #include <mysql/components/services/persistent_dynamic_loader.h>
+#include <auth/dynamic_privileges_impl.h>
 #include <persistent_dynamic_loader.h>
 #include <scope_guard.h>
 #include <server_component.h>
 
+#include "lex_string.h"
 #include "my_compiler.h"
 #include "my_io.h"
 
@@ -39,13 +41,43 @@ struct mysql_component_t *mysql_builtin_components[]=
 };
 
 DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
-  (void* thd_ptr, const char *urns[], int component_count))
+  (void*, const char *[], int))
 {
   return true;
 }
 
 DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
-  (void* thd_ptr, const char *urns[], int component_count))
+  (void*, const char *[], int))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(register_privilege,
+  (const char *, size_t))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(unregister_privilege,
+  (const char *, size_t))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::register_privilege,
+  (const char *, size_t))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::unregister_privilege,
+  (const char *, size_t))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::has_global_grant,
+  (Security_context_handle, const char *, size_t))
 {
   return true;
 }
@@ -53,8 +85,6 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
 /* TODO following code resembles symbols used in sql library, these should be
   some day extracted to be reused both in sql library and server component unit
   tests. */
-typedef struct st_mysql_lex_string LEX_STRING;
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
 typedef struct charset_info_st CHARSET_INFO;
 
 extern "C"
@@ -63,15 +93,15 @@ extern "C"
 }
 char opt_plugin_dir[FN_REFLEN];
 
-bool check_string_char_length(const LEX_CSTRING &str, const char *err_msg,
-  size_t max_char_length, const CHARSET_INFO *cs,
-  bool no_error)
+bool check_string_char_length(const LEX_CSTRING &, const char *,
+                              size_t, const CHARSET_INFO *,
+                              bool)
 {
   MY_ASSERT_UNREACHABLE();
   return true;
 }
 
-bool check_valid_path(const char *path, size_t len)
+bool check_valid_path(const char *, size_t)
 {
   MY_ASSERT_UNREACHABLE();
   return true;

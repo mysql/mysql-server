@@ -261,7 +261,7 @@ public:
 private:
   /**
      Check if the caller is a replication thread or the caller is called
-     by a client thread executing base64 encoded BINLOG'... statement.
+     by a client thread executing base64 encoded BINLOG statement.
 
      In theory, performance schema tables are not supposed to be replicated.
      This is true and enforced starting with MySQL 5.6.10.
@@ -277,8 +277,8 @@ private:
      - performing point in time recovery in 5.6 with old archived logs.
 
      This API detects when the code calling the performance schema storage
-     engine is a slave thread or whether the code calling isthe client thread
-     executing a BINLOG'.. statement.
+     engine is a slave thread or whether the code calling is the client thread
+     executing a BINLOG statement.
 
      This API acts as a late filter for the above mentioned cases.
 

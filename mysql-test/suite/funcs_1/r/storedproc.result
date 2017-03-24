@@ -1939,9 +1939,9 @@ CREATE PROCEDURE !_sp1( f1 char(20) )
 SELECT * from t1 where f2 = f1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!_sp1( f1 char(20) )
 SELECT * from t1 where f2 = f1' at line 1
-CREATE PROCEDURE function()
+CREATE PROCEDURE `function`()
 SELECT * from t1 where f2=f1;
-DROP PROCEDURE function;
+DROP PROCEDURE `function`;
 CREATE PROCEDURE accessible()
 SELECT * from t1 where f2=f1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'accessible()

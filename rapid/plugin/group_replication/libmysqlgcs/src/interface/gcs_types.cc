@@ -13,12 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "gcs_types.h"
+#include "mysql/gcs/gcs_types.h"
 
 #include <stddef.h>
 #include <iostream>
 #include <map>
 #include <utility>
+
 
 void Gcs_interface_parameters::add_parameter(const std::string &name,
                                              const std::string &value)

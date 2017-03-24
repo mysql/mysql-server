@@ -18,11 +18,13 @@
 
 --echo ## Create table with HASH Partition ##
 CREATE TABLE t1 ( c1 int PRIMARY KEY )
+                 CHARSET=utf8mb4
                  PARTITION BY HASH(c1)
                  PARTITIONS 3;
 
 --echo ## Create table with KEY Partition ##
 CREATE TABLE t2 ( c1 int PRIMARY KEY )
+                 CHARSET=utf8mb4
                  PARTITION BY KEY()
                  PARTITIONS 3;
 --source include/rpl_sync.inc

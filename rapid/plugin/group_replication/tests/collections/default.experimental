@@ -2,4 +2,3 @@
 # in alphabetical order. This also helps with merge conflict resolution.
 
 group_replication.gr_generated_column                           # BUG#24940226  2016-10-25 Nuno Carvalho
-group_replication.gr_nullable_unique_key_conflict               # BUG#24666169  2016-09-14 Nuno Carvalho

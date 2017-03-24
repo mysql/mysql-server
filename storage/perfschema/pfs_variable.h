@@ -34,8 +34,8 @@
 
      SHOW_VAR
        Name  - Text string
-       Value - Pointer to memory location, function, subarray structure
-       Type  - Scalar, function, or subarray
+       Value - Pointer to memory location, function, sub array structure
+       Type  - Scalar, function, or sub array
        Scope - SESSION, GLOBAL, BOTH
 
      Steps:
@@ -44,7 +44,7 @@
      - For system variables, convert each element to SHOW_VAR format, store in
        a temporary array.
      - For status variables, copy existing global status array into a local
-       array that can be used without locks. Expand nested subarrays, indicated
+       array that can be used without locks. Expand nested sub arrays, indicated
        by a type of SHOW_ARRAY.
 
   2. MATERIALIZE - Convert the list of SHOW_VAR variables to string format,
@@ -106,7 +106,7 @@
   Manifest        - Substep of Materialize. Resolve variable values according to
                     type. This includes SHOW_FUNC types which are resolved by
                     executing a callback function (possibly recursively), and
-                    SHOW_ARRAY types that expand into nested subarrays.
+                    SHOW_ARRAY types that expand into nested sub arrays.
   LOCK PRIORITIES
   ---------------
   System Variables
@@ -154,7 +154,7 @@ class Find_THD_variable;
 typedef PFS_connection_slice PFS_client;
 
 /**
-  CLASS System_variable - System variable derived from sys_var object.
+  System variable derived from sys_var object.
 */
 class System_variable
 {
@@ -202,7 +202,7 @@ private:
 };
 
 /**
-  CLASS Status_variable - Status variable derived from SHOW_VAR.
+  Status variable derived from @c SHOW_VAR.
 */
 class Status_variable
 {
@@ -249,8 +249,7 @@ private:
 };
 
 /**
-  CLASS Find_THD_variable - Get and lock a validated THD from the thread
-  manager.
+  Get and lock a validated @c THD from the thread manager.
 */
 class Find_THD_variable : public Find_THD_Impl
 {
@@ -274,7 +273,7 @@ private:
 };
 
 /**
-  CLASS PFS_variable_cache - Base class for a system or status variable cache.
+  Base class for a system or status variable cache.
 */
 template <class Var_type>
 class PFS_variable_cache
@@ -526,7 +525,7 @@ protected:
 };
 
 /**
-  Required implementation for pure virtual destructor of a template class.
+  Destructor.
 */
 template <class Var_type>
 PFS_variable_cache<Var_type>::~PFS_variable_cache()
@@ -697,7 +696,7 @@ PFS_variable_cache<Var_type>::materialize_session(PFS_thread *pfs_thread,
 }
 
 /**
-  CLASS PFS_system_variable_cache - System variable cache.
+  System variable cache.
 */
 class PFS_system_variable_cache : public PFS_variable_cache<System_variable>
 {
@@ -749,7 +748,7 @@ protected:
 };
 
 /**
-  CLASS PFS_system_variable_info_cache - System variable info cache.
+  System variable info cache.
 */
 class PFS_system_variable_info_cache : public PFS_system_variable_cache
 {
@@ -768,7 +767,7 @@ private:
 };
 
 /**
-  CLASS PFS_system_persisted_variables_cache - Persisted variables cache.
+  Persisted variables cache.
 */
 class PFS_system_persisted_variables_cache : public PFS_system_variable_cache
 {
@@ -787,7 +786,7 @@ private:
 };
 
 /**
-  CLASS PFS_status_variable_cache - Status variable cache
+  Status variable cache
 */
 class PFS_status_variable_cache : public PFS_variable_cache<Status_variable>
 {

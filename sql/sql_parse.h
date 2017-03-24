@@ -21,6 +21,7 @@
 
 #include "handler.h"                 // enum_schema_tables
 #include "key.h"
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_command.h"
 #include "my_sqlcommand.h"
@@ -242,14 +243,31 @@ bool execute_show(THD *thd, TABLE_LIST *all_tables);
   @note This is necessary to prevent InnoDB from automatically committing
         InnoDB transaction each time data-dictionary tables are closed
         after being updated.
+
+  @note This is also necessary for ACL DDL, so the code which
+        saves GTID state or slave state in the system tables at the
+        commit time works correctly. This code does statement commit
+        on low-level (see System_table_access:: close_table()) and
+        thus can pre-maturely commit DDL if @@autocommit=1.
 */
 #define CF_NEEDS_AUTOCOMMIT_OFF   (1U << 17)
-
 
 /**
   Identifies statements which can return rows of data columns (SELECT, SHOW ...)
 */
 #define CF_HAS_RESULT_SET         (1U << 18)
+
+/**
+  Identifies DDL statements which can be atomic.
+  Having the bit ON does not yet define an atomic.
+  The property is used both on the master and slave.
+  On the master atomicity infers the binlog and gtid_executed system table.
+  On the slave it more involves the slave info table.
+
+  @note At the momemnt of declaration the covered DDL subset coincides
+        with the of CF_NEEDS_AUTOCOMMIT_OFF.
+*/
+#define CF_POTENTIAL_ATOMIC_DDL   (1U << 19)
 
 /* Bits in server_command_flags */
 

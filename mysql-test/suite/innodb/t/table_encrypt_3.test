@@ -1,6 +1,9 @@
 # InnoDB transparent encrypted tablespace
 # This test case will test basic encryption support features.
 
+# WL#7554: Added setting --bootstrap --character-set-server=latin1
+# in the opt file. This test should be migrated to utf8mb4.
+
 --source include/no_valgrind_without_big.inc
 --source include/not_embedded.inc
 --source include/have_innodb_max_16k.inc
@@ -569,9 +572,9 @@ disconnect con1;
 connect (con2,localhost,encryptnonprivuser,'noauth',);
 SELECT CURRENT_USER();
 SELECT c1,c2,right(c3, 20) FROM tde_db.t_encrypt LIMIT 10;
---error 1227
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CREATE TABLE tde_db.t_encrypt_np(c1 INT, c2 char(20), c3 BLOB) ENCRYPTION="Y" ENGINE = InnoDB;
 SELECT c1,c2,right(c3, 20) FROM tde_db.t_encrypt LIMIT 10;
 disconnect con2;
@@ -745,6 +748,25 @@ SELECT c2,RIGHT(c3,20),c4 FROM tde_db.t_encrypt LIMIT 10;
 SELECT c2,RIGHT(c3,20),c4 FROM tde_db.t_encrypt WHERE c2 > 500 AND c2 < 600;
 SELECT c2,RIGHT(c3,20),c4 FROM tde_db.t_encrypt ORDER BY c2 DESC LIMIT 10;
 DROP DATABASE tde_db;
+
+--echo # Global privilege ENCRYPTION_KEY_ADMIN can replace super.
+connection default;
+USE test;
+CREATE USER encryption_admin@localhost IDENTIFIED BY 'foo';
+GRANT ENCRYPTION_KEY_ADMIN, CREATE ON *.* TO encryption_admin@localhost;
+connect (con10,localhost,encryption_admin,foo,test); 
+# Create a table with encryption
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+connection default;
+REVOKE ENCRYPTION_KEY_ADMIN ON *.* FROM encryption_admin@localhost;
+connection con10;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+connection default;
+disconnect con10;
+DROP USER encryption_admin@localhost;
+DROP TABLE t1;
 
 # Normal restart
 --disable_query_log

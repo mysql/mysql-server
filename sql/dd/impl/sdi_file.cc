@@ -31,6 +31,7 @@
 #include "dd/types/schema.h"        // dd::Schema
 #include "dd/types/table.h"         // dd::Table
 #include "handler.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -188,7 +189,7 @@ make_dir_pattern_tuple(const LEX_STRING &path, const LEX_CSTRING &schema_name)
 }
 
 
-bool expand_sdi_pattern(THD *thd, const Dir_pat_tuple &dpt,
+bool expand_sdi_pattern(const Dir_pat_tuple &dpt,
                         dd::sdi_file::Paths_type *paths)
 {
   const char *dir_beg= dpt.dir.c_str();
@@ -292,12 +293,12 @@ String_type sdi_filename(const dd::Entity_object *eo,
   return String_type(path);
 }
 
-bool store(THD *thd, const MYSQL_LEX_CSTRING &sdi, const dd::Schema *schema)
+bool store(THD*, const MYSQL_LEX_CSTRING &sdi, const dd::Schema *schema)
 {
   return checked_return(write_sdi_file(sdi_filename(schema, ""), sdi));
 }
 
-bool store(THD *thd, handlerton*, const MYSQL_LEX_CSTRING &sdi, const dd::Table *table,
+bool store(THD*, handlerton*, const MYSQL_LEX_CSTRING &sdi, const dd::Table *table,
            const dd::Schema *schema)
 {
   return checked_return(write_sdi_file(sdi_filename(table,
@@ -326,20 +327,20 @@ static bool remove_sdi_file_if_exists(const String_type &fname)
   return checked_return(remove(fname));
 }
 
-bool remove(THD *thd, const dd::Schema *schema)
+bool remove(THD*, const dd::Schema *schema)
 {
   String_type sdi_fname= sdi_filename(schema, "");
   return checked_return(remove_sdi_file_if_exists(sdi_fname));
 }
 
-bool remove(THD *thd, handlerton*, const dd::Table *table,
+bool remove(THD*, handlerton*, const dd::Table *table,
             const dd::Schema *schema)
 {
   String_type sdi_fname= sdi_filename(table, schema->name());
   return checked_return(remove_sdi_file_if_exists(sdi_fname));
 }
 
-bool load(THD *thd, const dd::String_type &fname,
+bool load(THD*, const dd::String_type &fname,
           dd::String_type *buf)
 {
   File sdi_fd= mysql_file_open(key_file_sdi, fname.c_str(), O_RDONLY,
@@ -378,7 +379,7 @@ bool load(THD *thd, const dd::String_type &fname,
 bool expand_pattern(THD *thd, const LEX_STRING &pattern, Paths_type *paths)
 {
   auto dpt= make_dir_pattern_tuple(pattern, thd->db());
-  if (expand_sdi_pattern(thd, dpt, paths))
+  if (expand_sdi_pattern(dpt, paths))
   {
     return true;
   }

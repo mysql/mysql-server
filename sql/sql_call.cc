@@ -26,6 +26,7 @@
 #include "auth_acls.h"
 #include "auth_common.h"        // check_routine_access, check_table_access
 #include "item.h"               // class Item
+#include "lex_string.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

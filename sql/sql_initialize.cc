@@ -61,14 +61,26 @@ static const char *initialization_data[] =
   NULL
 };
 
+static const char *session_service_initialization_data[] =
+{
+  "CREATE USER 'mysql.session_user'@localhost IDENTIFIED "
+    "WITH mysql_native_password AS '*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE' "
+    "ACCOUNT LOCK;\n",
+  "REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysql.session_user'@localhost;\n",
+  "GRANT SELECT ON mysql.user TO 'mysql.session_user'@localhost;\n",
+  "GRANT SELECT ON performance_schema.* TO 'mysql.session_user'@localhost;\n",
+  "GRANT SUPER ON *.* TO 'mysql.session_user'@localhost;\n",
+  NULL
+};
 
-static const char** cmds[]= 
+static const char** cmds[]=
 {
   initialization_cmds,
   mysql_system_tables,
   initialization_data,
   mysql_system_data,
   fill_help_tables,
+  session_service_initialization_data,
   mysql_sys_schema,
   NULL
 };
@@ -81,6 +93,7 @@ static const char *cmd_descs[]=
   "Filling in the system tables, part 1",
   "Filling in the system tables, part 2",
   "Filling in the mysql.help table",
+  "Creating user for internal session service",
   "Creating the sys schema",
   NULL
 };

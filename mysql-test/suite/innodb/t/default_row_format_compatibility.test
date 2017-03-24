@@ -1,14 +1,3 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs42=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
-use test;
---enable_query_log
-########################################
-
 # *******************************************************************
 # Case 1 :
 # To test, ROW_FORMAT functionality of Intrinsic Temporary tables
@@ -34,6 +23,16 @@ let $MYSQLD_DATADIR = `SELECT @@datadir`;
 # The following tescases works with page_size=16k only
 --source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs42=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
 
 # Check storage engine InnoDB
 SELECT @@internal_tmp_disk_storage_engine;
@@ -223,7 +222,6 @@ DROP TABLE tab;
 ########################################
 ##### WL#7554 set schema `test` back to what it was
 --disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs42;
+--eval alter schema test default character set $testdbcs42;
 --enable_query_log
 ########################################

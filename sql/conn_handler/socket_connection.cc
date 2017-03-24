@@ -80,7 +80,7 @@ ulong Mysqld_socket_listener::connection_errors_accept= 0;
 ulong Mysqld_socket_listener::connection_errors_tcpwrap= 0;
 
 ///////////////////////////////////////////////////////////////////////////
-// Channel_info_local_socket implementation
+//Channel_info_local_socket implementation
 ///////////////////////////////////////////////////////////////////////////
 
 /**
@@ -398,7 +398,7 @@ public:
       returned by getaddrinfo();
     */
 
-    struct addrinfo *a;
+    struct addrinfo *a= nullptr;
     MYSQL_SOCKET listener_socket= create_socket(ai, AF_INET, &a);
 
     if (mysql_socket_getfd(listener_socket) == INVALID_SOCKET)

@@ -268,8 +268,7 @@ int channel_create(const char* channel,
   /* create a new channel if doesn't exist */
   if (!mi)
   {
-    if ((error= add_new_channel(&mi, channel,
-                                channel_info->type)))
+    if ((error= add_new_channel(&mi, channel)))
         goto err;
   }
 
@@ -710,16 +709,17 @@ long long channel_get_last_delivered_gno(const char* channel, int sidno)
   mi->channel_rdlock();
   rpl_gno last_gno= 0;
 
-  global_sid_lock->rdlock();
+  Checkable_rwlock *sid_lock= mi->rli->get_sid_lock();
+  sid_lock->rdlock();
   last_gno= mi->rli->get_gtid_set()->get_last_gno(sidno);
-  global_sid_lock->unlock();
+  sid_lock->unlock();
 
 #if !defined(DBUG_OFF)
   const Gtid_set *retrieved_gtid_set= mi->rli->get_gtid_set();
   char *retrieved_gtid_set_string= NULL;
-  global_sid_lock->wrlock();
+  sid_lock->wrlock();
   retrieved_gtid_set->to_string(&retrieved_gtid_set_string);
-  global_sid_lock->unlock();
+  sid_lock->unlock();
   DBUG_PRINT("info", ("get_last_delivered_gno retrieved_set_string: %s",
                       retrieved_gtid_set_string));
   my_free(retrieved_gtid_set_string);
@@ -773,7 +773,7 @@ int channel_queue_packet(const char* channel,
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
-  result= queue_event(mi, buf, event_len);
+  result= queue_event(mi, buf, event_len, false/*flush_master_info*/);
 
   channel_map.unlock();
 
@@ -798,8 +798,22 @@ int channel_wait_until_apply_queue_applied(const char* channel,
   mi->inc_reference();
   channel_map.unlock();
 
-  int error = mi->rli->wait_for_gtid_set(current_thd, mi->rli->get_gtid_set(),
+  /*
+    The retrieved_gtid_set (rli->get_gtid_set) has its own sid_map/sid_lock
+    and do not use global_sid_map/global_sid_lock. Instead of blocking both
+    sid locks on each wait iteration at rli->wait_for_gtid_set(Gtid_set), it
+    would be better to use rli->wait_for_gtid_set(char *) that will create a
+    new Gtid_set based on global_sid_map.
+  */
+  char *retrieved_gtid_set_buf;
+  mi->rli->get_sid_lock()->wrlock();
+  mi->rli->get_gtid_set()->to_string(&retrieved_gtid_set_buf);
+  mi->rli->get_sid_lock()->unlock();
+
+  int error = mi->rli->wait_for_gtid_set(current_thd,
+                                         retrieved_gtid_set_buf,
                                          timeout);
+  my_free(retrieved_gtid_set_buf);
   mi->dec_reference();
 
   if (error == -1)
@@ -867,7 +881,7 @@ end:
 int channel_is_applier_thread_waiting(unsigned long thread_id, bool worker)
 {
   DBUG_ENTER("channel_is_applier_thread_waiting(thread_id, worker)");
-  bool result= -1;
+  int result= -1;
 
   Find_thd_with_id find_thd_with_id(thread_id);
   THD *thd= Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);

@@ -842,7 +842,7 @@ Group_member_info_manager_message::encode_payload(std::vector<unsigned char>* bu
 
 void
 Group_member_info_manager_message::decode_payload(const unsigned char* buffer,
-                                                  const unsigned char* end)
+                                                  const unsigned char*)
 {
   DBUG_ENTER("Group_member_info_manager_message::decode_payload");
   const unsigned char *slider= buffer;

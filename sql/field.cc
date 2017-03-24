@@ -3548,7 +3548,8 @@ int Field_tiny::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-size_t Field_tiny::make_sort_key(uchar *to, size_t length)
+size_t Field_tiny::make_sort_key(uchar *to,
+                                 size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 1);
   if (unsigned_flag)
@@ -3786,7 +3787,8 @@ int Field_short::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-size_t Field_short::make_sort_key(uchar *to, size_t length)
+size_t Field_short::make_sort_key(uchar *to,
+                                  size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 2);
 #ifdef WORDS_BIGENDIAN
@@ -3994,7 +3996,8 @@ int Field_medium::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-size_t Field_medium::make_sort_key(uchar *to, size_t length)
+size_t Field_medium::make_sort_key(uchar *to,
+                                   size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 3);
   if (unsigned_flag)
@@ -4243,7 +4246,8 @@ int Field_long::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-size_t Field_long::make_sort_key(uchar *to, size_t length)
+size_t Field_long::make_sort_key(uchar *to,
+                                 size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 4);
 #ifdef WORDS_BIGENDIAN
@@ -5828,7 +5832,8 @@ int Field_timestamp::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-size_t Field_timestamp::make_sort_key(uchar *to, size_t length)
+size_t Field_timestamp::make_sort_key(uchar *to,
+                                      size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 4);
 #ifdef WORDS_BIGENDIAN
@@ -6220,7 +6225,8 @@ int Field_time::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-size_t Field_time::make_sort_key(uchar *to, size_t length)
+size_t Field_time::make_sort_key(uchar *to,
+                                 size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 3);
   to[0] = (uchar) (ptr[2] ^ 128);
@@ -6630,7 +6636,8 @@ int Field_newdate::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-size_t Field_newdate::make_sort_key(uchar *to, size_t length)
+size_t Field_newdate::make_sort_key(uchar *to,
+                                    size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 3);
   to[0] = ptr[2];
@@ -7302,6 +7309,20 @@ int Field_string::cmp(const uchar *a_ptr, const uchar *b_ptr)
   }
   else
     a_len= b_len= field_length;
+
+  if (field_charset->pad_attribute == NO_PAD &&
+      !(table->in_use->variables.sql_mode & MODE_PAD_CHAR_TO_FULL_LENGTH))
+  {
+    /*
+      Our CHAR default behavior is to strip spaces. For PAD SPACE collations,
+      this doesn't matter, for but NO PAD, we need to do it ourselves here.
+    */
+    a_len= field_charset->cset->lengthsp(
+      field_charset, (const char*) a_ptr, a_len);
+    b_len= field_charset->cset->lengthsp(
+      field_charset, (const char*) b_ptr, b_len);
+  }
+
   return field_charset->coll->strnncollsp(field_charset,
                                           a_ptr, a_len,
                                           b_ptr, b_len);
@@ -7315,16 +7336,29 @@ size_t Field_string::make_sort_key(uchar *to, size_t length)
     Find out by calling charpos, since just using field_length
     could give strnxfrm a buffer with more than char_length() code
     points, which is not allowed.
+
+    The min() is because charpos() is allowed to return a value past
+    the end of the string for “end of string”.
   */
   size_t input_length= std::min<size_t>(field_length,
     field_charset->cset->charpos(field_charset, pointer_cast<const char *>(ptr),
       pointer_cast<const char *>(ptr) + field_length, char_length()));
 
+  if (field_charset->pad_attribute == NO_PAD &&
+      !(table->in_use->variables.sql_mode & MODE_PAD_CHAR_TO_FULL_LENGTH))
+  {
+    /*
+      Our CHAR default behavior is to strip spaces. For PAD SPACE collations,
+      this doesn't matter, for but NO PAD, we need to do it ourselves here.
+    */
+    input_length= field_charset->cset->lengthsp(
+      field_charset, (const char*) ptr, input_length);
+  }
+
   size_t tmp MY_ATTRIBUTE((unused))=
     field_charset->coll->strnxfrm(field_charset,
                                   to, length, char_length(),
                                   ptr, input_length,
-                                  MY_STRXFRM_PAD_WITH_SPACE |
                                   MY_STRXFRM_PAD_TO_MAXLEN);
   DBUG_ASSERT(tmp == length);
   return length;
@@ -7759,21 +7793,21 @@ size_t Field_varstring::make_sort_key(uchar *to, size_t length)
   size_t orig_length= length;
   size_t tot_length=  length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
 
-  if (field_charset == &my_charset_bin)
+  if (field_charset->pad_attribute == NO_PAD)
   {
-    /* Store length last in high-byte order to sort longer strings first */
-    if (length_bytes == 1)
-      to[length-1]= tot_length;
-    else
-      mi_int2store(to+length-2, tot_length);
-    length-= length_bytes;
+    /*
+      Store length last in high-byte order to sort longer strings first.
+      Note that we always store two bytes, since otherwise, we would be
+      breaking the invariant that strnxfrm needs an even number of bytes.
+    */
+    mi_int2store(to + length - 2, tot_length);
+    length-= 2;
   }
  
   tot_length= field_charset->coll->strnxfrm(field_charset,
                                             to, length, length,
                                             ptr + length_bytes,
                                             tot_length,
-                                            MY_STRXFRM_PAD_WITH_SPACE |
                                             MY_STRXFRM_PAD_TO_MAXLEN);
   DBUG_ASSERT(tot_length == length);
   return orig_length;
@@ -8452,8 +8486,9 @@ int Field_blob::do_save_field_metadata(uchar *metadata_ptr)
 
 uint32 Field_blob::sort_length() const
 {
+  // TODO: Isn't the conditional here inverted?
   return (uint32) (current_thd->variables.max_sort_length + 
-                   (field_charset == &my_charset_bin ? 0 : packlength));
+                   (field_charset->pad_attribute == NO_PAD ? 0 : packlength));
 }
 
 
@@ -8467,15 +8502,13 @@ size_t Field_blob::make_sort_key(uchar *to, size_t length)
     memset(to, 0, length);
   else
   {
-    if (field_charset == &my_charset_bin)
+    if (field_charset->pad_attribute == NO_PAD)
     {
-      uchar *pos;
-
       /*
         Store length of blob last in blob to shorter blobs before longer blobs
       */
       length-= packlength;
-      pos= to+length;
+      uchar *pos= to+length;
 
       switch (packlength) {
       case 1:
@@ -8491,13 +8524,18 @@ size_t Field_blob::make_sort_key(uchar *to, size_t length)
         mi_int4store(pos, blob_length);
         break;
       }
+
+      // Heed the contract that strnxfrm needs an even number of bytes.
+      if ((length % 2) == 1)
+      {
+        to[--length] = 0;
+      }
     }
     memcpy(&blob, ptr+packlength, sizeof(char*));
     
     blob_length= field_charset->coll->strnxfrm(field_charset,
                                                to, length, length,
                                                blob, blob_length,
-                                               MY_STRXFRM_PAD_WITH_SPACE |
                                                MY_STRXFRM_PAD_TO_MAXLEN);
     DBUG_ASSERT(blob_length == length);
   }
@@ -8560,7 +8598,6 @@ uchar *Field_blob::pack(uchar *to, const uchar *from,
    simply is used as a pass-through to the original unpack() method for
    blob fields.
 
-   @param   to         Destination of the data
    @param   from       Source of the data
    @param   param_data @c TRUE if base types should be stored in little-
                        endian format, @c FALSE if native format should
@@ -8570,15 +8607,15 @@ uchar *Field_blob::pack(uchar *to, const uchar *from,
 
    @return  New pointer into memory based on from + length of the data
 */
-const uchar *Field_blob::unpack(uchar *to, 
+const uchar *Field_blob::unpack(uchar*,
                                 const uchar *from,
                                 uint param_data,
                                 bool low_byte_first)
 {
   DBUG_ENTER("Field_blob::unpack");
-  DBUG_PRINT("enter", ("to: %p; from: %p;"
+  DBUG_PRINT("enter", ("from: %p;"
                        " param_data: %u; low_byte_first: %d",
-                       to, from, param_data, low_byte_first));
+                       from, param_data, low_byte_first));
   uint const master_packlength=
     param_data > 0 ? param_data & 0xFF : packlength;
   uint32 const length= get_length(from, master_packlength, low_byte_first);
@@ -9105,6 +9142,14 @@ ulonglong Field_json::make_hash_key(ulonglong *hash_val)
   if (val_json(&wr))
     return *hash_val;                         /* purecov: inspected */
   return wr.make_hash_key(hash_val);
+}
+
+
+const char *Field_json::get_binary()
+{
+  String tmp;
+  String *s= Field_blob::val_str(&tmp, &tmp);
+  return s->ptr();
 }
 
 
@@ -10322,9 +10367,15 @@ void Create_field::create_length_to_internal_length(void)
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VARCHAR:
-    length*= charset->mbmaxlen;
-    key_length= length;
-    pack_length= calc_pack_length(sql_type, length);
+    {
+      const ulonglong ull_length=
+        static_cast<ulonglong>(length) *
+        static_cast<ulonglong>(charset->mbmaxlen);
+      length= static_cast<size_t>(std::min<ulonglong>(ull_length, 
+                                                      MAX_FIELD_BLOBLENGTH));
+      key_length= length;
+      pack_length= calc_pack_length(sql_type, length);
+    }
     break;
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
@@ -10372,7 +10423,6 @@ void Create_field::create_length_to_internal_length(void)
         Field::key_length() is probably overkill.
 */
 
-/* purecov: begin deadcode */
 uint32 calc_key_length(enum_field_types sql_type, uint32 length,
                        uint32 decimals, bool is_unsigned, uint32 elements)
 {
@@ -10382,8 +10432,8 @@ uint32 calc_key_length(enum_field_types sql_type, uint32 length,
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_GEOMETRY:
-  case MYSQL_TYPE_VAR_STRING:
-  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_JSON:
+    return 0;
   case MYSQL_TYPE_VARCHAR:
     return length;
   case MYSQL_TYPE_ENUM:
@@ -10401,7 +10451,6 @@ uint32 calc_key_length(enum_field_types sql_type, uint32 length,
     return calc_pack_length(sql_type, length);
   }
 }
-/* purecov: end */
 
 
 /**
@@ -10636,12 +10685,13 @@ bool Create_field::init(THD *thd, const char *fld_name,
   if (fld_length != NULL)
   {
     errno= 0;
-    length= strtoul(fld_length, NULL, 10);
-    if ((errno != 0) || (length > MAX_FIELD_BLOBLENGTH))
+    const ulonglong ull_length= my_strtoull(fld_length, NULL, 10);
+    if ((errno != 0) || (ull_length > MAX_FIELD_BLOBLENGTH))
     {
       my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name, MAX_FIELD_BLOBLENGTH);
       DBUG_RETURN(TRUE);
     }
+    length= static_cast<size_t>(ull_length);
 
     if (length == 0)
       fld_length= NULL; /* purecov: inspected */
@@ -10828,7 +10878,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
   case MYSQL_TYPE_DATE:
     /* Old date type. */
     sql_type= MYSQL_TYPE_NEWDATE;
-    /* fall trough */
+    /* fall through */
   case MYSQL_TYPE_NEWDATE:
     length= MAX_DATE_WIDTH;
     break;
@@ -11249,6 +11299,13 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
 {
 
   switch (sql_type) {
+  case MYSQL_TYPE_JSON:
+    /*
+      Divide by four here, so we can multiply by four in
+      create_length_to_internal_length()
+     */
+    length/= charset->mbmaxlen;
+    break;
   case MYSQL_TYPE_BLOB:
     sql_type= blob_type_from_pack_length(pack_length - portable_sizeof_char_ptr);
     length/= charset->mbmaxlen;

@@ -7968,6 +7968,18 @@ ER_WARN_INVALID_HINT
 ER_VAR_DOES_NOT_EXIST
   eng "Variable %s does not exist in persisted config file"
 
+ER_LONGITUDE_OUT_OF_RANGE 22S02
+  eng "Longitude %f is out of range in function %.192s. It must be within (%f, %f]."
+
+ER_LATITUDE_OUT_OF_RANGE 22S03
+  eng "Latitude %f is out of range in function %.192s. It must be within [%f, %f]."
+
+ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS 22S00
+  eng "%.192s(%.40s, %.40s) has not been implemented for geographic spatial reference systems."
+
+ER_ILLEGAL_PRIVILEGE_LEVEL
+  eng "Illegal privilege level specified for %s"
+
 #
 #  End of 8.0 error messages.
 #

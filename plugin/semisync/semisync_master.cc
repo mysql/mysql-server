@@ -1230,7 +1230,7 @@ int ReplSemiSyncMaster::skipSlaveReply(const char *event_buf,
   return function_exit(kWho, 0);
 }
 
-int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,
+int ReplSemiSyncMaster::readSlaveReply(NET *net,
                                        const char *event_buf)
 {
   const char *kWho = "ReplSemiSyncMaster::readSlaveReply";

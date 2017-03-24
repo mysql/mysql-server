@@ -268,6 +268,8 @@ my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
 my $opt_port_base= $ENV{'MTR_PORT_BASE'} || "auto";
 my $build_thread= 0;
 
+my $previous_test_had_bootstrap_opts = 0;
+
 my $ports_per_thread= 10;
 our $group_replication= 0;
 our $xplugin= 0;
@@ -4020,6 +4022,13 @@ sub mysql_install_db {
     mtr_tofile($bootstrap_sql_file, "DROP DATABASE sys;\n");
   }
 
+  #Update table with better values making it easier to restore when changed
+  mtr_tofile($bootstrap_sql_file,
+             "UPDATE mysql.tables_priv SET
+               timestamp = CURRENT_TIMESTAMP,
+               Grantor= 'root\@localhost'
+               WHERE USER= 'mysql.session_user';\n");
+
   # Make sure no anonymous accounts exists as a safety precaution
   mtr_tofile($bootstrap_sql_file,
 	     "DELETE FROM mysql.user where user= '';\n");
@@ -4586,9 +4595,13 @@ sub run_testcase ($) {
   $ENV{'TZ'}= $timezone;
   mtr_verbose("Setting timezone: $timezone");
 
-  # If there are bootstrap options in the opt file, add them
-  $tinfo->{bootstrap_master_opt}= find_bootstrap_opts($tinfo->{master_opt});
-  $tinfo->{bootstrap_slave_opt}= find_bootstrap_opts($tinfo->{slave_opt});
+  # If there are bootstrap options in the opt file, add them. On retry,
+  # bootstrap_master_opt will already be set, so do not call
+  # find_bootstrap_opts again.
+  $tinfo->{bootstrap_master_opt}= find_bootstrap_opts($tinfo->{master_opt})
+    if (!$tinfo->{bootstrap_master_opt});
+  $tinfo->{bootstrap_slave_opt}= find_bootstrap_opts($tinfo->{slave_opt})
+    if (!$tinfo->{bootstrap_slave_opt});
 
   # The keyword "--bootstrap" is passed in the opt file to identify
   # the bootstrap variables. Remove this keyword before sending
@@ -6569,7 +6582,19 @@ sub start_servers($) {
                         $tinfo->{bootstrap_slave_opt} :
                         $tinfo->{bootstrap_master_opt});
 
-    if ($bootstrap_opts)
+    my $clean_datadir = 0;
+    if ($bootstrap_opts) 
+      {
+	$clean_datadir = 1;
+	$previous_test_had_bootstrap_opts=1;
+      }
+    elsif ($previous_test_had_bootstrap_opts)
+      {
+	$clean_datadir = 1;
+	$previous_test_had_bootstrap_opts = 0;
+      }
+
+    if ($clean_datadir)
     {
       clean_dir($datadir);
       mysql_install_db($mysqld, $datadir, $bootstrap_opts);

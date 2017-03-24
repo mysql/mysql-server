@@ -65,7 +65,7 @@ WHERE cost_name="row_evaluate_cost";
 # 2. Insert a new cost constant
 #
 INSERT INTO mysql.server_cost
-VALUES ("lunch_cost", DEFAULT, CURRENT_TIMESTAMP, "Lunch is important");
+VALUES ("lunch_cost", DEFAULT, CURRENT_TIMESTAMP, "Lunch is important", DEFAULT);
 
 --replace_column 3 #
 SELECT * FROM mysql.server_cost;
@@ -78,7 +78,7 @@ WHERE cost_name="lunch_cost";
 #
 --error ER_DUP_ENTRY
 INSERT INTO mysql.server_cost
-VALUES ("row_evaluate_cost", DEFAULT, CURRENT_TIMESTAMP, "Faster CPU");
+VALUES ("row_evaluate_cost", DEFAULT, CURRENT_TIMESTAMP, "Faster CPU", DEFAULT);
 
 #
 # 4. Insert an entry with the same name as an existing cost constant
@@ -86,7 +86,7 @@ VALUES ("row_evaluate_cost", DEFAULT, CURRENT_TIMESTAMP, "Faster CPU");
 #
 --error ER_DUP_ENTRY
 INSERT INTO mysql.server_cost
-VALUES ("ROW_EVALUATE_COST", DEFAULT, CURRENT_TIMESTAMP, "Faster CPU");
+VALUES ("ROW_EVALUATE_COST", DEFAULT, CURRENT_TIMESTAMP, "Faster CPU", DEFAULT);
 
 --replace_column 3 #
 SELECT * FROM mysql.server_cost;
@@ -120,8 +120,8 @@ WHERE cost_name="io_block_read_cost";
 # 2. Insert some new cost constant
 #
 INSERT INTO mysql.engine_cost
-VALUES ("InnoDB", 2, "lunch_cost1", DEFAULT, CURRENT_TIMESTAMP, "Lunch 1"),
-       ("InnoDB", 2, "lunch_cost2", DEFAULT, CURRENT_TIMESTAMP, "Lunch 2");
+VALUES ("InnoDB", 2, "lunch_cost1", DEFAULT, CURRENT_TIMESTAMP, "Lunch 1", DEFAULT),
+       ("InnoDB", 2, "lunch_cost2", DEFAULT, CURRENT_TIMESTAMP, "Lunch 2", DEFAULT);
 
 --replace_column 5 #
 SELECT * FROM mysql.engine_cost;
@@ -134,11 +134,11 @@ WHERE cost_name LIKE "lunch_cost%";
 #    (this should fail due to the primary key)
 #
 INSERT INTO mysql.engine_cost
-VALUES ("default", 0, "lunch_cost", DEFAULT, CURRENT_TIMESTAMP, "Lunch");
+VALUES ("default", 0, "lunch_cost", DEFAULT, CURRENT_TIMESTAMP, "Lunch", DEFAULT);
 
 --error ER_DUP_ENTRY
 INSERT INTO mysql.engine_cost
-VALUES ("default", 0, "lunch_cost", DEFAULT, CURRENT_TIMESTAMP, "Lunch");
+VALUES ("default", 0, "lunch_cost", DEFAULT, CURRENT_TIMESTAMP, "Lunch", DEFAULT);
 
 --replace_column 5 #
 SELECT * FROM mysql.engine_cost;
@@ -155,7 +155,7 @@ WHERE cost_name="lunch_cost";
 --error ER_DUP_ENTRY
 INSERT INTO mysql.engine_cost
 VALUES ("default", 0, "IO_BLOCK_READ_COST", DEFAULT, CURRENT_TIMESTAMP,
-        "Lunch");
+        "Lunch", DEFAULT);
 
 --replace_column 5 #
 SELECT * FROM mysql.engine_cost;
@@ -226,3 +226,17 @@ SET cost_value=DEFAULT
 WHERE cost_name="io_block_read_cost";
 
 DROP TABLE server_cost_tmp, engine_cost_tmp;
+
+--echo
+--echo WL#10128:  Add defaults column to optimizer cost tables
+--echo
+
+--echo Verify that default values are defined for all cost constants
+SELECT COUNT(*) FROM mysql.server_cost WHERE default_value IS NULL;
+SELECT COUNT(*) FROM mysql.engine_cost WHERE default_value IS NULL;
+
+--echo Verify that default_value columns can not be updated
+--error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
+UPDATE mysql.server_cost SET default_value = 1.0;
+--error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
+UPDATE mysql.engine_cost SET default_value = 1.0;

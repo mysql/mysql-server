@@ -37,8 +37,8 @@
 #include "xpl_error.h"
 #include "xpl_log.h"
 #include "xpl_regex.h"
+#include "xpl_resultset.h"
 #include "xpl_server.h"
-#include "xpl_session.h"
 
 
 namespace
@@ -153,7 +153,7 @@ ngs::Error_code xpl::Admin_command_handler::ping(Command_arguments &args)
   if (error)
     return error;
 
-  m_da.proto().send_exec_ok();
+  m_session.proto().send_exec_ok();
   return ngs::Success();
 }
 
@@ -174,7 +174,7 @@ struct Client_data_
 
 
 void get_client_data(std::vector<Client_data_> &clients_data, xpl::Session &requesting_session,
-                     xpl::Sql_data_context &da, ngs::Client_ptr &client)
+                     ngs::Sql_session_interface &da, ngs::Client_ptr &client)
 {
   ngs::shared_ptr<xpl::Session> session(ngs::static_pointer_cast<xpl::Session>(client->session()));
   Client_data_ c;
@@ -236,7 +236,7 @@ ngs::Error_code xpl::Admin_command_handler::list_clients(Command_arguments &args
     }
   }
 
-  ngs::Protocol_encoder &proto(m_da.proto());
+  ngs::Protocol_encoder &proto(m_session.proto());
 
   proto.send_column_metadata("", "", "", "", "client_id", "", 0, Mysqlx::Resultset::ColumnMetaData::UINT, 0, 0, 0);
   proto.send_column_metadata("", "", "", "", "user", "", 0, Mysqlx::Resultset::ColumnMetaData::BYTES, 0, 0, 0);
@@ -294,7 +294,7 @@ ngs::Error_code xpl::Admin_command_handler::kill_client(Command_arguments &args)
   if (error)
     return error;
 
-  m_da.proto().send_exec_ok();
+  m_session.proto().send_exec_ok();
 
   return ngs::Success();
 }
@@ -302,7 +302,7 @@ ngs::Error_code xpl::Admin_command_handler::kill_client(Command_arguments &args)
 namespace
 {
 
-ngs::Error_code create_collection_impl(xpl::Sql_data_context &da, const std::string &schema, const std::string &name)
+ngs::Error_code create_collection_impl(ngs::Sql_session_interface &da, const std::string &schema, const std::string &name)
 {
   xpl::Query_string_builder qb;
   qb.put("CREATE TABLE ");
@@ -313,10 +313,10 @@ ngs::Error_code create_collection_impl(xpl::Sql_data_context &da, const std::str
          "_id VARCHAR(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY"
          ") CHARSET utf8mb4 ENGINE=InnoDB;");
 
-  xpl::Sql_data_context::Result_info info;
   const ngs::PFS_string &tmp(qb.get());
   log_debug("CreateCollection: %s", tmp.c_str());
-  return da.execute_sql_no_result(tmp.c_str(), tmp.length(), info);
+  xpl::Empty_resultset rset;
+  return da.execute(tmp.c_str(), tmp.length(), &rset);
 }
 
 } // namespace
@@ -346,7 +346,7 @@ ngs::Error_code xpl::Admin_command_handler::create_collection(Command_arguments 
   error = create_collection_impl(m_da, schema, collection);
   if (error)
     return error;
-  m_da.proto().send_exec_ok();
+  m_session.proto().send_exec_ok();
   return ngs::Success();
 }
 
@@ -427,35 +427,32 @@ std::string get_type_prefix(const std::string &prefix, int type_arg, int type_ar
 typedef std::list<std::vector<std::string> > String_fields_values;
 
 
-ngs::Error_code query_string_columns(xpl::Sql_data_context &da, const ngs::PFS_string &sql,
+ngs::Error_code query_string_columns(ngs::Sql_session_interface &da, const ngs::PFS_string &sql,
                                      std::vector<unsigned> &field_idxs, String_fields_values &ret_values)
 {
-  xpl::Buffering_command_delegate::Resultset r_rows;
-  std::vector<xpl::Command_delegate::Field_type> r_types;
-  xpl::Sql_data_context::Result_info r_info;
-
-  ngs::Error_code err = da.execute_sql_and_collect_results(sql.data(), sql.length(), r_types, r_rows, r_info);
+  xpl::Collect_resultset resultset;
+  ngs::Error_code err = da.execute(sql.data(), sql.length(), &resultset);
   if (err)
     return err;
 
+  const xpl::Collect_resultset::Field_types &r_types = resultset.get_field_types();
+
   ret_values.clear();
   size_t fields_number = field_idxs.size();
-  xpl::Buffering_command_delegate::Resultset::iterator it = r_rows.begin();
-  for (; it != r_rows.end(); ++it)
+  for (const xpl::Collect_resultset::Row &row : resultset.get_row_list())
   {
     ret_values.push_back(std::vector<std::string>(fields_number));
     for (size_t i = 0; i < field_idxs.size(); ++i)
     {
       unsigned field_idx = field_idxs[i];
 
-      xpl::Buffering_command_delegate::Row_data *row_data = &(*it);
-      if ((!row_data) || (row_data->fields.size() <= field_idx))
+      if (row.fields.size() <= field_idx)
       {
         log_error("query_string_columns failed: invalid row data");
         return ngs::Error(ER_INTERNAL_ERROR, "Error executing statement");
       }
 
-      xpl::Buffering_command_delegate::Field_value *field = row_data->fields[field_idx];
+      const xpl::Collect_resultset::Field *field = row.fields[field_idx];
       if (!field)
       {
         log_error("query_string_columns failed: missing row data");
@@ -489,7 +486,7 @@ bool name_is(const std::vector<std::string> &field, const std::string &name)
 
 
 ngs::Error_code remove_nonvirtual_column_names(const std::string &schema_name, const std::string &table_name,
-                                               String_fields_values &ret_column_names, xpl::Sql_data_context &da)
+                                               String_fields_values &ret_column_names, ngs::Sql_session_interface &da)
 {
   xpl::Query_string_builder qb;
   const unsigned FIELD_COLMN_IDX = 0;
@@ -535,7 +532,7 @@ ngs::Error_code remove_nonvirtual_column_names(const std::string &schema_name, c
 
 
 ngs::Error_code index_on_virtual_column_supported(const std::string &schema_name, const std::string &table_name,
-                                                  xpl::Sql_data_context &da, bool &r_supports)
+                                                  ngs::Sql_session_interface &da, bool &r_supports)
 {
   const unsigned CREATE_COLMN_IDX = 1;
   xpl::Query_string_builder qb;
@@ -577,22 +574,20 @@ ngs::Error_code index_on_virtual_column_supported(const std::string &schema_name
 
 
 bool table_column_exists(const std::string &schema_name, const std::string &table_name,
-                         const std::string &column_name, xpl::Sql_data_context &da, bool &r_exists)
+                         const std::string &column_name, ngs::Sql_session_interface &da, bool &r_exists)
 {
   xpl::Query_string_builder qb;
-  xpl::Buffering_command_delegate::Resultset r_rows;
-  std::vector<xpl::Command_delegate::Field_type> r_types;
-  xpl::Sql_data_context::Result_info r_info;
-
   qb.put("SHOW COLUMNS FROM ")
       .quote_identifier(schema_name).dot().quote_identifier(table_name)
       .put(" WHERE Field = ").quote_string(column_name);
 
-  ngs::Error_code err = da.execute_sql_and_collect_results(qb.get().data(), qb.get().length(), r_types, r_rows, r_info);
-  if (err)
+  xpl::Collect_resultset resultset;
+  ngs::Error_code error =
+      da.execute(qb.get().data(), qb.get().length(), &resultset);
+  if (error)
     return false;
 
-  r_exists = r_rows.size() > 0;
+  r_exists = resultset.get_row_list().size() > 0;
   return true;
 }
 
@@ -809,19 +804,21 @@ ngs::Error_code xpl::Admin_command_handler::create_collection_index(Command_argu
   }
   qb.put(")");
 
-  Sql_data_context::Result_info info;
   const ngs::PFS_string &tmp(qb.get());
   log_debug("CreateCollectionIndex: %s", tmp.c_str());
-  error = m_da.execute_sql_no_result(tmp.data(), tmp.length(), info);
+  Empty_resultset rset;
+  error = m_da.execute(tmp.data(), tmp.length(), &rset);
   if (error)
   {
     // if we're creating a NOT NULL generated index/column and get a NULL error, it's
     // because one of the existing documents had a NULL / unset value
     if (error.error == ER_BAD_NULL_ERROR && required)
-      return ngs::Error_code(ER_X_DOC_REQUIRED_FIELD_MISSING, "Collection contains document missing required field");
+      return ngs::Error_code(
+          ER_X_DOC_REQUIRED_FIELD_MISSING,
+          "Collection contains document missing required field");
     return error;
   }
-  m_da.proto().send_exec_ok();
+  m_session.proto().send_exec_ok();
   return ngs::Success();
 }
 
@@ -852,11 +849,11 @@ ngs::Error_code xpl::Admin_command_handler::drop_collection(Command_arguments &a
 
   const ngs::PFS_string &tmp(qb.get());
   log_debug("DropCollection: %s", tmp.c_str());
-  Sql_data_context::Result_info info;
-  error = m_da.execute_sql_no_result(tmp.data(), tmp.length(), info);
+  Empty_resultset rset;
+  error = m_da.execute(tmp.data(), tmp.length(), &rset);
   if (error)
     return error;
-  m_da.proto().send_exec_ok();
+  m_session.proto().send_exec_ok();
 
   return ngs::Success();
 }
@@ -866,7 +863,7 @@ namespace
 {
 
 ngs::Error_code get_index_virtual_column_names(const std::string &schema_name, const std::string &table_name, const std::string &index_name,
-                                               xpl::Sql_data_context &da, String_fields_values &ret_column_names)
+                                               ngs::Sql_session_interface &da, String_fields_values &ret_column_names)
 {
   const unsigned INDEX_NAME_COLUMN_IDX = 4;
   xpl::Query_string_builder qb;
@@ -889,9 +886,7 @@ ngs::Error_code get_index_virtual_column_names(const std::string &schema_name, c
   if (error)
     return error;
 
-  xpl::Buffering_command_delegate::Resultset r_rows;
-  std::vector<xpl::Command_delegate::Field_type> r_types;
-  xpl::Sql_data_context::Result_info r_info;
+  xpl::Collect_resultset resultset;
   String_fields_values::iterator it = ret_column_names.begin();
   while (it != ret_column_names.end())
   {
@@ -908,8 +903,8 @@ ngs::Error_code get_index_virtual_column_names(const std::string &schema_name, c
         .quote_identifier(schema_name).dot().quote_identifier(table_name)
         .put(" WHERE Key_name <> ").quote_string(index_name)
         .put(" AND Column_name = ").quote_string((*it)[0]);
-    da.execute_sql_and_collect_results(qb.get().data(), qb.get().length(), r_types, r_rows, r_info);
-    if (r_rows.size() > 0)
+    da.execute(qb.get().data(), qb.get().length(), &resultset);
+    if (resultset.get_row_list().size() > 0)
     {
       ret_column_names.erase(it++);
       continue;
@@ -978,12 +973,12 @@ ngs::Error_code xpl::Admin_command_handler::drop_collection_index(Command_argume
 
   const ngs::PFS_string &tmp(qb.get());
   log_debug("DropCollectionIndex: %s", tmp.c_str());
-  Sql_data_context::Result_info info;
-  error = m_da.execute_sql_no_result(tmp.data(), tmp.length(), info);
+  Empty_resultset rset;
+  error = m_da.execute(tmp.data(), tmp.length(), &rset);
   if (error)
     return error;
 
-  m_da.proto().send_exec_ok();
+  m_session.proto().send_exec_ok();
   return ngs::Success();
 }
 
@@ -1006,12 +1001,12 @@ inline bool is_fixed_notice_name(const std::string &notice)
 }
 
 
-inline void add_notice_row(xpl::Sql_data_context &da, const std::string &notice, longlong status)
+inline void add_notice_row(ngs::Protocol_encoder &proto, const std::string &notice, longlong status)
 {
-  da.proto().start_row();
-  da.proto().row_builder().add_string_field(notice.c_str(), notice.length(), NULL);
-  da.proto().row_builder().add_longlong_field(status, 0);
-  da.proto().send_row();
+  proto.start_row();
+  proto.row_builder().add_string_field(notice.c_str(), notice.length(), NULL);
+  proto.row_builder().add_longlong_field(status, 0);
+  proto.send_row();
 }
 
 } // namespace
@@ -1042,7 +1037,7 @@ ngs::Error_code xpl::Admin_command_handler::enable_notices(Command_arguments &ar
   if (enable_warnings)
     m_options.set_send_warnings(true);
 
-  m_da.proto().send_exec_ok();
+  m_session.proto().send_exec_ok();
   return ngs::Success();
 }
 
@@ -1074,7 +1069,7 @@ ngs::Error_code xpl::Admin_command_handler::disable_notices(Command_arguments &a
   if (disable_warnings)
     m_options.set_send_warnings(false);
 
-  m_da.proto().send_exec_ok();
+  m_session.proto().send_exec_ok();
   return ngs::Success();
 }
 
@@ -1093,30 +1088,30 @@ ngs::Error_code xpl::Admin_command_handler::list_notices(Command_arguments &args
   // notice | enabled
   // <name> | <1/0>
 
-  m_da.proto().send_column_metadata("", "", "", "", "notice", "", 0, Mysqlx::Resultset::ColumnMetaData::BYTES, 0, 0, 0);
-  m_da.proto().send_column_metadata("", "", "", "", "enabled", "", 0, Mysqlx::Resultset::ColumnMetaData::SINT, 0, 0, 0);
+  m_session.proto().send_column_metadata("", "", "", "", "notice", "", 0, Mysqlx::Resultset::ColumnMetaData::BYTES, 0, 0, 0);
+  m_session.proto().send_column_metadata("", "", "", "", "enabled", "", 0, Mysqlx::Resultset::ColumnMetaData::SINT, 0, 0, 0);
 
-  add_notice_row(m_da, "warnings", m_options.get_send_warnings() ? 1 : 0);
+  add_notice_row(m_session.proto(), "warnings", m_options.get_send_warnings() ? 1 : 0);
   for (const char* const *notice = fixed_notice_names; notice < fixed_notice_names_end; ++notice)
-    add_notice_row(m_da, *notice, 1);
+    add_notice_row(m_session.proto(), *notice, 1);
 
-  m_da.proto().send_result_fetch_done();
-  m_da.proto().send_exec_ok();
+  m_session.proto().send_result_fetch_done();
+  m_session.proto().send_exec_ok();
   return ngs::Success();
 }
 
 
 namespace
 {
-ngs::Error_code is_schema_selected_and_exists(xpl::Sql_data_context &da, const std::string &schema)
+ngs::Error_code is_schema_selected_and_exists(ngs::Sql_session_interface &da, const std::string &schema)
 {
   xpl::Query_string_builder qb;
   qb.put("SHOW TABLES");
   if (!schema.empty())
     qb.put(" FROM ").quote_identifier(schema);
 
-  xpl::Sql_data_context::Result_info info;
-  return da.execute_sql_no_result(qb.get().data(), qb.get().length(), info);
+  xpl::Empty_resultset rset;
+  return da.execute(qb.get().data(), qb.get().length(), &rset);
 }
 
 
@@ -1180,20 +1175,19 @@ ngs::Error_code xpl::Admin_command_handler::list_objects(Command_arguments &args
     qb.put(" AND T.table_name LIKE ").quote_string(pattern);
   qb.put(" GROUP BY name ORDER BY name");
 
-  Sql_data_context::Result_info info;
-  error = m_da.execute_sql_and_stream_results(qb.get().data(),
-                                              qb.get().length(), false, info);
+  Streaming_resultset resultset(&m_session.proto(), false);
+  error = m_da.execute(qb.get().data(),qb.get().length(), &resultset);
   if (error)
     return error;
 
-  m_da.proto().send_exec_ok();
+  m_session.proto().send_exec_ok();
   return ngs::Success();
 }
 
 
 namespace
 {
-bool is_collection(xpl::Sql_data_context &da, const std::string &schema, const std::string &name)
+bool is_collection(ngs::Sql_session_interface &da, const std::string &schema, const std::string &name)
 {
   xpl::Query_string_builder qb;
   qb.put("SELECT COUNT(*) AS cnt,")
@@ -1263,7 +1257,7 @@ ngs::Error_code xpl::Admin_command_handler::ensure_collection(Command_arguments 
                         "Table '%s' exists but is not a collection",
                         (schema.empty() ? collection : schema + '.' + collection).c_str());
   }
-  m_da.proto().send_exec_ok();
+  m_session.proto().send_exec_ok();
   return ngs::Success();
 }
 
@@ -1346,7 +1340,7 @@ xpl::Admin_command_arguments_list &xpl::Admin_command_arguments_list::bool_arg(c
 }
 
 
-xpl::Admin_command_arguments_list &xpl::Admin_command_arguments_list::docpath_arg(const char *name, std::string &ret_value, bool optional)
+xpl::Admin_command_arguments_list &xpl::Admin_command_arguments_list::docpath_arg(const char *name, std::string &ret_value, bool)
 {
   m_args_consumed++;
   if (!m_error)
@@ -1376,7 +1370,7 @@ xpl::Admin_command_arguments_list &xpl::Admin_command_arguments_list::docpath_ar
 
 
 xpl::Admin_command_arguments_list &xpl::Admin_command_arguments_list::object_list(const char *name, std::vector<Command_arguments*> &ret_value,
-                                                                                  bool optional, unsigned expected_members_count)
+                                                                                  bool, unsigned expected_members_count)
 {
   List::difference_type left = m_args.end() - m_current;
   if (left % expected_members_count > 0)
@@ -1502,7 +1496,7 @@ public:
   void operator() (const T &value) { m_validator(value, *m_value); }
   void operator() () { m_error = ngs::Error(ER_X_CMD_ARGUMENT_TYPE,
                                             "Invalid type of value for argument '%s'", m_name); }
-  template<typename O> void operator()(const O &value) { this->operator()(); }
+  template<typename O> void operator()(const O&) { this->operator()(); }
 
 private:
   V m_validator;

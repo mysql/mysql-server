@@ -21,6 +21,7 @@
 #include "dd/types/schema.h"
 #include "event_parse_data.h"   // Event_parse_data
 #include "key.h"
+#include "lex_string.h"
 #include "log.h"                // sql_print_error
 #include "my_dbug.h"
 #include "my_sys.h"
@@ -261,6 +262,7 @@ static Event::enum_interval_field get_enum_interval_field(
   Set Event attributes.
 
   @param    thd               THD context.
+  @param    schema            Schema containing the event.
   @param    event             Pointer to Event Object.
   @param    event_name        Event name.
   @param    event_body        Event body.
@@ -271,7 +273,9 @@ static Event::enum_interval_field get_enum_interval_field(
                               else false.
 */
 
-static void set_event_attributes(THD *thd, Event *event,
+static void set_event_attributes(THD *thd,
+                                 const dd::Schema &schema,
+                                 Event *event,
                                  const String_type &event_name,
                                  const String_type &event_body,
                                  const String_type &event_body_utf8,
@@ -350,7 +354,7 @@ static void set_event_attributes(THD *thd, Event *event,
     thd->variables.collation_connection->number);
 
   const CHARSET_INFO *db_cl= nullptr;
-  if (get_default_db_collation(thd, event_data->dbname.str, &db_cl))
+  if (get_default_db_collation(schema, &db_cl))
   {
     DBUG_PRINT("error", ("get_default_db_collation failed."));
     // Obtain collation from thd and proceed.
@@ -375,7 +379,7 @@ bool create_event(THD *thd,
   std::unique_ptr<dd::Event> event(schema.create_event(thd));
 
   // Set Event attributes.
-  set_event_attributes(thd, event.get(), event_name, event_body,
+  set_event_attributes(thd, schema, event.get(), event_name, event_body,
                        event_body_utf8, definer, event_data, false);
 
   DBUG_RETURN(thd->dd_client()->store(event.get()));
@@ -383,6 +387,7 @@ bool create_event(THD *thd,
 
 
 bool update_event(THD *thd, Event *event,
+                  const dd::Schema &schema,
                   const dd::Schema *new_schema,
                   const String_type &new_event_name,
                   const String_type &new_event_body,
@@ -401,7 +406,7 @@ bool update_event(THD *thd, Event *event,
     event->set_schema_id(new_schema->id());
 
   // Set the altered event attributes.
-  set_event_attributes(thd, event,
+  set_event_attributes(thd, (new_schema != nullptr) ? *new_schema : schema, event,
                        new_event_name != "" ? new_event_name : event->name(),
                        new_event_body, new_event_body_utf8, definer,
                        event_data, true);

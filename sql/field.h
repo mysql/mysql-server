@@ -272,6 +272,33 @@ inline bool is_integer_type(enum_field_types type)
     return false;
   }
 }
+
+
+/**
+  Tests if field type is a numeric type
+
+  @param type Field type, as returned by field->type()
+
+  @returns true if numeric type, false otherwise
+*/
+inline bool is_numeric_type(enum_field_types type)
+{
+  switch (type)
+  {
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_NEWDECIMAL:
+    return true;
+  default:
+    return false;
+  }
+}
 /**
   Tests if field type is temporal, i.e. represents
   DATE, TIME, DATETIME or TIMESTAMP types in SQL.
@@ -3646,8 +3673,8 @@ public:
   uint32 key_length() const { return (uint32) field_length; }
   uint32 sort_length() const
   {
-    return (uint32) field_length + (field_charset == &my_charset_bin ?
-                                    length_bytes : 0);
+    return (uint32) field_length +
+      (field_charset->pad_attribute == NO_PAD ? 2 : 0);
   }
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
@@ -3910,7 +3937,7 @@ public:
   }
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
-  virtual const uchar *unpack(uchar *to, const uchar *from,
+  virtual const uchar *unpack(uchar *, const uchar *from,
                               uint param_data, bool low_byte_first);
   uint max_packed_col_length();
   void mem_free()
@@ -4178,6 +4205,12 @@ public:
     @param[in]  hash_val  An initial hash value.
   */
   ulonglong make_hash_key(ulonglong *hash_val);
+
+  /**
+    Get a read-only pointer to the binary representation of the JSON document
+    in this field.
+  */
+  const char *get_binary();
 };
 
 

@@ -201,7 +201,7 @@ get_digest_hash_pins(PFS_thread *thread)
   return thread->m_digest_hash_pins;
 }
 
-PFS_statement_stat *
+PFS_statements_digest_stat *
 find_or_create_digest(PFS_thread *thread,
                       const sql_digest_storage *digest_storage,
                       const char *schema_name,
@@ -264,7 +264,7 @@ search:
     pfs = *entry;
     pfs->m_last_seen = now;
     lf_hash_search_unpin(pins);
-    return &pfs->m_stat;
+    return pfs;
   }
 
   lf_hash_search_unpin(pins);
@@ -280,7 +280,7 @@ search:
       pfs->m_first_seen = now;
     }
     pfs->m_last_seen = now;
-    return &pfs->m_stat;
+    return pfs;
   }
 
   while (++attempts <= digest_max)
@@ -313,11 +313,13 @@ search:
         pfs->m_first_seen = now;
         pfs->m_last_seen = now;
 
+        pfs->m_histogram.reset();
+
         res = lf_hash_insert(&digest_hash, pins, &pfs);
         if (likely(res == 0))
         {
           pfs->m_lock.dirty_to_allocated(&dirty_state);
-          return &pfs->m_stat;
+          return pfs;
         }
 
         pfs->m_lock.dirty_to_free(&dirty_state);
@@ -350,7 +352,7 @@ search:
     pfs->m_first_seen = now;
   }
   pfs->m_last_seen = now;
-  return &pfs->m_stat;
+  return pfs;
 }
 
 static void
@@ -433,4 +435,20 @@ reset_esms_by_digest()
   */
   PFS_atomic::store_u32(&digest_monotonic_index.m_u32, 1);
   digest_full = false;
+}
+
+void
+reset_histogram_by_digest()
+{
+  uint index;
+
+  if (statements_digest_stat_array == NULL)
+  {
+    return;
+  }
+
+  for (index = 0; index < digest_max; index++)
+  {
+    statements_digest_stat_array[index].m_histogram.reset();
+  }
 }

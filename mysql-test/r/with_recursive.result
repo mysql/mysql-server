@@ -147,15 +147,15 @@ from t;
 show create table u;
 Table	Create Table
 u	CREATE TABLE `u` (
-  `cast(c as char(4))` varchar(4) DEFAULT NULL,
-  `cast(vc as char(4))` varchar(4) DEFAULT NULL,
+  `cast(c as char(4))` varchar(4) CHARACTER SET latin1 DEFAULT NULL,
+  `cast(vc as char(4))` varchar(4) CHARACTER SET latin1 DEFAULT NULL,
   `cast(b as binary(4))` varbinary(4) DEFAULT NULL,
   `cast(vb as binary(4))` varbinary(4) DEFAULT NULL,
-  `literal_c` varchar(3) NOT NULL DEFAULT '',
-  `cast("abc" as char(4))` varchar(4) DEFAULT NULL,
+  `literal_c` varchar(3) CHARACTER SET latin1 NOT NULL DEFAULT '',
+  `cast("abc" as char(4))` varchar(4) CHARACTER SET latin1 DEFAULT NULL,
   `literal_b` varbinary(3) NOT NULL DEFAULT '',
   `cast(_binary "abc" as binary(4))` varbinary(4) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t,u;
 # if it used char the 'x' would fall off due to spaces.
 with recursive qn as (select 1 as n, cast('x' as char(100)) as un union all select 1+n, concat(un,'x') from qn where n<10) select * from qn;
@@ -1402,15 +1402,15 @@ from t;
 show create table u;
 Table	Create Table
 u	CREATE TABLE `u` (
-  `cast(c as char(4))` varchar(4) DEFAULT NULL,
-  `cast(vc as char(4))` varchar(4) DEFAULT NULL,
+  `cast(c as char(4))` varchar(4) CHARACTER SET latin1 DEFAULT NULL,
+  `cast(vc as char(4))` varchar(4) CHARACTER SET latin1 DEFAULT NULL,
   `cast(b as binary(4))` varbinary(4) DEFAULT NULL,
   `cast(vb as binary(4))` varbinary(4) DEFAULT NULL,
-  `literal_c` varchar(3) NOT NULL DEFAULT '',
-  `cast("abc" as char(4))` varchar(4) DEFAULT NULL,
+  `literal_c` varchar(3) CHARACTER SET latin1 NOT NULL DEFAULT '',
+  `cast("abc" as char(4))` varchar(4) CHARACTER SET latin1 DEFAULT NULL,
   `literal_b` varbinary(3) NOT NULL DEFAULT '',
   `cast(_binary "abc" as binary(4))` varbinary(4) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t,u;
 # if it used char the 'x' would fall off due to spaces.
 with recursive qn as (select 1 as n, cast('x' as char(100)) as un union all select 1+n, concat(un,'x') from qn where n<10) select * from qn;

@@ -38,6 +38,7 @@
 #include "handler.h"
 #include "item.h"
 #include "key.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mdl.h"
@@ -279,8 +280,8 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
 
   key_length= get_table_def_key(view, &key);
 
-  if (tdc_open_view(thd, &decoy, key, key_length,
-                    OPEN_VIEW_NO_PARSE))
+  // No need to check metadata version nor parse the view definition.
+  if (tdc_open_view(thd, &decoy, key, key_length, false, true))
     return TRUE;
 
   if (!lex->definer)
@@ -547,9 +548,11 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
                      lex->definer->host.str,
                      thd->security_context()->priv_host().str) != 0))
   {
-    if (!(thd->security_context()->check_access(SUPER_ACL)))
+    Security_context *sctx= thd->security_context();
+    if (!(sctx->check_access(SUPER_ACL) ||
+          sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first))
     {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or SET_USER_ID");
       res= true;
       goto err;
     }

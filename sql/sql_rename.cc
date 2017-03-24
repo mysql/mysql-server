@@ -25,7 +25,9 @@
 #include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
 #include "dd/dd_table.h"      // dd::table_exists
 #include "dd/types/abstract_table.h" // dd::Abstract_table
+#include "dd/types/table.h"   // dd::Table
 #include "dd_sql_view.h"      // View_metadata_updater
+#include "lex_string.h"
 #include "log.h"              // query_logger
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -353,10 +355,27 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
     DBUG_RETURN(true);                         // This error cannot be skipped
   }
 
-  // Get the table type of the old table, and fail if it does not exist
-  dd::enum_table_type table_type;
-  if (dd::abstract_table_type(thd->dd_client(), ren_table->db,
-                              old_alias, &table_type))
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  dd::Abstract_table *abstract_table= nullptr;
+  const dd::Schema *from_schema= nullptr;
+
+  if (thd->dd_client()->acquire(ren_table->db, &from_schema) ||
+      thd->dd_client()->acquire_for_modification(ren_table->db,
+                                                 ren_table->table_name,
+                                                 &abstract_table))
+  {
+    // Error is reported by the dictionary subsystem.
+    DBUG_RETURN(true);
+  }
+
+  if (from_schema == nullptr)
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), ren_table->db);
+    DBUG_RETURN(!skip_error);
+  }
+
+  if (abstract_table == nullptr)
   {
     my_error(ER_NO_SUCH_TABLE, MYF(0), ren_table->db, old_alias);
     DBUG_RETURN(!skip_error);
@@ -364,13 +383,14 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
 
   // So here we know the source table exists and the target table does
   // not exist. Next is to act based on the table type.
-  switch (table_type)
+  switch (abstract_table->type())
   {
   case dd::enum_table_type::BASE_TABLE:
     {
       handlerton *hton= NULL;
+      dd::Table *from_table= dynamic_cast<dd::Table*>(abstract_table);
       // If the engine is not found, my_error() has already been called
-      if (dd::table_storage_engine(thd, ren_table, &hton))
+      if (dd::table_storage_engine(thd, from_table, &hton))
         DBUG_RETURN(!skip_error);
 
       /*
@@ -380,26 +400,21 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
         the whole statement is not crash-safe anyway and clean-up is
         simpler this way.
       */
-      const bool do_commit= *int_commit_done ||
-                            !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL);
+      *int_commit_done |= !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL);
 
       if ((hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
           (hton->post_ddl))
         post_ddl_htons->insert(hton);
 
-      if (check_table_triggers_are_not_in_the_same_schema(
-            thd,
-            ren_table->db,
-            ren_table->table_name,
-            new_db))
+      if (check_table_triggers_are_not_in_the_same_schema(ren_table->db,
+                                                          *from_table,
+                                                          new_db))
         DBUG_RETURN(!skip_error);
 
       // If renaming fails, my_error() has already been called
       if (mysql_rename_table(thd, hton, ren_table->db, old_alias, new_db,
-                             new_alias, (do_commit ? 0 : NO_DD_COMMIT)))
+                             new_alias, (*int_commit_done ? 0 : NO_DD_COMMIT)))
         DBUG_RETURN(!skip_error);
-
-      *int_commit_done|= do_commit;
 
       break;
     }
@@ -414,11 +429,27 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
       }
 
       /* Rename view in the data-dictionary. */
-      if (dd::rename_table<dd::View>(thd,
-                                     ren_table->db, ren_table->table_name,
-                                     new_db, new_alias, false, *int_commit_done))
+      Disable_gtid_state_update_guard disabler(thd);
+
+      // Set schema id and view name.
+      abstract_table->set_name(new_alias);
+
+      // Do the update. Errors will be reported by the dictionary subsystem.
+      if (thd->dd_client()->update(abstract_table))
       {
-        DBUG_RETURN(!skip_error);
+        if (*int_commit_done)
+        {
+          trans_rollback_stmt(thd);
+          // Full rollback in case we have THD::transaction_rollback_request.
+          trans_rollback(thd);
+          DBUG_RETURN(!skip_error);
+        }
+      }
+
+      if (*int_commit_done)
+      {
+        if (trans_commit_stmt(thd) || trans_commit(thd))
+          DBUG_RETURN(!skip_error);
       }
 
       sp_cache_invalidate();

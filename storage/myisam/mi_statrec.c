@@ -243,7 +243,7 @@ int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf,
       if ((! cache_read || share->base.reclength > cache_length) &&
 	  share->tot_locks == 0)
       {						/* record not in cache */
-	if (my_lock(share->kfile,F_RDLCK,0L,F_TO_EOF,
+	if (my_lock(share->kfile,F_RDLCK,
 		    MYF(MY_SEEK_NOT_DONE) | info->lock_wait))
 	  DBUG_RETURN(my_errno());
 	locked=1;

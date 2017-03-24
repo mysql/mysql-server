@@ -45,6 +45,7 @@
 #include "field.h"
 #include "handler.h"
 #include "item.h"
+#include "lex_string.h"
 #include "mdl.h"
 #include "my_base.h"
 #include "my_command.h"
@@ -131,7 +132,6 @@ struct Binlog_user_var_event;
 struct Query_cache_block;
 
 typedef struct st_log_info LOG_INFO;
-typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct user_conn USER_CONN;
 typedef struct st_mysql_lock MYSQL_LOCK;
 
@@ -1902,7 +1902,10 @@ public:
     gtid into mysql.gtid_executed table before transaction prepare, as
     it does when binlog is disabled, or binlog is enabled and
     log_slave_updates is disabled.
-    Rpl_info_table::do_flush_info() uses this flag.
+    Also the flag is made to defer updates to the slave info table from
+    intermediate commits by non-atomic DDL.
+    Rpl_info_table::do_flush_info(), rpl_rli.h::is_atomic_ddl_commit_on_slave()
+    uses this flag.
   */
   bool is_operating_substatement_implicitly;
 
@@ -3107,11 +3110,11 @@ public:
   }
 
   /**
-    Copies variables.gtid_next to
-    ((Slave_worker *)rli_slave)->currently_executing_gtid,
+    Copies variables.original_commit_timestamp to
+    ((Slave_worker *)rli_slave)->original_commit_timestamp,
     if this is a slave thread.
   */
-  void set_currently_executing_gtid_for_slave_thread();
+  void set_original_commit_timestamp_for_slave_thread();
 
   /// Return the value of @@gtid_next_list: either a Gtid_set or NULL.
   Gtid_set *get_gtid_next_list()
@@ -4006,6 +4009,15 @@ private:
     aggregates THD.
   */
   bool is_a_srv_session_thd;
+
+#ifndef DBUG_OFF
+public:
+  /*
+    The member serves to guard against duplicate use of the same xid
+    at binary logging.
+  */
+  XID debug_binlog_xid_last;
+#endif
 };
 
 

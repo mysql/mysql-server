@@ -30,7 +30,7 @@ using my_testing::Server_initializer;
 int summary_count= 0;
 char last_query[10];
 
-static bool slow_logger(THD *thd, const char *query, size_t query_length)
+static bool slow_logger(THD*, const char *query, size_t)
 {
   summary_count++;
   strcpy(last_query, query);

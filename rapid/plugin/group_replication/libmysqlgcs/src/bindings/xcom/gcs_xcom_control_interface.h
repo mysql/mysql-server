@@ -16,24 +16,23 @@
 #ifndef GCS_XCOM_CONTROL_INTERFACE_INCLUDED
 #define GCS_XCOM_CONTROL_INTERFACE_INCLUDED
 
-#include "xplatform/my_xp_thread.h"
-#include "xplatform/my_xp_util.h"
-
-#include "gcs_control_interface.h"
-#include "gcs_xcom_utils.h"
-#include "gcs_message.h"
-#include "gcs_types.h"
-#include "gcs_view.h"
-
-#include "gcs_xcom_state_exchange.h"
-#include "gcs_xcom_group_member_information.h"
-#include "gcs_xcom_interface.h"
-#include "gcs_xcom_notification.h"
-
 #include <cstring>
 #include <map>
 #include <set>
 #include <cstdlib>
+
+#include "mysql/gcs/xplatform/my_xp_thread.h"
+#include "mysql/gcs/xplatform/my_xp_util.h"
+#include "mysql/gcs/gcs_control_interface.h"
+#include "mysql/gcs/gcs_message.h"
+#include "mysql/gcs/gcs_types.h"
+#include "mysql/gcs/gcs_view.h"
+
+#include "gcs_xcom_utils.h"
+#include "gcs_xcom_state_exchange.h"
+#include "gcs_xcom_group_member_information.h"
+#include "gcs_xcom_interface.h"
+#include "gcs_xcom_notification.h"
 
 #include "simset.h"
 #include "xcom_vp.h"

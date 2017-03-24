@@ -667,11 +667,11 @@ private:
 /* Test for string comparison */
 TEST_F(StringsUTF8mb4_900Test, MyUCA900Collate)
 {
-  // SOFT HYPHEN equals SPACE.
-  EXPECT_TRUE(equals(u8"\u00ad", " "));
+  // SOFT HYPHEN does not equal SPACE (the former has zero weight).
+  EXPECT_FALSE(equals(u8"\u00ad", " "));
 
-  // SOFT HYPHEN equals NO-BREAK SPACE.
-  EXPECT_TRUE(equals(u8"\u00ad", u8"\u00a0"));
+  // SPACE equals NO-BREAK SPACE.
+  EXPECT_TRUE(equals(" ", u8"\u00a0"));
 
   EXPECT_FALSE(equals(u8"Æ", "A"));
   EXPECT_FALSE(equals(u8"ß", "S"));
@@ -687,6 +687,69 @@ TEST_F(StringsUTF8mb4_900Test, MyUCA900Collate)
     LATIN SMALL LETTER AV.
   */
   EXPECT_TRUE(equals(u8"\ua73b", u8"\ua739"));
+}
+
+class StringsUTF8mb4_900_AS_CS_NoPad_Test : public ::testing::Test
+{
+protected:
+  virtual void SetUp()
+  {
+    MY_CHARSET_LOADER loader;
+    my_charset_loader_init_mysys(&loader);
+    m_charset= my_collation_get_by_name(&loader, "utf8mb4_0900_as_cs", MYF(0));
+  }
+
+  int compare(const char *a, const char *b, bool b_is_prefix)
+  {
+    return m_charset->coll->strnncoll(
+      m_charset,
+      pointer_cast<const uchar *>(a), strlen(a),
+      pointer_cast<const uchar *>(b), strlen(b),
+      b_is_prefix);
+  }
+
+private:
+  CHARSET_INFO *m_charset;
+};
+
+TEST_F(StringsUTF8mb4_900_AS_CS_NoPad_Test, CaseSensitivity)
+{
+  // Basic sanity checks.
+  EXPECT_EQ(compare("abc", "abc", false), 0);
+  EXPECT_EQ(compare("ABC", "ABC", false), 0);
+
+  // Letters (level 1) matter more than case (level 3).
+  EXPECT_LT(compare("ABC", "def", false), 0);
+  EXPECT_LT(compare("abc", "DEF", false), 0);
+
+  // Lowercase sorts before uppercase.
+  EXPECT_LT(compare("abc", "Abc", false), 0);
+  EXPECT_LT(compare("abc", "aBc", false), 0);
+  EXPECT_LT(compare("abc", "ABC", false), 0);
+  EXPECT_GT(compare("ABC", "abc", false), 0);
+
+  // Length matters more than case.
+  EXPECT_LT(compare("abc", "abcd", false), 0);
+  EXPECT_LT(compare("ABC", "abcd", false), 0);
+}
+
+TEST_F(StringsUTF8mb4_900_AS_CS_NoPad_Test, PrefixComparison)
+{
+  // Basic sanity checks.
+  EXPECT_EQ(compare("abc", "abc", true), 0);
+  EXPECT_EQ(compare("ABC", "ABC", true), 0);
+  EXPECT_EQ(compare("abc.", "abc", true), 0);
+  EXPECT_EQ(compare("ABC.", "ABC", true), 0);
+  EXPECT_EQ(compare("ABC....", "ABC", true), 0);
+
+  // Case sensitivity holds even on prefix matches (lowercase sorts first).
+  EXPECT_GT(compare("ABC....", "abc", true), 0);
+
+  // Difference before we get to the prefix logic (lowercase sorts first).
+  EXPECT_GT(compare("aBcdef", "abc", true), 0);
+
+  // Prefix matches only go one way.
+  EXPECT_LT(compare("AB", "ABC", true), 0);
 }
 
 static bool uca_wildcmp(const CHARSET_INFO *cs, const char *str,

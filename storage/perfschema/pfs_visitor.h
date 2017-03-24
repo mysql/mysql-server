@@ -96,7 +96,7 @@ public:
   visit_thread(PFS_thread *)
   {
   }
-  /** Visit a THD associated with a thread. */
+  /** Visit a @c THD associated with a thread. */
   virtual void
   visit_THD(THD *)
   {
@@ -174,7 +174,7 @@ public:
   }
 
   /**
-    Visit THD.
+    Visit @c THD.
     @param thd the THD to visit.
     @param visitor the visitor to call.
   */
@@ -675,7 +675,7 @@ public:
 
 /**
   A concrete object visitor that aggregates
-  table io wait statistics.
+  table I/O wait statistics.
 */
 class PFS_table_io_wait_visitor : public PFS_object_visitor
 {
@@ -686,13 +686,13 @@ public:
   virtual void visit_table_share(PFS_table_share *pfs);
   virtual void visit_table(PFS_table *pfs);
 
-  /** Table io wait statistic collected. */
+  /** Table I/O wait statistic collected. */
   PFS_single_stat m_stat;
 };
 
 /**
   A concrete object visitor that aggregates
-  table io statistics.
+  table I/O statistics.
 */
 class PFS_table_io_stat_visitor : public PFS_object_visitor
 {
@@ -702,13 +702,13 @@ public:
   virtual void visit_table_share(PFS_table_share *pfs);
   virtual void visit_table(PFS_table *pfs);
 
-  /** Table io statistic collected. */
+  /** Table I/O statistic collected. */
   PFS_table_io_stat m_stat;
 };
 
 /**
   A concrete object visitor that aggregates
-  index io statistics.
+  index I/O statistics.
 */
 class PFS_index_io_stat_visitor : public PFS_object_visitor
 {
@@ -718,7 +718,7 @@ public:
   virtual void visit_table_share_index(PFS_table_share *pfs, uint index);
   virtual void visit_table_index(PFS_table *pfs, uint index);
 
-  /** Index io statistic collected. */
+  /** Index I/O statistic collected. */
   PFS_table_io_stat m_stat;
 };
 

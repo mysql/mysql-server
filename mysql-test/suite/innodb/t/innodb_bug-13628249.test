@@ -7,8 +7,7 @@
 # Restarting is not supported in embedded.
 --source include/not_embedded.inc
 
-# Disabled in --log-bin runs until atomic DDL is properly supported in
-# binary log.
+# Disabled in --log-bin runs until Bug #25651042 is fixed.
 --source include/not_log_bin.inc
 
 --disable_query_log

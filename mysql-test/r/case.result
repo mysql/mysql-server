@@ -109,17 +109,17 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(1) CHARACTER SET latin1 COLLATE latin1_danish_ci NOT NULL DEFAULT '',
   `c2` varchar(1) CHARACTER SET latin1 COLLATE latin1_danish_ci NOT NULL DEFAULT '',
-  `c3` varchar(1) NOT NULL DEFAULT '',
-  `c4` varchar(1) NOT NULL DEFAULT '',
-  `c5` varchar(4) NOT NULL DEFAULT '',
-  `c6` varchar(4) NOT NULL DEFAULT '',
+  `c3` varchar(1) CHARACTER SET latin1 NOT NULL DEFAULT '',
+  `c4` varchar(1) CHARACTER SET latin1 NOT NULL DEFAULT '',
+  `c5` varchar(4) CHARACTER SET latin1 NOT NULL DEFAULT '',
+  `c6` varchar(4) CHARACTER SET latin1 NOT NULL DEFAULT '',
   `c7` decimal(2,1) NOT NULL DEFAULT '0.0',
   `c8` decimal(2,1) NOT NULL DEFAULT '0.0',
   `c9` decimal(2,1) DEFAULT NULL,
   `c10` double NOT NULL DEFAULT '0',
   `c11` double NOT NULL DEFAULT '0',
-  `c12` varchar(5) NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `c12` varchar(5) CHARACTER SET latin1 NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 SELECT CASE 
 WHEN 1 
@@ -162,12 +162,12 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `COALESCE(1)` int(1) NOT NULL DEFAULT '0',
   `COALESCE(1.0)` decimal(2,1) NOT NULL DEFAULT '0.0',
-  `COALESCE('a')` varchar(1) NOT NULL DEFAULT '',
+  `COALESCE('a')` varchar(1) CHARACTER SET latin1 NOT NULL DEFAULT '',
   `COALESCE(1,1.0)` decimal(2,1) NOT NULL DEFAULT '0.0',
-  `COALESCE(1,'1')` varchar(1) NOT NULL DEFAULT '',
-  `COALESCE(1.1,'1')` varchar(4) NOT NULL DEFAULT '',
+  `COALESCE(1,'1')` varchar(1) CHARACTER SET latin1 NOT NULL DEFAULT '',
+  `COALESCE(1.1,'1')` varchar(4) CHARACTER SET latin1 NOT NULL DEFAULT '',
   `COALESCE('a' COLLATE latin1_bin,'b')` varchar(1) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 SELECT IFNULL('a' COLLATE latin1_swedish_ci, 'b' COLLATE latin1_bin);
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'ifnull'
@@ -264,7 +264,7 @@ Table	Create Table
 target	CREATE TABLE `target` (
   `u` decimal(20,0) DEFAULT NULL,
   `s` decimal(20,0) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT IF(bt,i8u,i8s) AS u, IF(bf,i8u,i8s) AS s
 FROM source;
 u	s
@@ -284,7 +284,7 @@ Table	Create Table
 target	CREATE TABLE `target` (
   `u` decimal(20,0) DEFAULT NULL,
   `s` decimal(20,0) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT CASE WHEN bt THEN i8u ELSE i8s END AS u,
 CASE WHEN bf THEN i8u ELSE i8s END AS s
 FROM source;
@@ -305,7 +305,7 @@ Table	Create Table
 target	CREATE TABLE `target` (
   `u` decimal(20,0) DEFAULT NULL,
   `s` decimal(20,0) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT CASE bt WHEN TRUE THEN i8u WHEN FALSE THEN i8s END AS u,
 CASE bf WHEN TRUE THEN i8u WHEN FALSE THEN i8s END AS s
 FROM source;
@@ -325,7 +325,7 @@ Table	Create Table
 target	CREATE TABLE `target` (
   `u` decimal(20,0) DEFAULT NULL,
   `s` decimal(20,0) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT COALESCE(i8u, i8s) AS u, COALESCE(i8s, i8u) AS s
 FROM source;
 u	s
@@ -378,11 +378,11 @@ FROM t;
 SHOW CREATE TABLE u;
 Table	Create Table
 u	CREATE TABLE `u` (
-  `HEX(a)` varchar(10) DEFAULT NULL,
+  `HEX(a)` varchar(10) CHARACTER SET latin1 DEFAULT NULL,
   `b` bit(5) DEFAULT NULL,
   `c` int(6) unsigned DEFAULT NULL,
   `d` bigint(6) unsigned DEFAULT NULL,
   `e` bigint(6) unsigned DEFAULT NULL,
   `f` bigint(6) unsigned DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t, u;

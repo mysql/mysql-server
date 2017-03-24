@@ -3,8 +3,6 @@
 # This test verifies that performance schema tables, because they contain
 # data that is volatile, are never cached in the query cache.
 
---source include/not_embedded.inc
-
 --disable_warnings
 drop table if exists t1;
 --enable_warnings

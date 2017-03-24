@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,7 +72,8 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
   : Binary_log_event(&buf, description_event->binlog_version),
     m_table_id(0), m_flags(0), m_data_size(0),
     m_dbnam(""), m_dblen(0), m_tblnam(""), m_tbllen(0),
-    m_colcnt(0), m_field_metadata_size(0), m_field_metadata(0), m_null_bits(0)
+    m_colcnt(0), m_field_metadata_size(0), m_field_metadata(0), m_null_bits(0),
+    m_optional_metadata_len(0), m_optional_metadata(NULL)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -145,6 +146,19 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
     memcpy(m_field_metadata, ptr_after_colcnt, m_field_metadata_size);
     ptr_after_colcnt= (unsigned char*)ptr_after_colcnt + m_field_metadata_size;
     memcpy(m_null_bits, ptr_after_colcnt, num_null_bytes);
+    ptr_after_colcnt= (unsigned char*)ptr_after_colcnt + num_null_bytes;
+  }
+
+  bytes_read= (unsigned int) (ptr_after_colcnt + common_header_len -
+                              (unsigned char *)buf);
+
+  /* After null_bits field, there are some new fields for extra metadata. */
+  if (bytes_read < event_len)
+  {
+    m_optional_metadata_len= event_len - bytes_read;
+    m_optional_metadata=
+      static_cast<unsigned char*>(bapi_malloc(m_optional_metadata_len, 0));
+    memcpy(m_optional_metadata, ptr_after_colcnt, m_optional_metadata_len);
   }
 }
 
@@ -156,9 +170,232 @@ Table_map_event::~Table_map_event()
     m_field_metadata= NULL;
     bapi_free(m_coltype);
     m_coltype= NULL;
+    bapi_free(m_optional_metadata);
+    m_optional_metadata= NULL;
 }
 
+/**
+   Parses SIGNEDNESS field.
 
+   @param[out] vec     stores the signedness flags extracted from field.
+   @param[in]  field   SIGNEDNESS field in table_map_event.
+   @param[in]  length  length of the field
+ */
+static void parse_signedness(std::vector<bool> &vec,
+                             unsigned char *field, unsigned int length)
+{
+  for (unsigned int i= 0; i < length; i++)
+  {
+    for (unsigned char c= 0x80; c != 0; c>>= 1)
+      vec.push_back(field[i] & c);
+  }
+}
+
+/**
+   Parses DEFAULT_CHARSET field.
+
+   @param[out] default_charset  stores collation numbers extracted from field.
+   @param[in]  field   DEFAULT_CHARSET field in table_map_event.
+   @param[in]  length  length of the field
+ */
+static void parse_default_charset(Table_map_event::Optional_metadata_fields::
+                                  Default_charset &default_charset,
+                                  unsigned char *field, unsigned int length)
+{
+  unsigned char* p= field;
+
+  default_charset.default_charset= get_field_length(&p);
+  while (p < field + length)
+  {
+    unsigned int col_index= get_field_length(&p);
+    unsigned int col_charset= get_field_length(&p);
+
+    default_charset.charset_pairs.push_back(std::make_pair(col_index,
+                                                           col_charset));
+  }
+}
+
+/**
+   Parses COLUMN_CHARSET field.
+
+   @param[out] vec     stores collation numbers extracted from field.
+   @param[in]  field   COLUMN_CHARSET field in table_map_event.
+   @param[in]  length  length of the field
+ */
+static void parse_column_charset(std::vector<unsigned int> &vec,
+                                 unsigned char *field, unsigned int length)
+{
+  unsigned char* p= field;
+
+  while (p < field + length)
+    vec.push_back(get_field_length(&p));
+}
+
+/**
+   Parses COLUMN_NAME field.
+
+   @param[out] vec     stores column names extracted from field.
+   @param[in]  field   COLUMN_NAME field in table_map_event.
+   @param[in]  length  length of the field
+ */
+static void parse_column_name(std::vector<std::string> &vec,
+                              unsigned char *field, unsigned int length)
+{
+  unsigned char* p= field;
+
+  while (p < field + length)
+  {
+    unsigned len= get_field_length(&p);
+    vec.push_back(std::string(reinterpret_cast<char *>(p), len));
+    p+= len;
+  }
+}
+
+/**
+   Parses SET_STR_VALUE/ENUM_STR_VALUE field.
+
+   @param[out] vec     stores SET/ENUM column's string values extracted from
+                       field. Each SET/ENUM column's string values are stored
+                       into a string separate vector. All of them are stored
+                       in 'vec'.
+   @param[in]  field   COLUMN_NAME field in table_map_event.
+   @param[in]  length  length of the field
+ */
+static void parse_set_str_value(std::vector<Table_map_event::
+                                Optional_metadata_fields::str_vector> &vec,
+                                unsigned char *field, unsigned int length)
+{
+  unsigned char* p= field;
+
+  while (p < field + length)
+  {
+    unsigned int count= get_field_length(&p);
+
+    vec.push_back(std::vector<std::string>());
+    for (unsigned int i= 0; i < count; i++)
+    {
+      unsigned len1= get_field_length(&p);
+      vec.back().push_back(std::string(reinterpret_cast<char *>(p), len1));
+      p+= len1;
+    }
+  }
+}
+
+/**
+   Parses GEOMETRY_TYPE field.
+
+   @param[out] vec     stores geometry column's types extracted from field.
+   @param[in]  field   GEOMETRY_TYPE field in table_map_event.
+   @param[in]  length  length of the field
+ */
+static void parse_geometry_type(std::vector<unsigned int> &vec,
+                                unsigned char *field, unsigned int length)
+{
+  unsigned char* p= field;
+
+  while (p < field + length)
+    vec.push_back(get_field_length(&p));
+}
+
+/**
+   Parses SIMPLE_PRIMARY_KEY field.
+
+   @param[out] vec     stores primary key's column information extracted from
+                       field. Each column has an index and a prefix which are
+                       stored as a unit_pair. prefix is always 0 for
+                       SIMPLE_PRIMARY_KEY field.
+   @param[in]  field   SIMPLE_PRIMARY_KEY field in table_map_event.
+   @param[in]  length  length of the field
+ */
+static void parse_simple_pk(std::vector<Table_map_event::
+                            Optional_metadata_fields::uint_pair> &vec,
+                            unsigned char *field, unsigned int length)
+{
+  unsigned char* p= field;
+
+  while (p < field + length)
+    vec.push_back(std::make_pair(get_field_length(&p), 0));
+}
+
+/**
+   Parses PRIMARY_KEY_WITH_PREFIX field.
+
+   @param[out] vec     stores primary key's column information extracted from
+                       field. Each column has an index and a prefix which are
+                       stored as a unit_pair.
+   @param[in]  field   PRIMARY_KEY_WITH_PREFIX field in table_map_event.
+   @param[in]  length  length of the field
+ */
+
+static void parse_pk_with_prefix(std::vector<Table_map_event::
+                                 Optional_metadata_fields::uint_pair> &vec,
+                                 unsigned char *field, unsigned int length)
+{
+  unsigned char* p= field;
+
+  while (p < field + length)
+  {
+    unsigned int col_index= get_field_length(&p);
+    unsigned int col_prefix= get_field_length(&p);
+    vec.push_back(std::make_pair(col_index, col_prefix));
+  }
+}
+
+Table_map_event::Optional_metadata_fields::
+Optional_metadata_fields(unsigned char* optional_metadata,
+                         unsigned int optional_metadata_len)
+{
+  unsigned char* field= optional_metadata;
+
+  if (optional_metadata == NULL)
+    return;
+
+  while (field < optional_metadata + optional_metadata_len)
+  {
+    unsigned int len;
+    Optional_metadata_field_type type=
+      static_cast<Optional_metadata_field_type>(field[0]);
+
+    // Get length and move field to the value.
+    field++;
+    len= get_field_length(&field);
+
+    switch(type)
+    {
+    case SIGNEDNESS:
+      parse_signedness(m_signedness, field, len);
+      break;
+    case DEFAULT_CHARSET:
+      parse_default_charset(m_default_charset, field, len);
+      break;
+    case COLUMN_CHARSET:
+      parse_column_charset(m_column_charset, field, len);
+      break;
+    case COLUMN_NAME:
+      parse_column_name(m_column_name, field, len);
+      break;
+    case SET_STR_VALUE:
+      parse_set_str_value(m_set_str_value, field, len);
+      break;
+    case ENUM_STR_VALUE:
+      parse_set_str_value(m_enum_str_value, field, len);
+      break;
+    case GEOMETRY_TYPE:
+      parse_geometry_type(m_geometry_type, field, len);
+      break;
+    case SIMPLE_PRIMARY_KEY:
+      parse_simple_pk(m_primary_key, field, len);
+      break;
+    case PRIMARY_KEY_WITH_PREFIX:
+      parse_pk_with_prefix(m_primary_key, field, len);
+      break;
+    default:
+      BAPI_ASSERT(0);
+    }
+    // next field
+    field+= len;
+  }
+}
 
 /*****************************************************************************
                       Rows_event Methods

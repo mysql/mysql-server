@@ -93,7 +93,7 @@ private:
 };
 
 template<typename Copy_type>
-void Plugin_system_variables::update_func(THD *thd, st_mysql_sys_var *var, void *tgt, const void *save)
+void Plugin_system_variables::update_func(THD*, st_mysql_sys_var*, void *tgt, const void *save)
 {
   *(Copy_type*)tgt = *(Copy_type*) save;
 

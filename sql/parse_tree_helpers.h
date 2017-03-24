@@ -22,6 +22,7 @@
 
 #include "item.h"
 #include "item_func.h"      // Item etc.
+#include "lex_string.h"
 #include "mem_root_array.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
@@ -237,5 +238,7 @@ bool resolve_engine(THD *thd,
                     bool is_temp_table,
                     bool strict,
                     handlerton **ret);
+bool apply_privileges(THD *thd,
+                      const Trivial_array<class PT_role_or_privilege *> &privs);
 
 #endif /* PARSE_TREE_HELPERS_INCLUDED */

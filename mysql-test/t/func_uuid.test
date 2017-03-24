@@ -1,14 +1,3 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs181=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
-use test;
---enable_query_log
-########################################
-
 #####################################################################
 #                                                                   #
 # Tests for uuid_to_bin, bin_to_uuid and is_uuid functions.         #
@@ -218,11 +207,3 @@ SELECT * FROM t2 where bin_to_uuid(col1)='12345679-1234-5678-1234-567812345678';
 
 DROP TABLE t1;
 DROP TABLE t2;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs181;
---enable_query_log
-########################################

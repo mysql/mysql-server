@@ -1,14 +1,3 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs171=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
-use test;
---enable_query_log
-########################################
-
 # This tests bitwise operations focusing mostly on cases where
 # one of the parameters is binary/varbinary
 
@@ -70,7 +59,8 @@ SELECT HEX(vbin1 ^ vbin2) FROM t WHERE id=8;
 --echo # show output type
 --echo #
 CREATE TABLE t0(vbin VARBINARY(6), bin BINARY(6));
-CREATE TABLE t1 AS SELECT vbin & vbin, vbin & bin, bin & vbin, bin & bin FROM t0;
+CREATE TABLE t1  charset utf8mb4
+AS SELECT vbin & vbin, vbin & bin, bin & vbin, bin & bin FROM t0;
 SHOW CREATE TABLE t1;
 DROP TABLE t0;
 DROP TABLE t1;
@@ -1023,11 +1013,3 @@ SELECT 1 FROM t WHERE rtrim(a & NULL);
 SELECT (SELECT a & NULL from t);
 
 DROP TABLE t;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs171;
---enable_query_log
-########################################

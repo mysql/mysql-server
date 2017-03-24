@@ -6,7 +6,6 @@
 # We currently only have shm support on windows, so in order
 # to optimize things we skip this test on all other platforms
 --source include/windows.inc
---source include/not_embedded.inc
 
 # thread pool causes different results
 -- source include/not_threadpool.inc

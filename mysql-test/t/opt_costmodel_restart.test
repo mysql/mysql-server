@@ -1,20 +1,6 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs224=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
-use test;
---enable_query_log
-########################################
-
 #
 # Test of the cost constants when restarting the server
 #
-
-# Can not run with embedded server since it requires server restarts
--- source include/not_embedded.inc
 
 # To get stable cost estimates, the test should only be run with 
 # 16K InnoDB page size.
@@ -121,9 +107,9 @@ SET cost_value=DEFAULT;
 # other engines.
 #
 INSERT INTO mysql.engine_cost VALUES
-  ("InnoDB", 0, "memory_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT);
+  ("InnoDB", 0, "memory_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT, DEFAULT);
 INSERT INTO mysql.engine_cost VALUES
-  ("InnoDB", 0, "io_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT);
+  ("InnoDB", 0, "io_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT, DEFAULT);
 
 --echo "Restarting MySQL server"
 --source include/restart_mysqld.inc
@@ -150,11 +136,3 @@ WHERE engine_name NOT LIKE "default";
 --source include/restart_mysqld.inc
 
 DROP TABLE t0, t1_innodb, t1_myisam;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs224;
---enable_query_log
-########################################

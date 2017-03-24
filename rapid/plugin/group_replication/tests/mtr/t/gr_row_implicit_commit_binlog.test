@@ -141,7 +141,7 @@ while ($ddl_cases >= 1)
   }
   if ($ddl_cases == 14)
   {
-    --let $cmd= CREATE FUNCTION fc () RETURNS VARCHAR(64) RETURN "fc"
+    --let $cmd= CREATE FUNCTION fc () RETURNS VARCHAR(64) CHARSET utf8mb4 RETURN "fc"
   }
   if ($ddl_cases == 13)
   {

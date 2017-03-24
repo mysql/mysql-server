@@ -872,7 +872,6 @@ fsp_space_modify_check(
 		ut_ad(!fsp_is_system_temporary(id));
 		/* If we write redo log, the tablespace must exist. */
 		ut_ad(fil_space_get_type(id) == FIL_TYPE_TABLESPACE);
-		ut_ad(mtr->is_named_space(id));
 		return;
 	}
 
@@ -1093,7 +1092,9 @@ fsp_header_init(
 
 	ut_ad(mtr);
 
-	fil_space_t*		space	= mtr_x_lock_space(space_id, mtr);
+	fil_space_t*		space	= fil_space_get(space_id);
+
+	mtr_x_lock_space(space, mtr);
 
 	const page_id_t		page_id(space_id, 0);
 	const page_size_t	page_size(space->flags);
@@ -1243,16 +1244,18 @@ fsp_header_inc_size(
 	page_no_t	size_inc,	/*!< in: size increment in pages */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
-	fsp_header_t*	header;
-	page_no_t	size;
+	fil_space_t*	space = fil_space_get(space_id);
 
-	ut_ad(mtr);
+	mtr_x_lock_space(space, mtr);
 
-	fil_space_t*	space = mtr_x_lock_space(space_id, mtr);
 	ut_d(fsp_space_modify_check(space_id, mtr));
+
+	fsp_header_t*	header;
 
 	header = fsp_get_space_header(
 		space_id, page_size_t(space->flags), mtr);
+
+	page_no_t	size;
 
 	size = mach_read_from_4(header + FSP_SIZE);
 	ut_ad(size == space->size_in_header);
@@ -1273,20 +1276,22 @@ page_no_t
 fsp_header_get_tablespace_size(void)
 /*================================*/
 {
-	fsp_header_t*	header;
-	page_no_t	size;
+	fil_space_t*	space = fil_space_get_sys_space();
+
 	mtr_t		mtr;
 
 	mtr_start(&mtr);
 
-#ifdef UNIV_DEBUG
-	fil_space_t*	space =
-#endif /* UNIV_DEBUG */
-	mtr_x_lock_space(TRX_SYS_SPACE, &mtr);
+	mtr_x_lock_space(space, &mtr);
+
+	fsp_header_t*	header;
 
 	header = fsp_get_space_header(TRX_SYS_SPACE, univ_page_size, &mtr);
 
+	page_no_t	size;
+
 	size = mach_read_from_4(header + FSP_SIZE);
+
 	ut_ad(space->size_in_header == size);
 
 	mtr_commit(&mtr);
@@ -1597,7 +1602,6 @@ fsp_fill_free_list(
 				mtr_t	ibuf_mtr;
 
 				mtr_start(&ibuf_mtr);
-				ibuf_mtr.set_named_space(space);
 
 				if (space->purpose == FIL_TYPE_TEMPORARY) {
 					mtr_set_log_mode(
@@ -2055,10 +2059,19 @@ fsp_free_extent(
 	case XDES_FSEG:
 	case XDES_FREE_FRAG:
 	case XDES_FULL_FRAG:
+
 		xdes_init(descr, mtr);
+
 		flst_add_last(header + FSP_FREE, descr + XDES_FLST_NODE, mtr);
-		mtr->fsp_free_list_length_incr(page_id.space());
+
+		fil_space_t*	space;
+
+		space = fil_space_get(page_id.space());
+
+		++space->free_len;
+
 		break;
+
 	case XDES_FREE:
 	case XDES_NOT_INITED:
                 ut_error;
@@ -2526,7 +2539,10 @@ fseg_create_general(
 	      <= UNIV_PAGE_SIZE - FIL_PAGE_DATA_END);
 	ut_d(fsp_space_modify_check(space_id, mtr));
 
-	fil_space_t*		space = mtr_x_lock_space(space_id, mtr);
+	fil_space_t*	space = fil_space_get(space_id);
+
+	mtr_x_lock_space(space, mtr);
+
 	const page_size_t	page_size(space->flags);
 
 	if (page != 0) {
@@ -2693,19 +2709,21 @@ fseg_n_reserved_pages(
 	ulint*		used,	/*!< out: number of pages used (<= reserved) */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-	ulint		ret;
-	fseg_inode_t*	inode;
 	space_id_t	space_id;
-	fil_space_t*	space;
 
 	space_id = page_get_space_id(page_align(header));
-	space = mtr_x_lock_space(space_id, mtr);
+
+	fil_space_t*	space = fil_space_get(space_id);
+
+	mtr_x_lock_space(space, mtr);
 
 	const page_size_t	page_size(space->flags);
 
+	fseg_inode_t*	inode;
+
 	inode = fseg_inode_get(header, space_id, page_size, mtr);
 
-	ret = fseg_n_reserved_pages_low(inode, used, mtr);
+	ulint	ret = fseg_n_reserved_pages_low(inode, used, mtr);
 
 	return(ret);
 }
@@ -3274,13 +3292,16 @@ fseg_alloc_free_page_general(
 {
 	fseg_inode_t*	inode;
 	space_id_t	space_id;
-	fil_space_t*	space;
 	buf_block_t*	iblock;
 	buf_block_t*	block;
 	ulint		n_reserved = 0;
 
 	space_id = page_get_space_id(page_align(seg_header));
-	space = mtr_x_lock_space(space_id, mtr);
+
+	fil_space_t*	space = fil_space_get(space_id);
+
+	mtr_x_lock_space(space, mtr);
+
 	const page_size_t	page_size(space->flags);
 
 	if (rw_lock_get_x_lock_count(&space->latch) == 1) {
@@ -3414,10 +3435,12 @@ fsp_reserve_free_extents(
 	ulint		reserve;
 	DBUG_ENTER("fsp_reserve_free_extents");
 
-	ut_ad(mtr);
 	*n_reserved = n_ext;
 
-	fil_space_t*		space = mtr_x_lock_space(space_id, mtr);
+	fil_space_t*	space = fil_space_get(space_id);
+
+	mtr_x_lock_space(space, mtr);
+
 	const page_size_t	page_size(space->flags);
 
 	space_header = fsp_get_space_header(space_id, page_size, mtr);
@@ -3521,8 +3544,7 @@ been acquired by the caller who holds it for the calculation,
 @param[in]	space		tablespace object from fil_space_acquire()
 @return available space in KiB */
 uintmax_t
-fsp_get_available_space_in_free_extents(
-	const fil_space_t*	space)
+fsp_get_available_space_in_free_extents(const fil_space_t* space)
 {
 	ut_ad(space->n_pending_ops > 0);
 
@@ -3781,7 +3803,11 @@ fseg_free_page(
 	DBUG_ENTER("fseg_free_page");
 	fseg_inode_t*		seg_inode;
 	buf_block_t*		iblock;
-	const fil_space_t*	space = mtr_x_lock_space(space_id, mtr);
+
+	fil_space_t*	space = fil_space_get(space_id);
+
+	mtr_x_lock_space(space, mtr);
+
 	const page_size_t	page_size(space->flags);
 
 	DBUG_LOG("fseg_free_page", "space_id: " << space_id
@@ -3815,8 +3841,12 @@ fseg_page_is_free(
 	xdes_t*		descr;
 	fseg_inode_t*	seg_inode;
 
+	fil_space_t*	space = fil_space_get(space_id);
+
 	mtr_start(&mtr);
-	const fil_space_t*	space = mtr_x_lock_space(space_id, &mtr);
+
+	mtr_x_lock_space(space, &mtr);
+
 	const page_size_t	page_size(space->flags);
 
 	seg_inode = fseg_inode_get(seg_header, space_id, page_size, &mtr);
@@ -3954,7 +3984,10 @@ fseg_free_step(
 	space_id = page_get_space_id(page_align(header));
 	header_page = page_get_page_no(page_align(header));
 
-	const fil_space_t*	space = mtr_x_lock_space(space_id, mtr);
+	fil_space_t*	space = fil_space_get(space_id);
+
+	mtr_x_lock_space(space, mtr);
+
 	const page_size_t	page_size(space->flags);
 
 	descr = xdes_get_descriptor(space_id, header_page, page_size, mtr);
@@ -4033,9 +4066,11 @@ fseg_free_step_not_header(
 	page_no_t	page_no;
 
 	space_id = page_get_space_id(page_align(header));
-	ut_ad(mtr->is_named_space(space_id));
 
-	const fil_space_t*	space = mtr_x_lock_space(space_id, mtr);
+	fil_space_t*	space = fil_space_get(space_id);
+
+	mtr_x_lock_space(space, mtr);
+
 	const page_size_t	page_size(space->flags);
 	buf_block_t*		iblock;
 
@@ -4182,7 +4217,11 @@ fseg_print(
 	space_id_t	space_id;
 
 	space_id = page_get_space_id(page_align(header));
-	const fil_space_t*	space = mtr_x_lock_space(space_id, mtr);
+
+	fil_space_t*	space = fil_space_get();
+
+	mtr_x_lock_space(space, mtr);
+
 	const page_size_t	page_size(space->flags);
 
 	inode = fseg_inode_get(header, space_id, page_size, mtr);
@@ -4415,7 +4454,10 @@ fsp_check_tablespace_size(space_id_t space_id)
 
 	mtr_start(&mtr);
 
-	fil_space_t* space = mtr_x_lock_space(space_id, &mtr);
+	fil_space_t*	space = fil_space_get(space_id);
+
+	mtr_x_lock_space(space, &mtr);
+
         const page_size_t       page_size(space->flags);
 
 	fsp_header_t* space_header = fsp_get_space_header(

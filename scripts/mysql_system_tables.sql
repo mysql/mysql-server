@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2017 Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -117,7 +117,8 @@ PRIMARY KEY Host (Host,User)
 
 CREATE TABLE IF NOT EXISTS default_roles
 (
-HOST CHAR(60) BINARY DEFAULT '' NOT NULL, USER CHAR(32) BINARY DEFAULT '' NOT NULL,
+HOST CHAR(60) BINARY DEFAULT '' NOT NULL,
+USER CHAR(32) BINARY DEFAULT '' NOT NULL,
 DEFAULT_ROLE_HOST CHAR(60) BINARY DEFAULT '%' NOT NULL,
 DEFAULT_ROLE_USER CHAR(32) BINARY DEFAULT '' NOT NULL,
 PRIMARY KEY (HOST, USER, DEFAULT_ROLE_HOST, DEFAULT_ROLE_USER)
@@ -132,6 +133,15 @@ TO_USER CHAR(32) BINARY DEFAULT '' NOT NULL,
 WITH_ADMIN_OPTION ENUM('N', 'Y') COLLATE UTF8_GENERAL_CI DEFAULT 'N' NOT NULL,
 PRIMARY KEY (FROM_HOST,FROM_USER,TO_HOST,TO_USER)
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Role hierarchy and role grants';
+
+CREATE TABLE IF NOT EXISTS global_grants
+(
+USER CHAR(32) BINARY DEFAULT '' NOT NULL,
+HOST CHAR(60) BINARY DEFAULT '' NOT NULL,
+PRIV CHAR(32) COLLATE UTF8_GENERAL_CI DEFAULT '' NOT NULL,
+WITH_GRANT_OPTION ENUM('N','Y') COLLATE UTF8_GENERAL_CI DEFAULT 'N' NOT NULL,
+PRIMARY KEY (USER,HOST,PRIV)
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Extended global grants';
 
 -- Remember for later if user table already existed
 set @had_user_table= @@warning_count != 0;
@@ -273,6 +283,8 @@ DROP PREPARE stmt;
 
 --
 -- Optimizer Cost Model configuration
+-- (Note: Column definition for default_value needs to be updated when a
+--        default value is changed).
 --
 
 -- Server cost constants
@@ -282,26 +294,23 @@ CREATE TABLE IF NOT EXISTS server_cost (
   cost_value  FLOAT DEFAULT NULL,
   last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   comment     VARCHAR(1024) DEFAULT NULL,
+  default_value FLOAT GENERATED ALWAYS AS
+    (CASE cost_name
+       WHEN 'disk_temptable_create_cost' THEN 20.0
+       WHEN 'disk_temptable_row_cost' THEN 0.5
+       WHEN 'key_compare_cost' THEN 0.05
+       WHEN 'memory_temptable_create_cost' THEN 1.0
+       WHEN 'memory_temptable_row_cost' THEN 0.1
+       WHEN 'row_evaluate_cost' THEN 0.1
+       ELSE NULL
+     END) VIRTUAL,
   PRIMARY KEY (cost_name)
 ) ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci STATS_PERSISTENT=0;
 
-INSERT IGNORE INTO server_cost VALUES
-  ("row_evaluate_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
-
-INSERT IGNORE INTO server_cost VALUES
-  ("key_compare_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
-
-INSERT IGNORE INTO server_cost VALUES
-  ("memory_temptable_create_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
-
-INSERT IGNORE INTO server_cost VALUES
-  ("memory_temptable_row_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
-
-INSERT IGNORE INTO server_cost VALUES
-  ("disk_temptable_create_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
-
-INSERT IGNORE INTO server_cost VALUES
-  ("disk_temptable_row_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
+INSERT IGNORE INTO server_cost(cost_name) VALUES
+  ("row_evaluate_cost"), ("key_compare_cost"),
+  ("memory_temptable_create_cost"), ("memory_temptable_row_cost"),
+  ("disk_temptable_create_cost"), ("disk_temptable_row_cost");
 
 -- Engine cost constants
 
@@ -312,13 +321,18 @@ CREATE TABLE IF NOT EXISTS engine_cost (
   cost_value  FLOAT DEFAULT NULL,
   last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   comment     VARCHAR(1024) DEFAULT NULL,
+  default_value FLOAT GENERATED ALWAYS AS
+    (CASE cost_name
+       WHEN 'io_block_read_cost' THEN 1.0
+       WHEN 'memory_block_read_cost' THEN 0.25
+       ELSE NULL
+     END) VIRTUAL,
   PRIMARY KEY (cost_name, engine_name, device_type)
 ) ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci STATS_PERSISTENT=0;
 
-INSERT IGNORE INTO engine_cost VALUES
-  ("default", 0, "memory_block_read_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
-INSERT IGNORE INTO engine_cost VALUES
-  ("default", 0, "io_block_read_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
+INSERT IGNORE INTO engine_cost(engine_name, device_type, cost_name) VALUES
+  ("default", 0, "memory_block_read_cost"),
+  ("default", 0, "io_block_read_cost");
 
 
 --
@@ -358,7 +372,8 @@ CREATE OR REPLACE DEFINER=`root`@`localhost` VIEW information_schema.COLLATIONS 
                             WHERE mysql.character_sets.default_collation_id= col.id),
             'Yes','') AS IS_DEFAULT,
          IF(col.is_compiled,'Yes','') AS IS_COMPILED,
-         col.sort_length AS SORTLEN
+         col.sort_length AS SORTLEN,
+         col.pad_attribute AS PAD_ATTRIBUTE
   FROM mysql.collations col JOIN mysql.character_sets cs ON col.character_set_id=cs.id;
 
 --
@@ -3108,9 +3123,52 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_digest("
   "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "FIRST_SEEN TIMESTAMP(0) NOT NULL default 0,"
   "LAST_SEEN TIMESTAMP(0) NOT NULL default 0,"
+  "QUANTILE_95 BIGINT unsigned not null,"
+  "QUANTILE_99 BIGINT unsigned not null,"
+  "QUANTILE_999 BIGINT unsigned not null,"
   "UNIQUE KEY (SCHEMA_NAME, DIGEST) USING HASH"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_STATEMENTS_HISTOGRAM_GLOBAL
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_statements_histogram_global("
+  "BUCKET_NUMBER INTEGER unsigned not null,"
+  "BUCKET_TIMER_LOW BIGINT unsigned not null,"
+  "BUCKET_TIMER_HIGH BIGINT unsigned not null,"
+  "COUNT_BUCKET BIGINT unsigned not null,"
+  "COUNT_BUCKET_AND_LOWER BIGINT unsigned not null,"
+  "BUCKET_QUANTILE DOUBLE(7,6) not null,"
+  "PRIMARY KEY (BUCKET_NUMBER) USING HASH"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_STATEMENTS_HISTOGRAM_BY_DIGEST
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_statements_histogram_by_digest("
+  "SCHEMA_NAME VARCHAR(64),"
+  "DIGEST VARCHAR(32),"
+  "BUCKET_NUMBER INTEGER unsigned not null,"
+  "BUCKET_TIMER_LOW BIGINT unsigned not null,"
+  "BUCKET_TIMER_HIGH BIGINT unsigned not null,"
+  "COUNT_BUCKET BIGINT unsigned not null,"
+  "COUNT_BUCKET_AND_LOWER BIGINT unsigned not null,"
+  "BUCKET_QUANTILE DOUBLE(7,6) not null,"
+  "UNIQUE KEY (SCHEMA_NAME, DIGEST, BUCKET_NUMBER) USING HASH"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -3297,13 +3355,22 @@ SET @cmd="CREATE TABLE performance_schema.replication_connection_status("
   "THREAD_ID BIGINT unsigned,"
   "SERVICE_STATE ENUM('ON','OFF','CONNECTING') not null,"
   "COUNT_RECEIVED_HEARTBEATS bigint unsigned NOT NULL DEFAULT 0,"
-  "LAST_HEARTBEAT_TIMESTAMP TIMESTAMP(0) not null COMMENT 'Shows when the most recent heartbeat signal was received.',"
+  "LAST_HEARTBEAT_TIMESTAMP TIMESTAMP(6) not null COMMENT 'Shows when the most recent heartbeat signal was received.',"
   "RECEIVED_TRANSACTION_SET LONGTEXT not null,"
   "LAST_ERROR_NUMBER INTEGER not null,"
   "LAST_ERROR_MESSAGE VARCHAR(1024) not null,"
-  "LAST_ERROR_TIMESTAMP TIMESTAMP(0) not null,"
+  "LAST_ERROR_TIMESTAMP TIMESTAMP(6) not null,"
   "PRIMARY KEY (CHANNEL_NAME) USING HASH,"
-  "KEY (THREAD_ID) USING HASH"
+  "KEY (THREAD_ID) USING HASH,"
+  "LAST_QUEUED_TRANSACTION CHAR(57),"
+  "LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6) not null,"
+  "LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6) not null,"
+  "LAST_QUEUED_TRANSACTION_START_QUEUE_TIMESTAMP TIMESTAMP(6) not null,"
+  "LAST_QUEUED_TRANSACTION_END_QUEUE_TIMESTAMP TIMESTAMP(6) not null,"
+  "QUEUEING_TRANSACTION CHAR(57),"
+  "QUEUEING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6) not null,"
+  "QUEUEING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6) not null,"
+  "QUEUEING_TRANSACTION_START_QUEUE_TIMESTAMP TIMESTAMP(6) not null"
   ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -3319,6 +3386,40 @@ SET @cmd="CREATE TABLE performance_schema.replication_applier_configuration("
   "CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,"
   "DESIRED_DELAY INTEGER not null,"
   "PRIMARY KEY (CHANNEL_NAME) USING HASH"
+  ") ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE replication_applier_filters
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_applier_filters("
+  "CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,"
+  "FILTER_NAME CHAR(64) collate utf8_general_ci not null,"
+  "FILTER_RULE LONGTEXT not null,"
+  "CONFIGURED_BY ENUM('STARTUP_OPTIONS','CHANGE_REPLICATION_FILTER','STARTUP_OPTIONS_FOR_CHANNEL','CHANGE_REPLICATION_FILTER_FOR_CHANNEL') not null,"
+  "ACTIVE_SINCE TIMESTAMP(6) NOT NULL default 0,"
+  "COUNTER bigint(20) unsigned NOT NULL default 0"
+  ") ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE replication_applier_global_filters
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_applier_global_filters("
+  "FILTER_NAME CHAR(64) collate utf8_general_ci not null,"
+  "FILTER_RULE LONGTEXT not null,"
+  "CONFIGURED_BY ENUM('STARTUP_OPTIONS','CHANGE_REPLICATION_FILTER') not null,"
+  "ACTIVE_SINCE TIMESTAMP(6) NOT NULL default 0"
   ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -3353,9 +3454,18 @@ SET @cmd="CREATE TABLE performance_schema.replication_applier_status_by_coordina
   "SERVICE_STATE ENUM('ON','OFF') not null,"
   "LAST_ERROR_NUMBER INTEGER not null,"
   "LAST_ERROR_MESSAGE VARCHAR(1024) not null,"
-  "LAST_ERROR_TIMESTAMP TIMESTAMP(0) not null,"
+  "LAST_ERROR_TIMESTAMP TIMESTAMP(6) not null,"
   "PRIMARY KEY (CHANNEL_NAME) USING HASH,"
-  "KEY (THREAD_ID) USING HASH"
+  "KEY (THREAD_ID) USING HASH,"
+  "LAST_PROCESSED_TRANSACTION CHAR(57),"
+  "LAST_PROCESSED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6) not null,"
+  "LAST_PROCESSED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6) not null,"
+  "LAST_PROCESSED_TRANSACTION_START_BUFFER_TIMESTAMP TIMESTAMP(6) not null,"
+  "LAST_PROCESSED_TRANSACTION_END_BUFFER_TIMESTAMP TIMESTAMP(6) not null,"
+  "PROCESSING_TRANSACTION CHAR(57),"
+  "PROCESSING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6) not null,"
+  "PROCESSING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6) not null,"
+  "PROCESSING_TRANSACTION_START_BUFFER_TIMESTAMP TIMESTAMP(6) not null"
   ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -3372,12 +3482,20 @@ SET @cmd="CREATE TABLE performance_schema.replication_applier_status_by_worker("
   "WORKER_ID BIGINT UNSIGNED not null,"
   "THREAD_ID BIGINT UNSIGNED,"
   "SERVICE_STATE ENUM('ON','OFF') not null,"
-  "LAST_SEEN_TRANSACTION CHAR(57) not null,"
   "LAST_ERROR_NUMBER INTEGER not null,"
   "LAST_ERROR_MESSAGE VARCHAR(1024) not null,"
-  "LAST_ERROR_TIMESTAMP TIMESTAMP(0) not null,"
+  "LAST_ERROR_TIMESTAMP TIMESTAMP(6) not null,"
   "PRIMARY KEY (CHANNEL_NAME, WORKER_ID) USING HASH,"
-  "KEY (THREAD_ID) USING HASH"
+  "KEY (THREAD_ID) USING HASH,"
+  "LAST_APPLIED_TRANSACTION CHAR(57),"
+  "LAST_APPLIED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6) not null,"
+  "LAST_APPLIED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6) not null,"
+  "LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP TIMESTAMP(6) not null,"
+  "LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP TIMESTAMP(6) not null,"
+  "APPLYING_TRANSACTION CHAR(57),"
+  "APPLYING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6) not null,"
+  "APPLYING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6) not null,"
+  "APPLYING_TRANSACTION_START_APPLY_TIMESTAMP TIMESTAMP(6) not null"
   ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');

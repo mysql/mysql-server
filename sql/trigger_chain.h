@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #ifndef TRIGGER_CHAIN_H_INCLUDED
 #define TRIGGER_CHAIN_H_INCLUDED
 
+#include "lex_string.h"
 #include "m_string.h"                       // LEX_STRING, LEX_CSTRING
 #include "sql_alloc.h"                      // Sql_alloc
 #include "sql_list.h"                       // List

@@ -208,7 +208,7 @@ void good_path(bool begins_with_column_id, const char *path_expression,
 }
 
 /** Shorter form of good_path() */
-void good_path(bool begins_with_column_id, const char *path_expression)
+void good_path(bool, const char *path_expression)
 {
   good_path(false, false, path_expression, "");
 }

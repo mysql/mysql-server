@@ -216,7 +216,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     mysql_file_seek(kfile, 0L, MY_SEEK_SET, MYF(0));
     if (!(open_flags & HA_OPEN_TMP_TABLE))
     {
-      if ((lock_error=my_lock(kfile,F_RDLCK,0L,F_TO_EOF,
+      if ((lock_error=my_lock(kfile,F_RDLCK,
 			      MYF(open_flags & HA_OPEN_WAIT_IF_LOCKED ?
 				  0 : MY_DONT_WAIT))) &&
 	  !(open_flags & HA_OPEN_IGNORE_IF_LOCKED))
@@ -496,7 +496,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
 
     if (! lock_error)
     {
-      (void) my_lock(kfile,F_UNLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
+      (void) my_lock(kfile,F_UNLCK,MYF(MY_SEEK_NOT_DONE));
       lock_error=1;			/* Database unlocked */
     }
 
@@ -697,7 +697,7 @@ err:
     /* fall through */
   case 3:
     if (! lock_error)
-      (void) my_lock(kfile, F_UNLCK, 0L, F_TO_EOF, MYF(MY_SEEK_NOT_DONE));
+      (void) my_lock(kfile, F_UNLCK, MYF(MY_SEEK_NOT_DONE));
     /* fall through */
   case 2:
     /* fall through */

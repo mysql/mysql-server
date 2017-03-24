@@ -1,6 +1,5 @@
 # Created: 2015-05-15  Lalit Choudhary
 
--- source include/not_embedded.inc
 --source include/big_test.inc
 --echo #
 --echo # WL#7755  mysqlpump: Extend mysqldump functionalities with mysqldump option.

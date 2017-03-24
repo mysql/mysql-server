@@ -439,7 +439,7 @@ table_events_stages_current::rnd_pos(const void *pos)
 }
 
 int
-table_events_stages_current::index_init(uint idx, bool)
+table_events_stages_current::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   m_normalizer = time_normalizer::get(stage_timer);
 
@@ -597,7 +597,7 @@ table_events_stages_history::rnd_pos(const void *pos)
 }
 
 int
-table_events_stages_history::index_init(uint idx, bool)
+table_events_stages_history::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   m_normalizer = time_normalizer::get(stage_timer);
 

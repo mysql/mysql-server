@@ -1138,7 +1138,7 @@ c1	c2	right(c3, 20)
 0	aaaaa	AAAAAAAAAAAAAAAAAAAA
 0	aaaaa	AAAAAAAAAAAAAAAAAAAA
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or ENCRYPTION_KEY_ADMIN privilege(s) for this operation
 CREATE TABLE tde_db.t_encrypt_np(c1 INT, c2 char(20), c3 BLOB) ENCRYPTION="Y" ENGINE = InnoDB;
 ERROR 42000: CREATE command denied to user 'encryptnonprivuser'@'localhost' for table 't_encrypt_np'
 SELECT c1,c2,right(c3, 20) FROM tde_db.t_encrypt LIMIT 10;
@@ -1402,5 +1402,16 @@ c2	RIGHT(c3,20)	c4
 1961	19611961196119611961	{"key_a": 1, "key_b": 2, "key_c": 3}
 1952	19521952195219521952	{"key_a": 21, "key_b": 22, "key_c": 23}
 DROP DATABASE tde_db;
+# Global privilege ENCRYPTION_KEY_ADMIN can replace super.
+USE test;
+CREATE USER encryption_admin@localhost IDENTIFIED BY 'foo';
+GRANT ENCRYPTION_KEY_ADMIN, CREATE ON *.* TO encryption_admin@localhost;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+REVOKE ENCRYPTION_KEY_ADMIN ON *.* FROM encryption_admin@localhost;
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or ENCRYPTION_KEY_ADMIN privilege(s) for this operation
+DROP USER encryption_admin@localhost;
+DROP TABLE t1;
 # restart:
 SET GLOBAL innodb_file_per_table=1;

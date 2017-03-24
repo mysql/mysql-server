@@ -134,7 +134,7 @@ select t2.fld3 from t2 where fld3 LIKE 'don_t_find_me_please%';
 fld3
 explain select t2.fld3 from t2 where fld3 = 'honeysuckle';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	fld3	fld3	30	const	#	#	Using index
+1	SIMPLE	t2	NULL	ref	fld3	fld3	120	const	#	#	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 ignore index (fld3) where fld3 = 'honeysuckle';
@@ -149,12 +149,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` USE INDEX (`fld1`) where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 use index (fld3) where fld3 = 'honeysuckle';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	fld3	fld3	30	const	#	#	Using index
+1	SIMPLE	t2	NULL	ref	fld3	fld3	120	const	#	#	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` USE INDEX (`fld3`) where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 use index (fld1,fld3) where fld3 = 'honeysuckle';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	fld3	fld3	30	const	#	#	Using index
+1	SIMPLE	t2	NULL	ref	fld3	fld3	120	const	#	#	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` USE INDEX (`fld3`) USE INDEX (`fld1`) where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 ignore index (fld3,not_used);
@@ -167,7 +167,7 @@ honeysuckle
 honoring
 explain select t2.fld3 from t2 where fld3 >= 'honeysuckle' and fld3 <= 'honoring' order by fld3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	fld3	fld3	30	NULL	#	#	Using where; Using index
+1	SIMPLE	t2	NULL	range	fld3	fld3	120	NULL	#	#	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` where ((`test`.`t2`.`fld3` >= 'honeysuckle') and (`test`.`t2`.`fld3` <= 'honoring')) order by `test`.`t2`.`fld3`
 select fld1,fld3 from t2 where fld3="Colombo" or fld3 = "nondecreasing" order by fld3;
@@ -2148,17 +2148,17 @@ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 auto	int(11)	NULL	NO	PRI	NULL	auto_increment	#	
 fld1	int(6) unsigned zerofill	NULL	NO	UNI	000000		#	
 companynr	tinyint(2) unsigned zerofill	NULL	NO		00		#	
-fld3	char(30)	latin1_swedish_ci	NO	MUL			#	
-fld4	char(35)	latin1_swedish_ci	NO				#	
-fld5	char(35)	latin1_swedish_ci	NO				#	
-fld6	char(4)	latin1_swedish_ci	NO				#	
+fld3	char(30)	utf8mb4_0900_ai_ci	NO	MUL			#	
+fld4	char(35)	utf8mb4_0900_ai_ci	NO				#	
+fld5	char(35)	utf8mb4_0900_ai_ci	NO				#	
+fld6	char(4)	utf8mb4_0900_ai_ci	NO				#	
 show full columns from t2 from test like 'f%';
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 fld1	int(6) unsigned zerofill	NULL	NO	UNI	000000		#	
-fld3	char(30)	latin1_swedish_ci	NO	MUL			#	
-fld4	char(35)	latin1_swedish_ci	NO				#	
-fld5	char(35)	latin1_swedish_ci	NO				#	
-fld6	char(4)	latin1_swedish_ci	NO				#	
+fld3	char(30)	utf8mb4_0900_ai_ci	NO	MUL			#	
+fld4	char(35)	utf8mb4_0900_ai_ci	NO				#	
+fld5	char(35)	utf8mb4_0900_ai_ci	NO				#	
+fld6	char(4)	utf8mb4_0900_ai_ci	NO				#	
 show full columns from t2 from test like 's%';
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 analyze table t2;

@@ -20,8 +20,6 @@
 #include "mysql/mysql_lex_string.h"
 #include "prealloced_array.h"
 
-typedef struct st_mysql_lex_string LEX_STRING;
-
 class sys_var;
 struct st_mysql_plugin;
 struct st_plugin_dl;

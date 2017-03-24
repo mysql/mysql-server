@@ -90,7 +90,8 @@ bool Item_row::itemize(Parse_context *pc, Item **res)
 }
 
 
-void Item_row::illegal_method_call(const char *method) const
+void Item_row::
+illegal_method_call(const char *method MY_ATTRIBUTE((unused))) const
 {
   DBUG_ENTER("Item_row::illegal_method_call");
   DBUG_PRINT("error", ("!!! %s method was called for row item", method));
@@ -131,8 +132,7 @@ bool Item_row::fix_fields(THD *thd, Item**)
       return true;
 
     maybe_null|= item->maybe_null;
-    with_sum_func|= item->with_sum_func;
-    with_subselect|= item->has_subquery();
+    add_accum_properties(item);
   }
   fixed= 1;
   return false;
@@ -166,15 +166,13 @@ void Item_row::update_used_tables()
 {
   used_tables_cache= 0;
   const_item_cache= true;
-  with_subselect= false;
-  with_stored_program= false;
+  m_accum_properties= 0;
   for (uint i= 0; i < arg_count; i++)
   {
     items[i]->update_used_tables();
     used_tables_cache|= items[i]->used_tables();
     const_item_cache&= items[i]->const_item();
-    with_subselect|= items[i]->has_subquery();
-    with_stored_program|= items[i]->has_stored_program();
+    add_accum_properties(items[i]);
   }
 }
 

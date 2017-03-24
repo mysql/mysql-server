@@ -16,6 +16,7 @@
 #ifndef SQL_IMPORT_INCLUDED
 #define SQL_IMPORT_INCLUDED
 
+#include "lex_string.h"
 #include "mem_root_array.h"
 #include "sql_cmd.h"       // Sql_cmd
 

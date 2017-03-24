@@ -1,9 +1,10 @@
-
 #
 # Just a couple of tests to make sure that schema works.
 #
 # Drop mysqltest1 database, as it can left from the previous tests.
 #
+
+--source include/have_debug_sync.inc
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
@@ -193,7 +194,6 @@ connection default;
 disconnect con2;
 disconnect con3;
 
---source include/have_debug_sync.inc
 --enable_connect_log
 
 --echo #

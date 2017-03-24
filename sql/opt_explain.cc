@@ -598,6 +598,13 @@ Explain_no_table::get_subquery_context(SELECT_LEX_UNIT *unit) const
 */
 bool Explain::explain_subqueries()
 {
+  /*
+    Subqueries in empty queries are neither optimized nor executed. They are
+    therefore not to be included in the explain output.
+  */
+  if (select_lex->is_empty_query())
+    return false;
+
   for (SELECT_LEX_UNIT *unit= select_lex->first_inner_unit();
        unit;
        unit= unit->next_unit())
@@ -1778,6 +1785,8 @@ bool Explain_join::explain_extra()
           !bitmap_is_set(table->write_set, (*fld)->field_index))
         continue;
       fmt->entry()->col_used_columns.push_back((*fld)->field_name);
+      if (table->is_partial_update_column(*fld))
+        fmt->entry()->col_partial_update_columns.push_back((*fld)->field_name);
     }
   }
   return false;
@@ -1925,6 +1934,10 @@ bool Explain_table::explain_extra()
   if (message)
     return fmt->entry()->col_message.set(message);
 
+  for (Field **fld= table->field; *fld != nullptr; ++fld)
+    if (table->is_partial_update_column(*fld))
+      fmt->entry()->col_partial_update_columns.push_back((*fld)->field_name);
+
   uint keyno;
   int quick_type;
   if (tab && tab->quick_optim())
@@ -2050,7 +2063,13 @@ bool explain_single_table_modification(THD *ethd,
 
   ethd->lex->explain_format->send_headers(&result);
 
-  if (!other)
+  /*
+    Optimize currently non-optimized subqueries when needed, but
+    - do not optimize subqueries for other connections, and
+    - there is no need to optimize subqueries that will not be explained
+      because they are attached to a query block that do not return any rows.
+  */
+  if (!other && !select->is_empty_query())
   {
     for (SELECT_LEX_UNIT *unit= select->first_inner_unit();
          unit;

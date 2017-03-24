@@ -65,6 +65,17 @@ struct st_row_coordinator
   char last_error_message[MAX_SLAVE_ERRMSG];
   uint last_error_message_length;
   ulonglong last_error_timestamp;
+  char last_processed_trx[Gtid::MAX_TEXT_LENGTH+1];
+  uint last_processed_trx_length;
+  ulonglong last_processed_trx_original_commit_timestamp;
+  ulonglong last_processed_trx_immediate_commit_timestamp;
+  ulonglong last_processed_trx_start_buffer_timestamp;
+  ulonglong last_processed_trx_end_buffer_timestamp;
+  char processing_trx[Gtid::MAX_TEXT_LENGTH+1];
+  uint processing_trx_length;
+  ulonglong processing_trx_original_commit_timestamp;
+  ulonglong processing_trx_immediate_commit_timestamp;
+  ulonglong processing_trx_start_buffer_timestamp;
 };
 
 class PFS_index_rpl_applier_status_by_coord : public PFS_engine_index

@@ -40,6 +40,7 @@
 #include "event_db_repository.h"              // Events
 #include "event_parse_data.h"                 // Event_parse_data
 #include "handler.h"                          // legacy_db_type
+#include "lex_string.h"
 #include "lock.h"                             // Tablespace_hash_set
 #include "log.h"                              // sql_print_warning
 #include "my_dbug.h"
@@ -921,6 +922,7 @@ public:
     m_thd->variables.character_set_client= m_client_cs;
     m_thd->variables.collation_connection= m_connection_cl;
     m_thd->variables.time_zone= m_saved_time_zone;
+    m_thd->update_charset();
   }
 };
 
@@ -1504,11 +1506,16 @@ static fk_option get_ref_opt(const char *str)
   Prepare Foreign key data to store in DD.
 */
 
-static bool prepare_foreign_key_upgrade(FOREIGN_KEY_INFO *fk_key_info,
+static bool prepare_foreign_key_upgrade(Alter_info *alter_info,
+                                        KEY *key_info_buffer,
+                                        uint key_count,
+                                        FOREIGN_KEY_INFO *fk_key_info,
                                         FOREIGN_KEY *fk_key,
                                         MEM_ROOT *mem_root)
 {
   fk_key->name= fk_key_info->foreign_id->str;
+  fk_key->orig_name= nullptr;
+
   LEX_CSTRING name{ fk_key_info->foreign_id->str,
                     fk_key_info->foreign_id->length };
 
@@ -1563,6 +1570,11 @@ static bool prepare_foreign_key_upgrade(FOREIGN_KEY_INFO *fk_key_info,
     fk_key->key_part[column_nr]= { f_info->str, f_info->length };
     fk_key->fk_key_part[column_nr]= { r_info->str, r_info->length };
   }
+
+  // TODO: For now we use the index in the child table rather than the parent.
+  fk_key->unique_index_name=
+    find_fk_supporting_index(alter_info, key_info_buffer,
+                             key_count, fk_key);
 
   return false;
 }
@@ -2211,7 +2223,8 @@ static bool migrate_table_to_dd(THD *thd,
   // Create Foreign key List
   while ((f_key_info= it++))
   {
-    if (prepare_foreign_key_upgrade(f_key_info, fk_key_info, &table->mem_root))
+    if (prepare_foreign_key_upgrade(&alter_info, key_info_buffer, key_count,
+                                    f_key_info, fk_key_info, &table->mem_root))
       return true;
     fk_key_info++;
     fk_number++;
@@ -2222,8 +2235,25 @@ static bool migrate_table_to_dd(THD *thd,
   // Disable autocommit option in thd variable
   Disable_autocommit_guard autocommit_guard(thd);
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *sch_obj= nullptr;
+
+  if (thd->dd_client()->acquire(schema_name, &sch_obj))
+  {
+    // Error is reported by the dictionary subsystem.
+    return true;
+  }
+
+  if (!sch_obj)
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), schema_name.c_str());
+    return true;
+  }
+
+  Disable_gtid_state_update_guard disabler(thd);
+
   if (dd::create_dd_user_table(thd,
-                               schema_name,
+                               *sch_obj,
                                table_name,
                                &create_info,
                                alter_info.create_list,
@@ -2232,8 +2262,17 @@ static bool migrate_table_to_dd(THD *thd,
                                Alter_info::ENABLE,
                                fk_key_info_buffer,
                                fk_number,
-                               table->file,
-                               true))
+                               table->file))
+  {
+    sql_print_error("Error in Creating DD entry for %s.%s",
+                    schema_name.c_str(), table_name.c_str());
+    trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+    return true;
+  }
+
+  if (trans_commit_stmt(thd) || trans_commit(thd))
   {
     sql_print_error("Error in Creating DD entry for %s.%s",
                     schema_name.c_str(), table_name.c_str());
@@ -3236,6 +3275,14 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table)
   Stored_program_creation_ctx *creation_ctx=
   Stored_routine_creation_ctx::load_from_db(thd, &sp_name_obj, proc_table);
 
+  /*
+    Update character set info in thread variable.
+    Restore will be taken care by Routine_event_context_guard
+  */
+  thd->variables.character_set_client= creation_ctx->get_client_cs();
+  thd->variables.collation_connection= creation_ctx->get_connection_cl();
+  thd->update_charset();
+
   // Holders for user name and host name used in parse user.
   char definer_user_name_holder[USERNAME_LENGTH + 1];
   char definer_host_name_holder[HOSTNAME_LENGTH + 1];
@@ -3295,9 +3342,11 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table)
   return false;
 
 err:
-   if (sp != nullptr)            // To be safe
-     sp_head::destroy(sp);
-   return true;
+  sql_print_error("Error in creating stored program '%s.%s'", sp_db_str.str,
+                                                              sp_name_str.str);
+  if (sp != nullptr)            // To be safe
+    sp_head::destroy(sp);
+  return true;
 }
 
 
@@ -3483,7 +3532,7 @@ bool find_files_with_metadata(THD *thd, const char *dbname,
   Scans datadir for databases and lists all the database names.
 */
 
-bool find_schema_from_datadir(THD *thd, std::vector<String_type> *db_name)
+bool find_schema_from_datadir(std::vector<String_type> *db_name)
 {
   MY_DIR *a;
   uint i;

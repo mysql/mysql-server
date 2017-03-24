@@ -384,7 +384,6 @@ enum enum_commands {
   Q_LET,		    Q_ECHO,
   Q_EXPR,
   Q_WHILE,	    Q_END_BLOCK,
-  Q_SYSTEM,	    Q_RESULT,
   Q_SAVE_MASTER_POS,
   Q_SYNC_WITH_MASTER,
   Q_SYNC_SLAVE_WITH_MASTER,
@@ -392,7 +391,6 @@ enum enum_commands {
   Q_SEND,		    Q_REAP,
   Q_DIRTY_CLOSE,	    Q_REPLACE, Q_REPLACE_COLUMN,
   Q_PING,		    Q_EVAL,
-  Q_EVAL_RESULT,
   Q_ENABLE_QUERY_LOG, Q_DISABLE_QUERY_LOG,
   Q_ENABLE_RESULT_LOG, Q_DISABLE_RESULT_LOG,
   Q_ENABLE_CONNECT_LOG, Q_DISABLE_CONNECT_LOG,
@@ -445,8 +443,6 @@ const char *command_names[]=
   "expr",
   "while",
   "end",
-  "system",
-  "result",
   "save_master_pos",
   "sync_with_master",
   "sync_slave_with_master",
@@ -458,7 +454,6 @@ const char *command_names[]=
   "replace_column",
   "ping",
   "eval",
-  "eval_result",
   /* Enable/disable that the _query_ is logged to result file */
   "enable_query_log",
   "disable_query_log",
@@ -1883,6 +1878,19 @@ static int compare_files(const char* filename1, const char* filename2)
   if ((fd= my_open(filename1, O_RDONLY, MYF(0))) < 0)
     die("Failed to open first file: '%s'", filename1);
 
+  /*
+    Removing the unnecessary warning messages generated
+    on GCOV platform.
+  */
+#ifdef HAVE_GCOV
+  char cmd[FN_REFLEN+FN_REFLEN];
+  strcpy(cmd, "sed -i '/gcda:Merge mismatch for function/d' ");
+  strcat(cmd, filename1);
+  strcat(cmd, " ");
+  strcat(cmd, filename2);
+  system(cmd);
+#endif
+
   error= compare_files2(fd, filename2);
 
   my_close(fd, MYF(0));
@@ -1909,17 +1917,6 @@ static void check_result()
   DBUG_ENTER("check_result");
   DBUG_ASSERT(result_file_name);
   DBUG_PRINT("enter", ("result_file_name: %s", result_file_name));
-
-  /*
-    Removing the unnecessary warning messages generated
-    on GCOV platform.
-  */
-#ifdef HAVE_GCOV
-  char cmd[256];
-  strcpy(cmd, "sed -i '/gcda:Merge mismatch for function/d' ");
-  strcat(cmd, log_file.file_name());
-  system(cmd);
-#endif
 
   switch (compare_files(log_file.file_name(), result_file_name)) {
   case RESULT_OK:
@@ -2867,7 +2864,7 @@ static void do_source(struct st_command *command)
 
 
 static FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
-                      struct st_command *command)
+                      struct st_command *command MY_ATTRIBUTE((unused)))
 {
 #ifdef _WIN32
   /*
@@ -5488,7 +5485,7 @@ static bool kill_process(int pid)
   @param pid  Process id.
   @param path Path to create minidump file in.
 */
-static void abort_process(int pid, const char *path)
+static void abort_process(int pid, const char *path MY_ATTRIBUTE((unused)))
 {
 #ifdef _WIN32
   HANDLE proc;
@@ -7676,6 +7673,69 @@ get_one_option(int optid, const struct my_option *opt, char *argument)
 }
 
 
+/**
+  Test case or the result file names may use alphanumeric characters
+  (A-Z, a-z, 0-9), dash ('-') or underscore ('_'), but should not
+  start with dash or underscore.
+
+  Check if a file name conatins any other special characters. If yes,
+  throw an error and abort the test run.
+
+  @param[in] file_name File name
+*/
+
+static void validate_filename(const char *file_name)
+{
+  const char *fname= strrchr(file_name, '/');
+
+  if (fname == NULL)
+  {
+    if(is_windows)
+    {
+      fname= strrchr(file_name, '\\');
+
+      if (fname == NULL)
+        fname= file_name;
+      else
+        fname++;
+    }
+    else
+      fname= file_name;
+  }
+  else
+    fname++;
+
+  file_name= fname;
+
+  // Check if first character in the file name is a alphanumeric character
+  if (!my_isalnum(charset_info, file_name[0]))
+  {
+    die("Invalid file name '%s', first character must be alpha-numeric.",
+        file_name);
+  }
+  else
+    file_name++;
+
+  // Skip extension('.test' or '.result' or '.inc' etc) in the file name
+  const char* file_name_end= strrchr(file_name, '.');
+
+  while (*file_name && (file_name != file_name_end) &&
+         (file_name[0] == '-' || file_name[0] == '_' ||
+          my_isalnum(charset_info, file_name[0])))
+  {
+    file_name++;
+  }
+
+  if (file_name != file_name_end)
+  {
+    die("Invalid file name '%s'. Test or result file name should "\
+        "consist of only alpha-numeric characters, dash (-) or "\
+        "underscore (_), but should not start with dash or "\
+        "underscore.", fname);
+  }
+}
+
+
 static int parse_args(int argc, char **argv)
 {
   if (load_defaults("my",load_default_groups,&argc,&argv))
@@ -7686,11 +7746,20 @@ static int parse_args(int argc, char **argv)
   if ((handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(1);
 
+  // Check for special characters in test case file name
+  if (cur_file->file_name)
+    validate_filename(cur_file->file_name);
+
+  // Check for special characters in result file name
+  if (result_file_name)
+    validate_filename(result_file_name);
+
   if (argc > 1)
   {
     usage();
     exit(1);
   }
+
   if (argc == 1)
     opt_db= *argv;
   if (tty_password)
@@ -9825,10 +9894,6 @@ int main(int argc, char **argv)
       case Q_INC: do_modify_var(command, DO_INC); break;
       case Q_DEC: do_modify_var(command, DO_DEC); break;
       case Q_ECHO: do_echo(command); command_executed++; break;
-      case Q_SYSTEM:
-        die("'system' command  is deprecated, use exec or\n"\
-            "  see the manual for portable commands to use");
-	break;
       case Q_REMOVE_FILE: do_remove_file(command); break;
       case Q_REMOVE_FILES_WILDCARD: do_remove_files_wildcard(command); break;
       case Q_COPY_FILES_WILDCARD: do_copy_files_wildcard(command); break;
@@ -9881,8 +9946,6 @@ int main(int argc, char **argv)
       case Q_EXPR:
         do_expr(command);
         break;
-      case Q_EVAL_RESULT:
-        die("'eval_result' command  is deprecated");
       case Q_EVAL:
       case Q_QUERY_VERTICAL:
       case Q_QUERY_HORIZONTAL:
@@ -10108,11 +10171,6 @@ int main(int argc, char **argv)
           command->last_argument= command->end;
         }
         break;
-
-      case Q_RESULT:
-        die("result, deprecated command");
-        break;
-
       case Q_OUTPUT:
         {
           static DYNAMIC_STRING ds_to_file;

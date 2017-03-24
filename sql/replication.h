@@ -35,6 +35,22 @@ extern "C" {
 #endif
 
 /**
+  Struct to share server ssl variables
+*/
+struct st_server_ssl_variables
+{
+  bool have_ssl_opt;
+  char *ssl_ca;
+  char *ssl_capath;
+  char *tls_version;
+  char *ssl_cert;
+  char *ssl_cipher;
+  char *ssl_key;
+  char *ssl_crl;
+  char *ssl_crlpath;
+};
+
+/**
    Transaction observer flags.
 */
 enum Trans_flags {
@@ -124,6 +140,11 @@ typedef struct Trans_param {
   IO_CACHE *trx_cache_log;
   IO_CACHE *stmt_cache_log;
   ulonglong cache_log_max_size;
+  /*
+    The flag designates the transaction is a DDL contained is
+    the transactional cache.
+  */
+  bool      is_atomic_ddl;
 
   /*
    This is the list of tables that are involved in this transaction and its

@@ -46,6 +46,7 @@ Smart ALTER TABLE
 #include "ha_innopart.h"
 #include "ha_prototypes.h"
 #include "handler0alter.h"
+#include "lex_string.h"
 #include "log0log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -4586,6 +4587,7 @@ prepare_inplace_alter_table_dict(
 				ctx->old_table->name.m_name);
 
 			error = DB_SUCCESS;
+			// Fall through.
 
 		case DB_SUCCESS:
 			/* We need to bump up the table ref count and
@@ -8315,8 +8317,6 @@ ha_innobase::commit_inplace_alter_table(
 	or lock waits can happen in it during the data dictionary operation. */
 	row_mysql_lock_data_dictionary(trx);
 
-	ut_ad(log_append_on_checkpoint(NULL) == NULL);
-
 	/* Prevent the background statistics collection from accessing
 	the tables. */
 	for (;;) {
@@ -8407,13 +8407,17 @@ ha_innobase::commit_inplace_alter_table(
 	/* Commit or roll back the changes to the data dictionary. */
 
 	if (fail) {
+
 		trx_rollback_for_mysql(trx);
+
 	} else if (!new_clustered) {
+
 		trx_commit_for_mysql(trx);
+
 	} else {
 		mtr_t	mtr;
+
 		mtr_start(&mtr);
-		mtr.set_sys_modified();
 
 		for (inplace_alter_handler_ctx** pctx = ctx_array;
 		     *pctx; pctx++) {
@@ -8432,8 +8436,9 @@ ha_innobase::commit_inplace_alter_table(
 				/* Out of memory or a problem will occur
 				when renaming files. */
 				fail = true;
-				my_error_innodb(error, ctx->old_table->name.m_name,
-						ctx->old_table->flags);
+				my_error_innodb(
+					error, ctx->old_table->name.m_name,
+					ctx->old_table->flags);
 			}
 			DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 					  crash_inject_count++);
@@ -8456,23 +8461,6 @@ ha_innobase::commit_inplace_alter_table(
 		} else {
 			ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 			ut_ad(trx_is_rseg_updated(trx));
-
-			if (mtr.get_log()->size() > 0) {
-				ut_ad(*mtr.get_log()->front()->begin()
-				      == MLOG_FILE_RENAME2);
-
-				/* Append the MLOG_FILE_RENAME2
-				records on checkpoint, as a separate
-				mini-transaction before the one that
-				contains the MLOG_CHECKPOINT marker. */
-				static const byte	multi
-					= MLOG_MULTI_REC_END;
-
-				mtr.get_log()->for_each_block(logs);
-				logs.m_buf.push(&multi, sizeof multi);
-
-				log_append_on_checkpoint(&logs.m_buf);
-			}
 
 			/* The following call commits the
 			mini-transaction, making the data dictionary
@@ -8638,8 +8626,6 @@ foreign_fail:
 		DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 				  crash_inject_count++);
 	}
-
-	log_append_on_checkpoint(NULL);
 
 	/* Invalidate the index translation table. In partitioned
 	tables, there is no share. */

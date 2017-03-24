@@ -29,6 +29,7 @@
 #include "item.h"
 #include "item_cmpfunc.h"             // Item_bool_func
 #include "item_func.h"                // Item_func
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
@@ -740,7 +741,6 @@ public:
   String *val_str(String *) override;
   bool resolve_type(THD *) override
   {
-    DBUG_ASSERT(collation.collation == system_charset_info);
     set_data_type_string(uint32(MAX_FIELD_NAME));
     maybe_null= true;
     return false;
@@ -1316,10 +1316,10 @@ class Item_func_weight_string final : public Item_str_func
 
   String tmp_value;
   uint flags;
-  uint num_codepoints;
-  uint result_length;
+  const uint num_codepoints;
+  const uint result_length;
   Field *field;
-  bool as_binary;
+  const bool as_binary;
 public:
   Item_func_weight_string(const POS &pos, Item *a, uint result_length_arg,
                           uint num_codepoints_arg, uint flags_arg,

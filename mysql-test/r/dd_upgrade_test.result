@@ -16,11 +16,17 @@ call mtr.add_suppression("information_schema");
 call mtr.add_suppression("doesn't exist");
 call mtr.add_suppression("references invalid");
 call mtr.add_suppression("Creating routine without parsing routine body");
+call mtr.add_suppression(".*The privilege system failed to initialize correctly.*");
 call mtr.add_suppression("Resolving dependency for the view");
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 call mtr.add_suppression("Unknown system variable 'show_compatibility_56'");
 call mtr.add_suppression("Column count of mysql.* is wrong");
+call mtr.add_suppression("Column count of performance_schema.events_statements_summary_by_digest is wrong.*");
+call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
 call mtr.add_suppression("InnoDB: Unable to delete statistics for table mysql.");
+call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_worker is wrong. Expected 16, found 8.");
+call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_coordinator is wrong. Expected 15, found 6.");
+call mtr.add_suppression("Column count of performance_schema.replication_connection_status is wrong. Expected 20, found 11.");
 # Copy the remote tablespace & DB zip files from suite location to working location.
 # Check that the file exists in the working folder.
 # Unzip the zip file.
@@ -95,6 +101,26 @@ INSERT INTO test.proc VALUES ('sp','bug24805140','PROCEDURE','bug24805140','SQL'
                               'NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION','',
 'utf8','utf8_general_ci','latin1_swedish_ci',
 'begin select   @@show_compatibility_56 into b; end');
+INSERT INTO `proc` VALUES ('test','downgrade_alter_proc','PROCEDURE',
+'downgrade_alter_proc',
+'SQL','CONTAINS_SQL','NO','INVOKER','','',
+'BEGIN\n      SELECT c1, English, French FROM t1 '
+                           'JOIN t2 ON t1.c3 = t2.col2;\n     END',
+'root@localhost','1988-04-25 20:45:00',
+'1988-04-25 20:45:00','NO_ZERO_DATE','','latin1',
+'latin1_swedish_ci','latin1_swedish_ci',
+'BEGIN\n      SELECT c1, English, French FROM t1 '
+                           'JOIN t2 ON t1.c3 = t2.col2;\n     END'),
+('test','my_test_func','FUNCTION','myfunc','SQL',
+'CONTAINS_SQL','NO','DEFINER', '',
+'varchar(20) CHARSET latin1',
+'BEGIN\n  RETURN \'√•\';\nEND',
+'root@localhost','2017-03-08 09:07:36',
+'2017-03-08 09:07:36', 'ONLY_FULL_GROUP_BY,'
+                           'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,'
+                           'ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,'
+                           'NO_ENGINE_SUBSTITUTION','','latin1','latin1_swedish_ci',
+'latin1_swedish_ci','BEGIN\n  RETURN \'√É¬•\';\nEND');
 DROP TABLE test.proc;
 # Stop DB server which was created by MTR default
 # 1.1 Create db.opt file.
@@ -139,6 +165,7 @@ mysql.engine_cost                                  OK
 mysql.event_backup_57                              OK
 mysql.func                                         OK
 mysql.general_log                                  OK
+mysql.global_grants                                OK
 mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
@@ -381,7 +408,7 @@ SHOW CREATE TABLE test.jemp;
 Table	Create Table
 jemp	CREATE TABLE `jemp` (
   `c` json DEFAULT NULL,
-  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_latin1'$.id')) VIRTUAL,
+  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_utf8mb4'$.id')) VIRTUAL,
   KEY `i` (`g`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE test.t_gen_stored_myisam;
@@ -401,7 +428,7 @@ SHOW CREATE TABLE test.jemp_myisam;
 Table	Create Table
 jemp_myisam	CREATE TABLE `jemp_myisam` (
   `c` json DEFAULT NULL,
-  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_latin1'$.id')) VIRTUAL
+  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_utf8mb4'$.id')) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, VERSION, ROW_FORMAT
 FROM INFORMATION_SCHEMA.tables WHERE table_schema='test';
@@ -480,25 +507,25 @@ Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Da
 simpleproc	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `simpleproc`(OUT param1 INT)
 BEGIN
   SELECT COUNT(*) INTO param1 FROM t;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE sp.proc_123;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 proc_123	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_123`(OUT param1 INT)
     READS SQL DATA
     SQL SECURITY INVOKER
     COMMENT 'Procedure to test Upgrade'
-BEGIN   SELECT COUNT(*) INTO param1 FROM t; END	latin1	latin1_swedish_ci	latin1_swedish_ci
+BEGIN   SELECT COUNT(*) INTO param1 FROM t; END	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE sp.proc_456;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 proc_456	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_456`(OUT param1 INT)
     MODIFIES SQL DATA
     DETERMINISTIC
     COMMENT 'Procedure to test Upgrade 2'
-BEGIN   SELECT COUNT(*) INTO param1 FROM t; END	latin1	latin1_swedish_ci	latin1_swedish_ci
+BEGIN   SELECT COUNT(*) INTO param1 FROM t; END	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE sp.bug24805140;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug24805140	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bug24805140`(out a int)
-begin select requesting_trx_id from information_schema.INNODB_LOCK_WAITS limit 1 into a; end	latin1	latin1_swedish_ci	latin1_swedish_ci
+begin select requesting_trx_id from information_schema.INNODB_LOCK_WAITS limit 1 into a; end	utf8	utf8_general_ci	latin1_swedish_ci
 call sp.bug24805140();
 ERROR HY000: Failed to load routine 'sp.bug24805140'.
 SHOW WARNINGS;
@@ -509,7 +536,7 @@ SHOW CREATE FUNCTION sp.hello;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 hello	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `hello`(s CHAR(20)) RETURNS char(50) CHARSET latin1
     DETERMINISTIC
-RETURN CONCAT('Hello, ',s,'!')	latin1	latin1_swedish_ci	latin1_swedish_ci
+RETURN CONCAT('Hello, ',s,'!')	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE EVENT events.e_totals;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
 e_totals	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e_totals` ON SCHEDULE AT '2017-02-10 21:29:00' ON COMPLETION NOT PRESERVE ENABLE DO INSERT INTO events.event_table_2 VALUES (NOW())	utf8	utf8_general_ci	latin1_swedish_ci
@@ -523,6 +550,25 @@ opening_lines	CREATE TABLE `opening_lines` (
   PRIMARY KEY (`id`),
   FULLTEXT KEY `idx` (`opening_line`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE PROCEDURE test.downgrade_alter_proc;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+downgrade_alter_proc	NO_ZERO_DATE	CREATE DEFINER=`root`@`localhost` PROCEDURE `downgrade_alter_proc`()
+    SQL SECURITY INVOKER
+BEGIN
+      SELECT c1, English, French FROM t1 JOIN t2 ON t1.c3 = t2.col2;
+     END	latin1	latin1_swedish_ci	latin1_swedish_ci
+SHOW CREATE FUNCTION test.my_test_func;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+my_test_func	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `my_test_func`() RETURNS varchar(20) CHARSET latin1
+BEGIN
+  RETURN '√É¬•';
+END	latin1	latin1_swedish_ci	latin1_swedish_ci
+SELECT ROUTINE_NAME, CHARACTER_SET_NAME, CHARACTER_SET_CLIENT,  COLLATION_CONNECTION,
+DATABASE_COLLATION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='test'
+  ORDER BY ROUTINE_NAME;
+ROUTINE_NAME	CHARACTER_SET_NAME	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
+downgrade_alter_proc	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+my_test_func	latin1	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW CREATE TABLE tablespace.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -604,7 +650,7 @@ Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connectio
 trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg1` AFTER DELETE ON `t1` FOR EACH ROW begin set@a=1; end	utf8	utf8_general_ci	latin1_swedish_ci	#
 SHOW CREATE TRIGGER triggers.t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=_koi8r'¬Ã¡¬Ã¡¬Ã¡'	utf8	utf8_general_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=_koi8r'√Ç√å√Å√Ç√å√Å√Ç√å√Å'	utf8	utf8_general_ci	latin1_swedish_ci	#
 SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE
 CONSTRAINT_SCHEMA='foreign_keys' ORDER BY CONSTRAINT_SCHEMA,CONSTRAINT_NAME;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME

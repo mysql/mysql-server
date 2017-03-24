@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -111,6 +111,18 @@ Base_mock_field_varstring(uint32 length, TABLE_SHARE *share)
     delete [] ptr;
     ptr= NULL;
   }
+};
+
+
+class Base_mock_field_json : public Field_json
+{
+public:
+  Base_mock_field_json() : Field_json(MAX_BLOB_WIDTH, false, "json_field")
+  {
+    ptr= new uchar[pack_length()];
+  }
+  ~Base_mock_field_json() { delete[] ptr; }
+  void make_writable() { bitmap_set_bit(table->write_set, field_index); }
 };
 
 #endif // BASE_MOCK_FIELD_INCLUDED

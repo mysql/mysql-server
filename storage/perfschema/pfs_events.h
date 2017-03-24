@@ -47,12 +47,12 @@ struct PFS_events
   PFS_instr_class *m_class;
   /**
     Timer start.
-    This member is populated only if m_class->m_timed is true.
+    This member is populated only if @c m_class->m_timed is true.
   */
   ulonglong m_timer_start;
   /**
     Timer end.
-    This member is populated only if m_class->m_timed is true.
+    This member is populated only if @c m_class->m_timed is true.
   */
   ulonglong m_timer_end;
   /** Location of the instrumentation in the source code (file name). */

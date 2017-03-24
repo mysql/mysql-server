@@ -24,6 +24,7 @@
 
 #include "my_inttypes.h"
 #include "pfs_column_types.h"
+#include "pfs_histogram.h"
 
 /** Conversion factor, from micro seconds to pico seconds. */
 #define MICROSEC_TO_PICOSEC 1000000
@@ -43,10 +44,12 @@ struct time_normalizer
   */
   static time_normalizer *get(enum_timer_name timer_name);
 
-  /** Timer value at server statup. */
+  /** Timer value at server startup. */
   ulonglong m_v0;
   /** Conversion factor from timer values to pico seconds. */
   ulonglong m_factor;
+  /** Histogram bucket timers, expressed in timer unit. */
+  ulonglong m_bucket_timer[NUMBER_OF_BUCKETS + 1];
 
   /**
     Convert a wait from timer units to pico seconds.
@@ -83,6 +86,8 @@ struct time_normalizer
                ulonglong *pico_start,
                ulonglong *pico_end,
                ulonglong *pico_wait);
+
+  ulong bucket_index(ulonglong t);
 };
 
 /**

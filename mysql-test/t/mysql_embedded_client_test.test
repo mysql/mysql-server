@@ -3,7 +3,6 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 
--- source include/not_embedded.inc
 
 --echo #
 --echo # Bug#13541194 : MTR TEST TO RUN EMBEDDED SERVER CLIENT TESTS IN MYSQL_CLIENT_TEST.C.

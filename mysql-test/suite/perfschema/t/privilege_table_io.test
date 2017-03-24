@@ -1,6 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA table io
 
---source include/not_embedded.inc
 --source ../include/table_io_setup_helper.inc
 
 # Remove "deleted" records from mysql.* that may come from previous tests,

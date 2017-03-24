@@ -46,6 +46,7 @@
 #include <violite.h>
 
 #include "client_priv.h"
+#include "lex_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -1180,10 +1181,10 @@ static void mysql_end_timer(ulong start_time,char *buff);
 static void nice_time(double sec,char *buff,bool part_second);
 static void kill_query(const char* reason);
 extern "C" void mysql_end(int sig);
-extern "C" void handle_ctrlc_signal(int sig);
+extern "C" void handle_ctrlc_signal(int);
 extern "C" void handle_quit_signal(int sig);
 #if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
-static void window_resize(int sig);
+static void window_resize(int);
 #endif
 
 const char DELIMITER_NAME[]= "delimiter";
@@ -1540,11 +1541,9 @@ void mysql_end(int sig)
     This function handles SIGINT (Ctrl - C). It sends a 'KILL [QUERY]' command
     to the server if a query is currently executing. On Windows, 'Ctrl - Break'
     is treated alike.
-
-  @param sig               Signal number
 */
 
-void handle_ctrlc_signal(int sig)
+void handle_ctrlc_signal(int)
 {
   sigint_received= 1;
 
@@ -1637,7 +1636,7 @@ err:
 
 
 #if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
-void window_resize(int sig)
+void window_resize(int)
 {
   struct winsize window_size;
 

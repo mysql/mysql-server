@@ -17,6 +17,7 @@
 
 #include <stddef.h>
 
+#include "lex_string.h"
 #include "my_dbug.h"
 #include "plugin_log.h"
 

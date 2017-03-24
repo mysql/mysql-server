@@ -36,6 +36,7 @@
 #include "hash.h"
 #include "item_func.h"                  /* mqh_used */
 #include "key.h"                        /* key_copy, key_cmp_if_same */
+#include "lex_string.h"
                                         /* key_restore */
 #include "log.h"                        /* sql_print_warning */
 #include "m_ctype.h"
@@ -75,6 +76,7 @@
 #include "typelib.h"
 #include "tztime.h"
 #include "violite.h"
+#include "rpl_rli.h"                    /* class Relay_log_info */
 
 static const
 TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
@@ -2699,20 +2701,19 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables)
                                C_STRING_WITH_LEN("default_roles"),
                                "default_roles",
                                TL_WRITE, MDL_SHARED_NO_READ_WRITE);
+  (tables + ACL_TABLES::TABLE_DYNAMIC_PRIV)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                               C_STRING_WITH_LEN("global_grants"),
+                               "global_grants",
+                               TL_WRITE, MDL_SHARED_NO_READ_WRITE);
 
-  tables->next_local= tables->next_global= tables + 1;
-  (tables+1)->next_local= (tables+1)->next_global= tables + 2;
-  (tables+2)->next_local= (tables+2)->next_global= tables + 3;
-  (tables+3)->next_local= (tables+3)->next_global= tables + 4;
-  (tables+4)->next_local= (tables+4)->next_global= tables + 5;
-  (tables+5)->next_local= (tables+5)->next_global= tables + 6;
-  (tables+6)->next_local= (tables+6)->next_global= tables + 7;
+  for( int idx= 0; idx < ACL_TABLES::LAST_ENTRY - 1; ++idx)
+    (tables + idx)->next_local= (tables + idx)->next_global= tables + idx + 1;
 
   /*
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
     some kind of updates to the mysql.% tables.
   */
-  if (thd->slave_thread && rpl_filter->is_on())
+  if (thd->slave_thread && thd->rli_slave->rpl_filter->is_on())
   {
     /*
       The tables must be marked "updating" so that tables_ok() takes them into
@@ -2725,9 +2726,11 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables)
       tables[ACL_TABLES::TABLE_PROCS_PRIV].updating=
       tables[ACL_TABLES::TABLE_PROXIES_PRIV].updating=
       tables[ACL_TABLES::TABLE_ROLE_EDGES].updating=
-      tables[ACL_TABLES::TABLE_DEFAULT_ROLES].updating= 1;
+      tables[ACL_TABLES::TABLE_DEFAULT_ROLES].updating= 
+      tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].updating= 1;
     
-    if (!(thd->sp_runtime_ctx || rpl_filter->tables_ok(0, tables)))
+    if (!(thd->sp_runtime_ctx ||
+          thd->rli_slave->rpl_filter->tables_ok(0, tables)))
       DBUG_RETURN(1);
 
     tables[ACL_TABLES::TABLE_USER].updating=
@@ -2737,7 +2740,8 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables)
       tables[ACL_TABLES::TABLE_PROCS_PRIV].updating=
       tables[ACL_TABLES::TABLE_PROXIES_PRIV].updating=
       tables[ACL_TABLES::TABLE_ROLE_EDGES].updating=
-      tables[ACL_TABLES::TABLE_DEFAULT_ROLES].updating= 0;
+      tables[ACL_TABLES::TABLE_DEFAULT_ROLES].updating=
+      tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].updating= 0;
   }
 
   if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))

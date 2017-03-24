@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,6 +71,9 @@ Collations::Collations()
   m_target_def.add_field(FIELD_SORT_LENGTH,
                          "FIELD_SORT_LENGTH",
                          "sort_length INT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_PAD_ATTRIBUTE,
+                         "FIELD_PAD_ATTRIBUTE",
+                         "pad_attribute VARCHAR(9) NOT NULL");
 
   m_target_def.add_index("PRIMARY KEY(id)");
   m_target_def.add_index("UNIQUE KEY(name)");
@@ -145,6 +148,10 @@ bool Collations::populate(THD *thd) const
           new_collation->set_charset_id(cs->number);
           new_collation->set_is_compiled((cl->state & MY_CS_COMPILED));
           new_collation->set_sort_length(cl->strxfrm_multiply);
+          if (cl->pad_attribute == PAD_SPACE)
+            new_collation->set_pad_attribute("PAD SPACE");
+          else
+            new_collation->set_pad_attribute("NO PAD");
 
           // If the collation exists, it will be updated; otherwise,
           // it will be inserted.

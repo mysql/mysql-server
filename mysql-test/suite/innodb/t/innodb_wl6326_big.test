@@ -27,6 +27,10 @@
 #          max_row_count=10000 rows
 # vardir on tmpfs : ~ 375
 # vardir on disk  : ~ 546
+
+# WL#7554: Added setting --bootstrap --character-set-server=latin1
+# in the opt file. This test should be migrated to utf8mb4.
+
 --source include/big_test.inc
 # We go with "--send" and "--reap" and that fails with the embedded server.
 --source include/not_embedded.inc

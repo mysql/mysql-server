@@ -143,7 +143,7 @@ enum enum_operation_type
   OPERATION_TYPE_FILERENAME = 30,
   OPERATION_TYPE_FILESYNC = 31,
 
-  /* Table io operations */
+  /* Table I/O operations */
   OPERATION_TYPE_TABLE_FETCH = 32,
   OPERATION_TYPE_TABLE_WRITE_ROW = 33,
   OPERATION_TYPE_TABLE_UPDATE_ROW = 34,

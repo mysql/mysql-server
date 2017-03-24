@@ -38,7 +38,7 @@ class THD;
   The major logic of dump thread is implemented in this class. It sends
   required binlog events to clients according to their requests.
 */
-class Binlog_sender
+class Binlog_sender : Gtid_mode_copy
 {
 public:
   Binlog_sender(THD *thd, const char *start_file, my_off_t start_pos,

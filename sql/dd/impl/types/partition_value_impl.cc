@@ -140,7 +140,7 @@ bool Partition_value_impl::store_attributes(Raw_record *r)
 static_assert(Table_partition_values::FIELD_MAX_VALUE==4,
               "Table_partition_value definition has changed, review (de)ser memfuns!");
 void
-Partition_value_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
+Partition_value_impl::serialize(Sdi_wcontext*, Sdi_writer *w) const
 {
   w->StartObject();
   write(w, m_max_value, STRING_WITH_LEN("max_value"));
@@ -154,7 +154,7 @@ Partition_value_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
 ///////////////////////////////////////////////////////////////////////////
 
 bool
-Partition_value_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
+Partition_value_impl::deserialize(Sdi_rcontext*, const RJ_Value &val)
 {
   read(&m_max_value, val, "max_value");
   read(&m_null_value, val, "null_value");

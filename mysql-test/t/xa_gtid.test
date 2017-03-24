@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 --echo # Bug #22173903  XA+GTID: ASSERT 'THD->OWNED_GTID.IS_EMPTY()'
 --echo # AT RPL_GTID_STATE.CC:614

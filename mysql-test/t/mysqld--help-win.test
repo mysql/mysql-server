@@ -6,7 +6,6 @@
 #
 # mysqld --help
 #
---source include/not_embedded.inc
 --source include/windows.inc
 
 --source include/mysqld--help.inc

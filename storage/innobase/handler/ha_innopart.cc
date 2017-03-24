@@ -45,6 +45,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "fsp0sysspace.h"
 #include "ha_innodb.h"
 #include "key.h"
+#include "lex_string.h"
 #include "lock0lock.h"
 #include "my_dbug.h"
 #include "my_io.h"

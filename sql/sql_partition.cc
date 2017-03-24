@@ -359,7 +359,8 @@ static bool partition_default_handling(TABLE *table, partition_info *part_info,
     > 0                     Error code
 */
 
-int get_parts_for_update(const uchar *old_data, uchar *new_data,
+int get_parts_for_update(const uchar *old_data,
+                         uchar *new_data MY_ATTRIBUTE((unused)),
                          const uchar *rec0, partition_info *part_info,
                          uint32 *old_part_id, uint32 *new_part_id,
                          longlong *new_func_value)
@@ -4983,7 +4984,7 @@ bool compare_partition_options(HA_CREATE_INFO *table_create_info,
 
 uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            HA_CREATE_INFO *create_info,
-                           Alter_table_ctx *alter_ctx,
+                           Alter_table_ctx *alter_ctx MY_ATTRIBUTE((unused)),
                            bool *partition_changed,
                            bool *fast_alter_part_table,
                            partition_info **new_part_info)
@@ -7776,13 +7777,14 @@ static int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
     @retval -1  All partitions would match (iterator not initialized)
 */
 
-static int get_part_iter_for_interval_via_mapping(partition_info *part_info,
-                                                  bool is_subpart,
-                                                  uint32 *store_length_array, /* ignored */
-                                                  uchar *min_value, uchar *max_value,
-                                                  uint min_len, uint max_len, /* ignored */
-                                                  uint flags,
-                                                  PARTITION_ITERATOR *part_iter)
+static int
+get_part_iter_for_interval_via_mapping(partition_info *part_info,
+                                       bool is_subpart MY_ATTRIBUTE((unused)),
+                                       uint32 *store_length_array, /* ignored */
+                                       uchar *min_value, uchar *max_value,
+                                       uint min_len, uint max_len, /* ignored */
+                                       uint flags,
+                                       PARTITION_ITERATOR *part_iter)
 {
   Field *field= part_info->part_field_array[0];
   uint32             max_endpoint_val= 0;

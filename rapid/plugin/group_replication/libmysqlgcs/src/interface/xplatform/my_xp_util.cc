@@ -13,11 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "xplatform/my_xp_util.h"
+#include "mysql/gcs/xplatform/my_xp_util.h"
 
 #include <errno.h>
 
-#include "gcs_logging.h"
+#include "mysql/gcs/gcs_logging.h"
 
 void My_xp_util::sleep_seconds(unsigned int seconds)
 {

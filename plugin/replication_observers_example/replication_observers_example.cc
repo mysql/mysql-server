@@ -100,42 +100,42 @@ static void dump_server_state_calls()
 /*
   DBMS lifecycle events observers.
 */
-static int before_handle_connection(Server_state_param *param)
+static int before_handle_connection(Server_state_param*)
 {
   before_handle_connection_call++;
 
   return 0;
 }
 
-static int before_recovery(Server_state_param *param)
+static int before_recovery(Server_state_param*)
 {
   before_recovery_call++;
 
   return 0;
 }
 
-static int after_engine_recovery(Server_state_param *param)
+static int after_engine_recovery(Server_state_param*)
 {
   after_engine_recovery_call++;
 
   return 0;
 }
 
-static int after_recovery(Server_state_param *param)
+static int after_recovery(Server_state_param*)
 {
   after_recovery_call++;
 
   return 0;
 }
 
-static int before_server_shutdown(Server_state_param *param)
+static int before_server_shutdown(Server_state_param*)
 {
   before_server_shutdown_call++;
 
   return 0;
 }
 
-static int after_server_shutdown(Server_state_param *param)
+static int after_server_shutdown(Server_state_param*)
 {
   after_server_shutdown_call++;
 
@@ -201,7 +201,7 @@ static void dump_transaction_calls()
 /*
   Transaction lifecycle events observers.
 */
-static int trans_before_dml(Trans_param *param, int& out_val)
+static int trans_before_dml(Trans_param*, int& out_val MY_ATTRIBUTE((unused)))
 {
   trans_before_dml_call++;
 
@@ -293,7 +293,7 @@ static int before_commit_tests(Trans_param *param,
 }
 #endif
 
-static int trans_before_commit(Trans_param *param)
+static int trans_before_commit(Trans_param *param MY_ATTRIBUTE((unused)))
 {
   trans_before_commit_call++;
 
@@ -315,21 +315,21 @@ static int trans_before_commit(Trans_param *param)
   return 0;
 }
 
-static int trans_before_rollback(Trans_param *param)
+static int trans_before_rollback(Trans_param*)
 {
   trans_before_rollback_call++;
 
   return 0;
 }
 
-static int trans_after_commit(Trans_param *param)
+static int trans_after_commit(Trans_param*)
 {
   trans_after_commit_call++;
 
   return 0;
 }
 
-static int trans_after_rollback(Trans_param *param)
+static int trans_after_rollback(Trans_param *param MY_ATTRIBUTE((unused)))
 {
   trans_after_rollback_call++;
 
@@ -412,21 +412,21 @@ static void dump_binlog_relay_calls()
   }
 }
 
-static int binlog_relay_thread_start(Binlog_relay_IO_param *param)
+static int binlog_relay_thread_start(Binlog_relay_IO_param*)
 {
   binlog_relay_thread_start_call++;
 
   return 0;
 }
 
-static int binlog_relay_thread_stop(Binlog_relay_IO_param *param)
+static int binlog_relay_thread_stop(Binlog_relay_IO_param*)
 {
   binlog_relay_thread_stop_call++;
 
   return 0;
 }
 
-static int binlog_relay_applier_stop(Binlog_relay_IO_param *param,
+static int binlog_relay_applier_stop(Binlog_relay_IO_param*,
                                      bool aborted)
 {
   binlog_relay_applier_stop_call++;
@@ -434,34 +434,34 @@ static int binlog_relay_applier_stop(Binlog_relay_IO_param *param,
   return 0;
 }
 
-static int binlog_relay_before_request_transmit(Binlog_relay_IO_param *param,
-                                                uint32 flags)
+static int binlog_relay_before_request_transmit(Binlog_relay_IO_param*,
+                                                uint32)
 {
   binlog_relay_before_request_transmit_call++;
 
   return 0;
 }
 
-static int binlog_relay_after_read_event(Binlog_relay_IO_param *param,
-                                         const char *packet, unsigned long len,
-                                         const char **event_buf, unsigned long *event_len)
+static int binlog_relay_after_read_event(Binlog_relay_IO_param*,
+                                         const char*, unsigned long,
+                                         const char**, unsigned long*)
 {
   binlog_relay_after_read_event_call++;
 
   return 0;
 }
 
-static int binlog_relay_after_queue_event(Binlog_relay_IO_param *param,
-                                          const char *event_buf,
-                                          unsigned long event_len,
-                                          uint32 flags)
+static int binlog_relay_after_queue_event(Binlog_relay_IO_param*,
+                                          const char*,
+                                          unsigned long,
+                                          uint32)
 {
   binlog_relay_after_queue_event_call++;
 
   return 0;
 }
 
-static int binlog_relay_after_reset_slave(Binlog_relay_IO_param *param)
+static int binlog_relay_after_reset_slave(Binlog_relay_IO_param*)
 {
   binlog_relay_after_reset_slave_call++;
 
@@ -586,7 +586,11 @@ int validate_plugin_server_requirements(Trans_param *param)
   char *hostname, *uuid;
   uint port;
   unsigned int server_version;
-  get_server_parameters(&hostname, &port, &uuid, &server_version);
+  st_server_ssl_variables server_ssl_variables=
+      {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
+
+  get_server_parameters(&hostname, &port, &uuid, &server_version,
+                        &server_ssl_variables);
 
   Trans_context_info startup_pre_reqs;
   get_server_startup_prerequirements(startup_pre_reqs, false);

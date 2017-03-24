@@ -23,6 +23,7 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "lex_symbol.h"
 #include "m_ctype.h"
 #include "my_dbug.h"

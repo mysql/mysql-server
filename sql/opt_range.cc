@@ -110,6 +110,8 @@
 
 #include "opt_range.h"
 
+#include "my_config.h"
+
 #include <fcntl.h>
 #include <float.h>
 #include <stdio.h>
@@ -133,6 +135,7 @@
 #include "item_row.h"
 #include "item_sum.h"            // Item_sum
 #include "key.h"                 // is_key_used
+#include "lex_string.h"
 #include "log.h"                 // sql_print_error
 #include "m_ctype.h"
 #include "malloc_allocator.h"
@@ -141,7 +144,6 @@
 #include "my_alloc.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -175,7 +177,6 @@
 #include "template_utils.h"
 #include "thr_malloc.h"
 #include "uniques.h"             // Unique
-#include "opt_hints.h"           // hint_table_state(),idx_merge_key_enabled()
                                  // idx_merge_hint_state()
 
 using std::min;
@@ -1530,9 +1531,9 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
                                       SEL_ROOT *keypart,
                                       const KEY_PART_INFO *key_parts,
                                       const bool print_full);
-static inline void dbug_print_tree(const char *tree_name,
-                                   SEL_TREE *tree,
-                                   const RANGE_OPT_PARAM *param);
+static inline void dbug_print_tree(const char *tree_name MY_ATTRIBUTE((unused)),
+                                   SEL_TREE *tree MY_ATTRIBUTE((unused)),
+                                   const RANGE_OPT_PARAM *param MY_ATTRIBUTE((unused)));
 
 static inline void print_tree(String *out,
                               const char *tree_name,
@@ -2781,7 +2782,9 @@ public:
   static void *operator new(size_t size, MEM_ROOT *mem_root,
         const std::nothrow_t &arg MY_ATTRIBUTE((unused))= std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
-  static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
+  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
+                              size_t size MY_ATTRIBUTE((unused)))
+  { TRASH(ptr, size); }
   static void operator delete(void*, MEM_ROOT*,
                               const std::nothrow_t &) throw ()
   { /* Never called */ }
@@ -6147,7 +6150,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   intersect_scans_end= intersect_scans;
 
   /* Create and incrementally update ROR intersection. */
-  ROR_INTERSECT_INFO *intersect, *intersect_best;
+  ROR_INTERSECT_INFO *intersect, *intersect_best= nullptr;
   if (!(intersect= ror_intersect_init(param)) || 
       !(intersect_best= ror_intersect_init(param)))
     DBUG_RETURN(NULL);
@@ -15528,12 +15531,14 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
   @param tree        The SEL_TREE that will be printed to debug log
   @param param       PARAM from test_quick_select
 */
-static inline void dbug_print_tree(const char *tree_name,
-                                   SEL_TREE *tree,
-                                   const RANGE_OPT_PARAM *param)
+static inline
+void dbug_print_tree(const char *tree_name,
+                     SEL_TREE *tree,
+                     const RANGE_OPT_PARAM *param)
 {
 #ifndef DBUG_OFF
-  print_tree(NULL, tree_name, tree, param, true);
+  if (_db_enabled_())
+    print_tree(NULL, tree_name, tree, param, true);
 #endif
 }
 

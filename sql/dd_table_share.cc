@@ -42,6 +42,7 @@
 #include "handler.h"
 #include "hash.h"
 #include "key.h"
+#include "lex_string.h"
 #include "log.h"                              // sql_print_error
 #include "my_base.h"
 #include "my_bitmap.h"
@@ -253,14 +254,14 @@ bool is_suitable_for_primary_key(KEY_PART_INFO *key_part,
 }
 
 /**
-  Prepare TABLE_SHARE from dd::Table object or by reading metadata
-  from dd.tables.
+  Finalize preparation of TABLE_SHARE from dd::Table object by filling
+  in remaining info about columns and keys.
 
   This code similar to code in open_binary_frm(). Can be re-written
   independent to other efforts later.
 */
 
-static bool prepare_share(THD *thd, TABLE_SHARE *share)
+static bool prepare_share(THD *thd, TABLE_SHARE *share, const dd::Table *table_def)
 {
   my_bitmap_map *bitmaps;
   bool use_hash;
@@ -323,8 +324,21 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
       keyinfo= share->key_info;
       key_part= keyinfo->key_part;
 
+      dd::Table::Index_collection::const_iterator idx_it(table_def->indexes().
+                                                         begin());
+
       for (uint key=0 ; key < share->keys ; key++,keyinfo++)
       {
+          /*
+            Skip hidden dd::Index objects so idx_it is in sync with key index
+            and keyinfo pointer.
+          */
+          while ((*idx_it)->is_hidden())
+          {
+            ++idx_it;
+            continue;
+          }
+
           uint usable_parts= 0;
           keyinfo->name=(char*) share->keynames.type_names[key];
 
@@ -352,10 +366,29 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
                 break;
               }
             }
+
+            /*
+              Check that dd::Index::is_candidate_key() used by SEs works in
+              the same way as above call to is_suitable_for_primary_key().
+            */
+            DBUG_ASSERT((primary_key == key) == (*idx_it)->is_candidate_key());
           }
+
+          dd::Index::Index_elements::const_iterator idx_el_it((*idx_it)->
+                                                      elements().begin());
 
           for (uint i=0 ; i < keyinfo->user_defined_key_parts ; key_part++,i++)
           {
+              /*
+                Skip hidden Index_element objects so idx_el_it is in sync with
+                i and key_part pointer.
+              */
+              while ((*idx_el_it)->is_hidden())
+              {
+                ++idx_el_it;
+                continue;
+              }
+
               Field *field= key_part->field;
 
               key_part->type= field->key_type();
@@ -433,6 +466,14 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
 #endif
                   key_part->key_part_flag|= HA_PART_KEY_SEG;
               }
+
+              /*
+                Check that dd::Index_element::is_prefix() used by SEs works in
+                the same way as code which sets HA_PART_KEY_SEG flag.
+              */
+              DBUG_ASSERT((*idx_el_it)->is_prefix() ==
+                          static_cast<bool>(key_part->key_part_flag & HA_PART_KEY_SEG));
+              ++idx_el_it;
           }
 
           /*
@@ -461,6 +502,8 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
           if ((keyinfo->flags & HA_NOSAME) ||
                   (ha_option & HA_ANY_INDEX_MAY_BE_UNIQUE))
               set_if_bigger(share->max_unique_length,keyinfo->key_length);
+
+          ++idx_it;
       }
       if (primary_key < MAX_KEY &&
               (share->keys_in_use.is_set(primary_key)))
@@ -593,10 +636,6 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *ta
 
     DBUG_ASSERT(hton && ha_storage_engine_is_enabled(hton));
     DBUG_ASSERT(!ha_check_storage_engine_flag(hton, HTON_NOT_USER_SELECTABLE));
-
-    // For a partitioned table, the SE must support partitioning natively.
-    DBUG_ASSERT(tab_obj->partition_type() == dd::Table::PT_NONE ||
-                hton->partition_flags);
 
     plugin_unlock(NULL, share->db_plugin);
     share->db_plugin= my_plugin_lock(NULL, &tmp_plugin);
@@ -2210,9 +2249,6 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  // Assume base table, we find it is a view a bit later.
-  dd::enum_table_type dd_table_type= dd::enum_table_type::BASE_TABLE;
-
   if (!table_def)
   {
     // Make sure the schema exists.
@@ -2226,16 +2262,19 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
       DBUG_RETURN(true);
     }
 
-    if (dd::abstract_table_type(thd->dd_client(), share->db.str,
-                                share->table_name.str,
-                                &dd_table_type))
+    const dd::Abstract_table *abstract_table= nullptr;
+    if (thd->dd_client()->acquire(share->db.str, share->table_name.str,
+                                  &abstract_table))
+      DBUG_RETURN(true);
+
+    if (abstract_table == nullptr)
     {
-      // Error is reported in dd_abstract_table_type().
+      my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
       DBUG_RETURN(true);
     }
 
-    if (dd_table_type == dd::enum_table_type::USER_VIEW ||
-        dd_table_type == dd::enum_table_type::SYSTEM_VIEW)
+    if (abstract_table->type() == dd::enum_table_type::USER_VIEW ||
+        abstract_table->type() == dd::enum_table_type::SYSTEM_VIEW)
     {
       if (!open_view)
       {
@@ -2244,42 +2283,20 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
         DBUG_RETURN(true);
       }
       /*
-        Create view reference object and hold it in TABLE_SHARE member view_object.
-        Read it from DD
+        Clone the view reference object and hold it in TABLE_SHARE member view_object.
       */
       share->is_view= true;
-      const dd::View *tmp_view= nullptr;
-      if (thd->dd_client()->acquire(share->db.str,
-                                    share->table_name.str,
-                                    &tmp_view))
-      {
-        DBUG_ASSERT(thd->is_error() || thd->killed);
-        DBUG_RETURN(true);
-      }
-
-      if (!tmp_view)
-      {
-        my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
-        DBUG_RETURN(true);
-      }
+      const dd::View *tmp_view= dynamic_cast<const dd::View*>(abstract_table);
       share->view_object= tmp_view->clone();
 
       share->table_category= get_table_category(share->db, share->table_name);
       thd->status_var.opened_shares++;
       DBUG_RETURN(false);
     }
-    else // BASE_TABLE
-    {
-      (void) thd->dd_client()->acquire(share->db.str,
-                                       share->table_name.str,
-                                       &table_def);
-    }
-  }
 
-  if (!table_def)
-  {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
-    DBUG_RETURN(true);
+    DBUG_ASSERT(abstract_table->type() == dd::enum_table_type::BASE_TABLE);
+    table_def= dynamic_cast<const dd::Table*>(abstract_table);
+    DBUG_ASSERT(table_def != nullptr);
   }
 
   MEM_ROOT *old_root= thd->mem_root;
@@ -2295,7 +2312,7 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
   thd->mem_root= old_root;
 
   if (!error)
-    error= prepare_share(thd, share);
+    error= prepare_share(thd, share, table_def);
 
   if (!error)
   {

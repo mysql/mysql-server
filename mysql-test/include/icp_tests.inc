@@ -26,10 +26,10 @@ DROP TABLE t1;
 #         the pushed index condition it is still evaluated.
 #         
 
-CREATE TABLE t1 (a INT);
+CREATE TABLE t1 (a INT) charset latin1;
 INSERT INTO t1 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
-CREATE TABLE t2 (a INT);
+CREATE TABLE t2 (a INT) charset latin1;
 INSERT INTO t2 SELECT A.a + 10*(B.a + 10*C.a) FROM t1 A, t1 B, t1 C;
 
 CREATE TABLE t3 (
@@ -424,7 +424,7 @@ CREATE TABLE t3 (
   c1 TINYTEXT NOT NULL,
   i1 INT NOT NULL,
   KEY (c1(6),i1)
-);
+) charset utf8mb4;
 
 -- disable_query_log
 -- disable_result_log
@@ -526,7 +526,7 @@ CREATE TABLE t1 (
   c2 INT NOT NULL,
   PRIMARY KEY (c2),
   KEY id1 (c1(4))
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES ('Anastasia', 5);
 INSERT INTO t1 VALUES ('Karianne', 4);
@@ -555,7 +555,7 @@ CREATE TABLE t1 (
 
   KEY (col_int_key),
   KEY (col_varchar_key, col_int_key)
-) stats_persistent=0;
+) charset utf8mb4 stats_persistent=0;
 
 INSERT INTO t1 VALUES (NULL,2,'w');
 INSERT INTO t1 VALUES (7,9,'m');
@@ -644,7 +644,7 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (
   i1 INTEGER NOT NULL,
   c1 VARCHAR(1) NOT NULL
-);
+) charset latin1;
 
 INSERT INTO t1 VALUES (2,'w');
 
@@ -653,14 +653,14 @@ CREATE TABLE t2 (
   c1 VARCHAR(1) NOT NULL,
   c2 VARCHAR(1) NOT NULL,
   KEY (c1, i1)
-);
+) charset latin1;
 
 INSERT INTO t2 VALUES (8,'d','d');
 INSERT INTO t2 VALUES (4,'v','v');
 
 CREATE TABLE t3 (
   c1 VARCHAR(1) NOT NULL
-);
+) charset latin1;
 
 INSERT INTO t3 VALUES ('v');
 
@@ -965,7 +965,7 @@ CREATE TABLE t1 (
    i1 INTEGER,
    c1 VARCHAR(1),
    KEY col_varchar_key (c1)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES (1,'j'), (0,'e'), (210,'f'), (8,'v'), (7,'x'),
                       (5,'m'), (NULL,'c');
@@ -974,7 +974,7 @@ CREATE TABLE t2 (
    i1 INTEGER,
    c1 VARCHAR(1),
    KEY col_varchar_key (c1)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES (8,NULL);
 
@@ -982,7 +982,7 @@ CREATE TABLE t3 (
    i1 INTEGER,
    c1 VARCHAR(1),
    KEY col_varchar_key (c1)
-) ENGINE=InnoDB;
+) charset utf8mb4 ENGINE=InnoDB;
 
 INSERT INTO t3 VALUES (NULL,'w'), (1,NULL), (2,'d');
 
@@ -1029,7 +1029,7 @@ CREATE TABLE t1 (
   a INTEGER NOT NULL, 
   b CHAR(1), 
   KEY(b)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES (23,5,'d');
 

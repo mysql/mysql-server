@@ -155,6 +155,7 @@ def	performance_schema	PRIMARY	def	performance_schema	events_stages_summary_by_t
 def	performance_schema	PRIMARY	def	performance_schema	events_stages_summary_global_by_event_name	EVENT_NAME
 def	performance_schema	PRIMARY	def	performance_schema	events_statements_current	EVENT_ID
 def	performance_schema	PRIMARY	def	performance_schema	events_statements_current	THREAD_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_statements_histogram_global	BUCKET_NUMBER
 def	performance_schema	PRIMARY	def	performance_schema	events_statements_history	EVENT_ID
 def	performance_schema	PRIMARY	def	performance_schema	events_statements_history	THREAD_ID
 def	performance_schema	PRIMARY	def	performance_schema	events_statements_summary_by_program	OBJECT_NAME
@@ -182,6 +183,9 @@ def	performance_schema	PRIMARY	def	performance_schema	file_instances	FILE_NAME
 def	performance_schema	PRIMARY	def	performance_schema	file_summary_by_event_name	EVENT_NAME
 def	performance_schema	PRIMARY	def	performance_schema	file_summary_by_instance	OBJECT_INSTANCE_BEGIN
 def	mysql	PRIMARY	def	mysql	func	name
+def	mysql	PRIMARY	def	mysql	global_grants	HOST
+def	mysql	PRIMARY	def	mysql	global_grants	PRIV
+def	mysql	PRIMARY	def	mysql	global_grants	USER
 def	performance_schema	PRIMARY	def	performance_schema	global_status	VARIABLE_NAME
 def	performance_schema	PRIMARY	def	performance_schema	global_variables	VARIABLE_NAME
 def	mysql	PRIMARY	def	mysql	gtid_executed	interval_start
@@ -270,6 +274,9 @@ def	performance_schema	PRIMARY	def	performance_schema	user_variables_by_thread	T
 def	performance_schema	PRIMARY	def	performance_schema	user_variables_by_thread	VARIABLE_NAME
 def	performance_schema	PRIMARY	def	performance_schema	variables_by_thread	THREAD_ID
 def	performance_schema	PRIMARY	def	performance_schema	variables_by_thread	VARIABLE_NAME
+def	performance_schema	SCHEMA_NAME	def	performance_schema	events_statements_histogram_by_digest	BUCKET_NUMBER
+def	performance_schema	SCHEMA_NAME	def	performance_schema	events_statements_histogram_by_digest	DIGEST
+def	performance_schema	SCHEMA_NAME	def	performance_schema	events_statements_histogram_by_digest	SCHEMA_NAME
 def	performance_schema	SCHEMA_NAME	def	performance_schema	events_statements_summary_by_digest	DIGEST
 def	performance_schema	SCHEMA_NAME	def	performance_schema	events_statements_summary_by_digest	SCHEMA_NAME
 def	performance_schema	THREAD_ID	def	performance_schema	events_errors_summary_by_thread_by_error	ERROR_NUMBER

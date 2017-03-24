@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -166,8 +166,7 @@ static std::string test_part_result_tostring(const TestPartResult
 }
 
 
-void TapEventListener::OnTestIterationStart(const UnitTest& unit_test,
-                                            int iteration)
+void TapEventListener::OnTestIterationStart(const UnitTest& unit_test, int)
 {
   std::stringstream str_stream;
   str_stream << "Running " << num_tests(unit_test.test_to_run_count())
@@ -178,7 +177,7 @@ void TapEventListener::OnTestIterationStart(const UnitTest& unit_test,
 }
 
 
-void TapEventListener::OnEnvironmentsSetUpStart(const UnitTest& unit_test)
+void TapEventListener::OnEnvironmentsSetUpStart(const UnitTest&)
 {
   tap_diagnostic_printf("Global test environment set-up");
 }
@@ -219,14 +218,13 @@ void TapEventListener::OnTestEnd(const TestInfo& test_info)
 }
 
 
-void TapEventListener::OnEnvironmentsTearDownStart(const UnitTest& unit_test)
+void TapEventListener::OnEnvironmentsTearDownStart(const UnitTest&)
 {
   tap_diagnostic_printf("Global test environment tear-down");
 }
 
 
-void TapEventListener::OnTestIterationEnd(const UnitTest& unit_test,
-                                          int iteration)
+void TapEventListener::OnTestIterationEnd(const UnitTest& unit_test, int)
 {
   std::stringstream str_stream;
   str_stream << "Ran " << num_tests(unit_test.test_to_run_count())

@@ -29,6 +29,7 @@ SET GLOBAL group_replication_force_members= "GROUP_REPLICATION_LOCAL_ADDRESS1";
 [connection server1]
 include/start_group_replication.inc
 #3. check that incomplete transaction t1 is rolled back, table1 should have only 2 tuples.
+include/assert.inc ['There should be two values in table1']
 #4. Clean-up
 DROP TABLE table1;
 SET @@GLOBAL.DEBUG=@debug_save;

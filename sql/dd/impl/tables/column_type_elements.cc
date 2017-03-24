@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 #include <new>
 
+#include "sql_const.h"                // MAX_INTERVAL_VALUE_LENGTH
 #include "dd/impl/raw/object_keys.h"  // Parent_id_range_key
 #include "dd/impl/types/object_table_definition_impl.h"
 
@@ -42,9 +43,17 @@ Column_type_elements::Column_type_elements()
   m_target_def.add_field(FIELD_INDEX,
                          "FIELD_INDEX",
                          "element_index INT UNSIGNED NOT NULL");
+  // Fail if the max length of enum/set elements is increased.
+  // If it's changed, the corresponding column length must be
+  // increased, but this must be treated as a DD table upgrade
+  // requiring special care.
+  DBUG_ASSERT(MAX_INTERVAL_VALUE_LENGTH <= 255);
+
+  // Leave room for four bytes per character, which is used
+  // by e.g. utf8mb4, i.e. 255 * 4 = 1020 bytes.
   m_target_def.add_field(FIELD_NAME,
                          "FIELD_NAME",
-                         "name VARBINARY(255) NOT NULL");
+                         "name VARBINARY(1020) NOT NULL");
 
   m_target_def.add_index("PRIMARY KEY(column_id, element_index)");
   // We may have multiple similar element names. Do we plan to deprecate it?

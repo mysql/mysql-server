@@ -12,13 +12,15 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
-#include "gcs_message.h"
-#include "gcs_logging.h"
-#include <xplatform/byteorder.h>
-#include "xplatform/my_xp_util.h"
+
+#include "mysql/gcs/gcs_message.h"
+#include "mysql/gcs/gcs_logging.h"
+#include "mysql/gcs/xplatform/byteorder.h"
+#include "mysql/gcs/xplatform/my_xp_util.h"
 
 #include "my_compiler.h"
 

@@ -3,8 +3,7 @@
 ##### This test should be migrated to utf8mb4
 --disable_query_log
 let $testdbcs104=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
+alter schema default character set latin1;
 use test;
 --enable_query_log
 ########################################
@@ -1390,7 +1389,6 @@ eval set global innodb_file_per_table = $innodb_file_per_table_orig;
 ########################################
 ##### WL#7554 set schema `test` back to what it was
 --disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs104;
+--eval alter schema test default character set $testdbcs104;
 --enable_query_log
 ########################################

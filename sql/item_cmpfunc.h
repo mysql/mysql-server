@@ -335,7 +335,9 @@ public:
   Item_in_optimizer(Item *a, Item_in_subselect *b):
     Item_bool_func(a, reinterpret_cast<Item *>(b)), cache(0),
     save_cache(0), result_for_null_param(UNKNOWN)
-  { with_subselect= TRUE; }
+  {
+    set_subquery();
+  }
   bool fix_fields(THD *, Item **) override;
   bool fix_left(THD *thd, Item **ref);
   void fix_after_pullout(SELECT_LEX *parent_select,
@@ -396,7 +398,7 @@ protected:
 class Equal_creator :public Linear_comp_creator
 {
 public:
-  virtual const char* symbol(bool invert) const
+  virtual const char* symbol(bool invert MY_ATTRIBUTE((unused))) const
   {
     // This will never be called with true.
     DBUG_ASSERT(!invert);
@@ -1815,11 +1817,10 @@ public:
     else
     {
       args[0]->update_used_tables();
-      with_subselect= args[0]->has_subquery();
-      with_stored_program= args[0]->has_stored_program();
+      set_accum_properties(args[0]);
 
       if ((const_item_cache= !(used_tables_cache= args[0]->used_tables()) &&
-           !with_subselect && !with_stored_program))
+           !has_subquery() && !has_stored_program()))
       {
 	/* Remember if the value is always NULL or never NULL */
 	cached_value= (longlong) args[0]->is_null();
@@ -1906,21 +1907,6 @@ class Item_func_like final : public Item_bool_func2
 {
   typedef Item_bool_func2 super;
 
-  // Boyer-Moore data
-  bool        can_do_bm;	// pattern is '%abcd%' case
-  const char* pattern;
-  int         pattern_len;
-
-  // Boyer-Moore buffers, *this is owner
-  int* bmGs; //   good suffix shift table, size is pattern_len + 1
-  int* bmBc; // bad character shift table, size is alphabet_size
-
-  void bm_compute_suffixes(int* suff);
-  void bm_compute_good_suffix_shifts(int* suff);
-  void bm_compute_bad_character_shifts();
-  bool bm_matches(const char* text, size_t text_len) const;
-  enum { alphabet_size = 256 };
-
   Item *escape_item;
 
   bool escape_used_in_parsing;
@@ -1932,12 +1918,10 @@ public:
   int escape;
 
   Item_func_like(Item *a,Item *b, Item *escape_arg, bool escape_used)
-    :Item_bool_func2(a,b), can_do_bm(false), pattern(0), pattern_len(0), 
-     bmGs(0), bmBc(0), escape_item(escape_arg),
+    :Item_bool_func2(a,b), escape_item(escape_arg),
      escape_used_in_parsing(escape_used), escape_evaluated(false) {}
   Item_func_like(const POS &pos, Item *a, Item *b, Item *opt_escape_arg)
-    :super(pos, a, b), can_do_bm(false), pattern(0), pattern_len(0), 
-     bmGs(0), bmBc(0), escape_item(opt_escape_arg),
+    :super(pos, a, b), escape_item(opt_escape_arg),
      escape_used_in_parsing(opt_escape_arg != NULL), escape_evaluated(false)
   {}
 

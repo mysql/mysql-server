@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -18,8 +18,8 @@
  */
 
 #include "ngs_common/operations_factory_interface.h"
-#include "ngs_common/socket_interface.h"
 #include "ngs_common/options.h"
+#include "ngs_common/socket_interface.h"
 #include "ngs/socket_events_interface.h"
 
 
@@ -29,20 +29,20 @@ namespace test {
 
 class Mock_options_session : public IOptions_session {
 public:
-  MOCK_METHOD0(supports_tls,bool ());
-  MOCK_METHOD0(active_tls,  bool ());
-  MOCK_METHOD0(ssl_cipher,  std::string ());
-  MOCK_METHOD0(ssl_cipher_list,  std::vector<std::string> ());
-  MOCK_METHOD0(ssl_version,  std::string ());
+  MOCK_CONST_METHOD0(supports_tls,bool ());
+  MOCK_CONST_METHOD0(active_tls,  bool ());
+  MOCK_CONST_METHOD0(ssl_cipher,  std::string ());
+  MOCK_CONST_METHOD0(ssl_cipher_list,  std::vector<std::string> ());
+  MOCK_CONST_METHOD0(ssl_version,  std::string ());
 
-  MOCK_METHOD0(ssl_verify_depth, long ());
-  MOCK_METHOD0(ssl_verify_mode, long ());
-  MOCK_METHOD0(ssl_sessions_reused, long ());
-  MOCK_METHOD0(ssl_get_verify_result_and_cert, long ());
+  MOCK_CONST_METHOD0(ssl_verify_depth, long ());
+  MOCK_CONST_METHOD0(ssl_verify_mode, long ());
+  MOCK_CONST_METHOD0(ssl_sessions_reused, long ());
+  MOCK_CONST_METHOD0(ssl_get_verify_result_and_cert, long ());
 
-  MOCK_METHOD0(ssl_get_peer_certificate_issuer, std::string ());
+  MOCK_CONST_METHOD0(ssl_get_peer_certificate_issuer, std::string ());
 
-  MOCK_METHOD0(ssl_get_peer_certificate_subject, std::string ());
+  MOCK_CONST_METHOD0(ssl_get_peer_certificate_subject, std::string ());
 };
 
 class Mock_options_context : public IOptions_context {

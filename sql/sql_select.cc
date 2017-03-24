@@ -3287,7 +3287,7 @@ ORDER *simple_remove_const(ORDER *order, Item *where)
   ORDER *first= NULL, *prev= NULL;
   for (; order; order= order->next)
   {
-    DBUG_ASSERT(!order->item[0]->with_sum_func); // should never happen
+    DBUG_ASSERT(!order->item[0]->has_aggregation()); // should never happen
     if (!const_expression_in_where(where, order->item[0]))
     {
       if (!first)
@@ -3526,8 +3526,8 @@ count_field_types(SELECT_LEX *select_lex, Temp_table_param *param,
     {
       param->func_count++;
       if (reset_with_sum_func)
-	field->with_sum_func=0;
-      if (field->with_sum_func)
+        field->reset_aggregation();
+      if (field->has_aggregation())
         param->outer_sum_func_count++;
     }
   }
@@ -4773,7 +4773,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
 
   for (nr=0; nr < table->s->keys ; nr++)
   {
-    int direction;
+    int direction= 0;
     uint used_key_parts;
     bool  skip_quick;
 

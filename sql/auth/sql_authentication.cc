@@ -1150,6 +1150,12 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   if (protocol->has_client_capability(CLIENT_PLUGIN_AUTH))
   {
     client_plugin= ptr + 2;
+    /*
+      ptr needs to be updated to point to correct position so that
+      connection attributes are read properly.
+    */
+    ptr= ptr + 2 + strlen(client_plugin) + 1;
+
     if (client_plugin >= end)
     {
       my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
@@ -1294,6 +1300,7 @@ char *get_56_lenc_string(char **buffer,
 {
   static char empty_string[1]= { '\0' };
   char *begin= *buffer;
+  uchar *pos= (uchar *)begin;
 
   if (*max_bytes_available == 0)
     return NULL;
@@ -1314,6 +1321,23 @@ char *get_56_lenc_string(char **buffer,
     return empty_string;
   }
 
+  /* Make sure we have enough bytes available for net_field_length_ll */
+
+  DBUG_EXECUTE_IF("buffer_too_short_3",
+                  *pos= 252; *max_bytes_available= 2;
+  );
+  DBUG_EXECUTE_IF("buffer_too_short_4",
+                  *pos= 253; *max_bytes_available= 3;
+  );
+  DBUG_EXECUTE_IF("buffer_too_short_9",
+                  *pos= 254; *max_bytes_available= 8;
+  );
+
+  size_t required_length= (size_t)net_field_length_size(pos);
+
+  if (*max_bytes_available < required_length)
+    return NULL;
+
   *string_length= (size_t)net_field_length_ll((uchar **)buffer);
 
   DBUG_EXECUTE_IF("sha256_password_scramble_too_long",
@@ -1321,6 +1345,9 @@ char *get_56_lenc_string(char **buffer,
   );
 
   size_t len_len= (size_t)(*buffer - begin);
+
+  DBUG_ASSERT((*max_bytes_available >= len_len) &&
+              (len_len == required_length));
 
   if (*string_length > *max_bytes_available - len_len)
     return NULL;
@@ -2426,7 +2453,9 @@ acl_authenticate(THD *thd, enum_server_command command)
     }
     sctx->checkout_access_maps();
 
-    if (!(sctx->check_access(SUPER_ACL)) && !thd->is_error())
+    if (!thd->is_error() &&
+        !(sctx->check_access(SUPER_ACL) ||
+          sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first))
     {
       mysql_mutex_lock(&LOCK_offline_mode);
       bool tmp_offline_mode= MY_TEST(offline_mode);
@@ -2546,7 +2575,8 @@ acl_authenticate(THD *thd, enum_server_command command)
               sctx->master_access(), mpvio.db.str));
 
   if (command == COM_CONNECT &&
-      !(thd->m_main_security_ctx.check_access(SUPER_ACL)))
+      !(thd->m_main_security_ctx.check_access(SUPER_ACL) ||
+        thd->m_main_security_ctx.has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first))
   {
     if (!Connection_handler_manager::get_instance()->valid_connection_count())
     {                                         // too many connections

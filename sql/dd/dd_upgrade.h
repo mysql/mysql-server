@@ -65,13 +65,12 @@ bool find_files_with_metadata(THD *thd, const char *dbname,
   Find all the directories inside data directory. Every directory will be
   treated as a schema. These directories are in filename-encoded form.
 
-  @param[in]  thd        Thread handle.
   @param[out] db_name    An std::vector containing all database name.
 
   @retval false  ON SUCCESS
   @retval true   ON FAILURE
 */
-bool find_schema_from_datadir(THD *thd, std::vector<String_type> *db_name);
+bool find_schema_from_datadir(std::vector<String_type> *db_name);
 
 /**
   Create entry in mysql.schemata for all the folders found in data directory.

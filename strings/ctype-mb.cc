@@ -806,24 +806,34 @@ bool my_like_range_mb(const CHARSET_INFO *cs,
     {      
 fill_max_and_min:
       /*
-        Calculate length of keys:
-        'a\0\0... is the smallest possible string when we have space expand
-        a\ff\ff... is the biggest possible string
+        For LIKE 'a%', assuming min_sort_char='\0' and max_sort_char='\xff':
+
+        "a" is the smallest possible string for NO PAD.
+        "a\0\0..." is the smallest possible string for PAD SPACE.
+        "a\xff\xff..." is the biggest possible string.
       */
-      *min_length= ((cs->state & MY_CS_BINSORT) ? (size_t) (min_str - min_org) :
-                    res_length);
-      *max_length= res_length;
-      /* Create min key  */
-      do
+      if ((cs->state & MY_CS_BINSORT) || cs->pad_attribute == NO_PAD)
       {
-	*min_str++= (char) cs->min_sort_char;
-      } while (min_str != min_end);
+        *min_length= static_cast<size_t>(min_str - min_org);
+
+        /*
+          Pad with spaces, because for CHAR searches, our returned min_length
+          is ignored and min_str is put directly into the value to search for.
+        */
+        do
+        {
+          *min_str++= ' ';
+        } while (min_str != min_end);
+      }
+      else
+      {
+        *min_length= res_length;
+        do
+        {
+          *min_str++= static_cast<char>(cs->min_sort_char);
+        } while (min_str != min_end);
+      }
       
-      /* 
-        Write max key: create a buffer with multibyte
-        representation of the max_sort_char character,
-        and copy it into max_str in a loop. 
-      */
       *max_length= res_length;
       pad_max_char(cs, max_str, max_end);
       return 0;

@@ -99,11 +99,9 @@ namespace connection_control
   /**
     Helper function for Connection_delay_event::reset_all
 
-    @param [in] ptr        Pointer to an entry in hash
-
     @returns 1 to indicate that entry is a match
   */
-  int match_all_entries(const uchar *ptr)
+  int match_all_entries(const uchar*)
   {
     return 1;
   }
@@ -384,14 +382,12 @@ namespace connection_control
   /**
     Function to dump LF hash data to IS table.
 
-    @param [in] thd    THD handle
     @param [in] tables Handle to
                        information_schema.connection_control_failed_attempts
   */
 
   void
-  Connection_delay_event::fill_IS_table(THD *thd,
-                                        TABLE_LIST *tables)
+  Connection_delay_event::fill_IS_table(TABLE_LIST *tables)
   {
     DBUG_ENTER("Connection_delay_event::fill_IS_table");
     TABLE *table= tables->table;
@@ -914,7 +910,7 @@ namespace connection_control
       }
     }
     else
-      m_userhost_hash.fill_IS_table(thd, tables);
+      m_userhost_hash.fill_IS_table(tables);
 
     DBUG_VOID_RETURN;
   }

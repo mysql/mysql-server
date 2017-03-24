@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 --source include/have_example_plugin.inc
 
 --echo #

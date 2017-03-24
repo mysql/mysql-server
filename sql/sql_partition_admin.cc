@@ -25,6 +25,7 @@
 #include "dd/types/table.h"                 // dd::Table
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "handler.h"
+#include "lex_string.h"
 #include "log.h"
 #include "m_ctype.h"
 #include "mdl.h"
@@ -880,7 +881,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   TABLE_LIST *first_table= thd->lex->select_lex->table_list.first;
   Alter_info *alter_info= &thd->lex->alter_info;
   uint table_counter;
-  Partition_handler *part_handler;
+  Partition_handler *part_handler= nullptr;
   handlerton *hton;
   DBUG_ENTER("Sql_cmd_alter_table_truncate_partition::execute");
 

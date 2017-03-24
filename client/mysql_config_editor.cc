@@ -227,7 +227,7 @@ extern "C" {
 static bool
 my_program_get_one_option(int optid,
                           const struct my_option *opt MY_ATTRIBUTE((unused)),
-                          char *argument)
+                          char *argument MY_ATTRIBUTE((unused)))
 {
   switch(optid) {
   case '#':
@@ -246,9 +246,7 @@ my_program_get_one_option(int optid,
 }
 
 static bool
-my_set_command_get_one_option(int optid,
-                              const struct my_option *opt MY_ATTRIBUTE((unused)),
-                              char *argument)
+my_set_command_get_one_option(int optid, const struct my_option *, char*)
 {
   switch(optid) {
   case 'p':
@@ -273,9 +271,7 @@ my_set_command_get_one_option(int optid,
 }
 
 static bool
-my_remove_command_get_one_option(int optid,
-                                 const struct my_option *opt MY_ATTRIBUTE((unused)),
-                                 char *argument)
+my_remove_command_get_one_option(int optid, const struct my_option*, char*)
 {
   switch(optid) {
   case 'G':
@@ -297,9 +293,7 @@ my_remove_command_get_one_option(int optid,
 }
 
 static bool
-my_print_command_get_one_option(int optid,
-                                const struct my_option *opt MY_ATTRIBUTE((unused)),
-                                char *argument)
+my_print_command_get_one_option(int optid, const struct my_option*, char*)
 {
   switch(optid) {
   case 'G':
@@ -321,9 +315,7 @@ my_print_command_get_one_option(int optid,
 }
 
 static bool
-my_reset_command_get_one_option(int optid,
-                                const struct my_option *opt MY_ATTRIBUTE((unused)),
-                                char *argument)
+my_reset_command_get_one_option(int optid, const struct my_option*, char*)
 {
   switch(optid) {
   case '?':

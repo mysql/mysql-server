@@ -9,8 +9,6 @@
 #  PS table will return empty set 
 #  
 
---source include/not_embedded.inc
-
 --source ../include/start_server_common.inc
 
 # Values of variables server variables

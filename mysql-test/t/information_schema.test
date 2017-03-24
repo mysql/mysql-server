@@ -6,9 +6,6 @@ if (!$require_case_insensitive_file_system)
 
 --source include/no_valgrind_without_big.inc
 
-# This test  uses grants, which can't get tested for embedded server
--- source include/not_embedded.inc
-
 #Don't run this test when thread_pool active
 --source include/not_threadpool.inc
 
@@ -287,7 +284,7 @@ select * from information_schema.views where table_schema !=
 'sys' order by table_name;
 grant select (a) on test.t1 to joe@localhost with grant option;
 select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES WHERE table_schema != 'sys';
-select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE table_schema != 'sys';
+select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE table_schema NOT IN ('sys','mysql');
 drop view v1, v2, v3;
 drop table t1;
 delete from mysql.user where user='joe';
@@ -648,10 +645,10 @@ connection con4;
 select * from information_schema.column_privileges where grantee like '%user%'
 order by grantee;
 select * from information_schema.table_privileges where grantee like '%user%'
-order by grantee;
+and table_schema !='mysql' order by grantee;
 select * from information_schema.schema_privileges where grantee like '%user%'
-order by grantee;
-select * from information_schema.user_privileges where grantee like '%user%'
+and table_schema !='performance_schema' order by grantee;
+select * from information_schema.user_privileges where grantee like '%user%' and grantee not like '%session%'
 order by grantee;
 show grants;
 connection default;
@@ -967,7 +964,7 @@ CREATE FUNCTION get_value()
   DETERMINISTIC
 BEGIN
   DECLARE col1, col2, col3, col4, col6 CHAR(255);
-  DECLARE default_val VARCHAR(65532);
+  DECLARE default_val VARCHAR(65532) CHARACTER SET latin1;
   DECLARE done INT DEFAULT 0;
   DECLARE cur1 CURSOR FOR SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT, EXTRA FROM INFORMATION_SCHEMA.COLUMNS where TABLE_NAME='bug23037';
   DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;

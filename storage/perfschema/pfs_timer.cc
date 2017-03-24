@@ -48,12 +48,12 @@ static ulonglong tick_to_pico; /* 1e10 at 100 Hz, 1.666e10 at 60 Hz */
 /* Indexed by enum enum_timer_name */
 static struct time_normalizer
   to_pico_data[FIRST_TIMER_NAME + COUNT_TIMER_NAME] = {
-    {0, 0}, /* unused */
-    {0, 0}, /* cycle */
-    {0, 0}, /* nanosec */
-    {0, 0}, /* microsec */
-    {0, 0}, /* millisec */
-    {0, 0}  /* tick */
+    {0, 0, {0}}, /* pico (identity) */
+    {0, 0, {0}}, /* cycle */
+    {0, 0, {0}}, /* nanosec */
+    {0, 0, {0}}, /* microsec */
+    {0, 0, {0}}, /* millisec */
+    {0, 0, {0}}  /* tick */
 };
 
 static inline ulong
@@ -180,7 +180,7 @@ init_timers(void)
 
   /*
     For STAGE and STATEMENT, a timer with a fixed frequency is better.
-    The prefered timer is nanosecond, or lower resolutions.
+    The preferred timer is nanosecond, or lower resolutions.
   */
 
   if (nanosec_to_pico != 0)
@@ -222,7 +222,7 @@ init_timers(void)
   /*
     For IDLE, a timer with a fixed frequency is critical,
     as the CPU clock may slow down a lot if the server is completely idle.
-    The prefered timer is microsecond, or lower resolutions.
+    The preferred timer is microsecond, or lower resolutions.
   */
 
   if (microsec_to_pico != 0)
@@ -244,6 +244,36 @@ init_timers(void)
   {
     /* Robustness, no known cases. */
     idle_timer = TIMER_NAME_CYCLE;
+  }
+
+  /* Initialize histograms bucket timers. */
+
+  uint timer_index;
+
+  for (timer_index = FIRST_TIMER_NAME; timer_index <= LAST_TIMER_NAME;
+       timer_index++)
+  {
+    time_normalizer *normalizer = &to_pico_data[timer_index];
+    ulonglong to_pico = normalizer->m_factor;
+    ulonglong bucket_index;
+
+    if (to_pico != 0)
+    {
+      for (bucket_index = 0; bucket_index < NUMBER_OF_BUCKETS; bucket_index++)
+      {
+        normalizer->m_bucket_timer[bucket_index] =
+          g_histogram_pico_timers.m_bucket_timer[bucket_index] / to_pico;
+      }
+    }
+    else
+    {
+      for (bucket_index = 0; bucket_index < NUMBER_OF_BUCKETS; bucket_index++)
+      {
+        normalizer->m_bucket_timer[bucket_index] = 0;
+      }
+    }
+
+    normalizer->m_bucket_timer[NUMBER_OF_BUCKETS] = UINT64_MAX;
   }
 }
 
@@ -362,4 +392,35 @@ time_normalizer::to_pico(ulonglong start,
       *pico_wait = (end - start) * m_factor;
     }
   }
+}
+
+ulong
+time_normalizer::bucket_index(ulonglong t)
+{
+  ulong low = 0;
+  ulong mid;
+  ulong high = NUMBER_OF_BUCKETS;
+
+  DBUG_ASSERT(m_bucket_timer[low] <= t);
+  DBUG_ASSERT(t <= m_bucket_timer[high]);
+
+  do
+  {
+    mid = (low + high) / 2;
+    DBUG_ASSERT(low < mid);
+    DBUG_ASSERT(mid < high);
+    if (t < m_bucket_timer[mid])
+    {
+      high = mid;
+    }
+    else
+    {
+      low = mid;
+    }
+  } while (low + 1 < high);
+
+  DBUG_ASSERT(m_bucket_timer[low] <= t);
+  DBUG_ASSERT((t < m_bucket_timer[high]) || (high == NUMBER_OF_BUCKETS));
+
+  return low;
 }

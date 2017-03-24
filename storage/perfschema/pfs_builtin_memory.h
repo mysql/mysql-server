@@ -23,7 +23,7 @@
 
 /**
   @file storage/perfschema/pfs_builtin_memory.h
-  Performance schema instruments meta data (declarations).
+  Performance schema instruments metadata (declarations).
 */
 
 typedef uint PFS_builtin_memory_key;

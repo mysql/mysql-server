@@ -205,6 +205,8 @@ const LEX_STRING command_name[]={
 */
 bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
 {
+  Rpl_filter *rpl_filter= thd->rli_slave->rpl_filter;
+
   return rpl_filter->is_on() && tables && !thd->sp_runtime_ctx &&
          !rpl_filter->tables_ok(thd->db().str, tables);
 }
@@ -232,6 +234,8 @@ inline bool db_stmt_db_ok(THD *thd, char* db)
   if (!thd->slave_thread)
     DBUG_RETURN(TRUE);
 
+  Rpl_filter* rpl_filter= thd->rli_slave->rpl_filter;
+
   /*
     No filters exist in ignore/do_db ? Then, just check
     wild_do_table filtering. Otherwise, check the do_db
@@ -240,7 +244,14 @@ inline bool db_stmt_db_ok(THD *thd, char* db)
   bool db_ok= (rpl_filter->get_do_db()->is_empty() &&
                rpl_filter->get_ignore_db()->is_empty()) ?
               rpl_filter->db_ok_with_wild_table(db) :
-              rpl_filter->db_ok(db);
+              /*
+                We already increased do_db/ignore_db counter by calling
+                db_ok(...) in mysql_execute_command(...) when applying
+                relay log event for CREATE DATABASE ..., DROP DATABASE
+                ... and ALTER DATABASE .... So we do not increase
+                do_db/ignore_db counter when calling the db_ok(...) again.
+              */
+              rpl_filter->db_ok(db, false);
 
   DBUG_RETURN(db_ok);
 }
@@ -433,6 +444,8 @@ void init_update_queries(void)
 
   sql_command_flags[SQLCOM_SET_PASSWORD]=   CF_CHANGES_DATA |
                                             CF_AUTO_COMMIT_TRANS |
+                                            CF_NEEDS_AUTOCOMMIT_OFF |
+                                            CF_POTENTIAL_ATOMIC_DDL |
                                             CF_DISALLOW_IN_RO_TRANS;
 
   sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND |
@@ -507,19 +520,52 @@ void init_update_queries(void)
                                                 CF_SHOW_TABLE_COMMAND |
                                                 CF_HAS_RESULT_SET |
                                                 CF_REEXECUTION_FRAGILE);
+  /**
+    ACL DDLs do not access data-dictionary tables. However, they still
+    need to be marked to avoid autocommit. This is necessary because
+    code which saves GTID state or slave state in the system tables
+    at commit time does statement commit on low-level (see
+    System_table_access::close_table()) and thus can pre-maturely commit
+    DDL otherwise.
+  */
+  sql_command_flags[SQLCOM_CREATE_USER]=       CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_RENAME_USER]=       CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_USER]=         CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_ALTER_USER]=        CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_GRANT]=             CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_ALTER_USER_DEFAULT_ROLE]=
+                                               CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_GRANT_ROLE]=        CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_REVOKE_ROLE]=       CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_ROLE]=         CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_CREATE_ROLE]=       CF_CHANGES_DATA |
+                                               CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
 
-  sql_command_flags[SQLCOM_CREATE_USER]=       CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_RENAME_USER]=       CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_DROP_USER]=         CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_ALTER_USER]=        CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_ALTER_USER_DEFAULT_ROLE]= CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_GRANT]=             CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_GRANT_ROLE]=        CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_REVOKE_ROLE]=       CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_DROP_ROLE]=         CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_CREATE_ROLE]=       CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_ALTER_INSTANCE]=    CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -845,28 +891,40 @@ void init_update_queries(void)
     variants dealing with temporary tables which don't update data-dictionary
     at all and which should be allowed in the middle of transaction.
   */
-  sql_command_flags[SQLCOM_CREATE_INDEX]|=     CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_ALTER_TABLE]|=      CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_TRUNCATE]|=         CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_DROP_INDEX]|=       CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_CREATE_DB]|=        CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_DROP_DB]|=          CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_ALTER_DB]|=         CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_CREATE_INDEX]|=     CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_ALTER_TABLE]|=      CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_TRUNCATE]|=         CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_INDEX]|=       CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_CREATE_DB]|=        CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_DB]|=          CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_ALTER_DB]|=         CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
   sql_command_flags[SQLCOM_REPAIR]|=           CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_OPTIMIZE]|=         CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_RENAME_TABLE]|=     CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_RENAME_TABLE]|=     CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
   sql_command_flags[SQLCOM_CREATE_VIEW]|=      CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_DROP_VIEW]|=        CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_ALTER_TABLESPACE]|= CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_ALTER_TABLESPACE]|= CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
   sql_command_flags[SQLCOM_CREATE_SPFUNCTION]|= CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_DROP_FUNCTION]|=     CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_ALTER_FUNCTION]|=    CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_CREATE_PROCEDURE]|=  CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_DROP_PROCEDURE]|=    CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_ALTER_PROCEDURE]|=   CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_CREATE_TRIGGER]|=   CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_DROP_TRIGGER]|=     CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_IMPORT]|=           CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_CREATE_TRIGGER]|=   CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_TRIGGER]|=     CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_IMPORT]|=           CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
 }
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command)
@@ -1684,11 +1742,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     if (check_table_access(thd, SELECT_ACL, &table_list,
                            TRUE, UINT_MAX, FALSE))
       break;
-    /*
-      Turn on an optimization relevant if the underlying table
-      is a view: do not fill derived tables.
-    */
-    thd->lex->sql_command= SQLCOM_SHOW_FIELDS;
 
     // See comment in opt_trace_disable_if_no_security_context_access()
     Opt_trace_start ots(thd, &table_list, thd->lex->sql_command, NULL,
@@ -2163,17 +2216,20 @@ bool sp_process_definer(THD *thd)
   {
     /*
       If the specified definer differs from the current user, we
-      should check that the current user has SUPER privilege (in order
-      to create a stored routine under another user one must have
-      SUPER privilege).
+      should check that the current user has a set_user_id privilege
+      (in order to create a stored routine under another user one must
+       have a set_user_id privilege).
     */
+    Security_context *sctx= thd->security_context();
     if ((strcmp(lex->definer->user.str,
                 thd->security_context()->priv_user().str) ||
          my_strcasecmp(system_charset_info, lex->definer->host.str,
                        thd->security_context()->priv_host().str)) &&
-        check_global_access(thd, SUPER_ACL))
+        !(sctx->check_access(SUPER_ACL) ||
+          sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first))
     {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "SUPER or SET_USER_ID");
       DBUG_RETURN(TRUE);
     }
   }
@@ -2452,13 +2508,18 @@ mysql_execute_command(THD *thd, bool first_level)
 
   if (unlikely(thd->slave_thread))
   {
+    bool need_increase_counter= !(lex->sql_command == SQLCOM_XA_START ||
+                                  lex->sql_command == SQLCOM_XA_END ||
+                                  lex->sql_command == SQLCOM_XA_COMMIT ||
+                                  lex->sql_command == SQLCOM_XA_ROLLBACK);
     // Database filters.
     if (lex->sql_command != SQLCOM_BEGIN &&
         lex->sql_command != SQLCOM_COMMIT &&
         lex->sql_command != SQLCOM_SAVEPOINT &&
         lex->sql_command != SQLCOM_ROLLBACK &&
         lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
-        !rpl_filter->db_ok(thd->db().str))
+        !thd->rli_slave->rpl_filter->db_ok(thd->db().str,
+                                           need_increase_counter))
     {
       binlog_gtid_end_transaction(thd);
       DBUG_RETURN(0);
@@ -2470,10 +2531,15 @@ mysql_execute_command(THD *thd, bool first_level)
         When dropping a trigger, we need to load its table name
         before checking slave filter rules.
       */
-      add_table_for_trigger(thd, lex->spname->m_db,
-                            lex->spname->m_name, true, &all_tables);
-      
-      if (!all_tables)
+      TABLE_LIST *trigger_table= nullptr;
+      (void)get_table_for_trigger(thd, lex->spname->m_db,
+                                  lex->spname->m_name, true, &trigger_table);
+      if (trigger_table != nullptr)
+      {
+        lex->add_to_query_tables(trigger_table);
+        all_tables= trigger_table;
+      }
+      else
       {
         /*
           If table name cannot be loaded,
@@ -2485,8 +2551,8 @@ mysql_execute_command(THD *thd, bool first_level)
         binlog_gtid_end_transaction(thd);
         DBUG_RETURN(0);
       }
-      
-      // force searching in slave.cc:tables_ok() 
+
+      // force searching in slave.cc:tables_ok()
       all_tables->updating= 1;
     }
 
@@ -2792,8 +2858,14 @@ mysql_execute_command(THD *thd, bool first_level)
 
   case SQLCOM_PURGE:
   {
-    if (check_global_access(thd, SUPER_ACL))
+    Security_context *sctx= thd->security_context();
+    if (!sctx->check_access(SUPER_ACL) &&
+        !sctx->has_global_grant(STRING_WITH_LEN("BINLOG_ADMIN")).first)
+    {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "SUPER or BINLOG_ADMIN");
       goto error;
+    }
     /* PURGE MASTER LOGS TO 'file' */
     res = purge_master_logs(thd, lex->to_log);
     break;
@@ -2801,9 +2873,14 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_PURGE_BEFORE:
   {
     Item *it;
-
-    if (check_global_access(thd, SUPER_ACL))
+    Security_context *sctx= thd->security_context();
+    if (!sctx->check_access(SUPER_ACL) &&
+        !sctx->has_global_grant(STRING_WITH_LEN("BINLOG_ADMIN")).first)
+    {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "SUPER or BINLOG_ADMIN");
       goto error;
+    }
     /* PURGE MASTER LOGS BEFORE 'data' */
     it= lex->purge_value_list.head();
     if ((!it->fixed && it->fix_fields(lex->thd, &it)) ||
@@ -2897,9 +2974,13 @@ mysql_execute_command(THD *thd, bool first_level)
   }
   case SQLCOM_CHANGE_MASTER:
   {
-
-    if (check_global_access(thd, SUPER_ACL))
+    Security_context *sctx= thd->security_context();
+    if (!sctx->check_access(SUPER_ACL) &&
+        !sctx->has_global_grant(STRING_WITH_LEN("REPLICATION_SLAVE_ADMIN")).first)
+    {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or REPLICATION_SLAVE_ADMIN");
       goto error;
+    }
     res= change_master_cmd(thd);
     break;
   }
@@ -2980,8 +3061,13 @@ mysql_execute_command(THD *thd, bool first_level)
   }
   case SQLCOM_START_GROUP_REPLICATION:
   {
-    if (check_global_access(thd, SUPER_ACL))
+    Security_context *sctx= thd->security_context();
+    if (!sctx->check_access(SUPER_ACL) &&
+        !sctx->has_global_grant(STRING_WITH_LEN("GROUP_REPLICATION_ADMIN")).first)
+    {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or GROUP_REPLICATION_ADMIN");
       goto error;
+    }
 
     /*
       If the client thread has locked tables, a deadlock is possible.
@@ -3032,8 +3118,13 @@ mysql_execute_command(THD *thd, bool first_level)
 
   case SQLCOM_STOP_GROUP_REPLICATION:
   {
-    if (check_global_access(thd, SUPER_ACL))
+    Security_context *sctx= thd->security_context();
+    if (!sctx->check_access(SUPER_ACL) &&
+        !sctx->has_global_grant(STRING_WITH_LEN("GROUP_REPLICATION_ADMIN")).first)
+    {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or GROUP_REPLICATION_ADMIN");
       goto error;
+    }
 
     /*
       Please see explanation @SQLCOM_SLAVE_STOP case
@@ -3686,13 +3777,50 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_REVOKE:
   case SQLCOM_GRANT:
   {
-    if (lex->type != TYPE_ENUM_PROXY &&
+    /*
+      Skip access check if we're granting a proxy 
+    */
+    if (lex->type != TYPE_ENUM_PROXY)
+    {
+      /*
+        If there are static grants in the GRANT statement or there are no
+        dynamic privileges we perform check_access on GRANT_OPTION based on 
+        static global privilege level and set the DA accordingly.
+      */
+      if (lex->grant > 0 || lex->dynamic_privileges.elements == 0)
+      {
+        /*
+          check_access sets DA error message based on GRANT arguments.
+        */
+        if (check_access(thd, lex->grant | lex->grant_tot_col | GRANT_ACL,
+                         first_table ?  first_table->db : select_lex->db,
+                         first_table ? &first_table->grant.privilege : NULL,
+                         first_table ? &first_table->grant.m_internal : NULL,
+                         first_table ? 0 : 1, 0))
+        {      
+          goto error;
+        }
+      }
+      /*
+        ..else we still call check_access to load internal structures, but defer
+        checking of global dynamic GRANT_OPTION to mysql_grant.
+        We still ignore checks if this was a grant of a proxy.
+      */
+      else
+      {
+        /*
+          check_access will load grant.privilege and grant.m_internal with values
+          which are used later during column privilege checking.
+          The return value isn't interesting as we'll check for dynamic global
+          privileges later.
+        */
         check_access(thd, lex->grant | lex->grant_tot_col | GRANT_ACL,
                      first_table ?  first_table->db : select_lex->db,
                      first_table ? &first_table->grant.privilege : NULL,
                      first_table ? &first_table->grant.m_internal : NULL,
-                     first_table ? 0 : 1, 0))
-      goto error;
+                     first_table ? 0 : 1, 1);
+      }
+    }
 
     /* Replicate current user as grantor */
     thd->binlog_invoker();
@@ -3757,6 +3885,11 @@ mysql_execute_command(THD *thd, bool first_level)
 	if (check_grant(thd,(lex->grant | lex->grant_tot_col | GRANT_ACL),
                         all_tables, FALSE, UINT_MAX, FALSE))
 	  goto error;
+        if (lex->dynamic_privileges.elements > 0)
+        {
+          my_error(ER_ILLEGAL_PRIVILEGE_LEVEL, MYF(0), all_tables->table_name);
+          goto error;
+        }
         /* Conditionally writes to binlog */
         res= mysql_table_grant(thd, all_tables, lex->users_list,
 			       lex->columns, lex->grant,
@@ -3775,7 +3908,9 @@ mysql_execute_command(THD *thd, bool first_level)
         /* Conditionally writes to binlog */
         res = mysql_grant(thd, select_lex->db, lex->users_list, lex->grant,
                           lex->sql_command == SQLCOM_REVOKE,
-                          lex->type == TYPE_ENUM_PROXY);
+                          lex->type == TYPE_ENUM_PROXY,
+                          lex->dynamic_privileges,
+                          lex->all_privileges);
       }
       if (!res)
       {
@@ -3810,6 +3945,7 @@ mysql_execute_command(THD *thd, bool first_level)
       my_ok(thd);
       break;
     }
+    // Fall through.
   case SQLCOM_FLUSH:
   {
     int write_to_binlog;
@@ -5284,7 +5420,7 @@ bool mysql_test_parse_for_slave(THD *thd)
                lex->sql_command != SQLCOM_SAVEPOINT &&
                lex->sql_command != SQLCOM_ROLLBACK &&
                lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
-               !rpl_filter->db_ok(thd->db().str))
+               !thd->rli_slave->rpl_filter->db_ok(thd->db().str))
         ignorable= true;
     }
     thd->m_digest= parent_digest;
@@ -6390,6 +6526,7 @@ static uint kill_one_thread(THD *thd, my_thread_id id, bool only_kill_query)
   DBUG_ENTER("kill_one_thread");
   DBUG_PRINT("enter", ("id=%u only_kill=%d", id, only_kill_query));
   tmp= Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+  Security_context *sctx= thd->security_context();
   if (tmp)
   {
     /*
@@ -6409,7 +6546,8 @@ static uint kill_one_thread(THD *thd, my_thread_id id, bool only_kill_query)
       slayage if both are string-equal.
     */
 
-    if ((thd->security_context()->check_access(SUPER_ACL)) ||
+    if (sctx->check_access(SUPER_ACL) ||
+        sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first ||
         thd->security_context()->user_matches(tmp->security_context()))
     {
       /* process the kill only if thread is not already undergoing any kill
@@ -6469,25 +6607,29 @@ public:
   Kill_non_super_conn(THD *thd) :
 	    m_client_thd(thd)
   {
-    DBUG_ASSERT(m_client_thd->security_context()->check_access(SUPER_ACL));
+    DBUG_ASSERT(m_client_thd->security_context()->check_access(SUPER_ACL) ||
+      m_client_thd->security_context()->
+        has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first);
   }
 
   virtual void operator()(THD *thd_to_kill)
   {
     mysql_mutex_lock(&thd_to_kill->LOCK_thd_data);
 
-    /* Kill only if non super thread and non slave thread.
+    Security_context *sctx= thd_to_kill->security_context();
+    /* Kill only if non-privileged thread and non slave thread.
        If an account has not yet been assigned to the security context of the
        thread we cannot tell if the account is super user or not. In this case
        we cannot kill that thread. In offline mode, after the account is
-       assigned to this thread and it turns out it is not super user thread,
-       the authentication for this thread will fail and the thread will be
-       terminated.
+       assigned to this thread and it turns out it is not privileged user
+       thread, the authentication for this thread will fail and the thread will
+       be terminated.
     */
-    if (thd_to_kill->security_context()->has_account_assigned()
-  && !(thd_to_kill->security_context()->check_access(SUPER_ACL))
-	&& thd_to_kill->killed != THD::KILL_CONNECTION
-	&& !thd_to_kill->slave_thread)
+    if (sctx->has_account_assigned() &&
+        !(sctx->check_access(SUPER_ACL) ||
+          sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first) &&
+	thd_to_kill->killed != THD::KILL_CONNECTION &&
+	!thd_to_kill->slave_thread)
       thd_to_kill->awake(THD::KILL_CONNECTION);
 
     mysql_mutex_unlock(&thd_to_kill->LOCK_thd_data);
@@ -6597,7 +6739,7 @@ Comp_creator *comp_eq_creator(bool invert)
   return invert?(Comp_creator *)&ne_creator:(Comp_creator *)&eq_creator;
 }
 
-Comp_creator *comp_equal_creator(bool invert)
+Comp_creator *comp_equal_creator(bool invert MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(!invert); // Function never called with true.
   return &equal_creator;

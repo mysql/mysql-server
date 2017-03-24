@@ -7,7 +7,7 @@ connect conu1,localhost,user1;
 connect conu2,localhost,user2;
 connect conu3,localhost,user3;
 SET GLOBAL offline_mode = ON;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 connection default;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)

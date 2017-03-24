@@ -12,6 +12,15 @@
 
 -- source include/have_innodb_max_16k.inc
 
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4. Added opt file too.
+--disable_query_log
+let $testdbcs57=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 # compressed table in tests are with sizes KEY_BLOCK_SIZE 1,2,4,8,16
 # Table creatation fails if KEY_BLOCK_SIZE > innodb-page-size,so
 # allow test to run only when innodb-page-size=16
@@ -729,3 +738,10 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table .* is set a
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.ibd
 
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs57;
+--enable_query_log
+########################################

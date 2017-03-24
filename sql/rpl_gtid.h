@@ -60,6 +60,8 @@ extern PSI_memory_key key_memory_Gtid_set_Interval_chunk;
 extern PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
 }
 
+extern std::atomic<ulong> gtid_mode_counter;
+
 /**
   This macro is used to check that the given character, pointed to by the
   character pointer, is a space or not.
@@ -230,6 +232,7 @@ enum enum_gtid_mode
     anonymous; replicated GTID-transactions generate an error.
   */
   GTID_MODE_OFF= 0,
+  DEFAULT_GTID_MODE= GTID_MODE_OFF,
   /**
     New transactions are anonyomus. Replicated transactions can be
     either anonymous or GTID-transactions.
@@ -247,6 +250,7 @@ enum enum_gtid_mode
   */
   GTID_MODE_ON= 3
 };
+
 /**
   The gtid_mode.
 
@@ -608,14 +612,12 @@ public:
   Sid_map(Checkable_rwlock *sid_lock);
   /// Destroy this Sid_map.
   ~Sid_map();
-#ifdef NON_DISABLED_GTID
   /**
-    Clears this Sid_map (for RESET MASTER)
+    Clears this Sid_map (for RESET SLAVE)
 
     @return RETURN_STATUS_OK or RETURN_STAUTS_REPORTED_ERROR
   */
   enum_return_status clear();
-#endif
   /**
     Add the given SID to this map if it does not already exist.
 
@@ -1063,6 +1065,165 @@ struct Gtid
 
 
 /**
+ Stores information to monitor a transaction during the different replication
+ stages.
+*/
+struct trx_monitoring_info
+{
+  Gtid gtid;
+  ulonglong original_commit_timestamp;
+  ulonglong immediate_commit_timestamp;
+  ulonglong start_time;
+  ulonglong end_time;
+  bool skipped;
+
+  /**
+    Sets the initial information
+
+    @param gtid_arg The Gtid to be stored
+    @param original_ts_arg The original commit timestamp of the Gtid
+    @param immediate_ts_arg The immediate commit timestamp of the Gtid
+    @param start_ts The start timestamp for the monitoring stage of the Gtid
+    @param skipped_arg True if the GTID was already applied
+  */
+  void set(Gtid gtid_arg, ulonglong original_ts_arg, ulonglong immediate_ts_arg,
+           ulonglong start_ts, bool skipped_arg= false)
+  {
+    gtid= gtid_arg;
+    original_commit_timestamp= original_ts_arg;
+    immediate_commit_timestamp= immediate_ts_arg;
+    start_time= start_ts;
+    skipped= skipped_arg;
+  }
+
+  /// Resets this trx_monitoring_info
+  void clear()
+  {
+    gtid= { 0, 0};
+    original_commit_timestamp= 0;
+    immediate_commit_timestamp= 0;
+    start_time= 0;
+    end_time= 0;
+    skipped= false;
+  }
+
+  /**
+    Copies the information from another trx_monitoring_info
+
+    @param other The other trx_monitoring_info to be copied
+  */
+  void copy(trx_monitoring_info *other)
+  {
+    gtid= other->gtid;
+    original_commit_timestamp= other->original_commit_timestamp;
+    immediate_commit_timestamp= other->immediate_commit_timestamp;
+    start_time= other->start_time;
+    end_time= other->end_time;
+  }
+
+  /**
+   Copies the information from another trx_monitoring_info
+   just if the transaction was not skipped.
+
+   @param other The other trx_monitoring_info to be copied
+ */
+  void copy_if_not_skipped(trx_monitoring_info *other)
+  {
+    if (!other->skipped)
+    {
+      copy(other);
+    }
+  }
+
+  /**
+  Copies the info to the corresponding fields in p_s tables.
+
+  @param[out] gtid_arg                       GTID field in the table
+  @param[out] gtid_length_arg                length of the GTID
+  @param[out] original_commit_ts_arg         the original commit timestamp
+  @param[out] immediate_commit_ts_arg        the immediate commit timestamp
+  @param[out] start_time_arg                 the start time field
+  @param[in]  sid_map                        the SID map for the GTID
+ */
+  void copy_to_ps_table(char *gtid_arg,
+                        uint &gtid_length_arg,
+                        ulonglong &original_commit_ts_arg,
+                        ulonglong &immediate_commit_ts_arg,
+                        ulonglong &start_time_arg,
+                        Sid_map* sid_map)
+  {
+    if (is_set())
+    {
+      // the trx_monitoring_info is populated
+      if (!gtid.is_empty())
+      {
+        // the GTID is set
+        Checkable_rwlock *sid_lock= sid_map->get_sid_lock();
+        sid_lock->rdlock();
+        gtid_length_arg= gtid.to_string(sid_map, gtid_arg);
+        sid_lock->unlock();
+      }
+      else
+      {
+        // the transaction is anonymous
+        memcpy(gtid_arg, "ANONYMOUS", 10);
+        gtid_length_arg= 9;
+      }
+      original_commit_ts_arg= original_commit_timestamp;
+      immediate_commit_ts_arg= immediate_commit_timestamp;
+      start_time_arg= start_time/10;
+    }
+    else
+    {
+      // this trx_monitoring_info is not populated, so let's zero the input
+      memcpy(gtid_arg, "", 1);
+      gtid_length_arg= 0;
+      original_commit_ts_arg= 0;
+      immediate_commit_ts_arg= 0;
+      start_time_arg= 0;
+    }
+  }
+
+  /**
+  Copies the info to the corresponding fields in p_s tables.
+
+  @param[out] gtid_arg                       GTID field in the table
+  @param[out] gtid_length_arg                length of the GTID
+  @param[out] original_commit_ts_arg         the original commit timestamp
+  @param[out] immediate_commit_ts_arg        the immediate commit timestamp
+  @param[out] start_time_arg                 the start time field
+  @param[out] end_time_arg                   the end time field
+  @param[in]  sid_map                        the SID map for the GTID
+ */
+  void copy_to_ps_table(char *gtid_arg,
+                        uint &gtid_length_arg,
+                        ulonglong &original_commit_ts_arg,
+                        ulonglong &immediate_commit_ts_arg,
+                        ulonglong &start_time_arg,
+                        ulonglong &end_time_arg,
+                        Sid_map* sid_map)
+  {
+    copy_to_ps_table(gtid_arg, gtid_length_arg, original_commit_ts_arg,
+                     immediate_commit_ts_arg, start_time_arg, sid_map);
+    if (is_set())
+    {
+      end_time_arg= end_time/10;
+    }
+    else
+    {
+      // this trx_monitoring_info is not populated, so zero the remaining input
+      end_time_arg= 0;
+    }
+  }
+
+  /// Returns true if the trx_monitoring_info structure is set, false otherwise
+  bool is_set()
+  {
+    return start_time != 0;
+  }
+};
+
+/**
   Represents a set of GTIDs.
 
   This is structured as an array, indexed by SIDNO, where each element
@@ -1130,6 +1291,14 @@ public:
     existing allocated memory will be re-used.
   */
   void clear();
+  /**
+    Removes all groups from this Gtid_set and clear all the sidnos
+    used by the Gtid_set and it's SID map.
+
+    This does not deallocate anything: if groups are added later,
+    existing allocated memory will be re-used.
+  */
+  void clear_set_and_sid_map();
   /**
     Adds the given GTID to this Gtid_set.
 
@@ -3013,10 +3182,11 @@ public:
     @param thd Thread requesting to access the table
     @param table The table is being accessed.
 
-    @retval true Push a warning or an error to client.
-    @retval false No warning or error was pushed to the client.
+    @retval 0 No warning or error was pushed to the client.
+    @retval 1 Push a warning to client.
+    @retval 2 Push an error to client.
   */
-  bool warn_or_err_on_modify_gtid_table(THD *thd, TABLE_LIST *table);
+  int warn_or_err_on_modify_gtid_table(THD *thd, TABLE_LIST *table);
 #endif
 
 private:
@@ -3738,5 +3908,57 @@ inline void gtid_state_commit_or_rollback(THD *thd, bool needs_to,
 }
 
 #endif // ifdef MYSQL_SERVER
+
+/**
+  An optimized way of checking GTID_MODE without acquiring locks every time.
+
+  GTID_MODE is a global variable that should not be changed often, but the
+  access to it is protected by any of the four locks described at
+  enum_gtid_mode_lock.
+
+  Every time a channel receiver thread connects to a master, and every time
+  a Gtid_log_event or an Anonymous_gtid_log_event is queued by a receiver
+  thread, there must be checked if the current GTID_MODE is compatible with
+  the operation.
+
+  There are some places where the verification is performed while already
+  holding one of the above mentioned locks, but there are other places that
+  rely on no lock and will rely on the global_sid_lock, blocking any other
+  GTID operation relying on the global_sid_map.
+
+  In order to avoid acquiring lock to check a variable that is not changed
+  often, there is a global (atomic) counter of how many times the GTID_MODE
+  was changed since the server startup.
+
+  This class holds a copy of the last GTID_MODE to be returned without the
+  need of acquiring locks if the local GTID mode counter has the same value
+  as the global atomic counter.
+*/
+class Gtid_mode_copy
+{
+public:
+  /**
+    Return the current server GTID_MODE without acquiring locks if possible.
+
+    @param have_lock The lock type held by the caller.
+  */
+  enum_gtid_mode get_gtid_mode_from_copy(enum_gtid_mode_lock have_lock)
+  {
+    ulong current_gtid_mode_counter= gtid_mode_counter;
+    // Update out copy of GTID_MODE if needed
+    if (m_gtid_mode_counter != current_gtid_mode_counter)
+    {
+      m_gtid_mode= get_gtid_mode(have_lock);
+      m_gtid_mode_counter= current_gtid_mode_counter;
+    }
+    return m_gtid_mode;
+  }
+
+private:
+  /// The copy of the atomic counter of the last time we copied the GTID_MODE
+  ulong m_gtid_mode_counter= 0;
+  /// Local copy of the GTID_MODE
+  enum_gtid_mode m_gtid_mode= DEFAULT_GTID_MODE;
+};
 
 #endif /* RPL_GTID_H_INCLUDED */

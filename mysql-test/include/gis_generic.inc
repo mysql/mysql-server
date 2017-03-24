@@ -36,32 +36,32 @@ INSERT INTO gis_point VALUES
 INSERT INTO gis_line VALUES
 (105, ST_LineFromText('LINESTRING(0 0,0 10,10 0)')),
 (106, ST_LineStringFromText('LINESTRING(10 10,20 10,20 20,10 20,10 10)')),
-(107, ST_LineStringFromWKB(LineString(Point(10, 10), Point(40, 10))));
+(107, ST_LineStringFromWKB(St_AsWKB(LineString(Point(10, 10), Point(40, 10)))));
 
 INSERT INTO gis_polygon VALUES
 (108, ST_PolygonFromText('POLYGON((10 10,20 10,20 20,10 20,10 10))')),
 (109, ST_PolyFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))')),
-(110, ST_PolyFromWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(0, 0)))));
+(110, ST_PolyFromWKB(St_AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(0, 0))))));
 
 INSERT INTO gis_multi_point VALUES
 (111, ST_MultiPointFromText('MULTIPOINT(0 0,10 10,10 20,20 20)')),
 (112, ST_MPointFromText('MULTIPOINT(1 1,11 11,11 21,21 21)')),
-(113, ST_MPointFromWKB(MultiPoint(Point(3, 6), Point(4, 10))));
+(113, ST_MPointFromWKB(St_AsWKB(MultiPoint(Point(3, 6), Point(4, 10)))));
 
 INSERT INTO gis_multi_line VALUES
 (114, ST_MultiLineStringFromText('MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))')),
 (115, ST_MLineFromText('MULTILINESTRING((10 48,10 21,10 0))')),
-(116, ST_MLineFromWKB(MultiLineString(LineString(Point(1, 2), Point(3, 5)), LineString(Point(2, 5), Point(5, 8), Point(21, 7)))));
+(116, ST_MLineFromWKB(St_AsWKB(MultiLineString(LineString(Point(1, 2), Point(3, 5)), LineString(Point(2, 5), Point(5, 8), Point(21, 7))))));
 
 
 INSERT INTO gis_multi_polygon VALUES
 (117, ST_MultiPolygonFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))')),
 (118, ST_MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))')),
-(119, ST_MPolyFromWKB(MultiPolygon(Polygon(LineString(Point(0, 3), Point(3, 3), Point(3, 0), Point(0, 3))))));
+(119, ST_MPolyFromWKB(St_AsWKB(MultiPolygon(Polygon(LineString(Point(0, 3), Point(3, 3), Point(3, 0), Point(0, 3)))))));
 
 INSERT INTO gis_geometrycollection VALUES
 (120, ST_GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))')),
-(121, ST_GeometryFromWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9)))));
+(121, ST_GeometryFromWKB(St_AsWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9))))));
 
 INSERT into gis_geometry SELECT * FROM gis_point;
 INSERT into gis_geometry SELECT * FROM gis_line;

@@ -9,6 +9,11 @@
 ## server5 will only be added to the group after all transactions have been
 ## executed to verify that the timestamps were propagated correctly from the
 ## donor.
+## The test also checks if the queueing_transaction and last_queued_transaction
+## fields are cleared from the group_replication_recovery channel after the
+## member is online.
+## The test also check that the last_applied_transaction is in the correct state
+## for both channels when a server joins a group.
 ##
 ## ==== Implementation ====
 ##
@@ -26,8 +31,11 @@
 ##
 ## WL#7319 Infrastructure for GTID based delayed replication and replication lag
 ##         monitoring
+## WL#7374 Performance schema tables to monitor replication lags and queue
 
 
+# accesses to some tables in the test require only one applier thread (worker)
+--source include/not_mts_slave_parallel_workers.inc
 --source include/big_test.inc
 --source ../inc/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
@@ -43,14 +51,42 @@
 # (server2 was implicitely set up as slave of server1 in ../inc/group_replication.inc)
 --source include/start_slave.inc
 
+
 # start second member of the group
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 --source include/start_group_replication.inc
 
---connection server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
 --let $group_replication_number_of_members= 2
 --source ../inc/gr_wait_for_number_of_members.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $queueing_trx= query_get_value(SELECT QUEUEING_TRANSACTION FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME = "group_replication_recovery", QUEUEING_TRANSACTION, 1)
+--let $last_queued_trx= query_get_value(SELECT LAST_QUEUED_TRANSACTION FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME = "group_replication_recovery", LAST_QUEUED_TRANSACTION, 1)
+
+--let $assert_text= QUEUEING_TRANSACTION was cleared in the group_replication_recovery channel after the member is online
+--let $assert_cond= "$queueing_trx" = ""
+--source include/assert.inc
+
+--let $assert_text= LAST_QUEUED_TRANSACTION was cleared in the group_replication_recovery channel after the member is online
+--let $assert_cond= "$last_queued_trx" = ""
+--source include/assert.inc
+
+# check last_applied_transaction in table performance_schema.replication_applier_status_by_worker
+--let $last_applied_trx_applier= query_get_value(SELECT LAST_APPLIED_TRANSACTION FROM performance_schema.replication_applier_status_by_worker WHERE CHANNEL_NAME="group_replication_applier", LAST_APPLIED_TRANSACTION,1)
+--let $last_applied_trx_recovery= query_get_value(SELECT LAST_APPLIED_TRANSACTION FROM performance_schema.replication_applier_status_by_worker WHERE CHANNEL_NAME="group_replication_recovery", LAST_APPLIED_TRANSACTION,1)
+
+# Bug#25700098: Disable the below assert until the bug is fixed.
+#--let $assert_text= LAST_APPLIED_TRANSACTION is cleared because channel group_replication_applier has not applied any transaction yet
+#--let $assert_cond= "$last_applied_trx_applier" = ""
+#--source include/assert.inc
+
+--let $assert_text= LAST_APPLIED_TRANSACTION is not cleared because channel group_replication_recovery applied view change log events for joining the group
+--let $assert_cond= "$last_applied_trx_recovery" != ""
+--source include/assert.inc
 
 # start server4 as slave of server2
 --let $rpl_connection_name= server4

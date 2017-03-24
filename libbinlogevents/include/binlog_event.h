@@ -127,7 +127,9 @@
                                    1U + (MAX_DBS_IN_EVENT_MTS * (1 + NAME_LEN)) + \
                                    3U +            /* type, microseconds */ + \
                                    1U + 32*3 + 1 + 60 \
-                                   /* type, user_len, user, host_len, host */)
+                                   /* type, user_len, user, host_len, host */ + \
+                                   1U + 1          /* type, explicit_def..ts*/+ \
+                                   1U + 8          /* type, xid of DDL */)
 
 
 /**

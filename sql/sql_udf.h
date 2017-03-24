@@ -22,6 +22,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "mysql/mysql_lex_string.h"  // LEX_STRING
@@ -33,8 +34,6 @@ class Item_result_field;
 class String;
 class THD;
 class my_decimal;
-
-typedef struct st_mysql_lex_string LEX_STRING;
 
 
 enum Item_udftype {UDFTYPE_FUNCTION=1,UDFTYPE_AGGREGATE};

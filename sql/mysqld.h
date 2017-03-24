@@ -23,6 +23,7 @@
 #include <time.h>
 #include <atomic>
 
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_atomic.h"
@@ -51,13 +52,12 @@
 #include "sql_bitmap.h"
 #include "sql_const.h"                     // UUID_LENGTH
 #include "system_variables.h"
+#include "rpl_filter.h"                    // Rpl_filter
 
 class THD;
 class Time_zone;
 struct handlerton;
 
-typedef struct st_mysql_lex_string LEX_STRING;
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
 typedef struct st_mysql_show_var SHOW_VAR;
 typedef struct st_bitmap MY_BITMAP;
 typedef struct charset_info_st CHARSET_INFO;
@@ -146,6 +146,7 @@ extern bool opt_safe_user_create;
 extern bool opt_local_infile, opt_myisam_use_mmap;
 extern bool opt_slave_compressed_protocol;
 extern ulong slave_exec_mode_options;
+extern Rpl_filter* global_rpl_filter;
 
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
@@ -191,6 +192,7 @@ extern bool locked_in_memory;
 extern bool opt_using_transactions;
 extern ulong current_pid;
 extern ulong expire_logs_days;
+extern ulong binlog_expire_logs_seconds;
 extern uint sync_binlog_period, sync_relaylog_period,
             sync_relayloginfo_period, sync_masterinfo_period,
             opt_mts_checkpoint_period, opt_mts_checkpoint_group;
@@ -256,6 +258,7 @@ extern ulong max_binlog_size, max_relay_log_size;
 extern ulong slave_max_allowed_packet;
 extern ulong opt_binlog_rows_event_max_size;
 extern ulong binlog_checksum_options;
+extern ulong binlog_row_metadata;
 extern const char *binlog_checksum_type_names[];
 extern bool opt_master_verify_checksum;
 extern bool opt_slave_sql_verify_checksum;
@@ -381,6 +384,7 @@ extern PSI_mutex_key key_RELAYLOG_LOCK_done;
 extern PSI_mutex_key key_RELAYLOG_LOCK_flush_queue;
 extern PSI_mutex_key key_RELAYLOG_LOCK_index;
 extern PSI_mutex_key key_RELAYLOG_LOCK_log;
+extern PSI_mutex_key key_RELAYLOG_LOCK_log_end_pos;
 extern PSI_mutex_key key_RELAYLOG_LOCK_sync;
 extern PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
 extern PSI_mutex_key key_RELAYLOG_LOCK_xids;
@@ -397,6 +401,9 @@ extern PSI_rwlock_key key_rwlock_LOCK_logger;
 extern PSI_rwlock_key key_rwlock_query_cache_query_lock;
 extern PSI_rwlock_key key_rwlock_channel_map_lock;
 extern PSI_rwlock_key key_rwlock_channel_lock;
+extern PSI_rwlock_key key_rwlock_receiver_sid_lock;
+extern PSI_rwlock_key key_rwlock_rpl_filter_lock;
+extern PSI_rwlock_key key_rwlock_channel_to_filter_lock;
 
 extern PSI_cond_key key_PAGE_cond;
 extern PSI_cond_key key_COND_active;

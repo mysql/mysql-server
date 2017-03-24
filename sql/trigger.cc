@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 #include "derror.h"               // ER_THD
 #include "error_handler.h"        // Internal_error_handler
+#include "lex_string.h"
 #include "m_string.h"
 #include "mdl.h"
 #include "my_dbug.h"
@@ -70,8 +71,8 @@ public:
 
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
-                                const char *sqlstate,
-                                Sql_condition::enum_severity_level *level,
+                                const char*,
+                                Sql_condition::enum_severity_level*,
                                 const char *message)
   {
     if (sql_errno != EE_OUTOFMEMORY &&
@@ -151,7 +152,6 @@ static bool construct_definer_value(MEM_ROOT *mem_root, LEX_CSTRING *definer,
       execution order on master and slave will be the same.
 
   @param thd                thread context
-  @param mem_root           mem-root where needed strings will be allocated
   @param[out] binlog_query  well-formed CREATE TRIGGER statement for putting
                             into binlog (after successful execution)
   @param def_user           user part of a definer value
@@ -164,7 +164,6 @@ static bool construct_definer_value(MEM_ROOT *mem_root, LEX_CSTRING *definer,
 
 static bool construct_create_trigger_stmt_with_definer(
   THD *thd,
-  MEM_ROOT *mem_root,
   String *binlog_query,
   const LEX_CSTRING &def_user,
   const LEX_CSTRING &def_host)
@@ -295,7 +294,6 @@ Trigger *Trigger::create_from_parser(THD *thd,
   definer_host= lex->definer->host;
 
   if (construct_create_trigger_stmt_with_definer(thd,
-                                                 &subject_table->mem_root,
                                                  binlog_create_trigger_stmt,
                                                  definer_user,
                                                  definer_host))

@@ -1,20 +1,19 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs72=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
-use test;
---enable_query_log
-########################################
-
 #
 # Test CREATE TABLE ... STATS_SAMPLE_PAGES=N|default
 #
 
 # include/restart_mysqld.inc does not work in embedded mode 
 -- source include/not_embedded.inc 
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs72=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
 
 -- vertical_results
 
@@ -115,7 +114,6 @@ DROP TABLE test_ps_sample_pages;
 ########################################
 ##### WL#7554 set schema `test` back to what it was
 --disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs72;
+--eval alter schema test default character set $testdbcs72;
 --enable_query_log
 ########################################

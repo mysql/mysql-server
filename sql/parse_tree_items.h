@@ -28,6 +28,7 @@
 #include "item_subselect.h"
 #include "item_sum.h"           // Item_sum_count
 #include "item_timefunc.h"      // Item_func_now_local
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

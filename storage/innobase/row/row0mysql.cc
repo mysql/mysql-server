@@ -2276,7 +2276,9 @@ row_update_for_mysql_using_cursor(
 				node->upd_ext ? node->upd_ext->n_ext : 0,
 				false);
 			/* Commit the open mtr as we are processing UPDATE. */
-			index->last_ins_cur->release();
+			if (index->last_ins_cur) {
+				index->last_ins_cur->release();
+			}
 		} else {
 			err = row_ins_sec_index_entry(index, entry, thr, false);
 		}
@@ -2320,7 +2322,10 @@ row_del_upd_for_mysql_using_cursor(
 	to change. */
 	thr = que_fork_get_first_thr(prebuilt->upd_graph);
 	clust_index = prebuilt->table->first_index();
-	clust_index->last_ins_cur->release();
+
+	if(clust_index->last_ins_cur) {
+		clust_index->last_ins_cur->release();
+	}
 
 	/* Step-1: Select the appropriate cursor that will help build
 	the original row and updated row. */
@@ -2721,9 +2726,14 @@ row_delete_all_rows(
 	dict_table_t*	table)
 {
 	ut_ad(table->is_temporary());
+	dict_index_t*	index;
+
+	index = table->first_index();
 	/* Step-0: If there is cached insert position along with mtr
 	commit it before starting delete/update action. */
-	table->first_index()->last_ins_cur->release();
+	if (index->last_ins_cur) {
+		index->last_ins_cur->release();
+	}
 
 	bool			found;
 	const page_size_t	page_size(
@@ -2733,7 +2743,7 @@ row_delete_all_rows(
 	/* Step-1: Now truncate all the indexes and re-create them.
 	Note: This is ddl action even though delete all rows is
 	DML action. Any error during this action is ir-reversible. */
-	for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+	for (index = UT_LIST_GET_FIRST(table->indexes);
 	     index != NULL;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
 
@@ -5235,6 +5245,15 @@ row_rename_table_for_mysql(
 	    && !table->ibd_file_missing) {
 		/* Make a new pathname to update SYS_DATAFILES. */
 		char*	new_path = row_make_new_pathname(table, new_name);
+		char*	old_path = fil_space_get_first_path(table->space);
+
+		/* If old path and new path are the same means tablename
+		has not changed and only the database name holding the table
+		has changed so we need to make the complete filepath again. */
+		if (!dict_tables_have_same_db(old_name, new_name)) {
+			ut_free(new_path);
+			new_path = fil_make_filepath(NULL, new_name, IBD, false);
+		}
 
 		info = pars_info_create();
 
@@ -5254,6 +5273,7 @@ row_rename_table_for_mysql(
 				   "END;\n"
 				   , FALSE, trx);
 
+		ut_free(old_path);
 		ut_free(new_path);
 	}
 	if (err != DB_SUCCESS) {
@@ -5718,8 +5738,8 @@ loop:
 		const char* doing = check_keys? "CHECK TABLE" : "COUNT(*)";
 		ib::warn() << doing << " on index " << index->name << " of"
 			" table " << index->table->name << " returned " << ret;
-		/* fall through (this error is ignored by CHECK TABLE) */
 	}
+	/* fall through (this error is ignored by CHECK TABLE) */
 	case DB_END_OF_INDEX:
 		ret = DB_SUCCESS;
 func_exit:

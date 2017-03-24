@@ -40,6 +40,7 @@
 #include "dd/impl/types/view_impl.h"
 // Avoid warning about deleting ptr to incomplete type on Win
 #include "dd/properties.h"
+#include "lex_string.h"
 #include "mdl.h"
 #include "my_compiler.h"
 #include "test_mdl_context_owner.h"

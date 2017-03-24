@@ -27,12 +27,12 @@
 
 #include "item_timefunc.h"
 
+#include "my_config.h"
+
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "my_config.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -43,6 +43,7 @@
 #include "dd/object_id.h"    // dd::Object_id
 #include "decimal.h"
 #include "derror.h"          // ER_THD
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -3476,9 +3477,9 @@ bool Item_func_internal_update_time::get_date(MYSQL_TIME *ltime,
   String schema_name;
   String *schema_name_ptr;
   String table_name;
-  String *table_name_ptr;
+  String *table_name_ptr= nullptr;
   String engine_name;
-  String *engine_name_ptr;
+  String *engine_name_ptr= nullptr;
   ulonglong unixtime= 0;
 
   if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
@@ -3530,9 +3531,9 @@ bool Item_func_internal_check_time::get_date(MYSQL_TIME *ltime,
   String schema_name;
   String *schema_name_ptr;
   String table_name;
-  String *table_name_ptr;
+  String *table_name_ptr= nullptr;
   String engine_name;
-  String *engine_name_ptr;
+  String *engine_name_ptr= nullptr;
   ulonglong unixtime= 0;
 
   if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&

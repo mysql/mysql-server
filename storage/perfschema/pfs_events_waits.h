@@ -80,7 +80,7 @@ struct PFS_events_waits : public PFS_events
   PFS_file *m_weak_file;
   /** Socket, for socket operations only. */
   PFS_socket *m_weak_socket;
-  /** Metadata lock, for mdl operations only. */
+  /** Metadata lock, for MDL operations only. */
   PFS_metadata_lock *m_weak_metadata_lock;
   /** For weak pointers, target object version. */
   uint32 m_weak_version;
@@ -92,12 +92,12 @@ struct PFS_events_waits : public PFS_events
     Number of bytes/rows read/written.
     This member is populated for FILE READ/WRITE operations, with a number of
     bytes.
-    This member is populated for TABLE IO operations, with a number of rows.
+    This member is populated for TABLE I/O operations, with a number of rows.
   */
   size_t m_number_of_bytes;
   /**
     Index used.
-    This member is populated for TABLE IO operations only.
+    This member is populated for TABLE I/O operations only.
   */
   uint m_index;
   /** Flags */

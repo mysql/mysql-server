@@ -1,16 +1,6 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs190=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-drop schema test;
-create schema test character set latin1;
-use test;
---enable_query_log
-########################################
-
 # Test needs myisam for some myisam specific testcases
 --source include/have_myisam.inc
+
 #
 # Test of heap tables.
 #
@@ -253,7 +243,7 @@ SELECT INDEX_LENGTH FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=DATABASE()
 DROP TABLE t1;
 
 #
-# BUG#12873 - BTREE index on MEMORY table with multiple NULL values doesn't
+# BUG#12873 - BTREE index on MEMORY table with multiple NULL values does not
 # work properly
 #
 CREATE TABLE t1 (a INT, UNIQUE USING BTREE(a)) ENGINE=MEMORY;
@@ -293,12 +283,3 @@ EXPLAIN SELECT c2, COUNT(c1) FROM t1 GROUP BY c2;
 SELECT c2, COUNT(c1) FROM t1 GROUP BY c2;
 
 DROP TABLE t1;
-
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
-drop schema test;
---eval create schema test character set $testdbcs190;
---enable_query_log
-########################################

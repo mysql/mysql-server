@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <new>
 
+#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"

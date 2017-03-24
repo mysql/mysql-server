@@ -299,7 +299,7 @@ int Streaming_command_delegate::get_decimal(const decimal_t * value)
   return false;
 }
 
-int Streaming_command_delegate::get_double(double value, uint32 decimals)
+int Streaming_command_delegate::get_double(double value, uint32)
 {
   if (m_field_types[m_proto->row_builder().get_num_fields()].type == MYSQL_TYPE_FLOAT)
     m_proto->row_builder().add_float_field(static_cast<float>(value));

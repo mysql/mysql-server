@@ -2,9 +2,6 @@
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
 
-# This test should work in embedded server after we fix mysqltest
--- source include/not_embedded.inc
-
 --source include/no_valgrind_without_big.inc
 
 # need to have the dynamic loading turned on for the client plugin tests

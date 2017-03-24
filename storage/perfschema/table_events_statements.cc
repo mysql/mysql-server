@@ -992,7 +992,8 @@ table_events_statements_current::get_row_count(void)
 }
 
 int
-table_events_statements_current::index_init(uint idx, bool)
+table_events_statements_current::index_init(uint idx MY_ATTRIBUTE((unused)),
+                                            bool)
 {
   m_normalizer = time_normalizer::get(statement_timer);
 
@@ -1197,7 +1198,8 @@ table_events_statements_history::get_row_count(void)
 }
 
 int
-table_events_statements_history::index_init(uint idx, bool)
+table_events_statements_history::index_init(uint idx MY_ATTRIBUTE((unused)),
+                                            bool)
 {
   m_normalizer = time_normalizer::get(statement_timer);
 

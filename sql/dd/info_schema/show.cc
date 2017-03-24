@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 #include "dd/info_schema/show_query_builder.h" // Select_lex_builder
 #include "dd/info_schema/stats.h"
+#include "lex_string.h"
 #include "m_string.h"
 #include "mdl.h"
 #include "my_sqlcommand.h"
@@ -165,6 +166,11 @@ build_show_collation_query(const POS &pos,
   static const LEX_STRING alias_sortlen= {
     C_STRING_WITH_LEN("Sortlen") };
 
+  static const LEX_STRING field_pad_attribute= {
+    C_STRING_WITH_LEN("PAD_ATTRIBUTE") };
+  static const LEX_STRING alias_pad_attribute= {
+    C_STRING_WITH_LEN("Pad_attribute") };
+
   /*
      Build sub query.
 
@@ -173,7 +179,8 @@ build_show_collation_query(const POS &pos,
              CHARACTER_SET_NAME as `Charset`,
              ID as `Id`,
              IS_COMPILED as `Compiled`,
-             SORTLEN as `Sortlen`
+             SORTLEN as `Sortlen`,
+             PAD_ATTRIBUTE AS `Pad_attribute`
      ...
   */
   Select_lex_builder sub_query(&pos, thd);
@@ -182,7 +189,8 @@ build_show_collation_query(const POS &pos,
       sub_query.add_select_item(field_id, alias_id) ||
       sub_query.add_select_item(field_default, alias_default) ||
       sub_query.add_select_item(field_compiled, alias_compiled) ||
-      sub_query.add_select_item(field_sortlen, alias_sortlen))
+      sub_query.add_select_item(field_sortlen, alias_sortlen) ||
+      sub_query.add_select_item(field_pad_attribute, alias_pad_attribute))
     return nullptr;
 
   // ... FROM information_schema.<table_name> ...

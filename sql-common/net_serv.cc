@@ -229,7 +229,7 @@ bool net_flush(NET *net)
 */
 
 static bool
-net_should_retry(NET *net, uint *retry_count)
+net_should_retry(NET *net, uint *retry_count MY_ATTRIBUTE((unused)))
 {
   bool retry;
 

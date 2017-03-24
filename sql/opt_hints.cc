@@ -19,6 +19,7 @@
 
 #include "derror.h"        // ER_THD
 #include "key.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_table_map.h"

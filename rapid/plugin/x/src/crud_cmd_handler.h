@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -21,6 +21,7 @@
 #define _XPL_CRUD_CMD_HANDLER_H_
 
 #include "ngs/error_code.h"
+#include "ngs/interface/resultset_interface.h"
 #include "ngs/protocol_fwd.h"
 #include "query_string_builder.h"
 #include "sql_data_context.h"
@@ -56,10 +57,11 @@ private:
  typedef Common_status_variables::Variable
      Common_status_variables::*Status_variable;
 
-  template <typename B, typename M>
-  ngs::Error_code execute(Session &session, const B &builder, const M &msg,
-                          Status_variable variable,
-                          bool (ngs::Protocol_encoder::*send_ok)());
+ template <typename B, typename M>
+ ngs::Error_code execute(Session &session, const B &builder, const M &msg,
+                         ngs::Resultset_interface &resultset,
+                         Status_variable variable,
+                         bool (ngs::Protocol_encoder::*send_ok)());
 
   template <typename M>
   ngs::Error_code error_handling(const ngs::Error_code &error,
@@ -70,15 +72,11 @@ private:
 
   template <typename M>
   void notice_handling(Session &session,
-                       const Sql_data_context::Result_info &info,
+                       const ngs::Resultset_interface::Info &info,
                        const M &msg) const;
 
   void notice_handling_common(Session &session,
-                              const Sql_data_context::Result_info &info) const;
-
-  template <typename M>
-  ngs::Error_code sql_execute(Session &session,
-                              Sql_data_context::Result_info &info) const;
+                              const ngs::Resultset_interface::Info &info) const;
 
   Query_string_builder m_qb;
 };

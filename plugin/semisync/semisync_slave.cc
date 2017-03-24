@@ -92,7 +92,7 @@ int ReplSemiSyncSlave::slaveStart(Binlog_relay_IO_param *param)
   return 0;
 }
 
-int ReplSemiSyncSlave::slaveStop(Binlog_relay_IO_param *param)
+int ReplSemiSyncSlave::slaveStop(Binlog_relay_IO_param*)
 {
   if (rpl_semi_sync_slave_status)
     rpl_semi_sync_slave_status= 0;

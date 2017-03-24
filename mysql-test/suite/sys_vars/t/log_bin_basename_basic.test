@@ -6,7 +6,6 @@
 #  Variable Scope: Global
 #  Dynamic Variable: No
 
---source include/not_embedded.inc
 --source include/have_log_bin.inc
 
 --let $rpl_log_var_name=log_bin_basename

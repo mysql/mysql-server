@@ -27,7 +27,7 @@ namespace xpl
 
 MYSQL_PLUGIN plugin_handle = NULL;
 
-void plugin_log_message(MYSQL_PLUGIN *p, const plugin_log_level level, const char *message)
+void plugin_log_message(MYSQL_PLUGIN *p, const plugin_log_level, const char *message)
 {
   my_plugin_log_message(p, MY_WARNING_LEVEL, "%s", message);
 }

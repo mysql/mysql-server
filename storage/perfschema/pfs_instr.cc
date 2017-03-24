@@ -85,6 +85,7 @@ PFS_file **file_handle_array = NULL;
 
 PFS_stage_stat *global_instr_class_stages_array = NULL;
 PFS_statement_stat *global_instr_class_statements_array = NULL;
+PFS_histogram global_statements_histogram;
 PFS_memory_stat *global_instr_class_memory_array = NULL;
 
 static PFS_ALIGNED PFS_cacheline_uint64 thread_internal_id_counter;
@@ -878,7 +879,7 @@ find_or_create_file(PFS_thread *thread,
     - sym_link ==> /real/path/to/sym_link
     - ./sym_link ==> /real/path/to/sym_link
     When the last component of a file is a symbolic link,
-    the last component is *not* resolved, so that all file io
+    the last component is *not* resolved, so that all file I/O
     operations on a link (create, read, write, delete) are counted
     against the link itself, not the target file.
     Resolving the name would lead to create counted against the link,
@@ -1455,7 +1456,7 @@ fct_reset_file_io(PFS_file *pfs)
   pfs->m_file_stat.m_io_stat.reset();
 }
 
-/** Reset the io statistics per file instance. */
+/** Reset the I/O statistics per file instance. */
 void
 reset_file_instance_io(void)
 {
@@ -1468,11 +1469,17 @@ fct_reset_socket_io(PFS_socket *pfs)
   pfs->m_socket_stat.m_io_stat.reset();
 }
 
-/** Reset the io statistics per socket instance. */
+/** Reset the I/O statistics per socket instance. */
 void
 reset_socket_instance_io(void)
 {
   global_socket_container.apply_all(fct_reset_socket_io);
+}
+
+void
+reset_histogram_global()
+{
+  global_statements_histogram.reset();
 }
 
 void

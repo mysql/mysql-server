@@ -1636,4 +1636,171 @@ include/diff_tables.inc [master:json_data, slave:json_data]
 DROP TABLE data;
 DROP TABLE json_data;
 include/sync_slave_sql_with_master.inc
+#
+# WL#8963: SUPPORT FOR PARTIAL UPDATE OF JSON IN THE OPTIMIZER
+# WL#9192: ADD JSON_STORAGE_SIZE / JSON_STORAGE_FREE FUNCTIONS
+#
+[Connection Master]
+# Create table containing various types of data
+CREATE TABLE json_data(pk INT PRIMARY KEY AUTO_INCREMENT,
+id INT,
+jd JSON,
+td TEXT,
+gcol INT AS (JSON_STORAGE_SIZE(jd)),
+gcol2 INT AS (JSON_STORAGE_FREE(jd)) VIRTUAL,
+gcol3 JSON AS (JSON_ARRAY(id,jd,td,gcol,gcol2)),
+gcol4 JSON AS (JSON_OBJECT(id,jd,gcol,td)) VIRTUAL);
+# Insert data into the table
+INSERT INTO json_data(id,jd,td) VALUES(10, '{"a":1}', 'characters'),
+(20, '[10,20,30]', 'alphabet'),
+(30, '[{"a":"abc"},{"b":"abcd"}]', 'words'),
+(40, '{"key":["array", "of", "strings"]}', 'letters'),
+(50, '{"key":[{"key":"value"},{"key":"value2"}]}', 'strings');
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether table was created on the slave
+SELECT * FROM json_data;
+pk	id	jd	td	gcol	gcol2	gcol3	gcol4
+1	10	{"a": 1}	characters	13	0	[10, {"a": 1}, "characters", 13, 0]	{"10": {"a": 1}, "13": "characters"}
+2	20	[10, 20, 30]	alphabet	14	0	[20, [10, 20, 30], "alphabet", 14, 0]	{"14": "alphabet", "20": [10, 20, 30]}
+3	30	[{"a": "abc"}, {"b": "abcd"}]	words	44	0	[30, [{"a": "abc"}, {"b": "abcd"}], "words", 44, 0]	{"30": [{"a": "abc"}, {"b": "abcd"}], "44": "words"}
+4	40	{"key": ["array", "of", "strings"]}	letters	45	0	[40, {"key": ["array", "of", "strings"]}, "letters", 45, 0]	{"40": {"key": ["array", "of", "strings"]}, "45": "letters"}
+5	50	{"key": [{"key": "value"}, {"key": "value2"}]}	strings	66	0	[50, {"key": [{"key": "value"}, {"key": "value2"}]}, "strings", 66, 0]	{"50": {"key": [{"key": "value"}, {"key": "value2"}]}, "66": "strings"}
+include/diff_tables.inc [master:json_data, slave:json_data]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+[Connection Master]
+# Update values in the table
+UPDATE json_data SET jd = JSON_REPLACE(jd, '$[0].a',"a");
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether values were updated
+SELECT * FROM json_data;
+pk	id	jd	td	gcol	gcol2	gcol3	gcol4
+1	10	{"a": "a"}	characters	15	0	[10, {"a": "a"}, "characters", 15, 0]	{"10": {"a": "a"}, "15": "characters"}
+2	20	[10, 20, 30]	alphabet	14	0	[20, [10, 20, 30], "alphabet", 14, 0]	{"14": "alphabet", "20": [10, 20, 30]}
+3	30	[{"a": "a"}, {"b": "abcd"}]	words	44	2	[30, [{"a": "a"}, {"b": "abcd"}], "words", 44, 2]	{"30": [{"a": "a"}, {"b": "abcd"}], "44": "words"}
+4	40	{"key": ["array", "of", "strings"]}	letters	45	0	[40, {"key": ["array", "of", "strings"]}, "letters", 45, 0]	{"40": {"key": ["array", "of", "strings"]}, "45": "letters"}
+5	50	{"key": [{"key": "value"}, {"key": "value2"}]}	strings	66	0	[50, {"key": [{"key": "value"}, {"key": "value2"}]}, "strings", 66, 0]	{"50": {"key": [{"key": "value"}, {"key": "value2"}]}, "66": "strings"}
+SELECT JSON_STORAGE_SIZE(gcol3), JSON_STORAGE_SIZE(gcol4) FROM json_data;
+JSON_STORAGE_SIZE(gcol3)	JSON_STORAGE_SIZE(gcol4)
+45	48
+42	45
+67	70
+72	75
+93	96
+SELECT JSON_STORAGE_FREE(gcol3), JSON_STORAGE_FREE(gcol4) FROM json_data;
+JSON_STORAGE_FREE(gcol3)	JSON_STORAGE_FREE(gcol4)
+0	0
+0	0
+0	0
+0	0
+0	0
+include/diff_tables.inc [master:json_data, slave:json_data]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+[Connection Master]
+# Update more values in the table
+UPDATE json_data SET jd = JSON_SET(jd, '$.key[0]', "ar");
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether values were updated
+SELECT * FROM json_data;
+pk	id	jd	td	gcol	gcol2	gcol3	gcol4
+1	10	{"a": "a"}	characters	15	0	[10, {"a": "a"}, "characters", 15, 0]	{"10": {"a": "a"}, "15": "characters"}
+2	20	[10, 20, 30]	alphabet	14	0	[20, [10, 20, 30], "alphabet", 14, 0]	{"14": "alphabet", "20": [10, 20, 30]}
+3	30	[{"a": "a"}, {"b": "abcd"}]	words	44	2	[30, [{"a": "a"}, {"b": "abcd"}], "words", 44, 2]	{"30": [{"a": "a"}, {"b": "abcd"}], "44": "words"}
+4	40	{"key": ["ar", "of", "strings"]}	letters	45	3	[40, {"key": ["ar", "of", "strings"]}, "letters", 45, 3]	{"40": {"key": ["ar", "of", "strings"]}, "45": "letters"}
+5	50	{"key": ["ar", {"key": "value2"}]}	strings	66	17	[50, {"key": ["ar", {"key": "value2"}]}, "strings", 66, 17]	{"50": {"key": ["ar", {"key": "value2"}]}, "66": "strings"}
+SELECT JSON_STORAGE_SIZE(gcol3), JSON_STORAGE_SIZE(gcol4) FROM json_data;
+JSON_STORAGE_SIZE(gcol3)	JSON_STORAGE_SIZE(gcol4)
+45	48
+42	45
+67	70
+69	72
+76	79
+SELECT JSON_STORAGE_FREE(gcol3), JSON_STORAGE_FREE(gcol4) FROM json_data;
+JSON_STORAGE_FREE(gcol3)	JSON_STORAGE_FREE(gcol4)
+0	0
+0	0
+0	0
+0	0
+0	0
+include/diff_tables.inc [master:json_data, slave:json_data]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+[Connection Master]
+# Update values again
+UPDATE json_data SET jd = JSON_REPLACE(jd, '$.key', "hello");
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether values were updated
+SELECT * FROM json_data;
+pk	id	jd	td	gcol	gcol2	gcol3	gcol4
+1	10	{"a": "a"}	characters	15	0	[10, {"a": "a"}, "characters", 15, 0]	{"10": {"a": "a"}, "15": "characters"}
+2	20	[10, 20, 30]	alphabet	14	0	[20, [10, 20, 30], "alphabet", 14, 0]	{"14": "alphabet", "20": [10, 20, 30]}
+3	30	[{"a": "a"}, {"b": "abcd"}]	words	42	0	[30, [{"a": "a"}, {"b": "abcd"}], "words", 42, 0]	{"30": [{"a": "a"}, {"b": "abcd"}], "42": "words"}
+4	40	{"key": "hello"}	letters	45	24	[40, {"key": "hello"}, "letters", 45, 24]	{"40": {"key": "hello"}, "45": "letters"}
+5	50	{"key": "hello"}	strings	66	45	[50, {"key": "hello"}, "strings", 66, 45]	{"50": {"key": "hello"}, "66": "strings"}
+SELECT JSON_STORAGE_SIZE(gcol3), JSON_STORAGE_SIZE(gcol4) FROM json_data;
+JSON_STORAGE_SIZE(gcol3)	JSON_STORAGE_SIZE(gcol4)
+45	48
+42	45
+67	70
+48	51
+48	51
+SELECT JSON_STORAGE_FREE(gcol3), JSON_STORAGE_FREE(gcol4) FROM json_data;
+JSON_STORAGE_FREE(gcol3)	JSON_STORAGE_FREE(gcol4)
+0	0
+0	0
+0	0
+0	0
+0	0
+include/diff_tables.inc [master:json_data, slave:json_data]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+[Connection Master]
+# Update values such that they can fill up the "free" space
+UPDATE json_data SET jd= JSON_SET(jd, '$.key', '["h","e","l","l","o"]');
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether values were updated
+SELECT * FROM json_data;
+pk	id	jd	td	gcol	gcol2	gcol3	gcol4
+1	10	{"a": "a", "key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}	characters	47	0	[10, {"a": "a", "key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}, "characters", 47, 0]	{"10": {"a": "a", "key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}, "47": "characters"}
+2	20	[10, 20, 30]	alphabet	14	0	[20, [10, 20, 30], "alphabet", 14, 0]	{"14": "alphabet", "20": [10, 20, 30]}
+3	30	[{"a": "a"}, {"b": "abcd"}]	words	42	0	[30, [{"a": "a"}, {"b": "abcd"}], "words", 42, 0]	{"30": [{"a": "a"}, {"b": "abcd"}], "42": "words"}
+4	40	{"key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}	letters	45	8	[40, {"key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}, "letters", 45, 8]	{"40": {"key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}, "45": "letters"}
+5	50	{"key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}	strings	66	29	[50, {"key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}, "strings", 66, 29]	{"50": {"key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}, "66": "strings"}
+SELECT JSON_STORAGE_SIZE(gcol3), JSON_STORAGE_SIZE(gcol4) FROM json_data;
+JSON_STORAGE_SIZE(gcol3)	JSON_STORAGE_SIZE(gcol4)
+77	80
+42	45
+67	70
+64	67
+64	67
+SELECT JSON_STORAGE_FREE(gcol3), JSON_STORAGE_FREE(gcol4) FROM json_data;
+JSON_STORAGE_FREE(gcol3)	JSON_STORAGE_FREE(gcol4)
+0	0
+0	0
+0	0
+0	0
+0	0
+include/diff_tables.inc [master:json_data, slave:json_data]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+[Connection Master]
+# Clean up
+DROP TABLE json_data;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

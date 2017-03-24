@@ -14,8 +14,6 @@
 #               - Create this test as "--ps-protocol" only variant.
 #
 
-# We cannot run on embedded server because we use multiple sessions.
---source include/not_embedded.inc
 
 # The file with expected results fits only to a run with "--ps-protocol".
 --source include/have_ps_protocol.inc

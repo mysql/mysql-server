@@ -16,6 +16,7 @@
 #ifndef SQL_DD_SHOW_QUERY_BUILDER_H
 #define SQL_DD_SHOW_QUERY_BUILDER_H
 
+#include "lex_string.h"
 #include "mem_root_array.h"
 #include "mysql/mysql_lex_string.h"    // LEX_STRING
 

@@ -27,6 +27,7 @@
 #include "derror.h"
 #include "event_parse_data.h"
 #include "events.h"
+#include "lex_string.h"
                                                // append_identifier
 #include "log.h"
 #include "m_ctype.h"
@@ -121,9 +122,7 @@ class Event_creation_ctx :public Stored_program_creation_ctx,
                           public Sql_alloc
 {
 public:
-  static bool create_event_creation_ctx(THD *thd,
-                                        const char *schema_name,
-                                        const dd::Event &event_obj,
+  static bool create_event_creation_ctx(const dd::Event &event_obj,
                                         Stored_program_creation_ctx **ctx);
 
 public:
@@ -134,7 +133,7 @@ public:
   }
 
 protected:
-  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const
+  virtual Object_creation_ctx *create_backup_ctx(THD*) const
   {
     /*
       We can avoid usual backup/restore employed in stored programs since we
@@ -157,9 +156,7 @@ private:
 
 // Prepare a event creation context object.
 bool
-Event_creation_ctx::create_event_creation_ctx(THD *thd,
-                                              const char *schema_name,
-                                              const dd::Event &event_obj,
+Event_creation_ctx::create_event_creation_ctx(const dd::Event &event_obj,
                                               Stored_program_creation_ctx **ctx)
 {
   const CHARSET_INFO *client_cs= nullptr;
@@ -381,26 +378,25 @@ Event_job_data::fill_event_info(THD *thd, const dd::Event &event_obj,
 
   String str(event_obj.time_zone().c_str(), &my_charset_latin1);
   m_time_zone= my_tz_find(thd, &str);
-  
+
   m_definition= make_lex_string(&mem_root,event_obj.definition());
-  
+
   if (m_time_zone == NULL)
     DBUG_RETURN(true);
-  
-  Event_creation_ctx::create_event_creation_ctx(thd, m_schema_name.str,
-                                                event_obj, &m_creation_ctx);
+
+  Event_creation_ctx::create_event_creation_ctx(event_obj, &m_creation_ctx);
   if (m_creation_ctx == nullptr)
       DBUG_RETURN(true);
-  
+
   m_definer_user= make_lex_cstring(&mem_root, event_obj.definer_user());
   m_definer_host= make_lex_cstring(&mem_root, event_obj.definer_host());
-    
+
   m_sql_mode= event_obj.sql_mode();
-  
+
   DBUG_RETURN(false);
 }
-  
-  
+
+
 // Fill the Event_queue_element members from the Data Dictionary Event Object.
 bool
 Event_queue_element::fill_event_info(THD *thd, const dd::Event &event_obj,
@@ -476,8 +472,7 @@ Event_timed::fill_event_info(THD *thd, const dd::Event &event_obj,
   m_definition=make_lex_string(&mem_root, event_obj.definition());
   m_definition_utf8=make_lex_string(&mem_root, event_obj.definition_utf8());
 
-  if (Event_creation_ctx::create_event_creation_ctx(thd, m_schema_name.str,
-                                                    event_obj, &m_creation_ctx))
+  if (Event_creation_ctx::create_event_creation_ctx(event_obj, &m_creation_ctx))
     {
       push_warning_printf(thd,
                           Sql_condition::SL_WARNING,
@@ -1138,36 +1133,6 @@ Event_job_data::construct_sp_sql(THD *thd, String *sp_sql)
 
 
 /**
-  Get DROP EVENT statement to binlog the drop of ON COMPLETION NOT
-  PRESERVE event.
-*/
-
-bool
-Event_job_data::construct_drop_event_sql(THD *thd, String *sp_sql)
-{
-  LEX_STRING buffer;
-  const uint STATIC_SQL_LENGTH= 14;
-
-  DBUG_ENTER("Event_job_data::construct_drop_event_sql");
-
-  buffer.length= STATIC_SQL_LENGTH + m_event_name.length*2 + 
-                 m_schema_name.length*2;
-  if (! (buffer.str= (char*) thd->alloc(buffer.length)))
-    DBUG_RETURN(true);
-
-  sp_sql->set(buffer.str, buffer.length, system_charset_info);
-  sp_sql->length(0);
-
-  sp_sql->append(C_STRING_WITH_LEN("DROP EVENT "));
-  append_identifier(thd, sp_sql, m_schema_name.str, m_schema_name.length);
-  sp_sql->append('.');
-  append_identifier(thd, sp_sql, m_event_name.str, 
-                    m_event_name.length);
-
-  DBUG_RETURN(thd->is_fatal_error);
-}
-
-/**
   Compiles and executes the event (the underlying sp_head object)
 
   @retval true  error (reported to the error log)
@@ -1317,7 +1282,7 @@ end:
       Construct a query for the binary log, to ensure the event is dropped
       on the slave
     */
-    if (construct_drop_event_sql(thd, &sp_sql))
+    if (construct_drop_event_sql(thd, &sp_sql, m_schema_name, m_event_name))
       ret= 1;
     else
     {
@@ -1356,6 +1321,37 @@ end:
 
   DBUG_PRINT("info", ("EXECUTED %s.%s  ret: %d", m_schema_name.str, 
                      m_event_name.str, ret));
+
+  DBUG_RETURN(ret);
+}
+
+/**
+  Get DROP EVENT statement to binlog the drop of ON COMPLETION NOT
+  PRESERVE event.
+*/
+bool construct_drop_event_sql(THD *thd, String *sp_sql,
+                              const LEX_STRING &schema_name,
+                              const LEX_STRING &event_name)
+{
+  LEX_STRING buffer;
+  const uint STATIC_SQL_LENGTH= 14;
+  int ret= 0;
+
+  DBUG_ENTER("construct_drop_event_sql");
+
+  buffer.length= STATIC_SQL_LENGTH + event_name.length*2 +
+                 schema_name.length * 2;
+  if (! (buffer.str= (char*) thd->alloc(buffer.length)))
+    DBUG_RETURN(true);
+
+  sp_sql->set(buffer.str, buffer.length, system_charset_info);
+  sp_sql->length(0);
+
+  ret|= sp_sql->append(C_STRING_WITH_LEN("DROP EVENT IF EXISTS"));
+  append_identifier(thd, sp_sql, schema_name.str, schema_name.length);
+  ret|= sp_sql->append('.');
+  append_identifier(thd, sp_sql, event_name.str,
+                    event_name.length);
 
   DBUG_RETURN(ret);
 }

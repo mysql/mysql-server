@@ -65,6 +65,7 @@
 #include "dd/types/view_table.h"             // View_table
 #include "debug_sync.h"                      // DEBUG_SYNC()
 #include "handler.h"
+#include "lex_string.h"
 #include "log.h"                             // sql_print_warning()
 #include "m_ctype.h"
 #include "m_string.h"
@@ -393,7 +394,7 @@ private:
 
 public:
   // Releasing arbitrary dictionary objects is not checked.
-  static bool is_release_locked(THD *thd, const dd::Dictionary_object *object)
+  static bool is_release_locked(THD*, const dd::Dictionary_object*)
   { return true; }
 
   // Reading a table object should be governed by MDL_SHARED.
@@ -407,6 +408,24 @@ public:
            is_locked(thd, table, MDL_EXCLUSIVE);
   }
 
+#ifdef EXTRA_DD_DEBUG // Too intrusive/expensive to have enabled by default.
+  // Releasing a table object should be covered in the same way as for reading.
+  static bool is_release_locked(THD *thd, const dd::Abstract_table *table)
+  {
+    if (thd->is_dd_system_thread())
+      return true;
+    dd::Schema *schema= nullptr;
+    if (thd->dd_client()->acquire_uncached(table->schema_id(), &schema))
+      return false;
+    if (schema == nullptr)
+      return false;
+    dd::Schema_MDL_locker mdl_locker(thd);
+    if (mdl_locker.ensure_locked(schema->name().c_str()))
+      return false;
+    return is_read_locked(thd, table);
+  }
+#endif // EXTRA_DD_DEBUG
+
   // Reading a spatial reference system object should be governed by MDL_SHARED.
   static bool is_read_locked(THD *thd, const dd::Spatial_reference_system *srs)
   { return thd->is_dd_system_thread() || is_locked(thd, srs, MDL_SHARED); }
@@ -415,6 +434,11 @@ public:
   // MDL_EXCLUSIVE.
   static bool is_write_locked(THD *thd, const dd::Spatial_reference_system *srs)
   { return !mysqld_server_started || is_locked(thd, srs, MDL_EXCLUSIVE); }
+
+  // Releasing a spatial reference system object should be covered
+  // in the same way as for reading.
+  static bool is_release_locked(THD *thd, const dd::Spatial_reference_system *srs)
+  { return is_read_locked(thd, srs); }
 
   // No MDL namespace for character sets.
   static bool is_read_locked(THD*, const dd::Charset*)
@@ -474,6 +498,10 @@ public:
            is_locked(thd, tablespace, MDL_EXCLUSIVE);
   }
 
+  // Releasing a tablespace object should be covered in the same way as for reading.
+  static bool is_release_locked(THD *thd, const dd::Tablespace *tablespace)
+  { return is_read_locked(thd, tablespace); }
+
   // Reading a Event object should be governed at least MDL_SHARED.
   static bool is_read_locked(THD *thd, const dd::Event *event)
   {
@@ -488,6 +516,24 @@ public:
             is_locked(thd, event, MDL_EXCLUSIVE));
   }
 
+#ifdef EXTRA_DD_DEBUG // Too intrusive/expensive to have enabled by default.
+  // Releasing an Event object should be covered in the same way as for reading.
+  static bool is_release_locked(THD *thd, const dd::Event *event)
+  {
+    if (thd->is_dd_system_thread())
+      return true;
+    dd::Schema *schema= nullptr;
+    if (thd->dd_client()->acquire_uncached(event->schema_id(), &schema))
+      return false;
+    if (schema == nullptr)
+      return false;
+    dd::Schema_MDL_locker mdl_locker(thd);
+    if (mdl_locker.ensure_locked(schema->name().c_str()))
+      return false;
+    return is_read_locked(thd, event);
+  }
+#endif // EXTRA_DD_DEBUG
+
   // Reading a Routine object should be governed at least MDL_SHARED.
   static bool is_read_locked(THD *thd, const dd::Routine *routine)
   {
@@ -501,11 +547,29 @@ public:
     return (thd->is_dd_system_thread() ||
             is_locked(thd, routine, MDL_EXCLUSIVE));
   }
+
+#ifdef EXTRA_DD_DEBUG // Too intrusive/expensive to have enabled by default.
+  // Releasing a Routine object should be covered in the same way as for reading.
+  static bool is_release_locked(THD *thd, const dd::Routine *routine)
+  {
+    if (thd->is_dd_system_thread())
+      return true;
+    dd::Schema *schema= nullptr;
+    if (thd->dd_client()->acquire_uncached(routine->schema_id(), &schema))
+      return false;
+    if (schema == nullptr)
+      return false;
+    dd::Schema_MDL_locker mdl_locker(thd);
+    if (mdl_locker.ensure_locked(schema->name().c_str()))
+      return false;
+    return is_read_locked(thd, routine);
+  }
+#endif // EXTRA_DD_DEBUG
 };
 
 // Check if the component is hidden.
 template <typename T>
-bool is_component_hidden(dd::Raw_record *r)
+bool is_component_hidden(dd::Raw_record*)
 { return false; }
 
 template <>
@@ -788,8 +852,9 @@ size_t Dictionary_client::release(Object_registry *registry)
       (void) m_current_releaser->remove(element);
 
     // Clone the object before releasing it. The object is needed for checking
-    // the meta data lock afterwards.
-#ifndef DBUG_OFF
+    // the meta data lock afterwards. This is an expensive check, so only
+    // do it if EXTRA_DD_DEBUG is set.
+#ifdef EXTRA_DD_DEBUG
     std::unique_ptr<const T> object_clone(element->object()->clone());
 #endif
 
@@ -809,7 +874,9 @@ size_t Dictionary_client::release(Object_registry *registry)
     // counter of the corresponding cache element is already > 0, which may
     // again trigger asserts in the shared cache and allow for improper object
     // usage.
+#ifdef EXTRA_DD_DEBUG
     DBUG_ASSERT(MDL_checker::is_release_locked(m_thd, object_clone.get()));
+#endif
   }
   return num_released;
 }
@@ -1697,7 +1764,7 @@ bool Dictionary_client::get_table_name_by_partition_se_private_id(
 /* purecov: end */
 
 bool Dictionary_client::get_table_name_by_trigger_name(
-                          Object_id schema_id,
+                          const Schema &schema,
                           const String_type &trigger_name,
                           String_type *table_name)
 {
@@ -1707,7 +1774,7 @@ bool Dictionary_client::get_table_name_by_trigger_name(
   // Read record directly from the tables.
   Object_id table_id;
   if (tables::Triggers::get_trigger_table_id(m_thd,
-                                             schema_id,
+                                             schema.id(),
                                              trigger_name,
                                              &table_id))
   {
@@ -2544,6 +2611,9 @@ template bool Dictionary_client::acquire_uncached(Object_id,
 template bool Dictionary_client::acquire(const String_type&,
                                          const String_type&,
                                          const Abstract_table**);
+template bool Dictionary_client::acquire_for_modification(const String_type&,
+                                                          const String_type&,
+                                                          Abstract_table**);
 template void Dictionary_client::remove_uncommitted_objects<Abstract_table>(bool);
 template bool Dictionary_client::drop(const Abstract_table*);
 template bool Dictionary_client::store(Abstract_table*);
