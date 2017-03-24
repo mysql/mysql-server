@@ -18025,6 +18025,11 @@ void Dblqh::writeSinglePage(Signal* signal, Uint32 pageNo,
   signal->theData[7] = pageNo;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
 
+  if (logFilePtr.p->fileRef == RNIL)
+  {
+    signal->theData[0] = 2305;
+    execDUMP_STATE_ORD(signal);
+  }
   ndbrequire(logFilePtr.p->fileRef != RNIL);
 
   logPartPtr.p->m_io_tracker.send_io(32768);
