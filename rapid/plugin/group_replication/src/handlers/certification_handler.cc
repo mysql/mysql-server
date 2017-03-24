@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -467,6 +467,27 @@ Certification_handler::extract_certification_info(Pipeline_event *pevent,
   int error= 0;
   Log_event *event= NULL;
 
+  if (pevent->get_event_context() != SINGLE_VIEW_EVENT)
+  {
+    /*
+      If the current view event is embraced on a transaction:
+      GTID, BEGIN, VIEW, COMMIT; it means that we are handling
+      a view that was delivered by a asynchronous channel from
+      outside of the group.
+      On that case we just have to queue it on the group applier
+      channel, without any special handling.
+    */
+    next(pevent, cont);
+    DBUG_RETURN(error);
+  }
+
+  /*
+    If the current view event is a standalone event (not inside a
+    transaction), it means that it was injected from GCS on a
+    membership change.
+    On that case we need to queue it on the group applier wrapped
+    on a transaction with a group generated GTID.
+  */
   error= pevent->get_LogEvent(&event);
   if (error || (event == NULL))
   {

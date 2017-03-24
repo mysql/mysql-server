@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1073,18 +1073,6 @@ err:
 
 */
 
-struct my_cstr_comparator : public std::unary_function<const char *, bool>
-{
-  my_cstr_comparator(const char* to_comp_arg) : to_comp(to_comp_arg) {}
-  bool operator() (const char* str) { return !strcmp(str, to_comp); }
-  const char* to_comp;
-};
-
-static void my_char_array_delete(const char *s)
-{
-  delete [] s;
-}
-
 bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
                                                  uint rli_option,
                                                  int thread_mask,
@@ -1094,14 +1082,10 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
 
   Master_info* mi= NULL;
   const char* msg= NULL;
-  char* channel_name= NULL;
-  bool error= false;
+  bool error= false, channel_error;
   bool default_channel_existed_previously= false;
-  bool multiple_channels_allowed= false;
-  bool creating_multiple_channels= false;
-  bool default_channel_created= false;
 
-  std::vector<const char*> channel_list;
+  std::vector<std::string> channel_list;
 
   /* Number of instances of Master_info repository */
   uint mi_instances= 0;
@@ -1138,38 +1122,20 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
     goto end;
   }
 
-  //DBUG_ASSERT(mi_instances == rli_instances);
-  //The assert can fail if the slave_master_info is loaded from other instance
-  // Or probably issue a warning if not equal
-
   /* Make a list of all channels if the slave was connected to previously*/
-  if (create_channel_list(channel_list, mi_instances,
-                          mi_repository, pchannel_map->get_default_channel()))
+  if (load_channel_names_from_repository(channel_list,
+                                         mi_instances,
+                                         mi_repository,
+                                         pchannel_map->get_default_channel(),
+                                         &default_channel_existed_previously))
   {
     sql_print_error("Slave: Could not create channel list");
     error= true;
     goto end;
   }
 
-  default_channel_existed_previously=
-    std::find_if(channel_list.begin(), channel_list.end(),
-      my_cstr_comparator(pchannel_map->get_default_channel())) != channel_list.end();
-
-  multiple_channels_allowed=
-    mi_option == INFO_REPOSITORY_TABLE && rli_option == INFO_REPOSITORY_TABLE;
-
-  /* Adding the default channel if needed. */
-  if (!default_channel_existed_previously)
-  {
-    channel_name= new char[strlen(pchannel_map->get_default_channel())+1];
-    strcpy(channel_name, pchannel_map->get_default_channel());
-    channel_list.push_back((const char*)channel_name);
-  }
-
-  creating_multiple_channels= channel_list.size() > 1;
-
-  /* Check if we can instantiate multiple channels. */
-  if (!multiple_channels_allowed && creating_multiple_channels)
+  if ((mi_option == INFO_REPOSITORY_FILE ||
+       rli_option == INFO_REPOSITORY_FILE) && channel_list.size() > 1)
   {
      /* Not supported cases of B) C) and D) above */
      sql_print_error("Slave: This slave was a multisourced slave previously which"
@@ -1180,84 +1146,52 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
      goto end;
   }
 
+  /* Adding the default channel if needed. */
+  if (!default_channel_existed_previously)
+  {
+    std::string str(pchannel_map->get_default_channel());
+    channel_list.push_back(str);
+  }
+
   /*
     Create and initialize the channels.
 
-    Even if there is an error, we continue to iterate until
-    we have created the default channel.
-
-    In the event of an error, we skip creating other channels than
-    the default one.
+    Even if there is an error during one channel creation, we continue to
+    iterate until we have created the other channels.
 
     For compatibility reasons, we have to separate the print out
     of the error messages.
-   */
-  for(std::vector<const char*>::iterator it = channel_list.begin();
-      it != channel_list.end(); ++it)
+  */
+  for (std::vector<std::string>::iterator it= channel_list.begin();
+       it != channel_list.end(); ++it)
   {
-    const char* cname= *it;
+    const char* cname= (*it).c_str();
     bool is_default_channel= !strcmp(cname, pchannel_map->get_default_channel());
-
-    if (error && default_channel_created)
-      /* error and default_channel_created - safe to exit loop */
-      break;
-    else if (error && !is_default_channel)
-      continue; // on error, skip channels until we handle the default one
-    else
+    channel_error= !(mi= create_mi_and_rli_objects(mi_option, rli_option, cname,
+                                                   (channel_list.size() == 1) ? 1 : 0,
+                                                   pchannel_map));
+    /*
+      Read the channel configuration from the repository if the channel name
+      was read from the repository.
+    */
+    if (!channel_error && (!is_default_channel || default_channel_existed_previously))
     {
-      bool create_error= false, init_error= false;
-      enum_channel_type channel_type= SLAVE_REPLICATION_CHANNEL;
-      if (pchannel_map->is_group_replication_channel_name(cname))
-        channel_type= GROUP_REPLICATION_CHANNEL;
-
-      create_error=
-        !(mi= create_slave_per_channel(mi_option, rli_option, cname,
-                                       !creating_multiple_channels /* to_decide_repo */,
-                                       pchannel_map, channel_type));
-
-      if (create_error && !creating_multiple_channels)
-      {
-        /* legacy - default channel only error */
-        sql_print_error("Failed to create or recover replication info repository.");
-      }
-
-      /*
-        Initialize the channel conditionally:
-        - no create error and:
-          - not default channel
-          - or default channel and was also listed from the beginning.
-       */
-      if (!create_error && (!is_default_channel || default_channel_existed_previously))
-      {
-        bool ignore_if_no_info=
-          (is_default_channel && !creating_multiple_channels) ?  true : false;
-        init_error= global_init_info(mi, ignore_if_no_info, thread_mask);
-      }
-
-      if (init_error || create_error)
-      {
-        if (creating_multiple_channels)
-        {
-          sql_print_error("Slave: Failed to initialize the master info structure"
-                          " for channel '%s'; its record may still be present in"
-                          " 'mysql.slave_master_info' table, consider deleting it."
-                          " Aborting initialization of other channels.",
-                          cname);
-        }
-        else if (init_error)
-        {
-          sql_print_error("Failed to initialize the master info structure");
-        }
-      }
-
-      default_channel_created= default_channel_created || is_default_channel;
-      error= error || create_error || init_error;
+      bool ignore_if_no_info= (channel_list.size() == 1) ? true : false;
+      channel_error= load_mi_and_rli_from_repositories(mi,
+                                                       ignore_if_no_info,
+                                                       thread_mask);
     }
+
+    if (channel_error)
+    {
+      sql_print_error("Slave: Failed to initialize the master info structure"
+                      " for channel '%s'; its record may still be present in"
+                      " 'mysql.slave_master_info' table, consider "
+                      "deleting it.", cname);
+    }
+    error= error || channel_error;
   }
-  DBUG_ASSERT(default_channel_created);
 end:
-  /* Free channel list */
-  std::for_each(channel_list.begin(), channel_list.end(), my_char_array_delete);
   DBUG_RETURN(error);
 }
 
@@ -1277,8 +1211,6 @@ end:
    @param[in]    to_decide_repo   For this channel, check if repositories
                                   are allowed to convert from one type to other.
    @param[in]    pchannel_map     a pointer to channel_map
-   @param[in]    channel type     If the given channel is a slave channel.
-                                  Default is true.
 
    @return      Pointer         pointer to the created Master_info
    @return      NULL            when creation fails
@@ -1286,14 +1218,13 @@ end:
 */
 
 Master_info*
-Rpl_info_factory::create_slave_per_channel(uint mi_option,
-                                           uint rli_option,
-                                           const char* channel,
-                                           bool to_decide_repo,
-                                           Multisource_info* pchannel_map,
-                                           enum_channel_type channel_type)
+Rpl_info_factory::create_mi_and_rli_objects(uint mi_option,
+                                            uint rli_option,
+                                            const char* channel,
+                                            bool to_decide_repo,
+                                            Multisource_info* pchannel_map)
 {
-  DBUG_ENTER("Rpl_info_factory::create_slave_per_channel");
+  DBUG_ENTER("Rpl_info_factory::create_mi_and_rli_objects");
 
   Master_info *mi= NULL;
   Relay_log_info *rli= NULL;
@@ -1315,7 +1246,7 @@ Rpl_info_factory::create_slave_per_channel(uint mi_option,
   rli->set_master_info(mi);
 
   /* Add to multisource map*/
-  if (pchannel_map->add_mi(channel, mi, channel_type))
+  if (pchannel_map->add_mi(channel, mi))
   {
     mi->channel_wrlock();
     delete mi;
@@ -1329,11 +1260,18 @@ Rpl_info_factory::create_slave_per_channel(uint mi_option,
 /**
    Make a list of all the channels if existed on the previos slave run.
 
-   @param[in,out]  channel_list   the names of all channels that exists
-                                  on this slave.
-   @param[in]       mi_instances  number of master_info repositories
-   @param[in]       mi_repository  Found master_info repository
-   @param[in]       default_channel  pointer to default channel.
+   @param[out]  channel_list    the names of all channels that exists
+                                on this slave.
+
+   @param[in]   mi_instances    number of master_info repositories
+
+   @param[in]   mi_repository   Found master_info repository
+
+   @param[in]   default_channel pointer to default channel.
+
+   @param[out]  default_channel_existed_previously
+                                Value filled with true if default channel
+                                existed previously. False if it is not.
 
    @return
      @retval        true             fail
@@ -1341,29 +1279,31 @@ Rpl_info_factory::create_slave_per_channel(uint mi_option,
 
 */
 
-bool Rpl_info_factory::create_channel_list(std::vector<const char*>&channel_list,
-                         uint mi_instances,  uint mi_repository,
-                         const char* default_channel)
+bool
+Rpl_info_factory::load_channel_names_from_repository(std::vector<std::string>& channel_list,
+                                                     uint mi_instances,
+                                                     uint mi_repository,
+                                                     const char* default_channel,
+                                                     bool *default_channel_existed_previously)
 {
-  DBUG_ENTER("Rpl_info_factory::create_channel_list");
+  DBUG_ENTER("Rpl_info_factory::load_channel_names_from_repository");
 
-  char* channel_name= NULL;
-
+  *default_channel_existed_previously= false;
   switch(mi_repository)
   {
   case INFO_REPOSITORY_FILE:
-    if (mi_instances == 1)
+    DBUG_ASSERT(mi_instances == 1);
+    /* insert default channel */
     {
-      /* insert default channel */
-      channel_name= new char[strlen(default_channel)+1];
-      strcpy(channel_name, default_channel);
-      channel_list.push_back((const char*)channel_name);
+    std::string str(default_channel);
+    channel_list.push_back(str);
     }
+    *default_channel_existed_previously= true;
     break;
-
   case INFO_REPOSITORY_TABLE:
-    if(create_channel_list_from_mi_table(channel_list))
-        DBUG_RETURN(true);
+    if (load_channel_names_from_table(channel_list, default_channel,
+                                      default_channel_existed_previously))
+      DBUG_RETURN(true);
     break;
   case INVALID_INFO_REPOSITORY:
     /* file and table instanaces are zero, nothing to be done*/
@@ -1371,8 +1311,8 @@ bool Rpl_info_factory::create_channel_list(std::vector<const char*>&channel_list
   default:
     DBUG_ASSERT(0);
   }
-  DBUG_RETURN(false);
 
+  DBUG_RETURN(false);
 }
 
 
@@ -1385,19 +1325,26 @@ bool Rpl_info_factory::create_channel_list(std::vector<const char*>&channel_list
   Later, this chanenl list is used to create a pair of {mi, rli}
   objects required for IO and SQL threads respectively.
 
-  @param [in, out]      channel_list A reference to the channel list
-                                     This will be filled after reading the
-                                     master info table, row by row.
+  @param [out]  channel_list    A reference to the channel list.
+                                This will be filled after reading the
+                                master info table, row by row.
+
+  @param[in]   default_channel  pointer to default channel.
+
+  @param[out]  default_channel_existed_previously
+                                Value filled with true if default channel
+                                existed previously. False if it is not.
 
   @todo: Move it to Rpl_info_table and make it generic to extract
          all the PK list from the tables (but it not yet necessary)
-
 */
 bool
-Rpl_info_factory::create_channel_list_from_mi_table(std::vector<const char*> &channel_list)
+Rpl_info_factory::load_channel_names_from_table(std::vector<std::string> &channel_list,
+                                                const char* default_channel,
+                                                bool *default_channel_existed_previously)
 {
 
- DBUG_ENTER(" Rpl_info_table::create_channel_list_from_mi_table");
+ DBUG_ENTER(" Rpl_info_table::load_channel_names_from_table");
 
   int error= 1;
   TABLE *table= 0;
@@ -1406,6 +1353,7 @@ Rpl_info_factory::create_channel_list_from_mi_table(std::vector<const char*> &ch
   Rpl_info_table* info= 0;
   THD *thd= 0;
   char buff[MAX_FIELD_WIDTH];
+  *default_channel_existed_previously= false;
   String str(buff, sizeof(buff), system_charset_info); // to extract channel names
 
   uint channel_field= Master_info::get_channel_field_num() -1;
@@ -1456,18 +1404,14 @@ Rpl_info_factory::create_channel_list_from_mi_table(std::vector<const char*> &ch
   do
   {
     error= table->file->ha_rnd_next(table->record[0]);
-    char* channel_name;
-
     switch(error)
     {
     case 0:
       /* extract the channel name from table->field and append to the list */
       table->field[channel_field]->val_str(&str);
-      /* allocs memory, you should free it */
-      channel_name= new char[str.length()+1];
-      strmake(channel_name, str.c_ptr_safe(), str.length());
-      channel_list.push_back((const char*)channel_name);
-
+      channel_list.push_back(std::string(str.c_ptr_safe()));
+      if (!strcmp(str.c_ptr_safe(), default_channel))
+        *default_channel_existed_previously= true;
       break;
 
     case HA_ERR_END_OF_FILE:

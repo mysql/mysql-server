@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -3002,7 +3002,10 @@ row_sel_field_store_in_mysql_format_func(
 		containing UTF-8 ENUM columns due to Bug #9526. */
 		ut_ad(!templ->mbmaxlen
 		      || !(templ->mysql_col_len % templ->mbmaxlen));
-		ut_ad(len * templ->mbmaxlen >= templ->mysql_col_len
+		/* Length of the record will be less in case of
+		clust_templ_for_sec is true. */
+		ut_ad(clust_templ_for_sec
+		      || len * templ->mbmaxlen >= templ->mysql_col_len
 		      || (field_no == templ->icp_rec_field_no
 			  && field->prefix_len > 0));
 		ut_ad(templ->is_virtual
@@ -3394,7 +3397,8 @@ row_sel_store_mysql_rec(
 	if secondary index is used then FTS_DOC_ID column should be part
 	of this index. */
 	if (dict_table_has_fts_index(prebuilt->table)) {
-		if (dict_index_is_clust(index)
+		if ((dict_index_is_clust(index)
+		     && !clust_templ_for_sec)
 		    || prebuilt->fts_doc_id_in_read_set) {
 			prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
 				prebuilt->table, rec, index, NULL);
@@ -4257,8 +4261,14 @@ row_search_no_mvcc(
 	ut_ad(index && pcur && search_tuple);
 
 	/* Step-0: Re-use the cached mtr. */
-	mtr_t*		mtr = &index->last_sel_cur->mtr;
+	mtr_t*		mtr;
 	dict_index_t*	clust_index = dict_table_get_first_index(index->table);
+
+	if(!index->last_sel_cur) {
+		dict_allocate_mem_intrinsic_cache(index);
+	}
+
+	mtr = &index->last_sel_cur->mtr;
 
 	/* Step-1: Build the select graph. */
 	if (direction == 0 && prebuilt->sel_graph == NULL) {

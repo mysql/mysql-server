@@ -96,16 +96,9 @@ insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
-insert into t1 select * from t1;
-insert into t1 select * from t1;
-insert into t1 select * from t1;
-insert into t1 select * from t1;
-insert into t1 select * from t1;
-insert into t1 select * from t1;
-insert into t1 select * from t1;
 select count(*) from t1;
 count(*)
-131072
+1024
 Stop the purge thread
 set global innodb_purge_stop_now = 1;
 delete from t1;

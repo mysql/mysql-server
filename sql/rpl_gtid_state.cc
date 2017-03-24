@@ -793,10 +793,10 @@ int Gtid_state::compress(THD *thd)
 
 
 #ifdef MYSQL_SERVER
-bool Gtid_state::warn_or_err_on_modify_gtid_table(THD *thd, TABLE_LIST *table)
+int Gtid_state::warn_or_err_on_modify_gtid_table(THD *thd, TABLE_LIST *table)
 {
   DBUG_ENTER("Gtid_state::warn_or_err_on_modify_gtid_table");
-  bool ret=
+  int ret=
     gtid_table_persistor->warn_or_err_on_explicit_modification(thd, table);
   DBUG_RETURN(ret);
 }

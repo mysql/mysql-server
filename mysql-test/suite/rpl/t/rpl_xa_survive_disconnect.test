@@ -230,8 +230,8 @@ connect (master_conn3, 127.0.0.1,root,,test,$MASTER_MYPORT,);
 connect (master_conn4, 127.0.0.1,root,,test,$MASTER_MYPORT,);
 --let $conn_id=`SELECT connection_id()`
 
---let $gtridlen=`SELECT 2*(round(rand()*100) % 32)`
---let $bquallen=`SELECT 2*(round(rand()*100) % 32)`
+--let $gtridlen=`SELECT 2*(1 + round(rand()*100) % 31)`
+--let $bquallen=`SELECT 2*(1 + round(rand()*100) % 31)`
 --let $gtrid_rand=`SELECT substring(concat(MD5(rand()), MD5(rand())), 1, $gtridlen)`
 --let $bqual_rand=`SELECT substring(concat(MD5(rand()), MD5(rand())), 1, $bquallen)`
 # formatID max is LONG_MAX

@@ -1846,6 +1846,8 @@ row_merge_read_clustered_index(
 		row_ext_t*	ext;
 		page_cur_t*	cur	= btr_pcur_get_page_cur(&pcur);
 
+		mem_heap_empty(row_heap);
+
 		page_cur_move_to_next(cur);
 
 		stage->n_pk_recs_inc();
@@ -2505,7 +2507,6 @@ write_buffers:
 			goto func_exit;
 		}
 
-		mem_heap_empty(row_heap);
 		if (v_heap) {
 			mem_heap_empty(v_heap);
 		}
