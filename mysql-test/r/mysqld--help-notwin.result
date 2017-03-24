@@ -1185,7 +1185,8 @@ The following options may be given as the first argument:
  the SUPER privilege are affected, unlike read_only. 
  Setting super_read_only to ON also sets read_only to ON.
  -s, --symbolic-links 
- Enable symbolic link support.
+ Enable symbolic link support (deprecated and will be 
+ removed in a future release).
  --sync-binlog=#     Synchronously flush binary log to disk after every #th
  write to the file. Use 0 to disable synchronous flushing
  --sync-master-info=# 
