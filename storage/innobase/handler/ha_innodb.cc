@@ -8470,7 +8470,9 @@ ha_innobase::index_end(void)
 {
 	DBUG_ENTER("index_end");
 
-	m_prebuilt->index->last_sel_cur->release();
+	if(m_prebuilt->index->last_sel_cur) {
+		m_prebuilt->index->last_sel_cur->release();
+	}
 
 	active_index = MAX_KEY;
 
@@ -12442,8 +12444,11 @@ ha_innobase::delete_table(
 
 	if (handler != NULL) {
 		for (dict_index_t* index = UT_LIST_GET_FIRST(handler->indexes);
-		     index != NULL;
+		     index != NULL && index->last_ins_cur;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
+			/* last_ins_cur and last_sel_cur are allocated
+			together ,therfore checking only last_ins_cur
+			before releasing mtr */
 			index->last_ins_cur->release();
 			index->last_sel_cur->release();
 		}

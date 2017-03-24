@@ -283,6 +283,7 @@ Applier_module::apply_view_change_packet(View_change_packet *view_change_packet,
       = new View_change_log_event((char*)view_change_packet->view_id.c_str());
 
   Pipeline_event* pevent= new Pipeline_event(view_change_event, fde_evt, cache);
+  pevent->mark_event(SINGLE_VIEW_EVENT);
   error= inject_event_into_pipeline(pevent, cont);
   delete pevent;
 

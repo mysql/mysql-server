@@ -100,6 +100,10 @@ void net_after_header_psi(struct st_net *net, void *user_data, size_t /* unused:
                                                   thd->db().length,
                                                   thd->charset(), NULL);
 
+      /*
+        Starts a new stage in performance schema, if compiled in and enabled.
+        Also sets THD::proc_info (used by SHOW PROCESSLIST, column STATE)
+      */
       THD_STAGE_INFO(thd, stage_starting);
     }
 
@@ -115,11 +119,11 @@ void net_after_header_psi(struct st_net *net, void *user_data, size_t /* unused:
 
 static void init_net_server_extension(THD *thd)
 {
-#ifdef HAVE_PSI_INTERFACE
   /* Start with a clean state for connection events. */
   thd->m_idle_psi= NULL;
   thd->m_statement_psi= NULL;
   thd->m_server_idle= false;
+
   /* Hook up the NET_SERVER callback in the net layer. */
   thd->m_net_server_extension.m_user_data= thd;
   thd->m_net_server_extension.m_before_header= net_before_header_psi;
@@ -128,9 +132,6 @@ static void init_net_server_extension(THD *thd)
   /* Activate this private extension for the mysqld server. */
   thd->get_protocol_classic()->get_net()->extension=
     &thd->m_net_server_extension;
-#else
-  thd->get_protocol_classic()->get_net()->extension= NULL;
-#endif
 }
 
 

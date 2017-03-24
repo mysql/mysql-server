@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -198,12 +198,30 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
   */
   if (args[0]->field_type() == MYSQL_TYPE_GEOMETRY)
   {
+    if (arg_count == 1)
+    {
+      push_warning_printf(current_thd,
+                          Sql_condition::SL_WARNING,
+                          ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID_ZERO,
+                          ER_THD(current_thd, ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID_ZERO),
+                          func_name(), func_name());
+    }
+    else if (arg_count == 2)
+    {
+      push_warning_printf(current_thd,
+                          Sql_condition::SL_WARNING,
+                          ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID,
+                          ER_THD(current_thd, ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID),
+                          func_name(), func_name());
+    }
+
     Geometry_buffer buff;
     if (Geometry::construct(&buff, wkb->ptr(), wkb->length()) == NULL)
     {
       my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
       return error_str();
     }
+
 
     /*
       Check if SRID embedded into the Geometry value differs

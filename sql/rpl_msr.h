@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -170,14 +170,11 @@ public:
     @param[in]  channel_name      channel name
     @param[in]  mi                pointer to master info corresponding
                                   to this channel
-    @param[in]  channel_type      The channel type. Default is a slave channel
-
     @return
       @retval      false       succesfully added
       @retval      true        couldn't add channel
   */
-  bool add_mi(const char* channel_name, Master_info* mi,
-              enum_channel_type channel_type= SLAVE_REPLICATION_CHANNEL);
+  bool add_mi(const char* channel_name, Master_info* mi);
 
   /**
     Find the master_info object corresponding to a channel explicitly

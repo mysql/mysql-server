@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2111,7 +2111,7 @@ my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val)
     return 0;
   my_decimal *retval= value->val_decimal(val);
   if ((null_value= value->null_value))
-    DBUG_ASSERT(retval == NULL);
+    DBUG_ASSERT(retval == NULL || my_decimal_is_zero(retval));
   return retval;
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6159,40 +6159,39 @@ static void add_not_null_conds(JOIN *join)
 }
 
 
-/* 
-  Check if given expression uses only table fields covered by the given index
+/**
+  Check if given expression only uses fields covered by index #keyno in the
+  table tbl. The expression can use any fields in any other tables.
 
-  SYNOPSIS
-    uses_index_fields_only()
-      item           Expression to check
-      tbl            The table having the index
-      keyno          The index number
-      other_tbls_ok  TRUE <=> Fields of other non-const tables are allowed
+  The expression is guaranteed not to be AND or OR - those constructs are
+  handled outside of this function.
 
-  DESCRIPTION
-    Check if given expression only uses fields covered by index #keyno in the
-    table tbl. The expression can use any fields in any other tables.
-    
-    The expression is guaranteed not to be AND or OR - those constructs are 
-    handled outside of this function.
+  Restrict some function types from being pushed down to storage engine:
+  a) Don't push down the triggered conditions. Nested outer joins execution
+     code may need to evaluate a condition several times (both triggered and
+     untriggered).
+  b) Stored functions contain a statement that might start new operations (like
+     DML statements) from within the storage engine. This does not work against
+     all SEs.
+  c) Subqueries might contain nested subqueries and involve more tables.
 
-  RETURN
-    TRUE   Yes
-    FALSE  No
+  @param  item           Expression to check
+  @param  tbl            The table having the index
+  @param  keyno          The index number
+  @param  other_tbls_ok  TRUE <=> Fields of other non-const tables are allowed
+
+  @return false if No, true if Yes
 */
 
 bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
                             bool other_tbls_ok)
 {
+  // Restrictions b and c.
+  if (item->has_stored_program() || item->has_subquery())
+    return false;
+
   if (item->const_item())
-  {
-    /*
-      const_item() might not return correct value if the item tree
-      contains a subquery. If this is the case we do not include this
-      part of the condition.
-    */
-    return !item->has_subquery();
-  }
+    return true;
 
   const Item::Type item_type= item->type();
 
@@ -6203,21 +6202,14 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
       const Item_func::Functype func_type= item_func->functype();
 
       /*
-        Avoid some function types from being pushed down to storage engine:
-        - Don't push down the triggered conditions. Nested outer joins
-          execution code may need to evaluate a condition several times
-          (both triggered and untriggered).
-          TODO: Consider cloning the triggered condition and using the
-                copies for: 
-                 1. push the first copy down, to have most restrictive
-                    index condition possible.
-                 2. Put the second copy into tab->m_condition.
-        - Stored functions contain a statement that might start new operations
-          against the storage engine. This does not work against all storage
-          engines.
+        Restriction a.
+        TODO: Consider cloning the triggered condition and using the copies
+        for:
+        1. push the first copy down, to have most restrictive index condition
+           possible.
+        2. Put the second copy into tab->m_condition.
       */
-      if (func_type == Item_func::TRIG_COND_FUNC ||
-          func_type == Item_func::FUNC_SP)
+      if (func_type == Item_func::TRIG_COND_FUNC)
         return false;
 
       /* This is a function, apply condition recursively to arguments */

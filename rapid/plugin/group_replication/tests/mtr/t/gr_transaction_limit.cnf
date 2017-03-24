@@ -1,0 +1,14 @@
+!include ../my.cnf
+
+[mysqld.1]
+group_replication_transaction_size_limit=0
+
+[mysqld.2]
+group_replication_transaction_size_limit=1
+
+[mysqld.3]
+group_replication_transaction_size_limit=1024
+
+[ENV]
+SERVER_MYPORT_3=                @mysqld.3.port
+SERVER_MYSOCK_3=                @mysqld.3.socket

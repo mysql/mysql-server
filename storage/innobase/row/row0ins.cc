@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2579,7 +2579,9 @@ err_exit:
 		doesn't fit the provided slot then existing record is added
 		to free list and new record is inserted. This also means
 		cursor that we have cached for SELECT is now invalid. */
-		index->last_sel_cur->invalid = true;
+		if(index->last_sel_cur) {
+			index->last_sel_cur->invalid = true;
+		}
 
 		err = row_ins_clust_index_entry_by_modify(
 			&pcur, flags, mode, &offsets, &offsets_heap,
@@ -3132,7 +3134,9 @@ row_ins_sec_index_entry_low(
 		is doesn't fit the provided slot then existing record is added
 		to free list and new record is inserted. This also means
 		cursor that we have cached for SELECT is now invalid. */
-		index->last_sel_cur->invalid = true;
+		if(index->last_sel_cur) {
+			index->last_sel_cur->invalid = true;
+		}
 
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
@@ -3311,6 +3315,12 @@ row_ins_clust_index_entry(
 
 	if (dict_table_is_intrinsic(index->table)
 	    && dict_index_is_auto_gen_clust(index)) {
+
+		/* Check if the memory allocated for intrinsic cache*/
+		if(!index->last_ins_cur) {
+			dict_allocate_mem_intrinsic_cache(index);
+		}
+
 		err = row_ins_sorted_clust_index_entry(
 			BTR_MODIFY_LEAF, index, entry, n_ext, thr);
 	} else {
@@ -3331,6 +3341,9 @@ row_ins_clust_index_entry(
 	/* Try then pessimistic descent to the B-tree */
 	if (!dict_table_is_intrinsic(index->table)) {
 		log_free_check();
+	} else if(!index->last_sel_cur) {
+		dict_allocate_mem_intrinsic_cache(index);
+		index->last_sel_cur->invalid = true;
 	} else {
 		index->last_sel_cur->invalid = true;
 	}
@@ -3410,6 +3423,9 @@ row_ins_sec_index_entry(
 
 		if (!dict_table_is_intrinsic(index->table)) {
 			log_free_check();
+		} else if(!index->last_sel_cur) {
+			dict_allocate_mem_intrinsic_cache(index);
+			index->last_sel_cur->invalid = true;
 		} else {
 			index->last_sel_cur->invalid = true;
 		}

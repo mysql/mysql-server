@@ -148,13 +148,6 @@ insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
-insert into t1 select * from t1;
-insert into t1 select * from t1;
-insert into t1 select * from t1;
-insert into t1 select * from t1;
-insert into t1 select * from t1;
-insert into t1 select * from t1;
-insert into t1 select * from t1;
 select count(*) from t1;
 
 --echo Stop the purge thread
