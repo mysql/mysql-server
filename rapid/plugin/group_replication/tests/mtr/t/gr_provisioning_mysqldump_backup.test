@@ -44,7 +44,8 @@ UPDATE t1 SET c1=2 WHERE c1=0;
 --let $server2_datadir= `SELECT @@DATADIR`
 --let $server2_backup_file= backup_server2.sql
 # Use mysqldump client to get a dump of server2
---exec $MYSQL_DUMP --user=root --host=127.0.0.1 --port=$SLAVE_MYPORT --databases db > $server2_datadir/$server2_backup_file
+# --single-transaction uses savepoints
+--exec $MYSQL_DUMP --user=root --host=127.0.0.1 --single-transaction --port=$SLAVE_MYPORT --databases db > $server2_datadir/$server2_backup_file
 
 # Restore the backup onto a 3rd server outside the GR group
 --echo
