@@ -19604,7 +19604,7 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
 
     /* Log Event denoting the completion of the LCP restore */
     signal->theData[0] = NDB_LE_LCPRestored;
-    signal->theData[1] = c_lcpId;
+    signal->theData[1] = c_restart_lcpId;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
     csrExecUndoLogState = EULS_STARTED;
