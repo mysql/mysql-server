@@ -6,16 +6,6 @@ if (!$require_case_insensitive_file_system)
 
 #
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs158=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 --echo #########################################################
 --echo # WL#6599: New data dictionary and I_S.
 --echo # 
@@ -407,10 +397,3 @@ SELECT table_name, is_updatable FROM INFORMATION_SCHEMA.VIEWS
     WHERE table_schema != 'sys' ORDER BY table_name;
 DROP TABLE t1;
 DROP VIEW v1;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs158;
---enable_query_log
-########################################
