@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include "mysqld_thd_manager.h"                      // Global_THD_manager
 #include "sql_class.h"                               // THD
 #include "sql_parse.h"                               // Find_thd_with_id
+#include "debug_sync.h"                              // debug_sync_set_action
 
 
 Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx()
@@ -44,6 +45,8 @@ void Rpl_transaction_write_set_ctx::clear_write_set()
 {
   DBUG_ENTER("Transaction_context_log_event::clear_write_set");
   write_set.clear();
+  savepoint.clear();
+  savepoint_list.clear();
   DBUG_VOID_RETURN;
 }
 
@@ -91,4 +94,128 @@ Transaction_write_set* get_transaction_write_set(unsigned long m_thread_id)
     mysql_mutex_unlock(&thd->LOCK_thd_data);
   }
   DBUG_RETURN(result_set);
+}
+
+void Rpl_transaction_write_set_ctx::add_savepoint(char* name)
+{
+  DBUG_ENTER("Rpl_transaction_write_set_ctx::add_savepoint");
+  std::string identifier(name);
+
+  DBUG_EXECUTE_IF("transaction_write_set_savepoint_clear_on_commit_rollback",
+                  {
+                  DBUG_ASSERT(savepoint.size() == 0);
+                  DBUG_ASSERT(write_set.size() == 0);
+                  DBUG_ASSERT(savepoint_list.size() == 0);
+                  });
+
+  DBUG_EXECUTE_IF("transaction_write_set_savepoint_level",
+                  DBUG_ASSERT(savepoint.size() == 0););
+
+  std::map<std::string, size_t>::iterator it;
+
+  /*
+    Savepoint with the same name, the old savepoint is deleted and a new one
+    is set
+  */
+  if ((it= savepoint.find(name)) != savepoint.end())
+      savepoint.erase(it);
+
+  savepoint.insert(std::pair<std::string, size_t>(identifier,
+                                                  write_set.size()));
+
+  DBUG_EXECUTE_IF("transaction_write_set_savepoint_add_savepoint",
+                  DBUG_ASSERT(savepoint.find(identifier)->second == write_set.size()););
+
+  DBUG_VOID_RETURN;
+}
+
+void Rpl_transaction_write_set_ctx::del_savepoint(char* name)
+{
+  DBUG_ENTER("Rpl_transaction_write_set_ctx::del_savepoint");
+  std::string identifier(name);
+
+  DBUG_EXECUTE_IF("transaction_write_set_savepoint_block_before_release",
+                    {
+                      const char act[]= "now wait_for signal.unblock_release";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                    });
+
+  savepoint.erase(identifier);
+
+  DBUG_VOID_RETURN;
+}
+
+void Rpl_transaction_write_set_ctx::rollback_to_savepoint(char* name)
+{
+  DBUG_ENTER("Rpl_transaction_write_set_ctx::rollback_to_savepoint");
+  size_t position= 0;
+  std::string identifier(name);
+  std::map<std::string, size_t>::iterator elem;
+
+  if ((elem = savepoint.find(identifier)) != savepoint.end())
+  {
+    DBUG_ASSERT(elem->second <= write_set.size());
+
+    DBUG_EXECUTE_IF("transaction_write_set_savepoint_block_before_rollback",
+                    {
+                      const char act[]= "now wait_for signal.unblock_rollback";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                    });
+
+    position= elem->second;
+
+    // Remove all savepoints created after the savepoint identifier given as
+    // parameter
+    std::map<std::string, size_t>::iterator it= savepoint.begin();
+    while (it != savepoint.end())
+    {
+      if (it->second > position)
+        savepoint.erase(it++);
+      else
+        ++it;
+    }
+
+    /*
+      We need to check that:
+       - starting index of the range we want to erase does exist.
+       - write_set size have elements to be removed
+    */
+    if (write_set.size() > 0 && position < write_set.size())
+    {
+      // Clear all elements after savepoint
+      write_set.erase(write_set.begin() + position, write_set.end());
+    }
+
+    DBUG_EXECUTE_IF("transaction_write_set_savepoint_add_savepoint",
+                    DBUG_ASSERT(write_set.size() == 1););
+
+    DBUG_EXECUTE_IF("transaction_write_set_size_2",
+                    DBUG_ASSERT(write_set.size() == 2););
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+
+void Rpl_transaction_write_set_ctx::reset_savepoint_list()
+{
+  DBUG_ENTER("Rpl_transaction_write_set_ctx::reset_savepoint_list");
+
+  savepoint_list.push_back(savepoint);
+  savepoint.clear();
+
+  DBUG_VOID_RETURN;
+}
+
+void Rpl_transaction_write_set_ctx::restore_savepoint_list()
+{
+  DBUG_ENTER("Rpl_transaction_write_set_ctx::restore_savepoint_list");
+
+  if (!savepoint_list.empty())
+  {
+    savepoint = savepoint_list.back();
+    savepoint_list.pop_back();
+  }
+
+  DBUG_VOID_RETURN;
 }
