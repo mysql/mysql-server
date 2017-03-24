@@ -3947,7 +3947,7 @@
 
       To run a test present in a non-default test suite, either the
       test name qualified with the suite name i.e
-      <b><suite_name>.<test_name>[.test]</b> or a <b>path</b> to the
+      <b>suite_name.test_name[.test]</b> or a <b>path</b> to the
       test file should be mentioned.
 
       A line beginning with <b>#</b> will be ignored and is considered
