@@ -17,7 +17,6 @@
 
 package testsuite.clusterj.tie;
 
-@org.junit.Ignore("disable test until diagnosis of failure")
 public class ReconnectTest extends testsuite.clusterj.ReconnectTest {
 
 }
