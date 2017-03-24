@@ -406,6 +406,8 @@ Certification_handler::handle_transaction_id(Pipeline_event *pevent,
                                                 gle->original_commit_timestamp,
                                                 gle->immediate_commit_timestamp,
                                                 gtid_specification);
+        // Copy the transaction length to the new event.
+        gle_generated->set_trx_length(gle->transaction_length);
 
         pevent->reset_pipeline_event();
         pevent->set_LogEvent(gle_generated);

@@ -235,23 +235,29 @@ include/rpl_sync.inc
 
 [connection server2]
 Matching lines are:
-#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=1	sequence_number=2	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=2	sequence_number=3	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=3	sequence_number=4	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=3	sequence_number=5	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=4	sequence_number=6	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=5	sequence_number=7	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=6	sequence_number=8	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=7	sequence_number=9	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=9	sequence_number=10	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=8	sequence_number=11	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=11	sequence_number=12	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=12	sequence_number=13	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=1	sequence_number=2	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=2	sequence_number=3	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=3	sequence_number=4	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=3	sequence_number=5	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=4	sequence_number=6	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=5	sequence_number=7	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=6	sequence_number=8	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=7	sequence_number=9	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=9	sequence_number=10	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=8	sequence_number=11	rbr_only=yes	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=11	sequence_number=12	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=12	sequence_number=13	rbr_only=no	original_committed_timestamp=##:##:##	immediate_commit_timestamp=##:##:##	transaction_length=#
 Occurrences of 'last_committed' in the input file: 13
 
 ################################
 # Validate indexes on member 2.
 #
 include/include/assert_logical_timestamps.inc [0 0;1 2;2 3;3 4;3 5;4 6;5 7;6 8;7 9;9 10;8 11;11 12;12 13]
+Asserting all GTID transaction length information in 'server-relay-log-group_replication_applier.000002'
+Inspected 9 transactions, all with correct transaction length.
+Asserting all GTID transaction length information in 'server-relay-log-group_replication_applier.000003'
+Inspected 12 transactions, all with correct transaction length.
+Asserting all GTID transaction length information in 'server-binary-log.000001'
+Inspected 24 transactions, all with correct transaction length.
 include/group_replication_end.inc

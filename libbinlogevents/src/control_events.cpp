@@ -21,6 +21,7 @@
 #include "binary_log_types.h"
 #include "my_io.h"
 #include "statement_events.h"
+#include "mysql_com.h"             // net_field_length_ll, net_field_length_size
 
 namespace binary_log
 {
@@ -595,16 +596,31 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
  : Binary_log_event(&buffer, description_event->binlog_version),
     last_committed(SEQ_UNINIT), sequence_number(SEQ_UNINIT),
     may_have_sbr_stmts(true),
-    original_commit_timestamp(0), immediate_commit_timestamp(0)
+    original_commit_timestamp(0), immediate_commit_timestamp(0),
+    transaction_length(0)
 {
   /*
     The layout of the buffer is as follows:
-    +------+--------+-------+-------+--------------+---------------+------------+
-    |flags |SID     |GNO    |lt_type|last_committed|sequence_number| timestamps*|
-    |1 byte|16 bytes|8 bytes|1 byte |8 bytes       |8 bytes        | 7/14 bytes |
-    +------+--------+-------+-------+--------------+---------------+------------+
 
-    The 'flags' field contains gtid flags.
+    +------------+
+    |     1 byte | Flags
+    +------------+
+    |    16 bytes| Encoded SID
+    +------------+
+    |     8 bytes| Encoded GNO
+    +------------+
+    |     1 byte | lt_type
+    +------------+
+    |     8 bytes| last_committed
+    +------------+
+    |     8 bytes| sequence_number
+    +------------+
+    |  7/14 bytes| timestamps*
+    +------------+
+    |1 to 9 bytes| transaction_length (see net_length_size())
+    +------------+
+
+    The 'Flags' field contains gtid flags.
 
     lt_type (for logical timestamp typecode) is always equal to the
     constant LOGICAL_TIMESTAMP_TYPECODE.
@@ -701,6 +717,33 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
     {
       // The transaction originated in the previous server
       original_commit_timestamp= immediate_commit_timestamp;
+    }
+  }
+
+  /*
+    Fetch the transaction length. Check the length before reading, to
+    avoid out of buffer reads.
+  */
+  if (ptr_buffer + TRANSACTION_LENGTH_MIN_LENGTH <= ptr_buffer_end)
+  {
+    // It is safe to read the first byte of the transaction_length
+    unsigned char *ptr_trx_length;
+    ptr_trx_length= reinterpret_cast<unsigned char*>(const_cast<char *>(ptr_buffer));
+    unsigned int trx_length_field_size= net_field_length_size(ptr_trx_length);
+
+    if (ptr_buffer + trx_length_field_size <= ptr_buffer_end)
+    {
+      // It is safe to read the full transaction_length from the buffer
+      transaction_length= net_field_length_ll(&ptr_trx_length);
+      ptr_buffer+= trx_length_field_size;
+    }
+    else
+    {
+      /*
+        The buffer must be corrupted. We expected a transaction length but the
+        buffer size is not enough to provide all length information.
+      */
+      BAPI_ASSERT(false);
     }
   }
 

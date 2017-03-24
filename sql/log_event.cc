@@ -13075,12 +13075,14 @@ Gtid_log_event::print(FILE*, PRINT_EVENT_INFO *print_event_info)
     my_b_printf(head, "\t%s\tlast_committed=%llu\tsequence_number=%llu\t"
                 "rbr_only=%s\t"
                 "original_committed_timestamp=%llu\t"
-                "immediate_commit_timestamp=%llu\n",
+                "immediate_commit_timestamp=%llu\t"
+                "transaction_length=%llu\n",
                 get_type_code() == binary_log::GTID_LOG_EVENT ?
                 "GTID" : "Anonymous_GTID",
                 last_committed, sequence_number,
                 may_have_sbr_stmts ? "no" : "yes",
-                original_commit_timestamp, immediate_commit_timestamp);
+                original_commit_timestamp, immediate_commit_timestamp,
+                transaction_length);
   }
 
   /*
@@ -13217,6 +13219,11 @@ uint32 Gtid_log_event::write_body_to_memory(uchar *buffer)
     int7store(ptr_buffer, original_commit_timestamp);
     ptr_buffer+= ORIGINAL_COMMIT_TIMESTAMP_LENGTH;
   }
+
+  // Write the transaction length information
+  uchar *ptr_after_length= net_store_length(ptr_buffer, transaction_length);
+  ptr_buffer= ptr_after_length;
+
   DBUG_RETURN(ptr_buffer - buffer);
 }
 
@@ -13360,6 +13367,37 @@ Log_event::enum_skip_reason Gtid_log_event::do_shall_skip(Relay_log_info *rli)
   return Log_event::continue_group(rli);
 }
 #endif // MYSQL_SERVER
+
+void Gtid_log_event::set_trx_length_by_cache_size(ulonglong cache_size,
+                                                  bool is_checksum_enabled,
+                                                  int event_counter)
+{
+  // Transaction content length
+  transaction_length= cache_size;
+  if (is_checksum_enabled)
+    transaction_length+= event_counter * BINLOG_CHECKSUM_LEN;
+
+  // GTID length
+  transaction_length+= LOG_EVENT_HEADER_LEN;
+  transaction_length+= POST_HEADER_LENGTH;
+  transaction_length+= get_commit_timestamp_length();
+  transaction_length+= is_checksum_enabled ? BINLOG_CHECKSUM_LEN : 0;
+  // transaction_length will use at least TRANSACTION_LENGTH_MIN_LENGTH
+  transaction_length+= TRANSACTION_LENGTH_MIN_LENGTH;
+  if (transaction_length >= 251ULL)
+  {
+    // transaction_length will use at least 3 bytes
+    transaction_length+= 2;
+    if (transaction_length >= 65536ULL)
+    {
+      // transaction_length will use at least 4 bytes
+      transaction_length+= 1;
+      if (transaction_length >= 16777216ULL)
+      // transaction_length will use 9 bytes
+        transaction_length+= 4;
+    }
+  }
+}
 
 Previous_gtids_log_event::
 Previous_gtids_log_event(const char *buf, uint event_len,

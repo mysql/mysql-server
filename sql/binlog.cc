@@ -112,6 +112,7 @@
 #include "xa.h"
 
 class Item;
+class Gtid_event;
 
 using std::max;
 using std::min;
@@ -448,6 +449,7 @@ public:
   int finalize(THD *thd, Log_event *end_event, XID_STATE *xs);
   int flush(THD *thd, my_off_t *bytes, bool *wrote_xid);
   int write_event(THD *thd, Log_event *event);
+  size_t get_event_counter() { return event_counter; }
 
   virtual ~binlog_cache_data()
   {
@@ -512,6 +514,7 @@ public:
       cache_state state;
       state.with_rbr= flags.with_rbr;
       state.with_sbr= flags.with_sbr;
+      state.event_counter= event_counter;
       cache_state_map[pos_to_checkpoint]= state;
     }
   }
@@ -526,6 +529,7 @@ public:
       {
         flags.with_rbr= it->second.with_rbr;
         flags.with_sbr= it->second.with_sbr;
+        event_counter= it->second.event_counter;
       }
       else
         DBUG_ASSERT(it == cache_state_map.end());
@@ -535,6 +539,7 @@ public:
     {
       flags.with_rbr= false;
       flags.with_sbr= false;
+      event_counter= 0;
     }
   }
 
@@ -578,6 +583,7 @@ public:
     */
     cache_log.disk_writes= 0;
     cache_state_map.clear();
+    event_counter= 0;
     DBUG_ASSERT(is_binlog_empty());
   }
 
@@ -651,6 +657,7 @@ protected:
   {
     bool with_sbr;
     bool with_rbr;
+    size_t event_counter;
   };
   /*
     For every SAVEPOINT used, we will store a cache_state for the current
@@ -658,6 +665,11 @@ protected:
     restore the cache_state values after truncating the binlog cache.
   */
   std::map<my_off_t, cache_state> cache_state_map;
+  /*
+    In order to compute the transaction size (because of possible extra checksum
+    bytes), we need to keep track of how many events are in the binlog cache.
+  */
+  size_t event_counter= 0;
   /*
     It truncates the cache to a certain position. This includes deleting the
     pending event.
@@ -1255,6 +1267,7 @@ public:
         checksum= initial_checksum;
       }
     }
+    DBUG_PRINT("debug",("end_log_pos=%u", end_log_pos));
 
     DBUG_RETURN(false);
   }
@@ -1280,6 +1293,10 @@ public:
     return ret;
   }
 
+  /**
+    Returns true if per event checksum is enabled.
+  */
+  bool is_checksum_enabled() { return have_checksum; }
 };
 
 
@@ -1370,6 +1387,8 @@ int binlog_cache_data::write_event(THD*, Log_event *ev)
       flags.with_sbr= true;
     if (ev->is_rbr_logging_format())
       flags.with_rbr= true;
+    event_counter++;
+    DBUG_PRINT("debug",("event_counter= %lu", event_counter));
   }
   DBUG_RETURN(0);
 }
@@ -1550,6 +1569,21 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
                             cache_data->may_have_sbr_stmts(),
                             original_commit_timestamp,
                             immediate_commit_timestamp);
+  // Set the transaction length, based on cache info
+  gtid_event.set_trx_length_by_cache_size(cache_data->get_byte_position(),
+                                          writer->is_checksum_enabled(),
+                                          cache_data->get_event_counter());
+  DBUG_PRINT("debug",("cache_data->get_byte_position()= %llu",
+                      cache_data->get_byte_position()));
+  DBUG_PRINT("debug",("cache_data->get_event_counter()= %lu",
+                      cache_data->get_event_counter()));
+  DBUG_PRINT("debug",("writer->is_checksum_enabled()= %s",
+                      YESNO(writer->is_checksum_enabled())));
+  DBUG_PRINT("debug",("gtid_event.get_event_length()= %lu",
+                      gtid_event.get_event_length()));
+  DBUG_PRINT("info",("transaction_length= %llu",
+                     gtid_event.transaction_length));
+
   uchar buf[Gtid_log_event::MAX_EVENT_LENGTH];
   uint32 buf_len= gtid_event.write_to_memory(buf);
   bool ret= writer->write_full_event(buf, buf_len);
@@ -7700,6 +7734,7 @@ bool MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache, Binlog_event_writer *writer)
 
   uchar *buf= cache->read_pos;
   uint32 buf_len= my_b_bytes_in_cache(cache);
+  DBUG_PRINT("info",("bytes in cache= %u", buf_len));
   uint32 event_len= 0;
   uchar header[LOG_EVENT_HEADER_LEN];
   uint32 header_len= 0;

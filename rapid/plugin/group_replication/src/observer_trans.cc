@@ -522,6 +522,12 @@ int group_replication_trans_before_commit(Trans_param *param)
                           *(param->original_commit_timestamp),
                           0,
                           gtid_specification);
+  /*
+    GR does not support event checksumming. If GR start to support event
+    checksumming, the calculation below should take the checksum payload into
+    account.
+  */
+  gle->set_trx_length_by_cache_size(cache_log_position);
   gle->write(cache);
 
   transaction_size= cache_log_position + my_b_tell(cache);

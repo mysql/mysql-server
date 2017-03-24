@@ -3901,7 +3901,14 @@ public:
   size_t get_data_size()
   {
     DBUG_EXECUTE_IF("do_not_write_rpl_timestamps", return POST_HEADER_LENGTH;);
-    return POST_HEADER_LENGTH + get_commit_timestamp_length();
+    return POST_HEADER_LENGTH +
+           get_commit_timestamp_length() +
+           net_length_size(transaction_length);
+  }
+
+  size_t get_event_length()
+  {
+    return LOG_EVENT_HEADER_LEN + get_data_size();
   }
 
 private:
@@ -4053,6 +4060,29 @@ private:
   Gtid_specification spec;
   /// SID for this GTID.
   rpl_sid sid;
+public:
+  /**
+    Set the transaction length information based on binlog cache size.
+
+    Note that is_checksum_enabled and event_counter are optional parameters.
+    When not specified, the function will assume that no checksum will be used
+    and the informed cache_size is the final transaction size without
+    considering the GTID event size.
+
+    The high level formula that will be used by the function is:
+
+    trx_length = cache_size +
+                 cache_checksum_active * cache_events * CRC32_payload +
+                 gtid_length +
+                 cache_checksum_active * CRC32_payload; // For the GTID.
+
+    @param cache_size The size of the binlog cache in bytes.
+    @param is_checksum_enabled If checksum will be added to events on flush.
+    @param event_counter The amount of events in the cache.
+  */
+  void set_trx_length_by_cache_size(ulonglong cache_size,
+                                    bool is_checksum_enabled= false,
+                                    int event_counter= 0);
 };
 
 /**

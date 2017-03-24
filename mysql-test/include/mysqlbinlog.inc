@@ -40,6 +40,7 @@ if (!$mysqlbinlog_skip_replace)
     /last_committed=[0-9]*/last_committed=#/
     /sequence_number=[0-9]*/sequence_number=#/
     /original_committed_timestamp=[0-9]*.immediate_commit_timestamp=[0-9]*/original_committed_timestamp=#   immediate_commit_timestamp=#/
+    /transaction_length=[0-9]*/transaction_length=#/
     /end_log_pos [0-9]*/end_log_pos #/
     /# at [0-9]*/# at #/
     /Xid = [0-9]*/Xid = #/

@@ -986,7 +986,7 @@ struct Uuid
 
   @section Gtid_event_binary_format Binary Format
 
-  The Body has seven components:
+  The Body has eight components:
 
   <table>
   <caption>Body for Gtid_event</caption>
@@ -1037,6 +1037,10 @@ struct Uuid
     <td>7 byte integer</td>
     <td>Timestamp of commit on the originating master</td>
   </tr>
+  <tr>
+    <td>1 to 9 byte integer</td> // Using net_store_length
+    <td>The packed transaction's length in bytes, including the Gtid</td>
+  </tr>
   </table>
 
 */
@@ -1060,13 +1064,16 @@ public:
   /** Timestamp when the transaction was committed on the nearest master. */
   unsigned long long int immediate_commit_timestamp;
   bool has_commit_timestamps;
+  /** The length of the transaction in bytes. */
+  unsigned long long int transaction_length;
+public:
   /**
     Ctor of Gtid_event
 
     The layout of the buffer is as follows
-    +----------+-----------+-- --------+-------+--------------+---------+
-    |gtid flags|ENCODED SID|ENCODED GNO|TS_TYPE|logical ts(:s)|commit ts|
-    +----------+-----------+-----------+-------+------------------------+
+    +----------+---+---+-------+--------------+---------+----------+
+    |gtid flags|SID|GNO|TS_TYPE|logical ts(:s)|commit ts|trx length|
+    +----------+---+---+-------+------------------------+----------+
     TS_TYPE is from {G_COMMIT_TS2} singleton set of values
     Details on commit timestamps in Gtid_event(const char*...)
 
@@ -1097,7 +1104,8 @@ public:
       sequence_number(sequence_number_arg),
       may_have_sbr_stmts(may_have_sbr_stmts_arg),
       original_commit_timestamp(original_commit_timestamp_arg),
-      immediate_commit_timestamp(immediate_commit_timestamp_arg)
+      immediate_commit_timestamp(immediate_commit_timestamp_arg),
+      transaction_length(0)
   {}
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info
@@ -1123,6 +1131,9 @@ protected:
     IMMEDIATE_COMMIT_TIMESTAMP_LENGTH + ORIGINAL_COMMIT_TIMESTAMP_LENGTH;
   // We use 7 bytes out of which 1 bit is used as a flag.
   static const int ENCODED_COMMIT_TIMESTAMP_LENGTH= 55;
+  // Minimum and maximum lengths of transaction length field.
+  static const int TRANSACTION_LENGTH_MIN_LENGTH= 1;
+  static const int TRANSACTION_LENGTH_MAX_LENGTH= 9;
 
   /* We have only original commit timestamp if both timestamps are equal. */
   int get_commit_timestamp_length() const
@@ -1150,9 +1161,22 @@ public:
     On the originating master, the event has only one timestamp as the two
     timestamps are equal. On every other server we have two timestamps.
   */
-  static const int MAX_DATA_LENGTH= FULL_COMMIT_TIMESTAMP_LENGTH;
+  static const int MAX_DATA_LENGTH= FULL_COMMIT_TIMESTAMP_LENGTH +
+                                    TRANSACTION_LENGTH_MAX_LENGTH;
   static const int MAX_EVENT_LENGTH=
     LOG_EVENT_HEADER_LEN + POST_HEADER_LENGTH + MAX_DATA_LENGTH;
+  /**
+   Set the transaction length information.
+
+    This function should be used when the full transaction length (including
+    the Gtid event length) is known.
+
+    @param transaction_length_arg The transaction length.
+  */
+  void set_trx_length(unsigned long long int transaction_length_arg)
+  {
+    transaction_length= transaction_length_arg;
+  }
 };
 
 
