@@ -147,6 +147,11 @@ triggers
 view_with_column_names
 MYSQL_TMP_DIR/bootstrap.log
 # Start the DB server. Server will create and populate Dictionary tables.
+#Look for error.
+# Sys Schema routine parsing warning found : 0 times.
+# Sys Schema routine parsing error found : 0 times.
+# Sys Schema view parsing warning found : 0 times.
+# Sys Schema view parsing error found : 0 times.
 # Sanity Testing after Server start
 CREATE SCHEMA test123;
 CREATE TABLE test123.t1(a int);

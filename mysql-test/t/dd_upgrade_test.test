@@ -206,12 +206,36 @@ EOF
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --exec echo $MYSQL_TMP_DIR/bootstrap.log
 
+let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 
 --echo # Start the DB server. Server will create and populate Dictionary tables.
---exec echo "restart: --loose-skip-log-bin --innodb_undo_tablespaces=0 --datadir=$MYSQLD_DATADIR1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --loose-skip-log-bin --innodb_undo_tablespaces=0 --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
+# Test for Bug#25518436 : MYSQL 8.0.1 - MYSQLD ERRORLOG HAS UPGRADE ERRORS
+#                         AT SERVER START AT LIVE UPGRADE
+# check for errors from sys schema.
+# These errors should not be there.
+--echo #Look for error.
+perl;
+  use strict;
+  my $log= $ENV{'MYSQLD_LOG'} or die;
+  open(FILE, "$log") or die;
+  my $c_e= grep(/\[Warning\] Parsing \'sys\.diagnostics\' routine body failed\. Creating routine without parsing routine body/gi,<FILE>);
+  print "# Sys Schema routine parsing warning found : $c_e times.\n";
+  seek(FILE,0,0);
+  $c_e= grep(/\[ERROR\] .* Unknown system variable \'show_compatibility_56\'/gi,<FILE>);
+  print "# Sys Schema routine parsing error found : $c_e times.\n";
+  seek(FILE,0,0);
+  $c_e= grep(/\[Warning\] Resolving dependency for the view \'sys\.innodb_lock_waits\' failed\. View is no more valid to use/gi,<FILE>);
+  print "# Sys Schema view parsing warning found : $c_e times.\n";
+  seek(FILE,0,0);
+  $c_e= grep(/\[ERROR\] .* Unknown table \'INNODB_LOCK_WAITS\' in information_schema/gi,<FILE>);
+  print "# Sys Schema view parsing error found : $c_e times.\n";
+  close(FILE);
+EOF
+#End of test case for Bug#25518436
 
 --echo # Sanity Testing after Server start
 CREATE SCHEMA test123;
@@ -360,7 +384,7 @@ TABLE_SCHEMA='view_with_column_names';
 
 #Remove copied files
 --remove_file $MYSQL_TMP_DIR/data57.zip
-
+--remove_file $MYSQLD_LOG
 --force-rmdir $MYSQL_TMP_DIR/data57
 
 --echo # Restart the server with default options.

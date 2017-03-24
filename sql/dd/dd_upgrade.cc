@@ -1264,9 +1264,14 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
   */
   if (error)
   {
-    sql_print_warning("Resolving dependency for the view '%s.%s' failed. "
-                      "View is no more valid to use", db_name.c_str(),
-                      view_name.c_str());
+    /*
+      Do not print warning if view belongs to sys schema. Sys schema views will
+      get fixed when mysql_upgrade is executed.
+    */
+    if (db_name != "sys")
+      sql_print_warning("Resolving dependency for the view '%s.%s' failed. "
+                        "View is no more valid to use", db_name.c_str(),
+                        view_name.c_str());
     update_view_status(thd, db_name.c_str(), view_name.c_str(), false, true);
     error= false;
   }
@@ -3306,12 +3311,14 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table)
                       created, modified, creation_ctx))
   {
     /*
-      Parsing of routine body failed, report a warning and use empty
-      routine body.
+      Parsing of routine body failed. Use empty routine body and report a
+      warning if the routine does not belong to sys schema. Sys schema routines
+      will get fixed when mysql_upgrade is executed.
     */
-    sql_print_warning("Parsing '%s.%s' routine body failed. "
-                      "Creating routine without parsing routine body",
-                      sp_db_str.str, sp_name_str.str);
+    if (strcmp(sp_db_str.str, "sys") != 0)
+      sql_print_warning("Parsing '%s.%s' routine body failed. "
+                        "Creating routine without parsing routine body",
+                        sp_db_str.str, sp_name_str.str);
 
     LEX_CSTRING sr_body;
     if (routine_type == enum_sp_type::FUNCTION)
