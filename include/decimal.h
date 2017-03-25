@@ -46,8 +46,7 @@ typedef struct st_decimal_t {
 } decimal_t;
 
 #ifndef MYSQL_ABI_CHECK
-int internal_str2dec(const char *from, decimal_t *to, char **end,
-                     bool fixed);
+int string2decimal(const char *from, decimal_t *to, char **end);
 int decimal2string(const decimal_t *from, char *to, int *to_len,
                    int fixed_precision, int fixed_decimals,
                    char filler);
