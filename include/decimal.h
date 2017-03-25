@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,8 +46,7 @@ typedef struct st_decimal_t {
 } decimal_t;
 
 #ifndef MYSQL_ABI_CHECK
-int internal_str2dec(const char *from, decimal_t *to, char **end,
-                     my_bool fixed);
+int string2decimal(const char *from, decimal_t *to, char **end);
 int decimal2string(const decimal_t *from, char *to, int *to_len,
                    int fixed_precision, int fixed_decimals,
                    char filler);

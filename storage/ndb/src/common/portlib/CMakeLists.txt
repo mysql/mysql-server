@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,9 +15,7 @@
 
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_util.cmake)
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/sql
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbapi
-                   )
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbapi)
 
 IF(WIN32)
   SET(EXTRA_SRC ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc)
