@@ -12552,24 +12552,34 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
 
 static
 void
+delete_table_drop_share_do_drop(NDB_SHARE* share)
+{
+  DBUG_ENTER("delete_table_drop_share_do_drop");
+  if (share->state != NSS_DROPPED)
+  {
+    /*
+      The share ref from 'ndbcluster_open_tables' has not been freed, free it
+    */
+    ndbcluster_mark_share_dropped(&share);
+  }
+  /* ndb_share reference temporary free */
+  DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
+                           share->key_string(), share->use_count));
+  free_share(&share, TRUE);
+
+  DBUG_VOID_RETURN;
+}
+
+
+static
+void
 delete_table_drop_share(NDB_SHARE* share, const char * path)
 {
   DBUG_ENTER("delete_table_drop_share");
   if (share)
   {
     mysql_mutex_lock(&ndbcluster_mutex);
-do_drop:
-    if (share->state != NSS_DROPPED)
-    {
-      /*
-        The share ref from 'ndbcluster_open_tables' has not been freed, free it
-      */
-      ndbcluster_mark_share_dropped(&share);
-    }
-    /* ndb_share reference temporary free */
-    DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                             share->key_string(), share->use_count));
-    free_share(&share, TRUE);
+    delete_table_drop_share_do_drop(share);
     mysql_mutex_unlock(&ndbcluster_mutex);
   }
   else if (path)
@@ -12578,7 +12588,7 @@ do_drop:
     share= get_share(path, 0, FALSE, TRUE);
     if (share)
     {
-      goto do_drop;
+      delete_table_drop_share_do_drop(share);
     }
     mysql_mutex_unlock(&ndbcluster_mutex);
   }
