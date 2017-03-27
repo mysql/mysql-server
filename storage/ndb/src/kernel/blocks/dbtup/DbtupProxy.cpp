@@ -528,14 +528,16 @@ DbtupProxy::disk_restart_undo_send(Signal* signal, Uint32 i)
 // TSMAN
 
 int
-DbtupProxy::disk_restart_alloc_extent(Uint32 tableId,
+DbtupProxy::disk_restart_alloc_extent(EmulatedJamBuffer *jamBuf,
+                                      Uint32 tableId,
                                       Uint32 fragId,
                                       Uint32 create_table_version,
                                       const Local_key* key,
                                       Uint32 pages)
 {
-  if (tableId >= c_tableRecSize || c_tableRec[tableId] == 0) {
-    jam();
+  if (tableId >= c_tableRecSize || c_tableRec[tableId] == 0)
+  {
+    thrjam(jamBuf);
     D("proxy: table dropped" << V(tableId));
 #ifdef VM_TRACE
     DEB_TUP_RESTART(("disk_restart_alloc_extent failed, tableId missing"));
@@ -547,17 +549,18 @@ DbtupProxy::disk_restart_alloc_extent(Uint32 tableId,
   Uint32 instanceKey = getInstanceKeyCanFail(tableId, fragId);
   if (instanceKey == RNIL)
   {
-    jam();
+    thrjam(jamBuf);
     DEB_TUP_RESTART(("disk_restart_alloc_extent failed, instanceKey = RNIL"));
     D("proxy: table either dropped, non-existent or fragment not existing"
       << V(tableId));
     return -1;
   }
+  thrjam(jamBuf);
   Uint32 instanceNo = getInstanceFromKey(instanceKey);
 
   Uint32 i = workerIndex(instanceNo);
   Dbtup* dbtup = (Dbtup*)workerBlock(i);
-  return dbtup->disk_restart_alloc_extent(jamBuffer(),
+  return dbtup->disk_restart_alloc_extent(jamBuf,
                                           tableId,
                                           fragId,
                                           create_table_version,
