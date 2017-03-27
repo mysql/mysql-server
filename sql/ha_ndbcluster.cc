@@ -12687,11 +12687,6 @@ ha_ndbcluster::drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
   int ndb_table_id= 0;
   int ndb_table_version= 0;
 
-  if (!ndb_schema_dist_is_ready())
-  {
-    /* Don't allow drop table unless schema distribution is ready */
-    DBUG_RETURN(HA_ERR_NO_CONNECTION);
-  }
   /* ndb_share reference temporary */
   NDB_SHARE *share= get_share(path, 0, FALSE);
   if (share)
