@@ -12555,6 +12555,10 @@ void
 delete_table_drop_share_do_drop(NDB_SHARE* share)
 {
   DBUG_ENTER("delete_table_drop_share_do_drop");
+
+  mysql_mutex_assert_owner(&ndbcluster_mutex);
+  DBUG_ASSERT(share);
+
   if (share->state != NSS_DROPPED)
   {
     /*
@@ -12562,10 +12566,8 @@ delete_table_drop_share_do_drop(NDB_SHARE* share)
     */
     ndbcluster_mark_share_dropped(&share);
   }
-  /* ndb_share reference temporary free */
-  DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                           share->key_string(), share->use_count));
-  free_share(&share, TRUE);
+
+  free_share(&share, true /* have_lock */);
 
   DBUG_VOID_RETURN;
 }
@@ -12573,25 +12575,39 @@ delete_table_drop_share_do_drop(NDB_SHARE* share)
 
 static
 void
-delete_table_drop_share(NDB_SHARE* share, const char * path)
+delete_table_drop_share(NDB_SHARE* share)
 {
   DBUG_ENTER("delete_table_drop_share");
+
   if (share)
   {
     mysql_mutex_lock(&ndbcluster_mutex);
     delete_table_drop_share_do_drop(share);
     mysql_mutex_unlock(&ndbcluster_mutex);
   }
-  else if (path)
+
+  DBUG_VOID_RETURN;
+}
+
+
+static
+void
+delete_table_drop_share_from_path(const char * path)
+{
+  DBUG_ENTER("delete_table_drop_share_from_path");
+
+  mysql_mutex_lock(&ndbcluster_mutex);
+
+  NDB_SHARE* share= get_share(path,
+                              nullptr,  /* table */
+                              false,    /* create_if_not_exists */
+                              true);    /* have_lock */
+  if (share)
   {
-    mysql_mutex_lock(&ndbcluster_mutex);
-    share= get_share(path, 0, FALSE, TRUE);
-    if (share)
-    {
-      delete_table_drop_share_do_drop(share);
-    }
-    mysql_mutex_unlock(&ndbcluster_mutex);
+    delete_table_drop_share_do_drop(share);
   }
+  mysql_mutex_unlock(&ndbcluster_mutex);
+
   DBUG_VOID_RETURN;
 }
 
@@ -12782,7 +12798,7 @@ retry_temporary_error1:
   if (res)
   {
     /* the drop table failed for some reason, drop the share anyways */
-    delete_table_drop_share(share, 0);
+    delete_table_drop_share(share);
     DBUG_RETURN(res);
   }
 
@@ -12822,7 +12838,7 @@ retry_temporary_error1:
                              SOT_DROP_TABLE, NULL, NULL);
   }
 
-  delete_table_drop_share(share, 0);
+  delete_table_drop_share(share);
   DBUG_RETURN(0);
 }
 
@@ -12841,7 +12857,7 @@ int ha_ndbcluster::delete_table(const char *name, const dd::Table *)
       Just drop local files.
     */
     DBUG_PRINT("info", ("Table is already dropped in NDB"));
-    delete_table_drop_share(0, name);
+    delete_table_drop_share_from_path(name);
     DBUG_RETURN(handler::delete_table(name, nullptr));
   }
 
