@@ -425,10 +425,6 @@ private:
   friend int ndbcluster_drop_database_impl(THD *thd, const char *path);
 
   void check_read_before_write_removal();
-  static int drop_table_impl(THD *thd, Ndb *ndb,
-                             const char *path,
-                             const char *db,
-                             const char *table_name);
 
   int prepare_inplace__add_index(THD *thd, TABLE *table_arg,
                                  KEY *key_info, uint num_of_keys) const;
@@ -462,9 +458,6 @@ private:
   static int recreate_fk_for_truncate(THD*, Ndb*, const char*,
                                       Ndb_fk_list&);
   void append_dependents_to_changed_tables(List<NDB_SHARE>&, MEM_ROOT*);
-  static bool drop_table_and_related(THD*, Ndb*, NdbDictionary::Dictionary*,
-                                     const NdbDictionary::Table*,
-                                     int drop_flags, bool skip_related);
   int check_default_values(const NdbDictionary::Table* ndbtab);
   int get_metadata(THD *thd, const dd::Table* table_def);
   void release_metadata(THD *thd, Ndb *ndb);

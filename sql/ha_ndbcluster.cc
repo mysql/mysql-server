@@ -12620,10 +12620,11 @@ extern bool ndb_fk_util_drop_table(THD*, Ndb* ndb, NdbDictionary::Dictionary*,
                                    const NdbDictionary::Table*);
 extern bool ndb_fk_util_is_mock_name(const char* table_name);
 
+static
 bool
-ha_ndbcluster::drop_table_and_related(THD* thd, Ndb* ndb, NdbDictionary::Dictionary* dict,
-                                      const NdbDictionary::Table* table,
-                                      int drop_flags, bool skip_related)
+drop_table_and_related(THD* thd, Ndb* ndb, NdbDictionary::Dictionary* dict,
+                       const NdbDictionary::Table* table,
+                       int drop_flags, bool skip_related)
 {
   DBUG_ENTER("drop_table_and_related");
   DBUG_PRINT("enter", ("cascade_constraints: %d dropdb: %d skip_related: %d",
@@ -12674,15 +12675,14 @@ ha_ndbcluster::drop_table_and_related(THD* thd, Ndb* ndb, NdbDictionary::Diction
 }
 
 
-/* static version which does not need a handler */
-
+static
 int
-ha_ndbcluster::drop_table_impl(THD *thd, Ndb *ndb,
-                               const char *path,
-                               const char *db,
-                               const char *table_name)
+drop_table_impl(THD *thd, Ndb *ndb,
+                const char *path,
+                const char *db,
+                const char *table_name)
 {
-  DBUG_ENTER("ha_ndbcluster::drop_table_impl");
+  DBUG_ENTER("drop_table_impl");
   NDBDICT *dict= ndb->getDictionary();
   int ndb_table_id= 0;
   int ndb_table_version= 0;
@@ -13692,7 +13692,7 @@ int ndbcluster_drop_database_impl(THD *thd, const char *path)
   while ((tabname=it++))
   {
     tablename_to_filename(tabname, tmp, (uint)(FN_REFLEN - (tmp - full_path)-1));
-    if (ha_ndbcluster::drop_table_impl(thd, ndb, full_path, dbname, tabname))
+    if (drop_table_impl(thd, ndb, full_path, dbname, tabname))
     {
       const NdbError err= dict->getNdbError();
       if (err.code != 709 && err.code != 723)
