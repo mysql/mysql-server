@@ -2087,46 +2087,21 @@ Dbtup::disk_restart_undo_lcp(Uint32 tableId,
         /**
          * In this case we have decided to start with a table.
          * If the table was dropped it must have been another table
-         * and this must happen after we have encountered either a
-         * start of an LCP for the started fragment or an UNDO_TUP_CREATE
-         * for the new table must have been reached. So we put an
-         * ndbrequire to assert that this is actually the case.
+         * that was dropped. Given that UNDO_TUP_CREATE isn't always
+         * logged we can find this at times. We should not look
+         * any more at log records from this table going backwards
+         * since they are belonging to an old table.
          */
-        ndbrequire(fragPtr.p->m_undo_complete != 0);
+	fragPtr.p->m_undo_complete = Fragrecord::UC_CREATE;
         return;
       }
       case Fragrecord::UC_CREATE:
         /**
          * We have reached a point in the undo log record where the table
-         * was created. We need however to check if we are still executing
-         * log records for this fragment. This particular fragment might
-         * have completed a fragment LCP even though there are fragments
-         * that have no completed LCPs since this LCP.
-         * We require that we don't restart from an LCP if the UNDO_TUP_CREATE
-         * is found, the LCP start undo log entry must come after the
-         * UNDO_TUP_CREATE entry.
-         * 
-         * We also come here when we didn't find any LCP to restore from.
-         * In this we simply need no UNDO logging since we will start the
-         * fragment from an empty state.
+         * was created. This is not always inserted, but we don't perform
+         * any UNDO operations after this operation have been seen.
          */
-        if (!fragPtr.p->m_undo_complete)
-        {
-          jam();
-	  fragPtr.p->m_undo_complete = Fragrecord::UC_CREATE;
-          ndbassert(fragPtr.p->m_restore_lcp_id == RNIL);
-        }
-        else
-        {
-          jam();
-          /**
-           * We have already seen the end of the LCP either by seeing a
-           * DROP before this point, or by seeing a CREATE before this
-           * point or that there was a fragment LCP completed before
-           * this record. Only if this is a DROP and the LCP was found
-           * before this one there is cause for alarm.
-           */
-        }
+	fragPtr.p->m_undo_complete = Fragrecord::UC_CREATE;
 	return;
       case Fragrecord::UC_LCP:
 	jam();
@@ -2387,7 +2362,8 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
   else
   {
     jam();
-    if (!immediate_flag)
+    if (!immediate_flag &&
+        undo->m_fragment_ptr.p->m_undo_complete != Fragrecord::UC_CREATE)
     {
       jam();
       /**
@@ -2400,6 +2376,11 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
        * the page bits and the first log record have ensured
        * that the extent information is already allocated
        * properly.
+       *
+       * Also we don't go back from when a table was dropped or
+       * created since we are then in territory where an old
+       * incarnation of the table was and we need not handle
+       * those log records.
        */
       disk_restart_undo_page_bits(signal, undo);
     }
