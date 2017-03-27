@@ -15806,7 +15806,11 @@ void Dblqh::perform_fragment_checkpoint(Signal *signal)
       Logfile_client lgman(this, c_lgman, 0);
       lcpPtr.p->m_current_lcp_lsn = lgman.exec_lcp_frag_ord(signal,
                                                             m_curr_local_lcp_id);
-      g_eventLogger->info("(%u)current_lcp_lsn: %llu", instance(), lcpPtr.p->m_current_lcp_lsn);
+      DEB_LCP(("(%u)Start LCP of tab(%u,%u),current_lcp_lsn: %llu",
+              instance(),
+              fragptr.p->tabRef,
+              fragptr.p->fragId,
+              lcpPtr.p->m_current_lcp_lsn));
     }
     jamEntry();
   }
