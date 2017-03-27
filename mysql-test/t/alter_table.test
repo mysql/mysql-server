@@ -2587,3 +2587,24 @@ DROP TABLE t4;
 --eval alter schema test default character set $testdbcs108;
 --enable_query_log
 ########################################
+
+--echo
+--echo Bug#25779239 ALTER TABLE FAILS WHEN DEFAULT
+--echo              CHARACTER SET CHANGES TO UTF8MB4
+--echo
+
+CREATE TABLE t1(
+  i INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY) charset latin1;
+ALTER TABLE t1
+  DROP i,
+  ADD i INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  AUTO_INCREMENT = 1;
+DROP TABLE t1;
+
+CREATE TABLE t1(
+  i INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY) charset utf8mb4;
+ALTER TABLE t1
+  DROP i,
+  ADD i INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  AUTO_INCREMENT = 1;
+DROP TABLE t1;

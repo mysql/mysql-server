@@ -5751,7 +5751,23 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
   }
   else
   {
-    column_length= column->length * sql_field->charset->mbmaxlen;
+    switch (sql_field->sql_type) {
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_GEOMETRY:
+    case MYSQL_TYPE_JSON:
+    case MYSQL_TYPE_VAR_STRING:
+    case MYSQL_TYPE_STRING:
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
+      column_length= column->length * sql_field->charset->mbmaxlen;
+      break;
+    default:
+      column_length= column->length;
+    }
 
     if (key->type == KEYTYPE_SPATIAL)
     {
