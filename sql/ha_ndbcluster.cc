@@ -12796,12 +12796,12 @@ drop_table_impl(THD *thd, Ndb *ndb,
     }
   }
 
-  if (!IS_TMP_PREFIX(table_name) && share &&
+  if (!IS_TMP_PREFIX(table_name) &&
       thd->lex->sql_command != SQLCOM_TRUNCATE)
   {
     ndbcluster_log_schema_op(thd,
                              thd->query().str, thd->query().length,
-                             share->db, share->table_name,
+                             db, table_name,
                              ndb_table_id, ndb_table_version,
                              SOT_DROP_TABLE, NULL, NULL);
   }
