@@ -40,6 +40,7 @@ int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
   if (hugoTrans.loadTable(GETNDB(step), records) != 0){
     return NDBT_FAILED;
   }
+  g_err << "Latest GCI = " << hugoTrans.get_high_latest_gci() << endl;
   return NDBT_OK;
 }
 
@@ -49,6 +50,7 @@ int runFillTable(NDBT_Context* ctx, NDBT_Step* step){
   if (hugoTrans.fillTable(GETNDB(step)) != 0){
     return NDBT_FAILED;
   }
+  g_err << "Latest GCI = " << hugoTrans.get_high_latest_gci() << endl;
   return NDBT_OK;
 }
 
@@ -74,6 +76,7 @@ int runClearTable(NDBT_Context* ctx, NDBT_Step* step){
   if (utilTrans.clearTable(GETNDB(step),  records) != 0){
     return NDBT_FAILED;
   }
+  g_err << "Latest GCI = " << utilTrans.get_high_latest_gci() << endl;
   return NDBT_OK;
 }
 
