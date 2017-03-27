@@ -425,7 +425,7 @@ private:
   friend int ndbcluster_drop_database_impl(THD *thd, const char *path);
 
   void check_read_before_write_removal();
-  static int drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
+  static int drop_table_impl(THD *thd, Ndb *ndb,
                              const char *path,
                              const char *db,
                              const char *table_name);

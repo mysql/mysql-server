@@ -12677,7 +12677,7 @@ ha_ndbcluster::drop_table_and_related(THD* thd, Ndb* ndb, NdbDictionary::Diction
 /* static version which does not need a handler */
 
 int
-ha_ndbcluster::drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
+ha_ndbcluster::drop_table_impl(THD *thd, Ndb *ndb,
                                const char *path,
                                const char *db,
                                const char *table_name)
@@ -12723,33 +12723,6 @@ ha_ndbcluster::drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
 
   /* Drop the table from NDB */
   int res= 0;
-  if (h && h->m_table)
-  {
-retry_temporary_error1:
-    if (drop_table_and_related(thd, ndb, dict, h->m_table,
-                               drop_flags, skip_related))
-    {
-      ndb_table_id= h->m_table->getObjectId();
-      ndb_table_version= h->m_table->getObjectVersion();
-      DBUG_PRINT("info", ("success 1"));
-    }
-    else
-    {
-      switch (dict->getNdbError().status)
-      {
-        case NdbError::TemporaryError:
-          if (!thd->killed) 
-            goto retry_temporary_error1; // retry indefinitly
-          break;
-        default:
-          break;
-      }
-      res= ndb_to_mysql_error(&dict->getNdbError());
-      DBUG_PRINT("info", ("error(1) %u", res));
-    }
-    h->release_metadata(thd, ndb);
-  }
-  else
   {
     ndb->setDatabaseName(db);
     while (1)
@@ -12845,6 +12818,9 @@ int ha_ndbcluster::delete_table(const char *name, const dd::Table *)
   DBUG_ENTER("ha_ndbcluster::delete_table");
   DBUG_PRINT("enter", ("name: %s", name));
 
+  // Never called on an open handler
+  DBUG_ASSERT(m_table == NULL);
+
   if (get_thd_ndb(thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT))
   {
     /*
@@ -12880,8 +12856,7 @@ int ha_ndbcluster::delete_table(const char *name, const dd::Table *)
   /*
     Drop table in NDB and on the other mysqld(s)
   */
-  const int drop_result = drop_table_impl(thd, this,
-                                          thd_ndb->ndb, name,
+  const int drop_result = drop_table_impl(thd, thd_ndb->ndb, name,
                                           m_dbname, m_tabname);
   DBUG_RETURN(drop_result);
 }
@@ -13717,7 +13692,7 @@ int ndbcluster_drop_database_impl(THD *thd, const char *path)
   while ((tabname=it++))
   {
     tablename_to_filename(tabname, tmp, (uint)(FN_REFLEN - (tmp - full_path)-1));
-    if (ha_ndbcluster::drop_table_impl(thd, 0, ndb, full_path, dbname, tabname))
+    if (ha_ndbcluster::drop_table_impl(thd, ndb, full_path, dbname, tabname))
     {
       const NdbError err= dict->getNdbError();
       if (err.code != 709 && err.code != 723)
