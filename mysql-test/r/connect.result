@@ -93,8 +93,8 @@ connect(localhost,test,,test2,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
 connect(localhost,test,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'test'@'localhost' (using password: NO)
-delete from mysql.user where user=_binary"test";
-flush privileges;
+drop user test@localhost;
+drop user test@127.0.0.1;
 create table t1 (id integer not null auto_increment primary key);
 create temporary table t2(id integer not null auto_increment primary key);
 set @id := 1;
