@@ -12842,6 +12842,7 @@ retry_temporary_error1:
   DBUG_RETURN(0);
 }
 
+
 int ha_ndbcluster::delete_table(const char *name, const dd::Table *)
 {
   THD *thd= current_thd;
@@ -12852,13 +12853,13 @@ int ha_ndbcluster::delete_table(const char *name, const dd::Table *)
   if (get_thd_ndb(thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT))
   {
     /*
-      Table was dropped remotely is already
-      dropped inside ndb.
-      Just drop local files.
+      Table was dropped from another mysqld and is already dropped
+      from NDB.
     */
     DBUG_PRINT("info", ("Table is already dropped in NDB"));
     delete_table_drop_share_from_path(name);
-    DBUG_RETURN(handler::delete_table(name, nullptr));
+
+    DBUG_RETURN(0); // Success
   }
 
   set_dbname(name);
@@ -12882,23 +12883,12 @@ int ha_ndbcluster::delete_table(const char *name, const dd::Table *)
   }
 
   /*
-    Drop table in ndb.
-    If it was already gone it might have been dropped
-    remotely, give a warning and then drop .ndb file.
-   */
-  int error;
-  Ndb* ndb= thd_ndb->ndb;
-  if (!(error= drop_table_impl(thd, this, ndb, name,
-                               m_dbname, m_tabname)) ||
-      error == HA_ERR_NO_SUCH_TABLE)
-  {
-    /* Call ancestor function to delete .ndb file */
-    int error1= handler::delete_table(name, nullptr);
-    if (!error)
-      error= error1;
-  }
-
-  DBUG_RETURN(error);
+    Drop table in NDB and on the other mysqld(s)
+  */
+  const int drop_result = drop_table_impl(thd, this,
+                                          thd_ndb->ndb, name,
+                                          m_dbname, m_tabname);
+  DBUG_RETURN(drop_result);
 }
 
 
