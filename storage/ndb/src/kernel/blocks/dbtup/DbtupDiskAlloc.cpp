@@ -975,7 +975,7 @@ Dbtup::disk_page_move_dirty_page(Disk_alloc_info& alloc,
                                  Uint32 new_idx,
                                  Fragrecord *fragPtrP)
 {
-#ifdef VM_TRACE
+#ifdef VM_TRACE || 1
   if (extentPtr.p->m_free_page_count[old_idx] == 0)
   {
     // Additional printouts when following ddassert fails.
@@ -987,7 +987,7 @@ Dbtup::disk_page_move_dirty_page(Disk_alloc_info& alloc,
     ndbout << "  new_idx: " << new_idx << endl;
   }
 #endif
-  ddassert(extentPtr.p->m_free_page_count[old_idx]);
+  ddassert(extentPtr.p->m_free_page_count[old_idx] > 0);
   extentPtr.p->m_free_page_count[old_idx]--;
   extentPtr.p->m_free_page_count[new_idx]++;
 
@@ -2770,6 +2770,7 @@ Dbtup::disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf,
       (current_create_table_version == create_table_version ||
        create_table_version == 0))
   {
+    thrjam(jamBuf);
     getFragmentrec(fragPtr, fragId, tabPtr.p);
 
     if (!fragPtr.isNull())
@@ -2800,14 +2801,14 @@ Dbtup::disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf,
       
       if (alloc.m_curr_extent_info_ptr_i != RNIL)
       {
-	thrjam(jamBuf);
-	Ptr<Extent_info> old;
-	c_extent_pool.getPtr(old, alloc.m_curr_extent_info_ptr_i);
-	ndbassert(old.p->m_free_matrix_pos == RNIL);
-	Uint32 pos= alloc.calc_extent_pos(old.p);
-	Local_extent_info_list new_list(c_extent_pool, alloc.m_free_extents[pos]);
+        thrjam(jamBuf);
+        Ptr<Extent_info> old;
+        c_extent_pool.getPtr(old, alloc.m_curr_extent_info_ptr_i);
+        ndbassert(old.p->m_free_matrix_pos == RNIL);
+        Uint32 pos= alloc.calc_extent_pos(old.p);
+        Local_extent_info_list new_list(c_extent_pool, alloc.m_free_extents[pos]);
         new_list.addFirst(old);
-	old.p->m_free_matrix_pos= pos;
+        old.p->m_free_matrix_pos= pos;
       }
       
       alloc.m_curr_extent_info_ptr_i = ext.i;
@@ -2819,7 +2820,7 @@ Dbtup::disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf,
       return 0;
     }
   }
-
+  thrjam(jamBuf);
   return -1;
 }
 
