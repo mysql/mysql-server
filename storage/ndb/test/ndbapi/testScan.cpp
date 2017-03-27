@@ -44,6 +44,8 @@ int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
   if (hugoTrans.loadTable(GETNDB(step), records) != 0){
     return NDBT_FAILED;
   }
+  g_err << "loadTable with latest GCI = " << hugoTrans.get_high_latest_gci()
+        << endl;
   return NDBT_OK;
 }
 
@@ -71,6 +73,7 @@ int runDropAllTablesExceptTestTable(NDBT_Context* ctx, NDBT_Step* step){
 int runLoadAllTables(NDBT_Context* ctx, NDBT_Step* step){
   
   int records = ctx->getNumRecords();
+  Uint32 max_gci = 0;
   for (int i=0; i < NDBT_Tables::getNumTables(); i++){
 
     const NdbDictionary::Table* tab = getTable(GETNDB(step), i);
@@ -81,8 +84,10 @@ int runLoadAllTables(NDBT_Context* ctx, NDBT_Step* step){
     HugoTransactions hugoTrans(*tab);
     if (hugoTrans.loadTable(GETNDB(step), records) != 0){
       return NDBT_FAILED;
-    }    
+    }
+    max_gci = hugoTrans.get_high_latest_gci();
   }
+  g_err << "loadAllTables with latest GCI = " << max_gci << endl;
   return NDBT_OK;
 }
 
@@ -242,6 +247,8 @@ int runClearTable(NDBT_Context* ctx, NDBT_Step* step){
   if (utilTrans.clearTable2(GETNDB(step),  records) != 0){
     return NDBT_FAILED;
   }
+  g_err << "ClearTable with latest GCI = " << utilTrans.get_high_latest_gci()
+        << endl;
   return NDBT_OK;
 }
 
@@ -263,6 +270,7 @@ int runScanDelete(NDBT_Context* ctx, NDBT_Step* step){
     }
     i++;
   }  
+  g_err << "Latest GCI = " << hugoTrans.get_high_latest_gci() << endl;
   return NDBT_OK;
 }
 
@@ -285,6 +293,7 @@ int runScanDelete2(NDBT_Context* ctx, NDBT_Step* step){
     }
     i++;
   }
+  g_err << "Latest GCI = " << hugoTrans.get_high_latest_gci() << endl;
   return NDBT_OK;
 }
 
