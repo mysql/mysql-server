@@ -975,7 +975,7 @@ Dbtup::disk_page_move_dirty_page(Disk_alloc_info& alloc,
                                  Uint32 new_idx,
                                  Fragrecord *fragPtrP)
 {
-#ifdef VM_TRACE || 1
+#if defined VM_TRACE || 1
   if (extentPtr.p->m_free_page_count[old_idx] == 0)
   {
     // Additional printouts when following ddassert fails.

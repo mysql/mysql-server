@@ -7150,6 +7150,11 @@ Backup::execFSAPPENDREF(Signal* signal)
   filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_FILE_THREAD;
   filePtr.p->errorCode = errCode;
 
+  CRASH_INSERTION(10044);
+  CRASH_INSERTION(10045);
+  g_eventLogger->info("Crashing after FSAPPENDREF: error code: %u",
+                      errCode);
+  ndbrequire(false);
   checkFile(signal, filePtr);
 }
 
