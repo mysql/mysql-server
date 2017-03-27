@@ -4830,6 +4830,36 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
                signal, ScanTabRef::SignalLength, JBB);
     break;
   }
+  case GSN_TRANSID_AI: //TUP -> TC
+  {
+    jam();
+    /**
+     * TRANSID_AI is received as a result of performing a read on 
+     * the index table as part of a (unique) index operation.
+     */
+    const TransIdAI * const truncatedTransIdAI = 
+      reinterpret_cast<const TransIdAI*>(&rep->originalData[0]);
+
+    TcIndexOperationPtr indexOpPtr;
+    indexOpPtr.i = truncatedTransIdAI->connectPtr;
+    TcIndexOperation* indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
+    indexOpPtr.p = indexOp;
+    if (indexOp == NULL) {
+      jam();
+      // Missing index operation - ignore
+      break;
+    }
+
+    /* No more TransIdAI will arrive, abort */
+    apiConnectptr.i = indexOp->connectionIndex;
+    ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+
+    terrorCode = ZGET_DATAREC_ERROR;
+    abortErrorLab(signal);
+    break;
+  }
+  case GSN_TRANSID_AI_R:  //TODO
+    jam();
   default:
     jam();
     /* Don't expect dropped signals for other GSNs,
