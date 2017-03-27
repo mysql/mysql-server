@@ -584,7 +584,7 @@ Restore::lcp_create_ctl_done_close(Signal *signal, FilePtr file_ptr)
   {
     /**
      * We have created an LCP control file, DIH knew not about any
-     * recoverable LCP for thsi fragment. We have already removed
+     * recoverable LCP for this fragment. We have already removed
      * old LCP files not recoverable, so we're ready to move on
      * from here.
      */
@@ -596,12 +596,16 @@ Restore::lcp_create_ctl_done_close(Signal *signal, FilePtr file_ptr)
      * created an LCP control file, so things should be fine now.
      * We fake start of restore and end of restore to signal back
      * the RESTORE_LCP_CONF and other reporting properly done.
+     * We set LCP id and local LCP id to indicate to LQH that no
+     * restorable LCP was found.
      */
     c_tup->start_restore_lcp(file_ptr.p->m_table_id,
                              file_ptr.p->m_fragment_id);
     jamEntry();
     ndbrequire(file_ptr.p->m_outstanding_operations == 0);
     DEB_RES(("(%u)restore_lcp_conf", instance()));
+    file_ptr.p->m_restored_lcp_id = 0;
+    file_ptr.p->m_restored_local_lcp_id = 0;
     restore_lcp_conf(signal, file_ptr);
     return;
   }
@@ -1452,6 +1456,7 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
   file_ptr.p->m_table_version = RNIL;
   file_ptr.p->m_restored_gcp_id = req->restoreGcpId;
   file_ptr.p->m_restored_lcp_id = req->lcpId;
+  file_ptr.p->m_restored_local_lcp_id = 0;
   file_ptr.p->m_max_gci_completed = req->maxGciCompleted;
   file_ptr.p->m_create_gci = req->createGci;
   DEB_RES(("RESTORE_LCP_REQ(%u) tab(%u,%u),"
