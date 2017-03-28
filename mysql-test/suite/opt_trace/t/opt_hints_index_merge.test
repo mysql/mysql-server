@@ -1,15 +1,5 @@
 --source include/have_optimizer_trace.inc
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs319=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 CREATE TABLE t1 (f1 INT, f2 INT, f3 CHAR(1), f4 CHAR(1), f5 CHAR(1), f6 CHAR(1),
 PRIMARY KEY (f5, f1), KEY (f2), KEY (f3), KEY (f4)) ENGINE=INNODB;
 INSERT INTO t1 VALUES (1, 1, 'a', 'h', 'i', ''), (2, 3, 'a', 'h', 'i', ''), (3, 2, 'b', '', 'j', ''), (4, 2, 'b', '', 'j', '');
@@ -45,10 +35,3 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 SET optimizer_switch=default;
 
 DROP TABLE t1;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs319;
---enable_query_log
-########################################

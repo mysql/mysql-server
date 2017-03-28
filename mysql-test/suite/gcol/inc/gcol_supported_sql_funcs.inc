@@ -15,7 +15,7 @@
 
 --enable_warnings
 set sql_warnings = 1;
-eval create table t1 ($cols);
+eval create table t1 ($cols) charset latin1;
 show create table t1;
 if ($rows)
 {

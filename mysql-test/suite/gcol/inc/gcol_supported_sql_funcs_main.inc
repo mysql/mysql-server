@@ -1215,7 +1215,7 @@ let $rows = 1;
 let $cols = a varchar(1024), b varchar(1024) generated always as (des_encrypt(des_decrypt(a,'adf'),'adf')) virtual;
 let $values1 = 'MySQL',default;
 --disable_warnings
-eval create table t1 ($cols);
+eval create table t1 ($cols) charset latin1;
 show create table t1;
 --enable_warnings
 eval insert into t1 values ($values1);
