@@ -15,7 +15,7 @@ let $t2_table_options = COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 # not already have MAX_ROWS set is not allowed.
 #
 
-if (`select LOCATE("MAX_ROWS=", CREATE_OPTIONS)
+if (`select LOCATE("max_rows=", CREATE_OPTIONS)
        from information_schema.tables where
          TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't1'`)
 {
@@ -35,7 +35,7 @@ ALTER TABLE t1
   algorithm=copy,
   max_rows=1111111;
 
-if (!`select LOCATE("MAX_ROWS=", CREATE_OPTIONS)
+if (!`select LOCATE("max_rows=", CREATE_OPTIONS)
        from information_schema.tables where
          TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't1'`)
 {
@@ -47,7 +47,7 @@ if (!`select LOCATE("MAX_ROWS=", CREATE_OPTIONS)
 # already have MAX_ROWS set is allowed.
 #
 
-if (!`select LOCATE("MAX_ROWS=", CREATE_OPTIONS)
+if (!`select LOCATE("max_rows=", CREATE_OPTIONS)
        from information_schema.tables where
          TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't3'`)
 {
@@ -58,7 +58,7 @@ ALTER TABLE t3
   algorithm=inplace,
   max_rows=4444444;
 
-if (!`select LOCATE("MAX_ROWS=4444444", CREATE_OPTIONS)
+if (!`select LOCATE("max_rows=4444444", CREATE_OPTIONS)
        from information_schema.tables where
          TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't3'`)
 {
@@ -71,7 +71,7 @@ if (!`select LOCATE("MAX_ROWS=4444444", CREATE_OPTIONS)
 # already have MAX_ROWS set is allowed.
 #
 
-if (!`select LOCATE("MAX_ROWS=", CREATE_OPTIONS)
+if (!`select LOCATE("max_rows=", CREATE_OPTIONS)
        from information_schema.tables where
          TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't3'`)
 {
@@ -82,7 +82,7 @@ ALTER TABLE t3
   algorithm=copy,
   max_rows=5555555;
 
-if (!`select LOCATE("MAX_ROWS=5555555", CREATE_OPTIONS)
+if (!`select LOCATE("max_rows=5555555", CREATE_OPTIONS)
        from information_schema.tables where
          TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't3'`)
 {
