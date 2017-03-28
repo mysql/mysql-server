@@ -663,12 +663,16 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
         synchronized(this) {
             // if already restarting, do nothing
             if (State.Reconnecting.equals(state)) {
+                logger.warn(local.message("WARN_Reconnect_already"));
                 return;
             }
             CLUSTER_RECONNECT_TIMEOUT = timeout;
             if (timeout == 0) {
+                logger.warn(local.message("WARN_Reconnect_timeout0"));
                 return;
             }
+            // set the reconnect timeout to the current value
+            CLUSTER_RECONNECT_TIMEOUT = timeout;
             // set the state of this session factory to reconnecting
             state = State.Reconnecting;
             // create a thread to manage the reconnect operation
@@ -677,6 +681,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
             // create reconnect thread
             reconnectThread = new Thread(threadGroup, new ReconnectThread(this));
             reconnectThread.start();
+            logger.warn(local.message("WARN_Reconnect_started"));
         }
     }
 
@@ -725,10 +730,10 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
                 clusterConnection.close();
             }
             factory.pooledConnections.clear();
-            logger.info(local.message("INFO_Reconnect_creating"));
+            logger.warn(local.message("WARN_Reconnect_creating"));
             factory.createClusterConnectionPool();
             factory.verifyConnectionPool();
-            logger.info(local.message("INFO_Reconnect_reopening"));
+            logger.warn(local.message("WARN_Reconnect_reopening"));
             synchronized(factory) {
                 factory.state = State.Open;
             }
