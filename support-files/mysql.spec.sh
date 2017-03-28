@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -1099,6 +1099,7 @@ echo "====="                                                       >> $STATUS_HI
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_print_schema_file.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_print_sys_file.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_print_file.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_frag_file.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_restore.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_select_all.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_select_count.1*
@@ -1304,6 +1305,9 @@ echo "====="                                                       >> $STATUS_HI
 # merging BK trees)
 ##############################################################################
 %changelog
+* Tue Mar 28 2017 Bjorn Munch <bjorn.munch@oracle.com>
+- Added man page for ndb_print_frag_file
+
 * Mon Oct 06 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Add license info in each subpackage
 
