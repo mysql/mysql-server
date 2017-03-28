@@ -119,13 +119,15 @@ ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
   SET(OLD_WITH_DEBUG 0 CACHE INTERNAL "" FORCE)
 ENDIF()
 
+IF(CMAKE_GENERATOR MATCHES "Visual Studio 14.*")
 # Switch to 64 bit toolset on Windows (32 bit is default).
 # This is recommended as the 32 bit linker can run into address space issues.
 # Sadly there is no clean way to do it from CMake yet, so therefore this
 # slightly hackish way of doing it.
-IF(WIN32)
-  SET(CMAKE_GENERATOR_TOOLSET
-      "v140</PlatformToolset><PreferredToolArchitecture>x64</PreferredToolArchitecture><PlatformToolset>v140")
+  IF(WIN32)
+    SET(CMAKE_GENERATOR_TOOLSET
+        "v140</PlatformToolset><PreferredToolArchitecture>x64</PreferredToolArchitecture><PlatformToolset>v140")
+  ENDIF()
 ENDIF()
 
 # On Linux el6/el7 the default gcc is too old, see if devtoolset is installed.
