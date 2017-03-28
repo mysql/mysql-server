@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -102,6 +102,13 @@ ELSE()
     "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
   STRING(REPLACE "${MY_CXX_WARNING_FLAGS}" "" CXXFLAGS
     "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+ENDIF()
+
+
+IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+  SET (PERL_PATH "/usr/local/bin/perl")
+ELSE()
+  SET (PERL_PATH "/usr/bin/perl")
 ENDIF()
 
 IF(UNIX)
