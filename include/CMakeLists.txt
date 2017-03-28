@@ -20,6 +20,7 @@
 # from mysql.h, but this needs more build system tweaking, since it's
 # automatically generated.
 SET(HEADERS
+  errmsg.h
   mem_root_fwd.h
   my_command.h
   my_list.h
