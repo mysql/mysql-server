@@ -304,6 +304,7 @@ my $opt_user_args;
 my $opt_repeat= 1;
 my $opt_retry= 3;
 my $opt_retry_failure= env_or_val(MTR_RETRY_FAILURE => 2);
+our $opt_report_unstable_tests;
 my $opt_reorder= 1;
 my $opt_force_restart= 0;
 
@@ -1322,6 +1323,7 @@ sub command_line_setup {
              'wait-all'                 => \$opt_wait_all,
 	     'print-testcases'          => \&collect_option,
 	     'repeat=i'                 => \$opt_repeat,
+             'report-unstable-tests'    => \$opt_report_unstable_tests,
 	     'retry=i'                  => \$opt_retry,
 	     'retry-failure=i'          => \$opt_retry_failure,
              'timer!'                   => \&report_option,
@@ -7661,6 +7663,11 @@ Misc options
                         to $opt_retry_failure
   retry-failure=N       Limit number of retries for a failed test
   reorder               Reorder tests to get fewer server restarts
+  report-unstable-tests Mark tests which fail initially but pass on at least
+                        one retry attempt as unstable tests and report them
+                        separately in the end summary. If all failures
+                        encountered are due to unstable tests, MTR will print
+                        a warning and exit with a zero status code.
   help                  Get this help text
 
   testcase-timeout=MINUTES Max test case run time (default $opt_testcase_timeout)

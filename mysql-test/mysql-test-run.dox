@@ -4435,6 +4435,27 @@
     </li>
 
     <li>
+      <tt>`--report-unstable-tests`</tt>
+
+      The option can be used to distinguish unstable tests which pass
+      on at least one retry attempt from hard failing ones. Unstable
+      tests are reported separately in the end summary in the format:
+      <b>test_name(num_of_failures/num_of_attempts)</b>.
+
+      In case all failures encountered are due to unstable tests, MTR
+      will print the below warning and exit with a zero status code.
+
+      @verbatim
+  mysql-test-run: WARNING: There are failures due to unstable test cases.
+  However, the tests are not hard-failing.
+      @endverbatim
+
+      This option has no effect unless <b>`--force`</b> is used and
+      both <b>`--retry`</b> and <b>`--retry-failure`</b> are set to
+      values greater than 1.
+    </li>
+
+    <li>
       <tt>`--retry`=<b>N</b></tt>
 
       If a test fails, it is retried up to a maximum of

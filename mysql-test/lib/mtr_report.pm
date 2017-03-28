@@ -258,7 +258,7 @@ sub mtr_generate_xml_report($) {
   my %suite_stats;
   my %total_stats;
   my @stat_list= ('tests', 'failures', 'disabled', 'skipped',
-                  'errors', 'time');
+                  'errors', 'unstable', 'time');
 
   # Initialize overall statistics
   map { $total_stats{$_}= 0 } @stat_list;
@@ -282,7 +282,12 @@ sub mtr_generate_xml_report($) {
     $total_stats{'tests'}++;
 
     # Increment result counters based on outcome of the test
-    if ($tinfo->{'result'} eq 'MTR_RES_FAILED' or $tinfo->{failures})
+    if ($tinfo->{'result'} eq 'MTR_RES_UNSTABLE')
+    {
+      $suite_stats{$tsuite}{'unstable'}++;
+      $total_stats{'unstable'}++;
+    }
+    elsif ($tinfo->{'result'} eq 'MTR_RES_FAILED' or $tinfo->{failures})
     {
       $suite_stats{$tsuite}{'failures'}++;
       $total_stats{'failures'}++;
@@ -313,9 +318,14 @@ sub mtr_generate_xml_report($) {
   # Convert overall test duration from ms to s
   $total_stats{'time'}/= 1000.0;
 
+  my $total_unstable_tests= $::opt_report_unstable_tests ?
+                            "unstable-tests=\"$total_stats{'unstable'}\" "
+                            : "";
+
   # Top level xml tag
   print $xml_report_file "<testsuites tests=\"$total_stats{'tests'}\" ".
                          "failures=\"$total_stats{'failures'}\" ".
+                         "$total_unstable_tests".
                          "disabled=\"$total_stats{'disabled'}\" ".
                          "skipped=\"$total_stats{'skipped'}\" ".
                          "errors=\"$total_stats{'errors'}\" ".
@@ -339,11 +349,16 @@ sub mtr_generate_xml_report($) {
 
       $suite_group= $tsuite;
       my $suite_time= $suite_stats{$tsuite}{'time'} / 1000.0;
+      my $suite_unstable_tests= $::opt_report_unstable_tests ?
+                                "unstable-tests=\"".
+                                $suite_stats{$tsuite}{'unstable'}."\" "
+                                : "";
 
       print $xml_report_file " " x 2;
       print $xml_report_file "<testsuite name=\"$tsuite\" ".
                              "tests=\"$suite_stats{$tsuite}{'tests'}\" ".
                              "failures=\"$suite_stats{$tsuite}{'failures'}\" ".
+                             "$suite_unstable_tests".
                              "disabled=\"$suite_stats{$tsuite}{'disabled'}\" ".
                              "skipped=\"$suite_stats{$tsuite}{'skipped'}\" ".
                              "errors=\"$suite_stats{$tsuite}{'errors'}\" ".
@@ -357,7 +372,25 @@ sub mtr_generate_xml_report($) {
     my $test_time= $tinfo->{'timer'} / 1000.0;
 
     # Print outcome-based tags
-    if ($tinfo->{'result'} eq 'MTR_RES_FAILED' or $tinfo->{'failures'})
+    if ($tinfo->{'result'} eq 'MTR_RES_UNSTABLE')
+    {
+      print $xml_report_file " " x 4;
+      print $xml_report_file "<testcase name=\"$tname\"$combination ".
+                             "status=\"unstable\" ".
+                             "time=\"$test_time\" ".
+                             "suitename=\"$tsuite\" >\n";
+
+      print $xml_report_file " " x 7;
+      print $xml_report_file "<unstable message=\"Test unstable: It failed ".
+                             "initially but passed on one or more retries\" ".
+                             "passed=\"".
+                             ($tinfo->{retries} - $tinfo->{failures} - 1).
+                             "\" failed=\"$tinfo->{failures}\" />\n";
+
+      print $xml_report_file " " x 4;
+      print $xml_report_file "</testcase>\n";
+    }
+    elsif ($tinfo->{'result'} eq 'MTR_RES_FAILED' or $tinfo->{'failures'})
     {
       print $xml_report_file " " x 4;
       print $xml_report_file "<testcase name=\"$tname\"$combination ".
@@ -462,12 +495,6 @@ sub mtr_generate_xml_report($) {
 sub mtr_report_stats ($$;$) {
   my ($prefix, $tests, $dont_error)= @_;
 
-  if ($xml_report_file)
-  {
-    mtr_generate_xml_report($tests);
-    $xml_report_file->flush();
-  }
-
   # ----------------------------------------------------------------------
   # Find out how we where doing
   # ----------------------------------------------------------------------
@@ -476,6 +503,7 @@ sub mtr_report_stats ($$;$) {
   my $tot_skipdetect= 0;
   my $tot_passed= 0;
   my $tot_failed= 0;
+  my $tot_unstable= 0;
   my $tot_tests=  0;
   my $tot_restarts= 0;
   my $found_problems= 0;
@@ -487,6 +515,20 @@ sub mtr_report_stats ($$;$) {
       # Test has failed at least one time
       $tot_tests++;
       $tot_failed++;
+      if ($::opt_report_unstable_tests and defined $tinfo->{retries})
+      {
+        my $num_passed= $tinfo->{retries} - $tinfo->{failures} - 1;
+
+        # Tests which exhibit both passing and failing behaviour
+        # with the same code are unstable tests. The level of in-
+        # stability is not restricted i.e., a failed test which is
+        # successful on at least one retry is marked unstable.
+        if ($num_passed > 0)
+        {
+          $tot_unstable++;
+          $tinfo->{'result'}= 'MTR_RES_UNSTABLE';
+        }
+      }
     }
     elsif ( $tinfo->{'result'} eq 'MTR_RES_SKIPPED' )
     {
@@ -591,22 +633,50 @@ sub mtr_report_stats ($$;$) {
     my $ratio=  $tot_passed * 100 / $tot_tests;
     summary_print(sprintf("Failed $tot_failed/$tot_tests tests, %.2f%% were successful.\n\n", $ratio));
 
-    # Print the list of test that failed in a format
-    # that can be copy pasted to rerun only failing tests
-    summary_print("Failing test(s):");
-
+    # Hashes to keep track of reported failures
     my %seen= ();
+    my %seen_unstable= ();
+
     foreach my $tinfo (@$tests)
     {
       my $tname= $tinfo->{'name'};
-      if ( ($tinfo->{failures} || $tinfo->{rep_failures}) and ! $seen{$tname})
+      if (($tinfo->{failures} || $tinfo->{rep_failures}))
       {
-        summary_print(" $tname");
-	$seen{$tname}= 1;
+        # Check for unstable tests
+        if ($tinfo->{result} eq "MTR_RES_UNSTABLE" and !$seen_unstable{$tname})
+        {
+          # Report all unstable tests in the format :-
+          # <test_name>(<number of failures>/<total attempts>).
+          #
+          # Marking the test as 'seen' in case of unstable tests might cause
+          # hard-failures in other combination runs of the same test to
+          # not be reported. Separate hash used to avoid redundant mentions
+          # of an unstable test
+          $seen_unstable{$tname}= "(".$tinfo->{failures}."/".
+                                  ($tinfo->{retries} - 1).")";
+        }
+        elsif (!$seen{$tname})
+        {
+          $seen{$tname}= 1;
+        }
       }
     }
-    summary_print("\n");
-    print "\n";
+
+    # Print the list of tests that failed in a format
+    # that can be copy pasted to rerun only failing tests
+    if (%seen)
+    {
+      summary_print("Failing test(s): ".
+                    join(" ", keys %seen). "\n\n");
+    }
+
+    # Print unstable tests, if any
+    if (%seen_unstable)
+    {
+      summary_print("Unstable test(s)(failures/attempts): ".
+                    join(" ", map {$_.$seen_unstable{$_}} keys %seen_unstable).
+                    "\n\n");
+    }
 
     # Print info about reporting the error
     print
@@ -622,12 +692,27 @@ sub mtr_report_stats ($$;$) {
   }
   close($summary_report_file) if defined($summary_report_file);
 
+  if ($xml_report_file)
+  {
+    mtr_generate_xml_report($tests);
+    $xml_report_file->flush();
+  }
+
   print "$tot_skipped tests were skipped, ".
     "$tot_skipdetect by the test itself.\n\n" if $tot_skipped;
 
   if ( $tot_failed != 0 || $found_problems)
   {
-    mtr_error("there were failing test cases") unless $dont_error;
+    if ($tot_failed == $tot_unstable)
+    {
+      # Print a warning if all failures are due to unstable tests
+      mtr_warning("There are failures due to unstable test cases.\n".
+                  "However, the tests are not hard-failing.");
+    }
+    else
+    {
+      mtr_error("there were failing test cases") unless $dont_error;
+    }
   }
 }
 
@@ -673,7 +758,6 @@ sub mtr_print_header ($) {
 
 sub mtr_xml_init($) {
   my ($fn)= @_;
-
   # Write xml-report in the build directory for out-of-source builds or current
   # path otherwise, unless an absolute path is already specified
   $fn= File::Spec->rel2abs($fn,
