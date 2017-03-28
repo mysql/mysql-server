@@ -597,5 +597,31 @@ DROP TABLE t_case;
 --echo # Delete expect files
 --remove_files_wildcard $MYSQL_TMP_DIR *.expect
 
---echo # Remove \$EXPORT_DIR
---force-rmdir $EXPORT_DIR
+
+--echo #
+--echo # Bug#25792649: SDI DESERIALIZE MISSING COLUMNIMPL::M_NUMERIC_SCALE_NULL
+--echo # Export, drop and import back table with columns that have attributes
+--echo # which are null by default
+--echo #
+CREATE TABLE t1 (i INT DEFAULT 42, dt DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+                 de DECIMAL(10,2), j INT GENERATED ALWAYS AS (42+i)) ENGINE=MYISAM;
+SHOW CREATE TABLE t1;
+INSERT INTO t1(dt,de) VALUES ('2017-03-28 18:48:01', 1.1),
+                             ('2017-03-28 18:48:02', 1.2),
+                             ('2017-03-28 18:48:03', 1.5);
+SELECT * FROM t1;
+
+FLUSH TABLES WITH READ LOCK;
+--echo # Copy t1 files to export dir
+--copy_files_wildcard $MYSQLD_DATADIR/test/ $EXPORT_DIR t*
+UNLOCK TABLES;
+DROP TABLE t1;
+
+--echo # Copy files back into datadir
+--copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/test/ t*
+IMPORT TABLE FROM 't1_*.SDI';
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+--echo # Clean SDI files in \$EXPORT_DIR
+--remove_files_wildcard $EXPORT_DIR t*

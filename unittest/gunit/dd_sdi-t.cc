@@ -553,5 +553,84 @@ TEST(SdiTest, EqualPrefixCharsUtf8)
       16));
 }
 
+// Verify that default null, implicit non-null (by setting a value)
+// and explicit null (by setting to null) is correctly preserved
+// through serialization and deserialization.
+TEST(SdiTest, Bug_25792649)
+{
+  dd::Column_impl cobj;
+  cobj.set_ordinal_position(1);
 
+  ASSERT_TRUE(cobj.is_numeric_scale_null());
+  ASSERT_TRUE(cobj.is_datetime_precision_null());
+  ASSERT_TRUE(cobj.is_default_value_null());
+  ASSERT_TRUE(cobj.is_default_value_utf8_null());
+  ASSERT_TRUE(cobj.is_generation_expression_null());
+  ASSERT_TRUE(cobj.is_generation_expression_utf8_null());
+
+  dd::String_type sdi= serialize_drv(&cobj);
+  dd::RJ_Document doc;
+  doc.Parse<0>(sdi.c_str());
+  dd::Sdi_rcontext *rctx= get_rctx();
+  dd::Column_impl dst;
+  dst.deserialize(rctx, doc);
+  ASSERT_TRUE(dst.is_numeric_scale_null());
+  ASSERT_TRUE(dst.is_datetime_precision_null());
+  ASSERT_TRUE(dst.is_default_value_null());
+  ASSERT_TRUE(dst.is_default_value_utf8_null());
+  ASSERT_TRUE(dst.is_generation_expression_null());
+  ASSERT_TRUE(dst.is_generation_expression_utf8_null());
+
+  cobj.set_numeric_scale(10);
+  cobj.set_datetime_precision(10);
+  cobj.set_default_value("This is my default");
+  cobj.set_default_value_utf8("This is my utf8 default");
+  cobj.set_generation_expression("This is my generation expression");
+  cobj.set_generation_expression_utf8("This is my utf8 generation expression");
+
+  ASSERT_FALSE(cobj.is_numeric_scale_null());
+  ASSERT_FALSE(cobj.is_datetime_precision_null());
+  ASSERT_FALSE(cobj.is_default_value_null());
+  ASSERT_FALSE(cobj.is_default_value_utf8_null());
+  ASSERT_FALSE(cobj.is_generation_expression_null());
+  ASSERT_FALSE(cobj.is_generation_expression_utf8_null());
+
+  sdi= serialize_drv(&cobj);
+  doc.Parse<0>(sdi.c_str());
+  dd::Column_impl dst2;
+  dst2.deserialize(rctx, doc);
+
+  ASSERT_FALSE(dst2.is_numeric_scale_null());
+  ASSERT_FALSE(dst2.is_datetime_precision_null());
+  ASSERT_FALSE(dst2.is_default_value_null());
+  ASSERT_FALSE(dst2.is_default_value_utf8_null());
+  ASSERT_FALSE(dst2.is_generation_expression_null());
+  ASSERT_FALSE(dst2.is_generation_expression_utf8_null());
+
+  cobj.set_numeric_scale_null(true);
+  cobj.set_datetime_precision_null(true);
+  cobj.set_default_value_null(true);
+  cobj.set_default_value_utf8_null(true);
+  cobj.set_generation_expression("");
+  cobj.set_generation_expression_utf8("");
+
+  ASSERT_TRUE(cobj.is_numeric_scale_null());
+  ASSERT_TRUE(cobj.is_datetime_precision_null());
+  ASSERT_TRUE(cobj.is_default_value_null());
+  ASSERT_TRUE(cobj.is_default_value_utf8_null());
+  ASSERT_TRUE(cobj.is_generation_expression_null());
+  ASSERT_TRUE(cobj.is_generation_expression_utf8_null());
+
+  sdi= serialize_drv(&cobj);
+  doc.Parse<0>(sdi.c_str());
+  dd::Column_impl dst3;
+  dst3.deserialize(rctx, doc);
+
+  ASSERT_TRUE(dst3.is_numeric_scale_null());
+  ASSERT_TRUE(dst3.is_datetime_precision_null());
+  ASSERT_TRUE(dst3.is_default_value_null());
+  ASSERT_TRUE(dst3.is_default_value_utf8_null());
+  ASSERT_TRUE(dst3.is_generation_expression_null());
+  ASSERT_TRUE(dst3.is_generation_expression_utf8_null());
+}
 } // namespace sdi_unittest
