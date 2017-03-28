@@ -36,7 +36,7 @@ import testsuite.clusterj.model.Customer;
 import testsuite.clusterj.model.Order;
 import testsuite.clusterj.model.OrderLine;
 
-@org.junit.Ignore("disable test until diagnosis of failure")
+//@org.junit.Ignore("disable test until diagnosis of failure")
 public class ReconnectTest extends AbstractClusterJModelTest {
 
     @Override
@@ -44,7 +44,7 @@ public class ReconnectTest extends AbstractClusterJModelTest {
         return false;
     }
 
-    private long sleepBeforeReconnectMillis = 20;
+    private long sleepBeforeReconnectMillis = 1;
     private int numberOfThreads = 30;
     private int numberOfNewCustomersPerThread = 5;
     private int numberOfNewOrdersPerNewCustomer = 5;
@@ -136,19 +136,21 @@ public class ReconnectTest extends AbstractClusterJModelTest {
         // create uncaught exception handler
         MyUncaughtExceptionHandler uncaughtExceptionHandler = new MyUncaughtExceptionHandler();
         Thread.setDefaultUncaughtExceptionHandler(uncaughtExceptionHandler);
-        // create all threads
-        for (int i = 0; i < numberOfThreads ; ++i) {
-            Thread thread = new Thread(threadGroup, new StuffToDo());
-            threads.add(thread);
-            thread.start();
-        }
         // create the thread that misbehaves
         Thread misbehaving = new Thread(threadGroup, new Misbehaving());
         threads.add(misbehaving);
-        misbehaving.start();
+        // create all normal threads
+        for (int i = 0; i < numberOfThreads ; ++i) {
+            Thread thread = new Thread(threadGroup, new StuffToDo());
+            threads.add(thread);
+        }
+        // start all threads
+        for (Thread thread: threads) {
+            thread.start();
+        }
         // tell the SessionFactory to reconnect
         sleep(sleepBeforeReconnectMillis);
-        sessionFactory.reconnect();
+        sessionFactory.reconnect(5);
         // wait until all threads have finished
         for (Thread t: threads) {
             try {
@@ -209,12 +211,13 @@ public class ReconnectTest extends AbstractClusterJModelTest {
                         actualTotal += orderLine.getTotalValue();
                     }
                     errorIfNotEqual("For order " + orderId + ", order value does not equal sum of order line values."
-                            + " orderLines: " + messages.toString(),
+                            + " orderLines: \n" + messages.toString(),
                             expectedTotal, actualTotal);
                 }
                 done = true;
             } catch (Throwable t) {
                 if (getDebug()) { System.out.println("summarize for the record caught " + t.getMessage()); }
+                sleep(1000);
             }
         }
         failOnError();
@@ -276,8 +279,9 @@ public class ReconnectTest extends AbstractClusterJModelTest {
                     session.close();
                     done = true;
                 } catch (ClusterJUserException cjue) {
+                    if (getDebug()) { System.out.println("StuffToDo: query orderId caught " + cjue.getMessage()); }
                     if (cjue.getMessage().contains("SessionFactory is not open")) {
-                        sleep(1000);
+                        sleep(300);
                     }
                 }
             }
@@ -285,18 +289,29 @@ public class ReconnectTest extends AbstractClusterJModelTest {
             while (i < numberOfNewCustomersPerThread) {
                 // create a new customer
                 try (Session localSession = sessionFactory.getSession()) {
+                    Customer customer = null;
+                    List<Customer> newCustomers = new ArrayList<Customer>(numberOfNewCustomersPerThread);
+                    Order order = null;
+                    List<Order> newOrders = new ArrayList<Order>(
+                            numberOfNewCustomersPerThread * numberOfNewOrdersPerNewCustomer);
                     localSession.currentTransaction().begin();
-                        createCustomer(localSession, String.valueOf(Thread.currentThread().getId()));
-                        for (int j = 0; j < numberOfNewOrdersPerNewCustomer ; ++j) {
-                                // create a new order
-                                createOrder(localSession, myRandom);
-                        }
-                        ++i;
+                    customer = createCustomer(localSession, String.valueOf(Thread.currentThread().getId()));
+                    newCustomers.add(customer);
+                    int customerId = customer.getId();
+                    for (int j = 0; j < numberOfNewOrdersPerNewCustomer ; ++j) {
+                            // create a new order for the customer
+                            newOrders.add(createOrder(localSession, customerId, myRandom));
+                    }
+                    ++i;
                     localSession.currentTransaction().commit();
+                    // add new customers and orders only if successful
+                    addCustomers(newCustomers);
+                    addOrders(newOrders);
                 } catch (ClusterJUserException cjue) {
+                    if (getDebug()) { System.out.println("StuffToDo: create customer caught " + cjue.getMessage()); }
                     if (cjue.getMessage().contains("SessionFactory is not open")) {
                         incrementRetryCount();
-                        sleep(1000);
+                        sleep(300);
                     }
                 }
             }
@@ -306,13 +321,16 @@ public class ReconnectTest extends AbstractClusterJModelTest {
                 try (Session localSession = sessionFactory.getSession()) {
                     // update an order
                     localSession.currentTransaction().begin();
-                    updateOrder(localSession, myRandom, queryOrderType);
+                    Order order = updateOrder(localSession, myRandom, queryOrderType);
                     localSession.currentTransaction().commit();
+                    // put the updated order back
+                    addOrder(order);
                     ++i;
                 } catch (ClusterJUserException cjue) {
+                    if (getDebug()) { System.out.println("StuffToDo: update orders caught " + cjue.getMessage()); }
                     if (cjue.getMessage().contains("SessionFactory is not open")) {
                         incrementRetryCount();
-                        sleep(1000);
+                        sleep(300);
                     }
                 }
             }
@@ -327,8 +345,9 @@ public class ReconnectTest extends AbstractClusterJModelTest {
                     done = true;
                 } catch (ClusterJUserException cjue) {
                     if (cjue.getMessage().contains("SessionFactory is not open")) {
+                        if (getDebug()) { System.out.println("StuffToDo: delete order caught " + cjue.getMessage()); }
                         incrementRetryCount();
-                        sleep(1000);
+                        sleep(300);
                     } else {
                         System.out.println("deleteOrder threw " + cjue.getMessage());
                     }
@@ -340,34 +359,35 @@ public class ReconnectTest extends AbstractClusterJModelTest {
     /** Create a new customer.
      * @param session the session
      * @param threadId the thread id of the creating thread
+     * @return the new customer
      */
-    private void createCustomer(Session session, String threadId) {
+    private Customer createCustomer(Session session, String threadId) {
         Customer customer = session.newInstance(Customer.class);
         int id = getNextCustomerId();
         customer.setId(id);
         customer.setName("Customer number " + id + " thread " + threadId);
         customer.setMagic(id * 10000);
-        session.makePersistent(customer); // autocommit for this
-        addCustomer(customer);
+        session.makePersistent(customer);
+        return customer;
     }
 
-    /** Create a new order. Add a new order with a random number of order lines
+    /** Create a new order for a specific customer with a random number of order lines
      * and a random unit price and quantity.
      * @param session the session
-     * @param random a random number generator
+     * @param customer the customer
+     * @param random the random number generator
+     * @return the new order
      */
-    public void createOrder(Session session, Random random) {
+    public Order createOrder(Session session, int customerId, Random random) {
         // get an order number
         int orderid = getNextOrderId();
         Order order = session.newInstance(Order.class);
         order.setId(orderid);
-        // get a random customer number
-        int customerId = random .nextInt(nextCustomerId);
         order.setCustomerId(customerId);
         order.setDescription("Order " + orderid + " for Customer " + customerId);
         Double orderValue = 0.0d;
         // now create some order lines
-        int numberOfOrderLines = random.nextInt(maximumOrderLinesPerOrder);
+        int numberOfOrderLines = random.nextInt(maximumOrderLinesPerOrder) + 1;
         if (getDebug()) System.out.println("Create Order " + orderid
                 + " with numberOfOrderLines: " + numberOfOrderLines);
         for (int i = 0; i < numberOfOrderLines; ++i) {
@@ -375,9 +395,9 @@ public class ReconnectTest extends AbstractClusterJModelTest {
             OrderLine orderLine = session.newInstance(OrderLine.class);
             orderLine.setId(orderLineNumber);
             orderLine.setOrderId(orderid);
-            long quantity = random.nextInt(maximumQuantityPerOrderLine);
+            long quantity = random.nextInt(maximumQuantityPerOrderLine) + 1;
             orderLine.setQuantity(quantity);
-            float unitPrice = ((float)random.nextInt(maximumUnitPrice)) / 4;
+            float unitPrice = (1.0f + (float)random.nextInt(maximumUnitPrice)) / 4;
             orderLine.setUnitPrice(unitPrice);
             double orderLineValue = unitPrice * quantity;
             orderValue += orderLineValue;
@@ -390,7 +410,7 @@ public class ReconnectTest extends AbstractClusterJModelTest {
         }
         order.setValue(orderValue);
         session.persist(order);
-        addOrder(order);
+        return order;
     }
 
     /** Update an order; change one or more order lines
@@ -398,19 +418,20 @@ public class ReconnectTest extends AbstractClusterJModelTest {
      * @param random a random number generator
      * @param query
      */
-    public void updateOrder(Session session, Random random, QueryDomainType<OrderLine> queryOrderType) {
+    public Order updateOrder(Session session, Random random, QueryDomainType<OrderLine> queryOrderType) {
         Order order = null;
         // pick an order to update; prevent anyone else from updating the same order
         order = removeOrderFromOrdersCollection(random);
-        if (order == null) { return; }
+        if (order == null) { return null; }
         int orderId = order.getId();
         // replace order with its persistent representation
         order = session.find(Order.class, orderId);
-        if (order == null) { return; }
+        if (order == null) { return null; }
         List<OrderLine> orderLines = getOrderLines(session, queryOrderType, orderId);
         int numberOfOrderLines = orderLines.size();
         OrderLine orderLine = null;
         double orderValue = order.getValue();
+        if (getDebug()) { System.out.println("updateOrder previous orderValue: " + orderValue); }
         if (numberOfOrderLines > 0) {
             int index = random.nextInt(numberOfOrderLines);
             orderLine = orderLines.get(index);
@@ -418,11 +439,12 @@ public class ReconnectTest extends AbstractClusterJModelTest {
             updateOrderLine(orderLine, random);
             orderValue += orderLine.getTotalValue();
         }
+        if (getDebug()) { System.out.println("updateOrder updated orderValue: " + orderValue); }
         order.setValue(orderValue);
         session.updatePersistent(orderLine);
         session.updatePersistent(order);
-        // put order back now that we're done updating it
-        addOrder(order);
+        // return order so it can be put back after committing the transaction
+        return order;
     }
 
     /** Update an order line by randomly changing unit price and quantity.
@@ -492,8 +514,8 @@ public class ReconnectTest extends AbstractClusterJModelTest {
         }
     }
 
-    /** Add a new customer to the list of customers
-     * @param customer
+    /** Add a new customer to the list of customers (multithread safe)
+     * @param customer the customer to add
      */
     private void addCustomer(Customer customer) {
         synchronized(customers) {
@@ -501,8 +523,17 @@ public class ReconnectTest extends AbstractClusterJModelTest {
         }
     }
 
+    /** Add new customers to the list of customers (multithread safe)
+     * @param newCustomers the customers to add
+     */
+    private void addCustomers(Collection<Customer> newCustomers) {
+        synchronized(customers) {
+            customers.addAll(newCustomers);
+        }
+    }
+
     /** Get the next customer number (multithread safe)
-     * @return
+     * @return the next customer id
      */
     private int getNextCustomerId() {
         synchronized(customers) {
@@ -512,7 +543,7 @@ public class ReconnectTest extends AbstractClusterJModelTest {
     }
 
     /** Get the next order number (multithread safe)
-     * @return
+     * @return the next order number
      */
     private int getNextOrderId() {
         synchronized(orders) {
@@ -531,7 +562,7 @@ public class ReconnectTest extends AbstractClusterJModelTest {
         }
     }
 
-    /** Add an order to the list of orders.
+    /** Add an order to the list of orders. (multithread safe)
      * @param order the order
      */
     private void addOrder(Order order) {
@@ -540,7 +571,16 @@ public class ReconnectTest extends AbstractClusterJModelTest {
         }
     }
 
-    /** Add an order line to the list of order lines.
+    /** Add a collection of orders to the list of orders. (multithread safe)
+     * @param newOrders the collection of orders
+     */
+    private void addOrders(Collection<Order> newOrders) {
+        synchronized(orders) {
+            orders.addAll(newOrders);
+        }
+    }
+
+    /** Add an order line to the list of order lines. (multithread safe)
      * @param orderLine the order line
      */
     private void addOrderLine(OrderLine orderLine) {
