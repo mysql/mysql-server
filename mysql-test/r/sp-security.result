@@ -745,14 +745,3 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 SET SESSION sql_mode= @orig_sql_mode_session;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-#
-# PASSWORD EXPIRATION CHECKED FOR LOCKED ACCOUNTS USED AS SP DEFINERS
-#
-CREATE ROLE r1;
-GRANT EXECUTE, SELECT ON *.* TO r1;
-CREATE DEFINER=r1 PROCEDURE p1() SELECT current_user();
-CALL p1();
-current_user()
-r1@%
-DROP PROCEDURE p1;
-DROP ROLE r1;

@@ -53,7 +53,6 @@ void Security_context::init()
   m_acl_map= 0;
   m_map_checkout_count= 0;
   m_password_expired= false;
-  m_is_locked= false;
   DBUG_VOID_RETURN;
 }
 

@@ -1092,16 +1092,6 @@ DROP DATABASE mysqltest_db;
 SET GLOBAL sql_mode= @orig_sql_mode_global;
 SET SESSION sql_mode= @orig_sql_mode_session;
 
---echo #
---echo # PASSWORD EXPIRATION CHECKED FOR LOCKED ACCOUNTS USED AS SP DEFINERS
---echo #
-CREATE ROLE r1;
-GRANT EXECUTE, SELECT ON *.* TO r1;
-CREATE DEFINER=r1 PROCEDURE p1() SELECT current_user();
-CALL p1();
-DROP PROCEDURE p1;
-DROP ROLE r1;
-
 # Wait till all disconnects are completed.
 --source include/wait_until_count_sessions.inc
 
