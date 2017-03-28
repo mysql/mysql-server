@@ -14,5 +14,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 RESET MASTER;
 ERROR HY000: Target log not found in binlog index
 SET GLOBAL binlog_error_action= ABORT_SERVER;
+SET PERSIST debug='+d,binlog_expect_suicide';
 FLUSH LOGS;
+SET PERSIST debug=default;
 RESET MASTER;

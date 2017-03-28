@@ -55,6 +55,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --error ER_UNKNOWN_TARGET_BINLOG
 RESET MASTER;
 SET GLOBAL binlog_error_action= ABORT_SERVER;
+SET PERSIST debug='+d,binlog_expect_suicide';
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
@@ -68,5 +69,6 @@ FLUSH LOGS;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
+SET PERSIST debug=default;
 --disable_reconnect
 RESET MASTER;
