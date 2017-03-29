@@ -288,6 +288,10 @@ MySQL database server, and MySQL embedded server.
 Summary:        Test suite for the MySQL database server
 Group:          Applications/Databases
 Requires:       %{name}-server%{?_isa} >= %{min}
+%if 0%{?cluster}
+Requires:       %{name}-data-node%{?_isa} >= %{min}
+Requires:       %{name}-management-server%{?_isa} >= %{min}
+%endif
 %if 0%{?commercial}
 Provides:       MySQL-test-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-test-advanced < %{version}-%{release}
