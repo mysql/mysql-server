@@ -546,6 +546,9 @@ DbtupProxy::disk_restart_alloc_extent(EmulatedJamBuffer *jamBuf,
   }
 
   // local call so mapping instance key to number is ok
+  thrjam(jamBuf);
+  thrjamLine(jamBuf, Uint16(tableId));
+  thrjamLine(jamBuf, Uint16(fragId));
   Uint32 instanceKey = getInstanceKeyCanFail(tableId, fragId);
   if (instanceKey == RNIL)
   {
