@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -369,7 +369,7 @@ Field_set *FieldTest::create_field_set(TYPELIB *tl)
               1,                                // packlength_arg
               tl,                               // typelib_arg
               &my_charset_latin1);              // charset_arg
-  f->table= new Fake_TABLE(f);
+  f->table= ::new Fake_TABLE(f);
   return f;
 }
 
@@ -400,8 +400,8 @@ TEST_F(FieldTest, CopyFieldSet)
   // Copy_field DTOR is not invoked in all contexts, so we may leak memory.
   EXPECT_FALSE(cf->tmp.is_alloced());
 
-  delete f_to->table;
-  delete f_from->table;
+  ::delete static_cast<Fake_TABLE*>(f_to->table);
+  ::delete static_cast<Fake_TABLE*>(f_from->table);
 }
 
 

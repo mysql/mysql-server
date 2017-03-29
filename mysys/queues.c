@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -582,13 +582,14 @@ my_bool do_test(uint no_parts, uint l_max_ind, my_bool l_fix_used)
   tot_no_parts= no_parts;
   tot_no_loops= 1024;
   perform_insert(&queue);
-  if ((result= perform_ins_del(&queue, max_ind)))
-  delete_queue(&queue);
+  result= perform_ins_del(&queue, max_ind);
   if (result)
   {
     printf("Error\n");
+    delete_queue(&queue);
     return TRUE;
   }
+  delete_queue(&queue);
   return FALSE;
 }
 
@@ -664,6 +665,7 @@ static void benchmark_test()
     queue_remove(queue, (uint) 0);
   queue_remove_all(queue);
   stop_measurement();
+  delete_queue(queue);
 }
 
 int main()
