@@ -13,6 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
+SET (DEB_NDB_CONTROL_TEST_DEPS "mysql-${DEB_PRODUCTNAME}-data-node (= \${binary:Version}), mysql-${DEB_PRODUCTNAME}-management-server (= \${binary:Version})")
 
 SET(DEB_NDB_CONTROL_EXTRAS
 "
