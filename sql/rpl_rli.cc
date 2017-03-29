@@ -222,10 +222,11 @@ void Relay_log_info::reset_notified_relay_log_change()
    @param shift          number of bits to shift by Worker due to the
                          current checkpoint change.
    @param new_ts         new seconds_behind_master timestamp value
-                         unless zero. Zero could be due to FD event.
+                         unless NULL. NULL could be due to FD event.
    @param need_data_lock False if caller has locked @c data_lock
 */
-void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
+void Relay_log_info::reset_notified_checkpoint(ulong shift,
+                                               const time_t *const new_ts,
                                                bool need_data_lock)
 {
   /*
@@ -277,7 +278,7 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
       mysql_mutex_lock(&data_lock);
     else
       mysql_mutex_assert_owner(&data_lock);
-    last_master_timestamp= new_ts;
+    last_master_timestamp= *new_ts;
     if (need_data_lock)
       mysql_mutex_unlock(&data_lock);
   }
