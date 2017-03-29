@@ -229,7 +229,12 @@ public:
   /**
      return the value of @c data member of the head of the queue.
   */
-  Element_type* head_queue();
+  Element_type* head_queue()
+  {
+    if (empty())
+      return NULL;
+    return &m_Q[entry];
+  }
 
   bool   gt(ulong i, ulong k); // comparision of ordering of two entities
   /* index is within the valid range */
