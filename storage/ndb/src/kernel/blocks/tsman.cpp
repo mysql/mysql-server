@@ -1744,6 +1744,9 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
             ext_data->update_free_bits(i, bits | (bits << UNCOMMITTED_SHIFT));
             tup.disk_restart_page_bits((*ext_table_id),
                                        (*ext_fragment_id),
+                                       v2 ?
+                                         (*ext_create_table_version) :
+                                         0,
                                        &key, 
                                        bits);
           }

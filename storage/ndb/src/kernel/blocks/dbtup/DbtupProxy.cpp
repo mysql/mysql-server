@@ -102,9 +102,11 @@ DbtupProxy::execCREATE_TAB_REQ(Signal* signal)
 {
   const CreateTabReq* req = (const CreateTabReq*)signal->getDataPtr();
   const Uint32 tableId = req->tableId;
+  const Uint32 create_table_schema_version = req->tableVersion & 0xFFFFFF;
   ndbrequire(tableId < c_tableRecSize);
+  ndbrequire(create_table_schema_version != 0);
   ndbrequire(c_tableRec[tableId] == 0);
-  c_tableRec[tableId] = 1;
+  c_tableRec[tableId] = create_table_schema_version;
   DEB_TUP_RESTART(("Create table: %u", tableId));
   D("proxy: created table" << V(tableId));
 }
@@ -539,9 +541,22 @@ DbtupProxy::disk_restart_alloc_extent(EmulatedJamBuffer *jamBuf,
   {
     thrjam(jamBuf);
     D("proxy: table dropped" << V(tableId));
-#ifdef VM_TRACE
-    DEB_TUP_RESTART(("disk_restart_alloc_extent failed, tableId missing"));
-#endif
+    DEB_TUP_RESTART(("disk_restart_alloc_extent failed on tab(%u,%u):%u,"
+                     " tableId missing",
+                     tableId,
+                     fragId,
+                     create_table_version));
+    return -1;
+  }
+  if (c_tableRec[tableId] != create_table_version)
+  {
+    thrjam(jamBuf);
+    DEB_TUP_RESTART(("disk_restart_alloc_extent failed on tab(%u,%u):%u,"
+                     " expected create_table_version: %u",
+                     tableId,
+                     fragId,
+                     create_table_version,
+                     c_tableRec[tableId]));
     return -1;
   }
 
@@ -572,10 +587,16 @@ DbtupProxy::disk_restart_alloc_extent(EmulatedJamBuffer *jamBuf,
 }
 
 void
-DbtupProxy::disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
-                                   const Local_key* key, Uint32 bits)
+DbtupProxy::disk_restart_page_bits(Uint32 tableId,
+                                   Uint32 fragId,
+                                   Uint32 create_table_version,
+                                   const Local_key* key,
+                                   Uint32 bits)
 {
-  ndbrequire(tableId < c_tableRecSize && c_tableRec[tableId] == 1);
+  ndbrequire(tableId < c_tableRecSize &&
+             c_tableRec[tableId] != 0 &&
+             (create_table_version == 0 ||
+              c_tableRec[tableId] == create_table_version));
 
   // local call so mapping instance key to number is ok
   /**
@@ -588,6 +609,11 @@ DbtupProxy::disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
 
   Uint32 i = workerIndex(instanceNo);
   Dbtup* dbtup = (Dbtup*)workerBlock(i);
-  dbtup->disk_restart_page_bits(jamBuffer(), tableId, fragId, key, bits);
+  dbtup->disk_restart_page_bits(jamBuffer(),
+                                tableId,
+                                fragId,
+                                create_table_version,
+                                key,
+                                bits);
 }
 BLOCK_FUNCTIONS(DbtupProxy)
