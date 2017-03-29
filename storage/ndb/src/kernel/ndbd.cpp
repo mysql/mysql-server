@@ -817,17 +817,20 @@ ndbd_run(bool foreground, int report_fd,
   BufferedOutputStream* ndbouts_bufferedoutputstream = new BufferedOutputStream(logBuf);
 
   // Make ndbout point to the BufferedOutputStream.
-  NdbOut_ReInit(ndbouts_bufferedoutputstream, ndbouts_bufferedoutputstream);
+  //NdbOut_ReInit(ndbouts_bufferedoutputstream, ndbouts_bufferedoutputstream);
 
-  struct NdbThread* log_threadvar= NULL;
+  //struct NdbThread* log_threadvar= NULL;
+  /*
   ThreadData thread_args=
   {
     stdout,
     logBuf,
     false
   };
+  */
 
   // Create log thread.
+  /*
   log_threadvar = NdbThread_Create(async_log_func,
                        (void**)&thread_args,
                        0,
@@ -1114,6 +1117,7 @@ ndbd_run(bool foreground, int report_fd,
    * Stopping the log thread is done at the very end since the
    * data node logs should be available until complete shutdown.
    */
+/*
   void* dummy_return_status;
   thread_args.stop = true;
   NdbThread_WaitFor(log_threadvar, &dummy_return_status);
