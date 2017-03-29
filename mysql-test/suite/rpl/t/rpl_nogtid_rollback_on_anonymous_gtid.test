@@ -1,0 +1,82 @@
+# ==== Purpose ====
+#
+# This test will make the slave rollback an anonymous transactions.
+#
+# It will keep the SQL thread running to avoid the relay log to be purged
+# in a CHANGE MASTER.
+#
+# Then, it will make the slave to replicate up to the middle of a transaction,
+# will stop the I/O thread, do a CHANGE MASTER pointing to the begin of the
+# transaction and restart the I/O thread.
+#
+# In this way, the relay log will have something like:
+# ANONYMOUS_GTID, QUERY(BEGIN), QUERY(INSERT), QUERY(INSERT)
+# ANONYMOUS_GTID, QUERY(BEGIN), QUERY(INSERT), QUERY(INSERT), QUERY(INSERT), XID
+#
+# It is expected that the SQL thread will rollback the partial transaction once
+# reaching the second ANONYMOUS_GTID event.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#25800025 SQL THREAD ERROR 1778 WHEN GTID SKIPPING PARTIAL TRX
+#
+# This test case requires SBR
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_statement.inc
+# This test case generates a situation that should not happen
+# in normal slave operation (there is no retrieval of the transaction
+# from the begin when MASTER_AUTO_POSITION = 0). Enabling this test
+# case on MTS may hit some MTS asserts.
+--source include/not_mts_slave_parallel_workers.inc
+--source include/not_gtid_enabled.inc
+--source include/master-slave.inc
+
+--let $master_uuid=`SELECT @@SERVER_UUID`
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+
+# Collect the master positions before the transaction
+--let $master_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_io.inc
+CALL mtr.add_suppression('GTID_LOG_EVENT or ANONYMOUS_GTID_LOG_EVENT is not expected');
+CALL mtr.add_suppression('An unexpected event sequence was detected by the IO thread');
+
+--source include/rpl_connection_master.inc
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+INSERT INTO t1 VALUES (6);
+INSERT INTO t1 VALUES (7);
+INSERT INTO t1 VALUES (8);
+INSERT INTO t1 VALUES (9);
+COMMIT;
+
+# Make the I/O to stop in the middle of the transaction
+# right after the second QUERY(INSERT)
+--source include/rpl_connection_slave.inc
+--let $rpl_after_received_events_action= stop
+--let $rpl_event_count= 3
+--let $rpl_count_only_event_type= Query
+--source include/rpl_receive_event_count.inc
+
+# Make the I/O thread to ask for the full transaction from beginning
+# without purging the relay log (SQL thread is active).
+--replace_result $master_file MASTER_FILE $master_pos MASTER_POS
+--eval CHANGE MASTER TO MASTER_LOG_FILE='$master_file', MASTER_LOG_POS=$master_pos
+
+# Restart the I/O thread
+--source include/start_slave_io.inc
+
+# Sync slave with master
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc
