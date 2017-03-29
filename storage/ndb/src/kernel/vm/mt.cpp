@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1219,7 +1219,10 @@ struct thr_repository
     struct thr_spin_lock m_send_lock;   //Protect m_sending + transporter
     struct thr_send_buffer m_sending;
 
-    Uint64 m_node_total_send_buffer_size; //Protected by m_buffer_lock
+    /* Size of resp. 'm_buffer' and 'm_sending' buffered data */
+    Uint64 m_buffered_size;             //Protected by m_buffer_lock
+    Uint64 m_sending_size;              //Protected by m_send_lock
+
     /**
      * Flag used to coordinate sending to same remote node from different
      * threads when there are contention on m_send_lock.
@@ -3332,9 +3335,9 @@ link_thread_send_buffers(thr_repository::send_buffer * sb, Uint32 node)
       }
     }
   }
-  Uint64 node_total_send_buffer_size = sb->m_node_total_send_buffer_size;
-  if (bytes)
+  if (bytes > 0)
   {
+    const Uint64 buffered_size = sb->m_buffered_size;
     /**
      * Append send buffers collected from threads
      * to end of existing m_buffers.
@@ -3353,9 +3356,8 @@ link_thread_send_buffers(thr_repository::send_buffer * sb, Uint32 node)
       sb->m_buffer.m_first_page = tmp.m_first_page->m_next;
       sb->m_buffer.m_last_page = tmp.m_last_page;
     }
+    sb->m_buffered_size = buffered_size + bytes;
   }
-  sb->m_node_total_send_buffer_size =
-    node_total_send_buffer_size + bytes;
   return bytes;
 }
 
@@ -3477,6 +3479,9 @@ trp_callback::get_bytes_to_send_iovec(NodeId node,
       }
       sb->m_buffer.m_first_page = NULL;
       sb->m_buffer.m_last_page  = NULL;
+
+      sb->m_sending_size += sb->m_buffered_size;
+      sb->m_buffered_size = 0;
     }
     unlock(&sb->m_buffer_lock);
 
@@ -3554,15 +3559,15 @@ Uint32
 bytes_sent(thread_local_pool<thr_send_page>* pool,
            thr_repository::send_buffer* sb, Uint32 bytes)
 {
-  Uint64 node_total_send_buffer_size = sb->m_node_total_send_buffer_size;
-  assert(bytes);
+  const Uint64 sending_size = sb->m_sending_size;
+  assert(bytes && bytes <= sending_size);
 
   sb->m_bytes_sent = bytes;
+  sb->m_sending_size = sending_size - bytes;
 
   Uint32 remain = bytes;
   thr_send_page * prev = NULL;
   thr_send_page * curr = sb->m_sending.m_first_page;
-  sb->m_node_total_send_buffer_size = node_total_send_buffer_size - bytes;
 
   /* Some, or all, in 'm_sending' was sent, find endpoint. */
   while (remain && remain >= curr->m_bytes)
@@ -3712,6 +3717,8 @@ trp_callback::reset_send_buffer(NodeId node)
     sb->m_buffer.m_first_page = NULL;
     sb->m_buffer.m_last_page  = NULL;
   }
+  sb->m_buffered_size = 0;
+  unlock(&sb->m_buffer_lock);
 
   /* Drop all pending data in m_sending buffers. */
   if (sb->m_sending.m_first_page)
@@ -3720,8 +3727,7 @@ trp_callback::reset_send_buffer(NodeId node)
     sb->m_sending.m_first_page = NULL;
     sb->m_sending.m_last_page = NULL;
   }
-  sb->m_node_total_send_buffer_size = 0;
-  unlock(&sb->m_buffer_lock);
+  sb->m_sending_size = 0;
   unlock(&sb->m_send_lock);
 
   pool.release_all(rep->m_mm, RG_TRANSPORTER_BUFFERS);
@@ -4133,12 +4139,14 @@ mt_send_handle::getWritePtr(NodeId node, Uint32 len, Uint32 prio, Uint32 max)
 }
 
 /**
- * Acquire send buffer size without locking and without gathering 
+ * Acquire total send buffer size without locking and without gathering 
  *
  * OJA: The usability of this function is rather questionable.
- *      m_node_total_send_buffer_size is only updated by 
- *      link_thread_send_buffers() and bytes_sent(), both
- *      part of performSend(). Thus, it is valid after a send.
+ *      m_buffered_size and m_sending_size is updated by
+ *      link_thread_send_buffers(), get_bytes_to_send_iovec() and
+ *      bytes_sent() - All part of performSend(). Thus, it is
+ *      valid *after* a send.
+ *
  *      However, checking it *before* a send in order to 
  *      determine if the payload is yet too small doesn't 
  *      really provide correct information of the current state.
@@ -4153,8 +4161,8 @@ mt_get_send_buffer_bytes(NodeId node)
 {
   thr_repository *rep = g_thr_repository;
   thr_repository::send_buffer *sb = &rep->m_send_buffers[node];
-  const Uint64 send_buffer_size = sb->m_node_total_send_buffer_size;
-  return send_buffer_size;
+  const Uint64 total_send_buffer_size = sb->m_buffered_size + sb->m_sending_size;
+  return total_send_buffer_size;
 }
 
 void
@@ -4163,8 +4171,8 @@ mt_getSendBufferLevel(Uint32 self, NodeId node, SB_LevelType &level)
   Resource_limit rl, rl_shared;
   const Uint32 page_size = thr_send_page::PGSIZE;
   thr_repository *rep = g_thr_repository;
-  thr_repository::send_buffer *b = &rep->m_send_buffers[node];
-  Uint64 current_node_send_buffer_size = b->m_node_total_send_buffer_size;
+  thr_repository::send_buffer *sb = &rep->m_send_buffers[node];
+  const Uint64 current_node_send_buffer_size = sb->m_buffered_size + sb->m_sending_size;
   
   rep->m_mm->get_resource_limit_nolock(RG_TRANSPORTER_BUFFERS, rl);
   Uint64 current_send_buffer_size = rl.m_min * page_size;
