@@ -3342,6 +3342,8 @@ runBug34216(NDBT_Context* ctx, NDBT_Step* step)
   const char * off = NULL;
 #endif
   int offset = off ? atoi(off) : 0;
+  int place = 0;
+  int ret_code = 0;
 
   while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped())
   {
@@ -3356,14 +3358,20 @@ runBug34216(NDBT_Context* ctx, NDBT_Step* step)
 
     int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
 
-    if(hugoOps.startTransaction(pNdb) != 0)
+    if((ret_code = hugoOps.startTransaction(pNdb)) != 0)
+    {
+      place = 1;
       goto err;
+    }
 
     nodeId = hugoOps.getTransaction()->getConnectedNodeId();
     ndbout << "Restart node " << nodeId << " " << err <<endl;
 
     if (restarter.dumpStateOneNode(nodeId, val2, 2))
+    {
+      g_err << "Failed to dumpStateOneNode" << endl;
       return NDBT_FAILED;
+    }
 
     if(restarter.insertErrorInNode(nodeId, err) != 0){
       g_err << "Failed to restartNextDbNode" << endl;
@@ -3393,16 +3401,25 @@ runBug34216(NDBT_Context* ctx, NDBT_Step* step)
      */
     for (int r = row; r < row + rows; r++)
     {
-      if(hugoOps.pkUpdateRecord(pNdb, r, batch, rand()) != 0)
+      if ((ret_code = hugoOps.pkUpdateRecord(pNdb, r, batch, rand())) != 0)
+      {
+        place = 2;
         goto err;
+      }
       
       for (int l = 1; l<5; l++)
       {
-        if (hugoOps.execute_NoCommit(pNdb) != 0)
+        if ((ret_code = hugoOps.execute_NoCommit(pNdb)) != 0)
+        {
+          place = 3;
           goto err;
+        }
         
-        if(hugoOps.pkUpdateRecord(pNdb, r, batch, rand()) != 0)
+        if ((ret_code = hugoOps.pkUpdateRecord(pNdb, r, batch, rand())) != 0)
+        {
+          place = 4;
           goto err;
+        }
       }
     }      
 
@@ -3437,6 +3454,7 @@ runBug34216(NDBT_Context* ctx, NDBT_Step* step)
 
   return result;
 err:
+  g_err << "Failed with error = " << ret_code << " in place " << place << endl;
   return NDBT_FAILED;
 }
 
