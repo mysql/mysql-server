@@ -6445,12 +6445,12 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         (ulong) rli->get_group_master_log_pos()));
     mysql_mutex_unlock(&rli->data_lock);
     if (rli->is_parallel_exec())
+    {
+      time_t ts= common_header->when.tv_sec + static_cast<time_t>(exec_time);
       rli->reset_notified_checkpoint(0,
-                                     server_id ?
-                                     common_header->when.tv_sec +
-                                     (time_t) exec_time : 0,
+                                     server_id ? &ts : NULL,
                                      true/*need_data_lock=true*/);
-
+    }
     /*
       Reset thd->variables.option_bits and sql_mode etc, because this could be the signal of
       a master's downgrade from 5.0 to 4.0.

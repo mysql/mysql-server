@@ -840,7 +840,8 @@ public:
      Coordinator notifies Workers about this event. Coordinator and Workers
      maintain a bitmap of executed group that is reset with a new checkpoint. 
   */
-  void reset_notified_checkpoint(ulong, time_t, bool);
+  void reset_notified_checkpoint(ulong, const time_t *const new_ts,
+                                 bool);
 
   /**
      Called when gaps execution is ended so it is crash-safe
