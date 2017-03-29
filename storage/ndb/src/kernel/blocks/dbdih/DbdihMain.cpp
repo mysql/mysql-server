@@ -27669,22 +27669,31 @@ Dbdih::dihGetInstanceKeyCanFail(Uint32 tabId, Uint32 fragId)
 {
   TabRecordPtr tTabPtr;
   tTabPtr.i = tabId;
+  Uint32 instanceKey;
   if (tabId >= ctabFileSize)
   {
     return Uint32(RNIL);
   }
   ptrAss(tTabPtr, tabRecord);
-  FragmentstorePtr tFragPtr;
-loop:
-  Uint32 tab_val = tTabPtr.p->m_lock.read_lock();
-  getFragstoreCanFail(tTabPtr.p, fragId, tFragPtr);
-  if (tFragPtr.p == NULL)
+  if (fragId >= tTabPtr.p->totalfragments)
   {
     return Uint32(RNIL);
   }
-  Uint32 instanceKey = dihGetInstanceKey(tFragPtr);
-  if (unlikely(!tTabPtr.p->m_lock.read_unlock(tab_val)))
-    goto loop;
+  FragmentstorePtr tFragPtr;
+  Uint32 tab_val;
+  do
+  {
+    tab_val = tTabPtr.p->m_lock.read_lock();
+    getFragstoreCanFail(tTabPtr.p, fragId, tFragPtr);
+    if (tFragPtr.p == NULL)
+    {
+      instanceKey = Uint32(RNIL);
+    }
+    else
+    {
+      instanceKey = dihGetInstanceKey(tFragPtr);
+    }
+  } while ((unlikely(!tTabPtr.p->m_lock.read_unlock(tab_val))));
   return instanceKey;
 }
 

@@ -120,8 +120,11 @@ protected:
                                 Uint32 create_table_version,
 				const Local_key* key,
                                 Uint32 pages);
-  void disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
-			      const Local_key* key, Uint32 bits);
+  void disk_restart_page_bits(Uint32 tableId,
+                              Uint32 fragId,
+                              Uint32 create_table_version,
+			      const Local_key* key,
+                              Uint32 bits);
 };
 
 

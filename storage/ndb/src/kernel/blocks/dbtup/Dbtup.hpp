@@ -3568,8 +3568,11 @@ public:
 				const Local_key* key,
                                 Uint32 pages);
   void disk_restart_page_bits(EmulatedJamBuffer* jamBuf,
-                              Uint32 tableId, Uint32 fragId,
-			      const Local_key*, Uint32 bits);
+                              Uint32 tableId,
+                              Uint32 fragId,
+                              Uint32 create_table_version,
+			      const Local_key*,
+                              Uint32 bits);
   void disk_restart_undo(Signal* signal,
                          Uint64 lsn,
 			 Uint32 type,
@@ -3983,8 +3986,11 @@ public:
 				const Local_key* key,
                                 Uint32 pages);
 
-  void disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
-			      const Local_key* key, Uint32 bits);
+  void disk_restart_page_bits(Uint32 tableId,
+                              Uint32 fragId,
+                              Uint32 create_table_version,
+			      const Local_key* key,
+                              Uint32 bits);
 };
 
 

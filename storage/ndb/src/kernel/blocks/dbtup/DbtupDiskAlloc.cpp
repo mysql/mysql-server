@@ -2807,15 +2807,22 @@ Dbtup::disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf,
 
 void
 Dbtup::disk_restart_page_bits(EmulatedJamBuffer* jamBuf, 
-                              Uint32 tableId, Uint32 fragId,
-			      const Local_key* key, Uint32 bits)
+                              Uint32 tableId,
+                              Uint32 fragId,
+                              Uint32 create_table_version,
+			      const Local_key* key,
+                              Uint32 bits)
 {
   thrjam(jamBuf);
   TablerecPtr tabPtr;
   FragrecordPtr fragPtr;
+  Uint32 current_create_table_version = c_lqh->getCreateSchemaVersion(tableId);
   tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
-  if (tabPtr.p->tableStatus == DEFINED && tabPtr.p->m_no_of_disk_attributes)
+  if (tabPtr.p->tableStatus == DEFINED &&
+      tabPtr.p->m_no_of_disk_attributes &&
+      (current_create_table_version == create_table_version ||
+       create_table_version == 0))
   {
     thrjam(jamBuf);
     getFragmentrec(fragPtr, fragId, tabPtr.p);

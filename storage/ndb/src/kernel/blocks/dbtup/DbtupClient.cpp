@@ -82,13 +82,24 @@ Dbtup_client::disk_restart_alloc_extent(Uint32 tableId,
 }
 
 void
-Dbtup_client::disk_restart_page_bits(Uint32 tableId, Uint32 fragId,
-                                     const Local_key* key, Uint32 bits)
+Dbtup_client::disk_restart_page_bits(Uint32 tableId,
+                                     Uint32 fragId,
+                                     Uint32 create_table_version,
+                                     const Local_key* key,
+                                     Uint32 bits)
 {
   if (m_dbtup_proxy != 0) {
-    m_dbtup_proxy->disk_restart_page_bits(tableId, fragId, key, bits);
+    m_dbtup_proxy->disk_restart_page_bits(tableId,
+                                          fragId,
+                                          create_table_version,
+                                          key,
+                                          bits);
     return;
   }
-  m_dbtup->disk_restart_page_bits(m_jamBuf, tableId, fragId, key, 
+  m_dbtup->disk_restart_page_bits(m_jamBuf,
+                                  tableId,
+                                  fragId,
+                                  create_table_version,
+                                  key, 
                                   bits);
 }
