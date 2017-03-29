@@ -282,8 +282,7 @@ if ($rpl_after_received_events_action == 'stop')
   --connect (_rrec_other_connection,127.0.0.1,root,,test,$_rrec_port,)
 
   --connection _rrec_other_connection
-  --send
-  eval STOP SLAVE IO_THREAD $_for_channel;
+  --send_eval STOP SLAVE IO_THREAD $_for_channel;
   --connection $_rrec_connection
 
   SET DEBUG_SYNC= 'now SIGNAL continue_after_queue_event';

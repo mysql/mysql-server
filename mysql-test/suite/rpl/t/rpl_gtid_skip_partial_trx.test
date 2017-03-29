@@ -1,0 +1,45 @@
+# ==== Purpose ====
+#
+# This test will make the slave to skip a transaction that is incomplete in
+# the relay log.
+#
+# SQL thread should be able to skip the partial transaction and progress to
+# the next relay log file.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#25800025 SQL THREAD ERROR 1778 WHEN GTID SKIPPING PARTIAL TRX
+#
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_gtid.inc
+--let $rpl_gtid_utils= 1
+--source include/master-slave.inc
+
+--let $master_uuid=`SELECT @@SERVER_UUID`
+CREATE TABLE t1 (c1 INT);
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (1);
+
+# Make the I/O to stop in the middle of the transaction
+# right after the QUERY(BEGIN)
+--source include/rpl_connection_slave.inc
+--let $rpl_after_received_events_action= stop
+--let $rpl_event_count= 1
+--let $rpl_count_only_event_type= Query
+--source include/rpl_receive_event_count.inc
+
+# Restart the I/O thread
+--source include/start_slave_io.inc
+
+# Make the slave to GTID skip the partial transaction
+--source include/rpl_skip_to_end_of_relay_log.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+--source include/rpl_end.inc
