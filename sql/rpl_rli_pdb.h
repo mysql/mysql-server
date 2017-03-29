@@ -200,6 +200,7 @@ typedef struct st_slave_job_group
     checkpoint_relay_log_pos= 0;
     checkpoint_seqno= (uint) -1;
     done= 0;
+    ts= 0;
 #ifndef DBUG_OFF
     notified= false;
 #endif

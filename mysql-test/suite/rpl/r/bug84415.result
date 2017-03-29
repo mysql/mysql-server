@@ -1,0 +1,108 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Bug #84415: slave don't report Seconds_Behind_Master when
+# running slave_parallel_workers > 0
+#
+SET @@global.debug= "+d,dbug.mts.force_clock_diff_eq_0";
+SET @save.slave_parallel_workers= @@global.slave_parallel_workers;
+SET @save_slave_transaction_retries= @@global.slave_transaction_retries;
+SET @@global.slave_transaction_retries= 0;
+SET @@global.slave_parallel_workers= 4;
+include/start_slave.inc
+CREATE TABLE t1 (f1 INT);
+CREATE DATABASE test2;
+USE test2;
+CREATE TABLE t2 (f1 INT);
+include/sync_slave_sql_with_master.inc
+LOCK TABLE test.t1 WRITE;
+LOCK TABLE test2.t2 WRITE;
+USE test;
+INSERT INTO t1 VALUES (1);
+USE test2;
+INSERT INTO t2 VALUES (1);
+include/sync_slave_io_with_master.inc
+SET @@global.debug= "+d,mts_checkpoint";
+SET DEBUG_SYNC="RESET";
+SET DEBUG_SYNC="now WAIT_FOR mts_checkpoint_start";
+SET DEBUG_SYNC="now WAIT_FOR mts_checkpoint_end";
+SET @@global.debug= "-d,mts_checkpoint";
+include/assert.inc [Seconds_Behind_Master must be between 5 and upper_bound]
+UNLOCK TABLES;
+SET @@global.debug= "+d,mts_checkpoint";
+SET DEBUG_SYNC="RESET";
+SET DEBUG_SYNC="now WAIT_FOR mts_checkpoint_start";
+SET DEBUG_SYNC="now WAIT_FOR mts_checkpoint_end";
+SET @@global.debug= "-d,mts_checkpoint";
+include/assert.inc [Seconds_Behind_Master must be between 2 and upper_bound]
+UNLOCK TABLES;
+include/sync_slave_sql_with_master.inc
+SET @@global.debug= "+d,mts_checkpoint";
+SET DEBUG_SYNC="RESET";
+SET DEBUG_SYNC="now WAIT_FOR mts_checkpoint_start";
+SET DEBUG_SYNC="now WAIT_FOR mts_checkpoint_end";
+SET @@global.debug= "-d,mts_checkpoint";
+include/assert.inc [Seconds_Behind_Master must be 0]
+LOCK TABLE test2.t2 WRITE;
+USE test;
+INSERT INTO t1 VALUES (1);
+USE test2;
+INSERT INTO t2 VALUES (1);
+include/sync_slave_io_with_master.inc
+SET @@global.debug= "+d,mts_checkpoint";
+SET DEBUG_SYNC="RESET";
+SET DEBUG_SYNC="now WAIT_FOR mts_checkpoint_start";
+SET DEBUG_SYNC="now WAIT_FOR mts_checkpoint_end";
+SET @@global.debug= "-d,mts_checkpoint";
+include/assert.inc [Seconds_Behind_Master must be between 2 and upper_bound]
+UNLOCK TABLES;
+SET @@global.debug= "+d,mts_checkpoint";
+SET DEBUG_SYNC="RESET";
+SET DEBUG_SYNC="now WAIT_FOR mts_checkpoint_start";
+SET DEBUG_SYNC="now WAIT_FOR mts_checkpoint_end";
+SET @@global.debug= "-d,mts_checkpoint";
+include/assert.inc [Seconds_Behind_Master must be 0]
+CREATE DATABASE test3;
+USE test3;
+CREATE TABLE t3 (f1 INT);
+include/sync_slave_sql_with_master.inc
+LOCK TABLE test.t1 WRITE;
+LOCK TABLE test3.t3 WRITE;
+USE test;
+INSERT INTO t1 VALUES (1);
+use test2;
+INSERT INTO t2 VALUES (1);
+USE test3;
+INSERT INTO t3 VALUES (1);
+include/sync_slave_io_with_master.inc
+SET @@global.debug= "+d,mts_checkpoint";
+SET DEBUG_SYNC="RESET";
+SET DEBUG_SYNC="now WAIT_FOR mts_checkpoint_start";
+SET DEBUG_SYNC="now WAIT_FOR mts_checkpoint_end";
+SET @@global.debug= "-d,mts_checkpoint";
+include/assert.inc [Seconds_Behind_Master must be between 7 and upper_bound]
+UNLOCK TABLES;
+SET @@global.debug= "+d,mts_checkpoint";
+SET DEBUG_SYNC="RESET";
+SET DEBUG_SYNC="now WAIT_FOR mts_checkpoint_start";
+SET DEBUG_SYNC="now WAIT_FOR mts_checkpoint_end";
+SET @@global.debug= "-d,mts_checkpoint";
+include/assert.inc [Seconds_Behind_Master must be between 2 and upper_bound]
+UNLOCK TABLES;
+SET @@global.debug= "+d,mts_checkpoint";
+SET DEBUG_SYNC="RESET";
+SET DEBUG_SYNC="now WAIT_FOR mts_checkpoint_start";
+SET DEBUG_SYNC="now WAIT_FOR mts_checkpoint_end";
+SET @@global.debug= "-d,mts_checkpoint";
+include/assert.inc [Seconds_Behind_Master must be 0]
+DROP TABLE test.t1;
+DROP DATABASE test2;
+DROP DATABASE test3;
+include/sync_slave_sql_with_master.inc
+SET @@global.slave_parallel_workers= @save.slave_parallel_workers;
+SET @@global.debug= "-d,dbug.mts.force_clock_diff_eq_0";
+SET @@global.slave_transaction_retries= @save_slave_transaction_retries;
+include/rpl_end.inc
