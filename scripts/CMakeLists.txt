@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -123,6 +123,12 @@ STRING(REGEX REPLACE "-Wp,[-=_A-Za-z0-9]*"           "" CXXFLAGS "${CXXFLAGS}")
 STRING(REPLACE       "-fstack-protector-strong"      "" CXXFLAGS "${CXXFLAGS}")
 STRING(REPLACE       "-grecord-gcc-switches"         "" CXXFLAGS "${CXXFLAGS}")
 STRING(REPLACE       "-pipe"                         "" CXXFLAGS "${CXXFLAGS}")
+
+IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+  SET (PERL_PATH "/usr/local/bin/perl")
+ELSE()
+  SET (PERL_PATH "/usr/bin/perl")
+ENDIF()
 
 IF(UNIX)
   # SHELL_PATH, FIND_PROC, CHECK_PID are used by mysqld_safe
