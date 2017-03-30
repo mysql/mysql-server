@@ -7665,6 +7665,9 @@ ER_CANNOT_ADD_FOREIGN_BASE_COL_STORED
 ER_TABLE_REFERENCED
   eng "Cannot complete the operation because table is referenced by another connection."
 
+ER_XA_RETRY
+  eng "The resource manager is not able to commit the transaction branch at this time. Please retry later."
+
 #
 #  End of 5.7 error messages.
 #
