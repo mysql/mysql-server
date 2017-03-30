@@ -2122,10 +2122,11 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
 
   Page_state state = ptr.p->m_state;
 
-  DEB_PGMAN_IO(("(%u)pageout completed, page(%u,%u):%x",
+  DEB_PGMAN_IO(("(%u)pageout completed, page(%u,%u):%u:%x",
                instance(),
                ptr.p->m_file_no,
                ptr.p->m_page_no,
+               ptr.p->m_real_page_i,
                state));
 
   ndbrequire(state & Page_entry::PAGEOUT);
