@@ -803,6 +803,7 @@ Dbtup::disk_page_prealloc_dirty_page(Disk_alloc_info & alloc,
                                      Fragrecord *fragPtrP)
 {
   jam();
+  jamLine(pagePtr.i);
   ddassert(pagePtr.p->list_index == old_idx);
 
   Uint32 free= pagePtr.p->free_space;
@@ -1185,10 +1186,13 @@ Dbtup::disk_page_set_dirty(PagePtr pagePtr)
   {
     jam();
     idx &= ~0x8000;
-    DEB_EXTENT_BITS(("((%u)Reset list_index bit 0x8000 on page(%u,%u)",
+    DEB_EXTENT_BITS(("((%u)Reset list_index bit 0x8000 on page(%u,%u):%u"
+                     ", idx = %u",
                      instance(),
                      pagePtr.p->m_file_no,
-                     pagePtr.p->m_page_no));
+                     pagePtr.p->m_page_no,
+                     pagePtr.i,
+                     idx));
     ddassert(idx == alloc.calc_page_free_bits(free - used));
   }
   
