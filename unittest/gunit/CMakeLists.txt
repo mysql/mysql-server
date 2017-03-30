@@ -252,6 +252,15 @@ SET_TARGET_PROPERTIES(gunit_small
   PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
 )
 
+# Several "small" unit tests got 'missing symbol client_errors'
+# When building with Sun Studio
+ADD_LIBRARY(libmysql_errmsg STATIC
+  ${CMAKE_SOURCE_DIR}/libmysql/errmsg.cc
+)
+SET_TARGET_PROPERTIES(libmysql_errmsg
+  PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
+)
+
 ADD_LIBRARY(gunit_large STATIC
   benchmark.cc
   gunit_test_main_server.cc
@@ -262,7 +271,7 @@ ADD_LIBRARY(gunit_large STATIC
 ADD_DEPENDENCIES(gunit_small GenError)
 ADD_DEPENDENCIES(gunit_large GenError)
 TARGET_LINK_LIBRARIES(gunit_small
-  mysys mysys_ssl mytap dbug strings myisam_sys ${GTEST_LIBRARIES})
+  mysys mysys_ssl mytap dbug strings myisam_sys ${GTEST_LIBRARIES} libmysql_errmsg)
 TARGET_LINK_LIBRARIES(gunit_large
   mysys mysys_ssl mytap dbug strings ${GTEST_LIBRARIES})
 MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
