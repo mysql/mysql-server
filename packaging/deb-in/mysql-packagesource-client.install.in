@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,9 +40,13 @@ usr/share/man/man1/myisam_ftdump.1
 usr/share/man/man1/mysql.1
 usr/share/man/man1/mysql_config_editor.1
 usr/share/man/man1/mysql_embedded.1
+usr/share/man/man1/mysql_find_rows.1
+usr/share/man/man1/mysql_fix_extensions.1
 usr/share/man/man1/mysql_plugin.1
+usr/share/man/man1/mysql_waitpid.1
 usr/share/man/man1/mysqlaccess.1
 usr/share/man/man1/mysqladmin.1
+usr/share/man/man1/mysqlbug.1
 usr/share/man/man1/mysqlcheck.1
 usr/share/man/man1/mysqldump.1
 usr/share/man/man1/mysqldumpslow.1

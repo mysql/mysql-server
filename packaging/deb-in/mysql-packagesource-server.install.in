@@ -40,16 +40,21 @@ usr/sbin/mysqld
 usr/sbin/mysqld-debug
 # man pages
 usr/share/man/man1/innochecksum.1
+usr/share/man/man1/msql2mysql.1
+usr/share/man/man1/mysqlhotcopy.1
 usr/share/man/man1/comp_err.1
 usr/share/man/man1/myisamchk.1
 usr/share/man/man1/myisamlog.1
 usr/share/man/man1/myisampack.1
 usr/share/man/man1/my_print_defaults.1
-usr/share/man/man1/mysql.server.1
 usr/share/man/man1/mysql-stress-test.pl.1
+usr/share/man/man1/mysql_convert_table_format.1
+usr/share/man/man1/mysql_install_db.1
 usr/share/man/man1/mysql_secure_installation.1
+@DEB_MAN_SETPERMISSION@
 usr/share/man/man1/mysql_tzinfo_to_sql.1
 usr/share/man/man1/mysql_upgrade.1
+usr/share/man/man1/mysql_zap.1
 usr/share/man/man1/mysqlbinlog.1
 usr/share/man/man1/mysqld_multi.1
 usr/share/man/man1/mysqld_safe.1
