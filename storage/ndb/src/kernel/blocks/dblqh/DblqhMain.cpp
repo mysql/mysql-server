@@ -13904,6 +13904,7 @@ Dblqh::execPREPARE_COPY_FRAG_REQ(Signal* signal)
      */
     fragptr.p->m_copy_started_state = Fragrecord::AC_IGNORED;
     fragptr.p->fragStatus = Fragrecord::ACTIVE_CREATION;
+    fragptr.p->logFlag = Fragrecord::STATE_FALSE;
     completedGci = fragptr.p->m_completed_gci;
 
     c_tup->get_frag_info(req.tableId, req.fragId, &max_page);
