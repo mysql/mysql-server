@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,9 +19,6 @@
 
 #define QMGR_C
 #include "Qmgr.hpp"
-
-#include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 361
 
@@ -158,8 +155,6 @@ void Qmgr::initData()
     }
   }
   receivedProcessInfo = new ProcessInfo[numOfApiAndMgmNodes];
-  g_eventLogger->info("Qmgr initialized %d ProcessInfo records up to "
-                      "node id %d", numOfApiAndMgmNodes, max_api_node_id);
 }//Qmgr::initData()
 
 void Qmgr::initRecords()
