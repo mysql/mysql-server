@@ -135,10 +135,23 @@ bool parse_pool_nodeids(const char* opt_str,
   return true;
 }
 
-/* Get the port number for processinfo.
+/* Get the port number, hostname, and socket path for processinfo.
+
    NDB is being initialized before server networking, so mysqld_port
-   may not yet have been set, and we are forced to duplicate some
-   code from set_ports() in mysqld.cc here to calculate the port number.
+   has not yet been set, and we are forced to duplicate some code
+   from set_ports() in mysqld.cc here to calculate the port number.
+
+   It would be sensible to modify mysqld.cc to call set_ports()
+   before ha_init(), allowing us to remove the getenv() and getservbyname()
+   calls below.
+
+   An alternative implementation could set the ProcessInfo from
+   ndb_wait_setup_func(), which is called after server networking is set up,
+   rather than from ndbcluster_init(). This would have the disadvantage
+   of waiting an extra heartbeat interval before ProcessInfo is published.
+
+   opt_disable_networking, mysqld_port, my_bind_addr_str, report_port,
+   report_host, and mysqld_unix_port are all server global variables.
 */
 static int
 get_processinfo_port()
@@ -147,20 +160,24 @@ get_processinfo_port()
 
   if(! opt_disable_networking)
   {
-    port = mysqld_port;
+    port = report_port;
     if(port == 0)
     {
-      const char * env = getenv("MYSQL_TCP_PORT");
-      if(MYSQL_PORT_DEFAULT == 0)
+      port = mysqld_port;
+      if(port == 0)
       {
-        struct servent *serv_ptr = getservbyname("mysql", "tcp");
-        if (serv_ptr)
-          port = ntohs((u_short) serv_ptr->s_port); /* purecov: inspected */
+        const char * env = getenv("MYSQL_TCP_PORT");
+        if(MYSQL_PORT_DEFAULT == 0)
+        {
+          struct servent *serv_ptr = getservbyname("mysql", "tcp");
+          if (serv_ptr)
+            port = ntohs((u_short) serv_ptr->s_port); /* purecov: inspected */
+        }
+        else if(env)
+          port = atoi(env);
+        else
+          port = MYSQL_PORT;
       }
-      else if(env)
-        port = atoi(env);
-      else
-        port = MYSQL_PORT;
     }
   }
   return port;
@@ -169,12 +186,16 @@ get_processinfo_port()
 static const char *
 get_processinfo_host()
 {
-  const char * host = my_bind_addr_str;
-  if(! ( strcmp(host, "*") &&          // If bind_address matches any of
-         strcmp(host, "0.0.0.0") &&    // these strings, let ProcessInfo
-         strcmp(host, "::")))          // use the NDB transporter address.
+  const char * host = report_host;
+  if(! host)
   {
-    host = 0;
+    host = my_bind_addr_str;
+    if(! ( strcmp(host, "*") &&          // If bind_address matches any of
+           strcmp(host, "0.0.0.0") &&    // these strings, let ProcessInfo
+           strcmp(host, "::")))          // use the NDB transporter address.
+    {
+      host = 0;
+    }
   }
   return host;
 }
