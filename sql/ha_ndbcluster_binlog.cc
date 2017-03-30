@@ -1416,6 +1416,7 @@ class Ndb_binlog_setup {
         bool need_overwrite = false;
         if (!ndb_dd_serialize_table(thd,
                                     elmt.database, elmt.name,
+                                    ndbtab->getTablespaceName(),
                                     sdi))
         {
           need_install = true;

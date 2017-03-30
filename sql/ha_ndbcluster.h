@@ -459,7 +459,8 @@ private:
                                       Ndb_fk_list&);
   void append_dependents_to_changed_tables(List<NDB_SHARE>&, MEM_ROOT*);
   int check_default_values(const NdbDictionary::Table* ndbtab);
-  int get_metadata(THD *thd, const dd::Table* table_def);
+  int get_metadata(THD *thd, const char* tablespace_name,
+                   const dd::Table* table_def);
   void release_metadata(THD *thd, Ndb *ndb);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;

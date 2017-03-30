@@ -18,19 +18,6 @@
 #include "ndb_dd.h"
 
 #include "dd/impl/sdi.h"
-
-bool ndb_sdi_serialize(class THD *thd,
-                       const dd::Table &table_def,
-                       const char* schema_name,
-                       dd::sdi_t& sdi)
-{
-  sdi = dd::serialize(thd, table_def, dd::String_type(schema_name));
-  if (sdi.empty())
-    return false; // Failed to serialize
-
-  return true; // OK
-}
-
 #include "sql_class.h"
 #include "transaction.h"
 #include "mdl.h"            // MDL_*
@@ -42,10 +29,53 @@ bool ndb_sdi_serialize(class THD *thd,
 #include "dd/impl/sdi.h"           // dd::deserialize
 
 
+bool ndb_sdi_serialize(THD *thd,
+                       const dd::Table &table_def,
+                       const char* schema_name,
+                       const char* tablespace_name,
+                       dd::sdi_t& sdi)
+{
+  MDL_ticket *mdl_ticket = NULL;
+  if (tablespace_name &&
+      !thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLESPACE,
+                                                    "", tablespace_name,
+                                                    MDL_INTENTION_EXCLUSIVE))
+  {
+    // Acquire mdl lock on the tables tablespace name since the DD is
+    // acessed when serializing the table and everything which is aqcuired
+    // need to be mdl locked.
+    // NOTE! A normal handler::open() are called without any lock on the
+    // tablespace name
+    MDL_request mdl_request;
+    MDL_REQUEST_INIT(&mdl_request,
+                     MDL_key::TABLESPACE,
+                     "", tablespace_name,
+                     MDL_INTENTION_EXCLUSIVE, MDL_EXPLICIT);
+
+    if (thd->mdl_context.acquire_lock(&mdl_request,
+                                      thd->variables.lock_wait_timeout))
+    {
+      return false; // Failed to acquire MDL lock for the tablespace
+    }
+    // Save the ticket to allow only this lock be released
+    mdl_ticket= mdl_request.ticket;
+  }
+
+  sdi = dd::serialize(thd, table_def, dd::String_type(schema_name));
+  if (sdi.empty())
+    return false; // Failed to serialize
+
+  if (mdl_ticket)
+    thd->mdl_context.release_lock(mdl_ticket);
+
+  return true; // OK
+}
+
 
 bool ndb_dd_serialize_table(class THD *thd,
                             const char* schema_name,
                             const char* table_name,
+                            const char* tablespace_name,
                             dd::sdi_t& sdi)
 
 {
@@ -123,6 +153,7 @@ bool ndb_dd_serialize_table(class THD *thd,
         ndb_sdi_serialize(thd,
                           *existing,
                           schema_name,
+                          tablespace_name,
                           sdi);
     if (!serialize_res)
     {

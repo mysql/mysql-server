@@ -2209,7 +2209,8 @@ int ha_ndbcluster::check_default_values(const NDBTAB* ndbtab)
 }
 
 
-int ha_ndbcluster::get_metadata(THD *thd, const dd::Table* table_def)
+int ha_ndbcluster::get_metadata(THD *thd, const char* tablespace_name,
+                                const dd::Table* table_def)
 {
   Ndb *ndb= get_thd_ndb(thd)->ndb;
   NDBDICT *dict= ndb->getDictionary();
@@ -2221,7 +2222,7 @@ int ha_ndbcluster::get_metadata(THD *thd, const dd::Table* table_def)
   DBUG_ASSERT(m_table_info == NULL);
 
   dd::sdi_t sdi;
-  if (!ndb_sdi_serialize(thd, *table_def, m_dbname, sdi))
+  if (!ndb_sdi_serialize(thd, *table_def, m_dbname, tablespace_name, sdi))
   {
     DBUG_RETURN(1);
   }
@@ -11223,7 +11224,8 @@ int ha_ndbcluster::create(const char *name,
     */
 
     dd::sdi_t sdi;
-    if (!ndb_sdi_serialize(thd, *table_def, m_dbname, sdi))
+    if (!ndb_sdi_serialize(thd, *table_def, m_dbname,
+                           create_info->tablespace, sdi))
     {
       result= 1;
       goto abort_return;
@@ -12098,7 +12100,9 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
   // renamed since it contains the table name
   {
     dd::sdi_t sdi;
-    if (!ndb_sdi_serialize(thd, *to_table_def, new_dbname, sdi))
+    if (!ndb_sdi_serialize(thd, *to_table_def, new_dbname,
+                           orig_tab->getTablespaceName(),
+                           sdi))
     {
       my_error(ER_INTERNAL_ERROR, MYF(0), "Table def. serialization failed");
       DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
@@ -12247,11 +12251,12 @@ static
 bool
 check_table_def_match(THD* thd,
                       const char* schema_name,
+                      const char* tablespace_name,
                       const dd::Table* table_def,
                       const NdbDictionary::Table* ndbtab)
 {
   dd::sdi_t sdi;
-  if (!ndb_sdi_serialize(thd, *table_def, schema_name, sdi))
+  if (!ndb_sdi_serialize(thd, *table_def, schema_name, tablespace_name, sdi))
   {
     return false;
   }
@@ -12345,7 +12350,9 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
 
   // Check that serialized table definition of the table to be renamed
   // matches the serialized table definition stored in NDB's dictionary
-  DBUG_ASSERT(check_table_def_match(thd, old_dbname, from_table_def,
+  DBUG_ASSERT(check_table_def_match(thd, old_dbname,
+                                    orig_tab->getTablespaceName(),
+                                    from_table_def,
                                     orig_tab));
 
   // Magically detect if this is a rename or some form of alter
@@ -13147,7 +13154,7 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked,
   // Init table lock structure
   thr_lock_data_init(&m_share->lock,&m_lock,(void*) 0);
 
-  if ((res= get_metadata(thd, table_def)))
+  if ((res= get_metadata(thd, table_share->tablespace, table_def)))
   {
     local_close(thd, FALSE);
     DBUG_RETURN(res);
@@ -18983,7 +18990,9 @@ inplace_set_sdi_and_alter_in_ndb(THD *thd,
 #endif
 
   dd::sdi_t sdi;
-  if (!ndb_sdi_serialize(thd, *new_table_def, schema_name, sdi))
+  if (!ndb_sdi_serialize(thd, *new_table_def, schema_name,
+                         alter_data->old_table->getTablespaceName(),
+                         sdi))
   {
     DBUG_RETURN(1);
   }
