@@ -63,6 +63,9 @@ version_token      			plugin_output_directory VERSION_TOKEN
 libtest_services                        plugin_output_directory TESTSERVICES
 libtest_services_threaded               plugin_output_directory TESTSERVICESTHREADED
 test_services_plugin_registry           plugin_output_directory TEST_SERVICES_PLUGIN_REGISTRY
+libtest_services   plugin/test_services TESTSERVICES
+libtest_services_threaded  plugin/test_services TESTSERVICESTHREADED
+test_services_plugin_registry  plugin/test_services TEST_SERVICES_PLUGIN_REGISTRY
 # Test session API
 libtest_session_in_thd                  plugin_output_directory TEST_SESSION_IN_THD
 libtest_x_sessions_init                 plugin_output_directory TEST_X_SESSIONS_INIT
@@ -90,3 +93,7 @@ connection_control                      plugin_output_directory  CONNECTION_CONT
 component_example_component1    component_output_directory  EXAMPLE_COMPONENT_1
 component_example_component2    component_output_directory  EXAMPLE_COMPONENT_2
 component_example_component3    component_output_directory  EXAMPLE_COMPONENT_3
+component_test_string_service   component_output_directory  TEST_STRING_SERVICE
+component_test_string_service_long   component_output_directory  TEST_STRING_SERVICE_LONG
+component_test_string_service_charset   component_output_directory  TEST_STRING_SERVICE_CHARSET
+connection_control  plugin/connection_control   CONNECTION_CONTROL_PLUGIN    connection_control

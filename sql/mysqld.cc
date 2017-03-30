@@ -1368,6 +1368,12 @@ static bool mysql_component_infrastructure_init()
   {
     sql_print_error("Failed to bootstrap persistent privileges.\n");
   }
+  /*
+   * Its a dummy initialization function. Else linker, is cutting out (as
+   * library optimization) the string service code because libsql code is not
+   * calling any functions of it.
+   */
+  mysql_string_services_init();
   return false;
 }
 

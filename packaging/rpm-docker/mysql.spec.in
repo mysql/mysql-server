@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -193,6 +193,7 @@ done
 #  Remove test plugins
 for p in auth.so auth_test_plugin.so daemon_example.ini libdaemon_example.so qa_auth_client.so \
     component_example_component1.so component_example_component2.so component_example_component3.so \
+    component_test_string_service_charset.so component_test_string_service_long.so component_test_string_service.so \
     qa_auth_interface.so qa_auth_server.so replication_observers_example_plugin.so ha_example.so \
     test_udf_services.so test_security_context.so test_services_plugin_registry.so ; do
     rm -f %{buildroot}%{_libdir}/mysql/plugin/$p

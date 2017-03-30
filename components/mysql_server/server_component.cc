@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include "my_inttypes.h"
 #include "mysqld_error.h"
 #include "persistent_dynamic_loader.h"
+#include "mysql_string_service.h"
 #include "registry.h"
 #include "server_component.h"
 #include "auth/dynamic_privileges_impl.h"
@@ -112,6 +113,43 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, global_grants_check)
   dynamic_privilege_services_impl::has_global_grant
 END_SERVICE_IMPLEMENTATION()
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_factory)
+  mysql_string_imp::create,
+  mysql_string_imp::destroy
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_case)
+  mysql_string_imp::tolower,
+  mysql_string_imp::toupper
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_converter)
+  mysql_string_imp::convert_from_buffer,
+  mysql_string_imp::convert_to_buffer
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_character_access)
+  mysql_string_imp::get_char,
+  mysql_string_imp::get_char_length
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_byte_access)
+  mysql_string_imp::get_byte,
+  mysql_string_imp::get_byte_length
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_iterator)
+  mysql_string_imp::iterator_create,
+  mysql_string_imp::iterator_get_next,
+  mysql_string_imp::iterator_destroy
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_ctype)
+  mysql_string_imp::is_upper,
+  mysql_string_imp::is_lower,
+  mysql_string_imp::is_digit
+END_SERVICE_IMPLEMENTATION()
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, registry)
   PROVIDES_SERVICE(mysql_server, registry_registration)
@@ -127,6 +165,13 @@ BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, dynamic_loader_scheme_file)
   PROVIDES_SERVICE(mysql_server, dynamic_privilege_register)
   PROVIDES_SERVICE(mysql_server, global_grants_check)
+  PROVIDES_SERVICE(mysql_server, mysql_string_factory)
+  PROVIDES_SERVICE(mysql_server, mysql_string_case)
+  PROVIDES_SERVICE(mysql_server, mysql_string_converter)
+  PROVIDES_SERVICE(mysql_server, mysql_string_character_access)
+  PROVIDES_SERVICE(mysql_server, mysql_string_byte_access)
+  PROVIDES_SERVICE(mysql_server, mysql_string_iterator)
+  PROVIDES_SERVICE(mysql_server, mysql_string_ctype)
 END_COMPONENT_PROVIDES()
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server)

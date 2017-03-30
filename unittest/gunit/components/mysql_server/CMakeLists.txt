@@ -37,6 +37,8 @@ FOREACH(test ${TESTS})
   ADD_EXECUTABLE(${test}-t
     ${test}-t.cc
     ${CMAKE_SOURCE_DIR}/sql/rwlock_scoped_lock.cc
+    ${CMAKE_SOURCE_DIR}/sql/server_component/mysql_string_service.cc
+    ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
   )
   TARGET_LINK_LIBRARIES(${test}-t
     ${CMAKE_THREAD_LIBS_INIT} gunit_small component_mysql_server)

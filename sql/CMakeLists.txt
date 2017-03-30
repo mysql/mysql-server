@@ -181,6 +181,11 @@ SET(SQL_GIS_SOURCES
   item_geofunc_setops.cc
 )
 
+SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
+  server_component/mysql_string_service.cc
+  server_component/persistent_dynamic_loader.cc
+  )
+
 SET(SQL_SHARED_SOURCES
   abstract_query_plan.cc
   auth/auth_common.cc
@@ -209,7 +214,6 @@ SET(SQL_SHARED_SOURCES
   debug_sync.cc
   default_values.cc
   derror.cc
-  persistent_dynamic_loader.cc
   error_handler.cc
   field.cc
   field_conv.cc 
@@ -390,6 +394,7 @@ SET(SQL_SHARED_SOURCES
   uniques.cc
   xa.cc
   ${DD_SOURCES}
+  ${MYSQL_SERVER_SUB_COMPONENT_SOURCES}
 )
 
 SET(SQL_SOURCE
