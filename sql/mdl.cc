@@ -1614,6 +1614,39 @@ void MDL_request::init_by_key_with_source(const MDL_key *key_arg,
   m_src_line= src_line;
 }
 
+/**
+  Initialize a lock request using partial MDL key.
+
+  @sa MDL_request::init(namespace, db, name, type).
+
+  @remark The partial key must be "<database>\0<name>\0".
+
+  @param  namespace_arg       Id of namespace of object to be locked
+  @param  part_key_arg        Partial key.
+  @param  part_key_length_arg Partial key length
+  @param  db_length_arg       Database name length.
+  @param  mdl_type_arg        The MDL lock type for the request.
+  @param  mdl_duration_arg    The MDL duration for the request.
+  @param  src_file            Source file name issuing the request.
+  @param  src_line            Source line number issuing the request.
+*/
+
+void MDL_request::init_by_part_key_with_source(
+                    MDL_key::enum_mdl_namespace namespace_arg,
+                    const char *part_key_arg, size_t part_key_length_arg,
+                    size_t db_length_arg, enum_mdl_type mdl_type_arg,
+                    enum_mdl_duration mdl_duration_arg,
+                    const char *src_file, uint src_line)
+{
+  key.mdl_key_init(namespace_arg, part_key_arg, part_key_length_arg,
+                   db_length_arg);
+  type= mdl_type_arg;
+  duration= mdl_duration_arg;
+  ticket= NULL;
+  m_src_file= src_file;
+  m_src_line= src_line;
+}
+
 
 /**
   Auxiliary functions needed for creation/destruction of MDL_lock objects.

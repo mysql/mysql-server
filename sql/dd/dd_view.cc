@@ -489,32 +489,38 @@ static void fill_dd_view_tables(View *view_obj, const TABLE_LIST *view,
 /**
   Method to fill view routines from the set of routines used by view query.
 
-  @param  view_obj  DD view object.
-  @param  routines  Set of routines used by view query.
+  @param  view_obj      DD view object.
+  @param  routines_ctx  Query_table_list object for the view which contains
+                        set of routines used by view query.
 */
 
 static void fill_dd_view_routines(
   View *view_obj,
-  const SQL_I_List<Sroutine_hash_entry> *routines)
+  Query_tables_list *routines_ctx)
 {
   DBUG_ENTER("fill_dd_view_routines");
 
-  // View stored functions.
-  for (Sroutine_hash_entry *rt= routines->first; rt; rt= rt->next)
+  // View stored functions. We need only directly used routines.
+  for (Sroutine_hash_entry *rt= routines_ctx->sroutines_list.first;
+       rt != nullptr && rt != *routines_ctx->sroutines_list_own_last;
+       rt= rt->next)
   {
     View_routine *view_sf_obj= view_obj->add_routine();
 
-    char qname_buff[NAME_LEN*2+1+1];
-    sp_name sf(&rt->mdl_request.key, qname_buff);
+    /*
+      We should get only stored functions here, as procedures are not directly
+      used by views, and thus not stored as dependencies.
+    */
+    DBUG_ASSERT(rt->type() == Sroutine_hash_entry::FUNCTION);
 
     // view routine catalog
     view_sf_obj->set_routine_catalog(Dictionary_impl::default_catalog_name());
 
     // View routine schema
-    view_sf_obj->set_routine_schema(String_type(sf.m_db.str, sf.m_db.length));
+    view_sf_obj->set_routine_schema(String_type(rt->db(), rt->m_db_length));
 
     // View routine name
-    view_sf_obj->set_routine_name(String_type(sf.m_name.str, sf.m_name.length));
+    view_sf_obj->set_routine_name(String_type(rt->name(), rt->name_length()));
   }
 
   DBUG_VOID_RETURN;
@@ -620,8 +626,12 @@ static bool fill_dd_view_definition(THD *thd, View *view_obj,
   // Fill view tables information in View object.
   fill_dd_view_tables(view_obj, view, thd->lex->query_tables);
 
-  // Fill view routines information in View object.
-  fill_dd_view_routines(view_obj, &thd->lex->sroutines_list);
+  /*
+    Fill view routines information in View object. It is important that
+    THD::lex points to the view's LEX at this point, so information about
+    directly used routines in it is correct.
+  */
+  fill_dd_view_routines(view_obj, thd->lex);
 
   return false;
 }

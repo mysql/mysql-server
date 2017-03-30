@@ -978,7 +978,7 @@ bool PT_call::contextualize(Parse_context *pc)
 
   lex->sql_command= SQLCOM_CALL;
 
-  sp_add_used_routine(lex, thd, proc_name, enum_sp_type::PROCEDURE);
+  sp_add_own_used_routine(lex, thd, Sroutine_hash_entry::PROCEDURE, proc_name);
 
   return false;
 }

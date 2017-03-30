@@ -45,8 +45,8 @@
 class Item;
 class Item_trigger_field;
 class Table_trigger_field_support;
+class Sroutine_hash_entry;
 class sp_head;
-struct MDL_key;
 struct PSI_sp_share;
 
 /**
@@ -140,8 +140,8 @@ public:
     m_qname.length= 0;
   }
 
-  /** Create temporary sp_name object from MDL key. */
-  sp_name(const MDL_key *key, char *qname_buff);
+  /** Create temporary sp_name object for Sroutine_hash_entry. */
+  sp_name(const Sroutine_hash_entry *rt, char *qname_buff);
 
   // Init. the qualified name from the db and name.
   void init_qname(THD *thd);	// thd for memroot allocation

@@ -357,10 +357,7 @@ public:
      - LOCKING_SERVICE is for the name plugin RW-lock service
      - SRID is for spatial reference systems
      - ACL_CACHE is for ACL caches
-    Note that although there isn't metadata locking on triggers,
-    it's necessary to have a separate namespace for them since
-    MDL_key is also used outside of the MDL subsystem.
-    Also note that requests waiting for user-level locks get special
+    Note that requests waiting for user-level locks get special
     treatment - waiting is aborted if connection to client is lost.
   */
   enum enum_mdl_namespace { GLOBAL=0,
@@ -415,6 +412,35 @@ public:
                                           m_ptr - 1);
     m_length= static_cast<uint16>(strmake(m_ptr + m_db_name_length + 2, name,
                                           NAME_LEN) - m_ptr + 1);
+  }
+  /**
+    Construct a metadata lock key from namespace and partial key, which
+    contains info about object database and name.
+
+    @remark The partial key must be "<database>\0<name>\0".
+
+    @param  mdl_namespace   Id of namespace of object to be locked
+    @param  part_key        Partial key.
+    @param  part_key_length Partial key length
+    @param  db_length       Database name length.
+  */
+  void mdl_key_init(enum_mdl_namespace mdl_namespace, const char *part_key,
+                    size_t part_key_length, size_t db_length)
+  {
+    /*
+      Key suffix provided should be in compatible format and
+      its components should adhere to length restrictions.
+    */
+    DBUG_ASSERT(strlen(part_key) == db_length);
+    DBUG_ASSERT(db_length + 1 + strlen(part_key + db_length + 1) + 1 ==
+                part_key_length);
+    DBUG_ASSERT(db_length <= NAME_LEN);
+    DBUG_ASSERT(part_key_length <= NAME_LEN + 1 + NAME_LEN + 1);
+
+    m_ptr[0]= (char) mdl_namespace;
+    memcpy(m_ptr + 1, part_key, part_key_length);
+    m_length= part_key_length + 1;
+    m_db_name_length= db_length;
   }
   void mdl_key_init(const MDL_key *rhs)
   {
@@ -533,6 +559,11 @@ public:
   void init_by_key_with_source(const MDL_key *key_arg, enum_mdl_type mdl_type_arg,
             enum_mdl_duration mdl_duration_arg,
             const char *src_file, uint src_line);
+  void init_by_part_key_with_source(MDL_key::enum_mdl_namespace namespace_arg,
+            const char *part_key_arg, size_t part_key_length_arg,
+            size_t db_length_arg, enum_mdl_type mdl_type_arg,
+            enum_mdl_duration mdl_duration_arg,
+            const char *src_file, uint src_line);
   /** Set type of lock request. Can be only applied to pending locks. */
   inline void set_type(enum_mdl_type type_arg)
   {
@@ -595,6 +626,8 @@ public:
 #define MDL_REQUEST_INIT_BY_KEY(R, P1, P2, P3) \
   (*R).init_by_key_with_source(P1, P2, P3, __FILE__, __LINE__)
 
+#define MDL_REQUEST_INIT_BY_PART_KEY(R, P1, P2, P3, P4, P5, P6) \
+  (*R).init_by_part_key_with_source(P1, P2, P3, P4, P5, P6, __FILE__, __LINE__)
 
 /**
   An abstract class for inspection of a connected

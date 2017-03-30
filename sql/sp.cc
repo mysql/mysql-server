@@ -1666,8 +1666,8 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc)
 const uchar* sp_sroutine_key(const uchar *ptr, size_t *plen)
 {
   const Sroutine_hash_entry *rn= pointer_cast<const Sroutine_hash_entry*>(ptr);
-  *plen= rn->mdl_request.key.length();
-  return rn->mdl_request.key.ptr();
+  *plen= rn->m_key_length;
+  return rn->m_key;
 }
 
 
@@ -1675,16 +1675,16 @@ const uchar* sp_sroutine_key(const uchar *ptr, size_t *plen)
   Auxilary function that adds new element to the set of stored routines
   used by statement.
 
-  In case when statement uses stored routines but does not need
-  prelocking (i.e. it does not use any tables) we will access the
-  elements of Query_tables_list::sroutines set on prepared statement
-  re-execution. Because of this we have to allocate memory for both
+  The elements of Query_tables_list::sroutines set are accessed on prepared
+  statement re-execution. Because of this we have to allocate memory for both
   hash element and copy of its key in persistent arena.
 
   @param prelocking_ctx  Prelocking context of the statement
   @param arena           Arena in which memory for new element will be
                          allocated
   @param key             Key for the hash representing set
+  @param key_length      Key length.
+  @param db_length       Length of db name component in the key.
   @param belong_to_view  Uppermost view which uses this routine
                          (0 if routine is not used by view)
 
@@ -1704,23 +1704,35 @@ const uchar* sp_sroutine_key(const uchar *ptr, size_t *plen)
     the set).
 */
 
-bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
-                         const MDL_key *key, TABLE_LIST *belong_to_view)
+static bool
+sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
+                    const uchar *key, size_t key_length,
+                    size_t db_length, TABLE_LIST *belong_to_view)
 {
   if (!my_hash_inited(&prelocking_ctx->sroutines))
-    my_hash_init(&prelocking_ctx->sroutines, system_charset_info,
+  {
+    /*
+      See Sroutine_hash_entry for explanation why this hash uses binary
+      key comparison.
+    */
+    my_hash_init(&prelocking_ctx->sroutines, &my_charset_bin,
                  Query_tables_list::START_SROUTINES_HASH_SIZE, 0,
                  sp_sroutine_key, nullptr, 0,
                  PSI_INSTRUMENT_ME);
+  }
 
-  if (!my_hash_search(&prelocking_ctx->sroutines, key->ptr(), key->length()))
+  if (!my_hash_search(&prelocking_ctx->sroutines, key, key_length))
   {
     Sroutine_hash_entry *rn=
       (Sroutine_hash_entry *)arena->alloc(sizeof(Sroutine_hash_entry));
     if (!rn)              // OOM. Error will be reported using fatal_error().
       return FALSE;
-    MDL_REQUEST_INIT_BY_KEY(&rn->mdl_request,
-                            key, MDL_SHARED, MDL_TRANSACTION);
+    rn->m_key= (uchar*)arena->alloc(key_length);
+    if (!rn->m_key)       // Ditto.
+      return FALSE;
+    rn->m_key_length= key_length;
+    rn->m_db_length= db_length;
+    memcpy(rn->m_key, key, key_length);
     if (my_hash_insert(&prelocking_ctx->sroutines, (uchar *)rn))
       return FALSE;
     prelocking_ctx->sroutines_list.link_in_list(rn, &rn->next);
@@ -1733,8 +1745,8 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 
 
 /**
-  Add routine which is explicitly used by statement to the set of stored
-  routines used by this statement.
+  Add routine or trigger which is used by statement to the set of
+  stored routines used by this statement.
 
   To be friendly towards prepared statements one should pass
   persistent arena as second argument.
@@ -1742,32 +1754,76 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
   @param prelocking_ctx  Prelocking context of the statement
   @param arena           Arena in which memory for new element of the set
                          will be allocated
-  @param rt              Routine name
-  @param rt_type         Routine type (one of PROCEDURE/...)
+  @param type            Routine type (one of FUNCTION/PROCEDURE/TRIGGER ...)
+  @param db              Database name
+  @param db_length       Database name length
+  @param name            Routine name
+  @param name_length     Routine name length
+  @param lowercase_name  Indicates whether name needs to be lowercased when
+                         constructing key.
+  @param own_routine     Indicates whether routine is explicitly or implicitly
+                         used.
+  @param belong_to_view  Uppermost view which uses this routine
+                         (nullptr if routine is not used by view)
 
   @note
     Will also add element to end of 'Query_tables_list::sroutines_list' list
-    (and will take into account that this is an explicitly used routine).
+    (and will take into account if this is an explicitly used routine).
+
+  @retval True  - new element was added.
+  @retval False - element was not added (because it is already present
+          in the set).
 */
 
-void sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
-                         sp_name *rt, enum_sp_type rt_type)
+bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
+                         Sroutine_hash_entry::entry_type type,
+                         const char *db, size_t db_length,
+                         const char *name, size_t name_length,
+                         bool lowercase_name, bool own_routine,
+                         TABLE_LIST *belong_to_view)
 {
-  // Stored routine names are case insensitive. So for the proper MDL key
-  // comparison, routine name is converted to the lower case while preparing the
-  // MDL_key.
-  char lc_name[NAME_LEN + 1];
-  my_stpncpy(lc_name, rt->m_name.str, NAME_LEN);
-  my_casedn_str(system_charset_info, lc_name);
-  lc_name[NAME_LEN]= '\0';
-  MDL_key key((rt_type == enum_sp_type::FUNCTION) ? MDL_key::FUNCTION :
-                                                    MDL_key::PROCEDURE,
-              rt->m_db.str, lc_name);
+  // Length of routine name components needs to be checked earlier.
+  DBUG_ASSERT(db_length <= NAME_LEN && name_length <= NAME_LEN);
 
-  (void)sp_add_used_routine(prelocking_ctx, arena, &key, 0);
-  prelocking_ctx->sroutines_list_own_last= prelocking_ctx->sroutines_list.next;
-  prelocking_ctx->sroutines_list_own_elements=
-                    prelocking_ctx->sroutines_list.elements;
+  uchar key[1 + NAME_LEN + 1 + NAME_LEN + 1];
+  size_t key_length= 0;
+
+  key[key_length++]= static_cast<uchar>(type);
+  memcpy(key + key_length, db, db_length + 1);
+  key_length+= db_length + 1;
+  memcpy(key + key_length, name, name_length + 1);
+
+  if (lowercase_name)
+  {
+    /*
+      Stored routine names are case-insensitive. So for the proper hash key
+      comparison, routine name is converted to the lower case while preparing
+      the Sroutine_hash_entry key.
+
+      TODO: lowercasing is not enough as stored routine names are
+            accent-insensitive as well at the moment. This discrepancy
+            should be addressed at some point.
+    */
+    key_length+= my_casedn_str(system_charset_info,
+                               (char*)(key) + key_length) + 1;
+  }
+  else
+    key_length+= name_length + 1;
+
+  if (sp_add_used_routine(prelocking_ctx, arena, key, key_length,
+                          db_length, belong_to_view))
+  {
+
+    if (own_routine)
+    {
+      prelocking_ctx->sroutines_list_own_last= prelocking_ctx->sroutines_list.next;
+      prelocking_ctx->sroutines_list_own_elements=
+                        prelocking_ctx->sroutines_list.elements;
+    }
+    return true;
+  }
+
+  return false;
 }
 
 
@@ -1821,7 +1877,8 @@ sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
   {
     Sroutine_hash_entry *rt= (Sroutine_hash_entry *)my_hash_element(src, i);
     (void)sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
-                              &rt->mdl_request.key, belong_to_view);
+                              rt->m_key, rt->m_key_length,
+                              rt->m_db_length, belong_to_view);
   }
 }
 
@@ -1846,7 +1903,8 @@ void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
 {
   for (Sroutine_hash_entry *rt= src->first; rt; rt= rt->next)
     (void)sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
-                              &rt->mdl_request.key, belong_to_view);
+                              rt->m_key, rt->m_key_length,
+                              rt->m_db_length, belong_to_view);
 }
 
 
@@ -1859,9 +1917,8 @@ enum_sp_return_code sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
                                      bool lookup_only, sp_head **sp)
 {
   char qname_buff[NAME_LEN*2+1+1];
-  sp_name name(&rt->mdl_request.key, qname_buff);
-  MDL_key::enum_mdl_namespace mdl_type= rt->mdl_request.key.mdl_namespace();
-  enum_sp_type type= (mdl_type == MDL_key::FUNCTION) ?
+  sp_name name(rt, qname_buff);
+  enum_sp_type type= (rt->type() == Sroutine_hash_entry::FUNCTION) ?
     enum_sp_type::FUNCTION : enum_sp_type::PROCEDURE;
 
   /*
@@ -1870,7 +1927,11 @@ enum_sp_return_code sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
     in sroutines_list has an MDL lock unless it's a top-level call, or a
     trigger, but triggers can't occur here (see the preceding assert).
   */
-  DBUG_ASSERT(rt->mdl_request.ticket || rt == thd->lex->sroutines_list.first);
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+                                 rt->type() == Sroutine_hash_entry::FUNCTION ?
+                                 MDL_key::FUNCTION : MDL_key::PROCEDURE,
+                                 rt->db(), rt->name(), MDL_SHARED) ||
+              rt == thd->lex->sroutines_list.first);
 
   return sp_cache_routine(thd, type, &name, lookup_only, sp);
 }

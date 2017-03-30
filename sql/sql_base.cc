@@ -4919,14 +4919,13 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
                          Open_table_context *ot_ctx,
                          bool *need_prelocking, bool *routine_modifies_data)
 {
-  MDL_key::enum_mdl_namespace mdl_type= rt->mdl_request.key.mdl_namespace();
   *routine_modifies_data= false;
   DBUG_ENTER("open_and_process_routine");
 
-  switch (mdl_type)
+  switch (rt->type())
   {
-  case MDL_key::FUNCTION:
-  case MDL_key::PROCEDURE:
+  case Sroutine_hash_entry::FUNCTION:
+  case Sroutine_hash_entry::PROCEDURE:
     {
       sp_head *sp;
       /*
@@ -4937,13 +4936,15 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
         up there, not the CALL itself.
       */
       if (rt != prelocking_ctx->sroutines_list.first ||
-          mdl_type != MDL_key::PROCEDURE)
+          rt->type() != Sroutine_hash_entry::PROCEDURE)
       {
-        /*
-          Since we acquire only shared lock on routines we don't
-          need to care about global intention exclusive locks.
-        */
-        DBUG_ASSERT(rt->mdl_request.type == MDL_SHARED);
+        MDL_request mdl_request;
+
+        MDL_REQUEST_INIT_BY_PART_KEY(&mdl_request,
+            (rt->type() == Sroutine_hash_entry::FUNCTION) ?
+            MDL_key::FUNCTION : MDL_key::PROCEDURE,
+            rt->part_mdl_key(), rt->part_mdl_key_length(), rt->db_length(),
+            MDL_SHARED, MDL_TRANSACTION);
 
         /*
           Waiting for a conflicting metadata lock to go away may
@@ -4957,7 +4958,7 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
         MDL_deadlock_handler mdl_deadlock_handler(ot_ctx);
 
         thd->push_internal_handler(&mdl_deadlock_handler);
-        bool result= thd->mdl_context.acquire_lock(&rt->mdl_request,
+        bool result= thd->mdl_context.acquire_lock(&mdl_request,
                                                    ot_ctx->get_timeout());
         thd->pop_internal_handler();
 
@@ -4997,7 +4998,7 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
       }
     }
     break;
-  case MDL_key::TRIGGER:
+  case Sroutine_hash_entry::TRIGGER:
     /**
       We add trigger entries to lex->sroutines_list, but we don't
       load them here. The trigger entry is only used when building
@@ -6130,7 +6131,7 @@ handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
   */
 
   if (rt != prelocking_ctx->sroutines_list.first ||
-      rt->mdl_request.key.mdl_namespace() != MDL_key::PROCEDURE)
+      rt->type() != Sroutine_hash_entry::PROCEDURE)
   {
     *need_prelocking= TRUE;
     sp_update_stmt_used_routines(thd, prelocking_ctx, &sp->m_sroutines,
@@ -6924,10 +6925,6 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
   if (first_not_own_table == *tables)
     *tables= 0;
   thd->lex->chop_off_not_own_tables();
-  /* Reset MDL tickets for procedures/functions */
-  for (Sroutine_hash_entry *rt= thd->lex->sroutines_list.first;
-       rt; rt= rt->next)
-    rt->mdl_request.ticket= NULL;
   sp_remove_not_own_routines(thd->lex);
   for (tmp= *tables; tmp; tmp= tmp->next_global)
   {

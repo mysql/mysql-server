@@ -8606,7 +8606,7 @@ bool Item_func_sp::itemize(Parse_context *pc, Item **res)
   }
 
   m_name->init_qname(thd);
-  sp_add_used_routine(lex, thd, m_name, enum_sp_type::FUNCTION);
+  sp_add_own_used_routine(lex, thd, Sroutine_hash_entry::FUNCTION, m_name);
 
   dummy_table= (TABLE*) sql_calloc(sizeof(TABLE)+ sizeof(TABLE_SHARE));
   if (dummy_table == NULL)

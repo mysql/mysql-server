@@ -1934,11 +1934,6 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex)
     tables->reinit_before_use(thd);
   }
 
-  /* Reset MDL tickets for procedures/functions */
-  for (Sroutine_hash_entry *rt= thd->lex->sroutines_list.first;
-       rt; rt= rt->next)
-    rt->mdl_request.ticket= NULL;
-
   lex->set_current_select(lex->select_lex);
 
   if (lex->result)
