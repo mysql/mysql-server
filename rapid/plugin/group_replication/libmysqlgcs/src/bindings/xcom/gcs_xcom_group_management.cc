@@ -131,16 +131,18 @@ modify_configuration(const Gcs_interface_parameters& reconfigured_group)
     }
 
     addrs[i]= const_cast<char *>((*nodes_it).c_str());
-    uuids[i].data.data_len= Gcs_uuid::size;
     uuids[i].data.data_val=
-      static_cast<char *>(malloc(uuids[i].data.data_len * sizeof(char)));
+      static_cast<char *>(
+        malloc(member->get_member_uuid().actual_value.size())
+      );
     member->get_member_uuid().encode(
-      reinterpret_cast<uchar **>(&uuids[i].data.data_val)
+      reinterpret_cast<uchar **>(&uuids[i].data.data_val),
+      &uuids[i].data.data_len
     );
  
     MYSQL_GCS_LOG_TRACE(
       "::modify_configuration():: Node[" << i << "]=" << addrs[i]  << " "
-      << member->get_member_uuid().value
+      << member->get_member_uuid().actual_value.c_str();
     );
   }
 

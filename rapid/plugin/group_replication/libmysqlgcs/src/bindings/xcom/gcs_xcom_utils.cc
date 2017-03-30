@@ -911,9 +911,9 @@ Gcs_xcom_nodes::Gcs_xcom_nodes(const site_def *site, node_set &nodes)
     m_addresses.push_back(address);
 
     /* Get member uuid and save it. */
-    assert(uuid.size ==  site->nodes.node_list_val[i].uuid.data.data_len);
     uuid.decode(
-      reinterpret_cast<uchar *>(site->nodes.node_list_val[i].uuid.data.data_val)
+      reinterpret_cast<uchar *>(site->nodes.node_list_val[i].uuid.data.data_val),
+      site->nodes.node_list_val[i].uuid.data.data_len
     );
     m_uuids.push_back(uuid);
 

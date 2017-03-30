@@ -78,18 +78,19 @@ static void expel_nodes_from_group(nodes_to_kill *ntk)
 
   for (int i= 0; nodes_it != nodes_end; i++, ++nodes_it)
   {
-    addrs[i]= const_cast<char *>((*nodes_it)->get_member_id().c_str());
-    uuids[i].data.data_len= Gcs_uuid::size;
-    uuids[i].data.data_val=
-      static_cast<char *>(malloc(uuids[i].data.data_len * sizeof(char)));
+    const Gcs_uuid &uuid= (*nodes_it)->get_member_uuid();
+    const std::string &member_id= (*nodes_it)->get_member_id();
+
+    addrs[i]= const_cast<char *>(member_id.c_str());
+    uuids[i].data.data_val= static_cast<char *>(malloc(uuid.actual_value.size()));
     (*nodes_it)->get_member_uuid().encode(
-      reinterpret_cast<uchar **>(&uuids[i].data.data_val)
+      reinterpret_cast<uchar **>(&uuids[i].data.data_val),
+      &uuids[i].data.data_len
     );
 
     MYSQL_GCS_LOG_TRACE(
-      "expel_nodes_from_group():: "
-      << "Node[" << i << "]=" << addrs[i]
-      << ", uuid=" << (*nodes_it)->get_member_uuid().value
+      "expel_nodes_from_group():: Node[" << i << "]=(address="
+      << addrs[i] << ", uuid=" << uuid.actual_value.c_str()
       << ")"
     );
   }
@@ -303,11 +304,12 @@ void Gcs_xcom_control::init_me()
     m_node_list_me.node_list_len= 0;
   }
 
-  uuid.data.data_len= Gcs_uuid::size;
   uuid.data.data_val=
-    static_cast<char *>(malloc(uuid.data.data_len * sizeof(char)));
+    static_cast<char *>(malloc(m_local_member_id->get_member_uuid().actual_value.size() *
+                        sizeof(char)));
   m_local_member_id->get_member_uuid().encode(
-      reinterpret_cast<uchar **>(&uuid.data.data_val)
+      reinterpret_cast<uchar **>(&uuid.data.data_val),
+      &uuid.data.data_len
   );
 
   m_node_list_me.node_list_len= 1;
@@ -475,7 +477,8 @@ enum_gcs_error Gcs_xcom_control::retry_do_join()
   {
     MYSQL_GCS_LOG_TRACE(
       "::join():: I am the boot node. " <<  local_port << " "  <<
-      m_local_member_id->get_member_uuid().value << ". Calling xcom_client_boot"
+      m_local_member_id->get_member_uuid().actual_value.c_str() <<
+      ". Calling xcom_client_boot"
     )
 
     int error= 0;
@@ -556,8 +559,8 @@ enum_gcs_error Gcs_xcom_control::retry_do_join()
       }
       MYSQL_GCS_LOG_TRACE(
         "::join():: Calling xcom_client_add_node " << local_port << " "
-        << m_local_member_id->get_member_uuid().value << " connected to "
-        << addr << ":" << port << " to join"
+        << m_local_member_id->get_member_uuid().actual_value.c_str() <<
+        " connected to " << addr << ":" << port << " to join"
       )
       if (!m_xcom_proxy->xcom_client_add_node(con, &m_node_list_me,
                                               m_gid_hash))
