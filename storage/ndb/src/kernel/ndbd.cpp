@@ -818,6 +818,7 @@ ndbd_run(bool foreground, int report_fd,
          bool no_start, bool initial, bool initialstart,
          unsigned allocated_nodeid, int connect_retries, int connect_delay)
 {
+#ifdef NDB_ASYNC_LOG_NOT_YET
   LogBuffer* logBuf = new LogBuffer(32768); // 32kB
   BufferedOutputStream* ndbouts_bufferedoutputstream = new BufferedOutputStream(logBuf);
 
@@ -838,6 +839,7 @@ ndbd_run(bool foreground, int report_fd,
                        0,
                        (char*)"async_log_thread",
                        NDB_THREAD_PRIO_MEAN);
+#endif
 
 #ifdef _WIN32
   {
@@ -981,8 +983,9 @@ ndbd_run(bool foreground, int report_fd,
   */
   globalEmulatorData.theThreadConfig->init();
 
+#ifdef NDB_ASYNC_LOG_NOT_YET
   globalEmulatorData.theConfiguration->addThread(log_threadvar, NdbfsThread);
-
+#endif
 
 #ifdef VM_TRACE
   // Initialize signal logger before block constructors
@@ -1116,6 +1119,7 @@ ndbd_run(bool foreground, int report_fd,
 
   NdbShutdown(0, NST_Normal);
 
+#ifdef NDB_ASYNC_LOG_NOT_YET
   /**
    * Stopping the log thread is done at the very end since the
    * data node logs should be available until complete shutdown.
@@ -1127,7 +1131,7 @@ ndbd_run(bool foreground, int report_fd,
   NdbThread_Destroy(&log_threadvar);
   delete logBuf;
   delete ndbouts_bufferedoutputstream;
-
+#endif
   ndbd_exit(0);
 }
 
