@@ -397,11 +397,19 @@ SET(SQL_SHARED_SOURCES
   ${MYSQL_SERVER_SUB_COMPONENT_SOURCES}
 )
 
+# Needed so that IDEs (e.g. Xcode) can see all sources when searching
+FILE(GLOB_RECURSE SQL_HEADERS
+  "${CMAKE_SOURCE_DIR}/include/*.h"
+  "${CMAKE_SOURCE_DIR}/sql/*.h"
+  "${CMAKE_SOURCE_DIR}/storage/*.h"
+)
+
 SET(SQL_SOURCE
   ${GEN_SOURCES}
   ${GEN_DIGEST_SOURCES}
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
+  ${SQL_HEADERS}
   ../extra/lz4/xxhash.c
   ../libmysql/errmsg.cc
   ../sql-common/client.cc
