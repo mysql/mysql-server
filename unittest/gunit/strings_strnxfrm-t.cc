@@ -725,6 +725,7 @@ static void BM_MixedUTF8MB4_AS_CS(size_t num_iterations)
 
   EXPECT_EQ(sizeof(expected), ret);
   expect_arrays_equal(expected, dest, ret);
+  SetBytesProcessed(num_iterations * strlen(content));
 }
 BENCHMARK(BM_MixedUTF8MB4_AS_CS);
 
@@ -779,6 +780,7 @@ static void BM_JapaneseUTF8MB4(size_t num_iterations)
   StopBenchmarkTiming();
 
   expect_arrays_equal(expected, dest, sizeof(dest));
+  SetBytesProcessed(num_iterations * strlen(content));
 }
 BENCHMARK(BM_JapaneseUTF8MB4);
 
@@ -845,6 +847,7 @@ static void BM_NewlineFilledUTF8MB4(size_t num_iterations)
   StopBenchmarkTiming();
 
   expect_arrays_equal(expected, dest, sizeof(dest));
+  SetBytesProcessed(num_iterations * strlen(content));
 }
 BENCHMARK(BM_NewlineFilledUTF8MB4);
 
@@ -1118,6 +1121,7 @@ static void BM_Japanese_AS_CS(size_t num_iterations)
   StopBenchmarkTiming();
 
   expect_arrays_equal(expected, dest, sizeof(dest));
+  SetBytesProcessed(num_iterations * strlen(content));
 }
 BENCHMARK(BM_Japanese_AS_CS);
 
