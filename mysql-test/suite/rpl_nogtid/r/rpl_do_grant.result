@@ -136,7 +136,7 @@ Function	sql_mode	Create Function	character_set_client	collation_connection	Data
 upgrade_del_func	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`create_rout_db`@`localhost` FUNCTION `upgrade_del_func`() RETURNS char(30) CHARSET utf8mb4
 BEGIN
 RETURN "INSIDE upgrade_del_func()";
-END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT upgrade_del_func();
 upgrade_del_func()
 INSIDE upgrade_del_func()
@@ -147,7 +147,7 @@ Function	sql_mode	Create Function	character_set_client	collation_connection	Data
 upgrade_del_func	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`create_rout_db`@`localhost` FUNCTION `upgrade_del_func`() RETURNS char(30) CHARSET utf8mb4
 BEGIN
 RETURN "INSIDE upgrade_del_func()";
-END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT upgrade_del_func();
 upgrade_del_func()
 INSIDE upgrade_del_func()
@@ -172,7 +172,7 @@ Function	sql_mode	Create Function	character_set_client	collation_connection	Data
 upgrade_alter_func	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`create_rout_db`@`localhost` FUNCTION `upgrade_alter_func`() RETURNS char(30) CHARSET utf8mb4
 BEGIN
 RETURN "INSIDE upgrade_alter_func()";
-END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 "Should no privilege record for upgrade_alter_func in mysql.procs_priv"
 SELECT * FROM mysql.procs_priv;
 Host	Db	User	Routine_name	Routine_type	Grantor	Proc_priv	Timestamp

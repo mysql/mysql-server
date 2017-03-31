@@ -1,4 +1,4 @@
-
+--character_set ujis
 --disable_warnings
 DROP TABLE IF EXISTS `Ž±Ž±Ž±`;
 DROP TABLE IF EXISTS `Ž²Ž²Ž²`;

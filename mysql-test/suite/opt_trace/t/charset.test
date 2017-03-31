@@ -15,6 +15,7 @@ insert into t1 values(1);
 # test non-utf8 chars in the SELECT list
 
 set names latin1;
+--character_set latin1
 # The 5 'A's below are, in this file's bytes, written in latin1
 # encoding: xC1C2C4C4C5. We send them as latin1; the server interprets
 # them as characters using latin1, then encodes those characters in

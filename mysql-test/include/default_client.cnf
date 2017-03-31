@@ -19,4 +19,4 @@ default-character-set=utf8mb4
 default-character-set=utf8mb4
 
 [mysqltest]
-default-character-set=latin1
+default-character-set=utf8mb4

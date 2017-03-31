@@ -223,6 +223,7 @@ drop user mysqltest_1@localhost;
 # Bug#3403 Wrong encoding in SHOW GRANTS output
 #
 SET NAMES koi8r;
+--character_set koi8r
 CREATE DATABASE бд;
 USE бд;
 CREATE TABLE таб (кол INT);
@@ -243,6 +244,7 @@ REVOKE SELECT (кол) ON бд.таб FROM юзер@localhost;
 DROP USER юзер@localhost;
 
 DROP DATABASE бд;
+--character_set utf8mb4
 SET NAMES latin1;
 
 #

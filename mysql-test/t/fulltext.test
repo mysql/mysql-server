@@ -285,9 +285,11 @@ drop table t1;
 # UTF8
 #
 SET NAMES latin1;
+--character_set latin1
 CREATE TABLE t1 (t text character set utf8 not null, fulltext(t));
 INSERT t1 VALUES ('Mit freundlichem GrЭъ'), ('aus OsnabrЭck');
 SET NAMES koi8r;
+--character_set koi8r
 INSERT t1 VALUES ("Это мы - опилки"),("Отлезь, гнида!"),
                 ("Не влезай, убьет!"),("и будет прав!");
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('ОПИЛКИ');
@@ -295,6 +297,7 @@ SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('ПрА*' IN BOOLEAN MODE);
 SELECT * FROM t1 WHERE MATCH t AGAINST ('это' IN BOOLEAN MODE);
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
 SET NAMES latin1;
+--character_set latin1
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrueck');
 SELECT t, collation(t),FORMAT(MATCH t AGAINST ('Osnabruck'),6) FROM t1 WHERE MATCH t AGAINST ('Osnabruck');

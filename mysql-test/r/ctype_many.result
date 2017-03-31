@@ -2,7 +2,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE IF EXISTS t1;
-SET CHARACTER SET latin1;
+SET CHARACTER SET koi8r;
 CREATE TABLE t1 (
 comment CHAR(32) ASCII NOT NULL,
 koi8_ru_f CHAR(32) CHARACTER SET koi8r NOT NULL default ''
