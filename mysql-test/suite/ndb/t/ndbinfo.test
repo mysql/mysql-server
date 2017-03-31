@@ -872,7 +872,7 @@ ORDER BY reporting_node_id, node_id;
 # Query the view
 SELECT node_id,
 node_type,
-process_name,
+replace(replace(process_name,"-debug",""),".exe","") AS process_name,
 if(process_id is null, "null", "not_null") as proc_id,
 if(angel_process_id is null, "null", "not_null") as angel_proc_id
 FROM processes

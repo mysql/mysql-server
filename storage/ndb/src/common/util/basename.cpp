@@ -17,18 +17,28 @@
 
 #include <ndb_global.h>
 
+/* 
+   Iterate backwards from the end of the string until a separator is found.
+   Treat both forward slash and backslash as path separators.
+   Either of them might appear in Windows environments.
+*/
+
+static inline bool is_separator(char c)
+{
+  return (c == '/' || c == '\\');
+}
+
 const char *
 ndb_basename(const char * path)
 {
   if (path == NULL)
     return NULL;
 
-  const char separator = DIR_SEPARATOR[0];
   const char * p = path + strlen(path);
-  while (p > path && p[0] != separator)
+  while (p > path && ! is_separator(p[0]))
     p--;
 
-  if (p[0] == separator)
+  if (is_separator(p[0]))
     return p + 1;
 
   return p;
