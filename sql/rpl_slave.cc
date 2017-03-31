@@ -1473,7 +1473,13 @@ static void print_slave_skip_errors(void)
     }
     if (buff != slave_skip_error_names)
       buff--; // Remove last ','
-    if (errnum < MAX_SLAVE_ERROR)
+    /*
+      The range for client side error is [2000-2999]
+      so if the errnum doesn't lie in that and if less
+      than MAX_SLAVE_ERROR[10000] we enter the if loop.
+    */
+    if (errnum < MAX_SLAVE_ERROR &&
+        (errnum < CR_MIN_ERROR || errnum > CR_MAX_ERROR))
     {
       /* Couldn't show all errors */
       buff= my_stpcpy(buff, "..."); /* purecov: tested */
@@ -1523,7 +1529,13 @@ static void add_slave_skip_errors(const uint* errors, uint n_errors)
   for (uint i = 0; i < n_errors; i++)
   {
     const uint err_code = errors[i];
-    if (err_code < MAX_SLAVE_ERROR)
+    /*
+      The range for client side error is [2000-2999]
+      so if the err_code doesn't lie in that and if less
+      than MAX_SLAVE_ERROR[10000] we enter the if loop.
+    */
+    if (err_code < MAX_SLAVE_ERROR &&
+        (err_code < CR_MIN_ERROR || err_code > CR_MAX_ERROR))
        bitmap_set_bit(&slave_error_mask, err_code);
   }
   DBUG_VOID_RETURN;
