@@ -20,6 +20,7 @@
 
 #include <assert.h>
 
+#include "my_inttypes.h"
 #include "mysql_com.h"  /* NAME_CHAR_LEN */
 #include "ndbapi/NdbApi.hpp"
 
