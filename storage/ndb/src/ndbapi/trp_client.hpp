@@ -85,6 +85,8 @@ public:
    * This variant does flush thread-local send-buffer
    */
   int safe_sendSignal(const NdbApiSignal*, Uint32 nodeId);
+  int safe_sendSignal(const NdbApiSignal*, Uint32 nodeId,
+                      const LinearSectionPtr ptr[3], Uint32 secs);
 
   /**
    * This sendSignal variant can be called on any trp_client
@@ -94,6 +96,9 @@ public:
    * This variant does not flush thread-local send-buffer
    */
   int safe_noflush_sendSignal(const NdbApiSignal*, Uint32 nodeId);
+  int safe_noflush_sendSignal(const NdbApiSignal*, Uint32 nodeId,
+                              const LinearSectionPtr ptr[3], Uint32 secs);
+
 private:
   /**
    * TransporterSendBufferHandle interface

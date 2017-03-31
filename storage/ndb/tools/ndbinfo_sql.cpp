@@ -172,6 +172,18 @@ struct view {
     " LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dbtc_apiconnect_state` s"
     "        ON s.state_int_value = t.state"
   },
+  { "config_nodes",
+    "SELECT distinct node_id, "
+    "CASE node_type"
+    "  WHEN 0 THEN \"NDB\""
+    "  WHEN 1 THEN \"API\""
+    "  WHEN 2 THEN \"MGM\""
+    "  ELSE NULL "
+    " END AS node_type, "
+    "node_hostname "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>config_nodes` "
+    "ORDER BY node_id"
+  },
   { "config_params",
     "SELECT param_number, param_name, param_description, param_type, param_default, "
     "param_min, param_max, param_mandatory, param_status "
@@ -428,6 +440,21 @@ struct view {
     "LEFT JOIN `<NDBINFO_DB>`.config_params cp4 ON p.config_param4 = cp4.param_number"
   },
 #endif
+  { "processes",
+    "SELECT DISTINCT node_id, "
+    "CASE node_type"
+    "  WHEN 0 THEN \"NDB\""
+    "  WHEN 1 THEN \"API\""
+    "  WHEN 2 THEN \"MGM\""
+    "  ELSE NULL "
+    " END AS node_type, "
+    " node_version, "
+    " NULLIF(process_id, 0) AS process_id, "
+    " NULLIF(angel_process_id, 0) AS angel_process_id, "
+    " process_name, service_URI "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>processes` "
+    "ORDER BY node_id"
+  },
   { "resources",
     "SELECT node_id, "
     " CASE resource_id"
