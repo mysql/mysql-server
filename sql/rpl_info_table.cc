@@ -122,7 +122,7 @@ int Rpl_info_table::do_init_info(enum_find_method method, uint instance)
   THD *thd= access->create_thd();
 
   saved_mode= thd->variables.sql_mode;
-  Disable_binlog_guard binlog_guard(thd);
+  thd->variables.option_bits &= ~OPTION_BIN_LOG;
 
   /*
     Opens and locks the rpl_info table before accessing it.
@@ -193,7 +193,7 @@ int Rpl_info_table::do_flush_info(const bool force)
 
   sync_counter= 0;
   saved_mode= thd->variables.sql_mode;
-  Disable_binlog_guard binlog_guard(thd);
+  thd->variables.option_bits &= ~OPTION_BIN_LOG;
   thd->is_operating_substatement_implicitly= true;
 
   /*
@@ -303,7 +303,7 @@ int Rpl_info_table::do_clean_info()
   THD *thd= access->create_thd();
 
   saved_mode= thd->variables.sql_mode;
-  Disable_binlog_guard binlog_guard(thd);
+  thd->variables.option_bits &= ~OPTION_BIN_LOG;
 
   /*
     Opens and locks the rpl_info table before accessing it.
@@ -371,7 +371,7 @@ int Rpl_info_table::do_reset_info(uint nparam,
 
   thd= info->access->create_thd();
   saved_mode= thd->variables.sql_mode;
-  Disable_binlog_guard binlog_guard(thd);
+  thd->variables.option_bits &= ~OPTION_BIN_LOG;
 
   /*
     Opens and locks the rpl_info table before accessing it.
@@ -797,7 +797,7 @@ bool Rpl_info_table::do_update_is_transactional()
 
   THD *thd= access->create_thd();
   saved_mode= thd->variables.sql_mode;
-  Disable_binlog_guard binlog_guard(thd);
+  thd->variables.option_bits &= ~OPTION_BIN_LOG;
 
   /*
     Opens and locks the rpl_info table before accessing it.
