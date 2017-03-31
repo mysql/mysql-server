@@ -880,7 +880,7 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
 
   /* Send ProcessInfo Report to a newly connected DB node */
   if ( cm_node.m_info.m_type == NodeInfo::DB &&
-       cm_node.m_info.m_version >= NDBD_PROCESSINFO_VERSION &&
+       ndbd_supports_processinfo(cm_node.m_info.m_version) &&
        (! cm_node.processInfoSent) )
   {
     sendProcessInfoReport(nodeId);
