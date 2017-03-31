@@ -105,16 +105,6 @@
 # Thread stack overrun in debug mode on sparc
 --source include/not_sparc_debug.inc
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs6=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 
 --disable_query_log
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -672,7 +662,7 @@ DROP TABLE t1,t2,t3;
 #
 SET SESSION binlog_format = STATEMENT;
 
-CREATE TABLE t1 (a VARCHAR(1000));
+CREATE TABLE t1 (a VARCHAR(1000)) charset latin1;
 INSERT INTO t1 VALUES (CURRENT_USER());       #marked unsafe before BUG#47995
 INSERT INTO t1 VALUES (FOUND_ROWS());         #marked unsafe before BUG#47995
 INSERT INTO t1 VALUES (GET_LOCK('tmp', 1));   #marked unsafe in BUG#47995
@@ -775,10 +765,3 @@ DROP TABLE create_replace_test;
 DROP TABLE insert_2_keys;
 
 --echo "End of tests"
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs6;
---enable_query_log
-########################################

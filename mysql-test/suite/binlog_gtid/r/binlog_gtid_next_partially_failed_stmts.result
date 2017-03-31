@@ -95,7 +95,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 #
 # Verify that the failed RENAME TABLE statement does not generate
 # a new GTID MASTER_UUID:8 and save it into @@GLOBAL.GTID_EXECUTED.
