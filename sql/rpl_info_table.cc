@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -122,7 +122,7 @@ int Rpl_info_table::do_init_info(enum_find_method method, uint instance)
   THD *thd= access->create_thd();
 
   saved_mode= thd->variables.sql_mode;
-  tmp_disable_binlog(thd);
+  Disable_binlog_guard binlog_guard(thd);
 
   /*
     Opens and locks the rpl_info table before accessing it.
@@ -170,7 +170,6 @@ end:
     Unlocks and closes the rpl_info table.
   */
   access->close_table(thd, table, &backup, error);
-  reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
   access->drop_thd(thd);
   DBUG_RETURN(error);
@@ -194,7 +193,7 @@ int Rpl_info_table::do_flush_info(const bool force)
 
   sync_counter= 0;
   saved_mode= thd->variables.sql_mode;
-  tmp_disable_binlog(thd);
+  Disable_binlog_guard binlog_guard(thd);
   thd->is_operating_substatement_implicitly= true;
 
   /*
@@ -281,7 +280,6 @@ end:
   */
   access->close_table(thd, table, &backup, error);
   thd->is_operating_substatement_implicitly= false;
-  reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
   access->drop_thd(thd);
   DBUG_RETURN(error);
@@ -305,7 +303,7 @@ int Rpl_info_table::do_clean_info()
   THD *thd= access->create_thd();
 
   saved_mode= thd->variables.sql_mode;
-  tmp_disable_binlog(thd);
+  Disable_binlog_guard binlog_guard(thd);
 
   /*
     Opens and locks the rpl_info table before accessing it.
@@ -336,7 +334,6 @@ end:
     Unlocks and closes the rpl_info table.
   */
   access->close_table(thd, table, &backup, error);
-  reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
   access->drop_thd(thd);
   DBUG_RETURN(error);
@@ -374,7 +371,7 @@ int Rpl_info_table::do_reset_info(uint nparam,
 
   thd= info->access->create_thd();
   saved_mode= thd->variables.sql_mode;
-  tmp_disable_binlog(thd);
+  Disable_binlog_guard binlog_guard(thd);
 
   /*
     Opens and locks the rpl_info table before accessing it.
@@ -447,7 +444,6 @@ end:
     Unlocks and closes the rpl_info table.
   */
   info->access->close_table(thd, table, &backup, error);
-  reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
   info->access->drop_thd(thd);
   delete info;
@@ -801,7 +797,7 @@ bool Rpl_info_table::do_update_is_transactional()
 
   THD *thd= access->create_thd();
   saved_mode= thd->variables.sql_mode;
-  tmp_disable_binlog(thd);
+  Disable_binlog_guard binlog_guard(thd);
 
   /*
     Opens and locks the rpl_info table before accessing it.
@@ -816,7 +812,6 @@ bool Rpl_info_table::do_update_is_transactional()
 
 end:
   access->close_table(thd, table, &backup, 0);
-  reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
   access->drop_thd(thd);
   DBUG_RETURN(error);

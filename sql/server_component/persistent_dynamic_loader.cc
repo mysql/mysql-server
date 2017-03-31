@@ -363,12 +363,11 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
     }
 
     /* We don't replicate INSTALL COMPONENT */
-    tmp_disable_binlog(thd);
+    Disable_binlog_guard binlog_guard(thd);
 
     auto guard_close_tables= create_scope_guard(
-      [&thd, &component_table, &tmp_disable_binlog__save_options]
+      [&thd, &component_table]
     {
-      thd->variables.option_bits= tmp_disable_binlog__save_options;
       trans_rollback_stmt(thd);
       close_mysql_tables(thd);
     });
@@ -405,9 +404,10 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
        of the insert into the component table, so that it is not replicated in
        row based mode.
      */
-      tmp_disable_binlog(thd);
-      res= component_table->file->ha_write_row(component_table->record[0]);
-      reenable_binlog(thd);
+      {
+        Disable_binlog_guard binlog_guard(thd);
+        res= component_table->file->ha_write_row(component_table->record[0]);
+      }
       if (res != 0)
       {
         my_error(ER_COMPONENT_MANIPULATE_ROW_FAILED, MYF(0), urns[i], res);
@@ -423,7 +423,6 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
 
     guard.commit();
     guard_close_tables.commit();
-    reenable_binlog(thd);
     trans_commit_stmt(thd);
     close_mysql_tables(thd);
     return false;
@@ -481,12 +480,11 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
     }
 
     /* We don't replicate UNINSTALL_COMPONENT */
-    tmp_disable_binlog(thd);
+    Disable_binlog_guard binlog_guard(thd);
 
     auto guard_close_tables= create_scope_guard(
-    [&thd, &component_table, &tmp_disable_binlog__save_options]()
+    [&thd, &component_table]()
     {
-      thd->variables.option_bits= tmp_disable_binlog__save_options;
       trans_rollback_stmt(thd);
       close_mysql_tables(thd);
     });
@@ -538,9 +536,10 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
         of the delete from the component table, so that it is not replicated in
         row based mode.
       */
-      tmp_disable_binlog(thd);
-      res= component_table->file->ha_delete_row(component_table->record[0]);
-      reenable_binlog(thd);
+      {
+        Disable_binlog_guard binlog_guard(thd);
+        res= component_table->file->ha_delete_row(component_table->record[0]);
+      }
 
       if (res != 0)
       {
@@ -552,7 +551,6 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
     }
 
     guard_close_tables.commit();
-    reenable_binlog(thd);
     trans_commit_stmt(thd);
     close_mysql_tables(thd);
 

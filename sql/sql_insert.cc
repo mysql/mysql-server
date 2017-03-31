@@ -2918,9 +2918,8 @@ void Query_result_create::send_error(uint errcode,const char *err)
     written to the binary log.
 
   */
-  tmp_disable_binlog(thd);
+  Disable_binlog_guard binlog_guard(thd);
   Query_result_insert::send_error(errcode, err);
-  reenable_binlog(thd);
 
   DBUG_VOID_RETURN;
 }
@@ -3088,10 +3087,11 @@ void Query_result_create::abort_result_set()
     of the table succeeded or not, since we need to reset the binary
     log state.
   */
-  tmp_disable_binlog(thd);
-  Query_result_insert::abort_result_set();
-  thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
-  reenable_binlog(thd);
+  {
+    Disable_binlog_guard binlog_guard(thd);
+    Query_result_insert::abort_result_set();
+    thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
+  }
   /* possible error of writing binary log is ignored deliberately */
   (void) thd->binlog_flush_pending_rows_event(TRUE, TRUE);
 

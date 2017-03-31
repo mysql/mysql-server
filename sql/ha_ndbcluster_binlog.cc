@@ -4106,7 +4106,7 @@ class Ndb_binlog_index_table_util
       Turn off binlogging to prevent the table changes to be written to
       the binary log.
     */
-    tmp_disable_binlog(thd);
+    Disable_binlog_guard binlog_guard(thd);
 
     if (open_binlog_index_table(thd, &ndb_binlog_index))
     {
@@ -4292,7 +4292,6 @@ class Ndb_binlog_index_table_util
     // Release MDL locks on the opened table
     thd->mdl_context.release_transactional_locks();
 
-    reenable_binlog(thd);
     return error;
   }
 

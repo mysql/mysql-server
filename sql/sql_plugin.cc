@@ -2303,18 +2303,19 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   }
   mysql_mutex_unlock(&LOCK_plugin);
 
-  /*
-    We do not replicate the INSTALL PLUGIN statement. Disable binlogging
-    of the insert into the plugin table, so that it is not replicated in
-    row based mode.
-  */
-  tmp_disable_binlog(thd);
-  table->use_all_columns();
-  restore_record(table, s->default_values);
-  table->field[0]->store(name->str, name->length, system_charset_info);
-  table->field[1]->store(dl->str, dl->length, files_charset_info);
-  error= table->file->ha_write_row(table->record[0]);
-  reenable_binlog(thd);
+  {
+    /*
+      We do not replicate the INSTALL PLUGIN statement. Disable binlogging
+      of the insert into the plugin table, so that it is not replicated in
+      row based mode.
+    */
+    Disable_binlog_guard binlog_guard(thd);
+    table->use_all_columns();
+    restore_record(table, s->default_values);
+    table->field[0]->store(name->str, name->length, system_charset_info);
+    table->field[1]->store(dl->str, dl->length, files_charset_info);
+    error= table->file->ha_write_row(table->record[0]);
+  }
   if (error)
   {
     table->file->print_error(error, MYF(0));
@@ -2488,9 +2489,8 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
       of the delete from the plugin table, so that it is not replicated in
       row based mode.
     */
-    tmp_disable_binlog(thd);
+    Disable_binlog_guard binlog_guard(thd);
     error= table->file->ha_delete_row(table->record[0]);
-    reenable_binlog(thd);
     if (error)
       table->file->print_error(error, MYF(0));
   }

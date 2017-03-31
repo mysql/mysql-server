@@ -4153,12 +4153,6 @@ my_eof(THD *thd)
   }
 }
 
-#define tmp_disable_binlog(A)       \
-  {ulonglong tmp_disable_binlog__save_options= (A)->variables.option_bits; \
-  (A)->variables.option_bits&= ~OPTION_BIN_LOG
-
-#define reenable_binlog(A)   (A)->variables.option_bits= tmp_disable_binlog__save_options;}
-
 LEX_STRING *
 make_lex_string_root(MEM_ROOT *mem_root,
                      LEX_STRING *lex_str, const char* str, size_t length,
@@ -4276,6 +4270,32 @@ private:
   bool m_save_is_operating_substatement_implicitly;
   bool m_save_skip_gtid_rollback;
 };
+
+
+/**
+  RAII class to temporarily disable binlogging.
+*/
+
+class Disable_binlog_guard
+{
+public:
+  Disable_binlog_guard(THD *thd)
+    : m_thd(thd), m_binlog_disabled(thd->variables.option_bits & OPTION_BIN_LOG)
+  {
+    thd->variables.option_bits &= ~OPTION_BIN_LOG;
+  }
+
+  ~Disable_binlog_guard()
+  {
+    if (m_binlog_disabled)
+      m_thd->variables.option_bits |= OPTION_BIN_LOG;
+  }
+
+private:
+  THD * const m_thd;
+  const bool m_binlog_disabled;
+};
+
 
 /**
   RAII class which allows to save, clear and store binlog format state

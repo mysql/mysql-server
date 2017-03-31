@@ -12696,19 +12696,18 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       DBUG_RETURN(true);
   }
 
-  tmp_disable_binlog(thd);
-
-  error= create_table_impl(thd, alter_ctx.new_db, alter_ctx.tmp_name,
-                           alter_ctx.table_name,
-                           alter_ctx.get_tmp_path(),
-                           create_info, alter_info,
-                           true, 0, true, NULL,
-                           &key_info, &key_count, keys_onoff,
-                           &fk_key_info, &fk_key_count,
-                           alter_ctx.fk_info, alter_ctx.fk_count,
-                           &tmp_table_def, nullptr);
-
-  reenable_binlog(thd);
+  {
+    Disable_binlog_guard binlog_guard(thd);
+    error= create_table_impl(thd, alter_ctx.new_db, alter_ctx.tmp_name,
+                             alter_ctx.table_name,
+                             alter_ctx.get_tmp_path(),
+                             create_info, alter_info,
+                             true, 0, true, NULL,
+                             &key_info, &key_count, keys_onoff,
+                             &fk_key_info, &fk_key_count,
+                             alter_ctx.fk_info, alter_ctx.fk_count,
+                             &tmp_table_def, nullptr);
+  }
 
   if (error)
   {
