@@ -2960,7 +2960,7 @@ const MY_CSET_OS_NAME charsets[]=
   {"cp51949",        "euckr",    my_cs_exact},
   {"cp51950",        "big5",     my_cs_exact},
   {"cp54936",        "gb18030",  my_cs_exact},
-  {"cp65001",        "utf8",     my_cs_exact},
+  {"cp65001",        "utf8mb4",     my_cs_exact},
 
 #else /* not Windows */
 
@@ -3042,8 +3042,8 @@ const MY_CSET_OS_NAME charsets[]=
 
   {"US-ASCII",       "latin1",   my_cs_approx},
 
-  {"utf8",           "utf8",     my_cs_exact},
-  {"utf-8",          "utf8",     my_cs_exact},
+  {"utf8",           "utf8mb4",     my_cs_exact},
+  {"utf-8",          "utf8mb4",     my_cs_exact},
 #endif
   {NULL,             NULL,       my_cs_exact}
 };

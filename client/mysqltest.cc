@@ -269,8 +269,8 @@ static struct st_test_file file_stack[16];
 static struct st_test_file* cur_file;
 static struct st_test_file* file_stack_end;
 
-
-static CHARSET_INFO *charset_info= &my_charset_latin1; /* Default charset */
+static char* default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
+static CHARSET_INFO *charset_info= &my_charset_utf8mb4_0900_ai_ci; /* Default charset */
 
 /*
   Timer related variables
@@ -7014,9 +7014,9 @@ static int read_line(char *buf, int size)
 	DBUG_RETURN(0);
       }
       else if ((c == '{' &&
-                (!my_strnncoll_simple(charset_info, (const uchar*) "while", 5,
+                (!charset_info->coll->strnncoll(charset_info, (const uchar*) "while", 5,
                                       (uchar*) buf, min<my_ptrdiff_t>(5, p - buf), 0) ||
-                 !my_strnncoll_simple(charset_info, (const uchar*) "if", 2,
+                 !charset_info->coll->strnncoll(charset_info, (const uchar*) "if", 2,
                                       (uchar*) buf, min<my_ptrdiff_t>(2, p - buf), 0))))
       {
         /* Only if and while commands can be terminated by { */
@@ -7433,6 +7433,9 @@ static struct my_option my_long_options[] =
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &opt_charsets_dir,
    &opt_charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default-character-set", OPT_DEFAULT_CHARSET,
+   "Set the default character set.", &default_charset,
+   &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use the compressed server/client protocol.",
    &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -9721,6 +9724,10 @@ int main(int argc, char **argv)
   if (opt_compress)
     mysql_options(&con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+  if (strcmp(default_charset, charset_info->csname) &&
+    !(charset_info= get_charset_by_csname(default_charset,
+                                          MY_CS_PRIMARY, MYF(MY_WME))))
+    die("Invalid character set specified.");
   mysql_options(&con->mysql, MYSQL_SET_CHARSET_NAME,
                 charset_info->csname);
   if (opt_charsets_dir)
