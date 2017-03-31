@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,13 +11,13 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /* Includes missing defines for Sun RPC */
-#ifndef _MISSING_SYS_TYPES_H
-#define _MISSING_SYS_TYPES_H 1
+#ifndef _SUNRPC_SYS_TYPES_H
+#define _SUNRPC_SYS_TYPES_H 1
 
-#if defined(WIN32) || defined(WIN64)
+#if defined(_WIN32)
 
 #include <winsock2.h>
 
@@ -73,6 +73,12 @@ typedef unsigned __int32 uint32_t;
 typedef __int64 int64_t;
 typedef unsigned __int64 uint64_t;
 
+#ifndef MCMD_COMPILE //Outside MCM, we use stdint.h
+#define UINT8_MAX  (255)
+#define UINT16_MAX (65535)
+#define UINT32_MAX (4294967295U)
+#endif
+
 /* WIN32 missing net/if.h */
 typedef int __daddr_t;
 typedef char *__caddr_t;
@@ -87,4 +93,4 @@ typedef long suseconds_t; /* signed number of microseconds */
 
 #endif /* WIN32 || WIN64 */
 
-#endif  /* missing_sys_types.h */
+#endif  /* sunrpc_sys_types.h */

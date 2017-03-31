@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #include <stdlib.h>
 
 #include "xcom_memory.h"
+#include "xcom_profile.h"
 #include "xcom_proto_enum.h"
 
 extern xcom_proto const my_xcom_version;
@@ -24,9 +25,7 @@ extern xcom_proto const my_xcom_version;
 /**
    Recursive free of data structures allocated by XDR.
  */
-void
-my_xdr_free (xdrproc_t proc, char *objp)
-{
+void my_xdr_free(xdrproc_t proc, char *objp) {
   XDR x;
   x.x_public = (caddr_t)&my_xcom_version;
   x.x_op = XDR_FREE;
@@ -43,14 +42,12 @@ my_xdr_free (xdrproc_t proc, char *objp)
     is the case). This will keep this code cross-platform
     and cross-version compatible.
   */
-  (*proc) (&x, objp, 0);
+  (*proc)(&x, objp, 0);
 }
 
-void xcom_xdr_free(xdrproc_t f, char *p)
-{
-  if(p){
-    my_xdr_free(f,p);
+void xcom_xdr_free(xdrproc_t f, char *p) {
+  if (p) {
+    my_xdr_free(f, p);
     X_FREE(p);
   }
 }
-

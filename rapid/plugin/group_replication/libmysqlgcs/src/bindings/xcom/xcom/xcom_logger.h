@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,23 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA */
 
+#ifndef XCOM_LOGGER_H
+#define XCOM_LOGGER_H
 
-#ifndef XCOM_DEBUG_H
-#define XCOM_DEBUG_H
+/* Log levels definition for use without external logger */
+typedef enum {
+  LOG_FATAL = 0,
+  LOG_ERROR = 1,
+  LOG_WARN = 2,
+  LOG_INFO = 3,
+  LOG_DEBUG = 4,
+  LOG_TRACE = 5
+} xcom_log_level_t;
 
-#include "gcs_debug.h"
-#include "err_dump.h"
+static const char* const log_levels[] = {"[XCOM_FATAL] ", "[XCOM_ERROR] ",
+                                         "[XCOM_WARN] ",  "[XCOM_INFO] ",
+                                         "[XCOM_DEBUG] ", "[XCOM_TRACE] "};
+
+typedef void (*xcom_logger)(int level, const char* message);
 
 #endif
-

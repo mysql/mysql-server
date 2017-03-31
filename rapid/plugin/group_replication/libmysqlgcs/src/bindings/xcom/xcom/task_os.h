@@ -22,12 +22,12 @@ extern "C" {
 
 #include "result.h"
 
-#ifdef WIN
+#ifdef _WIN32
 
-#include <winsock2.h>
-#include <io.h>
-#include <Ws2tcpip.h>
 #include <MSWSock.h>
+#include <Ws2tcpip.h>
+#include <io.h>
+#include <winsock2.h>
 
 #define DIR_SEP '\\'
 #define SOCK_EINTR WSAEINTR
@@ -36,29 +36,29 @@ extern "C" {
 #define SOCK_EINPROGRESS WSAEINPROGRESS
 #define SOCK_ERRNO task_errno
 #define SOCK_OPT_REUSEADDR SO_EXCLUSIVEADDRUSE
-#define GET_OS_ERR  WSAGetLastError()
+#define GET_OS_ERR WSAGetLastError()
 #define SET_OS_ERR(x) WSASetLastError(x)
 #define SOCK_ECONNREFUSED WSAECONNREFUSED
 #define CLOSESOCKET(x) closesocket(x)
+#define SOCK_SHUT_RDWR SD_BOTH
 
-  static inline int hard_connect_err(int err)
-  {
-	  return err != 0 && from_errno(err) != WSAEINTR && from_errno(err) != WSAEINPROGRESS && from_errno(err) != SOCK_EWOULDBLOCK;
-  }
+static inline int hard_connect_err(int err) {
+  return err != 0 && from_errno(err) != WSAEINTR &&
+         from_errno(err) != WSAEINPROGRESS &&
+         from_errno(err) != SOCK_EWOULDBLOCK;
+}
 
-  static inline int hard_select_err(int err)
-  {
-	  return err != 0 && from_errno(err) != WSAEINTR;
-  }
-
+static inline int hard_select_err(int err) {
+  return err != 0 && from_errno(err) != WSAEINTR;
+}
 
 #else
 #include <errno.h>
-#include <unistd.h>
-#include <sys/socket.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #define DIR_SEP '/'
 
@@ -77,67 +77,72 @@ extern "C" {
 #define SET_OS_ERR(x) errno = (x)
 #define SOCK_ECONNREFUSED ECONNREFUSED
 #define CLOSESOCKET(x) close(x)
+#define SOCK_SHUT_RDWR (SHUT_RD | SHUT_WR)
 
-  static inline int hard_connect_err(int err)
-  {
-	  return err != 0 && from_errno(err) != EINTR && from_errno(err) != EINPROGRESS;
-  }
+static inline int hard_connect_err(int err) {
+  return err != 0 && from_errno(err) != EINTR && from_errno(err) != EINPROGRESS;
+}
 
-  static inline int hard_select_err(int err)
-  {
-	  return from_errno(err) != 0 && from_errno(err) != EINTR;
-  }
+static inline int hard_select_err(int err) {
+  return from_errno(err) != 0 && from_errno(err) != EINTR;
+}
 
 #endif
 
-	extern void remove_and_wakeup(int fd);
+extern void remove_and_wakeup(int fd);
 
-	static inline result close_socket(int *sock)
-	{
-		result res = {0,0};
-		if(*sock != -1){
-			do{
-				SET_OS_ERR(0);
-				res.val = CLOSESOCKET(*sock);
-				res.funerr = to_errno(GET_OS_ERR);
-			}while(res.val == -1 && from_errno(res.funerr) == SOCK_EINTR);
-			remove_and_wakeup(*sock);
-			*sock = -1;
-		}
-		return res;
-	}
+static inline result close_socket(int *sock) {
+  result res = {0, 0};
+  if (*sock != -1) {
+    do {
+      SET_OS_ERR(0);
+      res.val = CLOSESOCKET(*sock);
+      res.funerr = to_errno(GET_OS_ERR);
+    } while (res.val == -1 && from_errno(res.funerr) == SOCK_EINTR);
+    remove_and_wakeup(*sock);
+    *sock = -1;
+  }
+  return res;
+}
 
-	static inline result shut_close_socket(int *sock)
-	{
-		result res = {0,0};
-		if(*sock >= 0){
-#if defined(WIN32) || defined(WIN64)
-			static LPFN_DISCONNECTEX DisconnectEx = NULL;
-			if (DisconnectEx == NULL)
-			{
-				DWORD dwBytesReturned;
-				GUID guidDisconnectEx = WSAID_DISCONNECTEX;
-				WSAIoctl(*sock, SIO_GET_EXTENSION_FUNCTION_POINTER,
-									&guidDisconnectEx, sizeof(GUID),
-									&DisconnectEx, sizeof(DisconnectEx),
-									&dwBytesReturned, NULL, NULL);
-			}
-			if (DisconnectEx != NULL)
-			{
-				(DisconnectEx(*sock, (LPOVERLAPPED) NULL,
-											(DWORD) 0, (DWORD) 0) == TRUE) ? 0 : -1;
-			}
-			else
+#if defined(_WIN32)
+
+static inline void shutdown_socket(int *sock) {
+  static LPFN_DISCONNECTEX DisconnectEx = NULL;
+  if (DisconnectEx == NULL) {
+    DWORD dwBytesReturned;
+    GUID guidDisconnectEx = WSAID_DISCONNECTEX;
+    WSAIoctl(*sock, SIO_GET_EXTENSION_FUNCTION_POINTER, &guidDisconnectEx,
+             sizeof(GUID), &DisconnectEx, sizeof(DisconnectEx),
+             &dwBytesReturned, NULL, NULL);
+  }
+  if (DisconnectEx != NULL) {
+    (DisconnectEx(*sock, (LPOVERLAPPED)NULL, (DWORD)0, (DWORD)0) == TRUE) ? 0
+                                                                          : -1;
+  } else {
+    shutdown(*sock, SOCK_SHUT_RDWR);
+  }
+}
+
+#else
+
+static inline void shutdown_socket(int *sock) {
+  shutdown(*sock, SOCK_SHUT_RDWR);
+}
+
 #endif
-			shutdown(*sock, _SHUT_RDWR);
-			res = close_socket(sock);
-		}
-		return res;
-	}
+
+static inline result shut_close_socket(int *sock) {
+  result res = {0, 0};
+  if (*sock >= 0) {
+    shutdown_socket(sock);
+    res = close_socket(sock);
+  }
+  return res;
+}
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif
-

@@ -35,4 +35,3 @@ void free_bit_set(bit_set *bs);
 #endif
 
 #endif
-

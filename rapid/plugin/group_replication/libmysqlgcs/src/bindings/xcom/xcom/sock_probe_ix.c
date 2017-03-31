@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,73 +13,69 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <sys/ioctl.h>
 #include <net/if.h>
+#include <sys/ioctl.h>
 #ifndef __linux__
 #include <sys/sockio.h>
 #endif
 #include <netdb.h>
 
-#include <string.h>
-#include <stdlib.h>
 #include <assert.h>
 #include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define BSD_COMP
 
 #include "simset.h"
-#include "xcom_common.h"
-#include "xcom_vp.h"
 #include "sock_probe.h"
-#include "task_os.h"
-#include "task_net.h"
 #include "task.h"
 #include "task_debug.h"
-#include "xcom_transport.h"
-#include "xcom_base.h"
-#include "xcom_memory.h"
-#include "node_no.h"
+#include "task_net.h"
+#include "task_os.h"
 #include "x_platform.h"
+#include "xcom_base.h"
+#include "xcom_common.h"
+#include "xcom_memory.h"
+#include "xcom_profile.h"
+#include "xcom_transport.h"
+#include "xcom_vp.h"
 
 #define IF_INIT_BUF_SIZE 512
 #define IFRP_INIT_ARR_SIZE 64
 
-struct sock_probe
-{
+struct sock_probe {
   int tmp_socket;
-  struct ifconf ifc;     /* interfaces configuration */
-  struct ifreq **ifrp;   /* index over ifc's buffer */
-  char *ifbuf;           /* buffer for ifc */
-  int nbr_ifs;           /* number of valid pointers in ifrp */
-
+  struct ifconf ifc;   /* interfaces configuration */
+  struct ifreq **ifrp; /* index over ifc's buffer */
+  char *ifbuf;         /* buffer for ifc */
+  int nbr_ifs;         /* number of valid pointers in ifrp */
 };
 
 static int number_of_interfaces(sock_probe *s);
 static sockaddr get_sockaddr(sock_probe *s, int count);
 static bool_t is_if_running(sock_probe *s, int count);
 
-static void reset_sock_probe(struct sock_probe *s)
-{
+static void reset_sock_probe(struct sock_probe *s) {
   s->tmp_socket = INVALID_SOCKET;
-  memset(&s->ifc,  0, sizeof(s->ifc));
-  s->ifc.ifc_len=0;
-  s->ifrp= NULL;
+  memset(&s->ifc, 0, sizeof(s->ifc));
+  s->ifc.ifc_len = 0;
+  s->ifrp = NULL;
   s->ifbuf = NULL;
-  s->nbr_ifs= 0;
+  s->nbr_ifs = 0;
 }
 
 /* Initialize socket probe */
-static int init_sock_probe(sock_probe *s)
-{
-  int i= 0, ifrpsize= 0, bufsize= 0;
-  bool_t abrt= FALSE;
-  char* ptr= NULL, *end= NULL;
-  struct ifreq* ifrecc= NULL;
+static int init_sock_probe(sock_probe *s) {
+  int i = 0, ifrpsize = 0, bufsize = 0;
+  bool_t abrt = FALSE;
+  char *ptr = NULL, *end = NULL;
+  struct ifreq *ifrecc = NULL;
 #if TASK_DBUG_ON
-  char* if_name  MY_ATTRIBUTE((unused))= NULL;
+  char *if_name MY_ATTRIBUTE((unused)) = NULL;
 #endif
 #if defined(SA_LEN) || defined(HAVE_STRUCT_SOCKADDR_SA_LEN)
-    struct sockaddr *sa MY_ATTRIBUTE((unused))= NULL;
+  struct sockaddr *sa MY_ATTRIBUTE((unused)) = NULL;
 #endif
 
   /* reset the fields of the structure */
@@ -90,29 +86,26 @@ static int init_sock_probe(sock_probe *s)
    make sure that we don't fill up the buffer. Then, when finally ifc_len
    is smaller than the buffer size, we break the loop.
    */
-  for (i= 0, bufsize= IF_INIT_BUF_SIZE;
-       i==0 || s->ifc.ifc_len >= bufsize;
-       i++, bufsize+= IF_INIT_BUF_SIZE)
-  {
-	  if (!(s->ifbuf= (char*)realloc(s->ifbuf, (size_t)bufsize)))
-    {
-      abrt= TRUE;
+  for (i = 0, bufsize = IF_INIT_BUF_SIZE; i == 0 || s->ifc.ifc_len >= bufsize;
+       i++, bufsize += IF_INIT_BUF_SIZE) {
+    if (!(s->ifbuf = (char *)realloc(s->ifbuf, (size_t)bufsize))) {
+      abrt = TRUE;
       /* Out of memory. */
       goto err;
     }
-    memset(&s->ifc,  0, sizeof(s->ifc));
+    memset(&s->ifc, 0, sizeof(s->ifc));
     memset(s->ifbuf, 0, (size_t)bufsize);
 
-    if ((s->tmp_socket = xcom_checked_socket(AF_INET, SOCK_DGRAM, 0).val) == INVALID_SOCKET)
+    if ((s->tmp_socket = xcom_checked_socket(AF_INET, SOCK_DGRAM, 0).val) ==
+        INVALID_SOCKET)
       goto err;
 
-    s->ifc.ifc_len= bufsize;
-    s->ifc.ifc_buf= s->ifbuf;
+    s->ifc.ifc_len = bufsize;
+    s->ifc.ifc_buf = s->ifbuf;
     /* Get information about IP interfaces on this machine.*/
-    if (ioctl(s->tmp_socket, SIOCGIFCONF, (char *)&s->ifc)< 0)
-    {
+    if (ioctl(s->tmp_socket, SIOCGIFCONF, (char *)&s->ifc) < 0) {
       DBGOUT(NUMEXP(errno); STREXP(strerror(errno)););
-      abrt= TRUE;
+      abrt = TRUE;
       goto err;
     }
   }
@@ -124,78 +117,70 @@ static int init_sock_probe(sock_probe *s)
    interfaces. We are doing this, since the size of sockaddr differs on
    some platforms.
    */
-  for (i= 0, ptr= s->ifc.ifc_buf, end= s->ifc.ifc_buf + s->ifc.ifc_len;
-       ptr<end;
-       i++)
-  {
+  for (i = 0, ptr = s->ifc.ifc_buf, end = s->ifc.ifc_buf + s->ifc.ifc_len;
+       ptr < end; i++) {
     /*
-     We are just starting or have filled up all pre-allocated entries.
-     Need to allocate some more.
-     */
-    if (i==ifrpsize || i==0)
-    {
-		ifrpsize+= IFRP_INIT_ARR_SIZE * (int)sizeof(struct ifreq *);
+We are just starting or have filled up all pre-allocated entries.
+Need to allocate some more.
+*/
+    if (i == ifrpsize || i == 0) {
+      ifrpsize += IFRP_INIT_ARR_SIZE * (int)sizeof(struct ifreq *);
       /* allocate one more block */
-		if (!(s->ifrp= (struct ifreq **) realloc(s->ifrp, (size_t)ifrpsize)))
-      {
-        abrt= TRUE;
+      if (!(s->ifrp = (struct ifreq **)realloc(s->ifrp, (size_t)ifrpsize))) {
+        abrt = TRUE;
         /* Out of memory. */
         goto err;
       }
     }
 
-    ifrecc= (struct ifreq*) ptr;
-    s->ifrp[i]= ifrecc;
+    ifrecc = (struct ifreq *)ptr;
+    s->ifrp[i] = ifrecc;
 #if defined(SA_LEN) || defined(HAVE_STRUCT_SOCKADDR_SA_LEN)
-    sa= &ifrecc->ifr_addr;
+    sa = &ifrecc->ifr_addr;
 #endif
 
 #if defined(SA_LEN)
-    ptr+= IFNAMSIZ + SA_LEN(sa);
+    ptr += IFNAMSIZ + SA_LEN(sa);
 #elif defined(HAVE_STRUCT_SOCKADDR_SA_LEN)
-    ptr+= IFNAMSIZ + sa->sa_len;
+    ptr += IFNAMSIZ + sa->sa_len;
 #else
-    ptr+= sizeof(struct ifreq);
+    ptr += sizeof(struct ifreq);
 #endif
 
 #if defined(TASK_DBUG_ON) && TASK_DBUG_ON
 #ifdef HAVE_STRUCT_IFREQ_IFR_NAME
-    if_name= ifrecc->ifr_name;
+    if_name = ifrecc->ifr_name;
 #else
-    if_name= ifrecc->ifr_ifrn.ifrn_name;
+    if_name = ifrecc->ifr_ifrn.ifrn_name;
 #endif /* HAVE_STRUCT_IFREQ_IFR_NAME */
 #if defined(SA_LEN) || defined(HAVE_STRUCT_SOCKADDR_SA_LEN)
-    DBGOUT(NPUT(if_name, s);
-           STRLIT("(sa_family="); NPUT(sa->sa_family, d); STRLIT(")"));
+    DBGOUT(NPUT(if_name, s); STRLIT("(sa_family="); NPUT(sa->sa_family, d);
+           STRLIT(")"));
 #endif
 #endif
-
   }
 
-  s->nbr_ifs= i;
+  s->nbr_ifs = i;
   return 0;
 err:
   free(s->ifbuf);
   free(s->ifrp);
   /* reset the values of struct sock_probe */
   reset_sock_probe(s);
-  if (abrt)
-    abort();
+  if (abrt) abort();
   return -1;
 }
 
 /* Close socket of sock_probe */
-static void close_sock_probe(sock_probe *s)
-{
-  if(s->tmp_socket != INVALID_SOCKET){
+static void close_sock_probe(sock_probe *s) {
+  if (s->tmp_socket != INVALID_SOCKET) {
     CLOSESOCKET(s->tmp_socket);
     s->tmp_socket = INVALID_SOCKET;
   }
 }
 
 /* Close any open socket and free sock_probe */
-static void delete_sock_probe(sock_probe *s)
-{
+static void delete_sock_probe(sock_probe *s) {
   close_sock_probe(s);
   X_FREE(s->ifbuf);
   X_FREE(s->ifrp);
@@ -203,25 +188,21 @@ static void delete_sock_probe(sock_probe *s)
 }
 
 /* Return the number of IP interfaces on this machine.*/
-static int number_of_interfaces(sock_probe *s)
-{
+static int number_of_interfaces(sock_probe *s) {
   return s->nbr_ifs; /* Number of interfaces */
 }
 
-static bool_t is_if_running(sock_probe *s, int count)
-{
+static bool_t is_if_running(sock_probe *s, int count) {
   struct ifreq *ifrecc;
   idx_check_ret(count, number_of_interfaces(s), 0) ifrecc = s->ifrp[count];
-  assert(s->tmp_socket!=INVALID_SOCKET);
+  assert(s->tmp_socket != INVALID_SOCKET);
   return (ioctl(s->tmp_socket, SIOCGIFFLAGS, (char *)ifrecc) >= 0) &&
-    (ifrecc->ifr_flags & IFF_UP) &&
-    (ifrecc->ifr_flags & IFF_RUNNING);
+         (ifrecc->ifr_flags & IFF_UP) && (ifrecc->ifr_flags & IFF_RUNNING);
 }
 
 /* Return the sockaddr of interface #count. */
-static sockaddr get_sockaddr(sock_probe *s, int count)
-{
+static sockaddr get_sockaddr(sock_probe *s, int count) {
   /* s->ifrp[count].ifr_addr if of type sockaddr */
-  idx_check_fail(count, number_of_interfaces(s)) return s->ifrp[count]->ifr_addr;
+  idx_check_fail(count, number_of_interfaces(s)) return s->ifrp[count]
+      ->ifr_addr;
 }
-

@@ -25,6 +25,8 @@
 #include "mysql/gcs/gcs_log_system.h"
 
 #include "gcs_xcom_interface.h"
+
+
 #include "gcs_internal_message.h"
 #include "gcs_message_stage_lz4.h"
 #include "gcs_message_stages.h"
@@ -33,6 +35,7 @@
 #include "gcs_xcom_networking.h"
 #include "gcs_xcom_notification.h"
 #include "my_compiler.h"
+#include "sock_probe.h"
 #include "synode_no.h"
 #include "xcom_ssl_transport.h"
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,11 +22,11 @@ extern "C" {
 
 /* Required for FreeBSD, NetBSD and MacOS */
 #ifndef MAXHOSTNAMELEN
-  #ifdef _SC_HOST_NAME_MAX
-    #define MAXHOSTNAMELEN sysconf(_SC_HOST_NAME_MAX)
-  #else
-    #define MAXHOSTNAMELEN 1024
-  #endif
+#ifdef _SC_HOST_NAME_MAX
+#define MAXHOSTNAMELEN sysconf(_SC_HOST_NAME_MAX)
+#else
+#define MAXHOSTNAMELEN 1024
+#endif
 #endif
 
 #ifdef __cplusplus
