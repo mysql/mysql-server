@@ -3,6 +3,7 @@ INSTALL COMPONENT "file://component_test_string_service";
 UNINSTALL COMPONENT "file://component_test_string_service";
 ########## test_string_service.log: 
 test_string_service init:
+Destroy string object.
 Buffer=NULL in convert from buffer: passed.
 Length too high for buffer in convert from buffer: passed.
 Length is zero for buffer in convert from buffer: failed.
@@ -57,6 +58,5 @@ Iterator get next passed.
 Iterator get next passed.
 Is digit.
 Iterator destroyed.
-2nd call of create string passed.
 Destroy string object.
 End of init

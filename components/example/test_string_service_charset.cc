@@ -57,6 +57,8 @@ bool test_charset (const char* charset, const char* text, int buff_len)
   }
   else
   {
+    mysql_service_mysql_string_factory->destroy(out_string);
+    WRITE_LOG ("%s\n","Destroy string object.");
 // Valid convert from buffer
     if (mysql_service_mysql_string_converter->convert_from_buffer (&out_string,
                                           text, // its a input buffer

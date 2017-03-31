@@ -58,6 +58,8 @@ bool test_string_service_init()
   }
   else
   {
+    mysql_service_mysql_string_factory->destroy(out_string);
+    WRITE_LOG ("Destroy string object.\n");
 // In buffer=NULL in convert from buffer
     if (mysql_service_mysql_string_converter->convert_from_buffer(&out_string,
                                           NULL, // its a input buffer
@@ -377,21 +379,8 @@ bool test_string_service_init()
       }
     }
   }
-// Create string object 2nd time
-  if (mysql_service_mysql_string_factory->create(&out_string))
-  {
-    WRITE_LOG ("2nd call of create string failed.\n");
-  }
-  else
-  {
-    WRITE_LOG ("2nd call of create string passed.\n");
-    mysql_service_mysql_string_factory->destroy(out_string);
-    WRITE_LOG ("Destroy string object.\n");
-// Destroy 2nd string object or same object twice
-// Crash!
-//      mysql_service_mysql_string_factory->destroy(out_string);
-//      WRITE_LOG ("Destroy 2nd string object.\n");
-  }
+  mysql_service_mysql_string_factory->destroy(out_string);
+  WRITE_LOG ("Destroy string object.\n");
 
   WRITE_LOG ("End of init\n");
   fclose(outfile);

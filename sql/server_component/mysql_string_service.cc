@@ -178,9 +178,10 @@ DEFINE_BOOL_METHOD(mysql_string_imp::convert_from_buffer,
 {
   try
   {
-    String *res= new String[1];
     if (in_buffer == NULL || length == 0 || length > strlen(in_buffer))
       return true;
+
+    String *res= new String[1];
     CHARSET_INFO *cs= get_charset_by_csname(charset_name,
                                             MY_CS_PRIMARY, MYF(0));
 

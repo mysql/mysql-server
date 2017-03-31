@@ -13,6 +13,7 @@ test_string_service_long init:
 -------------------------------------------------------------
 Charset: latin1
 Greetings from  beautiful Austria at March, 9th!
+Destroy string object.
 Convert from buffer passed.
 Number of chars: 48
 Number of bytes: 48
@@ -27,6 +28,7 @@ Destroy string object.
 -------------------------------------------------------------
 Charset: latin1
 Grüße  aus  dem  schönen  Österreich am 9. März!
+Destroy string object.
 Convert from buffer passed.
 Number of chars: 48
 Number of bytes: 48
@@ -41,6 +43,7 @@ Destroy string object.
 -------------------------------------------------------------
 Charset: utf8
 Greetings from  beautiful Austria at March, 9th!
+Destroy string object.
 Convert from buffer passed.
 Number of chars: 48
 Number of bytes: 48
@@ -55,6 +58,7 @@ Destroy string object.
 -------------------------------------------------------------
 Charset: utf8
 Grüße  aus  dem  schönen  Österreich am 9. März!
+Destroy string object.
 Convert from buffer passed.
 Number of chars: 44
 Number of bytes: 48
@@ -69,6 +73,7 @@ Destroy string object.
 -------------------------------------------------------------
 Charset: utf8
 遥想公瑾当年，小乔初嫁了，雄姿英发
+Destroy string object.
 Convert from buffer passed.
 Number of chars: 16
 Number of bytes: 48
@@ -83,6 +88,7 @@ Destroy string object.
 -------------------------------------------------------------
 Charset: gb18030
 遥想公瑾当年，小乔初嫁了，雄姿英发
+Destroy string object.
 Convert from buffer passed.
 Number of chars: 24
 Number of bytes: 48

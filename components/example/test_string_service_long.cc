@@ -77,6 +77,8 @@ bool test_string_service_init()
   }
   else
   {
+    mysql_service_mysql_string_factory->destroy(out_string);
+    WRITE_LOG ("%s\n","Destroy string object.");
 // Length is too high for buffer in convert from buffer
     if (mysql_service_mysql_string_converter->convert_from_buffer(&out_string,
                                           test_text, // its a input buffer
@@ -259,17 +261,8 @@ bool test_string_service_init()
       }
     }
   }
-// Create string object 2nd time
-  if (mysql_service_mysql_string_factory->create(&out_string))
-  {
-    WRITE_LOG ("%s\n","2nd call of create string failed.");
-  }
-  else
-  {
-    WRITE_LOG ("%s\n","2nd call of create string passed.");
-    mysql_service_mysql_string_factory->destroy(out_string);
-    WRITE_LOG ("%s\n","Destroy string object.");
-  }
+  mysql_service_mysql_string_factory->destroy(out_string);
+  WRITE_LOG ("%s\n","Destroy string object.");
 
   WRITE_LOG ("%s\n","End of init");
   fclose(outfile);
