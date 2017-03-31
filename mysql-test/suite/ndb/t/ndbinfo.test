@@ -865,7 +865,8 @@ show create table processes;
 # this test case changes.
 
 # Query the base table
-SELECT reporting_node_id, node_id, node_type, process_name
+SELECT reporting_node_id, node_id, node_type,
+replace(replace(process_name,"-debug",""),".exe","") AS process_name
 FROM ndb$processes
 ORDER BY reporting_node_id, node_id;
 
