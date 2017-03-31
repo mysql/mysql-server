@@ -4,8 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 SET default_storage_engine=innodb;
---- Doing pre test cleanup --- 
-DROP TABLE IF EXISTS t1;
+supports_native_partitioning: 1
 --- Start test 1 Basic testing ---
 --- Create Table Section ---
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), 
@@ -346,7 +345,7 @@ COUNT(*)
 DELETE FROM t1;
 --- End test 2 partition RANGE testing ---
 --- Do Cleanup ---
-DROP TABLE IF EXISTS t1;
+DROP TABLE t1;
 --- Start test 3 partition LIST testing ---
 --- Do setup ---
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), 
@@ -519,7 +518,7 @@ COUNT(*)
 DELETE FROM t1;
 --- End test 3 partition LIST testing ---
 --- Do Cleanup --
-DROP TABLE IF EXISTS t1;
+DROP TABLE t1;
 --- Start test 4 partition HASH testing ---
 --- Do setup ---
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), 
@@ -543,7 +542,7 @@ t1	CREATE TABLE `t1` (
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH ( YEAR(t))
+/*!50100 PARTITION BY HASH (YEAR(t))
 PARTITIONS 4 */
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -559,7 +558,7 @@ t1	CREATE TABLE `t1` (
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1'
-/*!50100 PARTITION BY HASH ( YEAR(t))
+/*!50100 PARTITION BY HASH (YEAR(t))
 PARTITIONS 4 */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
@@ -619,7 +618,7 @@ t1	CREATE TABLE `t1` (
   `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH ( YEAR(t))
+/*!50100 PARTITION BY HASH (YEAR(t))
 PARTITIONS 4 */
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
@@ -637,7 +636,7 @@ t1	CREATE TABLE `t1` (
   `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1'
-/*!50100 PARTITION BY HASH ( YEAR(t))
+/*!50100 PARTITION BY HASH (YEAR(t))
 PARTITIONS 4 */
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
@@ -681,7 +680,7 @@ COUNT(*)
 DELETE FROM t1;
 --- End test 4 partition HASH testing ---
 --- Do Cleanup --
-DROP TABLE IF EXISTS t1;
+DROP TABLE t1;
 --- Start test 5 partition by key testing ---
 --- Create Table Section ---
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), 
@@ -920,5 +919,5 @@ COUNT(*)
 DELETE FROM t1;
 --- End test 5 key partition testing ---
 --- Do Cleanup ---
-DROP TABLE IF EXISTS t1;
+DROP TABLE t1;
 include/rpl_end.inc

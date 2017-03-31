@@ -20,8 +20,6 @@ PRIMARY KEY USING HASH (server_id)) ENGINE=MYISAM;
 SET @old_slave_storage_engine=@@global.default_storage_engine;
 SET @@global.default_storage_engine=myisam;
 include/start_slave.inc
---- Doing pre test cleanup --- 
-DROP TABLE IF EXISTS t1;
 --- Create Table Section ---
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, 
 b1 INT, 
@@ -155,11 +153,23 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 STOP SLAVE;
 RESET SLAVE;
 RESET MASTER;
 START SLAVE;
 --- Populate t1 with data ---
+Warnings:
+Warning	1265	Data truncated for column 'vc' at row 1
+Warnings:
+Warning	1265	Data truncated for column 'vc' at row 1
+Warnings:
+Warning	1265	Data truncated for column 'vc' at row 1
+Warnings:
+Warning	1265	Data truncated for column 'vc' at row 1
+Warnings:
+Warning	1265	Data truncated for column 'vc' at row 1
 --- Select from t1 on master --- 
 select *
 from t1 
@@ -409,7 +419,7 @@ COUNT(*)
 TRUNCATE TABLE t1;
 TRUNCATE TABLE t1;
 --- Do Cleanup --
-DROP TABLE IF EXISTS t1;
+DROP TABLE t1;
 [connection slave]
 include/stop_slave.inc
 
@@ -419,8 +429,6 @@ include/stop_slave.inc
 alter table mysql.ndb_apply_status engine=innodb;
 SET @@global.default_storage_engine=innodb;
 include/start_slave.inc
---- Doing pre test cleanup --- 
-DROP TABLE IF EXISTS t1;
 --- Create Table Section ---
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, 
 b1 INT, 
@@ -554,11 +562,23 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 STOP SLAVE;
 RESET SLAVE;
 RESET MASTER;
 START SLAVE;
 --- Populate t1 with data ---
+Warnings:
+Warning	1265	Data truncated for column 'vc' at row 1
+Warnings:
+Warning	1265	Data truncated for column 'vc' at row 1
+Warnings:
+Warning	1265	Data truncated for column 'vc' at row 1
+Warnings:
+Warning	1265	Data truncated for column 'vc' at row 1
+Warnings:
+Warning	1265	Data truncated for column 'vc' at row 1
 --- Select from t1 on master --- 
 select *
 from t1 
@@ -808,7 +828,7 @@ COUNT(*)
 TRUNCATE TABLE t1;
 TRUNCATE TABLE t1;
 --- Do Cleanup --
-DROP TABLE IF EXISTS t1;
+DROP TABLE t1;
 [connection slave]
 include/stop_slave.inc
 [connection slave]
