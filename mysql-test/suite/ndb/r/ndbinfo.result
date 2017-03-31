@@ -1660,7 +1660,8 @@ show create table processes;
 View	Create View	character_set_client	collation_connection
 processes	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `processes` AS select distinct `ndb$processes`.`node_id` AS `node_id`,(case `ndb$processes`.`node_type` when 0 then 'NDB' when 1 then 'API' when 2 then 'MGM' else NULL end) AS `node_type`,`ndb$processes`.`node_version` AS `node_version`,nullif(`ndb$processes`.`process_id`,0) AS `process_id`,nullif(`ndb$processes`.`angel_process_id`,0) AS `angel_process_id`,`ndb$processes`.`process_name` AS `process_name`,`ndb$processes`.`service_URI` AS `service_URI` from `ndb$processes` order by `ndb$processes`.`node_id`	latin1	latin1_swedish_ci
 
-SELECT reporting_node_id, node_id, node_type, process_name
+SELECT reporting_node_id, node_id, node_type,
+replace(replace(process_name,"-debug",""),".exe","") AS process_name
 FROM ndb$processes
 ORDER BY reporting_node_id, node_id;
 reporting_node_id	node_id	node_type	process_name
