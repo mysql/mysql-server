@@ -43,7 +43,10 @@
 #include <signaldata/DihRestart.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/IsolateOrd.hpp>
+#include <signaldata/ProcessInfoRep.hpp>
 #include <ndb_version.h>
+#include <OwnProcessInfo.hpp>
+#include <NodeInfo.hpp>
 
 #include <TransporterRegistry.hpp> // Get connect address
 
@@ -3651,6 +3654,8 @@ Qmgr::api_failed(Signal* signal, Uint32 nodeId)
   closeCom->requestType = CloseComReqConf::RT_API_FAILURE;
   closeCom->failNo      = 0;
   closeCom->noOfNodes   = 1;
+  ProcessInfo * processInfo = getProcessInfo(nodeId);
+  if(processInfo) processInfo->invalidate();
   NodeBitmask::clear(closeCom->theNodes);
   NodeBitmask::set(closeCom->theNodes, failedNodePtr.i);
   sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
@@ -7546,6 +7551,18 @@ Qmgr::handleFailFromSuspect(Signal* signal,
   failReportLab(signal, sourceNode, (FailRep::FailCause) reason, getOwnNodeId());
 }
 
+ProcessInfo *
+Qmgr::getProcessInfo(Uint32 nodeId)
+{
+  ProcessInfo * storedProcessInfo = 0;
+  Int16 index = processInfoNodeIndex[nodeId];
+  if(index >= 0)
+    storedProcessInfo = & receivedProcessInfo[index];
+  else if(nodeId == getOwnNodeId())
+    storedProcessInfo = getOwnProcessInfo(getOwnNodeId());
+  return storedProcessInfo;
+}
+
 void
 Qmgr::execDBINFO_SCANREQ(Signal *signal)
 {
@@ -7641,12 +7658,105 @@ Qmgr::execDBINFO_SCANREQ(Signal *signal)
     ndbinfo_send_row(signal, req, row, rl);
     break;
   }
+  case Ndbinfo::PROCESSES_TABLEID:
+  {
+    jam();
+    for(int i = 1 ; i <= max_api_node_id ; i++)
+    {
+      NodeInfo nodeInfo = getNodeInfo(i);
+      if(nodeInfo.m_connected)
+      {
+        char version_buffer[NDB_VERSION_STRING_BUF_SZ];
+        ndbGetVersionString(nodeInfo.m_version, nodeInfo.m_mysql_version,
+                            0, version_buffer, NDB_VERSION_STRING_BUF_SZ);
+
+        ProcessInfo *processInfo = getProcessInfo(i);
+        if(processInfo && processInfo->isValid())
+        {
+          char uri_buffer[512];
+          processInfo->getServiceUri(uri_buffer, sizeof(uri_buffer));
+          Ndbinfo::Row row(signal, req);
+          row.write_uint32(getOwnNodeId());                 // reporting_node_id
+          row.write_uint32(i);                              // node_id
+          row.write_uint32(nodeInfo.getType());             // node_type
+          row.write_string(version_buffer);                 // node_version
+          row.write_uint32(processInfo->getPid());          // process_id
+          row.write_uint32(processInfo->getAngelPid());     // angel_process_id
+          row.write_string(processInfo->getProcessName());  // process_name
+          row.write_string(uri_buffer);                     // service_URI
+          ndbinfo_send_row(signal, req, row, rl);
+        }
+        else if(nodeInfo.m_type != NodeInfo::DB)
+        {
+          /* MGM/API node is an older version or has not sent ProcessInfoRep */
+
+          struct in_addr addr= globalTransporterRegistry.get_connect_address(i);
+          char service_uri[32];
+          strcpy(service_uri, "ndb://");
+          Ndb_inet_ntop(AF_INET, & addr, service_uri + 6, 24);
+
+          Ndbinfo::Row row(signal, req);
+          row.write_uint32(getOwnNodeId());                 // reporting_node_id
+          row.write_uint32(i);                              // node_id
+          row.write_uint32(nodeInfo.getType());             // node_type
+          row.write_string(version_buffer);                 // node_version
+          row.write_uint32(0);                              // process_id
+          row.write_uint32(0);                              // angel_process_id
+          row.write_string("");                             // process_name
+          row.write_string(service_uri);                    // service_URI
+          ndbinfo_send_row(signal, req, row, rl);
+        }
+      }
+    }
+    break;
+  }
   default:
     break;
   }
   ndbinfo_send_scan_conf(signal, req, rl);
 }
 
+
+void
+Qmgr::execPROCESSINFO_REP(Signal *signal)
+{
+  jamEntry();
+  ProcessInfoRep * report = (ProcessInfoRep *) signal->theData;
+  SectionHandle handle(this, signal);
+  SegmentedSectionPtr pathSectionPtr, hostSectionPtr;
+
+  ProcessInfo * processInfo = getProcessInfo(report->node_id);
+  if(processInfo)
+  {
+    /* Set everything except the connection name and host address */
+    processInfo->initializeFromProcessInfoRep(report);
+
+    /* Set the URI path */
+    if(handle.getSection(pathSectionPtr, ProcessInfoRep::PathSectionNum))
+    {
+      processInfo->setUriPath(pathSectionPtr.p->theData);
+    }
+
+    /* Set the host address */
+    if(handle.getSection(hostSectionPtr, ProcessInfoRep::HostSectionNum))
+    {
+      processInfo->setHostAddress(hostSectionPtr.p->theData);
+    }
+    else
+    {
+      /* Use the address from the transporter registry.
+         As implemented below we use setHostAddress() with struct in_addr
+         to set an IPv4 address.  An alternate more abstract version
+         of ProcessInfo::setHostAddress() is also available, which
+         takes a struct sockaddr * and length.
+      */
+      struct in_addr addr=
+        globalTransporterRegistry.get_connect_address(report->node_id);
+      processInfo->setHostAddress(& addr);
+    }
+  }
+  releaseSections(handle);
+}
 
 void
 Qmgr::execISOLATE_ORD(Signal* signal)

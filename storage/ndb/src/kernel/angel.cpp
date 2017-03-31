@@ -668,6 +668,9 @@ angel_run(const char* progname,
     one_arg.assfmt("--nostart=%d", no_start);
     args.push_back(one_arg);
 
+    one_arg.assfmt("--angel-pid=%d", getpid());
+    args.push_back(one_arg);
+
     pid_t child = retry_spawn_process(progname, args);
     if (child <= 0)
     {

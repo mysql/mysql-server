@@ -660,6 +660,7 @@ static int update_status_variables(Thd_ndb *thd_ndb,
   }
   ns->number_of_data_nodes= c->no_db_nodes();
   ns->connect_count= c->get_connect_count();
+  ns->system_name = c->get_system_name();
   ns->last_commit_epoch_server= ndb_get_latest_trans_gci();
   if (thd_ndb)
   {
@@ -781,6 +782,7 @@ SHOW_VAR ndb_status_variables_dynamic[]= {
   {"last_commit_epoch_session", 
                          (char*) &g_ndb_status.last_commit_epoch_session, 
                                                                       SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"system_name", (char*) &g_ndb_status.system_name, SHOW_CHAR_PTR, SHOW_SCOPE_GLOBAL},
   {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 

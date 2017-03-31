@@ -4607,9 +4607,6 @@ transformSystem(InitConfigFileParser::Context & ctx, const char * data){
 		    ctx.fname, ctx.m_sectionLineno);
     return false;
   }
-
-  BaseString::snprintf(ctx.pname, sizeof(ctx.pname), "SYSTEM_%s", name);
-
   ctx.m_currentSection->put("Type", ctx.fname);
   
   return true;
@@ -5524,7 +5521,7 @@ add_system_section(Vector<ConfigInfo::ConfigRuleSection>&sections,
                    struct InitConfigFileParser::Context &ctx,
                    const char * rule_data)
 {
-  if (!ctx.m_userProperties.contains("SYSTEM")) {
+  if (!ctx.m_config->contains("SYSTEM")) {
     ConfigInfo::ConfigRuleSection s;
 
     // Generate a unique name for this new cluster

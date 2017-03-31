@@ -28,6 +28,7 @@ ADD_DEFINITIONS(-DNO_DUMMY_DECL)
 ADD_CONVENIENCE_LIBRARY(ndbgeneral
             ndbzio.c
             File.cpp
+            basename.cpp
             md5_hash.cpp
             Properties.cpp
             socket_io.cpp
@@ -62,6 +63,8 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
             CharsetMapImpl.cpp
             parse_mask.cpp
             LogBuffer.cpp
+            ProcessInfo.cpp
+            OwnProcessInfo.cpp
 )
 SET(NDBGENERAL_LIBS ndbtrace ${ZLIB_LIBRARY} mysys mysys_ssl)
 TARGET_LINK_LIBRARIES(ndbgeneral ${NDBGENERAL_LIBS})

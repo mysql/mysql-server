@@ -914,6 +914,12 @@ ndbd_multi_tc_instance_takeover(Uint32 x)
  */
 #define NDBD_SUPPORT_PARALLEL_SYNCH NDB_MAKE_VERSION(7,4,3)
 
+/**
+ * Support for wl#9819 ndbinfo.processes
+ * FIXME adjust this when actually merging
+ */
+#define NDBD_PROCESSINFO_VERSION NDB_MAKE_VERSION(7,5,7)
+
 #define NDBD_ISOLATE_ORD_72 NDB_MAKE_VERSION(7,2,19)
 #define NDBD_ISOLATE_ORD_73 NDB_MAKE_VERSION(7,3,8)
 #define NDBD_ISOLATE_ORD_74 NDB_MAKE_VERSION(7,4,3)
