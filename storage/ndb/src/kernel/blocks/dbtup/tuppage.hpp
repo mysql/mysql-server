@@ -137,7 +137,7 @@ struct Tup_fixsize_page
   Uint32 m_data[DATA_WORDS];
   
   Uint32* get_ptr(Uint32 page_idx, Uint32 rec_size){
-    assert(page_idx + rec_size <= DATA_WORDS);
+    require(page_idx + rec_size <= DATA_WORDS);
     return m_data + page_idx;
   }
   
