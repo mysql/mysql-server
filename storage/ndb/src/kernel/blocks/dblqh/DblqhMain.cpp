@@ -6408,6 +6408,7 @@ Dblqh::get_nr_op_info(Nr_op_info* op, Uint32 page_id)
 
   op->m_gci_hi = tcPtr.p->gci_hi;
   op->m_gci_lo = tcPtr.p->gci_lo;
+  op->m_row_id = tcPtr.p->m_row_id;
   op->m_tup_frag_ptr_i = fragPtr.p->tupFragptr;
 
   ndbrequire(tcPtr.p->activeCreat == Fragrecord::AC_NR_COPY);

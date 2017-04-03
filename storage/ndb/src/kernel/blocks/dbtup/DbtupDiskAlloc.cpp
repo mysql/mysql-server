@@ -1362,8 +1362,12 @@ Dbtup::disk_page_unmap_callback(Uint32 when,
 
 void
 Dbtup::disk_page_alloc(Signal* signal, 
-		       Tablerec* tabPtrP, Fragrecord* fragPtrP, 
-		       Local_key* key, PagePtr pagePtr, Uint32 gci)
+		       Tablerec* tabPtrP,
+                       Fragrecord* fragPtrP, 
+		       Local_key* key,
+                       PagePtr pagePtr,
+                       Uint32 gci,
+                       const Local_key *row_id)
 {
   jam();
   Uint32 logfile_group_id= fragPtrP->m_logfile_group_id;
@@ -1373,6 +1377,19 @@ Dbtup::disk_page_alloc(Signal* signal,
   if (tabPtrP->m_attributes[DD].m_no_of_varsize == 0)
   {
     jam();
+     DEB_PGMAN((
+       "(%u)disk_page_alloc: tab(%u,%u):%u,page(%u,%u).%u,gci: %u,"
+       "row_id(%u,%u)",
+                instance(),
+                pagePtr.p->m_table_id,
+                pagePtr.p->m_fragment_id,
+                pagePtr.p->m_create_table_version,
+                key->m_file_no,
+                key->m_page_no,
+                key->m_page_idx,
+                gci,
+                row_id->m_page_no,
+                row_id->m_page_idx));
     ddassert(pagePtr.p->uncommitted_used_space > 0);
     pagePtr.p->uncommitted_used_space--;
     key->m_page_idx= ((Fix_page*)pagePtr.p)->alloc_record();
@@ -1383,16 +1400,6 @@ Dbtup::disk_page_alloc(Signal* signal,
                               1,
                               gci,
                               logfile_group_id);
-     DEB_PGMAN((
-       "(%u)disk_page_alloc: tab(%u,%u):%u,page(%u,%u).%u,gci: %u",
-                instance(),
-                pagePtr.p->m_table_id,
-                pagePtr.p->m_fragment_id,
-                pagePtr.p->m_create_table_version,
-                key->m_file_no,
-                key->m_page_no,
-                key->m_page_idx,
-                gci));
   }
   else
   {
@@ -1414,8 +1421,12 @@ Dbtup::disk_page_alloc(Signal* signal,
 
 void
 Dbtup::disk_page_free(Signal *signal, 
-		      Tablerec *tabPtrP, Fragrecord * fragPtrP,
-		      Local_key* key, PagePtr pagePtr, Uint32 gci)
+		      Tablerec *tabPtrP,
+                      Fragrecord * fragPtrP,
+		      Local_key* key,
+                      PagePtr pagePtr,
+                      Uint32 gci,
+                      const Local_key *row_id)
 {
   jam();
   if (DBG_DISK)
@@ -1434,12 +1445,11 @@ Dbtup::disk_page_free(Signal *signal,
     sz = 1;
     const Uint32 *src= ((Fix_page*)pagePtr.p)->get_ptr(page_idx, 0);
 
-#ifdef VM_TRACE
     if (((*(src + 1)) & Tup_fixsize_page::FREE_RECORD) ==
                Tup_fixsize_page::FREE_RECORD)
     {
       g_eventLogger->info(
-        "(%u)disk_page_free crash:tab(%u,%u):%u,page(%u,%u).%u,gci:%u",
+        "(%u)disk_page_free crash:tab(%u,%u):%u,page(%u,%u).%u,gci:%u,rowid(%u,%u)",
                  instance(),
                  fragPtrP->fragTableId,
                  fragPtrP->fragmentId,
@@ -1447,19 +1457,18 @@ Dbtup::disk_page_free(Signal *signal,
                  pagePtr.p->m_file_no,
                  pagePtr.p->m_page_no,
                  page_idx,
-                 gci);
+                 gci,
+                 row_id->m_page_no,
+                 row_id->m_page_idx);
+      ndbrequire(((*(src + 1)) & Tup_fixsize_page::FREE_RECORD) !=
+                 Tup_fixsize_page::FREE_RECORD);
     }
-#endif
-    ndbassert(((*(src + 1)) & Tup_fixsize_page::FREE_RECORD) !=
-               Tup_fixsize_page::FREE_RECORD);
     lsn= disk_page_undo_free(signal, pagePtr.p, key,
 			     src, tabPtrP->m_offsets[DD].m_fix_header_size,
 			     gci, logfile_group_id);
     
-    ((Fix_page*)pagePtr.p)->free_record(page_idx);
-
     DEB_PGMAN((
-      "(%u)disk_page_free:tab(%u,%u):%u,page(%u,%u).%u,gci:%u",
+      "(%u)disk_page_free:tab(%u,%u):%u,page(%u,%u).%u,gci:%u,rowid(%u,%u)",
                instance(),
                fragPtrP->fragTableId,
                fragPtrP->fragmentId,
@@ -1467,7 +1476,11 @@ Dbtup::disk_page_free(Signal *signal,
                pagePtr.p->m_file_no,
                pagePtr.p->m_page_no,
                page_idx,
-               gci));
+               gci,
+               row_id->m_page_no,
+               row_id->m_page_idx));
+
+    ((Fix_page*)pagePtr.p)->free_record(page_idx);
   }
   else
   {

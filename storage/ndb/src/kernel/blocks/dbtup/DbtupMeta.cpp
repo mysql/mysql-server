@@ -1779,6 +1779,8 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
 
   regTabPtr->total_rec_size= total_rec_size;
 
+  DEB_TUP_META(("New total_rec_size set to %u", total_rec_size));
+
   setUpQueryRoutines(regTabPtr);
   setUpKeyArray(regTabPtr);
   return 0;
@@ -3097,6 +3099,11 @@ Dbtup::get_max_lcp_record_size(Uint32 tableId)
   TablerecPtr tabPtr;
   tabPtr.i= tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+
+  DEB_TUP_META(("(%u)LCP tab(%u) use total_rec_size = %u",
+                instance(),
+                tableId,
+                tabPtr.p->total_rec_size));
 
   return tabPtr.p->total_rec_size;
 }
