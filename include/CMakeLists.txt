@@ -15,7 +15,12 @@
 
 # These are the headers required to #include <mysql.h>, which we ship
 # to the client as part of our API.
+#
+# FIXME: mysqld_error.h, which is also part of our API, should be included
+# from mysql.h, but this needs more build system tweaking, since it's
+# automatically generated.
 SET(HEADERS
+  errmsg.h
   mem_root_fwd.h
   my_command.h
   my_list.h
@@ -23,6 +28,7 @@ SET(HEADERS
   mysql_com.h
   mysql_time.h
   ${CMAKE_CURRENT_BINARY_DIR}/mysql_version.h
+  ${CMAKE_CURRENT_BINARY_DIR}/mysqld_error.h
   ../libbinlogevents/export/binary_log_types.h
 )
 SET(HEADERS_MYSQL_DIR

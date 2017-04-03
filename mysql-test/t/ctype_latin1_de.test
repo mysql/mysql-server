@@ -3,6 +3,7 @@
 #
 
 set names latin1;
+--character_set latin1
 
 let $old_collation_schema= `SELECT @@collation_database`;
 let $collation_server=`SELECT @@global.collation_server`;

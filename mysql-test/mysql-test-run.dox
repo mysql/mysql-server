@@ -3429,9 +3429,9 @@
   It is also possible to put a list of test names in a file and have
   @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" run those tests,
   using the option <b>`--do-test-list`=file</b>. The tests should be
-  listed one per line in the file, using the fully qualified name
-  <b>suite.test</b>. A space may be used in place of the period. A
-  line beginning with "#" indicates a comment and is ignored.
+  listed one per line in the file. A line beginning with <b>#</b>
+  indicates a comment and is ignored. Similary an empty line in the
+  file is also ignored.
 
   @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" also supports a
   <b>`--do-suite`</b> option, which is similar to <b>`--do-test`</b>
@@ -3928,13 +3928,66 @@
     </li>
 
     <li>
-      <tt>`--do-testlist`=<b>file</b></tt>
+      <tt>`--do-test-list`=<b>file</b></tt>
 
       Run all tests listed in the file <b><em>file</em></b>. In this
-      file, tests should be listed one per line in the form
-      <b><em>suite.test</em></b> or alternatively, with a space instead
-      of the period. A line beginning with # will be ignored and can
-      be used for comments.
+      file, tests should be listed one per line in any of the
+      following forms.
+
+      @verbatim
+  <test_name>
+  <test_name>.test
+  <suite_name>.<test_name>
+  <suite_name>.<test_name>.test
+  path_to_the_test_file
+      @endverbatim
+
+      Path to the test file should either be an absolute path or a
+      relative path from base directory.
+
+      To run a test present in a non-default test suite, either the
+      test name qualified with the suite name i.e
+      <b>suite_name.test_name[.test]</b> or a <b>path</b> to the
+      test file should be mentioned.
+
+      A line beginning with <b>#</b> will be ignored and is considered
+      as a comment. Similarly an empty line in the file is also
+      ignored.
+
+      For example, consider a test list file <b>test_list</b>
+      containing following tests.
+
+      @verbatim
+  # Main suite test '1st.test'
+  1st
+  1st.test
+  main.1st
+  main.1st.test
+  mysql-test/t/1st.test
+
+  # GIS suite test 'geohash_functions.test'
+  gis.geohash_functions
+  mysql-test/suite/gis/t/geohash_functions.test
+
+  # Non-default suite 'test_services'
+  test_services.test_services
+  mysql-test/suite/test_services/t/test_services.test
+
+  # Internal suite test 'i_main.user_var'
+  i_main.user_var
+  internal/mysql-test/suite/i_main/t/user_var.test
+      @endverbatim
+
+      Following command runs the list of tests mentioned in the file.
+
+      @verbatim
+  ./mysql-test-run.pl --do-test-list=test_list
+      @endverbatim
+
+      If both <b>`--suite`</b> and <b>`--do-test-list`</b> are given,
+      and if suite name is <em>not</em> part of the test names listed
+      in the file, then those tests are searched only in the suites
+      mentioned in <b>`--suite`</b> option.
     </li>
 
     <li>

@@ -28,7 +28,7 @@
 #include "dd/dd.h"                            // dd::create_object
 #include "dd/dd_schema.h"                     // dd::schema_exists
 #include "dd/dd_table.h"                      // dd::get_sql_type_by_field_info
-#include "dd/dd_upgrade.h"                    // dd::migrate_event_to_dd
+#include "dd/dd_upgrade.h"                    // dd::migrate_events_to_dd
 #include "dd/impl/cache/shared_dictionary_cache.h"// Shared_dictionary_cache
 #include "dd/impl/cache/storage_adapter.h"    // Storage_adapter
 #include "dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
@@ -1519,11 +1519,21 @@ bool upgrade_fill_dd_and_finalize(THD *thd)
     }
   }
 
+  /*
+    Do not print error while resolving routine or view dependency from
+    my_error(). Function resolving routine/view dependency will print warning
+    if it is not from sys schema. Fatal errors will result in termination
+    of upgrade.
+  */
+  bootstrap_error_handler.set_log_error(false);
+
   error|= migrate_events_to_dd(thd);
   error|= migrate_routines_to_dd(thd);
 
   if (error)
   {
+    // Reset error log output behavior.
+    bootstrap_error_handler.set_log_error(true);
     delete_dictionary_and_cleanup(thd);
     return true;
   }
@@ -1538,6 +1548,8 @@ bool upgrade_fill_dd_and_finalize(THD *thd)
       error= true;
     }
   }
+  // Reset error log output behavior.
+  bootstrap_error_handler.set_log_error(true);
 
   if (error)
   {

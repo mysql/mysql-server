@@ -117,6 +117,7 @@ select SERVICE_STATE
 from performance_schema.replication_applier_status_by_worker
 where THREAD_ID = @t_id;
 SERVICE_STATE
+#
 OK: handler_read_key incremented
 include/stop_slave.inc [FOR CHANNEL 'channel_1']
 RESET SLAVE ALL;

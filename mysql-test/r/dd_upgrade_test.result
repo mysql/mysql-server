@@ -147,6 +147,11 @@ triggers
 view_with_column_names
 MYSQL_TMP_DIR/bootstrap.log
 # Start the DB server. Server will create and populate Dictionary tables.
+#Look for error.
+# Sys Schema routine parsing warning found : 0 times.
+# Sys Schema routine parsing error found : 0 times.
+# Sys Schema view parsing warning found : 0 times.
+# Sys Schema view parsing error found : 0 times.
 # Sanity Testing after Server start
 CREATE SCHEMA test123;
 CREATE TABLE test123.t1(a int);
@@ -434,8 +439,8 @@ SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, VERSION, ROW_FORMAT
 FROM INFORMATION_SCHEMA.tables WHERE table_schema='test';
 TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT
 test	geom	BASE TABLE	InnoDB	10	Dynamic
-test	initial_tü	BASE TABLE	BLACKHOLE	10	Fixed
-test	initial_vü	VIEW	NULL	NULL	NULL
+test	initial_tÃ¼	BASE TABLE	BLACKHOLE	10	Fixed
+test	initial_vÃ¼	VIEW	NULL	NULL	NULL
 test	jemp	BASE TABLE	InnoDB	10	Dynamic
 test	jemp_myisam	BASE TABLE	MyISAM	10	Dynamic
 test	opening_lines	BASE TABLE	InnoDB	10	Dynamic

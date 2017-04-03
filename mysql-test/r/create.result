@@ -832,7 +832,7 @@ create table t1 select * from t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 create table t1 select * from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
-create table t1 select coalesce('a' collate latin1_swedish_ci,'b' collate latin1_bin);
+create table t1 select coalesce(_latin1 'a' collate latin1_swedish_ci,_latin1 'b' collate latin1_bin);
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'coalesce'
 create table t1 (primary key(a)) select "b" as b;
 ERROR 42000: Key column 'a' doesn't exist in table
@@ -857,7 +857,7 @@ Note	1050	Table 't1' already exists
 select * from t1;
 i
 drop table t1;
-create table t1 select coalesce('a' collate latin1_swedish_ci,'b' collate latin1_bin);
+create table t1 select coalesce(_latin1 'a' collate latin1_swedish_ci,_latin1 'b' collate latin1_bin);
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'coalesce'
 create temporary table t1 (j int);
 create table if not exists t1 select 1;

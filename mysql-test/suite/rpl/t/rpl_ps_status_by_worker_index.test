@@ -1,0 +1,59 @@
+# ==== Implementation ====
+#
+# This test will create a workload and will block the table to be written
+# on the slave to force the SQL thread or slave worker to wait.
+#
+# Then, this test case will query P_S tables to ensure that a slave worker
+# thread if MTS is enabled, or the SQL thread for STS that is considered a
+# worker too, is waiting.
+#
+# ==== Related Bug ====
+#
+# BUG#25444610 REPLICATION_APPLIER_STATUS_BY_WORKER USES COORD THREAD_ID AS
+#              INDEX WITH MTS
+#
+
+# This test case is binary log format agnostic
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+# Create the table, sync slave and lock the table on the slave
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+--source include/sync_slave_sql_with_master.inc
+LOCK TABLES t1 READ, performance_schema.threads READ;
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 (c1) VALUES (1);
+--source include/sync_slave_io_with_master.inc
+
+--echo # check that a worker thread is waiting using the thread id
+--echo # given as index by the table replication_applier_status_by_worker
+let $wait_condition=
+SELECT COUNT(*) = 1
+  FROM performance_schema.threads
+  WHERE THREAD_ID IN
+    (SELECT THREAD_ID
+      FROM performance_schema.replication_applier_status_by_worker)
+  AND PROCESSLIST_STATE = "Waiting for table metadata lock";
+--source include/wait_condition_or_abort.inc
+
+UNLOCK TABLES;
+
+--echo # check that the number of workers in the replication p_s table matches
+--echo # when their thread id from the replication p_s table is used in
+--echo # p_s.threads table
+--let $num_workers= query_get_value(SELECT COUNT(*) FROM performance_schema.replication_applier_status_by_worker, COUNT(*), 1)
+let $wait_condition=
+SELECT COUNT(*) = $num_workers
+  FROM performance_schema.threads
+  WHERE THREAD_ID IN
+    (SELECT THREAD_ID
+      FROM performance_schema.replication_applier_status_by_worker)
+  AND PROCESSLIST_STATE LIKE "%";
+--source include/wait_condition_or_abort.inc
+
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

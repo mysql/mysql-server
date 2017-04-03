@@ -1371,7 +1371,7 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
     executing this code (the time of writing the Gtid_log_event to the binary
     log).
   */
-  ulonglong immediate_commit_timestamp= my_micro_time_ntp();
+  ulonglong immediate_commit_timestamp= my_micro_time();
 
   /*
     When the original_commit_timestamp session variable is set to a value
@@ -1965,6 +1965,7 @@ static void exec_binlog_error_action_abort(const char* err_string)
   my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(ME_ERRORLOG + ME_FATALERROR),
            err_string);
   thd->send_statement_status();
+  DBUG_EXECUTE_IF("binlog_expect_suicide", DBUG_SUICIDE(););
   abort();
 }
 

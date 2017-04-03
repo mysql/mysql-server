@@ -5751,7 +5751,23 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
   }
   else
   {
-    column_length= column->length * sql_field->charset->mbmaxlen;
+    switch (sql_field->sql_type) {
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_GEOMETRY:
+    case MYSQL_TYPE_JSON:
+    case MYSQL_TYPE_VAR_STRING:
+    case MYSQL_TYPE_STRING:
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
+      column_length= column->length * sql_field->charset->mbmaxlen;
+      break;
+    default:
+      column_length= column->length;
+    }
 
     if (key->type == KEYTYPE_SPATIAL)
     {
@@ -12680,19 +12696,18 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       DBUG_RETURN(true);
   }
 
-  tmp_disable_binlog(thd);
-
-  error= create_table_impl(thd, alter_ctx.new_db, alter_ctx.tmp_name,
-                           alter_ctx.table_name,
-                           alter_ctx.get_tmp_path(),
-                           create_info, alter_info,
-                           true, 0, true, NULL,
-                           &key_info, &key_count, keys_onoff,
-                           &fk_key_info, &fk_key_count,
-                           alter_ctx.fk_info, alter_ctx.fk_count,
-                           &tmp_table_def, nullptr);
-
-  reenable_binlog(thd);
+  {
+    Disable_binlog_guard binlog_guard(thd);
+    error= create_table_impl(thd, alter_ctx.new_db, alter_ctx.tmp_name,
+                             alter_ctx.table_name,
+                             alter_ctx.get_tmp_path(),
+                             create_info, alter_info,
+                             true, 0, true, NULL,
+                             &key_info, &key_count, keys_onoff,
+                             &fk_key_info, &fk_key_count,
+                             alter_ctx.fk_info, alter_ctx.fk_count,
+                             &tmp_table_def, nullptr);
+  }
 
   if (error)
   {

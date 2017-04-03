@@ -745,7 +745,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
   res= (char**) (ptr+sizeof(alloc));
 
   /* copy name + found arguments + command line arguments to new array */
-  res[0]= argv[0][0];  /* Name MUST be set, even by embedded library */
+  res[0]= argv[0][0];  /* Name MUST be set */
   if (!my_args.empty())
     memcpy((res+1), &my_args[0], my_args.size() * sizeof(char*));
   /* Skip --defaults-xxx options */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016,2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -45,6 +45,7 @@ void persistent_dynamic_loader_deinit();
 void dynamic_loader_scheme_file_init();
 void dynamic_loader_scheme_file_deinit();
 
+void mysql_string_services_init();
 /* implementation of the built-in components */
 
 /**

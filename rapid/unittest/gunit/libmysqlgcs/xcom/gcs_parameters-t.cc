@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,6 +48,8 @@ protected:
     m_params.add_parameter("compression", "on");
     m_params.add_parameter("compression_threshold", "1024");
     m_params.add_parameter("ip_whitelist", "127.0.0.1,192.168.1.0/24");
+    m_params.add_parameter("suspicions_timeout", "5");
+    m_params.add_parameter("suspicions_processing_period", "25");
   }
 
   virtual void TearDown()
@@ -329,6 +331,30 @@ TEST_F(GcsParametersTest, InvalidLocalNode_IP_not_found)
   *p= "localhost:12345";
   do_check_ok_params();
 
+  *p= save;
+}
+
+
+TEST_F(GcsParametersTest, InvalidSuspicionsTimeout)
+{
+  std::string *p= const_cast<std::string*>(
+    m_params.get_parameter("suspicions_timeout"));
+  std::string save= *p;
+
+  *p= "OLA";
+  do_check_params();
+  *p= save;
+}
+
+
+TEST_F(GcsParametersTest, InvalidSuspicionsProcessingPeriod)
+{
+  std::string *p= const_cast<std::string*>(
+    m_params.get_parameter("suspicions_processing_period"));
+  std::string save= *p;
+
+  *p= "OLA";
+  do_check_params();
   *p= save;
 }
 

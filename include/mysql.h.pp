@@ -272,6 +272,16 @@ typedef struct st_mysql_time
   bool neg;
   enum enum_mysql_timestamp_type time_type;
 } MYSQL_TIME;
+#include "errmsg.h"
+void init_client_errs(void);
+void finish_client_errs(void);
+extern const char *client_errors[];
+static inline const char* ER_CLIENT(int client_errno)
+{
+  if (client_errno >= 2000 && client_errno <= 2063)
+    return client_errors[client_errno - 2000];
+  return client_errors[2000];
+}
 extern unsigned int mysql_port;
 extern char *mysql_unix_port;
 typedef struct st_mysql_field {

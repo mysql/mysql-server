@@ -172,7 +172,7 @@ drop database mysqldump_test_db;
 --echo # if it is explicitely set.
 
 CREATE TABLE t1 (a  CHAR(10));
-INSERT INTO t1  VALUES (_latin1 'джэъ');
+INSERT INTO t1  VALUES (_latin1 x'C4D6DCDF');
 --exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --skip-comments test t1
 
 --echo #
@@ -1827,9 +1827,10 @@ DROP DATABASE IF EXISTS mysqldump_test_db;
 CREATE DATABASE mysqldump_test_db;
 
 set names koi8r;
+let $koi8rname= `select convert(_utf8mb4 'п╨п╬п╩п╬п╫п╨п╟1' using koi8r)`;
 
-CREATE VIEW mysqldump_test_db.v2 AS SELECT 1 AS колонка1;
-CREATE VIEW mysqldump_test_db.v1 AS SELECT колонка1 FROM mysqldump_test_db.v2;
+eval CREATE VIEW mysqldump_test_db.v2 AS SELECT 1 AS $koi8rname;
+eval CREATE VIEW mysqldump_test_db.v1 AS SELECT $koi8rname FROM mysqldump_test_db.v2;
 
 set names latin1;
 

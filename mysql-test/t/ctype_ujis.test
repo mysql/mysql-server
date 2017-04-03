@@ -8,6 +8,7 @@ drop table if exists t1;
 --enable_warnings
 
 set names ujis;
+--character_set ujis
 
 #
 # Test problem with LEFT()

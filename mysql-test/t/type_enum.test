@@ -50,6 +50,7 @@ drop table t1;
 #
 
 set names latin1;
+--character_set latin1
 # Set latin1 explicitly since 0xE4 is invalid in utf8mb4.
 create table t1 (a enum(0xE4, '1', '2') not null default 0xE4) character set latin1;
 show columns from t1;
@@ -110,12 +111,14 @@ drop table t1;
 # This test emulates loading a script generated with mysqldump
 #
 set names utf8;
+--character_set utf8mb4
 CREATE TABLE t1 (
   a ENUM('ä','ö','ü') character set latin1 default 'ü'
 );
 insert into t1 values ('ä'),('ö'),('ü');
 # Now check what has been loaded
 set names latin1;
+--character_set latin1
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE

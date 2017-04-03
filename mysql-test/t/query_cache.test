@@ -526,6 +526,7 @@ drop table t1;
 # New cache entry should appear for every SELECT.
 #
 SET NAMES koi8r;
+--character_set koi8r
 CREATE TABLE t1 (a char(1) character set koi8r);
 INSERT INTO t1 VALUES (_koi8r'á'),(_koi8r'Á');
 #
@@ -556,6 +557,7 @@ SELECT a,'Â','â'='Â' FROM t1;
 show status like "Qcache_hits";
 show status like "Qcache_queries_in_cache";
 SET NAMES default;
+--character_set utf8mb4
 
 DROP TABLE t1;
 

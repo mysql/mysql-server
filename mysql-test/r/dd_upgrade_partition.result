@@ -39,7 +39,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(50) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50500 PARTITION BY RANGE  COLUMNS(a)
-(PARTITION p0 VALUES LESS THAN (_koi8r 0xC386C387) ENGINE = InnoDB,
+(PARTITION p0 VALUES LESS THAN ('ц├ц┤') ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
 # Stop the server
 # Restart the server with default options.

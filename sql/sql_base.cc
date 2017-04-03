@@ -6025,19 +6025,6 @@ restart:
     }
 
     /*
-      When we implicitly open DD tables used by a IS query in LOCK TABLE mode,
-      we do not go through mysql_lock_tables(), which sets lock type to use
-      by SE. Here, we request SE to use read lock for these implicitly opened
-      DD tables using ha_external_lock().
-    */
-    if (tbl && in_LTM(thd) && belongs_to_dd_table(tables))
-    {
-      DBUG_ASSERT(tbl->file->get_lock_type() == F_UNLCK);
-      tbl->file->init_table_handle_for_HANDLER();
-      tbl->file->ha_external_lock(thd, F_RDLCK);
-    }
-
-    /*
       Check if this is a DD table used under a I_S view
       then tell innodb to do non-locking reads on the table.
     */
@@ -6080,6 +6067,19 @@ restart:
         error= TRUE;
         goto err;
       }
+    }
+
+    /*
+      When we implicitly open DD tables used by a IS query in LOCK TABLE mode,
+      we do not go through mysql_lock_tables(), which sets lock type to use
+      by SE. Here, we request SE to use read lock for these implicitly opened
+      DD tables using ha_external_lock().
+    */
+    if (tbl && in_LTM(thd) && belongs_to_dd_table(tables))
+    {
+      DBUG_ASSERT(tbl->file->get_lock_type() == F_UNLCK);
+      tbl->file->init_table_handle_for_HANDLER();
+      tbl->file->ha_external_lock(thd, F_RDLCK);
     }
 
   } // End of for(;;)

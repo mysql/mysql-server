@@ -20,7 +20,7 @@ select 'a  a' > 'a', 'a  \0' < 'a';
 select binary 'a  a' > 'a', binary 'a  \0' > 'a', binary 'a\0' > 'a';
 binary 'a  a' > 'a'	binary 'a  \0' > 'a'	binary 'a\0' > 'a'
 1	1	1
-create table t1 (text1 varchar(32) not NULL, KEY key1 (text1));
+create table t1 (text1 varchar(32) not NULL, KEY key1 (text1)) charset latin1;
 insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
 analyze table t1;
 check table t1;
@@ -127,7 +127,7 @@ concat('|', text1, '|')
 |teststring|
 |teststring |
 drop table t1;
-create table t1 (text1 varchar(32) not NULL, KEY key1 (text1)) pack_keys=0;
+create table t1 (text1 varchar(32) not NULL, KEY key1 (text1)) charset latin1 pack_keys=0;
 insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
 select concat('|', text1, '|') as c from t1 where text1='teststring' or text1 like 'teststring_%' order by c;
 c
@@ -138,7 +138,8 @@ concat('|', text1, '|')
 |teststring	|
 |teststring|
 drop table t1;
-create table t1 (text1 varchar(32) not NULL, KEY key1 using BTREE (text1)) engine=heap;
+create table t1 (text1 varchar(32) not NULL, KEY key1 using BTREE (text1))
+charset latin1 engine=heap;
 insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
 select * from t1 ignore key (key1) where text1='teststring' or 
 text1 like 'teststring_%' ORDER BY text1;
@@ -170,7 +171,8 @@ nothing
 teststring	
 teststring
 drop table t1;
-create table t1 (text1 varchar(32) not NULL, KEY key1 (text1)) engine=innodb;
+create table t1 (text1 varchar(32) not NULL, KEY key1 (text1))
+charset latin1 engine=innodb;
 insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
 analyze table t1;
 check table t1;

@@ -29,7 +29,7 @@
 #include "mysql_chain_element_options.h"
 #include "nullable.h"
 
-#define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8"
+#define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8mb4"
 #define MAX_NAME_LEN    (64 * 3)
 
 namespace Mysql{

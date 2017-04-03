@@ -1873,10 +1873,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
           but this server binary is not compiled with the performance_schema,
           as ha_resolve_by_name() did not find the storage engine.
           This can happen:
-          - (a) during tests with mysql-test-run,
-            because the same database installed image is used
-            for regular builds (with P_S) and embedded builds (without P_S)
-          - (b) in production, when random binaries (without P_S) are thrown
+          - in production, when random binaries (without P_S) are thrown
             on top of random installed database instances on disk (with P_S).
           For the sake of robustness, pretend the table simply does not exist,
           so that in particular it does not pollute the information_schema

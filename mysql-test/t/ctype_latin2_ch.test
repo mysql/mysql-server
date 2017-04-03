@@ -13,6 +13,7 @@ drop table if exists t1;
 # to find value on columuns with key
 #
 set names latin2;
+--character_set latin2
 select 'A' = 'a' collate latin2_czech_cs;
 create table t1 (
     id  int(5) not null,    

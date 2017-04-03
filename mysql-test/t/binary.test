@@ -8,6 +8,8 @@
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
+set names latin1;
+--character_set latin1
 
 create table t1 (name char(20) not null, primary key (name)) charset latin1;
 create table t2 (name char(20) binary not null, primary key (name));

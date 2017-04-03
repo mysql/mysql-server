@@ -1,0 +1,37 @@
+# ==== Purpose ====
+#
+# This test asserts that when a performance schema table is dropped, only the
+# missing table is marked as invalid when the server is restarted with binlog
+# enabled.
+#
+# ==== Implementation ====
+#
+# On a server with binlog enabled, drop a performance_schema table.Then, restart
+# the server also with binlog enabled.
+# Assert that the correct error message is printed in the server error log
+# (because if any other error is issued, the test fails).
+#
+# ==== References ====
+#
+# BUG#25041396 --LOG-BIN MARKS MANY PERFORMANCE SCHEMA TABLES INVALID
+
+--source include/have_log_bin.inc
+# the test is binlog format independent
+--source include/have_binlog_format_row.inc
+--source include/force_restart.inc
+
+call mtr.add_suppression("Native table 'performance_schema'.'events_errors_summary_by_user_by_error' has the wrong structure");
+
+# drop the performance schema table to force the print of the error when the
+# server is restarted
+DROP TABLE performance_schema.events_errors_summary_by_user_by_error;
+
+# restart the server without errors
+--source include/restart_mysqld.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/restart_server_with_invalid_ps_table.err
+--let $assert_only_after= CURRENT_TEST: main.restart_server_with_invalid_ps_table
+--let $assert_count= 1
+--let $assert_select= Native table 'performance_schema'.'events_errors_summary_by_user_by_error' has the wrong structure
+--let $assert_text= Found the expected error "'performance_schema'.'events_errors_summary_by_user_by_error' has the wrong structure" in the server error log.
+--source include/assert_grep.inc

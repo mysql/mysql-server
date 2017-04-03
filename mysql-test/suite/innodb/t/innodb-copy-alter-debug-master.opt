@@ -1,1 +1,2 @@
 --bootstrap --character-set-server=latin1
+--innodb-buffer-pool-size=50mb

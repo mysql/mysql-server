@@ -54,7 +54,7 @@ static const unsigned int WAITING_TIME= 30;
 /*
   Number of attempts to join a group.
 */
-static const unsigned int JOIN_ATTEMPTS= 3;
+static const unsigned int JOIN_ATTEMPTS= 0;
 
 /*
   Sleep time between attempts defined in seconds.
@@ -911,9 +911,9 @@ Gcs_xcom_nodes::Gcs_xcom_nodes(const site_def *site, node_set &nodes)
     m_addresses.push_back(address);
 
     /* Get member uuid and save it. */
-    assert(uuid.size ==  site->nodes.node_list_val[i].uuid.data.data_len);
     uuid.decode(
-      reinterpret_cast<uchar *>(site->nodes.node_list_val[i].uuid.data.data_val)
+      reinterpret_cast<uchar *>(site->nodes.node_list_val[i].uuid.data.data_val),
+      site->nodes.node_list_val[i].uuid.data.data_len
     );
     m_uuids.push_back(uuid);
 
@@ -1112,6 +1112,10 @@ is_parameters_syntax_correct(const Gcs_interface_parameters &interface_params)
     interface_params.get_parameter("join_attempts");
   const std::string *join_sleep_time_str=
     interface_params.get_parameter("join_sleep_time");
+  const std::string *suspicions_timeout_str=
+    interface_params.get_parameter("suspicions_timeout");
+  const std::string *suspicions_processing_period_str=
+    interface_params.get_parameter("suspicions_processing_period");
 
   /*
     -----------------------------------------------------
@@ -1281,12 +1285,33 @@ is_parameters_syntax_correct(const Gcs_interface_parameters &interface_params)
     goto end;
   }
 
+  // validate suspicions parameters
+  if (suspicions_timeout_str &&
+      (suspicions_timeout_str->size() == 0 ||
+       !is_number(*suspicions_timeout_str)))
+  {
+    MYSQL_GCS_LOG_ERROR("The suspicions_timeout parameter ("
+                          << suspicions_timeout_str << ") is not valid.")
+    error= GCS_NOK;
+    goto end;
+  }
+
   if(join_sleep_time_str &&
      (join_sleep_time_str->size() == 0 ||
       !is_number(*join_sleep_time_str)))
   {
     MYSQL_GCS_LOG_ERROR("The join_sleep_time parameter ("
                         << join_sleep_time_str << ") is not valid.")
+    error= GCS_NOK;
+    goto end;
+  }
+
+  if (suspicions_processing_period_str &&
+      (suspicions_processing_period_str->size() == 0 ||
+       !is_number(*suspicions_processing_period_str)))
+  {
+    MYSQL_GCS_LOG_ERROR("The suspicions_processing_period parameter ("
+                          << suspicions_processing_period_str << ") is not valid.")
     error= GCS_NOK;
     goto end;
   }

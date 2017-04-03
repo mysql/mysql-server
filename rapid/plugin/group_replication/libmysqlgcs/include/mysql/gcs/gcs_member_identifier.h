@@ -37,29 +37,32 @@ public:
   /*
     Size of the current identifier when not serialized.
   */
-  static const unsigned int size;
+  static const unsigned int uuid_size;
 
 
   /*
-    Get a string representation of the uuid that can be put on
-    the wire.
+    Copies the internal buffer which is used to store a uuid to an
+    external buffer. If the parameters buffer or size point to NULL,
+    nothing is returned.
 
     @param [out] buffer storage buffer
-    @return string representation
+    @param [out] size data size
+    @return Whether the data was returned or not.
   */
 
-  bool encode(uchar **buffer) const;
+  bool encode(uchar **buffer, unsigned int *size) const;
 
 
   /*
-    Transforms a string representation into the current format
-    whatever it is.
+    Copies the external buffer to an internal buffer. If the
+    parameter buffer points to NULL, nothing is returned.
 
     @param [in] buffer storage buffer
-    @return string representation
+    @param [in] size data size
+    @return Whether the data was copied or not.
   */
 
-  bool decode(uchar *buffer);
+  bool decode(const uchar *buffer, const unsigned int size);
 
 
   /*
@@ -67,8 +70,7 @@ public:
     can easily be extended to 128 bits and become a truly UUID in
     the future.
   */
-
-  uint64_t value;
+  std::string actual_value;
 };
 
 

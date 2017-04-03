@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -242,17 +242,22 @@ TEST_F(XcomGroupManagementTest, TestListContent)
   Gcs_uuid uuid_2= Gcs_uuid::create_uuid();
   blob blobs[] = {
      {{
-       uuid_1.size,
-       static_cast<char *>(malloc(uuid_1.size * sizeof(char *)))
+       0,
+       static_cast<char *>(malloc(uuid_1.actual_value.size()))
      }},
      {{
-       uuid_2.size,
-       static_cast<char *>(malloc(uuid_2.size * sizeof(char *)))
+       0,
+       static_cast<char *>(malloc(uuid_2.actual_value.size()))
      }}
   };
-  uuid_1.encode(reinterpret_cast<uchar **>(&blobs[0].data.data_val));
-  uuid_2.encode(reinterpret_cast<uchar **>(&blobs[1].data.data_val));
-
+  uuid_1.encode(
+    reinterpret_cast<uchar **>(&blobs[0].data.data_val),
+    &blobs[0].data.data_len
+  );
+  uuid_2.encode(
+    reinterpret_cast<uchar **>(&blobs[1].data.data_val),
+    &blobs[1].data.data_len
+  );
 
   Gcs_xcom_view_identifier view_id(0, 0);
 

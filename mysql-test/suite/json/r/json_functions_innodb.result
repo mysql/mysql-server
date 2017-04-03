@@ -10832,10 +10832,7 @@ EXPLAIN
             "prefix_cost": "0.45",
             "data_read_per_join": "48"
           },
-          "used_columns": [
-            "id",
-            "j"
-          ],
+          "used_columns": "filtered due to bug#22472365",
           "partial_update_columns": [
             "j"
           ]
@@ -10865,10 +10862,7 @@ EXPLAIN
             "prefix_cost": "1.15",
             "data_read_per_join": "48"
           },
-          "used_columns": [
-            "id",
-            "j"
-          ]
+          "used_columns": "filtered due to bug#22472365"
         }
       }
     ]
@@ -11010,9 +11004,7 @@ EXPLAIN
             "prefix_cost": "0.45",
             "data_read_per_join": "48"
           },
-          "used_columns": [
-            "j"
-          ]
+          "used_columns": "filtered due to bug#22472365"
         }
       },
       {
@@ -11029,10 +11021,7 @@ EXPLAIN
             "prefix_cost": "1.30",
             "data_read_per_join": "144"
           },
-          "used_columns": [
-            "id",
-            "j"
-          ]
+          "used_columns": "filtered due to bug#22472365"
         }
       }
     ]

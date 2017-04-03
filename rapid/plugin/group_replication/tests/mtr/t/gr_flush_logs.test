@@ -302,12 +302,12 @@ flush binary logs;
 
 --let $binlog1= query_get_value(show binary logs, Log_name, 1)
 --let $assert_text= assert that the first binary log name is server-binary-log.000001
---let $assert_cond= "$binlog1 " = "server-binary-log.000001"
+--let $assert_cond= "$binlog1" = "server-binary-log.000001"
 --source include/assert.inc
 
 --let $binlog2= query_get_value(show binary logs, Log_name, 2)
 --let $assert_text= assert that the second binary log name is server-binary-log.000002
---let $assert_cond= "$binlog2 " = "server-binary-log.000002"
+--let $assert_cond= "$binlog2" = "server-binary-log.000002"
 --source include/assert.inc
 
 --echo # Make sure applier logs was not flushed after execute 'flush binary logs' statement.

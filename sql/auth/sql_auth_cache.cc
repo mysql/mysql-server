@@ -1379,6 +1379,7 @@ bool acl_getroot(THD *thd, Security_context *sctx, char *user, char *host,
                            strlen(acl_user->host.get_host()) : 0);
 
     sctx->set_password_expired(acl_user->password_expired);
+    sctx->lock_account(acl_user->account_locked);
   } // end if
  
   if (acl_user && sctx->get_active_roles()->size() > 0)

@@ -56,8 +56,8 @@ i
 7
 ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 Warnings:
-Warning	1812	InnoDB: Tablespace is missing for table 't1'
-Warning	1812	InnoDB: Tablespace is missing for table 't1'
+Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p9.
+Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p10.
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
 SELECT * FROM t1 PARTITION (p0,p1,p2,p3,p4,p5,p6,p7,p8) ORDER BY i;
 i
@@ -84,4 +84,9 @@ i
 7000
 8000
 DROP TABLE t1;
-
+call mtr.add_suppression("InnoDB: Cannot calculate statistics for table .* because the .ibd file is missing");
+call mtr.add_suppression("InnoDB: Cannot delete tablespace .* in DISCARD TABLESPACE. Tablespace not found");
+call mtr.add_suppression("InnoDB: Cannot delete tablespace .* because it is not found in the tablespace memory cache.");
+call mtr.add_suppression("InnoDB: Trying to import a tablespace, but could not open the tablespace file");
+call mtr.add_suppression("InnoDB: Operating system error number 2 in a file operation.");
+call mtr.add_suppression("InnoDB: The error means the system cannot find the path specified.");

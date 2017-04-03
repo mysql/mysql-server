@@ -18,8 +18,7 @@
 #    GTID_EXECUTED. Set DEBUG point and start GR on M2.
 # 5. Shutdown.
 ################################################################################
-# This test does crashes servers, thence we skip it on asan and valgrind.
---source include/not_asan.inc
+# This test does crashes servers, thence we skip it on valgrind.
 --source include/not_valgrind.inc
 --source include/have_debug.inc
 --source include/force_restart.inc

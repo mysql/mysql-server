@@ -693,9 +693,11 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         /* Same applies to MDL ticket. */
         table->mdl_request.ticket= NULL;
 
-        tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-        result_code= mysql_recreate_table(thd, table, false);
-        reenable_binlog(thd);
+        {
+          // binlogging is done by caller if wanted
+          Disable_binlog_guard binlog_guard(thd);
+          result_code= mysql_recreate_table(thd, table, false);
+        }
         /*
           mysql_recreate_table() can push OK or ERROR.
           Clear 'OK' status. If there is an error, keep it:
@@ -888,11 +890,13 @@ send_result_message:
       TABLE_LIST *save_next_local= table->next_local,
                  *save_next_global= table->next_global;
       table->next_local= table->next_global= 0;
-      tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-      /* Don't forget to pre-open temporary tables. */
-      result_code= (open_temporary_tables(thd, table) ||
-                    mysql_recreate_table(thd, table, false));
-      reenable_binlog(thd);
+      {
+        // binlogging is done by caller if wanted
+        Disable_binlog_guard binlog_guard(thd);
+        /* Don't forget to pre-open temporary tables. */
+        result_code= (open_temporary_tables(thd, table) ||
+                      mysql_recreate_table(thd, table, false));
+      }
       /*
         mysql_recreate_table() can push OK or ERROR.
         Clear 'OK' status. If there is an error, keep it:

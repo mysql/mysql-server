@@ -16,6 +16,7 @@
 #include "mysql/gcs/xplatform/my_xp_util.h"
 #include "mysql/gcs/xplatform/byteorder.h"
 #include <cstring>
+#include <sstream>
 #include <assert.h>
 
 #include "mysql/gcs/gcs_member_identifier.h"
@@ -62,35 +63,40 @@ bool Gcs_member_identifier::operator==(const Gcs_member_identifier &other) const
   return m_member_id.compare(other.m_member_id) == 0;
 }
 
-const unsigned int Gcs_uuid::size= 8;
 
 Gcs_uuid Gcs_uuid::create_uuid()
 {
   Gcs_uuid uuid;
-  uuid.value= htole64(My_xp_util::getsystime());
-  assert(size == sizeof(uint64_t));
+  std::ostringstream ss;
+  uint64_t value= htole64(My_xp_util::getsystime());
+
+  ss << value;
+  uuid.actual_value= ss.str();
 
   return uuid;
 }
 
 
-bool Gcs_uuid::encode(uchar **buffer) const
+bool Gcs_uuid::encode(uchar **buffer, unsigned int *size) const
 {
-  if  (*buffer == NULL)
+  if  (buffer == NULL || *buffer == NULL || size == NULL)
     return false;
 
-  memcpy(*buffer, &value, Gcs_uuid::size);
+  memcpy(*buffer, actual_value.c_str(), actual_value.size());
+  *size= actual_value.size();
 
   return true;
 }
 
 
-bool Gcs_uuid::decode(uchar *buffer)
+bool Gcs_uuid::decode(const uchar *buffer, const unsigned int size)
 {
   if  (buffer == NULL)
     return false;
-  
-  memcpy(&value, buffer, Gcs_uuid::size);
+
+  actual_value= std::string(
+    reinterpret_cast<const char *>(buffer), static_cast<size_t>(size)
+  );
 
   return true;
 }

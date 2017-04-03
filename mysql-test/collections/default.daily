@@ -55,5 +55,3 @@ perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --parallel=auto --
 # Run some tests that use no_parallel.inc
 perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --comment=serial_tests  --vardir=var-serial-tests main.blackhole_plugin main.archive_plugin --no-skip
 
-# Run collation regression tests
-perl mysql-test-run.pl --force --timer --comment=collations  --vardir=var-collations --suite=collations --no-skip

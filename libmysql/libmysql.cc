@@ -1266,11 +1266,10 @@ myodbc_remove_escape(MYSQL *mysql,char *name)
 
  mysql_stmt_* are real prototypes used by applications.
 
- To make API work in embedded library all functions performing
+ All functions performing
  real I/O are prefixed with 'cli_' (abbreviated from 'Call Level
  Interface'). This functions are invoked via pointers set in
- MYSQL::methods structure. Embedded counterparts, prefixed with
- 'emb_' reside in libmysqld/lib_sql.cc.
+ MYSQL::methods structure.
 *********************************************************************/
 
 /******************* Declarations ***********************************/

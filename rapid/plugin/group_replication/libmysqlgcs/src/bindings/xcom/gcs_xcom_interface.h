@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +39,8 @@
 #include "gcs_xcom_group_management.h"
 #include "gcs_xcom_utils.h"
 #include "gcs_xcom_networking.h"
+
+class Gcs_suspicions_manager;
 
 /**
   Struct that holds instances of this binding interface implementations.
@@ -121,6 +123,9 @@ public:
 
   enum_gcs_error configure_msg_stages(const Gcs_interface_parameters &p,
                                       const Gcs_group_identifier &gid);
+
+  enum_gcs_error configure_suspicions_mgr(Gcs_interface_parameters &p,
+                                          Gcs_suspicions_manager *mgr);
 
   enum_gcs_error set_logger(Ext_logger_interface *logger);
 

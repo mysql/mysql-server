@@ -1,0 +1,4 @@
+##### WL#10353 Run test client in cp932
+!include include/default_my.cnf
+[mysqltest]
+default-character-set=cp932

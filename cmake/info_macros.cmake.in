@@ -60,18 +60,7 @@ SET(COMPILER_ID_AND_VERSION
 MACRO(CREATE_INFO_SRC target_dir)
   SET(INFO_SRC "${target_dir}/INFO_SRC")
 
-  SET(PERLSCRIPT
-    "use warnings; use POSIX qw(strftime); "
-    "print strftime \"%F %T %z\", localtime;")
-  EXECUTE_PROCESS(
-    COMMAND perl -e "${PERLSCRIPT}"
-    RESULT_VARIABLE result
-    OUTPUT_VARIABLE bdate
-    ERROR_VARIABLE error
-  )
-  IF(error)
-    MESSAGE(STATUS "Could not determine build-date: <${error}>")
-  ENDIF()
+  STRING(TIMESTAMP bdate "%Y-%m-%d %H:%M:%S +0000" UTC)
 
   IF(GIT_EXECUTABLE AND EXISTS ${CMAKE_SOURCE_DIR}/.git)
     # Sources are in a GIT repository: Always update.

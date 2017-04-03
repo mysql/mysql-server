@@ -1368,6 +1368,12 @@ static bool mysql_component_infrastructure_init()
   {
     sql_print_error("Failed to bootstrap persistent privileges.\n");
   }
+  /*
+   * Its a dummy initialization function. Else linker, is cutting out (as
+   * library optimization) the string service code because libsql code is not
+   * calling any functions of it.
+   */
+  mysql_string_services_init();
   return false;
 }
 
@@ -6583,9 +6589,11 @@ struct my_option my_long_options[]=
   "Dummy option to start as a standalone program (NT).", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"symbolic-links", 's', "Enable symbolic link support.",
+  {"symbolic-links", 's',
+   "Enable symbolic link support (deprecated and will be  removed in a future"
+   " release).",
    &my_enable_symlinks, &my_enable_symlinks, 0, GET_BOOL, NO_ARG,
-   1, 0, 0, 0, 0, 0},
+   0, 0, 0, 0, 0, 0},
   {"sysdate-is-now", 0,
    "Non-default option to alias SYSDATE() to NOW() to make it safe-replicable. "
    "Since 5.0, SYSDATE() returns a `dynamic' value different for different "
@@ -7958,6 +7966,9 @@ mysqld_get_one_option(int optid,
       mysqld_user= argument;
     else
       sql_print_warning("Ignoring user change to '%s' because the user was set to '%s' earlier on the command line\n", argument, mysqld_user);
+    break;
+  case 's':
+    push_deprecated_warn_no_replacement(NULL, "--symbolic-links/-s");
     break;
   case 'L':
     push_deprecated_warn(NULL, "--language/-l", "'--lc-messages-dir'");

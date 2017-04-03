@@ -272,9 +272,11 @@ set names utf8;
 prepare `Ã¼` from 'select 1234';
 execute `Ã¼` ;
 set names latin1;
+--character_set latin1
 execute `ü`;
 deallocate prepare `ü`;
 set names default;
+--character_set utf8mb4
 
 
 # 

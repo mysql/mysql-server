@@ -670,12 +670,10 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
 
       ha_drop_database(path);
       thd->clear_error(); /* @todo Do not ignore errors */
-      tmp_disable_binlog(thd);
+      Disable_binlog_guard binlog_guard(thd);
       query_cache.invalidate(thd, db.str);
       error= Events::drop_schema_events(thd, *schema);
       error= (error || (sp_drop_db_routines(thd, *schema) != SP_OK));
-      reenable_binlog(thd);
-
     }
     thd->pop_internal_handler();
 

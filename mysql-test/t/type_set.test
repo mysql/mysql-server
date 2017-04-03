@@ -28,6 +28,7 @@ DROP TABLE t1;
 # Check that SET is case sensitive with a binary collation
 #
 set names latin1;
+--character_set latin1
 create table t1 (s set ('a','A') character set latin1 collate latin1_bin);
 
 #Replace default engine value with static engine string 

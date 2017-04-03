@@ -17,7 +17,7 @@ SET optimizer_trace="enabled=on,one_line=off";
 SET optimizer_switch='index_merge_union=off,index_merge=off';
 EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c' OR f4 = 'f';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	f2,f3,f4	NULL	NULL	NULL	288	53.12	Using where
+1	SIMPLE	t1	NULL	ALL	f2,f3,f4	NULL	NULL	NULL	288	32.50	Using where
 Warnings:
 Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`) */ `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'c') or (`test`.`t1`.`f4` = 'f'))
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
@@ -45,15 +45,15 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c'
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(multiple equal(5, `t1`.`f2`) or multiple equal('c', `t1`.`f3`) or multiple equal('f', `t1`.`f4`))"
+                  "resulting_condition": "(multiple equal(5, `t1`.`f2`) or (`t1`.`f3` = 'c') or (`t1`.`f4` = 'f'))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(multiple equal(5, `t1`.`f2`) or multiple equal('c', `t1`.`f3`) or multiple equal('f', `t1`.`f4`))"
+                  "resulting_condition": "(multiple equal(5, `t1`.`f2`) or (`t1`.`f3` = 'c') or (`t1`.`f4` = 'f'))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(multiple equal(5, `t1`.`f2`) or multiple equal('c', `t1`.`f3`) or multiple equal('f', `t1`.`f4`))"
+                  "resulting_condition": "(multiple equal(5, `t1`.`f2`) or (`t1`.`f3` = 'c') or (`t1`.`f4` = 'f'))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -149,12 +149,12 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c'
                               "using_mrr": false,
                               "index_only": true,
                               "rows": 8,
-                              "cost": 1.0621,
+                              "cost": 1.0628,
                               "chosen": true
                             }
                           ] /* range_scan_alternatives */,
                           "index_to_merge": "f2",
-                          "cumulated_cost": 1.0621
+                          "cumulated_cost": 1.0628
                         },
                         {
                           "range_scan_alternatives": [
@@ -168,12 +168,12 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c'
                               "using_mrr": false,
                               "index_only": true,
                               "rows": 16,
-                              "cost": 1.8632,
+                              "cost": 1.8659,
                               "chosen": true
                             }
                           ] /* range_scan_alternatives */,
                           "index_to_merge": "f3",
-                          "cumulated_cost": 2.9253
+                          "cumulated_cost": 2.9287
                         },
                         {
                           "range_scan_alternatives": [
@@ -187,7 +187,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c'
                           "cause": "cost"
                         }
                       ] /* indexes_to_merge */,
-                      "cost_of_reading_ranges": 2.9253,
+                      "cost_of_reading_ranges": 2.9287,
                       "chosen": false,
                       "cause": "cost"
                     }
@@ -207,14 +207,14 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c'
                     {
                       "rows_to_scan": 288,
                       "access_type": "scan",
-                      "resulting_rows": 153,
+                      "resulting_rows": 93.6,
                       "cost": 29.05,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
-                "rows_for_plan": 153,
+                "rows_for_plan": 93.6,
                 "cost_for_plan": 29.05,
                 "chosen": true
               }
@@ -257,7 +257,7 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	f2,f3,f4	f2	5	const	128	19.75	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f3`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'b') and (`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h'))
+Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f3`) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`f2` = 2) and (`test`.`t1`.`f4` = 'h') and (`test`.`t1`.`f3` = 'b'))
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND f2 = 2 AND f3 = 'b'	{
@@ -283,15 +283,15 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(multiple equal('h', `t1`.`f4`) and multiple equal(2, `t1`.`f2`) and multiple equal('b', `t1`.`f3`))"
+                  "resulting_condition": "((`t1`.`f4` = 'h') and (`t1`.`f3` = 'b') and multiple equal(2, `t1`.`f2`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(multiple equal('h', `t1`.`f4`) and multiple equal(2, `t1`.`f2`) and multiple equal('b', `t1`.`f3`))"
+                  "resulting_condition": "((`t1`.`f4` = 'h') and (`t1`.`f3` = 'b') and multiple equal(2, `t1`.`f2`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(multiple equal('h', `t1`.`f4`) and multiple equal(2, `t1`.`f2`) and multiple equal('b', `t1`.`f3`))"
+                  "resulting_condition": "((`t1`.`f4` = 'h') and (`t1`.`f3` = 'b') and multiple equal(2, `t1`.`f2`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -422,10 +422,10 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
                       "intersecting_indexes": [
                         {
                           "index": "f2",
-                          "index_scan_cost": 0.2887,
-                          "cumulated_index_scan_cost": 0.2887,
+                          "index_scan_cost": 0.3003,
+                          "cumulated_index_scan_cost": 0.3003,
                           "disk_sweep_cost": 1,
-                          "cumulated_total_cost": 1.2887,
+                          "cumulated_total_cost": 1.3003,
                           "usable": true,
                           "matching_rows_now": 128,
                           "isect_covering_with_this_index": false,
@@ -433,10 +433,10 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
                         },
                         {
                           "index": "f4",
-                          "index_scan_cost": 0.2771,
-                          "cumulated_index_scan_cost": 0.5658,
+                          "index_scan_cost": 0.3003,
+                          "cumulated_index_scan_cost": 0.6006,
                           "disk_sweep_cost": 1,
-                          "cumulated_total_cost": 1.5658,
+                          "cumulated_total_cost": 1.6006,
                           "usable": true,
                           "matching_rows_now": 56.889,
                           "isect_covering_with_this_index": false,
@@ -503,13 +503,13 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t1`.`f3` = 'b') and (`t1`.`f2` = 2) and (`t1`.`f4` = 'h'))",
+              "original_condition": "((`t1`.`f2` = 2) and (`t1`.`f4` = 'h') and (`t1`.`f3` = 'b'))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "((`t1`.`f3` = 'b') and (`t1`.`f4` = 'h'))"
+                  "attached": "((`t1`.`f4` = 'h') and (`t1`.`f3` = 'b'))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -536,7 +536,7 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
 SET optimizer_switch='index_merge_union=off,index_merge=off';
 EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  = 'b') AND (f2 BETWEEN 300 AND 310 OR f4 = 'b');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f4	5,2	NULL	2	100.00	Using sort_union(f2,f4); Using where
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f4	5,5	NULL	2	100.00	Using sort_union(f2,f4); Using where
 Warnings:
 Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`, `f4`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6` from `test`.`t1` where (((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'b')) and ((`test`.`t1`.`f2` between 300 and 310) or (`test`.`t1`.`f4` = 'b')))
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
@@ -564,15 +564,15 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or multiple equal('b', `t1`.`f3`)) and ((`t1`.`f2` between 300 and 310) or multiple equal('b', `t1`.`f4`)))"
+                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 300 and 310) or (`t1`.`f4` = 'b')))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or multiple equal('b', `t1`.`f3`)) and ((`t1`.`f2` between 300 and 310) or multiple equal('b', `t1`.`f4`)))"
+                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 300 and 310) or (`t1`.`f4` = 'b')))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or multiple equal('b', `t1`.`f3`)) and ((`t1`.`f2` between 300 and 310) or multiple equal('b', `t1`.`f4`)))"
+                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 300 and 310) or (`t1`.`f4` = 'b')))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -668,12 +668,12 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                               "using_mrr": false,
                               "index_only": true,
                               "rows": 8,
-                              "cost": 1.0621,
+                              "cost": 1.0628,
                               "chosen": true
                             }
                           ] /* range_scan_alternatives */,
                           "index_to_merge": "f2",
-                          "cumulated_cost": 1.0621
+                          "cumulated_cost": 1.0628
                         },
                         {
                           "range_scan_alternatives": [
@@ -687,15 +687,15 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                               "using_mrr": false,
                               "index_only": true,
                               "rows": 128,
-                              "cost": 13.087,
+                              "cost": 13.11,
                               "chosen": true
                             }
                           ] /* range_scan_alternatives */,
                           "index_to_merge": "f3",
-                          "cumulated_cost": 14.149
+                          "cumulated_cost": 14.173
                         }
                       ] /* indexes_to_merge */,
-                      "cost_of_reading_ranges": 14.149,
+                      "cost_of_reading_ranges": 14.173,
                       "use_roworder_union": true,
                       "cause": "always_cheaper_than_not_roworder_retrieval",
                       "analyzing_roworder_scans": [
@@ -724,7 +724,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                           } /* analyzing_roworder_intersect */
                         }
                       ] /* analyzing_roworder_scans */,
-                      "index_roworder_union_cost": 21.949,
+                      "index_roworder_union_cost": 21.973,
                       "members": 2,
                       "chosen": true
                     },
@@ -866,7 +866,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
 }	0	0
 EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  = 'b') AND (f2 BETWEEN 1 AND 10 OR f4 = 'b');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3	5,2	NULL	136	100.00	Using union(f2,f3); Using where
+1	SIMPLE	t1	NULL	index_merge	f2,f3,f4	f2,f3	5,5	NULL	136	100.00	Using union(f2,f3); Using where
 Warnings:
 Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`, `f4`) */ `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5`,`test`.`t1`.`f6` AS `f6` from `test`.`t1` where (((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'b')) and ((`test`.`t1`.`f2` between 1 and 10) or (`test`.`t1`.`f4` = 'b')))
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
@@ -894,15 +894,15 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or multiple equal('b', `t1`.`f3`)) and ((`t1`.`f2` between 1 and 10) or multiple equal('b', `t1`.`f4`)))"
+                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 1 and 10) or (`t1`.`f4` = 'b')))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or multiple equal('b', `t1`.`f3`)) and ((`t1`.`f2` between 1 and 10) or multiple equal('b', `t1`.`f4`)))"
+                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 1 and 10) or (`t1`.`f4` = 'b')))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or multiple equal('b', `t1`.`f3`)) and ((`t1`.`f2` between 1 and 10) or multiple equal('b', `t1`.`f4`)))"
+                  "resulting_condition": "((multiple equal(5, `t1`.`f2`) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 1 and 10) or (`t1`.`f4` = 'b')))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -998,12 +998,12 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                               "using_mrr": false,
                               "index_only": true,
                               "rows": 8,
-                              "cost": 1.0621,
+                              "cost": 1.0628,
                               "chosen": true
                             }
                           ] /* range_scan_alternatives */,
                           "index_to_merge": "f2",
-                          "cumulated_cost": 1.0621
+                          "cumulated_cost": 1.0628
                         },
                         {
                           "range_scan_alternatives": [
@@ -1017,15 +1017,15 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                               "using_mrr": false,
                               "index_only": true,
                               "rows": 128,
-                              "cost": 13.087,
+                              "cost": 13.11,
                               "chosen": true
                             }
                           ] /* range_scan_alternatives */,
                           "index_to_merge": "f3",
-                          "cumulated_cost": 14.149
+                          "cumulated_cost": 14.173
                         }
                       ] /* indexes_to_merge */,
-                      "cost_of_reading_ranges": 14.149,
+                      "cost_of_reading_ranges": 14.173,
                       "use_roworder_union": true,
                       "cause": "always_cheaper_than_not_roworder_retrieval",
                       "analyzing_roworder_scans": [
@@ -1054,7 +1054,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                           } /* analyzing_roworder_intersect */
                         }
                       ] /* analyzing_roworder_scans */,
-                      "index_roworder_union_cost": 21.949,
+                      "index_roworder_union_cost": 21.973,
                       "members": 2,
                       "chosen": true
                     },
@@ -1072,12 +1072,12 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                               "using_mrr": false,
                               "index_only": true,
                               "rows": 288,
-                              "cost": 29.148,
+                              "cost": 29.174,
                               "chosen": true
                             }
                           ] /* range_scan_alternatives */,
                           "index_to_merge": "f2",
-                          "cumulated_cost": 29.148
+                          "cumulated_cost": 29.174
                         },
                         {
                           "range_scan_alternatives": [
@@ -1096,13 +1096,13 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                             }
                           ] /* range_scan_alternatives */,
                           "index_to_merge": "f4",
-                          "cumulated_cost": 29.508
+                          "cumulated_cost": 29.534
                         }
                       ] /* indexes_to_merge */,
-                      "cost_of_reading_ranges": 29.508,
+                      "cost_of_reading_ranges": 29.534,
                       "cost_sort_rowid_and_read_disk": 1,
                       "cost_duplicate_removal": 195.92,
-                      "total_cost": 226.43
+                      "total_cost": 226.45
                     }
                   ] /* analyzing_index_merge_union */,
                   "chosen_range_access_summary": {
@@ -1128,7 +1128,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                       ] /* union_of */
                     } /* range_access_plan */,
                     "rows_for_plan": 136,
-                    "cost_for_plan": 21.949,
+                    "cost_for_plan": 21.973,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -1150,14 +1150,14 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                         "used_index": "union(f2,f3)"
                       } /* range_details */,
                       "resulting_rows": 136,
-                      "cost": 35.549,
+                      "cost": 35.573,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 136,
-                "cost_for_plan": 35.549,
+                "cost_for_plan": 35.573,
                 "chosen": true
               }
             ] /* considered_execution_plans */

@@ -165,7 +165,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,binlog_gtid,binlog_nogtid,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,binlog_gtid,binlog_nogtid,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -399,15 +399,19 @@ sub main {
     gcov_prepare($basedir);
   }
 
-  # New: collect suites and test cases from test list (file containing suite.testcase on each line)
-  #      and put suites to $opt_suites and test case to @opt_cases.
-  if ($opt_do_test_list ne "") {
-      	collect_test_cases_from_list(\$opt_suites, \@opt_cases, $opt_do_test_list,\$opt_ctest);
+  # Collect test cases from a file and put them into '@opt_cases'.
+  if ($opt_do_test_list)
+  {
+    collect_test_cases_from_list(\@opt_cases, $opt_do_test_list, \$opt_ctest);
   }
-  if (!$opt_suites) {
+
+  if (!$opt_suites)
+  {
     $opt_suites= $DEFAULT_SUITES;
   }
-  if ($opt_skip_sys_schema) {
+
+  if ($opt_skip_sys_schema)
+  {
     $opt_suites =~ s/,sysschema//;
   }
 
@@ -7505,10 +7509,10 @@ Options to control what test suites or cases to run
   enable-disabled       Run also tests marked as disabled
   print-testcases       Don't run the tests but print details about all the
                         selected tests, in the order they would be run.
-  do-test-list=FILE     Run the tests listed in FILE. Each line in the file
-                        is an entry and should be formatted as:
-                        <SUITE>.<TESTNAME> or <SUITE> <TESTNAME>.
-                        "#" as first character marks a comment.
+  do-test-list=FILE     Run the tests listed in FILE. The tests should be
+                        listed one per line in the file. "#" as first
+                        character marks a comment and is ignored. Similary
+                        an empty line in the file is also ignored.
   skip-test-list=FILE   Skip the tests listed in FILE. Each line in the file
                         is an entry and should be formatted as: 
                         <TESTNAME> : <COMMENT>

@@ -247,7 +247,7 @@ lock_wait_suspend_thread(
 		srv_stats.n_lock_wait_count.inc();
 		srv_stats.n_lock_wait_current_count.inc();
 
-		if (ut_high_res_usectime(&sec, &ms) == -1) {
+		if (ut_usectime(&sec, &ms) == -1) {
 			start_time = -1;
 		} else {
 			start_time = static_cast<int64_t>(sec) * 1000000 + ms;
@@ -342,7 +342,7 @@ lock_wait_suspend_thread(
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
 		ulint	diff_time;
 
-		if (ut_high_res_usectime(&sec, &ms) == -1) {
+		if (ut_usectime(&sec, &ms) == -1) {
 			finish_time = -1;
 		} else {
 			finish_time = static_cast<int64_t>(sec) * 1000000 + ms;

@@ -153,5 +153,5 @@ ulonglong query_performance_frequency, query_performance_offset,
 
 	/* How to disable options */
 bool my_disable_locking=0;
-bool my_enable_symlinks= 1;
+bool my_enable_symlinks= false;
 

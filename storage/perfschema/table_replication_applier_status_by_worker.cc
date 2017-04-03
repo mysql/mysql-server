@@ -176,12 +176,35 @@ PFS_index_rpl_applier_status_by_worker_by_thread::match(Master_info *mi)
 
     if (mi->rli->slave_running)
     {
-      PSI_thread *psi = thd_get_psi(mi->rli->info_thd);
-      PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
-      if (pfs)
+      /* STS will use SQL thread as workers on this table */
+      if (mi->rli->get_worker_count() == 0)
       {
-        row.thread_id = pfs->m_thread_internal_id;
-        row.thread_id_is_null = false;
+        PSI_thread *psi = thd_get_psi(mi->rli->info_thd);
+        PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
+        if (pfs)
+        {
+          row.thread_id = pfs->m_thread_internal_id;
+          row.thread_id_is_null = false;
+        }
+      }
+      /* MTS will have to check each channel worker for a match */
+      else
+      {
+        for (int index = mi->rli->get_worker_count()-1; index >= 0; index--)
+        {
+          Slave_worker *worker = mi->rli->get_worker(index);
+          if (worker)
+          {
+            PSI_thread *psi = thd_get_psi(worker->info_thd);
+            PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
+            if (pfs && m_key.match(pfs->m_thread_internal_id))
+            {
+              row.thread_id = pfs->m_thread_internal_id;
+              row.thread_id_is_null = false;
+              break;
+            }
+          }
+        }
       }
     }
 
