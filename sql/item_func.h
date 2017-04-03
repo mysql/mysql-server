@@ -2935,6 +2935,39 @@ public:
 #define GET_SYS_VAR_CACHE_DOUBLE   2
 #define GET_SYS_VAR_CACHE_STRING   4
 
+class Item_func_get_system_var;
+/** Class to log audit event MYSQL_AUDIT_GLOBAL_VARIABLE_GET. */
+class Audit_global_variable_get_event
+{
+public:
+  Audit_global_variable_get_event(THD *thd, Item_func_get_system_var *item,
+                                  uchar cache_type);
+  ~Audit_global_variable_get_event();
+private:
+  // Thread handle.
+  THD *m_thd;
+
+  // Item_func_get_system_var instance.
+  Item_func_get_system_var *m_item;
+
+  /*
+    Value conversion type.
+    Depending on the value conversion type GET_SYS_VAR_CACHE_* is stored in this
+    member while creating the object. While converting value if there are any
+    intermediate conversions in the same query then this member is used to avoid
+    auditing more than once.
+  */
+  uchar m_val_type;
+
+  /*
+    To indicate event auditing is required or not. Event is not audited if
+      * scope of the variable is *not* GLOBAL.
+      * or the event is already audited for global variable for the same query.
+  */
+  bool m_audit_event;
+};
+
+
 class Item_func_get_system_var final : public Item_var_func
 {
   sys_var *var;
@@ -2949,6 +2982,8 @@ class Item_func_get_system_var final : public Item_var_func
 
   template <typename T>
   longlong get_sys_var_safe(THD *thd);
+
+  friend class Audit_global_variable_get_event;
 
 public:
   Item_func_get_system_var(sys_var *var_arg, enum_var_type var_type_arg,

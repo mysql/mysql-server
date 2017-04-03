@@ -7629,6 +7629,60 @@ enum Item_result Item_func_get_system_var::result_type() const
 }
 
 
+Audit_global_variable_get_event::Audit_global_variable_get_event(
+  THD *thd, Item_func_get_system_var *item, uchar cache_type)
+  : m_thd(thd), m_item(item), m_val_type(cache_type)
+{
+  // Variable is of GLOBAL scope.
+  bool is_global_var= (m_item->var_type == OPT_GLOBAL &&
+                       m_item->var->check_scope(OPT_GLOBAL));
+
+  // Event is already audited for the same query.
+  bool event_is_audited= m_item->cache_present != 0 ||
+                         m_item->used_query_id == m_thd->query_id;
+
+  m_audit_event= (is_global_var && !event_is_audited);
+}
+
+
+Audit_global_variable_get_event::~Audit_global_variable_get_event()
+{
+  /*
+    While converting value to string, integer or real type, if the value is
+    cached for the types other then m_val_type for intermediate type
+    conversions then event is already notified.
+  */
+  bool event_already_notified= (m_item->cache_present & (~m_val_type));
+
+  if (m_audit_event && !event_already_notified)
+  {
+    String str;
+    String *outStr= nullptr;
+
+    if (!m_item->cached_null_value || !m_thd->is_error())
+    {
+      outStr= &str;
+
+      DBUG_ASSERT(m_item->cache_present != 0 &&
+                  m_item->used_query_id == m_thd->query_id);
+
+      if (m_item->cache_present & GET_SYS_VAR_CACHE_STRING)
+        outStr= &m_item->cached_strval;
+      else if (m_item->cache_present & GET_SYS_VAR_CACHE_LONG)
+        str.set(m_item->cached_llval, m_item->collation.collation);
+      else if (m_item->cache_present & GET_SYS_VAR_CACHE_DOUBLE)
+        str.set_real(m_item->cached_dval, m_item->decimals,
+                     m_item->collation.collation);
+    }
+
+    mysql_audit_notify(m_thd, AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
+                       m_item->var->name.str,
+                       outStr ? outStr->ptr() : nullptr,
+                       outStr ? outStr->length() : 0);
+  }
+}
+
+
 template <typename T>
 longlong Item_func_get_system_var::get_sys_var_safe(THD *thd)
 {
@@ -7648,6 +7702,9 @@ longlong Item_func_get_system_var::get_sys_var_safe(THD *thd)
 longlong Item_func_get_system_var::val_int()
 {
   THD *thd= current_thd;
+  Audit_global_variable_get_event audit_sys_var(thd, this,
+                                                GET_SYS_VAR_CACHE_LONG);
+  DBUG_ASSERT(fixed);
 
   if (cache_present && thd->query_id == used_query_id)
   {
@@ -7734,6 +7791,9 @@ longlong Item_func_get_system_var::val_int()
 String* Item_func_get_system_var::val_str(String* str)
 {
   THD *thd= current_thd;
+  Audit_global_variable_get_event audit_sys_var(thd, this,
+                                                GET_SYS_VAR_CACHE_STRING);
+  DBUG_ASSERT(fixed);
 
   if (cache_present && thd->query_id == used_query_id)
   {
@@ -7821,6 +7881,9 @@ String* Item_func_get_system_var::val_str(String* str)
 double Item_func_get_system_var::val_real()
 {
   THD *thd= current_thd;
+  Audit_global_variable_get_event audit_sys_var(thd, this,
+                                                GET_SYS_VAR_CACHE_DOUBLE);
+  DBUG_ASSERT(fixed);
 
   if (cache_present && thd->query_id == used_query_id)
   {
@@ -8422,24 +8485,6 @@ void Item_func_match::set_hints(JOIN *join, uint ft_flag,
 ****************************************************************************/
 
 /**
-  @class Silence_deprecation_warnings
-
-  @brief Disable deprecation warnings handler class
-*/
-class Silence_deprecation_warnings : public Internal_error_handler
-{
-public:
-  virtual bool handle_condition(THD*,
-                                uint sql_errno,
-                                const char*,
-                                Sql_condition::enum_severity_level*,
-                                const char*)
-  {
-    return sql_errno == ER_WARN_DEPRECATED_SYNTAX;
-  }
-};
-
-/**
   Return value of an system variable base[.name] as a constant item.
 
   @param pc                     Current parse context
@@ -8488,41 +8533,11 @@ Item *get_system_var(Parse_context *pc,
   thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
 
   set_if_smaller(component_name->length, MAX_SYS_VAR_LENGTH);
-  
+
   var->do_deprecated_warning(thd);
 
-  Item_func_get_system_var *item= new Item_func_get_system_var(var, var_type,
-                                                               component_name,
-                                                               NULL, 0);
-  if (var_type == OPT_GLOBAL && var->check_scope(OPT_GLOBAL))
-  {
-    String str;
-    String *outStr;
-    /* This object is just created for variable to string conversion.
-       item object cannot be used after the conversion of the variable
-       to string. It caches the data. */
-    Item_func_get_system_var *si= new Item_func_get_system_var(var, var_type,
-                                                               component_name,
-                                                               NULL, 0);
-
-    /* Disable deprecation warning during var to string conversion. */
-    Silence_deprecation_warnings silencer;
-    thd->push_internal_handler(&silencer);
-
-    outStr= si ? si->val_str(&str) : &str;
-
-    thd->pop_internal_handler();
-
-    if (mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
-                           var->name.str,
-                           outStr ? outStr->ptr() : NULL,
-                           outStr ? outStr->length() : 0))
-      {
-        return 0;
-      }
-  }
-
-  return item;
+  return new Item_func_get_system_var(var, var_type, component_name, nullptr,
+                                      0);
 }
 
 

@@ -115,5 +115,98 @@ disconnect user1_con;
 
 --echo End of 5.7 tests
 
+--echo #
+--echo # Bug#24961932 - create function at bootstrap attempts to evaluate
+--echo #                non-resolved expressions
+--echo #
+
+--echo # Initial value of the status variable "Audit_null_global_variable_get".
+SELECT variable_value FROM performance_schema.global_status
+                      WHERE variable_name = 'Audit_null_global_variable_get'
+                      INTO @initial_global_var_get_count;
+
+DELIMITER $;
+# Procedure to check value of the status variable
+# "Audit_null_global_variable_get".
+CREATE PROCEDURE check_global_var_count()
+BEGIN
+  SELECT variable_value FROM performance_schema.global_status
+                        WHERE variable_name = 'Audit_null_global_variable_get'
+                        INTO @cur_global_var_get_count;
+  SELECT @cur_global_var_get_count - @initial_global_var_get_count AS
+         global_var_count;
+END
+$
+
+--echo # Procedure p1 using global system variables.
+CREATE PROCEDURE p1()
+BEGIN
+  SET @a=@@global.max_execution_time;
+  CREATE TABLE t1 AS SELECT @@global.max_execution_time;
+  DROP TABLE t1;
+  SELECT @@global.optimizer_trace, @@session.max_execution_time;
+END
+$
+DELIMITER ;$
+
+--echo # Without fix, non-resolved expression is evaluated to audit the global
+--echo # system variable get event while creating the stored routines.
+--echo # The audit for the system variable get event should be done while
+--echo # executing the stored routine but not while creating it. With the fix,
+--echo # global system variable get event is audited while executing the stored
+--echo # routine. At this time, expression is resolved. Hence status variable
+--echo # "Audit_null_global_variable_get" remains unchanged while creating the
+--echo # stored routine.
+CALL check_global_var_count();
+
+--echo # The same issue exits with the prepared statement too. With the fix,
+--echo # system variable get event is not audited while preparing the statement.
+--echo # Instead it is done while executing the statement. Hence status variable
+--echo # "Audit_null_global_variable_get" remains same here too.
+PREPARE stmt FROM 'SELECT @@global.max_execution_time,@@global.optimizer_trace';
+CALL check_global_var_count();
+
+--echo # With the fix, system variable get event is audited on each execution of
+--echo # the routine. Hence status variable "Audit_null_global_variable_get" is
+--echo # incremented by value three by p1() here.
+CALL p1();
+CALL check_global_var_count();
+
+--echo # With the fix, system variable get event is audited on each execution of
+--echo # the routine. Hence status variable "Audit_null_global_variable_get" is
+--echo # incremented by value three by p1() here.
+CALL p1();
+CALL check_global_var_count();
+
+--echo # System variable get event is audited for global variables only. Hence
+--echo # status variable "Audit_null_global_variable_get" remain same here.
+SELECT @@session.max_execution_time, @@session.optimizer_trace;
+CALL check_global_var_count();
+
+--echo # With the fix, system variable get event is audited on each execution of
+--echo # the prepared statement. Hence status "Audit_null_global_variable_get"
+--echo # variable is incremented by value two here.
+EXECUTE stmt;
+CALL check_global_var_count();
+
+--echo # With the fix, system variable get event is audited on each execution of
+--echo # the prepared statement. Hence status "Audit_null_global_variable_get"
+--echo # variable is incremented by value two here.
+EXECUTE stmt;
+CALL check_global_var_count();
+
+--echo # Verify if system variable get event is audited in the simple select.
+--echo # Status variable "Audit_null_global_variable_get" is incremented by
+--echo # value two here.
+SELECT @@global.max_execution_time, @@global.optimizer_trace;
+CALL check_global_var_count();
+
+# Cleanup
+DROP PROCEDURE p1;
+DROP PROCEDURE check_global_var_count;
+DROP PREPARE stmt;
+
+--echo End of 8.0 tests
+
 --echo # cleanup
 UNINSTALL PLUGIN null_audit;
