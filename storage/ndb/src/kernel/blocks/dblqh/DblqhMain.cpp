@@ -23404,6 +23404,16 @@ void Dblqh::initialiseLcpRec(Signal* signal)
   if (clcpFileSize != 0) {
     for (lcpPtr.i = 0; lcpPtr.i < clcpFileSize; lcpPtr.i++) {
       ptrAss(lcpPtr, lcpRecord);
+      lcpPtr.p->m_EMPTY_LCP_REQ.clear();
+      lcpPtr.p->currentPrepareFragment.fragPtrI = RNIL;
+      lcpPtr.p->currentPrepareFragment.lcpFragOrd.fragmentId = Uint32(~0);
+      lcpPtr.p->currentPrepareFragment.lcpFragOrd.tableId = Uint32(~0);
+      lcpPtr.p->currentRunFragment.fragPtrI = RNIL;
+      lcpPtr.p->currentRunFragment.lcpFragOrd.fragmentId = Uint32(~0);
+      lcpPtr.p->currentRunFragment.lcpFragOrd.tableId = Uint32(~0);
+      lcpPtr.p->m_outstanding = 0;
+      lcpPtr.p->m_no_of_records = 0;
+      lcpPtr.p->m_no_of_bytes = 0;
       lcpPtr.p->lcpPrepareState = LcpRecord::LCP_IDLE;
       lcpPtr.p->lcpRunState = LcpRecord::LCP_IDLE;
       lcpPtr.p->reportEmpty = false;
