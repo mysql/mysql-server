@@ -1,0 +1,30 @@
+# large ndb_import tests
+# temporary error test
+create table t1 (
+a int not null,
+b int not null,
+primary key using hash (a)
+) engine ndb;
+create table t1ver like t1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  PRIMARY KEY (`a`) USING HASH
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+show create table t1ver;
+Table	Create Table
+t1ver	CREATE TABLE `t1ver` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  PRIMARY KEY (`a`) USING HASH
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+select count(*) from t1;
+count(*)
+1000000
+select count(*) from t1 x, t1ver y
+where x.a = y.a and x.b = y.b;
+count(*)
+1000000
+drop table t1, t1ver;
