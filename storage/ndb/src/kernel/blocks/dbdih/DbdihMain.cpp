@@ -20005,7 +20005,7 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
   /*    WHILE COPYING DICTIONARY AND DISTRIBUTION INFO TO A STARTING NODE   */
   /*    WE WILL ALSO NOT ALLOW THE LOCAL CHECKPOINT TO PROCEED.             */
   /*----------------------------------------------------------------------- */
-  if (c_lcpState.immediateLcpStart == false) 
+  if (c_lcpState.immediateLcpStart == false)
   {
     Uint64 cnt = Uint64(c_lcpState.ctcCounter);
     Uint64 limit = Uint64(1) << c_lcpState.clcpDelay;

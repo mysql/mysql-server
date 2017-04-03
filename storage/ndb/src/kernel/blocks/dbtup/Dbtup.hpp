@@ -3502,10 +3502,20 @@ private:
 					  Ptr<Fragrecord>,
 					  Ptr<Page>);
   
-  void disk_page_alloc(Signal*, 
-		       Tablerec*, Fragrecord*, Local_key*, PagePtr, Uint32);
-  void disk_page_free(Signal*, 
-		      Tablerec*, Fragrecord*, Local_key*, PagePtr, Uint32);
+  void disk_page_alloc(Signal*,
+		       Tablerec*,
+                       Fragrecord*,
+                       Local_key*,
+                       PagePtr,
+                       Uint32,
+                       const Local_key*);
+  void disk_page_free(Signal*,
+		      Tablerec*,
+                      Fragrecord*,
+                      Local_key*,
+                      PagePtr,
+                      Uint32,
+                      const Local_key*);
   
   void disk_page_commit_callback(Signal*, Uint32 opPtrI, Uint32 page_id);  
   

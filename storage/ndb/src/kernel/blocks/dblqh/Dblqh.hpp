@@ -3059,6 +3059,7 @@ public:
     Uint32 m_gci_lo;
     Uint32 m_page_id;
     Local_key m_disk_ref;
+    Local_key m_row_id;
   };
   void get_nr_op_info(Nr_op_info*, Uint32 page_id = RNIL);
   void nr_delete_complete(Signal*, Nr_op_info*);
