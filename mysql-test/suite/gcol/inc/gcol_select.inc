@@ -230,6 +230,7 @@ eval $s;
 eval explain $s;
 
 --echo # SELECT sum(<non-indexed gcol>) FROM tbl_name GROUP BY <non-indexed gcol>
+--sorted_result
 let $s = select sum(b) from t1 group by b;
 eval $s;
 eval explain $s;
@@ -245,6 +246,7 @@ eval $s;
 eval explain $s;
 
 --echo # SELECT sum(<indexed gcol>) FROM tbl_name GROUP BY <non-indexed gcol>
+--sorted_result
 let $s = select sum(c) from t1 group by b;
 eval $s;
 eval explain $s;
