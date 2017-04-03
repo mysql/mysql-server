@@ -20198,9 +20198,9 @@ void Dblqh::execEXEC_SRCONF(Signal* signal)
      * old: wl4391_todo workaround until timing fixed
      */
     jam();
-    ndbassert(false);
     m_sr_exec_sr_conf.clear(nodeId);
     ndbout << "delay: reqs=" << cnoOutstandingExecFragReq << endl;
+    ndbrequire(false);
     sendSignalWithDelay(reference(), GSN_EXEC_SRCONF,
                         signal, 10, signal->getLength());
     return;
