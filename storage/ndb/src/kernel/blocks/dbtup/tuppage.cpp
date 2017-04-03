@@ -37,33 +37,39 @@ extern EventLogger *g_eventLogger;
  *              L is len of entry
  *              P is pos of entry
  */
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+#define loc_assert require
+#define use_assert
+#else
+#define loc_assert(x)
+#endif
 
 Uint32
 Tup_fixsize_page::alloc_record()
 {
-  assert(free_space);
+  loc_assert(free_space);
   Uint32 page_idx = next_free_index;
-  assert(page_idx + 1 < DATA_WORDS);
+  loc_assert(page_idx + 1 < DATA_WORDS);
 
-#ifdef VM_TRACE
+#ifdef use_assert
   Uint32 prev = m_data[page_idx] >> 16;
 #endif
   Uint32 next = m_data[page_idx] & 0xFFFF;
 
-  assert(prev == 0xFFFF);
-  assert((m_data[page_idx + 1] & FREE_RECORD) == FREE_RECORD);
+  loc_assert(prev == 0xFFFF);
+  loc_assert((m_data[page_idx + 1] & FREE_RECORD) == FREE_RECORD);
   
   m_data[page_idx + 1] &= (Uint32)~FREE_RECORD;
   if (next != 0xFFFF)
   {
-    assert(free_space > 1);
+    loc_assert(free_space > 1);
     Uint32 nextP = m_data[next];
-    assert((nextP >> 16) == page_idx);
+    loc_assert((nextP >> 16) == page_idx);
     m_data[next] = 0xFFFF0000 | (nextP & 0xFFFF);
   }
   else
   {
-    assert(free_space == 1);
+    loc_assert(free_space == 1);
   }
   
   next_free_index = next;
@@ -74,14 +80,14 @@ Tup_fixsize_page::alloc_record()
 Uint32
 Tup_fixsize_page::alloc_record(Uint32 page_idx)
 {
-  assert(page_idx + 1 < DATA_WORDS);
+  loc_assert(page_idx + 1 < DATA_WORDS);
   if (likely(free_space &&
              (m_data[page_idx + 1] & FREE_RECORD) == FREE_RECORD))
   {
     Uint32 prev = m_data[page_idx] >> 16;
     Uint32 next = m_data[page_idx] & 0xFFFF;
     
-    assert(prev != 0xFFFF || (next_free_index == page_idx));
+    loc_assert(prev != 0xFFFF || (next_free_index == page_idx));
     if (prev == 0xFFFF)
     {
       next_free_index = next;
@@ -109,21 +115,21 @@ Tup_fixsize_page::free_record(Uint32 page_idx)
 {
   Uint32 next = next_free_index;
   
-  assert(page_idx + 1 < DATA_WORDS);
-  assert((m_data[page_idx + 1] & FREE_RECORD) != FREE_RECORD);
+  loc_assert(page_idx + 1 < DATA_WORDS);
+  loc_assert((m_data[page_idx + 1] & FREE_RECORD) != FREE_RECORD);
 
   if (next == 0xFFFF)
   {
-    assert(free_space == 0);
+    loc_assert(free_space == 0);
   }
   else
   {
-    assert(free_space);
-    assert(next + 1 < DATA_WORDS);
+    loc_assert(free_space);
+    loc_assert(next + 1 < DATA_WORDS);
     Uint32 nextP = m_data[next];
-    assert((nextP >> 16) == 0xFFFF);
+    loc_assert((nextP >> 16) == 0xFFFF);
     m_data[next] = (page_idx << 16) | (nextP & 0xFFFF);
-    assert((m_data[next + 1] & FREE_RECORD) == FREE_RECORD);
+    loc_assert((m_data[next + 1] & FREE_RECORD) == FREE_RECORD);
   }
 
   next_free_index = page_idx;
@@ -147,7 +153,7 @@ Uint32
 Tup_varsize_page::alloc_record(Uint32 page_idx, Uint32 alloc_size, 
 			       Tup_varsize_page* temp)
 {
-  assert(page_idx); // 0 is not allowed
+  loc_assert(page_idx); // 0 is not allowed
   Uint32 free = free_space;
   Uint32 largest_size= DATA_WORDS - (insert_pos + high_index);
   Uint32 free_list = next_free_index;
@@ -190,7 +196,7 @@ Tup_varsize_page::alloc_record(Uint32 page_idx, Uint32 alloc_size,
     }
     else
     {
-      assert(next_free_index == page_idx);
+      loc_assert(next_free_index == page_idx);
       next_free_index = next;
     }
     
@@ -259,7 +265,7 @@ Uint32
 Tup_varsize_page::alloc_record(Uint32 alloc_size, 
 			       Tup_varsize_page* temp, Uint32 chain)
 {
-  assert(free_space >= alloc_size);
+  loc_assert(free_space >= alloc_size);
   Uint32 largest_size= DATA_WORDS - (insert_pos + high_index);
   if (alloc_size >= largest_size) {
     /*
@@ -270,7 +276,7 @@ Tup_varsize_page::alloc_record(Uint32 alloc_size,
     reorg(temp);
     largest_size= DATA_WORDS - (insert_pos + high_index);
   }
-  assert(largest_size > alloc_size);
+  loc_assert(largest_size > alloc_size);
 
   Uint32 page_idx;
   if (next_free_index == END_OF_FREE_LIST) {
@@ -283,12 +289,12 @@ Tup_varsize_page::alloc_record(Uint32 alloc_size,
   } else {
     // Pick an empty slot among the index entries
     page_idx= next_free_index;
-    assert((get_index_word(page_idx) & FREE) == FREE);
-    assert(((get_index_word(page_idx) & PREV_MASK) >> PREV_SHIFT) == 
+    loc_assert((get_index_word(page_idx) & FREE) == FREE);
+    loc_assert(((get_index_word(page_idx) & PREV_MASK) >> PREV_SHIFT) == 
 	   END_OF_FREE_LIST);
     Uint32 next = (get_index_word(page_idx) & NEXT_MASK) >> NEXT_SHIFT;
     next_free_index = next;
-    assert(next_free_index);
+    loc_assert(next_free_index);
     if (next_free_index != END_OF_FREE_LIST)
     {
       Uint32 *ptr = get_index_ptr(next_free_index);
@@ -297,7 +303,7 @@ Tup_varsize_page::alloc_record(Uint32 alloc_size,
     }
   }
 
-  assert(chain == 0 || chain == CHAIN);
+  loc_assert(chain == 0 || chain == CHAIN);
   * get_index_ptr(page_idx) = insert_pos + chain + (alloc_size << LEN_SHIFT);
   
   insert_pos += alloc_size;
@@ -314,9 +320,9 @@ Tup_varsize_page::free_record(Uint32 page_idx, Uint32 chain)
   Uint32 index_word= * index_ptr;
   Uint32 entry_pos= (index_word & POS_MASK) >> POS_SHIFT;
   Uint32 entry_len= (index_word & LEN_MASK) >> LEN_SHIFT;
-  assert(chain == 0 || chain == CHAIN);
-  assert((index_word & CHAIN) == chain);
-#ifdef VM_TRACE
+  loc_assert(chain == 0 || chain == CHAIN);
+  loc_assert((index_word & CHAIN) == chain);
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
   memset(m_data + entry_pos, 0xF2, 4*entry_len);
 #endif
   if (page_idx + 1 == high_index) {
@@ -332,12 +338,12 @@ Tup_varsize_page::free_record(Uint32 page_idx, Uint32 chain)
     {
       Uint32 *ptr = get_index_ptr(next_free_index);
       Uint32 word = *ptr;
-      assert(((word & PREV_MASK) >> PREV_SHIFT) == END_OF_FREE_LIST);
+      loc_assert(((word & PREV_MASK) >> PREV_SHIFT) == END_OF_FREE_LIST);
       * ptr = (word & ~PREV_MASK) | (page_idx << PREV_SHIFT);
     }
     * index_ptr= FREE | next_free_index | (END_OF_FREE_LIST << PREV_SHIFT);
     next_free_index= page_idx;
-    assert(next_free_index);
+    loc_assert(next_free_index);
   }
   
   free_space+= entry_len;
@@ -390,7 +396,7 @@ Tup_varsize_page::rebuild_index(Uint32* index_ptr)
   high_index -= empty;
   free_space += empty;
   next_free_index= next;
-  assert(next_free_index);
+  loc_assert(next_free_index);
 }
 
 void
@@ -401,7 +407,7 @@ Tup_varsize_page::reorg(Tup_varsize_page* copy_page)
 
   // Copy key data part of page to a temporary page.
   memcpy(copy_page->m_data, m_data, 4*old_insert_pos);
-  assert(high_index > 0);
+  loc_assert(high_index > 0);
   Uint32* index_ptr= get_index_ptr(high_index-1);
   Uint32 *end_of_page= m_data + DATA_WORDS;
   for (; index_ptr < end_of_page; index_ptr++)
@@ -415,8 +421,8 @@ Tup_varsize_page::reorg(Tup_varsize_page* copy_page)
 	We will update the index entry and copy the data to the page.
       */
       Uint32 entry_pos= (index_word & POS_MASK) >> POS_SHIFT;
-      assert(entry_pos + entry_len <= old_insert_pos);
-      assert(new_insert_pos + entry_len <= old_insert_pos);
+      loc_assert(entry_pos + entry_len <= old_insert_pos);
+      loc_assert(new_insert_pos + entry_len <= old_insert_pos);
       * index_ptr= (new_insert_pos << POS_SHIFT) + (index_word & ~POS_MASK);
       memcpy(m_data+new_insert_pos, copy_page->m_data+entry_pos, 4*entry_len);
       
@@ -480,10 +486,10 @@ operator<< (NdbOut& out, const Tup_fixsize_page& page)
   {
     cnt++;
     out << dec << "(" << (next & 0xFFFF) << " " << hex << next << ") " << flush;
-    assert(page.m_data[(next & 0xFFFF) + 1] == Dbtup::Tuple_header::FREE);
+    loc_assert(page.m_data[(next & 0xFFFF) + 1] == Dbtup::Tuple_header::FREE);
     next= * (page.m_data + ( next & 0xFFFF ));
   }
-  assert(cnt == page.free_space);
+  loc_assert(cnt == page.free_space);
 #endif
   out << "]";
   return out;
