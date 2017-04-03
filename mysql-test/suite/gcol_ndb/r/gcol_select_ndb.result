@@ -326,13 +326,13 @@ Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`t
 # SELECT sum(<non-indexed gcol>) FROM tbl_name GROUP BY <non-indexed gcol>
 select sum(b) from t1 group by b;
 sum(b)
-NULL
+-2
+-2
 -3
--2
--2
+NULL
 explain select sum(b) from t1 group by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `sum(b)` from `test`.`t1` group by `test`.`t1`.`b`
 # SELECT sum(<indexed gcol>) FROM tbl_name GROUP BY <indexed gcol>
@@ -362,13 +362,13 @@ Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `sum(b)` from `test`.`t1
 # SELECT sum(<indexed gcol>) FROM tbl_name GROUP BY <non-indexed gcol>
 select sum(c) from t1 group by b;
 sum(c)
-NULL
+-2
+-2
 -3
--2
--2
+NULL
 explain select sum(c) from t1 group by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select sum(`test`.`t1`.`c`) AS `sum(c)` from `test`.`t1` group by `test`.`t1`.`b`
 drop table t1;

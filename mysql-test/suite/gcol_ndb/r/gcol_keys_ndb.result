@@ -209,7 +209,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 10,
-                  "cost": 10000
+                  "cost": 2500
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -226,14 +226,14 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                       "rows_to_scan": 10,
                       "access_type": "scan",
                       "resulting_rows": 10,
-                      "cost": 10002,
+                      "cost": 2501,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 10,
-                "cost_for_plan": 10002,
+                "cost_for_plan": 2501,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -365,7 +365,7 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 10,
-                  "cost": 10000
+                  "cost": 2500
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -382,7 +382,7 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
                       "rows_to_scan": 10,
                       "access_type": "scan",
                       "resulting_rows": 10,
-                      "cost": 10002,
+                      "cost": 2501,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -390,9 +390,9 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 10,
-                "cost_for_plan": 10002,
+                "cost_for_plan": 2501,
                 "sort_cost": 10,
-                "new_cost_for_plan": 10012,
+                "new_cost_for_plan": 2511,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -451,6 +451,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc
 SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
 f1 + 1	MAX(GC)
 1	1
+10	10
 2	2
 3	3
 4	4
@@ -459,10 +460,9 @@ f1 + 1	MAX(GC)
 7	7
 8	8
 9	9
-10	10
 EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select (`test`.`t1`.`f1` + 1) AS `f1 + 1`,max(`test`.`t1`.`gc`) AS `MAX(GC)` from `test`.`t1` group by (`test`.`t1`.`f1` + 1)
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
@@ -504,7 +504,7 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 10,
-                  "cost": 10000
+                  "cost": 2500
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -521,7 +521,7 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                       "rows_to_scan": 10,
                       "access_type": "scan",
                       "resulting_rows": 10,
-                      "cost": 10002,
+                      "cost": 2501,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -529,9 +529,9 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 10,
-                "cost_for_plan": 10002,
+                "cost_for_plan": 2501,
                 "sort_cost": 10,
-                "new_cost_for_plan": 10012,
+                "new_cost_for_plan": 2511,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -584,7 +584,7 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
 EXPLAIN SELECT f1 + 1, MAX(GC)
 FROM t1 IGNORE KEY FOR GROUP BY(PRIMARY) GROUP BY f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select (`test`.`t1`.`f1` + 1) AS `f1 + 1`,max(`test`.`t1`.`gc`) AS `MAX(GC)` from `test`.`t1` IGNORE INDEX FOR GROUP BY (PRIMARY) group by (`test`.`t1`.`f1` + 1)
 # Shouldn't use index
@@ -674,7 +674,7 @@ EXPLAIN SELECT  table1.col_int_key + 1 AS field1, table2.col_int_key AS field2
 FROM (t1 AS table1  JOIN t1 AS table2 ON (table2.pk = table1.pk))
 GROUP BY field1, field2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using temporary; Using filesort
+1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using temporary
 1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.table1.pk	1	100.00	Child of 'table1' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select (`test`.`table1`.`col_int_key` + 1) AS `field1`,`test`.`table2`.`col_int_key` AS `field2` from `test`.`t1` `table1` join `test`.`t1` `table2` where (`test`.`table2`.`pk` = `test`.`table1`.`pk`) group by `field1`,`field2`
