@@ -447,7 +447,7 @@ call p1()	20	0
 # could see anyway:
 show create procedure p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+p1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
 select * from t1 limit 1;
 a
 first
@@ -463,7 +463,7 @@ select f1()	214	0
 # could see anyway:
 show create function f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select * from v1;
 a
@@ -478,7 +478,7 @@ select * from v1	2161	0
 # could see anyway:
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
 
 # Now remove each privilege to verify that it was needed:
 # C.1) remove table-level SELECT privilege on t1
@@ -516,7 +516,7 @@ select f1()	214	0
 set optimizer_trace="enabled=off";
 show create function f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
 set optimizer_trace="enabled=on";
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select * from v1;
@@ -694,7 +694,7 @@ select 48 into b from dual;
 select a into b from t1 limit 1;
 insert into t1 values(current_user());
 return 36;
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select * from v1;
 a
@@ -766,7 +766,7 @@ select 22 into b from dual;
 end if;
 select a into b from t1 limit 1;
 insert into t1 values(current_user());
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
 select * from t1 limit 1;
 a
 first
@@ -794,7 +794,7 @@ select 48 into b from dual;
 select a into b from t1 limit 1;
 insert into t1 values(current_user());
 return 36;
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select * from v1;
 a
@@ -809,7 +809,7 @@ select * from v1	2161	0
 # could see anyway:
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`user1`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`user1`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 insert into t2 values(current_user());
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
@@ -823,7 +823,7 @@ show create trigger trg2;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 trg2	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`user1`@`localhost` TRIGGER `trg2` BEFORE INSERT ON `t2` FOR EACH ROW begin
 insert into t3 select * from t3;
-end	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+end	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci	#
 select * from t2, t3 limit 1;
 a	a
 first	first

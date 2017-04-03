@@ -4820,11 +4820,11 @@ concat(c1,'y') IN
               "unknown_key_1": {
                 "creating_tmp_table": {
                   "tmp_table_info": {
-                    "row_length": 11,
-                    "key_length": 12,
+                    "row_length": 38,
+                    "key_length": 39,
                     "unique_constraint": false,
                     "location": "memory (heap)",
-                    "row_limit_estimate": 1525201
+                    "row_limit_estimate": 441505
                   } /* tmp_table_info */
                 } /* creating_tmp_table */
               }
@@ -4997,11 +4997,11 @@ concat(c1,'y') IN
               "unknown_key_2": {
                 "creating_tmp_table": {
                   "tmp_table_info": {
-                    "row_length": 10,
-                    "key_length": 11,
+                    "row_length": 34,
+                    "key_length": 35,
                     "unique_constraint": false,
                     "location": "memory (heap)",
-                    "row_limit_estimate": 1677721
+                    "row_limit_estimate": 493447
                   } /* tmp_table_info */
                 } /* creating_tmp_table */
               }
