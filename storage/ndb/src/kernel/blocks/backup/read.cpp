@@ -382,8 +382,8 @@ readRecord(ndbzio_stream* f, Uint32 **dst){
 
   if(len > 0)
   {
-    ndbout_c("RecNo: %u: Header: %x, page_no: %u",
-             recNo, header, theData.buf[0]);
+    ndbout_c("RecNo: %u: Header: %x, page(%u,%u)",
+             recNo, header, theData.buf[0], theData.buf[1]);
     recNo++;
   }
   else
@@ -652,6 +652,19 @@ operator<<(NdbOut& ndbout, const BackupFormat::CtlFile::TableDescription & hf){
 	
       }
       break;
+    case SimpleProperties::BinaryValue:
+      if(it.getValueLen() < sizeof(buf))
+      {
+	ndbout << "Key: " << it.getKey()
+	       << " binary value len = " << it.getValueLen() << endl;
+
+      }
+      else
+      {
+	ndbout << "Key: " << it.getKey()
+	       << " value(" << it.getValueLen() << ") : " 
+	       << "\"" << "<TOO LONG>" << "\"" << endl;
+      }
     default:
       ndbout << "Unknown type for key: " << it.getKey() 
 	     << " type: " << it.getValueType() << endl;

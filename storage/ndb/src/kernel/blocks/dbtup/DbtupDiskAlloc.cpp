@@ -30,7 +30,7 @@
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_PGMAN 1
+#define DEBUG_PGMAN 1
 #ifdef DEBUG_PGMAN
 #define DEB_PGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -1376,6 +1376,7 @@ Dbtup::disk_page_alloc(Signal* signal,
     ddassert(pagePtr.p->uncommitted_used_space > 0);
     pagePtr.p->uncommitted_used_space--;
     key->m_page_idx= ((Fix_page*)pagePtr.p)->alloc_record();
+    jamLine(Uint16(key->m_page_idx));
     lsn= disk_page_undo_alloc(signal,
                               pagePtr.p,
                               key,
@@ -1421,6 +1422,7 @@ Dbtup::disk_page_free(Signal *signal,
     ndbout << " disk_page_free " << *key << endl;
   
   Uint32 page_idx= key->m_page_idx;
+  jamLine(Uint16(key->m_page_idx));
   Uint32 logfile_group_id= fragPtrP->m_logfile_group_id;
   Disk_alloc_info& alloc= fragPtrP->m_disk_alloc_info;
   Uint32 old_free= pagePtr.p->free_space;
