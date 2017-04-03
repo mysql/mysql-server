@@ -4326,6 +4326,18 @@
     </li>
 
     <li>
+      <tt>`--opt-trace-protocol`</tt>
+
+      Prints the @ref PAGE_OPT_TRACE "optimizer trace" of SQL statements in a test.
+      Running any MTR test with this option executes the following SQL
+      statement after every <b>DML statement</b> that it encounters:
+
+      @verbatim
+  SELECT trace FROM information_schema.optimizer_trace /* injected by --opt-trace-protocol */;
+      @endverbatim
+    </li>
+
+    <li>
       <tt>`--parallel`={<b>N</b>|auto}</tt>
 
       Run tests using <b><em>N</em></b> parallel threads. By default,
