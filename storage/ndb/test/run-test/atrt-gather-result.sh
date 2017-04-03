@@ -47,7 +47,8 @@ else
 #
 #    rsync -a "$1" .
 #    rsync -a --exclude='BACKUP' "$1" .
-#    rsync -a --exclude='BACKUP' --include='ndb_*_fs/LCP' --exclude='ndb_*_fs' "$1" .
+#    rsync -a --exclude='BACKUP' --exclude='ndb_*_fs/D*' "$1" .
+#    rsync -a --exclude='BACKUP' --exclude='ndb_*_fs/D*' --exclude='ndb_*_fs/*.dat' "$1" .
     rsync -a --exclude='BACKUP' --exclude='ndb_*_fs' "$1" .
     shift
   done
