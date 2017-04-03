@@ -508,6 +508,7 @@ sub main {
     );
   mtr_error("Could not create testcase server port: $!") unless $server;
   my $server_port = $server->sockport();
+  mtr_report("=> Server socket is created.") if IS_WINDOWS;
 
   if ($opt_resfile) {
     resfile_init("$opt_vardir/mtr-results.txt");
@@ -569,6 +570,7 @@ sub main {
       }
 
       init_timers();
+      mtr_report("=> Worker $child_num: Test run started.") if IS_WINDOWS;
       run_worker($server_port, $child_num);
       exit(1);
     }
@@ -584,6 +586,7 @@ sub main {
   mark_time_used('init');
 
   my $completed= run_test_server($server, $tests, $opt_parallel);
+  mtr_report("=> Test run completed.") if IS_WINDOWS;
 
   exit(0) if $opt_start_exit;
 
