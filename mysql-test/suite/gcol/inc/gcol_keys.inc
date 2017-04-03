@@ -412,6 +412,7 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 EXPLAIN SELECT * FROM t1 IGNORE KEY FOR ORDER BY(PRIMARY) ORDER BY f1 + 1;
 
 --echo # Check that GROUP BY could be optimized
+--sorted_result
 SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
 EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
